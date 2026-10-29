@@ -1,0 +1,159 @@
+$ cd frontend && pnpm test   # full vitest run 2 (after make build — numeric-identity pins production dist)
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-zod4-final/frontend
+> vitest run
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-zod4-final/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+stderr | src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx > DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015) > the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly
+An update to DetailedPlanGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DetailedPlanGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx > DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015) > the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly
+An update to DetailedPlanGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx > DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015) > the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx (14 tests | 1 failed) 19836ms
+     × the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly 7396ms
+ ❯ src/pages/TripListPage.selection.test.tsx (6 tests | 1 failed) 21273ms
+     × ships no checkbox anywhere in the quick-edit surface 5428ms
+ ❯ src/features/accounting/PhoiPhieuTruckAssignments.assignBatch.test.tsx (6 tests | 1 failed) 9350ms
+     × keeps missing display identity explicit while preserving row and batch assignment keys 5436ms
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx (4 tests | 2 failed) 12697ms
+     × saves vehicleSizeClassId (not a free-text key) when a class is chosen 5863ms
+     × keeps the container axis exclusive with the vehicle class 5397ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/features/accounting/PhoiPhieuTruckAssignments.assignBatch.test.tsx > card 20260928_166 — gán kế toán hàng loạt > keeps missing display identity explicit while preserving row and batch assignment keys
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/PhoiPhieuTruckAssignments.assignBatch.test.tsx:51:3
+     49|
+     50| describe('card 20260928_166 — gán kế toán hàng loạt', () => {
+     51|   it('keeps missing display identity explicit while preserving row and…
+       |   ^
+     52|     const truck = UNASSIGNED[0];
+     53|     const accountant = ACCOUNTANTS[0];
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/pages/TripListPage.selection.test.tsx > card 20260929_207 — row selection replaces the checkbox column > ships no checkbox anywhere in the quick-edit surface
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/TripListPage.selection.test.tsx:88:3
+     86|
+     87| describe('card 20260929_207 — row selection replaces the checkbox colu…
+     88|   it('ships no checkbox anywhere in the quick-edit surface', async () …
+       |   ^
+     89|     const { container } = renderQuickEdit([mkTrip(1)]);
+     90|     await waitFor(() => expect(quickRows(container)).toHaveLength(1));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx > DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015) > the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx:130:3
+    128|
+    129| describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () =>…
+    130|   it('the assigned grouped row carries a ⋯ row menu whose item opens t…
+       |   ^
+    131|     updateLclTruckMock.mockClear();
+    132|     toastMock.mockClear();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx > FB090-05 PricingTablesConfigPage — structured Loại xe selector > saves vehicleSizeClassId (not a free-text key) when a class is chosen
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx:67:3
+     65|
+     66| describe('FB090-05 PricingTablesConfigPage — structured Loại xe select…
+     67|   it('saves vehicleSizeClassId (not a free-text key) when a class is c…
+       |   ^
+     68|     const onSave = vi.fn();
+     69|     renderPageAndForm({ onSave });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx > FB090-05 PricingTablesConfigPage — structured Loại xe selector > keeps the container axis exclusive with the vehicle class
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx:86:3
+     84|   });
+     85|
+     86|   it('keeps the container axis exclusive with the vehicle class', asyn…
+       |   ^
+     87|     const onSave = vi.fn();
+     88|     renderPageAndForm({ onSave });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  4 failed | 749 passed (753)
+      Tests  5 failed | 5807 passed (5812)
+   Start at  15:05:25
+   Duration  1426.19s (transform 51.06s, setup 505.34s, import 2142.25s, tests 1902.20s, environment 2220.46s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+EXIT_TEST=1

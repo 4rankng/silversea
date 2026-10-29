@@ -33,10 +33,10 @@ const PATH_TOKEN = /\(?[a-zA-Z]+\.[a-zA-Z0-9_.]+\)?/;
 test('the rejection message carries no internal field path', () => {
   const missingField = rejection([{ containerNumber: 'ABCD-1234567' }, { containerNumber: 'ABCD-1234568' }]);
   assert.equal(missingField.statusCode, 400);
-  // The pin follows the installed library's default missing-field message
-  // (zod v3 says "Required"; v4 rephrased it); the invariant under test is
-  // that the surfaced text still carries no field path.
-  assert.equal(missingField.message, 'Required');
+  // zod v4 rephrased the default missing-field message (v3 said "Required");
+  // the pin follows the installed library, the invariant under test is that
+  // the surfaced text still carries no field path.
+  assert.equal(missingField.message, 'Invalid input: expected number, received undefined');
   assert.equal(PATH_TOKEN.test(missingField.message), false);
 
   // The Vietnamese schema message the banner showed five times must stand alone

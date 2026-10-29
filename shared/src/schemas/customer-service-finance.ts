@@ -10,7 +10,7 @@ export const CUSTOMER_VISIBLE_EVENT_TYPES = [
 export const customerVisibleEventContentSchema = z.object({
   title: z.string().trim().min(1).max(160),
   message: z.string().trim().min(1).max(2000),
-  occurredAt: z.string().datetime(),
+  occurredAt: z.iso.datetime(),
   shipmentCode: z.string().trim().min(1).max(50).optional(),
 }).strict();
 
@@ -145,7 +145,7 @@ const moneyStringSchema = z.string().regex(/^-?\d+(?:\.\d+)?$/);
 export const accountingTransportRegisterRowSchema = z.object({
   financialPostingId: z.number().int().positive(),
   financialPostingVersion: z.number().int().positive(),
-  financialPostingEffectiveAt: z.string().datetime(),
+  financialPostingEffectiveAt: z.iso.datetime(),
   tripId: z.number().int().positive(),
   tripCode: z.string().nullable(),
   completionDate: z.string().date(),
@@ -171,14 +171,14 @@ export const accountingTransportRegisterRowSchema = z.object({
     // Null on MISSING_ACCEPTED_POD rows — no accepted e-POD exists yet.
     acceptedPodSubmissionId: z.number().int().positive().nullable(),
     acceptedPodVersion: z.number().int().positive().nullable(),
-    acceptedPodAt: z.string().datetime().nullable(),
+    acceptedPodAt: z.iso.datetime().nullable(),
     profitabilitySnapshotId: z.number().int().positive().nullable(),
     evidence: z.array(z.string()),
   }).strict(),
 }).strict();
 
 export const accountingTransportRegisterResponseSchema = z.object({
-  asOf: z.string().datetime(),
+  asOf: z.iso.datetime(),
   timezone: z.literal('Asia/Ho_Chi_Minh'),
   filterFingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   page: z.number().int().positive(),

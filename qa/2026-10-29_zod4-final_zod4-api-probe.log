@@ -1,0 +1,48 @@
+# qa/2026-10-29_zod4-final_zod4-api-probe.log
+# Command: pnpm exec tsx /tmp/zod4-probe.ts  (from shared/, zod 4.6.7 installed)
+# Purpose: prove zod 4.6.7 semantics before the code migration — the deprecated
+# z.string().datetime() shim and z.iso.datetime() accept/reject identically
+# (conversion safe), ZodError.errors is gone (must read .issues), and
+# .partial() applies create-time defaults (partialUpdateSchema builder needed).
+# Exit: 0. Output verbatim:
+OK   version: "zod-loaded"
+OK   string().datetime exists: true
+OK   iso.datetime exists: true
+OK   bare .datetime() 2026-08-14T03:30:00.000Z: true
+OK   iso.datetime() 2026-08-14T03:30:00.000Z: true
+OK   iso.datetime({offset:true}) 2026-08-14T03:30:00.000Z: true
+OK   bare .datetime() 2026-08-14T03:30:00Z: true
+OK   iso.datetime() 2026-08-14T03:30:00Z: true
+OK   iso.datetime({offset:true}) 2026-08-14T03:30:00Z: true
+OK   bare .datetime() 2026-09-08T08:00:00+07:00: false
+OK   iso.datetime() 2026-09-08T08:00:00+07:00: false
+OK   iso.datetime({offset:true}) 2026-09-08T08:00:00+07:00: true
+OK   bare .datetime() 2026-08-14T03:30:00: false
+OK   iso.datetime() 2026-08-14T03:30:00: false
+OK   iso.datetime({offset:true}) 2026-08-14T03:30:00: false
+OK   bare .datetime() 08/09/2026 08:00: false
+OK   iso.datetime() 08/09/2026 08:00: false
+OK   iso.datetime({offset:true}) 08/09/2026 08:00: false
+OK   iso.datetime error param msg: "NGAY_GIO_SAI"
+OK   passthrough exists: true
+OK   loose exists: true
+OK   superRefine exists: true
+OK   nativeEnum exists: true
+OK   ZodError.flatten: true
+OK   ZodError.errors alias: {"issuesLen":1}
+OK   literal error param: "BAN_PHAI_XAC_NHAN"
+OK   coerce.number error param: "PHAI_LA_SO"
+OK   coerce.number(null): {"success":true,"data":0}
+OK   record 2-arg: {"a":1}
+OK   ZodTypeAny type only: "n/a-runtime"
+OK   default-in-partial: {"n":7}
+
+# Verdicts:
+# - z.string().datetime() ≡ z.iso.datetime() accept sets (Z + millis accepted;
+#   offset / no-tz / garbage rejected; {offset:true} accepts +07:00) → the
+#   string().datetime → z.iso.datetime sweep is behavior-neutral.
+# - ZodError.errors = undefined in v4 (issuesLen 1 on .issues) → .errors reads
+#   must become .issues (throwValidation + global errorHandler re-applied).
+# - partial().parse({}) = { n: 7 } → v4 applies create-time defaults inside
+#   .partial() → partialUpdateSchema default-strip builder is mandatory.
+# - coerce.number(null) → 0 (same as v3) → coerce behavior unchanged.

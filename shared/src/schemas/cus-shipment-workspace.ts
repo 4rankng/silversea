@@ -214,7 +214,7 @@ export const shipmentCusWorkspaceAccountingConfirmationSchema = z.object({
   confirmationId: z.number().int().positive().nullable(),
   checksum: z.string().min(1).max(128).nullable(),
   billingDocumentId: z.number().int().positive().nullable(),
-  confirmedAt: z.string().datetime().nullable(),
+  confirmedAt: z.iso.datetime().nullable(),
   confirmedByName: z.string().nullable(),
 }).strict();
 
@@ -228,7 +228,7 @@ export const shipmentCusWorkspaceActionSchema = z.object({
 export const shipmentCusWorkspaceActiveLockSchema = z.object({
   id: z.number().int().positive(),
   billingDocumentId: z.number().int().positive(),
-  activatedAt: z.string().datetime(),
+  activatedAt: z.iso.datetime(),
   activatedByName: z.string().nullable(),
   reason: z.string(),
 }).strict();
@@ -237,7 +237,7 @@ export const shipmentCusWorkspaceDebitNoteSchema = z.object({
   available: z.boolean(),
   billingDocumentId: z.number().int().positive().nullable(),
   documentNumber: z.string().nullable(),
-  issuedAt: z.string().datetime().nullable(),
+  issuedAt: z.iso.datetime().nullable(),
   debitNoteStatus: z.string().nullable(),
   disabledReason: z.string().nullable(),
 }).strict();
@@ -291,13 +291,13 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   weightKg: z.string().nullable(),
   volumeCbm: z.string().nullable(),
   transportDate: z.string().date().nullable(),
-  customsCutoffAt: z.string().datetime().nullable(),
-  closingAt: z.string().datetime().nullable(),
-  plannedReturnAt: z.string().datetime().nullable(),
+  customsCutoffAt: z.iso.datetime().nullable(),
+  closingAt: z.iso.datetime().nullable(),
+  plannedReturnAt: z.iso.datetime().nullable(),
   deliveryLocation: z.string().nullable(),
   liftSiteNames: z.array(z.string()),
   dropoffSiteNames: z.array(z.string()),
-  customerAppointmentAts: z.array(z.string().datetime()),
+  customerAppointmentAts: z.array(z.iso.datetime()),
   // Per-appointment container groups for the "Lịch trình & điều xe" cell: one
   // entry per distinct (datetime, factory), with a container-type summary
   // ("2x20HC + 1x40HC") so every container close/return time remains visible
@@ -306,7 +306,7 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   // master-data names are also returned so legal-document preparation never
   // needs to infer a full name from the operational display value.
   appointmentGroups: z.array(z.object({
-    at: z.string().datetime(),
+    at: z.iso.datetime(),
     localDate: z.string(),
     factoryName: z.string().nullable(),
     factoryShortName: z.string().nullable(),
@@ -336,13 +336,13 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
     packageType: z.string().nullable(),
     cargoWeightKg: z.string().nullable(),
     cargoVolumeCbm: z.string().nullable(),
-    customsCutoffAt: z.string().datetime().nullable(),
-    closingAt: z.string().datetime().nullable(),
-    plannedReturnAt: z.string().datetime().nullable(),
+    customsCutoffAt: z.iso.datetime().nullable(),
+    closingAt: z.iso.datetime().nullable(),
+    plannedReturnAt: z.iso.datetime().nullable(),
     customerNotes: z.string().nullable(),
     operationalNotes: z.string().nullable(),
     declarationId: z.number().int().positive().nullable(),
-    declarationIssuedAt: z.string().datetime().nullable(),
+    declarationIssuedAt: z.iso.datetime().nullable(),
     declarationScope: z.enum(['SINGLE', 'SHARED']).nullable(),
     declarationNote: z.string().nullable(),
     // Card 20260921_3: every declaration row of the lot (id-asc), so the
@@ -353,7 +353,7 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
       declarationNumber: z.string().nullable(),
       // Whole-row PUT contract: the modal resends these verbatim so the
       // endpoint's unconditional set never wipes existing metadata.
-      issuedAt: z.string().datetime().nullable(),
+      issuedAt: z.iso.datetime().nullable(),
       scope: z.enum(['SINGLE', 'SHARED']).nullable(),
       note: z.string().nullable(),
     }).strict()).optional(),
@@ -427,7 +427,7 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   liftSite: z.string().nullable(),
   dropoffSiteId: z.number().int().positive().nullable(),
   dropoffSite: z.string().nullable(),
-  customerAppointmentAt: z.string().datetime().nullable(),
+  customerAppointmentAt: z.iso.datetime().nullable(),
   raw: z.object({
     containerNumber: z.string().nullable(),
     containerTypeId: z.number().int().positive().nullable(),
@@ -534,7 +534,7 @@ export const shipmentCusLockSchema = z.object({
   confirmationChecksum: z.string().trim().min(1, 'Mã kiểm tra xác nhận là bắt buộc').max(128),
   reason: z.string().trim().min(1, 'Lý do khóa lô là bắt buộc').max(2_000),
   acknowledged: z.literal(true, {
-    message: 'Bạn phải xác nhận trước khi khóa lô.',
+    error: 'Bạn phải xác nhận trước khi khóa lô.',
   }),
 }).strict();
 
@@ -590,8 +590,7 @@ export const shipmentCusContainerLineUpdateSchema = z.object({
   // (localDateTimeToIso → `…+07:00`), matching shipmentTimestamp on the
   // other write path. Bare `.datetime()` rejects offsets and surfaced a raw
   // "Invalid datetime (customerAppointmentAt)" in the customer-facing dialog.
-  customerAppointmentAt: z.string()
-    .datetime({ offset: true, message: 'Ngày giờ đóng/trả hàng không hợp lệ.' })
+  customerAppointmentAt: z.iso.datetime({ offset: true, error: 'Ngày giờ đóng/trả hàng không hợp lệ.' })
     .nullable()
     .optional(),
 }).strict().superRefine((input, ctx) => {
@@ -698,8 +697,7 @@ export const shipmentCusContainerAddSchema = z.object({
   // copy (ngoài danh sách A.1): the planned plate/vehicle stay entry fields.
   carrierType: z.enum(['OWN', 'EXTERNAL']).nullable().optional(),
   externalCarrierId: z.coerce.number().int().positive().nullable().optional(),
-  customerAppointmentAt: z.string()
-    .datetime({ offset: true, message: 'Ngày giờ đóng/trả hàng không hợp lệ.' })
+  customerAppointmentAt: z.iso.datetime({ offset: true, error: 'Ngày giờ đóng/trả hàng không hợp lệ.' })
     .nullable()
     .optional(),
 }).strict().superRefine((input, ctx) => {
@@ -863,9 +861,9 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   liftSite: z.string().nullable(),
   dropoffSite: z.string().nullable(),
   transportDate: z.string().date().nullable(),
-  closingAt: z.string().datetime().nullable(),
-  plannedReturnAt: z.string().datetime().nullable(),
-  customerAppointmentAt: z.string().datetime().nullable(),
+  closingAt: z.iso.datetime().nullable(),
+  plannedReturnAt: z.iso.datetime().nullable(),
+  customerAppointmentAt: z.iso.datetime().nullable(),
   customerNotes: z.string().nullable(),
   operationalNotes: z.string().nullable(),
   raw: z.object({
