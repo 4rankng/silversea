@@ -65,12 +65,18 @@ export function worksheetQuantity(item: ShipmentCusWorkspaceListItem): string {
 }
 
 export function scheduleTimestamp(item: ShipmentCusWorkspaceListItem): string | null {
-  return item.direction === 'IMPORT' ? item.plannedReturnAt : item.closingAt;
+  const preferred = item.direction === 'IMPORT'
+    ? (item.plannedReturnAt ?? item.closingAt)
+    : (item.closingAt ?? item.plannedReturnAt);
+  if (preferred) return preferred;
+  if (item.transportDate) return item.transportDate;
+  return null;
 }
 
 export function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
   const value = scheduleTimestamp(item);
   if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });

@@ -441,7 +441,9 @@ function buildListItem(
             .sort((left, right) => left.getTime() - right.getTime())[0];
           return earliest ? localDateInBusinessZone(earliest) : null;
         })()
-      : row.shipment.expectedDeliveryDate,
+      : (row.shipment.expectedDeliveryDate
+          ?? (row.shipment.closingAt ? localDateInBusinessZone(row.shipment.closingAt) : null)
+          ?? (row.shipment.plannedReturnAt ? localDateInBusinessZone(row.shipment.plannedReturnAt) : null)),
     customsCutoffAt: row.shipment.customsCutoffAt?.toISOString() ?? null,
     closingAt: row.shipment.closingAt?.toISOString() ?? null,
     plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
