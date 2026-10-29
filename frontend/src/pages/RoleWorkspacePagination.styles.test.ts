@@ -21,10 +21,14 @@ describe('role workspace pagination', () => {
     const css = readPageCss('DispatchPlanPage.css');
 
     // Card 20260921_22: the sticky desktop pin floated the bar mid-list at
-    // rest, covering 13-14 of 20 rows — the pager is now in flow at EVERY
-    // width (the cards-mode static rule folded into the base block), which
-    // subsumes the old desktop-sticky/static-cards split this test pinned.
-    expect(css).toMatch(/\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*static;/);
+    // rest, covering 13-14 of 20 rows — the pager is in flow at EVERY width.
+    // SIL-572 (581f9dcb) moved the in-flow shape from `static` to `relative`
+    // for the z-index surface lift: `relative` keeps the same flow slot (it
+    // never floats over rows — the card 20260921_22 ruling stands) while the
+    // lift paints the pager's opaque strip over escaped rows/kebabs. The
+    // lift itself is pinned in DetailedPlanGrid.sil572.verify.styles.test.ts;
+    // the regression this guard keeps catching is an out-of-flow pin.
+    expect(css).toMatch(/\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*relative;/);
     expect(css).not.toMatch(/\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*sticky;/);
   });
 

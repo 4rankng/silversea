@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-reds-9eba/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  25 passed (25)
+   Start at  18:40:11
+   Duration  9.74s (transform 1.99s, setup 745ms, import 4.12s, tests 3.31s, environment 3.03s)
+
+exit=0
