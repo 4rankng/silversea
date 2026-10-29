@@ -1,0 +1,15 @@
+=== SIL-593 root-cause evidence 2026-10-29 ===
+--- staging DB forensics (READ-ONLY) ---
+seq_last_value=285
+rows_gt_285=0
+rows_382_631=0
+max_id=285 total=257
+--- staging API (READ-ONLY) ---
+GET /shipments?limit=5 → 200
+  list ids: [285,282,281,280,279]
+GET /shipments/285 → 200 
+GET /shipments/282 → 200 
+GET /shipments/281 → 200 
+GET /shipments/382 → 404 {"error":"Không tìm thấy lô hàng"}
+GET /shipments/631 → 404 {"error":"Không tìm thấy lô hàng"}
+GET /shipments/285/containers → 200

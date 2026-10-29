@@ -1,0 +1,10 @@
+C1 — DISPATCHER /shipments/382
+  PASS C1 dispatch renders Chi tiết lô hàng + Số Bill — {"heading":true,"bill":"105254551002","alert":null}
+C2 — ADMIN /shipments/631
+  PASS C2 admin renders Chi tiết lô hàng + Số Bill — {"heading":true,"bill":"BULK-IMP-0249","alert":null}
+C3 — missing lot /shipments/999999
+  PASS C3 404 wording = Không tìm thấy lô hàng, no retry — {"text":"Không tìm thấy lô hàng.","hasNotFound":true,"hasRetry":false}
+C4 — transient 500 on getShipmentDetail
+  PASS C4 transient keeps Vui lòng thử lại — {"text":"Không thể tải thông tin lô hàng. Vui lòng thử lại.","hasRetry":true}
+API identity /shipments/382: {"id":382,"blNumber":"105254551002","version":1,"status":"READY_FOR_DISPATCH","containers":0}
+DONE checks=4 fails=0
