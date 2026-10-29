@@ -1,0 +1,2 @@
+689 API payload proof (KK95249354):
+{'id': 147, 'blNumber': 'KK95249354', 'cargoMode': 'LCL', 'costGroupId': 'c0d89ee9-ddfa-452d-b718-ab738da86e30', 'costGroupOrder': 2, 'hasActiveLclShipment': True}

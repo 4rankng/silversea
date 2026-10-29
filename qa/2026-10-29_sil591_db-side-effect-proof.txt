@@ -1,0 +1,6 @@
+ trip_id | shipment_id |     ref     | status  | carrier_type | external_plate_number |  planned_start_at   |   planned_end_at    | fulfillment_id 
+---------+-------------+-------------+---------+--------------+-----------------------+---------------------+---------------------+----------------
+     367 |         172 | R40B1-LCL01 | CREATED | EXTERNAL     | 15C-99999             | 2026-10-29 06:00:00 | 2026-10-29 09:22:00 |            221
+     368 |         173 | R40B1-LCL02 | CREATED | EXTERNAL     | 15C-99999             | 2026-10-29 06:00:00 | 2026-10-29 09:22:00 |            222
+(2 rows)
+

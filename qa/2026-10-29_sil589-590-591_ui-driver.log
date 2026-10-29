@@ -1,0 +1,20 @@
+login → /dispatch
+PART 689 — master plan cargo flag
+  PASS 689 grouped KK95249354 cargo cell reads "Lẻ · Ghép" — {"found":true,"flag":"Lẻ · Ghép3 Pallet0,19 tấn"}
+  PASS 689 ungrouped R42RV-D2 cargo cell reads "Lẻ" without Ghép — {"found":true,"flag":"Lẻ10 Carton4 tấn · 4 CBM","hasGhep":false}
+  screenshot qa/2026-10-29_sil589_ui-dispatch-le-flag.png
+PART 690 — row menu Gộp hàng (ungrouped LCL, in place)
+  PASS 690 ungrouped LCL row menu offers "Gộp hàng" — ["Sửa điều phối","Gộp hàng","Xóa lô"]
+  PASS 690 URL stays /dispatch-detail (no navigation) — /dispatch-detail
+  PASS 690 merge mode ON, row pre-picked — bar "Đang chọn 1 lô" — Đang chọn 1 lô: Tổng 4 tấn | 4 CBM— Lô 1 giữ 100% cước trả ĐV: R42RV-D2Bỏ chọnGán xe nhómN
+  PASS 690 exactly 1 CHỌN checkbox ticked — the R42RV-D2 row — ["Chọn lô R42RV-D2"]
+  screenshot qa/2026-10-29_sil590_ui-detail-row-menu-gop-hang.png
+PART 690b — grouped row negative
+  PASS 690b grouped KK95249354 menu has NO "Gộp hàng" (has Đổi nhà xe/BKS) — ["Phân xe lại","Hoàn thành","Đổi nhà xe/BKS","Xóa lô"]
+PART 691 — issue R40B1-LCL01 → R40B1-LCL02 auto-issues
+  PASS 691 quick-issue clicked on R40B1-LCL01 — {"ok":true}
+  FAIL 691 toast names auto-issued sibling R40B1-LCL02 — []
+  FAIL 691 primary row R40B1-LCL01 flipped "Đã phát lệnh"
+  screenshot qa/2026-10-29_sil591_ui-detail-cascade-toast.png
+  PASS 691 sibling R40B1-LCL02 row reads "Đã phát lệnh" (cascade) — {"found":true,"issued":true}
+  screenshot qa/2026-10-29_sil591_ui-detail-sibling-issued.png
