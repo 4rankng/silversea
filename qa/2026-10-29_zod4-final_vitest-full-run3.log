@@ -1,0 +1,729 @@
+$ cd frontend && pnpm test   # full vitest run 3 (verdict; warm cache after build — run1: dist precondition x2, run2: cold-cache/contended timeouts x5, all flakes proven isolated-green)
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-zod4-final/frontend
+> vitest run
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-zod4-final/frontend
+
+ ❯ src/pages/ShipmentsPage.test.tsx (123 tests | 1 failed) 114387ms
+     × shows the drawer schedule only from its container appointments 772ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx (4 tests | 1 failed) 10789ms
+     × saves vehicleSizeClassId (not a free-text key) when a class is chosen 5329ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx (3 tests | 1 failed) 15764ms
+     × a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save: issues paint and the typed input is KEPT (no wipe, no silent dead key) 8669ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx (5 tests | 1 failed) 7671ms
+     × opens the editor on the clicked badge and saves the edited plate 1907ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+ ❯ src/pages/config/FuelConfigPage.test.tsx (4 tests | 1 failed) 1059ms
+     × renders a real table on the --table adoption, with the changer display name 40ms
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > shows the drawer schedule only from its container appointments
+TestingLibraryElementError: Unable to find an element with the text: Lịch cont. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<aside[39m
+  [33maria-hidden[39m=[32m"false"[39m
+  [33maria-labelledby[39m=[32m"_r_2o0_"[39m
+  [33maria-modal[39m=[32m"true"[39m
+  [33mclass[39m=[32m"drawer drawer--operational-density cus-shipment-drawer"[39m
+  [33mrole[39m=[32m"dialog"[39m
+  [33mstyle[39m=[32m"transform: translateX(47.4552%); will-change: transform;"[39m
+  [33mtabindex[39m=[32m"-1"[39m
+[36m>[39m
+  [36m<header[39m
+    [33mclass[39m=[32m"drawer__head"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"drawer__heading"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mstyle[39m=[32m"min-width: 0px;"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"drawer__titlerow"[39m
+        [36m>[39m
+          [36m<h2[39m
+            [33mclass[39m=[32m"drawer__title"[39m
+            [33mid[39m=[32m"_r_2o0_"[39m
+          [36m>[39m
+            [0mCông ty Silver Sea[0m
+          [36m</h2>[39m
+          [36m<span[39m
+            [33maria-label[39m=[32m"Trạng thái lô hàng"[39m
+            [33mclass[39m=[32m"cus-lot-chips"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-chip cus-lot-chip--solid"[39m
+            [36m>[39m
+              [0mHàng [0m
+              [0mFCL[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-chip cus-lot-chip--amber"[39m
+            [36m>[39m
+              [0mChờ chốt lịch[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-chip cus-lot-chip--danger"[39m
+            [36m>[39m
+              [0mLỗ[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-chip cus-lot-chip--amber"[39m
+            [36m>[39m
+              [0mChờ thu hồi[0m
+            [36m</span>[39m
+          [36m</span>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"drawer__head-actions"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+        [33mdata-tip[39m=[32m"Khóa lô"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-disabled[39m=[32m"false"[39m
+          [33maria-label[39m=[32m"Khóa lô"[39m
+          [33mclass[39m=[32m"drawer__close cus-drawer-lot-action"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-file-lock2 lucide-file-lock-2"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"16"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"16"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v1"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M14 2v4a2 2 0 0 0 2 2h4"[39m
+            [36m/>[39m
+            [36m<rect[39m
+              [33mheight[39m=[32m"5"[39m
+              [33mrx[39m=[32m"1"[39m
+              [33mwidth[39m=[32m"8"[39m
+              [33mx[39m=[32m"2"[39m
+              [33my[39m=[32m"13"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M8 13v-2a2 2 0 1 0-4 0v2"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+        [33mdata-tip[39m=[32m"Xóa lô"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Xóa lô"[39m
+          [33mclass[39m=[32m"drawer__close cus-drawer-lot-delete"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-trash2 lucide-trash-2"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"16"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"16"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M3 6h18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"[39m
+            [36m/>[39m
+            [36m<line[39m
+              [33mx1[39m=[32m"10"[39m
+              [33mx2[39m=[32m"10"[39m
+              [33my1[39m=[32m"11"[39m
+              [33my2[39m=[32m"17"[39m
+            [36m/>[39m
+            [36m<line[39m
+              [33mx1[39m=[32m"14"[39m
+              [33mx2[39m=[32m"14"[39m
+              [33my1[39m=[32m"11"[39m
+              [33my2[39m=[32m"17"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+        [33mdata-tip[39m=[32m"Phóng to toàn màn hình"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Phóng to toàn màn hình"[39m
+          [33maria-pressed[39m=[32m"false"[39m
+          [33mclass[39m=[32m"drawer__close drawer__expand"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-maximize2 lucide-maximize-2"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"16"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"16"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M15 3h6v6"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m21 3-7 7"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m3 21 7-7"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M9 21H3v-6"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+        [33mdata-tip[39m=[32m"Đóng"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-label[39m=[32m"Đóng"[39m
+          [33mclass[39m=[32m"drawer__close"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-x"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"18"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"18"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M18 6 6 18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 6 12 12"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</header>[39m
+  [36m<div[39m
+    [33mclass[39m=[32m"drawer__body"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mid[39m=[32m"cus-detail-drawer-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"cus-lot-view"[39m
+      [36m>[39m
+        [36m<ol[39m
+          [33maria-label[39m=[32m"Tiến trình lô hàng"[39m
+          [33mclass[39m=[32m"cus-lot-stepper"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33maria-current[39m=[32m"step"[39m
+            [33mclass[39m=[32m"cus-lot-stepper__step cus-lot-stepper__step--current"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-stepper__dot"[39m
+            [36m>[39m
+              [0m1[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-stepper__label"[39m
+            [36m>[39m
+              [0mChốt lịch[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"cus-lot-stepper__step cus-lot-stepper__step--done"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-stepper__dot"[39m
+            [36m>[39m
+              [0m2[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-stepper__label"[39m
+            [36m>[39m
+              [0mPhân xe[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"cus-lot-stepper__step cus-lot-stepper__step--done"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-stepper__dot"[39m
+            [36m>[39m
+              [0m3[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-stepper__label"[39m
+            [36m>[39m
+              [0mĐối soát[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"cus-lot-stepper__step cus-lot-stepper__step--todo"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-stepper__dot"[39m
+            [36m>[39m
+              [0m4[0m
+            [36m</span>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"cus-lot-stepper__label"[39m
+            [36m>[39m
+              [0mKhóa lô[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ol>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"cus-lot-loading"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-loader-circle spin"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"24"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"24"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M21 12a9 9 0 1 1-6.219-8.56"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [0m Đang tải chi tiết lô…[0m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33mclass[39m=[32m"drawer__foot"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"cus-drawer-editbar"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33mclass[39m=[32m"group relative inline-flex h-max cursor-pointer select-none items-center justify-center whitespace-nowrap outline-brand transition duration-100 ease-linear focus-visible:outline-2 focus-visible:outline-offset-2 in-data-input-wrapper:shadow-xs in-data-input-wrapper:focus:!z-50 in-data-input-wrapper:in-data-leading:-mr-px in-data-input-wrapper:in-data-leading:rounded-r-none in-data-input-wrapper:in-data-leading:before:rounded-r-none in-data-input-wrapper:in-data-trailing:-ml-px in-data-input-wrapper:in-data-trailing:rounded-l-none in-data-input-wrapper:in-data-trailing:before:rounded-l-none disabled:cursor-not-allowed disabled:opacity-50 in-data-input-wrapper:disabled:opacity-100 *:data-icon:pointer-events-none *:data-icon:shrink-0 *:data-icon:transition-inherit-all gap-1 rounded-lg px-2.5 py-1.5 font-semibold before:rounded-[7px] data-icon-only:p-1.5 max-md:min-h-11 max-md:px-3 max-md:py-2 max-md:data-icon-only:p-2.5 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--text-control-size)] [@media(pointer:coarse)]:text-[length:var(--text-control-size)] in-data-input-wrapper:px-3.5 in-data-input-wrapper:py-2.5 in-data-input-wrapper:data-icon-only:p-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] bg-brand-solid text-white shadow-xs-skeuomorphic ring-1 ring-transparent ring-inset hover:bg-brand-solid_hover data-loading:bg-brand-solid_hover before:absolute before:inset-px before:border before:border-white/12 before:mask-b-from-0% *:data-icon:text-white/60 hover:*:data-icon:text-white/70 cus-drawer-edit"[39m
+        [33mdata-control-color[39m=[32m"primary"[39m
+        [33mdata-control-size[39m=[32m"sm"[39m
+        [33mdata-rac[39m=[32m""[39m
+        [33mdata-react-aria-pressable[39m=[32m"true"[39m
+        [33mdata-uui-control[39m=[32m"button"[39m
+        [33mid[39m=[32m"react-aria-_r_2og_"[39m
+        [33mtabindex[39m=[32m"0"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"transition-inherit-all px-0.5"[39m
+          [33mdata-text[39m=[32m"true"[39m
+        [36m>[39m
+          [0mSửa[0m
+        [36m</span>[39m
+      [36m</button>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+[36m</aside>[39m
+ ❯ Object.getElementError ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/pages/ShipmentsPage.test.tsx:1956:27
+    1954|     expect(within(dialog).queryByLabelText('Ngày giao hàng')).toBeNull…
+    1955|     expect(within(dialog).queryByRole('button', { name: 'Chốt lịch' })…
+    1956|     expect(within(dialog).getByText('Lịch cont')).toBeTruthy();
+       |                           ^
+    1957|     expect(apiPut).not.toHaveBeenCalled();
+    1958|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx > FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit > opens the editor on the clicked badge and saves the edited plate
+TestingLibraryElementError: Unable to find role="button" and name "Sửa BKS báo khách: 30C-999.99"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page-shell"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header page-header--actions-only"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"page-header__title-visible"[39m
+        [36m>[39m
+          [0mKế toán chốt debit[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm lô hàng"[39m
+              [33mplaceholder[39m=[32m"Mã lô, bill/booking, khách hàng, container"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Khoảng ngày lô hàng"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"debit-board-date-range"[39m
+            [36m>[39m
+              [0mTừ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"debit-board-date-range-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--control-zoom-safe-font-size)] [@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"debit-board-date-range"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmax[39m=[32m"2026-10-29"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m"01"[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page-shell"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header page-header--actions-only"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"page-header__title-visible"[39m
+        [36m>[39m
+          [0mKế toán chốt debit[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm lô hàng"[39m
+              [33mplaceholder[39m=[32m"Mã lô, bill/booking, khách hàng, container"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Khoảng ngày lô hàng"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"debit-board-date-range"[39m
+            [36m>[39m
+              [0mTừ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"debit-board-date-range-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--control-zoom-safe-font-size)] [@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"debit-board-date-range"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmax[39m=[32m"2026-10-29"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m"01"[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx:112:32
+    110|     const { container } = renderPage();
+    111|
+    112|     const badge = await screen.findByRole('button', { name: 'Sửa BKS b…
+       |                                ^
+    113|     fireEvent.click(badge);
+    114|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/pages/config/FuelConfigPage.test.tsx > fuel price history table > renders a real table on the --table adoption, with the changer display name
+AssertionError: expected null to be truthy
+
+- Expected:
+true
+
++ Received:
+null
+
+ ❯ src/pages/config/FuelConfigPage.test.tsx:73:19
+     71|     const historyPanel = await screen.findByText('Lịch sử giá nhiên li…
+     72|     const table = historyPanel.closest('.panel, [class*=panel]')?.pare…
+     73|     expect(table).toBeTruthy();
+       |                   ^
+     74|     // The wrap declares the table-mode adoption: a 4-column ledger st…
+     75|     // table on desktop instead of misclassifying into the phone card …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx > FB090-05 PricingTablesConfigPage — structured Loại xe selector > saves vehicleSizeClassId (not a free-text key) when a class is chosen
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx:67:3
+     65|
+     66| describe('FB090-05 PricingTablesConfigPage — structured Loại xe select…
+     67|   it('saves vehicleSizeClassId (not a free-text key) when a class is c…
+       |   ^
+     68|     const onSave = vi.fn();
+     69|     renderPageAndForm({ onSave });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx > shipment create Enter law (FB-002 lần 3, card 211026034109) > a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save: issues paint and the typed input is KEPT (no wipe, no silent dead key)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx:55:3
+     53|   });
+     54|
+     55|   it('a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save…
+       |   ^
+     56|     renderWorkspace();
+     57|     await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  5 failed | 748 passed (753)
+      Tests  5 failed | 5807 passed (5812)
+   Start at  15:33:41
+   Duration  1453.74s (transform 62.78s, setup 397.28s, import 2072.81s, tests 2789.34s, environment 1741.62s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+EXIT_TEST=1

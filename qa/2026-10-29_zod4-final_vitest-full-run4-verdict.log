@@ -1,0 +1,21 @@
+$ cd frontend && pnpm test -- --maxWorkers=2   # verdict run, solo; workers bounded like QA26 maxWorkers fix (host load 20+ from parallel lanes); testTimeout 5s unchanged, no skips
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-zod4-final/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+
+ Test Files  753 passed (753)
+      Tests  5812 passed (5812)
+   Start at  16:00:23
+   Duration  827.71s (transform 35.53s, setup 111.50s, import 490.57s, tests 467.79s, environment 476.01s)
+
+EXIT_TEST=0
