@@ -1,0 +1,25 @@
+{
+  "engine": "chromium",
+  "base": "http://localhost:7186",
+  "label": "Sửa số tờ khai · WHSU0216887",
+  "before": "REPRO594-etplgn",
+  "saved": "REPRO594-pg1g59",
+  "after": "REPRO594-pg1g59",
+  "toastMs": 145,
+  "updatedAtMs": 400,
+  "verdict": "FRESH at +400ms",
+  "netLog": [
+    {
+      "t": 1793308925929,
+      "status": 200,
+      "rows": 50,
+      "url": "/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31"
+    },
+    {
+      "t": 1793308926796,
+      "status": 200,
+      "rows": 50,
+      "url": "/api/shipments/dispatch-detail-plan-rows?page=1&limit=50&dateFrom=2026-10-01&dateTo=2026-10-31"
+    }
+  ]
+}

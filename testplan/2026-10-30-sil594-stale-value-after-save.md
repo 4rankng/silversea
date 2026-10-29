@@ -51,4 +51,13 @@ URL/cache key).
   (trước khi refetch deliver) — echo từ authoritative response.
 - SIL-594-C2: clear giá trị → "Chưa có tờ khai" ngay sau khi lưu.
 - SIL-594-C3: api client GET fetch mang `cache: 'no-store'` (mọi response API).
-- SIL-594-C4: backend đặt `Cache-Control: no-store` trên mọi response `/api`.
+- SIL-594-C4: backend đặt `Cache-Control: no-store` trên mọi response `/api`
+  (handler + wiring scan: mount là mount '/api' ĐẦU TIÊN trong index.ts).
+- SIL-594-C5: rapid re-save khi refetch của save trước vừa land giữa chừng —
+  giá trị save sau phải thắng (echo key cả 2 giá trị bị thay — review finding 1).
+- SIL-594-C6: save resolve sau khi cell đã đổi sang row container khác — echo
+  không được rò sang row mới (review finding 2).
+- SIL-594-C7: clear-to-empty rồi external refetch mang giá trị khác — server
+  value thắng echo.
+- Bổ sung (review finding 6): download GET (getForText/getBlob) cũng
+  `cache: 'no-store'`.

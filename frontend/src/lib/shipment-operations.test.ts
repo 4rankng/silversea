@@ -49,4 +49,10 @@ describe('shipment operational timestamps', () => {
     expect(formatTimeShortDate('2026-10-30T14:30:00+07:00')).toBe('14:30 30/10');
     expect(formatTimeShortDate('2026-10-30T14:30')).toBe('14:30 30/10');
   });
+
+  it('SIL-595-C2b: naive-with-seconds stays string surgery; a colon-less offset is still a real instant', () => {
+    expect(formatTimeShortDate('2026-10-30T14:30:00')).toBe('14:30 30/10');
+    // '+0000' (no colon) is a zone suffix too — never naive digits (review).
+    expect(formatTimeShortDate('2026-10-30T07:30:00+0000')).toBe('14:30 30/10');
+  });
 });
