@@ -73,3 +73,64 @@ test('SIL-521: tờ khai hết nhập cấp lô — quick-create không còn nh�
     'zod non-strict: key lạ vẫn parse được — lệnh chặn là assertKnownShipmentKeys (pin ở key-guard test)',
   );
 });
+
+// ─── zod v3 → v4 bump pins (case-2026-10-29-zod4-final-bump) ────────────────
+// Behavior invariance: these payloads are what POST/PUT /api/shipments carry
+// today; the bump must accept and return them byte-identically.
+
+test('Z4-SHIP-1: create accepts a real export payload and returns the timestamps unchanged', () => {
+  const parsed = createShipmentSchema.parse({
+    customerId: 12,
+    bookingRef: 'BOOK-EXPORT-2026-11',
+    tradeDirection: 'EXPORT',
+    cargoMode: 'FCL',
+    routeId: 3,
+    expectedDeliveryDate: '2026-11-08',
+    customsCutoffAt: '2026-11-05T17:00:00+07:00',
+    closingAt: '2026-11-06T08:00:00Z',
+    cargoWeightKg: '12500.50',
+    packageCount: '40',
+    driverNotes: 'Giao ca sáng',
+  });
+  assert.equal(parsed.customsCutoffAt, '2026-11-05T17:00:00+07:00');
+  assert.equal(parsed.closingAt, '2026-11-06T08:00:00Z');
+  assert.equal(parsed.expectedDeliveryDate, '2026-11-08');
+  assert.equal(parsed.bookingRef, 'BOOK-EXPORT-2026-11');
+  assert.equal(parsed.customerId, 12);
+});
+
+test('Z4-SHIP-2: create-time defaults isAdHoc/isCombined/hasDeposit apply on create', () => {
+  const parsed = createShipmentSchema.parse({ customerId: 1 });
+  assert.equal(parsed.isAdHoc, false);
+  assert.equal(parsed.isCombined, false);
+  assert.equal(parsed.hasDeposit, false);
+});
+
+test('Z4-SHIP-3: create without customerId (non ad-hoc) keeps the Vietnamese guard', () => {
+  const parsed = createShipmentSchema.safeParse({ rawCustomerName: 'Cuốc vãng lai' });
+  assert.equal(parsed.success, false);
+  if (!parsed.success) {
+    assert.equal(parsed.error.issues[0]?.message, 'Khách hàng là bắt buộc.');
+  }
+  assert.equal(createShipmentSchema.safeParse({ isAdHoc: true, rawCustomerName: 'Cuốc vãng lai' }).success, true);
+});
+
+test('Z4-SHIP-4: update patches a subset — omitted keys stay absent from the parsed output', () => {
+  const parsed = updateShipmentSchema.parse({ expectedVersion: 3, driverNotes: 'Đổi giờ hẹn' });
+  assert.equal(parsed.driverNotes, 'Đổi giờ hẹn');
+  assert.equal(parsed.expectedVersion, 3);
+  assert.equal('customsCutoffAt' in parsed, false, 'omitted timestamp must not ride into the UPDATE write');
+  assert.equal('customerId' in parsed, false);
+  assert.equal(updateShipmentSchema.safeParse({ driverNotes: 'thiếu version' }).success, false);
+});
+
+test('Z4-SHIP-5: update timestamps accept the +07:00 wire format and reject garbage', () => {
+  assert.equal(updateShipmentSchema.safeParse({
+    expectedVersion: 1,
+    customsCutoffAt: '2026-11-05T17:00:00+07:00',
+  }).success, true);
+  assert.equal(updateShipmentSchema.safeParse({
+    expectedVersion: 1,
+    customsCutoffAt: '05/11/2026 17:00',
+  }).success, false);
+});

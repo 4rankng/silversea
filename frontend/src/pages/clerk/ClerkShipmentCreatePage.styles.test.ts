@@ -542,4 +542,25 @@ describe('create-page whole-sheet density (SIL-534)', () => {
   it('the phone band still floors controls at touch height (≤640 unchanged)', () => {
     expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.csc-mode__option, \.csc-flag-checkbox, \.csc-add-container, \.csc-container-add-control input, \.csc-utility-button \{ min-height: var\(--control-max-h\); \}/);
   });
+
+  it('SIL-552: the group lines rest invisible in the line and float fixed only while open', () => {
+    // At rest the editor card rides inside the line under the value-first
+    // law: no chrome, no paint, no pointer. The editors stay mounted so the
+    // constraint walk and the Tab order keep meeting LOẠI first.
+    const restRule = css.slice(css.indexOf('.csc-fline__card {'));
+    expect(restRule).toContain('position: absolute');
+    expect(restRule).toContain('opacity: 0');
+    expect(restRule).toContain('pointer-events: none');
+    // Open: the drawer editor's chrome on fixed coordinates — the floating
+    // editor never lives inside the table's layout or its scroll box clip.
+    const openIdx = css.indexOf('.csc-fline__card.is-open');
+    const openRule = css.slice(openIdx, css.indexOf('}', openIdx));
+    expect(openRule).toContain('position: fixed');
+    expect(openRule).toContain('z-index');
+    expect(openRule).toContain('border: 1px solid var(--brand)');
+    // The arrow only exists on the open card (it points at the line).
+    const arrowRule = css.slice(css.indexOf('.csc-fline__arrow {'));
+    expect(arrowRule).toContain('display: none');
+    expect(css).toContain('.csc-fline__card.is-open .csc-fline__arrow { display: block; }');
+  });
 });

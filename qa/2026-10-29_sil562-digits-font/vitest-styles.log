@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-func2/frontend
+
+
+ Test Files  59 passed (59)
+      Tests  398 passed (398)
+   Start at  18:53:02
+   Duration  32.49s (transform 2.73s, setup 22.94s, import 12.91s, tests 16.73s, environment 94.92s)
+

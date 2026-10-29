@@ -16,7 +16,8 @@ export interface LedgerGroupRow {
   name: string;
   /** Line 1 — the identity the row is about (14px/600, truncates). */
   title: ReactNode;
-  /** Line 2 — muted meta segments (12px, truncates; compose with ' · '). */
+  /** Line 2 — muted meta segments (12px; wraps at the ' · ' separators, never
+   *  truncates — the segments carry display keys, SIL-582). */
   meta?: ReactNode;
   /** Right side, same baseline as the chip: the row's headline money
    *  (16px/600 tabular; absent renders nothing, never a fabricated 0). */

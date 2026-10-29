@@ -30,7 +30,7 @@ test('partialUpdateSchema mirrors the unknown-keys policy of the source schema',
   const strictUpdate = partialUpdateSchema(z.object({ name: z.string() }).strict());
   assert.equal(strictUpdate.safeParse({ name: 'x', rogue: 1 }).success, false);
 
-  const looseUpdate = partialUpdateSchema(z.object({ name: z.string() }).passthrough());
+  const looseUpdate = partialUpdateSchema(z.object({ name: z.string() }).loose());
   const looseParsed = looseUpdate.safeParse({ name: 'x', rogue: 1 });
   assert.equal(looseParsed.success, true);
   if (looseParsed.success) assert.ok('rogue' in looseParsed.data);

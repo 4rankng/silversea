@@ -33,6 +33,8 @@ import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
 import { useHiddenColumns } from '../hooks/useHiddenColumns';
 import { noteLines, safeError } from '../features/shipments/cus/cusUtils';
+import { completeDispatchExternalTrip } from '../api/dispatchPlanningClient';
+import { canCloseExternalTrips } from '../lib/role-access';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
@@ -125,6 +127,9 @@ export default function ShipmentsPage() {
   // through the API but unable to reach the button. The affordance mirrors the
   // guard; when the guard moves, this moves with it.
   const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
+  // SIL-592 (id 692) — hide the external-trip staff close outside the
+  // backend's complete-external allowlist (ADMIN/MANAGER/DISPATCHER/CUS).
+  const canCloseExternal = canCloseExternalTrips(user?.role);
   // SIL-485: the drawer's "Sửa" rides the same intake-mutation authority the
   // /shipments/:id/edit route guard enforces — the host page owns useAuth and
   // decides here whether the edit affordance exists at all.
@@ -447,6 +452,23 @@ export default function ShipmentsPage() {
       throw error;
     }
   }, [drawerDetail, drawerId, ws]);
+  // SIL-592 (id 692) — the drawer's staff close for a live external-carrier
+  // trip ("Hoàn thành", dropped by SIL-485's read-only rewrite): xe ngoài
+  // không dùng app nên CUS chốt thay. The drawer banners answer (same
+  // feedback contract as the declaration actions above); the confirm dialog
+  // stays open on failure so the operator can retry.
+  const completeDrawerExternalTrip = useCallback(async (line: ShipmentCusWorkspaceContainerLine) => {
+    if (line.tripId == null) return;
+    try {
+      await completeDispatchExternalTrip(line.tripId);
+      ws.setNotice('Đã hoàn thành chuyến xe ngoài.');
+      if (drawerId != null) await ws.loadDetail(drawerId, true);
+      await ws.loadList();
+    } catch (error) {
+      ws.setError(safeError(error, 'Không thể hoàn thành chuyến xe ngoài. Vui lòng thử lại.'));
+      throw error;
+    }
+  }, [drawerId, ws]);
   const drawerDeclarationActions = useMemo(() => (
     drawerDeclarationEditable ? { onSaveDeclaration: saveDrawerDeclaration, onCopyDeclaration: copyDrawerDeclaration } : undefined
   ), [copyDrawerDeclaration, drawerDeclarationEditable, saveDrawerDeclaration]);
@@ -824,6 +846,7 @@ export default function ShipmentsPage() {
                 declarationActions={drawerDeclarationActions}
                 canEditCargoLines={drawerCargoEditable}
                 containerLineActions={drawerContainerLineActions}
+                onCompleteExternalTrip={canCloseExternal ? completeDrawerExternalTrip : undefined}
               />
             </>
           )}

@@ -145,3 +145,19 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(hint[0]).toMatch(/white-space:\s*normal/);
   });
 });
+
+// SIL-592 (id 692) — the staff-close pill obeys the same wrap law as the copy
+// button: its `.btn` base is nowrap, so the component's own sheet must opt the
+// 2-word label back into wrapping (390px full-width status cell and any
+// narrower desktop column alike) and must never clip.
+const closeActionCss = readFileSync(resolve(process.cwd(), 'src/features/shipments/detail/ExternalTripCompleteAction.css'), 'utf8');
+
+describe('SIL-592 Hoàn thành pill wraps, never truncates', () => {
+  it('the component sheet forces white-space: normal and stays clip-free', () => {
+    const rules = rulesFor(closeActionCss, /^\.external-trip-complete$/);
+    expect(rules.length).toBeGreaterThan(0);
+    expect(rules[0]).toMatch(/white-space:\s*normal/);
+    expect(rules[0]).not.toMatch(/white-space:\s*nowrap/);
+    expectNoClip(rules);
+  });
+});

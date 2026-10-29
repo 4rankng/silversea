@@ -13,9 +13,11 @@ import { formatDateTimeShort, formatISODate, formatMoney, formatWeight } from '.
 import { formatTimeShortDate } from '../../../lib/shipment-operations';
 import {
   accountingConfirmationLabel,
+  canCompleteExternalTrip,
   deriveShipmentSignals,
   dispatchStatusLabel,
 } from './cusUtils';
+import { ExternalTripCompleteAction } from '../detail/ExternalTripCompleteAction';
 
 /**
  * SIL-485 (owner mockup 25/10, superseding the earlier "workspace view mode"
@@ -705,6 +707,7 @@ export function CusLotView({
   declarationActions,
   canEditCargoLines = false,
   containerLineActions,
+  onCompleteExternalTrip,
 }: {
   item: ShipmentCusWorkspaceListItem;
   detail?: ShipmentCusWorkspaceDetail;
@@ -719,6 +722,13 @@ export function CusLotView({
    *  each line still answers to its own fieldAccess mode. */
   canEditCargoLines?: boolean;
   containerLineActions?: CusLotContainerLineActions;
+  /**
+   * SIL-592 (id 692) — the CUS staff close for a live external-carrier trip,
+   * restored where SIL-485's read-only rewrite dropped it: the per-container
+   * Trạng thái cell. Absent outside the backend allowlist; the row gate keeps
+   * OWN/terminal/planned lines clean. Rejects keep the dialog open.
+   */
+  onCompleteExternalTrip?: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
 }) {
   const containers = detail?.containers ?? [];
   const totalWeight = containers.reduce((sum, line) => sum + Number(line.raw.cargoWeightKg ?? 0), 0);
@@ -850,6 +860,15 @@ export function CusLotView({
                           <td>{line.customerAppointmentAt ? formatTimeShortDate(line.customerAppointmentAt) : dash}</td>
                           <td>
                             <span className={`cus-lot-dispatch ${DISPATCH_CHIP_CLASS[line.dispatchStatus]}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
+                            {/* SIL-592 (id 692) — the staff close for live
+                                external trips, right where the dispatch
+                                status reads (xe ngoài không dùng app). */}
+                            {onCompleteExternalTrip && canCompleteExternalTrip(line) && (
+                              <ExternalTripCompleteAction
+                                identity={line.containerNumber?.trim() || `cont ${line.ordinal}`}
+                                onComplete={() => onCompleteExternalTrip(line)}
+                              />
+                            )}
                           </td>
                         </tr>
                       ))}

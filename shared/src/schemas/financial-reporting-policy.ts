@@ -29,7 +29,7 @@ const nonNegativeWholeMoneySchema = z.union([z.number(), z.string()]).transform(
 });
 
 export const financialReportingPolicyRequestSchema = z.object({
-  expectedPublicVersion: z.string().datetime({ offset: true }).nullable().optional(),
+  expectedPublicVersion: z.iso.datetime({ offset: true }).nullable().optional(),
   effectiveFrom: vietnamMonthStartSchema,
   lowMarginThresholdPercent: z.number()
     .min(0, 'Ngưỡng cảnh báo phải từ 0% đến 100%')
@@ -38,7 +38,7 @@ export const financialReportingPolicyRequestSchema = z.object({
 });
 
 export const truckFinancialProfileRequestSchema = z.object({
-  expectedPublicVersion: z.string().datetime({ offset: true }).nullable().optional(),
+  expectedPublicVersion: z.iso.datetime({ offset: true }).nullable().optional(),
   truckId: z.number().int().positive(),
   effectiveFrom: vietnamMonthStartSchema,
   acquisitionCost: nonNegativeWholeMoneySchema,
@@ -69,7 +69,7 @@ export const financialReportingPendingStatusSchema = z.enum([
 
 export const financialReportingPendingRequestSchema = z.object({
   status: financialReportingPendingStatusSchema,
-  requestedAt: z.string().datetime({ offset: true }),
+  requestedAt: z.iso.datetime({ offset: true }),
   requestedByName: z.string(),
   effectiveFrom: isoDateOnlySchema,
   queuePath: z.string(),
@@ -84,14 +84,14 @@ export const financialReportingPolicyVersionSchema = z.object({
   depreciationMethodLabel: z.literal('Đường thẳng'),
   allocationBasisLabel: z.literal('Tỷ trọng doanh thu chuyến hoàn thành'),
   createdByName: z.string(),
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: z.iso.datetime({ offset: true }),
   source: financialReportingSourceSchema,
 });
 
 export const financialReportingPolicyStateSchema = z.object({
   status: z.enum(['UNCONFIGURED', 'CONFIGURED']),
   currentVietnamMonthStart: isoDateOnlySchema,
-  publicVersion: z.string().datetime({ offset: true }).nullable(),
+  publicVersion: z.iso.datetime({ offset: true }).nullable(),
   currentPolicy: financialReportingPolicyVersionSchema.nullable(),
   futurePolicies: z.array(financialReportingPolicyVersionSchema),
   history: z.array(financialReportingPolicyVersionSchema),
@@ -110,7 +110,7 @@ export const truckFinancialProfileVersionSchema = z.object({
   usefulLifeMonths: z.number().int().positive(),
   monthlyFixedCost: z.string(),
   createdByName: z.string(),
-  createdAt: z.string().datetime({ offset: true }),
+  createdAt: z.iso.datetime({ offset: true }),
   source: financialReportingSourceSchema,
 });
 
@@ -125,7 +125,7 @@ export const truckFinancialProfileStateSchema = z.object({
   selectedTruckLabel: z.string().nullable(),
   status: z.enum(['UNCONFIGURED', 'CONFIGURED', 'NO_TRUCK_SELECTED']),
   currentVietnamMonthStart: isoDateOnlySchema,
-  publicVersion: z.string().datetime({ offset: true }).nullable(),
+  publicVersion: z.iso.datetime({ offset: true }).nullable(),
   trucks: z.array(truckFinancialProfileTruckOptionSchema),
   currentProfile: truckFinancialProfileVersionSchema.nullable(),
   futureProfiles: z.array(truckFinancialProfileVersionSchema),

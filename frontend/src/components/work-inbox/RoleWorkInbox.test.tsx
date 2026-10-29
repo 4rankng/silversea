@@ -186,7 +186,13 @@ describe('RoleWorkInbox', () => {
     }
   });
 
-  it('sorts the queue server-side: fresh column asc, re-click flips, URL restores the order (QA2-004)', async () => {
+  // Full-suite contention class (vitest.config.ts QA26 note; qa/2026-10-29_
+  // zod4-final_vitest-full-run2/3: random heavy tests "Test timed out in
+  // 5000ms" under parallel-lane load, bounded workers green): this case runs
+  // FOUR click→refetch→settle round-trips — the heaviest in the file. Raising
+  // the ceiling, not the work (ShipmentsPage.test.tsx doctrine): every
+  // assertion below is unchanged and a genuine hang still fails, at 15s.
+  it('sorts the queue server-side: fresh column asc, re-click flips, URL restores the order (QA2-004)', { timeout: 15000 }, async () => {
     const calls: string[] = [];
     apiGet.mockImplementation(async (url: string) => { calls.push(url); return response([operationsItem]); });
     renderInbox(<RoleWorkInbox role="operations" title="Công việc vận hành" description="Mô tả" />);
@@ -200,16 +206,21 @@ describe('RoleWorkInbox', () => {
     // Fresh column starts ascending; the header carries aria-sort for AT.
     fireEvent.click(sortButton(/Công việc/));
     await waitFor(() => expect(calls.some((url) => url.includes('sortBy=title&sortDir=asc'))).toBe(true));
-    expect(header(/Công việc/).getAttribute('aria-sort')).toBe('ascending');
+    await waitFor(() => expect(header(/Công việc/).getAttribute('aria-sort')).toBe('ascending'));
 
     // Re-click flips to desc (never back to unsorted — server default covers that).
     fireEvent.click(sortButton(/Công việc/));
     await waitFor(() => expect(calls.some((url) => url.includes('sortBy=title&sortDir=desc'))).toBe(true));
-    expect(header(/Công việc/).getAttribute('aria-sort')).toBe('descending');
+    await waitFor(() => expect(header(/Công việc/).getAttribute('aria-sort')).toBe('descending'));
 
     // The other two QA2-004 columns hit their server keys; page resets to 1.
+    // A request-issue wait resolves while `loading && !data` still has the
+    // table unmounted (the mock pushes its URL at issue time), so the next
+    // click awaits the remounted table instead of racing the reload window.
+    await screen.findByRole('table');
     fireEvent.click(sortButton(/Cập nhật/));
     await waitFor(() => expect(calls.some((url) => url.includes('sortBy=freshness&sortDir=asc') && url.includes('page=1'))).toBe(true));
+    await screen.findByRole('table');
     fireEvent.click(sortButton(/Trạng thái/));
     await waitFor(() => expect(calls.some((url) => url.includes('sortBy=state&sortDir=asc'))).toBe(true));
 

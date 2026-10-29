@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  shipmentCusContainerFlatRowSchema,
   shipmentCusContainerLineUpdateSchema,
   shipmentCusContainerQuerySchema,
   shipmentCusWorkspaceListItemSchema,
@@ -383,4 +384,86 @@ test('FCL factory update accepts the real site reference and rejects invalid ids
   for (const operationalSiteId of [0, -1, 1.5, 'wrong']) {
     assert.equal(shipmentCusContainerLineUpdateSchema.safeParse({ ...input, operationalSiteId }).success, false);
   }
+});
+
+// SIL-592 (id 692) — the Chi tiết lô hàng flat row must carry the staff-close
+// gating triple (tripId/tripStatus/carrierType) so the CUS "Hoàn thành" action
+// for live EXTERNAL trips can be gated from the list wire without a per-row
+// fetch. Required nullable like the container line's twin fields (2026-09-08):
+// both flat-row producers emit them in the same landing.
+test('container flat row carries the SIL-592 staff-close gating fields', () => {
+  const flatRow = {
+    id: 11,
+    shipmentId: 1,
+    shipmentVersion: 1,
+    ordinal: 1,
+    customerId: 1,
+    isAdHoc: false,
+    customerName: 'Long Minh',
+    factoryName: null,
+    routeName: 'KCN Quế Võ',
+    billOrBookNumber: 'EGLV149607019409',
+    declarationNumber: null,
+    shippingLineName: null,
+    isCombined: false,
+    classification: 'SINGLE',
+    direction: null,
+    containerNumber: 'MSKU1234567',
+    containerTypeLabel: "20'DC",
+    dispatchStatus: 'IN_TRANSIT',
+    carrierName: 'Nhà xe Minh Phát',
+    carrierType: 'EXTERNAL',
+    plateNumber: '30A-123.45',
+    actualTruckNo: null,
+    billingTruckNo: null,
+    revVehicleClassCode: null,
+    costVehicleClassCode: null,
+    liftSite: null,
+    dropoffSite: null,
+    transportDate: null,
+    closingAt: null,
+    plannedReturnAt: null,
+    customerAppointmentAt: null,
+    customerNotes: null,
+    operationalNotes: null,
+    tripId: 55,
+    tripStatus: 'IN_TRANSIT',
+    raw: { containerNumber: 'MSKU1234567', containerTypeId: 1, cargoWeightKg: null, cargoVolumeCbm: null },
+    fieldAccess: {
+      operationalSiteId: directField,
+      containerNumber: directField,
+      containerTypeId: directField,
+      cargoWeightKg: directField,
+      cargoVolumeCbm: directField,
+      routeId: directField,
+      liftSiteId: directField,
+      dropoffSiteId: directField,
+    },
+    shipmentFieldAccess: workspaceFieldAccess,
+    informationStatus: 'COMPLETE',
+    missingFields: [],
+    shipmentScheduleEditable: true,
+    shipmentNotesEditable: true,
+    carrierEditable: true,
+    plateEditable: true,
+    liftSiteEditable: true,
+    dropoffSiteEditable: true,
+    routeEditable: true,
+    customerAppointmentEditable: true,
+    scheduleEditable: true,
+  };
+  const parsed = shipmentCusContainerFlatRowSchema.safeParse(flatRow);
+  assert.equal(parsed.success, true);
+  assert.equal(parsed.success && parsed.data.tripId, 55);
+  assert.equal(parsed.success && parsed.data.tripStatus, 'IN_TRANSIT');
+  // A planned line (no live trip yet) must also validate — null is the wire's
+  // "no completable trip" reading the gate consumes.
+  const planned = shipmentCusContainerFlatRowSchema.safeParse({
+    ...flatRow,
+    dispatchStatus: 'PLANNED',
+    tripId: null,
+    tripStatus: null,
+    carrierType: null,
+  });
+  assert.equal(planned.success, true);
 });

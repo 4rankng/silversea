@@ -1,0 +1,579 @@
+$ cd shared && npx tsx --test src/**/*.test.ts
+
+> @tingting/shared@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared
+> tsx --test src/**/*.test.ts
+
+✔ 18t books the light class, 22t the heavy class — both container sizes (1.25425ms)
+✔ exactly 20.0t is HEAVY (ruling a) — pinned at the boundary (0.165875ms)
+✔ 19.999t stays light; 20.001t goes heavy (0.122542ms)
+✔ missing weight blocks: null / undefined / NaN / 0 / negative → MISSING_WEIGHT, message "Thiếu trọng tải" (0.127416ms)
+✔ labels are the customer sheet verbatim (0.091416ms)
+✔ codes fit the vehicleSizeClassSchema code contract (A-Z, 0-9, dot, ≤20) (0.27225ms)
+▶ sumExcludingNegative (card 20260928_181)
+  ✔ the rule: [100, -50] totals 100, not 50 — the negative row does not exist (0.875042ms)
+  ✔ all-positive rows are summed unchanged (0.151208ms)
+  ✔ adding a negative row leaves the total EXACTLY identical (0.110458ms)
+  ✔ a zero row is neutral and stays in the set (0.091334ms)
+  ✔ reads a decimal string amount (numeric columns arrive as strings) (0.097166ms)
+  ✔ honours round2dp for fractional amounts (0.096625ms)
+  ✔ an empty set totals 0 (0.134625ms)
+  ✔ a non-finite amount is dropped instead of poisoning the total with NaN (0.093709ms)
+  ✔ an all-negative set totals 0 (never a negative total) (0.112ms)
+✔ sumExcludingNegative (card 20260928_181) (2.54775ms)
+▶ computeFifoAging
+  ✖ simple single debit aging into correct bucket (3.1045ms)
+  ✖ multiple debits with credits applied FIFO (0.5135ms)
+  ✖ unapplied credit carry-forward (0.261708ms)
+  ✔ edge case: zero amounts (0.148292ms)
+  ✔ edge case: all debits fully paid (zero balances) (0.2465ms)
+  ✔ edge case: credit exceeds debits (negative balance clamped) (0.210666ms)
+  ✖ bucket boundaries: 30/60/90 days (0.467291ms)
+  ✖ bucket boundary exactly 30 days → current bucket (0.266208ms)
+  ✖ bucket boundary exactly 60 days → d30 bucket (0.267958ms)
+  ✔ bucket boundary exactly 90 days → d60 bucket (0.100708ms)
+  ✔ bucket boundary 91 days → over90 bucket (0.044125ms)
+  ✔ missing timestamps fall back to reference date (0.039959ms)
+  ✖ entries sorted chronologically regardless of input order (0.095875ms)
+  ✖ numeric debit/credit values (not strings) (0.067917ms)
+  ✔ empty entries array returns zero aging (0.346792ms)
+  ✖ partial payment splits single invoice correctly (0.072917ms)
+  ✖ unapplied credit applied to later debits (0.077ms)
+✖ computeFifoAging (7.697541ms)
+✔ computeFuelSurcharge applies the configured delta, liters, and share percent (1.382125ms)
+✔ computeFuelSurcharge returns zero when share percent is null (0.141042ms)
+✔ computeFuelSurcharge returns zero when base price is unset (0.192875ms)
+✔ computeFuelSurcharge returns zero when current price does not exceed base price (0.466375ms)
+✔ computeFuelSurcharge handles 100 percent customer share (0.179666ms)
+✔ computeFuelSurcharge uses round2dp then roundInt (0.120542ms)
+✔ computeFreightRate: NEWEB CONT40, fuel 27620 (parity with Excel) (2.210875ms)
+✔ computeFreightRate: NEWEB CONT40, fuel 21740 (parity with Excel) (0.180792ms)
+✔ computeFreightRate: clamp to 0 when fuel below base (0.502917ms)
+✔ computeFreightRate: fuel exactly at base ⇒ surcharge = 0 (0.345333ms)
+✔ computeFreightRate: ASKEY 1.25T, fuel 27620 (parity with Excel) (0.170833ms)
+✔ computeFreightRate: fuelDelta is not rounded (0.158958ms)
+✔ computeFreightRate: SUNRISE+SJ 10T rounding boundary HALF_UP (TC-CUOC-007) (0.107125ms)
+✔ computeFreightRate: HALF_UP tie-break (TC-CUOC-007 boundary) (0.09ms)
+✔ computeFreightRate: CONT20 NEWEB kỳ 21,740 (TC-CUOC-008 parity) (0.121458ms)
+✔ computeFreightRate: CONT20 NEWEB kỳ 27,620 (TC-CUOC-008 parity) (0.228125ms)
+✔ computeFreightRate: small negative fuelDelta clamps to 0 (Câu 1 = B) (0.179375ms)
+✔ computeFreightRate: zero liters ⇒ surcharge 0, freight still computed (0.15475ms)
+✔ computeFreightRate: round2dp called BEFORE roundInt — order matters (0.065042ms)
+▶ normalizeContainerNumber
+  ✔ strips hyphens/spaces and uppercases (0.926708ms)
+✔ normalizeContainerNumber (5.544ms)
+▶ validateContainerFormat
+  ✔ accepts 4 letters + 7 digits (0.4695ms)
+  ✔ rejects wrong shapes (0.112459ms)
+✔ validateContainerFormat (0.981584ms)
+▶ calculateCheckDigit
+  ✔ ALLU521653 (first 10) → 5 (0.197917ms)
+  ✔ MSKU123456 (first 10) → 5 (0.096542ms)
+  ✔ remainder 10 maps to check digit 0 (AAAU000006 → 0) (0.090625ms)
+  ✔ throws when input is not 10 characters (0.411ms)
+✔ calculateCheckDigit (1.062417ms)
+▶ validateCheckDigit
+  ✔ valid numbers pass (0.259458ms)
+  ✔ bad check digit fails (0.31525ms)
+  ✔ wrong format fails fast (0.196917ms)
+✔ validateCheckDigit (0.936708ms)
+▶ validateContainerNumber
+  ✔ valid → [true, ""] (0.182958ms)
+  ✔ bad format → Vietnamese message (0.167584ms)
+  ✔ bad check digit → Vietnamese message (19.62175ms)
+  ✔ empty → prompt message (0.173958ms)
+✔ validateContainerNumber (20.346875ms)
+▶ suggestCorrections
+  ✔ returns [] for already-valid number (29.168041ms)
+  ✔ returns [] for unrecoverable format (0.193208ms)
+  ✔ check-digit-only typo ranks the original first (0.461ms)
+  ✔ single mid-digit error recovers the original when given room (32.460667ms)
+  ✔ respects maxResults (0.219833ms)
+✔ suggestCorrections (63.277084ms)
+▶ round2dp
+  ✔ basic rounding: 1.005 rounds to 1.01 (banker-safe) (0.6685ms)
+  ✔ basic rounding: 1.004 rounds to 1.00 (0.135ms)
+  ✔ basic rounding: 2.345 rounds to 2.35 (0.081625ms)
+  ✔ basic rounding: 2.344 rounds to 2.34 (0.182458ms)
+  ✔ edge case: 0 passes through (0.087417ms)
+  ✔ edge case: negative number rounds correctly (0.079ms)
+  ✔ edge case: very large numbers (0.114ms)
+  ✔ already-round numbers pass through (0.102042ms)
+  ✔ rounding at 0.5 boundary (0.096ms)
+  ✔ VND-scale numbers (millions) (0.135958ms)
+  ✔ floating-point edge: 0.1 + 0.2 (0.097792ms)
+✔ round2dp (17.726166ms)
+▶ roundInt
+  ✔ basic rounding: 1.5 rounds to 2 (0.176917ms)
+  ✔ basic rounding: 1.4 rounds to 1 (0.070334ms)
+  ✔ basic rounding: 97.2 rounds to 97 (0.0575ms)
+  ✔ basic rounding: 97.9 rounds to 98 (0.049625ms)
+  ✔ negative numbers clamp to 0 (0.055458ms)
+  ✔ very large numbers (0.054958ms)
+  ✔ already-integer values pass through (0.056958ms)
+  ✔ 0.5 rounds up to 1 (0.045959ms)
+  ✔ 0.4 rounds down to 0 (0.054708ms)
+  ✔ 0 passes through (0.063958ms)
+✔ roundInt (0.887459ms)
+▶ symbol → trips
+  ✔ counts K as ONE trip even though it carries two containers (48.512584ms)
+  ✔ counts Q (quay đầu) as two trips (5.008ms)
+  ✔ counts Đ (chạy đơn) as one trip (0.089041ms)
+  ✔ counts L, N and P as zero trips (0.826083ms)
+  ✔ an empty cell contributes nothing (0.138625ms)
+✔ symbol → trips (68.405375ms)
+▶ symbol → attended days
+  ✔ counts K, Q, Đ, L and P as an attended day (2.435292ms)
+  ✔ counts N (nghỉ) as no attended day (0.072375ms)
+  ✔ never counts a Sunday as an attended day, whatever the symbol (0.084625ms)
+  ✔ still records the trips run on a Sunday (0.051917ms)
+  ✔ identifies Sundays from an ISO day (0.071875ms)
+✔ symbol → attended days (2.917875ms)
+▶ per-trip salary — 300.000đ/trip and the +100.000đ from trip 21
+  ✔ pays 300.000đ per trip below the threshold (0.284041ms)
+  ✔ pays exactly one extra trip at the 21st trip (boundary) (0.301709ms)
+  ✔ pays the extra on every trip past the threshold (0.177292ms)
+  ✔ a Q (quay đầu) cell counts as two trips toward the threshold (0.207416ms)
+  ✔ adds the daily base per attended day and never for a Sunday (0.090167ms)
+✔ per-trip salary — 300.000đ/trip and the +100.000đ from trip 21 (1.271084ms)
+▶ flat monthly salary
+  ✔ pays the flat figure and ignores trips and workdays (0.161792ms)
+  ✔ pays zero when the flat amount is not configured (0.06375ms)
+✔ flat monthly salary (0.293708ms)
+▶ accountant trip adjustments
+  ✔ reduces trips by a negative adjustment (0.934541ms)
+  ✔ can remove a whole trip, taking the total to zero (0.100542ms)
+  ✔ a large negative adjustment cannot drive the total below zero from a base of zero (0.052583ms)
+✔ accountant trip adjustments (4.556041ms)
+▶ symbol counts and the month helper
+  ✔ reports one entry per symbol cell and trips per symbol (0.09075ms)
+  ✔ exposes one rule per grid symbol (3.215667ms)
+  ✔ lists every calendar day of a month (5.217833ms)
+✔ symbol counts and the month helper (9.410667ms)
+▶ computeTripDriverSalary
+  ✔ uses the fixed 26-day trip allocation divisor (0.694959ms)
+  ✔ uses the configured driver base salary (0.425166ms)
+  ✔ returns zero for missing or invalid inputs (0.562959ms)
+✔ computeTripDriverSalary (3.94875ms)
+▶ resolveTripDriverSalary
+  ✔ prefers configured driver salary allocation over a legacy route fallback (0.799042ms)
+  ✔ retains the legacy fallback when the driver has no configured base salary (0.189666ms)
+✔ resolveTripDriverSalary (1.289542ms)
+✔ round2dp boundary correctness (35.936458ms)
+✔ roundInt rounds to nearest integer and clamps negatives (2.139709ms)
+✔ AUTO standard mode calculation -- fuel liters rounded to integer (4.757459ms)
+✔ AUTO mountain mode allowance calculation (0.185416ms)
+✔ AUTO uses a configured fixed route allowance even when the route is classified as plain (0.14925ms)
+✔ AUTO mountain fallback calculation when allowance is null (0.102458ms)
+✔ FLAT_RATE mode calculation (0.150292ms)
+✔ FLAT_RATE mode takes precedence over mountain route (0.116792ms)
+✔ FLAT_RATE with fractional override is rounded to integer (0.14025ms)
+✔ supplement added in all modes (and rounded) (0.169667ms)
+✔ negative road allowance clamped to 0 (0.141333ms)
+✔ 0 legs (empty legs array) (0.105584ms)
+✔ rounding preserves sum-of-legs consistency (0.795375ms)
+✔ fuel liters always integer even when raw result is x.xx5 (0.105208ms)
+✔ twoPointDeliveryBonus and vehicleShiftAllowance included in totalCost (0.071625ms)
+✔ backward-compat: vatRate=0 (default) -- freightExVat equals revenue (0.110083ms)
+✔ OWN trip with 8% VAT: freightExVat = revenue / 1.08 (0.073541ms)
+✔ OWN trip with ancillary fees: service amounts do not affect transport grossProfit (0.201667ms)
+✔ EXTERNAL trip: totalCost = externalFreightCost, margin uses incl-VAT cost (§4.7) (0.322875ms)
+✔ EXTERNAL trip with service fees: service amounts do not affect transport grossProfit (0.060709ms)
+✔ auto-calculated road allowance when tollsAddition is 0 (0.133625ms)
+✔ tollCost = tollsStations × tollPerStation, included in totalCost for OWN trips (0.079042ms)
+✔ tollCost = 0 when tollsStations is 0 (0.108ms)
+✔ tollCost NOT included in totalCost for EXTERNAL trips (0.1675ms)
+✔ tollDeduction=0 (default) keeps gross toll in tollCost (no regression) (0.071375ms)
+✔ tollDeduction equal to gross toll nets tollCost to 0 (second trip of a backhaul pair) (0.082625ms)
+✔ partial tollDeduction nets only the deducted amount off tollCost (0.055042ms)
+✔ tollDeduction larger than gross toll clamps net toll to 0 (never negative) (0.05375ms)
+✔ tollDeduction does NOT touch road allowance (distinct from tollsDiscount) (0.07925ms)
+✔ pair bears the toll once: trip1 gross + trip2 net(0) == single gross toll (0.053625ms)
+✔ customerCommission=0: recordedRevenue equals freightExVat (backward compat) (0.100792ms)
+✔ customerCommission=500K: recordedRevenue = freightExVat - commission (0.051541ms)
+✔ customerCommission omitted (undefined): recordedRevenue equals freightExVat (0.051333ms)
+✔ commission reduces grossProfit for OWN trips (0.065541ms)
+✔ commission reduces EXTERNAL trip grossProfit and management margin (0.067583ms)
+✔ roadAllowanceOverride=null uses automatic computed allowance (0.083792ms)
+✔ roadAllowanceOverride=undefined uses automatic computed allowance (0.0595ms)
+✔ roadAllowanceOverride=0 uses explicit zero (not computed fallback) (0.051125ms)
+✔ roadAllowanceOverride=positive uses the override value (0.0635ms)
+✔ reconciled toll replaces estimate while agreed allowances and separate extras remain (0.115584ms)
+▶ vatForAmount
+  ✔ matches the chốt-time convention: base is pre-VAT, rounded to unit VND (0.923167ms)
+✔ vatForAmount (3.072417ms)
+▶ debitRoundVatTotals
+  ✔ sums per direction inside the inclusive period bounds (0.52775ms)
+  ✔ spans a multi-month range (0.110583ms)
+  ✔ an empty period keeps hasRounds false — the honest dash case (0.087625ms)
+  ✔ a zero-rate round is a computed zero that still counts as data (0.106625ms)
+✔ debitRoundVatTotals (1.049ms)
+▶ REQ-19 LCL cargo fit — parseTonnageKg (class code → kg)
+  ✔ parses the canonical tonnage ladder (0.8005ms)
+  ✔ tolerates spacing and comma decimals, rejects everything else (0.132208ms)
+✔ REQ-19 LCL cargo fit — parseTonnageKg (class code → kg) (2.467541ms)
+▶ REQ-19 LCL cargo fit — assessLclCargoFit (group Σkg vs class)
+  ✔ 5T class with exactly 5.000 kg of consolidated lots FITS (0.234084ms)
+  ✔ 5T class with 6.000 kg of consolidated lots is OVER (advisory) (0.084792ms)
+  ✔ null weights are skipped, not counted as zero-fact total (0.0865ms)
+  ✔ container classes are priced per shell — no kg fit, no invented CBM capacity (0.072459ms)
+  ✔ truck-kind class with an unparseable code is UNKNOWN_CLASS, never a guess (0.076ms)
+✔ REQ-19 LCL cargo fit — assessLclCargoFit (group Σkg vs class) (0.7725ms)
+▶ FB-090 LCL vehicle sourcing rule (DEV SPEC Hàng lẻ §I)
+  ✔ truck tonnage classes are 100% external (EXTERNAL_ONLY) (86.916625ms)
+  ✔ container classes allow internal or external fleet (0.494208ms)
+  ✔ every rule has a Vietnamese display label (2.149584ms)
+✔ FB-090 LCL vehicle sourcing rule (DEV SPEC Hàng lẻ §I) (121.176916ms)
+▶ Q22 source-authority catalog
+  ✔ exhaustively contains every accepted source/dependent pair (1.262875ms)
+  ✔ maps shipment facts to trip recompute before dispatch and version after dispatch (0.121375ms)
+  ✔ maps trip changes to draft and AR recompute, then adjustment after issue (0.107333ms)
+  ✔ makes only approved expense status and amount authoritative (0.120875ms)
+  ✔ keeps issued receivables and recorded payments immutable through adjustments or reversals (0.09575ms)
+  ✔ fails closed for an undefined pair or action (0.162542ms)
+✔ Q22 source-authority catalog (2.6545ms)
+▶ secure billing document write contract
+  ✔ accepts only immutable source identities for a Debit Note (37.245667ms)
+  ✔ rejects browser-authored money, exclusions, overrides and ad-hoc rows (1.2865ms)
+  ✔ rejects forged or incomplete financial-posting provenance (0.534334ms)
+✔ secure billing document write contract (56.425167ms)
+✔ customer create: tax code honors existing 20-character storage boundary (24.950792ms)
+✔ customer update: tax code honors existing 20-character storage boundary (0.3305ms)
+✔ supplier create: tax code honors existing 20-character storage boundary (0.227541ms)
+✔ supplier update: tax code honors existing 20-character storage boundary (0.160208ms)
+✔ CUS workspace query accepts full numbers, separators, and 4-64 char suffixes (48.775583ms)
+✔ CUS workspace query rejects invalid suffix search (0.232708ms)
+✔ overview query rejects the detail-only informationStatus parameter (0.15875ms)
+✔ container query accepts informationStatus=MISSING and defaults are shared (0.064625ms)
+✔ container query rejects unknown informationStatus values (0.105666ms)
+✔ container query keeps the shared transport-date order refinement (0.127333ms)
+✔ every missing-field code has a non-empty Vietnamese label (0.0775ms)
+✔ CUS workspace list item supports explicit unavailable custody state (10.568958ms)
+✔ CUS accounting confirmation response includes the Debit Note identity (0.68275ms)
+✔ CUS container-line update accepts inline new external carrier input (9.681417ms)
+✔ CUS container-line update accepts a container-specific customer appointment (0.46675ms)
+✔ CUS container-line update accepts the +07:00 offset appointment the ledger editor sends (6.394292ms)
+✔ CUS container-line update rejects a malformed appointment with a Vietnamese message (0.333458ms)
+✔ CUS container-line update accepts only normalized container identity and cargo fields (0.648042ms)
+✔ CUS container-line update rejects every finance field at the strict operational boundary (0.225458ms)
+✔ CUS container-line update rejects mixed existing and new external carrier input (16.414084ms)
+✔ CUS container-line update rejects inline external carrier for OWN carrier type (0.334875ms)
+✔ FCL factory update accepts the real site reference and rejects invalid ids (1.470833ms)
+✔ container flat row carries the SIL-592 staff-close gating fields (2.587958ms)
+▶ accounting transport register contract
+  ✔ normalizes bounded pagination and strict filters (6.507125ms)
+  ✔ rejects reversed dates, oversized pages, invalid enums, and unknown money inputs (0.975583ms)
+  ✔ response contract requires financial posting provenance and bounded metadata (37.051167ms)
+✔ accounting transport register contract (47.3945ms)
+✔ customerSchema accepts WEEKLY debit-note mode (4.067917ms)
+✔ customerSchema rejects legacy PER_BATCH for new writes (0.616125ms)
+✔ customerUpdateSchema accepts legacy PER_BATCH for unchanged-row compatibility (0.402875ms)
+✔ customerSchema rejects unknown debit-note modes (0.214916ms)
+✔ customerSchema accepts distinct full and short names (0.196083ms)
+✔ customerSchema treats a blank short name as a deliberate clear (0.144625ms)
+✔ new freight terms require an explicit agreed lag without coercing unknown values to zero (49.149458ms)
+✔ partial freight terms updates preserve the omitted existing lag and reject explicit unknown lag (6.084208ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice=23530 (number input) (10.134375ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice="23530" (string input) (1.078541ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice=23528 (number input) (0.807834ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice="23528" (string input) (0.404333ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice=27650 (number input) (2.272417ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice="27650" (string input) (0.230084ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice=100000 (number input) (0.170666ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice="100000" (string input) (0.140458ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice=1 (number input) (0.167ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice="1" (string input) (0.217041ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice=99999 (number input) (0.144667ms)
+✔ updateTripFiguresSchema preserves fuelActualUnitPrice="99999" (string input) (0.610416ms)
+✔ createTripSchema accepts a per-trip actual pump price (0.46225ms)
+✔ full VND round-trip input → String() → Number() is lossless (0.099ms)
+✔ blank fuelActualUnitPrice (null/undefined) is accepted → config fallback (0.271166ms)
+✔ accepts a minimal valid payload (optionals omitted) (1.464917ms)
+✔ accepts all whitelisted entity types (1.58375ms)
+✔ rejects an unknown entity type (32.571125ms)
+✔ coerces entityId from string (0.377ms)
+✔ rejects entityId <= 0 (0.919041ms)
+✔ rejects lat out of range (0.757209ms)
+✔ rejects lng out of range (0.381625ms)
+✔ accepts gpsAt omitted (manual / no-device-fix entry) (0.155042ms)
+✔ accepts the diagnostic optional fields (0.178917ms)
+✔ accepts all whitelisted sources (0.223916ms)
+✔ named phone lists reject duplicate numbers and ambiguous defaults (32.719042ms)
+✔ legacy fallback preserves a single callable contact and sorts default first without mutation (0.695875ms)
+✔ FACTORY requires a routeId (Nhà máy 1-1 tuyến đường cố định) (2.546917ms)
+✔ WAREHOUSE must not carry a factory route (kho không dùng tuyến nhà máy) (0.7425ms)
+✔ address is mandatory on the factory record (vị trí đóng/trả 1-1) (0.233666ms)
+✔ partialUpdateSchema keeps omitted keys out of the parsed update across wrapper orderings (25.351042ms)
+✔ partialUpdateSchema mirrors the unknown-keys policy of the source schema (0.895375ms)
+✔ invoiceTrackingPatchSchema leaves progress out of an omitted-key PATCH (0.250875ms)
+✔ tripExpensePatchSchema keeps money/status fields out of a buyAmount-only PATCH (0.472709ms)
+✔ grid layout matches the Mẫu 1 file column order (1.267708ms)
+✔ container classes resolve to base codes for norms (1.30025ms)
+✔ heSo defaults to 1 and rejects out-of-range values (0.641542ms)
+✔ create schema coerces ids and defaults empty cells (0.425458ms)
+✔ fuelPriceLagDays defaults to 1 and rejects invalid values (0.421792ms)
+✔ quotation paths resolve (0.098459ms)
+✔ KT-16: invoice value and supplier fee remain distinct facts (14.911542ms)
+✔ KT-19: reject fractional, negative, non-finite and oversized money (8.937708ms)
+✔ KT-17: actual dates are valid calendar dates without an invented ordering rule (0.547792ms)
+✔ KT-18: partial refunds require received amount/date and cannot exceed deposit (0.363083ms)
+✔ KT-20: creating and editing records require distinct version contracts (0.334583ms)
+✔ shipment schemas accept canonical calendar dates (4.844ms)
+✔ shipment schemas reject malformed and impossible delivery dates (0.971666ms)
+✔ shipment schemas preserve nullable delivery-date compatibility (0.205167ms)
+✔ shipment schemas carry the explicit consolidation flag (0.203709ms)
+✔ shipment write schemas accept recipient-specific driver notes (0.225042ms)
+✔ shipment schemas reject a Bill and Booking on the same shipment (0.302583ms)
+✔ SIL-521: tờ khai hết nhập cấp lô — quick-create không còn nhận declarationNumber (0.173709ms)
+▶ supplierSchema
+  ✔ normalizes canonical supplier categories case-insensitively (11.582542ms)
+  ✔ rejects unknown and non-string supplier categories (1.03575ms)
+✔ supplierSchema (25.185709ms)
+▶ treasury fund labels (card 2026-10-05_381)
+  ✔ names the two fund sources exactly as the customer spec does (0.570208ms)
+  ✔ reads a label through the shared helper rather than an inline literal (0.10675ms)
+  ✔ leaves the internal fund codes untouched so existing rows keep their data (2.214666ms)
+  ✔ carries no legacy "Quỹ TM" wording, and every code resolves a label (0.325625ms)
+✔ treasury fund labels (card 2026-10-05_381) (15.001291ms)
+✔ rejects fuelSupplementLiters > 0 with empty reason (7.137375ms)
+✔ rejects fuelSupplementLiters > 0 with missing reason (0.417167ms)
+✔ accepts fuelSupplementLiters > 0 with provided reason (0.261375ms)
+✔ accepts fuelSupplementLiters = 0 without reason (0.193334ms)
+✔ accepts fuelSupplementLiters undefined without reason (0.240083ms)
+✔ accepts null values for external carrier fields (1.251667ms)
+✔ bulkUpdateTripFiguresSchema accepts per-row malformed figures for row-level handling (0.3145ms)
+✔ bulkUpdateTripFiguresSchema rejects empty batches (0.328959ms)
+✔ QA066 accepts an optional empty journey but rejects malformed entered legs (0.69325ms)
+✔ accepts expectedVersion as a deliberate alias for version (card 20260914_40) (0.291ms)
+✔ prefers version when both version and expectedVersion are sent (0.187625ms)
+✔ version-only payloads are unchanged (0.152416ms)
+▶ work inbox contracts
+  ✔ requires a bounded reason for a disputed delivery (7.057375ms)
+  ✔ keeps the response authority and pagination shape stable (1.13875ms)
+✔ work inbox contracts (9.855666ms)
+ℹ tests 289
+ℹ suites 29
+ℹ pass 279
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4484.12925
+
+✖ failing tests:
+
+test at src/calculations/fifoAging.test.ts:1:421
+✖ simple single debit aging into correct bucket (3.1045ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1000000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:21:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at node:internal/test_runner/test:1617:71
+      at node:internal/per_context/primordials:466:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:435:3)
+      at node:internal/per_context/primordials:466:9
+      at Array.map (<anonymous>) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1000000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/calculations/fifoAging.test.ts:1:832
+✖ multiple debits with credits applied FIFO (0.5135ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  300000 !== 100000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:40:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 300000,
+    expected: 100000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/calculations/fifoAging.test.ts:1:1247
+✖ unapplied credit carry-forward (0.261708ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 300000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:56:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 300000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/calculations/fifoAging.test.ts:1:2768
+✖ bucket boundaries: 30/60/90 days (0.467291ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 100000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:113:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 100000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/calculations/fifoAging.test.ts:1:3234
+✖ bucket boundary exactly 30 days → current bucket (0.266208ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 100000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:124:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 100000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/calculations/fifoAging.test.ts:1:3485
+✖ bucket boundary exactly 60 days → d30 bucket (0.267958ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 100000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:133:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 100000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/calculations/fifoAging.test.ts:1:4496
+✖ entries sorted chronologically regardless of input order (0.095875ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 300000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:180:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 300000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/calculations/fifoAging.test.ts:1:4859
+✖ numeric debit/credit values (not strings) (0.067917ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1000000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:188:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1000000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/calculations/fifoAging.test.ts:1:5340
+✖ partial payment splits single invoice correctly (0.072917ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 600000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:208:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 600000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/calculations/fifoAging.test.ts:1:5703
+✖ unapplied credit applied to later debits (0.077ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 200000
+  
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/1njkloyy/fix-sil-692/shared/src/calculations/fifoAging.test.ts:224:12)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 200000,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+ ELIFECYCLE  Test failed. See above for more details.
+exit=1

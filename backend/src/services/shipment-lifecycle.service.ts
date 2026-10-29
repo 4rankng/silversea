@@ -496,6 +496,16 @@ export async function softDeleteShipment(
       isNull(s.shipmentFulfillments.canceledAt),
     ));
 
+    // SIL-555 (id 629): the lot's container rows go WITH the lot. The live-trip
+    // guard above already refused any dispatch law the rows participate in, and
+    // the accounting lock guard refused anything money still needs — what is
+    // left is pure state that must not outlive its lot (QA: stray container
+    // rows from cleanup rounds kept resurfacing on the board). Same hard-delete
+    // class the per-row remove endpoint uses after canceling the row's own
+    // fulfillment, and the FCL→LCL conversion sweep applies lot-wide
+    // (shipment-update). The lot itself keeps its soft-delete audit trail.
+    await tx.delete(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipmentId));
+
     const [updated] = await tx.update(s.shipments).set({
       deletedAt: new Date(),
       version: sql`${s.shipments.version} + 1`,

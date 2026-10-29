@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<title>SIL-562 font capability check</title>
+<!-- The EXACT shipped face set: /fonts/fonts.css (Be Vietnam Pro + Inter Digits). -->
+<link rel="stylesheet" href="/fonts/fonts.css" />
+<style>
+  /* The app's house stack, verbatim from tokens.css (SIL-562 order). */
+  .digits, .prose { font-family: 'Inter Digits', 'Be Vietnam Pro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 16px; }
+  /* The app-wide declaration under test (shared money/numeric primitives,
+     .ds-tabs__count, operational data-table base). */
+  .digits { font-variant-numeric: tabular-nums; }
+  /* Control: the SAME declaration on the OLD stack (no digits face) — the
+     pre-SIL-562 state QA measured. */
+  .digits-bvp { font-family: 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif; font-size: 16px; font-variant-numeric: tabular-nums; }
+  .cell { display: inline-block; white-space: pre; }
+</style>
+</head>
+<body>
+  <div id="digits" class="digits"></div>
+  <div id="prose" class="prose">Số lượng container trọn vẹnABC</div>
+  <script>
+    // Ten repeats per digit: per-glyph advance differences accumulate into
+    // measurable width deltas at 16px.
+    const host = document.getElementById('digits');
+    for (const d of '0123456789') {
+      const s = document.createElement('span');
+      s.className = 'cell';
+      s.dataset.digit = d;
+      s.textContent = d.repeat(10);
+      host.appendChild(s);
+    }
+  </script>
+</body>
+</html>

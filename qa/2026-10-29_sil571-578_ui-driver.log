@@ -1,0 +1,28 @@
+PASS — @1024 no sort-button pair intersects ([])
+PASS — @1024 every column ≥ its exact floor ([])
+PASS — @1024 buttons one line (≤30px tall) (24)
+   @1024 table=1189 overflowX=auto hScroll=true
+PASS — @1280 no sort-button pair intersects ([])
+PASS — @1280 every column ≥ its exact floor ([])
+PASS — @1280 buttons one line (≤30px tall) (24)
+   @1280 table=1192 overflowX=clip hScroll=false
+PASS — @1366 no sort-button pair intersects ([])
+PASS — @1366 every column ≥ its exact floor ([])
+PASS — @1366 buttons one line (≤30px tall) (24)
+   @1366 table=1270 overflowX=clip hScroll=false
+PASS — @1440 no sort-button pair intersects ([])
+PASS — @1440 every column ≥ its exact floor ([])
+PASS — @1440 buttons one line (≤30px tall) (24)
+   @1440 table=1189 overflowX=auto hScroll=true
+PASS — @1920 no sort-button pair intersects ([])
+PASS — @1920 every column ≥ its exact floor ([])
+PASS — @1920 buttons one line (≤30px tall) (24)
+   @1920 table=1624 overflowX=clip hScroll=false
+PASS — sort click sorts its own column (aria-sort on the clicked th) ({"sorted":"ascending","col":"Tổng quan hàng hóa"})
+PASS — @1280 thead stays pinned over page scroll (law 20260926_49) ({"before":226,"after":226})
+PASS — @1366 thead stays pinned over page scroll (law 20260926_49) ({"before":226,"after":226})
+screenshot qa/2026-10-29_sil571-578_ui-shipments-1440.png
+screenshot qa/2026-10-29_sil571-578_ui-shipments-1280.png
+screenshot qa/2026-10-29_sil571-578_ui-shipments-768.png
+screenshot qa/2026-10-29_sil571-578_ui-shipments-390.png
+ALL CHECKS PASSED

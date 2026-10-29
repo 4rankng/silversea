@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/hotfix-sil-593/frontend
+
+
+ Test Files  38 passed (38)
+      Tests  273 passed (273)
+   Start at  18:49:08
+   Duration  64.34s (transform 7.44s, setup 14.07s, import 86.89s, tests 147.52s, environment 60.45s)
+

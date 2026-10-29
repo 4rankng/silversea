@@ -48,3 +48,22 @@
   font-display: swap;
   src: url('./BeVietnamPro-ExtraBold.ttf') format('truetype');
 }
+
+/* SIL-562 (2026-10-29) — the shared DIGITS face. Be Vietnam Pro ships
+   proportional figures only, so every `tabular-nums` declaration in the app
+   (money primitives, tab counts, the data-table base) was inert: digit
+   columns jittered between refreshes. Inter's figures sit on one advance
+   width (and carry the OpenType tnum feature the declarations activate), so
+   this face serves ONLY the codepoints that form numbers — digits plus the
+   comma/period separators — and everything else falls through to Be Vietnam
+   Pro. One variable file (wght 100–900, latin subset, 48KB) covers every
+   weight the numerals render at; unicode-range keeps prose letterforms
+   untouched. */
+@font-face {
+  font-family: 'Inter Digits';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./InterVariable-latin.woff2') format('woff2-variations');
+  unicode-range: U+0030-0039, U+002C, U+002E;
+}

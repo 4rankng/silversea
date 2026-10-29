@@ -7,7 +7,7 @@
  * the dependency direction is writes → reads only, never the reverse.
  * `cus-shipment-workspace.service.ts` remains the facade importers target.
  */
-import { Role, ShipmentCusBucket, ShipmentStatus, localDateInBusinessZone, type DispatchClassification, type ShipmentCusContainerQuery, type ShipmentCusWorkspaceDetail, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceQuery, type ShipmentCusContainerFlatResponse, type ShipmentCusContainerFlatRow } from '@tingting/shared';
+import { Role, ShipmentCusBucket, ShipmentStatus, TripStatus, localDateInBusinessZone, type DispatchClassification, type ShipmentCusContainerQuery, type ShipmentCusWorkspaceDetail, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceQuery, type ShipmentCusContainerFlatResponse, type ShipmentCusContainerFlatRow } from '@tingting/shared';
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 
 
@@ -1085,6 +1085,11 @@ function buildLotFlatRow(
     dispatchStatus,
     carrierName: identity.carrierName,
     carrierType: identity.carrierType,
+    // SIL-592 (id 692) — the staff-close gating triple rides the flat row so
+    // the CUS workboard can render "Hoàn thành" for live external trips from
+    // the list wire (container rows carry the twin fields from the line).
+    tripId: lotAssignment?.tripId ?? null,
+    tripStatus: (lotAssignment?.tripStatus as TripStatus | null) ?? null,
     plateNumber: identity.plateNumber,
     // Card 161026232339 — the FB-092/093 group truck + the two billing classes
     // the settlement strip already prints. The Điều vận assignment's planned
@@ -1298,6 +1303,9 @@ export async function listCusShipmentContainers(
       dispatchStatus: line.dispatchStatus,
       carrierName: line.carrierName,
       carrierType: line.carrierType,
+      // SIL-592 (id 692) — staff-close gating triple, same law as the lot rows.
+      tripId: line.tripId,
+      tripStatus: line.tripStatus,
       plateNumber: line.plateNumber,
       // Card 161026232339: same fields the lot rows carry, so the flat
       // schema stays one shape. FCL containers never bill into an LCL group —

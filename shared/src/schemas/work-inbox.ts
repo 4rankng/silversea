@@ -6,11 +6,11 @@ export const workInboxNextActionSchema = z.object({ label: z.string().min(1).max
 export const workInboxItemBaseSchema = z.object({
   id: z.string().min(1), entityType: z.string().min(1).max(80), entityId: z.union([z.number().int().positive(), z.string().min(1)]),
   title: z.string().min(1).max(255), subtitle: z.string().max(500).nullable(), state: workInboxStateSchema,
-  priority: z.number().finite(), dueAt: z.string().datetime().nullable(), freshnessAt: z.string().datetime(),
+  priority: z.number().finite(), dueAt: z.iso.datetime().nullable(), freshnessAt: z.iso.datetime(),
   blockers: z.array(workInboxPartySchema), advisories: z.array(workInboxPartySchema), nextAction: workInboxNextActionSchema, targetRoute: z.string().min(1).max(500),
 });
 export const workInboxResponseSchema = z.object({
-  asOf: z.string().datetime(), timezone: z.literal('Asia/Ho_Chi_Minh'),
+  asOf: z.iso.datetime(), timezone: z.literal('Asia/Ho_Chi_Minh'),
   counts: z.object({ action: z.number().int().nonnegative(), waiting: z.number().int().nonnegative(), done: z.number().int().nonnegative() }),
   page: z.number().int().positive(), limit: z.number().int().positive().max(100), total: z.number().int().nonnegative(), totalPages: z.number().int().nonnegative(), items: z.array(workInboxItemBaseSchema),
 });

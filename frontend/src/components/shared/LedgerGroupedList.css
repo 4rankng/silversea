@@ -67,9 +67,18 @@
     color: var(--ink-3);
     font-size: var(--text-body-size);
     line-height: 16px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* SIL-582 (2026-10-29 rework): the meta line carries the Số Booking —
+       the row's business display key. The old nowrap+ellipsis guard clipped
+       a 247px-in-240px line ("EGLV149607019409 · 07/09/2026 · 1 cont") and
+       cut the booking's distinguishing tail with no hover path on touch.
+       The meta wraps at its ' · ' separators instead (the tokens themselves
+       — 16-char booking, date, count — never break mid-token), so every
+       value stays fully readable without hover (§4 no-truncation doctrine;
+       same treatment as the __name above). */
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: normal;
   }
 
   .ledger-glist__side {

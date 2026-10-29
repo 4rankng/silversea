@@ -73,7 +73,7 @@ const createPaymentWithTreasurySchema = z.intersection(createPaymentSchema, trea
 const vendorPaymentWithTreasurySchema = vendorPaymentSchema.merge(treasuryPaymentFieldsSchema);
 const treasuryCutoverSchema = z.object({
   expectedVersion: z.number().int().positive(),
-  cutoverAt: z.string().datetime(),
+  cutoverAt: z.iso.datetime(),
   reason: z.string().trim().min(1).max(1000),
   cutoverEvidence: z.string().trim().min(1).max(255),
 });

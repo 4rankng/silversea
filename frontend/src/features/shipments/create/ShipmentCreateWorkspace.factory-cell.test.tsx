@@ -92,18 +92,22 @@ describe('shipment create factory cell (card 20260923_2)', { timeout: 20000 }, (
   // button) on screen next to the magnifier. Catalog cells must carry the
   // picker modifier — the CSS collapses them to the value text once the menu
   // closes; text-input cells keep the focus-within reveal.
+  // SIL-552 (QA 29/10): the LOẠI line left ShipmentContainerCell for the
+  // ghost-line + floating-editor pattern — the reveal contract no longer
+  // applies to it (no editor ever mounts in the cell), so it asserts the
+  // ghost line instead of the picker modifier.
   it('catalog cells carry the picker reveal modifier, text cells do not', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
     const factoryCell = document.querySelector('[data-field-id$="-factory"]');
     expect(factoryCell?.classList.contains('csc-container-cell--picker')).toBe(true);
-    for (const suffix of ['-type', '-route', '-pickup-port', '-dropoff-port']) {
-      // SIL-508: the LOẠI line is a div inside the merged SỐ CONTAINER group
-      // cell — the picker modifier rides the line element, not a td.
+    for (const suffix of ['-route', '-pickup-port', '-dropoff-port']) {
       const cell = document.querySelector(`[data-field-id$="${suffix}"]`);
       expect(cell?.classList.contains('csc-container-cell--picker'), suffix).toBe(true);
     }
+    const typeLine = document.querySelector('[data-field-id$="-type"]');
+    expect(typeLine?.classList.contains('csc-fline'), 'SIL-552 ghost line').toBe(true);
     const numberCell = document.querySelector('[data-field-id$="-number"]');
     expect(numberCell?.classList.contains('csc-container-cell--picker')).toBe(false);
   });
