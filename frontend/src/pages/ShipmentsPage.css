@@ -243,12 +243,18 @@
   outline: none;
 }
 
-/* SIL-571: only where the floored table outgrows the canvas (the min-width
-   floors sum to 1079px; the viewport area drops under that below ~1160px of
-   window) does the board scroll horizontally, per the 2026-09-29 law. Above
-   the breakpoint the viewport stays a non-scroll container, so the pinned
-   thead keeps binding to the app-body scrollport (card 20260926_49). */
-@media (max-width: 1158px) and (min-width: 768px) {
+/* SIL-571/SIL-578 (2026-10-29, rework): the floored table outgrows the canvas
+   nowhere above ~1189px of AREA — but "area" is not a window width (measured
+   canvases: 936 @1024, 1192 @1280, 1270 @1366, 1144 @1440 — the pinned
+   sidebar eats ~296px at ≥1440), so a media query cannot express "the table
+   no longer fits". The worksheet is the inline-size container (rule below);
+   the container query scrolls the board exactly when the container is
+   narrower than the floored table, and the viewport stays a non-scroll
+   container everywhere else so the pinned thead keeps binding to the
+   app-body scrollport (card 20260926_49). Where the board does scroll, the
+   thead pins to the pane instead — the same accepted compromise the ≤1158px
+   media band made for @1024. */
+@container (max-width: 1188.5px) {
   .cus-dashboard-viewport {
     overflow-x: auto;
   }
@@ -335,22 +341,38 @@
 .cus-dashboard-table col.cus-dashboard-col--notes { width: 10%; }
 .cus-dashboard-table col.cus-dashboard-col--status { width: 13%; }
 
-/* SIL-571 (2026-10-29) — sortable headers own their one-line width. At the
-   1024–1440 bands the % shares squeeze the grouped-header columns below the
-   nowrap sort button (FB-063), so the button painted into its neighbour
-   (measured live: "Tổng quan hàng hóa" 165px in a 159px th at 1280; 44/52px
-   intersections at 1024). Per-column min-width = one-line header + the th's
-   24px padding (2026-09-29 board law: the table grows and scrolls instead of
-   columns collapsing). The floors sum to 1079px — inside the canvas at
-   1280/1366/1440 (no scroll, sticky header law untouched); below ~1160px of
-   window the table grows and the viewport scrolls horizontally. */
-@media (min-width: 1024px) and (max-width: 1440px) {
-  .cus-dashboard-table col.cus-dashboard-col--customer { min-width: 200px; }
-  .cus-dashboard-table col.cus-dashboard-col--documents { min-width: 110px; }
-  .cus-dashboard-table col.cus-dashboard-col--classification { min-width: 192px; }
-  .cus-dashboard-table col.cus-dashboard-col--cargo { min-width: 190px; }
-  .cus-dashboard-table col.cus-dashboard-col--schedule { min-width: 182px; }
-  .cus-dashboard-table col.cus-dashboard-col--status { min-width: 120px; }
+/* SIL-571/SIL-578 (2026-10-29 rework): the per-column floor is enforced by the
+   TABLE's min-width plus floor-proportional percentage shares — NOT by
+   `min-width` on the <col> elements. The previous revision pinned col
+   min-widths (200/110/192/190/182/120), but column boxes only honor `width`
+   in the table layout algorithms: QA's engine ignored the col min-widths
+   entirely (measured columns = exact % shares of a 1038px canvas: "Tổng quan
+   hàng hóa" 165px in a 125px track, buttons painting into the neighbour at
+   1024/1280/1440), and even Chromium only partially honored them (measured
+   th 183px against a 192px floor). Floor-proportional percentages are
+   honored by every engine and every visible-column subset: with the table
+   never narrower than the floors' sum (1189px), each column resolves to
+   ≥ its exact floor (floor_i / Σ × W ≥ floor_i ⟺ W ≥ Σ).
+   Floors = one-line header button + the th's 24px inline padding, measured
+   live at 11px/0.88 letter-spacing (customer 199.5, documents 175.4 — the
+   16-char mono Bill/Booking code is the column's data floor, 151.4 + 24;
+   classification 191.3, cargo 188.8, schedule 180.3, notes 134 — "Thêm ghi
+   chú" data floor, status 119.4; Σ = 1188.7 → table floor 1189). This is the
+   2026-09-29 board law: the table grows and scrolls instead of columns
+   collapsing, and width follows the value a column actually holds. The band
+   has no upper bound: the shares hold at every canvas ≥ 1189px, including
+   1920. */
+@media (min-width: 1024px) {
+  .cus-dashboard-table {
+    min-width: 1189px;
+  }
+  .cus-dashboard-table col.cus-dashboard-col--customer { width: 16.785%; }
+  .cus-dashboard-table col.cus-dashboard-col--documents { width: 14.755%; }
+  .cus-dashboard-table col.cus-dashboard-col--classification { width: 16.093%; }
+  .cus-dashboard-table col.cus-dashboard-col--cargo { width: 15.883%; }
+  .cus-dashboard-table col.cus-dashboard-col--schedule { width: 15.167%; }
+  .cus-dashboard-table col.cus-dashboard-col--notes { width: 11.272%; }
+  .cus-dashboard-table col.cus-dashboard-col--status { width: 10.045%; }
 }
 
 .cus-dashboard-table thead th {
