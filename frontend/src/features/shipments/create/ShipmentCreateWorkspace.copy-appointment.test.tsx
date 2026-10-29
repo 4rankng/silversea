@@ -62,9 +62,23 @@ function fillNumber(index: number, value: string) {
   fireEvent.change(inputs[index]!, { target: { value } });
 }
 
+function weightTriggers() {
+  return [...screen.getAllByRole('button', { name: /Chỉnh sửa trọng lượng — dòng \d+/ })];
+}
+
+/** SIL-552: the weight line is a ghost trigger — open its floating editor,
+ *  type, Enter commits (the shared Enter/Lưu guard) and closes the panel. */
 function fillWeight(index: number, value: string) {
-  const inputs = [...screen.getAllByLabelText('Trọng lượng (kg)')] as HTMLInputElement[];
-  fireEvent.change(inputs[index]!, { target: { value } });
+  fireEvent.click(weightTriggers()[index]!);
+  const input = screen.getByLabelText(`Trọng lượng (kg) — dòng ${index + 1}`) as HTMLInputElement;
+  fireEvent.change(input, { target: { value } });
+  fireEvent.keyDown(input, { key: 'Enter' });
+}
+
+/** Opens row `index`'s weight panel and returns the seeded input value. */
+function weightValue(index: number): string {
+  fireEvent.click(weightTriggers()[index]!);
+  return (screen.getByLabelText(`Trọng lượng (kg) — dòng ${index + 1}`) as HTMLInputElement).value;
 }
 
 function duplicateButtons() {
@@ -105,7 +119,7 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     expect((screen.getAllByLabelText('Số container') as HTMLInputElement[])[1]!.value).toBe('MSCU6639870');
     expect(appointmentValue(1).date).toBe('20/09/2026');
     expect(appointmentValue(1).time).toBe('09:00');
-    expect((screen.getAllByLabelText('Trọng lượng (kg)') as HTMLInputElement[])[1]!.value).toBe('24500');
+    expect(weightValue(1)).toBe('24500');
     // The source row keeps its place and values.
     expect((screen.getAllByLabelText('Số container') as HTMLInputElement[])[0]!.value).toBe('MSCU6639870');
     expect(appointmentValue(0).date).toBe('20/09/2026');
