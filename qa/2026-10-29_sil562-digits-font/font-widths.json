@@ -1,0 +1,39 @@
+{
+  "loaded": [
+    "Be Vietnam Pro unloaded",
+    "Be Vietnam Pro loaded",
+    "Be Vietnam Pro unloaded",
+    "Be Vietnam Pro unloaded",
+    "Be Vietnam Pro unloaded",
+    "Be Vietnam Pro unloaded",
+    "Be Vietnam Pro unloaded",
+    "Inter Digits loaded"
+  ],
+  "widths": {
+    "0": 103.75,
+    "1": 103.75,
+    "2": 103.75,
+    "3": 103.75,
+    "4": 103.75,
+    "5": 103.75,
+    "6": 103.75,
+    "7": 103.75,
+    "8": 103.75,
+    "9": 103.75
+  },
+  "spread": 0,
+  "control_bvp_stack_widths": {
+    "0": 108.171875,
+    "1": 61.609375,
+    "2": 104.171875,
+    "3": 105.609375,
+    "4": 113.609375,
+    "5": 105.609375,
+    "6": 108.8125,
+    "7": 96.484375,
+    "8": 101.453125,
+    "9": 108.8125
+  },
+  "control_bvp_spread": 52,
+  "base": "http://127.0.0.1:64164"
+}

@@ -37,8 +37,10 @@
 .num {
   font-family: var(--font-data);
   /* Spec 19/10 FIX CHI PHÍ (mục 2) — shared numeric-law surfaces carry
-     tabular-nums (inert with the current proportional-figure font; see
-     Money.css note). */
+     tabular-nums. Live since SIL-562: the 'Inter Digits' face (digits-only
+     unicode-range, one advance width per figure) leads every font stack, so
+     the declaration renders an even digit grid instead of waiting on the
+     typeface. */
   font-variant-numeric: tabular-nums;
 }
 .text-muted { color: var(--ink-3); }
