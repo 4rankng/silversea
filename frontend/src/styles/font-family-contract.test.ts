@@ -19,9 +19,10 @@ const debitCloseSource = join(sourceRoot, 'pages/accounting/AccountingDebitClose
 // the .num/.typo-num cells, the record-table money columns and the grouped
 // NumberField input. These four own the declaration app-wide; the scan below
 // still bans every other surface from inventing a local copy. The bundled
-// Be Vietnam Pro ships proportional figures only — the declaration is inert
-// until the typeface carries tnum (font capability noted in
-// qa/2026-10-21-accounting-fix2, not a reason to skip the spec's CSS).
+// Be Vietnam Pro ships proportional figures only — since SIL-562 the
+// 'Inter Digits' face (digits-only unicode-range) leads every font stack, so
+// the shared declarations RENDER an even digit grid instead of waiting on
+// the typeface (font capability history in qa/2026-10-21-accounting-fix2).
 const sharedMoneyTabularSources = [
   join(sourceRoot, 'components/shared/Money.css'),
   join(sourceRoot, 'styles/typography.css'),
@@ -90,5 +91,26 @@ describe('frontend font-family contract', () => {
     expect(applicationSource).not.toMatch(/font-(?:variant-numeric\s*:\s*tabular-nums|feature-settings\s*:\s*["']tnum)/);
     expect(readFileSync(join(fontAssetRoot, 'fonts.css'), 'utf8')).not.toContain('JetBrains Mono');
     expect(fontAssetFiles(fontAssetRoot).filter((path) => /jetbrains/i.test(path))).toEqual([]);
+  });
+
+  // SIL-562 (2026-10-29): the shared DIGITS face makes every tabular-nums
+  // declaration live. The face must exist, serve ONLY number codepoints
+  // (digits + separators — prose stays Be Vietnam Pro), span every weight the
+  // numerals render at, and LEAD each house font stack.
+  it('bundles the Inter Digits face and leads the house stacks with it', () => {
+    const fontsCss = readFileSync(join(fontAssetRoot, 'fonts.css'), 'utf8');
+    const faceIdx = fontsCss.indexOf("font-family: 'Inter Digits'");
+    expect(faceIdx).toBeGreaterThan(-1);
+    const face = fontsCss.slice(faceIdx, fontsCss.indexOf('}', faceIdx));
+    expect(face).toContain('InterVariable-latin.woff2');
+    expect(face).toMatch(/font-weight:\s*100\s+900/);
+    expect(face).toContain('unicode-range: U+0030-0039');
+    expect(fontAssetFiles(fontAssetRoot).some((path) => /InterVariable-latin\.woff2$/.test(path))).toBe(true);
+
+    const tokens = readFileSync(join(sourceRoot, 'styles', 'tokens.css'), 'utf8');
+    for (const token of ['--font-display', '--font-body', '--font-sans']) {
+      const line = tokens.split('\n').find((value) => value.trim().startsWith(`${token}:`));
+      expect(line?.trim().startsWith(`${token}: 'Inter Digits', 'Be Vietnam Pro'`), token).toBe(true);
+    }
   });
 });

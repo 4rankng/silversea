@@ -63,21 +63,24 @@ function containerTypeIsPaintedRed(): boolean {
 }
 
 /**
- * FB-048 lần 4 (card 211026034111): in `ShipmentContainerCell`, the inner
- * combobox/input lives inside `.csc-container-cell__editor > *` which is
- * `opacity: 0` at rest (and stays `opacity: 0` on `--picker` cells even when
- * focused until the menu opens). The user-visible resting control box is
- * `.csc-container-cell__display`. A container cell is only visibly painted red
- * at rest if:
- * 1. The `<td>` carries `.csc-container-cell--error`
- * 2. Its inner control carries `aria-invalid="true"` / `data-invalid="true"`
- * 3. For non-persistent cells, the resting `.csc-container-cell__display`
- *    surface itself carries `data-invalid="true"` (styled with
- *    `border: 1px solid var(--danger)` in `ShipmentContainerCell.css`).
+ * FB-048 lần 4 (card 211026034111): the user-visible resting control box of a
+ * container cell carries the invalid signal, and the global QA-AUDIT-UI57
+ * rule paints that box red. Two structures live in the row:
+ * - `.csc-container-cell` (factory / route / ports / appointment): the resting
+ *   surface is `.csc-container-cell__display[data-invalid="true"]`, the cell
+ *   carries `.csc-container-cell--error`, and the inner control (hidden behind
+ *   the value-first reveal) carries `aria-invalid` / `data-invalid`.
+ * - `.csc-fline` (SIL-552 ghost line, the LOẠI cell): the line carries
+ *   `.csc-fline--error` and its trigger carries `data-invalid="true"` — the
+ *   resting value band IS the trigger.
  */
 function containerCellIsPaintedRed(suffix: string, rowIndex = 0): boolean {
   const cell = [...document.querySelectorAll<HTMLElement>(`[data-field-id$="${suffix}"]`)][rowIndex];
-  if (!cell || !cell.classList.contains('csc-container-cell--error')) return false;
+  if (!cell) return false;
+  if (cell.classList.contains('csc-fline')) {
+    return cell.querySelector('.csc-fline__trigger[data-invalid="true"]') != null;
+  }
+  if (!cell.classList.contains('csc-container-cell--error')) return false;
   const hasInvalidControl = cell.querySelector('.csc-container-cell__editor [aria-invalid="true"], .csc-container-cell__editor [data-invalid="true"]') != null;
   if (!hasInvalidControl) return false;
   if (cell.classList.contains('csc-container-cell--persistent')) {

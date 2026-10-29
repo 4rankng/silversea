@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -347,20 +347,28 @@ describe('Loại container row commit (20260918_11)', () => {
   it('picking a container type commits the id through the workspace wiring', async () => {
     renderWorkspace();
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
-    const combo = await screen.findByRole('combobox', { name: 'Loại container' });
+    // SIL-552: the LOẠI line is a ghost trigger — click opens the floating
+    // editor panel that hosts the combobox (its accessible name stays the
+    // picker's own "Loại container"; the panel carries the line identity).
+    const trigger = await screen.findByRole('button', { name: 'Chỉnh sửa loại container — dòng 1' });
+    fireEvent.click(trigger);
+    const panel = await screen.findByRole('dialog', { name: 'Chỉnh sửa loại container — dòng 1' });
+    const combo = within(panel).getByRole('combobox', { name: 'Loại container' });
     fireEvent.click(combo);
     const opt = await screen.findByRole('option', { name: '20DC' });
     fireEvent.click(opt);
-    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Loại container' })).toHaveValue('20DC'));
-    // The cell display is read from the row's catalog id — it proves the
-    // row state holds the id, not just the input's transient text.
-    expect(document.querySelector('[data-field-id$="-type"]')?.textContent).toContain('20DC');
-    fireEvent.blur(screen.getByRole('combobox', { name: 'Loại container' }));
-    // Blur must not feed the option label back as the id (which blanked the
-    // cell and failed the save with "containerTypeId là bắt buộc").
-    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Loại container' })).toHaveValue('20DC'));
-    expect(document.querySelector('[data-field-id$="-type"]')?.textContent).toContain('20DC');
-    expect(document.querySelector('[data-field-id$="-type"]')?.textContent).not.toContain('Chọn loại');
+    // The pick commits immediately (the SIL-508 contract) and closes the
+    // card (the editors stay mounted — the card loses its open state): the
+    // ghost line shows the picked code from the row's catalog id — it proves
+    // the row state holds the id, not just the input's transient text. Blur
+    // must not feed the option label back as the id (which blanked the cell
+    // and failed the save with "containerTypeId là bắt buộc").
+    await waitFor(() => expect(document.getElementById(panel?.id ?? '')).not.toHaveClass('is-open'));
+    const line = document.querySelector('[data-field-id$="-type"]');
+    expect(line?.textContent).toContain('20DC');
+    expect(line?.textContent).not.toContain('Chọn loại');
+    // Focus returned to the ghost trigger after the commit.
+    expect(document.activeElement).toBe(trigger);
   });
 });
 

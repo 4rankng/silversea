@@ -535,8 +535,13 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, canRe
             // SIL-555 per-row guards (mirror the remove API's own 409s at the
             // affordance level — a doomed click is never advertised): a row
             // carrying a tờ khai (SIL-177) or an active trip refuses deletion.
+            // Each lock names its OWN reason — both present, both stated.
             const declaredNumber = line.declarationNumber?.trim() ?? '';
             const activeTrip = line.tripId != null && line.tripStatus !== 'CANCELED';
+            const removeLockReasons = [
+              ...(declaredNumber !== '' ? [`Cont có tờ khai ${declaredNumber} — gỡ tờ khai trước khi xóa`] : []),
+              ...(activeTrip ? ['Container đã gắn chuyến xe — hủy hoặc thay thế lệnh điều xe trước khi xóa'] : []),
+            ];
             return (
             <tr key={line.id} className="dispatch-container-detail__row">
               <td data-label="STT" className="dispatch-container-detail__ordinal-column">{line.ordinal}</td>
@@ -615,9 +620,14 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, canRe
                     className="btn btn--danger-outline btn--sm dispatch-container-detail__remove"
                     onClick={() => onRemove(line)}
                     disabled={removingLineId != null || activeTrip || declaredNumber !== ''}
-                    title={declaredNumber !== ''
-                      ? `Cont có tờ khai ${declaredNumber} — gỡ tờ khai trước khi xóa`
-                      : activeTrip ? 'Không thể xóa container đã gắn chuyến xe' : 'Xóa container khỏi lô'}
+                    // SIL-555 (QA 29/10): the two locks state their reasons
+                    // INDEPENDENTLY — a row carrying both must name both, so
+                    // the trip-only lock is verifiable on its own terms (QA
+                    // could not attribute a disabled state that only ever
+                    // showed the declaration reason).
+                    title={removingLineId === line.id
+                      ? 'Đang xóa…'
+                      : removeLockReasons.length > 0 ? removeLockReasons.join('. ') : 'Xóa container khỏi lô'}
                     aria-label={`Xóa container ${removeTargetName(line)}`}
                   >
                     Xóa container

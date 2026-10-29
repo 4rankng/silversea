@@ -111,6 +111,21 @@ function renderPage() {
   </Routes></ToastProvider></ReducedMotionProvider></QueryClientProvider></MemoryRouter>);
 }
 
+/** SIL-552: the TRỌNG LƯỢNG line is a ghost trigger — open the row's
+ *  floating editor, type, Enter commits (the shared Enter/Lưu guard). */
+function fillWeight(row: number, value: string) {
+  fireEvent.click(screen.getAllByRole('button', { name: /Chỉnh sửa trọng lượng — dòng \d+/ })[row]!);
+  const input = screen.getByLabelText(`Trọng lượng (kg) — dòng ${row + 1}`) as HTMLInputElement;
+  fireEvent.change(input, { target: { value } });
+  fireEvent.keyDown(input, { key: 'Enter' });
+}
+
+/** Opens row `row`'s weight editor and returns its seeded input value. */
+function weightValue(row: number): string {
+  fireEvent.click(screen.getAllByRole('button', { name: /Chỉnh sửa trọng lượng — dòng \d+/ })[row]!);
+  return (screen.getByLabelText(`Trọng lượng (kg) — dòng ${row + 1}`) as HTMLInputElement).value;
+}
+
 async function choose(label: string, value: string) {
   const labelElement = Array.from(document.querySelectorAll('label')).find((element) => element.textContent?.trim().startsWith(label));
   const nativeSelect = labelElement?.parentElement?.querySelector('select');
@@ -640,14 +655,14 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     expect(screen.queryByLabelText('Thể tích (m³)')).toBeNull();
     fireEvent.change(screen.getByLabelText('Số container'), { target: { value: 'MSCU6639870' } });
-    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
+    fillWeight(0, '12000');
     fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
     fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '20/08/2026' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
 
     expect(screen.getAllByLabelText('Số container').map((field) => (field as HTMLInputElement).value)).toEqual(['MSCU6639870', '']);
-    expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000']);
+    expect([weightValue(0), weightValue(1)]).toEqual(['12000', '12000']);
     expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['09', '09']);
     expect(screen.getAllByLabelText('Phút — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['30', '30']);
     expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(['20', '20']);
@@ -716,7 +731,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
     await choose('Khách hàng', '7');
     await choose('Nhà máy', '41');
-    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
+    fillWeight(0, '12000');
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
     expect(screen.getAllByRole('combobox', { name: 'Nhà máy' })).toHaveLength(2);
     await choose('Khách hàng', '8');
@@ -887,17 +902,19 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       return match;
     });
     fireEvent.click(factoryOption);
-    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000.5' } });
+    fillWeight(0, '12000.5');
     fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
     fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '20/08/2026' } });
     fireEvent.blur(screen.getByLabelText('Ngày — Ngày giờ đóng trả'));
 
     const displayedValue = (text: string) => within(row).getByText(text, { selector: '.csc-container-cell__display' });
-    expect(displayedValue('40HC')).toHaveAttribute('title', '40HC — Container 40 feet cao');
+    // SIL-552: LOẠI + TRỌNG LƯỢNG display in the ghost line's value lane.
+    const ghostValue = (text: string) => within(row).getByText(text, { selector: '.csc-fline__value' });
+    expect(ghostValue('40HC').closest('button')).toHaveAttribute('title', '40HC — Container 40 feet cao');
     expect(displayedValue('Cảng Cát Lái')).toBeTruthy();
     expect(displayedValue('Cảng ICD Sóng Thần')).toBeTruthy();
     expect(displayedValue('Nhà máy Long Minh')).toBeTruthy();
-    expect(displayedValue('12.000,5')).toBeTruthy();
+    expect(ghostValue('12.000,5')).toBeTruthy();
     expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('09');
     expect(screen.getByLabelText('Phút — Ngày giờ đóng trả')).toHaveValue('30');
     expect(screen.getByLabelText('Ngày — Ngày giờ đóng trả')).toHaveValue('20');
@@ -930,7 +947,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
-    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
+    fillWeight(0, '12000');
     fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
     fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '20/08/2026' } });
 
@@ -940,7 +957,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
 
     expect(screen.getAllByLabelText('Số container')).toHaveLength(4);
-    expect(screen.getAllByLabelText('Trọng lượng (kg)').map((field) => (field as HTMLInputElement).value)).toEqual(['12000', '12000', '12000', '12000']);
+    expect([weightValue(0), weightValue(1), weightValue(2), weightValue(3)]).toEqual(['12000', '12000', '12000', '12000']);
     expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('09'));
     expect(screen.getAllByLabelText('Phút — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('30'));
     expect(screen.getAllByLabelText('Ngày — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('20'));
@@ -979,7 +996,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       return match;
     });
     fireEvent.click(factoryOption);
-    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000.5' } });
+    fillWeight(0, '12000.5');
     fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
     fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '20/08/2026' } });
     fireEvent.blur(screen.getByLabelText('Ngày — Ngày giờ đóng trả'));
@@ -996,19 +1013,21 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(4);
     const displayValue = (row: HTMLElement, text: string) => within(row).getByText(text, { selector: '.csc-container-cell__display' });
+    // SIL-552: LOẠI + TRỌNG LƯỢNG display in the ghost line's value lane.
+    const ghostValue = (row: HTMLElement, text: string) => within(row).getByText(text, { selector: '.csc-fline__value' });
     for (const row of rows) {
       expect(displayValue(row, 'Cát Lái — Sóng Thần')).toBeTruthy();
       expect(displayValue(row, 'Nhà máy Long Minh')).toBeTruthy();
       expect(displayValue(row, 'Cảng Cát Lái')).toBeTruthy();
       expect(displayValue(row, 'Cảng ICD Sóng Thần')).toBeTruthy();
-      expect(displayValue(row, '12.000,5')).toBeTruthy();
+      expect(ghostValue(row, '12.000,5')).toBeTruthy();
     }
     // …and Loại cont stays blank on the ADDED rows (placeholder "Chọn loại")
     // while row 1 keeps its own pick.
-    expect(displayValue(rows[0]!, '40HC')).toBeTruthy();
+    expect(ghostValue(rows[0]!, '40HC')).toBeTruthy();
     for (const row of rows.slice(1)) {
-      expect(displayValue(row, 'Chọn loại')).toBeTruthy();
-      expect(within(row).queryByText('40HC', { selector: '.csc-container-cell__display' })).toBeNull();
+      expect(ghostValue(row, 'Chọn loại')).toBeTruthy();
+      expect(within(row).queryByText('40HC', { selector: '.csc-fline__value' })).toBeNull();
     }
     // …and the schedule window rides too.
     expect(screen.getAllByLabelText('Giờ — Ngày giờ đóng trả').map((field) => (field as HTMLInputElement).value)).toEqual(Array(4).fill('09'));
@@ -1269,7 +1288,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
-    fireEvent.change(screen.getByLabelText('Trọng lượng (kg)'), { target: { value: '12000' } });
+    fillWeight(0, '12000');
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
@@ -1439,7 +1458,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     }
     fireEvent.click(within(dialog).getByRole('button', { name: action }));
     await waitFor(() => expect(mocks.createSite).toHaveBeenCalledWith(expect.objectContaining({ customerId: 7, siteType })));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    // SIL-552: the ghost lines keep two always-mounted editor cards
+    // (role=dialog) — scope the wait to the quick-add dialog itself.
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: new RegExp(`^${action}`) })).toBeNull());
     expect(screen.getByRole('combobox', { name: new RegExp(`^${label}`) })).toHaveValue(created.shortName);
     if (siteType === 'FACTORY') {
       expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cát Lái — Sóng Thần');

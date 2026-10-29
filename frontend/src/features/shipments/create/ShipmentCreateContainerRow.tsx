@@ -1,7 +1,9 @@
 import { Copy, Info, Trash2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { CatalogData } from '../../../api/tripClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
+import { useClickOutside } from '../../../hooks/useClickOutside';
+import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
 import { formatDateTime24 } from '../../../lib/format';
 import {
   USearchableField as SearchableField,
@@ -91,6 +93,68 @@ export function ShipmentCreateContainerRow({
   // Card 20261002_268: read-only factory detail peek beside the cell value.
   const [factoryDetailOpen, setFactoryDetailOpen] = useState(false);
   const factoryDetailAnchorRef = useRef<HTMLButtonElement | null>(null);
+  // SIL-552 (QA 29/10) — the LOẠI / TRỌNG LƯỢNG group lines are ghost lines
+  // (label + value only): clicking a line opens the shared floating editor
+  // (FloatingCellEditor, SIL-631) instead of editing inside the cell — the
+  // same owner decision the drawer's SỐ CONTAINER cell already runs. One
+  // line edits at a time; the draft is row-local (the create form commits
+  // into the draft row, no API call per line).
+  const [openLine, setOpenLine] = useState<'type' | 'weight' | null>(null);
+  const [weightDraft, setWeightDraft] = useState('');
+  const typeTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const weightTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const typePanelRef = useRef<HTMLDivElement | null>(null);
+  const weightPanelRef = useRef<HTMLDivElement | null>(null);
+  // The 20261002_272 hand-off asks the LOẠI menu to be open the moment its
+  // line opens (Tab leaving SỐ): the picker mounts inside the panel, so the
+  // open() call waits for the mount effect below.
+  const typeMenuOnOpenRef = useRef(false);
+  const panelIdBase = useId();
+  const typePanelId = `${panelIdBase}-type-editor`;
+  const weightPanelId = `${panelIdBase}-weight-editor`;
+  const typeError = issueByField.get(`container-${row.key}-type`);
+  const weightSeed = row.cargoWeightKg;
+
+  const openGroupLine = (line: 'type' | 'weight', openMenu = false) => {
+    typeMenuOnOpenRef.current = line === 'type' && openMenu;
+    setWeightDraft(line === 'weight' ? weightSeed : '');
+    setOpenLine((current) => (current === line ? null : line));
+  };
+  const closeGroupLine = (line: 'type' | 'weight', restoreFocus: boolean) => {
+    setOpenLine((current) => (current === line ? null : current));
+    if (restoreFocus) {
+      (line === 'type' ? typeTriggerRef : weightTriggerRef).current?.focus();
+    }
+  };
+  const commitWeight = () => {
+    const next = weightDraft.trim();
+    if (next === weightSeed.trim()) {
+      closeGroupLine('weight', true);
+      return;
+    }
+    updateContainer(row.key, 'cargoWeightKg', next);
+    closeGroupLine('weight', true);
+  };
+  const commitType = (value: string) => {
+    updateContainer(row.key, 'containerTypeId', value);
+    closeGroupLine('type', true);
+  };
+
+  // Focus lands ONCE per panel opening; the Tab hand-off additionally opens
+  // the picker menu after the combobox exists (the 272 contract: leaving SỐ
+  // opens the LOẠI menu exactly once — bare focus alone stays closed).
+  useEffect(() => {
+    if (openLine !== 'type') return;
+    const frame = requestAnimationFrame(() => {
+      const input = typePanelRef.current?.querySelector<HTMLElement>('input, [role="combobox"]');
+      input?.focus();
+      if (typeMenuOnOpenRef.current) {
+        typeMenuOnOpenRef.current = false;
+        typePickerOpenApi.current?.open();
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [openLine]);
   const factoryName = factory?.shortName || factory?.name || (isAdHoc ? row.rawFactoryName : '');
   const factoryInvoiceGroups = factory ? [{
     label: 'Hóa đơn cẩu phí',
@@ -158,61 +222,108 @@ export function ShipmentCreateContainerRow({
               onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())}
               onKeyDown={(event) => {
                 // Card 20261002_272 (PM 03/10, option a): Tab LEAVING the paired
-                // Số container field opens the Loại container picker's menu
+                // Số container field opens the Loại container editor's menu
                 // exactly once — a deliberate navigation act. Bare focus and
                 // pass-through stay closed (the 2026-09-21 ruling stands). The
-                // default Tab proceeds: focus lands on the picker, then we open.
+                // default Tab proceeds: focus lands on the line trigger's
+                // floating editor (SIL-552), then we open its menu.
                 if (event.key === 'Tab' && !event.shiftKey) {
-                  window.setTimeout(() => typePickerOpenApi.current?.open(), 0);
+                  window.setTimeout(() => openGroupLine('type', true), 0);
                 }
               }}
               disabled={saving}
               error={issueByField.get(`container-${row.key}-number`)}
             />
           </ShipmentContainerCell>
-          <ShipmentContainerCell
-            as="div"
-            microLabel
+          {/* SIL-552 (QA 29/10) — LOẠI + TRỌNG LƯỢNG are ghost lines: label +
+              value trigger; activating a line floats its editor outside the
+              table (the drawer's SỐ CONTAINER pattern, owner 28/10). The
+              editors stay MOUNTED in the line at rest (invisible — the
+              value-first law): the react-aria constraint walk and the
+              field order keep treating LOẠI as the first container control,
+              exactly as before. The combobox keeps its "+ Thêm" create flow
+              inside the floating card (TC-CUS-CREATE-020). */}
+          <GroupFloatingLine
+            anchorRef={typeTriggerRef}
+            cardRef={typePanelRef}
+            panelId={typePanelId}
             microLabelText="Loại"
-            label="Loại container *"
-            value={containerType?.code ?? ''}
-            placeholder="Chọn loại"
-            displayTitle={containerType ? `${containerType.code} — ${containerType.name}` : undefined}
+            contractLabel="Loại container *"
             fieldId={`container-${row.key}-type`}
-            error={issueByField.get(`container-${row.key}-type`)}
-            picker
+            error={typeError}
+            value={containerType?.code ?? ''}
+            emptyText="Chọn loại"
+            displayTitle={containerType ? `${containerType.code} — ${containerType.name}` : undefined}
+            triggerAriaLabel={`Chỉnh sửa loại container — dòng ${index + 1}`}
+            panelLabel={`Chỉnh sửa loại container — dòng ${index + 1}`}
+            open={openLine === 'type'}
+            disabled={saving}
+            onToggle={() => openGroupLine('type')}
+            onOpen={() => openGroupLine('type')}
+            onClose={() => closeGroupLine('type', false)}
+            onCancel={() => closeGroupLine('type', true)}
           >
             <ContainerTypeCellPicker
               value={row.containerTypeId}
-              onChange={(value) => updateContainer(row.key, 'containerTypeId', value)}
+              onChange={commitType}
               options={catalogs.containerTypes ?? []}
               fieldId={`container-${row.key}-type`}
               saving={saving}
-              error={issueByField.get(`container-${row.key}-type`)}
+              error={typeError}
               openApiRef={typePickerOpenApi}
             />
-          </ShipmentContainerCell>
-          <ShipmentContainerCell
-            as="div"
-            microLabel
+          </GroupFloatingLine>
+          <GroupFloatingLine
+            anchorRef={weightTriggerRef}
+            cardRef={weightPanelRef}
+            panelId={weightPanelId}
             microLabelText="Trọng lượng"
-            label="Trọng lượng (kg)"
+            contractLabel="Trọng lượng (kg)"
+            fieldId={`container-${row.key}-weight`}
             value={formatContainerWeight(row.cargoWeightKg)}
-            placeholder="Nhập kg"
-            className="csc-container-cell--numeric csc-container-cell--weight"
-            onRevert={(value) => updateContainer(row.key, 'cargoWeightKg', value)}
+            emptyText="Nhập kg"
+            numeric
+            triggerAriaLabel={`Chỉnh sửa trọng lượng — dòng ${index + 1}`}
+            panelLabel={`Chỉnh sửa trọng lượng — dòng ${index + 1}`}
+            open={openLine === 'weight'}
+            disabled={saving}
+            onToggle={() => openGroupLine('weight')}
+            onOpen={() => openGroupLine('weight')}
+            onClose={() => closeGroupLine('weight', false)}
+            onCancel={() => closeGroupLine('weight', true)}
           >
-            <TextField
-              label="Trọng lượng (kg)"
-              hideLabel
-              type="number"
-              min="0"
-              step="0.01"
-              value={row.cargoWeightKg}
-              onChange={(event) => updateContainer(row.key, 'cargoWeightKg', event.target.value)}
-              disabled={saving}
-            />
-          </ShipmentContainerCell>
+            <div className="csc-fline__editor">
+              <input
+                className="csc-fline__input"
+                type="number"
+                min={0}
+                step={0.01}
+                inputMode="decimal"
+                autoComplete="off"
+                aria-label={`Trọng lượng (kg) — dòng ${index + 1}`}
+                disabled={saving}
+                value={weightDraft}
+                onChange={(event) => setWeightDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.nativeEvent.isComposing) return;
+                  if (event.key === 'Escape') { event.preventDefault(); closeGroupLine('weight', true); }
+                  if (event.key === 'Enter') { event.preventDefault(); commitWeight(); }
+                }}
+              />
+              <span className="csc-fline__unit" aria-hidden="true">kg</span>
+              <button
+                type="button"
+                className="csc-fline__save"
+                // The button and Enter share ONE guard: a draft equal to the
+                // persisted value is nothing to save; an emptied draft IS a
+                // real change (the operator cleared the field).
+                disabled={weightDraft.trim() === weightSeed.trim()}
+                onClick={commitWeight}
+              >
+                Lưu
+              </button>
+            </div>
+          </GroupFloatingLine>
         </div>
       </td>
       <td className="csc-container-row__group" aria-hidden="true">Lộ trình</td>
@@ -427,5 +538,144 @@ export function ShipmentCreateContainerRow({
         )}
       </td>
     </tr>
+  );
+}
+
+/** SIL-552 (QA 29/10) — one SỐ CONTAINER group line on the create form: a
+ *  ghost line (micro-label + value trigger) whose activation floats its
+ *  editor OUTSIDE the table on the SIL-631 position law (bottom-start under
+ *  the line, viewport-clamped, `role="dialog"` card with the accent arrow —
+ *  the same chrome the drawer's cell editor renders).
+ *
+ *  Unlike the shared FloatingCellEditor host this card does NOT portal: the
+ *  editor control stays mounted INSIDE the line at every moment. Two house
+ *  laws demand that:
+ *  - the react-aria constraint walk (submit focuses the first invalid
+ *    control) must still meet LOẠI as the row's first container control — an
+ *    unmounted combobox silently shifts that focus to the FACTORY field,
+ *    whose focus-trigger menu then paints the whole page aria-hidden
+ *    (reproduced 29/10: the footer-actions save raced a leaked
+ *    `ariaHideOutside`);
+ *  - the cursor-advance/Tab order reaches the line's control the same way it
+ *    does today — arriving focus REVEALS the floating card (the value-first
+ *    reveal, relocated), bare pass-through commits nothing.
+ *
+ *  At rest the card rides invisible inside the line (`opacity: 0`,
+ *  `pointer-events: none` — the value-first law the cell already runs);
+ *  open it switches to `position: fixed` coordinates from the shared
+ *  `usePopoverPosition` (hidden until measured), so the sheet's
+ *  `overflow-x` scroll box can never clip the editor. */
+function GroupFloatingLine({
+  anchorRef,
+  cardRef,
+  panelId,
+  microLabelText,
+  contractLabel,
+  fieldId,
+  error,
+  value,
+  emptyText,
+  displayTitle,
+  numeric,
+  triggerAriaLabel,
+  panelLabel,
+  open,
+  disabled,
+  onToggle,
+  onOpen,
+  onClose,
+  onCancel,
+  children,
+}: {
+  anchorRef: RefObject<HTMLButtonElement | null>;
+  cardRef: RefObject<HTMLDivElement | null>;
+  panelId: string;
+  /** Short display label beside the value (LOẠI / TRỌNG LƯỢNG). */
+  microLabelText: string;
+  /** Full data-label contract string (QA1-007 asterisk contract). */
+  contractLabel: string;
+  fieldId: string;
+  error?: string;
+  value: string;
+  emptyText: string;
+  displayTitle?: string;
+  /** Numeric values right-align in the lane (the old numeric cell law). */
+  numeric?: boolean;
+  triggerAriaLabel: string;
+  panelLabel: string;
+  open: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+  /** Arriving focus (keyboard walk / validation) reveals the card. */
+  onOpen: () => void;
+  /** Outside press — the draft is discarded, the focus is NOT stolen. */
+  onClose: () => void;
+  /** Escape — the draft is discarded and the focus returns to the trigger. */
+  onCancel: () => void;
+  children: ReactNode;
+}) {
+  const position = usePopoverPosition(cardRef, anchorRef, open, 300, 120, 'start');
+  // The dismiss layer must ignore portalled react-aria popovers (the
+  // combobox listbox) and the type-create dialog: a press there is neither
+  // inside the card nor on the trigger — the editor must not close under
+  // the operator's finger (the drawer's S2 law).
+  const additionalRefs = useMemo(() => [anchorRef as RefObject<HTMLElement | null>], [anchorRef]);
+  useClickOutside(cardRef, onClose, {
+    enabled: open,
+    escapeKey: true,
+    onEscape: onCancel,
+    additionalRefs,
+    ignoreSelector: '.react-aria-Popover, [role="listbox"], [role="dialog"], [role="alertdialog"]',
+  });
+
+  const cardStyle = open
+    ? (position
+      ? { top: position.top, left: position.left, ...(position.maxHeight != null ? { maxHeight: position.maxHeight } : {}) }
+      // Hidden until measured — the hook returns null for an unmeasured
+      // anchor so the card never paints at the padding corner first.
+      : { opacity: 0, pointerEvents: 'none' as const })
+    : undefined;
+
+  return (
+    <div
+      className={`csc-fline${numeric ? ' csc-fline--numeric' : ''}${error ? ' csc-fline--error' : ''}${open ? ' is-open' : ''}`}
+      data-field-id={fieldId}
+      data-label={contractLabel}
+    >
+      <span className="csc-fline__microlabel" aria-hidden="true">{microLabelText}</span>
+      <button
+        type="button"
+        ref={anchorRef}
+        className={`csc-fline__trigger${value.trim() ? '' : ' csc-fline__trigger--empty'}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label={triggerAriaLabel}
+        data-invalid={error ? 'true' : undefined}
+        disabled={disabled}
+        title={displayTitle}
+        onClick={onToggle}
+      >
+        <span className="csc-fline__value">{value.trim() ? value : emptyText}</span>
+      </button>
+      {error ? <span className="csc-fline__error">{error}</span> : null}
+      <div
+        ref={cardRef}
+        id={panelId}
+        role="dialog"
+        aria-label={panelLabel}
+        className={`csc-fline__card${open ? ' is-open' : ''}`}
+        style={cardStyle}
+        onFocusCapture={() => {
+          // Arriving focus reveals the card (Tab walk, validation focus).
+          // Bare pass-through commits nothing — the 2026-09-21 ruling only
+          // ever banned focus-OPENED listbox MENUS, not the editor itself.
+          if (!open && !disabled) onOpen();
+        }}
+      >
+        <span className="csc-fline__arrow" aria-hidden="true" />
+        {children}
+      </div>
+    </div>
   );
 }

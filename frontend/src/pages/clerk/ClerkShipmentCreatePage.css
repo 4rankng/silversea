@@ -711,3 +711,156 @@
    carrier field (card 20260922_6 anatomy, now inside the identity grid). */
 .csc-deposit-amount { flex: 0 1 260px; min-width: 180px; }
 
+
+/* SIL-552 (QA 29/10) — the SỐ CONTAINER group's LOẠI / TRỌNG LƯỢNG lines are
+   ghost lines: micro-label + value trigger only (the drawer's cell pattern,
+   owner 28/10). The editor lives in the floating panel (GroupFloatingLine →
+   FloatingCellEditor body portal), so the cell never hosts an input the
+   column can squeeze. Geometry keeps the SIL-552 design-lock line: one
+   grid row per line, label shrink-0, value lane fixed. */
+.csc-fline {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  column-gap: 6px;
+  min-width: 0;
+}
+.csc-fline__microlabel {
+  padding: 0 0 0 10px;
+  color: var(--fg-3);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold, 600);
+  line-height: 1.2;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.csc-fline__trigger {
+  display: flex;
+  min-width: 0;
+  min-height: var(--control-compact-h);
+  align-items: center;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--fg-1);
+  font: inherit;
+  font-size: var(--text-data-size);
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+}
+.csc-fline__trigger--empty { color: var(--fg-3); }
+.csc-fline__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.csc-fline--numeric .csc-fline__value { width: 100%; text-align: right; }
+.csc-fline__trigger:hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-2); }
+.csc-fline__trigger:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+/* The QA-AUDIT-UI57 danger paint: the invalid signal rides the trigger, the
+   paint owns the value band (the old `.csc-container-cell` :has() rule). */
+.csc-fline--error .csc-fline__trigger,
+.csc-fline__trigger[data-invalid='true'] {
+  border: 1px solid var(--danger);
+  border-radius: var(--r-sm);
+}
+.csc-fline__error {
+  grid-column: 1 / -1;
+  padding: 0 10px 2px;
+  color: var(--danger);
+  font-size: var(--text-caption-size);
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+/* The floating editor card — ALWAYS mounted inside the line (the editors
+   stay in the constraint-validation walk and the Tab order). At rest it
+   rides invisible (the value-first law: opacity 0 + pointer-events none,
+   same as the cell editors it replaces); `is-open` lifts it onto the
+   SIL-631 position law — fixed coordinates from usePopoverPosition, the
+   drawer's `.cus-lot-editor` chrome (accent border, arrow, soft shadow). */
+.csc-fline__card {
+  position: absolute;
+  left: 8px;
+  top: calc(100% - 2px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 10px;
+  opacity: 0;
+  pointer-events: none;
+}
+.csc-fline__card.is-open {
+  position: fixed;
+  z-index: var(--z-popover, 90);
+  opacity: 1;
+  pointer-events: auto;
+  background: var(--surface);
+  border: 1px solid var(--brand);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
+  overflow: clip;
+  overflow-clip-margin: 12px;
+}
+.csc-fline__arrow {
+  display: none;
+  position: absolute;
+  top: -5px;
+  left: 16px;
+  width: 8px;
+  height: 8px;
+  background: var(--surface);
+  border-left: 1px solid var(--brand);
+  border-top: 1px solid var(--brand);
+  transform: rotate(45deg);
+}
+.csc-fline__card.is-open .csc-fline__arrow { display: block; }
+.csc-fline__editor { display: flex; flex: 1 1 auto; min-width: 0; align-items: center; gap: 6px; }
+.csc-fline__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font: inherit;
+  font-size: var(--text-data-size);
+  text-align: right;
+}
+.csc-fline__input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.csc-fline__input[type='number']::-webkit-outer-spin-button,
+.csc-fline__input[type='number']::-webkit-inner-spin-button { appearance: none; margin: 0; }
+.csc-fline__unit { flex: none; color: var(--fg-3); font-size: var(--text-caption-size); }
+.csc-fline__save {
+  flex: none;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--fg-1);
+  font: inherit;
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+.csc-fline__save:hover { background: var(--surface-3); }
+.csc-fline__save:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.csc-fline__save:disabled { opacity: 0.5; cursor: default; }
+/* The picker inside the LOẠI panel stretches to the card (the combobox owns
+   the row; the "+ Thêm" sibling stays beside it). */
+.csc-fline__card .csc-route-picker { flex: 1 1 auto; min-width: 0; }
+
+/* ≤620px stacked phone record: the ghost line keeps the tap-to-edit pattern
+   (the trigger band grows to the touch height; the panel clamps to the
+   viewport). The label sits beside the value as on desktop — one grid row,
+   so the line never becomes a label-over-field tower again. */
+@container (max-width: 620px) {
+  .csc-fline__trigger { min-height: var(--control-max-h); }
+}
