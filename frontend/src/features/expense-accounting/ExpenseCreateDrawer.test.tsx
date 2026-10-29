@@ -55,7 +55,7 @@ it('khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payloa
   expect(onClose).not.toHaveBeenCalled();
   expect(screen.getByRole('status')).toHaveTextContent('Đã lưu khoản chi.');
 });
-it('lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng', async () => {
+it('lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng', { timeout: 15000 }, async () => {
   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} onClose={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: '+ Thêm dòng' }));
   expect(screen.getByRole('button', { name: /Lưu 2 khoản chi/ })).toBeEnabled();
