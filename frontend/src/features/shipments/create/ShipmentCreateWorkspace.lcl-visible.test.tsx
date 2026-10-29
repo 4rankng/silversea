@@ -74,24 +74,27 @@ describe('LCL form visible-by-default (cards 211026130115/30215/30315/30415)', {
     expect(screen.queryByText('Ghi chú cho lái xe')).toBeNull();
   });
 
-  it('LCL-04: Ngày giao hàng mở sẵn in the top band — no "+" reveal, no repeater', async () => {
+  it('LCL-04: Ngày giờ đóng trả mở sẵn in the top band — no "+" reveal, no repeater', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
 
+    // SIL-587 (id 687): the single LCL schedule field is the datetime
+    // "Ngày giờ đóng trả" (id shipment-lcl-closing-at) — time + date
+    // segments, always visible in the top band.
     const field = await waitFor(() => {
-      const el = document.getElementById('shipment-expected-delivery');
+      const el = document.querySelector('[data-field-id="shipment-lcl-closing-at"]');
       expect(el).toBeTruthy();
       return el!;
     });
-    // MỞ SẴN mặc định: one always-visible field in the top band, beside the
-    // segmented control — zero reveal steps between the click and the field.
     expect(document.querySelector('#shipment-section-mode')!.contains(field)).toBe(true);
-    expect(screen.getAllByLabelText(/Ngày giao hàng/)).toContain(field);
-    // 181026200700 "exactly ONE": no duplicated delivery field, whatever the
+    expect(field.textContent).toContain('Ngày giờ đóng trả');
+    // Ngày + giờ: the split host renders both segment groups.
+    expect(field.querySelectorAll('[data-split-datetime] input[data-seg="hh"], [data-split-datetime] input[data-seg="dd"]').length).toBeGreaterThanOrEqual(2);
+    // 181026200700 "exactly ONE": no duplicated schedule field, whatever the
     // label flattens to.
-    expect(document.querySelectorAll('input[id="shipment-expected-delivery"]')).toHaveLength(1);
-    expect(document.querySelectorAll('[data-field-id="shipment-expected-delivery"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-field-id="shipment-lcl-closing-at"]')).toHaveLength(1);
+    expect(document.getElementById('shipment-expected-delivery')).toBeNull();
     // The 0f7e1dfa reveal button and the extra-date repeater never come back.
     expect(screen.queryByRole('button', { name: 'Thêm ngày giao hàng' })).toBeNull();
     expect(screen.queryByLabelText('Ngày giao bổ sung')).toBeNull();

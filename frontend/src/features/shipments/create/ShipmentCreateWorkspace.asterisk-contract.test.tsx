@@ -72,9 +72,9 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
 
-    // 181026200700 (D.4): the delivery date is ONE always-visible field —
-    // the marks contract reads it without any reveal step.
-    const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-type', 'shipment-package-count', 'shipment-cargo-weight', 'shipment-expected-delivery'];
+    // 181026200700 (D.4) + SIL-587: the LCL schedule is ONE always-visible
+    // datetime field — the marks contract reads it without any reveal step.
+    const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-type', 'shipment-package-count', 'shipment-cargo-weight', 'shipment-lcl-closing-at'];
     for (const fieldId of required) {
       await waitFor(() => {
         expect(document.querySelector(`[data-field-id="${fieldId}"]`)).toBeTruthy();
@@ -86,22 +86,24 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     expect(document.querySelector('[data-field-id="shipment-cargo-volume"]')!.textContent).not.toContain('*');
   });
 
-  it('labels the LCL delivery-date field "Ngày giao hàng" — never "Ngày giao dự kiến"', async () => {
+  it('labels the LCL schedule field "Ngày giờ đóng trả" (SIL-587) — date + time', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
 
-    // Helpdesk 2026-10-13 (ops Tiếp Vu): LCL copy for the delivery date is
-    // "Ngày giao hàng". The field renders only on the LCL path (181026200700:
-    // one always-visible field), so the label is pinned here alongside the
-    // marks contract.
+    // SIL-587 (id 687, khách 29/10 — supersedes the 2026-10-13 "Ngày giao
+    // hàng" copy): hàng lẻ's single schedule field is a DATETIME, pinned
+    // here alongside the marks contract (the field renders only on the LCL
+    // path).
     const field = await waitFor(() => {
-      const node = document.querySelector('[data-field-id="shipment-expected-delivery"]');
+      const node = document.querySelector('[data-field-id="shipment-lcl-closing-at"]');
       expect(node).toBeTruthy();
       return node!;
     });
-    expect(field.textContent).toContain('Ngày giao hàng');
-    expect(field.textContent).not.toContain('dự kiến');
+    expect(field.textContent).toContain('Ngày giờ đóng trả');
+    expect(field.textContent).not.toContain('Ngày giao hàng');
+    expect(field.querySelectorAll('input[data-seg="hh"]').length).toBe(1);
+    expect(field.querySelectorAll('input[data-seg="yyyy"]').length).toBe(1);
   });
 
   it('drops the ad-hoc-waived marks when Lệnh chạy ngoài is on and keeps the rest', async () => {

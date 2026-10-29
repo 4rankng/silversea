@@ -7,13 +7,15 @@
 // their old EDD day (probe fixture lot Z: EDD day1, every container moved to
 // day3 — filtering day1 must not return it).
 //
-// Card 231026000252 — undated passes through ("undated = luôn hiện"). A row
-// whose coalesce day is NULL (container with neither appointment nor lot EDD,
-// or a container-less LCL lot with no transportDate) has no day a range could
-// match, yet both surfaces keep it under every lens. Both arms therefore
-// accept NULL alongside the in-range test: dated must pass the filter,
-// undated never gets dropped (lot K547238574983, dated 2026-10-17, must NOT
-// pass a 23/10..23/10 filter — and an undated lot must pass every filter).
+// SIL-588 (id 688, khách 29/10 — b_d. Phạm Trung Kiên) supersedes card
+// 231026000252's overview lane "undated = luôn hiện", mirroring the SIL-506
+// owner ruling that already narrowed Chi tiết: under an ACTIVE range the
+// Tổng quan filter returns DATED IN-RANGE rows only. An undated lot
+// (container rows with neither appointment nor lot EDD, or a container-less
+// LCL lot without transportDate) has no day the range names — it DROPS while
+// the range is held and returns the moment the range is cleared (the call
+// site pushes this condition only when a bound is set). Tổng quan, Chi tiết
+// and the dispatch master-plan delivery-date filter share this one law.
 //
 // Pure unit test — the drizzle chunk is rendered through PgDialect the way
 // cus-container-day-triage.test.ts pins SQL contracts.
@@ -31,18 +33,18 @@ function render(chunk: SQL): { sql: string; params: unknown[] } {
   return { sql: query.sql, params: query.params };
 }
 
-describe('shipmentTransportDateCondition — EDD is a fallback day, never an unconditional arm', () => {
+describe('shipmentTransportDateCondition — an active range returns dated in-range lots only (SIL-588)', () => {
   // Distinct bounds on purpose: a from/to swap must break the params pin below.
   const condition = shipmentTransportDateCondition('2026-10-01', '2026-10-31');
 
-  it('keeps the per-container VN-day EXISTS arm (coalesce appointment/EDD)', () => {
+  it('keeps the per-container VN-day EXISTS arm (coalesce appointment/EDD, bare between)', () => {
     const { sql: rendered, params } = render(condition);
     assert.match(rendered, /exists \(/);
     assert.match(rendered, /at time zone 'Asia\/Ho_Chi_Minh'/);
-    // Review finding 2: pin the arm's DAY EXPRESSION to the full
-    // containerTransportDateSql law — coalesce(date(appointment at VN), EDD) —
-    // so a swap to appointment-only/EDD-only SQL cannot pass this test while
-    // silently dropping the per-container fallback (same regex as
+    // The arm's DAY EXPRESSION stays the full containerTransportDateSql law —
+    // coalesce(date(appointment at VN), EDD) — so a swap to
+    // appointment-only/EDD-only SQL cannot pass this test while silently
+    // dropping the per-container fallback (same regex family as
     // cus-container-day-triage.test.ts).
     assert.match(
       rendered,
@@ -51,20 +53,23 @@ describe('shipmentTransportDateCondition — EDD is a fallback day, never an unc
     );
     // $1/$2 bind the EXISTS between; $3/$4 the gated EDD arm — one bind per
     // comparison, all the caller's date-only strings (the VN projection is
-    // SQL-side via at time zone). The null-passthrough adds no bind. Order is
-    // [from,to,from,to] — the distinct bounds make a swap visible.
+    // SQL-side via at time zone). Order is [from,to,from,to] — the distinct
+    // bounds make a swap visible.
     assert.deepEqual(params, ['2026-10-01', '2026-10-31', '2026-10-01', '2026-10-31']);
   });
 
-  it('EXISTS arm keeps undated container rows under every filter (card 231026000252)', () => {
+  it('SIL-588 pin: the EXISTS arm carries NO null-day lane — a bare `between` drops undated containers', () => {
     const { sql: rendered } = render(condition);
-    // A container row whose coalesce day is NULL must ride outside the range —
-    // `day is null or day between …`, not the bare `between` of the old shape.
-    assert.match(
+    // The old shape OR-ed `coalesce(...) is null or coalesce(...) between …`
+    // inside the EXISTS (card 231026000252). It must be gone: SQL `NULL
+    // between x and y` is NULL → the arm is not satisfied → the lot only
+    // passes when a container day is genuinely in range.
+    assert.doesNotMatch(
       rendered,
-      /exists \(\s*select 1 from "shipment_containers"[\s\S]*?and \(coalesce\([\s\S]*?\) is null\s+or coalesce\([\s\S]*?\) between \$1 and \$2\)/,
-      `EXISTS arm must pass NULL days: ${rendered}`,
+      /coalesce\([\s\S]*?\) is null\s+or coalesce\(/,
+      `EXISTS arm must not pass NULL days: ${rendered}`,
     );
+    assert.match(rendered, /\) between \$1 and \$2/);
   });
 
   it('gates the lot-level EDD arm behind "the lot owns no container at all"', () => {
@@ -74,25 +79,25 @@ describe('shipmentTransportDateCondition — EDD is a fallback day, never an unc
     assert.match(rendered, /or \(not exists \(/);
     assert.match(
       rendered,
-      /not exists \([\s\S]*?\) and \("shipments"\."expected_delivery_date" is null or \("shipments"\."expected_delivery_date" >= \$3/,
+      /not exists \([\s\S]*?\) and "shipments"\."expected_delivery_date" between \$3 and \$4/,
       `container-less arm must gate the EDD fallback: ${rendered}`,
     );
-    // Every EDD comparison comes after the gate — none fires ungated.
+    // Every EDD comparison comes after the gate — none fires ungated, and the
+    // SIL-588 shape is exactly one `between` (no >=/<= pair, no null lane).
     const gateAt = rendered.indexOf('not exists');
-    const firstEddCompare = rendered.indexOf('expected_delivery_date" >');
-    assert.ok(gateAt >= 0 && firstEddCompare > gateAt);
-    assert.equal(rendered.match(/expected_delivery_date" >=/g)?.length, 1);
-    assert.equal(rendered.match(/expected_delivery_date" <=/g)?.length, 1);
+    const eddCompare = rendered.indexOf('expected_delivery_date" between');
+    assert.ok(gateAt >= 0 && eddCompare > gateAt);
+    assert.equal(rendered.match(/expected_delivery_date" between/g)?.length ?? 0, 1);
+    assert.equal(rendered.match(/expected_delivery_date" >=/g)?.length ?? 0, 0);
+    assert.equal(rendered.match(/expected_delivery_date" <=/g)?.length ?? 0, 0);
   });
 
-  it('container-less arm keeps undated lots (no EDD) under every filter (card 231026000252)', () => {
+  it('SIL-588 pin: a container-less lot without EDD matches neither arm (no null lane anywhere)', () => {
     const { sql: rendered } = render(condition);
-    // The lot EDD leg accepts NULL alongside the range: a container-less LCL
-    // lot with no transportDate has no day to match and must still show.
-    assert.match(
-      rendered,
-      /not exists \([\s\S]*?\) and \("shipments"\."expected_delivery_date" is null or /,
-      `container-less arm must pass NULL EDD: ${rendered}`,
-    );
+    // `expected_delivery_date between` with NULL EDD is NULL → the
+    // container-less arm fails → the undated lot drops under the active
+    // range. The ONLY `is null` allowed in the chunk is the deletedAt-style
+    // gate this builder does not own — here: none at all.
+    assert.equal(rendered.match(/is null/g)?.length ?? 0, 0, `no null-passthrough lane may remain: ${rendered}`);
   });
 });

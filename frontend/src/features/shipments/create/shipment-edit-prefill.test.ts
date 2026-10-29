@@ -125,8 +125,45 @@ describe('buildShipmentEditPrefill', () => {
     expect(prefill.form.pickupWarehouseName).toBe('Kho Cát Lái');
     expect(prefill.form.packageCount).toBe('30');
     expect(prefill.form.closingAt).toBe('2026-10-21T09:00');
+    // SIL-587: the LCL "Ngày giờ đóng trả" prefills from the lot's
+    // direction-correct instant — EXPORT reads closingAt here.
+    expect(prefill.form.lclClosingAt).toBe('2026-10-21T09:00');
     expect(prefill.containers).toEqual([]);
     expect(prefill.seed.fclContainers).toBe(false);
+  });
+
+  it('SIL-587: LCL IMPORT prefills Ngày giờ đóng trả from plannedReturnAt; legacy EDD-only lot prefills empty', () => {
+    const importLot = buildShipmentEditPrefill(detailFixture({
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      blNumber: 'BL-IMP',
+      expectedDeliveryDate: '2026-10-22',
+      plannedReturnAt: '2026-10-22T15:45:00+07:00',
+    }));
+    // IMPORT → plannedReturnAt (the quick-edit law), rendered as VN input.
+    expect(importLot.form.lclClosingAt).toBe('2026-10-22T15:45');
+    expect(importLot.form.expectedDeliveryDate).toBe('2026-10-22');
+
+    // Legacy lot with only an EDD: the field opens EMPTY — no fabricated
+    // 00:00 — and the stored day still satisfies the schedule requirement.
+    const legacy = buildShipmentEditPrefill(detailFixture({
+      cargoMode: 'LCL',
+      tradeDirection: 'EXPORT',
+      bookingRef: 'BOOK-LEGACY',
+      expectedDeliveryDate: '2026-10-22',
+    }));
+    expect(legacy.form.lclClosingAt).toBe('');
+    expect(legacy.form.expectedDeliveryDate).toBe('2026-10-22');
+
+    // An ICT edge instant keeps its VN wall-clock on prefill
+    // (17:00Z = 00:00 next day ICT).
+    const edge = buildShipmentEditPrefill(detailFixture({
+      cargoMode: 'LCL',
+      tradeDirection: 'EXPORT',
+      bookingRef: 'BOOK-EDGE',
+      closingAt: '2026-10-28T17:00:00.000Z',
+    }));
+    expect(edge.form.lclClosingAt).toBe('2026-10-29T00:00');
   });
 
   it('ad-hoc: customerId rỗng + isAdHoc/rawCustomerName; customer note đi theo form', () => {

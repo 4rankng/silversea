@@ -5,7 +5,6 @@ import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
   UTextAreaField as TextAreaField,
-  UDateField as DateField,
 } from './uui-fields';
 import { UDateTimeField } from './uui-datetime-field';
 import { useToast } from '../../../components/shared/Toast';
@@ -517,7 +516,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   function changeMode(next: CargoMode) {
     if (next === form.cargoMode) return;
     const hasModeData = form.cargoMode === 'LCL'
-      ? Boolean(form.packageType || form.packageCount || form.cargoWeightKg || form.cargoVolumeCbm || form.cargoTypeId || form.operationalSiteId || form.pickupWarehouseSiteId || form.pickupWarehouseName.trim() || form.factoryName.trim() || form.extraDeliveryDates.some(Boolean)) || hasDateDraft(workspaceFormRef.current, true)
+      ? Boolean(form.packageType || form.packageCount || form.cargoWeightKg || form.cargoVolumeCbm || form.cargoTypeId || form.operationalSiteId || form.pickupWarehouseSiteId || form.pickupWarehouseName.trim() || form.factoryName.trim() || form.extraDeliveryDates.some(Boolean) || form.lclClosingAt) || hasDateDraft(workspaceFormRef.current, true)
       : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value)) || hasDateDraft(workspaceFormRef.current?.querySelector('.csc-container-editor'));
     if (hasModeData) {
       setPendingModeSwitch(next);
@@ -538,6 +537,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
       // `factoryName` rides the payload for ad-hoc lots of either mode).
       pickupWarehouseName: next === 'FCL' ? '' : current.pickupWarehouseName,
       factoryName: next === 'FCL' ? '' : current.factoryName,
+      // SIL-587: the LCL schedule datetime never survives into an FCL payload
+      // (FCL's schedule lives per container; the confirm gate above already
+      // asked before this wipe).
+      lclClosingAt: next === 'FCL' ? '' : current.lclClosingAt,
       cargoVolumeCbm: '',
       packageCount: '',
       packageType: '',
@@ -616,11 +619,12 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     toast({ kind: 'success', message: `Đã nhân bản container ${sourceIndex + 1} — kiểm tra số cont trước khi lưu` });
   }
 
-  // Card D.4 (18/10, hàng lẻ D.4) completed by 181026200700: the "Lịch & ghi
-  // chú" section stays gone from the LCL form AND the leftover "Thêm ngày
-  // giao" button is retired — the block is exactly ONE always-visible
-  // "Ngày giao hàng" field (id `shipment-expected-delivery`, wire name
-  // `expectedDeliveryDate` unchanged). FCL keeps the full schedule section.
+  // Card D.4 (18/10, hàng lẻ D.4) completed by 181026200700, then superseded
+  // by SIL-587 (id 687, khách 29/10): the "Lịch & ghi chú" section stays gone
+  // from the LCL form AND the block is exactly ONE always-visible schedule
+  // field — now "Ngày giờ đóng trả" (id `shipment-lcl-closing-at`, state
+  // `lclClosingAt`; the payload derives expectedDeliveryDate from its VN
+  // date). FCL keeps the full schedule section.
 
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '' && value !== undefined) || hasDateDraft(scope);
@@ -801,10 +805,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           {/* Cards 211026130215 + 211026130315 (verify-fail "ẨN sau default"):
               the Loại hàng segmented control LEADS the form — QA mở form mặc
               định thấy ngay lựa chọn Hàng lẻ, không cần biết trick — and the
-              LCL "Ngày giao hàng" (181026200700: ONE always-visible field, no
-              "+" reveal, no "Ngày giao bổ sung" repeater) mở sẵn right beside
-              it, so after one click everything is trước mắt. FCL keeps its full
-              schedule section below. */}
+              LCL schedule field (181026200700: ONE always-visible field, no
+              "+" reveal; SIL-587: "Ngày giờ đóng trả" ngày + giờ) mở sẵn right
+              beside it, so after one click everything is trước mắt. FCL keeps
+              its full schedule section below. */}
           <ShipmentCreateSection id="mode">
             <div className="csc-mode-band__row">
               <div className="csc-cargo-choice-grid">
@@ -828,17 +832,22 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                 </fieldset>
               </div>
               {form.cargoMode === 'LCL' && (
-                <div className="csc-lcl-delivery" data-field-id="shipment-expected-delivery">
-                  {/* Helpdesk 2026-10-13 (D.1): LCL copy is "Ngày giao hàng" —
-                      id + expectedDeliveryDate wire name unchanged. */}
-                  <DateField
-                    id="shipment-expected-delivery"
-                    label="Ngày giao hàng"
+                <div className="csc-lcl-delivery" data-field-id="shipment-lcl-closing-at">
+                  {/* SIL-587 (id 687, khách 29/10 — supersedes the 2026-10-13
+                      "Ngày giao hàng" copy): hàng lẻ's single schedule field is
+                      "Ngày giờ đóng trả" (ngày + giờ), the same datetime shape
+                      the FCL per-cont rows use. The payload maps it
+                      direction-correct and derives expectedDeliveryDate from
+                      its VN date (shipment-create-model §lclClosingAt). */}
+                  <UDateTimeField
+                    id="shipment-lcl-closing-at"
+                    label="Ngày giờ đóng trả"
                     requiredMark
-                    value={form.expectedDeliveryDate}
-                    onChange={(event) => update('expectedDeliveryDate', event.target.value)}
+                    value={form.lclClosingAt}
+                    onChange={(event) => update('lclClosingAt', event.target.value)}
                     disabled={controlsDisabled}
-                    error={issueByField.get('shipment-expected-delivery')}
+                    error={issueByField.get('shipment-lcl-closing-at')}
+                    combinedPicker
                   />
                 </div>
               )}
@@ -952,10 +961,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
             )}
           </ShipmentCreateSection>
 
-          {/* Card D.4 (18/10) + 181026200700: NO "Lịch & ghi chú" section on
-              the hàng lẻ form (its "Ngày giao hàng" opens sẵn in the top mode
-              band — cards 211026130215/30315). FCL keeps the full schedule
-              section. */}
+          {/* Card D.4 (18/10) + 181026200700, SIL-587: NO "Lịch & ghi chú"
+              section on the hàng lẻ form (its "Ngày giờ đóng trả" opens sẵn
+              in the top mode band — cards 211026130215/30315). FCL keeps the
+              full schedule section. */}
           {form.cargoMode === 'FCL' && (
             <ShipmentCreateSection id="schedule" title="Lịch & ghi chú">
             {emptyAppointmentCount >= 1 && (
