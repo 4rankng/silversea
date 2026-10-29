@@ -1,0 +1,13 @@
+PASS — @1280 0 trigger∩pager-control across 11 scroll offsets (x7 panes of scroll) (scanned 67 rail triggers per offset)
+PASS — @1280 pager controls clear the actions rail band at every offset (≥4px breathing room after sub-pixel rounding) (min gap 7.9px)
+PASS — @1440 0 trigger∩pager-control across 11 scroll offsets (x7 panes of scroll) (scanned 67 rail triggers per offset)
+PASS — @1440 pager controls clear the actions rail band at every offset (≥4px breathing room after sub-pixel rounding) (min gap 7.9px)
+PASS — @1920 0 trigger∩pager-control across 11 scroll offsets (x7 panes of scroll) (scanned 67 rail triggers per offset)
+PASS — @1920 pager controls clear the actions rail band at every offset (≥4px breathing room after sub-pixel rounding) (min gap 7.9px)
+PASS — @768 0 trigger∩pager-control across 11 scroll offsets (x7 panes of scroll) (scanned 67 rail triggers per offset)
+PASS — @768 pager controls clear the actions rail band at every offset (≥4px breathing room after sub-pixel rounding) (min gap 7.9px)
+PASS — pager is an opaque elevated surface (relative + z>0 + opaque bg) ({"position":"relative","zIndex":"1","bg":"rgb(227, 232, 229)","padEnd":"57.5781px"})
+PASS — row kebab opens its own menu on click ({"opened":true})
+screenshot qa/2026-10-30_sil572_ui-dispatch-detail-1280-midscroll.png
+screenshot qa/2026-10-30_sil572_ui-dispatch-detail-768-midscroll.png
+ALL CHECKS PASSED
