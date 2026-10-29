@@ -18,9 +18,11 @@ describe('filterContainersByDateRange', () => {
     makeContainer('2026-08-22T01:00:00.000Z'), // → 2026-08-22 local
     makeContainer(null),                         // no appointment
   ];
-  // Range-active counts below include the last (undated) row: "undated =
-  // luôn hiện" (card 231026000252) — the row filters keep it under every lens
-  // and scoped counts must never contradict the rows they summarize.
+  // Range-active counts below EXCLUDE the last (undated) row: SIL-588 (id 688,
+  // khách 29/10) supersedes card 231026000252's "undated = luôn hiện" lane —
+  // an undated row has no day the range names, so the scoped counts drop it
+  // exactly like the row law `shipmentTransportDateCondition` drops its lot,
+  // and it returns the moment the range is cleared.
 
   it('returns all containers when no date range is active', () => {
     const result = filterContainersByDateRange(containers, undefined, undefined);
@@ -36,32 +38,41 @@ describe('filterContainersByDateRange', () => {
 
   it('filters by dateFrom only', () => {
     const result = filterContainersByDateRange(containers, '2026-08-21', undefined);
-    assert.equal(result.length, 3); // 08-21, 08-22 + undated
+    assert.equal(result.length, 2); // 08-21, 08-22 — undated drops (SIL-588)
     assert.equal(result[0].containerTypeCode, '40HC');
   });
 
   it('filters by dateTo only', () => {
     const result = filterContainersByDateRange(containers, undefined, '2026-08-20');
-    assert.equal(result.length, 3); // 2 x 08-20 + undated
+    assert.equal(result.length, 2); // 2 x 08-20 — undated drops (SIL-588)
   });
 
   it('filters by both dateFrom and dateTo (inclusive)', () => {
     const result = filterContainersByDateRange(containers, '2026-08-20', '2026-08-20');
-    assert.equal(result.length, 3); // 2 x 08-20 + undated
+    assert.equal(result.length, 2); // 2 x 08-20 — undated drops (SIL-588)
   });
 
   it('filters a wider range', () => {
     const result = filterContainersByDateRange(containers, '2026-08-20', '2026-08-21');
-    assert.equal(result.length, 4); // 3 dated + undated
+    assert.equal(result.length, 3); // 3 dated — undated drops (SIL-588)
   });
 
-  it('keeps containers with no appointment and no fallback when a range is active', () => {
-    // Contract change, card 231026000252 ("undated = luôn hiện"): such a row
-    // has no day the range could match and the workboard keeps it under every
-    // lens, so the scoped counts keep it too (previously excluded).
+  it('SIL-588 pin: drops containers with no appointment and no fallback when a range is active', () => {
+    // Such a row has no day the range could match — the same law the row
+    // filter `shipmentTransportDateCondition` applies to its lot (previously
+    // kept by card 231026000252's "undated = luôn hiện" lane).
     const onlyNull = [makeContainer(null)];
     const result = filterContainersByDateRange(onlyNull, '2026-08-20', '2026-08-20');
-    assert.equal(result.length, 1);
+    assert.equal(result.length, 0);
+  });
+
+  it('returns undated containers when the range is cleared', () => {
+    // The drop is bound to the active range only: the no-filter path keeps
+    // the full set (same reference), undated rows included.
+    const onlyNull = [makeContainer(null)];
+    assert.equal(filterContainersByDateRange(onlyNull, undefined, undefined).length, 1);
+    assert.equal(filterContainersByDateRange(onlyNull, undefined, '2026-08-20').length, 0);
+    assert.equal(filterContainersByDateRange(onlyNull, '2026-08-20', undefined).length, 0);
   });
 
   it('keeps undated containers whose fallback date is inside the range', () => {
@@ -76,12 +87,12 @@ describe('filterContainersByDateRange', () => {
     assert.equal(result.length, 0);
   });
 
-  it('keeps undated containers when the fallback resolver yields null', () => {
-    // Contract change, card 231026000252: null fallback = no day at all =
-    // undated lane, kept under every range (previously dropped).
+  it('SIL-588 pin: drops undated containers when the fallback resolver yields null', () => {
+    // null fallback = no day at all = the undated lane — it DROPS under an
+    // active range (previously kept by card 231026000252's null lane).
     const onlyNull = [makeContainer(null)];
     const result = filterContainersByDateRange(onlyNull, '2026-08-20', '2026-08-20', () => null);
-    assert.equal(result.length, 1);
+    assert.equal(result.length, 0);
   });
 
   it('prefers the real appointment over the fallback date', () => {
@@ -91,7 +102,7 @@ describe('filterContainersByDateRange', () => {
   });
 
   it('returns empty when no containers match the range', () => {
-    const datedOnly = containers.slice(0, 4); // no undated row to keep
+    const datedOnly = containers.slice(0, 4); // dated rows only — isolates the dated out-range law
     const result = filterContainersByDateRange(datedOnly, '2027-01-01', '2027-01-31');
     assert.equal(result.length, 0);
   });
@@ -104,16 +115,19 @@ describe('filterContainersByDateRange', () => {
 });
 
 /**
- * The four named law cases of card 231026000252, one `it()` each. A row's day
+ * The four named law cases of card 231026000252, one `it()` each — with the
+ * card's null lane superseded by SIL-588 (id 688, khách 29/10): a row's day
  * is coalesce(appointment, fallback EDD) — the pure twin of the workboard's
  * `containerTransportDateSql()` — so the two row shapes map exactly:
  *   "LCL dated"  = day from the fallback leg  (container-less LCL lot row,
  *                  whose day is the lot transportDate/EDD);
  *   "cont dated" = day from the appointment   (a container row).
- * The SQL-side twin of these cases is pinned in
- * backend/src/tests/unit/cus-container-day-triage.test.ts.
+ * An undated row (both legs null) drops under an active range and returns
+ * when the range is cleared — the scoped-count mirror of the lot-level row
+ * law pinned in backend/src/tests/unit/shipment-transport-date-condition.test.ts
+ * (SIL-588) and the container triage in cus-container-day-triage.test.ts.
  */
-describe('day law — card 231026000252 (LCL dated in/out-range, LCL undated, cont dated)', () => {
+describe('day law — card 231026000252, null lane superseded by SIL-588 (LCL dated in/out-range, LCL undated, cont dated)', () => {
   /** Container-less LCL lot row shape: no appointment leg, day = lot EDD. */
   interface LclLotRow {
     customerAppointmentAt: Date | null;
@@ -137,15 +151,21 @@ describe('day law — card 231026000252 (LCL dated in/out-range, LCL undated, co
     assert.equal(result.length, 0);
   });
 
-  it('LCL undated: no day at all always shows, any filter', () => {
+  it('SIL-588 pin — LCL undated: drops under an active range, returns when cleared', () => {
+    // No day at all (no appointment, null fallback): under an ACTIVE range it
+    // matches nothing and drops; the no-filter path keeps it visible.
     for (const [from, to] of [
       ['2026-10-23', '2026-10-23'],
       ['2026-10-17', '2026-10-17'],
-      [undefined, undefined],
     ] as const) {
       const result = filterContainersByDateRange(rows(null), from, to, (r) => r.lot.transportDate);
-      assert.equal(result.length, 1, `undated must show under ${from ?? 'bare'}..${to ?? 'bare'}`);
+      assert.equal(result.length, 0, `undated must drop under ${from}..${to}`);
     }
+    assert.equal(
+      filterContainersByDateRange(rows(null), undefined, undefined, (r) => r.lot.transportDate).length,
+      1,
+      'undated must return when the range is cleared',
+    );
   });
 
   it('cont dated: appointment rows filter by their appointment day', () => {
