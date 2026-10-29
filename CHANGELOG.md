@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-10-30 — fix(cus): SIL-595 (id 695) — drawer CUS render giờ hẹn đóng/trả theo ICT (GMT+7), không còn lệch 7 giờ
+
+QA Glint: cột "Đóng / trả" và "Lịch cont" của drawer CUS (`CusLotView`) hiển
+thị giờ hẹn lệch 7 giờ so với giá trị nhập (ví dụ nhập 14:30 → hiện "07:30").
+
+Nguyên nhân: `formatTimeShortDate` cắt chuỗi naive trên regex không anchor —
+khi `customerAppointmentAt` là instant (`toISOString()`, hậu tố Z), formatter
+lấy thẳng chữ số UTC rồi ghép "ICT" nhãn, tạo ra giờ sai + nhãn sai.
+
+Fix: formatter nhận diện zone suffix (Z/±HH:MM) → render wall-clock ICT,
+không đổi fallback naive. Theo đúng pattern sẵn có
+(`driver-trip-model.formatDateTime` đã instant-aware từ trước). Sweep audit:
+các formatter naive còn lại đều được feeding giá trị naive hoặc convert trước
+— class lỗi đóng tại shared owner.
+
+Tests: `CusLotView.appointment-tz.test.tsx` (113 dòng) — 3 pin đỏ→xanh
+(instant Z render ICT, naive fallback giữ nguyên, "Lịch cont" line đúng);
+scoped 8/8. Case: `testplan/cases/2026-10-30-sil595-drawer-appointment-utc.md`.
+
 ## 2026-10-30 — fix(cus): SIL-594 (id 694) — giá trị vừa lưu hiển thị ngay sau save + API transport no-store chống stale read-after-write
 
 QA Glint (build c2d740c5): lưu ô SỐ TỜ KHAI trên /dispatch-detail xong ô vẫn
