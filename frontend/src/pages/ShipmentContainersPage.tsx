@@ -29,7 +29,8 @@ import { useHiddenColumns } from '../hooks/useHiddenColumns';
 import { useVietnamToday } from '../hooks/useVietnamToday';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
-import { canManageShipmentDebit } from '../lib/role-access';
+import { completeDispatchExternalTrip } from '../api/dispatchPlanningClient';
+import { canCloseExternalTrips, canManageShipmentDebit } from '../lib/role-access';
 import { formatNumber, formatVolumeCbm, formatWeight } from '../lib/format';
 import {
   CUS_SEARCH_PATTERN,
@@ -81,6 +82,9 @@ export default function ShipmentContainersPage() {
   // SIL-547 (spec 23/10 §2) — the merge mode gates to the SAME authority the
   // settlement board uses (ADMIN/ACCOUNTANT/CUS); readers never see the toggle.
   const canManageMerge = canManageShipmentDebit(auth?.user?.role);
+  // SIL-592 — hide the staff close outside the backend's complete-external
+  // allowlist (ADMIN/MANAGER/DISPATCHER/CUS).
+  const canCloseExternal = canCloseExternalTrips(auth?.user?.role);
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = readPositiveInteger(searchParams.get('page'), 1);
   // Rows per page lives in the URL like every other workboard param, so a
@@ -226,6 +230,24 @@ export default function ShipmentContainersPage() {
     } catch (error) {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể copy số tờ khai.' });
       return 0;
+    }
+  }, [detail, toast]);
+
+  /**
+   * SIL-592 (id 692) — the CUS staff close for a live external-carrier trip
+   * (xe ngoài không dùng app nên CUS chốt thay). Feedback lives here like the
+   * copy actions above; the ledger owns only the confirm dialog and busy
+   * state. Rejects keep the dialog open for retry.
+   */
+  const completeExternalTrip = useCallback(async (row: ShipmentCusContainerFlatRow) => {
+    if (row.tripId == null) return;
+    try {
+      await completeDispatchExternalTrip(row.tripId);
+      toast({ kind: 'success', message: 'Đã hoàn thành chuyến xe ngoài.' });
+      await detail.loadRows();
+    } catch (error) {
+      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể hoàn thành chuyến xe ngoài.' });
+      throw error;
     }
   }, [detail, toast]);
 
@@ -529,7 +551,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} mergeMode={canManageMerge && mergeMode} selectedLotIds={selectedLotIds} onSelectLot={selectLot} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} onCopyDeclaration={copyDeclaration} />
+          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} mergeMode={canManageMerge && mergeMode} selectedLotIds={selectedLotIds} onSelectLot={selectLot} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} onCopyDeclaration={copyDeclaration} onCompleteExternalTrip={canCloseExternal ? completeExternalTrip : undefined} />
           {/* Spec 23/10 §2 — the Bottom Floating Bar (shared lcl-merge.css
               look): «Đang chọn N lô: Tổng X tấn | Y CBM — Lô 1 giữ 100% tiền
               thu khách…» + [Bỏ chọn] + [Gộp hàng] (opens the §4.2 popup).

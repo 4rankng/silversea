@@ -10,7 +10,7 @@ import type {
 } from '@tingting/shared';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
-import { displayNote } from '../cus/cusUtils';
+import { canCompleteExternalTrip, displayNote } from '../cus/cusUtils';
 import { checkContainerNumber } from '../../../components/trip/container-instance-helpers';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
@@ -26,6 +26,7 @@ import { listDispatchFleetResources, setLclLotRevClass, updateLclTruck } from '.
 import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { vehicleClassSectionedOptions } from '../../../lib/vehicle-class-options';
 import { EditActions } from './ShipmentContainerEditActions';
+import { ExternalTripCompleteAction } from './ExternalTripCompleteAction';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { directionLabel, fallback, formatScheduleTime } from './shipment-container-ledger-utils';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
@@ -891,6 +892,14 @@ interface ShipmentContainerLedgerProps {
    *  the number of containers actually written. */
   onCopyDeclaration?: (row: ShipmentCusContainerFlatRow) => Promise<number>;
   /**
+   * SIL-592 (id 692) — the CUS staff close for a live external-carrier trip
+   * (external drivers don't use the app). Absent when the signed-in role sits
+   * outside the backend allowlist; the row gate (canCompleteExternalTrip)
+   * hides it everywhere else. Resolves on success; rejects to keep the
+   * confirm dialog open.
+   */
+  onCompleteExternalTrip?: (row: ShipmentCusContainerFlatRow) => Promise<void>;
+  /**
    * Column keys the picker on the page's filter bar is hiding (card
    * 20260928_193, restoring 20260917_4). The ledger renders `col`/`th`/`td`
    * conditionally so a `table-layout: fixed` table never shows ghost columns.
@@ -930,6 +939,7 @@ export function ShipmentContainerLedger({
   onSaveContainer,
   onCopyAppointment,
   onCopyDeclaration,
+  onCompleteExternalTrip,
   hiddenColumns = [],
   mergeMode = false,
   selectedLotIds,
@@ -1674,6 +1684,16 @@ export function ShipmentContainerLedger({
 {!isHidden('status') && (<td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
                     <div className="shipment-container-ledger__multiline">
                       <span className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`}>{DISPATCH_STATUS[row.dispatchStatus].label}</span>
+                      {/* SIL-592 (id 692) — the CUS staff close: a live
+                          external trip is closable right where its dispatch
+                          status reads (xe ngoài không dùng app). The row gate
+                          keeps OWN/terminal/planned rows clean. */}
+                      {onCompleteExternalTrip && canCompleteExternalTrip(row) && (
+                        <ExternalTripCompleteAction
+                          identity={row.containerNumber?.trim() || row.billOrBookNumber?.trim() || `cont ${row.ordinal}`}
+                          onComplete={() => onCompleteExternalTrip(row)}
+                        />
+                      )}
                       {row.informationStatus === 'MISSING' && (
                         <ShipmentMissingFieldsSummary
                           row={row}

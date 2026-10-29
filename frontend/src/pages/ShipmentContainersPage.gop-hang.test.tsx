@@ -51,6 +51,7 @@ const lotRow = (over: Partial<ShipmentCusContainerFlatRow>): ShipmentCusContaine
   billOrBookNumber: 'BILL-LCL', declarationNumber: null, shippingLineName: null, isCombined: false,
   classification: 'LCL', direction: 'IMPORT', containerNumber: null, containerTypeLabel: null,
   dispatchStatus: 'AWAITING_VEHICLE', carrierName: null, carrierType: null, plateNumber: null,
+  tripId: null, tripStatus: null,
   actualTruckNo: null, billingTruckNo: null, revVehicleClassCode: null, costVehicleClassCode: null,
   liftSite: null, dropoffSite: null, transportDate: today, closingAt: null, plannedReturnAt: null,
   customerAppointmentAt: null, customerNotes: null, operationalNotes: null,

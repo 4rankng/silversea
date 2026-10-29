@@ -8,6 +8,7 @@ import {
 import {
   ShipmentCusBucket,
   ShipmentDocumentCustody,
+  TripStatus,
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
@@ -216,6 +217,32 @@ export function dispatchStatusLabel(status: ShipmentCusWorkspaceContainerLine['d
   if (status === 'IN_TRANSIT') return 'Đang chạy';
   if (status === 'COMPLETED') return 'Hoàn thành';
   return 'Chờ phân xe';
+}
+
+/**
+ * SIL-592 (id 692) — the CUS staff-close gate for external-carrier trips.
+ * External drivers never use the app, so dispatch/CUS close their trips on the
+ * driver's behalf (`POST /trips/:id/complete-external`). Backend law
+ * (trip-status-machine): staff close admits CREATED and IN_TRANSIT — an
+ * external trip never enters IN_TRANSIT on its own. OWN-fleet trips close
+ * through the driver app; terminal states never re-close. And a trip that ran
+ * must carry its biển số (trip-external-close, card 20261004_359): the
+ * deferred-plate row shows no affordance until "Phân xe lại" fills the plate,
+ * so the button never dead-ends at the server's 409. The row wire's
+ * plateNumber is the fulfillment's planned plate — written in the same
+ * issue/reassign command as the trip's external plate, so it is the faithful
+ * precondition signal. Accepts the flat row or the container line.
+ */
+export function canCompleteExternalTrip(trip: {
+  tripId?: number | null;
+  tripStatus?: TripStatus | null;
+  carrierType?: 'OWN' | 'EXTERNAL' | null;
+  plateNumber?: string | null;
+}): boolean {
+  return trip.tripId != null
+    && trip.carrierType === 'EXTERNAL'
+    && (trip.tripStatus === TripStatus.CREATED || trip.tripStatus === TripStatus.IN_TRANSIT)
+    && (trip.plateNumber?.trim().length ?? 0) > 0;
 }
 
 export function accountingConfirmationLabel(

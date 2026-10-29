@@ -1,0 +1,8 @@
+/* SIL-592 (id 692) — the staff-close pill must wrap, never truncate
+   (no-truncate doctrine): `.btn` is nowrap and the Trạng thái column can
+   narrow under 1280px, so the 2-word label wraps at the space instead of
+   spilling out of the cell. Same wrap law as .shipment-container-ledger__copy. */
+.external-trip-complete {
+  white-space: normal;
+  max-width: 100%;
+}
