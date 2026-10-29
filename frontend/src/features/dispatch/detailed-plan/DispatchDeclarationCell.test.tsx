@@ -154,13 +154,80 @@ describe('DispatchDeclarationCell — click-to-edit mechanics', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
 
     // The board refetch reuses the row key — the cell instance survives, and
-    // the click AFTER a success must still open the editor.
+    // the click AFTER a success must still open the editor. SIL-594 (id 694):
+    // the just-saved value is the visible truth (the row prop may still carry
+    // the pre-save projection until the refetch lands), so the reopened editor
+    // seeds the saved value — never the stale prop.
     fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
     const reopened = screen.getByLabelText('Số tờ khai') as HTMLInputElement;
-    expect(reopened.value).toBe('TK-FIRST');
+    expect(reopened.value).toBe('TK-SECOND');
     fireEvent.change(reopened, { target: { value: 'TK-THIRD' } });
     fireEvent.keyDown(reopened, { key: 'Enter' });
     await waitFor(() => expect(updateLineMock).toHaveBeenCalledTimes(2));
     expect(updateLineMock).toHaveBeenLastCalledWith(11, 77, { expectedShipmentVersion: 5, declarationNumber: 'TK-THIRD' }, expect.any(String));
+  });
+});
+
+// SIL-594 (id 694, QA Glint 29/10): "Giá trị vừa lưu không hiển thị ngay —
+// phải tải lại trang mới thấy". The cell must show the just-saved value from
+// the save's own confirmation, WITHOUT waiting for the board refetch — a
+// refetch can land late, land stale (cache replay), or not land at all, and
+// reload/re-search must never be the way to see a save. Regression: the save
+// display rides the mutation result, and the refreshed row (any later value)
+// takes over when it arrives.
+describe('DispatchDeclarationCell — SIL-594 saved value shows immediately', () => {
+  it('C1: after Enter-save resolves the cell shows the saved value with no row refresh', async () => {
+    authRole = 'CUS';
+    updateLineMock.mockResolvedValue({ line: {}, declarationSync: { updatedContainerIds: [] } });
+    render(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'MSCU1234567', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TESTBUG1-001' },
+    })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TESTBUG1-002' } });
+    fireEvent.keyDown(screen.getByLabelText('Số tờ khai'), { key: 'Enter' });
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' })));
+
+    // NO prop refresh — the display already carries the save.
+    const cell = screen.getByRole('button', { name: /Sửa số tờ khai/ });
+    expect(cell.textContent).toContain('TESTBUG1-002');
+    expect(cell.textContent).not.toContain('TESTBUG1-001');
+  });
+
+  it('C2: clearing the value shows "Chưa có tờ khai" immediately after save', async () => {
+    authRole = 'CUS';
+    updateLineMock.mockResolvedValue({ line: {}, declarationSync: { updatedContainerIds: [] } });
+    render(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'MSCU1234567', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TESTBUG1-002' },
+    })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: '' } });
+    fireEvent.keyDown(screen.getByLabelText('Số tờ khai'), { key: 'Enter' });
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' })));
+
+    const cell = screen.getByRole('button', { name: /Sửa số tờ khai/ });
+    expect(cell.textContent).toContain('Chưa có tờ khai');
+  });
+
+  it('C3: when the refreshed row arrives with a later value, the server value wins (echo self-clears)', async () => {
+    authRole = 'CUS';
+    updateLineMock.mockResolvedValue({ line: {}, declarationSync: { updatedContainerIds: [] } });
+    const { rerender } = render(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'MSCU1234567', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TK-OLD' },
+    })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    fireEvent.change(screen.getByLabelText('Số tờ khai'), { target: { value: 'TK-SAVED' } });
+    fireEvent.keyDown(screen.getByLabelText('Số tờ khai'), { key: 'Enter' });
+    await waitFor(() => expect(updateLineMock).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('button', { name: /Sửa số tờ khai/ }).textContent).toContain('TK-SAVED');
+
+    // The board refetch lands with a fresher external value — it must win.
+    rerender(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'MSCU1234567', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TK-SERVER' },
+    })} />);
+    expect(screen.getByRole('button', { name: /Sửa số tờ khai/ }).textContent).toContain('TK-SERVER');
+    expect(screen.getByRole('button', { name: /Sửa số tờ khai/ }).textContent).not.toContain('TK-SAVED');
   });
 });

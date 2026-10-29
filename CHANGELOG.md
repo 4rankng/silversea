@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-10-30 — fix(cus): SIL-595 (id 695) — drawer CUS render giờ hẹn đóng/trả theo ICT (GMT+7), không còn lệch 7 giờ
+
+QA Glint: cột "Đóng / trả" và "Lịch cont" của drawer CUS (`CusLotView`) hiển
+thị giờ hẹn lệch 7 giờ so với giá trị nhập (ví dụ nhập 14:30 → hiện "07:30").
+
+Nguyên nhân: `formatTimeShortDate` cắt chuỗi naive trên regex không anchor —
+khi `customerAppointmentAt` là instant (`toISOString()`, hậu tố Z), formatter
+lấy thẳng chữ số UTC rồi ghép "ICT" nhãn, tạo ra giờ sai + nhãn sai.
+
+Fix: formatter nhận diện zone suffix (Z/±HH:MM) → render wall-clock ICT,
+không đổi fallback naive. Theo đúng pattern sẵn có
+(`driver-trip-model.formatDateTime` đã instant-aware từ trước). Sweep audit:
+các formatter naive còn lại đều được feeding giá trị naive hoặc convert trước
+— class lỗi đóng tại shared owner.
+
+Tests: `CusLotView.appointment-tz.test.tsx` (113 dòng) — 3 pin đỏ→xanh
+(instant Z render ICT, naive fallback giữ nguyên, "Lịch cont" line đúng);
+scoped 8/8. Case: `testplan/cases/2026-10-30-sil595-drawer-appointment-utc.md`.
+
+## 2026-10-30 — fix(cus): SIL-594 (id 694) — giá trị vừa lưu hiển thị ngay sau save + API transport no-store chống stale read-after-write
+
+QA Glint (build c2d740c5): lưu ô SỐ TỜ KHAI trên /dispatch-detail xong ô vẫn
+hiện giá trị cũ; chỉ khi tải lại trang / tìm kiếm lại mới thấy giá trị mới
+(cùng họ triệu chứng với drawer Chi tiết container / xóa container — SIL-555).
+Người dùng có thể tưởng lưu thất bại và lưu trùng.
+
+Nguyên nhân (evidence 30/10 — local c2d740c5, chromium + webkit, dev + prod
+bundle, backend cùng commit): backend write-commit-read hoàn toàn tươi (probe
+API ngay sau write trả giá trị mới trên cả 3 endpoint); wiring FE đúng
+(`onSaved` → `refresh` → refetch → setItems, requestId guard). Khe hở thật:
+(a) ô hiển thị 100% từ row prop nên giá trị vừa lưu chỉ xuất hiện SAU refetch;
+(b) transport GET không khai báo cache policy (`cache:'default'`, response
+không Cache-Control) — refetch cùng URL sau write có thể bị browser session
+cache (Safari/WebKit) hoặc proxy trung gian replay bytes cũ; đúng cơ chế
+"reload/re-search là hết stale" (reload = revalidate, search = đổi cache key).
+
+Fix (một nguồn sự thật — "giá trị vừa lưu là sự thật hiển thị"):
+
+- **Transport** (`lib/api/client.ts`): mọi API request mang `cache: 'no-store'`.
+- **Server** (`middleware/api-no-store.ts`, mount trên `/api`): mọi response
+  API trả `Cache-Control: no-store` — chặn proxy/browser cache end-to-end.
+- **Cell** (`DispatchDeclarationCell`): save-echo từ chính kết quả save server
+  đã xác nhận — ô hiện giá trị vừa lưu NGAY, tự xóa khi row prop mang giá trị
+  khác (refetch/external value luôn thắng); đổi row thì echo không rò sang.
+
+Tests: `api.test.ts` pin `cache:'no-store'` · `DispatchDeclarationCell` 3 pin
+SIL-594 (hiện ngay sau save, clear → «Chưa có tờ khai» ngay, server value
+thắng khi refetch land) + contract update assertion seed editor theo giá trị
+vừa lưu · BE unit `api-no-store` (header + next). Red-at-base 5 → green.
+Evidence: `qa/2026-10-30_sil594_*` (driver log + screenshots + API identity).
+
 ## 2026-10-28 — fix(cus): SIL-548 (id 615 QA-FAIL round 3) — editor «Sửa cước thu khách» prefill từ giá trị ĐÃ LƯU + khóa editor trên lô ĐÃ ghép
 
 QA Glint (comment 2360, build 3b2c3bd8): BKS save PASS (không đụng). Hai lỗi:
