@@ -45,6 +45,11 @@ try {
         focusInPanel: panel ? panel.contains(document.activeElement) : false,
         activeIsBody: document.activeElement === document.body,
         branchInert: inertCount >= 3,
+        // SIL-561 fail 29/10: the background is FULLY inert now — `main`
+        // carries the attribute (QA's probe) and the opener chain is NOT
+        // exempt (platform modal semantics; the close path un-inerts before
+        // restoring focus).
+        mainInert: document.querySelector('main')?.hasAttribute('inert') ?? false,
         triggerInert: document.querySelector(ts)?.hasAttribute('inert') ?? false,
       });
     }, 350));
@@ -76,7 +81,7 @@ try {
       const o = await probe('.column-picker__trigger', '.column-picker__popover');
       check(`@${width} column-picker aria-modal`, o.opened && o.ariaModal === 'true', `aria-modal=${o.ariaModal}`);
       check(`@${width} column-picker focus inside`, o.focusInPanel && !o.activeIsBody);
-      check(`@${width} column-picker background inert`, o.branchInert && !o.triggerInert);
+      check(`@${width} column-picker background inert (main carries it)`, o.mainInert && o.branchInert);
       if (width === 1280) await page.screenshot({ path: resolve(OUT, `2026-10-29_sil561_ui-column-picker-1280-open.png`) });
       const c = await escapeProbe('.column-picker__trigger', '.column-picker__popover');
       check(`@${width} column-picker Escape restores trigger`, c.closed && c.focusOnTrigger, `focusOnTrigger=${c.focusOnTrigger}`);
@@ -99,7 +104,7 @@ try {
       const o = await probe('.filter-dropdown__trigger', '.filter-dropdown__popover');
       check(`@${width} filter-dropdown aria-modal`, o.opened && o.ariaModal === 'true', `aria-modal=${o.ariaModal}`);
       check(`@${width} filter-dropdown focus inside`, o.focusInPanel && !o.activeIsBody);
-      check(`@${width} filter-dropdown background inert`, o.branchInert && !o.triggerInert);
+      check(`@${width} filter-dropdown background inert (main carries it)`, o.mainInert && o.branchInert);
       if (width === 1280) await page.screenshot({ path: resolve(OUT, `2026-10-29_sil561_ui-filter-dropdown-1280-open.png`) });
       const c = await escapeProbe('.filter-dropdown__trigger', '.filter-dropdown__popover');
       check(`@${width} filter-dropdown Escape restores trigger`, c.closed && c.focusOnTrigger, `focusOnTrigger=${c.focusOnTrigger}`);
@@ -114,7 +119,7 @@ try {
       const o = await probe('.topbar-date__trigger', '.month-picker');
       check(`@${width} month-picker aria-modal`, o.opened && o.ariaModal === 'true', `aria-modal=${o.ariaModal}`);
       check(`@${width} month-picker focus inside`, o.focusInPanel && !o.activeIsBody);
-      check(`@${width} month-picker background inert`, o.branchInert && !o.triggerInert);
+      check(`@${width} month-picker background inert (main carries it)`, o.mainInert && o.branchInert);
       if (width === 390) await page.screenshot({ path: resolve(OUT, `2026-10-29_sil561_ui-month-picker-390-open.png`) });
       // SIL-573 contract survives: Escape restores the trigger.
       const c = await escapeProbe('.topbar-date__trigger', '.month-picker');
@@ -134,7 +139,7 @@ try {
     const o = await probe('.udrp__trigger', '.udrp__popover');
     check(`@${width} udrp aria-modal`, o.opened && o.ariaModal === 'true', `aria-modal=${o.ariaModal}`);
     check(`@${width} udrp focus inside`, o.focusInPanel && !o.activeIsBody);
-    check(`@${width} udrp background inert`, o.branchInert && !o.triggerInert);
+    check(`@${width} udrp background inert (main carries it)`, o.mainInert && o.branchInert);
     if (width === 1280) await page.screenshot({ path: resolve(OUT, `2026-10-29_sil561_ui-udrp-1280-open.png`) });
     const c = await escapeProbe('.udrp__trigger', '.udrp__popover');
     check(`@${width} udrp Escape restores trigger`, c.closed && c.focusOnTrigger, `focusOnTrigger=${c.focusOnTrigger}`);

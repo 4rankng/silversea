@@ -1,0 +1,7 @@
+login → /dashboard
+  PASS Đổi mật khẩu dialog opens
+  PASS Tạo mật khẩu button is present (QA: was missing)
+  PASS both new-password fields filled with the SAME password — len=16
+  PASS generated password is 16 chars over 4 classes
+  PASS current-password field untouched — value=""
+TOTAL 5/5 PASS

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PasswordModal } from './PasswordModal';
@@ -47,5 +47,37 @@ describe('PasswordModal autocomplete tokens (SIL-574)', () => {
     expect(screen.getByPlaceholderText('Nhập mật khẩu hiện tại').getAttribute('autoComplete')).toBe('current-password');
     expect(screen.getByPlaceholderText('Ít nhất 6 ký tự').getAttribute('autoComplete')).toBe('new-password');
     expect(screen.getByPlaceholderText('Nhập lại mật khẩu mới').getAttribute('autoComplete')).toBe('new-password');
+  });
+});
+
+// SIL-574 (QA fail 29/10): tokens landed but the dialog still offered NO
+// generation — "mong đợi: có nút tạo mật khẩu theo AC". The button fills the
+// new + confirm fields with ONE strong password and never touches the
+// current-password field.
+describe('PasswordModal password generation (SIL-574)', () => {
+  it('fills new + confirm with one generated strong password on demand', () => {
+    const onFormChange = vi.fn();
+    renderModal({ form: { currentPassword: 'old', newPassword: '', confirmPassword: '' }, onFormChange });
+    fireEvent.click(screen.getByRole('button', { name: /Tạo mật khẩu/ }));
+    expect(onFormChange).toHaveBeenCalledTimes(1);
+    const next = onFormChange.mock.calls[0]![0] as typeof FORM;
+    expect(next.currentPassword).toBe('old');
+    expect(next.newPassword).toBe(next.confirmPassword);
+    expect(next.newPassword).toHaveLength(16);
+    expect(next.newPassword).toMatch(/[a-z]/);
+    expect(next.newPassword).toMatch(/[A-Z]/);
+    expect(next.newPassword).toMatch(/[0-9]/);
+    expect(next.newPassword).toMatch(/[!@#$%^&*?\-_=+]/);
+  });
+
+  it('generates a fresh password on every press', () => {
+    const onFormChange = vi.fn();
+    renderModal({ onFormChange });
+    const button = screen.getByRole('button', { name: /Tạo mật khẩu/ });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    const first = (onFormChange.mock.calls[0]![0] as typeof FORM).newPassword;
+    const second = (onFormChange.mock.calls[1]![0] as typeof FORM).newPassword;
+    expect(first).not.toBe(second);
   });
 });

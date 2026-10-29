@@ -532,7 +532,13 @@
 .master-plan-grid__note-detail-trigger {
   flex: 0 0 auto;
   min-width: 44px;
-  min-height: max(28px, var(--uui-control-h));
+  /* SIL-583 (29/10): these link-color triggers carry NO data-uui-control, so
+     --uui-control-h is undefined in their subtree and the old bare
+     `var(--uui-control-h)` made the whole max() invalid-at-computed-value —
+     min-height silently dropped to `auto` and the "Xem thêm" link measured
+     55×13 (QA fail). The 28px fallback makes the floor real; it is also the
+     value control-geometry gives xs controls. */
+  min-height: max(28px, var(--uui-control-h, 28px));
   margin: 0;
   align-self: flex-end;
   align-items: center;

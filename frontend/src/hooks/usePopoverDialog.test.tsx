@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { usePopoverDialog } from './usePopoverDialog';
@@ -40,6 +41,45 @@ describe('usePopoverDialog modal popover semantics', () => {
     expect(dialog.contains(document.activeElement)).toBe(true);
     // The background branch is inert while the dialog claims modal semantics.
     expect(backgroundButton.closest('#background')!.hasAttribute('inert')).toBe(true);
+  });
+
+  it('SIL-561 fail 29/10: EVERY background element carries inert — main and the opener chain included', () => {
+    function PortaledHost() {
+      const [open, setOpen] = useState(false);
+      const panelRef = useRef<HTMLDivElement>(null);
+      const triggerRef = useRef<HTMLButtonElement>(null);
+      usePopoverDialog(panelRef, triggerRef, open);
+      return (
+        <main>
+          <button ref={triggerRef} onClick={() => setOpen((v) => !v)}>Mở bộ lọc</button>
+          <div id="background"><button>Nút nền</button></div>
+          {open && createPortal(
+            <div ref={panelRef} role="dialog" aria-label="Bộ lọc">
+              <button onClick={() => setOpen(false)}>Áp dụng</button>
+            </div>,
+            document.body,
+          )}
+        </main>
+      );
+    }
+    render(<PortaledHost />);
+    const trigger = screen.getByRole('button', { name: 'Mở bộ lọc' });
+    fireEvent.click(trigger);
+
+    // QA's probe reads these exact elements: `main` carried neither inert nor
+    // aria-hidden while the dialog claimed modal semantics ("chỉ vùng toast
+    // là inert" — the old sweep exempted the opener's ancestor chain).
+    expect(document.querySelector('main')!.hasAttribute('inert')).toBe(true);
+    // Platform modal semantics inert the background INCLUDING the opener;
+    // the close path un-inerts first (this hook's effect order), then
+    // restores focus — a browser refuses to focus an inert element.
+    expect(trigger.hasAttribute('inert')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Áp dụng' }));
+
+    expect(document.querySelector('main')!.hasAttribute('inert')).toBe(false);
+    expect(trigger.hasAttribute('inert')).toBe(false);
+    expect(document.activeElement).toBe(trigger);
   });
 
   it('restores aria-modal + background and hands focus back to the trigger on close', () => {

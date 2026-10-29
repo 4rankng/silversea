@@ -163,4 +163,56 @@ describe('mobile touch floor (design-guidelines §5)', () => {
       /:is\(\.ds-tabs--boxed \.ds-tabs__btn,\s*\.ds-pagination__btn,\s*\.dpcard__note,\s*\.dpcard__info,\s*\.shipment-debit-copy,\s*\.shipment-debit-docs__badge\)::after\s*\{[^}]*inset-block:\s*-2px;[^}]*inset-inline:\s*0;/,
     );
   });
+
+  it('SIL-583 residuals: link-color triggers keep a DEFINED min-height fallback (QA fail 29/10: 55×13)', () => {
+    // A bare `var(--uui-control-h)` is invalid-at-computed-value on triggers
+    // without data-uui-control (the property is undefined in their subtree):
+    // the whole max() drops and min-height silently falls to `auto` — exactly
+    // how the "Xem thêm" link measured 55×13 despite the floor.
+    const mpg = read('src/features/dispatch/master-plan/MasterPlanGrid.css');
+    const rule = mpg.match(/\.master-plan-grid__container-detail-trigger,\s*\n\.master-plan-grid__note-detail-trigger\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(rule, 'the shared trigger rule exists').not.toBe('');
+    expect(rule).toMatch(/min-height:\s*max\(28px,\s*var\(--uui-control-h,\s*28px\)\)/);
+    expect(rule, 'no bare var() in a min-height — it silently voids the floor').not.toMatch(/min-height:[^;]*var\(--uui-control-h\)/g);
+  });
+
+  it('SIL-583 residuals: date segments grow the HIT box only (glyph spacing untouched)', () => {
+    // HH/DD/MM segments size to their glyphs (18.6–23px) — under the 24px
+    // floor. content-box padding + equal negative margins widen the measured
+    // target while the content box (and card 20260924_10 separator spacing)
+    // stays byte-identical. The :is(#root, body) prefix must stay: without it
+    // control-geometry's id-specific rule keeps the box border-box and the
+    // padding eats the glyphs instead of growing the target.
+    const seg = read('src/design-system/forms/DateTimeSegments.css');
+    const rule = seg.match(/:is\(#root, body\) \.date-seg-group \.date-seg-wrapper \.date-seg\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule, 'the hit-box rule exists with its load-bearing prefix').not.toBe('');
+    expect(rule).toMatch(/box-sizing:\s*content-box/);
+    expect(rule).toMatch(/padding-inline:\s*3px/);
+    expect(rule).toMatch(/margin-inline:\s*-3px/);
+  });
+
+  it('SIL-583 residuals: combobox typing overlay hit box ≥24 in both bands', () => {
+    // Base band: control-geometry zeroed the overlay (16.2px measured).
+    const geometry = read('src/components/untitled-ui/base/control-geometry.css');
+    const base = geometry.match(/\[data-uui-control='combobox'\] input\[role='combobox'\],\s*\n#root \[data-uui-control='combobox'\] input\[role='combobox'\] \{([^}]*)\}/)?.[1] ?? '';
+    expect(base, 'base overlay rule exists').not.toBe('');
+    expect(base).toMatch(/min-height:\s*24px/);
+    expect(base).toMatch(/padding-block:\s*4px/);
+    expect(base).toMatch(/margin-block:\s*-4px/);
+    // Phone band: the #root-prefixed combobox.css override outranks the base
+    // rule (id specificity) and zeroed the box back to 21.6px.
+    const cb = read('src/components/untitled-ui/base/select/combobox.css');
+    const phone = cb.match(/@media \(max-width: 640px\), \(pointer: coarse\) \{[\s\S]*?#root \.uui-combobox \[data-combobox-value\] input\[role='combobox'\] \{([^}]*)\}/)?.[1] ?? '';
+    expect(phone, 'phone overlay override exists').not.toBe('');
+    expect(phone).toMatch(/min-height:\s*24px/);
+    expect(phone).toMatch(/padding-block:\s*4px/);
+    expect(phone).toMatch(/margin-block:\s*-4px/);
+    expect(phone, 'the fill-the-field height stays').toContain('height: 100%');
+  });
+
+  it('SIL-583 residuals: dispatch sort label button floors at 24px (was 14.8px)', () => {
+    const dpg = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+    const sort = dpg.match(/\.detailed-plan-grid__sort \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(sort).toMatch(/min-height:\s*24px/);
+  });
 });

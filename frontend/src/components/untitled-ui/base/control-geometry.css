@@ -61,8 +61,15 @@
 [data-uui-control='combobox'] input[role='combobox'],
 #root [data-uui-control='combobox'] input[role='combobox'] {
   min-width: 0;
-  min-height: 0;
-  padding-block: 0;
+  /* SIL-583 (29/10): the transparent typing overlay IS the control a
+     bounding-box audit measures (16.2px in the 12px band) — under the WCAG
+     2.5.8 24px floor. Floor the box at 24px; content-box padding + equal
+     negative margins keep the flow size (and the field's visual height)
+     byte-identical wherever the content box already clears 16px, and the
+     text/caret sit in the unchanged content box. */
+  min-height: 24px;
+  padding-block: 4px;
+  margin-block: -4px;
 }
 
 /* The universal shell touch floor applies to bare inputs. Wrapper-owned

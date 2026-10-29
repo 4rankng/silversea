@@ -412,8 +412,12 @@
   /* Same wrap law as the plain th (SIL-515): the label and its inline ▲▼
      marker wrap at spaces, never mid-word. The old 2-line clamp HID
      everything past two lines — a truncation, banned table-wide; without
-     it the sticky header row simply grows to the label it holds. */
+      it the sticky header row simply grows to the label it holds. */
   display: block;
+  /* SIL-583 (29/10): the sort label button measured 94.5×14.8 (one 11px
+     line) — under the WCAG 2.5.8 24px floor. The th already wraps to its
+     label, so the floor costs at most one line of header height. */
+  min-height: 24px;
 }
 
 .detailed-plan-grid__sort.is-sorted {

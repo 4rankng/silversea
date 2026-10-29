@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { Role } from '@tingting/shared';
 
@@ -72,23 +72,26 @@ describe('mobile overlay focus return (SIL-573)', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('returns focus to the month trigger after Escape', () => {
+  it('returns focus to the month trigger after Escape (SIL-561: one frame — the inert release lands first)', async () => {
     renderPicker();
     const trigger = screen.getByRole('button', { name: /Chọn tháng/ });
     fireEvent.click(trigger);
     expect(screen.getByRole('dialog', { name: 'Chọn tháng' })).toBeTruthy();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Chọn tháng' })).toBeNull();
-    expect(document.activeElement).toBe(trigger);
+    // The restore defers past the close commit: the background un-inerts
+    // there, and a browser refuses to focus an inert trigger (the old
+    // synchronous shape dropped the keyboard to <body> — QA-measured).
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
-  it('returns focus to the month trigger after choosing a month', () => {
+  it('returns focus to the month trigger after choosing a month (SIL-561: one frame)', async () => {
     renderPicker();
     const trigger = screen.getByRole('button', { name: /Chọn tháng/ });
     fireEvent.click(trigger);
     fireEvent.click(screen.getByRole('button', { name: /T5\s*Tháng 5/ }));
     expect(screen.queryByRole('dialog', { name: 'Chọn tháng' })).toBeNull();
-    expect(document.activeElement).toBe(trigger);
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
   it('keeps focus away from the trigger when an outside press closes the picker', () => {

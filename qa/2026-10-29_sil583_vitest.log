@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-a11y2/frontend
+
+
+ Test Files  77 passed (77)
+      Tests  830 passed (830)
+   Start at  17:48:38
+   Duration  98.47s (transform 7.77s, setup 31.45s, import 134.90s, tests 165.79s, environment 131.72s)
+
+vitest exit=0

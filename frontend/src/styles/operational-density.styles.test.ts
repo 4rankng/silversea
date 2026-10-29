@@ -34,12 +34,13 @@ describe('operational density contract', () => {
     const comboboxStyles = read('src/components/untitled-ui/base/select/combobox.css');
     expect(read('src/components/untitled-ui/base/select/combobox.tsx')).toContain('import "./combobox.css"');
     expect(comboboxStyles).toContain('@media (max-width: 640px), (pointer: coarse)');
-    // Contract: the input adds NO height floor of its own (min-height: 0) and
-    // no vertical padding — the field box stays one boundary. The former
-    // `height: auto` fragment is dropped 2026-09-26: it collapsed the input
-    // to a 16px text strip whose dead tap zone opened the list without
-    // focusing the input (mobile-touch-floor.styles.test.ts pins height: 100%).
-    expect(comboboxStyles).toMatch(/#root \.uui-combobox \[data-combobox-value\] input\[role='combobox'\]\s*\{[^}]*min-height:\s*0;[^}]*height:\s*100%;[^}]*padding-block:\s*0;/);
+    // Contract (SIL-583 29/10, supersedes the 09-26 zeroing): the input stays
+    // one boundary with the field (`height: 100%`, no second box) but its HIT
+    // box floors at the WCAG 2.5.8 24px target — padding-block + equal
+    // negative margins grow the measured target without moving the text or
+    // changing the field height. The former `min-height: 0; padding-block: 0`
+    // measured 21.6px in the phone band (QA fail 29/10).
+    expect(comboboxStyles).toMatch(/#root \.uui-combobox \[data-combobox-value\] input\[role='combobox'\]\s*\{[^}]*min-height:\s*24px;[^}]*height:\s*100%;[^}]*padding-block:\s*4px;[^}]*margin-block:\s*-4px;/);
     expect(read('src/components/untitled-ui/base/select/select-shared.tsx')).toContain('import "../control-geometry.css"');
     expect(read('src/components/untitled-ui/base/select/select-item.tsx')).toContain('max-md:min-h-[calc(var(--control-max-h)-2px)]');
     expect(read('src/components/untitled-ui/base/buttons/button.tsx')).toContain('max-md:min-h-11');

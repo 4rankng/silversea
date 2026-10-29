@@ -122,28 +122,36 @@ export function usePopoverDialog(
       // Leg 1 — modal semantics ride the panel only while it is open.
       panel.setAttribute('aria-modal', 'true');
 
-      // Leg 3 — the rest of the page goes inert while the dialog is open.
-      // The sweep walks DOWN from <body>: a child that contains the panel (a
-      // portal target, or the app root hosting an unportaled picker) or the
-      // TRIGGER (the opener's own island — it stays clickable and is the
-      // focus-return target; a browser refuses to focus an inert element,
-      // which would break the Escape restore) is stepped into, so only the
-      // branches off that path are blocked — everything else loses pointer
-      // and keyboard reach. Portals appended later (a criterion's date
-      // picker) are never covered by the sweep and stay interactive.
+      // Leg 3 — EVERYTHING outside the panel goes inert while the dialog is
+      // open — the platform modal contract (`<dialog>.showModal()`, the
+      // shipmate accessibility reference's custom-overlay rule). The old
+      // sweep exempted the trigger's ancestor chain so Escape could restore
+      // focus to it; that kept `main` LIVE whenever the trigger lived inside
+      // it (QA fail 29/10: "main không có aria-hidden, inert=false; chỉ vùng
+      // toast là inert"). Now the background, its landmarks AND the opener's
+      // own chain all carry `inert`; a browser refuses to focus an inert
+      // element, so the close path UN-INERTS FIRST — this effect's cleanup
+      // runs before the focus-return effect's (React destroys effects in
+      // definition order) — and only then hands focus back to the trigger.
+      // Every excluded element gets the ATTRIBUTE itself (not just an inert
+      // ancestor): inheritance already covers behavior, the attribute covers
+      // the landmark probes (`main`, `header`, …) QA measures against.
+      // Nested portals appended later (a criterion's date picker) are never
+      // covered by the sweep and stay interactive.
       const previous = new Map<Element, boolean>();
-      const trigger = triggerRef.current;
+      const mark = (element: Element): void => {
+        previous.set(element, element.hasAttribute('inert'));
+        element.setAttribute('inert', '');
+      };
       const sweep = (parent: Element): void => {
         for (const child of Array.from(parent.children)) {
-          // The panel and the trigger element itself (with everything inside
-          // them) stay live; branches off their two paths are blocked.
-          if (child === panel || (trigger != null && (child === trigger || trigger.contains(child)))) continue;
-          if (child.contains(panel) || (trigger != null && child.contains(trigger))) {
+          if (child === panel) continue;
+          if (child.contains(panel)) {
             sweep(child);
             continue;
           }
-          previous.set(child, child.hasAttribute('inert'));
-          child.setAttribute('inert', '');
+          mark(child);
+          sweep(child);
         }
       };
       sweep(document.body);

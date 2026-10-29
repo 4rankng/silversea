@@ -1,0 +1,10 @@
+login → /my-orders
+  PASS /ops/orders renders pin buttons — n=2 first="Ghim TVREQ-LX-B3"
+  PASS pin button takes keyboard focus — Ghim TVREQ-LX-B3
+  PASS in-flight button carries aria-busy=true (direct observation) — label=Bỏ ghim TVREQ-LX-B3
+  PASS in-flight button keeps aria-disabled pattern (no native disabled)
+  PASS siblings share the in-flight aria-disabled pass
+  PASS after settle the row floats to top with aria-pressed=true — Bỏ ghim TVREQ-LX-B3 pressed=true row=TVREQ-LX-B3
+  PASS keyboard focus survives the re-sort (same order button) — Bỏ ghim TVREQ-LX-B3
+  PASS Enter unpins and keeps focus on the same order button — Ghim TVREQ-LX-B3 pressed=false
+TOTAL 8/8 PASS

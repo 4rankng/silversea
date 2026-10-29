@@ -1,0 +1,8 @@
+{
+  "hasBusy": true,
+  "busyLabel": "Bỏ ghim TVREQ-LX-B3",
+  "ariaDisabled": "true",
+  "nativeDisabled": false,
+  "activeStillOnButton": true,
+  "allOthersDisabled": true
+}
