@@ -1,0 +1,167 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-reds-9eba/frontend
+
+ ❯ src/pages/RoleWorkspacePagination.styles.test.ts (3 tests | 1 failed) 8ms
+     × keeps dispatcher pagination in normal flow when the plan becomes cards 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/RoleWorkspacePagination.styles.test.ts > role workspace pagination > keeps dispatcher pagination in normal flow when the plan becomes cards
+AssertionError: expected '/* Shared shell for the two dispatch …' to match /\.dispatch-plan-page__workspace > \.d…/
+
+- Expected:
+/\.dispatch-plan-page__workspace > \.ds-pagination\s*\{[^}]*position:\s*static;/
+
++ Received:
+"/* Shared shell for the two dispatch planning screens:
+   /dispatch (Kế hoạch Tổng quát) and /dispatch-detail (Kế hoạch Chi tiết). */
+.dispatch-plan-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px clamp(16px, 2vw, 28px) 32px;
+}
+
+/* Dispatch planning is a high-volume operational surface. Both planning
+   routes deliberately opt out of the shell's reading-width reading cap. */
+/* Card 20260930_246 (§8 density): 12 → 8 between the advisory strips so
+   the first record meets its chrome budget at every width. */
+.dispatch-plan-page--wide {
+  gap: 8px;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 24px;
+}
+
+.app-main:not(.driver-mode) .app-body > .dispatch-plan-page--wide {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+
+.dispatch-plan-page > .page-header {
+  margin-bottom: 4px;
+}
+
+.dispatch-plan-page__toolbar {
+  /* Filter-bar law §5: page primary action lives top-right above the bar. */
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.dispatch-plan-page__workspace {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.dispatch-plan-page--wide .dispatch-plan-page__workspace {
+  container-type: inline-size;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+.dispatch-plan-page__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.dispatch-plan-page__error .btn {
+  flex: 0 0 auto;
+}
+
+.dispatch-plan-page__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: var(--fg-3);
+}
+
+/* The pager stays IN FLOW after the table (card 20260921_22): a sticky
+   bottom pin on this unbounded workspace floats the bar mid-list at rest,
+   covering 13-14 of 20 rows. List-end flow leaves every row visible.
+   SIL-572 (2026-10-29): the pager is ALSO an opaque, elevated surface —
+   QA measured row kebabs (the pinned rail's ⋯ triggers) sharing pixels with
+   \"Trang sau\" at every scroll position, and a click at the intersection
+   flipped the page instead of opening the row menu. The geometry requires
+   the grid's rows to escape the bounded pane's `overflow: auto` clip — an
+   engine-side clipping failure this repo cannot reproduce in Chromium (the
+   pane measured flush: last row 851.6, pager top 865). The lift makes the
+   clobber impossible in ANY engine: an escaped row paints UNDER the pager's
+   opaque strip and never wins a click, so the kebab can never press over the
+   pager and the pager can never steal the kebab's tap, scrolled or not. */
+.dispatch-plan-page__workspace > .ds-pagination {
+  position: relative;
+  z-index: calc(var(--z-base, 1) + 1);
+  background: var(--bg);
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border-color-secondary, var(--line));
+}
+
+@media (max-width: 1100px) {
+  .dispatch-plan-page {
+    gap: 12px;
+    padding-top: 14px;
+  }
+
+  /* The shell already provides the safe outer gutter at tablet and phone
+     widths. Keeping the wide operational workspace flush to that boundary
+     returns a full data measure without compromising card interior spacing. */
+  .dispatch-plan-page--wide {
+    padding-inline: 0;
+    padding-top: 0;
+  }
+
+  .dispatch-plan-page__workspace {
+    border-radius: var(--app-radius-md);
+    padding: 12px;
+  }
+
+  .dispatch-plan-page--wide .dispatch-plan-page__workspace {
+    padding: 0;
+  }
+}
+
+/* ─── FB-092 LCL selection bar ──────────────────────────────────────────────
+   Spec 23/10 (261023110000 §2): the bar moved to the SHARED floating dock —
+   `src/styles/lcl-merge.css` (loaded through LclMergeModeToggle) — because
+   CUS Chi phí - Quyết toán floats the same bar. One pattern, one shared
+   implementation; nothing page-local remains here. */
+"
+
+ ❯ src/pages/RoleWorkspacePagination.styles.test.ts:27:17
+     25|     // width (the cards-mode static rule folded into the base block), …
+     26|     // subsumes the old desktop-sticky/static-cards split this test pi…
+     27|     expect(css).toMatch(/\.dispatch-plan-page__workspace > \.ds-pagina…
+       |                 ^
+     28|     expect(css).not.toMatch(/\.dispatch-plan-page__workspace > \.ds-pa…
+     29|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  18:18:57
+   Duration  2.65s (transform 53ms, setup 208ms, import 258ms, tests 8ms, environment 1.73s)
+
+exit=1
