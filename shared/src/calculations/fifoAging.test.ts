@@ -172,7 +172,7 @@ describe('computeFifoAging', () => {
   });
 
   test('missing timestamps fall back to reference date', () => {
-    // Entry with null timestamp should land in current bucket (age = 0 days)
+    // Entry with null timestamp should land in current bucket (0 days past its issue-date due)
     const entries: FifoAgingInput[] = [
       { timestamp: null, debit: '500000', credit: '0' },
     ];

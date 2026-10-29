@@ -80,3 +80,38 @@ cd shared && pnpm test   # cùng case XANH trên zod 4.6.7 — không sửa asse
 - Migration reference: commit f80cc48e (QA26) + revert ff923fd9; testplan cũ
   `case-QA26-zod4-bump-regressions.md` (2 regression class lỗi thời của lần
   bump đầu vẫn là luật cho partialUpdateSchema + error-handler shape).
+
+## Gate decisions (independent review Zod4MigrationReview, 29/10 — verdict APPROVE, 0 BLOCKER)
+
+Đối chiếu accept/reject sets với zod@3.25.76 THẬT (probe reproducible trong review):
+các delta sau được ACCEPT tường minh như semantic intrinsic của bản vá GHSA, không
+phải sai sót implementation:
+
+- GD-1 (MAJOR) — default error wording đổi ("Required"/"Expected number, …" →
+  "Invalid input: expected …, received …") trên field KHÔNG có message custom.
+  Accept/reject sets giữ nguyên; toàn bộ message tiếng Việt custom (đúng contract
+  UX) được preserve qua `{error}`/string param (probe). Quyết định: CHẤP NHẬN —
+  theo precedent QA26 ("the pin follows the installed library"); không dựng
+  z.config error-map tái tạo wording v3.
+- GD-2 (MAJOR) — `{offset:true}` accept-set NARROWING: `+0700` (ISO-basic
+  offset) và `+24:00` (offset sai chuẩn) bị v3.25.76 chấp nhận, v4 từ chối
+  (verify cả 2 bằng zod@3.25.76 thật). Quyết định: CHẤP NHẬN — mọi producer đã
+  xác định (FE toISOString → `Z`, ledger/`localDateTimeToIso` → `+07:00` extended,
+  gồm cả wave SIL-586/587/588 mới) gửi extended/Z nên không đổi behavior payload
+  hiện có; `+24:00` là bug của v3; giữ `+0700` sẽ phải tự viết format parser —
+  needless abstraction. Producer bên ngoài dùng basic-offset serializer sẽ 400.
+- GD-3 (MINOR) — `z.string().uuid()` không còn nhận version-nibble lạ (v9…);
+  UUID DB (gen_random_uuid v4/v7) không đổi. Chấp nhận.
+- GD-4 (MINOR) — số không hữu hạn (`Infinity`, `1e999` qua JSON) bị từ chối sớm
+  hơn ở union money helpers, mất message custom cho lớp pathological đó (reject
+  set không đổi — cả 2 engine đều reject). Chấp nhận.
+- GD-5 (MINOR, follow-up không thuộc lane) — test doubles dùng bare `.partial()`
+  (catalog-modal-payload-contract, expense-date-validation, catalog-tax-code,
+  customerSchema tests) không còn guard invariant omitted-key dưới v4; gợi ý
+  cleanup ticket riêng (không phải regression của lane — file untouched).
+- GD-6 (MINOR) — `zod-to-json-schema` (backend) là dead dep, gợi ý bỏ ở cleanup.
+
+Review OK areas: cus-shipment-workspace.ts restore = byte-equal `ff923fd9^` trừ
+các delta zod4 đã ghi (revGroupId/costGroupId hiện diện — sau sự cố checkout
+a27bcfa3); fifoAging repin khớp contract owner; v3-idiom sweep CLEAN; partial-
+UpdateSchema đúng cả 4 thứ tự wrapper + mirror policy; commit hygiene PASS.
