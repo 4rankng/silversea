@@ -1,0 +1,14 @@
+▶ sameCostGroupSiblings (SIL-591 trip-side rig guard carve-out)
+  ✔ carves exactly the issuing lot's own group siblings out of blocking (1.236666ms)
+  ✔ carves nothing for an ungrouped issuing lot (null costGroupId) (0.10725ms)
+  ✔ never carves holders of a DIFFERENT group or ungrouped holders (0.137584ms)
+  ✔ returns an empty list for empty blocking input (0.074375ms)
+✔ sameCostGroupSiblings (SIL-591 trip-side rig guard carve-out) (2.291458ms)
+ℹ tests 4
+ℹ suites 1
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 889.924875

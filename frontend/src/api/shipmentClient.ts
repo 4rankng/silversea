@@ -763,6 +763,19 @@ export interface DispatchShipmentResponse {
     externalDriverPhone: string | null;
   };
   notification: { type: string; deliveredInApp: boolean; pushAttempted: boolean };
+  /** SIL-591 (id 691) — the issued lot's ghép-trả-ĐV siblings the backend
+   *  auto-issued on the SAME rig in the same transaction. The grid flips
+   *  these rows to "Đã phát lệnh" together with the primary. */
+  autoIssuedSiblings?: Array<{
+    shipmentId: number;
+    fulfillmentId: number;
+    tripId: number;
+    billNumber: string | null;
+    bookingRef: string | null;
+  }>;
+  /** SIL-591 — siblings the cascade could not issue, each with the guard's
+   *  own message (chưa gán tài xế, chưa có tuyến, xung đột thật sự…). */
+  failedSiblings?: Array<{ shipmentId: number; message: string }>;
   replayed: boolean;
 }
 

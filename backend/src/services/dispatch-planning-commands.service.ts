@@ -128,6 +128,27 @@ export interface IssueOrderMutationResult {
   trip: LiveTripRow;
   notificationPersisted: boolean;
   /**
+   * SIL-591 (id 691) — the remaining lots of the issued lot's ghép-trả-ĐV
+   * group, auto-issued on the SAME rig (same truck/driver/trailer, same
+   * slot) inside this one transaction. The customer's law: phát lệnh cho
+   * một lô của nhóm ghép thì các lô còn lại tự động đi lệnh gộp — no more
+   * per-lot issuing that dead-ends on the sibling. Empty for an ungrouped
+   * lot, a reassign, or when every sibling already ran.
+   */
+  autoIssuedSiblings?: Array<{
+    shipmentId: number;
+    fulfillmentId: number;
+    tripId: number;
+    billNumber: string | null;
+    bookingRef: string | null;
+  }>;
+  /**
+   * SIL-591 — siblings the cascade could NOT issue, with the guard's own
+   * message (missing driver, invalid route, a real rig conflict…). The
+   * primary order stands; the dispatcher sees what stayed behind and why.
+   */
+  failedSiblings?: Array<{ shipmentId: number; message: string }>;
+  /**
    * Set when a reassignment corrected a departed-but-unacknowledged trip AND
    * the driver changed: the ops "Phát lệnh" had already stamped attendance
    * work-days for the OLD driver, so the command's caller must re-key them
@@ -282,6 +303,7 @@ export async function replaceTripContainersForFulfillment(
 export async function issueOrderCreateOrUpdate(
   tx: Tx,
   input: IssueFulfillmentDispatchOrderInput,
+  opts?: { cascadeSiblings?: boolean },
 ): Promise<IssueOrderMutationResult> {
   await assertActorCanAccessShipment(tx, input.shipmentId, input.actor, { write: true });
   await assertShipmentAccountingUnlocked(tx, input.shipmentId);
@@ -621,6 +643,10 @@ export async function issueOrderCreateOrUpdate(
       departureDate: localDateInBusinessZone(plannedStartAt),
     },
     shipmentId: shipment.id,
+    // SIL-591 (id 691) — the lot's ghép-trả-ĐV group: a sibling's ACTIVE
+    // trip on the same rig is the merged run itself, not a conflict to
+    // refuse (see sameCostGroupSiblings in the availability gate).
+    costGroupId: shipment.costGroupId,
   });
 
   let trip = liveTrip;
@@ -845,10 +871,19 @@ export async function issueOrderCreateOrUpdate(
     && liveTrip.status !== TripStatus.CREATED
     && (liveTrip.driverId ?? null) !== (driverId ?? null);
 
+  // SIL-591 (id 691) — the ghép-trả-ĐV cascade, FIRST ISSUE only (a reassign
+  // corrects ONE published trip; moving a whole group onto another rig is
+  // the deliberate "Đổi nhà xe nhóm" flow). The siblings ride inside this
+  // same transaction — all-or-nothing with the primary order.
+  const cascade = opts?.cascadeSiblings !== false && input.expectedTripVersion == null
+    ? await issueLclCostGroupSiblingsInTx(tx, input, trip)
+    : {};
+
   return {
     fulfillment: updatedFulfillment ?? fulfillment,
     trip,
     notificationPersisted,
+    ...cascade,
     ...(departedDriverChanged ? {
       attendanceResync: {
         tripId: trip.id,
@@ -868,6 +903,106 @@ export async function issueOrderCreateOrUpdate(
   };
 }
 
+
+/**
+ * SIL-591 (id 691) — the cascade half of the ghép-trả-ĐV issue law: phát
+ * lệnh cho MỘT lô trong nhóm ghép thì các lô còn lại TỰ ĐỘNG được phát lệnh
+ * cho CÙNG xe (cùng đầu kéo / rơ-moóc / tài xế, cùng khung giờ — "xe đi
+ * lệnh gộp"). Runs INSIDE the issuing transaction, so the group's orders
+ * commit or roll back together.
+ *
+ * Siblings of the issued lot = same `costGroupId`, an active LCL_SHIPMENT
+ * fulfillment, and a non-terminal lot. One already carrying a live trip is
+ * skipped (issued earlier — never a double order). A sibling that cannot
+ * ride the group's rig (chưa gán tài xế, chưa có tuyến, một xung đột thật
+ * sự…) lands in `failedSiblings` with the guard's own message — the primary
+ * order must never die because a sibling's data is incomplete.
+ *
+ * `cascadeSiblings: false` on the recursive calls — this loop already
+ * covers the whole group, so a sibling must never re-cascade.
+ */
+async function issueLclCostGroupSiblingsInTx(
+  tx: Tx,
+  input: IssueFulfillmentDispatchOrderInput,
+  primaryTrip: LiveTripRow,
+): Promise<Pick<IssueOrderMutationResult, 'autoIssuedSiblings' | 'failedSiblings'>> {
+  const autoIssuedSiblings: NonNullable<IssueOrderMutationResult['autoIssuedSiblings']> = [];
+  const failedSiblings: NonNullable<IssueOrderMutationResult['failedSiblings']> = [];
+  // The group identity rides the ISSUED lot — ungrouped, nothing cascades.
+  const [group] = await tx.select({ costGroupId: s.shipments.costGroupId })
+    .from(s.shipments)
+    .where(eq(s.shipments.id, input.shipmentId))
+    .limit(1);
+  if (group?.costGroupId == null) return { autoIssuedSiblings, failedSiblings };
+
+  const siblings = await tx.select({
+    shipmentId: s.shipments.id,
+    billNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+    status: s.shipments.status,
+    costGroupOrder: s.shipments.costGroupOrder,
+    fulfillmentId: s.shipmentFulfillments.id,
+    fulfillmentVersion: s.shipmentFulfillments.version,
+  })
+    .from(s.shipmentFulfillments)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+    .where(and(
+      eq(s.shipments.costGroupId, group.costGroupId),
+      ne(s.shipments.id, input.shipmentId),
+      isNull(s.shipments.deletedAt),
+      isNull(s.shipmentFulfillments.canceledAt),
+      eq(s.shipmentFulfillments.cargoMode, CARGO_MODE.LCL),
+    ))
+    .orderBy(s.shipments.costGroupOrder, s.shipments.id);
+
+  for (const sibling of siblings) {
+    const status = canonicalShipmentStatus(sibling.status);
+    if (status === 'COMPLETED' || status === 'CANCELED') continue;
+    // Already running its own trip — the dispatcher issued it earlier;
+    // nothing to do, never an error.
+    const live = await loadLiveTripForFulfillment(tx, sibling.fulfillmentId);
+    if (live) continue;
+    try {
+      // ONE physical run: every sibling rides the rig this order resolved
+      // (OWN: same truck/driver/trailer; EXTERNAL: same vendor + plate).
+      // Lot-specific rate/container overrides stay the sibling's own.
+      const result = await issueOrderCreateOrUpdate(tx, {
+        ...input,
+        shipmentId: sibling.shipmentId,
+        fulfillmentId: sibling.fulfillmentId,
+        expectedVersion: sibling.fulfillmentVersion,
+        expectedTripVersion: undefined,
+        plannedStartAt: input.plannedStartAt,
+        plannedEndAt: input.plannedEndAt,
+        endTimeConfirmed: true,
+        carrierType: input.carrierType,
+        truckId: input.carrierType === 'OWN' ? primaryTrip.truckId ?? undefined : undefined,
+        driverId: input.carrierType === 'OWN' ? primaryTrip.driverId ?? undefined : undefined,
+        trailerId: input.carrierType === 'OWN' ? primaryTrip.trailerId ?? undefined : undefined,
+        externalCarrierId: input.carrierType === 'EXTERNAL' ? primaryTrip.externalEntityId ?? undefined : undefined,
+        externalCarrierVehicleId: undefined,
+        externalPlateNumber: input.carrierType === 'EXTERNAL' ? primaryTrip.externalPlateNumber ?? undefined : undefined,
+        externalDriverName: input.carrierType === 'EXTERNAL' ? primaryTrip.externalDriverName ?? undefined : undefined,
+        externalDriverPhone: input.carrierType === 'EXTERNAL' ? primaryTrip.externalDriverPhone ?? undefined : undefined,
+        containerTypeId: undefined,
+        pricingRateKey: undefined,
+      }, { cascadeSiblings: false });
+      autoIssuedSiblings.push({
+        shipmentId: sibling.shipmentId,
+        fulfillmentId: sibling.fulfillmentId,
+        tripId: result.trip.id,
+        billNumber: sibling.billNumber,
+        bookingRef: sibling.bookingRef,
+      });
+    } catch (error) {
+      failedSiblings.push({
+        shipmentId: sibling.shipmentId,
+        message: error instanceof ApiError ? error.message : 'Phát lệnh lô ghép cùng xe thất bại.',
+      });
+    }
+  }
+  return { autoIssuedSiblings, failedSiblings };
+}
 
 export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispatchOrderInput) {
   assertDispatchActor(input.actor);
@@ -969,6 +1104,11 @@ export async function issueFulfillmentDispatchOrder(input: IssueFulfillmentDispa
       deliveredInApp: hasExplicitInAppTarget,
       pushAttempted: !outcome.replayed && outcome.result.notificationPersisted && hasExplicitInAppTarget,
     },
+    // SIL-591 (id 691) — the ghép-trả-ĐV cascade's outcome rides the same
+    // response so the grid can flip every issued sibling row and name what
+    // (if anything) stayed behind.
+    autoIssuedSiblings: outcome.result.autoIssuedSiblings ?? [],
+    failedSiblings: outcome.result.failedSiblings ?? [],
     replayed: outcome.replayed,
   };
 }

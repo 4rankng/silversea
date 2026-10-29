@@ -50,6 +50,23 @@ export async function countDateOnlyTripClaims(tx: Tx, args: {
   return rows.length;
 }
 
+/**
+ * SIL-591 (id 691) — the pure half of the ghép-trả-ĐV carve-out: which
+ * blocking holders are the issuing lot's OWN cost-group siblings. Sibling
+ * lots of ONE ghép group share one physical run (one BKS thực, one driver,
+ * one slot) BY DESIGN — the dispatcher merged them, so their trips overlap
+ * on the rig on purpose, not by accident. `ownCostGroupId == null` (an
+ * ungrouped lot) carves nothing; a holder in a DIFFERENT group or with no
+ * group stays blocking (never a third load on the group's rig).
+ */
+export function sameCostGroupSiblings<T extends { id: number; costGroupId: string | null }>(
+  rows: readonly T[],
+  ownCostGroupId: string | null,
+): T[] {
+  if (ownCostGroupId == null) return [];
+  return rows.filter((row) => row.costGroupId != null && row.costGroupId === ownCostGroupId);
+}
+
 /** A Kẹp release may overlap its one compatible partner, never a third load. */
 export async function assertResourceAvailability(tx: Tx, args: {
   tripId: number | null;
@@ -67,6 +84,16 @@ export async function assertResourceAvailability(tx: Tx, args: {
    * family.
    */
   rigOverlapCompletedConfirmed?: boolean;
+  /**
+   * SIL-591 (id 691) — the issuing lot's ghép-trả-ĐV group id. Sibling lots
+   * of ONE cost group share ONE physical run on purpose (one BKS thực, one
+   * driver, one slot) — a sibling's ACTIVE trip is the arrangement itself,
+   * never a foreign claim, so it must not hard-block the group's second
+   * issue with "Xe đầu kéo đã bị trùng lịch kế hoạch". The plan-row guard
+   * already treats same-group as non-conflict (isSameGroup); this gate now
+   * agrees. Null = ungrouped lot, nothing is carved out.
+   */
+  costGroupId?: string | null;
   kepContext?: {
     issuingContainerIsTwentyFoot: boolean;
     classification: string;
@@ -100,6 +127,7 @@ export async function assertResourceAvailability(tx: Tx, args: {
     driverId: s.trips.driverId,
     plannedStartAt: s.trips.plannedStartAt,
     shipmentId: s.shipmentFulfillments.shipmentId,
+    costGroupId: s.shipments.costGroupId,
     classification: s.shipmentFulfillments.dispatchClassification,
     activePairId: s.trips.activeTripPairId,
     pairStatus: s.tripPairs.status,
@@ -108,6 +136,7 @@ export async function assertResourceAvailability(tx: Tx, args: {
     pairSecondTripId: s.tripPairs.secondTripId,
   }).from(s.trips)
     .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
     .leftJoin(s.tripPairs, eq(s.tripPairs.id, s.trips.activeTripPairId))
     .where(and(
       or(...predicates)!,
@@ -250,6 +279,18 @@ export async function assertResourceAvailability(tx: Tx, args: {
     : blocking.filter((row) => row.shipmentId === args.shipmentId);
   if (sameLotBlocking.length > 0) {
     blocking = blocking.filter((row) => row.shipmentId !== args.shipmentId);
+  }
+  // SIL-591 (id 691) — the ghép-trả-ĐV sibling carve-out. The issuing lot's
+  // cost-group siblings run the SAME physical trip on purpose: when their
+  // ACTIVE trips already hold the truck/trailer/driver, that overlap is the
+  // group's arrangement, not a foreign claim — issuing lot 2 of a merged
+  // group must never 409 with "đã bị trùng lịch kế hoạch" again. Silent,
+  // exactly like the plan-row guard's isSameGroup treatment; a group-external
+  // overlap still blocks (never a third load).
+  const groupSiblingRows = sameCostGroupSiblings(blocking, args.costGroupId ?? null);
+  if (groupSiblingRows.length > 0) {
+    const groupSiblingIds = new Set(groupSiblingRows.map((row) => row.id));
+    blocking = blocking.filter((row) => !groupSiblingIds.has(row.id));
   }
   if (blocking.some((row) => args.truckId != null && row.truckId === args.truckId)) {
     throw new ApiError(409, 'Xe đầu kéo đã bị trùng lịch kế hoạch.');
