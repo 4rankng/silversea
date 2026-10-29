@@ -20,9 +20,10 @@
 //     returns when the range is cleared (the call site skips the triage
 //     without dateArms).
 // Accepted consequence (per the ruling): LCL-01 same-filter parity with
-// Tổng quan holds for dated rows only — Tổng quan keeps undated lots visible
-// under a range (shipmentTransportDateCondition), Chi tiết drops their
-// undated rows.
+// Tổng quan held for dated rows only — until SIL-588 (khách 29/10) closed
+// the gap: shipmentTransportDateCondition now drops undated lots under an
+// active range too, so Tổng quan and Chi tiết agree on undated rows as
+// well (visible with no range, filtered out under one).
 //
 // Pure unit test, no database: the drizzle chunk is rendered through
 // PgDialect the way cus-record-search.test.ts pins SQL contracts.

@@ -792,8 +792,11 @@ async function buildShipmentPageConditions(
     // its containers' coalesce(appointment VN date, EDD) days; the lot's own
     // expectedDeliveryDate counts only for a container-less lot. The previous
     // unconditional EDD arm surfaced reappointed lots under their OLD day and
-    // contradicted the Chi tiết day triage. See shipmentTransportDateCondition
-    // (single-sourced with the dispatch master-plan delivery-date filter).
+    // contradicted the Chi tiết day triage. SIL-588 (khách 29/10): an active
+    // range now narrows to DATED IN-RANGE rows only — undated lots drop while
+    // the range is held and return when it is cleared. See
+    // shipmentTransportDateCondition (single-sourced with the dispatch
+    // master-plan delivery-date filter).
     const dateFrom = query.transportDateFrom ?? '0001-01-01';
     const dateTo = query.transportDateTo ?? '9999-12-31';
     conditions.push(shipmentTransportDateCondition(dateFrom, dateTo));
