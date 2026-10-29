@@ -147,7 +147,11 @@ class ApiClient {
 
     let res: Response;
     try {
-      res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+      // SIL-594 (id 694): every API call is live operational state — a
+      // read-after-write refetch must never be answered from a browser session
+      // cache or an intermediary proxy (the staging nginx). `no-store` also
+      // stops conditional replays of pre-save bytes on identical URLs.
+      res = await fetch(`${API_BASE}${path}`, { ...options, cache: 'no-store', headers });
     } catch (error) {
       if (generatedCommandKey) {
         this.retainMutationTransactionKeyForRetry(generatedCommandKey);

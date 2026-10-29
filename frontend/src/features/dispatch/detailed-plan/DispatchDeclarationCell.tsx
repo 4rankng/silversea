@@ -43,9 +43,17 @@ export function DispatchDeclarationCell({ row, onSaved }: {
     && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS || user.role === Role.DISPATCHER)
     && row.shipmentContainerId != null;
 
-  const baseline = row.cargoMode === 'FCL'
+  const propBaseline = row.cargoMode === 'FCL'
     ? (row.container.declarationNumber ?? '').trim()
     : '';
+  // SIL-594 (id 694) — the save's own confirmation drives the display the
+  // moment it lands: the board refetch may arrive late, arrive stale (a cache
+  // replaying pre-save bytes), or not arrive at all, and reload/re-search must
+  // never be how a user sees their save. The echo is keyed to the row value it
+  // replaced and self-clears as soon as the row prop carries anything else — a
+  // refreshed or external server value always wins.
+  const [echo, setEcho] = useState<{ propAtSave: string; fresh: string } | null>(null);
+  const baseline = echo != null && propBaseline === echo.propAtSave ? echo.fresh : propBaseline;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(baseline);
   const [saving, setSaving] = useState(false);
@@ -70,6 +78,9 @@ export function DispatchDeclarationCell({ row, onSaved }: {
     rowKeyRef.current = rowKey;
     setEditing(false);
     setDraft(baseline);
+    // The echo belongs to the row it was saved on — never leak it onto
+    // another row that happens to carry the same pre-save value (SIL-594).
+    setEcho(null);
   }
 
   const openEditor = () => {
@@ -90,6 +101,9 @@ export function DispatchDeclarationCell({ row, onSaved }: {
       revert();
       return;
     }
+    // SIL-594 — the row value this save replaces; keys the echo so it
+    // self-clears the moment the refreshed row carries anything else.
+    const propAtSave = propBaseline;
     setSaving(true);
     void updateCusShipmentContainerLine(
       row.shipmentId,
@@ -103,6 +117,9 @@ export function DispatchDeclarationCell({ row, onSaved }: {
         // dead-lock the next click-to-edit on the same cell.
         setSaving(false);
         setEditing(false);
+        // SIL-594 — show the just-saved value NOW (authoritative: the server
+        // accepted this exact value), before any refetch reconciles the rows.
+        setEcho({ propAtSave, fresh: next });
         const synced = result.declarationSync?.updatedContainerIds.length ?? 0;
         toastCtx?.toast({
           kind: 'success',

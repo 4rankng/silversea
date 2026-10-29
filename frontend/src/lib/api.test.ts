@@ -372,3 +372,19 @@ describe('Vitest infrastructure', () => {
     expect(mod.round2dp).toBeDefined();
   });
 });
+
+describe('SIL-594 — API transport is never cacheable', () => {
+  afterEach(() => { api.clearToken(); vi.restoreAllMocks(); });
+
+  it('C3: every request rides cache: no-store — a read-after-write must never be served cached bytes', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [] }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.get('/shipments/dispatch-detail-plan-rows?page=1');
+
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ cache: 'no-store' });
+  });
+});

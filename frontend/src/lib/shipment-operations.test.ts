@@ -32,4 +32,21 @@ describe('shipment operational timestamps', () => {
     expect(formatTimeShortDate(null)).toBe('');
     expect(formatTimeShortDate('not-a-date')).toBe('');
   });
+
+  // SIL-595 (id 695) — the CUS drawer's "Đóng / trả" column and "Lịch cont"
+  // lines feed RAW server instants (`Date.toISOString()` — Z-suffixed UTC)
+  // into this mask. String-surgery on the UTC digits rendered "07:30 30/10"
+  // for a 14:30 ICT appointment — exactly 7 hours off. Zone-suffixed values
+  // must render the Vietnam wall-clock; naive drafts keep the string-surgery
+  // contract above (host-timezone-independent).
+  it('SIL-595-C1: renders a Z-suffixed instant in the Vietnam hour, not the UTC digits', () => {
+    expect(formatTimeShortDate('2026-10-30T07:30:00.000Z')).toBe('14:30 30/10');
+    // UTC-midnight-adjacent instant rolls to the next VN calendar day.
+    expect(formatTimeShortDate('2026-10-29T17:00:00.000Z')).toBe('00:00 30/10');
+  });
+
+  it('SIL-595-C2: a +07:00 instant keeps its wall-clock digits; naive drafts are untouched', () => {
+    expect(formatTimeShortDate('2026-10-30T14:30:00+07:00')).toBe('14:30 30/10');
+    expect(formatTimeShortDate('2026-10-30T14:30')).toBe('14:30 30/10');
+  });
 });

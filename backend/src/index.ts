@@ -9,6 +9,7 @@ import logger from './lib/logger';
 import { durationStringToSeconds } from './lib/duration';
 import { initEnforcer } from './casbin/enforcer';
 import { authMiddleware, assetAuthMiddleware } from './middleware/auth';
+import { apiNoStore } from './middleware/api-no-store';
 import { casbinAuthz, tripRouteAuthz } from './middleware/casbin';
 import { requireRoles } from './middleware/casbin';
 import { installGeneratedMaterialWriteRules } from './middleware/material-write';
@@ -173,6 +174,9 @@ app.use(cors({
       ? 'http://localhost:7174'
       : false,
 }));
+// SIL-594 (id 694): live operational data — no cache in the path may replay
+// pre-save bytes to a post-save refetch (see middleware/api-no-store.ts).
+app.use('/api', apiNoStore);
 app.use(express.json());
 // Inlined request logger (was middleware/logger.ts — too shallow for its own module)
 const LOG_SKIP_PATHS = ['/api/health', '/favicon.ico'];

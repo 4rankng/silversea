@@ -48,11 +48,20 @@ export function formatVietnamDateInput(value: string | Date | null | undefined):
 
 /** SIL-483: the drawer's ghost appointment mask reads "HH:mm DD/MM" — the
  *  year is context the lot already carries, so the cell drops it and the full
- *  "HH:mm DD/MM/YYYY" rides the title/aria text instead. Pure formatter over
- *  the naive "YYYY-MM-DDTHH:mm" the popover drafts carry — no zone math, the
- *  same parse contract as the shared formatDateTime24. */
+ *  "HH:mm DD/MM/YYYY" rides the title/aria text instead.
+ *  SIL-595 (id 695): the callers feed BOTH shapes — naive drafts
+ *  ("YYYY-MM-DDTHH:mm" — string surgery, host-independent) AND raw server
+ *  instants (Z/±hh:mm — `Date.toISOString()`). A zone-suffixed value is a real
+ *  instant and must render the Vietnam wall-clock: string-surgery on its UTC
+ *  digits showed "07:30 30/10" for a 14:30 ICT appointment. */
 export function formatTimeShortDate(value: string | null | undefined): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value ?? '');
+  const raw = value ?? '';
+  if (/[Zz]$|[+-]\d{2}:\d{2}$/.test(raw)) {
+    const parts = getVietnamParts(raw);
+    if (!parts) return '';
+    return `${pad(parts.hour)}:${pad(parts.minute)} ${pad(parts.day)}/${pad(parts.month)}`;
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(raw);
   if (!match) return '';
   const [, , month, day, hour, minute] = match;
   return `${hour}:${minute} ${day}/${month}`;
