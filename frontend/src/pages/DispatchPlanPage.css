@@ -86,19 +86,36 @@
    SIL-572 (2026-10-29): the pager is ALSO an opaque, elevated surface —
    QA measured row kebabs (the pinned rail's ⋯ triggers) sharing pixels with
    "Trang sau" at every scroll position, and a click at the intersection
-   flipped the page instead of opening the row menu. The geometry requires
-   the grid's rows to escape the bounded pane's `overflow: auto` clip — an
-   engine-side clipping failure this repo cannot reproduce in Chromium (the
-   pane measured flush: last row 851.6, pager top 865). The lift makes the
+   flipped the page instead of opening the row menu. The lift makes the
    clobber impossible in ANY engine: an escaped row paints UNDER the pager's
    opaque strip and never wins a click, so the kebab can never press over the
-   pager and the pager can never steal the kebab's tap, scrolled or not. */
+   pager and the pager can never steal the kebab's tap, scrolled or not.
+   SIL-572 round 3: QA re-measured trigger-vs-"Trang sau" rect intersections
+   at every width on the lifted build. Root cause class: a trigger's bounding
+   rect is layout geometry — it ignores the pane's `overflow: auto` clip — so
+   the rows parked below the pane's fold report rects straight through the
+   pager band that sits immediately after the pane, at essentially every
+   scroll offset (the next hidden row always starts at the pane's bottom
+   edge; the pinned rail keeps its ⋯ in the right-edge band those rects
+   cross). The pager controls therefore also CLEAR THE RAIL BAND
+   horizontally: the inline-end padding mirrors the Thao tác column's share
+   (3.7% of max(1340px floor, actual width) — the same geometric band the
+   sticky cell occupies at any horizontal scroll) plus one space-sm of
+   breathing room, so no pager control's rect can ever share pixels with a
+   rail trigger — visible, hidden, mid-transit or escaped, at any scroll.
+   Both halves stay: the opaque surface wins any paint, and the band
+   clearance makes the shared-rect state unrepresentable. */
 .dispatch-plan-page__workspace > .ds-pagination {
   position: relative;
   z-index: calc(var(--z-base, 1) + 1);
   background: var(--bg);
   margin: 0;
   padding: 12px 0 0;
+  /* The Thao tác rail share (SIL-588: 3.7% of the table; table = max(1340px
+     floor, pane width)) — the % here resolves against the same workspace
+     width the pane and its table get, so the reserved strip tracks the rail
+     at every canvas. */
+  padding-inline-end: calc(max(1340px, 100%) * 0.037 + var(--space-sm));
   border-top: 1px solid var(--border-color-secondary, var(--line));
 }
 

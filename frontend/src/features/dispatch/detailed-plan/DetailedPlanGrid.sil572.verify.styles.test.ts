@@ -41,3 +41,20 @@ describe('pager surface lift (SIL-572)', () => {
     expect(rule).not.toMatch(/position:\s*static/);
   });
 });
+
+// SIL-572 QA round 3 (2026-10-30): a trigger's bounding rect ignores the
+// pane's overflow clip, so rows parked below the fold report rects straight
+// through the pager band at essentially every scroll offset. The pager
+// controls clear the pinned rail's geometric band horizontally — the same
+// 3.7%-of-max(1340px, width) share the sticky Thao tác cell occupies — so a
+// rail trigger and a pager control can never share pixels in any state.
+describe('pager controls clear the rail band (SIL-572 round 3)', () => {
+  const page = readFileSync(resolve(process.cwd(), 'src/pages/DispatchPlanPage.css'), 'utf8');
+
+  it('reserves the rail share as pager inline-end clearance', () => {
+    const rule = page.match(/\.dispatch-plan-page__workspace > \.ds-pagination\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toMatch(
+      /padding-inline-end:\s*calc\(max\(1340px,\s*100%\)\s*\*\s*0\.037\s*\+\s*var\(--space-sm\)\);/,
+    );
+  });
+});
