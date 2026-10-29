@@ -87,7 +87,9 @@ function renderView(lines: ShipmentCusWorkspaceContainerLine[], itemOverrides: P
       error={undefined}
       onRetry={() => {}}
       canEditCargoLines={false}
-      containerLineActions={{}}
+      containerLineActions={{
+        onSaveField: async () => false,
+      }}
     />,
   );
 }
