@@ -1,0 +1,28 @@
+PASS — @768 /shipments-debit — 0 interactive control under 24×24 (fine, scanned 61) (clean)
+PASS — @768 /shipments-debit — mergetag ≥24px (10×) ({"count":10,"minW":66.4,"minH":24})
+screenshot qa/2026-10-30_sil583_ui-debit-768.png
+PASS — @1440 /shipments-debit — 0 interactive control under 24×24 (fine, scanned 52) (clean)
+PASS — @1440 /shipments-debit — mergetag ≥24px (10×) ({"count":10,"minW":66.4,"minH":24})
+PASS — @390 /shipments-debit — 0 interactive control under 24×24 (fine, scanned 42) (clean)
+note: @390 /shipments-debit — card mode renders no table mergetag (QA's fail list cites the tag @768 only); 42 controls still sweep clean below
+row 0: /shipments-detail?dateScope=all&searchSuffix=DNKM13334&customerId=122 → fieldLinks 0
+row 1: /shipments-detail?dateScope=all&searchSuffix=105254544198&customerId=120 → fieldLinks 0
+row 2: /shipments-detail?dateScope=all&searchSuffix=BLSIL52266387277&customerId=1 → fieldLinks 1
+detail route resolved: /shipments-detail?dateScope=all&searchSuffix=BLSIL52266387277&customerId=1
+PASS — @768 /shipments-detail?dateScope=all&searchSuffix=BLSIL52266387277&customerId=1 — 0 interactive control under 24×24 (fine, scanned 53) (clean)
+PASS — @768 /shipments-detail?dateScope=all&searchSuffix=BLSIL52266387277&customerId=1 — fieldLinks ≥24px (1×) ({"count":1,"minW":100.4,"minH":24})
+PASS — real click inside the 24px field-link box toggles the disclosure (aria-expanded false → true @2px-inside-top)
+screenshot qa/2026-10-30_sil583_ui-detail-768.png
+PASS — @390 /shipments/new — 0 interactive control under 24×24 (fine, scanned 43) (clean)
+PASS — @390 /shipments/new — copyBtn ≥24px (1×) ({"count":1,"minW":24,"minH":40})
+screenshot qa/2026-10-30_sil583_ui-new-390.png
+PASS — @768 /dispatch — 0 interactive control under 24×24 (fine, scanned 67) (clean)
+PASS — @768 /dispatch — notesTrigger ≥24px (23×) ({"count":23,"minW":119.8,"minH":24})
+PASS — @768 /dispatch-detail — 0 interactive control under 24×24 (fine, scanned 85) (clean)
+PASS — @768 /shipments — 0 interactive control under 24×24 (fine, scanned 61) (clean)
+PASS — @390 /shipments — 0 interactive control under 24×24 (fine, scanned 54) (clean)
+PASS — coarse @768 /shipments-detail?dateScope=all&searchSuffix=BLSIL52266387277&customerId=1 — fieldLinks ride the 40px touch ceiling (1×) ({"count":1,"minW":100.4,"minH":40})
+PASS — coarse @768 /shipments-debit — mergetag rides the 40px touch ceiling (10×) ({"count":10,"minW":66.4,"minH":40})
+PASS — coarse @768 /shipments-debit — btn rides the 40px touch ceiling (1×) ({"count":1,"minW":96,"minH":40})
+screenshot qa/2026-10-30_sil583_ui-debit-768-coarse.png
+ALL CHECKS PASSED

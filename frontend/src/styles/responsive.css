@@ -759,6 +759,26 @@
   }
 }
 
+/* SIL-583 QA round 3 (2026-10-30) — hit-area ENGINE FINDING (load-bearing
+   for this ticket's "≥44px trên touch — mở rộng bằng padding/pseudo-element"
+   clause): the ::after pseudo-extension technique the AC names does NOT
+   extend hit areas on the engine this repo ships on. Measured on Chromium
+   (qa/scripts/tmp-probe-hit5/6/7.mjs, deleted after the run): a trigger with
+   position:relative and a computed ::after inset of −3px still fails a REAL
+   mouse click 2px above its border box (0 captures), with the pseudo
+   transparent, painted at rgba(…,0.4), bordered, and box-shadowed — and
+   elementFromPoint agrees (the point resolves to the parent row). The
+   round-1/2 coarse-band ::after layers are therefore inert no-ops; they stay
+   (harmless, zero paint) but must not be counted as hit-area delivery, and
+   no new ones may be added. The REAL hit area is the element border box.
+   That means the 44px hit aim is only reachable by growing the element
+   itself, which the owner ceiling forbids (ruling 2026-09-27: the touch
+   floor IS the 40px ceiling — "one ceiling for every form component, on
+   every pointer"; a 44px control is a new owner ruling, not a CSS patch).
+   What this stylesheet delivers, verified by real boxes and real clicks:
+   the 24px WCAG 2.5.8 floor on every control (the ticket's binding clause),
+   and the 40px element floor on coarse pointers (the owner touch floor). */
+
 /* Tablet controls retain the same touch target as phones. */
 @media (min-width: 641px) and (max-width: 900px) {
   .btn,

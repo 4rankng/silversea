@@ -164,6 +164,39 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     );
   });
 
+  it('SIL-583 round 3 floors the QA-failed clusters at 24px (mergetag trigger + ledger field links)', () => {
+    // "Ghép (n/2)" trigger: 66×20 → min-height 24 (DebitLotTable status cell)
+    const debit = read('src/pages/ShipmentDebitPage.css');
+    const mergetag = debit.match(/\.shipment-debit-mergetag__trigger\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(mergetag, 'mergetag trigger floor exists').not.toBe('');
+    expect(mergetag).toMatch(/min-height:\s*24px;/);
+    expect(mergetag).toMatch(/display:\s*inline-flex;/);
+    // ledger inline disclosure/edit links ("Thiếu N thông tin", "Sửa cước
+    // thu khách", "BKS Báo khách (Ảo) — sửa", "Sửa BKS thực"): 17px → 24
+    const ledger = read('src/pages/ShipmentContainersPage.css');
+    const toggle = ledger.match(/\.shipment-container-ledger__missing-fields-toggle\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(toggle, 'missing-fields toggle floor exists').not.toBe('');
+    expect(toggle).toMatch(/min-height:\s*24px;/);
+    expect(toggle).toMatch(/display:\s*inline-block;/);
+  });
+
+  it('SIL-583 round 3 records the pseudo hit-extension engine finding (no new no-op layers)', () => {
+    // Round 3 measured on Chromium: a position:relative control with a
+    // computed ::after inset of −3px fails a REAL mouse click 2px above its
+    // box — painted, bordered, shadowed, all zero captures. The ::after
+    // hit-extension technique is inert on this engine; the round-1/2 coarse
+    // layers are grandfathered no-ops and NO new ones may ship. The hit area
+    // is the element border box: 24px floor everywhere (WCAG 2.5.8), 40px
+    // element floor on touch (owner ruling 2026-09-27).
+    const responsive = read('src/styles/responsive.css');
+    expect(responsive).toMatch(/hit-area ENGINE FINDING/);
+    // The round-3 finding note names the truth: real box = real hit area.
+    expect(responsive).toMatch(/REAL hit area is the element border box/);
+    // And the block ships no new pseudo extension rules of its own.
+    const note = responsive.match(/\/\* SIL-583 QA round 3[\s\S]*?\*\/\n\n?[^/*]/)?.[0] ?? '';
+    expect(note, 'the finding note is comment-only').not.toMatch(/\}\n\.|\{$/);
+  });
+
   it('SIL-583 residuals: link-color triggers keep a DEFINED min-height fallback (QA fail 29/10: 55×13)', () => {
     // A bare `var(--uui-control-h)` is invalid-at-computed-value on triggers
     // without data-uui-control (the property is undefined in their subtree):

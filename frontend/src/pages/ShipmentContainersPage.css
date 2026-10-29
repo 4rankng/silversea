@@ -284,7 +284,19 @@
    every field as a jump-to-editor button; the list wraps at the same text
    size, nothing is shrunk or permanently hidden. */
 .shipment-container-ledger__multiline > .shipment-container-ledger__row-warning.shipment-container-ledger__missing-fields { flex-wrap: wrap; white-space: normal; align-content: flex-start; }
-.shipment-container-ledger__missing-fields-toggle { border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; text-align: left; text-decoration: underline dotted; text-underline-offset: 2px; }
+/* SIL-583 QA round 3 (2026-10-30): the row's inline disclosure/edit links
+   ("Thiếu N thông tin ▾", "Sửa cước thu khách", "BKS Báo khách (Ảo) — sửa",
+   "Sửa BKS thực") measured 17px tall — under the WCAG 2.5.8 24px floor at
+   every pointer. The links stack inside one cell a few px apart, so a 44px
+   hit extension would overlap the neighbour link's own hit region (the
+   ticket's no-overlap condition wins, the round-1 copy/badge precedent);
+   the floor is the base min-height and the coarse-pointer band lifts the
+   element itself to the 44px touch aim. */
+.shipment-container-ledger__missing-fields-toggle {
+  display: inline-block;
+  min-height: 24px;
+  box-sizing: border-box;
+  border: 0; padding: 0; background: none; color: inherit; font: inherit; font-weight: inherit; cursor: pointer; text-align: left; text-decoration: underline dotted; text-underline-offset: 2px; }
 .shipment-container-ledger__missing-fields-toggle:hover { text-decoration: underline solid; }
 .shipment-container-ledger__missing-fields-list { display: flex; width: 100%; flex-wrap: wrap; gap: 3px; margin-top: 2px; min-width: 0; }
 .shipment-container-ledger__missing-fields-item { border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent); border-radius: 4px; padding: 1px 6px; background: var(--surface); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--fw-medium); line-height: 1.5; cursor: pointer; }

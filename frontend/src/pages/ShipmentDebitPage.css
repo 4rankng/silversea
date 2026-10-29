@@ -493,6 +493,21 @@
   font-weight: 600;
 }
 
+/* SIL-583 QA round 3 (2026-10-30): the merged-group trigger measured 66×20 —
+   under the WCAG 2.5.8 24px floor at every pointer. The cell stacks the
+   status pill, this trigger and the ⋯ kebab with a few px between them, so a
+   44px hit extension would overlap the kebab's own hit region (the
+   ticket's no-overlap condition wins); the floor is the base min-height, and
+   the coarse-pointer band lifts the element itself to the 44px touch aim
+   (rows grow on touch, §5). */
+.shipment-debit-mergetag__trigger {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+
 /* The kebab (pattern: the dispatch row menu, 23/10) — the row's ONE action
  * affordance; the list portals to body with fixed coordinates because table
  * cells clip absolute dropdowns. */
