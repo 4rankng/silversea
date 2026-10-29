@@ -31,7 +31,22 @@ export function PenaltyScoreboardCards({ rows, avgStreak, driversOver90, onOpenD
           const gc = getGradeClass(d.grade);
           const vClass = d.violations === 0 ? 'zero' : d.violations <= 2 ? 'warn' : 'danger';
           return (
-            <div key={d.driverId} className="penalty-m-card" onClick={(event) => onOpenDrawer(d.driverId, event.currentTarget)}>
+            <div
+              key={d.driverId}
+              className="penalty-m-card"
+              /* SIL-576 (29/10): same contract as the desktop scoreboard row —
+                 the card is the drawer opener, so it is focusable, keyboard-
+                 operable (Enter/Space) and the restore target after close. */
+              role="button"
+              tabIndex={0}
+              aria-label={`Lập biên bản cho ${d.name}`}
+              onClick={(event) => onOpenDrawer(d.driverId, event.currentTarget)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                onOpenDrawer(d.driverId, event.currentTarget);
+              }}
+            >
               <div className="penalty-m-card__top">
                 <div className="left">
                   <div className="penalty-driver-avatar">

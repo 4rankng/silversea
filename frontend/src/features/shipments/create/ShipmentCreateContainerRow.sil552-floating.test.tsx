@@ -148,7 +148,7 @@ describe('SIL-552 (id 626): SỐ CONTAINER group lines open the floating editor'
     fireEvent.keyDown(number, { key: 'Tab', shiftKey: false });
 
     const panel = await screen.findByRole('dialog', { name: 'Chỉnh sửa loại container — dòng 1' });
-    expect(panel).toHaveClass('is-open');
+    await waitFor(() => expect(panel).toHaveClass('is-open'));
     // The hand-off opens the combobox menu exactly once (the 272 contract).
     await waitFor(() => expect(within(panel).getByRole('combobox', { name: 'Loại container' })).toHaveAttribute('aria-expanded', 'true'));
   });

@@ -166,6 +166,32 @@ describe('PenaltyTable', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
   });
 
+  it('SIL-576: scoreboard rows/cards are keyboard-operable drawer openers carrying the ROW as opener', () => {
+    const onOpenDrawer = vi.fn();
+    renderTable({ rows: [row()], total: 1, insights: insights(), statusCounts: statusCounts(), onOpenDrawer });
+
+    // Desktop: the row is focusable and Enter/Space open the drawer with the
+    // ROW element as the focus-restoration opener (QA proof chain: click row →
+    // Escape → Enter must reopen — Enter can only reopen if the row handles
+    // it AND focus came back to the row).
+    const [target] = screen.getAllByRole('row', { name: /Lập biên bản cho/ });
+    expect(target).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(target!, { key: 'Enter' });
+    expect(onOpenDrawer).toHaveBeenLastCalledWith(expect.any(Number), target);
+    fireEvent.keyDown(target!, { key: ' ' });
+    expect(onOpenDrawer).toHaveBeenCalledTimes(2);
+    // A key that is not activation never opens (typing/sorting keys stay free).
+    fireEvent.keyDown(target!, { key: 'a' });
+    expect(onOpenDrawer).toHaveBeenCalledTimes(2);
+
+    // Phone cards carry the same contract (role=button + Enter).
+    fireEvent.click(screen.getByRole('button', { name: /Bảng xếp hạng lái xe/ }));
+    const [card] = screen.getAllByRole('button', { name: /Lập biên bản cho/ });
+    fireEvent.keyDown(card!, { key: 'Enter' });
+    expect(onOpenDrawer).toHaveBeenLastCalledWith(expect.any(Number), card);
+    expect(onOpenDrawer).toHaveBeenCalledTimes(3);
+  });
+
   it('renders the scoreboard from insights with server streaks and plates', () => {
     renderTable({ insights: insights() });
 
