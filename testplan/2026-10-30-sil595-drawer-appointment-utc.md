@@ -52,6 +52,9 @@ Surface lệch giờ là **drawer CUS "Chi tiết lô" (CusLotView)** — bảng
   (ICT), KHÔNG phải '07:30 30/10'.
 - SIL-595-C2: instant `+07:00` giữ nguyên giờ digits; naive draft giữ nguyên
   contract cũ ('2026-09-11T09:05' → '09:05 11/09').
+- SIL-595-C2b: naive có giây vẫn string surgery ('2026-10-30T14:30:00' →
+  '14:30 30/10'); offset không dấu hai chấm ('+0000') vẫn là instant thật
+  (review finding 4).
 - SIL-595-C3: drawer CUS — cột "Đóng / trả" render giờ ICT từ
   customerAppointmentAt (regression pin trên CusLotView).
 - SIL-595-C4: "Lịch cont" group line render giờ ICT từ group.at.

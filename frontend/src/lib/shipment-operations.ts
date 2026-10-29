@@ -56,7 +56,8 @@ export function formatVietnamDateInput(value: string | Date | null | undefined):
  *  digits showed "07:30 30/10" for a 14:30 ICT appointment. */
 export function formatTimeShortDate(value: string | null | undefined): string {
   const raw = value ?? '';
-  if (/[Zz]$|[+-]\d{2}:\d{2}$/.test(raw)) {
+  // Zone suffix = a real instant (Z, +07:00 or the colon-less +0700 form).
+  if (/[Zz]$|[+-]\d{2}:?\d{2}$/.test(raw)) {
     const parts = getVietnamParts(raw);
     if (!parts) return '';
     return `${pad(parts.hour)}:${pad(parts.minute)} ${pad(parts.day)}/${pad(parts.month)}`;

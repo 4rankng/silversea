@@ -1,0 +1,16 @@
+SIL-595 UI driver — 2026-10-29T21:59:20.483Z
+BASE=http://localhost:7185 API=http://localhost:3003/api user=cus
+PASS API login (200)
+candidate lot 374: no container rows
+candidate lot 365: no container rows
+candidate lot 302: has containers
+PASS visible lot with container lines found (lot 302)
+target lot identity: "BL-SIL521-64473836" id=302
+API identity BEFORE: customerAppointmentAt=null
+PASS seed appointment write (200)
+API identity AFTER: customerAppointmentAt="2026-10-30T07:30:00.000Z"
+PASS stored instant is the UTC twin of 14:30 ICT
+PASS drawer renders 14:30 30/10 (ICT)
+PASS drawer never shows the UTC digits 07:30
+PASS restore appointment (200)
+RESULT: ALL PASS

@@ -17,7 +17,13 @@ các formatter naive còn lại đều được feeding giá trị naive hoặc 
 
 Tests: `CusLotView.appointment-tz.test.tsx` (113 dòng) — 3 pin đỏ→xanh
 (instant Z render ICT, naive fallback giữ nguyên, "Lịch cont" line đúng);
-scoped 8/8. Case: `testplan/cases/2026-10-30-sil595-drawer-appointment-utc.md`.
+`shipment-operations.test.ts` +C2b (naive có giây giữ contract; offset '+0000'
+vẫn là instant — review finding 4); scoped 8→9 green.
+Case: `testplan/2026-10-30-sil595-drawer-appointment-utc.md`.
+Review độc lập (code-reviewer 30/10): regex nhận diện zone mở rộng
+`[+-]\\d{2}:?\\d{2}` (colon-less offsets) — fix forward trong commit này.
+Provenance: formatter fix + tests land qua fleet salvage auto-commit `ca9dedd1`
+(append-only); commit này mang attribution + review fix + UI evidence.
 
 ## 2026-10-30 — fix(cus): SIL-594 (id 694) — giá trị vừa lưu hiển thị ngay sau save + API transport no-store chống stale read-after-write
 
