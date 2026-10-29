@@ -34,3 +34,14 @@ NULL cạnh phép so khoảng. Phía Chi tiết (container) đã bị thu hẹp 
   sau NOT EXISTS gate; params [from,to,from,to].
 - SIL-588-C2: không còn arm NULL nào trong render (grep 'is null' trong
   chunk = 0 ngoài NOT EXISTS của chính gate).
+
+## Bổ sung (cùng phiên) — scoped counts theo cùng luật
+
+- SIL-588-C3: `filterContainersByDateRange`
+  (backend/src/services/container-date-filter.ts) — cont/lô KHÔNG ngày nào
+  (không appointment + fallback resolver trả null) bị LOẠI khi filter bật;
+  fallback NGÀY ĐÚNG trong khoảng → giữ; bỏ filter → passthrough nguyên mảng
+  (kể cả undated). Scoped counts (Tổng quan CUS `buildListItem`, dispatch
+  master-plan aggregates) không còn đếm cont của lô mà luật row
+  (`shipmentTransportDateCondition`) vừa loại — comment cũ "undated = luôn
+  hiện" (card 231026000252) đã supersede ở mọi bề mặt mà filter ngày chạm tới.

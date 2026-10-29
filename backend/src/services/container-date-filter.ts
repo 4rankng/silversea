@@ -9,13 +9,13 @@
  * fallback date (the shipment's expected delivery date) — the same fallback
  * the row filters and the "Lịch cont sớm nhất" label use, so scoped counts can
  * never contradict the rows they summarize. A container that resolves to no
- * day at all (no appointment, no fallback) is kept when a range is active:
- * "undated = luôn hiện" (card 231026000252) remains the overview/master-plan
- * scoped-count law. NOTE (SIL-506, owner ruling 2026-10-26): the Chi tiết
- * container workboard row filter no longer mirrors this — its day triage
- * drops undated rows under an active range — so the surfaces intentionally
- * differ for undated rows. When no range is active the full set passes
- * through unchanged.
+ * day at all (no appointment, no fallback) has no day the range names and
+ * DROPS under an active range: SIL-588 (id 688, khách 29/10) supersedes card
+ * 231026000252's "undated = luôn hiện" lane everywhere the lot date filter
+ * reaches — the row law `shipmentTransportDateCondition` already drops undated
+ * lots (mirroring SIL-506's Chi tiết day triage) — so the scoped counts agree
+ * row-for-row with the rows they summarize. When no range is active the full
+ * set passes through unchanged, undated rows included.
  */
 
 import { localDateInBusinessZone } from '@tingting/shared';
@@ -94,14 +94,11 @@ export function businessZoneDayEndExclusiveInstant(value: string): Date | null {
  *                    leave the upper end open.
  * @param fallbackDateFor  Optional resolver returning a shipment-level
  *                    fallback date (YYYY-MM-DD) for containers whose
- *                    appointment is null. A null/undefined result keeps the
- *                    container: undated rows ride outside the filter
- *                    ("undated = luôn hiện", card 231026000252) so scoped
- *                    counts match the overview's own row law —
- *                    `shipmentTransportDateCondition` keeps undated lots
- *                    visible under a range. (The Chi tiết workboard differs
- *                    by owner ruling SIL-506: its day triage drops undated
- *                    rows under an active range.)
+ *                    appointment is null. A null/undefined result leaves the
+ *                    container with no day at all: it DROPS under an active
+ *                    range (SIL-588 — the row law `shipmentTransportDateCondition`
+ *                    drops undated lots, so scoped counts match the rows they
+ *                    summarize). Undated rows ride only the no-filter path.
  *
  * When both bounds are absent the original array is returned unchanged so
  * callers pay zero cost in the no-filter path.
@@ -118,7 +115,10 @@ export function filterContainersByDateRange<T extends { customerAppointmentAt: D
     const localDate = container.customerAppointmentAt != null
       ? localDateInBusinessZone(container.customerAppointmentAt)
       : (fallbackDateFor?.(container) ?? null);
-    if (localDate == null) return true;
+    // SIL-588: an undated row (no appointment, no fallback) matches no range
+    // — `NULL between x and y` is NULL on the SQL twin — so under an active
+    // range it drops, and returns the moment the range is cleared.
+    if (localDate == null) return false;
     if (dateFrom && localDate < dateFrom) return false;
     if (dateTo && localDate > dateTo) return false;
     return true;
