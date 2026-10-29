@@ -68,6 +68,21 @@
   text-align: center;
 }
 
+/* SIL-583 (29/10): HH/DD/MM segments size to their glyphs (18.6–23px in the
+   12px band) — under the WCAG 2.5.8 24px target floor. Grow only the HIT
+   box: content-box padding + equal negative margins keep the content box
+   (and the glyph-tight separator spacing of card 20260924_10) byte-identical
+   while the measured target reaches ≥24px. The :is(#root, body) prefix is
+   load-bearing: control-geometry's `#root [data-uui-control='input'] > input`
+   rule (id specificity) owns box-sizing/min-width and would beat an
+   unprefixed copy — the segment box would stay border-box and the padding
+   would eat the glyph area instead of growing the target. */
+:is(#root, body) .date-seg-group .date-seg-wrapper .date-seg {
+  box-sizing: content-box;
+  padding-inline: 3px;
+  margin-inline: -3px;
+}
+
 .date-seg-group .date-seg-wrapper .date-seg:focus {
   background-color: var(--color-bg-secondary, #F3F4F6);
   border-radius: 4px;

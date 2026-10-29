@@ -1,0 +1,84 @@
+login → /dispatch
+
+@390 /dispatch — 0 distinct sub-24 controls
+
+@390 /dispatch-detail — 0 distinct sub-24 controls
+
+@390 /shipments — 0 distinct sub-24 controls
+
+@390 /shipments-debit — 0 distinct sub-24 controls
+
+@390 /shipments/new — 6 distinct sub-24 controls
+  13×13 n=2 <input> . ""
+  268×21.6 n=2 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- ""
+  16×16 n=3 <input> . ""
+  288×21.6 n=1 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- "Loại container"
+  146×21.6 n=1 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- "Nhà máy"
+  140×21.6 n=3 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- "Tuyến đường"
+
+@768 /dispatch — 2 distinct sub-24 controls
+  19.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place ""
+  22.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Từ ngày"
+
+@768 /dispatch-detail — 3 distinct sub-24 controls
+  19.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place ""
+  22.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Từ ngày"
+  94.5×14.8 n=1 <button> .detailed-plan-grid__sort "Trả hàng ↕"
+
+@768 /shipments — 0 distinct sub-24 controls
+
+@768 /shipments-debit — 2 distinct sub-24 controls
+  19.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place ""
+  22.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Từ ngày"
+
+@768 /shipments/new — 15 distinct sub-24 controls
+  13×13 n=2 <input> . ""
+  638×16.2 n=1 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- ""
+  271×16.2 n=1 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- ""
+  16×16 n=3 <input> . ""
+  110.2×16.2 n=1 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- "Loại container"
+  61×16.2 n=3 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- "Nhà máy"
+  163×16.2 n=1 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- "Tuyến đường"
+  18.6×38 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Giờ — Ngày giờ đóng trả"
+  23×38 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Phút — Ngày giờ đóng trả"
+  19.1×38 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Ngày — Ngày giờ đóng trả"
+  22.1×38 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Ngày giờ đóng tr"
+  18.6×28 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Giờ — Ngày giờ đóng trả "
+  23×28 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Phút — Ngày giờ đóng trả"
+  19.1×28 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Ngày — Ngày giờ đóng trả"
+  22.1×28 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Ngày giờ đóng tr"
+
+@1440 /dispatch — 2 distinct sub-24 controls
+  19.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place ""
+  22.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Từ ngày"
+
+@1440 /dispatch-detail — 3 distinct sub-24 controls
+  19.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place ""
+  22.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Từ ngày"
+  94.5×14.8 n=1 <button> .detailed-plan-grid__sort "Trả hàng ↕"
+
+@1440 /shipments — 3 distinct sub-24 controls
+  19.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place ""
+  22.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Từ ngày"
+  39×16 n=1 <select> . "2050100200"
+
+@1440 /shipments-debit — 2 distinct sub-24 controls
+  19.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place ""
+  22.1×28 n=2 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Từ ngày"
+
+@1440 /shipments/new — 15 distinct sub-24 controls
+  13×13 n=2 <input> . ""
+  157×16.2 n=2 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- ""
+  130×17 n=1 <select> . "— Chọn hình thức —Nhập k"
+  16×16 n=3 <input> . ""
+  110.2×16.2 n=1 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- "Loại container"
+  161.7×16.2 n=3 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- "Nhà máy"
+  163×16.2 n=1 <input> .z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret- "Tuyến đường"
+  18.6×38 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Giờ — Ngày giờ đóng trả"
+  23×38 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Phút — Ngày giờ đóng trả"
+  19.1×38 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Ngày — Ngày giờ đóng trả"
+  22.1×38 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Ngày giờ đóng tr"
+  18.6×28 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Giờ — Ngày giờ đóng trả "
+  23×28 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Phút — Ngày giờ đóng trả"
+  19.1×28 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Ngày — Ngày giờ đóng trả"
+  22.1×28 n=1 <input> .m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place "Tháng — Ngày giờ đóng tr"

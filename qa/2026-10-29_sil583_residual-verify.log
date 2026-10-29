@@ -1,0 +1,8 @@
+@390 /dispatch-detail: 6 measured, 0 under 24 []
+@390 /shipments/new: 17 measured, 0 under 24 []
+@768 /dispatch-detail: 9 measured, 0 under 24 []
+@768 /shipments/new: 17 measured, 0 under 24 []
+@1440 /dispatch-detail: 9 measured, 0 under 24 []
+@1440 /shipments/new: 17 measured, 0 under 24 []
+note-detail-trigger computed: {"minHeight":"28px","w":54.8,"h":28} PASS
+TOTAL 76/76 PASS

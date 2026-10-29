@@ -45,9 +45,14 @@
 @media (max-width: 640px), (pointer: coarse) {
   .uui-combobox [data-combobox-value] input[role='combobox'],
   #root .uui-combobox [data-combobox-value] input[role='combobox'] {
-    min-height: 0;
+    /* SIL-583 (29/10): the typing overlay measured 21.6px in the phone band
+       (16px band text + zeroed padding) — under the WCAG 2.5.8 24px floor.
+       Padding + equal negative margins grow the hit box without moving the
+       text/caret or changing the field's height. */
+    min-height: 24px;
     height: 100%;
-    padding-block: 0;
+    padding-block: 4px;
+    margin-block: -4px;
   }
   /* The root's 4px vertical padding left a 5px dead rim above/below the
      stretched input — taps there fell through to main content. Zero it so

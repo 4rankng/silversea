@@ -743,7 +743,11 @@ describe('MasterPlanGrid', () => {
   it('keeps the per-row container detail action compact; the phone card serves it from the ⋯ menu', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     expect(css).toContain('.master-plan-grid__container-detail-trigger');
-    expect(css).toContain('min-height: max(28px, var(--uui-control-h))');
+    // SIL-583 (29/10): the fallback is load-bearing — link-color triggers carry
+    // no data-uui-control, so a bare var(--uui-control-h) is
+    // invalid-at-computed-value and silently voids the floor (QA measured
+    // 55×13 on the "Xem thêm" trigger).
+    expect(css).toContain('min-height: max(28px, var(--uui-control-h, 28px))');
     // SIL-507: the card list's single ⋯ menu rides the shared 30px rail size
     // (not the old 44px card bump) with the #root bump against the
     // coarse-pointer band.
