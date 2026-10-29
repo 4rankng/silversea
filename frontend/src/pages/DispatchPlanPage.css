@@ -82,9 +82,21 @@
 
 /* The pager stays IN FLOW after the table (card 20260921_22): a sticky
    bottom pin on this unbounded workspace floats the bar mid-list at rest,
-   covering 13-14 of 20 rows. List-end flow leaves every row visible. */
+   covering 13-14 of 20 rows. List-end flow leaves every row visible.
+   SIL-572 (2026-10-29): the pager is ALSO an opaque, elevated surface —
+   QA measured row kebabs (the pinned rail's ⋯ triggers) sharing pixels with
+   "Trang sau" at every scroll position, and a click at the intersection
+   flipped the page instead of opening the row menu. The geometry requires
+   the grid's rows to escape the bounded pane's `overflow: auto` clip — an
+   engine-side clipping failure this repo cannot reproduce in Chromium (the
+   pane measured flush: last row 851.6, pager top 865). The lift makes the
+   clobber impossible in ANY engine: an escaped row paints UNDER the pager's
+   opaque strip and never wins a click, so the kebab can never press over the
+   pager and the pager can never steal the kebab's tap, scrolled or not. */
 .dispatch-plan-page__workspace > .ds-pagination {
-  position: static;
+  position: relative;
+  z-index: calc(var(--z-base, 1) + 1);
+  background: var(--bg);
   margin: 0;
   padding: 12px 0 0;
   border-top: 1px solid var(--border-color-secondary, var(--line));

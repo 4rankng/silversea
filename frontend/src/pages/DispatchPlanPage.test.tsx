@@ -11,7 +11,11 @@ describe('DispatchPlanPage pager contract (card 20260921_22)', () => {
   it('keeps the pagination in flow, never sticky over the rows', () => {
     const pagerBlock = pageStyles.match(/__workspace > \.ds-pagination\s*\{[^}]*\}/)?.[0] ?? '';
     expect(pagerBlock, 'the workspace pager block must exist').not.toBe('');
-    expect(pagerBlock).toMatch(/position:\s*static/);
+    // SIL-572 round 2 (2026-10-29): `static` became `relative` — the pager
+    // keeps its flow slot (relative with no offsets can never float over
+    // rows) while gaining the opaque elevated surface that makes the
+    // kebab-vs-pager clobber impossible under a pane-clip failure.
+    expect(pagerBlock).toMatch(/position:\s*relative/);
     expect(pagerBlock).not.toMatch(/position:\s*sticky/);
     // The sticky variant sealed the app frame with a negative margin; in flow
     // it would only tug the pager up over the frame's padding.

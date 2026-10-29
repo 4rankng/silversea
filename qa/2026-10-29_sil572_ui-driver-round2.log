@@ -1,0 +1,22 @@
+PASS — @1280/rest no kebab rect intersects a pager button ({"ix":0,"iy":0})
+   note: @1280/rest note-only rail residual {"ix":30,"iy":30,"el":"detailed-plan-grid__note"} (spec-B signature, opaque rail)
+PASS — @1280 pager is an opaque elevated surface above the rail ({"position":"relative","zIndex":"1","bg":"rgb(227, 232, 229)"})
+PASS — @1280/fullscroll no kebab rect intersects a pager button ({"ix":0,"iy":0})
+   note: @1280/fullscroll note-only rail residual {"ix":30,"iy":30,"el":"detailed-plan-grid__note"} (spec-B signature, opaque rail)
+PASS — @1440/rest no kebab rect intersects a pager button ({"ix":0,"iy":0})
+   note: @1440/rest note-only rail residual {"ix":1.1,"iy":18.2,"el":"detailed-plan-grid__note"} (spec-B signature, opaque rail)
+PASS — @1440 pager is an opaque elevated surface above the rail ({"position":"relative","zIndex":"1","bg":"rgb(227, 232, 229)"})
+PASS — @1440/fullscroll no kebab rect intersects a pager button ({"ix":0,"iy":0})
+   note: @1440/fullscroll note-only rail residual {"ix":1.1,"iy":18.2,"el":"detailed-plan-grid__note"} (spec-B signature, opaque rail)
+PASS — @1920/rest no kebab rect intersects a pager button ({"ix":0,"iy":0})
+PASS — @1920 pager is an opaque elevated surface above the rail ({"position":"relative","zIndex":"1","bg":"rgb(227, 232, 229)"})
+PASS — @1920/fullscroll no kebab rect intersects a pager button ({"ix":0,"iy":0})
+PASS — @768/rest no kebab rect intersects a pager button ({"ix":0,"iy":0})
+PASS — @768 pager is an opaque elevated surface above the rail ({"position":"relative","zIndex":"1","bg":"rgb(227, 232, 229)"})
+PASS — @768/fullscroll no kebab rect intersects a pager button ({"ix":0,"iy":0})
+PASS — row kebab opens its own menu on click ({"opened":true})
+screenshot qa/2026-10-29_sil572_ui-dispatch-detail-1280-fullscroll.png
+screenshot qa/2026-10-29_sil572_ui-dispatch-detail-1440.png
+screenshot qa/2026-10-29_sil572_ui-dispatch-detail-768-fullscroll.png
+screenshot qa/2026-10-29_sil572_ui-dispatch-detail-390-card.png
+ALL CHECKS PASSED

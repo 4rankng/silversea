@@ -33,28 +33,44 @@ describe('shared sort-header button styling', () => {
   });
 });
 
-// SIL-571 (2026-10-29): /shipments sortable headers own their one-line width —
-// per-column min-width floors at the 1024–1440 bands (2026-09-29 board law:
-// the table grows and scrolls instead of columns collapsing), and the
-// viewport scrolls horizontally ONLY where the floored table outgrows the
-// canvas, so the pinned-thead law (card 20260926_49) keeps binding the
-// app-body scrollport at every wider width.
-describe('/shipments sort-header column floors (SIL-571)', () => {
+// SIL-571/SIL-578 (2026-10-29 rework): /shipments sortable headers own their
+// one-line width through the TABLE's min-width plus floor-proportional
+// percentage column shares — `min-width` on <col> is not part of the table
+// layout algorithms (QA's engine ignored it entirely; Chromium honored it
+// only partially), so the floors must live on properties every engine
+// resolves. The viewport scrolls horizontally ONLY where the worksheet
+// container is narrower than the floored table (a container query, not a
+// media query: the real canvas is not a function of window width — the
+// pinned sidebar eats ~296px at ≥1440), so the pinned-thead law
+// (card 20260926_49) keeps binding the app-body scrollport everywhere the
+// table fits.
+describe('/shipments sort-header column floors (SIL-571/SIL-578)', () => {
   const shipments = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 
-  it('floors every grouped-header column at its one-line header width in the 1024–1440 band', () => {
-    const band = shipments.match(/@media \(min-width: 1024px\) and \(max-width: 1440px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+  it('floors the table at the one-line header sum and shares columns proportionally to those floors', () => {
+    const band = shipments.match(/@media \(min-width: 1024px\) \{[\s\S]*?\.cus-dashboard-table col\.cus-dashboard-col--status[^}]*\}\n\}/)?.[0] ?? '';
     expect(band, 'band exists').not.toBe('');
-    expect(band).toMatch(/col--customer \{ min-width: 200px; \}/);
-    expect(band).toMatch(/col--documents \{ min-width: 110px; \}/);
-    expect(band).toMatch(/col--classification \{ min-width: 192px; \}/);
-    expect(band).toMatch(/col--cargo \{ min-width: 190px; \}/);
-    expect(band).toMatch(/col--schedule \{ min-width: 182px; \}/);
-    expect(band).toMatch(/col--status \{ min-width: 120px; \}/);
+    // The col min-width approach is banned: column boxes only honor `width`.
+    expect(band).toMatch(/\.cus-dashboard-table\s*\{[^}]*min-width:\s*1189px;/);
+    expect(band).toMatch(/col--customer \{ width: 16\.785%; \}/);
+    expect(band).toMatch(/col--documents \{ width: 14\.755%; \}/);
+    expect(band).toMatch(/col--classification \{ width: 16\.093%; \}/);
+    expect(band).toMatch(/col--cargo \{ width: 15\.883%; \}/);
+    expect(band).toMatch(/col--schedule \{ width: 15\.167%; \}/);
+    expect(band).toMatch(/col--notes \{ width: 11\.272%; \}/);
+    expect(band).toMatch(/col--status \{ width: 10\.045%; \}/);
+    // Shares must sum to 100% and each must resolve ≥ its exact floor at the
+    // 1189px table floor (floor/1188.7 of the used width).
+    const shares = [...band.matchAll(/width: ([\d.]+)%/g)].map((m) => Number(m[1]));
+    expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 2);
   });
 
-  it('scopes the horizontal scroll to the widths where the floored table outgrows the canvas', () => {
-    const scrollBand = shipments.match(/@media \(max-width: 1158px\) and \(min-width: 768px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+  it('never returns to inert min-width pinning on the col elements', () => {
+    expect(shipments).not.toMatch(/cus-dashboard-col--\w+ \{ min-width:/);
+  });
+
+  it('scopes the horizontal scroll to canvases narrower than the floored table', () => {
+    const scrollBand = shipments.match(/@container \(max-width: 1188\.5px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
     expect(scrollBand).toMatch(/\.cus-dashboard-viewport\s*\{[^}]*overflow-x:\s*auto;/);
     // The resting viewport must stay a non-scroll container (sticky-thead law).
     expect(shipments).toMatch(/\.cus-dashboard-viewport\s*\{[^}]*overflow-x:\s*clip;/);

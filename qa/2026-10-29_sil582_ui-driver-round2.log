@@ -1,0 +1,12 @@
+PASS — @390 meta lines exist (20)
+PASS — @390 no meta line clips ([])
+PASS — @390 meta wraps (white-space normal)
+PASS — @390 the previously-clipped booking line reads in full ({"text":"BULK-IMP-0005 · 02/03/2026","sw":240,"cw":240,"whiteSpace":"normal","clipped":false})
+PASS — @390 customer names still wrap, none clip ([])
+screenshot qa/2026-10-29_sil582_ui-debit-390-meta.png
+PASS — @768 booking column ≥ 148px floor (150.906)
+PASS — @768 no real 16-char booking clips ([])
+note: @768 pathological >16-char tokens clipping under the desktop title guard: 7
+screenshot qa/2026-10-29_sil582_ui-debit-768-booking.png
+note: @768 ledger phone list present=false (component is ≤640 only; desktop table owns 768)
+ALL CHECKS PASSED

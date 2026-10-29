@@ -24,10 +24,18 @@ describe('row actions never reach the pager (SIL-584)', () => {
     expect(wrapper).not.toMatch(/max-height:\s*none/);
   });
 
-  it('the workspace pager stays static in flow after the pane', () => {
+  it('the workspace pager stays in flow after the pane, opaque and elevated (SIL-584 + 572 round 2)', () => {
     const pager = pageCss.match(/__workspace > \.ds-pagination\s*\{[^}]*\}/)?.[0] ?? '';
     expect(pager, 'pager rule exists').not.toBe('');
-    expect(pager).toMatch(/position:\s*static;/);
+    // SIL-572 round 2 supersedes the `static` letter: the pager keeps its
+    // flow slot (relative, zero offsets — it can never float over rows) but
+    // is lifted onto an opaque surface so an engine-side pane-clip failure
+    // can never paint rows over it or steal its click (the QA-reproduced
+    // kebab-vs-"Trang sau" clobber).
+    expect(pager).toMatch(/position:\s*relative;/);
+    expect(pager).toMatch(/z-index:\s*calc\(var\(--z-base, 1\) \+ 1\);/);
+    expect(pager).toMatch(/background:\s*var\(--bg\);/);
     expect(pager).not.toMatch(/position:\s*(sticky|fixed|absolute)/);
+    expect(pager).not.toMatch(/(^|\n)\s*(top|bottom|left|right):/);
   });
 });

@@ -162,6 +162,16 @@ describe('SIL-478 grouped ledger rows', () => {
     expect(name?.[1]).not.toMatch(/text-overflow:\s*ellipsis/);
   });
 
+  it('CSS pin — SIL-582 the meta line (Số Booking · date · count) wraps, never ellipsises', () => {
+    const css = readFileSync('src/components/shared/LedgerGroupedList.css', 'utf8');
+    const phoneBand = css.slice(css.indexOf('(max-width: 640px)'), css.indexOf('@media print'));
+    const meta = phoneBand.match(/\.ledger-glist__meta\s*\{([^}]*)\}/);
+    expect(meta?.[1]).toMatch(/white-space:\s*normal/);
+    expect(meta?.[1]).toMatch(/overflow-wrap:\s*normal/);
+    expect(meta?.[1]).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(meta?.[1]).not.toMatch(/overflow:\s*hidden/);
+  });
+
   it('CSS pin — the chip palette tokens exist in tokens.css (drift ratchet: hex lives there)', () => {
     const tokens = readFileSync('src/styles/tokens.css', 'utf8');
     for (const tone of ['open', 'done', 'overdue', 'neutral']) {
