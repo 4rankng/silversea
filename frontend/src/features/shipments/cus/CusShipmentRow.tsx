@@ -33,7 +33,7 @@ import {
   worksheetQuantity,
   type ShipmentQuickEditDraft,
 } from './cusUtils';
-import { formatDateTimeShort, formatWeight } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate, formatWeight } from '../../../lib/format';
 import { NameCell } from '../../../components/shared/NameCell';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 
@@ -101,6 +101,12 @@ export function CusShipmentRow({
     : '';
   const hasDateFilter = Boolean(dateFrom || dateTo);
   const lotScheduleValue = scheduleTimestamp(item);
+  // SIL-586 (id 686, khách 29/10): an LCL lot owns no container rows, so its
+  // appointment groups are ALWAYS empty — the lot-level schedule is the cell's
+  // schedule, not a last-resort fallback. Lots created before the SIL-587
+  // datetime carry only the date-level expectedDeliveryDate (transportDate);
+  // their day renders date-only — never a fabricated 00:00 time.
+  const lclLegacyDay = item.cargoMode === 'LCL' && !lotScheduleValue ? item.transportDate : null;
 
   // Law §1 (2026-09-22): a missing value is named once, not printed twice.
   // The cargo cell already says "Chưa có hàng hóa" for a lot that carries no
@@ -127,6 +133,9 @@ export function CusShipmentRow({
         readiness chip above still warns while container appointments are open. */}
     {groupsToShow.length === 0 && lotScheduleValue && (
       <span key="lot-schedule-fallback" className="cus-schedule-lot-fallback">{formatDateTimeShort(lotScheduleValue)}</span>
+    )}
+    {groupsToShow.length === 0 && !lotScheduleValue && lclLegacyDay && (
+      <span key="lot-schedule-legacy-day" className="cus-schedule-lot-fallback">{formatISODate(lclLegacyDay)}</span>
     )}
     {/* FB-043 (regression #33): dispatch readiness and issue status share one
         status row (.cus-schedule-status-row) so they never stack as two

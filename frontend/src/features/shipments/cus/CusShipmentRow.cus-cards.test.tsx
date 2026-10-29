@@ -22,6 +22,10 @@ function makeItem(overrides: {
   routeName?: string | null;
   declarationNumber?: string | null;
   declarationNumbers?: string[];
+  transportDate?: string | null;
+  closingAt?: string | null;
+  plannedReturnAt?: string | null;
+  scheduleReadiness?: string;
 } = {}): ShipmentCusWorkspaceListItem {
   const {
     cargoMode = 'LCL',
@@ -36,6 +40,10 @@ function makeItem(overrides: {
     routeName = 'Vân Trung, Bắc Ninh',
     declarationNumber = null,
     declarationNumbers = [],
+    transportDate = null,
+    closingAt = null,
+    plannedReturnAt = null,
+    scheduleReadiness = 'READY',
   } = overrides;
   return {
     id: 7,
@@ -63,8 +71,9 @@ function makeItem(overrides: {
     customerNotes: null,
     operationalNotes: null,
     appointmentGroups: [],
-    plannedReturnAt: null,
-    closingAt: null,
+    transportDate,
+    closingAt,
+    plannedReturnAt,
     raw: { isAdHoc: false },
     fieldAccess: {
       factoryName: access('EDITABLE'),
@@ -81,7 +90,7 @@ function makeItem(overrides: {
       operationalNotes: access('EDITABLE'),
     },
     operational: {
-      scheduleReadiness: 'READY',
+      scheduleReadiness,
       vehicleReadiness,
       totalContainers,
       assignedContainers: 0,
@@ -181,6 +190,76 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
     const route = screen.getByText('Vân Trung, Bắc Ninh');
     expect(route.className).toContain('name-cell');
     expect(route.getAttribute('aria-label')).toBe('Vân Trung, Bắc Ninh');
+  });
+});
+
+// SIL-586 (id 686, khách 29/10 — b_d. Phạm Trung Kiên): hàng lẻ phải hiển thị
+// ngày giờ trên "Tổng quan lô hàng" như dòng FCL. LCL không có container nên
+// appointmentGroups luôn rỗng — ô lịch đọc schedule-level của lô: instant
+// đóng/trả đúng hướng (như quick-edit), và lô cũ chỉ có EDD thì hiển thị
+// ngày không kèm giờ bịa.
+describe('CusShipmentRow — SIL-586: LCL schedule datetime trên Tổng quan', () => {
+  it('C1: LCL IMPORT có plannedReturnAt (instant Z) hiển thị giờ VN ICT — 17:00Z = 00:00 29/10', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      direction: 'IMPORT',
+      plannedReturnAt: '2026-10-28T17:00:00.000Z',
+      transportDate: '2026-10-29',
+    }));
+    const fallback = container.querySelector('.cus-schedule-lot-fallback')!;
+    expect(fallback.textContent).toBe('00:00 29/10/2026');
+  });
+
+  it('C1b: LCL EXPORT có closingAt (+07:00) giữ nguyên giờ VN', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      direction: 'EXPORT',
+      closingAt: '2026-10-29T14:30:00+07:00',
+      transportDate: '2026-10-29',
+    }));
+    expect(container.querySelector('.cus-schedule-lot-fallback')!.textContent).toBe('14:30 29/10/2026');
+  });
+
+  it('C2: lô lẻ cũ chỉ có EDD hiển thị ngày DD/MM/YYYY — không giờ bịa 00:00', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      direction: 'IMPORT',
+      transportDate: '2026-10-22',
+    }));
+    const fallback = container.querySelector('.cus-schedule-lot-fallback')!;
+    expect(fallback.textContent).toBe('22/10/2026');
+    expect(fallback.textContent).not.toContain(':');
+  });
+
+  it('C2b: ngày EDD đọc trực tiếp từ chuỗi date-only — miễn dịch lệch múi giờ máy', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      direction: 'EXPORT',
+      transportDate: '2026-10-22',
+    }));
+    // formatISODate reads YYYY-MM-DD by string surgery; a GMT-5 or GMT+8 host
+    // cannot shift the printed day.
+    expect(container.querySelector('.cus-schedule-lot-fallback')!.textContent).toBe('22/10/2026');
+  });
+
+  it('C3: lô lẻ không có gì giữ "Chưa chốt ngày", không crash, không in "—"', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      scheduleReadiness: 'WAITING_DATE',
+      transportDate: null,
+    }));
+    expect(screen.getByText('Chưa chốt ngày')).toBeTruthy();
+    expect(container.querySelector('.cus-schedule-lot-fallback')).toBeNull();
+  });
+
+  it('FCL không áp fallback ngày EDD — luật FCL giữ nguyên (chỉ instant lot-level)', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'FCL',
+      direction: 'EXPORT',
+      transportDate: '2026-10-22',
+      totalContainers: 2,
+    }));
+    expect(container.querySelector('.cus-schedule-lot-fallback')).toBeNull();
   });
 });
 
