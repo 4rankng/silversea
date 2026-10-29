@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { getShipmentDetail } from '../../../api/shipmentClient';
+import { ApiError } from '../../../lib/api';
 import type { ShipmentContainerDraft, ShipmentCreateFormState } from './shipment-create-model';
 import { buildShipmentEditPrefill, type ShipmentEditSeed } from './shipment-edit-prefill';
 
@@ -73,11 +74,16 @@ export function useShipmentWorkspacePrefill({
         editBaselineRef.current = JSON.stringify([prefill.form, prefill.containers, prefill.customerNotes]);
         setEditSeed(prefill.seed);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (editRequestRef.current !== reqId) return;
-        setEditLoadError(viewMode
-          ? 'Không thể tải thông tin lô hàng. Vui lòng thử lại.'
-          : 'Không thể tải thông tin lô hàng để sửa. Vui lòng thử lại.');
+        // SIL-593: a 404 is definitive — the lot does not exist, so retrying can
+        // never succeed. It must not share the transient-failure wording (that
+        // conflation read as "the page is broken" and masked an id/data gap).
+        setEditLoadError(error instanceof ApiError && error.status === 404
+          ? 'Không tìm thấy lô hàng.'
+          : viewMode
+            ? 'Không thể tải thông tin lô hàng. Vui lòng thử lại.'
+            : 'Không thể tải thông tin lô hàng để sửa. Vui lòng thử lại.');
       });
     // The setters are stable useState fns; pinnedShipmentId is the scalar the
     // comment above describes.
