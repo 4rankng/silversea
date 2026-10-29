@@ -756,13 +756,27 @@ describe('DispatchContainerDetailDrawer — XÓA CONT per-row delete (SIL-555, i
     expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
   });
 
-  it('trip guard: a row already on a trip disables the button with the trip reason', async () => {
+  it('trip guard: a trip-only row disables the button with the TRIP reason alone (the lock QA could not attribute)', async () => {
     getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail({ tripId: 5, tripStatus: 'CREATED' }));
     render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
 
     const button = await screen.findByRole('button', { name: 'Xóa container MSKU5500004' });
     expect(button).toHaveAttribute('disabled');
-    expect(button).toHaveAttribute('title', 'Không thể xóa container đã gắn chuyến xe');
+    // SIL-555 (QA 29/10): with no tờ khai on the row, the disabled state is
+    // attributable to the trip ALONE — the reason names the lệnh điều xe.
+    expect(button).toHaveAttribute('title', 'Container đã gắn chuyến xe — hủy hoặc thay thế lệnh điều xe trước khi xóa');
+    expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
+  });
+
+  it('both locks present: the title names EACH reason independently (declaration AND trip)', async () => {
+    getCusShipmentWorkspaceDetail.mockResolvedValue(removeDetail({ declarationNumber: 'Q1-DECL-177', tripId: 5, tripStatus: 'CREATED' }));
+    render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
+
+    const button = await screen.findByRole('button', { name: 'Xóa container MSKU5500004' });
+    expect(button).toHaveAttribute('disabled');
+    const title = button.getAttribute('title') ?? '';
+    expect(title).toContain('Cont có tờ khai Q1-DECL-177 — gỡ tờ khai trước khi xóa');
+    expect(title).toContain('Container đã gắn chuyến xe — hủy hoặc thay thế lệnh điều xe trước khi xóa');
     expect(removeCusShipmentContainerRow).not.toHaveBeenCalled();
   });
 
