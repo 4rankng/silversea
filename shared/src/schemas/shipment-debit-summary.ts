@@ -68,7 +68,7 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // Debit-lock placeholder: the real debit lock ships with card _19's
   // persistence. Until then every lot reads OPEN.
   lockStatus: z.enum(['OPEN', 'LOCKED']),
-  lockedAt: z.string().datetime().nullable(),
+  lockedAt: z.iso.datetime().nullable(),
   // ── GP-01 (2026-10-23-gomhang-polish) — the lot's own cargo measures, for
   // the CUS merge bar's "Tổng X tấn | Y CBM" (parity with the ĐV bar).
   // Decimal strings like every measure on the wire (kg / CBM); null = the lot

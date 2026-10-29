@@ -115,7 +115,7 @@ function fixedScaleDecimal(label: string, integerDigits: number, scale: number) 
   });
 }
 
-const shipmentTimestamp = z.string().datetime({ offset: true }).refine((value) => {
+const shipmentTimestamp = z.iso.datetime({ offset: true }).refine((value) => {
   const [year, month, day] = value.slice(0, 10).split('-').map(Number);
   if (!year || !month || !day) return false;
   return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
@@ -155,7 +155,7 @@ export const tripLegSchema = z.object({
 
 const directCreditExceptionSchema = z.object({
   reason: z.string().trim().min(1, 'Lý do ngoại lệ là bắt buộc').max(1000),
-  expiresAt: z.string().datetime(),
+  expiresAt: z.iso.datetime(),
   scopeType: z.literal('SHIPMENT'),
   exposureCeiling: z.number().int().positive().max(999_999_999_999_999),
 });
