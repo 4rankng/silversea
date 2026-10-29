@@ -345,7 +345,11 @@ export function MasterPlanCardList({
                 </span>
               </div>
               <span className="mpcard__type">
-                {`${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · ${isLclLotRow(item) ? 'Lẻ' : 'Cont'}`}
+                {/* SIL-589 (id 689) — card parity with the grid's cargo-cell
+                    flag: LCL lots read "Lẻ", and a lot already in a ghép
+                    group appends "· Ghép" (same costGroupId the grid's CHỌN
+                    checkbox disables on). */}
+                {`${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · ${isLclLotRow(item) ? (item.costGroupId != null ? 'Lẻ · Ghép' : 'Lẻ') : 'Cont'}`}
               </span>
               {scheduleTime && (
                 <span className="mpcard__time">{scheduleTime}</span>

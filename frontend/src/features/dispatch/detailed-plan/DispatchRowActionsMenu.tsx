@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, Link2, MoreHorizontal, PencilLine, Repeat, Shuffle, Trash2, Unlink } from 'lucide-react';
+import { CheckCircle2, Layers, Link2, MoreHorizontal, PencilLine, Repeat, Shuffle, Trash2, Unlink } from 'lucide-react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { billBookingReference } from '../../../lib/business-reference';
@@ -58,7 +58,7 @@ const MENU_DANGER_BLOCK_H = 46;
  * external live trips so the old foot button could be removed without
  * losing the staff close flow.
  */
-export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, triggerless = false, openRequest, onOpenRequestConsumed }: {
+export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, triggerless = false, openRequest, onOpenRequestConsumed }: {
   row: DispatchDetailPlanRow;
   /** Opens the row's plan editor (the grid routes it to the cell's signal). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
@@ -78,6 +78,13 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
    *  external drivers don't use the app, so this surface is the only one
    *  that can complete their trips (feedback 2026-09-08). */
   onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
+  /** SIL-590 (id 690) — the row ⋯ menu's "Gộp hàng": enters the page's
+   *  on-demand merge mode with THIS row pre-picked, so gộp hàng lẻ happens
+   *  in place on Kế hoạch Chi tiết (never a navigation to Kế hoạch Tổng
+   *  quát — the old build's defect the customer reported). Ungrouped LCL
+   *  rows only; absent while the merge mode is already active (the CHỌN
+   *  checkboxes own that state). */
+  onStartLclMerge?: (row: DispatchDetailPlanRow) => void;
   /** Issue #13 — render no ⋯ trigger (the card's single-action law: the slot
    *  shows the paper-plane instead); the menu still mounts so the card-body
    *  signal can open it. */
@@ -106,13 +113,23 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
     && !row.dispatch.pairKind
     && row.dispatch.tripStatus !== 'CANCELED';
   const canUnmergeGroup = onUnmergeLclGroup != null && lclGroup != null && lclGroup.order === 1;
+  // SIL-590 (id 690) — gộp hàng phải chạy TẠI màn hình chi tiết: ungrouped
+  // hàng-lẻ rows carry the in-place merge entry (a grouped row's group verbs
+  // are Đổi nhà xe/BKS + Tách nhóm, and FB-095 refuses re-merge while
+  // grouped). The handler is absent while the merge mode is already active —
+  // the CHỌN checkboxes own that state.
+  const canStartLclMerge = onStartLclMerge != null
+    && row.cargoMode === 'LCL'
+    && row.lcl?.group == null;
+  // Same live-trip law as the editor trigger: an external live trip closes
+  // from the menu (Hoàn thành) — external drivers don't use the app.
   const canCompleteExternal = onCompleteExternalTrip != null
     && row.dispatch.carrierType === 'EXTERNAL'
     && row.dispatch.tripId != null
     && row.taskStatus === 'DISPATCHED';
 
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
-  const itemCount = 1 + (canCompleteExternal ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
+  const itemCount = 1 + (canCompleteExternal ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canStartLclMerge ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
   const menuHeight = itemCount * MENU_ITEM_H + (onDeleteLot ? MENU_DANGER_BLOCK_H : 0) + 12;
 
   const placeAt = (anchor: { top: number; left: number; right: number; bottom: number } | null | undefined) => {
@@ -204,6 +221,25 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
         >
           <Repeat size={14} aria-hidden="true" />
           Đổi nhà xe/BKS
+        </button>
+      )}
+      {/* SIL-590 (id 690) — the merge verb ON THE ROW: entering the merge
+          mode here pre-picks this lot and stays on the detail screen (the
+          old build's "Gộp hàng" threw the dispatcher back to Kế hoạch Tổng
+          quát). Grouped rows never see it — their verbs are Đổi nhà xe/BKS
+          + Tách nhóm, and FB-095 refuses re-merge while grouped. */}
+      {canStartLclMerge && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            onStartLclMerge?.(row);
+          }}
+          title="Gộp lô này với lô hàng lẻ khác — tích thêm lô rồi Gán xe nhóm, ngay tại màn hình này"
+        >
+          <Layers size={14} aria-hidden="true" />
+          Gộp hàng
         </button>
       )}
       {canPair && (

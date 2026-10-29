@@ -1,0 +1,11 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-689-691/frontend
+
+ ❯ src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx (18 tests | 3 failed) 43472ms
+     × cont: cho phép chọn Đội xe nội bộ SilverSea, danh sách BKS là xe nội bộ (161026232309) 7314ms
+     × auto-copies nothing onto a billing field — the ĐV flow has none (spec 23/10 §3) 7136ms
+     × gửi cước trả ĐVVC nhập tay khi có, bỏ trống thì để server tự tra (161026232319) 8646ms
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx (66 tests | 3 failed) 45379ms
+     × saves the whole editor atomically: estimates plus the dispatcher Phân loại — lot flag stays CUS-owned 8229ms
+     × saves without blocking on classification — the default Đơn is always present 7231ms
+     × opens one atomic edit dialog from the row ⋯ menu — the Điều phối cell is facts-only 7401ms

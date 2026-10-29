@@ -198,3 +198,50 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
     expect(cells[4]).toBe('Kho Lấy Hàng Đồng Nai');
   });
 });
+
+// SIL-589 (id 689) — the cargo cell names the lot's cargo KIND. Before the
+// flag, "2 Roll / 0,01 tấn" read identical to a FCL weight line: nothing on
+// the row said LCL vs FCL (customer report 29/10/2026), and a lot already
+// merged into a ghép-trả-ĐV group was indistinguishable from an unmerged one.
+describe('MasterPlanGrid — the Lẻ cargo flag (SIL-589)', () => {
+  it('flags an LCL lot "Lẻ" at the cargo cell', () => {
+    render(<MasterPlanGrid items={[lclItem()]} onAllocate={vi.fn()} />);
+    const cargo = cell('Tổng quan hàng hóa');
+    expect(within(cargo).getByText('Lẻ')).toBeTruthy();
+    // Ungrouped by default — the Ghép marker must not appear.
+    expect(within(cargo).queryByText('Lẻ · Ghép')).toBeNull();
+  });
+
+  it('marks a lot already in a ghép-trả-ĐV group "Lẻ · Ghép"', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ costGroupId: 'grp-sil589', costGroupOrder: 1, actualTruckNo: '15E-016.26' })]}
+      onAllocate={vi.fn()}
+    />);
+    expect(within(cell('Tổng quan hàng hóa')).getByText('Lẻ · Ghép')).toBeTruthy();
+  });
+
+  it('flags a fulfillment-projected LCL lot too (hasActiveLclShipment wins)', () => {
+    // The same predicate the CHỌN checkbox uses (isLclLotRow) — the flag can
+    // never disagree with the merge-mode checkbox on the same row.
+    render(<MasterPlanGrid
+      items={[lclItem({ cargoMode: 'FCL' as const, hasActiveLclShipment: true })]}
+      onAllocate={vi.fn()}
+    />);
+    expect(within(cell('Tổng quan hàng hóa')).getByText('Lẻ')).toBeTruthy();
+  });
+
+  it('never flags an FCL lot', () => {
+    const fcl = {
+      ...lclItem(),
+      cargoMode: 'FCL' as const,
+      hasActiveLclShipment: false,
+      containerCount20: 1,
+      containerTotal: 1,
+      containerTypeSummary: '1 x 40HC',
+      totalCargoWeightKg: 21000,
+    };
+    render(<MasterPlanGrid items={[fcl]} onAllocate={vi.fn()} />);
+    expect(within(cell('Tổng quan hàng hóa')).queryByText('Lẻ')).toBeNull();
+    expect(within(cell('Tổng quan hàng hóa')).queryByText('Lẻ · Ghép')).toBeNull();
+  });
+});

@@ -22,6 +22,8 @@ import {
 } from '../../../api/dispatchPlanningClient';
 import { configClient } from '../../../api/configClient';
 import { useMonth } from '../../../hooks/useMonth';
+import { useToastOptional } from '../../../components/shared/Toast';
+import { billBookingReference } from '../../../lib/business-reference';
 import { dispatchShipment, updateCusShipmentContainerLine, type DispatchShipmentRequest } from '../../../api/shipmentClient';
 
 const PAGE_SIZE = 50;
@@ -37,6 +39,11 @@ export type { DetailedPlanFilterState, DetailPlanSortKey, DetailPlanSortDirectio
  */
 export function useDispatchDetailPlan() {
   const { month, year } = useMonth();
+  // SIL-591 (id 691) — the ghép-trả-ĐV cascade's outcome speaks through the
+  // shared toast (success names the auto-issued siblings; a warning names
+  // what stayed behind and why). Optional: the toast provider is absent in
+  // isolated harnesses.
+  const toastCtx = useToastOptional();
   const monthStamp = `${year}-${String(month).padStart(2, '0')}`;
   // FB-014 deep link: /dispatch-detail?q=<Số Bill/Booking>&date=<YYYY-MM-DD>
   // — a lot clicked on Kế hoạch Tổng quát lands here already scoped. Read
@@ -457,6 +464,34 @@ export function useDispatchDetailPlan() {
         fulfillmentId: row.fulfillmentId,
         expectedVersion: row.version,
       });
+      // SIL-591 (id 691) — the backend auto-issued this lot's ghép-trả-ĐV
+      // siblings on the SAME rig (same transaction). Flip those rows live —
+      // each carries its own trip id — and say so; the refetch reconciles
+      // versions.
+      const autoIssued = result.autoIssuedSiblings ?? [];
+      if (autoIssued.length > 0) {
+        const tripIdByShipment = new Map(autoIssued.map((sibling) => [sibling.shipmentId, sibling.tripId]));
+        setItems((previous) => previous.map((item) => (tripIdByShipment.has(item.shipmentId)
+          ? {
+            ...item,
+            taskStatus: 'DISPATCHED',
+            dispatch: { ...item.dispatch, tripId: tripIdByShipment.get(item.shipmentId)!, tripStatus: 'CREATED' },
+          }
+          : item)));
+        toastCtx?.toast({
+          kind: 'success',
+          message: `Đã phát lệnh cho tài xế — tự phát thêm ${autoIssued.length} lô ghép cùng xe (${autoIssued
+            .map((sibling) => billBookingReference(sibling.billNumber, sibling.bookingRef))
+            .join(', ')})`,
+        });
+      }
+      const failed = result.failedSiblings ?? [];
+      if (failed.length > 0) {
+        toastCtx?.toast({
+          kind: 'warning',
+          message: `${failed.length} lô ghép chưa phát được lệnh — ${failed[0]!.message}`,
+        });
+      }
       setItems((previous) => previous.map((item) => (item.fulfillmentId === row.fulfillmentId
         ? {
           ...item,
