@@ -70,6 +70,10 @@ interface DispatchPlanCardListProps extends DispatchCardEditorProps {
   onOpenPair?: (row: DispatchDetailPlanRow) => void;
   onUnmergeLclGroup?: (groupId: string) => void;
   onDeleteLot?: (row: DispatchDetailPlanRow) => void;
+  /** SIL-590 (id 690) — the row ⋯ menu's "Gộp hàng": enters the page's
+   *  on-demand merge mode with this row pre-picked (in-place merge; pages
+   *  pass it only while the merge mode is OFF). */
+  onStartLclMerge?: (row: DispatchDetailPlanRow) => void;
   /** The group badge opens the grid's Xem nhóm / Hủy ghép modal. */
   onOpenGroupMenu?: (row: DispatchDetailPlanRow) => void;
   /** The truncated note line reopens the full text in the shared dialog. */
@@ -189,7 +193,7 @@ function infoMetaLine(row: DispatchDetailPlanRow, lift: string, drop: string): s
  *  the menu's "Sửa điều phối" opens the exact same dialog the table serves. */
 export function DispatchPlanCardList({
   items, selectedLclShipmentIds, onToggleLclSelection,
-  onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot,
+  onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
   onOpenGroupMenu, onExpandNote,
   onAtomicSave, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck,
   editRequest, onOpenRequestConsumed,
@@ -325,6 +329,7 @@ export function DispatchPlanCardList({
                     onUnmergeLclGroup={onUnmergeLclGroup}
                     onDeleteLot={onDeleteLot}
                     onCompleteExternalTrip={canCompleteExternal ? onCompleteExternalTrip : undefined}
+                    onStartLclMerge={onStartLclMerge}
                     triggerless={canQuickIssue}
                     openRequest={menuRequest?.key === rowKey ? menuRequest : null}
                     onOpenRequestConsumed={() => setMenuRequest(null)}

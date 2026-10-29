@@ -33,8 +33,9 @@ function makeRow(overrides: {
   lclGroup?: Record<string, unknown> | null;
   dispatch?: Record<string, unknown>;
   taskStatus?: 'READY' | 'DISPATCHED' | 'COMPLETED';
+  cargoMode?: 'LCL' | 'FCL';
 } = {}): DispatchDetailPlanRow {
-  const { lclGroup, dispatch, taskStatus = 'READY' } = overrides;
+  const { lclGroup, dispatch, taskStatus = 'READY', cargoMode = 'LCL' } = overrides;
   return {
     fulfillmentId: 46862,
     version: 1,
@@ -42,7 +43,7 @@ function makeRow(overrides: {
     shipmentVersion: 1,
     shipmentCode: 'SHP-2610-03538',
     fulfillmentType: 'LCL_SHIPMENT',
-    cargoMode: 'LCL',
+    cargoMode,
     taskStatus,
     time: { deliveryDate: '2026-10-21', runHour: 8 },
     customerRoute: { customerName: 'Công ty Lẻ', factoryName: 'Kho Q.7', deliveryPoint: 'Kho Q.7', routeName: null },
@@ -85,7 +86,7 @@ function makeRow(overrides: {
   } as unknown as DispatchDetailPlanRow;
 }
 
-function renderGrid(row: DispatchDetailPlanRow, props: { onOpenTripReassign?: (tripId: number) => void; onLclTruckUpdated?: () => void; onOpenPair?: (row: DispatchDetailPlanRow) => void; onUnmergeLclGroup?: (groupId: string) => void; onDeleteLot?: (row: DispatchDetailPlanRow) => void } = {}) {
+function renderGrid(row: DispatchDetailPlanRow, props: { onOpenTripReassign?: (tripId: number) => void; onLclTruckUpdated?: () => void; onOpenPair?: (row: DispatchDetailPlanRow) => void; onUnmergeLclGroup?: (groupId: string) => void; onDeleteLot?: (row: DispatchDetailPlanRow) => void; onStartLclMerge?: (row: DispatchDetailPlanRow) => void } = {}) {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={new QueryClient()}>
@@ -117,6 +118,7 @@ function renderGrid(row: DispatchDetailPlanRow, props: { onOpenTripReassign?: (t
             onUnmergeLclGroup={props.onUnmergeLclGroup}
             onDeleteLot={props.onDeleteLot}
             onLclTruckUpdated={props.onLclTruckUpdated}
+            onStartLclMerge={props.onStartLclMerge}
           />
         </MonthProvider>
       </QueryClientProvider>
@@ -199,5 +201,83 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
     // Xóa lô rides LAST — a destructive tap must cross the group's hairline.
     expect(items[items.length - 1]).toBe(deleteItem);
     expect(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeTruthy();
+  });
+});
+
+// SIL-590 (id 690) — "Gộp hàng" lives ON THE ROW: the customer's report
+// (29/10/2026) was that the merge action threw them back to Kế hoạch Tổng
+// quát instead of merging at Kế hoạch Chi tiết. The menu's entry turns the
+// page's on-demand merge mode ON with this row pre-picked — the whole flow
+// (CHỌN checkboxes → chọn thêm → Gán xe nhóm) runs in place.
+describe('SIL-590 — row menu "Gộp hàng" (in-place merge entry)', () => {
+  it('an ungrouped hàng-lẻ row offers "Gộp hàng" and raises itself to the page handler', () => {
+    const onStartLclMerge = vi.fn();
+    renderGrid(makeRow({ lclGroup: null }), { onStartLclMerge });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Gộp hàng' }));
+
+    expect(onStartLclMerge).toHaveBeenCalledTimes(1);
+    expect(onStartLclMerge.mock.calls[0]![0].shipmentId).toBe(109225);
+  });
+
+  it('a row already in a ghép group never offers it — its verbs are Đổi nhà xe/BKS + Tách nhóm', () => {
+    renderGrid(makeRow(), { onStartLclMerge: vi.fn() });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Gộp hàng' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeTruthy();
+  });
+
+  it('an FCL row never offers it', () => {
+    renderGrid(makeRow({ cargoMode: 'FCL', lclGroup: null }), { onStartLclMerge: vi.fn() });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Gộp hàng' })).toBeNull();
+  });
+
+  it('the entry disappears when the page withholds the handler (merge mode already ON)', () => {
+    renderGrid(makeRow({ lclGroup: null }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Gộp hàng' })).toBeNull();
+  });
+});
+
+// SIL-590 (id 690) — the row ⋯ menu's "Gộp hàng": the merge affordance the
+// customer looks for ON THE ROW. It must enter the page's on-demand merge
+// mode with that lot pre-picked — merge happens IN PLACE on Kế hoạch Chi
+// tiết, never a navigation to Kế hoạch Tổng quát (the old build's defect).
+describe('SIL-590 — row menu "Gộp hàng" enters the merge mode in place', () => {
+  it('an ungrouped hàng-lẻ row offers "Gộp hàng" and raises itself to the page', () => {
+    const onStartLclMerge = vi.fn();
+    renderGrid(makeRow({ lclGroup: null }), { onStartLclMerge });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Gộp hàng' }));
+
+    expect(onStartLclMerge).toHaveBeenCalledTimes(1);
+    expect((onStartLclMerge.mock.calls[0]![0] as DispatchDetailPlanRow).shipmentId).toBe(109225);
+  });
+
+  it('a lot already in a ghép group never offers it (group verbs: Đổi BKS + Tách nhóm)', () => {
+    renderGrid(makeRow(), { onStartLclMerge: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Gộp hàng' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeTruthy();
+  });
+
+  it('an FCL row never offers it', () => {
+    renderGrid(makeRow({ cargoMode: 'FCL', lclGroup: null }), { onStartLclMerge: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Gộp hàng' })).toBeNull();
+  });
+
+  it('the page withholds the handler while the merge mode is already on', () => {
+    // merge mode ON → the page passes no handler → the CHỌN checkboxes own
+    // the flow and the menu entry disappears entirely.
+    renderGrid(makeRow({ lclGroup: null }), {});
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Gộp hàng' })).toBeNull();
   });
 });

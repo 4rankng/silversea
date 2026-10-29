@@ -92,6 +92,16 @@ export default function DispatchDetailPlanPage() {
     setLclMergeMode(false);
     setSelectedLclRows([]);
   };
+  // SIL-590 (id 690) — the row ⋯ menu's "Gộp hàng": the customer looks for
+  // the merge verb ON THE ROW. It enters the on-demand merge mode with that
+  // lot pre-picked (index 0 — the Lô 1 candidate), so the whole flow — CHỌN
+  // checkboxes → chọn thêm lô → Gán xe nhóm — runs right here on Kế hoạch
+  // Chi tiết. Nothing navigates to Kế hoạch Tổng quát (the old build's
+  // defect); the page passes the handler only while the mode is OFF.
+  const startLclMergeFromRow = (row: DispatchDetailPlanRow) => {
+    setSelectedLclRows([row]);
+    setLclMergeMode(true);
+  };
   // SPEC 18/10/2026 §4 — Tách nhóm: the COST group id awaiting confirmation.
   const [unmergeGroupId, setUnmergeGroupId] = useState<string | null>(null);
   const [unmergingGroup, setUnmergingGroup] = useState(false);
@@ -303,6 +313,10 @@ export default function DispatchDetailPlanPage() {
             if (lclMergeMode) exitLclMergeMode();
             else setLclMergeMode(true);
           }}
+          // SIL-590 (id 690) — the row menu's "Gộp hàng" owns the OFF state:
+          // it turns the mode on with the row pre-picked; while ON, the CHỌN
+          // checkboxes own the flow and the menu entry disappears.
+          onStartLclMerge={lclMergeMode ? undefined : startLclMergeFromRow}
           onUnmergeLclGroup={setUnmergeGroupId}
           onUnmergeLclLot={setUnmergeLot}
           onLclTruckUpdated={() => { void detailPlan.refresh(); }}

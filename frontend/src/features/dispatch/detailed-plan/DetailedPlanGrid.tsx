@@ -157,6 +157,12 @@ interface DetailedPlanGridProps {
   /** SPEC 18/10/2026 §4 — dispatch-side "Tách nhóm" for a COST group. Shown
    *  on the principal row only (one action per group). */
   onUnmergeLclGroup?: (groupId: string) => void;
+  /** SIL-590 (id 690) — the row ⋯ menu's "Gộp hàng": enters the page's
+   *  on-demand merge mode with this row pre-picked, so gộp hàng lẻ happens
+   *  in place on this screen (never a navigation to Kế hoạch Tổng quát).
+   *  Pages pass it only while the merge mode is OFF — when the mode is on,
+   *  the CHỌN checkboxes own the flow. */
+  onStartLclMerge?: (row: DispatchDetailPlanRow) => void;
   /** FB-095 (card 181026145610) — the group badge opens Xem nhóm / Hủy ghép;
    *  choosing "Hủy ghép" raises the leaving lot so the page can confirm the
    *  SPEC §4 promotion guard before calling the server. */
@@ -222,6 +228,7 @@ export function DetailedPlanGrid({
   selectedLclShipmentIds,
   onToggleLclSelection,
   lclMergeMode,
+  onStartLclMerge,
   onToggleLclMergeMode,
   onUnmergeLclGroup,
   onUnmergeLclLot,
@@ -372,6 +379,7 @@ export function DetailedPlanGrid({
         >
           {isCardMode ? (
             <DispatchPlanCardList
+              onStartLclMerge={onStartLclMerge}
               items={items}
               selectedLclShipmentIds={selectedLclShipmentIds}
               onToggleLclSelection={onToggleLclSelection}
@@ -800,6 +808,7 @@ export function DetailedPlanGrid({
                         onUnmergeLclGroup={onUnmergeLclGroup}
                         onDeleteLot={onDeleteLot}
                         onCompleteExternalTrip={onCompleteExternalTrip}
+                        onStartLclMerge={onStartLclMerge}
                       />
                     </div>
                   </td>
