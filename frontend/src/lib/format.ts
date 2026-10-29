@@ -150,6 +150,9 @@ export function formatDate(d: string | null, options?: FormatValueOptions): stri
  */
 export function formatDateTimeShort(value: string | null | undefined): string {
   if (!value) return '—';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return formatISODate(value);
+  }
   // Naive draft values ("YYYY-MM-DDTHH:mm" — the editor draft wire shape,
   // Vietnam wall-clock by convention: localDateTimeToIso appends +07:00 when
   // persisting) must not ride the host timezone: a GMT+8 host parses them as

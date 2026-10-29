@@ -191,6 +191,44 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
     expect(route.className).toContain('name-cell');
     expect(route.getAttribute('aria-label')).toBe('Vân Trung, Bắc Ninh');
   });
+
+  it('SIL-586: renders delivery datetime in ICT (GMT+7) for LCL lot with plannedReturnAt', () => {
+    // 02:30 UTC = 09:30 ICT (+7)
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      customerName: 'YUANFANG',
+      billOrBookNumber: 'K2K45235345634',
+      plannedReturnAt: '2026-10-29T02:30:00.000Z',
+      direction: 'IMPORT',
+    }));
+    const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
+    expect(scheduleCell.textContent).toContain('09:30 29/10/2026');
+  });
+
+  it('SIL-586: renders delivery datetime in ICT for LCL lot with closingAt', () => {
+    // 07:00 UTC = 14:00 ICT (+7)
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      customerName: 'LONG MINH',
+      billOrBookNumber: 'K2K32143352',
+      closingAt: '2026-10-29T07:00:00.000Z',
+      direction: 'EXPORT',
+    }));
+    const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
+    expect(scheduleCell.textContent).toContain('14:00 29/10/2026');
+  });
+
+  it('SIL-586: renders date-only for LCL lot when only transportDate is present', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      customerName: 'LONG MINH',
+      transportDate: '2026-10-29',
+      closingAt: null,
+      plannedReturnAt: null,
+    }));
+    const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
+    expect(scheduleCell.textContent).toContain('29/10/2026');
+  });
 });
 
 // SIL-586 (id 686, khách 29/10 — b_d. Phạm Trung Kiên): hàng lẻ phải hiển thị

@@ -9,7 +9,7 @@ import {
   type ShipmentCusWorkspaceDetail,
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
-import { formatMoney, formatWeight } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate, formatMoney, formatWeight } from '../../../lib/format';
 import { formatTimeShortDate } from '../../../lib/shipment-operations';
 import {
   accountingConfirmationLabel,
@@ -875,7 +875,11 @@ export function CusLotView({
                       ))}
                   </FactCell>
                   <FactCell label="Phơi phiếu">{item.documentCustody.label ?? 'Chưa xác định'}</FactCell>
-                  <FactCell label="Ngày giờ đóng/trả">{item.plannedReturnAt ? formatTimeShortDate(item.plannedReturnAt) : dash}</FactCell>
+                  <FactCell label="Ngày giờ đóng/trả">
+                    {(item.plannedReturnAt ?? item.closingAt)
+                      ? formatDateTimeShort(item.plannedReturnAt ?? item.closingAt)
+                      : (item.transportDate ? formatISODate(item.transportDate) : dash)}
+                  </FactCell>
                   <FactCell label="Ghi chú">
                     {[item.customerNotes, item.operationalNotes].filter(Boolean).join(' — ') || dash}
                   </FactCell>
