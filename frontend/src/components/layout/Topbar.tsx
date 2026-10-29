@@ -33,12 +33,21 @@ function MonthNavigator() {
   const pickerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
+  // SIL-561 (29/10): every close that restores focus DEFERS one frame — the
+  // background sweep marks the trigger inert while open and un-inerts in the
+  // close commit, so a synchronous trigger.focus() is refused by the browser
+  // and the keyboard landed on <body> (QA-measured on the Escape path).
+  const closeAndRestore = () => {
+    setOpen(false);
+    requestAnimationFrame(() => restoreFocusTo(triggerRef.current));
+  };
+
   // Focus return (SIL-573): Escape and explicit close actions hand focus back
   // to the month trigger; an outside press leaves focus where the user clicked.
   useClickOutside(containerRef, () => setOpen(false), {
     escapeKey: true,
     enabled: open,
-    onEscape: () => { setOpen(false); restoreFocusTo(triggerRef.current); },
+    onEscape: closeAndRestore,
   });
   useFocusTrap(pickerRef, open);
   // Modal dialog semantics (SIL-561): the picker already trapped focus and
@@ -124,8 +133,7 @@ function MonthNavigator() {
                   ].filter(Boolean).join(' ')}
                   onClick={() => {
                     setMonthYear(m, pickerYear);
-                    setOpen(false);
-                    restoreFocusTo(triggerRef.current);
+                    closeAndRestore();
                   }}
                 >
                   <span className="month-picker__cell-code">{short}</span>
@@ -141,8 +149,7 @@ function MonthNavigator() {
               onClick={() => {
                 const n = new Date();
                 setMonthYear(n.getMonth() + 1, n.getFullYear());
-                setOpen(false);
-                restoreFocusTo(triggerRef.current);
+                closeAndRestore();
               }}
             >
               Hôm nay

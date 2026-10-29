@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { usePopoverDialog } from '../../hooks/usePopoverDialog';
+import { usePopoverPosition } from '../../hooks/usePopoverPosition';
 import type { DateRangeValue } from './DateRangeFields';
 import './UnifiedDateRangePicker.css';
 
@@ -144,13 +146,20 @@ export function UnifiedDateRangePicker({ id, value, onChange, ariaLabel, classNa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  useClickOutside(rootRef, () => setOpen(false), { escapeKey: true, enabled: open });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // SIL-561 (29/10): the panel now rides a body portal (the house
+  // usePopoverPosition + useClickOutside + createPortal triple, like
+  // ColumnPicker) — an INLINE panel lives inside `main`, which can then never
+  // carry `inert` (QA fail: "main không có aria-hidden, inert=false").
+  // Outside-press semantics stay the old root-based ones: the trigger widget
+  // and the panel are the inside, everything else dismisses.
+  useClickOutside(popoverRef, () => setOpen(false), { escapeKey: true, enabled: open, additionalRefs: [triggerRef, rootRef] });
   useFocusTrap(popoverRef, open);
   // Modal dialog semantics (SIL-561): focus/Escape already worked — the
   // primitive adds aria-modal, the inert background and guaranteed focus
   // return to the trigger on every close path.
-  const triggerRef = useRef<HTMLButtonElement>(null);
   usePopoverDialog(popoverRef, triggerRef, open);
+  const popoverPosition = usePopoverPosition(popoverRef, triggerRef, open, 660, 360, 'start');
 
   const shiftAnchor = (months: number) => {
     setAnchor((v) => {
@@ -244,8 +253,15 @@ export function UnifiedDateRangePicker({ id, value, onChange, ariaLabel, classNa
         {triggerText ? <span className="udrp__value">{triggerText}</span> : <span className="udrp__placeholder">DD/MM/YYYY – DD/MM/YYYY</span>}
         <ChevronRight size={12} className="udrp__caret" aria-hidden="true" />
       </button>
-      {open && (
-        <div className="udrp__popover" role="dialog" aria-label={ariaLabel} ref={popoverRef}>
+      {open && typeof document !== 'undefined' && createPortal(
+        <div
+          className="udrp__popover"
+          role="dialog"
+          aria-label={ariaLabel}
+          ref={popoverRef}
+          data-positioned={popoverPosition ? 'true' : undefined}
+          style={{ top: popoverPosition?.top ?? 0, left: popoverPosition?.left ?? 0, maxHeight: popoverPosition?.maxHeight }}
+        >
           <div className="udrp__presets" role="group" aria-label="Khoảng nhanh">
             {UNIFIED_RANGE_PRESETS.map((preset) => (
               <button
@@ -281,7 +297,8 @@ export function UnifiedDateRangePicker({ id, value, onChange, ariaLabel, classNa
               {renderMonth(nextM0, nextY, monthTitle(nextM0, nextY))}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

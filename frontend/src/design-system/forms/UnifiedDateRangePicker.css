@@ -60,10 +60,13 @@
 /* ── Popover: preset rail (left) + dual-month calendar (right) ──────────── */
 
 .udrp__popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  /* SIL-561 (29/10): body portal (ColumnPicker triple) — fixed at the
+     usePopoverPosition coords instead of absolute under the trigger, so the
+     inline panel no longer keeps `main` out of the background-inert sweep.
+     Hidden until positioned (a 0×0 trigger rect reports NO position). */
+  position: fixed;
   z-index: var(--z-nested-popover, 410);
+  visibility: hidden;
   display: flex;
   gap: 8px;
   padding: 8px;
@@ -71,6 +74,9 @@
   border-radius: var(--r-sm);
   background: var(--surface);
   box-shadow: var(--shadow-md);
+}
+.udrp__popover[data-positioned='true'] {
+  visibility: visible;
 }
 
 .udrp__presets {
@@ -256,7 +262,6 @@
   }
 
   .udrp__popover {
-    left: 0;
     max-width: calc(100vw - 24px);
     flex-direction: column;
   }
