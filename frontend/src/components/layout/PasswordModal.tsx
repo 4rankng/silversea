@@ -1,7 +1,8 @@
 import React from 'react';
 import { Modal, FormGroup } from '../UI';
 import { Alert } from '../shared/Alert';
-import { Lock, AlertCircle } from 'lucide-react';
+import { KeyRound, Lock, AlertCircle } from 'lucide-react';
+import { generatePassword } from '../../lib/generatePassword';
 import type { PasswordModalProps } from './types';
 
 function PasswordModal({
@@ -77,6 +78,23 @@ function PasswordModal({
               autoComplete="new-password"
             />
           </div>
+          {/* SIL-574: the card acceptance asks the dialog to OFFER password
+              generation (autocomplete tokens summon the password manager's
+              generator — this covers users without one). Generates into BOTH
+              new + confirm so the form stays consistent. House primitive
+              (btn--secondary--sm beside an input), UUI catalog
+              application/modals/password-prompt-modal consulted 29/10 — no
+              generate affordance in the catalog to adopt. */}
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => {
+              const generated = generatePassword();
+              onFormChange({ ...form, newPassword: generated, confirmPassword: generated });
+            }}
+          >
+            <KeyRound size={14} aria-hidden="true" /> Tạo mật khẩu
+          </button>
         </FormGroup>
         <div className="col-span-full">
           <FormGroup label="Xác nhận mật khẩu mới">
