@@ -38,14 +38,14 @@ const customerVisibleEventSchema = z.object({
   eventType: z.enum(CUSTOMER_EVENT_TYPES),
   title: z.string().trim().min(1).max(160),
   message: z.string().trim().min(1).max(1_000),
-  occurredAt: z.string().datetime().optional(),
+  occurredAt: z.iso.datetime().optional(),
   supersedesEventId: z.number().int().positive().optional(),
 });
 
 const createHandoffSchema = z.object({
   handlerId: z.number().int().positive().optional().nullable(),
   priority: z.string().trim().min(1).max(20).optional(),
-  vehicleNeededBy: z.string().datetime().optional().nullable(),
+  vehicleNeededBy: z.iso.datetime().optional().nullable(),
   operationalNote: z.string().trim().max(2_000).optional().nullable(),
 });
 
