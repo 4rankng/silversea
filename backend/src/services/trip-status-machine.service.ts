@@ -7,7 +7,7 @@ import * as s from '../db/schema';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { eq, and, isNull, ne, sql } from 'drizzle-orm';
 import { TripStatus, Role, localDateInBusinessZone } from '@tingting/shared';
-import { isTripRunningOnDepartureDay } from './trip-busy-gate';
+import { isTripRunningOnDepartureDay, isActiveKepPairPartner } from './trip-busy-gate';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -197,7 +197,7 @@ export async function transitionTripStatus(
       const busyTrips = trip.truckId ? await tx.select({
         id: s.trips.id, tripCode: s.trips.tripCode,
         activeTripPairId: s.trips.activeTripPairId,
-        driverId: s.trips.driverId, trailerId: s.trips.trailerId,
+        driverId: s.trips.driverId,
         departureDate: s.trips.departureDate,
       })
         .from(s.trips)
@@ -235,10 +235,16 @@ export async function transitionTripStatus(
       }
       const blockingTrips: Array<{ id: number; tripCode: string | null }> = [];
       for (const candidate of busyTrips) {
-        if (candidate.id === simultaneousPartnerId
-          && candidate.activeTripPairId === trip.activeTripPairId
-          && trip.driverId != null && candidate.driverId === trip.driverId
-          && trip.trailerId != null && candidate.trailerId === trip.trailerId) continue;
+        // SIL-602: the exemption is the pair identity + shared driver — the
+        // whole pair contract (see isActiveKepPairPartner). The superseded
+        // trailerId clause blocked valid pairs whose mooc is unassigned or
+        // drifted; trailer data never was part of that contract.
+        if (isActiveKepPairPartner(candidate, {
+          tripId,
+          tripPairId: trip.activeTripPairId,
+          tripDriverId: trip.driverId,
+          simultaneousPartnerId,
+        })) continue;
         if (!isTripRunningOnDepartureDay(candidate.departureDate, todayInBusinessZone)) continue;
         const evidence = await getDriverCompletionEvidenceStatus(candidate.id, tx);
         if (!evidence.ready) blockingTrips.push(candidate);
