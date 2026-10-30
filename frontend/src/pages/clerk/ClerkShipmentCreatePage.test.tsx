@@ -625,24 +625,35 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
 
-  it('SIL-521: form tạo lô KHÔNG còn chỗ nhập Số tờ khai cấp lô — payload create cũng không mang số', async () => {
+  it('SIL-521 + SIL-701: không còn ô Số tờ khai CẤP LÔ — per-cont column rides containers[]', async () => {
     // Supersede VID-CUS-04 + card 328 pins: the chip strip and its draft/
-    // dedupe/retry machinery are retired — tờ khai is per-cont only, entered
-    // after the lot exists (Tổng quan ledger cells / drawer).
+    // dedupe/retry machinery are retired — lot-level tờ khai is gone for
+    // good (SIL-521 điểm 4). Owner ruling 30/10 (SIL-701) REVERSES the
+    // per-cont half of the old pin: the create form now carries a per-cont
+    // SỐ TỜ KHAI column that enters at create time through
+    // `containers[].declarationNumber` — never a lot-level key, never a
+    // shipment_declarations entity.
     mocks.quickCreate.mockResolvedValue({ id: 90, version: 1 });
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
 
-    expect(screen.queryByRole('textbox', { name: 'Số tờ khai' })).toBeNull();
+    // Lot-level declaration UI stays absent (identity section untouched)…
     expect(document.querySelector('[data-field-id="shipment-declarations"]')).toBeNull();
     expect(document.querySelector('.csc-declaration-strip')).toBeNull();
+    // …while the per-cont column is present and writable at create time.
+    await choose('Loại container', '31');
+    const declarationInput = screen.getByLabelText('Số tờ khai') as HTMLInputElement;
+    fireEvent.change(declarationInput, { target: { value: 'TK-SIL701-01' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledTimes(1));
     const body = mocks.quickCreate.mock.calls[0][0] as Record<string, unknown>;
     expect(body).not.toHaveProperty('declarationNumber');
     expect(body).not.toHaveProperty('declarationNumbers');
+    expect(body.containers).toEqual([
+      expect.objectContaining({ containerTypeId: 31, declarationNumber: 'TK-SIL701-01' }),
+    ]);
     expect(mocks.createDeclaration).not.toHaveBeenCalled();
     expect(mocks.updateDeclaration).not.toHaveBeenCalled();
     expect(mocks.deleteDeclaration).not.toHaveBeenCalled();
@@ -1271,9 +1282,13 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     expect(screen.queryByLabelText('Số lượng cont')).toBeNull();
     const table = screen.getByRole('table', { name: 'Danh sách container' });
+    // SIL-701 (owner ruling 30/10): SỐ TỜ KHAI is a per-cont column right
+    // after the SỐ CONTAINER group (drawer parity, SIL-508/552 family) —
+    // the rest of the arrangement stays exactly as locked.
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'STT',
       'Số container',
+      'Số tờ khai',
       'Nhà máy',
       'Tuyến đường',
       'Cảng nâng',
@@ -1282,8 +1297,13 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       'Thao tác',
     ]);
     expect(screen.getAllByLabelText('Số container')).toHaveLength(1);
+    // One always-on per-cont declaration input per row — entered at create
+    // time (the reversal of the SIL-521/530 "no tờ khai on the create form"
+    // pin for the per-cont half; the lot-level half stays retired).
+    expect(screen.getAllByLabelText('Số tờ khai')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
     expect(screen.getAllByLabelText('Số container')).toHaveLength(2);
+    expect(screen.getAllByLabelText('Số tờ khai')).toHaveLength(2);
     expect(within(table).getAllByRole('row')).toHaveLength(3);
   });
 

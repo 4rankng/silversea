@@ -1,0 +1,17 @@
+LOGIN OK (cus) — evidence dir qa/2026-10-30_sil701-decl-column
+C1 — column structure @1440
+  PASS C1 header order exact — ["STT","Số container","Số tờ khai","Nhà máy","Tuyến đường","Cảng nâng","Cảng hạ","Ngày giờ đóng trả","Thao tác"]
+  PASS C1 one per-cont input on row 1 (placeholder Nhập số tờ khai, maxLength 50) — {"count":1,"ph":"Nhập số tờ khai","max":50,"fieldId":"container-7ca06dd7-ba48-45b2-8769-9862b6fc320b-declaration"}
+  PASS C1 merged SỐ CONTAINER group intact (3 lines) — lines=3
+  PASS C1 no lot-level declaration UI
+  PASS C1 headers stay one line
+C2 — per-cont declaration entry + duplicate carries it
+  PASS C2 row 1 declaration input accepts the number — value=TK-SIL701-R3
+  PASS C2 duplicate row carries the SAME declaration (in-lot repeat legal) — {"count":2,"values":["TK-SIL701-R3","TK-SIL701-R3"],"numbers":["MSKU1234565","ALLU5216535"]}
+C4 — responsive captures
+C3 — submit Tạo lô hàng
+after submit: url=/shipments/753 summary=null alerts=[]
+api: ["POST /api/shipments/quick → 201","GET /api/shipments/operational-sites?scope=shared → 200","GET /api/shipments/753 → 200","GET /api/shipments/operational-sites?scope=shared → 200","GET /api/shipments/753 → 200","GET /api/shipments/operational-sites?customerId=20 → 200"]
+persisted: {"lotId":753,"status":200,"containers":[{"id":834,"containerNumber":"MSKU1234565","declarationNumber":"TK-SIL701-R3"},{"id":835,"containerNumber":"ALLU5216535","declarationNumber":"TK-SIL701-R3"}]}
+  PASS C3 BOTH containers persist the per-cont declaration at create time — [{"id":834,"containerNumber":"MSKU1234565","declarationNumber":"TK-SIL701-R3"},{"id":835,"containerNumber":"ALLU5216535","declarationNumber":"TK-SIL701-R3"}]
+CHECKS 8/8 · FAILS: none

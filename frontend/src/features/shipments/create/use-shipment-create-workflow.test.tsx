@@ -151,6 +151,7 @@ describe('post-create navigation (FB-106 card 171026115810)', () => {
     cargoWeightKg: '24000',
     cargoVolumeCbm: '',
     customerAppointmentAt: '2026-08-03T09:00',
+    declarationNumber: '',
     operationalSiteId: '2',
     rawFactoryName: '',
   };
@@ -228,7 +229,7 @@ describe('declaration wire — per-cont only (SIL-521)', () => {
     updateShipment.mockResolvedValue({ version: 4 });
   });
 
-  it('create payload không mang declarationNumber — hết nhập cấp lô', async () => {
+  it('create payload không mang declarationNumber CẤP LÔ (per-cont rides containers[] — SIL-701)', async () => {
     const { result } = renderWorkflow({ ...adHocLclForm });
 
     await act(async () => { await result.current.save('DRAFT'); });

@@ -1,5 +1,13 @@
 # SIL-521 — Số tờ khai theo cont: thêm cột, cho phép trùng, sửa từng cont, bỏ nhập theo lô
 
+> **UPDATE 30/10/2026 (SIL-701, owner ruling — đọc trước khi tin pin dưới):**
+> Case pin 1 bị ĐẢO NGƯỢC MỘT PHẦN: form tạo/sửa lô **PHẢI** có cột số tờ
+> khai per-cont trong bảng "Thông tin hàng" (nhập được ngay lúc tạo, từng cont
+> riêng, không chặn trùng trong lô). Phần "bỏ nhập cấp lô" GIỮ NGUYÊN:
+> payload `/shipments/quick` vẫn không mang `declarationNumber` cấp lô, không
+> tạo `shipment_declarations` từ input. Xem
+> `case-SIL-701-create-form-decl-column.md`.
+
 - Ticket: SIL-521 (board SIL, id 584, In Progress) — quyết định chốt owner
   26/10/2026, chốt lại mô hình dữ liệu tờ khai (liên quan SIL-498, SIL-502).
 - Surface: form tạo/sửa lô (`/shipments/new`, `/shipments/:id/edit`), Tổng quan

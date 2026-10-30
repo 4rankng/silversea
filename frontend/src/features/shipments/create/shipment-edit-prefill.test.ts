@@ -70,6 +70,7 @@ describe('buildShipmentEditPrefill', () => {
       id: 55, shipmentId: 186, containerTypeId: 31, containerNumber: 'CONT-001',
       sealNumber: null, cargoWeightKg: '12000', customerAppointmentAt: '2026-10-20T08:30:00+07:00',
       pickupPortId: 21, dropoffPortId: 22, routeId: 11, operationalSiteId: 41, notes: null,
+      declarationNumber: 'TK-001',
     } as ShipmentEditDetail['containers'][number]];
     detail.declarations = [
       { id: 66, shipmentId: 186, declarationNumber: 'TK-001', scope: 'SINGLE', issuedAt: null, note: null, createdBy: null, createdAt: '2026-10-20T00:00:00.000Z', updatedAt: '2026-10-20T00:00:00.000Z' },
@@ -91,6 +92,12 @@ describe('buildShipmentEditPrefill', () => {
     expect(prefill.containers[0].containerTypeId).toBe('31');
     // +07:00 ISO → local datetime input (inverse of localDateTimeToIso).
     expect(prefill.containers[0].customerAppointmentAt).toBe('2026-10-20T08:30');
+    // SIL-701: per-cont số tờ khai round-trips through edit mode — the form
+    // shows what the row stores, and a save re-asserts it unchanged.
+    expect(prefill.containers[0].declarationNumber).toBe('TK-001');
+    // A row without a stored number seeds an EMPTY entry cell (never 'null').
+    detail.containers = [{ ...detail.containers[0], declarationNumber: null } as ShipmentEditDetail['containers'][number]];
+    expect(buildShipmentEditPrefill(detail).containers[0].declarationNumber).toBe('');
   });
 
   it('LCL: pre-fill Hình thức XNK, kho theo chiều hướng, các trường hàng lẻ + không reconcile container', () => {

@@ -446,6 +446,10 @@ export interface ShipmentContainerBatch {
     /** Per-container factory authority (SILVER L1). Omitted (never nulled)
      *  by surfaces that don't manage it, so the reconcile preserves it. */
     operationalSiteId?: number | null;
+    /** SIL-701: số tờ khai per-cont. Same omission-preserves contract as
+     *  routeId/operationalSiteId — an explicit null (or '') clears the stored
+     *  number, an absent key keeps it. Same-lot repeats are legal. */
+    declarationNumber?: string | null;
     notes?: string | null;
   }>;
 }

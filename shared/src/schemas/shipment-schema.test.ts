@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { createShipmentSchema, quickCreateShipmentSchema, updateShipmentSchema, QUICK_CREATE_SHIPMENT_KEYS } from './index';
+import { createShipmentSchema, quickCreateShipmentSchema, shipmentContainerItemSchema, updateShipmentSchema, QUICK_CREATE_SHIPMENT_KEYS } from './index';
 
 test('shipment schemas accept canonical calendar dates', () => {
   assert.equal(createShipmentSchema.safeParse({
@@ -72,6 +72,19 @@ test('SIL-521: tờ khai hết nhập cấp lô — quick-create không còn nh�
     true,
     'zod non-strict: key lạ vẫn parse được — lệnh chặn là assertKnownShipmentKeys (pin ở key-guard test)',
   );
+});
+
+test('SIL-701: số tờ khai THEO CONT rides shipmentContainerItemSchema (per-cont, không chặn trùng trong lô)', () => {
+  // Owner ruling 30/10 (đảo pin SIL-521/530 cho form tạo): per-cont number
+  // enters at create time through containers[] — trim, blank → null, cap 50
+  // (schema cus-shipment-workspace parity). Same-lot repeats pose no schema
+  // question at all — the field carries one row's number, nothing more.
+  const base = { containerTypeId: 31 };
+  const parsed = shipmentContainerItemSchema.parse({ ...base, declarationNumber: '  TK-01  ' });
+  assert.equal(parsed.declarationNumber, 'TK-01');
+  assert.equal(shipmentContainerItemSchema.parse({ ...base, declarationNumber: '' }).declarationNumber, null);
+  assert.equal(shipmentContainerItemSchema.parse({ ...base }).declarationNumber, undefined);
+  assert.equal(shipmentContainerItemSchema.safeParse({ ...base, declarationNumber: 'x'.repeat(51) }).success, false);
 });
 
 // ─── zod v3 → v4 bump pins (case-2026-10-29-zod4-final-bump) ────────────────
