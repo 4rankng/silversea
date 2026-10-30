@@ -582,3 +582,29 @@ describe('create-page whole-sheet density (SIL-534)', () => {
     expect(css).toContain('.csc-fline__card.is-open .csc-fline__arrow { display: block; }');
   });
 });
+// SIL-612 (owner doctrine 30/10): the cargo data table renders EDGE-TO-EDGE.
+// The breakout mirror and the card padding it escapes are ONE number pair —
+// pin them together here so changing one without the other fails where the
+// relationship is written down (the CSS comment carries the same contract).
+describe('cargo table edge-to-edge breakout (SIL-612, owner 30/10)', () => {
+  it('breaks the scroll container out by exactly the card padding it escapes', () => {
+    // 14px card padding out ⇒ -14px mirror, +28px width.
+    expect(css).toMatch(/\.csc-section \{ padding: 12px 14px !important;/);
+    expect(css).toMatch(
+      /@container \(min-width: 621px\) \{\s*\.csc-container-table-scroll \{ margin-inline: -14px; width: calc\(100% \+ 28px\); \}\s*\}/,
+    );
+  });
+
+  it('gates the breakout to the desktop record only', () => {
+    // Exactly one breakout rule, inside the (min-width: 621px) container gate
+    // and BEFORE the ≤620px phone-record band — the stacked phone records
+    // keep their card boundary (second opinion deepseek 30/10).
+    expect(css.match(/margin-inline: -14px/g)).toHaveLength(1);
+    const gate = css.indexOf('@container (min-width: 621px)');
+    const breakout = css.indexOf('margin-inline: -14px');
+    const phoneBand = css.indexOf('@container (max-width: 620px)');
+    expect(gate).toBeGreaterThanOrEqual(0);
+    expect(breakout).toBeGreaterThan(gate);
+    expect(phoneBand).toBeGreaterThan(breakout);
+  });
+});
