@@ -6,18 +6,20 @@ export interface FifoAgingInput {
    * Effective payment due date (YYYY-MM-DD) — the payment-term authority's
    * `processingDueDate ?? originalDueDate`, or absent/null for legacy rows that
    * froze neither (then the entry is due at its issue date, the house fallback).
+   * Feeds the contractual `overdueDays` KPI only; the aging buckets never read
+   * it (owner ruling 29/10: aging counts from the recording date).
    */
   dueDate?: string | null;
 }
 
 export interface AgingBuckets {
-  /** Not yet due (0 days past the effective due date). */
+  /** Recorded within the last 30 days (0–30 days since the recording date). */
   current: number;
-  /** 1–30 days past due. */
+  /** Recorded 31–60 days ago — the "quá hạn 30–60" band. */
   d30: number;
-  /** 31–90 days past due. */
+  /** Recorded 61–90 days ago — the "quá hạn 60–90" band. */
   d60: number;
-  /** Beyond 90 days past due. */
+  /** Recorded more than 90 days ago. */
   over90: number;
 }
 
@@ -28,8 +30,9 @@ export interface OpenInvoice {
   dueDate: string | null;
   /**
    * Contractual overdue span (card 061026221213): whole calendar days past the
-   * effective due date at the reference date; 0 = not yet due. Never the debt
-   * age — age lives in the aging buckets above.
+   * effective due date at the reference date; 0 = not yet due. Feeds the
+   * "Quá hạn" KPI only — the aging buckets count from the recording date
+   * instead (owner ruling 29/10), never from this span.
    */
   overdueDays: number;
 }
@@ -120,16 +123,18 @@ export function computeFifoAging(
 
   const aging: AgingBuckets = { current: 0, d30: 0, d60: 0, over90: 0 };
 
-  // Card 061026221213: the bands are CONTRACTUAL due-status bands, cut at 30
-  // and 90 days past the effective due date — `current` = not yet due, `d30` =
-  // 1–30 days past due, `d60` = 31–90, `over90` = beyond 90. Debt age never
-  // enters; legacy rows without a frozen due date are due at issue.
+  // Owner ruling 29/10: the bands are AGE bands counted from the recording
+  // date (entry timestamp — ngày phát sinh phải thu/trả trên chứng từ) to the
+  // reference date, cut at 30/60/90 — `current` = 0–30 days recorded, `d30` =
+  // 31–60, `d60` = 61–90, `over90` = beyond 90. A frozen dueDate never moves a
+  // bucket; it only feeds the contractual overdueDays KPI (card 061026221213).
   for (const inv of openInvoices) {
     if (inv.open <= 0) continue;
+    const ageDays = (referenceDate.getTime() - new Date(inv.ts).getTime()) / (1000 * 60 * 60 * 24);
     // Round each bucket addition to avoid floating-point drift across hundreds of entries.
-    if (inv.overdueDays === 0) aging.current += Math.round(inv.open);
-    else if (inv.overdueDays <= 30) aging.d30 += Math.round(inv.open);
-    else if (inv.overdueDays <= 90) aging.d60 += Math.round(inv.open);
+    if (ageDays <= 30) aging.current += Math.round(inv.open);
+    else if (ageDays <= 60) aging.d30 += Math.round(inv.open);
+    else if (ageDays <= 90) aging.d60 += Math.round(inv.open);
     else aging.over90 += Math.round(inv.open);
   }
 

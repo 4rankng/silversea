@@ -3,11 +3,12 @@ import assert from 'node:assert';
 import { computeFifoAging } from './fifoAging.ts';
 import type { FifoAgingInput } from './fifoAging.ts';
 
-// Contract (card 061026221213, SIL-580 repin): buckets are CONTRACTUAL
-// due-status bands cut at 30/90 days past the effective due date —
-// `current` = not yet due, `d30` = 1–30, `d60` = 31–90, `over90` = beyond 90.
-// An entry without a frozen dueDate is due at its issue date (house
-// fallback), so a debit N days old with no dueDate is N days PAST DUE here.
+// Contract (owner ruling 29/10, SIL-580): the aging buckets are AGE bands
+// counted from the RECORDING DATE (entry timestamp — ngày phát sinh phải thu /
+// phải trả trên chứng từ) to the reference date, cut at 30/60/90 —
+// `current` = 0–30 days recorded, `d30` = 31–60, `d60` = 61–90, `over90` =
+// beyond 90. A frozen dueDate never moves a bucket; it only feeds the
+// contractual `overdueDays` KPI (card 061026221213), asserted separately.
 
 // Helper: create a date N days before the reference date
 function daysAgo(days: number, ref: Date): string {
@@ -15,9 +16,7 @@ function daysAgo(days: number, ref: Date): string {
 }
 
 // Helper: a frozen due date (YYYY-MM-DD — the FifoAgingInput.dueDate wire
-// format) N days before the reference date. Named because the slice(0,10)
-// timestamp→date extraction is the format contract, not an obvious expression;
-// 9 lockstep call sites below rely on it.
+// format) N days before the reference date; negative N = N days in the future.
 function dueDaysAgo(days: number, ref: Date): string {
   return daysAgo(days, ref).slice(0, 10);
 }
@@ -26,19 +25,20 @@ describe('computeFifoAging', () => {
   const ref = new Date('2026-06-01T00:00:00Z');
 
   test('simple single debit aging into correct bucket', () => {
-    // One unpaid invoice from 15 days ago, no frozen dueDate → due at issue
-    // (house fallback) → 15 days past due → the 1–30 band.
+    // One unpaid invoice recorded 15 days ago → age 15 ≤ 30 → current bucket
     const entries: FifoAgingInput[] = [
       { timestamp: daysAgo(15, ref), debit: '1000000', credit: '0' },
     ];
     const { aging, openInvoices } = computeFifoAging(entries, ref);
 
-    assert.strictEqual(aging.current, 0);
-    assert.strictEqual(aging.d30, 1000000);
+    assert.strictEqual(aging.current, 1000000);
+    assert.strictEqual(aging.d30, 0);
     assert.strictEqual(aging.d60, 0);
     assert.strictEqual(aging.over90, 0);
     assert.strictEqual(openInvoices.length, 1);
     assert.strictEqual(openInvoices[0].open, 1000000);
+    // Without a frozen dueDate the entry is due at issue, so the contractual
+    // KPI reads 15 days past due even though the bucket is age-driven.
     assert.strictEqual(openInvoices[0].overdueDays, 15);
   });
 
@@ -52,12 +52,11 @@ describe('computeFifoAging', () => {
     ];
     const { aging } = computeFifoAging(entries, ref);
 
-    // 45-day invoice: 500k - 400k (FIFO applied) = 100k remaining → 45 days
-    // past due (due-at-issue fallback) → 31–90 band
-    assert.strictEqual(aging.d60, 100000);
-    // 10-day invoice: 300k untouched → 10 days past due → 1–30 band
-    assert.strictEqual(aging.d30, 300000);
-    assert.strictEqual(aging.current, 0);
+    // 45-day invoice: 500k - 400k (FIFO applied) = 100k remaining → 31–60 band
+    assert.strictEqual(aging.d30, 100000);
+    // 10-day invoice: 300k untouched → current bucket
+    assert.strictEqual(aging.current, 300000);
+    assert.strictEqual(aging.d60, 0);
     assert.strictEqual(aging.over90, 0);
   });
 
@@ -69,10 +68,9 @@ describe('computeFifoAging', () => {
     ];
     const { aging, openInvoices } = computeFifoAging(entries, ref);
 
-    // 200k credit applied to 500k debit → 300k remaining, 3 days past due
-    // (due-at-issue fallback) → 1–30 band
-    assert.strictEqual(aging.d30, 300000);
-    assert.strictEqual(aging.current, 0);
+    // 200k credit applied to 500k debit → 300k remaining, recorded 3 days ago
+    // → current bucket
+    assert.strictEqual(aging.current, 300000);
     assert.strictEqual(openInvoices.length, 1);
     assert.strictEqual(openInvoices[0].open, 300000);
   });
@@ -120,38 +118,67 @@ describe('computeFifoAging', () => {
     assert.strictEqual(openInvoices[0].open, 0);
   });
 
-  test('bucket boundaries: due-status bands cut at 30 and 90 days past due', () => {
+  test('bucket boundaries: age bands cut at 30/60/90 days since the recording date', () => {
     const entries: FifoAgingInput[] = [
-      { timestamp: daysAgo(10, ref), debit: '100000', credit: '0', dueDate: dueDaysAgo(0, ref) },   // due today → current
-      { timestamp: daysAgo(10, ref), debit: '200000', credit: '0', dueDate: dueDaysAgo(30, ref) },  // 30 past due → 1–30
-      { timestamp: daysAgo(40, ref), debit: '300000', credit: '0', dueDate: dueDaysAgo(31, ref) },  // 31 past due → 31–90
-      { timestamp: daysAgo(95, ref), debit: '400000', credit: '0', dueDate: dueDaysAgo(90, ref) },  // 90 past due → 31–90
-      { timestamp: daysAgo(95, ref), debit: '500000', credit: '0', dueDate: dueDaysAgo(91, ref) },  // 91 past due → over90
+      { timestamp: daysAgo(15, ref), debit: '100000', credit: '0' },   // current (≤30)
+      { timestamp: daysAgo(45, ref), debit: '200000', credit: '0' },   // d30 (>30, ≤60) — the 30–60 band
+      { timestamp: daysAgo(75, ref), debit: '300000', credit: '0' },   // d60 (>60, ≤90) — the 60–90 band
+      { timestamp: daysAgo(120, ref), debit: '400000', credit: '0' },  // over90 (>90)
     ];
     const { aging } = computeFifoAging(entries, ref);
 
     assert.strictEqual(aging.current, 100000);
     assert.strictEqual(aging.d30, 200000);
-    assert.strictEqual(aging.d60, 700000);
-    assert.strictEqual(aging.over90, 500000);
+    assert.strictEqual(aging.d60, 300000);
+    assert.strictEqual(aging.over90, 400000);
   });
 
-  test('bucket boundary exactly 30 days past due → 1–30 band', () => {
+  // Owner ruling 29/10: aging measures from the recording date, so a debt
+  // recorded 31 days ago ages into the 30–60 bucket (d30) — whether or not it
+  // is contractually due yet.
+  test('a debt recorded 31 days ago ages into the 30–60 bucket', () => {
     const entries: FifoAgingInput[] = [
-      { timestamp: daysAgo(40, ref), debit: '100000', credit: '0', dueDate: dueDaysAgo(30, ref) },
+      { timestamp: daysAgo(31, ref), debit: '100000', credit: '0' },
     ];
     const { aging } = computeFifoAging(entries, ref);
     assert.strictEqual(aging.d30, 100000);
     assert.strictEqual(aging.current, 0);
   });
 
-  test('bucket boundary exactly 60 days past due → 31–90 band', () => {
+  test('a frozen dueDate never moves the aging bucket — bands follow the recording date', () => {
     const entries: FifoAgingInput[] = [
-      { timestamp: daysAgo(70, ref), debit: '100000', credit: '0', dueDate: dueDaysAgo(60, ref) },
+      // Recorded 45 days ago, due 75 days OUT (not contractually due): the
+      // bucket still follows the recording date → 30–60 band.
+      { timestamp: daysAgo(45, ref), debit: '100000', credit: '0', dueDate: dueDaysAgo(-75, ref) },
+      // Recorded 95 days ago, due 30 days out: contractually in term, but
+      // aging counts from the recording date → over90.
+      { timestamp: daysAgo(95, ref), debit: '200000', credit: '0', dueDate: dueDaysAgo(-30, ref) },
+    ];
+    const { aging, openInvoices } = computeFifoAging(entries, ref);
+
+    assert.strictEqual(aging.d30, 100000);
+    assert.strictEqual(aging.over90, 200000);
+    assert.strictEqual(aging.current, 0);
+    // The contractual KPI is untouched: nobody is past their due date.
+    assert.strictEqual(Math.max(...openInvoices.map((inv) => inv.overdueDays)), 0);
+  });
+
+  test('bucket boundary exactly 30 days recorded → current bucket', () => {
+    const entries: FifoAgingInput[] = [
+      { timestamp: daysAgo(30, ref), debit: '100000', credit: '0' },
     ];
     const { aging } = computeFifoAging(entries, ref);
-    assert.strictEqual(aging.d60, 100000);
+    assert.strictEqual(aging.current, 100000);
     assert.strictEqual(aging.d30, 0);
+  });
+
+  test('bucket boundary exactly 60 days recorded → 30–60 (d30) bucket', () => {
+    const entries: FifoAgingInput[] = [
+      { timestamp: daysAgo(60, ref), debit: '100000', credit: '0' },
+    ];
+    const { aging } = computeFifoAging(entries, ref);
+    assert.strictEqual(aging.d30, 100000);
+    assert.strictEqual(aging.d60, 0);
   });
 
   test('bucket boundary exactly 90 days → d60 bucket', () => {
@@ -172,7 +199,7 @@ describe('computeFifoAging', () => {
   });
 
   test('missing timestamps fall back to reference date', () => {
-    // Entry with null timestamp should land in current bucket (0 days past its issue-date due)
+    // Entry with null timestamp should land in current bucket (age = 0 days)
     const entries: FifoAgingInput[] = [
       { timestamp: null, debit: '500000', credit: '0' },
     ];
@@ -194,11 +221,10 @@ describe('computeFifoAging', () => {
     const { aging } = computeFifoAging(entries, ref);
 
     // Sorted: day 45 debit 500k, day 10 credit 200k, day 5 debit 300k
-    // 500k debit (45 days ago) → 200k credit (10 days ago) applied → 300k
-    // open at 45 days past due (due-at-issue fallback) → 31–90 band
-    // 300k debit (5 days ago) → untouched → 5 days past due → 1–30 band
-    assert.strictEqual(aging.d60, 300000);
+    // 500k debit (45 days ago) → 200k credit (10 days ago) applied → 300k open at age 45 → 30–60 band
+    // 300k debit (5 days ago) → untouched → current bucket
     assert.strictEqual(aging.d30, 300000);
+    assert.strictEqual(aging.current, 300000);
   });
 
   test('numeric debit/credit values (not strings)', () => {
@@ -206,8 +232,7 @@ describe('computeFifoAging', () => {
       { timestamp: daysAgo(15, ref), debit: 1000000, credit: 0 },
     ];
     const { aging } = computeFifoAging(entries, ref);
-    assert.strictEqual(aging.d30, 1000000);
-    assert.strictEqual(aging.current, 0);
+    assert.strictEqual(aging.current, 1000000);
   });
 
   test('empty entries array returns zero aging', () => {
@@ -220,15 +245,15 @@ describe('computeFifoAging', () => {
   });
 
   test('partial payment splits single invoice correctly', () => {
-    // Single 1M invoice at 45 days, 400k payment, 600k remaining
+    // Single 1M invoice recorded 45 days ago, 400k payment, 600k remaining
     const entries: FifoAgingInput[] = [
       { timestamp: daysAgo(45, ref), debit: '1000000', credit: '0' },
       { timestamp: daysAgo(5, ref), debit: '0', credit: '400000' },
     ];
     const { aging, openInvoices } = computeFifoAging(entries, ref);
 
-    // 600k remaining at 45 days past due (due-at-issue fallback) → 31–90 band
-    assert.strictEqual(aging.d60, 600000);
+    // 600k remaining at age 45 → 30–60 band
+    assert.strictEqual(aging.d30, 600000);
     assert.strictEqual(openInvoices.length, 1);
     assert.strictEqual(openInvoices[0].open, 600000);
   });
@@ -244,8 +269,7 @@ describe('computeFifoAging', () => {
     const { aging } = computeFifoAging(entries, ref);
 
     // 200k unapplied credit + 500k debit → 300k remaining, then 100k credit applied → 200k
-    // open at 10 days past due (due-at-issue fallback) → 1–30 band
-    assert.strictEqual(aging.d30, 200000);
-    assert.strictEqual(aging.current, 0);
+    // recorded 10 days ago → current bucket
+    assert.strictEqual(aging.current, 200000);
   });
 });
