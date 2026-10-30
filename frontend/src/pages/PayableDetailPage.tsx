@@ -5,7 +5,7 @@ import { DateInput } from '../design-system/forms/DateInput';
 import { formatCurrency } from '../lib/format';
 import { TxnType, FINANCIAL } from '@tingting/shared';
 import type { SupplierStatement as SupplierStatementType, LedgerEntry, VendorPaymentRequest } from '@tingting/shared';
-import { AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
+import { AP_AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
 import { AlertTriangle, Phone, Building2, ArrowLeft, CreditCard, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { useSupplierStatement } from '../hooks/useQueries';
 import { api, ApiError } from '../lib/api';
@@ -184,7 +184,7 @@ export default function PayableDetailPage() {
   );
 
   const activeAgingIdx = useMemo(() => activeAgingIndex(agingAmounts), [agingAmounts]);
-  const activeAgingRange = activeAgingIdx >= 0 ? AGING_RANGES[activeAgingIdx] : null;
+  const activeAgingRange = activeAgingIdx >= 0 ? AP_AGING_RANGES[activeAgingIdx] : null;
   const activeAgingAmount = activeAgingIdx >= 0 ? agingAmounts[activeAgingIdx] : 0;
 
   const totalOutstanding = typedStatement?.totalOutstanding ?? 0;
@@ -363,7 +363,7 @@ export default function PayableDetailPage() {
                 <AlertTriangle size={17} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                 {activeAgingIdx <= 0
                   ? 'Toàn bộ công nợ chưa đến hạn.'
-                  : `Có công nợ ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thanh toán.`
+                  : `Có công nợ ${AP_AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thanh toán.`
                 }
               </div>
             )}
@@ -395,7 +395,7 @@ export default function PayableDetailPage() {
             })}
           </div>
           <div className="dd-aging-grid">
-            {AGING_RANGES.map((range, i) => {
+            {AP_AGING_RANGES.map((range, i) => {
               const amt = effectiveAging[i];
               const isActive = i === activeAgingIdx;
               const pct = agingTotal > 0 ? Math.round((amt / agingTotal) * 100) : 0;

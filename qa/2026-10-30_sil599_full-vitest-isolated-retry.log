@@ -1,0 +1,12 @@
+CMD: npx vitest run src/pages/ShipmentsPage.test.tsx src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx src/features/shipments/create/ShipmentCreateWorkspace.cursor-advance.test.tsx (ISOLATED re-run of 3 in-suite failures — load-flake check)
+WHEN: 2026-10-30 15:38:01 +0800
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-699-1/frontend
+
+
+ Test Files  3 passed (3)
+      Tests  130 passed (130)
+   Start at  15:38:03
+   Duration  70.34s (transform 7.22s, setup 1.79s, import 21.47s, tests 70.77s, environment 6.97s)
+
+EXIT=0

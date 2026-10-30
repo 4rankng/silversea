@@ -21,11 +21,6 @@ vi.mock('../components/shared/Toast', () => ({
 vi.mock('../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
   useListAnimations: () => ({ rootRef: { current: null } }),
-  useCounterAnimation: () => ({ animateCounters: vi.fn() }),
-}));
-
-vi.mock('../hooks/usePrefersReducedMotion', () => ({
-  usePrefersReducedMotion: () => true,
 }));
 
 import DebtListPage from './DebtListPage';
