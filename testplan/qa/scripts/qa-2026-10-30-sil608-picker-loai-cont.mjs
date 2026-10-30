@@ -1,7 +1,9 @@
 // SIL-608 remainder — picker Loại cont UX — rung 3 probe + reproducer (§9).
 // Regression context: testplan/cases/case-SIL-608-picker-loai-cont.md
 // The LOẠI ghost line (SIL-552) floats its editor in a GroupFloatingLine
-// card. Probe the REAL click flows against THIS worktree (fe :7177):
+// card. Probe the real click flows against the house contract server by
+// default (fe :7175 / be :3002 — card 20260928_192; this lane was driven
+// against QA_BASE=:7177):
 //   PICK-01: click the line trigger → is the options menu open? (the
 //            drawer solved the same panel with a click-to-open listbox —
 //            CusLotView "collapses to a bare caret" note.)
@@ -20,7 +22,10 @@ import path from 'node:path';
 const require2 = createRequire(import.meta.dirname + '/../../../package.json');
 const puppeteer = require2('puppeteer-core');
 
-const BASE = process.env.QA_BASE || 'http://localhost:7177';
+// House port contract (card 20260928_192, dev-port-contract.test): scripts
+// default to the Makefile contract ports (fe 7175 / be 3002); a worktree with
+// a different server passes QA_BASE/QA_API env overrides instead.
+const BASE = process.env.QA_BASE || 'http://localhost:7175';
 const API = process.env.QA_API || 'http://localhost:3002/api';
 const OUT = path.resolve(import.meta.dirname, '../../../qa');
 fs.mkdirSync(OUT, { recursive: true });

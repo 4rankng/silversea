@@ -1,8 +1,9 @@
 // SIL-611 (id 714) — bỏ band "Lịch & ghi chú", dời Ghi chú xuống dưới Thông
 // tin hàng — rung 3 driver (§9).
 // Regression: testplan/cases/case-SIL-611-bo-band-lich-ghi-chu.md
-// Drives THIS worktree's dev server (fe :7177 — :7175 belongs to the
-// fix-sil-592 worktree and is preserved; be :3002 shared local dev):
+// Drives the house contract server by default (fe :7175 / be :3002 — card
+// 20260928_192); a worktree with a different dev server passes QA_BASE /
+// QA_API env overrides (this lane was driven against QA_BASE=:7177):
 //   BAND-01:  no `#shipment-section-schedule` / heading "Lịch & ghi chú".
 //   ORDER-02: .csc-form child order = mode → identity → cargo → notes;
 //             notes is the form's LAST band (FCL default).
@@ -25,7 +26,10 @@ import path from 'node:path';
 const require2 = createRequire(import.meta.dirname + '/../../../package.json');
 const puppeteer = require2('puppeteer-core');
 
-const BASE = process.env.QA_BASE || 'http://localhost:7177';
+// House port contract (card 20260928_192, dev-port-contract.test): scripts
+// default to the Makefile contract ports (fe 7175 / be 3002); a worktree with
+// a different server passes QA_BASE/QA_API env overrides instead.
+const BASE = process.env.QA_BASE || 'http://localhost:7175';
 const API = process.env.QA_API || 'http://localhost:3002/api';
 const OUT = path.resolve(import.meta.dirname, '../../../qa');
 fs.mkdirSync(OUT, { recursive: true });
