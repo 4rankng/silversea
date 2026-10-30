@@ -1,0 +1,5 @@
+{"at":"2026-10-30T15:44:03.177Z","step":"start","base":"http://localhost:7177","api":"http://localhost:3002/api"}
+{"at":"2026-10-30T15:44:03.325Z","step":"login","verdict":"PASS"}
+{"at":"2026-10-30T15:44:08.471Z","step":"measure-1307","verdict":"PASS","cardHeight":71,"padding":"6px 14px 6px 14px","rowHeight":59,"legendHeight":18}
+{"at":"2026-10-30T15:44:09.306Z","step":"measure-390","verdict":"PASS","cardHeight":163,"padding":"4px 8px 4px 8px","rowHeight":155,"legendHeight":20}
+{"at":"2026-10-30T15:44:09.582Z","step":"AC-1307-56-72","verdict":"PASS","cardHeight":71}

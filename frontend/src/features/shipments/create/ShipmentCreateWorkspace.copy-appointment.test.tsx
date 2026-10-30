@@ -218,9 +218,11 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
 
   it('keeps the bulk input as a clipboard source but renders no apply chip (SIL-511)', async () => {
     // SIL-511 (owner 26/10): the 'Áp dụng cho N container' chip is retired —
-    // the typed value feeds the section clipboard copy only, and the
-    // copy-down / copy-ALL buttons below stay the apply-all paths. Locks the
-    // removal so a merge cannot resurrect the chip or re-wire an apply.
+    // TYPING in the bulk field still writes nothing by itself; the apply
+    // paths are the copy-down button, the copy-ALL route, and (QA ruling
+    // 15:10, ticket 710) the band's own Copy BUTTON — not the input.
+    // Locks the removal so a merge cannot resurrect the chip or re-wire an
+    // apply on every keystroke.
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
@@ -242,5 +244,42 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
       expect(appointmentValue(i).date).toBe('');
       expect(appointmentValue(i).time).toBe('');
     });
+  });
+
+  // QA ruling 15:10 (retest 30/10, ticket 710) — the band Copy button is a
+  // REAL apply path: clipboard-only claimed success ("Đã copy giờ hẹn…")
+  // while the submit kept failing "Container N: chọn ngày giờ đóng/trả."
+  // CUS-03: clicking it WRITES the shared datetime into every
+  // still-unscheduled row — DOM-pin: band filled → Copy clicked → every row
+  // input holds the value → submit names no appointment anywhere.
+  it('band Copy writes the shared datetime into every unscheduled row and clears the submit appointment error (QA 710)', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    addContainer();
+    addContainer();
+
+    const bulkDate = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-date"]')!;
+    const bulkTime = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]')!;
+    fireEvent.change(bulkDate, { target: { value: '29/10/2026' } });
+    fireEvent.change(bulkTime, { target: { value: '08:00' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Copy giờ hẹn đóng trả/ }));
+
+    // The write lands in every row — with or without a container number.
+    await waitFor(() => {
+      [0, 1, 2].forEach((i) => {
+        expect(appointmentValue(i).date).toBe('29/10/2026');
+        expect(appointmentValue(i).time).toBe('08:00');
+      });
+    });
+    expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 3 container chưa có lịch/)).toBeTruthy();
+
+    // And the per-container requirement is satisfied everywhere: the
+    // submit summary names no appointment issue.
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
+    await screen.findByText(/Cần bổ sung \d+ thông tin/);
+    const panel = document.querySelector('.csc-validation-summary')?.textContent ?? '';
+    expect(panel).not.toContain('chọn ngày giờ đóng/trả');
+    expect(document.querySelectorAll('[data-field-id$="-customer-appointment"] .csc-container-cell__error')).toHaveLength(0);
   });
 });

@@ -87,6 +87,13 @@ describe('SIL-499 onescreen wide band', () => {
     expect(CSS).toMatch(/\.csc-container-table tbody th, \.csc-container-table tbody td \{ padding: 7px 6px; \}/);
   });
 
+  it('SIL-604 retest: the mode band card carries its own 6px vertical padding (59px row + 12px = 71px ≤ AC 72)', () => {
+    // QA measured the card at 83px = 59px in-range control line + 2×12px
+    // section padding. The AC names the CARD height, so the band pins a
+    // dedicated padding — the inner row, its single line and centering stay.
+    expect(CSS).toMatch(/#shipment-section-mode \{ padding: 6px 14px !important; \}/);
+  });
+
   it('separates the topline actions from the section band by ≥12px (SIL-509)', () => {
     // Owner ticket 26/10: the actions row sat flush on the "Nhận diện lô"
     // band at ≥1280. The SIL-499 zero-margin squeeze is superseded there.
