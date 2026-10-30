@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-10-30 — fix(ux): SIL-599 (id 699) — tách bạch "tuổi nợ" (aging band) và "quá hạn hợp đồng" (KPI) trên /debt
+
+QA Glint: trang `/debt` tự mâu thuẫn — pill tiêu đề "2 quá hạn", dòng khách
+"Nợ quá hạn / 6 ngày", nhưng thẻ band ghi "0 ₫ · 0 KH quá hạn"; chi tiết
+`/debt/:id` ghi "Còn nợ trong hạn" + "CHƯA ĐẾN HẠN" 100%. Cùng chữ "quá hạn"
+bị dùng cho 2 cách tính; nhãn band "QUÁ HẠN 1–30 / 31–90 / TRÊN 90 NGÀY"
+khoác lên dữ liệu TUỔI NỢ (cắt 0–30 / 31–60 / 61–90 / trên 90 — ruling 29/10
+SIL-580 R3 + card 061026221213) — sai cả khái niệm lẫn khoảng ngày. Thẻ
+"Trong hạn" còn nhấp nháy count-up trung gian (4.796.430 → 4.972.918 →
+5.500.000 ₫) rồi mới chốt.
+
+Quyết định Pattern A (webchat gemini 30/10): tách biệt rõ hai khái niệm —
+gộp mọi nhãn về "tuổi nợ" (Pattern B) sẽ mất tín hiệu cảnh báo nợ xấu.
+
+Fix:
+- Band AR = TUỔI NỢ từ ngày ghi nhận: nhãn "Tuổi nợ 0–30 / 31–60 / 61–90 /
+  trên 90 ngày" (`aging.ts` tách `AR_AGING_RANGES` / `AP_AGING_RANGES`).
+- "Quá hạn" CHỈ dùng cho KPI quá hạn hợp đồng (processingDueDate ??
+  originalDueDate ?? đến hạn tại ngày ghi nhận, cut >0): chip "N quá hạn",
+  trạng thái "Nợ quá hạn", cột "Quá hạn N ngày". Mỗi từ một nghĩa; quy tắc
+  giải thích bằng tooltip (`AGE_RULE_TIP` / `OVERDUE_RULE_TIP`) trên CẢ 2 mặt.
+- Pill `/debt/:id` nói sự thật: "Còn nợ quá hạn · N ngày" / "Còn nợ trong
+  hạn" / "Đã thanh toán đủ" — tính bằng shared `computeFifoAging` →
+  `maxOverdueDaysOf` trên cùng population + FIFO với KPI /debt (review
+  finding 1: `unpaidTrips` pre-FIFO có thể mâu thuẫn list rows).
+- Band figures ổn định (C4): "—" khi totals chưa tải (pattern band
+  /payables), giá trị CUỐI hiện nguyên khối khi có dữ liệu — bỏ count-up +
+  fake zeros.
+- AP (`/payables`, PayableDetailPage) giữ nguyên ngữ nghĩa due-status
+  (cuts 0/30/90) — chỉ đổi tên import (`AP_AGING_RANGES`); re-anchor AP cần
+  ticket riêng (out-of-scope SIL-580).
+
+Tests: `DebtListPage.band.test.tsx` (C1 nhãn band đúng khoảng tuổi, C2 một
+định nghĩa "quá hạn" + tooltip cả 2 mặt, C4 "—"/giá trị cuối atomic),
+`debt-payable-aging.test.tsx` (C1 grid chi tiết AR = tuổi nợ, C3 pill 3
+trạng thái + tooltip), cập nhật pin filters/sort/export theo nhãn mới + bỏ
+mock count-up/reduced-motion chết. Case:
+`testplan/2026-10-30-sil599-debt-labels-tuoi-no.md`.
+
 ## 2026-10-30 — fix(ux): SIL-597 (id 697) — ô "Ngày giờ đóng trả" trong bảng Thông tin hàng value-first, hết lộ khung input
 
 QA Glint: cột NGÀY GIỜ ĐÓNG TRẢ của từng container trên `/shipments/new`

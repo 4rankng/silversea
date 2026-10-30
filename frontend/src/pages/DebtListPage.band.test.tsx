@@ -36,11 +36,6 @@ vi.mock('../components/shared/Toast', () => ({
 vi.mock('../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
   useListAnimations: () => ({ rootRef: { current: null } }),
-  useCounterAnimation: () => ({ animateCounters: vi.fn() }),
-}));
-
-vi.mock('../hooks/usePrefersReducedMotion', () => ({
-  usePrefersReducedMotion: () => true,
 }));
 
 import DebtListPage from './DebtListPage';
@@ -157,16 +152,19 @@ describe('DebtListPage summary band (SIL-469)', () => {
     await screen.findAllByText('Công ty A');
 
     const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
-    fireEvent.click(within(band).getByRole('button', { name: /Quá hạn 1–30: / }));
+    fireEvent.click(within(band).getByRole('button', { name: /Tuổi nợ 31–60 ngày: / }));
 
-    await waitFor(() => expect(getCustomerAging.mock.calls.some((c) => (c[0] as { bucket?: string }).bucket === 'd30')).toBe(true));
+    await waitFor(() => expect(getCustomerAging.mock.calls.some((c) => {
+      const params: unknown = c[0];
+      return params != null && typeof params === 'object' && 'bucket' in params && params.bucket === 'd30';
+    })).toBe(true));
 
     // Re-render with the filter applied → the matching bucket is pressed.
     getCustomerAging.mockClear().mockResolvedValue(envelope);
     renderPage('/?filter=d30');
     await screen.findAllByText('Công ty A');
     const pressed = document.querySelector('.debt-band__bucket.is-active[aria-pressed="true"]') as HTMLElement;
-    expect(pressed?.getAttribute('aria-label')).toContain('Quá hạn 1–30');
+    expect(pressed?.getAttribute('aria-label')).toContain('Tuổi nợ 31–60 ngày');
   });
 
   it('colors the row overdue badge by bucket and folds the status into the total cell', async () => {
@@ -206,5 +204,45 @@ describe('DebtListPage summary band (SIL-469)', () => {
     expect(badgeBand('Không quá hạn').badge).toBeUndefined();
     expect(badgeBand('Không quá hạn').text).not.toContain('ngày');
     expect(badgeBand('Không quá hạn').total).toContain('· Trong hạn');
+  });
+});
+
+describe('DebtListPage debt vocabulary (SIL-599, ticket 699)', () => {
+  it('C1/C2: buckets speak "tuổi nợ" with the real age cuts; "quá hạn" stays the contractual KPI with its rule tooltip', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty A');
+    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
+
+    // Age bands (ruling 29/10 cuts 0–30 / 31–60 / 61–90 / trên 90) — one
+    // concept per word; the stale due-status labels must not come back over
+    // age data.
+    expect(within(band).getAllByText('Tuổi nợ')).toHaveLength(4);
+    for (const range of ['0–30 ngày', '31–60 ngày', '61–90 ngày', 'trên 90 ngày']) {
+      expect(within(band).getByText(range)).toBeTruthy();
+    }
+    expect(within(band).queryByText('Trong hạn (chưa đến hạn)')).toBeNull();
+    expect(within(band).queryByText(/Quá hạn 1–30/)).toBeNull();
+
+    // The contractual KPI keeps its word — and the chip carries the rule.
+    const chip = within(band).getByText('17 quá hạn');
+    expect(chip.getAttribute('title')).toContain('hạn thanh toán');
+    // The aging area carries the age rule (C2: both rules, both faces).
+    expect(document.querySelector('.debt-band__aging')?.getAttribute('title')).toContain('Tuổi nợ:');
+  });
+
+  it('C4: band figures are stable — em-dash until totals arrive, final value once loaded', async () => {
+    renderPage();
+    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
+    // Before the query resolves every figure is a placeholder — never a fake
+    // 0 ₫ and never a count-up through intermediate values. (hero + 2 chips
+    // + 4 bucket amounts = 7.)
+    expect(within(band).getAllByText('—')).toHaveLength(7);
+    expect(within(band).queryByText('0 ₫')).toBeNull();
+
+    await screen.findAllByText('Công ty A');
+    // Once loaded the figures print their FINAL value atomically — the old
+    // mount count-up painted 4.79M → 4.97M → 5.5M before settling (the
+    // ticket's secondary instability).
+    expect(within(band).getAllByText('3.007.273.111').length).toBeGreaterThan(0);
   });
 });

@@ -40,11 +40,6 @@ vi.mock('../components/shared/Toast', () => ({
 vi.mock('../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
   useListAnimations: () => ({ rootRef: { current: null } }),
-  useCounterAnimation: () => ({ animateCounters: vi.fn() }),
-}));
-
-vi.mock('../hooks/usePrefersReducedMotion', () => ({
-  usePrefersReducedMotion: () => true,
 }));
 
 import DebtListPage from './DebtListPage';
@@ -257,7 +252,7 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
     maxOverdueDays: 22,
   });
 
-  it('in the Quá hạn 1–30 view each row shows its share of the bucket, so rows sum to the card amount', async () => {
+  it('in the Tuổi nợ 31–60 view each row shows its share of the bucket, so rows sum to the card amount', async () => {
     getCustomerAging.mockResolvedValue({
       ...envelope,
       customers: [
@@ -271,7 +266,8 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
     await screen.findAllByText('LONG MINH');
     // The share column carries the bucket's own label (desktop header + the
     // mobile card lines render both in jsdom — assert presence, not count).
-    expect(screen.getAllByText('Nợ 1–30 ngày').length).toBeGreaterThan(0);
+    // SIL-599: the d30 bucket is age 31–60 — its label must say so.
+    expect(screen.getAllByText('Nợ 31–60 ngày').length).toBeGreaterThan(0);
     // ...and each row shows exactly its d30 share (2.2M + 1.6M + 1.0M = 4.8M
     // = the card amount).
     expect(screen.getAllByText('2.200.000 ₫').length).toBeGreaterThan(0);
@@ -284,6 +280,6 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
   it('without a bucket filter the share column is absent', async () => {
     renderPage();
     await screen.findAllByText('Công ty A');
-    expect(screen.queryByText('Nợ 1–30 ngày')).toBeNull();
+    expect(screen.queryByText('Nợ 31–60 ngày')).toBeNull();
   });
 });
