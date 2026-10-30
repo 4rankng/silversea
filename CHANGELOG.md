@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-10-30 — fix(ux): SIL-599 (id 699) — /debt tách bạch "tuổi nợ" và "quá hạn hợp đồng", band hết nháy số liệu
+
+QA Glint: `/debt` tự mâu thuẫn với chính nó và với chi tiết — pill "2 quá hạn",
+dòng "Nợ quá hạn / 6 ngày", nhưng band "0 ₫ · 0 KH quá hạn" mọi băng và
+`/debt/:id` ghi "Còn nợ trong hạn" 100% ở CHƯA ĐẾN HẠN. Nhãn band "QUÁ HẠN
+1–30…" khoác lên dữ liệu TUỔI NỢ (cắt 0–30/31–60/61–90/trên 90 — ruling 29/10);
+thẻ "Trong hạn" nháy giá trị trung gian (4.796.430 → 4.972.918 → 5.500.000 ₫)
+rồi mới chốt.
+
+Fix (pattern A — webchat gemini 30/10: "không thể đánh tráo bản chất kế toán…
+Tách biệt rõ hai khái niệm"; pattern B gộp nhãn sẽ mất tín hiệu cảnh báo nợ xấu):
+- C1 band + grid chi tiết đổi nhãn "TUỔI NỢ 0–30 / 31–60 / 61–90 / trên 90
+  ngày" (`AR_AGING_RANGES` mới trong `components/debt/aging.ts`); nhãn AP giữ
+  nguyên — re-anchor AP là ticket riêng (out-of-scope note SIL-580).
+- C2 chữ "quá hạn" chỉ còn ở KPI quá hạn hợp đồng (chip "N quá hạn", trạng thái
+  "Nợ quá hạn", cột "Quá hạn N ngày"); tooltip giải thích cả 2 mặt trên cả 2
+  trang (tuổi nợ = số ngày từ ngày ghi nhận; quá hạn = hạn xử lý → hạn gốc,
+  không có hạn thì đến hạn tại ngày ghi nhận).
+- C3 pill `/debt/:id` khớp danh sách: "Còn nợ quá hạn · N ngày" / "Còn nợ trong
+  hạn" / "Đã thanh toán đủ" — N lấy CHÍNH `maxOverdueDays` của dòng khách trên
+  endpoint aging (giống hệt cột "Quá hạn N ngày"); fallback cold-load tính qua
+  `calendarDaysPastDue` trên unpaidTrips (cùng due-date authority, domain hẹp
+  hơn — review F1).
+- C4 band hiện "—" khi totals chưa tải (pattern band /payables card 071026141620),
+  figure hiện giá trị cuối ngay — bỏ count-up 0 ₫ trung gian.
+
+Tests: `DebtListPage.band.test.tsx` (C1 nhãn, C2 "quá hạn" chỉ ở chip + tooltip
+title pins, C4 "—"/không count-up), `debt-payable-aging.test.tsx` (C1 grid AR đổi
+nhãn / AP giữ nguyên, C3 pill 3 trạng thái + tooltip pins). Sửa pin lạc hậu:
+`DebtListPage.filters.test.tsx` (cột share "Tuổi nợ 31–60 ngày"). Case:
+`testplan/2026-10-30-sil599-debt-labels-tuoi-no.md`.
+
 ## 2026-10-30 — fix(ux): SIL-597 (id 697) — ô "Ngày giờ đóng trả" trong bảng Thông tin hàng value-first, hết lộ khung input
 
 QA Glint: cột NGÀY GIỜ ĐÓNG TRẢ của từng container trên `/shipments/new`

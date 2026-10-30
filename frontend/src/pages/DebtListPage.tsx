@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency, moneyParts } from '../lib/format';
 import { api } from '../lib/api';
@@ -16,12 +16,8 @@ import { financialClient, type CustomerAgingResponse } from '../api/financialCli
 import { qk } from '../api/keys';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
-import {
-  usePageAnimations,
-  useListAnimations,
-  useCounterAnimation,
-} from '../hooks/animations';
-import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+import { usePageAnimations, useListAnimations } from '../hooks/animations';
+import { AGE_RULE_TIP, OVERDUE_RULE_TIP, AR_AGE_RANGES } from '../components/debt/aging';
 import { PartyMonthlyProductionSummary } from '../features/accounting/PartyMonthlyProductionSummary';
 import './DebtListPage.css';
 import '../styles/table-sort.css';
@@ -72,27 +68,28 @@ interface AgingBucket {
 
 /**
  * One filter mode per bucket. The four aging buckets must filter independently
- * so clicking "Quá hạn 1–30" shows only customers in that band, etc.
+ * so clicking "Tuổi nợ 31–60" shows only customers in that band, etc.
  * `'all'` is the unfiltered default. `'overdue'` has no lane card — it is the
- * cross-bucket "any overdue portion" aggregate the overview cards deep-link
- * to (?filter=overdue).
+ * cross-bucket aggregate of the bands older than 30 days (d30+d60+over90) the
+ * overview cards deep-link to (?filter=overdue).
  */
 type BucketFilterMode = 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue';
 
 const AGING_BUCKETS: AgingBucket[] = [
-  // Card 061026221213: the four bands are CONTRACTUAL due-status lanes (days
-  // past the effective due date, cut at 30/90 — see computeFifoAging) — "Trong
-  // hạn" / "Quá hạn 1–30" / "Quá hạn 31–90" / "Quá hạn trên 90", so every
-  // "Trong hạn"/"Quá hạn" word on the page means the same thing as the row
-  // chip and the KPI tiles. (P0-W6's lane intent, now truthful about bands.)
-  { key: 'current', label: 'Trong hạn (chưa đến hạn)', shortLabel: 'Trong hạn', subLabel: 'chưa đến hạn', amountKey: 'current', countKey: 'currentCusts', color: 'var(--success, #177448)', filterMode: 'current' },
-  { key: 'd30', label: 'Quá hạn 1–30', shortLabel: 'Quá hạn', subLabel: '1–30 ngày', amountKey: 'd30', countKey: 'd30Custs', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
-  { key: 'd60', label: 'Quá hạn 31–90', shortLabel: 'Quá hạn', subLabel: '31–90 ngày', amountKey: 'd60', countKey: 'd60Custs', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
-  { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', color: 'var(--danger, #E32434)', filterMode: 'over90' },
+  // SIL-599 + ruling SIL-580 R3 (29/10): the four bands are TUỔI NỢ — whole
+  // days since the recording date, cut at 30/60/90 (computeFifoAging). The
+  // word "quá hạn" belongs to the contractual overdue KPI alone (chip, row
+  // status, "Quá hạn N ngày" column) — never to these bands. The cut wording
+  // is single-sourced in components/debt/aging.ts (review F3).
+  { key: 'current', label: `Tuổi nợ ${AR_AGE_RANGES[0]}`, shortLabel: 'Tuổi nợ', subLabel: AR_AGE_RANGES[0], amountKey: 'current', countKey: 'currentCusts', color: 'var(--success, #177448)', filterMode: 'current' },
+  { key: 'd30', label: `Tuổi nợ ${AR_AGE_RANGES[1]}`, shortLabel: 'Tuổi nợ', subLabel: AR_AGE_RANGES[1], amountKey: 'd30', countKey: 'd30Custs', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
+  { key: 'd60', label: `Tuổi nợ ${AR_AGE_RANGES[2]}`, shortLabel: 'Tuổi nợ', subLabel: AR_AGE_RANGES[2], amountKey: 'd60', countKey: 'd60Custs', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
+  { key: 'over90', label: `Tuổi nợ ${AR_AGE_RANGES[3]}`, shortLabel: 'Tuổi nợ', subLabel: AR_AGE_RANGES[3], amountKey: 'over90', countKey: 'over90Custs', color: 'var(--danger, #E32434)', filterMode: 'over90' },
 ];
 
-/** SIL-469: the row's overdue age renders as one compact bucket-coloured
- *  badge (xanh 1–30 / vàng 31–60 / cam 61–90 / đỏ >90), never a bare number. */
+/** SIL-469: the row's contractual overdue span renders as one compact
+ *  bucket-coloured badge (xanh 1–30 / vàng 31–60 / cam 61–90 / đỏ >90),
+ *  never a bare number. */
 function overdueBand(days: number): 'ok' | 'warn' | 'deep' | 'danger' {
   if (days <= 30) return 'ok';
   if (days <= 60) return 'warn';
@@ -147,8 +144,8 @@ export default function DebtListPage() {
             : isOverdueAggregate ? d.aging.d30 + d.aging.d60 + d.aging.over90
               : 0;
   const bucketShareLabel = activeBucket
-    ? `Nợ ${activeBucket.subLabel}`
-    : isOverdueAggregate ? 'Nợ quá hạn' : null;
+    ? activeBucket.label
+    : isOverdueAggregate ? 'Tuổi nợ trên 30 ngày' : null;
   // Sort rides in the hook's filters bag: setFilter resets the page to 1 and
   // the queryKey stays keyed on the primitive param values (no refetch loops).
   const sortState: TableSortState | null = table.filters.sortBy != null && table.filters.sortDir != null
@@ -189,27 +186,16 @@ export default function DebtListPage() {
   const rawCustomers = useMemo(() => data?.customers ?? [], [data?.customers]);
   const totalCustomers = data?.total ?? rawCustomers.length;
   const error = queryError ? (queryError as Error).message : null;
+  // SIL-599 C4 (the /payables band's card 071026141620 pattern): the band's
+  // figures are only real once the query settled — before that every figure
+  // degrades to an em dash, never a 0 ₫ placeholder.
+  const bandReady = !loading && !error;
 
   /* ── Animation hooks ── */
-  const prefersReduced = usePrefersReducedMotion();
   const compact = false; // full VND everywhere — no short form (e.g. "12,5 tr")
   const { rootRef } = usePageAnimations({
     ready: !loading,
     selectors: ['.debt-band', '.debt-data-card'],
-  });
-  const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 300, stagger: 80 });
-
-  /* ── Counter refs ── */
-  const counterRefs = useRef<{
-    currentAmount: HTMLSpanElement | null;
-    d30Amount: HTMLSpanElement | null;
-    d60Amount: HTMLSpanElement | null;
-    over90Amount: HTMLSpanElement | null;
-  }>({
-    currentAmount: null,
-    d30Amount: null,
-    d60Amount: null,
-    over90Amount: null,
   });
 
   /* ── Data processing (preserved exactly) ── */
@@ -245,18 +231,8 @@ export default function DebtListPage() {
   const effectivePage = Math.min(page, totalDebtPages);
   const { rootRef: listRef } = useListAnimations({ itemSelector: '.m-card, table tbody tr', deps: [debts] });
 
-  /* ── Counter animation trigger ── */
-  useEffect(() => {
-    if (loading || prefersReduced) return;
-
-    const r = counterRefs.current;
-    animateCounters([
-      { el: r.currentAmount, value: totals.current, format: moneyParts(totals.current, compact).format },
-      { el: r.d30Amount, value: totals.d30, format: moneyParts(totals.d30, compact).format },
-      { el: r.d60Amount, value: totals.d60, format: moneyParts(totals.d60, compact).format },
-      { el: r.over90Amount, value: totals.over90, format: moneyParts(totals.over90, compact).format },
-    ]);
-  }, [loading, totals, prefersReduced, animateCounters, compact]);
+  /* ── Counter animation removed (SIL-599 C4): band figures print their final
+        value in one pass — never a 0 ₫ / count-up intermediate. ── */
 
   /* ── Helpers ── */
   const heroMoney = moneyParts(totals.total, false);
@@ -319,22 +295,33 @@ export default function DebtListPage() {
         <div className="debt-band__lead">
           <span className="debt-band__label">Tổng công nợ phải thu</span>
           <span className="debt-band__total">
-            {heroMoney.num} <span className="debt-band__unit">{heroMoney.unit}</span>
+            {bandReady
+              ? <>{heroMoney.num} <span className="debt-band__unit">{heroMoney.unit}</span></>
+              : '—'}
           </span>
           <div className="debt-band__chips">
-            <span className="debt-band__chip" data-tone={totals.overdueCount > 0 ? 'warning' : undefined}>
-              {totals.overdueCount} quá hạn
+            <span
+              className="debt-band__chip"
+              data-tone={bandReady && totals.overdueCount > 0 ? 'warning' : undefined}
+              title={OVERDUE_RULE_TIP}
+            >
+              {bandReady ? `${totals.overdueCount} quá hạn` : '—'}
             </span>
-            <span className="debt-band__chip" data-tone={totals.highRiskCount > 0 ? 'warning' : undefined}>
-              {totals.highRiskCount} rủi ro cao
+            <span
+              className="debt-band__chip"
+              data-tone={bandReady && totals.highRiskCount > 0 ? 'warning' : undefined}
+            >
+              {bandReady ? `${totals.highRiskCount} rủi ro cao` : '—'}
             </span>
           </div>
         </div>
-        <div className="debt-band__aging">
+        <div className="debt-band__aging" title={AGE_RULE_TIP}>
           <div
             className="debt-band__bar"
             role="img"
-            aria-label={`Phân bố hạn nợ: trong hạn ${formatCurrency(totals.current)}, quá hạn 1–30 ${formatCurrency(totals.d30)}, quá hạn 31–90 ${formatCurrency(totals.d60)}, quá hạn trên 90 ${formatCurrency(totals.over90)}`}
+            aria-label={bandReady
+              ? `Phân bố tuổi nợ: ${AGING_BUCKETS.map((bucket) => `${bucket.subLabel} ${formatCurrency(totals[bucket.amountKey])}`).join(', ')}`
+              : 'Phân bố tuổi nợ: đang tải số liệu'}
           >
             <div className="aging-bar__seg aging-bar__seg--ok" style={{ width: `${pctCurrent}%` }} />
             <div className="aging-bar__seg aging-bar__seg--t1" style={{ width: `${pctD30}%` }} />
@@ -363,16 +350,9 @@ export default function DebtListPage() {
                     <small>{bucket.subLabel}</small>
                   </span>
                   <span className="debt-band__bucket-figures">
-                    <span className="debt-band__bucket-amount" ref={(el) => {
-                      if (bucket.amountKey === 'current') counterRefs.current.currentAmount = el;
-                      else if (bucket.amountKey === 'd30') counterRefs.current.d30Amount = el;
-                      else if (bucket.amountKey === 'd60') counterRefs.current.d60Amount = el;
-                      else if (bucket.amountKey === 'over90') counterRefs.current.over90Amount = el;
-                    }}>
-                      {prefersReduced ? money.num : '0'}
-                    </span>
-                    <span className="debt-band__bucket-unit">{money.unit}</span>
-                    <span className="debt-band__bucket-count">· {count} KH</span>
+                    <span className="debt-band__bucket-amount">{bandReady ? money.num : '—'}</span>
+                    {bandReady && <span className="debt-band__bucket-unit">{money.unit}</span>}
+                    {bandReady && <span className="debt-band__bucket-count">· {count} KH</span>}
                   </span>
                 </button>
               );

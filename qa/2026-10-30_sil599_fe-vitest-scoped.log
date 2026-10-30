@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-699/frontend
+
+Not implemented: navigation to another Document
+
+ Test Files  10 passed (10)
+      Tests  49 passed (49)
+   Start at  15:47:12
+   Duration  24.41s (transform 4.21s, setup 5.47s, import 48.79s, tests 25.68s, environment 23.11s)
+

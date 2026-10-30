@@ -1,0 +1,54 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-699/frontend
+
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx (3 tests | 1 failed) 11139ms
+     × a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save: issues paint and the typed input is KEPT (no wipe, no silent dead key) 5478ms
+ ❯ src/styles/numeric-identity.styles.test.ts (6 tests | 2 failed) 43ms
+     × the production bundle holds the numeric law on the amount cells 3ms
+     × the production bundle holds the numeric law on the expense register cells 27ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the amount cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:31:13
+     29|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     30|     if (!existsSync(distAssets)) {
+     31|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     32|     }
+     33|     const sharedChunk = readdirSync(distAssets).find((f) => f.startsWi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the expense register cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:66:13
+     64|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     65|     if (!existsSync(distAssets)) {
+     66|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     67|     }
+     68|     // The Money component itself is the law's rendering: the built `.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx > shipment create Enter law (FB-002 lần 3, card 211026034109) > a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save: issues paint and the typed input is KEPT (no wipe, no silent dead key)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.enter-save.test.tsx:55:3
+     53|   });
+     54|
+     55|   it('a COMPLETE typed "Ngày giờ đóng trả" + Enter rides the form save…
+       |   ^
+     56|     renderWorkspace();
+     57|     await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed | 5 passed (7)
+      Tests  3 failed | 209 passed (212)
+   Start at  15:34:43
+   Duration  122.88s (transform 17.11s, setup 5.60s, import 53.17s, tests 260.77s, environment 22.25s)
+

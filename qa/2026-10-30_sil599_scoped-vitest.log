@@ -1,0 +1,13 @@
+CMD: npx vitest run src/pages/DebtListPage.band.test.tsx src/pages/DebtListPage.filters.test.tsx src/pages/DebtListPage.sort.test.tsx src/pages/DebtListPage.export.test.tsx src/pages/debt-payable-aging.test.tsx
+WHEN: 2026-10-30 14:49:18 +0800
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-699-1/frontend
+
+Not implemented: navigation to another Document
+
+ Test Files  5 passed (5)
+      Tests  25 passed (25)
+   Start at  14:49:20
+   Duration  15.45s (transform 3.24s, setup 4.42s, import 33.48s, tests 15.40s, environment 16.66s)
+
+EXIT=0
