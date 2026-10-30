@@ -234,7 +234,7 @@ export function AssignTruckGroupDialog({
       if (carrierKey === OWN_CARRIER_KEY) {
         setCarrierKey('');
         setActualTruckNo('');
-        setCarrierResetWarning('Loại xe tải 100% xe ngoài — đã bỏ lựa chọn Đội xe nội bộ. Chọn lại Nhà xe (xe ngoài).');
+        setCarrierResetWarning('Loại xe tải 100% xe ngoài — đã bỏ lựa chọn Đội xe nội bộ. Chọn lại Nhà xe.');
       }
       return;
     }
@@ -339,7 +339,7 @@ export function AssignTruckGroupDialog({
     }
     const actual = actualTruckNo.trim();
     if (!actual) {
-      setError('Nhập BKS thực của xe chạy chuyến');
+      setError('Nhập BKS thực');
       return;
     }
     // Same rule the server enforces — caught here so the operator never loses
@@ -361,7 +361,7 @@ export function AssignTruckGroupDialog({
       });
       toast({
         kind: 'success',
-        message: `Đã gán nhóm xe cho ${result.memberCount} lô — Lô 1 (${rows[0]?.reference ?? ''}) giữ 100% cước trả ĐV, các lô còn lại 0₫`,
+        message: `Đã gán nhóm xe cho ${result.memberCount} lô — Lô 1 (${rows[0]?.reference ?? ''}) giữ 100% cước trả ĐV.`,
       });
       onAssigned();
       onClose();
@@ -383,7 +383,7 @@ export function AssignTruckGroupDialog({
       onClose={onClose}
       openerRef={openerRef}
       title="Gán xe nhóm"
-      subtitle={`${rows.length} lô lẻ · Lô 1 giữ 100% cước trả ĐV, các lô còn lại 0₫`}
+      subtitle={`${rows.length} lô lẻ`}
       footer={
         <>
           {error && <p className="assign-truck-group__error" role="alert">{error}</p>}
@@ -395,12 +395,11 @@ export function AssignTruckGroupDialog({
       }
     >
       <div className="assign-truck-group">
-        <ol className="assign-truck-group__lots" title="Thứ tự chọn quyết định Lô 1 (giữ 100% cước)">
+        {/* SIL-709 — the lot list: numbering lives in each line ("Lô 1 · …"). */}
+        <ol className="assign-truck-group__lots">
           {rows.map((row, index) => (
             <li key={row.shipmentId}>
-              {index === 0 ? 'Lô 1 · ' : `Lô ${index + 1} · `}
-              {row.reference}
-              {row.customerName ? ` — ${row.customerName}` : ''}
+              {`Lô ${index + 1} · ${row.reference}${row.customerName ? ` — ${row.customerName}` : ''}`}
             </li>
           ))}
         </ol>
@@ -416,11 +415,13 @@ export function AssignTruckGroupDialog({
           searchable
           required
         />
-        {sourcingRule && (
+        {/* SIL-709 — the sourcing rule line only where it adds information
+            beyond the carrier field's placeholder: the 100%-external rung
+            restricts the PLATES. The cont rung's allowance ("Xe nội bộ hoặc
+            xe ngoài") is already the placeholder — say it once there. */}
+        {sourcingRule === LclVehicleSourcing.EXTERNAL_ONLY && (
           <p className="assign-truck-group__hint">
-            {sourcingRule === LclVehicleSourcing.EXTERNAL_ONLY
-              ? `${LCL_VEHICLE_SOURCING_LABELS[LclVehicleSourcing.EXTERNAL_ONLY]} — BKS xe nội bộ bị từ chối, biển số chỉ lấy từ nhà xe.`
-              : `${LCL_VEHICLE_SOURCING_LABELS[LclVehicleSourcing.INTERNAL_OR_EXTERNAL]} — chọn Đội xe nội bộ SilverSea hoặc Nhà xe.`}
+            {`${LCL_VEHICLE_SOURCING_LABELS[LclVehicleSourcing.EXTERNAL_ONLY]} — chỉ lấy BKS từ nhà xe.`}
           </p>
         )}
         {fitLine && (
@@ -465,13 +466,13 @@ export function AssignTruckGroupDialog({
             leaving the Gán xe nhóm flow (r25 guide step 3, lclspec). */}
         <div className="assign-truck-group__vehicle">
           <div className="assign-truck-group__vehicle-head">
-            <span className="assign-truck-group__label">BKS thực (xe chạy chuyến) <span aria-hidden="true">*</span></span>
+            <span className="assign-truck-group__label">BKS thực <span aria-hidden="true">*</span></span>
             {(ownFleet || externalCarrierId != null) && (
               <QuickAddButton onClick={() => setQuickAddOpen(true)} disabled={saving} />
             )}
           </div>
           <USearchableField
-            label="BKS thực (xe chạy chuyến)"
+            label="BKS thực"
             hideLabel
             value={actualTruckNo}
             onChange={(next) => setActualTruckNo(next)}
@@ -486,15 +487,22 @@ export function AssignTruckGroupDialog({
         {/* Spec 23/10 §3 field 4 (SIL-537 wording: "Cước trả ĐV Lô 1") —
             blank ⇒ the server traces the carrier price board; a typed value is
             the manual override that always wins (161026232319). */}
-        <NumberField
-          label="Cước trả ĐV Lô 1 (đ)"
-          value={manualFreightCost}
-          onChange={setManualFreightCost}
-          grouped
-          min={0}
-          placeholder="Bỏ trống = tự tra bảng giá"
-          helpText="Bỏ trống: hệ thống tự tra bảng giá cước trả nhà xe (tuyến × loại xe × nhà xe). Nhập tay: số tiền này thắng giá tra được — Lô 1 giữ 100%, các lô còn lại 0₫."
-        />
+        <div className="assign-truck-group__money-block">
+          <NumberField
+            label="Cước trả ĐV Lô 1 (đ)"
+            value={manualFreightCost}
+            onChange={setManualFreightCost}
+            grouped
+            min={0}
+            placeholder="Bỏ trống = tự tra bảng giá"
+          />
+          {/* SIL-709 — the ONE place the cước law is said: a small caption under
+              the field it explains (webchat deepseek 2nd opinion 30/10, verdict
+              1: under "Cước trả ĐV Lô 1" as a caption — a list-adjacent note
+              misreads as a list rule, a dialog footnote gets ignored; never a
+              helpText paragraph — design law §8 no-lecturing-copy). */}
+          <p className="assign-truck-group__note">Lô 1 giữ 100% cước trả ĐV · các lô còn lại 0₫</p>
+        </div>
       </div>
       {/* FB-066 — register a brand-new plate under the chosen source; the
           created plate is preselected and folds into the option list. */}

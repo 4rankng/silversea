@@ -1,0 +1,5 @@
+SIL-709 UI drive — persisted state around the popup open+cancel (read-only copy change).
+API identity: http://localhost:3002/api · role DISPATCHER (dieuvan) · route /dispatch-detail · lots: ["Chọn lô R42RV-D1","Chọn lô R42RV-D2"]
+before: {"tag":"before","groupedShipments":"10","lclShipmentsUngrouped":"57"}
+after:  {"tag":"after","groupedShipments":"10","lclShipmentsUngrouped":"57"}
+unchanged: true
