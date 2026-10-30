@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-592-cus-ext-close/frontend
+
+
+ Test Files  6 passed (6)
+      Tests  83 passed (83)
+   Start at  22:54:41
+   Duration  28.16s (transform 4.87s, setup 1.76s, import 15.27s, tests 28.43s, environment 6.27s)
+

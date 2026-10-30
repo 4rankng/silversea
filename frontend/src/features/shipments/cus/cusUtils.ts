@@ -9,6 +9,7 @@ import {
   ShipmentCusBucket,
   ShipmentDocumentCustody,
   TripStatus,
+  localDateInBusinessZone,
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
@@ -229,21 +230,35 @@ export function dispatchStatusLabel(status: ShipmentCusWorkspaceContainerLine['d
  * through the driver app; terminal states never re-close. And a trip that ran
  * must carry its biển số (trip-external-close, card 20261004_359): the
  * deferred-plate row shows no affordance until "Phân xe lại" fills the plate,
- * so the button never dead-ends at the server's 409. The row wire's
- * plateNumber is the fulfillment's planned plate — written in the same
- * issue/reassign command as the trip's external plate, so it is the faithful
- * precondition signal. Accepts the flat row or the container line.
+ * so the button never dead-ends at the server's 409. SIL-592 retest 30/10
+ * added the departure half: the close refuses while the trip's planned
+ * departure date (VN wall clock, assertCompletionNotBeforeDeparture card
+ * 061026221826) is still in the future, so a future-dated row must hide the
+ * affordance the same way the plate-less row does — no dead button. Null
+ * departureDate (legacy rows) leaves the gate to the server, mirroring the
+ * server's own skip. The row wire's plateNumber is the fulfillment's planned
+ * plate — written in the same issue/reassign command as the trip's external
+ * plate, so it is the faithful precondition signal. Accepts the flat row or
+ * the container line.
  */
 export function canCompleteExternalTrip(trip: {
   tripId?: number | null;
   tripStatus?: TripStatus | null;
   carrierType?: 'OWN' | 'EXTERNAL' | null;
   plateNumber?: string | null;
+  tripDepartureDate?: string | null;
 }): boolean {
-  return trip.tripId != null
+  if (!(trip.tripId != null
     && trip.carrierType === 'EXTERNAL'
     && (trip.tripStatus === TripStatus.CREATED || trip.tripStatus === TripStatus.IN_TRANSIT)
-    && (trip.plateNumber?.trim().length ?? 0) > 0;
+    && (trip.plateNumber?.trim().length ?? 0) > 0)) {
+    return false;
+  }
+  const departureDate = trip.tripDepartureDate?.slice(0, 10);
+  if (!departureDate) return true;
+  const today = localDateInBusinessZone(new Date());
+  if (!today) return true;
+  return departureDate <= today;
 }
 
 export function accountingConfirmationLabel(

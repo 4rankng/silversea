@@ -151,6 +151,7 @@ export function lotPseudoLine(
     dispatchStatus: row.dispatchStatus,
     tripId: null,
     tripStatus: null,
+    tripDepartureDate: null,
     carrierType: row.carrierType,
     externalCarrierId: null,
     externalCarrierVehicleId: null,

@@ -71,6 +71,7 @@ test('the workspace container line carries the per-cont number for sibling count
     dispatchStatus: 'AWAITING_VEHICLE',
     tripId: null,
     tripStatus: null,
+    tripDepartureDate: null,
     carrierType: null,
     externalCarrierId: null,
     externalCarrierVehicleId: null,

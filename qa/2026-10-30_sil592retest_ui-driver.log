@@ -1,0 +1,21 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175
+LOGIN ok cus
+T01 trip 519 departure_date=2026-10-31
+T01 row facts: {"closeButtons":0,"chip":"Đã tạo chuyến"}
+PASS T01 future-departure row renders NO close button (dead-end gone) — {"closeButtons":0,"chip":"Đã tạo chuyến"}
+T02 trip 519 departure corrected: 2026-10-30 (today=2026-10-30)
+PASS T02 departure is today — 2026-10-30 vs 2026-10-30
+T02 button facts: {"label":"Hoàn thành chuyến xe ngoài của R39B1-LCL01","text":"Hoàn thành"}
+PASS T02 same-day departure row renders the close button — Hoàn thành chuyến xe ngoài của R39B1-LCL01
+T03 dialog text: Hoàn thành chuyến với xe ngoài R39B1-LCL01? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.HủyHoàn thành chuyến
+PASS T03 dialog names the trip and the staff-close rationale — Hoàn thành chuyến với xe ngoài R39B1-LCL01? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.HủyHoàn thành chuyến
+PASS T04 success toast «Đã hoàn thành chuyến xe ngoài.» shown
+PASS T04 row dispatch chip flips to Hoàn thành — Hoàn thành
+T05 api row after close: tripId=519 tripStatus=COMPLETED dispatchStatus=COMPLETED
+PASS T05 API row persists tripStatus=COMPLETED — COMPLETED
+T06 db trip 519=COMPLETED|2026-10-30 14:59:21.204 · shipment 167=COMPLETED
+PASS T06 DB trip 519 COMPLETED with completed_at set — COMPLETED|2026-10-30 14:59:21.204
+PASS T06 DB shipment 167 COMPLETED (bucket law → Đã khóa) — COMPLETED
+T07 workspace lot: {"id":167,"bucket":"LOCKED","status":"COMPLETED"}
+PASS T07 lot bucket reads LOCKED (Đã khóa) — LOCKED
+DONE failures=0

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider, useToast } from './Toast';
 
@@ -68,5 +68,32 @@ describe('Toast announcements', () => {
     expect(region.parentElement).toBe(document.body);
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
     expect(within(region).getByText('Đã lưu lô hàng.')).toBeInTheDocument();
+  });
+
+  // Accessibility law (shipmate:uiux): an error toast stays until dismissed —
+  // an auto-dismissed error is an invisible error (SIL-592 retest 30/10: the
+  // close's 400 "Ngày hoàn thành không thể trước ngày khởi hành." vanished
+  // after 4.5s and the operator reported "không có thông báo lỗi").
+  it('keeps an error toast past the auto-dismiss window until the operator closes it', () => {
+    render(<ToastProvider><Controls /></ToastProvider>);
+    const region = screen.getByRole('log');
+    fireEvent.click(screen.getByRole('button', { name: 'Tải lại' }));
+    expect(within(region).getByText('Chưa tải được dữ liệu.')).toBeInTheDocument();
+    vi.advanceTimersByTime(10_000);
+    expect(within(region).getByText('Chưa tải được dữ liệu.')).toBeInTheDocument();
+    fireEvent.click(within(region).getByRole('button', { name: 'Đóng thông báo' }));
+    expect(region).toBeEmptyDOMElement();
+  });
+
+  it('still auto-dismisses success toasts — only errors persist', async () => {
+    render(<ToastProvider><Controls /></ToastProvider>);
+    const region = screen.getByRole('log');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    expect(within(region).getByText('Đã lưu lô hàng.')).toBeInTheDocument();
+    // 4.5s timer + the 400ms exit-animation fallback window (the mocked
+    // animejs never fires onComplete, so the safety timer does the removal).
+    // act() flushes the timer-driven state update before the assertion.
+    await act(async () => { vi.advanceTimersByTime(5_200); });
+    expect(region).toBeEmptyDOMElement();
   });
 });

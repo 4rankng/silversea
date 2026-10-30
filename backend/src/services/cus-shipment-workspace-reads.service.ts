@@ -155,6 +155,9 @@ export type AssignmentRow = {
   tripVersion: number | null;
   tripStatus: string | null;
   tripPlannedEndAt: Date | null;
+  /** Planned run date (YYYY-MM-DD) of the linked trip — the staff-close gate's
+   *  departure half (SIL-592 retest 30/10). */
+  tripDepartureDate: string | null;
   tripCarrierType: string | null;
   tripExternalCarrierId: number | null;
   tripExternalCarrierVehicleId: number | null;
@@ -419,6 +422,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       tripVersion: s.trips.version,
       tripStatus: s.trips.status,
       tripPlannedEndAt: s.trips.plannedEndAt,
+      tripDepartureDate: s.trips.departureDate,
       tripCarrierType: s.tripCarrierInfo.carrierType,
       tripExternalCarrierId: s.tripCarrierInfo.externalEntityId,
       tripExternalCarrierVehicleId: s.tripCarrierInfo.externalCarrierVehicleId,
@@ -1097,6 +1101,7 @@ function buildLotFlatRow(
     // the list wire (container rows carry the twin fields from the line).
     tripId: lotAssignment?.tripId ?? null,
     tripStatus: (lotAssignment?.tripStatus as TripStatus | null) ?? null,
+    tripDepartureDate: lotAssignment?.tripDepartureDate ?? null,
     plateNumber: identity.plateNumber,
     // Card 161026232339 — the FB-092/093 group truck + the two billing classes
     // the settlement strip already prints. The Điều vận assignment's planned
@@ -1313,6 +1318,7 @@ export async function listCusShipmentContainers(
       // SIL-592 (id 692) — staff-close gating triple, same law as the lot rows.
       tripId: line.tripId,
       tripStatus: line.tripStatus,
+      tripDepartureDate: line.tripDepartureDate,
       plateNumber: line.plateNumber,
       // Card 161026232339: same fields the lot rows carry, so the flat
       // schema stays one shape. FCL containers never bill into an LCL group —

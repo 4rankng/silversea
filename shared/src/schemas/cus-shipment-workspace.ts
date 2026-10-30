@@ -426,6 +426,12 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
    *  staff close ("Hoàn thành") for external-carrier lines. */
   tripId: z.number().int().positive().nullable(),
   tripStatus: z.nativeEnum(TripStatus).nullable(),
+  // SIL-592 retest 30/10 — the trip's planned departure date (YYYY-MM-DD, as
+  // stored) rides the line so the staff-close gate can hide "Hoàn thành" while
+  // the run is still scheduled in the future: the close would always 400 on
+  // the departure law (trip-status-machine assertCompletionNotBeforeDeparture),
+  // a dead button. Null (legacy) leaves the gate to the server alone.
+  tripDepartureDate: z.string().nullable(),
   carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   externalCarrierId: z.number().int().positive().nullable(),
   externalCarrierVehicleId: z.number().int().positive().nullable(),
@@ -836,6 +842,11 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   // nullable like the line's twin (both flat-row producers emit them).
   tripId: z.number().int().positive().nullable(),
   tripStatus: z.nativeEnum(TripStatus).nullable(),
+  // SIL-592 retest 30/10 — flat-row twin of the line's tripDepartureDate: the
+  // departure-date half of the staff-close gate (hide "Hoàn thành" while the
+  // external run is still in the future — the server close would always
+  // refuse, a dead button). Required nullable like the twin fields.
+  tripDepartureDate: z.string().nullable(),
   plateNumber: z.string().nullable(),
   // Card 161026232339 (DEV SPEC Hàng lẻ §II.3.1) — the FB-092/093 group truck
   // and the two BILLING classes ride the row, so the Chi Tiết workboard can
