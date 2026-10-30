@@ -191,7 +191,7 @@
    label (TRỌNG LƯỢNG, ~11ch uppercase) shares the row with a usable
    numeric value — 190px clears label + "Nhập kg" on one line + cell
    padding; the freed width still flows to the auto columns at real widths
-   (min-width 844 keeps three ~72px auto tracks at the floor, where values
+   (min-width keeps three ~72px auto tracks at the floor, where values
    wrap per the no-truncation doctrine instead of clipping). */
 .csc-container-col__contgroup { width: 190px; }
 /* SIL-701 (§10.2.3 UX note 26/10 — "cột Số tờ khai vừa 11 ký tự"): the
@@ -440,6 +440,10 @@
   /* SIL-508: the merged SỐ/LOẠI/TRỌNG LƯỢNG group is ONE stacked record
      section on the phone — it owns the full row, not half of it. */
   .csc-container-row .csc-contgroup-cell { grid-column: 1 / -1; }
+  /* SIL-600: số tờ khai rides the same full-row band — an 11-digit code
+     never shares a phone half-column, and the auto-placement flow after the
+     full-row group stays deterministic. */
+  .csc-container-row td[data-field-id$='-declaration'] { grid-column: 1 / -1; }
   /* Route seam marker: Cảng nâng → Cảng hạ reads as one leg of the journey. */
   .csc-container-row td[data-field-id$='-pickup-port']::after { content: ''; position: absolute; z-index: 2; top: 35px; right: -11px; width: 7px; height: 7px; border-top: 2px solid var(--fg-3); border-right: 2px solid var(--fg-3); transform: rotate(45deg); pointer-events: none; }
   /* In-cell affordances align to the control band, under the new label line. */

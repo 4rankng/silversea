@@ -628,9 +628,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   it('SIL-521 + SIL-701: không còn ô Số tờ khai CẤP LÔ — per-cont column rides containers[]', async () => {
     // Supersede VID-CUS-04 + card 328 pins: the chip strip and its draft/
     // dedupe/retry machinery are retired — lot-level tờ khai is gone for
-    // good (SIL-521 điểm 4). Owner ruling 30/10 (SIL-701) REVERSES the
-    // per-cont half of the old pin: the create form now carries a per-cont
-    // SỐ TỜ KHAI column that enters at create time through
+    // good (SIL-521 điểm 4). Owner ruling 30/10 (SIL-701/SIL-600) REVERSES
+    // the per-cont half of the old pin: the create form now carries a
+    // per-cont SỐ TỜ KHAI column that enters at create time through
     // `containers[].declarationNumber` — never a lot-level key, never a
     // shipment_declarations entity.
     mocks.quickCreate.mockResolvedValue({ id: 90, version: 1 });
@@ -638,7 +638,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
 
-    // Lot-level declaration UI stays absent (identity section untouched)…
+    // Per-cont inputs exist inside the container sheet (SIL-600)…
+    expect(screen.getAllByLabelText('Số tờ khai').length).toBeGreaterThanOrEqual(1);
+    // …while every lot-level channel stays retired.
     expect(document.querySelector('[data-field-id="shipment-declarations"]')).toBeNull();
     expect(document.querySelector('.csc-declaration-strip')).toBeNull();
     // …while the per-cont column is present and writable at create time.

@@ -90,11 +90,12 @@ describe('buildShipmentEditPrefill', () => {
     expect(prefill.containers).toHaveLength(1);
     expect(prefill.containers[0].id).toBe(55);
     expect(prefill.containers[0].containerTypeId).toBe('31');
+    // SIL-701: per-cont số tờ khai round-trips through edit mode — the form
+    // shows what the row stores, and a save re-asserts it unchanged (an edit
+    // save re-sends the shown value, never silently clears it).
+    expect(prefill.containers[0].declarationNumber).toBe('TK-001');
     // +07:00 ISO → local datetime input (inverse of localDateTimeToIso).
     expect(prefill.containers[0].customerAppointmentAt).toBe('2026-10-20T08:30');
-    // SIL-701: per-cont số tờ khai round-trips through edit mode — the form
-    // shows what the row stores, and a save re-asserts it unchanged.
-    expect(prefill.containers[0].declarationNumber).toBe('TK-001');
     // A row without a stored number seeds an EMPTY entry cell (never 'null').
     detail.containers = [{ ...detail.containers[0], declarationNumber: null } as ShipmentEditDetail['containers'][number]];
     expect(buildShipmentEditPrefill(detail).containers[0].declarationNumber).toBe('');

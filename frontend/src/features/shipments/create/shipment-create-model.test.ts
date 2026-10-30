@@ -175,26 +175,47 @@ describe('shipment create model', () => {
     expect(createEmptyContainer().cargoVolumeCbm).toBe('');
   });
 
-  it('copies a preceding container except the per-cont identifiers (REQ-22 REVERSED + SIL-701)', () => {
+  it('initializes per-container SỐ TỜ KHAI as empty string and trims/nulls it in the payload (SIL-600)', () => {
+    expect(createEmptyContainer().declarationNumber).toBe('');
+    const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', cargoMode: 'FCL' as const, tradeDirection: 'EXPORT' as const, bookingRef: 'BK' };
+    const typed = { ...container, containerTypeId: '31', declarationNumber: '  TK-0123456789  ' };
+    expect(buildShipmentContainerPayload(form, [typed])).toMatchObject([{ declarationNumber: 'TK-0123456789' }]);
+    const emptied = { ...container, containerTypeId: '31', declarationNumber: '   ' };
+    expect(buildShipmentContainerPayload(form, [emptied])).toMatchObject([{ declarationNumber: null }]);
+  });
+
+  it('allows two rows to carry the SAME số tờ khai (SIL-521 duplicates-allowed model)', () => {
+    const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', cargoMode: 'FCL' as const, tradeDirection: 'EXPORT' as const, bookingRef: 'BK' };
+    const first = { ...container, containerNumber: 'MSCU6639870', containerTypeId: '31', declarationNumber: 'TK-SHARED-01' };
+    const second = { ...container, key: 'row-2', containerNumber: 'MSCU6639871', containerTypeId: '31', declarationNumber: 'TK-SHARED-01' };
+    const payload = buildShipmentContainerPayload(form, [first, second]);
+    expect(payload).toHaveLength(2);
+    expect(payload[0].declarationNumber).toBe('TK-SHARED-01');
+    expect(payload[1].declarationNumber).toBe('TK-SHARED-01');
+  });
+
+  it('copies a preceding container except Số container and Loại cont (REQ-22 REVERSED)', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'row-2' });
     const copied = createContainerFromPrevious({
       ...container,
+      declarationNumber: 'TK-0123456789',
       customerAppointmentAt: '2026-08-20T09:30',
     });
 
     // REQ-22 REVERSED (ticket 221026173728, 22/10; SIL-488 — workspace gap of
     // reversal 093c5334): "Thêm container" inherits the previous row's shared
     // fields — route, factory, ports, weight and the schedule window — but the
-    // per-container identifiers stay empty: Số container for entry, Loại cont
-    // ("Chọn loại") for the operator's own pick, and Số tờ khai (SIL-701:
-    // thêm container mới KHÔNG lan tờ khai — declarations spread only through
-    // the drawer's explicit copy affordance, FB-109).
+    // two per-container identifiers stay empty: Số container for entry and
+    // Loại cont ("Chọn loại") for the operator's own pick. SIL-701/SIL-600:
+    // SỐ TỜ KHAI belongs to the shared half — one declaration usually covers
+    // the lot, so the copy carries it and each row stays editable (divergence
+    // allowed).
     expect(copied).toMatchObject({
       ...container,
       key: 'row-2',
       containerNumber: '',
       containerTypeId: '',
-      declarationNumber: '',
+      declarationNumber: 'TK-0123456789',
       customerAppointmentAt: '2026-08-20T09:30',
     });
   });

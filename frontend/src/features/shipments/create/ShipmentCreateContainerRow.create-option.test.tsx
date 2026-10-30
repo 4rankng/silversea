@@ -16,6 +16,7 @@ function baseProps(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
     key: "row-1",
     containerNumber: "TGHU1234567",
     containerTypeId: "1",
+    declarationNumber: "",
     routeId: "",
     rawRouteName: "",
     pickupPortId: "",
@@ -25,7 +26,6 @@ function baseProps(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
     cargoWeightKg: "15000",
     cargoVolumeCbm: "",
     customerAppointmentAt: "2026-10-10T08:00:00",
-    declarationNumber: "",
     operationalSiteId: "1",
     rawFactoryName: "",
   };
