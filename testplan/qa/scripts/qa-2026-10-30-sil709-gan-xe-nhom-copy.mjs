@@ -21,7 +21,10 @@ import path from 'node:path';
 const require2 = createRequire(import.meta.dirname + '/../../../package.json');
 const puppeteer = require2('puppeteer-core');
 
-const BASE = process.env.QA_BASE || 'http://localhost:7177';
+// House port contract (card 20260928_192, dev-port-contract.test): scripts
+// default to the Makefile contract ports (fe 7175 / be 3002); a worktree with
+// a different server passes QA_BASE/QA_API env overrides instead.
+const BASE = process.env.QA_BASE || 'http://localhost:7175';
 const API = process.env.QA_API || 'http://localhost:3002/api';
 const OUT = path.resolve(import.meta.dirname, '../../../qa');
 fs.mkdirSync(OUT, { recursive: true });

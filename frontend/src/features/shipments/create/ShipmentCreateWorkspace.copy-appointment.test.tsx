@@ -141,7 +141,7 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
   // SIL-513: the retired "Copy giờ hẹn cho tất cả N cont" chip (and its
   // applyAppointmentToAll handler) must not come back — the copy affordances
   // are the STT duplicate + the copy-down button + the bulk field.
-  it('retires the copy-ALL chip in Lịch & ghi chú', async () => {
+  it('retires the copy-ALL chip from the form', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
@@ -170,8 +170,10 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
   });
 
   // Copy-down (FB-008/009 lineage) survives on its section-level button: a
-  // scheduled source + rows still without a schedule.
-  it('offers a visible section-level copy button in Lịch & ghi chú while other rows lack a schedule', async () => {
+  // scheduled source + rows still without a schedule. SIL-611 relocated the
+  // button INTO the Thông tin hàng section, directly under the table it
+  // fills (the "Lịch & ghi chú" band is gone).
+  it('offers a visible copy-down button under the container table while other rows lack a schedule', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
@@ -183,6 +185,9 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     fillAppointment(0, '20/09/2026', '09:00');
     const sectionButton = await screen.findByRole('button', { name: /Copy giờ hẹn xuống cont trống/ });
     expect(sectionButton).toBeTruthy();
+    // The button lives INSIDE the Thông tin hàng section — never a separate
+    // schedule band again (SIL-611).
+    expect(sectionButton.closest('#shipment-section-cargo')).toBeTruthy();
 
     fireEvent.click(sectionButton);
     await waitFor(() => expect(appointmentValue(1).date).toBe('20/09/2026'));

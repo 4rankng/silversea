@@ -1,0 +1,18 @@
+{"at":"2026-10-30T14:37:58.718Z","step":"start","base":"http://localhost:7177","api":"http://localhost:3002/api"}
+{"at":"2026-10-30T14:37:58.798Z","step":"db-before","shipments":"548"}
+{"at":"2026-10-30T14:37:58.946Z","step":"login","verdict":"PASS","status":200,"role":"DISPATCHER"}
+{"at":"2026-10-30T14:38:03.949Z","step":"page-loaded","verdict":"PASS","url":"http://localhost:7177/shipments/new"}
+{"at":"2026-10-30T14:38:03.968Z","step":"BAND-01","verdict":"PASS","scheduleCount":0,"oldHeading":false}
+{"at":"2026-10-30T14:38:03.969Z","step":"ORDER-02","verdict":"PASS","ids":["shipment-section-mode","shipment-section-identity","shipment-section-cargo","shipment-section-notes"],"notesIsLast":true,"notesHasCargoBefore":true}
+{"at":"2026-10-30T14:38:03.970Z","step":"NOTES-03","verdict":"PASS","textareas":2,"customerLabel":true,"driverLabel":true,"heading":"Ghi chú"}
+{"at":"2026-10-30T14:38:05.300Z","step":"COPY-04-idle","verdict":"PASS","copyBtnBefore":0}
+{"at":"2026-10-30T14:38:05.750Z","step":"COPY-04-focus","verdict":"PASS","activeSeg":"dd"}
+{"at":"2026-10-30T14:38:08.049Z","step":"COPY-04-nam2gio","verdict":"PASS","activeAfterDate":"hh"}
+{"at":"2026-10-30T14:38:09.507Z","step":"COPY-04-typed","verdict":"PASS","date":"20/10/2026","time":"09:00"}
+{"at":"2026-10-30T14:38:09.509Z","step":"COPY-04-location","verdict":"PASS","exists":true,"inCargo":true}
+{"at":"2026-10-30T14:38:10.476Z","step":"COPY-04-click","verdict":"PASS","r1":{"date":"20/10/2026","time":"09:00"},"r2":{"date":"20/10/2026","time":"09:00"},"r3":{"date":"20/10/2026","time":"09:00"},"toast":true}
+{"at":"2026-10-30T14:38:12.075Z","step":"shot-1440","verdict":"PASS"}
+{"at":"2026-10-30T14:38:13.370Z","step":"LCL-05","verdict":"PASS","notes":0,"schedule":0,"notesLabels":false}
+{"at":"2026-10-30T14:38:15.022Z","step":"shot-768","verdict":"PASS"}
+{"at":"2026-10-30T14:38:15.759Z","step":"shot-390","verdict":"PASS"}
+{"at":"2026-10-30T14:38:16.010Z","step":"READONLY","verdict":"PASS","posts":0,"before":"548","after":"548"}
