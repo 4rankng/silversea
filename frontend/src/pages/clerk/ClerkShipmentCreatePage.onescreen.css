@@ -17,15 +17,20 @@
  *
  * Structure (§5 law: a form must never force vertical scrolling on a wide
  * screen — the worksheet spreads horizontally):
- *   r1  mode (c1)            | identity (c2, spans r1-r2)
- *   r2  freight preview (c1) |   (freight card renders only when the pricing
- *                              engine has data — :has() collapses its row)
- *   r3  schedule (FCL) / route (LCL) — full width
+ *   r1  mode (c1, stretches; FCL bulk datetime rides here per SIL-587/598)
+ *       | identity (c2) — EQUAL-HEIGHT siblings
+ *   r2  freight preview (full width, only when the pricing engine has data
+ *       — :has() collapses its row)
+ *   r3  schedule = notes pair (FCL) / route (LCL) — full width
  *   r4  cargo (container sheet — needs the full 1164px min-width) — full
  *   SIL-510: the action bar is NOT a grid row — it is the viewport-fixed
  *   footer (`.csc-form-actions`), always visible while scrolling.
- *   Identity re-flows internally: contact+refs bands stack in column 1,
- * choices + declaration strip stack in column 2 — same DOM, same order.
+ *   SIL-596 (id 696, owner 30/10): the strip column that let identity span
+ *   r1-r2 is retired (SIL-521), so identity is a single-column card that
+ *   FILLS c2 (bands stack full-width in DOM order — no dead column) and
+ *   mode stretches to match it — a short mode card left a 190px white row
+ *   under it (qa/2026-10-30_sil596-before, 1307px evidence). The freight
+ *   card takes a full-width row so c2 never sits empty beside it.
  */
 @media (min-width: 1280px) {
   .csc-page { padding: 4px 0; }
@@ -34,16 +39,25 @@
      its children join the worksheet grid. */
   .csc-form { display: contents; }
 
-  #shipment-section-mode { grid-area: 1 / 1 / 2 / 2; align-self: start; }
-  [data-freight-preview] { grid-area: 2 / 1 / 3 / 2; align-self: start; margin: 0; }
-  #shipment-section-identity { grid-area: 1 / 2 / 3 / 3; align-self: start; }
+  /* SIL-596 (id 696, owner 30/10): row 1 = mode + identity as EQUAL-HEIGHT
+     siblings. The strip tenant that justified identity spanning r1-r2 and
+     a start-aligned mode card is gone (SIL-521) — that combo measured
+     190px of white under mode and a ~314px dead column inside identity
+     (qa/2026-10-30_sil596-before, 1307px). SIL-598: the FCL bulk datetime
+     fills the mode card's second row and its content CENTERS, so the
+     stretched card reads as balanced padding, never as an empty frame. */
+  #shipment-section-mode { grid-area: 1 / 1 / 2 / 2; align-self: stretch; align-content: center; }
+  #shipment-section-identity { grid-area: 1 / 2 / 2 / 3; }
+  /* Freight preview renders only with full pricing data — it owns a FULL
+     -width row so column 2 never sits empty beside it (§10.8.2: hide a
+     column only when it is empty; no orphan grid cell). */
+  [data-freight-preview] { grid-area: 2 / 1 / 3 / 3; align-self: start; margin: 0; }
   #shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }
   #shipment-section-route { grid-area: 3 / 1 / 4 / 3; }
   #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }
 
   /* No freight preview → pull schedule/route up into its row, so no empty
      track (and no orphan gaps) is left behind. */
-  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-identity { grid-area: 1 / 2 / 2 / 3; }
   .csc-workspace:not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 2 / 1 / 3 / 3; }
   .csc-workspace:not(:has([data-freight-preview])) #shipment-section-route { grid-area: 2 / 1 / 3 / 3; }
   .csc-workspace:not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 3 / 1 / 4 / 3; }
@@ -73,16 +87,13 @@
   .csc-section__heading > div { flex-wrap: nowrap; align-items: baseline; }
   .csc-section__heading p { margin: 0; white-space: nowrap; }
 
-  /* Identity: the choices chips take ONE full-width line (sr-only group
-     label), the contact + refs bands stack in the wide column (fields keep
-     ~210px — values like QA-QAENV01-FCL-IMP never clip), and the declaration
-     strip owns the narrow column across both rows (its chip field scrolls
-     internally, capped at 120px). Same DOM, same order — placement is
-     visual only, tab order is untouched. */
-  #shipment-section-identity { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
-  .csc-identity-grid--contact { grid-column: 1; grid-row: 3; }
-  .csc-identity-grid--refs { grid-column: 1; grid-row: 4; }
-  .csc-identity-grid--choices { grid-column: 1 / -1; grid-row: 2; }
+  /* SIL-596 (id 696, owner 30/10): the identity card is ONE column again —
+     the narrow right column existed only to host the tờ khai strip, which
+     SIL-521 retired; keeping `3fr/2fr` + the col-1 pins left a permanent
+     ~40%-width dead cell (evidence qa/2026-10-30_sil596-before). The bands
+     now stack full-width in DOM order (contact → refs → choices), exactly
+     like ≤1279. Density pins for the choices chips stay (one nowrap chip
+     line at ≥1280). */
   .csc-identity-grid--choices .csc-identity-grid__flags-label {
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
@@ -91,14 +102,11 @@
   .csc-identity-grid--choices .csc-flag-checkbox { padding-inline: 9px; }
   #shipment-section-identity .csc-field-warning { grid-column: 1 / -1; }
 
-  /* Schedule: the bulk-entry group and the two notes share ONE row —
-     bulk keeps its ~150px datetime floor, the notes pair keeps two
-     proper columns beside it. */
-  #shipment-section-schedule { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; }
-  #shipment-section-schedule > .csc-section__heading { grid-column: 1 / -1; }
-  #shipment-section-schedule .csc-bulk-appointment { grid-column: 1 / 2; grid-row: 2; }
-  #shipment-section-schedule .csc-bulk-appointment .csc-uui-field { flex: 1 1 150px; min-width: 150px; }
-  #shipment-section-schedule .csc-notes-grid { grid-column: 2 / 3; grid-row: 2; }
+  /* Schedule (SIL-598, id 698): the bulk datetime moved up into the mode
+     band (SIL-587 doctrine) — the old 1fr/2fr split left a ~265px dead
+     strip beside its 150px control. The band is now the notes pair on ONE
+     full-width row (its own 2-col grid) + the copy-down chip; the section's
+     single-column flow places them with no placement pins. */
   /* rows=3/4 attributes stop driving the notes height — the read-only box
      shows ~2 lines and scrolls internally. */
   .csc-section textarea { height: 48px; min-height: 48px; }
