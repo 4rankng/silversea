@@ -428,6 +428,7 @@ test('container flat row carries the SIL-592 staff-close gating fields', () => {
     operationalNotes: null,
     tripId: 55,
     tripStatus: 'IN_TRANSIT',
+    tripDepartureDate: '2026-10-31',
     raw: { containerNumber: 'MSKU1234567', containerTypeId: 1, cargoWeightKg: null, cargoVolumeCbm: null },
     fieldAccess: {
       operationalSiteId: directField,
@@ -456,6 +457,9 @@ test('container flat row carries the SIL-592 staff-close gating fields', () => {
   assert.equal(parsed.success, true);
   assert.equal(parsed.success && parsed.data.tripId, 55);
   assert.equal(parsed.success && parsed.data.tripStatus, 'IN_TRANSIT');
+  // Retest 30/10 — the departure half rides the row too: the gate hides the
+  // staff close while the trip's planned departure is still in the future.
+  assert.equal(parsed.success && parsed.data.tripDepartureDate, '2026-10-31');
   // A planned line (no live trip yet) must also validate — null is the wire's
   // "no completable trip" reading the gate consumes.
   const planned = shipmentCusContainerFlatRowSchema.safeParse({
@@ -463,6 +467,7 @@ test('container flat row carries the SIL-592 staff-close gating fields', () => {
     dispatchStatus: 'PLANNED',
     tripId: null,
     tripStatus: null,
+    tripDepartureDate: null,
     carrierType: null,
   });
   assert.equal(planned.success, true);
