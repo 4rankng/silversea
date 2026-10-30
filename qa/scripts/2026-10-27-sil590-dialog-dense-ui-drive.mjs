@@ -6,7 +6,9 @@
 //      (same field-wrapper offsetTop ±2px); Đóng kết hợp (FCL) on the same
 //      row's last track.
 //   3. Money inputs are content-sized: measured field width ≤ 205px.
-//   4. Giờ điều vận + Giờ trả hàng still share their own row (SIL-520).
+//   4. Giờ điều vận owns the datetime row full-width — id 712 (owner 30/10)
+//      removed the Giờ trả hàng field, so the dialog carries exactly ONE
+//      datetime field (the former SIL-520 pair law is gone).
 //   5. The modal body does not scroll with the form + Phát lệnh fieldset.
 //
 // Usage: cd frontend && QA_BASE_URL=http://localhost:7185 \
@@ -127,7 +129,7 @@ const data = await page.evaluate(() => {
     topCost: topOf('.dispatch-assignment-dialog__cost'),
     topCombined: topOf('.dispatch-assignment-dialog__check'),
     topRun: topOf('.dispatch-assignment-dialog__run-field'),
-    topEnd: topOf('.dispatch-assignment-dialog__end-field'),
+    datetimeFields: document.querySelectorAll('.dispatch-assignment-dialog__run-field, .dispatch-assignment-dialog__end-field').length,
     gridRowClassification: gridRowOf('.dispatch-assignment-dialog__classification'),
     gridRowRevenue: gridRowOf('.dispatch-assignment-dialog__revenue'),
     gridRowCost: gridRowOf('.dispatch-assignment-dialog__cost'),
@@ -155,9 +157,8 @@ if (data.topCombined != null) {
 }
 check('money field content-sized (≤205px)', data.moneyWidths.every((m) => m.w <= 205), data.moneyWidths);
 check('money input itself narrow (≤170px)', data.inputWidths.every((w) => w <= 170), data.inputWidths);
-if (data.topRun != null && data.topEnd != null) {
-  check('Giờ điều vận + Giờ trả hàng share their own row (SIL-520 pair law)', Math.abs(data.topRun - data.topEnd) <= 2, { topRun: data.topRun, topEnd: data.topEnd });
-}
+check('exactly ONE datetime field renders — Giờ điều vận (the Giờ trả hàng field was removed)', data.datetimeFields === 1 && data.topRun != null, { datetimeFields: data.datetimeFields, topRun: data.topRun });
+check('Giờ điều vận owns the datetime row full-width', typeof data.gridTemplate === 'string' && data.gridTemplate.includes('run run run run'), { template: data.gridTemplate });
 check('modal body does NOT scroll (full form visible, SIL-520)', data.bodyScroll ? data.bodyScroll.sh <= data.bodyScroll.ch + 1 : false, data.bodyScroll);
 
 await page.screenshot({ path: resolve(OUT, 'dialog-on-page-1440.png') });

@@ -52,11 +52,12 @@ const PAIRED_TRUCK = {
 };
 
 /**
- * SIL-473 (QA Glint R41, regression of SIL-80/DIS-05) — the 'Sửa điều phối'
- * dialog must carry BOTH times: 'Giờ điều vận' (the row's run schedule —
- * the container appointment the time column displays) AND 'Giờ trả hàng'
- * (the staged fulfillment override). QA repro: the dialog shipped only
- * 'Giờ trả hàng'; 'Giờ điều vận' was nowhere in it.
+ * id 712 (owner 30/10, on top of SIL-473 / DIS-05 theo SIL-80) — the 'Sửa
+ * điều phối' dialog carries exactly ONE datetime field: 'Giờ điều vận' (the
+ * row's run schedule — the container appointment the time column displays).
+ * The 'Giờ trả hàng' field (the SIL-80 addition) is REMOVED from this dialog;
+ * a stored return-time override stays untouched on every save. QA repro: the
+ * dialog showed BOTH fields side by side (owner screenshot 30/10).
  */
 const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlanRow => ({
   fulfillmentId: 101,
@@ -138,13 +139,14 @@ const runHour = () => screen.getByLabelText('Giờ — Giờ điều vận') as 
 const runMinute = () => screen.getByLabelText('Phút — Giờ điều vận') as HTMLInputElement;
 const saveButton = () => screen.getByRole('button', { name: /Lưu thay đổi/ });
 
-describe('SIL-473 — the Sửa điều phối dialog carries Giờ điều vận beside Giờ trả hàng', () => {
-  it('renders the Giờ điều vận field (the regression: it was absent) next to Giờ trả hàng', async () => {
+describe('id 712 — the Sửa điều phối dialog carries exactly ONE datetime field: Giờ điều vận', () => {
+  it('renders Giờ điều vận and NOT the removed Giờ trả hàng field', async () => {
     mockFleetResources();
     renderCell(row(), vi.fn().mockResolvedValue(savedPlan()));
     await openDialog();
     expect(screen.getByLabelText('Giờ điều vận')).toBeTruthy();
-    expect(screen.getByLabelText('Giờ trả hàng')).toBeTruthy();
+    expect(screen.queryByLabelText('Giờ trả hàng')).toBeNull();
+    expect(screen.queryByLabelText('Ngày — Giờ trả hàng')).toBeNull();
   });
 
   it('prefills Giờ điều vận from the row run timestamp in Vietnam wall-clock', async () => {
@@ -167,24 +169,22 @@ describe('SIL-473 — the Sửa điều phối dialog carries Giờ điều vậ
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
     const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
     expect(body.customerAppointmentAt).toBe('2026-10-26T07:00:00.000Z');
-    // Giờ trả hàng untouched — its omit law still holds on this save.
+    // plannedEndAt never rides the body — a stored Giờ trả hàng override
+    // (if any) survives untouched.
     expect('plannedEndAt' in body).toBe(false);
   });
 
-  it('saves BOTH times when both are edited (QA expected: cả Giờ điều vận LẪN Giờ trả hàng)', async () => {
+  it('a stored Giờ trả hàng override survives the save — the body never carries plannedEndAt (id 712)', async () => {
     mockFleetResources();
     const onAtomicSave = vi.fn().mockResolvedValue(savedPlan());
-    renderCell(row(), onAtomicSave);
+    renderCell(row({ plannedEndAt: '2026-10-27T01:30:00.000Z' }), onAtomicSave);
     await openDialog();
     fireEvent.change(runHour(), { target: { value: '14' } });
-    fireEvent.change(screen.getByLabelText('Ngày — Giờ trả hàng'), { target: { value: '27/10/2026' } });
-    fireEvent.change(screen.getByLabelText('Giờ — Giờ trả hàng'), { target: { value: '08' } });
-    fireEvent.change(screen.getByLabelText('Phút — Giờ trả hàng'), { target: { value: '30' } });
     fireEvent.click(saveButton());
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
     const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
     expect(body.customerAppointmentAt).toBe('2026-10-26T07:00:00.000Z');
-    expect(body.plannedEndAt).toBe('2026-10-27T01:30:00.000Z');
+    expect('plannedEndAt' in body).toBe(false);
   });
 
   it('omits customerAppointmentAt from the save body when the field is untouched — omit = untouched', async () => {
