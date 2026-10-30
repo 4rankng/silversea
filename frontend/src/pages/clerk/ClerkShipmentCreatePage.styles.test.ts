@@ -547,10 +547,31 @@ describe('create-page whole-sheet density (SIL-534)', () => {
   it('field stacks, flags and notes keep the compact rhythm', () => {
     expect(css).toMatch(/\.csc-searchable-field \{ display: grid; gap: 6px;/);
     expect(css).toMatch(/repeat\(12, minmax\(0, 1fr\)\); gap: 6px 10px;/);
-    expect(css).toMatch(/\.csc-mode-band__row \{ display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 24px;/);
+    // SIL-604 (id 707): flex-end bottom-aligns the band children so the
+    // segmented control and the datetime segments share one baseline row.
+    expect(css).toMatch(/\.csc-mode-band__row \{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 24px;/);
     expect(css).toMatch(/\.csc-notes-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); align-items: start; gap: 8px;/);
     expect(css).toMatch(/\.csc-section textarea \{ width: 100%; min-height: 60px;/);
     expect(css).toMatch(/\.csc-flag-checkbox \{ display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 30px;/);
+  });
+
+  it('SIL-604: the mode-band bulk datetime never grows a height basis nor justify-fills the band', () => {
+    // The group hugs its field + copy button (no grow to balance a stretched
+    // card — the band is content-sized at every width now).
+    expect(css).toMatch(/\.csc-mode-band__row \.csc-bulk-appointment \{\s*flex: 0 1 auto;\s*min-width: 0;\s*\}/);
+    // The row-layout width basis is fine in a flex ROW (260px wide field),
+    // but the ≤640 column layout turns that basis into a HEIGHT — the
+    // supersize regression (260px-tall box around ~60px of controls at 390).
+    // The phone block must reset the basis for both specificity tiers.
+    const phone = css.slice(css.indexOf('.csc-bulk-appointment { flex-direction: column'));
+    expect(phone).toContain('.csc-bulk-appointment .csc-uui-field,');
+    expect(phone).toContain('.csc-mode-band__row .csc-bulk-appointment .csc-uui-field { flex: 0 0 auto; width: 100%; min-width: 0; }');
+    // Deepseek consult (30/10): the validation error never joins the flex
+    // baseline — pinned out of flow below the field box, lane reserved on
+    // the row, so the segmented control never sinks mid-interaction.
+    expect(css).toMatch(/\.csc-mode-band__row \.csc-uui-field \{ position: relative; \}/);
+    expect(css).toMatch(/\.csc-mode-band__row \.csc-uui-field \.split-datetime__error \{ position: absolute; top: 100%; left: 0; margin-top: 2px; \}/);
+    expect(css).toMatch(/\.csc-mode-band__row:has\(\.split-datetime__error\) \{ padding-bottom: 22px; \}/);
   });
 
   it('the phone band floors controls at the real touch token (SIL-583 r2: §5 44px)', () => {

@@ -166,10 +166,25 @@
 .csc-mode input:focus-visible + span { outline: 2px solid var(--accent-2); outline-offset: -2px; }
 .csc-cargo-choice-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: end; gap: 12px; min-width: 0; }
 /* Cards 211026130215/30315: the top-of-form mode band — the segmented Loại
-   hàng control and the LCL "Ngày giao hàng" (one always-visible field, no
-   reveal) share a row so both sit trước mắt the moment the form opens; they
-   wrap to a stack on narrow screens. */
-.csc-mode-band__row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 24px; min-width: 0; }
+   hàng control and the SIL-587 "Ngày giờ đóng trả" field (one always-visible
+   datetime, no reveal) share a row so both sit trước mắt the moment the form
+   opens; they wrap to a stack on narrow screens. SIL-604 (id 707): flex-end
+   bottom-aligns the children so the segmented control and the datetime's
+   HH:mm / DD/MM/YYYY segment inputs share one baseline row (§10.8.2: one
+   control line, no drift) — flex-start left the segmented floating ~22px
+   above the segments once the band stopped wrapping. */
+.csc-mode-band__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 24px; min-width: 0; }
+/* SIL-604 (deepseek second opinion 30/10 — "never let error messages
+   participate in flex baseline"): flex-end aligns CONTROL bottoms; an
+   in-flow validation line under the datetime would sink the segmented
+   control 19px mid-interaction. The band pins the error absolutely below
+   the field box and reserves its lane on the row via :has() — rest
+   geometry and error geometry share one layout, the segmented control
+   never moves. (The picker surfaces are portals to <body>; the relative
+   containing block only re-scopes the in-flow error <small>.) */
+.csc-mode-band__row .csc-uui-field { position: relative; }
+.csc-mode-band__row .csc-uui-field .split-datetime__error { position: absolute; top: 100%; left: 0; margin-top: 2px; }
+.csc-mode-band__row:has(.split-datetime__error) { padding-bottom: 22px; }
 .csc-mode-band__row .csc-cargo-choice-grid { flex: 0 0 auto; }
 .csc-mode-band__row .csc-lcl-delivery { flex: 1 1 220px; }
 .csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
@@ -670,15 +685,14 @@
   flex: 0 1 260px;
   min-width: 220px;
 }
-/* SIL-598: the group moved into the mode band's flex row — it grows to
-   fill its line (desktop: the card's second row; phones: full width again
-   like when it lived in the schedule section grid). */
+/* SIL-598: the group moved into the mode band's flex row. SIL-604 (id
+   707): no grow — the stretched mode card this grow was balancing is
+   retired (the band is a content-sized full-width row ≥1280 now), so the
+   group hugs its 260px field + copy button and the one-line band ends
+   where its content ends (worksheet rows never justify-fill). */
 .csc-mode-band__row .csc-bulk-appointment {
-  flex: 1 1 260px;
-  min-width: 220px;
-}
-.csc-mode-band__row .csc-bulk-appointment .csc-uui-field {
-  flex: 1 1 260px;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 /* FB-009 (card 131026233500): the section-level copy-time affordance sits on
    the same wrapping row as the group field and its apply button — a small
@@ -700,6 +714,13 @@
 .csc-bulk-appointment__copy:hover { background: var(--surface-2); color: var(--fg-1); }
 @media (max-width: 640px) {
   .csc-bulk-appointment { flex-direction: column; align-items: stretch; }
+  /* SIL-604 (id 707): the column layout turns flex-basis into a HEIGHT —
+     the 260px width basis measured a 260px-tall field box around ~60px of
+     controls at 390px (the ticket's supersize). The field sizes its own
+     height again and stretches across the phone width like every other
+     stacked field. */
+  .csc-bulk-appointment .csc-uui-field,
+  .csc-mode-band__row .csc-bulk-appointment .csc-uui-field { flex: 0 0 auto; width: 100%; min-width: 0; }
   .csc-bulk-appointment .csc-utility-button { width: 100%; }
   .csc-bulk-appointment__copy { align-self: flex-start; }
 }
