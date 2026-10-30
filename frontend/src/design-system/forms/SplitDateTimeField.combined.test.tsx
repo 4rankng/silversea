@@ -179,8 +179,8 @@ describe('SplitDateTimeField combinedPicker — copy giờ hẹn in the dialog (
     expect(copy.closest('header')).not.toBeNull();
 
     fireEvent.click(copy);
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith('09:30 20/09/2026'));
-    expect(onCopied).toHaveBeenCalledWith('09:30 20/09/2026');
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('20/09/2026 09:30'));
+    expect(onCopied).toHaveBeenCalledWith('20/09/2026 09:30');
   });
 
   it('offers no copy button while the draft has no complete time yet', () => {

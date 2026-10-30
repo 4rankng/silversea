@@ -101,15 +101,15 @@ describe('CusLotView — SIL-595 giờ hẹn đóng/trả render ICT (GMT+7)', (
 
   it('C3: cột "Đóng / trả" render giờ VN từ customerAppointmentAt (Z instant)', () => {
     renderView([makeLine({ id: 31, ordinal: 1, customerAppointmentAt: instant })]);
-    expect(screen.getByText('14:30 30/10')).toBeTruthy();
-    expect(screen.queryByText('07:30 30/10')).toBeNull();
+    expect(screen.getByText('30/10 14:30')).toBeTruthy();
+    expect(screen.queryByText('30/10 07:30')).toBeNull();
   });
 
   it('C4: dòng "Lịch cont" render giờ VN từ group.at (Z instant)', () => {
     renderView([], {
       appointmentGroups: [{ at: instant, factoryName: 'Sunrise', containerSummary: '1x20DC' }],
     } as Partial<ShipmentCusWorkspaceListItem>);
-    expect(screen.getByText(/14:30 30\/10 · Sunrise · 1x20DC/)).toBeTruthy();
+    expect(screen.getByText(/30\/10 14:30 · Sunrise · 1x20DC/)).toBeTruthy();
     expect(screen.queryByText(/07:30/)).toBeNull();
   });
 });
@@ -125,7 +125,7 @@ describe('CusLotView — SIL-610 giờ derived từ chuyến cho lô cũ', () =>
       transportDate: '2026-10-29',
       derivedScheduleAt: '2026-10-29T02:30:00.000Z',
     } as Partial<ShipmentCusWorkspaceListItem>);
-    expect(screen.getByText('09:30 29/10/2026')).toBeTruthy();
+    expect(screen.getByText('29/10/2026 09:30')).toBeTruthy();
   });
 
   it('C6: không có derived thì vẫn ngày thuần, không bịa 00:00', () => {
@@ -135,6 +135,6 @@ describe('CusLotView — SIL-610 giờ derived từ chuyến cho lô cũ', () =>
       transportDate: '2026-10-29',
     } as Partial<ShipmentCusWorkspaceListItem>);
     expect(screen.getByText('29/10/2026')).toBeTruthy();
-    expect(screen.queryByText(/00:00 29\/10\/2026/)).toBeNull();
+    expect(screen.queryByText(/29\/10\/2026 00:00/)).toBeNull();
   });
 });

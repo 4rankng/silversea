@@ -37,9 +37,9 @@ Tables are decision surfaces: body text uses neutral foreground scale (`--fg-1/2
 
 Selection (tab, filter, mode, chosen record) = neutral surface + one ink structural cue (border/2px edge, stronger label, check/radio when choosing). Never flood a control green/blue to show active. Workflow status = domain-labelled badge with semantic color only when the state itself carries that meaning. Risk = named warning + restrained strip/icon. Hover = quiet neutral change. Focus = separate visible ring, never the selected-state styling. Use shared `Tabs` variants (`plain` neutral border + inset ink edge; `bordered` underline); the dark `FilterBar` pill stays the deliberate high-contrast selection pattern.
 
-## Combined date+time display contract (24h, time-first)
+## Combined date+time display contract (24h, date-first — owner law 30/10 SIL-613)
 
-Always `HH:mm DD/MM/YYYY` (e.g. `14:30 20/08/2026`; tables may compact to `14:30 20/8/26`). NEVER 12-hour AM/PM, NEVER native `datetime-local`/`time` inputs (locale rendering can't be forced — produced 12h on en-US browsers, customer report 2026-09-09). Inputs: design-system 24h text input `BufferedUuiDateTimeInput` / `useBufferedDateTimeValue`, placeholder `HH:mm DD/MM/YYYY`, stored value ISO local `YYYY-MM-DDTHH:mm`. Display: `formatDateTime24` (local-ISO) / `formatDateTimeShort` (Vietnam-pinned `HH:mm d/M/yy`) from `frontend/src/lib/format.ts` — never inline `toLocaleString`/`Intl` for combined date-time (field order is engine-dependent). Pinned by `useBufferedDateTimeValue.test.tsx`.
+Always `DD/MM/YYYY HH:mm` (e.g. `20/08/2026 14:30`). NEVER 12-hour AM/PM, NEVER native `datetime-local`/`time` inputs (locale rendering can't be forced — produced 12h on en-US browsers, customer report 2026-09-09). Inputs: design-system 24h text input `BufferedUuiDateTimeInput` / `useBufferedDateTimeValue`, placeholder `DD/MM/YYYY HH:mm`, stored value ISO local `YYYY-MM-DDTHH:mm`. Display: `formatDateTime24` (local-ISO) / `formatDateTimeShort` (Vietnam-pinned `DD/MM/YYYY HH:mm`) from `frontend/src/lib/format.ts` — never inline `toLocaleString`/`Intl` for combined date-time (field order is engine-dependent). Pinned by `useBufferedDateTimeValue.test.tsx`.
 
 ## Size-consistency scale (PM standard 2026-09-09)
 

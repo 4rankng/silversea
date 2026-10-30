@@ -943,7 +943,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // SIL-597 (ticket 697): the appointment cell is value-first — its resting
     // display lane carries the formatted value like every sibling cell, never
     // the forced input frames (the ex-`alwaysVisible` mode is gone).
-    expect(displayedValue('09:30 20/08/2026')).toBeTruthy();
+    expect(displayedValue('20/08/2026 09:30')).toBeTruthy();
   });
 
   it('shows each container type code once in the selector', async () => {

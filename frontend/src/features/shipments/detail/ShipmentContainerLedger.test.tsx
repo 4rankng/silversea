@@ -597,7 +597,7 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
   it.each(['IMPORT', 'EXPORT'] as const)('SCHEDULE-LAYOUT-01 keeps time/date above the %s operation', (direction) => {
     const { view } = renderLedgerWithRow(baseRow({ direction, customerAppointmentAt: '2026-09-15T08:00:00.000Z' }));
     const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
-    expect(schedule.firstElementChild).toHaveTextContent('15:00 15/09/2026');
+    expect(schedule.firstElementChild).toHaveTextContent('15/09/2026 15:00');
     expect(schedule.lastElementChild).toHaveTextContent(direction === 'IMPORT' ? /^trả hàng$/ : /^đóng hàng$/);
     expect(schedule.lastElementChild?.textContent).not.toContain('15/09');
   });

@@ -89,8 +89,9 @@ function CombinedDateTimeSurface({ id, label, dateValue, timeValue, min, max, on
 }
 
 function splitValue(value: string) {
-  const formatted = formatDateTime24(value);
-  return { time: formatted.slice(0, 5), date: formatted.slice(6) };
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  if (!match) return { time: '', date: '' };
+  return { time: `${match[4]}:${match[5]}`, date: `${match[3]}/${match[2]}/${match[1]}` };
 }
 
 /** Independent, editable 24h time/date controls with one complete datetime

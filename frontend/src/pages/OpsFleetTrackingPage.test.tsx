@@ -45,7 +45,7 @@ describe('OpsFleetTrackingPage (OpsVanHanh §4)', () => {
     expect(screen.getByText(/BL-100/)).toBeInTheDocument();
     expect(screen.getByText('Đang vận chuyển (đang đóng/trả hàng)')).toBeInTheDocument();
     expect(screen.getByText('Đang rảnh')).toBeInTheDocument();
-    expect(screen.getByText('08:02 07/09/2026')).toBeInTheDocument();
+    expect(screen.getByText('07/09/2026 08:02')).toBeInTheDocument();
   });
 
   it('renders a placeholder for an invalid update timestamp', async () => {

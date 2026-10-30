@@ -121,7 +121,7 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     });
 
     // The appointment instant (ICT 09:00) rides the identity line…
-    expect(screen.getByText('09:00 25/08/2026')).toBeTruthy();
+    expect(screen.getByText('25/08/2026 09:00')).toBeTruthy();
     // …and the appointment factory joins the route run (no fact lost to the
     // 3-dòng budget), between the Nâng/Trả pair and the tuyến.
     expect(screen.getByText('Nâng Cảng Cát Lái → Trả Kho Bình Dương · NEWWEB-KHO 1 · LH — Biên Hòa · Maersk')).toBeTruthy();

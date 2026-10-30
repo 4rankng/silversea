@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { TimePickerSurface } from './TimePickerSurface';
 export { TimePanel } from './TimePanel';
 import { Calendar, CalendarDays, ChevronLeft, ChevronRight, Clock3, X } from 'lucide-react';
-import { formatDateTime24 } from '../../lib/format';
+import { formatISODate } from '../../lib/format';
 import './DateTimePickerPanels.css';
 
 /**
@@ -193,7 +193,7 @@ export function DateTimePickerDialog({ title, value, onConfirm, onClose, commonS
         >
           <Calendar size={13} aria-hidden="true" />
           <span className="dtp-dialog__field-label">NGÀY</span>
-          <span className="dtp-dialog__field-value">{date ? formatDateTime24(`${date}T00:00`).slice(6) : '—'}</span>
+          <span className="dtp-dialog__field-value">{date ? formatISODate(date) : '—'}</span>
         </button>
         <button
           type="button"

@@ -3,13 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { DATE_TIME_24_PLACEHOLDER, formatDateTime24, parseDateTime24, useBufferedDateTimeValue } from './useBufferedDateTimeValue';
 
 describe('formatDateTime24', () => {
-  it('formats ISO local datetime as time-first 24h text (HH:mm DD/MM/YYYY)', () => {
-    expect(formatDateTime24('2026-08-20T14:30')).toBe('14:30 20/08/2026');
-    expect(formatDateTime24('2026-09-09T08:05')).toBe('08:05 09/09/2026');
+  it('formats ISO local datetime as date-first 24h text (DD/MM/YYYY HH:mm)', () => {
+    expect(formatDateTime24('2026-08-20T14:30')).toBe('20/08/2026 14:30');
+    expect(formatDateTime24('2026-09-09T08:05')).toBe('09/09/2026 08:05');
   });
 
   it('tolerates an ISO string carrying seconds', () => {
-    expect(formatDateTime24('2026-08-20T14:30:45')).toBe('14:30 20/08/2026');
+    expect(formatDateTime24('2026-08-20T14:30:45')).toBe('20/08/2026 14:30');
   });
 
   it('returns empty string for empty or malformed input', () => {
@@ -21,24 +21,27 @@ describe('formatDateTime24', () => {
 });
 
 describe('parseDateTime24', () => {
-  it('parses time-first 24h entry into ISO local datetime', () => {
+  it('parses date-first 24h entry into ISO local datetime', () => {
+    expect(parseDateTime24('20/08/2026 14:30')).toBe('2026-08-20T14:30');
+    expect(parseDateTime24('09/09/2026 08:05')).toBe('2026-09-09T08:05');
+    // Tolerates legacy time-first format
     expect(parseDateTime24('14:30 20/08/2026')).toBe('2026-08-20T14:30');
-    expect(parseDateTime24('08:05 09/09/2026')).toBe('2026-09-09T08:05');
   });
 
   it('accepts single-digit hour/date/month and zero-pads the ISO result', () => {
+    expect(parseDateTime24('9/9/2026 9:30')).toBe('2026-09-09T09:30');
+    expect(parseDateTime24('1/1/2026 0:05')).toBe('2026-01-01T00:05');
     expect(parseDateTime24('9:30 9/9/2026')).toBe('2026-09-09T09:30');
-    expect(parseDateTime24('0:05 1/1/2026')).toBe('2026-01-01T00:05');
   });
 
   it('rejects out-of-range and impossible entries', () => {
-    expect(parseDateTime24('10:00 31/02/2026')).toBeNull();
-    expect(parseDateTime24('10:00 20/13/2026')).toBeNull();
-    expect(parseDateTime24('24:00 20/08/2026')).toBeNull();
-    expect(parseDateTime24('10:60 20/08/2026')).toBeNull();
-    expect(parseDateTime24('10:00 AM 20/08/2026')).toBeNull();
+    expect(parseDateTime24('31/02/2026 10:00')).toBeNull();
+    expect(parseDateTime24('20/13/2026 10:00')).toBeNull();
+    expect(parseDateTime24('20/08/2026 24:00')).toBeNull();
+    expect(parseDateTime24('20/08/2026 10:60')).toBeNull();
+    expect(parseDateTime24('20/08/2026 10:00 AM')).toBeNull();
     expect(parseDateTime24('2026-08-20 10:00')).toBeNull();
-    expect(parseDateTime24('10:00 20/08/26')).toBeNull();
+    expect(parseDateTime24('20/08/26 10:00')).toBeNull();
     expect(parseDateTime24('')).toBeNull();
   });
 });
@@ -51,21 +54,21 @@ describe('useBufferedDateTimeValue', () => {
     return { target: { value } } as unknown as React.FocusEvent<HTMLInputElement>;
   }
 
-  it('exposes the controlled value formatted time-first 24h', () => {
+  it('exposes the controlled value formatted date-first 24h', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useBufferedDateTimeValue({ value: '2026-08-20T14:30', onChange }));
-    expect(result.current.defaultValue).toBe('14:30 20/08/2026');
+    expect(result.current.defaultValue).toBe('20/08/2026 14:30');
   });
 
   it('does not fire onChange for a partial or invalid draft', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useBufferedDateTimeValue({ value: '', onChange }));
 
-    act(() => result.current.onChange(makeChangeEvent('14')));
-    act(() => result.current.onChange(makeChangeEvent('14:30')));
-    act(() => result.current.onChange(makeChangeEvent('14:30 20/08/2026'.slice(0, 10))));
-    act(() => result.current.onChange(makeChangeEvent('14:30 20/08')));
-    act(() => result.current.onChange(makeChangeEvent('10:00 31/02/2026')));
+    act(() => result.current.onChange(makeChangeEvent('20')));
+    act(() => result.current.onChange(makeChangeEvent('20/08')));
+    act(() => result.current.onChange(makeChangeEvent('20/08/2026 14:30'.slice(0, 10))));
+    act(() => result.current.onChange(makeChangeEvent('20/08/2026 14')));
+    act(() => result.current.onChange(makeChangeEvent('31/02/2026 10:00')));
 
     expect(onChange).not.toHaveBeenCalled();
   });
@@ -74,7 +77,7 @@ describe('useBufferedDateTimeValue', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useBufferedDateTimeValue({ value: '', onChange }));
 
-    act(() => result.current.onChange(makeChangeEvent('14:30 20/08/2026')));
+    act(() => result.current.onChange(makeChangeEvent('20/08/2026 14:30')));
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith('2026-08-20T14:30');
@@ -93,10 +96,10 @@ describe('useBufferedDateTimeValue', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useBufferedDateTimeValue({ value: '2026-08-20T14:30', onChange }));
 
-    const blurEvent = makeBlurEvent('14:30 20/08/202');
+    const blurEvent = makeBlurEvent('20/08/2026 14:3');
     act(() => result.current.onBlur(blurEvent));
 
-    expect(blurEvent.target.value).toBe('14:30 20/08/2026');
+    expect(blurEvent.target.value).toBe('20/08/2026 14:30');
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -104,13 +107,13 @@ describe('useBufferedDateTimeValue', () => {
     const onChange = vi.fn();
     const { result } = renderHook(() => useBufferedDateTimeValue({ value: '', onChange }));
 
-    const blurEvent = makeBlurEvent('9:30 9/9/2026');
+    const blurEvent = makeBlurEvent('9/9/2026 9:30');
     act(() => result.current.onBlur(blurEvent));
 
-    expect(blurEvent.target.value).toBe('09:30 09/09/2026');
+    expect(blurEvent.target.value).toBe('09/09/2026 09:30');
   });
 
-  it('pushes external value changes to the input via the ref, time-first 24h', () => {
+  it('pushes external value changes to the input via the ref, date-first 24h', () => {
     const onChange = vi.fn();
     const { result, rerender } = renderHook(
       ({ value }: { value: string }) => useBufferedDateTimeValue({ value, onChange }),
@@ -121,7 +124,7 @@ describe('useBufferedDateTimeValue', () => {
     (result.current.ref as React.MutableRefObject<HTMLInputElement>).current = input;
 
     rerender({ value: '2026-09-09T08:05' });
-    expect(input.value).toBe('08:05 09/09/2026');
+    expect(input.value).toBe('09/09/2026 08:05');
 
     rerender({ value: '' });
     expect(input.value).toBe('');
@@ -135,15 +138,15 @@ describe('useBufferedDateTimeValue', () => {
     );
     const input = document.createElement('input');
     input.type = 'text';
-    input.value = '14:30 20/08/2026';
+    input.value = '20/08/2026 14:30';
     (result.current.ref as React.MutableRefObject<HTMLInputElement>).current = input;
 
-    input.value = '15:00 20/08/2026';
+    input.value = '20/08/2026 15:00';
     rerender({ value: '2026-08-20T14:30' });
-    expect(input.value).toBe('15:00 20/08/2026');
+    expect(input.value).toBe('20/08/2026 15:00');
   });
 
-  it('pins the time-first 24h placeholder shape', () => {
-    expect(DATE_TIME_24_PLACEHOLDER).toBe('HH:mm DD/MM/YYYY');
+  it('pins the date-first 24h placeholder shape', () => {
+    expect(DATE_TIME_24_PLACEHOLDER).toBe('DD/MM/YYYY HH:mm');
   });
 });

@@ -99,11 +99,11 @@ export function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
 
 /**
  * Datetime head of a per-container appointment group, in the canonical shape
- * (card 20260921_23): "09:00 25/08/2026" — padded time-first 24h + padded
- * date. Since SIL-603 (id 706) the workboard renders the group's factory and
- * container summary as their OWN lines beneath this head — the old
- * "09:00 25/08/2026 · Sunrise · 1x40HC" one-line packing is what an ellipsis
- * cut into "… · NEWEB…" (SIL-515 wrap law).
+ * (card 20260921_23; SIL-613 owner 30/10): "25/08/2026 09:00" — padded
+ * date-first + padded 24h time. Since SIL-603 (id 706) the workboard renders
+ * the group's factory and container summary as their OWN lines beneath this
+ * head — the old "25/08/2026 09:00 · Sunrise · 1x40HC" one-line packing is
+ * what an ellipsis cut into "… · NEWEB…" (SIL-515 wrap law).
  */
 export function formatAppointmentGroupLine(at: string, localDate?: string): string {
   const date = new Date(at);
@@ -119,7 +119,7 @@ export function formatAppointmentGroupLine(at: string, localDate?: string): stri
   const formattedLocalDate = year && month && day
     ? `${day}/${month}/${year}`
     : formatISODate(at);
-  return `${time} ${formattedLocalDate}`;
+  return `${formattedLocalDate} ${time}`;
 }
 
 export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): string {

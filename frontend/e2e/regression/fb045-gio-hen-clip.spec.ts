@@ -112,7 +112,7 @@ test('TC-FB045-01: /dispatch quick-view drawer — GIỜ HẸN không bị che @
       await dv.page.waitForTimeout(700); // drawer slide-in animation — đo khi đứng yên
       const probe = await probeColumn(dv.page, '.dispatch-container-detail', /giờ hẹn/i);
       expect(probe.ok, `w${width}: ${JSON.stringify(probe)}`).toBeTruthy();
-      expect(String(probe.sample?.text), `w${width}: giá trị giờ hẹn đủ "HH:mm DD/MM/YYYY"`).toMatch(/\d{2}:\d{2} \d{2}\/\d{2}\/\d{4}/);
+      expect(String(probe.sample?.text), `w${width}: giá trị giờ hẹn đủ "DD/MM/YYYY HH:mm"`).toMatch(/\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
       await shot(dv.page, `fb045-dispatch-drawer-w${width}`);
       await dv.page.keyboard.press('Escape');
       await dv.page.waitForTimeout(300);

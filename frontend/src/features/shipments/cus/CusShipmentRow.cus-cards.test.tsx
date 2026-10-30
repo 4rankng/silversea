@@ -211,7 +211,7 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
       direction: 'IMPORT',
     }));
     const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
-    expect(scheduleCell.textContent).toContain('09:30 29/10/2026');
+    expect(scheduleCell.textContent).toContain('29/10/2026 09:30');
   });
 
   it('SIL-586: renders delivery datetime in ICT for LCL lot with closingAt', () => {
@@ -224,7 +224,7 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
       direction: 'EXPORT',
     }));
     const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
-    expect(scheduleCell.textContent).toContain('14:00 29/10/2026');
+    expect(scheduleCell.textContent).toContain('29/10/2026 14:00');
   });
 
   it('SIL-586: renders date-only for LCL lot when only transportDate is present', () => {
@@ -254,7 +254,7 @@ describe('CusShipmentRow — SIL-586: LCL schedule datetime trên Tổng quan', 
       transportDate: '2026-10-29',
     }));
     const fallback = container.querySelector('.cus-schedule-lot-fallback')!;
-    expect(fallback.textContent).toBe('00:00 29/10/2026');
+    expect(fallback.textContent).toBe('29/10/2026 00:00');
   });
 
   it('C1b: LCL EXPORT có closingAt (+07:00) giữ nguyên giờ VN', () => {
@@ -264,7 +264,7 @@ describe('CusShipmentRow — SIL-586: LCL schedule datetime trên Tổng quan', 
       closingAt: '2026-10-29T14:30:00+07:00',
       transportDate: '2026-10-29',
     }));
-    expect(container.querySelector('.cus-schedule-lot-fallback')!.textContent).toBe('14:30 29/10/2026');
+    expect(container.querySelector('.cus-schedule-lot-fallback')!.textContent).toBe('29/10/2026 14:30');
   });
 
   it('C2: lô lẻ cũ chỉ có EDD hiển thị ngày DD/MM/YYYY — không giờ bịa 00:00', () => {
@@ -375,17 +375,17 @@ describe('CusShipmentRow — SIL-603: lịch trình wrap tên nhà máy, cấm t
     const cell = container.querySelector('td[data-label*="Lịch trình"]')!;
     // Every fact is fully present — the long name survives verbatim, never
     // clipped to "NEWEB…".
-    expect(cell.textContent).toContain('21:20 28/10/2026');
+    expect(cell.textContent).toContain('28/10/2026 21:20');
     expect(cell.textContent).toContain(LONG_FACTORY);
     expect(cell.textContent).toContain('2x40HC');
     // One fact per line: the datetime and the factory are SEPARATE elements
     // (their own grid rows), so the wrap point exists before the name starts.
-    expect(screen.getByText('21:20 28/10/2026').className).toBe('cus-schedule-group__when');
+    expect(screen.getByText('28/10/2026 21:20').className).toBe('cus-schedule-group__when');
     expect(screen.getByText(LONG_FACTORY).className).toBe('cus-schedule-group__factory');
     expect(screen.getByText('2x40HC').className).toBe('cus-schedule-group__containers');
     // Hover keeps the joined line reachable.
     const group = container.querySelector('.cus-schedule-group')!;
-    expect(group.getAttribute('title')).toBe(`21:20 28/10/2026 · ${LONG_FACTORY} · 2x40HC`);
+    expect(group.getAttribute('title')).toBe(`28/10/2026 21:20 · ${LONG_FACTORY} · 2x40HC`);
   });
 
   it('renders no `·` separator between the facts in the cell DOM', () => {
@@ -404,7 +404,7 @@ describe('CusShipmentRow — SIL-603: lịch trình wrap tên nhà máy, cấm t
       transportDate: '2026-10-29',
     }));
     const fallback = container.querySelector('.cus-schedule-lot-fallback')!;
-    expect(fallback.textContent).toBe('00:00 29/10/2026');
+    expect(fallback.textContent).toBe('29/10/2026 00:00');
   });
 
   it('CSS pin: the schedule cell lines wrap — the FB-043 ellipsis law is revoked (SIL-515/SIL-603)', () => {
@@ -461,7 +461,7 @@ describe('CusShipmentRow — SIL-610 (lô lẻ cũ có giờ từ dữ liệu ch
       derivedScheduleAt: '2026-10-29T02:30:00.000Z',
     }));
     const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
-    expect(scheduleCell.textContent).toContain('09:30 29/10/2026');
+    expect(scheduleCell.textContent).toContain('29/10/2026 09:30');
     // No fabricated midnight: the cell never renders a bare "00:00" time.
     expect(scheduleCell.textContent).not.toContain('00:00');
   });
@@ -475,7 +475,7 @@ describe('CusShipmentRow — SIL-610 (lô lẻ cũ có giờ từ dữ liệu ch
       derivedScheduleAt: '2026-10-29T02:30:00.000Z',
     }));
     const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
-    expect(scheduleCell.textContent).toContain('15:45 29/10/2026');
+    expect(scheduleCell.textContent).toContain('29/10/2026 15:45');
     expect(scheduleCell.textContent).not.toContain('09:30');
   });
 

@@ -291,8 +291,9 @@ exception context semantic, but do not reuse their soft fills for selection.
 
 ## Combined date + time display contract
 
-Whenever the UI shows a date and a time together, display **time first, date
-after, in 24-hour format**: `HH:mm DD/MM/YYYY` (e.g. `14:30 20/08/2026`).
+Whenever the UI shows a date and a time together, display **date first, time
+after, in 24-hour format**: `DD/MM/YYYY HH:mm` (e.g. `20/08/2026 14:30`) —
+owner law 30/10 (SIL-613).
 Date-only cells render `DD/MM/YYYY` padded. Never render a 12-hour
 AM/PM clock, never drop the year in a table column, and never rely on the
 browser locale to format a native
@@ -303,12 +304,12 @@ operator report: five datetime styles app-wide, three in one column).
 
 - Inputs: use the design-system 24h datetime text input
   (`BufferedUuiDateTimeInput` / `useBufferedDateTimeValue`, placeholder
-  `HH:mm DD/MM/YYYY`). The app renders the string, so the format is
+  `DD/MM/YYYY HH:mm`). The app renders the string, so the format is
   guaranteed in every browser. The stored value stays the ISO local shape
   `YYYY-MM-DDTHH:mm`.
 - Display cells: format through the lib helpers so text, tables, and inputs
   agree — `formatDateTime24` (local-ISO values) and `formatDateTimeShort`
-  (timestamps), both emitting `HH:mm DD/MM/YYYY`; `formatDate` emits the
+  (timestamps), both emitting `DD/MM/YYYY HH:mm`; `formatDate` emits the
   padded `DD/MM/YYYY` for date-only cells (all in `frontend/src/lib/format.ts`).
   Never call `toLocaleString`/`Intl` inline for a combined
   date-time: field order is engine-dependent (Node renders vi-VN time-first,

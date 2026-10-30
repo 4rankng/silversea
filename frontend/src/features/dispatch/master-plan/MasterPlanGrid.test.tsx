@@ -278,12 +278,12 @@ describe('MasterPlanGrid', () => {
     // time to ICT, so this remains stable in a UTC CI runner and in a browser
     // opened from another timezone.
     // Each container appointment is a two-row block: the canonical padded
-    // "HH:mm DD/MM/YYYY" leads and "factory · containers" indents beneath.
-    expect(screen.getByText('11:00 24/08/2026')).toBeTruthy();
-    expect(screen.getByText('11:00 25/08/2026')).toBeTruthy();
+    // "DD/MM/YYYY HH:mm" leads and "factory · containers" indents beneath.
+    expect(screen.getByText('24/08/2026 11:00')).toBeTruthy();
+    expect(screen.getByText('25/08/2026 11:00')).toBeTruthy();
     expect(screen.getAllByText('Sunrise · 1 x 40DC')).toHaveLength(2);
-    // The "Giờ:" label is gone; only the HH:mm value leads each block.
-    const scheduleCell = screen.getByText('11:00 24/08/2026').closest('td');
+    // The "Giờ:" label is gone; only the value leads each block.
+    const scheduleCell = screen.getByText('24/08/2026 11:00').closest('td');
     expect(scheduleCell).toBeTruthy();
     expect(within(scheduleCell!).queryAllByText(/Giờ:/).length).toBe(0);
     expect(within(scheduleCell!).getAllByText('Sunrise · 1 x 40DC').length).toBe(2);
@@ -301,7 +301,7 @@ describe('MasterPlanGrid', () => {
     // cell shows the delivery date line plus the full canonical instant —
     // no hour-only fragments.
     expect(screen.getByText('20/08/2026')).toBeTruthy();
-    expect(screen.getByText('15:00 23/08/2026')).toBeTruthy();
+    expect(screen.getByText('23/08/2026 15:00')).toBeTruthy();
   });
 
   it('renders all 8 dispatch columns by default; the LCL selection column is on-demand (spec 23/10 §2)', () => {

@@ -139,14 +139,13 @@ export function formatDate(d: string | null, options?: FormatValueOptions): stri
 }
 
 /**
- * THE canonical table-cell datetime (card 20260921_23): "HH:mm DD/MM/YYYY"
- * — time-first 24h, leading zeros, 4-digit year, pinned to Vietnam
- * wall-clock (Asia/Ho_Chi_Minh) on ANY host. Supersedes the compact d/M/yy
- * shape of the 2026-09-09 contract (frontend/docs/design-system.md): the
- * operator's 2026-09-21 report showed d/M/yy reading as ambiguous across
- * screens. Built from formatToParts so the order is explicit — locale order
- * varies by engine. Invalid input renders as "—" (the raw string is never
- * echoed back).
+ * THE canonical table-cell datetime (card 20260921_23; SIL-613 owner 30/10):
+ * "DD/MM/YYYY HH:mm" — date-first 24h, leading zeros, 4-digit year, pinned to
+ * Vietnam wall-clock (Asia/Ho_Chi_Minh) on ANY host. Supersedes the old
+ * time-first order: owner ruling 30/10 unifies all displays and inputs to
+ * Vietnam standard DD/MM/YYYY HH:mm. Built from formatToParts so the order is
+ * explicit — locale order varies by engine. Invalid input renders as "—" (the
+ * raw string is never echoed back).
  */
 export function formatDateTimeShort(value: string | null | undefined): string {
   if (!value) return '—';
@@ -160,7 +159,7 @@ export function formatDateTimeShort(value: string | null | undefined): string {
   // shape — host-independent like the instant path below.
   if (!/[Zz]$|[+-]\d{2}:\d{2}$/.test(value)) {
     const draft = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
-    if (draft) return `${draft[4]}:${draft[5]} ${draft[3]}/${draft[2]}/${draft[1]}`;
+    if (draft) return `${draft[3]}/${draft[2]}/${draft[1]} ${draft[4]}:${draft[5]}`;
   }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
@@ -174,7 +173,7 @@ export function formatDateTimeShort(value: string | null | undefined): string {
     year: 'numeric',
   }).formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
-  return `${get('hour')}:${get('minute')} ${get('day')}/${get('month')}/${get('year')}`;
+  return `${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')}`;
 }
 
 
@@ -377,44 +376,52 @@ export function removeDiacritics(str: string): string {
 }
 
 /**
- * Combined date + time display contract (2026-09-09, hard requirement):
- * whenever a date and a time show together, the time comes FIRST and the
- * clock is 24-hour — `HH:mm DD/MM/YYYY` (e.g. "14:30 20/08/2026"). Native
+ * Combined date + time display contract (SIL-613 owner 30/10 hard requirement):
+ * whenever a date and a time show together, the date comes FIRST and the
+ * clock is 24-hour — `DD/MM/YYYY HH:mm` (e.g. "20/08/2026 14:30"). Native
  * datetime-local inputs render per browser locale (12h AM/PM on en-US) and
  * cannot be forced, so inputs and cells both format through these helpers.
  * See frontend/docs/design-system.md.
  */
 
 /** Placeholder for every 24h datetime text input. */
-export const DATE_TIME_24_PLACEHOLDER = 'HH:mm DD/MM/YYYY';
+export const DATE_TIME_24_PLACEHOLDER = 'DD/MM/YYYY HH:mm';
 
 /**
  * Formats a local datetime value ('YYYY-MM-DDTHH:mm', seconds tolerated) as
- * the canonical time-first 24h text. Returns '' for empty or malformed input.
+ * the canonical date-first 24h text. Returns '' for empty or malformed input.
  */
 export function formatDateTime24(value: string | null | undefined): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value ?? '');
   if (!match) return '';
   const [, year, month, day, hour, minute] = match;
-  return `${hour}:${minute} ${day}/${month}/${year}`;
+  return `${day}/${month}/${year} ${hour}:${minute}`;
 }
 
 /**
- * Parses an `HH:mm DD/MM/YYYY` entry (24h, time first; single-digit
- * hour/day/month tolerated) into a 'YYYY-MM-DDTHH:mm' local datetime string.
+ * Parses a `DD/MM/YYYY HH:mm` entry (24h, date first; single-digit
+ * hour/day/month tolerated, legacy `HH:mm DD/MM/YYYY` tolerated as fallback)
+ * into a 'YYYY-MM-DDTHH:mm' local datetime string.
  * Returns null for anything incomplete, out of range (month 1-12, hour 0-23,
  * minute 0-59) or not a real calendar day.
  */
 export function parseDateTime24(text: string): string | null {
-  const match = /^(\d{1,2}):(\d{2})\s+(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text.trim());
+  const trimmed = text.trim();
+  const dateFirst = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})$/.exec(trimmed);
+  const timeFirst = !dateFirst ? /^(\d{1,2}):(\d{2})\s+(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed) : null;
+  const match = dateFirst ?? timeFirst;
   if (!match) return null;
-  const [, rawHour, rawMinute, rawDay, rawMonth, year] = match;
+  const rawDay = dateFirst ? match[1] : match[3];
+  const rawMonth = dateFirst ? match[2] : match[4];
+  const year = dateFirst ? match[3] : match[5];
+  const rawHour = dateFirst ? match[4] : match[1];
+  const rawMinute = dateFirst ? match[5] : match[2];
   const day = Number(rawDay);
   const month = Number(rawMonth);
   const hour = Number(rawHour);
   const minute = Number(rawMinute);
   if (month < 1 || month > 12 || hour > 23 || minute > 59) return null;
-  // Reject rollover dates ("10:00 31/02/2026") by round-tripping through UTC.
+  // Reject rollover dates ("31/02/2026 10:00") by round-tripping through UTC.
   const probe = new Date(Date.UTC(Number(year), month - 1, day));
   if (probe.getUTCFullYear() !== Number(year) || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return null;
   return `${year}-${rawMonth.padStart(2, '0')}-${rawDay.padStart(2, '0')}T${rawHour.padStart(2, '0')}:${rawMinute}`;
