@@ -499,9 +499,13 @@ export function ShipmentCreateContainerRow({
         </div>
       </ShipmentContainerCell>
       <td className="csc-container-row__group" aria-hidden="true">Thời gian</td>
+      {/* SIL-597 (ticket 697): value-first like every sibling cell — the
+          resting surface is label + formatted value text; the datetime input
+          frames only appear while editing (the shared reveal contract). The
+          old `alwaysVisible` forced both HH:mm and DD/MM/YYYY frames on
+          screen inside the cell. */}
       <ShipmentContainerCell
         label="Ngày giờ đóng trả *"
-        alwaysVisible
         className="csc-container-cell--appointment"
         value={formatContainerAppointment(row.customerAppointmentAt)}
         placeholder="Chọn ngày giờ"

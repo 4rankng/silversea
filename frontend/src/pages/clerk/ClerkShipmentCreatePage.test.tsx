@@ -920,7 +920,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.getByLabelText('Ngày — Ngày giờ đóng trả')).toHaveValue('20');
     expect(screen.getByLabelText('Tháng — Ngày giờ đóng trả')).toHaveValue('08');
     expect(screen.getByLabelText('Năm — Ngày giờ đóng trả')).toHaveValue('2026');
-    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả').closest('td')).toHaveClass('csc-container-cell--persistent');
+    // SIL-597 (ticket 697): the appointment cell is value-first — its resting
+    // display lane carries the formatted value like every sibling cell, never
+    // the forced input frames (the ex-`alwaysVisible` mode is gone).
+    expect(displayedValue('09:30 20/08/2026')).toBeTruthy();
   });
 
   it('shows each container type code once in the selector', async () => {

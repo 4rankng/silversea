@@ -1,0 +1,12 @@
+CMD: npx vitest run src/features/shipments/create/ src/pages/clerk/ClerkShipmentCreatePage.test.tsx src/design-system/forms/
+WHEN: 2026-10-30T05:42:45Z TREE: fix-sil-697-699 @ 697-only worktree state
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-697-699/frontend
+
+
+ Test Files  67 passed (67)
+      Tests  559 passed (559)
+   Start at  13:42:46
+   Duration  75.74s (transform 6.97s, setup 15.47s, import 94.88s, tests 185.07s, environment 67.65s)
+
+EXIT=0

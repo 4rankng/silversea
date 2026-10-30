@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-10-30 — fix(ux): SIL-597 (id 697) — ô "Ngày giờ đóng trả" trong bảng Thông tin hàng value-first, hết lộ khung input
+
+QA Glint: cột NGÀY GIỜ ĐÓNG TRẢ của từng container trên `/shipments/new`
+hiển thị trực tiếp 2 khung nhập liệu (HH:mm + DD/MM/YYYY) trong ô, khác cột
+SỐ CONTAINER bên cạnh (nhãn + giá trị, không lộ khung input).
+
+Nguyên nhân: ô này là host duy nhất còn bật mode `alwaysVisible`
+(`--persistent`) của ShipmentContainerCell — CSS mode này `display:none` lane
+display và ép editor opacity 1 mọi lúc.
+
+Fix: bỏ `alwaysVisible` (prop + class + rule CSS `--persistent` — clean
+cutover, không còn consumer). Ô đi theo đúng value-first reveal contract của
+các ô cùng bảng: trạng thái nghỉ = nhãn (`data-label "Ngày giờ đóng trả *"`)
++ giá trị `formatContainerAppointment` ("HH:mm DD/MM/YYYY") hoặc placeholder
+"Chọn ngày giờ"; kích hoạt ô → editor datetime hiện ra (focus vào segment).
+Mobile ≤620px giữ nguyên phone-record rule (editors shown continuously).
+
+Tests: `ShipmentCreateWorkspace.appointment-display.test.tsx` (C1–C4: nghỉ
+hiển text + không `--persistent`; activate đưa focus vào editor; giá trị sau
+nhập đọc được trong display lane; CSS contract editor ẩn mặc định + reveal,
+không còn rule forced-frame). Sửa pin lạc hậu: `ClerkShipmentCreatePage.test.tsx`
+(assert `--persistent` → assert display lane "09:30 20/08/2026"),
+`invalid-required-paint.test.tsx` (bỏ nhánh `--persistent` chết trong helper).
+Case: `testplan/2026-10-30-sil597-appointment-cell-value-first.md`.
+
 ## 2026-10-30 — fix(cus): SIL-595 (id 695) — drawer CUS render giờ hẹn đóng/trả theo ICT (GMT+7), không còn lệch 7 giờ
 
 QA Glint: cột "Đóng / trả" và "Lịch cont" của drawer CUS (`CusLotView`) hiển
