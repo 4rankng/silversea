@@ -137,6 +137,18 @@ describe('SIL-478 — the grouped row face', () => {
     expect(within(bare).queryByText(/cont/)).toBeNull();
   });
 
+  it('SIL-601: an LCL lot wire count of 1 renders "1 cont" on the meta', async () => {
+    // The backend conforms the lot count (1 lô cont 1 cont — never 0, never
+    // Σ over trips); the phone meta prints what the wire carries.
+    renderOnPhone([factRow({
+      billOrBookNumber: 'BL-LCL',
+      deliveryDate: '2026-10-06',
+      containerCount: 1,
+    })]);
+    const record = await screen.findByRole('article', { name: 'BL-LCL' });
+    expect(within(record).getByText('BL-LCL · 06/10/2026 · 1 cont')).toBeTruthy();
+  });
+
   it('the status chip carries the verdict tones — Đang mở blue, Đã khóa neutral', async () => {
     renderOnPhone([
       factRow({ shipmentId: 111, billOrBookNumber: 'BL-OPEN' }),

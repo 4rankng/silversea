@@ -97,7 +97,10 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // cont"). `deliveryDate` = the lot's expected delivery date (the same
   // edd the list orders and filters by); `containerCount` = Σ active trips'
   // container_count (non-deleted, non-CANCELED — physical containers on the
-  // lot, not the chốt's fulfillment-only money scope). Both nullable/optional
+  // lot, not the chốt's fulfillment-only money scope) — except for LCL,
+  // where SIL-601 (id 702, owner ruling 30/10/2026) counts the lot as exactly
+  // ONE cont (1 lô cont 1 cont: never 0, never the Σ over trips). Both
+  // nullable/optional
   // like every late-added wire field: an older response simply drops the
   // meta segment instead of failing.
   deliveryDate: z.string().nullable().optional(),

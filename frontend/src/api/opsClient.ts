@@ -19,6 +19,8 @@ export interface OpsOrderItem {
   containerCount: number;
   containerNumbers: string[];
   containerIds: number[];
+  /** SIL-601 (id 702): owning lot's mode — an LCL lot counts as 1 cont. */
+  cargoMode?: 'FCL' | 'LCL' | null;
 }
 
 export interface OpsWalletSummary {

@@ -9,6 +9,7 @@ import {
   Role, ShipmentCusBucket, ShipmentStatus, canonicalShipmentStatus,
   SHIPMENT_CUS_BUCKET_LABELS, SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   SHIPMENT_CUS_MISSING_FIELD_LABELS, localDateInBusinessZone,
+  effectiveLotContainerCount,
   ShipmentDocumentCustody,
   TripStatus,
   type ShipmentCusWorkspaceListItem,
@@ -228,7 +229,11 @@ function buildOperationalSummary(
     else plateAssignedContainers += 1;
   }
 
-  const totalContainers = containers.length;
+  // SIL-601 (id 702, owner ruling 30/10/2026): one LCL lot ≡ 1-cont lot —
+  // the workspace count reads 1 (never the 0 the empty shipment_containers
+  // rows produce). The per-container sub-counts above stay row-based on
+  // purpose: they drive readiness/issue state, not the lot's cont count.
+  const totalContainers = effectiveLotContainerCount(row.shipment.cargoMode, containers.length) ?? 0;
   const lotLevelAssignment = row.shipment.cargoMode === CARGO_MODE.FCL
     ? null
     : support.assignmentsByShipment.get(row.shipment.id) ?? null;

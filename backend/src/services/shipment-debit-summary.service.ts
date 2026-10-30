@@ -16,6 +16,7 @@ import * as s from '../db/schema';
 import { db } from '../db';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
 import type { ShipmentDebitSummaryItem, ShipmentDebitSummaryResponse } from '@tingting/shared';
+import { effectiveLotContainerCount } from '@tingting/shared';
 import { loadFreightSnapshotChannelByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
@@ -195,6 +196,8 @@ export async function getShipmentDebitSummary(query: {
     // SIL-478 — the phone meta's "n cont": Σ container_count over the same
     // active-trip scope (physical containers on the lot — NOT the chốt's
     // fulfillment-only money scope; the shadow line still owns that law).
+    // SIL-601 (id 702) supersedes that Σ for LCL only: the projection below
+    // counts one LCL lot as exactly 1 cont (1 lô cont 1 cont).
     containers: sql<number>`coalesce(sum(${s.trips.containerCount}), 0)::int`,
   }).from(s.trips)
     .where(and(
@@ -428,7 +431,10 @@ export async function getShipmentDebitSummary(query: {
       // SIL-478 — the phone row's meta segments (ngày giao · n cont). Both
       // null on an intake-only lot: the FE drops the segment, never a 0.
       deliveryDate: lot.expectedDeliveryDate ?? null,
-      containerCount: tripCountByLot.has(lot.id) ? (containerCountByLot.get(lot.id) ?? null) : null,
+      // SIL-601 (id 702, owner ruling 30/10/2026): one LCL lot ≡ 1-cont lot —
+      // never 0 (intake-only lot) and never the Σ over trips (a multi-trip
+      // lot read "N cont"). FCL keeps the active-trip Σ.
+      containerCount: effectiveLotContainerCount(lot.cargoMode, tripCountByLot.has(lot.id) ? (containerCountByLot.get(lot.id) ?? null) : null),
       documentsSummary: null,
       // GP-01 — the merge bar's cargo totals read the lot's own measures.
       cargoWeightKg: lot.cargoWeightKg ?? null,

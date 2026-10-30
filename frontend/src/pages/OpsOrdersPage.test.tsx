@@ -105,6 +105,25 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(screen.getByText('Đang vận chuyển')).toBeInTheDocument();
   });
 
+  it('renders an LCL lot as "1 cont" with no numbers (SIL-601)', async () => {
+    const data = makeItems();
+    data.items = [{
+      id: 33, shipmentCode: 'SS-LCL', status: 'READY_FOR_DISPATCH', tradeDirection: 'IMPORT',
+      billRef: 'BL-LCL', customerName: 'Khách Lẻ', routeName: 'HP-BN', pinned: false,
+      pinnedAt: null, containerCount: 1, containerNumbers: [], containerIds: [],
+    }];
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/orders')) return Promise.resolve(data);
+      if (url.startsWith('/ops/expense-types')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+    const row = (await screen.findByText('BL-LCL')).closest('tr')!;
+    const fields = Array.from(row.querySelectorAll('td[data-label]')).map((cell) => [cell.getAttribute('data-label'), cell.textContent]);
+    // 1 lô cont 1 cont — the count prints, never "Chưa có cont".
+    expect(fields).toContainEqual(['Container', '1 cont']);
+  });
+
   it('retains all shipment fields and both actions in the labelled narrow-screen record', async () => {
     renderPage();
     const row = (await screen.findByText('BL-001')).closest('tr')!;

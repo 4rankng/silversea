@@ -1052,6 +1052,10 @@ export interface AdvanceSettlementWithRefs extends AdvanceSettlement {
     customerName?: string | null;
     routeName?: string | null;
     tripContainerCount?: number | null;
+    /** SIL-601 (id 702): the owning lot's mode — LCL lots count as 1 cont. */
+    cargoMode?: 'FCL' | 'LCL' | null;
+    /** SIL-601: owning lot id (per-LOT unit counting; review M1). */
+    shipmentId?: number | null;
     expenseTypeName?: string | null;
     submittedBuyAmount?: string | null;
     submittedSellAmount?: string | null;

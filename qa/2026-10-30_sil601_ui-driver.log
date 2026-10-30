@@ -1,0 +1,21 @@
+[2026-10-30T08:30:15.435Z] LOGIN OK (admin + giaonhan/OPS)
+[2026-10-30T08:30:15.437Z] REUSING LOT 777
+[2026-10-30T08:30:15.663Z] DB lot (id mode pkg type code): 777 LCL - - SHP-2610-00235
+[2026-10-30T08:30:15.663Z] DB trips — PRE-LAW Σ source: 1 trips, sum(container_count)=2 (the old phone meta printed this Σ)
+[2026-10-30T08:30:15.772Z] API detail containerCount = undefined | pricingProjection LCL qty = undefined (expect 1)
+[2026-10-30T08:30:15.772Z] API detail raw head: {"shipment":{"id":777,"shipmentCode":"SHP-2610-00235","version":2,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":6,"cargoTypeId":1,"responsibleUnitId":null,"status":"READY_FOR_DISPATCH","bookingRef":null,"blNumber":null,"tradeDirection":"IMPORT","cargoMode":"LCL"
+[2026-10-30T08:30:15.978Z] API cus-workspace totalContainers = undefined (expect 1; items: 20 status 200 )
+[2026-10-30T08:30:15.978Z] API cus-workspace raw head: {"page":1,"limit":20,"total":498,"totalPages":25,"statusCounts":{"needsSchedule":240,"needsVehicle":433,"waitingAccounting":498},"items":[{"id":761,"version":1,"status":"PENDING_DATE","cargoMode":"FCL
+[2026-10-30T08:30:15.992Z] API ops-orders containerCount = 1 (expect 1; items: 9 status 200 )
+[2026-10-30T08:30:16.261Z] API debit-summary containerCount = 1 (expect 1 — the phone meta "n cont"; row: present )
+[2026-10-30T08:30:28.843Z] UI CUS filtered rows (cargo cell + row): [{"cargo":"1 cont","row":"LONG MINHChưa có nhà máyKCN QUẾ VÕ, BẮC NINHChưa có Bill/BookChưa có tờ khaiChưa có hãng tàuNhập lẻ1 cont30/10/2026Toàn bộ chờ phân xeSẵn sàng điều xeChưa phân "}]
+[2026-10-30T08:30:29.131Z] SHOT qa/2026-10-30_sil601_ui-cus-workboard-1440.png
+[2026-10-30T08:30:30.185Z] SHOT qa/2026-10-30_sil601_ui-cus-workboard-390.png
+[2026-10-30T08:30:37.059Z] UI debit table contains lot code SHP-2610-00235 : false
+[2026-10-30T08:30:42.274Z] SHOT qa/2026-10-30_sil601_ui-shipments-debit-1440.png
+[2026-10-30T08:30:44.896Z] customer filter: {"ok":false,"selects":[]}
+[2026-10-30T08:30:46.699Z] UI debit phone meta lines with "1 cont": [] (no meta line — see API rung-2 evidence)
+[2026-10-30T08:30:46.887Z] SHOT qa/2026-10-30_sil601_ui-shipments-debit-390.png
+[2026-10-30T08:30:52.037Z] UI ops-orders Container cell = "1 cont" row: "Q2-LCL-IMPCÔNG TY TNHH MỘT THÀNH VIÊN LONG MINHKCN Quế Võ, Nam Sơn, Bắc Ninh1 contSẵn sàng phát lệnh Khai chi phí"
+[2026-10-30T08:30:52.425Z] SHOT qa/2026-10-30_sil601_ui-ops-orders-1440.png
+[2026-10-30T08:30:52.702Z] DRIVER DONE exit=0

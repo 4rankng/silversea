@@ -253,6 +253,7 @@ export interface DispatchReadiness {
 export async function getDispatchReadiness(shipmentId: number, executor: Executor = db): Promise<DispatchReadiness> {
   const [shipment] = await executor.select({
     blNumber: s.shipments.blNumber,
+    cargoMode: s.shipments.cargoMode,
   })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
@@ -268,7 +269,10 @@ export async function getDispatchReadiness(shipmentId: number, executor: Executo
     .from(s.shipmentContainers)
     .where(eq(s.shipmentContainers.shipmentId, shipmentId));
   const containerCount = containerCountRow?.count ?? 0;
-  if (containerCount === 0) {
+  // SIL-601 (id 702): one LCL lot ≡ 1-cont lot — the "≥1 container" advisory
+  // is satisfied by the convention's virtual cont and an LCL lot lawfully has
+  // no shipment_containers rows, so never warn about them here.
+  if (containerCount === 0 && shipment.cargoMode !== s.CARGO_MODE.LCL) {
     missing.push('Công-te-nơ (ít nhất một)');
   }
 

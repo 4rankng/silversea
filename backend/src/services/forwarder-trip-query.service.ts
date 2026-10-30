@@ -219,9 +219,15 @@ export async function getForwarderTrips(
         GROUP BY ct.code, ct.name
       ) container_group
     )`,
+    // SIL-601 (id 702): one LCL lot ≡ 1-cont lot — count 1 for LCL instead of
+    // the 0 its (lawfully) empty shipment_containers rows produce. FCL keeps
+    // the row count.
     containerCount: sql<number>`(
-      SELECT count(*)::int FROM shipment_containers sc
-      WHERE sc.shipment_id = ${s.shipments.id}
+      CASE WHEN ${s.shipments.cargoMode} = 'LCL' THEN 1
+      ELSE (
+        SELECT count(*)::int FROM shipment_containers sc
+        WHERE sc.shipment_id = ${s.shipments.id}
+      ) END
     )`,
     containerNumbers: sql<string | null>`coalesce(
       (
