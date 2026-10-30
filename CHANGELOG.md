@@ -24,6 +24,13 @@ không còn rule forced-frame). Sửa pin lạc hậu: `ClerkShipmentCreatePage.
 (assert `--persistent` → assert display lane "09:30 20/08/2026"),
 `invalid-required-paint.test.tsx` (bỏ nhánh `--persistent` chết trong helper).
 Case: `testplan/2026-10-30-sil597-appointment-cell-value-first.md`.
+Gates: scoped FE vitest 559/559 (67 files) · `tsc -b` exit 0 · `make build`
+exit 0 · QA-26 full FE suite 5.890/5.892 — fail xoay vòng giữa 2 lần chạy
+trên cùng source (numeric-identity.styles.test.ts đòi `dist/assets` của build;
+các fail còn lại đúng contention class ghi trong vitest.config.ts QA 26 note,
+retry isolated/solo đều xanh, host load 32). Log `qa/2026-10-30_sil597_*.log`.
+Review độc lập (code-reviewer 30/10, diff chung SIL-597+599): 0 finding cho
+phần SIL-597.
 
 ## 2026-10-30 — fix(cus): SIL-595 (id 695) — drawer CUS render giờ hẹn đóng/trả theo ICT (GMT+7), không còn lệch 7 giờ
 
