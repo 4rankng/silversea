@@ -94,6 +94,7 @@ export function ShipmentContainerCell({
   picker,
   collapsePickedEditor,
   mobileFieldChrome,
+  alwaysVisible,
 }: ShipmentContainerCellProps) {
   const cellRef = useRef<HTMLTableCellElement & HTMLDivElement>(null);
   const valueAtFocus = useRef(value);
@@ -108,7 +109,6 @@ export function ShipmentContainerCell({
   const requiredMark = label.endsWith(' *');
   const labelText = requiredMark ? label.slice(0, -2) : label;
   const picked = Boolean(collapsePickedEditor && value);
-
   useEffect(() => {
     if (committedValue.current === value) return;
     committedValue.current = value;
@@ -194,7 +194,7 @@ export function ShipmentContainerCell({
       ref={cellRef}
       data-label={label}
       data-field-id={fieldId}
-      className={`csc-container-cell${picker ? ' csc-container-cell--picker' : ''}${picked ? ' csc-container-cell--picked' : ''}${editorEditing ? ' csc-container-cell--editing' : ''}${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
+      className={`csc-container-cell${picker ? ' csc-container-cell--picker' : ''}${picked ? ' csc-container-cell--picked' : ''}${editorEditing ? ' csc-container-cell--editing' : ''}${alwaysVisible ? ' csc-container-cell--always-visible' : ''}${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
       onClick={activateCell}
       onFocusCapture={captureStartingValue}
       onBlurCapture={releaseCell}
