@@ -1,0 +1,112 @@
+front=http://localhost:7182 health=ok
+login ok (identifier=cus, from testplan/testaccounts.txt)
+PASS 1440 board butts left content-pane edge (x ≈ 248) — x=248
+PASS 1440 board butts right content-pane edge (≈ 1425) — right=1425
+PASS 1440 control surface keeps the gutter (x ≈ 248 + 24px) — x=272
+PASS 1440 no horizontal document overflow — scrollW=1440
+PASS 1440 schedule cell lines computed-wrap (normal, no ellipsis, no hidden overflow) — {"ws":"normal","te":"clip","ox":"visible"}
+1440 geo={
+ "innerWidth": 1440,
+ "docScrollWidth": 1440,
+ "bodyContentLeft": 248,
+ "bodyContentWidth": 1177,
+ "viewport": {
+  "x": 248,
+  "y": 226,
+  "width": 1177,
+  "height": 1632.40625,
+  "top": 226,
+  "right": 1425,
+  "bottom": 1858.40625,
+  "left": 248
+ },
+ "table": {
+  "x": 248,
+  "y": 226,
+  "width": 1189,
+  "height": 1567.40625,
+  "top": 226,
+  "right": 1437,
+  "bottom": 1793.40625,
+  "left": 248
+ },
+ "control": {
+  "x": 272,
+  "y": 80,
+  "width": 1129,
+  "height": 36,
+  "top": 80,
+  "right": 1401,
+  "bottom": 116,
+  "left": 272
+ },
+ "pageX": 248,
+ "pagePad": "24px",
+ "workspaceMargin": "-24px",
+ "factoryText": null,
+ "factoryClip": null,
+ "whenRule": null,
+ "factoryRule": null,
+ "childRule": {
+  "ws": "normal",
+  "te": "clip",
+  "ox": "visible"
+ },
+ "fallbackText": null
+}
+PASS 1280 board butts left content-pane edge (x ≈ 48) — x=48
+PASS 1280 board butts right content-pane edge (≈ 1265) — right=1265
+PASS 1280 control surface keeps the gutter (x ≈ 48 + 20px) — x=68
+PASS 1280 no horizontal document overflow — scrollW=1280
+PASS 1280 schedule cell lines computed-wrap (normal, no ellipsis, no hidden overflow) — {"ws":"normal","te":"clip","ox":"visible"}
+1280 geo={
+ "innerWidth": 1280,
+ "docScrollWidth": 1280,
+ "bodyContentLeft": 48,
+ "bodyContentWidth": 1217,
+ "viewport": {
+  "x": 48,
+  "y": 226,
+  "width": 1217,
+  "height": 1632.40625,
+  "top": 226,
+  "right": 1265,
+  "bottom": 1858.40625,
+  "left": 48
+ },
+ "table": {
+  "x": 48,
+  "y": 226,
+  "width": 1217,
+  "height": 1567.40625,
+  "top": 226,
+  "right": 1265,
+  "bottom": 1793.40625,
+  "left": 48
+ },
+ "control": {
+  "x": 68,
+  "y": 80,
+  "width": 1177,
+  "height": 36,
+  "top": 80,
+  "right": 1245,
+  "bottom": 116,
+  "left": 68
+ },
+ "pageX": 48,
+ "pagePad": "20px",
+ "workspaceMargin": "-20px",
+ "factoryText": null,
+ "factoryClip": null,
+ "whenRule": null,
+ "factoryRule": null,
+ "childRule": {
+  "ws": "normal",
+  "te": "clip",
+  "ox": "visible"
+ },
+ "fallbackText": null
+}
+NOTE: no appointment-group factory span found within 8 pages — wrap asserted via computed rules + lot-fallback only (data limit).
+RESULT: ALL PASS

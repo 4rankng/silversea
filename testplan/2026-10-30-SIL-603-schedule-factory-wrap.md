@@ -15,6 +15,21 @@ Owner 30/10/2026 (screenshot staging f667f55f→8f376365): trên Tổng quan lô
   .cus-inline-trigger > *`) → dòng quá cột bị cắt thành "21:20 28/10/2026 ·
   NEWEB…".
 
+## Owner directive bổ sung (30/10, cùng lane)
+1. **EDGE-TO-EDGE**: bảng dữ liệu render full width chạm 2 mép content pane —
+   bỏ gutter shell (24/12/8px) + bỏ cap 1800px cho trang workboard; control
+   surface (title + filter) giữ nguyên gutter ("content bleeds, controls
+   float"); pagination full-bleed theo bảng (nằm trong cùng viewport).
+2. **Second opinion**: webchat deepseek 30/10 trước khi chốt layout — verdict:
+   full-bleed OK, pagination đi theo bảng, cảnh báo (i) ultrawide nên giữ trần
+   và (ii) verify `.app-body` là scrollport. (i) không áp dụng — owner ruling
+   full-width thắng, trần cột % giữ đọc được ở mọi canvas ≥1189px; (ii) đã
+   kiểm chứng: `.app-body { overflow-y: auto }` (styles/base.test.ts) và
+   container-query fallback scroll khi bảng vượt canvas.
+3. shipmate-uiux §4 doctrine: KHÔNG tìm thấy mục §4/edge-to-edge trong bản
+   skill cài tại máy (uiux SKILL.md + references đã grep) — ghi nhận limitation,
+   không tự bịa doctrine.
+
 ## Tái hiện
 1. Đăng nhập (bất kỳ role đọc được /shipments), tạo lô FCL có appointment group
    với tên nhà máy dài (vd "NEWEB - KHO 1 CÔNG TY TNHH NEWEB VIỆT NAM").
@@ -39,6 +54,16 @@ Owner 30/10/2026 (screenshot staging f667f55f→8f376365): trên Tổng quan lô
   nguyên vẹn trong DOM (span riêng `cus-schedule-group__factory`), giờ+ngày là
   span riêng `cus-schedule-group__when`, title mang full line; CSS pin: luật
   schedule cell wrap (normal + overflow-wrap anywhere), cấm quay lại
-  nowrap/ellipsis/overflow hidden trên dòng lịch trình.
+  nowrap/ellipsis/overflow hidden trên dòng lịch trình; CSS pin edge-to-edge
+  (shell pad 0 qua `:has`, page `max-width: none`, workspace bleed margin âm).
 - `ShipmentsPage.test.tsx` — các assert cũ pin chuỗi packed
   "09:30 12/08/2026 · Nhà máy ABC · 1x40HC" được cập nhật theo layout mới.
+- `qa/scripts/2026-10-30-sil-603-edge-to-edge-wrap.mjs` — driver rung-3:
+  geometry 2 mép content pane @1440/@1280 + computed wrap law; artifacts
+  `qa/2026-10-30_sil-603_ui/`.
+
+## Hạn chế dữ liệu (đã ghi nhận)
+Local dev DB (account `cus`) không có lô nào có appointment-group kèm tên nhà
+máy → không đo được scrollWidth/clientWidth trên span factory THẬT trên màn
+hình. Bù lại: unit test pin full text DOM + computed wrap law đã drive trên
+trang thật. Đo factory thật cần data staging.
