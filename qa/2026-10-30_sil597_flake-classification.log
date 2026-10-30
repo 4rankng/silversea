@@ -1,0 +1,6 @@
+CMD: npx vitest run src/features/accounting/AccountingWorkInbox.test.tsx (isolated re-run)
+WHEN: 2026-10-30T06:34:56Z TREE: main @ merge ee601e29
+Full-suite gates (2026-10-30_sil597_merge-side-gates.log): 1 failed | 5892 passed (5893)
+Fail: AccountingWorkInbox.test.tsx "loads lanes without sort params by default" — unrelated surface (accounting inbox vs 697 shipment-create cell).
+Isolated re-run: Test Files 1 passed (1), Tests 4 passed (4), EXIT=0 → flake under load (5 lane agents running concurrently).
+Classification: land-valid per 29-30/10 precedent (SIL-LAND-RACE).
