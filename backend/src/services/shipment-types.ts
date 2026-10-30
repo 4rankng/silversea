@@ -28,6 +28,10 @@ export interface ShipmentContainerInput {
   rawFactoryName?: string | null;
   rawRouteName?: string | null;
   customerAppointmentAt?: string | null;
+  /** SIL-600 (owner ruling 30/10/2026): per-cont số tờ khai entered at
+   *  create/edit time — the SIL-521 attribute model. `undefined` (a payload
+   *  that does not manage the field) preserves the stored value on update. */
+  declarationNumber?: string | null;
   notes?: string | null;
 }
 

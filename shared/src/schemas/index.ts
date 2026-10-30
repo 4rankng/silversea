@@ -1843,6 +1843,12 @@ export const shipmentContainerItemSchema = z.object({
     operationalSiteId: z.coerce.number().int().positive().optional().nullable(),
     // Ngày đóng/trả container (doc: Create Shipment Block 2, per-container date).
     customerAppointmentAt: shipmentTimestamp.optional().nullable(),
+    // SIL-600 (owner ruling 30/10/2026): the create form enters số tờ khai
+    // per container at intake time — the SIL-521 per-cont attribute model
+    // (shipment_containers.declaration_number). Duplicates inside one lot
+    // stay allowed (no unique check at this layer, ever).
+    declarationNumber: z.string().trim().max(50, 'Số tờ khai không được quá 50 ký tự').optional().nullable()
+      .transform(v => (v === '' ? null : v)),
     notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
   });
 

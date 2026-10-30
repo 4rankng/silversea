@@ -182,7 +182,7 @@
       bottom padding reserves that lane (overlay-scrollbar platforms just show
       a small inset). */
 .csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; padding-bottom: 14px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
-.csc-container-table { width: 100%; min-width: 844px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-table { width: 100%; min-width: 994px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
 .csc-container-col__index { width: 40px; }
 /* SIL-508 (owner 26/10): the merged SỐ CONTAINER group (SỐ / LOẠI /
    TRỌNG LƯỢNG stacked lines) replaces the number + type + weight columns.
@@ -191,9 +191,15 @@
    label (TRỌNG LƯỢNG, ~11ch uppercase) shares the row with a usable
    numeric value — 190px clears label + "Nhập kg" on one line + cell
    padding; the freed width still flows to the auto columns at real widths
-   (min-width 844 keeps three ~72px auto tracks at the floor, where values
+   (min-width keeps three ~72px auto tracks at the floor, where values
    wrap per the no-truncation doctrine instead of clipping). */
 .csc-container-col__contgroup { width: 190px; }
+/* SIL-600 (owner 30/10): số tờ khai joins the sheet right after the
+   container identity group — 150px clears the nowrap "Số tờ khai" header
+   and the 11-digit number + the "Nhập số tờ khai" placeholder at the house
+   field font (the same floor the old standalone number column carried);
+   min-width grows by exactly this column (844 → 994). */
+.csc-container-col__declaration { width: 150px; }
 .csc-container-col__route { width: 180px; }
 .csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
 .csc-container-col__actions { width: 44px; }
@@ -432,6 +438,10 @@
   /* SIL-508: the merged SỐ/LOẠI/TRỌNG LƯỢNG group is ONE stacked record
      section on the phone — it owns the full row, not half of it. */
   .csc-container-row .csc-contgroup-cell { grid-column: 1 / -1; }
+  /* SIL-600: số tờ khai rides the same full-row band — an 11-digit code
+     never shares a phone half-column, and the auto-placement flow after the
+     full-row group stays deterministic. */
+  .csc-container-row td[data-field-id$='-declaration'] { grid-column: 1 / -1; }
   /* Route seam marker: Cảng nâng → Cảng hạ reads as one leg of the journey. */
   .csc-container-row td[data-field-id$='-pickup-port']::after { content: ''; position: absolute; z-index: 2; top: 35px; right: -11px; width: 7px; height: 7px; border-top: 2px solid var(--fg-3); border-right: 2px solid var(--fg-3); transform: rotate(45deg); pointer-events: none; }
   /* In-cell affordances align to the control band, under the new label line. */

@@ -625,16 +625,20 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
 
-  it('SIL-521: form tạo lô KHÔNG còn chỗ nhập Số tờ khai cấp lô — payload create cũng không mang số', async () => {
+  it('SIL-521/SIL-600: không còn ô tờ khai CẤP LÔ — payload root không mang số, cont thì có', async () => {
     // Supersede VID-CUS-04 + card 328 pins: the chip strip and its draft/
-    // dedupe/retry machinery are retired — tờ khai is per-cont only, entered
-    // after the lot exists (Tổng quan ledger cells / drawer).
+    // dedupe/retry machinery are retired. SIL-600 (owner ruling 30/10) adds
+    // the PER-CONT SỐ TỜ KHAI inputs on the Thông tin hàng rows — the lot-level
+    // field ids/strip stay dead and the ROOT payload still never carries a
+    // declaration number (it rides containers[].declarationNumber).
     mocks.quickCreate.mockResolvedValue({ id: 90, version: 1 });
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
     await choose('Khách hàng', '7');
 
-    expect(screen.queryByRole('textbox', { name: 'Số tờ khai' })).toBeNull();
+    // Per-cont inputs exist inside the container sheet (SIL-600)…
+    expect(screen.getAllByLabelText('Số tờ khai').length).toBeGreaterThanOrEqual(1);
+    // …while every lot-level channel stays retired.
     expect(document.querySelector('[data-field-id="shipment-declarations"]')).toBeNull();
     expect(document.querySelector('.csc-declaration-strip')).toBeNull();
 
@@ -1271,6 +1275,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'STT',
       'Số container',
+      'Số tờ khai',
       'Nhà máy',
       'Tuyến đường',
       'Cảng nâng',

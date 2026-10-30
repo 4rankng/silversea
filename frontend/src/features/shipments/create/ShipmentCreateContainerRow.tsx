@@ -326,6 +326,29 @@ export function ShipmentCreateContainerRow({
           </GroupFloatingLine>
         </div>
       </td>
+      {/* SIL-600 (owner ruling 30/10): số tờ khai entered per container right
+          on the create form — a plain always-editable text cell (the number is
+          typed, never picked), column placed after the container identity
+          group (the CUS Thông tin hàng sheet's order). Duplicates across rows
+          stay allowed (SIL-521); the field is optional. */}
+      <ShipmentContainerCell
+        label="Số tờ khai"
+        value={row.declarationNumber}
+        placeholder="Nhập số tờ khai"
+        fieldId={`container-${row.key}-declaration`}
+        onRevert={(value) => updateContainer(row.key, 'declarationNumber', value)}
+        mobileFieldChrome
+      >
+        <TextField
+          id={`container-${row.key}-declaration`}
+          label="Số tờ khai"
+          hideLabel
+          value={row.declarationNumber}
+          onChange={(event) => updateContainer(row.key, 'declarationNumber', event.target.value)}
+          maxLength={50}
+          disabled={saving}
+        />
+      </ShipmentContainerCell>
       <td className="csc-container-row__group" aria-hidden="true">Lộ trình</td>
       <ShipmentContainerCell
         label={isAdHoc ? 'Nhà máy' : 'Nhà máy *'}

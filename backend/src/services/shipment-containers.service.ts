@@ -307,6 +307,16 @@ export async function reconcileShipmentContainersInTx(
     const rawRouteName = resolvedRouteId != null
       ? null
       : container.rawRouteName?.trim() || null;
+    // SIL-600: per-cont số tờ khai rides the same undefined-preservation
+    // contract as the factory/port fields above — a payload that omits the
+    // field (a surface that does not manage it) keeps the stored number;
+    // an explicit value (including the create form's `null` for an emptied
+    // input) replaces it. Duplicates within the lot stay allowed (SIL-521).
+    const declarationNumber = container.declarationNumber !== undefined
+      ? container.declarationNumber?.trim() || null
+      : isUpdate
+        ? currentById.get(container.id as number)?.declarationNumber ?? null
+        : null;
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -324,6 +334,7 @@ export async function reconcileShipmentContainersInTx(
       rawFactoryName,
       rawRouteName,
       customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
+      declarationNumber,
       notes: container.notes ?? null,
       updatedAt: new Date(),
     };

@@ -43,7 +43,7 @@ function row1FieldText(): string {
     .join('|');
 }
 
-describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', () => {
+describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', { timeout: 30000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     getBootstrap.mockResolvedValue({

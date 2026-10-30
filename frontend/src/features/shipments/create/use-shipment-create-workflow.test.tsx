@@ -142,6 +142,7 @@ describe('post-create navigation (FB-106 card 171026115810)', () => {
     key: 'row-1',
     containerNumber: 'TRHU4948488',
     containerTypeId: '3',
+    declarationNumber: '',
     routeId: '9',
     rawRouteName: '',
     pickupPortId: '4',

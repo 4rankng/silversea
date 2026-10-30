@@ -74,6 +74,10 @@ export interface ShipmentContainerDraft {
   id?: number;
   containerNumber: string;
   containerTypeId: string;
+  /** SIL-600 (owner ruling 30/10/2026): số tờ khai của riêng container này,
+   *  entered on the create form per the SIL-521 per-cont attribute model —
+   *  per-row editable, duplicates inside the lot allowed. */
+  declarationNumber: string;
   /** Selected independently for this container. */
   routeId: string;
   /** Ad-hoc free-text row route (Lệnh chạy ngoài §4.2) — XOR with routeId. */
@@ -166,6 +170,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     key: crypto.randomUUID(),
     containerNumber: '',
     containerTypeId: '',
+    declarationNumber: '',
     routeId: '',
     rawRouteName: '',
     pickupPortId: '',
@@ -189,6 +194,11 @@ export function createEmptyContainer(): ShipmentContainerDraft {
  * Số container stays empty for entry and the Loại cont stays blank ("Chọn
  * loại") for the operator's own pick. The payload already sends an EXPLICIT
  * `containerTypeId: null` when unpicked, so the server cannot re-copy either.
+ *
+ * SIL-600: SỐ TỜ KHAI rides the SHARED half of that split — one declaration
+ * usually covers the lot's containers (the SIL-521 "các container trong cùng
+ * lô được chia sẻ số" model), so the new row inherits it and each row stays
+ * freely editable afterwards (divergence allowed, duplicates never blocked).
  */
 export function createContainerFromPrevious(
   previous?: ShipmentContainerDraft,
@@ -462,6 +472,9 @@ export function buildShipmentContainerPayload(
     rawDropoffPortName: !row.dropoffPortId && form.isAdHoc ? row.rawDropoffPortName.trim() || null : null,
     operationalSiteId: row.operationalSiteId ? Number(row.operationalSiteId) : null,
     rawFactoryName: !row.operationalSiteId && form.isAdHoc ? row.rawFactoryName.trim() || null : null,
+    // SIL-600: per-cont số tờ khai rides the create payload (null when the
+    // operator left it empty) — the reconcile stores it on the container row.
+    declarationNumber: row.declarationNumber.trim() || null,
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
     customerAppointmentAt: localDateTimeToIso(row.customerAppointmentAt),

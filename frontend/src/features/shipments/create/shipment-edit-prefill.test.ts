@@ -70,6 +70,7 @@ describe('buildShipmentEditPrefill', () => {
       id: 55, shipmentId: 186, containerTypeId: 31, containerNumber: 'CONT-001',
       sealNumber: null, cargoWeightKg: '12000', customerAppointmentAt: '2026-10-20T08:30:00+07:00',
       pickupPortId: 21, dropoffPortId: 22, routeId: 11, operationalSiteId: 41, notes: null,
+      declarationNumber: 'TK-0123456789',
     } as ShipmentEditDetail['containers'][number]];
     detail.declarations = [
       { id: 66, shipmentId: 186, declarationNumber: 'TK-001', scope: 'SINGLE', issuedAt: null, note: null, createdBy: null, createdAt: '2026-10-20T00:00:00.000Z', updatedAt: '2026-10-20T00:00:00.000Z' },
@@ -89,6 +90,9 @@ describe('buildShipmentEditPrefill', () => {
     expect(prefill.containers).toHaveLength(1);
     expect(prefill.containers[0].id).toBe(55);
     expect(prefill.containers[0].containerTypeId).toBe('31');
+    // SIL-600: the per-cont số tờ khai round-trips into the cell — an edit
+    // save re-sends the shown value, never silently clears it.
+    expect(prefill.containers[0].declarationNumber).toBe('TK-0123456789');
     // +07:00 ISO → local datetime input (inverse of localDateTimeToIso).
     expect(prefill.containers[0].customerAppointmentAt).toBe('2026-10-20T08:30');
   });

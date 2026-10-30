@@ -14,6 +14,7 @@ const spreadsheetCellCss = readFileSync(
 const CONTAINER_COLUMNS = [
   'index',
   'contgroup',
+  'declaration',
   'route',
   'pickup-port',
   'dropoff-port',
@@ -56,9 +57,9 @@ describe('shipment create responsive layout', () => {
   });
 
   it('fills the desktop workspace while keeping short-value columns compact', () => {
-    // The sheet declares a width for each of the eight columns the desktop
+    // The sheet declares a width for each of the nine columns the desktop
     // workspace lays out (SIL-508: number + type + weight merged into the
-    // single SỐ CONTAINER group column).
+    // single SỐ CONTAINER group column; SIL-600: SỐ TỜ KHAI joins after it).
     for (const column of CONTAINER_COLUMNS) {
       expect(css).toMatch(new RegExp(`\\.csc-container-col__${column}[\\s,][^{]*\\{[^}]*width:`));
     }
@@ -68,9 +69,13 @@ describe('shipment create responsive layout', () => {
     // `overflow-y: auto` and the horizontal scrollbar's height makes the table
     // overflow vertically — the page painted TWO scrollbars over one table.
     expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*hidden;/);
-    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*844px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*994px;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*180px;/);
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
+    // SIL-600: the số tờ khai column hugs its live floor — the nowrap header
+    // and the 11-digit number at the house field font — 150px, and the table
+    // min-width grows by exactly that column over the pre-SIL-600 844px.
+    expect(css).toMatch(/\.csc-container-col__declaration\s*\{[^}]*width:\s*150px;/);
     // SIL-508: the merged group column hugs the SỐ line's floor — the 11-char
     // container number at the house data font, the same 128px the old number
     // column carried. The LOẠI picker and TRỌNG LƯỢNG lines are narrower and
