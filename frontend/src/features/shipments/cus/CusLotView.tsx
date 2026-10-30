@@ -895,9 +895,15 @@ export function CusLotView({
                   </FactCell>
                   <FactCell label="Phơi phiếu">{item.documentCustody.label ?? 'Chưa xác định'}</FactCell>
                   <FactCell label="Ngày giờ đóng/trả">
-                    {(item.plannedReturnAt ?? item.closingAt)
-                      ? formatDateTimeShort(item.plannedReturnAt ?? item.closingAt)
-                      : (item.transportDate ? formatISODate(item.transportDate) : dash)}
+                    {/* SIL-610 (id 713): legacy date-only lots read the
+                        trip-derived instant before falling back to the bare
+                        day — same chain the workboard cell renders. */}
+                    {(() => {
+                      const scheduleValue = item.plannedReturnAt ?? item.closingAt ?? item.derivedScheduleAt;
+                      return scheduleValue
+                        ? formatDateTimeShort(scheduleValue)
+                        : (item.transportDate ? formatISODate(item.transportDate) : dash);
+                    })()}
                   </FactCell>
                   <FactCell label="Ghi chú">
                     {[item.customerNotes, item.operationalNotes].filter(Boolean).join(' — ') || dash}

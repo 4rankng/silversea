@@ -113,3 +113,28 @@ describe('CusLotView — SIL-595 giờ hẹn đóng/trả render ICT (GMT+7)', (
     expect(screen.queryByText(/07:30/)).toBeNull();
   });
 });
+
+// SIL-610 (id 713): lô lẻ cũ không có instant lưu trữ — chi tiết lô ("Ngày giờ
+// đóng/trả") cũng phải đọc instant derived từ chuyến trước khi rơi về ngày
+// thuần, cùng chuỗi với ô Tổng quan.
+describe('CusLotView — SIL-610 giờ derived từ chuyến cho lô cũ', () => {
+  it('C6: "Ngày giờ đóng/trả" render derivedScheduleAt khi cả closingAt/plannedReturnAt trống', () => {
+    renderView([], {
+      cargoMode: 'LCL',
+      direction: 'IMPORT',
+      transportDate: '2026-10-29',
+      derivedScheduleAt: '2026-10-29T02:30:00.000Z',
+    } as Partial<ShipmentCusWorkspaceListItem>);
+    expect(screen.getByText('09:30 29/10/2026')).toBeTruthy();
+  });
+
+  it('C6: không có derived thì vẫn ngày thuần, không bịa 00:00', () => {
+    renderView([], {
+      cargoMode: 'LCL',
+      direction: 'IMPORT',
+      transportDate: '2026-10-29',
+    } as Partial<ShipmentCusWorkspaceListItem>);
+    expect(screen.getByText('29/10/2026')).toBeTruthy();
+    expect(screen.queryByText(/00:00 29\/10\/2026/)).toBeNull();
+  });
+});

@@ -26,6 +26,7 @@ function makeItem(overrides: {
   transportDate?: string | null;
   closingAt?: string | null;
   plannedReturnAt?: string | null;
+  derivedScheduleAt?: string | null;
   scheduleReadiness?: string;
 } = {}): ShipmentCusWorkspaceListItem {
   const {
@@ -45,6 +46,7 @@ function makeItem(overrides: {
     transportDate = null,
     closingAt = null,
     plannedReturnAt = null,
+    derivedScheduleAt = null,
     scheduleReadiness = 'READY',
   } = overrides;
   return {
@@ -76,6 +78,7 @@ function makeItem(overrides: {
     transportDate,
     closingAt,
     plannedReturnAt,
+    derivedScheduleAt,
     raw: { isAdHoc: false },
     fieldAccess: {
       factoryName: access('EDITABLE'),
@@ -339,5 +342,62 @@ describe('CusShipmentRow — Chứng từ cell (SIL-502 regression)', () => {
     const { container } = renderRow(item);
     expect(documentsCell(container).textContent).toContain('502-TK-LEGACY');
     expect(documentsCell(container).textContent).not.toContain('Chưa có tờ khai');
+  });
+});
+
+// SIL-610 (id 713, owner 30/10): lô lẻ cũ (trước trường SIL-587) chỉ có
+// expectedDeliveryDate nên tổng quan render date-only. Giờ thật duy nhất lô
+// có là trên chuyến của lô — BE derive `derivedScheduleAt` (plannedStartAt
+// "Giờ chạy", cùng ngày ICT với EDD). Ô lịch đọc nó trước ngày thuần; instant
+// đã lưu vẫn thắng; FCL giữ luật đọc nghiêm (không bao giờ đọc derived).
+describe('CusShipmentRow — SIL-610 (lô lẻ cũ có giờ từ dữ liệu chuyến)', () => {
+  it('SIL-610-C4: renders the trip-derived datetime in ICT for a legacy LCL lot', () => {
+    // 02:30Z = 09:30 ICT on 29/10.
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      customerName: 'YUANFANG',
+      billOrBookNumber: 'K2K45235345634',
+      transportDate: '2026-10-29',
+      derivedScheduleAt: '2026-10-29T02:30:00.000Z',
+    }));
+    const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
+    expect(scheduleCell.textContent).toContain('09:30 29/10/2026');
+    // No fabricated midnight: the cell never renders a bare "00:00" time.
+    expect(scheduleCell.textContent).not.toContain('00:00');
+  });
+
+  it('SIL-610-C5: a stored instant still wins over the derived one', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      direction: 'IMPORT',
+      transportDate: '2026-10-29',
+      plannedReturnAt: '2026-10-29T08:45:00.000Z',
+      derivedScheduleAt: '2026-10-29T02:30:00.000Z',
+    }));
+    const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
+    expect(scheduleCell.textContent).toContain('15:45 29/10/2026');
+    expect(scheduleCell.textContent).not.toContain('09:30');
+  });
+
+  it('SIL-610-C5: legacy lot without a derived instant keeps the date-only day', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      transportDate: '2026-10-29',
+      derivedScheduleAt: null,
+    }));
+    const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
+    expect(scheduleCell.textContent).toContain('29/10/2026');
+    expect(/\d{2}:\d{2}/.test(scheduleCell.textContent)).toBe(false);
+  });
+
+  it('SIL-610-C5: FCL ignores the derived instant (strict per-container law holds)', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'FCL',
+      direction: 'IMPORT',
+      transportDate: '2026-10-29',
+      derivedScheduleAt: '2026-10-29T02:30:00.000Z',
+    }));
+    const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
+    expect(scheduleCell.textContent).not.toContain('09:30');
   });
 });
