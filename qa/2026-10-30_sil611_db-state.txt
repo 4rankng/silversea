@@ -1,0 +1,4 @@
+# SIL-611 ui-drive read-only proof (2026-10-30T14:38:16.010Z)
+shipments before: 548
+shipments after:  548
+POST /api/shipments fired: 0

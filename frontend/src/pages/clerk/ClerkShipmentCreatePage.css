@@ -41,9 +41,10 @@
 /* Card D.4 (18/10) + 181026200700: the hàng lẻ form has NO "Lịch & ghi chú"
    section and NO add button — one always-visible "Ngày giao hàng" field. */
 .csc-lcl-delivery { display: grid; gap: 6px; justify-items: start; min-width: 0; }
-/* Ghi chú pair: two recipient notes share ONE row at the same height instead
-   of stacking two full-width boxes — the schedule section stays a dense
-   worksheet rather than a wall of text areas. Phones keep the stack. */
+/* Ghi chú pair (SIL-611: the form's LAST band, below Thông tin hàng): two
+   recipient notes share ONE row at the same height instead of stacking two
+   full-width boxes — the closing section stays a dense worksheet rather
+   than a wall of text areas. Phones keep the stack. */
 .csc-notes-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 8px; min-width: 0; }
 .csc-notes-grid > * { min-width: 0; }
 @media (max-width: 760px) { .csc-notes-grid { grid-template-columns: minmax(0, 1fr); } }

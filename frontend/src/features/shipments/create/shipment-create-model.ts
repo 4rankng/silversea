@@ -99,8 +99,12 @@ export interface ShipmentContainerDraft {
 
 /** `mode` is the top-of-form Loại hàng band (cards 211026130215/30315): it
  *  carries no validation issues (the mode is always chosen), so it never joins
- *  `sectionDefinitions` — it exists for the section DOM id only. */
-export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule' | 'mode';
+ *  `sectionDefinitions` — it exists for the section DOM id only. `schedule`
+ *  survives ONLY as the readiness group id for the appointment/closing
+ *  datetime requirements — the "Lịch & ghi chú" DOM section it used to name
+ *  is gone (SIL-611): those datetime fields live in the top band and the
+ *  container rows, and the form's last section is now `notes`. */
+export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule' | 'notes' | 'mode';
 
 export interface ShipmentCreateIssue {
   fieldId: string;

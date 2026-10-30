@@ -43,9 +43,13 @@ describe('SIL-499 onescreen wide band', () => {
       // centering: a content-sized card has nothing to center.
       '#shipment-section-mode { grid-area: 1 / 1 / 2 / 3; align-self: start; }',
       '#shipment-section-identity { grid-area: 2 / 1 / 3 / 3; }',
-      '#shipment-section-schedule { grid-area: 4 / 1 / 5 / 3; }',
+      // SIL-611 (id 714): the schedule band is deleted — cargo moves beside
+      // the closing Ghi chú row on FCL, and a rendered route card (hàng lẻ)
+      // pushes cargo to the last row.
+      '#shipment-section-notes { grid-area: 5 / 1 / 6 / 3; }',
       '#shipment-section-route { grid-area: 4 / 1 / 5 / 3; }',
-      '#shipment-section-cargo { grid-area: 5 / 1 / 6 / 3; }',
+      '#shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }',
+      '.csc-workspace:has(#shipment-section-route) #shipment-section-cargo { grid-area: 5 / 1 / 6 / 3; }',
     ]) {
       expect(CSS, area).toContain(area);
     }
@@ -57,14 +61,19 @@ describe('SIL-499 onescreen wide band', () => {
     // SIL-596: the freight card owns a FULL-width row — no orphan grid cell
     // (§10.8.2: hide a column only when it is empty).
     expect(CSS).toContain('[data-freight-preview] { grid-area: 3 / 1 / 4 / 3; align-self: start; margin: 0; }');
+    // SIL-611: the deleted schedule band never comes back.
+    expect(CSS).not.toMatch(/#shipment-section-schedule/);
     // SIL-510: the action bar is NOT a grid row — it is the viewport-fixed
     // footer, so the wide band places neither a grid area nor a padding
     // override on it (a comment may name it; a rule may not).
     expect(CSS).not.toMatch(/\.csc-form-actions\s*\{/);
-    // Freight-absent collapse: no empty track may stay behind.
+    // Freight-absent collapse: no empty track may stay behind. The LCL
+    // freight-absent pin doubles the predicates to out-rank :has(route).
     for (const pull of [
-      ':not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }',
-      ':not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }',
+      ':not(:has([data-freight-preview])) #shipment-section-notes { grid-area: 4 / 1 / 5 / 3; }',
+      ':not(:has([data-freight-preview])) #shipment-section-route { grid-area: 3 / 1 / 4 / 3; }',
+      ':not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 3 / 1 / 4 / 3; }',
+      ':not(:has([data-freight-preview])):has(#shipment-section-route) #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }',
     ]) {
       expect(CSS, pull).toContain(pull);
     }
@@ -88,7 +97,7 @@ describe('SIL-499 onescreen wide band', () => {
     expect(CSS, 'no font-size declarations in the wide band').not.toMatch(/font-size:/);
   });
 
-  it('SIL-598: the FCL bulk datetime rides the mode band; Lịch & ghi chú is the notes pair only', () => {
+  it('SIL-598 + SIL-611: the FCL bulk datetime rides the mode band; the deleted schedule band never returns', () => {
     const WORKSPACE = readFileSync(join(__dirname, 'ShipmentCreateWorkspace.tsx'), 'utf8');
     // The bulk block lives between the mode-band row and the identity
     // section (same band as the SIL-587 LCL datetime), still gated to FCL
@@ -99,7 +108,18 @@ describe('SIL-499 onescreen wide band', () => {
     );
     expect(modeBandRegion, 'bulk appointment inside the mode band').toContain('csc-bulk-appointment');
     expect(modeBandRegion, 'bulk stays FCL-only').toMatch(/cargoMode === 'FCL' && emptyAppointmentCount >= 1/);
-    // No placement left in the schedule band; the 1fr/2fr split (which
+    // SIL-611 (id 714, owner 30/10): the "Lịch & ghi chú" section is gone —
+    // no `id="schedule"` section in the DOM, and the Ghi chú band renders
+    // strictly AFTER Thông tin hàng (the copy-down button rides cargo,
+    // under the table it fills).
+    expect(WORKSPACE).not.toMatch(/id="schedule"/);
+    expect(WORKSPACE.indexOf('id="notes"')).toBeGreaterThan(WORKSPACE.indexOf('id="cargo"'));
+    const cargoRegion = WORKSPACE.slice(
+      WORKSPACE.indexOf('id="cargo"'),
+      WORKSPACE.indexOf('id="notes"'),
+    );
+    expect(cargoRegion, 'copy-down button under the container table').toContain('Copy giờ hẹn xuống cont trống');
+    // No placement left for a schedule band; the 1fr/2fr split (which
     // measured a ~265px dead strip beside the 150px control) stays dead.
     expect(CSS).not.toMatch(/#shipment-section-schedule \.csc-bulk-appointment/);
     expect(CSS).not.toMatch(/#shipment-section-schedule \{ grid-template-columns:/);
