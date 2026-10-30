@@ -35,7 +35,7 @@ describe('SIL-499 onescreen wide band', () => {
     for (const area of [
       // SIL-596: row 1 = mode + identity equal-height siblings; the strip
       // tenant of identity's old r1-r2 span is retired (SIL-521).
-      '#shipment-section-mode { grid-area: 1 / 1 / 2 / 2; align-self: stretch; }',
+      '#shipment-section-mode { grid-area: 1 / 1 / 2 / 2; align-self: stretch; align-content: center; }',
       '#shipment-section-identity { grid-area: 1 / 2 / 2 / 3; }',
       '#shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }',
       '#shipment-section-route { grid-area: 3 / 1 / 4 / 3; }',
@@ -75,6 +75,26 @@ describe('SIL-499 onescreen wide band', () => {
 
   it('never shrinks typography (SPEC: font giữ nguyên)', () => {
     expect(CSS, 'no font-size declarations in the wide band').not.toMatch(/font-size:/);
+  });
+
+  it('SIL-598: the FCL bulk datetime rides the mode band; Lịch & ghi chú is the notes pair only', () => {
+    const WORKSPACE = readFileSync(join(__dirname, 'ShipmentCreateWorkspace.tsx'), 'utf8');
+    // The bulk block lives between the mode-band row and the identity
+    // section (same band as the SIL-587 LCL datetime), still gated to FCL
+    // and to conts that lack a schedule.
+    const modeBandRegion = WORKSPACE.slice(
+      WORKSPACE.indexOf('csc-mode-band__row'),
+      WORKSPACE.indexOf('<ShipmentCreateIdentitySection'),
+    );
+    expect(modeBandRegion, 'bulk appointment inside the mode band').toContain('csc-bulk-appointment');
+    expect(modeBandRegion, 'bulk stays FCL-only').toMatch(/cargoMode === 'FCL' && emptyAppointmentCount >= 1/);
+    // No placement left in the schedule band; the 1fr/2fr split (which
+    // measured a ~265px dead strip beside the 150px control) stays dead.
+    expect(CSS).not.toMatch(/#shipment-section-schedule \.csc-bulk-appointment/);
+    expect(CSS).not.toMatch(/#shipment-section-schedule \{ grid-template-columns:/);
+    // The stretched mode card centers its content (balanced padding, never
+    // an empty frame — qa/2026-10-30_sil598).
+    expect(CSS).toMatch(/#shipment-section-mode \{ grid-area: 1 \/ 1 \/ 2 \/ 2; align-self: stretch; align-content: center; \}/);
   });
 
   it('identity bands carry the wide-grid hooks; the card is ONE column (no dead cell)', () => {

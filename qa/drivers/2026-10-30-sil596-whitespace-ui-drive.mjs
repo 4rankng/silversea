@@ -44,8 +44,7 @@ const MEASURE = () => {
     return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height), right: Math.round(r.right), bottom: Math.round(r.bottom) };
   };
   const identityEl = document.querySelector('#shipment-section-identity');
-  const identity = box('#shipment-section-identity');
-  const mode = box('#shipment-section-mode');
+  const identity = box('#shipment-section-identity');  const mode = box('#shipment-section-mode');
   const schedule = box('#shipment-section-schedule');
   const route = box('#shipment-section-route');
   const freight = box('[data-freight-preview]');
@@ -66,6 +65,14 @@ const MEASURE = () => {
     identityGridColumns: cols,
     identityDeadColumnPx: identity ? Math.max(0, identityInnerRight - bandRight) : null,
     contentRight: workspace ? workspace.right : null,
+    // SIL-598 sweep: every band's interior fill + the moved bulk field.
+    modeRow: box('.csc-mode-band__row'),
+    bulk: box('.csc-bulk-appointment'),
+    bulkLabel: box('[data-field-id="shipment-bulk-appointment"] .csc-uui-field'),
+    notesGrid: box('.csc-notes-grid'),
+    noteBoxes: [...document.querySelectorAll('.csc-notes-grid textarea')].map((t) => { const r = t.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; }),
+    cargo: box('#shipment-section-cargo'),
+    cargoTable: box('.csc-container-table'),
     gapBelowIdentityToNext: (() => {
       if (!identity) return null;
       const next = schedule ?? route;
@@ -101,9 +108,22 @@ for (const vp of [
   console.log(`\n== ${vp.name}x${m.viewport.h} ==`);
   console.log(`identity: ${JSON.stringify(ident)} deadColumnPx=${m.identityDeadColumnPx} gridCols=${m.identityGridColumns}`);
   console.log(`mode: ${JSON.stringify(m.mode)}`);
+  console.log(`modeRow: ${JSON.stringify(m.modeRow)} bulk: ${JSON.stringify(m.bulk)} notesGrid: ${JSON.stringify(m.notesGrid)} noteBoxes: ${JSON.stringify(m.noteBoxes)}`);
+  console.log(`cargo: ${JSON.stringify(m.cargo)} cargoTable: ${JSON.stringify(m.cargoTable)}`);
   console.log(`schedule: ${JSON.stringify(m.schedule)} route: ${JSON.stringify(m.route)} freight: ${JSON.stringify(m.freight)}`);
   console.log(`contact: ${JSON.stringify(m.contact)}\nrefs: ${JSON.stringify(m.refs)}\nchoices: ${JSON.stringify(m.choices)}`);
   console.log(`gapBelowIdentity→nextBand: ${m.gapBelowIdentityToNext} gapBelowMode→nextBand: ${m.gapBelowRailCol1ToNext} scrollbarOverflow: ${m.scrollbar?.overflowY}`);
+  // SIL-598: LCL sweep at the two desktop widths — switch mode, re-measure.
+  if (vp.w >= 1280) {
+    await page.click('input[name="cargo-mode"][value="LCL"]');
+    await sleep(600);
+    const lcl = await page.evaluate(MEASURE);
+    results[vp.name].lcl = { identity: lcl.identity, mode: lcl.mode, route: lcl.route, bulk: lcl.bulk, schedule: lcl.schedule, contact: lcl.contact, refs: lcl.refs, gapBelowMode: lcl.gapBelowRailCol1ToNext, scrollbar: lcl.scrollbar };
+    await page.screenshot({ path: `${OUT}/ui-${TAG}-${vp.name}-lcl.png`, fullPage: false });
+    console.log(`-- LCL @${vp.name}: mode ${JSON.stringify(lcl.mode)} route ${JSON.stringify(lcl.route)} bulk ${JSON.stringify(lcl.bulk)} gapBelowMode→next ${lcl.gapBelowRailCol1ToNext} scrollbarOverflow ${lcl.scrollbar?.overflowY}`);
+    await page.click('input[name="cargo-mode"][value="FCL"]');
+    await sleep(400);
+  }
 }
 
 fs.writeFileSync(`${OUT}/${TAG}-measurements.json`, JSON.stringify(results, null, 2));

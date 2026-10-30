@@ -851,6 +851,40 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                   />
                 </div>
               )}
+              {/* SIL-598 (id 698, quét sạch khoảng trắng 30/10): FCL's bulk
+                  schedule field joins the mode band — the SAME SIL-587
+                  doctrine that put the LCL datetime beside Loại hàng
+                  ("everything trước mắt"). Alone in the schedule band it
+                  left a ~265px dead strip in its column and, off its row,
+                  the stretched mode card ~170px of empty surface
+                  (qa/2026-10-30_sil598-before). Gate unchanged: still only
+                  while conts lack a schedule. */}
+              {form.cargoMode === 'FCL' && emptyAppointmentCount >= 1 && (
+                <div className="csc-bulk-appointment" data-field-id="shipment-bulk-appointment">
+                  <UDateTimeField
+                    id="shipment-bulk-appointment"
+                    label="Ngày giờ đóng trả cho tất cả cont"
+                    value={bulkAppointment}
+                    onChange={(event) => setBulkAppointment(event.target.value)}
+                    disabled={controlsDisabled}
+                    combinedPicker
+                  />
+                  {/* FB-009 (card 131026233500, "nút copy thời gian vẫn không
+                      tồn tại ở bất kỳ đâu"): the section-level clipboard
+                      affordance the card looked for next to this group. It
+                      copies the value typed HERE — the copy-down button
+                      below fills sibling rows instead and is a different
+                      feature. */}
+                  {bulkAppointmentCopyValue && (
+                    <CopyCodeButton
+                      className="csc-bulk-appointment__copy"
+                      value={bulkAppointmentCopyValue}
+                      label="giờ hẹn đóng trả"
+                      onCopied={() => notifyAppointmentCopied(bulkAppointmentCopyValue)}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </ShipmentCreateSection>
           <ShipmentCreateIdentitySection
@@ -964,38 +998,13 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           {/* Card D.4 (18/10) + 181026200700, SIL-587: NO "Lịch & ghi chú"
               section on the hàng lẻ form (its "Ngày giờ đóng trả" opens sẵn
               in the top mode band — cards 211026130215/30315). FCL keeps the
-              full schedule section. */}
+              notes band — its bulk datetime moved up beside Loại hàng too
+              (SIL-598: same doctrine, no ~265px dead column left behind). */}
           {form.cargoMode === 'FCL' && (
             <ShipmentCreateSection id="schedule" title="Lịch & ghi chú">
-            {emptyAppointmentCount >= 1 && (
-                  <div className="csc-bulk-appointment" data-field-id="shipment-bulk-appointment">
-                    <UDateTimeField
-                      id="shipment-bulk-appointment"
-                      label="Ngày giờ đóng trả cho tất cả cont"
-                      value={bulkAppointment}
-                      onChange={(event) => setBulkAppointment(event.target.value)}
-                      disabled={controlsDisabled}
-                      combinedPicker
-                    />
-                    {/* FB-009 (card 131026233500, "nút copy thời gian vẫn không
-                        tồn tại ở bất kỳ đâu"): the section-level clipboard
-                        affordance the card looked for next to this group. It
-                        copies the value typed HERE — the copy-down button
-                        below fills sibling rows instead and is a different
-                        feature. */}
-                    {bulkAppointmentCopyValue && (
-                      <CopyCodeButton
-                        className="csc-bulk-appointment__copy"
-                        value={bulkAppointmentCopyValue}
-                        label="giờ hẹn đóng trả"
-                        onCopied={() => notifyAppointmentCopied(bulkAppointmentCopyValue)}
-                      />
-                    )}
-                  </div>
-                )}
                 {/* SIL-513 (owner 26/10): the "Copy giờ hẹn cho tất cả N cont"
                     chip retired — the copy affordances now live ONLY on the
-                    STT column (duplicate-row) and the copy-down button above. */}
+                    STT column (duplicate-row) and the copy-down button. */}
                 {copySourceRow && emptyAppointmentCount >= 1 && (
                   <button
                     type="button"

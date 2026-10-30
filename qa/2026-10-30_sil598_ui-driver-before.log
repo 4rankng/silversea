@@ -1,0 +1,61 @@
+LOGIN OK (admin) — evidence dir qa/2026-10-30_sil596-sil598-before
+
+== 1280x800 ==
+identity: {"x":469,"y":118,"w":803,"h":238,"right":1272,"bottom":356} deadColumnPx=0 gridCols=774.672px
+mode: {"x":56,"y":118,"w":401,"h":238,"right":457,"bottom":356}
+modeRow: {"x":70,"y":130,"w":373,"h":214,"right":443,"bottom":344} bulk: {"x":70,"y":409,"w":393,"h":59,"right":463,"bottom":468} notesGrid: {"x":471,"y":409,"w":787,"h":72,"right":1258,"bottom":481} noteBoxes: [{"w":389,"h":48},{"w":389,"h":48}]
+cargo: {"x":56,"y":505,"w":1216,"h":202,"right":1272,"bottom":707} cargoTable: {"x":71,"y":548,"w":1186,"h":138,"right":1257,"bottom":686}
+schedule: {"x":56,"y":368,"w":1216,"h":125,"right":1272,"bottom":493} route: null freight: null
+contact: {"x":483,"y":159,"w":775,"h":62,"right":1258,"bottom":221}
+refs: {"x":483,"y":229,"w":775,"h":77,"right":1258,"bottom":306}
+choices: {"x":483,"y":314,"w":775,"h":30,"right":1258,"bottom":344}
+gapBelowIdentity→nextBand: 12 gapBelowMode→nextBand: 12 scrollbarOverflow: 0
+-- LCL @1280: mode {"x":56,"y":118,"w":401,"h":238,"right":457,"bottom":356} route {"x":56,"y":368,"w":1216,"h":144,"right":1272,"bottom":512} bulk null gapBelowMode→next 12 scrollbarOverflow 0
+
+== 1307x800 ==
+identity: {"x":478,"y":118,"w":821,"h":238,"right":1299,"bottom":356} deadColumnPx=0 gridCols=792.672px
+mode: {"x":56,"y":118,"w":410,"h":238,"right":466,"bottom":356}
+modeRow: {"x":70,"y":130,"w":382,"h":214,"right":452,"bottom":344} bulk: {"x":70,"y":409,"w":402,"h":59,"right":472,"bottom":468} notesGrid: {"x":480,"y":409,"w":805,"h":72,"right":1285,"bottom":481} noteBoxes: [{"w":398,"h":48},{"w":398,"h":48}]
+cargo: {"x":56,"y":505,"w":1243,"h":202,"right":1299,"bottom":707} cargoTable: {"x":71,"y":548,"w":1213,"h":138,"right":1284,"bottom":686}
+schedule: {"x":56,"y":368,"w":1243,"h":125,"right":1299,"bottom":493} route: null freight: null
+contact: {"x":492,"y":159,"w":793,"h":62,"right":1285,"bottom":221}
+refs: {"x":492,"y":229,"w":793,"h":77,"right":1285,"bottom":306}
+choices: {"x":492,"y":314,"w":793,"h":30,"right":1285,"bottom":344}
+gapBelowIdentity→nextBand: 12 gapBelowMode→nextBand: 12 scrollbarOverflow: 0
+-- LCL @1307: mode {"x":56,"y":118,"w":410,"h":238,"right":466,"bottom":356} route {"x":56,"y":368,"w":1243,"h":144,"right":1299,"bottom":512} bulk null gapBelowMode→next 12 scrollbarOverflow 0
+
+== 1440x900 ==
+identity: {"x":656,"y":118,"w":776,"h":238,"right":1432,"bottom":356} deadColumnPx=0 gridCols=748px
+mode: {"x":256,"y":118,"w":388,"h":238,"right":644,"bottom":356}
+modeRow: {"x":270,"y":130,"w":360,"h":214,"right":630,"bottom":344} bulk: {"x":270,"y":409,"w":380,"h":59,"right":650,"bottom":468} notesGrid: {"x":658,"y":409,"w":760,"h":72,"right":1418,"bottom":481} noteBoxes: [{"w":376,"h":48},{"w":376,"h":48}]
+cargo: {"x":256,"y":505,"w":1176,"h":202,"right":1432,"bottom":707} cargoTable: {"x":271,"y":548,"w":1146,"h":138,"right":1417,"bottom":686}
+schedule: {"x":256,"y":368,"w":1176,"h":125,"right":1432,"bottom":493} route: null freight: null
+contact: {"x":670,"y":159,"w":748,"h":62,"right":1418,"bottom":221}
+refs: {"x":670,"y":229,"w":748,"h":77,"right":1418,"bottom":306}
+choices: {"x":670,"y":314,"w":748,"h":30,"right":1418,"bottom":344}
+gapBelowIdentity→nextBand: 12 gapBelowMode→nextBand: 12 scrollbarOverflow: 0
+-- LCL @1440: mode {"x":256,"y":118,"w":388,"h":238,"right":644,"bottom":356} route {"x":256,"y":368,"w":1176,"h":144,"right":1432,"bottom":512} bulk null gapBelowMode→next 12 scrollbarOverflow 0
+
+== 768x900 ==
+identity: {"x":8,"y":206,"w":752,"h":347,"right":760,"bottom":553} deadColumnPx=0 gridCols=724px
+mode: {"x":8,"y":114,"w":752,"h":84,"right":760,"bottom":198}
+modeRow: {"x":22,"y":126,"w":724,"h":60,"right":746,"bottom":186} bulk: {"x":22,"y":928,"w":724,"h":59,"right":746,"bottom":986} notesGrid: {"x":22,"y":996,"w":724,"h":84,"right":746,"bottom":1080} noteBoxes: [{"w":358,"h":60},{"w":358,"h":60}]
+cargo: {"x":8,"y":561,"w":752,"h":316,"right":760,"bottom":876} cargoTable: {"x":23,"y":664,"w":844,"h":138,"right":867,"bottom":801}
+schedule: {"x":8,"y":884,"w":752,"h":208,"right":760,"bottom":1092} route: null freight: null
+contact: {"x":22,"y":268,"w":724,"h":121,"right":746,"bottom":388}
+refs: {"x":22,"y":398,"w":724,"h":77,"right":746,"bottom":475}
+choices: {"x":22,"y":485,"w":724,"h":56,"right":746,"bottom":541}
+gapBelowIdentity→nextBand: 331 gapBelowMode→nextBand: 686 scrollbarOverflow: 291
+
+== 390x844 ==
+identity: {"x":8,"y":204,"w":374,"h":503,"right":382,"bottom":707} deadColumnPx=0 gridCols=358px
+mode: {"x":8,"y":112,"w":374,"h":84,"right":382,"bottom":196}
+modeRow: {"x":16,"y":120,"w":358,"h":68,"right":374,"bottom":188} bulk: {"x":16,"y":1516,"w":358,"h":260,"right":374,"bottom":1776} notesGrid: {"x":16,"y":1786,"w":358,"h":178,"right":374,"bottom":1964} noteBoxes: [{"w":358,"h":61},{"w":358,"h":61}]
+cargo: {"x":8,"y":715,"w":374,"h":744,"right":382,"bottom":1459} cargoTable: {"x":16,"y":833,"w":358,"h":556,"right":374,"bottom":1389}
+schedule: {"x":8,"y":1467,"w":374,"h":506,"right":382,"bottom":1972} route: null freight: null
+contact: {"x":16,"y":272,"w":358,"h":135,"right":374,"bottom":406}
+refs: {"x":16,"y":416,"w":358,"h":159,"right":374,"bottom":575}
+choices: {"x":16,"y":585,"w":358,"h":114,"right":374,"bottom":699}
+gapBelowIdentity→nextBand: 760 gapBelowMode→nextBand: 1271 scrollbarOverflow: 1207
+
+DONE — measurements + screenshots in qa/2026-10-30_sil596-sil598-before

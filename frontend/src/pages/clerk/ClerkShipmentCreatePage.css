@@ -632,6 +632,16 @@
   flex: 0 1 260px;
   min-width: 220px;
 }
+/* SIL-598: the group moved into the mode band's flex row — it grows to
+   fill its line (desktop: the card's second row; phones: full width again
+   like when it lived in the schedule section grid). */
+.csc-mode-band__row .csc-bulk-appointment {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+.csc-mode-band__row .csc-bulk-appointment .csc-uui-field {
+  flex: 1 1 260px;
+}
 /* FB-009 (card 131026233500): the section-level copy-time affordance sits on
    the same wrapping row as the group field and its apply button — a small
    icon button aligned to the control row, never an overlay. Always visible
