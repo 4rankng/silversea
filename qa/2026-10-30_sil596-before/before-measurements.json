@@ -1,0 +1,224 @@
+{
+  "390": {
+    "viewport": {
+      "w": 390,
+      "h": 844
+    },
+    "workspace": {
+      "x": 8,
+      "y": 112,
+      "w": 374,
+      "h": 1861,
+      "right": 382,
+      "bottom": 1972
+    },
+    "identity": {
+      "x": 8,
+      "y": 204,
+      "w": 374,
+      "h": 503,
+      "right": 382,
+      "bottom": 707
+    },
+    "mode": {
+      "x": 8,
+      "y": 112,
+      "w": 374,
+      "h": 84,
+      "right": 382,
+      "bottom": 196
+    },
+    "schedule": {
+      "x": 8,
+      "y": 1467,
+      "w": 374,
+      "h": 506,
+      "right": 382,
+      "bottom": 1972
+    },
+    "route": null,
+    "freight": null,
+    "contact": {
+      "x": 16,
+      "y": 272,
+      "w": 358,
+      "h": 135,
+      "right": 374,
+      "bottom": 406
+    },
+    "refs": {
+      "x": 16,
+      "y": 416,
+      "w": 358,
+      "h": 159,
+      "right": 374,
+      "bottom": 575
+    },
+    "choices": {
+      "x": 16,
+      "y": 585,
+      "w": 358,
+      "h": 114,
+      "right": 374,
+      "bottom": 699
+    },
+    "identityGridColumns": "358px",
+    "identityDeadColumnPx": 0,
+    "contentRight": 382,
+    "gapBelowIdentityToNext": 760,
+    "gapBelowRailCol1ToNext": 1271,
+    "scrollbar": {
+      "scrollH": 1995,
+      "clientH": 788,
+      "overflowY": 1207
+    }
+  },
+  "1307": {
+    "viewport": {
+      "w": 1307,
+      "h": 800
+    },
+    "workspace": {
+      "x": 56,
+      "y": 118,
+      "w": 1243,
+      "h": 589,
+      "right": 1299,
+      "bottom": 707
+    },
+    "identity": {
+      "x": 478,
+      "y": 118,
+      "w": 821,
+      "h": 238,
+      "right": 1299,
+      "bottom": 356
+    },
+    "mode": {
+      "x": 56,
+      "y": 118,
+      "w": 410,
+      "h": 60,
+      "right": 466,
+      "bottom": 178
+    },
+    "schedule": {
+      "x": 56,
+      "y": 368,
+      "w": 1243,
+      "h": 125,
+      "right": 1299,
+      "bottom": 493
+    },
+    "route": null,
+    "freight": null,
+    "contact": {
+      "x": 492,
+      "y": 197,
+      "w": 471,
+      "h": 62,
+      "right": 963,
+      "bottom": 259
+    },
+    "refs": {
+      "x": 492,
+      "y": 267,
+      "w": 471,
+      "h": 77,
+      "right": 963,
+      "bottom": 344
+    },
+    "choices": {
+      "x": 492,
+      "y": 159,
+      "w": 793,
+      "h": 30,
+      "right": 1285,
+      "bottom": 189
+    },
+    "identityGridColumns": "470.797px 313.859px",
+    "identityDeadColumnPx": 0,
+    "contentRight": 1299,
+    "gapBelowIdentityToNext": 12,
+    "gapBelowRailCol1ToNext": 190,
+    "scrollbar": {
+      "scrollH": 744,
+      "clientH": 744,
+      "overflowY": 0
+    }
+  },
+  "1440": {
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    },
+    "workspace": {
+      "x": 256,
+      "y": 118,
+      "w": 1176,
+      "h": 589,
+      "right": 1432,
+      "bottom": 707
+    },
+    "identity": {
+      "x": 656,
+      "y": 118,
+      "w": 776,
+      "h": 238,
+      "right": 1432,
+      "bottom": 356
+    },
+    "mode": {
+      "x": 256,
+      "y": 118,
+      "w": 388,
+      "h": 60,
+      "right": 644,
+      "bottom": 178
+    },
+    "schedule": {
+      "x": 256,
+      "y": 368,
+      "w": 1176,
+      "h": 125,
+      "right": 1432,
+      "bottom": 493
+    },
+    "route": null,
+    "freight": null,
+    "contact": {
+      "x": 670,
+      "y": 197,
+      "w": 444,
+      "h": 62,
+      "right": 1114,
+      "bottom": 259
+    },
+    "refs": {
+      "x": 670,
+      "y": 267,
+      "w": 444,
+      "h": 77,
+      "right": 1114,
+      "bottom": 344
+    },
+    "choices": {
+      "x": 670,
+      "y": 159,
+      "w": 748,
+      "h": 30,
+      "right": 1418,
+      "bottom": 189
+    },
+    "identityGridColumns": "444px 296px",
+    "identityDeadColumnPx": 0,
+    "contentRight": 1432,
+    "gapBelowIdentityToNext": 12,
+    "gapBelowRailCol1ToNext": 190,
+    "scrollbar": {
+      "scrollH": 844,
+      "clientH": 844,
+      "overflowY": 0
+    }
+  }
+}
