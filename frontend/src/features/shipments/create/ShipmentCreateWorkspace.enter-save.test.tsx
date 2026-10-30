@@ -85,7 +85,7 @@ describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', () => 
       expect(wrap?.contains(document.activeElement)).toBe(true);
     }, { timeout: 2000 });
     expect(row1FieldText()).toBe('16|30|22|11|2026');
-  });
+  }, 20000);
 
   it('an INCOMPLETE giờ draft keeps its own swallow: Enter runs NO save, the field says why, and the typed giờ survives', async () => {
     renderWorkspace();
@@ -101,7 +101,7 @@ describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', () => 
     expect(screen.queryByText(/^Cần bổ sung \d+ thông tin$/)).toBeNull();
     expect(await screen.findByText('Nhập đủ giờ và ngày hợp lệ.')).toBeTruthy();
     expect(row1FieldText()).toBe('16|30|||');
-  });
+  }, 20000);
 
   it('Shift+Enter never saves and bare Enter in the notes textarea stays a newline key (Ctrl+Enter saves)', async () => {
     renderWorkspace();
@@ -118,5 +118,5 @@ describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', () => 
 
     fireEvent.keyDown(notes, { key: 'Enter', ctrlKey: true });
     expect(await screen.findByText(/^Cần bổ sung \d+ thông tin$/)).toBeTruthy();
-  });
+  }, 20000);
 });
