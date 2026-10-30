@@ -294,6 +294,14 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   customsCutoffAt: z.iso.datetime().nullable(),
   closingAt: z.iso.datetime().nullable(),
   plannedReturnAt: z.iso.datetime().nullable(),
+  // SIL-610 (id 713): legacy LCL lots (pre-SIL-587) hold no schedule instant —
+  // only the date-level expectedDeliveryDate. The BE derives one from the
+  // lot's own live trips (plannedStartAt seeded from the lot's schedule at
+  // "Giờ chạy" issue time), constrained to the EDD's ICT local date.
+  // Display-only derivation — never persisted back, never present when a
+  // stored closingAt/plannedReturnAt exists. Optional: older wire payloads
+  // fall back to the date-only day (SIL-586 law).
+  derivedScheduleAt: z.iso.datetime().nullable().optional(),
   deliveryLocation: z.string().nullable(),
   liftSiteNames: z.array(z.string()),
   dropoffSiteNames: z.array(z.string()),

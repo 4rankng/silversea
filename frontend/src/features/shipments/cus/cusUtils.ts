@@ -78,6 +78,12 @@ export function scheduleTimestamp(item: ShipmentCusWorkspaceListItem): string | 
     ? (item.plannedReturnAt ?? item.closingAt)
     : (item.closingAt ?? item.plannedReturnAt);
   if (preferred) return preferred;
+  // SIL-610 (id 713): a legacy date-only lot may still own one real time —
+  // the instant the BE derives from the lot's own live trip ("Giờ chạy").
+  // Ride it before the bare day so the cell renders "HH:mm DD/MM/YYYY" like
+  // SIL-587 lots; the date-only day below stays the last resort (SIL-586 law:
+  // never fabricate a 00:00).
+  if (item.derivedScheduleAt) return item.derivedScheduleAt;
   if (item.transportDate) return item.transportDate;
   return null;
 }

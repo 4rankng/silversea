@@ -23,6 +23,7 @@ import { CARGO_MODE } from '../db/schema';
 import {
   trimOrNull, businessDateNow, sumMoney, sumDecimal, toNumber,
   effectiveBillingLineAmount, billOrBookNumberFor,
+  deriveLegacyScheduleInstant,
 } from './cus-workspace-mapping.service';
 import { getShipmentFinanceConfirmationSummary } from './shipment-accounting-lock.service';
 import { filterContainersByDateRange } from './container-date-filter';
@@ -452,6 +453,17 @@ function buildListItem(
     customsCutoffAt: row.shipment.customsCutoffAt?.toISOString() ?? null,
     closingAt: row.shipment.closingAt?.toISOString() ?? null,
     plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
+    // SIL-610 (id 713): a legacy date-only LCL lot still owns one real time —
+    // its live trip's "Giờ chạy". Surface it so the workboard renders
+    // "HH:mm DD/MM/YYYY" like SIL-587 lots; a stored instant above always
+    // wins and nothing here is persisted back.
+    derivedScheduleAt: deriveLegacyScheduleInstant(
+      row.shipment.cargoMode,
+      row.shipment.expectedDeliveryDate,
+      row.shipment.closingAt,
+      row.shipment.plannedReturnAt,
+      trips,
+    ),
     deliveryLocation: trimOrNull(row.shipment.deliveryLocation),
     liftSiteNames,
     dropoffSiteNames,

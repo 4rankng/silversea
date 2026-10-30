@@ -99,6 +99,10 @@ export type TripRow = {
   revenue: string | null;
   totalCost: string | null;
   revenueCombine: string | null;
+  // SIL-610 (id 713): the issue-order "Giờ chạy" instants — the only schedule
+  // time a legacy (pre-SIL-587) date-only LCL lot holds anywhere.
+  plannedStartAt: Date | null;
+  plannedEndAt: Date | null;
 };
 
 export type BillingLineRow = {
@@ -343,6 +347,9 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       revenue: s.tripsComposite.revenue,
       totalCost: s.tripsComposite.totalCost,
       revenueCombine: s.tripsComposite.revenueCombine,
+      // SIL-610 (id 713): feed the legacy-lot schedule derivation.
+      plannedStartAt: s.tripsComposite.plannedStartAt,
+      plannedEndAt: s.tripsComposite.plannedEndAt,
     }).from(s.tripsComposite)
       .where(and(
         inArray(s.tripsComposite.shipmentId, shipmentIds),
