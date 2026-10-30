@@ -47,6 +47,10 @@ export interface BufferedUuiDateInputProps
   inputClassName?: string;
   /** Extra attributes forwarded to the underlying <input> element. */
   inputProps?: Record<string, unknown>;
+  /** SIL-608: fires when the last (năm) segment completes in range — the
+   * date-first hosts (drawer schedule editor, CUS quick edit) hand focus to
+   * their giờ box the same way SplitDateTimeField hands năm → giờ. */
+  onComplete?: () => void;
 }
 
 /** Shared DD/MM/YYYY field with a local draft and the existing calendar.
@@ -67,6 +71,7 @@ export function BufferedUuiDateInput({
   hint,
   fieldPrefix,
   inputProps,
+  onComplete,
   ...rest
 }: BufferedUuiDateInputProps) {
   const generatedId = useId();
@@ -122,6 +127,7 @@ export function BufferedUuiDateInput({
         error={isInvalid || Boolean(message)}
         anchorRef={inputRef}
         onOpenPicker={() => showCalendar()}
+        onComplete={onComplete}
         popupExpanded={active}
         popupControls={active ? `${id}-calendar` : undefined}
         firstSegmentId={id}
