@@ -60,17 +60,16 @@ describe('SplitDateTimeField — FB-002 + FB-030/075 segmented entry contract', 
     expect(document.activeElement).toBe(screen.getByLabelText('Tháng — Hẹn'));
   });
 
-  it('FB-002: Enter after a hand-typed date+time commits through onCommit', () => {
+  it('FB-002: Enter after a hand-typed time+date commits through onCommit', () => {
     const onCommit = vi.fn();
     render(<CommitHarness onCommit={onCommit} />);
-    // SIL-608 date-first entry: ngày (DD/MM/YYYY) typed first, năm complete
-    // hands the caret to giờ; giờ (HH:mm) closes the draft.
-    day().focus();
+    hour().focus();
+    typeReal('14');
+    typeReal('30');
     typeReal('18102026');
-    typeReal('1430');
     fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
     expect(onCommit).toHaveBeenCalledWith('2026-10-18T14:30');
-    expect(document.activeElement).not.toBe(minute()); // blurred after commit
+    expect(document.activeElement).not.toBe(day()); // blurred after commit
   });
 
   it('FB-002: without onCommit, Enter is no longer swallowed by the field — it reaches the host unchanged', () => {
@@ -89,10 +88,10 @@ describe('SplitDateTimeField — FB-002 + FB-030/075 segmented entry contract', 
       );
     }
     render(<FormHarness />);
-    // Date-first entry (SIL-608), then giờ — Enter lands on the last segment.
-    day().focus();
+    hour().focus();
+    typeReal('14');
+    typeReal('30');
     typeReal('18102026');
-    typeReal('1430');
     fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
     expect(seen.at(-1)).toEqual({ key: 'Enter', unprevented: true });
   });

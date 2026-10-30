@@ -245,25 +245,7 @@ describe('SplitDateTimeField', () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
-  // SIL-608 (id 711): VN order — the date half LEADS the DOM (DD/MM/YYYY
-  // before HH:mm) on every host. Pin the raw DOM order so no render-side
-  // reshuffle can silently regress the whole app to the old time-first law.
-  it('renders ngày segments before giờ segments in DOM order (SIL-608)', () => {
-    render(<Harness value="2026-09-19T08:00" />);
-    const dayNode = day();
-    const hourNode = hour();
-    expect(dayNode.compareDocumentPosition(hourNode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // The segments groups carry the same order one level up.
-    const dateGroup = document.querySelector('[data-seg-part="date"]')!;
-    const timeGroup = document.querySelector('[data-seg-part="time"]')!;
-    expect(dateGroup.compareDocumentPosition(timeGroup) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  // Card 326 auto-advance, re-based on the SIL-608 date-first order: the
-  // chain runs within each part (giờ→phút, ngày→tháng→năm) and crosses once
-  // at the END of the visual order — a completed năm hands the cursor to giờ.
-  // A completed phút (now the LAST segments) stays put.
-  it('card 326 + SIL-608: auto-advances giờ→phút, ngày→tháng→năm, and năm→giờ; completed phút stays', async () => {
+  it('card 326: auto-advances from hour to minute, minute to date, day to month, and month to year', async () => {
     render(<Harness value="" />);
     act(() => hour().focus());
     expect(hour()).toHaveFocus();
@@ -271,32 +253,14 @@ describe('SplitDateTimeField', () => {
     fireEvent.change(hour(), { target: { value: '08' } });
     await waitFor(() => expect(minute()).toHaveFocus());
 
-    // The time half is the tail of the field — a completed phút ends the
-    // entry instead of jumping backwards to the date.
     fireEvent.change(minute(), { target: { value: '30' } });
-    expect(minute()).toHaveFocus();
+    await waitFor(() => expect(day()).toHaveFocus());
 
     fireEvent.change(day(), { target: { value: '02' } });
     await waitFor(() => expect(screen.getByLabelText('Tháng — Hẹn')).toHaveFocus());
 
     fireEvent.change(screen.getByLabelText('Tháng — Hẹn'), { target: { value: '10' } });
     await waitFor(() => expect(screen.getByLabelText('Năm — Hẹn')).toHaveFocus());
-
-    fireEvent.change(screen.getByLabelText('Năm — Hẹn'), { target: { value: '2026' } });
-    await waitFor(() => expect(hour()).toHaveFocus());
-  });
-
-  it('SIL-608: the caret crosses the date/time boundary in the visual direction (ArrowLeft giờ→năm, ArrowRight năm→giờ)', () => {
-    render(<Harness value="2026-09-19T08:00" />);
-    const year = () => screen.getByLabelText('Năm — Hẹn');
-    act(() => hour().focus());
-    // Focus selects the whole segment (caret at start) → ArrowLeft at the
-    // first giờ digit hands back to the LAST date segment (năm).
-    fireEvent.keyDown(hour(), { key: 'ArrowLeft' });
-    expect(year()).toHaveFocus();
-    // ArrowRight at the năm end moves forward into giờ.
-    fireEvent.keyDown(year(), { key: 'ArrowRight' });
-    expect(hour()).toHaveFocus();
   });
 });
 

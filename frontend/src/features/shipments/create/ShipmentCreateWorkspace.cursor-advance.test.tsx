@@ -74,31 +74,23 @@ describe('SIL-65 (CUS-01): create-flow appointment segments auto-advance', { tim
     expect(mm).toHaveValue('30');
   });
 
-  it('a completed năm hands the cursor to the giờ segment — entry never gets stuck (SIL-608 date-first)', async () => {
+  it('a completed phút hands the cursor to the date day segment — entry never gets stuck', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
-    // SIL-608: NGÀY leads the row's datetime field, GIỜ closes it. The old
-    // minute→day hand-off died with the time-first order; the no-stuck law
-    // now crosses at the end of the date: year complete → giờ.
-    const dd = row1Segment('Ngày — Ngày giờ đóng trả');
-    act(() => dd.focus());
-    fireEvent.change(dd, { target: { value: '14' } });
-    const mm2 = row1Segment('Tháng — Ngày giờ đóng trả');
-    expect(document.activeElement).toBe(mm2);
-
-    fireEvent.change(mm2, { target: { value: '11' } });
-    const yyyy = row1Segment('Năm — Ngày giờ đóng trả');
-    expect(document.activeElement).toBe(yyyy);
-
-    fireEvent.change(yyyy, { target: { value: '2026' } });
-    // The date half is complete → focus flows into the giờ segment
-    // (same hand-off law, reversed direction per SIL-608).
     const hh = row1Segment('Giờ — Ngày giờ đóng trả');
-    expect(document.activeElement).toBe(hh);
+    act(() => hh.focus());
+    fireEvent.change(hh, { target: { value: '08' } });
+    const mm = row1Segment('Phút — Ngày giờ đóng trả');
+    expect(document.activeElement).toBe(mm);
+
+    fireEvent.change(mm, { target: { value: '30' } });
+    // The time half is complete → focus flows into the date half's day
+    // segment (same hand-off the QA staging flow drives).
+    const dd = row1Segment('Ngày — Ngày giờ đóng trả');
+    expect(document.activeElement).toBe(dd);
     // The typed draft is retained visibly across the hand-off.
-    expect(dd).toHaveValue('14');
-    expect(mm2).toHaveValue('11');
-    expect(yyyy).toHaveValue('2026');
+    expect(hh).toHaveValue('08');
+    expect(mm).toHaveValue('30');
   });
 });

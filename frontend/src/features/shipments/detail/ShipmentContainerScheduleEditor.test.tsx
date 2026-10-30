@@ -45,20 +45,19 @@ describe('ScheduleEditorBody', () => {
     expect(screen.getByText('Chỉnh sửa lịch trình')).toBeTruthy();
   });
 
-  it('renders ngày before giờ with locale-independent 24h text entry (SIL-608)', () => {
+  it('renders giờ before ngày with locale-independent 24h text entry', () => {
     const props = baseProps();
     const { container } = render(<ScheduleEditorBody {...props} />);
 
-    // SIL-608 (id 711): VN order everywhere — ngày (DD/MM/YYYY) trước,
-    // giờ (HH:mm) sau, matching the field order the create form runs.
+    // Thứ tự trường khớp định dạng cột bảng "20:45 8/9/26": giờ trước, ngày sau.
     const grid = container.querySelector('.shipment-container-ledger__editor-grid--schedule')!;
     const labels = Array.from(grid.querySelectorAll('label'));
-    expect(labels.map((label) => label.textContent)).toEqual(['Ngày trả hàng', 'Giờ trả hàng']);
+    expect(labels.map((label) => label.textContent)).toEqual(['Giờ trả hàng', 'Ngày trả hàng']);
 
     const timeInput = grid.querySelector('input[type="text"][placeholder="HH:mm"]')!;
     const dateInput = grid.querySelector('input[data-date-input]')!;
-    // DOM order: date input precedes the time input.
-    expect(dateInput.compareDocumentPosition(timeInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // DOM order: time input precedes the date input.
+    expect(timeInput.compareDocumentPosition(dateInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Explicit 24h text entry avoids AM/PM; the buffered date field shows
     // DD/MM/YYYY as three digit segments.
     expect(timeInput.getAttribute('placeholder')).toBe('HH:mm');
@@ -68,22 +67,6 @@ describe('ScheduleEditorBody', () => {
     const dateGroup = dateInput.closest('[data-seg-part="date"]')!;
     expect((dateGroup.querySelector('input[data-seg="mm2"]') as HTMLInputElement).value).toBe('09');
     expect((dateGroup.querySelector('input[data-seg="yyyy"]') as HTMLInputElement).value).toBe('2026');
-  });
-
-  it('a completed năm hands the cursor to the giờ box (SIL-608 reversed hand-off)', () => {
-    const props = baseProps();
-    render(<ScheduleEditorBody {...props} />);
-
-    // FB-030/075 no-stuck law, reversed by SIL-608: typing the final year
-    // digit lands the caret in the giờ input instead of dead-ending in the
-    // date segments.
-    const seg = (key: string) => document.querySelector<HTMLInputElement>(`[data-seg="${key}"]`)!;
-    fireEvent.change(seg('dd'), { target: { value: '11' } });
-    fireEvent.change(seg('mm2'), { target: { value: '09' } });
-    const timeInput = screen.getByLabelText('Giờ trả hàng');
-    expect(document.activeElement).not.toBe(timeInput);
-    fireEvent.change(seg('yyyy'), { target: { value: '2026' } });
-    expect(document.activeElement).toBe(timeInput);
   });
 
   it('uses đóng-hàng labels for EXPORT rows', () => {

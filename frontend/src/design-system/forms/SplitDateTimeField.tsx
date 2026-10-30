@@ -126,7 +126,6 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
   const timeRef = useRef<HTMLInputElement>(null);
   const lastTimeRef = useRef<HTMLInputElement>(null);
   const dateRef = useRef<HTMLInputElement>(null);
-  const lastDateRef = useRef<HTMLInputElement>(null);
   const groupRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const restoringFocus = useRef(false);
@@ -268,14 +267,7 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
     }}>
     {!hideLabel && <span className="split-datetime__label">{label}</span>}
     <div className="split-datetime__fields">
-      {/* SIL-608 (id 711, owner 30/10): VN datetime order — NGÀY (DD/MM/YYYY)
-        * first, GIỜ (HH:mm) after, on every host (mode band, per-container
-        * rows, drawer, CUS edit). The focus flow follows the visual order:
-        * a completed năm hands off to giờ; back from giờ start returns to
-        * the năm segment; arrow-right at the năm end enters giờ. The
-        * combined picker already presents the calendar before the time grid
-        * and opens on the date half (group click → openPanel('date')). */}
-      {(['date', 'time'] as const).map((part) => {
+      {(['time', 'date'] as const).map((part) => {
         const invalid = Boolean(error) || (touched && Boolean(validation));
         return <div className="split-datetime__field" key={part}>
           <div className="split-datetime__control">
@@ -283,11 +275,11 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
               value={draft[part]} onValueChange={(text) => update(part, text)}
               disabled={disabled} readOnly={readOnly} size={size} error={invalid}
               anchorRef={part === 'time' ? timeRef : dateRef}
-              lastSegmentRef={part === 'time' ? lastTimeRef : lastDateRef}
+              lastSegmentRef={part === 'time' ? lastTimeRef : undefined}
               onOpenPicker={() => openPanel(part)}
-              onComplete={part === 'date' ? () => timeRef.current?.focus() : undefined}
-              onBackFromStart={part === 'time' ? () => lastDateRef.current?.focus() : undefined}
-              onForwardFromEnd={part === 'date' ? () => timeRef.current?.focus() : undefined}
+              onComplete={part === 'time' ? () => dateRef.current?.focus() : undefined}
+              onBackFromStart={part === 'date' ? () => lastTimeRef.current?.focus() : undefined}
+              onForwardFromEnd={part === 'time' ? () => dateRef.current?.focus() : undefined}
               popupExpanded={active && (combinedPicker ? open != null : open === part)}
               popupControls={active && (combinedPicker ? open != null : open === part) ? `${id}-picker` : undefined}
               firstSegmentId={`${id}-${part}`} className={wrapperClassName} required={required}
