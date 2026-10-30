@@ -20,7 +20,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { isTripRunningOnDepartureDay } from '../../services/trip-busy-gate';
+import { isTripRunningOnDepartureDay, isActiveKepPairPartner } from '../../services/trip-busy-gate';
 
 // ── Transition Matrix ──────────────────────────────────────────────────────
 // Which target statuses are valid from each current status?
@@ -263,6 +263,111 @@ describe('Truck availability gate — SIL-474 future IN_TRANSIT', () => {
       serviceSource,
       /departureDate: s\.trips\.departureDate/,
       'the busy-trip select must carry the departure date for the running check',
+    );
+  });
+});
+
+// SIL-602 — "Lái xe chạy kẹp chỉ nhận được 1 lệnh". A valid KẸP pair must
+// never block its own second leg: while leg 1 is IN_TRANSIT, accepting leg 2
+// used to 409 with "Xe đang chạy chuyến…" whenever the exemption's extra
+// `trailerId != null && equality` clause failed — and trailer data is NOT part
+// of the pair contract (pairing validates same truck + same driver + same
+// departure day + two 20ft shells; master-data imports legitimately leave the
+// mooc unassigned, card 211026152138). PRD LoHangKepKetHop §3.2/§7.3: "KẸP
+// hợp lệ không tự chặn công việc thứ hai vì xe bận trong chính cặp."
+// The exemption is now the pure pair identity below: same ACTIVE KEP pair row
+// (both legs still linked) + the shared driver. Deliberately not exempt: busy
+// rows outside the pair, pair-link drift (pair broke / re-paired), and a
+// driver mismatch (out-of-band drift stays blocking; reassign flows keep real
+// pairs in sync). KET_HOP never resolves a partner (the status machine's
+// lookup filters status='ACTIVE' + pairKind='KEP'), so its sequencing gate
+// stays the sole owner of that pair kind.
+describe('Truck availability gate — SIL-602 KẸP pair partner exemption', () => {
+  // Accepting leg: trip 20, ACTIVE KEP pair 7, driver 5. The running busy row
+  // is leg 1 (trip 11). The candidate shape carries NO trailer field at all —
+  // the exemption must not depend on it, whether the mooc is unassigned
+  // (null) on one/both legs or drifted between them; both PROD-shaped
+  // variants are exercised through this one shape.
+  const acceptingLeg = { tripId: 20, tripPairId: 7, tripDriverId: 5 };
+  const partnerRow = { id: 11, activeTripPairId: 7, driverId: 5 };
+
+  test('REG: the partner leg of the same ACTIVE KẸP pair is exempt even with an unassigned/drifted mooc — the second "Nhận lệnh" must not 409', () => {
+    assert.strictEqual(
+      isActiveKepPairPartner(partnerRow, { ...acceptingLeg, simultaneousPartnerId: 11 }),
+      true,
+      'a valid KẸP pair running together must never block its own second leg',
+    );
+  });
+
+  test('a busy row outside the pair is never exempt', () => {
+    const unpaired = { ...acceptingLeg, tripPairId: null, simultaneousPartnerId: null };
+    assert.strictEqual(isActiveKepPairPartner(partnerRow, unpaired), false);
+    assert.strictEqual(isActiveKepPairPartner(
+      { id: 11, activeTripPairId: null, driverId: 5 },
+      { ...acceptingLeg, simultaneousPartnerId: 11 },
+    ), false,
+    'a busy row that lost its pair link is a conflicting job, not the partner');
+    // The KET_HOP / no-ACTIVE-KEP-pair shape at the predicate level: the trip
+    // still carries a pair id, but no KEP partner resolved from it.
+    assert.strictEqual(isActiveKepPairPartner(partnerRow, {
+      ...acceptingLeg, simultaneousPartnerId: null,
+    }), false,
+    'without a resolved KEP partner the exemption must not fire (KẾT_HỢP keeps its sequencing gate)');
+  });
+
+  test('pair-link drift (busy row re-paired elsewhere) is never exempt', () => {
+    assert.strictEqual(isActiveKepPairPartner(
+      { id: 11, activeTripPairId: 99, driverId: 5 },
+      { ...acceptingLeg, simultaneousPartnerId: 11 },
+    ), false,
+    'the busy row must still carry the SAME pair id as the accepting leg');
+  });
+
+  test('a driver mismatch on the partner is never exempt', () => {
+    assert.strictEqual(isActiveKepPairPartner(
+      { id: 11, activeTripPairId: 7, driverId: 6 },
+      { ...acceptingLeg, simultaneousPartnerId: 11 },
+    ), false,
+    'out-of-band driver drift stays blocking; guarded reassign flows keep real pairs in sync');
+  });
+
+  test('a same-pair row that is not the resolved simultaneous partner is never exempt', () => {
+    assert.strictEqual(isActiveKepPairPartner(
+      { id: 12, activeTripPairId: 7, driverId: 5 },
+      { ...acceptingLeg, simultaneousPartnerId: 11 },
+    ), false);
+  });
+
+  test('the accepting leg itself (no pair, no driver) resolves nothing', () => {
+    assert.strictEqual(isActiveKepPairPartner(partnerRow, {
+      tripId: 20, tripPairId: 7, tripDriverId: null, simultaneousPartnerId: 11,
+    }), false);
+  });
+
+  test('wiring pins: the busy loop uses the predicate, the trailer clause is gone, and the KEP-only pair lookup stays', () => {
+    const serviceSource = readFileSync(
+      fileURLToPath(new URL('../../services/trip-status-machine.service.ts', import.meta.url)),
+      'utf8',
+    );
+    assert.match(
+      serviceSource,
+      /isActiveKepPairPartner\(candidate, \{[\s\S]*?tripId,[\s\S]*?tripPairId: trip\.activeTripPairId,[\s\S]*?tripDriverId: trip\.driverId,[\s\S]*?simultaneousPartnerId,[\s\S]*?\}\)/,
+      'the busy-trip loop must consult the shared KẸP-partner predicate',
+    );
+    assert.doesNotMatch(
+      serviceSource,
+      /trip\.trailerId != null && candidate\.trailerId === trip\.trailerId/,
+      'the superseded trailerId clause is exactly the SIL-602 regression — it must stay gone',
+    );
+    assert.match(
+      serviceSource,
+      /activeTripPairId: s\.trips\.activeTripPairId,\s*\n\s*driverId: s\.trips\.driverId,/,
+      'the busy-trip select must keep carrying the pair id and driver for the exemption',
+    );
+    assert.match(
+      serviceSource,
+      /eq\(s\.tripPairs\.status, 'ACTIVE'\),\s*\n\s*eq\(s\.tripPairs\.pairKind, 'KEP'\),/,
+      'the partner resolution must stay scoped to ACTIVE KEP pairs — KẾT_HỢP keeps its sequencing gate',
     );
   });
 });
