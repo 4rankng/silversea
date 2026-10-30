@@ -1,0 +1,11 @@
+LOGIN OK (admin) — evidence dir qa/2026-10-30_sil596-freight-present
+customer picked
+type picked
+route picked
+PROBE: {"customer":"YUANFANG","type":"20OT","route":"Thuận Thành","date":"05","time":"08","freightInDom":true}
+freight: {"kind":"manual","x":56,"y":368,"w":1243,"h":57,"right":1299,"bottom":424,"text":"Chưa đủ căn cứ tính tự động — nhập tayKhông tìm thấy điều khoản cước cho khách hàng #20, tuyến #11 — cần nhập tay giá cước"}
+identity: {"x":478,"y":118,"w":821,"h":238,"right":1299,"bottom":356}
+mode: {"x":56,"y":118,"w":410,"h":238,"right":466,"bottom":356} contact: {"x":492,"y":159,"w":793,"h":62,"right":1285,"bottom":221} refs: {"x":492,"y":229,"w":793,"h":77,"right":1285,"bottom":306}
+schedule: {"x":56,"y":436,"w":1243,"h":125,"right":1299,"bottom":562} scrollbarOverflow: 25
+FREIGHT ROW FULL-WIDTH: PASS (freight w=1243 vs workspace w=1243)
+DONE
