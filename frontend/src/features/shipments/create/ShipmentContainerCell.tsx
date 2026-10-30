@@ -25,6 +25,7 @@ interface ShipmentContainerCellProps {
   fieldId?: string;
   error?: string;
   className?: string;
+  alwaysVisible?: boolean;
   /** SIL-508 group line: render as a stacked line (div) inside the merged
    *  SỐ CONTAINER cell instead of a standalone table cell. All per-line
    *  chrome (value-first reveal, Escape revert, error paint) is unchanged —
