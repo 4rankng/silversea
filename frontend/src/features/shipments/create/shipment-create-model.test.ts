@@ -30,6 +30,7 @@ const container: ShipmentContainerDraft = {
   operationalSiteId: '41',
   rawFactoryName: '',
   customerAppointmentAt: '',
+  declarationNumber: 'TK-SIL701-A',
 };
 
 describe('shipment create model', () => {
@@ -97,6 +98,7 @@ describe('shipment create model', () => {
       routeId: 11,
       rawRouteName: null,
       customerAppointmentAt: null,
+      declarationNumber: 'TK-SIL701-A',
     }]);
   });
 
@@ -120,6 +122,7 @@ describe('shipment create model', () => {
       routeId: null,
       rawRouteName: 'Tuyến riêng 1',
       customerAppointmentAt: null,
+      declarationNumber: null,
     });
     expect(second).toEqual(expect.objectContaining({ operationalSiteId: 41, rawFactoryName: null, routeId: 11, rawRouteName: null }));
 
@@ -172,7 +175,7 @@ describe('shipment create model', () => {
     expect(createEmptyContainer().cargoVolumeCbm).toBe('');
   });
 
-  it('copies a preceding container except Số container and Loại cont (REQ-22 REVERSED)', () => {
+  it('copies a preceding container except the per-cont identifiers (REQ-22 REVERSED + SIL-701)', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'row-2' });
     const copied = createContainerFromPrevious({
       ...container,
@@ -182,18 +185,21 @@ describe('shipment create model', () => {
     // REQ-22 REVERSED (ticket 221026173728, 22/10; SIL-488 — workspace gap of
     // reversal 093c5334): "Thêm container" inherits the previous row's shared
     // fields — route, factory, ports, weight and the schedule window — but the
-    // two per-container identifiers stay empty: Số container for entry and
-    // Loại cont ("Chọn loại") for the operator's own pick.
+    // per-container identifiers stay empty: Số container for entry, Loại cont
+    // ("Chọn loại") for the operator's own pick, and Số tờ khai (SIL-701:
+    // thêm container mới KHÔNG lan tờ khai — declarations spread only through
+    // the drawer's explicit copy affordance, FB-109).
     expect(copied).toMatchObject({
       ...container,
       key: 'row-2',
       containerNumber: '',
       containerTypeId: '',
+      declarationNumber: '',
       customerAppointmentAt: '2026-08-20T09:30',
     });
   });
 
-  it('duplicates a row with EVERY value (SIL-513 STT copy) but never the persisted id', () => {
+  it('duplicates a row with EVERY value (SIL-513 STT copy, tờ khai included) but never the persisted id', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'row-3' });
     const clone = duplicateContainerRow({
       ...container,
@@ -202,16 +208,49 @@ describe('shipment create model', () => {
     });
 
     // SIL-513 (owner 26/10): the STT hover copy duplicates the whole line —
-    // số cont and loại INCLUDED (deliberately different from
+    // số cont, loại AND tờ khai INCLUDED (deliberately different from
     // createContainerFromPrevious, whose REQ-22-reversed contract serves
-    // "Thêm container"). A duplicated row is still a NEW container: fresh
-    // key, no persisted id (the reconcile would overwrite its sibling).
+    // "Thêm container"). "Nhân bản" is an EXPLICIT row copy ("copy dòng đó",
+    // §3.2 UX note 26/10) and same-lot declaration repeats are legal per
+    // SIL-521 — so the clone carries the number. A duplicated row is still a
+    // NEW container: fresh key, no persisted id (the reconcile would
+    // overwrite its sibling).
     expect(clone).toMatchObject({
       ...container,
       key: 'row-3',
+      declarationNumber: 'TK-SIL701-A',
       customerAppointmentAt: '2026-08-20T09:30',
     });
     expect(clone.id).toBeUndefined();
+  });
+
+  it('SIL-701: same-lot declaration repeats stay legal and the payload trims/blanks per row', () => {
+    // Owner law (SIL-521 điểm 2 + ruling 30/10): trùng số tờ khai trong cùng
+    // lô — 1 phần hoặc toàn bộ — never raises a readiness/validation issue.
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      blNumber: 'BL-SAME-DECK',
+      tradeDirection: 'IMPORT' as const,
+    };
+    const twin = { ...container, key: 'row-2', containerNumber: 'MSCU6639871', declarationNumber: 'TK-SIL701-A' };
+    const readiness = getShipmentCreateReadiness(form, [
+      { ...container, customerAppointmentAt: '2026-08-14T09:00' },
+      { ...twin, customerAppointmentAt: '2026-08-14T09:00' },
+    ]);
+    expect(readiness.dispatchReady).toBe(true);
+    expect(readiness.issues).toEqual([]);
+
+    // Per-row wire semantics: trims, blank → null, values never merge.
+    const [first, second, third] = buildShipmentContainerPayload(form, [
+      { ...container, declarationNumber: '  TK-TRIM  ' },
+      { ...twin, declarationNumber: '' },
+      { ...twin, key: 'row-3', declarationNumber: 'TK-SIL701-A' },
+    ]);
+    expect(first).toMatchObject({ declarationNumber: 'TK-TRIM' });
+    expect(second).toMatchObject({ declarationNumber: null });
+    expect(third).toMatchObject({ declarationNumber: 'TK-SIL701-A' });
   });
 
   it('requires only LCL-specific cargo and schedule fields for dispatch', () => {

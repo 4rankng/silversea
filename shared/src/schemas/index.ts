@@ -1843,6 +1843,13 @@ export const shipmentContainerItemSchema = z.object({
     operationalSiteId: z.coerce.number().int().positive().optional().nullable(),
     // Ngày đóng/trả container (doc: Create Shipment Block 2, per-container date).
     customerAppointmentAt: shipmentTimestamp.optional().nullable(),
+    // SIL-701 (owner ruling 30/10, reversing the SIL-521/530 create-form pin):
+    // số tờ khai THEO CONT enters at create time, one row at a time (same-lot
+    // repeats legal — never blocked). Per-cont only: the LOT-level
+    // declarationNumber key stays rejected by assertKnownShipmentKeys, and no
+    // shipment_declarations entity is created from this input.
+    declarationNumber: z.string().trim().max(50, 'Số tờ khai không được quá 50 ký tự').optional().nullable()
+      .transform(v => (v === '' ? null : v)),
     notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
   });
 

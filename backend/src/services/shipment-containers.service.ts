@@ -21,6 +21,7 @@ import {
   updateShipmentSchema,
   validateContainerNumber,
 } from '@tingting/shared';
+import { assertContainerDeclarationNumberAvailable } from './shipment-lifecycle-shared.service';
 import type { AuthUser } from '../middleware/auth';
 import {
   assertDispatcherCanMutateShipmentIntake,
@@ -276,6 +277,7 @@ export async function reconcileShipmentContainersInTx(
     .map((row) => row.resolvedRouteId)
     .filter((id): id is number => id != null))];
   await assertContainerRoutesActive(tx, resolvedRouteIds);
+  const guardedDeclarationNumbers = new Set<string>();
   for (const { container, isUpdate, resolvedSiteId, resolvedRouteId } of resolvedContainers) {
     // Ports follow the same undefined-preservation contract as the factory
     // site above: surfaces that don't manage lift/drop ports (e.g. a payload
@@ -307,6 +309,29 @@ export async function reconcileShipmentContainersInTx(
     const rawRouteName = resolvedRouteId != null
       ? null
       : container.rawRouteName?.trim() || null;
+    // SIL-701: số tờ khai per-cont rides the same create/edit reconcile as the
+    // container-line command. Undefined = a surface that does not manage the
+    // field (an update keeps the stored value, an insert starts null — the
+    // ports/factory preservation contract); an explicit empty clears it.
+    // Same-lot repeats are legal (the copy affordance's whole point), so the
+    // cross-lot guard runs once per distinct CHANGED number per batch — the
+    // reconcile must not become the side door around the line-save law. No
+    // FB-109 fan-out here: the batch persists exactly the per-row values
+    // (từng cont nhập riêng) — the drawer's copy affordance owns spreading.
+    const previousDeclarationNumber = isUpdate
+      ? currentById.get(container.id as number)?.declarationNumber ?? null
+      : null;
+    const resolvedDeclarationNumber = container.declarationNumber !== undefined
+      ? container.declarationNumber?.trim() || null
+      : previousDeclarationNumber;
+    if (
+      resolvedDeclarationNumber != null
+      && resolvedDeclarationNumber !== previousDeclarationNumber
+      && !guardedDeclarationNumbers.has(resolvedDeclarationNumber.toLowerCase())
+    ) {
+      guardedDeclarationNumbers.add(resolvedDeclarationNumber.toLowerCase());
+      await assertContainerDeclarationNumberAvailable(tx, shipmentId, resolvedDeclarationNumber);
+    }
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -324,6 +349,7 @@ export async function reconcileShipmentContainersInTx(
       rawFactoryName,
       rawRouteName,
       customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
+      declarationNumber: resolvedDeclarationNumber,
       notes: container.notes ?? null,
       updatedAt: new Date(),
     };

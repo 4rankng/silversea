@@ -1,0 +1,16 @@
+{
+  "lotId": 753,
+  "status": 200,
+  "containers": [
+    {
+      "id": 834,
+      "containerNumber": "MSKU1234565",
+      "declarationNumber": "TK-SIL701-R3"
+    },
+    {
+      "id": 835,
+      "containerNumber": "ALLU5216535",
+      "declarationNumber": "TK-SIL701-R3"
+    }
+  ]
+}

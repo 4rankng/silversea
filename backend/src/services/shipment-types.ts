@@ -28,6 +28,11 @@ export interface ShipmentContainerInput {
   rawFactoryName?: string | null;
   rawRouteName?: string | null;
   customerAppointmentAt?: string | null;
+  /** SIL-701: số tờ khai THEO CONT. `undefined` = surface không quản lý field
+   *  này (update giữ giá trị đã lưu / insert coi như null); null/'' = gỡ;
+   *  string = ghi (đã trim). Trùng số trong cùng lô là hợp lệ — chỉ số thuộc
+   *  lô KHÁC bị từ chối (guard cross-lô). */
+  declarationNumber?: string | null;
   notes?: string | null;
 }
 

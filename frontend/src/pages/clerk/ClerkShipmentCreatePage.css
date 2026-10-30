@@ -182,7 +182,7 @@
       bottom padding reserves that lane (overlay-scrollbar platforms just show
       a small inset). */
 .csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; padding-bottom: 14px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
-.csc-container-table { width: 100%; min-width: 844px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-table { width: 100%; min-width: 964px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
 .csc-container-col__index { width: 40px; }
 /* SIL-508 (owner 26/10): the merged SỐ CONTAINER group (SỐ / LOẠI /
    TRỌNG LƯỢNG stacked lines) replaces the number + type + weight columns.
@@ -194,6 +194,14 @@
    (min-width 844 keeps three ~72px auto tracks at the floor, where values
    wrap per the no-truncation doctrine instead of clipping). */
 .csc-container-col__contgroup { width: 190px; }
+/* SIL-701 (§10.2.3 UX note 26/10 — "cột Số tờ khai vừa 11 ký tự"): the
+   per-cont declaration column sits right after the SỐ CONTAINER group (the
+   drawer's locked sheet order, SIL-508/552 family). 120px fits ~11
+   characters of data text beside the 6px cell padding and the input's
+   chrome; the input rides w-full inside the fixed track (the table-fixed
+   colgroup is the width authority), and longer values scroll inside the
+   input — nothing truncates. */
+.csc-container-col__declaration { width: 120px; }
 .csc-container-col__route { width: 180px; }
 .csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
 .csc-container-col__actions { width: 44px; }

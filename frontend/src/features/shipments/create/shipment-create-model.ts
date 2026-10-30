@@ -87,6 +87,9 @@ export interface ShipmentContainerDraft {
   cargoVolumeCbm: string;
   /** Ngày giờ đóng/trả của riêng container này, entered in Vietnam local time. */
   customerAppointmentAt: string;
+  /** SIL-701: số tờ khai của riêng container này (per-cont, trùng số trong lô
+   *  là hợp lệ — entered at create time). Rỗng = chưa có. */
+  declarationNumber: string;
   /** Per-container factory authority (SILVER L1): empty inherits nothing —
    *  the shipment factory pre-fills new rows as a suggestion only. */
   operationalSiteId: string;
@@ -175,6 +178,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     cargoWeightKg: '',
     cargoVolumeCbm: '',
     customerAppointmentAt: '',
+    declarationNumber: '',
     operationalSiteId: '',
     rawFactoryName: '',
   };
@@ -185,10 +189,13 @@ export function createEmptyContainer(): ShipmentContainerDraft {
  * 221026173728 22/10 — SIL-488 closes the workspace gap of reversal 093c5334,
  * which only reached the CUS ledger): pressing "Thêm container" inherits the
  * previous row's shared fields — route, factory, ports, weight and the
- * schedule window — but NEVER its two per-container identifiers: the
- * Số container stays empty for entry and the Loại cont stays blank ("Chọn
- * loại") for the operator's own pick. The payload already sends an EXPLICIT
- * `containerTypeId: null` when unpicked, so the server cannot re-copy either.
+ * schedule window — but NEVER its per-container identifiers: the Số container
+ * stays empty for entry, the Loại cont stays blank ("Chọn loại") for the
+ * operator's own pick, and the Số tờ khai stays empty (SIL-701: thêm
+ * container mới KHÔNG lan tờ khai — declarations spread only through the
+ * drawer's explicit copy affordance, FB-109). The payload already sends an
+ * EXPLICIT `containerTypeId: null` when unpicked, so the server cannot
+ * re-copy any of them.
  */
 export function createContainerFromPrevious(
   previous?: ShipmentContainerDraft,
@@ -200,6 +207,7 @@ export function createContainerFromPrevious(
     key: crypto.randomUUID(),
     containerNumber: '',
     containerTypeId: '',
+    declarationNumber: '',
     // SIL-171: a cloned row is a NEW container — never inherit the source
     // row's persisted id (the reconcile would overwrite its sibling).
     id: undefined,
@@ -208,13 +216,14 @@ export function createContainerFromPrevious(
 
 /**
  * SIL-513 (owner 26/10): the STT column's hover copy DUPLICATES the row — a
- * full-value copy of the source line (số cont, loại, nhà máy, tuyến, cảng,
- * kg, giờ đóng/trả) inserted right below it. Deliberately DIFFERENT from
- * `createContainerFromPrevious` (whose REQ-22-reversed contract leaves số
- * cont + loại empty for "Thêm container"): the owner names cont and loại
- * among the copied values, so this clone carries the whole line. Still never
- * inherits the persisted `id` — a duplicated row is a NEW container; the
- * reconcile would overwrite its sibling.
+ * full-value copy of the source line (số cont, loại, tờ khai, nhà máy, tuyến,
+ * cảng, kg, giờ đóng/trả) inserted right below it. Deliberately DIFFERENT
+ * from `createContainerFromPrevious` (whose REQ-22-reversed contract leaves
+ * số cont + loại + tờ khai empty for "Thêm container"): this is an EXPLICIT
+ * row copy ("copy dòng đó" — §3.2 UX note 26/10), so the clone carries the
+ * whole line, declaration included (same-lot repeats are legal per SIL-521).
+ * Still never inherits the persisted `id` — a duplicated row is a NEW
+ * container; the reconcile would overwrite its sibling.
  */
 export function duplicateContainerRow(
   previous: ShipmentContainerDraft,
@@ -465,5 +474,8 @@ export function buildShipmentContainerPayload(
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
     customerAppointmentAt: localDateTimeToIso(row.customerAppointmentAt),
+    // SIL-701: per-cont số tờ khai rides the create wire on its own row —
+    // never a lot-level declarationNumber (that key stays rejected).
+    declarationNumber: row.declarationNumber.trim() || null,
   }));
 }

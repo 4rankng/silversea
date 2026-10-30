@@ -326,6 +326,33 @@ export function ShipmentCreateContainerRow({
           </GroupFloatingLine>
         </div>
       </td>
+      {/* SIL-701 (owner ruling 30/10): per-cont số tờ khai enters at create
+          time — one always-on inline input per row (the entry form's editor
+          style, appointment-cell pattern), placed right after the SỐ
+          CONTAINER group for parity with the drawer's locked sheet order
+          (STT · Số container · Số tờ khai · Nhà máy · …, SIL-508/552 family).
+          Same-lot repeats are legal — no duplicate guard here; this cell
+          owns no copy affordance (FB-109 spreading stays the drawer's
+          explicit copy button). */}
+      <ShipmentContainerCell
+        label="Số tờ khai"
+        alwaysVisible
+        mobileFieldChrome
+        value={row.declarationNumber}
+        placeholder="Nhập số tờ khai"
+        fieldId={`container-${row.key}-declaration`}
+      >
+        <TextField
+          id={`container-${row.key}-declaration`}
+          label="Số tờ khai"
+          hideLabel
+          value={row.declarationNumber}
+          onChange={(event) => updateContainer(row.key, 'declarationNumber', event.target.value)}
+          placeholder="Nhập số tờ khai"
+          maxLength={50}
+          disabled={saving}
+        />
+      </ShipmentContainerCell>
       <td className="csc-container-row__group" aria-hidden="true">Lộ trình</td>
       <ShipmentContainerCell
         label={isAdHoc ? 'Nhà máy' : 'Nhà máy *'}

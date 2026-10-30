@@ -27,6 +27,7 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
           <colgroup>
             <col className="csc-container-col__index" />
             <col className="csc-container-col__contgroup" />
+            <col className="csc-container-col__declaration" />
             <col className="csc-container-col__factory" />
             <col className="csc-container-col__route" />
             <col className="csc-container-col__pickup-port" />
@@ -38,6 +39,7 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
             <tr>
               <th scope="col">STT</th>
               <th scope="col">Số container</th>
+              <th scope="col">Số tờ khai</th>
               <th scope="col">Nhà máy</th>
               <th scope="col">Tuyến đường</th>
               <th scope="col">Cảng nâng</th>

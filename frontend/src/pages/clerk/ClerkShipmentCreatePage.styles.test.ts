@@ -14,6 +14,9 @@ const spreadsheetCellCss = readFileSync(
 const CONTAINER_COLUMNS = [
   'index',
   'contgroup',
+  // SIL-701: the per-cont SỐ TỜ KHAI column lands right after the SỐ
+  // CONTAINER group (the drawer's locked sheet order, SIL-508/552 family).
+  'declaration',
   'route',
   'pickup-port',
   'dropoff-port',
@@ -56,9 +59,9 @@ describe('shipment create responsive layout', () => {
   });
 
   it('fills the desktop workspace while keeping short-value columns compact', () => {
-    // The sheet declares a width for each of the eight columns the desktop
+    // The sheet declares a width for each of the nine columns the desktop
     // workspace lays out (SIL-508: number + type + weight merged into the
-    // single SỐ CONTAINER group column).
+    // single SỐ CONTAINER group column; SIL-701: + the SỐ TỜ KHAI column).
     for (const column of CONTAINER_COLUMNS) {
       expect(css).toMatch(new RegExp(`\\.csc-container-col__${column}[\\s,][^{]*\\{[^}]*width:`));
     }
@@ -68,7 +71,10 @@ describe('shipment create responsive layout', () => {
     // `overflow-y: auto` and the horizontal scrollbar's height makes the table
     // overflow vertically — the page painted TWO scrollbars over one table.
     expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*hidden;/);
-    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*844px;[^}]*table-layout:\s*fixed;/);
+    // Floor = the sum of the fixed tracks + three ~72px auto tracks (SIL-533
+    // measured 844 for the 8-column sheet; SIL-701's declaration track adds
+    // its 120px → 964).
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*964px;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*180px;/);
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
     // SIL-508: the merged group column hugs the SỐ line's floor — the 11-char
@@ -92,6 +98,14 @@ describe('shipment create responsive layout', () => {
     expect(appointmentWidth).toBeGreaterThanOrEqual(152);
     expect(appointmentWidth).toBeLessThanOrEqual(170);
     expect(css).not.toMatch(/\.csc-container-col__appointment[,\s][^{]*\{[^}]*width:\s*auto;/);
+    // SIL-701: the SỐ TỜ KHAI track hugs the §10.2.3 UX note ("cột Số tờ
+    // khai vừa 11 ký tự") — 120px clears ~11 data characters beside the 6px
+    // cell padding and the input's chrome. Must clear the "Số tờ khai"
+    // header floor (one line per FB-063), must not reserve dead width.
+    const declarationWidth = Number(/\.csc-container-col__declaration\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0);
+    expect(declarationWidth).toBeGreaterThanOrEqual(104);
+    expect(declarationWidth).toBeLessThanOrEqual(140);
+    expect(css).not.toMatch(/\.csc-container-col__declaration[,\s][^{]*\{[^}]*width:\s*auto;/);
     expect(css).not.toMatch(/\.csc-container-table thead th:nth-child\([^)]*\)\s*\{[^}]*width:\s*\d+%;/);
     expect(css).toMatch(/\.csc-container-table td:not\(\.csc-container-row__actions\)\s*>\s*\*\s*\{[^}]*min-width:\s*0;/);
     expect(css).toMatch(/\.csc-container-table select\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;/);

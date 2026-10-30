@@ -76,6 +76,10 @@ function containerDraftFromRow(row: ShipmentEditDetail['containers'][number]): S
     cargoWeightKg: row.cargoWeightKg ?? '',
     cargoVolumeCbm: row.cargoVolumeCbm ?? '',
     customerAppointmentAt: formatVietnamDateTimeInput(row.customerAppointmentAt),
+    // SIL-701: per-cont số tờ khai round-trips through edit mode — a save
+    // re-asserts what the form shows (the BE's undefined-preservation keeps
+    // stored values for surfaces that never manage the field).
+    declarationNumber: row.declarationNumber ?? '',
     operationalSiteId: idString(row.operationalSiteId),
     rawFactoryName: row.rawFactoryName ?? '',
   };

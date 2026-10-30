@@ -5,11 +5,12 @@
 // update / transitions leaves and the lifecycle core import these one-way.
 import * as s from '../db/schema';
 import { db } from '../db';
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { isFulfillmentRequired } from './shipment-fulfillment.service';
 import type { ShipmentAuthorityTripRow } from './shipment-shared.service';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 export function assertShipmentDocumentReferences(input: {
   blNumber?: string | null;
@@ -213,6 +214,38 @@ export function throwShipmentReferenceConflict(
     conflict: { ...conflict, createdAt: conflict.createdAt.toISOString() },
   };
   throw err;
+}
+
+/** A per-container tờ khai number must not belong to another active lot.
+ * Two stores hold the law: the container attribute itself, and the
+ * shipment_declarations entity (globally-unique numbers). Same-lot repeats
+ * are legal — they are the copy affordance's whole point. The value is
+ * advisory-locked first (review M1, card 261013200312): the two writers that
+ * could race hold FOR UPDATE on only THEIR OWN lot's rows, so a plain
+ * read-check would let both commit the same number — the entity half is
+ * DB-backstopped by 0060's unique index, the attribute half is not, and this
+ * lock is the serializer (same pattern as the carrier-name/plate law).
+ *
+ * Lives here (not with either writer) since SIL-701: the container-line
+ * command AND the reconcile/create batch write per-cont numbers — one guard,
+ * one implementation for every writer. */
+export async function assertContainerDeclarationNumberAvailable(tx: Tx, shipmentId: number, declarationNumber: string) {
+  const trimmed = declarationNumber.trim();
+  await lockApplicationOwnedUniqueness(tx, 'cus-container-declaration', [trimmed.toLowerCase()]);
+  const [containerHit] = await tx.select({ shipmentId: s.shipmentContainers.shipmentId })
+    .from(s.shipmentContainers)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+    .where(and(
+      sql`lower(btrim(${s.shipmentContainers.declarationNumber})) = lower(${trimmed})`,
+      ne(s.shipmentContainers.shipmentId, shipmentId),
+      isNull(s.shipments.deletedAt),
+    ))
+    .limit(1);
+  if (containerHit) {
+    throw new ApiError(409, 'Số tờ khai đã thuộc lô hàng khác. Vui lòng kiểm tra lại trước khi lưu.', 'SHIPMENT_REFERENCE_DUPLICATE');
+  }
+  const entityConflict = await findDeclarationReferenceConflict(tx, trimmed, shipmentId);
+  if (entityConflict) throwShipmentReferenceConflict(entityConflict, 'declaration');
 }
 
 /**
