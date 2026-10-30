@@ -1,7 +1,7 @@
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { formatISODate, parseDateTime24 } from '../../lib/format';
 
-export const formatDateInput = (iso: string) => formatISODate(iso);
+export const formatDateInput = (iso: string) => (iso ? formatISODate(iso, { empty: '' }) : '');
 
 export function validateDateInputText(text: string, min = '', max = '') {
   const parsed = text.trim() ? parseDateTime24(`00:00 ${text}`)?.slice(0, 10) ?? null : '';
