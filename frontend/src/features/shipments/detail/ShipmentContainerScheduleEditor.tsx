@@ -60,7 +60,7 @@ export function ScheduleEditorBody({
   // survives REVERSED: a completed năm hands focus to the giờ box (the same
   // hand-off SplitDateTimeField runs from its date half to its time half),
   // so "gõ đủ ngày" still lands the caret where the next digit belongs.
-  const scheduleTimeFieldRef = useRef<HTMLDivElement>(null);
+  const scheduleTimeFieldRef = useRef<HTMLLabelElement>(null);
   return (
     <>
       <div className="shipment-container-ledger__schedule-header">

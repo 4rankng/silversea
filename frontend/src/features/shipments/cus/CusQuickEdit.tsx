@@ -25,7 +25,7 @@ export function ShipmentQuickEditFields({
   // dialog runs the same VN order as the rest of the app. The FB-030/075
   // hand-off survives reversed: a completed năm hands focus to the giờ box
   // (the same hand-off SplitDateTimeField runs from its date half).
-  const scheduleTimeFieldRef = useRef<HTMLDivElement>(null);
+  const scheduleTimeFieldRef = useRef<HTMLLabelElement>(null);
 
   return (
     <div className="cus-quick-edit-modal__fields" data-edit-field={draft.field}>

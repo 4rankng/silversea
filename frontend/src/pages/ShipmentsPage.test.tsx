@@ -1123,7 +1123,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Lịch trình' })).toBeNull();
   });
 
-  it('FB-030/075: completing a typed giờ in the schedule quick-edit advances focus to the Ngày day segment', async () => {
+  it('SIL-608: a completed năm in the schedule quick-edit hands focus to the giờ box (date-first)', async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve(detail)
@@ -1133,14 +1133,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
     fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
     const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' });
+    // Prefilled date 12/08/2026 — every typed digit must differ from the
+    // segment's current value, or React suppresses the no-op change event.
+    const seg = (key: string) => within(dialog).getByLabelText(`Ngày đóng/trả`).closest('[data-seg-part="date"]')!.querySelector<HTMLInputElement>(`[data-seg="${key}"]`)!;
+    fireEvent.change(seg('dd'), { target: { value: '07' } });
+    fireEvent.change(seg('mm2'), { target: { value: '05' } });
     const time = within(dialog).getByLabelText('Giờ');
-    fireEvent.change(time, { target: { value: '1430' } });
-    expect(time).toHaveValue('14:30');
-    // The single-box analog of the segmented fields' complete-segment
-    // advance: giờ done → focus lands on the Ngày đóng/trả day segment
-    // (prefilled with the row's current date — type-over ready on select).
-    await waitFor(() => expect(document.activeElement).toBe(within(dialog).getByLabelText('Ngày đóng/trả')));
-    expect((document.activeElement as HTMLInputElement).getAttribute('data-seg')).toBe('dd');
+    expect(document.activeElement).not.toBe(time);
+    fireEvent.change(seg('yyyy'), { target: { value: '2027' } });
+    // Date complete → focus hands off to the giờ box (the no-stuck law,
+    // reversed for the SIL-608 date-first order).
+    expect(document.activeElement).toBe(time);
   });
 
   it('documents quick-edit: Bill only, KHÔNG còn ô Số tờ khai cấp lô (SIL-521)', async () => {
@@ -2430,14 +2433,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(responsiveCss).not.toContain('#root .cus-dashboard-table');
   });
 
-  it('renders giờ before ngày in schedule quick-edit fields with 24h format', () => {
+  it('renders ngày before giờ in schedule quick-edit fields with 24h format (SIL-608 date-first)', () => {
     const quickEdit = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusQuickEdit.tsx'), 'utf8');
     const scheduleBlock = quickEdit.match(/draft\.field === 'schedule' && <>([\s\S]*?)<\/>/)?.[1] ?? '';
     const timeIndex = scheduleBlock.indexOf('<TimeInput');
     const dateIndex = scheduleBlock.indexOf('<BufferedUuiDateInput');
     expect(timeIndex).toBeGreaterThan(-1);
     expect(dateIndex).toBeGreaterThan(-1);
-    expect(timeIndex).toBeLessThan(dateIndex);
+    expect(dateIndex).toBeLessThan(timeIndex);
     expect(scheduleBlock).not.toContain('type="time"');
   });
 });
