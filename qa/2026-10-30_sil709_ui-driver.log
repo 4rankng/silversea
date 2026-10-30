@@ -1,0 +1,19 @@
+{"at":"2026-10-30T12:55:51.575Z","step":"start","base":"http://localhost:7177","api":"http://localhost:3002/api"}
+{"at":"2026-10-30T12:55:51.985Z","step":"db-before","tag":"before","groupedShipments":"10","lclShipmentsUngrouped":"57"}
+{"at":"2026-10-30T12:55:52.386Z","step":"login","verdict":"PASS","status":200}
+{"at":"2026-10-30T12:56:07.094Z","step":"page-loaded","verdict":"PASS","url":"http://localhost:7177/dispatch-detail"}
+{"at":"2026-10-30T12:56:10.099Z","step":"merge-mode-on","verdict":"PASS"}
+{"at":"2026-10-30T12:56:28.762Z","step":"lots-found","verdict":"PASS","picked":["Chọn lô R42RV-D1","Chọn lô R42RV-D2"]}
+{"at":"2026-10-30T12:56:31.292Z","step":"copy-checks","occurrencesOfRule":1,"noteText":"Lô 1 giữ 100% cước trả ĐV · các lô còn lại 0₫","noteAfterFreight":true,"hasSubtitleCount":true,"hasLecturingParagraph":false,"hasOldGloss":false,"hasShortLabel":true,"listStyle":"none","firstLiText":"Lô 1 · R42RV-D1 — LONG MINH"}
+{"at":"2026-10-30T12:56:31.292Z","step":"COPY-01-rule-once","verdict":"PASS"}
+{"at":"2026-10-30T12:56:31.292Z","step":"COPY-01b-placement","verdict":"PASS"}
+{"at":"2026-10-30T12:56:31.292Z","step":"COPY-02-no-lecture","verdict":"PASS"}
+{"at":"2026-10-30T12:56:31.292Z","step":"COPY-02b-label","verdict":"PASS"}
+{"at":"2026-10-30T12:56:31.292Z","step":"COPY-03-lot-lines","verdict":"PASS"}
+{"at":"2026-10-30T12:56:31.900Z","step":"screenshot","verdict":"PASS","width":1440}
+{"at":"2026-10-30T12:56:32.830Z","step":"screenshot","verdict":"PASS","width":768}
+{"at":"2026-10-30T12:56:33.556Z","step":"screenshot","verdict":"PASS","width":390}
+{"at":"2026-10-30T12:56:35.619Z","step":"db-after","tag":"after","groupedShipments":"10","lclShipmentsUngrouped":"57"}
+{"at":"2026-10-30T12:56:35.619Z","step":"STATE-unchanged","verdict":"PASS","dbBefore":{"tag":"before","groupedShipments":"10","lclShipmentsUngrouped":"57"},"dbAfter":{"tag":"after","groupedShipments":"10","lclShipmentsUngrouped":"57"}}
+{"at":"2026-10-30T12:56:35.844Z","step":"done","exitCode":0}
+exit-status: 0

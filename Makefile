@@ -324,7 +324,7 @@ PROD_PATH     := /opt/silversea
 PROD_COMPOSE  := docker compose -f deploy/docker-compose.silversea.yml
 PROD_BRANCH   := main
 
-deploy-advance: ## Fast-forward prod branch to origin/main (run from any branch; creates prod if missing)
+deploy-advance: ## Sync local main to origin/main (helper, run from any branch — NOT a deploy prerequisite)
 	@git fetch origin
 	@if [ "$$(git rev-parse --abbrev-ref HEAD)" = "$(PROD_BRANCH)" ]; then \
 		git merge --ff-only origin/main; \
@@ -342,18 +342,14 @@ deploy-server-setup: ## One-time prod server provisioning (docker, TLS+certbot, 
 deploy-seed: ## Run the prod master-data seed on the server (idempotent upserts; node dist/seed/seed-prod.js)
 	@ssh root@$(PROD_SERVER) "cd $(PROD_PATH) && $(PROD_COMPOSE) run --rm --no-deps backend node dist/seed/seed-prod.js"
 
-deploy: ## Deploy prod (silversea.tingting.vip) — run from the prod branch; ships it AS-IS, keeps DB
-	@if [ "$$(git rev-parse --abbrev-ref HEAD)" != "$(PROD_BRANCH)" ]; then \
-		echo "❌ make deploy must run ON the $(PROD_BRANCH) branch (you are on '$$(git rev-parse --abbrev-ref HEAD)')." >&2; \
-		echo "    git checkout $(PROD_BRANCH) && git merge --ff-only origin/main   (or: make deploy-advance)" >&2; \
-		exit 1; \
-	fi
+deploy: ## Deploy prod (silversea.tingting.vip) — runs from ANY branch (owner 30/10); ships the current committed tree AS-IS, keeps DB
+	@echo "Shipping $$(git rev-parse --abbrev-ref HEAD) @ $$(git rev-parse --short HEAD) → $(PROD_SERVER) (deploy runs from any branch — owner 30/10)"
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "❌ working tree is dirty — refusing to build prod images from uncommitted changes." >&2; \
 		exit 1; \
 	fi
 	@echo "=== Deploying prod @ $$(git rev-parse --short HEAD) to $(PROD_SERVER) (AS-IS; DB preserved) ==="
-	@echo "1/4  Building + pushing :prod images from this $(PROD_BRANCH) checkout..."
+	@echo "1/4  Building + pushing :prod images from this checkout..."
 	@$(MAKE) --no-print-directory -C backend push IMAGE_TAG=prod
 	@$(MAKE) --no-print-directory -C frontend push IMAGE_TAG=prod
 	@echo "2/4  Rollback capture + image pull on $(PROD_SERVER) (DB volume untouched)..."

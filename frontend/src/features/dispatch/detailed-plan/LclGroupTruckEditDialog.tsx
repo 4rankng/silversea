@@ -55,7 +55,7 @@ export function groupPlateInputError(
   plateOptions: ReadonlyArray<{ value: string; label: string }>,
 ): string | null {
   const collapsed = raw.trim().replace(/\s+/g, ' ');
-  if (!collapsed) return 'Nhập BKS thực của xe chạy chuyến';
+  if (!collapsed) return 'Nhập BKS thực';
   if (DEFERRED_PLATE_LABEL_PATTERN.test(collapsed.toLowerCase())) {
     return '"Bổ sung sau" không phải biển số — nhóm ghép phải có BKS thật. Tạm hoãn biển chỉ dùng trên lô đơn (nút "Bổ sung sau" của dòng lô).';
   }
@@ -209,13 +209,13 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
             leaving the Đổi BKS nhóm flow (chungtu-dieuvan B.1, lclspec). */}
         <div className="lcl-group-truck-dialog__vehicle">
           <div className="lcl-group-truck-dialog__vehicle-head">
-            <span className="lcl-group-truck-dialog__label">BKS thực (xe chạy chuyến) <span aria-hidden="true">*</span></span>
+            <span className="lcl-group-truck-dialog__label">BKS thực <span aria-hidden="true">*</span></span>
             {(row.dispatch.carrierType === 'OWN' || quickAddCarrierId != null) && (
               <QuickAddButton onClick={() => setQuickAddOpen(true)} disabled={saving} />
             )}
           </div>
           <USearchableField
-            label="BKS thực (xe chạy chuyến)"
+            label="BKS thực"
             hideLabel
             value={actualTruckNo}
             onChange={setActualTruckNo}
