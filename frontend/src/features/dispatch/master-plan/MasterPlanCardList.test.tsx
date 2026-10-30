@@ -74,6 +74,22 @@ const renderCards = (overrides: {
 );
 
 describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => {
+  it('SIL-708 (id 708): the LCL token in the type line is the same chip as the grid cell; Cont stays text', () => {
+    renderCards({
+      items: [
+        item({ id: 3, cargoMode: 'LCL', containerTotal: 0, containerCount20: 0, containerCount40: 0, containerTypeSummary: null }),
+        item({ id: 4, cargoMode: 'LCL', containerTotal: 0, containerCount20: 0, containerCount40: 0, containerTypeSummary: null, costGroupId: 'grp-708' }),
+      ],
+    });
+    const chips = document.querySelectorAll('.mpcard__type .master-plan-grid__lcl-chip');
+    expect(chips).toHaveLength(2);
+    expect(chips[0]?.textContent).toBe('Lẻ');
+    expect(chips[1]?.textContent).toBe('Lẻ · Ghép');
+    // FCL keeps its plain-text type line — no chip, no flag (SIL-589).
+    // Both cards here are LCL, so the Cont line must not exist at all.
+    expect(screen.queryByText('Nhập · Cont')).toBeNull();
+  });
+
   it('renders one card per lot with the identity head and the SIL-507 3-dòng facts', () => {
     renderCards({ items: [item(), item({ id: 2, blNumber: 'BL-2026-002' })] });
 

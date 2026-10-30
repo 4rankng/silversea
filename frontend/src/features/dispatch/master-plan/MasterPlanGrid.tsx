@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
 import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
-import { isLclLotRow } from './lclLot';
+import { isLclLotRow, lclLotFlag } from './lclLot';
 import { canonicalShipmentStatus, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -428,19 +428,22 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           A lot already merged into a ghép-trả-ĐV group says
                           so ("Lẻ · Ghép"), keyed off the same costGroupId the
                           CHỌN checkbox disables on, so a merged lot can never
-                          look mergeable again. Text-only (§1): no pill, no
-                          chrome — the same voice the detail plan's Phân loại
-                          cell uses for the same fact. */}
-                      {isLclLotRow(item) && (
-                        <div
-                          className="master-plan-grid__line master-plan-grid__lcl-flag"
-                          title={item.costGroupId != null
-                            ? `Lô hàng lẻ đã ghép trả ĐV cùng nhóm${item.actualTruckNo ? ` — BKS thực ${item.actualTruckNo}` : ''}`
-                            : 'Lô hàng lẻ (LCL) — chưa ghép nhóm'}
-                        >
-                          {item.costGroupId != null ? 'Lẻ · Ghép' : 'Lẻ'}
-                        </div>
-                      )}
+                          look mergeable again.
+                          SIL-708 (id 708, QA 30/10) — that text-only voice
+                          read like every other meta line on the board ("chỉ
+                          là chữ trơn, khó nhận biết nhanh"): the flag is now
+                          a chip riding the sanctioned --chip-* recipe (the
+                          SIL-478 verdict 2026-10-25). Still a static fact,
+                          not a control — no hover/focus affordance; the
+                          title keeps the group detail. */}
+                      {isLclLotRow(item) && (() => {
+                        const flag = lclLotFlag(item);
+                        return (
+                          <span className="master-plan-grid__lcl-chip" title={flag.title}>
+                            {flag.label}
+                          </span>
+                        );
+                      })()}
                       {/* Owner redesign 23/10 — "Container đủ 1 dòng": the
                           per-type demand joins onto ONE ellipsized line
                           (title carries the whole roster). */}
