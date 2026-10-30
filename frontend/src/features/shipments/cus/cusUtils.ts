@@ -92,11 +92,12 @@ export function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
 }
 
 /**
- * One display line per per-container appointment group, in the canonical
- * datetime shape (card 20260921_23): "09:00 25/08/2026 · Sunrise · 1x40HC" —
- * padded time-first 24h + padded date, the effective factory (SILVER L1),
- * and container-type mix of every container sharing that (local date,
- * factory) group in the lot.
+ * Datetime head of a per-container appointment group, in the canonical shape
+ * (card 20260921_23): "09:00 25/08/2026" — padded time-first 24h + padded
+ * date. Since SIL-603 (id 706) the workboard renders the group's factory and
+ * container summary as their OWN lines beneath this head — the old
+ * "09:00 25/08/2026 · Sunrise · 1x40HC" one-line packing is what an ellipsis
+ * cut into "… · NEWEB…" (SIL-515 wrap law).
  */
 export function formatAppointmentGroupLine(at: string, localDate?: string): string {
   const date = new Date(at);
@@ -113,12 +114,6 @@ export function formatAppointmentGroupLine(at: string, localDate?: string): stri
     ? `${day}/${month}/${year}`
     : formatISODate(at);
   return `${time} ${formattedLocalDate}`;
-}
-
-/** Factory segment of a group line; empty string when the factory is unknown. */
-export function appointmentGroupFactorySegment(factoryName: string | null): string {
-  const trimmed = factoryName?.trim();
-  return trimmed ? ` · ${trimmed}` : '';
 }
 
 export function vehicleReadinessLabel(item: ShipmentCusWorkspaceListItem): string {

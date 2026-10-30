@@ -406,6 +406,28 @@
   font-family: var(--font-data);
 }
 
+/* SIL-603 (id 706, owner 30/10): one fact per line in the schedule cell —
+   the datetime keeps its own line and the factory name drops to the next
+   line IN FULL, wrap included (SIL-515 law). No `·` separator in the DOM: a
+   separator only exists to pack facts onto one line, and that packed line is
+   exactly what the ellipsis cut into "21:20 28/10/2026 · NEWEB…". The value
+   spans clip at nothing — overflow-wrap: anywhere only engages for a token
+   genuinely wider than the column. */
+.cus-schedule-group {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cus-schedule-group > span {
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .cus-dashboard-table thead th:last-child,
 .cus-dashboard-table tbody > tr > :last-child { border-right: 0; }
 
@@ -843,16 +865,18 @@
 }
 
 /* ── FB-043 (card 201026164000, regression #33): uniform row heights on /shipments ──
-   1. The schedule cell lines hold one nowrap line with ellipsis so dates and dispatch
-      statuses cannot wrap and inflate the row height.
+   1. SIL-603 (id 706, owner 30/10) REVOKES the one-line ellipsis law for the
+      schedule cell's facts: every line wraps its full text (SIL-515), so a
+      long factory name grows the row instead of vanishing behind "…".
    2. Dispatch status and issue chip share one status line (.cus-schedule-status-row).
    3. The status cell's action buttons stay beside the status slot instead of wrapping
       below it when an attention signal is present. */
 @media (min-width: 1000px) {
   .cus-dashboard-table td[data-label='Lịch trình & điều xe'] .cus-inline-trigger > * {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
     max-width: 100%;
   }
 
@@ -990,6 +1014,12 @@
   .cus-dashboard-table .cus-multiline-cell > *:first-child,
   .cus-dashboard-table .cus-inline-trigger > *:first-child {
     display: inline;
+  }
+  /* SIL-603: the schedule group keeps its per-fact grid even as the trigger's
+     first child — the generic :first-child inline rule above must not fuse
+     the datetime back onto the factory's line. */
+  .cus-dashboard-table .cus-inline-trigger > .cus-schedule-group {
+    display: grid;
   }
   /* The fact stack itself stays an inline run so the LABEL (`::before`, which
      lives on the trigger) and the first fact land on the same line; the
