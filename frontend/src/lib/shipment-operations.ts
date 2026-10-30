@@ -46,9 +46,9 @@ export function formatVietnamDateInput(value: string | Date | null | undefined):
   return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`;
 }
 
-/** SIL-483: the drawer's ghost appointment mask reads "HH:mm DD/MM" — the
+/** SIL-483: the drawer's ghost appointment mask reads "DD/MM HH:mm" (SIL-613) — the
  *  year is context the lot already carries, so the cell drops it and the full
- *  "HH:mm DD/MM/YYYY" rides the title/aria text instead.
+ *  "DD/MM/YYYY HH:mm" rides the title/aria text instead.
  *  SIL-595 (id 695): the callers feed BOTH shapes — naive drafts
  *  ("YYYY-MM-DDTHH:mm" — string surgery, host-independent) AND raw server
  *  instants (Z/±hh:mm — `Date.toISOString()`). A zone-suffixed value is a real
@@ -60,12 +60,12 @@ export function formatTimeShortDate(value: string | null | undefined): string {
   if (/[Zz]$|[+-]\d{2}:?\d{2}$/.test(raw)) {
     const parts = getVietnamParts(raw);
     if (!parts) return '';
-    return `${pad(parts.hour)}:${pad(parts.minute)} ${pad(parts.day)}/${pad(parts.month)}`;
+    return `${pad(parts.day)}/${pad(parts.month)} ${pad(parts.hour)}:${pad(parts.minute)}`;
   }
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(raw);
   if (!match) return '';
   const [, , month, day, hour, minute] = match;
-  return `${hour}:${minute} ${day}/${month}`;
+  return `${day}/${month} ${hour}:${minute}`;
 }
 
 export function formatVietnamDateTimeInput(value: string | Date | null | undefined): string {

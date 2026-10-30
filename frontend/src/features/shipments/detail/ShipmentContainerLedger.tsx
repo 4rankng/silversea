@@ -1532,7 +1532,7 @@ export function ShipmentContainerLedger({
                     {editableCell(row, 'schedule', row.customerAppointmentEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__schedule ops-schedule">
                       {missingDate && <Badge size="sm" color="warning" className="shipment-container-ledger__schedule-gap"><CalendarOff aria-hidden="true" />Thiếu ngày vận chuyển</Badge>}
                       <strong className={hasSchedule ? 'ops-schedule__datetime' : undefined}>{hasAppointment
-                        ? [scheduleTime, formatISODate(appointmentInput.slice(0, 10), { empty: 'Chưa có ngày' })].filter(Boolean).join(' ')
+                        ? [formatISODate(appointmentInput.slice(0, 10), { empty: 'Chưa có ngày' }), scheduleTime].filter(Boolean).join(' ')
                         : hasLotSchedule
                           ? formatISODate(lotScheduleDate, { empty: '—' })
                           : 'Chưa có lịch hẹn'}</strong><span>{hasAppointment

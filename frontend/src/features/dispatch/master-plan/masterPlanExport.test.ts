@@ -107,7 +107,7 @@ describe('mapMasterPlanExportRow', () => {
     const cells = mapMasterPlanExportRow(row());
 
     expect(cells).toHaveLength(8);
-    expect(cells[0]).toBe('20/08/2026\nHạn hoàn tất hải quan: 12:00 01/08/2026');
+    expect(cells[0]).toBe('20/08/2026\nHạn hoàn tất hải quan: 01/08/2026 12:00');
     expect(cells[1]).toBe('Công ty ABC\nNhà máy XYZ + Nhà máy DEF\nBL-2026-001');
     expect(cells[2]).toBe('LH — Biên Hòa\nNhập\nMaersk');
     expect(cells[3]).toBe('Cảng Cát Lái\n2 x 40HC\n1 x 20DC');

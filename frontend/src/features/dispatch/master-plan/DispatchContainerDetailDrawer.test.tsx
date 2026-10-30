@@ -113,7 +113,7 @@ describe('DispatchContainerDetailDrawer', () => {
     expect(screen.getByRole('cell', { name: '1' })).toBeTruthy();
     expect(screen.getByRole('rowheader', { name: /MSKU1234567/ })).toBeTruthy();
     expect(await screen.findByText('MSKU1234567')).toBeTruthy();
-    expect(screen.getByText(/09:00.*20\/08\/2026/)).toBeTruthy();
+    expect(screen.getByText(/20\/08\/2026.*09:00/)).toBeTruthy();
     expect(screen.getByText('Chờ phân xe')).toBeTruthy();
     expect(screen.getByText(/Chỉ xem tại đây/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Lưu container/ })).toBeNull();
@@ -591,7 +591,7 @@ describe('DispatchContainerDetailDrawer — Số cont + Giờ hẹn + Thêm cont
     }));
     render(<DispatchContainerDetailDrawer shipment={shipment} onClose={vi.fn()} />);
 
-    await screen.findByText(/09:00.*20\/08\/2026/);
+    await screen.findByText(/20\/08\/2026.*09:00/);
     expect(screen.queryByRole('button', { name: /Sửa giờ hẹn đóng\/trả/ })).toBeNull();
     expect(updateCusShipmentContainerLine).not.toHaveBeenCalled();
   });

@@ -63,7 +63,7 @@ describe('MasterPlanGrid — customs cutoff and schedule hour pin Asia/Ho_Chi_Mi
   it('renders the schedule hour-line fallback in the Vietnam hour, not the machine hour', () => {
     render(<MasterPlanGrid items={[item({ plannedReturnAt: '2026-09-15T22:00:00+07:00' })]} onAllocate={vi.fn()} />);
     const text = document.body.textContent ?? '';
-    expect(text).toContain('22:00 15/09/2026'); // machine hour would render "07:00"
+    expect(text).toContain('15/09/2026 22:00'); // machine hour would render "07:00"
   });
 
   it('no longer renders date preset quick actions — the date inputs cover them (filter-bar law §5)', () => {

@@ -475,10 +475,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // Per-container appointment groups (SIL-603): each group stacks its facts
     // — the datetime holds one line, the factory name drops to the next line
     // in full — instead of one `·`-packed run an ellipsis could cut.
-    const scheduleCell = surface.getByText('09:30 12/08/2026').closest('td');
+    const scheduleCell = surface.getByText('12/08/2026 09:30').closest('td');
     expect(within(scheduleCell!).getAllByText('Nhà máy ABC')).toHaveLength(2);
     expect(within(scheduleCell!).getByText('1x40HC')).toBeTruthy();
-    expect(within(scheduleCell!).getByText('16:30 12/08/2026')).toBeTruthy();
+    expect(within(scheduleCell!).getByText('12/08/2026 16:30')).toBeTruthy();
     expect(within(scheduleCell!).getByText('1x20GP')).toBeTruthy();
     expect(masterRowDetailButton().textContent).toContain('Chi tiết');
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
@@ -563,10 +563,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, transportDate: '2026-08-19' }]));
     renderPage();
 
-    const scheduleCell = (await screen.findByText('09:30 12/08/2026')).closest('td');
+    const scheduleCell = (await screen.findByText('12/08/2026 09:30')).closest('td');
     expect(scheduleCell).toBeTruthy();
     expect(within(scheduleCell!).queryByText('19/8/2026')).toBeNull();
-    expect(within(scheduleCell!).getByText('09:30 12/08/2026')).toBeTruthy();
+    expect(within(scheduleCell!).getByText('12/08/2026 09:30')).toBeTruthy();
     expect(within(scheduleCell!).queryByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })).toBeNull();
   });
 
@@ -1405,7 +1405,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findByRole('table');
-    expect(await within(masterRow()).findByText('20:03 19/09/2026')).toBeTruthy();
+    expect(await within(masterRow()).findByText('19/09/2026 20:03')).toBeTruthy();
   });
 
   it('keeps the schedule dialog open when the desktop time-picker panel is clicked (card 20260915_6)', async () => {

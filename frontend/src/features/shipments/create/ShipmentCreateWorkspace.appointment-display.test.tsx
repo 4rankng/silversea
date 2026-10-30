@@ -100,7 +100,7 @@ describe('SIL-597 appointment cell is value-first — no input frame at rest', {
     fillAppointment('20/09/2026', '09:00');
     await waitFor(() => {
       const display = appointmentCell().querySelector('.csc-container-cell__display');
-      expect(display?.textContent).toBe('09:00 20/09/2026');
+      expect(display?.textContent).toBe('20/09/2026 09:00');
     });
   });
 

@@ -766,7 +766,7 @@ describe('DetailedPlanGrid — QA-001 appointment minutes', () => {
   it('SCHEDULE-LAYOUT-03 keeps exact Vietnam time/date together with the operation below', () => {
     const { container } = renderGrid([row({ time: { deliveryDate: '2026-09-11', runAt: '2026-09-10T17:45:00.000Z', runHour: 0 } })]);
     const schedule = container.querySelector('.ops-schedule')!;
-    expect(schedule.firstElementChild).toHaveTextContent('00:45 11/09/2026');
+    expect(schedule.firstElementChild).toHaveTextContent('11/09/2026 00:45');
     expect(schedule.lastElementChild).toHaveTextContent('đóng hàng');
     expect(schedule.lastElementChild?.textContent).not.toContain('11/09/2026');
   });
@@ -794,7 +794,7 @@ describe('DetailedPlanGrid — QA-001 appointment minutes', () => {
       plannedEndAt: '2026-10-05T06:00:00.000+00:00',
     })]);
     const schedule = container.querySelector('.ops-schedule')!;
-    expect(schedule.firstElementChild).toHaveTextContent('13:00 05/10/2026');
+    expect(schedule.firstElementChild).toHaveTextContent('05/10/2026 13:00');
     expect(schedule.textContent).not.toContain('01/10/2026');
   });
 
@@ -808,7 +808,7 @@ describe('DetailedPlanGrid — QA-001 appointment minutes', () => {
   it('SCHEDULE-LAYOUT-05 preserves a different transport date without splitting the appointment', () => {
     const { container } = renderGrid([row({ time: { deliveryDate: '2026-09-12', runAt: '2026-09-11T13:45:00.000Z', runHour: 20 } })]);
     const schedule = container.querySelector('.ops-schedule')!;
-    expect(schedule.firstElementChild).toHaveTextContent('20:45 11/09/2026');
+    expect(schedule.firstElementChild).toHaveTextContent('11/09/2026 20:45');
     expect(schedule.lastElementChild).toHaveTextContent('đóng hàng · Ngày vận chuyển: 12/09/2026');
   });
 });
