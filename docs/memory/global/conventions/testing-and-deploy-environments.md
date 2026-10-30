@@ -3,7 +3,7 @@ name: "testing-and-deploy-environments"
 description: "Standing rule: commit + push after every task/chunk — never batch-push at the end"
 folder: "global / conventions"
 tags: []
-updatedAt: "2026-09-10T16:21:53.516Z"
+updatedAt: "2026-10-30T13:45:00.000Z"
 author: "Project Manager (pm)"
 ---
 
@@ -13,7 +13,7 @@ author: "Project Manager (pm)"
 
 - **ALL testing happens on staging: https://vantai.tingting.vip** (`make demo`, ideally from a temp worktree at the pushed HEAD so peer WIP never ships).
 - **PROD https://silversea.tingting.vip is the customer's LIVE system. NEVER test there: no QA drives, no test data, no mutations, no "verification" logins that touch state.** Post-deploy prod verification is READ-ONLY only (GET endpoints, row counts, dropdown contents) unless the user explicitly authorizes more.
-- Deploy targets from this checkout: `make deploy` = prod (requires prod branch + clean tree); `make demo` = staging.
+- Deploy targets from this checkout: `make deploy` = prod (runs from ANY branch — owner 30/10; clean tree required); `make demo` = staging.
 
 ## Incident record
 - 2026-09-09 ~21:00: Bug-B "verification" on prod assigned carrier **HÀ AN** to live fulfillment **EHPH26080202** (LOG COM, no plate). User flagged it. Reversible via the plan editor (READY row); left in place unless the user asks to revert.
@@ -24,8 +24,8 @@ author: "Project Manager (pm)"
 
 **Deploy targets:**
 - `make demo` — deploy current tree to **staging** (vantai.tingting.vip), keeps existing DB.
-- `make deploy` — deploy **prod** (silversea.tingting.vip). Run from the `prod` branch in the silversea-prod checkout; ships AS-IS, keeps DB. Requires prod branch checked out + clean working tree. (This checkout IS the prod deploy checkout.)
-- `make deploy-advance` — fast-forward prod branch to origin/main.
+- `make deploy` — deploy **prod** (silversea.tingting.vip). Runs from ANY branch (owner 30/10) — ships the current committed tree AS-IS, keeps DB. Requires a clean working tree (the dirty-tree guard stays).
+- `make deploy-advance` — sync local main to origin/main (helper; not a deploy prerequisite anymore).
 - `make deploy-db-backup` — server-side pg_dump of prod DB; run before manual prod data changes (fails on failure).
 - `make deploy-server-setup` / `make deploy-seed` — one-time provisioning; idempotent prod master-data seed (`node dist/seed/seed-prod.js`).
 
@@ -47,6 +47,15 @@ author: "Project Manager (pm)"
 - Deploy flow implication: `make deploy` runs from the prod checkout with direct commits on prod (this is how the 2026-09-10 waves shipped). deploy-advance (ff main→prod) is structurally impossible while prod leads main anyway, and is now also ruled out by this protection until the user changes it.
 
 - **Deploy-owner pre-flight check (fullstack, for the search-fix cut and every later cut):** before `make deploy`, verify the prod range contains direct commits only — `git log --merges origin/prod..prod` must be EMPTY (any merge commit in range = STOP and escalate to pm, do not deploy). Full runbook pattern: audit-report addendum §A–E (`plans/reports/pm-260910-responsive-space-audit.md`) — tree guard incl. the 7 plumbing files (AGENTS.md, BACKLOG.md, CONTEXT.md, HANDOFF.example.md, HANDOFF.md, ROADMAP.md, .codex/hooks.json; re-deletion = stop + escalate, never restore-loop), pre-named `pre-cutover-<UTC>.env` rollback snapshot, deploy, 8-row probe checklist w/ bundle markers, numbers to pm.
+
+## 2026-10-30 owner ruling — merge to main + `make deploy` runs from ANY branch (SUPERSEDES the 2026-09-10 branch protection above)
+
+Owner 30/10: "merge all change to main, commit, push, deploy to staging and prod" + "make deploy can run on any branch please update instructions". Effective immediately:
+
+- The 2026-09-10 protections ("NEVER merge any branch INTO `prod`", "no git operations touching `main`", "deploy only from the prod checkout") are **LIFTED by this explicit owner order** — merge to main + push is the sanctioned landing path again.
+- `make deploy` runs from **any branch**: it ships the current committed tree AS-IS (clean working tree still required — the dirty-tree guard stays).
+- Order per deploy: `make demo` (staging) first, then `make deploy` (prod).
+- The HARD STOP on prod probes (2026-09-10 ~02:00 below) remains in force: the only post-deploy prod check is `GET /api/health`.
 
 ## 2026-09-10 ~02:00 SGT — HARD STOP on prod probes (user directive, BINDING, supersedes the "READ-ONLY only" wording above)
 
