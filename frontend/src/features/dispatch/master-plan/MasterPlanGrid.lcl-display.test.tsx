@@ -8,6 +8,8 @@
 // untouched, and the XLSX export must read the same helper as the grid.
 
 import { cleanup, render, screen, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
@@ -243,5 +245,61 @@ describe('MasterPlanGrid — the Lẻ cargo flag (SIL-589)', () => {
     render(<MasterPlanGrid items={[fcl]} onAllocate={vi.fn()} />);
     expect(within(cell('Tổng quan hàng hóa')).queryByText('Lẻ')).toBeNull();
     expect(within(cell('Tổng quan hàng hóa')).queryByText('Lẻ · Ghép')).toBeNull();
+  });
+});
+
+// SIL-708 (id 708, QA 30/10) — the flag's PRESENTATION. SIL-589's text-only
+// voice read like every other meta line ("chỉ là chữ trơn, khó nhận biết
+// nhanh"): QA wants a chip with a background, recognizable at a glance. The
+// chip rides the sanctioned --chip-* recipe (SIL-478 verdict); the SIL-589
+// logic (isLclLotRow + costGroupId) above is untouched.
+describe('MasterPlanGrid — the Lẻ flag is a chip (SIL-708)', () => {
+  it('renders the ungrouped flag as a chip with a background', () => {
+    render(<MasterPlanGrid items={[lclItem()]} onAllocate={vi.fn()} />);
+    const cargo = cell('Tổng quan hàng hóa');
+    const chip = cargo.querySelector('.master-plan-grid__lcl-chip');
+    expect(chip).toBeTruthy();
+    expect(chip?.textContent).toBe('Lẻ');
+    // The retired plain-line class is gone — no second voice for the fact.
+    expect(cargo.querySelector('.master-plan-grid__lcl-flag')).toBeNull();
+    expect(chip?.getAttribute('title')).toBe('Lô hàng lẻ (LCL) — chưa ghép nhóm');
+  });
+
+  it('the grouped lot keeps the chip and its BKS title', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ costGroupId: 'grp-sil708', costGroupOrder: 1, actualTruckNo: '15E-016.26' })]}
+      onAllocate={vi.fn()}
+    />);
+    const chip = cell('Tổng quan hàng hóa').querySelector('.master-plan-grid__lcl-chip');
+    expect(chip?.textContent).toBe('Lẻ · Ghép');
+    expect(chip?.getAttribute('title')).toBe('Lô hàng lẻ đã ghép trả ĐV cùng nhóm — BKS thực 15E-016.26');
+  });
+
+  it('an FCL row carries no chip element at all', () => {
+    const fcl = {
+      ...lclItem(),
+      cargoMode: 'FCL' as const,
+      hasActiveLclShipment: false,
+      containerCount20: 1,
+      containerTotal: 1,
+      containerTypeSummary: '1 x 40HC',
+      totalCargoWeightKg: 21000,
+    };
+    render(<MasterPlanGrid items={[fcl]} onAllocate={vi.fn()} />);
+    expect(document.querySelector('.master-plan-grid__lcl-chip')).toBeNull();
+  });
+
+  it('pins the chip to the sanctioned --chip-* recipe (tokens only, no raw hex)', () => {
+    // LedgerGroupedList.test.tsx precedent: the chip recipe lives ONCE — the
+    // SIL-478 tokens — and the pill geometry can't silently drift.
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const rule = css.match(/\.master-plan-grid__lcl-chip\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toContain('height: 24px');
+    expect(rule).toContain('border-radius: 999px');
+    expect(rule).toContain('border: 1px solid var(--chip-open-border)');
+    expect(rule).toContain('background: var(--chip-open-bg)');
+    expect(rule).toContain('color: var(--chip-open-text)');
+    expect(rule).toContain('white-space: nowrap');
+    expect(rule).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
 });

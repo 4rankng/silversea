@@ -18,7 +18,7 @@ import {
   scheduleBlocks,
   scheduleFactoryNames,
 } from './MasterPlanCellValues';
-import { isLclLotRow } from './lclLot';
+import { isLclLotRow, lclLotFlag } from './lclLot';
 import type { ActiveNoteDetail } from './MasterPlanNoteModal';
 
 /** Owner redesign 23/10 — the master-plan phone card list (<640px), following
@@ -348,8 +348,23 @@ export function MasterPlanCardList({
                 {/* SIL-589 (id 689) — card parity with the grid's cargo-cell
                     flag: LCL lots read "Lẻ", and a lot already in a ghép
                     group appends "· Ghép" (same costGroupId the grid's CHỌN
-                    checkbox disables on). */}
-                {`${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · ${isLclLotRow(item) ? (item.costGroupId != null ? 'Lẻ · Ghép' : 'Lẻ') : 'Cont'}`}
+                    checkbox disables on).
+                    SIL-708 (id 708) — the LCL token is the SAME chip as the
+                    grid cell (one pattern, one implementation); a Cont row
+                    stays plain text — FCL carries no flag (SIL-589). */}
+                {isLclLotRow(item) ? (() => {
+                  const flag = lclLotFlag(item);
+                  return (
+                    <>
+                      {`${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · `}
+                      <span className="master-plan-grid__lcl-chip" title={flag.title}>
+                        {flag.label}
+                      </span>
+                    </>
+                  );
+                })() : (
+                  `${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · Cont`
+                )}
               </span>
               {scheduleTime && (
                 <span className="mpcard__time">{scheduleTime}</span>

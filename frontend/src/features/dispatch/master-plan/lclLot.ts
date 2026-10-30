@@ -17,3 +17,21 @@ export function isLclLotRow(
 ): boolean {
   return item.hasActiveLclShipment ?? item.cargoMode === 'LCL';
 }
+
+/**
+ * SIL-708 (id 708) — the flag chip's visible text and its hover detail, one
+ * source for the grid's cargo cell and the phone card's Loại token so the two
+ * surfaces can never disagree. The Ghép half keys off the same costGroupId
+ * the CHỌN checkbox disables on (SIL-589, id 689 — that logic is untouched;
+ * this only names what the flag says).
+ */
+export function lclLotFlag(
+  item: Pick<ShipmentListItem, 'cargoMode' | 'hasActiveLclShipment' | 'costGroupId' | 'actualTruckNo'>,
+): { label: string; title: string } {
+  return item.costGroupId != null
+    ? {
+        label: 'Lẻ · Ghép',
+        title: `Lô hàng lẻ đã ghép trả ĐV cùng nhóm${item.actualTruckNo ? ` — BKS thực ${item.actualTruckNo}` : ''}`,
+      }
+    : { label: 'Lẻ', title: 'Lô hàng lẻ (LCL) — chưa ghép nhóm' };
+}

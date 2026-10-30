@@ -260,6 +260,7 @@ Not laws — standing conventions already at parity, verified by the 2026-09-22 
 | 2026-09-22 | §4 reconciliation (same-day): the short-badge exception governs `text-overflow: ellipsis` specifically; the tooltip/card fallback (note preview, card 20260915_35) stands as written. |
 | 2026-09-23 | §9: d-* (daisyUI 5) primitives sanctioned as house primitives — installed, themed, adopted; tailkit/untitledui remain design references. Card 20260922_39 resolution. |
 | 2026-10-30 | §5: "No orphan grid cell" law (SIL-596/SIL-598 id 696/698, orchestrator doctrine §10.8.2) — placement retires with its tenant; no empty frames/white rows; enforcement pins in the shipment-create onescreen styles test. |
+| 2026-10-30 | §1 + layout: two same-day rulings from the SIL-708 lane (owner messages 30/10). (1) **Data tables render EDGE-TO-EDGE** — the data-table rail runs full width to both screen edges, not squeezed into the shell gutter; implemented for the /dispatch master-plan rail (`master-plan-grid__wrapper` bleeds `var(--app-body-pad-x)` per side and caps the board at 1920px centered on ultra-wide, deepseek consult 30/10: bleed the rail only — controls keep the reading spine; sticky thead stays pinned inside the bounded pane, MP-RD-03 intact; drive-verified at 1440). The sibling /dispatch-detail board is explicitly NOT yet converted — needs its own lane. (2) **The /dispatch cargo-cell LCL flag is a chip** (QA ticket id 708): supersedes SIL-589's text-only voice for THIS flag — it now rides the sanctioned `--chip-*` recipe (open tone), shared by the phone card's Loại token; the §1 data-cells text law stands everywhere else. Pins: `MasterPlanGrid.lcl-display.test.tsx` (chip element + CSS recipe), driver `qa/scripts/ui-sil708-le-chip-verify-20261030.mjs`. |
 | 2026-09-24 | §1 shared text+dot contract (card 20260924_21, BATCH A pill-badge purge): the shared `Badge` in `frontend/src/components/shared/` now renders plain text + a single house color-dot via the new `StatusText` component and the `--status-text-*` token triad. NO pill bubble, NO rounded background fill, NO border. The legacy `<Badge variant="…">` API is preserved (delegates) so all three existing callers pick up the new treatment without per-page edits — the purge happens at the SHARED layer. Per-page pill code is not modified in this batch. Pin: `frontend/src/components/shared/StatusText.test.tsx`. |
 | 2026-09-24 | §3 flat-surface chief ruling (card 20260924_6): "Bề mặt phẳng: KHÔNG 3D, KHÔNG box-shadow (Chief 24/09)" — visual confirmation on mobile ShipmentsPage (~390px) where toolbar / summary had shadows/3D that obscured the 1-column stack. Mobile filter surfaces now collapse to a one-column stack at ≤480px (label above control, full-width controls, 44px touch floor) via `frontend/src/components/ListFilterBar.css`; the summary rail at ≤480px drops to a 2×2 grid with the XLSX button on its own full-width row (`frontend/src/pages/ShipmentsPage.css`). `frontend/src/styles/utilities.css` adds a global `.sr-only` utility so the PageHeader H1 stops colliding with the breadcrumb title. Focus-visible outlines remain the only sanctioned elevation cue on form fields. Authority: card 20260924_6 (agy), report `plans/reports/c12-agy-card6-mobile-ui.md`. |
 | 2026-09-26 | §5 enforcement sweep (case QA-2026-09-26-03, user order "polish UI UX for all mobile device sizes"): all-route × all-width browser sweep (`frontend/mobile-ux-sweep.mjs`) fixed — hamburger 32→44×44 (52 routes); page-CSS button floors 30/40px → shared `#root .btn` ID-scoped guard in phone/`pointer:coarse`/tablet bands (contract: height belongs to the shared primitive); `/profit` `.workflow-profitability__controls .btn` 30px dead rule removed; UUI combobox input 16px strip → full-field tap surface (root `padding-block:0` + input `height:100%` on touch — tapping anywhere now focuses and types; previously opened the list without focus); `.expense-add-btn` 32→44 on phone; unstyled `<small>` 9.6/8.8px → 11px caption token (`/recoverable-costs`); finance chart `tr₫` unit 9→11px; collapsed sidebar rail items 39→47px on coarse pointers only (1024 iPad landscape). Later-law note: 09-22 §5 (44px) supersedes ticket 6770b9cb (09-10, 30/32px phone scale). Pins: `frontend/src/styles/mobile-touch-floor.styles.test.ts` (8 cases). |
@@ -672,3 +673,33 @@ rows at ≤640px), while everything else stands:
    /shipments-debit phone rows.
 *Source:* plan.tingting.vip SIL-478 (vision audit + deepseek consult verdict,
 owner "IMPLEMENT THEO VERDICT"), landed 2026-10-25.
+
+**Ruling 2026-10-30 (QA ticket id 708 — SIL-605, "tag 'Lẻ' phải hiển thị dạng chip" + owner
+doctrine "bảng dữ liệu render EDGE-TO-EDGE"; deepseek second opinion 30/10).** Two scoped
+supersessions from the /dispatch master-plan lane:
+
+1. *The cargo-cell LCL flag is a chip (supersedes SIL-589's text-only voice for THIS flag
+   only).* QA 30/10: the plain-text "Lẻ" read like every other meta line ("chỉ là chữ trơn,
+   khó nhận biết nhanh"). The flag is now a chip riding the sanctioned `--chip-*` recipe
+   (SIL-478 verdict 2026-10-25, Untitled UI v8 `base/badges` anatomy — `rounded-full` +
+   1px tinted ring + nowrap + font-medium): 24px pill, padding 0 8px, open (info) tone
+   (#EFF8FF/#B2DDFF/#175CD3, 5.57:1), shared class `master-plan-grid__lcl-chip` by the grid
+   cell AND the phone card's Loại token; label/title from one helper (`lclLotFlag`) so the
+   surfaces cannot disagree. Still a static fact, not a control (span, no role/tabindex,
+   no hover/focus; title keeps the group detail). FCL rows carry no flag (SIL-589 stands).
+   The §1 data-cells text law stays in force everywhere else.
+2. *The data-table rail renders edge-to-edge (owner doctrine 30/10).* The master-plan
+   wrapper bleeds the shell gutter token (`margin-inline: calc(-1 * var(--app-body-pad-x))`
+   + `width: calc(100% + 2 * …)` — a percentage width alone pins the box so the right edge
+   stops short), following the shell's own `--app-body-pad-x` token value at every
+   breakpoint, and safe-area-aware (the shell
+   pads with `max(token, env(safe-area-inset-*))`; only the token part collapses). Controls
+   (filter card, Sản lượng strip) keep the inset reading spine (deepseek consult A); the
+   board caps at 1920px centered inside the full-bleed rail on ultra-wide canvases
+   (consult B — "bleed to the canvas edge, not to infinity"); the wrapper remains the
+   bounded scroll pane, sticky thead pinned inside (consult C's invariant = the existing
+   MP-RD-03 law; verified scroll-60px stickDelta=0 in the drive). Deepseek responses
+   captured 30/10; verdict cited on ticket id 708.
+*Source:* plan.tingting.vip id 708 (SIL-605) + owner messages 30/10; drive
+`qa/scripts/ui-sil708-le-chip-verify-20261030.mjs` (12/12 PASS), pins in
+`MasterPlanGrid.lcl-display.test.tsx` + `MasterPlanCardList.test.tsx`.

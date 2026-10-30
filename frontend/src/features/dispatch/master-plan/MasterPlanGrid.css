@@ -103,16 +103,35 @@
    and pinning the thead INSIDE it keeps the header reachable at every
    width: the page carries the filter chrome, the pane carries the rows. */
 .master-plan-grid__wrapper {
-  width: 100%;
+  /* 100% + both gutter tokens: negative margins alone shift the box left but
+     a percentage width pins it, so the right edge would stop short — the
+     calc widens the rail to the true canvas edges. */
+  width: calc(100% + 2 * var(--app-body-pad-x, 24px));
   overflow: auto;
   max-height: calc(100dvh - var(--topbar-h, 56px) - 72px);
   border-top: 1px solid var(--line);
+  /* Owner doctrine 30/10 (SIL-708 lane): the data TABLE renders edge-to-edge
+     — full width to both screen edges, not squeezed into the shell's narrow
+     container. The wrapper bleeds exactly the shell's own gutter token
+     (whatever --app-body-pad-x is per breakpoint — 24px desktop, smaller
+     bands below; the shell also sets a 20px band); on devices the shell pads
+     with max(token, env(safe-area-inset-*)), so only the token part collapses and
+     the notch-safe inset survives. The wrapper stays THE scroll container
+     (bounded pane, MP-RD-03): bleed widens it, it does not re-axis it —
+     the sticky thead keeps pinning inside. Deepseek consult 30/10: bleed the
+     table rail only (filters/strip keep the reading spine inset), and cap
+     the board on ultra-wide canvases (see .master-plan-grid). */
+  margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
 }
 
 .master-plan-grid__wrapper--cards {
   overflow: visible;
   max-height: none;
   border-top: 0;
+  /* The phone card plane owns its own rhythm — the table bleed is not its
+     job (doctrine names the data table, not the card list). */
+  width: 100%;
+  margin-inline: 0;
 }
 
 .master-plan-grid {
@@ -124,6 +143,12 @@
      old shares (schedule 15.5% / customer 15.75% / route 17.25%) were the
      "50-70% trống, cột cắt cụt" defect: three fat columns starved the rest. */
   min-width: 1200px;
+  /* Ultra-wide guardrail (deepseek consult 30/10): bleed to the canvas edge,
+     not to infinity — past ~1920px the fixed shares stretch into unreadably
+     long text columns, so the board caps and centers inside the full-bleed
+     rail. At ordinary widths the cap is inert (width: 100% < 1920px). */
+  max-width: 1920px;
+  margin-inline: auto;
   /* separate (not collapse) keeps the sticky thead's border-bottom rendering
      with the pinned cells instead of scrolling away beneath them. */
   border-collapse: separate;
@@ -330,15 +355,37 @@
   line-height: var(--ops-table-meta-line-height);
 }
 
-/* SIL-589 (id 689) — the cargo cell's hàng-lẻ flag ("Lẻ" / "Lẻ · Ghép").
-   Sits a step above the muted measures line (--fg-2 vs --fg-3) so the cargo
-   KIND reads before the numbers, but never competes with the strong demand
-   line. Text-only: no pill, no border — a static fact, not a control. */
-.master-plan-grid__lcl-flag {
-  color: var(--fg-2);
-  font-size: var(--ops-table-meta-size);
-  line-height: var(--ops-table-meta-line-height);
+/* SIL-589 (id 689) placed the cargo cell's hàng-lẻ flag ("Lẻ" / "Lẻ · Ghép")
+   a step above the muted measures line so the cargo KIND reads before the
+   numbers. SIL-708 (id 708, QA 30/10) supersedes SIL-589's text-only voice
+   FOR THIS FLAG: plain text read like every other meta line, so scanning the
+   board never caught it. The flag is now a chip riding the sanctioned
+   --chip-* recipe (SIL-478 verdict 2026-10-25, LedgerGroupedList chip):
+   999px pill, 1px tinted border, tinted bg, open tone — informational
+   (cargo KIND), never success/warning/danger. Contrast 5.57:1
+   (--chip-open-text on --chip-open-bg). Static fact, not a control: no
+   hover/focus/affordance; the JSX title keeps the group detail. nowrap keeps
+   the pill on one line — the wrap-overflow that killed the detail plan's
+   oval (e608eb93) can't recur. Consumers reference var() only (drift
+   ratchet). Shared by the grid cell and the phone card's Loại token. */
+.master-plan-grid__lcl-chip {
+  display: inline-flex;
+  align-items: center;
+  /* Static in today's block parent (.master-plan-grid__cargo-summary); kept
+     out deliberately — if the chip ever becomes a direct child of a grid
+     container, grid blockification + justify-self:stretch would stretch it
+     full-column. Width rides content (inline-flex), never the cell. */
+  height: 24px;
+  padding: 0 var(--space-sm);
+  border-radius: 999px;
+  border: 1px solid var(--chip-open-border);
+  background: var(--chip-open-bg);
+  color: var(--chip-open-text);
+  font-size: var(--text-body-size);
+  line-height: 16px;
   font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 /* Appointment days read as a bullet-less list: the date is the list row and
@@ -750,7 +797,9 @@
   overflow-wrap: anywhere;
 }
 
-/* Loại = plain text (§1 data-cells-are-text law: no pill bubble). */
+/* Loại stays text (§1 data-cells law) EXCEPT the LCL token, which rides the
+   sanctioned chip (master-plan-grid__lcl-chip, SIL-708 id 708) — one chip
+   recipe for the grid cell and this card token. */
 .mpcard__type {
   flex: 0 0 auto;
   color: var(--fg-2);
