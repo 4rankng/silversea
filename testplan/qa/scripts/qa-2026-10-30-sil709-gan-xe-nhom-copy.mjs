@@ -153,7 +153,7 @@ function dbSnapshot(tag) {
     const text = dialog?.innerText ?? '';
     const note = document.querySelector('.assign-truck-group__note');
     const noteText = note?.textContent ?? '';
-    const occurrences = text.split('Lô 1 giữ 100% cước trả ĐV').length - 1;
+    const occurrences = text.split('giữ 100% cước trả ĐV · các lô còn lại 0₫').length - 1;
     const freight = [...dialog.querySelectorAll('input')]
       .find((i) => i.placeholder === 'Bỏ trống = tự tra bảng giá');
     const moneyBlock = document.querySelector('.assign-truck-group__money-block');
