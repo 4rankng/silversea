@@ -25,7 +25,6 @@ author: "Project Manager (pm)"
 **Deploy targets:**
 - `make demo` — deploy current tree to **staging** (vantai.tingting.vip), keeps existing DB.
 - `make deploy` — deploy **prod** (silversea.tingting.vip). Runs from ANY branch (owner 30/10) — ships the current committed tree AS-IS, keeps DB. Requires a clean working tree (the dirty-tree guard stays).
-- `make deploy-advance` — sync local main to origin/main (helper; not a deploy prerequisite anymore).
 - `make deploy-db-backup` — server-side pg_dump of prod DB; run before manual prod data changes (fails on failure).
 - `make deploy-server-setup` / `make deploy-seed` — one-time provisioning; idempotent prod master-data seed (`node dist/seed/seed-prod.js`).
 
