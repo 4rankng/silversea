@@ -95,6 +95,11 @@ See `frontend/docs/untitled-ui.md` and `frontend/docs/tailkit-ui.md`. Record the
 catalog/component id consulted, or deliberately chosen house primitive and
 reason. If unavailable, record that limitation; do not pretend consultation.
 
+Every UI/UX change runs the `uiux` skill (omp `@gx-marketplace/shipmate/skills/uiux`,
+POLISH for a touch-up, AUDIT for a review) and lands with its verdict: findings
+as `path:line` rows, then `Approve` or `Block` per the skill's verdict rule,
+posted to the SIL board via tingting-plan MCP before the UI commit.
+
 Current owner design decisions: opaque form surfaces; consistent emerald house
 tokens; ordinary controls at most 40px on every screen; coefficient 72×30px;
 compact facts and useful content density; responsive wrapping without clipping;
