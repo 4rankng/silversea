@@ -57,6 +57,31 @@ describe('shipment create model', () => {
     expect(validateShipmentCreate('DRAFT', readiness)).toEqual([]);
   });
 
+  // SIL-607 (ticket 607): the missing-schedule complaint. The validation list
+  // must carry exactly ONE appointment issue per container (never a duplicated
+  // message for the same row), and a completed copy-all fill — every row
+  // carrying the copied datetime — leaves zero appointment issues (CUS-03).
+  it('emits one appointment issue per container; a full copy-all fill leaves none', () => {
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      tradeDirection: 'IMPORT' as const,
+      blNumber: 'BL-SIL607',
+    };
+    const rows = [container, { ...container, key: 'row-2' }];
+
+    const appointmentIssues = getShipmentCreateReadiness(form, rows).issues
+      .filter((item) => item.fieldId.endsWith('-customer-appointment'));
+    expect(appointmentIssues.map((item) => item.fieldId)).toEqual([
+      'container-row-1-customer-appointment',
+      'container-row-2-customer-appointment',
+    ]);
+    expect(new Set(appointmentIssues.map((item) => item.message)).size).toBe(2);
+
+    const copied = rows.map((row) => ({ ...row, customerAppointmentAt: '2026-08-14T09:00' }));
+    expect(getShipmentCreateReadiness(form, copied).issues.some((item) => item.fieldId.endsWith('-customer-appointment'))).toBe(false);
+  });
+
   it('keeps FCL route authority on its container payload, never the root payload', () => {
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
