@@ -182,6 +182,22 @@
       bottom padding reserves that lane (overlay-scrollbar platforms just show
       a small inset). */
 .csc-container-table-scroll { width: 100%; min-width: 0; overflow-x: auto; overflow-y: hidden; padding-bottom: 14px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); scrollbar-color: color-mix(in srgb, var(--accent-2) 28%, transparent) transparent; scrollbar-width: thin; }
+/* SIL-612 (owner doctrine 30/10): the cargo data table renders EDGE-TO-EDGE —
+   the scroll container breaks out of the section card's 12px 14px padding to
+   the full page width. The page itself is already full-bleed; the 8px
+   app-shell pad stays as the minimum scroll-affordance inset (second opinion
+   deepseek 30/10: a table flush to the viewport edge hides the horizontal
+   overflow cue and the macOS overlay scrollbar). Only the table and its
+   scroll container break out — the heading, the add toolbar and every other
+   card keep their inset (the alignment break is the intentional signal).
+   The -14px mirror IS the card padding (the `padding: 12px 14px !important`
+   law above in this file) — change the two together, the styles test pins
+   the pair. Gated to the desktop record (>620px container) because the
+   ≤620px phone record is stacked cards, not a comparison table (same second
+   opinion: keep the card boundary between records). */
+@container (min-width: 621px) {
+  .csc-container-table-scroll { margin-inline: -14px; width: calc(100% + 28px); }
+}
 .csc-container-table { width: 100%; min-width: 964px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
 .csc-container-col__index { width: 40px; }
 /* SIL-508 (owner 26/10): the merged SỐ CONTAINER group (SỐ / LOẠI /
