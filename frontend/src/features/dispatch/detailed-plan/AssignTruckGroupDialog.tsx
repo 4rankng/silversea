@@ -501,7 +501,7 @@ export function AssignTruckGroupDialog({
               1: under "Cước trả ĐV Lô 1" as a caption — a list-adjacent note
               misreads as a list rule, a dialog footnote gets ignored; never a
               helpText paragraph — design law §8 no-lecturing-copy). */}
-          <p className="assign-truck-group__note">Lô 1 giữ 100% cước trả ĐV · các lô còn lại 0₫</p>
+          <p className="assign-truck-group__note">Lô 1 (theo thứ tự chọn) giữ 100% cước trả ĐV · các lô còn lại 0₫</p>
         </div>
       </div>
       {/* FB-066 — register a brand-new plate under the chosen source; the

@@ -520,8 +520,8 @@ describe('SIL-709 — Gán xe nhóm copy: luật cước 1 lần, nhãn ngắn, 
     renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
     // Exactly one node states the law — the note. Never the subtitle, a
     // tooltip or the cước field's helper.
-    expect(screen.getAllByText(/Lô 1 giữ 100% cước trả ĐV/)).toHaveLength(1);
-    const note = screen.getByText('Lô 1 giữ 100% cước trả ĐV · các lô còn lại 0₫');
+    expect(screen.getAllByText(/giữ 100% cước trả ĐV · các lô còn lại 0₫/)).toHaveLength(1);
+    const note = screen.getByText('Lô 1 (theo thứ tự chọn) giữ 100% cước trả ĐV · các lô còn lại 0₫');
     const freight = screen.getByLabelText(/Cước trả ĐV Lô 1/) as HTMLInputElement;
     // Placement (webchat deepseek verdict 1, 30/10): the caption sits right
     // under the field it explains — never under the lot list, never a

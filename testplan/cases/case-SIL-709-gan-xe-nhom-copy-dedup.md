@@ -29,8 +29,10 @@
 
 1. Luật cước nói ĐÚNG MỘT LẦN trong popup dưới dạng ghi chú nhỏ (caption 11px)
    NGAY DƯỚI ô "Cước trả ĐV Lô 1" (webchat deepseek 2nd opinion 30/10 verdict
-   1): "Lô 1 giữ 100% cước trả ĐV · các lô còn lại 0₫". Không nơi nào khác
-   trong popup nhắc lại (subtitle = "N lô lẻ"; không tooltip; không helpText).
+   1): "Lô 1 (theo thứ tự chọn) giữ 100% cước trả ĐV · các lô còn lại 0₫" —
+   gloss "(theo thứ tự chọn)" trả lại thông tin thứ tự bị mất khi bỏ tooltip
+   (uiux audit LOW, 30/10). Không nơi nào khác trong popup nhắc lại (subtitle =
+   "N lô lẻ"; không tooltip; không helpText).
 2. Không còn đoạn văn dưới ô "Cước trả ĐV Lô 1" — placeholder "Bỏ trống = tự
    tra bảng giá" giữ nguyên (house convention chung các surface cước).
 3. Nhãn ngắn: "BKS thực" (bỏ gloss "(xe chạy chuyến)") — đúng tên fact theo
