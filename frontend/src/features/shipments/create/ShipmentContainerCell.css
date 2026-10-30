@@ -54,8 +54,9 @@
 .csc-contgroup { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .csc-contgroup > .csc-container-cell { cursor: text; }
 
-.csc-container-cell--persistent .csc-container-cell__display { display: none; }
-.csc-container-cell--persistent .csc-container-cell__editor > * { opacity: 1; }
+/* SIL-597 (ticket 697): the forced-frame mode (`--persistent`, ex-`alwaysVisible`)
+   is gone — every cell rests on its value text and reveals the editor on
+   focus/click. The appointment datetime cell is no exception. */
 /* Card 20261002_268: always-visible trailing affordance (factory detail peek).
    Sits over the display span's right edge. Fades out only while a picker menu
    is open in the cell — it must stay live right after an Enter commit, where

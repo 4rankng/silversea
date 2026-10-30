@@ -1,0 +1,902 @@
+diff --git a/frontend/src/components/debt/aging.ts b/frontend/src/components/debt/aging.ts
+index 88b7af32..fb8896b9 100644
+--- a/frontend/src/components/debt/aging.ts
++++ b/frontend/src/components/debt/aging.ts
+@@ -2,20 +2,42 @@ import type { AgingBucket } from '@tingting/shared';
+ 
+ /**
+  * Aging-bucket model shared by the AR (DebtDetailPage) and AP
+- * (PayableDetailPage) statement pages. Both render the same four ranges,
+- * the same bar/grid markup (dd-aging-*), and derive the highlighted bucket
+- * the same way — only the statement queries and txn-type metadata differ.
+- * Card 061026221213: the bands are contractual due-status bands (days past
+- * the effective due date, cut at 30/90 — see computeFifoAging), never age.
++ * (PayableDetailPage) statement pages. Both render the same four-slot
++ * bar/grid markup (dd-aging-*) and derive the highlighted bucket the same
++ * way — but since ruling 29/10 (SIL-580) the two sides measure DIFFERENT
++ * things and carry their own label set (SIL-599):
++ *
++ * - AR (`AR_AGING_RANGES`): the buckets are TUỔI NỢ — days since the
++ *   recording date of each open amount (computeFifoAging cuts 0–30 /
++ *   31–60 / 61–90 / trên 90). Labeling these "quá hạn" was the SIL-599 bug.
++ * - AP (`AP_AGING_RANGES`): the buckets stay contractual due-status bands
++ *   (ap-aging.service.ts — days past the effective due date, cut at 30/90,
++ *   card 061026221213). Re-anchoring AP to recording date needs its own
++ *   ticket (SIL-580 out-of-scope note).
++ *
++ * "Quá hạn" is reserved for the contractual overdue span everywhere
++ * (card 061026221213); "tuổi nợ" names the age. The two rule tooltips below
++ * are the single definition shown on both faces.
+  */
+ 
+-export const AGING_RANGES = [
++export const AP_AGING_RANGES = [
+   { label: 'CHƯA ĐẾN HẠN',        dotColor: 'var(--accent)',  index: 0 },
+   { label: 'QUÁ HẠN 1–30 NGÀY',   dotColor: 'var(--warning)', index: 1 },
+   { label: 'QUÁ HẠN 31–90 NGÀY',  dotColor: 'var(--warning-deep, #914A16)', index: 2 },
+   { label: 'QUÁ HẠN TRÊN 90 NGÀY', dotColor: 'var(--danger)', index: 3 },
+ ] as const;
+ 
++export const AR_AGING_RANGES = [
++  { label: 'TUỔI NỢ 0–30 NGÀY',   dotColor: 'var(--accent)',  index: 0 },
++  { label: 'TUỔI NỢ 31–60 NGÀY',  dotColor: 'var(--warning)', index: 1 },
++  { label: 'TUỔI NỢ 61–90 NGÀY',  dotColor: 'var(--warning-deep, #914A16)', index: 2 },
++  { label: 'TUỔI NỢ TRÊN 90 NGÀY', dotColor: 'var(--danger)', index: 3 },
++] as const;
++
++/** SIL-599 rule tooltips — one definition per word, on both debt faces. */
++export const AGE_RULE_TIP = 'Tuổi nợ: số ngày kể từ ngày ghi nhận khoản đến hôm nay — các nhóm 0–30 / 31–60 / 61–90 / trên 90 ngày.';
++export const OVERDUE_RULE_TIP = 'Quá hạn hợp đồng: số ngày sau hạn thanh toán; khoản không có điều khoản thanh toán được coi là đến hạn ngay tại ngày ghi nhận.';
++
+ /** Map backend agingBuckets (ordered 0→90+) to a fixed 4-slot amount array. */
+ export function normalizeAging(buckets: AgingBucket[]): number[] {
+   const amounts = [0, 0, 0, 0];
+diff --git a/frontend/src/features/shipments/create/ShipmentContainerCell.css b/frontend/src/features/shipments/create/ShipmentContainerCell.css
+index 2b4a6ecc..27b87dde 100644
+--- a/frontend/src/features/shipments/create/ShipmentContainerCell.css
++++ b/frontend/src/features/shipments/create/ShipmentContainerCell.css
+@@ -54,8 +54,9 @@
+ .csc-contgroup { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+ .csc-contgroup > .csc-container-cell { cursor: text; }
+ 
+-.csc-container-cell--persistent .csc-container-cell__display { display: none; }
+-.csc-container-cell--persistent .csc-container-cell__editor > * { opacity: 1; }
++/* SIL-597 (ticket 697): the forced-frame mode (`--persistent`, ex-`alwaysVisible`)
++   is gone — every cell rests on its value text and reveals the editor on
++   focus/click. The appointment datetime cell is no exception. */
+ /* Card 20261002_268: always-visible trailing affordance (factory detail peek).
+    Sits over the display span's right edge. Fades out only while a picker menu
+    is open in the cell — it must stay live right after an Enter commit, where
+diff --git a/frontend/src/features/shipments/create/ShipmentContainerCell.tsx b/frontend/src/features/shipments/create/ShipmentContainerCell.tsx
+index 3c00c816..f4c14b30 100644
+--- a/frontend/src/features/shipments/create/ShipmentContainerCell.tsx
++++ b/frontend/src/features/shipments/create/ShipmentContainerCell.tsx
+@@ -25,7 +25,6 @@ interface ShipmentContainerCellProps {
+   fieldId?: string;
+   error?: string;
+   className?: string;
+-  alwaysVisible?: boolean;
+   /** SIL-508 group line: render as a stacked line (div) inside the merged
+    *  SỐ CONTAINER cell instead of a standalone table cell. All per-line
+    *  chrome (value-first reveal, Escape revert, error paint) is unchanged —
+@@ -89,7 +88,6 @@ export function ShipmentContainerCell({
+   error,
+   className,
+   onRevert,
+-  alwaysVisible,
+   as = 'td',
+   microLabel = false,
+   microLabelText,
+@@ -196,7 +194,7 @@ export function ShipmentContainerCell({
+       ref={cellRef}
+       data-label={label}
+       data-field-id={fieldId}
+-      className={`csc-container-cell${alwaysVisible ? ' csc-container-cell--persistent' : ''}${picker ? ' csc-container-cell--picker' : ''}${picked ? ' csc-container-cell--picked' : ''}${editorEditing ? ' csc-container-cell--editing' : ''}${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
++      className={`csc-container-cell${picker ? ' csc-container-cell--picker' : ''}${picked ? ' csc-container-cell--picked' : ''}${editorEditing ? ' csc-container-cell--editing' : ''}${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
+       onClick={activateCell}
+       onFocusCapture={captureStartingValue}
+       onBlurCapture={releaseCell}
+diff --git a/frontend/src/features/shipments/create/ShipmentCreateContainerRow.tsx b/frontend/src/features/shipments/create/ShipmentCreateContainerRow.tsx
+index d98a0e01..336c3a83 100644
+--- a/frontend/src/features/shipments/create/ShipmentCreateContainerRow.tsx
++++ b/frontend/src/features/shipments/create/ShipmentCreateContainerRow.tsx
+@@ -499,9 +499,13 @@ export function ShipmentCreateContainerRow({
+         </div>
+       </ShipmentContainerCell>
+       <td className="csc-container-row__group" aria-hidden="true">Thời gian</td>
++      {/* SIL-597 (ticket 697): value-first like every sibling cell — the
++          resting surface is label + formatted value text; the datetime input
++          frames only appear while editing (the shared reveal contract). The
++          old `alwaysVisible` forced both HH:mm and DD/MM/YYYY frames on
++          screen inside the cell. */}
+       <ShipmentContainerCell
+         label="Ngày giờ đóng trả *"
+-        alwaysVisible
+         className="csc-container-cell--appointment"
+         value={formatContainerAppointment(row.customerAppointmentAt)}
+         placeholder="Chọn ngày giờ"
+diff --git a/frontend/src/features/shipments/create/ShipmentCreateWorkspace.appointment-display.test.tsx b/frontend/src/features/shipments/create/ShipmentCreateWorkspace.appointment-display.test.tsx
+new file mode 100644
+index 00000000..a193d72b
+--- /dev/null
++++ b/frontend/src/features/shipments/create/ShipmentCreateWorkspace.appointment-display.test.tsx
+@@ -0,0 +1,116 @@
++import { fireEvent, render, screen, waitFor } from '@testing-library/react';
++import { readFileSync } from 'node:fs';
++import { resolve } from 'node:path';
++import { MemoryRouter } from 'react-router-dom';
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
++import { beforeEach, describe, expect, it, vi } from 'vitest';
++
++const { getBootstrap, listOperationalSites, listSharedWarehouseSites } = vi.hoisted(() => ({ getBootstrap: vi.fn(), listOperationalSites: vi.fn(), listSharedWarehouseSites: vi.fn() }));
++vi.mock('../../../api/tripClient', () => ({ tripClient: { getBootstrap } }));
++vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
++  ...await importOriginal<Record<string, unknown>>(),
++  listOperationalSites,
++  listSharedWarehouseSites,
++}));
++
++import { ToastProvider } from '../../../components/shared/Toast';
++import { ShipmentCreateWorkspace } from './ShipmentCreateWorkspace';
++
++/**
++ * SIL-597 (ticket 697) — the per-container "Ngày giờ đóng trả" cell in the
++ * "Thông tin hàng" table rests like every sibling cell: label + value text
++ * (placeholder "Chọn ngày giờ" when empty). The old `alwaysVisible` mode
++ * pinned the two datetime input frames (HH:mm and DD/MM/YYYY) on screen
++ * inside the cell — the frames must appear only while editing.
++ */
++function renderWorkspace() {
++  return render(
++    <MemoryRouter initialEntries={['/shipments/new']}>
++      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
++        <ToastProvider>
++          <ShipmentCreateWorkspace />
++        </ToastProvider>
++      </QueryClientProvider>
++    </MemoryRouter>,
++  );
++}
++
++function addContainer() {
++  fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
++}
++
++/** The first container row's appointment cell (`data-field-id` carries the
++ *  generated row key, so match the suffix). */
++function appointmentCell(): HTMLElement {
++  const cell = document.querySelector<HTMLElement>('[data-field-id$="-customer-appointment"]');
++  if (!cell) throw new Error('Không tìm thấy ô Ngày giờ đóng trả');
++  return cell;
++}
++
++function fillAppointment(date: string, time: string) {
++  const dates = [...document.querySelectorAll<HTMLInputElement>('input[id$="-customer-appointment-date"]')];
++  const times = [...document.querySelectorAll<HTMLInputElement>('input[id$="-customer-appointment-time"]')];
++  fireEvent.change(dates[0]!, { target: { value: date } });
++  fireEvent.change(times[0]!, { target: { value: time } });
++}
++
++describe('SIL-597 appointment cell is value-first — no input frame at rest', { timeout: 20000 }, () => {
++  beforeEach(() => {
++    getBootstrap.mockReset();
++    getBootstrap.mockResolvedValue({
++      customers: [{ id: 1, name: 'KH A' }],
++      routes: [{ id: 7, name: 'Route A' }],
++      containerTypes: [{ id: 3, code: '20DC', name: '20DC' }],
++    });
++    listOperationalSites.mockReset();
++    listSharedWarehouseSites.mockReset();
++    listSharedWarehouseSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
++    listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
++  });
++
++  it('C1: rests on label + placeholder text — never the forced input-frame mode', async () => {
++    renderWorkspace();
++    await screen.findByRole('button', { name: 'Tạo lô hàng' });
++    addContainer();
++    const cell = appointmentCell();
++    expect(cell.getAttribute('data-label')).toBe('Ngày giờ đóng trả *');
++    // The forced-frame mode is gone — the resting surface is the display lane.
++    expect(cell.classList.contains('csc-container-cell--persistent')).toBe(false);
++    const display = cell.querySelector('.csc-container-cell__display');
++    expect(display?.textContent).toBe('Chọn ngày giờ');
++  });
++
++  it('C2: activating the cell reveals the editor (focus lands in the datetime inputs)', async () => {
++    renderWorkspace();
++    await screen.findByRole('button', { name: 'Tạo lô hàng' });
++    addContainer();
++    const cell = appointmentCell();
++    fireEvent.click(cell);
++    // The shared activate path focuses the cell's first control — the editor
++    // (segmented datetime input) is what takes focus on edit activation.
++    const active = document.activeElement;
++    expect(active?.tagName).toBe('INPUT');
++    expect(cell.contains(active)).toBe(true);
++  });
++
++  it('C3: the committed value reads in the display lane after editing', async () => {
++    renderWorkspace();
++    await screen.findByRole('button', { name: 'Tạo lô hàng' });
++    addContainer();
++    fillAppointment('20/09/2026', '09:00');
++    await waitFor(() => {
++      const display = appointmentCell().querySelector('.csc-container-cell__display');
++      expect(display?.textContent).toBe('09:00 20/09/2026');
++    });
++  });
++
++  it('C4: style contract — editors rest hidden and reveal on focus; no forced-frame rule left', () => {
++    const css = readFileSync(resolve(process.cwd(), 'src/features/shipments/create/ShipmentContainerCell.css'), 'utf8');
++    // The ex-`alwaysVisible` forced-frame mode must not return via CSS.
++    expect(css).not.toContain('csc-container-cell--persistent');
++    // The value-first reveal contract: the editor is hidden at rest…
++    expect(css).toMatch(/\.csc-container-cell__editor > \* \{[^}]*opacity: 0/);
++    // …and fades in while the cell is being edited.
++    expect(css).toMatch(/:focus-within \.csc-container-cell__editor > \*/,);
++  });
++});
+diff --git a/frontend/src/features/shipments/create/ShipmentCreateWorkspace.invalid-required-paint.test.tsx b/frontend/src/features/shipments/create/ShipmentCreateWorkspace.invalid-required-paint.test.tsx
+index 887c4bbd..fefabeb2 100644
+--- a/frontend/src/features/shipments/create/ShipmentCreateWorkspace.invalid-required-paint.test.tsx
++++ b/frontend/src/features/shipments/create/ShipmentCreateWorkspace.invalid-required-paint.test.tsx
+@@ -83,9 +83,6 @@ function containerCellIsPaintedRed(suffix: string, rowIndex = 0): boolean {
+   if (!cell.classList.contains('csc-container-cell--error')) return false;
+   const hasInvalidControl = cell.querySelector('.csc-container-cell__editor [aria-invalid="true"], .csc-container-cell__editor [data-invalid="true"]') != null;
+   if (!hasInvalidControl) return false;
+-  if (cell.classList.contains('csc-container-cell--persistent')) {
+-    return cell.querySelector('.date-seg-group--error') != null;
+-  }
+   const display = cell.querySelector<HTMLElement>('.csc-container-cell__display');
+   return display?.getAttribute('data-invalid') === 'true';
+ }
+diff --git a/frontend/src/pages/DebtDetailPage.tsx b/frontend/src/pages/DebtDetailPage.tsx
+index 3075e8c3..897baa2a 100644
+--- a/frontend/src/pages/DebtDetailPage.tsx
++++ b/frontend/src/pages/DebtDetailPage.tsx
+@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
+ import { useParams, useNavigate, useLocation } from 'react-router-dom';
+ import { useQuery, useQueryClient } from '@tanstack/react-query';
+ import { formatCurrency, formatDate } from '../lib/format';
+-import { TxnType } from '@tingting/shared';
++import { calendarDaysPastDue, TxnType } from '@tingting/shared';
+ import type { LedgerEntry, PaymentReceiptResponse } from '@tingting/shared';
+ import { AlertTriangle, Download, Phone, Building2, ArrowLeft, Plus, X, Loader2, Save, Truck } from 'lucide-react';
+ import { useCustomerStatement, useSupplierStatement } from '../hooks/useQueries';
+@@ -26,7 +26,7 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table
+ import './DebtDetailPage.css';
+ import '../styles/table-sort.css';
+ import { money, rowTypeLabel, FILTER_OPTIONS, type LedgerFilter, type WorkspaceTab } from './debt-detail-ledger';
+-import { AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
++import { AR_AGING_RANGES, normalizeAging, activeAgingIndex, AGE_RULE_TIP, OVERDUE_RULE_TIP } from '../components/debt/aging';
+ import { PeriodFilter, resolvePeriodRange, initialPeriodState, applyModeSwitch } from '../components/debt/PeriodFilter';
+ import { PeriodSummaryCards } from '../components/debt/PeriodSummaryCards';
+ import { matchLinkedSupplierStatement } from './linked-supplier-statement';
+@@ -262,7 +262,21 @@ export default function DebtDetailPage() {
+   const agingTotal = agingAmounts.reduce((s, a) => s + a, 0) || 1; // avoid /0
+   const unpaidTrips = profileStatement.unpaidTrips ?? [];
+   const oldestUnpaidTrip = unpaidTrips[0] ?? null;
+-  const activeAgingRange = activeAgingIdx >= 0 ? AGING_RANGES[activeAgingIdx] : null;
++  // SIL-599: the contractual overdue span — the same rule the /debt KPI uses
++  // (processingDueDate ?? originalDueDate, fallback due-at-issue; 0 = not yet
++  // due), so the pill states the same truth the list rows state instead of
++  // the unconditional "Còn nợ trong hạn" that contradicted them.
++  let maxOverdueDays = 0;
++  const asOfNow = new Date();
++  for (const trip of unpaidTrips) {
++    const span = calendarDaysPastDue(
++      trip.processingDueDate ?? trip.originalDueDate ?? null,
++      trip.issueTimestamp ?? trip.date,
++      asOfNow,
++    );
++    if (span > maxOverdueDays) maxOverdueDays = span;
++  }
++  const activeAgingRange = activeAgingIdx >= 0 ? AR_AGING_RANGES[activeAgingIdx] : null;
+   const activeAgingAmount = activeAgingIdx >= 0 ? agingAmounts[activeAgingIdx] : 0;
+   // Workspace navigation — the shared boxed Tabs primitive (2026-09-27 ruling);
+   // each cell keeps its two lines (business name + secondary meta line).
+@@ -379,7 +393,9 @@ export default function DebtDetailPage() {
+               Khách hàng doanh nghiệp
+             </span>
+             {hasDebt ? (
+-              <span className="dd-tag dd-tag--warn dd-tag--dot">Còn nợ trong hạn</span>
++              <span className="dd-tag dd-tag--warn dd-tag--dot" title={OVERDUE_RULE_TIP}>
++                {maxOverdueDays > 0 ? `Còn nợ quá hạn · ${maxOverdueDays} ngày` : 'Còn nợ trong hạn'}
++              </span>
+             ) : (
+               <span className="dd-tag dd-tag--ok dd-tag--dot">Đã thanh toán đủ</span>
+             )}
+@@ -423,7 +439,7 @@ export default function DebtDetailPage() {
+           <small>{lastPayment ? formatDate(lastPayment.timestamp) : 'Chưa có phiếu thu'}</small>
+         </article>
+         <article className="dd-account-card">
+-          <span>Nhóm hạn nợ nổi bật</span>
++          <span>Nhóm tuổi nợ nổi bật</span>
+           <strong>{activeAgingRange ? activeAgingRange.label : 'Không nợ'}</strong>
+           <small>{activeAgingRange ? money(activeAgingAmount) : 'Không có số dư'}</small>
+         </article>
+@@ -495,22 +511,22 @@ export default function DebtDetailPage() {
+ 
+       {/* ── Aging Summary ───────────────────────────────────────────────── */}
+       <details className="dd-aging-disclosure">
+-        <summary>Phân bổ hạn nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${money(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
++        <summary title={AGE_RULE_TIP}>Phân bổ tuổi nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${money(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
+       <section className="dd-summary dd-summary--aging">
+         <div className="dd-sum-top">
+           <div>
+-            <div className="dd-sum-label">PHÂN BỔ HẠN NỢ</div>
++            <div className="dd-sum-label">PHÂN BỔ TUỔI NỢ</div>
+             <p className="dd-sum-copy">
+               {hasDebt
+-                ? 'Theo dõi phần công nợ nào đang tiến gần hạn hoặc đã quá hạn.'
++                ? 'Theo dõi công nợ theo tuổi nợ — nhóm càng cũ càng cần thu hồi sớm.'
+                 : 'Khách hàng không còn công nợ đang mở.'}
+             </p>
+             {hasDebt && (
+               <div className="dd-sum-note">
+                 <AlertTriangle size={17} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+                 {activeAgingIdx <= 0
+-                  ? 'Toàn bộ công nợ chưa đến hạn — cần theo dõi thu hồi.'
+-                  : `Có công nợ ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thu hồi.`
++                  ? 'Toàn bộ công nợ trong nhóm tuổi nợ 0–30 ngày — cần theo dõi thu hồi.'
++                  : `Có công nợ ở nhóm ${AR_AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thu hồi.`
+                 }
+               </div>
+             )}
+@@ -533,8 +549,8 @@ export default function DebtDetailPage() {
+         </div>
+ 
+         {/* Aging grid */}
+-        <div className="dd-aging-grid">
+-          {AGING_RANGES.map((range, i) => {
++        <div className="dd-aging-grid" title={AGE_RULE_TIP}>
++          {AR_AGING_RANGES.map((range, i) => {
+             const amt = agingAmounts[i];
+             const isActive = i === activeAgingIdx;
+             const pct = agingTotal > 0 ? Math.round((amt / agingTotal) * 100) : 0;
+diff --git a/frontend/src/pages/DebtListPage.band.test.tsx b/frontend/src/pages/DebtListPage.band.test.tsx
+index 6f76d3ca..cf5a7a4d 100644
+--- a/frontend/src/pages/DebtListPage.band.test.tsx
++++ b/frontend/src/pages/DebtListPage.band.test.tsx
+@@ -157,16 +157,19 @@ describe('DebtListPage summary band (SIL-469)', () => {
+     await screen.findAllByText('Công ty A');
+ 
+     const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
+-    fireEvent.click(within(band).getByRole('button', { name: /Quá hạn 1–30: / }));
++    fireEvent.click(within(band).getByRole('button', { name: /Tuổi nợ 31–60 ngày: / }));
+ 
+-    await waitFor(() => expect(getCustomerAging.mock.calls.some((c) => (c[0] as { bucket?: string }).bucket === 'd30')).toBe(true));
++    await waitFor(() => expect(getCustomerAging.mock.calls.some((c) => {
++      const params: unknown = c[0];
++      return params != null && typeof params === 'object' && 'bucket' in params && params.bucket === 'd30';
++    })).toBe(true));
+ 
+     // Re-render with the filter applied → the matching bucket is pressed.
+     getCustomerAging.mockClear().mockResolvedValue(envelope);
+     renderPage('/?filter=d30');
+     await screen.findAllByText('Công ty A');
+     const pressed = document.querySelector('.debt-band__bucket.is-active[aria-pressed="true"]') as HTMLElement;
+-    expect(pressed?.getAttribute('aria-label')).toContain('Quá hạn 1–30');
++    expect(pressed?.getAttribute('aria-label')).toContain('Tuổi nợ 31–60 ngày');
+   });
+ 
+   it('colors the row overdue badge by bucket and folds the status into the total cell', async () => {
+@@ -208,3 +211,41 @@ describe('DebtListPage summary band (SIL-469)', () => {
+     expect(badgeBand('Không quá hạn').total).toContain('· Trong hạn');
+   });
+ });
++
++describe('DebtListPage debt vocabulary (SIL-599, ticket 699)', () => {
++  it('C1/C2: buckets speak "tuổi nợ" with the real age cuts; "quá hạn" stays the contractual KPI with its rule tooltip', async () => {
++    renderPage();
++    await screen.findAllByText('Công ty A');
++    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
++
++    // Age bands (ruling 29/10 cuts 0–30 / 31–60 / 61–90 / trên 90) — one
++    // concept per word; the stale due-status labels must not come back over
++    // age data.
++    expect(within(band).getAllByText('Tuổi nợ')).toHaveLength(4);
++    for (const range of ['0–30 ngày', '31–60 ngày', '61–90 ngày', 'trên 90 ngày']) {
++      expect(within(band).getByText(range)).toBeTruthy();
++    }
++    expect(within(band).queryByText('Trong hạn (chưa đến hạn)')).toBeNull();
++    expect(within(band).queryByText(/Quá hạn 1–30/)).toBeNull();
++
++    // The contractual KPI keeps its word — and the chip carries the rule.
++    const chip = within(band).getByText('17 quá hạn');
++    expect(chip.getAttribute('title')).toContain('hạn thanh toán');
++  });
++
++  it('C4: band figures are stable — em-dash until totals arrive, final value once loaded', async () => {
++    renderPage();
++    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
++    // Before the query resolves every figure is a placeholder — never a fake
++    // 0 ₫ and never a count-up through intermediate values. (hero + 2 chips
++    // + 4 bucket amounts = 7.)
++    expect(within(band).getAllByText('—')).toHaveLength(7);
++    expect(within(band).queryByText('0 ₫')).toBeNull();
++
++    await screen.findAllByText('Công ty A');
++    // Once loaded the figures print their FINAL value atomically — the old
++    // mount count-up painted 4.79M → 4.97M → 5.5M before settling (the
++    // ticket's secondary instability).
++    expect(within(band).getAllByText('3.007.273.111').length).toBeGreaterThan(0);
++  });
++});
+diff --git a/frontend/src/pages/DebtListPage.filters.test.tsx b/frontend/src/pages/DebtListPage.filters.test.tsx
+index 4ab01944..6c02a414 100644
+--- a/frontend/src/pages/DebtListPage.filters.test.tsx
++++ b/frontend/src/pages/DebtListPage.filters.test.tsx
+@@ -257,7 +257,7 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
+     maxOverdueDays: 22,
+   });
+ 
+-  it('in the Quá hạn 1–30 view each row shows its share of the bucket, so rows sum to the card amount', async () => {
++  it('in the Tuổi nợ 31–60 view each row shows its share of the bucket, so rows sum to the card amount', async () => {
+     getCustomerAging.mockResolvedValue({
+       ...envelope,
+       customers: [
+@@ -271,7 +271,8 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
+     await screen.findAllByText('LONG MINH');
+     // The share column carries the bucket's own label (desktop header + the
+     // mobile card lines render both in jsdom — assert presence, not count).
+-    expect(screen.getAllByText('Nợ 1–30 ngày').length).toBeGreaterThan(0);
++    // SIL-599: the d30 bucket is age 31–60 — its label must say so.
++    expect(screen.getAllByText('Nợ 31–60 ngày').length).toBeGreaterThan(0);
+     // ...and each row shows exactly its d30 share (2.2M + 1.6M + 1.0M = 4.8M
+     // = the card amount).
+     expect(screen.getAllByText('2.200.000 ₫').length).toBeGreaterThan(0);
+@@ -284,6 +285,6 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
+   it('without a bucket filter the share column is absent', async () => {
+     renderPage();
+     await screen.findAllByText('Công ty A');
+-    expect(screen.queryByText('Nợ 1–30 ngày')).toBeNull();
++    expect(screen.queryByText('Nợ 31–60 ngày')).toBeNull();
+   });
+ });
+diff --git a/frontend/src/pages/DebtListPage.tsx b/frontend/src/pages/DebtListPage.tsx
+index 64d4fdd6..59f6eb24 100644
+--- a/frontend/src/pages/DebtListPage.tsx
++++ b/frontend/src/pages/DebtListPage.tsx
+@@ -1,4 +1,4 @@
+-import { useState, useMemo, useRef, useEffect } from 'react';
++import { useState, useMemo } from 'react';
+ import { useNavigate, useSearchParams } from 'react-router-dom';
+ import { formatCurrency, moneyParts } from '../lib/format';
+ import { api } from '../lib/api';
+@@ -19,9 +19,8 @@ import { nextTableSort, type TableSortState } from '../lib/table-sort';
+ import {
+   usePageAnimations,
+   useListAnimations,
+-  useCounterAnimation,
+ } from '../hooks/animations';
+-import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
++import { AGE_RULE_TIP, OVERDUE_RULE_TIP } from '../components/debt/aging';
+ import { PartyMonthlyProductionSummary } from '../features/accounting/PartyMonthlyProductionSummary';
+ import './DebtListPage.css';
+ import '../styles/table-sort.css';
+@@ -80,19 +79,21 @@ interface AgingBucket {
+ type BucketFilterMode = 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue';
+ 
+ const AGING_BUCKETS: AgingBucket[] = [
+-  // Card 061026221213: the four bands are CONTRACTUAL due-status lanes (days
+-  // past the effective due date, cut at 30/90 — see computeFifoAging) — "Trong
+-  // hạn" / "Quá hạn 1–30" / "Quá hạn 31–90" / "Quá hạn trên 90", so every
+-  // "Trong hạn"/"Quá hạn" word on the page means the same thing as the row
+-  // chip and the KPI tiles. (P0-W6's lane intent, now truthful about bands.)
+-  { key: 'current', label: 'Trong hạn (chưa đến hạn)', shortLabel: 'Trong hạn', subLabel: 'chưa đến hạn', amountKey: 'current', countKey: 'currentCusts', color: 'var(--success, #177448)', filterMode: 'current' },
+-  { key: 'd30', label: 'Quá hạn 1–30', shortLabel: 'Quá hạn', subLabel: '1–30 ngày', amountKey: 'd30', countKey: 'd30Custs', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
+-  { key: 'd60', label: 'Quá hạn 31–90', shortLabel: 'Quá hạn', subLabel: '31–90 ngày', amountKey: 'd60', countKey: 'd60Custs', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
+-  { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', color: 'var(--danger, #E32434)', filterMode: 'over90' },
++  // SIL-599 (ruling 29/10 / SIL-580): the four buckets are TUỔI NỢ lanes —
++  // days since the recording date of each open amount (computeFifoAging cuts
++  // 0–30 / 31–60 / 61–90 / trên 90), never due-status. "Quá hạn" stays
++  // reserved for the contractual overdue KPI (maxOverdueDays — chip, row
++  // status and the "Quá hạn" column; card 061026221213): each word carries
++  // exactly one meaning, both rules ride tooltips (components/debt/aging).
++  { key: 'current', label: 'Tuổi nợ 0–30 ngày', shortLabel: 'Tuổi nợ', subLabel: '0–30 ngày', amountKey: 'current', countKey: 'currentCusts', color: 'var(--success, #177448)', filterMode: 'current' },
++  { key: 'd30', label: 'Tuổi nợ 31–60 ngày', shortLabel: 'Tuổi nợ', subLabel: '31–60 ngày', amountKey: 'd30', countKey: 'd30Custs', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
++  { key: 'd60', label: 'Tuổi nợ 61–90 ngày', shortLabel: 'Tuổi nợ', subLabel: '61–90 ngày', amountKey: 'd60', countKey: 'd60Custs', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
++  { key: 'over90', label: 'Tuổi nợ trên 90 ngày', shortLabel: 'Tuổi nợ', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', color: 'var(--danger, #E32434)', filterMode: 'over90' },
+ ];
+ 
+-/** SIL-469: the row's overdue age renders as one compact bucket-coloured
+- *  badge (xanh 1–30 / vàng 31–60 / cam 61–90 / đỏ >90), never a bare number. */
++/** SIL-469: the row's contractual overdue span renders as one compact
++ *  bucket-coloured badge (xanh ≤30 / vàng 31–60 / cam 61–90 / đỏ >90 ngày
++ *  quá hạn hợp đồng), never a bare number. */
+ function overdueBand(days: number): 'ok' | 'warn' | 'deep' | 'danger' {
+   if (days <= 30) return 'ok';
+   if (days <= 60) return 'warn';
+@@ -148,7 +149,9 @@ export default function DebtListPage() {
+               : 0;
+   const bucketShareLabel = activeBucket
+     ? `Nợ ${activeBucket.subLabel}`
+-    : isOverdueAggregate ? 'Nợ quá hạn' : null;
++    // The legacy `overdue` deep-link mode sums the age 31+ buckets — its
++    // label must say age, not "quá hạn" (SIL-599: one meaning per word).
++    : isOverdueAggregate ? 'Nợ tuổi trên 30 ngày' : null;
+   // Sort rides in the hook's filters bag: setFilter resets the page to 1 and
+   // the queryKey stays keyed on the primitive param values (no refetch loops).
+   const sortState: TableSortState | null = table.filters.sortBy != null && table.filters.sortDir != null
+@@ -191,26 +194,11 @@ export default function DebtListPage() {
+   const error = queryError ? (queryError as Error).message : null;
+ 
+   /* ── Animation hooks ── */
+-  const prefersReduced = usePrefersReducedMotion();
+   const compact = false; // full VND everywhere — no short form (e.g. "12,5 tr")
+   const { rootRef } = usePageAnimations({
+     ready: !loading,
+     selectors: ['.debt-band', '.debt-data-card'],
+   });
+-  const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 300, stagger: 80 });
+-
+-  /* ── Counter refs ── */
+-  const counterRefs = useRef<{
+-    currentAmount: HTMLSpanElement | null;
+-    d30Amount: HTMLSpanElement | null;
+-    d60Amount: HTMLSpanElement | null;
+-    over90Amount: HTMLSpanElement | null;
+-  }>({
+-    currentAmount: null,
+-    d30Amount: null,
+-    d60Amount: null,
+-    over90Amount: null,
+-  });
+ 
+   /* ── Data processing (preserved exactly) ── */
+   const customerDebts = useMemo<CustomerDebtInfo[]>(() => {
+@@ -231,12 +219,16 @@ export default function DebtListPage() {
+   }, [rawCustomers]);
+ 
+   // Full-set totals arrive server-computed (page-independent), so the KPI strip
+-  // stays stable while paging or narrowing to one aging bucket.
++  // stays stable while paging or narrowing to one aging bucket. SIL-599
++  // (issue phụ): band figures render their FINAL value atomically — no mount
++  // count-up (the QA-observed 4.79M → 4.97M → 5.5M climb) and no fake zeros
++  // while totals are in flight (the /payables band's ready-gate pattern).
+   const totals = useMemo(() => data?.totals ?? {
+     total: 0, current: 0, d30: 0, d60: 0, over90: 0,
+     currentCusts: 0, d30Custs: 0, d60Custs: 0, over90Custs: 0,
+     overdueCount: 0, highRiskCount: 0,
+   }, [data?.totals]);
++  const totalsReady = Boolean(data?.totals);
+ 
+   // Bucket + page + search filtering happen server-side; the rows below render
+   // the current window only.
+@@ -245,19 +237,6 @@ export default function DebtListPage() {
+   const effectivePage = Math.min(page, totalDebtPages);
+   const { rootRef: listRef } = useListAnimations({ itemSelector: '.m-card, table tbody tr', deps: [debts] });
+ 
+-  /* ── Counter animation trigger ── */
+-  useEffect(() => {
+-    if (loading || prefersReduced) return;
+-
+-    const r = counterRefs.current;
+-    animateCounters([
+-      { el: r.currentAmount, value: totals.current, format: moneyParts(totals.current, compact).format },
+-      { el: r.d30Amount, value: totals.d30, format: moneyParts(totals.d30, compact).format },
+-      { el: r.d60Amount, value: totals.d60, format: moneyParts(totals.d60, compact).format },
+-      { el: r.over90Amount, value: totals.over90, format: moneyParts(totals.over90, compact).format },
+-    ]);
+-  }, [loading, totals, prefersReduced, animateCounters, compact]);
+-
+   /* ── Helpers ── */
+   const heroMoney = moneyParts(totals.total, false);
+ 
+@@ -319,22 +298,24 @@ export default function DebtListPage() {
+         <div className="debt-band__lead">
+           <span className="debt-band__label">Tổng công nợ phải thu</span>
+           <span className="debt-band__total">
+-            {heroMoney.num} <span className="debt-band__unit">{heroMoney.unit}</span>
++            {totalsReady
++              ? <>{heroMoney.num} <span className="debt-band__unit">{heroMoney.unit}</span></>
++              : '—'}
+           </span>
+           <div className="debt-band__chips">
+-            <span className="debt-band__chip" data-tone={totals.overdueCount > 0 ? 'warning' : undefined}>
+-              {totals.overdueCount} quá hạn
++            <span className="debt-band__chip" data-tone={totalsReady && totals.overdueCount > 0 ? 'warning' : undefined} title={OVERDUE_RULE_TIP}>
++              {totalsReady ? `${totals.overdueCount} quá hạn` : '—'}
+             </span>
+-            <span className="debt-band__chip" data-tone={totals.highRiskCount > 0 ? 'warning' : undefined}>
+-              {totals.highRiskCount} rủi ro cao
++            <span className="debt-band__chip" data-tone={totalsReady && totals.highRiskCount > 0 ? 'warning' : undefined}>
++              {totalsReady ? `${totals.highRiskCount} rủi ro cao` : '—'}
+             </span>
+           </div>
+         </div>
+-        <div className="debt-band__aging">
++        <div className="debt-band__aging" title={AGE_RULE_TIP}>
+           <div
+             className="debt-band__bar"
+             role="img"
+-            aria-label={`Phân bố hạn nợ: trong hạn ${formatCurrency(totals.current)}, quá hạn 1–30 ${formatCurrency(totals.d30)}, quá hạn 31–90 ${formatCurrency(totals.d60)}, quá hạn trên 90 ${formatCurrency(totals.over90)}`}
++            aria-label={`Phân bổ theo tuổi nợ: 0–30 ngày ${formatCurrency(totals.current)}, 31–60 ngày ${formatCurrency(totals.d30)}, 61–90 ngày ${formatCurrency(totals.d60)}, trên 90 ngày ${formatCurrency(totals.over90)}`}
+           >
+             <div className="aging-bar__seg aging-bar__seg--ok" style={{ width: `${pctCurrent}%` }} />
+             <div className="aging-bar__seg aging-bar__seg--t1" style={{ width: `${pctD30}%` }} />
+@@ -363,16 +344,11 @@ export default function DebtListPage() {
+                     <small>{bucket.subLabel}</small>
+                   </span>
+                   <span className="debt-band__bucket-figures">
+-                    <span className="debt-band__bucket-amount" ref={(el) => {
+-                      if (bucket.amountKey === 'current') counterRefs.current.currentAmount = el;
+-                      else if (bucket.amountKey === 'd30') counterRefs.current.d30Amount = el;
+-                      else if (bucket.amountKey === 'd60') counterRefs.current.d60Amount = el;
+-                      else if (bucket.amountKey === 'over90') counterRefs.current.over90Amount = el;
+-                    }}>
+-                      {prefersReduced ? money.num : '0'}
++                    <span className="debt-band__bucket-amount">
++                      {totalsReady ? money.num : '—'}
+                     </span>
+-                    <span className="debt-band__bucket-unit">{money.unit}</span>
+-                    <span className="debt-band__bucket-count">· {count} KH</span>
++                    {totalsReady && <span className="debt-band__bucket-unit">{money.unit}</span>}
++                    {totalsReady && <span className="debt-band__bucket-count">· {count} KH</span>}
+                   </span>
+                 </button>
+               );
+@@ -465,7 +441,7 @@ export default function DebtListPage() {
+                             )}
+                             {d.maxOverdueDays > 0 && (
+                               <div className="m-card__row">
+-                                <span className="m-card__row-label">
++                                <span className="m-card__row-label" title={OVERDUE_RULE_TIP}>
+                                   <Clock size={12} aria-hidden="true" style={{ marginRight: 5, verticalAlign: '-1px' }} />
+                                   Quá hạn
+                                 </span>
+@@ -494,7 +470,7 @@ export default function DebtListPage() {
+                         {bucketShareLabel && <th className="num">{bucketShareLabel}</th>}
+                         <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
+                         <SortHeader label="Net công nợ" sortKey="netBalance" sort={sortState} onSortChange={handleSortChange} className="num" />
+-                        <SortHeader label="Quá hạn" sortKey="maxOverdueDays" sort={sortState} onSortChange={handleSortChange} className="num" style={{ textAlign: 'center' }} />
++                        <SortHeader label={<span title={OVERDUE_RULE_TIP}>Quá hạn</span>} sortKey="maxOverdueDays" sort={sortState} onSortChange={handleSortChange} className="num" style={{ textAlign: 'center' }} />
+                       </tr>
+                     </thead>
+                     <tbody>
+@@ -570,7 +546,7 @@ export default function DebtListPage() {
+ 
+                           <td data-label="Quá hạn" className="num">
+                             {d.maxOverdueDays > 0 ? (
+-                              <span className={`debt-overdue-badge debt-overdue-badge--${overdueBand(d.maxOverdueDays)}`}>
++                              <span className={`debt-overdue-badge debt-overdue-badge--${overdueBand(d.maxOverdueDays)}`} title={OVERDUE_RULE_TIP}>
+                                 {d.maxOverdueDays} ngày
+                               </span>
+                             ) : (
+diff --git a/frontend/src/pages/PayableDetailPage.tsx b/frontend/src/pages/PayableDetailPage.tsx
+index 1a8c6822..d6c91c07 100644
+--- a/frontend/src/pages/PayableDetailPage.tsx
++++ b/frontend/src/pages/PayableDetailPage.tsx
+@@ -5,7 +5,7 @@ import { DateInput } from '../design-system/forms/DateInput';
+ import { formatCurrency } from '../lib/format';
+ import { TxnType, FINANCIAL } from '@tingting/shared';
+ import type { SupplierStatement as SupplierStatementType, LedgerEntry, VendorPaymentRequest } from '@tingting/shared';
+-import { AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
++import { AP_AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
+ import { AlertTriangle, Phone, Building2, ArrowLeft, CreditCard, Download, FileSpreadsheet, FileText } from 'lucide-react';
+ import { useSupplierStatement } from '../hooks/useQueries';
+ import { api, ApiError } from '../lib/api';
+@@ -184,7 +184,7 @@ export default function PayableDetailPage() {
+   );
+ 
+   const activeAgingIdx = useMemo(() => activeAgingIndex(agingAmounts), [agingAmounts]);
+-  const activeAgingRange = activeAgingIdx >= 0 ? AGING_RANGES[activeAgingIdx] : null;
++  const activeAgingRange = activeAgingIdx >= 0 ? AP_AGING_RANGES[activeAgingIdx] : null;
+   const activeAgingAmount = activeAgingIdx >= 0 ? agingAmounts[activeAgingIdx] : 0;
+ 
+   const totalOutstanding = typedStatement?.totalOutstanding ?? 0;
+@@ -363,7 +363,7 @@ export default function PayableDetailPage() {
+                 <AlertTriangle size={17} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+                 {activeAgingIdx <= 0
+                   ? 'Toàn bộ công nợ chưa đến hạn.'
+-                  : `Có công nợ ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thanh toán.`
++                  : `Có công nợ ${AP_AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thanh toán.`
+                 }
+               </div>
+             )}
+@@ -395,7 +395,7 @@ export default function PayableDetailPage() {
+             })}
+           </div>
+           <div className="dd-aging-grid">
+-            {AGING_RANGES.map((range, i) => {
++            {AP_AGING_RANGES.map((range, i) => {
+               const amt = effectiveAging[i];
+               const isActive = i === activeAgingIdx;
+               const pct = agingTotal > 0 ? Math.round((amt / agingTotal) * 100) : 0;
+diff --git a/frontend/src/pages/clerk/ClerkShipmentCreatePage.test.tsx b/frontend/src/pages/clerk/ClerkShipmentCreatePage.test.tsx
+index 75aa5239..201f2199 100644
+--- a/frontend/src/pages/clerk/ClerkShipmentCreatePage.test.tsx
++++ b/frontend/src/pages/clerk/ClerkShipmentCreatePage.test.tsx
+@@ -920,7 +920,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
+     expect(screen.getByLabelText('Ngày — Ngày giờ đóng trả')).toHaveValue('20');
+     expect(screen.getByLabelText('Tháng — Ngày giờ đóng trả')).toHaveValue('08');
+     expect(screen.getByLabelText('Năm — Ngày giờ đóng trả')).toHaveValue('2026');
+-    expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả').closest('td')).toHaveClass('csc-container-cell--persistent');
++    // SIL-597 (ticket 697): the appointment cell is value-first — its resting
++    // display lane carries the formatted value like every sibling cell, never
++    // the forced input frames (the ex-`alwaysVisible` mode is gone).
++    expect(displayedValue('09:30 20/08/2026')).toBeTruthy();
+   });
+ 
+   it('shows each container type code once in the selector', async () => {
+diff --git a/frontend/src/pages/debt-payable-aging.test.tsx b/frontend/src/pages/debt-payable-aging.test.tsx
+index b6170bdc..0714ba05 100644
+--- a/frontend/src/pages/debt-payable-aging.test.tsx
++++ b/frontend/src/pages/debt-payable-aging.test.tsx
+@@ -1,4 +1,4 @@
+-import { render, within } from '@testing-library/react';
++import { render, screen, within } from '@testing-library/react';
+ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+ import { MemoryRouter, Route, Routes } from 'react-router-dom';
+ import { beforeEach, describe, expect, it, vi } from 'vitest';
+@@ -151,12 +151,14 @@ describe('AR/AP aging grid characterization', () => {
+     const grid = document.querySelector('.dd-aging-grid');
+     expect(grid).not.toBeNull();
+ 
+-    const cells = Array.from(grid!.querySelectorAll('.dd-aging-cell'));
++    const cells = [...document.querySelectorAll('.dd-aging-cell')];
+     expect(cells).toHaveLength(4);
+-    expect(within(cells[0] as HTMLElement).getByText('CHƯA ĐẾN HẠN')).toBeTruthy();
+-    expect(within(cells[1] as HTMLElement).getByText('QUÁ HẠN 1–30 NGÀY')).toBeTruthy();
+-    expect(within(cells[2] as HTMLElement).getByText('QUÁ HẠN 31–90 NGÀY')).toBeTruthy();
+-    expect(within(cells[3] as HTMLElement).getByText('QUÁ HẠN TRÊN 90 NGÀY')).toBeTruthy();
++    // SIL-599: the AR buckets are age bands (ruling 29/10) — the labels must
++    // say "tuổi nợ" with the real cuts, never due-status words over age data.
++    expect(within(cells[0] as HTMLElement).getByText('TUỔI NỢ 0–30 NGÀY')).toBeTruthy();
++    expect(within(cells[1] as HTMLElement).getByText('TUỔI NỢ 31–60 NGÀY')).toBeTruthy();
++    expect(within(cells[2] as HTMLElement).getByText('TUỔI NỢ 61–90 NGÀY')).toBeTruthy();
++    expect(within(cells[3] as HTMLElement).getByText('TUỔI NỢ TRÊN 90 NGÀY')).toBeTruthy();
+ 
+     // Entire outstanding balance sits in bucket 0 → only cell 0 is active.
+     expect(cells[0].className).toContain('dd-aging-cell--active');
+@@ -185,4 +187,37 @@ describe('AR/AP aging grid characterization', () => {
+     expect(within(cells[0] as HTMLElement).getByText('57% tổng công nợ')).toBeTruthy();
+     expect(within(cells[2] as HTMLElement).getByText('Không phát sinh')).toBeTruthy();
+   });
++
++  it('SIL-599: the detail pill states the contractual overdue span (no blanket "trong hạn")', async () => {
++    // Oldest open obligation recorded 6 days ago with no frozen due date —
++    // the house fallback (due at issue) makes it 6 days past due, exactly
++    // what the /debt list rows report for the same customer.
++    const sixDaysAgo = new Date(Date.now() - 6 * 86_400_000).toISOString();
++    useCustomerStatementMock.mockReturnValue({
++      data: {
++        ...customerStatement,
++        unpaidTrips: [
++          { tripId: 1, date: sixDaysAgo.slice(0, 10), issueTimestamp: sixDaysAgo, outstanding: 3_000_000, note: '', originalDueDate: null, processingDueDate: null },
++        ],
++      },
++      isLoading: false, isFetching: false, error: null, refetch: vi.fn(),
++    });
++    renderAt('/debt/7');
++    expect(await screen.findByText(/Còn nợ quá hạn · 6 ngày/)).toBeTruthy();
++  });
++
++  it('SIL-599: an in-term debt still reads "Còn nợ trong hạn"', async () => {
++    const future = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
++    useCustomerStatementMock.mockReturnValue({
++      data: {
++        ...customerStatement,
++        unpaidTrips: [
++          { tripId: 1, date: '2026-10-24', issueTimestamp: '2026-10-24T00:00:00Z', outstanding: 3_000_000, note: '', originalDueDate: future, processingDueDate: future },
++        ],
++      },
++      isLoading: false, isFetching: false, error: null, refetch: vi.fn(),
++    });
++    renderAt('/debt/7');
++    expect(await screen.findByText('Còn nợ trong hạn')).toBeTruthy();
++  });
+ });
+diff --git a/testplan/2026-10-30-sil597-appointment-cell-value-first.md b/testplan/2026-10-30-sil597-appointment-cell-value-first.md
+new file mode 100644
+index 00000000..af228345
+--- /dev/null
++++ b/testplan/2026-10-30-sil597-appointment-cell-value-first.md
+@@ -0,0 +1,49 @@
++# SIL-597 (ticket 697) — Cột "Ngày giờ đóng trả" trong bảng Thông tin hàng phải value-first, không lộ khung input
++
++Ngày: 2026-10-30 · Ticket SIL-597 (board id 697) · QA Glint
++
++## Hiện tượng (bug)
++
++Trên form tạo lô hàng `/shipments/new`, mục "Thông tin hàng", cột NGÀY GIỜ
++ĐÓNG TRẢ của từng container hiển thị trực tiếp 2 khung nhập liệu (HH:mm và
++DD/MM/YYYY) trong ô — khác với cột SỐ CONTAINER bên cạnh vốn hiển thị
++nhãn + giá trị (chữ giữ chỗ, không lộ khung input).
++
++## Các bước tái hiện
++
++1. Đăng nhập vai trò tạo được lô hàng (CUS).
++2. Mở `/shipments/new` → mục "Thông tin hàng" → dòng container đầu tiên.
++3. So sánh cột SỐ CONTAINER với cột NGÀY GIỜ ĐÓNG TRẢ.
++
++Kết quả thực tế: cột NGÀY GIỜ ĐÓNG TRẢ lộ khung input ngay cả khi chưa sửa.
++
++## Trường hợp kiểm (regression case)
++
++- **C1 (hiển thị khi nghỉ):** ô NGÀY GIỜ ĐÓNG TRẢ ở trạng thái nghỉ hiển thị
++  nhãn (`data-label="Ngày giờ đóng trả *"`) + giá trị dạng text
++  (`formatContainerAppointment` — "HH:mm DD/MM/YYYY") hoặc chữ giữ chỗ
++  "Chọn ngày giờ"; ô KHÔNG mang class `csc-container-cell--persistent`
++  (mode ép editor hiện mọi lúc) — khung input không lộ ngoài ô.
++- **C2 (khi sửa):** kích hoạt ô (click) đưa focus vào editor datetime
++  (các segment) — khung nhập chỉ xuất hiện khi sửa, đúng value-first reveal
++  contract của các ô khác trong cùng bảng.
++- **C3 (sau khi nhập):** giá trị đã nhập hiển thị trong lane display
++  ("09:00 20/09/2026"), không cần mở editor để đọc giá trị.
++- **C4 (style contract):** CSS của ShipmentContainerCell giữ editor ẩn mặc
++  định (`.csc-container-cell__editor > *` opacity 0, `:focus-within` reveal)
++  và không còn rule `--persistent` ép editor hiện.
++
++## Phạm vi
++
++- CHỈ cột NGÀY GIỜ ĐÓNG TRẢ theo từng container trong bảng "Thông tin hàng".
++- KHÔNG đụng phần "Ngày giờ đóng trả cho tất cả cont" ở mục Lịch & ghi chú
++  (ticket ghi rõ không thuộc phạm vi).
++- Mobile ≤620px giữ nguyên phone-record rule (editors shown continuously) —
++  hành vi mobile không đổi.
++
++## Bằng chứng
++
++- Pin: `frontend/src/features/shipments/create/ShipmentCreateWorkspace.appointment-display.test.tsx` (C1–C4).
++- Sửa pin lạc hậu: `ClerkShipmentCreatePage.test.tsx` (assert class
++  `--persistent` → assert display lane), `ShipmentCreateWorkspace.invalid-required-paint.test.tsx`
++  (bỏ nhánh `--persistent` trong helper).
+diff --git a/testplan/2026-10-30-sil599-debt-labels-tuoi-no.md b/testplan/2026-10-30-sil599-debt-labels-tuoi-no.md
+new file mode 100644
+index 00000000..5caf6bdd
+--- /dev/null
++++ b/testplan/2026-10-30-sil599-debt-labels-tuoi-no.md
+@@ -0,0 +1,50 @@
++# SIL-599 (ticket 699) — /debt: tách bạch "tuổi nợ" (aging band) và "quá hạn hợp đồng" (KPI), sửa text sai ngữ nghĩa
++
++Ngày: 2026-10-30 · Ticket SIL-599 (board id 699) · QA Glint
++Quyết định pattern: **A** (webchat gemini 30/10 — "không thể đánh tráo bản chất
++kế toán… Tách biệt rõ hai khái niệm"; Pattern B gộp mọi nhãn về "tuổi nợ" sẽ
++mất tín hiệu cảnh báo nợ xấu). Đối chiếu ruling SIL-580 (29/10) R3 +
++card 061026221213: aging buckets = TUỔI NỢ từ ngày ghi nhận; "quá hạn" = số
++ngày quá hạn HỢP ĐỒNG (processingDueDate ?? originalDueDate ?? ngày ghi nhận,
++cut >0).
++
++## Hiện tượng (bug)
++
++Trang `/debt` tự mâu thuẫn: tiêu đề pill "2 quá hạn", dòng khách "Nợ quá hạn /
++6 ngày", nhưng các thẻ band ghi "0 ₫ · 0 KH quá hạn" và chi tiết `/debt/:id`
++ghi "Còn nợ trong hạn" + "CHƯA ĐẾN HẠN" 100%. Cùng chữ "quá hạn" bị dùng cho
++2 cách tính; nhãn band "QUÁ HẠN 1–30 / 31–90 / TRÊN 90 NGÀY" lại khoác lên
++dữ liệu TUỔI NỢ (cắt 0–30 / 31–60 / 61–90 / trên 90 — ruling 29/10) — sai cả
++khái niệm lẫn khoảng ngày. Thẻ "Trong hạn" còn nhấp nháy giá trị trung gian
++(4.796.430 → 4.972.918 → 5.500.000 ₫) rồi mới chốt.
++
++## Trường hợp kiểm (regression case)
++
++- **C1 (nhãn band = tuổi nợ, đúng khoảng ngày):** band `/debt` và grid chi
++  tiết `/debt/:id` hiển thị "TUỔI NỢ 0–30 / 31–60 / 61–90 / TRÊN 90 NGÀY"
++  (không còn "CHƯA ĐẾN HẠN" / "QUÁ HẠN 1–30…" khoác lên dữ liệu tuổi).
++- **C2 (một định nghĩa "quá hạn"):** "quá hạn" chỉ dùng cho KPI quá hạn hợp
++  đồng (chip "N quá hạn", trạng thái "Nợ quá hạn", cột "Quá hạn N ngày"); band
++  không còn phát ngôn "quá hạn" → pill tiêu đề không còn mâu thuẫn band.
++  Quy tắc giải thích bằng tooltip trên CẢ 2 mặt (tuổi nợ + quá hạn hợp đồng,
++  gồm fallback đến hạn tại ngày ghi nhận).
++- **C3 (pill chi tiết nói sự thật):** `/debt/:id` có khoản quá hạn hợp đồng →
++  pill "Còn nợ quá hạn · N ngày" (khớp danh sách); chưa đến hạn → "Còn nợ
++  trong hạn"; hết nợ → "Đã thanh toán đủ".
++- **C4 (số liệu band ổn định):** khi totals chưa tải xong band hiện "—"
++  (pattern band /payables), KHÔNG hiện 0 ₫/count-up trung gian; khi có dữ
++  liệu figure hiện GIÁ TRỊ CUỐI ngay (không animate 0 → giá trị).
++
++## Phạm vi
++
++- `/debt` (DebtListPage) + `/debt/:id` (DebtDetailPage) — text/label/tooltip +
++  ổn định figure band. KHÔNG đổi API, số liệu, cách tính.
++- KHÔNG đụng AP (`/payables`, PayableDetailPage, ap-aging): bucket AP vẫn là
++  contractual due-status (cuts 0/30/90) — nhãn "CHƯA ĐẾN HẠN / QUÁ HẠN…" giữ
++  nguyên cho AP (re-anchor AP cần ticket riêng — out-of-scope note SIL-580).
++
++## Bằng chứng
++
++- Pin mới: `DebtListPage.band.test.tsx` (C1, C2, C4), `debt-payable-aging.test.tsx`
++  (C1 grid chi tiết, C3 pill), tooltip title pins.
++- Webchat verdict: gemini 30/10 — chọn Pattern A (dẫn trong comment ticket).

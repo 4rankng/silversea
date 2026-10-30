@@ -83,9 +83,6 @@ function containerCellIsPaintedRed(suffix: string, rowIndex = 0): boolean {
   if (!cell.classList.contains('csc-container-cell--error')) return false;
   const hasInvalidControl = cell.querySelector('.csc-container-cell__editor [aria-invalid="true"], .csc-container-cell__editor [data-invalid="true"]') != null;
   if (!hasInvalidControl) return false;
-  if (cell.classList.contains('csc-container-cell--persistent')) {
-    return cell.querySelector('.date-seg-group--error') != null;
-  }
   const display = cell.querySelector<HTMLElement>('.csc-container-cell__display');
   return display?.getAttribute('data-invalid') === 'true';
 }

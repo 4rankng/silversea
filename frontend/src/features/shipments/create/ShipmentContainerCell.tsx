@@ -25,7 +25,6 @@ interface ShipmentContainerCellProps {
   fieldId?: string;
   error?: string;
   className?: string;
-  alwaysVisible?: boolean;
   /** SIL-508 group line: render as a stacked line (div) inside the merged
    *  SỐ CONTAINER cell instead of a standalone table cell. All per-line
    *  chrome (value-first reveal, Escape revert, error paint) is unchanged —
@@ -89,7 +88,6 @@ export function ShipmentContainerCell({
   error,
   className,
   onRevert,
-  alwaysVisible,
   as = 'td',
   microLabel = false,
   microLabelText,
@@ -196,7 +194,7 @@ export function ShipmentContainerCell({
       ref={cellRef}
       data-label={label}
       data-field-id={fieldId}
-      className={`csc-container-cell${alwaysVisible ? ' csc-container-cell--persistent' : ''}${picker ? ' csc-container-cell--picker' : ''}${picked ? ' csc-container-cell--picked' : ''}${editorEditing ? ' csc-container-cell--editing' : ''}${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
+      className={`csc-container-cell${picker ? ' csc-container-cell--picker' : ''}${picked ? ' csc-container-cell--picked' : ''}${editorEditing ? ' csc-container-cell--editing' : ''}${error ? ' csc-container-cell--error' : ''}${className ? ` ${className}` : ''}`}
       onClick={activateCell}
       onFocusCapture={captureStartingValue}
       onBlurCapture={releaseCell}
