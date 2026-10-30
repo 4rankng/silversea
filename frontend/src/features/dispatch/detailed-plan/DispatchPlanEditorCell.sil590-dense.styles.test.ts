@@ -15,10 +15,12 @@ describe('DispatchPlanEditorCell dense fields grid (SIL-590)', () => {
     expect(block, 'the ≥900px fields template must exist').not.toBe('');
     expect(block).toContain("'classification revenue cost combined'");
     expect(block).toContain('repeat(4, minmax(0, 1fr))');
-    // SIL-520's row pair laws survive: carrier+vehicle on row 1, the run/end
-    // datetime pair still shares its own row.
+    // SIL-520's row laws survive: carrier+vehicle on row 1. id 712 (owner
+    // 30/10) removed the Giờ trả hàng field — Giờ điều vận owns the datetime
+    // row full-width, no `end` area anywhere.
     expect(block).toContain("'carrier carrier vehicle vehicle'");
-    expect(block).toContain("'run run end end'");
+    expect(block).toContain("'run run run run'");
+    expect(block).not.toContain("'run run end end'");
   });
 
   it('the money fields are content-sized — never a half-dialog stretch', () => {
@@ -29,9 +31,11 @@ describe('DispatchPlanEditorCell dense fields grid (SIL-590)', () => {
   });
 
   it('the sub-900 layouts keep their stacked fallback (phone/tablet unchanged)', () => {
-    // Base template: run/end stacked full-width rows; ≤640 keeps the
-    // carrier/vehicle stack and the classification+combined pair.
-    expect(css).toMatch(/grid-template-areas:\s*'carrier vehicle'\s*\n\s*'classification combined'\s*\n\s*'revenue cost'\s*\n\s*'run run'\s*\n\s*'end end';/);
+    // Base template: the single Giờ điều vận row full-width (id 712 removed
+    // the `end` area); ≤640 keeps the carrier/vehicle stack and the
+    // classification+combined pair.
+    expect(css).toMatch(/grid-template-areas:\s*'carrier vehicle'\s*\n\s*'classification combined'\s*\n\s*'revenue cost'\s*\n\s*'run run';/);
     expect(css).toMatch(/@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.dispatch-assignment-dialog__fields\s*\{[\s\S]*?'carrier carrier'/);
+    expect(css).not.toContain("'end end'");
   });
 });

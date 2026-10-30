@@ -333,11 +333,20 @@ describe('DispatchPlanEditorCell — assignment dialog validation', () => {
   });
 });
 
-describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)', () => {
-  const endField = () => screen.getByRole('group', { name: 'Giờ trả hàng' });
-  const daySeg = () => screen.getByLabelText('Ngày — Giờ trả hàng') as HTMLInputElement;
-  const hourSeg = () => screen.getByLabelText('Giờ — Giờ trả hàng') as HTMLInputElement;
-  const minuteSeg = () => screen.getByLabelText('Phút — Giờ trả hàng') as HTMLInputElement;
+describe('DispatchPlanEditorCell — single datetime field (id 712, owner 30/10)', () => {
+  // id 712 removed the Giờ trả hàng field from this dialog — the laws that
+  // lived on it (FB-002 Enter, QA-2026-09-26-23 incomplete-block, omit =
+  // untouched) now pin the surviving Giờ điều vận field and the structural
+  // never-write-plannedEndAt guarantee.
+  const runDaySeg = () => screen.getByLabelText('Ngày — Giờ điều vận') as HTMLInputElement;
+  const runHourSeg = () => screen.getByLabelText('Giờ — Giờ điều vận') as HTMLInputElement;
+  const runMinuteSeg = () => screen.getByLabelText('Phút — Giờ điều vận') as HTMLInputElement;
+  const runAtNoon = { deliveryDate: '2026-10-26', runAt: '2026-10-26T06:00:00.000Z', runHour: 13 };
+  // A container line is what gives the row per-container appointment
+  // authority: without it the field renders disabled and the save body
+  // never carries the appointment (the LCL lot law).
+  const fclRow = (overrides: Partial<DispatchDetailPlanRow> = {}) =>
+    row({ shipmentContainerId: 777, time: runAtNoon, ...overrides });
 
   const saveResult = () => ({
     fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
@@ -346,120 +355,79 @@ describe('DispatchPlanEditorCell — Giờ trả hàng (customer request 26/09)'
     estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
   });
 
-  it('FB-002 (181026000027): Enter in a hand-typed Giờ trả hàng segment saves the dialog', async () => {
+  it('renders Giờ điều vận and NOT the removed Giờ trả hàng field — even when an override is stored', async () => {
+    mockFleetResources();
+    renderCell(fclRow({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), {});
+    await openDialog();
+    expect(screen.getByLabelText('Giờ điều vận')).toBeTruthy();
+    expect(screen.queryByLabelText('Giờ trả hàng')).toBeNull();
+    expect(screen.queryByLabelText('Ngày — Giờ trả hàng')).toBeNull();
+  });
+
+  it('FB-002 (181026000027): Enter in a hand-typed Giờ điều vận segment saves the dialog', async () => {
     // The footer "Lưu thay đổi" button sits OUTSIDE the form and every
     // in-form button is type="button" — implicit submission can never fire.
     // The form must answer Enter itself (requestSubmit), and the segmented
     // field must let a complete draft's Enter bubble instead of swallowing it.
     const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
     mockFleetResources();
-    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    renderCell(fclRow(), { onAtomicSave });
     await openDialog();
-    expect(hourSeg().value).toBe('15'); // 08:30Z prefilled in +07 wall-clock
-    fireEvent.change(minuteSeg(), { target: { value: '45' } }); // hand-typed edit → 15:45
-    fireEvent.keyDown(minuteSeg(), { key: 'Enter' });
+    expect(runHourSeg().value).toBe('13'); // 06:00Z appointment prefilled in +07 wall-clock
+    fireEvent.change(runMinuteSeg(), { target: { value: '45' } }); // hand-typed edit → 13:45
+    fireEvent.keyDown(runMinuteSeg(), { key: 'Enter' });
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
-    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ plannedEndAt: '2026-10-05T08:45:00.000Z' });
+    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ customerAppointmentAt: '2026-10-26T06:45:00.000Z' });
   });
 
-  it('FB-002: an incomplete Giờ trả hàng draft still swallows Enter — no save', async () => {
+  it('FB-002: an incomplete Giờ điều vận draft still swallows Enter — no save', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
     mockFleetResources();
-    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    renderCell(fclRow(), { onAtomicSave });
     await openDialog();
-    fireEvent.change(daySeg(), { target: { value: '0' } }); // incomplete date draft
-    fireEvent.keyDown(daySeg(), { key: 'Enter' });
+    fireEvent.change(runDaySeg(), { target: { value: '0' } }); // incomplete date draft
+    fireEvent.keyDown(runDaySeg(), { key: 'Enter' });
     expect(onAtomicSave).not.toHaveBeenCalled();
   });
 
-  it('prefills the Giờ trả hàng field in Vietnam wall-clock', async () => {
+  it('a stored Giờ trả hàng override survives the save — plannedEndAt never rides the body (id 712)', async () => {
+    // The dialog no longer edits the return time: no field, no draft, no
+    // wire write — the stored override (and the schedule display that reads
+    // it) stays exactly as saved before.
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
     mockFleetResources();
-    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), {});
-    await openDialog();
-    expect(endField()).toBeTruthy();
-    expect(daySeg().value).toBe('05');
-    expect(hourSeg().value).toBe('15');
-  });
-
-  it('bug #316 prefills Giờ trả hàng from inherited runAt when plannedEndAt is null', async () => {
-    mockFleetResources();
-    renderCell(row({
-      plannedEndAt: null,
-      time: { deliveryDate: '2026-10-10', runAt: '2026-10-10T03:00:00.000Z', runHour: 10 },
-    }), {});
-    await openDialog();
-    expect(endField()).toBeTruthy();
-    expect(daySeg().value).toBe('10');
-    expect(hourSeg().value).toBe('10');
-  });
-
-  it('bug #316 keeps plannedEndAt omitted when prefilled runAt is untouched', async () => {
-    const onAtomicSave = vi.fn().mockResolvedValue({
-      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
-      operationalNotes: null,
-      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.83' },
-      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
-    });
-    mockFleetResources();
-    renderCell(row({
-      plannedEndAt: null,
-      time: { deliveryDate: '2026-10-10', runAt: '2026-10-10T03:00:00.000Z', runHour: 10 },
-    }), { onAtomicSave });
+    renderCell(fclRow({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
     await openDialog();
     fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
     expect('plannedEndAt' in onAtomicSave.mock.calls[0]![1]).toBe(false);
   });
 
-  it('sends zone-aware ISO on save (15:30 +07:00 → 08:30Z)', async () => {
-    const onAtomicSave = vi.fn().mockResolvedValue({
-      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
-      operationalNotes: null,
-      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
-      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
-    });
+  it('sends the zone-aware appointment ISO on save (13:30 +07:00 → 06:30Z)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
     mockFleetResources();
-    renderCell(row({ plannedEndAt: null }), { onAtomicSave });
+    renderCell(fclRow(), { onAtomicSave });
     await openDialog();
-    fireEvent.change(screen.getByLabelText('Ngày — Giờ trả hàng'), { target: { value: '05/10/2026' } });
-    fireEvent.change(hourSeg(), { target: { value: '15' } });
-    fireEvent.change(screen.getByLabelText('Phút — Giờ trả hàng'), { target: { value: '30' } });
+    fireEvent.change(runDaySeg(), { target: { value: '27/10/2026' } });
+    fireEvent.change(runHourSeg(), { target: { value: '13' } });
+    fireEvent.change(runMinuteSeg(), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
     await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
-    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ plannedEndAt: '2026-10-05T08:30:00.000Z' });
-  });
-
-  it('omits plannedEndAt from the save body when untouched — omit = untouched contract', async () => {
-    const onAtomicSave = vi.fn().mockResolvedValue({
-      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
-      operationalNotes: null,
-      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.83' },
-      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
-    });
-    mockFleetResources();
-    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
-    await openDialog();
-    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
-    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave.mock.calls[0]![1]).toMatchObject({ customerAppointmentAt: '2026-10-27T06:30:00.000Z' });
     expect('plannedEndAt' in onAtomicSave.mock.calls[0]![1]).toBe(false);
   });
 
-  it('QA-2026-09-26-23 blocks the save while the Giờ trả hàng edit is incomplete — no silent clear', async () => {
-    const onAtomicSave = vi.fn().mockResolvedValue({
-      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
-      operationalNotes: null,
-      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
-      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
-    });
+  it('QA-2026-09-26-23 blocks the save while the Giờ điều vận edit is incomplete — no silent clear', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
     mockFleetResources();
-    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    renderCell(fclRow(), { onAtomicSave });
     await openDialog();
     // Partial edit: EMPTY the day segment — the field reports incomplete, so
     // Lưu must be BLOCKED, never write a silent clear of the stored instant.
-    fireEvent.change(screen.getByLabelText('Ngày — Giờ trả hàng'), { target: { value: '' } });
+    fireEvent.change(runDaySeg(), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
-    await waitFor(() => expect(onAtomicSave).not.toHaveBeenCalled());
-    expect(screen.getByText('Giờ trả hàng chưa hoàn chỉnh — chọn đủ ngày và giờ.')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Giờ điều vận chưa hoàn chỉnh — chọn đủ ngày và giờ.')).toBeTruthy());
+    expect(onAtomicSave).not.toHaveBeenCalled();
     expect((document.querySelector('[role=dialog]'))).toBeTruthy();
   });
 });

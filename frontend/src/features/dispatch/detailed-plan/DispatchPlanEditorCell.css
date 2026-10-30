@@ -163,27 +163,19 @@
   grid-template-areas: 'carrier vehicle'
     'classification combined'
     'revenue cost'
-    'run run'
-    'end end';
+    'run run';
   gap: 14px 12px;
   align-items: end;
 }
 
-/* Giờ trả hàng gets its own full-width row: the 2-col cell shrinks the
+/* Giờ điều vận owns the full-width datetime row: the 2-col cell shrinks the
  * split-datetime tracks and stretches/overflows its segments (seen live
- * 15:40); the wide row lets the control size naturally. SIL-473 — Giờ điều
- * vận rides the same full-width row law, above it. SIL-520: at DIALOG
- * widths ≥ ~800px (viewport ≥900px) the pair shares ONE row again — each
- * segmented field gets ≥370px, more than the ~250px that broke it — so the
- * taller form fits the wider dialog without vertical scrolling. */
-.dispatch-assignment-dialog__end-field,
-.dispatch-assignment-dialog__run-field {
-  grid-area: end;
-  min-width: 0;
-}
-
+ * 15:40); the wide row lets the control size naturally. id 712 (owner
+ * 30/10) removed the Giờ trả hàng field — the dialog carries exactly one
+ * datetime field, on the same full-width row law. */
 .dispatch-assignment-dialog__run-field {
   grid-area: run;
+  min-width: 0;
 }
 
 @media (min-width: 900px) {
@@ -194,12 +186,14 @@
        ask: "Phân loại and Cước thu dự kiến on the same row"), Đóng kết hợp
        rides the same row's last track (FCL only — LCL rows leave the track
        empty), and the money inputs size to their CONTENT (capped 200px)
-       instead of stretching across a half dialog. Row count ≥900: 4 → 3. */
+       instead of stretching across a half dialog. id 712 (owner 30/10):
+       Giờ điều vận owns the datetime row full-width — the `end` area is
+       gone. Row count ≥900: 4 → 3. */
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-areas:
       'carrier carrier vehicle vehicle'
       'classification revenue cost combined'
-      'run run end end';
+      'run run run run';
   }
 }
 
@@ -542,8 +536,7 @@
       'vehicle vehicle'
       'classification combined'
       'revenue cost'
-      'run run'
-      'end end';
+      'run run';
   }
 
   .dispatch-assignment-dialog .searchable-select__trigger {
