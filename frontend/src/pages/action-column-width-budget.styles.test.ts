@@ -44,8 +44,12 @@ const customersCss = read('src/pages/CustomersPage.css');
 
 // ── Shared geometry the budgets are derived from (card 324 idiom) ──────────
 const compactH = matchNumber(tokens, /--control-compact-h:\s*(\d+)px/, 'compact control');
-const touchH = matchNumber(tokens, /--control-max-h:\s*(\d+)px/, 'touch control ceiling');
-expect(tokens).toContain('--control-touch-h: var(--control-max-h)');
+// SIL-583 r2: the coarse-pointer button floor is the REAL 44px §5 touch
+// token (decoupled from the 40px ordinary ceiling, which --control-max-h
+// still carries) — the worst-case action-run budget must measure against
+// the real floor, or a 44px kebab pair overflows the budgeted column.
+const touchH = matchNumber(tokens, /--control-touch-h:\s*(\d+)px/, 'touch floor');
+expect(tokens).toMatch(/--control-max-h:\s*40px;/);
 // responsive.css raises EVERY bare button to the touch floor's min-width on
 // coarse pointers at any width — the worst-case run must budget against it.
 expect(responsiveCss).toMatch(

@@ -533,7 +533,9 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: var(--control-touch-h);
+  /* Ordinary ceiling at every pointer (SIL-583 r2 review — not a QA-named
+     touch cluster). */
+  min-height: var(--control-max-h);
   padding: 0 16px;
   border-radius: 10px;
   background: var(--accent);

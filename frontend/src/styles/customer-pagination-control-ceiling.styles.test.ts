@@ -8,7 +8,9 @@ describe('QA-AUDIT-UI-24C shared customer/pagination control ceiling', () => {
     const css = read('pages/portal/CustomerPortalLayout.css');
     expect(css).not.toMatch(/44px|min-height:\s*52px/);
     expect(css).toMatch(/\.customer-shell__icon-button\s*\{[^}]*width:\s*var\(--control-touch-h\);[^}]*height:\s*var\(--control-touch-h\)/);
-    expect(css).toMatch(/\.customer-shell__nav-item\s*\{[^}]*min-height:\s*var\(--control-touch-h\)/);
+    // SIL-583 r2: the desktop shell nav item rides the ordinary ceiling;
+    // the ≤1023px band carries the canonical touch token (below).
+    expect(css).toMatch(/\.customer-shell__nav-item\s*\{[^}]*min-height:\s*var\(--control-max-h\)/);
     expect(css).toMatch(/\.customer-shell__bottom-nav a\s*\{[^}]*min-height:\s*var\(--control-touch-h\)/);
     // Fixed layer, not in flow: docs/design-guidelines.md 2026-10-03 "§5 mechanism
     // revision — the phone tab bar returns to the fixed layer" (card 20260927_149,
@@ -20,9 +22,14 @@ describe('QA-AUDIT-UI-24C shared customer/pagination control ceiling', () => {
   });
   it('caps paginator buttons/jump and shared aging disclosure through the same token', () => {
     const css = read('design-system/Pagination.css');
+    // No literal inflation: sizes ride tokens only. SIL-583 r2 contract —
+    // the UNCONDITIONAL rules carry the 40px ordinary ceiling (--control-max-h,
+    // any pointer), and the touch band ((pointer: coarse), ≤768px) lifts the
+    // row to the real touch token for the AC's 390/768 sweep widths.
     expect(css).not.toContain('44px');
-    expect(css).toMatch(/\.ds-pagination__btn\s*\{[^}]*min-width:\s*var\(--control-touch-h\);[^}]*min-height:\s*var\(--control-touch-h\)/);
-    expect(css).toMatch(/\.ds-pagination__jump input\s*\{[^}]*min-height:\s*var\(--control-touch-h\)/);
+    expect(css).toMatch(/\.ds-pagination__btn\s*\{[^}]*min-width:\s*var\(--control-max-h\);[^}]*min-height:\s*var\(--control-max-h\)/);
+    expect(css).toMatch(/\.ds-pagination__jump input\s*\{[^}]*min-height:\s*var\(--control-max-h\)/);
+    expect(css).toMatch(/@media \(pointer: coarse\), \(max-width: 768px\) \{\s*\.ds-pagination__btn,\s*\.ds-pagination__jump input \{\s*min-width:\s*var\(--control-touch-h\);\s*min-height:\s*var\(--control-touch-h\);/);
     expect(read('styles/financial-aging.css')).toMatch(/summary\s*\{[^}]*min-height:\s*var\(--control-touch-h\)/);
   });
 });

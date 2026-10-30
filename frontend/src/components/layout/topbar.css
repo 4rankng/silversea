@@ -156,8 +156,10 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: var(--control-touch-h);
-  height: var(--control-touch-h);
+  /* Ordinary ceiling (was the touch token — see .icon-btn above); the
+     non-driver variant below keeps its own 36px density override. */
+  min-height: var(--control-max-h);
+  height: var(--control-max-h);
   padding: 0 13px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -173,7 +175,7 @@
 }
 /* Case QA-2026-09-27-02 / card 20260927_2: the desktop topbar shrinks the
    month trigger to 36px so the row matches the page-level input row.
-   Driver topbar keeps the 40px touch-floor rule — the driver identity
+   Driver topbar keeps the 40px ordinary-ceiling sizing — the driver identity
    beside it is the two-line subtitle the customer asked to keep. */
 .topbar:not(.topbar--driver) .topbar-date__trigger {
   min-height: 36px;
@@ -446,7 +448,10 @@
 
 /* Wireframe topbar classes */
 .topbar__toggle {
-  width: var(--control-touch-h); height: var(--control-touch-h);
+  /* Ordinary-ceiling anchor (any pointer, any width). The touch bands in
+     responsive.css lift the hamburger to the real 44px §5 floor on phones,
+     tablets and coarse pointers — it is the primary nav control there. */
+  width: var(--control-max-h); height: var(--control-max-h);
   padding: 0;
   background: transparent;
   border: 1px solid transparent;
@@ -608,7 +613,10 @@
 /* Replaces .date-chip in the topbar — clean slate, no legacy overrides */
 
 .icon-btn {
-  width: var(--control-touch-h); height: var(--control-touch-h);
+  /* Ordinary ceiling at every pointer (SIL-583 r2 review: an unconditional
+     touch-token consumer here grew the whole topbar chrome to 44 on
+     desktop). Not a QA-named touch cluster. */
+  width: var(--control-max-h); height: var(--control-max-h);
   display: inline-flex; align-items: center; justify-content: center;
   background: transparent; border: 1px solid transparent;
   border-radius: 10px;

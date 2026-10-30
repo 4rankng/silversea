@@ -190,8 +190,10 @@
 }
 
 /* Touch floor on any touch device OR any narrow window — a 390px windowed
-   browser reports `pointer: fine` but is still a phone-width layout. */
-@media (pointer: coarse), (max-width: 767px) {
+   browser reports `pointer: fine` but is still a phone-width layout. The
+   768px edge is the AC's sweep width (SIL-583: 390/768), so iPad portrait
+   gets the same 44px §5 floor as phones. */
+@media (pointer: coarse), (max-width: 768px) {
   .ds-tabs__btn {
     min-height: var(--control-touch-h);
   }

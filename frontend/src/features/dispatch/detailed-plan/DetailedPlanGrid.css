@@ -738,13 +738,13 @@
    the shared `features/dispatch/dispatch-row-menu.css` so the master-plan
    phone card list serves the identical menu; only the dpcard-scoped bumps
    live here. */
-/* GP-06 — the phone-card touch floor is 44px even where the shared
-   --control-touch-h token sits at 40px (owner: ordinary controls ≤40px;
-   tap targets on cards ≥44px). The companion `#root` lift below is a
-   DELIBERATE specificity bump: the global coarse-pointer band
-   `:is(#root, body) button { min-width/height: var(--control-touch-h) }`
-   carries (1,0,1) and used to clamp this floor back to 40px on touch
-   devices — the card is the one place a control may exceed the 40px law. */
+/* GP-06 — the card tap floor is the touch height (owner: ordinary controls
+   ≤40px on desktop; tap targets on cards ride the touch token). Since
+   SIL-583 r2 the shared --control-touch-h token IS the real 44px touch
+   floor, so this rule and the token agree; the companion `#root` lift
+   below remains a DELIBERATE specificity bump that outranks the global
+   coarse-pointer band's (1,0,1) button floor — the card is the one place a
+   control may exceed the 40px desktop law. */
 .dpcard .dispatch-row-menu__trigger {
   width: var(--control-touch-h, 44px);
   height: var(--control-touch-h, 44px);
@@ -810,7 +810,10 @@
   opacity: 0.65;
 }
 
-@media (max-width: 767px), (pointer: coarse) {
+/* 768 leg widened in SIL-583 r2: the QA round-4 verdict measured this
+   trigger 28×28 AT 768 — the AC's sweep width must carry the §5 touch
+   floor too (a 768px iPad reports `pointer: fine`). */
+@media (max-width: 768px), (pointer: coarse) {
   .detailed-plan-grid__note-action--icon {
     width: var(--control-touch-h);
     min-height: var(--control-touch-h);
@@ -1225,6 +1228,19 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* SIL-583 r2 — card tap targets on the §5 touch floor: the QA round-4
+   verdict counts the card note/info controls among the clusters that must
+   REALLY measure ≥44px (no pseudo — the engine finding). The info block is
+   naturally taller; min-height only guards the single-line note trigger.
+   The card law (GP-06) already exempts card tap targets from the 40px
+   ordinary ceiling — this rides the same exemption, not a new one. */
+@media (pointer: coarse), (max-width: 768px) {
+  .dpcard__note,
+  .dpcard__info {
+    min-height: var(--control-touch-h);
+  }
 }
 
 /* The hidden plan-editor mount: the card prints its own compact facts, the

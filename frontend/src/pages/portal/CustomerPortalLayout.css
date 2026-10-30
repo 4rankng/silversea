@@ -72,7 +72,7 @@
 
 .customer-shell__nav-item {
   display: flex;
-  min-height: var(--control-touch-h);
+  min-height: var(--control-max-h);
   align-items: center;
   gap: 11px;
   padding: 0 12px;
@@ -100,8 +100,8 @@
 .customer-shell__avatar { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .14); }
 .customer-shell__identity button {
   display: grid;
-  width: var(--control-touch-h);
-  height: var(--control-touch-h);
+  width: var(--control-max-h);
+  height: var(--control-max-h);
   place-items: center;
   border: 0;
   border-radius: 8px;
@@ -138,7 +138,7 @@
   font-weight: 600;
 }
 
-.customer-shell__account-popover button { min-height: var(--control-touch-h); }
+.customer-shell__account-popover button { min-height: var(--control-max-h); }
 
 .customer-shell__scope-bar {
   display: flex;

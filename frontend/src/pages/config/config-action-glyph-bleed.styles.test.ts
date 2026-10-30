@@ -43,8 +43,11 @@ function matchNumber(source: string, pattern: RegExp, label: string): number {
 
 // Shared geometry the budget is derived from.
 const compactH = matchNumber(tokens, /--control-compact-h:\s*(\d+)px/, 'compact control');
-const touchH = matchNumber(tokens, /--control-max-h:\s*(\d+)px/, 'touch control ceiling');
-expect(tokens).toContain('--control-touch-h: var(--control-max-h)');
+// SIL-583 r2: the coarse-pointer button floor is the REAL 44px §5 touch
+// token (decoupled from the 40px ordinary ceiling, which --control-max-h
+// still carries) — the worst-case action-run budget measures the real floor.
+const touchH = matchNumber(tokens, /--control-touch-h:\s*(\d+)px/, 'touch floor');
+expect(tokens).toMatch(/--control-max-h:\s*40px;/);
 // responsive.css raises EVERY bare button to the touch floor on coarse pointers
 // at any width — the worst-case run must budget against it.
 expect(read('src/styles/responsive.css')).toMatch(

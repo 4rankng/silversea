@@ -53,13 +53,15 @@
   flex: 0 0 auto;
 }
 
-/* Owner ceiling — "ordinary controls at most 40px on every screen": UUI
-   `size="sm"` carries `max-md:min-h-11` (44px) as its touch floor, which
-   breaks the page's own 40px control claim at <768px. SIZING ONLY. */
+/* UUI `size="sm"` carries `max-md:min-h-11` (44px) as its touch floor.
+   SIL-583 r2: this ≤768 band IS a touch-width band (the AC's sweep width),
+   so the header's bulk actions ride the REAL touch token now — the QA
+   round-4 verdict names the 40px action buttons among the clusters that
+   must really measure 44. SIZING ONLY. */
 @media (max-width: 768px) {
   .shipment-debit-header .shipment-debit-merge-rev,
   .shipment-debit-header .shipment-debit-export {
-    min-height: var(--control-h);
+    min-height: var(--control-touch-h);
   }
 }
 
@@ -790,11 +792,39 @@
   }
 }
 
-/* Coarse-pointer: the kebab and the doc badge hold the shared touch floor. */
-@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+/* Touch floor (SIL-583 r2): the kebab, the group chevron and the tờ khai
+   copy/badge pair hold the shared 44px touch floor on touch form factors —
+   the QA round-4 verdict names all of them among the clusters that must
+   REALLY measure ≥44px (the round-3 engine finding rules out pseudo
+   extensions, so the elements themselves grow). The ≤768px leg covers the
+   AC's 390/768 sweep widths where a windowed browser reports
+   `pointer: fine`; `(hover: none) and (pointer: coarse)` covers real touch
+   devices at any width. The copy glyph and the badge sit side by side in a
+   wrapping flex cell, so growing them reflows instead of overlapping. */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
   .shipment-debit-menu__trigger {
-    width: var(--control-h);
-    height: var(--control-h);
+    width: var(--control-touch-h);
+    height: var(--control-touch-h);
+    min-width: var(--control-touch-h);
+    min-height: var(--control-touch-h);
+  }
+
+  .shipment-debit-group__chevron {
+    width: var(--control-touch-h);
+    height: var(--control-touch-h);
+    min-width: var(--control-touch-h);
+    min-height: var(--control-touch-h);
+  }
+
+  .shipment-debit-copy {
+    width: var(--control-touch-h);
+    height: var(--control-touch-h);
+    min-width: var(--control-touch-h);
+    min-height: var(--control-touch-h);
+  }
+
+  .shipment-debit-docs__badge {
+    min-height: var(--control-touch-h);
   }
 }
 

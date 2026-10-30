@@ -450,7 +450,7 @@
   .csc-container-row .csc-container-cell--appointment .csc-container-cell__actions { position: static; display: flex; justify-content: flex-end; padding: 4px 0 0; }
   .csc-container-row .csc-container-cell__error { padding: 3px 2px 0; }
   .csc-container-table .csc-container-row__actions { position: absolute; top: 6px; right: 6px; }
-  .csc-container-row__actions .csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }
+  .csc-container-row__actions .csc-icon-button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }
 }
 @media (max-width: 1100px) {
   /* The app shell owns the tablet/phone canvas gutter. The continuous CUS
@@ -462,7 +462,17 @@
   .csc-identity-grid > * { grid-column: auto; }
   .csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: 1 / -1; }
 }
-@media (max-width: 640px) { .csc-page { padding: 12px 0; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-max-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-max-h); min-height: var(--control-max-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { padding: 8px 8px 10px; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+/* SIL-583 r2 — create-form controls ride the §5 44px touch floor on touch
+   form factors: the QA round-4 verdict names them ("Thêm container" 38/40,
+   create-form controls 38–39). Re-anchored from --control-max-h (the
+   ordinary 40px ceiling, which kept measuring 38–40 at the AC's sweep
+   widths) to the real touch token; ≤768 covers the fine-pointer sweep. */
+@media (max-width: 768px), (pointer: coarse) {
+  .csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-touch-h); }
+  .csc-icon-button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }
+}
+
+@media (max-width: 640px) { .csc-page { padding: 12px 0; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-touch-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { padding: 8px 8px 10px; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 @media (max-width: 640px) {
   /* The grouped phone record keeps its card frame (mobile UX consult 16/10
@@ -576,13 +586,16 @@
       a mouse-driven spreadsheet, not a tap grid.
    2. Every field inside the sheet rides the compact control height token.
       The appointment cluster's own higher-specificity touch rule
-      (card 051026230627) still wins — that tap surface stays 40px.
+      (card 051026230627) still wins — that tap surface stays at touch
+      height.
    3. The contgroup lines lay label BESIDE value (one grid line each) so a
-      line is one control tall, not label + control stacked. */
+      line is one control tall, not label + control stacked.
+   SIL-583 r2 split: the STRUCTURE stays ≥641, but the COMPACT FLOORS move
+   to ≥769 — 768 is the ticket's touch sweep width (QA round 4), and the
+   AC demands the create-form fields measure the real touch height there.
+   641-768 keeps the dense line layout with touch-height fields; ≥769 is
+   the mouse-driven spreadsheet the ruling describes. */
 @media (min-width: 641px) {
-  .csc-container-table .csc-container-cell__value,
-  .csc-container-table .csc-container-cell__editor { min-height: var(--control-compact-h); }
-  .csc-container-table .csc-container-cell [data-uui-control] { --uui-control-h: var(--control-compact-h); }
   .csc-contgroup { gap: 4px; }
   .csc-contgroup > .csc-container-cell { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; column-gap: 6px; }
   .csc-contgroup > .csc-container-cell > .csc-container-cell__microlabel { padding: 0 0 0 10px; line-height: 1.2; }
@@ -591,6 +604,11 @@
   .csc-contgroup .csc-container-cell__display { padding: 0 6px; }
   /* A line's validation paint owns the full row under its label + value. */
   .csc-contgroup > .csc-container-cell > .csc-container-cell__error { grid-column: 1 / -1; }
+}
+@media (min-width: 769px) {
+  .csc-container-table .csc-container-cell__value,
+  .csc-container-table .csc-container-cell__editor { min-height: var(--control-compact-h); }
+  .csc-container-table .csc-container-cell [data-uui-control] { --uui-control-h: var(--control-compact-h); }
 }
 
 /* Card 051026230627 — the appointment cluster is a tap surface first (its
@@ -601,10 +619,18 @@
  * this page. The base UUI geometry derives every inner height from
  * --uui-control-h, so the tap cure survives the font change; the em-based
  * segment widths in DateTimeSegments.css scale with the font automatically.
- * 40px stays inside the design-lock band. */
+ * SIL-583 r2: the cluster is a card-law tap surface — the REAL touch token
+ * on touch form factors (coarse pointer, ≤768px sweep width), the ordinary
+ * 40px ceiling on a desktop fine pointer. */
 .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control],
 .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] [data-uui-control] {
-  --uui-control-h: var(--control-touch-h);
+  --uui-control-h: var(--control-max-h);
+}
+@media (pointer: coarse), (max-width: 768px) {
+  .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control],
+  .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] [data-uui-control] {
+    --uui-control-h: var(--control-touch-h);
+  }
 }
 .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] {
   --text-control-compact-size: var(--control-field-font-size);

@@ -114,7 +114,7 @@ describe('shipment create responsive layout', () => {
   it('keeps the quantity-plus-add control touch-safe and contained on mobile', () => {
     expect(css).toMatch(/\.csc-container-actions\s*\{[^}]*justify-content:\s*flex-end;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-add-control\s*\{[^}]*grid-template-columns:\s*72px minmax\(0,\s*1fr\);/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-add-control input[^}]*min-height:\s*var\(--control-max-h\);/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-container-add-control input[^}]*min-height:\s*var\(--control-touch-h\);/);
   });
 
   it('uses shared headers on desktop and deliberate record layouts below the wide canvas', () => {
@@ -156,7 +156,7 @@ describe('shipment create responsive layout', () => {
     // compact segments, no per-option box.
     expect(css).toMatch(/\.csc-mode > div\s*\{[^}]*display:\s*inline-flex;[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*8px;/);
     expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*34px;[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode__option[^}]*min-height:\s*var\(--control-max-h\);/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode__option[^}]*min-height:\s*var\(--control-touch-h\);/);
     // The old faux-radio dot and the 8px option boxes are gone for good.
     expect(css).not.toMatch(/\.csc-mode__option::before/);
     expect(css).not.toMatch(/\.csc-mode > div\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
@@ -553,8 +553,12 @@ describe('create-page whole-sheet density (SIL-534)', () => {
     expect(css).toMatch(/\.csc-flag-checkbox \{ display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 30px;/);
   });
 
-  it('the phone band still floors controls at touch height (≤640 unchanged)', () => {
-    expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.csc-mode__option, \.csc-flag-checkbox, \.csc-add-container, \.csc-container-add-control input, \.csc-utility-button \{ min-height: var\(--control-max-h\); \}/);
+  it('the phone band floors controls at the real touch token (SIL-583 r2: §5 44px)', () => {
+    expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.csc-mode__option, \.csc-flag-checkbox, \.csc-add-container, \.csc-container-add-control input, \.csc-utility-button \{ min-height: var\(--control-touch-h\); \}/);
+    // The touch floor also covers the fine-pointer sweep width and coarse
+    // pointers at any width — the QA round-4 verdict names the create-form
+    // controls (38–39) among the clusters that must really measure ≥44.
+    expect(css).toMatch(/@media \(max-width: 768px\), \(pointer: coarse\) \{\s*\.csc-mode__option, \.csc-flag-checkbox, \.csc-add-container, \.csc-container-add-control input, \.csc-utility-button \{ min-height: var\(--control-touch-h\); \}/);
   });
 
   it('SIL-552: the group lines rest invisible in the line and float fixed only while open', () => {

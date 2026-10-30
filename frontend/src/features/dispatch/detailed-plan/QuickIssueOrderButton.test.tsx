@@ -54,8 +54,8 @@ describe('VID-DSP-02 direct release', () => {
     const iconRule = css.match(/\.detailed-plan-grid__note-action--icon\s*\{([^}]+)\}/)?.[1] ?? '';
     expect(iconRule).toMatch(/width:\s*28px/);
     expect(iconRule).toMatch(/min-height:\s*28px/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*767px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*width:\s*var\(--control-touch-h\)/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*767px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*min-height:\s*var\(--control-touch-h\)/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*768px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*width:\s*var\(--control-touch-h\)/);
+    expect(css).toMatch(/@media\s*\(max-width:\s*768px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*min-height:\s*var\(--control-touch-h\)/);
   });
 
   it('issues with one click and resolves fleet only on demand, preserving exact planned appointment', async () => {
