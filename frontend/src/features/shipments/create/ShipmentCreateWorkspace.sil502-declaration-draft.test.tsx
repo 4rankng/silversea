@@ -22,13 +22,14 @@ import type * as ShipmentClientModule from '../../../api/shipmentClient';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ShipmentCreateWorkspace } from './ShipmentCreateWorkspace';
 
-/** SIL-521 (owner 26/10): form tạo/sửa lô KHÔNG còn chỗ nhập Số tờ khai cấp
- *  lô — supersede SIL-502's draft-commit pins: the chip strip the SIL-502 bug
- *  class lived in is retired entirely. SIL-701 (owner ruling 30/10) reverses
- *  the per-cont half of the old absence pin: the create form's Thông tin hàng
- *  table now carries a per-cont SỐ TỜ KHAI column (entered at create time,
- *  từng cont riêng, trùng số trong lô hợp lệ) alongside the Tổng quan ledger
- *  cells / drawer DeclarationCell editors. */
+/** SIL-521 (owner 26/10) → SIL-701/SIL-600 (owner ruling 30/10): the create
+ *  form still has NO lot-level số tờ khai entry — the retired chip strip
+ *  (SIL-502's bug class) stays dead (`shipment-declarations` field,
+ *  `.csc-declaration-strip`, Sửa hàng loạt / Xóa tất cả). The owner ruling
+ *  REVERSES the old absence pin ONLY at the per-container tier: the Thông tin
+ *  hàng table now carries a per-cont SỐ TỜ KHAI column (entered at create
+ *  time, từng cont riêng, trùng số trong lô hợp lệ) alongside the Tổng quan
+ *  ledger cells / drawer DeclarationCell editors. */
 function renderWorkspace() {
   return render(
     <MemoryRouter initialEntries={['/shipments', '/shipments/new']}>
@@ -44,7 +45,7 @@ function renderWorkspace() {
   );
 }
 
-describe('SIL-521 — form tạo lô hết ô Số tờ khai cấp lô', { timeout: 30000 }, () => {
+describe('SIL-521/SIL-600 — tờ khai: cấp lô vẫn chết, cấp cont sống trên form tạo', { timeout: 30000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     quickCreateShipment.mockReset();
@@ -76,6 +77,17 @@ describe('SIL-521 — form tạo lô hết ô Số tờ khai cấp lô', { timeo
     const table = screen.getByRole('table', { name: 'Danh sách container' });
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toContain('Số tờ khai');
     expect(within(table).getAllByLabelText('Số tờ khai')).toHaveLength(1);
+    cleanup();
+  });
+
+  it('SIL-600: mỗi dòng container có ô SỐ TỜ KHAI nhập được ngay lúc tạo', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+    const table = screen.getByRole('table', { name: 'Danh sách container' });
+    const declarationInputs = within(table).getAllByLabelText('Số tờ khai');
+    expect(declarationInputs.length).toBeGreaterThanOrEqual(1);
+    expect((declarationInputs[0] as HTMLInputElement).value).toBe('');
     cleanup();
   });
 });

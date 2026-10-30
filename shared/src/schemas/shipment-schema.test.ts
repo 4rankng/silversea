@@ -87,6 +87,40 @@ test('SIL-701: số tờ khai THEO CONT rides shipmentContainerItemSchema (per-c
   assert.equal(shipmentContainerItemSchema.safeParse({ ...base, declarationNumber: 'x'.repeat(51) }).success, false);
 });
 
+test('SIL-600: tờ khai nhập theo cont lúc tạo — containers[].declarationNumber', () => {
+  // Owner ruling 30/10: form tạo nhập số tờ khai theo từng container ngay lúc
+  // tạo. Mô hình SIL-521: trim giá trị, trùng số trong cùng lô KHÔNG lỗi.
+  const parsed = quickCreateShipmentSchema.safeParse({
+    customerId: 1,
+    containers: [
+      { containerTypeId: 31, containerNumber: 'MSCU6639870', declarationNumber: '  TK-0123456789  ' },
+      { containerTypeId: 31, containerNumber: 'MSCU6639871', declarationNumber: 'TK-0123456789' },
+    ],
+  });
+  assert.equal(parsed.success, true);
+  assert.equal(parsed.success && parsed.data.containers?.[0]?.declarationNumber, 'TK-0123456789');
+  assert.equal(parsed.success && parsed.data.containers?.[1]?.declarationNumber, 'TK-0123456789');
+
+  // Rỗng → null (không ký tự rác trong DB).
+  const emptied = quickCreateShipmentSchema.safeParse({
+    customerId: 1,
+    containers: [{ containerTypeId: 31, declarationNumber: '' }],
+  });
+  assert.equal(emptied.success, true);
+  assert.equal(emptied.success && emptied.data.containers?.[0]?.declarationNumber, null);
+
+  // >50 ký tự → lỗi, đúng trần cột declaration_number.
+  assert.equal(
+    quickCreateShipmentSchema.safeParse({
+      customerId: 1,
+      containers: [{ containerTypeId: 31, declarationNumber: 'T'.repeat(51) }],
+    }).success,
+    false,
+  );
+  // Key cấp lô vẫn KHÔNG vào contract (guard trên vẫn đứng).
+  assert.equal(QUICK_CREATE_SHIPMENT_KEYS.includes('declarationNumber'), false);
+});
+
 // ─── zod v3 → v4 bump pins (case-2026-10-29-zod4-final-bump) ────────────────
 // Behavior invariance: these payloads are what POST/PUT /api/shipments carry
 // today; the bump must accept and return them byte-identically.

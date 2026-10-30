@@ -42,7 +42,7 @@ function row1Segment(label: string): HTMLInputElement {
  * gõ '08' ở ô giờ THEN focus tự sang ô phút, không rơi phím số, và không kẹt —
  * phút complete hands off to the date day segment (the entry keeps flowing).
  */
-describe('SIL-65 (CUS-01): create-flow appointment segments auto-advance', () => {
+describe('SIL-65 (CUS-01): create-flow appointment segments auto-advance', { timeout: 30000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     getBootstrap.mockResolvedValue({

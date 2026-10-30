@@ -34,6 +34,7 @@ export type ShipmentEditDetail = ShipmentDetail & {
     rawFactoryName?: string | null;
     rawPickupPortName?: string | null;
     rawDropoffPortName?: string | null;
+    declarationNumber?: string | null;
   }>;
 };
 
@@ -67,6 +68,9 @@ function containerDraftFromRow(row: ShipmentEditDetail['containers'][number]): S
     id: row.id,
     containerNumber: row.containerNumber ?? '',
     containerTypeId: idString(row.containerTypeId),
+    // SIL-600: the edit form round-trips the per-cont số tờ khai — an edit
+    // save re-sends what the cell shows, never silently clears it.
+    declarationNumber: row.declarationNumber ?? '',
     routeId: idString(row.routeId),
     rawRouteName: row.rawRouteName ?? '',
     pickupPortId: idString(row.pickupPortId),
@@ -76,10 +80,6 @@ function containerDraftFromRow(row: ShipmentEditDetail['containers'][number]): S
     cargoWeightKg: row.cargoWeightKg ?? '',
     cargoVolumeCbm: row.cargoVolumeCbm ?? '',
     customerAppointmentAt: formatVietnamDateTimeInput(row.customerAppointmentAt),
-    // SIL-701: per-cont số tờ khai round-trips through edit mode — a save
-    // re-asserts what the form shows (the BE's undefined-preservation keeps
-    // stored values for surfaces that never manage the field).
-    declarationNumber: row.declarationNumber ?? '',
     operationalSiteId: idString(row.operationalSiteId),
     rawFactoryName: row.rawFactoryName ?? '',
   };

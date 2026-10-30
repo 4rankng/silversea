@@ -326,21 +326,20 @@ export function ShipmentCreateContainerRow({
           </GroupFloatingLine>
         </div>
       </td>
-      {/* SIL-701 (owner ruling 30/10): per-cont số tờ khai enters at create
-          time — one always-on inline input per row (the entry form's editor
-          style, appointment-cell pattern), placed right after the SỐ
-          CONTAINER group for parity with the drawer's locked sheet order
-          (STT · Số container · Số tờ khai · Nhà máy · …, SIL-508/552 family).
-          Same-lot repeats are legal — no duplicate guard here; this cell
-          owns no copy affordance (FB-109 spreading stays the drawer's
-          explicit copy button). */}
+      {/* SIL-701/SIL-600 (owner ruling 30/10): per-cont số tờ khai enters at
+          create time — one always-editable inline input per row (the number
+          is typed, never picked), placed right after the SỐ CONTAINER group
+          for parity with the drawer's locked sheet order (STT · Số container
+          · Số tờ khai · Nhà máy · …, SIL-508/552 family). Same-lot repeats
+          are legal (SIL-521) — no duplicate guard here. */}
       <ShipmentContainerCell
         label="Số tờ khai"
         alwaysVisible
-        mobileFieldChrome
         value={row.declarationNumber}
         placeholder="Nhập số tờ khai"
         fieldId={`container-${row.key}-declaration`}
+        onRevert={(value) => updateContainer(row.key, 'declarationNumber', value)}
+        mobileFieldChrome
       >
         <TextField
           id={`container-${row.key}-declaration`}

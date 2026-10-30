@@ -169,6 +169,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     key: crypto.randomUUID(),
     containerNumber: '',
     containerTypeId: '',
+    declarationNumber: '',
     routeId: '',
     rawRouteName: '',
     pickupPortId: '',
@@ -178,7 +179,6 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     cargoWeightKg: '',
     cargoVolumeCbm: '',
     customerAppointmentAt: '',
-    declarationNumber: '',
     operationalSiteId: '',
     rawFactoryName: '',
   };
@@ -189,13 +189,16 @@ export function createEmptyContainer(): ShipmentContainerDraft {
  * 221026173728 22/10 — SIL-488 closes the workspace gap of reversal 093c5334,
  * which only reached the CUS ledger): pressing "Thêm container" inherits the
  * previous row's shared fields — route, factory, ports, weight and the
- * schedule window — but NEVER its per-container identifiers: the Số container
- * stays empty for entry, the Loại cont stays blank ("Chọn loại") for the
- * operator's own pick, and the Số tờ khai stays empty (SIL-701: thêm
- * container mới KHÔNG lan tờ khai — declarations spread only through the
- * drawer's explicit copy affordance, FB-109). The payload already sends an
- * EXPLICIT `containerTypeId: null` when unpicked, so the server cannot
- * re-copy any of them.
+ * schedule window — but NEVER its two per-container identifiers: the
+ * Số container stays empty for entry and the Loại cont stays blank ("Chọn
+ * loại") for the operator's own pick. The payload already sends an EXPLICIT
+ * `containerTypeId: null` when unpicked, so the server cannot re-copy either.
+ *
+ * SIL-701/SIL-600: SỐ TỜ KHAI rides the SHARED half of that split — one
+ * declaration usually covers the lot's containers (the SIL-521 "các container
+ * trong cùng lô được chia sẻ số" model), so the new row inherits it and each
+ * row stays freely editable afterwards (divergence allowed, duplicates never
+ * blocked).
  */
 export function createContainerFromPrevious(
   previous?: ShipmentContainerDraft,
@@ -207,7 +210,6 @@ export function createContainerFromPrevious(
     key: crypto.randomUUID(),
     containerNumber: '',
     containerTypeId: '',
-    declarationNumber: '',
     // SIL-171: a cloned row is a NEW container — never inherit the source
     // row's persisted id (the reconcile would overwrite its sibling).
     id: undefined,
@@ -471,11 +473,11 @@ export function buildShipmentContainerPayload(
     rawDropoffPortName: !row.dropoffPortId && form.isAdHoc ? row.rawDropoffPortName.trim() || null : null,
     operationalSiteId: row.operationalSiteId ? Number(row.operationalSiteId) : null,
     rawFactoryName: !row.operationalSiteId && form.isAdHoc ? row.rawFactoryName.trim() || null : null,
+    // SIL-600: per-cont số tờ khai rides the create payload (null when the
+    // operator left it empty) — the reconcile stores it on the container row.
+    declarationNumber: row.declarationNumber.trim() || null,
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
     customerAppointmentAt: localDateTimeToIso(row.customerAppointmentAt),
-    // SIL-701: per-cont số tờ khai rides the create wire on its own row —
-    // never a lot-level declarationNumber (that key stays rejected).
-    declarationNumber: row.declarationNumber.trim() || null,
   }));
 }

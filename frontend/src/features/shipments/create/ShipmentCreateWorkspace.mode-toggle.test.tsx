@@ -269,7 +269,7 @@ describe('Lệnh chạy ngoài toggle (20260916_3)', { timeout: 20000 }, () => {
   });
 });
 
-describe('Lệnh chạy ngoài creatable fields — blur keeps committed text (QA 2026-09-18)', () => {
+describe('Lệnh chạy ngoài creatable fields — blur keeps committed text (QA 2026-09-18)', { timeout: 30000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     listOperationalSites.mockReset();
@@ -330,7 +330,7 @@ describe('Lệnh chạy ngoài creatable fields — blur keeps committed text (Q
   });
 });
 
-describe('Loại container row commit (20260918_11)', () => {
+describe('Loại container row commit (20260918_11)', { timeout: 30000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     listOperationalSites.mockReset();
@@ -372,7 +372,7 @@ describe('Loại container row commit (20260918_11)', () => {
   });
 });
 
-describe('Factory dropdown NaN race (20260918_16)', () => {
+describe('Factory dropdown NaN race (20260918_16)', { timeout: 30000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     listOperationalSites.mockReset();

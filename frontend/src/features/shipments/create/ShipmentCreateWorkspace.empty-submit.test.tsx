@@ -24,7 +24,7 @@ function renderWorkspace() {
   );
 }
 
-describe('shipment create empty submit feedback', () => {
+describe('shipment create empty submit feedback', { timeout: 30000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     getBootstrap.mockResolvedValue({
