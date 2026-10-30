@@ -92,3 +92,20 @@
 - Data-entry flow submit thật (driver zero-mutation theo §7 — mutation đã có suite
   create-page test + workflow test phủ).
 
+## Retest 30/10 (QA fail build fad9bdf6) — chiều cao card
+
+QA đo lại: card 83px @1307 (AC 56–72), inner row 59px (in range) — overage là
+2×12px padding section, không phải bloat; 390px stack 171px.
+
+**Fix (owner 30/10):** nén tại padding, giữ nguyên inner row + 1 hàng căn giữa +
+bố cục stack mobile.
+- ≥1280: `#shipment-section-mode { padding: 6px 14px !important; }` → card
+  **71px** (đo lại bằng driver, AC ✓).
+- ≤640: `#shipment-section-mode { padding: 4px 8px !important; }` → card
+  **163px** (từ 171, −8px, stack legend → segmented → bulk giữ nguyên).
+
+**Regression guards:** `ShipmentCreateWorkspace.onescreen.styles.test.ts` (pin
+padding 6px), `ClerkShipmentCreatePage.styles.test.ts` (pin ≤640 padding 4px),
+`testplan/qa/scripts/qa-2026-10-30-sil604-band-measure.mjs` (đo card @1307/390,
+assert AC — artifacts `qa/2026-10-30_sil604_band-*`).
+

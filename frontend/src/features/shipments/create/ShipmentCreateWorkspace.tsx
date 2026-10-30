@@ -592,8 +592,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // Ticket 211026125242 (CUS-03) — RETIRED by SIL-513 (owner 26/10): the
   // "Copy giờ hẹn cho tất cả N cont" chip is gone. The copy-down button below
   // keeps filling only the still-empty rows, and the bulk "Ngày giờ đóng trả
-  // cho tất cả cont" field + Áp dụng path (SIL-511's surface) remain the
-  // overwrite route.
+  // cho tất cả cont" field rides its own Copy button — which QA ruling
+  // 15:10 (retest 30/10, ticket 710) turned into a REAL apply path: see
+  // applyBulkAppointmentToRows below.
 
   // FB-009 (2026-10-14): the per-row copy-time affordance — the time itself
   // lands in the OS clipboard so a clerk can paste it anywhere; the toast
@@ -601,6 +602,25 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // it renders whenever the row holds a schedule, never gated on siblings.
   function notifyAppointmentCopied(formatted: string) {
     toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` });
+  }
+
+  // QA ruling 15:10 (retest 30/10, ticket 710) — CUS-03 no longer accepts a
+  // clipboard-only band Copy: the button lived beside "Ngày giờ đóng trả cho
+  // tất cả cont", claimed success ("Đã copy giờ hẹn…") and wrote NOTHING,
+  // so the submit kept failing "Container N: chọn ngày giờ đóng/trả." The
+  // band Copy now WRITES the shared datetime into every container row that
+  // still lacks a schedule — after it runs, all rows hold a datetime and
+  // the per-container requirement is satisfied everywhere. Rows that
+  // already carry their own schedule keep it (the set-row law the
+  // copy-down button pins); the clipboard write stays as the bonus channel.
+  function applyBulkAppointmentToRows() {
+    if (!bulkAppointment) return;
+    const targetKeys = emptyAppointmentKeys(containers);
+    if (!targetKeys.size) return;
+    setContainers((current) => current.map((row) => (
+      targetKeys.has(row.key) ? { ...row, customerAppointmentAt: bulkAppointment } : row
+    )));
+    toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetKeys.size} container chưa có lịch` });
   }
 
   // SIL-513 (owner 26/10): the STT hover copy duplicates the row IN PLACE —
@@ -873,18 +893,19 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     disabled={controlsDisabled}
                     combinedPicker
                   />
-                  {/* FB-009 (card 131026233500, "nút copy thời gian vẫn không
-                      tồn tại ở bất kỳ đâu"): the section-level clipboard
-                      affordance the card looked for next to this group. It
-                      copies the value typed HERE — the copy-down button
-                      below fills sibling rows instead and is a different
-                      feature. */}
+                  {/* FB-009 (card 131026233500) put a clipboard affordance
+                      here; QA ruling 15:10 (retest 30/10, ticket 710)
+                      upgraded it: the button now ALSO WRITES the value
+                      typed HERE into every still-unscheduled container row
+                      (applyBulkAppointmentToRows — CUS-03), with the toast
+                      reporting the write. The clipboard copy stays as the
+                      bonus channel. */}
                   {bulkAppointmentCopyValue && (
                     <CopyCodeButton
                       className="csc-bulk-appointment__copy"
                       value={bulkAppointmentCopyValue}
                       label="giờ hẹn đóng trả"
-                      onCopied={() => notifyAppointmentCopied(bulkAppointmentCopyValue)}
+                      onCopied={() => applyBulkAppointmentToRows()}
                     />
                   )}
                 </div>

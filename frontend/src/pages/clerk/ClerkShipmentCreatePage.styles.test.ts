@@ -607,6 +607,13 @@ describe('create-page whole-sheet density (SIL-534)', () => {
 // The breakout mirror and the card padding it escapes are ONE number pair —
 // pin them together here so changing one without the other fails where the
 // relationship is written down (the CSS comment carries the same contract).
+describe('SIL-604 mode band density (QA retest 30/10)', () => {
+  it('the ≤640 stacked band compresses at the card padding; the legend → segmented → bulk stack stays', () => {
+    const mobile = css.slice(css.indexOf('@media (max-width: 640px)'));
+    expect(mobile).toMatch(/#shipment-section-mode \{ padding: 4px 8px !important; \}/);
+  });
+});
+
 describe('cargo table edge-to-edge breakout (SIL-612, owner 30/10)', () => {
   it('breaks the scroll container out by exactly the card padding it escapes', () => {
     // 14px card padding out ⇒ -14px mirror, +28px width.
