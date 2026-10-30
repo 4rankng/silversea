@@ -1,0 +1,27 @@
+✔ CUS workspace query accepts full numbers, separators, and 4-64 char suffixes (8.051ms)
+✔ CUS workspace query rejects invalid suffix search (0.48225ms)
+✔ overview query rejects the detail-only informationStatus parameter (0.124375ms)
+✔ container query accepts informationStatus=MISSING and defaults are shared (0.875583ms)
+✔ container query rejects unknown informationStatus values (0.254875ms)
+✔ container query keeps the shared transport-date order refinement (0.6105ms)
+✔ every missing-field code has a non-empty Vietnamese label (0.161875ms)
+✔ CUS workspace list item supports explicit unavailable custody state (8.981667ms)
+✔ CUS accounting confirmation response includes the Debit Note identity (0.469542ms)
+✔ CUS container-line update accepts inline new external carrier input (1.268292ms)
+✔ CUS container-line update accepts a container-specific customer appointment (0.236333ms)
+✔ CUS container-line update accepts the +07:00 offset appointment the ledger editor sends (0.18025ms)
+✔ CUS container-line update rejects a malformed appointment with a Vietnamese message (0.067375ms)
+✔ CUS container-line update accepts only normalized container identity and cargo fields (0.206833ms)
+✔ CUS container-line update rejects every finance field at the strict operational boundary (0.394333ms)
+✔ CUS container-line update rejects mixed existing and new external carrier input (0.488667ms)
+✔ CUS container-line update rejects inline external carrier for OWN carrier type (1.027167ms)
+✔ FCL factory update accepts the real site reference and rejects invalid ids (0.418416ms)
+✔ container flat row carries the SIL-592 staff-close gating fields (4.278375ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 463.444416
