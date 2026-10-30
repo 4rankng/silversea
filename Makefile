@@ -1,7 +1,7 @@
 .PHONY: dev stop down setup migrate generate build help \
         db-backup db-recreate db-drift-check devdb devdb-prod devdb-sync stgdb \
         stgqa stgqa-seed qapurge qapurge-dry \
-        demo deploy deploy-advance deploy-db-backup deploy-seed deploy-server-setup
+        demo deploy deploy-db-backup deploy-seed deploy-server-setup
 
 # ─── Ports ─────────────────────────────────────────────────────────────────────
 # PostgreSQL: 5441  |  Redis: 6391  |  Backend: 3002  |  Frontend: 7175  |  Adminer: 8083
@@ -309,11 +309,11 @@ demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps exis
 	@echo "✅ Demo deployed: https://$(DEMO_SERVER)"
 
 # ─── Prod deploy (silversea.tingting.vip) ─────────────────────────────────────
-# `make deploy` ships the `prod` branch AS-IS (no auto fast-forward): advance
-# prod deliberately (`make deploy-advance` from any branch), then run deploy
-# ON the prod branch — it refuses to run elsewhere or on a dirty tree, and
-# builds :prod images straight from that checkout (a separate channel from
-# demo's :latest, so neither flow can clobber the other's pull target).
+# `make deploy` runs from ANY branch (owner 30/10 — there is no prod branch,
+# only `main`) and ships the current committed tree AS-IS (no auto
+# fast-forward); it refuses a dirty tree and builds :prod images straight
+# from that checkout (a separate channel from demo's :latest, so neither flow
+# can clobber the other's pull target).
 #
 # Prereqs: one-time `make deploy-server-setup` (docker, nginx, certbot SSL,
 # /opt/silversea stack files); SSH access to root@silversea.tingting.vip;
@@ -322,16 +322,6 @@ demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps exis
 PROD_SERVER   := silversea.tingting.vip
 PROD_PATH     := /opt/silversea
 PROD_COMPOSE  := docker compose -f deploy/docker-compose.silversea.yml
-PROD_BRANCH   := main
-
-deploy-advance: ## Sync local main to origin/main (helper, run from any branch — NOT a deploy prerequisite)
-	@git fetch origin
-	@if [ "$$(git rev-parse --abbrev-ref HEAD)" = "$(PROD_BRANCH)" ]; then \
-		git merge --ff-only origin/main; \
-	else \
-		git fetch . origin/main:$(PROD_BRANCH); \
-	fi
-	@echo "$(PROD_BRANCH) advanced to $$(git rev-parse --short $(PROD_BRANCH))"
 
 deploy-db-backup: ## Server-side pg_dump of the prod DB (fails on failure) — run before manual prod data changes
 	bash deploy/silversea-server-db-backup.sh
@@ -387,6 +377,6 @@ help: ## Show this help
 	@echo "  Frontend 7175  ·  Backend 3002  ·  Postgres 5441  ·  Redis 6391  ·  Adminer 8083"
 	@echo ""
 	@echo "demo:  make demo  →  https://vantai.tingting.vip  (DB preserved)"
-	@echo "prod:  make deploy  →  https://silversea.tingting.vip  (ships the prod branch AS-IS, DB preserved)"
+	@echo "prod:  make deploy  →  https://silversea.tingting.vip  (any branch; ships the committed tree AS-IS, DB preserved)"
 
 .DEFAULT_GOAL := help
