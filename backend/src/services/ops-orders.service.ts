@@ -58,6 +58,7 @@ export async function listOpsOrders(
       id: s.shipments.id,
       shipmentCode: s.shipments.shipmentCode,
       status: s.shipments.status,
+      cargoMode: s.shipments.cargoMode,
       tradeDirection: s.shipments.tradeDirection,
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
@@ -130,9 +131,12 @@ export async function listOpsOrders(
       routeName: row.routeName,
       pinned: row.pinnedAt != null,
       pinnedAt: row.pinnedAt,
-      containerCount: numbered.length,
+      // SIL-601 (id 702): one LCL lot ≡ 1-cont lot — the count reads 1 (never
+      // the 0 its empty numbered rows produce). FCL keeps the numbered count.
+      containerCount: row.cargoMode === 'LCL' ? 1 : numbered.length,
       containerNumbers: numbered.map((pair) => pair.number),
       containerIds: numbered.map((pair) => pair.id),
+      cargoMode: row.cargoMode,
     };
   });
 }

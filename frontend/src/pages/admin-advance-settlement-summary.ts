@@ -3,6 +3,10 @@ import { OPS_EXPENSE_TYPE_DEFAULTS } from '@tingting/shared';
 export interface SettlementExpenseSummaryItem {
   tripId: number;
   containerNumber?: string | null;
+  /** SIL-601 (id 702): the owning lot's mode — an LCL lot counts as 1 cont. */
+  cargoMode?: 'FCL' | 'LCL' | null;
+  /** The owning lot id — the LCL unit is per-LOT, not per-trip (review M1). */
+  shipmentId?: number | null;
 }
 
 export interface SettlementPlanExpense extends SettlementExpenseSummaryItem {
@@ -44,11 +48,30 @@ export function summarizeSettlementExpenses(
   const items = expenses ?? [];
   const expenseCount = items.length;
   const tripCount = new Set(items.map(expense => expense.tripId)).size;
-  const containerCount = new Set(
+  const containerNumbers = new Set(
     items
       .map(expense => expense.containerNumber?.trim())
       .filter((containerNumber): containerNumber is string => Boolean(containerNumber)),
-  ).size;
+  );
+  // SIL-601 (id 702, owner ruling 30/10/2026): one LCL lot ≡ 1-cont lot — a
+  // numberless LCL lot contributes its virtual cont instead of the 0 the
+  // number-only count produced. The unit is per-LOT (review M1): a lot moved
+  // via several trips still counts 1. A lot whose expenses already carry a
+  // cont number is counted once through that number. FCL keeps counting
+  // numbered containers only.
+  const lclLotKeys = new Set<number>();
+  const lclLotsWithNumber = new Set<number>();
+  for (const expense of items) {
+    if (expense.cargoMode !== 'LCL') continue;
+    const lotKey = expense.shipmentId ?? expense.tripId;
+    lclLotKeys.add(lotKey);
+    if (expense.containerNumber?.trim()) lclLotsWithNumber.add(lotKey);
+  }
+  let lclVirtualUnits = 0;
+  for (const lotKey of lclLotKeys) {
+    if (!lclLotsWithNumber.has(lotKey)) lclVirtualUnits += 1;
+  }
+  const containerCount = containerNumbers.size + lclVirtualUnits;
 
   return {
     expenseCount,
@@ -104,11 +127,15 @@ export function groupSettlementExpensesByTrip(
       amount: (current?.amount ?? 0) + amount,
     });
 
-    row.containerCount = Math.max(
-      row.containerCount,
-      expense.tripContainerCount ?? 0,
-      row.containers.size,
-    );
+    // SIL-601 (id 702): one LCL lot ≡ 1-cont lot — a plan row for an LCL trip
+    // reads 1, never the 0 its empty container numbers produce.
+    row.containerCount = expense.cargoMode === 'LCL'
+      ? 1
+      : Math.max(
+        row.containerCount,
+        expense.tripContainerCount ?? 0,
+        row.containers.size,
+      );
   }
 
   return [...byTrip.values()]

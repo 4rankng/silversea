@@ -1,0 +1,238 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-702/frontend
+> vitest run
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-702/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+stderr | src/components/trip/ShipmentCostEntryDraft.test.tsx > driver cost draft table — evidence kind + all-or-nothing batch > two draft rows save as ONE batch call carrying both items
+An update to CostDraftRow inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/trip/ShipmentCostEntryDraft.test.tsx > driver cost draft table — evidence kind + all-or-nothing batch > two draft rows save as ONE batch call carrying both items
+An update to CostDraftRow inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/components/trip/ShipmentCostEntryDraft.test.tsx (5 tests | 1 failed) 3871ms
+     × two draft rows save as ONE batch call carrying both items 1898ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/trip/ShipmentCostEntryDraft.test.tsx > driver cost draft table — evidence kind + all-or-nothing batch > two draft rows save as ONE batch call carrying both items
+AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<section[39m
+        [33maria-label[39m=[32m"Chi phí chuyến"[39m
+        [33mclass[39m=[32m"shipment-cost-entry"[39m
+      [36m>[39m
+        [36m<header[39m
+          [33mclass[39m=[32m"shipment-cost-entry__head"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<h2[39m
+              [33mclass[39m=[32m"shipment-cost-entry__title"[39m
+            [36m>[39m
+              [0mChi phí lô hàng & tiền đường[0m
+            [36m</h2>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"shipment-cost-entry__subtitle"[39m
+            [36m>[39m
+              [0mGhi khoản thực tế bạn đã chi; kế toán đối chiếu và thanh toán riêng.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</header>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"shipment-cost-entry__empty"[39m
+          [33mdata-testid[39m=[32m"shipment-cost-route-reference"[39m
+        [36m>[39m
+          [0mChưa có định mức tiền tuyến. Nhập số tiền thực tế; chưa có định mức không có nghĩa là 0đ.[0m
+        [36m</p>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"ds-empty-state ds-empty-state--compact"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"ds-empty-state__message"[39m
+          [36m>[39m
+            [36m<img[39m
+              [33malt[39m=[32m""[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"ds-empty-state__illustration"[39m
+              [33msrc[39m=[32m"/assets/illustrations/empty-costs.webp"[39m
+            [36m/>[39m
+            [36m<h3[39m
+              [33mclass[39m=[32m"ds-empty-state__title"[39m
+            [36m>[39m
+              [0mChưa có chi phí phát sinh[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"ds-empty-state__description"[39m
+            [36m>[39m
+              [0mThêm khoản thực chi trong chuyến; kế toán đối chiếu và thanh toán riêng.[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"shipment-cost-entry__tables"[39m
+        [36m>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"Bảng Chi phí lô hàng"[39m
+            [33mclass[39m=[32m"shipment-cost-entry__table"[39m
+          [36m>[39m
+            [36m<h3[39m
+              [33mclass[39m=[32m"shipment-cost-entry__table-title"[39m
+            [36m>[39m
+              [0mChi phí lô hàng[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"shipment-cost-entry__empty"[39m
+            [36m>[39m
+              [0mChưa có chi phí lô hàng phát sinh.[0m
+            [36m</p>[39m
+          [36m</section>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"Bảng Tiền đường"[39m
+            [33mclass[39m=[32m"shipment-cost-entry__table"[39m
+          [36m>[39m
+            [36m<h3[39m
+              [33mclass[39m=[32m"shipment-cost-entry__table-title"[39m
+            [36m>[39m
+              [0mTiền đường[0m
+            [36m</h3>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"shipment-cost-entry__empty"[39m
+            [36m>[39m
+              [0mChưa có tiền đường phát sinh.[0m
+            [36m</p>[39m
+          [36m</section>[39m
+        [36m</div>[39m
+        [36m<form[39m
+          [33mclass[39m=[32m"shipment-cost-entry__form"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"btn btn--secondary btn--sm shipment-cost-entry__draft-add"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-plus"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"15"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"15"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M5 12h14"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 5v14"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0m Thêm dòng[0m
+          [36m</button>[39m
+          [36m<section[39m
+            [33maria-label[39m=[32m"Khoản chi 1"[39m
+            [33mclass[39m=[32m"shipment-cost-entry__draft-row"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"shipment-cost-entry__draft-row-head"[39m
+            [36m>[39m
+              [36m<strong>[39m
+                [0mKhoản [0m
+                [0m1[0m
+              [36m</strong>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"btn btn--ghost btn--sm"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [0mXóa dòng[0m
+              [36m</button>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Nhóm chi phí lái xe"[39m
+              [33mclass[39m=[32m"ds-tabs ds-tabs--boxed d-tabs-boxed"[39m
+              [33mdata-control-group[39m=[32m"compact"[39m
+              [33mrole[39m=[32m"tablist"[39m
+            [36m>[39m
+              [36m<button[39m
+                [33maria-selected[39m=[32m"true"[39m
+                [33mclass[39m=[32m"ds-tabs__btn d-tab ds-tabs__btn--active"[39m
+                [33mid[39m=[32m"ds-tab-_r_12_-DRIVER_SHIPMENT"[39m
+                [33mrole[39m=[32m"tab"[39m
+                [33mtabindex[39m=[32m"0"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"ds-tabs__label"[39m
+                [36m>[39m
+                  [0mChi phí lô hàng[0m
+                [36m</span>[39m
+              [36m</button>[39m
+              [36m<button[39m
+                [33maria-selected[39m=[32m"false"[39m
+                [33mclass[39m=[32m"ds-tabs__btn d-tab"[39m
+                [33mid[39m=[32m"ds-tab-_r_12_-DRIVER_ROAD"[39m
+                [33mrole[39m=[32m"tab"[39m
+                [33mtabindex[39m=[32m"-1"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"ds-tabs__label"[39m
+                [36m>[39m
+                  [0mTiền đường[0m
+                [36m</s...
+ ❯ src/components/trip/ShipmentCostEntryDraft.test.tsx:97:59
+     95|
+     96|     fireEvent.click(screen.getByRole('button', { name: 'Lưu tất cả (2 …
+     97|     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCa…
+       |                                                           ^
+     98|     expect(api.createIncidentalCosts.mock.calls[0][1]).toHaveLength(2);
+     99|     expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObjec…
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 759 passed (760)
+      Tests  1 failed | 5898 passed (5899)
+   Start at  16:46:28
+   Duration  972.72s (transform 49.24s, setup 342.50s, import 1505.92s, tests 1364.05s, environment 1459.18s)
+
+ ELIFECYCLE  Test failed. See above for more details.

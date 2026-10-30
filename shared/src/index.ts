@@ -34,6 +34,7 @@ export {
   CustomerAccountType, SupplierType, SUPPLIER_TYPES, SUPPLIER_TYPE_LABELS,
   LclVehicleSourcing, LCL_VEHICLE_SOURCING_LABELS, lclVehicleSourcingRule,
   parseTonnageKg, assessLclCargoFit,
+  effectiveLotContainerCount, LCL_LOT_CONTAINER_COUNT,
   effectiveBillingPlate,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
   LCL_PICKUP_TRAILER_TYPE,

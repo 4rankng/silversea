@@ -595,7 +595,13 @@ export function buildTripRenderData(input: {
     deliveryAddress: input.legs?.destination ?? null,
     container20Count: countContainers(input.containers, '20') || null,
     container40Count: countContainers(input.containers, '40') || null,
-    containerCount: containerCount || null,
+    // SIL-601 (id 702, owner ruling 30/10/2026): one LCL lot ≡ 1-cont lot —
+    // the render qty reads 1 whether or not the dispatch path wrote its
+    // synthetic `__fulfillment_lcl` trip_containers row (a containerless trip
+    // used to render null → blank qty). FCL keeps `|| null`: a missing count
+    // is never fabricated. The 20/40 split above stays empty for LCL — the
+    // virtual cont carries no size.
+    containerCount: input.trip.cargoMode === 'LCL' ? 1 : (containerCount || null),
     fuelSurchargeAmount: Number(input.trip.fuelSurchargeAmount ?? 0),
     note: input.note ?? null,
   };

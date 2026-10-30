@@ -237,6 +237,8 @@ export async function listAdvanceSettlements(filters?: { forwarderId?: number; s
         customerName: s.customers.name,
         routeName: s.routes.name,
         tripContainerCount: s.trips.containerCount,
+        shipmentId: s.trips.shipmentId,
+        cargoMode: s.shipments.cargoMode,
         expenseTypeName: s.forwarderExpenseTypes.name,
         truckPlate: s.trucks.licensePlate,
       }).from(s.tripExpenses)
@@ -244,6 +246,9 @@ export async function listAdvanceSettlements(filters?: { forwarderId?: number; s
         .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
         .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
         .leftJoin(s.trucks, eq(s.trips.truckId, s.trucks.id))
+        // SIL-601 (id 702): the lot's mode lets the FE count an LCL lot as 1
+        // cont instead of the 0 its empty container numbers produce.
+        .leftJoin(s.shipments, eq(s.trips.shipmentId, s.shipments.id))
         .leftJoin(s.tripContainers, eq(s.tripExpenses.tripContainerId, s.tripContainers.id))
         .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
         .where(inArray(s.tripExpenses.id, expenseIds));

@@ -9,7 +9,7 @@ import { CARGO_MODE } from '../db/schema';
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { ApiError } from '../errors';
-import { localDateInBusinessZone } from '@tingting/shared';
+import { effectiveLotContainerCount, localDateInBusinessZone } from '@tingting/shared';
 import type { DispatchSummary, TripPairKind } from '@tingting/shared';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
@@ -126,7 +126,7 @@ async function buildShipmentPricingProjection(
     cargoTypeId: shipment.cargoTypeId,
     date: shipment.expectedDeliveryDate,
     cargoWeightKg: shipment.cargoWeightKg,
-    containerCount: containers.length,
+    containerCount: effectiveLotContainerCount(shipment.cargoMode, containers.length),
     containerTypeIds: containers.map((container) => container.containerTypeId),
     containerPricingLines: shipment.cargoMode === CARGO_MODE.FCL
       ? containers.map((container) => ({

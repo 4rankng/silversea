@@ -166,7 +166,12 @@ export default function OpsOrdersPage() {
                   <td data-label="Container">
                     {order.containerCount === 0
                       ? <span className="ops-orders__route-missing">Chưa có cont</span>
-                      : `${order.containerCount} · ${order.containerNumbers.join(', ')}`}
+                      : order.containerNumbers.length > 0
+                        ? `${order.containerCount} · ${order.containerNumbers.join(', ')}`
+                        // SIL-601 (id 702): an LCL lot is 1 lô cont 1 cont —
+                        // print the count (old wire without cargoMode falls
+                        // back to the same count-without-numbers shape).
+                        : `${order.containerCount} cont`}
                   </td>
                   <td data-label="Trạng thái"><span style={{ color: status.color }}>{status.label}</span></td>
                   <td className="col-actions">

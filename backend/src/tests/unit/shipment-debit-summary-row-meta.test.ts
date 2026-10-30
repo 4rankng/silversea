@@ -5,6 +5,11 @@
  * data instead of a blank. Static source pin + schema parse checks (the
  * backend tests are unit-only by the 2026-10-19 owner ruling — no DB/app
  * fixtures here; the E2E identity check lives in qa/scripts/).
+ *
+ * SIL-601 (id 702, owner ruling 30/10/2026) supersedes the Σ semantics for
+ * LCL only: one LCL lot ≡ 1-cont lot ("không phải 0 cont, không phải nhiều
+ * cont") — the projection routes LCL through the shared count law while FCL
+ * keeps the active-trip Σ.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -31,9 +36,12 @@ test('sums container_count over the ACTIVE trip scope (non-deleted, non-CANCELED
   assert.doesNotMatch(countBlock, /fulfillmentId/);
 });
 
-test('maps deliveryDate + containerCount, null when the lot has no active trips', () => {
+test('maps deliveryDate + containerCount under the SIL-601 LCL count law', () => {
   assert.match(source, /deliveryDate:\s*lot\.expectedDeliveryDate \?\? null/);
-  assert.match(source, /containerCount:\s*tripCountByLot\.has\(lot\.id\) \? \(containerCountByLot\.get\(lot\.id\) \?\? null\) : null/);
+  // SIL-601 (id 702): the lot's cont count routes through the shared law
+  // (LCL ≡ 1 cont, never 0/Σ); the FCL value keeps the active-trip Σ with
+  // the null-when-no-trips missing semantics.
+  assert.match(source, /containerCount:\s*effectiveLotContainerCount\(lot\.cargoMode, tripCountByLot\.has\(lot\.id\) \? \(containerCountByLot\.get\(lot\.id\) \?\? null\) : null\)/);
 });
 
 const baseRow = {
