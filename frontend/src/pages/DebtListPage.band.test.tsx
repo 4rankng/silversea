@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getCustomerAging = vi.fn();
 const getBlob = vi.fn();
 const getPhoiPhieuReport = vi.hoisted(() => vi.fn());
+const animateCounters = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/financialClient', () => ({
   financialClient: { getCustomerAging: (...args: unknown[]) => getCustomerAging(...args) },
@@ -36,11 +37,14 @@ vi.mock('../components/shared/Toast', () => ({
 vi.mock('../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: { current: null } }),
   useListAnimations: () => ({ rootRef: { current: null } }),
-  useCounterAnimation: () => ({ animateCounters: vi.fn() }),
+  // SIL-599 C4 pin: the band must never engage the count-up hook again.
+  useCounterAnimation: () => ({ animateCounters }),
 }));
 
+// Any reintroduced count-up path must fall into the C4 pins below — a `true`
+// here would let a prefersReduced-gated animation slip through unnoticed.
 vi.mock('../hooks/usePrefersReducedMotion', () => ({
-  usePrefersReducedMotion: () => true,
+  usePrefersReducedMotion: () => false,
 }));
 
 import DebtListPage from './DebtListPage';
@@ -99,6 +103,7 @@ beforeEach(() => {
   getCustomerAging.mockReset().mockResolvedValue(envelope);
   getBlob.mockReset();
   getPhoiPhieuReport.mockReset().mockResolvedValue({ rows: [], grand: null });
+  animateCounters.mockClear();
 });
 
 describe('DebtListPage summary band (SIL-469)', () => {
@@ -122,10 +127,65 @@ describe('DebtListPage summary band (SIL-469)', () => {
     // d30 and d60 both carry 9 customers — two buckets share the count.
     expect(within(band).getAllByText('· 9 KH')).toHaveLength(2);
     expect(within(band).getByText('· 4 KH')).toBeTruthy();
+    // SIL-599 C1 — the four bands are TUỔI NỢ (recording-date age), never
+    // due-status wording over age data.
+    expect(within(band).getAllByText('Tuổi nợ')).toHaveLength(4);
+    expect(within(band).getByText('0–30 ngày')).toBeTruthy();
+    expect(within(band).getByText('31–60 ngày')).toBeTruthy();
+    expect(within(band).getByText('61–90 ngày')).toBeTruthy();
+    expect(within(band).getByText('trên 90 ngày')).toBeTruthy();
+    // SIL-599 C2 — "quá hạn" survives exactly once in the band: the
+    // contractual KPI chip. The bands no longer speak the word.
+    expect(within(band).getByText('17 quá hạn')).toBeTruthy();
+    expect(within(band).getAllByText(/quá hạn/i)).toHaveLength(1);
+    expect(within(band).queryByText(/chưa đến hạn/i)).toBeNull();
     // The former rail/disclosure surfaces are gone from the page.
     expect(document.querySelector('.summary-rail')).toBeNull();
     expect(document.querySelector('.debt-aging-grid')).toBeNull();
     expect(document.querySelector('.financial-aging-disclosure')).toBeNull();
+  });
+
+  it('explains both rules in band tooltips (SIL-599 C2)', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty A');
+
+    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
+    // Contractual face — the chip names the due-date rule and its fallback.
+    const chip = within(band).getByText('17 quá hạn');
+    expect(chip.getAttribute('title')).toContain('hạn thanh toán');
+    expect(chip.getAttribute('title')).toContain('đến hạn tại ngày ghi nhận');
+    // Age face — the aging block names the recording-date rule and cuts.
+    const aging = band.querySelector<HTMLElement>('.debt-band__aging');
+    expect(aging?.getAttribute('title')).toContain('ngày ghi nhận');
+    expect(aging?.getAttribute('title')).toContain('31–60');
+  });
+
+  it('C4: every band figure degrades to "—" until the totals settle', () => {
+    const { promise: pending } = Promise.withResolvers<unknown>();
+    getCustomerAging.mockReturnValue(pending);
+    renderPage();
+
+    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
+    // hero + 2 chips + 4 bucket figures — never a 0 ₫ placeholder.
+    expect(within(band).getAllByText('—')).toHaveLength(7);
+    expect(within(band).queryByText('0')).toBeNull();
+    // Review F2: the bar's screen-reader label degrades too, never "0 ₫".
+    const bar = band.querySelector<HTMLElement>('.debt-band__bar');
+    expect(bar?.getAttribute('aria-label')).toContain('đang tải số liệu');
+    expect(bar?.getAttribute('aria-label')).not.toContain('0 ₫');
+  });
+
+  it('C4: settled figures print the final values in one pass — never a count-up', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty A');
+
+    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
+    const amounts = [...band.querySelectorAll<HTMLElement>('.debt-band__bucket-amount')].map((el) => el.textContent);
+    expect(amounts).toEqual(['3.007.273.111', '981.572.224', '396.388.600', '22.864.000']);
+    expect(within(band).getByText('4.408.097.935')).toBeTruthy();
+    const bar = band.querySelector<HTMLElement>('.debt-band__bar');
+    expect(bar?.getAttribute('aria-label')).toContain('0–30 ngày 3.007.273.111 ₫');
+    expect(animateCounters).not.toHaveBeenCalled();
   });
 
   it('sizes the aging bar segments proportionally to the bucket money', async () => {
@@ -157,16 +217,19 @@ describe('DebtListPage summary band (SIL-469)', () => {
     await screen.findAllByText('Công ty A');
 
     const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
-    fireEvent.click(within(band).getByRole('button', { name: /Quá hạn 1–30: / }));
+    // vi.fn() keeps mock args loosely typed — narrow instead of casting.
+    const isBucketParam = (call: unknown): call is { bucket: string } =>
+      typeof call === 'object' && call !== null && 'bucket' in call && typeof call.bucket === 'string';
+    fireEvent.click(within(band).getByRole('button', { name: /Tuổi nợ 31–60 ngày: / }));
 
-    await waitFor(() => expect(getCustomerAging.mock.calls.some((c) => (c[0] as { bucket?: string }).bucket === 'd30')).toBe(true));
+    await waitFor(() => expect(getCustomerAging.mock.calls.some((c) => isBucketParam(c[0]) && c[0].bucket === 'd30')).toBe(true));
 
     // Re-render with the filter applied → the matching bucket is pressed.
     getCustomerAging.mockClear().mockResolvedValue(envelope);
     renderPage('/?filter=d30');
     await screen.findAllByText('Công ty A');
-    const pressed = document.querySelector('.debt-band__bucket.is-active[aria-pressed="true"]') as HTMLElement;
-    expect(pressed?.getAttribute('aria-label')).toContain('Quá hạn 1–30');
+    const pressed = document.querySelector<HTMLElement>('.debt-band__bucket.is-active[aria-pressed="true"]');
+    expect(pressed?.getAttribute('aria-label')).toContain('Tuổi nợ 31–60 ngày');
   });
 
   it('colors the row overdue badge by bucket and folds the status into the total cell', async () => {

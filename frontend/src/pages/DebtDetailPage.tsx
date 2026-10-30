@@ -2,10 +2,11 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatCurrency, formatDate } from '../lib/format';
-import { TxnType } from '@tingting/shared';
+import { TxnType, calendarDaysPastDue } from '@tingting/shared';
 import type { LedgerEntry, PaymentReceiptResponse } from '@tingting/shared';
 import { AlertTriangle, Download, Phone, Building2, ArrowLeft, Plus, X, Loader2, Save, Truck } from 'lucide-react';
 import { useCustomerStatement, useSupplierStatement } from '../hooks/useQueries';
+import { financialClient, type CustomerAging } from '../api/financialClient';
 import { api } from '../lib/api';
 import { Modal } from '../components/UI';
 import { FilterBar, NumberField, Tabs } from '../design-system';
@@ -26,7 +27,7 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table
 import './DebtDetailPage.css';
 import '../styles/table-sort.css';
 import { money, rowTypeLabel, FILTER_OPTIONS, type LedgerFilter, type WorkspaceTab } from './debt-detail-ledger';
-import { AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
+import { AR_AGING_RANGES, normalizeAging, activeAgingIndex, AGE_RULE_TIP, OVERDUE_RULE_TIP } from '../components/debt/aging';
 import { PeriodFilter, resolvePeriodRange, initialPeriodState, applyModeSwitch } from '../components/debt/PeriodFilter';
 import { PeriodSummaryCards } from '../components/debt/PeriodSummaryCards';
 import { matchLinkedSupplierStatement } from './linked-supplier-statement';
@@ -194,6 +195,21 @@ export default function DebtDetailPage() {
   const apBalance = matchedSupplierStatement?.totalOutstanding ?? dualEntity?.apBalance ?? 0;
   const arBalance = profileStatement?.totalOutstanding ?? 0;
 
+  // SIL-599 C3 (review F1): the pill must print the /debt list's OWN
+  // contractual span — the aging row's `maxOverdueDays` (the snapshot
+  // authority: every open obligation incl. service fees/offsets, FIFO credit
+  // netting), so pill and list can never disagree. Narrowed by name, matched
+  // by id; a stale/absent row falls back to the unpaidTrips rule below.
+  const { data: agingRow, isSuccess: agingRowSettled, isError: agingRowFailed } = useQuery({
+    queryKey: qk.financial.customerAging({ search: profileStatement?.customer.name ?? '', limit: 200 }),
+    queryFn: async (): Promise<CustomerAging | null> => {
+      const res = await financialClient.getCustomerAging({ search: profileStatement?.customer.name ?? '', limit: 200 });
+      return res?.customers?.find((row) => row.customerId === customerId) ?? null;
+    },
+    enabled: !!profileStatement && customerId != null,
+    staleTime: 2 * 60 * 1000,
+  });
+
   // ── Derived data ────────────────────────────────────────────────────────
 
   const agingAmounts = useMemo(() =>
@@ -226,6 +242,28 @@ export default function DebtDetailPage() {
       .filter((row) => row.txnType === TxnType.PAYMENT_RECEIVED)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] ?? null;
   }, [profileStatement]);
+
+  // SIL-599 C3 fallback: whole days past the effective due date over the open
+  // trip/billing obligations (processingDueDate ?? originalDueDate; nothing
+  // frozen = due at its recording date, the house fallback inside
+  // calendarDaysPastDue) — the statement carries due dates for those
+  // obligations alone, so the aging row above wins whenever it resolves.
+  const unpaidOverdueDays = useMemo(() => {
+    const now = new Date();
+    return (profileStatement?.unpaidTrips ?? []).reduce((max, trip) => {
+      if (trip.outstanding <= 0) return max;
+      const span = calendarDaysPastDue(
+        trip.processingDueDate ?? trip.originalDueDate ?? null,
+        trip.issueTimestamp ?? trip.date,
+        now,
+      );
+      return span > max ? span : max;
+    }, 0);
+  }, [profileStatement?.unpaidTrips]);
+  const overdueDays = agingRow?.maxOverdueDays ?? unpaidOverdueDays;
+  // Review F1 residual: never claim a due-status before the list row settles —
+  // in flight the pill stays neutral instead of flashing a narrower number.
+  const agingSettled = agingRowSettled || agingRowFailed;
 
   const totalOutstanding = profileStatement?.totalOutstanding ?? 0;
 
@@ -262,7 +300,7 @@ export default function DebtDetailPage() {
   const agingTotal = agingAmounts.reduce((s, a) => s + a, 0) || 1; // avoid /0
   const unpaidTrips = profileStatement.unpaidTrips ?? [];
   const oldestUnpaidTrip = unpaidTrips[0] ?? null;
-  const activeAgingRange = activeAgingIdx >= 0 ? AGING_RANGES[activeAgingIdx] : null;
+  const activeAgingRange = activeAgingIdx >= 0 ? AR_AGING_RANGES[activeAgingIdx] : null;
   const activeAgingAmount = activeAgingIdx >= 0 ? agingAmounts[activeAgingIdx] : 0;
   // Workspace navigation — the shared boxed Tabs primitive (2026-09-27 ruling);
   // each cell keeps its two lines (business name + secondary meta line).
@@ -379,7 +417,11 @@ export default function DebtDetailPage() {
               Khách hàng doanh nghiệp
             </span>
             {hasDebt ? (
-              <span className="dd-tag dd-tag--warn dd-tag--dot">Còn nợ trong hạn</span>
+              <span className="dd-tag dd-tag--warn dd-tag--dot" title={OVERDUE_RULE_TIP}>
+                {!agingSettled
+                  ? 'Còn nợ'
+                  : overdueDays > 0 ? `Còn nợ quá hạn · ${overdueDays} ngày` : 'Còn nợ trong hạn'}
+              </span>
             ) : (
               <span className="dd-tag dd-tag--ok dd-tag--dot">Đã thanh toán đủ</span>
             )}
@@ -423,7 +465,7 @@ export default function DebtDetailPage() {
           <small>{lastPayment ? formatDate(lastPayment.timestamp) : 'Chưa có phiếu thu'}</small>
         </article>
         <article className="dd-account-card">
-          <span>Nhóm hạn nợ nổi bật</span>
+          <span>Nhóm tuổi nợ nổi bật</span>
           <strong>{activeAgingRange ? activeAgingRange.label : 'Không nợ'}</strong>
           <small>{activeAgingRange ? money(activeAgingAmount) : 'Không có số dư'}</small>
         </article>
@@ -495,22 +537,22 @@ export default function DebtDetailPage() {
 
       {/* ── Aging Summary ───────────────────────────────────────────────── */}
       <details className="dd-aging-disclosure">
-        <summary>Phân bổ hạn nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${money(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
+        <summary>Phân bổ theo tuổi nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${money(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
       <section className="dd-summary dd-summary--aging">
         <div className="dd-sum-top">
           <div>
-            <div className="dd-sum-label">PHÂN BỔ HẠN NỢ</div>
+            <div className="dd-sum-label">PHÂN BỔ THEO TUỔI NỢ</div>
             <p className="dd-sum-copy">
               {hasDebt
-                ? 'Theo dõi phần công nợ nào đang tiến gần hạn hoặc đã quá hạn.'
+                ? 'Phân bổ dư nợ theo tuổi ghi nhận — càng cũ càng cần ưu tiên thu hồi.'
                 : 'Khách hàng không còn công nợ đang mở.'}
             </p>
             {hasDebt && (
               <div className="dd-sum-note">
                 <AlertTriangle size={17} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                 {activeAgingIdx <= 0
-                  ? 'Toàn bộ công nợ chưa đến hạn — cần theo dõi thu hồi.'
-                  : `Có công nợ ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thu hồi.`
+                  ? 'Toàn bộ công nợ trong nhóm tuổi 0–30 ngày — cần theo dõi thu hồi.'
+                  : `Có công nợ ở nhóm ${AR_AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thu hồi.`
                 }
               </div>
             )}
@@ -533,8 +575,8 @@ export default function DebtDetailPage() {
         </div>
 
         {/* Aging grid */}
-        <div className="dd-aging-grid">
-          {AGING_RANGES.map((range, i) => {
+        <div className="dd-aging-grid" title={AGE_RULE_TIP}>
+          {AR_AGING_RANGES.map((range, i) => {
             const amt = agingAmounts[i];
             const isActive = i === activeAgingIdx;
             const pct = agingTotal > 0 ? Math.round((amt / agingTotal) * 100) : 0;

@@ -1,0 +1,868 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 1f888d70..d2c3abc3 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,37 @@
+ # Changelog
+ 
++## 2026-10-30 — fix(ux): SIL-599 (id 699) — /debt tách bạch "tuổi nợ" và "quá hạn hợp đồng", band hết nháy số liệu
++
++QA Glint: `/debt` tự mâu thuẫn với chính nó và với chi tiết — pill "2 quá hạn",
++dòng "Nợ quá hạn / 6 ngày", nhưng band "0 ₫ · 0 KH quá hạn" mọi băng và
++`/debt/:id` ghi "Còn nợ trong hạn" 100% ở CHƯA ĐẾN HẠN. Nhãn band "QUÁ HẠN
++1–30…" khoác lên dữ liệu TUỔI NỢ (cắt 0–30/31–60/61–90/trên 90 — ruling 29/10);
++thẻ "Trong hạn" nháy giá trị trung gian (4.796.430 → 4.972.918 → 5.500.000 ₫)
++rồi mới chốt.
++
++Fix (pattern A — webchat gemini 30/10: "không thể đánh tráo bản chất kế toán…
++Tách biệt rõ hai khái niệm"; pattern B gộp nhãn sẽ mất tín hiệu cảnh báo nợ xấu):
++- C1 band + grid chi tiết đổi nhãn "TUỔI NỢ 0–30 / 31–60 / 61–90 / trên 90
++  ngày" (`AR_AGING_RANGES` mới trong `components/debt/aging.ts`); nhãn AP giữ
++  nguyên — re-anchor AP là ticket riêng (out-of-scope note SIL-580).
++- C2 chữ "quá hạn" chỉ còn ở KPI quá hạn hợp đồng (chip "N quá hạn", trạng thái
++  "Nợ quá hạn", cột "Quá hạn N ngày"); tooltip giải thích cả 2 mặt trên cả 2
++  trang (tuổi nợ = số ngày từ ngày ghi nhận; quá hạn = hạn xử lý → hạn gốc,
++  không có hạn thì đến hạn tại ngày ghi nhận).
++- C3 pill `/debt/:id` khớp danh sách: "Còn nợ quá hạn · N ngày" / "Còn nợ trong
++  hạn" / "Đã thanh toán đủ" — N lấy CHÍNH `maxOverdueDays` của dòng khách trên
++  endpoint aging (giống hệt cột "Quá hạn N ngày"); fallback cold-load tính qua
++  `calendarDaysPastDue` trên unpaidTrips (cùng due-date authority, domain hẹp
++  hơn — review F1).
++- C4 band hiện "—" khi totals chưa tải (pattern band /payables card 071026141620),
++  figure hiện giá trị cuối ngay — bỏ count-up 0 ₫ trung gian.
++
++Tests: `DebtListPage.band.test.tsx` (C1 nhãn, C2 "quá hạn" chỉ ở chip + tooltip
++title pins, C4 "—"/không count-up), `debt-payable-aging.test.tsx` (C1 grid AR đổi
++nhãn / AP giữ nguyên, C3 pill 3 trạng thái + tooltip pins). Sửa pin lạc hậu:
++`DebtListPage.filters.test.tsx` (cột share "Tuổi nợ 31–60 ngày"). Case:
++`testplan/2026-10-30-sil599-debt-labels-tuoi-no.md`.
++
+ ## 2026-10-30 — fix(ux): SIL-597 (id 697) — ô "Ngày giờ đóng trả" trong bảng Thông tin hàng value-first, hết lộ khung input
+ 
+ QA Glint: cột NGÀY GIỜ ĐÓNG TRẢ của từng container trên `/shipments/new`
+diff --git a/frontend/src/components/debt/aging.ts b/frontend/src/components/debt/aging.ts
+index 88b7af32..a398b87d 100644
+--- a/frontend/src/components/debt/aging.ts
++++ b/frontend/src/components/debt/aging.ts
+@@ -2,13 +2,29 @@ import type { AgingBucket } from '@tingting/shared';
+ 
+ /**
+  * Aging-bucket model shared by the AR (DebtDetailPage) and AP
+- * (PayableDetailPage) statement pages. Both render the same four ranges,
++ * (PayableDetailPage) statement pages. Both render the same four slots,
+  * the same bar/grid markup (dd-aging-*), and derive the highlighted bucket
+- * the same way — only the statement queries and txn-type metadata differ.
+- * Card 061026221213: the bands are contractual due-status bands (days past
+- * the effective due date, cut at 30/90 — see computeFifoAging), never age.
++ * the same way — only the statement queries, txn-type metadata and slot
++ * LABELS differ:
++ * - AR slots are TUỔI NỢ — whole days since the recording date, cut at
++ *   30/60/90 (owner ruling 29/10, SIL-580 R3). SIL-599 re-labelled the
++ *   bands so they stop reading as due status.
++ * - AP keeps the contractual wording ("CHƯA ĐẾN HẠN" / "QUÁ HẠN…") until
++ *   its own re-anchor lands (SIL-580 out-of-scope note).
+  */
+ 
++/** SIL-599 — the four AR age cuts (whole days since the recording date,
++ *  ruling 29/10): one source for the band and the grid wording (review F3). */
++export const AR_AGE_RANGES = ['0–30 ngày', '31–60 ngày', '61–90 ngày', 'trên 90 ngày'] as const;
++
++const AR_DOT_COLORS = ['var(--accent)', 'var(--warning)', 'var(--warning-deep, #914A16)', 'var(--danger)'] as const;
++
++export const AR_AGING_RANGES = AR_AGE_RANGES.map((range, index) => ({
++  label: `TUỔI NỢ ${range.toUpperCase()}`,
++  dotColor: AR_DOT_COLORS[index],
++  index,
++}));
++
+ export const AGING_RANGES = [
+   { label: 'CHƯA ĐẾN HẠN',        dotColor: 'var(--accent)',  index: 0 },
+   { label: 'QUÁ HẠN 1–30 NGÀY',   dotColor: 'var(--warning)', index: 1 },
+@@ -16,6 +32,14 @@ export const AGING_RANGES = [
+   { label: 'QUÁ HẠN TRÊN 90 NGÀY', dotColor: 'var(--danger)', index: 3 },
+ ] as const;
+ 
++/** SIL-599 C2 — one definition per word, carried by the hover tooltips on
++ *  both AR surfaces (list band + detail pill/grid), so "quá hạn" never
++ *  silently means "tuổi nợ" again. */
++export const AGE_RULE_TIP =
++  'Tuổi nợ: số ngày từ ngày ghi nhận khoản đến hôm nay — bốn băng 0–30 / 31–60 / 61–90 / trên 90 ngày.';
++export const OVERDUE_RULE_TIP =
++  'Quá hạn hợp đồng: số ngày vượt hạn thanh toán (hạn xử lý, hạn gốc; không có hạn thì đến hạn tại ngày ghi nhận).';
++
+ /** Map backend agingBuckets (ordered 0→90+) to a fixed 4-slot amount array. */
+ export function normalizeAging(buckets: AgingBucket[]): number[] {
+   const amounts = [0, 0, 0, 0];
+diff --git a/frontend/src/pages/DebtDetailPage.tsx b/frontend/src/pages/DebtDetailPage.tsx
+index 3075e8c3..bdccbad9 100644
+--- a/frontend/src/pages/DebtDetailPage.tsx
++++ b/frontend/src/pages/DebtDetailPage.tsx
+@@ -2,10 +2,11 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
+ import { useParams, useNavigate, useLocation } from 'react-router-dom';
+ import { useQuery, useQueryClient } from '@tanstack/react-query';
+ import { formatCurrency, formatDate } from '../lib/format';
+-import { TxnType } from '@tingting/shared';
++import { TxnType, calendarDaysPastDue } from '@tingting/shared';
+ import type { LedgerEntry, PaymentReceiptResponse } from '@tingting/shared';
+ import { AlertTriangle, Download, Phone, Building2, ArrowLeft, Plus, X, Loader2, Save, Truck } from 'lucide-react';
+ import { useCustomerStatement, useSupplierStatement } from '../hooks/useQueries';
++import { financialClient, type CustomerAging } from '../api/financialClient';
+ import { api } from '../lib/api';
+ import { Modal } from '../components/UI';
+ import { FilterBar, NumberField, Tabs } from '../design-system';
+@@ -26,7 +27,7 @@ import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table
+ import './DebtDetailPage.css';
+ import '../styles/table-sort.css';
+ import { money, rowTypeLabel, FILTER_OPTIONS, type LedgerFilter, type WorkspaceTab } from './debt-detail-ledger';
+-import { AGING_RANGES, normalizeAging, activeAgingIndex } from '../components/debt/aging';
++import { AR_AGING_RANGES, normalizeAging, activeAgingIndex, AGE_RULE_TIP, OVERDUE_RULE_TIP } from '../components/debt/aging';
+ import { PeriodFilter, resolvePeriodRange, initialPeriodState, applyModeSwitch } from '../components/debt/PeriodFilter';
+ import { PeriodSummaryCards } from '../components/debt/PeriodSummaryCards';
+ import { matchLinkedSupplierStatement } from './linked-supplier-statement';
+@@ -194,6 +195,21 @@ export default function DebtDetailPage() {
+   const apBalance = matchedSupplierStatement?.totalOutstanding ?? dualEntity?.apBalance ?? 0;
+   const arBalance = profileStatement?.totalOutstanding ?? 0;
+ 
++  // SIL-599 C3 (review F1): the pill must print the /debt list's OWN
++  // contractual span — the aging row's `maxOverdueDays` (the snapshot
++  // authority: every open obligation incl. service fees/offsets, FIFO credit
++  // netting), so pill and list can never disagree. Narrowed by name, matched
++  // by id; a stale/absent row falls back to the unpaidTrips rule below.
++  const { data: agingRow, isSuccess: agingRowSettled, isError: agingRowFailed } = useQuery({
++    queryKey: qk.financial.customerAging({ search: profileStatement?.customer.name ?? '', limit: 200 }),
++    queryFn: async (): Promise<CustomerAging | null> => {
++      const res = await financialClient.getCustomerAging({ search: profileStatement?.customer.name ?? '', limit: 200 });
++      return res?.customers?.find((row) => row.customerId === customerId) ?? null;
++    },
++    enabled: !!profileStatement && customerId != null,
++    staleTime: 2 * 60 * 1000,
++  });
++
+   // ── Derived data ────────────────────────────────────────────────────────
+ 
+   const agingAmounts = useMemo(() =>
+@@ -227,6 +243,28 @@ export default function DebtDetailPage() {
+       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] ?? null;
+   }, [profileStatement]);
+ 
++  // SIL-599 C3 fallback: whole days past the effective due date over the open
++  // trip/billing obligations (processingDueDate ?? originalDueDate; nothing
++  // frozen = due at its recording date, the house fallback inside
++  // calendarDaysPastDue) — the statement carries due dates for those
++  // obligations alone, so the aging row above wins whenever it resolves.
++  const unpaidOverdueDays = useMemo(() => {
++    const now = new Date();
++    return (profileStatement?.unpaidTrips ?? []).reduce((max, trip) => {
++      if (trip.outstanding <= 0) return max;
++      const span = calendarDaysPastDue(
++        trip.processingDueDate ?? trip.originalDueDate ?? null,
++        trip.issueTimestamp ?? trip.date,
++        now,
++      );
++      return span > max ? span : max;
++    }, 0);
++  }, [profileStatement?.unpaidTrips]);
++  const overdueDays = agingRow?.maxOverdueDays ?? unpaidOverdueDays;
++  // Review F1 residual: never claim a due-status before the list row settles —
++  // in flight the pill stays neutral instead of flashing a narrower number.
++  const agingSettled = agingRowSettled || agingRowFailed;
++
+   const totalOutstanding = profileStatement?.totalOutstanding ?? 0;
+ 
+   // ── Loading / Error ─────────────────────────────────────────────────────
+@@ -262,7 +300,7 @@ export default function DebtDetailPage() {
+   const agingTotal = agingAmounts.reduce((s, a) => s + a, 0) || 1; // avoid /0
+   const unpaidTrips = profileStatement.unpaidTrips ?? [];
+   const oldestUnpaidTrip = unpaidTrips[0] ?? null;
+-  const activeAgingRange = activeAgingIdx >= 0 ? AGING_RANGES[activeAgingIdx] : null;
++  const activeAgingRange = activeAgingIdx >= 0 ? AR_AGING_RANGES[activeAgingIdx] : null;
+   const activeAgingAmount = activeAgingIdx >= 0 ? agingAmounts[activeAgingIdx] : 0;
+   // Workspace navigation — the shared boxed Tabs primitive (2026-09-27 ruling);
+   // each cell keeps its two lines (business name + secondary meta line).
+@@ -379,7 +417,11 @@ export default function DebtDetailPage() {
+               Khách hàng doanh nghiệp
+             </span>
+             {hasDebt ? (
+-              <span className="dd-tag dd-tag--warn dd-tag--dot">Còn nợ trong hạn</span>
++              <span className="dd-tag dd-tag--warn dd-tag--dot" title={OVERDUE_RULE_TIP}>
++                {!agingSettled
++                  ? 'Còn nợ'
++                  : overdueDays > 0 ? `Còn nợ quá hạn · ${overdueDays} ngày` : 'Còn nợ trong hạn'}
++              </span>
+             ) : (
+               <span className="dd-tag dd-tag--ok dd-tag--dot">Đã thanh toán đủ</span>
+             )}
+@@ -423,7 +465,7 @@ export default function DebtDetailPage() {
+           <small>{lastPayment ? formatDate(lastPayment.timestamp) : 'Chưa có phiếu thu'}</small>
+         </article>
+         <article className="dd-account-card">
+-          <span>Nhóm hạn nợ nổi bật</span>
++          <span>Nhóm tuổi nợ nổi bật</span>
+           <strong>{activeAgingRange ? activeAgingRange.label : 'Không nợ'}</strong>
+           <small>{activeAgingRange ? money(activeAgingAmount) : 'Không có số dư'}</small>
+         </article>
+@@ -495,22 +537,22 @@ export default function DebtDetailPage() {
+ 
+       {/* ── Aging Summary ───────────────────────────────────────────────── */}
+       <details className="dd-aging-disclosure">
+-        <summary>Phân bổ hạn nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${money(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
++        <summary>Phân bổ theo tuổi nợ <span>{activeAgingRange ? `${activeAgingRange.label} · ${money(activeAgingAmount)}` : 'Không còn nợ'}</span></summary>
+       <section className="dd-summary dd-summary--aging">
+         <div className="dd-sum-top">
+           <div>
+-            <div className="dd-sum-label">PHÂN BỔ HẠN NỢ</div>
++            <div className="dd-sum-label">PHÂN BỔ THEO TUỔI NỢ</div>
+             <p className="dd-sum-copy">
+               {hasDebt
+-                ? 'Theo dõi phần công nợ nào đang tiến gần hạn hoặc đã quá hạn.'
++                ? 'Phân bổ dư nợ theo tuổi ghi nhận — càng cũ càng cần ưu tiên thu hồi.'
+                 : 'Khách hàng không còn công nợ đang mở.'}
+             </p>
+             {hasDebt && (
+               <div className="dd-sum-note">
+                 <AlertTriangle size={17} style={{ color: 'var(--danger)', flexShrink: 0 }} />
+                 {activeAgingIdx <= 0
+-                  ? 'Toàn bộ công nợ chưa đến hạn — cần theo dõi thu hồi.'
+-                  : `Có công nợ ${AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thu hồi.`
++                  ? 'Toàn bộ công nợ trong nhóm tuổi 0–30 ngày — cần theo dõi thu hồi.'
++                  : `Có công nợ ở nhóm ${AR_AGING_RANGES[activeAgingIdx].label.toLowerCase()} — cần ưu tiên thu hồi.`
+                 }
+               </div>
+             )}
+@@ -533,8 +575,8 @@ export default function DebtDetailPage() {
+         </div>
+ 
+         {/* Aging grid */}
+-        <div className="dd-aging-grid">
+-          {AGING_RANGES.map((range, i) => {
++        <div className="dd-aging-grid" title={AGE_RULE_TIP}>
++          {AR_AGING_RANGES.map((range, i) => {
+             const amt = agingAmounts[i];
+             const isActive = i === activeAgingIdx;
+             const pct = agingTotal > 0 ? Math.round((amt / agingTotal) * 100) : 0;
+diff --git a/frontend/src/pages/DebtListPage.band.test.tsx b/frontend/src/pages/DebtListPage.band.test.tsx
+index 6f76d3ca..cd8076b3 100644
+--- a/frontend/src/pages/DebtListPage.band.test.tsx
++++ b/frontend/src/pages/DebtListPage.band.test.tsx
+@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
+ const getCustomerAging = vi.fn();
+ const getBlob = vi.fn();
+ const getPhoiPhieuReport = vi.hoisted(() => vi.fn());
++const animateCounters = vi.hoisted(() => vi.fn());
+ 
+ vi.mock('../api/financialClient', () => ({
+   financialClient: { getCustomerAging: (...args: unknown[]) => getCustomerAging(...args) },
+@@ -36,11 +37,14 @@ vi.mock('../components/shared/Toast', () => ({
+ vi.mock('../hooks/animations', () => ({
+   usePageAnimations: () => ({ rootRef: { current: null } }),
+   useListAnimations: () => ({ rootRef: { current: null } }),
+-  useCounterAnimation: () => ({ animateCounters: vi.fn() }),
++  // SIL-599 C4 pin: the band must never engage the count-up hook again.
++  useCounterAnimation: () => ({ animateCounters }),
+ }));
+ 
++// Any reintroduced count-up path must fall into the C4 pins below — a `true`
++// here would let a prefersReduced-gated animation slip through unnoticed.
+ vi.mock('../hooks/usePrefersReducedMotion', () => ({
+-  usePrefersReducedMotion: () => true,
++  usePrefersReducedMotion: () => false,
+ }));
+ 
+ import DebtListPage from './DebtListPage';
+@@ -99,6 +103,7 @@ beforeEach(() => {
+   getCustomerAging.mockReset().mockResolvedValue(envelope);
+   getBlob.mockReset();
+   getPhoiPhieuReport.mockReset().mockResolvedValue({ rows: [], grand: null });
++  animateCounters.mockClear();
+ });
+ 
+ describe('DebtListPage summary band (SIL-469)', () => {
+@@ -122,12 +127,67 @@ describe('DebtListPage summary band (SIL-469)', () => {
+     // d30 and d60 both carry 9 customers — two buckets share the count.
+     expect(within(band).getAllByText('· 9 KH')).toHaveLength(2);
+     expect(within(band).getByText('· 4 KH')).toBeTruthy();
++    // SIL-599 C1 — the four bands are TUỔI NỢ (recording-date age), never
++    // due-status wording over age data.
++    expect(within(band).getAllByText('Tuổi nợ')).toHaveLength(4);
++    expect(within(band).getByText('0–30 ngày')).toBeTruthy();
++    expect(within(band).getByText('31–60 ngày')).toBeTruthy();
++    expect(within(band).getByText('61–90 ngày')).toBeTruthy();
++    expect(within(band).getByText('trên 90 ngày')).toBeTruthy();
++    // SIL-599 C2 — "quá hạn" survives exactly once in the band: the
++    // contractual KPI chip. The bands no longer speak the word.
++    expect(within(band).getByText('17 quá hạn')).toBeTruthy();
++    expect(within(band).getAllByText(/quá hạn/i)).toHaveLength(1);
++    expect(within(band).queryByText(/chưa đến hạn/i)).toBeNull();
+     // The former rail/disclosure surfaces are gone from the page.
+     expect(document.querySelector('.summary-rail')).toBeNull();
+     expect(document.querySelector('.debt-aging-grid')).toBeNull();
+     expect(document.querySelector('.financial-aging-disclosure')).toBeNull();
+   });
+ 
++  it('explains both rules in band tooltips (SIL-599 C2)', async () => {
++    renderPage();
++    await screen.findAllByText('Công ty A');
++
++    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
++    // Contractual face — the chip names the due-date rule and its fallback.
++    const chip = within(band).getByText('17 quá hạn');
++    expect(chip.getAttribute('title')).toContain('hạn thanh toán');
++    expect(chip.getAttribute('title')).toContain('đến hạn tại ngày ghi nhận');
++    // Age face — the aging block names the recording-date rule and cuts.
++    const aging = band.querySelector<HTMLElement>('.debt-band__aging');
++    expect(aging?.getAttribute('title')).toContain('ngày ghi nhận');
++    expect(aging?.getAttribute('title')).toContain('31–60');
++  });
++
++  it('C4: every band figure degrades to "—" until the totals settle', () => {
++    const { promise: pending } = Promise.withResolvers<unknown>();
++    getCustomerAging.mockReturnValue(pending);
++    renderPage();
++
++    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
++    // hero + 2 chips + 4 bucket figures — never a 0 ₫ placeholder.
++    expect(within(band).getAllByText('—')).toHaveLength(7);
++    expect(within(band).queryByText('0')).toBeNull();
++    // Review F2: the bar's screen-reader label degrades too, never "0 ₫".
++    const bar = band.querySelector<HTMLElement>('.debt-band__bar');
++    expect(bar?.getAttribute('aria-label')).toContain('đang tải số liệu');
++    expect(bar?.getAttribute('aria-label')).not.toContain('0 ₫');
++  });
++
++  it('C4: settled figures print the final values in one pass — never a count-up', async () => {
++    renderPage();
++    await screen.findAllByText('Công ty A');
++
++    const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
++    const amounts = [...band.querySelectorAll<HTMLElement>('.debt-band__bucket-amount')].map((el) => el.textContent);
++    expect(amounts).toEqual(['3.007.273.111', '981.572.224', '396.388.600', '22.864.000']);
++    expect(within(band).getByText('4.408.097.935')).toBeTruthy();
++    const bar = band.querySelector<HTMLElement>('.debt-band__bar');
++    expect(bar?.getAttribute('aria-label')).toContain('0–30 ngày 3.007.273.111 ₫');
++    expect(animateCounters).not.toHaveBeenCalled();
++  });
++
+   it('sizes the aging bar segments proportionally to the bucket money', async () => {
+     renderPage();
+     await screen.findAllByText('Công ty A');
+@@ -157,16 +217,19 @@ describe('DebtListPage summary band (SIL-469)', () => {
+     await screen.findAllByText('Công ty A');
+ 
+     const band = screen.getByRole('region', { name: 'Tổng quan công nợ phải thu' });
+-    fireEvent.click(within(band).getByRole('button', { name: /Quá hạn 1–30: / }));
++    // vi.fn() keeps mock args loosely typed — narrow instead of casting.
++    const isBucketParam = (call: unknown): call is { bucket: string } =>
++      typeof call === 'object' && call !== null && 'bucket' in call && typeof call.bucket === 'string';
++    fireEvent.click(within(band).getByRole('button', { name: /Tuổi nợ 31–60 ngày: / }));
+ 
+-    await waitFor(() => expect(getCustomerAging.mock.calls.some((c) => (c[0] as { bucket?: string }).bucket === 'd30')).toBe(true));
++    await waitFor(() => expect(getCustomerAging.mock.calls.some((c) => isBucketParam(c[0]) && c[0].bucket === 'd30')).toBe(true));
+ 
+     // Re-render with the filter applied → the matching bucket is pressed.
+     getCustomerAging.mockClear().mockResolvedValue(envelope);
+     renderPage('/?filter=d30');
+     await screen.findAllByText('Công ty A');
+-    const pressed = document.querySelector('.debt-band__bucket.is-active[aria-pressed="true"]') as HTMLElement;
+-    expect(pressed?.getAttribute('aria-label')).toContain('Quá hạn 1–30');
++    const pressed = document.querySelector<HTMLElement>('.debt-band__bucket.is-active[aria-pressed="true"]');
++    expect(pressed?.getAttribute('aria-label')).toContain('Tuổi nợ 31–60 ngày');
+   });
+ 
+   it('colors the row overdue badge by bucket and folds the status into the total cell', async () => {
+diff --git a/frontend/src/pages/DebtListPage.filters.test.tsx b/frontend/src/pages/DebtListPage.filters.test.tsx
+index 4ab01944..300fca86 100644
+--- a/frontend/src/pages/DebtListPage.filters.test.tsx
++++ b/frontend/src/pages/DebtListPage.filters.test.tsx
+@@ -257,7 +257,7 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
+     maxOverdueDays: 22,
+   });
+ 
+-  it('in the Quá hạn 1–30 view each row shows its share of the bucket, so rows sum to the card amount', async () => {
++  it('in the Tuổi nợ 31–60 view each row shows its share of the bucket, so rows sum to the card amount', async () => {
+     getCustomerAging.mockResolvedValue({
+       ...envelope,
+       customers: [
+@@ -271,7 +271,7 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
+     await screen.findAllByText('LONG MINH');
+     // The share column carries the bucket's own label (desktop header + the
+     // mobile card lines render both in jsdom — assert presence, not count).
+-    expect(screen.getAllByText('Nợ 1–30 ngày').length).toBeGreaterThan(0);
++    expect(screen.getAllByText('Tuổi nợ 31–60 ngày').length).toBeGreaterThan(0);
+     // ...and each row shows exactly its d30 share (2.2M + 1.6M + 1.0M = 4.8M
+     // = the card amount).
+     expect(screen.getAllByText('2.200.000 ₫').length).toBeGreaterThan(0);
+@@ -284,6 +284,6 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
+   it('without a bucket filter the share column is absent', async () => {
+     renderPage();
+     await screen.findAllByText('Công ty A');
+-    expect(screen.queryByText('Nợ 1–30 ngày')).toBeNull();
++    expect(screen.queryByText('Tuổi nợ 31–60 ngày')).toBeNull();
+   });
+ });
+diff --git a/frontend/src/pages/DebtListPage.tsx b/frontend/src/pages/DebtListPage.tsx
+index 64d4fdd6..f1abccd2 100644
+--- a/frontend/src/pages/DebtListPage.tsx
++++ b/frontend/src/pages/DebtListPage.tsx
+@@ -1,4 +1,4 @@
+-import { useState, useMemo, useRef, useEffect } from 'react';
++import { useState, useMemo } from 'react';
+ import { useNavigate, useSearchParams } from 'react-router-dom';
+ import { formatCurrency, moneyParts } from '../lib/format';
+ import { api } from '../lib/api';
+@@ -16,12 +16,8 @@ import { financialClient, type CustomerAgingResponse } from '../api/financialCli
+ import { qk } from '../api/keys';
+ import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
+ import { nextTableSort, type TableSortState } from '../lib/table-sort';
+-import {
+-  usePageAnimations,
+-  useListAnimations,
+-  useCounterAnimation,
+-} from '../hooks/animations';
+-import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
++import { usePageAnimations, useListAnimations } from '../hooks/animations';
++import { AGE_RULE_TIP, OVERDUE_RULE_TIP, AR_AGE_RANGES } from '../components/debt/aging';
+ import { PartyMonthlyProductionSummary } from '../features/accounting/PartyMonthlyProductionSummary';
+ import './DebtListPage.css';
+ import '../styles/table-sort.css';
+@@ -72,27 +68,28 @@ interface AgingBucket {
+ 
+ /**
+  * One filter mode per bucket. The four aging buckets must filter independently
+- * so clicking "Quá hạn 1–30" shows only customers in that band, etc.
++ * so clicking "Tuổi nợ 31–60" shows only customers in that band, etc.
+  * `'all'` is the unfiltered default. `'overdue'` has no lane card — it is the
+- * cross-bucket "any overdue portion" aggregate the overview cards deep-link
+- * to (?filter=overdue).
++ * cross-bucket aggregate of the bands older than 30 days (d30+d60+over90) the
++ * overview cards deep-link to (?filter=overdue).
+  */
+ type BucketFilterMode = 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue';
+ 
+ const AGING_BUCKETS: AgingBucket[] = [
+-  // Card 061026221213: the four bands are CONTRACTUAL due-status lanes (days
+-  // past the effective due date, cut at 30/90 — see computeFifoAging) — "Trong
+-  // hạn" / "Quá hạn 1–30" / "Quá hạn 31–90" / "Quá hạn trên 90", so every
+-  // "Trong hạn"/"Quá hạn" word on the page means the same thing as the row
+-  // chip and the KPI tiles. (P0-W6's lane intent, now truthful about bands.)
+-  { key: 'current', label: 'Trong hạn (chưa đến hạn)', shortLabel: 'Trong hạn', subLabel: 'chưa đến hạn', amountKey: 'current', countKey: 'currentCusts', color: 'var(--success, #177448)', filterMode: 'current' },
+-  { key: 'd30', label: 'Quá hạn 1–30', shortLabel: 'Quá hạn', subLabel: '1–30 ngày', amountKey: 'd30', countKey: 'd30Custs', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
+-  { key: 'd60', label: 'Quá hạn 31–90', shortLabel: 'Quá hạn', subLabel: '31–90 ngày', amountKey: 'd60', countKey: 'd60Custs', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
+-  { key: 'over90', label: 'Quá hạn trên 90', shortLabel: 'Quá hạn', subLabel: 'trên 90 ngày', amountKey: 'over90', countKey: 'over90Custs', color: 'var(--danger, #E32434)', filterMode: 'over90' },
++  // SIL-599 + ruling SIL-580 R3 (29/10): the four bands are TUỔI NỢ — whole
++  // days since the recording date, cut at 30/60/90 (computeFifoAging). The
++  // word "quá hạn" belongs to the contractual overdue KPI alone (chip, row
++  // status, "Quá hạn N ngày" column) — never to these bands. The cut wording
++  // is single-sourced in components/debt/aging.ts (review F3).
++  { key: 'current', label: `Tuổi nợ ${AR_AGE_RANGES[0]}`, shortLabel: 'Tuổi nợ', subLabel: AR_AGE_RANGES[0], amountKey: 'current', countKey: 'currentCusts', color: 'var(--success, #177448)', filterMode: 'current' },
++  { key: 'd30', label: `Tuổi nợ ${AR_AGE_RANGES[1]}`, shortLabel: 'Tuổi nợ', subLabel: AR_AGE_RANGES[1], amountKey: 'd30', countKey: 'd30Custs', color: 'var(--warning, #F5A623)', filterMode: 'd30' },
++  { key: 'd60', label: `Tuổi nợ ${AR_AGE_RANGES[2]}`, shortLabel: 'Tuổi nợ', subLabel: AR_AGE_RANGES[2], amountKey: 'd60', countKey: 'd60Custs', color: 'var(--warning-deep, #DD5A1F)', filterMode: 'd60' },
++  { key: 'over90', label: `Tuổi nợ ${AR_AGE_RANGES[3]}`, shortLabel: 'Tuổi nợ', subLabel: AR_AGE_RANGES[3], amountKey: 'over90', countKey: 'over90Custs', color: 'var(--danger, #E32434)', filterMode: 'over90' },
+ ];
+ 
+-/** SIL-469: the row's overdue age renders as one compact bucket-coloured
+- *  badge (xanh 1–30 / vàng 31–60 / cam 61–90 / đỏ >90), never a bare number. */
++/** SIL-469: the row's contractual overdue span renders as one compact
++ *  bucket-coloured badge (xanh 1–30 / vàng 31–60 / cam 61–90 / đỏ >90),
++ *  never a bare number. */
+ function overdueBand(days: number): 'ok' | 'warn' | 'deep' | 'danger' {
+   if (days <= 30) return 'ok';
+   if (days <= 60) return 'warn';
+@@ -147,8 +144,8 @@ export default function DebtListPage() {
+             : isOverdueAggregate ? d.aging.d30 + d.aging.d60 + d.aging.over90
+               : 0;
+   const bucketShareLabel = activeBucket
+-    ? `Nợ ${activeBucket.subLabel}`
+-    : isOverdueAggregate ? 'Nợ quá hạn' : null;
++    ? activeBucket.label
++    : isOverdueAggregate ? 'Tuổi nợ trên 30 ngày' : null;
+   // Sort rides in the hook's filters bag: setFilter resets the page to 1 and
+   // the queryKey stays keyed on the primitive param values (no refetch loops).
+   const sortState: TableSortState | null = table.filters.sortBy != null && table.filters.sortDir != null
+@@ -189,28 +186,17 @@ export default function DebtListPage() {
+   const rawCustomers = useMemo(() => data?.customers ?? [], [data?.customers]);
+   const totalCustomers = data?.total ?? rawCustomers.length;
+   const error = queryError ? (queryError as Error).message : null;
++  // SIL-599 C4 (the /payables band's card 071026141620 pattern): the band's
++  // figures are only real once the query settled — before that every figure
++  // degrades to an em dash, never a 0 ₫ placeholder.
++  const bandReady = !loading && !error;
+ 
+   /* ── Animation hooks ── */
+-  const prefersReduced = usePrefersReducedMotion();
+   const compact = false; // full VND everywhere — no short form (e.g. "12,5 tr")
+   const { rootRef } = usePageAnimations({
+     ready: !loading,
+     selectors: ['.debt-band', '.debt-data-card'],
+   });
+-  const { animateCounters } = useCounterAnimation({ duration: 1200, delay: 300, stagger: 80 });
+-
+-  /* ── Counter refs ── */
+-  const counterRefs = useRef<{
+-    currentAmount: HTMLSpanElement | null;
+-    d30Amount: HTMLSpanElement | null;
+-    d60Amount: HTMLSpanElement | null;
+-    over90Amount: HTMLSpanElement | null;
+-  }>({
+-    currentAmount: null,
+-    d30Amount: null,
+-    d60Amount: null,
+-    over90Amount: null,
+-  });
+ 
+   /* ── Data processing (preserved exactly) ── */
+   const customerDebts = useMemo<CustomerDebtInfo[]>(() => {
+@@ -245,18 +231,8 @@ export default function DebtListPage() {
+   const effectivePage = Math.min(page, totalDebtPages);
+   const { rootRef: listRef } = useListAnimations({ itemSelector: '.m-card, table tbody tr', deps: [debts] });
+ 
+-  /* ── Counter animation trigger ── */
+-  useEffect(() => {
+-    if (loading || prefersReduced) return;
+-
+-    const r = counterRefs.current;
+-    animateCounters([
+-      { el: r.currentAmount, value: totals.current, format: moneyParts(totals.current, compact).format },
+-      { el: r.d30Amount, value: totals.d30, format: moneyParts(totals.d30, compact).format },
+-      { el: r.d60Amount, value: totals.d60, format: moneyParts(totals.d60, compact).format },
+-      { el: r.over90Amount, value: totals.over90, format: moneyParts(totals.over90, compact).format },
+-    ]);
+-  }, [loading, totals, prefersReduced, animateCounters, compact]);
++  /* ── Counter animation removed (SIL-599 C4): band figures print their final
++        value in one pass — never a 0 ₫ / count-up intermediate. ── */
+ 
+   /* ── Helpers ── */
+   const heroMoney = moneyParts(totals.total, false);
+@@ -319,22 +295,33 @@ export default function DebtListPage() {
+         <div className="debt-band__lead">
+           <span className="debt-band__label">Tổng công nợ phải thu</span>
+           <span className="debt-band__total">
+-            {heroMoney.num} <span className="debt-band__unit">{heroMoney.unit}</span>
++            {bandReady
++              ? <>{heroMoney.num} <span className="debt-band__unit">{heroMoney.unit}</span></>
++              : '—'}
+           </span>
+           <div className="debt-band__chips">
+-            <span className="debt-band__chip" data-tone={totals.overdueCount > 0 ? 'warning' : undefined}>
+-              {totals.overdueCount} quá hạn
++            <span
++              className="debt-band__chip"
++              data-tone={bandReady && totals.overdueCount > 0 ? 'warning' : undefined}
++              title={OVERDUE_RULE_TIP}
++            >
++              {bandReady ? `${totals.overdueCount} quá hạn` : '—'}
+             </span>
+-            <span className="debt-band__chip" data-tone={totals.highRiskCount > 0 ? 'warning' : undefined}>
+-              {totals.highRiskCount} rủi ro cao
++            <span
++              className="debt-band__chip"
++              data-tone={bandReady && totals.highRiskCount > 0 ? 'warning' : undefined}
++            >
++              {bandReady ? `${totals.highRiskCount} rủi ro cao` : '—'}
+             </span>
+           </div>
+         </div>
+-        <div className="debt-band__aging">
++        <div className="debt-band__aging" title={AGE_RULE_TIP}>
+           <div
+             className="debt-band__bar"
+             role="img"
+-            aria-label={`Phân bố hạn nợ: trong hạn ${formatCurrency(totals.current)}, quá hạn 1–30 ${formatCurrency(totals.d30)}, quá hạn 31–90 ${formatCurrency(totals.d60)}, quá hạn trên 90 ${formatCurrency(totals.over90)}`}
++            aria-label={bandReady
++              ? `Phân bố tuổi nợ: ${AGING_BUCKETS.map((bucket) => `${bucket.subLabel} ${formatCurrency(totals[bucket.amountKey])}`).join(', ')}`
++              : 'Phân bố tuổi nợ: đang tải số liệu'}
+           >
+             <div className="aging-bar__seg aging-bar__seg--ok" style={{ width: `${pctCurrent}%` }} />
+             <div className="aging-bar__seg aging-bar__seg--t1" style={{ width: `${pctD30}%` }} />
+@@ -363,16 +350,9 @@ export default function DebtListPage() {
+                     <small>{bucket.subLabel}</small>
+                   </span>
+                   <span className="debt-band__bucket-figures">
+-                    <span className="debt-band__bucket-amount" ref={(el) => {
+-                      if (bucket.amountKey === 'current') counterRefs.current.currentAmount = el;
+-                      else if (bucket.amountKey === 'd30') counterRefs.current.d30Amount = el;
+-                      else if (bucket.amountKey === 'd60') counterRefs.current.d60Amount = el;
+-                      else if (bucket.amountKey === 'over90') counterRefs.current.over90Amount = el;
+-                    }}>
+-                      {prefersReduced ? money.num : '0'}
+-                    </span>
+-                    <span className="debt-band__bucket-unit">{money.unit}</span>
+-                    <span className="debt-band__bucket-count">· {count} KH</span>
++                    <span className="debt-band__bucket-amount">{bandReady ? money.num : '—'}</span>
++                    {bandReady && <span className="debt-band__bucket-unit">{money.unit}</span>}
++                    {bandReady && <span className="debt-band__bucket-count">· {count} KH</span>}
+                   </span>
+                 </button>
+               );
+diff --git a/frontend/src/pages/debt-payable-aging.test.tsx b/frontend/src/pages/debt-payable-aging.test.tsx
+index b6170bdc..7c01ac30 100644
+--- a/frontend/src/pages/debt-payable-aging.test.tsx
++++ b/frontend/src/pages/debt-payable-aging.test.tsx
+@@ -1,7 +1,7 @@
+-import { render, within } from '@testing-library/react';
++import { render, screen, waitFor, within } from '@testing-library/react';
+ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+ import { MemoryRouter, Route, Routes } from 'react-router-dom';
+-import { beforeEach, describe, expect, it, vi } from 'vitest';
++import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+ 
+ const {
+   useCustomerStatementMock,
+@@ -9,12 +9,14 @@ const {
+   apiGetMock,
+   apiPostMock,
+   toastMock,
++  financialAgingMock,
+ } = vi.hoisted(() => ({
+   useCustomerStatementMock: vi.fn(),
+   useSupplierStatementMock: vi.fn(),
+   apiGetMock: vi.fn(),
+   apiPostMock: vi.fn(),
+   toastMock: vi.fn(),
++  financialAgingMock: vi.fn(),
+ }));
+ 
+ vi.mock('../hooks/useQueries', () => ({
+@@ -22,6 +24,10 @@ vi.mock('../hooks/useQueries', () => ({
+   useSupplierStatement: useSupplierStatementMock,
+ }));
+ 
++vi.mock('../api/financialClient', () => ({
++  financialClient: { getCustomerAging: financialAgingMock },
++}));
++
+ vi.mock('../lib/api', () => ({
+   api: { get: apiGetMock, post: apiPostMock, getBlob: vi.fn() },
+   ApiError: class ApiError extends Error {
+@@ -143,6 +149,8 @@ beforeEach(() => {
+   useSupplierStatementMock.mockReturnValue({
+     data: supplierStatement, isLoading: false, isFetching: false, error: null, refetch: vi.fn(),
+   });
++  // No matching aging row by default → the pill rides the unpaidTrips rule.
++  financialAgingMock.mockReset().mockResolvedValue({ customers: [] });
+ });
+ 
+ describe('AR/AP aging grid characterization', () => {
+@@ -151,38 +159,207 @@ describe('AR/AP aging grid characterization', () => {
+     const grid = document.querySelector('.dd-aging-grid');
+     expect(grid).not.toBeNull();
+ 
+-    const cells = Array.from(grid!.querySelectorAll('.dd-aging-cell'));
++    const cells = Array.from(grid!.querySelectorAll<HTMLElement>('.dd-aging-cell'));
+     expect(cells).toHaveLength(4);
+-    expect(within(cells[0] as HTMLElement).getByText('CHƯA ĐẾN HẠN')).toBeTruthy();
+-    expect(within(cells[1] as HTMLElement).getByText('QUÁ HẠN 1–30 NGÀY')).toBeTruthy();
+-    expect(within(cells[2] as HTMLElement).getByText('QUÁ HẠN 31–90 NGÀY')).toBeTruthy();
+-    expect(within(cells[3] as HTMLElement).getByText('QUÁ HẠN TRÊN 90 NGÀY')).toBeTruthy();
++    // SIL-599 C1 — AR slots are TUỔI NỢ (recording-date age), the labels no
++    // longer masquerade as due status over age data.
++    expect(within(cells[0]).getByText('TUỔI NỢ 0–30 NGÀY')).toBeTruthy();
++    expect(within(cells[1]).getByText('TUỔI NỢ 31–60 NGÀY')).toBeTruthy();
++    expect(within(cells[2]).getByText('TUỔI NỢ 61–90 NGÀY')).toBeTruthy();
++    expect(within(cells[3]).getByText('TUỔI NỢ TRÊN 90 NGÀY')).toBeTruthy();
+ 
+     // Entire outstanding balance sits in bucket 0 → only cell 0 is active.
+     expect(cells[0].className).toContain('dd-aging-cell--active');
+     expect(cells.filter((cell) => cell.className.includes('dd-aging-cell--active'))).toHaveLength(1);
+     // Card 071026141540: the aging value rides plain formatCurrency — digits,
+     // space, ₫ in one text node — never the old glued 'đ' form.
+-    expect(within(cells[0] as HTMLElement).getByText('1.500.000 ₫')).toBeTruthy();
+-    expect(within(cells[0] as HTMLElement).getByText('100% tổng công nợ')).toBeTruthy();
+-    expect(within(cells[1] as HTMLElement).getByText('Không phát sinh')).toBeTruthy();
++    expect(within(cells[0]).getByText('1.500.000 ₫')).toBeTruthy();
++    expect(within(cells[0]).getByText('100% tổng công nợ')).toBeTruthy();
++    expect(within(cells[1]).getByText('Không phát sinh')).toBeTruthy();
+   });
+ 
+-  it('PayableDetailPage renders the same four ranges with proportional shares', () => {
++  it('PayableDetailPage keeps the AP contractual labels over the same slots (SIL-580 out-of-scope)', () => {
+     renderAt('/payables/5');
+     const grid = document.querySelector('.dd-aging-grid');
+     expect(grid).not.toBeNull();
+ 
+-    const cells = Array.from(grid!.querySelectorAll('.dd-aging-cell'));
++    const cells = Array.from(grid!.querySelectorAll<HTMLElement>('.dd-aging-cell'));
+     expect(cells).toHaveLength(4);
+-    expect(within(cells[0] as HTMLElement).getByText('CHƯA ĐẾN HẠN')).toBeTruthy();
+-    expect(within(cells[1] as HTMLElement).getByText('QUÁ HẠN 1–30 NGÀY')).toBeTruthy();
+-    expect(within(cells[2] as HTMLElement).getByText('QUÁ HẠN 31–90 NGÀY')).toBeTruthy();
+-    expect(within(cells[3] as HTMLElement).getByText('QUÁ HẠN TRÊN 90 NGÀY')).toBeTruthy();
++    // AP wording is deliberately unchanged — the AP re-anchor needs its own
++    // ticket (SIL-580 out-of-scope note).
++    expect(within(cells[0]).getByText('CHƯA ĐẾN HẠN')).toBeTruthy();
++    expect(within(cells[1]).getByText('QUÁ HẠN 1–30 NGÀY')).toBeTruthy();
++    expect(within(cells[2]).getByText('QUÁ HẠN 31–90 NGÀY')).toBeTruthy();
++    expect(within(cells[3]).getByText('QUÁ HẠN TRÊN 90 NGÀY')).toBeTruthy();
+ 
+     // 100 of 175 outstanding → active bucket 0 at 57%; the zero bucket stays inert.
+     expect(cells[0].className).toContain('dd-aging-cell--active');
+-    expect(within(cells[0] as HTMLElement).getByText('57% tổng công nợ')).toBeTruthy();
+-    expect(within(cells[2] as HTMLElement).getByText('Không phát sinh')).toBeTruthy();
++    expect(within(cells[0]).getByText('57% tổng công nợ')).toBeTruthy();
++    expect(within(cells[2]).getByText('Không phát sinh')).toBeTruthy();
++  });
++});
++
++// SIL-599 (id 699) — the detail pill must tell the SAME story the /debt list
++// tells, and both AR faces carry their rule tooltip.
++describe('SIL-599 detail pill + rule tooltips (C2/C3)', () => {
++  beforeEach(() => {
++    vi.useFakeTimers({ toFake: ['Date'] });
++    vi.setSystemTime(new Date('2026-10-30T12:00:00Z'));
++  });
++  afterEach(() => {
++    vi.useRealTimers();
++  });
++
++  it('C3: an overdue open debt settles to "Còn nợ quá hạn · N ngày" (fallback due = recording date)', async () => {
++    const { promise, resolve } = Promise.withResolvers<unknown>();
++    financialAgingMock.mockReturnValue(promise);
++    useCustomerStatementMock.mockReturnValue({
++      data: {
++        ...customerStatement,
++        totalOutstanding: 3_000_000,
++        unpaidTrips: [{
++          tripId: 1,
++          date: '2026-10-24',
++          issueTimestamp: '2026-10-24T08:00:00Z',
++          outstanding: 3_000_000,
++          note: 'Chuyến 24/10',
++          originalDueDate: null,
++          processingDueDate: null,
++        }],
++      },
++      isLoading: false,
++      isFetching: false,
++      error: null,
++      refetch: vi.fn(),
++    });
++    renderAt('/debt/7');
++    // Review F1 residual fix: in flight the pill claims nothing.
++    expect(document.querySelector<HTMLElement>('.dd-tag')?.textContent).toBe('Còn nợ');
++    resolve({ customers: [] });
++    // QA's own repro numbers: recorded 24/10, reference 30/10 → 6 days.
++    const pill = await screen.findByText('Còn nợ quá hạn · 6 ngày');
++    expect(pill.getAttribute('title')).toContain('hạn thanh toán');
++    expect(pill.getAttribute('title')).toContain('đến hạn tại ngày ghi nhận');
++  });
++
++  it('C3: the pill prints the LIST row\'s own maxOverdueDays over any local rule (review F1)', async () => {
++    financialAgingMock.mockResolvedValue({
++      customers: [{
++        customerId: 7,
++        customerName: 'Công ty Minh Hải',
++        contactInfo: null,
++        linkedSupplierId: null,
++        linkedSupplierApBalance: 0,
++        netBalance: 3_000_000,
++        totalOutstanding: 3_000_000,
++        aging: { current: 3_000_000, d30: 0, d60: 0, over90: 0 },
++        maxOverdueDays: 9,
++      }],
++    });
++    useCustomerStatementMock.mockReturnValue({
++      data: {
++        ...customerStatement,
++        totalOutstanding: 3_000_000,
++        unpaidTrips: [{
++          tripId: 1,
++          date: '2026-10-24',
++          issueTimestamp: '2026-10-24T08:00:00Z',
++          outstanding: 3_000_000,
++          note: '',
++          originalDueDate: null,
++          processingDueDate: null,
++        }],
++      },
++      isLoading: false,
++      isFetching: false,
++      error: null,
++      refetch: vi.fn(),
++    });
++    renderAt('/debt/7');
++    // The list figure (9) wins over the narrower unpaidTrips rule (6) — the
++    // pill can never contradict the list row that links here.
++    expect(await screen.findByText('Còn nợ quá hạn · 9 ngày')).toBeTruthy();
++    await waitFor(() => expect(screen.queryByText('Còn nợ quá hạn · 6 ngày')).toBeNull());
++  });
++
++  it('C3: a resolved list row wins even at zero (?? not ||)', async () => {
++    financialAgingMock.mockResolvedValue({
++      customers: [{
++        customerId: 7,
++        customerName: 'Công ty Minh Hải',
++        contactInfo: null,
++        linkedSupplierId: null,
++        linkedSupplierApBalance: 0,
++        netBalance: 3_000_000,
++        totalOutstanding: 3_000_000,
++        aging: { current: 3_000_000, d30: 0, d60: 0, over90: 0 },
++        maxOverdueDays: 0,
++      }],
++    });
++    useCustomerStatementMock.mockReturnValue({
++      data: {
++        ...customerStatement,
++        totalOutstanding: 3_000_000,
++        unpaidTrips: [{
++          tripId: 1,
++          date: '2026-10-24',
++          issueTimestamp: '2026-10-24T08:00:00Z',
++          outstanding: 3_000_000,
++          note: '',
++          originalDueDate: null,
++          processingDueDate: null,
++        }],
++      },
++      isLoading: false,
++      isFetching: false,
++      error: null,
++      refetch: vi.fn(),
++    });
++    renderAt('/debt/7');
++    expect(await screen.findByText('Còn nợ trong hạn')).toBeTruthy();
++    expect(screen.queryByText(/6 ngày/)).toBeNull();
++  });
++
++  it('C3: a debt still inside its payment term prints "Còn nợ trong hạn"', async () => {
++    useCustomerStatementMock.mockReturnValue({
++      data: {
++        ...customerStatement,
++        totalOutstanding: 1_500_000,
++        unpaidTrips: [{
++          tripId: 2,
++          date: '2026-10-28',
++          issueTimestamp: '2026-10-28T09:00:00Z',
++          outstanding: 1_500_000,
++          note: '',
++          originalDueDate: '2026-11-05',
++          processingDueDate: null,
++        }],
++      },
++      isLoading: false,
++      isFetching: false,
++      error: null,
++      refetch: vi.fn(),
++    });
++    renderAt('/debt/7');
++    expect(await screen.findByText('Còn nợ trong hạn')).toBeTruthy();
++  });
++
++  it('C3: a settled customer prints "Đã thanh toán đủ"', () => {
++    useCustomerStatementMock.mockReturnValue({
++      data: { ...customerStatement, totalOutstanding: 0, unpaidTrips: [] },
++      isLoading: false,
++      isFetching: false,
++      error: null,
++      refetch: vi.fn(),
++    });
++    renderAt('/debt/7');
++    expect(screen.getByText('Đã thanh toán đủ')).toBeTruthy();
++  });
++
++  it('C2: the aging grid carries the age-rule tooltip', () => {
++    renderAt('/debt/7');
++    const grid = document.querySelector<HTMLElement>('.dd-aging-grid');
++    expect(grid?.getAttribute('title')).toContain('ngày ghi nhận');
++    expect(grid?.getAttribute('title')).toContain('31–60');
+   });
+ });

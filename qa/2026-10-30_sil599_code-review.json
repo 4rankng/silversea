@@ -1,0 +1,49 @@
+{
+  "ticket": "SIL-599 (board id 699)",
+  "reviewer": "code-reviewer subagent (Sil599Review), independent pass on the uncommitted diff",
+  "date": "2026-10-30",
+  "round1": {
+    "verdict": "Block",
+    "scopeReviewed": "7 files, +299/−110; also read fifoAging.ts, customer-receivable-authority.service.ts, statement-customer.service.ts, aging.service.ts, PayableListPage.tsx",
+    "findings": [
+      {
+        "id": "F1",
+        "severity": "HIGH",
+        "area": "C3 pill N derivation",
+        "issue": "unpaidTrips-derived N is a narrower/differently-netted domain than the list's snapshot.maxOverdueDays (non-trip obligations excluded; unapplied credits not FIFO-netted) — pill could contradict the list on those shapes",
+        "fixApplied": "Pill now reads the LIST's own maxOverdueDays off the existing getCustomerAging endpoint (row matched by customerId; snapshot.maxOverdueDays verbatim — no API/number/calculation change). Precedence agingRow?.maxOverdueDays ?? unpaidOverdueDays-rule fallback. In flight the pill stays neutral ('Còn nợ') — never claims a due-status before the row settles (re-review MEDIUM residual also closed). search limit widened 50 → 200 (re-review LOW)."
+      },
+      {
+        "id": "F2",
+        "severity": "LOW",
+        "area": "C4 band aria-label",
+        "issue": "bar role=img aria-label announced '0 ₫' per bucket while totals loading",
+        "fixApplied": "aria-label renders 'Phân bố tuổi nợ: đang tải số liệu' until bandReady; pinned both directions in DebtListPage.band.test.tsx"
+      },
+      {
+        "id": "F3",
+        "severity": "LOW",
+        "area": "label drift",
+        "issue": "age-band cut wording lived in two modules",
+        "fixApplied": "AR_AGE_RANGES in components/debt/aging.ts is the single source; AR_AGING_RANGES labels and AGING_BUCKETS label/subLabel derive from it"
+      }
+    ],
+    "cleanAreas": ["C1 labels truthful against computeFifoAging age cuts", "C2 'quá hạn' scoping + both tooltips on both pages", "C4 bandReady parity with payablesReady + discriminating pins", "scope: AP/AGING_RANGES untouched", "TS/React: hooks order, unused imports clean"]
+  },
+  "round2": {
+    "verdict": "Approve",
+    "verified": [
+      "?? semantics: row wins even at 0",
+      "customerId strict numeric compare — lookup fires",
+      "payment-flow invalidation (qk.financial.customerAgingAll) reaches the pill query (qk.financial.customerAging factory shares the ['customer-aging'] prefix)",
+      "settled customers bypass the fallback via hasDebt",
+      "retry:false → error path settles in one fetch"
+    ],
+    "residualsOffered": [
+      "MEDIUM transient (in-flight fallback flash) — CLOSED after the verdict: pill gated on settlement (neutral 'Còn nợ' in flight), per the reviewer's no-API-change fix; QA-repro pin rewritten to pin both frames",
+      "LOW limit-50 miss — CLOSED: limit 200",
+      "LOW asOfDate asymmetry vs ?asOf= list views — accepted by-design (pill = current state), noted on the board comment",
+      "pin tightenings — APPLIED: no-flip waitFor, settled-fallback findByText, row-wins-at-zero pin"
+    ]
+  }
+}
