@@ -1,0 +1,248 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-603/frontend
+> vitest run
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-603/frontend
+
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx (83 tests | 1 failed) 81529ms
+     × UI-CD-12 selects the actual container factory and submits its site id 5490ms
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx (84 tests | 1 failed) 144803ms
+     × keeps 'MSCU1234567' in the editor title and Cancel preserves the exact row 5856ms
+ ❯ src/pages/ShipmentsPage.test.tsx (123 tests | 2 failed) 178755ms
+     × edits schedule and notes from their cells with partial optimistic-version updates 6019ms
+     × persists classification and cargo cells through one-field-authority shipment patches 5285ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/ShipmentContainersPage.test.tsx (49 tests | 1 failed) 227155ms
+     × opens value-cell editors with click, Enter, and Space without pencil controls 17662ms
+stderr | src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx > DetailedPlanFilters — the shared strip (card 20260927_152) > rides the shared bar: search, the from/to fields and the day scope on the line, criteria behind Bộ lọc
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx (22 tests | 1 failed) 26655ms
+     × rides the shared bar: search, the from/to fields and the day scope on the line, criteria behind Bộ lọc 6050ms
+stderr | src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx > FB-092 — AssignTruckGroupDialog > spec 23/10 §3: không còn trường BKS báo khách (ảo) nào — đúng 4 trường (FB136-139)
+An update to AssignTruckGroupDialog inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/ShipmentDebitPage.lcl-merge.test.tsx > FB-093 — Ghép cước thu khách > blocks mixed-customer selections in the dialog and merges same-customer lots
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `section`. It was passed a child from $42ceafc619f9c3ba$export$fb8073518f34e6ec. See https://react.dev/link/warning-keys for more information.
+
+ ❯ src/features/dispatch/detailed-plan/AssignTruckGroupDialog.test.tsx (18 tests | 5 failed) 64023ms
+     × spec 23/10 §3: không còn trường BKS báo khách (ảo) nào — đúng 4 trường (FB136-139) 6301ms
+     × xe tải: bắt buộc chọn Nhà xe (xe ngoài), danh sách BKS chỉ có biển của nhà xe (161026232309) 5331ms
+     × cont: cho phép chọn Đội xe nội bộ SilverSea, danh sách BKS là xe nội bộ (161026232309) 6228ms
+     × auto-copies nothing onto a billing field — the ĐV flow has none (spec 23/10 §3) 5378ms
+     × gửi cước trả ĐVVC nhập tay khi có, bỏ trống thì để server tự tra (161026232319) 5625ms
+ ❯ src/pages/ShipmentDebitPage.lcl-merge.test.tsx (11 tests | 2 failed) 25355ms
+     × SIL-538: ticks hidden by default, [Gộp hàng] reveals them; the bar CTA arms at ≥2 ungrouped lots 5100ms
+     × blocks mixed-customer selections in the dialog and merges same-customer lots 5185ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.mode-toggle.test.tsx (20 tests | 3 failed) 144292ms
+     × mode switch keeps identity fields and wipes only mode-scoped cargo data 14820ms
+     × guards deletion of a row containing only an incomplete time and preserves it on cancel 12136ms
+     × guards deletion of a row containing only an incomplete date and preserves it on cancel 11583ms
+stderr | src/features/shipments/detail/ShipmentContainerLedger.sil548-rev-facts.test.tsx > SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô hàng (§4.1) > editor §4.1: Loại xe thu khách + Giá cước; save gọi /lcl/rev-class đúng 2 trường; dòng hiện "Thu: Xe 3.5T"
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `section`. It was passed a child from $42ceafc619f9c3ba$export$fb8073518f34e6ec. See https://react.dev/link/warning-keys for more information.
+
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.sil548-rev-facts.test.tsx (13 tests | 2 failed) 30934ms
+     × editor §4.1: Loại xe thu khách + Giá cước; save gọi /lcl/rev-class đúng 2 trường; dòng hiện "Thu: Xe 3.5T" 5241ms
+     × QA 615 round 3 — reopen CÙNG SESSION sau save hiện đúng class + giá đã lưu (không cần reload) 5023ms
+stderr | src/features/shipments/debit/DebitLotLclFacts.test.tsx > 161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng từng lô") > reopens on the lot’s stored class and saves a newly picked one with the strip’s own states
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `section`. It was passed a child from $42ceafc619f9c3ba$export$fb8073518f34e6ec. See https://react.dev/link/warning-keys for more information.
+
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx (17 tests | 9 failed) 106276ms
+     × PHOI10 keeps concise disabled direction actions while retaining scope guidance and selected eligible counts 17111ms
+     × PHOI05 confirmation-scope change clears payment selection and sends the exact read filter 5822ms
+     × toggles every pickable row from the toolbar button, and only those 6565ms
+     × PHOI03 clears hidden selection during a filter query and does not resurrect it on return 5671ms
+     × PHOI03 excludes a refreshed nonconfirmable row from count, action and payment request 5235ms
+     × PHOI03 prevents payment while a selected result refresh has failed 5567ms
+     × mini-filter on Khách hàng narrows by a diacritic-folded match; Bỏ lọc restores every row 11000ms
+     × mini-filter on Thông tin xe matches plate (case-folded) and carrier, and never re-sorts the grouped rows 9719ms
+     × a column filter narrowed to nothing offers Bỏ lọc cột and never pays a hidden pick 11185ms
+ ❯ src/features/shipments/debit/DebitLotLclFacts.test.tsx (19 tests | 1 failed) 38886ms
+     × reopens on the lot’s stored class and saves a newly picked one with the strip’s own states 6984ms
+ ❯ src/features/penalties/components/PenaltyTable.test.tsx (15 tests | 1 failed) 22401ms
+     × ID03 preserves the exact trip link when the business reference is missing 5423ms
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx (13 tests | 8 failed) 70173ms
+   × khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp 7333ms
+   × lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng 16049ms
+   × cặp số/ngày hóa đơn hiển thị sẵn, tùy chọn; không còn ô Loại chứng từ (FB-097) 6038ms
+   × OPS context chỉ chọn người thực chi là Ops; lưu được khi đã chọn người chi 6239ms
+   × Nhà cung cấp tự điền theo nhà xe chạy chuyến — khớp id NCC trước, dự phòng tên (FB-097) 5174ms
+   × không khớp id NCC thì dự phòng theo tên nhà xe (FB-097) 5896ms
+   × không có nhà xe ngoài thì để chọn tay, không chặn lưu (FB-097) 6936ms
+   × lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực chi/ngày giữ nguyên (FB-097) 5824ms
+stderr | src/pages/ShipmentDebitPage.tach-nhom.test.tsx > card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu khách > cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `section`. It was passed a child from $42ceafc619f9c3ba$export$fb8073518f34e6ec. See https://react.dev/link/warning-keys for more information.
+
+stderr | src/pages/ShipmentDebitPage.tach-nhom.test.tsx > card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu khách > cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["shipment-debit-detail",101]
+
+ ❯ src/features/users/components/UserForm.test.tsx (11 tests | 1 failed) 22883ms
+     × requires and submits every selected customer when creating an active CUSTOMER account 8089ms
+ ❯ src/pages/ShipmentDebitPage.tach-nhom.test.tsx (7 tests | 2 failed) 24872ms
+     × mỗi dòng trong nhóm mang <button> thật "Tách nhóm" (qua menu ⋯); dòng thường thì không 5706ms
+     × cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm 6353ms
+stderr | src/pages/accounting/DepositRefundTrackerPage.test.tsx > deposit tracker workflows > submits depositDate + status and can mark Đã hoàn cược at creation
+An update to DepositRefundTrackerPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/pages/accounting/DepositRefundTrackerPage.test.tsx > deposit tracker workflows > submits depositDate + status and can mark Đã hoàn cược at creation
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/pages/accounting/DepositRefundTrackerPage.test.tsx (13 tests | 5 failed) 59274ms
+     × renders the shared filter strip and keeps both page actions 6553ms
+     × keeps the date action icon beside its complete label and closes its unsaved draft without writes (UI73) 5153ms
+     × renders the three spec 5.10 create fields and defaults Trạng thái to Chưa hoàn cược 5996ms
+     × auto-fills Ngày dự kiến hoàn cược to CV + 14 on CV change and keeps a manual override 5889ms
+     × submits depositDate + status and can mark Đã hoàn cược at creation 7194ms
+ ❯ src/features/accounting/PhoiPhieuTienDuongDialog.test.tsx (15 tests | 1 failed) 20613ms
+     × keeps rejection visible and reloads the current version before retry 5146ms
+ ❯ src/pages/accounting/AccountingDebitClosePage.tach-nhom.test.tsx (12 tests | 1 failed) 24854ms
+     × click → dialog chung → unmergeLclGroup(REV) và bảng được tải lại 5406ms
+ ❯ src/pages/OpsWalletPage.test.tsx (13 tests | 2 failed) 34472ms
+     × explains a failed removal and preserves the expense for retry 6630ms
+     × lets the author edit a recorded unsettled expense (PRD §5.5 sửa) 7136ms
+ ❯ src/pages/RecoverableCostsPage.test.tsx (15 tests | 1 failed) 38695ms
+     × sends sortBy/sortDir on header clicks, toggles asc → desc, and resets to page 1 15613ms
+ ❯ src/pages/clerk/ClerkShipmentEditPage.test.tsx (7 tests | 1 failed) 21581ms
+     × mở đúng form Tạo lô hàng ở chế độ sửa — tiêu đề "Sửa lô hàng", không còn "Tạo lô hàng"/"Lưu nháp" 6593ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/styles/numeric-identity.styles.test.ts (6 tests | 2 failed) 16ms
+     × the production bundle holds the numeric law on the amount cells 4ms
+     × the production bundle holds the numeric law on the expense register cells 1ms
+ ❯ src/pages/accounting/PhoiPhieuControlPage.report-section.test.tsx (4 tests | 1 failed) 15074ms
+     × the drill-down batch bar ticks rows, totals the phiếu, and issues one batch voucher 6268ms
+stderr | src/pages/TripListPage.test.tsx > TripListPage server-side column sort > sends sortBy/sortDir when a header is clicked and flips asc → desc on repeat
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["trips-summary","2026-08-01","2026-08-31"]
+
+ ❯ src/pages/TripListPage.test.tsx (6 tests | 2 failed) 26122ms
+     × sends sortBy/sortDir when a header is clicked and flips asc → desc on repeat 6617ms
+     × writes the status segment and the criteria into the list query 6898ms
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx (4 tests | 2 failed) 13306ms
+     × saves vehicleSizeClassId (not a free-text key) when a class is chosen 6102ms
+     × keeps the container axis exclusive with the vehicle class 5672ms
+ ❯ src/features/ops/OpsExpenseCatalogRecovery.test.tsx (3 tests | 1 failed) 7974ms
+     × retains draft and retries the catalog without submitting (edit=false) 5481ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.deposit.test.tsx (5 tests | 1 failed) 5706ms
+     × ticking shows the expected-amount field; unticking hides it 5699ms
+stderr | src/features/dispatch/catalogs/FleetVehiclesView.sort.test.tsx > FleetVehiclesView client-side sort headers > keeps the catalog order until a header is pressed, then sorts plate asc → desc
+An update to FleetVehiclesView inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/dispatch/catalogs/FleetVehiclesView.sort.test.tsx (2 tests | 1 failed) 9366ms
+     × keeps the catalog order until a header is pressed, then sorts plate asc → desc 6915ms
+ ❯ src/features/users/components/UserEditPanel.validation.test.tsx (4 tests | 1 failed) 13212ms
+     × blocks an invalid email with a Vietnamese field message and focus 6125ms
+ ❯ src/pages/portal/PortalStatementPage.sort.test.tsx (2 tests | 1 failed) 7114ms
+     × keeps the server order first, then sorts by date asc → desc 5543ms
+ ❯ src/components/UI.combobox-shortcuts.test.tsx (4 tests | 1 failed) 14693ms
+     × Escape closes only the list inside a modal 5550ms
+ ❯ src/features/dispatch/catalogs/FleetDriversView.sort.test.tsx (2 tests | 1 failed) 7426ms
+     × keeps the catalog order until a header is pressed, then sorts name asc → desc 5267ms
+ ❯ src/pages/FuelEvidenceReviewPage.test.tsx (2 tests | 1 failed) 8446ms
+     × ID03 names missing business references honestly in text and photo accessibility 5671ms
+ ❯ src/App.phoiPhieuPreload.test.tsx (2 tests | 1 failed) 8093ms
+     × a finance-role session pulls the phoi-phieu page module without visiting it 5607ms
+stderr | src/components/UI.drawer-animation.test.tsx > Drawer slide (card 20260923_1 D1/D2) > D1: reopening mid-exit still leaves the open panel at rest
+An update to Drawer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/UI.drawer-animation.test.tsx > Drawer slide (card 20260923_1 D1/D2) > D1: reopening mid-exit still leaves the open panel at rest
+An update to Drawer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/components/UI.drawer-animation.test.tsx (2 tests | 1 failed) 5396ms
+     × D1: reopening mid-exit still leaves the open panel at rest 5069ms
+ ❯ src/features/expense-accounting/ExpenseWorkRows.test.tsx (2 tests | 1 failed) 5438ms
+     × shows work without recorded fees, complete dispatch identity and distinct notes 5019ms
+ ❯ src/internal-product-copy.test.ts (2 tests | 1 failed) 25746ms
+     × does not ship internal codes, ticket references or review notes in frontend runtime strings 25740ms
+ ❯ src/components/trip/TripEditConflictDialog.test.tsx (2 tests | 1 failed) 7303ms
+     × requires each choice and submits the reviewed version without silently selecting values 5249ms
+ ❯ src/pages/customers-grid.toast.test.tsx (1 test | 1 failed) 5858ms
+     × traces urls 5855ms
+ ELIFECYCLE  Test failed. See above for more details.

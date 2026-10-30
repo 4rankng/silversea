@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-603/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
+   Start at  20:23:36
+   Duration  8.56s (transform 1.07s, setup 354ms, import 3.66s, tests 2.46s, environment 1.79s)
+
+EXIT: 0

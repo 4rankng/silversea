@@ -424,4 +424,20 @@ describe('CusShipmentRow — SIL-603: lịch trình wrap tên nhà máy, cấm t
     // Mobile keeps the per-fact grid even as the trigger's first child.
     expect(css).toMatch(/@media \(max-width: 999px\)\s*\{[\s\S]*?\.cus-dashboard-table \.cus-inline-trigger > \.cus-schedule-group\s*\{[^}]*display:\s*grid;/);
   });
+
+  it('CSS pin: the workboard renders edge-to-edge — no shell gutter, no 1800px cap (owner 30/10)', () => {
+    // The shell drops its inline gutter for this page…
+    expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body:has\(> \.shipments-page--worksheet\)\s*\{[^}]*padding-inline:\s*0;/);
+    // …the page re-owns the gutter for its controls and drops the ledger cap…
+    const pageRule = css.match(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-page--worksheet\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(pageRule, 'the worksheet page rule must exist').not.toBe('');
+    expect(pageRule).toContain('max-width: none');
+    expect(pageRule).toContain('padding-inline: max(var(--app-body-pad-x)');
+    // …and the board (pagination included) bleeds past the gutter to both
+    // screen edges — one level deeper than the page, on the chrome-free
+    // worksheet wrapper.
+    const bleedRule = css.match(/\.shipments-page--worksheet \.cus-workspace--worksheet\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(bleedRule, 'the worksheet bleed rule must exist').not.toBe('');
+    expect(bleedRule).toContain('margin-inline: calc(-1 * max(var(--app-body-pad-x)');
+  });
 });

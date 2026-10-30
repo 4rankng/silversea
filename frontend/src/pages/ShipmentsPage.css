@@ -1087,6 +1087,36 @@
   margin-inline: auto;
 }
 
+/* Owner ruling 30/10 (SIL-603 lane): the workboard renders EDGE-TO-EDGE — the
+   data table reaches BOTH screen edges instead of floating inside the shell
+   gutter and the shared 1800px ledger cap. Webchat second opinion (deepseek,
+   30/10) endorsed the bleed + the pagination riding the same full-bleed
+   surface, cautioned ultrawide row sweep and the scrollport precondition;
+   the owner's full-width ruling wins on ultrawide, and the preconditions
+   hold: .app-body is the overflow-y scrollport (styles/base.test.ts) and the
+   column-floor block keeps the shares readable at every canvas ≥ 1189px.
+   Content bleeds, controls float: the control surface (title + filters),
+   notices and the empty state keep the shared gutter — only the board
+   (.cus-dashboard-viewport, pagination included) bleeds. */
+.app-main:not(.driver-mode) .app-body:has(> .shipments-page--worksheet) {
+  padding-inline: 0;
+}
+
+.app-main:not(.driver-mode) .app-body > .shipments-page--worksheet {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: max(var(--app-body-pad-x), env(safe-area-inset-left, 0px))
+    max(var(--app-body-pad-x), env(safe-area-inset-right, 0px));
+}
+
+/* The board sits one level deeper than the page (page → .cus-workspace →
+   viewport), so the bleed rides the chrome-free worksheet wrapper. */
+.app-main:not(.driver-mode) .app-body > .shipments-page--worksheet .cus-workspace--worksheet {
+  margin-inline: calc(-1 * max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)))
+    calc(-1 * max(var(--app-body-pad-x), env(safe-area-inset-right, 0px)));
+}
+
 .cus-workspace {
   min-width: 0;
   overflow: hidden;
