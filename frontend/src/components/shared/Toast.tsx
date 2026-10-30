@@ -172,9 +172,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     if (existingId) return existingId;
 
     const id = `toast-${++counter.current}`;
-    const duration = options.duration ?? 4500;
+    // Accessibility law (shipmate:uiux, WCAG 2.2): toasts carrying an error
+    // stay until dismissed — an auto-dismissed error is an invisible error
+    // (SIL-592 retest 30/10: the close's 400 "Ngày hoàn thành không thể trước
+    // ngày khởi hành." vanished after 4.5s and QA reported "không có thông
+    // báo lỗi"). Success/info/warning keep the auto-dismiss rhythm; the
+    // FB-145 action toast keeps its owner-approved 5–8s window.
+    const duration = options.duration
+      ?? (options.kind === 'error' && options.action == null ? null : 4500);
     setToasts(prev => [...prev, { id, kind: options.kind, message: options.message, action: options.action }]);
-    timers.current.set(id, setTimeout(() => dismiss(id), duration));
+    if (duration != null) {
+      timers.current.set(id, setTimeout(() => dismiss(id), duration));
+    }
     return id;
   }, [dismiss]);
 

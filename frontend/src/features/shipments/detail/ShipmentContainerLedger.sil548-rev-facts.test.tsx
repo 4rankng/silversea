@@ -70,6 +70,7 @@ const lotRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}): ShipmentC
   plateNumber: null,
   tripId: null,
   tripStatus: null,
+  tripDepartureDate: null,
   actualTruckNo: null,
   billingTruckNo: null,
   revVehicleClassCode: null,

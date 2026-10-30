@@ -22,7 +22,7 @@ const baseLine = {
   id: 11, ordinal: 3, operationalSiteId: null, containerNumber: 'MSKU4120016',
   declarationNumber: 'R41B2TK01', containerTypeId: null, containerTypeLabel: null,
   routeId: null, routeName: null, dispatchStatus: 'AWAITING_VEHICLE', tripId: null,
-  tripStatus: null, carrierType: null, externalCarrierId: null, externalCarrierVehicleId: null,
+  tripStatus: null, tripDepartureDate: null, carrierType: null, externalCarrierId: null, externalCarrierVehicleId: null,
   carrierName: null, plateNumber: null, liftSiteId: null, liftSite: null,
   dropoffSiteId: null, dropoffSite: null, customerAppointmentAt: null,
   raw: { containerNumber: 'MSKU4120016', containerTypeId: null, cargoWeightKg: null, cargoVolumeCbm: null, routeId: null },

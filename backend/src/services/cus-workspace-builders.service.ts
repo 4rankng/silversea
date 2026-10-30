@@ -651,6 +651,9 @@ function buildContainerLine(
     tripId: assignment?.tripId ?? null,
     // Assignment rows carry the raw varchar; the contract narrows to the enum.
     tripStatus: (assignment?.tripStatus as TripStatus | null) ?? null,
+    // SIL-592 retest 30/10 — the linked trip's planned departure date, the
+    // gate's departure half (hide "Hoàn thành" while the run is still future).
+    tripDepartureDate: assignment?.tripDepartureDate ?? null,
     carrierType: carrierType as 'OWN' | 'EXTERNAL' | null,
     externalCarrierId,
     externalCarrierVehicleId,
