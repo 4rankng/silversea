@@ -1,11 +1,15 @@
 // Cards 191026181942 (cus-tongquan-*): the Tổng quan row's cargo wording,
 // CBM suppression, muted zero-allocation signal, and the shared NameCell.
 // Thin-cast fixture precedent: cusQuickEditModel.test.ts.
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
 import { CusShipmentRow } from './CusShipmentRow';
+
+const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 
 const access = (mode: string) => ({ mode, reason: `reason:${mode}` });
 
@@ -339,5 +343,85 @@ describe('CusShipmentRow — Chứng từ cell (SIL-502 regression)', () => {
     const { container } = renderRow(item);
     expect(documentsCell(container).textContent).toContain('502-TK-LEGACY');
     expect(documentsCell(container).textContent).not.toContain('Chưa có tờ khai');
+  });
+});
+
+// SIL-603 (id 706, owner 30/10): the schedule cell's facts stack one per line
+// — the datetime keeps its own line, the factory name drops to the next line
+// IN FULL — instead of the single `·`-packed run the FB-043 ellipsis law cut
+// into "21:20 28/10/2026 · NEWEB…" on the workboard (SIL-515 wrap law).
+describe('CusShipmentRow — SIL-603: lịch trình wrap tên nhà máy, cấm truncate', () => {
+  const LONG_FACTORY = 'NEWEB - KHO 1 CÔNG TY TNHH NEWEB VIỆT NAM, Lô đất CN01, KCN Đồng Văn III';
+
+  function itemWithGroup(factoryName: string | null) {
+    const item = makeItem({ cargoMode: 'FCL', totalContainers: 2 });
+    return {
+      ...item,
+      // 14:20Z = 21:20 ICT (+7) — the exact instant from the ticket screenshot.
+      appointmentGroups: [{
+        at: '2026-10-28T14:20:00.000Z',
+        localDate: '2026-10-28',
+        factoryName,
+        containerSummary: '2x40HC',
+      }],
+    } as ShipmentCusWorkspaceListItem;
+  }
+
+  it('keeps the full long factory name in the DOM on its own line — nothing cut', () => {
+    const { container } = renderRow(itemWithGroup(LONG_FACTORY));
+    const cell = container.querySelector('td[data-label*="Lịch trình"]')!;
+    // Every fact is fully present — the long name survives verbatim, never
+    // clipped to "NEWEB…".
+    expect(cell.textContent).toContain('21:20 28/10/2026');
+    expect(cell.textContent).toContain(LONG_FACTORY);
+    expect(cell.textContent).toContain('2x40HC');
+    // One fact per line: the datetime and the factory are SEPARATE elements
+    // (their own grid rows), so the wrap point exists before the name starts.
+    expect(screen.getByText('21:20 28/10/2026').className).toBe('cus-schedule-group__when');
+    expect(screen.getByText(LONG_FACTORY).className).toBe('cus-schedule-group__factory');
+    expect(screen.getByText('2x40HC').className).toBe('cus-schedule-group__containers');
+    // Hover keeps the joined line reachable.
+    const group = container.querySelector('.cus-schedule-group')!;
+    expect(group.getAttribute('title')).toBe(`21:20 28/10/2026 · ${LONG_FACTORY} · 2x40HC`);
+  });
+
+  it('renders no `·` separator between the facts in the cell DOM', () => {
+    // SIL-517: a separator only exists to pack facts onto one line — the
+    // packed line is the mechanism that truncated. The DOM (and with it copy/
+    // screen-reader text) carries the facts back to back, no dot.
+    const { container } = renderRow(itemWithGroup(LONG_FACTORY));
+    const cell = container.querySelector('td[data-label*="Lịch trình"]')!;
+    expect(cell.textContent).not.toContain('·');
+  });
+
+  it('keeps the lot-fallback instant as its own uncut line', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      plannedReturnAt: '2026-10-28T17:00:00.000Z',
+      transportDate: '2026-10-29',
+    }));
+    const fallback = container.querySelector('.cus-schedule-lot-fallback')!;
+    expect(fallback.textContent).toBe('00:00 29/10/2026');
+  });
+
+  it('CSS pin: the schedule cell lines wrap — the FB-043 ellipsis law is revoked (SIL-515/SIL-603)', () => {
+    const triggerRule = css.match(/td\[data-label='Lịch trình & điều xe'\] \.cus-inline-trigger > \*\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(triggerRule, 'the schedule trigger-child rule must exist').not.toBe('');
+    expect(triggerRule).toContain('white-space: normal');
+    expect(triggerRule).toContain('overflow-wrap: anywhere');
+    expect(triggerRule).not.toContain('nowrap');
+    expect(triggerRule).not.toContain('ellipsis');
+    expect(triggerRule).not.toContain('overflow: hidden');
+    // The group is the per-fact grid; its value spans clip at nothing.
+    expect(css).toMatch(/\.cus-schedule-group\s*\{[^}]*display:\s*grid;/);
+    const valueRule = css.match(/\.cus-schedule-group > span\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(valueRule, 'the schedule value-span rule must exist').not.toBe('');
+    expect(valueRule).toContain('white-space: normal');
+    expect(valueRule).toContain('overflow-wrap: anywhere');
+    expect(valueRule).toContain('overflow: visible');
+    expect(valueRule).not.toContain('nowrap');
+    expect(valueRule).not.toContain('ellipsis');
+    // Mobile keeps the per-fact grid even as the trigger's first child.
+    expect(css).toMatch(/@media \(max-width: 999px\)\s*\{[\s\S]*?\.cus-dashboard-table \.cus-inline-trigger > \.cus-schedule-group\s*\{[^}]*display:\s*grid;/);
   });
 });

@@ -472,10 +472,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // The overview only shows explicit container appointments; it must not
     // repeat the nearest closing/return time from plannedReturnAt.
     expect(surface.queryByText('17:00 · trả hàng')).toBeNull();
-    // Per-container appointment groups: one line per distinct close/return
-    // datetime, with the container-type mix of that group.
-    expect(surface.getByText('09:30 12/08/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
-    expect(surface.getByText('16:30 12/08/2026 · Nhà máy ABC · 1x20GP')).toBeTruthy();
+    // Per-container appointment groups (SIL-603): each group stacks its facts
+    // — the datetime holds one line, the factory name drops to the next line
+    // in full — instead of one `·`-packed run an ellipsis could cut.
+    const scheduleCell = surface.getByText('09:30 12/08/2026').closest('td');
+    expect(within(scheduleCell!).getAllByText('Nhà máy ABC')).toHaveLength(2);
+    expect(within(scheduleCell!).getByText('1x40HC')).toBeTruthy();
+    expect(within(scheduleCell!).getByText('16:30 12/08/2026')).toBeTruthy();
+    expect(within(scheduleCell!).getByText('1x20GP')).toBeTruthy();
     expect(masterRowDetailButton().textContent).toContain('Chi tiết');
     expect(document.querySelector('.cus-mobile-list')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Chọn cột hiển thị' })).toBeNull();
@@ -559,10 +563,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, transportDate: '2026-08-19' }]));
     renderPage();
 
-    const scheduleCell = (await screen.findByText('09:30 12/08/2026 · Nhà máy ABC · 1x40HC')).closest('td');
+    const scheduleCell = (await screen.findByText('09:30 12/08/2026')).closest('td');
     expect(scheduleCell).toBeTruthy();
     expect(within(scheduleCell!).queryByText('19/8/2026')).toBeNull();
-    expect(within(scheduleCell!).getByText('09:30 12/08/2026 · Nhà máy ABC · 1x40HC')).toBeTruthy();
+    expect(within(scheduleCell!).getByText('09:30 12/08/2026')).toBeTruthy();
     expect(within(scheduleCell!).queryByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })).toBeNull();
   });
 
@@ -681,7 +685,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
     // Mixed container types split one line per type (Kiến nghị L2 item 1.2).
-    const firstType = await screen.findByText('1x40HC');
+    // Scoped to the cargo cell: since SIL-603 the schedule cell's group also
+    // renders its own '1x40HC' span, so the page-wide query is ambiguous.
+    const table = await screen.findByRole('table');
+    const cargoCell = table.querySelector(
+      "tr.cus-dashboard-row td[data-label='Tổng quan hàng hóa']",
+    ) as HTMLElement;
+    const firstType = await within(cargoCell).findByText('1x40HC');
     expect(firstType.className).toContain('cus-cargo-summary__containers');
     const secondType = within(masterRow()).getByText('1x20DC');
     expect(secondType.className).toContain('cus-cargo-summary__containers');

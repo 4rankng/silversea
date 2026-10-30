@@ -19,7 +19,6 @@ import {
   filterAppointmentGroupsByDate,
 } from './cargoDayFilter';
 import {
-  appointmentGroupFactorySegment,
   derivePrimaryShipmentSignal,
   directionLabel,
   emptyDayCargoLabel,
@@ -117,14 +116,27 @@ export function CusShipmentRow({
   const groupsToShow = hasDateFilter ? filteredGroups : item.appointmentGroups;
   const scheduleContent = <>
     {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
-    {groupsToShow.map((group) => (
-      <span
-        key={`${group.at}-${group.factoryName ?? ''}`}
-        title={`${formatAppointmentGroupLine(group.at, group.localDate)}${appointmentGroupFactorySegment(group.factoryName)} · ${group.containerSummary}`}
-      >
-        {formatAppointmentGroupLine(group.at, group.localDate)}{appointmentGroupFactorySegment(group.factoryName)} · {group.containerSummary}
-      </span>
-    ))}
+    {groupsToShow.map((group) => {
+      // SIL-603 (id 706, owner 30/10): one fact per line — the datetime keeps
+      // its own line and the factory name drops to the next line IN FULL,
+      // wrap included. The old single `·`-packed run is exactly what the
+      // ellipsis cut into "21:20 28/10/2026 · NEWEB…" (SIL-515 wrap law); a
+      // separator only exists to pack facts onto one line, so the DOM renders
+      // the facts as separate spans and the title carries the joined line.
+      const when = formatAppointmentGroupLine(group.at, group.localDate);
+      const factory = group.factoryName?.trim() || null;
+      return (
+        <span
+          key={`${group.at}-${group.factoryName ?? ''}`}
+          className="cus-schedule-group"
+          title={[when, factory, group.containerSummary].filter(Boolean).join(' · ')}
+        >
+          <span className="cus-schedule-group__when">{when}</span>
+          {factory && <span className="cus-schedule-group__factory">{factory}</span>}
+          {group.containerSummary && <span className="cus-schedule-group__containers">{group.containerSummary}</span>}
+        </span>
+      );
+    })}
     {/* Card 20260915_35 (lead ruling: fork a): the "Chỉnh sửa Lịch trình" dialog
         writes the SHIPMENT-level closingAt/plannedReturnAt, but for FCL lots the
         readiness rule counts only per-container appointments — so without this
