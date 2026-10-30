@@ -26,41 +26,52 @@ describe('SIL-499 onescreen wide band', () => {
     expect(CSS, 'no other media width').not.toMatch(/@media \(min-width: (?!1280px)/);
   });
 
-  it('worksheet is the 2-column grid; the form joins it via display: contents', () => {
-    expect(CSS).toMatch(/\.csc-workspace \{ display: grid; grid-template-columns: minmax\(0, 4fr\) minmax\(0, 8fr\); gap: 12px; \}/);
+  it('worksheet is the single-column grid; the form joins it via display: contents', () => {
+    // SIL-604: the 4fr/8fr pairing had no tenant left once the mode band
+    // stopped sharing row 1 with identity — every section owns a full-width
+    // row now.
+    expect(CSS).toMatch(/\.csc-workspace \{ display: grid; grid-template-columns: minmax\(0, 1fr\); gap: 12px; \}/);
     expect(CSS).toMatch(/\.csc-form \{ display: contents; \}/);
   });
 
   it('places every section + freight (both with and without freight preview); the action bar stays viewport-fixed', () => {
     for (const area of [
-      // SIL-596: row 1 = mode + identity equal-height siblings; the strip
-      // tenant of identity's old r1-r2 span is retired (SIL-521).
-      '#shipment-section-mode { grid-area: 1 / 1 / 2 / 2; align-self: stretch; align-content: center; }',
-      '#shipment-section-identity { grid-area: 1 / 2 / 2 / 3; }',
-      '#shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }',
-      '#shipment-section-route { grid-area: 3 / 1 / 4 / 3; }',
-      '#shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }',
+      // SIL-604 (id 707): the mode band leads the form as its own FULL-width,
+      // content-sized row — the equal-height stretch (SIL-596) centered
+      // ~105px of controls inside a 238px card (ticket khung đỏ,
+      // qa/2026-10-30_sil604_ui-modeband-1307-before). No stretch, no
+      // centering: a content-sized card has nothing to center.
+      '#shipment-section-mode { grid-area: 1 / 1 / 2 / 3; align-self: start; }',
+      '#shipment-section-identity { grid-area: 2 / 1 / 3 / 3; }',
+      '#shipment-section-schedule { grid-area: 4 / 1 / 5 / 3; }',
+      '#shipment-section-route { grid-area: 4 / 1 / 5 / 3; }',
+      '#shipment-section-cargo { grid-area: 5 / 1 / 6 / 3; }',
     ]) {
       expect(CSS, area).toContain(area);
     }
-    // SIL-596: the freight card owns a FULL-width row — column 2 may never
-    // sit empty beside it (§10.8.2: no orphan grid cell).
-    expect(CSS).toContain('[data-freight-preview] { grid-area: 2 / 1 / 3 / 3; align-self: start; margin: 0; }');
+    // The supersize shape must stay dead: no stretch, no align-content
+    // centering, and no column-local placement pin on the mode card.
+    expect(CSS).not.toMatch(/#shipment-section-mode \{[^}]*stretch/);
+    expect(CSS).not.toMatch(/#shipment-section-mode \{[^}]*align-content/);
+    expect(CSS).not.toMatch(/#shipment-section-mode \{ grid-area: 1 \/ 1 \/ 2 \/ 2/);
+    // SIL-596: the freight card owns a FULL-width row — no orphan grid cell
+    // (§10.8.2: hide a column only when it is empty).
+    expect(CSS).toContain('[data-freight-preview] { grid-area: 3 / 1 / 4 / 3; align-self: start; margin: 0; }');
     // SIL-510: the action bar is NOT a grid row — it is the viewport-fixed
     // footer, so the wide band places neither a grid area nor a padding
     // override on it (a comment may name it; a rule may not).
     expect(CSS).not.toMatch(/\.csc-form-actions\s*\{/);
     // Freight-absent collapse: no empty track may stay behind.
     for (const pull of [
-      ':not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 2 / 1 / 3 / 3; }',
-      ':not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 3 / 1 / 4 / 3; }',
+      ':not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }',
+      ':not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }',
     ]) {
       expect(CSS, pull).toContain(pull);
     }
   });
 
   it('keeps the SPEC density numbers (padding 12, worksheet gap 12, heading band 36, table row 48)', () => {
-    expect(CSS).toMatch(/\.csc-workspace \{ display: grid; grid-template-columns: minmax\(0, 4fr\) minmax\(0, 8fr\); gap: 12px; \}/);
+    expect(CSS).toMatch(/\.csc-workspace \{ display: grid; grid-template-columns: minmax\(0, 1fr\); gap: 12px; \}/);
     expect(CSS).toMatch(/\.csc-section \{ padding: 12px 14px !important; gap: 8px !important; \}/);
     // 7px block padding + ~21px title line + 1px border = the 36px band.
     expect(CSS).toMatch(/\.csc-section__heading \{ margin: -12px -14px 0; padding: 7px 14px; \}/);
@@ -92,9 +103,10 @@ describe('SIL-499 onescreen wide band', () => {
     // measured a ~265px dead strip beside the 150px control) stays dead.
     expect(CSS).not.toMatch(/#shipment-section-schedule \.csc-bulk-appointment/);
     expect(CSS).not.toMatch(/#shipment-section-schedule \{ grid-template-columns:/);
-    // The stretched mode card centers its content (balanced padding, never
-    // an empty frame — qa/2026-10-30_sil598).
-    expect(CSS).toMatch(/#shipment-section-mode \{ grid-area: 1 \/ 1 \/ 2 \/ 2; align-self: stretch; align-content: center; \}/);
+    // SIL-604: the band row is one baseline line — content-sized mode card,
+    // no grow on the bulk group (the group hugs its 260px field + copy
+    // button; worksheet rows never justify-fill).
+    expect(CSS).toMatch(/#shipment-section-mode \{ grid-area: 1 \/ 1 \/ 2 \/ 3; align-self: start; \}/);
   });
 
   it('identity bands carry the wide-grid hooks; the card is ONE column (no dead cell)', () => {

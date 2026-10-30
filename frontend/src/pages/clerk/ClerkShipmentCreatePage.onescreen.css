@@ -17,50 +17,61 @@
  *
  * Structure (§5 law: a form must never force vertical scrolling on a wide
  * screen — the worksheet spreads horizontally):
- *   r1  mode (c1, stretches; FCL bulk datetime rides here per SIL-587/598)
- *       | identity (c2) — EQUAL-HEIGHT siblings
- *   r2  freight preview (full width, only when the pricing engine has data
- *       — :has() collapses its row)
- *   r3  schedule = notes pair (FCL) / route (LCL) — full width
- *   r4  cargo (container sheet — needs the full 1164px min-width) — full
+ *   r1  mode — FULL width, content-sized (SIL-604: the band leads the form
+ *       as one ~59px control line; FCL bulk datetime rides here per
+ *       SIL-587/598)
+ *   r2  identity — full width
+ *   r3  freight preview (only when the pricing engine has data — :has()
+ *       collapses its row)
+ *   r4  schedule = notes pair (FCL) / route (LCL) — full width
+ *   r5  cargo (container sheet — needs the full min-width) — full width
  *   SIL-510: the action bar is NOT a grid row — it is the viewport-fixed
  *   footer (`.csc-form-actions`), always visible while scrolling.
- *   SIL-596 (id 696, owner 30/10): the strip column that let identity span
- *   r1-r2 is retired (SIL-521), so identity is a single-column card that
- *   FILLS c2 (bands stack full-width in DOM order — no dead column) and
- *   mode stretches to match it — a short mode card left a 190px white row
- *   under it (qa/2026-10-30_sil596-before, 1307px evidence). The freight
- *   card takes a full-width row so c2 never sits empty beside it.
+ *   SIL-604 (id 707, owner 30/10): the r1 side-by-side pairing is retired.
+ *   With the tờ khai strip gone (SIL-521) identity is a ~238px single
+ *   column, and stretching the 2-control mode card to match it turned the
+ *   band into a 238px frame around ~105px of controls — dead space above
+ *   AND below (qa/2026-10-30_sil604_ui-modeband-1307-before.png, khung đỏ
+ *   ticket). A short mode card beside identity would orphan the column
+ *   again (the SIL-596 190px white row). The only arrangement with no void
+ *   anywhere: the band is its own full-width row at content height, one
+ *   baseline line (segmented + HH:mm + DD/MM/YYYY), identity under it.
+ *   Measured after: mode card 83px (59px control line + 12px card
+ *   padding), page still fits one 1280×800 viewport.
  */
 @media (min-width: 1280px) {
   .csc-page { padding: 4px 0; }
-  .csc-workspace { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 12px; }
+  /* SIL-604: every section owns a full-width row now — the 4fr/8fr pairing
+     had no tenant left once mode stopped sharing r1 with identity. */
+  .csc-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
   /* The form element keeps its DOM semantics (Enter law, requestSubmit);
      its children join the worksheet grid. */
   .csc-form { display: contents; }
 
-  /* SIL-596 (id 696, owner 30/10): row 1 = mode + identity as EQUAL-HEIGHT
-     siblings. The strip tenant that justified identity spanning r1-r2 and
-     a start-aligned mode card is gone (SIL-521) — that combo measured
-     190px of white under mode and a ~314px dead column inside identity
-     (qa/2026-10-30_sil596-before, 1307px). SIL-598: the FCL bulk datetime
-     fills the mode card's second row and its content CENTERS, so the
-     stretched card reads as balanced padding, never as an empty frame. */
-  #shipment-section-mode { grid-area: 1 / 1 / 2 / 2; align-self: stretch; align-content: center; }
-  #shipment-section-identity { grid-area: 1 / 2 / 2 / 3; }
+  /* SIL-604 (id 707, owner 30/10): row 1 is the mode band ALONE — full
+     width, content-sized. The equal-height stretch (SIL-596) centered
+     ~105px of controls inside a 238px card (the ticket's khung đỏ); the
+     band now paints one ~59px baseline line + 12px card padding, measured
+     83px total at 1307. align-content is gone with the stretch: a
+     content-sized card has nothing left to center inside it.
+     The `/ 3` row-end lines are by design: items span the single explicit
+     column plus its implicit twin, which Chrome resolves to 0 width (grid
+     probe qa/2026-10-30_sil604) — the workspace stays one track wide. */
+  #shipment-section-mode { grid-area: 1 / 1 / 2 / 3; align-self: start; }
+  #shipment-section-identity { grid-area: 2 / 1 / 3 / 3; }
   /* Freight preview renders only with full pricing data — it owns a FULL
-     -width row so column 2 never sits empty beside it (§10.8.2: hide a
-     column only when it is empty; no orphan grid cell). */
-  [data-freight-preview] { grid-area: 2 / 1 / 3 / 3; align-self: start; margin: 0; }
-  #shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }
-  #shipment-section-route { grid-area: 3 / 1 / 4 / 3; }
-  #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }
+     -width row (§10.8.2: hide a column only when it is empty; no orphan
+     grid cell). */
+  [data-freight-preview] { grid-area: 3 / 1 / 4 / 3; align-self: start; margin: 0; }
+  #shipment-section-schedule { grid-area: 4 / 1 / 5 / 3; }
+  #shipment-section-route { grid-area: 4 / 1 / 5 / 3; }
+  #shipment-section-cargo { grid-area: 5 / 1 / 6 / 3; }
 
   /* No freight preview → pull schedule/route up into its row, so no empty
      track (and no orphan gaps) is left behind. */
-  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 2 / 1 / 3 / 3; }
-  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-route { grid-area: 2 / 1 / 3 / 3; }
-  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 3 / 1 / 4 / 3; }
+  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }
+  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-route { grid-area: 3 / 1 / 4 / 3; }
+  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }
 
   /* ── SPEC density: card padding 12-16, gap 12, section band 36 ── */
   .csc-section { padding: 12px 14px !important; gap: 8px !important; }
