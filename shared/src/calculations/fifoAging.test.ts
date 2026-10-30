@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { computeFifoAging } from './fifoAging.ts';
+import { computeFifoAging, maxOverdueDaysOf } from './fifoAging.ts';
 import type { FifoAgingInput } from './fifoAging.ts';
 
 // Contract (owner ruling 29/10, SIL-580): the aging buckets are AGE bands
@@ -271,5 +271,60 @@ describe('computeFifoAging', () => {
     // 200k unapplied credit + 500k debit → 300k remaining, then 100k credit applied → 200k
     // recorded 10 days ago → current bucket
     assert.strictEqual(aging.current, 200000);
+  });
+
+  // SIL-580 invariant pin: "quá hạn" stays the CONTRACTUAL overdue span
+  // (card 061026221213) — whole calendar days past the effective due date at
+  // the reference date, 0 while not yet due — even though the aging buckets
+  // above count from the recording date (owner ruling 29/10). These pins
+  // exercise calendarDaysPastDue/maxOverdueDaysOf through computeFifoAging;
+  // the buckets are deliberately not asserted here.
+  describe('contractual overdueDays KPI — days past the effective due date', () => {
+    test('boundary ladder: frozen dueDate 0/1/30/31/60/90/91 days past due', () => {
+      const entries: FifoAgingInput[] = [
+        { timestamp: daysAgo(5, ref), debit: '100000', credit: '0', dueDate: dueDaysAgo(0, ref) },   // due today
+        { timestamp: daysAgo(5, ref), debit: '200000', credit: '0', dueDate: dueDaysAgo(1, ref) },   // 1 past due
+        { timestamp: daysAgo(5, ref), debit: '300000', credit: '0', dueDate: dueDaysAgo(30, ref) },  // 30 past due
+        { timestamp: daysAgo(5, ref), debit: '400000', credit: '0', dueDate: dueDaysAgo(31, ref) },  // 31 past due
+        { timestamp: daysAgo(5, ref), debit: '500000', credit: '0', dueDate: dueDaysAgo(60, ref) },  // 60 past due
+        { timestamp: daysAgo(5, ref), debit: '600000', credit: '0', dueDate: dueDaysAgo(90, ref) },  // 90 past due
+        { timestamp: daysAgo(5, ref), debit: '700000', credit: '0', dueDate: dueDaysAgo(91, ref) },  // 91 past due
+      ];
+      const { openInvoices } = computeFifoAging(entries, ref);
+      assert.deepStrictEqual(openInvoices.map((inv) => inv.overdueDays), [0, 1, 30, 31, 60, 90, 91]);
+    });
+
+    test('a dueDate in the future never reads past due, regardless of recording age', () => {
+      // Recorded 120 days ago but due tomorrow: the contractual span clamps
+      // to 0 even though the aging bucket would already sit in over90.
+      const entries: FifoAgingInput[] = [
+        { timestamp: daysAgo(120, ref), debit: '100000', credit: '0', dueDate: dueDaysAgo(-1, ref) },
+      ];
+      const { openInvoices } = computeFifoAging(entries, ref);
+      assert.strictEqual(openInvoices[0].overdueDays, 0);
+    });
+
+    test('legacy row without a frozen dueDate is due at issue — overdueDays equals recording age', () => {
+      const entries: FifoAgingInput[] = [
+        { timestamp: daysAgo(30, ref), debit: '100000', credit: '0' },  // exactly 30
+        { timestamp: daysAgo(31, ref), debit: '200000', credit: '0' },  // 31
+      ];
+      const { openInvoices } = computeFifoAging(entries, ref);
+      // Output is in chronological order, so the older (31-day) invoice leads.
+      assert.deepStrictEqual(openInvoices.map((inv) => inv.overdueDays), [31, 30]);
+    });
+
+    test('maxOverdueDaysOf: largest contractual span among OPEN invoices only', () => {
+      // The 91-day-past-due invoice is fully settled by the FIFO credit, so
+      // its span drops out of the KPI even though the row is still returned.
+      const entries: FifoAgingInput[] = [
+        { timestamp: daysAgo(96, ref), debit: '100000', credit: '0', dueDate: dueDaysAgo(91, ref) },  // 91 past due
+        { timestamp: daysAgo(95, ref), debit: '200000', credit: '0', dueDate: dueDaysAgo(45, ref) },  // 45 past due
+        { timestamp: daysAgo(5, ref), debit: '0', credit: '100000' },                                  // closes the oldest
+      ];
+      const { openInvoices } = computeFifoAging(entries, ref);
+      assert.strictEqual(openInvoices[0].open, 0);
+      assert.strictEqual(maxOverdueDaysOf(openInvoices), 45);
+    });
   });
 });

@@ -21,11 +21,11 @@ export function ShipmentQuickEditFields({
 }) {
   const update = (patch: Partial<ShipmentQuickEditDraft>) => onChange({ ...draft, ...patch });
   const documentDirection = draft.tradeDirection || item.direction || '';
-  // FB-030/075 (171026215500): the schedule dialog's Giờ is the single-box
-  // TimeInput, so the "segment kế" after a completed giờ is the Ngày đóng/trả
-  // day segment — the same hand-off SplitDateTimeField runs from its time
-  // half to its date half.
-  const scheduleDateFieldRef = useRef<HTMLDivElement>(null);
+  // SIL-608 (id 711, owner 30/10): NGÀY leads, GIỜ closes — the schedule
+  // dialog runs the same VN order as the rest of the app. The FB-030/075
+  // hand-off survives reversed: a completed năm hands focus to the giờ box
+  // (the same hand-off SplitDateTimeField runs from its date half).
+  const scheduleTimeFieldRef = useRef<HTMLLabelElement>(null);
 
   return (
     <div className="cus-quick-edit-modal__fields" data-edit-field={draft.field}>
@@ -55,8 +55,8 @@ export function ShipmentQuickEditFields({
         <label><span>Thể tích (CBM)</span><input type="number" min="0" step="0.001" value={draft.cargoVolumeCbm} onChange={(event) => update({ cargoVolumeCbm: event.target.value })} disabled={saving || item.fieldAccess.cargoVolumeCbm.mode === 'READ_ONLY'} title={item.fieldAccess.cargoVolumeCbm.reason} /></label>
       </>}
       {draft.field === 'schedule' && <>
-        <label><span>Giờ</span><TimeInput autoFocus label="Giờ" disabled={saving} value={draft.time} onChange={(time) => update({ time })} onComplete={() => { scheduleDateFieldRef.current?.querySelector<HTMLInputElement>('[data-seg="dd"]')?.focus(); }} /></label>
-        <BufferedUuiDateInput groupRef={scheduleDateFieldRef} label="Ngày đóng/trả" size="sm" disabled={saving} value={draft.date} onChange={(value) => update({ date: value })} />
+        <label><span>Ngày đóng/trả</span><BufferedUuiDateInput autoFocus label="Ngày đóng/trả" size="sm" disabled={saving} value={draft.date} onChange={(value) => update({ date: value })} onComplete={() => { scheduleTimeFieldRef.current?.querySelector<HTMLInputElement>('input')?.focus(); }} /></label>
+        <label ref={scheduleTimeFieldRef}><span>Giờ</span><TimeInput label="Giờ" disabled={saving} value={draft.time} onChange={(time) => update({ time })} /></label>
         <p className="cus-quick-edit-modal__help">{vehicleReadinessLabel(item)}</p>
       </>}
       {draft.field === 'notes' && <>

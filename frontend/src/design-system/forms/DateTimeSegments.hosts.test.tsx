@@ -42,7 +42,7 @@ const type = (part: string, key: string, text: string) =>
   fireEvent.change(seg(part, key), { target: { value: text } });
 
 describe('card 326 host×pattern auto-advance matrix', () => {
-  it('DateTimeField (dispatch dialog wiring): empty hour advances on "08"; full-hour type-over restarts and advances; minute completion hands off to the date day', () => {
+  it('DateTimeField (dispatch dialog wiring): empty hour advances on "08"; full-hour type-over restarts and advances; completed phút stays put (SIL-608 date-first)', () => {
     render(<DateTimeFieldHarness />);
     // Prefilled full value: type-over restart (the user's exact flow).
     act(() => seg('time', 'hh').focus());
@@ -52,28 +52,45 @@ describe('card 326 host×pattern auto-advance matrix', () => {
     expect(seg('time', 'hh')).toHaveValue('0');
     type('time', 'hh', '08'); // next keystroke completes the restarted segment
     expect(activeLabel()).toBe('Phút — Giờ trả hàng');
-    // Empty minute completes → time→date hand-off (the original complaint #3 group).
-    // The prefilled minute is already "30" — a same-value change would be a
-    // React dedupe no-op, so restart it with a different digit first.
+    // SIL-608 date-first: the date half LEADS the DOM, so the time half is
+    // the tail of the field — a completed phút ENDS the entry instead of
+    // jumping backwards to the date day (the old time-first hand-off is
+    // dead). The prefilled minute is already "30" — a same-value change
+    // would be a React dedupe no-op, so restart it with a different digit
+    // first.
     type('time', 'mm', '3');
     type('time', 'mm', '30');
-    expect(activeLabel()).toBe('Ngày — Giờ trả hàng');
+    expect(activeLabel()).toBe('Phút — Giờ trả hàng');
     // Date side advances within itself: empty day "05" → month.
     type('date', 'dd', '05');
     expect(activeLabel()).toBe('Tháng — Giờ trả hàng');
     type('date', 'dd', '0510');
     expect(seg('date', 'dd')).toHaveValue('05');
+    // Card 326 + SIL-608: the ONE crossing sits at the END of the visual
+    // order — a completed năm hands the cursor forward to giờ. The type-over
+    // uses a DIFFERENT year (the prefilled 2026 would be a React no-op).
+    type('date', 'yyyy', '2027');
+    expect(activeLabel()).toBe('Giờ — Giờ trả hàng');
   });
 
-  it('BufferedUuiDateTimeInput (CUS container add row wiring): hour "08" advances, minute "30" hands off to date', () => {
+  it('BufferedUuiDateTimeInput (CUS container add row wiring): hour "08" advances, completed phút stays, completed năm hands off to giờ (SIL-608 date-first)', () => {
     render(<BufferedDateTimeHarness />);
     act(() => seg('time', 'hh').focus());
     type('time', 'hh', '0');
     expect(activeLabel()).toBe('Giờ — Giờ hẹn đóng/trả');
     type('time', 'hh', '08');
     expect(activeLabel()).toBe('Phút — Giờ hẹn đóng/trả');
+    // The time half is the tail of the field (SIL-608 date-first): a
+    // completed phút ends the entry instead of jumping backwards to the date.
     type('time', 'mm', '30');
-    expect(activeLabel()).toBe('Ngày — Giờ hẹn đóng/trả');
+    expect(activeLabel()).toBe('Phút — Giờ hẹn đóng/trả');
+    // The single date→time crossing: completing the date (ngày → tháng →
+    // năm) hands the cursor forward to giờ, per the SplitDateTimeField law
+    // every host inherits.
+    type('date', 'dd', '12');
+    type('date', 'mm2', '11');
+    type('date', 'yyyy', '2026');
+    expect(activeLabel()).toBe('Giờ — Giờ hẹn đóng/trả');
   });
 
   it('BufferedUuiDateInput (schedule editor + ledger date wiring): day "02" advances to month', () => {

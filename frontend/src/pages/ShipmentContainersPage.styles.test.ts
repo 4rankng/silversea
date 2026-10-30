@@ -236,9 +236,11 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(pointer:\s*coarse\)[\s\S]*?\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*var\(--control-touch-h\);[^}]*min-height:\s*var\(--control-touch-h\);/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     // The appointment-popover redesign (7ad16f89) pairs the ngày/giờ fields
-    // side by side inside the schedule tray — giờ leads (f495a3c4 order), so
-    // the narrow giờ column comes first and the date keeps the wide track.
-    expect(css).toMatch(/\.shipment-container-ledger__editor-grid--schedule\s*\{[^}]*grid-template-columns:\s*minmax\(0, 0\.8fr\)\s*minmax\(0, 1\.2fr\);/);
+    // side by side inside the schedule tray — SIL-608 (owner 30/10) put the
+    // NGÀY half first app-wide (VN order DD/MM/YYYY before HH:mm, superseding
+    // the f495a3c4 giờ-first order), so the wide date track comes first and
+    // giờ keeps the narrow one.
+    expect(css).toMatch(/\.shipment-container-ledger__editor-grid--schedule\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1\.2fr\)\s*minmax\(0, 0\.8fr\);/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*var\(--control-default-h\);[^}]*min-height:\s*var\(--control-default-h\);[^}]*font-size:\s*var\(--control-field-font-size\);/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-footer\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;[^}]*border-top:\s*1px solid var\(--line-2\);/);
     expect(css).toMatch(/\.shipment-container-ledger__edit-action\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*36px;[^}]*height:\s*36px;[^}]*min-height:\s*36px;[^}]*padding-inline:\s*12px;/);

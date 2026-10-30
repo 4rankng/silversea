@@ -1,0 +1,13 @@
+{"at":"2026-10-30T14:49:34.976Z","step":"start","base":"http://localhost:7177","api":"http://localhost:3002/api"}
+{"at":"2026-10-30T14:49:35.122Z","step":"login","verdict":"PASS","status":200}
+{"at":"2026-10-30T14:49:40.682Z","step":"page-loaded","verdict":"PASS"}
+{"at":"2026-10-30T14:49:41.393Z","step":"PICK-01","verdict":"MENU-OPEN","open":true,"options":9,"labels":["20OT","20DC","20HC","40DC","40HC","40RF"],"popoverRect":{"x":359,"y":649,"w":278,"h":224},"cardRect":{"x":348,"y":606,"w":300,"h":48},"inViewport":true}
+{"at":"2026-10-30T14:49:41.393Z","step":"PICK-01-line-click-opens-menu","verdict":"PASS"}
+{"at":"2026-10-30T14:49:42.287Z","step":"PICK-02","open":true,"options":9,"labels":["20OT","20DC","20HC","40DC","40HC","40RF"],"popoverRect":{"x":359,"y":649,"w":278,"h":224},"cardRect":{"x":348,"y":606,"w":300,"h":48},"inViewport":true}
+{"at":"2026-10-30T14:49:42.287Z","step":"PICK-02-input-click-opens-menu","verdict":"PASS"}
+{"at":"2026-10-30T14:49:43.456Z","step":"PICK-05","picked":"20OT","cardOpen":false,"triggerText":"20OT"}
+{"at":"2026-10-30T14:49:43.456Z","step":"PICK-05-commit-closes-card","verdict":"PASS","picked":"20OT","triggerText":"20OT"}
+{"at":"2026-10-30T14:49:45.107Z","step":"PICK-03","open":true,"options":5,"labels":["20OT","20DC","20HC","20RF","+ Thêm"],"popoverRect":{"x":359,"y":649,"w":278,"h":161},"cardRect":{"x":348,"y":606,"w":300,"h":48},"inViewport":true}
+{"at":"2026-10-30T14:49:45.107Z","step":"PICK-03-typing-opens-filtered-menu","verdict":"PASS","labels":["20OT","20DC","20HC","20RF","+ Thêm"]}
+{"at":"2026-10-30T14:49:45.417Z","step":"PICK-04","createVisible":true}
+{"at":"2026-10-30T14:49:45.417Z","step":"PICK-04-create-option","verdict":"PASS"}

@@ -64,7 +64,9 @@ describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', { time
     fireEvent.change(row1Segment('Tháng — Ngày giờ đóng trả'), { target: { value: '11' } });
     const year = row1Segment('Năm — Ngày giờ đóng trả');
     fireEvent.change(year, { target: { value: '2026' } });
-    expect(row1FieldText()).toBe('16|30|22|11|2026');
+    // SIL-608 date-first: the DOM (and the joined draft text) reads
+    // DD/MM/YYYY before HH:mm on every host.
+    expect(row1FieldText()).toBe('22|11|2026|16|30');
 
     // Enter on the last (year) segment: the field lets a COMPLETE draft's
     // Enter bubble to the form, which must answer it through the same save
@@ -84,7 +86,7 @@ describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', { time
       const wrap = document.querySelector('[data-field-id="shipment-customer"]');
       expect(wrap?.contains(document.activeElement)).toBe(true);
     }, { timeout: 2000 });
-    expect(row1FieldText()).toBe('16|30|22|11|2026');
+    expect(row1FieldText()).toBe('22|11|2026|16|30');
   }, 20000);
 
   it('an INCOMPLETE giờ draft keeps its own swallow: Enter runs NO save, the field says why, and the typed giờ survives', async () => {
@@ -100,7 +102,8 @@ describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', { time
     // submit) — the form law must not steal it: no validation summary.
     expect(screen.queryByText(/^Cần bổ sung \d+ thông tin$/)).toBeNull();
     expect(await screen.findByText('Nhập đủ giờ và ngày hợp lệ.')).toBeTruthy();
-    expect(row1FieldText()).toBe('16|30|||');
+    // Date-first DOM: the empty date segments lead, the typed giờ rides last.
+    expect(row1FieldText()).toBe('|||16|30');
   }, 20000);
 
   it('Shift+Enter never saves and bare Enter in the notes textarea stays a newline key (Ctrl+Enter saves)', async () => {

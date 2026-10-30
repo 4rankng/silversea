@@ -305,7 +305,14 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
   it('labels notes by recipient and sends driver notes through the canonical API field', async () => {
     renderPage();
-    await screen.findByRole('heading', { name: 'Lịch & ghi chú' });
+    // SIL-611: the notes pair is the form's LAST band, titled "Ghi chú",
+    // below Thông tin hàng.
+    const notesHeading = await screen.findByRole('heading', { name: 'Ghi chú' });
+    const notesSection = notesHeading.closest('#shipment-section-notes');
+    expect(notesSection).toBeTruthy();
+    expect(document.querySelector('#shipment-section-cargo')!.compareDocumentPosition(
+      notesSection!,
+    ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText('Ghi chú cho khách hàng'), { target: { value: 'Khách cần bản scan' } });
     fireEvent.change(screen.getByLabelText('Ghi chú cho lái xe'), { target: { value: 'Gọi bảo vệ trước khi vào' } });
@@ -320,21 +327,21 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   });
 
   it('keeps a whitespace seam between the section title and the first sub-label (card 071026204720)', async () => {
-    // Text-level flattens (textContent) carry no block boundaries — the
-    // schedule section's title and the first sub-label must not run on as
-    // "Lịch & ghi chúGhi chú cho khách hàng" the way the staging retest read.
-    // The pin is label-agnostic on purpose: the card protects the SEAM, not
-    // one particular first label, and fields do get inserted above the notes
-    // (the bulk "Ngày giờ đóng trả" field is one). Asserting a hardcoded
-    // first label made the pin go stale the moment that field landed.
+    // Text-level flattens (textContent) carry no block boundaries — the notes
+    // section's title and the first sub-label must not run on as "Ghi chúGhi
+    // chú cho khách hàng" the way the staging retest read. The pin is
+    // label-agnostic on purpose: the card protects the SEAM, not one
+    // particular first label. Asserting a hardcoded first label made the pin
+    // go stale the moment a field moved (SIL-611 relocated the band below
+    // Thông tin hàng wholesale).
     const { container } = renderPage();
-    await screen.findByRole('heading', { name: 'Lịch & ghi chú' });
-    const section = container.querySelector('#shipment-section-schedule');
+    await screen.findByRole('heading', { name: 'Ghi chú' });
+    const section = container.querySelector('#shipment-section-notes');
     const text = section?.textContent ?? '';
     // No run-on: the title must never be immediately followed by a non-space.
-    expect(text).not.toMatch(/Lịch & ghi chú(?=\S)/);
+    expect(text).not.toMatch(/Ghi chú(?=\S)/);
     // And something must actually follow it after the seam.
-    expect(text).toMatch(/Lịch & ghi chú\s+\S/);
+    expect(text).toMatch(/Ghi chú\s+\S/);
   });
 
   it('renders long customer names in the customer-specific dropdown treatment', async () => {

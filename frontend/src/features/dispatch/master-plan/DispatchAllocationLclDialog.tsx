@@ -149,7 +149,7 @@ export function DispatchAllocationLclDialog({ shipment, onClose, openerRef, onSa
     setError(null);
     const actual = actualTruckNo.trim();
     if (!actual) {
-      setError('Nhập BKS thực của xe chạy chuyến');
+      setError('Nhập BKS thực');
       return;
     }
     setSaving(true);
@@ -239,7 +239,7 @@ export function DispatchAllocationLclDialog({ shipment, onClose, openerRef, onSa
               exactly one labelable control — card 101026163010). */}
           <div className="dispatch-allocation-lcl__field">
             <div className="dispatch-allocation-lcl__field-head">
-              <span className="dispatch-allocation-lcl__label">BKS thực (xe chạy chuyến) <span aria-hidden="true">*</span></span>
+              <span className="dispatch-allocation-lcl__label">BKS thực <span aria-hidden="true">*</span></span>
               <QuickAddButton
                 onClick={() => { setQuickAddSeed(''); setQuickAddOpen(true); }}
                 disabled={saving}
@@ -248,13 +248,13 @@ export function DispatchAllocationLclDialog({ shipment, onClose, openerRef, onSa
               </QuickAddButton>
             </div>
             <USearchableField
-              label="BKS thực (xe chạy chuyến)"
+              label="BKS thực"
               hideLabel
               value={actualTruckNo}
               onChange={setActualTruckNo}
               onCustomValue={setActualTruckNo}
               options={plateChoices}
-              placeholder={plannedCarrier ? 'Chọn BKS của nhà xe hoặc gõ mới' : 'Gõ BKS xe chạy chuyến'}
+              placeholder={plannedCarrier ? 'Chọn BKS của nhà xe hoặc gõ mới' : 'Gõ BKS thực'}
               searchable
               allowsCustomValue
               required

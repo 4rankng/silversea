@@ -45,19 +45,20 @@ describe('ScheduleEditorBody', () => {
     expect(screen.getByText('Chỉnh sửa lịch trình')).toBeTruthy();
   });
 
-  it('renders giờ before ngày with locale-independent 24h text entry', () => {
+  it('renders ngày before giờ with locale-independent 24h text entry (SIL-608)', () => {
     const props = baseProps();
     const { container } = render(<ScheduleEditorBody {...props} />);
 
-    // Thứ tự trường khớp định dạng cột bảng "20:45 8/9/26": giờ trước, ngày sau.
+    // SIL-608 (id 711): VN order everywhere — ngày (DD/MM/YYYY) trước,
+    // giờ (HH:mm) sau, matching the field order the create form runs.
     const grid = container.querySelector('.shipment-container-ledger__editor-grid--schedule')!;
     const labels = Array.from(grid.querySelectorAll('label'));
-    expect(labels.map((label) => label.textContent)).toEqual(['Giờ trả hàng', 'Ngày trả hàng']);
+    expect(labels.map((label) => label.textContent)).toEqual(['Ngày trả hàng', 'Giờ trả hàng']);
 
     const timeInput = grid.querySelector('input[type="text"][placeholder="HH:mm"]')!;
     const dateInput = grid.querySelector('input[data-date-input]')!;
-    // DOM order: time input precedes the date input.
-    expect(timeInput.compareDocumentPosition(dateInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // DOM order: date input precedes the time input.
+    expect(dateInput.compareDocumentPosition(timeInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Explicit 24h text entry avoids AM/PM; the buffered date field shows
     // DD/MM/YYYY as three digit segments.
     expect(timeInput.getAttribute('placeholder')).toBe('HH:mm');
@@ -69,13 +70,32 @@ describe('ScheduleEditorBody', () => {
     expect((dateGroup.querySelector('input[data-seg="yyyy"]') as HTMLInputElement).value).toBe('2026');
   });
 
+  it('a completed năm hands the cursor to the giờ box (SIL-608 reversed hand-off)', () => {
+    const props = baseProps();
+    render(<ScheduleEditorBody {...props} />);
+
+    // FB-030/075 no-stuck law, reversed by SIL-608: typing the final year
+    // digit lands the caret in the giờ input instead of dead-ending in the
+    // date segments.
+    const seg = (key: string) => document.querySelector<HTMLInputElement>(`[data-seg="${key}"]`)!;
+    // The prefilled appointment is 10/09/2026 — every typed digit must differ
+    // from the segment's current value, or React suppresses the no-op change
+    // event and the auto-advance never runs.
+    fireEvent.change(seg('dd'), { target: { value: '11' } });
+    fireEvent.change(seg('mm2'), { target: { value: '08' } });
+    const timeInput = screen.getByLabelText('Giờ trả hàng');
+    expect(document.activeElement).not.toBe(timeInput);
+    fireEvent.change(seg('yyyy'), { target: { value: '2027' } });
+    expect(document.activeElement).toBe(timeInput);
+  });
+
   it('uses đóng-hàng labels for EXPORT rows', () => {
     const props = baseProps({ row: baseRow({ direction: 'EXPORT' }) });
     const { container } = render(<ScheduleEditorBody {...props} />);
 
     const grid = container.querySelector('.shipment-container-ledger__editor-grid--schedule')!;
     const labels = Array.from(grid.querySelectorAll('label'));
-    expect(labels.map((label) => label.textContent)).toEqual(['Giờ đóng hàng', 'Ngày đóng hàng']);
+    expect(labels.map((label) => label.textContent)).toEqual(['Ngày đóng hàng', 'Giờ đóng hàng']);
   });
 
   it('defaults the schedule time when a quick-day pill is tapped without a time', () => {
@@ -174,23 +194,6 @@ describe('ScheduleEditorBody', () => {
     expect(screen.getByRole('button', { name: 'Ngày mai' })).toBeDisabled();
     expect(screen.getByRole('button', { name: '13:30' })).toBeDisabled();
     expect(screen.getByLabelText('Giờ trả hàng')).toBeDisabled();
-  });
-
-  // FB-030/075 (171026215500) sibling regression: the CUS schedule dialog got
-  // the TimeInput onComplete hand-off (ShipmentsPage FB-030/075 test), this
-  // ledger host did not — focus stayed in the giờ box after a typed time, so
-  // the follow-up day "14" landed there and the date segments never advanced.
-  it('FB-030/075: completing a typed giờ hands focus to the appointment date day segment', async () => {
-    const props = baseProps();
-    render(<ScheduleEditorBody {...props} />);
-    const timeField = screen.getByLabelText('Giờ trả hàng');
-    fireEvent.change(timeField, { target: { value: '1430' } });
-    expect(props.onScheduleTimeChange).toHaveBeenCalledWith('14:30');
-    // The single-box analog of the segmented fields' complete-segment
-    // advance: giờ done → focus lands on the Ngày trả hàng day segment
-    // (prefilled with the row's appointment — type-over ready on select).
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Ngày trả hàng')));
-    expect((document.activeElement as HTMLInputElement).getAttribute('data-seg')).toBe('dd');
   });
 
 });

@@ -508,3 +508,54 @@ describe('FB-138 — grouped Loại xe menu + nhà xe reset khi đổi sang xe t
     });
   });
 });
+
+// ─── SIL-709 — copy layer: luật cước nói MỘT lần, nhãn ngắn, hết đoạn văn ────
+//
+// Regression for the "popup Gán xe nhóm là một mớ text" bug: the rule
+// "Lô 1 giữ 100% cước trả ĐV, các lô còn lại 0₫" used to appear in the
+// subtitle, the lots tooltip AND the cước field's helpText paragraph.
+
+describe('SIL-709 — Gán xe nhóm copy: luật cước 1 lần, nhãn ngắn, hết đoạn văn', () => {
+  it('luật "Lô 1 giữ 100%…" hiện đúng một lần — caption dưới ô Cước trả ĐV Lô 1', () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    // Exactly one node states the law — the note. Never the subtitle, a
+    // tooltip or the cước field's helper.
+    expect(screen.getAllByText(/giữ 100% cước trả ĐV · các lô còn lại 0₫/)).toHaveLength(1);
+    const note = screen.getByText('Lô 1 (theo thứ tự chọn) giữ 100% cước trả ĐV · các lô còn lại 0₫');
+    const freight = screen.getByLabelText(/Cước trả ĐV Lô 1/) as HTMLInputElement;
+    // Placement (webchat deepseek verdict 1, 30/10): the caption sits right
+    // under the field it explains — never under the lot list, never a
+    // footnote.
+    expect(freight.compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The lecturing paragraph under "Cước trả ĐV Lô 1" is gone (design law
+    // §8 no-lecturing-copy); the placeholder stays the house convention.
+    expect(screen.queryByText(/thắng giá tra được/)).toBeNull();
+    expect(screen.queryByText(/tự tra bảng giá cước trả nhà xe/)).toBeNull();
+    expect(freight.placeholder).toBe('Bỏ trống = tự tra bảng giá');
+    // Subtitle is just the count.
+    expect(screen.getByRole('dialog').textContent).toContain('2 lô lẻ');
+  });
+
+  it('nhãn "BKS thực" ngắn (hết gloss), dòng lô đánh số đúng một lần', () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    expect(screen.getByRole('combobox', { name: 'BKS thực' })).toBeTruthy();
+    expect(screen.queryByText(/xe chạy chuyến/)).toBeNull();
+    // The lot line owns its "Lô N ·" numbering as one text node — no ol
+    // marker doubling it up.
+    const items = screen.getAllByRole('listitem');
+    expect(items[0]!.textContent).toBe('Lô 1 · BL-1 — Công ty Lẻ');
+    expect(items[1]!.textContent).toBe('Lô 2 · BL-2 — Công ty Lẻ');
+  });
+
+  it('hint nguồn xe gọn: xe tải 1 dòng "chỉ lấy BKS từ nhà xe", cont không lặp placeholder', async () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    expect(screen.getByText(/100% xe ngoài — chỉ lấy BKS từ nhà xe\./)).toBeTruthy();
+    // The cont rung says its allowance once — in the carrier field's
+    // placeholder — never as a second hint line.
+    await pickVehicleClass('Container 20 feet');
+    expect(screen.queryByText(/Xe nội bộ hoặc xe ngoài/)).toBeNull();
+    expect((screen.getByRole('combobox', { name: /^Nhà xe/ }) as HTMLInputElement).placeholder)
+      .toBe('Chọn Đội xe nội bộ SilverSea hoặc Nhà xe');
+  });
+});

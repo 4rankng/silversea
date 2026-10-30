@@ -891,7 +891,7 @@ export function DetailedPlanGrid({
                     if (!group) return;
                     const actual = groupTruckDraft.actual.trim();
                     if (!actual) {
-                      setGroupTruckError('Nhập BKS thực của xe chạy chuyến');
+                      setGroupTruckError('Nhập BKS thực');
                       return;
                     }
                     if (actual === (group.actualTruckNo ?? '')) {

@@ -125,18 +125,25 @@ describe('SIL-552 (id 626): SỐ CONTAINER group lines open the floating editor'
     await waitFor(() => expect(panel).not.toHaveClass('is-open'));
   });
 
-  it('clicking the LOẠI line floats the combobox with its "+ Thêm" create flow intact', { timeout: 10000 }, async () => {
+  it('clicking the LOẠI line floats the combobox AND opens its menu — no bare caret (SIL-608 remainder)', { timeout: 10000 }, async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
+    // The line's own click is a deliberate activation: the editor floats AND
+    // the suggestion menu opens in the same gesture (the 272 hand-off
+    // channel; qa/2026-10-30_sil608_picker_ui-01 proved the old bare-caret
+    // flow). Bare focus alone still never opens — pinned below.
     fireEvent.click(typeTrigger());
     const panel = await screen.findByRole('dialog', { name: 'Chỉnh sửa loại container — dòng 1' });
     expect(panel).toHaveClass('is-open');
     const combo = within(panel).getByRole('combobox', { name: 'Loại container' });
-    // The create affordance rides inside the floating card's menu options.
-    fireEvent.click(combo);
-    expect(await screen.findByRole('option', { name: '+ Thêm' })).toBeTruthy();
+    await waitFor(() => expect(combo).toHaveAttribute('aria-expanded', 'true'));
     expect(await screen.findByRole('option', { name: '20DC' })).toBeTruthy();
+
+    // The create affordance rides inside the floating card's menu options
+    // (TC-CUS-CREATE-020) — the reason the drawer's plain-listbox swap is
+    // NOT portable here.
+    expect(await screen.findByRole('option', { name: '+ Thêm' })).toBeTruthy();
   });
 
   it('Tab leaving the SỐ container field opens the LOẠI editor with its menu (the 272 hand-off)', { timeout: 10000 }, async () => {

@@ -258,7 +258,18 @@ export function ShipmentCreateContainerRow({
             panelLabel={`Chỉnh sửa loại container — dòng ${index + 1}`}
             open={openLine === 'type'}
             disabled={saving}
-            onToggle={() => openGroupLine('type')}
+            // SIL-608 remainder (owner 30/10, qa/2026-10-30_sil608_picker_ui):
+            // the LOẠI line's own click is a DELIBERATE activation, so it
+            // opens the suggestion menu exactly like the 272 Tab hand-off —
+            // the old openGroupLine('type') floated a bare caret the operator
+            // had to click (or type over) a second time before any option
+            // showed, which read as a broken picker ("bấm chọn loại cont…
+            // dropdown không lên"). The drawer solved the same narrow panel
+            // with a click-to-open listbox (CusLotView "collapses to a bare
+            // caret"); the create form keeps the searchable combobox for the
+            // "+ Thêm" create flow and opens it on the click instead.
+            // Bare focus alone still never opens (the 2026-09-21 law).
+            onToggle={() => openGroupLine('type', true)}
             onOpen={() => openGroupLine('type')}
             onClose={() => closeGroupLine('type', false)}
             onCancel={() => closeGroupLine('type', true)}

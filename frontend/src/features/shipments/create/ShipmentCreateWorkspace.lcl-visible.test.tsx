@@ -1,8 +1,8 @@
 // Cards 211026130115 / 211026130215 / 211026130315 / 211026130415 —
 // verify-fail "code CÓ nhưng ẨN sau default": every LCL feature must be HIỆN
 // THEO MẶC ĐỊNH on the form QA opens (default Nhập/FCL), no trick gates:
-//  - LCL-03 (30215): the Hàng lẻ segmented control LEADS the form;
-//    "Lịch & ghi chú" rụng ngay khi chọn Hàng lẻ.
+//  - LCL-03 (30215): the Hàng lẻ segmented control LEADS the form; the Ghi chú
+//    band (SIL-611's last section) rụng ngay khi chọn Hàng lẻ.
 //  - LCL-04 (30315): "Ngày giao hàng" mở sẵn trong top band — không nút "+",
 //    không reveal step, không "Ngày giao bổ sung" repeater.
 //  - LCL-02 (30115): "Thêm kho" hiện + dialog quick-add mở TRƯỚC khi chọn KH
@@ -51,7 +51,7 @@ describe('LCL form visible-by-default (cards 211026130115/30215/30315/30415)', {
     });
   });
 
-  it('LCL-03: the Hàng lẻ segmented control leads the form and Lịch & ghi chú rụng ngay on switch', async () => {
+  it('LCL-03: the Hàng lẻ segmented control leads the form and the Ghi chú band rụng ngay on switch', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
@@ -66,10 +66,15 @@ describe('LCL form visible-by-default (cards 211026130115/30215/30315/30415)', {
     expect(within(modeBand).getByRole('radio', { name: /Hàng lẻ/ })).toBeTruthy();
     expect(within(modeBand).getByRole('radio', { name: /Hàng FCL/ })).toBeTruthy();
 
-    // FCL default keeps "Lịch & ghi chú"; one click on Hàng lẻ drops it.
-    expect(document.querySelector('#shipment-section-schedule')).toBeTruthy();
+    // SIL-611 (id 714, owner 30/10): the FCL default ends with the Ghi chú
+    // band BELOW Thông tin hàng — Nhận diện lô (gọn) → Thông tin hàng →
+    // Ghi chú. One click on Hàng lẻ drops it (SIL-587: no notes on hàng lẻ).
+    const notes = document.querySelector('#shipment-section-notes') as HTMLElement;
+    expect(notes).toBeTruthy();
+    expect(document.querySelector('#shipment-section-cargo')!.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.querySelector('#shipment-section-schedule')).toBeNull();
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    await waitFor(() => expect(document.querySelector('#shipment-section-schedule')).toBeNull());
+    await waitFor(() => expect(document.querySelector('#shipment-section-notes')).toBeNull());
     expect(screen.queryByText('Ghi chú cho khách hàng')).toBeNull();
     expect(screen.queryByText('Ghi chú cho lái xe')).toBeNull();
   });

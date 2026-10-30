@@ -23,8 +23,9 @@
  *   r2  identity — full width
  *   r3  freight preview (only when the pricing engine has data — :has()
  *       collapses its row)
- *   r4  schedule = notes pair (FCL) / route (LCL) — full width
- *   r5  cargo (container sheet — needs the full min-width) — full width
+ *   r4  cargo (FCL) / route (LCL) — full width
+ *   r5  notes = the Ghi chú pair (FCL only, SIL-611: the "Lịch & ghi chú"
+ *       band is deleted, notes moved below Thông tin hàng) / cargo (LCL)
  *   SIL-510: the action bar is NOT a grid row — it is the viewport-fixed
  *   footer (`.csc-form-actions`), always visible while scrolling.
  *   SIL-604 (id 707, owner 30/10): the r1 side-by-side pairing is retired.
@@ -63,15 +64,23 @@
      -width row (§10.8.2: hide a column only when it is empty; no orphan
      grid cell). */
   [data-freight-preview] { grid-area: 3 / 1 / 4 / 3; align-self: start; margin: 0; }
-  #shipment-section-schedule { grid-area: 4 / 1 / 5 / 3; }
+  #shipment-section-notes { grid-area: 5 / 1 / 6 / 3; }
   #shipment-section-route { grid-area: 4 / 1 / 5 / 3; }
-  #shipment-section-cargo { grid-area: 5 / 1 / 6 / 3; }
+  /* SIL-611 (id 714, owner 30/10): the "Lịch & ghi chú" band is gone — the
+     worksheet is mode → identity → freight? → cargo → notes on FCL, and
+     mode → identity → freight? → route → cargo on hàng lẻ (SIL-587 keeps
+     notes off the LCL form). Cargo defaults beside the notes row (FCL);
+     a rendered route card pushes cargo to the last row. */
+  #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }
+  .csc-workspace:has(#shipment-section-route) #shipment-section-cargo { grid-area: 5 / 1 / 6 / 3; }
 
-  /* No freight preview → pull schedule/route up into its row, so no empty
-     track (and no orphan gaps) is left behind. */
-  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-schedule { grid-area: 3 / 1 / 4 / 3; }
+  /* No freight preview → pull notes/route/cargo up into its row, so no empty
+     track (and no orphan gaps) is left behind. The LCL freight-absent pin
+     doubles the predicates so it out-ranks the :has(route) rule above. */
+  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-notes { grid-area: 4 / 1 / 5 / 3; }
   .csc-workspace:not(:has([data-freight-preview])) #shipment-section-route { grid-area: 3 / 1 / 4 / 3; }
-  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }
+  .csc-workspace:not(:has([data-freight-preview])) #shipment-section-cargo { grid-area: 3 / 1 / 4 / 3; }
+  .csc-workspace:not(:has([data-freight-preview])):has(#shipment-section-route) #shipment-section-cargo { grid-area: 4 / 1 / 5 / 3; }
 
   /* ── SPEC density: card padding 12-16, gap 12, section band 36 ── */
   .csc-section { padding: 12px 14px !important; gap: 8px !important; }
@@ -113,11 +122,10 @@
   .csc-identity-grid--choices .csc-flag-checkbox { padding-inline: 9px; }
   #shipment-section-identity .csc-field-warning { grid-column: 1 / -1; }
 
-  /* Schedule (SIL-598, id 698): the bulk datetime moved up into the mode
-     band (SIL-587 doctrine) — the old 1fr/2fr split left a ~265px dead
-     strip beside its 150px control. The band is now the notes pair on ONE
-     full-width row (its own 2-col grid) + the copy-down chip; the section's
-     single-column flow places them with no placement pins. */
+  /* SIL-611 (id 714, owner 30/10): the "Lịch & ghi chú" band is DELETED —
+     FCL's bulk datetime rides the mode band (SIL-587/598 doctrine) and the
+     worksheet closes with the Ghi chú pair on its own full-width row (the
+     section's single-column flow places them with no placement pins). */
   /* rows=3/4 attributes stop driving the notes height — the read-only box
      shows ~2 lines and scrolls internally. */
   .csc-section textarea { height: 48px; min-height: 48px; }

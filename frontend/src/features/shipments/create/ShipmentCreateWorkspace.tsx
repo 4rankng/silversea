@@ -624,7 +624,11 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // from the LCL form AND the block is exactly ONE always-visible schedule
   // field — now "Ngày giờ đóng trả" (id `shipment-lcl-closing-at`, state
   // `lclClosingAt`; the payload derives expectedDeliveryDate from its VN
-  // date). FCL keeps the full schedule section.
+  // date). FCL keeps the full schedule section. SIL-611 (id 714, owner
+  // 30/10) then deleted the FCL "Lịch & ghi chú" band too: the form is now
+  // Nhận diện lô (gọn) → Thông tin hàng → Ghi chú, with FCL's bulk datetime
+  // in the top mode band (SIL-598) and the copy-down button under the
+  // container table.
 
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '' && value !== undefined) || hasDateDraft(scope);
@@ -984,27 +988,13 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     </>
                   }
                 />
-              </>
-            ) : (
-              <ShipmentCreateLclCargoFields
-                form={form}
-                update={update}
-                saving={controlsDisabled}
-                issueByField={issueByField}
-              />
-            )}
-          </ShipmentCreateSection>
-
-          {/* Card D.4 (18/10) + 181026200700, SIL-587: NO "Lịch & ghi chú"
-              section on the hàng lẻ form (its "Ngày giờ đóng trả" opens sẵn
-              in the top mode band — cards 211026130215/30315). FCL keeps the
-              notes band — its bulk datetime moved up beside Loại hàng too
-              (SIL-598: same doctrine, no ~265px dead column left behind). */}
-          {form.cargoMode === 'FCL' && (
-            <ShipmentCreateSection id="schedule" title="Lịch & ghi chú">
-                {/* SIL-513 (owner 26/10): the "Copy giờ hẹn cho tất cả N cont"
-                    chip retired — the copy affordances now live ONLY on the
-                    STT column (duplicate-row) and the copy-down button. */}
+                {/* SIL-611 (id 714, owner 30/10): the copy-down affordance
+                    rides the Thông tin hàng section now — directly under the
+                    table it fills — because the "Lịch & ghi chú" band it
+                    lived in is gone (that band's datetime had already moved
+                    up beside Loại hàng: LCL per SIL-587, FCL bulk per
+                    SIL-598). Same gate as before: a scheduled source + rows
+                    still without a schedule. */}
                 {copySourceRow && emptyAppointmentCount >= 1 && (
                   <button
                     type="button"
@@ -1017,14 +1007,33 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     <Copy size={15} aria-hidden="true" />Copy giờ hẹn xuống cont trống
                   </button>
                 )}
-                {/* SIL-534 (owner 27/10): the notes pair is a dense worksheet
-                    row — rows=2 keeps each box ~2 lines tall (resize:vertical
-                    and the internal scroll still carry long notes; the
-                    ≥1280 onescreen band forces 48px read-only height). */}
-                <div className="csc-notes-grid">
-                  <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={2} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={controlsDisabled} />
-                  <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={2} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={controlsDisabled} />
-                </div>
+              </>
+            ) : (
+              <ShipmentCreateLclCargoFields
+                form={form}
+                update={update}
+                saving={controlsDisabled}
+                issueByField={issueByField}
+              />
+            )}
+          </ShipmentCreateSection>
+
+          {/* SIL-611 (id 714, owner 30/10): "Ghi chú" is the form's LAST
+              band — the two note boxes moved below Thông tin hàng when the
+              "Lịch & ghi chú" band was deleted (its datetime fields had
+              already moved up beside Loại hàng). The new order is
+              Nhận diện lô (gọn) → Thông tin hàng → Ghi chú. SIL-587's
+              ruling stands unchanged: hàng lẻ renders NO notes band — its
+              form ends at Thông tin hàng. SIL-534 (owner 27/10): rows=2
+              keeps each box ~2 lines tall (resize:vertical and the
+              internal scroll still carry long notes; the ≥1280 onescreen
+              band forces 48px read-only height). */}
+          {form.cargoMode === 'FCL' && (
+            <ShipmentCreateSection id="notes" title="Ghi chú">
+              <div className="csc-notes-grid">
+                <TextAreaField label="Ghi chú cho khách hàng" value={customerNotes} onChange={(event) => { setCustomerNotes(event.target.value); clearFeedback(); }} rows={2} maxLength={2000} placeholder="Thông tin cần gửi hoặc lưu ý cần theo dõi với khách hàng" disabled={controlsDisabled} />
+                <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={2} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={controlsDisabled} />
+              </div>
             </ShipmentCreateSection>
           )}
         </div>
