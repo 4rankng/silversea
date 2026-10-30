@@ -293,8 +293,10 @@
 .dash-wf .wf-sum__change--positive { color: var(--success-text); }
 .dash-wf .wf-sum__change--negative { color: var(--danger-text); }
 .dash-wf .wf-head .wf-acts { display: flex; gap: 9px; flex: 0 0 auto; }
+/* Ordinary-ceiling sizing (SIL-583 r2 review: was the touch token, which
+   grew these desktop dashboard widgets to 44). Not QA-named clusters. */
 .dash-wf .wf-btn {
-  min-height: var(--control-touch-h); padding: 0 15px; border-radius: 10px;
+  min-height: var(--control-max-h); padding: 0 15px; border-radius: 10px;
   font-family: var(--font-body); font-weight: var(--fw-semibold); font-size: var(--text-control-size);
   display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
   border: 1px solid var(--wf-border-2); background: var(--surface); color: var(--wf-ink);
@@ -335,7 +337,7 @@
   background: none; border: 0; padding: 0;
   border-radius: 8px;
   /* fix visual-audit 2026-06-25 BUG-1: tap target ≥ 36px on desktop */
-  min-height: var(--control-touch-h);
+  min-height: var(--control-max-h);
   padding-inline: 8px;
   transition: background var(--t-fast), color var(--t-fast);
 }
@@ -351,7 +353,7 @@
   background: var(--wf-card);
 }
 .dash-wf .wf-chart-toggle__btn {
-  min-height: var(--control-touch-h);
+  min-height: var(--control-max-h);
   padding: 8px 14px;
   font-family: var(--font-body);
   font-size: var(--text-control-size);
@@ -363,7 +365,7 @@
   transition: background var(--t-fast), color var(--t-fast);
   line-height: 1.4;
   /* fix visual-audit 2026-06-25 BUG-2: tap target ≥ 32px (pill toggle) */
-  min-height: var(--control-touch-h);
+  min-height: var(--control-max-h);
 }
 .dash-wf .wf-chart-toggle__btn:hover {
   color: var(--wf-ink);
@@ -814,8 +816,8 @@
 }
 .dash-wf .wf-minibtn.green { background: var(--wf-green); border-color: var(--wf-green); color: var(--fg-on-brand); }
 .dash-wf .wf-minibtn:not(.green):hover { border-color: var(--brand); color: var(--brand); }
-/* Touch tablets: 44px floor for the row-action minibtns — 32px measured at
-   tablet widths on coarse pointers (space-utilisation audit 2026-09-09;
+/* Touch tablets: the touch floor for the row-action minibtns — 32px measured
+   at tablet widths on coarse pointers (space-utilisation audit 2026-09-09;
    bump requested by the dispatch lane). Desktop pointer density untouched. */
 @media (pointer: coarse) {
   .dash-wf .wf-minibtn { min-height: var(--control-touch-h); }
@@ -1164,7 +1166,7 @@
   }
 
   .dash-wf .wf-minibtn {
-    min-height: var(--control-max-h);
+    min-height: var(--control-touch-h);
     padding: 0 9px 0 11px;
     border-radius: 10px;
     font-size: var(--text-control-size);
@@ -1448,7 +1450,7 @@
 
 @media (max-width: 640px) {
   .dash-wf .wf-banner-action {
-    min-height: var(--control-max-h);
+    min-height: var(--control-touch-h);
   }
 
   .dash-wf .wf-dashboard-empty--inline .ds-empty-state__message {

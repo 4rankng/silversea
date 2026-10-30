@@ -691,6 +691,8 @@
    operator ruling (case QA-2026-09-26-03 residuals). */
 @media (pointer: coarse) {
   #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
+  /* Primary nav control on touch devices at any width (SIL-583 r2). */
+  .topbar__toggle { width: var(--control-touch-h); height: var(--control-touch-h); }
   :is(#root, body) button,
   :is(#root, body) [role='button'],
   :is(#root, body) input:not([type='checkbox']):not([type='radio']):not([type='hidden']):not([type='range']),
@@ -717,67 +719,42 @@
     min-height: var(--control-touch-h);
   }
 
-  /* SIL-583 — the 44px touch AIM rides transparent pseudo extensions: the
-     visible control keeps the 40px house ceiling, the ::after lifts the hit
-     region to 44. All-around ±2px where the control sits alone in its cell
-     (row menus, chevron, hamburger); VERTICAL-ONLY where a neighbour sits
-     beside it (tabs and pagination buttons are horizontal runs — a side
-     extension would overlap the neighbour's own hit region). The pseudo
-     captures pointers as part of its owning button. */
-  .shipment-debit-menu__trigger,
-  .dispatch-row-menu__trigger,
-  .shipment-debit-group__chevron,
-  .topbar__toggle {
-    position: relative;
-  }
-  :is(.shipment-debit-menu__trigger,
-    .dispatch-row-menu__trigger,
-    .shipment-debit-group__chevron,
-    .topbar__toggle)::after {
-    content: '';
-    position: absolute;
-    inset: -2px;
-  }
-  .ds-tabs--boxed .ds-tabs__btn,
-  .ds-pagination__btn,
-  .dpcard__note,
-  .dpcard__info,
-  .shipment-debit-copy,
-  .shipment-debit-docs__badge {
-    position: relative;
-  }
-  :is(.ds-tabs--boxed .ds-tabs__btn,
-    .ds-pagination__btn,
-    .dpcard__note,
-    .dpcard__info,
-    .shipment-debit-copy,
-    .shipment-debit-docs__badge)::after {
-    content: '';
-    position: absolute;
-    inset-block: -2px;
-    inset-inline: 0;
-  }
+  /* SIL-583 — the named touch clusters ride the shared 44px touch floor
+     through var(--control-touch-h) in the band rules above (buttons/inputs)
+     and the page sheets that own their bumps (kebab, chevron, copy, badge,
+     row-menu trigger, tabs, filters). The round-1/2 ::after pseudo hit
+     extensions that used to live here were removed in round 2: the round-3
+     engine finding below proved them inert on this engine, and the real
+     44px element floor has superseded them. */
 }
 
 /* SIL-583 QA round 3 (2026-10-30) — hit-area ENGINE FINDING (load-bearing
-   for this ticket's "≥44px trên touch — mở rộng bằng padding/pseudo-element"
-   clause): the ::after pseudo-extension technique the AC names does NOT
-   extend hit areas on the engine this repo ships on. Measured on Chromium
-   (qa/scripts/tmp-probe-hit5/6/7.mjs, deleted after the run): a trigger with
-   position:relative and a computed ::after inset of −3px still fails a REAL
-   mouse click 2px above its border box (0 captures), with the pseudo
-   transparent, painted at rgba(…,0.4), bordered, and box-shadowed — and
-   elementFromPoint agrees (the point resolves to the parent row). The
-   round-1/2 coarse-band ::after layers are therefore inert no-ops; they stay
-   (harmless, zero paint) but must not be counted as hit-area delivery, and
-   no new ones may be added. The REAL hit area is the element border box.
-   That means the 44px hit aim is only reachable by growing the element
-   itself, which the owner ceiling forbids (ruling 2026-09-27: the touch
-   floor IS the 40px ceiling — "one ceiling for every form component, on
-   every pointer"; a 44px control is a new owner ruling, not a CSS patch).
-   What this stylesheet delivers, verified by real boxes and real clicks:
-   the 24px WCAG 2.5.8 floor on every control (the ticket's binding clause),
-   and the 40px element floor on coarse pointers (the owner touch floor). */
+   for this ticket's "≥44px trên touch" clause): the ::after pseudo-extension
+   technique the AC names does NOT extend hit areas on the engine this repo
+   ships on. Measured on Chromium (qa/scripts/tmp-probe-hit5/6/7.mjs, deleted
+   after the run): a trigger with position:relative and a computed ::after
+   inset of −3px still fails a REAL mouse click 2px above its border box
+   (0 captures), with the pseudo transparent, painted at rgba(…,0.4),
+   bordered, and box-shadowed — and elementFromPoint agrees (the point
+   resolves to the parent row). The REAL hit area is the element border box.
+
+   SIL-583 round 2 resolution (QA verdict 2026-10-30, comment 2881 — owner
+   option (a), which the QA comment names as one of the two exits): the §5 /
+   GP-06 44px touch law is now delivered by REAL element growth — the touch
+   token `--control-touch-h` is decoupled from the 40px ceiling and carries
+   44px, applied on (pointer: coarse) and ≤768px (the AC's 390/768 sweep
+   widths). Ordinary desktop controls keep the 40px ceiling via
+   --control-max-h; every unconditional (any-pointer) consumer of the touch
+   consumers whose touch-token sizing was unconditional were re-anchored to
+   the ceiling (see the token's note for the full list) so 44px cannot leak
+   to a fine pointer at ≥769px; the pre-existing tablet (641-900) and aging
+   (≤1023) touch bands ride the real token — tablets are touch form factors.
+   The inert round-1/2 ::after layers were removed with this
+   change — they never captured a click and are superseded by the real floor.
+   What this stylesheet still delivers, verified by real boxes and real
+   clicks: the 24px WCAG 2.5.8 floor on every control (the ticket's binding
+   clause, QA-verified 2026-10-30), and the 44px real touch floor on touch
+   form factors. */
 
 /* Tablet controls retain the same touch target as phones. */
 @media (min-width: 641px) and (max-width: 900px) {
@@ -788,6 +765,9 @@
   /* Same contract guard as the phone block: two-class page selectors
      out-specify `.btn` and were shrinking actions below the floor. */
   #root .btn { min-height: var(--control-touch-h); min-width: var(--control-touch-h); }
+  /* The hamburger is a primary nav control on touch widths too — it keeps
+     the real §5 touch floor at 641-900 (SIL-583 r2, QA sweep width 768). */
+  .topbar__toggle { width: var(--control-touch-h); height: var(--control-touch-h); }
 
   .btn--icon,
   .btn--icon.btn--sm,

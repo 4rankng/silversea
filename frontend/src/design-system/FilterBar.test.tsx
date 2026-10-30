@@ -44,9 +44,10 @@ describe('FilterBar layout/wrap contract (card 20260922_38)', () => {
     );
     // Segmented date groups read --uui-control-h through inheritance/fallback.
     expect(filterBarCss).toMatch(/\.filter-bar\s*\{[^}]*--uui-control-h:\s*var\(--filter-control-h\);/);
-    // Coarse pointers re-floor the whole bar at the touch minimum.
+    // Coarse pointers and phone/tablet widths (≤768px — SIL-583 r2, the AC's
+    // sweep widths) re-floor the whole bar at the real touch minimum.
     expect(filterBarCss).toMatch(
-      /@media \(pointer: coarse\)\s*\{[^}]*\.filter-bar\s*\{[^}]*--filter-control-h:\s*var\(--control-touch-h\);/,
+      /@media \(pointer: coarse\), \(max-width: 768px\)\s*\{[^}]*\.filter-bar\s*\{[^}]*--filter-control-h:\s*var\(--control-touch-h\);/,
     );
   });
 

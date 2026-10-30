@@ -240,7 +240,9 @@
 .ttp-position-picker-manage {
   position: relative;
   width: 100%;
-  min-height: var(--control-touch-h);
+  /* Ordinary ceiling at every pointer (SIL-583 r2 review — not a QA-named
+     touch cluster). */
+  min-height: var(--control-max-h);
   display: flex;
   align-items: center;
   border: 0;

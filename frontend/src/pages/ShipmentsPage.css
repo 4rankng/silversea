@@ -181,16 +181,17 @@
   margin-left: auto;
 }
 
-@media (min-width: 768px) {
+/* h-8 law for the two header actions — desktop density; the desktop band
+   starts ABOVE the touch sweep width (SIL-583 r2: 768 is an AC touch width,
+   so at exactly 768 the UUI button's own 44px touch floor applies
+   untouched — the band edge moved 768 → 769). */
+@media (min-width: 769px) {
   .shipments-control__reset.shipment-uui-button {
     height: 32px;
     min-height: 32px;
   }
 }
-
-/* h-8 law for the two header actions — desktop density; below the touch
-   breakpoint the UUI button's own 44px touch floor applies untouched. */
-@media (min-width: 768px) {
+@media (min-width: 769px) {
   .shipments-control__actions .shipment-uui-button {
     height: 32px;
     min-height: 32px;
@@ -634,17 +635,18 @@
 .cus-combined-tag { background: transparent; color: var(--ink-2) !important; border: 0; border-radius: 0; padding: 0; }
 
 /* The cell is the click target, so it carries the shared control floor. It was
-   a bare 44px — a private number that both contradicted the 2026-09-27 ceiling
-   ruling ("component size max 40px", `--control-touch-h` = 40px) and inflated
-   every desktop row (measured 2026-09-28: the second-largest contributor to a
-   110px row). The token carries the floor at every width, so no band needs to
-   restate it. */
+   a bare 44px — a private number that contradicted the 2026-09-27 ceiling
+   ruling ("component size max 40px") and inflated every desktop row (measured
+   2026-09-28: the second-largest contributor to a 110px row). It stays on the
+   ORDINARY ceiling token at every pointer: this is not one of the SIL-583
+   QA-named touch clusters, and the 44px geometry here was measured-and-
+   refused — the touch token must not silently reinstate it. */
 .cus-inline-trigger {
   display: grid;
   align-content: start;
   gap: 3px;
   width: 100%;
-  min-height: var(--control-touch-h, 40px);
+  min-height: var(--control-max-h, 40px);
   padding: 10px;
   border: 1px solid transparent;
   background: transparent;

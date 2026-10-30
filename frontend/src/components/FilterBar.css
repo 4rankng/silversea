@@ -89,7 +89,11 @@
 .filter-bar [data-uui-control][data-control-size] {
   --uui-control-h: var(--filter-control-h);
 }
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 768px) {
+  /* SIL-583 r2: the ≤768px leg is new — the QA round-4 verdict names the
+     30px filter triggers among the clusters that must reach the real 44px
+     §5 touch floor at the AC's 390/768 sweep widths, and a 390px windowed
+     browser reports `pointer: fine` while still being a phone layout. */
   .filter-bar { --filter-control-h: var(--control-touch-h); }
 }
 
@@ -450,7 +454,7 @@
   padding-block: 0;
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 768px) {
   .filter-tab,
   .filter-bar .filter-tab,
   .filter-chip,

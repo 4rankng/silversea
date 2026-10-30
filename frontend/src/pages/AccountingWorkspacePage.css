@@ -176,6 +176,9 @@
 @container (max-width: 1100px) {
   .accounting-register__table tbody td.num { text-align: left; }
   .accounting-register__table tbody tr td.record-table__action { padding-inline: 14px; }
+  /* The ≤1100px container is the record-table tablet band — the same touch
+     family as the 641-900 tablet band, so it rides the REAL touch token
+     (SIL-583 r2; the styles pin calls this band "touchable"). */
   .accounting-register__table .record-table__action a { min-height: var(--control-touch-h); }
 }
 

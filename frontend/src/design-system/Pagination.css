@@ -55,7 +55,10 @@
 .ds-pagination__jump input {
   width: 54px;
   min-width: 0;
-  min-height: var(--control-touch-h);
+  /* Ordinary-ceiling anchor: this rule is unconditional (any pointer), so it
+     carries the 40px ceiling — the §5 touch floor arrives in the band
+     below. var() only: literal px here would trip the ceiling pin. */
+  min-height: var(--control-max-h);
   padding: 4px;
   border: 1px solid var(--line-2);
   border-radius: var(--r-sm);
@@ -96,8 +99,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: var(--control-touch-h);
-  min-height: var(--control-touch-h);
+  /* Ordinary-ceiling anchor (any pointer); the touch band below lifts the
+     real §5 touch floor on coarse pointers and ≤768px widths. */
+  min-width: var(--control-max-h);
+  min-height: var(--control-max-h);
   padding: 0 8px;
   border-radius: 9px;
   border: 1px solid var(--line);
@@ -143,7 +148,10 @@
   align-items: center;
   justify-content: center;
   min-width: 24px;
-  min-height: var(--control-touch-h);
+  /* Not a target (decorative gap marker) — rides the ceiling so the row
+     never outgrows its 40px buttons on desktop; the band below keeps the
+     row coherent at the touch floor. */
+  min-height: var(--control-max-h);
   color: var(--fg-3, var(--ink-3));
   font-size: var(--text-control-size);
   line-height: 1.35;
@@ -170,6 +178,23 @@
 
   .ds-pagination__btn {
     min-width: var(--control-touch-h);
+    min-height: var(--control-touch-h);
+  }
+}
+
+/* SIL-583 r2 — the §5 touch floor for the pagination row on touch form
+   factors (coarse pointer at any width, ≤768px at any pointer — the AC's
+   390/768 sweep widths). The unconditional rules above stay at the 40px
+   ordinary ceiling so a fine pointer at ≥769px never sees the touch
+   token's real floor. */
+@media (pointer: coarse), (max-width: 768px) {
+  .ds-pagination__btn,
+  .ds-pagination__jump input {
+    min-width: var(--control-touch-h);
+    min-height: var(--control-touch-h);
+  }
+
+  .ds-pagination__ellipsis {
     min-height: var(--control-touch-h);
   }
 }

@@ -121,6 +121,18 @@
   }
 }
 
+/* SIL-583 r2 — same floor for narrow windows that report `pointer: fine`:
+   the QA round-4 verdict names UUI buttons ("Gán xe" 30/32) and the
+   /shipments/new create-form controls (38–39) among the clusters that must
+   measure ≥44px for real at the AC's 390/768 sweep widths. Same consumers,
+   same token as the coarse band — a narrow window is a phone layout. */
+@media (max-width: 768px) {
+  [data-uui-control],
+  [data-uui-control][data-control-size] {
+    --uui-control-h: var(--control-touch-h);
+  }
+}
+
 /* A compact segmented group owns one bordered control boundary. Its children
    reserve that shell's inset instead of inheriting a second40px touch floor.
    Intrinsic wrapped content may grow; this is not a clipping height cap. */
@@ -128,4 +140,17 @@
   min-height: var(--control-compact-h);
   height: auto;
   padding-block: 0;
+}
+
+/* SIL-583 r2 — segmented-group members are tap targets too: the compact
+   law above hands the date-scope/status chips a 30px shell height, and the
+   QA round-4 verdict names those 30px chips among the clusters that must
+   REALLY measure ≥44px (the ticket's "filter triggers 30px"). On touch
+   form factors the members grow to the real touch token and the group's
+   bordered shell grows with them — the compact law itself notes wrapped
+   content may grow. Specificity parity (1,1,1) in a later band wins. */
+@media (pointer: coarse), (max-width: 768px) {
+  :is(#root, body) [data-control-group='compact'] > button {
+    min-height: var(--control-touch-h);
+  }
 }

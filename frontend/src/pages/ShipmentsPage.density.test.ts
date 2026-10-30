@@ -28,12 +28,25 @@ describe('shipment container editor density', () => {
   });
 
   it('binds touch-friendly cell triggers to an explicit edit dialog', () => {
-    // The floor is the shared control token, not a private 44px: the operator
-    // ruling of 2026-09-27 caps every component at 40px (`--control-max-h`,
-    // which `--control-touch-h` resolves to) and the 44px inflation around
-    // 12px text is the defect that ruling names. A cell trigger still clears
-    // the floor, still opts out of double-tap zoom, and still opens a dialog.
-    expect(css).toMatch(/\.cus-inline-trigger\s*\{[^}]*min-height:\s*var\(--control-touch-h[^}]*touch-action:\s*manipulation;/);
+    // The floor is the shared ORDINARY ceiling token, not a private 44px: the
+    // operator ruling of 2026-09-27 caps every component at 40px
+    // (`--control-max-h`) and the 44px inflation around 12px text is the
+    // defect that ruling names (measured-and-refused 2026-09-28). SIL-583 r2
+    // decoupled `--control-touch-h` to the real 44px touch token, so this
+    // cell trigger — not one of the QA-named touch clusters — must stay on
+    // the ceiling token or the refused geometry silently returns. A cell
+    // trigger still clears the 24px AA floor, still opts out of double-tap
+    // zoom, and still opens a dialog.
+    expect(css).toMatch(/\.cus-inline-trigger\s*\{[^}]*min-height:\s*var\(--control-max-h[^}]*touch-action:\s*manipulation;/);
+    // The BASE rule carries the ceiling; the phone record-card band rule
+    // (.cus-dashboard-table .cus-inline-trigger) is a GP-06 card surface and
+    // legitimately keeps the real touch token — anchor the negative to the
+    // base rule body only.
+    const baseRule = css.match(/(?:^|\n)\.cus-inline-trigger\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(baseRule, 'base rule exists').not.toBe('');
+    expect(baseRule).toMatch(/min-height:\s*var\(--control-max-h/);
+    expect(baseRule).not.toMatch(/--control-touch-h/);
+    expect(css).toMatch(/\.cus-dashboard-table \.cus-inline-trigger\s*\{[^}]*min-height:\s*var\(--control-touch-h, 40px\);/);
     expect(rowSource).toContain('aria-haspopup="dialog"');
     expect(rowSource).toContain("onStartQuickEdit(item, 'schedule')");
     expect(rowSource).toContain("onStartQuickEdit(item, 'notes')");

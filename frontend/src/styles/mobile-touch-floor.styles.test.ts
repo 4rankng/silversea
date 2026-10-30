@@ -148,20 +148,47 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     expect(carrier).toMatch(/min-height:\s*24px;/);
   });
 
-  it('SIL-583 lifts the named touch clusters to a 44px hit region via pseudo extensions', () => {
+  it('SIL-583 r2 delivers the named touch clusters as REAL 44px element boxes (no pseudo)', () => {
     const responsive = read('src/styles/responsive.css');
     const coarse = responsive.match(/@media \(pointer: coarse\) \{[\s\S]*?\n\}/)?.[0] ?? '';
     expect(coarse, 'coarse block exists').not.toBe('');
-    // isolated controls: ±2px all around (40 visual + 4 = 44)
-    expect(coarse).toMatch(
-      /:is\(\.shipment-debit-menu__trigger,\s*\.dispatch-row-menu__trigger,\s*\.shipment-debit-group__chevron,\s*\.topbar__toggle\)::after\s*\{[^}]*inset:\s*-2px;/,
+    // Round-3 engine finding: ::after hit extensions are inert on this
+    // engine — the round-1/2 layers were removed, and none may return.
+    expect(coarse, 'no pseudo hit-extension layers may ship').not.toMatch(/::after\s*\{[^}]*inset:\s*-2px/);
+    expect(coarse, 'no pseudo hit-extension layers may ship').not.toMatch(/::after\s*\{[^}]*inset-block:\s*-2px/);
+    // The touch token is the REAL 44px §5 floor (decoupled from the 40px
+    // ordinary ceiling) — QA verdict 2026-10-30 adopted owner option (a).
+    expect(read('src/styles/tokens.css')).toMatch(/--control-touch-h:\s*44px;/);
+    // Named QA clusters grow the ELEMENT (real border box) on touch form
+    // factors: coarse pointer at any width, or ≤768px at any pointer (the
+    // AC's 390/768 sweep widths).
+    const debit = read('src/pages/ShipmentDebitPage.css');
+    for (const cls of ['shipment-debit-menu__trigger', 'shipment-debit-group__chevron', 'shipment-debit-copy']) {
+      const rule = debit.match(new RegExp(`@media \\(max-width: 768px\\), \\(hover: none\\) and \\(pointer: coarse\\) \\{[\\s\\S]*?\\.${cls} \\{([^}]*)\\}`))?.[1] ?? '';
+      expect(rule, `${cls} grows to the real touch floor`).toMatch(/width:\s*var\(--control-touch-h\);/);
+      expect(rule, `${cls} grows to the real touch floor`).toMatch(/height:\s*var\(--control-touch-h\);/);
+    }
+    const badge = debit.match(/@media \(max-width: 768px\), \(hover: none\) and \(pointer: coarse\) \{[\s\S]*?\.shipment-debit-docs__badge \{([^}]*)\}/)?.[1] ?? '';
+    expect(badge, 'docs badge rides the touch floor').toMatch(/min-height:\s*var\(--control-touch-h\);/);
+    const rowMenu = read('src/features/dispatch/dispatch-row-menu.css');
+    expect(rowMenu).toMatch(
+      /@media \(pointer: coarse\), \(max-width: 768px\) \{\s*:is\(#root, body\) \.dispatch-row-menu__trigger \{[^}]*width:\s*var\(--control-touch-h\);/,
     );
-    // horizontal runs: vertical-only extension — a side extension would
-    // overlap the neighbour's own hit region (copy + docs badge sit beside
-    // each other in the docs cell)
-    expect(coarse).toMatch(
-      /:is\(\.ds-tabs--boxed \.ds-tabs__btn,\s*\.ds-pagination__btn,\s*\.dpcard__note,\s*\.dpcard__info,\s*\.shipment-debit-copy,\s*\.shipment-debit-docs__badge\)::after\s*\{[^}]*inset-block:\s*-2px;[^}]*inset-inline:\s*0;/,
+    const tabs = read('src/design-system/Tabs.css');
+    expect(tabs).toMatch(/@media \(pointer: coarse\), \(max-width: 768px\) \{\s*\.ds-tabs__btn \{\s*min-height:\s*var\(--control-touch-h\);/);
+    const filterBar = read('src/components/FilterBar.css');
+    expect(filterBar).toMatch(
+      /@media \(pointer: coarse\), \(max-width: 768px\) \{\s*(?:\/\*[^*]*\*\/\s*)?\.filter-bar \{ --filter-control-h: var\(--control-touch-h\); \}/,
     );
+    const geometry = read('src/components/untitled-ui/base/control-geometry.css');
+    expect(geometry).toMatch(/@media \(max-width: 768px\) \{\s*\[data-uui-control\],\s*\[data-uui-control\]\[data-control-size\] \{\s*--uui-control-h:\s*var\(--control-touch-h\);/);
+    const dpg = read('src/features/dispatch/detailed-plan/DetailedPlanGrid.css');
+    expect(dpg).toMatch(/@media \(pointer: coarse\), \(max-width: 768px\) \{\s*\.dpcard__note,\s*\.dpcard__info \{\s*min-height:\s*var\(--control-touch-h\);/);
+    // Pagination rides the touch band too — and its UNCONDITIONAL rules stay
+    // at the 40px ordinary ceiling so a fine pointer at ≥769px never sees 44.
+    const pagination = read('src/design-system/Pagination.css');
+    expect(pagination).toMatch(/\.ds-pagination__btn \{[^}]*min-width:\s*var\(--control-max-h\);/);
+    expect(pagination).toMatch(/@media \(pointer: coarse\), \(max-width: 768px\) \{\s*\.ds-pagination__btn,\s*\.ds-pagination__jump input \{\s*min-width:\s*var\(--control-touch-h\);/);
   });
 
   it('SIL-583 round 3 floors the QA-failed clusters at 24px (mergetag trigger + ledger field links)', () => {
@@ -184,17 +211,17 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     // Round 3 measured on Chromium: a position:relative control with a
     // computed ::after inset of −3px fails a REAL mouse click 2px above its
     // box — painted, bordered, shadowed, all zero captures. The ::after
-    // hit-extension technique is inert on this engine; the round-1/2 coarse
-    // layers are grandfathered no-ops and NO new ones may ship. The hit area
-    // is the element border box: 24px floor everywhere (WCAG 2.5.8), 40px
-    // element floor on touch (owner ruling 2026-09-27).
+    // hit-extension technique is inert on this engine. Round 2 (QA verdict
+    // 2026-10-30) removed the inert layers and delivers the 44px touch law
+    // by REAL element growth instead; the hit area is the element border
+    // box: 24px floor everywhere (WCAG 2.5.8), 44px real floor on touch
+    // form factors, 40px ordinary ceiling kept for desktop fine pointers.
     const responsive = read('src/styles/responsive.css');
     expect(responsive).toMatch(/hit-area ENGINE FINDING/);
-    // The round-3 finding note names the truth: real box = real hit area.
+    // The finding note names the truth: real box = real hit area.
     expect(responsive).toMatch(/REAL hit area is the element border box/);
-    // And the block ships no new pseudo extension rules of its own.
-    const note = responsive.match(/\/\* SIL-583 QA round 3[\s\S]*?\*\/\n\n?[^/*]/)?.[0] ?? '';
-    expect(note, 'the finding note is comment-only').not.toMatch(/\}\n\.|\{$/);
+    // And the round-2 resolution is recorded next to it.
+    expect(responsive).toMatch(/round 2 resolution \(QA verdict 2026-10-30/);
   });
 
   it('SIL-583 residuals: link-color triggers keep a DEFINED min-height fallback (QA fail 29/10: 55×13)', () => {

@@ -43,6 +43,21 @@
   outline-offset: 2px;
 }
 
+/* SIL-583 r2 — the table-rail kebab rides the §5 44px touch floor on touch
+   form factors: the QA round-4 audit measured it 30×30 in the /dispatch
+   table at 768 (the AC's sweep width). The card lifts in the page sheets
+   (dpcard/mpcard, GP-06) already carry 44 — same value, so this band cannot
+   fight them; the :is(#root, body) prefix outranks the bare base rule the
+   same way the global coarse band does. */
+@media (pointer: coarse), (max-width: 768px) {
+  :is(#root, body) .dispatch-row-menu__trigger {
+    width: var(--control-touch-h);
+    min-width: var(--control-touch-h);
+    height: var(--control-touch-h);
+    min-height: var(--control-touch-h);
+  }
+}
+
 /* A destructive item rides LAST, past a hairline, in the danger voice — it
    must look separate before the owning page's confirm dialog opens. */
 .dispatch-row-menu__list button.dispatch-row-menu__item--danger {
