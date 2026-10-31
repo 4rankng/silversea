@@ -74,25 +74,25 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
 
     // 181026200700 (D.4) + SIL-587: the LCL schedule is ONE always-visible
     // datetime field — the marks contract reads it without any reveal step.
-    // SIL-637 (id 741, owner 31/10) removes it from the VISIBLE-mark set: the
-    // band field's label is retired, so it carries no asterisk anymore — the
-    // required enforcement itself is untouched (model/readiness tests).
-    const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-type', 'shipment-package-count', 'shipment-cargo-weight'];
+    // SIL-637 (id 741) removed it from the VISIBLE-mark set; SIL-639 (id
+    // 743, owner 31/10) supersedes that and restores the visible inline
+    // label, so the band field carries its asterisk again.
+    const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-type', 'shipment-package-count', 'shipment-cargo-weight', 'shipment-lcl-closing-at'];
     for (const fieldId of required) {
       await waitFor(() => {
         expect(document.querySelector(`[data-field-id="${fieldId}"]`)).toBeTruthy();
       });
       expect(document.querySelector(`[data-field-id="${fieldId}"]`)!.textContent, fieldId).toContain('*');
     }
-    // SIL-637: the band datetime keeps NO visible mark (label gone, inputs
-    // and validation stay).
-    expect(document.querySelector('[data-field-id="shipment-lcl-closing-at"]')!.textContent).not.toContain('*');
+    // SIL-639: the restored inline label names the field and carries the
+    // mark — the input/validation contract stays untouched.
+    expect(document.querySelector('[data-field-id="shipment-lcl-closing-at"]')!.textContent).toContain('Ngày giờ đóng trả');
     // CBM is optional for LCL (helpdesk 2026-10-13) — the missing asterisk is
     // the contract.
     expect(document.querySelector('[data-field-id="shipment-cargo-volume"]')!.textContent).not.toContain('*');
   });
 
-  it('labels the LCL schedule field "Ngày giờ đóng trả" (SIL-587) via aria — visible label retired by SIL-637', async () => {
+  it('labels the LCL schedule field "Ngày giờ đóng trả" (SIL-587) — visible inline label restored by SIL-639', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
@@ -100,17 +100,20 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     // SIL-587 (id 687, khách 29/10 — supersedes the 2026-10-13 "Ngày giao
     // hàng" copy): hàng lẻ's single schedule field is a DATETIME, pinned
     // here alongside the marks contract (the field renders only on the LCL
-    // path). SIL-637 (id 741, owner 31/10) retires the VISIBLE label — the
-    // name now lives on the [data-split-datetime] group's aria-label (same
-    // doctrine as the FCL bulk label SIL-625 retired), while the two segment
-    // inputs and the required validation stay.
+    // path). SIL-637 (id 741) retired the VISIBLE label; SIL-639 (id 743,
+    // owner 31/10) restores it inline (label trái, control phải — same row
+    // as "Loại hàng *"), while the [data-split-datetime] group's aria-label
+    // and the segment inputs stay untouched.
     const field = await waitFor(() => {
       const node = document.querySelector('[data-field-id="shipment-lcl-closing-at"]');
       expect(node).toBeTruthy();
       return node!;
     });
     expect(field.querySelector('[data-split-datetime]')?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
-    expect(field.textContent).not.toContain('Ngày giờ đóng trả');
+    const label = field.querySelector('.split-datetime__label');
+    expect(label, 'SIL-639 restores the visible inline label').toBeTruthy();
+    expect(label!.textContent).toContain('Ngày giờ đóng trả');
+    expect(label!.textContent).toContain('*');
     expect(field.textContent).not.toContain('Ngày giao hàng');
     expect(field.querySelectorAll('input[data-seg="hh"]').length).toBe(1);
     expect(field.querySelectorAll('input[data-seg="yyyy"]').length).toBe(1);

@@ -74,13 +74,12 @@ describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }
     expect(screen.getByRole('radio', { name: 'Hàng lẻ' })).toBeTruthy();
   });
 
-  // SIL-637 (id 741, owner 31/10): the LCL band datetime's visible label
-  // "Ngày giờ đóng trả *" is retired too — same doctrine as the retired FCL
-  // bulk field above, but a DIFFERENT field (the LCL schedule; the ticket
-  // asked dev to confirm this is its own label, not a 625 leftover).
-  // The two segment inputs, the required validation and the picker copy
-  // stay; the group's aria-label keeps the name for screen readers.
-  it('SIL-637: removes the visible LCL band label while keeping inputs and the accessible name', async () => {
+  // SIL-637 (id 741) retired the visible LCL band label; SIL-639 (id 743,
+  // owner 31/10) supersedes that and restores it INLINE — "Ngày giờ đóng
+  // trả *" on the SAME row as the two segment inputs (label trái, control
+  // phải), the same pattern as the "Loại hàng *" fieldset. The group's
+  // aria-label, the segment labels and the required validation stay.
+  it('SIL-639: the LCL band label renders visible-inline again; inputs and aria unchanged', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
@@ -90,10 +89,15 @@ describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }
       expect(el).toBeTruthy();
       return el!;
     });
-    // No visible label span inside the band — the retired "Ngày giờ đóng trả *".
-    expect(band.querySelector('.split-datetime__label')).toBeNull();
-    expect(screen.queryByText('Ngày giờ đóng trả')).toBeNull();
-    expect(screen.queryByText('Ngày giờ đóng trả *')).toBeNull();
+    // The visible label is BACK, carrying the required mark — same row law
+    // as "Loại hàng *" (pinned in the page styles suite, .csc-lcl-delivery).
+    const label = band.querySelector('.split-datetime__label');
+    expect(label, 'the visible inline label is restored').toBeTruthy();
+    expect(label!.textContent).toContain('Ngày giờ đóng trả');
+    expect(label!.textContent).toContain('*');
+    // The label is a flex SIBLING of the field group (inline row), not a
+    // nested span inside it.
+    expect(label!.closest('[data-split-datetime]')).toBeNull();
     // The group still carries the name for assistive tech.
     const group = band.querySelector('[data-split-datetime][role="group"]');
     expect(group?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
@@ -152,5 +156,18 @@ describe('SIL-616 — band control height pins (styles)', () => {
     // from the same variable, so the phone's touch token still flows through.
     expect(PAGE_CSS).toMatch(/\.csc-mode-band__row \.date-seg-group\[data-uui-control\] \.date-seg-wrapper\s*\{\s*padding-block:\s*0;\s*\}/);
     expect(PAGE_CSS).toMatch(/:is\(#root, body\) \.csc-mode-band__row \.date-seg-group\[data-uui-control\] \.date-seg-wrapper \.date-seg\s*\{\s*padding-block:\s*0;\s*\}/);
+  });
+
+  it('SIL-639: the LCL band label rides INLINE — label trái, control phải, one row', () => {
+    // The band is a wrapping flex row (label a flex SIBLING of the field
+    // group), bottom-aligned so the label shares the control baseline — the
+    // "Loại hàng *" pattern — and never a stacked label-over-control grid.
+    expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px; min-width: 0; \}/);
+    // The label wears the same compact tokens as the "Loại hàng" legend.
+    expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \.split-datetime__label \{ font-size: var\(--control-compact-font-size\); font-weight: 700; line-height: var\(--control-compact-line-height\); color: var\(--fg-1\); white-space: nowrap; \}/);
+    // Phones keep the shared touch tokens when the label wraps above the pair.
+    expect(PAGE_CSS).toMatch(/@media \(max-width: 640px\) \{\s*\.csc-lcl-delivery \.split-datetime__label \{ font-size: var\(--control-compact-touch-font-size\); line-height: var\(--control-compact-touch-line-height\); \}/);
+    // The grid stack (label on top) must not return.
+    expect(PAGE_CSS).not.toMatch(/\.csc-lcl-delivery \{ display: grid;/);
   });
 });

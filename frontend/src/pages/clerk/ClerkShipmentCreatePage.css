@@ -39,8 +39,19 @@
 .csc-form-actions .csc-actions { flex-wrap: nowrap; min-width: 0; }
 .csc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* Card D.4 (18/10) + 181026200700: the hàng lẻ form has NO "Lịch & ghi chú"
-   section and NO add button — one always-visible "Ngày giao hàng" field. */
-.csc-lcl-delivery { display: grid; gap: 6px; justify-items: start; min-width: 0; }
+   section and NO add button — one always-visible "Ngày giao hàng" field.
+   SIL-639 (id 743, owner 31/10): the field's "Ngày giờ đóng trả *" label
+   rides INLINE — label trái, the two segment inputs phải, ONE control row —
+   the same pattern as the "Loại hàng *" fieldset beside it (legend compact
+   tokens, baseline-aligned bottom edge). SIL-637's hide is superseded; the
+   group's aria-label and the required validation are untouched. flex-wrap
+   stacks label above inputs on phones where the pair cannot share a line. */
+.csc-lcl-delivery { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px; min-width: 0; }
+.csc-lcl-delivery .split-datetime__label { font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); color: var(--fg-1); white-space: nowrap; }
+.csc-lcl-delivery .csc-uui-field { flex: 0 1 auto; min-width: 0; }
+@media (max-width: 640px) {
+  .csc-lcl-delivery .split-datetime__label { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }
+}
 /* Ghi chú pair (SIL-611: the form's LAST band, below Thông tin hàng): two
    recipient notes share ONE row at the same height instead of stacking two
    full-width boxes — the closing section stays a dense worksheet rather
