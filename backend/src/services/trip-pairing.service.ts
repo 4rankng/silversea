@@ -110,6 +110,16 @@ export interface TripPairingOptions {
    * full sequential rule set.
    */
   kind?: 'KEP' | 'KET_HOP';
+  /**
+   * SIL-638 TC7 (QA 31/10) — the DECLARED Kết hợp carve (see
+   * declaredCombinedPairCarve): both legs declared COMBINED on one rig, one
+   * driver, one business day. The declaration is the pair arrangement, so the
+   * sequential-only rules above relax exactly like KEP's — the planned
+   * windows may coincide (both legs ride the lot's shared appointment slot)
+   * and the shell's next leg starts where the rig stands. Window validity,
+   * cargo-weight and capacity gates still apply.
+   */
+  declaredCombinedCarve?: boolean;
 }
 
 export function buildTripPairSnapshot(
@@ -125,6 +135,11 @@ export function buildTripPairSnapshot(
     blockingCodes.push('SAME_TRIP');
   }
 
+  // The sequential-only rule set: default and KET_HOP, relaxed for KEP
+  // (simultaneous) and for the declared Kết hợp carve (one declared rig, so
+  // the windows may coincide and there is no reposition chain).
+  const sequentialRules = options.kind !== 'KEP' && options.declaredCombinedCarve !== true;
+
   const firstStart = parseIsoDateTime(orderedFirst.plannedStartAt);
   const firstEnd = parseIsoDateTime(orderedFirst.plannedEndAt);
   const secondStart = parseIsoDateTime(orderedSecond.plannedStartAt);
@@ -136,7 +151,7 @@ export function buildTripPairSnapshot(
       blockingCodes.push('INVALID_PLANNED_WINDOW');
     }
     // KEP runs both legs simultaneously — overlapping windows are the norm.
-    if (options.kind !== 'KEP' && firstEnd > secondStart) {
+    if (sequentialRules && firstEnd > secondStart) {
       blockingCodes.push('OVERLAP');
     }
   }
@@ -172,7 +187,7 @@ export function buildTripPairSnapshot(
 
   let emptyDistanceKm: number | null = 0;
   if (
-    options.kind !== 'KEP'
+    sequentialRules
     && firstDestination && secondOrigin && firstDestination !== secondOrigin
   ) {
     // Cross-location pairs have no distance source (GPS route-DB removed);
@@ -185,7 +200,7 @@ export function buildTripPairSnapshot(
   let requiredGapMinutes: number | null = null;
   if (firstEnd && secondStart && !blockingCodes.includes('MISSING_PLANNED_WINDOW') && !blockingCodes.includes('INVALID_PLANNED_WINDOW')) {
     actualGapMinutes = Math.floor((secondStart.getTime() - firstEnd.getTime()) / 60000);
-    if (options.kind !== 'KEP') {
+    if (sequentialRules) {
       const repositionKm = emptyDistanceKm ?? 0;
       const averageSpeed = vehicle.averageRepositionSpeedKph ?? DEFAULT_REPOSITION_SPEED_KPH;
       const stopBuffer = vehicle.stopBufferMinutes ?? DEFAULT_STOP_BUFFER_MINUTES;

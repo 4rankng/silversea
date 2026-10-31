@@ -16,6 +16,7 @@ import {
   backhaulTollDeductionForSecond,
   combinedContainerSizeBlockMessage,
   containerNumberToInherit,
+  declaredCombinedPairCarve,
   kepContainerSizeBlockMessage,
 } from './trip-pair-rules.service';
 import {
@@ -544,6 +545,41 @@ export async function createTripPair(
       }
     }
 
+    // SIL-638 TC7 (QA 31/10) — the declared Kết hợp pair carve: both legs'
+    // fulfillments DECLARE COMBINED on one rig (same truck, driver, business
+    // day). The declaration is the pair arrangement, so the sequential-only
+    // plumbing (OVERLAP / IMPOSSIBLE_REPOSITION / INSUFFICIENT_TRAVEL_BUFFER
+    // + the first/second ordering assertion) relaxes exactly like KEP's —
+    // otherwise a pair planned on the lot's shared appointment slot could
+    // issue both legs but never pair them ("không tạo được pair COMBINED").
+    // The same-size gate above is independent owner law and keeps blocking.
+    let declaredCombinedCarve = false;
+    if (kind === 'KET_HOP') {
+      const fulfillmentRows = await tx.select({
+        tripId: s.trips.id,
+        classification: s.shipmentFulfillments.dispatchClassification,
+      })
+        .from(s.trips)
+        .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+        .where(inArray(s.trips.id, [input.firstTripId, input.secondTripId]));
+      const classificationOf = (tripId: number) =>
+        fulfillmentRows.find((row) => row.tripId === tripId)?.classification ?? null;
+      declaredCombinedCarve = declaredCombinedPairCarve(
+        {
+          classification: classificationOf(input.firstTripId),
+          truckId: locked.first.truckId,
+          driverId: locked.first.driverId,
+          departureDate: locked.first.departureDate,
+        },
+        {
+          classification: classificationOf(input.secondTripId),
+          truckId: locked.second.truckId,
+          driverId: locked.second.driverId,
+          departureDate: locked.second.departureDate,
+        },
+      );
+    }
+
     // Card 211026152138 — a rig with NO declared capacity (master-data imports
     // leave Loại Moóc blank, so the issue-time snapshot stays null) no longer
     // dead-ends the pair: the snapshot runs without a capacity (its overload
@@ -582,13 +618,18 @@ export async function createTripPair(
       {
         vehicleCapacityKg: capacityMissing ? null : firstCapacity,
       },
-      { kind },
+      { kind, declaredCombinedCarve },
     );
 
     // KEP legs run simultaneously, so there is no first/second ordering to
-    // enforce — keep the ordering assertion on sequential (KET_HOP) pairs only.
+    // enforce — keep the ordering assertion on sequential (KET_HOP) pairs
+    // only. The declared Kết hợp carve joins KEP here: same-slot declarations
+    // tie on their start instant (orderCandidates breaks ties by trip id), so
+    // the dispatcher's Lệnh 1/Lệnh 2 choice — the order the pair row stores —
+    // must not be second-guessed.
     if (
       kind !== 'KEP'
+      && !declaredCombinedCarve
       && (evaluation.orderedTripIds[0] !== input.firstTripId
         || evaluation.orderedTripIds[1] !== input.secondTripId)
     ) {

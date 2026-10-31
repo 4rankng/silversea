@@ -1,0 +1,78 @@
+▶ trip pairing service
+  ✔ canonicalizes Vietnamese locations deterministically (1.368959ms)
+  ✔ accepts a valid cross-day pair with no reposition (4.236291ms)
+  ✔ rejects overlapping planned windows (0.220583ms)
+  ✔ KEP accepts overlapping windows — both containers ride one mooc (0.161ms)
+  ✔ KEP skips the reposition chain — identical windows on different legs still pair (0.175458ms)
+  ✔ KEP still enforces window validity, weights and capacity (0.154875ms)
+  ✔ SIL-635: two EXPORT legs — same direction (both factory → port), overlapping windows — pair as KẸP (0.1895ms)
+  ✔ SIL-635: two IMPORT legs — same direction (both port → factory), overlapping windows — pair as KẸP (0.119625ms)
+  ✔ SIL-635 no-regression: the destination→origin chain rule stays KET_HOP-only (sequencing law, not a direction gate) (0.133458ms)
+  ✔ SIL-635 wiring pin: the pair contract never reads trade direction (0.588542ms)
+  ✔ accepts a KEP pair when the rig has no declared capacity (card 211026152138) (0.135375ms)
+  ✔ a zero-capacity vehicle no longer blocks either (card 211026152138) (0.14075ms)
+  ✔ a DECLARED capacity still rejects a leg heavier than the rig (overload law intact) (0.121417ms)
+  ✔ KET_HOP (default) keeps the full sequential rule set (0.142125ms)
+  ✔ rejects impossible repositioning when destinations do not connect (0.101834ms)
+  ✔ rejects overload when either trip exceeds the truck capacity (0.087416ms)
+  ✔ breaks the pair while preserving the surviving trip on cancellation (0.126583ms)
+  ✔ breaks the pair when late completion consumes the required buffer (0.121541ms)
+✔ trip pairing service (12.251458ms)
+▶ tripClaimWindowOverlaps (SIL-638 TC1 — time-scoped rig law)
+  ✔ allows a same-day later shift — ca chiều 14:00–18:00 is NOT an overlap (0.622542ms)
+  ✔ allows back-to-back shifts — touching edges are not an overlap (0.113042ms)
+  ✔ blocks Cont C 10:00–14:00 — a same-window overlap (0.085334ms)
+  ✔ blocks a holder that starts inside the incoming window (0.091791ms)
+  ✔ an open-ended holder (xe đang chạy, chưa có giờ kết thúc) claims 8 hours from its start (0.107792ms)
+  ✔ another day never overlaps (0.08075ms)
+✔ tripClaimWindowOverlaps (SIL-638 TC1 — time-scoped rig law) (2.094834ms)
+▶ declaredKepShareMode (SIL-638 TC1/TC2 — classification carve gate)
+  ✔ a plain ĐƠN (SINGLE) resolving context has NO carve mode (0.217917ms)
+  ✔ LCL rows have no carve mode either (0.104667ms)
+  ✔ Kẹp needs the 20′ proof — a 40′ DOUBLE is not a clamp (0.099625ms)
+  ✔ Kết hợp resolves the sequential KET_HOP mode (0.121ms)
+  ✔ no context resolves no mode (the guard runs classification-free) (0.0975ms)
+✔ declaredKepShareMode (SIL-638 TC1/TC2 — classification carve gate) (0.87625ms)
+▶ SIL-638 TC2 — a ĐƠN leg on a kẹp rig is refused (no carve path)
+  ✔ a ĐƠN issuing context resolves no share mode at all (2.508916ms)
+  ✔ with no carve mode, no holder satisfies the declared-share carve (6.068916ms)
+  ✔ the mixed-declaration candidate never fires for a ĐƠN ISSUING leg (0.137291ms)
+  ✔ so a ĐƠN overlap stays in `blocking` → the guard keeps its hard 409 refusal (0.12175ms)
+✔ SIL-638 TC2 — a ĐƠN leg on a kẹp rig is refused (no carve path) (12.584459ms)
+▶ SIL-638 TC2 — the deliberate kẹp share paths stay intact
+  ✔ both legs declared Kẹp on the same rig + business day carve as the pair arrangement (0.45975ms)
+  ✔ a different truck / driver / day breaks the share (0.219834ms)
+  ✔ SIL-638 31/10: the mooc is not the pair contract (SIL-602) — equal or unassigned trailers carve, a declared mismatch blocks (0.175666ms)
+  ✔ a holder already paired to a third load stays blocking (never a third container) (0.140375ms)
+  ✔ dis-03: issuing Kẹp 20′ onto a sitting ĐƠN warns once (confirmable), scoped to one same-rig same-day holder (0.137084ms)
+✔ SIL-638 TC2 — the deliberate kẹp share paths stay intact (1.404542ms)
+▶ SIL-638 TC7(1) — kết hợp requires the same container size
+  ✔ the block message is the DOC verbatim text (1.19825ms)
+  ✔ same sizes pair — including 40′ + 40′ (the kẹp difference) (0.163916ms)
+  ✔ a proven mismatch blocks with the DOC text (0.123333ms)
+  ✔ an unknown size cannot prove a mismatch — same "bổ sung sau" convention as the number rule (0.102083ms)
+✔ SIL-638 TC7(1) — kết hợp requires the same container size (2.428791ms)
+▶ SIL-638 TC7(2) — Lệnh 2 inherits Lệnh 1’s số container when blank
+  ✔ blank Lệnh 2 takes Lệnh 1’s shell number (0.1755ms)
+  ✔ a number already present is never overwritten (1.811125ms)
+  ✔ no source number → nothing to inherit (0.135083ms)
+  ✔ the inherited value is trimmed (0.413ms)
+✔ SIL-638 TC7(2) — Lệnh 2 inherits Lệnh 1’s số container when blank (9.482625ms)
+▶ SIL-638 TC7(3) — VETC once for a COMBINED pair
+  ✔ the same single-booking dedup rides the KET_HOP pair (7.800375ms)
+✔ SIL-638 TC7(3) — VETC once for a COMBINED pair (7.931625ms)
+▶ SIL-638 TC7 — the declared Kết hợp pair carve
+  ✔ two declared COMBINED legs on one rig/day carve (0.271208ms)
+  ✔ any non-declared side, different truck/driver/day, or missing day keeps the sequential rules (0.111292ms)
+  ✔ buildTripPairSnapshot: same-slot declared COMBINED legs pair — windows may coincide, no reposition chain (11.201125ms)
+  ✔ buildTripPairSnapshot: without the carve the same slot still blocks (default KET_HOP law unchanged) (0.226791ms)
+✔ SIL-638 TC7 — the declared Kết hợp pair carve (11.992458ms)
+ℹ tests 51
+ℹ suites 9
+ℹ pass 51
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1232.060167
+exit: 0

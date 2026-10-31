@@ -118,6 +118,29 @@ describe('SIL-638 TC2 — the deliberate kẹp share paths stay intact', () => {
     );
   });
 
+  it('SIL-638 31/10: the mooc is not the pair contract (SIL-602) — equal or unassigned trailers carve, a declared mismatch blocks', () => {
+    // Both sides unassigned (master-data imports leave the mooc blank): the
+    // declaration + same truck/driver/day is the proof.
+    assert.equal(isDeclaredKepSharePartner(
+      { ...kepRequest, trailerId: null },
+      partner({ classification: 'DOUBLE', trailerId: null }),
+      kepMode,
+    ), true);
+    // One side unassigned: the truck is still the declared rig.
+    assert.equal(isDeclaredKepSharePartner(kepRequest, partner({ classification: 'DOUBLE', trailerId: null }), kepMode), true);
+    assert.equal(isDeclaredKepSharePartner(
+      { ...kepRequest, trailerId: null },
+      partner({ classification: 'DOUBLE', trailerId: 9 }),
+      kepMode,
+    ), true);
+    // Two DECLARED but differing moocs are a foreign claim, never carved.
+    assert.equal(isDeclaredKepSharePartner(
+      kepRequest,
+      partner({ classification: 'DOUBLE', trailerId: 12 }),
+      kepMode,
+    ), false);
+  });
+
   it('a holder already paired to a third load stays blocking (never a third container)', () => {
     const pairedToThird = partner({
       classification: 'DOUBLE',
