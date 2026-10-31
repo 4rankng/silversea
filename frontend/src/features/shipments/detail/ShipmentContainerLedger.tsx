@@ -202,9 +202,9 @@ function InlineEditHost({ editing, label, trigger, editor }: {
  * the merge popup read) so the board at large never pays for the fetch — a
  * react-query dedupe makes repeat opens cheap. Saves through the SAME
  * `/shipments/lcl/rev-class` endpoint; a lot inside a CUS rev group keeps the
- * group's outputs — every field disables with the tách-nhóm hint (the server
- * refuses the same way). A saved class reports (base, savedCode) upward so
- * the cell's spec line reflects it immediately (the override law).
+ * group's outputs — every field disables (SIL-621: with NO guidance text, the
+ * server refuses the same way). A saved class reports (base, savedCode) upward
+ * so the cell's spec line reflects it immediately (the override law).
  */
 function LotRevFactsEditor({ row, initialClassCode, initialPrice, onClose, onRevSaved }: {
   row: ShipmentCusContainerFlatRow;
@@ -291,6 +291,10 @@ function LotRevFactsEditor({ row, initialClassCode, initialPrice, onClose, onRev
   return (
     <div className="shipment-container-ledger__inline-editor">
       <div className="shipment-container-ledger__editor-grid">
+        {/* SIL-621 (owner 30/10): the popup carries NO guidance text — the
+            group-lock hint and the long auto-trace helpText are gone; the
+            placeholder («Bỏ trống = tự tra bảng giá») is the only trace of
+            the auto-trace law. A grouped lot still locks every field. */}
         <USearchableField
           label="Loại xe tính cước thu khách"
           value={revClassId}
@@ -299,7 +303,6 @@ function LotRevFactsEditor({ row, initialClassCode, initialPrice, onClose, onRev
           placeholder="Chọn loại xe (trọng tải / cont)"
           searchable
           disabled={revSaving || groupLock.locked}
-          hint={groupLock.hint}
         />
         <NumberField
           label="Giá cước thu khách (đ)"
@@ -308,7 +311,6 @@ function LotRevFactsEditor({ row, initialClassCode, initialPrice, onClose, onRev
           grouped
           min={0}
           placeholder="Bỏ trống = tự tra bảng giá"
-          helpText="Nhập tay giá thỏa thuận — thắng giá tra bảng theo loại xe. Bỏ trống: tự tra bảng giá thu khách (KH × tuyến × loại xe)."
           disabled={revSaving || groupLock.locked}
         />
       </div>

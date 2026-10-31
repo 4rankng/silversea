@@ -98,17 +98,22 @@ export function localDateTimeToIso(value: string): string | null {
 /**
  * SIL-548 (id 615, QA fail round 3) — the per-lot CƯỚC THU KHÁCH editor's
  * group lock (spec 23/10 §4.1 point 3, owner law «lô đã ghép phải KHÓA
- * editor + hướng dẫn tách nhóm trước»): a lot inside ANY merge group — the
- * CUS rev group (rev_group_id «Ghép thu») or the ĐV cost group
- * (cost_group_id «Ghép») — keeps the GROUP's outputs, so the editor fields
- * disable with the tách-nhóm hint. ONE rule for every surface that renders
- * the editor (Chi tiết lô hàng in-cell editor + /shipments-debit strip) so
- * the lock can never diverge between them again.
+ * editor»): a lot inside ANY merge group — the CUS rev group (rev_group_id
+ * «Ghép thu») or the ĐV cost group (cost_group_id «Ghép») — keeps the
+ * GROUP's outputs, so the editor fields disable. ONE rule for every surface
+ * that renders the editor (Chi tiết lô hàng in-cell editor + /shipments-debit
+ * strip) so the lock can never diverge between them again.
+ *
+ * SIL-621 (id 725, owner 30/10): the tách-nhóm guidance TEXT is gone — a
+ * locked lot disables its fields and shows no lecturing copy (the debit
+ * strip's NHÓM GHÉP block and the server's refusal message still name the
+ * step). The rev-group hint predates the ruling and only the debit strip
+ * still renders it.
  */
 export function revOutputGroupLock(row: {
   revGroupId?: string | null;
   costGroupId?: string | null;
-}): { locked: boolean; hint: string } {
+}): { locked: boolean; hint: string | null } {
   if (row.revGroupId != null) {
     return {
       locked: true,
@@ -116,10 +121,7 @@ export function revOutputGroupLock(row: {
     };
   }
   if (row.costGroupId != null) {
-    return {
-      locked: true,
-      hint: 'Lô đã thuộc nhóm gộp xe (ghép cước trả ĐVVC) — tách nhóm (Hủy ghép) trước khi sửa cước thu khách riêng cho lô này.',
-    };
+    return { locked: true, hint: null };
   }
   return {
     locked: false,
