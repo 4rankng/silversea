@@ -1,8 +1,30 @@
-/* SIL-592 (id 692) — the staff-close pill must wrap, never truncate
-   (no-truncate doctrine): `.btn` is nowrap and the Trạng thái column can
-   narrow under 1280px, so the 2-word label wraps at the space instead of
-   spilling out of the cell. Same wrap law as .shipment-container-ledger__copy. */
+/* SIL-592 (id 692) / SIL-620 (id 724) — text button for staff close:
+   1 line, no pill chrome, wraps whole words only when space is squeezed
+   (no-truncate doctrine). Link styling with accessible emerald contrast. */
 .external-trip-complete {
-  white-space: normal;
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
   max-width: 100%;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  color: var(--brand-secondary, #004a25);
+  font-weight: var(--fw-semibold, 600);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.external-trip-complete:hover:not(:disabled) {
+  color: var(--brand-secondary-hover, #00361b);
+}
+
+.external-trip-complete:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }

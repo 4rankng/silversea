@@ -1,17 +1,14 @@
 import { useState } from 'react';
+import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { ConfirmDialog } from '../../../components/UI';
 import './ExternalTripCompleteAction.css';
 
 /**
- * SIL-592 (id 692) — the CUS staff close ("Hoàn thành") for external-carrier
- * trips, shared by the Chi tiết lô hàng workboard and the lot drawer. External
- * drivers never use the app, so CUS/điều vận close their trips on the driver's
- * behalf (`POST /trips/:id/complete-external`, backend allowlist
- * ADMIN/MANAGER/DISPATCHER/CUS). This component owns the confirm dialog and
- * the busy state only; the parent owns the mutation, toast and refetch (the
- * same feedback contract as the workboard's copy actions). A rejected
- * `onComplete` keeps the dialog open so the operator can retry or cancel —
- * wording matches the dispatcher's own close dialog.
+ * SIL-592 (id 692) / SIL-620 (id 724) — the CUS staff close ("Hoàn thành") for
+ * external-carrier trips, styled as a clean text button (no pill chrome) that
+ * sits neatly on 1 line next to the dispatch chip. External drivers never use
+ * the app, so CUS/điều vận close their trips on the driver's behalf
+ * (`POST /trips/:id/complete-external`, backend allowlist ADMIN/MANAGER/DISPATCHER/CUS).
  */
 export function ExternalTripCompleteAction({ identity, onComplete }: {
   /** Row identity for the labels — container number, bill/booking, or cont N. */
@@ -38,16 +35,18 @@ export function ExternalTripCompleteAction({ identity, onComplete }: {
 
   return (
     <>
-      <button
-        type="button"
-        className="btn btn--secondary btn--sm external-trip-complete"
+      <UUIButton
+        size="sm"
+        color="link-color"
+        className="external-trip-complete"
+        onPress={() => setOpen(true)}
         onClick={() => setOpen(true)}
-        disabled={busy}
+        isDisabled={busy}
         aria-label={`Hoàn thành chuyến xe ngoài của ${identity}`}
         title="Hoàn thành chuyến với xe ngoài — xe ngoài không dùng app nên điều vận/CUS chốt thay"
       >
         {busy ? 'Đang…' : 'Hoàn thành'}
-      </button>
+      </UUIButton>
       <ConfirmDialog
         isOpen={open}
         message={`Hoàn thành chuyến với xe ngoài ${identity}? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.`}
