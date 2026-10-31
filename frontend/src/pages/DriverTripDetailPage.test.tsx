@@ -262,7 +262,6 @@ describe('DriverTripDetailPage', () => {
     renderPage();
     await screen.findByText('BL-2026-001');
     expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
-    expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
   });
 
@@ -380,32 +379,10 @@ describe('DriverTripDetailPage', () => {
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
-    // AC-DISPATCH-002: the pre-acceptance banner gives one short task
-    // instruction plus its effect — plain copy, no rollout/Ops terminology.
-    expect(screen.getByTestId('bypass-ops-banner').textContent).toContain('Kiểm tra thông tin chuyến rồi chọn Nhận lệnh');
-    expect(screen.getByTestId('bypass-ops-banner').textContent).toContain('Sau khi nhận lệnh, chuyến bắt đầu');
   });
 
   // Offline queue and conflict recovery have been removed — the accept bar
   // now uses a direct API call.  Conflict-banner tests are no longer applicable.
-
-  // AC-DISPATCH-002 counterpart: once the order is accepted, the bypass
-  // banner disappears (no longer acceptable — already running).
-  it('hides the bypass banner once the order is accepted', async () => {
-    useDriverTaskProgressMock.mockReturnValue({
-      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
-    });
-    renderPage();
-
-    // Accept recorded → acceptState 'done' → the completion bar owns the
-    // sticky slot (card _28 item 10).
-    await screen.findByTestId('complete-sticky-bar');
-    expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
-    expect(screen.queryByTestId('bypass-ops-banner')).toBeNull();
-  });
 
   it('renders the e-POD footer CTA enabled and gates on the two missing photos', async () => {
     renderPage();

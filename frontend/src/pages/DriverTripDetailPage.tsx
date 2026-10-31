@@ -12,7 +12,6 @@ import {
   Loader2,
   ShieldAlert,
   StickyNote,
-  Zap,
 } from 'lucide-react';
 import { DriverProgressEventType, TripStatus } from '@tingting/shared';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
@@ -404,22 +403,6 @@ function DriverTripDetailContent() {
       </div>
 
 
-
-      {/* Spec Phần 3 / AC-DISPATCH-002: acceptance is direct while the Ops
-          field-confirmation module is unfinished — guide the driver to check
-          the order, then accept; keep the banner short and secondary to the
-          accept action itself. */}
-      {showAcceptStickyBar && acceptState === 'available' && (
-        <section className="driver-task-section driver-task-section--banner" data-testid="bypass-ops-banner">
-          <div className="driver-task-bypass">
-            <Zap size={16} />
-            <div>
-              <strong>Kiểm tra thông tin chuyến rồi chọn Nhận lệnh</strong>
-              <p>Sau khi nhận lệnh, chuyến bắt đầu.</p>
-            </div>
-          </div>
-        </section>
-      )}
 
       {accountingLock && <AccountingLockBanner lock={accountingLock} />}
 
