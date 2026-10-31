@@ -30,10 +30,6 @@ function renderWorkspace() {
   );
 }
 
-function lclBand() {
-  return document.querySelector('.csc-lcl-delivery');
-}
-
 describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
