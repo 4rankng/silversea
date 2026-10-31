@@ -115,6 +115,17 @@ describe('shared control density', () => {
     expect(triggerBefore).toContain('font-weight: var(--fw-bold)');
     expect(triggerBefore).toContain('letter-spacing: 0.04em');
     expect(triggerBefore).toContain('text-transform: uppercase');
+
+    // SIL-633 regression tail (QA wave 31/10, ticket 737): the eyebrow's line
+    // box carries UPPERCASE Vietnamese ink — the tallest ink in the cell
+    // (≈1.21em, the SIL-540 measurement). A literal 1.3 box leaves ~0.5px of
+    // half-leading per side at 11px — one device pixel at DPR 2 — and that
+    // shave is the "second line cut in half, overlapping the next row" the
+    // wave reported. The box rides the shared ops-table header token (1.35),
+    // the same ≥1.35 containment law the SIL-540 pins hold for the cell's
+    // other lines. Breaking this reopens the defect class.
+    expect(triggerBefore).toContain('line-height: var(--ops-table-header-line-height, 1.35)');
+    expect(triggerBefore, 'a literal 1.3 line box shaves uppercase Vietnamese ink').not.toMatch(/line-height:\s*1\.3\s*;/);
   });
 
   it('rejects UUI field dimensions from every page and feature stylesheet', () => {
