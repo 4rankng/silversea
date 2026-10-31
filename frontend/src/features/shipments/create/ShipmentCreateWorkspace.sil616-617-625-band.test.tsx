@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { MemoryRouter } from 'react-router-dom';
@@ -48,7 +48,7 @@ function fillRowAppointment(index: number, date: string, time: string) {
   fireEvent.change(times[index]!, { target: { value: time } });
 }
 
-describe('SIL-616/617/625 — the top mode band cluster', { timeout: 20000 }, () => {
+describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     getBootstrap.mockResolvedValue({
@@ -112,6 +112,37 @@ describe('SIL-616/617/625 — the top mode band cluster', { timeout: 20000 }, ()
     fireEvent.change(time!, { target: { value: '14:30' } });
     // The Copy affordance (607 apply path) still appears on a complete value.
     expect(document.querySelector('.csc-bulk-appointment__copy')).toBeTruthy();
+  });
+
+  // SIL-637 (id 741, owner 31/10): the LCL band datetime's visible label
+  // "Ngày giờ đóng trả *" is retired too — same doctrine as SIL-625 above,
+  // but a DIFFERENT field (the LCL schedule, not the FCL bulk copy-all; the
+  // ticket asked dev to confirm this is its own label, not a 625 leftover).
+  // The two segment inputs, the required validation and the picker copy
+  // stay; the group's aria-label keeps the name for screen readers.
+  it('SIL-637: removes the visible LCL band label while keeping inputs and the accessible name', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
+
+    const band = await waitFor(() => {
+      const el = document.querySelector('.csc-lcl-delivery');
+      expect(el).toBeTruthy();
+      return el!;
+    });
+    // No visible label span inside the band — the retired "Ngày giờ đóng trả *".
+    expect(band.querySelector('.split-datetime__label')).toBeNull();
+    expect(screen.queryByText('Ngày giờ đóng trả')).toBeNull();
+    expect(screen.queryByText('Ngày giờ đóng trả *')).toBeNull();
+    // The group still carries the name for assistive tech.
+    const group = band.querySelector('[data-split-datetime][role="group"]');
+    expect(group?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
+    // Both segment inputs render and accept typing — the field itself is
+    // untouched.
+    const segments = band.querySelectorAll<HTMLInputElement>('[data-split-datetime] input[data-seg]');
+    expect(segments.length).toBeGreaterThanOrEqual(5);
+    fireEvent.change(band.querySelector<HTMLInputElement>('input[data-seg="hh"]')!, { target: { value: '09' } });
+    expect(band.querySelector<HTMLInputElement>('input[data-seg="hh"]')!.value).toBe('09');
   });
 });
 

@@ -93,7 +93,11 @@ describe('LCL form visible-by-default (cards 211026130115/30215/30315/30415)', {
       return el!;
     });
     expect(document.querySelector('#shipment-section-mode')!.contains(field)).toBe(true);
-    expect(field.textContent).toContain('Ngày giờ đóng trả');
+    // SIL-637 (id 741, owner 31/10): the visible label is retired — the
+    // field's name lives on the group aria-label (screen readers keep it);
+    // the segments below prove the field itself still renders in the band.
+    expect(field.querySelector('[data-split-datetime]')?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
+    expect(field.textContent).not.toContain('Ngày giờ đóng trả');
     // Ngày + giờ: the split host renders both segment groups.
     expect(field.querySelectorAll('[data-split-datetime] input[data-seg="hh"], [data-split-datetime] input[data-seg="dd"]').length).toBeGreaterThanOrEqual(2);
     // 181026200700 "exactly ONE": no duplicated schedule field, whatever the
