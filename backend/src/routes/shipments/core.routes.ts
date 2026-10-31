@@ -95,6 +95,10 @@ const fulfillmentDispatchSchema = z.object({
   // a caller of the shared guard and must carry the confirm flag like the
   // plan-save and reassign endpoints, or its warn has no path on (review B2).
   rigOverlapCompletedConfirmed: z.boolean().optional(),
+  // SIL-638 (id 742) TC6(2) — the kẹp 2×20' weight-overload gate is a soft
+  // warning: the first attempt refuses with KEP_WEIGHT_WARNING (DOC verbatim
+  // text) and the dispatcher's confirmed retry carries this flag to proceed.
+  kepWeightWarningConfirmed: z.boolean().optional(),
   // Card B 18/10 (B.2) — the plate-less EXTERNAL issue warn-once retry: the
   // first attempt is refused with PLATE_DEFERRED_CONFIRM; the operator's
   // confirmed retry carries this flag.
@@ -862,6 +866,7 @@ coreRoutes.post(
       externalDriverName: parsed.data.externalDriverName ?? null,
       externalDriverPhone: parsed.data.externalDriverPhone ?? null,
       rigOverlapCompletedConfirmed: parsed.data.rigOverlapCompletedConfirmed === true,
+      kepWeightWarningConfirmed: parsed.data.kepWeightWarningConfirmed === true,
       plateDeferredConfirmed: parsed.data.plateDeferredConfirmed === true,
       idempotencyKey: getRequestIdempotencyKey(req) ?? '',
       actor: user as typeof user & { role: Role.ADMIN | Role.MANAGER | Role.DISPATCHER },

@@ -102,7 +102,7 @@ describe('PairTripsDialog', () => {
     useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900 }), isLoading: false });
     vi.mocked(tripClient.getTrip).mockResolvedValue(tripDetail({ id: 901 }));
     vi.mocked(tripClient.createPair).mockRejectedValue(
-      new Error('Không đủ điều kiện kẹp hàng: kẹp hàng yêu cầu 2 container 20ft trên cùng 1 mooc.'),
+      new Error('Cặp kẹp chỉ áp dụng cho đúng 02 container loại 20ft'),
     );
 
     const onPaired = vi.fn();
@@ -119,7 +119,7 @@ describe('PairTripsDialog', () => {
     fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/Không đủ điều kiện kẹp hàng/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Cặp kẹp chỉ áp dụng cho đúng 02 container loại 20ft/);
     expect(onPaired).not.toHaveBeenCalled();
   });
 

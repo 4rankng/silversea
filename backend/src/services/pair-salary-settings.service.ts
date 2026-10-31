@@ -3,23 +3,23 @@
 // (NOT the sum of two single wages). The surcharge per pair kind lives in
 // app_settings so kế toán/admin tunes it without a deploy; pairing and the
 // figures-recalc path both read it LIVE from here — never hard-coded.
+// SIL-638 (id 742): the pure `pairSurchargeFor` rule moved to the db-free
+// trip-pair-rules.service so the unit tree can pin it; re-exported here so
+// existing importers stay stable.
 import { inArray } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 
+export { pairSurchargeFor } from './trip-pair-rules.service';
+import type { PairSalarySettings } from './trip-pair-rules.service';
+export type { PairSalarySettings } from './trip-pair-rules.service';
+
 const KEYS = {
   kep: 'salary.pair_surcharge_kep',
   ketHop: 'salary.pair_surcharge_ket_hop',
 } as const;
-
-export interface PairSalarySettings {
-  /** Surcharge (VND) added to the base cuốc for a KEP pair. */
-  kepSurcharge: number;
-  /** Surcharge (VND) added to the base cuốc for a KET_HOP pair. */
-  ketHopSurcharge: number;
-}
 
 function parseVnd(value: string | null | undefined): number {
   const parsed = Math.trunc(Number(value));
@@ -62,12 +62,4 @@ export async function savePairSalarySettings(tx: Tx, next: PairSalarySettings): 
     kepSurcharge: clampVnd(next.kepSurcharge),
     ketHopSurcharge: clampVnd(next.ketHopSurcharge),
   };
-}
-
-/** The single read point for "what surcharge does this pair kind pay". */
-export function pairSurchargeFor(
-  kind: 'KEP' | 'KET_HOP',
-  settings: PairSalarySettings,
-): number {
-  return kind === 'KEP' ? settings.kepSurcharge : settings.ketHopSurcharge;
 }
