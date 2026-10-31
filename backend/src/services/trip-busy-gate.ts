@@ -28,48 +28,63 @@ export function isTripRunningOnDepartureDay(
 /** Shape the busy-trip select in transitionTripStatus already carries. */
 export interface TruckBusyCandidateRow {
   id: number;
-  activeTripPairId: number | null;
   driverId: number | null;
 }
 
 /**
- * SIL-602: the truck-busy exemption for the OTHER leg of the trip's own
- * ACTIVE KEP pair (PRD LoHangKepKetHop §3.2 + §7.3 — "KẸP hợp lệ không tự
+ * The membership columns of the ACTIVE KEP pair row that owns both legs.
+ * SIL-631: the pair ROW is the identity — `trip_pairs.first/second_trip_id`
+ * listing both trips proves the pair, while `activeTripPairId` stamps on the
+ * trips are pointer bookkeeping that partial/out-of-band writes can lose or
+ * drift without breaking the pair itself.
+ */
+export interface ActiveKepPairMembership {
+  firstTripId: number;
+  secondTripId: number;
+}
+
+/**
+ * SIL-602 + SIL-631: the truck-busy exemption for the OTHER leg of the trip's
+ * own ACTIVE KEP pair (PRD LoHangKepKetHop §3.2 + §7.3 — "KẸP hợp lệ không tự
  * chặn công việc thứ hai vì xe bận trong chính cặp"). The two 20ft legs ride
  * one rig simultaneously by construction, so the partner's IN_TRANSIT row is
  * the pair running, not a conflicting job.
  *
- * The exemption is the PAIR IDENTITY + the shared driver — nothing else. The
- * superseded clause also demanded `trailerId` to be set and equal on both
- * legs, but trailer data is not part of the pair contract: pairing validates
- * same truck + same driver + same departure day + two 20ft shells, and
- * master-data imports legitimately leave the mooc unassigned (card
- * 211026152138). A null or drifted `trailerId` therefore blocked the second
- * leg with 409 "Xe đang chạy chuyến…" — the reported regression.
+ * The exemption is the PAIR MEMBERSHIP + the shared driver — nothing else.
+ * Superseded clauses, each of which blocked a valid pair in production:
+ *  - SIL-602: `trailerId` set and equal on both legs — trailer data is not
+ *    part of the pair contract (pairing validates same truck + same driver +
+ *    same departure day + two 20ft shells; master-data imports legitimately
+ *    leave the mooc unassigned, card 211026152138).
+ *  - SIL-631: exact pointer chain (self-stamp resolves a partner AND the
+ *    candidate's `activeTripPairId` equals the accepting leg's stamp). A
+ *    lost/drifted stamp on either leg unmade a valid pair and 409'd the
+ *    second "Nhận lệnh". Membership in the ACTIVE KEP row is the proof; the
+ *    stamps are pointers to it.
  *
- * Deliberately NOT exempt: a busy row outside the pair, a row whose pair
- * link drifted (different/null pair id — the pair broke or was re-paired),
- * and a partner with a different driver (out-of-band drift stays blocking;
- * the guarded reassign flows keep real pairs in sync). KET_HOP partners never
- * resolve a `simultaneousPartnerId` (the status machine's pair lookup filters
- * `status='ACTIVE'` + `pairKind='KEP'`), so sequential pairs keep their
- * sequencing gate.
+ * Deliberately NOT exempt: a busy row outside the pair row's membership, a
+ * row whose pair is broken or re-paired (the break flow marks the row
+ * non-ACTIVE and clears both stamps, so membership no longer proves a live
+ * pair), and a partner with a different driver (out-of-band drift stays
+ * blocking; the guarded reassign flows keep real pairs in sync). KET_HOP
+ * partners never resolve a membership row (the status machine's lookups
+ * filter `status='ACTIVE'` + `pairKind='KEP'`), so sequential pairs keep
+ * their sequencing gate.
  */
 export function isActiveKepPairPartner(
   candidate: TruckBusyCandidateRow,
   args: {
-    /** Self-inclusion is already excluded upstream (`ne(s.trips.id, tripId)`
-     *  in the busy select); carried for call-site readability, not enforced
-     *  here. */
     tripId: number;
-    tripPairId: number | null | undefined;
     tripDriverId: number | null | undefined;
-    simultaneousPartnerId: number | null | undefined;
+    /** The ACTIVE KEP pair row proving this trip's membership, or null. */
+    pair: ActiveKepPairMembership | null | undefined;
   },
 ): boolean {
-  if (args.tripPairId == null || args.simultaneousPartnerId == null) return false;
+  if (args.pair == null) return false;
   if (args.tripDriverId == null) return false;
-  if (candidate.id !== args.simultaneousPartnerId) return false;
-  if (candidate.activeTripPairId !== args.tripPairId) return false;
+  if (candidate.id === args.tripId) return false;
+  const isMember = candidate.id === args.pair.firstTripId
+    || candidate.id === args.pair.secondTripId;
+  if (!isMember) return false;
   return candidate.driverId === args.tripDriverId;
 }
