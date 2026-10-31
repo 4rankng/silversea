@@ -88,6 +88,31 @@ describe('SIL-616/617/625 — the top mode band cluster', { timeout: 20000 }, ()
     fillRowAppointment(1, '01/11/2026', '15:00');
     expect(bulkBand(), 'band survives with every row scheduled').toBeTruthy();
   });
+
+  // SIL-625 (id 729): the visible blue label "Ngày giờ đóng trả cho tất cả
+  // cont" is retired — the two inputs + Copy affordance stay. The name
+  // survives as the group's accessible label (screen readers keep it).
+  it('removes the visible copy-all label while keeping inputs and the accessible name', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    const band = bulkBand();
+    expect(band).toBeTruthy();
+    // No visible label span inside the band.
+    const labelSpan = band!.querySelector('.split-datetime__label');
+    expect(labelSpan, 'the visible label span is gone').toBeNull();
+    expect(screen.queryByText('Ngày giờ đóng trả cho tất cả cont')).toBeNull();
+    // The group still carries the name for assistive tech.
+    const group = band!.querySelector('[data-split-datetime][role="group"]');
+    expect(group?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả cho tất cả cont');
+    // Both segment inputs render and accept typing.
+    const { date, time } = bulkInputs();
+    expect(date).toBeTruthy();
+    expect(time).toBeTruthy();
+    fireEvent.change(date!, { target: { value: '25/12/2026' } });
+    fireEvent.change(time!, { target: { value: '14:30' } });
+    // The Copy affordance (607 apply path) still appears on a complete value.
+    expect(document.querySelector('.csc-bulk-appointment__copy')).toBeTruthy();
+  });
 });
 
 describe('SIL-616 — band control height pins (styles)', () => {

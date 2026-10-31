@@ -893,9 +893,14 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                   without any dead apply. */}
               {form.cargoMode === 'FCL' && (
                 <div className="csc-bulk-appointment" data-field-id="shipment-bulk-appointment">
+                  {/* SIL-625 (id 729, owner 31/10): the visible label
+                      "Ngày giờ đóng trả cho tất cả cont" is retired — the
+                      two segment inputs + the Copy affordance stay. The
+                      group's aria-label keeps the name for screen readers. */}
                   <UDateTimeField
                     id="shipment-bulk-appointment"
                     label="Ngày giờ đóng trả cho tất cả cont"
+                    hideLabel
                     value={bulkAppointment}
                     onChange={(event) => setBulkAppointment(event.target.value)}
                     disabled={controlsDisabled}
