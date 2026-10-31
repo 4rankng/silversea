@@ -1,0 +1,25 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7177
+LOGIN ok role=CUS (cus) local
+BEFORE staging @495 detail={"minH":"32px","h":32,"fs":"11px"} label={"fs":"11px","fw":"500","transform":"none","ls":"normal"}
+BEFORE staging LCL band={"visibleLabel":"Ngày giờ đóng trả *","aria":"Ngày giờ đóng trả"}
+PASS SIL-633 @390 detail rides the 44px touch floor (no page pin) — minH=44px h=44
+PASS SIL-633 @390 detail font is the shared 12px control text — fs=12px
+PASS SIL-633 @390 fact values stay on the token ladder (12/11) — strong=12px span=11px
+PASS SIL-633 @495 detail rides the 44px touch floor (no page pin) — minH=44px h=44
+PASS SIL-633 @495 detail font is the shared 12px control text — fs=12px
+PASS SIL-633 @495 fact values stay on the token ladder (12/11) — strong=12px span=11px
+PASS SIL-633 @1440 detail keeps NO page height pin (kit-owned link size) — minH=auto h=16
+PASS SIL-633 @1440 detail font is the shared 12px control text — fs=12px
+PASS SIL-633 @1440 fact values stay on the token ladder (12/11) — strong=12px span=11px
+PASS SIL-633 label eyebrow = record-table standard (11px/700/uppercase/tracked) — {"fs":"11px","fw":"700","transform":"uppercase","ls":"0.44px"}
+DB/API IDENTITY cus-workspace rows=50 first=id=722 customer=LONG MINH
+PASS SIL-633 list API identity unchanged (read-only restyle) — status=200 rows=50
+PASS SIL-637 visible label "Ngày giờ đóng trả *" retired — visibleLabel=null
+PASS SIL-637 group aria-label keeps the name — aria="Ngày giờ đóng trả"
+PASS SIL-637 both datetime segment groups stay (5 segments) — segments=5 (dd,mm2,yyyy,hh,mm)
+PASS SIL-637 empty submit still blocked with the field's required issue — url=/shipments/new fieldText="//:Chọn ngày giờ đóng trả."
+PASS SIL-637 a complete datetime satisfies the required check (issue clears)
+PASS SIL-637 no DB write happened (invalid submits only) — shipments 573 -> 573
+DB SIDE-EFFECT count shipments 573 -> 573
+PASS SIL-625 regression: FCL bulk band label stays retired — {"visible":null,"aria":"Ngày giờ đóng trả cho tất cả cont"}
+DONE failures=0
