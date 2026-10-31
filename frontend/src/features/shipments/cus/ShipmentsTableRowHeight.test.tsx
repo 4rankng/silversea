@@ -104,13 +104,19 @@ function makeTestShipment(overrides: {
 }
 
 describe('FB-043 (card 201026164000, regression #33) — shipments table uniform row heights', () => {
-  it('CSS contract: schedule lines and status buttons hold bounded single-line layout on desktop table', () => {
-    // 1. Schedule cell lines must ellipsize on one nowrap line
+  it('CSS contract: schedule lines and status buttons hold bounded layout on desktop table', () => {
+    // 1. SIL-603 & SIL-622: schedule cell lines and status row wrap up to 2 lines without ellipsis truncate
     expect(css).toMatch(
-      /\.cus-dashboard-table td\[data-label=['"]Lịch trình & điều xe['"]\] \.cus-inline-trigger > \*\s*\{[\s\S]*?white-space:\s*nowrap;[\s\S]*?overflow:\s*hidden;[\s\S]*?text-overflow:\s*ellipsis;/,
+      /\.cus-dashboard-table td\[data-label=['"]Lịch trình & điều xe['"]\] \.cus-inline-trigger > \*\s*\{[\s\S]*?white-space:\s*normal;[\s\S]*?overflow-wrap:\s*anywhere;/,
+    );
+    expect(css).toMatch(
+      /\.cus-schedule-status-row\s*\{[\s\S]*?flex-wrap:\s*wrap;/,
+    );
+    expect(css).toMatch(
+      /\.cus-schedule-status-row > \*\s*\{[\s\S]*?-webkit-line-clamp:\s*2;/,
     );
 
-    // 2. Status cell actions must not wrap buttons below status slot
+    // 2. Status cell actions
     expect(css).toMatch(
       /\.cus-dashboard-table \.cus-row-actions\s*\{[\s\S]*?flex-wrap:\s*nowrap;[\s\S]*?justify-content:\s*space-between;/,
     );
@@ -234,9 +240,9 @@ describe('FB-043 (card 201026164000, regression #33) — shipments table uniform
     expect(within(r2Sched as HTMLElement).getByText('Đã điều xe')).toBeTruthy();
     expect(r2Sched.children).toHaveLength(2); // "Chưa chốt ngày" + .cus-schedule-status-row
 
-    // Row 3 (Issued): renders "Đã phát lệnh cho tài xế", appointment group line instead of "Chưa chốt ngày"
+    // Row 3 (Issued): renders "Đã phát lệnh", appointment group line instead of "Chưa chốt ngày"
     const r3Sched = rows[2].querySelector('td[data-label*="Lịch trình"] .cus-inline-trigger')!;
-    expect(within(r3Sched as HTMLElement).getByText('Đã phát lệnh cho tài xế')).toBeTruthy();
+    expect(within(r3Sched as HTMLElement).getByText('Đã phát lệnh')).toBeTruthy();
     expect(within(r3Sched as HTMLElement).queryByText('Chưa chốt ngày')).toBeNull();
     expect(r3Sched.children).toHaveLength(2); // appointment line + .cus-schedule-status-row
   });

@@ -13,7 +13,7 @@ export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> =
   UNASSIGNED: 'Chưa điều xe',
   AWAITING_PLATE: 'Chờ bổ sung biển',
   PLATED_NOT_ISSUED: 'Đã điều xe',
-  ISSUED: 'Đã phát lệnh cho tài xế',
+  ISSUED: 'Đã phát lệnh',
   ACCEPTED: 'Đã nhận lệnh',
   COMPLETED: 'Đã hoàn thành',
 };
@@ -88,7 +88,11 @@ export function DispatchIssueStatusSummaryChip({ plated, issued, total }: { plat
   }
   const partial = status === 'ISSUED' && issued < total;
   return (
-    <StatusText variant={dispatchIssueStatusVariant(status)}>
+    <StatusText
+      variant={dispatchIssueStatusVariant(status)}
+      className="cus-schedule-issue-chip"
+      style={{ whiteSpace: 'normal' }}
+    >
       {status === 'PLATED_NOT_ISSUED'
         ? DISPATCH_ISSUE_STATUS_LABELS.PLATED_NOT_ISSUED
         : partial

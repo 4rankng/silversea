@@ -1003,7 +1003,7 @@ describe('DispatchPlanEditorCell — editor mount stability across background re
     await openDialog();
 
     expect(screen.getByText('Đã nhận lệnh')).toBeTruthy();
-    expect(screen.queryByText('Đã phát lệnh cho tài xế')).toBeNull();
+    expect(screen.queryByText('Đã phát lệnh')).toBeNull();
   });
 
   it('keeps the external path intact on an external-carrier row (regression)', async () => {
