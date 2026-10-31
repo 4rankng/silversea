@@ -18,7 +18,10 @@ import {
   combinedContainerSizeBlockMessage,
   COMBINED_CONTAINER_SIZE_BLOCK_MESSAGE,
   containerNumberToInherit,
+  declaredCombinedPairCarve,
+  type DeclaredCombinedPairSide,
 } from '../../services/trip-pair-rules.service';
+import { buildTripPairSnapshot } from '../../services/trip-pairing.service';
 
 describe('SIL-638 TC7(1) — kết hợp requires the same container size', () => {
   it('the block message is the DOC verbatim text', () => {
@@ -74,5 +77,86 @@ describe('SIL-638 TC7(3) — VETC once for a COMBINED pair', () => {
     });
     assert.equal(delta.tollDeduction, '110000');
     assert.equal(delta.tollCost, '0');
+  });
+});
+
+// SIL-638 TC7 (QA 31/10) — "COMBINED legs bị overlap-reject → không tạo được
+// pair COMBINED": the dispatcher plans both Kết hợp legs on the lot's shared
+// appointment slot, issues both (the trip-side KET_HOP carve), then pairs
+// them. The pairing gate's sequential-only rules (OVERLAP /
+// IMPOSSIBLE_REPOSITION / INSUFFICIENT_TRAVEL_BUFFER + the first/second
+// ordering assertion) must relax for a DECLARED pair — both fulfillments
+// COMBINED, same truck, same driver, same business day — exactly like KEP's;
+// the same-size gate (TC7(1)) is independent owner law and keeps blocking.
+describe('SIL-638 TC7 — the declared Kết hợp pair carve', () => {
+  const side = (overrides: Partial<DeclaredCombinedPairSide> = {}): DeclaredCombinedPairSide => ({
+    classification: 'COMBINED',
+    truckId: 1,
+    driverId: 3,
+    departureDate: '2026-10-31',
+    ...overrides,
+  });
+
+  it('two declared COMBINED legs on one rig/day carve', () => {
+    assert.equal(declaredCombinedPairCarve(side(), side()), true);
+  });
+
+  it('any non-declared side, different truck/driver/day, or missing day keeps the sequential rules', () => {
+    assert.equal(declaredCombinedPairCarve(side({ classification: 'SINGLE' }), side()), false);
+    assert.equal(declaredCombinedPairCarve(side(), side({ classification: 'DOUBLE' })), false);
+    assert.equal(declaredCombinedPairCarve(side({ truckId: 2 }), side()), false);
+    assert.equal(declaredCombinedPairCarve(side({ driverId: 4 }), side()), false);
+    assert.equal(declaredCombinedPairCarve(side({ departureDate: '2026-11-01' }), side()), false);
+    assert.equal(declaredCombinedPairCarve(side({ departureDate: null }), side()), false);
+  });
+
+  it('buildTripPairSnapshot: same-slot declared COMBINED legs pair — windows may coincide, no reposition chain', () => {
+    // Both legs ride the same appointment slot (start ties break by trip id);
+    // Lệnh 2's origin differs from Lệnh 1's destination (the shell-reuse run
+    // was declared, not derived from locations).
+    const legA = {
+      tripId: 80,
+      plannedStartAt: '2026-10-31T15:25:00.000Z',
+      plannedEndAt: '2026-10-31T18:47:00.000Z',
+      canonicalOrigin: 'Cang Dinh Vu',
+      canonicalDestination: 'Kho Mipec',
+      cargoWeightKg: 20000,
+    };
+    const legB = {
+      tripId: 81,
+      plannedStartAt: '2026-10-31T15:30:00.000Z',
+      plannedEndAt: '2026-10-31T19:43:00.000Z',
+      canonicalOrigin: 'Kho Mipec Khac',
+      canonicalDestination: 'Nha may Nam Dinh',
+      cargoWeightKg: 20000,
+    };
+    const carved = buildTripPairSnapshot(legA, legB, { vehicleCapacityKg: 50000 }, {
+      kind: 'KET_HOP',
+      declaredCombinedCarve: true,
+    });
+    assert.deepEqual(carved.blockingCodes, []);
+    assert.equal(carved.eligible, true);
+  });
+
+  it('buildTripPairSnapshot: without the carve the same slot still blocks (default KET_HOP law unchanged)', () => {
+    const legA = {
+      tripId: 80,
+      plannedStartAt: '2026-10-31T15:25:00.000Z',
+      plannedEndAt: '2026-10-31T18:47:00.000Z',
+      canonicalOrigin: 'Cang Dinh Vu',
+      canonicalDestination: 'Kho Mipec',
+      cargoWeightKg: 20000,
+    };
+    const legB = {
+      tripId: 81,
+      plannedStartAt: '2026-10-31T15:30:00.000Z',
+      plannedEndAt: '2026-10-31T19:43:00.000Z',
+      canonicalOrigin: 'Kho Mipec',
+      canonicalDestination: 'Nha may Nam Dinh',
+      cargoWeightKg: 20000,
+    };
+    const uncarved = buildTripPairSnapshot(legA, legB, { vehicleCapacityKg: 50000 }, { kind: 'KET_HOP' });
+    assert.ok(uncarved.blockingCodes.includes('OVERLAP'));
+    assert.equal(uncarved.eligible, false);
   });
 });

@@ -189,6 +189,12 @@ export function declaredKepShareMode(kep: KepShareRequest['kep']): 'KEP' | 'KET_
  * partner — matching classification, the SAME physical rig (truck + trailer +
  * driver), the same Vietnam business day, and not already paired to a third
  * load. Verbatim semantics of the trip-side guard's first carve block.
+ *
+ * SIL-638 31/10 (QA TC7): the trailer conjunct follows the SIL-602 pair law —
+ * the mooc is NOT part of the pair contract (master-data imports legitimately
+ * leave it unassigned, card 211026152138). Two legs that DECLARE a mooc and
+ * declare DIFFERENT ones are a foreign claim (never carved); equal moocs — or
+ * either side with none — share the truck by the declaration alone.
  */
 export function isDeclaredKepSharePartner(
   req: KepShareRequest,
@@ -196,14 +202,49 @@ export function isDeclaredKepSharePartner(
   mode: 'KEP' | 'KET_HOP' | null,
 ): boolean {
   if (req.kep == null || mode == null || req.kep.departureDate == null) return false;
-  return partner.classification === (mode === 'KEP' ? 'DOUBLE' : 'COMBINED')
-    && req.truckId != null && partner.truckId === req.truckId
-    && req.trailerId != null && partner.trailerId === req.trailerId
-    && req.driverId != null && partner.driverId === req.driverId
+  if (partner.classification !== (mode === 'KEP' ? 'DOUBLE' : 'COMBINED')) return false;
+  if (req.truckId == null || partner.truckId !== req.truckId) return false;
+  const trailerMismatch = req.trailerId != null && partner.trailerId != null
+    && req.trailerId !== partner.trailerId;
+  if (trailerMismatch) return false;
+  return req.driverId != null && partner.driverId === req.driverId
     && partner.plannedStartAt != null
     && localDateInBusinessZone(partner.plannedStartAt) === req.kep.departureDate
     && (partner.activePairId == null || (req.tripId != null
       && (partner.pairFirstTripId === req.tripId || partner.pairSecondTripId === req.tripId)));
+}
+
+/** The two pairing sides the declared Kết hợp carve reads (trip-side facts). */
+export interface DeclaredCombinedPairSide {
+  /** The trip's fulfillment dispatch classification. */
+  classification: string | null | undefined;
+  truckId: number | null;
+  driverId: number | null;
+  departureDate: string | null;
+}
+
+/**
+ * SIL-638 TC7 (QA 31/10) — the declared Kết hợp pair carve for the pairing
+ * gate: both legs DECLARE Kết hợp (COMBINED) on ONE rig (same truck, same
+ * driver, same business day). The declaration IS the pair arrangement — the
+ * dispatcher already committed the two orders to one shell-reuse run — so the
+ * sequential-only plumbing (OVERLAP / IMPOSSIBLE_REPOSITION /
+ * INSUFFICIENT_TRAVEL_BUFFER) must not dead-end a pair whose planned windows
+ * coincide (QA plans both legs on the lot's shared appointment slot). The
+ * same-size shell gate is NOT part of this carve: it is independent owner law
+ * (TC7(1)) and keeps blocking a proven 20'-vs-40' mismatch. Anything else —
+ * a non-COMBINED side, different truck/driver/day, a missing day — stays with
+ * the full sequential rule set.
+ */
+export function declaredCombinedPairCarve(
+  first: DeclaredCombinedPairSide,
+  second: DeclaredCombinedPairSide,
+): boolean {
+  if (first.classification !== 'COMBINED' || second.classification !== 'COMBINED') return false;
+  if (first.truckId == null || second.truckId == null || first.truckId !== second.truckId) return false;
+  if (first.driverId == null || second.driverId == null || first.driverId !== second.driverId) return false;
+  if (first.departureDate == null || first.departureDate === '') return false;
+  return first.departureDate === second.departureDate;
 }
 
 /**

@@ -719,14 +719,26 @@ async function assertPlanRowRigAvailable(
   // scans are skipped — the dispatched-trip scan below still runs, so a Kẹp row
   // is still refused when an unrelated LIVE trip holds that tractor (that is
   // not the pair's own overlap).
-  const isKepPairing = args.classification === 'DOUBLE';
+  // SIL-638 TC7 (QA 31/10): a Kết hợp row is the same declared arrangement —
+  // its own partner leg is planned onto the same plate by the dispatcher (the
+  // shell-reuse run), so the declared-pair carve widens to both declared
+  // kinds: DOUBLE (Kẹp) and COMBINED (Kết hợp). A plain ĐƠN/LCL row keeps
+  // every scan.
+  const declaredPairClassification = args.classification === 'DOUBLE' || args.classification === 'COMBINED'
+    ? args.classification
+    : null;
+  const isDeclaredPairRow = declaredPairClassification != null;
   // Pre-dispatch plan rows planned onto the same rig with an overlapping
   // window (law + slot coalesce live in scanPlanRowHolders — shared with the
   // trip-side guard, ticket 111026105630).
-  const planConflicts = await scanPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
+  const planConflicts = isDeclaredPairRow
+    ? []
+    : await scanPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
   // Card 061026174603: LCL holders ride the lot window (law + slot coalesce
   // live in scanLclPlanRowHolders — shared with the trip-side guard).
-  const lclPlanConflicts = await scanLclPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
+  const lclPlanConflicts = isDeclaredPairRow
+    ? []
+    : await scanLclPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
   // Dispatched trips riding the same rig: the plate is the pre-dispatch key,
   // the truck's license plate is the dispatched key — one physical tractor.
   // Card 363: only ACTIVE trips occupy the rig (a COMPLETED trip released it —
@@ -775,9 +787,11 @@ async function assertPlanRowRigAvailable(
   // can reclassify/pair afterwards); a third load (2+ remaining conflicts)
   // keeps the hard tier — a Kẹp release may overlap one partner, never two.
   let kepCandidateWarn = false;
-  if (isKepPairing && tripConflicts.length > 0) {
+  if (isDeclaredPairRow && tripConflicts.length > 0) {
     const savingDay = localDateInBusinessZone(windowStart);
-    const candidates = tripConflicts.filter((conflict) => conflict.partnerClassification === 'DOUBLE'
+    // The declared partner: the holder trip declares the SAME kind on the
+    // same business day — DOUBLE↔DOUBLE (kẹp), COMBINED↔COMBINED (kết hợp).
+    const candidates = tripConflicts.filter((conflict) => conflict.partnerClassification === declaredPairClassification
       && conflict.plannedStartAt != null
       && localDateInBusinessZone(conflict.plannedStartAt) === savingDay);
     if (candidates.length > 0) {
@@ -788,9 +802,9 @@ async function assertPlanRowRigAvailable(
       tripConflicts = [];
     }
   }
-  // Card 081026091100: for a Kẹp row only the dispatched-trip scan counts — the
-// two plan-row scans describe the pair's own deliberate overlap. Every other
-// classification keeps all three.
+  // Card 081026091100: for a declared pair row (Kẹp / Kết hợp) only the
+  // dispatched-trip scan counts — the two plan-row scans describe the pair's
+  // own deliberate overlap. Every other classification keeps all three.
   // Same-lot plan rows are the Kẹp carve-out's other half: one tractor lifting
   // every container of ITS OWN lot is the standard lotFullyPlated rotation,
   // not the cross-lot claim the guard's copy names — those rows warn once
@@ -831,7 +845,7 @@ async function assertPlanRowRigAvailable(
   const crossLotLclConflicts = lclPlanConflicts.filter((conflict) =>
     conflict.shipmentId !== args.shipmentId && !isSameGroup(conflict) && !isCostGroupSibling(conflict));
   const sameLotPlanClaim = planConflicts.length > 0 || lclPlanConflicts.length > 0;
-const planRowBlocked = isKepPairing ? false : (crossLotConflicts.length > 0 || crossLotLclConflicts.length > 0);
+const planRowBlocked = isDeclaredPairRow ? false : (crossLotConflicts.length > 0 || crossLotLclConflicts.length > 0);
 // Evidence strength (card 101026043000, FB-038 ruling "WARNING, not a hard
 // block"): a PROVABLE overlap keeps its pinned tier — an active trip or plan
 // claim refuses outright. An overlap the guard can only see through the
@@ -864,7 +878,7 @@ if (planRowBlocked || tripConflicts.length > 0) {
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }
-  } else if (!isKepPairing && costGroupSiblingClaim && !args.confirmOverlap) {
+  } else if (!isDeclaredPairRow && costGroupSiblingClaim && !args.confirmOverlap) {
     // Card 191026100010 (B.4) — the deliberate group arrangement: one
     // "Gán xe nhóm" group = one truck, so the sibling LOT holding this plate
     // is the dispatcher's own plan — exactly FB-012's (181026145600) class of
@@ -882,7 +896,7 @@ if (planRowBlocked || tripConflicts.length > 0) {
         : `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' });
-  } else if (!isKepPairing && sameLotPlanClaim && !args.confirmOverlap) {
+  } else if (!isDeclaredPairRow && sameLotPlanClaim && !args.confirmOverlap) {
     // The lot's own rotation: warn once, never silently, never a hard block.
     // A Ghép-trả-ĐV group's siblings share the truck by design — the message
     // says so instead of reading as a foreign claim (card B 18/10, B.4).
