@@ -221,11 +221,18 @@ describe('FleetProductivityPage', () => {
     const exportBtn = screen.getByText('Xuất Excel');
     fireEvent.click(exportBtn);
 
-    await waitFor(() => expect(exportMonthlyBlobMock).toHaveBeenCalledWith(2026, 10));
+    // The page derives the report period from the real clock — the test must
+    // derive its expectation from the same clock, or it flips at every month
+    // rollover (broke 01/11: pinned (2026, 10), page already emitted 11).
+    const now = new Date();
+    const expYear = now.getFullYear();
+    const expMonth = now.getMonth() + 1;
+
+    await waitFor(() => expect(exportMonthlyBlobMock).toHaveBeenCalledWith(expYear, expMonth));
     expect(windowOpenSpy).not.toHaveBeenCalled();
     expect(anchorClickSpy).toHaveBeenCalled();
     const anchor = anchorClickSpy.mock.instances[0] as HTMLAnchorElement;
-    expect(anchor.download).toBe('bao-cao-nang-suat-xe-noi-bo-10-2026.xlsx');
+    expect(anchor.download).toBe(`bao-cao-nang-suat-xe-noi-bo-${expMonth}-${expYear}.xlsx`);
 
     anchorClickSpy.mockRestore();
     windowOpenSpy.mockRestore();
