@@ -1,0 +1,62 @@
+-- NOTE: first query below (shipment_code IN) matched 0 rows — the codes are Bill/Booking, not shipment_code. Identity query re-run at file end.
+ id | shipment_code | bl_number | booking_ref | trade_direction | status 
+----+---------------+-----------+-------------+-----------------+--------
+(0 rows)
+
+ id  | shipment_id | fulfillment_type | dispatch_classification | shipment_container_id | canceled | planned_vehicle_plate_number 
+-----+-------------+------------------+-------------------------+-----------------------+----------+------------------------------
+ 347 |         302 | FCL_CONTAINER    | SINGLE                  |                   323 | f        | 15C-167.31
+ 348 |         302 | FCL_CONTAINER    | SINGLE                  |                   324 | f        | 15C-184.62
+ 349 |         302 | FCL_CONTAINER    | SINGLE                  |                   325 | f        | 15F-016.98
+ 350 |         302 | FCL_CONTAINER    | DOUBLE                  |                   326 | f        | 15E-016.26
+ 351 |         302 | FCL_CONTAINER    | SINGLE                  |                   327 | f        | 15C-333.55
+ 352 |         302 | FCL_CONTAINER    | SINGLE                  |                   328 | f        | 15C-754.55
+ 353 |         303 | FCL_CONTAINER    | COMBINED                |                   329 | t        | 
+ 357 |         303 | FCL_CONTAINER    | DOUBLE                  |                   329 | f        | 15E-016.26
+(8 rows)
+
+ id  | shipment_id | container_number | type_code 
+-----+-------------+------------------+-----------
+ 323 |         302 | MNBU0000977      | 40DC
+ 324 |         302 | MNBU0000982      | 40DC
+ 325 |         302 | MNBU0000998      | 40DC
+ 326 |         302 | MNBU0001000      | 20DC
+ 327 |         302 | MNBU0001016      | 40DC
+ 328 |         302 | MNBU0001021      | 40DC
+ 329 |         303 | MNBU0001037      | 20DC
+(7 rows)
+
+ id |    trip_code    | fulfillment_id | truck_id | trailer_id | driver_id |     driver      | departure_date |   status   | active_trip_pair_id |  planned_start_at   |   planned_end_at    
+----+-----------------+----------------+----------+------------+-----------+-----------------+----------------+------------+---------------------+---------------------+---------------------
+ 80 | TRP-202610-0048 |            350 |        1 |          1 |         3 | Nguyễn Duy Tuấn | 2026-10-31     | IN_TRANSIT |                     | 2026-10-31 15:25:00 | 2026-10-31 18:47:00
+ 81 | TRP-202610-0049 |            357 |        1 |          1 |         3 | Nguyễn Duy Tuấn | 2026-10-31     | IN_TRANSIT |                     | 2026-10-31 15:30:00 | 2026-10-31 19:43:00
+ 82 | TRP-202610-0050 |            347 |        9 |          7 |         1 | Lương Văn Long  | 2026-10-31     | CREATED    |                     | 2026-10-31 15:25:00 | 2026-10-31 18:47:00
+ 83 | TRP-202610-0051 |            348 |       18 |         17 |         2 | Nguyễn Văn Thọ  | 2026-10-31     | CREATED    |                     | 2026-10-31 15:25:00 | 2026-10-31 18:47:00
+ 84 | TRP-202610-0052 |            349 |       16 |         15 |         6 | Bùi Văn An      | 2026-10-31     | CREATED    |                     | 2026-10-31 15:25:00 | 2026-10-31 18:47:00
+ 85 | TRP-202610-0053 |            351 |          |            |           |                 | 2026-10-31     | COMPLETED  |                     | 2026-10-31 15:25:00 | 2026-10-31 18:47:00
+ 86 | TRP-202610-0054 |            352 |          |            |           |                 | 2026-10-31     | COMPLETED  |                     | 2026-10-31 15:25:00 | 2026-10-31 18:47:00
+(7 rows)
+
+ trip_id | container_number | type_code 
+---------+------------------+-----------
+      80 |                  | 20DC
+      81 |                  | 20DC
+(2 rows)
+
+ pair_rows 
+-----------
+         0
+(1 row)
+
+ trip_id |   event_type   |        occurred_at         
+---------+----------------+----------------------------
+      81 | ORDER_RECEIVED | 2026-10-31 02:59:09.126+00
+      80 | ORDER_RECEIVED | 2026-10-31 13:43:11.857+00
+(2 rows)
+
+ id  | shipment_code  |   bl_number   | booking_ref  | trade_direction |   status   
+-----+----------------+---------------+--------------+-----------------+------------
+ 302 | SHP-2610-00209 | K4K5346345654 |              | IMPORT          | IN_TRANSIT
+ 303 | SHP-2610-00210 |               | K4K423254356 | EXPORT          | DISPATCHED
+(2 rows)
+

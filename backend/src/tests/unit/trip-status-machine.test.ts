@@ -570,4 +570,53 @@ describe('Truck availability gate — SIL-634 declared Kẹp clamp without a pai
       'both shells must be physically probed (exactly one 20\' container row) like the issue-time clamp',
     );
   });
+
+  // Re-verification 31/10 (staging, SELECT-only — qa/sil634/2026-10-31_sil634_
+  // staging-pair-shape-selects.txt): the reported real pair was re-read after
+  // the "vẫn chặn" re-confirm. The container MNBU0001000's OWN fulfillment
+  // (id 350) carries dispatch_classification='DOUBLE' — the lot-level-mapping
+  // hypothesis (one DOUBLE buried under 5 SINGLE siblings of shipment
+  // K4K5346345654) is disproven on live data. The full row shape matches this
+  // exemption law exactly, so the pin below freezes the REAL values: both
+  // legs' fulfillments DOUBLE, truck/trailer/driver 15E-016.26/1/3 (Nguyễn Duy
+  // Tuấn) shared, one departure day 2026-10-31, both trips proven one 20DC
+  // shell, and NO trip_pairs row. The partner lot's earlier COMBINED
+  // declaration was canceled and re-issued as DOUBLE (fulfillment 353 → 357) —
+  // a canceled predecessor must not disturb the proof (the classification the
+  // gate reads is the LIVE fulfillment's).
+  test('REG SIL-634 re-verify 31/10: the exact staging pair shape (K4K5346345654 + K4K423254356) is exempt', () => {
+    // Busy leg: trip 81 / fulfillment 357 (K4K423254356, MNBU0001037, 20DC,
+    // IN_TRANSIT). Accepting leg: trip 80 / fulfillment 350 (K4K5346345654,
+    // MNBU0001000 — the 1-of-6 container of the import lot, 20DC).
+    const stagingBusyTrip = {
+      id: 81,
+      driverId: 3, // Nguyễn Duy Tuấn
+      departureDate: '2026-10-31',
+      classification: 'DOUBLE',
+      twentyFootShell: true, // exactly one trip_containers row, code 20DC
+    };
+    const acceptingLeg = {
+      tripId: 80,
+      tripDriverId: 3,
+      tripDepartureDate: '2026-10-31',
+      tripClassification: 'DOUBLE', // fulfillment 350 — MNBU0001000's own row
+      tripTwentyFootShell: true,
+    };
+    assert.strictEqual(
+      isDeclaredKepClampPartner(stagingBusyTrip, acceptingLeg),
+      true,
+      'the real pair (both DOUBLE, one 15E-016.26 rig, driver 3, 31/10, 2×20DC, no pair row) must pass the accept-time gate',
+    );
+    // The canceled COMBINED predecessor (fulfillment 353) is not the live
+    // declaration: had it been read instead, both sides would not be DOUBLE
+    // and the pair would block again.
+    assert.strictEqual(
+      isDeclaredKepClampPartner(
+        { ...stagingBusyTrip, classification: 'COMBINED' },
+        acceptingLeg,
+      ),
+      false,
+      'the canceled COMBINED declaration must never stand in for the live DOUBLE row',
+    );
+  });
 });
