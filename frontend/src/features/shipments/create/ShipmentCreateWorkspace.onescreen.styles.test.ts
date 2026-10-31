@@ -114,7 +114,11 @@ describe('SIL-499 onescreen wide band', () => {
       WORKSPACE.indexOf('<ShipmentCreateIdentitySection'),
     );
     expect(modeBandRegion, 'bulk appointment inside the mode band').toContain('csc-bulk-appointment');
-    expect(modeBandRegion, 'bulk stays FCL-only').toMatch(/cargoMode === 'FCL' && emptyAppointmentCount >= 1/);
+    // SIL-617 (id 721, owner 31/10): the band is ALWAYS visible in FCL —
+    // the old `emptyAppointmentCount >= 1` gate unmounted it once every
+    // cont carried a schedule, the ticket's "cuộn hết form cũng không thấy".
+    expect(modeBandRegion, 'bulk stays FCL-only, always visible').toMatch(/cargoMode === 'FCL' && \(/);
+    expect(modeBandRegion, 'the count gate is retired from the band').not.toMatch(/cargoMode === 'FCL' && emptyAppointmentCount/);
     // SIL-611 (id 714, owner 30/10): the "Lịch & ghi chú" section is gone —
     // no `id="schedule"` section in the DOM, and the Ghi chú band renders
     // strictly AFTER Thông tin hàng (the copy-down button rides cargo,

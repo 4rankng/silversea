@@ -155,7 +155,10 @@ describe('shipment create responsive layout', () => {
     // connected segmented treatment — one shared border around the group,
     // compact segments, no per-option box.
     expect(css).toMatch(/\.csc-mode > div\s*\{[^}]*display:\s*inline-flex;[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*8px;/);
-    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*34px;[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
+    // SIL-616 (id 720): the option interior closes at --control-compact-h
+    // minus the shell's own 2 border pixels — the segmented control measures
+    // the form's standard 30px control box, not the old 34px outlier.
+    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*calc\(var\(--control-compact-h\) - 2px\);[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode__option[^}]*min-height:\s*var\(--control-touch-h\);/);
     // The old faux-radio dot and the 8px option boxes are gone for good.
     expect(css).not.toMatch(/\.csc-mode__option::before/);

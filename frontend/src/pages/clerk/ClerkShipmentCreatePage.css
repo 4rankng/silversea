@@ -156,7 +156,14 @@
 .csc-mode label { display: inline-flex; min-width: 0; cursor: pointer; }
 .csc-mode label + label { border-left: 1px solid var(--line-2); }
 .csc-mode input { position: absolute; opacity: 0; pointer-events: none; }
-.csc-mode__option { display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); white-space: nowrap; transition: background-color var(--t-fast), color var(--t-fast); }
+/* SIL-616 (id 720, owner 31/10): the option measures the form's STANDARD
+   control height — the bordered shell closes at exactly
+   --control-compact-h (30px), the same box the Khách hàng combobox renders,
+   because the shell's own 2 border pixels ride on top of the option box
+   (calc(- 2px), the same interior law as [data-uui-control] > input). The
+   old 34px pin made the whole band cluster stand ~4-8px taller than every
+   sibling control. Phones keep the touch token below. */
+.csc-mode__option { display: inline-flex; align-items: center; min-height: calc(var(--control-compact-h) - 2px); padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); white-space: nowrap; transition: background-color var(--t-fast), color var(--t-fast); }
 .csc-mode label:hover .csc-mode__option { background: var(--surface-2); color: var(--fg-1); }
 /* SIL-481: the read-only review keeps every control disabled — the hover must
    not paint an editing affordance the view cannot honor (design law: read-only
@@ -188,6 +195,34 @@
 .csc-mode-band__row:has(.split-datetime__error) { padding-bottom: 22px; }
 .csc-mode-band__row .csc-cargo-choice-grid { flex: 0 0 auto; }
 .csc-mode-band__row .csc-lcl-delivery { flex: 1 1 220px; }
+/* SIL-616 (id 720, owner 31/10): every segmented datetime group in the band
+   measures the form's STANDARD control height — the bordered group closes at
+   exactly its --uui-control-h (30px compact on a fine pointer; the site's
+   touch tokens at ≤768/coarse still win inside these interior rules because
+   everything derives from the variable). The InputBase segment wrapper's own
+   py-1 (4px×2) stacked on the pinned 28px inner input pushed the group to a
+   measured 38px — 8px over the standard box and the ticket's "cao hơn hẳn".
+   Zeroing the wrapper's vertical padding closes the interior at
+   calc(--uui-control-h - 2px); the #root control-geometry rule already pins
+   that input height, so no height here is re-declared. Host-scoped on
+   purpose (same pattern as the container-table's tap-surface override
+   below): filter bars and other segment hosts carry their own geometry
+   contracts and stay untouched. */
+.csc-mode-band__row .date-seg-group[data-uui-control] .date-seg-wrapper {
+  padding-block: 0;
+}
+/* The segment digit boxes read content-box (SIL-583 hit-box law above), so
+   control-geometry's `height: calc(h - 2px)` + `padding-block: 4px` rendered
+   a 36px box (28 content + 8 padding) inside the wrapper — the group closed
+   at a measured 38px. Zeroing the input's vertical padding keeps the
+   content-box horizontal math byte-identical while the rendered box lands
+   on calc(--uui-control-h - 2px); the group closes at exactly
+   --uui-control-h (30px compact / 44px touch), borders included. The
+   :is(#root, body) prefix out-ranks the id-prefixed control-geometry rules,
+   same mechanics as the SIL-583 block in DateTimeSegments.css. */
+:is(#root, body) .csc-mode-band__row .date-seg-group[data-uui-control] .date-seg-wrapper .date-seg {
+  padding-block: 0;
+}
 .csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
 .csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 8px; }
 /* The box scrolls HORIZONTALLY only. Two traps, both hit on this page:
