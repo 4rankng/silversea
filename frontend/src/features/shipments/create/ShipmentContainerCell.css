@@ -1,4 +1,14 @@
-.csc-container-cell { cursor: text; }
+/* SIL-628 (id 732, owner 31/10) — the anti-overlap containment law: the cell
+   is its own containing block, so ANY absolute overlay a consumer renders
+   inside it (`__actions`, `__display`) can never escape into a sibling
+   column. Before this rule the factory detail ⓘ overlay resolved against
+   the section card (the only positioned ancestor on desktop ≥1280) and
+   landed a 315px-tall strip over the delete column, intercepting the row's
+   delete clicks (SIL-629's measured mechanism,
+   qa/2026-10-31_sil619-629/before). The create form no longer renders any
+   `actions` overlay (the magnifier is retired with it); this pin keeps the
+   guarantee structural for every future consumer. */
+.csc-container-cell { cursor: text; position: relative; }
 .csc-container-cell__value { position: relative; min-width: 0; min-height: var(--control-touch-h); }
 /* Card 20260922_37: values wrap — container codes, routes and factory names
    are never clipped mid-token (law book §4 no-truncation doctrine). */

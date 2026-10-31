@@ -114,18 +114,25 @@ describe('SIL-510 — the ONE action bar: viewport-fixed footer of the worksheet
     expect(call[1]).toEqual(expect.any(String));
   });
 
-  it('runs the full-intake validation from the fixed footer bar', async () => {
+  it('runs the full-intake validation from the fixed footer bar (per-field paint, SIL-627)', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
-    const alert = await screen.findByText(/^Cần bổ sung \d+ thông tin$/);
-    // The bar's create is the full-intake intent, not the partial one: it
-    // reports the whole missing list and never falls through to a create call.
-    expect(alert.textContent).toMatch(/^Cần bổ sung [2-9]\d* thông tin$/);
+    // The bar's create is the full-intake intent, not the partial one: the
+    // missing list paints per-field (SIL-627 retired the summary banner) and
+    // the click never falls through to a create call.
+    await waitFor(() => {
+      const paint = document.querySelectorAll(
+        '.csc-container-cell--error, [data-uui-control][aria-invalid="true"], input[aria-invalid="true"], .csc-searchable-field--error',
+      );
+      expect(paint.length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText(/Cần bổ sung/)).toBeNull();
+    expect(document.querySelector('.csc-validation-summary')).toBeNull();
     expect(quickCreateShipment).not.toHaveBeenCalled();
-    // The panel speaks the same list the field paint shows.
-    expect(document.querySelector('.csc-validation-summary')!.textContent).toContain('Chọn khách hàng.');
+    // The customer field carries the same message the old panel listed.
+    expect(document.querySelector('[data-field="shipment-customer"]')?.textContent).toContain('Chọn khách hàng.');
   });
 
   it('discards and leaves from the bar Huỷ', async () => {

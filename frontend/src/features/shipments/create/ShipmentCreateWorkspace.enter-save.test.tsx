@@ -75,10 +75,16 @@ describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', { time
     // lives inside the form).
     fireEvent.keyDown(year, { key: 'Enter', code: 'Enter' });
 
-    // The save ran: the app-owned summary paints the missing identity
-    // fields (the form is still missing Khách hàng etc.).
-    const alert = await screen.findByText(/^Cần bổ sung \d+ thông tin$/);
-    expect(alert).toBeTruthy();
+    // The save ran: the app-owned validation paints the missing identity
+    // fields per-field (SIL-627: no summary banner — the invalid paint is
+    // the surface).
+    await waitFor(() => {
+      const paint = document.querySelectorAll(
+        '.csc-container-cell--error, [data-uui-control][aria-invalid="true"], input[aria-invalid="true"], .csc-searchable-field--error',
+      );
+      expect(paint.length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText(/^Cần bổ sung \d+ thông tin$/)).toBeNull();
 
     // …and nothing the operator typed was wiped — the datetime draft and the
     // field stay exactly as typed (the "mất trắng input" regression).
@@ -99,7 +105,8 @@ describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', { time
     fireEvent.keyDown(minute, { key: 'Enter', code: 'Enter' });
 
     // The segmented field owns this Enter (incomplete draft must never
-    // submit) — the form law must not steal it: no validation summary.
+    // submit) — the form law must not steal it: no save, no paint, and the
+    // summary banner (retired by SIL-627) never exists at all.
     expect(screen.queryByText(/^Cần bổ sung \d+ thông tin$/)).toBeNull();
     expect(await screen.findByText('Nhập đủ giờ và ngày hợp lệ.')).toBeTruthy();
     // Date-first DOM: the empty date segments lead, the typed giờ rides last.
@@ -115,11 +122,19 @@ describe('shipment create Enter law (FB-002 lần 3, card 211026034109)', { time
 
     fireEvent.keyDown(notes, { key: 'Enter', shiftKey: true });
     expect(screen.queryByText(/^Cần bổ sung \d+ thông tin$/)).toBeNull();
+    expect(document.querySelector('[aria-invalid="true"]')).toBeNull();
 
     fireEvent.keyDown(notes, { key: 'Enter' });
     expect(screen.queryByText(/^Cần bổ sung \d+ thông tin$/)).toBeNull();
 
     fireEvent.keyDown(notes, { key: 'Enter', ctrlKey: true });
-    expect(await screen.findByText(/^Cần bổ sung \d+ thông tin$/)).toBeTruthy();
+    // Ctrl+Enter saves: the per-field validation paint answers it (SIL-627
+    // retired the summary banner).
+    await waitFor(() => {
+      const paint = document.querySelectorAll(
+        '.csc-container-cell--error, [data-uui-control][aria-invalid="true"], input[aria-invalid="true"], .csc-searchable-field--error',
+      );
+      expect(paint.length).toBeGreaterThan(0);
+    });
   }, 20000);
 });

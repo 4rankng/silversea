@@ -1,4 +1,4 @@
-import { Copy, Info, Trash2 } from 'lucide-react';
+import { Copy, Trash2 } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { CatalogData } from '../../../api/tripClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
@@ -12,7 +12,6 @@ import {
 import { UDateTimeField as DateTimeField } from './uui-datetime-field';
 import { ShipmentContainerCell } from './ShipmentContainerCell';
 import { buildFactoryOptionSearchText } from './ShipmentCreateContainerRow.factorySearch';
-import { FactoryDetailPopover } from './FactoryDetailPopover';
 import { ContainerTypeCellPicker } from './ContainerTypeCellPicker';
 import type { ShipmentContainerDraft } from './shipment-create-model';
 
@@ -53,6 +52,9 @@ export interface ShipmentCreateContainerRowProps {
   isAdHoc: boolean;
   customerId: string;
   sitesLoading: boolean;
+  /** SIL-626 (id 730): the dropdown's "+ Thêm nhà máy..." footer opens the
+   *  workspace quick-add dialog (the customer-not-chosen gate lives there). */
+  onAddFactory: () => void;
   saving: boolean;
   routeOptions: { value: string; label: string }[];
   portOptions: { value: string; label: string }[];
@@ -80,6 +82,7 @@ export function ShipmentCreateContainerRow({
   isAdHoc,
   customerId,
   sitesLoading,
+  onAddFactory,
   saving,
   routeOptions,
   portOptions,
@@ -90,9 +93,6 @@ export function ShipmentCreateContainerRow({
   const factory = operationalSites.find((site) => String(site.id) === row.operationalSiteId);
   // Card 20261002_272: open handle for the paired-field Tab hand-off.
   const typePickerOpenApi = useRef<{ open: () => void } | null>(null);
-  // Card 20261002_268: read-only factory detail peek beside the cell value.
-  const [factoryDetailOpen, setFactoryDetailOpen] = useState(false);
-  const factoryDetailAnchorRef = useRef<HTMLButtonElement | null>(null);
   // SIL-552 (QA 29/10) — the LOẠI / TRỌNG LƯỢNG group lines are ghost lines
   // (label + value only): clicking a line opens the shared floating editor
   // (FloatingCellEditor, SIL-631) instead of editing inside the cell — the
@@ -156,14 +156,6 @@ export function ShipmentCreateContainerRow({
     return () => cancelAnimationFrame(frame);
   }, [openLine]);
   const factoryName = factory?.shortName || factory?.name || (isAdHoc ? row.rawFactoryName : '');
-  const factoryInvoiceGroups = factory ? [{
-    label: 'Hóa đơn cẩu phí',
-    lines: [
-      { label: 'Tên', value: factory.liftFeeInvoiceName ?? '' },
-      { label: 'Địa chỉ', value: factory.liftFeeInvoiceAddress ?? '' },
-      { label: 'MST', value: factory.liftFeeTaxCode ?? '' },
-    ].filter((line) => line.value.trim() !== ''),
-  }] : [];
 
   return (
     <tr key={row.key} className="csc-container-row">
@@ -372,25 +364,19 @@ export function ShipmentCreateContainerRow({
         error={issueByField.get(`container-${row.key}-factory`)}
         picker
         // Card 171026113500 (FB-006 round 17): a chosen factory must leave the
-        // cell as the name + the detail magnifier — the full combobox and its
-        // "Xoá" button must not sit in the DOM beside them. Lệnh chạy ngoài
-        // keeps its free-text behaviour (the operator types into the field, so
-        // the editor stays put).
+        // cell as the name — the full combobox and its "Xoá" button must not
+        // sit in the DOM beside them. Lệnh chạy ngoài keeps its free-text
+        // behaviour (the operator types into the field, so the editor stays
+        // put).
+        // SIL-628 (id 732, owner 31/10): the factory detail magnifier is
+        // RETIRED — its absolute overlay anchored to the section card (the
+        // cell had no positioned ancestor on desktop) and landed on the last
+        // column's delete button, intercepting its clicks (SIL-629's exact
+        // mechanism, measured in qa/2026-10-31_sil619-629/before). No cell
+        // renders `actions` anymore; ShipmentContainerCell.css pins every
+        // overlay to its own cell so the overlap can never come back.
         collapsePickedEditor={!isAdHoc}
         mobileFieldChrome
-        actions={factory ? (
-          <button
-            type="button"
-            ref={factoryDetailAnchorRef}
-            className="csc-container-cell__action"
-            aria-label={`Xem chi tiết nhà máy ${factoryName}`}
-            aria-haspopup="dialog"
-            aria-expanded={factoryDetailOpen}
-            onClick={() => setFactoryDetailOpen((open) => !open)}
-          >
-            <Info size={14} aria-hidden="true" />
-          </button>
-        ) : undefined}
       >
         <SearchableField
           id={`container-${row.key}-factory`}
@@ -414,17 +400,15 @@ export function ShipmentCreateContainerRow({
           searchable
           allowsCustomValue={isAdHoc}
           {...(isAdHoc ? { onCustomValue: (text: string) => containerFactoryCustomText(row.key, text) } : {})}
+          // SIL-626 (id 730, owner 31/10): quick-add lives INSIDE the picker —
+          // the header button is retired. Same house createOption footer the
+          // Tuyến đường/Cảng rows run (20260920_26); it always matches the
+          // filter (its search text rides the typed value) and sits at the
+          // end of the list. The workspace gate (chọn khách hàng trước)
+          // stays: onAddFactory opens the same quick dialog.
+          createOption={{ label: () => '+ Thêm nhà máy...', onSelect: () => onAddFactory() }}
         />
       </ShipmentContainerCell>
-      <FactoryDetailPopover
-        name={factoryName}
-        address={factory?.address ?? ''}
-        phone={factory?.contactPhone ?? ''}
-        invoiceGroups={factoryInvoiceGroups}
-        anchorRef={factoryDetailAnchorRef}
-        open={factoryDetailOpen && factory != null}
-        onClose={() => setFactoryDetailOpen(false)}
-      />
       <ShipmentContainerCell
         label={isAdHoc ? 'Tuyến đường' : 'Tuyến đường *'}
         value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name || (isAdHoc ? row.rawRouteName : '')}

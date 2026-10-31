@@ -1,0 +1,196 @@
+{
+  "run": "before",
+  "baseUrl": "http://localhost:7186",
+  "role": "CUS",
+  "checks": [
+    {
+      "name": "627 banner",
+      "pass": true,
+      "detail": "validation-summary present=true title=\"Cần bổ sung 8 thông tin\""
+    },
+    {
+      "name": "627 per-field validation still paints",
+      "pass": true,
+      "detail": "invalid-paint nodes=28"
+    },
+    {
+      "name": "624 appt group == standard control height (30px)",
+      "pass": false,
+      "detail": "apptGroup=48px standard≈30px wrapperPad=undefined"
+    },
+    {
+      "name": "628 factory ⓘ overlay absent from the table",
+      "pass": true,
+      "detail": "actionsOverlay={\"left\":1252,\"top\":422,\"right\":1284,\"bottom\":737,\"w\":32,\"h\":315}"
+    },
+    {
+      "name": "628 delete button hit test reaches the delete control",
+      "pass": false,
+      "detail": "elementAtDeleteCenter=SPAN.csc-container-cell__actions button=null"
+    },
+    {
+      "name": "619 notes fully above the fixed bar at scroll end (1307)",
+      "pass": false,
+      "detail": "notesBottom=874 barTop=845 covered=29 padBottom=4px"
+    },
+    {
+      "name": "629 delete click opens the confirm dialog on a FILLED form",
+      "pass": false,
+      "detail": "confirmVisible=false factoryPopover=false rows=2"
+    },
+    {
+      "name": "629 row removed after confirm (filled state)",
+      "pass": false,
+      "detail": "rows 2 → 2"
+    },
+    {
+      "name": "626 standalone \"+ Thêm nhà máy\" header button removed",
+      "pass": true,
+      "detail": "headerBtn=true"
+    },
+    {
+      "name": "626 \"+ Thêm container\" untouched",
+      "pass": true,
+      "detail": "addContainerBtn=true"
+    },
+    {
+      "name": "626 \"+ Thêm nhà máy...\" item inside the factory dropdown (last)",
+      "pass": true,
+      "detail": "options=6 last=\"SUNRISE0946445198\""
+    },
+    {
+      "name": "624 touch 390: appointment group keeps the touch token (44px)",
+      "pass": false,
+      "detail": "apptGroup=52px expect≈44"
+    },
+    {
+      "name": "619 notes fully above the fixed bar at scroll end (390)",
+      "pass": true,
+      "detail": "notesBottom=243 barTop=783 covered=0 padBottom=73px"
+    }
+  ],
+  "dbUnchangedProof": {
+    "shipmentsCountBefore": "548",
+    "shipmentsCountAfter": "548"
+  },
+  "emptySubmit": {
+    "banner": true,
+    "bannerTitle": "Cần bổ sung 8 thông tin",
+    "perFieldPaint": 28,
+    "firstIssueFocus": "react-aria1328515731-_r_7_"
+  },
+  "filled": {
+    "apptGroup": {
+      "left": 1084,
+      "top": 523,
+      "right": 1176,
+      "bottom": 571,
+      "w": 93,
+      "h": 48
+    },
+    "apptWrapperPadBlock": "0px/0px",
+    "declarationInput": {
+      "left": 289,
+      "top": 533,
+      "right": 406,
+      "bottom": 561,
+      "w": 117,
+      "h": 28
+    },
+    "customerControl": {
+      "left": 70,
+      "top": 237,
+      "right": 621,
+      "bottom": 267,
+      "w": 551,
+      "h": 30
+    },
+    "actionsOverlay": {
+      "left": 1252,
+      "top": 422,
+      "right": 1284,
+      "bottom": 737,
+      "w": 32,
+      "h": 315
+    },
+    "deleteButton": {
+      "left": 1246,
+      "top": 498,
+      "right": 1276,
+      "bottom": 528,
+      "w": 30,
+      "h": 30
+    },
+    "elementAtDeleteCenter": "SPAN.csc-container-cell__actions",
+    "deleteAriaAtPoint": null,
+    "bar": {
+      "left": 48,
+      "top": 845,
+      "right": 1307,
+      "bottom": 900,
+      "w": 1259,
+      "h": 55
+    },
+    "pagePaddingBottom": "4px"
+  },
+  "clearance": {
+    "scrolledTo": 0,
+    "maxScroll": 0,
+    "barTop": 845,
+    "notesBottom": 874,
+    "notesFullyAboveBar": false,
+    "notesCoveredPx": 29,
+    "pagePaddingBottom": "4px",
+    "docScrollHeight": 900,
+    "innerHeight": 900
+  },
+  "mobile": {
+    "apptGroup": {
+      "left": 25,
+      "top": 627,
+      "right": 143,
+      "bottom": 679,
+      "w": 118,
+      "h": 52
+    },
+    "apptWrapperPadBlock": "0px/0px",
+    "declarationInput": {
+      "left": 26,
+      "top": 317,
+      "right": 364,
+      "bottom": 359,
+      "w": 338,
+      "h": 42
+    },
+    "customerControl": {
+      "left": 16,
+      "top": -528,
+      "right": 330,
+      "bottom": -484,
+      "w": 314,
+      "h": 44
+    },
+    "actionsOverlay": null,
+    "deleteButton": null,
+    "bar": {
+      "left": 0,
+      "top": 783,
+      "right": 390,
+      "bottom": 844,
+      "w": 390,
+      "h": 61
+    },
+    "pagePaddingBottom": "73px"
+  },
+  "mobileClearance": {
+    "scrolledTo": 769,
+    "maxScroll": 769,
+    "barTop": 783,
+    "notesBottom": 243,
+    "notesFullyAboveBar": true,
+    "notesCoveredPx": 0,
+    "pagePaddingBottom": "73px",
+    "docScrollHeight": 1613,
+    "innerHeight": 844
+  }
+}

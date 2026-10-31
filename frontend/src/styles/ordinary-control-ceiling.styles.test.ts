@@ -200,7 +200,6 @@ const ordinaryOwners: Record<string, string[]> = {
   "src/pages/clerk/ClerkShipmentCreatePage.css": [
     ".csc-route-dialog__submit, .csc-shipping-line-dialog__submit",
     ".csc-back",
-    ".csc-validation-summary button",
     ".csc-container-row__actions .csc-icon-button",
     ".csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button",
     ".csc-icon-button",

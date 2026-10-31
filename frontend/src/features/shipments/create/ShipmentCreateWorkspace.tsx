@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Plus } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
@@ -34,7 +34,6 @@ import {
 } from './shipment-create-model';
 import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
 import { useFixedActionClearance } from '../../../hooks/useFixedActionClearance';
-import { ShipmentCreateSummary } from './ShipmentCreateSummary';
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
 import { ShipmentCreateActions } from './ShipmentCreateActions';
 import { ShipmentViewActions } from './ShipmentViewActions';
@@ -106,13 +105,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // ── SIL-171 edit mode ── the lot's own seed (id/version) and
   // the pristine baseline the leave-confirm diff reads. The detail is fetched
   // ONCE per editTarget; a route id change refetches fresh.
+  // Summary de-noise (17/10): the "Cần bổ sung" panel was submit-gated —
+  // SIL-627 (id 731, owner 31/10) retired the panel entirely, so no attempt
+  // flag is needed anymore; per-field validation paint is unconditional.
   const [validationIssues, setValidationIssues] = useState<ShipmentCreateIssue[]>([]);
-  // Summary de-noise (17/10): the "Cần bổ sung" panel is submit-gated — it may
-  // not confront a freshly opened form. Any action-button save click ("Tạo lô
-  // hàng" on the fixed footer bar, the form submit, or a failed "Lưu nháp",
-  // which owns the DRAFT copy) flips this on; it never flips back, so the
-  // panel keeps updating live until the list empties.
-  const [saveAttempted, setSaveAttempted] = useState(false);
   const { toast } = useToast();
   const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
   const [createSiteDialog, setCreateSiteDialog] = useState<{ open: boolean; siteType: 'FACTORY' | 'WAREHOUSE' }>({ open: false, siteType: 'FACTORY' });
@@ -702,7 +698,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   }
 
   async function save(intent: SaveIntent) {
-    setSaveAttempted(true);
     // FB-048 (card 141026003600): the native pre-gate used to run FIRST and
     // return, so a partially-typed date/Time field (which sets customValidity
     // on its segments) starved every OTHER required field of its issue — the
@@ -814,17 +809,12 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         }}
         className="csc-workspace"
       >
-        <ShipmentCreateSummary
-          // Submit-gated (17/10 de-noise): pristine/dirty-before-create shows
-          // no panel. After the first "Tạo lô hàng" click the panel speaks the
-          // SAME wording as the field paint below — `validationIssues` is that
-          // list, and it is the only one carrying the DRAFT copy ("Chọn khách
-          // hàng để tạo lô hàng."). Prefer it while it is non-empty.
-          showIssues={saveAttempted}
-          outstandingIssues={validationIssues.length > 0 ? validationIssues : readiness.issues}
-          submitError={submitError}
-          onFocusIssue={focusIssue}
-        />
+        {/* SIL-627 (id 731, owner 31/10): the "Cần bổ sung N thông tin"
+            summary banner is RETIRED — validation feedback is per-field (the
+            invalid paint + field messages below carry every issue, and the
+            save still focuses the first missing field). Only a real submit
+            failure (server error) keeps its own surface here. */}
+        {submitError && <div className="csc-submit-error" role="alert">{submitError}</div>}
         <div className="csc-form">
           {/* Cards 211026130215 + 211026130315 (verify-fail "ẨN sau default"):
               the Loại hàng segmented control LEADS the form — QA mở form mặc
@@ -980,16 +970,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           <ShipmentCreateSection id="cargo" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng FCL hoặc hàng lẻ.">
             {form.cargoMode === 'FCL' ? (
               <>
-                <div className="csc-fcl-factory-action">
-                  <button
-                    type="button"
-                    onClick={() => openCreateSiteDialog('FACTORY')}
-                    disabled={controlsDisabled}
-                    className="csc-utility-button csc-utility-button--dashed"
-                  >
-                    <Plus size={15} aria-hidden="true" />Thêm nhà máy
-                  </button>
-                </div>
                 <ShipmentContainerEditor
                   saving={controlsDisabled}
                   onAdd={(count) => setContainers((current) => {
@@ -1025,6 +1005,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                           isAdHoc={form.isAdHoc}
                           customerId={form.customerId}
                           sitesLoading={sitesLoading}
+                          onAddFactory={() => openCreateSiteDialog('FACTORY')}
                           saving={controlsDisabled}
                           routeOptions={routeOptions}
                           portOptions={portOptions}

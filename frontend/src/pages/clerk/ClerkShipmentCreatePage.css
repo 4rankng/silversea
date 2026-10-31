@@ -226,7 +226,11 @@
 :is(#root, body) .csc-mode-band__row .date-seg-group[data-uui-control] .date-seg-wrapper .date-seg {
   padding-block: 0;
 }
-.csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
+/* SIL-626 (id 730, owner 31/10): the standalone "+ Thêm nhà máy" header
+   button is retired — quick-add lives INSIDE the factory picker as the
+   createOption footer (the house 20260920_26 pattern the Tuyến/Cảng fields
+   already run). The `.csc-fcl-factory-action` block and its onescreen
+   placement pin are retired with it. */
 .csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 8px; }
 /* The box scrolls HORIZONTALLY only. Two traps, both hit on this page:
    1. `overflow-x: auto` alone forces `overflow-y: auto`, so the table gained a
@@ -392,91 +396,22 @@
   border-color: var(--danger);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 18%, transparent);
 }
-.csc-summary { display: grid; gap: 12px; min-width: 0; width: 100%; max-width: 520px; justify-self: start; }
-.csc-validation-summary, .csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
-.csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p, .csc-summary__muted, .csc-summary__error { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }.csc-summary__muted { color: var(--fg-3); }.csc-summary__error { color: var(--danger); }.csc-summary__warning { color: var(--warn); }
+/* SIL-627 (id 731, owner 31/10): the "Cần bổ sung N thông tin" summary
+   banner is retired — its `.csc-summary` / `.csc-validation-summary` blocks
+   went with the ShipmentCreateSummary component. Only the server submit
+   error keeps a surface (`.csc-submit-error`). */
+.csc-submit-error { padding: 16px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); }
+.csc-pricing { display: grid; gap: 10px; min-width: 0; }.csc-pricing > p { margin: 0; font-size: var(--text-caption-size); line-height: 1.5; }
 .csc-pricing dl { display: grid; gap: 8px; margin: 0; }.csc-pricing dl > div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }.csc-pricing dt { color: var(--fg-3); font-size: var(--text-label-size); }.csc-pricing dd { margin: 0; color: var(--fg-1); font-size: var(--text-body-size); font-weight: 800; text-align: right; }
 .csc-pricing__explain { padding-top: 8px; border-top: 1px solid var(--border-1); color: var(--fg-3); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__explain p { margin: 3px 0; }
 .csc-pricing__breakdown { display: grid; }.csc-pricing__breakdown > div { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-1); font-size: var(--text-caption-size); overflow-wrap: anywhere; }.csc-pricing__breakdown span, .csc-pricing__breakdown small { display: block; min-width: 0; }.csc-pricing__breakdown small { margin-top: 2px; color: var(--fg-3); }
-/* Card 181026180300: Restyle "Cần bổ sung N thông tin" panel into a compact,
- * neutral card (Untitled UI alert/callout style, --surface tokens, no pink/wall).
- * Positioned under the form header, max-width bounded, neutral borders and typography. */
-.csc-validation-summary {
-  width: 100%;
-  max-width: 520px;
-  justify-self: start;
-  padding: 12px 14px;
-  border: 1px solid var(--border-1);
-  border-radius: 10px;
-  background: var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-.csc-validation-summary__title {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  color: var(--fg-1);
-}
-.csc-validation-summary__title svg {
-  flex: none;
-  color: var(--fg-2);
-}
-.csc-validation-summary__title strong {
-  font-size: var(--text-data-size);
-  font-weight: 600;
-  color: var(--fg-1);
-}
-.csc-validation-summary p {
-  margin: 3px 0 0;
-  font-size: var(--text-caption-size);
-  color: var(--fg-3);
-  line-height: 1.4;
-}
-.csc-validation-summary ol {
-  display: grid;
-  gap: 2px;
-  margin: 6px 0 0;
-  padding-left: 18px;
-  max-height: min(30vh, 220px);
-  padding-right: 6px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  color: var(--fg-3);
-  font-size: var(--text-caption-size);
-}
-.csc-validation-summary button {
-  border: 0;
-  padding: 2px 0;
-  background: none;
-  color: var(--fg-1);
-  font: inherit;
-  font-size: var(--text-caption-size);
-  line-height: 1.45;
-  text-align: left;
-  text-decoration: underline;
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-.csc-validation-summary button:hover {
-  color: var(--brand);
-}
-.csc-validation-summary button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
+/* SIL-627 (id 731, owner 31/10): the whole "Cần bổ sung N thông tin" panel
+   (card 181026180300's compact-neutral restyle included) is retired with the
+   component — validation speaks per-field now. */
 .csc-submit-error { color: var(--danger); background: var(--danger-soft); font-size: var(--text-data-size); line-height: 1.5; }
 @media (min-width: 1101px) and (min-height: 721px) {
   .csc-section__heading > div { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
   .csc-section__heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .csc-validation-summary ol {
-    max-height: min(24vh, 168px);
-    padding-right: 6px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-  }
 }
 /* Owner ruling 11/10 (idea reference: dense spreadsheet row): the record
    tier is for PHONES. Mid widths keep the dense table — the 1038px
@@ -579,17 +514,17 @@
 }
 
 @media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: var(--control-max-h); } }
-@media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-validation-summary, .csc-submit-error { padding: 8px !important; } }
-/* SIL-510: below the onescreen band the worksheet scrolls vertically — the
-   page clears the fixed bar's MEASURED height (+12px gap; the hook publishes
-   --csc-action-bar-height) so the last row (container sheet / add control)
-   is never covered at scroll-end. ≥1280 the onescreen band fits one viewport
-   (SIL-499, no scrollbar) and the fixed bar overlays the tail the retired
-   in-flow footer row freed — no clearance there, or the 499 law would tip
-   back into scrolling. */
-@media (max-width: 1279px) {
-  .csc-page { padding-bottom: calc(var(--csc-action-bar-height, 60px) + 12px); }
-}
+@media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-submit-error { padding: 8px !important; } }
+/* SIL-619 (id 723, owner 31/10): the worksheet clears the fixed bar's
+   MEASURED height (+12px gap; the hook publishes --csc-action-bar-height) at
+   EVERY width, so the last band (Ghi chú) can always scroll above the bar —
+   the old ≤1279px gate left the ≥1280 onescreen band with a 4px page bottom,
+   and at 1307 the notes section ended 29px UNDER the fixed bar even at
+   scroll end (qa/2026-10-31_sil619-629/before/619-notes-scroll-end-1307.png).
+   The SIL-499 "one viewport, no scrollbar" reading is superseded by this
+   owner ticket: when content fits, the reserved lane costs one short scroll;
+   when it overflows, nothing is ever trapped under the bar again. */
+.csc-page { padding-bottom: calc(var(--csc-action-bar-height, 60px) + 12px); }
 @media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
 /* The FCL cargo step owns an editable view of the lot route. It shares the
@@ -688,26 +623,38 @@
   .csc-container-table .csc-container-cell [data-uui-control] { --uui-control-h: var(--control-compact-h); }
 }
 
-/* Card 051026230627 — the appointment cluster is a tap surface first (its
- * whole group opens the picker): the segments keep TOUCH HEIGHT (the cure
- * for "5 ô spinbox riêng lẻ tí hon, chật, khó bấm"). The 16px font that
- * landed with that card is reversed by the owner report 11/10 ("bloated,
- * oversize") — segments read the same field font as every other input on
- * this page. The base UUI geometry derives every inner height from
- * --uui-control-h, so the tap cure survives the font change; the em-based
- * segment widths in DateTimeSegments.css scale with the font automatically.
- * SIL-583 r2: the cluster is a card-law tap surface — the REAL touch token
- * on touch form factors (coarse pointer, ≤768px sweep width), the ordinary
- * 40px ceiling on a desktop fine pointer. */
-.csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control],
-.csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] [data-uui-control] {
-  --uui-control-h: var(--control-max-h);
-}
+/* The appointment cluster's history: card 051026230627 made it a tap
+ * surface (touch height — the cure for "5 ô spinbox riêng lẻ tí hon") and
+ * the owner report 11/10 reversed that card's 16px font bloat (segments
+ * read the same field font as every input on this page; the em-based
+ * segment widths in DateTimeSegments.css scale with it automatically).
+ * SIL-583 r2 kept the REAL touch token on touch form factors. */
+/* Card 051026230627 made the appointment cluster a 40px tap surface; card
+ * 051026230627's font bloat reversal (owner 11/10) already normalized the
+ * segments. SIL-624 (id 728, owner 31/10) retires the fine-pointer height
+ * override entirely: the ticket measured the sheet's per-cont cluster at
+ * 48px (40px token + the 8px interior padding) against the 30px standard —
+ * "cao gấp đôi control chuẩn". ≥769 the generic sheet rule above already
+ * pins every [data-uui-control] to --control-compact-h, and 641–768 falls
+ * back to the same default the sibling controls measure. Touch form factors
+ * keep the SIL-583 r2 touch token — the tap-surface law survives there. */
 @media (pointer: coarse), (max-width: 768px) {
   .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control],
   .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] [data-uui-control] {
     --uui-control-h: var(--control-touch-h);
   }
+}
+/* SIL-616's twin fix, scoped to the sheet's appointment cell: the InputBase
+ * segment wrapper's own py-1 stacked on the pinned inner input pushed every
+ * appointment group 8px PAST its token (48px at the retired 40px override,
+ * 52px at the touch token). Zeroing the interior vertical padding closes the
+ * group at exactly --uui-control-h (30px compact ≥769 / 44px touch), the
+ * same interior law the mode band runs since SIL-616. */
+.csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] .date-seg-wrapper {
+  padding-block: 0;
+}
+:is(#root, body) .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] .date-seg-wrapper .date-seg {
+  padding-block: 0;
 }
 .csc-container-row > .csc-container-cell--appointment .date-seg-group[data-uui-control] {
   --text-control-compact-size: var(--control-field-font-size);
