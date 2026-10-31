@@ -838,7 +838,18 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
               <div className="csc-cargo-choice-grid">
                 <fieldset className="csc-mode" aria-required="true">
                   <legend>Loại hàng <span aria-hidden="true">*</span></legend>
-                  <div>
+                  {/* SIL-616 (id 720, owner 31/10): the segmented shell IS the
+                      control boundary — it carries the shared control-geometry
+                      hooks (data-uui-control + data-control-size) so its
+                      height is owned by the base law
+                      ([data-uui-control] { min-height: var(--uui-control-h) },
+                      sm = --control-compact-h, touch tokens at ≤768/coarse)
+                      in src/components/untitled-ui/base/control-geometry.css.
+                      House law (control-density.styles.test): control
+                      dimensions live in the shared geometry layer, never in
+                      page or feature stylesheets — the page keeps only the
+                      option's paint (colors, padding, typography). */}
+                  <div data-uui-control="segments" data-control-size="sm">
                     {(['FCL', 'LCL'] as CargoMode[]).map((mode) => (
                       <label key={mode}>
                         <input
@@ -881,13 +892,26 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                   ("everything trước mắt"). Alone in the schedule band it
                   left a ~265px dead strip in its column and, off its row,
                   the stretched mode card ~170px of empty surface
-                  (qa/2026-10-30_sil598-before). Gate unchanged: still only
-                  while conts lack a schedule. */}
-              {form.cargoMode === 'FCL' && emptyAppointmentCount >= 1 && (
+                  (qa/2026-10-30_sil598-before). SIL-617 (id 721, owner
+                  31/10) supersedes the old `emptyAppointmentCount >= 1`
+                  gate: once every cont carried a schedule the band
+                  unmounted and cuộn hết form cũng không thấy — the one
+                  place to đặt/đổi giờ hẹn cho tất cả cont vanished exactly
+                  when the form was filled. The band is now ALWAYS visible
+                  in FCL (trống hay đã điền đủ); its Copy still writes only
+                  into rows that lack a schedule (applyBulkAppointmentToRows),
+                  so a filled form shows the band as a readable surface
+                  without any dead apply. */}
+              {form.cargoMode === 'FCL' && (
                 <div className="csc-bulk-appointment" data-field-id="shipment-bulk-appointment">
+                  {/* SIL-625 (id 729, owner 31/10): the visible label
+                      "Ngày giờ đóng trả cho tất cả cont" is retired — the
+                      two segment inputs + the Copy affordance stay. The
+                      group's aria-label keeps the name for screen readers. */}
                   <UDateTimeField
                     id="shipment-bulk-appointment"
                     label="Ngày giờ đóng trả cho tất cả cont"
+                    hideLabel
                     value={bulkAppointment}
                     onChange={(event) => setBulkAppointment(event.target.value)}
                     disabled={controlsDisabled}
