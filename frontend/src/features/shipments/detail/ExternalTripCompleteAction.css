@@ -1,8 +1,39 @@
-/* SIL-592 (id 692) — the staff-close pill must wrap, never truncate
-   (no-truncate doctrine): `.btn` is nowrap and the Trạng thái column can
-   narrow under 1280px, so the 2-word label wraps at the space instead of
-   spilling out of the cell. Same wrap law as .shipment-container-ledger__copy. */
+/* SIL-620 (id 724) — text button for external-carrier trip completion:
+   pure text button (no box/pill chrome), compact on 1 line (white-space: nowrap),
+   emerald house token (--brand: #005A2D, AA contrast 8.4:1 on white), hover
+   underline, accessible focus ring, no truncation. */
 .external-trip-complete {
-  white-space: normal;
-  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--brand);
+  font-family: var(--font-body);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: none;
+  transition: color 120ms var(--ease);
+}
+
+.external-trip-complete:hover:not(:disabled) {
+  color: var(--brand-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.external-trip-complete:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 2px);
+}
+
+.external-trip-complete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

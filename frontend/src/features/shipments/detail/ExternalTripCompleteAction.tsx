@@ -40,7 +40,7 @@ export function ExternalTripCompleteAction({ identity, onComplete }: {
     <>
       <button
         type="button"
-        className="btn btn--secondary btn--sm external-trip-complete"
+        className="external-trip-complete"
         onClick={() => setOpen(true)}
         disabled={busy}
         aria-label={`Hoàn thành chuyến xe ngoài của ${identity}`}
