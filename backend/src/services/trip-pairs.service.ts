@@ -428,6 +428,24 @@ async function loadPairingContainerInfo(
 }
 
 /**
+ * The lot's own container number behind a trip's fulfillment (the
+ * shipment_containers row CUS maintains). TC7(2) review fix: the pairing
+ * loader reads trip_containers first even when its number is blank, so a
+ * number CUS filled after issue would be invisible to the inheritance
+ * decision — this fallback recovers exactly that shape (null when the lot
+ * row is blank or the trip has no fulfillment link).
+ */
+async function lotContainerNumberForTrip(tx: Tx, tripId: number): Promise<string | null> {
+  const [linked] = await tx.select({ containerNumber: s.shipmentContainers.containerNumber })
+    .from(s.trips)
+    .innerJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+    .where(eq(s.trips.id, tripId))
+    .limit(1);
+  return linked?.containerNumber ?? null;
+}
+
+/**
  * SIL-638 (id 742) TC7(2) — write Lệnh 1's inherited shell number onto
  * Lệnh 2's blank container-number surfaces: the trip's trip_containers
  * snapshot rows first, then the fulfillment's shipment container row (the
@@ -666,8 +684,14 @@ export async function createTripPair(
     // has none) the lot's container row stay consistent with the shell the
     // pair just committed to. Never overwrites a number someone already set.
     if (kind === 'KET_HOP') {
+      // The pairing loader reads trip_containers first even when its number
+      // is blank — fall back to the lot's own container row so a number CUS
+      // filled after issue still seeds the inheritance (review F3).
+      const firstEffectiveNumber = firstContainer?.containerNumber?.trim()
+        ? firstContainer.containerNumber
+        : await lotContainerNumberForTrip(tx, input.firstTripId);
       const inheritedContainerNumber = containerNumberToInherit(
-        firstContainer?.containerNumber ?? null,
+        firstEffectiveNumber,
         secondContainer?.containerNumber ?? null,
       );
       if (inheritedContainerNumber != null) {

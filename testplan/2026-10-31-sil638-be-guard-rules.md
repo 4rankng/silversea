@@ -42,6 +42,14 @@ Frank). Ticket paraphrase TC6/TC7 khác DOC — **tuân theo DOC**.
 
 Lần chạy đầu `pnpm lint` FAIL 1 error (`no-unused-vars` trong test TC2 mới — biến `kepHolder` thừa sau sửa test); đã sửa, rerun 0 error. Artifacts: `qa/2026-10-31_sil638-be_*.txt`.
 
+## Independent review (code-reviewer, 31/10) — DONE_WITH_CONCERNS, 0 blocker
+
+- F2/F5 (chấp nhận có chủ đích, non-issue): `containerFootClass` trim code trước so sánh (catalog code sạch; lệch trim không thể chạm được với dữ liệu danh mục). Writer kế thừa chỉ ghi đè NULL/'' — số vỏ lưu toàn whitespace (dữ liệu rác) không được stamp, không rủi ro ghi đè.
+- F3 (đã fix commit review): nguồn kế thừa TC7(2) fallback sang row lot (`shipment_containers`) khi snapshot `trip_containers` của Lệnh 1 trắng số vỏ (CUS bổ sung số vỏ sau khi phát lệnh) — `lotContainerNumberForTrip`.
+- F4 (cho lane FE): trên nhánh dis-03 (phát KẸP 20' lên xe đang có ĐƠN), confirm tải trọng phải gửi CẢ HAI flag `kepWeightWarningConfirmed` + `rigOverlapCompletedConfirmed`.
+- F7 (đã xác nhận): text TC7(1) khớp nguyên văn ticket SIL-638 (đã fetch ticket id 742).
+- F1 (đã ghi ở "Coverage còn thiếu"): FE confirm dialog là nửa còn lại của hợp đồng DOC TC6(2).
+
 ## Coverage còn thiếu (nêu rõ)
 
 - **Integration/E2E** cho TC1/TC2/TC6 flow thật (trang điều phối + phát lệnh): thuộc QA scripts (`testplan/qa/scripts/`) chạy trên local dev — lane này chỉ pin tầng pure theo ruling BE unit-only; UI chưa được drive (rung 1 cho UI claims).
