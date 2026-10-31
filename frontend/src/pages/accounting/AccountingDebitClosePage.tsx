@@ -337,7 +337,7 @@ export default function AccountingDebitClosePage() {
       // panel STAYS open — the accountant keeps the edit they typed.
       setBillingError(error instanceof Error && error.message
         ? error.message
-        : 'Cập nhật BKS báo khách thất bại');
+        : 'Cập nhật BKS ảo thất bại');
     } finally {
       setBillingSaving(false);
     }

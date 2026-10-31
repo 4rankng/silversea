@@ -109,19 +109,19 @@ describe('FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit
     updateLclTruck.mockResolvedValue({ updatedShipmentIds: [1] });
     const { container } = renderPage();
 
-    const badge = await screen.findByRole('button', { name: 'Sửa BKS báo khách: 30C-999.99' });
+    const badge = await screen.findByRole('button', { name: 'Sửa BKS ảo: 30C-999.99' });
     fireEvent.click(badge);
 
     // The editor opens SEEDED with the value the cell was showing — the
     // accountant confirms what is on screen before typing over it. The panel
     // NAMES the lot (a wide scrolling matrix has no other way to say which
     // row the save will touch).
-    const panel = await screen.findByRole('region', { name: 'Sửa BKS báo khách — BL-1' });
+    const panel = await screen.findByRole('region', { name: 'Sửa BKS ảo — BL-1' });
     const input = panel.querySelector('input') as HTMLInputElement;
     expect(input.value).toBe('30C-999.99');
 
     fireEvent.change(input, { target: { value: ' 51G-888.88 ' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS báo khách' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS ảo' }));
 
     await waitFor(() => {
       expect(updateLclTruck).toHaveBeenCalledWith({ shipmentId: 1, billingTruckNo: '51G-888.88' });
@@ -129,7 +129,7 @@ describe('FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit
     // The panel closes and the board refetches — the badge then renders
     // whatever the server holds (the mocked second response).
     await waitFor(() => {
-      expect(screen.queryByRole('region', { name: /Sửa BKS báo khách/ })).toBeNull();
+      expect(screen.queryByRole('region', { name: /Sửa BKS ảo/ })).toBeNull();
     });
     expect(listBoard.mock.calls.length).toBeGreaterThan(1);
     expect(container.querySelector('.debit-billing-badge')).toBeTruthy();
@@ -140,18 +140,18 @@ describe('FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit
     updateLclTruck.mockRejectedValue(new Error('Lô hàng đã khóa chi phí, không sửa được BKS báo khách.'));
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Sửa BKS báo khách: 30C-999.99' }));
-    const panel = await screen.findByRole('region', { name: /Sửa BKS báo khách/ });
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa BKS ảo: 30C-999.99' }));
+    const panel = await screen.findByRole('region', { name: /Sửa BKS ảo/ });
     const input = panel.querySelector('input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '51G-888.88' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS báo khách' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS ảo' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toBe('Lô hàng đã khóa chi phí, không sửa được BKS báo khách.');
     // The refusal never discards the accountant's edit: the panel stays up
     // with the typed value, so a corrected retry is one click away.
-    expect(screen.getByRole('region', { name: /Sửa BKS báo khách/ })).toBeTruthy();
-    expect((screen.getByRole('region', { name: /Sửa BKS báo khách/ }).querySelector('input') as HTMLInputElement).value)
+    expect(screen.getByRole('region', { name: /Sửa BKS ảo/ })).toBeTruthy();
+    expect((screen.getByRole('region', { name: /Sửa BKS ảo/ }).querySelector('input') as HTMLInputElement).value)
       .toBe('51G-888.88');
   });
 
@@ -159,11 +159,11 @@ describe('FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit
     listBoard.mockResolvedValue({ items: [lclRow(1, 'BL-1')], total: 1 });
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Sửa BKS báo khách: 30C-999.99' }));
-    await screen.findByRole('region', { name: /Sửa BKS báo khách/ });
-    const save = screen.getByRole('button', { name: 'Lưu BKS báo khách' }) as HTMLButtonElement;
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa BKS ảo: 30C-999.99' }));
+    await screen.findByRole('region', { name: /Sửa BKS ảo/ });
+    const save = screen.getByRole('button', { name: 'Lưu BKS ảo' }) as HTMLButtonElement;
 
-    fireEvent.change(screen.getByRole('region', { name: /Sửa BKS báo khách/ }).querySelector('input')!, {
+    fireEvent.change(screen.getByRole('region', { name: /Sửa BKS ảo/ }).querySelector('input')!, {
       target: { value: '   ' },
     });
     expect(save.disabled).toBe(true);

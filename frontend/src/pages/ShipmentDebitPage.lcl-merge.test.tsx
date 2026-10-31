@@ -374,7 +374,7 @@ describe('FB-093 — Ghép cước thu khách', () => {
     // (the merge completes and EXITS the mode — PRD §2 auto-hide; expansion
     // rides the kebab).
     await openLot('BL-1');
-    expect(await screen.findByText(/Báo khách \(Ảo\): 29C-111\.22/)).toBeTruthy();
+    expect(await screen.findByText(/BKS ảo: 29C-111\.22/)).toBeTruthy();
     // Finishing the merge hid the CHỌN column again: no ticks on screen.
     expect(screen.queryByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Gộp hàng', pressed: false })).toBeTruthy();
@@ -431,7 +431,7 @@ describe('FB-093 — Ghép cước thu khách', () => {
     await openLot('BL-1');
 
     expect(await screen.findByText('Lô lẻ | Thu: Xe 3.5T | Trả: Xe 10T')).toBeTruthy();
-    expect(screen.getByText(/Báo khách \(Ảo\): 30C-999\.99/)).toBeTruthy();
+    expect(screen.getByText(/BKS ảo: 30C-999\.99/)).toBeTruthy();
     expect(screen.getByText('Ghép cước cùng Bill BL-9')).toBeTruthy();
     expect(screen.getByText('Thu khách: Ghép (2/3)')).toBeTruthy();
     expect(screen.getByText('Trả ĐV: Ghép (2/2)')).toBeTruthy();

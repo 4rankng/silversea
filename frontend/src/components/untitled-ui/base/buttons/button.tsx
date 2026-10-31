@@ -153,6 +153,8 @@ export interface CommonProps {
     noTextPadding?: boolean;
     /** When true, keeps the text visible during loading state */
     showTextWhileLoading?: boolean;
+    /** Native tooltip title attribute */
+    title?: string;
 
     children?: ReactNode;
     className?: string;

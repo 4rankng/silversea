@@ -207,12 +207,12 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
               <button
                 type="button"
                 className="debit-billing-badge"
-                title="Sửa BKS báo khách"
-                aria-label={`Sửa BKS báo khách: ${xeoAo}`}
+                title="Sửa BKS ảo"
+                aria-label={`Sửa BKS ảo: ${xeoAo}`}
                 aria-expanded={editingBillingShipmentId === row.shipmentId}
                 onClick={() => editBillingPlate(row.shipmentId)}
               >
-                Báo khách (Ảo): {xeoAo}
+                BKS ảo: {xeoAo}
               </button>
             )}
           </div>
