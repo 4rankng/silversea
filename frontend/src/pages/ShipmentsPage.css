@@ -914,12 +914,28 @@
     overflow: hidden;
   }
 
+  /* SIL-623 (id 727): Link 'Chi tiết' đặt góc dưới-phải của ô, không bao giờ che nội dung */
+  .cus-dashboard-table td[data-label='Trạng thái'] {
+    vertical-align: top;
+  }
+
   .cus-dashboard-table .cus-row-actions {
-    flex-wrap: nowrap;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     justify-content: space-between;
+    min-height: 100%;
+    height: 100%;
+    gap: 4px;
+    min-width: 0;
   }
 
   .cus-dashboard-table .cus-row-actions__status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
     min-width: 0;
   }
 
@@ -931,7 +947,17 @@
   }
 
   .cus-dashboard-table .cus-row-actions__buttons {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: auto;
+    margin-left: auto;
     flex-shrink: 0;
+  }
+
+  .cus-dashboard-table td[data-label='Trạng thái'] .cus-dashboard-detail {
+    min-height: 24px;
+    line-height: 1.2;
   }
 }
 

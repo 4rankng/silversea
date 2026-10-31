@@ -116,9 +116,12 @@ describe('FB-043 (card 201026164000, regression #33) — shipments table uniform
       /\.cus-schedule-status-row > \*\s*\{[\s\S]*?-webkit-line-clamp:\s*2;/,
     );
 
-    // 2. Status cell actions
+    // 2. SIL-623: Status cell detail link placed on dedicated bottom row (bottom-right of cell)
     expect(css).toMatch(
-      /\.cus-dashboard-table \.cus-row-actions\s*\{[\s\S]*?flex-wrap:\s*nowrap;[\s\S]*?justify-content:\s*space-between;/,
+      /\.cus-dashboard-table \.cus-row-actions\s*\{[\s\S]*?flex-direction:\s*column;[\s\S]*?justify-content:\s*space-between;/,
+    );
+    expect(css).toMatch(
+      /\.cus-dashboard-table \.cus-row-actions__buttons\s*\{[\s\S]*?justify-content:\s*flex-end;/,
     );
     expect(css).toMatch(
       /\.cus-dashboard-table \.cus-row-actions__signal\s*\{[\s\S]*?white-space:\s*nowrap;[\s\S]*?overflow:\s*hidden;[\s\S]*?text-overflow:\s*ellipsis;/,
