@@ -687,7 +687,7 @@
 }
 
 /* SIL-642 (id 746, owner 31/10): the FCL band datetime and its Copy
-   affordance are RETIRED — the `.csc-bulk-appointment` block (field
+   affordance are RETIRED — the bulk-appointment block (field
    `flex: 0 1 260px`, the band's no-grow pin, the 32px copy button and the
    ≤640 column layout) is gone with it. The container table's required
    NGÀY GIỜ ĐÓNG TRẢ column is the schedule's only FCL surface; the
