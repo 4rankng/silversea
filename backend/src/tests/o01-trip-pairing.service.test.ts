@@ -1,5 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import {
   buildTripPairSnapshot,
@@ -152,6 +154,86 @@ describe('trip pairing service', () => {
 
     assert.equal(result.eligible, false);
     assert.ok(result.blockingCodes.includes('INVALID_PLANNED_WINDOW'));
+  });
+
+  // ─── SIL-635 — kẹp cùng chiều (ruling 31/10: 2 cont đều Xuất hoặc đều ─────
+  // ─── Nhập vẫn ghép KẸP được, hàng nhẹ). Điều kiện duy nhất: 2×20', cùng ───
+  // ─── xe/ngày, tải trọng ok, cả 2 khai báo Kẹp. Không có gate ngược hướng. ──
+
+  test('SIL-635: two EXPORT legs — same direction (both factory → port), overlapping windows — pair as KẸP', () => {
+    const result = buildTripPairSnapshot(
+      trip({
+        tripId: 11,
+        canonicalOrigin: 'Nhà máy Long Hậu',
+        canonicalDestination: 'Cảng Cát Lái',
+      }),
+      trip({
+        tripId: 22,
+        canonicalOrigin: 'Nhà máy Đệ Nhất',
+        canonicalDestination: 'Cảng Cát Lái',
+      }),
+      { vehicleCapacityKg: 15000 },
+      { kind: 'KEP' },
+    );
+
+    assert.equal(result.eligible, true);
+    assert.deepEqual(result.blockingCodes, []);
+  });
+
+  test('SIL-635: two IMPORT legs — same direction (both port → factory), overlapping windows — pair as KẸP', () => {
+    const result = buildTripPairSnapshot(
+      trip({
+        tripId: 11,
+        canonicalOrigin: 'Cảng Cát Lái',
+        canonicalDestination: 'Kho Bình Dương',
+      }),
+      trip({
+        tripId: 22,
+        canonicalOrigin: 'Cảng Cát Lái',
+        canonicalDestination: 'Kho Sóng Thần',
+      }),
+      { vehicleCapacityKg: 15000 },
+      { kind: 'KEP' },
+    );
+
+    assert.equal(result.eligible, true);
+    assert.deepEqual(result.blockingCodes, []);
+  });
+
+  test('SIL-635 no-regression: the destination→origin chain rule stays KET_HOP-only (sequencing law, not a direction gate)', () => {
+    // The exact same-direction shape that KẸP accepts above must stay blocked
+    // under KẾT HỢP — PRD §1.2 requires trả hàng rồi đóng hàng. This is the
+    // sequential chain rule, NOT an opposite-direction requirement on pairs.
+    const result = buildTripPairSnapshot(
+      trip({
+        tripId: 11,
+        canonicalOrigin: 'Nhà máy Long Hậu',
+        canonicalDestination: 'Cảng Cát Lái',
+      }),
+      trip({
+        tripId: 22,
+        canonicalOrigin: 'Nhà máy Đệ Nhất',
+        canonicalDestination: 'Cảng Cát Lái',
+      }),
+      { vehicleCapacityKg: 15000 },
+      { kind: 'KET_HOP' },
+    );
+
+    assert.equal(result.eligible, false);
+    assert.ok(result.blockingCodes.includes('IMPOSSIBLE_REPOSITION'));
+  });
+
+  test('SIL-635 wiring pin: the pair contract never reads trade direction', () => {
+    for (const source of ['../services/trip-pairs.service.ts', '../services/trip-pairing.service.ts']) {
+      const sourceText = readFileSync(
+        fileURLToPath(new URL(source, import.meta.url)),
+        'utf8',
+      );
+      assert.ok(
+        !sourceText.includes('tradeDirection'),
+        `${source} must stay direction-blind — the SIL-635 ruling allows same-direction pairs, so the pairing gate must never branch on Xuất/Nhập`,
+      );
+    }
   });
 
   // ─── Card 211026152138 — missing capacity warns, it never blocks ──────────

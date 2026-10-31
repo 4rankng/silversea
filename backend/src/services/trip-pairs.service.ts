@@ -193,17 +193,19 @@ function assertTripDraftMatchesAuthority(
 
 function assertPairableTrips(first: TripRowForPairing, second: TripRowForPairing, kind: TripPairKind) {
   if (first.carrierType !== 'OWN' || second.carrierType !== 'OWN') {
-    throw new ApiError(422, 'Chỉ có thể ghép 2 chiều cho chuyến xe nội bộ');
+    // SIL-635 ruling (31/10): same-direction pairs are valid — the copy must
+    // not imply an opposite-direction requirement ("ghép 2 chiều" wording).
+    throw new ApiError(422, 'Chỉ có thể ghép cặp cho chuyến xe nội bộ');
   }
   if (!first.truckId || !second.truckId || first.truckId !== second.truckId) {
     throw new ApiError(422, kind === 'KEP'
       ? 'Không đủ điều kiện kẹp hàng: hai lệnh phải dùng cùng một biển số xe.'
-      : 'Hai chuyến phải dùng cùng một xe để ghép 2 chiều');
+      : 'Hai chuyến phải dùng cùng một xe để ghép cặp');
   }
   if (!first.driverId || !second.driverId || first.driverId !== second.driverId) {
     throw new ApiError(422, kind === 'KEP'
       ? 'Không đủ điều kiện kẹp hàng: hai lệnh phải dùng cùng một tài xế.'
-      : 'Hai chuyến phải dùng cùng một lái xe để ghép 2 chiều');
+      : 'Hai chuyến phải dùng cùng một lái xe để ghép cặp');
   }
   if (first.activeTripPairId || second.activeTripPairId) {
     throw new ApiError(409, 'Một trong hai chuyến đã nằm trong cặp điều vận khác');
