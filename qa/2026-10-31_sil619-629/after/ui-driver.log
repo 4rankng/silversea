@@ -1,0 +1,36 @@
+2026-10-31T04:17:16.837Z DB read-only proof: shipments count = 548
+2026-10-31T04:17:23.491Z logged in as cus
+2026-10-31T04:17:30.179Z PASS 627 banner :: validation-summary present=false title=""
+2026-10-31T04:17:30.179Z PASS 627 per-field validation still paints :: invalid-paint nodes=28
+2026-10-31T04:17:42.129Z PASS 624 appt group == standard control height (30px) :: apptGroup=30px standard≈30px wrapperPad=undefined
+2026-10-31T04:17:42.130Z PASS 628 factory ⓘ overlay absent from the table :: actionsOverlay=null
+2026-10-31T04:17:42.130Z PASS 628 delete button hit test reaches the delete control :: elementAtDeleteCenter=svg.lucide lucide-trash2 lucide-trash-2 button=Xóa container 1
+2026-10-31T04:17:42.865Z INFO 619 notes fully above the fixed bar at scroll end (1307) :: notesBottom=874 barTop=845 covered=29 padBottom=67px
+2026-10-31T04:17:44.324Z PASS 629 delete click opens the confirm dialog on a FILLED form :: confirmVisible=true factoryPopover=false rows=2
+2026-10-31T04:17:45.216Z PASS 629 row removed after confirm (filled state) :: rows 2 → 1
+2026-10-31T04:17:49.809Z PASS 626 standalone "+ Thêm nhà máy" header button removed :: headerBtn=false
+2026-10-31T04:17:49.809Z PASS 626 "+ Thêm container" untouched :: addContainerBtn=true
+2026-10-31T04:17:53.317Z PASS 626 "+ Thêm nhà máy..." item inside the factory dropdown (last) :: options=7 last="+ Thêm nhà máy..."
+2026-10-31T04:18:02.596Z PASS 624 touch 390: appointment group keeps the touch token (44px) :: apptGroup=44px expect≈44
+2026-10-31T04:18:03.277Z PASS 619 notes fully above the fixed bar at scroll end (390) :: notesBottom=297 barTop=783 covered=0 padBottom=73px
+2026-10-31T04:18:03.708Z DB read-only proof after: shipments count = 548
+2026-10-31T04:18:03.708Z DB UNCHANGED ✓
+2026-10-31T04:18:03.709Z RESULT: RUN=after completed
+2026-10-31T04:18:40.917Z DB read-only proof: shipments count = 548
+2026-10-31T04:18:47.106Z logged in as cus
+2026-10-31T04:18:53.718Z PASS 627 banner :: validation-summary present=false title=""
+2026-10-31T04:18:53.720Z PASS 627 per-field validation still paints :: invalid-paint nodes=28
+2026-10-31T04:19:06.083Z PASS 624 appt group == standard control height (30px) :: apptGroup=30px standard≈30px wrapperPad=undefined
+2026-10-31T04:19:06.083Z PASS 628 factory ⓘ overlay absent from the table :: actionsOverlay=null
+2026-10-31T04:19:06.084Z PASS 628 delete button hit test reaches the delete control :: elementAtDeleteCenter=svg.lucide lucide-trash2 lucide-trash-2 button=Xóa container 1
+2026-10-31T04:19:06.665Z PASS 619 notes fully above the fixed bar at scroll end (1307) :: notesBottom=801 barTop=845 covered=0 padBottom=67px
+2026-10-31T04:19:08.201Z PASS 629 delete click opens the confirm dialog on a FILLED form :: confirmVisible=true factoryPopover=false rows=2
+2026-10-31T04:19:09.245Z PASS 629 row removed after confirm (filled state) :: rows 2 → 1
+2026-10-31T04:19:13.361Z PASS 626 standalone "+ Thêm nhà máy" header button removed :: headerBtn=false
+2026-10-31T04:19:13.361Z PASS 626 "+ Thêm container" untouched :: addContainerBtn=true
+2026-10-31T04:19:16.843Z PASS 626 "+ Thêm nhà máy..." item inside the factory dropdown (last) :: options=7 last="+ Thêm nhà máy..."
+2026-10-31T04:19:25.081Z PASS 624 touch 390: appointment group keeps the touch token (44px) :: apptGroup=44px expect≈44
+2026-10-31T04:19:25.720Z PASS 619 notes fully above the fixed bar at scroll end (390) :: notesBottom=48 barTop=783 covered=0 padBottom=73px
+2026-10-31T04:19:26.132Z DB read-only proof after: shipments count = 548
+2026-10-31T04:19:26.133Z DB UNCHANGED ✓
+2026-10-31T04:19:26.133Z RESULT: RUN=after completed

@@ -117,7 +117,12 @@ async function probeGeometry(page) {
 }
 
 async function notesClearanceProbe(page) {
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  // The shell scrolls in .app-body/.content (the fixed-bar hook's own
+  // scroller contract), not necessarily the window — drive both to the end.
+  await page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    for (const scroller of document.querySelectorAll('.app-body, .content')) scroller.scrollTop = scroller.scrollHeight;
+  });
   await sleep(500);
   return page.evaluate(() => {
     const bar = document.querySelector('.csc-form-actions');
@@ -125,9 +130,11 @@ async function notesClearanceProbe(page) {
     const page = document.querySelector('.csc-page');
     const barTop = bar?.getBoundingClientRect().top ?? null;
     const notesBottom = notes?.getBoundingClientRect().bottom ?? null;
+    const scroller = document.querySelector('.app-body, .content');
     return {
       scrolledTo: Math.round(window.scrollY),
-      maxScroll: Math.round(document.documentElement.scrollHeight - window.innerHeight),
+      scrollerAtEnd: scroller ? Math.round(scroller.scrollTop) : null,
+      scrollerMax: scroller ? Math.round(scroller.scrollHeight - scroller.clientHeight) : null,
       barTop: barTop == null ? null : Math.round(barTop),
       notesBottom: notesBottom == null ? null : Math.round(notesBottom),
       notesFullyAboveBar: barTop != null && notesBottom != null ? notesBottom <= barTop : null,
