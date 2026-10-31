@@ -5,7 +5,7 @@
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
-import { eq, and, isNull, ne, sql } from 'drizzle-orm';
+import { eq, and, isNull, ne, or, sql } from 'drizzle-orm';
 import { TripStatus, Role, localDateInBusinessZone } from '@tingting/shared';
 import { isTripRunningOnDepartureDay, isActiveKepPairPartner } from './trip-busy-gate';
 import { LedgerService } from './ledger.service';
@@ -196,7 +196,6 @@ export async function transitionTripStatus(
       }
       const busyTrips = trip.truckId ? await tx.select({
         id: s.trips.id, tripCode: s.trips.tripCode,
-        activeTripPairId: s.trips.activeTripPairId,
         driverId: s.trips.driverId,
         departureDate: s.trips.departureDate,
       })
@@ -222,7 +221,13 @@ export async function transitionTripStatus(
       // running decision lives in trip-busy-gate so tests share the real
       // predicate.
       const todayInBusinessZone = localDateInBusinessZone(new Date());
-      let simultaneousPartnerId: number | null = null;
+      // SIL-602/SIL-631: resolve the trip's OWN ACTIVE KEP pair ROW — the
+      // pair row's membership is the pair identity (see isActiveKepPairPartner).
+      // Fast path: the self stamp. SIL-631 fallback: when the stamp yields
+      // nothing (lost or drifted pointer bookkeeping), resolve by membership
+      // so a valid pair still exempts its own second leg. KET_HOP stays
+      // excluded — its sequencing gate is the sole owner of that pair kind.
+      let kepPair: { firstTripId: number; secondTripId: number } | null = null;
       if (trip.activeTripPairId != null) {
         const [pair] = await tx.select({ firstTripId: s.tripPairs.firstTripId, secondTripId: s.tripPairs.secondTripId })
           .from(s.tripPairs).where(and(
@@ -230,20 +235,26 @@ export async function transitionTripStatus(
             eq(s.tripPairs.status, 'ACTIVE'),
             eq(s.tripPairs.pairKind, 'KEP'),
           )).limit(1);
-        if (pair?.firstTripId === tripId) simultaneousPartnerId = pair.secondTripId;
-        else if (pair?.secondTripId === tripId) simultaneousPartnerId = pair.firstTripId;
+        if (pair && (pair.firstTripId === tripId || pair.secondTripId === tripId)) kepPair = pair;
+      }
+      if (kepPair == null) {
+        const [pair] = await tx.select({ firstTripId: s.tripPairs.firstTripId, secondTripId: s.tripPairs.secondTripId })
+          .from(s.tripPairs).where(and(
+            eq(s.tripPairs.status, 'ACTIVE'),
+            eq(s.tripPairs.pairKind, 'KEP'),
+            or(eq(s.tripPairs.firstTripId, tripId), eq(s.tripPairs.secondTripId, tripId)),
+          )).limit(1);
+        if (pair) kepPair = pair;
       }
       const blockingTrips: Array<{ id: number; tripCode: string | null }> = [];
       for (const candidate of busyTrips) {
-        // SIL-602: the exemption is the pair identity + shared driver — the
-        // whole pair contract (see isActiveKepPairPartner). The superseded
-        // trailerId clause blocked valid pairs whose mooc is unassigned or
-        // drifted; trailer data never was part of that contract.
+        // SIL-602/SIL-631: the exemption is the ACTIVE KEP pair membership +
+        // shared driver — the whole pair contract (see isActiveKepPairPartner).
+        // Superseded pointer/trailer clauses blocked valid pairs in prod.
         if (isActiveKepPairPartner(candidate, {
           tripId,
-          tripPairId: trip.activeTripPairId,
           tripDriverId: trip.driverId,
-          simultaneousPartnerId,
+          pair: kepPair,
         })) continue;
         if (!isTripRunningOnDepartureDay(candidate.departureDate, todayInBusinessZone)) continue;
         const evidence = await getDriverCompletionEvidenceStatus(candidate.id, tx);
