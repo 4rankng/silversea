@@ -395,6 +395,23 @@ export function buildShipmentRootPayload(
   // lot's schedule. The other direction's stored instant is left untouched
   // (edit round-trips keep whatever the lot already had).
   const lclClosingIso = localDateTimeToIso(form.lclClosingAt);
+  // SIL-642 (id 746, owner 31/10): FCL has NO lot-level datetime input — the
+  // top band's bulk datetime is retired and the container table's NGÀY GIỜ
+  // ĐÓNG TRẢ column (customerAppointmentAt, required per FCL row) is the
+  // schedule's source of truth. Of the ticket's two options we DERIVE the
+  // lot-level closingAt from the EARLIEST container instant instead of
+  // sending null: the column keeps feeding its readers (dispatch run-window
+  // coalesce, driver app, CUS workspace) and an edit round-trip re-asserts
+  // the derived value rather than wiping a legacy lot's stored instant.
+  // Drafts compare as fixed-shape "YYYY-MM-DDTHH:mm" strings, so the
+  // lexicographic min IS the chronological min; only the winner converts.
+  const fclEarliestAppointmentDraft = containers
+    .map((row) => row.customerAppointmentAt)
+    .filter(Boolean)
+    .sort()[0];
+  const fclClosingIso = form.cargoMode === 'FCL'
+    ? (fclEarliestAppointmentDraft ? localDateTimeToIso(fclEarliestAppointmentDraft) : null)
+    : localDateTimeToIso(form.closingAt);
   const warehouseName = siteLabel(form.pickupWarehouseSiteId, form.pickupWarehouseName);
   const factoryName = siteLabel(form.operationalSiteId, form.factoryName);
   return {
@@ -432,7 +449,9 @@ export function buildShipmentRootPayload(
     } : {}),
     shippingLineName: form.cargoMode === 'FCL' ? form.shippingLineName || null : null,
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
-    closingAt: isLcl && form.tradeDirection !== 'IMPORT' ? lclClosingIso : localDateTimeToIso(form.closingAt),
+    // SIL-642: FCL rides the derived earliest-container instant (see
+    // fclClosingIso above); LCL keeps the SIL-587 direction-correct law.
+    closingAt: isLcl && form.tradeDirection !== 'IMPORT' ? lclClosingIso : fclClosingIso,
     plannedReturnAt: isLcl && form.tradeDirection === 'IMPORT' ? lclClosingIso : localDateTimeToIso(form.plannedReturnAt),
     // FCL's lot date is derived by the container reconcile in the backend;
     // only LCL retains a shipment-level delivery date — SIL-587: the day is

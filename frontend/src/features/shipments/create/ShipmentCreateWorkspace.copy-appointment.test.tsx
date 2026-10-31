@@ -140,7 +140,8 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
 
   // SIL-513: the retired "Copy giờ hẹn cho tất cả N cont" chip (and its
   // applyAppointmentToAll handler) must not come back — the copy affordances
-  // are the STT duplicate + the copy-down button + the bulk field.
+  // are the STT duplicate + the copy-down button (SIL-642 retired the bulk
+  // band field and its Copy button).
   it('retires the copy-ALL chip from the form', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
@@ -216,67 +217,43 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 2 container chưa có lịch/)).toBeTruthy();
   });
 
-  it('keeps the bulk input as a clipboard source but renders no apply chip (SIL-511)', async () => {
-    // SIL-511 (owner 26/10): the 'Áp dụng cho N container' chip is retired —
-    // TYPING in the bulk field still writes nothing by itself; the apply
-    // paths are the copy-down button, the copy-ALL route, and (QA ruling
-    // 15:10, ticket 710) the band's own Copy BUTTON — not the input.
-    // Locks the removal so a merge cannot resurrect the chip or re-wire an
-    // apply on every keystroke.
+  // SIL-642 (id 746, owner 31/10): the band datetime itself is RETIRED —
+  // the container table's required NGÀY GIỜ ĐÓNG TRẢ column is the only FCL
+  // schedule surface. Locks the removal so a merge cannot resurrect the
+  // band inputs, the Copy affordance or the SIL-511-era chip.
+  it('SIL-642: the FCL band datetime is retired — no bulk inputs, no apply chip, no band copy', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
     addContainer();
     fillAppointment(0, '20/09/2026', '09:00');
 
-    const bulkDate = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-date"]')!;
-    const bulkTime = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]')!;
-    expect(bulkDate).toBeTruthy();
-    expect(bulkTime).toBeTruthy();
-    fireEvent.change(bulkDate, { target: { value: '25/12/2026' } });
-    fireEvent.change(bulkTime, { target: { value: '14:30' } });
-
+    expect(document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-date"]')).toBeNull();
+    expect(document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]')).toBeNull();
+    expect(document.querySelector('.csc-bulk-appointment')).toBeNull();
+    expect(document.querySelector('.csc-bulk-appointment__copy')).toBeNull();
     expect(screen.queryByRole('button', { name: /Áp dụng cho \d+ container/ })).toBeNull();
-    // The clipboard copy affordance survives with the complete typed value.
-    expect(document.querySelector('.csc-bulk-appointment__copy')).toBeTruthy();
-    // No apply path: rows without a schedule stay untouched by this input.
-    [1, 2].forEach((i) => {
-      expect(appointmentValue(i).date).toBe('');
-      expect(appointmentValue(i).time).toBe('');
-    });
+    expect(screen.queryByRole('button', { name: /Copy giờ hẹn đóng trả/ })).toBeNull();
   });
 
-  // QA ruling 15:10 (retest 30/10, ticket 710) — the band Copy button is a
-  // REAL apply path: clipboard-only claimed success ("Đã copy giờ hẹn…")
-  // while the submit kept failing "Container N: chọn ngày giờ đóng/trả."
-  // CUS-03: clicking it WRITES the shared datetime into every
-  // still-unscheduled row — DOM-pin: band filled → Copy clicked → every row
-  // input holds the value → submit names no appointment anywhere.
-  it('band Copy writes the shared datetime into every unscheduled row and clears the submit appointment error (QA 710)', async () => {
+  // CUS-03 guarantee (QA ruling 15:10, ticket 710) survives the band's
+  // retirement through the copy-down button: after it runs, every row holds
+  // a schedule and the submit paints NO appointment error anywhere.
+  it('copy-down fills the unscheduled rows so the submit paints no appointment error (QA 710 via SIL-642 path)', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
     addContainer();
+    fillAppointment(0, '29/10/2026', '08:00');
 
-    const bulkDate = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-date"]')!;
-    const bulkTime = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]')!;
-    fireEvent.change(bulkDate, { target: { value: '29/10/2026' } });
-    fireEvent.change(bulkTime, { target: { value: '08:00' } });
-
-    fireEvent.click(screen.getByRole('button', { name: /Copy giờ hẹn đóng trả/ }));
-
-    // The write lands in every row — with or without a container number.
+    fireEvent.click(screen.getByRole('button', { name: /Copy giờ hẹn xuống cont trống/ }));
     await waitFor(() => {
       [0, 1, 2].forEach((i) => {
         expect(appointmentValue(i).date).toBe('29/10/2026');
         expect(appointmentValue(i).time).toBe('08:00');
       });
     });
-    expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 3 container chưa có lịch/)).toBeTruthy();
 
-    // And the per-container requirement is satisfied everywhere: the submit
-    // paints other fields' errors per-field (SIL-627: no summary banner) and
-    // NO appointment field carries one.
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => {
       const paint = document.querySelectorAll(

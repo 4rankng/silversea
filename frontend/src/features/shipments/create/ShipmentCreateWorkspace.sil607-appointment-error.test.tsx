@@ -117,19 +117,18 @@ describe('SIL-607 appointment schedule error (dedupe + copy-all law)', { timeout
   });
 
   // Ticket 607 report: the lot-level band already held "08:00 29/10/2026"
-  // yet the per-container error still showed. The band is a clipboard source
-  // only (SIL-511/513 owner law — it never writes rows), so per-container
-  // stays REQUIRED; the law's fix is the single line, never a duplicate.
-  it('keeps exactly one per-container line while the copy-all band alone holds a value', async () => {
+  // yet the per-container error still showed. SIL-642 (id 746, owner 31/10)
+  // retired that band outright — the container table's required NGÀY GIỜ
+  // ĐÓNG TRẢ column is the schedule's only FCL surface, so a value can only
+  // live IN a row. The single-line law stands: exactly one message per cell,
+  // never a duplicate and never a band-level lookalike.
+  it('keeps exactly one per-container line; the band surface cannot return (SIL-642)', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     await fillIdentity();
 
-    const bulkDate = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-date"]')!;
-    const bulkTime = document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]')!;
-    expect(bulkDate).toBeTruthy();
-    fireEvent.change(bulkDate, { target: { value: '29/10/2026' } });
-    fireEvent.change(bulkTime, { target: { value: '08:00' } });
+    expect(document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-date"]')).toBeNull();
+    expect(document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(appointmentCellError().count).toBe(1));

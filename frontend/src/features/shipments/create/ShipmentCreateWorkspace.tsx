@@ -8,7 +8,6 @@ import {
 } from './uui-fields';
 import { UDateTimeField } from './uui-datetime-field';
 import { useToast } from '../../../components/shared/Toast';
-import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
   createShippingLine,
@@ -556,7 +555,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // SIL-511 (owner 26/10) retired the 'Áp dụng cho N container' chip beside
   // this input — the copy-down/copy-all buttons below are the apply-all
   // paths — so the typed value feeds only the section clipboard copy.
-  const [bulkAppointment, setBulkAppointment] = useState('');
+  // SIL-642 (id 746, owner 31/10) retires the input itself: the FCL band
+  // datetime (and its Copy apply path) is gone — the container table's
+  // NGÀY GIỜ ĐÓNG TRẢ column (required per row) is the schedule's only
+  // surface. The copy-down button below keeps writing every still-empty row.
   // Case 2026-10-11-R14-03 (FB-009 round 14): the count gates visibility at
   // >= 1 destination — any row still without a schedule, including one holding
   // a partial segment draft (incomplete invalid input the copy replaces
@@ -569,11 +571,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // sources from the first row that has an appointment; the per-row hover
   // buttons keep copying their own values.
   const copySourceRow = containers.find((row) => row.customerAppointmentAt);
-  // FB-009 (card 131026233500): the value the section-level copy button
-  // writes. Empty until the group holds a COMPLETE datetime — a half-typed
-  // draft has no time to copy, and 'HH:mm DD/MM/YYYY' is the shape the row
-  // and dialog copy buttons already write.
-  const bulkAppointmentCopyValue = formatDateTime24(bulkAppointment);
   function copyAppointmentToEmpty(fromKey: string) {
     const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
     if (!source) return;
@@ -587,10 +584,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
 
   // Ticket 211026125242 (CUS-03) — RETIRED by SIL-513 (owner 26/10): the
   // "Copy giờ hẹn cho tất cả N cont" chip is gone. The copy-down button below
-  // keeps filling only the still-empty rows, and the bulk "Ngày giờ đóng trả
-  // cho tất cả cont" field rides its own Copy button — which QA ruling
-  // 15:10 (retest 30/10, ticket 710) turned into a REAL apply path: see
-  // applyBulkAppointmentToRows below.
+  // keeps filling only the still-empty rows. SIL-642 (id 746) then retired
+  // the band datetime that QA ruling 15:10 (retest 30/10, ticket 710) had
+  // upgraded into a second apply path — its write-into-empty-rows behavior
+  // survives through copyAppointmentToEmpty alone.
 
   // FB-009 (2026-10-14): the per-row copy-time affordance — the time itself
   // lands in the OS clipboard so a clerk can paste it anywhere; the toast
@@ -598,25 +595,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // it renders whenever the row holds a schedule, never gated on siblings.
   function notifyAppointmentCopied(formatted: string) {
     toast({ kind: 'success', message: `Đã copy giờ hẹn ${formatted}` });
-  }
-
-  // QA ruling 15:10 (retest 30/10, ticket 710) — CUS-03 no longer accepts a
-  // clipboard-only band Copy: the button lived beside "Ngày giờ đóng trả cho
-  // tất cả cont", claimed success ("Đã copy giờ hẹn…") and wrote NOTHING,
-  // so the submit kept failing "Container N: chọn ngày giờ đóng/trả." The
-  // band Copy now WRITES the shared datetime into every container row that
-  // still lacks a schedule — after it runs, all rows hold a datetime and
-  // the per-container requirement is satisfied everywhere. Rows that
-  // already carry their own schedule keep it (the set-row law the
-  // copy-down button pins); the clipboard write stays as the bonus channel.
-  function applyBulkAppointmentToRows() {
-    if (!bulkAppointment) return;
-    const targetKeys = emptyAppointmentKeys(containers);
-    if (!targetKeys.size) return;
-    setContainers((current) => current.map((row) => (
-      targetKeys.has(row.key) ? { ...row, customerAppointmentAt: bulkAppointment } : row
-    )));
-    toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetKeys.size} container chưa có lịch` });
   }
 
   // SIL-513 (owner 26/10): the STT hover copy duplicates the row IN PLACE —
@@ -640,11 +618,12 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // from the LCL form AND the block is exactly ONE always-visible schedule
   // field — now "Ngày giờ đóng trả" (id `shipment-lcl-closing-at`, state
   // `lclClosingAt`; the payload derives expectedDeliveryDate from its VN
-  // date). FCL keeps the full schedule section. SIL-611 (id 714, owner
-  // 30/10) then deleted the FCL "Lịch & ghi chú" band too: the form is now
-  // Nhận diện lô (gọn) → Thông tin hàng → Ghi chú, with FCL's bulk datetime
-  // in the top mode band (SIL-598) and the copy-down button under the
-  // container table.
+  // date). SIL-611 (id 714, owner 30/10) then deleted the FCL "Lịch & ghi
+  // chú" band too, and SIL-642 (id 746, owner 31/10) retired the FCL bulk
+  // datetime that had moved into the top mode band (SIL-598): the form is
+  // now Nhận diện lô (gọn) → Thông tin hàng → Ghi chú, FCL's schedule lives
+  // ONLY in the container table's required NGÀY GIỜ ĐÓNG TRẢ column, and the
+  // copy-down button under that table stays the fill-everywhere affordance.
 
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '' && value !== undefined) || hasDateDraft(scope);
@@ -885,54 +864,17 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                   />
                 </div>
               )}
-              {/* SIL-598 (id 698, quét sạch khoảng trắng 30/10): FCL's bulk
-                  schedule field joins the mode band — the SAME SIL-587
-                  doctrine that put the LCL datetime beside Loại hàng
-                  ("everything trước mắt"). Alone in the schedule band it
-                  left a ~265px dead strip in its column and, off its row,
-                  the stretched mode card ~170px of empty surface
-                  (qa/2026-10-30_sil598-before). SIL-617 (id 721, owner
-                  31/10) supersedes the old `emptyAppointmentCount >= 1`
-                  gate: once every cont carried a schedule the band
-                  unmounted and cuộn hết form cũng không thấy — the one
-                  place to đặt/đổi giờ hẹn cho tất cả cont vanished exactly
-                  when the form was filled. The band is now ALWAYS visible
-                  in FCL (trống hay đã điền đủ); its Copy still writes only
-                  into rows that lack a schedule (applyBulkAppointmentToRows),
-                  so a filled form shows the band as a readable surface
-                  without any dead apply. */}
-              {form.cargoMode === 'FCL' && (
-                <div className="csc-bulk-appointment" data-field-id="shipment-bulk-appointment">
-                  {/* SIL-625 (id 729, owner 31/10): the visible label
-                      "Ngày giờ đóng trả cho tất cả cont" is retired — the
-                      two segment inputs + the Copy affordance stay. The
-                      group's aria-label keeps the name for screen readers. */}
-                  <UDateTimeField
-                    id="shipment-bulk-appointment"
-                    label="Ngày giờ đóng trả cho tất cả cont"
-                    hideLabel
-                    value={bulkAppointment}
-                    onChange={(event) => setBulkAppointment(event.target.value)}
-                    disabled={controlsDisabled}
-                    combinedPicker
-                  />
-                  {/* FB-009 (card 131026233500) put a clipboard affordance
-                      here; QA ruling 15:10 (retest 30/10, ticket 710)
-                      upgraded it: the button now ALSO WRITES the value
-                      typed HERE into every still-unscheduled container row
-                      (applyBulkAppointmentToRows — CUS-03), with the toast
-                      reporting the write. The clipboard copy stays as the
-                      bonus channel. */}
-                  {bulkAppointmentCopyValue && (
-                    <CopyCodeButton
-                      className="csc-bulk-appointment__copy"
-                      value={bulkAppointmentCopyValue}
-                      label="giờ hẹn đóng trả"
-                      onCopied={() => applyBulkAppointmentToRows()}
-                    />
-                  )}
-                </div>
-              )}
+              {/* SIL-642 (id 746, owner 31/10): the FCL band datetime is
+                  RETIRED — its "Ngày giờ đóng trả cho tất cả cont" field
+                  (SIL-598, always visible per SIL-617, label retired per
+                  SIL-625) duplicated the container table's NGÀY GIỜ ĐÓNG TRẢ
+                  column, which is required per row and is the schedule's
+                  source of truth (getShipmentCreateReadiness). The band is
+                  now exactly "Loại hàng *" + the segmented control in FCL;
+                  the copy-down button under the table keeps the
+                  fill-everywhere path (copyAppointmentToEmpty). LCL keeps
+                  its own schedule datetime beside the segmented control
+                  (SIL-587; visible inline label per SIL-639). */}
             </div>
           </ShipmentCreateSection>
           <ShipmentCreateIdentitySection

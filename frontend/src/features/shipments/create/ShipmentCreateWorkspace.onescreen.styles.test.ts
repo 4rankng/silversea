@@ -104,21 +104,20 @@ describe('SIL-499 onescreen wide band', () => {
     expect(CSS, 'no font-size declarations in the wide band').not.toMatch(/font-size:/);
   });
 
-  it('SIL-598 + SIL-611: the FCL bulk datetime rides the mode band; the deleted schedule band never returns', () => {
+  it('SIL-642: the FCL bulk datetime is retired — the mode band is Loại hàng + segmented only', () => {
     const WORKSPACE = readFileSync(join(__dirname, 'ShipmentCreateWorkspace.tsx'), 'utf8');
-    // The bulk block lives between the mode-band row and the identity
-    // section (same band as the SIL-587 LCL datetime), still gated to FCL
-    // and to conts that lack a schedule.
+    // SIL-642 (id 746, owner 31/10) retired the band datetime outright: no
+    // bulk block may live between the mode-band row and the identity
+    // section, and no FCL-only band gate may return.
     const modeBandRegion = WORKSPACE.slice(
       WORKSPACE.indexOf('csc-mode-band__row'),
       WORKSPACE.indexOf('<ShipmentCreateIdentitySection'),
     );
-    expect(modeBandRegion, 'bulk appointment inside the mode band').toContain('csc-bulk-appointment');
-    // SIL-617 (id 721, owner 31/10): the band is ALWAYS visible in FCL —
-    // the old `emptyAppointmentCount >= 1` gate unmounted it once every
-    // cont carried a schedule, the ticket's "cuộn hết form cũng không thấy".
-    expect(modeBandRegion, 'bulk stays FCL-only, always visible').toMatch(/cargoMode === 'FCL' && \(/);
-    expect(modeBandRegion, 'the count gate is retired from the band').not.toMatch(/cargoMode === 'FCL' && emptyAppointmentCount/);
+    expect(modeBandRegion, 'the band datetime block is gone').not.toContain('csc-bulk-appointment');
+    expect(modeBandRegion, 'no FCL band gate survives').not.toMatch(/cargoMode === 'FCL' && \(/);
+    // The LCL schedule datetime is the band's only remaining field
+    // (SIL-587), still gated to LCL.
+    expect(modeBandRegion, 'the LCL datetime stays').toMatch(/cargoMode === 'LCL' && \(/);
     // SIL-611 (id 714, owner 30/10): the "Lịch & ghi chú" section is gone —
     // no `id="schedule"` section in the DOM, and the Ghi chú band renders
     // strictly AFTER Thông tin hàng (the copy-down button rides cargo,
@@ -134,9 +133,8 @@ describe('SIL-499 onescreen wide band', () => {
     // measured a ~265px dead strip beside the 150px control) stays dead.
     expect(CSS).not.toMatch(/#shipment-section-schedule \.csc-bulk-appointment/);
     expect(CSS).not.toMatch(/#shipment-section-schedule \{ grid-template-columns:/);
-    // SIL-604: the band row is one baseline line — content-sized mode card,
-    // no grow on the bulk group (the group hugs its 260px field + copy
-    // button; worksheet rows never justify-fill).
+    // SIL-604: the band row is one baseline line — content-sized mode card
+    // (worksheet rows never justify-fill).
     expect(CSS).toMatch(/#shipment-section-mode \{ grid-area: 1 \/ 1 \/ 2 \/ 3; align-self: start; \}/);
   });
 
