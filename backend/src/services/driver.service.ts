@@ -609,6 +609,15 @@ export interface DriverFulfillmentDetail {
   siteSnapshot: Record<string, unknown>;
   invoiceInfo: DriverFulfillmentInvoiceInfo | null;
   containerSealPhotos: Array<{ id: number; type: 'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE'; storageKey: string; uploadedAt: string }>;
+  /** SIL-636 — ACTIVE ghép-chuyến pair this trip belongs to ('KEP' → [KẸP],
+   *  'KET_HOP' → [KẾT HỢP] driver-app tag; null when unpaired or the pair is
+   *  broken). Resolved exactly like the journey board (stamp lookup + ACTIVE),
+   *  so the list card and the detail screen always agree. Display-only: the
+   *  KẾT HỢP sequential gating (TC8/TC9) is a different ticket's scope. */
+  pairKind: 'KEP' | 'KET_HOP' | null;
+  /** The other leg's trip id for the ACTIVE pair — internal key only, never
+   *  rendered on a driver surface (internal-ids law). */
+  partnerTripId: number | null;
   evidenceStatus: DriverCompletionEvidenceStatus;
   milestones: DriverProgressEvent[];
   podSubmissions: Awaited<ReturnType<typeof listPodSubmissionsForDriver>>;
@@ -688,6 +697,25 @@ export async function getDriverFulfillmentDetail(
   if (!shipmentRow) {
     throw new ApiError(404, 'Không tìm thấy tác vụ được giao.');
   }
+
+  // SIL-636 — resolve the ACTIVE ghép-chuyến pair exactly like the journey
+  // board (stamp lookup + status='ACTIVE') so the list card's tag and this
+  // detail screen never disagree. Broken pairs (BROKEN) and unpaired trips
+  // resolve null → no tag, per PRD §4 "phản ánh cặp đang có hiệu lực".
+  const [pairRow] = await db.select({
+    status: s.tripPairs.status,
+    pairKind: s.tripPairs.pairKind,
+    firstTripId: s.tripPairs.firstTripId,
+    secondTripId: s.tripPairs.secondTripId,
+  }).from(s.trips)
+    .innerJoin(s.tripPairs, eq(s.tripPairs.id, s.trips.activeTripPairId))
+    .where(eq(s.trips.id, ownedTrip.tripId))
+    .limit(1);
+  const pairActive = pairRow?.status === 'ACTIVE';
+  const pairKind = pairActive ? (pairRow.pairKind as 'KEP' | 'KET_HOP') : null;
+  const partnerTripId = pairActive
+    ? (pairRow.firstTripId === ownedTrip.tripId ? pairRow.secondTripId : pairRow.firstTripId)
+    : null;
 
   const [evidenceStatus, milestones, podSubmissions, containerSealPhotoRows, tagPool] = await Promise.all([
     getDriverCompletionEvidenceStatus(ownedTrip.tripId),
@@ -814,6 +842,8 @@ export async function getDriverFulfillmentDetail(
       cleaningTaxCode: shipmentRow.cleaningTaxCode,
     } : null,
     containerSealPhotos,
+    pairKind,
+    partnerTripId,
     evidenceStatus,
     milestones,
     podSubmissions,

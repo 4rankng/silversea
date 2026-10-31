@@ -138,9 +138,15 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         <span className={`driver-journey-card__bill${billPending ? ' driver-journey-card__bill--pending' : ''}`}>
           {billLabel}
         </span>
-        <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
-          {tag}
-        </span>
+        {/* SIL-636 — the pair tag moves from the header to the container row
+            (ruling: tag cạnh số container) whenever the card carries a
+            container strip; the header slot is the fallback so a card with
+            no container data never loses the tag. Rendered once either way. */}
+        {!hasContainer && (
+          <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
+            {tag}
+          </span>
+        )}
         {card.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
         <span className="driver-journey-card__time">
           {/* Round-17 sweep (mislabeled time column): this chip renders
@@ -187,6 +193,12 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
               ) : (
                 <span className="driver-journey-card__cont-pending">Chưa có số cont</span>
               )}
+              {/* SIL-636 — pair tag rides the container number (ruling:
+                  "tag [KẸP] cạnh số container, trên cả 2 thẻ của cặp").
+                  The flex strip wraps cleanly at 390px. */}
+              <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
+                {tag}
+              </span>
               {isPresent(card.containerTypeName) ? (
                 <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
               ) : null}

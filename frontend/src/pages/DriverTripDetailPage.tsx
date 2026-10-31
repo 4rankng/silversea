@@ -102,6 +102,15 @@ function DriverTripDetailContent() {
   }, [refetchDetail, refetchProgress]);
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
+  // SIL-636 — the [KẸP]/[KẾT HỢP] tag rides the container number, derived
+  // from the ACTIVE pair row the API reports (pairKind). Never a Trip_ID:
+  // the ruling keeps internal ids off the driver UI; partnerTripId stays a
+  // wire-only key.
+  const pairTagLabel = trip?.pairKind === 'KEP'
+    ? '[KẸP]'
+    : trip?.pairKind === 'KET_HOP'
+      ? '[KẾT HỢP]'
+      : null;
   const completed = trip?.status === TripStatus.COMPLETED;
   const cancelled = trip?.status === TripStatus.CANCELED;
   const closed = completed || cancelled;
@@ -506,6 +515,7 @@ function DriverTripDetailContent() {
           sealPhotoKey={sealPhotoKey}
           deliveryNotePhotoKeys={deliveryNotePhotoKeys}
           tradeDirection={trip.tradeDirection ?? null}
+          pairTagLabel={pairTagLabel}
           onSaved={handleContainerSaved}
         />
       </section>
