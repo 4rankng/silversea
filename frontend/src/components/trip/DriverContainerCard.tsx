@@ -57,12 +57,15 @@ interface Props {
   /** Shipment trade direction. IMPORT (trả hàng) scans are cross-checked
    *  against the declared container number (spec A6, advisory only). */
   tradeDirection: string | null;
+  /** SIL-636 — ghép-chuyến pair tag ([KẸP]/[KẾT HỢP]) rendered beside the
+   *  container number in the saved hero. Static text, never a button. */
+  pairTagLabel?: string | null;
   onSaved: () => void;
 }
 
 // AuthedPhotoImg + renderThumb/BentoThumb primitives live in ./DriverTripPhotos
 // (structure-guard split shared across the driver photo surfaces).
-export function DriverContainerCard({ tripId, readOnly = false, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKeys, tradeDirection, onSaved }: Props) {
+export function DriverContainerCard({ tripId, readOnly = false, containers: sourceContainers, contPhotoKey, sealPhotoKey, deliveryNotePhotoKeys, tradeDirection, pairTagLabel, onSaved }: Props) {
   const { toast } = useToast();
   const [draft, setDraft] = useState({ containerNumber: '', sealNumber: '', containerTypeId: '' });
   const [lastPhotos, setLastPhotos] = useState<{ cont: string | null; seal: string | null }>({ cont: null, seal: null });
@@ -402,6 +405,13 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                       <div className="dcc-bento__plate-row">
                         <div className="dcc-bento__plate">{c.containerNumber || 'Chưa có số cont'}</div>
                         {c.containerNumber && <CopyCodeButton value={c.containerNumber} label={contCopyLabel} />}
+                        {/* SIL-636 — pair tag sits beside the container number
+                            (PRD §4: the label rides the correct container).
+                            Static pill — non-interactive, so the SIL-583
+                            ≥44px tap-target law is untouched. */}
+                        {pairTagLabel && (
+                          <span className="dcc-bento__pair-tag" data-testid="driver-pair-tag">{pairTagLabel}</span>
+                        )}
                       </div>
                       {c.containerTypeName && (
                         <div className="dcc-bento__hero-meta">

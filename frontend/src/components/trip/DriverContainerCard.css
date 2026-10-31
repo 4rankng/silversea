@@ -435,6 +435,24 @@
   min-width: 0;
 }
 
+/* SIL-636 — ghép-chuyến pair tag beside the container number. Same pill
+   language as the journey card's clamp tag (house brand tokens); static
+   text, never a button, so the SIL-583 ≥44px tap-target law is untouched
+   and the badge stays one compact line at 390px. */
+.dcc-bento__pair-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  color: var(--brand);
+  font-size: var(--text-caption-size);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* The shared Modal owns the photo menu's surface, corners and dismissal. */
 .dcc-sheet__actions {
   display: grid;

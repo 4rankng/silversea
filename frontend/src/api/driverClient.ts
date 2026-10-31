@@ -258,6 +258,12 @@ export interface DriverTaskDetail {
   podHistory?: DriverTaskPodSubmission[];
   /** TC-DA-001: canonical tag pool (board embed contract, 320aad6b); FE resolves chips via @tingting/shared parseDriverTaskNote. */
   knownTagLabels?: string[];
+  /** SIL-636 — ACTIVE ghép-chuyến pair driving the driver-app [KẸP]/[KẾT HỢP]
+   *  tag (same resolution as the journey board: stamp + ACTIVE). Null when
+   *  unpaired or broken. Display-only; TC8/TC9 gating is another ticket. */
+  pairKind: 'KEP' | 'KET_HOP' | null;
+  /** Other leg's trip id — internal key, never rendered (internal-ids law). */
+  partnerTripId: number | null;
   /** TC-DA-005: customer master-data invoice block — hidden when null. */
   invoiceMaster?: DriverInvoiceMaster | null;
   /** Factory's own invoice identity — explicit party attribution; null when
@@ -328,6 +334,10 @@ interface DriverFulfillmentDetailResponse {
   siteSnapshot: Record<string, unknown>;
   invoiceInfo: DriverFulfillmentInvoiceInfo | null;
   containerSealPhotos: DriverContainerSealPhoto[];
+  /** SIL-636 — ACTIVE pair for the [KẸP]/[KẾT HỢP] tag (top level, like
+   *  tradeDirection: spreading wire.trip alone would drop it). */
+  pairKind?: 'KEP' | 'KET_HOP' | null;
+  partnerTripId?: number | null;
   evidenceStatus: {
     ready: boolean;
     missing: string[];
@@ -366,6 +376,10 @@ function mapFulfillmentDetail(wire: DriverFulfillmentDetailResponse): DriverTask
     // cargoMode/driverNotes), not inside wire.trip — spreading wire.trip alone
     // dropped it, leaving DriverContainerCard's IMPORT advisory permanently off.
     tradeDirection: wire.tradeDirection ?? null,
+    // SIL-636: same top-level pattern — the pair tag fields ride the detail
+    // wire next to tradeDirection and must be mapped explicitly.
+    pairKind: wire.pairKind ?? null,
+    partnerTripId: wire.partnerTripId ?? null,
     fulfillment: {
       id: wire.fulfillmentId,
       code: wire.shipmentCode,

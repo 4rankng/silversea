@@ -309,6 +309,26 @@ describe('DriverTripsPage', () => {
     expect(screen.getByText(/CONT-B/)).toBeTruthy();
   });
 
+  // SIL-636 — the pair tag rides the container NUMBER row on both cards of
+  // the pair (ruling: "tag [KẸP] cạnh số container"), no longer the header.
+  it('SIL-636: pairKind KEP renders the KẸP tag inside the container row on both cards of the pair', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 10, tripId: 70, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPA1234567' }),
+      card({ fulfillmentId: 11, tripId: 71, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPB1234567' }),
+    ]));
+    renderPage();
+
+    const tags = await screen.findAllByText('KẸP');
+    expect(tags).toHaveLength(2);
+    for (const tag of tags) {
+      // "cạnh số container": the tag's row is the container strip itself.
+      expect(tag.closest('p')?.className).toContain('driver-journey-card__container');
+    }
+    // Both pair members carry it (never a Trip_ID-based identity).
+    expect(screen.getByText('KEPA1234567')).toBeTruthy();
+    expect(screen.getByText('KEPB1234567')).toBeTruthy();
+  });
+
   it('tags COMBINED classifications as KẾT HỢP and LCL as LẺ', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ fulfillmentId: 20, classification: 'COMBINED' }),

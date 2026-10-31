@@ -179,6 +179,9 @@ function makeTaskDetail(overrides: Record<string, unknown> = {}) {
     },
     podHistory: [],
     accountingLock: null,
+    // SIL-636 — pair-tag wire fields; null by default (unpaired trip).
+    pairKind: null,
+    partnerTripId: null,
     ...overrides,
   };
 }
@@ -573,6 +576,50 @@ describe('DriverTripDetailPage', () => {
     expect(await screen.findByText(/Số cont & seal/)).toBeTruthy();
     expect(screen.getByText(/Thông tin xuất hóa đơn/)).toBeTruthy();
     expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
+  });
+
+  // SIL-636 — the [KẸP]/[KẾT HỢP] tag rides the container number in the saved
+  // bento hero, derived from the ACTIVE pair row the API reports (pairKind).
+  // The ruling keeps Trip_ID off the driver UI: partnerTripId stays a wire-only
+  // key and never renders.
+  describe('SIL-636 — ghép-chuyến pair tag beside the container number', () => {
+    it('renders [KẸP] beside the container number when the API reports pairKind KEP', async () => {
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ pairKind: 'KEP', partnerTripId: 61 }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      await screen.findByText(/Số cont & seal/);
+      const tag = screen.getByTestId('driver-pair-tag');
+      expect(tag.textContent).toBe('[KẸP]');
+      // "cạnh số container" — same plate row as the cont number.
+      expect(tag.closest('.dcc-bento__plate-row')?.textContent).toContain('MSCU1234561');
+      // Trip_ID law: the partner trip id is a wire key, never a driver label.
+      expect(screen.queryByText('TRIP-61')).toBeNull();
+    });
+
+    it('renders [KẾT HỢP] when the API reports pairKind KET_HOP (display-only — TC8/TC9 gating is another ticket)', async () => {
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ pairKind: 'KET_HOP', partnerTripId: 61 }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      await screen.findByText(/Số cont & seal/);
+      expect(screen.getByTestId('driver-pair-tag').textContent).toBe('[KẾT HỢP]');
+    });
+
+    it('renders no pair tag when the trip has no ACTIVE pair row', async () => {
+      renderPage();
+
+      await screen.findByText(/Số cont & seal/);
+      expect(screen.queryByTestId('driver-pair-tag')).toBeNull();
+    });
   });
 
   it('renders driver notes separately and identifies absent site rules even when notes exist', async () => {

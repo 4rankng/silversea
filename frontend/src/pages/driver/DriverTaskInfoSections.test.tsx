@@ -55,6 +55,9 @@ function makeTrip(overrides: {
     costSubmissionNote: null,
     customerReference: 'CUS-REF',
     accountingLock: null,
+    // SIL-636 — pair-tag wire fields; null by default (unpaired trip).
+    pairKind: null,
+    partnerTripId: null,
     containers: [{ id: 1, containerNumber: 'MSCU1234561', sealNumber: 'SEAL-9', containerTypeId: 1, containerTypeName: '40FT', containerTypeCode: '40G1', cargoWeightKg: null, updatedAt: '2026-08-01T01:00:00.000Z' }],
     legs: [],
     fulfillment: {
