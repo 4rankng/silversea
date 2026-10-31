@@ -1,0 +1,80 @@
+=== QA DRIVER FOR SIL-622 & SIL-623 ===
+Date: 2026-10-31
+Environment: local dev (FE :7175, BE :3002, DB :5441)
+Login successful -> redirected to: http://localhost:7175/config
+[1307px /shipments] Screenshot captured -> qa/2026-10-31_sil622-623_after_shipments-1307.png
+[1307px /shipments] First 5 rows metrics: [
+  {
+    "row": 1,
+    "schedText": "Chưa chốt ngàyToàn bộ chờ phân xe",
+    "issueChipText": null,
+    "statusBadgeText": "Chờ chốt lịch",
+    "signalText": "Thiếu nhà xe 2 cont",
+    "detailBtnText": "Chi tiết",
+    "cellHeight": 76.578125,
+    "badgeBottom": 22.5,
+    "signalBottom": 41,
+    "detailTop": 45.578125,
+    "overlap": false
+  },
+  {
+    "row": 2,
+    "schedText": "Chưa chốt ngàyToàn bộ chờ phân xe",
+    "issueChipText": null,
+    "statusBadgeText": "Chờ chốt lịch",
+    "signalText": "Chưa phân xe",
+    "detailBtnText": "Chi tiết",
+    "cellHeight": 76.578125,
+    "badgeBottom": 22.5,
+    "signalBottom": 41,
+    "detailTop": 45.578125,
+    "overlap": false
+  },
+  {
+    "row": 3,
+    "schedText": "Chưa chốt ngàyToàn bộ chờ phân xe",
+    "issueChipText": null,
+    "statusBadgeText": "Chờ chốt lịch",
+    "signalText": "Chưa phân xe",
+    "detailBtnText": "Chi tiết",
+    "cellHeight": 76.578125,
+    "badgeBottom": 22.5,
+    "signalBottom": 41,
+    "detailTop": 45.578125,
+    "overlap": false
+  },
+  {
+    "row": 4,
+    "schedText": "Chưa chốt ngàyToàn bộ chờ phân xe",
+    "issueChipText": null,
+    "statusBadgeText": "Chờ chốt lịch",
+    "signalText": "Thiếu nhà xe 2 cont",
+    "detailBtnText": "Chi tiết",
+    "cellHeight": 76.578125,
+    "badgeBottom": 22.5,
+    "signalBottom": 41,
+    "detailTop": 45.578125,
+    "overlap": false
+  },
+  {
+    "row": 5,
+    "schedText": "Chưa chốt ngàyToàn bộ chờ phân xe",
+    "issueChipText": null,
+    "statusBadgeText": "Chờ chốt lịch",
+    "signalText": "Thiếu nhà xe 1 cont",
+    "detailBtnText": "Chi tiết",
+    "cellHeight": 76.578125,
+    "badgeBottom": 22.5,
+    "signalBottom": 41,
+    "detailTop": 45.578125,
+    "overlap": false
+  }
+]
+[1307px /dispatch] Screenshot captured -> qa/2026-10-31_sil622-623_after_dispatch-1307.png
+[390px /shipments] Screenshot captured -> qa/2026-10-31_sil622-623_after_shipments-390.png
+[390px /dispatch] Screenshot captured -> qa/2026-10-31_sil622-623_after_dispatch-390.png
+=== VERDICTS ===
+SIL-622: Status chips wrap max 2 lines, no truncate ellipsis: PASS
+SIL-623: Link Chi tiết placed at bottom-right of status cell, no overlap with status badge: PASS
+Console errors: none
+RESULT: PASS
