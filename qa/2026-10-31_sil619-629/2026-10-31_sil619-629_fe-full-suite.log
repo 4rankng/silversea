@@ -1,0 +1,23 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-619-629/frontend
+> vitest run
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-619-629/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+
+ Test Files  769 passed (769)
+      Tests  5976 passed (5976)
+   Start at  12:52:59
+   Duration  611.56s (transform 29.31s, setup 204.21s, import 958.52s, tests 888.01s, environment 852.26s)
+

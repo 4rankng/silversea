@@ -135,6 +135,20 @@ describe('SIL-510 — the ONE action bar: viewport-fixed footer of the worksheet
     expect(document.querySelector('[data-field="shipment-customer"]')?.textContent).toContain('Chọn khách hàng.');
   });
 
+  it('renders a failed save as the inline submit-error alert (SIL-627: the banner is gone, the server surface stays)', async () => {
+    // The deleted ShipmentCreateSummary owned the only render-level assertion
+    // for this surface; the inline `.csc-submit-error` div inherits the job.
+    await enterFclWithCatalogCustomer();
+    quickCreateShipment.mockClear();
+    quickCreateShipment.mockRejectedValueOnce(new Error('Lỗi máy chủ thử lại'));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
+    await waitFor(() => expect(quickCreateShipment).toHaveBeenCalledTimes(1));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveClass('csc-submit-error');
+    expect(alert.textContent).toContain('Lỗi máy chủ thử lại');
+    expect(document.querySelector('.csc-validation-summary')).toBeNull();
+  });
+
   it('discards and leaves from the bar Huỷ', async () => {
     await enterFclWithCatalogCustomer();
 
