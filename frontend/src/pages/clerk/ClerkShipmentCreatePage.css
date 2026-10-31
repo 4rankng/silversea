@@ -160,9 +160,10 @@
    control height — the bordered shell closes at exactly
    --control-compact-h (30px), the same box the Khách hàng combobox renders,
    because the shell's own 2 border pixels ride on top of the option box
-   (calc(- 2px), the same interior law as [data-uui-control] > input). The
-   old 34px pin made the whole band cluster stand ~4-8px taller than every
-   sibling control. Phones keep the touch token below. */
+   (calc(- 2px), the same interior law the shared control-geometry sheet
+   runs on input boundaries). The old 34px pin made the whole band cluster
+   stand ~4-8px taller than every sibling control. Phones keep the touch
+   token below. */
 .csc-mode__option { display: inline-flex; align-items: center; min-height: calc(var(--control-compact-h) - 2px); padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); white-space: nowrap; transition: background-color var(--t-fast), color var(--t-fast); }
 .csc-mode label:hover .csc-mode__option { background: var(--surface-2); color: var(--fg-1); }
 /* SIL-481: the read-only review keeps every control disabled — the hover must
