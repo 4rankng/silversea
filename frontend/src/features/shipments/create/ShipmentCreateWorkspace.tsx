@@ -276,7 +276,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     ));
     const hasContainerData = containers.some((row) => (
       // `id` may exist as undefined (cloned/empty rows) — treat that as empty.
-      Object.entries(row).some(([key, value]) => key !== 'key' && value !== '' && value !== undefined)
+      // classification exempt at its SINGLE default (SIL-638 TC5): a pristine
+      // row always carries ĐƠN and must not read as data.
+      Object.entries(row).some(([key, value]) => key !== 'key'
+        && (key !== 'classification' || value !== 'SINGLE') && value !== '' && value !== undefined)
     ));
     return hasFormData || hasContainerData || customerNotes.trim() !== '';
   }, [containers, customerNotes, editBaselineRef, editTarget, form, viewMode]);
@@ -512,7 +515,8 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     if (next === form.cargoMode) return;
     const hasModeData = form.cargoMode === 'LCL'
       ? Boolean(form.packageType || form.packageCount || form.cargoWeightKg || form.cargoVolumeCbm || form.cargoTypeId || form.operationalSiteId || form.pickupWarehouseSiteId || form.pickupWarehouseName.trim() || form.factoryName.trim() || form.extraDeliveryDates.some(Boolean) || form.lclClosingAt) || hasDateDraft(workspaceFormRef.current, true)
-      : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value)) || hasDateDraft(workspaceFormRef.current?.querySelector('.csc-container-editor'));
+      // classification exempt at its SINGLE default (SIL-638 TC5).
+      : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && (key !== 'classification' || value !== 'SINGLE') && value)) || hasDateDraft(workspaceFormRef.current?.querySelector('.csc-container-editor'));
     if (hasModeData) {
       setPendingModeSwitch(next);
       return;
@@ -626,7 +630,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // copy-down button under that table stays the fill-everywhere affordance.
 
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
-    const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '' && value !== undefined) || hasDateDraft(scope);
+    // classification exempt at its SINGLE default (SIL-638 TC5) — a pristine
+    // row still deletes directly (SIL-629's QA probe state).
+    const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key'
+      && (key !== 'classification' || value !== 'SINGLE') && value !== '' && value !== undefined) || hasDateDraft(scope);
     if (hasEnteredData) {
       setPendingContainerDelete(row);
       return;
@@ -922,6 +929,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
               <>
                 <ShipmentContainerEditor
                   saving={controlsDisabled}
+                  showClassification={workspaceMode === 'create'}
                   onAdd={(count) => setContainers((current) => {
                     const source = current[current.length - 1];
                     return [
@@ -959,6 +967,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                           saving={controlsDisabled}
                           routeOptions={routeOptions}
                           portOptions={portOptions}
+                          showClassification={workspaceMode === 'create'}
                         />
                       ))}
                     </>

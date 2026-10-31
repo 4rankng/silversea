@@ -253,24 +253,25 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         <p className="driver-journey-card__ops-note"><span className="driver-journey-card__port-label">Ghi chú</span>{' '}{operationManualText}</p>
       ) : null}
 
-      {/* KẾT HỢP sequencing lock (TC-GHEP-010) */}
+      {/* SIL-638 TC8: locked Lệnh 2 card — DOC sentence; its footer below stays hidden (read-only). */}
       {card.pairLocked ? (
-        <p className="driver-journey-card__locked">
-          Đang chờ Lệnh 1 hoàn thành trả hàng
-        </p>
+        <p className="driver-journey-card__locked">Cần hoàn thành trả hàng lệnh trước để mở khóa</p>
       ) : null}
 
       {/* 3a0bd5af: contact + Đầu kéo/Mooc rows dropped from the compact card
           (mockup image3 has neither) — the detail page carries full info. */}
 
-      <button
-        type="button"
-        className={`driver-journey-card__footer${isNew ? '' : ' driver-journey-card__footer--quiet'}`}
-        onClick={() => navigate(`/my-trips/${card.tripId}`)}
-      >
-        <span>{footerLabel}</span>
-        <ArrowRight size={16} aria-hidden="true" />
-      </button>
+      {/* SIL-638 TC8: locked card = read-only, no action footer (TC4 keeps it on active cards). */}
+      {!card.pairLocked && (
+        <button
+          type="button"
+          className={`driver-journey-card__footer${isNew ? '' : ' driver-journey-card__footer--quiet'}`}
+          onClick={() => navigate(`/my-trips/${card.tripId}`)}
+        >
+          <span>{footerLabel}</span>
+          <ArrowRight size={16} aria-hidden="true" />
+        </button>
+      )}
     </article>
   );
 }

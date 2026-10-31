@@ -101,6 +101,21 @@ describe('buildShipmentEditPrefill', () => {
     expect(buildShipmentEditPrefill(detail).containers[0].declarationNumber).toBe('');
   });
 
+  // SIL-638 (id 742) TC5: edit drafts always draft ĐƠN — the payload omits
+  // SINGLE, so an edit save can never restate a stored dispatch
+  // classification (that value belongs to the dispatcher's dialog).
+  it('SIL-638 TC5: edit container drafts carry classification SINGLE (never restates the stored value)', () => {
+    const detail = detailFixture({});
+    detail.containers = [{
+      id: 55, shipmentId: 186, containerTypeId: 31, containerNumber: 'CONT-001',
+      sealNumber: null, cargoWeightKg: '12000', customerAppointmentAt: null,
+      pickupPortId: 21, dropoffPortId: 22, routeId: 11, operationalSiteId: 41, notes: null,
+      declarationNumber: null,
+    } as ShipmentEditDetail['containers'][number]];
+
+    expect(buildShipmentEditPrefill(detail).containers[0].classification).toBe('SINGLE');
+  });
+
   it('LCL: pre-fill Hình thức XNK, kho theo chiều hướng, các trường hàng lẻ + không reconcile container', () => {
     const detail = detailFixture({
       cargoMode: 'LCL',

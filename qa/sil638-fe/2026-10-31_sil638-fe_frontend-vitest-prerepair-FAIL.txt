@@ -1,0 +1,78 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-638-fe/frontend
+
+ ❯ src/pages/clerk/ClerkShipmentCreatePage.test.tsx (53 tests | 2 failed) 106373ms
+     × renders one data-flag checkbox treatment and states why Bill/Booking is locked 492ms
+     × uses the container records as the only FCL quantity control 486ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/clerk/ClerkShipmentCreatePage.test.tsx > ClerkShipmentCreatePage > renders one data-flag checkbox treatment and states why Bill/Booking is locked
+AssertionError: expected [ 'Lệnh chạy ngoài', …(5) ] to deeply equal [ 'Lệnh chạy ngoài', …(2) ]
+
+- Expected
++ Received
+
+  [
+    "Lệnh chạy ngoài",
+    "Có cược container",
+    "Đóng kết hợp",
++   "Đơn",
++   "Kẹp",
++   "Kết hợp",
+  ]
+
+ ❯ src/pages/clerk/ClerkShipmentCreatePage.test.tsx:283:66
+    281|     // checkbox treatment, and no other flag treatment survives in the…
+    282|     const flagLabels = Array.from(container.querySelectorAll('label.cs…
+    283|     expect(flagLabels.map((label) => label.textContent?.trim())).toEqu…
+       |                                                                  ^
+    284|       'Lệnh chạy ngoài',
+    285|       'Có cược container',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/pages/clerk/ClerkShipmentCreatePage.test.tsx > ClerkShipmentCreatePage > uses the container records as the only FCL quantity control
+AssertionError: expected [ 'STT', 'Số container', …(8) ] to deeply equal [ 'STT', 'Số container', …(7) ]
+
+- Expected
++ Received
+
+@@ -1,9 +1,10 @@
+  [
+    "STT",
+    "Số container",
+    "Số tờ khai",
++   "Phân loại",
+    "Nhà máy",
+    "Tuyến đường",
+    "Cảng nâng",
+    "Cảng hạ",
+    "Ngày giờ đóng trả",
+
+ ❯ src/pages/clerk/ClerkShipmentCreatePage.test.tsx:1310:92
+    1308|     // after the SỐ CONTAINER group (drawer parity, SIL-508/552 family…
+    1309|     // the rest of the arrangement stays exactly as locked.
+    1310|     expect(within(table).getAllByRole('columnheader').map((header) => …
+       |                                                                                            ^
+    1311|       'STT',
+    1312|       'Số container',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 769 passed (770)
+      Tests  2 failed | 5991 passed (5993)
+   Start at  20:58:07
+   Duration  800.88s (transform 47.24s, setup 247.25s, import 1211.76s, tests 1284.94s, environment 1074.22s)
+

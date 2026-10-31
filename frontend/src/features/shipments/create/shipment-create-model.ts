@@ -1,5 +1,5 @@
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
-import { ShipmentStatus } from '@tingting/shared';
+import { ShipmentStatus, type ContainerClassification } from '@tingting/shared';
 
 export type CargoMode = 'FCL' | 'LCL';
 export type SaveIntent = 'DRAFT' | 'CREATE' | 'SUBMIT';
@@ -95,6 +95,13 @@ export interface ShipmentContainerDraft {
   operationalSiteId: string;
   /** Ad-hoc free-text row factory (Lệnh chạy ngoài §4.2) — XOR with the id. */
   rawFactoryName: string;
+  /**
+   * SIL-638 (id 742) TC5 — the CUS per-container intake classification
+   * (Đơn/Kẹp/Kết hợp). Defaults to SINGLE on every new row; only a
+   * deliberate Kẹp/Kết hợp pick rides the payload (omitted = SINGLE on the
+   * wire, so an edit reconcile can never restate a stored value).
+   */
+  classification: ContainerClassification;
 }
 
 /** `mode` is the top-of-form Loại hàng band (cards 211026130215/30315): it
@@ -185,6 +192,7 @@ export function createEmptyContainer(): ShipmentContainerDraft {
     customerAppointmentAt: '',
     operationalSiteId: '',
     rawFactoryName: '',
+    classification: 'SINGLE',
   };
 }
 
@@ -478,8 +486,13 @@ export function buildShipmentContainerPayload(
   form: ShipmentCreateFormState,
   containers: ShipmentContainerDraft[],
 ) {
+  // `classification` counts as data ONLY at a non-SINGLE pick (SIL-638 TC5):
+  // SINGLE is the pristine default and must never make an untouched row look
+  // filled, but a deliberate Kẹp/Kết hợp pick IS row intent — the same
+  // value-conditional exemption the pristine guards run, so a classified row
+  // is validated (never silently dropped with its pick).
   const rows = form.cargoMode === 'FCL'
-    ? containers.filter((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value))
+    ? containers.filter((row) => Object.entries(row).some(([key, value]) => key !== 'key' && (key !== 'classification' || value !== 'SINGLE') && value))
     : [];
   return rows.map((row) => ({
     // SIL-171 edit mode: existing rows ride their persisted id so the
@@ -499,6 +512,10 @@ export function buildShipmentContainerPayload(
     // SIL-600: per-cont số tờ khai rides the create payload (null when the
     // operator left it empty) — the reconcile stores it on the container row.
     declarationNumber: row.declarationNumber.trim() || null,
+    // SIL-638 TC5: the intake classification rides ONLY when CUS picked
+    // Kẹp/Kết hợp — omitted = SINGLE (the wire default), so an edit-mode
+    // reconcile (drafts always SINGLE) never restates a stored value.
+    ...(row.classification !== 'SINGLE' ? { classification: row.classification } : {}),
     cargoWeightKg: row.cargoWeightKg || null,
     cargoVolumeCbm: row.cargoVolumeCbm || null,
     customerAppointmentAt: localDateTimeToIso(row.customerAppointmentAt),

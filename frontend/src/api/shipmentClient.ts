@@ -1,4 +1,4 @@
-import type { OperationalSiteContact } from '@tingting/shared';
+import type { ContainerClassification, OperationalSiteContact } from '@tingting/shared';
 // Shipment API client — frontend transport layer for `/api/shipments/*`.
 //
 // Mirrors the `tripClient.ts` / `configClient.ts` pattern: thin helpers over
@@ -119,7 +119,7 @@ export interface QuickCreateShipmentRequest {
   customerId?: number | null;
   isAdHoc?: boolean;
   /** Combined save: containers ride the create transaction. */
-  containers?: ShipmentContainerBatch['containers'];
+  containers?: Array<ShipmentContainerBatch['containers'][number]>;
   rawCustomerName?: string | null;
   rawRouteName?: string | null;
   routeId?: number | null;
@@ -450,6 +450,11 @@ export interface ShipmentContainerBatch {
      *  routeId/operationalSiteId — an explicit null (or '') clears the stored
      *  number, an absent key keeps it. Same-lot repeats are legal. */
     declarationNumber?: string | null;
+    /** SIL-638 TC5: CUS per-container intake classification. Omitted = SINGLE
+     *  (the wire default), so a reconcile that carries no choice never
+     *  restates a stored dispatch classification. Persistence stamp is the
+     *  brief-sil-638-be contract. */
+    classification?: ContainerClassification;
     notes?: string | null;
   }>;
 }

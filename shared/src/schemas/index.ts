@@ -14,6 +14,7 @@ import {
   NO_INVOICE_EVIDENCE_TYPES,
   TIRE_STATUSES,
   DISPATCH_CLASSIFICATIONS,
+  CONTAINER_CLASSIFICATIONS,
 } from '../constants';
 
 export * from './financial-reporting-policy';
@@ -1850,6 +1851,13 @@ export const shipmentContainerItemSchema = z.object({
     // shipment_declarations entity is created from this input.
     declarationNumber: z.string().trim().max(50, 'Số tờ khai không được quá 50 ký tự').optional().nullable()
       .transform(v => (v === '' ? null : v)),
+    // SIL-638 (id 742) TC5 — CUS per-container intake classification
+    // (Đơn/Kẹp/Kết hợp). Omitted = SINGLE, the fulfillment default, so an
+    // edit reconcile that carries no choice never restates a stored
+    // dispatch classification. The create path stamps the value onto the
+    // lot's fulfillments (brief-sil-638-be contract:
+    // containers[].classification → fulfillment dispatch_classification).
+    classification: z.enum(CONTAINER_CLASSIFICATIONS).optional(),
     notes: z.string().optional().nullable().transform(v => (v === '' ? null : v)),
   });
 
