@@ -99,7 +99,7 @@ describe('FB-094 — board LCL cells', () => {
       lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '30C-2' }),
     }));
     expect(differing.textContent).toContain('Nhà xe Gaya · Thực: 29C-1');
-    expect(differing.textContent).toContain('Báo khách (Ảo): 30C-2');
+    expect(differing.textContent).toContain('BKS ảo: 30C-2');
     expect(differing.querySelector('.debit-billing-badge')).toBeTruthy();
 
     const matching = textOf('phanXe', row({
@@ -193,7 +193,7 @@ describe('FB-093 — the "Báo khách (Ảo)" badge opens the BKS editor', () =>
     const { container } = render(<>{column.cell(target, { ...noContext, editBillingPlate: (id) => opened.push(id) })}</>);
     const badge = container.querySelector('.debit-billing-badge') as HTMLButtonElement;
     expect(badge.tagName).toBe('BUTTON');
-    expect(badge.getAttribute('aria-label')).toBe('Sửa BKS báo khách: 30C-2');
+    expect(badge.getAttribute('aria-label')).toBe('Sửa BKS ảo: 30C-2');
     fireEvent.click(badge);
     expect(opened).toEqual([77]);
   });

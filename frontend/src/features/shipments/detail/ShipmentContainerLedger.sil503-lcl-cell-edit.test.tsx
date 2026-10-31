@@ -232,11 +232,11 @@ describe('SIL-503 — lot row SỐ TỜ KHAI cell click-to-edit (documents sessi
 });
 
 describe('SIL-503 — lot row PHÂN XE: BKS thực quick edit (parity FB-093a)', () => {
-  it('dòng composite giữ static text; trigger "Sửa BKS thực" riêng mở combobox seed đúng giá trị', () => {
+  it('dòng composite giữ static text; trigger "BKS thực" riêng mở combobox seed đúng giá trị', () => {
     ledgerView([row()]);
     // FB-093a's law survives: the composite Thực line is NOT a control.
     expect(screen.getByText('Nhà xe Hùng - BKS Thực: 15C-111.11').closest('button')).toBeNull();
-    const trigger = screen.getByRole('button', { name: 'Sửa BKS thực cho lô EGLV503LOT0001' });
+    const trigger = screen.getByRole('button', { name: 'BKS thực cho lô EGLV503LOT0001' });
     fireEvent.click(trigger);
     const combo = screen.getByRole('combobox', { name: 'BKS thực' }) as HTMLInputElement;
     expect(combo.value).toBe('15C-111.11');
@@ -246,7 +246,7 @@ describe('SIL-503 — lot row PHÂN XE: BKS thực quick edit (parity FB-093a)',
   it('gõ BKS mới rồi Lưu → đúng một updateLclTruck({shipmentId, actualTruckNo})', async () => {
     updateLclTruckMock.mockClear();
     ledgerView([row()]);
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa BKS thực cho lô EGLV503LOT0001' }));
+    fireEvent.click(screen.getByRole('button', { name: 'BKS thực cho lô EGLV503LOT0001' }));
     const combo = screen.getByRole('combobox', { name: 'BKS thực' });
     combo.focus();
     fireEvent.change(combo, { target: { value: '29H-503.03' } });
@@ -312,15 +312,15 @@ describe('SIL-503 — 2 loại hàng cùng board: FCL giữ nguyên contract, LC
     ledgerView([fclRow({ actualTruckNo: '15C-111.11', billingTruckNo: '15C-999.99' }), row()]);
     // The FCL row keeps the FB-093a billing flow via its plate trigger.
     const fclCell = screen.getByText('MSKU9012345').closest('tr')!;
-    within(fclCell).getByRole('button', { name: 'BKS Báo khách (Ảo): 15C-999.99' });
+    within(fclCell).getByRole('button', { name: 'BKS ảo: 15C-999.99' });
     // The Thực quick trigger is lot-only — a container row edits its plate
     // through the vehicle editor as before.
-    expect(within(fclCell).queryByRole('button', { name: /Sửa BKS thực/ })).toBeNull();
+    expect(within(fclCell).queryByRole('button', { name: /BKS thực/ })).toBeNull();
     // The lot row (second tr) carries the Thực trigger plus its Ảo trigger
     // (differs-case renders the plate-text button per FB-093a).
     const lotCell = screen.getByText('Nhà xe Hùng - BKS Thực: 15C-111.11').closest('tr')!;
-    within(lotCell).getByRole('button', { name: 'Sửa BKS thực cho lô EGLV503LOT0001' });
-    within(lotCell).getByRole('button', { name: 'BKS Báo khách (Ảo): 15C-999.99' });
+    within(lotCell).getByRole('button', { name: 'BKS thực cho lô EGLV503LOT0001' });
+    within(lotCell).getByRole('button', { name: 'BKS ảo: 15C-999.99' });
   });
 
   it('documents bị khóa (READ_ONLY toàn bộ): lot row vẫn KHÔNG có trigger — parity với FCL bị khóa', () => {

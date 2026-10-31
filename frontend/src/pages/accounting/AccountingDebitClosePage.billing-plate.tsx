@@ -31,10 +31,10 @@ export function BillingPlateEditor({
   onCancel,
 }: BillingPlateEditorProps) {
   return (
-    <section className="debit-billing-editor" aria-label={`Sửa BKS báo khách — ${lotLabel}`}>
+    <section className="debit-billing-editor" aria-label={`Sửa BKS ảo — ${lotLabel}`}>
       <div className="debit-billing-editor__grid">
         <USearchableField
-          label="BKS báo khách (Ảo)"
+          label="BKS ảo"
           value={draft}
           onChange={onDraftChange}
           onCustomValue={onDraftChange}
@@ -48,11 +48,11 @@ export function BillingPlateEditor({
       <div className="debit-billing-editor__footer">
         {error
           ? <span className="debit-billing-editor__error" role="alert">{error}</span>
-          : <small>BKS báo khách là biển số in cho khách (xe ảo).</small>}
+          : <small>BKS ảo là biển số in cho khách.</small>}
         <EditActions
           saving={saving}
           saveDisabled={draft.trim() === ''}
-          label="BKS báo khách"
+          label="BKS ảo"
           onCancel={onCancel}
           onSave={onSave}
         />

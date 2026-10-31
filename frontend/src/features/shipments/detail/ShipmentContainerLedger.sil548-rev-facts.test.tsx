@@ -324,9 +324,9 @@ describe('SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô 
     ledgerView([lotRow({ actualTruckNo: null })]);
     const vehicleCell = screen.getByText('R42CUS-LCL1').closest('tr')!.querySelector('td[data-label="Phân xe"]')!;
     expect(within(vehicleCell as HTMLElement).getByRole('button', { name: 'Nhập BKS thực cho lô R42CUS-LCL1' })).toBeTruthy();
-    fireEvent.click(within(vehicleCell as HTMLElement).getByRole('button', { name: 'Nhập BKS báo khách cho lô R42CUS-LCL1' }));
+    fireEvent.click(within(vehicleCell as HTMLElement).getByRole('button', { name: 'Nhập BKS ảo cho lô R42CUS-LCL1' }));
 
-    const combo = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' }) as HTMLInputElement;
+    const combo = screen.getByRole('combobox', { name: 'BKS ảo' }) as HTMLInputElement;
     expect(combo.placeholder).toBe('Chọn hoặc nhập BKS');
     // SIL-631: the editor card floats out of the cell (body portal) — the
     // fallback hint is scoped to that card (not the cell), beside the combobox.
@@ -335,15 +335,15 @@ describe('SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô 
     expect(within(editorCard).getByText(/không đặt = Debit Note in BKS thực/)).toBeTruthy();
 
     fireEvent.change(combo, { target: { value: '15C-999.99' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS báo khách' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS ảo' }));
     expect(updateTruck).toHaveBeenCalledWith({ shipmentId: 71, billingTruckNo: '15C-999.99' });
 
     // QA id 615 re-confirm: the save DID persist but the pending cell never
     // printed the stored Ảo — before or after reload it looked untouched, so
     // the save read as "không lưu được". The pill must appear immediately
     // (override law, no refetch wait) and the bare entry action step aside.
-    expect(await within(vehicleCell as HTMLElement).findByRole('button', { name: 'BKS Báo khách (Ảo): 15C-999.99' })).toBeTruthy();
-    expect(within(vehicleCell as HTMLElement).queryByRole('button', { name: 'Nhập BKS báo khách cho lô R42CUS-LCL1' })).toBeNull();
+    expect(await within(vehicleCell as HTMLElement).findByRole('button', { name: 'BKS ảo: 15C-999.99' })).toBeTruthy();
+    expect(within(vehicleCell as HTMLElement).queryByRole('button', { name: 'Nhập BKS ảo cho lô R42CUS-LCL1' })).toBeNull();
   });
 
   it('lô chưa phân xe ĐÃ lưu BKS báo khách → reload vẫn in pill Ảo trên cell, click mở lại đúng giá trị (QA id 615)', () => {
@@ -351,19 +351,19 @@ describe('SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô 
     // verified live) — the cell face must show it without any editor detour.
     ledgerView([lotRow({ billingTruckNo: '30A-123.45' })]);
     const vehicleCell = screen.getByText('R42CUS-LCL1').closest('tr')!.querySelector('td[data-label="Phân xe"]')!;
-    const pill = within(vehicleCell as HTMLElement).getByRole('button', { name: 'BKS Báo khách (Ảo): 30A-123.45' }) as HTMLButtonElement;
-    expect(pill.title).toBe('Sửa BKS báo khách');
-    expect(within(vehicleCell as HTMLElement).queryByRole('button', { name: 'Nhập BKS báo khách cho lô R42CUS-LCL1' })).toBeNull();
+    const pill = within(vehicleCell as HTMLElement).getByRole('button', { name: 'BKS ảo: 30A-123.45' }) as HTMLButtonElement;
+    expect(pill.title).toBe('Sửa BKS ảo');
+    expect(within(vehicleCell as HTMLElement).queryByRole('button', { name: 'Nhập BKS ảo cho lô R42CUS-LCL1' })).toBeNull();
 
     // Click-to-edit reopens the same Ảo editor, seeded with the stored plate.
     fireEvent.click(pill);
-    expect((screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' }) as HTMLInputElement).value).toBe('30A-123.45');
+    expect((screen.getByRole('combobox', { name: 'BKS ảo' }) as HTMLInputElement).value).toBe('30A-123.45');
   });
 
   it('lô có BKS thực → Ảo editor ghost đúng BKS thực (fallback sẽ in)', () => {
     ledgerView([lotRow({ actualTruckNo: '15C-111.11' })]);
     const vehicleCell = screen.getByText('R42CUS-LCL1').closest('tr')!.querySelector('td[data-label="Phân xe"]')!;
-    fireEvent.click(within(vehicleCell as HTMLElement).getByRole('button', { name: 'Sửa BKS báo khách cho lô R42CUS-LCL1' }));
-    expect((screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' }) as HTMLInputElement).placeholder).toBe('15C-111.11');
+    fireEvent.click(within(vehicleCell as HTMLElement).getByRole('button', { name: 'Sửa BKS ảo cho lô R42CUS-LCL1' }));
+    expect((screen.getByRole('combobox', { name: 'BKS ảo' }) as HTMLInputElement).placeholder).toBe('15C-111.11');
   });
 });

@@ -213,7 +213,7 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
               trống), fallback text hướng dẫn; hint chốt luật. Submit gửi
               null khi trống (xem saveTruck). */}
           <USearchableField
-            label="BKS báo khách (Ảo)"
+            label="BKS ảo"
             value={billing}
             onChange={setBilling}
             options={plateOptions}
@@ -236,7 +236,7 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
         </div>
         {row.billingTruckNo && row.actualTruckNo && row.billingTruckNo !== row.actualTruckNo && (
           <span className="debit-lot-lcl-facts__billing-warn" title="Debit Note in BKS báo khách, không in BKS thực">
-            Báo khách (Ảo): {row.billingTruckNo} — khác BKS thực
+            BKS ảo: {row.billingTruckNo} — khác BKS thực
           </span>
         )}
       </div>

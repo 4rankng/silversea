@@ -1067,10 +1067,10 @@ export function ShipmentContainerLedger({
   // differs from BKS thực), so the two can never drift. SIL-503: the same
   // editor body also serves the BKS thực kind on lot rows.
   function billingPlateEditor(row: ShipmentCusContainerFlatRow, kind: PlateEditorKind = 'billing') {
-    // FB-093a pins the a11y names verbatim: combobox "BKS báo khách (Ảo)",
-    // save button "Lưu BKS báo khách". SIL-503's Thực kind names itself.
-    const fieldLabel = kind === 'actual' ? 'BKS thực' : 'BKS báo khách (Ảo)';
-    const actionLabel = kind === 'actual' ? 'BKS thực' : 'BKS báo khách';
+    // FB-093a pins the a11y names verbatim: combobox "BKS ảo",
+    // save button "Lưu BKS ảo". SIL-503's Thực kind names itself.
+    const fieldLabel = kind === 'actual' ? 'BKS thực' : 'BKS ảo';
+    const actionLabel = kind === 'actual' ? 'BKS thực' : 'BKS ảo';
     return (
       <div className="shipment-container-ledger__inline-editor">
         <div className="shipment-container-ledger__editor-grid">
@@ -1091,7 +1091,7 @@ export function ShipmentContainerLedger({
               pattern), above the footer — in the footer's flex row the narrow
               cell squeezed it to min-content, one character per line. As a
               full-width grid item it wraps as normal horizontal lines. */}
-          <small>{kind === 'actual' ? 'BKS thực là biển số xe chạy thực tế của lô.' : 'BKS báo khách là biển số in cho khách (xe ảo) — không đặt = Debit Note in BKS thực.'}</small>
+          <small>{kind === 'actual' ? 'BKS thực là biển số xe chạy thực tế của lô.' : 'BKS ảo là biển số in cho khách — không đặt = Debit Note in BKS thực.'}</small>
         </div>
         <div className="shipment-container-ledger__editor-footer">
           {billingError && <span className="shipment-container-ledger__edit-error" role="alert">{billingError}</span>}
@@ -1112,9 +1112,9 @@ export function ShipmentContainerLedger({
       <button
         type="button"
         className="shipment-container-ledger__plate"
-        title="Sửa BKS báo khách"
+        title="Sửa BKS ảo"
         onClick={() => openBillingEditor(row, 'billing')}
-      >{`BKS Báo khách (Ảo): ${plate}`}</button>
+      >{`BKS ảo: ${plate}`}</button>
     );
   }
 
@@ -1591,16 +1591,16 @@ export function ShipmentContainerLedger({
                                 the bare entry action is for the empty state. */}
                             <InlineEditHost
                               editing={lotBillingEditing}
-                              label={`Nhập BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                              label={`Nhập BKS ảo cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
                               trigger={lotBillingPlate
                                 ? billingPlateTrigger(row, lotBillingPlate)
                                 : (
                                   <button
                                     type="button"
                                     className="shipment-container-ledger__missing-fields-toggle"
-                                    aria-label={`Nhập BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                                    aria-label={`Nhập BKS ảo cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
                                     onClick={() => openBillingEditor(row, 'billing')}
-                                  >Nhập BKS báo khách</button>
+                                  >Nhập BKS ảo</button>
                                 )}
                               editor={billingPlateEditor(row, 'billing')}
                             />
@@ -1615,16 +1615,16 @@ export function ShipmentContainerLedger({
                           <strong>{`${row.carrierName?.trim() || '—'} - BKS Thực: ${lotActualPlate}`}</strong>
                           <InlineEditHost
                             editing={lotBillingEditing}
-                            label={`Sửa BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                            label={`Sửa BKS ảo cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
                             trigger={lotBillingDiffers
                               ? billingPlateTrigger(row, lotBillingPlate)
                               : (
                                 <button
                                   type="button"
                                   className="shipment-container-ledger__missing-fields-toggle"
-                                  aria-label={`Sửa BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                                  aria-label={`Sửa BKS ảo cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
                                   onClick={() => openBillingEditor(row, 'billing')}
-                                >{lotBillingPlate ? `BKS Báo khách (Ảo): ${lotBillingPlate} — sửa` : 'BKS Báo khách (Ảo): — sửa'}</button>
+                                >BKS ảo</button>
                               )}
                             editor={billingPlateEditor(row, 'billing')}
                           />
@@ -1633,14 +1633,14 @@ export function ShipmentContainerLedger({
                               its own trigger under the Ảo line. */}
                           <InlineEditHost
                             editing={lotActualEditing}
-                            label={`Sửa BKS thực cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                            label={`BKS thực cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
                             trigger={(
                               <button
                                 type="button"
                                 className="shipment-container-ledger__missing-fields-toggle"
-                                aria-label={`Sửa BKS thực cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                                aria-label={`BKS thực cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
                                 onClick={() => openBillingEditor(row, 'actual')}
-                              >Sửa BKS thực</button>
+                              >BKS thực</button>
                             )}
                             editor={billingPlateEditor(row, 'actual')}
                           />
@@ -1657,7 +1657,7 @@ export function ShipmentContainerLedger({
                           <strong>{`${row.carrierName?.trim() || '—'} - BKS Thực: ${lotActualPlate}`}</strong>
                           <InlineEditHost
                             editing={lotBillingEditing}
-                            label={`Sửa BKS báo khách cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
+                            label={`Sửa BKS ảo cho lô ${row.billOrBookNumber ?? row.shipmentId}`}
                             trigger={billingPlateTrigger(row, lotBillingPlate)}
                             editor={billingPlateEditor(row)}
                           />

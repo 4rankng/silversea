@@ -118,37 +118,37 @@ function ledgerView(rows: ShipmentCusContainerFlatRow[]) {
 }
 
 describe('FB-093a — BKS báo khách (Ảo) click-to-edit ARIA contract', () => {
-  it('lô hàng lẻ, Ảo ≠ BKS thực: dòng 2 là role=button có tên tiếp cận và title "Sửa BKS báo khách"', () => {
+  it('lô hàng lẻ, Ảo ≠ BKS thực: dòng 2 là role=button có tên tiếp cận và title "Sửa BKS ảo"', () => {
     ledgerView([row()]);
-    const trigger = screen.getByRole('button', { name: 'BKS Báo khách (Ảo): 15C-999.99' });
-    expect(trigger.getAttribute('title')).toBe('Sửa BKS báo khách');
+    const trigger = screen.getByRole('button', { name: 'BKS ảo: 15C-999.99' });
+    expect(trigger.getAttribute('title')).toBe('Sửa BKS ảo');
     // The thực line above it stays static text, not a control.
     expect(screen.getByText('Nhà xe Hùng - BKS Thực: 15C-111.11').closest('button')).toBeNull();
   });
 
-  it('click dòng 2 mở editor: role=combobox "BKS báo khách (Ảo)" + cặp Lưu/Hủy', async () => {
+  it('click dòng 2 mở editor: role=combobox "BKS ảo" + cặp Lưu/Hủy', async () => {
     ledgerView([row()]);
-    fireEvent.click(screen.getByRole('button', { name: 'BKS Báo khách (Ảo): 15C-999.99' }));
+    fireEvent.click(screen.getByRole('button', { name: 'BKS ảo: 15C-999.99' }));
 
-    const combo = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' });
+    const combo = screen.getByRole('combobox', { name: 'BKS ảo' });
     expect(combo.tagName).toBe('INPUT');
     expect((combo as HTMLInputElement).value).toBe('15C-999.99');
-    expect(screen.getByRole('button', { name: 'Lưu BKS báo khách' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Lưu BKS ảo' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /Hủy/ })).toBeTruthy();
   });
 
   it('gõ text tự do rồi Lưu → đúng một updateLclTruck({shipmentId, billingTruckNo})', async () => {
     updateLclTruckMock.mockClear();
     ledgerView([row()]);
-    fireEvent.click(screen.getByRole('button', { name: 'BKS Báo khách (Ảo): 15C-999.99' }));
+    fireEvent.click(screen.getByRole('button', { name: 'BKS ảo: 15C-999.99' }));
 
-    const combo = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' });
+    const combo = screen.getByRole('combobox', { name: 'BKS ảo' });
     combo.focus();
     fireEvent.change(combo, { target: { value: '29H-777.77' } });
     // The suggestion popover isolates the footer from the a11y tree; a real
     // user closes it with an outside press — Escape models that here.
     fireEvent.keyDown(combo, { key: 'Escape' });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS báo khách' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS ảo' }));
 
     await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledTimes(1));
     expect(updateLclTruckMock).toHaveBeenCalledWith({ shipmentId: 1, billingTruckNo: '29H-777.77' });
@@ -156,20 +156,20 @@ describe('FB-093a — BKS báo khách (Ảo) click-to-edit ARIA contract', () =>
 
   it('chưa có BKS ảo: dòng 2 vẫn là role=button (aria-label đặt tên theo lô) và click mở được editor', async () => {
     ledgerView([row({ billingTruckNo: null })]);
-    const trigger = screen.getByRole('button', { name: 'Sửa BKS báo khách cho lô EGLV149607019409' });
+    const trigger = screen.getByRole('button', { name: 'Sửa BKS ảo cho lô EGLV149607019409' });
     fireEvent.click(trigger);
-    expect(screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'BKS ảo' })).toBeTruthy();
   });
 
   it('container row với xe ảo khác xe thực: cùng một role=button và cùng một luồng lưu', async () => {
     updateLclTruckMock.mockClear();
     ledgerView([row({ isLotLevel: false, classification: 'DOUBLE', containerNumber: 'MSKU1234567', containerTypeLabel: "20'DC" })]);
-    fireEvent.click(screen.getByRole('button', { name: 'BKS Báo khách (Ảo): 15C-999.99' }));
+    fireEvent.click(screen.getByRole('button', { name: 'BKS ảo: 15C-999.99' }));
 
-    const combo = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' });
+    const combo = screen.getByRole('combobox', { name: 'BKS ảo' });
     fireEvent.change(combo, { target: { value: '29H-555.55' } });
     fireEvent.keyDown(combo, { key: 'Escape' });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS báo khách' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS ảo' }));
     await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledWith({ shipmentId: 1, billingTruckNo: '29H-555.55' }));
   });
 });

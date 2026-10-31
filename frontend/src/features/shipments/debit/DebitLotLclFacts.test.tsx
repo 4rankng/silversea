@@ -179,7 +179,7 @@ describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng 
     const { onChanged } = renderStrip({ actualTruckNo: '29C-111.11' });
     expect(classField()).toBeInTheDocument();
 
-    const billing = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' });
+    const billing = screen.getByRole('combobox', { name: 'BKS ảo' });
     fireEvent.focusIn(billing);
     fireEvent.click(billing);
     fireEvent.click(await screen.findByRole('option', { name: /29C-111\.11/ }));
@@ -365,7 +365,7 @@ describe('SIL-482 — form PHÂN XE: placeholder Việt hóa + grid 2 cột + h�
     const gridInputs = grid!.querySelectorAll('input');
     expect(gridInputs.length).toBe(2);
     expect(grid!.textContent).toContain('Nhà xe - BKS thực');
-    expect(grid!.textContent).toContain('BKS báo khách (Ảo)');
+    expect(grid!.textContent).toContain('BKS ảo');
     // …and the save action OUTSIDE it (the old inline-right placement rode
     // the helper line and overflowed narrow widths).
     const save = screen.getByRole('button', { name: 'Lưu BKS' });
@@ -392,7 +392,7 @@ describe('FB-141 — BKS báo khách: clear về trống gửi null, không còn
     });
 
     // Ghost placeholder = chính BKS thực khi có (design direction 24/10).
-    const billing = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' }) as HTMLInputElement;
+    const billing = screen.getByRole('combobox', { name: 'BKS ảo' }) as HTMLInputElement;
     expect(billing.placeholder).toBe('15C-167.31');
     expect(screen.getByText('Mặc định dùng BKS thực tế nếu để trống')).toBeInTheDocument();
 
@@ -413,7 +413,7 @@ describe('FB-141 — BKS báo khách: clear về trống gửi null, không còn
 
   it('chưa có BKS thực: placeholder fallback text hướng dẫn dùng BKS thực', () => {
     renderStrip({ actualTruckNo: null, billingTruckNo: null });
-    const billing = screen.getByRole('combobox', { name: 'BKS báo khách (Ảo)' }) as HTMLInputElement;
+    const billing = screen.getByRole('combobox', { name: 'BKS ảo' }) as HTMLInputElement;
     expect(billing.placeholder).toBe('Trống = tự động dùng BKS thực');
   });
 });
