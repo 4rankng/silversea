@@ -1097,7 +1097,21 @@
    column-floor block keeps the shares readable at every canvas ≥ 1189px.
    Content bleeds, controls float: the control surface (title + filters),
    notices and the empty state keep the shared gutter — only the board
-   (.cus-dashboard-viewport, pagination included) bleeds. */
+   (.cus-dashboard-viewport, pagination included) bleeds.
+
+   SIL-615 (id 719, owner 31/10) amends the LEFT edge on the desktop band:
+   at ≥1024px the sidebar is a fixed grid column (app-shell.css `.app`
+   `grid-template-columns`), so the left bleed landed the board flush against
+   the sidebar's right edge with a 0px gap — the reported defect. The shell
+   gutter returns on the left at ≥1024px (24px ≥ the ~12–16px minimum; the
+   1024–1280 compact band keeps its own 20px); the RIGHT edge keeps the
+   full bleed at every width, and <1024px keeps this lane's original
+   both-side bleed (below 1024px the sidebar is a slide-in overlay drawer —
+   responsive.css ≤1023px band — so there is no fixed rail to gap from and
+   the mobile/tablet layout is unchanged). The board's canvas loses 24px on
+   the desktop band, so near the 1189px column floor (e.g. 1280px) the
+   container query's sanctioned horizontal scroll engages instead of
+   collapsing columns — the 2026-09-29 board law, not a regression. */
 .app-main:not(.driver-mode) .app-body:has(> .shipments-page--worksheet) {
   padding-inline: 0;
 }
@@ -1115,6 +1129,19 @@
 .app-main:not(.driver-mode) .app-body > .shipments-page--worksheet .cus-workspace--worksheet {
   margin-inline: calc(-1 * max(var(--app-body-pad-x), env(safe-area-inset-left, 0px)))
     calc(-1 * max(var(--app-body-pad-x), env(safe-area-inset-right, 0px)));
+}
+
+/* SIL-615 (owner 31/10): the desktop band restores the LEFT shell gutter —
+   the negative left margin above is what landed the board on the sidebar's
+   edge. `margin-left: 0` wins per-property over the shorthand by source
+   order (the block sits after the base rule on purpose); the right bleed
+   from the shorthand survives untouched. The page's own padding-inline
+   (kept by the worksheet rule above) IS the ≥12px gutter: 24px default,
+   20px in the 1024–1280 compact band (app-shell.css). */
+@media (min-width: 1024px) {
+  .app-main:not(.driver-mode) .app-body > .shipments-page--worksheet .cus-workspace--worksheet {
+    margin-left: 0;
+  }
 }
 
 .cus-workspace {

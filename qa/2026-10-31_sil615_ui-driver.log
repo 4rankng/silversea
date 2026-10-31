@@ -1,0 +1,27 @@
+login ok → http://localhost:7175/config
+[desktop-1307] @1307x800 shot=2026-10-31_sil615_ui-desktop-1307.png
+[desktop-1307] measured: {"sidebar":{"left":0,"right":48,"top":0,"width":48},"board":{"left":72,"right":1292,"top":128,"width":1220},"table":{"left":72,"right":1292,"top":226,"width":1220},"viewport":{"left":72,"right":1292,"top":226,"width":1220},"gapSidebarToBoard":24,"gapSidebarToTable":24,"appBodyPaddingInline":"0px","worksheetPaddingInline":"24px","worksheetMarginInline":"0px -24px","viewportScroll":{"scrollWidth":1220,"clientWidth":1220},"viewportWidth":1307,"docWidth":1307,"rows":20}
+[desktop-1440] @1440x900 shot=2026-10-31_sil615_ui-desktop-1440.png
+[desktop-1440] measured: {"sidebar":{"left":0,"right":248,"top":0,"width":248},"board":{"left":272,"right":1425,"top":128,"width":1153},"table":{"left":272,"right":1461,"top":226,"width":1189},"viewport":{"left":272,"right":1425,"top":226,"width":1153},"gapSidebarToBoard":24,"gapSidebarToTable":24,"appBodyPaddingInline":"0px","worksheetPaddingInline":"24px","worksheetMarginInline":"0px -24px","viewportScroll":{"scrollWidth":1189,"clientWidth":1153},"viewportWidth":1440,"docWidth":1440,"rows":20}
+[desktop-1280] @1280x800 shot=2026-10-31_sil615_ui-desktop-1280.png
+[desktop-1280] measured: {"sidebar":{"left":0,"right":48,"top":0,"width":48},"board":{"left":68,"right":1265,"top":128,"width":1197},"table":{"left":68,"right":1265,"top":226,"width":1197},"viewport":{"left":68,"right":1265,"top":226,"width":1197},"gapSidebarToBoard":20,"gapSidebarToTable":20,"appBodyPaddingInline":"0px","worksheetPaddingInline":"20px","worksheetMarginInline":"0px -20px","viewportScroll":{"scrollWidth":1197,"clientWidth":1197},"viewportWidth":1280,"docWidth":1280,"rows":20}
+[mobile-390] @390x844 shot=2026-10-31_sil615_ui-mobile-390.png
+[mobile-390] measured: {"sidebar":{"left":-248,"right":0,"top":0,"width":248},"board":{"left":0,"right":390,"top":124,"width":390},"table":{"left":0,"right":390,"top":254,"width":390},"viewport":{"left":0,"right":390,"top":254,"width":390},"gapSidebarToBoard":0,"gapSidebarToTable":0,"appBodyPaddingInline":"0px","worksheetPaddingInline":"8px","worksheetMarginInline":"-8px","viewportScroll":{"scrollWidth":390,"clientWidth":390},"viewportWidth":390,"docWidth":390,"rows":20}
+VERDICTS: {
+  "SIL-615 gap ≥ 12px @1307 (sidebar visible)": true,
+  "SIL-615 gap ≥ 12px @1440": true,
+  "SIL-615 gap ≥ 12px @1280 (collapsed 48px rail)": true,
+  "mobile 390 full-bleed kept (board left ≈ 0)": true,
+  "mobile 390 board reaches right edge": true
+}
+console errors: none
+RESULT: PASS
+[1307-expanded] measured: {"sidebarWidth":248,"boardLeft":272,"gap":24} shot=2026-10-31_sil615_ui-desktop-1307-sidebar-expanded.png
+VERDICT expanded-sidebar gap ≥ 12px: true
+console errors: none
+--- DB side-effect proof (read-only CSS change: persisted data identity) ---
+$ docker exec ss-prod-db psql -U postgres -d silversea -t -c "SELECT count(*) FROM shipments;"
+548  (unchanged; UI tabs render the same population: "Tất cả 498" filtered view, 20 rows/page)
+--- driver exit statuses ---
+main driver (sil615-gutter-drive.mjs): exit 0, RESULT: PASS, console errors none
+expanded driver (sil615-expanded-drive.mjs): exit 0, VERDICT true, console errors none
