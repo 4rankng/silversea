@@ -37,6 +37,7 @@ export {
   effectiveLotContainerCount, LCL_LOT_CONTAINER_COUNT,
   effectiveBillingPlate,
   DISPATCH_CLASSIFICATIONS, DISPATCH_CLASSIFICATION_LABELS,
+  CONTAINER_CLASSIFICATIONS,
   LCL_PICKUP_TRAILER_TYPE,
   LCL_PACKAGE_TYPE_SUGGESTIONS,
   DEFAULT_SHIPPING_LINES,
@@ -44,7 +45,7 @@ export {
   ExpenseTypeCategory,
 } from './constants';
 
-export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification, TradeDirection, LclCargoFitStatus, LclCargoFitAssessment, LclCargoFitInput } from './constants';
+export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification, ContainerClassification, TradeDirection, LclCargoFitStatus, LclCargoFitAssessment, LclCargoFitInput } from './constants';
 export { workInboxItemBaseSchema, workInboxResponseSchema, workInboxPartySchema, workInboxNextActionSchema, workInboxStateSchema, customerDeliveryResponseSchema, operationsWorkInboxItemSchema, driverWorkInboxItemSchema, customerWorkInboxItemSchema, accountantWorkInboxItemSchema, managerWorkInboxItemSchema, adminHealthInboxItemSchema } from './schemas/work-inbox';
 export type {
   WorkInboxItemBase,

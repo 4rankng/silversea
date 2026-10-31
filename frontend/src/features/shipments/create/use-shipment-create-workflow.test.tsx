@@ -154,6 +154,7 @@ describe('post-create navigation (FB-106 card 171026115810)', () => {
     customerAppointmentAt: '2026-08-03T09:00',
     operationalSiteId: '2',
     rawFactoryName: '',
+    classification: 'SINGLE',
   };
   const catalogLclForm: ShipmentCreateFormState = {
     ...EMPTY_SHIPMENT_CREATE_FORM,

@@ -28,6 +28,7 @@ function baseProps(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
     customerAppointmentAt: "2026-10-10T08:00:00",
     operationalSiteId: "1",
     rawFactoryName: "",
+    classification: "SINGLE",
   };
 
   const props: ShipmentCreateContainerRowProps = {
@@ -58,6 +59,7 @@ function baseProps(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
     saving: false,
     routeOptions: [{ value: "1", label: "HP - HN" }],
     portOptions: [{ value: "1", label: "Cảng Hải Phòng" }],
+    showClassification: true,
     ...overrides,
   };
 

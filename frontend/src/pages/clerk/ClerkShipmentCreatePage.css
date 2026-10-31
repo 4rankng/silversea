@@ -276,6 +276,12 @@
    colgroup is the width authority), and longer values scroll inside the
    input — nothing truncates. */
 .csc-container-col__declaration { width: 120px; }
+/* SIL-638 (id 742) TC5 — the per-row Phân loại column (create form): a fixed
+   track wide enough for the three Đơn/Kẹp/Kết hợp chips to wrap to two
+   comfortable lines inside table-fixed layout, never clipping a label. */
+.csc-container-col__classification { width: 168px; }
+.csc-container-row__classification { vertical-align: top; }
+.csc-classification-group { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .csc-container-col__route { width: 180px; }
 .csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
 .csc-container-col__actions { width: 44px; }
@@ -449,6 +455,9 @@
      never shares a phone half-column, and the auto-placement flow after the
      full-row group stays deterministic. */
   .csc-container-row td[data-field-id$='-declaration'] { grid-column: 1 / -1; }
+  /* SIL-638 TC5: the three Phân loại chips take the full phone row — three
+     44px-floor chips cannot share a 390px half-column without clipping. */
+  .csc-container-row td[data-field-id$='-classification'] { grid-column: 1 / -1; }
   /* Route seam marker: Cảng nâng → Cảng hạ reads as one leg of the journey. */
   .csc-container-row td[data-field-id$='-pickup-port']::after { content: ''; position: absolute; z-index: 2; top: 35px; right: -11px; width: 7px; height: 7px; border-top: 2px solid var(--fg-3); border-right: 2px solid var(--fg-3); transform: rotate(45deg); pointer-events: none; }
   /* In-cell affordances align to the control band, under the new label line. */

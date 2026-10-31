@@ -996,6 +996,17 @@ export const DISPATCH_CLASSIFICATION_LABELS: Record<DispatchClassification, stri
 };
 
 /**
+ * SIL-638 (id 742) TC5 — the per-container intake vocabulary the CUS create
+ * form offers on each FCL container row. A strict subset of
+ * DISPATCH_CLASSIFICATIONS: Lẻ/Lấy Lẻ belong to the LOT's cargo mode, never
+ * to a container row, so the intake picker can never emit them. Omitted on
+ * the wire = SINGLE (ĐƠN) — the fulfillment default — so an edit reconcile
+ * that carries no classification choice never restates a stored value.
+ */
+export const CONTAINER_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED'] as const;
+export type ContainerClassification = (typeof CONTAINER_CLASSIFICATIONS)[number];
+
+/**
  * The Lảy Lẻ run always moves one 40' empty shell, whatever the row's own
  * container code says — the shell is the truck's, not the lot's.
  */

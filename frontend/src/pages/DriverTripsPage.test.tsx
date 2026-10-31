@@ -352,15 +352,57 @@ describe('DriverTripsPage', () => {
     expect(screen.queryByText('KẸP')).toBeNull();
   });
 
-  it('shows the KẾT HỢP sequencing lock note on the second card until Lệnh 1 completes', async () => {
+  // SIL-638 TC8 (id 742): the locked Lệnh 2 card renders the DOC's own
+  // unlock sentence and is READ-ONLY — its action footer is hidden, while
+  // the active Lệnh 1 card keeps its affordance (BE still 409s as the hard
+  // sequencing backstop; the FE must not offer the fight).
+  it('locks the KẾT HỢP second card read-only with the unlock sentence until Lệnh 1 completes', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
-      card({ fulfillmentId: 60, pairId: 7, pairKind: 'KET_HOP', pairOrder: 1, pairLocked: false }),
-      card({ fulfillmentId: 61, pairId: 7, pairKind: 'KET_HOP', pairOrder: 2, pairLocked: true }),
+      card({ fulfillmentId: 60, tripId: 80, pairId: 7, pairKind: 'KET_HOP', pairOrder: 1, pairLocked: false, containerNumber: 'KEPA1234567' }),
+      card({ fulfillmentId: 61, tripId: 81, pairId: 7, pairKind: 'KET_HOP', pairOrder: 2, pairLocked: true, containerNumber: 'KEPB1234567' }),
     ]));
     renderPage();
 
+    // Both pair members carry the [KẾT HỢP] tag (SIL-636 ruling).
     expect(await screen.findAllByText('KẾT HỢP')).toHaveLength(2);
-    expect(screen.getByText('Đang chờ Lệnh 1 hoàn thành trả hàng')).toBeTruthy();
+    // The DOC's exact unlock sentence on the locked card.
+    expect(screen.getByText('Cần hoàn thành trả hàng lệnh trước để mở khóa')).toBeTruthy();
+    expect(screen.queryByText('Đang chờ Lệnh 1 hoàn thành trả hàng')).toBeNull();
+    // Lệnh 1 (active) keeps its action; Lệnh 2 (locked) has none — exactly
+    // one footer exists across the pair, and it is Lệnh 1's accept CTA.
+    expect(screen.getAllByRole('button', { name: /Xem chi tiết & Nhận lệnh/ })).toHaveLength(1);
+    expect(document.querySelectorAll('.driver-journey-card__footer')).toHaveLength(1);
+    // The locked card's content still identifies the order (read-only ≠
+    // hidden): the cont number renders without any control beside it.
+    expect(screen.getByText('KEPB1234567')).toBeTruthy();
+  });
+
+  // SIL-638 TC4 (id 742): both Kẹp cards render as ONE stuck-together combo
+  // in the day list, both ACTIVE — no lock note, both footers navigable — and
+  // the driver may act on Cont B before Cont A without any order enforcement.
+  it('TC4: renders the Kẹp pair as one active combo — order-free footers, no lock', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 10, tripId: 70, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPA1234567' }),
+      card({ fulfillmentId: 11, tripId: 71, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPB1234567' }),
+    ]));
+    renderPage();
+
+    // One clamp group holds exactly the two pair cards (the combo).
+    const groups = document.querySelectorAll('.driver-journey-group--clamp');
+    expect(groups).toHaveLength(1);
+    expect(groups[0].querySelectorAll('.driver-journey-card')).toHaveLength(2);
+    // [KẸP] rides the container row on BOTH cards (SIL-636).
+    expect(await screen.findAllByText('KẸP')).toHaveLength(2);
+    // Neither card is locked or muted: no lock note anywhere.
+    expect(screen.queryByText('Cần hoàn thành trả hàng lệnh trước để mở khóa')).toBeNull();
+    // Order-free: the driver taps Cont B's card FIRST and still lands on ITS
+    // trip — the same freedom in reverse for Cont A.
+    const footers = screen.getAllByRole('button', { name: /Xem chi tiết & Nhận lệnh/ });
+    expect(footers).toHaveLength(2);
+    fireEvent.click(footers[1]);
+    expect(navigateMock).toHaveBeenLastCalledWith('/my-trips/71');
+    fireEvent.click(footers[0]);
+    expect(navigateMock).toHaveBeenLastCalledWith('/my-trips/70');
   });
 
   it('labels ad-hoc lots "Chạy ngoài" next to the tag and leaves regular lots unlabeled', async () => {

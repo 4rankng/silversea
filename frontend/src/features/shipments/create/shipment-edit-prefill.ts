@@ -82,6 +82,12 @@ function containerDraftFromRow(row: ShipmentEditDetail['containers'][number]): S
     customerAppointmentAt: formatVietnamDateTimeInput(row.customerAppointmentAt),
     operationalSiteId: idString(row.operationalSiteId),
     rawFactoryName: row.rawFactoryName ?? '',
+    // SIL-638 TC5: the container-row intake classification is a CREATE-form
+    // decision (the dispatch classification itself lives on the fulfillment
+    // and is the dispatcher's dialog field). Edit drafts always draft ĐƠN and
+    // the payload omits SINGLE, so an edit save can never restate a stored
+    // classification.
+    classification: 'SINGLE',
   };
 }
 

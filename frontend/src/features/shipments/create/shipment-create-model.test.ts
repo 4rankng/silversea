@@ -31,6 +31,7 @@ const container: ShipmentContainerDraft = {
   rawFactoryName: '',
   customerAppointmentAt: '',
   declarationNumber: 'TK-SIL701-A',
+  classification: 'SINGLE',
 };
 
 describe('shipment create model', () => {
@@ -125,6 +126,47 @@ describe('shipment create model', () => {
       customerAppointmentAt: null,
       declarationNumber: 'TK-SIL701-A',
     }]);
+  });
+
+  // SIL-638 (id 742) TC5 — the per-container intake classification rides the
+  // quick-create payload only when CUS picked Kẹp/Kết hợp; omitted = SINGLE.
+  it('SIL-638 TC5: sends a picked Kẹp/Kết hợp classification and omits the ĐƠN default', () => {
+    const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', cargoMode: 'FCL' as const, shippingLineName: 'MSC' };
+    const kepRow: ShipmentContainerDraft = { ...createEmptyContainer(), containerTypeId: '31', classification: 'DOUBLE' };
+    const combinedRow: ShipmentContainerDraft = { ...createEmptyContainer(), containerTypeId: '31', classification: 'COMBINED' };
+    const donRow: ShipmentContainerDraft = { ...createEmptyContainer(), containerTypeId: '31' };
+
+    const [first, second, third] = buildShipmentContainerPayload(form, [kepRow, combinedRow, donRow]);
+    expect(first).toMatchObject({ classification: 'DOUBLE' });
+    expect(second).toMatchObject({ classification: 'COMBINED' });
+    // ĐƠN is the wire default: the key is absent, never sent explicitly.
+    expect(third).not.toHaveProperty('classification');
+  });
+
+  // SIL-638 TC5: a defaulted (Đơn) classification never makes an untouched
+  // row look filled, but a DELIBERATE Kẹp/Kết hợp pick IS row intent — the
+  // row passes the fill filter (and gets validated) instead of silently
+  // dropping the pick.
+  it('SIL-638 TC5: SINGLE default keeps empty rows filtered; a picked classification counts as data', () => {
+    const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', cargoMode: 'FCL' as const };
+    const untouched = createEmptyContainer();
+    const pickedOnly = { ...createEmptyContainer(), classification: 'DOUBLE' as const };
+    const typed = { ...createEmptyContainer(), containerTypeId: '31', classification: 'DOUBLE' as const };
+
+    expect(buildShipmentContainerPayload(form, [untouched])).toEqual([]);
+    expect(buildShipmentContainerPayload(form, [pickedOnly])).toMatchObject([{ classification: 'DOUBLE' }]);
+    expect(buildShipmentContainerPayload(form, [typed])).toMatchObject([{ classification: 'DOUBLE' }]);
+  });
+
+  // SIL-638 TC5: "Thêm container" on a Kẹp lot inherits the pick (shared
+  // half, like số tờ khai) so a kẹp lot needs ONE tick; the explicit STT
+  // duplicate carries it by definition (full-value copy).
+  it('SIL-638 TC5: appending and duplicating rows inherit the classification', () => {
+    const kepRow: ShipmentContainerDraft = { ...createEmptyContainer(), containerTypeId: '31', classification: 'DOUBLE' };
+
+    expect(createContainerFromPrevious(kepRow).classification).toBe('DOUBLE');
+    expect(duplicateContainerRow(kepRow).classification).toBe('DOUBLE');
+    expect(createContainerFromPrevious().classification).toBe('SINGLE');
   });
 
   it('carries row-tier raw factory/route for adhoc rows and nulls the catalog ids', () => {

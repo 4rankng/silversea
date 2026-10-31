@@ -353,6 +353,39 @@ describe('DriverTripPodPage', () => {
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
   });
 
+  // SIL-638 TC9 (id 742): unlock must happen the moment the driver confirms
+  // completion — even through the DRAFT path. A zero-file draft submits fine
+  // (photos optional, card 261022213755a), completion fires, and the journey
+  // board invalidation unlocks the KẾT HỢP Lệnh 2 card on the list. No
+  // e-POD/photo state may block the state change.
+  it('TC9: completes through a zero-file DRAFT — submit then complete, board invalidated for the unlock', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      // A DRAFT exists (the driver opened the e-POD screen) but uploaded nothing.
+      data: makeTaskDetail({ currentPod: makePod([]), podHistory: [] }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    renderPage(client);
+
+    const complete = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
+    expect(complete.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(complete);
+
+    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+    expect(submitPodMock).toHaveBeenCalledWith(FULFILLMENT_ID, 22, { expectedVersion: 2 }, expect.any(String));
+    expect(completeTripMock).toHaveBeenCalledWith(FULFILLMENT_ID, { expectedVersion: 3 }, expect.any(String));
+    expect(submitPodMock.mock.invocationCallOrder[0]).toBeLessThan(completeTripMock.mock.invocationCallOrder[0]);
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
+    // The unlock channel: the board + day view refetch BEFORE navigating back,
+    // so the Lệnh 2 card reads unlocked immediately (no 5-minute stale mask).
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
+  });
+
   it.each(['submit', 'complete'])('keeps the driver on the POD screen when %s fails', async (stage) => {
     const error = new Error('Không thể lưu, vui lòng thử lại.');
     (stage === 'submit' ? submitPodMock : completeTripMock).mockRejectedValue(error);

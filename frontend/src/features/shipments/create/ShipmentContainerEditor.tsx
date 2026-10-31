@@ -9,10 +9,13 @@ interface ShipmentContainerEditorProps {
   rows: ReactNode;
   saving: boolean;
   onAdd: (count: number) => void;
+  /** SIL-638 TC5: the Phân loại column rides the CREATE form only (see
+   *  ShipmentCreateContainerRowProps.showClassification). */
+  showClassification?: boolean;
 }
 
 /** Feature-local FCL editor shell for repeatable container records. */
-export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContainerEditorProps) {
+export function ShipmentContainerEditor({ rows, saving, onAdd, showClassification = false }: ShipmentContainerEditorProps) {
   const [addCount, setAddCount] = useState<number | ''>(DEFAULT_ADD_COUNT);
   const addCountIsValid = typeof addCount === 'number'
     && Number.isInteger(addCount)
@@ -30,6 +33,8 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
             {/* SIL-701/SIL-600: số tờ khai rides right after the container
                 identity group — the CUS Thông tin hàng sheet's column order. */}
             <col className="csc-container-col__declaration" />
+            {/* SIL-638 TC5: per-row Phân loại — create form only. */}
+            {showClassification && <col className="csc-container-col__classification" />}
             <col className="csc-container-col__factory" />
             <col className="csc-container-col__route" />
             <col className="csc-container-col__pickup-port" />
@@ -42,6 +47,7 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
               <th scope="col">STT</th>
               <th scope="col">Số container</th>
               <th scope="col">Số tờ khai</th>
+              {showClassification && <th scope="col">Phân loại</th>}
               <th scope="col">Nhà máy</th>
               <th scope="col">Tuyến đường</th>
               <th scope="col">Cảng nâng</th>

@@ -1,5 +1,6 @@
 import { Copy, Trash2 } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { DISPATCH_CLASSIFICATION_LABELS, type ContainerClassification } from '@tingting/shared';
 import type { CatalogData } from '../../../api/tripClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
 import { useClickOutside } from '../../../hooks/useClickOutside';
@@ -16,6 +17,14 @@ import { ContainerTypeCellPicker } from './ContainerTypeCellPicker';
 import type { ShipmentContainerDraft } from './shipment-create-model';
 
 type ContainerRow = ShipmentContainerDraft;
+
+/**
+ * SIL-638 (id 742) TC5 — the per-row Phân loại options. The shared label
+ * vocabulary (Đơn/Kẹp/Kết hợp) so CUS intake and the dispatcher's detailed
+ * plan name the same classification the same way.
+ */
+const CLASSIFICATION_OPTIONS: ReadonlyArray<{ value: ContainerClassification; label: string }> = (['SINGLE', 'DOUBLE', 'COMBINED'] as const)
+  .map((value) => ({ value, label: DISPATCH_CLASSIFICATION_LABELS[value] }));
 
 function formatContainerWeight(value: string) {
   if (!value.trim()) return '';
@@ -58,6 +67,10 @@ export interface ShipmentCreateContainerRowProps {
   saving: boolean;
   routeOptions: { value: string; label: string }[];
   portOptions: { value: string; label: string }[];
+  /** SIL-638 TC5: the Phân loại radio cell is a CREATE-form intake decision
+   *  — hidden on the "Sửa lô" edit round (the dispatcher owns the stored
+   *  classification; a picker that cannot persist would be a fake control). */
+  showClassification: boolean;
 }
 
 export function ShipmentCreateContainerRow({
@@ -86,6 +99,7 @@ export function ShipmentCreateContainerRow({
   saving,
   routeOptions,
   portOptions,
+  showClassification,
 }: ShipmentCreateContainerRowProps) {
   const containerType = (catalogs.containerTypes ?? []).find((item) => String(item.id) === row.containerTypeId);
   const pickupPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.pickupPortId);
@@ -355,6 +369,41 @@ export function ShipmentCreateContainerRow({
           disabled={saving}
         />
       </ShipmentContainerCell>
+      {/* SIL-638 (id 742) TC5 — per-row Phân loại vận chuyển (Đơn/Kẹp/Kết
+          hợp), the CUS intake call the DOC gives CUS ("chọn trạng thái KẸP
+          cho cả 2 cont tại ô phân loại vận chuyển"). A native radio group —
+          exactly one of three, Đơn preselected — wearing the form's own
+          .csc-flag-checkbox chip treatment, so the pick reads as the same
+          control family as the identity flags. The dispatch plan then shows
+          the fulfillment's classification without a manual re-pick (the
+          persistence stamp is the backend's brief-sil-638-be contract). */}
+      {showClassification && (
+        <td
+          className="csc-container-row__classification"
+          data-label="Phân loại"
+          data-field-id={`container-${row.key}-classification`}
+        >
+          <div
+            role="radiogroup"
+            aria-label={`Phân loại vận chuyển — container ${index + 1}`}
+            className="csc-classification-group"
+          >
+            {CLASSIFICATION_OPTIONS.map((option) => (
+              <label key={option.value} className="csc-flag-checkbox">
+                <input
+                  type="radio"
+                  name={`container-classification-${row.key}`}
+                  value={option.value}
+                  checked={row.classification === option.value}
+                  onChange={() => updateContainer(row.key, 'classification', option.value)}
+                  disabled={saving}
+                />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </div>
+        </td>
+      )}
       <td className="csc-container-row__group" aria-hidden="true">Lộ trình</td>
       <ShipmentContainerCell
         label={isAdHoc ? 'Nhà máy' : 'Nhà máy *'}
