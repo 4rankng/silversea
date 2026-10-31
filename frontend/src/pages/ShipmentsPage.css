@@ -1018,7 +1018,15 @@
        card in the app. */
     font-weight: var(--fw-bold);
     letter-spacing: 0.04em;
-    line-height: 1.3;
+    /* Regression tail (QA wave 31/10): this line box carries UPPERCASE
+       Vietnamese ink — the tallest ink in the cell (≈1.21em, SIL-540's
+       measurement, pins in ShipmentsTableRowHeight.test.tsx). A literal 1.3
+       leaves ~0.5px of half-leading per side at 11px, one device pixel at
+       DPR 2, and that shave is the "second line cut in half" the wave
+       screenshotted. The shared ops-table header token (1.35) is the same
+       ≥1.35 law the SIL-540 pin holds for every other line in this cell —
+       shared geometry, no page-owned number. */
+    line-height: var(--ops-table-header-line-height, 1.35);
     text-transform: uppercase;
   }
   .cus-dashboard-table .cus-inline-trigger[data-cell-short]::before {

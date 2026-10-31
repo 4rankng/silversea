@@ -1,0 +1,6 @@
+ABORT: staging login failed
+LOGIN ok role=CUS (thanhdc) staging
+@390 rows=20 rowOverlaps=0 issues=0 eyebrow={"fs":"11px","fw":"700","transform":"uppercase"} rowH=221
+@495 rows=20 rowOverlaps=0 issues=0 eyebrow={"fs":"11px","fw":"700","transform":"uppercase"} rowH=205
+@1440 rows=20 rowOverlaps=0 issues=0 eyebrow={"fs":"11px","fw":"700","transform":"none"} rowH=77
+DONE

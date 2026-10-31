@@ -1,0 +1,8 @@
+LOGIN ok role=CUS
+@390 rows=20 rowOverlaps=0 issues=0
+@390 metrics={"rowH":221,"rowGapNext":10,"triggerCount":5,"multilineDisplay":"inline","triggerDisplay":"block","triggerOverflow":"visible"}
+@495 rows=20 rowOverlaps=0 issues=0
+@495 metrics={"rowH":205,"rowGapNext":10,"triggerCount":5,"multilineDisplay":"inline","triggerDisplay":"block","triggerOverflow":"visible"}
+@1440 rows=20 rowOverlaps=0 issues=0
+@1440 metrics={"rowH":77,"rowGapNext":0,"triggerCount":5,"multilineDisplay":"grid","triggerDisplay":"grid","triggerOverflow":"visible"}
+DONE
