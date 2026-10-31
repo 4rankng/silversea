@@ -53,6 +53,9 @@ export interface ShipmentCreateContainerRowProps {
   isAdHoc: boolean;
   customerId: string;
   sitesLoading: boolean;
+  /** SIL-626 (id 730): the dropdown's "+ Thêm nhà máy..." footer opens the
+   *  workspace quick-add dialog (the customer-not-chosen gate lives there). */
+  onAddFactory: () => void;
   saving: boolean;
   routeOptions: { value: string; label: string }[];
   portOptions: { value: string; label: string }[];
@@ -80,6 +83,7 @@ export function ShipmentCreateContainerRow({
   isAdHoc,
   customerId,
   sitesLoading,
+  onAddFactory,
   saving,
   routeOptions,
   portOptions,
@@ -414,6 +418,13 @@ export function ShipmentCreateContainerRow({
           searchable
           allowsCustomValue={isAdHoc}
           {...(isAdHoc ? { onCustomValue: (text: string) => containerFactoryCustomText(row.key, text) } : {})}
+          // SIL-626 (id 730, owner 31/10): quick-add lives INSIDE the picker —
+          // the header button is retired. Same house createOption footer the
+          // Tuyến đường/Cảng rows run (20260920_26); it always matches the
+          // filter (its search text rides the typed value) and sits at the
+          // end of the list. The workspace gate (chọn khách hàng trước)
+          // stays: onAddFactory opens the same quick dialog.
+          createOption={{ label: () => '+ Thêm nhà máy...', onSelect: () => onAddFactory() }}
         />
       </ShipmentContainerCell>
       <FactoryDetailPopover

@@ -223,7 +223,11 @@
 :is(#root, body) .csc-mode-band__row .date-seg-group[data-uui-control] .date-seg-wrapper .date-seg {
   padding-block: 0;
 }
-.csc-fcl-factory-action { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; }
+/* SIL-626 (id 730, owner 31/10): the standalone "+ Thêm nhà máy" header
+   button is retired — quick-add lives INSIDE the factory picker as the
+   createOption footer (the house 20260920_26 pattern the Tuyến/Cảng fields
+   already run). The `.csc-fcl-factory-action` block and its onescreen
+   placement pin are retired with it. */
 .csc-container-editor { display: grid; container-type: inline-size; width: 100%; min-width: 0; gap: 8px; }
 /* The box scrolls HORIZONTALLY only. Two traps, both hit on this page:
    1. `overflow-x: auto` alone forces `overflow-y: auto`, so the table gained a

@@ -54,6 +54,7 @@ function baseProps(overrides: Partial<ShipmentCreateContainerRowProps> = {}) {
     isAdHoc: false,
     customerId: "1",
     sitesLoading: false,
+    onAddFactory: vi.fn(),
     saving: false,
     routeOptions: [{ value: "1", label: "HP - HN" }],
     portOptions: [{ value: "1", label: "Cảng Hải Phòng" }],
@@ -116,6 +117,73 @@ describe("ShipmentCreateContainerRow create options (Card 20261009_11)", () => {
     expect(setRouteDialogTargetKey).toHaveBeenCalledWith("row-1");
     expect(setRouteDialogInitialName).toHaveBeenCalledWith("");
     expect(setRouteDialogOpen).toHaveBeenCalledWith(true);
+  });
+});
+
+/**
+ * SIL-626 (id 730, owner 31/10) — the factory quick-add lives INSIDE the
+ * "Nhà máy" picker: a "+ Thêm nhà máy..." footer option (the house
+ * createOption pattern, 20260920_26) opens the workspace quick-add dialog
+ * through `onAddFactory`. The standalone header button is retired.
+ */
+describe("ShipmentCreateContainerRow factory dropdown add-new (SIL-626)", () => {
+  const FACTORIES = [
+    { id: 41, siteType: "FACTORY", code: "ASK-1", shortName: "ASKEY-1", name: "CÔNG TY ASKEY 1", address: "" },
+    { id: 42, siteType: "FACTORY", code: "ASK-2", shortName: "ASKEY-2", name: "CÔNG TY ASKEY 2", address: "" },
+  ] as unknown as OperationalSite[];
+
+  function FactoryRow({ onAddFactory = vi.fn() }: { onAddFactory?: () => void }) {
+    const [operationalSiteId, setOperationalSiteId] = useState("");
+    const { props } = baseProps({ operationalSites: FACTORIES, customerId: "1" });
+    return (
+      <table>
+        <tbody>
+          <ShipmentCreateContainerRow
+            {...props}
+            row={{ ...props.row, operationalSiteId }}
+            selectContainerFactory={(_, value) => setOperationalSiteId(value)}
+            onAddFactory={onAddFactory}
+          />
+        </tbody>
+      </table>
+    );
+  }
+
+  it("lists '+ Thêm nhà máy...' as the LAST option of the factory dropdown", async () => {
+    render(<FactoryRow />);
+    const input = screen.getByRole("combobox", { name: /^Nhà máy/ });
+    input.focus();
+    fireEvent.click(input);
+
+    const options = await screen.findAllByRole("option");
+    const labels = options.map((o) => o.textContent?.trim() ?? "");
+    expect(labels[labels.length - 1]).toBe("+ Thêm nhà máy...");
+    expect(labels.filter((t) => t === "+ Thêm nhà máy...")).toHaveLength(1);
+  });
+
+  it("opens the quick-add dialog via onAddFactory when the footer option is picked", async () => {
+    const onAddFactory = vi.fn();
+    render(<FactoryRow onAddFactory={onAddFactory} />);
+    const input = screen.getByRole("combobox", { name: /^Nhà máy/ });
+    input.focus();
+    fireEvent.click(input);
+
+    fireEvent.click(await screen.findByRole("option", { name: "+ Thêm nhà máy..." }));
+    expect(onAddFactory).toHaveBeenCalledTimes(1);
+    // The row only forwards to the workspace gate — no factory value commits.
+    const cell = document.querySelector('td[data-field-id$="-factory"]') as HTMLElement;
+    expect(cell?.querySelector(".csc-container-cell__display")?.textContent).toBe("Chọn nhà máy");
+  });
+
+  it("survives a typed filter — the footer always matches (house createOption law)", async () => {
+    render(<FactoryRow />);
+    const input = screen.getByRole("combobox", { name: /^Nhà máy/ });
+    input.focus();
+    fireEvent.click(input);
+    fireEvent.change(input, { target: { value: "zzz-no-match" } });
+
+    const footer = await screen.findByRole("option", { name: "+ Thêm nhà máy..." });
+    expect(footer).toBeTruthy();
   });
 });
 

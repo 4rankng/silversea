@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy, Plus } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
@@ -969,16 +969,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           <ShipmentCreateSection id="cargo" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng FCL hoặc hàng lẻ.">
             {form.cargoMode === 'FCL' ? (
               <>
-                <div className="csc-fcl-factory-action">
-                  <button
-                    type="button"
-                    onClick={() => openCreateSiteDialog('FACTORY')}
-                    disabled={controlsDisabled}
-                    className="csc-utility-button csc-utility-button--dashed"
-                  >
-                    <Plus size={15} aria-hidden="true" />Thêm nhà máy
-                  </button>
-                </div>
                 <ShipmentContainerEditor
                   saving={controlsDisabled}
                   onAdd={(count) => setContainers((current) => {
@@ -1014,6 +1004,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                           isAdHoc={form.isAdHoc}
                           customerId={form.customerId}
                           sitesLoading={sitesLoading}
+                          onAddFactory={() => openCreateSiteDialog('FACTORY')}
                           saving={controlsDisabled}
                           routeOptions={routeOptions}
                           portOptions={portOptions}
