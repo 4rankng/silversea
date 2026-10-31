@@ -1086,7 +1086,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.queryByRole('button', { name: 'Thêm ngày giao hàng' })).toBeNull();
     const lclSchedule = document.querySelector('[data-field-id="shipment-lcl-closing-at"]');
     expect(lclSchedule).toBeTruthy();
-    expect(lclSchedule!.textContent).toContain('Ngày giờ đóng trả');
+    // SIL-637: the visible label is retired — the name lives on the
+    // [data-split-datetime] group's aria-label (screen readers keep it).
+    expect(lclSchedule!.querySelector('[data-split-datetime]')?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
+    expect(lclSchedule!.textContent).not.toContain('Ngày giờ đóng trả');
     expect(lclSchedule!.querySelectorAll('input[data-seg="hh"], input[data-seg="dd"]').length).toBe(2);
     expect(document.getElementById('shipment-expected-delivery')).toBeNull();
     // No extra-delivery repeater: exactly one field, no "Ngày giao bổ sung".
@@ -1180,8 +1183,11 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // renders the giờ segment under the same group label. (The FCL container
     // table's own "Ngày giờ đóng trả" column is unrelated vocabulary — the
     // LCL field is identified by its wrapper id.)
-    expect(field.textContent).toContain('Ngày giờ đóng trả');
-    expect(field.textContent).toContain('*');
+    // SIL-637: visible label + required mark retired — the name lives on the
+    // group's aria-label; the two segment inputs and validation stay.
+    expect(field.querySelector('[data-split-datetime]')?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
+    expect(field.textContent).not.toContain('Ngày giờ đóng trả');
+    expect(field.textContent).not.toContain('*');
     expect(field.querySelectorAll('input[data-seg="hh"]').length).toBe(1);
     expect(screen.queryByText('Ngày giao dự kiến')).toBeNull();
     expect(screen.queryByText('Ngày giao hàng')).toBeNull();
