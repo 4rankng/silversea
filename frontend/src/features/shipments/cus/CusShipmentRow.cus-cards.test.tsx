@@ -500,4 +500,11 @@ describe('CusShipmentRow — SIL-610 (lô lẻ cũ có giờ từ dữ liệu ch
     const scheduleCell = container.querySelector('td[data-label*="Lịch trình"]')!;
     expect(scheduleCell.textContent).not.toContain('09:30');
   });
+
+  it('SIL-623: CSS pin — link Chi tiết is placed on dedicated bottom row (bottom-right of cell), never covers status', () => {
+    expect(css).toMatch(/td\[data-label=['"]Trạng thái['"]\]/);
+    expect(css).toMatch(/\.cus-dashboard-table \.cus-row-actions\s*\{[\s\S]*?flex-direction:\s*column;/);
+    expect(css).toMatch(/\.cus-dashboard-table \.cus-row-actions__buttons\s*\{[\s\S]*?justify-content:\s*flex-end;/);
+    expect(css).toMatch(/\.cus-dashboard-table \.cus-row-actions__buttons\s*\{[\s\S]*?margin-top:\s*auto;/);
+  });
 });
