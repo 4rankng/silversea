@@ -53,7 +53,11 @@ function isPaintedRed(fieldId: string): boolean {
 
 async function submitEmptyForm() {
   fireEvent.click((await screen.findAllByRole('button', { name: 'Tạo lô hàng' }))[0]);
-  await screen.findByText(/Cần bổ sung/);
+  // SIL-627 (id 731): the summary banner is retired — the per-field paint
+  // itself is the submit-fail surface.
+  await waitFor(() => {
+    expect(document.querySelectorAll('[aria-invalid="true"], [data-invalid="true"]').length).toBeGreaterThan(0);
+  });
 }
 
 /** The first container row's Loại container cell — its `data-field-id` carries
@@ -123,7 +127,10 @@ describe('create-lot submit paints every invalid required field (FB-048, card 14
     fireEvent.click(await screen.findByRole('option', { name: 'Nhập khẩu' }));
 
     fireEvent.click(createButtons[0]);
-    await screen.findByText(/Cần bổ sung/);
+    // SIL-627: the per-field paint (not a summary banner) marks the fail.
+    await waitFor(() => {
+      expect(document.querySelectorAll('[aria-invalid="true"], [data-invalid="true"]').length).toBeGreaterThan(0);
+    });
 
     expect(isPaintedRed('shipment-customer')).toBe(true);
     expect(isPaintedRed('shipment-booking-ref')).toBe(true);

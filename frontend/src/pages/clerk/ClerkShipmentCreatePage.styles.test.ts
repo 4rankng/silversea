@@ -239,13 +239,13 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode legend,\s*\.csc-mode__option,\s*\.csc-flag-checkbox\s*\{[^}]*font-size:\s*var\(--control-compact-touch-font-size\);[^}]*line-height:\s*var\(--control-compact-touch-line-height\);/);
     expect(css).toMatch(/\.app-main:has\(\.csc-page\) \.app-body\s*\{[^}]*--app-body-pad-x:\s*8px;/);
     expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.csc-page\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*none;[^}]*margin-inline:\s*0;/);
-    // SIL-510: below the onescreen band the worksheet scrolls, so the page
-    // clears the fixed bar's measured height (+12px gap) — ≥1280 keeps the
-    // SIL-499 no-scrollbar fit, the bar overlaying the tail the retired
-    // in-flow footer row freed.
+    // SIL-510 laid the worksheet under the fixed bar; SIL-619 (id 723,
+    // owner 31/10) makes the page clear the bar's measured height (+12px
+    // gap) at EVERY width — the old ≤1279 gate left the ≥1280 band with a
+    // 4px tail and the Ghi chú section trapped under the bar at scroll end.
     expect(css).toMatch(/\.csc-page\s*\{[^}]*width:\s*100%;[^}]*margin:\s*0;[^}]*padding:\s*8px 0;/); // SIL-534: 12→8.
     expect(css).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.csc-page\s*\{[^}]*padding:\s*12px 0;/);
-    expect(css).toMatch(/@media \(max-width:\s*1279px\)[\s\S]*?\.csc-page\s*\{[^}]*padding-bottom:\s*calc\(var\(--csc-action-bar-height, 60px\) \+ 12px\);/);
+    expect(css).toMatch(/\.csc-page\s*\{ padding-bottom: calc\(var\(--csc-action-bar-height, 60px\) \+ 12px\); \}/);
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*gap:\s*8px;/); // SIL-534: 10→8.
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section\s*\{[^}]*padding:\s*8px\s*!important;[^}]*gap:\s*10px\s*!important;/);
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-section__heading\s*\{[^}]*padding:\s*10px 8px;/);
@@ -320,24 +320,24 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-route-dialog__grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/);
   });
 
-  it('keeps a long desktop validation list bounded without hiding any issue', () => {
-    expect(css).toMatch(
-      /@media\s*\(min-width:\s*1101px\)\s*and\s*\(min-height:\s*721px\)[\s\S]*?\.csc-validation-summary ol\s*\{[^}]*max-height:\s*min\(24vh,\s*168px\);[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/,
-    );
-  });
-
-  it('styles validation summary as a compact neutral card with surface tokens and no pink wall (card 181026180300)', () => {
-    expect(css).toMatch(/\.csc-validation-summary\s*\{[^}]*max-width:\s*520px;[^}]*background:\s*var\(--surface\);/);
-    expect(css).toMatch(/\.csc-validation-summary\s*\{[^}]*border:\s*1px solid var\(--border-1\);/);
-    expect(css).not.toMatch(/\.csc-validation-summary\s*\{[^}]*background:\s*var\(--warning-soft\);/);
-    expect(css).not.toMatch(/\.csc-validation-summary\s*\{[^}]*background:\s*var\(--danger-soft\);/);
+  it('SIL-627: the "Cần bổ sung" summary banner is retired with its CSS', () => {
+    // Owner 31/10: validation feedback is per-field; the summary panel (and
+    // card 181026180300's compact-neutral restyle) never renders again — no
+    // RULE for it stays in the sheet. Only the server submit error keeps a
+    // surface.
+    expect(css).not.toMatch(/\.csc-validation-summary[\s,{:]/);
+    expect(css).not.toMatch(/\.csc-summary[\s,{:]/);
+    expect(css).not.toContain('.csc-summary__');
+    expect(css).toMatch(/\.csc-submit-error\s*\{[^}]*color:\s*var\(--danger\);/);
   });
 
   it('uses the full workspace width and keeps actions in the form flow', () => {
     expect(css).toMatch(/\.csc-workspace\s*\{[^}]*display:\s*grid;[^}]*gap:\s*8px;[^}]*min-width:\s*0;/); // SIL-534: 10→8.
     expect(css).not.toContain('grid-template-columns: minmax(0, 1fr) minmax(280px, 320px)');
     expect(css).not.toContain('.csc-readiness');
-    expect(css).toMatch(/\.csc-summary\s*\{[^}]*display:\s*grid;[^}]*gap:\s*12px;[^}]*min-width:\s*0;/);
+    // SIL-627: the summary aside is retired with the banner — no `.csc-summary`
+    // wrapper stays in the stylesheet.
+    expect(css).not.toContain('.csc-summary {');
     expect(css).not.toContain('position: sticky');
   });
 

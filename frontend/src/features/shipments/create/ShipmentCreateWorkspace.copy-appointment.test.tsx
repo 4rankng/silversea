@@ -274,12 +274,17 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     });
     expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 3 container chưa có lịch/)).toBeTruthy();
 
-    // And the per-container requirement is satisfied everywhere: the
-    // submit summary names no appointment issue.
+    // And the per-container requirement is satisfied everywhere: the submit
+    // paints other fields' errors per-field (SIL-627: no summary banner) and
+    // NO appointment field carries one.
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
-    await screen.findByText(/Cần bổ sung \d+ thông tin/);
-    const panel = document.querySelector('.csc-validation-summary')?.textContent ?? '';
-    expect(panel).not.toContain('chọn ngày giờ đóng/trả');
+    await waitFor(() => {
+      const paint = document.querySelectorAll(
+        '.csc-container-cell--error, [data-uui-control][aria-invalid="true"], input[aria-invalid="true"], .csc-searchable-field--error',
+      );
+      expect(paint.length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText(/Cần bổ sung \d+ thông tin/)).toBeNull();
     expect(document.querySelectorAll('[data-field-id$="-customer-appointment"] .csc-container-cell__error')).toHaveLength(0);
   });
 });

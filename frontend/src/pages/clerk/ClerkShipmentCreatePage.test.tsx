@@ -599,12 +599,15 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await waitFor(() => expect(customer).toHaveFocus());
     expect(customer).toHaveAttribute('aria-invalid', 'true');
     // Focusing the invalid customer opens its options and temporarily hides
-    // sibling regions from assistive technology. Dismiss it to read the summary.
+    // sibling regions from assistive technology. Dismiss it to read the field
+    // error. SIL-627: the "Cần bổ sung" panel is retired — the same DRAFT
+    // copy paints per-field under the customer field.
     fireEvent.keyDown(customer, { key: 'Escape' });
-    // Two alert roles can coexist on the page (the live "Cần bổ sung" panel and
-    // the submit error), so read their combined text instead of assuming one.
-    const alerts = await screen.findAllByRole('alert');
-    expect(alerts.map((node) => node.textContent).join(' ')).toContain('Chọn khách hàng để tạo lô hàng');
+    await waitFor(() => {
+      const field = document.querySelector('[data-field="shipment-customer"]');
+      expect(field?.textContent).toContain('Chọn khách hàng để tạo lô hàng');
+    });
+    expect(screen.queryByText(/Cần bổ sung/)).toBeNull();
     expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
 
@@ -626,9 +629,13 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await choose('Khách hàng', '7');
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     // The satisfied customer field is not enough for the CREATE intent: the
-    // summary lists the rest of the missing intake data and nothing is saved.
-    await waitFor(() => expect(document.querySelector('.csc-validation-summary')?.textContent)
-      .toContain('Chọn hình thức nhập khẩu hoặc xuất khẩu'));
+    // rest of the missing intake data paints per-field (SIL-627 retired the
+    // summary banner) and nothing is saved.
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('Chọn hình thức nhập khẩu hoặc xuất khẩu');
+    });
+    expect(screen.queryByText(/Cần bổ sung/)).toBeNull();
+    expect(document.querySelector('.csc-validation-summary')).toBeNull();
     expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
 
@@ -1431,19 +1438,28 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(mocks.quickCreate).not.toHaveBeenCalled();
   });
 
-  it('keeps the factory creation action discoverable before a customer is selected', async () => {
+  it('SIL-626: no standalone factory add affordance before a customer is selected', async () => {
     renderPage();
-    await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    fireEvent.click(screen.getAllByRole('button', { name: /Thêm nhà máy/ })[0]);
-    await waitFor(() => expect(document.querySelector('.toast-container')?.textContent).toContain('Vui lòng chọn khách hàng trước khi thêm nhà máy'));
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
+    // The header button is retired (SIL-626). The FCL factory picker needs a
+    // customer's site catalog, so the combobox is disabled until one is
+    // chosen — the "chọn khách hàng trước" gate stays as defense (the LCL
+    // utility button still routes through it).
+    expect(screen.queryByRole('button', { name: 'Thêm nhà máy' })).toBeNull();
+    expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toBeDisabled();
   });
 
-  it('opens the factory dialog after a customer is selected', async () => {
+  it('SIL-626: opens the factory dialog from the "+ Thêm nhà máy..." dropdown item after a customer is selected', async () => {
     renderPage();
-    await screen.findByRole('heading', { name: 'Nhận diện lô' });
+    await screen.findByRole('heading', { name: 'Thông tin hàng' });
     await choose('Khách hàng', '7');
     await waitFor(() => expect(mocks.sites).toHaveBeenCalledWith(7));
-    fireEvent.click(screen.getAllByRole('button', { name: /Thêm nhà máy/ })[0]);
+    // The quick-add entry lives INSIDE the factory picker now: open the
+    // combobox and pick the footer option (the house createOption pattern).
+    const input = screen.getByRole('combobox', { name: /^Nhà máy/ });
+    input.focus();
+    fireEvent.click(input);
+    fireEvent.click(await screen.findByRole('option', { name: '+ Thêm nhà máy...' }));
     const dialog = await screen.findByRole('dialog', { name: 'Thêm nhà máy' });
     // Card 20261009_10: the intake entry opens the ruled SIX-field quick-add
     // (code derived from the name) — 'Mã điểm vận hành' lives only on the
@@ -1453,10 +1469,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
   });
 
   it.each([
-    { mode: 'FCL', siteType: 'FACTORY', label: 'Nhà máy', action: 'Thêm nhà máy' },
-    { mode: 'LCL', siteType: 'FACTORY', label: 'Nhà máy', action: 'Thêm nhà máy' },
-    { mode: 'LCL', siteType: 'WAREHOUSE', label: 'Kho lấy hàng', action: 'Thêm kho' },
-  ])('TC-CUS-FACTORY-SEARCH-09 immediately selects a created $mode $siteType before catalog reload', async ({ mode, siteType, label, action }) => {
+    { mode: 'FCL', siteType: 'FACTORY', label: 'Nhà máy', action: 'Thêm nhà máy', entry: 'dropdown' as const },
+    { mode: 'LCL', siteType: 'FACTORY', label: 'Nhà máy', action: 'Thêm nhà máy', entry: 'button' as const },
+    { mode: 'LCL', siteType: 'WAREHOUSE', label: 'Kho lấy hàng', action: 'Thêm kho', entry: 'button' as const },
+  ])('TC-CUS-FACTORY-SEARCH-09 immediately selects a created $mode $siteType before catalog reload', async ({ mode, siteType, label, action, entry }) => {
     const created = { ...sites[0], id: 43, code: 'NEW43', name: 'Điểm vận hành mới', shortName: 'Điểm mới', siteType, routeId: siteType === 'FACTORY' ? 11 : null };
     mocks.createSite.mockResolvedValue(created);
     mocks.sites.mockResolvedValueOnce(sites).mockImplementation(() => new Promise(() => {}));
@@ -1469,7 +1485,16 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
     if (mode === 'LCL') fireEvent.click(screen.getByRole('radio', { name: 'Hàng lẻ' }));
     await choose('Khách hàng', '7');
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${action}`) }));
+    // SIL-626: the FCL factory entry rides the picker's dropdown footer
+    // option; the LCL site pickers keep their utility buttons.
+    if (entry === 'dropdown') {
+      const input = screen.getByRole('combobox', { name: /^Nhà máy/ });
+      input.focus();
+      fireEvent.click(input);
+      fireEvent.click(await screen.findByRole('option', { name: '+ Thêm nhà máy...' }));
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${action}`) }));
+    }
     const dialog = await screen.findByRole('dialog', { name: new RegExp(`^${action}`) });
     if (siteType === 'WAREHOUSE' || siteType === 'FACTORY') {
       // FB-077 quick-add contract (card 091026180600 round 1): the warehouse
