@@ -88,3 +88,69 @@ export function isActiveKepPairPartner(
   if (!isMember) return false;
   return candidate.driverId === args.tripDriverId;
 }
+
+/**
+ * SIL-634: the DECLARED clamp proof — the second exemption shape of the
+ * truck-busy gate, for the kẹp pair that was classified and issued but never
+ * paired. The issue-time gate (assertResourceAvailability's declared clamp,
+ * dispatch-resource-availability.service.ts) releases BOTH legs for issue when
+ * both fulfillments are declared Kẹp (`dispatchClassification='DOUBLE'`), same
+ * rig, same driver, same day, both 20' shells — the linkage conjunct passes
+ * with `partner.activePairId == null`, so `trip_pairs` bookkeeping is optional
+ * at issue time (dis-03, card 211026131857: "Pairs are created after both
+ * trips exist"). The dispatcher who stops there is the prod case K4K4…/
+ * K4K5… (31/10): both legs issued, no pair row, and the second "Nhận lệnh"
+ * 409'd because this gate only knew the pair-row proof.
+ *
+ * The declared shape IS the pair arrangement by the same PRD law the pair-row
+ * proof serves (LoHangKepKetHop §3.2/§7.3): two 20' boxes, one rig, one
+ * driver, one day — the partner's IN_TRANSIT row is the pair running, not a
+ * conflicting job. Mirroring the issue-time clamp, both sides must carry the
+ * declaration: a SINGLE busy row stays blocking (SIL-638 TC1 — two plain lots
+ * on one truck never ride together), and so does a SINGLE accepting leg.
+ *
+ * Deliberately NOT part of this proof:
+ *  - the mooc/trailer — superseded by SIL-602 (card 211026152138, not part of
+ *    the pair contract);
+ *  - the 2×20' weight sum — the issue-time clamp owns that gate (it already
+ *    passed for both legs to exist); the pair-row proof doesn't re-check it
+ *    either;
+ *  - a SECOND matching busy row — "a Kẹp release may overlap its one
+ *    compatible partner, never a third load": the caller bounds this proof to
+ *    exactly one shape-matching candidate, mirroring the issue-time
+ *    `conflicts.length === 1` partner pick.
+ *
+ * `twentyFootShell` flags are the caller's DB probe result: exactly one
+ * tripContainers row and its container-type code starts with '20' — the same
+ * physical probe the issue-time clamp runs.
+ */
+export interface DeclaredKepClampCandidateRow {
+  id: number;
+  driverId: number | null;
+  departureDate: string | null;
+  /** The candidate fulfillment's own dispatch classification. */
+  classification: string | null | undefined;
+  /** Caller-proven: this trip carries exactly one 20' shell. */
+  twentyFootShell: boolean;
+}
+
+export function isDeclaredKepClampPartner(
+  candidate: DeclaredKepClampCandidateRow,
+  args: {
+    tripId: number;
+    tripDriverId: number | null | undefined;
+    tripDepartureDate: string | null | undefined;
+    tripClassification: string | null | undefined;
+    /** Caller-proven: the accepting trip carries exactly one 20' shell. */
+    tripTwentyFootShell: boolean;
+  },
+): boolean {
+  if (candidate.id === args.tripId) return false;
+  if (args.tripClassification !== 'DOUBLE' || candidate.classification !== 'DOUBLE') return false;
+  if (!args.tripTwentyFootShell || !candidate.twentyFootShell) return false;
+  if (args.tripDriverId == null || candidate.driverId == null) return false;
+  if (candidate.driverId !== args.tripDriverId) return false;
+  if (args.tripDepartureDate == null || args.tripDepartureDate === '') return false;
+  if (candidate.departureDate == null || candidate.departureDate === '') return false;
+  return candidate.departureDate === args.tripDepartureDate;
+}

@@ -20,7 +20,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { isTripRunningOnDepartureDay, isActiveKepPairPartner } from '../../services/trip-busy-gate';
+import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner } from '../../services/trip-busy-gate';
 
 // ── Transition Matrix ──────────────────────────────────────────────────────
 // Which target statuses are valid from each current status?
@@ -395,6 +395,179 @@ describe('Truck availability gate — SIL-602/SIL-631 KẸP pair partner exempti
       serviceSource,
       /simultaneousPartnerId/,
       'the SIL-631 pointer-chain resolution (simultaneousPartnerId) must stay gone',
+    );
+  });
+});
+
+// SIL-634 — "cặp kẹp thật vẫn bị chặn nhận lệnh 2". The issue-time gate
+// (assertResourceAvailability's declared clamp) releases BOTH legs for issue
+// on the DOUBLE declaration alone — same rig, same driver, same day, both 20'
+// shells, and `partner.activePairId == null` passes the linkage conjunct, so
+// `trip_pairs` bookkeeping is optional at issue time (dis-03, card
+// 211026131857). The truck-busy gate only knew the pair-row proof, so the
+// staging pair K4K423254356 (Xuất, IN_TRANSIT) + K4K5346345654 (Nhập, Mới
+// tạo) — both "Phân loại Kẹp", truck 15E-016.26, driver Nguyễn Duy Tuấn, both
+// 31/10, NO pair row — 409'd the second "Nhận lệnh" with "Xe đang chạy
+// chuyến…". PRD LoHangKepKetHop §3.2/§7.3 via ruling 602/635: the kẹp
+// exemption must not depend on the pairing step.
+// The declared shape (both DOUBLE, shared driver/day, both one 20' shell) is
+// the second exemption proof. A SINGLE busy row stays blocking (SIL-638 TC1 —
+// two plain lots on one truck never ride together), and the proof is bounded
+// to exactly ONE shape-matching busy row ("its one compatible partner, never
+// a third load") by the service wiring.
+describe('Truck availability gate — SIL-634 declared Kẹp clamp without a pair row', () => {
+  // The staging shape: busy trip 101 (leg 1, IN_TRANSIT), accepting trip 202
+  // (leg 2, CREATED) — both fulfillments DOUBLE, both one 20' shell, same
+  // driver, same departure day, no trip_pairs row anywhere.
+  const DAY = '2026-10-31';
+  const acceptingLegArgs = {
+    tripId: 202,
+    tripDriverId: 9,
+    tripDepartureDate: DAY,
+    tripClassification: 'DOUBLE',
+    tripTwentyFootShell: true,
+  };
+  const stagingCandidate = {
+    id: 101,
+    driverId: 9,
+    departureDate: DAY,
+    classification: 'DOUBLE',
+    twentyFootShell: true,
+  };
+
+  test('REG SIL-634: the unpaired declared kẹp partner is exempt — the second "Nhận lệnh" must not 409', () => {
+    assert.strictEqual(
+      isDeclaredKepClampPartner(stagingCandidate, acceptingLegArgs),
+      true,
+      'the pair the dispatcher released for issue (both DOUBLE, same rig/driver/day, 2×20\') is the pair running — it must never block its own second leg',
+    );
+  });
+
+  test('REG SIL-638 TC1: two plain SINGLE lots on one truck stay blocked', () => {
+    assert.strictEqual(
+      isDeclaredKepClampPartner(
+        { id: 101, driverId: 9, departureDate: DAY, classification: 'SINGLE', twentyFootShell: true },
+        { ...acceptingLegArgs, tripClassification: 'SINGLE' },
+      ),
+      false,
+      'without the DOUBLE declaration on both sides there is no clamp proof — the busy row keeps blocking',
+    );
+  });
+
+  test('a mixed declaration is never exempt — only DOUBLE on BOTH legs proves the clamp', () => {
+    // The busy leg was issued without the Kẹp declaration (dis-03 warn path),
+    // or the accepting leg is plain: either side missing the declaration
+    // leaves a conflicting job, not a proven pair.
+    assert.strictEqual(isDeclaredKepClampPartner(
+      { ...stagingCandidate, classification: 'SINGLE' },
+      acceptingLegArgs,
+    ), false, 'busy SINGLE + accepting DOUBLE stays blocking');
+    assert.strictEqual(isDeclaredKepClampPartner(
+      stagingCandidate,
+      { ...acceptingLegArgs, tripClassification: 'SINGLE' },
+    ), false, 'busy DOUBLE + accepting SINGLE stays blocking');
+    assert.strictEqual(isDeclaredKepClampPartner(
+      { ...stagingCandidate, classification: 'COMBINED' },
+      { ...acceptingLegArgs, tripClassification: 'COMBINED' },
+    ), false, 'KẾT_HỢP legs are sequential, never simultaneous — the sequencing gate stays the sole owner');
+  });
+
+  test('a different driver on the busy row stays blocking', () => {
+    assert.strictEqual(isDeclaredKepClampPartner(
+      { ...stagingCandidate, driverId: 10 },
+      acceptingLegArgs,
+    ), false, 'out-of-band driver drift stays blocking');
+    assert.strictEqual(isDeclaredKepClampPartner(
+      { ...stagingCandidate, driverId: null },
+      acceptingLegArgs,
+    ), false, 'an unassigned busy row proves nothing');
+    assert.strictEqual(isDeclaredKepClampPartner(
+      stagingCandidate,
+      { ...acceptingLegArgs, tripDriverId: null },
+    ), false, 'an accepting leg without a driver shares nothing');
+  });
+
+  test('a different departure day stays blocking', () => {
+    assert.strictEqual(isDeclaredKepClampPartner(
+      { ...stagingCandidate, departureDate: '2026-11-01' },
+      acceptingLegArgs,
+    ), false, 'two 20\' boxes on different days are two runs, not one kẹp pair');
+    assert.strictEqual(isDeclaredKepClampPartner(
+      stagingCandidate,
+      { ...acceptingLegArgs, tripDepartureDate: '2026-10-30' },
+    ), false);
+  });
+
+  test('a missing departure date on either leg keeps the conservative block', () => {
+    assert.strictEqual(isDeclaredKepClampPartner(
+      { ...stagingCandidate, departureDate: null },
+      acceptingLegArgs,
+    ), false);
+    assert.strictEqual(isDeclaredKepClampPartner(
+      stagingCandidate,
+      { ...acceptingLegArgs, tripDepartureDate: null },
+    ), false);
+  });
+
+  test('a non-20\' shell or a second container on either leg is not the clamp', () => {
+    // The 40' hull cannot share the mooc with a second box; a trip carrying
+    // two container rows is not the one-shell shape the clamp releases.
+    assert.strictEqual(isDeclaredKepClampPartner(
+      { ...stagingCandidate, twentyFootShell: false },
+      acceptingLegArgs,
+    ), false, 'a busy 40\'/multi-container trip stays blocking');
+    assert.strictEqual(isDeclaredKepClampPartner(
+      stagingCandidate,
+      { ...acceptingLegArgs, tripTwentyFootShell: false },
+    ), false, 'a 20\' declaration on a trip without one proven 20\' shell proves nothing');
+  });
+
+  test('self is never its own partner', () => {
+    assert.strictEqual(isDeclaredKepClampPartner(
+      { ...stagingCandidate, id: 202 },
+      acceptingLegArgs,
+    ), false);
+  });
+
+  test('wiring pins: the busy loop consults the declared-clamp proof, bounded to exactly one shape-matching row, with both shells probed', () => {
+    const serviceSource = readFileSync(
+      fileURLToPath(new URL('../../services/trip-status-machine.service.ts', import.meta.url)),
+      'utf8',
+    );
+    assert.match(
+      serviceSource,
+      /isDeclaredKepClampPartner\(/,
+      'the status machine must consult the SIL-634 declared-clamp predicate',
+    );
+    assert.match(
+      serviceSource,
+      /declaredClampExempt\.has\(candidate\.id\)/,
+      'the busy-trip loop must skip the exempted declared partner before the running-day check',
+    );
+    assert.match(
+      serviceSource,
+      /fulfillmentClassification: s\.shipmentFulfillments\.dispatchClassification/,
+      'the busy-trip select must carry the fulfillment classification for the DOUBLE proof',
+    );
+    assert.match(
+      serviceSource,
+      /leftJoin\(s\.shipmentFulfillments, eq\(s\.shipmentFulfillments\.id, s\.trips\.fulfillmentId\)\)/,
+      'the busy-trip scan must join fulfillments to read each busy row\'s declaration',
+    );
+    assert.match(
+      serviceSource,
+      /declaredClampCandidates\.length === 1/,
+      'the clamp proof is bounded to exactly one shape-matching partner — never a third load',
+    );
+    assert.match(
+      serviceSource,
+      /eq\(s\.shipmentFulfillments\.id, trip\.fulfillmentId\)/,
+      'the accepting leg\'s own declaration must be resolved by its fulfillment',
+    );
+    assert.match(
+      serviceSource,
+      /provesSingleTwentyFootShellTx/,
+      'both shells must be physically probed (exactly one 20\' container row) like the issue-time clamp',
     );
   });
 });

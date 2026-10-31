@@ -1,0 +1,70 @@
+▶ Trip Status Machine — Transition Rules
+  ✔ all from→to combinations are covered (1.421417ms)
+  ✔ no duplicate rules (0.3205ms)
+  ✔ ALLOWED: CREATED → IN_TRANSIT (Dispatch new trip) (0.115ms)
+  ✔ ALLOWED: COMPLETED → IN_TRANSIT (Re-dispatch completed trip (direct reopen blocked — uses governed TRIP_REOPEN)) (0.089417ms)
+  ✔ ALLOWED: IN_TRANSIT → IN_TRANSIT (Idempotent: same status short-circuit) (0.06925ms)
+  ✔ BLOCKED: CANCELED → IN_TRANSIT (Cannot dispatch a canceled trip) (0.16025ms)
+  ✔ ALLOWED: IN_TRANSIT → COMPLETED (Complete a running trip through the governed close path; evidence gates are enforced) (0.08375ms)
+  ✔ BLOCKED: COMPLETED → COMPLETED (Direct re-complete is blocked; use governed reopen approval (COMPLETED → IN_TRANSIT)) (0.062667ms)
+  ✔ BLOCKED: CREATED → COMPLETED (Cannot complete a trip that was never dispatched) (0.089041ms)
+  ✔ BLOCKED: CANCELED → COMPLETED (Cannot complete a canceled trip) (0.146834ms)
+  ✔ ALLOWED: CREATED → CREATED (Idempotent: same status short-circuit) (0.108084ms)
+  ✔ BLOCKED: IN_TRANSIT → CREATED (Cannot revert a dispatched trip to CREATED) (0.055167ms)
+  ✔ BLOCKED: COMPLETED → CREATED (Cannot revert a completed trip to CREATED) (0.038791ms)
+  ✔ BLOCKED: CANCELED → CREATED (Cannot revert a canceled trip to CREATED) (0.035583ms)
+  ✔ ALLOWED: CREATED → CANCELED (Cancel a new trip) (0.036541ms)
+  ✔ ALLOWED: IN_TRANSIT → CANCELED (Cancel a running trip) (0.044042ms)
+  ✔ ALLOWED: COMPLETED → CANCELED (Cancel a completed trip (governed — requestCompletedTripCancellation)) (0.0375ms)
+  ✔ ALLOWED: CANCELED → CANCELED (Idempotent: same status short-circuit) (0.036083ms)
+✔ Trip Status Machine — Transition Rules (4.240834ms)
+▶ Trip Status Machine — Role Permission Rules
+  ✔ IN_TRANSIT dispatch requires ADMIN or MANAGER (0.243834ms)
+  ✔ COMPLETE requires ADMIN or MANAGER through governed approval (0.085416ms)
+  ✔ direct re-complete (COMPLETED→COMPLETED) is blocked (0.075584ms)
+  ✔ CANCEL requires ADMIN or MANAGER (0.075ms)
+  ✔ DRIVER role cannot dispatch, complete, or cancel (0.077041ms)
+  ✔ ACCOUNTANT role cannot dispatch, complete, or cancel (0.083ms)
+✔ Trip Status Machine — Role Permission Rules (0.8145ms)
+▶ Trip Status Machine — Lifecycle Happy Path
+  ✔ standard lifecycle: CREATED → IN_TRANSIT → COMPLETED (0.283542ms)
+  ✔ reopen lifecycle requires the separate governance workflow (0.20925ms)
+  ✔ re-dispatch lifecycle: COMPLETED → IN_TRANSIT (0.215708ms)
+✔ Trip Status Machine — Lifecycle Happy Path (0.843ms)
+▶ Truck availability gate — SIL-474 future IN_TRANSIT
+  ✔ IN_TRANSIT with FUTURE departure day does not run — a new order is not blocked with 409 (0.17275ms)
+  ✔ IN_TRANSIT with PAST departure day still runs — keep blocking (correct behavior preserved) (0.077875ms)
+  ✔ IN_TRANSIT departing TODAY runs — the normal started-trip case keeps blocking (0.038333ms)
+  ✔ legacy row without a departure date keeps the conservative block (0.025083ms)
+  ✔ unreadable business clock keeps the conservative block (0.021709ms)
+  ✔ day-boundary sweep: the gate flips exactly on the departure day (0.148917ms)
+  ✔ the status machine busy loop actually consults the predicate (0.484708ms)
+✔ Truck availability gate — SIL-474 future IN_TRANSIT (1.148208ms)
+▶ Truck availability gate — SIL-602/SIL-631 KẸP pair partner exemption
+  ✔ REG SIL-602: the partner leg of the same ACTIVE KẸP pair is exempt even with an unassigned/drifted mooc — the second "Nhận lệnh" must not 409 (0.195333ms)
+  ✔ REG SIL-631: membership exempts the partner regardless of drifted/lost pair stamps on either leg (0.067125ms)
+  ✔ a busy row outside the pair membership is never exempt (0.061875ms)
+  ✔ a driver mismatch on the partner is never exempt (0.041583ms)
+  ✔ the accepting leg itself resolves nothing (0.048417ms)
+  ✔ wiring pins: the busy loop uses the membership predicate, both pair lookups stay ACTIVE+KEP, and the trailer clause is gone (0.5775ms)
+✔ Truck availability gate — SIL-602/SIL-631 KẸP pair partner exemption (1.142125ms)
+▶ Truck availability gate — SIL-634 declared Kẹp clamp without a pair row
+  ✔ REG SIL-634: the unpaired declared kẹp partner is exempt — the second "Nhận lệnh" must not 409 (0.239542ms)
+  ✔ REG SIL-638 TC1: two plain SINGLE lots on one truck stay blocked (0.076917ms)
+  ✔ a mixed declaration is never exempt — only DOUBLE on BOTH legs proves the clamp (0.255375ms)
+  ✔ a different driver on the busy row stays blocking (0.11375ms)
+  ✔ a different departure day stays blocking (0.1575ms)
+  ✔ a missing departure date on either leg keeps the conservative block (0.13125ms)
+  ✔ a non-20' shell or a second container on either leg is not the clamp (0.102375ms)
+  ✔ self is never its own partner (0.128916ms)
+  ✔ wiring pins: the busy loop consults the declared-clamp proof, bounded to exactly one shape-matching row, with both shells probed (0.833458ms)
+✔ Truck availability gate — SIL-634 declared Kẹp clamp without a pair row (2.403708ms)
+ℹ tests 49
+ℹ suites 6
+ℹ pass 49
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 314.782167
+EXIT=0
