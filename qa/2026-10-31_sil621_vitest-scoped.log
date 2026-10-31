@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-621/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  32 passed (32)
+   Start at  10:43:33
+   Duration  20.82s (transform 4.03s, setup 1.68s, import 14.72s, tests 17.49s, environment 6.25s)
+
+VITEST_SCOPED_EXIT=0

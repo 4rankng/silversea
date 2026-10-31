@@ -8,10 +8,11 @@
  * hint («không đặt = Debit Note in BKS thực»).
  *
  * Boundary pins: a lot inside a CUS rev group keeps the GROUP's outputs (the
- * editor fields disable with the tách-nhóm hint); a failed save surfaces the
- * inline role=alert error and keeps the editor open. QA id 615 re-confirm:
- * a PENDING lot's stored Ảo plate prints on the cell face (pill) — the save
- * persisted all along but the cell never showed it, so it read as lost.
+ * editor fields disable — SIL-621: with NO guidance text); a failed save
+ * surfaces the inline role=alert error and keeps the editor open. QA id 615
+ * re-confirm: a PENDING lot's stored Ảo plate prints on the cell face (pill)
+ * — the save persisted all along but the cell never showed it, so it read as
+ * lost.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -283,24 +284,29 @@ describe('SIL-548 — per-lot cước thu khách trên dòng lô Chi tiết lô 
     expect(setClass.mock.calls[0][0]).not.toHaveProperty('freightRevenue');
   });
 
-  it('lô đã trong nhóm ghép THU (revGroupId) → editor mở nhưng khóa hoàn toàn kèm hướng dẫn tách nhóm', () => {
+  it('lô đã trong nhóm ghép THU (revGroupId) → editor mở nhưng khóa hoàn toàn, KHÔNG còn text hướng dẫn (SIL-621)', () => {
     ledgerView([lotRow({ revGroupId: 'rev-group-9', revVehicleClassCode: '5T' })]);
     fireEvent.click(revTrigger('R42CUS-LCL1'));
 
-    expect(screen.getByText(/tách nhóm \(Hủy ghép\) trước khi chọn loại xe riêng/)).toBeTruthy();
+    // SIL-621 (owner 30/10): the tách-nhóm guidance text is gone — the lock
+    // asserts through the disabled state alone.
+    expect(screen.queryByText(/tách nhóm \(Hủy ghép\)/)).toBeNull();
     expect((screen.getByRole('combobox', { name: 'Loại xe tính cước thu khách' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByLabelText(/Giá cước thu khách/) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Lưu cước thu khách' }) as HTMLButtonElement).disabled).toBe(true);
     expect(setClass).not.toHaveBeenCalled();
   });
 
-  it('QA 615 round 3 (K1K42452354 «Ghép (2/2)») — lô đã ghép chiều COST (costGroupId) cũng KHÓA editor + hướng dẫn tách nhóm', () => {
+  it('QA 615 round 3 (K1K42452354 «Ghép (2/2)») — lô đã ghép chiều COST (costGroupId) cũng KHÓA editor, không còn text (SIL-621)', () => {
     // The QA lot's «Ghép (2/2)» was invisible to the old lock (revGroupId
     // only) — the wire now carries costGroupId and the lock reads it too.
+    // SIL-621: the long «Lô đã thuộc nhóm gộp xe…» guidance text is gone;
+    // the fields still disable.
     ledgerView([lotRow({ costGroupId: 'cost-group-2', revVehicleClassCode: '5T' })]);
     fireEvent.click(revTrigger('R42CUS-LCL1'));
 
-    expect(screen.getByText(/tách nhóm \(Hủy ghép\) trước khi sửa cước thu khách riêng/)).toBeTruthy();
+    expect(screen.queryByText(/Lô đã thuộc nhóm gộp xe/)).toBeNull();
+    expect(screen.queryByText(/tách nhóm \(Hủy ghép\)/)).toBeNull();
     expect((screen.getByRole('combobox', { name: 'Loại xe tính cước thu khách' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByLabelText(/Giá cước thu khách/) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Lưu cước thu khách' }) as HTMLButtonElement).disabled).toBe(true);

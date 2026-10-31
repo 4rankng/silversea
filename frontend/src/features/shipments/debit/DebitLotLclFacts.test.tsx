@@ -161,15 +161,17 @@ describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng 
     expect(saveClassButton()).toBeDisabled();
   });
 
-  it('SIL-548 QA round 3 — a COST-grouped lot (costGroupId «Ghép») locks the same way, hint names the tách-nhóm step', () => {
+  it('SIL-548 QA round 3 — a COST-grouped lot (costGroupId «Ghép») locks the same way; SIL-621: no guidance text', () => {
     // The shared lock law (revOutputGroupLock) — before, only revGroupId
     // locked here and a «Ghép (2/2)» cost-group lot stayed fully editable.
+    // SIL-621 (owner 30/10): the long «Lô đã thuộc nhóm gộp xe…» text is
+    // gone — the lock asserts through the disabled state alone (the NHÓM
+    // GHÉP block below still names the tách-nhóm step).
     renderStrip({ costGroupId: 'g-cost-2', costGroupOrder: 2, revVehicleClassCode: '3.5T' });
 
     expect(classField()).toBeDisabled();
     expect(priceField()).toBeDisabled();
-    expect(screen.getByText(/Lô đã thuộc nhóm gộp xe \(ghép cước trả ĐVVC\) — tách nhóm \(Hủy ghép\) trước khi sửa cước thu khách riêng/))
-      .toBeInTheDocument();
+    expect(screen.queryByText(/Lô đã thuộc nhóm gộp xe/)).not.toBeInTheDocument();
     expect(saveClassButton()).toBeDisabled();
   });
 

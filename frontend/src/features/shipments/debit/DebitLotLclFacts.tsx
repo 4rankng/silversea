@@ -88,9 +88,11 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   // A grouped lot's class is set by the merge (spec 23/10 §4.2: the group's
   // Lô-1 law owns its members' cước thu) — change it after un-grouping.
   // SIL-548 (id 615, QA fail round 3): ANY merge group locks (owner law «lô
-  // đã ghép phải KHÓA editor + hướng dẫn tách nhóm trước») — ONE shared law
-  // with the Chi tiết lô hàng in-cell editor so the lock can never diverge
-  // between the two surfaces again.
+  // đã ghép phải KHÓA editor») — ONE shared law with the Chi tiết lô hàng
+  // in-cell editor so the lock can never diverge between the two surfaces
+  // again. SIL-621: the tách-nhóm guidance TEXT is gone from the cost-group
+  // branch — a locked lot just disables (the NHÓM GHÉP block below still
+  // names the step); only the rev-group branch still carries its hint here.
   const groupLock = revOutputGroupLock(row);
   const revClassLocked = groupLock.locked;
 
@@ -258,7 +260,7 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             placeholder="Chọn loại xe (trọng tải / cont)"
             searchable
             disabled={revClassLocked}
-            hint={groupLock.hint}
+            hint={groupLock.hint ?? undefined}
           />
           <NumberField
             label="Giá cước thu khách (đ)"
