@@ -243,7 +243,10 @@ describe("ShipmentCreateContainerRow factory cell collapse (card 171026113500)",
     // focused (no stylesheet in jsdom, so nothing blurs it) and the modifier
     // is set anyway — the state that used to pin the combobox chrome on screen.
     expect(cell.contains(document.activeElement)).toBe(true);
-    expect(within(cell).getByRole("button", { name: /Xem chi tiết nhà máy ASKEY-1/ })).toBeTruthy();
+    // SIL-628 (id 732): the detail magnifier is retired — the picked name is
+    // the whole cell, and no actions overlay exists anywhere in the table.
+    expect(within(cell).queryByRole("button", { name: /Xem chi tiết nhà máy/ })).toBeNull();
+    expect(document.querySelector(".csc-container-cell__actions")).toBeNull();
   });
 
   it("reopens the editor when the collapsed cell is clicked, and re-collapses on the next pick", async () => {
