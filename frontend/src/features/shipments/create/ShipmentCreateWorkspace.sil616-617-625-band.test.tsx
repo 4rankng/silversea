@@ -120,15 +120,37 @@ describe('SIL-616 — band control height pins (styles)', () => {
     join(__dirname, '../../../pages/clerk/ClerkShipmentCreatePage.css'),
     'utf8',
   );
+  const WORKSPACE = readFileSync(
+    join(__dirname, './ShipmentCreateWorkspace.tsx'),
+    'utf8',
+  );
 
-  it('the segmented option closes at the standard control height (30px shell)', () => {
-    // The old 34px outlier made the whole cluster stand taller than the
-    // Khách hàng control beside it. The shell's 2 border pixels ride on the
-    // option box, so the interior is compact-h minus 2.
-    expect(PAGE_CSS).toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*calc\(var\(--control-compact-h\) - 2px\);/);
+  it('the segmented shell carries the shared boundary hooks (height lives in the geometry layer)', () => {
+    // SIL-616 re-land: the shell is the control boundary and its height is
+    // owned by control-geometry.css's [data-uui-control] base law (30px
+    // compact via size sm; touch tokens at ≤768/coarse) — the page
+    // stylesheet holds no height for the segmented control at all.
+    expect(WORKSPACE).toMatch(/<div data-uui-control="segments" data-control-size="sm">/);
+    const geometry = readFileSync(
+      join(__dirname, '../../../components/untitled-ui/base/control-geometry.css'),
+      'utf8',
+    );
+    expect(geometry).toMatch(/\[data-uui-control\]\s*\{[^}]*min-height:\s*var\(--uui-control-h\);/);
+    expect(geometry).toMatch(/\[data-uui-control\]\[data-control-size='sm'\]\s*\{[^}]*--uui-control-h:\s*var\(--control-compact-h\)/);
+    expect(geometry).toMatch(/@media \(max-width: 768px\)[\s\S]*?\[data-uui-control\],\s*\[data-uui-control\]\[data-control-size\]\s*\{[^}]*--uui-control-h:\s*var\(--control-touch-h\)/);
+  });
+
+  it('the segmented option carries NO height in the page layer — the shared boundary law owns it', () => {
+    // SIL-616 re-land per the control-density house law: control dimensions
+    // live in the shared geometry layer (control-geometry.css), never in
+    // page or feature stylesheets. The shell carries the boundary hooks; the
+    // base [data-uui-control] law gives it 30px compact and the touch tokens
+    // at ≤768/coarse. The page rule keeps only the option's paint.
+    expect(PAGE_CSS).toMatch(/\.csc-mode__option\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
+    expect(PAGE_CSS).not.toMatch(/\.csc-mode__option\s*\{[^}]*min-height:/);
+    expect(PAGE_CSS).not.toMatch(/\.csc-mode__option, [^{]*\{[^}]*min-height:/);
+    // The old 34px pin stays dead.
     expect(PAGE_CSS).not.toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*34px;/);
-    // The phone touch token is untouched.
-    expect(PAGE_CSS).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode__option[^}]*min-height:\s*var\(--control-touch-h\);/);
   });
 
   it('band datetime groups close at exactly --uui-control-h (wrapper + segment padding zeroed)', () => {

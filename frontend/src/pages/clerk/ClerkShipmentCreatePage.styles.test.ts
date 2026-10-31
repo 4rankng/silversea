@@ -155,11 +155,15 @@ describe('shipment create responsive layout', () => {
     // connected segmented treatment — one shared border around the group,
     // compact segments, no per-option box.
     expect(css).toMatch(/\.csc-mode > div\s*\{[^}]*display:\s*inline-flex;[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--line-2\);[^}]*border-radius:\s*8px;/);
-    // SIL-616 (id 720): the option interior closes at --control-compact-h
-    // minus the shell's own 2 border pixels — the segmented control measures
-    // the form's standard 30px control box, not the old 34px outlier.
-    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*min-height:\s*calc\(var\(--control-compact-h\) - 2px\);[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
-    expect(css).toMatch(/@media\s*\(max-width:\s*640px\)[\s\S]*?\.csc-mode__option[^}]*min-height:\s*var\(--control-touch-h\);/);
+    // SIL-616 (id 720, owner 31/10, re-land per the control-density house
+    // law): the option carries NO height in the page stylesheet — the
+    // segmented shell is the control boundary, its height is owned by the
+    // shared control-geometry base law via the boundary hooks on the shell
+    // (pinned against the workspace source in the band test). The page rule
+    // keeps only the option's paint.
+    expect(css).toMatch(/\.csc-mode__option\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*0;/);
+    expect(css).not.toMatch(/\.csc-mode__option\s*\{[^}]*min-height:/);
+    expect(css).not.toMatch(/\.csc-mode__option, [^{]*\{ min-height:/);
     // The old faux-radio dot and the 8px option boxes are gone for good.
     expect(css).not.toMatch(/\.csc-mode__option::before/);
     expect(css).not.toMatch(/\.csc-mode > div\s*\{[^}]*grid-template-columns:\s*repeat\(2/);
@@ -578,11 +582,15 @@ describe('create-page whole-sheet density (SIL-534)', () => {
   });
 
   it('the phone band floors controls at the real touch token (SIL-583 r2: §5 44px)', () => {
-    expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.csc-mode__option, \.csc-flag-checkbox, \.csc-add-container, \.csc-container-add-control input, \.csc-utility-button \{ min-height: var\(--control-touch-h\); \}/);
+    // SIL-616 (id 720, re-land): .csc-mode__option is NOT in these lists —
+    // its touch growth rides the shell's shared boundary hooks in
+    // control-geometry.css (≤768/coarse → --control-touch-h). The page list
+    // keeps the controls that have no shared boundary law.
+    expect(css).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.csc-flag-checkbox, \.csc-add-container, \.csc-container-add-control input, \.csc-utility-button \{ min-height: var\(--control-touch-h\); \}/);
     // The touch floor also covers the fine-pointer sweep width and coarse
     // pointers at any width — the QA round-4 verdict names the create-form
     // controls (38–39) among the clusters that must really measure ≥44.
-    expect(css).toMatch(/@media \(max-width: 768px\), \(pointer: coarse\) \{\s*\.csc-mode__option, \.csc-flag-checkbox, \.csc-add-container, \.csc-container-add-control input, \.csc-utility-button \{ min-height: var\(--control-touch-h\); \}/);
+    expect(css).toMatch(/@media \(max-width: 768px\), \(pointer: coarse\) \{\s*(?:\/\*[\s\S]*?\*\/\s*)?\.csc-flag-checkbox, \.csc-add-container, \.csc-container-add-control input, \.csc-utility-button \{ min-height: var\(--control-touch-h\); \}/);
   });
 
   it('SIL-552: the group lines rest invisible in the line and float fixed only while open', () => {

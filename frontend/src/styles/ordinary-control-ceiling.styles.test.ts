@@ -202,7 +202,7 @@ const ordinaryOwners: Record<string, string[]> = {
     ".csc-back",
     ".csc-validation-summary button",
     ".csc-container-row__actions .csc-icon-button",
-    ".csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button",
+    ".csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button",
     ".csc-icon-button",
     ".csc-container-cell .csc-route-picker__add"
   ],

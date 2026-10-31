@@ -156,14 +156,17 @@
 .csc-mode label { display: inline-flex; min-width: 0; cursor: pointer; }
 .csc-mode label + label { border-left: 1px solid var(--line-2); }
 .csc-mode input { position: absolute; opacity: 0; pointer-events: none; }
-/* SIL-616 (id 720, owner 31/10): the option measures the form's STANDARD
-   control height — the bordered shell closes at exactly
-   --control-compact-h (30px), the same box the Khách hàng combobox renders,
-   because the shell's own 2 border pixels ride on top of the option box
-   (calc(- 2px), the same interior law as [data-uui-control] > input). The
-   old 34px pin made the whole band cluster stand ~4-8px taller than every
-   sibling control. Phones keep the touch token below. */
-.csc-mode__option { display: inline-flex; align-items: center; min-height: calc(var(--control-compact-h) - 2px); padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); white-space: nowrap; transition: background-color var(--t-fast), color var(--t-fast); }
+/* SIL-616 (id 720, owner 31/10): the option carries NO height here — the
+   segmented shell is the control boundary and its height is owned by the
+   shared control-geometry base law via the boundary hooks set on the shell
+   in ShipmentCreateWorkspace.tsx (30px compact, touch tokens at ≤768 or
+   coarse pointer). House law (control-density.styles.test): control
+   dimensions live in the shared geometry layer, never in page or feature
+   stylesheets. This rule keeps only the option's paint. The shell's
+   align-items: stretch fills the option to the boundary's interior, so the
+   option box rides the same standard control height as every sibling
+   control. */
+.csc-mode__option { display: inline-flex; align-items: center; align-self: stretch; padding: 0 12px; border: 0; border-radius: 0; background: transparent; color: var(--fg-2); font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); white-space: nowrap; transition: background-color var(--t-fast), color var(--t-fast); }
 .csc-mode label:hover .csc-mode__option { background: var(--surface-2); color: var(--fg-1); }
 /* SIL-481: the read-only review keeps every control disabled — the hover must
    not paint an editing affordance the view cannot honor (design law: read-only
@@ -539,11 +542,14 @@
    ordinary 40px ceiling, which kept measuring 38–40 at the AC's sweep
    widths) to the real touch token; ≤768 covers the fine-pointer sweep. */
 @media (max-width: 768px), (pointer: coarse) {
-  .csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-touch-h); }
+  /* .csc-mode__option rides the same 44px token through the shell's shared
+     boundary hooks (control-geometry base, ≤768/coarse) — not re-pinned here
+     (SIL-616: dimensions live in the shared layer). */
+  .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-touch-h); }
   .csc-icon-button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }
 }
 
-@media (max-width: 640px) { .csc-page { padding: 12px 0; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }/* SIL-604 retest (QA 30/10): the stacked mode band measured 171px at 390 — the owner's compress lever is the card padding, structure (legend → segmented → bulk datetime) stays: 4px vertical trims 8px off the card. */#shipment-section-mode { padding: 4px 8px !important; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-mode__option, .csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-touch-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { padding: 8px 8px 10px; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }/* SIL-604 retest (QA 30/10): the stacked mode band measured 171px at 390 — the owner's compress lever is the card padding, structure (legend → segmented → bulk datetime) stays: 4px vertical trims 8px off the card. */#shipment-section-mode { padding: 4px 8px !important; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-touch-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { padding: 8px 8px 10px; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 @media (max-width: 640px) {
   /* The grouped phone record keeps its card frame (mobile UX consult 16/10

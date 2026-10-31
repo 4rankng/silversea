@@ -838,7 +838,18 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
               <div className="csc-cargo-choice-grid">
                 <fieldset className="csc-mode" aria-required="true">
                   <legend>Loại hàng <span aria-hidden="true">*</span></legend>
-                  <div>
+                  {/* SIL-616 (id 720, owner 31/10): the segmented shell IS the
+                      control boundary — it carries the shared control-geometry
+                      hooks (data-uui-control + data-control-size) so its
+                      height is owned by the base law
+                      ([data-uui-control] { min-height: var(--uui-control-h) },
+                      sm = --control-compact-h, touch tokens at ≤768/coarse)
+                      in src/components/untitled-ui/base/control-geometry.css.
+                      House law (control-density.styles.test): control
+                      dimensions live in the shared geometry layer, never in
+                      page or feature stylesheets — the page keeps only the
+                      option's paint (colors, padding, typography). */}
+                  <div data-uui-control="segments" data-control-size="sm">
                     {(['FCL', 'LCL'] as CargoMode[]).map((mode) => (
                       <label key={mode}>
                         <input
