@@ -840,20 +840,6 @@
 /* Card 20260922_24: the attention marker now carries its own visible label
    (icon-only markers rendered an unexplained duplicate icon). */
 .cus-attention-label__text { font-size: var(--text-caption-size); font-weight: var(--fw-medium); }
-.cus-dashboard-detail {
-  min-height: 34px;
-  color: var(--accent-ink) !important;
-  font-size: var(--text-caption-size);
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
-}
-.cus-dashboard-detail:hover {
-  background: transparent !important;
-  color: var(--accent-2) !important;
-}
-.cus-dashboard-detail:focus-visible {
-  outline-offset: 3px;
-}
 .cus-create-shipment { white-space: nowrap; }
 
 .cus-schedule-status-row {
@@ -955,10 +941,9 @@
     flex-shrink: 0;
   }
 
-  .cus-dashboard-table td[data-label='Trạng thái'] .cus-dashboard-detail {
-    min-height: 24px;
-    line-height: 1.2;
-  }
+  /* SIL-633: the 24px/line-height pin on the detail link is retired with the
+     other page-owned geometry — SIL-623's bottom-right placement is the flex
+     law above; the size is the UUI sm button's own. */
 }
 
 /* Records share one reading order below the table breakpoint. Labels sit
@@ -1026,8 +1011,15 @@
     color: var(--ink-3);
     content: attr(data-cell-label);
     font-size: var(--text-label-size);
-    font-weight: var(--fw-medium);
+    /* SIL-633 (id 737): the fact eyebrow joins the shared record-table card
+       band's answer for a labelled fact (record-table.css ::before) — same
+       11px token, bold, UPPERCASE, tracked. The card's private 500-weight
+       sentence-case label was the odd one out against every other record
+       card in the app. */
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.04em;
     line-height: 1.3;
+    text-transform: uppercase;
   }
   .cus-dashboard-table .cus-inline-trigger[data-cell-short]::before {
     content: attr(data-cell-short);
@@ -1371,11 +1363,15 @@
 /* Card 20260923_1 (operator ruling): the row's detail action is a text-only
    link button. The label span UUIButton renders must stay VISIBLE — the old
    icon-only override (`[data-text] { display: none }`, from the chevron era)
-   turned this into an empty clickable box once the chevron left. */
+   turned this into an empty clickable box once the chevron left.
+   SIL-633 (id 737, owner 31/10): the page no longer owns this control's
+   geometry or typography. The retired pins (min-height 32px here, 24px in
+   the ≥1000px band, font-size 11px) beat the UUI sm button's own shared
+   laws — compactActionText 12px and the `max-md:min-h-11` 44px touch floor
+   (SIL-583 r2) — so the card's only control measured 32px/11px on a phone
+   against the app's 44px/12px standard. Paint only: color + wrap. */
 .cus-dashboard-detail {
-  min-height: 32px;
   color: var(--accent-ink) !important;
-  font-size: var(--text-caption-size);
   font-weight: var(--fw-semibold);
   white-space: nowrap;
 }

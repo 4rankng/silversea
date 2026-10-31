@@ -863,11 +863,20 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                       "Ngày giờ đóng trả" (ngày + giờ), the same datetime shape
                       the FCL per-cont rows use. The payload maps it
                       direction-correct and derives expectedDeliveryDate from
-                      its VN date (shipment-create-model §lclClosingAt). */}
+                      its VN date (shipment-create-model §lclClosingAt).
+                      SIL-637 (id 741, owner 31/10): the visible label
+                      "Ngày giờ đóng trả *" is retired — the band already names
+                      the cluster through its two segment inputs, exactly the
+                      SIL-625 doctrine that retired the FCL bulk label on the
+                      same band. NOT a 625 leftover: this is the LCL field's
+                      own required-mark label. The two inputs, the required
+                      validation and the picker copy stay; the group's
+                      aria-label keeps the name for screen readers. */}
                   <UDateTimeField
                     id="shipment-lcl-closing-at"
                     label="Ngày giờ đóng trả"
                     requiredMark
+                    hideLabel
                     value={form.lclClosingAt}
                     onChange={(event) => update('lclClosingAt', event.target.value)}
                     disabled={controlsDisabled}

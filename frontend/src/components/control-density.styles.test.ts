@@ -91,6 +91,32 @@ describe('shared control density', () => {
     expect(targetsUuiField('.form [data-input-wrapper]')).toBe(true);
   });
 
+  it('SIL-633: the /shipments lot card leaves its row action to the shared UUI button laws', () => {
+    // The card's only control (the "Chi tiết" link button) had three
+    // page-owned geometry pins (34px dead block, 32px base, 24px ≥1000px)
+    // plus an 11px font pin. Being page CSS they loaded after the UUI sm
+    // button's own compactActionText (12px) and `max-md:min-h-11` 44px
+    // touch floor (SIL-583 r2), so the card's control measured 32px/11px
+    // on a phone — off every ladder the rest of the app rides. The page
+    // keeps paint only (color, weight, nowrap).
+    const overview = read('src/pages/ShipmentsPage.css');
+    const detailBlocks = [...overview.matchAll(/\.cus-dashboard-detail\s*\{([^}]*)\}/g)].map((m) => m[1]);
+    expect(detailBlocks, 'the paint block survives').not.toHaveLength(0);
+    for (const block of detailBlocks) {
+      expect(block, `page must not own control geometry/typography: ${block}`).not.toMatch(/(?:^|[;\s])(?:height|min-height|font(?:-size)?|line-height)\s*:/);
+    }
+    // …and no band-scoped pin survives on the status-cell selector either.
+    expect(overview).not.toMatch(/Trạng thái['"]\]\s*\.cus-dashboard-detail\s*\{[^}]*(?:height|line-height)\s*:/);
+
+    // The card fact eyebrow joins the shared record-table card band's answer
+    // (record-table.css ::before): same 11px token, bold, UPPERCASE, tracked.
+    const triggerBefore = overview.match(/\.cus-dashboard-table \.cus-inline-trigger::before\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(triggerBefore).toContain('font-size: var(--text-label-size)');
+    expect(triggerBefore).toContain('font-weight: var(--fw-bold)');
+    expect(triggerBefore).toContain('letter-spacing: 0.04em');
+    expect(triggerBefore).toContain('text-transform: uppercase');
+  });
+
   it('rejects UUI field dimensions from every page and feature stylesheet', () => {
     // Form-scoped conformance skins are sanctioned by the design guidelines
     // ("scope a local conformance skin (label + trigger metrics) to the form,
