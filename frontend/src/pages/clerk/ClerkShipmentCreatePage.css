@@ -574,16 +574,16 @@
 
 @media (max-width: 640px) { .csc-route-picker__add { width: 100%; justify-self: stretch; }.csc-route-dialog__grid { grid-template-columns: minmax(0, 1fr); }.csc-route-dialog__submit, .csc-shipping-line-dialog__submit { min-height: var(--control-max-h); } }
 @media (max-width: 340px) { .csc-page { padding-inline: 0; }.csc-validation-summary, .csc-submit-error { padding: 8px !important; } }
-/* SIL-510: below the onescreen band the worksheet scrolls vertically — the
-   page clears the fixed bar's MEASURED height (+12px gap; the hook publishes
-   --csc-action-bar-height) so the last row (container sheet / add control)
-   is never covered at scroll-end. ≥1280 the onescreen band fits one viewport
-   (SIL-499, no scrollbar) and the fixed bar overlays the tail the retired
-   in-flow footer row freed — no clearance there, or the 499 law would tip
-   back into scrolling. */
-@media (max-width: 1279px) {
-  .csc-page { padding-bottom: calc(var(--csc-action-bar-height, 60px) + 12px); }
-}
+/* SIL-619 (id 723, owner 31/10): the worksheet clears the fixed bar's
+   MEASURED height (+12px gap; the hook publishes --csc-action-bar-height) at
+   EVERY width, so the last band (Ghi chú) can always scroll above the bar —
+   the old ≤1279px gate left the ≥1280 onescreen band with a 4px page bottom,
+   and at 1307 the notes section ended 29px UNDER the fixed bar even at
+   scroll end (qa/2026-10-31_sil619-629/before/619-notes-scroll-end-1307.png).
+   The SIL-499 "one viewport, no scrollbar" reading is superseded by this
+   owner ticket: when content fits, the reserved lane costs one short scroll;
+   when it overflows, nothing is ever trapped under the bar again. */
+.csc-page { padding-bottom: calc(var(--csc-action-bar-height, 60px) + 12px); }
 @media (prefers-reduced-motion: reduce) { .csc-page *, .csc-page *::before, .csc-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 
 /* The FCL cargo step owns an editable view of the lot route. It shares the

@@ -1,0 +1,23 @@
+2026-10-31T03:32:59.180Z DB read-only proof: shipments count = 548
+2026-10-31T03:33:06.028Z logged in as cus
+2026-10-31T03:33:12.531Z PASS 627 banner :: validation-summary present=true title="Cần bổ sung 8 thông tin"
+2026-10-31T03:33:12.532Z PASS 627 per-field validation still paints :: invalid-paint nodes=28
+2026-10-31T03:33:20.310Z DRIVER ERROR: No element found for selector: input[id$="-number"]
+2026-10-31T03:34:53.536Z DB read-only proof: shipments count = 548
+2026-10-31T03:34:57.291Z logged in as cus
+2026-10-31T03:35:01.855Z PASS 627 banner :: validation-summary present=true title="Cần bổ sung 8 thông tin"
+2026-10-31T03:35:01.855Z PASS 627 per-field validation still paints :: invalid-paint nodes=28
+2026-10-31T03:35:12.686Z INFO 624 appt group == standard control height (30px) :: apptGroup=48px standard≈30px wrapperPad=undefined
+2026-10-31T03:35:12.686Z PASS 628 factory ⓘ overlay absent from the table :: actionsOverlay={"left":1252,"top":422,"right":1284,"bottom":737,"w":32,"h":315}
+2026-10-31T03:35:12.686Z INFO 628 delete button hit test reaches the delete control :: elementAtDeleteCenter=SPAN.csc-container-cell__actions button=null
+2026-10-31T03:35:13.303Z INFO 619 notes fully above the fixed bar at scroll end (1307) :: notesBottom=874 barTop=845 covered=29 padBottom=4px
+2026-10-31T03:35:14.652Z INFO 629 delete click opens the confirm dialog on a FILLED form :: confirmVisible=false factoryPopover=false rows=2
+2026-10-31T03:35:14.655Z INFO 629 row removed after confirm (filled state) :: rows 2 → 2
+2026-10-31T03:35:18.990Z PASS 626 standalone "+ Thêm nhà máy" header button removed :: headerBtn=true
+2026-10-31T03:35:18.991Z PASS 626 "+ Thêm container" untouched :: addContainerBtn=true
+2026-10-31T03:35:21.856Z PASS 626 "+ Thêm nhà máy..." item inside the factory dropdown (last) :: options=6 last="SUNRISE0946445198"
+2026-10-31T03:35:29.845Z INFO 624 touch 390: appointment group keeps the touch token (44px) :: apptGroup=52px expect≈44
+2026-10-31T03:35:30.562Z PASS 619 notes fully above the fixed bar at scroll end (390) :: notesBottom=243 barTop=783 covered=0 padBottom=73px
+2026-10-31T03:35:31.006Z DB read-only proof after: shipments count = 548
+2026-10-31T03:35:31.007Z DB UNCHANGED ✓
+2026-10-31T03:35:31.007Z RESULT: RUN=before completed

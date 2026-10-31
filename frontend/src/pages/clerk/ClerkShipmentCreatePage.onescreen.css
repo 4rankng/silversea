@@ -41,7 +41,10 @@
  *   padding), page still fits one 1280×800 viewport.
  */
 @media (min-width: 1280px) {
-  .csc-page { padding: 4px 0; }
+  /* SIL-619 (id 723): the page bottom clears the fixed action bar at every
+     width — the onescreen band keeps its 4px top/side density but no longer
+     zero-pads the tail (the base stylesheet owns the measured clearance). */
+  .csc-page { padding: 4px 0 calc(var(--csc-action-bar-height, 60px) + 12px); }
   /* SIL-604: every section owns a full-width row now — the 4fr/8fr pairing
      had no tenant left once mode stopped sharing r1 with identity. */
   .csc-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
