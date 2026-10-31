@@ -1086,10 +1086,15 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.queryByRole('button', { name: 'Thêm ngày giao hàng' })).toBeNull();
     const lclSchedule = document.querySelector('[data-field-id="shipment-lcl-closing-at"]');
     expect(lclSchedule).toBeTruthy();
-    // SIL-637: the visible label is retired — the name lives on the
-    // [data-split-datetime] group's aria-label (screen readers keep it).
+    // SIL-637 retired the visible label; SIL-639 restores it INLINE (label
+    // trái, control phải — same row as "Loại hàng *"). The [data-split-
+    // datetime] group's aria-label keeps the plain name for screen readers.
     expect(lclSchedule!.querySelector('[data-split-datetime]')?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
-    expect(lclSchedule!.textContent).not.toContain('Ngày giờ đóng trả');
+    const inlineLabel = lclSchedule!.querySelector('.split-datetime__label');
+    expect(inlineLabel, 'SIL-639 restores the visible inline label').toBeTruthy();
+    expect(inlineLabel!.textContent).toContain('Ngày giờ đóng trả');
+    expect(inlineLabel!.textContent).toContain('*');
+    expect(lclSchedule!.textContent).not.toContain('Ngày giao hàng');
     expect(lclSchedule!.querySelectorAll('input[data-seg="hh"], input[data-seg="dd"]').length).toBe(2);
     expect(document.getElementById('shipment-expected-delivery')).toBeNull();
     // No extra-delivery repeater: exactly one field, no "Ngày giao bổ sung".
@@ -1183,11 +1188,14 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // renders the giờ segment under the same group label. (The FCL container
     // table's own "Ngày giờ đóng trả" column is unrelated vocabulary — the
     // LCL field is identified by its wrapper id.)
-    // SIL-637: visible label + required mark retired — the name lives on the
-    // group's aria-label; the two segment inputs and validation stay.
+    // SIL-637 retired the visible label; SIL-639 restores it INLINE (label
+    // trái, control phải — same row as "Loại hàng *"), mark included. The
+    // group's aria-label and the two segment inputs stay.
     expect(field.querySelector('[data-split-datetime]')?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
-    expect(field.textContent).not.toContain('Ngày giờ đóng trả');
-    expect(field.textContent).not.toContain('*');
+    const inlineLabel = field.querySelector('.split-datetime__label');
+    expect(inlineLabel, 'SIL-639 restores the visible inline label').toBeTruthy();
+    expect(inlineLabel!.textContent).toContain('Ngày giờ đóng trả');
+    expect(inlineLabel!.textContent).toContain('*');
     expect(field.querySelectorAll('input[data-seg="hh"]').length).toBe(1);
     expect(screen.queryByText('Ngày giao dự kiến')).toBeNull();
     expect(screen.queryByText('Ngày giao hàng')).toBeNull();

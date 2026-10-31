@@ -18,8 +18,8 @@
  * Structure (§5 law: a form must never force vertical scrolling on a wide
  * screen — the worksheet spreads horizontally):
  *   r1  mode — FULL width, content-sized (SIL-604: the band leads the form
- *       as one ~59px control line; FCL bulk datetime rides here per
- *       SIL-587/598)
+ *       as one ~59px control line; SIL-642 retired the FCL bulk datetime
+ *       that used to ride here per SIL-587/598)
  *   r2  identity — full width
  *   r3  freight preview (only when the pricing engine has data — :has()
  *       collapses its row)
@@ -131,9 +131,10 @@
   #shipment-section-identity .csc-field-warning { grid-column: 1 / -1; }
 
   /* SIL-611 (id 714, owner 30/10): the "Lịch & ghi chú" band is DELETED —
-     FCL's bulk datetime rides the mode band (SIL-587/598 doctrine) and the
-     worksheet closes with the Ghi chú pair on its own full-width row (the
-     section's single-column flow places them with no placement pins). */
+     and SIL-642 (id 746) retired the FCL bulk datetime that rode the mode
+     band — the worksheet closes with the Ghi chú pair on its own full-width
+     row (the section's single-column flow places them with no placement
+     pins). */
   /* rows=3/4 attributes stop driving the notes height — the read-only box
      shows ~2 lines and scrolls internally. */
   .csc-section textarea { height: 48px; min-height: 48px; }

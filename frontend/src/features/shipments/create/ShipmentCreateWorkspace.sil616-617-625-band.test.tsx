@@ -30,22 +30,8 @@ function renderWorkspace() {
   );
 }
 
-function bulkBand() {
-  return document.querySelector('.csc-bulk-appointment');
-}
-
-function bulkInputs() {
-  return {
-    date: document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-date"]'),
-    time: document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]'),
-  };
-}
-
-function fillRowAppointment(index: number, date: string, time: string) {
-  const dates = [...document.querySelectorAll<HTMLInputElement>('input[id$="-customer-appointment-date"]')];
-  const times = [...document.querySelectorAll<HTMLInputElement>('input[id$="-customer-appointment-time"]')];
-  fireEvent.change(dates[index]!, { target: { value: date } });
-  fireEvent.change(times[index]!, { target: { value: time } });
+function lclBand() {
+  return document.querySelector('.csc-lcl-delivery');
 }
 
 describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }, () => {
@@ -61,66 +47,39 @@ describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }
     listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
   });
 
-  // SIL-617 (id 721): the copy-all band is the ONLY place that đặt giờ hẹn
-  // cho tất cả cont at once. The old `emptyAppointmentCount >= 1` gate
-  // unmounted it the moment every container row carried a schedule — on a
-  // fully-filled form cuộn hết form cũng không thấy nó. The band must be in
-  // the DOM in BOTH states; only its Copy target set changes.
-  it('keeps the copy-all band rendered on the EMPTY form and after every cont has a schedule', async () => {
+  // SIL-642 (id 746, owner 31/10): the FCL band datetime is RETIRED — the
+  // old SIL-598 bulk field (always visible per SIL-617, label retired per
+  // SIL-625, apply path per QA ticket 710) duplicated the container table's
+  // required NGÀY GIỜ ĐÓNG TRẢ column. The band carries ONLY "Loại hàng" +
+  // the segmented control in FCL; the schedule lives in the container rows.
+  it('SIL-642: the FCL band carries no datetime — Loại hàng + segmented only', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
-    // Empty form: band present with its two segment inputs.
-    expect(bulkBand()).toBeTruthy();
-    expect(bulkInputs().date).toBeTruthy();
-    expect(bulkInputs().time).toBeTruthy();
-
-    // Fill the single container row's appointment → emptyAppointmentCount
-    // reaches 0 (the exact pre-fix unmount point).
-    fillRowAppointment(0, '31/10/2026', '09:30');
-    expect(bulkBand(), 'band survives a fully-scheduled form').toBeTruthy();
-    expect(bulkInputs().date).toBeTruthy();
-    expect(bulkInputs().time).toBeTruthy();
-
-    // A second container doubles the gate's reach — both rows filled, the
-    // band still stands.
+    // No bulk band, no bulk segment inputs, on the empty form…
+    expect(document.querySelector('.csc-bulk-appointment')).toBeNull();
+    expect(document.querySelector('input[id$="-bulk-appointment-date"]')).toBeNull();
+    expect(document.querySelector('input[id$="-bulk-appointment-time"]')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Copy giờ hẹn đóng trả/ })).toBeNull();
+    // …after rows are scheduled (the exact SIL-617 gate states)…
+    const dates = [...document.querySelectorAll<HTMLInputElement>('input[id$="-customer-appointment-date"]')];
+    const times = [...document.querySelectorAll<HTMLInputElement>('input[id$="-customer-appointment-time"]')];
+    fireEvent.change(dates[0]!, { target: { value: '31/10/2026' } });
+    fireEvent.change(times[0]!, { target: { value: '09:30' } });
+    expect(document.querySelector('.csc-bulk-appointment')).toBeNull();
+    // …and with a second row (the fully-scheduled shape the old pin kept).
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
-    fillRowAppointment(0, '31/10/2026', '09:30');
-    fillRowAppointment(1, '01/11/2026', '15:00');
-    expect(bulkBand(), 'band survives with every row scheduled').toBeTruthy();
+    expect(document.querySelector('.csc-bulk-appointment')).toBeNull();
+    // The band still leads with the mode decision set (Loại hàng *).
+    expect(screen.getByRole('radio', { name: 'Hàng FCL' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Hàng lẻ' })).toBeTruthy();
   });
 
-  // SIL-625 (id 729): the visible blue label "Ngày giờ đóng trả cho tất cả
-  // cont" is retired — the two inputs + Copy affordance stay. The name
-  // survives as the group's accessible label (screen readers keep it).
-  it('removes the visible copy-all label while keeping inputs and the accessible name', async () => {
-    renderWorkspace();
-    await screen.findByRole('button', { name: 'Tạo lô hàng' });
-    const band = bulkBand();
-    expect(band).toBeTruthy();
-    // No visible label span inside the band.
-    const labelSpan = band!.querySelector('.split-datetime__label');
-    expect(labelSpan, 'the visible label span is gone').toBeNull();
-    expect(screen.queryByText('Ngày giờ đóng trả cho tất cả cont')).toBeNull();
-    // The group still carries the name for assistive tech.
-    const group = band!.querySelector('[data-split-datetime][role="group"]');
-    expect(group?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả cho tất cả cont');
-    // Both segment inputs render and accept typing.
-    const { date, time } = bulkInputs();
-    expect(date).toBeTruthy();
-    expect(time).toBeTruthy();
-    fireEvent.change(date!, { target: { value: '25/12/2026' } });
-    fireEvent.change(time!, { target: { value: '14:30' } });
-    // The Copy affordance (607 apply path) still appears on a complete value.
-    expect(document.querySelector('.csc-bulk-appointment__copy')).toBeTruthy();
-  });
-
-  // SIL-637 (id 741, owner 31/10): the LCL band datetime's visible label
-  // "Ngày giờ đóng trả *" is retired too — same doctrine as SIL-625 above,
-  // but a DIFFERENT field (the LCL schedule, not the FCL bulk copy-all; the
-  // ticket asked dev to confirm this is its own label, not a 625 leftover).
-  // The two segment inputs, the required validation and the picker copy
-  // stay; the group's aria-label keeps the name for screen readers.
-  it('SIL-637: removes the visible LCL band label while keeping inputs and the accessible name', async () => {
+  // SIL-637 (id 741) retired the visible LCL band label; SIL-639 (id 743,
+  // owner 31/10) supersedes that and restores it INLINE — "Ngày giờ đóng
+  // trả *" on the SAME row as the two segment inputs (label trái, control
+  // phải), the same pattern as the "Loại hàng *" fieldset. The group's
+  // aria-label, the segment labels and the required validation stay.
+  it('SIL-639: the LCL band label renders visible-inline again; inputs and aria unchanged', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
@@ -130,10 +89,15 @@ describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }
       expect(el).toBeTruthy();
       return el!;
     });
-    // No visible label span inside the band — the retired "Ngày giờ đóng trả *".
-    expect(band.querySelector('.split-datetime__label')).toBeNull();
-    expect(screen.queryByText('Ngày giờ đóng trả')).toBeNull();
-    expect(screen.queryByText('Ngày giờ đóng trả *')).toBeNull();
+    // The visible label is BACK, carrying the required mark — same row law
+    // as "Loại hàng *" (pinned in the page styles suite, .csc-lcl-delivery).
+    const label = band.querySelector('.split-datetime__label');
+    expect(label, 'the visible inline label is restored').toBeTruthy();
+    expect(label!.textContent).toContain('Ngày giờ đóng trả');
+    expect(label!.textContent).toContain('*');
+    // The label is a flex SIBLING of the field group (inline row), not a
+    // nested span inside it.
+    expect(label!.closest('[data-split-datetime]')).toBeNull();
     // The group still carries the name for assistive tech.
     const group = band.querySelector('[data-split-datetime][role="group"]');
     expect(group?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
@@ -192,5 +156,18 @@ describe('SIL-616 — band control height pins (styles)', () => {
     // from the same variable, so the phone's touch token still flows through.
     expect(PAGE_CSS).toMatch(/\.csc-mode-band__row \.date-seg-group\[data-uui-control\] \.date-seg-wrapper\s*\{\s*padding-block:\s*0;\s*\}/);
     expect(PAGE_CSS).toMatch(/:is\(#root, body\) \.csc-mode-band__row \.date-seg-group\[data-uui-control\] \.date-seg-wrapper \.date-seg\s*\{\s*padding-block:\s*0;\s*\}/);
+  });
+
+  it('SIL-639: the LCL band label rides INLINE — label trái, control phải, one row', () => {
+    // The band is a wrapping flex row (label a flex SIBLING of the field
+    // group), bottom-aligned so the label shares the control baseline — the
+    // "Loại hàng *" pattern — and never a stacked label-over-control grid.
+    expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px; min-width: 0; \}/);
+    // The label wears the same compact tokens as the "Loại hàng" legend.
+    expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \.split-datetime__label \{ font-size: var\(--control-compact-font-size\); font-weight: 700; line-height: var\(--control-compact-line-height\); color: var\(--fg-1\); white-space: nowrap; \}/);
+    // Phones keep the shared touch tokens when the label wraps above the pair.
+    expect(PAGE_CSS).toMatch(/@media \(max-width: 640px\) \{\s*\.csc-lcl-delivery \.split-datetime__label \{ font-size: var\(--control-compact-touch-font-size\); line-height: var\(--control-compact-touch-line-height\); \}/);
+    // The grid stack (label on top) must not return.
+    expect(PAGE_CSS).not.toMatch(/\.csc-lcl-delivery \{ display: grid;/);
   });
 });

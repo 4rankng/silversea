@@ -535,6 +535,77 @@ describe('shipment create model', () => {
     });
   });
 
+  // SIL-642 (id 746, owner 31/10): the FCL band datetime is retired, so the
+  // lot-level closingAt has no input anymore — the payload DERIVES it from
+  // the earliest container appointment (the required NGÀY GIỜ ĐÓNG TRẢ
+  // column), instead of persisting a band duplicate or wiping the column.
+  describe('SIL-642 — FCL closingAt derives from the earliest container', () => {
+    const fclForm = (overrides: Partial<ShipmentCreateFormState> = {}) => ({
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      cargoMode: 'FCL' as const,
+      tradeDirection: 'IMPORT' as const,
+      blNumber: 'BL-FCL-CLOSING',
+      ...overrides,
+    });
+    const row = (appointment: string, key = 'row-1'): ShipmentContainerDraft => ({
+      ...createEmptyContainer(),
+      key,
+      customerAppointmentAt: appointment,
+    });
+
+    it('mirrors the EARLIEST container appointment onto the lot closingAt', () => {
+      const payload = buildShipmentRootPayload(
+        fclForm(),
+        [row('2026-10-30T09:00'), row('2026-10-29T14:30', 'row-2')],
+        [],
+      );
+      expect(payload.closingAt).toBe('2026-10-29T14:30:00+07:00');
+    });
+
+    it('sends null when no FCL row carries a schedule (partial DRAFT save)', () => {
+      const payload = buildShipmentRootPayload(fclForm(), [row(''), row('', 'row-2')], []);
+      expect(payload.closingAt).toBeNull();
+    });
+
+    it('never derives an LCL lot closingAt from containers (SIL-587 law stands)', () => {
+      const payload = buildShipmentRootPayload(
+        fclForm({
+          cargoMode: 'LCL',
+          tradeDirection: 'EXPORT',
+          bookingRef: 'BK-LCL',
+          blNumber: '',
+          routeId: '11',
+          lclClosingAt: '2026-10-29T14:30',
+        }),
+        [row('2026-10-30T09:00')],
+        [],
+      );
+      expect(payload.closingAt).toBe('2026-10-29T14:30:00+07:00');
+    });
+
+    it('keeps the LCL-IMPORT root closingAt untouched (null on create)', () => {
+      const payload = buildShipmentRootPayload(
+        fclForm({
+          cargoMode: 'LCL',
+          tradeDirection: 'IMPORT',
+          routeId: '11',
+          lclClosingAt: '2026-10-29T14:30',
+        }),
+        [row('2026-10-30T09:00')],
+        [],
+      );
+      expect(payload.closingAt).toBeNull();
+      expect(payload.plannedReturnAt).toBe('2026-10-29T14:30:00+07:00');
+    });
+
+    it('adds NO closingAt requirement for FCL and keeps the per-row appointment one', () => {
+      const readiness = getShipmentCreateReadiness(fclForm(), [row(''), row('2026-10-30T09:00', 'row-2')]);
+      expect(readiness.issues.map((item) => item.fieldId)).toContain('container-row-1-customer-appointment');
+      expect(readiness.issues.map((item) => item.fieldId)).not.toContain('shipment-closing-at');
+    });
+  });
+
   // Helpdesk 2026-10-13 (ops Tiếp Vu): "hàng lẻ: phần thể tích (cbm) k bắt
   // buộc cần nhập" — CBM is optional on the LCL create path. A blank (or
   // whitespace-only) volume raises no validation issue and round-trips as

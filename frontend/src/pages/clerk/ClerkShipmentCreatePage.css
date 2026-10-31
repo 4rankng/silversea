@@ -39,8 +39,19 @@
 .csc-form-actions .csc-actions { flex-wrap: nowrap; min-width: 0; }
 .csc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* Card D.4 (18/10) + 181026200700: the hàng lẻ form has NO "Lịch & ghi chú"
-   section and NO add button — one always-visible "Ngày giao hàng" field. */
-.csc-lcl-delivery { display: grid; gap: 6px; justify-items: start; min-width: 0; }
+   section and NO add button — one always-visible "Ngày giao hàng" field.
+   SIL-639 (id 743, owner 31/10): the field's "Ngày giờ đóng trả *" label
+   rides INLINE — label trái, the two segment inputs phải, ONE control row —
+   the same pattern as the "Loại hàng *" fieldset beside it (legend compact
+   tokens, baseline-aligned bottom edge). SIL-637's hide is superseded; the
+   group's aria-label and the required validation are untouched. flex-wrap
+   stacks label above inputs on phones where the pair cannot share a line. */
+.csc-lcl-delivery { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px; min-width: 0; }
+.csc-lcl-delivery .split-datetime__label { font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); color: var(--fg-1); white-space: nowrap; }
+.csc-lcl-delivery .csc-uui-field { flex: 0 1 auto; min-width: 0; }
+@media (max-width: 640px) {
+  .csc-lcl-delivery .split-datetime__label { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }
+}
 /* Ghi chú pair (SIL-611: the form's LAST band, below Thông tin hàng): two
    recipient notes share ONE row at the same height instead of stacking two
    full-width boxes — the closing section stays a dense worksheet rather
@@ -484,7 +495,7 @@
   .csc-icon-button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }
 }
 
-@media (max-width: 640px) { .csc-page { padding: 12px 0; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }/* SIL-604 retest (QA 30/10): the stacked mode band measured 171px at 390 — the owner's compress lever is the card padding, structure (legend → segmented → bulk datetime) stays: 4px vertical trims 8px off the card. */#shipment-section-mode { padding: 4px 8px !important; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-touch-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { padding: 8px 8px 10px; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
+@media (max-width: 640px) { .csc-page { padding: 12px 0; }.csc-section { padding: 8px !important; gap: 10px !important; border-radius: 8px !important; }.csc-section__heading { gap: 9px; margin: -8px -8px 0; padding: 10px 8px; border-radius: 8px 8px 0 0; }/* SIL-604 retest (QA 30/10): the stacked mode band measured 171px at 390 — the owner's compress lever is the card padding, structure (legend → segmented; SIL-642 retired the FCL bulk datetime) stays: 4px vertical trims 8px off the card. */#shipment-section-mode { padding: 4px 8px !important; }.csc-mode legend, .csc-mode__option, .csc-flag-checkbox { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }.csc-flag-checkbox, .csc-add-container, .csc-container-add-control input, .csc-utility-button { min-height: var(--control-touch-h); }.csc-container-actions { align-items: stretch; }.csc-container-add-control { display: grid; width: 100%; grid-template-columns: 72px minmax(0, 1fr); }.csc-add-container { width: 100%; justify-self: stretch; }.csc-icon-button { min-width: var(--control-touch-h); min-height: var(--control-touch-h); }.csc-section textarea { min-height: 88px; }.csc-identity-grid { grid-template-columns: minmax(0, 1fr); }.csc-identity-grid__customer, .csc-identity-grid__flags--solo { grid-column: auto; }.csc-mode > div { display: flex; width: 100%; }.csc-mode label { flex: 1 1 0; }.csc-mode__option { justify-content: center; width: 100%; }.csc-site-picker { grid-template-columns: 1fr; }.csc-site-picker__actions { justify-content: stretch; }.csc-site-picker__actions .csc-utility-button { flex: 1 1 140px; }.csc-container-editor__allocation { align-items: stretch; flex-direction: column; }.csc-container-editor__allocation > .csc-utility-button { width: 100%; }.csc-container-row { padding: 8px 8px 10px; }.csc-pricing dl > div, .csc-pricing__breakdown > div { align-items: flex-start; flex-direction: column; }.csc-pricing dd { text-align: left; } }
 
 @media (max-width: 640px) {
   /* The grouped phone record keeps its card frame (mobile UX consult 16/10
@@ -675,60 +686,14 @@
   .csc-container-cell .csc-route-picker__add { width: auto; min-height: var(--control-max-h); padding-inline: 8px; }
 }
 
-/* Bulk delivery-schedule entry (case 2026-10-11-R14-02 / FB-008): one
-   date + time typed once applies to every container still without a
-   schedule. Field and action share one wrapping row on desktop and stack
-   on phones — no control exceeds the 40px ordinary ceiling. */
-.csc-bulk-appointment {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-end;
-  justify-content: flex-start;
-}
-.csc-bulk-appointment .csc-uui-field {
-  flex: 0 1 260px;
-  min-width: 220px;
-}
-/* SIL-598: the group moved into the mode band's flex row. SIL-604 (id
-   707): no grow — the stretched mode card this grow was balancing is
-   retired (the band is a content-sized full-width row ≥1280 now), so the
-   group hugs its 260px field + copy button and the one-line band ends
-   where its content ends (worksheet rows never justify-fill). */
-.csc-mode-band__row .csc-bulk-appointment {
-  flex: 0 1 auto;
-  min-width: 0;
-}
-/* FB-009 (card 131026233500): the section-level copy-time affordance sits on
-   the same wrapping row as the group field and its apply button — a small
-   icon button aligned to the control row, never an overlay. Always visible
-   (no hover-reveal): the card reports a clerk hunting for it by name. */
-.csc-bulk-appointment__copy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--fg-3);
-  cursor: pointer;
-}
-.csc-bulk-appointment__copy:hover { background: var(--surface-2); color: var(--fg-1); }
-@media (max-width: 640px) {
-  .csc-bulk-appointment { flex-direction: column; align-items: stretch; }
-  /* SIL-604 (id 707): the column layout turns flex-basis into a HEIGHT —
-     the 260px width basis measured a 260px-tall field box around ~60px of
-     controls at 390px (the ticket's supersize). The field sizes its own
-     height again and stretches across the phone width like every other
-     stacked field. */
-  .csc-bulk-appointment .csc-uui-field,
-  .csc-mode-band__row .csc-bulk-appointment .csc-uui-field { flex: 0 0 auto; width: 100%; min-width: 0; }
-  .csc-bulk-appointment .csc-utility-button { width: 100%; }
-  .csc-bulk-appointment__copy { align-self: flex-start; }
-}
+/* SIL-642 (id 746, owner 31/10): the FCL band datetime and its Copy
+   affordance are RETIRED — the bulk-appointment block (field
+   `flex: 0 1 260px`, the band's no-grow pin, the 32px copy button and the
+   ≤640 column layout) is gone with it. The container table's required
+   NGÀY GIỜ ĐÓNG TRẢ column is the schedule's only FCL surface; the
+   copy-down button under the table keeps the fill-everywhere path. The
+   `.csc-mode-band__row .csc-uui-field` error-lane rules and the
+   `.date-seg-group` height pins above still serve the LCL band datetime. */
 
 /* SIL-513 (owner 26/10): the copy affordance lives in the STT cell as a
    small icon BESIDE the ordinal — the ordinal stays visible (the icon no
