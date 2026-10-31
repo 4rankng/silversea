@@ -109,6 +109,13 @@ export interface IssueFulfillmentDispatchOrderInput {
    */
   rigOverlapCompletedConfirmed?: boolean;
   /**
+   * SIL-638 (id 742) TC6(2) — DOC logic-hang-kep-kethop: the kẹp 2×20'
+   * weight-overload gate is a soft warning. The first attempt refuses with
+   * 409 KEP_WEIGHT_WARNING (DOC verbatim text) and the dispatcher's
+   * confirmed retry carries this flag to proceed.
+   */
+  kepWeightWarningConfirmed?: boolean;
+  /**
    * Card B 18/10 (B.2) — warn-once plate gate for EXTERNAL issues: issuing a
    * vendor truck whose plate is not known yet is legal (card 20261004_359)
    * but must never pass silently — the first attempt is refused once with
@@ -635,6 +642,7 @@ export async function issueOrderCreateOrUpdate(
     cargoWeightKg,
     vehicleCapacityKg,
     rigOverlapCompletedConfirmed: input.rigOverlapCompletedConfirmed === true,
+    kepWeightWarningConfirmed: input.kepWeightWarningConfirmed === true,
     // Both rows must be explicitly Kẹp and share one physical rig. The
     // business day is Vietnam-local, including windows crossing UTC midnight.
     kepContext: {

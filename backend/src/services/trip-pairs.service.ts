@@ -5,13 +5,19 @@ import {
   type TripPairRecord,
   type TripPairSummary,
 } from '@tingting/shared';
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { applyTripPatch } from './trip-composite.service';
 import { ApiError } from '../errors';
+import {
+  backhaulTollDeductionForSecond,
+  combinedContainerSizeBlockMessage,
+  containerNumberToInherit,
+  kepContainerSizeBlockMessage,
+} from './trip-pair-rules.service';
 import {
   breakTripPairOnCancellation,
   breakTripPairOnLateCompletion,
@@ -82,27 +88,10 @@ function toText(value: string | number | null | undefined): string | null {
 }
 
 /**
- * O2C "kẹp hàng" (backhaul) toll dedup (PRD Bước 2, 01/08/2026). A paired
- * two-way trip physically pays the closed-loop VETC toll once, so the second
- * trip carries a `tollDeduction` equal to its gross toll. This returns the
- * derived-field delta to persist on the second trip so its stored `tollCost` and
- * `totalCost` stay consistent with `computeTripTotals` (net = max(0, gross − ded)).
- * Trip 1 keeps its full toll (the pair bears the toll once across both trips).
+ * SIL-638 (id 742) TC3/TC7 — the pair's VETC toll-dedup and pair-salary math
+ * live as pure laws in trip-pair-rules.service (unit-pinned there); this
+ * service wires them into the pairing transaction.
  */
-function backhaulTollDeductionForSecond(trip: TripRowForPairing): {
-  tollDeduction: string;
-  tollCost: string;
-  totalCostDelta: number;
-} {
-  const grossToll = (trip.tollsStations ?? 0) * Number(trip.tollPerStationApplied ?? 0);
-  const previousNetToll = Number(trip.tollCost ?? 0);
-  const newNetToll = trip.reconciledTollCost == null ? 0 : Number(trip.reconciledTollCost);
-  return {
-    tollDeduction: String(grossToll),
-    tollCost: String(newNetToll),
-    totalCostDelta: newNetToll - previousNetToll,
-  };
-}
 
 function firstBlockingMessage(code: string): string {
   switch (code) {
@@ -438,6 +427,38 @@ async function loadPairingContainerInfo(
   return [byTrip.get(tripIds[0]) ?? null, byTrip.get(tripIds[1]) ?? null];
 }
 
+/**
+ * SIL-638 (id 742) TC7(2) — write Lệnh 1's inherited shell number onto
+ * Lệnh 2's blank container-number surfaces: the trip's trip_containers
+ * snapshot rows first, then the fulfillment's shipment container row (the
+ * lot's own container, which the CUS detail view reads). Only blank values
+ * are stamped — an existing number is never overwritten.
+ */
+async function inheritContainerNumberOnSecondTrip(tx: Tx, secondTripId: number, containerNumber: string) {
+  const blankNumber = or(
+    isNull(s.tripContainers.containerNumber),
+    eq(s.tripContainers.containerNumber, ''),
+  );
+  await tx.update(s.tripContainers)
+    .set({ containerNumber, updatedAt: new Date() })
+    .where(and(eq(s.tripContainers.tripId, secondTripId), blankNumber));
+  const [linked] = await tx.select({ shipmentContainerId: s.shipmentFulfillments.shipmentContainerId })
+    .from(s.trips)
+    .innerJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .where(eq(s.trips.id, secondTripId))
+    .limit(1);
+  if (linked?.shipmentContainerId == null) return;
+  await tx.update(s.shipmentContainers)
+    .set({ containerNumber, updatedAt: new Date() })
+    .where(and(
+      eq(s.shipmentContainers.id, linked.shipmentContainerId),
+      or(
+        isNull(s.shipmentContainers.containerNumber),
+        eq(s.shipmentContainers.containerNumber, ''),
+      ),
+    ));
+}
+
 export async function createTripPair(
   input: CreateTripPairInput,
   actorId: number,
@@ -465,15 +486,21 @@ export async function createTripPair(
     assertTripDraftMatchesAuthority('Chuyến 1', input.firstTrip, locked.first);
     assertTripDraftMatchesAuthority('Chuyến 2', input.secondTrip, locked.second);
 
-    // Kind-specific container/day rules (LoHangKepKetHop §1, TC-GHEP-002…005).
+    // Kind-specific container/day rules (LoHangKepKetHop §1, TC-GHEP-002…005;
+    // SIL-638 texts come verbatim from the owner DOC logic-hang-kep-kethop).
     const [firstContainer, secondContainer] = await loadPairingContainerInfo(tx, [input.firstTripId, input.secondTripId]);
     if (kind === 'KEP') {
       if (locked.first.departureDate !== locked.second.departureDate) {
         throw new ApiError(422, 'Không đủ điều kiện kẹp hàng: hai lệnh phải khởi hành cùng một ngày.');
       }
-      const isTwentyFoot = (info: PairingContainerInfo | null) => (info?.containerTypeCode ?? '').startsWith('20');
-      if (!isTwentyFoot(firstContainer) || !isTwentyFoot(secondContainer)) {
-        throw new ApiError(422, 'Không đủ điều kiện kẹp hàng: kẹp hàng yêu cầu 2 container 20ft trên cùng 1 mooc.');
+      // SIL-638 (id 742) TC6(1): the clamp carries exactly two 20ft boxes — a
+      // 40' side (or an unprovable shell) is a HARD block with the DOC text.
+      const kepSizeBlock = kepContainerSizeBlockMessage(
+        firstContainer?.containerTypeCode ?? null,
+        secondContainer?.containerTypeCode ?? null,
+      );
+      if (kepSizeBlock != null) {
+        throw new ApiError(422, kepSizeBlock);
       }
     }
     if (
@@ -483,6 +510,20 @@ export async function createTripPair(
       && firstContainer.containerNumber.trim() !== secondContainer.containerNumber.trim()
     ) {
       throw new ApiError(422, 'Ghép kết hợp yêu cầu tái sử dụng đúng một vỏ container — hai lệnh đang mang số vỏ khác nhau.');
+    }
+    // SIL-638 (id 742) TC7(1): kết hợp reuses one shell, so the two legs must
+    // be the same container size — same 20' or same 40' both pass (unlike
+    // kẹp); a proven mismatch is a hard block with the DOC text. A side with
+    // no known size cannot prove a mismatch and stays with the "bổ sung sau"
+    // convention (same as the number rule above).
+    if (kind === 'KET_HOP') {
+      const combinedSizeBlock = combinedContainerSizeBlockMessage(
+        firstContainer?.containerTypeCode ?? null,
+        secondContainer?.containerTypeCode ?? null,
+      );
+      if (combinedSizeBlock != null) {
+        throw new ApiError(422, combinedSizeBlock);
+      }
     }
 
     // Card 211026152138 — a rig with NO declared capacity (master-data imports
@@ -618,6 +659,20 @@ export async function createTripPair(
         secondSalaryStash: String(previousSecondSalary),
         updatedAt: new Date(),
       }).where(eq(s.tripPairs.id, pair.id));
+    }
+    // SIL-638 (id 742) TC7(2): a COMBINED pair shares ONE physical shell, so
+    // when Lệnh 2's số container is still blank at pair time the system fills
+    // it from Lệnh 1 — both the trip's own snapshot rows and (when the trip
+    // has none) the lot's container row stay consistent with the shell the
+    // pair just committed to. Never overwrites a number someone already set.
+    if (kind === 'KET_HOP') {
+      const inheritedContainerNumber = containerNumberToInherit(
+        firstContainer?.containerNumber ?? null,
+        secondContainer?.containerNumber ?? null,
+      );
+      if (inheritedContainerNumber != null) {
+        await inheritContainerNumberOnSecondTrip(tx, input.secondTripId, inheritedContainerNumber);
+      }
     }
     await refreshExpenseTripCosts(tx, input.firstTripId);
 

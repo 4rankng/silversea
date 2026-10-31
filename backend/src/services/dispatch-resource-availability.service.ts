@@ -2,6 +2,15 @@ import { and, eq, inArray, isNotNull, isNull, lt, ne, or, sql, type SQL } from '
 import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import {
+  declaredKepShareMode,
+  isDeclaredKepSharePartner,
+  isMixedDeclarationKepCandidate,
+  kepPairWeightVerdict,
+  kepWeightGuardOutcome,
+  KEP_WEIGHT_WARNING_CODE,
+  KEP_WEIGHT_WARNING_MESSAGE,
+} from './trip-pair-rules.service';
 import type { Tx } from './dispatch-planning-utils.service';
 
 /**
@@ -85,6 +94,15 @@ export async function assertResourceAvailability(tx: Tx, args: {
    */
   rigOverlapCompletedConfirmed?: boolean;
   /**
+   * SIL-638 (id 742) TC6(2) — DOC logic-hang-kep-kethop: the kẹp 2×20'
+   * weight-overload gate is a SOFT warning. The first attempt refuses with
+   * 409 KEP_WEIGHT_WARNING (DOC verbatim text) and the dispatcher's
+   * confirmed retry carries this flag to proceed — retiring the old hard
+   * "Tổng trọng lượng hai container kẹp vượt quá tải trọng xe." 409 at all
+   * three carve sites below.
+   */
+  kepWeightWarningConfirmed?: boolean;
+  /**
    * SIL-591 (id 691) — the issuing lot's ghép-trả-ĐV group id. Sibling lots
    * of ONE cost group share ONE physical run on purpose (one BKS thực, one
    * driver, one slot) — a sibling's ACTIVE trip is the arrangement itself,
@@ -161,30 +179,29 @@ export async function assertResourceAvailability(tx: Tx, args: {
   // third load stays a conflict. Pairs are created after both trips exist,
   // so an unpaired partner passes the linkage conjunct.
   const kep = args.kepContext;
-  const declaredMode: 'KEP' | 'KET_HOP' | null = kep?.classification === 'COMBINED'
-    ? 'KET_HOP'
-    : kep?.classification === 'DOUBLE' && kep.issuingContainerIsTwentyFoot ? 'KEP' : null;
-  if (partner && kep != null && declaredMode != null
-    && kep.departureDate != null
-    && partner.classification === (declaredMode === 'KEP' ? 'DOUBLE' : 'COMBINED')
-    && args.truckId != null && partner.truckId === args.truckId
-    && args.trailerId != null && partner.trailerId === args.trailerId
-    && args.driverId != null && partner.driverId === args.driverId
-    && partner.plannedStartAt != null
-    && localDateInBusinessZone(partner.plannedStartAt) === kep.departureDate
-    && (partner.activePairId == null || (args.tripId != null
-      && (partner.pairFirstTripId === args.tripId || partner.pairSecondTripId === args.tripId)))
-  ) {
+  const declaredMode = declaredKepShareMode(kep);
+  const shareRequest = {
+    tripId: args.tripId,
+    truckId: args.truckId,
+    trailerId: args.trailerId,
+    driverId: args.driverId,
+    kep,
+  };
+  if (partner && isDeclaredKepSharePartner(shareRequest, partner, declaredMode)) {
     if (declaredMode === 'KEP') {
       const containers = await tx.select({ code: s.containerTypes.code, weight: s.tripContainers.cargoWeightKg })
         .from(s.tripContainers)
         .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
         .where(eq(s.tripContainers.tripId, partner.id));
       if (containers.length === 1 && containers[0].code?.startsWith('20')) {
-        const weights = [args.cargoWeightKg, containers[0].weight];
-        if (args.vehicleCapacityKg != null && weights.every((weight) => weight != null && Number.isFinite(Number(weight)))
-          && weights.reduce((sum, weight) => sum + Number(weight), 0) > Number(args.vehicleCapacityKg)) {
-          throw new ApiError(409, 'Tổng trọng lượng hai container kẹp vượt quá tải trọng xe.');
+        // SIL-638 (id 742) TC6(2): DOC soft warning — refuse once with the
+        // DOC verbatim text; the dispatcher's confirmed retry
+        // (kepWeightWarningConfirmed) proceeds to save.
+        if (kepWeightGuardOutcome(
+          kepPairWeightVerdict(args.cargoWeightKg, containers[0].weight, args.vehicleCapacityKg),
+          args.kepWeightWarningConfirmed === true,
+        ) === 'refuse') {
+          throw new ApiError(409, KEP_WEIGHT_WARNING_MESSAGE, undefined, { code: KEP_WEIGHT_WARNING_CODE });
         }
         blocking = [];
       }
@@ -201,23 +218,17 @@ export async function assertResourceAvailability(tx: Tx, args: {
   // not a foreign claim — it rides the FB-012 warn-once contract (confirmable)
   // instead of dead-ending on the hard "trùng lịch kế hoạch" tier. The weight
   // gate still applies: an overweight pair never rides, confirmed or not.
-  if (partner && kep != null && declaredMode === 'KEP' && kep.departureDate != null
-    && partner.classification !== 'DOUBLE'
-    && args.truckId != null && partner.truckId === args.truckId
-    && args.trailerId != null && partner.trailerId === args.trailerId
-    && args.driverId != null && partner.driverId === args.driverId
-    && partner.plannedStartAt != null
-    && localDateInBusinessZone(partner.plannedStartAt) === kep.departureDate
-  ) {
+  if (partner && isMixedDeclarationKepCandidate(shareRequest, partner)) {
     const containers = await tx.select({ code: s.containerTypes.code, weight: s.tripContainers.cargoWeightKg })
       .from(s.tripContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
       .where(eq(s.tripContainers.tripId, partner.id));
     if (containers.length === 1 && containers[0].code?.startsWith('20')) {
-      const weights = [args.cargoWeightKg, containers[0].weight];
-      if (args.vehicleCapacityKg != null && weights.every((weight) => weight != null && Number.isFinite(Number(weight)))
-        && weights.reduce((sum, weight) => sum + Number(weight), 0) > Number(args.vehicleCapacityKg)) {
-        throw new ApiError(409, 'Tổng trọng lượng hai container kẹp vượt quá tải trọng xe.');
+      if (kepWeightGuardOutcome(
+        kepPairWeightVerdict(args.cargoWeightKg, containers[0].weight, args.vehicleCapacityKg),
+        args.kepWeightWarningConfirmed === true,
+      ) === 'refuse') {
+        throw new ApiError(409, KEP_WEIGHT_WARNING_MESSAGE, undefined, { code: KEP_WEIGHT_WARNING_CODE });
       }
       blocking = [];
       kepCandidateWarn = true;
@@ -256,10 +267,11 @@ export async function assertResourceAvailability(tx: Tx, args: {
           .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
           .where(eq(s.tripContainers.tripId, partner.id));
         if (!(containers.length === 1 && containers[0].code?.startsWith('20'))) continue;
-        const weights = [args.cargoWeightKg, containers[0].weight];
-        if (args.vehicleCapacityKg != null && weights.every((weight) => weight != null && Number.isFinite(Number(weight)))
-          && weights.reduce((sum, weight) => sum + Number(weight), 0) > Number(args.vehicleCapacityKg)) {
-          throw new ApiError(409, 'Tổng trọng lượng hai container kẹp vượt quá tải trọng xe.');
+        if (kepWeightGuardOutcome(
+          kepPairWeightVerdict(args.cargoWeightKg, containers[0].weight, args.vehicleCapacityKg),
+          args.kepWeightWarningConfirmed === true,
+        ) === 'refuse') {
+          throw new ApiError(409, KEP_WEIGHT_WARNING_MESSAGE, undefined, { code: KEP_WEIGHT_WARNING_CODE });
         }
         carvedPartnerIds.add(partner.id);
       }
