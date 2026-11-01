@@ -29,6 +29,7 @@ import { completeExternalCarrierTrip } from './trip-external-close.service';
 import { syncShipmentExpenseSources } from './expense-accounting-write.service';
 import { canonicalLocationsFromContainerRow, containerLocationColumns } from './trip-shared';
 import { propagateKepPairRigToPartner } from './trip-pair-rig-sync.service';
+import { autoPairIssuedTripInTx } from './trip-pairs.service';
 
 
 import { and, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
@@ -179,6 +180,20 @@ export interface IssueOrderMutationResult {
     driverId: number | null;
     departureDate: string | null;
   };
+  /**
+   * SIL-638 đợt 2 (QA 01/11) — set when issuing this leg AUTO-CREATED the
+   * dispatch pair (TC3/TC7): both legs declare the same pair classification
+   * (DOUBLE→KEP, COMBINED→KET_HOP) on one rig, one driver, one business day.
+   * The pair row + its VETC/salary/inheritance hooks landed inside this same
+   * transaction, exactly like the manual pairing dialog. Null/absent = the
+   * leg stands unpaired (plain ĐƠN, external carrier, no compatible
+   * partner, or already paired).
+   */
+  autoPairedTrip?: {
+    pairId: number;
+    pairKind: 'KEP' | 'KET_HOP';
+    partnerTripId: number;
+  } | null;
 }
 
 
@@ -851,6 +866,20 @@ export async function issueOrderCreateOrUpdate(
     }
   }
 
+  // SIL-638 đợt 2 (QA 01/11) — TC3/TC7: the dispatch issue path AUTO-CREATES
+  // the pair when this leg declares Kẹp/Kết hợp and its partner already runs
+  // on the same rig the same business day. Runs after the trip upsert (both
+  // legs' rows are final) and inside the same transaction + the rig advisory
+  // locks acquired above, so concurrent issues of the two legs serialize and
+  // the pair is born all-or-nothing with the order. All đợt-1 pair gates run
+  // for real on this path (DOC 40' Kẹp block, COMBINED same-size/shell
+  // rules, snapshot eligibility) — a gate refusal rolls the whole issue
+  // back, never a silent skip.
+  const autoPairedTrip = await autoPairIssuedTripInTx(tx, {
+    tripId: trip.id,
+    actorId: input.actor.userId,
+  });
+
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
     plannedCarrierType: input.carrierType,
     plannedExternalCarrierId: externalCarrierId,
@@ -891,6 +920,7 @@ export async function issueOrderCreateOrUpdate(
     fulfillment: updatedFulfillment ?? fulfillment,
     trip,
     notificationPersisted,
+    autoPairedTrip,
     ...cascade,
     ...(departedDriverChanged ? {
       attendanceResync: {

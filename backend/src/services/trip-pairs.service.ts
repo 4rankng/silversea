@@ -5,7 +5,7 @@ import {
   type TripPairRecord,
   type TripPairSummary,
 } from '@tingting/shared';
-import { and, asc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
@@ -13,11 +13,13 @@ import * as s from '../db/schema';
 import { applyTripPatch } from './trip-composite.service';
 import { ApiError } from '../errors';
 import {
+  autoPairKindForClassification,
   backhaulTollDeductionForSecond,
   combinedContainerSizeBlockMessage,
   containerNumberToInherit,
   declaredCombinedPairCarve,
   kepContainerSizeBlockMessage,
+  selectAutoPairPartnerCandidate,
 } from './trip-pair-rules.service';
 import {
   breakTripPairOnCancellation,
@@ -483,7 +485,43 @@ export async function createTripPair(
   actorId: number,
   transaction?: Tx,
 ): Promise<TripPairRecord> {
-  const execute = async (tx: Tx) => {
+  return runInTx(transaction, (tx) => createTripPairCoreInTx(tx, {
+    firstTripId: input.firstTripId,
+    secondTripId: input.secondTripId,
+    kind: input.pairKind ?? 'KET_HOP',
+    actorId,
+    firstDraft: input.firstTrip,
+    secondDraft: input.secondTrip,
+  })) as Promise<TripPairRecord>;
+}
+
+/** Arguments of the shared pairing core. `firstDraft`/`secondDraft` carry the
+ *  dispatcher's dialog drafts (manual path); the AUTO-pair path omits them —
+ *  there is no user draft to reconcile, the authority rows ARE the values. */
+interface CreateTripPairCoreArgs {
+  firstTripId: number;
+  secondTripId: number;
+  kind: TripPairKind;
+  actorId: number;
+  firstDraft?: PairDraftInput;
+  secondDraft?: PairDraftInput;
+}
+
+/**
+ * The pairing transaction shared by the manual dialog (createTripPair) and
+ * the SIL-638 đợt-2 auto-pair wiring at the dispatch issue path
+ * (autoPairIssuedTripInTx). Every gate runs for real on both paths: the DOC
+ * size texts (TC6(1) 40' Kẹp block, TC7(1) same-size), the shell-number
+ * rule, the snapshot eligibility, the VETC toll dedup, the pair salary and
+ * the TC7(2) container-number inheritance.
+ */
+async function createTripPairCoreInTx(
+  tx: Tx,
+  args: CreateTripPairCoreArgs,
+): Promise<TripPairRecord & { warnings?: string[] }> {
+  const input = { firstTripId: args.firstTripId, secondTripId: args.secondTripId };
+  const kind = args.kind;
+  const execute = async () => {
     await lockTripFinancialAuthority(tx, [input.firstTripId, input.secondTripId]);
     const tripReferences = await tx.select({ shipmentId: s.trips.shipmentId })
       .from(s.trips)
@@ -498,12 +536,15 @@ export async function createTripPair(
     const routeDistances = await loadRouteDistances(tx, [locked.first.routeId, locked.second.routeId]);
     locked.first.routeDistanceKm = routeDistances.get(locked.first.routeId) ?? null;
     locked.second.routeDistanceKm = routeDistances.get(locked.second.routeId) ?? null;
-    assertExpectedVersion(locked.first, input.firstTrip.expectedVersion);
-    assertExpectedVersion(locked.second, input.secondTrip.expectedVersion);
-    const kind: TripPairKind = input.pairKind ?? 'KET_HOP';
+    if (args.firstDraft) {
+      assertExpectedVersion(locked.first, args.firstDraft.expectedVersion);
+      assertTripDraftMatchesAuthority('Chuyến 1', args.firstDraft, locked.first);
+    }
+    if (args.secondDraft) {
+      assertExpectedVersion(locked.second, args.secondDraft.expectedVersion);
+      assertTripDraftMatchesAuthority('Chuyến 2', args.secondDraft, locked.second);
+    }
     assertPairableTrips(locked.first, locked.second, kind);
-    assertTripDraftMatchesAuthority('Chuyến 1', input.firstTrip, locked.first);
-    assertTripDraftMatchesAuthority('Chuyến 2', input.secondTrip, locked.second);
 
     // Kind-specific container/day rules (LoHangKepKetHop §1, TC-GHEP-002…005;
     // SIL-638 texts come verbatim from the owner DOC logic-hang-kep-kethop).
@@ -648,7 +689,7 @@ export async function createTripPair(
       combinedEfficiencyPercent: toText(evaluation.combinedEfficiencyPercent),
       requiredGapMinutes: evaluation.requiredGapMinutes,
       actualGapMinutes: evaluation.actualGapMinutes,
-      createdBy: actorId,
+      createdBy: args.actorId,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).returning();
@@ -754,7 +795,102 @@ export async function createTripPair(
     }
     return warnings.length > 0 ? { ...serializePairRecord(pair), warnings } : serializePairRecord(pair);
   };
-  return runInTx(transaction, execute);
+  return execute();
+}
+
+/**
+ * SIL-638 đợt 2 (QA 01/11) — AUTO-PAIR at the dispatch issue path. Runs
+ * INSIDE the issuing transaction, after the leg's trip row is final: when
+ * the leg declares Kẹp/Kết hợp and a compatible partner (same classification
+ * declaration, same tractor, same driver, same business day, internal fleet,
+ * not already paired) is already issued, the pair row is created through the
+ * SAME core the manual dialog uses — every đợt-1 gate runs for real (DOC 40'
+ * Kẹp text, COMBINED same-size + shell-number rules, snapshot eligibility)
+ * and the VETC/salary/inheritance hooks land exactly like a manual pair.
+ *
+ * Idempotent: a leg already in an ACTIVE pair never re-pairs. Concurrent
+ * issues of the two legs serialize on the rig advisory locks the issue path
+ * already holds (lockKeys.dispatchResource), and the pairing core re-locks
+ * both trip rows (`for update`) before re-checking the pair stamps — a lost
+ * race fails on the pair-membership law, never double-creates.
+ *
+ * Returns null when no pair is warranted (plain ĐƠN/LCL, external carrier,
+ * no candidate) — the issue then stands unpaired, business as before.
+ */
+export async function autoPairIssuedTripInTx(
+  tx: Tx,
+  args: { tripId: number; actorId: number },
+): Promise<{ pairId: number; pairKind: 'KEP' | 'KET_HOP'; partnerTripId: number } | null> {
+  const [issued] = await tx.select({
+    id: s.trips.id,
+    truckId: s.trips.truckId,
+    driverId: s.trips.driverId,
+    plannedStartAt: s.trips.plannedStartAt,
+    activeTripPairId: s.trips.activeTripPairId,
+    classification: s.shipmentFulfillments.dispatchClassification,
+    carrierType: s.tripCarrierInfo.carrierType,
+  }).from(s.trips)
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .where(and(eq(s.trips.id, args.tripId), isNull(s.trips.deletedAt)))
+    .limit(1)
+    .for('update', { of: [s.trips] });
+  if (!issued) return null;
+  const kind = autoPairKindForClassification(issued.classification);
+  if (kind == null) return null;
+  if (issued.truckId == null || issued.driverId == null) return null;
+  if (issued.plannedStartAt == null) return null;
+  if (issued.activeTripPairId != null) return null;
+  if ((issued.carrierType ?? 'OWN') !== 'OWN') return null;
+
+  const candidates = await tx.select({
+    tripId: s.trips.id,
+    classification: s.shipmentFulfillments.dispatchClassification,
+    truckId: s.trips.truckId,
+    driverId: s.trips.driverId,
+    plannedStartAt: s.trips.plannedStartAt,
+    activeTripPairId: s.trips.activeTripPairId,
+    status: s.trips.status,
+    carrierType: s.tripCarrierInfo.carrierType,
+  }).from(s.trips)
+    .innerJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .where(and(
+      ne(s.trips.id, issued.id),
+      isNull(s.trips.deletedAt),
+      inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
+      eq(s.trips.truckId, issued.truckId),
+      eq(s.trips.driverId, issued.driverId),
+      isNull(s.trips.activeTripPairId),
+      eq(s.shipmentFulfillments.dispatchClassification, issued.classification!),
+      isNotNull(s.trips.plannedStartAt),
+    ))
+    .orderBy(asc(s.trips.id));
+  // The pure law re-verifies every conjunct (day match, OWN coalesce,
+  // statuses, idempotency) — the SQL narrows, this decides.
+  const partner = selectAutoPairPartnerCandidate(
+    {
+      tripId: issued.id,
+      classification: issued.classification,
+      truckId: issued.truckId,
+      driverId: issued.driverId,
+      plannedStartAt: issued.plannedStartAt,
+    },
+    candidates,
+  );
+  if (partner == null) return null;
+
+  // Lệnh 1 = the leg issued first (the existing partner), Lệnh 2 = the leg
+  // being issued now — the order the manual flow uses, so the VETC toll nets
+  // on the later leg and a KET_HOP late-completion break watches the right
+  // window.
+  const pair = await createTripPairCoreInTx(tx, {
+    firstTripId: partner.tripId,
+    secondTripId: issued.id,
+    kind,
+    actorId: args.actorId,
+  });
+  return { pairId: pair.id, pairKind: kind, partnerTripId: partner.tripId };
 }
 
 async function clearActivePairOnTrips(tx: Tx, tripIds: number[]) {
