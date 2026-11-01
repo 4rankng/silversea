@@ -73,7 +73,6 @@
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
-  max-width: 100%;
 }
 
 /* Height unification vs the control-geometry size rules. Specificity, not
