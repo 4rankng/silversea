@@ -344,6 +344,10 @@ export async function reconcileShipmentContainersInTx(
     // restates the column and syncs the linked PRE-TRIP fulfillment below —
     // never a dispatched row (the dispatch flow owns the classification from
     // its first live trip on).
+    // SIL-643 (id 748, owner 01/11 — reverses TC5): the create form no longer
+    // offers the Phân loại picker — every CUS intake payload carries
+    // 'SINGLE' (the field stays accepted on the wire, defaulting SINGLE;
+    // dispatch's plan-PATCH classification flow is untouched).
     const resolvedClassification = container.classification !== undefined
       ? container.classification ?? null
       : isUpdate

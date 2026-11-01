@@ -31,7 +31,6 @@ const container: ShipmentContainerDraft = {
   rawFactoryName: '',
   customerAppointmentAt: '',
   declarationNumber: 'TK-SIL701-A',
-  classification: 'SINGLE',
 };
 
 describe('shipment create model', () => {
@@ -125,48 +124,34 @@ describe('shipment create model', () => {
       rawRouteName: null,
       customerAppointmentAt: null,
       declarationNumber: 'TK-SIL701-A',
+      // SIL-643: every intake row rides the explicit Đơn default.
+      classification: 'SINGLE',
     }]);
   });
 
-  // SIL-638 (id 742) TC5 — the per-container intake classification rides the
-  // quick-create payload only when CUS picked Kẹp/Kết hợp; omitted = SINGLE.
-  it('SIL-638 TC5: sends a picked Kẹp/Kết hợp classification and omits the ĐƠN default', () => {
+  // SIL-643 (id 748, owner 01/11 — reverses SIL-638 TC5): the create form has
+  // NO Phân loại picker — every row the intake sends is Đơn, and the payload
+  // carries `classification: 'SINGLE'` explicitly (the BE wire field stays).
+  it('SIL-643: payload luôn gửi classification SINGLE cho mọi dòng (không còn cột chọn)', () => {
     const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', cargoMode: 'FCL' as const, shippingLineName: 'MSC' };
-    const kepRow: ShipmentContainerDraft = { ...createEmptyContainer(), containerTypeId: '31', classification: 'DOUBLE' };
-    const combinedRow: ShipmentContainerDraft = { ...createEmptyContainer(), containerTypeId: '31', classification: 'COMBINED' };
-    const donRow: ShipmentContainerDraft = { ...createEmptyContainer(), containerTypeId: '31' };
+    const firstRow = { ...createEmptyContainer(), containerTypeId: '31', declarationNumber: 'TK-643-1' };
+    const secondRow = { ...createEmptyContainer(), containerTypeId: '31', declarationNumber: 'TK-643-2' };
 
-    const [first, second, third] = buildShipmentContainerPayload(form, [kepRow, combinedRow, donRow]);
-    expect(first).toMatchObject({ classification: 'DOUBLE' });
-    expect(second).toMatchObject({ classification: 'COMBINED' });
-    // ĐƠN is the wire default: the key is absent, never sent explicitly.
-    expect(third).not.toHaveProperty('classification');
+    const rows = buildShipmentContainerPayload(form, [firstRow, secondRow]);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ classification: 'SINGLE' });
+    expect(rows[1]).toMatchObject({ classification: 'SINGLE' });
   });
 
-  // SIL-638 TC5: a defaulted (Đơn) classification never makes an untouched
-  // row look filled, but a DELIBERATE Kẹp/Kết hợp pick IS row intent — the
-  // row passes the fill filter (and gets validated) instead of silently
-  // dropping the pick.
-  it('SIL-638 TC5: SINGLE default keeps empty rows filtered; a picked classification counts as data', () => {
+  // SIL-643: no classification field exists on a draft anymore — an untouched
+  // row stays filtered by the plain value scan (the TC5 exemption is gone).
+  it('SIL-643: dòng untouched vẫn bị lọc khỏi payload (quét giá trị thuần)', () => {
     const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', cargoMode: 'FCL' as const };
     const untouched = createEmptyContainer();
-    const pickedOnly = { ...createEmptyContainer(), classification: 'DOUBLE' as const };
-    const typed = { ...createEmptyContainer(), containerTypeId: '31', classification: 'DOUBLE' as const };
+    const typed = { ...createEmptyContainer(), containerTypeId: '31' };
 
     expect(buildShipmentContainerPayload(form, [untouched])).toEqual([]);
-    expect(buildShipmentContainerPayload(form, [pickedOnly])).toMatchObject([{ classification: 'DOUBLE' }]);
-    expect(buildShipmentContainerPayload(form, [typed])).toMatchObject([{ classification: 'DOUBLE' }]);
-  });
-
-  // SIL-638 TC5: "Thêm container" on a Kẹp lot inherits the pick (shared
-  // half, like số tờ khai) so a kẹp lot needs ONE tick; the explicit STT
-  // duplicate carries it by definition (full-value copy).
-  it('SIL-638 TC5: appending and duplicating rows inherit the classification', () => {
-    const kepRow: ShipmentContainerDraft = { ...createEmptyContainer(), containerTypeId: '31', classification: 'DOUBLE' };
-
-    expect(createContainerFromPrevious(kepRow).classification).toBe('DOUBLE');
-    expect(duplicateContainerRow(kepRow).classification).toBe('DOUBLE');
-    expect(createContainerFromPrevious().classification).toBe('SINGLE');
+    expect(buildShipmentContainerPayload(form, [typed])).toMatchObject([{ classification: 'SINGLE' }]);
   });
 
   it('carries row-tier raw factory/route for adhoc rows and nulls the catalog ids', () => {
@@ -190,6 +175,7 @@ describe('shipment create model', () => {
       rawRouteName: 'Tuyến riêng 1',
       customerAppointmentAt: null,
       declarationNumber: null,
+      classification: 'SINGLE',
     });
     expect(second).toEqual(expect.objectContaining({ operationalSiteId: 41, rawFactoryName: null, routeId: 11, rawRouteName: null }));
 

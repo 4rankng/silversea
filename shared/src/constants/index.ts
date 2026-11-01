@@ -996,12 +996,12 @@ export const DISPATCH_CLASSIFICATION_LABELS: Record<DispatchClassification, stri
 };
 
 /**
- * SIL-638 (id 742) TC5 — the per-container intake vocabulary the CUS create
- * form offers on each FCL container row. A strict subset of
- * DISPATCH_CLASSIFICATIONS: Lẻ/Lấy Lẻ belong to the LOT's cargo mode, never
- * to a container row, so the intake picker can never emit them. Omitted on
- * the wire = SINGLE (ĐƠN) — the fulfillment default — so an edit reconcile
- * that carries no classification choice never restates a stored value.
+ * SIL-638 (id 742) TC5 — the per-container intake classification vocabulary
+ * (a strict subset of DISPATCH_CLASSIFICATIONS). SIL-643 (id 748, owner
+ * 01/11) removed the CUS create form's Phân loại picker — the intake now
+ * always sends 'SINGLE' (ĐƠN); the field stays on the wire for the BE
+ * reconcile and the dispatch plan-PATCH flow, which remain the only
+ * classification writers. Omitted on the wire still = SINGLE.
  */
 export const CONTAINER_CLASSIFICATIONS = ['SINGLE', 'DOUBLE', 'COMBINED'] as const;
 export type ContainerClassification = (typeof CONTAINER_CLASSIFICATIONS)[number];
