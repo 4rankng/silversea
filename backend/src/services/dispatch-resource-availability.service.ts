@@ -3,6 +3,8 @@ import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import {
+  CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE,
+  classificationMismatchShareBlockMessage,
   declaredKepShareMode,
   isDeclaredKepSharePartner,
   isMixedDeclarationKepCandidate,
@@ -305,6 +307,20 @@ export async function assertResourceAvailability(tx: Tx, args: {
     blocking = blocking.filter((row) => !groupSiblingIds.has(row.id));
   }
   if (blocking.some((row) => args.truckId != null && row.truckId === args.truckId)) {
+    // SIL-638 (id 742) TC2 đợt 2 (QA 01/11) — the classification-mismatch
+    // refusal answers BEFORE the generic "trùng lịch" copy: the holder on
+    // this tractor is a DECLARED pair leg (Kẹp/Kết hợp) while the leg being
+    // issued is a plain ĐƠN. The DOC's fix is the declaration, not the
+    // schedule — the message names it ("Cần cả 2 cont cùng khai báo KẸP mới
+    // cho đi chung xe"). Fires only on the TRUCK conflict (the "chung xe"
+    // shape); trailer/driver-only conflicts keep the generic copy.
+    const mismatchRow = blocking.find((row) =>
+      args.truckId != null
+      && row.truckId === args.truckId
+      && classificationMismatchShareBlockMessage(kep?.classification ?? null, row.classification) != null);
+    if (mismatchRow) {
+      throw new ApiError(409, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
+    }
     throw new ApiError(409, 'Xe đầu kéo đã bị trùng lịch kế hoạch.');
   }
   if (blocking.some((row) => args.trailerId != null && row.trailerId === args.trailerId)) {

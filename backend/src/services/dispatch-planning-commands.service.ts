@@ -7,7 +7,8 @@ import { assertResourceAvailability } from './dispatch-resource-availability.ser
 export { assertResourceAvailability } from './dispatch-resource-availability.service';
 import { LiveTripRow } from './dispatch-planning-utils.service';
 import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
-import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferredVehicleCapacityKg, parseIsoWithZone, requiredTrailerTypeForFulfillment, routeServiceDurationMinutes, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
+import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferredVehicleCapacityKg, parseIsoWithZone, requiredTrailerTypeForFulfillment, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
+import { issueClaimWindowEnd } from './trip-pair-rules.service';
 import { db } from '../db';
 import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { ApiError } from '../errors';
@@ -87,7 +88,13 @@ export interface IssueFulfillmentDispatchOrderInput {
    */
   routeIdFallback?: number | null;
   plannedStartAt: string;
-  plannedEndAt: string;
+  /**
+   * SIL-638 (id 742) TC1 — the dispatcher's declared "Giờ kết thúc". When
+   * present it IS the rig-claim window (never overridden by the route
+   * duration); when omitted the route duration autofills, and the
+   * endTimeConfirmed gate covers the no-duration shape.
+   */
+  plannedEndAt?: string;
   endTimeConfirmed: boolean;
   carrierType: 'OWN' | 'EXTERNAL';
   cargoTypeId?: number | null;
@@ -396,15 +403,25 @@ export async function issueOrderCreateOrUpdate(
   // issue payload — not the CUS-planned carrier — drives carrier selection.
   // The CUS plan remains the fallback for partner-less payloads.
   const plannedStartAt = parseIsoWithZone(input.plannedStartAt, 'Giờ chạy');
-  const serviceDurationMinutes = routeServiceDurationMinutes(route?.distanceKm ?? null);
-  const plannedEndAt = serviceDurationMinutes == null
+  // SIL-638 (id 742) TC1 (QA 01/11) — the rig-claim window is the OPERATOR'S
+  // DECLARED window. The route-duration autofill used to OVERRIDE the entered
+  // "Giờ kết thúc", so a ca sáng 08:00–12:00 leg stored a ~12h claim
+  // (08:00 + route duration) and the availability guard then refused the
+  // unrelated ca chiều 14:00–18:00 leg on the same tractor. The declared end
+  // wins; the route duration only fills a payload that omits it (legacy
+  // callers), and the confirm gate stays for the no-end-no-duration shape.
+  const declaredEndAt = input.plannedEndAt != null && input.plannedEndAt.trim() !== ''
     ? parseIsoWithZone(input.plannedEndAt, 'Giờ kết thúc')
-    : new Date(plannedStartAt.getTime() + serviceDurationMinutes * 60_000);
-  if (plannedEndAt.getTime() <= plannedStartAt.getTime()) {
+    : null;
+  const plannedEndAt = issueClaimWindowEnd(declaredEndAt, plannedStartAt, route?.distanceKm ?? null);
+  if (plannedEndAt == null) {
+    if (!input.endTimeConfirmed) {
+      throw new ApiError(409, 'Tuyến chưa có thời lượng chuẩn. Vui lòng xác nhận giờ kết thúc.');
+    }
     throw new ApiError(400, 'Giờ kết thúc phải sau giờ chạy.');
   }
-  if (serviceDurationMinutes == null && !input.endTimeConfirmed) {
-    throw new ApiError(409, 'Tuyến chưa có thời lượng chuẩn. Vui lòng xác nhận giờ kết thúc.');
+  if (plannedEndAt.getTime() <= plannedStartAt.getTime()) {
+    throw new ApiError(400, 'Giờ kết thúc phải sau giờ chạy.');
   }
 
   const cargoTypeId = shipment.cargoTypeId ?? null;
