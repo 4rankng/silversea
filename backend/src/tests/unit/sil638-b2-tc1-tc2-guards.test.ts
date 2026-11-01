@@ -56,7 +56,7 @@ describe('issueClaimWindowEnd (SIL-638 đợt 2 TC1 — giờ kết thúc khai b
     const morningEnd = issueClaimWindowEnd(utc(31, 12), utc(31, 8), 400)!;
     const eveningEnd = issueClaimWindowEnd(utc(31, 18), utc(31, 14), 400)!;
     assert.equal(
-      tripClaimWindowOverlaps(utc(31, 14).toISOString(), eveningEnd, utc(31, 8), morningEnd),
+      tripClaimWindowOverlaps(utc(31, 14).toISOString(), eveningEnd.toISOString(), utc(31, 8), morningEnd),
       false,
       'ca chiều không được chặn vì window phình của ca sáng',
     );
@@ -65,7 +65,7 @@ describe('issueClaimWindowEnd (SIL-638 đợt 2 TC1 — giờ kết thúc khai b
   it('TC1 composition: 10:00–14:00 TRÙNG ca sáng → vẫn chặn', () => {
     const morningEnd = issueClaimWindowEnd(utc(31, 12), utc(31, 8), 400)!;
     assert.equal(
-      tripClaimWindowOverlaps(utc(31, 10).toISOString(), utc(31, 14), utc(31, 8), morningEnd),
+      tripClaimWindowOverlaps(utc(31, 10).toISOString(), utc(31, 14).toISOString(), utc(31, 8), morningEnd),
       true,
     );
   });

@@ -31,9 +31,10 @@ import { syncShipmentExpenseSources } from './expense-accounting-write.service';
 import { canonicalLocationsFromContainerRow, containerLocationColumns } from './trip-shared';
 import { propagateKepPairRigToPartner } from './trip-pair-rig-sync.service';
 import { autoPairIssuedTripInTx } from './trip-pairs.service';
+import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 
 
-import { and, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, localDateInBusinessZone, NotificationType, Role, TripStatus, type FuelMode } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -618,6 +619,30 @@ export async function issueOrderCreateOrUpdate(
   const lockIds = [truckId, trailerId, driverId].filter((id): id is number => id != null);
   await acquireAdvisoryLocks(tx, lockIds.map(lockKeys.dispatchResource));
 
+  // SIL-638 đợt 2 (review 01/11) — deadlock-order guard: the AUTO-PAIR step
+  // below acquires the trip financial-authority family (6118) inside this
+  // transaction, while the manual pairing dialog takes 6118 FIRST and the
+  // trip row locks after. Taking 6118 for the reissued trip BEFORE this
+  // transaction's row locks keeps one global order (6118 → rows) on both
+  // writers, so a manual pairing of the same legs concurrent with a reissue
+  // serializes instead of cycling. A first issue (no live trip yet) needs no
+  // pre-acquire — a trip id nobody can see cannot be locked by another
+  // writer. Residual window (both writers pairing the SAME two legs at the
+  // same instant, opposite sorted order) still ends in a Postgres 40P01
+  // abort — one clean retry, no corruption; documented in the testplan.
+  const [liveTripIdRow] = await tx.select({ id: s.trips.id })
+    .from(s.trips)
+    .where(and(
+      eq(s.trips.fulfillmentId, fulfillment.id),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, TripStatus.CANCELED),
+    ))
+    .orderBy(asc(s.trips.id))
+    .limit(1);
+  if (liveTripIdRow != null) {
+    await lockTripFinancialAuthority(tx, [liveTripIdRow.id]);
+  }
+
   const liveTrip = await loadLiveTripForFulfillment(tx, fulfillment.id);
   if (liveTrip && liveTrip.status !== TripStatus.CREATED) {
     if (!input.allowUnacknowledgedDeparture) {
@@ -896,6 +921,13 @@ export async function issueOrderCreateOrUpdate(
     tripId: trip.id,
     actorId: input.actor.userId,
   });
+  if (autoPairedTrip != null) {
+    // The pairing core bumped the issued trip's version (pair stamps +
+    // financial side). Re-compose so the response carries the post-pair row
+    // and the client's next optimistic write does not 409 into a reload.
+    const recomposed = await getTripCompositeInTx(tx, trip.id);
+    if (recomposed) trip = toLiveTripRow(recomposed);
+  }
 
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
     plannedCarrierType: input.carrierType,

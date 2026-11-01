@@ -788,18 +788,6 @@ async function assertPlanRowRigAvailable(
   // can reclassify/pair afterwards); a third load (2+ remaining conflicts)
   // keeps the hard tier — a Kẹp release may overlap one partner, never two.
   let kepCandidateWarn = false;
-  // SIL-638 (id 742) TC2 đợt 2 (QA 01/11) — the classification-mismatch
-  // refusal answers BEFORE every overlap tier: the issued holder on this
-  // tractor is a DECLARED pair leg (Kẹp/Kết hợp) while the row being
-  // assigned is a plain ĐƠN. The DOC's fix is the declaration, not the
-  // schedule ("Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe"). A
-  // declared issuing row (DOUBLE/COMBINED) never lands here — its own
-  // carve/warn tiers below are unchanged (dis-03 stays confirmable).
-  const mismatchConflict = tripConflicts.find((conflict) =>
-    classificationMismatchShareBlockMessage(args.classification ?? null, conflict.partnerClassification) != null);
-  if (mismatchConflict) {
-    throw new ApiError(409, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
-  }
   if (isDeclaredPairRow && tripConflicts.length > 0) {
     const savingDay = localDateInBusinessZone(windowStart);
     // The declared partner: the holder trip declares the SAME kind on the
@@ -878,6 +866,18 @@ const weakEvidence = !args.window.strong
   || crossLotLclConflicts.some((conflict) => conflict.fallbackSlot);
 if (planRowBlocked || tripConflicts.length > 0) {
     if (!weakEvidence) {
+      // SIL-638 (id 742) TC2 đợt 2 (QA 01/11) — the classification-mismatch
+      // refusal answers BEFORE the generic "trùng lịch" copy: the issued
+      // holder on this tractor is a DECLARED pair leg (Kẹp/Kết hợp) while
+      // the row being assigned is a plain ĐƠN ("Cần cả 2 cont cùng khai báo
+      // KẸP mới cho đi chung xe"). Strong evidence only — a weak-evidence
+      // overlap keeps the family's warn-once contract below (FB-038: the
+      // confirmable tier is never bypassed by a newer hard block).
+      const mismatchConflict = tripConflicts.find((conflict) =>
+        classificationMismatchShareBlockMessage(args.classification ?? null, conflict.partnerClassification) != null);
+      if (mismatchConflict) {
+        throw new ApiError(409, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
+      }
       // Card B 18/10 (B.4): name the conflicting lot(s) + window, so the
       // refusal answers the customer's "what is this?" on sight.
       throw new ApiError(409,

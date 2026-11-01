@@ -349,7 +349,11 @@ export async function reconcileShipmentContainersInTx(
       : isUpdate
         ? currentById.get(container.id as number)?.classification ?? null
         : null;
-    if (container.classification === 'DOUBLE' || container.classification === 'COMBINED') {
+    if (isUpdate
+      && (container.classification === 'DOUBLE' || container.classification === 'COMBINED')) {
+      // Review 01/11: only an UPDATEable row has a container id — quick-create
+      // inserts are id-less, and their fulfillments (created fresh by ensure)
+      // already read the choice from the column.
       reclassifiedContainerIds.set(container.id as number, container.classification);
     }
     const payload = {

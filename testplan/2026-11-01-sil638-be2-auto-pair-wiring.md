@@ -21,6 +21,29 @@ toàn bộ (regression note đợt 1: "auto-pair gap").
 | REG-638-B2-9 (TC2 message) | Xe đang giữ leg KẸP (DOUBLE) cùng khung giờ; gán/phát leg 2 ĐƠN (SINGLE) cùng xe | 409 message phân loại "Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe" (TRƯỚC message trùng lịch), cả ở issue lẫn plan-assign |
 | REG-638-B2-10 (driver accept không regress) | Cặp DOUBLE cùng xe/ngày CHƯA pair → driver accept leg 2 (SIL-634 exempt); cặp KEP ACTIVE → accept leg 2 (SIL-631 exempt) | 2 exempt vẫn chạy đúng (không đụng trip-status-machine) |
 
+## Ruling notes (review 01/11 — independent code-reviewer pass)
+
+- **TC1 `endTimeConfirmed` thu hẹp có chủ đích (owner sanction)**: brief TC1
+  "overlap theo window THỰC" = giờ kết thúc điều vận nhập là THÔNG BÁO
+  chính thức. Route không duration + có end nhập → không cần confirm nữa
+  (end nhập CHÍNH LÀ lời xác nhận); 409 confirm chỉ còn cho shape
+  không-end-không-duration (payload legacy).
+- **Residual race auto-pair ↔ pair thủ công trên cùng 2 leg**: pre-acquire
+  6118 đầu issue tx đã loại interleaver chính (review item 2); cửa sổ đối
+  xứng (2 writer pair CÙNG 2 leg cùng lúc, thứ tự sort ngược nhau) vẫn kết
+  thúc bằng Postgres 40P01 abort — một writer 500 sạch, retry thấy pair đã
+  tồn tại và idempotent. Chủ ticket chấp nhận mức "unique constraint/lock".
+- **Downgrade Kẹp→Đơn qua reconcile edit**: FE intake CHỈ gửi classification
+  khi chọn khác SINGLE (shipment-create-model), edit-prefill luôn reset
+  SINGLE → downgrade không tồn tại trên product surface; chọn 'SINGLE' tường
+  minh qua API chỉ ghi cột container, không hạ fulfillment đã phânloại —
+  trong phạm vi TC5 (create path). Nếu sau này có surface cho downgrade,
+  sync pre-trip cần mở rộng có chủ đích.
+- **Đôi lệch ngày business vs departureDate lưu (VN 00:00–06:59)**: scan
+  auto-pair cộng thêm điều kiện departureDate BẰNG NHAU (conservative —
+  cặp Edge không auto-pair, dialog thủ công vẫn dùng được) thay vì fail
+  issue ở core gate.
+
 ## Đặt chỗ chống-lặp (điều kiện cặp, chặn sai)
 - Khác classification (DOUBLE↔COMBINED) → không auto-pair.
 - Khác xe / khác tài xế / khác ngày business (Asia/Ho_Chi_Minh) → không auto-pair.
