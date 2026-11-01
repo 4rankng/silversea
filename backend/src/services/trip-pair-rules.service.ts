@@ -147,6 +147,148 @@ export function tripClaimWindowOverlaps(
   return holderStart < incomingEnd.getTime() && holderEnd > incomingStart.getTime();
 }
 
+/**
+ * SIL-638 đợt 2 (QA 01/11) — AUTO-PAIR at the dispatch issue path.
+ *
+ * The đợt-1 guards live at the MANUAL pairing gate, but the dispatch
+ * assign/issue flow never creates a pair row, so QA's dispatch lane bypassed
+ * every pair law (TC3/TC7 FAIL). The fix wires pair creation into the issue
+ * path: when the leg being issued declares Kẹp (DOUBLE) or Kết hợp
+ * (COMBINED) and a compatible partner leg already runs on the SAME rig the
+ * SAME business day, the pair row is created automatically — Trip_ID gộp
+ * exactly like the manual pair (same gates, same VETC/salary/inheritance
+ * hooks, `createTripPair` core).
+ *
+ * Db-free per the BE unit-only ruling (2026-10-19): the candidate-selection
+ * law below is the pure half (unit-pinned); the transactional service
+ * (`autoPairIssuedTripInTx` in trip-pairs.service) runs the SQL scan and
+ * re-verifies every conjunct through this function before pairing.
+ */
+
+/** The pair kind a dispatch classification auto-pairs as. ĐƠN (SINGLE), LCL
+ *  and anything else resolve null — a plain order never auto-pairs. */
+export function autoPairKindForClassification(
+  classification: string | null | undefined,
+): 'KEP' | 'KET_HOP' | null {
+  if (classification === 'DOUBLE') return 'KEP';
+  if (classification === 'COMBINED') return 'KET_HOP';
+  return null;
+}
+
+/** Facts the auto-pair scan reads off one issued leg (narrow view). */
+export interface AutoPairLegFacts {
+  tripId: number;
+  classification: string | null;
+  truckId: number | null;
+  driverId: number | null;
+  plannedStartAt: Date | null;
+  activeTripPairId: number | null;
+  status: string | null;
+  /** Trip carrier sidecar; null coalesces to OWN (the trips-split default). */
+  carrierType: string | null;
+}
+
+/** The statuses a partner leg may hold. COMPLETED/CANCELED legs are outside
+ *  the pairing law (assertPairableTrips refuses them in the manual gate). */
+const AUTO_PAIR_PARTNER_STATUSES = new Set(['CREATED', 'IN_TRANSIT']);
+
+/**
+ * Pick the auto-pair partner for the leg being issued, or null. The pair
+ * conditions are the declaration + the physical rig + the business day:
+ * both legs declare the SAME pair classification (DOUBLE↔KEP,
+ * COMBINED↔KET_HOP), same tractor, same driver, same Vietnam business day,
+ * both internal-fleet (OWN), and the partner is not already paired
+ * (idempotency — a leg with an ACTIVE pair is never re-paired). Ties break
+ * to the LOWEST trip id so concurrent scans converge on one partner. The
+ * issuing leg itself (same id) never matches.
+ */
+export function selectAutoPairPartnerCandidate(
+  issuing: {
+    tripId: number;
+    classification: string | null | undefined;
+    truckId: number | null;
+    driverId: number | null;
+    plannedStartAt: Date | null;
+  },
+  candidates: readonly AutoPairLegFacts[],
+): AutoPairLegFacts | null {
+  const kind = autoPairKindForClassification(issuing.classification);
+  if (kind == null) return null;
+  if (issuing.truckId == null || issuing.driverId == null) return null;
+  if (issuing.plannedStartAt == null) return null;
+  const issuingDay = localDateInBusinessZone(issuing.plannedStartAt);
+  const eligible = candidates.filter((candidate) =>
+    candidate.tripId !== issuing.tripId
+    && candidate.classification === issuing.classification
+    && candidate.truckId === issuing.truckId
+    && candidate.driverId === issuing.driverId
+    && candidate.activeTripPairId == null
+    && candidate.plannedStartAt != null
+    && localDateInBusinessZone(candidate.plannedStartAt) === issuingDay
+    && AUTO_PAIR_PARTNER_STATUSES.has(candidate.status ?? '')
+    && (candidate.carrierType ?? 'OWN') === 'OWN');
+  if (eligible.length === 0) return null;
+  return eligible.reduce((best, candidate) => (candidate.tripId < best.tripId ? candidate : best));
+}
+
+/**
+ * TC2 đợt 2 (QA 01/11) — the classification-mismatch share refusal. The
+ * holder leg on this tractor is a DECLARED pair leg (DOUBLE/Kẹp or
+ * COMBINED/Kết hợp) while the leg being assigned/issued is a plain ĐƠN: the
+ * rig can only be shared when both containers declare the same pair kind, so
+ * the mismatch text names the fix instead of the generic "trùng lịch" toast.
+ * One direction only — issuing a KẸP leg onto a ĐƠN holder keeps the landed
+ * dis-03 confirmable warn (owner ruling, card 211026131857), and two legs
+ * that both declare (any kinds) keep their own gates.
+ */
+export const CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE =
+  'Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe';
+
+export function classificationMismatchShareBlockMessage(
+  issuingClassification: string | null | undefined,
+  holderClassification: string | null | undefined,
+): string | null {
+  const holder = (holderClassification ?? '').trim();
+  if (holder !== 'DOUBLE' && holder !== 'COMBINED') return null;
+  const issuing = (issuingClassification ?? '').trim();
+  if (issuing === 'DOUBLE' || issuing === 'COMBINED') return null;
+  return CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE;
+}
+
+/**
+ * TC1 đợt 2 (QA 01/11) — the issue-time rig-claim window is the OPERATOR'S
+ * DECLARED window. The route-duration autofill used to OVERRIDE the entered
+ * "Giờ kết thúc", so a ca sáng 08:00–12:00 leg stored a ~12h claim
+ * (08:00 + route duration) and the availability guard then refused the
+ * unrelated ca chiều 14:00–18:00 leg on the same tractor. The declared end
+ * wins; the route duration only fills a payload that omits it (legacy
+ * callers); null when neither exists (the caller owns the
+ * endTimeConfirmed gate for that shape).
+ */
+export function issueClaimWindowEnd(
+  declaredEndAt: Date | null,
+  plannedStartAt: Date,
+  routeDistanceKm: number | null | undefined,
+): Date | null {
+  if (declaredEndAt != null && !Number.isNaN(declaredEndAt.getTime())) return declaredEndAt;
+  const durationMinutes = routeServiceDurationMinutes(routeDistanceKm);
+  return durationMinutes == null
+    ? null
+    : new Date(plannedStartAt.getTime() + durationMinutes * 60_000);
+}
+
+/** Route-duration autofill the window law falls back to — verbatim the
+ *  dispatch-planning-utils constants, mirrored here so this module stays
+ *  db-free and unit-pinnable without importing the utils graph. */
+function routeServiceDurationMinutes(distanceKm: number | null | undefined): number | null {
+  const DEFAULT_ROUTE_SERVICE_SPEED_KPH = 35;
+  const DEFAULT_ROUTE_SERVICE_BUFFER_MINUTES = 30;
+  if (distanceKm == null || !Number.isFinite(distanceKm) || distanceKm <= 0) {
+    return null;
+  }
+  return Math.ceil((distanceKm / DEFAULT_ROUTE_SERVICE_SPEED_KPH) * 60) + DEFAULT_ROUTE_SERVICE_BUFFER_MINUTES;
+}
+
 /** The issuing dispatch-write context the share predicates read. */
 export interface KepShareRequest {
   tripId: number | null;

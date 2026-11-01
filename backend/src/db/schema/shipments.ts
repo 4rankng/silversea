@@ -244,6 +244,14 @@ export const shipmentContainers = pgTable('shipment_containers', {
   // by repo convention — customer scope + FACTORY type are enforced at the
   // persistence choke point (reconcileShipmentContainersInTx).
   operationalSiteId: integer('operational_site_id'),
+  // SIL-638 (id 742) TC5 — the CUS per-container intake classification
+  // (Đơn/Kẹp/Kết hợp; SINGLE/DOUBLE/COMBINED — subset of the fulfillment
+  // dispatch classification). Nullable: null = never declared, every
+  // fulfillment reader falls back to the legacy lot law
+  // (isCombined ? COMBINED : SINGLE). The reconcile persists the CUS choice
+  // verbatim and the fulfillment creation sites stamp it onto the lot's
+  // dispatch rows.
+  classification: dispatchClassificationEnum('classification'),
   notes: text('notes'),
   // Manual charge proposals (accounting close), merged from the 1:1
   // shipment_container_charge_facts table (lean-down 2026-09-06). Amounts in

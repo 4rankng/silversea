@@ -1,0 +1,24 @@
+✔ shipment schemas accept canonical calendar dates (7.514417ms)
+✔ shipment schemas reject malformed and impossible delivery dates (0.7095ms)
+✔ shipment schemas preserve nullable delivery-date compatibility (0.194083ms)
+✔ shipment schemas carry the explicit consolidation flag (0.405792ms)
+✔ shipment write schemas accept recipient-specific driver notes (0.425834ms)
+✔ shipment schemas reject a Bill and Booking on the same shipment (0.666291ms)
+✔ SIL-521: tờ khai hết nhập cấp lô — quick-create không còn nhận declarationNumber (1.533375ms)
+✔ SIL-701: số tờ khai THEO CONT rides shipmentContainerItemSchema (per-cont, không chặn trùng trong lô) (1.357542ms)
+✔ SIL-600: tờ khai nhập theo cont lúc tạo — containers[].declarationNumber (0.596333ms)
+✔ Z4-SHIP-1: create accepts a real export payload and returns the timestamps unchanged (1.227ms)
+✔ Z4-SHIP-2: create-time defaults isAdHoc/isCombined/hasDeposit apply on create (0.170583ms)
+✔ Z4-SHIP-3: create without customerId (non ad-hoc) keeps the Vietnamese guard (1.192625ms)
+✔ Z4-SHIP-4: update patches a subset — omitted keys stay absent from the parsed output (0.251042ms)
+✔ Z4-SHIP-5: update timestamps accept the +07:00 wire format and reject garbage (0.178041ms)
+✔ SIL-638 TC5: containers[].classification (Đơn/Kẹp/Kết hợp) rides the quick-create contract (0.336667ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 414.918292
+exit: 0

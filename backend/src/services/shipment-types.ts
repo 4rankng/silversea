@@ -33,6 +33,12 @@ export interface ShipmentContainerInput {
    *  string = ghi (đã trim). Trùng số trong cùng lô là hợp lệ — chỉ số thuộc
    *  lô KHÁC bị từ chối (guard cross-lô). */
   declarationNumber?: string | null;
+  /** SIL-638 (id 742) TC5 — CUS per-container intake classification
+   *  (Đơn/Kẹp/Kết hợp). `undefined` = surface không quản lý field này (update
+   *  giữ giá trị đã lưu / insert coi như null = "chưa khai" → fulfillment
+   *  rơi về luật lô isCombined); giá trị khai báo thắng verbatim và stamp
+   *  onto the lot's fulfillment dispatch classification. */
+  classification?: 'SINGLE' | 'DOUBLE' | 'COMBINED' | null;
   notes?: string | null;
 }
 

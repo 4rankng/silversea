@@ -10,7 +10,6 @@
 
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { CARGO_MODE } from '../db/schema';
 import { and, asc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
@@ -384,7 +383,12 @@ export async function cancelShipmentFulfillment(args: {
           shipmentContainerId: fulfillment.shipmentContainerId,
           sourceShipmentVersion: shipment.version,
           siteSnapshot: fulfillment.siteSnapshot,
-          dispatchClassification: fulfillment.cargoMode === CARGO_MODE.LCL ? 'LCL' : (shipment.isCombined ? 'COMBINED' : 'SINGLE'),
+          // SIL-638 (id 742) TC5: the replacement continues the SAME leg, so
+          // it inherits the canceled row's dispatch classification (which
+          // already carries the CUS intake choice) instead of recomputing
+          // from the lot flag — a Kẹp/Kết hợp leg stays Kẹp/Kết hợp across
+          // cancel-and-replace.
+          dispatchClassification: fulfillment.dispatchClassification,
           createdBy: args.actor.userId,
         }).returning();
         if (!replacement) {

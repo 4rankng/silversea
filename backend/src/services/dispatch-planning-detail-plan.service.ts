@@ -28,6 +28,7 @@ import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type Disp
 import * as s from '../db/schema';
 import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
 import { countDateOnlyTripClaims } from './dispatch-resource-availability.service';
+import { CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage } from './trip-pair-rules.service';
 import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
@@ -787,6 +788,18 @@ async function assertPlanRowRigAvailable(
   // can reclassify/pair afterwards); a third load (2+ remaining conflicts)
   // keeps the hard tier — a Kẹp release may overlap one partner, never two.
   let kepCandidateWarn = false;
+  // SIL-638 (id 742) TC2 đợt 2 (QA 01/11) — the classification-mismatch
+  // refusal answers BEFORE every overlap tier: the issued holder on this
+  // tractor is a DECLARED pair leg (Kẹp/Kết hợp) while the row being
+  // assigned is a plain ĐƠN. The DOC's fix is the declaration, not the
+  // schedule ("Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe"). A
+  // declared issuing row (DOUBLE/COMBINED) never lands here — its own
+  // carve/warn tiers below are unchanged (dis-03 stays confirmable).
+  const mismatchConflict = tripConflicts.find((conflict) =>
+    classificationMismatchShareBlockMessage(args.classification ?? null, conflict.partnerClassification) != null);
+  if (mismatchConflict) {
+    throw new ApiError(409, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
+  }
   if (isDeclaredPairRow && tripConflicts.length > 0) {
     const savingDay = localDateInBusinessZone(windowStart);
     // The declared partner: the holder trip declares the SAME kind on the
@@ -1138,7 +1151,11 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
         window,
         windowEnd: nextPlannedEndAt,
         confirmOverlap: input.rigOverlapCompletedConfirmed === true,
-        classification: input.classification ?? null,
+        // The row's EFFECTIVE classification: an explicit save choice wins;
+        // a save that does not manage the field still guards by the stored
+        // declaration (a Kẹp/Kết hợp row keeps its pair carve and its TC2
+        // mismatch law no matter which fields this save carries).
+        classification: input.classification ?? fulfillment.dispatchClassification,
       });
     }
   }

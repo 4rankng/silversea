@@ -77,7 +77,10 @@ const fulfillmentDispatchSchema = z.object({
   fulfillmentId: z.number().int().positive(),
   expectedVersion: z.number().int().positive(),
   plannedStartAt: z.string().trim().min(1),
-  plannedEndAt: z.string().trim().min(1),
+  // SIL-638 (id 742) TC1 — the declared "Giờ kết thúc" is the rig-claim
+  // window. Optional so a legacy payload without one can still ride the
+  // route-duration autofill; when present it WINS (never overridden).
+  plannedEndAt: z.string().trim().min(1).optional(),
   endTimeConfirmed: z.boolean(),
   carrierType: z.enum(['OWN', 'EXTERNAL']),
   cargoTypeId: z.number().int().positive().optional().nullable(),

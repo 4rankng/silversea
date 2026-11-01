@@ -278,6 +278,10 @@ export async function reconcileShipmentContainersInTx(
     .filter((id): id is number => id != null))];
   await assertContainerRoutesActive(tx, resolvedRouteIds);
   const guardedDeclarationNumbers = new Set<string>();
+  // SIL-638 (id 742) TC5 — container ids whose payload carried an explicit
+  // Kẹp/Kết hợp choice; their PRE-TRIP fulfillment rows sync below (a
+  // dispatched row keeps the dispatch flow's ownership).
+  const reclassifiedContainerIds = new Map<number, 'DOUBLE' | 'COMBINED'>();
   for (const { container, isUpdate, resolvedSiteId, resolvedRouteId } of resolvedContainers) {
     // Ports follow the same undefined-preservation contract as the factory
     // site above: surfaces that don't manage lift/drop ports (e.g. a payload
@@ -332,6 +336,22 @@ export async function reconcileShipmentContainersInTx(
       guardedDeclarationNumbers.add(resolvedDeclarationNumber.toLowerCase());
       await assertContainerDeclarationNumberAvailable(tx, shipmentId, resolvedDeclarationNumber);
     }
+    // SIL-638 (id 742) TC5: the CUS per-container intake classification is
+    // container data now. Same undefined-preservation contract as the
+    // ports/factory fields: a payload that does not manage the field keeps
+    // the stored value (an insert starts null = "never declared", which every
+    // fulfillment reader falls back to the lot law from). An explicit choice
+    // restates the column and syncs the linked PRE-TRIP fulfillment below —
+    // never a dispatched row (the dispatch flow owns the classification from
+    // its first live trip on).
+    const resolvedClassification = container.classification !== undefined
+      ? container.classification ?? null
+      : isUpdate
+        ? currentById.get(container.id as number)?.classification ?? null
+        : null;
+    if (container.classification === 'DOUBLE' || container.classification === 'COMBINED') {
+      reclassifiedContainerIds.set(container.id as number, container.classification);
+    }
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -350,6 +370,7 @@ export async function reconcileShipmentContainersInTx(
       rawRouteName,
       customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,
       declarationNumber: resolvedDeclarationNumber,
+      classification: resolvedClassification,
       notes: container.notes ?? null,
       updatedAt: new Date(),
     };
@@ -365,6 +386,33 @@ export async function reconcileShipmentContainersInTx(
         .returning({ id: s.shipmentContainers.id });
       if (inserted) upserted.push(inserted);
     }
+  }
+
+  // SIL-638 (id 742) TC5 — an explicit Kẹp/Kết hợp choice on the reconcile
+  // restates the linked fulfillment's dispatch classification, but ONLY
+  // while the row is still pre-dispatch (no trip rows at all — a canceled
+  // trip already means the dispatch flow owns the row's classification via
+  // the plan/issue writes). The create path's fresh fulfillments get the
+  // choice straight from the container column in
+  // ensureShipmentFulfillmentsInTx; this sync covers an EDIT of an
+  // already-decomposed lot.
+  for (const [containerId, classification] of reclassifiedContainerIds) {
+    const [linked] = await tx.select({ id: s.shipmentFulfillments.id })
+      .from(s.shipmentFulfillments)
+      .where(and(
+        eq(s.shipmentFulfillments.shipmentContainerId, containerId),
+        isNull(s.shipmentFulfillments.canceledAt),
+      ))
+      .limit(1);
+    if (linked == null) continue;
+    const [tripRow] = await tx.select({ id: s.trips.id })
+      .from(s.trips)
+      .where(eq(s.trips.fulfillmentId, linked.id))
+      .limit(1);
+    if (tripRow != null) continue;
+    await tx.update(s.shipmentFulfillments)
+      .set({ dispatchClassification: classification, updatedAt: new Date() })
+      .where(eq(s.shipmentFulfillments.id, linked.id));
   }
 
   // The shipment-level date is an internal projection of the earliest

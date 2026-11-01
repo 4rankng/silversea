@@ -1088,6 +1088,13 @@
    "when": 1792867200000,
    "tag": "20261024090000_lcl_truck_tonnage_classes",
    "breakpoints": true
+  },
+  {
+   "idx": 156,
+   "version": "7",
+   "when": 1793498400000,
+   "tag": "20261101090000_container_intake_classification",
+   "breakpoints": true
   }
  ]
 }
