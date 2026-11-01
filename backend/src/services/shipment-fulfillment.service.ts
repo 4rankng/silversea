@@ -5,6 +5,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
 import { ApiError } from '../errors';
+import { containerClassificationToFulfillment } from './shipment-intake-classification';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -254,7 +255,9 @@ async function healCleanPartialFclSet(
     shipmentContainerId: container.id,
     sourceShipmentVersion: shipment.version,
     siteSnapshot: containerSnapshots.get(container.id) ?? siteSnapshot,
-    dispatchClassification: shipment.isCombined ? ('COMBINED' as const) : ('SINGLE' as const),
+    // SIL-638 (id 742) TC5: the CUS per-container intake choice (Kẹp/Kết
+    // hợp) rides the container column; undeclared keeps the lot law.
+    dispatchClassification: containerClassificationToFulfillment(container.classification, shipment.isCombined),
     createdBy: actorId,
   }))).returning();
   return [...rows, ...inserted];
@@ -333,9 +336,10 @@ export async function ensureShipmentFulfillmentsInTx(
       shipmentContainerId: container.id,
       sourceShipmentVersion: shipment.version,
       siteSnapshot: containerSnapshots.get(container.id) ?? siteSnapshot,
-      // CUS owns the classification and lot combined flag: if CUS marks the lot
-      // as isCombined, the fulfillments default to 'COMBINED', otherwise 'SINGLE'.
-      dispatchClassification: shipment.isCombined ? ('COMBINED' as const) : ('SINGLE' as const),
+      // CUS owns the classification: the per-container intake choice
+      // (SIL-638 TC5) wins verbatim; undeclared keeps the lot combined flag
+      // (isCombined → COMBINED, otherwise SINGLE).
+      dispatchClassification: containerClassificationToFulfillment(container.classification, shipment.isCombined),
       createdBy: input.actorId,
     }))
     : [{
@@ -428,7 +432,8 @@ export async function createFulfillmentForAddedContainer(
     shipmentContainerId: container.id,
     sourceShipmentVersion: shipment.version,
     siteSnapshot: containerSnapshots.get(container.id) ?? await loadSiteSnapshot(tx, shipment),
-    dispatchClassification: shipment.isCombined ? 'COMBINED' : 'SINGLE',
+    // SIL-638 (id 742) TC5: the added container's own intake choice wins.
+    dispatchClassification: containerClassificationToFulfillment(container.classification, shipment.isCombined),
     ...(plannedCarrier ? {
       plannedCarrierType: plannedCarrier.plannedCarrierType,
       plannedExternalCarrierId: plannedCarrier.plannedCarrierType === 'EXTERNAL'

@@ -181,3 +181,28 @@ test('Z4-SHIP-5: update timestamps accept the +07:00 wire format and reject garb
     customsCutoffAt: '05/11/2026 17:00',
   }).success, false);
 });
+
+test('SIL-638 TC5: containers[].classification (Đơn/Kẹp/Kết hợp) rides the quick-create contract', () => {
+  // QA verdict 01/11: the FE already sends the per-container intake
+  // classification but the server dropped it — TC5 dispatch lane FAIL. The
+  // zod contract accepts the choice verbatim and omits it for ĐƠN rows
+  // (FE convention: non-SINGLE picks only), so omitted stays undefined and
+  // the fulfillment falls back to the lot law server-side.
+  const parsed = quickCreateShipmentSchema.safeParse({
+    customerId: 1,
+    containers: [
+      { containerTypeId: 31, classification: 'DOUBLE' },
+      { containerTypeId: 31, classification: 'COMBINED' },
+      { containerTypeId: 31 },
+    ],
+  });
+  assert.equal(parsed.success, true);
+  if (!parsed.success) return;
+  assert.equal(parsed.data.containers?.[0]?.classification, 'DOUBLE');
+  assert.equal(parsed.data.containers?.[1]?.classification, 'COMBINED');
+  assert.equal(parsed.data.containers?.[2]?.classification, undefined);
+
+  // Không nhận giá trị ngoài 3 phân loại intake.
+  assert.equal(shipmentContainerItemSchema.safeParse({ containerTypeId: 31, classification: 'LCL' }).success, false);
+  assert.equal(shipmentContainerItemSchema.safeParse({ containerTypeId: 31, classification: 'KEP' }).success, false);
+});
