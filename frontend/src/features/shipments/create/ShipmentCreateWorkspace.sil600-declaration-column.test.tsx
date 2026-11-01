@@ -58,7 +58,7 @@ describe('SIL-600 — cột SỐ TỜ KHAI theo cont trên bảng Thông tin hà
     });
   });
 
-  it('cột nằm đúng thứ tự sheet: STT → SỐ CONTAINER → SỐ TỜ KHAI → PHÂN LOẠI → NHÀ MÁY → … (SIL-638)', async () => {
+  it('cột nằm đúng thứ tự sheet: STT → SỐ CONTAINER → SỐ TỜ KHAI → NHÀ MÁY → … (SIL-643: không còn cột Phân loại)', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
@@ -67,9 +67,8 @@ describe('SIL-600 — cột SỐ TỜ KHAI theo cont trên bảng Thông tin hà
       'STT',
       'Số container',
       'Số tờ khai',
-      // SIL-638 TC5: the per-row Phân loại vận chuyển joins the sheet order
-      // (create form) right after the identity columns.
-      'Phân loại',
+      // SIL-643 (id 748, owner 01/11): the TC5 Phân loại column is REMOVED —
+      // the sheet goes straight from the identity columns to the route ones.
       'Nhà máy',
       'Tuyến đường',
       'Cảng nâng',

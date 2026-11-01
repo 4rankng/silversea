@@ -279,20 +279,16 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // Card 20260922_31: every boolean data flag on the form — Lệnh chạy
     // ngoài, Có cược container, Đóng kết hợp — wears the SAME plain inline
     // checkbox treatment, and no other flag treatment survives in the DOM.
-    // SIL-638 TC5: the per-row Phân loại radios join the SAME chip family
-    // (input[type=radio]) — the identity columns' classification pick reads
-    // as the same control language, one treatment for the whole form.
+    // SIL-643 (id 748): the TC5 per-row Phân loại radios are GONE — the chip
+    // family is back to the three boolean flags alone.
     const flagLabels = Array.from(container.querySelectorAll('label.csc-flag-checkbox'));
     expect(flagLabels.map((label) => label.textContent?.trim())).toEqual([
       'Lệnh chạy ngoài',
       'Có cược container',
       'Đóng kết hợp',
-      'Đơn',
-      'Kẹp',
-      'Kết hợp',
     ]);
     expect(flagLabels.filter((label) => label.querySelector('input[type="checkbox"]') !== null)).toHaveLength(3);
-    expect(flagLabels.filter((label) => label.querySelector('input[type="radio"]') !== null)).toHaveLength(3);
+    expect(flagLabels.filter((label) => label.querySelector('input[type="radio"]') !== null)).toHaveLength(0);
     expect(container.querySelectorAll('.csc-combined-toggle, .csc-adhoc-toggle, .csc-adhoc-toggle--chip')).toHaveLength(0);
     expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(3);
 
@@ -1321,13 +1317,12 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     const table = screen.getByRole('table', { name: 'Danh sách container' });
     // SIL-701 (owner ruling 30/10): SỐ TỜ KHAI is a per-cont column right
     // after the SỐ CONTAINER group (drawer parity, SIL-508/552 family);
-    // SIL-638 TC5 adds the per-row PHÂN LOẠI column right after it — the
-    // rest of the arrangement stays exactly as locked.
+    // SIL-643 (id 748, owner 01/11) REMOVED the TC5 Phân loại column — the
+    // sheet goes straight from identity to the route columns.
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toEqual([
       'STT',
       'Số container',
       'Số tờ khai',
-      'Phân loại',
       'Nhà máy',
       'Tuyến đường',
       'Cảng nâng',
@@ -1340,8 +1335,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // time (the reversal of the SIL-521/530 "no tờ khai on the create form"
     // pin for the per-cont half; the lot-level half stays retired).
     expect(screen.getAllByLabelText('Số tờ khai')).toHaveLength(1);
-    // One Phân loại radio group per row (SIL-638 TC5, create-only).
-    expect(within(table).getAllByRole('radiogroup', { name: /Phân loại vận chuyển/ })).toHaveLength(1);
+    // SIL-643: no Phân loại radio group anywhere on the create form — the
+    // classification edit surface is the dispatcher's "Chỉnh sửa điều phối".
+    expect(within(table).queryByRole('radiogroup', { name: /Phân loại vận chuyển/ })).toBeNull();
+    expect(within(table).queryAllByRole('radio')).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
     expect(screen.getAllByLabelText('Số container')).toHaveLength(2);
     expect(screen.getAllByLabelText('Số tờ khai')).toHaveLength(2);

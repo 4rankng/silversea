@@ -12,10 +12,12 @@ export type ContainerIntakeClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED';
 
 /**
  * The dispatch classification a container's fulfillment carries. The CUS
- * choice wins verbatim when declared (Kẹp/Kết hợp); 'SINGLE' is never sent
- * by the intake form (it omits the field for ĐƠN rows), so an explicit or
- * absent SINGLE falls through to the lot flag — bit-for-bit the pre-TC5
- * behavior for every payload that does not carry the choice.
+ * choice wins verbatim when declared (Kẹp/Kết hợp); an explicit or absent
+ * SINGLE falls through to the lot flag — bit-for-bit the pre-TC5 behavior.
+ * SIL-643 (id 748, owner 01/11): the create form no longer offers the pick
+ * and always sends 'SINGLE' explicitly, which reads identically here —
+ * the only writers of a non-SINGLE column are the dispatch flow and the
+ * reconcile passthrough, never the intake form.
  */
 export function containerClassificationToFulfillment(
   containerClassification: string | null | undefined,
