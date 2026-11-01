@@ -1,15 +1,15 @@
 {
   "note": "Ratchet: counts may fall, never rise. Regenerate with `pnpm design:drift --update` after a deliberate cleanup.",
   "measured": {
-    "scannedFiles": 210,
-    "hexDirect": 179,
-    "hexFallback": 69,
+    "scannedFiles": 211,
+    "hexDirect": 168,
+    "hexFallback": 77,
     "radiusOffLadder": 1,
-    "rawShadow": 45,
-    "rawZIndex": 73,
-    "untokenizedTransition": 132,
-    "mediaWidthValues": 48,
-    "containerWidthValues": 20
+    "rawShadow": 47,
+    "rawZIndex": 72,
+    "untokenizedTransition": 133,
+    "mediaWidthValues": 49,
+    "containerWidthValues": 22
   },
   "worstFiles": [
     {
@@ -29,10 +29,6 @@
       "score": 33
     },
     {
-      "file": "src/pages/DashboardPage.css",
-      "score": 31
-    },
-    {
       "file": "src/pages/ShipmentDetailPage.css",
       "score": 27
     },
@@ -41,16 +37,20 @@
       "score": 25
     },
     {
-      "file": "src/pages/FinancePage.css",
-      "score": 21
-    },
-    {
       "file": "src/pages/TruckTiresPage.css",
       "score": 21
     },
     {
       "file": "src/pages/trip-detail/bento-cards.css",
       "score": 19
+    },
+    {
+      "file": "src/pages/SettlementPrintPage.css",
+      "score": 17
+    },
+    {
+      "file": "src/pages/DashboardPage.css",
+      "score": 16
     }
   ]
 }

@@ -62,31 +62,48 @@ expect(compactH).toBeLessThanOrEqual(touchH);
 const worstCaseRun = 2 * touchH + actionsGap;
 
 // SIL-467 (owner directive 24/10): the TRẠNG THÁI column is gone — the board is
-// 5 shares (Khách hàng / Mã · Tên / Tuyến / Địa chỉ · Liên hệ / actions) at the
-// 1000px column floor. The status budgets above died with the column; the
-// action-run budget carries over unchanged as the bleed guard.
+// Khách hàng / Mã · Tên / Tuyến / Địa chỉ · Liên hệ at percentage shares plus a
+// fixed-px action column. SIL-650 (id 755): the action column has ONE width
+// source — the colgroup col is 120px and the th/td hint is 120px, so no engine's
+// fixed-layout col-vs-cell precedence can resolve the column differently and
+// drift the whole board's shares. With the 1000px table floor retired (the
+// overflow driver the owner photographed), the run budget is now held at EVERY
+// canvas width, not just at the old floor.
 const factoriesColShares = (factoriesSource.match(/\{\[([0-9,\s]+)\]\.map\(\(width, index\)/)?.[1] ?? '')
   .split(',').map((share) => Number(share.trim()));
-const factoriesFloor = matchNumber(configPageCss, /\.factories-table \{ min-width: (\d+)px; table-layout: fixed/, 'factories floor');
-const factoriesActionBudget = (factoriesColShares[4] / 100) * factoriesFloor - 2 * cellPaddingX;
+const factoriesActionColPx = matchNumber(factoriesSource, /<col style=\{\{ width: (\d+) \}\} \/>/, 'factories action col');
+const factoriesFloorZero = configPageCss.match(/\.factories-table \{ min-width: 0; table-layout: fixed/)?.[0];
+const factoriesActionBudget = factoriesActionColPx - 2 * cellPaddingX;
 
 describe('config table action/status cells keep their budgets (glyph-bleed class)', () => {
-  it('factories board holds its 5 shares after the SIL-467 column removal', () => {
-    expect(factoriesColShares).toHaveLength(5);
-    expect(factoriesColShares.reduce((a, b) => a + b, 0)).toBe(100);
+  it('factories board holds its 4 percentage shares plus the fixed action column after SIL-467+SIL-650', () => {
+    expect(factoriesColShares).toHaveLength(4);
+    // The four data shares leave exactly the fixed action column's worth of
+    // budget at the old 1000px floor canvas — percentages own the rest.
+    expect(factoriesColShares.reduce((a, b) => a + b, 0)).toBe(88);
   });
 
-  it('factories action column holds the worst-case row-action run at the table floor', () => {
-    // AC1 + AC2 — if the run fits its frozen cell, the flex overflow that bled
-    // the Pencil onto its neighbour is impossible, and both affordances stay
-    // whole (no overflow:hidden anywhere — design law §4 bans clipping fixes).
+  it('factories carries NO min-width floor — the overflow driver is gone (SIL-650)', () => {
+    expect(factoriesFloorZero).toBeTruthy();
+  });
+
+  it('factories action column holds the worst-case row-action run at EVERY canvas width', () => {
+    // AC1 + AC2 — the col is a fixed px, so the budget no longer depends on the
+    // table width: if the run fits its frozen cell at one canvas it fits at all
+    // of them, and the flex overflow that bled the Pencil onto its neighbour is
+    // impossible (no overflow:hidden anywhere — design law §4 bans clipping
+    // fixes).
     expect(factoriesActionBudget).toBeGreaterThanOrEqual(worstCaseRun);
   });
 
-  it('factories px width hints agree with the same budgets', () => {
+  it('factories px width hints agree with the col — ONE width source (SIL-650)', () => {
     // Fixed layout reads the <col> widths first (CSS 2.1 §17.5.2.2), but the
-    // th/td px hints are a second width source — both must clear the budget.
+    // th/td px hints are a second width source and engines disagree on the
+    // winner — that disagreement is what drifted the board on the owner's
+    // browser. Col and hint must be the SAME number so either answer wins
+    // identically.
     const headerActionPx = matchNumber(configPageCss, /\.factories-table thead th:nth-child\(5\),\n\.factories-table td\.record-table__action \{ width: (\d+)px/, 'factories action hint');
+    expect(headerActionPx).toBe(factoriesActionColPx);
     expect(headerActionPx - 2 * cellPaddingX).toBeGreaterThanOrEqual(worstCaseRun);
   });
 
