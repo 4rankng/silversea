@@ -492,7 +492,7 @@ export async function createTripPair(
     actorId,
     firstDraft: input.firstTrip,
     secondDraft: input.secondTrip,
-  })) as Promise<TripPairRecord>;
+  }));
 }
 
 /** Arguments of the shared pairing core. `firstDraft`/`secondDraft` carry the
@@ -536,15 +536,19 @@ async function createTripPairCoreInTx(
     const routeDistances = await loadRouteDistances(tx, [locked.first.routeId, locked.second.routeId]);
     locked.first.routeDistanceKm = routeDistances.get(locked.first.routeId) ?? null;
     locked.second.routeDistanceKm = routeDistances.get(locked.second.routeId) ?? null;
+    // Manual-dialog contract, byte-for-byte the pre-refactor sequence:
+    // version 1 → version 2 → pairable → draft match 1 → draft match 2 (the
+    // error precedence a caller sees must not move). Undefined drafts (the
+    // auto-pair path) no-op the version/draft steps.
+    assertExpectedVersion(locked.first, args.firstDraft?.expectedVersion);
+    assertExpectedVersion(locked.second, args.secondDraft?.expectedVersion);
+    assertPairableTrips(locked.first, locked.second, kind);
     if (args.firstDraft) {
-      assertExpectedVersion(locked.first, args.firstDraft.expectedVersion);
       assertTripDraftMatchesAuthority('Chuyến 1', args.firstDraft, locked.first);
     }
     if (args.secondDraft) {
-      assertExpectedVersion(locked.second, args.secondDraft.expectedVersion);
       assertTripDraftMatchesAuthority('Chuyến 2', args.secondDraft, locked.second);
     }
-    assertPairableTrips(locked.first, locked.second, kind);
 
     // Kind-specific container/day rules (LoHangKepKetHop §1, TC-GHEP-002…005;
     // SIL-638 texts come verbatim from the owner DOC logic-hang-kep-kethop).
@@ -826,6 +830,7 @@ export async function autoPairIssuedTripInTx(
     truckId: s.trips.truckId,
     driverId: s.trips.driverId,
     plannedStartAt: s.trips.plannedStartAt,
+    departureDate: s.trips.departureDate,
     activeTripPairId: s.trips.activeTripPairId,
     classification: s.shipmentFulfillments.dispatchClassification,
     carrierType: s.tripCarrierInfo.carrierType,
@@ -849,6 +854,7 @@ export async function autoPairIssuedTripInTx(
     truckId: s.trips.truckId,
     driverId: s.trips.driverId,
     plannedStartAt: s.trips.plannedStartAt,
+    departureDate: s.trips.departureDate,
     activeTripPairId: s.trips.activeTripPairId,
     status: s.trips.status,
     carrierType: s.tripCarrierInfo.carrierType,
@@ -864,6 +870,15 @@ export async function autoPairIssuedTripInTx(
       isNull(s.trips.activeTripPairId),
       eq(s.shipmentFulfillments.dispatchClassification, issued.classification!),
       isNotNull(s.trips.plannedStartAt),
+      // Review 01/11: the KEP core gate compares STORED departureDate (the
+      // UTC slice the issue law writes) while the business-day law below
+      // reads Asia/Ho_Chi_Minh. A VN 00:00–06:59 start stores the previous
+      // calendar date, so a same-business-day candidate could pass the scan
+      // and then hard-fail the KEP day gate at the core. Requiring stored
+      // equality makes the conservative choice: such edge legs simply do not
+      // auto-pair (the manual dialog stays available) instead of failing the
+      // issue.
+      issued.departureDate != null ? eq(s.trips.departureDate, issued.departureDate) : undefined,
     ))
     .orderBy(asc(s.trips.id));
   // The pure law re-verifies every conjunct (day match, OWN coalesce,
