@@ -116,7 +116,8 @@ describe('FB-043 (card 201026164000, regression #33) — shipments table uniform
       /\.cus-schedule-status-row > \*\s*\{[\s\S]*?-webkit-line-clamp:\s*2;/,
     );
 
-    // 2. SIL-623: Status cell detail link placed on dedicated bottom row (bottom-right of cell)
+    // 2. SIL-623 / SIL-646: Status cell detail link placed on dedicated bottom row (bottom-right of cell)
+    // and signal wraps full per NO TRUNCATE doctrine (no ellipsis clipping)
     expect(css).toMatch(
       /\.cus-dashboard-table \.cus-row-actions\s*\{[\s\S]*?flex-direction:\s*column;[\s\S]*?justify-content:\s*space-between;/,
     );
@@ -124,7 +125,7 @@ describe('FB-043 (card 201026164000, regression #33) — shipments table uniform
       /\.cus-dashboard-table \.cus-row-actions__buttons\s*\{[\s\S]*?justify-content:\s*flex-end;/,
     );
     expect(css).toMatch(
-      /\.cus-dashboard-table \.cus-row-actions__signal\s*\{[\s\S]*?white-space:\s*nowrap;[\s\S]*?overflow:\s*hidden;[\s\S]*?text-overflow:\s*ellipsis;/,
+      /\.cus-dashboard-table \.cus-row-actions__signal\s*\{[\s\S]*?white-space:\s*normal;[\s\S]*?overflow-wrap:\s*anywhere;/,
     );
   });
 

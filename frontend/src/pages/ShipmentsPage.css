@@ -317,6 +317,13 @@
   font-size: var(--ops-table-supporting-size);
 }
 
+.cus-dashboard-table,
+.cus-dashboard-table *,
+.cus-dashboard-table *::before,
+.cus-dashboard-table *::after {
+  box-sizing: border-box;
+}
+
 /* All seven columns pin an explicit share (sums to 100%) sized from real
    production-shaped data, not the flat/auto split this table shipped with: `classification` and `cargo` were `width: auto`, which table-layout: fixed
    only measures from the first rendered row, so real customer/carrier names
@@ -495,7 +502,7 @@
 .cus-dashboard-cell--readonly > .cus-inline-trigger {
   height: 100%;
   min-height: 100%;
-  padding: 10px;
+  padding: 6px 10px;
   border-radius: 0;
 }
 .cus-dashboard-cell--identity > .cus-inline-trigger { padding-left: 14px; }
@@ -900,9 +907,13 @@
     overflow: hidden;
   }
 
-  /* SIL-623 (id 727): Link 'Chi tiết' đặt góc dưới-phải của ô, không bao giờ che nội dung */
+  /* SIL-623 (id 727): Link 'Chi tiết' đặt góc dưới-phải của ô, không bao giờ che nội dung
+     SIL-646 (id 751): row height grows with multi-line content; status cell wraps without horizontal overflow */
   .cus-dashboard-table td[data-label='Trạng thái'] {
     vertical-align: top;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .cus-dashboard-table .cus-row-actions {
@@ -911,9 +922,10 @@
     align-items: stretch;
     justify-content: space-between;
     min-height: 100%;
-    height: 100%;
+    height: auto;
     gap: 4px;
     min-width: 0;
+    width: 100%;
   }
 
   .cus-dashboard-table .cus-row-actions__status {
@@ -926,10 +938,13 @@
   }
 
   .cus-dashboard-table .cus-row-actions__signal {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: clip;
     max-width: 100%;
+    min-width: 0;
   }
 
   .cus-dashboard-table .cus-row-actions__buttons {
