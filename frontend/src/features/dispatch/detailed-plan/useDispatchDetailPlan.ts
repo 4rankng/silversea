@@ -99,6 +99,12 @@ export function useDispatchDetailPlan() {
   const [sortDirection, setSortDirection] = useState<DetailPlanSortDirection>('asc');
   const [lotBanner, setLotBanner] = useState<string | null>(null);
   const [assignmentError, setAssignmentError] = useState<string | null>(null);
+  // SIL-638 TC6.2 (id 742) — soft weight warning confirmation state
+  const [pendingWeightWarning, setPendingWeightWarning] = useState<{
+    message: string;
+    confirm: () => Promise<void>;
+    cancel: () => void;
+  } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const requestIdRef = useRef(0);
 
@@ -366,9 +372,12 @@ export function useDispatchDetailPlan() {
       operationalNotes?: string | null;
       /** dis-03 (card 211026131857) — confirmed kẹp-candidate overlap retry. */
       rigOverlapCompletedConfirmed?: boolean;
+      /** SIL-638 (id 742) TC6(2) — soft weight warning confirmation retry. */
+      kepWeightWarningConfirmed?: boolean;
     },
   ) => {
     setAssignmentError(null);
+    setPendingWeightWarning(null);
     try {
       // SIL-473 — the appointment rides the callback contract, not the plan
       // write: the atomic plan schema is strict and would 400 on the extra
@@ -381,7 +390,8 @@ export function useDispatchDetailPlan() {
         expectedFulfillmentVersion: row.version,
         expectedShipmentVersion: row.shipmentVersion,
         ...planBody,
-      });
+      } as Parameters<typeof updateDispatchDetailPlan>[1]);
+      setPendingWeightWarning(null);
       const assignmentStatus = filtersRef.current.assignmentStatus;
       const nowAssigned = !!result.dispatch.assignedPlate;
       const invalidatedByFilter = assignmentStatus === 'UNASSIGNED' && nowAssigned
@@ -441,12 +451,34 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
-      // Surface the backend's specific 409 message (version conflict vs lot
-      // guard) instead of a blanket "reload" banner — reloading never fixed
-      // the guard 409s and sent the dispatcher in circles.
-      setAssignmentError(status === 409
-        ? ((mutationError as { message?: string }).message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
-        : 'Không thể lưu kế hoạch. Vui lòng thử lại.');
+      const errObj = mutationError as { status?: number; message?: string; raw?: { code?: string }; code?: string };
+      const isWeightWarning = status === 409 && (
+        errObj.raw?.code === 'KEP_WEIGHT_WARNING'
+        || errObj.code === 'KEP_WEIGHT_WARNING'
+        || (errObj.message?.includes('vượt tải trọng cho phép') ?? false)
+      );
+      if (isWeightWarning) {
+        const warningMsg = errObj.message
+          || 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
+        setAssignmentError(warningMsg);
+        setPendingWeightWarning({
+          message: warningMsg,
+          confirm: async () => {
+            setPendingWeightWarning(null);
+            setAssignmentError(null);
+            await savePlan(row, { ...body, kepWeightWarningConfirmed: true });
+          },
+          cancel: () => {
+            setPendingWeightWarning(null);
+            setAssignmentError(null);
+          },
+        });
+      } else {
+        setPendingWeightWarning(null);
+        setAssignmentError(status === 409
+          ? (errObj.message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
+          : 'Không thể lưu kế hoạch. Vui lòng thử lại.');
+      }
       throw mutationError;
     }
   }, [refetch]);
@@ -455,15 +487,19 @@ export function useDispatchDetailPlan() {
    *  creating the live trip and flipping the status chip to "Đã phát lệnh". */
   const issueOrder = useCallback(async (
     row: DispatchDetailPlanRow,
-    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'> & {
+      kepWeightWarningConfirmed?: boolean;
+    },
   ) => {
     setAssignmentError(null);
+    setPendingWeightWarning(null);
     try {
       const result = await dispatchShipment(row.shipmentId, {
         ...body,
         fulfillmentId: row.fulfillmentId,
         expectedVersion: row.version,
-      });
+      } as DispatchShipmentRequest);
+      setPendingWeightWarning(null);
       // SIL-591 (id 691) — the backend auto-issued this lot's ghép-trả-ĐV
       // siblings on the SAME rig (same transaction). Flip those rows live —
       // each carries its own trip id — and say so; the refetch reconciles
@@ -510,19 +546,37 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
-      // Card 0610261732 — the backend refuses an issue for many concrete,
-      // un-retriable business reasons (overweight cargo, no valid route, a
-      // canceled task, an inactive truck/driver). A blanket "data changed,
-      // reload" banner advises an action that cannot fix any of them and
-      // hides the real cause behind the page-level alert. Surface the
-      // ApiError message, exactly as savePlan does, and keep the reload copy
-      // only for a 409 that carries no usable text.
-      setAssignmentError(status === 409
-        ? ((mutationError as { message?: string }).message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
-        : 'Không thể phát lệnh. Vui lòng thử lại.');
+      const errObj = mutationError as { status?: number; message?: string; raw?: { code?: string }; code?: string };
+      const isWeightWarning = status === 409 && (
+        errObj.raw?.code === 'KEP_WEIGHT_WARNING'
+        || errObj.code === 'KEP_WEIGHT_WARNING'
+        || (errObj.message?.includes('vượt tải trọng cho phép') ?? false)
+      );
+      if (isWeightWarning) {
+        const warningMsg = errObj.message
+          || 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
+        setAssignmentError(warningMsg);
+        setPendingWeightWarning({
+          message: warningMsg,
+          confirm: async () => {
+            setPendingWeightWarning(null);
+            setAssignmentError(null);
+            await issueOrder(row, { ...body, kepWeightWarningConfirmed: true });
+          },
+          cancel: () => {
+            setPendingWeightWarning(null);
+            setAssignmentError(null);
+          },
+        });
+      } else {
+        setPendingWeightWarning(null);
+        setAssignmentError(status === 409
+          ? (errObj.message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
+          : 'Không thể phát lệnh. Vui lòng thử lại.');
+      }
       throw mutationError;
     }
-  }, []);
+  }, [toastCtx]);
 
   /** Staff close for external-carrier trips — the external driver never uses
    *  the app, so dispatch/CUS flip the trip to COMPLETED from the grid row
@@ -614,7 +668,11 @@ export function useDispatchDetailPlan() {
     issueOrder,
     completeExternalTrip,
     assignmentError,
-    clearAssignmentError: () => setAssignmentError(null),
+    pendingWeightWarning,
+    clearAssignmentError: () => {
+      setAssignmentError(null);
+      setPendingWeightWarning(null);
+    },
     lotBanner,
     clearLotBanner: () => setLotBanner(null),
     refresh,

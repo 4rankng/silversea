@@ -1189,3 +1189,35 @@ describe('DetailedPlanGrid — SIL-648 PHÂN LOẠI column inline edit', () => {
     expect(screen.queryByRole('button', { name: /Sửa phân loại/ })).toBeNull();
   });
 });
+
+describe('DetailedPlanGrid — SIL-638 TC6.2 soft weight warning banner', () => {
+  const KEP_WARNING = 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
+
+  it('renders soft weight warning banner with "Vẫn lưu?" and "Hủy" actions', () => {
+    const confirm = vi.fn().mockResolvedValue(undefined);
+    const cancel = vi.fn();
+
+    renderGrid([row()], {
+      pendingWeightWarning: {
+        message: KEP_WARNING,
+        confirm,
+        cancel,
+      },
+    });
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain(KEP_WARNING);
+
+    const confirmBtn = screen.getByRole('button', { name: 'Vẫn lưu?' });
+    expect(confirmBtn).toBeTruthy();
+
+    const cancelBtn = screen.getByRole('button', { name: 'Hủy' });
+    expect(cancelBtn).toBeTruthy();
+
+    fireEvent.click(confirmBtn);
+    expect(confirm).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(cancelBtn);
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+});

@@ -924,6 +924,14 @@ button.detailed-plan-grid__classification:focus-visible {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand, #00875a) 25%, transparent);
 }
 
+/* SIL-638 TC6.2 (id 742) — actions inside the error/warning banner */
+.dispatch-plan-page__error-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 /* Pair tag (LoHangKepKetHop §3.2): derived from the ACTIVE trip pair — plain
  * colored text per the project's no-badge convention. SIL-515: no nowrap —
  * "[KẾT HỢP]" wraps at its space like any other value when the column is
