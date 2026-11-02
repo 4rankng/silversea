@@ -143,9 +143,24 @@ export function ShipmentCreateContainerRow({
   // Focus lands ONCE per panel opening; the Tab hand-off additionally opens
   // the picker menu after the combobox exists (the 272 contract: leaving SỐ
   // opens the LOẠI menu exactly once — bare focus alone stays closed).
+  //
+  // SIL-656 (id 763): the TRỌNG LƯỢNG card joins this effect. It used to be
+  // guarded on `openLine !== 'type'`, so opening it left document.activeElement
+  // on the "Nhập kg" trigger and the operator had to click the input a second
+  // time (staging ed0056e1, role CUS). The panel is row-scoped (weightPanelRef
+  // belongs to THIS row), so the focus lands on the right line's input in a
+  // multi-row table. focus()+select() is the house pattern for numeric
+  // table-cell editors (DispatchContainerNumberCell): the seeded draft is the
+  // persisted weight, so selecting lets the operator type straight over it.
   useEffect(() => {
-    if (openLine !== 'type') return;
+    if (openLine !== 'type' && openLine !== 'weight') return;
     const frame = requestAnimationFrame(() => {
+      if (openLine === 'weight') {
+        const input = weightPanelRef.current?.querySelector<HTMLInputElement>('input');
+        input?.focus();
+        input?.select();
+        return;
+      }
       const input = typePanelRef.current?.querySelector<HTMLElement>('input, [role="combobox"]');
       input?.focus();
       if (typeMenuOnOpenRef.current) {
