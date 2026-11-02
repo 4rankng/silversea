@@ -2,17 +2,20 @@ import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError } from '../../../lib/api';
 import {
+  createShipmentDeclaration,
   getShipmentDetail,
   quickCreateShipment,
   saveShipmentContainers,
   submitShipmentForDispatch,
   updateShipment,
+  updateShipmentDeclaration,
 } from '../../../api/shipmentClient';
 import type { OperationalSite, QuickCreateShipmentRequest } from '../../../api/shipmentClient';
 import type { ShipmentReferenceConflict } from '../../../api/shipmentDuplicateClient';
 import type { ShipmentEditSeed } from './shipment-edit-prefill';
 import {
   buildShipmentContainerPayload,
+  buildShipmentDeclarationPayload,
   buildShipmentRootPayload,
   type SaveIntent,
   type ShipmentContainerDraft,
@@ -62,9 +65,10 @@ interface UseShipmentCreateWorkflowArgs {
    * SIL-171 (FB-147) edit mode: when set, the FIRST save starts from the
    * existing lot (id/version) instead of POST /shipments/quick
    * — the root reconcile PUT /shipments/:id (the lot PATCH) fires immediately,
-   * and FCL container rows reconcile by their persisted ids. SIL-521: the
-   * seed carries no declaration state — tờ khai is per-cont only. Validation
-   * is unchanged: the same create-form readiness gates the save.
+   * and FCL container rows reconcile by their persisted ids. SIL-660: an LCL
+   * seed also carries the lot's declaration entity state (rowId + stored
+   * number) so the reconcile PUTs the row instead of POSTing a duplicate.
+   * Validation is unchanged: the same create-form readiness gates the save.
    */
   editSeed?: ShipmentEditSeed;
   /**
@@ -101,6 +105,15 @@ export function useShipmentCreateWorkflow({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [duplicateConflict, setDuplicateConflict] = useState<ShipmentReferenceConflict | null>(null);
   const attemptRef = useRef<SaveAttempt | null>(null);
+  /**
+   * SIL-660: session-level declaration entity state. Deliberately NOT on the
+   * save attempt: a fully-successful save clears `attemptRef`, and the entity
+   * POST is a plain INSERT — attempt-scoped state would let the next save
+   * POST a duplicate shipment_declarations row. Re-seeded from the edit seed
+   * only when a DIFFERENT lot is loaded (identity-compared seed object).
+   */
+  const declarationSeedRef = useRef<ShipmentEditSeed | null | undefined>(undefined);
+  const declarationStateRef = useRef<{ signature?: string; rowId?: number | null }>({});
 
   const clearFeedback = useCallback(() => {
     setSubmitError(null);
@@ -120,6 +133,21 @@ export function useShipmentCreateWorkflow({
     setSaving(intent);
     setSubmitError(null);
     setDuplicateConflict(null);
+    // SIL-660: re-seed the declaration entity state when the pinned lot
+    // changes (new edit seed object) — never after a mere attempt reset.
+    if (declarationSeedRef.current !== editSeed) {
+      declarationSeedRef.current = editSeed;
+      declarationStateRef.current = editSeed?.declaration
+        ? {
+            rowId: editSeed.declaration.rowId,
+            // The STORED state's signature: an edit save that didn't touch
+            // số tờ khai fires no entity write (unlike containers, the
+            // declaration is a single-row upsert, so re-asserting an
+            // unchanged value would only be audit noise).
+            signature: signature({ declarationNumber: editSeed.declaration.declarationNumber }),
+          }
+        : {};
+    }
     try {
       // SIL-171 edit mode: seed the attempt from the loaded lot so the save
       // starts at the update/reconcile stage — the create branch below stays
@@ -212,6 +240,31 @@ export function useShipmentCreateWorkflow({
           throw error;
         }
       }
+      // SIL-660 (owner ruling 02/11): the LCL lot-level declaration entity
+      // write. Narrow revival of the pre-SIL-521 machine — LCL only (SIL-601:
+      // lẻ = 1 lô 1 cont), FCL never reaches this branch (payload null). The
+      // entity POST is a plain INSERT, so the row id is tracked on the
+      // session-level ref: a seeded/known row PUTs, an unknown row POSTs once
+      // and remembers (also across the attempt reset a successful save
+      // performs). Safe against the optimistic-lock version: an LCL lot has
+      // no container rows, so the service's empty-container copy-down syncs
+      // nothing and never bumps the shipment version here.
+      const declarationPayload = buildShipmentDeclarationPayload(form);
+      if (declarationPayload != null) {
+        const declarationSignature = signature(declarationPayload);
+        const declarationState = declarationStateRef.current;
+        if (declarationState.signature !== declarationSignature) {
+          if (declarationState.rowId != null) {
+            const updated = await updateShipmentDeclaration(shipmentId, declarationState.rowId, declarationPayload);
+            declarationState.rowId = updated.id;
+          } else if (declarationPayload.declarationNumber != null) {
+            const created = await createShipmentDeclaration(shipmentId, declarationPayload);
+            declarationState.rowId = created.id;
+          }
+          declarationState.signature = declarationSignature;
+        }
+      }
+
       if (intent === 'SUBMIT') {
         const submitPayload = {
           expectedVersion: version,

@@ -511,7 +511,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   function changeMode(next: CargoMode) {
     if (next === form.cargoMode) return;
     const hasModeData = form.cargoMode === 'LCL'
-      ? Boolean(form.packageType || form.packageCount || form.cargoWeightKg || form.cargoVolumeCbm || form.cargoTypeId || form.operationalSiteId || form.pickupWarehouseSiteId || form.pickupWarehouseName.trim() || form.factoryName.trim() || form.extraDeliveryDates.some(Boolean) || form.lclClosingAt) || hasDateDraft(workspaceFormRef.current, true)
+      ? Boolean(form.packageType || form.packageCount || form.cargoWeightKg || form.cargoVolumeCbm || form.cargoTypeId || form.operationalSiteId || form.pickupWarehouseSiteId || form.pickupWarehouseName.trim() || form.factoryName.trim() || form.extraDeliveryDates.some(Boolean) || form.lclClosingAt || form.declarationNumber.trim()) || hasDateDraft(workspaceFormRef.current, true)
       : containers.some((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value)) || hasDateDraft(workspaceFormRef.current?.querySelector('.csc-container-editor'));
     if (hasModeData) {
       setPendingModeSwitch(next);
@@ -536,6 +536,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
       // (FCL's schedule lives per container; the confirm gate above already
       // asked before this wipe).
       lclClosingAt: next === 'FCL' ? '' : current.lclClosingAt,
+      // SIL-660: the LCL lot-level declaration is mode-scoped the same way —
+      // wiped on the way to FCL (per-cont law there), kept on the way to LCL.
+      declarationNumber: next === 'FCL' ? '' : current.declarationNumber,
       cargoVolumeCbm: '',
       packageCount: '',
       packageType: '',

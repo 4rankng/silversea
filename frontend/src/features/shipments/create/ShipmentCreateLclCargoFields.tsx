@@ -100,6 +100,27 @@ export function ShipmentCreateLclCargoFields({
             error={issueByField.get('shipment-cargo-volume')}
           />
         </div>
+        <div data-field-id="shipment-lcl-declaration-number">
+          {/* SIL-660 (owner ruling 02/11): the lot-level Số tờ khai input is
+              BACK for the hàng lẻ tab only — SIL-521 retired the lot-level
+              entry while the LCL tab has no container table, leaving no
+              declaration input at all (the customer complaint). SIL-601: lẻ
+              = 1 lô 1 cont, so one input covers the lot. Persisted through
+              the shipment_declarations entity by the save workflow (not the
+              root payload — SIL-521 stands). FCL keeps its per-cont column
+              (SIL-600/SIL-701). Optional: an empty value reconciles to "no
+              declaration yet", never a validation error. Untitled UI base
+              `input` via the shared UTextField primitive — same house
+              pattern as the sibling quantity fields; no page-local styling. */}
+          <TextField
+            id="shipment-lcl-declaration-number"
+            label="Số tờ khai"
+            value={form.declarationNumber}
+            onChange={(event) => update('declarationNumber', event.target.value)}
+            disabled={saving}
+            error={issueByField.get('shipment-lcl-declaration-number')}
+          />
+        </div>
       </div>
     </div>
   );

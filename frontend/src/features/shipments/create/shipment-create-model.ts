@@ -57,6 +57,16 @@ export interface ShipmentCreateFormState {
    * `expectedDeliveryDate` proper and drives the auto-status rule.
    */
   extraDeliveryDates: string[];
+  /**
+   * SIL-660 (owner ruling 02/11): Số tờ khai CẤP LÔ cho hàng lẻ — bản hẹp
+   * của máy declaration pre-SIL-521, sống lại CHỈ cho tab LCL (SIL-601: lẻ
+   * = 1 lô 1 cont nên tờ khai là thuộc tính của cả lô). Persist vào entity
+   * `shipment_declarations` qua POST/PUT /shipments/:id/declarations (xem
+   * buildShipmentDeclarationPayload + workflow reconcile) — root payload
+   * vẫn KHÔNG mang declarationNumber. FCL bỏ trống trường này: per-cont là
+   * luật (SIL-600/SIL-701).
+   */
+  declarationNumber: string;
   cargoWeightKg: string;
   cargoVolumeCbm: string;
   packageCount: string;
@@ -153,6 +163,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   expectedDeliveryDate: '',
   lclClosingAt: '',
   extraDeliveryDates: [],
+  declarationNumber: '',
   cargoWeightKg: '',
   cargoVolumeCbm: '',
   packageCount: '',
@@ -472,6 +483,24 @@ export function buildShipmentRootPayload(
       form.operationalNotes,
     ].filter(Boolean).join('\n') || null,
   };
+}
+
+/**
+ * SIL-660 (owner ruling 02/11): the LCL lot-level declaration entity payload.
+ * Returns `null` when there is NOTHING for the workflow to write — always on
+ * FCL (per-cont số tờ khai is the SIL-600/SIL-701 law; the root payload also
+ * never carries a lot-level key per SIL-521), and on LCL the trimmed value or
+ * `null` (an empty string reconciles to a deliberate CLEAR of a stored row).
+ */
+export interface ShipmentDeclarationReconcile {
+  declarationNumber: string | null;
+}
+
+export function buildShipmentDeclarationPayload(
+  form: ShipmentCreateFormState,
+): ShipmentDeclarationReconcile | null {
+  if (form.cargoMode !== 'LCL') return null;
+  return { declarationNumber: form.declarationNumber.trim() || null };
 }
 
 export function buildShipmentContainerPayload(

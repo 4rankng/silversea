@@ -80,12 +80,18 @@ describe('buildShipmentEditPrefill', () => {
     const prefill = buildShipmentEditPrefill(detail);
 
     // SIL-521: seed không còn declaration state — tờ khai per-cont only.
+    // SIL-660 (ruling 02/11): `declarationNumber` trở lại như MỘT TRƯỜNG của
+    // form state (bắt buộc vì ShipmentCreateFormState là record cố định hình
+    // dạng), nhưng luật FCL không đổi: giá trị luôn rỗng và seed KHÔNG mang
+    // declaration state — FCL vẫn per-cont (SIL-600), workflow không đụng
+    // entity shipment_declarations cho lô FCL.
     expect(prefill.seed).toEqual({
       shipmentId: 186,
       version: 7,
       fclContainers: true,
     });
-    expect(prefill.form).not.toHaveProperty('declarationNumber');
+    expect(prefill.form.declarationNumber).toBe('');
+    expect(prefill.seed).not.toHaveProperty('declaration');
     expect(prefill.form).not.toHaveProperty('declarationNumbers');
     expect(prefill.containers).toHaveLength(1);
     expect(prefill.containers[0].id).toBe(55);
@@ -197,5 +203,44 @@ describe('buildShipmentEditPrefill', () => {
     const prefill = buildShipmentEditPrefill(detailFixture({}));
     expect(prefill.containers).toHaveLength(1);
     expect(prefill.containers[0].id).toBeUndefined();
+  });
+
+  // SIL-660 (owner ruling 02/11): lô LCL có entity declaration đã lưu thì
+  // edit prefill phải hiện lại giá trị + seed rowId để save đi PUT (không
+  // POST thêm row trùng).
+  it('SIL-660: LCL có tờ khai cấp lô → prefill giá trị + seed declaration rowId', () => {
+    const detail = detailFixture({ cargoMode: 'LCL', tradeDirection: 'IMPORT', blNumber: 'BL-660' });
+    detail.declarations = [
+      { id: 91, shipmentId: 186, declarationNumber: 'TK-LCL-660', scope: 'SINGLE', issuedAt: null, note: null, createdBy: null, createdAt: '2026-10-20T00:00:00.000Z', updatedAt: '2026-10-20T00:00:00.000Z' },
+    ];
+
+    const prefill = buildShipmentEditPrefill(detail);
+
+    expect(prefill.form.declarationNumber).toBe('TK-LCL-660');
+    expect(prefill.seed.fclContainers).toBe(false);
+    expect(prefill.seed.declaration).toEqual({ rowId: 91, declarationNumber: 'TK-LCL-660' });
+  });
+
+  it('SIL-660: LCL chưa có row declarations → form rỗng, seed rowId null (save có số sẽ POST)', () => {
+    const prefill = buildShipmentEditPrefill(detailFixture({
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      blNumber: 'BL-660-EMPTY',
+    }));
+    expect(prefill.form.declarationNumber).toBe('');
+    expect(prefill.seed.declaration).toEqual({ rowId: null, declarationNumber: null });
+  });
+
+  it('SIL-660: nhiều row legacy → chọn row đầu (id nhỏ nhất) làm row đại diện', () => {
+    const detail = detailFixture({ cargoMode: 'LCL', tradeDirection: 'IMPORT', blNumber: 'BL-660-MULTI' });
+    detail.declarations = [
+      { id: 77, shipmentId: 186, declarationNumber: 'TK-B', scope: 'SINGLE', issuedAt: null, note: null, createdBy: null, createdAt: '2026-10-20T00:00:00.000Z', updatedAt: '2026-10-20T00:00:00.000Z' },
+      { id: 66, shipmentId: 186, declarationNumber: 'TK-A', scope: 'SINGLE', issuedAt: null, note: null, createdBy: null, createdAt: '2026-10-20T00:00:00.000Z', updatedAt: '2026-10-20T00:00:00.000Z' },
+    ];
+
+    const prefill = buildShipmentEditPrefill(detail);
+
+    expect(prefill.form.declarationNumber).toBe('TK-A');
+    expect(prefill.seed.declaration).toEqual({ rowId: 66, declarationNumber: 'TK-A' });
   });
 });
