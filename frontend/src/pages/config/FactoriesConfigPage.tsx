@@ -247,8 +247,15 @@ export default function FactoriesConfigPage() {
           <div className="record-table-wrap">
           <table className="record-table ops-table factories-table">
             <caption className="sr-only">Danh mục nhà máy / kho theo khách hàng</caption>
+            {/* SIL-650: ONE width source per column. The Thao tác col used to
+                race its own th/td `width: 120px` hint with a 12% share — fixed
+                layout engines disagree on which wins, so the whole board's
+                shares drifted per browser (the owner screenshot's overflowing
+                geometry). Percentages own the four data columns; the action
+                column is a fixed 120px everywhere, matching the CSS hint. */}
             <colgroup>
-              {[15, 33, 16, 24, 12].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+              {[15, 33, 16, 24].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}
+              <col style={{ width: 120 }} />
             </colgroup>
             <thead>
               <tr>

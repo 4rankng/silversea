@@ -64,7 +64,9 @@
 }
 
 /* Inline meta summary that rides the filter bar's `status` slot (replaces
-   ad-hoc inline styles) */
+   ad-hoc inline styles). SIL-650: one line, never mid-token wrapped — the
+   counter reads "15 mục / 22 mục" as ONE token; a wrapped line reads as a
+   clipped value. */
 .cfg-page__summary {
   font-size: var(--text-caption-size);
   color: var(--ink-3);
@@ -72,6 +74,7 @@
   align-items: center;
   gap: 6px;
   letter-spacing: 0;
+  white-space: nowrap;
 }
 .cfg-page__summary strong {
   color: var(--ink);
@@ -558,7 +561,14 @@
    One-baseline truncation with title tooltips supersedes the wrap doctrine
    for this board (same owner-directive class as the 23/10 debit ruling);
    the full values stay reachable and are pinned by the page tests. */
-.factories-table { min-width: 1000px; table-layout: fixed; width: 100%; }
+/* SIL-650: NO min-width floor. The fixed-layout percentage budget plus the
+   intentional truncation classes already hold every column at every canvas;
+   the 1000px floor only added a bleed path — whenever the ≤1100px container
+   release does not apply (engine without @container support, or a CSS-order
+   accident), the floor overflowed the canvas and painted past .table-scroll
+   (overflow: visible at ≤1400px viewports). House pattern is the routes
+   table below: min-width 0, the table shrinks, content truncates. */
+.factories-table { min-width: 0; table-layout: fixed; width: 100%; }
 .factories-table thead th { white-space: nowrap; }
 /* Density band (rows 48–56px, header ~40px): one class above the shared
    record-table base so stylesheet order can never flip the padding. */
@@ -597,11 +607,13 @@
 /* Card 20261004_324: the desktop action run (2 × row-action + gap + padding)
    used to overflow its frozen column and — flex-end overflow — escape out the
    cell's start edge over the TRẠNG THÁI pill (the stray pencil glyph). The
-   budgets above and in the colgroup now hold the run at the 1000px floor; the
-   `safe` fallback keeps any future run growth spilling toward the table's
-   right edge (clipped by .table-scroll) instead. Desktop band only — the
-   ≤1100px card band's absolute 44px action box intentionally spills into the
-   identity cell's reserved gutter and must keep flex-end. */
+   col's fixed 120px now holds the run at EVERY canvas width (SIL-650: one
+   width source — the colgroup col is also 120px, so no engine can resolve the
+   column narrower than the run's budget); the `safe` fallback keeps any future
+   run growth spilling toward the table's right edge (clipped by .table-scroll)
+   instead. Desktop band only — the ≤1100px card band's absolute 44px action
+   box intentionally spills into the identity cell's reserved gutter and must
+   keep flex-end. */
 @container (min-width: 1101px) {
   .factories-table .row-actions {
     justify-content: flex-end;
@@ -611,7 +623,7 @@
 
 /* When the shared record-table base collapses rows to labelled cards
    (container ≤1100px), release the desktop-only fixed-layout geometry so the
-   cards follow the container width instead of the 1000px column floor. */
+   cards follow the container width. */
 @container (max-width: 1100px) {
   .factories-table {
     min-width: 0;

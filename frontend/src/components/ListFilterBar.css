@@ -60,11 +60,19 @@
 
 /* Action cluster: the wrapper is one item on the wrapping row; its buttons row
    up inside with a tight gap (the bar's 16px column-gap no longer separates
-   them). */
+   them). SIL-650: the cluster WRAPS instead of overflowing its line — a
+   poisoned line width (the `.ds-uui-select` width:100% class in the comment
+   below) used to push the trailing "N mục" counter past the card's padding
+   and flush against the card edge / viewport. When every item fits, this is
+   invisible (one row, right-pinned); when the line cannot hold the cluster,
+   the counter drops to a second right-aligned row INSIDE the card's padding. */
 .filter-bar.list-filter-bar .filter-bar__actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
+  min-width: 0;
 }
 
 /* Height unification vs the control-geometry size rules. Specificity, not
@@ -211,12 +219,8 @@
 
   /* Multi-element actions stay one right-aligned cluster on their own line
      (card 20260927_152): they wrap among themselves if the line is too narrow,
-     but never stack into a column of full-height buttons. */
-  .filter-bar.list-filter-bar .filter-bar__actions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 8px;
-  }
+     but never stack into a column of full-height buttons. The wrap/justify/gap
+     mechanics live on the base rule since SIL-650 — nothing to re-declare. */
 
   /* One height token (card 20260925_1): search input shell, the UUI control
      boundary, the segmented date wrapper, and the design-system select all
