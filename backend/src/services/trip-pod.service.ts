@@ -28,6 +28,7 @@ import { enqueueStorageDelete, STORAGE_DELETE_MODE } from './durable-effect.serv
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { storageService } from './storage.service';
 import type { Tx } from './trip-shared';
+import { completionEvidenceReady } from './trip-pair-rules.service';
 import { isFulfillmentRequired } from './shipment-fulfillment.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 
@@ -376,6 +377,8 @@ export async function getDriverCompletionEvidenceStatus(
   // submitted e-POD, so a trip can complete without any photo (QA needs to
   // finish lots quickly). The photo facts stay in the payload for the
   // informational counters; only the recorded milestones gate completion.
+  // SIL-638 TC9 — the law is unit-pinned as completionEvidenceReady
+  // (trip-pair-rules.service); this site only assembles its facts.
   const missing: string[] = [];
   for (const eventType of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE) {
     if (!seen.has(eventType)) {
@@ -384,7 +387,7 @@ export async function getDriverCompletionEvidenceStatus(
   }
 
   return {
-    ready: hasDeliveredMilestone,
+    ready: completionEvidenceReady({ hasDeliveredMilestone }),
     missing,
     hasDeliveredMilestone,
     hasSubmittedPod,

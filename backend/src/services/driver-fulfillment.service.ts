@@ -29,6 +29,7 @@ import { lockTripFinancialAuthority } from './trip-financial-authority-lock.serv
 import type { Tx } from './trip-shared';
 import { transitionTripStatus } from './trip-status-machine.service';
 import { syncAttendanceAfterStatusChange, toBusinessDateString } from './trip-attendance-sync.service';
+import { KET_HOP_SEQUENCE_BLOCK_MESSAGE, ketHopSequenceGateVerdict } from './trip-pair-rules.service';
 import { syncTripWorkDays } from './attendance.service';
 import { invalidateReportCaches } from '../lib/report-cache';
 import { createCustomerVisibleEvent } from './shipment-coordination.service';
@@ -72,11 +73,18 @@ async function assertKetHopSequencingAllowedTx(tx: Tx, tripId: number): Promise<
     .from(s.trips).where(eq(s.trips.id, pair.firstTripId)).limit(1);
   const firstDone = first?.status === TripStatus.COMPLETED
     || (await getDriverCompletionEvidenceStatus(pair.firstTripId, tx)).ready;
-  if (!firstDone) {
-    throw new ApiError(
-      409,
-      'Đây là Lệnh 2 của cặp kết hợp: hãy hoàn thành trả hàng Lệnh 1 trước khi bắt đầu lệnh này.',
-    );
+  // SIL-638 TC8 — the law itself is unit-pinned as ketHopSequenceGateVerdict
+  // (trip-pair-rules.service); the load here only assembles its facts.
+  const verdict = ketHopSequenceGateVerdict({
+    pairStatus: pair.status,
+    pairKind: pair.pairKind,
+    pairOrder: 2,
+    hasFirstTrip: true,
+    firstTripStatus: first?.status ?? null,
+    firstEvidenceReady: firstDone,
+  });
+  if (verdict === 'block') {
+    throw new ApiError(409, KET_HOP_SEQUENCE_BLOCK_MESSAGE);
   }
 }
 

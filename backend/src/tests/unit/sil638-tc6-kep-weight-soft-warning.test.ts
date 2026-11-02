@@ -64,8 +64,17 @@ describe('SIL-638 TC6(2) — kẹp weight overload is a soft warning', () => {
     assert.equal(kepWeightGuardOutcome('overload', true), 'allow');
   });
 
-  it('non-overload verdicts allow regardless of the confirm flag', () => {
+  it('non-overload PROVABLE verdicts allow regardless of the confirm flag', () => {
     assert.equal(kepWeightGuardOutcome('pass', false), 'allow');
-    assert.equal(kepWeightGuardOutcome('unprovable', false), 'allow');
+  });
+
+  // SIL-638 TC6(2) v2 (owner DOC 31/10): the soft warning also covers the
+  // missing-data branch ("cont chưa có dữ liệu tải trọng / xe chưa cấu hình
+  // tải moóc") — QA repro 02/11 (build ed0056e1) proved the old silent allow
+  // created the pair with no warning at all. Pinned in full by
+  // sil638-tc6-weight-unprovable-warn.test.ts.
+  it('the unprovable branch warns once too (was a silent allow before the 02/11 QA repro)', () => {
+    assert.equal(kepWeightGuardOutcome('unprovable', false), 'refuse');
+    assert.equal(kepWeightGuardOutcome('unprovable', true), 'allow');
   });
 });
