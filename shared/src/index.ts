@@ -487,6 +487,7 @@ export {
   resolveEffectiveFactory,
   resolveEffectiveFulfillmentDate,
   localDateInBusinessZone,
+  sameInstantOrNull,
 } from './shipment-effective';
 export type {
   EffectiveFactory,
