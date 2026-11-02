@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
@@ -1110,5 +1110,82 @@ describe('DetailedPlanGrid — background-refresh resilience (P1 dispatch-detail
     // …and the data state.
     renderGrid([row()], { filters });
     expect(screen.getByLabelText('Tìm nhanh')).toBeTruthy();
+  });
+});
+
+describe('DetailedPlanGrid — SIL-648 PHÂN LOẠI column inline edit', () => {
+  it('renders a clickable button for uncompleted FCL rows, opens select on click, and saves in place', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentId: 101,
+      fulfillmentVersion: 4,
+      shipmentId: 11,
+      shipmentVersion: 6,
+      classification: 'DOUBLE',
+      isCombined: false,
+      operationalNotes: null,
+      plannedEndAt: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea' },
+      estimates: { plannedRevenue: 1000000, plannedCarrierCost: 800000 },
+      lotFullyPlated: false,
+    });
+
+    renderGrid([row({ fulfillmentId: 101, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' })], {
+      onAtomicSave,
+    });
+
+    const editBtn = screen.getByRole('button', { name: /Sửa phân loại · Đơn/ });
+    expect(editBtn).toBeTruthy();
+
+    fireEvent.click(editBtn);
+
+    // UuiSelectField exposes a hidden native select with current display value
+    const select = screen.getByDisplayValue('Đơn');
+    expect(select).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.change(select, { target: { value: 'DOUBLE' } });
+    });
+
+    expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.objectContaining({ fulfillmentId: 101 }),
+      expect.objectContaining({ classification: 'DOUBLE', isCombined: false }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Kẹp')).toBeTruthy();
+    });
+  });
+
+  it('reverts optimistic render and displays persisted role="alert" on save error', async () => {
+    const onAtomicSave = vi.fn().mockRejectedValue(
+      new Error('Phân loại không khớp với chuyến xe ghép.'),
+    );
+
+    renderGrid([row({ fulfillmentId: 101, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' })], {
+      onAtomicSave,
+    });
+
+    const editBtn = screen.getByRole('button', { name: /Sửa phân loại · Đơn/ });
+    fireEvent.click(editBtn);
+
+    const select = screen.getByDisplayValue('Đơn');
+    await act(async () => {
+      fireEvent.change(select, { target: { value: 'COMBINED' } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Đơn')).toBeTruthy();
+      const alert = screen.getByRole('alert');
+      expect(alert.textContent).toContain('Phân loại không khớp với chuyến xe ghép.');
+    });
+  });
+
+  it('does not allow inline editing on completed rows or LCL rows', () => {
+    renderGrid([
+      row({ fulfillmentId: 101, classification: 'SINGLE', taskStatus: 'COMPLETED', cargoMode: 'FCL' }),
+      row({ fulfillmentId: 102, classification: 'LCL', taskStatus: 'READY', cargoMode: 'LCL' }),
+    ]);
+
+    expect(screen.queryByRole('button', { name: /Sửa phân loại/ })).toBeNull();
   });
 });

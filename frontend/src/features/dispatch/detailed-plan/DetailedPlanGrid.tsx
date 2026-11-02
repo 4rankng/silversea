@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { EmptyState, TextField } from '../../../design-system';
+import { EmptyState, TextField, UuiSelectField } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { NameCell } from '../../../components/shared/NameCell';
@@ -27,7 +27,7 @@ import { formatISODate } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { DispatchDriverNote } from './DispatchDriverNote';
-import { detailRowKey, detailedScheduleLine, lclCargoLine, lclMeasureLine } from './DispatchPlanCellValues';
+import { detailRowKey, detailedScheduleLine, lclCargoLine, lclMeasureLine, classificationOptionsForRow } from './DispatchPlanCellValues';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
 import { DispatchDeclarationCell } from './DispatchDeclarationCell';
@@ -277,6 +277,48 @@ export function DetailedPlanGrid({
     setEditRequest({ key: detailRowKey(row), nonce: editNonceRef.current });
   };
   const consumeEditRequest = () => setEditRequest(null);
+
+  // SIL-648 (id 753) — PHÂN LOẠI column inline edit on the detailed-plan grid.
+  const [editingClassificationKey, setEditingClassificationKey] = useState<string | null>(null);
+  const [savingClassificationKey, setSavingClassificationKey] = useState<string | null>(null);
+  const [optimisticClassifications, setOptimisticClassifications] = useState<Record<string, DispatchClassification>>({});
+  const [inlineClassificationError, setInlineClassificationError] = useState<string | null>(null);
+
+  const handleInlineClassificationSave = async (row: DispatchDetailPlanRow, nextClassification: DispatchClassification) => {
+    const rowKey = detailRowKey(row);
+    if (nextClassification === row.classification) {
+      setEditingClassificationKey(null);
+      return;
+    }
+    setOptimisticClassifications((prev) => ({ ...prev, [rowKey]: nextClassification }));
+    setSavingClassificationKey(rowKey);
+    setInlineClassificationError(null);
+
+    try {
+      const parseEst = (val: string | null) => (val && val.trim() ? Number(val) : null);
+      await onAtomicSave(row, {
+        carrierType: row.dispatch.carrierType ?? 'OWN',
+        externalCarrierId: row.dispatch.carrierType === 'EXTERNAL' ? row.dispatch.externalCarrierId ?? null : null,
+        plannedRevenue: parseEst(row.estimates.plannedRevenue),
+        plannedCarrierCost: parseEst(row.estimates.plannedCarrierCost),
+        classification: nextClassification,
+        isCombined: nextClassification === 'COMBINED',
+      });
+      setEditingClassificationKey(null);
+    } catch (err: unknown) {
+      setOptimisticClassifications((prev) => {
+        const next = { ...prev };
+        delete next[rowKey];
+        return next;
+      });
+      setEditingClassificationKey(null);
+      const msg = (err as { message?: string })?.message || 'Không thể lưu phân loại. Vui lòng thử lại.';
+      setInlineClassificationError(msg);
+      toastCtx?.toast({ kind: 'error', message: msg });
+    } finally {
+      setSavingClassificationKey(null);
+    }
+  };
   // Owner redesign 23/10 (spec A/B) — one markup per mode, measured on the
   // grid's own wrapper: ≥640px keeps the table (scroll box + pinned actions
   // column), below it the phone card list takes over.
@@ -334,8 +376,10 @@ export function DetailedPlanGrid({
         onSelectPlate={(plate) => onFilterChange({ q: plate })}
       />
 
-      {assignmentError && (
-        <div className="dispatch-plan-page__error" role="alert">{assignmentError}</div>
+      {(assignmentError || inlineClassificationError) && (
+        <div className="dispatch-plan-page__error" role="alert">
+          {inlineClassificationError ?? assignmentError}
+        </div>
       )}
 
       {error && items.length > 0 && (
@@ -719,9 +763,55 @@ export function DetailedPlanGrid({
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại" data-label-short="Loại">
                     <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--row">
-                      <span className="detailed-plan-grid__classification">
-                        {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
-                      </span>
+                      {(() => {
+                        const rowKey = detailRowKey(row);
+                        const classificationOptions = classificationOptionsForRow(row.cargoMode)
+                          .filter((opt) => opt.value === 'SINGLE' || opt.value === 'DOUBLE' || opt.value === 'COMBINED');
+                        const canEdit = row.taskStatus !== 'COMPLETED' && classificationOptions.length > 1;
+                        const isEditing = editingClassificationKey === rowKey;
+                        const displayedClassification = optimisticClassifications[rowKey] ?? row.classification;
+
+                        if (isEditing) {
+                          return (
+                            <UuiSelectField
+                              label={`Phân loại ${row.container.containerNumber || row.shipmentCode || ''}`}
+                              hideLabel
+                              size="sm"
+                              width="content"
+                              controlClassName="detailed-plan-grid__classification-select"
+                              value={displayedClassification}
+                              disabled={savingClassificationKey === rowKey}
+                              options={classificationOptions}
+                              onChange={(e) => {
+                                void handleInlineClassificationSave(row, e.target.value as DispatchClassification);
+                              }}
+                            />
+                          );
+                        }
+
+                        if (canEdit) {
+                          return (
+                            <button
+                              type="button"
+                              className="detailed-plan-grid__classification"
+                              onClick={() => {
+                                setInlineClassificationError(null);
+                                setEditingClassificationKey(rowKey);
+                              }}
+                              aria-label={`Sửa phân loại · ${DISPATCH_CLASSIFICATION_LABELS[displayedClassification]}`}
+                              title="Bấm để sửa phân loại"
+                            >
+                              {DISPATCH_CLASSIFICATION_LABELS[displayedClassification]}
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <span className="detailed-plan-grid__classification">
+                            {DISPATCH_CLASSIFICATION_LABELS[displayedClassification]}
+                          </span>
+                        );
+                      })()}
                       {/* FB-095 — with the page wired, the badge is the group's
                           action surface (Xem nhóm / Hủy ghép); unwired it stays
                           a static tag exactly like the pre-FB-095 badge. */}
