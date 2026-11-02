@@ -11,18 +11,76 @@
 .ts-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 14px);
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.ts-month-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ts-period {
   font-family: var(--font-data);
   font-weight: 600;
+  font-size: var(--text-body-size, 14px);
+  color: var(--ink);
+  white-space: nowrap;
 }
 
+/* SIL-649: Explicit width and min-width prevent UUI ComboBox inline-size container
+ * from collapsing into a 2px stray stripe artifact inside flex layouts. */
 .ts-driver-select {
-  max-width: 260px;
+  width: 260px;
+  min-width: 200px;
+  max-width: 100%;
   margin-left: auto;
+}
+
+/* SIL-649: Centered empty-state card per house pattern. */
+.ts-empty-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 14px);
+  padding: 40px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+  .ts-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .ts-month-picker {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .ts-driver-select {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .ts-empty-card {
+    padding: 32px 16px;
+    min-height: 260px;
+  }
 }
 
 .ts-legend {

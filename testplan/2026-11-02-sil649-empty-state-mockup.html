@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIL-649 Responsive Mockup — Driver Timesheet Empty State Redesign</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #E3E8E5;
+      --surface: #FFFFFF;
+      --surface-2: #EDF1EE;
+      --line: #C4CDC7;
+      --line-2: #A8B4AD;
+      --ink: #101513;
+      --ink-2: #4D5852;
+      --ink-3: #75837B;
+      --brand: #005A2D;
+      --brand-hover: #004522;
+      --accent-soft: #ECF8F1;
+      --accent-2: #005A2D;
+      --r-md: 14px;
+      --r-sm: 8px;
+      --font-body: 'Be Vietnam Pro', system-ui, sans-serif;
+    }
+    body {
+      font-family: var(--font-body);
+      background-color: #0f172a;
+      color: #f8fafc;
+      margin: 0;
+      padding: 24px;
+    }
+    /* DESIGN LOCK STYLES */
+    .ts-page {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 0;
+    }
+    .page-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      margin: 0;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: 500;
+      font-size: 13px;
+      padding: 0 12px;
+      height: 32px;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+    .btn--primary {
+      background: var(--brand);
+      color: #ffffff;
+      border-color: var(--brand);
+    }
+    .btn--primary:hover {
+      background: var(--brand-hover);
+    }
+    .btn--secondary {
+      background: var(--surface);
+      color: var(--ink);
+      border-color: var(--line);
+    }
+    .btn--ghost {
+      background: transparent;
+      color: var(--ink-2);
+    }
+    .btn--ghost:hover {
+      background: var(--surface-2);
+      color: var(--ink);
+    }
+    .btn--icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Containerized Toolbar with Month Navigation */
+    .ts-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .ts-month-picker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ts-period {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .ts-driver-select {
+      width: 260px;
+      min-width: 200px;
+      max-width: 100%;
+      margin-left: auto;
+    }
+    .mock-select-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 32px;
+      padding: 0 10px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      font-size: 13px;
+      color: var(--ink);
+    }
+
+    /* Empty State Card */
+    .ts-empty-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r-md);
+      padding: 40px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 320px;
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .ds-empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      max-width: 440px;
+      width: 100%;
+      gap: 8px;
+    }
+    .ds-empty-state__icon-wrap {
+      width: 64px;
+      height: 64px;
+      border-radius: 9999px;
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      color: var(--accent-2);
+    }
+    .ds-empty-state__title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--ink);
+      margin: 0;
+    }
+    .ds-empty-state__description {
+      font-size: 13px;
+      color: var(--ink-2);
+      line-height: 1.5;
+      margin: 0;
+    }
+    .ds-empty-state__action {
+      margin-top: 12px;
+    }
+
+    /* Mobile Responsive Stack (<768px) */
+    @media (max-width: 767px) {
+      .ts-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        padding: 10px 12px;
+      }
+      .ts-month-picker {
+        justify-content: space-between;
+        width: 100%;
+      }
+      .ts-driver-select {
+        width: 100%;
+        margin-left: 0;
+      }
+      .ts-empty-card {
+        padding: 32px 16px;
+        min-height: 260px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="max-w-7xl mx-auto space-y-8">
+    <div class="border-b border-slate-700 pb-4">
+      <h1 class="text-2xl font-bold text-white">SIL-649 (id 754) — Responsive Design Lock & Mockup</h1>
+      <p class="text-slate-400 text-sm mt-1">Driver timesheet empty-state redesign: eliminating stray vertical stripe, containerizing month navigation, and centering house empty-state card.</p>
+    </div>
+
+    <!-- Live Preview Controls -->
+    <div class="flex items-center gap-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
+      <span>Design Verification Mode:</span>
+      <span class="bg-emerald-900/60 text-emerald-400 px-2 py-1 rounded border border-emerald-700">Accountant Role (CTA Present)</span>
+      <span class="bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700">Dispatcher Role (Guidance Only)</span>
+    </div>
+
+    <!-- PREVIEWS GRID -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+      <!-- DESKTOP VIEW (1440/768 Viewport) -->
+      <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Desktop Surface (≥768px / 1440px) — Dense Layout</span>
+          <span class="text-xs text-slate-500">Container: #E3E8E5 (Sage) | Cards: #FFFFFF</span>
+        </div>
+
+        <div class="p-6 rounded-lg" style="background-color: var(--bg);">
+          <div class="ts-page">
+            <!-- Header -->
+            <div class="page-header">
+              <h2 class="page-title">Chấm công lái xe</h2>
+              <button class="btn btn--secondary" disabled>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Lưu lưới
+              </button>
+            </div>
+
+            <!-- Toolbar Card -->
+            <div class="ts-toolbar">
+              <div class="ts-month-picker">
+                <button class="btn btn--ghost btn--icon" aria-label="Tháng trước">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <span class="ts-period">Tháng 11/2026</span>
+                <button class="btn btn--ghost btn--icon" aria-label="Tháng sau">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+              </div>
+
+              <!-- Driver Select (Properly sized 260px, NO 0-width collapse) -->
+              <div class="ts-driver-select">
+                <div class="mock-select-trigger">
+                  <span class="truncate">Nguyễn Văn An (29H-12345)</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty State Card (Accountant View: With CTA) -->
+            <div class="ts-empty-card">
+              <div class="ds-empty-state">
+                <div class="ds-empty-state__icon-wrap">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                    <line x1="16" x2="16" y1="2" y2="6"/>
+                    <line x1="8" x2="8" y1="2" y2="6"/>
+                    <line x1="3" x2="21" y1="10" y2="10"/>
+                    <path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/>
+                    <path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/>
+                  </svg>
+                </div>
+                <h3 class="ds-empty-state__title">Chưa có bảng chấm công tháng 11/2026</h3>
+                <p class="ds-empty-state__description">Kế toán mở bảng trước, sau đó Điều vận điền lưới.</p>
+                <div class="ds-empty-state__action">
+                  <button class="btn btn--primary">
+                    Mở bảng chấm công
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MOBILE VIEW (390px Viewport) -->
+      <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Mobile Surface (390px) — Stacked Card</span>
+          <span class="text-xs text-slate-500">Touch Target Floor: ≥40px</span>
+        </div>
+
+        <div class="mx-auto rounded-2xl overflow-hidden border border-slate-700 shadow-2xl" style="width: 390px; max-width: 100%; background-color: var(--bg); padding: 12px;">
+          <div class="ts-page">
+            <!-- Header -->
+            <div class="page-header">
+              <h2 class="page-title text-base">Chấm công lái xe</h2>
+              <button class="btn btn--secondary" style="height: 32px; padding: 0 8px;" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/></svg>
+                Lưu
+              </button>
+            </div>
+
+            <!-- Toolbar Card (Mobile Stacked) -->
+            <div class="ts-toolbar">
+              <div class="ts-month-picker">
+                <button class="btn btn--ghost btn--icon" aria-label="Tháng trước">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <span class="ts-period text-sm">Tháng 11/2026</span>
+                <button class="btn btn--ghost btn--icon" aria-label="Tháng sau">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+              </div>
+
+              <!-- Driver Select (Full-width on mobile) -->
+              <div class="ts-driver-select">
+                <div class="mock-select-trigger">
+                  <span class="truncate">Nguyễn Văn An (29H-12345)</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty State Card (Dispatcher View: No Button, Guidance Only) -->
+            <div class="ts-empty-card">
+              <div class="ds-empty-state">
+                <div class="ds-empty-state__icon-wrap">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                    <line x1="16" x2="16" y1="2" y2="6"/>
+                    <line x1="8" x2="8" y1="2" y2="6"/>
+                    <line x1="3" x2="21" y1="10" y2="10"/>
+                  </svg>
+                </div>
+                <h3 class="ds-empty-state__title text-sm">Chưa có bảng chấm công tháng 11/2026</h3>
+                <p class="ds-empty-state__description text-xs">Kế toán mở bảng trước, sau đó Điều vận điền lưới.</p>
+                <!-- Dispatcher role: No dead button rendered -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TECHNICAL DESIGN LOCK SUMMARY -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4">
+      <h3 class="text-base font-semibold text-white">Design Lock Specifications (SIL-649)</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div class="bg-slate-800/60 p-4 rounded-lg border border-slate-700/60 space-y-2">
+          <div class="font-bold text-emerald-400">1. Stray Stripe Extermination</div>
+          <p class="text-slate-300">Root cause: <code class="text-emerald-300">.ts-driver-select</code> had <code class="text-emerald-300">max-width: 260px</code> with no width in a flex toolbar. ComboBox inline-size container collapsed to a 2px border-width stripe at x=1252.</p>
+          <p class="text-slate-300">Fix: Assigned explicit <code class="text-emerald-300">width: 260px; min-width: 200px; max-width: 100%</code>. Guarded rendering so when driver list is empty, zero DOM elements are emitted.</p>
+        </div>
+        <div class="bg-slate-800/60 p-4 rounded-lg border border-slate-700/60 space-y-2">
+          <div class="font-bold text-emerald-400">2. Month Navigation Container</div>
+          <p class="text-slate-300">Replaced floating un-containerized text with a card bar matching <code class="text-emerald-300">.filter-bar--card</code> styling: <code class="text-emerald-300">background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px 14px;</code>.</p>
+          <p class="text-slate-300">Mobile (<768px): Stacks toolbar vertically with full-width driver picker and space-between month arrows.</p>
+        </div>
+        <div class="bg-slate-800/60 p-4 rounded-lg border border-slate-700/60 space-y-2">
+          <div class="font-bold text-emerald-400">3. Centered Empty State Card</div>
+          <p class="text-slate-300">Replaced raw single line <code class="text-emerald-300">.ts-hint</code> with <code class="text-emerald-300">.ts-empty-card</code> housing the shared <code class="text-emerald-300">&lt;EmptyState context="salary" /&gt;</code> primitive.</p>
+          <p class="text-slate-300">Role-specific CTA: Accountant gets live <code class="text-emerald-300">Mở bảng chấm công</code> action modal trigger; Dispatcher/others get clean guidance text without dead button.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

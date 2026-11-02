@@ -11,7 +11,7 @@ import { Role, TIMESHEET_SYMBOL_RULES, countDayTrips, type TimesheetSymbol, type
 import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 
 import { Btn, Modal, PageHeader } from '../components/UI';
-import { NumberField, SummaryRail } from '../design-system';
+import { EmptyState, NumberField, SummaryRail } from '../design-system';
 import { formatMoney } from '../lib/format';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { useMonthRoute } from '../design-system/hooks/useMonthRoute';
@@ -167,43 +167,52 @@ export default function TimesheetGridPage() {
       />
 
       <div className="ts-toolbar">
-        <button className="btn btn--ghost btn--icon btn--sm" onClick={goPrev} aria-label="Tháng trước">
-          <ChevronLeft size={16} />
-        </button>
-        <span className="ts-period">{`Tháng ${String(month).padStart(2, '0')}/${year}`}</span>
-        <button className="btn btn--ghost btn--icon btn--sm" onClick={goNext} aria-label="Tháng sau">
-          <ChevronRight size={16} />
-        </button>
-        <div className="ts-driver-select">
-        <UuiSelectField
-          label="Chọn lái xe"
-          hideLabel
-          ariaLabel="Chọn lái xe"
-          value={activeDriverId === null ? '' : String(activeDriverId)}
-          onChange={event => setDriverId(Number(event.target.value))}
-          options={(driversQuery.data ?? []).map(driver => ({ value: String(driver.id), label: driver.name }))}
-        />
+        <div className="ts-month-picker">
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={goPrev} aria-label="Tháng trước">
+            <ChevronLeft size={16} />
+          </button>
+          <span className="ts-period">{`Tháng ${String(month).padStart(2, '0')}/${year}`}</span>
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={goNext} aria-label="Tháng sau">
+            <ChevronRight size={16} />
+          </button>
         </div>
+        {(driversQuery.data ?? []).length > 0 && (
+          <div className="ts-driver-select">
+            <UuiSelectField
+              label="Chọn lái xe"
+              hideLabel
+              ariaLabel="Chọn lái xe"
+              value={activeDriverId === null ? '' : String(activeDriverId)}
+              onChange={event => setDriverId(Number(event.target.value))}
+              options={(driversQuery.data ?? []).map(driver => ({ value: String(driver.id), label: driver.name }))}
+            />
+          </div>
+        )}
       </div>
 
       {!timesheet && (
-        <p className="ts-hint">
-          Lái xe này chưa có bảng chấm công tháng {String(month).padStart(2, '0')}/{year}. Kế toán mở bảng trước, sau đó Điều vận điền lưới.
-          {canOpenBoard && activeDriverId !== null && (
-            <Btn
-              size="sm"
-              onClick={() => {
-                // FB-103 (ticket 171026215600) — mở dialog với chế độ mặc định
-                // của lái xe (đặt ở dialog "Sửa lương cứng" / sửa lái xe), kế
-                // toán vẫn đổi được từng tháng ngay trong dialog này.
-                setBoardMode(activeDriver?.defaultSalaryMode ?? 'PER_TRIP');
-                setBoardFormOpen(true);
-              }}
-            >
-              Mở bảng chấm công
-            </Btn>
-          )}
-        </p>
+        <div className="ts-empty-card">
+          <EmptyState
+            context="salary"
+            title={`Chưa có bảng chấm công tháng ${String(month).padStart(2, '0')}/${year}`}
+            description="Kế toán mở bảng trước, sau đó Điều vận điền lưới."
+            action={
+              canOpenBoard && activeDriverId !== null ? (
+                <Btn
+                  onClick={() => {
+                    // FB-103 (ticket 171026215600) — mở dialog với chế độ mặc định
+                    // của lái xe (đặt ở dialog "Sửa lương cứng" / sửa lái xe), kế
+                    // toán vẫn đổi được từng tháng ngay trong dialog này.
+                    setBoardMode(activeDriver?.defaultSalaryMode ?? 'PER_TRIP');
+                    setBoardFormOpen(true);
+                  }}
+                >
+                  Mở bảng chấm công
+                </Btn>
+              ) : undefined
+            }
+          />
+        </div>
       )}
 
       {timesheet && (

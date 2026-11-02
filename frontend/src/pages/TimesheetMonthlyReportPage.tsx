@@ -84,13 +84,15 @@ export default function TimesheetMonthlyReportPage() {
       <PageHeader title="Tổng hợp xếp lệnh tháng" />
 
       <div className="ts-toolbar">
-        <button className="btn btn--ghost btn--icon btn--sm" onClick={goPrev} aria-label="Tháng trước">
-          <ChevronLeft size={16} />
-        </button>
-        <span className="ts-period">{`Tháng ${String(month).padStart(2, '0')}/${year}`}</span>
-        <button className="btn btn--ghost btn--icon btn--sm" onClick={goNext} aria-label="Tháng sau">
-          <ChevronRight size={16} />
-        </button>
+        <div className="ts-month-picker">
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={goPrev} aria-label="Tháng trước">
+            <ChevronLeft size={16} />
+          </button>
+          <span className="ts-period">{`Tháng ${String(month).padStart(2, '0')}/${year}`}</span>
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={goNext} aria-label="Tháng sau">
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
       <h2 className="ts-report__title">{`TỔNG HỢP XẾP LỆNH THÁNG ${String(month).padStart(2, '0')}/${year}`}</h2>
