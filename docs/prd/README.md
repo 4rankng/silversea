@@ -420,10 +420,11 @@ spec regression-pack (`frontend/e2e/regression/`, chạy `pnpm reg:local`).
 | 261022213755c | TiepVu 22/10-2 | Tag NHẬP LẺ/XUẤT LẺ theo cargoMode/isLotLevel (list CUS + ledger lot-level + header detail) | 4fadceb5 | vitest cus-cards + ledger + ShipmentDetail | — |
 | 261023110000 | Kanban TODO 23/10 (`261023110000-dieu-chinh-luong-gom-hang-le.docx` + note kèm card) | Điều chỉnh luồng Gộp hàng: tách `cost_group_id` (ĐV — trả) vs `rev_group_id` (CUS — thu) độc lập; nút [📦 Gộp hàng] toggle cột CHỌN (chỉ LCL) + floating bar; Popup ĐV 4 trường (XÓA BKS ảo); CUS per-lot 3 trường mặc định + gộp cùng-KH popup 3 trường, 100/0 trong nhóm + [Tách nhóm]; header dài wrap 2 dòng — spec đầy đủ + RULING NOTE (per-lot mặc định; 100/0 chỉ trong nhóm gộp CUS) tại [LoHangKepKetHop.md](LoHangKepKetHop.md) §Spec 23/10 | — (docs-only, chờ implement) | — | — |
 
-### 7.7 Wave SIL-630/633/638/641/644/645/646/647/648/649/650/651/652 — build 42380dc0 (land 02/11/2026)
+### 7.7 Wave SIL-630/633/638/641/644/645/646/647/648/649/650/651/652/653 — build e70b9438 (land 02/11/2026)
 
 Wave 9 lane (GLM cho luật BE/contract, Antigravity Gemini cho UI/UX), base `b20c724c` → `42380dc0`.
 Mỗi dòng = 1 ticket, AC = GIVEN/WHEN/THEN mặc định, kèm commit + test khóa.
+SIL-653 (id 760) vào lúc 10:43 02/11 (QA tạo giữa wave) — xử lý cùng wave, deploy `e70b9438`.
 
 | ID | Spec gốc | Trạng thái | Commit/evidence | AC mặc định · G/W/T | QA verdict / verify-fail |
 |---|---|---|---|---|---|
@@ -440,3 +441,4 @@ Mỗi dòng = 1 ticket, AC = GIVEN/WHEN/THEN mặc định, kèm commit + test k
 | SIL-650 | «/config/factories: bảng tràn ngang, counter bị clip» — card board Done nhưng code chưa có trên main | LAND (reconcile) | `a014023c` + `9b09daa8` + evidence 320/360/768/1280/1440/1512 | /config/factories · Quản trị viên · G mở bảng THEN 0 overflow ngang, counter không clip (counter 13-15px slack) | scoped rerun 57/57 xanh · ảnh trước/sau 6 breakpoint |
 | SIL-651 | «Tất cả date picker thiếu icon lịch ở cuối ô nhập» | LAND | `d8426254` + `DateField.calendar-icon.styles.test.ts` | Mọi ô date/date-time · mọi vai trò · G mở ô ngày THEN thấy icon lịch ở cuối ô, bấm được | pin vitest calendar icon |
 | SIL-652 | «Trip L2 đang khóa nhưng trang detail vẫn hiện nút "Nhận lệnh vận chuyển" bấm không có tác dụng» | LAND | `52ff15b7` + `DriverTripDetailPage.test.tsx` | Trang chi tiết trip lái xe · lái xe · G mở trip L2 đã khoá THEN nút Nhận lệnh ẩn, hiện message khoá cặp thay vì nút chết | vitest scoped xanh |
+| SIL-653 | «Số cont nhập sau khi phát lệnh phải hiển thị ở tất cả các phía (điều vận, CUS, app lái xe) — hiện cả 2 chiều đều lỗi» | LAND | `54f0992f` + `sil653-container-number-sync.test.ts` + `DispatchContainerNumberCell.test.tsx` | Chi tiết lô + dispatch-detail + app lái xe · CUS/ĐV/lái xe · G nhập số cont ở 1 phía sau khi phát lệnh THEN cả 3 phía hiện cùng số sau reload (API không null) · G lái xe sửa số cont THEN shipment_containers + trip_containers khớp · field cấu trúc vẫn lock 409 (giữ luật SIL-644) | BE unit 342/342 · sil653 10/10 · BE scoped 61/61 · FE scoped 501/501 · FE full 6075/6075 |
