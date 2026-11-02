@@ -3,7 +3,7 @@
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { assertResourceAvailability } from './dispatch-resource-availability.service';
+import { assertKepIssuingContainerClass, assertResourceAvailability } from './dispatch-resource-availability.service';
 export { assertResourceAvailability } from './dispatch-resource-availability.service';
 import { LiveTripRow } from './dispatch-planning-utils.service';
 import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
@@ -382,6 +382,14 @@ export async function issueOrderCreateOrUpdate(
   const canonicalLocations = containerRoute
     ? canonicalLocationsFromContainerRow(containerRoute)
     : { origin: null, destination: null };
+  // SIL-638 (id 742) TC6(1) — the 40ft-Kẹp hard block on the ISSUE/REISSUE
+  // path (QA 01/11: a 40ft Kẹp saved because the size law only lived in the
+  // pairing core). A declared DOUBLE leg must be a 20' shell; an undeclared
+  // size keeps "bổ sung sau" and skips.
+  await assertKepIssuingContainerClass(tx, {
+    shipmentContainerId: fulfillment.shipmentContainerId,
+    classification: fulfillment.dispatchClassification,
+  });
   // FCL route falls back container -> shipment (mirroring detail plan and CUS
   // workspace). FB-081 (card 181026003045): the governed reassign passes the
   // corrected trip's route snapshot as routeIdFallback — a Kẹp lot's mutable
@@ -696,7 +704,12 @@ export async function issueOrderCreateOrUpdate(
     driverId,
     plannedStartAt,
     plannedEndAt,
-    cargoWeightKg,
+    // SIL-638 (id 742) TC6(2) — the pair weight gate reads the dispatcher's
+    // ESTIMATED cargo weight: when the container row carries none, the lot
+    // declaration is the fallback (QA 01/11: both legs' weights read null and
+    // the soft warning never fired). Storage keeps authoritativeCargoWeightKg;
+    // this feeds only the gate.
+    cargoWeightKg: cargoWeightKg ?? shipment.cargoWeightKg,
     vehicleCapacityKg,
     rigOverlapCompletedConfirmed: input.rigOverlapCompletedConfirmed === true,
     kepWeightWarningConfirmed: input.kepWeightWarningConfirmed === true,

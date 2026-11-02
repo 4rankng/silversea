@@ -27,8 +27,8 @@ import { and, eq, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzl
 import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification } from '@tingting/shared';
 import * as s from '../db/schema';
 import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
-import { countDateOnlyTripClaims } from './dispatch-resource-availability.service';
-import { CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage } from './trip-pair-rules.service';
+import { assertKepIssuingContainerClass, countDateOnlyTripClaims } from './dispatch-resource-availability.service';
+import { CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, MIXED_DECLARATION_KEP_WARN_MESSAGE } from './trip-pair-rules.service';
 import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
@@ -554,6 +554,11 @@ export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmen
   if (vehicle.plannedVehiclePlateNumber != null && vehicle.plannedVehiclePlateNumber.trim() !== '') {
     const window = await resolvePlanRowWindow(tx, fulfillment);
     if (window != null) {
+      // SIL-638 (id 742) TC6(1) — the 40ft-Kẹp hard block at assign time.
+      await assertKepIssuingContainerClass(tx, {
+        shipmentContainerId: fulfillment.shipmentContainerId,
+        classification: fulfillment.dispatchClassification,
+      });
       await assertPlanRowRigAvailable(tx, {
         fulfillmentId: input.fulfillmentId,
         shipmentId: fulfillment.shipmentId,
@@ -874,7 +879,13 @@ if (planRowBlocked || tripConflicts.length > 0) {
       // overlap keeps the family's warn-once contract below (FB-038: the
       // confirmable tier is never bypassed by a newer hard block).
       const mismatchConflict = tripConflicts.find((conflict) =>
-        classificationMismatchShareBlockMessage(args.classification ?? null, conflict.partnerClassification) != null);
+        classificationMismatchShareBlockMessage(args.classification ?? null, conflict.partnerClassification) != null)
+        // SIL-638 TC2 (QA 01/11) — the Kẹp/Kết hợp holder is ALSO a plan-row
+        // holder until its trip completes (the scan keeps issued rows), so the
+        // mismatch must answer from the plan-row holder's Phân loại too; before
+        // this the ĐƠN assignment got only the generic overlap toast.
+        ?? crossLotConflicts.find((conflict) =>
+          classificationMismatchShareBlockMessage(args.classification ?? null, conflict.classification) != null);
       if (mismatchConflict) {
         throw new ApiError(409, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
       }
@@ -926,8 +937,9 @@ if (planRowBlocked || tripConflicts.length > 0) {
     // not declared Kẹp. The share is the dispatcher's deliberate call, so it
     // rides the family's warn-once contract instead of the dead-end hard
     // tier — confirm proceeds, and the legs can be reclassified/paired after.
+    // SIL-638 TC2: the copy carries the DOC's wording, not the generic toast.
     throw new ApiError(409,
-      `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?`,
+      MIXED_DECLARATION_KEP_WARN_MESSAGE,
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' });
   }
@@ -1144,6 +1156,12 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     // refused with a container error.
     const window = await resolvePlanRowWindow(tx, fulfillment);
     if (window != null) {
+      // SIL-638 (id 742) TC6(1) — the 40ft-Kẹp hard block at assign time
+      // (the row's effective classification, matching the rig guard below).
+      await assertKepIssuingContainerClass(tx, {
+        shipmentContainerId: fulfillment.shipmentContainerId,
+        classification: input.classification ?? fulfillment.dispatchClassification,
+      });
       await assertPlanRowRigAvailable(tx, {
         fulfillmentId: input.fulfillmentId,
         shipmentId: fulfillment.shipmentId,
