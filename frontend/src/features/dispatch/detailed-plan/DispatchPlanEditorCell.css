@@ -213,10 +213,14 @@
 
 .dispatch-assignment-dialog__carrier {
   grid-area: carrier;
+  width: min(280px, 100%);
+  justify-self: start;
 }
 
 .dispatch-assignment-dialog__vehicle {
   grid-area: vehicle;
+  width: min(240px, 100%);
+  justify-self: start;
 }
 
 /* Card 20261004_357 — label row carries the quick-add affordance (same
@@ -271,20 +275,21 @@
 
 .dispatch-assignment-dialog__money .ds-field__input {
   font-family: var(--font-data, inherit);
+  font-size: var(--ops-table-data-size, 12px);
+  padding-inline: 8px 6px;
 }
 
 .dispatch-assignment-dialog__money .ds-field__affix {
-  padding-inline: 10px;
-  color: var(--fg-2);
+  padding-inline: 6px;
+  font-size: var(--ops-table-meta-size, 11px);
+  color: var(--fg-3);
   background: var(--surface-2);
 }
 
-/* SIL-590 (owner 27/10): an amount never needs a half-dialog track — the
-   field sizes to its content (10-digit mono number + đ affix ≈ 140px), the
-   200px cap leaves headroom without stretching. justify-self keeps the
-   narrow field at its track's start so the label grid stays aligned. */
+/* SIL-647 (id 752, supersedes SIL-590 200px): money inputs use the house NARROW
+   money pattern — compact height (controlSize="sm"), 150px max-width, compact suffix box. */
 .dispatch-assignment-dialog__money {
-  width: min(200px, 100%);
+  width: min(150px, 100%);
   justify-self: start;
 }
 

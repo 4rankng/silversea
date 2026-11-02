@@ -23,11 +23,21 @@ describe('DispatchPlanEditorCell dense fields grid (SIL-590)', () => {
     expect(block).not.toContain("'run run end end'");
   });
 
-  it('the money fields are content-sized — never a half-dialog stretch', () => {
+  it('the money fields are content-sized — never a half-dialog stretch (SIL-647: min(150px, 100%))', () => {
     const money = css.match(/\.dispatch-assignment-dialog__money\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(money, 'the money rule must exist').not.toBe('');
-    expect(money).toContain('width: min(200px, 100%)');
+    expect(money).toContain('width: min(150px, 100%)');
     expect(money).toContain('justify-self: start');
+  });
+
+  it('SIL-647: carrier and vehicle selects are narrowed to content needs (≤280px and ≤240px)', () => {
+    const carrier = css.match(/(?:^|\n)\.dispatch-assignment-dialog__carrier\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(carrier).toContain('width: min(280px, 100%)');
+    expect(carrier).toContain('justify-self: start');
+
+    const vehicle = css.match(/(?:^|\n)\.dispatch-assignment-dialog__vehicle\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(vehicle).toContain('width: min(240px, 100%)');
+    expect(vehicle).toContain('justify-self: start');
   });
 
   it('the sub-900 layouts keep their stacked fallback (phone/tablet unchanged)', () => {

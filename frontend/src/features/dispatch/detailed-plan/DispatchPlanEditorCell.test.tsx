@@ -331,6 +331,15 @@ describe('DispatchPlanEditorCell — assignment dialog validation', () => {
     await openDialog();
     expect(document.querySelector('form.dispatch-assignment-dialog')).toHaveAttribute('novalidate');
   });
+
+  it('SIL-647: money inputs render with compact height (ds-field--sm) and affix box', async () => {
+    renderCell(row({ plannedEndAt: null }), {});
+    await openDialog();
+    const revenueInput = screen.getByLabelText('Cước thu dự kiến');
+    const costInput = screen.getByLabelText('Cước trả dự kiến');
+    expect(revenueInput.closest('.ds-field')).toHaveClass('ds-field--sm');
+    expect(costInput.closest('.ds-field')).toHaveClass('ds-field--sm');
+  });
 });
 
 describe('DispatchPlanEditorCell — single datetime field (id 712, owner 30/10)', () => {

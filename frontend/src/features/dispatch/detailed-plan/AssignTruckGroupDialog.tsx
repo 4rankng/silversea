@@ -492,6 +492,7 @@ export function AssignTruckGroupDialog({
             label="Cước trả ĐV Lô 1 (đ)"
             value={manualFreightCost}
             onChange={setManualFreightCost}
+            controlSize="sm"
             grouped
             min={0}
             placeholder="Bỏ trống = tự tra bảng giá"
