@@ -647,6 +647,49 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     expect(schedule).not.toHaveTextContent('Cập nhật theo từng container');
   });
 
+  // SIL-645 (id 750): the lot cell printed the bare EDD day and dropped the
+  // lot's real giờ. A stored closingAt/plannedReturnAt (the "Chỉnh sửa Lịch
+  // trình" dialog's shipment-level instants, direction-aware cross-fallback
+  // — the same law the Tổng quan's scheduleTimestamp renders) now shows the
+  // full "DD/MM/YYYY HH:mm" under the Ngày vận chuyển label.
+  it.each([
+    ['EXPORT stored closingAt', 'EXPORT', { closingAt: '2026-10-31T08:45:00.000Z', plannedReturnAt: null }, '31/10/2026 15:45'],
+    ['EXPORT cross-fallback plannedReturnAt', 'EXPORT', { closingAt: null, plannedReturnAt: '2026-10-30T02:30:00.000Z' }, '30/10/2026 09:30'],
+    ['IMPORT stored plannedReturnAt', 'IMPORT', { closingAt: null, plannedReturnAt: '2026-10-31T08:45:00.000Z' }, '31/10/2026 15:45'],
+    ['IMPORT cross-fallback closingAt', 'IMPORT', { closingAt: '2026-10-30T02:30:00.000Z', plannedReturnAt: null }, '30/10/2026 09:30'],
+  ] as const)('SIL-645 renders the lot stored instant (%s)', (_name, direction, overrides, expected) => {
+    const { view } = renderLedgerWithRow(baseRow({
+      id: -7,
+      isLotLevel: true,
+      containerNumber: null,
+      classification: 'LCL',
+      customerAppointmentAt: null,
+      transportDate: '2026-10-31',
+      direction,
+      ...overrides,
+    }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    // Instants pinned to the Vietnam wall clock — never a host-dependent read.
+    expect(schedule).toHaveTextContent(expected);
+    expect(schedule).toHaveTextContent('Ngày vận chuyển');
+  });
+
+  it('SIL-645 renders the legacy lot derived trip instant when nothing is stored', () => {
+    const { view } = renderLedgerWithRow(baseRow({
+      id: -7,
+      isLotLevel: true,
+      containerNumber: null,
+      classification: 'LCL',
+      customerAppointmentAt: null,
+      transportDate: '2026-10-29',
+      derivedScheduleAt: '2026-10-29T03:30:00.000Z',
+    }));
+    const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
+    // 03:30Z = 10:30 ICT — the SIL-610 "Giờ chạy" the BE derived for the lot.
+    expect(schedule).toHaveTextContent('29/10/2026 10:30');
+    expect(schedule).toHaveTextContent('Ngày vận chuyển');
+  });
+
   it('collapses the missing list to a count control; key blockers stay visible outside it', () => {
     const row = baseRow({
       transportDate: null,

@@ -889,6 +889,14 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   transportDate: z.string().date().nullable(),
   closingAt: z.iso.datetime().nullable(),
   plannedReturnAt: z.iso.datetime().nullable(),
+  // SIL-645 (id 750): the legacy (pre-SIL-587) date-only LCL lot's one real
+  // time — the lot's live trip "Giờ chạy" instant derived by the same
+  // SIL-610 law the overview list renders (deriveLegacyScheduleInstant:
+  // stored closingAt/plannedReturnAt win, the instant must fall on the EDD's
+  // ICT day, display-only). Optional: older wire payloads keep rendering the
+  // bare EDD day (SIL-586 law — never fabricate a 00:00). Container rows
+  // always read null.
+  derivedScheduleAt: z.iso.datetime().nullable().optional(),
   customerAppointmentAt: z.iso.datetime().nullable(),
   customerNotes: z.string().nullable(),
   operationalNotes: z.string().nullable(),

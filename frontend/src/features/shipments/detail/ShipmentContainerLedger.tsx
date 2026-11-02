@@ -28,14 +28,14 @@ import { vehicleClassSectionedOptions } from '../../../lib/vehicle-class-options
 import { EditActions } from './ShipmentContainerEditActions';
 import { ExternalTripCompleteAction } from './ExternalTripCompleteAction';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
-import { directionLabel, fallback, formatScheduleTime } from './shipment-container-ledger-utils';
+import { directionLabel, fallback, formatScheduleTime, lotScheduleInstantFor } from './shipment-container-ledger-utils';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
 import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
 import { formatVietnamDateTimeInput, revOutputGroupLock } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { NameCell } from '../../../components/shared/NameCell';
-import { formatISODate, stripDecimalTrailingZeros } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate, stripDecimalTrailingZeros } from '../../../lib/format';
 import '../../../styles/table-sort.css';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 import { modeLabelForTrigger, type ShipmentDetailEditMode } from './edit-mode';
@@ -1337,6 +1337,11 @@ export function ShipmentContainerLedger({
               // EXISTENCE first; the placeholder wins only when neither the
               // container appointment nor the lot schedule exists.
               const lotScheduleDate = row.isLotLevel ? row.transportDate : null;
+              // SIL-645 (id 750): the lot's real schedule instant (stored
+              // closingAt/plannedReturnAt, else the SIL-610 derived "Giờ
+              // chạy") — rendering it keeps the cell in the same datetime
+              // contract the Tổng quan prints for the same lot.
+              const lotScheduleInstant = lotScheduleInstantFor(row);
               const hasAppointment = Boolean(appointmentInput);
               const hasLotSchedule = Boolean(lotScheduleDate);
               const hasSchedule = hasAppointment || hasLotSchedule;
@@ -1536,7 +1541,13 @@ export function ShipmentContainerLedger({
                       <strong className={hasSchedule ? 'ops-schedule__datetime' : undefined}>{hasAppointment
                         ? [formatISODate(appointmentInput.slice(0, 10), { empty: 'Chưa có ngày' }), scheduleTime].filter(Boolean).join(' ')
                         : hasLotSchedule
-                          ? formatISODate(lotScheduleDate, { empty: '—' })
+                          ? (lotScheduleInstant
+                            // SIL-645 (id 750): the lot's stored/derived
+                            // instant renders the full "DD/MM/YYYY HH:mm" —
+                            // the bare EDD day below stays the last resort
+                            // (SIL-586: never fabricate a 00:00).
+                            ? formatDateTimeShort(lotScheduleInstant)
+                            : formatISODate(lotScheduleDate, { empty: '—' }))
                           : 'Chưa có lịch hẹn'}</strong><span>{hasAppointment
                         ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng')
                         : hasLotSchedule

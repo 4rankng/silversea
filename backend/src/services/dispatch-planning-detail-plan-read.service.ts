@@ -10,6 +10,11 @@ import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES } from './dispatch-planning-commands
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
 import { dispatchDetailAssignedSql, dispatchDetailLiveTripJoinSql, dispatchDetailUnassignedSql } from './dispatch-detail-plan-assignment-sql';
+// SIL-645 (id 750): the legacy-lot schedule derivation is ONE shared law —
+// the exact pure function the overview list renders (cus-workspace-mapping,
+// no db access), imported rather than duplicated so the two surfaces can
+// never drift in what time a lot's schedule carries.
+import { deriveLegacyScheduleInstant } from './cus-workspace-mapping.service';
 import { listDetailPlanPageKeys, pageKeyPredicate } from './dispatch-detail-plan-page';
 import { requireDispatchZone } from './dispatch-detail-plan-zones.service';
 import { getActiveAssignmentsByTruckIds } from './truck-driver-assignment.service';
@@ -318,6 +323,13 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
       closingAt: s.shipments.closingAt,
       plannedReturnAt: s.shipments.plannedReturnAt,
+      // SIL-645 (id 750): the raw promised day + the live trip's "Giờ chạy"
+      // instants feed the SIL-610 legacy-lot derivation below (the derived
+      // run timestamp the overview renders). The trips join already exists
+      // (live-trip definition), so these ride the same pass — no new query.
+      expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+      tripPlannedStartAt: s.trips.plannedStartAt,
+      tripPlannedEndAt: s.trips.plannedEndAt,
       transportDate: dispatchDetailTransportDateSql(),
       operationalNotes: s.shipments.operationalNotes,
       customerNotes: s.shipments.customerNotes,
@@ -504,6 +516,22 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         // the name but never the address on either side.
         const pickupWarehouseSite = redactDispatchSiteForAccountant(input.actor, toFrozenSiteSummary(snapshot.pickupWarehouse));
         const plated = platedByShipment.get(row.shipmentId);
+        // SIL-645 (id 750): a legacy date-only LCL lot still owns one real
+        // time — its live trip's "Giờ chạy" (SIL-610 law, the same
+        // derivation the overview list renders). Stored instants always win
+        // (the derive refuses when closingAt/plannedReturnAt exist) and the
+        // derived instant must fall on the promised day, so the rendered
+        // date never contradicts the EDD. Display-only — nothing persists.
+        const storedRunAt = row.customerAppointmentAt ?? row.closingAt ?? row.plannedReturnAt;
+        const derivedRunAt = storedRunAt == null && row.cargoMode === 'LCL'
+          ? deriveLegacyScheduleInstant(
+              row.cargoMode,
+              row.expectedDeliveryDate,
+              row.closingAt,
+              row.plannedReturnAt,
+              [{ plannedStartAt: row.tripPlannedStartAt, plannedEndAt: row.tripPlannedEndAt }],
+            )
+          : null;
         return {
           fulfillmentId: row.fulfillmentId,
           version: row.fulfillmentVersion,
@@ -525,11 +553,12 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             : 'READY',
           time: {
             deliveryDate: row.transportDate,
-            // Full run timestamp (appointment → closing → planned return —
-            // same precedence as the hour below) so the grid can
-            // render minutes and sort chronologically. The hour-int runHour
-            // stays on the wire for the issue-order dialog and older readers.
-            runAt: (row.customerAppointmentAt ?? row.closingAt ?? row.plannedReturnAt)?.toISOString() ?? null,
+            // Full run timestamp (appointment → closing → planned return →
+            // the SIL-645 legacy-lot trip derivation — same precedence as
+            // the hour below) so the grid can render minutes and sort
+            // chronologically. The hour-int runHour stays on the wire for
+            // the issue-order dialog and older readers.
+            runAt: (storedRunAt ?? (derivedRunAt ? new Date(derivedRunAt) : null))?.toISOString() ?? null,
             runHour: dispatchDetailDisplayHour(row.customerAppointmentAt, row.closingAt ?? row.plannedReturnAt),
           },
           customerRoute: {
