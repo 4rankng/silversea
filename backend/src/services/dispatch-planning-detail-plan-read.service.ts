@@ -575,7 +575,13 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           container: {
             containerNumber: row.containerNumber,
             containerTypeLabel: row.containerTypeName ?? row.containerTypeCode ?? null,
+            // Display keeps the legacy lot-level fallback; SIL-644's editor
+            // seeds/writes the CONTAINER's own column (cargoWeightKgRaw) —
+            // the C0 "Thiếu trọng tải" backstop prices that column, so a lot
+            // whose container is weightless must never LOOK weighted in the
+            // editor just because the legacy lot column still holds a value.
             cargoWeightKg: row.containerCargoWeightKg ?? row.cargoWeightKg,
+            cargoWeightKgRaw: row.containerCargoWeightKg ?? null,
             // SIL-591 — this row's own per-container tờ khai (the SIL-521
             // store); null for LCL rows (no container — the lot's numbers
             // ride docs.declarationNumbers).

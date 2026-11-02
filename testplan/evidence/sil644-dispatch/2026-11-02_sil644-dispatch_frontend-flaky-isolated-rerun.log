@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil644-container-weight-lock/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  130 passed (130)
+   Start at  21:34:05
+   Duration  55.91s (transform 8.62s, setup 551ms, import 17.35s, tests 55.93s, environment 3.07s)
+

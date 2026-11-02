@@ -1134,6 +1134,95 @@ describe('SIL-473 — savePlan sequences the Giờ điều vận appointment wri
   });
 });
 
+describe('SIL-644 (id 749) — savePlan sequences the cargo-weight line write', () => {
+  const plannedResult = {
+    fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
+    classification: 'SINGLE' as const, isCombined: false, operationalNotes: null,
+    plannedEndAt: null,
+    dispatch: { carrierType: 'OWN' as const, carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15C-167.31' },
+    estimates: { plannedRevenue: null, plannedCarrierCost: null },
+    lotFullyPlated: false, driverNotified: false, driverHint: null, replayed: false,
+  };
+  const planBody = { carrierType: 'OWN' as const, plannedRevenue: null, plannedCarrierCost: null };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row({ shipmentContainerId: 777, container: { containerNumber: 'MSCU1234567', containerTypeLabel: '40HC', cargoWeightKg: null } })]));
+    updateDispatchDetailPlanMock.mockResolvedValue(plannedResult);
+    // Wire shape: the line result carries raw.cargoWeightKg (the canonical
+    // decimal string the row patch reads back).
+    updateCusShipmentContainerLineMock.mockResolvedValue({ line: { shipmentVersion: 7, raw: { cargoWeightKg: '20000.00' } } as never });
+  });
+
+  it('writes an edited weight through the cus-workspace line command (cargoWeightKg wire key) and patches the row', async () => {
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Freeze the post-save refetch — the assertion reads the optimistic patch.
+    listDispatchDetailPlanRowsMock.mockImplementation(() => new Promise(() => {}));
+
+    await act(async () => {
+      await result.current.savePlan(result.current.items[0], {
+        ...planBody,
+        containerCargoWeightKg: 20000,
+      });
+    });
+
+    // The strict plan schema must never see the weight key.
+    const planCall = updateDispatchDetailPlanMock.mock.calls[0]![1] as Record<string, unknown>;
+    expect('containerCargoWeightKg' in planCall).toBe(false);
+    expect('cargoWeightKg' in planCall).toBe(false);
+    expect(updateCusShipmentContainerLineMock).toHaveBeenCalledTimes(1);
+    expect(updateCusShipmentContainerLineMock).toHaveBeenCalledWith(11, 777, {
+      expectedShipmentVersion: 6,
+      cargoWeightKg: '20000',
+    });
+    // The row reads the saved weight immediately (the grid's container cell +
+    // a dialog reopen must not show the stale empty value).
+    expect(result.current.items[0]?.container.cargoWeightKg).toBe('20000.00');
+  });
+
+  it('merges weight + appointment into ONE line write when both are touched (one version bump)', async () => {
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    // Freeze the post-save refetch — the assertion reads the optimistic patch.
+    listDispatchDetailPlanRowsMock.mockImplementation(() => new Promise(() => {}));
+
+    await act(async () => {
+      await result.current.savePlan(result.current.items[0], {
+        ...planBody,
+        customerAppointmentAt: '2026-10-26T07:00:00.000Z',
+        containerCargoWeightKg: 20000,
+      });
+    });
+
+    expect(updateCusShipmentContainerLineMock).toHaveBeenCalledTimes(1);
+    expect(updateCusShipmentContainerLineMock).toHaveBeenCalledWith(11, 777, {
+      expectedShipmentVersion: 6,
+      customerAppointmentAt: '2026-10-26T07:00:00.000Z',
+      cargoWeightKg: '20000',
+    });
+    expect(result.current.items[0]?.time.runAt).toBe('2026-10-26T07:00:00.000Z');
+    expect(result.current.items[0]?.container.cargoWeightKg).toBe('20000.00');
+  });
+
+  it('null clears the weight (clear is a write, not an omit)', async () => {
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.savePlan(result.current.items[0], {
+        ...planBody,
+        containerCargoWeightKg: null,
+      });
+    });
+
+    expect(updateCusShipmentContainerLineMock).toHaveBeenCalledWith(11, 777, {
+      expectedShipmentVersion: 6,
+      cargoWeightKg: null,
+    });
+  });
+});
+
 describe('SIL-638 TC6.2 (id 742) — soft weight warning contract (KEP_WEIGHT_WARNING)', () => {
   const KEP_WARNING = 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
 
