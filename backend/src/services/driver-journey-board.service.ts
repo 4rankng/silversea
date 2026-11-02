@@ -4,6 +4,7 @@ import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
 import { listDispatchTaskTags } from './dispatch-task-tags.service';
 import { readSnapshotDeliverySiteName, resolveDeliveryStage } from './delivery-stage';
+import { driverBoardPairLocked } from './trip-pair-rules.service';
 import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 
 // Driver-app spec (260827) "Hành trình" screen: unlike work-inbox.service's
@@ -252,9 +253,6 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     for (const pair of pairRows) pairById.set(pair.id, pair);
   }
   const statusByTripId = new Map(rows.map((row) => [row.tripId, row.tripStatus]));
-  const isTripFinished = (tripId: number): boolean =>
-    statusByTripId.get(tripId) === 'COMPLETED'
-    || (evidenceByTripId.get(tripId) ?? false);
 
   const cards: DriverJourneyCard[] = rows
     .filter((row): row is typeof row & { fulfillmentId: number } => row.fulfillmentId != null)
@@ -292,11 +290,19 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       pairId: pairActive && row.activeTripPairId != null ? row.activeTripPairId : null,
       pairKind: pairActive ? (pair!.pairKind as 'KEP' | 'KET_HOP') : null,
       pairOrder,
-      pairLocked: pairActive
-        && pair!.pairKind === 'KET_HOP'
-        && pairOrder === 2
-        && firstTripId != null
-        && !isTripFinished(firstTripId),
+      // SIL-638 TC8 — the law is unit-pinned as driverBoardPairLocked
+      // (trip-pair-rules.service); this site only assembles its facts.
+      pairLocked: driverBoardPairLocked({
+        pairStatus: pairActive ? pair!.status : null,
+        pairKind: pairActive ? pair!.pairKind : null,
+        pairOrder,
+        hasFirstTrip: pairActive && firstTripId != null,
+        firstTripStatus: pairActive && firstTripId != null
+          ? statusByTripId.get(firstTripId) ?? null
+          : null,
+        firstEvidenceReady: pairActive && firstTripId != null
+          && (evidenceByTripId.get(firstTripId) ?? false),
+      }),
       scheduledAt: row.plannedStartAt?.toISOString() ?? null,
       historyAt: row.completedAt?.toISOString() ?? row.plannedStartAt?.toISOString() ?? `${row.departureDate}T00:00:00+07:00`,
       factoryName: row.factoryName ?? row.containerFactoryName,

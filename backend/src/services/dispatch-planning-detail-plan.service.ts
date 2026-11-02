@@ -23,12 +23,12 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
-import { and, eq, inArray, isNotNull, isNull, lt, notInArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification } from '@tingting/shared';
 import * as s from '../db/schema';
 import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
 import { assertKepIssuingContainerClass, countDateOnlyTripClaims } from './dispatch-resource-availability.service';
-import { CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, MIXED_DECLARATION_KEP_WARN_MESSAGE } from './trip-pair-rules.service';
+import { busyDayClaimOverlaps, busyRigWarnMessage, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, MIXED_DECLARATION_KEP_WARN_MESSAGE } from './trip-pair-rules.service';
 import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
@@ -995,6 +995,38 @@ if (planRowBlocked || tripConflicts.length > 0) {
         `Đầu xe ${plate} đã có ${dayClaims} chuyến khác (chưa có giờ cụ thể) trong ngày phân công này. Vẫn lưu?`,
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+    // SIL-638 TC1 (QA 02/11, build ed0056e1) — the "xe đang bận thực hiện
+    // lệnh chưa hoàn tất" tier. The window scans above compare [start, end)
+    // claims, so a same-day window that merely edges past an IN_TRANSIT
+    // holder's planned end (QA's ca-tối 18:00 vs a 14:00–18:00 leg still
+    // running) saved with NO signal at all while the rig is literally out
+    // working. An IN_TRANSIT trip holds its rig for its whole Vietnam
+    // business day — only the COMPLETED transition releases it — so any
+    // same-day save on that plate warns once with the DOC's message and the
+    // family's confirmable contract. Rotation stays possible (the confirmed
+    // retry proceeds — never 1 xe = 1 lệnh/ngày again), never silent while
+    // the truck is running. The claim law is unit-pinned as
+    // busyDayClaimOverlaps (trip-pair-rules.service).
+    const busyTrips = await tx.select({ id: s.trips.id, plannedStartAt: s.trips.plannedStartAt, departureDate: s.trips.departureDate })
+      .from(s.trips)
+      .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+      .where(and(
+        eq(s.trucks.licensePlate, plate),
+        eq(s.trips.status, TripStatus.IN_TRANSIT),
+        isNull(s.trips.deletedAt),
+        or(
+          sql`((${s.trips.plannedStartAt} at time zone 'Asia/Ho_Chi_Minh')::date) between ((${windowStart.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${windowEnd.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
+          sql`((${s.trips.departureDate})::date) between ((${windowStart.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${windowEnd.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
+        )!,
+      ));
+    const busyOverlap = busyTrips.some((trip) => {
+      const holderStart = trip.plannedStartAt
+        ?? (trip.departureDate ? new Date(`${trip.departureDate}T00:00:00+07:00`) : null);
+      return holderStart != null && busyDayClaimOverlaps(holderStart, windowStart, windowEnd);
+    });
+    if (busyOverlap) {
+      throw new ApiError(409, busyRigWarnMessage(plate), undefined, { code: 'RIG_OVERLAP_COMPLETED' });
     }
   }
 }

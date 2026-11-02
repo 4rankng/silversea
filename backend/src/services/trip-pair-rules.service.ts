@@ -110,14 +110,23 @@ export function kepPairWeightVerdict(
 /**
  * The DOC soft-warning contract: an overload refuses ONCE (409
  * KEP_WEIGHT_WARNING + DOC text) and the dispatcher's confirmed retry
- * proceeds — never a hard 409, never a silent save. Everything non-overload
- * allows regardless of the flag.
+ * proceeds — never a hard 409, never a silent save.
+ *
+ * SIL-638 TC6(2) v2 (owner DOC 31/10 + QA repro 02/11, build ed0056e1): the
+ * warning ALSO covers the DOC's missing-data branch — "cont chưa có dữ liệu
+ * tải trọng / xe chưa cấu hình tải moóc". The old `unprovable → allow` let a
+ * 2×20' 60t pair issue silently (no capacity to prove the sum against) and
+ * the auto-pair row was created with no warning and no confirm; a silent
+ * save is exactly what the DOC's soft-warning contract forbids. A proven
+ * PASS still saves clean, and every refusal is once-only (the confirmed
+ * retry proceeds — the dispatcher can always phát lệnh kịp thời).
  */
 export function kepWeightGuardOutcome(
   verdict: KepPairWeightVerdict,
   confirmed: boolean,
 ): 'allow' | 'refuse' {
-  return verdict === 'overload' && !confirmed ? 'refuse' : 'allow';
+  if (verdict === 'pass') return 'allow';
+  return confirmed ? 'allow' : 'refuse';
 }
 
 /**
@@ -477,4 +486,108 @@ export function pairSurchargeFor(
   settings: PairSalarySettings,
 ): number {
   return kind === 'KEP' ? settings.kepSurcharge : settings.ketHopSurcharge;
+}
+
+/**
+ * SIL-638 TC1 (QA 02/11, build ed0056e1) — the "xe đang bận thực hiện lệnh
+ * chưa hoàn tất" tier. An IN_TRANSIT trip holds its rig for its WHOLE Vietnam
+ * business day: the run may overrun its planned end, and only the COMPLETED
+ * transition releases the rig, so the plan-save that edges past the holder's
+ * [start, end) claim (QA's ca-tối 18:00 vs a 14:00–18:00 IN_TRANSIT leg)
+ * saved silently — the exact "khối IN_TRANSIT chưa sống" hole. The pure law
+ * below is the mirror the SQL in assertPlanRowRigAvailable implements
+ * server-side (same-day comparison in Asia/Ho_Chi_Minh), unit-pinned here.
+ * The warn rides the family's confirmable contract: the dispatcher confirms
+ * the deliberate share and rotation ("chạy xoay vòng ca sáng/chiều") stays
+ * possible — but never silently while the truck is out running.
+ */
+export function busyDayClaimOverlaps(
+  holderStartAt: Date,
+  windowStart: Date,
+  windowEnd: Date,
+): boolean {
+  const holderDay = localDateInBusinessZone(holderStartAt);
+  if (holderDay == null || !/^\d{4}-\d{2}-\d{2}$/.test(holderDay)) return false;
+  const claimStart = new Date(`${holderDay}T00:00:00+07:00`).getTime();
+  const claimEnd = claimStart + 24 * 3_600_000;
+  return claimStart < windowEnd.getTime() && claimEnd > windowStart.getTime();
+}
+
+/** TC1 — the warn-once text: names the rig and the DOC's busy-truck reason. */
+export function busyRigWarnMessage(plate: string): string {
+  return `Đầu xe ${plate} đang bận thực hiện lệnh chưa hoàn tất. Vẫn lưu?`;
+}
+
+/**
+ * SIL-638 TC4(BE) / TC8 / TC9 — the Kết hợp sequential gating law, mirrored
+ * from the three db-bound sites that implement it:
+ *
+ * - TC8 (board): `driverBoardPairLocked` is the pairLocked computation of
+ *   driver-journey-board.service.ts — Lệnh 2 of an ACTIVE KET_HOP pair is
+ *   read-only with the DOC message while Lệnh 1 is unfinished.
+ * - TC8 (write): `ketHopSequenceGateVerdict` is
+ *   assertKetHopSequencingAllowedTx in driver-fulfillment.service.ts — the
+ *   driver's start/progress on Lệnh 2 is refused with the sequencing
+ *   message until Lệnh 1 finishes.
+ * - TC9: `firstKetHopLegFinished` + `completionEvidenceReady` pin the unlock
+ *   law — Lệnh 1 is "finished" when its trip is COMPLETED or its completion
+ *   evidence is ready, and evidence readiness is the delivered milestone
+ *   ONLY: e-POD photos are optional (owner ruling card 261022213755a,
+ *   TC9's v2 "KHÔNG chặn vì thiếu ảnh e-POD/phiếu hạ bãi"), so completing
+ *   Lệnh 1 with zero uploads unlocks Lệnh 2 immediately.
+ * - TC4 (BE half): a KEP pair NEVER gates — the kẹp clamp carries both boxes
+ *   simultaneously, so the order-2 card stays active and the write gate
+ *   never refuses a Kẹp leg (the app surface itself is ruled separately).
+ *
+ * "Unfinished" intentionally includes a MISSING first-trip row for the write
+ * gate (its load reads `first?.status` and blocks when the row is absent),
+ * while the board requires `firstTripId != null` before it can lock — the
+ * two callers pass `hasFirstTrip` accordingly.
+ */
+
+/** TC8 board message — verbatim (FE driver-trip-model carries the same twin). */
+export const PAIR_LOCKED_MESSAGE = 'Cần hoàn thành trả hàng lệnh trước để mở khóa';
+
+/** TC8 write-gate message — verbatim assertKetHopSequencingAllowedTx copy. */
+export const KET_HOP_SEQUENCE_BLOCK_MESSAGE =
+  'Đây là Lệnh 2 của cặp kết hợp: hãy hoàn thành trả hàng Lệnh 1 trước khi bắt đầu lệnh này.';
+
+/** The facts both gate sites read off the pair + Lệnh 1 (narrow view). */
+export interface KetHopGateFacts {
+  pairStatus: string | null | undefined;
+  pairKind: string | null | undefined;
+  pairOrder: 1 | 2 | null | undefined;
+  /** The board requires a resolvable first-trip row before locking; the
+   *  write gate passes true (a missing row reads unfinished → block). */
+  hasFirstTrip: boolean;
+  firstTripStatus: string | null | undefined;
+  /** The first leg's completion-evidence readiness (trip-pod's signal). */
+  firstEvidenceReady: boolean;
+}
+
+/** TC9 — Lệnh 1 is finished when COMPLETED or its completion evidence is ready. */
+export function firstKetHopLegFinished(facts: Pick<KetHopGateFacts, 'firstTripStatus' | 'firstEvidenceReady'>): boolean {
+  return facts.firstTripStatus === 'COMPLETED' || facts.firstEvidenceReady;
+}
+
+/** TC9 — completion readiness is the delivered milestone ONLY (e-POD optional). */
+export function completionEvidenceReady(facts: { hasDeliveredMilestone: boolean }): boolean {
+  return facts.hasDeliveredMilestone;
+}
+
+/**
+ * TC4(BE)/TC8 — the sequencing gate verdict for Lệnh 2 of a declared pair.
+ * Only an ACTIVE KET_HOP pair's order-2 leg with an unfinished, present
+ * first trip blocks; everything else — Kẹp pairs, order-1 legs, unpaired
+ * trips, dissolved pairs, a finished Lệnh 1 — allows.
+ */
+export function ketHopSequenceGateVerdict(facts: KetHopGateFacts): 'allow' | 'block' {
+  if (facts.pairStatus !== 'ACTIVE' || facts.pairKind !== 'KET_HOP') return 'allow';
+  if (facts.pairOrder !== 2 || !facts.hasFirstTrip) return 'allow';
+  return firstKetHopLegFinished(facts) ? 'allow' : 'block';
+}
+
+/** TC8 — the driver-app board lock (boolean form of the same law). */
+export function driverBoardPairLocked(facts: KetHopGateFacts): boolean {
+  return ketHopSequenceGateVerdict(facts) === 'block';
 }

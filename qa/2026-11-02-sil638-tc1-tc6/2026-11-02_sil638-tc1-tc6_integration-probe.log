@@ -1,0 +1,39 @@
+logged in admin + dieuvan; probe day = 2026-11-09
+housekeeping: cancel trip 697 → 200
+housekeeping: cancel trip 698 → 200
+housekeeping: cancel trip 699 → 200
+housekeeping: cancel trip 700 → 200
+rig A truck=1 (moóc type null → capacity null), driver=1
+rig B truck=45 (moóc 40FT → capacity 30000), driver=1
+probe1 lot BK-S638R-UNPROV-1793629941987 rows=2
+probe1 plan-save fulfillment 1103 → 200 
+probe1 plan-save fulfillment 1104 → 200 
+probe1 issue leg1 → 201 trip 701
+probe1 issue leg2 → 409 {"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+probe1 trip_pairs row: 'NONE'
+PASS probe1 (TC6.2 unprovable): leg2 issue REFUSED with the soft warning (409 KEP_WEIGHT_WARNING) — status=409 body={"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+PASS probe1 (TC6.2 unprovable): NO silent pair row — no pair
+probe2 lot BK-S638R-OVERLD-1793629942568 rows=2
+probe2 driver=45
+probe2 issue leg1 → 201 trip 702
+probe2 issue leg2 → 409 {"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+PASS probe2 (TC6.2 overload): leg2 issue REFUSED with the soft warning — status=409 body={"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+probe2 confirmed retry → 201 trip 703
+PASS probe2 (TC6.2 overload): confirmed retry proceeds — status=201
+probe3 lot BK-S638R-TC1-1793629943293 rows=4
+probe3 rig C truck=29 driver=6 (far day 2026-12-02)
+probe3 rig C truck=29 driver=6 trailer=94
+probe3 assign A 08:00-12:00 → 200 
+PASS probe3.1 (TC1): A 08:00–12:00 saves — status=200
+probe3 assign B 14:00-18:00 (pre-issue) → 200 
+PASS probe3.2 (TC1): B 14:00–18:00 saves pre-issue (ca chiều, KHÔNG chặn 1 xe=1 lệnh/ngày) — status=200
+probe3 assign C 10:00-14:00 (overlap A) → 409 {"error":"Đầu xe 15H-150.77 đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+PASS probe3.3 (TC1): C trùng giờ bị CHẶN — status=409
+probe3 issue A → 201 trip 704
+probe3 driver accepts A → 201 
+PASS probe3.4 (TC1): leg A IN_TRANSIT after accept — status=IN_TRANSIT
+probe3 assign D 18:00-22:00 (A IN_TRANSIT) → 409 {"error":"Đầu xe 15H-150.77 đang bận thực hiện lệnh chưa hoàn tất. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+PASS probe3.5 (TC1): D 18:00 không lưu im lặng khi xe đang chạy (cảnh báo xe bận) — status=409 body={"error":"Đầu xe 15H-150.77 đang bận thực hiện lệnh chưa hoàn tất. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+probe3 assign D confirmed retry → 200 
+PASS probe3.6 (TC1): cảnh báo xe bận confirmable — retry được xác nhận lưu tiếp — status=200
+REPRO COMPLETE — all expectation probes PASS (laws live)
