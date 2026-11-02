@@ -35,12 +35,15 @@ const guardSource = () => containersService.slice(
 );
 
 describe('SIL-644 reconcile guard separates assignment from issuance', () => {
-  test('the 409 fires only for trips that LEFT CREATED, never for mere trip presence', () => {
+  test('the issued law is per-field since SIL-653 — no blanket throw may return', () => {
     const guard = guardSource();
-    // The refusal is scoped to issued fulfillments — a CREATED trip must not
-    // reach it.
+    // SIL-653 (id 760) superseded the blanket issued 409 (it locked even the
+    // container NUMBER — the driver app could never learn "CHƯA CÓ SỐ CONT"'s
+    // value). The issued set now feeds a per-field lock below; pin that the
+    // blanket throw never comes back.
     assert.match(guard, /const issuedFulfillments = activeFulfillments\.filter\(\s*\n\s*\(fulfillment\) => fulfillment\.tripId != null && fulfillment\.tripStatus !== 'CREATED',/);
-    assert.match(guard, /if \(issuedFulfillments\.length > 0\) \{\s*\n\s*throw new ApiError\(409, 'Không thể thay đổi container sau khi đã phát hành lệnh điều xe/);
+    assert.doesNotMatch(guard, /issuedFulfillments\.length > 0/);
+    assert.match(guard, /const issuedContainerIds = new Set\(issuedFulfillments/);
     // The old blanket law is gone: no 409 may key on tripId presence alone.
     assert.doesNotMatch(guard, /activeFulfillments\.some\(\(fulfillment\) => fulfillment\.tripId != null\)/);
   });

@@ -5,6 +5,7 @@ import { eq, and, desc, inArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { normalizeContainerNumber } from '@tingting/shared';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { syncShipmentIdentityFromTripContainers } from './shipment-containers.service';
 
 export type { Executor } from '../db';
 
@@ -230,6 +231,15 @@ export async function updateTripContainerInClient(
       .where(eq(s.tripContainers.id, containerId));
   }
 
+  // SIL-653 (id 760) — identity bridge (lái xe → ĐV/CUS): the driver's "Số
+  // cont & seal" save must land on the lot's shipment_containers row too, or
+  // dispatch/CUS keep reading "Chưa có số cont" forever. Diff-guarded no-op
+  // unless the number/seal actually moved; throws 400 on a malformed or
+  // in-lot-duplicate number (same message as the CUS line command).
+  if (patch.containerNumber !== undefined || patch.sealNumber !== undefined || hasSealsToAdd) {
+    await syncShipmentIdentityFromTripContainers(executor, [containerId]);
+  }
+
   const rows = await listTripContainers(row.tripId, executor);
   return rows.find((item) => item.id === containerId);
 }
@@ -367,6 +377,10 @@ export async function batchUpsertContainerSeals(
     await tx.update(s.tripContainers)
       .set({ sealNumber: primarySeal, updatedAt: new Date() })
       .where(eq(s.tripContainers.id, containerId));
+
+    // SIL-653 — the driver's corrected/multi seal mirrors onto the lot row
+    // (diff-guarded no-op when unchanged). Same bridge as the PATCH path.
+    await syncShipmentIdentityFromTripContainers(tx, [containerId]);
 
     const [container] = await tx.select({
       updatedAt: s.tripContainers.updatedAt,
@@ -533,6 +547,11 @@ export async function batchUpsertTripContainers(
           .where(eq(s.tripContainers.id, containerId));
       }
     }
+
+    // SIL-653 — the trip-edit batch PUT mirrors number + primary seal onto
+    // the lot rows too; non-snapshot (trip-added) rows are skipped inside
+    // the bridge, and unchanged values are a diff-guarded no-op.
+    await syncShipmentIdentityFromTripContainers(tx, upsertedContainerIds);
 
     await tx.update(s.trips).set({
       version: sql`${s.trips.version} + 1`,

@@ -43,6 +43,7 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { CUSTOMER_OPERATIONAL_NAME, buildWorkspaceDetail, deriveTransportDateFromContainerAppointments, formatPlate, loadShipmentRow, normalizeCarrierName, normalizePlate, trimOrNull, type ShipmentFulfillmentRow } from './cus-shipment-workspace-reads.service';
 import { assertContainerDeclarationNumberAvailable } from './shipment-lifecycle-shared.service';
+import { syncTripSnapshotIdentityFromShipmentContainer } from './shipment-containers.service';
 
 function requireWorkspaceWriter(actor: AuthUser) {
   if (
@@ -521,6 +522,14 @@ export async function updateCusShipmentContainerLine(args: {
           updatedAt: now,
         }).where(eq(s.shipmentContainers.id, container.id));
         touched = true;
+        // SIL-653 (id 760) — identity bridge (ĐV/CUS → lái xe): the number
+        // the office saves must reach the trip snapshot the driver app
+        // reads, or the driver stays on "CHƯA CÓ SỐ CONT" after Phát lệnh.
+        // Diff-guarded upstream (this block only runs on an actual change);
+        // a no-op when the container has no trip snapshot rows yet.
+        await syncTripSnapshotIdentityFromShipmentContainer(tx, container.id, {
+          containerNumber: nextContainerNumber,
+        });
       }
     }
 
