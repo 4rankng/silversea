@@ -513,9 +513,10 @@ export async function loadDeclarationNumbers(tx: Tx, shipmentIds: number[]) {
   // command / dispatch cells write). The docs-only read hid a number the
   // office saved per-cont, so the dispatch lot payload and the trip page
   // kept reading "—" while the CUS ledger showed it. Merge law mirrors
-  // distinctDeclarationNumbers (cus-workspace-builders): entity rows first
-  // in id order, container values after in id order, DISTINCT
-  // case-insensitively, blank-only values skipped.
+  // distinctDeclarationNumbers (cus-workspace-builders): per-cont values
+  // first in id order (the operational truth the CUS cell shows), entity
+  // rows after in id order, DISTINCT case-insensitively, blank-only values
+  // skipped.
   const containerRows = await tx.select({
     shipmentId: s.shipmentContainers.shipmentId,
     declarationNumber: s.shipmentContainers.declarationNumber,
@@ -536,8 +537,8 @@ export async function loadDeclarationNumbers(tx: Tx, shipmentIds: number[]) {
     bucket.push(value);
     result.set(shipmentId, bucket);
   };
-  for (const row of rows) add(row.shipmentId, row.declarationNumber);
   for (const row of containerRows) add(row.shipmentId, row.declarationNumber);
+  for (const row of rows) add(row.shipmentId, row.declarationNumber);
   return result;
 }
 

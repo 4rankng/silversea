@@ -43,11 +43,12 @@ describe('SIL-657 — the dispatch lot declaration aggregate resolves BOTH store
     assert.match(loader, /from\(s\.shipmentContainers\)/);
   });
 
-  test('the merge mirrors distinctDeclarationNumbers: entity rows first, containers after, blank skipped', () => {
-    // Docs rows are added before container rows (declaration order contract).
+  test('the merge mirrors distinctDeclarationNumbers: containers first, entity rows after, blank skipped', () => {
+    // Per-cont values are the operational truth the CUS cell shows — they
+    // merge BEFORE the lot-level entity rows (card 261013200312 order).
     assert.ok(
-      loader.indexOf('for (const row of rows) add(row.shipmentId') < loader.indexOf('for (const row of containerRows) add(row.shipmentId'),
-      'entity numbers must merge before per-cont numbers',
+      loader.indexOf('for (const row of containerRows) add(row.shipmentId') < loader.indexOf('for (const row of rows) add(row.shipmentId'),
+      'per-cont numbers must merge before entity numbers',
     );
     // The FB-109-adjacent blank guard: a whitespace-only value never enters.
     assert.match(loader, /const value = raw\?\.trim\(\);\s*\n\s*if \(!value\) return;/);
@@ -76,11 +77,15 @@ describe('SIL-657 — the forwarder trip pages resolve both stores', () => {
     const fragment = sliceBetween(tripQuery, 'const lotDeclarationNumbersSql', 'function withinForwarderScope');
     assert.match(fragment, /FROM shipment_declarations sd/);
     assert.match(fragment, /FROM shipment_containers sc/);
-    // DISTINCT case-insensitively, entity casing kept: first occurrence per
-    // lower(...) partition wins (entity rows sort before containers).
+    // DISTINCT case-insensitively, first copy's casing kept: first occurrence
+    // per lower(...) partition wins (per-cont rows sort before entity rows).
     assert.match(fragment, /PARTITION BY lower\(raw\.declaration_number\)/);
     assert.match(fragment, /WHERE kept\.rn = 1/);
     assert.match(fragment, /WHERE raw\.declaration_number <> ''/);
+    // Containers first (CONTAINER_ORD_BASE offsets the entity ord range) —
+    // the same container-first law distinctDeclarationNumbers applies.
+    assert.match(fragment, /row_number\(\) OVER \(ORDER BY sc\.id\) AS ord/);
+    assert.match(fragment, /sql\.raw\(String\(CONTAINER_ORD_BASE\)\)\}? \+ row_number\(\) OVER \(ORDER BY sd\.id\)/);
     // Both select sites replaced — zero docs-only string_agg left.
     assert.equal((tripQuery.match(/string_agg\(sd\.declaration_number/g) ?? []).length, 0);
     assert.equal((tripQuery.match(/lotDeclarationNumbersSql\(sql/g) ?? []).length, 2);
