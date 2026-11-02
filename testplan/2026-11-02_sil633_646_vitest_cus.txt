@@ -1,0 +1,10 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/wave638/fix-sil-633-646/frontend
+
+
+ Test Files  22 passed (22)
+      Tests  192 passed (192)
+   Start at  12:07:59
+   Duration  13.64s (transform 6.01s, setup 4.71s, import 28.64s, tests 5.35s, environment 18.71s)
+

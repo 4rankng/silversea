@@ -1,0 +1,19 @@
+Starting UI Verification for SIL-633 (id 737) and SIL-646 (id 751)...
+Login successful: role=CUS token=true
+Navigating to /shipments?from=2026-10-01&to=2026-10-31 at 390px...
+[390px] rows=20 firstRowH=220px clippingIssues=0 overflowIssues=0 detailBtn=44px (fs: 12px)
+[390px] Screenshot saved to testplan/2026-11-02_sil633_646_ui-390.png
+[390px] Clicked Chi tiết button - interactive action verified
+Navigating to /shipments?from=2026-10-01&to=2026-10-31 at 495px...
+[495px] rows=20 firstRowH=205px clippingIssues=0 overflowIssues=0 detailBtn=44px (fs: 12px)
+[495px] Screenshot saved to testplan/2026-11-02_sil633_646_ui-495.png
+[495px] Clicked Chi tiết button - interactive action verified
+Navigating to /shipments?from=2026-10-01&to=2026-10-31 at 1307px...
+[1307px] rows=20 firstRowH=69px clippingIssues=0 overflowIssues=0 detailBtn=16px (fs: 12px)
+[1307px] Screenshot saved to testplan/2026-11-02_sil633_646_ui-1307.png
+[1307px] Clicked Chi tiết button - interactive action verified
+Navigating to /shipments?from=2026-10-01&to=2026-10-31 at 1440px...
+[1440px] rows=20 firstRowH=69px clippingIssues=0 overflowIssues=0 detailBtn=16px (fs: 12px)
+[1440px] Screenshot saved to testplan/2026-11-02_sil633_646_ui-1440.png
+[1440px] Clicked Chi tiết button - interactive action verified
+UI Verification finished successfully. All viewports checked: 0 escapes, 0 overflows.
