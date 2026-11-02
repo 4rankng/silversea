@@ -54,13 +54,18 @@ export function valueOrDash(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : '—';
 }
 
+export const PAIR_LOCKED_MESSAGE = 'Cần hoàn thành trả hàng lệnh trước để mở khóa';
+
+export function isTripPairLocked(card?: { pairLocked?: boolean } | null): boolean {
+  return Boolean(card?.pairLocked);
+}
+
 /**
- * Trip-DETAIL completion CTA (DRV-DET-06, PRD §4.3). This button only
- * NAVIGATES to the e-POD screen — completion itself happens there, under the
- * uppercase literal (`podCompleteCtaLabel`). It must not read as an actionable
- * "HOÀN THÀNH CHUYẾN" while disabled: only IN_TRANSIT trips can proceed,
- * COMPLETED is already done, and every other status gets a neutral not-yet
- * label.
+ * Trip-DETAIL completion CTA (DRV-DET-06, PRD §4.3, SIL-638 TC9).
+ * Completes the transport order (e-POD photos are optional per owner ruling 31/10).
+ * It must not read as an actionable "HOÀN THÀNH CHUYẾN" while disabled: only
+ * IN_TRANSIT trips can proceed, COMPLETED is already done, and every other
+ * status gets a neutral not-yet label.
  */
 export function completeCtaLabel(status: DriverTaskDetail['status']): string {
   if (status === 'IN_TRANSIT') return 'Hoàn tất lệnh vận chuyển';
