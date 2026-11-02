@@ -1,5 +1,7 @@
 import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import { Calendar } from 'lucide-react';
 import { SplitDateTimeField } from './SplitDateTimeField';
+import './BufferedUuiDateInput.css';
 
 export interface DateTimeFieldProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'className' | 'defaultValue' | 'onBlur' | 'ref'> {
@@ -53,21 +55,41 @@ export function DateTimeField({
 
   return (
     <div className={['ds-field', error ? 'ds-field--error' : '', className].filter(Boolean).join(' ')}>
-      <SplitDateTimeField
-        id={id}
-        label={label}
-        value={value}
-        onChange={onChange}
-        onCompletenessChange={onCompletenessChange}
-        required={required}
-        error={error}
-        disabled={disabled}
-        readOnly={readOnly}
-        name={name}
-        min={min == null ? undefined : String(min)}
-        max={max == null ? undefined : String(max)}
-        inputProps={{ ...input, 'aria-describedby': describedBy }}
-      />
+      <div className="datetime-field-wrap">
+        <SplitDateTimeField
+          id={id}
+          label={label}
+          value={value}
+          onChange={onChange}
+          onCompletenessChange={onCompletenessChange}
+          required={required}
+          error={error}
+          disabled={disabled}
+          readOnly={readOnly}
+          name={name}
+          min={min == null ? undefined : String(min)}
+          max={max == null ? undefined : String(max)}
+          inputProps={{ ...input, 'aria-describedby': describedBy }}
+        />
+        <button
+          type="button"
+          className="datetime-field-calendar-btn"
+          tabIndex={-1}
+          aria-label={`Mở lịch — ${label}`}
+          disabled={Boolean(disabled || readOnly)}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (!disabled && !readOnly) {
+              const segGroup = document.getElementById(`${id}-date-segments`);
+              if (segGroup) {
+                segGroup.click();
+              }
+            }
+          }}
+        >
+          <Calendar size={14} aria-hidden="true" />
+        </button>
+      </div>
       {!error && help && <span id={hintId} className="ds-field__msg">{help}</span>}
     </div>
   );

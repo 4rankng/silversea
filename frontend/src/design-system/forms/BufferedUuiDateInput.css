@@ -78,3 +78,131 @@
 [data-date-boundary] .date-seg-group:focus-within {
   outline: none;
 }
+
+/* SIL-651 (id 756): Trailing calendar icon affordance on date pickers */
+.uui-date-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: var(--r-xs, 4px);
+  transition: color 150ms ease;
+}
+
+.uui-date-icon-btn:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.uui-date-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Standalone date inputs without prefix in toolbar filter bars */
+.filter-bar > [data-input-wrapper]:not([data-has-prefix]):has(> [data-date-boundary]) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.filter-bar > [data-input-wrapper]:not([data-has-prefix]):has(> [data-date-boundary]) > label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.filter-bar > [data-input-wrapper]:not([data-has-prefix]):has(> [data-date-boundary]) > [data-date-boundary] {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: max-content;
+}
+
+.filter-bar > [data-input-wrapper]:not([data-has-prefix]):has(> [data-date-boundary]) > .uui-date-hint {
+  flex-basis: 100%;
+}
+
+/* DateInput wrap and calendar button */
+.date-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.date-input-wrap > input[data-date-input] {
+  width: 100%;
+  padding-right: 32px !important;
+}
+
+.date-input-calendar-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: var(--r-xs, 4px);
+  transition: color 150ms ease;
+}
+
+.date-input-calendar-btn:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.date-input-calendar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* DateTimeField wrap and calendar button */
+.datetime-field-wrap {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.datetime-field-calendar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  width: 20px;
+  height: var(--control-compact-h, 32px);
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  border-radius: var(--r-xs, 4px);
+  transition: color 150ms ease;
+  margin-bottom: 1px;
+}
+
+.datetime-field-calendar-btn:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.datetime-field-calendar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

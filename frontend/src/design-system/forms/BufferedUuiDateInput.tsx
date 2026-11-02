@@ -1,4 +1,5 @@
 import { type ComponentProps, type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { Calendar } from 'lucide-react';
 import { type InputBaseProps } from '@/components/untitled-ui/base/input/input';
 import { Label } from '@/components/untitled-ui/base/input/label';
 import { formatDateInput as formatDate, useBufferedDateTextValue } from '../hooks/useBufferedDateTextValue';
@@ -190,10 +191,23 @@ export function BufferedUuiDateInput({
       {/* A prefix field keeps the label for its accessibility name only: the
           visible cue is the prefix, so rendering both would say "Từ ngày Từ". */}
       {label && <Label className={fieldPrefix != null ? 'sr-only' : undefined} isRequired={requiredMark ? false : required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}{requiredMark && <span className="ds-field__required" aria-hidden="true"> *</span>}</Label>}
-      {fieldPrefix != null ? <div data-date-boundary data-uui-control="date" data-control-size={size}>
-        <span className="uui-date-prefix" aria-hidden="true">{fieldPrefix}</span>
+      <div data-date-boundary data-uui-control="date" data-control-size={size}>
+        {fieldPrefix != null && <span className="uui-date-prefix" aria-hidden="true">{fieldPrefix}</span>}
         {segments}
-      </div> : segments}
+        <button
+          type="button"
+          className="uui-date-icon-btn"
+          tabIndex={-1}
+          aria-label={`Mở lịch${label ? ` — ${label}` : ''}`}
+          disabled={disabled || readOnly}
+          onClick={(e) => {
+            e.stopPropagation();
+            showCalendar();
+          }}
+        >
+          <Calendar size={14} aria-hidden="true" />
+        </button>
+      </div>
       {name && <input type="hidden" name={name} value={value} disabled={disabled} form={nativeProps?.form ?? rest.form} />}
       {(message || hint) && <p id={`${id}-hint`} role={message ? 'alert' : undefined} className={message ? 'uui-date-hint uui-date-hint--error' : 'uui-date-hint'}>{message || hint}</p>}
       {active && <DatePickerSurface id={`${id}-calendar`} label={`Chọn ngày${label ? ` — ${label}` : ''}`}

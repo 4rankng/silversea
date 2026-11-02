@@ -72,4 +72,18 @@ describe('UI48 independent date range content allocation', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(changes).toEqual([{ from: '2026-10-02', to: '2026-10-31' }]);
   });
+
+  it('SIL-651: renders trailing calendar icon buttons on both Từ and Đến fields and opens the picker on click', () => {
+    render(<DateRangeFields id="range" ariaLabel="Khoảng ngày" from="2026-10-23" to="2026-10-23" onChange={() => {}} />);
+    const fromBtn = screen.getByRole('button', { name: 'Mở lịch — Từ ngày' });
+    const toBtn = screen.getByRole('button', { name: 'Mở lịch — Đến ngày' });
+    expect(fromBtn).toBeInTheDocument();
+    expect(toBtn).toBeInTheDocument();
+    expect(fromBtn.querySelector('svg')).toBeInTheDocument();
+    expect(toBtn.querySelector('svg')).toBeInTheDocument();
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.click(fromBtn);
+    expect(screen.getByRole('dialog', { name: 'Chọn ngày — Từ ngày' })).toBeInTheDocument();
+  });
 });
