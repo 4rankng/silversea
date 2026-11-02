@@ -2823,4 +2823,54 @@ describe('Card 20260926_49 — Grid polish + keyboard nav', () => {
     expect(source).toMatch(/isTextField|closest\('input/);
     expect(source).toMatch(/drawerId != null/);
   });
+
+  describe('SIL-633 (id 737) — shipments overview typography scale and row height laws', () => {
+    it('enforces intrinsic auto-height on desktop schedule cell triggers to prevent row overflow', () => {
+      const schedBlock = css.match(
+        /\.cus-dashboard-table td\[data-label=['"]Lịch trình & điều xe['"]\] > \.cus-inline-trigger,\s*\.cus-dashboard-table td\[data-label=['"]Lịch trình & điều xe['"]\] \.cus-inline-trigger\s*\{([^}]*)\}/,
+      )?.[1] ?? '';
+      expect(schedBlock, 'desktop schedule trigger rule exists').not.toBe('');
+      expect(schedBlock).toMatch(/height:\s*auto;/);
+      expect(schedBlock).toMatch(/min-height:\s*100%;/);
+      expect(schedBlock).toMatch(/overflow:\s*visible;/);
+
+      const tdSched = css.match(
+        /\.cus-dashboard-table td\[data-label=['"]Lịch trình & điều xe['"]\]\s*\{([^}]*)\}/,
+      )?.[1] ?? '';
+      expect(tdSched, 'td schedule rule exists').not.toBe('');
+      expect(tdSched).toMatch(/vertical-align:\s*top;/);
+      expect(tdSched).toMatch(/overflow:\s*visible;/);
+    });
+
+    it('enforces line-height 1.35 on schedule groups and status rows to protect Vietnamese diacritics', () => {
+      const groupRule = css.match(/\.cus-schedule-group\s*\{([^}]*)\}/)?.[1] ?? '';
+      expect(groupRule).toMatch(/line-height:\s*var\(--ops-table-supporting-line-height,\s*1\.35\);/);
+
+      const groupSpan = css.match(/\.cus-schedule-group > span\s*\{([^}]*)\}/)?.[1] ?? '';
+      expect(groupSpan).toMatch(/line-height:\s*var\(--ops-table-supporting-line-height,\s*1\.35\);/);
+
+      const statusRow = css.match(/\.cus-schedule-status-row\s*\{([^}]*)\}/)?.[1] ?? '';
+      expect(statusRow).toMatch(/line-height:\s*var\(--ops-table-supporting-line-height,\s*1\.35\);/);
+    });
+
+    it('enforces NO TRUNCATE on schedule cell facts', () => {
+      const groupSpan = css.match(/\.cus-schedule-group > span\s*\{([^}]*)\}/)?.[1] ?? '';
+      expect(groupSpan).toMatch(/white-space:\s*normal;/);
+      expect(groupSpan).toMatch(/overflow-wrap:\s*anywhere;/);
+      expect(groupSpan).toMatch(/text-overflow:\s*clip;/);
+      expect(groupSpan).not.toMatch(/text-overflow:\s*ellipsis;/);
+    });
+
+    it('enforces card eyebrow typography in mobile breakpoint', () => {
+      const triggerBefore = css.match(
+        /@media \(max-width:\s*999px\)\s*\{[\s\S]*?\.cus-dashboard-table \.cus-inline-trigger::before\s*\{([^}]*)\}/,
+      )?.[1] ?? '';
+      expect(triggerBefore, 'card trigger eyebrow rule exists').not.toBe('');
+      expect(triggerBefore).toContain('font-size: var(--text-label-size)');
+      expect(triggerBefore).toContain('font-weight: var(--fw-bold)');
+      expect(triggerBefore).toContain('letter-spacing: 0.04em');
+      expect(triggerBefore).toContain('text-transform: uppercase');
+      expect(triggerBefore).toContain('line-height: var(--ops-table-header-line-height, 1.35)');
+    });
+  });
 });

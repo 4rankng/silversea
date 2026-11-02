@@ -98,7 +98,17 @@ Driver script: `testplan/2026-11-02_sil633_646_ui-driver.log`.
 - **390px (Mobile)**: 20 rows, firstRowH=220px, clippingIssues=0, overflowIssues=0, detailBtn=44px (font-size: 12px), interactive click verified.
 - **495px (Mobile Card Band)**: 20 rows, firstRowH=205px, clippingIssues=0, overflowIssues=0, detailBtn=44px (font-size: 12px), interactive click verified.
 - **1307px (Desktop Reported Viewport)**: 20 rows, firstRowH=69px, clippingIssues=0, overflowIssues=0, detailBtn=16px (font-size: 12px), interactive click verified.
-- **1440px (Desktop Full)**: 20 rows, firstRowH=69px, clippingIssues=0, overflowIssues=0, detailBtn=16px (font-size: 12px), interactive click verified.
+- **1440px (Desktop Full)**: 20 rows, firstRowH=81px (Row 1 contains 4 lines: 31/10/2026 23:59, ASKEY-XƯỞNG 1, 1x20DC, Sẵn sàng điều xe — sh: 81px, ch: 81px, no clipping), clippingIssues=0, overflowIssues=0, detailBtn=16px (font-size: 12px), interactive click verified.
+
+### Schedule Cell Row Height Expansion (Re-verifying Comment 3432 & A-oct-filter-ANNOTATED.png)
+- Query: `transportDateFrom=2026-10-01&transportDateTo=2026-10-31`
+- Results across first 5 rows:
+  - Row 1: sh=81px, ch=81px (clipped=false) — 4 lines fully rendered with no border overlap.
+  - Row 2: sh=66px, ch=66px (clipped=false)
+  - Row 3: sh=153px, ch=153px (clipped=false) — 9 lines (2 appointment groups + status line) expand row intrinsically.
+  - Row 4: sh=66px, ch=66px (clipped=false)
+  - Row 5: sh=82px, ch=82px (clipped=false)
+- Total schedule cell clips across 20 rows: 0 (sh <= ch on all rows).
 
 ### Persisted API State / Read-Only Identity Proof
 - Endpoint: `GET http://localhost:3002/api/shipments/cus-workspace?limit=1`
@@ -109,10 +119,10 @@ Driver script: `testplan/2026-11-02_sil633_646_ui-driver.log`.
 
 | Claim / bug | Rung | Evidence | Not covered |
 |---|---|---|---|
-| SIL-646: Desktop table row height expands to fit multi-line content (no horizontal clipping at bottom edge) | UI DRIVEN | `testplan/2026-11-02_sil633_646_ui-1307.png`, `testplan/2026-11-02_sil633_646_ui-1440.png`, `testplan/2026-11-02_sil633_646_ui-driver.log` | Staging cluster deploy (orchestrator scope) |
-| SIL-646: Status cell wraps full content without horizontal overflow (`scrollWidth <= clientWidth`) | UI DRIVEN | `testplan/2026-11-02_sil633_646_ui-1307.png`, `testplan/2026-11-02_sil633_646_ui-driver.log` (overflowIssues=0) | Staging cluster deploy |
-| SIL-633: Card typography aligns to house scale (11px uppercase bold tracked eyebrows, 12px primary facts, 11px badges) | UI DRIVEN | `testplan/2026-11-02_sil633_646_ui-390.png`, `testplan/2026-11-02_sil633_646_ui-495.png`, `ShipmentsCards.styles.test.ts` | Staging cluster deploy |
-| SIL-633: Card component sizes & touch floor (44px touch targets on narrow viewports, uniform empty notes, aligned padding) | UI DRIVEN | `testplan/2026-11-02_sil633_646_ui-390.png`, `testplan/2026-11-02_sil633_646_ui-495.png`, `testplan/2026-11-02_sil633_646_ui-driver.log` | Staging cluster deploy |
+| SIL-633 / SIL-646: Desktop schedule cell & table row height expands to fit 4+ multi-line content (eliminating sh 73 > 67 clipping) | UI DRIVEN | `qa/2026-11-02_sil633_ui-1440.png`, `qa/2026-11-02_sil633_ui-driver.log` (scheduleCellClips=0) | Staging cluster deploy (orchestrator/QA scope) |
+| SIL-646: Status cell wraps full content without horizontal overflow (`scrollWidth <= clientWidth`) | UI DRIVEN | `qa/2026-11-02_sil633_ui-1440.png`, `qa/2026-11-02_sil633_ui-driver.log` (overflowIssues=0) | Staging cluster deploy |
+| SIL-633: Card typography aligns to house scale (11px uppercase bold tracked eyebrows, 12px primary facts, 11px badges) | UI DRIVEN | `qa/2026-11-02_sil633_ui-390.png`, `qa/2026-11-02_sil633_ui-768.png`, `ShipmentsCards.styles.test.ts` | Staging cluster deploy |
+| SIL-633: Card component sizes & touch floor (44px touch targets on narrow viewports, uniform empty notes, aligned padding) | UI DRIVEN | `qa/2026-11-02_sil633_ui-390.png`, `qa/2026-11-02_sil633_ui-768.png`, `qa/2026-11-02_sil633_ui-driver.log` | Staging cluster deploy |
 
 ```
 Status: DONE
