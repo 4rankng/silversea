@@ -878,6 +878,60 @@
   color: var(--fg-3);
 }
 
+/* SIL-648 (id 753) — PHÂN LOẠI column inline edit button & select */
+button.detailed-plan-grid__classification {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  color: var(--fg-2);
+  text-decoration: underline dotted var(--border-subtle, currentColor);
+  text-underline-offset: 3px;
+}
+
+button.detailed-plan-grid__classification:hover {
+  color: var(--accent-ink, #00875a);
+  text-decoration-style: solid;
+}
+
+button.detailed-plan-grid__classification:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, #4a9e7d) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.detailed-plan-grid__classification-select {
+  font-family: inherit;
+  font-size: var(--ops-table-supporting-size, 11px);
+  color: var(--fg-1);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle, #d0d5dd);
+  border-radius: 4px;
+  height: 26px;
+  padding: 1px 4px;
+  line-height: normal;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.detailed-plan-grid__classification-select:focus {
+  outline: none;
+  border-color: var(--brand, #00875a);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand, #00875a) 25%, transparent);
+}
+
+/* SIL-638 TC6.2 (id 742) — actions inside the error/warning banner */
+.dispatch-plan-page__error-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 /* Pair tag (LoHangKepKetHop §3.2): derived from the ACTIVE trip pair — plain
  * colored text per the project's no-badge convention. SIL-515: no nowrap —
  * "[KẾT HỢP]" wraps at its space like any other value when the column is

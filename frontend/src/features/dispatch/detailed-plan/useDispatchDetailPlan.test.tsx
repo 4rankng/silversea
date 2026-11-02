@@ -1133,3 +1133,122 @@ describe('SIL-473 — savePlan sequences the Giờ điều vận appointment wri
     expect(result.current.items[0]?.shipmentVersion).toBe(6);
   });
 });
+
+describe('SIL-638 TC6.2 (id 742) — soft weight warning contract (KEP_WEIGHT_WARNING)', () => {
+  const KEP_WARNING = 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
+
+  it('savePlan intercepts KEP_WEIGHT_WARNING and provides confirm callback with kepWeightWarningConfirmed: true', async () => {
+    updateDispatchDetailPlanMock.mockRejectedValueOnce(
+      Object.assign(new Error(KEP_WARNING), { status: 409, raw: { code: 'KEP_WEIGHT_WARNING' } }),
+    );
+
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(
+        result.current.savePlan(result.current.items[0], { carrierType: 'OWN', plannedRevenue: null, plannedCarrierCost: null }),
+      ).rejects.toBeTruthy();
+    });
+
+    expect(result.current.assignmentError).toBe(KEP_WARNING);
+    expect(result.current.pendingWeightWarning).not.toBeNull();
+    expect(result.current.pendingWeightWarning?.message).toBe(KEP_WARNING);
+
+    // Mock successful retry
+    updateDispatchDetailPlanMock.mockResolvedValueOnce({
+      fulfillmentId: 101, fulfillmentVersion: 4, shipmentId: 11, shipmentVersion: 6,
+      classification: 'SINGLE', isCombined: false, operationalNotes: null,
+      plannedEndAt: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15C-167.31' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false, driverNotified: false, driverHint: null, replayed: false,
+    });
+
+    await act(async () => {
+      await result.current.pendingWeightWarning?.confirm();
+    });
+
+    expect(updateDispatchDetailPlanMock).toHaveBeenLastCalledWith(101, expect.objectContaining({
+      kepWeightWarningConfirmed: true,
+    }));
+    expect(result.current.pendingWeightWarning).toBeNull();
+    expect(result.current.assignmentError).toBeNull();
+  });
+
+  it('issueOrder intercepts KEP_WEIGHT_WARNING and provides confirm callback with kepWeightWarningConfirmed: true', async () => {
+    dispatchShipmentMock.mockRejectedValueOnce(
+      Object.assign(new Error(KEP_WARNING), { status: 409, raw: { code: 'KEP_WEIGHT_WARNING' } }),
+    );
+
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(
+        result.current.issueOrder(result.current.items[0], {
+          plannedStartAt: '2026-08-30T01:00:00.000Z',
+          plannedEndAt: '2026-08-30T05:00:00.000Z',
+          endTimeConfirmed: true,
+          carrierType: 'OWN',
+          truckId: 154,
+          driverId: 8,
+        }),
+      ).rejects.toBeTruthy();
+    });
+
+    expect(result.current.assignmentError).toBe(KEP_WARNING);
+    expect(result.current.pendingWeightWarning).not.toBeNull();
+
+    // Mock successful retry
+    dispatchShipmentMock.mockResolvedValueOnce({
+      fulfillmentId: 101,
+      version: 4,
+      trip: {
+        id: 55, version: 2, tripCode: 'TRP-202608-1', status: 'CREATED',
+        plannedStartAt: '2026-08-30T01:00:00.000Z', plannedEndAt: '2026-08-30T05:00:00.000Z',
+        carrierType: 'OWN',
+      },
+    });
+
+    await act(async () => {
+      await result.current.pendingWeightWarning?.confirm();
+    });
+
+    expect(dispatchShipmentMock).toHaveBeenLastCalledWith(11, expect.objectContaining({
+      kepWeightWarningConfirmed: true,
+    }));
+    expect(result.current.pendingWeightWarning).toBeNull();
+  });
+
+  it('cancel clears the pendingWeightWarning without re-submitting', async () => {
+    dispatchShipmentMock.mockRejectedValueOnce(
+      Object.assign(new Error(KEP_WARNING), { status: 409, raw: { code: 'KEP_WEIGHT_WARNING' } }),
+    );
+
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await expect(
+        result.current.issueOrder(result.current.items[0], {
+          plannedStartAt: '2026-08-30T01:00:00.000Z',
+          plannedEndAt: '2026-08-30T05:00:00.000Z',
+          endTimeConfirmed: true,
+          carrierType: 'OWN',
+          truckId: 154,
+          driverId: 8,
+        }),
+      ).rejects.toBeTruthy();
+    });
+
+    expect(result.current.pendingWeightWarning).not.toBeNull();
+
+    act(() => {
+      result.current.pendingWeightWarning?.cancel();
+    });
+
+    expect(result.current.pendingWeightWarning).toBeNull();
+    expect(result.current.assignmentError).toBeNull();
+  });
+});

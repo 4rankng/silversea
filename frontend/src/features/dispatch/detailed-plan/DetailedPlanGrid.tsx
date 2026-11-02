@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { EmptyState, TextField } from '../../../design-system';
+import { EmptyState, TextField, UuiSelectField } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { NameCell } from '../../../components/shared/NameCell';
@@ -27,7 +27,7 @@ import { formatISODate } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { DispatchDriverNote } from './DispatchDriverNote';
-import { detailRowKey, detailedScheduleLine, lclCargoLine, lclMeasureLine } from './DispatchPlanCellValues';
+import { detailRowKey, detailedScheduleLine, lclCargoLine, lclMeasureLine, classificationOptionsForRow } from './DispatchPlanCellValues';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
 import { DispatchDeclarationCell } from './DispatchDeclarationCell';
@@ -122,6 +122,8 @@ interface DetailedPlanGridProps {
        *  optional so CUS-derived values stay valid when a caller omits it. */
       classification?: DispatchClassification;
       isCombined?: boolean;
+      /** SIL-638 TC6.2 (id 742) — soft weight warning confirmation retry. */
+      kepWeightWarningConfirmed?: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
   onOpenTripReassign: (tripId: number) => void;
@@ -137,7 +139,9 @@ interface DetailedPlanGridProps {
   onAutoOpenConsumed?: (id: number) => void;
   onIssueOrder: (
     row: DispatchDetailPlanRow,
-    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'> & {
+      kepWeightWarningConfirmed?: boolean;
+    },
   ) => Promise<IssueOrderResult>;
   /** Opens the ghép chuyến dialog anchored on this row's trip (optional —
    * pages that don't mount the dialog simply don't get the button). */
@@ -187,6 +191,12 @@ interface DetailedPlanGridProps {
    *  can auto-copy onto the lot's still-empty siblings (FB-109), so the page
    *  refetches the rows instead of patching one cell in place. */
   onRowsChanged?: () => void;
+  /** SIL-638 TC6.2 (id 742) — soft weight warning confirmation callback. */
+  pendingWeightWarning?: {
+    message: string;
+    confirm: () => Promise<void>;
+    cancel: () => void;
+  } | null;
 }
 
 /** FB-095 — the leaving lot's identity for the confirm guard copy. */
@@ -239,6 +249,7 @@ export function DetailedPlanGrid({
   onEnsureFulfillment,
   autoOpenFulfillmentId,
   onAutoOpenConsumed,
+  pendingWeightWarning,
 }: DetailedPlanGridProps) {
   // SIL-515: notes render in full (no clamp); the dialog is the focused
   // reading view for a long note, not the place where its tail is stored.
@@ -277,6 +288,117 @@ export function DetailedPlanGrid({
     setEditRequest({ key: detailRowKey(row), nonce: editNonceRef.current });
   };
   const consumeEditRequest = () => setEditRequest(null);
+
+  // SIL-648 (id 753) — PHÂN LOẠI column inline edit on the detailed-plan grid.
+  const [editingClassificationKey, setEditingClassificationKey] = useState<string | null>(null);
+  const [savingClassificationKey, setSavingClassificationKey] = useState<string | null>(null);
+  const [optimisticClassifications, setOptimisticClassifications] = useState<Record<string, DispatchClassification>>({});
+  const [inlineClassificationError, setInlineClassificationError] = useState<string | null>(null);
+
+  // SIL-638 TC6.2 (id 742) — soft weight warning confirmation in the grid banner
+  const [localWeightWarning, setLocalWeightWarning] = useState<{
+    message: string;
+    confirm: () => Promise<void>;
+    cancel: () => void;
+  } | null>(null);
+  const activeWeightWarning = pendingWeightWarning ?? localWeightWarning;
+
+  const handleInlineClassificationSave = async (row: DispatchDetailPlanRow, nextClassification: DispatchClassification) => {
+    const rowKey = detailRowKey(row);
+    if (nextClassification === row.classification) {
+      setEditingClassificationKey(null);
+      return;
+    }
+    setOptimisticClassifications((prev) => ({ ...prev, [rowKey]: nextClassification }));
+    setSavingClassificationKey(rowKey);
+    setInlineClassificationError(null);
+
+    try {
+      const parseEst = (val: string | null) => (val && val.trim() ? Number(val) : null);
+      await onAtomicSave(row, {
+        carrierType: row.dispatch.carrierType ?? 'OWN',
+        externalCarrierId: row.dispatch.carrierType === 'EXTERNAL' ? row.dispatch.externalCarrierId ?? null : null,
+        plannedRevenue: parseEst(row.estimates.plannedRevenue),
+        plannedCarrierCost: parseEst(row.estimates.plannedCarrierCost),
+        classification: nextClassification,
+        isCombined: nextClassification === 'COMBINED',
+      });
+      setEditingClassificationKey(null);
+    } catch (err: unknown) {
+      setOptimisticClassifications((prev) => {
+        const next = { ...prev };
+        delete next[rowKey];
+        return next;
+      });
+      setEditingClassificationKey(null);
+      const e = err as { status?: number; message?: string; raw?: { code?: string }; code?: string };
+      const isWeightWarning = e.status === 409 && (
+        e.raw?.code === 'KEP_WEIGHT_WARNING'
+        || e.code === 'KEP_WEIGHT_WARNING'
+        || (e.message?.includes('vượt tải trọng cho phép') ?? false)
+      );
+      const msg = e.message || 'Không thể lưu phân loại. Vui lòng thử lại.';
+      if (isWeightWarning) {
+        setLocalWeightWarning({
+          message: msg,
+          confirm: async () => {
+            setLocalWeightWarning(null);
+            setInlineClassificationError(null);
+            const parseEst = (val: string | null) => (val && val.trim() ? Number(val) : null);
+            await onAtomicSave(row, {
+              carrierType: row.dispatch.carrierType ?? 'OWN',
+              externalCarrierId: row.dispatch.carrierType === 'EXTERNAL' ? row.dispatch.externalCarrierId ?? null : null,
+              plannedRevenue: parseEst(row.estimates.plannedRevenue),
+              plannedCarrierCost: parseEst(row.estimates.plannedCarrierCost),
+              classification: nextClassification,
+              isCombined: nextClassification === 'COMBINED',
+              kepWeightWarningConfirmed: true,
+            });
+            setOptimisticClassifications((prev) => ({ ...prev, [rowKey]: nextClassification }));
+          },
+          cancel: () => {
+            setLocalWeightWarning(null);
+            setInlineClassificationError(null);
+          },
+        });
+      } else {
+        setInlineClassificationError(msg);
+      }
+      toastCtx?.toast({ kind: isWeightWarning ? 'warning' : 'error', message: msg });
+    } finally {
+      setSavingClassificationKey(null);
+    }
+  };
+
+  const handleQuickIssueOrder = async (
+    targetRow: DispatchDetailPlanRow,
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'> & { kepWeightWarningConfirmed?: boolean },
+  ) => {
+    try {
+      return await onIssueOrder(targetRow, body);
+    } catch (issueErr: unknown) {
+      const e = issueErr as { status?: number; message?: string; raw?: { code?: string }; code?: string };
+      const isWeightWarning = e.status === 409 && (
+        e.raw?.code === 'KEP_WEIGHT_WARNING'
+        || e.code === 'KEP_WEIGHT_WARNING'
+        || (e.message?.includes('vượt tải trọng cho phép') ?? false)
+      );
+      if (isWeightWarning) {
+        const warningMsg = e.message || 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
+        setLocalWeightWarning({
+          message: warningMsg,
+          confirm: async () => {
+            setLocalWeightWarning(null);
+            await onIssueOrder(targetRow, { ...body, kepWeightWarningConfirmed: true });
+          },
+          cancel: () => {
+            setLocalWeightWarning(null);
+          },
+        });
+      }
+      throw issueErr;
+    }
+  };
   // Owner redesign 23/10 (spec A/B) — one markup per mode, measured on the
   // grid's own wrapper: ≥640px keeps the table (scroll box + pinned actions
   // column), below it the phone card list takes over.
@@ -334,8 +456,28 @@ export function DetailedPlanGrid({
         onSelectPlate={(plate) => onFilterChange({ q: plate })}
       />
 
-      {assignmentError && (
-        <div className="dispatch-plan-page__error" role="alert">{assignmentError}</div>
+      {(assignmentError || inlineClassificationError || activeWeightWarning) && (
+        <div className="dispatch-plan-page__error" role="alert">
+          <span>{activeWeightWarning?.message ?? inlineClassificationError ?? assignmentError}</span>
+          {activeWeightWarning && (
+            <div className="dispatch-plan-page__error-actions">
+              <button
+                type="button"
+                className="btn btn--sm btn--primary detailed-plan-grid__warning-confirm"
+                onClick={() => void activeWeightWarning.confirm()}
+              >
+                Vẫn lưu?
+              </button>
+              <button
+                type="button"
+                className="btn btn--sm btn--ghost detailed-plan-grid__warning-cancel"
+                onClick={activeWeightWarning.cancel}
+              >
+                Hủy
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {error && items.length > 0 && (
@@ -719,9 +861,55 @@ export function DetailedPlanGrid({
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại" data-label-short="Loại">
                     <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--row">
-                      <span className="detailed-plan-grid__classification">
-                        {DISPATCH_CLASSIFICATION_LABELS[row.classification]}
-                      </span>
+                      {(() => {
+                        const rowKey = detailRowKey(row);
+                        const classificationOptions = classificationOptionsForRow(row.cargoMode)
+                          .filter((opt) => opt.value === 'SINGLE' || opt.value === 'DOUBLE' || opt.value === 'COMBINED');
+                        const canEdit = row.taskStatus !== 'COMPLETED' && classificationOptions.length > 1;
+                        const isEditing = editingClassificationKey === rowKey;
+                        const displayedClassification = optimisticClassifications[rowKey] ?? row.classification;
+
+                        if (isEditing) {
+                          return (
+                            <UuiSelectField
+                              label={`Phân loại ${row.container.containerNumber || row.shipmentCode || ''}`}
+                              hideLabel
+                              size="sm"
+                              width="content"
+                              controlClassName="detailed-plan-grid__classification-select"
+                              value={displayedClassification}
+                              disabled={savingClassificationKey === rowKey}
+                              options={classificationOptions}
+                              onChange={(e) => {
+                                void handleInlineClassificationSave(row, e.target.value as DispatchClassification);
+                              }}
+                            />
+                          );
+                        }
+
+                        if (canEdit) {
+                          return (
+                            <button
+                              type="button"
+                              className="detailed-plan-grid__classification"
+                              onClick={() => {
+                                setInlineClassificationError(null);
+                                setEditingClassificationKey(rowKey);
+                              }}
+                              aria-label={`Sửa phân loại · ${DISPATCH_CLASSIFICATION_LABELS[displayedClassification]}`}
+                              title="Bấm để sửa phân loại"
+                            >
+                              {DISPATCH_CLASSIFICATION_LABELS[displayedClassification]}
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <span className="detailed-plan-grid__classification">
+                            {DISPATCH_CLASSIFICATION_LABELS[displayedClassification]}
+                          </span>
+                        );
+                      })()}
                       {/* FB-095 — with the page wired, the badge is the group's
                           action surface (Xem nhóm / Hủy ghép); unwired it stays
                           a static tag exactly like the pre-FB-095 badge. */}
@@ -798,7 +986,7 @@ export function DetailedPlanGrid({
                       pill. Sticky right so it never scrolls away. */}
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--actions" data-label="Thao tác">
                     <div className="detailed-plan-grid__row-actions">
-                      {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={onIssueOrder} />}
+                      {canQuickIssue && <QuickIssueOrderButton row={row} onIssueOrder={handleQuickIssueOrder} />}
                       <DispatchRowActionsMenu
                         row={row}
                         onEditPlan={requestEditPlan}

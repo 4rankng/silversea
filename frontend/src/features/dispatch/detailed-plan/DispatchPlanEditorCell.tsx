@@ -93,6 +93,8 @@ interface DispatchPlanEditorCellProps {
       operationalNotes?: string | null;
       /** dis-03 (card 211026131857) — confirmed kẹp-candidate overlap retry. */
       rigOverlapCompletedConfirmed?: boolean;
+      /** SIL-638 TC6.2 (id 742) — soft weight warning confirmation retry. */
+      kepWeightWarningConfirmed?: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
   /** Opens the governed trip reassignment flow after an order is issued. */
@@ -733,7 +735,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       classification: draft.classification,
       operationalNotes: draft.operationalNotes,
     };
-    const attemptSave = async (extra: { rigOverlapCompletedConfirmed?: boolean }) => {
+    const attemptSave = async (extra: { rigOverlapCompletedConfirmed?: boolean; kepWeightWarningConfirmed?: boolean }) => {
       await onAtomicSave(row, { ...saveBody, ...extra });
     };
     try {
@@ -757,6 +759,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         status?: number;
         message?: string;
         raw?: { code?: string };
+        code?: string;
       };
       if (err.status === 409 && err.raw?.code === 'RIG_OVERLAP_COMPLETED') {
         // Card 061026172804 (FB-038 / REQ-04): a completed-trip overlap warns
@@ -768,6 +771,22 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
         if (proceed) {
           try {
             await attemptSave({ rigOverlapCompletedConfirmed: true });
+            setOpen(false);
+          } catch (retryError) {
+            const retry = retryError as { status?: number; message?: string };
+            setError(retry.status === 409 && retry.message ? retry.message : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+          }
+        } else {
+          setError(err.message ?? 'Đã huỷ lưu.');
+        }
+      } else if (err.status === 409 && (err.raw?.code === 'KEP_WEIGHT_WARNING' || err.code === 'KEP_WEIGHT_WARNING' || (err.message?.includes('vượt tải trọng cho phép') ?? false))) {
+        // SIL-638 (id 742) TC6(2) — soft weight warning: confirm before retry
+        const proceed = await confirm(
+          (err.message ?? 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại') + ' Vẫn lưu?'
+        );
+        if (proceed) {
+          try {
+            await attemptSave({ kepWeightWarningConfirmed: true });
             setOpen(false);
           } catch (retryError) {
             const retry = retryError as { status?: number; message?: string };

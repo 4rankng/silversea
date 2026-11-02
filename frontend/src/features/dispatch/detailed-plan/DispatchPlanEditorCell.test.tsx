@@ -1753,3 +1753,34 @@ describe('DispatchPlanEditorCell — grouped LCL lot BKS law (card 191026100010)
     expect(onAtomicSave).not.toHaveBeenCalled();
   });
 });
+
+describe('DispatchPlanEditorCell — SIL-638 TC6.2 (id 742) soft weight warning confirm (KEP_WEIGHT_WARNING)', () => {
+  it('a 409 KEP_WEIGHT_WARNING warns via confirm; confirming retries the save with kepWeightWarningConfirmed: true', async () => {
+    const apiError = Object.assign(new Error('Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại'), {
+      status: 409,
+      raw: { code: 'KEP_WEIGHT_WARNING' },
+    });
+    const onAtomicSave = vi.fn()
+      .mockRejectedValueOnce(apiError)
+      .mockResolvedValue({
+        fulfillmentVersion: 5,
+        shipmentVersion: 7,
+        classification: 'DOUBLE',
+        isCombined: false,
+        operationalNotes: null,
+        dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+        estimates: { plannedRevenue: null, plannedCarrierCost: null },
+        lotFullyPlated: false,
+      });
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    expect(await screen.findByText('Xác nhận')).toBeTruthy();
+    expect(screen.getByText(/vượt tải trọng cho phép của phương tiện/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận' }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(2));
+    const retryBody = onAtomicSave.mock.calls[1][1] as { kepWeightWarningConfirmed?: boolean };
+    expect(retryBody.kepWeightWarningConfirmed).toBe(true);
+    await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
+  });
+});
