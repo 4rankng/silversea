@@ -128,6 +128,26 @@
 .csc-append-button:not(:disabled):active { background: var(--surface-3); transform: translateY(1px); }
 .csc-append-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .csc-append-button:disabled { cursor: not-allowed; opacity: .55; }
+/* SIL-641 (id 745) — CTO design ruling 02/11: ONE "control + gap 8 + action
+   slot 36" pattern for every cell in section Nhận diện lô. The real quick-add
+   button and the placeholder in a button-less cell share this rule, so all
+   four control boxes reserve the same 44px and end at the same right edge —
+   measured 551/595/595/551 before, i.e. "one long one short" (QA 02/11 @1307).
+   FB-114 keeps the button a flex sibling with its own box (never an overlay),
+   so the only way to equalise is for every cell to carry the slot.
+   margin-top: 26px MUST match .csc-append-button or the two rows lose their
+   shared baseline (62px vs 36px cells). visibility:hidden — never display:none,
+   which would drop the slot and re-open the 44px gap. */
+.csc-identity-grid__action-slot {
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  margin-top: 26px;
+}
+.csc-identity-grid__action-slot--placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
 .csc-shipping-line-dialog { display: grid; gap: 12px; }
 .csc-shipping-line-dialog > p { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); line-height: 1.45; }
 .csc-shipping-line-dialog__error { padding: 9px 11px; border-radius: 8px; background: var(--danger-bg, rgb(220 38 38 / 8%)); color: var(--danger); font-size: var(--text-caption-size); line-height: 1.4; }
