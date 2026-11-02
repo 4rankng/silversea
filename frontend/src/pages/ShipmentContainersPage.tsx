@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, RotateCcw } from 'lucide-react';
 import { FilterDropdown } from '../components/FilterDropdown';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
@@ -128,18 +128,28 @@ export default function ShipmentContainersPage() {
   // ── SIL-547 (spec 23/10 §2/§4.2) — the CUS [Gộp hàng] mode on Chi tiết lô
   // hàng, the twin of /shipments-debit's: OFF hides the CHỌN column; ON
   // reveals it (lot-level LCL rows only) with the floating bar, and completing
-  // a merge — or [Thoát gộp hàng] — hides it again. Every list-changing
-  // filter/page write below drops the picks so the bar can never count a lot
-  // the current view no longer shows.
+  // a merge — or [Thoát gộp hàng] — hides it again.
+  // SIL-658 (id 765) — the picks follow the dispatch board's selection law
+  // (the pattern the boss confirmed correct): the chosen LOT ROWS live in
+  // their own state keyed by shipment id, NOT derived from the currently
+  // loaded list, so a search/filter/date/page/sort write NEVER drops a pick —
+  // tìm lô khác theo số bill rồi quay lại, lô đã chọn vẫn còn tích để gộp
+  // tiếp. Only leaving the mode, finishing a merge, or [Bỏ chọn] clears.
   const [mergeMode, setMergeMode] = useState(false);
-  const [selectedLotIds, setSelectedLotIds] = useState<Set<number>>(new Set());
+  const [selectedLotRows, setSelectedLotRows] = useState<ShipmentCusContainerFlatRow[]>([]);
   const [mergeOpen, setMergeOpen] = useState(false);
   const exitMergeMode = () => {
     setMergeMode(false);
-    setSelectedLotIds(new Set());
+    setSelectedLotRows([]);
   };
   // Stable so the filter writers' useCallback identities stay put.
-  const dropPicks = useCallback(() => setSelectedLotIds(new Set()), []);
+  const dropPicks = useCallback(() => setSelectedLotRows([]), []);
+  // The ledger's checkbox map — rendered from the picked ids, so a tick
+  // survives every list change (SIL-658).
+  const selectedLotIds = useMemo(
+    () => new Set(selectedLotRows.map((row) => row.shipmentId)),
+    [selectedLotRows],
+  );
   const { toast } = useToast();
   // SIL-544's tick-time law, ported: a pick of another customer — or a lot
   // with none — is refused AT the tick with the reason named; the merge popup
@@ -159,33 +169,34 @@ export default function ShipmentContainersPage() {
   const selectLot = (shipmentId: number, next: boolean) => {
     if (next) {
       const incoming = items.find((row) => row.shipmentId === shipmentId);
-      if (incoming) {
-        const refusal = refusePick(incoming);
-        if (refusal == null) {
-          // Same-customer gate: the FIRST picked lot anchors the customer;
-          // anything of another customer is refused with both names (the BE
-          // law reads a null customer as a conflict too — caught above).
-          const anchor = items.find((row) => selectedLotIds.has(row.shipmentId));
-          if (anchor != null && anchor.customerId != null && anchor.customerId !== incoming.customerId) {
-            const anchorName = anchor.customerName ?? 'chưa xác định';
-            toast({
-              kind: 'error',
-              message: `Lô ${incoming.billOrBookNumber || incoming.containerNumber || incoming.declarationNumber} thuộc khách hàng ${incoming.customerName ?? 'chưa xác định'} — khác khách hàng với các lô đã chọn (${anchorName}). Chỉ gộp được các lô của cùng một khách hàng.`,
-            });
-            return;
-          }
-        } else {
-          toast({ kind: 'error', message: refusal });
-          return;
-        }
+      if (!incoming) return;
+      const refusal = refusePick(incoming);
+      if (refusal != null) {
+        toast({ kind: 'error', message: refusal });
+        return;
       }
+      // Same-customer gate: the FIRST picked lot anchors the customer;
+      // anything of another customer is refused with both names (the BE
+      // law reads a null customer as a conflict too — caught above). The
+      // anchor reads the STORED picks, so it holds even when the anchor lot
+      // is filtered out of the current view (SIL-658).
+      const anchor = selectedLotRows[0];
+      if (anchor != null && anchor.customerId != null && anchor.customerId !== incoming.customerId) {
+        const anchorName = anchor.customerName ?? 'chưa xác định';
+        toast({
+          kind: 'error',
+          message: `Lô ${incoming.billOrBookNumber || incoming.containerNumber || incoming.declarationNumber} thuộc khách hàng ${incoming.customerName ?? 'chưa xác định'} — khác khách hàng với các lô đã chọn (${anchorName}). Chỉ gộp được các lô của cùng một khách hàng.`,
+        });
+        return;
+      }
+      // Store the FULL row snapshot — the bar totals, the mergeable gate and
+      // the merge popup all read it, independent of what the list shows.
+      setSelectedLotRows((current) => (
+        current.some((row) => row.shipmentId === shipmentId) ? current : [...current, incoming]
+      ));
+      return;
     }
-    setSelectedLotIds((current) => {
-      const set = new Set(current);
-      if (next) set.add(shipmentId);
-      else set.delete(shipmentId);
-      return set;
-    });
+    setSelectedLotRows((current) => current.filter((row) => row.shipmentId !== shipmentId));
   };
 
   const detail = useCusDetail({
@@ -270,10 +281,9 @@ export default function ShipmentContainersPage() {
   }, [detail, toast]);
 
   const updateParam = useCallback((key: string, value: string | null) => {
-    // SIL-547: any criterion/page write can hide picked lots — the picks drop
-    // so the floating bar never counts what the view no longer shows (the
-    // settlement board's same law).
-    dropPicks();
+    // SIL-658: criterion/page writes KEEP the picks — the selection lives
+    // outside the loaded list, so searching, filtering or paging never loses
+    // a tick (the bar still counts what the view no longer shows).
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       if (value && key === 'transportDateFrom' && next.get('transportDateTo') && value > next.get('transportDateTo')!) return current;
@@ -305,7 +315,7 @@ export default function ShipmentContainersPage() {
   // single-key updateParam) so no intermediate render can pair a new sortBy
   // with a stale sortDir.
   const applySort = useCallback((key: string) => {
-    dropPicks();
+    // SIL-658: a sort keeps the picks, like every other list-changing write.
     setSearchParams((current) => {
       const next = nextTableSort(readTableSort(current.get('sortBy'), current.get('sortDir')), key);
       const nextParams = new URLSearchParams(current);
@@ -325,9 +335,10 @@ export default function ShipmentContainersPage() {
   }, [latestSearchParams, suffixParam]);
 
   const items = detail.data?.items ?? [];
-  // ── SIL-547 derived selection facts (mirror the settlement board's): the
-  // bar counts every picked row; only UNGROUPED lots feed the merge action.
-  const selectedRows = items.filter((row) => selectedLotIds.has(row.shipmentId));
+  // ── SIL-547 derived selection facts; SIL-658: the bar counts the STORED
+  // picks — not the visible subset — so a lot the filter/search hid keeps its
+  // count and its tick. Only UNGROUPED lots feed the merge action.
+  const selectedRows = selectedLotRows;
   const mergeableRows = selectedRows.filter((row) => row.revGroupId == null);
   // GP-01 clause — «Tổng X tấn | Y CBM» from the lot rows' own measures; a
   // measure no picked lot carries drops from the clause entirely.
@@ -390,7 +401,8 @@ export default function ShipmentContainersPage() {
 
   const resetFilters = () => {
     setDateResetKey((key) => key + 1);
-    dropPicks();
+    // SIL-658: clearing the filters keeps the picks — the ticks return with
+    // the rows and the bar never lies about the count.
     appliedSearchRef.current = '';
     setSearchInput('');
     setSearchError(null);
@@ -427,7 +439,7 @@ export default function ShipmentContainersPage() {
   // without the flag the page would snap back to today the moment both ends are
   // empty.
   const writeDateRange = useCallback((range: DateRangeValue, settleScope: boolean) => {
-    dropPicks();
+    // SIL-658: a date-scope write keeps the picks.
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
       if (range.from) next.set('transportDateFrom', range.from); else next.delete('transportDateFrom');
@@ -500,7 +512,7 @@ export default function ShipmentContainersPage() {
                         // The toggle both exits and enters: either way the
                         // picks drop so a reopened mode never shows a stale bar.
                         if (mergeMode) exitMergeMode();
-                        else { setSelectedLotIds(new Set()); setMergeMode(true); }
+                        else { setSelectedLotRows([]); setMergeMode(true); }
                       }}
                     />
                   )}
