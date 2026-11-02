@@ -71,12 +71,10 @@ async function main() {
     await syncShipmentIdentityFromTripContainers(tx, ids);
   });
 
+  const lotIds = rows.map((r) => r.shipment_container_id);
   const after = await db.execute<{ id: number; container_number: string | null }>(sql`
-    SELECT id, container_number FROM shipment_containers WHERE id IN (
-      SELECT source_shipment_container_id FROM trip_containers WHERE id IN (
-        SELECT unnest(${sql.raw(ids.join(','))}::int[])
-      )
-    )
+    SELECT id, container_number FROM shipment_containers
+    WHERE id IN (${sql.raw(lotIds.join(','))})
   `);
   console.log('[backfill] after:');
   for (const r of after) console.log(`  sc=${r.id} container_number="${r.container_number ?? 'NULL'}"`);
