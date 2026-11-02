@@ -15,7 +15,7 @@ import { type NotificationPayload } from './notification.service';
 
 import { operationalName } from '../db/master-data-name';
 import { escapeLikeTerm } from '../lib/format';
-import { ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
+import { asc, ilike, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { NotificationType, Role, LCL_PICKUP_TRAILER_TYPE } from '@tingting/shared';
 
 import * as s from '../db/schema';
@@ -500,19 +500,44 @@ export async function loadPickupSites(tx: Tx, siteIds: number[]) {
 
 export async function loadDeclarationNumbers(tx: Tx, shipmentIds: number[]) {
   if (shipmentIds.length === 0) return new Map<number, string[]>();
+  const scopedIds = [...new Set(shipmentIds)];
   const rows = await tx.select({
     shipmentId: s.shipmentDeclarations.shipmentId,
     declarationNumber: s.shipmentDeclarations.declarationNumber,
   }).from(s.shipmentDeclarations)
-    .where(inArray(s.shipmentDeclarations.shipmentId, [...new Set(shipmentIds)]));
+    .where(inArray(s.shipmentDeclarations.shipmentId, scopedIds))
+    .orderBy(asc(s.shipmentDeclarations.id));
+  // SIL-657 (id 764): the lot's tờ khai list must resolve BOTH stores — the
+  // lot-level entity rows (shipment_declarations) AND the per-cont attribute
+  // (shipment_containers.declarationNumber, the SIL-521 store the CUS line
+  // command / dispatch cells write). The docs-only read hid a number the
+  // office saved per-cont, so the dispatch lot payload and the trip page
+  // kept reading "—" while the CUS ledger showed it. Merge law mirrors
+  // distinctDeclarationNumbers (cus-workspace-builders): entity rows first
+  // in id order, container values after in id order, DISTINCT
+  // case-insensitively, blank-only values skipped.
+  const containerRows = await tx.select({
+    shipmentId: s.shipmentContainers.shipmentId,
+    declarationNumber: s.shipmentContainers.declarationNumber,
+  }).from(s.shipmentContainers)
+    .where(inArray(s.shipmentContainers.shipmentId, scopedIds))
+    .orderBy(asc(s.shipmentContainers.id));
   const result = new Map<number, string[]>();
-  for (const row of rows) {
-    const value = row.declarationNumber?.trim();
-    if (!value) continue;
-    const bucket = result.get(row.shipmentId) ?? [];
+  const seen = new Map<number, Set<string>>();
+  const add = (shipmentId: number, raw: string | null | undefined) => {
+    const value = raw?.trim();
+    if (!value) return;
+    const key = value.toLowerCase();
+    const seenForLot = seen.get(shipmentId) ?? new Set<string>();
+    if (seenForLot.has(key)) return;
+    seenForLot.add(key);
+    seen.set(shipmentId, seenForLot);
+    const bucket = result.get(shipmentId) ?? [];
     bucket.push(value);
-    result.set(row.shipmentId, bucket);
-  }
+    result.set(shipmentId, bucket);
+  };
+  for (const row of rows) add(row.shipmentId, row.declarationNumber);
+  for (const row of containerRows) add(row.shipmentId, row.declarationNumber);
   return result;
 }
 
@@ -528,8 +553,12 @@ export async function loadDeclarationNumbers(tx: Tx, shipmentIds: number[]) {
 export function dispatchDetailDataStatusSql(status: 'COMPLETE' | 'MISSING'): SQL {
   const missing = sql`(
     (coalesce(btrim(${s.shipments.blNumber}), '') = '' and coalesce(btrim(${s.shipments.bookingRef}), '') = '')
-    or not exists (select 1 from ${s.shipmentDeclarations} sd
-      where sd.shipment_id = ${s.shipments.id} and coalesce(btrim(sd.declaration_number), '') <> '')
+    or (
+      not exists (select 1 from ${s.shipmentDeclarations} sd
+        where sd.shipment_id = ${s.shipments.id} and coalesce(btrim(sd.declaration_number), '') <> '')
+      and not exists (select 1 from ${s.shipmentContainers} sc
+        where sc.shipment_id = ${s.shipments.id} and coalesce(btrim(sc.declaration_number), '') <> '')
+    )
     or coalesce(btrim(${s.shipmentContainers.containerNumber}), '') = ''
   )`;
   return status === 'MISSING' ? missing : sql`not ${missing}`;

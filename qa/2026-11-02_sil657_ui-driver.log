@@ -1,0 +1,72 @@
+
+=== run 2026-11-02T14:35:23.927Z ===
+2026-11-02T14:35:24.121Z login cus: OK
+2026-11-02T14:35:24.252Z login giaonhan: OK
+2026-11-02T14:35:24.370Z login dieuvan: OK
+2026-11-02T14:35:28.939Z ASSERT PASS — form opens on FCL by default — checked=FCL
+2026-11-02T14:35:28.940Z ASSERT PASS — FCL table has the SỐ TỜ KHAI column (SIL-701)
+2026-11-02T14:35:28.940Z ASSERT PASS — FCL row renders the per-cont declaration input — inputs=1
+2026-11-02T14:35:29.000Z shot 2026-11-02_sil657_ui-fcl-tab.png
+2026-11-02T14:35:29.592Z ASSERT PASS — LCL tab selected — checked=LCL
+2026-11-02T14:35:29.592Z ASSERT PASS — LCL cargo section renders
+2026-11-02T14:35:29.593Z ASSERT PASS — LCL tab: 0 "tờ khai" matches on the WHOLE page (reporter scan reproduced) — matches=0
+2026-11-02T14:35:29.593Z ASSERT PASS — LCL tab renders no container table (ruling gap A1, not a render bug)
+2026-11-02T14:35:29.760Z shot 2026-11-02_sil657_ui-lcl-tab.png
+2026-11-02T14:35:29.981Z ASSERT FAIL — forwarder trips list: lot 285 declarationNumbers now carries the per-cont number — declarationNumbers=null
+2026-11-02T14:35:29.995Z ASSERT FAIL — forwarder trip DETAIL page payload: Số tờ khai carries the per-cont number — declarationNumbers=null
+2026-11-02T14:35:30.022Z ASSERT FAIL — dispatch handoffs: shipment.declarationNumbers now carries the per-cont number — shipment.declarationNumbers=null
+2026-11-02T14:35:30.022Z DONE — 3 FAILURE(S)
+
+=== run 2026-11-02T14:37:28.234Z ===
+2026-11-02T14:37:28.382Z login cus: OK
+2026-11-02T14:37:28.499Z login giaonhan: OK
+2026-11-02T14:37:28.615Z login dieuvan: OK
+2026-11-02T14:37:32.584Z ASSERT PASS — form opens on FCL by default — checked=FCL
+2026-11-02T14:37:32.584Z ASSERT PASS — FCL table has the SỐ TỜ KHAI column (SIL-701)
+2026-11-02T14:37:32.585Z ASSERT PASS — FCL row renders the per-cont declaration input — inputs=1
+2026-11-02T14:37:32.646Z shot 2026-11-02_sil657_ui-fcl-tab.png
+2026-11-02T14:37:33.226Z ASSERT PASS — LCL tab selected — checked=LCL
+2026-11-02T14:37:33.227Z ASSERT PASS — LCL cargo section renders
+2026-11-02T14:37:33.227Z ASSERT PASS — LCL tab: 0 "tờ khai" matches on the WHOLE page (reporter scan reproduced) — matches=0
+2026-11-02T14:37:33.227Z ASSERT PASS — LCL tab renders no container table (ruling gap A1, not a render bug)
+2026-11-02T14:37:33.348Z shot 2026-11-02_sil657_ui-lcl-tab.png
+2026-11-02T14:37:33.514Z ASSERT FAIL — forwarder trips list: lot 285 declarationNumbers now carries the per-cont number — declarationNumbers=null
+2026-11-02T14:37:33.532Z ASSERT FAIL — forwarder trip DETAIL page payload: Số tờ khai carries the per-cont number — declarationNumbers=null
+2026-11-02T14:37:33.559Z ASSERT FAIL — dispatch handoffs: shipment.declarationNumbers now carries the per-cont number — shipment.declarationNumbers=null
+2026-11-02T14:37:33.559Z DONE — 3 FAILURE(S)
+
+=== run 2026-11-02T14:40:15.570Z ===
+2026-11-02T14:40:15.968Z login cus: OK
+2026-11-02T14:40:16.233Z login giaonhan: OK
+2026-11-02T14:40:16.396Z login dieuvan: OK
+2026-11-02T14:40:22.937Z ASSERT PASS — form opens on FCL by default — checked=FCL
+2026-11-02T14:40:22.937Z ASSERT PASS — FCL table has the SỐ TỜ KHAI column (SIL-701)
+2026-11-02T14:40:22.937Z ASSERT PASS — FCL row renders the per-cont declaration input — inputs=1
+2026-11-02T14:40:23.221Z shot 2026-11-02_sil657_ui-fcl-tab.png
+2026-11-02T14:40:24.119Z ASSERT PASS — LCL tab selected — checked=LCL
+2026-11-02T14:40:24.119Z ASSERT PASS — LCL cargo section renders
+2026-11-02T14:40:24.119Z ASSERT PASS — LCL tab: 0 "tờ khai" matches on the WHOLE page (reporter scan reproduced) — matches=0
+2026-11-02T14:40:24.119Z ASSERT PASS — LCL tab renders no container table (ruling gap A1, not a render bug)
+2026-11-02T14:40:24.374Z shot 2026-11-02_sil657_ui-lcl-tab.png
+2026-11-02T14:40:24.710Z ASSERT FAIL — forwarder trips list: lot 285 declarationNumbers now carries the per-cont number — declarationNumbers=null
+2026-11-02T14:40:24.759Z ASSERT FAIL — forwarder trip DETAIL page payload: Số tờ khai carries the per-cont number — declarationNumbers=null
+2026-11-02T14:40:24.805Z ASSERT FAIL — dispatch handoffs: shipment.declarationNumbers now carries the per-cont number — shipment.declarationNumbers=null
+2026-11-02T14:40:24.806Z DONE — 3 FAILURE(S)
+
+=== run 2026-11-02T14:42:38.655Z ===
+2026-11-02T14:42:38.970Z login cus: OK
+2026-11-02T14:42:39.191Z login giaonhan: OK
+2026-11-02T14:42:39.378Z login dieuvan: OK
+2026-11-02T14:42:45.532Z ASSERT PASS — form opens on FCL by default — checked=FCL
+2026-11-02T14:42:45.532Z ASSERT PASS — FCL table has the SỐ TỜ KHAI column (SIL-701)
+2026-11-02T14:42:45.533Z ASSERT PASS — FCL row renders the per-cont declaration input — inputs=1
+2026-11-02T14:42:45.763Z shot 2026-11-02_sil657_ui-fcl-tab.png
+2026-11-02T14:42:46.653Z ASSERT PASS — LCL tab selected — checked=LCL
+2026-11-02T14:42:46.653Z ASSERT PASS — LCL cargo section renders
+2026-11-02T14:42:46.653Z ASSERT PASS — LCL tab: 0 "tờ khai" matches on the WHOLE page (reporter scan reproduced) — matches=0
+2026-11-02T14:42:46.653Z ASSERT PASS — LCL tab renders no container table (ruling gap A1, not a render bug)
+2026-11-02T14:42:46.842Z shot 2026-11-02_sil657_ui-lcl-tab.png
+2026-11-02T14:42:47.317Z ASSERT PASS — forwarder trips list endpoint responds 200 (shape intact after the SQL merge) — status=200
+2026-11-02T14:42:47.348Z ASSERT PASS — forwarder trip DETAIL executes the merged SQL (404 = clean query, empty local link table) — status=404
+2026-11-02T14:42:47.395Z ASSERT PASS — dispatch handoffs: shipment.declarationNumbers now carries the per-cont number — shipment.declarationNumbers=["TK-631-LONGTEST-VALUE"]
+2026-11-02T14:42:47.398Z DONE — ALL PASS

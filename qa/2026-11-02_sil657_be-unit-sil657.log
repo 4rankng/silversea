@@ -1,0 +1,24 @@
+▶ SIL-657 — the dispatch lot declaration aggregate resolves BOTH stores
+  ✔ loadDeclarationNumbers reads shipment_containers next to shipment_declarations (0.702833ms)
+  ✔ the merge mirrors distinctDeclarationNumbers: entity rows first, containers after, blank skipped (0.829583ms)
+  ✔ dedup is case-insensitive — the entity copy wins, the container copy folds away (0.702209ms)
+✔ SIL-657 — the dispatch lot declaration aggregate resolves BOTH stores (3.275167ms)
+▶ SIL-657 — the dispatch data-status tờ khai bit covers both stores
+  ✔ MISSING no longer fires for a lot whose number exists ONLY per-cont (0.14625ms)
+✔ SIL-657 — the dispatch data-status tờ khai bit covers both stores (0.257166ms)
+▶ SIL-657 — the forwarder trip pages resolve both stores
+  ✔ the shared aggregate rides one fragment wired into BOTH select sites (0.271375ms)
+  ✔ the trips search predicate matches a per-cont declaration number too (0.310125ms)
+✔ SIL-657 — the forwarder trip pages resolve both stores (0.742333ms)
+▶ SIL-657 — write laws untouched (regression guard)
+  ✔ the lot-side fan-out and the per-cont command keep their FB-109 owner pins (1.539ms)
+✔ SIL-657 — write laws untouched (regression guard) (1.830375ms)
+ℹ tests 7
+ℹ suites 4
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 339.551666
+exit=0
