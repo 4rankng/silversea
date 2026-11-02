@@ -486,15 +486,31 @@ export async function createTrip(data: {
     });
 
     if (data.containerTypeId != null) {
-      await tx.insert(s.tripContainers).values(
-        Array.from({ length: containerCount }, () => ({
-          tripId: trip.id,
-          containerTypeId: data.containerTypeId,
-          containerNumber: null,
-          sealNumber: null,
-          createdBy: data.createdBy ?? null,
-        })),
-      );
+      // SIL-655 (id 762) — no placeholder rows when the lot snapshot below
+      // will bring the real linked ones: the mixed placeholder + snapshot
+      // list left the driver editing unlinked rows the bridge could never
+      // sync. Placeholders remain only when there is no lot yet or the lot
+      // has no containers (they stay numberless; a later number write
+      // resolves through the link law).
+      let lotHasContainers = false;
+      if (data.shipmentId != null) {
+        const [existingLotContainer] = await tx.select({ id: s.shipmentContainers.id })
+          .from(s.shipmentContainers)
+          .where(eq(s.shipmentContainers.shipmentId, data.shipmentId))
+          .limit(1);
+        lotHasContainers = existingLotContainer != null;
+      }
+      if (!lotHasContainers) {
+        await tx.insert(s.tripContainers).values(
+          Array.from({ length: containerCount }, () => ({
+            tripId: trip.id,
+            containerTypeId: data.containerTypeId,
+            containerNumber: null,
+            sealNumber: null,
+            createdBy: data.createdBy ?? null,
+          })),
+        );
+      }
     }
 
     // Wave 0: if a shipmentId was provided, snapshot the shipment's real
@@ -561,6 +577,13 @@ export async function copyTrip(sourceTripId: number, createdBy: number, transact
     if (sourceContainers.length > 0) {
       await tx.insert(s.tripContainers).values(sourceContainers.map((container) => ({
         tripId: trip.id,
+        // SIL-655 (id 762) — keep the lot link across the copy: the copied
+        // trip stays shipment-linked (buildCopiedTripValues carries
+        // shipmentId), and a row without sourceShipmentContainerId is a
+        // silent bridge no-op once a number is entered on it.
+        sourceShipmentId: container.sourceShipmentId,
+        sourceShipmentContainerId: container.sourceShipmentContainerId,
+        sourceShipmentVersion: container.sourceShipmentVersion,
         containerTypeId: container.containerTypeId,
         cargoWeightKg: container.cargoWeightKg,
         notes: container.notes,

@@ -94,8 +94,11 @@ describe('SIL-653 direction A — lot-side number writes mirror onto the trip sn
 });
 
 describe('SIL-653 direction B — driver trip writes mirror onto the lot row', () => {
-  test('all three trip-side write paths call the reverse bridge', () => {
+  test('all four trip-side write paths call the reverse bridge', () => {
     assert.match(tripContainersService, /import \{ syncShipmentIdentityFromTripContainers \} from '\.\/shipment-containers\.service';/);
+    // Driver/forwarder add-container POST (SIL-655 id 762 — the create path
+    // used to skip the bridge entirely): after the primary seal is derived.
+    assert.match(sliceBetween(tripContainersService, 'export async function createTripContainerInClient', 'export async function createTripContainer('), /await syncShipmentIdentityFromTripContainers\(executor, \[inserted\.id\]\);/);
     // Driver "Số cont & seal" PATCH — identity fields or added seals.
     assert.match(
       sliceBetween(tripContainersService, 'export async function updateTripContainerInClient', 'export async function updateTripContainer('),
