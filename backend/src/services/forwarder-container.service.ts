@@ -6,6 +6,7 @@ import { ApiError } from '../errors';
 import { normalizeContainerNumber } from '@tingting/shared';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { syncShipmentIdentityFromTripContainers } from './shipment-containers.service';
+import { decideTripContainerNumberLink, type TripContainerLinkContext, type TripContainerLinkDecision } from './trip-container-link.service';
 
 export type { Executor } from '../db';
 
@@ -82,6 +83,61 @@ export async function derivePrimarySealNumber(
   return row?.sealNumber ?? null;
 }
 
+// ─── SIL-655 (id 762) — the link invariant at every trip-container write ────
+//
+// A numbered trip_container on a shipment-linked trip must resolve to one
+// shipment_containers row of that lot; an unlinked numbered row is a silent
+// bridge no-op ("lái xe nhập số cont nhưng CUS/ĐV vẫn chưa có"). Every write
+// path below resolves-or-throws BEFORE storing a number on an unlinked row;
+// already-linked rows keep the SIL-653 semantics (the bridge mirrors their
+// number onto their own lot row). Boundary: trips without a lot
+// (trips.shipment_id IS NULL) resolve to NO_SHIPMENT — invariant vacuous.
+
+export type TripContainerLinkFields = {
+  sourceShipmentId: number;
+  sourceShipmentContainerId: number;
+  sourceShipmentVersion: number | null;
+};
+
+async function loadTripContainerLinkContext(
+  executor: Executor,
+  tripId: number,
+): Promise<TripContainerLinkContext & { shipmentVersion: number | null }> {
+  const [trip] = await executor.select({ shipmentId: s.trips.shipmentId })
+    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  const tripShipmentId = trip?.shipmentId ?? null;
+  if (tripShipmentId == null) {
+    return { tripShipmentId: null, shipmentVersion: null, lotContainers: [], tripRows: [] };
+  }
+  const [shipment] = await executor.select({ version: s.shipments.version })
+    .from(s.shipments).where(eq(s.shipments.id, tripShipmentId)).limit(1);
+  const lotContainers = await executor.select({
+    id: s.shipmentContainers.id,
+    containerNumber: s.shipmentContainers.containerNumber,
+  }).from(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, tripShipmentId));
+  const tripRows = await executor.select({
+    id: s.tripContainers.id,
+    sourceShipmentContainerId: s.tripContainers.sourceShipmentContainerId,
+    containerNumber: s.tripContainers.containerNumber,
+  }).from(s.tripContainers).where(eq(s.tripContainers.tripId, tripId));
+  return {
+    tripShipmentId,
+    shipmentVersion: shipment?.version ?? null,
+    lotContainers,
+    tripRows,
+  };
+}
+
+function assertTripContainerLinkDecision(decision: TripContainerLinkDecision, containerNumber: string): void {
+  const shown = normalizeContainerNumber(containerNumber);
+  if (decision.kind === 'REJECT_UNDECLARED') {
+    throw new ApiError(409, `Số container "${shown}" chưa được khai trên lô hàng của chuyến.`);
+  }
+  if (decision.kind === 'REJECT_DUPLICATE_ON_TRIP') {
+    throw new ApiError(409, `Số container "${shown}" đã có trên chuyến này.`);
+  }
+}
+
 export async function createTripContainerInClient(executor: Executor, data: {
   tripId: number;
   containerTypeId?: number | null;
@@ -100,11 +156,39 @@ export async function createTripContainerInClient(executor: Executor, data: {
     await assertTripShipmentAccountingUnlocked(executor, data.tripId);
   }
   const initialSeals = data.seals ?? [];
+  // Canonical at the store (batch-parity): normalize-empty input ('-') clears
+  // to null so a NUMBERLESS decision always matches the stored state.
+  const containerNumber = data.containerNumber?.trim()
+    ? (normalizeContainerNumber(data.containerNumber) || null)
+    : null;
+
+  // SIL-655 — this POST used to store the number with no link and never call
+  // the bridge (the driver's "Nhập số cont" route lands here): resolve the
+  // number to the lot's container first — 409 when it is not declared on the
+  // lot or already used on this trip — so the bridge below can mirror it.
+  let link: TripContainerLinkFields | null = null;
+  if (containerNumber) {
+    // Serialize concurrent numbered creates against the batch PUT path (which
+    // already locks the trip): the duplicate law reads a snapshot.
+    await executor.select({ id: s.trips.id }).from(s.trips)
+      .where(eq(s.trips.id, data.tripId)).limit(1).for('update');
+    const ctx = await loadTripContainerLinkContext(executor, data.tripId);
+    const decision = decideTripContainerNumberLink(ctx, containerNumber, null);
+    assertTripContainerLinkDecision(decision, containerNumber);
+    if (decision.kind === 'LINK') {
+      link = {
+        sourceShipmentId: ctx.tripShipmentId as number,
+        sourceShipmentContainerId: decision.sourceShipmentContainerId,
+        sourceShipmentVersion: ctx.shipmentVersion,
+      };
+    }
+  }
 
   const [inserted] = await executor.insert(s.tripContainers).values({
     tripId: data.tripId,
+    ...(link ?? {}),
     containerTypeId: data.containerTypeId ?? null,
-    containerNumber: data.containerNumber?.trim() || null,
+    containerNumber,
     sealNumber: null,
     cargoWeightKg: data.cargoWeightKg != null ? String(data.cargoWeightKg) : null,
     notes: data.notes,
@@ -128,6 +212,11 @@ export async function createTripContainerInClient(executor: Executor, data: {
       .set({ sealNumber: primarySeal, updatedAt: new Date() })
       .where(eq(s.tripContainers.id, inserted.id));
   }
+  // SIL-655 — the add-container POST is a trip-side identity write like the
+  // PATCH/PUT paths, so the bridge runs here too: on a fresh LINK the number
+  // was just matched to the lot row (diff-guarded no-op) and the primary seal
+  // mirrors back; unlinked rows are skipped inside the bridge.
+  await syncShipmentIdentityFromTripContainers(executor, [inserted.id]);
   return { ...inserted, sealNumber: primarySeal };
 }
 
@@ -179,6 +268,7 @@ export async function updateTripContainerInClient(
   const [row] = await executor.select({
     id: s.tripContainers.id,
     tripId: s.tripContainers.tripId,
+    sourceShipmentContainerId: s.tripContainers.sourceShipmentContainerId,
     updatedAt: s.tripContainers.updatedAt,
   })
     .from(s.tripContainers)
@@ -194,9 +284,34 @@ export async function updateTripContainerInClient(
     throw new ApiError(409, 'Không thể sửa số cont của chuyến đã hoàn thành');
   }
 
-  const set: Record<string, unknown> = { updatedAt: new Date() };
+  // SIL-655 — a number written onto an UNLINKED row (placeholder copy, legacy
+  // row) must resolve to the lot's container or be refused — 409 when the
+  // number is not declared on the lot (incl. the LCL synthetic row, whose lot
+  // lawfully has no containers). Linked rows keep SIL-653 semantics: the
+  // bridge below mirrors their number onto THEIR lot row.
+  let link: TripContainerLinkFields | null = null;
+  if (row.sourceShipmentContainerId == null && patch.containerNumber != null && patch.containerNumber.trim()) {
+    const containerNumber = patch.containerNumber.trim();
+    const ctx = await loadTripContainerLinkContext(executor, row.tripId);
+    const decision = decideTripContainerNumberLink(ctx, containerNumber, containerId);
+    assertTripContainerLinkDecision(decision, containerNumber);
+    if (decision.kind === 'LINK') {
+      link = {
+        sourceShipmentId: ctx.tripShipmentId as number,
+        sourceShipmentContainerId: decision.sourceShipmentContainerId,
+        sourceShipmentVersion: ctx.shipmentVersion,
+      };
+    }
+  }
+
+  const set: Record<string, unknown> = { updatedAt: new Date(), ...(link ?? {}) };
   if (patch.containerTypeId !== undefined) set.containerTypeId = patch.containerTypeId ?? null;
-  if (patch.containerNumber !== undefined) set.containerNumber = patch.containerNumber?.trim() || null;
+  if (patch.containerNumber !== undefined) {
+    // Canonical at the store (batch-parity): normalize-empty clears to null.
+    set.containerNumber = patch.containerNumber?.trim()
+      ? (normalizeContainerNumber(patch.containerNumber) || null)
+      : null;
+  }
   if (patch.sealNumber !== undefined) set.sealNumber = patch.sealNumber ?? null;
   if (patch.cargoWeightKg !== undefined) {
     set.cargoWeightKg = patch.cargoWeightKg != null ? String(patch.cargoWeightKg) : null;
@@ -442,10 +557,14 @@ export async function batchUpsertTripContainers(
       throw new ApiError(409, 'Dữ liệu đã bị thay đổi bởi người khác. Vui lòng tải lại trang.');
     }
 
-    const existing = await tx.select({ id: s.tripContainers.id })
+    const existing = await tx.select({
+      id: s.tripContainers.id,
+      sourceShipmentContainerId: s.tripContainers.sourceShipmentContainerId,
+    })
       .from(s.tripContainers)
       .where(eq(s.tripContainers.tripId, tripId));
     const existingIds = new Set(existing.map(r => r.id));
+    const existingById = new Map(existing.map(r => [r.id, r]));
     if (containers.some(container => container.id != null && !existingIds.has(container.id))) {
       throw new ApiError(400, 'Container không thuộc chuyến đi này. Vui lòng tải lại danh sách.');
     }
@@ -464,6 +583,13 @@ export async function batchUpsertTripContainers(
       await tx.delete(s.tripContainers).where(inArray(s.tripContainers.id, toDelete));
     }
 
+    // SIL-655 — link invariant for the batch: loaded after the delete above
+    // so a row being replaced does not trip the duplicate law on its old
+    // number. `reservedLotContainerIds` covers twin rows inside this batch
+    // (they are not in tripRows until inserted).
+    const linkCtx = await loadTripContainerLinkContext(tx, tripId);
+    const reservedLotContainerIds = new Set<number>();
+
     const upsertedContainerIds: number[] = [];
     for (const c of containers) {
       const payload = {
@@ -472,17 +598,35 @@ export async function batchUpsertTripContainers(
         // lowercase input (validation normalizes before checking) and stores
         // the normalized form, mirroring the driver add path — a raw
         // 'temu 1234 586' would otherwise read as a distinct cost-allocation
-        // group from its canonical twin.
-        containerNumber: c.containerNumber ? normalizeContainerNumber(c.containerNumber) : null,
+        // group from its canonical twin. Normalize-empty input clears to null.
+        containerNumber: c.containerNumber ? (normalizeContainerNumber(c.containerNumber) || null) : null,
         sealNumber: null,
         cargoWeightKg: c.cargoWeightKg != null ? String(c.cargoWeightKg) : null,
         notes: c.notes ?? null,
         updatedAt: new Date(),
       };
+      // SIL-655 — a number on a NEW row, or on an existing UNLINKED row,
+      // resolves to the lot's container or 409s. Already-linked rows keep
+      // SIL-653 semantics (the bridge mirrors their number onto their lot row).
+      const isInsert = !(c.id != null && existingIds.has(c.id));
+      const number = payload.containerNumber as string | null;
+      let link: TripContainerLinkFields | null = null;
+      if (number && (isInsert || existingById.get(c.id as number)!.sourceShipmentContainerId == null)) {
+        const decision = decideTripContainerNumberLink(linkCtx, number, isInsert ? null : (c.id as number), reservedLotContainerIds);
+        assertTripContainerLinkDecision(decision, number);
+        if (decision.kind === 'LINK') {
+          reservedLotContainerIds.add(decision.sourceShipmentContainerId);
+          link = {
+            sourceShipmentId: linkCtx.tripShipmentId as number,
+            sourceShipmentContainerId: decision.sourceShipmentContainerId,
+            sourceShipmentVersion: linkCtx.shipmentVersion,
+          };
+        }
+      }
       let containerId: number;
       if (c.id && existingIds.has(c.id)) {
         await tx.update(s.tripContainers)
-          .set(payload)
+          .set({ ...payload, ...(link ?? {}) })
           .where(eq(s.tripContainers.id, c.id));
         containerId = c.id;
       } else {
@@ -490,6 +634,7 @@ export async function batchUpsertTripContainers(
           tripId,
           createdBy: userId,
           ...payload,
+          ...(link ?? {}),
         }).returning({ id: s.tripContainers.id });
         containerId = inserted.id;
       }
