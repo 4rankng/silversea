@@ -70,6 +70,12 @@ export interface ShipmentDocumentsDraft {
    *  the dev-lead ruling. Rides the container-line command on save, never the
    *  shipment PATCH. */
   declarationNumber: string | null;
+  /** SIL-659 (id 766): this container's số cont as typed in the documents
+   *  dialog — rides the SAME container-line command the THÔNG SỐ CONTAINER
+   *  cell uses (normalize + in-lot duplicate + the SIL-653 identity bridge),
+   *  never the shipment PATCH, so both entry points write one record. Omitted
+   *  on lot-level rows: a container-less LCL lot owns no number. */
+  containerNumber?: string | null;
 }
 
 /** Result of a documents save, reported to the hosting page so it can toast.
@@ -499,6 +505,10 @@ function InlineEditor({
         || tradeDirection !== (detail.summary.raw.tradeDirection ?? '')
         || shippingLineName.trim() !== (detail.summary.raw.shippingLineName ?? '')
         || declarationNumber.trim() !== (row.declarationNumber ?? '').trim()
+        // SIL-659: the Số cont field joins the dirty set on container rows —
+        // the same raw comparison the container mode performs (an emptied
+        // field IS a real change: it clears the number).
+        || (!row.isLotLevel && containerNumber.trim() !== (line.raw.containerNumber ?? ''))
     : mode === 'container'
       ? containerNumber.trim() !== (line.raw.containerNumber ?? '')
         || containerTypeId !== (line.raw.containerTypeId ? String(line.raw.containerTypeId) : '')
@@ -557,6 +567,11 @@ function InlineEditor({
           tradeDirection: tradeDirection === 'IMPORT' || tradeDirection === 'EXPORT' ? tradeDirection : null,
           shippingLineName: shippingLineName.trim() || null,
           declarationNumber: declarationNumber.trim() || null,
+          // SIL-659: the dialog's Số cont rides the SAME container-line
+          // command as the container cell — normalized the same way here
+          // (trim + uppercase; null when cleared). A lot-level row omits the
+          // field entirely: its documents save can never carry a number.
+          containerNumber: row.isLotLevel ? undefined : containerNumber.trim().toUpperCase() || null,
         });
       } else if (mode === 'container') {
         await onSaveContainer(line, {
@@ -744,6 +759,38 @@ function InlineEditor({
             ]}
           /></label>
           <label><span>Hãng tàu</span><input value={shippingLineName} onChange={(event) => setShippingLineName(event.target.value)} maxLength={255} disabled={saving || detail.summary.fieldAccess.shippingLineName.mode === 'READ_ONLY'} /></label>
+          {/* SIL-659 (id 766, DESIGN LOCK 02/11 — webchat consult, option C):
+              the dialog gains the container's own SỐ CONT — LAST, after Hãng
+              tàu, so the operator's FB-113 four-field order stays intact. It
+              edits the SAME record as the THÔNG SỐ CONTAINER cell: same
+              container-line command, same normalization, same SIL-653
+              identity bridge — never a divergent number. The gate is the
+              container cell's own fieldAccess (READ_ONLY keeps its reason on
+              the disabled field); a container-less LCL lot row renders no
+              field at all. */}
+          {!row.isLotLevel && (
+            <>
+              <label><span>Số cont</span><input value={containerNumber} onChange={(event) => setContainerNumber(event.target.value.toUpperCase())} maxLength={20} disabled={saving || line.fieldAccess.containerNumber.mode === 'READ_ONLY'} title={line.fieldAccess.containerNumber.mode === 'READ_ONLY' ? line.fieldAccess.containerNumber.reason : undefined} /></label>
+              {/* The SAME live ISO 6346 pre-check + one-tap correction the
+                  container cell shows (card 261022095235b) — a mistyped number
+                  must not dead-end at the server's 400. Informational only. */}
+              {containerNumberHint.warning && (
+                <div className="shipment-container-ledger__number-hint" role="note">
+                  <span>{containerNumberHint.warning}</span>
+                  {containerNumberHint.suggestion && (
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      onClick={() => setContainerNumber(containerNumberHint.suggestion!)}
+                    >
+                      Đổi thành {containerNumberHint.suggestion}
+                    </button>
+                  )}
+                </div>
+              )}
+              <small>Số cont lưu theo từng container — đồng bộ với ô THÔNG SỐ CONTAINER trên bảng.</small>
+            </>
+          )}
         </div>
       )}
       {mode === 'container' && (
