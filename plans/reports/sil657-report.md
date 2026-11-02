@@ -39,10 +39,12 @@ Form `/shipments/new`, tài khoản CUS `cus` (seed local, theo `testplan/testac
 
 ### Fix (đọc-merge, không ghi trùng)
 
-1. `dispatch-planning-utils.service.ts` — `loadDeclarationNumbers`: đọc thêm `shipment_containers.declarationNumber`, merge DISTINCT case-insensitive, docs trước (theo id) — đúng luật `distinctDeclarationNumbers` của `cus-workspace-builders.service.ts`. Một hàm →.feed cả dispatch-handoffs lẫn detail-plan.
+1. `dispatch-planning-utils.service.ts` — `loadDeclarationNumbers`: đọc thêm `shipment_containers.declarationNumber`, merge DISTINCT case-insensitive, **container trước, docs sau** (đúng luật `distinctDeclarationNumbers` của `cus-workspace-builders.service.ts` — per-cont là operational truth hiện ở CUS cell). Một hàm → feed cả dispatch-handoffs lẫn detail-plan.
 2. `dispatch-planning-utils.service.ts` — `dispatchDetailDataStatusSql`: bit tờ khai thành `not exists(docs) AND not exists(containers)` — đối xứng luật card 261013200312.
-3. `forwarder-trip-query.service.ts` — fragment dùng chung `lotDeclarationNumbersSql` (docs trước, container sau, dedup case-insensitive bằng `row_number() PARTITION BY lower(...)`, bỏ giá trị trắng) wired vào CẢ 2 site; mở rộng search predicate khớp thêm `sc.declaration_number`.
+3. `forwarder-trip-query.service.ts` — fragment dùng chung `lotDeclarationNumbersSql` (container trước, docs sau, dedup case-insensitive bằng `row_number() PARTITION BY lower(...)`, bỏ giá trị trắng) wired vào CẢ 2 site; mở rộng search predicate khớp thêm `sc.declaration_number`.
 4. Không thêm writer mới, không tạo bản ghi mồ côi (read-side only) — invariant SIL-655 giữ nguyên. Luật ghi FB-109 (fan-out chỉ-fill-trống, clear local) KHÔNG đụng — pin riêng trong test.
+
+**Independent review**: code-reviewer pass (Approve) — M1 (thứ tự merge ngược luật house) đã sửa theo review: container-first đồng bộ `distinctDeclarationNumbers` (commit review-fix); M2 (hằng số `CONTAINER_ORD_BASE` được đặt tên).
 
 ### Bằng chứng Part B (DB/API VERIFIED — dispatch surface chưa drive UI)
 

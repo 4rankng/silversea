@@ -70,3 +70,39 @@
 2026-11-02T14:42:47.348Z ASSERT PASS — forwarder trip DETAIL executes the merged SQL (404 = clean query, empty local link table) — status=404
 2026-11-02T14:42:47.395Z ASSERT PASS — dispatch handoffs: shipment.declarationNumbers now carries the per-cont number — shipment.declarationNumbers=["TK-631-LONGTEST-VALUE"]
 2026-11-02T14:42:47.398Z DONE — ALL PASS
+
+=== run 2026-11-02T15:05:44.594Z ===
+2026-11-02T15:05:44.808Z login cus: OK
+2026-11-02T15:05:44.930Z login giaonhan: OK
+2026-11-02T15:05:45.045Z login dieuvan: OK
+2026-11-02T15:05:48.765Z ASSERT PASS — form opens on FCL by default — checked=FCL
+2026-11-02T15:05:48.765Z ASSERT PASS — FCL table has the SỐ TỜ KHAI column (SIL-701)
+2026-11-02T15:05:48.765Z ASSERT PASS — FCL row renders the per-cont declaration input — inputs=1
+2026-11-02T15:05:48.903Z shot 2026-11-02_sil657_ui-fcl-tab.png
+2026-11-02T15:05:49.491Z ASSERT PASS — LCL tab selected — checked=LCL
+2026-11-02T15:05:49.492Z ASSERT PASS — LCL cargo section renders
+2026-11-02T15:05:49.492Z ASSERT PASS — LCL tab: 0 "tờ khai" matches on the WHOLE page (reporter scan reproduced) — matches=0
+2026-11-02T15:05:49.492Z ASSERT PASS — LCL tab renders no container table (ruling gap A1, not a render bug)
+2026-11-02T15:05:49.832Z shot 2026-11-02_sil657_ui-lcl-tab.png
+2026-11-02T15:05:50.046Z ASSERT PASS — forwarder trips list endpoint responds 200 (shape intact after the SQL merge) — status=200
+2026-11-02T15:05:50.070Z ASSERT PASS — forwarder trip DETAIL executes the merged SQL (404 = clean query, empty local link table) — status=404
+2026-11-02T15:05:50.093Z ASSERT PASS — dispatch handoffs: shipment.declarationNumbers now carries the per-cont number — shipment.declarationNumbers=["TK-631-LONGTEST-VALUE"]
+2026-11-02T15:05:50.093Z DONE — ALL PASS
+
+=== run 2026-11-02T15:10:49.064Z ===
+2026-11-02T15:10:49.401Z login cus: OK
+2026-11-02T15:10:49.584Z login giaonhan: OK
+2026-11-02T15:10:49.773Z login dieuvan: OK
+2026-11-02T15:10:56.558Z ASSERT PASS — form opens on FCL by default — checked=FCL
+2026-11-02T15:10:56.559Z ASSERT PASS — FCL table has the SỐ TỜ KHAI column (SIL-701)
+2026-11-02T15:10:56.559Z ASSERT PASS — FCL row renders the per-cont declaration input — inputs=1
+2026-11-02T15:10:56.718Z shot 2026-11-02_sil657_ui-fcl-tab.png
+2026-11-02T15:10:57.615Z ASSERT PASS — LCL tab selected — checked=LCL
+2026-11-02T15:10:57.615Z ASSERT PASS — LCL cargo section renders
+2026-11-02T15:10:57.616Z ASSERT PASS — LCL tab: 0 "tờ khai" matches on the WHOLE page (reporter scan reproduced) — matches=0
+2026-11-02T15:10:57.616Z ASSERT PASS — LCL tab renders no container table (ruling gap A1, not a render bug)
+2026-11-02T15:10:57.763Z shot 2026-11-02_sil657_ui-lcl-tab.png
+2026-11-02T15:10:58.099Z ASSERT PASS — forwarder trips list endpoint responds 200 (shape intact after the SQL merge) — status=200
+2026-11-02T15:10:58.150Z ASSERT PASS — forwarder trip DETAIL executes the merged SQL (404 = clean query, empty local link table) — status=404
+2026-11-02T15:10:58.211Z ASSERT PASS — dispatch handoffs: shipment.declarationNumbers now carries the per-cont number — shipment.declarationNumbers=["TK-631-LONGTEST-VALUE"]
+2026-11-02T15:10:58.212Z DONE — ALL PASS

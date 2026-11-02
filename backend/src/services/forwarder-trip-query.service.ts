@@ -15,32 +15,35 @@ const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name
 
 /**
  * SIL-657 (id 764): the lot's tờ khai list resolves BOTH stores — the
- * lot-level entity rows (shipment_declarations, id order) first, then the
  * per-cont attribute (shipment_containers.declarationNumber, the SIL-521
- * store the CUS line command and dispatch cells write after Phát lệnh).
- * The docs-only string_agg hid a number the office saved per-cont, so the
- * trip pages read "—" while the CUS ledger showed it. Merge law mirrors
- * distinctDeclarationNumbers (cus-workspace-builders): DISTINCT
- * case-insensitively (the entity copy keeps its casing, the container copy
- * dedupes away), blank-only values skipped.
+ * store the CUS line command and dispatch cells write after Phát lệnh)
+ * first in container-id order, then the lot-level entity rows
+ * (shipment_declarations) in id order. The docs-only string_agg hid a
+ * number the office saved per-cont, so the trip pages read "—" while the
+ * CUS ledger showed it. Merge law mirrors distinctDeclarationNumbers
+ * (cus-workspace-builders): DISTINCT case-insensitively (the first copy —
+ * the container value — keeps its casing, the entity copy dedupes away),
+ * blank-only values skipped. CONTAINER_ORD_BASE offsets the entity ord
+ * range so per-cont values always sort first.
  */
+const CONTAINER_ORD_BASE = 1_000_000;
 const lotDeclarationNumbersSql = (shipmentIdExpr: SQL): SQL<string | null> => sql<string | null>`(
   SELECT string_agg(kept.declaration_number, ', ' ORDER BY kept.ord)
   FROM (
     SELECT raw.declaration_number, raw.ord,
            row_number() OVER (PARTITION BY lower(raw.declaration_number) ORDER BY raw.ord) AS rn
     FROM (
-      SELECT btrim(sd.declaration_number) AS declaration_number,
-             row_number() OVER (ORDER BY sd.id) AS ord
-      FROM shipment_declarations sd
-      WHERE sd.shipment_id = ${shipmentIdExpr}
-        AND sd.declaration_number IS NOT NULL
-      UNION ALL
-      SELECT btrim(sc.declaration_number),
-             1000000 + row_number() OVER (ORDER BY sc.id)
+      SELECT btrim(sc.declaration_number) AS declaration_number,
+             row_number() OVER (ORDER BY sc.id) AS ord
       FROM shipment_containers sc
       WHERE sc.shipment_id = ${shipmentIdExpr}
         AND sc.declaration_number IS NOT NULL
+      UNION ALL
+      SELECT btrim(sd.declaration_number),
+             ${sql.raw(String(CONTAINER_ORD_BASE))} + row_number() OVER (ORDER BY sd.id)
+      FROM shipment_declarations sd
+      WHERE sd.shipment_id = ${shipmentIdExpr}
+        AND sd.declaration_number IS NOT NULL
     ) raw
     WHERE raw.declaration_number <> ''
   ) kept
