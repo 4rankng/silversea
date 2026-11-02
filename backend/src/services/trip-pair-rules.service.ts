@@ -244,6 +244,17 @@ export function selectAutoPairPartnerCandidate(
 export const CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE =
   'Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe';
 
+/**
+ * SIL-638 TC2 (QA 01/11) — the reverse direction's confirmable tier copy: a
+ * KẸP leg issuing onto a ĐƠN holder rides the FB-012 warn-once contract
+ * (RIG_OVERLAP_COMPLETED code, confirm proceeds) but must carry the DOC's
+ * wording, not the generic "đã được gán cho lô/tác vụ khác" toast — the
+ * message still names the fix (declare both KẸP) while "Vẫn lưu?" offers the
+ * deliberate-share confirm.
+ */
+export const MIXED_DECLARATION_KEP_WARN_MESSAGE =
+  `${CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE} Vẫn lưu?`;
+
 export function classificationMismatchShareBlockMessage(
   issuingClassification: string | null | undefined,
   holderClassification: string | null | undefined,

@@ -5,13 +5,16 @@ import { ApiError } from '../errors';
 import {
   CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE,
   classificationMismatchShareBlockMessage,
+  containerFootClass,
   declaredKepShareMode,
   isDeclaredKepSharePartner,
   isMixedDeclarationKepCandidate,
   kepPairWeightVerdict,
   kepWeightGuardOutcome,
+  KEP_CONTAINER_SIZE_BLOCK_MESSAGE,
   KEP_WEIGHT_WARNING_CODE,
   KEP_WEIGHT_WARNING_MESSAGE,
+  MIXED_DECLARATION_KEP_WARN_MESSAGE,
 } from './trip-pair-rules.service';
 import type { Tx } from './dispatch-planning-utils.service';
 
@@ -76,6 +79,33 @@ export function sameCostGroupSiblings<T extends { id: number; costGroupId: strin
 ): T[] {
   if (ownCostGroupId == null) return [];
   return rows.filter((row) => row.costGroupId != null && row.costGroupId === ownCostGroupId);
+}
+
+/**
+ * SIL-638 (id 742) TC6(1) — the 40ft-Kẹp hard block at ASSIGN/ISSUE time.
+ * The 31/10 patch only fired `kepContainerSizeBlockMessage` inside the pairing
+ * core (createTripPairCoreInTx), so a DOUBLE leg whose container is a declared
+ * 40ft box saved on the dispatch lane with no pair row ever created (QA
+ * 01/11: lot 00048 saved). The DOC law is per-leg at assignment: a Kẹp
+ * (DOUBLE) order's declared container must be a 20' shell. A container whose
+ * size is not yet declared (no type link) keeps the "bổ sung sau" convention
+ * and skips. Every dispatch-write path that stamps the classification/plate
+ * calls this before its rig guards.
+ */
+export async function assertKepIssuingContainerClass(tx: Tx, args: {
+  shipmentContainerId: number | null;
+  classification: string | null | undefined;
+}): Promise<void> {
+  if (args.classification !== 'DOUBLE' || args.shipmentContainerId == null) return;
+  const [container] = await tx.select({ code: s.containerTypes.code })
+    .from(s.shipmentContainers)
+    .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+    .where(eq(s.shipmentContainers.id, args.shipmentContainerId))
+    .limit(1);
+  const foot = containerFootClass(container?.code ?? null);
+  if (foot != null && foot !== '20') {
+    throw new ApiError(409, KEP_CONTAINER_SIZE_BLOCK_MESSAGE);
+  }
 }
 
 /** A Kẹp release may overlap its one compatible partner, never a third load. */
@@ -149,6 +179,10 @@ export async function assertResourceAvailability(tx: Tx, args: {
     shipmentId: s.shipmentFulfillments.shipmentId,
     costGroupId: s.shipments.costGroupId,
     classification: s.shipmentFulfillments.dispatchClassification,
+    // TC6(2) — the partner's lot-level weight estimate: the trip-container
+    // weight is copied from shipmentContainers at issue, so when the
+    // container row carries none the lot declaration is the fallback.
+    partnerShipmentWeight: s.shipments.cargoWeightKg,
     activePairId: s.trips.activeTripPairId,
     pairStatus: s.tripPairs.status,
     pairKind: s.tripPairs.pairKind,
@@ -169,6 +203,12 @@ export async function assertResourceAvailability(tx: Tx, args: {
     ));
 
   let blocking = conflicts;
+  // TC6(2) — whether a proven 20' co-rider already ran the weight guard (the
+  // overlap carves below). When none did and the windows simply don't overlap,
+  // the co-rider gate further down still runs: the clamp carries both boxes
+  // simultaneously, so the capacity law follows the declared same-rig pair,
+  // not the window overlap.
+  let kepWeightGateRan = false;
   const partner = conflicts.length === 1 ? conflicts[0] : undefined;
   // dis-03 (card 211026131857): set by the mixed-declaration candidate block
   // below — the confirmable warn tier for a deliberate kẹp share.
@@ -198,13 +238,21 @@ export async function assertResourceAvailability(tx: Tx, args: {
       if (containers.length === 1 && containers[0].code?.startsWith('20')) {
         // SIL-638 (id 742) TC6(2): DOC soft warning — refuse once with the
         // DOC verbatim text; the dispatcher's confirmed retry
-        // (kepWeightWarningConfirmed) proceeds to save.
+        // (kepWeightWarningConfirmed) proceeds to save. The partner's weight
+        // falls back to its lot declaration when the trip container row
+        // carries none (QA 01/11: both legs read null and the gate went
+        // silently unprovable).
         if (kepWeightGuardOutcome(
-          kepPairWeightVerdict(args.cargoWeightKg, containers[0].weight, args.vehicleCapacityKg),
+          kepPairWeightVerdict(
+            args.cargoWeightKg,
+            containers[0].weight ?? partner.partnerShipmentWeight,
+            args.vehicleCapacityKg,
+          ),
           args.kepWeightWarningConfirmed === true,
         ) === 'refuse') {
           throw new ApiError(409, KEP_WEIGHT_WARNING_MESSAGE, undefined, { code: KEP_WEIGHT_WARNING_CODE });
         }
+        kepWeightGateRan = true;
         blocking = [];
       }
     } else {
@@ -227,11 +275,16 @@ export async function assertResourceAvailability(tx: Tx, args: {
       .where(eq(s.tripContainers.tripId, partner.id));
     if (containers.length === 1 && containers[0].code?.startsWith('20')) {
       if (kepWeightGuardOutcome(
-        kepPairWeightVerdict(args.cargoWeightKg, containers[0].weight, args.vehicleCapacityKg),
+        kepPairWeightVerdict(
+          args.cargoWeightKg,
+          containers[0].weight ?? partner.partnerShipmentWeight,
+          args.vehicleCapacityKg,
+        ),
         args.kepWeightWarningConfirmed === true,
       ) === 'refuse') {
         throw new ApiError(409, KEP_WEIGHT_WARNING_MESSAGE, undefined, { code: KEP_WEIGHT_WARNING_CODE });
       }
+      kepWeightGateRan = true;
       blocking = [];
       kepCandidateWarn = true;
     }
@@ -270,11 +323,16 @@ export async function assertResourceAvailability(tx: Tx, args: {
           .where(eq(s.tripContainers.tripId, partner.id));
         if (!(containers.length === 1 && containers[0].code?.startsWith('20'))) continue;
         if (kepWeightGuardOutcome(
-          kepPairWeightVerdict(args.cargoWeightKg, containers[0].weight, args.vehicleCapacityKg),
+          kepPairWeightVerdict(
+            args.cargoWeightKg,
+            containers[0].weight ?? partner.partnerShipmentWeight,
+            args.vehicleCapacityKg,
+          ),
           args.kepWeightWarningConfirmed === true,
         ) === 'refuse') {
           throw new ApiError(409, KEP_WEIGHT_WARNING_MESSAGE, undefined, { code: KEP_WEIGHT_WARNING_CODE });
         }
+        kepWeightGateRan = true;
         carvedPartnerIds.add(partner.id);
       }
       if (carvedPartnerIds.size > 0) {
@@ -305,6 +363,66 @@ export async function assertResourceAvailability(tx: Tx, args: {
   if (groupSiblingRows.length > 0) {
     const groupSiblingIds = new Set(groupSiblingRows.map((row) => row.id));
     blocking = blocking.filter((row) => !groupSiblingIds.has(row.id));
+  }
+  // SIL-638 (id 742) TC6(2) — the co-rider weight gate without window overlap.
+  // The overlap carves above run the weight guard only when the two legs'
+  // windows conflict, so QA's 28/12 pair (2×20' at 60,000 kg) saved with the
+  // gate never evaluating. A declared clamp pair on ONE rig carries both boxes
+  // simultaneously, so the capacity law follows the same-rig same-day declared
+  // pair — the same law the auto-pair scan pairs by — not the window overlap.
+  // Runs only when the overlap scans found no blocking row (an overlapping
+  // partner already ran the guard in the carves; a foreign overlap answers the
+  // "trùng lịch" tier below). Confirmed retry (kepWeightWarningConfirmed)
+  // proceeds; a third load or an already-paired partner stays outside.
+  if (declaredMode === 'KEP' && !kepWeightGateRan && blocking.length === 0 && args.truckId != null) {
+    const incomingDay = localDateInBusinessZone(args.plannedStartAt);
+    const coRiderRows = await tx.select({
+      id: s.trips.id,
+      classification: s.shipmentFulfillments.dispatchClassification,
+      truckId: s.trips.truckId,
+      trailerId: s.trips.trailerId,
+      driverId: s.trips.driverId,
+      plannedStartAt: s.trips.plannedStartAt,
+      shipmentId: s.shipmentFulfillments.shipmentId,
+      partnerShipmentWeight: s.shipments.cargoWeightKg,
+      activePairId: s.trips.activeTripPairId,
+      pairFirstTripId: s.tripPairs.firstTripId,
+      pairSecondTripId: s.tripPairs.secondTripId,
+    }).from(s.trips)
+      .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+      .leftJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+      .leftJoin(s.tripPairs, eq(s.tripPairs.id, s.trips.activeTripPairId))
+      .where(and(
+        eq(s.trips.truckId, args.truckId),
+        isNull(s.trips.deletedAt),
+        inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
+        args.tripId != null ? ne(s.trips.id, args.tripId) : undefined,
+        isNotNull(s.trips.plannedStartAt),
+      ));
+    const coRiders = coRiderRows
+      .filter((row) => row.plannedStartAt != null
+        && localDateInBusinessZone(row.plannedStartAt) === incomingDay)
+      .filter((row) => isDeclaredKepSharePartner(shareRequest, row, 'KEP')
+        || isMixedDeclarationKepCandidate(shareRequest, row))
+      .sort((a, b) => a.id - b.id);
+    for (const coRider of coRiders) {
+      const containers = await tx.select({ code: s.containerTypes.code, weight: s.tripContainers.cargoWeightKg })
+        .from(s.tripContainers)
+        .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
+        .where(eq(s.tripContainers.tripId, coRider.id));
+      if (!(containers.length === 1 && containers[0].code?.startsWith('20'))) continue;
+      if (kepWeightGuardOutcome(
+        kepPairWeightVerdict(
+          args.cargoWeightKg,
+          containers[0].weight ?? coRider.partnerShipmentWeight,
+          args.vehicleCapacityKg,
+        ),
+        args.kepWeightWarningConfirmed === true,
+      ) === 'refuse') {
+        throw new ApiError(409, KEP_WEIGHT_WARNING_MESSAGE, undefined, { code: KEP_WEIGHT_WARNING_CODE });
+      }
+      break;
+    }
   }
   if (blocking.some((row) => args.truckId != null && row.truckId === args.truckId)) {
     // SIL-638 (id 742) TC2 đợt 2 (QA 01/11) — the classification-mismatch
@@ -341,9 +459,12 @@ export async function assertResourceAvailability(tx: Tx, args: {
   // above — warn once with the family's confirm contract; the confirmed retry
   // proceeds and the dispatcher can pair/reclassify the legs afterwards.
   if (kepCandidateWarn && args.rigOverlapCompletedConfirmed !== true) {
+    // SIL-638 TC2 — the reverse direction keeps its confirmable tier but
+    // carries the DOC's wording (MIXED_DECLARATION_KEP_WARN_MESSAGE), not the
+    // generic "đã được gán cho lô/tác vụ khác" copy.
     throw new ApiError(
       409,
-      'Xe đầu kéo đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?',
+      MIXED_DECLARATION_KEP_WARN_MESSAGE,
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' },
     );

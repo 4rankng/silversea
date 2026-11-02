@@ -61,7 +61,43 @@ export interface RigHolderFacts {
   blNumber: string | null;
   bookingRef: string | null;
   slotAt: Date | null;
+  /** SIL-638 TC2 (QA 01/11) — the holder fulfillment's Phân loại: the
+   *  classification-mismatch refusal must also answer when the Kẹp/Kết hợp
+   *  holder is still a PLAN ROW (not yet issued), not only when its trip
+   *  exists. Optional so every existing row consumer keeps compiling. */
+  classification?: string | null;
 }
+
+/**
+ * SIL-638 TC1 (QA 01/11) — the stale/hidden assignment set (SHP-2610-…):
+ * assignments invisible in the plan grid yet still blocking new ones. The
+ * plan-row READ (dispatch-planning-detail-plan-read.service) only shows
+ * fulfillments of non-deleted shipments in an operational status; the holder
+ * scans had no such filter, so a fulfillment carrying a plate on a
+ * draft/pending/canceled or deleted lot kept claiming the rig from the
+ * shadows. Mirrors the read's visibility law verbatim.
+ */
+export const OPERATIONAL_HOLDER_SHIPMENT_STATUSES = [
+  'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED',
+] as const;
+
+/**
+ * SIL-638 TC1 (QA 01/11) — the holder's ACTUAL assigned window start. A holder
+ * fulfillment with a dispatched (live) trip claims the window the dispatcher
+ * entered in the assignment dialog — the trip's staged plannedStartAt — never
+ * the lot's scheduled slot (the gate used to key on customerAppointmentAt /
+ * closingAt / expectedDeliveryDate and refused a ca chiều 14:00 order against
+ * a ca sáng 08:00–12:00 issued leg 6 hours apart). Latest live trip wins
+ * (reissues cancel the old row); a holder without a trip keeps the lot-slot
+ * law below.
+ */
+/** The holder's live-trip start subquery — module-level because it binds only
+ *  table objects, never a tx. */
+const holderTripStartSql = sql`(select ht.planned_start_at from ${s.trips} ht
+    where ht.fulfillment_id = ${s.shipmentFulfillments.id}
+      and ht.deleted_at is null
+      and ht.status in ('CREATED', 'IN_TRANSIT')
+    order by ht.id desc limit 1)`;
 
 const viInstant = new Intl.DateTimeFormat('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
@@ -187,16 +223,30 @@ export async function scanPlanRowHolders(
   windowEnd: Date,
   excludeFulfillmentId: number,
 ) {
+  const holderTripStart = holderTripStartSql;
   const holderSlotSql = sql`coalesce(${s.shipmentContainers.customerAppointmentAt}, ${s.shipments.closingAt}, ${s.shipments.plannedReturnAt})`;
   const holderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
-  const holderStartSql = sql`coalesce(${holderSlotSql}, ${holderDaySql})`;
-  const holderEndSql = sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, case when ${holderSlotSql} is null then ${holderDaySql} + interval '1 day' else ${holderSlotSql} + interval '8 hours' end)`;
+  const holderStartSql = sql`coalesce(${holderTripStart}, ${holderSlotSql}, ${holderDaySql})`;
+  // The dispatched trip's own window wins over the lot-slot law: the trip's
+  // staged end, else one 8-hour shift from its start; a holder without a trip
+  // keeps the legacy fulfillment/lot coalesce.
+  const holderEndSql = sql`coalesce(
+    (select ht.planned_end_at from ${s.trips} ht
+      where ht.fulfillment_id = ${s.shipmentFulfillments.id}
+        and ht.deleted_at is null
+        and ht.status in ('CREATED', 'IN_TRANSIT')
+      order by ht.id desc limit 1),
+    ${holderTripStart} + interval '8 hours',
+    ${s.shipmentFulfillments.plannedEndAt},
+    case when ${holderSlotSql} is null then ${holderDaySql} + interval '1 day' else ${holderSlotSql} + interval '8 hours' end)`;
   return tx.select({
     id: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
     // Card 191026100010 (B.4) — the cost-group sibling split's raw material.
     costGroupId: s.shipments.costGroupId,
-    fallbackSlot: isNull(s.shipmentContainers.customerAppointmentAt),
+    fallbackSlot: sql`(${holderTripStart} is null and ${s.shipmentContainers.customerAppointmentAt} is null)`,
+    // SIL-638 TC2 — the holder's Phân loại rides the row (see RigHolderFacts).
+    classification: s.shipmentFulfillments.dispatchClassification,
     // Card B 18/10 (B.4): the guard's message must NAME the conflicting lot
     // and window, and same-COST-GROUP siblings must never read as cross-lot
     // claims — the group's shared truck is the arrangement itself.
@@ -221,6 +271,11 @@ export async function scanPlanRowHolders(
       ne(s.shipmentFulfillments.id, excludeFulfillmentId),
       ne(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
       isNull(s.shipmentFulfillments.canceledAt),
+      // SIL-638 TC1 — stop counting the hidden assignment set: a holder on a
+      // deleted or non-operational lot is invisible in the plan grid yet used
+      // to block new assignments (mirrors the plan-row read's filters).
+      isNull(s.shipments.deletedAt),
+      inArray(s.shipments.status, [...OPERATIONAL_HOLDER_SHIPMENT_STATUSES]),
       eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
       sql`${holderStartSql} is not null`,
       sql`${holderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
@@ -242,16 +297,28 @@ export async function scanLclPlanRowHolders(
   windowEnd: Date,
   excludeFulfillmentId: number,
 ) {
+  const lclHolderTripStart = holderTripStartSql;
   const lclHolderSlotSql = sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt})`;
   const lclHolderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
-  const lclHolderStartSql = sql`coalesce(${lclHolderSlotSql}, ${lclHolderDaySql})`;
-  const lclHolderEndSql = sql`coalesce(${s.shipmentFulfillments.plannedEndAt}, case when ${lclHolderSlotSql} is null then ${lclHolderDaySql} + interval '1 day' else ${lclHolderSlotSql} + interval '8 hours' end)`;
+  const lclHolderStartSql = sql`coalesce(${lclHolderTripStart}, ${lclHolderSlotSql}, ${lclHolderDaySql})`;
+  // Same trip-window law as the FCL branch (SIL-638 TC1).
+  const lclHolderEndSql = sql`coalesce(
+    (select ht.planned_end_at from ${s.trips} ht
+      where ht.fulfillment_id = ${s.shipmentFulfillments.id}
+        and ht.deleted_at is null
+        and ht.status in ('CREATED', 'IN_TRANSIT')
+      order by ht.id desc limit 1),
+    ${lclHolderTripStart} + interval '8 hours',
+    ${s.shipmentFulfillments.plannedEndAt},
+    case when ${lclHolderSlotSql} is null then ${lclHolderDaySql} + interval '1 day' else ${lclHolderSlotSql} + interval '8 hours' end)`;
   return tx.select({
     id: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
     // Card 191026100010 (B.4) — the cost-group sibling split's raw material.
     costGroupId: s.shipments.costGroupId,
-    fallbackSlot: sql`(${lclHolderSlotSql}) is null`,
+    fallbackSlot: sql`(${lclHolderTripStart} is null and (${lclHolderSlotSql}) is null)`,
+    // SIL-638 TC2 — the holder's Phân loại rides the row (see RigHolderFacts).
+    classification: s.shipmentFulfillments.dispatchClassification,
     // Card B 18/10 (B.4) — same identity/window facts as the FCL branch.
     shipmentCode: s.shipments.shipmentCode,
     blNumber: s.shipments.blNumber,
@@ -263,6 +330,9 @@ export async function scanLclPlanRowHolders(
     .where(and(
       ne(s.shipmentFulfillments.id, excludeFulfillmentId),
       isNull(s.shipmentFulfillments.canceledAt),
+      // SIL-638 TC1 — same visibility law as the FCL branch.
+      isNull(s.shipments.deletedAt),
+      inArray(s.shipments.status, [...OPERATIONAL_HOLDER_SHIPMENT_STATUSES]),
       eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
       eq(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
       sql`${lclHolderStartSql} is not null`,
