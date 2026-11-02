@@ -105,7 +105,7 @@ export function ShipmentCreateIdentitySection({
             type="button"
             onClick={onOpenCustomerDialog}
             disabled={saving}
-            className="csc-append-button"
+            className="csc-append-button csc-identity-grid__action-slot"
             aria-label="Thêm khách hàng"
             title="Thêm khách hàng"
           >
@@ -113,7 +113,13 @@ export function ShipmentCreateIdentitySection({
           </button>
         </div>
 
-        <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction">
+        {/* SIL-641 (id 745) CTO ruling 02/11: every identity cell runs the ONE
+            "control + gap 8 + action slot 36" pattern. This cell has no quick
+            add affordance, so it carries a hidden placeholder slot that holds
+            the same 44px the real button occupies — without it this control
+            would be 595px while its button-bearing peers are 551px and the
+            section reads "one long one short" again. */}
+        <div className="csc-identity-grid__trade-direction csc-field-with-append" data-field-id="shipment-trade-direction">
           <SelectField
             id="shipment-trade-direction"
             label="Hình thức xuất nhập khẩu"
@@ -128,6 +134,10 @@ export function ShipmentCreateIdentitySection({
               { value: 'EXPORT', label: 'Xuất khẩu' },
             ]}
           />
+          <span
+            className="csc-identity-grid__action-slot csc-identity-grid__action-slot--placeholder"
+            aria-hidden="true"
+          />
         </div>
       </div>
 
@@ -137,7 +147,9 @@ export function ShipmentCreateIdentitySection({
           a not-yet-directed lot shows the hint directly under the picker
           that sets it. SIL-499: `--refs` = wide-band grid hook (column 1). */}
       <div className="csc-identity-grid csc-identity-grid--refs">
-        <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref">
+        {/* SIL-641 (id 745): same action slot as every other identity cell —
+            see the note on the trade-direction cell above. */}
+        <div className="csc-identity-grid__booking csc-field-with-append" data-field-id="shipment-booking-ref">
           <TextField
             id="shipment-booking-ref"
             label="Số Bill/Booking"
@@ -162,6 +174,10 @@ export function ShipmentCreateIdentitySection({
                 />
               ) : undefined
             }
+          />
+          <span
+            className="csc-identity-grid__action-slot csc-identity-grid__action-slot--placeholder"
+            aria-hidden="true"
           />
         </div>
 
@@ -198,7 +214,7 @@ export function ShipmentCreateIdentitySection({
               type="button"
               onClick={onOpenShippingLineDialog}
               disabled={saving}
-              className="csc-append-button"
+              className="csc-append-button csc-identity-grid__action-slot"
               aria-label="Đặt tên hãng tàu cho lô này"
               title="Đặt tên hãng tàu cho lô này"
             >
