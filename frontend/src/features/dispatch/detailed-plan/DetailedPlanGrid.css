@@ -908,7 +908,7 @@ button.detailed-plan-grid__classification:focus-visible {
   font-family: inherit;
   font-size: var(--ops-table-supporting-size, 11px);
   color: var(--fg-1);
-  background: var(--surface-1);
+  background: var(--surface);
   border: 1px solid var(--border-subtle, #d0d5dd);
   border-radius: 4px;
   height: 26px;
