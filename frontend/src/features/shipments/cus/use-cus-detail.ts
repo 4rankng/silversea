@@ -285,7 +285,16 @@ export function useCusDetail(params: CusDetailListParams) {
       ? (raw.declarationNumber ?? '').trim()
       : (activeEdit.line.declarationNumber ?? '').trim();
     const numberChanged = (draft.declarationNumber ?? '').trim() !== declarationBaseline;
-    if (!shipmentChanged && !numberChanged) return;
+    // SIL-659 (id 766): the documents dialog's Số cont — same authority the
+    // container cell answers to. The draft carries the field only on real
+    // container rows (the editor omits it on lot-level rows), and an
+    // absent/unchanged value must never issue a write (echo law, same as the
+    // number). The comparison mirrors the ledger's dirty check: trim both
+    // sides against the persisted raw value; a cleared field writes null.
+    const containerChanged = !isLotRow
+      && draft.containerNumber !== undefined
+      && (draft.containerNumber ?? '').trim() !== (activeEdit.line.raw.containerNumber ?? '').trim();
+    if (!shipmentChanged && !numberChanged && !containerChanged) return;
     // Card 171026122100 (FB-109) auto-copy law (narrowing 171026180010): the
     // container-line command itself copies a non-empty tờ khai update onto
     // the lot's STILL-EMPTY containers in the same transaction and reports
@@ -295,7 +304,10 @@ export function useCusDetail(params: CusDetailListParams) {
     let syncOutcome: ShipmentDocumentsSaveOutcome | undefined;
     const signature = JSON.stringify(['documents', row.shipmentId, activeEdit.line.id, activeEdit.detail.summary.version, draft]);
     const key = editIdempotencyKeys.current[signature] ?? crypto.randomUUID();
-    if (numberChanged) editIdempotencyKeys.current[signature] = key;
+    // SIL-659: the number and the số cont ride ONE container-line command
+    // when both changed — one transaction, one idempotency key, and the
+    // server's own resolve/duplicate/identity laws apply to both together.
+    if (numberChanged || containerChanged) editIdempotencyKeys.current[signature] = key;
     try {
       let expectedShipmentVersion = activeEdit.detail.summary.version;
       if (shipmentChanged) {
@@ -308,7 +320,15 @@ export function useCusDetail(params: CusDetailListParams) {
         });
         expectedShipmentVersion = updated.version;
       }
-      if (numberChanged && activeEdit.detail.summary.fieldAccess.declarationNumber.mode !== 'READ_ONLY') {
+      // Each write keeps its own authority gate: the tờ khai answers to the
+      // summary's fieldAccess, the số cont to the LINE's containerNumber
+      // access — the exact gate the container cell renders (a locked field is
+      // disabled in the editor, so its draft can never diverge to need this).
+      const writeDeclaration = numberChanged
+        && activeEdit.detail.summary.fieldAccess.declarationNumber.mode !== 'READ_ONLY';
+      const writeContainer = containerChanged
+        && activeEdit.line.fieldAccess.containerNumber?.mode !== 'READ_ONLY';
+      if (writeDeclaration || writeContainer) {
         if (isLotRow) {
           const write = lotDeclarationWrite(raw, draft.declarationNumber);
           if (write.kind === 'update') {
@@ -319,7 +339,8 @@ export function useCusDetail(params: CusDetailListParams) {
         } else {
           const result = await updateCusShipmentContainerLine(row.shipmentId, activeEdit.line.id, {
             expectedShipmentVersion,
-            declarationNumber: draft.declarationNumber,
+            ...(writeDeclaration ? { declarationNumber: draft.declarationNumber } : {}),
+            ...(writeContainer ? { containerNumber: draft.containerNumber } : {}),
           }, key);
           if (result.declarationSync) {
             syncOutcome = { sync: { written: result.declarationSync.updatedContainerIds.length } };

@@ -421,11 +421,13 @@ describe('documents editor field order (FB-113, card 171026122140)', () => {
     const labels = Array.from(grid!.querySelectorAll(':scope > label')).map(
       (el) => el.querySelector('span')?.textContent ?? '',
     );
-    expect(labels).toEqual(['Số Booking', 'Số tờ khai', 'Nhập / Xuất', 'Hãng tàu']);
+    // SIL-659 (id 766): the dialog gains the SỐ cont field — LAST, after
+    // Hãng tàu, so the FB-113 operator-mandated four stay first, in order.
+    expect(labels).toEqual(['Số Booking', 'Số tờ khai', 'Nhập / Xuất', 'Hãng tàu', 'Số cont']);
 
     // Each field must PRECEDE the next in the DOM (the card's compare-
     // DocumentPosition step) — the chain, not just the text array.
-    const chain = ['Số Booking', 'Số tờ khai', 'Nhập / Xuất', 'Hãng tàu'].map((name) => {
+    const chain = ['Số Booking', 'Số tờ khai', 'Nhập / Xuất', 'Hãng tàu', 'Số cont'].map((name) => {
       const matches = Array.from(grid!.querySelectorAll(':scope > label'))
         .filter((el) => el.querySelector('span')?.textContent === name);
       expect(matches).toHaveLength(1);

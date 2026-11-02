@@ -220,3 +220,97 @@ describe('SIL-547 — [Gộp hàng] mode on Chi tiết lô hàng', () => {
     expect(screen.queryByRole('button', { name: 'Gộp hàng' })).toBeNull();
   });
 });
+
+/* ── SIL-658 (id 765) — tick phải SỐNG QUA tìm kiếm/lọc ─────────────────────
+ * Boss report (Phạm Trung Kiên): tích một lô rồi tìm lô khác theo số bill
+ * thì tích BỊ MẤT (điều vận không bị — CUS bị). Nguyên nhân: mọi filter/page
+ * write đều dropPicks() và bar đếm theo danh sách ĐANG hiển thị. Pattern đúng
+ * (copy bên Điều vận): selection là mảng ROW đầy đủ sống NGOÀI danh sách lọc,
+ * bar đếm theo selection, checkbox render theo map id — tìm lô khác rồi quay
+ * lại, lô đã chọn vẫn còn tích để gộp tiếp. */
+describe('SIL-658 — selections persist through search/filter', () => {
+  /** The server answers the unfiltered set for any query but narrows to
+   *  `filtered` once a searchSuffix rides the URL (the repro's "gõ bill lô
+   *  khác + Enter — còn 1 dòng"). */
+  const wireBySearch = (base: ShipmentCusContainerFlatRow[], filtered: ShipmentCusContainerFlatRow[]) => {
+    apiGet.mockImplementation((url: string) => {
+      const items = typeof url === 'string' && url.includes('searchSuffix=') ? filtered : base;
+      return Promise.resolve({
+        page: 1, limit: 20, total: items.length, totalPages: 1,
+        filterOptions: { customers: [{ id: 7, name: 'Công ty Silver Sea' }] },
+        items,
+      } satisfies ShipmentCusContainerFlatResponse);
+    });
+  };
+
+  const searchBox = () => screen.getByRole('textbox', { name: 'Container, Bill/Booking, mã lô, tờ khai hoặc khách hàng' });
+
+  it('AC1 — tick 1 lô → tìm theo bill (còn 1 dòng) → xoá tìm kiếm: tick VẪN CÒN, bar không về 0', async () => {
+    const lotA = lotRow({ shipmentId: 1, billOrBookNumber: 'BILL-LCL-1' });
+    const lotB = lotRow({ shipmentId: 2, billOrBookNumber: 'BILL-LCL-2' });
+    wireBySearch([lotA, lotB], [lotB]);
+    renderPage();
+    await screen.findByText('BILL-LCL-1');
+    await enterMergeMode();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-1' }));
+    expect(screen.getByText(/Đang chọn 1 lô/)).toBeTruthy();
+
+    // The repro: gõ bill lô khác + Enter — list narrows to 1 row and the old
+    // law dropped the pick here (bar về 0).
+    fireEvent.change(searchBox(), { target: { value: 'BILL-LCL-2' } });
+    await waitFor(() => expect(screen.queryByText('BILL-LCL-1')).toBeNull());
+    expect(screen.getByText(/Đang chọn 1 lô/)).toBeTruthy();
+    expect((screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-2' }) as HTMLInputElement).checked).toBe(false);
+
+    // Xoá tìm kiếm → lô cũ hiện lại VÀ còn tick.
+    fireEvent.change(searchBox(), { target: { value: '' } });
+    await screen.findByText('BILL-LCL-1');
+    expect((screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-1' }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText(/Đang chọn 1 lô/)).toBeTruthy();
+  });
+
+  it('AC2 — tick nhiều lô rồi filter: mọi tick giữ nguyên, bar đếm đủ, gộp tiếp được (popup mở với 2 lô đã chọn)', async () => {
+    const lotA = lotRow({ shipmentId: 1, billOrBookNumber: 'BILL-LCL-1' });
+    const lotB = lotRow({ shipmentId: 2, billOrBookNumber: 'BILL-LCL-2' });
+    wireBySearch([lotA, lotB], [lotB]);
+    renderPage();
+    await screen.findByText('BILL-LCL-1');
+    await enterMergeMode();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-2' }));
+    expect(screen.getByText(/Đang chọn 2 lô/)).toBeTruthy();
+
+    fireEvent.change(searchBox(), { target: { value: 'BILL-LCL-2' } });
+    await waitFor(() => expect(screen.queryByText('BILL-LCL-1')).toBeNull());
+    // The bar still counts BOTH picks though only one row shows…
+    expect(screen.getByText(/Đang chọn 2 lô/)).toBeTruthy();
+    // …and the merge action stays armed (≥2 ungrouped picks) — gộp tiếp mà
+    // không phải tick lại lô đã ẩn.
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng' }));
+    expect(await screen.findByRole('heading', { name: 'Gộp xe thu khách' })).toBeTruthy();
+    // Lô 1 giữ 100% = the FIRST pick (BILL-LCL-1), not the first visible row.
+    expect(screen.getByText(/Lô 1 giữ 100% tiền thu khách: BILL-LCL-1/)).toBeTruthy();
+  });
+
+  it('AC3 — bỏ tick MỘT lô khi đang filter: chỉ lô đó drop, lô kia giữ', async () => {
+    const lotA = lotRow({ shipmentId: 1, billOrBookNumber: 'BILL-LCL-1' });
+    const lotB = lotRow({ shipmentId: 2, billOrBookNumber: 'BILL-LCL-2' });
+    wireBySearch([lotA, lotB], [lotB]);
+    renderPage();
+    await screen.findByText('BILL-LCL-1');
+    await enterMergeMode();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-2' }));
+
+    fireEvent.change(searchBox(), { target: { value: 'BILL-LCL-2' } });
+    await waitFor(() => expect(screen.queryByText('BILL-LCL-1')).toBeNull());
+    // Untick B while filtered — only B drops.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-2' }));
+    expect(screen.getByText(/Đang chọn 1 lô/)).toBeTruthy();
+
+    fireEvent.change(searchBox(), { target: { value: '' } });
+    await screen.findByText('BILL-LCL-1');
+    expect((screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-1' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-2' }) as HTMLInputElement).checked).toBe(false);
+  });
+});
