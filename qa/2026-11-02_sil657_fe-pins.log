@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil657-lcl-declaration-field/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  5 passed (5)
+   Start at  22:49:40
+   Duration  15.58s (transform 4.59s, setup 946ms, import 12.13s, tests 9.48s, environment 3.78s)
+
+exit=0

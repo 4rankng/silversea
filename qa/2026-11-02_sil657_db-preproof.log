@@ -1,0 +1,13 @@
+ id  | shipment_code  |     container_store     | docs_store 
+-----+----------------+-------------------------+------------
+ 285 | SHP-2610-00187 | {TK521A27580}           | 
+ 380 | SHP-2610-00215 | {TK-631-LONGTEST-VALUE} | 
+(2 rows)
+
+ id  | merged_declaration_numbers 
+-----+----------------------------
+  66 | 108678170860
+ 204 | Q2-DECL-173
+ 285 | TK521A27580
+(3 rows)
+

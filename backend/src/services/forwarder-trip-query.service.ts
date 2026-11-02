@@ -1,6 +1,6 @@
 import { db } from '../db';
 import * as s from '../db/schema';
-import { eq, and, isNull, desc, sql, count, or } from 'drizzle-orm';
+import { eq, and, isNull, desc, sql, count, or, type SQL } from 'drizzle-orm';
 import { getTripInstructions } from './trip-instructions.service';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
@@ -12,6 +12,40 @@ const CUSTOMER_OPERATIONAL_NAME = operationalName(s.customers.shortName, s.custo
 const FORWARDER_DRIVER_NAME = sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${s.tripCarrierInfo.externalDriverName} else ${s.drivers.name} end`;
 const FORWARDER_TRUCK_PLATE = sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${s.tripCarrierInfo.externalPlateNumber} else ${s.trucks.licensePlate} end`;
 const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name);
+
+/**
+ * SIL-657 (id 764): the lot's tờ khai list resolves BOTH stores — the
+ * lot-level entity rows (shipment_declarations, id order) first, then the
+ * per-cont attribute (shipment_containers.declarationNumber, the SIL-521
+ * store the CUS line command and dispatch cells write after Phát lệnh).
+ * The docs-only string_agg hid a number the office saved per-cont, so the
+ * trip pages read "—" while the CUS ledger showed it. Merge law mirrors
+ * distinctDeclarationNumbers (cus-workspace-builders): DISTINCT
+ * case-insensitively (the entity copy keeps its casing, the container copy
+ * dedupes away), blank-only values skipped.
+ */
+const lotDeclarationNumbersSql = (shipmentIdExpr: SQL): SQL<string | null> => sql<string | null>`(
+  SELECT string_agg(kept.declaration_number, ', ' ORDER BY kept.ord)
+  FROM (
+    SELECT raw.declaration_number, raw.ord,
+           row_number() OVER (PARTITION BY lower(raw.declaration_number) ORDER BY raw.ord) AS rn
+    FROM (
+      SELECT btrim(sd.declaration_number) AS declaration_number,
+             row_number() OVER (ORDER BY sd.id) AS ord
+      FROM shipment_declarations sd
+      WHERE sd.shipment_id = ${shipmentIdExpr}
+        AND sd.declaration_number IS NOT NULL
+      UNION ALL
+      SELECT btrim(sc.declaration_number),
+             1000000 + row_number() OVER (ORDER BY sc.id)
+      FROM shipment_containers sc
+      WHERE sc.shipment_id = ${shipmentIdExpr}
+        AND sc.declaration_number IS NOT NULL
+    ) raw
+    WHERE raw.declaration_number <> ''
+  ) kept
+  WHERE kept.rn = 1
+)`;
 
 /**
  * Derived payment/approval status for a forwarder trip row, used for row
@@ -167,7 +201,7 @@ export async function getForwarderTrips(
       sql`EXISTS (
         SELECT 1 FROM shipment_containers sc
         WHERE sc.shipment_id = ${s.shipments.id}
-          AND sc.container_number ILIKE ${term}
+          AND (sc.container_number ILIKE ${term} OR sc.declaration_number ILIKE ${term})
       )`,
       sql`EXISTS (
         SELECT 1 FROM trip_containers tc
@@ -203,12 +237,7 @@ export async function getForwarderTrips(
     bookingNumber: s.shipments.bookingRef,
     factoryName: s.shipments.factoryName,
     tradeDirection: s.shipments.tradeDirection,
-    declarationNumbers: sql<string | null>`(
-      SELECT string_agg(sd.declaration_number, ', ' ORDER BY sd.id)
-      FROM shipment_declarations sd
-      WHERE sd.shipment_id = ${s.shipments.id}
-        AND sd.declaration_number IS NOT NULL
-    )`,
+    declarationNumbers: lotDeclarationNumbersSql(sql`${s.shipments.id}`),
     containerTypeSummary: sql<string | null>`(
       SELECT string_agg(container_group.label, ', ' ORDER BY container_group.label)
       FROM (
@@ -342,12 +371,7 @@ export async function getForwarderTripDetail(tripId: number, forwarderId: number
     factoryName: s.shipments.factoryName,
     tradeDirection: s.shipments.tradeDirection,
     shipmentStatus: s.shipments.status,
-    declarationNumbers: sql<string | null>`(
-      SELECT string_agg(sd.declaration_number, ', ' ORDER BY sd.id)
-      FROM shipment_declarations sd
-      WHERE sd.shipment_id = ${s.shipments.id}
-        AND sd.declaration_number IS NOT NULL
-    )`,
+    declarationNumbers: lotDeclarationNumbersSql(sql`${s.shipments.id}`),
     containerTypeSummary: sql<string | null>`(
       SELECT string_agg(container_group.label, ', ' ORDER BY container_group.label)
       FROM (
