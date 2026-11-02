@@ -1130,6 +1130,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               label="Cước thu dự kiến"
               grouped
               autoComplete="off"
+              controlSize="sm"
               value={draft.plannedRevenue}
               suffix="đ"
               onChange={(n) => { setDraft((current) => ({ ...current, plannedRevenue: n })); setError(null); }}
@@ -1140,6 +1141,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               className="dispatch-assignment-dialog__money dispatch-assignment-dialog__cost"
               label="Cước trả dự kiến"
               grouped
+              controlSize="sm"
               suffix="đ"
               value={draft.plannedCarrierCost}
               onChange={(n) => { setDraft((current) => ({ ...current, plannedCarrierCost: n })); setError(null); }}
