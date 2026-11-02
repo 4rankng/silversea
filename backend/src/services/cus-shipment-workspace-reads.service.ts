@@ -24,7 +24,7 @@ import {
 
 
 import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDayTriageCondition, shipmentTransportDateCondition, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
-import { billOrBookNumberFor, trimOrNull } from './cus-workspace-mapping.service';
+import { billOrBookNumberFor, deriveLegacyScheduleInstant, trimOrNull } from './cus-workspace-mapping.service';
 
 export * from './cus-workspace-sql.service';
 export * from './cus-workspace-mapping.service';
@@ -1133,6 +1133,19 @@ function buildLotFlatRow(
     transportDate: row.shipment.expectedDeliveryDate,
     closingAt: row.shipment.closingAt?.toISOString() ?? null,
     plannedReturnAt: row.shipment.plannedReturnAt?.toISOString() ?? null,
+    // SIL-645 (id 750): the ledger lot cell used to print only the date-only
+    // EDD and dropped the lot's real giờ. Surface the same derived instant
+    // the overview list renders (SIL-610 law — the lot's live trip "Giờ
+    // chạy", constrained to the EDD's ICT day; stored instants above always
+    // win, nothing is persisted). The support map is already loaded for this
+    // read — no new query.
+    derivedScheduleAt: deriveLegacyScheduleInstant(
+      row.shipment.cargoMode,
+      row.shipment.expectedDeliveryDate,
+      row.shipment.closingAt,
+      row.shipment.plannedReturnAt,
+      support.tripsByShipment.get(row.shipment.id) ?? [],
+    ),
     customerAppointmentAt: null,
     customerNotes: row.shipment.customerNotes,
     operationalNotes: row.shipment.operationalNotes,

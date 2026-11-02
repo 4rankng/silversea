@@ -164,6 +164,13 @@ export async function listFulfillmentLessReadyRows(
       customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
       closingAt: s.shipments.closingAt,
       plannedReturnAt: s.shipments.plannedReturnAt,
+      // SIL-645 (id 750): structurally null here — this branch is FCL-container
+      // scoped ('FCL' below), so the legacy LCL derivation can never fire and
+      // there is no fulfillment for a trip to join. The columns exist only to
+      // keep the union shape identical to the fulfillment branch.
+      expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+      tripPlannedStartAt: sql<null>`null`,
+      tripPlannedEndAt: sql<null>`null`,
       transportDate: TRANSPORT_DATE_SQL,
       operationalNotes: s.shipments.operationalNotes,
       customerNotes: s.shipments.customerNotes,
