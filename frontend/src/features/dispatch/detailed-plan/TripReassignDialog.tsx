@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, Shuffle, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { tripClient } from '../../../api/tripClient';
+import { updateCusShipmentContainerLine } from '../../../api/shipmentClient';
 import {
   listDispatchFleetResources,
   type DispatchCarrierVehicle,
@@ -12,12 +13,27 @@ import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
 import { useTripDetail } from '../../../hooks/useTripQueries';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { Modal, useConfirm } from '../../../components/UI';
-import { TextField, UuiSelectField } from '../../../design-system';
+import { NumberField, TextField, UuiSelectField } from '../../../design-system';
 import { USearchableField } from '../../shipments/create/uui-fields';
+
+/** SIL-644 (id 749) wave 2 — the container context for the assignment-window
+ *  weight write. Supplied by callers that know the row (the dispatch
+ *  detail-plan page resolves it from its loaded rows); callers without a
+ *  container (LCL lots, other surfaces) omit it and see no weight field. */
+export interface TripReassignContainerContext {
+  shipmentId: number;
+  containerId: number;
+  /** Stored weight ('21500.00' decimal string) or null — the seed. */
+  cargoWeightKg: string | null;
+  /** Optimistic-version authority for the cus-workspace line write. */
+  shipmentVersion: number;
+}
 
 interface TripReassignDialogProps {
   /** Trip to reassign, or null to keep the dialog closed. */
   tripId: number | null;
+  /** Container line context for the SIL-644 weight field (see above). */
+  container?: TripReassignContainerContext | null;
   onClose: () => void;
   /** Called after a successful reassign so the caller can refetch its list. */
   onReassigned: () => void;
@@ -30,7 +46,7 @@ interface TripReassignDialogProps {
  * being mounted inside /trips/:id, so opening it never navigates away from
  * the caller's page.
  */
-export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassignDialogProps) {
+export function TripReassignDialog({ tripId, container, onClose, onReassigned }: TripReassignDialogProps) {
   const queryClient = useQueryClient();
   // Card 061026172804 warn-once contract (FB-038 / ticket 101026043000): a
   // completed-trip overlap refuses once and the confirmed retry proceeds —
@@ -61,6 +77,13 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
   // Card 20261006_389 — per-trip trailer override; '' = the (selected)
   // tractor's current coupling, resolved server-side exactly as before.
   const [trailerOverride, setTrailerOverride] = useState('');
+  // SIL-644 (id 749) — the container's Trọng lượng in the assignment window.
+  // Seeded with the same draft-reseed law as the vehicle fields (per trip
+  // version); '' = clear (null on the wire). Editable only while the trip is
+  // still CREATED — once it left CREATED the issued-order law locks the
+  // container measures and the field renders disabled with the reason.
+  const weightToDraft = (stored: string | null | undefined): number | '' => (stored && stored.trim() ? Number(stored) : '');
+  const [cargoWeight, setCargoWeight] = useState<number | ''>(() => weightToDraft(container?.cargoWeightKg));
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -89,9 +112,16 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     setExternalDriverName(trip.externalDriverName ?? '');
     setExternalDriverPhone(trip.externalDriverPhone ?? '');
     setTrailerOverride('');
+    setCargoWeight(weightToDraft(containerRef.current?.cargoWeightKg));
     setReason('');
     setError('');
   }, [trip, tripId]);
+
+  // The reseed effect below keys on (trip, tripId) only; `container` rides a
+  // ref so a parent re-render with a fresh object identity can never clobber
+  // in-progress edits, while a genuine reseed still reads the latest value.
+  const containerRef = useRef(container);
+  containerRef.current = container;
 
   // Acceptance mode (card 091026190520, FB-081 option b) — mirrors the
   // server guard: an IN_TRANSIT trip whose driver acknowledged
@@ -155,6 +185,31 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
     setSaving(true);
     setError('');
     try {
+      // SIL-644 (id 749) — an edited Trọng lượng writes FIRST, through the
+      // same cus-workspace container-line command the CUS ledger uses
+      // (DISPATCHER is an allowed writer; the server enforces the
+      // assignment-window law — issued trips 409 with their own message). A
+      // refused weight write aborts the reassign: never reassign a vehicle
+      // onto a lot whose cargo data just failed to save.
+      const weightWindowOpen = trip.status === 'CREATED';
+      const weightTouched = container != null
+        && weightWindowOpen
+        && cargoWeight !== weightToDraft(container.cargoWeightKg);
+      if (weightTouched && container != null) {
+        try {
+          await updateCusShipmentContainerLine(container.shipmentId, container.containerId, {
+            expectedShipmentVersion: container.shipmentVersion,
+            // The schema's exported input type is the transformed decimal
+            // string — stringify NumberField's number.
+            cargoWeightKg: cargoWeight === '' ? null : String(cargoWeight),
+          });
+        } catch (weightError) {
+          const weightErr = weightError as { message?: string };
+          setError(weightErr?.message || 'Không thể lưu trọng tải container. Vui lòng thử lại.');
+          setSaving(false);
+          return;
+        }
+      }
       const freshTrip = await tripClient.reassignTrip(tripId, {
         carrierType,
         truckId: truckId ? Number(truckId) : null,
@@ -435,6 +490,27 @@ export function TripReassignDialog({ tripId, onClose, onReassigned }: TripReassi
             onChange={(event) => setReason(event.target.value)}
             disabled={saving}
           />
+          {/* SIL-644 (id 749) — the assignment-window weight write. This is
+              the dialog the dispatcher actually reaches for an issued trip
+              (the plan editor reroutes here), so the cargo-weight dead end
+              must be healable HERE: editable while the trip is still CREATED,
+              locked with the reason once it left CREATED. Rides the same
+              "Xác nhận phân xe lại" save — no second save button. */}
+          {container != null && (
+            <NumberField
+              id="trip-reassign-container-weight"
+              label="Trọng lượng"
+              autoComplete="off"
+              controlSize="sm"
+              suffix="kg"
+              value={cargoWeight}
+              onChange={(n) => setCargoWeight(n)}
+              disabled={saving || trip.status !== 'CREATED'}
+              helpText={trip.status === 'CREATED'
+                ? (weightToDraft(container.cargoWeightKg) === '' ? 'Trọng tải hàng theo booking — cần cho giá container.' : undefined)
+                : 'Đã phát hành lệnh điều xe (chuyến đang chạy) — trọng tải theo lệnh; hủy hoặc thay thế lệnh để sửa.'}
+            />
+          )}
         </div>
       )}
       </Modal>

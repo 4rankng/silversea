@@ -1,0 +1,122 @@
+{
+  "run": "2026-11-02",
+  "fe": "http://localhost:7189",
+  "be": "http://localhost:3102",
+  "checks": [
+    {
+      "name": "logins",
+      "pass": true,
+      "detail": "dieuvan (DISPATCHER) on the worktree backend"
+    },
+    {
+      "name": "P0a fixture-is-dispatched-created",
+      "pass": true,
+      "detail": "trip 618 CREATED"
+    },
+    {
+      "name": "P0b dispatcher-clears-weight",
+      "pass": true,
+      "detail": "status=200 {\"line\":{\"id\":347,\"ordinal\":1,\"operationalSiteId\":null,\"containerNumber\":\"TSTU3872772\",\"declarationNumber\":null,\"contain"
+    },
+    {
+      "name": "P0c db-weight-null",
+      "pass": true,
+      "detail": "the dead-end state: DISPATCHED + CREATED trip + weight NULL"
+    },
+    {
+      "name": "A1 ui-login-dieuvan",
+      "pass": true,
+      "detail": "logged in on the worktree UI"
+    },
+    {
+      "name": "A3 row-menu-phan-xe-lai",
+      "pass": true,
+      "detail": "{\"ok\":true}"
+    },
+    {
+      "name": "A5 weight-field-enabled-empty",
+      "pass": true,
+      "detail": "{\"found\":true,\"disabled\":false,\"value\":\"\",\"help\":\"Trọng tải hàng theo booking — cần cho giá container.\"}"
+    },
+    {
+      "name": "A7 dialog-closed-no-error",
+      "pass": true,
+      "detail": "{\"dialogGone\":true,\"errorText\":\"\"}"
+    },
+    {
+      "name": "A8 db-weight-restored",
+      "pass": true,
+      "detail": "db weight=20000.00 (DB side effect of the UI save)"
+    },
+    {
+      "name": "P2 reissue-after-heal",
+      "pass": true,
+      "detail": "status=201 {\"fulfillmentId\":411,\"version\":21,\"trip\":{\"id\":618,\"version\":17,\"tripCode\":\"TRP-202611-0012\",\"status\":\"CREATED\",\"plannedStartAt\":\"2026-11-05"
+    },
+    {
+      "name": "B0 dispatcher-clears-b-weight",
+      "pass": true,
+      "detail": "status=200 (plated, no trip — pre-issue weightless)"
+    },
+    {
+      "name": "B0b db-b-weight-null",
+      "pass": true,
+      "detail": "READY + weightless"
+    },
+    {
+      "name": "B2 row-menu-sua-dieu-phoi",
+      "pass": true,
+      "detail": "{\"ok\":true}"
+    },
+    {
+      "name": "B4 weight-field-enabled-empty",
+      "pass": true,
+      "detail": "{\"found\":true,\"disabled\":false,\"value\":\"\",\"help\":\"Trọng tải hàng theo booking — cần cho giá container khi Phát lệnh.\"}"
+    },
+    {
+      "name": "B5 issue-blocked-while-unsaved",
+      "pass": true,
+      "detail": "{\"issueAria\":\"true\"}"
+    },
+    {
+      "name": "B7 dialog-closed-no-error",
+      "pass": true,
+      "detail": "{\"dialogGone\":true,\"errorText\":\"\"}"
+    },
+    {
+      "name": "B8 db-b-weight-restored",
+      "pass": true,
+      "detail": "db weight=3000.00"
+    },
+    {
+      "name": "C2 row-menu-phan-xe-lai-intransit",
+      "pass": true,
+      "detail": "{\"ok\":true}"
+    },
+    {
+      "name": "C4 weight-field-disabled-with-reason",
+      "pass": true,
+      "detail": "{\"found\":true,\"disabled\":true,\"value\":\"3000\",\"help\":\"Đã phát hành lệnh điều xe (chuyến đang chạy) — trọng tải theo lệnh; hủy hoặc thay thế lệnh để sửa.\"}"
+    },
+    {
+      "name": "C5 dialog-closed-no-write",
+      "pass": true,
+      "detail": "weight untouched (read-only check)"
+    },
+    {
+      "name": "D2 mobile-row-menu",
+      "pass": true,
+      "detail": "{\"ok\":true}"
+    },
+    {
+      "name": "D3 mobile-weight-field-rendered",
+      "pass": true,
+      "detail": "{\"found\":true,\"disabled\":false,\"value\":\"3000\",\"help\":\"\"}"
+    },
+    {
+      "name": "D4 mobile-no-horizontal-overflow",
+      "pass": true,
+      "detail": "overflow 0px"
+    }
+  ]
+}

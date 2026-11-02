@@ -113,3 +113,37 @@ describe('SIL-644 ledger fieldAccess opens the weight field in the assignment wi
     assert.match(readsService, /const line = withIssuanceWindowFieldAccess\(/);
   });
 });
+
+describe('SIL-644 wave 2 — the dispatcher-side weight path (Sửa điều phối / Phân xe lại)', () => {
+  const cusRoutes = read('../../routes/shipments/cus-workspace.routes.ts');
+  const detailPlanRead = read('../../services/dispatch-planning-detail-plan-read.service.ts');
+
+  test('the container-line write endpoint admits DISPATCHER — the dispatch surface is an allowed writer', () => {
+    // The wave-2 fix rides this exact endpoint from the dispatch dialogs;
+    // if DISPATCHER drops off the role list the FE field would open and 403.
+    const lineRoute = cusRoutes.slice(
+      cusRoutes.indexOf("'/cus-workspace/:id/containers/:containerId',"),
+      cusRoutes.indexOf("'/cus-workspace/:id/containers',"),
+    );
+    assert.match(lineRoute, /requireRoles\(Role\.ADMIN, Role\.MANAGER, Role\.CUS, Role\.DISPATCHER\)/);
+  });
+
+  test('the dispatch detail-plan wire addresses the container line for BOTH row families and carries its own weight', () => {
+    // The weight write needs (shipmentId, containerId): the read must keep
+    // exposing shipmentContainerId on the wire for fulfillment rows AND the
+    // fulfillment-less branch rows, and seed the cell from the CONTAINER's
+    // weight column (not the legacy lot-level fallback alone).
+    assert.match(detailPlanRead, /shipmentContainerId: s\.shipmentFulfillments\.shipmentContainerId,/);
+    assert.match(detailPlanRead, /branchContainerIds/);
+    assert.match(detailPlanRead, /shipmentContainerId: row\.shipmentContainerId,/);
+    assert.match(detailPlanRead, /containerCargoWeightKg: s\.shipmentContainers\.cargoWeightKg,/);
+    assert.match(detailPlanRead, /cargoWeightKg: row\.containerCargoWeightKg \?\? row\.cargoWeightKg,/);
+    // SIL-644 wave 2: the editors seed/write the CONTAINER's own column —
+    // the merged display value (lot-level fallback) must never look weighted
+    // in an editor whose save writes a weightless container column.
+    assert.match(detailPlanRead, /cargoWeightKgRaw: row\.containerCargoWeightKg \?\? null,/);
+    // The live-trip status rides the wire too — the FE editability law (trip
+    // still CREATED = the assignment window) keys on it.
+    assert.match(detailPlanRead, /tripStatus: row\.tripStatus,/);
+  });
+});

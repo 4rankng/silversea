@@ -161,7 +161,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-areas: 'carrier vehicle'
-    'classification combined'
+    'classification weight'
     'revenue cost'
     'run run';
   gap: 14px 12px;
@@ -188,11 +188,13 @@
        empty), and the money inputs size to their CONTENT (capped 200px)
        instead of stretching across a half dialog. id 712 (owner 30/10):
        Giờ điều vận owns the datetime row full-width — the `end` area is
-       gone. Row count ≥900: 4 → 3. */
+       gone. Row count ≥900: 4 → 3.
+       SIL-644 (id 749): the last track now carries Trọng lượng (kg) — the
+       container's cargo weight (FCL rows only; LCL rows leave it empty). */
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-template-areas:
       'carrier carrier vehicle vehicle'
-      'classification revenue cost combined'
+      'classification revenue cost weight'
       'run run run run';
   }
 }
@@ -299,6 +301,12 @@
 
 .dispatch-assignment-dialog__cost {
   grid-area: cost;
+}
+
+/* SIL-644 (id 749) — the container's Trọng lượng rides the money band (same
+   narrow NumberField, kg suffix instead of đ), in the row-2 last track. */
+.dispatch-assignment-dialog__weight {
+  grid-area: weight;
 }
 
 .dispatch-assignment-dialog__error {
@@ -537,9 +545,11 @@
 @media (max-width: 640px) {
   .dispatch-assignment-dialog__fields {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* SIL-644: the second track pairs Phân loại with Trọng lượng (the
+       combined checkbox is long gone — the area name went with it). */
     grid-template-areas: 'carrier carrier'
       'vehicle vehicle'
-      'classification combined'
+      'classification weight'
       'revenue cost'
       'run run';
   }

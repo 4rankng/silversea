@@ -89,6 +89,10 @@ interface DispatchPlanEditorCellProps {
        *  schema must never see it). Omit = untouched, null = clear,
        *  zone-aware ISO = set. */
       customerAppointmentAt?: string | null;
+      /** SIL-644 (id 749) — Trọng lượng (kg) of the row's container. The hook
+       *  sequences it through the same cus-workspace container-line write
+       *  (never the strict plan schema). Omit = untouched, null = clear. */
+      containerCargoWeightKg?: number | null;
       classification: DispatchClassification;
       operationalNotes?: string | null;
       /** dis-03 (card 211026131857) — confirmed kẹp-candidate overlap retry. */
@@ -136,6 +140,10 @@ interface PlanEditorDraft {
   /** Money via NumberField — number | '' (the field's contract; '' = unset). */
   plannedRevenue: number | '';
   plannedCarrierCost: number | '';
+  /** SIL-644 (id 749) — Trọng lượng (kg) of the row's container, the exact
+   *  price input the Phát lệnh backstop demands. NumberField contract:
+   *  number | '' ('' = clear → null on the wire). */
+  cargoWeight: number | '';
   /** SIL-473 (DIS-05 theo SIL-80) — Giờ điều vận: the row's run timestamp
    *  (container appointment → closing → planned return). Local
    *  'YYYY-MM-DDTHH:mm' in Vietnam wall-clock; '' = unset. Persists to the
@@ -187,6 +195,13 @@ function draftForRow(row: DispatchDetailPlanRow): PlanEditorDraft {
     vehicleValue: vehicleValueForRow(row),
     plannedRevenue: estimateToDraft(row.estimates.plannedRevenue),
     plannedCarrierCost: estimateToDraft(row.estimates.plannedCarrierCost),
+    // Stored weights are decimal strings ('21500.00'); the field wants the
+    // plain number, '' when the container is still weightless. Seeds from the
+    // CONTAINER's own column (SIL-644): the grid cell may still show the
+    // legacy lot-level fallback, but the editor must edit what a save writes.
+    cargoWeight: estimateToDraft(row.container.cargoWeightKgRaw !== undefined
+      ? row.container.cargoWeightKgRaw
+      : row.container.cargoWeightKg),
     runAt: effectiveRunLocal(row),
     classification: row.classification,
     operationalNotes: row.notes.vehicleNote,
@@ -325,6 +340,24 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
   const draftCarrierCost = draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost;
   const storedRevenue = parseVnd(row.estimates.plannedRevenue ?? '');
   const storedCarrierCost = parseVnd(row.estimates.plannedCarrierCost ?? '');
+  // SIL-644 (id 749) — the container weight's editability law mirrors the
+  // backend write guard exactly (cus-shipment-workspace-writes.service.ts):
+  // the assignment window (no live trip, or a live trip still CREATED) keeps
+  // the cargo measures writable; a trip that LEFT CREATED is an issued order
+  // and locks them. The plan editor only opens for READY rows in practice
+  // (openEditor reroutes live-trip rows to the reassignment flow), but the
+  // gate is defensive so the field can never offer a write the server 409s.
+  // The seed reads the CONTAINER's own column (cargoWeightKgRaw) — the price
+  // backstop prices that column, so a weightless container must show empty
+  // even when the legacy lot-level fallback still decorates the grid cell.
+  const containerWeightSeed = row.container.cargoWeightKgRaw !== undefined
+    ? row.container.cargoWeightKgRaw
+    : row.container.cargoWeightKg;
+  const weightFieldOpen = row.shipmentContainerId != null
+    && row.taskStatus !== 'COMPLETED'
+    && (row.dispatch.tripId == null || row.dispatch.tripStatus === 'CREATED');
+  const storedCargoWeight = estimateToDraft(containerWeightSeed);
+  const weightTouched = weightFieldOpen && draft.cargoWeight !== storedCargoWeight;
   const planDirty = carrierSwitched || vehicleChanged
     || draft.classification !== row.classification
     || (draft.operationalNotes ?? '') !== (row.notes.vehicleNote ?? '')
@@ -333,7 +366,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     || draftCarrierCost !== storedCarrierCost.value
     // SIL-473 — an edited Giờ điều vận is an unsaved plan change too: Phát
     // lệnh must not ride a schedule the operator typed but didn't store.
-    || draft.runAt !== effectiveRunLocal(row);
+    || draft.runAt !== effectiveRunLocal(row)
+    // SIL-644 — an edited Trọng lượng is an unsaved change as well: Phát
+    // lệnh prices the STORED weight, so an unsaved value must block it.
+    || weightTouched;
   // Card 20261004_359 — a deferred-plate external assignment is issuable too.
   const canIssue = (issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && !planDirty;
 
@@ -732,6 +768,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
       // Same touch-gating as the vehicle block: an untouched field must
       // never reach the wire and clobber a value another editor saved.
       ...(runTouched ? { customerAppointmentAt: draftRunIso } : {}),
+      // SIL-644 — same law for the container weight ('' = explicit clear →
+      // null on the wire; the hook sequences the line write).
+      ...(weightTouched ? { containerCargoWeightKg: draft.cargoWeight === '' ? null : draft.cargoWeight } : {}),
       classification: draft.classification,
       operationalNotes: draft.operationalNotes,
     };
@@ -1166,6 +1205,28 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
               onChange={(n) => { setDraft((current) => ({ ...current, plannedCarrierCost: n })); setError(null); }}
               disabled={saving}
             />
+            {/* SIL-644 (id 749) — Trọng lượng (kg) of this row's container: the
+                exact input the Phát lệnh price computation demands. FCL rows
+                only (an LCL lot owns no container line); rides the same
+                "Lưu thay đổi" as everything else through the container-line
+                write. Locked once the order is issued (trip left CREATED) —
+                disabled with the reason, value still readable. */}
+            {row.shipmentContainerId != null && (
+              <NumberField
+                id={`dispatch-weight-${row.fulfillmentId}`}
+                className="dispatch-assignment-dialog__money dispatch-assignment-dialog__weight"
+                label="Trọng lượng"
+                autoComplete="off"
+                controlSize="sm"
+                suffix="kg"
+                value={draft.cargoWeight}
+                onChange={(n) => { setDraft((current) => ({ ...current, cargoWeight: n })); setError(null); }}
+                disabled={saving || !weightFieldOpen}
+                helpText={weightFieldOpen
+                  ? (storedCargoWeight === '' ? 'Trọng tải hàng theo booking — cần cho giá container khi Phát lệnh.' : undefined)
+                  : 'Đã phát hành lệnh điều xe — trọng tải theo lệnh; hủy hoặc thay thế lệnh để sửa.'}
+              />
+            )}
             {/* SIL-473 (DIS-05 theo SIL-80) — Giờ điều vận: the run schedule
                 the grid's time column displays, editable pre-issuance.
                 id 712 (owner 30/10): this dialog carries exactly ONE datetime

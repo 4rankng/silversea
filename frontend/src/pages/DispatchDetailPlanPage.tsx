@@ -65,6 +65,28 @@ export default function DispatchDetailPlanPage() {
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [lotDeleteBlock, setLotDeleteBlock] = useState<string | null>(null);
   const [reassignTripId, setReassignTripId] = useState<number | null>(null);
+  // SIL-644 (id 749) — the reassign dialog's weight field needs the row's
+  // container line (shipmentId + containerId + stored weight + the shipment
+  // version for the optimistic write). Resolved from the LOADED rows by the
+  // trip id the grid hands over; rows outside the loaded page (or LCL lots
+  // with no container) resolve null and the dialog simply shows no field.
+  const reassignContainer = useMemo(() => {
+    if (reassignTripId == null) return null;
+    const row = detailPlan.items.find((item) => item.dispatch.tripId === reassignTripId);
+    if (row?.shipmentContainerId == null) return null;
+    return {
+      shipmentId: row.shipmentId,
+      containerId: row.shipmentContainerId,
+      // Seed the reassign dialog's weight field from the CONTAINER's own
+      // column (SIL-644): the merged cell value may carry the legacy
+      // lot-level fallback, but the editable field must show exactly what a
+      // save would write (the price backstop reads the container column).
+      cargoWeightKg: row.container.cargoWeightKgRaw !== undefined
+        ? row.container.cargoWeightKgRaw
+        : row.container.cargoWeightKg ?? null,
+      shipmentVersion: row.shipmentVersion,
+    };
+  }, [reassignTripId, detailPlan.items]);
   // Ghép chuyến (LoHangKepKetHop §3.1): the row whose trip anchors the pair;
   // null keeps the dialog closed. Candidates are the loaded unpaired OWN
   // rows with trips — the same set the grid offers the button for.
@@ -381,6 +403,7 @@ export default function DispatchDetailPlanPage() {
 
       <TripReassignDialog
         tripId={reassignTripId}
+        container={reassignContainer}
         onClose={() => setReassignTripId(null)}
         onReassigned={detailPlan.refresh}
       />

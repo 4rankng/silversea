@@ -1,8 +1,10 @@
 // SIL-590 (owner 27/10 — "Chỉnh sửa điều phối" chưa dense): the desktop
-// fields grid packs Phân loại + Cước thu + Cước trả on ONE row (Đóng kết hợp
-// on the last track) and the money inputs size to their CONTENT (≤200px cap)
-// instead of stretching across a half dialog. The SIL-520 dialog WIDTH is
-// untouched — density within the width, not the width itself.
+// fields grid packs Phân loại + Cước thu + Cước trả on ONE row and the money
+// inputs size to their CONTENT (≤200px cap) instead of stretching across a
+// half dialog. The SIL-520 dialog WIDTH is untouched — density within the
+// width, not the width itself.
+// SIL-644 (id 749, 02/11) supersedes the row-2 last track: Trọng lượng (kg)
+// — the container's cargo weight — takes the 4th track (FCL rows only).
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -10,10 +12,13 @@ import { describe, expect, it } from 'vitest';
 const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
 
 describe('DispatchPlanEditorCell dense fields grid (SIL-590)', () => {
-  it('at ≥900px Phân loại + Cước thu + Cước trả share ONE row (combined on the last track)', () => {
+  it('at ≥900px Phân loại + Cước thu + Cước trả + Trọng lượng share ONE row', () => {
+    // SIL-644 (id 749, 02/11) supersedes the SIL-590 last-track occupancy: the
+    // combined checkbox was already gone (its area was empty), and the 4th
+    // track now carries the container's Trọng lượng (kg) — FCL rows only.
     const block = css.match(/@media \(min-width:\s*900px\)\s*\{\s*\.dispatch-assignment-dialog__fields\s*\{([\s\S]*?)\}\s*\}/)?.[1] ?? '';
     expect(block, 'the ≥900px fields template must exist').not.toBe('');
-    expect(block).toContain("'classification revenue cost combined'");
+    expect(block).toContain("'classification revenue cost weight'");
     expect(block).toContain('repeat(4, minmax(0, 1fr))');
     // SIL-520's row laws survive: carrier+vehicle on row 1. id 712 (owner
     // 30/10) removed the Giờ trả hàng field — Giờ điều vận owns the datetime
@@ -42,9 +47,10 @@ describe('DispatchPlanEditorCell dense fields grid (SIL-590)', () => {
 
   it('the sub-900 layouts keep their stacked fallback (phone/tablet unchanged)', () => {
     // Base template: the single Giờ điều vận row full-width (id 712 removed
-    // the `end` area); ≤640 keeps the carrier/vehicle stack and the
-    // classification+combined pair.
-    expect(css).toMatch(/grid-template-areas:\s*'carrier vehicle'\s*\n\s*'classification combined'\s*\n\s*'revenue cost'\s*\n\s*'run run';/);
+    // the `end` area); ≤640 keeps the carrier/vehicle stack; the second
+    // track pairs Phân loại with SIL-644's Trọng lượng (the combined
+    // checkbox area is gone — the control was removed long before).
+    expect(css).toMatch(/grid-template-areas:\s*'carrier vehicle'\s*\n\s*'classification weight'\s*\n\s*'revenue cost'\s*\n\s*'run run';/);
     expect(css).toMatch(/@media \(max-width:\s*640px\)\s*\{[\s\S]*?\.dispatch-assignment-dialog__fields\s*\{[\s\S]*?'carrier carrier'/);
     expect(css).not.toContain("'end end'");
   });

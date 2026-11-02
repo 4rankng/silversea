@@ -1,0 +1,135 @@
+2026-11-02T13:18:33.329Z PASS logins :: dieuvan (DISPATCHER) on the worktree backend
+2026-11-02T13:18:33.554Z PASS P0a fixture-is-dispatched-created :: trip 618 CREATED
+2026-11-02T13:18:33.823Z PASS P0b dispatcher-clears-weight :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"contain
+2026-11-02T13:18:33.907Z PASS P0c db-weight-null :: the dead-end state: DISPATCHED + CREATED trip + weight NULL
+2026-11-02T13:18:47.039Z PASS A1 ui-login-dieuvan :: logged in on the worktree UI
+2026-11-02T13:18:57.706Z PASS A3 row-menu-phan-xe-lai :: {"ok":true}
+2026-11-02T13:18:59.208Z PASS A5 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":""}
+2026-11-02T13:19:06.855Z PASS A7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:19:07.211Z PASS A8 db-weight-restored :: db weight=20000.00 (DB side effect of the UI save)
+2026-11-02T13:19:07.540Z PASS P2 reissue-after-heal :: status=201 {"fulfillmentId":411,"version":11,"trip":{"id":618,"version":7,"tripCode":"TRP-202611-0012","status":"CREATED","plannedStartAt":"2026-11-05T
+2026-11-02T13:19:07.741Z PASS B0 dispatcher-clears-b-weight :: status=200 (plated, no trip — pre-issue weightless)
+2026-11-02T13:19:07.830Z PASS B0b db-b-weight-null :: READY + weightless
+2026-11-02T13:19:18.415Z PASS B2 row-menu-sua-dieu-phoi :: {"ok":true}
+2026-11-02T13:19:19.847Z FAIL B4 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"6000","help":""}
+2026-11-02T13:19:20.421Z PASS B5 issue-blocked-while-unsaved :: {"issueAria":"true"}
+2026-11-02T13:19:26.791Z PASS B7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:19:27.145Z PASS B8 db-b-weight-restored :: db weight=3000.00
+2026-11-02T13:19:38.657Z PASS C2 row-menu-phan-xe-lai-intransit :: {"ok":true}
+2026-11-02T13:19:40.360Z FAIL C4 weight-field-disabled-with-reason :: {"found":true,"disabled":true,"value":"3000","help":""}
+2026-11-02T13:19:41.596Z PASS C5 dialog-closed-no-write :: weight untouched (read-only check)
+2026-11-02T13:19:42.085Z DONE exit=0
+2026-11-02T13:24:33.365Z PASS logins :: dieuvan (DISPATCHER) on the worktree backend
+2026-11-02T13:24:33.610Z PASS P0a fixture-is-dispatched-created :: trip 618 CREATED
+2026-11-02T13:24:33.750Z PASS P0b dispatcher-clears-weight :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"contain
+2026-11-02T13:24:33.843Z PASS P0c db-weight-null :: the dead-end state: DISPATCHED + CREATED trip + weight NULL
+2026-11-02T13:24:40.235Z PASS A1 ui-login-dieuvan :: logged in on the worktree UI
+2026-11-02T13:24:50.425Z PASS A3 row-menu-phan-xe-lai :: {"ok":true}
+2026-11-02T13:24:51.863Z PASS A5 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":"Trọng tải hàng theo booking — cần cho giá container."}
+2026-11-02T13:24:59.243Z PASS A7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:24:59.534Z PASS A8 db-weight-restored :: db weight=20000.00 (DB side effect of the UI save)
+2026-11-02T13:24:59.947Z PASS P2 reissue-after-heal :: status=201 {"fulfillmentId":411,"version":13,"trip":{"id":618,"version":9,"tripCode":"TRP-202611-0012","status":"CREATED","plannedStartAt":"2026-11-05T
+2026-11-02T13:25:00.186Z PASS B0 dispatcher-clears-b-weight :: status=200 (plated, no trip — pre-issue weightless)
+2026-11-02T13:25:00.282Z PASS B0b db-b-weight-null :: READY + weightless
+2026-11-02T13:25:09.380Z PASS B2 row-menu-sua-dieu-phoi :: {"ok":true}
+2026-11-02T13:25:10.720Z FAIL B4 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"6000","help":""}
+2026-11-02T13:25:11.144Z PASS B5 issue-blocked-while-unsaved :: {"issueAria":"true"}
+2026-11-02T13:25:17.509Z PASS B7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:25:17.897Z PASS B8 db-b-weight-restored :: db weight=3000.00
+2026-11-02T13:25:27.069Z PASS C2 row-menu-phan-xe-lai-intransit :: {"ok":true}
+2026-11-02T13:25:28.415Z PASS C4 weight-field-disabled-with-reason :: {"found":true,"disabled":true,"value":"3000","help":"Đã phát hành lệnh điều xe (chuyến đang chạy) — trọng tải theo lệnh; hủy hoặc thay thế lệnh để sửa."}
+2026-11-02T13:25:29.546Z PASS C5 dialog-closed-no-write :: weight untouched (read-only check)
+2026-11-02T13:25:29.769Z DONE exit=0
+2026-11-02T13:27:12.993Z PASS logins :: dieuvan (DISPATCHER) on the worktree backend
+2026-11-02T13:27:13.177Z PASS P0a fixture-is-dispatched-created :: trip 618 CREATED
+2026-11-02T13:27:13.381Z PASS P0b dispatcher-clears-weight :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"contain
+2026-11-02T13:27:13.463Z PASS P0c db-weight-null :: the dead-end state: DISPATCHED + CREATED trip + weight NULL
+2026-11-02T13:27:19.333Z PASS A1 ui-login-dieuvan :: logged in on the worktree UI
+2026-11-02T13:27:27.985Z PASS A3 row-menu-phan-xe-lai :: {"ok":true}
+2026-11-02T13:27:29.281Z PASS A5 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":"Trọng tải hàng theo booking — cần cho giá container."}
+2026-11-02T13:27:36.229Z PASS A7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:27:36.477Z PASS A8 db-weight-restored :: db weight=20000.00 (DB side effect of the UI save)
+2026-11-02T13:27:36.790Z PASS P2 reissue-after-heal :: status=201 {"fulfillmentId":411,"version":15,"trip":{"id":618,"version":11,"tripCode":"TRP-202611-0012","status":"CREATED","plannedStartAt":"2026-11-05
+2026-11-02T13:27:36.862Z PASS B0 dispatcher-clears-b-weight :: status=200 (plated, no trip — pre-issue weightless)
+2026-11-02T13:27:36.937Z PASS B0b db-b-weight-null :: READY + weightless
+2026-11-02T13:27:45.616Z PASS B2 row-menu-sua-dieu-phoi :: {"ok":true}
+2026-11-02T13:27:46.928Z PASS B4 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":"Trọng tải hàng theo booking — cần cho giá container khi Phát lệnh."}
+2026-11-02T13:27:47.472Z PASS B5 issue-blocked-while-unsaved :: {"issueAria":"true"}
+2026-11-02T13:27:53.773Z PASS B7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:27:54.011Z PASS B8 db-b-weight-restored :: db weight=3000.00
+2026-11-02T13:28:02.979Z PASS C2 row-menu-phan-xe-lai-intransit :: {"ok":true}
+2026-11-02T13:28:04.353Z PASS C4 weight-field-disabled-with-reason :: {"found":true,"disabled":true,"value":"3000","help":"Đã phát hành lệnh điều xe (chuyến đang chạy) — trọng tải theo lệnh; hủy hoặc thay thế lệnh để sửa."}
+2026-11-02T13:28:05.421Z PASS C5 dialog-closed-no-write :: weight untouched (read-only check)
+2026-11-02T13:28:05.650Z DONE exit=0
+2026-11-02T13:28:46.896Z PASS logins :: dieuvan (DISPATCHER) on the worktree backend
+2026-11-02T13:28:47.134Z PASS P0a fixture-is-dispatched-created :: trip 618 CREATED
+2026-11-02T13:28:47.283Z PASS P0b dispatcher-clears-weight :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"contain
+2026-11-02T13:28:47.385Z PASS P0c db-weight-null :: the dead-end state: DISPATCHED + CREATED trip + weight NULL
+2026-11-02T13:28:53.312Z PASS A1 ui-login-dieuvan :: logged in on the worktree UI
+2026-11-02T13:29:03.367Z PASS A3 row-menu-phan-xe-lai :: {"ok":true}
+2026-11-02T13:29:04.734Z PASS A5 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":"Trọng tải hàng theo booking — cần cho giá container."}
+2026-11-02T13:29:12.005Z PASS A7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:29:12.263Z PASS A8 db-weight-restored :: db weight=20000.00 (DB side effect of the UI save)
+2026-11-02T13:29:12.592Z PASS P2 reissue-after-heal :: status=201 {"fulfillmentId":411,"version":17,"trip":{"id":618,"version":13,"tripCode":"TRP-202611-0012","status":"CREATED","plannedStartAt":"2026-11-05
+2026-11-02T13:29:12.715Z PASS B0 dispatcher-clears-b-weight :: status=200 (plated, no trip — pre-issue weightless)
+2026-11-02T13:29:12.800Z PASS B0b db-b-weight-null :: READY + weightless
+2026-11-02T13:29:22.231Z PASS B2 row-menu-sua-dieu-phoi :: {"ok":true}
+2026-11-02T13:29:23.523Z PASS B4 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":"Trọng tải hàng theo booking — cần cho giá container khi Phát lệnh."}
+2026-11-02T13:29:24.064Z PASS B5 issue-blocked-while-unsaved :: {"issueAria":"true"}
+2026-11-02T13:29:30.480Z PASS B7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:29:30.765Z PASS B8 db-b-weight-restored :: db weight=3000.00
+2026-11-02T13:29:40.039Z PASS C2 row-menu-phan-xe-lai-intransit :: {"ok":true}
+2026-11-02T13:29:41.566Z PASS C4 weight-field-disabled-with-reason :: {"found":true,"disabled":true,"value":"3000","help":"Đã phát hành lệnh điều xe (chuyến đang chạy) — trọng tải theo lệnh; hủy hoặc thay thế lệnh để sửa."}
+2026-11-02T13:29:42.767Z PASS C5 dialog-closed-no-write :: weight untouched (read-only check)
+2026-11-02T13:29:52.449Z FAIL D2 mobile-row-menu :: {"ok":false,"why":"row not found"}
+2026-11-02T13:29:53.851Z FAIL D3 mobile-weight-field-rendered :: {"found":false}
+2026-11-02T13:29:53.852Z PASS D4 mobile-no-horizontal-overflow :: overflow 0px
+2026-11-02T13:29:54.100Z DONE exit=0
+2026-11-02T13:30:10.277Z PASS logins :: dieuvan (DISPATCHER) on the worktree backend
+2026-11-02T13:30:10.462Z PASS P0a fixture-is-dispatched-created :: trip 618 CREATED
+2026-11-02T13:30:10.613Z PASS P0b dispatcher-clears-weight :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"contain
+2026-11-02T13:30:10.707Z PASS P0c db-weight-null :: the dead-end state: DISPATCHED + CREATED trip + weight NULL
+2026-11-02T13:30:17.930Z PASS A1 ui-login-dieuvan :: logged in on the worktree UI
+2026-11-02T13:30:28.939Z PASS A3 row-menu-phan-xe-lai :: {"ok":true}
+2026-11-02T13:30:30.347Z PASS A5 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":"Trọng tải hàng theo booking — cần cho giá container."}
+2026-11-02T13:30:37.675Z PASS A7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:30:37.990Z PASS A8 db-weight-restored :: db weight=20000.00 (DB side effect of the UI save)
+2026-11-02T13:30:38.391Z PASS P2 reissue-after-heal :: status=201 {"fulfillmentId":411,"version":19,"trip":{"id":618,"version":15,"tripCode":"TRP-202611-0012","status":"CREATED","plannedStartAt":"2026-11-05
+2026-11-02T13:30:38.639Z PASS B0 dispatcher-clears-b-weight :: status=200 (plated, no trip — pre-issue weightless)
+2026-11-02T13:30:38.746Z PASS B0b db-b-weight-null :: READY + weightless
+2026-11-02T13:30:51.512Z PASS B2 row-menu-sua-dieu-phoi :: {"ok":true}
+2026-11-02T13:30:52.899Z PASS B4 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":"Trọng tải hàng theo booking — cần cho giá container khi Phát lệnh."}
+2026-11-02T13:30:53.447Z PASS B5 issue-blocked-while-unsaved :: {"issueAria":"true"}
+2026-11-02T13:30:59.923Z PASS B7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:31:00.405Z PASS B8 db-b-weight-restored :: db weight=3000.00
+2026-11-02T13:31:13.314Z PASS C2 row-menu-phan-xe-lai-intransit :: {"ok":true}
+2026-11-02T13:31:15.307Z PASS C4 weight-field-disabled-with-reason :: {"found":true,"disabled":true,"value":"3000","help":"Đã phát hành lệnh điều xe (chuyến đang chạy) — trọng tải theo lệnh; hủy hoặc thay thế lệnh để sửa."}
+2026-11-02T13:31:16.488Z PASS C5 dialog-closed-no-write :: weight untouched (read-only check)
+2026-11-02T13:31:26.324Z FAIL D2 mobile-row-menu :: {"ok":false,"why":"row menu trigger not found"}
+2026-11-02T13:31:27.703Z FAIL D3 mobile-weight-field-rendered :: {"found":false}
+2026-11-02T13:31:27.704Z PASS D4 mobile-no-horizontal-overflow :: overflow 0px
+2026-11-02T13:31:27.973Z DONE exit=0
+2026-11-02T13:32:50.671Z PASS logins :: dieuvan (DISPATCHER) on the worktree backend
+2026-11-02T13:32:50.996Z PASS P0a fixture-is-dispatched-created :: trip 618 CREATED
+2026-11-02T13:32:51.348Z PASS P0b dispatcher-clears-weight :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"contain
+2026-11-02T13:32:51.475Z PASS P0c db-weight-null :: the dead-end state: DISPATCHED + CREATED trip + weight NULL
+2026-11-02T13:33:00.192Z PASS A1 ui-login-dieuvan :: logged in on the worktree UI
+2026-11-02T13:33:10.297Z PASS A3 row-menu-phan-xe-lai :: {"ok":true}
+2026-11-02T13:33:11.826Z PASS A5 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":"Trọng tải hàng theo booking — cần cho giá container."}
+2026-11-02T13:33:19.243Z PASS A7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:33:19.708Z PASS A8 db-weight-restored :: db weight=20000.00 (DB side effect of the UI save)
+2026-11-02T13:33:20.433Z PASS P2 reissue-after-heal :: status=201 {"fulfillmentId":411,"version":21,"trip":{"id":618,"version":17,"tripCode":"TRP-202611-0012","status":"CREATED","plannedStartAt":"2026-11-05
+2026-11-02T13:33:20.650Z PASS B0 dispatcher-clears-b-weight :: status=200 (plated, no trip — pre-issue weightless)
+2026-11-02T13:33:20.804Z PASS B0b db-b-weight-null :: READY + weightless
+2026-11-02T13:33:29.956Z PASS B2 row-menu-sua-dieu-phoi :: {"ok":true}
+2026-11-02T13:33:31.324Z PASS B4 weight-field-enabled-empty :: {"found":true,"disabled":false,"value":"","help":"Trọng tải hàng theo booking — cần cho giá container khi Phát lệnh."}
+2026-11-02T13:33:32.003Z PASS B5 issue-blocked-while-unsaved :: {"issueAria":"true"}
+2026-11-02T13:33:38.502Z PASS B7 dialog-closed-no-error :: {"dialogGone":true,"errorText":""}
+2026-11-02T13:33:38.894Z PASS B8 db-b-weight-restored :: db weight=3000.00
+2026-11-02T13:33:47.781Z PASS C2 row-menu-phan-xe-lai-intransit :: {"ok":true}
+2026-11-02T13:33:49.147Z PASS C4 weight-field-disabled-with-reason :: {"found":true,"disabled":true,"value":"3000","help":"Đã phát hành lệnh điều xe (chuyến đang chạy) — trọng tải theo lệnh; hủy hoặc thay thế lệnh để sửa."}
+2026-11-02T13:33:50.355Z PASS C5 dialog-closed-no-write :: weight untouched (read-only check)
+2026-11-02T13:34:00.699Z PASS D2 mobile-row-menu :: {"ok":true}
+2026-11-02T13:34:02.233Z PASS D3 mobile-weight-field-rendered :: {"found":true,"disabled":false,"value":"3000","help":""}
+2026-11-02T13:34:02.233Z PASS D4 mobile-no-horizontal-overflow :: overflow 0px
+2026-11-02T13:34:02.910Z DONE exit=0

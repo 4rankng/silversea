@@ -365,6 +365,13 @@ export function useDispatchDetailPlan() {
        *  separate cus-workspace container-line write AFTER the plan save, on
        *  the shipmentVersion the plan save returned. null = clear. */
       customerAppointmentAt?: string | null;
+      /** SIL-644 (id 749) wave 2 — Trọng lượng (kg) of the row's container,
+       *  edited in the plan dialog. Same sequencing law as the appointment:
+       *  never on the plan PATCH (strict schema); rides the SAME container-line
+       *  write (merged with the appointment when both are touched — one
+       *  version bump) on the plan save's returned shipmentVersion. null =
+       *  clear; undefined = untouched. */
+      containerCargoWeightKg?: number | null;
       /** Phân loại (Đơn/Kẹp/Kết hợp) — the dispatcher's call since 2026-09-08;
        *  optional so CUS-derived values stay valid when a caller omits it. */
       classification?: DispatchClassification;
@@ -379,12 +386,13 @@ export function useDispatchDetailPlan() {
     setAssignmentError(null);
     setPendingWeightWarning(null);
     try {
-      // SIL-473 — the appointment rides the callback contract, not the plan
-      // write: the atomic plan schema is strict and would 400 on the extra
-      // key, and the two writes have their own version authorities.
-      const { customerAppointmentAt, planBody } = (() => {
-        const { customerAppointmentAt: appointment, ...rest } = body;
-        return { customerAppointmentAt: appointment, planBody: rest };
+      // SIL-473 + SIL-644 — the appointment and the container weight ride the
+      // callback contract, not the plan write: the atomic plan schema is
+      // strict and would 400 on either extra key, and these writes have their
+      // own version authorities.
+      const { customerAppointmentAt, containerCargoWeightKg, planBody } = (() => {
+        const { customerAppointmentAt: appointment, containerCargoWeightKg: weight, ...rest } = body;
+        return { customerAppointmentAt: appointment, containerCargoWeightKg: weight, planBody: rest };
       })();
       const result = await updateDispatchDetailPlan(row.fulfillmentId, {
         expectedFulfillmentVersion: row.version,
@@ -417,24 +425,39 @@ export function useDispatchDetailPlan() {
             ? { ...item, shipmentVersion: result.shipmentVersion, lotFullyPlated: result.lotFullyPlated }
             : item;
         }));
-      // SIL-473 — Giờ điều vận sync: one existing write path owns the
-      // container appointment (cus-workspace container line — the same command
-      // the CUS schedule editor uses; DISPATCHER is an allowed writer). It
-      // must run AFTER the plan save on the plan save's returned
-      // shipmentVersion (both writes bump the shipment version). The backend
-      // re-derives Ngày vận chuyển and enforces its own guards there (live
-      // trip → 409 'Container đã gắn chuyến xe…', terminal lot, accounting
-      // lock), so the operator's refusal reason is the server's own message.
-      if (customerAppointmentAt !== undefined && row.shipmentContainerId != null) {
-        await updateCusShipmentContainerLine(row.shipmentId, row.shipmentContainerId, {
+      // SIL-473 + SIL-644 — one existing write path owns the container line
+      // (cus-workspace container line — the same command the CUS schedule and
+      // weight editors use; DISPATCHER is an allowed writer). It must run
+      // AFTER the plan save on the plan save's returned shipmentVersion (both
+      // writes bump the shipment version). Appointment and weight ride ONE
+      // call when both are touched — a single version bump, never two racing
+      // writes for the same row. The backend re-derives Ngày vận chuyển and
+      // enforces its own guards there (issued trip → 409 'Container đã gắn
+      // chuyến xe…', terminal lot, accounting lock), so the operator's
+      // refusal reason is the server's own message.
+      const linePatch: { customerAppointmentAt?: string | null; cargoWeightKg?: string | null } = {};
+      if (customerAppointmentAt !== undefined) linePatch.customerAppointmentAt = customerAppointmentAt;
+      // The shared schema's exported input type is the TRANSFORMED decimal
+      // string — NumberField's number is stringified here (the wire accepts
+      // either, the type demands the string).
+      if (containerCargoWeightKg !== undefined) linePatch.cargoWeightKg = containerCargoWeightKg === null ? null : String(containerCargoWeightKg);
+      if (Object.keys(linePatch).length > 0 && row.shipmentContainerId != null) {
+        const lineResult = await updateCusShipmentContainerLine(row.shipmentId, row.shipmentContainerId, {
           expectedShipmentVersion: result.shipmentVersion,
-          customerAppointmentAt,
+          ...linePatch,
         });
-        // Exact known truth for the just-written instant — the follow-up
+        // Exact known truth for the just-written values — the follow-up
         // refetch reconciles the rest (Ngày vận chuyển is the server's
         // earliest-appointment projection across the lot, not this field).
+        const savedWeight = lineResult.line?.raw?.cargoWeightKg ?? null;
         setItems((previous) => previous.map((item) => (item.fulfillmentId === row.fulfillmentId
-          ? { ...item, time: { ...item.time, runAt: customerAppointmentAt } }
+          ? {
+            ...item,
+            time: customerAppointmentAt !== undefined
+              ? { ...item.time, runAt: customerAppointmentAt }
+              : item.time,
+            container: { ...item.container, cargoWeightKg: savedWeight },
+          }
           : item)));
       }
       // A pre-save refresh must not overwrite the saved row/version, even

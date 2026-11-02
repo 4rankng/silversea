@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>SIL-644 — Sửa điều phối: mockup ô Trọng lượng (design lock)</title>
+<style>
+  :root { --bg:#f6f7f8; --surface:#fff; --fg:#101828; --fg2:#475467; --fg3:#98a2b3;
+    --line:#e4e7ec; --accent:#059669; --accent-ink:#047857; --danger:#b42318;
+    --radius:8px; --label:12px; --data:12px; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:var(--bg); color:var(--fg); padding:28px; }
+  h1 { font-size:15px; margin-bottom:4px; }
+  p.note { font-size:12px; color:var(--fg2); margin-bottom:18px; max-width:820px; line-height:1.5; }
+  .dialog { width:min(880px,100%); background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; box-shadow:0 18px 50px rgba(16,24,40,.14); padding:20px 22px; }
+  .dialog h2 { font-size:14px; margin-bottom:16px; }
+  .fields { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px 12px; align-items:end; }
+  .field { display:grid; gap:6px; min-width:0; }
+  .field > span.lbl { font-size:var(--label); font-weight:600; color:var(--fg2); }
+  .field input, .field .fake-select { height:34px; border:1px solid var(--line); border-radius:var(--radius);
+    background:var(--surface); padding:0 8px; font-size:13px; color:var(--fg); width:100%; }
+  .field.narrow { width:min(150px,100%); justify-self:start; }
+  .field input.suffix { padding-right:34px; background-image:none; position:relative; }
+  .unit { position:absolute; }
+  .wrap { position:relative; display:flex; align-items:center; }
+  .wrap .suffix { position:absolute; right:6px; font-size:11px; color:var(--fg3); background:#f2f4f7;
+    border-radius:4px; padding:2px 4px; pointer-events:none; }
+  .area-carrier { grid-column:1 / span 2; } .area-vehicle { grid-column:3 / span 2; }
+  .area-run { grid-column:1 / -1; }
+  .new-field { outline:2px dashed var(--accent); outline-offset:4px; }
+  .badge { display:inline-block; font-size:10px; font-weight:700; color:var(--accent-ink);
+    border:1px solid var(--accent); border-radius:4px; padding:1px 6px; margin-left:6px; vertical-align:1px; }
+  .hint { font-size:11px; color:var(--fg2); line-height:1.4; }
+  .disabled input { background:#f2f4f7; color:var(--fg2); }
+  footer { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+  button { height:36px; padding:0 16px; border-radius:var(--radius); font-size:13px; font-weight:600; cursor:pointer; border:1px solid var(--line); background:var(--surface); }
+  button.primary { background:var(--accent); border-color:transparent; color:#fff; }
+  .caption { font-size:11px; color:var(--fg3); margin-top:10px; }
+</style>
+</head>
+<body>
+  <h1>SIL-644 · dialog "Sửa điều phối" — thêm ô Trọng lượng (kg)</h1>
+  <p class="note">Mockup design-lock (webchat/deepseek verdict 02/11 + Untitled UI consult: dùng lại primitive NumberField
+  như 2 ô cước, band hẹp 150px, suffix kg; đặt ở track 4 trống của row 2 ≥900px; đã phát lệnh → disabled + hint, giá trị vẫn hiện).
+  Field thật dùng <code>NumberField</code> của design-system — mockup này chỉ chốt vị trí + trạng thái, không phải pixel reference.</p>
+
+  <div class="dialog">
+    <h2>Chỉnh sửa điều phối · TEST5810010</h2>
+    <div class="fields">
+      <div class="field area-carrier"><span class="lbl">Nhà xe</span><div class="fake-select">SilverSea — xe nội bộ</div></div>
+      <div class="field area-vehicle"><span class="lbl">Xe / biển số</span><div class="fake-select">15C-99999</div></div>
+
+      <div class="field narrow"><span class="lbl">Phân loại</span><div class="fake-select">Đơn</div></div>
+      <div class="field narrow"><span class="lbl">Cước thu dự kiến</span>
+        <div class="wrap"><input class="suffix" value="4.500.000"><span class="suffix">đ</span></div></div>
+      <div class="field narrow"><span class="lbl">Cước trả dự kiến</span>
+        <div class="wrap"><input class="suffix" value="3.200.000"><span class="suffix">đ</span></div></div>
+      <div class="field narrow new-field"><span class="lbl">Trọng lượng <span class="badge">MỚI · SIL-644</span></span>
+        <div class="wrap"><input class="suffix" placeholder="0" value=""><span class="suffix">kg</span></div>
+        <span class="hint">Trọng tải hàng theo booking — cần cho giá container khi Phát lệnh.</span></div>
+
+      <div class="field area-run"><span class="lbl">Giờ điều vận</span><input value="29/10/2026 · 08:00"></div>
+    </div>
+    <footer>
+      <button>Hủy</button>
+      <button class="primary">Lưu thay đổi</button>
+      <button class="primary">Phát lệnh</button>
+    </footer>
+  </div>
+
+  <p class="caption">Trạng thái đã phát lệnh (trip rời CREATED) — cùng vị trí, disabled, giá trị vẫn đọc được:</p>
+  <div class="dialog">
+    <h2>Chỉnh sửa điều phối · MSCU1234567</h2>
+    <div class="fields">
+      <div class="field area-carrier"><span class="lbl">Nhà xe</span><div class="fake-select">SilverSea — xe nội bộ</div></div>
+      <div class="field area-vehicle"><span class="lbl">Xe / biển số</span><div class="fake-select">51C-888.88</div></div>
+      <div class="field narrow"><span class="lbl">Phân loại</span><div class="fake-select">Kẹp</div></div>
+      <div class="field narrow"><span class="lbl">Cước thu dự kiến</span>
+        <div class="wrap"><input class="suffix" value="4.500.000"><span class="suffix">đ</span></div></div>
+      <div class="field narrow"><span class="lbl">Cước trả dự kiến</span>
+        <div class="wrap"><input class="suffix" value="3.200.000"><span class="suffix">đ</span></div></div>
+      <div class="field narrow new-field disabled"><span class="lbl">Trọng lượng</span>
+        <div class="wrap"><input class="suffix" disabled value="21.400"><span class="suffix">kg</span></div>
+        <span class="hint">Đã phát hành lệnh điều xe — trọng tải theo lệnh; hủy/thay thế lệnh để sửa.</span></div>
+      <div class="field area-run"><span class="lbl">Giờ điều vận</span><input value="29/10/2026 · 08:00"></div>
+    </div>
+    <footer>
+      <button>Hủy</button>
+      <button class="primary">Lưu thay đổi</button>
+    </footer>
+  </div>
+</body>
+</html>
