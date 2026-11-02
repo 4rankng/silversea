@@ -94,6 +94,11 @@ describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }
     // The label is a flex SIBLING of the field group (inline row), not a
     // nested span inside it.
     expect(label!.closest('[data-split-datetime]')).toBeNull();
+    // It must be a DIRECT child of the band — a flex ITEM of the row. A
+    // label nested one level deeper (e.g. inside a wrapper) would not be a
+    // flex item at all and could never share the row.
+    expect(label!.parentElement?.classList.contains('csc-lcl-delivery'),
+      'the inline label is a DIRECT flex child of the band row').toBe(true);
     // The group still carries the name for assistive tech.
     const group = band.querySelector('[data-split-datetime][role="group"]');
     expect(group?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
@@ -165,5 +170,16 @@ describe('SIL-616 — band control height pins (styles)', () => {
     expect(PAGE_CSS).toMatch(/@media \(max-width: 640px\) \{\s*\.csc-lcl-delivery \.split-datetime__label \{ font-size: var\(--control-compact-touch-font-size\); line-height: var\(--control-compact-touch-line-height\); \}/);
     // The grid stack (label on top) must not return.
     expect(PAGE_CSS).not.toMatch(/\.csc-lcl-delivery \{ display: grid;/);
+    // The field wrapper must NOT stretch to 100% of the band. `.split-datetime`
+    // ships `width: 100%`, so as a flex item its flex-basis (auto → the used
+    // width) was the WHOLE band: label + 100% > 100% ⇒ flex-wrap ALWAYS broke
+    // the pair onto two lines and the label rendered ABOVE the inputs, exactly
+    // like the old stacked grid. `width: auto` makes the basis the content
+    // width (the fit-content segment pair) so the label and the inputs share
+    // one row while there is room, and still wrap on narrow phones.
+    // Measured in a real browser (Chromium 1280px, band 1200px): label 132px
+    // + field 286px ⇒ label x=484, field x=628 (label LEFT of the inputs).
+    // Before the fix: label x=484 y=0, field x=484 y=23 (label ABOVE).
+    expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \.csc-uui-field \{ flex: 0 1 auto; min-width: 0; width: auto; \}/);
   });
 });

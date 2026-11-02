@@ -48,7 +48,7 @@
    stacks label above inputs on phones where the pair cannot share a line. */
 .csc-lcl-delivery { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px; min-width: 0; }
 .csc-lcl-delivery .split-datetime__label { font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); color: var(--fg-1); white-space: nowrap; }
-.csc-lcl-delivery .csc-uui-field { flex: 0 1 auto; min-width: 0; }
+.csc-lcl-delivery .csc-uui-field { flex: 0 1 auto; min-width: 0; width: auto; }
 @media (max-width: 640px) {
   .csc-lcl-delivery .split-datetime__label { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }
 }
