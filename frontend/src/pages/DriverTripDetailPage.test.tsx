@@ -423,9 +423,8 @@ describe('DriverTripDetailPage', () => {
 
     renderPageWithBoard();
 
-    // Tapping the sticky "Hoàn tất lệnh vận chuyển" action navigates to the
-    // pod page
-    const cta = await screen.findByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
+    // Tapping the footer "Tải chứng từ e-POD" link navigates to the pod page
+    const cta = await screen.findByRole('link', { name: 'Tải chứng từ e-POD' });
     fireEvent.click(cta);
 
     // The driver lands on THIS trip's pod screen. Card 071026205800: the
@@ -433,6 +432,64 @@ describe('DriverTripDetailPage', () => {
     // not the fulfillment id (4242).
     expect(await screen.findByTestId(`pod-route-stub-${TRIP_ID}`)).toBeTruthy();
     expect(screen.queryByTestId(`pod-route-stub-${FULFILLMENT_ID}`)).toBeNull();
+  });
+
+  // SIL-638 TC9 (id 742): completing transport order without e-POD photos directly
+  // from the detail screen. Owner ruling 31/10: e-POD is optional.
+  it('TC9: confirms and completes trip from sticky CTA without requiring e-POD upload, invalidating journeyBoard', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          id: 22,
+          tripId: 55,
+          fulfillmentId: 88,
+          submissionVersion: 1,
+          status: TripPodStatus.DRAFT,
+          version: 2,
+          createdAt: '2026-08-01T01:00:00.000Z',
+          updatedAt: '2026-08-01T01:00:00.000Z',
+          submittedAt: null,
+          reviewedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          acceptedAt: null,
+          supersedesSubmissionId: null,
+          files: [],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const client = freshClient();
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries');
+    const completeSpy = vi.spyOn(driverClient, 'completeTrip').mockResolvedValue({} as never);
+    const submitPodSpy = vi.spyOn(driverClient, 'submitPod').mockResolvedValue({} as never);
+
+    renderPageWithBoard(client);
+
+    await screen.findByTestId('complete-sticky-bar');
+    const cta = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
+    fireEvent.click(cta);
+
+    // Confirmation dialog appears
+    const confirmBtn = await screen.findByRole('button', { name: 'Hoàn tất' });
+    fireEvent.click(confirmBtn);
+
+    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+    expect(submitPodSpy).toHaveBeenCalledWith(FULFILLMENT_ID, 22, { expectedVersion: 2 }, expect.any(String));
+    expect(completeSpy).toHaveBeenCalledWith(FULFILLMENT_ID, { expectedVersion: 3 }, expect.any(String));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
   });
 
   // SIL-652 (id 758): L2 (locked) trip hides the dead accept button and shows

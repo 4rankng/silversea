@@ -27,7 +27,7 @@ import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import * as driverQueries from '../hooks/useDriverQueries';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '../api/keys';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { useAuthedPhotoUrls } from '../lib/api/photo';
@@ -37,6 +37,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
+import { useConfirm } from '../components/UI';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { ContainerScanner, dataUrlToFile } from '../components/shared/ContainerScanner';
 import './DriverTripDetailPage.css';
@@ -55,7 +56,9 @@ function DriverTripDetailContent() {
   useDriverScreenEntry(id);
   const actionBarRef = useFixedActionClearance<HTMLDivElement>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const geolocation = useGeolocation();
   const journeyBoard = Object.keys(driverQueries).includes('useDriverJourneyBoard')
     ? (driverQueries as unknown as { useDriverJourneyBoard: () => { data?: { items?: Array<Record<string, unknown>> } } }).useDriverJourneyBoard()
@@ -64,6 +67,7 @@ function DriverTripDetailContent() {
   const [fuelScanning, setFuelScanning] = useState(false);
   const [chipsExpanded, setChipsExpanded] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  const [completing, setCompleting] = useState(false);
   // KP-087: the parsed TRP code from the busy-trip 409 — banner PRESENCE
   // signal and board lookup key only, NEVER rendered (FB-019, card
   // 211026005621 / internal-ids law CHIEF 26/09).
@@ -248,6 +252,54 @@ function DriverTripDetailContent() {
   // photo keys reflect the persisted row.
   function handleContainerSaved() {
     void refreshAll();
+  }
+
+  // SIL-638 TC9 (id 742): completing transport order directly from the detail
+  // screen. e-POD photos are optional (owner ruling 31/10).
+  async function handleCompleteTrip() {
+    if (!trip || !validFulfillmentId || closed || completing) return;
+    if (trip.status !== 'IN_TRANSIT') {
+      toast({ kind: 'warning', message: 'Chuyến không ở trạng thái đang chạy để hoàn thành.' });
+      return;
+    }
+    if (trip.accountingLock) {
+      toast({ kind: 'warning', message: 'Lô hàng đã khóa kế toán. Không thể hoàn thành chuyến.' });
+      return;
+    }
+
+    const confirmed = await confirm('Xác nhận hoàn tất lệnh vận chuyển?', {
+      variant: 'primary',
+      confirmLabel: 'Hoàn tất',
+    });
+    if (!confirmed) return;
+
+    setCompleting(true);
+    try {
+      if (currentSubmission?.status === 'DRAFT') {
+        const idempotencyKey = buildIdempotencyKey(
+          'driver', 'task', validFulfillmentId,
+          'pod-submit', currentSubmission.id, 'version', currentSubmission.version,
+        );
+        await driverClient.submitPod(
+          validFulfillmentId,
+          currentSubmission.id,
+          { expectedVersion: currentSubmission.version },
+          idempotencyKey,
+        );
+      }
+      const completeKey = buildIdempotencyKey(
+        'driver', 'task', validFulfillmentId, 'complete', 'version', trip.version,
+      );
+      await driverClient.completeTrip(validFulfillmentId, { expectedVersion: trip.version }, completeKey);
+      await queryClient.invalidateQueries({ queryKey: qk.driver.journeyBoard });
+      await queryClient.invalidateQueries({ queryKey: qk.driver.twoOrders });
+      toast({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
+      navigate('/my-trips', { replace: true });
+    } catch (error) {
+      toastActionError(toast, 'hoàn thành chuyến', error, 'Không thể hoàn thành chuyến. Vui lòng thử lại.');
+    } finally {
+      setCompleting(false);
+    }
   }
 
   if (!validTripId) {
@@ -456,12 +508,17 @@ function DriverTripDetailContent() {
               </p>
             )}
           </div>
-          {closed && (
+          {closed ? (
             // Card 071026205800: the `:id` in `/my-trips/:id/pod` is the SAME
             // `:id` as `/my-trips/:id` above — a TRIP id (card 20260915_1).
             <Link className="driver-task-complete" to={`/my-trips/${validTripId}/pod`} style={{ textDecoration: 'none' }}>
               <FileCheck2 size={18} />
               <span>Xem chứng từ giao hàng</span>
+            </Link>
+          ) : (
+            <Link className="driver-task-complete" to={`/my-trips/${validTripId}/pod`} style={{ textDecoration: 'none' }}>
+              <FileCheck2 size={18} />
+              <span>Tải chứng từ e-POD</span>
             </Link>
           )}
         </div>
@@ -681,14 +738,12 @@ function DriverTripDetailContent() {
             <button
               type="button"
               className="driver-task-complete-sticky__btn"
-              disabled={trip.status !== 'IN_TRANSIT'}
-              onClick={() => navigate(`/my-trips/${validTripId}/pod`)}
+              disabled={trip.status !== 'IN_TRANSIT' || completing}
+              onClick={() => void handleCompleteTrip()}
             >
-              <FileCheck2 size={16} />
-              {/* DRV-DET-06: "Hoàn tất lệnh vận chuyển" — this bar navigates
-                  to the e-POD screen; the uppercase HOÀN THÀNH CHUYẾN literal
-                  lives on that screen's footer. */}
-              <span>{completeCtaLabel(trip.status)}</span>
+              {completing ? <Loader2 size={16} className="spin" /> : <FileCheck2 size={16} />}
+              {/* SIL-638 TC9: "Hoàn tất lệnh vận chuyển" completes the order directly (photos optional) */}
+              <span>{completing ? 'Đang gửi…' : completeCtaLabel(trip.status)}</span>
             </button>
           </div>
         </div>
@@ -727,6 +782,8 @@ function DriverTripDetailContent() {
           onClose={() => setFuelScanning(false)}
         />
       )}
+
+      {confirmDialog}
     </div>
   );
 }
