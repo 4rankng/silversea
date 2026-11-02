@@ -142,7 +142,70 @@ describe('mở bảng chấm công (FB-102/FB-103 — card 141026230790/230800)'
   it('Điều vận không thấy nút mở bảng — việc đó của kế toán', async () => {
     listMonths.mockReset().mockResolvedValue([]);
     page();
-    await screen.findByText(/chưa có bảng chấm công/);
+    await screen.findByText(/chưa có bảng chấm công/i);
     expect(screen.queryByRole('button', { name: /Mở bảng chấm công/ })).toBeNull();
+  });
+});
+
+describe('SIL-649 — Driver timesheet empty-state redesign & stray stripe extermination', () => {
+  it('renders centered empty-state card with dynamic month title and guidance text for dispatcher', async () => {
+    currentUser.role = Role.DISPATCHER;
+    listMonths.mockReset().mockResolvedValue([]);
+    const { container } = page();
+
+    // 1. Dynamic month title derived from useMonthRoute (10/2026)
+    const title = await screen.findByRole('heading', { level: 3, name: 'Chưa có bảng chấm công tháng 10/2026' });
+    expect(title).toBeVisible();
+
+    // 2. Guidance text preserving intent without dead button
+    expect(screen.getByText('Kế toán mở bảng trước, sau đó Điều vận điền lưới.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Mở bảng chấm công/ })).toBeNull();
+
+    // 3. Centered empty card container
+    const emptyCard = container.querySelector('.ts-empty-card');
+    expect(emptyCard).not.toBeNull();
+    expect(emptyCard?.querySelector('.ds-empty-state')).not.toBeNull();
+
+    // 4. Month navigation inside containerized toolbar
+    const toolbar = container.querySelector('.ts-toolbar');
+    expect(toolbar).not.toBeNull();
+    const monthPicker = toolbar?.querySelector('.ts-month-picker');
+    expect(monthPicker).not.toBeNull();
+    expect(monthPicker?.querySelector('.ts-period')?.textContent).toBe('Tháng 10/2026');
+  });
+
+  it('renders primary CTA Mở bảng chấm công inside empty card for accountant', async () => {
+    currentUser.role = Role.ACCOUNTANT;
+    listMonths.mockReset().mockResolvedValue([]);
+    const { container } = page();
+
+    const emptyCard = container.querySelector('.ts-empty-card');
+    expect(emptyCard).not.toBeNull();
+
+    const openBtn = await screen.findByRole('button', { name: /Mở bảng chấm công/ });
+    expect(openBtn).toBeVisible();
+    expect(emptyCard?.contains(openBtn)).toBe(true);
+  });
+
+  it('exterminates stray stripe artifact when driver list is empty or populated', async () => {
+    // When no drivers exist: .ts-driver-select is completely absent from DOM (no 0-width ghost container)
+    listDrivers.mockReset().mockResolvedValue([]);
+    listMonths.mockReset().mockResolvedValue([]);
+    const { container: emptyContainer } = page();
+
+    await screen.findByText('Chưa có bảng chấm công tháng 10/2026');
+    expect(emptyContainer.querySelector('.ts-driver-select')).toBeNull();
+
+    // When drivers exist: .ts-driver-select is rendered with proper driver option without collapse
+    listDrivers.mockReset().mockResolvedValue([driver]);
+    const { container: populatedContainer } = page();
+
+    const driverSelect = await waitFor(() => {
+      const el = populatedContainer.querySelector('.ts-driver-select');
+      expect(el).not.toBeNull();
+      return el!;
+    });
+    expect(driverSelect).toBeVisible();
+    expect(within(driverSelect as HTMLElement).getByRole('button', { name: /Chọn lái xe/ })).toBeVisible();
   });
 });
