@@ -1,0 +1,7 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+> @tingting/shared@0.1.0 build /Users/dev/.paseo/worktrees/wave638/fix-sil-630/shared
+> tsc && node fix-esm-imports.js
+
+Fixed 75 bare imports in /Users/dev/.paseo/worktrees/wave638/fix-sil-630/shared/dist
+SHARED_BUILD_EXIT=0
