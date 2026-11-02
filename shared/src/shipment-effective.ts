@@ -107,3 +107,19 @@ export function localDateInBusinessZone(value: string | Date): string | null {
     .toISOString()
     .slice(0, 10);
 }
+
+/**
+ * SIL-644 (id 749): instant equality between an edit payload's ISO string
+ * (or null) and a stored Date (or null). An OMITTED field (`undefined`)
+ * means "keep stored" — not "clear" — so it compares as equal to anything;
+ * a null payload vs a null column is equal; everything else compares wall-
+ * clock instants regardless of offset spelling.
+ */
+export function sameInstantOrNull(
+  next: string | null | undefined,
+  stored: Date | null,
+): boolean {
+  if (next === undefined) return true;
+  if (next === null) return stored == null;
+  return stored != null && new Date(next).getTime() === stored.getTime();
+}

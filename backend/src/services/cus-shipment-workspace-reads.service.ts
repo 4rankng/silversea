@@ -30,6 +30,7 @@ export * from './cus-workspace-sql.service';
 export * from './cus-workspace-mapping.service';
 
 import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite, indexAssignmentRows } from './cus-workspace-builders.service';
+import type { ShipmentCusWorkspaceContainerLine } from '@tingting/shared';
 import { loadCusShipmentStatusCounts } from './cus-shipment-status-census.service';
 import { loadRevManualPriceByLot } from './revenue-override-read.service';
 
@@ -739,6 +740,36 @@ export async function loadShipmentRow(
   return row;
 }
 
+/**
+ * SIL-644 (id 749): "đã điều xe" is TWO states, not one. A live trip still
+ * in CREATED is an assignment awaiting Phát lệnh — in that window the
+ * container's cargo MEASURES (trọng tải / CBM) must stay writable, because
+ * the weight is exactly what the price computation at Phát lệnh needs (the
+ * missing-weight 409 is the designed backstop there). Once the trip has LEFT
+ * CREATED (IN_TRANSIT/COMPLETED) the order is issued and the base
+ * `containerFieldAccess` READ_ONLY law stands. Both projections that feed the
+ * ledger (the detail editor's container line and the flat list row) ride this
+ * override so the affordance and the editor can never disagree.
+ */
+function withIssuanceWindowFieldAccess(
+  line: ShipmentCusWorkspaceContainerLine,
+  hasActiveLock: boolean,
+  actor: AuthUser,
+): ShipmentCusWorkspaceContainerLine {
+  if (hasActiveLock || line.tripStatus !== TripStatus.CREATED) return line;
+  if (actor.role !== Role.ADMIN && actor.role !== Role.MANAGER
+    && actor.role !== Role.CUS && actor.role !== Role.DISPATCHER) return line;
+  const reason = 'Đã điều xe nhưng chưa phát lệnh — có thể nhập trọng tải hàng; giá container sẽ được tính khi phát lệnh.';
+  return {
+    ...line,
+    fieldAccess: {
+      ...line.fieldAccess,
+      cargoWeightKg: { mode: 'DIRECT', reason },
+      cargoVolumeCbm: { mode: 'DIRECT', reason },
+    },
+  };
+}
+
 export async function buildWorkspaceDetail(
   row: ShipmentListRow,
   actor: AuthUser,
@@ -748,8 +779,13 @@ export async function buildWorkspaceDetail(
   const confirmation = await getShipmentFinanceConfirmationSummary(row.shipment.id, executor);
   const summary = buildListItem(row, support, actor, confirmation);
   const selectors = await loadSelectors(row.shipment.customerId, executor);
+  const hasActiveLock = support.locksByShipment.get(row.shipment.id) != null;
   const containers = (support.containersByShipment.get(row.shipment.id) ?? [])
-    .map((container, index) => buildContainerLine(row, actor, support, container, index + 1));
+    .map((container, index) => withIssuanceWindowFieldAccess(
+      buildContainerLine(row, actor, support, container, index + 1),
+      hasActiveLock,
+      actor,
+    ));
   return {
     summary,
     containers,
@@ -1284,7 +1320,11 @@ export async function listCusShipmentContainers(
     const containerIndex = containers.findIndex((container) => container.id === selected.containerId);
     const container = containers[containerIndex];
     if (!container) continue;
-    const line = buildContainerLine(row, actor, support, container, containerIndex + 1);
+    const line = withIssuanceWindowFieldAccess(
+      buildContainerLine(row, actor, support, container, containerIndex + 1),
+      support.locksByShipment.get(row.shipment.id) != null,
+      actor,
+    );
     const shipmentEditable = actor.role === Role.CUS
       && support.locksByShipment.get(row.shipment.id) == null;
     const missingFields = containerMissingFields(

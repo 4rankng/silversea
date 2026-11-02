@@ -1,10 +1,11 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type {
-  ShipmentCusContainerFlatRow,
-  ShipmentCusWorkspaceContainerLine,
-  ShipmentCusWorkspaceDetail,
+import {
+  TripStatus,
+  type ShipmentCusContainerFlatRow,
+  type ShipmentCusWorkspaceContainerLine,
+  type ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
 import {
   ShipmentContainerLedger,
@@ -1843,5 +1844,43 @@ describe('SIL-167 vehicle plate options by nhà xe + empty-state reason', () => 
     renderLedger('notes', baseRow(), baseDetail(), ownLine());
     expect(screen.queryByTestId('plate-options-empty-hint')).toBeNull();
     expect(listDispatchFleetResourcesMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('SIL-644 (id 749) cargo weight in the assignment window', () => {
+  // The BE (withIssuanceWindowFieldAccess) upgrades the cargo-measure access
+  // to DIRECT while the container's trip is still CREATED — the ledger must
+  // honor that mode on the Trọng lượng input. An issued trip (left CREATED)
+  // keeps the base READ_ONLY law.
+  it('enables the Trọng lượng input when the line rides the issuance-window access', () => {
+    renderLedger('container', baseRow(), baseDetail(), {
+      ...baseLine(),
+      tripId: 321,
+      tripStatus: TripStatus.CREATED,
+      dispatchStatus: 'CREATED',
+      fieldAccess: {
+        ...baseLine().fieldAccess,
+        cargoWeightKg: { mode: 'DIRECT', reason: 'Đã điều xe nhưng chưa phát lệnh — có thể nhập trọng tải hàng; giá container sẽ được tính khi phát lệnh.' },
+        cargoVolumeCbm: { mode: 'DIRECT', reason: 'Đã điều xe nhưng chưa phát lệnh — có thể nhập trọng tải hàng; giá container sẽ được tính khi phát lệnh.' },
+      },
+    });
+    const weight = screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement;
+    expect(weight.disabled).toBe(false);
+  });
+
+  it('keeps the Trọng lượng input locked for an issued trip (base READ_ONLY law)', () => {
+    renderLedger('container', baseRow(), baseDetail(), {
+      ...baseLine(),
+      tripId: 321,
+      tripStatus: TripStatus.IN_TRANSIT,
+      dispatchStatus: 'IN_TRANSIT',
+      fieldAccess: {
+        ...baseLine().fieldAccess,
+        cargoWeightKg: { mode: 'READ_ONLY', reason: 'Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.' },
+        cargoVolumeCbm: { mode: 'READ_ONLY', reason: 'Container đã có chuyến thực tế; hãy dùng luồng điều chỉnh điều vận.' },
+      },
+    });
+    const weight = screen.getByLabelText('Trọng lượng (kg)') as HTMLInputElement;
+    expect(weight.disabled).toBe(true);
   });
 });

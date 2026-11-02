@@ -17,6 +17,7 @@ import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import {
   canonicalShipmentStatus,
   localDateInBusinessZone,
+  sameInstantOrNull,
   shipmentContainerBatchSchema,
   updateShipmentSchema,
   validateContainerNumber,
@@ -498,7 +499,9 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
 ) {
   const activeFulfillments = await tx.select({
     id: s.shipmentFulfillments.id,
+    shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
     tripId: s.trips.id,
+    tripStatus: s.trips.status,
   })
     .from(s.shipmentFulfillments)
     .leftJoin(s.trips, and(
@@ -511,10 +514,76 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
       isNull(s.shipmentFulfillments.canceledAt),
     ));
 
-  if (activeFulfillments.some((fulfillment) => fulfillment.tripId != null)) {
+  // SIL-644 (id 749): "đã điều xe" is TWO states, not one. A live trip still
+  // in CREATED is an assignment awaiting Phát lệnh — the container must stay
+  // editable there, because the cargo weight the price computation needs is
+  // entered exactly in that window and the missing-weight 409 at issuance is
+  // the designed backstop. Only a trip that LEFT CREATED (IN_TRANSIT /
+  // COMPLETED — the order is issued) locks the set, which is what the
+  // message below has always described.
+  const issuedFulfillments = activeFulfillments.filter(
+    (fulfillment) => fulfillment.tripId != null && fulfillment.tripStatus !== 'CREATED',
+  );
+  if (issuedFulfillments.length > 0) {
     throw new ApiError(409, 'Không thể thay đổi container sau khi đã phát hành lệnh điều xe. Hãy hủy hoặc thay thế lệnh theo quy trình điều vận.');
   }
-  if (activeFulfillments.length > 0) {
+
+  // Assigned-but-not-issued: the assignment survives the reconcile only while
+  // its container survives and the edit does not move a field the trip plan
+  // was built from (loại cont / tuyến / lịch hẹn / nhà máy / phân loại — the
+  // same guarded set the workspace line write enforces value-aware). Cargo
+  // measures (trọng tải / CBM) and identity fields (số cont, seal, hãng tàu,
+  // tờ khai, ghi chú) are free — the weight is the dead-end field this guard
+  // used to lock away forever. Removing an assigned container still requires
+  // the dispatch flow to cancel/replace the assignment first.
+  const assignedContainerIds = [...new Set(activeFulfillments
+    .filter((fulfillment) => fulfillment.tripId != null)
+    .map((fulfillment) => fulfillment.shipmentContainerId)
+    .filter((id): id is number => id != null))];
+  if (assignedContainerIds.length > 0) {
+    const currentRows = await tx.select({
+      id: s.shipmentContainers.id,
+      containerTypeId: s.shipmentContainers.containerTypeId,
+      routeId: s.shipmentContainers.routeId,
+      operationalSiteId: s.shipmentContainers.operationalSiteId,
+      customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
+      classification: s.shipmentContainers.classification,
+    })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, shipmentId));
+    const currentById = new Map(currentRows.map((row) => [row.id, row]));
+    const batchById = new Map(
+      containers
+        .filter((container) => typeof container.id === 'number')
+        .map((container) => [container.id as number, container]),
+    );
+    for (const containerId of assignedContainerIds) {
+      const current = currentById.get(containerId);
+      const next = batchById.get(containerId);
+      if (current == null || next == null) {
+        throw new ApiError(409, 'Không thể bỏ container đã được điều xe. Hãy hủy hoặc thay thế phân xe theo quy trình điều vận.');
+      }
+      const appointmentChanged = next.customerAppointmentAt !== undefined
+        && !sameInstantOrNull(next.customerAppointmentAt, current.customerAppointmentAt);
+      const guardedChanged = (next.containerTypeId !== undefined && (next.containerTypeId ?? null) !== current.containerTypeId)
+        || (next.routeId !== undefined && (next.routeId ?? null) !== current.routeId)
+        || (next.operationalSiteId !== undefined && (next.operationalSiteId ?? null) !== current.operationalSiteId)
+        || appointmentChanged
+        || (next.classification !== undefined && (next.classification ?? null) !== current.classification);
+      if (guardedChanged) {
+        throw new ApiError(409, 'Container đã được điều xe — chỉ được bổ sung trọng tải hàng hoặc thông tin nhận dạng trước khi phát lệnh. Thay đổi loại cont/tuyến/lịch hẹn cần hủy hoặc thay thế phân xe theo quy trình điều vận.');
+      }
+    }
+  }
+
+  // Unassigned fulfillments keep the old refresh mechanism: any container
+  // change invalidates the decomposition (site snapshots are re-resolved at
+  // re-decompose), so they are canceled here and healed back by the next
+  // ensureShipmentFulfillments pass. Assigned-not-issued fulfillments stay
+  // — canceling them would drop the dispatcher's vehicle assignment and
+  // re-create the dead end this guard existed to fix.
+  const refreshableFulfillments = activeFulfillments.filter((fulfillment) => fulfillment.tripId == null);
+  if (refreshableFulfillments.length > 0) {
     await tx.update(s.shipmentFulfillments).set({
       canceledAt: new Date(),
       canceledBy: userId,
@@ -522,7 +591,7 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
       cancellationDisposition: 'REPLACED',
       version: sql`${s.shipmentFulfillments.version} + 1`,
       updatedAt: new Date(),
-    }).where(inArray(s.shipmentFulfillments.id, activeFulfillments.map((fulfillment) => fulfillment.id)));
+    }).where(inArray(s.shipmentFulfillments.id, refreshableFulfillments.map((fulfillment) => fulfillment.id)));
   }
 
   const result = await reconcileShipmentContainersInTx(tx, shipmentId, userId, containers);

@@ -1,0 +1,203 @@
+2026-11-02T03:35:50.091Z FAIL fatal :: login tiepvv failed: 400 {"error":"Invalid input: expected string, received undefined (identifier)","details":[{"code":"invalid_type","message":"Invalid input: expected string, received undefined","pa
+2026-11-02T03:35:50.093Z DONE exit=1
+2026-11-02T03:36:03.607Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) logged in on worktree backend
+2026-11-02T03:36:03.852Z DB before: weight= liveTrips=0
+2026-11-02T03:36:03.976Z FAIL A cus-set-weight-20000 :: status=400 {"error":"Invalid option: expected one of \"SINGLE\"|\"DOUBLE\"|\"COMBINED\"","details":[{"code":"invalid_value","message":"Invalid option: expected one of \"SI
+2026-11-02T03:36:04.162Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT id FROM trucks WHERE deleted_at IS NULL AND is_active = true ORDER BY id LIMIT 1"
+ERROR:  column "is_active" does not 
+2026-11-02T03:36:04.162Z DONE exit=1
+2026-11-02T03:36:21.301Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) logged in on worktree backend
+2026-11-02T03:36:21.447Z DB before: weight= liveTrips=0
+2026-11-02T03:36:21.526Z PASS A cus-set-weight-20000 :: status=200 {"items":[{"id":965,"shipmentId":882,"containerTypeId":1,"containerNumber":"SILQ6300004","sealNumber":null,"declarationNumber":null,"psActualAmount":null,"psAct
+2026-11-02T03:36:21.682Z FAIL B plate-assigned :: status=404 {"error":"Không tìm thấy tác vụ điều xe."}
+2026-11-02T03:36:21.742Z PASS B2 no-trip-after-assign :: liveTrips=0 (đã điều xe is a PLAN, no trip row)
+2026-11-02T03:36:21.898Z FAIL C issue-order :: status=409 tripId=undefined {"error":"Tác vụ đã bị hủy."}
+2026-11-02T03:36:21.956Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT status FROM trips WHERE id=undefined"
+ERROR:  column "undefined" does not exist
+LINE 1: SELECT status FROM trips WHERE
+2026-11-02T03:36:21.956Z DONE exit=1
+2026-11-02T03:37:33.956Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:37:34.174Z DB before: weight=20000.00 liveTrips=0
+2026-11-02T03:37:34.233Z FAIL A cus-set-weight-20000 :: status=400 {"error":"Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này."}
+2026-11-02T03:37:34.454Z FAIL B plate-assigned :: status=400 {"error":"Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này."}
+2026-11-02T03:37:34.521Z PASS B2 no-trip-after-assign :: đã điều xe is a PLAN — no trip row yet
+2026-11-02T03:37:34.679Z FAIL fatal :: base is not defined
+2026-11-02T03:37:34.679Z DONE exit=1
+2026-11-02T03:37:49.798Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:37:49.946Z DB before: weight=20000.00 liveTrips=0
+2026-11-02T03:37:50.049Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":965,"ordinal":1,"operationalSiteId":19,"containerNumber":"SILQ6300004","declarationNumber":null,"containerTypeId":1,"container
+2026-11-02T03:37:50.345Z FAIL B plate-assigned :: status=409 {"error":"CUS chưa gán nhà xe cho tác vụ này."}
+2026-11-02T03:37:50.418Z PASS B2 no-trip-after-assign :: đã điều xe is a PLAN — no trip row yet
+2026-11-02T03:37:50.630Z FAIL C issue-order :: status=409 tripId=undefined {"error":"Tác vụ điều xe đã thay đổi. Vui lòng tải lại."}
+2026-11-02T03:37:50.698Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT status FROM trips WHERE id=undefined"
+ERROR:  column "undefined" does not exist
+LINE 1: SELECT status FROM trips WHERE id=undefined
+      
+2026-11-02T03:37:50.699Z DONE exit=1
+2026-11-02T03:37:59.683Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:37:59.858Z DB before: weight=20000.00 liveTrips=0
+2026-11-02T03:37:59.942Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":965,"ordinal":1,"operationalSiteId":19,"containerNumber":"SILQ6300004","declarationNumber":null,"containerTypeId":1,"container
+2026-11-02T03:38:00.140Z PASS B0 carrier-assigned :: status=200 {"fulfillmentId":966,"version":2,"carrierType":"OWN","externalCarrierId":null,"carrierName":"SilverSea","externalCarrierVehicleId":null,"ass
+2026-11-02T03:38:00.322Z FAIL B plate-assigned :: status=409 {"error":"Đầu xe 15E-016.26 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: Lô SHP-2610-00219, Lô SHP-2610-00220, Lô SHP-2610-0022
+2026-11-02T03:38:00.402Z PASS B2 no-trip-after-assign :: đã điều xe is a PLAN — no trip row yet
+2026-11-02T03:38:00.799Z PASS C issue-order :: status=201 tripId=617 {"fulfillmentId":966,"version":3,"trip":{"id":617,"version":2,"tripCode":"TRP-202611-0011","status":"CREATED","plannedStartAt":"2026-11-03T0
+2026-11-02T03:38:00.889Z PASS C2 trip-created-status :: trip 617 status=CREATED expected
+2026-11-02T03:38:00.978Z PASS C3 weight-still-20000 :: weight=20000.00
+2026-11-02T03:38:01.049Z PASS D0 old-backend-409-failing-before :: status=409 {"error":"Container đã gắn chuyến xe (TRP-202611-0011). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa."}
+2026-11-02T03:38:01.126Z PASS D1 ledger-clear-weight-on-created-trip :: status=200 {"line":{"id":965,"ordinal":1,"operationalSiteId":19,"containerNumber":"SILQ6300004","declarationNumber":null,"containerTypeId":1,"container
+2026-11-02T03:38:01.235Z PASS D1b db-weight-null :: db weight is NULL
+2026-11-02T03:38:01.326Z PASS D2 reconcile-weight-20000 :: status=200 {"items":[{"id":965,"shipmentId":882,"containerTypeId":1,"containerNumber":"SILQ6300004","sealNumber":null,"declarationNumber":null,"psActua
+2026-11-02T03:38:01.405Z PASS D2b fulfillment-still-active :: the CREATED-trip fulfillment was NOT canceled by the reconcile
+2026-11-02T03:38:01.483Z PASS D2c db-weight-20000 :: db weight=20000
+2026-11-02T03:38:01.563Z PASS D3 ledger-clear-again :: status=200
+2026-11-02T03:38:01.899Z FAIL E reissue-blocked-409 :: status=201 {"fulfillmentId":966,"version":4,"trip":{"id":617,"version":3,"tripCode":"TRP-202611-0011","status":"CREATED","plannedStartAt":"2026-11-03T01:00:00.000Z","plannedEndAt":"2026-11-03
+2026-11-02T03:38:08.260Z PASS F1 ui-login-tiepvv :: logged in as tiepvv (Chứng từ) on the worktree UI
+2026-11-02T03:38:13.082Z FAIL fatal :: CONTAINER_NO is not defined
+2026-11-02T03:38:13.083Z DONE exit=1
+2026-11-02T03:39:00.510Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:39:00.776Z DB before: weight= liveTrips=0
+2026-11-02T03:39:00.899Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":965,"ordinal":1,"operationalSiteId":19,"containerNumber":"SILQ6300004","declarationNumber":null,"containerTypeId":1,"container
+2026-11-02T03:39:01.101Z FAIL B0 carrier-assigned :: status=409 {"error":"Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe."}
+2026-11-02T03:39:01.305Z FAIL B plate-assigned :: status=409 {"error":"Đầu xe 15E-016.26 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: Lô SHP-2610-00219, Lô SHP-2610-00220, Lô SHP-2610-0022
+2026-11-02T03:39:01.405Z FAIL B2 no-trip-after-assign :: đã điều xe is a PLAN — no trip row yet
+2026-11-02T03:39:01.751Z PASS C issue-order :: status=201 tripId=617 {"fulfillmentId":966,"version":5,"trip":{"id":617,"version":4,"tripCode":"TRP-202611-0011","status":"CREATED","plannedStartAt":"2026-11-03T0
+2026-11-02T03:39:01.833Z PASS C2 trip-created-status :: trip 617 status=CREATED expected
+2026-11-02T03:39:01.922Z PASS C3 weight-still-20000 :: weight=20000.00
+2026-11-02T03:39:01.982Z PASS D0 old-backend-409-failing-before :: status=409 {"error":"Container đã gắn chuyến xe (TRP-202611-0011). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa."}
+2026-11-02T03:39:02.079Z PASS D1 ledger-clear-weight-on-created-trip :: status=200 {"line":{"id":965,"ordinal":1,"operationalSiteId":19,"containerNumber":"SILQ6300004","declarationNumber":null,"containerTypeId":1,"container
+2026-11-02T03:39:02.178Z PASS D1b db-weight-null :: db weight is NULL
+2026-11-02T03:39:02.322Z PASS D2 reconcile-weight-20000 :: status=200 {"items":[{"id":965,"shipmentId":882,"containerTypeId":1,"containerNumber":"SILQ6300004","sealNumber":null,"declarationNumber":null,"psActua
+2026-11-02T03:39:02.401Z PASS D2b fulfillment-still-active :: the CREATED-trip fulfillment was NOT canceled by the reconcile
+2026-11-02T03:39:02.477Z PASS D2c db-weight-20000 :: db weight=20000
+2026-11-02T03:39:02.557Z PASS D3 ledger-clear-again :: status=200
+2026-11-02T03:39:02.955Z PASS E reissue-after-clear :: status=201 (re-issue keeps the first issue's locked price; the Thiếu-trọng-tải backstop belongs to the first issue)
+2026-11-02T03:39:06.916Z PASS F1 ui-login-tiepvv :: logged in as tiepvv (Chứng từ) on the worktree UI
+2026-11-02T03:39:15.360Z FAIL F2 open-spec-editor :: {"ok":false,"why":"ledger row not found"}
+2026-11-02T03:39:17.005Z FAIL F3 weight-input-enabled :: {"found":false}
+2026-11-02T03:39:17.247Z FAIL fatal :: Cannot read properties of null (reading 'querySelectorAll')
+2026-11-02T03:39:17.248Z DONE exit=1
+2026-11-02T03:40:13.794Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:40:13.992Z DB before: weight= liveTrips=0
+2026-11-02T03:40:14.049Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":965,"ordinal":1,"operationalSiteId":19,"containerNumber":"SILQ6300004","declarationNumber":null,"containerTypeId":1,"container
+2026-11-02T03:40:14.180Z FAIL B0 carrier-assigned :: status=409 {"error":"Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe."}
+2026-11-02T03:40:14.335Z FAIL B plate-assigned :: status=409 {"error":"Đầu xe 15E-016.26 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: Lô SHP-2610-00219, Lô SHP-2610-00220, Lô SHP-2610-0022
+2026-11-02T03:40:14.394Z FAIL B2 no-trip-after-assign :: đã điều xe is a PLAN — no trip row yet
+2026-11-02T03:40:14.618Z PASS C issue-order :: status=201 tripId=617 {"fulfillmentId":966,"version":7,"trip":{"id":617,"version":6,"tripCode":"TRP-202611-0011","status":"CREATED","plannedStartAt":"2026-11-03T0
+2026-11-02T03:40:14.684Z PASS C2 trip-created-status :: trip 617 status=CREATED expected
+2026-11-02T03:40:14.758Z PASS C3 weight-still-20000 :: weight=20000.00
+2026-11-02T03:40:14.847Z PASS D0 old-backend-409-failing-before :: status=409 {"error":"Container đã gắn chuyến xe (TRP-202611-0011). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa."}
+2026-11-02T03:40:14.920Z PASS D1 ledger-clear-weight-on-created-trip :: status=200 {"line":{"id":965,"ordinal":1,"operationalSiteId":19,"containerNumber":"SILQ6300004","declarationNumber":null,"containerTypeId":1,"container
+2026-11-02T03:40:14.986Z PASS D1b db-weight-null :: db weight is NULL
+2026-11-02T03:40:15.055Z PASS D2 reconcile-weight-20000 :: status=200 {"items":[{"id":965,"shipmentId":882,"containerTypeId":1,"containerNumber":"SILQ6300004","sealNumber":null,"declarationNumber":null,"psActua
+2026-11-02T03:40:15.121Z PASS D2b fulfillment-still-active :: the CREATED-trip fulfillment was NOT canceled by the reconcile
+2026-11-02T03:40:15.205Z PASS D2c db-weight-20000 :: db weight=20000
+2026-11-02T03:40:15.286Z PASS D3 ledger-clear-again :: status=200
+2026-11-02T03:40:15.578Z PASS E reissue-after-clear :: status=201 (re-issue keeps the first issue's locked price; the Thiếu-trọng-tải backstop belongs to the first issue)
+2026-11-02T03:40:18.973Z PASS F1 ui-login-tiepvv :: logged in as tiepvv (Chứng từ) on the worktree UI
+2026-11-02T03:40:26.387Z FAIL F2 open-spec-editor :: {"ok":false,"why":"ledger row not found"}
+2026-11-02T03:40:28.039Z FAIL F3 weight-input-enabled :: {"found":false}
+2026-11-02T03:40:28.134Z FAIL fatal :: Cannot read properties of null (reading 'querySelectorAll')
+2026-11-02T03:40:28.135Z DONE exit=1
+2026-11-02T03:44:45.126Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:44:45.382Z DB before: weight= liveTrips=0
+2026-11-02T03:44:45.456Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"containerTypeId":1,"contain
+2026-11-02T03:44:45.688Z PASS B0 carrier-assigned :: status=200 {"fulfillmentId":411,"version":2,"carrierType":"OWN","externalCarrierId":null,"carrierName":"SilverSea","externalCarrierVehicleId":null,"ass
+2026-11-02T03:44:45.843Z FAIL B plate-assigned :: status=400 {"error":"Xe nội bộ phải chọn biển số từ đội xe công ty."}
+2026-11-02T03:44:45.909Z PASS B2 no-trip-after-assign :: đã điều xe is a PLAN — no trip row yet
+2026-11-02T03:44:46.144Z FAIL C issue-order :: status=409 tripId=undefined {"error":"Container chưa có tuyến đường hợp lệ."}
+2026-11-02T03:44:46.214Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT status FROM trips WHERE id=undefined"
+ERROR:  column "undefined" does not exist
+LINE 1: SELECT status FROM trips WHERE id=undefined
+      
+2026-11-02T03:44:46.215Z DONE exit=1
+2026-11-02T03:45:45.476Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:45:45.699Z DB before: weight=20000.00 liveTrips=0
+2026-11-02T03:45:45.893Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT route_id FROM shipment_containers sc JOIN shipments sh ON sh.id = sc.shipment_id WHERE sh.customer_id = (SELECT customer_id FROM shipments
+2026-11-02T03:45:45.893Z DONE exit=1
+2026-11-02T03:45:57.298Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:45:57.428Z DB before: weight=20000.00 liveTrips=0
+2026-11-02T03:45:57.718Z PASS A1 route-set :: status=200 routeId=6
+2026-11-02T03:45:57.862Z PASS B0 carrier-assigned :: status=200 {"fulfillmentId":411,"version":3,"carrierType":"OWN","externalCarrierId":null,"carrierName":"SilverSea","externalCarrierVehicleId":null,"ass
+2026-11-02T03:45:57.996Z FAIL B plate-assigned :: status=400 {"error":"Xe nội bộ phải chọn biển số từ đội xe công ty."}
+2026-11-02T03:45:58.058Z PASS B2 no-trip-after-assign :: đã điều xe is a PLAN — no trip row yet
+2026-11-02T03:45:58.257Z FAIL C0 first-issue-blocked-409 :: status=400 {"error":"Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh."}
+2026-11-02T03:45:58.318Z PASS C0b no-trip-after-refusal :: the refused issue left no trip row behind
+2026-11-02T03:45:58.366Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"containerTypeId":1,"contain
+2026-11-02T03:45:58.557Z FAIL C issue-order :: status=400 tripId=undefined {"error":"Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh."}
+2026-11-02T03:45:58.617Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT status FROM trips WHERE id=undefined"
+ERROR:  column "undefined" does not exist
+LINE 1: SELECT status FROM trips WHERE id=undefined
+      
+2026-11-02T03:45:58.617Z DONE exit=1
+2026-11-02T03:46:22.183Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:46:22.417Z DB before: weight=20000.00 liveTrips=0
+2026-11-02T03:46:22.731Z PASS B0 carrier-assigned :: status=200 {"fulfillmentId":411,"version":4,"carrierType":"OWN","externalCarrierId":null,"carrierName":"SilverSea","externalCarrierVehicleId":null,"ass
+2026-11-02T03:46:22.906Z FAIL B plate-assigned :: status=400 {"error":"Xe nội bộ phải chọn biển số từ đội xe công ty."}
+2026-11-02T03:46:22.974Z PASS B2 no-trip-after-assign :: đã điều xe is a PLAN — no trip row yet
+2026-11-02T03:46:23.208Z FAIL C0 first-issue-blocked-409 :: status=400 {"error":"Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh."}
+2026-11-02T03:46:23.279Z PASS C0b no-trip-after-refusal :: the refused issue left no trip row behind
+2026-11-02T03:46:23.336Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"containerTypeId":1,"contain
+2026-11-02T03:46:23.572Z FAIL C issue-order :: status=400 tripId=undefined {"error":"Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh."}
+2026-11-02T03:46:23.645Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT status FROM trips WHERE id=undefined"
+ERROR:  column "undefined" does not exist
+LINE 1: SELECT status FROM trips WHERE id=undefined
+      
+2026-11-02T03:46:23.645Z DONE exit=1
+2026-11-02T03:46:41.463Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:46:41.594Z DB before: weight=20000.00 liveTrips=0
+2026-11-02T03:46:41.853Z PASS B0 carrier-assigned :: status=200 {"fulfillmentId":411,"version":5,"carrierType":"OWN","externalCarrierId":null,"carrierName":"SilverSea","externalCarrierVehicleId":null,"ass
+2026-11-02T03:46:41.980Z FAIL B plate-assigned :: status=400 {"error":"Xe nội bộ phải chọn biển số từ đội xe công ty."}
+2026-11-02T03:46:42.040Z PASS B2 no-trip-after-assign :: đã điều xe is a PLAN — no trip row yet
+2026-11-02T03:46:42.232Z FAIL C0 first-issue-blocked-409 :: status=400 {"error":"Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh."}
+2026-11-02T03:46:42.291Z PASS C0b no-trip-after-refusal :: the refused issue left no trip row behind
+2026-11-02T03:46:42.341Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"containerTypeId":1,"contain
+2026-11-02T03:46:42.534Z FAIL C issue-order :: status=400 tripId=undefined {"error":"Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh."}
+2026-11-02T03:46:42.592Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT status FROM trips WHERE id=undefined"
+ERROR:  column "undefined" does not exist
+LINE 1: SELECT status FROM trips WHERE id=undefined
+      
+2026-11-02T03:46:42.592Z DONE exit=1
+2026-11-02T03:47:17.605Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:47:17.802Z DB before: weight=20000.00 liveTrips=1
+2026-11-02T03:47:17.980Z B skipped — the run resumes on the already-issued trip 618
+2026-11-02T03:47:18.030Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"containerTypeId":1,"contain
+2026-11-02T03:47:18.218Z FAIL C issue-order :: status=400 tripId=undefined {"error":"Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh."}
+2026-11-02T03:47:18.278Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT status FROM trips WHERE id=undefined"
+ERROR:  column "undefined" does not exist
+LINE 1: SELECT status FROM trips WHERE id=undefined
+      
+2026-11-02T03:47:18.279Z DONE exit=1
+2026-11-02T03:47:52.525Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:47:52.709Z DB before: weight=20000.00 liveTrips=1
+2026-11-02T03:47:53.037Z B skipped — the run resumes on the already-issued trip 618
+2026-11-02T03:47:53.146Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"containerTypeId":1,"contain
+2026-11-02T03:47:53.476Z FAIL C issue-order :: status=409 tripId=undefined {"error":"Xe đầu kéo đã bị trùng lịch kế hoạch."}
+2026-11-02T03:47:53.556Z FAIL fatal :: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -tAc "SELECT status FROM trips WHERE id=undefined"
+ERROR:  column "undefined" does not exist
+LINE 1: SELECT status FROM trips WHERE id=undefined
+      
+2026-11-02T03:47:53.556Z DONE exit=1
+2026-11-02T03:48:15.217Z PASS logins :: tiepvv (CUS) + dieuvan (DISPATCHER) on both backends
+2026-11-02T03:48:15.478Z DB before: weight=20000.00 liveTrips=1
+2026-11-02T03:48:15.706Z B skipped — the run resumes on the already-issued trip 618
+2026-11-02T03:48:15.769Z PASS A cus-set-weight-20000 :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"containerTypeId":1,"contain
+2026-11-02T03:48:16.039Z PASS C issue-order :: status=201 tripId=618 {"fulfillmentId":411,"version":7,"trip":{"id":618,"version":3,"tripCode":"TRP-202611-0012","status":"CREATED","plannedStartAt":"2026-11-05T0
+2026-11-02T03:48:16.113Z PASS C2 trip-created-status :: trip 618 status=CREATED expected
+2026-11-02T03:48:16.189Z PASS C3 weight-still-20000 :: weight=20000.00
+2026-11-02T03:48:16.230Z PASS D0 old-backend-409-failing-before :: status=409 {"error":"Container đã gắn chuyến xe (TRP-202611-0012). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa."}
+2026-11-02T03:48:16.353Z PASS D1 ledger-clear-weight-on-created-trip :: status=200 {"line":{"id":347,"ordinal":1,"operationalSiteId":null,"containerNumber":"TSTU3872772","declarationNumber":null,"containerTypeId":1,"contain
+2026-11-02T03:48:16.447Z PASS D1b db-weight-null :: db weight is NULL
+2026-11-02T03:48:16.558Z PASS D2 reconcile-weight-20000 :: status=200 {"items":[{"id":347,"shipmentId":303,"containerTypeId":1,"containerNumber":"TSTU3872772","sealNumber":null,"declarationNumber":null,"psActua
+2026-11-02T03:48:16.651Z PASS D2b fulfillment-still-active :: the CREATED-trip fulfillment was NOT canceled by the reconcile
+2026-11-02T03:48:16.743Z PASS D2c db-weight-20000 :: db weight=20000
+2026-11-02T03:48:16.792Z PASS D3 ledger-clear-again :: status=200
+2026-11-02T03:48:17.126Z PASS E reissue-after-clear :: status=201 (re-issue keeps the first issue's locked price; the Thiếu-trọng-tải backstop belongs to the first issue)
+2026-11-02T03:48:20.905Z PASS F1 ui-login-tiepvv :: logged in as tiepvv (Chứng từ) on the worktree UI
+2026-11-02T03:48:27.858Z PASS F2 open-spec-editor :: {"ok":true,"cellText":"Chỉnh sửa ô thông số container TSTU3872772: TSTU387277220DCĐơn"}
+2026-11-02T03:48:29.590Z PASS F3 weight-input-enabled :: {"found":true,"weightInputFound":true,"weightDisabled":false}
+2026-11-02T03:48:29.624Z PASS F4 save-clicked :: {"ok":true}
+2026-11-02T03:48:33.715Z PASS F5 editor-closed-no-error :: {"editorGone":true,"errorText":""}
+2026-11-02T03:48:33.918Z PASS F6 db-weight-20000 :: db weight=20000.00 (DB side effect of the UI save)
+2026-11-02T03:48:34.312Z PASS G reissue-success :: status=201 {"fulfillmentId":411,"version":9,"trip":{"id":618,"version":5,"tripCode":"TRP-202611-0012","status":"CREATED","plannedStartAt":"2026-11-05T01:00:00.000Z","plannedEndAt":"2026-11-05
+2026-11-02T03:48:34.376Z PASS G2 trip-carries-weight :: trips.cargo_weight_kg="20000.00"
+2026-11-02T03:48:34.377Z DONE exit=0

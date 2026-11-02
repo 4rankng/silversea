@@ -1,0 +1,113 @@
+{
+  "run": "2026-11-02",
+  "fe": "http://localhost:7189",
+  "be": "http://localhost:3102",
+  "oldBe": "http://localhost:3002",
+  "checks": [
+    {
+      "name": "logins",
+      "pass": true,
+      "detail": "tiepvv (CUS) + dieuvan (DISPATCHER) on both backends"
+    },
+    {
+      "name": "A cus-set-weight-20000",
+      "pass": true,
+      "detail": "status=200 {\"line\":{\"id\":347,\"ordinal\":1,\"operationalSiteId\":null,\"containerNumber\":\"TSTU3872772\",\"declarationNumber\":null,\"containerTypeId\":1,\"contain"
+    },
+    {
+      "name": "C issue-order",
+      "pass": true,
+      "detail": "status=201 tripId=618 {\"fulfillmentId\":411,\"version\":7,\"trip\":{\"id\":618,\"version\":3,\"tripCode\":\"TRP-202611-0012\",\"status\":\"CREATED\",\"plannedStartAt\":\"2026-11-05T0"
+    },
+    {
+      "name": "C2 trip-created-status",
+      "pass": true,
+      "detail": "trip 618 status=CREATED expected"
+    },
+    {
+      "name": "C3 weight-still-20000",
+      "pass": true,
+      "detail": "weight=20000.00"
+    },
+    {
+      "name": "D0 old-backend-409-failing-before",
+      "pass": true,
+      "detail": "status=409 {\"error\":\"Container đã gắn chuyến xe (TRP-202611-0012). Vui lòng đổi lịch trên chuyến xe hoặc gỡ phân xe trước khi sửa.\"}"
+    },
+    {
+      "name": "D1 ledger-clear-weight-on-created-trip",
+      "pass": true,
+      "detail": "status=200 {\"line\":{\"id\":347,\"ordinal\":1,\"operationalSiteId\":null,\"containerNumber\":\"TSTU3872772\",\"declarationNumber\":null,\"containerTypeId\":1,\"contain"
+    },
+    {
+      "name": "D1b db-weight-null",
+      "pass": true,
+      "detail": "db weight is NULL"
+    },
+    {
+      "name": "D2 reconcile-weight-20000",
+      "pass": true,
+      "detail": "status=200 {\"items\":[{\"id\":347,\"shipmentId\":303,\"containerTypeId\":1,\"containerNumber\":\"TSTU3872772\",\"sealNumber\":null,\"declarationNumber\":null,\"psActua"
+    },
+    {
+      "name": "D2b fulfillment-still-active",
+      "pass": true,
+      "detail": "the CREATED-trip fulfillment was NOT canceled by the reconcile"
+    },
+    {
+      "name": "D2c db-weight-20000",
+      "pass": true,
+      "detail": "db weight=20000"
+    },
+    {
+      "name": "D3 ledger-clear-again",
+      "pass": true,
+      "detail": "status=200"
+    },
+    {
+      "name": "E reissue-after-clear",
+      "pass": true,
+      "detail": "status=201 (re-issue keeps the first issue's locked price; the Thiếu-trọng-tải backstop belongs to the first issue)"
+    },
+    {
+      "name": "F1 ui-login-tiepvv",
+      "pass": true,
+      "detail": "logged in as tiepvv (Chứng từ) on the worktree UI"
+    },
+    {
+      "name": "F2 open-spec-editor",
+      "pass": true,
+      "detail": "{\"ok\":true,\"cellText\":\"Chỉnh sửa ô thông số container TSTU3872772: TSTU387277220DCĐơn\"}"
+    },
+    {
+      "name": "F3 weight-input-enabled",
+      "pass": true,
+      "detail": "{\"found\":true,\"weightInputFound\":true,\"weightDisabled\":false}"
+    },
+    {
+      "name": "F4 save-clicked",
+      "pass": true,
+      "detail": "{\"ok\":true}"
+    },
+    {
+      "name": "F5 editor-closed-no-error",
+      "pass": true,
+      "detail": "{\"editorGone\":true,\"errorText\":\"\"}"
+    },
+    {
+      "name": "F6 db-weight-20000",
+      "pass": true,
+      "detail": "db weight=20000.00 (DB side effect of the UI save)"
+    },
+    {
+      "name": "G reissue-success",
+      "pass": true,
+      "detail": "status=201 {\"fulfillmentId\":411,\"version\":9,\"trip\":{\"id\":618,\"version\":5,\"tripCode\":\"TRP-202611-0012\",\"status\":\"CREATED\",\"plannedStartAt\":\"2026-11-05T01:00:00.000Z\",\"plannedEndAt\":\"2026-11-05"
+    },
+    {
+      "name": "G2 trip-carries-weight",
+      "pass": true,
+      "detail": "trips.cargo_weight_kg=\"20000.00\""
+    }
+  ]
+}

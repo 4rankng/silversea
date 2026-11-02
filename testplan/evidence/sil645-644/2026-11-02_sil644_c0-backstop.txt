@@ -1,0 +1,24 @@
+driver 1 truck 1 → 409 {"error":"Xe đầu kéo đã bị trùng lịch kế hoạch."}
+driver 1 truck 2 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 3 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 4 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 5 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 6 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 7 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 8 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 9 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 10 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 11 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 12 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 13 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 14 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 15 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 16 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 17 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 18 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 19 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 1 truck 20 → 409 {"error":"Tài xế đã bị trùng lịch kế hoạch."}
+driver 2 truck 1 → 409 {"error":"Xe đầu kéo đã bị trùng lịch kế hoạch."}
+driver 2 truck 2 → 409 {"error":"Thiếu trọng tải — không thể tính giá container. Nhập trọng tải hàng theo booking rồi thử lại."}
+liveTrips after probe: 0
+C0-BACKSTOP PASS

@@ -405,8 +405,15 @@ export async function updateCusShipmentContainerLine(args: {
     const requestedOperationalMutation = (
       factoryChanged
       || (args.input.containerTypeId !== undefined && args.input.containerTypeId !== container.containerTypeId)
-      || (args.input.cargoWeightKg !== undefined && args.input.cargoWeightKg !== container.cargoWeightKg)
-      || (args.input.cargoVolumeCbm !== undefined && args.input.cargoVolumeCbm !== container.cargoVolumeCbm)
+      // SIL-644 (id 749): cargo measures do not invalidate the trip plan —
+      // they are the exact input the Phát lệnh price computation needs, and
+      // the assignment window (trip still CREATED) is where they are entered.
+      // Only an ISSUED trip (left CREATED) locks them, same law as the
+      // container reconcile guard.
+      || (trip != null && trip.status !== 'CREATED'
+        && args.input.cargoWeightKg !== undefined && args.input.cargoWeightKg !== container.cargoWeightKg)
+      || (trip != null && trip.status !== 'CREATED'
+        && args.input.cargoVolumeCbm !== undefined && args.input.cargoVolumeCbm !== container.cargoVolumeCbm)
       || (args.input.routeId !== undefined && args.input.routeId !== container.routeId)
       // Card 20261005_358 decision (a): lift/dropoff PORTS are backfillable
       // after dispatch — the Kẹp pair validation needs them and the ports
