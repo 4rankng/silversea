@@ -1110,11 +1110,14 @@
   .cus-dashboard-table .cus-classification__shipping-line { flex-basis: 100%; }
   .cus-dashboard-table .cus-classification .cus-direction-badge { margin: 0; }
   .cus-dashboard-table .cus-dashboard-cell--empty-notes .cus-inline-trigger {
-    min-height: 32px;
+    min-height: var(--control-touch-h, 40px);
     align-content: center;
   }
   .cus-dashboard-cell--empty-notes .cus-inline-trigger::before { display: none; }
-  .cus-dashboard-table tbody > tr > td:last-child { border-bottom: 0; }
+  .cus-dashboard-table tbody > tr > td:last-child {
+    border-bottom: 0;
+    padding: 5px 10px;
+  }
   .cus-dashboard-table .cus-row-actions {
     display: flex;
     flex-wrap: wrap;
