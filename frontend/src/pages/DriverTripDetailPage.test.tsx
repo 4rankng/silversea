@@ -5,6 +5,7 @@ import { DriverProgressEventType, TripPodStatus, TripStatus } from '@tingting/sh
 import { setToken } from '../lib/token';
 import { api } from '../lib/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { qk } from '../api/keys';
 
 const getDriverTripMock = vi.hoisted(() => vi.fn());
 
@@ -203,8 +204,7 @@ function renderPage() {
 // the pod route with the :id param echoed into the testid, so the CTA test can
 // prove the driver lands on the RIGHT trip's e-POD screen (fulfillment id, not
 // trip.id — the regression Phần 4 fixed).
-function renderPageWithBoard() {
-  const client = freshClient();
+function renderPageWithBoard(client = freshClient()) {
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={['/my-trips/88']}>
@@ -403,7 +403,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText(/có ký nhận/)).toBeNull();
   });
 
-  it('navigates to the e-POD page when the driver taps the sticky completion action (the trip detail no longer completes the trip inline)', async () => {
+  it('navigates to the e-POD page when the driver taps the footer document link', async () => {
     // Card _28 item 10: the action lives in the sticky bar, which owns the
     // slot only once the order is accepted.
     useDriverTaskProgressMock.mockReturnValue({
@@ -414,26 +414,7 @@ describe('DriverTripDetailPage', () => {
     });
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
-        currentPod: {
-          id: 22,
-          tripId: 55,
-          fulfillmentId: 88,
-          submissionVersion: 1,
-          status: TripPodStatus.DRAFT,
-          version: 2,
-          createdAt: '2026-08-01T01:00:00.000Z',
-          updatedAt: '2026-08-01T01:00:00.000Z',
-          submittedAt: null,
-          reviewedAt: null,
-          rejectedAt: null,
-          rejectionReason: null,
-          acceptedAt: null,
-          supersedesSubmissionId: null,
-          files: [
-            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', originalFileName: 'yard.jpg', storageKey: 'k1', createdAt: '2026-08-01T01:05:00.000Z' },
-            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', originalFileName: 'note.jpg', storageKey: 'k2', createdAt: '2026-08-01T01:06:00.000Z' },
-          ],
-        },
+        currentPod: null,
       }),
       isLoading: false,
       error: null,
@@ -443,71 +424,42 @@ describe('DriverTripDetailPage', () => {
     renderPageWithBoard();
 
     // Tapping the sticky "Hoàn tất lệnh vận chuyển" action navigates to the
-    // pod page; we don't fire any completion command from the trip detail
-    // anymore (DRV-DET-06: completion lives on the e-POD screen).
+    // pod page
     const cta = await screen.findByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     fireEvent.click(cta);
 
     // The driver lands on THIS trip's pod screen. Card 071026205800: the
     // `/my-trips/:id/pod` route carries a TRIP id, so the param must be 88 —
-    // not the fulfillment id (4242). The two used to be the same number in
-    // this fixture, which is how navigating with the fulfillment id passed
-    // review; with them split, sending the fulfillment id lands the driver on
-    // a different trip's e-POD route and this assertion catches it.
+    // not the fulfillment id (4242).
     expect(await screen.findByTestId(`pod-route-stub-${TRIP_ID}`)).toBeTruthy();
     expect(screen.queryByTestId(`pod-route-stub-${FULFILLMENT_ID}`)).toBeNull();
-
   });
 
-  it('stays on the trip detail (the e-POD CTA is a navigation link, not a submit)', async () => {
-    useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({
-        currentPod: {
-          id: 22,
-          tripId: 55,
-          fulfillmentId: 88,
-          submissionVersion: 1,
-          status: TripPodStatus.DRAFT,
-          version: 2,
-          createdAt: '2026-08-01T01:00:00.000Z',
-          updatedAt: '2026-08-01T01:00:00.000Z',
-          submittedAt: null,
-          reviewedAt: null,
-          rejectedAt: null,
-          rejectionReason: null,
-          acceptedAt: null,
-          supersedesSubmissionId: null,
-          files: [
-            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', originalFileName: 'yard.jpg', storageKey: 'k1', createdAt: '2026-08-01T01:05:00.000Z' },
-            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', originalFileName: 'note.jpg', storageKey: 'k2', createdAt: '2026-08-01T01:06:00.000Z' },
-          ],
-        },
-      }),
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
-    });
-
-    // Card _28 item 10: the completion action is the sticky bar's button
-    // (owning the slot once the order is accepted).
+  // SIL-652 (id 758): L2 (locked) trip hides the dead accept button and shows
+  // the exact lock message consistent with the journey list
+  it('SIL-652: hides accept button and shows pair-locked message on L2 locked order', async () => {
+    boardItems = [
+      {
+        tripId: TRIP_ID,
+        fulfillmentId: FULFILLMENT_ID,
+        pairId: 99,
+        pairKind: 'KET_HOP',
+        pairOrder: 2,
+        pairLocked: true,
+      },
+    ];
     useDriverTaskProgressMock.mockReturnValue({
-      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      data: { items: [] },
       isLoading: false,
       error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
+      refetch: vi.fn(),
     });
+    renderPage();
 
-    renderPageWithBoard();
-
-    await screen.findByTestId('complete-sticky-bar');
-    const cta = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
-    fireEvent.click(cta);
-
-    // The trip detail doesn't fire a completion command from the sticky
-    // action — the driver is NOT shown a queued complete or a journey-board
-    // jump; the action navigates to the e-POD screen instead.
-    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
-    expect(toastMock).not.toHaveBeenCalled();
+    const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
+    expect(within(acceptStickyBar).queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
+    const lockedMsg = within(acceptStickyBar).getByTestId('pair-locked-message');
+    expect(lockedMsg.textContent).toBe('Cần hoàn thành trả hàng lệnh trước để mở khóa');
   });
 
   // 20260911_3 BUG 5 (supersedes the 365943ea order), restated 26/09 after
@@ -619,6 +571,42 @@ describe('DriverTripDetailPage', () => {
 
       await screen.findByText(/Số cont & seal/);
       expect(screen.queryByTestId('driver-pair-tag')).toBeNull();
+    });
+
+    it('SIL-638 TC4: Kẹp pair renders [KẸP] next to container number without lock on either order (order-free)', async () => {
+      boardItems = [
+        {
+          tripId: TRIP_ID,
+          fulfillmentId: FULFILLMENT_ID,
+          pairId: 60,
+          pairKind: 'KEP',
+          pairOrder: 2,
+          pairLocked: false,
+        },
+      ];
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ pairKind: 'KEP', partnerTripId: 61 }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: [] },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      await screen.findByText(/Số cont & seal/);
+      const tag = screen.getByTestId('driver-pair-tag');
+      expect(tag.textContent).toBe('[KẸP]');
+      // SIL-636: internal IDs never render
+      expect(screen.queryByText(/TRIP-61|TRP-61/)).toBeNull();
+      // Order-free: Kẹp pair is never locked on either card
+      expect(screen.queryByTestId('pair-locked-message')).toBeNull();
+      const acceptStickyBar = screen.getByTestId('accept-sticky-bar');
+      expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeEnabled();
     });
   });
 

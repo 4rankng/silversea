@@ -26,6 +26,7 @@ import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
 import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
+import * as driverQueries from '../hooks/useDriverQueries';
 import { useQuery } from '@tanstack/react-query';
 import { qk } from '../api/keys';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
@@ -40,7 +41,7 @@ import { AccountingLockBanner } from '../components/shipment/AccountingLockBanne
 import { ContainerScanner, dataUrlToFile } from '../components/shared/ContainerScanner';
 import './DriverTripDetailPage.css';
 
-import { MILESTONES, FUEL_EVIDENCE_OUTCOME_LABELS, FUEL_EVIDENCE_REVIEW_LABELS, completeCtaLabel, fuelEvidenceUploadErrorMessage, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, formatDateTime } from '../features/driver/driver-trip-model';
+import { MILESTONES, FUEL_EVIDENCE_OUTCOME_LABELS, FUEL_EVIDENCE_REVIEW_LABELS, completeCtaLabel, fuelEvidenceUploadErrorMessage, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, formatDateTime, PAIR_LOCKED_MESSAGE, isTripPairLocked } from '../features/driver/driver-trip-model';
 import { parseDriverTaskNote } from '@tingting/shared';
 
 export default function DriverTripDetailPage() {
@@ -56,6 +57,9 @@ function DriverTripDetailContent() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const geolocation = useGeolocation();
+  const journeyBoard = Object.keys(driverQueries).includes('useDriverJourneyBoard')
+    ? (driverQueries as unknown as { useDriverJourneyBoard: () => { data?: { items?: Array<Record<string, unknown>> } } }).useDriverJourneyBoard()
+    : { data: undefined };
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
   const [fuelScanning, setFuelScanning] = useState(false);
   const [chipsExpanded, setChipsExpanded] = useState(false);
@@ -102,6 +106,15 @@ function DriverTripDetailContent() {
   }, [refetchDetail, refetchProgress]);
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
+  // SIL-652 (id 758): match the journey board's pair lock so list and detail
+  // stay consistent. The L2 card stays locked until L1 completes.
+  const journeyCard = useMemo(() => {
+    return journeyBoard.data?.items?.find((item) =>
+      (validTripId != null && item.tripId === validTripId) ||
+      (validFulfillmentId != null && item.fulfillmentId === validFulfillmentId)
+    );
+  }, [journeyBoard.data?.items, validTripId, validFulfillmentId]);
+  const pairLocked = isTripPairLocked(journeyCard);
   // SIL-636 — the [KẸP]/[KẾT HỢP] tag rides the container number, derived
   // from the ACTIVE pair row the API reports (pairKind). Never a Trip_ID:
   // the ruling keeps internal ids off the driver UI; partnerTripId stays a
@@ -392,7 +405,7 @@ function DriverTripDetailContent() {
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
   const showAcceptStickyBar = !closed && acceptState !== 'done';
-  const acceptClickable = acceptState === 'available' && !accepting;
+  const acceptClickable = acceptState === 'available' && !accepting && !pairLocked;
   const acceptButtonLabel = accepting ? 'Đang gửi…' : 'Nhận lệnh vận chuyển';
 
   return (
@@ -445,13 +458,7 @@ function DriverTripDetailContent() {
           </div>
           {closed && (
             // Card 071026205800: the `:id` in `/my-trips/:id/pod` is the SAME
-            // `:id` as `/my-trips/:id` above — a TRIP id (card 20260915_1). This
-            // link used to send `validFulfillmentId` instead, so the driver landed
-            // on a route param that is not a trip at all: DriverTripPodPage
-            // resolves the fulfillment from the TRIP payload, found nothing, and
-            // rendered the "Không thể xác định chuyến đi từ liên kết này" dead
-            // end. The e-POD screen still talks to fulfillment-scoped endpoints —
-            // it does that resolution itself.
+            // `:id` as `/my-trips/:id` above — a TRIP id (card 20260915_1).
             <Link className="driver-task-complete" to={`/my-trips/${validTripId}/pod`} style={{ textDecoration: 'none' }}>
               <FileCheck2 size={18} />
               <span>Xem chứng từ giao hàng</span>
@@ -635,15 +642,24 @@ function DriverTripDetailContent() {
       {showAcceptStickyBar && (
         <div ref={actionBarRef} className="driver-task-accept-sticky" data-testid="accept-sticky-bar">
           <div className="driver-task-accept-sticky__inner">
-            <button
-              type="button"
-              className="driver-task-accept-sticky__btn"
-              disabled={!acceptClickable}
-              onClick={() => { setBlockingTripCode(null); setBlockingTripLabel(null); void handleMilestone(DriverProgressEventType.ORDER_RECEIVED); }}
-            >
-              {accepting ? <Loader2 size={18} className="spin" /> : <CheckCircle2 size={18} />}
-              <span>{acceptButtonLabel}</span>
-            </button>
+            {pairLocked ? (
+              <p
+                className="driver-journey-card__locked driver-task-accept-sticky__locked"
+                data-testid="pair-locked-message"
+              >
+                {PAIR_LOCKED_MESSAGE}
+              </p>
+            ) : (
+              <button
+                type="button"
+                className="driver-task-accept-sticky__btn"
+                disabled={!acceptClickable}
+                onClick={() => { setBlockingTripCode(null); setBlockingTripLabel(null); void handleMilestone(DriverProgressEventType.ORDER_RECEIVED); }}
+              >
+                {accepting ? <Loader2 size={18} className="spin" /> : <CheckCircle2 size={18} />}
+                <span>{acceptButtonLabel}</span>
+              </button>
+            )}
           </div>
         </div>
       )}

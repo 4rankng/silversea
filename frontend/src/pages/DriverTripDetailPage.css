@@ -867,6 +867,23 @@
   cursor: not-allowed;
 }
 
+/* SIL-652 (id 758): locked pair message replaces the dead accept button */
+.driver-task-accept-sticky__locked {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px dashed var(--line);
+  background: var(--surface-1);
+  color: var(--warning-text);
+  font-size: var(--text-data-size);
+  font-weight: 600;
+  text-align: center;
+}
+
 /* --- Inline-style replacements --- */
 
 .driver-task-fieldset {
