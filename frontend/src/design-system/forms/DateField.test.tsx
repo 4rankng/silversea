@@ -113,4 +113,21 @@ describe('DateField', () => {
     expect(onChange).toHaveBeenCalledTimes(2);
     expect(onChange).toHaveBeenLastCalledWith('');
   });
+
+  it('SIL-651: renders trailing calendar icon button and clicking it opens the date picker dialog', () => {
+    render(<DateField id="from" label="Từ ngày" value="2026-10-23" onChange={() => {}} />);
+    const calBtn = screen.getByRole('button', { name: 'Mở lịch' });
+    expect(calBtn).toBeInTheDocument();
+    expect(calBtn).not.toBeDisabled();
+    expect(screen.queryByRole('dialog', { name: 'Chọn ngày' })).not.toBeInTheDocument();
+
+    fireEvent.click(calBtn);
+    expect(screen.getByRole('dialog', { name: 'Chọn ngày' })).toBeInTheDocument();
+  });
+
+  it('SIL-651: disables the trailing calendar icon button when field is disabled', () => {
+    render(<DateField id="from" label="Từ ngày" value="" onChange={() => {}} disabled />);
+    const calBtn = screen.getByRole('button', { name: 'Mở lịch' });
+    expect(calBtn).toBeDisabled();
+  });
 });

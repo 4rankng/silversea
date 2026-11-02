@@ -109,4 +109,21 @@ describe('segmented datetime advances and retains siblings', () => {
     expect(day()).toHaveValue('06');
     expect(minute()).toHaveFocus();
   });
+
+  it('SIL-651: renders trailing calendar icon button and clicking it opens the date picker', () => {
+    render(<Harness value="2026-10-06T14:45" />);
+    const calBtn = screen.getByRole('button', { name: 'Mở lịch — Giờ trả hàng' });
+    expect(calBtn).toBeInTheDocument();
+    expect(calBtn.querySelector('svg')).toBeInTheDocument();
+
+    expect(screen.queryByRole('dialog', { name: 'Chọn ngày — Giờ trả hàng' })).not.toBeInTheDocument();
+    fireEvent.click(calBtn);
+    expect(screen.getByRole('dialog', { name: 'Chọn ngày — Giờ trả hàng' })).toBeInTheDocument();
+  });
+
+  it('SIL-651: disables the trailing calendar icon button when field is disabled', () => {
+    render(<DateTimeField label="Giờ trả hàng" value="" onChange={() => {}} disabled />);
+    const calBtn = screen.getByRole('button', { name: 'Mở lịch — Giờ trả hàng' });
+    expect(calBtn).toBeDisabled();
+  });
 });
