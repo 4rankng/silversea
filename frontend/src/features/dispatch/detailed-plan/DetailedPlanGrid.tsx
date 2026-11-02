@@ -31,6 +31,7 @@ import { detailRowKey, detailedScheduleLine, lclCargoLine, lclMeasureLine, class
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
 import { DispatchDeclarationCell } from './DispatchDeclarationCell';
+import { DispatchContainerNumberCell } from './DispatchContainerNumberCell';
 import { LclSelectCheckbox } from '../LclSelectCheckbox';
 import '../LclSelectCheckbox.css';
 
@@ -798,18 +799,12 @@ export function DetailedPlanGrid({
                     <div className="detailed-plan-grid__cell-body">
                       {row.cargoMode === 'FCL' ? (
                         <>
-                          {row.container.containerNumber ? (
-                            <div className="detailed-plan-grid__line detailed-plan-grid__line--strong ops-container-line" title={`${row.container.containerNumber}${row.dispatch.pairKind ? ` ${row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}` : ''}`}>
-                              {row.container.containerNumber}
-                              {row.dispatch.pairKind && (
-                                <span className="detailed-plan-grid__pair-tag">
-                                  {row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="detailed-plan-grid__line detailed-plan-grid__line--missing">Chưa có số cont</div>
-                          )}
+                          {/* SIL-653 (id 760) — SỐ CONT click-to-edit inline
+                              (same cell model as SỐ TỜ KHAI): the save goes
+                              through the CUS container-line command and the
+                              backend bridge mirrors it onto the trip
+                              snapshot, so dispatch/CUS/driver stay in lockstep. */}
+                          <DispatchContainerNumberCell row={row} onSaved={onRowsChanged} />
                           <div className="detailed-plan-grid__line" data-empty={!row.container.containerTypeLabel ? 'true' : undefined} title={row.container.containerTypeLabel ?? undefined}>{row.container.containerTypeLabel ?? '—'}</div>
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={row.container.cargoWeightKg == null || row.container.cargoWeightKg === '' ? 'true' : undefined} title={formatWeight(row.container.cargoWeightKg)}>
                             {formatWeight(row.container.cargoWeightKg)}

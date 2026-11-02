@@ -21,6 +21,7 @@ import {
   shipmentContainerBatchSchema,
   updateShipmentSchema,
   validateContainerNumber,
+  normalizeContainerNumber,
 } from '@tingting/shared';
 import { assertContainerDeclarationNumberAvailable } from './shipment-lifecycle-shared.service';
 import type { AuthUser } from '../middleware/auth';
@@ -397,6 +398,28 @@ export async function reconcileShipmentContainersInTx(
     }
   }
 
+  // SIL-653 (id 760) — identity bridge (ĐV/CUS → lái xe). The dispatch
+  // snapshot copied the number ONCE at Phát lệnh; a number learned later on
+  // the lot (null at snapshot time, or a correction) never reached
+  // trip_containers and the driver app stayed on "CHƯA CÓ SỐ CONT". When a
+  // reconcile actually CHANGES a container's number, push it to every trip
+  // snapshot row sourced from that container. One source of truth
+  // (shipment_containers) with a write-through mirror, matching the reverse
+  // bridge in forwarder-container.service. The seal is deliberately NOT
+  // mirrored here: trip_containers.sealNumber is the primary of the driver's
+  // multi-seal evidence rows (trip_container_seals) — overwriting it from
+  // the lot would desync the evidence list the driver owns.
+  for (const { container, isUpdate } of resolvedContainers) {
+    if (!isUpdate) continue;
+    const current = currentById.get(container.id as number);
+    if (!current) continue;
+    const nextNumber = container.containerNumber?.trim() || null;
+    if (nextNumber === (current.containerNumber ?? null)) continue;
+    await syncTripSnapshotIdentityFromShipmentContainer(tx, container.id as number, {
+      containerNumber: nextNumber,
+    });
+  }
+
   // SIL-638 (id 742) TC5 — an explicit Kẹp/Kết hợp choice on the reconcile
   // restates the linked fulfillment's dispatch classification, but ONLY
   // while the row is still pre-dispatch (no trip rows at all — a canceled
@@ -524,9 +547,17 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
   const issuedFulfillments = activeFulfillments.filter(
     (fulfillment) => fulfillment.tripId != null && fulfillment.tripStatus !== 'CREATED',
   );
-  if (issuedFulfillments.length > 0) {
-    throw new ApiError(409, 'Không thể thay đổi container sau khi đã phát hành lệnh điều xe. Hãy hủy hoặc thay thế lệnh theo quy trình điều vận.');
-  }
+  // SIL-653 (id 760): the blanket issued 409 is GONE — it locked even the
+  // container NUMBER, so a number learned after Phát lệnh (driver app, CUS)
+  // could never reach the lot and the driver app stayed on "CHƯA CÓ SỐ CONT"
+  // forever. The lock is now PER FIELD: for an issued container the guarded
+  // plan set (loại cont / tuyến / lịch hẹn / nhà máy / phân loại) and the
+  // cargo measures (price-snapshot input, same law the CUS ledger enforces)
+  // still 409 below; identity fields (số cont / seal) and annotations stay
+  // free and bridge to trip_containers (see the sync helpers at the bottom).
+  const issuedContainerIds = new Set(issuedFulfillments
+    .map((fulfillment) => fulfillment.shipmentContainerId)
+    .filter((id): id is number => id != null));
 
   // Assigned-but-not-issued: the assignment survives the reconcile only while
   // its container survives and the edit does not move a field the trip plan
@@ -548,6 +579,10 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
       operationalSiteId: s.shipmentContainers.operationalSiteId,
       customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
       classification: s.shipmentContainers.classification,
+      // SIL-653: the issued-trip measure lock compares against the stored
+      // figures the price snapshot was computed from.
+      cargoWeightKg: s.shipmentContainers.cargoWeightKg,
+      cargoVolumeCbm: s.shipmentContainers.cargoVolumeCbm,
     })
       .from(s.shipmentContainers)
       .where(eq(s.shipmentContainers.shipmentId, shipmentId));
@@ -571,7 +606,20 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
         || appointmentChanged
         || (next.classification !== undefined && (next.classification ?? null) !== current.classification);
       if (guardedChanged) {
-        throw new ApiError(409, 'Container đã được điều xe — chỉ được bổ sung trọng tải hàng hoặc thông tin nhận dạng trước khi phát lệnh. Thay đổi loại cont/tuyến/lịch hẹn cần hủy hoặc thay thế phân xe theo quy trình điều vận.');
+        throw new ApiError(409, issuedContainerIds.has(containerId)
+          ? 'Lệnh điều xe đã được phát — chỉ số container/seal được cập nhật trực tiếp. Đổi loại cont/tuyến/lịch hẹn/nhà máy/phân loại cần hủy hoặc thay thế lệnh theo quy trình điều vận.'
+          : 'Container đã được điều xe — chỉ được bổ sung trọng tải hàng hoặc thông tin nhận dạng trước khi phát lệnh. Thay đổi loại cont/tuyến/lịch hẹn cần hủy hoặc thay thế phân xe theo quy trình điều vận.');
+      }
+      // SIL-653: after issuance the cargo measures are the price snapshot's
+      // input — the CUS ledger already locks them for a trip that left
+      // CREATED (SIL-644 law there), so the full-lot reconcile must not
+      // become the side door around that lock.
+      if (issuedContainerIds.has(containerId)) {
+        const measuresChanged = (next.cargoWeightKg !== undefined && next.cargoWeightKg !== current.cargoWeightKg)
+          || (next.cargoVolumeCbm !== undefined && next.cargoVolumeCbm !== current.cargoVolumeCbm);
+        if (measuresChanged) {
+          throw new ApiError(409, 'Lệnh điều xe đã được phát — trọng tải/CBM đã chốt theo phương án tính cước. Chỉ số container/seal được cập nhật sau khi phát lệnh.');
+        }
       }
     }
   }
@@ -791,4 +839,103 @@ export async function batchUpsertShipmentContainers(
     return legacyCompat ? reconciled.upsertedIds.map((id) => ({ id })) : directResult;
   };
   return runInTx(transaction, execute);
+}
+
+// ─── Identity bridge (lái xe → ĐV/CUS, SIL-653 id 760) ─────────────────────
+//
+// Forward bridge (ĐV/CUS → lái xe): a changed lot-side number reaches every
+// trip snapshot row sourced from that container. Shared by the reconcile and
+// the CUS workspace line command — the two lot-side number writers.
+
+export async function syncTripSnapshotIdentityFromShipmentContainer(
+  executor: Executor,
+  shipmentContainerId: number,
+  identity: { containerNumber?: string | null },
+): Promise<void> {
+  if (identity.containerNumber === undefined) return;
+  await executor.update(s.tripContainers)
+    .set({ containerNumber: identity.containerNumber, updatedAt: new Date() })
+    .where(eq(s.tripContainers.sourceShipmentContainerId, shipmentContainerId));
+}
+
+// The driver's "Số cont & seal" writes live on trip_containers while CUS and
+// Điều vận read shipment_containers — two records that never reconciled, so
+// a number the driver saved stayed invisible to the office surfaces. Every
+// trip-side container write path (driver PATCH, seal replace, trip batch
+// PUT) calls this bridge in the SAME transaction: snapshot-sourced rows
+// (sourceShipmentContainerId) mirror their number/seal back onto the lot's
+// row. Diff-guarded (identical values are a no-op, so unrelated saves don't
+// bump the lot row) and deliberately NOT bumping shipment.version — a driver
+// typing a number must not 409 every open office editor; the boards
+// reconcile by refetch, and the reverse bridge (reconcile → trip snapshot)
+// keeps the mirror convergent from both ends.
+
+export async function syncShipmentIdentityFromTripContainers(
+  executor: Executor,
+  tripContainerIds: number[],
+): Promise<void> {
+  if (tripContainerIds.length === 0) return;
+  const rows = await executor.select({
+    id: s.tripContainers.id,
+    sourceShipmentContainerId: s.tripContainers.sourceShipmentContainerId,
+    containerNumber: s.tripContainers.containerNumber,
+    sealNumber: s.tripContainers.sealNumber,
+  }).from(s.tripContainers)
+    .where(inArray(s.tripContainers.id, tripContainerIds));
+
+  const targets = rows.filter((row) => row.sourceShipmentContainerId != null);
+  if (targets.length === 0) return;
+
+  const lotRows = await executor.select({
+    id: s.shipmentContainers.id,
+    shipmentId: s.shipmentContainers.shipmentId,
+    containerNumber: s.shipmentContainers.containerNumber,
+    sealNumber: s.shipmentContainers.sealNumber,
+  }).from(s.shipmentContainers)
+    .where(inArray(s.shipmentContainers.id, targets.map((row) => row.sourceShipmentContainerId as number)));
+  const lotById = new Map(lotRows.map((row) => [row.id, row]));
+
+  // Per-lot sibling numbers for the in-lot duplicate law — the same 400 the
+  // CUS line command raises, so the driver hears the identical reason.
+  const siblingsByLotId = new Map<number, Array<{ id: number; containerNumber: string | null }>>();
+  for (const target of targets) {
+    const lot = lotById.get(target.sourceShipmentContainerId as number);
+    if (!lot || siblingsByLotId.has(lot.id)) continue;
+    siblingsByLotId.set(lot.id, await executor.select({
+      id: s.shipmentContainers.id,
+      containerNumber: s.shipmentContainers.containerNumber,
+    }).from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, lot.shipmentId)));
+  }
+
+  for (const target of targets) {
+    const lot = lotById.get(target.sourceShipmentContainerId as number);
+    if (!lot) continue;
+    const nextNumber = target.containerNumber ? normalizeContainerNumber(target.containerNumber) : null;
+    const patch: { containerNumber?: string | null; sealNumber?: string | null } = {};
+    if (nextNumber !== (lot.containerNumber ? normalizeContainerNumber(lot.containerNumber) : null)) {
+      if (nextNumber != null) {
+        const [ok, message] = validateContainerNumber(nextNumber);
+        if (!ok) {
+          throw new ApiError(400, `Số container "${nextNumber}" không hợp lệ: ${message}`);
+        }
+        const duplicate = (siblingsByLotId.get(lot.id) ?? []).some((candidate) => (
+          candidate.id !== lot.id
+          && candidate.containerNumber != null
+          && normalizeContainerNumber(candidate.containerNumber) === nextNumber
+        ));
+        if (duplicate) {
+          throw new ApiError(400, `Số container "${nextNumber}" đã tồn tại trong lô hàng.`);
+        }
+      }
+      patch.containerNumber = nextNumber;
+    }
+    if ((target.sealNumber ?? null) !== (lot.sealNumber ?? null)) {
+      patch.sealNumber = target.sealNumber ?? null;
+    }
+    if (patch.containerNumber === undefined && patch.sealNumber === undefined) continue;
+    await executor.update(s.shipmentContainers)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(s.shipmentContainers.id, lot.id));
+  }
 }

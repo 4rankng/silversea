@@ -48,7 +48,9 @@ describe('operational table typography contract', () => {
     expect(rule).toBeTruthy();
     expect(rule).toContain('font-weight: var(--ops-table-primary-weight)');
     expect(read('src/features/dispatch/master-plan/MasterPlanGrid.tsx')).toContain('ops-container-line');
-    expect(read('src/features/dispatch/detailed-plan/DetailedPlanGrid.tsx')).toContain('ops-container-line');
+    // SIL-653: the detailed grid's container line moved into the SỐ CONT
+    // click-to-edit cell — the weight law moves with it.
+    expect(read('src/features/dispatch/detailed-plan/DispatchContainerNumberCell.tsx')).toContain('ops-container-line');
   });
 
   it('maps each grid to the shared role tokens instead of local font literals', () => {
