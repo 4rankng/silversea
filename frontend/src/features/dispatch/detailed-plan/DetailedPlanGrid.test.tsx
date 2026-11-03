@@ -28,6 +28,8 @@ vi.mock('./useDispatchTaskTags', () => ({
 
 import { DetailedPlanGrid } from './DetailedPlanGrid';
 import { EMPTY_DETAILED_PLAN_FILTERS } from './useDispatchDetailPlan';
+import { ToastProvider } from '../../../components/shared/Toast';
+import { ENSURE_FULFILLMENT_FAILED_MESSAGE } from './ensureFulfillment';
 
 const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlanRow => ({
   fulfillmentId: 101,
@@ -51,36 +53,39 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
   ...overrides,
 } as DispatchDetailPlanRow);
 
-function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, unknown> = {}) {
+function renderGrid(items: DispatchDetailPlanRow[], extraProps: Record<string, unknown> = {}, options: { withToast?: boolean } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const grid = (
+    <DetailedPlanGrid
+      filters={EMPTY_DETAILED_PLAN_FILTERS}
+      onFilterChange={vi.fn()}
+      loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
+      loadPickupPortFacets={vi.fn().mockResolvedValue([])}
+      loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
+      items={items}
+      loading={false}
+      error={null}
+      onRetry={vi.fn()}
+      assignmentError={null}
+      lotBanner={null}
+      onClearLotBanner={vi.fn()}
+      presence={null}
+      zones={[]}
+      sortKey={null}
+      sortDirection="asc"
+      onToggleSort={vi.fn()}
+      onAtomicSave={vi.fn()}
+      onOpenTripReassign={vi.fn()}
+      onCompleteExternalTrip={vi.fn()}
+      onIssueOrder={vi.fn()}
+      {...extraProps}
+    />
+  );
   return render(
     <MemoryRouter>
       <QueryClientProvider client={client}>
         <MonthProvider>
-          <DetailedPlanGrid
-        filters={EMPTY_DETAILED_PLAN_FILTERS}
-        onFilterChange={vi.fn()}
-        loadDeliveryPointFacets={vi.fn().mockResolvedValue([])}
-        loadPickupPortFacets={vi.fn().mockResolvedValue([])}
-        loadDropoffPortFacets={vi.fn().mockResolvedValue([])}
-        items={items}
-        loading={false}
-        error={null}
-        onRetry={vi.fn()}
-        assignmentError={null}
-        lotBanner={null}
-        onClearLotBanner={vi.fn()}
-        presence={null}
-        zones={[]}
-        sortKey={null}
-        sortDirection="asc"
-        onToggleSort={vi.fn()}
-        onAtomicSave={vi.fn()}
-        onOpenTripReassign={vi.fn()}
-        onCompleteExternalTrip={vi.fn()}
-        onIssueOrder={vi.fn()}
-        {...extraProps}
-      />
+          {options.withToast ? <ToastProvider>{grid}</ToastProvider> : grid}
         </MonthProvider>
       </QueryClientProvider>
     </MemoryRouter>,
@@ -1187,6 +1192,102 @@ describe('DetailedPlanGrid — SIL-648 PHÂN LOẠI column inline edit', () => {
     ]);
 
     expect(screen.queryByRole('button', { name: /Sửa phân loại/ })).toBeNull();
+  });
+});
+
+describe('DetailedPlanGrid — SIL-667 inline classification on fulfillment-less rows', () => {
+  /** A branch row (container decomposed-able, no fulfillment yet) — exactly
+   *  what `GET /dispatch-detail-plan-rows` returns for a fresh READY lot. */
+  const branchRow = () => row({
+    fulfillmentId: null as unknown as number,
+    shipmentContainerId: 501,
+    classification: 'SINGLE',
+    taskStatus: 'READY',
+    cargoMode: 'FCL',
+  });
+  const saveResult = (classification: 'SINGLE' | 'DOUBLE') => ({
+    fulfillmentId: 201,
+    fulfillmentVersion: 2,
+    shipmentId: 11,
+    shipmentVersion: 7,
+    classification,
+    isCombined: false,
+    operationalNotes: null,
+    plannedEndAt: null,
+    dispatch: { carrierType: 'OWN', carrierName: 'SilverSea' },
+    estimates: { plannedRevenue: null, plannedCarrierCost: null },
+    lotFullyPlated: false,
+  });
+
+  it('resolves the fulfillment first and saves against the ensured identity — never hands a null-identity row to the save', async () => {
+    const ensured = row({ ...branchRow(), fulfillmentId: 201, version: 1, shipmentVersion: 6 });
+    const onEnsureFulfillment = vi.fn().mockResolvedValue(ensured);
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult('DOUBLE'));
+
+    renderGrid([branchRow()], { onAtomicSave, onEnsureFulfillment }, { withToast: true });
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    await act(async () => {
+      fireEvent.change(screen.getByDisplayValue('Đơn'), { target: { value: 'DOUBLE' } });
+    });
+
+    // Quiet decompose: the inline save owns the select — it must never ask
+    // the hook to auto-open the full Chỉnh sửa điều phối modal (SIL-667).
+    await waitFor(() => expect(onEnsureFulfillment).toHaveBeenCalledWith(
+      expect.objectContaining({ shipmentContainerId: 501, fulfillmentId: null }),
+      { autoOpen: false },
+    ));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.objectContaining({ fulfillmentId: 201, version: 1 }),
+      expect.objectContaining({ classification: 'DOUBLE', isCombined: false }),
+    ));
+    // The wire never carries the meaningless null identity (SIL-667 AC1) —
+    // asserted at the prop boundary; the driver proves it on the wire.
+    expect(onAtomicSave.mock.calls.every(([saved]) => (saved as DispatchDetailPlanRow).fulfillmentId != null)).toBe(true);
+    // Success closes the inline select (the driver pins the saved Kẹp chip —
+    // this unit's props never re-key, so the optimistic map is the only
+    // display channel here and the fresh key has no rendered row).
+    await waitFor(() => expect(screen.queryByDisplayValue('DOUBLE')).toBeNull());
+  });
+
+  it('fails loudly when the fulfillment cannot be created — no plan request, toast + reverted value', async () => {
+    const onEnsureFulfillment = vi.fn().mockResolvedValue(null);
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult('SINGLE'));
+
+    renderGrid([branchRow()], { onAtomicSave, onEnsureFulfillment }, { withToast: true });
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    await act(async () => {
+      fireEvent.change(screen.getByDisplayValue('Đơn'), { target: { value: 'DOUBLE' } });
+    });
+
+    await waitFor(() => expect(onEnsureFulfillment).toHaveBeenCalledTimes(1));
+    // AC1 — nothing is sent when there is no identity to save against.
+    expect(onAtomicSave).not.toHaveBeenCalled();
+    // AC2/AC4 — the failure is user-visible (toast), not console-only.
+    await waitFor(() => expect(screen.getByText(ENSURE_FULFILLMENT_FAILED_MESSAGE)).toBeTruthy());
+    // The optimistic Kẹp is reverted — the grid reads the stored value again.
+    await waitFor(() => expect(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ })).toBeTruthy());
+  });
+
+  it('fails loudly without any request when no ensure handler is wired', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult('DOUBLE'));
+
+    renderGrid([branchRow()], { onAtomicSave }, { withToast: true });
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    await act(async () => {
+      fireEvent.change(screen.getByDisplayValue('Đơn'), { target: { value: 'DOUBLE' } });
+    });
+
+    expect(onAtomicSave).not.toHaveBeenCalled();
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Dòng chưa có phân xe — dùng Chỉnh sửa điều phối để phân xe trước khi đổi phân loại.');
+    // Same sentence also rides the toast — visible even if the banner is
+    // scrolled away.
+    await waitFor(() => expect(
+      screen.getAllByText('Dòng chưa có phân xe — dùng Chỉnh sửa điều phối để phân xe trước khi đổi phân loại.').length,
+    ).toBeGreaterThan(0));
   });
 });
 
