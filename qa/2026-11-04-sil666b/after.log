@@ -1,0 +1,18 @@
+logged in admin + dieuvan; BE=http://localhost:3013/api PHASE=after
+housekeeping: cancel trip 831 → 200
+housekeeping: released 3 plate(s), parked 4 family lot(s)
+refs: truck39=15H-061.14 driver=11 type20=20DC
+fixture: hidden DOUBLE trip on 15H-061.14 31/12 08:00 — orphan=1205
+UPDATE 1 trip=832|CREATED|2026-12-31 01:00:00|lot_deleted=true
+PASS fixture: hidden KẸP trip seeded (trip CREATED, lot deleted) — 832|CREATED|2026-12-31 01:00:00|lot_deleted=true
+window evidence (31/12 08:00+7 = [01:00,09:00) UTC) truck-39 trips:
+trip 832 TRP-202612-0013 CREATED start=2026-12-31 01:00:00 end=2026-12-31 05:00:00 lot_deleted=true lot_status=DISPATCHED ff_canceled=false class=DOUBLE ff_plate=15H-061.14
+S31 assign SINGLE 31/12 08:00 → 15H-061.14 → 200 
+PASS TC-666B-1 (after): 31/12 không còn phantom — gán 200 dù hidden trip vẫn tồn tại — status=200 msg="{"fulfillmentId":1424,"fulfillmentVersion":2,"shipmentId":1206,"shipmentVersion":3,"classification":"SINGLE","isCombined":false,"operationalNotes":null,"dispatc"
+S21 control SINGLE 21/12 08:00 → 15H-061.14 → 200
+PASS TC-666B-2: 21/12 đối chứng sạch giữ nguyên 200 — status=200
+B conflicting task on 15H-061.14: 326|BULK-TR-0180|CREATED
+B assign SINGLE 28/08 08:00 → 15H-061.14 (xung đột BULK-TR-0180 CREATED) → 409
+PASS TC-666B-3: xung đột THẬT (BULK fulfillment-less) vẫn 409 hard tier — status=409
+PASS TC-666B-3: message vẫn NÊU RÕ lô/tác vụ xung đột thật — colonPart="Lệnh BULK-TR-0180 (từ 07:00 26-08)."
+SIL-666b REPRO COMPLETE — phase after: all expectations hold

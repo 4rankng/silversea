@@ -15,6 +15,9 @@ import {
   type RigHolderFacts,
 } from './dispatch-plan-conflict-scan.service';
 import { loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
+// SIL-666 round-2 — the trip-conflict scan obeys the trip-visibility law
+// owned beside the trip-claim SQL (dispatch-resource-availability.service).
+import { tripHolderVisibilitySql } from './dispatch-resource-availability.service';
 import { ApiError } from '../errors';
 
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
@@ -804,6 +807,14 @@ async function assertPlanRowRigAvailable(
       eq(s.trucks.licensePlate, plate),
       notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
       isNull(s.trips.deletedAt),
+      // SIL-666 round-2 — the trip scan obeys the SAME visibility law as the
+      // holder scans (SIL-638 TC1): a trip whose fulfillment is canceled or
+      // whose lot is deleted/non-operational is invisible in the plan grid
+      // and must never block new assignments from the shadows. The QA
+      // round-3b 31/12 phantom 409 was exactly such a hidden KẸP trip
+      // answering the TC2 mismatch and naming nothing. Fulfillment-LESS
+      // tasks (BULK) keep blocking — round-1 pinned their named hard tier.
+      ...tripHolderVisibilitySql(),
       isNotNull(s.trips.plannedStartAt),
       lt(s.trips.plannedStartAt, windowEnd),
       sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz`,
