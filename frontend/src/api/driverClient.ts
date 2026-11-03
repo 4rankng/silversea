@@ -28,7 +28,7 @@ interface DriverTaskTripSummary {
   containerNumbers: string[];
 }
 
-export interface DriverTaskTwoOrdersView {
+export interface DriverTaskPairedOrdersView {
   date: string;
   active: DriverTaskTripSummary | null;
   next: DriverTaskTripSummary | null;
@@ -490,9 +490,11 @@ export const driverClient = {
     return api.get<{ items: VehicleAlert[] }>(DRIVER.VEHICLE_ALERTS);
   },
 
-  /** M8.3 — two-orders-per-day view (active + next today, firstOrderLate). */
-  getTwoOrders: async () => {
-    return api.get<DriverTaskTwoOrdersView>(DRIVER.TWO_ORDERS);
+  /** M8.3 — paired-orders-per-day view (active + next of ONE day,
+   *  firstOrderLate). `date` (YYYY-MM-DD) selects the day (SIL-664); omitted
+   *  → the backend defaults to today. */
+  getPairedOrders: async (date?: string) => {
+    return api.get<DriverTaskPairedOrdersView>(`${DRIVER.TWO_ORDERS}${toQuery({ date })}`);
   },
 
   /** M8.4 — list a trip's progress events (timeline, oldest-first). */

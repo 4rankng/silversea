@@ -266,17 +266,21 @@ function todayYyyyMmDd(now: Date = new Date()): string {
 }
 
 /**
- * Build the two-orders-per-day view for a driver. Reads today's trips only
- * (PRD M08-03-03); trips on other days are excluded. CANCELED trips are
- * excluded throughout. The view is read-only — it never mutates trip status.
+ * Build the two-orders-per-day view for a driver. Reads the selected day's
+ * trips only (PRD M08-03-03); trips on other days are excluded. `date` is the
+ * YYYY-MM-DD day to read (SIL-664): when omitted the view keeps its historical
+ * default of today. CANCELED trips are excluded throughout. The view is
+ * read-only — it never mutates trip status.
  */
-export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTwoOrdersView> {
+export async function getDriverTwoOrdersView(driverId: number, date?: string): Promise<DriverTwoOrdersView> {
   const today = todayYyyyMmDd();
+  const day = date ?? today;
   const [activePairMembership] = await db.select({
     pairId: s.trips.activeTripPairId,
   }).from(s.trips)
     .where(and(
       eq(s.trips.driverId, driverId),
+      eq(s.trips.departureDate, day),
       isNull(s.trips.deletedAt),
       sql`${s.trips.activeTripPairId} is not null`,
     ))
@@ -318,6 +322,7 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
         .leftJoin(s.customers, eq(s.tripsComposite.customerId, s.customers.id))
         .where(and(
           inArray(s.tripsComposite.id, [pair.firstTripId, pair.secondTripId]),
+          eq(s.tripsComposite.departureDate, day),
           isNull(s.tripsComposite.deletedAt),
         ))
         .orderBy(asc(s.tripsComposite.id));
@@ -338,7 +343,7 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
       const firstOrderLate = first?.status === 'CREATED' && second != null;
 
       return {
-        date: today,
+        date: day,
         active,
         next,
         firstOrderLate,
@@ -378,7 +383,7 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
     .leftJoin(s.customers, eq(s.tripsComposite.customerId, s.customers.id))
     .where(and(
       eq(s.tripsComposite.driverId, driverId),
-      eq(s.tripsComposite.departureDate, today),
+      eq(s.tripsComposite.departureDate, day),
       isNull(s.tripsComposite.deletedAt),
       sql`${s.tripsComposite.status} <> 'CANCELED'`,
     ))
@@ -401,7 +406,7 @@ export async function getDriverTwoOrdersView(driverId: number): Promise<DriverTw
   const earliest = allToday[0] ?? null;
   const firstOrderLate = allToday.length >= 2 && earliest !== null && earliest.status === 'CREATED';
 
-  return { date: today, active, next, firstOrderLate, allToday, pair: null };
+  return { date: day, active, next, firstOrderLate, allToday, pair: null };
 }
 
 /**

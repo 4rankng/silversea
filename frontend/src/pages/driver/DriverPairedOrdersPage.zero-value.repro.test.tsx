@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import DriverTwoOrdersPage from './DriverTwoOrdersPage';
+import DriverPairedOrdersPage from './DriverPairedOrdersPage';
 
 // Red repro (code sweep wave 2, 2026-09-16): the pair summary reads
 // emptyDistanceKm/combinedEfficiencyPercent with truthiness while the
@@ -21,7 +21,7 @@ const trip = (id: number, status: 'CREATED' | 'IN_TRANSIT') => ({
 });
 
 vi.mock('../../hooks/useDriverQueries', () => ({
-  useDriverTwoOrders: () => ({
+  useDriverPairedOrders: () => ({
     data: {
       date: '2026-09-15',
       firstOrderLate: false,
@@ -40,11 +40,11 @@ vi.mock('../../hooks/useDriverQueries', () => ({
   }),
 }));
 
-describe('DriverTwoOrdersPage — zero pair metrics render as values, not em-dash', () => {
+describe('DriverPairedOrdersPage — zero pair metrics render as values, not em-dash', () => {
   it('renders 0 km and 0% for a pair whose empty distance and efficiency are 0', () => {
     render(
       <MemoryRouter>
-        <DriverTwoOrdersPage />
+        <DriverPairedOrdersPage />
       </MemoryRouter>,
     );
     const summary = screen.getByTestId('ordered-pair-summary');

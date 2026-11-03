@@ -383,7 +383,7 @@ describe('DriverTripPodPage', () => {
     // The unlock channel: the board + day view refetch BEFORE navigating back,
     // so the Lệnh 2 card reads unlocked immediately (no 5-minute stale mask).
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.pairedOrders });
   });
 
   it.each(['submit', 'complete'])('keeps the driver on the POD screen when %s fails', async (stage) => {
@@ -573,7 +573,7 @@ describe('DriverTripPodPage', () => {
     expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.pairedOrders });
   });
 
   it('does not invalidate the board when the completion fails', async () => {
@@ -598,7 +598,7 @@ describe('DriverTripPodPage', () => {
     await waitFor(() => expect(toastMock).toHaveBeenCalledWith({ kind: 'error', message: 'Không thể hoàn thành chuyến.' }));
     expect(screen.queryByTestId('driver-journey-board')).toBeNull();
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: qk.driver.pairedOrders });
   });
 
 });

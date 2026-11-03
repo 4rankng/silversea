@@ -438,9 +438,9 @@ export const PAGE_CATALOG = {
     pathPattern: '/my-trips/:id',
     requiresParams: ['id'],
   },
-  myTwoOrders: {
+  myPairedOrders: {
     title: 'Hành trình · Lệnh trong ngày',
-    path: '/my-trips/two-orders',
+    path: '/my-trips/paired-orders',
   },
   myPayslips: {
     title: 'Phiếu lương',

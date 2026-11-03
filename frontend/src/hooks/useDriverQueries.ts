@@ -59,11 +59,14 @@ export function useDriverVehicleAlerts() {
   });
 }
 
-/** M8.3 — two-orders-per-day view (active + next today, firstOrderLate). */
-export function useDriverTwoOrders() {
+/** M8.3 — paired-orders-per-day view (active + next of one day,
+ *  firstOrderLate). `date` keys the query cache per day (SIL-664); omitted →
+ *  the backend's default (today). Invalidating the base key invalidates every
+ *  cached day at once. */
+export function useDriverPairedOrders(date?: string) {
   return useQuery({
-    queryKey: qk.driver.twoOrders,
-    queryFn: () => driverClient.getTwoOrders(),
+    queryKey: qk.driver.pairedOrdersDay(date),
+    queryFn: () => driverClient.getPairedOrders(date),
   });
 }
 
