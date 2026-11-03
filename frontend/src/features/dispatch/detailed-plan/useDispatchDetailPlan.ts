@@ -656,10 +656,16 @@ export function useDispatchDetailPlan() {
   // decompose re-keys the grid row (container key → fulfillment key), which
   // unmounts the editor cell that started the work — so record the fresh
   // fulfillment id and let the surviving cell auto-open its editor.
+  // SIL-667: the inline PHÂN LOẠI path decomposes silently ({ autoOpen:
+  // false }) — it has an editor of its own and must never pop the full
+  // Chỉnh sửa điều phối modal over the grid mid-save.
   const [autoOpenFulfillmentId, setAutoOpenFulfillmentId] = useState<number | null>(null);
-  const ensureFulfillment = useCallback(async (row: DispatchDetailPlanRow) => {
+  const ensureFulfillment = useCallback(async (
+    row: DispatchDetailPlanRow,
+    options?: { autoOpen?: boolean },
+  ) => {
     const fresh = await ensureFulfillmentFor(row, { patchItems: setItems, onError: setAssignmentError });
-    if (fresh) setAutoOpenFulfillmentId(fresh.fulfillmentId);
+    if (fresh && options?.autoOpen !== false) setAutoOpenFulfillmentId(fresh.fulfillmentId);
     return fresh;
   }, []);
   const consumeAutoOpen = useCallback((id: number) => {

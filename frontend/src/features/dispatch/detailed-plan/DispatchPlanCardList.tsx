@@ -51,7 +51,7 @@ export interface DispatchCardEditorProps {
     row: DispatchDetailPlanRow,
     body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
   ) => Promise<IssueOrderResult>;
-  onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
+  onEnsureFulfillment?: (row: DispatchDetailPlanRow, options?: { autoOpen?: boolean }) => Promise<DispatchDetailPlanRow | null>;
   autoOpenFulfillmentId?: number | null;
   onAutoOpenConsumed?: (id: number) => void;
   onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;

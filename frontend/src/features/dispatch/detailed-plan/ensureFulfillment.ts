@@ -1,6 +1,11 @@
 import { decomposeDispatchDetailBranch } from '../../../api/dispatchDetailBranch';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
+/** One copy of the decompose-failure sentence — the grid banner (via
+ *  `onError`) and the inline-classification toast (SIL-667) must read the
+ *  same. */
+export const ENSURE_FULFILLMENT_FAILED_MESSAGE = 'Không thể tạo tác vụ điều xe cho container này. Vui lòng thử lại.';
+
 /** Fulfillment-less branch rows (READY_FOR_DISPATCH containers without a
  *  fulfillment) have no editor identity — decompose the container first and
  *  hand back the fresh row so the editor targets the created fulfillment.
@@ -35,7 +40,7 @@ export async function ensureFulfillmentFor(
     )));
     return fresh;
   } catch {
-    options.onError('Không thể tạo tác vụ điều xe cho container này. Vui lòng thử lại.');
+    options.onError(ENSURE_FULFILLMENT_FAILED_MESSAGE);
     return null;
   }
 }

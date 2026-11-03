@@ -28,6 +28,7 @@ import { billBookingReference } from '../../../lib/business-reference';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { DispatchDriverNote } from './DispatchDriverNote';
 import { detailRowKey, detailedScheduleLine, lclCargoLine, lclMeasureLine, classificationOptionsForRow } from './DispatchPlanCellValues';
+import { ENSURE_FULFILLMENT_FAILED_MESSAGE } from './ensureFulfillment';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
 import { DispatchDeclarationCell } from './DispatchDeclarationCell';
@@ -130,8 +131,11 @@ interface DetailedPlanGridProps {
   onOpenTripReassign: (tripId: number) => void;
   /** Staff close for external-carrier trips (dispatch/CUS on the driver's behalf). */
   onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
-  /** Decompose-then-edit for fulfillment-less branch rows. */
-  onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
+  /** Decompose-then-edit for fulfillment-less branch rows. The inline
+   *  PHÂN LOẠI save passes `{ autoOpen: false }` — it must never pop the
+   *  full editor modal (SIL-667); the editor cell omits it and inherits the
+   *  auto-open. */
+  onEnsureFulfillment?: (row: DispatchDetailPlanRow, options?: { autoOpen?: boolean }) => Promise<DispatchDetailPlanRow | null>;
   /** When the decompose re-keys the row, the cell that started the work is
    *  unmounted mid-await — the surviving cell for this fulfillment opens its
    *  editor instead (20260916_9). */
@@ -314,13 +318,77 @@ export function DetailedPlanGrid({
     setSavingClassificationKey(rowKey);
     setInlineClassificationError(null);
 
+    // SIL-667 — a fulfillment-less branch row has no editor identity: saving
+    // straight through PATCHed `/dispatch-detail-plan-rows/null/plan`, which
+    // 400s while the grid read as saved. Resolve the fulfillment FIRST (the
+    // same decompose the Điều phối editor uses) and save against it — or fail
+    // loudly; a /null/ request must never leave this handler.
+    let saveRow = row;
+    let activeKey = rowKey;
+    if (row.fulfillmentId == null) {
+      if (!onEnsureFulfillment) {
+        const msg = 'Dòng chưa có phân xe — dùng Chỉnh sửa điều phối để phân xe trước khi đổi phân loại.';
+        setOptimisticClassifications((prev) => {
+          const next = { ...prev };
+          delete next[rowKey];
+          return next;
+        });
+        setSavingClassificationKey(null);
+        setEditingClassificationKey(null);
+        setInlineClassificationError(msg);
+        toastCtx?.toast({ kind: 'error', message: msg });
+        return;
+      }
+      let ensured: DispatchDetailPlanRow | null = null;
+      try {
+        // autoOpen: false — this save owns the inline select; the hook's
+        // surviving-cell auto-open would pop the full Chỉnh sửa điều phối
+        // modal over the grid and its stale draft could revert the save.
+        ensured = await onEnsureFulfillment(row, { autoOpen: false });
+      } catch {
+        ensured = null;
+      }
+      if (ensured == null || ensured.fulfillmentId == null) {
+        // A contract-violating decompose response (no fulfillment id) must
+        // not slip through to a /null/ save either — the guard is
+        // unconditional because AC1 is absolute.
+        // ensureFulfillmentFor already put the precise reason on the grid
+        // banner (role="alert"); the toast repeats the shared failure
+        // sentence so the failure is never silent, and the optimistic value
+        // drops off the stale row.
+        setOptimisticClassifications((prev) => {
+          const next = { ...prev };
+          delete next[rowKey];
+          return next;
+        });
+        setSavingClassificationKey(null);
+        setEditingClassificationKey(null);
+        toastCtx?.toast({ kind: 'error', message: ENSURE_FULFILLMENT_FAILED_MESSAGE });
+        return;
+      }
+      saveRow = ensured;
+      // The decompose re-keys the row (container key → fulfillment key) —
+      // move the in-flight select state to the fresh key so it stays open on
+      // the optimistic value instead of flickering back to the stored one.
+      // The abandoned container-key entry is deleted: it must never mask the
+      // stored value if that row ever re-renders on its old key.
+      activeKey = detailRowKey(ensured);
+      setOptimisticClassifications((prev) => {
+        const next = { ...prev, [activeKey]: nextClassification };
+        delete next[rowKey];
+        return next;
+      });
+      setSavingClassificationKey(activeKey);
+      setEditingClassificationKey(activeKey);
+    }
+
     try {
       const parseEst = (val: string | null) => (val && val.trim() ? Number(val) : null);
-      await onAtomicSave(row, {
-        carrierType: row.dispatch.carrierType ?? 'OWN',
-        externalCarrierId: row.dispatch.carrierType === 'EXTERNAL' ? row.dispatch.externalCarrierId ?? null : null,
-        plannedRevenue: parseEst(row.estimates.plannedRevenue),
-        plannedCarrierCost: parseEst(row.estimates.plannedCarrierCost),
+      await onAtomicSave(saveRow, {
+        carrierType: saveRow.dispatch.carrierType ?? 'OWN',
+        externalCarrierId: saveRow.dispatch.carrierType === 'EXTERNAL' ? saveRow.dispatch.externalCarrierId ?? null : null,
+        plannedRevenue: parseEst(saveRow.estimates.plannedRevenue),
+        plannedCarrierCost: parseEst(saveRow.estimates.plannedCarrierCost),
         classification: nextClassification,
         isCombined: nextClassification === 'COMBINED',
       });
@@ -328,7 +396,7 @@ export function DetailedPlanGrid({
     } catch (err: unknown) {
       setOptimisticClassifications((prev) => {
         const next = { ...prev };
-        delete next[rowKey];
+        delete next[activeKey];
         return next;
       });
       setEditingClassificationKey(null);
@@ -346,16 +414,31 @@ export function DetailedPlanGrid({
             setLocalWeightWarning(null);
             setInlineClassificationError(null);
             const parseEst = (val: string | null) => (val && val.trim() ? Number(val) : null);
-            await onAtomicSave(row, {
-              carrierType: row.dispatch.carrierType ?? 'OWN',
-              externalCarrierId: row.dispatch.carrierType === 'EXTERNAL' ? row.dispatch.externalCarrierId ?? null : null,
-              plannedRevenue: parseEst(row.estimates.plannedRevenue),
-              plannedCarrierCost: parseEst(row.estimates.plannedCarrierCost),
-              classification: nextClassification,
-              isCombined: nextClassification === 'COMBINED',
-              kepWeightWarningConfirmed: true,
-            });
-            setOptimisticClassifications((prev) => ({ ...prev, [rowKey]: nextClassification }));
+            try {
+              await onAtomicSave(saveRow, {
+                carrierType: saveRow.dispatch.carrierType ?? 'OWN',
+                externalCarrierId: saveRow.dispatch.carrierType === 'EXTERNAL' ? saveRow.dispatch.externalCarrierId ?? null : null,
+                plannedRevenue: parseEst(saveRow.estimates.plannedRevenue),
+                plannedCarrierCost: parseEst(saveRow.estimates.plannedCarrierCost),
+                classification: nextClassification,
+                isCombined: nextClassification === 'COMBINED',
+                kepWeightWarningConfirmed: true,
+              });
+              setOptimisticClassifications((prev) => ({ ...prev, [activeKey]: nextClassification }));
+            } catch (retryError) {
+              // The banner was dismissed with the warning — a failed confirmed
+              // retry must speak for itself or it becomes a silent failure.
+              // The optimistic value reverts: nothing was saved.
+              const e = retryError as { message?: string };
+              const retryMsg = e.message || 'Không thể lưu phân loại. Vui lòng thử lại.';
+              setOptimisticClassifications((prev) => {
+                const next = { ...prev };
+                delete next[activeKey];
+                return next;
+              });
+              setInlineClassificationError(retryMsg);
+              toastCtx?.toast({ kind: 'error', message: retryMsg });
+            }
           },
           cancel: () => {
             setLocalWeightWarning(null);

@@ -107,8 +107,9 @@ interface DispatchPlanEditorCellProps {
    *  dispatch/CUS can complete the trip the external driver can't (no app). */
   onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
   /** Fulfillment-less branch rows must decompose before the editor can open;
-   *  resolves to the fresh (fulfilled) row, or null when the write fails. */
-  onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
+   *  resolves to the fresh (fulfilled) row, or null when the write fails.
+   *  Omitting `options` keeps the surviving-cell auto-open (20260916_9). */
+  onEnsureFulfillment?: (row: DispatchDetailPlanRow, options?: { autoOpen?: boolean }) => Promise<DispatchDetailPlanRow | null>;
   /** Surviving-cell auto-open after a decompose re-key (20260916_9). */
   autoOpenFulfillmentId?: number | null;
   /** Clears the parent's pending auto-open once consumed. */
