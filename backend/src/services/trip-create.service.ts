@@ -420,6 +420,12 @@ export async function createTrip(data: {
       createdBy: data.createdBy ?? null,
       customerId: data.customerId,
       routeId: data.routeId,
+      // SIL-676: snapshot the route's VETC stations — the dispatch issue path
+      // has no tolls field, so without this every dispatch-issued trip froze
+      // tolls_stations 0 and its VETC toll could never surface on any
+      // economics surface. A later figures save with an explicit
+      // tollsStations still wins (trip-figure-updates reads data first).
+      tollsStations: route?.tollsStations ?? 0,
       trailerId,
       trailerType,
       truckId: data.truckId ?? null,

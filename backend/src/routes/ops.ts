@@ -306,11 +306,22 @@ router.get('/expenses/:id/photos', asyncHandler(async (req: Request, res: Respon
 
 // ── Đề nghị thanh toán ──────────────────────────────────────────────────────
 
-router.get('/settlements', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+async function listOpsSettlementsHandler(req: Request, res: Response) {
   const user = getUser(req);
   const status = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional().parse(req.query.status);
   res.json({ items: await listOpsSettlements({ opsUserId: user.userId, status }) });
-}));
+}
+
+router.get('/settlements', OPS_ONLY, asyncHandler(listOpsSettlementsHandler));
+
+// SIL-676: GET /api/settlements is a REGISTERED alias of the ops self list —
+// same gate, same self-scoping, zero new behavior. It exists so the audited
+// surface (audit-query.service) and any client that address the plain path
+// get the real list instead of the /api 404 catch-all. Non-OPS roles receive
+// the same 403 here as on /api/ops/settlements; the office view stays
+// /api/ops/admin/settlements.
+export const settlementsListAliasRoutes = Router();
+settlementsListAliasRoutes.get('/', OPS_ONLY, asyncHandler(listOpsSettlementsHandler));
 
 router.post('/settlements', declareMaterialWrite('ops.settlements.create', { method: 'POST', path: '/api/ops/settlements' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);

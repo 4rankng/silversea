@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-11-04 — fix(pricing): SIL-676 (id 783) — pricing lookup bỏ qua bảng giá keyed: /api/pricing trả giá đầu bảng, snapshot giữ trace id thật, /settlements có route thật
+
+Lookup/linkage hỏng (engine TỒN TẠI, không phải thiếu engine): bảng giá
+keyed-only (CONT20/CONT40/tấn…) cho customer × route khiến mọi caller KHÔNG
+gửi selector nhận 0, snapshot đổ lỗi "chưa cấu hình" dù terms tồn tại, và
+cặp /settlements 404 cả API lẫn SPA.
+
+- **R1 bảng giá keyed** — `resolveTablePrice` chọn qua pure law mới
+  `pricing-table-selection.ts`: selector tường minh (containerTypeId /
+  pricingRateKey) vẫn exact-match-or-manual (thiếu 15T vẫn 0, không đoán
+  chéo hạng); caller KHÔNG selector → dòng general khi có, còn không thì GIÁ ĐẦU BẢNG
+  (latest effectiveDate, id nhỏ nhất = CONT20 3.800.000 cho lane 1×6).
+  consumers: `GET /api/pricing` + seed revenue khi tạo chuyến
+  (trip-create/shipment-shared). (S676-R1/R2/R5)
+- **R2 trace id thật** — engine chỉ còn đúng MỘT lối throw 404 (thiếu điều
+  khoản cước); thiếu loại xe / định mức dầu / kỳ giá dầu giờ trả MANUAL giữ
+  nguyên rateTermsId/pricingTableId/fuelNormId đã resolve + formulaText đóng
+  băng lý do cụ thể — snapshot không còn tự đóng dấu "khách × tuyến chưa
+  cấu hình" khi terms có thật.
+- **R3 VETC dispatch linkage** — trip-create snapshot `tolls_stations` từ
+  tuyến khi caller không gửi (dispatch issue không có field tolls); figures
+  update GIỮ snapshot đã lưu khi caller bỏ trống — VETC của lô phát lệnh
+  hiện được trên mọi surface economics thay vì 0 vĩnh viễn.
+- **R4 /settlements** — backend mount alias `GET /api/settlements`
+  (settlementsListAliasRoutes, cùng gate OPS_ONLY + self-scoping như
+  `/api/ops/settlements`); SPA `/settlements` redirect theo role tới surface
+  có thật (OPS → /ops/wallet, CUS → /shipments-debit, DRIVER →
+  /my-payslips, DISPATCHER → /dispatch, CUSTOMER portal → portal shipments,
+  office trio → /advances?view=settlements) — không tạo page mới.
+
+QA local (qa/2026-11-04-sil676/): before/after HTTP (0 → 3.800.000;
+404 → 200), cặp Kẹp mới 2 chân CONT20 route 6: snapshot AUTO
+3.952.000 = 3.800.000 × 1.04 với rate_terms_id=1 + pricing_table_id=33,
+VETC 110.000 chân 1 + khấu trừ 110.000 chân 2 (VETC 1 lần/cặp), lương
+384.615 cơ bản chân 1 + 200.000 phụ phí Kẹp chân 2 (app_settings
+salary.pair_surcharge_kep), driver /my-earnings hiện 784.615 đ.
+BE unit full 840/840 + FE vitest green; gates chi tiết trong qa/.
+
 ## 2026-10-30 — fix(ux): SIL-599 (id 699) — /debt tách bạch "tuổi nợ" và "quá hạn hợp đồng", band hết nháy số liệu
 
 QA Glint: `/debt` tự mâu thuẫn với chính nó và với chi tiết — pill "2 quá hạn",

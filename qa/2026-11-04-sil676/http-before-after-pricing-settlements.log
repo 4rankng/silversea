@@ -1,0 +1,14 @@
+# SIL-676 HTTP before/after — 2026-11-04T02:15:21.143278
+BEFORE = original local build :3002 (pre-fix) · AFTER = this fix :3102 (worktree, same local DB :5441)
+BEFORE GET /api/pricing?customerId=1&routeId=6 -> 200 {"price": 0}
+BEFORE GET /api/settlements (ADMIN) -> 404 {"error": "Kh\u00f4ng t\u00ecm th\u1ea5y API"}
+AFTER login admin -> 200
+AFTER GET /api/pricing?customerId=1&routeId=6 -> 200 {"price": 3800000}
+AFTER GET /api/pricing?customerId=1&routeId=6&pricingRateKey=CONT20 -> 200 {"price": 3800000}
+AFTER GET /api/pricing?customerId=1&routeId=6&pricingRateKey=15T -> 200 {"price": 0}
+AFTER GET /api/pricing?customerId=1&routeId=6&containerTypeId=1 -> 200 {"price": 0}
+AFTER GET /api/pricing?customerId=1&routeId=6&date=2026-10-02 -> 200 {"price": 3800000}
+AFTER GET /api/pricing?customerId=1&routeId=6&date=2026-12-01 -> 200 {"price": 3800000}
+AFTER login ops giaonhan -> 200
+AFTER GET /api/settlements (OPS) -> 200 items=0
+AFTER GET /api/ops/settlements (OPS) canonical -> 200 items=0

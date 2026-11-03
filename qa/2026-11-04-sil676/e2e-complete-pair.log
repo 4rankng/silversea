@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Users/dev/.paseo/worktrees/sil676-fix/qa/2026-11-04-sil676/e2e-complete-pair.py", line 69, in <module>
+    assert st == 200, f'scope {tid}/{tcid} {st} {out}'
+           ^^^^^^^^^
+AssertionError: scope 858/None 409 {'error': 'Không thể cập nhật chuyến hoặc lô hàng đã kết thúc'}

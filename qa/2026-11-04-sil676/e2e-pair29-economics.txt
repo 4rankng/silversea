@@ -1,0 +1,9 @@
+SIL-676 local E2E pair economics — pair 29 (KEP), trips 858/859, 2026-11-04
+Backend under test: :3102 (fixed worktree build). Snapshot money law:
+  freight = pricing_tables 33 (CONT20 3.800.000) x (1 + sharePct 4.00 of freight_rate_terms 1)
+trip 858 (TRP-202611-0131): status=COMPLETED tolls_stations=2 pair=KEP|ACTIVE
+  snapshot: total=3952000 rate_terms_id=1 pricing_table_id=33 share_pct=4.00
+  financial_state: revenue(override slot)=0 toll_cost=110000 toll_deduction=0 driver_salary=384615 total_cost=563615
+trip 859 (TRP-202611-0132): status=COMPLETED tolls_stations=2 pair=KEP|ACTIVE
+  snapshot: total=3952000 rate_terms_id=1 pricing_table_id=33 share_pct=4.00
+  financial_state: revenue(override slot)=0 toll_cost=0 toll_deduction=110000 driver_salary=200000 total_cost=269000

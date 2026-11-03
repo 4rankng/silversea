@@ -1,0 +1,53 @@
+# SIL-676 UI driver log — settlements + driver surfaces (2026-11-04)
+
+Environment: local stack, FIXED worktree backend on :3102 (worktree
+/Users/dev/.paseo/worktrees/sil676-fix, branch fix/sil676-pricing-lookup),
+FIXED frontend vite dev on 127.0.0.1:7199 (VITE_API_PROXY_TARGET=:
+3102). Accounts: giaonhan (OPS), tdtrung (DRIVER, driver id 39), password
+Abc123 per testplan/testaccounts.txt. QA lots: shipments 1249/1250 (SIL676QA…
+bills), trips 858/859, pair 29 (KEP), container-type 20DC (id 1), truck 21
+(15H-002.14), route 6 (KCN Quế Võ). Driver command/script log: see
+e2e-driver.py / e2e-complete-pair.py / e2e-driver-pod.py outputs in this
+folder; exit status 0 (PAIR COMPLETE DONE).
+
+## Surface 1 — /settlements redirect + GET /api/settlements (ops role)
+1. Browser fetch POST /api/auth/login (giaonhan) through the :7199 proxy ->
+   200, role OPS.
+2. In-page fetch GET /api/settlements (Bearer token) -> **200** {items: 0}.
+   BEFORE (old build :3002, same account class): 404 {"error":"Không tìm
+   thấy API"} (see http-before-after-pricing-settlements.log).
+3. SPA navigate http://127.0.0.1:7199/settlements -> redirected to
+   /ops/wallet; DOM assertion: location.pathname === '/ops/wallet', page
+   heading "Quỹ tạm ứng", NO "Không tìm thấy/404" text in the first 3000
+   chars of document.body.
+4. Screenshot: the Paseo screenshot tool could not paint this tab (returned
+   "The tab has not yet painted" after readyState=complete + 1.5s settle);
+   the DOM/URL assertions above are the captured evidence for this rung.
+   Limitation recorded per §9.
+
+## Surface 2 — driver detail + earnings (driver role, trips 858/859)
+1. Login tdtrung (DRIVER) -> navigate /my-trips/858: trip renders
+   "Hoàn thành" (COMPLETED), tripCode TRP-202611-0129, route KCN QUẾ VÕ
+   BẮC NINH, customer LONG MINH; "Chi phí 0" = incidental-cost ENTRY count
+   (pre-existing semantic — the driver filed no cost entries; NOT the
+   pricing money).
+2. Navigate /my-earnings: "Thu nhập — Lương chưa thanh toán 784.615 đ",
+   line "Lương chuyến + đi đường 784.615 đ" — the pair's real money (trip
+   858 salary 384.615 + trip 859 pair surcharge 200.000 + road allowance
+   components) renders non-zero on the driver surface.
+3. DB side-effect proof (trip_financial_state, query + rows):
+   trip 858: tolls_stations=2, snapshot 3952000/rateTerms 1/pricingTable 33,
+   tollCost 110000, tollDeduction 0, driverSalary 384615, totalCost 563615.
+   trip 859: tolls_stations=2, snapshot 3952000/rateTerms 1/pricingTable 33,
+   tollCost 0, tollDeduction 110000 (VETC netted once for the pair),
+   driverSalary 200000 (phụ phí Kẹp), totalCost 269000.
+
+## Coverage limits
+- Screenshot artifacts missing (tool could not paint the tab) — DOM/URL/API
+  assertions recorded instead.
+- Staging trips 253/254 (TRP-202611-0077/0078) NOT reachable from this
+  workstation; the local pair 29 (trips 858/859) is the equivalent-lot
+  verification the brief sanctions.
+- Accountant/manager views of the settlements alias not driven (route is
+  OPS-scoped by the same gate as /api/ops/settlements; non-OPS receive the
+  documented 403).

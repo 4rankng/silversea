@@ -25,6 +25,36 @@ export function legacyAdvanceSettlementsTarget(search: string): string {
 }
 
 /**
+ * SIL-676 — the bare `/settlements` path never existed (QA hit the SPA 404
+ * AND `GET /api/settlements` 404; the backend now aliases that API onto the
+ * ops self list). This SPA path routes each role to its EXISTING settlements
+ * surface — no new page: OPS → /ops/wallet (the /ops/settlements-backed
+ * list), CUS → Chi phí - Quyết toán, DRIVER → payslips, DISPATCHER →
+ * dispatch home (no settlements surface), CUSTOMER portal → shipments, and
+ * the office trio → the Tạm ứng & hoàn ứng workspace's settlements view.
+ */
+export function settlementsRedirectTarget(role: string): string {
+  switch (role) {
+    case Role.OPS:
+      return routes.opsWallet;
+    case Role.CUS:
+      return routes.shipmentDebit;
+    case Role.DRIVER:
+      return routes.myPayslips;
+    case Role.DISPATCHER:
+      return routes.dispatch;
+    case Role.CUSTOMER:
+      return routes.portalShipments;
+    default:
+      return legacyAdvanceSettlementsTarget('');
+  }
+}
+
+function SettlementsRedirect({ role }: { role: string }) {
+  return <Navigate to={settlementsRedirectTarget(role)} replace />;
+}
+
+/**
  * QA R27 session-instability: the one shared auth token means another tab in
  * the same browser profile can swap this tab's account (its login) or end it
  * (its logout). The swap/drop is by-design behavior; what this component adds
@@ -581,6 +611,7 @@ export function AppRoutes() {
           <Route path="/my-settlements/new" element={opsOnly(page(<ForwarderSettlementCreatePage />))} />
           <Route path="/my-settlements/:id" element={opsOnly(page(<SettlementPrintPage />))} />
           <Route path="/settlements/:id" element={officeStaffOnly(page(<SettlementPrintPage />))} />
+          <Route path="/settlements" element={page(<SettlementsRedirect role={currentRole} />)} />
           {/* Wave 2: Customer portal routes. Only CUSTOMER role can access. */}
           <Route path="/portal/shipments" element={customerOnly(page(<PortalShipmentsPage />))} />
           <Route path="/portal/shipments/:id" element={customerOnly(page(<PortalShipmentDetailPage />))} />

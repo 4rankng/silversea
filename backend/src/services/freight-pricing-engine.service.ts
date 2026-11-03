@@ -243,7 +243,33 @@ export async function resolveFreightRate(
     .then((rows) => rows[0]);
 
   if (!vehicleClass) {
-    throw new ApiError(404, `Không tìm thấy loại xe: ${vehicleSizeClassCode}`);
+    // SIL-676: a missing vehicle-class catalog row is the same failure class
+    // as a missing base price — MANUAL with the terms id this run HAD
+    // resolved. Throwing here made the lifecycle fallback zero EVERY trace id
+    // (rateTermsId 0) so the read side printed the false "khách × tuyến chưa
+    // cấu hình" hint although freight_rate_terms existed. This is now the
+    // ONLY throw path in the engine: a 404 reaching
+    // resolveFreightRateWithManualFallback means terms genuinely unresolved.
+    // No formulaText: the view infers source = AUTO from a present
+    // formulaText; buildFormulaHint reports the base-price gap from
+    // pricingTableId = 0.
+    return {
+      freight: 0,
+      surcharge: 0,
+      total: 0,
+      fuelDelta: 0,
+      fuelPricePeriodId: 0,
+      rateTermsId: terms.id,
+      pricingTableId: 0,
+      fuelNormId: 0,
+      billedKm: 0,
+      liters: 0,
+      sharePct: Number(terms.sharePct),
+      heSo: 1,
+      source: 'MANUAL',
+      formula: `Không tìm thấy loại xe: ${vehicleSizeClassCode} — cần nhập tay giá cước`,
+      quotationFrame: quotationFrame ?? undefined,
+    };
   }
 
   let basePriceRow = await db
@@ -334,10 +360,28 @@ export async function resolveFreightRate(
     .then((rows) => rows[0]);
 
   if (!norm) {
-    throw new ApiError(
-      404,
-      `Không tìm thấy định mức dầu cho loại xe: ${vehicleSizeClassCode}`,
-    );
+    // SIL-676: MANUAL with the ids already resolved (terms + base price) —
+    // throwing zeroed every trace id so the read side printed the false
+    // "terms unconfigured" hint. NO formulaText here: the view infers
+    // source = AUTO from a present formulaText, and buildFormulaHint
+    // rebuilds the correct missing-norm message from fuelNormId = 0.
+    return {
+      freight: 0,
+      surcharge: 0,
+      total: 0,
+      fuelDelta: 0,
+      fuelPricePeriodId: 0,
+      rateTermsId: terms.id,
+      pricingTableId: basePriceRow.id,
+      fuelNormId: 0,
+      billedKm: 0,
+      liters: 0,
+      sharePct: Number(terms.sharePct),
+      heSo: 1,
+      source: 'MANUAL',
+      formula: `Không tìm thấy định mức dầu cho loại xe: ${vehicleSizeClassCode} — cần nhập tay giá cước`,
+      quotationFrame: quotationFrame ?? undefined,
+    };
   }
 
   // ── Surcharge-pending path (freight-grounds vs surcharge-grounds split).
@@ -428,10 +472,29 @@ export async function resolveFreightRate(
     .then((rows) => rows[0]);
 
   if (!fuel) {
-    throw new ApiError(
-      404,
-      `Không tìm thấy giá dầu hiệu lực tại ngày ${targetDate} (transport: ${transportDate}, lag: ${lagDays}d)`,
-    );
+    // SIL-676: MANUAL with the ids already resolved (terms + base price +
+    // norm) — the lag-before-first-period edge stays non-blocking AND its
+    // snapshot trace no longer blames unconfigured terms (throwing zeroed
+    // every trace id). No formulaText: the view infers source = AUTO from a
+    // present formulaText; buildFormulaHint rebuilds the missing-fuel-period
+    // message from fuelPricePeriodId = 0.
+    return {
+      freight: 0,
+      surcharge: 0,
+      total: 0,
+      fuelDelta: 0,
+      fuelPricePeriodId: 0,
+      rateTermsId: terms.id,
+      pricingTableId: basePriceRow.id,
+      fuelNormId: norm.id,
+      billedKm: 0,
+      liters: 0,
+      sharePct: Number(terms.sharePct),
+      heSo: 1,
+      source: 'MANUAL',
+      formula: `Không tìm thấy giá dầu hiệu lực tại ngày ${targetDate} (transport: ${transportDate}, lag: ${lagDays}d) — cần nhập tay giá cước`,
+      quotationFrame: quotationFrame ?? undefined,
+    };
   }
 
   // ── Step 4a-4b: Threshold check ──

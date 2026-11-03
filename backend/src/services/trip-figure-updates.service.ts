@@ -485,7 +485,7 @@ export async function updateTripFigures(
       roadAllowanceBase: roadAllowanceBaseApplied,
       tollsDiscount: data.tollsDiscount ?? 0,
       tollsAddition: data.tollsAddition ?? 0,
-      tollsStations: data.tollsStations ?? 0,
+      tollsStations: data.tollsStations ?? Number(trip.tollsStations ?? 0),
       // Preserve system-managed backhaul dedup across recalc; pair flow is the writer.
       tollDeduction: data.tollDeduction ?? Number(trip.tollDeduction ?? 0),
       tollPerStation: tollPerStationApplied,
@@ -574,7 +574,7 @@ export async function updateTripFigures(
       fuelSupplierId: data.fuelSupplierId !== undefined ? data.fuelSupplierId : trip.fuelSupplierId,
       tollsDiscount: String(data.tollsDiscount || 0),
       tollsAddition: String(data.tollsAddition || 0),
-      tollsStations: data.tollsStations || 0,
+      tollsStations: data.tollsStations ?? trip.tollsStations ?? 0,
       tollDeduction: String(data.tollDeduction ?? Number(trip.tollDeduction ?? 0)),
       hasReturnCargo: data.hasReturnCargo ?? false,
       driverSalary: String(driverSalary),
