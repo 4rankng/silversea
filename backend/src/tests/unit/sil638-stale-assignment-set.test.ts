@@ -22,7 +22,10 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 
-import { OPERATIONAL_HOLDER_SHIPMENT_STATUSES } from '../../services/dispatch-plan-conflict-scan.service';
+// SIL-666 round-2: the status set moved beside the trip-claim SQL (the
+// conflict-scan module is an import-cycle leaf and cannot be imported from
+// the issue-time guard). Same exported data, new home.
+import { OPERATIONAL_HOLDER_SHIPMENT_STATUSES } from '../../services/dispatch-resource-availability.service';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const scanSource = readFileSync(

@@ -17,7 +17,15 @@ import {
   rigHolderSlotSuffix,
   type RigConflictTripRef,
 } from './trip-pair-rules.service';
-import { tripClaimEndSql, tripClaimStartSql } from './dispatch-resource-availability.service';
+// SIL-666 round-2 — the trip-claim SQL + the trip-side visibility law + the
+// TC1 status set live with their law owner (this module is an import-cycle
+// leaf, so the const moved THERE; see OPERATIONAL_HOLDER_SHIPMENT_STATUSES).
+import {
+  OPERATIONAL_HOLDER_SHIPMENT_STATUSES,
+  tripClaimEndSql,
+  tripClaimStartSql,
+  tripHolderVisibilitySql,
+} from './dispatch-resource-availability.service';
 import { findActiveKepPairPartner } from './trip-pair-rig-sync.service';
 
 /**
@@ -80,11 +88,10 @@ export interface RigHolderFacts {
  * fulfillments of non-deleted shipments in an operational status; the holder
  * scans had no such filter, so a fulfillment carrying a plate on a
  * draft/pending/canceled or deleted lot kept claiming the rig from the
- * shadows. Mirrors the read's visibility law verbatim.
+ * shadows. Mirrors the read's visibility law verbatim. The status set
+ * itself (`OPERATIONAL_HOLDER_SHIPMENT_STATUSES`) lives with the trip-claim
+ * law owner (dispatch-resource-availability.service) since SIL-666 round-2.
  */
-export const OPERATIONAL_HOLDER_SHIPMENT_STATUSES = [
-  'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED',
-] as const;
 
 /**
  * SIL-638 TC1 (QA 01/11) — the holder's ACTUAL assigned window start. A holder
@@ -509,6 +516,10 @@ export async function assertTripRigAvailable(
       eq(s.trucks.licensePlate, plate),
       notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
       isNull(s.trips.deletedAt),
+      // SIL-666 round-2 — hidden claims stop here too: a trip of a canceled
+      // fulfillment / deleted or non-operational lot is invisible in the plan
+      // grid and must never block (the 31/12 phantom 409's firing row).
+      ...tripHolderVisibilitySql(),
       ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
       sql`${tripStartSql} < ${windowEnd.toISOString()}::timestamptz`,
       sql`${tripEndSql} > ${windowStart.toISOString()}::timestamptz`,

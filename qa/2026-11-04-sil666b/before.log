@@ -1,0 +1,17 @@
+logged in admin + dieuvan; BE=http://localhost:3013/api PHASE=before
+housekeeping: released 1 plate(s), parked 1 family lot(s)
+refs: truck39=15H-061.14 driver=11 type20=20DC
+fixture: hidden DOUBLE trip on 15H-061.14 31/12 08:00 — orphan=1201
+UPDATE 1 trip=831|CREATED|2026-12-31 01:00:00|lot_deleted=true
+PASS fixture: hidden KẸP trip seeded (trip CREATED, lot deleted) — 831|CREATED|2026-12-31 01:00:00|lot_deleted=true
+window evidence (31/12 08:00+7 = [01:00,09:00) UTC) truck-39 trips:
+trip 831 TRP-202612-0012 CREATED start=2026-12-31 01:00:00 end=2026-12-31 05:00:00 lot_deleted=true lot_status=DISPATCHED ff_canceled=false class=DOUBLE ff_plate=15H-061.14
+S31 assign SINGLE 31/12 08:00 → 15H-061.14 → 409 Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe
+PASS TC-666B-1 (before): 31/12 phantom tái hiện — 409 "Cần cả 2 cont cùng khai báo KẸP" naming nothing — status=409 msg="Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe"
+S21 control SINGLE 21/12 08:00 → 15H-061.14 → 200
+PASS TC-666B-2: 21/12 đối chứng sạch giữ nguyên 200 — status=200
+B conflicting task on 15H-061.14: 326|BULK-TR-0180|CREATED
+B assign SINGLE 28/08 08:00 → 15H-061.14 (xung đột BULK-TR-0180 CREATED) → 409
+PASS TC-666B-3: xung đột THẬT (BULK fulfillment-less) vẫn 409 hard tier — status=409
+PASS TC-666B-3: message vẫn NÊU RÕ lô/tác vụ xung đột thật — colonPart="Lệnh BULK-TR-0180 (từ 07:00 26-08)."
+SIL-666b REPRO COMPLETE — phase before: all expectations hold

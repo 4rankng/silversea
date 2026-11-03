@@ -36,6 +36,45 @@ export const tripClaimStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${tripD
 export const tripClaimEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${tripDayStartSql} + interval '1 day')`;
 
 /**
+ * SIL-638 TC1 (QA 01/11) — the operational-lot statuses the plan-row READ
+ * shows. Moved here from dispatch-plan-conflict-scan.service (whose header
+ * documents itself as an import-cycle leaf) so the SIL-666 round-2 trip-side
+ * visibility builder below can share ONE set across both modules without
+ * reopening that cycle: dispatch-plan-conflict-scan already imports this
+ * module's trip-claim SQL.
+ */
+export const OPERATIONAL_HOLDER_SHIPMENT_STATUSES = [
+  'READY_FOR_DISPATCH', 'DISPATCHED', 'IN_TRANSIT', 'COMPLETED',
+] as const;
+
+/**
+ * SIL-666 round-2 (QA round-3b 03/11) — the TRIP-side scans obey the same
+ * visibility law the plan-row scans got in SIL-638 TC1. A trip whose
+ * fulfillment is canceled, or whose lot is deleted / non-operational, is
+ * invisible in the plan grid yet still claimed rigs from the shadows: the
+ * 31/12 phantom 409 was exactly such a hidden KẸP trip on a deleted lot
+ * answering the TC2 mismatch ("Cần cả 2 cont cùng khai báo KẸP…") and naming
+ * nothing — date-dependent only because the claim fires on whichever days
+ * the hidden trip overlaps. Both left joins are nullable on purpose: a
+ * fulfillment-LESS task (BULK) carries no shipment row and MUST keep
+ * blocking — SIL-666 round-1 pinned its named hard tier (BULK-TR-0180).
+ * Spread into every trip-conflict scan that joins
+ * shipment_fulfillments/shipments for identity columns.
+ */
+export function tripHolderVisibilitySql(): SQL[] {
+  return [
+    or(isNull(s.shipmentFulfillments.id), isNull(s.shipmentFulfillments.canceledAt))!,
+    or(
+      isNull(s.shipments.id),
+      and(
+        isNull(s.shipments.deletedAt),
+        inArray(s.shipments.status, [...OPERATIONAL_HOLDER_SHIPMENT_STATUSES]),
+      ),
+    )!,
+  ];
+}
+
+/**
  * COMPLETED trips with NO staged start whose departure day overlaps the saving
  * window, on the given rig predicates. Timestamped holders stay with each
  * guard's own (stronger-evidence) scans. Live trips are deliberately NOT swept
@@ -198,6 +237,12 @@ export async function assertResourceAvailability(tx: Tx, args: {
       or(...predicates)!,
       isNull(s.trips.deletedAt),
       inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
+      // SIL-666 round-2 — the issue gate obeys the trip-visibility law too:
+      // a hidden lot's trip (canceled fulfillment / deleted or
+      // non-operational lot) must not hard-block a new dispatch order with
+      // "trùng lịch kế hoạch" (same defect class as the 31/12 plan-assign
+      // phantom; the plan-row holders were purged by SIL-638 TC1 already).
+      ...tripHolderVisibilitySql(),
       args.tripId != null ? ne(s.trips.id, args.tripId) : undefined,
       isNotNull(s.trips.plannedStartAt),
       lt(s.trips.plannedStartAt, args.plannedEndAt),
