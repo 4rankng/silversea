@@ -3,6 +3,8 @@ import { localDateInBusinessZone, TripStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import {
+  busyDayClaimOverlaps,
+  busyRigWarnMessage,
   CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE,
   classificationMismatchShareBlockMessage,
   containerFootClass,
@@ -515,6 +517,60 @@ export async function assertResourceAvailability(tx: Tx, args: {
         `Xe đã có ${dayClaims} chuyến khác (chưa có giờ cụ thể) trong ngày phân công này. Vẫn lưu?`,
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+    // SIL-638 TC1 round 3 (QA 03/11 — "gate dropout persists"): the ISSUE path
+    // had no busy-rig tier at all. The plan save warns on an IN_TRANSIT holder
+    // (busyDayClaimOverlaps law, 02/11) but the Phát lệnh dialog issued
+    // straight onto a rig that is literally out working — QA's 18:00 order
+    // left the lot with a 201 while the ca-sáng leg ran IN_TRANSIT. Same DOC
+    // message + confirmable contract, same whole-business-day claim. Carved
+    // like the arrangements above: the issuing trip's own ACTIVE Kẹp pair
+    // partner and its Ghép-trả-ĐV cost-group siblings are the deliberate
+    // overlap, never a foreign busy claim (a same-lot leg stays in scope —
+    // TC1's own repro is Cont A running while Cont C of the same lot tries to
+    // claim the tractor).
+    if (args.truckId != null) {
+      const busyTrips = await tx.select({
+        id: s.trips.id,
+        plannedStartAt: s.trips.plannedStartAt,
+        departureDate: s.trips.departureDate,
+        plate: s.trucks.licensePlate,
+        pairStatus: s.tripPairs.status,
+        pairKind: s.tripPairs.pairKind,
+        pairFirstTripId: s.tripPairs.firstTripId,
+        pairSecondTripId: s.tripPairs.secondTripId,
+        holderCostGroupId: s.shipments.costGroupId,
+      }).from(s.trips)
+        .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+        .leftJoin(s.tripPairs, eq(s.tripPairs.id, s.trips.activeTripPairId))
+        .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+        .leftJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+        .where(and(
+          eq(s.trips.truckId, args.truckId),
+          eq(s.trips.status, TripStatus.IN_TRANSIT),
+          isNull(s.trips.deletedAt),
+          args.tripId != null ? ne(s.trips.id, args.tripId) : undefined,
+          or(
+            sql`((${s.trips.plannedStartAt} at time zone 'Asia/Ho_Chi_Minh')::date) between ((${args.plannedStartAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${args.plannedEndAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
+            sql`((${s.trips.departureDate})::date) between ((${args.plannedStartAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${args.plannedEndAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
+          )!,
+        ));
+      const isOwnPairPartner = (trip: typeof busyTrips[number]) =>
+        trip.pairStatus === 'ACTIVE' && trip.pairKind === 'KEP'
+        && args.tripId != null
+        && (trip.pairFirstTripId === args.tripId || trip.pairSecondTripId === args.tripId);
+      const isCostGroupSibling = (trip: typeof busyTrips[number]) =>
+        args.costGroupId != null && trip.holderCostGroupId != null
+        && trip.holderCostGroupId === args.costGroupId;
+      const foreignBusy = busyTrips.filter((trip) => !isOwnPairPartner(trip) && !isCostGroupSibling(trip));
+      const busyOverlap = foreignBusy.some((trip) => {
+        const holderStart = trip.plannedStartAt
+          ?? (trip.departureDate ? new Date(`${trip.departureDate}T00:00:00+07:00`) : null);
+        return holderStart != null && busyDayClaimOverlaps(holderStart, args.plannedStartAt, args.plannedEndAt);
+      });
+      if (busyOverlap) {
+        throw new ApiError(409, busyRigWarnMessage(foreignBusy[0]?.plate ?? ''), undefined, { code: 'RIG_OVERLAP_COMPLETED' });
+      }
     }
   }
 }

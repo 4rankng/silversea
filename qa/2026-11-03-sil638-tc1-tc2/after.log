@@ -1,0 +1,33 @@
+logged in admin + dieuvan; probe days from 2026-12-13
+housekeeping: cancel trip 738 → 200
+housekeeping: cancel trip 739 → 200
+housekeeping: released 1 family plan-row plate(s)
+rig truck=32 driver=9 trailer=111
+V3 assign A (08:00 slot, no end) → 200 
+V3 assign B (14:00 slot, no end) → 200 
+PASS V3 (TC1): B 14:00 saves clean against 08:00 READY holder (KHÔNG 1 leg/truck/ngày) — status=200
+V2 assign B (same 08:00 slot) → 409 {"error":"Đầu xe 15H-154.26 đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+PASS V2 (TC1): cùng slot vẫn chặn với cảnh báo (không im lặng) — status=409 code=RIG_OVERLAP_COMPLETED
+PASS V2 (TC1): cảnh báo confirmable — retry lưu tiếp — status=200
+V5 assign B 10:00–14:00 vs A 08:00–12:00 → 409 {"error":"Đầu xe 15H-154.26 đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+PASS V5 (TC1): trùng giờ thật vẫn bị chặn — status=409
+T2 assign ĐƠN 09:00–13:00 → 200
+T2 assign KẸP row onto truck holding ĐƠN → 409 {"error":"Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe"}
+PASS T2 (TC2 ĐƠN→KẸP): KẸP row bị TỪ CHỐI với message phân loại (không lưu im lặng) — status=409
+T2r assign ĐƠN row onto truck holding KẸP → 409 {"error":"Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe"}
+PASS T2r (TC2 KẸP→ĐƠN): ĐƠN row bị từ chối với message phân loại — status=409
+T2kk assign 2nd DOUBLE row same truck → 200 {"fulfillmentId":1276,"fulfillmentVersion":2,"shipmentId":1093,"shipmentVersion":3,"classification":"DOUBLE","isCombined":false,"operationalNotes":null,"dispatch":{"carrierType":"OWN","carrierName":"S
+PASS T2kk (TC2 control): DOUBLE+DOUBLE vẫn lưu (pair arrangement giữ nguyên) — status=200
+T2sl same-lot KẸP first, ĐƠN second → 409 {"error":"Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe"}
+PASS T2sl (TC2 same-lot KẸP→ĐƠN): ĐƠN row cùng lô bị từ chối với message phân loại — kep=200 don=409
+T2sl2 same-lot ĐƠN first, KẸP second → 409 {"error":"Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe"}
+PASS T2sl2 (TC2 same-lot ĐƠN→KẸP): KẸP row cùng lô bị từ chối với message phân loại (trước fix: lưu im lặng) — don=200 kep=409
+T2w date-only KẸP row onto date-only ĐƠN holder → 409 {"error":"Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+PASS T2w (TC2 weak): holder date-only + KẸP row → cảnh báo xác nhận (không im lặng) — don=200 kep=409 code=RIG_OVERLAP_COMPLETED
+PASS T2w (TC2 weak): cảnh báo confirmable — retry lưu tiếp — status=200
+DROP issue A 08:00–12:00 → 201 trip 754
+DROP driver accepts A → 201 
+DROP issue D 18:00–22:00 (A IN_TRANSIT) → 409 {"error":"Đầu xe 15H-154.26 đang bận thực hiện lệnh chưa hoàn tất. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+PASS DROP (TC1): phát lệnh D khi xe đang chạy KHÔNG im lặng (cảnh báo xe bận) — status=409
+PASS DROP (TC1): cảnh báo xe bận confirmable — retry phát tiếp — status=201
+SHAPE SWEEP COMPLETE — all expectations hold

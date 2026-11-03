@@ -246,9 +246,16 @@ export function selectAutoPairPartnerCandidate(
  * COMBINED/Kết hợp) while the leg being assigned/issued is a plain ĐƠN: the
  * rig can only be shared when both containers declare the same pair kind, so
  * the mismatch text names the fix instead of the generic "trùng lịch" toast.
- * One direction only — issuing a KẸP leg onto a ĐƠN holder keeps the landed
- * dis-03 confirmable warn (owner ruling, card 211026131857), and two legs
- * that both declare (any kinds) keep their own gates.
+ *
+ * SIL-638 TC2 round 3 (QA 03/11, staging da2e6fc2): the refusal is SYMMETRIC —
+ * gán 2 cont cùng xe khi phân loại KHÔNG đồng nhất (KẸP + ĐƠN) phải bị từ
+ * chối CẢ HAI CHIỀU (KẸP→ĐƠN và ĐƠN→KẸP) với cùng message. The reverse arm
+ * (a declared leg onto an explicit ĐƠN holder → the same message) lives in
+ * the function below; the trip-issue Kẹp-issuing path keeps its dis-03
+ * confirmable warn tier (owner ruling card 211026131857 — unchanged, see
+ * isMixedDeclarationKepCandidate). Undeclared holders ("bổ sung sau", null)
+ * and other cargo-mode values (LCL) stay null — the generic overlap law owns
+ * those shapes.
  */
 export const CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE =
   'Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe';
@@ -269,10 +276,17 @@ export function classificationMismatchShareBlockMessage(
   holderClassification: string | null | undefined,
 ): string | null {
   const holder = (holderClassification ?? '').trim();
-  if (holder !== 'DOUBLE' && holder !== 'COMBINED') return null;
   const issuing = (issuingClassification ?? '').trim();
-  if (issuing === 'DOUBLE' || issuing === 'COMBINED') return null;
-  return CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE;
+  const issuingDeclared = issuing === 'DOUBLE' || issuing === 'COMBINED';
+  const holderDeclared = holder === 'DOUBLE' || holder === 'COMBINED';
+  // KẸP/Kết hợp holder vs plain ĐƠN issuing leg — the landed direction.
+  if (holderDeclared && !issuingDeclared) return CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE;
+  // SIL-638 TC2 round 3 — the symmetric arm: a declared leg onto an explicit
+  // ĐƠN holder refuses with the SAME message (QA 03/11: the KẸP row used to
+  // save silently over the sitting ĐƠN). Only an explicit SINGLE counts; an
+  // undeclared holder keeps "bổ sung sau" and LCL keeps the generic law.
+  if (issuingDeclared && holder === 'SINGLE') return CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE;
+  return null;
 }
 
 /**

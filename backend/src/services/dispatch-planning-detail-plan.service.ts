@@ -737,14 +737,50 @@ async function assertPlanRowRigAvailable(
   // Pre-dispatch plan rows planned onto the same rig with an overlapping
   // window (law + slot coalesce live in scanPlanRowHolders — shared with the
   // trip-side guard, ticket 111026105630).
-  const planConflicts = isDeclaredPairRow
-    ? []
-    : await scanPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
+  // SIL-638 TC2 round 3 (QA 03/11): a declared-pair row still SCANS the
+  // plan-row holders. The mismatch half answers the classification refusal in
+  // BOTH directions (a KẸP/Kết hợp row used to save SILENTLY over a sitting
+  // ĐƠN because the pair carve skipped every plan-row scan); the same-kind
+  // half stays the carved pair arrangement (planConflicts=[] below), so the
+  // Kẹp/Kết hợp pair overlap and TC3/TC7 keep today's behavior untouched.
+  const rawPlanConflicts = await scanPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
   // Card 061026174603: LCL holders ride the lot window (law + slot coalesce
   // live in scanLclPlanRowHolders — shared with the trip-side guard).
-  const lclPlanConflicts = isDeclaredPairRow
-    ? []
-    : await scanLclPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
+  const rawLclPlanConflicts = await scanLclPlanRowHolders(tx, plate, windowStart, windowEnd, args.fulfillmentId);
+  const pairMismatchPlanHolders = isDeclaredPairRow
+    ? [...rawPlanConflicts, ...rawLclPlanConflicts].filter((holder) =>
+      classificationMismatchShareBlockMessage(args.classification ?? null, holder.classification) != null)
+    : [];
+  if (pairMismatchPlanHolders.length > 0) {
+    // Strong-evidence holder (trip- or appointment-backed slot) → the hard
+    // TC2 refusal, same message both directions. Only-weak (day-claim)
+    // holders keep the family's warn-once contract — never a silent save
+    // (FB-038: the confirmable tier is never bypassed by a newer hard block).
+    const strongMismatch = pairMismatchPlanHolders.some((holder) => holder.fallbackSlot !== true);
+    if (strongMismatch) {
+      throw new ApiError(409, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
+    }
+    if (!args.confirmOverlap) {
+      throw new ApiError(409, MIXED_DECLARATION_KEP_WARN_MESSAGE, undefined, { code: 'RIG_OVERLAP_COMPLETED' });
+    }
+  }
+  const planConflicts = isDeclaredPairRow ? [] : rawPlanConflicts;
+  const lclPlanConflicts = isDeclaredPairRow ? [] : rawLclPlanConflicts;
+  // SIL-638 TC2 round 3 (review follow-up) — the strong-holder mismatch
+  // hard-refusal must not depend on the `planRowBlocked` gate below: a
+  // same-lot KẸP plan holder vs a ĐƠN saving row never reaches that branch
+  // (same-lot holders feed the lot-rotation warn tier, not crossLotConflicts),
+  // and confirming a rotation cannot fix a classification incompatibility.
+  // Strong evidence only (holder trip-/appointment-backed slot) — a weak
+  // (day-claim) holder keeps the family's warn-once tiers below (FB-038).
+  if (!isDeclaredPairRow) {
+    const strongMismatchHolder = [...planConflicts, ...lclPlanConflicts].find((conflict) =>
+      conflict.fallbackSlot !== true
+      && classificationMismatchShareBlockMessage(args.classification ?? null, conflict.classification) != null);
+    if (strongMismatchHolder) {
+      throw new ApiError(409, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
+    }
+  }
   // Dispatched trips riding the same rig: the plate is the pre-dispatch key,
   // the truck's license plate is the dispatched key — one physical tractor.
   // Card 363: only ACTIVE trips occupy the rig (a COMPLETED trip released it —
@@ -884,7 +920,12 @@ if (planRowBlocked || tripConflicts.length > 0) {
         // holder until its trip completes (the scan keeps issued rows), so the
         // mismatch must answer from the plan-row holder's Phân loại too; before
         // this the ĐƠN assignment got only the generic overlap toast.
-        ?? crossLotConflicts.find((conflict) =>
+        // SIL-638 TC2 round 3 (QA 03/11): the search covers SAME-LOT plan
+        // holders as well — Cont A KẸP + Cont B ĐƠN của CÙNG lô trên cùng xe
+        // is TC2's own repro shape, and the classification refusal outranks
+        // the lot's rotation warn (confirming a rotation cannot fix a
+        // classification incompatibility).
+        ?? [...planConflicts, ...lclPlanConflicts].find((conflict) =>
           classificationMismatchShareBlockMessage(args.classification ?? null, conflict.classification) != null);
       if (mismatchConflict) {
         throw new ApiError(409, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);

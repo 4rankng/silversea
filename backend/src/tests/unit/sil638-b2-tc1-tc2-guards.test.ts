@@ -5,17 +5,28 @@
  * ghi đè bằng duration tuyến (~12h) nên window "thực" phình to; TC2 FAIL —
  * phát ĐƠN lên xe đang giữ KẸP báo "trùng lịch" thay vì message phân loại).
  *
+ * SIL-638 đợt 3 (QA verdict 03/11, staging da2e6fc2): TC1 vẫn FAIL ở lớp
+ * plan (chân 14:00 bị chặn trước phát lệnh — holder READY claim mặc định
+ * 8h/nguyên ngày nuốt gap 6h, gate như "1 READY leg/truck/ngày") + dropout
+ * còn ở đường PHÁT LỆNH (phát D khi xe đang IN_TRANSIT vẫn 201 im lặng);
+ * TC2 vẫn FAIL theo chiều ĐƠN(trước)→KẸP(gán sau) lưu im lặng — chặn đối
+ * xứng, cùng message 2 chiều.
+ *
  * Pinned here (BE unit-only ruling 2026-10-19):
  *  - `issueClaimWindowEnd` — giờ kết thúc khai báo THẮNG; duration tuyến
  *    chỉ lấp chỗ trống (payload không gửi end); null khi không có gì cả.
  *  - TC1 composition: end thật 12:00 + tuyến 400km vẫn KHÔNG giao 14:00.
  *  - `classificationMismatchShareBlockMessage` — ĐƠN gặp holder Kẹp/Kết hợp
- *    → text phân loại; Kẹp phát lên ĐƠN giữ luật dis-03 (confirmable warn,
- *    owner ruling card 211026131857 — không reopen); 2 bên cùng khai báo →
- *    null (carve path riêng).
+ *    → text phân loại; ĐỢT 3: đối xứng — leg khai Kẹp/Kết hợp gặp holder
+ *    ĐƠN (SINGLE) cũng trả text phân loại CÙNG message (holder chưa khai /
+ *    LCL giữ null); 2 bên cùng khai báo → null (carve path riêng). Lớp
+ *    phát lệnh giữ nguyên confirmable warn dis-03 (owner ruling card
+ *    211026131857 — isMixedDeclarationKepCandidate không đổi).
  *  - wiring locks: issue schema cho phép end tùy chọn; issue path dùng
  *    issueClaimWindowEnd; availability + plan-assign guard ném message TC2
- *    TRƯỚC message trùng lịch; IN_TRANSIT law không đổi (truck-busy gate).
+ *    TRƯỚC message trùng lịch; IN_TRANSIT law không đổi (truck-busy gate);
+ *    đợt 3 — holder READY point-claim (không nuốt 8h/ngày), plan guard
+ *    quét mismatch cả khi row là declared pair, issue path có busy-rig warn.
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -87,14 +98,19 @@ describe('classificationMismatchShareBlockMessage (SIL-638 đợt 2 TC2 — mess
     assert.equal(classificationMismatchShareBlockMessage(null, 'DOUBLE'), MESSAGE);
   });
 
+  it('ĐỢT 3 (đối xứng): leg khai Kẹp (DOUBLE) gặp holder ĐƠN (SINGLE) → CÙNG message phân loại', () => {
+    assert.equal(classificationMismatchShareBlockMessage('DOUBLE', 'SINGLE'), MESSAGE);
+    assert.equal(classificationMismatchShareBlockMessage('COMBINED', 'SINGLE'), MESSAGE);
+  });
+
+  it('holder chưa khai phân loại ("bổ sung sau") hoặc LCL → null (luật generic giữ nguyên)', () => {
+    assert.equal(classificationMismatchShareBlockMessage('DOUBLE', null), null);
+    assert.equal(classificationMismatchShareBlockMessage('COMBINED', 'LCL'), null);
+  });
+
   it('2 bên cùng khai báo (DOUBLE↔DOUBLE, COMBINED↔COMBINED) → null (carve path riêng)', () => {
     assert.equal(classificationMismatchShareBlockMessage('DOUBLE', 'DOUBLE'), null);
     assert.equal(classificationMismatchShareBlockMessage('COMBINED', 'COMBINED'), null);
-  });
-
-  it('Kẹp phát lên holder ĐƠN → null (dis-03 giữ confirmable warn — không reopen owner ruling)', () => {
-    assert.equal(classificationMismatchShareBlockMessage('DOUBLE', 'SINGLE'), null);
-    assert.equal(classificationMismatchShareBlockMessage('COMBINED', 'SINGLE'), null);
   });
 
   it('holder thường (SINGLE/null) không sinh message', () => {
@@ -140,5 +156,32 @@ describe('SIL-638 đợt 2 wiring lock — TC1/TC2 chạy thật trên đường
       availabilitySource,
       /inArray\(s\.trips\.status, \[TripStatus\.CREATED, TripStatus\.IN_TRANSIT\]\)/,
     );
+  });
+
+  it('ĐỢT 3 TC1: issue path có busy-rig warn (xe IN_TRANSIT → cảnh báo xe bận, confirmable)', () => {
+    assert.match(availabilitySource, /busyDayClaimOverlaps\(holderStart, args\.plannedStartAt, args\.plannedEndAt\)/);
+    assert.match(availabilitySource, /busyRigWarnMessage\(foreignBusy\[0\]\?\.plate/);
+  });
+
+  it('ĐỢT 3 TC1: holder READY là point-claim — không còn mặc định 8h/nguyên ngày nuốt chân chiều', () => {
+    const fclScan = readFileSync(path.join(servicesDir, 'dispatch-plan-conflict-scan.service.ts'), 'utf8');
+    // holderEnd coalesce kết thúc ở holderStartSql (point claim), không còn
+    // `slot + interval '8 hours'` / `day + interval '1 day'` cho holder chưa phát.
+    assert.match(fclScan, /const holderEndSql = sql`coalesce\(/);
+    assert.match(fclScan, /const lclHolderEndSql = sql`coalesce\(/);
+    assert.match(fclScan, /point-claim equality arm/);
+    assert.match(fclScan, /or \(\$\{holderEndSql\} = \$\{holderStartSql\} and \$\{holderStartSql\} = \$\{windowStart/);
+    assert.match(fclScan, /or \(\$\{lclHolderEndSql\} = \$\{lclHolderStartSql\} and \$\{lclHolderStartSql\} = \$\{windowStart/);
+    assert.equal(/case when \$\{holderSlotSql\} is null then \$\{holderDaySql\} \+ interval '1 day'/.test(fclScan), false);
+    assert.equal(/case when \$\{lclHolderSlotSql\} is null then \$\{lclHolderDaySql\} \+ interval '1 day'/.test(fclScan), false);
+  });
+
+  it('ĐỢT 3 TC2: plan guard quét mismatch KỂ CẢ khi row là declared pair (KẸP row không còn lưu im lặng)', () => {
+    assert.match(detailPlanSource, /pairMismatchPlanHolders/);
+    assert.match(detailPlanSource, /isDeclaredPairRow\s*\?\s*\[\.\.\.rawPlanConflicts, \.\.\.rawLclPlanConflicts\]/);
+  });
+
+  it('ĐỢT 3 TC2: mismatch search phủ cả same-lot plan holders (Cont A KẸP + Cont B ĐƠN cùng lô)', () => {
+    assert.match(detailPlanSource, /\?\? \[\.\.\.planConflicts, \.\.\.lclPlanConflicts\]\.find\(\(conflict\) =>/);
   });
 });
