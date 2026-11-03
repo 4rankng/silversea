@@ -95,13 +95,18 @@
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
 /* SIL-168 (owner ruling B 24/10 — khách yêu cầu lần 3): Hình thức XNK stands
-   FIRST beside Khách hàng. Column map: Khách hàng 6 · Hình thức XNK 6, then
-   Số Bill/Booking 6 · Hãng tàu 6, the Tuỳ chọn chips full width, and the tờ
-   khai strip LAST (dưới cùng). Supersedes the FB-127 cluster split
+   FIRST beside Khách hàng. Column map: Khách hàng 6 · Hình thức XNK 6, then —
+   SIL-673 (owner ruling 03/11) — Số tờ khai 6 (tab Hàng lẻ only) on its own
+   row directly ABOVE Số Bill/Booking, then Số Bill/Booking 6 · Hãng tàu 6,
+   the Tuỳ chọn chips full width. Supersedes the FB-127 cluster split
    (9f174360); restores the 2425726d band map. Gate blNumber XOR bookingRef
    theo hướng GIỮ NGUYÊN (FB-113). */
 .csc-identity-grid__customer { grid-column: span 6; }
 .csc-identity-grid__trade-direction { grid-column: span 6; }
+/* SIL-673: same 6-track half column as the booking cell below it — same left
+   column, same width, so the pair reads as one stacked identity block. The
+   36px placeholder slot (SIL-641) keeps the control's right edge aligned. */
+.csc-identity-grid__declaration { grid-column: span 6; }
 .csc-identity-grid__booking { grid-column: span 6; }
 .csc-identity-grid__shipping-line { grid-column: span 6; }
 /* The flag band carries its own `Tuỳ chọn` label, so its chips row lands on

@@ -299,7 +299,11 @@ describe('shipment create responsive layout', () => {
     // 11/10: carrier 6 columns, the `Tuỳ chọn` chips the other 6).
     expect(css).toMatch(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__flags\s*\{[^}]*grid-column:\s*span 6;/);
-    expect(css).not.toContain('.csc-identity-grid__declaration');
+    // SIL-673 (owner ruling 03/11): the SIL-660 lot-level Số tờ khai input
+    // moved INTO the identity grid — a SINGLE span-6 text cell directly above
+    // Số Bill/Booking, never a full-width re-span. The class name is legal
+    // again; it must stay a half-column cell.
+    expect(css).toMatch(/\.csc-identity-grid__declaration\s*\{[^}]*grid-column:\s*span 6;/);
     // One bordered field held the chips AND the entry — retired with the
     // strip itself (SIL-521): no declaration-strip CSS may survive.
     expect(css).not.toContain('.csc-declaration-strip');

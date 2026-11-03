@@ -1,8 +1,11 @@
 // SIL-660 (owner ruling 02/11): tab HÀNG LẺ của form Tạo lô có ô "Số tờ
-// khai" CẤP LÔ trong Thông tin hàng — khách báo mất trường nhập tờ khai từ
-// 0a20bd1c (SIL-521 gỡ ô cấp lô, tab LCL không có bảng container nên không
-// còn chỗ nhập nào). Ruling CẬP NHẬT luật SIL-600/SIL-701 cho riêng hàng
-// lẻ (SIL-601: lẻ = 1 lô 1 cont); FCL giữ nguyên per-cont column.
+// khai" CẤP LÔ — khách báo mất trường nhập tờ khai từ 0a20bd1c (SIL-521 gỡ ô
+// cấp lô, tab LCL không có bảng container nên không còn chỗ nhập nào).
+// Ruling CẬP NHẬT luật SIL-600/SIL-701 cho riêng hàng lẻ (SIL-601: lẻ = 1 lô
+// 1 cont); FCL giữ nguyên per-cont column.
+// SIL-673 (owner ruling 03/11): cùng ô đó chuyển lên section Nhận diện lô,
+// NGAY TRÊN ô Số Bill/Booking — chỉ đổi vị trí hiển thị; đường persist
+// shipment_declarations giữ nguyên (tests 2-3 re-pin logic SIL-660).
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -82,7 +85,7 @@ describe('SIL-660 — ô Số tờ khai cấp lô trên tab HÀNG LẺ (ruling 0
     });
   });
 
-  it('tab HÀNG LẺ có ô "Số tờ khai" nhập được trong Thông tin hàng', async () => {
+  it('tab HÀNG LẺ: ô "Số tờ khai" nằm trong Nhận diện lô, TRƯỚC ô Số Bill/Booking trong DOM (SIL-673)', async () => {
     renderWorkspace();
     await enterLclMode();
 
@@ -93,9 +96,20 @@ describe('SIL-660 — ô Số tờ khai cấp lô trên tab HÀNG LẺ (ruling 0
     });
     const input = within(wrap as HTMLElement).getByLabelText('Số tờ khai') as HTMLInputElement;
     expect(input.value).toBe('');
-    // The field lives in the Thông tin hàng section, next to the
-    // Số lượng/Trọng lượng/Thể tích group (one input for the whole lot).
-    expect((wrap as HTMLElement).closest('section')!.textContent).toContain('Thông tin hàng');
+    // SIL-673 (owner ruling 03/11): the field moved out of Thông tin hàng —
+    // its section is now Nhận diện lô (identity), and the section text must
+    // not carry the cargo heading anymore.
+    const section = (wrap as HTMLElement).closest('section')!;
+    expect(section.textContent).toContain('Nhận diện lô');
+    expect(section.textContent).not.toContain('Thông tin hàng');
+    // DOM-structure pin: tờ khai là con của identity section và đứng
+    // TRƯỚC ô Số Bill/Booking trong DOM (visual: hàng trên, cùng cột trái).
+    const booking = document.querySelector('[data-field-id="shipment-booking-ref"]');
+    expect(booking).toBeTruthy();
+    expect(
+      (wrap as HTMLElement).compareDocumentPosition(booking!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      'ô tờ khai phải đứng TRƯỚC ô Số Bill/Booking trong DOM',
+    ).toBeTruthy();
     fireEvent.change(input, { target: { value: 'TK-LCL-660' } });
     expect(input.value).toBe('TK-LCL-660');
     cleanup();
