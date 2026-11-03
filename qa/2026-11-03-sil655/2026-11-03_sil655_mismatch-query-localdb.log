@@ -1,0 +1,13 @@
+ id 
+----
+(0 rows)
+
+ id 
+----
+(0 rows)
+
+ numbered_rows | numbered_and_linked | numberless_rows | total_rows 
+---------------+---------------------+-----------------+------------
+           366 |                 366 |              41 |        407
+(1 row)
+
