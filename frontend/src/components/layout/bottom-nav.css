@@ -111,7 +111,11 @@ html:has(body .app.is-driver) {
     padding-bottom: calc(var(--bottom-nav-h) + 16px);
   }
   :root {
-    /* Tab row: 4px top pad + 32px icon wrap + 2px gap + ~15px label. */
+    /* Tab row token: hairline + tab row + home-indicator strip. The tab item
+       content is ~39px inside a 40px control: 4px icon-wrap offset (clears the
+       3px active indicator — SIL-671, a glyph touching the band read as cut)
+       + 20px icon + 1px label gap + ~14px label. The 53px token keeps the bar
+       geometry stable while the item rides its 40px control ceiling. */
     --bottom-nav-tab-h: 53px;
     /* Real bar height: hairline + tab row + the home-indicator strip. */
     --bottom-nav-h: calc(1px + var(--bottom-nav-tab-h) + max(12px, env(safe-area-inset-bottom, 0px)));
@@ -176,7 +180,9 @@ html:has(body .app.is-driver) {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    /* 1px (not 2px): the icon-wrap offset below consumes the row's slack, so
+       the item still fits its 40px control ceiling with the label intact. */
+    gap: 1px;
     background: transparent;
     border: none;
     flex: 1;
@@ -208,6 +214,12 @@ html:has(body .app.is-driver) {
   }
   
   .bottom-nav-icon-wrap {
+    /* SIL-671: the 3px active indicator sits at the item's top edge and the
+      glyph used to start 1.84px below it — the Route icon's top circle fused
+      into the band and read as cropped/distorted. 4px margin (padding stays
+      0 per the control-ceiling pin) drops the glyph ~2.5px so every tab icon
+      clears the indicator; uniform across all four tabs. */
+    margin-top: 4px;
     padding: 0;
     border-radius: 999px;
     transition: color 140ms ease, background-color 140ms ease;
