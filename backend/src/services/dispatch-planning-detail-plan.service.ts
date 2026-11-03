@@ -3,7 +3,7 @@
  * Extracted from dispatch-planning.service.ts (structure-only split, no behavior change).
  * Layering: utils <- queries <- detail; utils <- commands <- detail (keep acyclic).
  */
-import { CUSTOMER_OPERATIONAL_NAME, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, assertDispatchActor, parseIsoWithZone, toIsoOrNull } from './dispatch-planning-utils.service';
+import { CUSTOMER_OPERATIONAL_NAME, DispatchActor, INTERNAL_FLEET_CARRIER_NAME, Tx, assertDispatchActor, assertExpectedVersion, assertUpdatedRow, parseIsoWithZone, toIsoOrNull } from './dispatch-planning-utils.service';
 import {
   describeRigHolders,
   resolvePlanRowWindow,
@@ -251,9 +251,7 @@ export async function assignFulfillmentCarrierInTx(tx: Tx, input: AssignFulfillm
     .for('update')
     .limit(1);
   if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
-  if (fulfillment.version !== input.expectedVersion) {
-    throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
-  }
+  assertExpectedVersion(fulfillment, input.expectedVersion);
   if (await loadLiveTripForFulfillment(tx, fulfillment.id)) {
     throw new ApiError(409, 'Không thể đổi nhà xe sau khi đã phát hành lệnh điều xe.');
   }
@@ -287,7 +285,7 @@ export async function assignFulfillmentCarrierInTx(tx: Tx, input: AssignFulfillm
     eq(s.shipmentFulfillments.id, fulfillment.id),
     eq(s.shipmentFulfillments.version, fulfillment.version),
   )).returning();
-  if (!updated) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  assertUpdatedRow(updated);
   // SIL-494 — a carrier change nulls the row's plate (re-plated only when a
   // new vehicle is picked): drop the lot's stale COST-group identity too.
   await clearStaleLotActualTruck(tx, shipment.id);
@@ -514,9 +512,7 @@ export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmen
     .limit(1)
     .for('update');
   if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
-  if (fulfillment.version !== input.expectedVersion) {
-    throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
-  }
+  assertExpectedVersion(fulfillment, input.expectedVersion);
   const carrierType = fulfillment.plannedCarrierType;
   if (carrierType !== 'OWN' && carrierType !== 'EXTERNAL') {
     throw new ApiError(409, 'CUS chưa gán nhà xe cho tác vụ này.');
@@ -581,7 +577,7 @@ export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmen
     eq(s.shipmentFulfillments.id, fulfillment.id),
     eq(s.shipmentFulfillments.version, fulfillment.version),
   )).returning();
-  if (!updated) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  assertUpdatedRow(updated);
   // SIL-494 — the row lost its plate: drop the lot's stale COST-group
   // identity right here (see clearStaleLotActualTruck).
   if (vehicle.plannedVehiclePlateNumber == null || vehicle.plannedVehiclePlateNumber.trim() === '') {
@@ -644,9 +640,7 @@ export async function updateFulfillmentEstimates(
         .limit(1)
         .for('update');
       if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
-      if (fulfillment.version !== input.expectedVersion) {
-        throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
-      }
+      assertExpectedVersion(fulfillment, input.expectedVersion);
 
       await assertShipmentAccountingUnlocked(tx, fulfillment.shipmentId);
       const [updated] = await tx.update(s.shipmentFulfillments).set({
@@ -658,7 +652,7 @@ export async function updateFulfillmentEstimates(
         eq(s.shipmentFulfillments.id, fulfillment.id),
         eq(s.shipmentFulfillments.version, fulfillment.version),
       )).returning();
-      if (!updated) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+      assertUpdatedRow(updated);
       return {
         fulfillmentId: updated.id,
         version: updated.version,
@@ -1160,9 +1154,7 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     .limit(1)
     .for('update');
   if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
-  if (fulfillment.version !== input.expectedFulfillmentVersion) {
-    throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
-  }
+  assertExpectedVersion(fulfillment, input.expectedFulfillmentVersion);
   if (await loadLiveTripForFulfillment(tx, fulfillment.id)) {
     throw new ApiError(409, 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe.');
   }
@@ -1294,7 +1286,7 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     eq(s.shipmentFulfillments.id, fulfillment.id),
     eq(s.shipmentFulfillments.version, fulfillment.version),
   )).returning();
-  if (!updatedFulfillment) throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+  assertUpdatedRow(updatedFulfillment);
 
   // Shipment row: isCombined is lot-level and independent of classification;
   // the driver-facing note (operationalNotes) rides the same shipment write.

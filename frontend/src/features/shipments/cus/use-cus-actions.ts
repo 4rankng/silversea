@@ -15,6 +15,7 @@ import {
   deleteCusShipment,
 } from '../../../api/shipmentClient';
 import { idempotencySignature, safeError } from './cusUtils';
+import { CUS_ACCOUNTING_CONFIRMATION_STALE_MESSAGE, CUS_ACTIVE_LOCK_MISSING_MESSAGE } from '../../../lib/version-conflict-messages';
 
 export interface UseCusActionsDeps {
   drawerId: number | null;
@@ -84,7 +85,7 @@ export function useCusActions(deps: UseCusActionsDeps) {
       } else if (actionMode === 'lock') {
         const confirmation = actionItem.accountingConfirmation;
         if (!confirmation.confirmationId || !confirmation.checksum) {
-          throw new Error('Xác nhận Kế toán không còn hợp lệ. Vui lòng tải lại dữ liệu.');
+          throw new Error(CUS_ACCOUNTING_CONFIRMATION_STALE_MESSAGE);
         }
         await lockCusShipment(actionItem.id, {
           expectedVersion: actionItem.version,
@@ -99,7 +100,7 @@ export function useCusActions(deps: UseCusActionsDeps) {
         setNotice('Đã xóa lô hàng.');
       } else {
         if (!actionItem.activeLock?.id) {
-          throw new Error('Không tìm thấy khóa lô hiện hành. Vui lòng tải lại dữ liệu.');
+          throw new Error(CUS_ACTIVE_LOCK_MISSING_MESSAGE);
         }
         await requestCusShipmentReopen(actionItem.id, {
           expectedShipmentVersion: actionItem.version,
