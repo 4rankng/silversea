@@ -659,12 +659,21 @@
   width: 340px;
   max-width: calc(100vw - 24px);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-2);
   border-radius: 12px;
-  box-shadow: none;
-  border-color: var(--line-2);
+  /* Card 20261103: the panel floated border-only (box-shadow: none) while
+     every sibling popover (date range picker, debit popovers) rides the
+     elevation tokens — an overlay needs depth off the page. */
+  box-shadow: var(--shadow-lg);
   z-index: 100;
   overflow: hidden;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .notif-panel { animation: notif-panel-in 120ms var(--ease); }
+}
+@keyframes notif-panel-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .notif-panel__head {
   display: flex; align-items: center; justify-content: space-between;
@@ -678,10 +687,10 @@
   font-size: var(--text-control-size); color: var(--accent-2); padding: 8px;
 }
 .notif-panel__markall:disabled { opacity: 0.5; cursor: default; }
-.notif-panel__list { max-height: 360px; overflow-y: auto; }
+.notif-panel__list { max-height: 360px; overflow-y: auto; overscroll-behavior: contain; }
 .notif-panel__empty { padding: 28px 14px; text-align: center; font-size: var(--text-body-size); color: var(--ink-3); }
 .notif-item {
-  display: flex; gap: 8px; padding: 10px 14px;
+  display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
   width: 100%; border: 0; border-bottom: 1px solid var(--surface-2);
   background: transparent; color: inherit; text-align: left; font: inherit;
   cursor: pointer;
@@ -689,24 +698,59 @@
 .notif-item:hover { background: var(--surface-2); }
 .notif-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .notif-item:last-child { border-bottom: none; }
-.notif-item.is-unread { background: var(--accent-soft); }
+/* Card 20261103: full-row --accent-soft on unread turned the panel into a
+   solid green slab once every row was unread — the state stopped meaning
+   anything. Unread now reads as a whisper of the accent (45% mix); the corner
+   dot + saturated title carry the signal, read rows drop to quieter ink. The
+   :hover rules sit as explicit is-unread pairs because the base .is-unread
+   rule (0,2,0) used to outweigh plain .notif-item:hover and leave unread rows
+   hover-dead. */
+.notif-item.is-unread { background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface)); }
+.notif-item.is-unread:hover { background: color-mix(in srgb, var(--accent-soft) 65%, var(--surface-2)); }
+.notif-item__avatar {
+  position: relative; flex: none;
+  width: 32px; height: 32px; border-radius: 8px;
+  display: grid; place-items: center;
+  background: var(--surface-2); color: var(--ink-2);
+}
+.notif-item__avatar--accent { background: var(--accent-soft); color: var(--accent); }
+.notif-item__avatar--info { background: var(--info-soft); color: var(--info); }
+.notif-item__avatar--warning { background: var(--warning-soft); color: var(--warning); }
+.notif-item__avatar--danger { background: var(--danger-soft); color: var(--danger); }
 .notif-item__dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: transparent; margin-top: 6px; flex-shrink: 0;
+  position: absolute; top: -2px; right: -2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--surface);
 }
-.notif-item.is-unread .notif-item__dot { background: var(--accent); }
 .notif-item__body { min-width: 0; flex: 1; }
-.notif-item__title { font-size: var(--text-body-size); font-weight: var(--fw-semibold); color: var(--ink); }
+.notif-item__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.notif-item__title { font-size: var(--text-body-size); font-weight: var(--fw-semibold); color: var(--ink); min-width: 0; }
+.notif-item.is-read .notif-item__title { color: var(--ink-2); }
 .notif-item__msg { font-size: var(--text-body-size); color: var(--ink-2); margin-top: 2px; word-break: break-word; }
-.notif-item__time { font-size: var(--text-caption-size); line-height: 1.35; color: var(--ink-3); margin-top: 4px; }
-.notif-panel__foot { padding: 10px 14px; border-top: 1px solid var(--line); }
-.notif-panel__push {
-  width: 100%; background: var(--surface-3); border: 1px solid var(--line);
-  min-height: var(--control-h);
-  border-radius: 8px; padding: 8px; font-size: var(--text-control-size); color: var(--ink); cursor: pointer;
+.notif-item.is-read .notif-item__msg { color: var(--ink-3); }
+.notif-item__time { flex: none; font-size: var(--text-caption-size); line-height: 1.35; color: var(--ink-3); white-space: nowrap; }
+.notif-panel__foot {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px;
+  padding: 8px 10px; border-top: 1px solid var(--line);
 }
+/* Card 20261103: the push toggle was a full-width gray slab with an emoji —
+   it outranked the notifications themselves. Now a quiet ghost action; the
+   driver-only "Xem tất cả" gets the accent seat on the right. */
+.notif-panel__push {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer;
+  min-height: var(--control-h); padding: 4px 8px; border-radius: 8px;
+  font-size: var(--text-control-size); color: var(--ink-2); text-align: left;
+}
+.notif-panel__push:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
 .notif-panel__push:disabled { opacity: 0.5; cursor: default; }
-.notif-panel__push-err { font-size: var(--text-caption-size); line-height: 1.35; color: var(--danger); margin-top: 6px; }
+.notif-panel__viewall {
+  background: none; border: none; cursor: pointer;
+  min-height: var(--control-h); padding: 4px 8px; border-radius: 8px;
+  font-size: var(--text-control-size); font-weight: var(--fw-semibold); color: var(--accent-2);
+}
+.notif-panel__viewall:hover { background: var(--accent-soft); }
+.notif-panel__push-err { flex-basis: 100%; font-size: var(--text-caption-size); line-height: 1.35; color: var(--danger); margin-top: 4px; }
 
 /* ─── Driver phone bar: ONE row — identity · date · bell ────────────────────
    Operators rejected the two-row bar (2026-09-27: "move the date to compact

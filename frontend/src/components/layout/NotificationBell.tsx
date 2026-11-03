@@ -1,6 +1,10 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell } from 'lucide-react';
+import {
+  AlertTriangle, BadgeCheck, Bell, BellOff, BellRing, CalendarClock,
+  CircleDollarSign, CircleX, Megaphone, PackageCheck, Truck, Wallet,
+  type LucideIcon,
+} from 'lucide-react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { usePopoverDialog } from '../../hooks/usePopoverDialog';
 import { useUnreadCount, useNotifications, useMarkAllAsRead, useMarkAsRead } from '../../hooks/useNotificationQueries';
@@ -15,6 +19,32 @@ import { notificationDisplayMessage } from '../../lib/notificationText';
 // timestamp reads the same everywhere and stays unambiguous (compact DD/MM
 // rather than a long date).
 import { formatRelativeTime } from '../../lib/date';
+import { routes } from '../../lib/routes';
+
+/**
+ * Per-type icon + tint for the row avatar. Semantic tones reuse the app-wide
+ * soft/status token pairs (--accent-soft/--accent, --info, --warning,
+ * --danger) — the same mapping InfoRow and the KPI tiles use. Unknown types
+ * fall back to the neutral bell so a new backend type renders, never crashes.
+ */
+type NotifTone = 'accent' | 'info' | 'warning' | 'danger' | 'neutral';
+const TYPE_VISUALS: Record<string, { icon: LucideIcon; tone: NotifTone }> = {
+  TRIP_CREATED: { icon: Truck, tone: 'accent' },
+  TRIP_DISPATCHED: { icon: Truck, tone: 'accent' },
+  TRIP_IN_TRANSIT: { icon: Truck, tone: 'accent' },
+  TRIP_COMPLETED: { icon: Truck, tone: 'accent' },
+  TRIP_CANCELED: { icon: CircleX, tone: 'danger' },
+  PAYMENT_RECEIVED: { icon: CircleDollarSign, tone: 'accent' },
+  OVERDUE_PAYMENT: { icon: CircleDollarSign, tone: 'danger' },
+  PENALTY_CREATED: { icon: AlertTriangle, tone: 'warning' },
+  PENALTY_CANCELED: { icon: AlertTriangle, tone: 'neutral' },
+  SALARY_PERIOD_CLOSING: { icon: CalendarClock, tone: 'info' },
+  SYSTEM_ANNOUNCEMENT: { icon: Megaphone, tone: 'info' },
+  ADVANCE_SETTLEMENT_APPROVED: { icon: BadgeCheck, tone: 'accent' },
+  SHIPMENT_HANDOFF: { icon: PackageCheck, tone: 'info' },
+  FUND_NEGATIVE: { icon: Wallet, tone: 'danger' },
+};
+const FALLBACK_VISUAL: { icon: LucideIcon; tone: NotifTone } = { icon: Bell, tone: 'neutral' };
 
 /**
  * Topbar notification bell — the entry point for in-app + push notifications.
@@ -55,6 +85,10 @@ export function NotificationBell() {
       navigate(destination);
     }
   };
+
+  // The full-list page (/notifications) is driver-only (App.tsx), so the
+  // "Xem tất cả" exit is offered only where the route actually resolves.
+  const isDriver = user?.role === 'DRIVER';
 
   return (
     <div className="notif-bell" ref={containerRef}>
@@ -101,34 +135,61 @@ export function NotificationBell() {
             ) : items.length === 0 ? (
               !isError && <div className="notif-panel__empty">Không có thông báo</div>
             ) : (
-              items.map(n => (
-                <button
-                  type="button"
-                  key={n.id}
-                  className={`notif-item ${n.isRead ? '' : 'is-unread'}`}
-                  onClick={() => openNotification(n)}
-                >
-                  <span className="notif-item__dot" aria-hidden="true" />
-                  <div className="notif-item__body">
-                    <div className="notif-item__title">{n.title}</div>
-                    {n.message && <div className="notif-item__msg">{notificationDisplayMessage(n.message)}</div>}
-                    <div className="notif-item__time">{formatRelativeTime(n.createdAt)}</div>
-                  </div>
-                </button>
-              ))
+              items.map(n => {
+                const visual = TYPE_VISUALS[n.type] ?? FALLBACK_VISUAL;
+                const Icon = visual.icon;
+                return (
+                  <button
+                    type="button"
+                    key={n.id}
+                    className={`notif-item ${n.isRead ? 'is-read' : 'is-unread'}`}
+                    onClick={() => openNotification(n)}
+                  >
+                    <span className={`notif-item__avatar notif-item__avatar--${visual.tone}`} aria-hidden="true">
+                      <Icon size={16} strokeWidth={1.8} />
+                      {!n.isRead && <span className="notif-item__dot" />}
+                    </span>
+                    <div className="notif-item__body">
+                      <div className="notif-item__top">
+                        <span className="notif-item__title">{n.title}</span>
+                        <time
+                          className="notif-item__time"
+                          dateTime={n.createdAt}
+                          title={new Date(n.createdAt).toLocaleString('vi-VN')}
+                        >
+                          {formatRelativeTime(n.createdAt)}
+                        </time>
+                      </div>
+                      {n.message && <div className="notif-item__msg">{notificationDisplayMessage(n.message)}</div>}
+                    </div>
+                  </button>
+                );
+              })
             )}
           </div>
 
-          {push.isSupported && (
+          {(push.isSupported || isDriver) && (
             <div className="notif-panel__foot">
-              <button
-                type="button"
-                className="notif-panel__push"
-                disabled={push.isLoading}
-                onClick={() => { void (push.isSubscribed ? push.unsubscribe() : push.subscribe()); }}
-              >
-                {push.isSubscribed ? '🔔 Tắt thông báo đẩy' : '🔔 Bật thông báo đẩy trên thiết bị này'}
-              </button>
+              {push.isSupported && (
+                <button
+                  type="button"
+                  className="notif-panel__push"
+                  disabled={push.isLoading}
+                  onClick={() => { void (push.isSubscribed ? push.unsubscribe() : push.subscribe()); }}
+                >
+                  {push.isSubscribed ? <BellOff size={15} strokeWidth={1.8} aria-hidden="true" /> : <BellRing size={15} strokeWidth={1.8} aria-hidden="true" />}
+                  {push.isSubscribed ? 'Tắt thông báo đẩy' : 'Bật thông báo đẩy'}
+                </button>
+              )}
+              {isDriver && (
+                <button
+                  type="button"
+                  className="notif-panel__viewall"
+                  onClick={() => { setOpen(false); navigate(routes.myNotifications); }}
+                >
+                  Xem tất cả
+                </button>
+              )}
               {push.errorMessage && <div className="notif-panel__push-err">{push.errorMessage}</div>}
             </div>
           )}
