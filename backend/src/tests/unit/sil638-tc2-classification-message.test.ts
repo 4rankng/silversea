@@ -6,15 +6,24 @@
  * conflicts only, while the Kẹp holder is ALSO a plan-row holder (the holder
  * scan keeps issued rows until completion).
  *
+ * SIL-638 round 3 (QA 03/11, staging da2e6fc2): the refusal must be
+ * SYMMETRIC — gán 2 cont cùng xe khi phân loại KHÔNG đồng nhất (KẸP + ĐƠN)
+ * phải bị từ chối CẢ HAI CHIỀU với cùng message. QA proved the reverse
+ * direction (KẸP row assigned onto a truck holding a ĐƠN row) saved SILENTLY
+ * because the declared-pair carve skipped every plan-row scan; the guard now
+ * scans for the mismatch in both directions and the pure law answers the
+ * same message for either side being the declared pair leg.
+ *
  * Pinned here:
  *  - the verbatim copy: "Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe";
- *  - the pure law: fires when the holder leg is a declared pair leg
- *    (DOUBLE/COMBINED) and the issuing leg is a plain ĐƠN — one direction
- *    only; the reverse (Kẹp onto a ĐƠN holder) stays the confirmable tier;
- *  - the reverse tier's copy carries the DOC wording + "Vẫn lưu?"
- *    (MIXED_DECLARATION_KEP_WARN_MESSAGE), not the generic toast;
+ *  - the pure law: fires whenever EXACTLY ONE side is a declared pair leg
+ *    (DOUBLE/COMBINED) and the other side is a plain ĐƠN (SINGLE) — both
+ *    directions; undeclared ("bổ sung sau") and LCL holders stay null;
+ *  - the trip-issue Kẹp-issuing tier keeps its confirmable warn copy
+ *    (MIXED_DECLARATION_KEP_WARN_MESSAGE = DOC wording + "Vẫn lưu?",
+ *    dis-03 owner ruling card 211026131857 — unchanged);
  *  - the wiring: BOTH guards check plan-row holders' classification
- *    (crossLotConflicts) ahead of the generic overlap throw, and both warn
+ *    (same-lot included) ahead of the generic overlap throw, and both warn
  *    tiers use the DOC-based warn message.
  */
 import assert from 'node:assert/strict';
@@ -55,9 +64,9 @@ describe('TC2 — pure mismatch law (classificationMismatchShareBlockMessage)', 
     assert.equal(classificationMismatchShareBlockMessage('SINGLE', 'COMBINED'), CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
   });
 
-  it('Kẹp issuing onto a ĐƠN holder → null (confirmable tier owns that direction)', () => {
-    assert.equal(classificationMismatchShareBlockMessage('DOUBLE', 'SINGLE'), null);
-    assert.equal(classificationMismatchShareBlockMessage('COMBINED', 'SINGLE'), null);
+  it('ĐỢT 3 (đối xứng): Kẹp/Kết hợp issuing onto a ĐƠN holder → the SAME refusal message', () => {
+    assert.equal(classificationMismatchShareBlockMessage('DOUBLE', 'SINGLE'), CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
+    assert.equal(classificationMismatchShareBlockMessage('COMBINED', 'SINGLE'), CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
   });
 
   it('two declared pair legs → null (their own gates)', () => {
@@ -89,7 +98,7 @@ describe('TC2 — wiring: the message surfaces ahead of the generic overlap toas
     const source = read('dispatch-planning-detail-plan.service.ts');
     assert.match(
       source,
-      /\?\? crossLotConflicts\.find\(\(conflict\) =>\s*\n\s*classificationMismatchShareBlockMessage\(args\.classification \?\? null, conflict\.classification\) != null\)/,
+      /\?\? \[\.\.\.planConflicts, \.\.\.lclPlanConflicts\]\.find\(\(conflict\) =>\s*\n\s*classificationMismatchShareBlockMessage\(args\.classification \?\? null, conflict\.classification\) != null\)/,
       'the ĐƠN-vs-Kẹp plan-row holder must answer the DOC message, not the generic overlap',
     );
   });

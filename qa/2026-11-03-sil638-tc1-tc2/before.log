@@ -1,0 +1,25 @@
+logged in admin + dieuvan; probe days from 2026-12-13
+housekeeping: cancel trip 734 → 200
+housekeeping: cancel trip 735 → 200
+rig truck=36 driver=9 trailer=101
+V3 assign A (08:00 slot, no end) → 200 
+V3 assign B (14:00 slot, no end) → 409 {"error":"Đầu xe 15H-176.51 đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+FAIL V3 (TC1): B 14:00 saves clean against 08:00 READY holder (KHÔNG 1 leg/truck/ngày) — status=409
+V2 assign B (same 08:00 slot) → 409 {"error":"Đầu xe 15H-176.51 đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+PASS V2 (TC1): cùng slot vẫn chặn với cảnh báo (không im lặng) — status=409 code=RIG_OVERLAP_COMPLETED
+PASS V2 (TC1): cảnh báo confirmable — retry lưu tiếp — status=200
+V5 assign B 10:00–14:00 vs A 08:00–12:00 → 409 {"error":"Đầu xe 15H-176.51 đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}
+PASS V5 (TC1): trùng giờ thật vẫn bị chặn — status=409
+T2 assign ĐƠN 09:00–13:00 → 200
+T2 assign KẸP row onto truck holding ĐƠN → 200 {"fulfillmentId":1194,"fulfillmentVersion":2,"shipmentId":1037,"shipmentVersion":3,"classification":"DOUBLE","isCombined":false,"operationalNotes":null,"dispatch":{"carrierType":"OWN","carrierName":"S
+FAIL T2 (TC2 ĐƠN→KẸP): KẸP row bị TỪ CHỐI với message phân loại (không lưu im lặng) — status=200
+T2r assign ĐƠN row onto truck holding KẸP → 409 {"error":"Cần cả 2 cont cùng khai báo KẸP mới cho đi chung xe"}
+PASS T2r (TC2 KẸP→ĐƠN): ĐƠN row bị từ chối với message phân loại — status=409
+T2kk assign 2nd DOUBLE row same truck → 200 {"fulfillmentId":1198,"fulfillmentVersion":2,"shipmentId":1041,"shipmentVersion":3,"classification":"DOUBLE","isCombined":false,"operationalNotes":null,"dispatch":{"carrierType":"OWN","carrierName":"S
+PASS T2kk (TC2 control): DOUBLE+DOUBLE vẫn lưu (pair arrangement giữ nguyên) — status=200
+DROP issue A 08:00–12:00 → 201 trip 736
+DROP driver accepts A → 201 
+DROP issue D 18:00–22:00 (A IN_TRANSIT) → 201 {"fulfillmentId":1200,"version":3,"trip":{"id":737,"version":2,"tripCode":"TRP-202702-0006","status":"CREATED","plannedStartAt":"2027-02-11T11:00:00.000Z","plannedEndAt":"2027-02-11T15:00:00.000Z","ca
+FAIL DROP (TC1): phát lệnh D khi xe đang chạy KHÔNG im lặng (cảnh báo xe bận) — status=201
+PASS DROP (TC1): cảnh báo xe bận confirmable — retry phát tiếp — status=201
+SHAPE SWEEP COMPLETE — 3 expectation(s) FAILED

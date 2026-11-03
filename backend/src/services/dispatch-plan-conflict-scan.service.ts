@@ -228,8 +228,15 @@ export async function scanPlanRowHolders(
   const holderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
   const holderStartSql = sql`coalesce(${holderTripStart}, ${holderSlotSql}, ${holderDaySql})`;
   // The dispatched trip's own window wins over the lot-slot law: the trip's
-  // staged end, else one 8-hour shift from its start; a holder without a trip
-  // keeps the legacy fulfillment/lot coalesce.
+  // staged end, else one 8-hour shift from its start. A READY holder (no trip)
+  // claims ONLY its declared end (Giờ trả hàng) — SIL-638 TC1 round 3 (QA
+  // 03/11): the old `slot + 8h` / whole-day defaults made a ca-sáng READY leg
+  // swallow a 14:00 ca-chiề assignment with a 6h declared gap — the gate
+  // behaved like "1 READY leg/truck/ngày". A READY holder without a declared
+  // end is a POINT claim at its slot: it can only prove an overlap against a
+  // saving window that starts at that same instant (the equality arm below
+  // keeps case 2026-10-11-R14-04's two date-only rows warned, never silent) —
+  // never against a provably later declared start.
   const holderEndSql = sql`coalesce(
     (select ht.planned_end_at from ${s.trips} ht
       where ht.fulfillment_id = ${s.shipmentFulfillments.id}
@@ -238,7 +245,7 @@ export async function scanPlanRowHolders(
       order by ht.id desc limit 1),
     ${holderTripStart} + interval '8 hours',
     ${s.shipmentFulfillments.plannedEndAt},
-    case when ${holderSlotSql} is null then ${holderDaySql} + interval '1 day' else ${holderSlotSql} + interval '8 hours' end)`;
+    ${holderStartSql})`;
   return tx.select({
     id: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
@@ -279,7 +286,14 @@ export async function scanPlanRowHolders(
       eq(s.shipmentFulfillments.plannedVehiclePlateNumber, plate),
       sql`${holderStartSql} is not null`,
       sql`${holderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-      sql`${holderEndSql} > ${windowStart.toISOString()}::timestamptz`,
+      // Overlap = provable window intersection. A POINT holder (no trip, no
+      // declared end — SIL-638 TC1 round 3) collides when its slot lies
+      // anywhere inside the saving window (arm 1) or sits exactly at the
+      // saving window's start (the equality arm — the same-instant
+      // double-book, keeping case 2026-10-11-R14-04's two date-only rows
+      // warned, never silent).
+      sql`(${holderEndSql} > ${windowStart.toISOString()}::timestamptz
+        or (${holderEndSql} = ${holderStartSql} and ${holderStartSql} = ${windowStart.toISOString()}::timestamptz))`,
       sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
     ));
 }
@@ -301,7 +315,8 @@ export async function scanLclPlanRowHolders(
   const lclHolderSlotSql = sql`coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt})`;
   const lclHolderDaySql = sql`((${s.shipments.expectedDeliveryDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
   const lclHolderStartSql = sql`coalesce(${lclHolderTripStart}, ${lclHolderSlotSql}, ${lclHolderDaySql})`;
-  // Same trip-window law as the FCL branch (SIL-638 TC1).
+  // Same trip-window law as the FCL branch, INCLUDING the SIL-638 TC1 round-3
+  // point claim for a READY holder without a declared end (see the FCL scan).
   const lclHolderEndSql = sql`coalesce(
     (select ht.planned_end_at from ${s.trips} ht
       where ht.fulfillment_id = ${s.shipmentFulfillments.id}
@@ -310,7 +325,7 @@ export async function scanLclPlanRowHolders(
       order by ht.id desc limit 1),
     ${lclHolderTripStart} + interval '8 hours',
     ${s.shipmentFulfillments.plannedEndAt},
-    case when ${lclHolderSlotSql} is null then ${lclHolderDaySql} + interval '1 day' else ${lclHolderSlotSql} + interval '8 hours' end)`;
+    ${lclHolderStartSql})`;
   return tx.select({
     id: s.shipmentFulfillments.id,
     shipmentId: s.shipmentFulfillments.shipmentId,
@@ -337,7 +352,9 @@ export async function scanLclPlanRowHolders(
       eq(s.shipmentFulfillments.fulfillmentType, 'LCL_SHIPMENT'),
       sql`${lclHolderStartSql} is not null`,
       sql`${lclHolderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-      sql`${lclHolderEndSql} > ${windowStart.toISOString()}::timestamptz`,
+      // Same provable-overlap + point-claim equality arm as the FCL branch.
+      sql`(${lclHolderEndSql} > ${windowStart.toISOString()}::timestamptz
+        or (${lclHolderEndSql} = ${lclHolderStartSql} and ${lclHolderStartSql} = ${windowStart.toISOString()}::timestamptz))`,
       sql`not exists (select 1 from ${s.trips} where ${s.trips.fulfillmentId} = ${s.shipmentFulfillments.id} and ${s.trips.status} = 'COMPLETED' and ${s.trips.deletedAt} is null)`,
     ));
 }
