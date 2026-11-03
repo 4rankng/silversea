@@ -12,6 +12,11 @@ import { localDateInBusinessZone, TripStatus, type DispatchClassification } from
 import * as s from '../db/schema';
 import type { Tx } from '../db';
 import { ApiError } from '../errors';
+import {
+  rigConflictBusyMessage,
+  rigHolderSlotSuffix,
+  type RigConflictTripRef,
+} from './trip-pair-rules.service';
 import { tripClaimEndSql, tripClaimStartSql } from './dispatch-resource-availability.service';
 import { findActiveKepPairPartner } from './trip-pair-rig-sync.service';
 
@@ -99,36 +104,9 @@ const holderTripStartSql = sql`(select ht.planned_start_at from ${s.trips} ht
       and ht.status in ('CREATED', 'IN_TRANSIT')
     order by ht.id desc limit 1)`;
 
-const viInstant = new Intl.DateTimeFormat('vi-VN', {
-  timeZone: 'Asia/Ho_Chi_Minh',
-  day: '2-digit',
-  month: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-});
-
-/** "Lô BLCUSa29BD" / "Lô SHP-2610-01349" / "Lô #61959" — the reference the
- *  dispatcher reads in the grid, best available first. */
-export function rigHolderLabel(holder: Pick<RigHolderFacts, 'shipmentId' | 'shipmentCode' | 'blNumber' | 'bookingRef'>): string {
-  const ref = holder.shipmentCode?.trim() || holder.blNumber?.trim() || holder.bookingRef?.trim();
-  return ref ? `Lô ${ref}` : `Lô #${holder.shipmentId}`;
-}
-
-/** The scan's slot coalesce mixes timestamptz columns with the day-claim
- *  expression; the driver may hand back a Date or a naive wall-time string.
- *  Naive strings are already Asia/Ho_Chi_Minh wall time (the SQL shifted
- *  them) — anchor them there, never in the server's zone. */
-function asSlotDate(value: Date | string | null): Date | null {
-  if (value == null) return null;
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-  const text = String(value).trim();
-  if (!/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(text)) return null;
-  const anchored = text.includes('+') || text.endsWith('Z')
-    ? text.replace(' ', 'T')
-    : `${text.replace(' ', 'T')}+07:00`;
-  const parsed = new Date(anchored);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
+/** "Lô …" + " (từ …)" label law lives in trip-pair-rules.service (SIL-666):
+ *  the busy message must render plan rows AND dispatched trips under one
+ *  label/suffix law, so nothing labels a conflict locally anymore. */
 
 /** The conflicting lots + their claimed slot, in the guard's message — the
  *  customer asked the refusal to name WHAT is holding the rig and WHEN
@@ -136,10 +114,35 @@ function asSlotDate(value: Date | string | null): Date | null {
 export function describeRigHolders(holders: RigHolderFacts[]): string {
   return holders
     .map((holder) => {
-      const slot = asSlotDate(holder.slotAt);
-      return `${rigHolderLabel(holder)}${slot ? ` (từ ${viInstant.format(slot)})` : ''}`;
+      const ref = holder.shipmentCode?.trim() || holder.blNumber?.trim() || holder.bookingRef?.trim();
+      return `${ref ? `Lô ${ref}` : `Lô #${holder.shipmentId}`}${rigHolderSlotSuffix(holder.slotAt)}`;
     })
     .join(', ');
+}
+
+/** SIL-666 — a dispatched-trip conflict row of either rig guard → the
+ *  reference facts the busy message renders ("Lô <lot>" for a lot-backed
+ *  trip, "Lệnh <tripCode>" for a fulfillment-less task). */
+export function tripConflictRefs<
+  T extends {
+    id: number;
+    code: string | null;
+    plannedStartAt: Date | null;
+    shipmentId: number | null;
+    shipmentCode: string | null;
+    blNumber: string | null;
+    bookingRef: string | null;
+  },
+>(trips: readonly T[]): RigConflictTripRef[] {
+  return trips.map((trip) => ({
+    tripId: trip.id,
+    tripCode: trip.code,
+    plannedStartAt: trip.plannedStartAt,
+    shipmentId: trip.shipmentId,
+    shipmentCode: trip.shipmentCode,
+    blNumber: trip.blNumber,
+    bookingRef: trip.bookingRef,
+  }));
 }
 
 /** The saving row's own cost group, for the Ghép-trả-ĐV sibling carve-out. */
@@ -482,15 +485,26 @@ export async function assertTripRigAvailable(
   // widened for the trip form's reality: a trip without a planned timestamp
   // still claims its departure day (12fcf20d) — those holders land at the
   // warn tier via the weak marker.
+  // SIL-666: the scan also carries each trip's identity (code + origin lot's
+  // references) — the refusal must NAME the conflicting trip/lot, not render
+  // an empty reference after the colon.
   const tripDaySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
   const tripStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${tripDaySql})`;
   const tripEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${tripDaySql} + interval '1 day')`;
   const activeConflictsRaw = await tx.select({
     id: s.trips.id,
+    code: s.trips.tripCode,
+    plannedStartAt: s.trips.plannedStartAt,
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    shipmentCode: s.shipments.shipmentCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
     weak: sql`${s.trips.plannedStartAt} is null`,
   })
     .from(s.trips)
     .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
     .where(and(
       eq(s.trucks.licensePlate, plate),
       notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
@@ -549,16 +563,19 @@ export async function assertTripRigAvailable(
   if (planRowBlocked || activeConflicts.length > 0) {
     if (!weakEvidence) {
       // Card B 18/10 (B.4): the refusal names the conflicting lot(s) + window.
-      throw new ApiError(409,
-        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
-        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '.');
+      // SIL-666: dispatched-trip conflicts ride the same reference list —
+      // never an empty string after the colon.
+      throw new ApiError(409, rigConflictBusyMessage(plate,
+        [...crossLotConflicts, ...crossLotLclConflicts],
+        tripConflictRefs(activeConflicts)));
     }
     if (!args.confirmOverlap) {
-      throw new ApiError(409,
-        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
-        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '. Vẫn lưu?',
-        undefined,
-        { code: 'RIG_OVERLAP_COMPLETED' });
+      throw new ApiError(409, rigConflictBusyMessage(plate,
+        [...crossLotConflicts, ...crossLotLclConflicts],
+        tripConflictRefs(activeConflicts),
+        '. Vẫn lưu?'),
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' });
     }
   } else if (costGroupSiblingClaim && !args.confirmOverlap) {
     // Card 191026100010 (B.4) — decision rule 5: the trip form mirrors the

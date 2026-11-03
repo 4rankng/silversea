@@ -1,0 +1,60 @@
+  ✔ BLOCKED: IN_TRANSIT → CREATED (Cannot revert a dispatched trip to CREATED) (0.048458ms)
+  ✔ BLOCKED: COMPLETED → CREATED (Cannot revert a completed trip to CREATED) (0.038708ms)
+  ✔ BLOCKED: CANCELED → CREATED (Cannot revert a canceled trip to CREATED) (0.03625ms)
+  ✔ ALLOWED: CREATED → CANCELED (Cancel a new trip) (0.041958ms)
+  ✔ ALLOWED: IN_TRANSIT → CANCELED (Cancel a running trip) (0.053792ms)
+  ✔ ALLOWED: COMPLETED → CANCELED (Cancel a completed trip (governed — requestCompletedTripCancellation)) (0.05975ms)
+  ✔ ALLOWED: CANCELED → CANCELED (Idempotent: same status short-circuit) (0.120042ms)
+✔ Trip Status Machine — Transition Rules (11.807583ms)
+▶ Trip Status Machine — Role Permission Rules
+  ✔ IN_TRANSIT dispatch requires ADMIN or MANAGER (6.303125ms)
+  ✔ COMPLETE requires ADMIN or MANAGER through governed approval (0.321ms)
+  ✔ direct re-complete (COMPLETED→COMPLETED) is blocked (0.082375ms)
+  ✔ CANCEL requires ADMIN or MANAGER (0.085292ms)
+  ✔ DRIVER role cannot dispatch, complete, or cancel (3.015292ms)
+  ✔ ACCOUNTANT role cannot dispatch, complete, or cancel (0.20225ms)
+✔ Trip Status Machine — Role Permission Rules (10.212334ms)
+▶ Trip Status Machine — Lifecycle Happy Path
+  ✔ standard lifecycle: CREATED → IN_TRANSIT → COMPLETED (0.471375ms)
+  ✔ reopen lifecycle requires the separate governance workflow (0.229541ms)
+  ✔ re-dispatch lifecycle: COMPLETED → IN_TRANSIT (0.184542ms)
+✔ Trip Status Machine — Lifecycle Happy Path (0.994792ms)
+▶ Truck availability gate — SIL-474 future IN_TRANSIT
+  ✔ IN_TRANSIT with FUTURE departure day does not run — a new order is not blocked with 409 (0.119667ms)
+  ✔ IN_TRANSIT with PAST departure day still runs — keep blocking (correct behavior preserved) (0.043125ms)
+  ✔ IN_TRANSIT departing TODAY runs — the normal started-trip case keeps blocking (0.04025ms)
+  ✔ legacy row without a departure date keeps the conservative block (0.0405ms)
+  ✔ unreadable business clock keeps the conservative block (0.042334ms)
+  ✔ day-boundary sweep: the gate flips exactly on the departure day (0.142458ms)
+  ✔ the status machine busy loop actually consults the predicate (0.411041ms)
+✔ Truck availability gate — SIL-474 future IN_TRANSIT (0.978958ms)
+▶ Truck availability gate — SIL-602/SIL-631 KẸP pair partner exemption
+  ✔ REG SIL-602: the partner leg of the same ACTIVE KẸP pair is exempt even with an unassigned/drifted mooc — the second "Nhận lệnh" must not 409 (0.121833ms)
+  ✔ REG SIL-631: membership exempts the partner regardless of drifted/lost pair stamps on either leg (0.069625ms)
+  ✔ a busy row outside the pair membership is never exempt (0.079292ms)
+  ✔ a driver mismatch on the partner is never exempt (0.047584ms)
+  ✔ the accepting leg itself resolves nothing (0.047583ms)
+  ✔ wiring pins: the busy loop uses the membership predicate, both pair lookups stay ACTIVE+KEP, and the trailer clause is gone (0.447459ms)
+✔ Truck availability gate — SIL-602/SIL-631 KẸP pair partner exemption (0.941291ms)
+▶ Truck availability gate — SIL-634 declared Kẹp clamp without a pair row
+  ✔ REG SIL-634: the unpaired declared kẹp partner is exempt — the second "Nhận lệnh" must not 409 (0.473ms)
+  ✔ REG SIL-638 TC1: two plain SINGLE lots on one truck stay blocked (2.300791ms)
+  ✔ a mixed declaration is never exempt — only DOUBLE on BOTH legs proves the clamp (0.108125ms)
+  ✔ a different driver on the busy row stays blocking (0.0785ms)
+  ✔ a different departure day stays blocking (0.055375ms)
+  ✔ a missing departure date on either leg keeps the conservative block (0.049666ms)
+  ✔ a non-20' shell or a second container on either leg is not the clamp (2.72275ms)
+  ✔ self is never its own partner (0.102542ms)
+  ✔ wiring pins: the busy loop consults the declared-clamp proof, bounded to exactly one shape-matching row, with both shells probed (0.349167ms)
+  ✔ REG SIL-634 re-verify 31/10: the exact staging pair shape (K4K5346345654 + K4K423254356) is exempt (0.087166ms)
+✔ Truck availability gate — SIL-634 declared Kẹp clamp without a pair row (6.558ms)
+✔ the rejection message carries no internal field path (3.080416ms)
+✔ details keep every issue path so clients can still locate the rows (1.640875ms)
+ℹ tests 813
+ℹ suites 122
+ℹ pass 813
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45090.425666
