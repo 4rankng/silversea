@@ -1291,6 +1291,215 @@ describe('DetailedPlanGrid — SIL-667 inline classification on fulfillment-less
   });
 });
 
+describe('DetailedPlanGrid — SIL-669 inline classification duplicate save (PATCH fired twice)', () => {
+  /** The atomic save result the hook returns for a successful plan PATCH. */
+  const saveResult = (classification: 'SINGLE' | 'DOUBLE') => ({
+    fulfillmentId: 201,
+    fulfillmentVersion: 2,
+    shipmentId: 11,
+    shipmentVersion: 7,
+    classification,
+    isCombined: false,
+    operationalNotes: null,
+    plannedEndAt: null,
+    dispatch: { carrierType: 'OWN', carrierName: 'SilverSea' },
+    estimates: { plannedRevenue: null, plannedCarrierCost: null },
+    lotFullyPlated: false,
+  });
+  const CONFLICT_409 = Object.assign(
+    new Error('Tác vụ điều xe đã thay đổi. Vui lòng tải lại.'),
+    { status: 409 },
+  );
+
+  /** Drive the grid's own onChange seam for the row's inline Phân loại select.
+   *  React Aria's listbox dedupes same-value user picks and the control
+   *  disables itself while a save is in flight, so a duplicated commit can
+   *  only reach the handler by riding the onChange prop directly (a program-
+   *  matic/harness duplicate — exactly the staging double-PATCH shape: two
+   *  commits, same stale closures, one in-flight save). */
+  const commitClassification = (displayValue: string, value: string) => {
+    const select = screen.getByDisplayValue(displayValue);
+    const key = Object.keys(select).find((k) => k.startsWith('__reactFiber$'));
+    let fiber = (select as unknown as Record<string, { return?: unknown }>)[key!];
+    while (fiber) {
+      const current = fiber as { type?: unknown; memoizedProps?: { onChange?: (e: { target: { value: string } }) => void } };
+      if (typeof current.type === 'function' && (current.type as { name?: string }).name === 'UuiSelectField' && typeof current.memoizedProps?.onChange === 'function') {
+        current.memoizedProps.onChange({ target: { value } });
+        return;
+      }
+      fiber = (fiber as { return?: unknown }).return as typeof fiber;
+    }
+    throw new Error(`UuiSelectField fiber not found for display value ${displayValue}`);
+  };
+
+  it('a duplicate commit while the same pick is saving fires exactly ONE save — no fake conflict banner/toast', async () => {
+    // Save #1 hangs in flight; the duplicate commit lands inside that window
+    // with the same stale closures (same expectedFulfillmentVersion) — the
+    // staging capture: PATCH #1 200, duplicate #2 409, fake banner anyway.
+    const resolvers: Array<(value: ReturnType<typeof saveResult>) => void> = [];
+    const onAtomicSave = vi.fn().mockImplementation(
+      () => new Promise<ReturnType<typeof saveResult>>((resolve) => { resolvers.push(resolve); }),
+    );
+
+    renderGrid([row({ fulfillmentId: 101, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' })], {
+      onAtomicSave,
+    }, { withToast: true });
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    act(() => {
+      commitClassification('Đơn', 'DOUBLE');
+      commitClassification('Đơn', 'DOUBLE'); // duplicate, same flush
+    });
+    expect(onAtomicSave).toHaveBeenCalledTimes(1);
+
+    for (const resolve of resolvers) resolve(saveResult('DOUBLE'));
+    await waitFor(() => expect(screen.getByText('Kẹp')).toBeTruthy());
+
+    // AC1 — one pick, one PATCH; the duplicate must never reach the wire.
+    expect(onAtomicSave).toHaveBeenCalledTimes(1);
+    // AC2 — a successful save paints no error surface.
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(document.querySelector('.toast--error')).toBeNull();
+    expect(document.querySelector('.toast--warning')).toBeNull();
+  });
+
+  it('a commit on the re-keyed fresh row during the in-flight save does not re-save against the stale identity', async () => {
+    // The decompose hands back `ensured` with a STALE classification (the
+    // server row was created before the classification write). A commit on
+    // the fresh row's select with the same target value carries the same
+    // expectedFulfillmentVersion as the save already in flight — the exact
+    // 200→409 duplicate; the fresh select is disabled, but a duplicate commit
+    // bypasses disabled (programmatic dispatch), which is what the staging
+    // harness/network capture rode.
+    const ensured = row({ fulfillmentId: 201, shipmentContainerId: 501, version: 1, shipmentVersion: 6, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' });
+    const branch = row({ fulfillmentId: null as unknown as number, shipmentContainerId: 501, version: 0, shipmentVersion: 6, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' });
+    const resolvers: Array<(value: ReturnType<typeof saveResult>) => void> = [];
+    const onAtomicSave = vi.fn().mockImplementation(
+      () => new Promise<ReturnType<typeof saveResult>>((resolve) => { resolvers.push(resolve); }),
+    );
+    const onEnsureFulfillment = vi.fn().mockResolvedValue(ensured);
+
+    renderGrid([branch, ensured], { onAtomicSave, onEnsureFulfillment }, { withToast: true });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Sửa phân loại · Đơn/ })[0]!);
+    await act(async () => {
+      commitClassification('Đơn', 'DOUBLE');
+    });
+    // Save #1 rides the ensured identity and hangs in flight.
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave.mock.calls[0]![0]).toMatchObject({ fulfillmentId: 201, version: 1 });
+
+    // Duplicate commit on the re-keyed row's select — stale closure
+    // classification 'SINGLE' defeats the same-value guard on unfixed code.
+    act(() => {
+      commitClassification('Kẹp', 'DOUBLE');
+    });
+
+    for (const resolve of resolvers) resolve(saveResult('DOUBLE'));
+    await waitFor(() => expect(screen.getAllByText('Kẹp').length).toBeGreaterThan(0));
+
+    // One physical pick ⇒ one PATCH — the duplicate must be dropped.
+    expect(onAtomicSave).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(document.querySelector('.toast--error')).toBeNull();
+  });
+
+  it('a successful save leaves no error banner and no error toast behind', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult('DOUBLE'));
+
+    renderGrid([row({ fulfillmentId: 101, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' })], {
+      onAtomicSave,
+    }, { withToast: true });
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    await act(async () => {
+      commitClassification('Đơn', 'DOUBLE');
+    });
+
+    await waitFor(() => expect(screen.getByText('Kẹp')).toBeTruthy());
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(document.querySelector('.toast--error')).toBeNull();
+    expect(document.querySelector('.toast--warning')).toBeNull();
+  });
+
+  it('a REAL conflict (single save answered 409) still surfaces the error on banner and toast', async () => {
+    const onAtomicSave = vi.fn().mockRejectedValue(CONFLICT_409);
+
+    renderGrid([row({ fulfillmentId: 101, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' })], {
+      onAtomicSave,
+    }, { withToast: true });
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    await act(async () => {
+      commitClassification('Đơn', 'DOUBLE');
+    });
+
+    // AC3 — the conflict sentence is the grid's own alert AND the toast.
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+    await waitFor(() => expect(document.querySelector('.toast--error')).not.toBeNull());
+    // Optimistic value reverts — nothing was saved.
+    expect(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ })).toBeTruthy();
+  });
+
+  it('a same-value retry after a FAILED decompose still saves — the guard releases on every exit', async () => {
+    // Reviewer blocker pin: the guard arms before the SIL-667 decompose
+    // branch; the decompose-failure exits must release it, or the legitimate
+    // same-value retry is silently swallowed forever.
+    const ensured = row({ fulfillmentId: 201, shipmentContainerId: 501, version: 1, shipmentVersion: 6, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' });
+    const branch = row({ fulfillmentId: null as unknown as number, shipmentContainerId: 501, version: 0, shipmentVersion: 6, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' });
+    const onEnsureFulfillment = vi.fn()
+      .mockResolvedValueOnce(null) // first attempt fails loudly, no save
+      .mockResolvedValueOnce(ensured); // the retry decomposes for real
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult('DOUBLE'));
+
+    renderGrid([branch], { onAtomicSave, onEnsureFulfillment }, { withToast: true });
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    await act(async () => {
+      commitClassification('Đơn', 'DOUBLE');
+    });
+    await waitFor(() => expect(screen.getByText(ENSURE_FULFILLMENT_FAILED_MESSAGE)).toBeTruthy());
+    expect(onEnsureFulfillment).toHaveBeenCalledTimes(1);
+    expect(onAtomicSave).not.toHaveBeenCalled();
+
+    // The user picks the SAME value again — a brand-new save attempt.
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    await act(async () => {
+      commitClassification('Đơn', 'DOUBLE');
+    });
+    await waitFor(() => expect(onEnsureFulfillment).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave.mock.calls[0]![0]).toMatchObject({ fulfillmentId: 201, version: 1 });
+  });
+
+  it('a same-value retry after a FAILED save fires a new PATCH — a 409 does not lock the row', async () => {
+    const onAtomicSave = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('Tác vụ điều xe đã thay đổi. Vui lòng tải lại.'), { status: 409 }))
+      .mockResolvedValue(saveResult('DOUBLE'));
+
+    renderGrid([row({ fulfillmentId: 101, classification: 'SINGLE', taskStatus: 'READY', cargoMode: 'FCL' })], {
+      onAtomicSave,
+    }, { withToast: true });
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    await act(async () => {
+      commitClassification('Đơn', 'DOUBLE');
+    });
+    await waitFor(() => expect(screen.getByRole('alert')).toBeTruthy());
+    expect(onAtomicSave).toHaveBeenCalledTimes(1);
+
+    // Re-pick the same value after the failure — a fresh save must leave.
+    fireEvent.click(screen.getByRole('button', { name: /Sửa phân loại · Đơn/ }));
+    await act(async () => {
+      commitClassification('Đơn', 'DOUBLE');
+    });
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByText('Kẹp')).toBeTruthy());
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
 describe('DetailedPlanGrid — SIL-638 TC6.2 soft weight warning banner', () => {
   const KEP_WARNING = 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
 

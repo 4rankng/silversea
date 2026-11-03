@@ -308,12 +308,44 @@ export function DetailedPlanGrid({
   } | null>(null);
   const activeWeightWarning = pendingWeightWarning ?? localWeightWarning;
 
+  // SIL-669 — one inline save per pick. A duplicate classification commit
+  // (programmatic/harness re-dispatch, double commit, a stale-closure re-pick
+  // on the re-keyed fresh row) rides the same closures as the pick already
+  // saving: its PATCH carries the same expectedFulfillmentVersion, 409s against
+  // the in-flight save, and paints the fake "đã thay đổi" banner on a save that
+  // actually succeeded. One entry per PHYSICAL row (container namespace, else
+  // lot namespace — never merged), keyed with the same target value only, so
+  // the decompose re-key cannot re-arm it and a genuinely different pick (or a
+  // re-pick after a failed attempt — the entry is released on every exit)
+  // saves as usual.
+  const inlineSaveInFlightRef = useRef<Map<string, DispatchClassification>>(new Map());
+
   const handleInlineClassificationSave = async (row: DispatchDetailPlanRow, nextClassification: DispatchClassification) => {
     const rowKey = detailRowKey(row);
     if (nextClassification === row.classification) {
       setEditingClassificationKey(null);
       return;
     }
+    const rowIdentity = row.shipmentContainerId != null ? `c:${row.shipmentContainerId}` : `s:${row.shipmentId}`;
+    if (inlineSaveInFlightRef.current.get(rowIdentity) === nextClassification) {
+      return;
+    }
+    inlineSaveInFlightRef.current.set(rowIdentity, nextClassification);
+    try {
+      await handleInlineClassificationSaveGuarded(row, nextClassification, rowKey, rowIdentity);
+    } finally {
+      if (inlineSaveInFlightRef.current.get(rowIdentity) === nextClassification) {
+        inlineSaveInFlightRef.current.delete(rowIdentity);
+      }
+    }
+  };
+
+  const handleInlineClassificationSaveGuarded = async (
+    row: DispatchDetailPlanRow,
+    nextClassification: DispatchClassification,
+    rowKey: string,
+    rowIdentity: string,
+  ) => {
     setOptimisticClassifications((prev) => ({ ...prev, [rowKey]: nextClassification }));
     setSavingClassificationKey(rowKey);
     setInlineClassificationError(null);
