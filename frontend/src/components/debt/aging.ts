@@ -4,17 +4,20 @@ import type { AgingBucket } from '@tingting/shared';
  * Aging-bucket model shared by the AR (DebtDetailPage) and AP
  * (PayableDetailPage) statement pages. Both render the same four-slot
  * bar/grid markup (dd-aging-*) and derive the highlighted bucket the same
- * way — but since ruling 29/10 (SIL-580) the two sides measure DIFFERENT
- * things and carry their own label set (SIL-599):
+ * way — and since ruling 29/10 (SIL-580), reaffirmed 03/11, BOTH sides
+ * measure the same thing: TUỔI NỢ — days since the recording date of each
+ * open amount (computeFifoAging cuts 0–30 / 31–60 / 61–90 / trên 90).
+ * Each side keeps its own label set (SIL-599):
  *
- * - AR (`AR_AGING_RANGES`): the buckets are TUỔI NỢ — days since the
- *   recording date of each open amount (computeFifoAging cuts 0–30 /
- *   31–60 / 61–90 / trên 90). Labeling these "quá hạn" was the SIL-599 bug.
- *   The cut wording is single-sourced in `AR_AGE_RANGES` below (review F3).
- * - AP (`AP_AGING_RANGES`): the buckets stay contractual due-status bands
- *   (ap-aging.service.ts — days past the effective due date, cut at 0/30/90,
- *   card 061026221213). Re-anchoring AP to recording date needs its own
- *   ticket (SIL-580 out-of-scope note).
+ * - AR (`AR_AGING_RANGES`): labeled "TUỔI NỢ …". Labeling these
+ *   "quá hạn" was the SIL-599 bug. The cut wording is single-sourced
+ *   in `AR_AGE_RANGES` below (review F3).
+ * - AP (`AP_AGING_RANGES`): labeled "QUÁ HẠN …" (card 061026221213
+ *   wording). The live backend source is statement-supplier.service.ts
+ *   `agingBuckets` — shared computeFifoAging, aging by the recording
+ *   date (owner ruling 03/11: aging theo ngày lập). The old due-date-
+ *   based ap-aging.service.ts never ran in production and was removed
+ *   as dead code.
  *
  * "Quá hạn" is reserved for the contractual overdue span everywhere
  * (card 061026221213); "tuổi nợ" names the age. The two rule tooltips below

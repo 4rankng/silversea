@@ -122,7 +122,7 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
     setRoundNo(1);
     // dateKeys is derived from rows; see the ref guard above for why a change
     // while open does not re-seed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-seed once per open; dateKeys/default* intentionally excluded so in-open changes cannot re-seed (ref guard above)
   }, [isOpen]);
 
   const scopedRows = useMemo(

@@ -190,7 +190,7 @@ export default function BillingDocumentBuilder({
     void generateDraft(requestedFrom, requestedTo, true);
     // Auto-generate only once per open. generateDraft intentionally stays out
     // of deps because it changes with range state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-generate fires once per open; generateDraft closes over range state by design and must stay out of deps
   }, [entityId, entityType, isEdit, isOpen, type]);
 
   const updateLine = (index: number, patch: Partial<BillingDocumentLine>) => {

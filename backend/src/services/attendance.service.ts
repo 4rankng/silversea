@@ -25,10 +25,6 @@ function toBusinessDate(value: Date | null | undefined): string | null {
   return year && month && day ? `${year}-${month}-${day}` : null;
 }
 
-async function lockDriverWorkDay(executor: Executor, driverId: number, date: string): Promise<void> {
-  await lockApplicationOwnedUniqueness(executor, 'driver-work-day', [driverId, date]);
-}
-
 async function lockSalaryConfirmation(tx: Tx, driverId: number, year: number, month: number): Promise<void> {
   await lockApplicationOwnedUniqueness(tx, 'salary-confirmation', [driverId, year, month]);
 }
@@ -58,56 +54,6 @@ export async function getTripLabelsForWorkDays(tripIds: number[]): Promise<
     .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
     .where(inArray(s.trips.id, tripIds));
   return rows.map(row => ({ id: row.id, tripCode: billBookingTitle(row.blNumber, row.bookingRef), routeName: row.routeName }));
-}
-
-/**
- * Upsert a single work day status for a driver.
- * A transaction-scoped advisory lock owns the (driver,date) uniqueness path so
- * concurrent callers deterministically select, then update or insert.
- */
-export async function upsertWorkDay(
-  driverId: number,
-  date: string,
-  status: 'TRIP_DAY' | 'STANDBY' | 'PERSONAL_LEAVE' | 'WEEKLY_OFF',
-  note: string | null,
-  createdBy: number,
-) {
-  return db.transaction(async (tx) => {
-    await lockDriverWorkDay(tx, driverId, date);
-
-    const [existing] = await tx.select()
-      .from(s.driverWorkDays)
-      .where(and(
-        eq(s.driverWorkDays.driverId, driverId),
-        eq(s.driverWorkDays.date, date),
-      ))
-      .limit(1);
-
-    const [result] = existing
-      ? await tx.update(s.driverWorkDays)
-        .set({
-          status,
-          note,
-          tripId: status === 'TRIP_DAY' ? existing.tripId : null,
-          updatedAt: new Date(),
-        })
-        .where(eq(s.driverWorkDays.id, existing.id))
-        .returning()
-      : await tx.insert(s.driverWorkDays)
-        .values({ driverId, date, status, note, createdBy, tripId: null })
-        .returning();
-    return result;
-  });
-}
-
-/**
- * Delete a work day (set to nothing - clear a STANDBY/PERSONAL_LEAVE)
- */
-export async function deleteWorkDay(driverId: number, date: string) {
-  const deleted = await db.delete(s.driverWorkDays)
-    .where(and(eq(s.driverWorkDays.driverId, driverId), eq(s.driverWorkDays.date, date)))
-    .returning();
-  return deleted.length > 0 ? { deleted: true } : null;
 }
 
 /**

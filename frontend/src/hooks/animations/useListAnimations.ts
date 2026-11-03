@@ -77,7 +77,7 @@ export function useListAnimations({
       scope.revert();
       scopeRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caller-provided deps array is spread verbatim; exhaustive-deps cannot verify spreads (runAnimation is already listed)
   }, [runAnimation, ...deps]);
 
   return { rootRef, replay: runAnimation };

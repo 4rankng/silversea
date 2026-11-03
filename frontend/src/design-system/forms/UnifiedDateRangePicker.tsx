@@ -143,7 +143,7 @@ export function UnifiedDateRangePicker({ id, value, onChange, ariaLabel, classNa
   useEffect(() => {
     if (open) setAnchor(anchorOf(value.from || value.to));
     else setDraftFrom(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-anchor only on open/close; value changes flow through their own pick handlers and must not yank the calendar mid-composition
   }, [open]);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
