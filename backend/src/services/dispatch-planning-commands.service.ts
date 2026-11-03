@@ -7,7 +7,7 @@ import { assertKepIssuingContainerClass, assertResourceAvailability } from './di
 export { assertResourceAvailability } from './dispatch-resource-availability.service';
 import { LiveTripRow } from './dispatch-planning-utils.service';
 import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
-import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferredVehicleCapacityKg, parseIsoWithZone, requiredTrailerTypeForFulfillment, toIsoOrNull, trimBounded } from './dispatch-planning-utils.service';
+import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferredVehicleCapacityKg, parseIsoWithZone, requiredTrailerTypeForFulfillment, toIsoOrNull, trimBounded, truckTowCapacityKg } from './dispatch-planning-utils.service';
 import { issueClaimWindowEnd } from './trip-pair-rules.service';
 import { db } from '../db';
 import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
@@ -446,6 +446,9 @@ export async function issueOrderCreateOrUpdate(
       currentTrailerId: s.trucks.currentTrailerId,
       status: s.trucks.status,
       trailerType: s.trucks.trailerType,
+      // SIL-674 — the spec-sheet towing rating backs the capacity resolution
+      // when the mooc type is undeclared (see the fallback below).
+      towCapacityTons: s.trucks.towCapacityTons,
       deletedAt: s.trucks.deletedAt,
     }).from(s.trucks).where(eq(s.trucks.id, input.truckId)).limit(1);
     if (!truck || truck.deletedAt || truck.status !== 'ACTIVE') {
@@ -506,7 +509,14 @@ export async function issueOrderCreateOrUpdate(
       throw new ApiError(409, 'Rơ-moóc không còn hiệu lực.');
     }
     const resolvedTrailerType = trailer.type ?? truck.trailerType;
-    vehicleCapacityKg = inferredVehicleCapacityKg(resolvedTrailerType);
+    // SIL-674 — capacity for the weight gates and the trip snapshot: the
+    // mooc-type bucket first; when the mooc type is undeclared (master-data
+    // imports), the tractor's spec-sheet tow rating (tons → kg). Without the
+    // fallback the whole imported fleet issued Kẹp pairs against a null
+    // capacity — the gate went unprovable and refused EVERY second leg
+    // (QA 03/11: 5t+5t on a 33t tractor 409'd, trips 222/223 snapshot null).
+    vehicleCapacityKg = inferredVehicleCapacityKg(resolvedTrailerType)
+      ?? truckTowCapacityKg(truck.towCapacityTons);
     if (fulfillment.shipmentContainerId != null) {
       const [container] = await tx.select({
         code: s.containerTypes.code,

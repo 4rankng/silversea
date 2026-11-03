@@ -1,0 +1,23 @@
+SIL-674 driver phase=before api=http://localhost:3017/api probe day=2026-11-10
+rig U: truck=2 tow_capacity_tons=33.0 mooc=116 (type null) driver=2
+rig C: truck=3 tow_capacity_tons= mooc=117 (type 40FT) driver=3
+rig O: truck=4 tow_capacity_tons=33.0 mooc=118 (type null) driver=4
+[U] lot BK-S674-U-1793712634082 rows=2
+[U] issue leg1 → 201 trip 783
+[U] issue leg2 → 409 {"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+[U] evidence: truck tow_capacity_tons='33.0' leg1 trips.vehicle_capacity_kg=''
+PASS [U] leg1 5t issues clean — status=201
+PASS [U] BUG: leg2 5t REFUSED with 409 KEP_WEIGHT_WARNING although 10t < 33t — status=409 body={"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+PASS [U] root cause evidence: leg1 trip snapshot vehicle_capacity_kg is NULL while the tractor declares 33t — tow='33.0' snapshot=''
+[C] lot BK-S674-C-1793712634969 rows=2
+[C] issue leg1 → 201 trip 784
+[C] issue leg2 → 201 trip 785
+PASS [C] control: leg1 issues — status=201
+PASS [C] control: leg2 issues with KNOWN capacity (carve is pair-row-independent — hypothesis B rejected) — status=201 body={"fulfillmentId":1369,"version":3,"trip":{"id":785,"version":2,"tripCode":"TRP-202611-0074","status":"CREATED","plannedStartAt":"2026-11-10T01:00:00.000Z","plannedEndAt":"2026-11-10T05:00:00.000Z","carrierType":"OWN","tr
+[O] lot BK-S674-O-1793712635640 rows=2
+[O] issue leg1 → 201 trip 786
+[O] issue leg2 → 409 {"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+PASS [O] leg2 over capacity refused ONCE with the soft warning — status=409 body={"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+[O] confirmed retry → 201 trip 787
+PASS [O] confirmed retry proceeds (warn-once, confirmable — TC6(2) kept) — status=201
+PHASE BEFORE COMPLETE — all expectations hold

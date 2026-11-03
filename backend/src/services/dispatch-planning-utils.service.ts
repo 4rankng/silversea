@@ -415,6 +415,26 @@ export function inferredVehicleCapacityKg(trailerType: '20FT' | '40FT' | null | 
 }
 
 
+/**
+ * SIL-674 — the tractor's spec-sheet towing capacity ("sức kéo", tons) as a
+ * kg string. Master-data imports legitimately leave the mooc type blank
+ * (trailers.type null), so `inferredVehicleCapacityKg` resolved null for the
+ * whole imported fleet and the Kẹp pair weight gate ran unprovable on every
+ * issue — QA 03/11: legs 5t+5t on a 33t tractor refused 409
+ * KEP_WEIGHT_WARNING while trips.vehicleCapacityKg stayed null
+ * (trips 222/223). The tractor's own tow rating is the rig's real limit and
+ * fills exactly that hole; a bucket from a declared mooc type still wins
+ * (precedence unchanged). Null-safe: null/NaN/nonpositive → null — the
+ * unprovable warn-once law ("xe chưa cấu hình tải moóc") keeps owning that
+ * shape.
+ */
+export function truckTowCapacityKg(towCapacityTons: string | number | null | undefined): string | null {
+  const tons = Number(towCapacityTons);
+  if (!Number.isFinite(tons) || tons <= 0) return null;
+  return String(tons * 1000);
+}
+
+
 export function authoritativeCargoWeightKg(args: {
   shipmentCargoWeightKg: string | null;
   containerCargoWeightKg?: string | null;
