@@ -6,7 +6,7 @@ import { formatDateTime24 } from '../../lib/format';
 import { formatVietnamDateTimeInput } from '../../lib/shipment-operations';
 import { getLocationPermissionIssue, isGeolocationError } from '../../lib/gps/geolocation';
 import { useDriverTaskProgress } from '../../hooks/useDriverQueries';
-import type { DriverTaskDetail } from '../../api/driverClient';
+import type { DriverTaskDetail, DriverJourneyCard } from '../../api/driverClient';
 
 export type MilestoneType = DriverProgressEventType.ORDER_RECEIVED;
 
@@ -58,6 +58,33 @@ export const PAIR_LOCKED_MESSAGE = 'Cần hoàn thành trả hàng lệnh trư�
 
 export function isTripPairLocked(card?: { pairLocked?: boolean } | null): boolean {
   return Boolean(card?.pairLocked);
+}
+
+/**
+ * Spec tag taxonomy: ĐƠN/KẸP/KẾT HỢP (+ LCL's LẺ). DOUBLE and COMBINED carry
+ * their own label; a SINGLE-classified fulfillment riding a linked sibling
+ * pair (the isCombined "kẹp" case — see driver-journey-board.service.ts)
+ * reads as KẸP; an unlinked SINGLE is ĐƠN.
+ *
+ * Shared by the journey LIST (DriverTripsPage) and the trip DETAIL screen
+ * (DriverTripDetailPage, SIL-636 QA round-3b): both surfaces must resolve the
+ * ghép-chuyến tag from the same source — an ACTIVE pair (pairKind) first, the
+ * dispatch classification only as the fallback — so a card tagged KẸP/KẾT HỢP
+ * on the list never loses its tag when the driver opens the detail.
+ */
+export function tagLabelFor(card?: Pick<DriverJourneyCard, 'pairKind' | 'classification' | 'linked'> | null): string {
+  // An ACTIVE trip pair is the authoritative source for the tag (PRD §3.2:
+  // tags are derived from the pair, not entered by hand); the shipment
+  // classification only fills in when no pair stands.
+  if (card?.pairKind === 'KEP') return 'KẸP';
+  if (card?.pairKind === 'KET_HOP') return 'KẾT HỢP';
+  if (card?.classification === 'DOUBLE') return 'KẸP';
+  if (card?.classification === 'COMBINED') return 'KẾT HỢP';
+  if (card?.classification === 'LCL') return 'LẺ';
+  // Lấy Lẻ must beat the `linked` fallback below: an LCL row is never a kẹp
+  // member, so without its own branch it would read as KẸP on the driver app.
+  if (card?.classification === 'LCL_PICKUP') return 'LẤY LẺ';
+  return card?.linked ? 'KẸP' : 'ĐƠN';
 }
 
 /**

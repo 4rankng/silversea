@@ -31,3 +31,29 @@
 
 `DriverTripsPage.test.tsx`:
 5. Card `pairKind='KEP'` → tag KẸP nằm trong dòng số cont (`closest('p')` mang class `driver-journey-card__container`) trên cả 2 thẻ.
+
+## SIL-636-REG-2 — QA round-3b: trang DETAIL mất tag khi không có pairKind (03/11)
+
+- **Triệu chứng (QA round-3b, build 6737cbf1):** LIST (/my-trips) PASS tag cạnh số cont, nhưng 10/10 trang DETAIL không có tag.
+- **Root cause:** tag LIST dùng `tagLabelFor` — khi wire không có `pairKind` (không có pair row ACTIVE), fallback theo phân loại điều vận `DOUBLE`→KẸP / `COMBINED`→KẾT HỢP (và `linked`→KẸP). Trang DETAIL chỉ đọc `trip.pairKind` → mất tag đúng ở nhóm chuyến này (22 chuyến DOUBLE-unpaired có thật trong DB dev tại thời điểm QA).
+- **Repro:** chuyến 756 (TSTU8170758, `classification='DOUBLE'`, không pair row ACTIVE) — list hiện KẸP, detail trống trước fix.
+- **Fix:** detail giải tag qua cùng `tagLabelFor` (shared `features/driver/driver-trip-model.ts`): `pairKind` wire ưu tiên, fallback phân loại/linked của board card giống hệt list. ĐƠN (không pair, không phân loại ghép) → không tag.
+- **Expected:** mọi trang detail của chuyến bị list gắn tag KẸP/KẾT HỢP phải hiện cùng tag đó cạnh số container; Trip_ID không bao giờ render.
+
+### Regression coverage (FE vitest, REG-2)
+
+`DriverTripDetailPage.test.tsx`:
+6. Board card `classification='DOUBLE'`, wire `pairKind=null` → badge `[KẸP]` cạnh số cont.
+7. Board card `classification='COMBINED'`, wire `pairKind=null` → badge `[KẾT HỢP]`.
+8. Board card `classification='SINGLE'`, `linked=true` → badge `[KẸP]` (fallback isCombined "kẹp").
+9. Board card `classification='SINGLE'`, `linked=false` (ĐƠN) → không badge.
+
+### UI DRIVEN evidence (04/11, local dev, role DRIVER)
+
+- Chuyến 756 (DOUBLE-unpaired — ca lỗi QA): `[KẸP]` cạnh TSTU8170758 @390px (overflow 0px) + @1440px — `qa/2026-11-03-sil636/2026-11-03-sil636_ui-detail-756-kep-{390,1440}.png`.
+- Chuyến 773 (pairKind KEP — pair 24): `[KẸP]` cạnh TLTU4028779 @390px — `qa/2026-11-03-sil636/2026-11-03-sil636_ui-detail-773-kep-390.png`.
+- Chuyến 650 (ĐƠN): không tag — `qa/2026-11-03-sil636/2026-11-03-sil636_ui-detail-650-single-notag-390.png`.
+- List không regress (13 chip, 9 KẸP cạnh số cont) + paired-orders ?date=2026-12-14 giữ nguyên pair view — `qa/2026-11-03-sil636/2026-11-03-sil636_ui-{list-chips,paired-orders}-390.png`.
+- Cặp ghép thủ công MỚI qua UI điều vận (dieuvan → Kế hoạch Chi tiết Xe → Ghép chuyến → Kẹp; pair 25, chuyến 35+36 của nhvuong): cả 2 chân detail hiện `[KẸP]` (36 cạnh NYKU3600230; 35 cạnh "Chưa có số cont") @390+@1440 — `qa/2026-11-03-sil636/2026-11-03-sil636_ui-detail-{35,36}-freshpair-kep-*.png`.
+- Driver logs: `qa/2026-11-03-sil636/driver.log` (14/14 PASS), `driver-fresh-pair.log` (8/9 PASS — mục FAIL duy nhất là 404 ảnh cũ của chuyến 36 trên uploads dir backend cục bộ, ngoài phạm vi tag).
+- Không cover: role CUS/OPS nhìn tag này (tag chỉ thuộc driver app); pairing UI với lô KẾT HỢP thật (đã verify đường KẸP; nhãn KẾT HỢP có pin unit + cùng code path).

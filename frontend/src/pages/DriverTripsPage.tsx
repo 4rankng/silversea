@@ -11,6 +11,7 @@ import { PageHeader } from '../components/UI';
 import { EmptyState } from '../design-system';
 import { Tabs } from '../design-system/Tabs';
 import { driverLocationLabels } from '../features/driver/driver-display';
+import { tagLabelFor } from '../features/driver/driver-trip-model';
 import './DriverTripsPage.css';
 
 type JourneyTabKey = 'NEW' | 'RUNNING' | 'HISTORY';
@@ -36,27 +37,6 @@ const EMPTY_HINT: Record<JourneyTabKey, string> = {
   RUNNING: 'Chuyến bạn đã nhận nằm ở đây cho tới khi hoàn thành.',
   HISTORY: 'Chuyến đã hoàn thành trong tháng được lưu ở đây.',
 };
-
-/**
- * Spec tag taxonomy: ĐƠN/KẸP/KẾT HỢP (+ LCL's LẺ). DOUBLE and COMBINED carry
- * their own label; a SINGLE-classified fulfillment riding a linked sibling
- * pair (the isCombined "kẹp" case — see driver-journey-board.service.ts)
- * reads as KẸP; an unlinked SINGLE is ĐƠN.
- */
-function tagLabelFor(card: DriverJourneyCard): string {
-  // An ACTIVE trip pair is the authoritative source for the tag (PRD §3.2:
-  // tags are derived from the pair, not entered by hand); the shipment
-  // classification only fills in when no pair stands.
-  if (card.pairKind === 'KEP') return 'KẸP';
-  if (card.pairKind === 'KET_HOP') return 'KẾT HỢP';
-  if (card.classification === 'DOUBLE') return 'KẸP';
-  if (card.classification === 'COMBINED') return 'KẾT HỢP';
-  if (card.classification === 'LCL') return 'LẺ';
-  // Lấy Lẻ must beat the `linked` fallback below: an LCL row is never a kẹp
-  // member, so without its own branch it would read as KẸP on the driver app.
-  if (card.classification === 'LCL_PICKUP') return 'LẤY LẺ';
-  return card.linked ? 'KẸP' : 'ĐƠN';
-}
 
 /**
  * Kẹp/kết hợp: linked cards (sibling fulfillments sharing one isCombined
