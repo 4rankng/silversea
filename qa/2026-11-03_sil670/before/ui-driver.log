@@ -1,0 +1,27 @@
+2026-11-03T11:09:19.520Z === Running probe PHASE=before USER=dvthuc ===
+2026-11-03T11:09:19.694Z Login successful for dvthuc
+2026-11-03T11:09:25.487Z Viewport 1440 (1440x900):
+2026-11-03T11:09:25.487Z   Header height: 61px (computed: 61px)
+2026-11-03T11:09:25.487Z   Header padding: top=10px, bottom=10px, left=236px, right=236px
+2026-11-03T11:09:25.487Z   Left box height: 35.578125px
+2026-11-03T11:09:25.487Z   Center box height: 40px
+2026-11-03T11:09:25.487Z   Actions box height: 40px
+2026-11-03T11:09:25.487Z   Bell button height: 40px, y=10
+2026-11-03T11:09:25.488Z   Badge height: 16px, y=2, top=-8px
+2026-11-03T11:09:25.488Z   Month trigger height: 40px
+2026-11-03T11:09:25.571Z   Saved screenshot: /Users/dev/.paseo/worktrees/sil670-fix/qa/2026-11-03_sil670/before/screenshot-1440.png
+2026-11-03T11:09:26.163Z   Notification dropdown opened: true
+2026-11-03T11:09:26.292Z   Saved dropdown screenshot: /Users/dev/.paseo/worktrees/sil670-fix/qa/2026-11-03_sil670/before/screenshot-1440-dropdown.png
+2026-11-03T11:09:29.498Z Viewport 390 (390x844):
+2026-11-03T11:09:29.498Z   Header height: 57px (computed: 57px)
+2026-11-03T11:09:29.498Z   Header padding: top=2px, bottom=0px, left=10px, right=10px
+2026-11-03T11:09:29.498Z   Left box height: 34.984375px
+2026-11-03T11:09:29.498Z   Center box height: 54px
+2026-11-03T11:09:29.498Z   Actions box height: 44px
+2026-11-03T11:09:29.498Z   Bell button height: 44px, y=7
+2026-11-03T11:09:29.498Z   Badge height: 16px, y=-1, top=-8px
+2026-11-03T11:09:29.498Z   Month trigger height: 44px
+2026-11-03T11:09:29.657Z   Saved screenshot: /Users/dev/.paseo/worktrees/sil670-fix/qa/2026-11-03_sil670/before/screenshot-390.png
+2026-11-03T11:09:30.329Z   Notification dropdown opened: true
+2026-11-03T11:09:30.431Z   Saved dropdown screenshot: /Users/dev/.paseo/worktrees/sil670-fix/qa/2026-11-03_sil670/before/screenshot-390-dropdown.png
+2026-11-03T11:09:30.768Z Probe complete.
