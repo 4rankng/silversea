@@ -13,8 +13,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const PHASE = process.env.PHASE || 'before';
-const API = process.env.QA_API || 'http://localhost:3005/api';
-const BASE = process.env.QA_BASE || 'http://localhost:7233';
+const API = process.env.QA_API || 'http://localhost:3002/api';
+const BASE = process.env.QA_BASE || 'http://localhost:7175';
 const OUT = path.resolve('testplan/qa/evidence/2026-11-03-sil667');
 fs.mkdirSync(OUT, { recursive: true });
 const state = JSON.parse(fs.readFileSync(path.join(OUT, 'state.json'), 'utf8'));

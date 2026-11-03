@@ -9,7 +9,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const API = process.env.QA_API || 'http://localhost:3005/api';
+const API = process.env.QA_API || 'http://localhost:3002/api';
 const OUT = path.resolve('testplan/qa/evidence/2026-11-03-sil667');
 fs.mkdirSync(OUT, { recursive: true });
 
