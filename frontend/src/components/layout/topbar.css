@@ -32,8 +32,10 @@
      but its CONTENT is inset to the driver measure so the greeting and the
      month picker line up with the card column below instead of drifting to
      the far corners of a wide canvas. Collapses to the plain 16px gutter as
-     soon as the viewport is narrower than the measure. */
-  padding: 10px max(16px, calc((100% - var(--driver-measure)) / 2));
+     soon as the viewport is narrower than the measure.
+     SIL-670 (03/11 owner ruling): remove excess vertical padding — content
+     (2 text lines left, controls right) determines height, not padding. */
+  padding: 2px max(16px, calc((100% - var(--driver-measure)) / 2));
   height: auto;
   gap: 12px;
 }
@@ -395,6 +397,9 @@
 }
 
 .topbar--driver .icon-btn {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
   background: transparent;
   border: none;
   color: var(--ink-2);
@@ -403,6 +408,15 @@
 .topbar--driver .icon-btn:hover {
   background: var(--surface-3);
   color: var(--ink);
+}
+
+.topbar--driver .topbar-date__trigger {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
+  gap: 6px;
+  border-radius: 8px;
+  line-height: 1.2;
 }
 
 @media (max-width: 640px) {
@@ -590,10 +604,10 @@
   margin-left: auto;
 }
 
-/* Keep the count above the centred bell; the button owns the touch target. */
+/* SIL-670 (03/11 owner ruling): badge overlaps top-right of bell icon without adding extra height. */
 .icon-btn .badge {
   position: absolute;
-  top: calc(-1 * var(--space-sm)); right: 0;
+  top: 1px; right: 1px;
   min-width: var(--space-lg); height: var(--space-lg);
   min-height: var(--space-lg);
   padding: 0 var(--space-xs);
@@ -608,6 +622,7 @@
   /* Override generic badge density, retaining its complete nowrap count. */
   letter-spacing: 0;
   line-height: 1;
+  pointer-events: none;
 }
 
 /* Replaces .date-chip in the topbar — clean slate, no legacy overrides */
@@ -773,11 +788,10 @@
     flex-wrap: wrap;
     row-gap: 6px;
     align-items: center;
-    /* responsive.css pins .topbar to the single-row --topbar-h at ≤640; the
-       driver bar keeps its own height because the identity column (name +
-       plate, 2 lines) plus the 40px touch floor on the date chip exceed it. */
     height: auto;
     min-height: 0;
+    padding-top: 2px;
+    padding-bottom: 2px;
   }
   .topbar.topbar--driver .topbar__left-driver {
     order: 1;
@@ -798,5 +812,15 @@
   }
   .topbar.topbar--driver .icon-btn {
     display: inline-flex;
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
+  }
+  .topbar.topbar--driver .topbar-date {
+    padding: 0;
+  }
+  #root .topbar.topbar--driver .topbar-date__trigger {
+    min-height: 32px;
+    height: 32px;
   }
 }

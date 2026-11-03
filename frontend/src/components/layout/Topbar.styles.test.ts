@@ -91,4 +91,15 @@ describe('topbar visibility contract', () => {
     const topbarBlock = topbarCss.match(/\.topbar\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(topbarBlock).not.toMatch(/max-width/);
   });
+
+  it('keeps driver topbar compact without excess vertical padding (SIL-670)', () => {
+    // SIL-670: driver header was too tall due to 10px padding and unread badge sticking out.
+    // Vertical padding must be compact (2px) so text and controls determine height.
+    expect(topbarCss).toMatch(/\.topbar--driver\s*\{[\s\S]*?padding:\s*2px\s+max\(/);
+    // Notification badge overlaps bell at top-right without negative offset pushing height
+    expect(topbarCss).toMatch(/\.icon-btn \.badge\s*\{[\s\S]*?top:\s*1px;\s*right:\s*1px;/);
+    // Driver controls are compact 32px
+    expect(topbarCss).toMatch(/\.topbar--driver \.icon-btn\s*\{[\s\S]*?height:\s*32px;/);
+    expect(topbarCss).toMatch(/\.topbar--driver \.topbar-date__trigger\s*\{[\s\S]*?height:\s*32px;/);
+  });
 });
