@@ -488,7 +488,7 @@ describe('DriverTripDetailPage', () => {
     expect(submitPodSpy).toHaveBeenCalledWith(FULFILLMENT_ID, 22, { expectedVersion: 2 }, expect.any(String));
     expect(completeSpy).toHaveBeenCalledWith(FULFILLMENT_ID, { expectedVersion: 3 }, expect.any(String));
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.twoOrders });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.pairedOrders });
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
   });
 

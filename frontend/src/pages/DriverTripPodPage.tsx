@@ -273,7 +273,7 @@ export function DriverTripPodPage() {
       // invalidated BEFORE navigating back for the badge and list to refresh
       // immediately.
       await queryClient.invalidateQueries({ queryKey: qk.driver.journeyBoard });
-      await queryClient.invalidateQueries({ queryKey: qk.driver.twoOrders });
+      await queryClient.invalidateQueries({ queryKey: qk.driver.pairedOrders });
       toast({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
       navigate('/my-trips', { replace: true });
     } catch (error) {

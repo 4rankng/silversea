@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { getUser } from '../middleware/auth';
 import { requireRoles } from '../middleware/casbin';
+import { parseDriverTwoOrdersDateParam } from '../services/driver-two-orders-date';
 import {
   assertTripOwnedByDriver,
   completeOwnedFulfillmentTrip,
@@ -339,12 +340,13 @@ router.get('/trips', asyncHandler(async (req: Request, res: Response) => {
   res.json({ items });
 }));
 
-// M8.3 — two-orders-per-day view: today's active + next trip distinctly,
-// with an advisory firstOrderLate flag. Read-only; RBAC inherits the
-// driver_portal mount (DRIVER read).
+// M8.3 — two-orders-per-day view: the selected day's active + next trip
+// distinctly, with an advisory firstOrderLate flag. `?date=YYYY-MM-DD`
+// (SIL-664) selects the day; without it the view stays on today. Read-only;
+// RBAC inherits the driver_portal mount (DRIVER read).
 router.get('/two-orders', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
-  const view = await getDriverTwoOrdersView(driver.id);
+  const view = await getDriverTwoOrdersView(driver.id, parseDriverTwoOrdersDateParam(req.query.date));
   res.json(view);
 }));
 

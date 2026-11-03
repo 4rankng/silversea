@@ -1,24 +1,31 @@
-// DriverTwoOrdersPage — M8.3 two-orders-per-day view for the driver.
+// DriverPairedOrdersPage — M8.3 paired-orders-per-day view for the driver.
 //
-// Shows today's active order (IN_TRANSIT) and next order (earliest CREATED)
-// as DISTINCT cards so documents/costs are never mixed between them (PRD
-// M08-03-03). When the day's first order hasn't started yet, an advisory
-// `firstOrderLate` banner appears — the open §3 threshold (minutes? GPS?)
-// is resolved server-side as "earliest of 2+ today still CREATED"; this
-// page only surfaces it.
+// Shows ONE selected day's active order (IN_TRANSIT) and next order
+// (earliest CREATED) as DISTINCT cards so documents/costs are never mixed
+// between them (PRD M08-03-03). `?date=YYYY-MM-DD` selects the day
+// (SIL-664 — owner ruling 03/11: lọc theo ngày là bắt buộc); without it the
+// backend reads today. When the day's first order hasn't started yet, an
+// advisory `firstOrderLate` banner appears — the open §3 threshold
+// (minutes? GPS?) is resolved server-side as "earliest of 2+ today still
+// CREATED"; this page only surfaces it.
 //
 // Mobile-first single column, Vietnamese labels (PRD Mxx-HT-01). Each card
 // links to its trip detail at /my-trips/:id.
 
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Loader2, Truck, Building2, Package, ArrowRight } from 'lucide-react';
 import { TRIP_STATUS_LABELS, TRIP_STATUS_COLORS, type TripStatus } from '@tingting/shared';
 import { PageHeader } from '../../components/UI';
-import { useDriverTwoOrders } from '../../hooks/useDriverQueries';
+import { useDriverPairedOrders } from '../../hooks/useDriverQueries';
 import { usePageAnimations } from '../../hooks/animations';
 import { formatDate } from '../../lib/format';
 import './DriverSecondaryPages.css';
 import { EmptyState } from '../../design-system';
+
+/** Deep-link date guard (SIL-664): only a strict YYYY-MM-DD is forwarded to
+ *  the API; anything else renders a clear bad-link state instead of silently
+ *  showing another day's orders. */
+const PAIRED_ORDERS_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 interface TripSummary {
   id: number;
@@ -45,7 +52,7 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
     <Link
       to={`/my-trips/${trip.id}`}
       className="driver-trip-card"
-      data-testid={`two-orders-card-${label}`}
+      data-testid={`paired-orders-card-${label}`}
       style={{ '--strip': TRIP_STATUS_COLORS[status], animationDelay: '0ms' } as React.CSSProperties}
     >
       <div className="dt-card__header">
@@ -80,14 +87,31 @@ function TripCard({ trip, label, accent }: { trip: TripSummary; label: string; a
   );
 }
 
-export default function DriverTwoOrdersPage() {
-  const { data, isLoading: loading, error: queryError, refetch, isFetching } = useDriverTwoOrders();
+export default function DriverPairedOrdersPage() {
+  const [searchParams] = useSearchParams();
+  const rawDate = searchParams.get('date');
+  const requestedDate = rawDate && PAIRED_ORDERS_DATE_PATTERN.test(rawDate) ? rawDate : undefined;
+  const hasMalformedDate = Boolean(rawDate) && !requestedDate;
+  const { data, isLoading: loading, error: queryError, refetch, isFetching } = useDriverPairedOrders(requestedDate);
   const error = queryError ? 'Không thể tải thông tin lệnh trong ngày' : null;
   const { rootRef } = usePageAnimations({ ready: !loading });
 
+  if (hasMalformedDate) return (
+    <div className="driver-secondary-page">
+      <PageHeader title="Lệnh trong ngày" />
+      <EmptyState
+        role="alert"
+        variant="compact"
+        context="driver-tasks"
+        title="Đường liên kết không hợp lệ"
+        description={`?date phải có định dạng YYYY-MM-DD (nhận được: ${rawDate}).`}
+      />
+    </div>
+  );
+
   if (loading) return (
     <div className="driver-secondary-page">
-      <PageHeader title="Lệnh trong ngày" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
+      <PageHeader title="Lệnh trong ngày" />
       <div className="driver-secondary-state" role="status">
         <Loader2 size={20} className="spin" />
         <p>Đang tải lệnh trong ngày…</p>
@@ -97,7 +121,7 @@ export default function DriverTwoOrdersPage() {
 
   if (error) return (
     <div className="driver-secondary-page">
-      <PageHeader title="Lệnh trong ngày" description="Lệnh đang chạy và lệnh tiếp theo trong ngày" />
+      <PageHeader title="Lệnh trong ngày" />
       <EmptyState
         role="alert"
         variant="compact"
@@ -116,28 +140,28 @@ export default function DriverTwoOrdersPage() {
   const pairedTrips = view?.pair ? [view.pair.first, view.pair.second].filter((trip): trip is TripSummary => Boolean(trip)) : [];
   const hasPersistedPair = pairedTrips.length > 0;
   const pageTitle = hasPersistedPair ? 'Lệnh ghép 2 chiều' : 'Lệnh trong ngày';
-  const pageDescription = hasPersistedPair
-    ? 'Thứ tự chuyến đi đã được điều vận ghép sẵn cho cùng xe và lái xe'
-    : 'Lệnh đang chạy và lệnh tiếp theo trong ngày';
 
   if (!view || (!hasPersistedPair && allToday.length === 0)) return (
     <div className="driver-secondary-page">
-      <PageHeader title={pageTitle} description={pageDescription} />
+      <PageHeader title={pageTitle} />
+      {/* SIL-664 — a requested ?date names its own day in the empty state;
+          the no-param default keeps the historical today-flavored copy. */}
       <EmptyState
         variant="compact"
         context="driver-tasks"
-        title="Hôm nay không có lệnh"
-        description="Bạn chưa được phân công lệnh nào cho hôm nay."
+        title={requestedDate
+          ? `Không có lệnh ngày ${formatDate(requestedDate)}`
+          : 'Hôm nay không có lệnh'}
+        description={requestedDate
+          ? 'Bạn chưa được phân công lệnh nào cho ngày này.'
+          : 'Bạn chưa được phân công lệnh nào cho hôm nay.'}
       />
     </div>
   );
 
   return (
     <div ref={rootRef} className="driver-secondary-page">
-      <PageHeader
-        title={pageTitle}
-        description={hasPersistedPair ? `Cặp điều vận ngày ${formatDate(view.date)}` : `${allToday.length} lệnh trong ngày ${formatDate(view.date)}`}
-      />
+      <PageHeader title={pageTitle} />
 
       {view.pair && (
         <div
@@ -152,7 +176,12 @@ export default function DriverTwoOrdersPage() {
             border: '1px solid rgba(22, 101, 52, 0.14)',
           }}
         >
-          <div style={{ fontWeight: 700, color: 'var(--ink)' }}>Cặp điều vận đã ghép</div>
+          {/* SIL-664 — the view is date-keyed, so the block names its day:
+              without it the driver cannot tell which day's pair is on screen
+              (PageHeader no longer renders descriptions). */}
+          <div style={{ fontWeight: 700, color: 'var(--ink)' }}>
+            Cặp điều vận ngày {formatDate(view.date)}
+          </div>
           <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', fontSize: 'var(--text-data-size)' }}>
             <div>
               <div style={{ color: 'var(--ink-3)' }}>Xe rỗng</div>
@@ -184,7 +213,7 @@ export default function DriverTwoOrdersPage() {
           }}
         >
           <AlertTriangle size={18} />
-          <span>Lệnh đầu tiên hôm nay chưa khởi hành — vui lòng xuất phát kịp lệnh thứ hai.</span>
+          <span>Lệnh đầu tiên trong ngày chưa khởi hành — vui lòng xuất phát kịp lệnh thứ hai.</span>
         </div>
       )}
 
@@ -221,7 +250,7 @@ export default function DriverTwoOrdersPage() {
 
       {!hasPersistedPair && allToday.length > 2 && (
         <p style={{ marginTop: 16, color: 'var(--ink-3)', fontSize: 'var(--text-data-size)' }}>
-          Còn {allToday.length - 2} lệnh khác hôm nay — xem đầy đủ ở <Link to="/my-trips">Danh sách lệnh</Link>.
+          Còn {allToday.length - 2} lệnh khác trong ngày — xem đầy đủ ở <Link to="/my-trips">Danh sách lệnh</Link>.
         </p>
       )}
     </div>

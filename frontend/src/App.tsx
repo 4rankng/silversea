@@ -7,6 +7,7 @@ import { ReducedMotionProvider } from './hooks/usePrefersReducedMotion';
 import { Role } from '@tingting/shared';
 import Layout from './components/Layout';
 import CustomerPortalLayout from './pages/portal/CustomerPortalLayout';
+import PairedOrdersRedirect from './pages/driver/PairedOrdersRedirect';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { ToastProvider, useToast } from './components/shared/Toast';
 import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
@@ -106,7 +107,7 @@ const PortalDebitNotesPage = lazy(() => import('./pages/portal/PortalDebitNotesP
 const PortalStatementPage = lazy(() => import('./pages/portal/PortalStatementPage'));
 const AuditLogPage = lazy(() => import('./pages/AuditLogPage'));
 const DriverTripsPage = lazy(() => import('./pages/DriverTripsPage'));
-const DriverTwoOrdersPage = lazy(() => import('./pages/driver/DriverTwoOrdersPage'));
+const DriverPairedOrdersPage = lazy(() => import('./pages/driver/DriverPairedOrdersPage'));
 const DriverPayslipsPage = lazy(() => import('./pages/driver/DriverPayslipsPage'));
 const DriverTripDetailPage = lazy(() => import('./pages/DriverTripDetailPage'));
 const DriverTripPodPage = lazy(() => import('./pages/DriverTripPodPage'));
@@ -556,7 +557,10 @@ export function AppRoutes() {
           <Route path="/admin/audit-logs" element={<Navigate to="/audit-logs" replace />} />
           <Route path="/admin/audit-log" element={<Navigate to="/audit-logs" replace />} />
           <Route path="/my-trips" element={driverOnly(page(<DriverTripsPage />))} />
-          <Route path="/my-trips/two-orders" element={driverOnly(page(<DriverTwoOrdersPage />))} />
+          {/* SIL-664 — the M8.3 day view moved to the owner-approved name;
+              the old path keeps working via a query-preserving redirect. */}
+          <Route path="/my-trips/paired-orders" element={driverOnly(page(<DriverPairedOrdersPage />))} />
+          <Route path="/my-trips/two-orders" element={<PairedOrdersRedirect />} />
           <Route path="/my-trips/:id" element={driverOnly(page(<DriverTripDetailPage />))} />
           {/* Phần 4 ticket 2026-08-28: e-POD lives on its own screen after the
               driver ends the trip. The trip detail page navigates here when

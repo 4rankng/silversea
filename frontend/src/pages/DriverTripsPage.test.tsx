@@ -3,16 +3,16 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DriverJourneyCard } from '../api/driverClient';
 
-const { useDriverJourneyBoardMock, useDriverTwoOrdersMock, navigateMock, refetchMock } = vi.hoisted(() => ({
+const { useDriverJourneyBoardMock, useDriverPairedOrdersMock, navigateMock, refetchMock } = vi.hoisted(() => ({
   useDriverJourneyBoardMock: vi.fn(),
-  useDriverTwoOrdersMock: vi.fn(),
+  useDriverPairedOrdersMock: vi.fn(),
   navigateMock: vi.fn(),
   refetchMock: vi.fn(),
 }));
 
 vi.mock('../hooks/useDriverQueries', () => ({
   useDriverJourneyBoard: useDriverJourneyBoardMock,
-  useDriverTwoOrders: useDriverTwoOrdersMock,
+  useDriverPairedOrders: useDriverPairedOrdersMock,
 }));
 
 vi.mock('../hooks/useMonth', () => ({
@@ -156,8 +156,8 @@ describe('DriverTripsPage', () => {
   beforeEach(() => {
     navigateMock.mockReset();
     refetchMock.mockReset();
-    useDriverTwoOrdersMock.mockReset();
-    useDriverTwoOrdersMock.mockReturnValue(dayView(0));
+    useDriverPairedOrdersMock.mockReset();
+    useDriverPairedOrdersMock.mockReturnValue(dayView(0));
   });
 
   it('POLISH-DRV-02 keeps journey tabs keyboard reachable and labels the visible panel', () => {
@@ -594,15 +594,15 @@ describe('DriverTripsPage', () => {
     expect(drop.closest('.driver-journey-card__port')!.textContent).toContain('Sóng Thần');
   });
 
-  // Card 20260922_30(b): /my-trips/two-orders (M8.3) had no inbound link
+  // Card 20260922_30(b): /my-trips/paired-orders (M8.3, SIL-664 rename) had no inbound link
   // anywhere in the app — only tests reached it. The journey header owns the
   // entry, so the route is reachable from the driver's primary screen.
-  it('links the two-orders day view from the journey header', async () => {
+  it('links the paired-orders day view from the journey header', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card()]));
     renderPage();
 
     const entry = screen.getByRole('link', { name: /Lệnh trong ngày/ });
-    expect(entry.getAttribute('href')).toBe('/my-trips/two-orders');
+    expect(entry.getAttribute('href')).toBe('/my-trips/paired-orders');
     // Page chrome, not tab content: the entry survives every bucket.
     fireEvent.click(screen.getByRole('tab', { name: /Đã nhận/ }));
     expect(screen.getByRole('link', { name: /Lệnh trong ngày/ })).toBeVisible();
@@ -612,7 +612,7 @@ describe('DriverTripsPage', () => {
   // screen exists for (PRD M08-03-03).
   it('promotes the day-view entry with the count when the day carries 2+ orders', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([]));
-    useDriverTwoOrdersMock.mockReturnValue(dayView(2));
+    useDriverPairedOrdersMock.mockReturnValue(dayView(2));
     renderPage();
 
     expect(screen.getByRole('link', { name: /Lệnh trong ngày/ }).textContent).toContain('2 lệnh');
@@ -620,7 +620,7 @@ describe('DriverTripsPage', () => {
 
   it('keeps the day-view entry count-free on a single-order day', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([]));
-    useDriverTwoOrdersMock.mockReturnValue(dayView(1));
+    useDriverPairedOrdersMock.mockReturnValue(dayView(1));
     renderPage();
 
     expect(screen.getByRole('link', { name: /Lệnh trong ngày/ }).textContent).toBe('Lệnh trong ngày');

@@ -228,8 +228,11 @@ export const qk = {
       ['driver-penalties', params] as const,
     /** N5 / B4: the driver's truck compliance/service reminders. */
     vehicleAlerts: ['driver-vehicle-alerts'],
-    /** M8.3: two-orders-per-day view (active + next today, firstOrderLate). */
-    twoOrders: ['driver-two-orders'],
+    /** M8.3: paired-orders-per-day view (date-keyed, SIL-664). The base
+     *  array is the invalidation prefix (invalidates every cached day at
+     *  once); `pairedOrdersDay(date)` keys one day's cache entry. */
+    pairedOrders: ['driver-paired-orders'],
+    pairedOrdersDay: (date: string | undefined) => ['driver-paired-orders', date ?? null] as const,
     /** M8.6: driver payslip periods (issued salary periods with earnings). */
     payslips: ['driver-payslips'],
     /** Driver-app "Hành trình" screen: New/Running/History journey board. */
