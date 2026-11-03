@@ -109,6 +109,28 @@ describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }
     fireEvent.change(band.querySelector<HTMLInputElement>('input[data-seg="hh"]')!, { target: { value: '09' } });
     expect(band.querySelector<HTMLInputElement>('input[data-seg="hh"]')!.value).toBe('09');
   });
+
+  // SIL-662 (id 768): on LCL mode, the mode group and the datetime group
+  // must share the same flex row as direct children so they can paint on one
+  // desktop line without intervening grid cell splitting.
+  it('SIL-662: Loại hàng and Ngày giờ đóng trả are DIRECT children of the same .csc-mode-band__row', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
+
+    const bandRow = await waitFor(() => {
+      const el = document.querySelector('.csc-mode-band__row');
+      expect(el).toBeTruthy();
+      return el!;
+    });
+
+    const cargoChoice = bandRow.querySelector('.csc-cargo-choice-grid');
+    const lclDelivery = bandRow.querySelector('.csc-lcl-delivery');
+    expect(cargoChoice, 'cargo choice exists').toBeTruthy();
+    expect(lclDelivery, 'LCL delivery exists').toBeTruthy();
+    expect(cargoChoice!.parentElement).toBe(bandRow);
+    expect(lclDelivery!.parentElement).toBe(bandRow);
+  });
 });
 
 describe('SIL-616 — band control height pins (styles)', () => {
@@ -181,5 +203,13 @@ describe('SIL-616 — band control height pins (styles)', () => {
     // + field 286px ⇒ label x=484, field x=628 (label LEFT of the inputs).
     // Before the fix: label x=484 y=0, field x=484 y=23 (label ABOVE).
     expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \.csc-uui-field \{ flex: 0 1 auto; min-width: 0; width: auto; \}/);
+  });
+
+  it('SIL-662: desktop ≥1024px keeps Loại hàng and Ngày giờ đóng trả in one row (legend inline, nowrap, vertical center at ≤640/768)', () => {
+    // Desktop: legend floated beside buttons, gap 10px, row nowrap
+    expect(PAGE_CSS).toMatch(/@media \(min-width: 1024px\) \{\s*\.csc-mode \{ display: block; \}\s*\.csc-mode legend \{ float: left; margin: 12px 10px 0 0; \}\s*\.csc-mode-band__row \{ gap: 10px; flex-wrap: nowrap; \}\s*\}/);
+    // Touch screens: label vertically centered with the 44px touch inputs
+    expect(PAGE_CSS).toMatch(/@media \(max-width: 640px\) \{[\s\S]*?\.csc-lcl-delivery \{ align-items: center; \}/);
+    expect(PAGE_CSS).toMatch(/@media \(max-width: 768px\) \{\s*\.csc-lcl-delivery \{ align-items: center; \}\s*\}/);
   });
 });
