@@ -30,7 +30,6 @@ import { completeExternalCarrierTrip } from './trip-external-close.service';
 import { syncShipmentExpenseSources } from './expense-accounting-write.service';
 import { canonicalLocationsFromContainerRow, containerLocationColumns } from './trip-shared';
 import { propagateKepPairRigToPartner } from './trip-pair-rig-sync.service';
-import { autoPairIssuedTripInTx } from './trip-pairs.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 
 
@@ -188,20 +187,6 @@ export interface IssueOrderMutationResult {
     driverId: number | null;
     departureDate: string | null;
   };
-  /**
-   * SIL-638 đợt 2 (QA 01/11) — set when issuing this leg AUTO-CREATED the
-   * dispatch pair (TC3/TC7): both legs declare the same pair classification
-   * (DOUBLE→KEP, COMBINED→KET_HOP) on one rig, one driver, one business day.
-   * The pair row + its VETC/salary/inheritance hooks landed inside this same
-   * transaction, exactly like the manual pairing dialog. Null/absent = the
-   * leg stands unpaired (plain ĐƠN, external carrier, no compatible
-   * partner, or already paired).
-   */
-  autoPairedTrip?: {
-    pairId: number;
-    pairKind: 'KEP' | 'KET_HOP';
-    partnerTripId: number;
-  } | null;
 }
 
 
@@ -627,17 +612,19 @@ export async function issueOrderCreateOrUpdate(
   const lockIds = [truckId, trailerId, driverId].filter((id): id is number => id != null);
   await acquireAdvisoryLocks(tx, lockIds.map(lockKeys.dispatchResource));
 
-  // SIL-638 đợt 2 (review 01/11) — deadlock-order guard: the AUTO-PAIR step
-  // below acquires the trip financial-authority family (6118) inside this
-  // transaction, while the manual pairing dialog takes 6118 FIRST and the
-  // trip row locks after. Taking 6118 for the reissued trip BEFORE this
-  // transaction's row locks keeps one global order (6118 → rows) on both
-  // writers, so a manual pairing of the same legs concurrent with a reissue
-  // serializes instead of cycling. A first issue (no live trip yet) needs no
-  // pre-acquire — a trip id nobody can see cannot be locked by another
-  // writer. Residual window (both writers pairing the SAME two legs at the
-  // same instant, opposite sorted order) still ends in a Postgres 40P01
-  // abort — one clean retry, no corruption; documented in the testplan.
+  // SIL-638 đợt 2 (review 01/11) — deadlock-order guard, kept under SIL-668:
+  // the MANUAL pairing dialog takes the trip financial-authority family
+  // (6118) FIRST and the trip row locks after, so a reissue of one leg takes
+  // 6118 for that trip BEFORE this transaction's row locks. One global order
+  // (6118 → rows) on both writers keeps a manual pairing of the same legs
+  // concurrent with a reissue serialized instead of cycling. (The automatic
+  // pairing step that originally shared this ordering was removed by
+  // SIL-668 — pairs form only through the manual dialog now.) A first issue
+  // (no live trip yet) needs no pre-acquire — a trip id nobody can see
+  // cannot be locked by another writer. Residual window (both writers
+  // pairing the SAME two legs at the same instant, opposite sorted order)
+  // still ends in a Postgres 40P01 abort — one clean retry, no corruption;
+  // documented in the testplan.
   const [liveTripIdRow] = await tx.select({ id: s.trips.id })
     .from(s.trips)
     .where(and(
@@ -924,27 +911,6 @@ export async function issueOrderCreateOrUpdate(
     }
   }
 
-  // SIL-638 đợt 2 (QA 01/11) — TC3/TC7: the dispatch issue path AUTO-CREATES
-  // the pair when this leg declares Kẹp/Kết hợp and its partner already runs
-  // on the same rig the same business day. Runs after the trip upsert (both
-  // legs' rows are final) and inside the same transaction + the rig advisory
-  // locks acquired above, so concurrent issues of the two legs serialize and
-  // the pair is born all-or-nothing with the order. All đợt-1 pair gates run
-  // for real on this path (DOC 40' Kẹp block, COMBINED same-size/shell
-  // rules, snapshot eligibility) — a gate refusal rolls the whole issue
-  // back, never a silent skip.
-  const autoPairedTrip = await autoPairIssuedTripInTx(tx, {
-    tripId: trip.id,
-    actorId: input.actor.userId,
-  });
-  if (autoPairedTrip != null) {
-    // The pairing core bumped the issued trip's version (pair stamps +
-    // financial side). Re-compose so the response carries the post-pair row
-    // and the client's next optimistic write does not 409 into a reload.
-    const recomposed = await getTripCompositeInTx(tx, trip.id);
-    if (recomposed) trip = toLiveTripRow(recomposed);
-  }
-
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
     plannedCarrierType: input.carrierType,
     plannedExternalCarrierId: externalCarrierId,
@@ -985,7 +951,6 @@ export async function issueOrderCreateOrUpdate(
     fulfillment: updatedFulfillment ?? fulfillment,
     trip,
     notificationPersisted,
-    autoPairedTrip,
     ...cascade,
     ...(departedDriverChanged ? {
       attendanceResync: {

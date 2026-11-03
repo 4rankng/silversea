@@ -1,0 +1,1354 @@
+⚠️  Web Push disabled — set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY to enable
+{"level":30,"time":1793689390614,"pid":95506,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+{"level":30,"time":1793689390621,"pid":95506,"hostname":"mini","job":"scheduler-heartbeat","cron":"* * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1793689390621,"pid":95506,"hostname":"mini","job":"receivable-reminder","cron":"*/15 * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1793689390622,"pid":95506,"hostname":"mini","job":"receivable-reminder-retry","cron":"*/15 * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1793689390633,"pid":95506,"hostname":"mini","job":"fund-negative-alert","cron":"*/15 * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1793689390633,"pid":95506,"hostname":"mini","job":"durable-effect-dispatch","cron":"* * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1793689390634,"pid":95506,"hostname":"mini","job":"retention-daily","cron":"15 3 * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1793689390635,"pid":95506,"hostname":"mini","job":"scheduler-stale-sweeper","cron":"5 * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1793689390635,"pid":95506,"hostname":"mini","count":7,"msg":"scheduler started"}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42710',
+  message: 'extension "unaccent" already exists, skipping',
+  file: 'extension.c',
+  line: '2017',
+  routine: 'CreateExtension'
+}
+{"level":30,"time":1793689390711,"pid":95506,"hostname":"mini","msg":"PostgreSQL unaccent extension initialized successfully."}
+{"level":30,"time":1793689390724,"pid":95506,"hostname":"mini","msg":"[Boot] redis ok at redis://localhost:6391"}
+{"level":30,"time":1793689390726,"pid":95506,"hostname":"mini","msg":"NEPO API running on port 3002 [development]"}
+{"level":30,"time":1793689403071,"pid":95506,"hostname":"mini","trace_id":"bdc7e85d9af2b54b611eec8c8898d4e6","span_id":"11917d5782d947b8","msg":"POST /login 200 140ms"}
+{"level":30,"time":1793689403197,"pid":95506,"hostname":"mini","trace_id":"e43435e3484426d0d75878f6a5b4e275","span_id":"d1f1c359c44a2552","msg":"POST /login 200 116ms"}
+{"level":30,"time":1793689403277,"pid":95506,"hostname":"mini","trace_id":"08f831a4ab97c931fc5da0bedb25bd19","span_id":"e17b8f563bd2f6a5","msg":"POST /quick 201 77ms"}
+{"level":30,"time":1793689403333,"pid":95506,"hostname":"mini","trace_id":"42e67fdb865ca558d4459821da1cc710","span_id":"c7c2ac4868829f2e","msg":"GET /1138 200 54ms"}
+{"level":30,"time":1793689403401,"pid":95506,"hostname":"mini","trace_id":"756d5ba9d80fb8b6a42fe41269eacc2b","span_id":"57b1a96df65cc653","msg":"POST /cus-workspace/1138/containers/1330 200 66ms"}
+{"level":30,"time":1793689403439,"pid":95506,"hostname":"mini","trace_id":"26a9a81f1078539c672880a3aa75f9ba","span_id":"d1f139c7f8805649","msg":"POST /cus-workspace/1138/containers/1331 200 35ms"}
+{"level":30,"time":1793689403458,"pid":95506,"hostname":"mini","trace_id":"289fb8416207b03312d766b0b8c00790","span_id":"5b52fdd45346c053","msg":"GET /1138 200 17ms"}
+{"level":30,"time":1793689403476,"pid":95506,"hostname":"mini","trace_id":"62e23e0aec09a36644d1e394f5d0d4ba","span_id":"5a6b7a653d9f94d3","msg":"GET /1138 200 16ms"}
+[dispatch-driver-mismatch] {"truckId":1,"issuedDriverId":1,"activeAssignmentDriverId":3}
+{"level":30,"time":1793689403557,"pid":95506,"hostname":"mini","trace_id":"9af9317ecf4ea55043501c2d6ea79bc5","span_id":"d87a83d0fda0faff","msg":"POST /1138/dispatch 201 78ms"}
+{"level":30,"time":1793689403576,"pid":95506,"hostname":"mini","trace_id":"a44958e84081356818b12df82e40d4ec","span_id":"80f80e9b50f44389","msg":"GET /1138 200 17ms"}
+[dispatch-driver-mismatch] {"truckId":1,"issuedDriverId":1,"activeAssignmentDriverId":3}
+{"level":30,"time":1793689403598,"pid":95506,"hostname":"mini","trace_id":"895edc56a36b597a0e59a848d75aecf4","span_id":"3573d39a970ce63f","msg":"POST /api/shipments/1138/dispatch 409 20ms"}
+{"level":30,"time":1793689403615,"pid":95506,"hostname":"mini","trace_id":"4d1d4725eb5e42542df79b17424eb509","span_id":"53b452ad8c1bd3f5","msg":"GET /1138 200 15ms"}
+[dispatch-driver-mismatch] {"truckId":1,"issuedDriverId":1,"activeAssignmentDriverId":3}
+{"level":30,"time":1793689403683,"pid":95506,"hostname":"mini","trace_id":"863b7183b454e93ea4e1ff2d81374123","span_id":"eae2551bad00cb30","msg":"POST /1138/dispatch 201 66ms"}
+{"level":30,"time":1793689403917,"pid":95506,"hostname":"mini","trace_id":"1d5dd04003d952030b175e2b3f79ca6f","span_id":"2231f4871f646adc","msg":"GET /772 200 12ms"}
+{"level":30,"time":1793689403930,"pid":95506,"hostname":"mini","trace_id":"afbe345d439b81188929a2caf2e83670","span_id":"e156661660599df2","msg":"GET /773 200 11ms"}
+{"level":30,"time":1793689403970,"pid":95506,"hostname":"mini","trace_id":"d69ef55c6d70b05455f8bddce4c051b8","span_id":"e96325949192a231","msg":"POST /pairs 201 37ms"}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - corsMiddleware',
+  id: '11f3d4681c778b19',
+  kind: 0,
+  timestamp: 1793689403616000,
+  duration: 117.875,
+  attributes: {
+    'router.name': 'corsMiddleware',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - apiNoStore',
+  id: 'a909eb49a3ba922d',
+  kind: 0,
+  timestamp: 1793689403617000,
+  duration: 20.375,
+  attributes: {
+    'router.name': 'apiNoStore',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/api'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - jsonParser',
+  id: '900f31357213c083',
+  kind: 0,
+  timestamp: 1793689403617000,
+  duration: 248,
+  attributes: {
+    'router.name': 'jsonParser',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - <anonymous>',
+  id: '84a566cd8932a0ff',
+  kind: 0,
+  timestamp: 1793689403617000,
+  duration: 34.75,
+  attributes: {
+    'router.name': '<anonymous>',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - auditLogMiddleware',
+  id: 'c40b79934cb5a403',
+  kind: 0,
+  timestamp: 1793689403617000,
+  duration: 137.542,
+  attributes: {
+    'router.name': 'auditLogMiddleware',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - authMiddleware',
+  id: 'ebba38c6f8356cbe',
+  kind: 0,
+  timestamp: 1793689403617000,
+  duration: 1020.917,
+  attributes: {
+    'router.name': 'authMiddleware',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/api/shipments'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - <anonymous>',
+  id: '4d6652bd968a2c47',
+  kind: 0,
+  timestamp: 1793689403618000,
+  duration: 108.125,
+  attributes: {
+    'router.name': '<anonymous>',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/api/shipments'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'request handler - /api/shipments/:id/dispatch',
+  id: '53791b11b79b58e4',
+  kind: 0,
+  timestamp: 1793689403619000,
+  duration: 13.042,
+  attributes: {
+    'router.name': 'middleware',
+    'router.version': '2.2.0',
+    'router.type': 'request_handler',
+    'http.route': '/api/shipments/:id/dispatch'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'request handler - /api/shipments/:id/dispatch',
+  id: '2d42f5937f6d73cb',
+  kind: 0,
+  timestamp: 1793689403619000,
+  duration: 10.791,
+  attributes: {
+    'router.name': '<anonymous>',
+    'router.version': '2.2.0',
+    'router.type': 'request_handler',
+    'http.route': '/api/shipments/:id/dispatch'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-http',
+    version: '0.223.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: undefined,
+  traceState: undefined,
+  name: 'POST',
+  id: 'eae2551bad00cb30',
+  kind: 1,
+  timestamp: 1793689403616000,
+  duration: 66704.125,
+  attributes: {
+    'http.request.method': 'POST',
+    'url.scheme': 'http',
+    'server.address': 'localhost',
+    'network.peer.address': '::1',
+    'network.peer.port': 51275,
+    'network.protocol.version': '1.1',
+    'user_agent.original': 'node',
+    'url.path': '/api/shipments/1138/dispatch',
+    'client.address': '::1',
+    'server.port': 3002,
+    'http.response.status_code': 201
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '863b7183b454e93ea4e1ff2d81374123',
+  parentSpanContext: {
+    traceId: '863b7183b454e93ea4e1ff2d81374123',
+    spanId: 'eae2551bad00cb30',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'request handler - /api/shipments/:id/dispatch',
+  id: '328e82c1533d843d',
+  kind: 0,
+  timestamp: 1793689403619000,
+  duration: 64198.625,
+  attributes: {
+    'router.name': '<anonymous>',
+    'router.version': '2.2.0',
+    'router.type': 'request_handler',
+    'http.route': '/api/shipments/:id/dispatch'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - corsMiddleware',
+  id: '5c19ebda90548251',
+  kind: 0,
+  timestamp: 1793689403932000,
+  duration: 34.083,
+  attributes: {
+    'router.name': 'corsMiddleware',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - apiNoStore',
+  id: 'bd3fc6e2e5774d90',
+  kind: 0,
+  timestamp: 1793689403932000,
+  duration: 9.833,
+  attributes: {
+    'router.name': 'apiNoStore',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/api'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - jsonParser',
+  id: 'a5dc83fb1037c0a1',
+  kind: 0,
+  timestamp: 1793689403932000,
+  duration: 326.625,
+  attributes: {
+    'router.name': 'jsonParser',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - <anonymous>',
+  id: '093fc17948a0d4a3',
+  kind: 0,
+  timestamp: 1793689403933000,
+  duration: 14.125,
+  attributes: {
+    'router.name': '<anonymous>',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - auditLogMiddleware',
+  id: 'f6812f6ef145fa9e',
+  kind: 0,
+  timestamp: 1793689403933000,
+  duration: 97.375,
+  attributes: {
+    'router.name': 'auditLogMiddleware',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - authMiddleware',
+  id: '6b43e6d9dbd35483',
+  kind: 0,
+  timestamp: 1793689403933000,
+  duration: 1336.292,
+  attributes: {
+    'router.name': 'authMiddleware',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/api/trips'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'middleware - <anonymous>',
+  id: 'fb273c9770fdd8a0',
+  kind: 0,
+  timestamp: 1793689403934000,
+  duration: 140.75,
+  attributes: {
+    'router.name': '<anonymous>',
+    'router.version': '2.2.0',
+    'router.type': 'middleware',
+    'http.route': '/api/trips'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'request handler - /api/trips/pairs',
+  id: '01099d15efbec13c',
+  kind: 0,
+  timestamp: 1793689403934000,
+  duration: 8.917,
+  attributes: {
+    'router.name': 'middleware',
+    'router.version': '2.2.0',
+    'router.type': 'request_handler',
+    'http.route': '/api/trips/pairs'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'request handler - /api/trips/pairs',
+  id: '208ca19c257ee9d4',
+  kind: 0,
+  timestamp: 1793689403934000,
+  duration: 6.917,
+  attributes: {
+    'router.name': '<anonymous>',
+    'router.version': '2.2.0',
+    'router.type': 'request_handler',
+    'http.route': '/api/trips/pairs'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-http',
+    version: '0.223.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: undefined,
+  traceState: undefined,
+  name: 'POST',
+  id: 'e96325949192a231',
+  kind: 1,
+  timestamp: 1793689403932000,
+  duration: 38481.667,
+  attributes: {
+    'http.request.method': 'POST',
+    'url.scheme': 'http',
+    'server.address': 'localhost',
+    'network.peer.address': '::1',
+    'network.peer.port': 51276,
+    'network.protocol.version': '1.1',
+    'user_agent.original': 'node',
+    'url.path': '/api/trips/pairs',
+    'client.address': '::1',
+    'server.port': 3002,
+    'http.response.status_code': 201
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-router',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+  parentSpanContext: {
+    traceId: 'd69ef55c6d70b05455f8bddce4c051b8',
+    spanId: 'e96325949192a231',
+    traceFlags: 1,
+    traceState: undefined
+  },
+  traceState: undefined,
+  name: 'request handler - /api/trips/pairs',
+  id: 'ce469d97ad09108c',
+  kind: 0,
+  timestamp: 1793689403934000,
+  duration: 36149.417,
+  attributes: {
+    'router.name': '<anonymous>',
+    'router.version': '2.2.0',
+    'router.type': 'request_handler',
+    'http.route': '/api/trips/pairs'
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{"level":30,"time":1793689440034,"pid":95506,"hostname":"mini","msg":"[scheduler] heartbeat tick"}
+{"level":30,"time":1793689440035,"pid":95506,"hostname":"mini","job":"scheduler-heartbeat","attempt":1,"msg":"scheduler: job succeeded"}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-dns',
+    version: '0.66.0',
+    schemaUrl: undefined
+  },
+  traceId: 'f71c906d7f25068d67c6f1dfecd9f7e8',
+  parentSpanContext: undefined,
+  traceState: undefined,
+  name: 'dns.lookup',
+  id: '0f7101bacef87566',
+  kind: 2,
+  timestamp: 1793689440005000,
+  duration: 1728.667,
+  attributes: { 'peer.ipv6': '::1', 'peer[1].ipv4': '127.0.0.1' },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{"level":30,"time":1793689500075,"pid":95506,"hostname":"mini","job":"scheduler-stale-sweeper","attempt":1,"msg":"scheduler: job succeeded"}
+{"level":30,"time":1793689620048,"pid":95506,"hostname":"mini","job":"durable-effect-dispatch","attempt":1,"msg":"scheduler: job succeeded"}
+{"level":30,"time":1793689740063,"pid":95506,"hostname":"mini","msg":"[scheduler] heartbeat tick"}
+{"level":30,"time":1793689740064,"pid":95506,"hostname":"mini","job":"scheduler-heartbeat","attempt":1,"msg":"scheduler: job succeeded"}
+{"level":30,"time":1793689740073,"pid":95506,"hostname":"mini","job":"durable-effect-dispatch","attempt":1,"msg":"scheduler: job succeeded"}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-dns',
+    version: '0.66.0',
+    schemaUrl: undefined
+  },
+  traceId: '47da11b018941be7f1194b60bb34a903',
+  parentSpanContext: undefined,
+  traceState: undefined,
+  name: 'dns.lookup',
+  id: '334b8065ac9ee572',
+  kind: 2,
+  timestamp: 1793689740017000,
+  duration: 2426.708,
+  attributes: { 'peer.ipv6': '::1', 'peer[1].ipv4': '127.0.0.1' },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 95506,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/sil668-fix/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/sil668-fix/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-net',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '4322076658a3b9ab9797531884737c96',
+  parentSpanContext: undefined,
+  traceState: undefined,
+  name: 'tcp.connect',
+  id: '3e0296c2ce178095',
+  kind: 0,
+  timestamp: 1793689860012000,
+  duration: 6823.5,
+  attributes: {
+    'network.transport': 'tcp',
+    'server.address': 'localhost',
+    'server.port': 5441,
+    'network.peer.address': '::1',
+    'network.local.address': '::1',
+    'network.local.port': 52960
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}

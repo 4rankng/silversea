@@ -1,0 +1,37 @@
+
+=== run 2026-11-03T07:03:22.875Z PHASE=after ===
+2026-11-03T07:03:23.077Z login cus: OK
+2026-11-03T07:03:23.198Z login dieuvan: OK
+2026-11-03T07:03:23.277Z ASSERT PASS — tạo lô 2 cont DOUBLE (quick-create) — status=201 {"id":1138,"shipmentCode":"SHP-2611-00175","version":1,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":null,"cargoTypeId":null,"responsibleUnitId":null,"status":"PENDING_DATE","bookingRef":null,"blNumber":"SIL668-MW0CCWZH-BL","tradeDirection":null,"cargoMode":"FCL
+2026-11-03T07:03:23.278Z shipmentId=1138 bill=SIL668-MW0CCWZH day=2027-03-23
+2026-11-03T07:03:23.334Z ASSERT PASS — 2 containers trên detail — count=2
+2026-11-03T07:03:23.402Z cus-workspace line cont=1330 → 200
+2026-11-03T07:03:23.440Z cus-workspace line cont=1331 → 200
+2026-11-03T07:03:23.459Z ASSERT PASS — 2 fulfillments cho 2 cont — count=2 shape={"fulfillmentId":1327,"fulfillmentVersion":2,"shipmentContainerId":1330,"containerTypeCode":"20DC","containerTypeName":"20'DC","carrierType":"OWN","externalCarrierId":null,"externalCarrierName":null}
+2026-11-03T07:03:23.459Z fulfillments: 1327(v2) 1328(v2)
+2026-11-03T07:03:23.558Z issue cont 1327 08:00 → status=201 tripId=772 autoPairedTrip=null
+2026-11-03T07:03:23.558Z ASSERT PASS — phát lệnh leg 1 (08:00–12:00) — status=201
+2026-11-03T07:03:23.599Z issue cont 1328: 409 KEP_WEIGHT_WARNING (soft) → confirm retry
+2026-11-03T07:03:23.683Z issue cont 1328 13:00 → status=201 tripId=773 autoPairedTrip=null
+2026-11-03T07:03:23.683Z ASSERT PASS — phát lệnh leg 2 (13:00–17:00, cùng xe/tài xế/ngày, KHÔNG thao tác ghép) — status=201 
+2026-11-03T07:03:23.683Z trip1=772 trip2=773
+2026-11-03T07:03:23.684Z ASSERT PASS — response issue KHÔNG còn autoPairedTrip — autoPairedTrip=null
+2026-11-03T07:03:23.841Z trip_pairs rows: (none)
+2026-11-03T07:03:23.904Z trip pair stamps: 772||
+773||
+2026-11-03T07:03:23.904Z ASSERT PASS — PHASE=after — KHÔNG tự sinh pair (0 trip_pairs row) — (none)
+2026-11-03T07:03:23.904Z ASSERT PASS — PHASE=after — KHÔNG Trip_ID chung (active_trip_pair_id null cả 2) — 772||
+773||
+2026-11-03T07:03:23.904Z ASSERT PASS — PHASE=after — KHÔNG tag tự xuất hiện (containers.pairKind đều null, không pair nào để gắn) — pairKind chỉ xuất hiện khi trips.activeTripPairId trỏ vào pair ACTIVE — đã chứng minh bằng 0 pair row ở trên
+2026-11-03T07:03:23.931Z trip1 draft: start=2027-03-23T01:00:00.000Z end=2027-03-23T05:00:00.000Z origin=Tân Vũ dest=Đình Vũ cap=null w=5000.00 v=2
+2026-11-03T07:03:23.931Z trip2 draft: start=2027-03-23T06:00:00.000Z end=2027-03-23T10:00:00.000Z origin=Tân Vũ dest=Đình Vũ cap=null w=5000.00 v=2
+2026-11-03T07:03:23.971Z ASSERT PASS — PHASE=after — ghép THỦ CÔNG (POST /api/trips/pairs) tạo pair thành công — status=201 pairId=24
+2026-11-03T07:03:24.041Z trip_pairs sau ghép thủ công: 24|KEP|ACTIVE|772|773
+2026-11-03T07:03:24.102Z trip stamps sau ghép thủ công: 772|24|1
+773|24|2
+2026-11-03T07:03:24.103Z ASSERT PASS — PHASE=after — pair thủ công: 1 row ACTIVE KEP đúng 2 chuyến — 24|KEP|ACTIVE|772|773
+2026-11-03T07:03:24.103Z ASSERT PASS — PHASE=after — pair thủ công: 2 chuyến chung Trip_ID, order 1/2 — 772|24|1
+773|24|2
+2026-11-03T07:03:24.173Z financial state sau pair (VETC/lương hooks — dev DB chưa cấu hình phụ phí): 772|0|
+773|0|
+2026-11-03T07:03:24.173Z SIL-668 PHASE=after COMPLETE — all assertions PASS

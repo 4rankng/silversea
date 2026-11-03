@@ -116,10 +116,11 @@ export function kepPairWeightVerdict(
  * warning ALSO covers the DOC's missing-data branch — "cont chưa có dữ liệu
  * tải trọng / xe chưa cấu hình tải moóc". The old `unprovable → allow` let a
  * 2×20' 60t pair issue silently (no capacity to prove the sum against) and
- * the auto-pair row was created with no warning and no confirm; a silent
- * save is exactly what the DOC's soft-warning contract forbids. A proven
- * PASS still saves clean, and every refusal is once-only (the confirmed
- * retry proceeds — the dispatcher can always phát lệnh kịp thời).
+ * the then-live auto-pair wiring (removed by SIL-668) created the pair row
+ * with no warning and no confirm; a silent save is exactly what the DOC's
+ * soft-warning contract forbids. A proven PASS still saves clean, and every
+ * refusal is once-only (the confirmed retry proceeds — the dispatcher can
+ * always phát lệnh kịp thời).
  */
 export function kepWeightGuardOutcome(
   verdict: KepPairWeightVerdict,
@@ -154,90 +155,6 @@ export function tripClaimWindowOverlaps(
     ? holderStart + OPEN_ENDED_TRIP_CLAIM_SPAN_HOURS * 3_600_000
     : stagedEnd;
   return holderStart < incomingEnd.getTime() && holderEnd > incomingStart.getTime();
-}
-
-/**
- * SIL-638 đợt 2 (QA 01/11) — AUTO-PAIR at the dispatch issue path.
- *
- * The đợt-1 guards live at the MANUAL pairing gate, but the dispatch
- * assign/issue flow never creates a pair row, so QA's dispatch lane bypassed
- * every pair law (TC3/TC7 FAIL). The fix wires pair creation into the issue
- * path: when the leg being issued declares Kẹp (DOUBLE) or Kết hợp
- * (COMBINED) and a compatible partner leg already runs on the SAME rig the
- * SAME business day, the pair row is created automatically — Trip_ID gộp
- * exactly like the manual pair (same gates, same VETC/salary/inheritance
- * hooks, `createTripPair` core).
- *
- * Db-free per the BE unit-only ruling (2026-10-19): the candidate-selection
- * law below is the pure half (unit-pinned); the transactional service
- * (`autoPairIssuedTripInTx` in trip-pairs.service) runs the SQL scan and
- * re-verifies every conjunct through this function before pairing.
- */
-
-/** The pair kind a dispatch classification auto-pairs as. ĐƠN (SINGLE), LCL
- *  and anything else resolve null — a plain order never auto-pairs. */
-export function autoPairKindForClassification(
-  classification: string | null | undefined,
-): 'KEP' | 'KET_HOP' | null {
-  if (classification === 'DOUBLE') return 'KEP';
-  if (classification === 'COMBINED') return 'KET_HOP';
-  return null;
-}
-
-/** Facts the auto-pair scan reads off one issued leg (narrow view). */
-export interface AutoPairLegFacts {
-  tripId: number;
-  classification: string | null;
-  truckId: number | null;
-  driverId: number | null;
-  plannedStartAt: Date | null;
-  activeTripPairId: number | null;
-  status: string | null;
-  /** Trip carrier sidecar; null coalesces to OWN (the trips-split default). */
-  carrierType: string | null;
-}
-
-/** The statuses a partner leg may hold. COMPLETED/CANCELED legs are outside
- *  the pairing law (assertPairableTrips refuses them in the manual gate). */
-const AUTO_PAIR_PARTNER_STATUSES = new Set(['CREATED', 'IN_TRANSIT']);
-
-/**
- * Pick the auto-pair partner for the leg being issued, or null. The pair
- * conditions are the declaration + the physical rig + the business day:
- * both legs declare the SAME pair classification (DOUBLE↔KEP,
- * COMBINED↔KET_HOP), same tractor, same driver, same Vietnam business day,
- * both internal-fleet (OWN), and the partner is not already paired
- * (idempotency — a leg with an ACTIVE pair is never re-paired). Ties break
- * to the LOWEST trip id so concurrent scans converge on one partner. The
- * issuing leg itself (same id) never matches.
- */
-export function selectAutoPairPartnerCandidate(
-  issuing: {
-    tripId: number;
-    classification: string | null | undefined;
-    truckId: number | null;
-    driverId: number | null;
-    plannedStartAt: Date | null;
-  },
-  candidates: readonly AutoPairLegFacts[],
-): AutoPairLegFacts | null {
-  const kind = autoPairKindForClassification(issuing.classification);
-  if (kind == null) return null;
-  if (issuing.truckId == null || issuing.driverId == null) return null;
-  if (issuing.plannedStartAt == null) return null;
-  const issuingDay = localDateInBusinessZone(issuing.plannedStartAt);
-  const eligible = candidates.filter((candidate) =>
-    candidate.tripId !== issuing.tripId
-    && candidate.classification === issuing.classification
-    && candidate.truckId === issuing.truckId
-    && candidate.driverId === issuing.driverId
-    && candidate.activeTripPairId == null
-    && candidate.plannedStartAt != null
-    && localDateInBusinessZone(candidate.plannedStartAt) === issuingDay
-    && AUTO_PAIR_PARTNER_STATUSES.has(candidate.status ?? '')
-    && (candidate.carrierType ?? 'OWN') === 'OWN');
-  if (eligible.length === 0) return null;
-  return eligible.reduce((best, candidate) => (candidate.tripId < best.tripId ? candidate : best));
 }
 
 /**

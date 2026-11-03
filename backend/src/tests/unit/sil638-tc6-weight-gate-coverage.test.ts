@@ -10,7 +10,9 @@
  * Fixes pinned here (guard: dispatch-resource-availability.service):
  *  - the co-rider gate: a declared Kẹp pair on ONE rig runs the weight guard
  *    even when the two windows do not overlap — the clamp carries both boxes
- *    simultaneously, the same same-rig same-day law the auto-pair pairs by;
+ *    simultaneously, the same same-rig same-day law the MANUAL pairing gate
+ *    pairs by (SIL-668 removed the automatic pairing trigger; the declared
+ *    share itself is still the dispatcher's own action);
  *  - the incoming leg's weight falls back to the lot declaration
  *    (cargoWeightKg ?? shipment.cargoWeightKg) at the issue-path call;
  *  - the partner's weight falls back to its lot declaration
