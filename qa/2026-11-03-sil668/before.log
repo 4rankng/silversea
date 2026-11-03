@@ -1,0 +1,26 @@
+
+=== run 2026-11-03T06:48:42.956Z PHASE=before ===
+2026-11-03T06:48:43.135Z login cus: OK
+2026-11-03T06:48:43.254Z login dieuvan: OK
+2026-11-03T06:48:43.321Z ASSERT PASS — tạo lô 2 cont DOUBLE (quick-create) — status=201 {"id":1131,"shipmentCode":"SHP-2611-00174","version":1,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":null,"cargoTypeId":null,"responsibleUnitId":null,"status":"PENDING_DATE","bookingRef":null,"blNumber":"SIL668-MW0BU21A-BL","tradeDirection":null,"cargoMode":"FCL
+2026-11-03T06:48:43.321Z shipmentId=1131 bill=SIL668-MW0BU21A day=2027-03-04
+2026-11-03T06:48:43.369Z ASSERT PASS — 2 containers trên detail — count=2
+2026-11-03T06:48:43.412Z cus-workspace line cont=1322 → 200
+2026-11-03T06:48:43.444Z cus-workspace line cont=1323 → 200
+2026-11-03T06:48:43.462Z ASSERT PASS — 2 fulfillments cho 2 cont — count=2 shape={"fulfillmentId":1319,"fulfillmentVersion":2,"shipmentContainerId":1322,"containerTypeCode":"20DC","containerTypeName":"20'DC","carrierType":"OWN","externalCarrierId":null,"externalCarrierName":null}
+2026-11-03T06:48:43.462Z fulfillments: 1319(v2) 1320(v2)
+2026-11-03T06:48:43.548Z issue cont 1319 08:00 → status=201 tripId=763 autoPairedTrip=null
+2026-11-03T06:48:43.548Z ASSERT PASS — phát lệnh leg 1 (08:00–12:00) — status=201
+2026-11-03T06:48:43.586Z issue cont 1320: 409 KEP_WEIGHT_WARNING (soft) → confirm retry
+2026-11-03T06:48:43.699Z issue cont 1320 13:00 → status=201 tripId=764 autoPairedTrip=null
+2026-11-03T06:48:43.700Z ASSERT PASS — phát lệnh leg 2 (13:00–17:00, cùng xe/tài xế/ngày, KHÔNG thao tác ghép) — status=201 
+2026-11-03T06:48:43.700Z trip1=763 trip2=764
+2026-11-03T06:48:43.700Z autoPairedTrip payload (before — wiring còn): null
+2026-11-03T06:48:43.844Z trip_pairs rows: 23|KEP|ACTIVE|763|764
+2026-11-03T06:48:43.909Z trip pair stamps: 763|23|1
+764|23|2
+2026-11-03T06:48:43.910Z ASSERT PASS — PHASE=before — auto-pair còn sống: 2 lệnh tự sinh 1 pair row — 23|KEP|ACTIVE|763|764
+2026-11-03T06:48:43.910Z ASSERT PASS — PHASE=before — 2 chuyến chung Trip_ID (active_trip_pair_id như nhau) — 763|23|1
+764|23|2
+2026-11-03T06:48:43.910Z ASSERT PASS — PHASE=before — pair là KẸP (KEP) ACTIVE — 23|KEP|ACTIVE|763|764
+2026-11-03T06:48:43.910Z SIL-668 PHASE=before COMPLETE — all assertions PASS

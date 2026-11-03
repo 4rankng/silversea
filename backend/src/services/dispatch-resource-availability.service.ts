@@ -371,7 +371,9 @@ export async function assertResourceAvailability(tx: Tx, args: {
   // windows conflict, so QA's 28/12 pair (2×20' at 60,000 kg) saved with the
   // gate never evaluating. A declared clamp pair on ONE rig carries both boxes
   // simultaneously, so the capacity law follows the same-rig same-day declared
-  // pair — the same law the auto-pair scan pairs by — not the window overlap.
+  // pair — the same law the MANUAL pairing gate pairs by (SIL-668: pairing is
+  // a manual dispatch action, there is no automatic pairing scan) — not the
+  // window overlap.
   // Runs only when the overlap scans found no blocking row (an overlapping
   // partner already ran the guard in the carves; a foreign overlap answers the
   // "trùng lịch" tier below). Confirmed retry (kepWeightWarningConfirmed)
