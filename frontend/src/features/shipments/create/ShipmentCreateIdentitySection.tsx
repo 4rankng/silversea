@@ -54,8 +54,10 @@ export function ShipmentCreateIdentitySection({
   onOpenShippingLineDialog,
   editMode = false,
 }: ShipmentCreateIdentitySectionProps) {
-  // SIL-521 (owner 26/10): form tạo/sửa lô KHÔNG còn ô Số tờ khai cấp lô —
-  // số tờ khai quản lý theo cont (Tổng quan / drawer, per-cont line update).
+  // SIL-521 (owner 26/10) retired the LOT-LEVEL tờ khai strip; SIL-660
+  // (owner 02/11) brought ONE lot-level input back for the hàng lẻ tab
+  // (lẻ = 1 lô 1 cont), and SIL-673 (owner ruling 03/11) moved it up into
+  // this section — directly above Số Bill/Booking. Display position only.
   return (
     <ShipmentCreateSection
       id="identity"
@@ -146,7 +148,41 @@ export function ShipmentCreateIdentitySection({
         </div>
       </div>
 
-      {/* BAND 2 — Số Bill/Booking (gated by the direction picked above), then
+      {/* BAND 2 — Số tờ khai, tab HÀNG LẺ only (SIL-673 owner ruling
+          03/11): the SIL-660 lot-level input moved UP from the Thông tin
+          hàng grid (last column, after Thể tích) to sit directly ABOVE the
+          Số Bill/Booking field — DOM order: tờ khai trước Bill; visual:
+          hàng trên. DISPLAY-POSITION ONLY: the exact same UTextField for the
+          lot's single container (SIL-601: lẻ = 1 lô 1 cont), same
+          declarationNumber state, same shipment_declarations persist path
+          (SIL-660 — no validation, no payload change). FCL never renders it
+          (per-cont column stays — SIL-600/SIL-701). The cell joins the ONE
+          SIL-641 identity pattern: `csc-field-with-append` + hidden 36px
+          placeholder slot so its control ends at the same right edge as the
+          booking cell it sits on, span 6 in the same left column. */}
+      {form.cargoMode === 'LCL' && (
+        <div className="csc-identity-grid csc-identity-grid--declaration">
+          <div
+            className="csc-identity-grid__declaration csc-field-with-append"
+            data-field-id="shipment-lcl-declaration-number"
+          >
+            <TextField
+              id="shipment-lcl-declaration-number"
+              label="Số tờ khai"
+              value={form.declarationNumber}
+              onChange={(event) => update('declarationNumber', event.target.value)}
+              disabled={saving}
+              error={issueByField.get('shipment-lcl-declaration-number')}
+            />
+            <span
+              className="csc-identity-grid__action-slot csc-identity-grid__action-slot--placeholder"
+              aria-hidden="true"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* BAND 3 — Số Bill/Booking (gated by the direction picked above), then
           Hãng tàu for FCL. The handler is verbatim — the Bill-vs-Booking
           switch and the prerequisite hint on the booking field keep working;
           a not-yet-directed lot shows the hint directly under the picker
@@ -232,7 +268,7 @@ export function ShipmentCreateIdentitySection({
         )}
       </div>
 
-      {/* BAND 3 — the Tuỳ chọn flags on their own full-width band. All three
+      {/* BAND 4 — the Tuỳ chọn flags on their own full-width band. All three
           boolean flags share the ONE .csc-flag-checkbox chip treatment
           (density pass, owner 11/10). DOM order keeps the flag contract:
           Lệnh chạy ngoài → Có cược container → Đóng kết hợp. SIL-499:
