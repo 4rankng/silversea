@@ -1,0 +1,13 @@
+logged in admin + dieuvan; BE=http://localhost:3013/api
+housekeeping: released 1 family plan-row plate(s)
+refs: truck61=15H-061.14 truck104=15H-104.03 type20=20DC
+A assign SINGLE 10/12 08:00 → 15H-061.14 → 200 
+PASS A (SIL-666 chính): lô SINGLE mới + 15H-061.14 KHÔNG còn 409 "Cần cả 2 cont cùng khai báo KẸP" — status=200 body={"fulfillmentId":1296,"fulfillmentVersion":2,"shipmentId":1109,"shipmentVersion":3,"classification":"SINGLE","isCombined":false,"operationalNotes":null,"dispatch":{"carrierType":"OWN","carrierName":"S
+A control SINGLE 10/12 08:00 → 15H-104.03 → 200 
+PASS A (đối chứng): cùng ngày + 15H-104.03 vẫn lưu OK — status=200
+B conflicting task on 15H-061.14: 266|BULK-TR-0120|CREATED|2026-07-09 00:00:00|2026-07-17 00:00:00
+B assign SINGLE 28/08 08:00 → 15H-061.14 (xung đột BULK-TR-0120 CREATED) → 409
+B message: Đầu xe 15H-061.14 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: .
+PASS B (xung đột thật): 409 hard tier vẫn chặn (không lưu im lặng) — status=409
+FAIL B (AC bổ sung): message NÊU RÕ lô/tác vụ xung đột — không để chuỗi rỗng sau dấu ":" — colonPart="."
+SIL-666 REPRO COMPLETE — 1 expectation(s) FAILED

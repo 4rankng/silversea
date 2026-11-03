@@ -10,6 +10,7 @@ import {
   scanLclPlanRowHolders,
   scanPlanRowHolders,
   shipmentCostGroupId,
+  tripConflictRefs,
   type PlanRowWindow,
   type RigHolderFacts,
 } from './dispatch-plan-conflict-scan.service';
@@ -28,7 +29,7 @@ import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type Disp
 import * as s from '../db/schema';
 import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
 import { assertKepIssuingContainerClass, countDateOnlyTripClaims } from './dispatch-resource-availability.service';
-import { busyDayClaimOverlaps, busyRigWarnMessage, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, MIXED_DECLARATION_KEP_WARN_MESSAGE } from './trip-pair-rules.service';
+import { busyDayClaimOverlaps, busyRigWarnMessage, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, MIXED_DECLARATION_KEP_WARN_MESSAGE, rigConflictBusyMessage } from './trip-pair-rules.service';
 import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
@@ -788,15 +789,23 @@ async function assertPlanRowRigAvailable(
   // open-ended trip is bounded by one 8-hour shift from its start.
   // dis-03 (card 211026131857): the row also carries each trip's fulfillment
   // classification — the unpaired-kẹp candidate carve below needs it.
+  // SIL-666: each trip also carries its identity (code + origin lot's
+  // references) — the refusal must NAME the conflicting trip/lot, not render
+  // an empty reference after the colon.
   const tripConflictsRaw = await tx.select({
     id: s.trips.id,
     code: s.trips.tripCode,
     plannedStartAt: s.trips.plannedStartAt,
     partnerClassification: s.shipmentFulfillments.dispatchClassification,
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    shipmentCode: s.shipments.shipmentCode,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
   })
     .from(s.trips)
     .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
     .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
     .where(and(
       eq(s.trucks.licensePlate, plate),
       notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
@@ -932,16 +941,19 @@ if (planRowBlocked || tripConflicts.length > 0) {
       }
       // Card B 18/10 (B.4): name the conflicting lot(s) + window, so the
       // refusal answers the customer's "what is this?" on sight.
-      throw new ApiError(409,
-        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
-        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '.');
+      // SIL-666: dispatched-trip conflicts ride the same reference list —
+      // never an empty string after the colon.
+      throw new ApiError(409, rigConflictBusyMessage(plate,
+        [...crossLotConflicts, ...crossLotLclConflicts],
+        tripConflictRefs(tripConflicts)));
     }
     if (!args.confirmOverlap) {
-      throw new ApiError(409,
-        `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: `
-        + describeRigHolders([...crossLotConflicts, ...crossLotLclConflicts]) + '. Vẫn lưu?',
-        undefined,
-        { code: 'RIG_OVERLAP_COMPLETED' });
+      throw new ApiError(409, rigConflictBusyMessage(plate,
+        [...crossLotConflicts, ...crossLotLclConflicts],
+        tripConflictRefs(tripConflicts),
+        '. Vẫn lưu?'),
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' });
     }
   } else if (!isDeclaredPairRow && costGroupSiblingClaim && !args.confirmOverlap) {
     // Card 191026100010 (B.4) — the deliberate group arrangement: one

@@ -605,3 +605,121 @@ export function ketHopSequenceGateVerdict(facts: KetHopGateFacts): 'allow' | 'bl
 export function driverBoardPairLocked(facts: KetHopGateFacts): boolean {
   return ketHopSequenceGateVerdict(facts) === 'block';
 }
+
+/**
+ * SIL-666 (id 762) — the rig-conflict busy message family. QA 03/11: a real
+ * conflict on 15H-061.14 answered
+ * `{"error":"Đầu xe 15H-061.14 đã được gán cho lô/tác vụ khác trong khung giờ
+ * trùng lặp:."}` — an EMPTY reference after the colon. The two rig guards'
+ * hard/warn tiers rendered only their plan-row holder list, while the blocking
+ * row was a DISPATCHED TRIP (a fulfillment-less BULK task has no plan row at
+ * all), so the customer saw the refusal without the one thing it must name:
+ * WHAT holds the rig. The message template now renders BOTH conflict sources —
+ * plan rows ("Lô …") and dispatched trips ("Lô <lot>" or, for fulfillment-less
+ * tasks, "Lệnh <tripCode>") — and never emits an empty reference.
+ *
+ * Pure law (db-free per the BE unit-only ruling): the transactional guards
+ * (dispatch-plan-conflict-scan.service, dispatch-planning-detail-plan.service)
+ * select the facts and call these helpers.
+ */
+
+/** One blocking plan-row holder — the facts the label law reads (narrow view;
+ *  structurally the rig guards' RigHolderFacts). */
+export interface RigConflictRowRef {
+  shipmentId: number;
+  shipmentCode: string | null;
+  blNumber: string | null;
+  bookingRef: string | null;
+  slotAt: Date | string | null;
+}
+
+/** One blocking dispatched trip — the trip's own identity plus its origin
+ *  lot's references (nulls when the trip has no fulfillment, e.g. BULK tasks). */
+export interface RigConflictTripRef {
+  tripId: number;
+  tripCode: string | null;
+  plannedStartAt: Date | string | null;
+  shipmentId: number | null;
+  shipmentCode: string | null;
+  blNumber: string | null;
+  bookingRef: string | null;
+}
+
+/** The scan's slot coalesce mixes timestamptz columns with day-claim
+ *  expressions; drivers may hand back a Date or a naive wall-time string.
+ *  Naive strings are already Asia/Ho_Chi_Minh wall time (the SQL shifted
+ *  them) — anchor them there, never in the server's zone. Returns null for
+ *  anything unparseable ("no window" renders no suffix). */
+export function rigConflictSlotDate(value: Date | string | null): Date | null {
+  if (value == null) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const text = String(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(text)) return null;
+  const anchored = text.includes('+') || text.endsWith('Z')
+    ? text.replace(' ', 'T')
+    : `${text.replace(' ', 'T')}+07:00`;
+  const parsed = new Date(anchored);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+const viInstant = new Intl.DateTimeFormat('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh',
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+/** " (từ 26/08 07:00)" — the claimed-window suffix the refusal shows. */
+export function rigHolderSlotSuffix(value: Date | string | null): string {
+  const slot = rigConflictSlotDate(value);
+  return slot ? ` (từ ${viInstant.format(slot)})` : '';
+}
+
+/** "Lô BLCUSa29BD" / "Lô SHP-2610-01349" / "Lô #61959" — the reference the
+ *  dispatcher reads in the grid, best available first. */
+export function rigHolderLabel(holder: Pick<RigConflictRowRef, 'shipmentId' | 'shipmentCode' | 'blNumber' | 'bookingRef'>): string {
+  const ref = holder.shipmentCode?.trim() || holder.blNumber?.trim() || holder.bookingRef?.trim();
+  return ref ? `Lô ${ref}` : `Lô #${holder.shipmentId}`;
+}
+
+/** The dispatched-trip variant of the label law: a trip conflicts through its
+ *  origin lot when one is resolvable (the same reference the grid shows) or,
+ *  for a fulfillment-less task (BULK runs), through its own trip code — the
+ *  "tác vụ khác" half of the message copy. */
+export function rigTripHolderLabel(trip: RigConflictTripRef): string {
+  const ref = trip.shipmentCode?.trim() || trip.blNumber?.trim() || trip.bookingRef?.trim();
+  if (ref) return `Lô ${ref}${rigHolderSlotSuffix(trip.plannedStartAt)}`;
+  const code = trip.tripCode?.trim();
+  return code ? `Lệnh ${code}${rigHolderSlotSuffix(trip.plannedStartAt)}` : `Lệnh #${trip.tripId}`;
+}
+
+/** Both conflict sources in one reference list, plan rows first. Empty only
+ *  when both scans came back empty. */
+export function describeRigConflicts(rows: readonly RigConflictRowRef[], trips: readonly RigConflictTripRef[]): string {
+  const rowLabels = rows.map((holder) => {
+    const ref = holder.shipmentCode?.trim() || holder.blNumber?.trim() || holder.bookingRef?.trim();
+    return `${ref ? `Lô ${ref}` : `Lô #${holder.shipmentId}`}${rigHolderSlotSuffix(holder.slotAt)}`;
+  });
+  return [...rowLabels, ...trips.map(rigTripHolderLabel)].join(', ');
+}
+
+/**
+ * The busy copy both rig guards throw. When a real conflict exists the
+ * message NAMES it ("…trùng lặp: Lệnh BULK-TR-0180 (từ 26/08 07:00)."); when
+ * no reference can be built the colon is dropped instead of hanging an empty
+ * string after it ("…trùng lặp." — never the reported "…trùng lặp:.").
+ * `suffix` carries the tier: the hard tier ends "." and the warn-once tier
+ * ends ". Vẫn lưu?" — both keep the family's verbatim prefix.
+ */
+export function rigConflictBusyMessage(
+  plate: string,
+  rows: readonly RigConflictRowRef[],
+  trips: readonly RigConflictTripRef[],
+  suffix = '.',
+): string {
+  const refs = describeRigConflicts(rows, trips);
+  return refs
+    ? `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: ${refs}${suffix}`
+    : `Đầu xe ${plate} đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp${suffix}`;
+}
