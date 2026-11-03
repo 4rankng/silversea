@@ -1,0 +1,13 @@
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/sil665-fix/frontend
+> vitest run src/components/trip/DriverContainerCard.test.tsx src/pages/DriverTripDetailPage.test.tsx
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/sil665-fix/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  93 passed (93)
+   Start at  12:54:51
+   Duration  7.19s (transform 2.34s, setup 413ms, import 5.19s, tests 5.05s, environment 1.54s)
+

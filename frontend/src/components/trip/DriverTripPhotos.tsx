@@ -1,4 +1,4 @@
-import { ImageOff } from 'lucide-react';
+import { ImageOff, Loader2 } from 'lucide-react';
 import { useAuthedPhotoUrl } from '../../lib/api/photo';
 
 /**
@@ -8,20 +8,25 @@ import { useAuthedPhotoUrl } from '../../lib/api/photo';
  * `/api/photos/…` URL.
  */
 
-function EmptyThumb({ label }: { label: string }) {
-  return <div className="dcc-bento__thumb-empty"><ImageOff size={15} /><span>{label}</span></div>;
+function EmptyThumb({ label, uploading }: { label: string; uploading?: boolean }) {
+  return (
+    <div className="dcc-bento__thumb-empty">
+      {uploading ? <Loader2 size={15} className="spin" /> : <ImageOff size={15} />}
+      <span>{uploading ? 'Đang tải…' : label}</span>
+    </div>
+  );
 }
 
 /** One bento thumbnail. The protected photo loads through an Authorization-
  *  header blob fetch (DRV-DET-08 — never a `?token=` URL), so a missing or
  *  denied file renders as a calm placeholder instead of a broken browser image
  *  on the driver phone. */
-export function BentoThumb({ photoKey, label }: { photoKey: string | null; label: string }) {
+export function BentoThumb({ photoKey, label, uploading }: { photoKey: string | null; label: string; uploading?: boolean }) {
   const src = useAuthedPhotoUrl(photoKey);
 
   return src
     ? <img className="dcc-bento__thumb" src={src} alt={`Ảnh ${label.toLowerCase()}`} />
-    : <EmptyThumb label={label} />;
+    : <EmptyThumb label={label} uploading={uploading} />;
 }
 
 /** An authenticated `<img>` for a protected photo reference: same blob-fetch
@@ -35,6 +40,6 @@ export function AuthedPhotoImg({ photoKey, className, alt }: { photoKey: string 
 
 /** One bento thumbnail: the photo if `key` is present and valid, else a labelled
  *  empty placeholder. Cont/Seal/biên bản thumbs are identical modulo key + label. */
-export function renderThumb(key: string | null, label: string) {
-  return <BentoThumb photoKey={key} label={label} />;
+export function renderThumb(key: string | null, label: string, uploading?: boolean) {
+  return <BentoThumb photoKey={key} label={label} uploading={uploading} />;
 }

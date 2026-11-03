@@ -1,0 +1,25 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7290
+LOGIN ok driver=bqhuong
+DRIVING tripId=576
+PHOTO SECTION STATE: {"hasContBtn":true,"contBtnClass":"dcc-bento__tile-btn dcc-bento__tile-btn--empty","contBtnText":"Cont","hasSealBtn":true,"sealBtnClass":"dcc-bento__tile-btn dcc-bento__tile-btn--empty","sealBtnText":"Seal","hasNoteBtn":false,"allCaptureBtns":["Thêm ảnh biên bản"]}
+PASS Khung Cont là button có aria-label="Thêm ảnh cont"
+PASS Khung Cont mang class dcc-bento__tile-btn--empty
+PASS Khung Seal là button có aria-label="Thêm ảnh seal"
+PASS Khung Seal mang class dcc-bento__tile-btn--empty
+PASS 2 nút thừa Thêm ảnh cont/seal đã bị bỏ khỏi bento view — captureBtns=["Thêm ảnh biên bản"]
+PASS Nút Thêm ảnh biên bản được giữ nguyên
+Clicking Cont placeholder frame...
+CONT DIALOG STATE: {"title":"Thêm ảnh cont Chụp ảnh Chọn từ thư việnHủy","buttons":["","Chụp ảnh","Chọn từ thư viện","Hủy"]}
+PASS Bấm khung Cont mở dialog Thêm ảnh cont
+PASS Dialog Cont có nút Chụp ảnh
+PASS Dialog Cont có nút Chọn từ thư viện
+PASS Dialog Cont có nút Hủy
+Clicking Seal placeholder frame...
+SEAL DIALOG STATE: {"title":"Thêm ảnh seal Chụp ảnh Chọn từ thư việnHủy","buttons":["","Chụp ảnh","Chọn từ thư viện","Hủy"]}
+PASS Bấm khung Seal mở dialog Thêm ảnh seal (đúng mục, không nhầm sang Cont)
+PASS Dialog Seal có nút Chụp ảnh
+PASS Dialog Seal có nút Chọn từ thư viện
+Testing desktop view (1440x900)...
+PASS Desktop 1440px: Bấm khung Cont mở dialog thành công
+
+UI VERIFICATION COMPLETE: ALL PASSED
