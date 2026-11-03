@@ -1,0 +1,104 @@
+▶ TC2 — verbatim copy
+  ✔ the hard refusal is the DOC text (0.702541ms)
+  ✔ the confirmable reverse direction is the DOC text + "Vẫn lưu?" (0.150834ms)
+✔ TC2 — verbatim copy (1.735791ms)
+▶ TC2 — pure mismatch law (classificationMismatchShareBlockMessage)
+  ✔ ĐƠN issuing onto a Kẹp holder → refusal (0.250958ms)
+  ✔ ĐƠN issuing onto a Kết hợp holder → refusal (0.103292ms)
+  ✔ ĐỢT 3 (đối xứng): Kẹp/Kết hợp issuing onto a ĐƠN holder → the SAME refusal message (0.085625ms)
+  ✔ two declared pair legs → null (their own gates) (0.073ms)
+  ✔ undetermined holder classification → null (no mismatch provable) (0.143292ms)
+✔ TC2 — pure mismatch law (classificationMismatchShareBlockMessage) (0.891125ms)
+▶ TC2 — wiring: the message surfaces ahead of the generic overlap toast
+  ✔ trip-side guard (assertResourceAvailability) throws the mismatch before the generic copy (0.644708ms)
+  ✔ plan-row guard checks the holder PLAN ROWS classification too (QA path) (0.59525ms)
+  ✔ BOTH mixed-declaration warn tiers carry the DOC wording + "Vẫn lưu?" (0.468541ms)
+✔ TC2 — wiring: the message surfaces ahead of the generic overlap toast (1.919459ms)
+▶ SIL-638 TC2 — a ĐƠN leg on a kẹp rig is refused (no carve path)
+  ✔ a ĐƠN issuing context resolves no share mode at all (0.668ms)
+  ✔ with no carve mode, no holder satisfies the declared-share carve (0.189334ms)
+  ✔ the mixed-declaration candidate never fires for a ĐƠN ISSUING leg (0.121459ms)
+  ✔ so a ĐƠN overlap stays in `blocking` → the guard keeps its hard 409 refusal (0.157334ms)
+✔ SIL-638 TC2 — a ĐƠN leg on a kẹp rig is refused (no carve path) (2.022333ms)
+▶ SIL-638 TC2 — the deliberate kẹp share paths stay intact
+  ✔ both legs declared Kẹp on the same rig + business day carve as the pair arrangement (0.544583ms)
+  ✔ a different truck / driver / day breaks the share (0.154834ms)
+  ✔ SIL-638 31/10: the mooc is not the pair contract (SIL-602) — equal or unassigned trailers carve, a declared mismatch blocks (0.143334ms)
+  ✔ a holder already paired to a third load stays blocking (never a third container) (0.128125ms)
+  ✔ dis-03: issuing Kẹp 20′ onto a sitting ĐƠN warns once (confirmable), scoped to one same-rig same-day holder (0.113458ms)
+✔ SIL-638 TC2 — the deliberate kẹp share paths stay intact (1.389959ms)
+▶ TC6(1) — pure foot-class law
+  ✔ the block message is the DOC verbatim text (0.468334ms)
+  ✔ length classes resolve from the type code (0.151917ms)
+✔ TC6(1) — pure foot-class law (1.342583ms)
+▶ TC6(1) — every dispatch-write path stamps the 20ft law
+  ✔ the shared guard refuses a declared DOUBLE leg on a proven non-20ft container (0.647666ms)
+  ✔ the ISSUE/REISSUE path (issueOrderCreateOrUpdate) runs the guard — the path QA used (0.55325ms)
+  ✔ the atomic plan save runs the guard with the EFFECTIVE classification (1.92525ms)
+  ✔ the legacy plate endpoint runs the guard too (0.54425ms)
+  ✔ the pairing core keeps its own DOC-text gate (pair-creation law unchanged) (0.391167ms)
+✔ TC6(1) — every dispatch-write path stamps the 20ft law (4.4475ms)
+▶ SIL-638 TC6(1) — 40ft kẹp is a hard block with the DOC text
+  ✔ the block message is the DOC verbatim text (0.520292ms)
+  ✔ 20′ + 20′ pairs; every other proven shape blocks (0.130125ms)
+  ✔ an unprovable shell (no type code) keeps blocking — a clamp needs proof (0.152041ms)
+✔ SIL-638 TC6(1) — 40ft kẹp is a hard block with the DOC text (1.509167ms)
+▶ SIL-638 TC6(2) — kẹp weight overload is a soft warning
+  ✔ the warning text and payload code are the DOC verbatim text + stable code (0.243958ms)
+  ✔ overload verdict proves only with capacity + two finite weights (0.234875ms)
+  ✔ missing capacity or weights stays unprovable (check skipped, advisory owns it) (0.201542ms)
+  ✔ the guard refuses ONCE on overload and the confirmed retry proceeds (0.2425ms)
+  ✔ non-overload PROVABLE verdicts allow regardless of the confirm flag (0.4405ms)
+  ✔ the unprovable branch warns once too (was a silent allow before the 02/11 QA repro) (0.141083ms)
+✔ SIL-638 TC6(2) — kẹp weight overload is a soft warning (2.217458ms)
+▶ TC6(2) — the co-rider weight gate without window overlap
+  ✔ runs only for a declared KẸP leg with no overlap blocking row (0.610792ms)
+  ✔ scans same-rig LIVE trips of the same business day (0.439834ms)
+  ✔ admits only the declared share partner or the mixed-declaration candidate (0.204875ms)
+  ✔ refuses with the KEP_WEIGHT_WARNING 409 and honors the confirmed retry (0.19575ms)
+  ✔ Kết hợp never runs the weight gate (sequential reuse, no simultaneous load) (0.129333ms)
+✔ TC6(2) — the co-rider weight gate without window overlap (2.950542ms)
+▶ TC6(2) — weight evidence falls back to the lot declaration
+  ✔ the issue path passes the lot-level weight as fallback (gate only, storage untouched) (0.277167ms)
+  ✔ every partner carve site reads the lot fallback when the trip container weight is null (0.163667ms)
+  ✔ the conflict select carries the partner lot weight (0.10925ms)
+✔ TC6(2) — weight evidence falls back to the lot declaration (0.718083ms)
+▶ SIL-638 TC6(2) — the missing-data (unprovable) weight branch warns once
+  ✔ an unprovable verdict on a declared kẹp pair refuses ONCE (409 KEP_WEIGHT_WARNING) (0.678709ms)
+  ✔ the confirmed retry proceeds — never a hard block (DOC: bấm xác nhận tiếp tục lưu) (0.145833ms)
+  ✔ both DOC shapes land on the same soft warning (overload + unprovable) (0.390917ms)
+  ✔ a provable PASS still saves clean — no nag on a healthy clamp (0.127833ms)
+  ✔ the refusal payload is the DOC verbatim text + the stable code the FE confirm dialog keys on (0.085125ms)
+✔ SIL-638 TC6(2) — the missing-data (unprovable) weight branch warns once (2.689458ms)
+▶ SIL-668 — automatic pairing trigger removed
+  ✔ trip-pairs.service không còn autoPairIssuedTripInTx (điểm trigger tự ghép) (1.266ms)
+  ✔ trip-pair-rules.service không còn luật chọn partner tự động (0.469625ms)
+  ✔ issue path (dispatch-planning-commands.service) không gọi bất kỳ auto-pair nào (0.424375ms)
+  ✔ driver accept path vẫn sạch (trip-status-machine không gọi auto-pair) (0.285042ms)
+✔ SIL-668 — automatic pairing trigger removed (3.438959ms)
+▶ SIL-668 — manual pairing path GIỮ NGUYÊN (ghép thủ công của Điều vận)
+  ✔ createTripPair (dialog thủ công) chạy qua createTripPairCoreInTx (0.290125ms)
+  ✔ mọi gate đợt 1 vẫn nằm trong core — pair thủ công chạy đủ luật (0.342625ms)
+  ✔ route POST /api/trips/pairs (ghép thủ công) còn mount (0.245875ms)
+✔ SIL-668 — manual pairing path GIỮ NGUYÊN (ghép thủ công của Điều vận) (1.0445ms)
+▶ SIL-668 — các luật bảo toàn khác vẫn export (không regress)
+  ✔ TC2 — từ chối đồng nhất 2 chiều (KẸP+ĐƠN cùng xe bị chặn cả 2 hướng) (0.198834ms)
+  ✔ luật Kết hợp tuần tự (TC8/TC9) và khai báo pair carve (TC7) vẫn export (0.35275ms)
+✔ SIL-668 — các luật bảo toàn khác vẫn export (không regress) (0.716667ms)
+▶ SIL-674 — the tractor tow rating fills the null-capacity hole
+  ✔ converts the spec-sheet tow rating (tons) to a kg string (0.558125ms)
+  ✔ an undeclared rating stays null — the unprovable law owns that shape (0.119542ms)
+  ✔ the issue path reads the tow rating and chains it after the mooc bucket (0.234583ms)
+  ✔ QA shape: 5t + 5t under the 33t tow rating → pass → clean issue (no warning) (0.185959ms)
+  ✔ over the tow rating → refuse once, confirmed retry proceeds (TC6(2) kept) (0.2815ms)
+  ✔ no mooc bucket AND no tow rating → still warn-once confirmable (kept law) (0.159416ms)
+  ✔ precedence unchanged: a declared mooc bucket wins over the tow rating (0.092333ms)
+✔ SIL-674 — the tractor tow rating fills the null-capacity hole (2.510041ms)
+ℹ tests 64
+ℹ suites 16
+ℹ pass 64
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3991.168959

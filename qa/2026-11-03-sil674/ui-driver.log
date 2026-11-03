@@ -1,0 +1,86 @@
+
+=== run 2026-11-03T13:45:07.679Z ===
+2026-11-03T13:45:08.005Z logged in admin + dieuvan; UI probe day=2026-11-21 base=http://localhost:7179
+2026-11-03T13:45:08.356Z rig: truck=1 tow=33.0 mooc=135(type null) driver=1 paired→200
+2026-11-03T13:45:08.599Z UI DRIVE CRASHED: expected 2 plan rows
+
+=== run 2026-11-03T13:45:24.163Z ===
+2026-11-03T13:45:24.462Z logged in admin + dieuvan; UI probe day=2026-11-15 base=http://localhost:7179
+2026-11-03T13:45:24.802Z rig: truck=1 tow=33.0 mooc=136(type null) driver=1 paired→200
+2026-11-03T13:45:26.578Z plan rows attempt 0: total=0 unissued=0
+2026-11-03T13:45:28.118Z plan rows attempt 1: total=0 unissued=0
+2026-11-03T13:45:29.655Z plan rows attempt 2: total=0 unissued=0
+2026-11-03T13:45:31.183Z plan rows attempt 3: total=0 unissued=0
+2026-11-03T13:45:32.734Z plan rows attempt 4: total=0 unissued=0
+2026-11-03T13:45:34.283Z plan rows attempt 5: total=0 unissued=0
+2026-11-03T13:45:34.284Z UI DRIVE CRASHED: expected 2 plan rows
+
+=== run 2026-11-03T13:46:11.962Z ===
+2026-11-03T13:46:12.259Z logged in admin + dieuvan; UI probe day=2026-11-26 base=http://localhost:7179
+2026-11-03T13:46:12.542Z rig: truck=1 tow=33.0 mooc=137(type null) driver=1 paired→200
+2026-11-03T13:46:12.597Z stage: lot create → 201 
+2026-11-03T13:46:12.678Z stage: containers → 422 {"error":"Tuyến đường không khớp tuyến đã cấu hình của nhà máy."}
+2026-11-03T13:46:12.754Z stage: submit → 409 {"error":"Hàng FCL cần ít nhất một container."}
+2026-11-03T13:46:12.754Z UI DRIVE CRASHED: containers PUT failed: 422
+
+=== run 2026-11-03T13:46:27.374Z ===
+2026-11-03T13:46:27.633Z logged in admin + dieuvan; UI probe day=2026-11-27 base=http://localhost:7179
+2026-11-03T13:46:27.943Z rig: truck=1 tow=33.0 mooc=138(type null) driver=1 paired→200
+2026-11-03T13:46:28.009Z stage: lot create → 201 
+2026-11-03T13:46:28.117Z stage: containers → 200 
+2026-11-03T13:46:28.243Z stage: submit → 200 
+2026-11-03T13:46:29.798Z plan rows attempt 0: total=2 unissued=2
+2026-11-03T13:46:30.318Z API staged: leg1 issue → 201 812
+2026-11-03T13:46:30.318Z PASS stage: leg1 (25t) issues clean via API — status=201
+2026-11-03T13:46:30.405Z legB row fulfillment=1402 plate=15E-016.26 — leaving it for the UI drive
+2026-11-03T13:46:45.139Z typed the probe BL into the grid filter
+2026-11-03T13:46:45.298Z FAIL UI: leg B quick-issue control clicked — aria-label=null
+
+=== run 2026-11-03T13:47:22.048Z ===
+2026-11-03T13:47:22.366Z logged in admin + dieuvan; UI probe day=2026-11-15 base=http://localhost:7179
+2026-11-03T13:47:22.648Z rig: truck=1 tow=33.0 mooc=139(type null) driver=1 paired→200
+2026-11-03T13:47:22.705Z stage: lot create → 201 
+2026-11-03T13:47:22.820Z stage: containers → 200 
+2026-11-03T13:47:22.927Z stage: submit → 200 
+2026-11-03T13:47:24.477Z plan rows attempt 0: total=2 unissued=2
+2026-11-03T13:47:24.960Z API staged: leg1 issue → 201 813
+2026-11-03T13:47:24.960Z PASS stage: leg1 (25t) issues clean via API — status=201
+2026-11-03T13:47:25.018Z legB row fulfillment=1404 plate=15E-016.26 — leaving it for the UI drive
+2026-11-03T13:47:36.266Z typed the probe BL into the grid filter
+2026-11-03T13:47:36.453Z PASS UI: leg B quick-issue control clicked — aria-label=Phát lệnh · TSTU6427066
+2026-11-03T13:47:36.453Z clicked: Phát lệnh · TSTU6427066
+2026-11-03T13:47:36.543Z network: POST /api/shipments/1187/dispatch → 409
+2026-11-03T13:47:36.612Z dialog: buttons=["Hủy","Xác nhận"] message="Xe đầu kéo đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?"
+2026-11-03T13:47:37.338Z PASS UI: weight warning DIALOG renders (role=dialog) — QA "KHÔNG có nút vượt qua" disproven — buttons=["Hủy","Xác nhận"]
+2026-11-03T13:47:37.338Z FAIL UI: dialog carries the DOC verbatim weight message — Xe đầu kéo đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?
+2026-11-03T13:47:37.384Z PASS UI: "Xác nhận" bypass button clicked — confirm-label=Xác nhận
+2026-11-03T13:47:40.545Z post-click DOM: {"issuedChip":true,"stillUnissued":false,"rowCount":2}
+2026-11-03T13:47:40.545Z PASS UI: leg B row flipped to "Đã phát lệnh" after the confirmed bypass — {"issuedChip":true,"stillUnissued":false,"rowCount":2}
+2026-11-03T13:47:40.699Z DB side effect: leg B trip row = '814|CREATED|33000.00'
+2026-11-03T13:47:40.700Z PASS DB: leg B trip persisted with the resolved capacity 33000 — 814|CREATED|33000.00
+2026-11-03T13:47:40.880Z UI DRIVE COMPLETE — 1 expectation(s) FAILED
+
+=== run 2026-11-03T13:49:44.275Z ===
+2026-11-03T13:49:44.589Z logged in admin + dieuvan; UI probe day=2026-11-20 base=http://localhost:7179
+2026-11-03T13:49:44.848Z stage: tow PUT → 428
+2026-11-03T13:49:44.926Z rig: truck=1 tow_capacity_tons=33.0 coupling=131 driver=1 paired→200
+2026-11-03T13:49:45.041Z stage: lot create → 201 
+2026-11-03T13:49:45.138Z stage: containers → 200 
+2026-11-03T13:49:45.226Z stage: submit → 200 
+2026-11-03T13:49:46.779Z plan rows attempt 0: total=2 unissued=2
+2026-11-03T13:49:47.263Z API staged: leg1 issue → 201 815
+2026-11-03T13:49:47.263Z PASS stage: leg1 (25t) issues clean via API — status=201
+2026-11-03T13:49:47.335Z legB row fulfillment=1406 plate=15E-016.26 — leaving it for the UI drive
+2026-11-03T13:49:58.080Z typed the probe BL into the grid filter
+2026-11-03T13:49:58.228Z PASS UI: leg B quick-issue control clicked — aria-label=Phát lệnh · TSTU7850426
+2026-11-03T13:49:58.229Z clicked: Phát lệnh · TSTU7850426
+2026-11-03T13:49:58.310Z network: POST /api/shipments/1188/dispatch → 409
+2026-11-03T13:49:58.373Z dialog: buttons=["Hủy","Xác nhận"] message="Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại"
+2026-11-03T13:49:58.601Z PASS UI: weight warning DIALOG renders (role=dialog) — QA "KHÔNG có nút vượt qua" disproven — buttons=["Hủy","Xác nhận"]
+2026-11-03T13:49:58.601Z PASS UI: dialog carries the DOC verbatim weight message — Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại
+2026-11-03T13:49:58.655Z PASS UI: "Xác nhận" bypass button clicked — confirm-label=Xác nhận
+2026-11-03T13:50:01.861Z post-click DOM: {"issuedChip":true,"stillUnissued":false,"rowCount":2}
+2026-11-03T13:50:01.861Z PASS UI: leg B row flipped to "Đã phát lệnh" after the confirmed bypass — {"issuedChip":true,"stillUnissued":false,"rowCount":2}
+2026-11-03T13:50:02.042Z DB side effect: leg B trip row = '816|CREATED|33000.00'
+2026-11-03T13:50:02.042Z PASS DB: leg B trip persisted with the resolved capacity 33000 — 816|CREATED|33000.00
+2026-11-03T13:50:02.212Z UI DRIVE COMPLETE — all expectations hold

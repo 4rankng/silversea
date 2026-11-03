@@ -1,0 +1,41 @@
+SIL-674 driver phase=after api=http://localhost:3017/api probe day=2026-11-25
+housekeeping: cancel trip 796 → 200
+housekeeping: cancel trip 797 → 200
+housekeeping: cancel trip 798 → 200
+housekeeping: cancel trip 799 → 200
+housekeeping: cancel trip 800 → 200
+housekeeping: cancel trip 801 → 200
+housekeeping: cancel trip 802 → 200
+housekeeping: cancel trip 803 → 200
+rig U: truck=1 tow_capacity_tons=33.0 mooc=131 (type null) driver=1
+rig C: truck=2 tow_capacity_tons= mooc=132 (type 40FT) driver=2
+rig O: truck=3 tow_capacity_tons=33.0 mooc=133 (type null) driver=3
+rig N: truck=4 tow_capacity_tons= mooc=134 (type null) driver=4
+[U] lot BK-S674-U-1793713003051 rows=2
+[U] issue leg1 → 201 trip 804
+[U] issue leg2 → 201 trip 805
+[U] evidence: truck tow_capacity_tons='33.0' leg1 trips.vehicle_capacity_kg='33000.00'
+PASS [U] leg1 5t issues clean — status=201
+PASS [U] FIXED: leg2 5t issues clean (10t < 33t sức kéo) — status=201 body={"fulfillmentId":1393,"version":3,"trip":{"id":805,"version":2,"tripCode":"TRP-202611-0094","status":"CREATED","plannedStartAt":"2026-11-25T01:00:00.000Z","plannedEndAt":"2026-11-25T05:00:00.000Z","carrierType":"OWN","tr
+PASS [U] trip snapshot now carries the resolved capacity 33000 — leg1 snapshot='33000.00'
+PASS [P] SIL-668 kept: a clean issue creates NO automatic pair row — trip_pairs=0
+[C] lot BK-S674-C-1793713003960 rows=2
+[C] issue leg1 → 201 trip 806
+[C] issue leg2 → 201 trip 807
+PASS [C] control: leg1 issues — status=201
+PASS [C] control: leg2 issues with KNOWN capacity (carve is pair-row-independent — hypothesis B rejected) — status=201 body={"fulfillmentId":1395,"version":3,"trip":{"id":807,"version":2,"tripCode":"TRP-202611-0096","status":"CREATED","plannedStartAt":"2026-11-25T01:00:00.000Z","plannedEndAt":"2026-11-25T05:00:00.000Z","carrierType":"OWN","tr
+[O] lot BK-S674-O-1793713004653 rows=2
+[O] issue leg1 → 201 trip 808
+[O] issue leg2 → 409 {"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+PASS [O] leg2 over capacity refused ONCE with the soft warning — status=409 body={"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+[O] confirmed retry → 201 trip 809
+PASS [O] confirmed retry proceeds (warn-once, confirmable — TC6(2) kept) — status=201
+[N] lot BK-S674-N-1793713005397 rows=2
+[N] issue leg1 → 201 trip 810
+[N] issue leg2 → 409 {"error":"Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại","code":"KEP_WEIGHT_WARNING"}
+PASS [N] unconfigured rig: leg2 refused ONCE with the soft warning — status=409
+[N] confirmed retry → 201
+PASS [N] unconfigured rig: confirmed retry proceeds (kept warn-once law) — status=201
+[F] 40' DOUBLE plan-save → 409 {"error":"Cặp kẹp chỉ áp dụng cho đúng 02 container loại 20ft"}
+PASS [F] TC6(1) kept: 40ft Kẹp leg hard-blocks at plan-save with the DOC message — plan-save 409
+PHASE AFTER COMPLETE — all expectations hold

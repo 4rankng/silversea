@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/sil674-fix/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  22:14:28
+   Duration  1.22s (transform 60ms, setup 217ms, import 31ms, tests 38ms, environment 770ms)
+

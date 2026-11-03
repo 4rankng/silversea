@@ -109,6 +109,42 @@ describe('VID-DSP-02 direct release', () => {
     expect(issue.mock.calls[1][1]).toMatchObject({ plateDeferredConfirmed: true });
   });
 
+  it('a KEP_WEIGHT_WARNING confirms and retries the issue with kepWeightWarningConfirmed (SIL-674)', async () => {
+    // SIL-674 (QA staging 5b0bdad3): the Kẹp pair weight 409 reached this
+    // release path only as a dead-end error — "dialog KHÔNG có nút vượt qua".
+    // The soft warn-once law (SIL-638 TC6(2)) must offer the confirm here,
+    // exactly like the overlap/plate arms above.
+    const weight = Object.assign(
+      new Error('Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại'),
+      { status: 409, raw: { code: 'KEP_WEIGHT_WARNING' } },
+    );
+    const issue = vi.fn()
+      .mockRejectedValueOnce(weight)
+      .mockResolvedValue({});
+    render(<QuickIssueOrderButton row={row()} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
+
+    // The dialog carries the DOC verbatim message and a real bypass control.
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.getByRole('dialog').textContent).toContain('vượt tải trọng cho phép');
+    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }));
+    await waitFor(() => expect(issue).toHaveBeenCalledTimes(2));
+    expect(issue.mock.calls[1][1]).toMatchObject({ kepWeightWarningConfirmed: true });
+  });
+
+  it('declining the KEP_WEIGHT_WARNING dialog keeps the row unissued without a retry (SIL-674)', async () => {
+    const weight = Object.assign(
+      new Error('Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại'),
+      { status: 409, raw: { code: 'KEP_WEIGHT_WARNING' } },
+    );
+    const issue = vi.fn().mockRejectedValue(weight);
+    render(<QuickIssueOrderButton row={row()} onIssueOrder={issue} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('vượt tải trọng cho phép'));
+    expect(issue).toHaveBeenCalledTimes(1);
+  });
+
   it('declining the plate-less warning keeps the row unissued', async () => {
     const deferred = Object.assign(
       new Error('Phát lệnh chưa có biển số xe nhà xe ngoài. Vẫn phát lệnh?'),

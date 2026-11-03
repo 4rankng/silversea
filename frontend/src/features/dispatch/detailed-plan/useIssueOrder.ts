@@ -208,7 +208,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
     issueInFlight.current = true;
     setIssuing(true);
     setIssueError(null);
-    const attempt = (extra: { rigOverlapCompletedConfirmed?: boolean; plateDeferredConfirmed?: boolean } = {}) => onIssueOrder(row, {
+    const attempt = (extra: { rigOverlapCompletedConfirmed?: boolean; plateDeferredConfirmed?: boolean; kepWeightWarningConfirmed?: boolean } = {}) => onIssueOrder(row, {
       plannedStartAt: startAt.toISOString(),
       plannedEndAt: endAt.toISOString(),
       endTimeConfirmed: true,
@@ -283,6 +283,32 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
         if (proceed) {
           try {
             await attempt({ plateDeferredConfirmed: true });
+            onIssued();
+          } catch (retryError) {
+            const retry = retryError as { message?: string };
+            setIssueError(retry.message
+              || 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.');
+          }
+        } else {
+          setIssueError(err.message ?? 'Đã huỷ phát lệnh.');
+        }
+      } else if (err.status === 409 && (err.raw?.code === 'KEP_WEIGHT_WARNING'
+        || (err as { code?: string }).code === 'KEP_WEIGHT_WARNING'
+        || (err.message?.includes('vượt tải trọng cho phép') ?? false))) {
+        // SIL-674 — the Kẹp pair weight gate is a SOFT warn-once law
+        // (SIL-638 TC6(2)): a total over the rig's capacity refuses ONCE and
+        // the dispatcher's confirmed retry rides `kepWeightWarningConfirmed`.
+        // The warn reached the plan-save, reassign and grid-banner surfaces,
+        // but this hook answered the 409 with a plain dead-end error — both
+        // issue entry points it powers (the row quick-release AND the plan
+        // editor dialog's issue section) showed the DOC text with NO control
+        // to answer it (QA: "dialog KHÔNG có nút vượt qua"). Same family, same
+        // contract as the two arms above.
+        const proceed = await confirm(err.message
+          ?? 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại');
+        if (proceed) {
+          try {
+            await attempt({ kepWeightWarningConfirmed: true });
             onIssued();
           } catch (retryError) {
             const retry = retryError as { message?: string };
