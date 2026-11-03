@@ -82,6 +82,20 @@ interface USearchableFieldProps {
    * pass-through still never open — menuTrigger semantics are unchanged).
    */
   openApiRef?: { current: { open: () => void } | null };
+  /**
+   * SIL-641 residual (id 745, QA fail 03/11): drop the decorative search
+   * glyph from the field's flex row. QA measures the INNER typing box ("ô
+   * nhập trong") of every identity field and they must read equal — the
+   * default SearchLg (16px + gaps + the wrapper's pl-2.5) reserved ~42px
+   * inside the combobox, so its native input measured 517 while the
+   * plain-text sibling measured 557 (Δ40/Δ42 across the two rows). Passing
+   * an empty fragment (not CSS display:none) removes the svg from the DOM,
+   * so the reservation is structurally gone and the absence is pin-able.
+   * House precedent for yielding the glyph: combobox.css already hides it
+   * in containers ≤192px ("Only the default decorative search glyph yields
+   * space"); the searchable affordance stays in the placeholder copy.
+   */
+  hideSearchIcon?: boolean;
 }
 
 export function USearchableField({
@@ -106,6 +120,7 @@ export function USearchableField({
   hideLabel,
   createOption,
   openApiRef,
+  hideSearchIcon,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   const selectedLabel = selected?.label;
@@ -417,6 +432,7 @@ export function USearchableField({
         shortcut={shortcut}
         popoverClassName={popoverClassName}
         className="csc-uui-field csc-control-boundary"
+        {...(hideSearchIcon ? { icon: <></> } : {})}
         {...(openApiRef ? { onReady: (api: { open: () => void }) => { openApiRef.current = api; } } : {})}
       >
         {/* FB-138 — a section item renders as a grouped block (Header +

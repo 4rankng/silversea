@@ -1,0 +1,966 @@
+{
+  "390": {
+    "cells": {
+      "shipment-customer": {
+        "cell": {
+          "x": 16,
+          "y": 265.58,
+          "w": 358,
+          "h": 70,
+          "right": 374,
+          "left": 16
+        },
+        "fieldRoot": {
+          "x": 16,
+          "y": 265.58,
+          "w": 314,
+          "h": 68,
+          "right": 330,
+          "left": 16
+        },
+        "control": {
+          "x": 16,
+          "y": 265.58,
+          "w": 314,
+          "h": 68,
+          "right": 330,
+          "left": 16
+        },
+        "innerInput": {
+          "x": 17,
+          "y": 296.78,
+          "w": 312,
+          "h": 29.59,
+          "right": 329,
+          "left": 17
+        },
+        "innerBox": {
+          "x": 17,
+          "y": 296.78,
+          "w": 312,
+          "h": 29.59,
+          "right": 329,
+          "left": 17
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 27,
+        "slot": {
+          "x": 338,
+          "y": 291.58,
+          "w": 36,
+          "h": 44,
+          "right": 374,
+          "left": 338
+        },
+        "slotTag": "BUTTON",
+        "slotVisibility": "visible",
+        "slotMarginTop": "26px",
+        "slotBorder": "1px",
+        "slotBg": "rgb(255, 255, 255)",
+        "searchGlyph": false
+      },
+      "shipment-trade-direction": {
+        "cell": {
+          "x": 16,
+          "y": 341.58,
+          "w": 358,
+          "h": 66.5,
+          "right": 374,
+          "left": 16
+        },
+        "fieldRoot": {
+          "x": 16,
+          "y": 341.58,
+          "w": 314,
+          "h": 66.5,
+          "right": 330,
+          "left": 16
+        },
+        "control": {
+          "x": 16,
+          "y": 364.08,
+          "w": 314,
+          "h": 44,
+          "right": 330,
+          "left": 16
+        },
+        "innerInput": null,
+        "innerBox": {
+          "x": 16,
+          "y": 364.08,
+          "w": 314,
+          "h": 44,
+          "right": 330,
+          "left": 16
+        },
+        "innerIsNativeInput": false,
+        "innerPadLeft": null,
+        "innerTextStart": null,
+        "slot": {
+          "x": 338,
+          "y": 367.58,
+          "w": 36,
+          "h": 36,
+          "right": 374,
+          "left": 338
+        },
+        "slotTag": "SPAN",
+        "slotVisibility": "hidden",
+        "slotMarginTop": "26px",
+        "slotBorder": "0px",
+        "slotBg": "rgba(0, 0, 0, 0)",
+        "searchGlyph": false
+      },
+      "shipment-booking-ref": {
+        "cell": {
+          "x": 16,
+          "y": 418.08,
+          "w": 358,
+          "h": 90.5,
+          "right": 374,
+          "left": 16
+        },
+        "fieldRoot": {
+          "x": 16,
+          "y": 418.08,
+          "w": 314,
+          "h": 90.5,
+          "right": 330,
+          "left": 16
+        },
+        "control": {
+          "x": 16,
+          "y": 418.08,
+          "w": 314,
+          "h": 90.5,
+          "right": 330,
+          "left": 16
+        },
+        "innerInput": {
+          "x": 17,
+          "y": 443.08,
+          "w": 312,
+          "h": 42,
+          "right": 329,
+          "left": 17
+        },
+        "innerBox": {
+          "x": 17,
+          "y": 443.08,
+          "w": 312,
+          "h": 42,
+          "right": 329,
+          "left": 17
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 12,
+        "innerTextStart": 29,
+        "slot": {
+          "x": 338,
+          "y": 444.08,
+          "w": 36,
+          "h": 36,
+          "right": 374,
+          "left": 338
+        },
+        "slotTag": "SPAN",
+        "slotVisibility": "hidden",
+        "slotMarginTop": "26px",
+        "slotBorder": "0px",
+        "slotBg": "rgba(0, 0, 0, 0)",
+        "searchGlyph": false
+      },
+      "shipment-shipping-line": {
+        "cell": {
+          "x": 16,
+          "y": 514.58,
+          "w": 358,
+          "h": 70,
+          "right": 374,
+          "left": 16
+        },
+        "fieldRoot": {
+          "x": 16,
+          "y": 514.58,
+          "w": 314,
+          "h": 68,
+          "right": 330,
+          "left": 16
+        },
+        "control": {
+          "x": 16,
+          "y": 514.58,
+          "w": 314,
+          "h": 68,
+          "right": 330,
+          "left": 16
+        },
+        "innerInput": {
+          "x": 17,
+          "y": 545.78,
+          "w": 312,
+          "h": 29.59,
+          "right": 329,
+          "left": 17
+        },
+        "innerBox": {
+          "x": 17,
+          "y": 545.78,
+          "w": 312,
+          "h": 29.59,
+          "right": 329,
+          "left": 17
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 27,
+        "slot": {
+          "x": 338,
+          "y": 540.58,
+          "w": 36,
+          "h": 44,
+          "right": 374,
+          "left": 338
+        },
+        "slotTag": "BUTTON",
+        "slotVisibility": "visible",
+        "slotMarginTop": "26px",
+        "slotBorder": "1px",
+        "slotBg": "rgb(255, 255, 255)",
+        "searchGlyph": false
+      }
+    },
+    "glyph": {},
+    "searchIcons": {
+      "identityTotal": 0
+    },
+    "viewport": {
+      "w": 390,
+      "h": 844
+    }
+  },
+  "768": {
+    "cells": {
+      "shipment-customer": {
+        "cell": {
+          "x": 22,
+          "y": 275.58,
+          "w": 349.5,
+          "h": 68,
+          "right": 371.5,
+          "left": 22
+        },
+        "fieldRoot": {
+          "x": 22,
+          "y": 275.58,
+          "w": 305.5,
+          "h": 68,
+          "right": 327.5,
+          "left": 22
+        },
+        "control": {
+          "x": 22,
+          "y": 275.58,
+          "w": 305.5,
+          "h": 68,
+          "right": 327.5,
+          "left": 22
+        },
+        "innerInput": {
+          "x": 23,
+          "y": 309.48,
+          "w": 303.5,
+          "h": 24.19,
+          "right": 326.5,
+          "left": 23
+        },
+        "innerBox": {
+          "x": 23,
+          "y": 309.48,
+          "w": 303.5,
+          "h": 24.19,
+          "right": 326.5,
+          "left": 23
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 33,
+        "slot": {
+          "x": 335.5,
+          "y": 301.58,
+          "w": 36,
+          "h": 36,
+          "right": 371.5,
+          "left": 335.5
+        },
+        "slotTag": "BUTTON",
+        "slotVisibility": "visible",
+        "slotMarginTop": "26px",
+        "slotBorder": "1px",
+        "slotBg": "rgb(255, 255, 255)",
+        "searchGlyph": false
+      },
+      "shipment-trade-direction": {
+        "cell": {
+          "x": 381.5,
+          "y": 275.58,
+          "w": 349.5,
+          "h": 68,
+          "right": 731,
+          "left": 381.5
+        },
+        "fieldRoot": {
+          "x": 381.5,
+          "y": 275.58,
+          "w": 305.5,
+          "h": 66.5,
+          "right": 687,
+          "left": 381.5
+        },
+        "control": {
+          "x": 381.5,
+          "y": 298.08,
+          "w": 305.5,
+          "h": 44,
+          "right": 687,
+          "left": 381.5
+        },
+        "innerInput": null,
+        "innerBox": {
+          "x": 381.5,
+          "y": 298.08,
+          "w": 305.5,
+          "h": 44,
+          "right": 687,
+          "left": 381.5
+        },
+        "innerIsNativeInput": false,
+        "innerPadLeft": null,
+        "innerTextStart": null,
+        "slot": {
+          "x": 695,
+          "y": 301.58,
+          "w": 36,
+          "h": 36,
+          "right": 731,
+          "left": 695
+        },
+        "slotTag": "SPAN",
+        "slotVisibility": "hidden",
+        "slotMarginTop": "26px",
+        "slotBorder": "0px",
+        "slotBg": "rgba(0, 0, 0, 0)",
+        "searchGlyph": false
+      },
+      "shipment-booking-ref": {
+        "cell": {
+          "x": 22,
+          "y": 353.58,
+          "w": 349.5,
+          "h": 90.5,
+          "right": 371.5,
+          "left": 22
+        },
+        "fieldRoot": {
+          "x": 22,
+          "y": 353.58,
+          "w": 305.5,
+          "h": 90.5,
+          "right": 327.5,
+          "left": 22
+        },
+        "control": {
+          "x": 22,
+          "y": 353.58,
+          "w": 305.5,
+          "h": 90.5,
+          "right": 327.5,
+          "left": 22
+        },
+        "innerInput": {
+          "x": 23,
+          "y": 378.58,
+          "w": 303.5,
+          "h": 42,
+          "right": 326.5,
+          "left": 23
+        },
+        "innerBox": {
+          "x": 23,
+          "y": 378.58,
+          "w": 303.5,
+          "h": 42,
+          "right": 326.5,
+          "left": 23
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 33,
+        "slot": {
+          "x": 335.5,
+          "y": 379.58,
+          "w": 36,
+          "h": 36,
+          "right": 371.5,
+          "left": 335.5
+        },
+        "slotTag": "SPAN",
+        "slotVisibility": "hidden",
+        "slotMarginTop": "26px",
+        "slotBorder": "0px",
+        "slotBg": "rgba(0, 0, 0, 0)",
+        "searchGlyph": false
+      },
+      "shipment-shipping-line": {
+        "cell": {
+          "x": 381.5,
+          "y": 353.58,
+          "w": 349.5,
+          "h": 90.5,
+          "right": 731,
+          "left": 381.5
+        },
+        "fieldRoot": {
+          "x": 381.5,
+          "y": 353.58,
+          "w": 305.5,
+          "h": 68,
+          "right": 687,
+          "left": 381.5
+        },
+        "control": {
+          "x": 381.5,
+          "y": 353.58,
+          "w": 305.5,
+          "h": 68,
+          "right": 687,
+          "left": 381.5
+        },
+        "innerInput": {
+          "x": 382.5,
+          "y": 387.48,
+          "w": 303.5,
+          "h": 24.19,
+          "right": 686,
+          "left": 382.5
+        },
+        "innerBox": {
+          "x": 382.5,
+          "y": 387.48,
+          "w": 303.5,
+          "h": 24.19,
+          "right": 686,
+          "left": 382.5
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 392.5,
+        "slot": {
+          "x": 695,
+          "y": 379.58,
+          "w": 36,
+          "h": 36,
+          "right": 731,
+          "left": 695
+        },
+        "slotTag": "BUTTON",
+        "slotVisibility": "visible",
+        "slotMarginTop": "26px",
+        "slotBorder": "1px",
+        "slotBg": "rgb(255, 255, 255)",
+        "searchGlyph": false
+      }
+    },
+    "glyph": {},
+    "searchIcons": {
+      "identityTotal": 0
+    },
+    "viewport": {
+      "w": 768,
+      "h": 1024
+    }
+  },
+  "1366": {
+    "cells": {
+      "shipment-customer": {
+        "cell": {
+          "x": 70,
+          "y": 213.39,
+          "w": 624.5,
+          "h": 62,
+          "right": 694.5,
+          "left": 70
+        },
+        "fieldRoot": {
+          "x": 70,
+          "y": 213.39,
+          "w": 580.5,
+          "h": 54,
+          "right": 650.5,
+          "left": 70
+        },
+        "control": {
+          "x": 70,
+          "y": 213.39,
+          "w": 580.5,
+          "h": 54,
+          "right": 650.5,
+          "left": 70
+        },
+        "innerInput": {
+          "x": 71,
+          "y": 240.3,
+          "w": 578.5,
+          "h": 24.19,
+          "right": 649.5,
+          "left": 71
+        },
+        "innerBox": {
+          "x": 71,
+          "y": 240.3,
+          "w": 578.5,
+          "h": 24.19,
+          "right": 649.5,
+          "left": 71
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 81,
+        "slot": {
+          "x": 658.5,
+          "y": 239.39,
+          "w": 36,
+          "h": 36,
+          "right": 694.5,
+          "left": 658.5
+        },
+        "slotTag": "BUTTON",
+        "slotVisibility": "visible",
+        "slotMarginTop": "26px",
+        "slotBorder": "1px",
+        "slotBg": "rgb(255, 255, 255)",
+        "searchGlyph": false
+      },
+      "shipment-trade-direction": {
+        "cell": {
+          "x": 704.5,
+          "y": 213.39,
+          "w": 624.5,
+          "h": 62,
+          "right": 1329,
+          "left": 704.5
+        },
+        "fieldRoot": {
+          "x": 704.5,
+          "y": 213.39,
+          "w": 580.5,
+          "h": 52.5,
+          "right": 1285,
+          "left": 704.5
+        },
+        "control": {
+          "x": 704.5,
+          "y": 235.89,
+          "w": 580.5,
+          "h": 30,
+          "right": 1285,
+          "left": 704.5
+        },
+        "innerInput": null,
+        "innerBox": {
+          "x": 704.5,
+          "y": 235.89,
+          "w": 580.5,
+          "h": 30,
+          "right": 1285,
+          "left": 704.5
+        },
+        "innerIsNativeInput": false,
+        "innerPadLeft": null,
+        "innerTextStart": null,
+        "slot": {
+          "x": 1293,
+          "y": 239.39,
+          "w": 36,
+          "h": 36,
+          "right": 1329,
+          "left": 1293
+        },
+        "slotTag": "SPAN",
+        "slotVisibility": "hidden",
+        "slotMarginTop": "26px",
+        "slotBorder": "0px",
+        "slotBg": "rgba(0, 0, 0, 0)",
+        "searchGlyph": false
+      },
+      "shipment-booking-ref": {
+        "cell": {
+          "x": 70,
+          "y": 283.39,
+          "w": 624.5,
+          "h": 76.5,
+          "right": 694.5,
+          "left": 70
+        },
+        "fieldRoot": {
+          "x": 70,
+          "y": 283.39,
+          "w": 580.5,
+          "h": 76.5,
+          "right": 650.5,
+          "left": 70
+        },
+        "control": {
+          "x": 70,
+          "y": 283.39,
+          "w": 580.5,
+          "h": 76.5,
+          "right": 650.5,
+          "left": 70
+        },
+        "innerInput": {
+          "x": 71,
+          "y": 308.39,
+          "w": 578.5,
+          "h": 28,
+          "right": 649.5,
+          "left": 71
+        },
+        "innerBox": {
+          "x": 71,
+          "y": 308.39,
+          "w": 578.5,
+          "h": 28,
+          "right": 649.5,
+          "left": 71
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 81,
+        "slot": {
+          "x": 658.5,
+          "y": 309.39,
+          "w": 36,
+          "h": 36,
+          "right": 694.5,
+          "left": 658.5
+        },
+        "slotTag": "SPAN",
+        "slotVisibility": "hidden",
+        "slotMarginTop": "26px",
+        "slotBorder": "0px",
+        "slotBg": "rgba(0, 0, 0, 0)",
+        "searchGlyph": false
+      },
+      "shipment-shipping-line": {
+        "cell": {
+          "x": 704.5,
+          "y": 283.39,
+          "w": 624.5,
+          "h": 76.5,
+          "right": 1329,
+          "left": 704.5
+        },
+        "fieldRoot": {
+          "x": 704.5,
+          "y": 283.39,
+          "w": 580.5,
+          "h": 54,
+          "right": 1285,
+          "left": 704.5
+        },
+        "control": {
+          "x": 704.5,
+          "y": 283.39,
+          "w": 580.5,
+          "h": 54,
+          "right": 1285,
+          "left": 704.5
+        },
+        "innerInput": {
+          "x": 705.5,
+          "y": 310.3,
+          "w": 578.5,
+          "h": 24.19,
+          "right": 1284,
+          "left": 705.5
+        },
+        "innerBox": {
+          "x": 705.5,
+          "y": 310.3,
+          "w": 578.5,
+          "h": 24.19,
+          "right": 1284,
+          "left": 705.5
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 715.5,
+        "slot": {
+          "x": 1293,
+          "y": 309.39,
+          "w": 36,
+          "h": 36,
+          "right": 1329,
+          "left": 1293
+        },
+        "slotTag": "BUTTON",
+        "slotVisibility": "visible",
+        "slotMarginTop": "26px",
+        "slotBorder": "1px",
+        "slotBg": "rgb(255, 255, 255)",
+        "searchGlyph": false
+      }
+    },
+    "glyph": {},
+    "searchIcons": {
+      "identityTotal": 0
+    },
+    "viewport": {
+      "w": 1366,
+      "h": 900
+    }
+  },
+  "1440": {
+    "cells": {
+      "shipment-customer": {
+        "cell": {
+          "x": 270,
+          "y": 213.39,
+          "w": 561.5,
+          "h": 62,
+          "right": 831.5,
+          "left": 270
+        },
+        "fieldRoot": {
+          "x": 270,
+          "y": 213.39,
+          "w": 517.5,
+          "h": 54,
+          "right": 787.5,
+          "left": 270
+        },
+        "control": {
+          "x": 270,
+          "y": 213.39,
+          "w": 517.5,
+          "h": 54,
+          "right": 787.5,
+          "left": 270
+        },
+        "innerInput": {
+          "x": 271,
+          "y": 240.3,
+          "w": 515.5,
+          "h": 24.19,
+          "right": 786.5,
+          "left": 271
+        },
+        "innerBox": {
+          "x": 271,
+          "y": 240.3,
+          "w": 515.5,
+          "h": 24.19,
+          "right": 786.5,
+          "left": 271
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 281,
+        "slot": {
+          "x": 795.5,
+          "y": 239.39,
+          "w": 36,
+          "h": 36,
+          "right": 831.5,
+          "left": 795.5
+        },
+        "slotTag": "BUTTON",
+        "slotVisibility": "visible",
+        "slotMarginTop": "26px",
+        "slotBorder": "1px",
+        "slotBg": "rgb(255, 255, 255)",
+        "searchGlyph": false
+      },
+      "shipment-trade-direction": {
+        "cell": {
+          "x": 841.5,
+          "y": 213.39,
+          "w": 561.5,
+          "h": 62,
+          "right": 1403,
+          "left": 841.5
+        },
+        "fieldRoot": {
+          "x": 841.5,
+          "y": 213.39,
+          "w": 517.5,
+          "h": 52.5,
+          "right": 1359,
+          "left": 841.5
+        },
+        "control": {
+          "x": 841.5,
+          "y": 235.89,
+          "w": 517.5,
+          "h": 30,
+          "right": 1359,
+          "left": 841.5
+        },
+        "innerInput": null,
+        "innerBox": {
+          "x": 841.5,
+          "y": 235.89,
+          "w": 517.5,
+          "h": 30,
+          "right": 1359,
+          "left": 841.5
+        },
+        "innerIsNativeInput": false,
+        "innerPadLeft": null,
+        "innerTextStart": null,
+        "slot": {
+          "x": 1367,
+          "y": 239.39,
+          "w": 36,
+          "h": 36,
+          "right": 1403,
+          "left": 1367
+        },
+        "slotTag": "SPAN",
+        "slotVisibility": "hidden",
+        "slotMarginTop": "26px",
+        "slotBorder": "0px",
+        "slotBg": "rgba(0, 0, 0, 0)",
+        "searchGlyph": false
+      },
+      "shipment-booking-ref": {
+        "cell": {
+          "x": 270,
+          "y": 283.39,
+          "w": 561.5,
+          "h": 76.5,
+          "right": 831.5,
+          "left": 270
+        },
+        "fieldRoot": {
+          "x": 270,
+          "y": 283.39,
+          "w": 517.5,
+          "h": 76.5,
+          "right": 787.5,
+          "left": 270
+        },
+        "control": {
+          "x": 270,
+          "y": 283.39,
+          "w": 517.5,
+          "h": 76.5,
+          "right": 787.5,
+          "left": 270
+        },
+        "innerInput": {
+          "x": 271,
+          "y": 308.39,
+          "w": 515.5,
+          "h": 28,
+          "right": 786.5,
+          "left": 271
+        },
+        "innerBox": {
+          "x": 271,
+          "y": 308.39,
+          "w": 515.5,
+          "h": 28,
+          "right": 786.5,
+          "left": 271
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 281,
+        "slot": {
+          "x": 795.5,
+          "y": 309.39,
+          "w": 36,
+          "h": 36,
+          "right": 831.5,
+          "left": 795.5
+        },
+        "slotTag": "SPAN",
+        "slotVisibility": "hidden",
+        "slotMarginTop": "26px",
+        "slotBorder": "0px",
+        "slotBg": "rgba(0, 0, 0, 0)",
+        "searchGlyph": false
+      },
+      "shipment-shipping-line": {
+        "cell": {
+          "x": 841.5,
+          "y": 283.39,
+          "w": 561.5,
+          "h": 76.5,
+          "right": 1403,
+          "left": 841.5
+        },
+        "fieldRoot": {
+          "x": 841.5,
+          "y": 283.39,
+          "w": 517.5,
+          "h": 54,
+          "right": 1359,
+          "left": 841.5
+        },
+        "control": {
+          "x": 841.5,
+          "y": 283.39,
+          "w": 517.5,
+          "h": 54,
+          "right": 1359,
+          "left": 841.5
+        },
+        "innerInput": {
+          "x": 842.5,
+          "y": 310.3,
+          "w": 515.5,
+          "h": 24.19,
+          "right": 1358,
+          "left": 842.5
+        },
+        "innerBox": {
+          "x": 842.5,
+          "y": 310.3,
+          "w": 515.5,
+          "h": 24.19,
+          "right": 1358,
+          "left": 842.5
+        },
+        "innerIsNativeInput": true,
+        "innerPadLeft": 10,
+        "innerTextStart": 852.5,
+        "slot": {
+          "x": 1367,
+          "y": 309.39,
+          "w": 36,
+          "h": 36,
+          "right": 1403,
+          "left": 1367
+        },
+        "slotTag": "BUTTON",
+        "slotVisibility": "visible",
+        "slotMarginTop": "26px",
+        "slotBorder": "1px",
+        "slotBg": "rgb(255, 255, 255)",
+        "searchGlyph": false
+      }
+    },
+    "glyph": {},
+    "searchIcons": {
+      "identityTotal": 0
+    },
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    }
+  }
+}

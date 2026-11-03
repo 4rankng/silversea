@@ -1,0 +1,90 @@
+PHASE=after HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175
+LOGIN ok role=cus account=tiepvv
+W=1440
+  shipment-customer: cell=561.5 innerBox=515.5(native-input) textStart=281 slot=36/visible glyph=false
+  shipment-trade-direction: cell=561.5 innerBox=517.5(trigger) textStart=null slot=36/hidden glyph=false
+  shipment-booking-ref: cell=561.5 innerBox=515.5(native-input) textStart=281 slot=36/hidden glyph=false
+  shipment-shipping-line: cell=561.5 innerBox=515.5(native-input) textStart=852.5 slot=36/visible glyph=false
+PASS W1440 AC1 inner boxes: KH vs XNK Δ≤2 — Δ=2
+PASS W1440 AC1 inner boxes: Bill vs Hãng tàu Δ≤2 — Δ=0
+PASS W1440 AC1 inner boxes: KH vs Bill Δ≤2 — Δ=0
+PASS W1440 AC1 columns (cells) Δ≤2 — row1 Δ=0 row2 Δ=0
+PASS W1440 '+' Khách hàng: slot bắt đầu sau field đúng gap 8 — gap=8
+PASS W1440 '+' Khách hàng: không trôi qua mép ô (overrun ≤0.5) — overrun=0
+PASS W1440 '+' Khách hàng: chip nhìn thấy được (border 1px, bg đặc) — border=1px bg=rgb(255, 255, 255)
+PASS W1440 '+' Khách hàng: slot 36px — w=36
+PASS W1440 pencil Hãng tàu: slot bắt đầu sau field đúng gap 8 — gap=8
+PASS W1440 pencil Hãng tàu: không trôi qua mép ô (overrun ≤0.5) — overrun=0
+PASS W1440 pencil Hãng tàu: chip nhìn thấy được (border 1px, bg đặc) — border=1px bg=rgb(255, 255, 255)
+PASS W1440 pencil Hãng tàu: slot 36px — w=36
+PASS W1440 AC4 Hình thức XNK: placeholder slot 36 + hidden + cùng margin-top — w=36 vis=hidden mt=26px (btn mt=26px)
+PASS W1440 AC4 Số Bill/Booking: placeholder slot 36 + hidden + cùng margin-top — w=36 vis=hidden mt=26px (btn mt=26px)
+PASS W1440 text parity: chữ KH bắt đầu = chữ Bill (±2) — Δ=0
+PASS W1440 không còn search glyph trong section — count=0
+W=1366
+  shipment-customer: cell=624.5 innerBox=578.5(native-input) textStart=81 slot=36/visible glyph=false
+  shipment-trade-direction: cell=624.5 innerBox=580.5(trigger) textStart=null slot=36/hidden glyph=false
+  shipment-booking-ref: cell=624.5 innerBox=578.5(native-input) textStart=81 slot=36/hidden glyph=false
+  shipment-shipping-line: cell=624.5 innerBox=578.5(native-input) textStart=715.5 slot=36/visible glyph=false
+PASS W1366 AC1 inner boxes: KH vs XNK Δ≤2 — Δ=2
+PASS W1366 AC1 inner boxes: Bill vs Hãng tàu Δ≤2 — Δ=0
+PASS W1366 AC1 inner boxes: KH vs Bill Δ≤2 — Δ=0
+PASS W1366 AC1 columns (cells) Δ≤2 — row1 Δ=0 row2 Δ=0
+PASS W1366 '+' Khách hàng: slot bắt đầu sau field đúng gap 8 — gap=8
+PASS W1366 '+' Khách hàng: không trôi qua mép ô (overrun ≤0.5) — overrun=0
+PASS W1366 '+' Khách hàng: chip nhìn thấy được (border 1px, bg đặc) — border=1px bg=rgb(255, 255, 255)
+PASS W1366 '+' Khách hàng: slot 36px — w=36
+PASS W1366 pencil Hãng tàu: slot bắt đầu sau field đúng gap 8 — gap=8
+PASS W1366 pencil Hãng tàu: không trôi qua mép ô (overrun ≤0.5) — overrun=0
+PASS W1366 pencil Hãng tàu: chip nhìn thấy được (border 1px, bg đặc) — border=1px bg=rgb(255, 255, 255)
+PASS W1366 pencil Hãng tàu: slot 36px — w=36
+PASS W1366 AC4 Hình thức XNK: placeholder slot 36 + hidden + cùng margin-top — w=36 vis=hidden mt=26px (btn mt=26px)
+PASS W1366 AC4 Số Bill/Booking: placeholder slot 36 + hidden + cùng margin-top — w=36 vis=hidden mt=26px (btn mt=26px)
+PASS W1366 text parity: chữ KH bắt đầu = chữ Bill (±2) — Δ=0
+PASS W1366 không còn search glyph trong section — count=0
+W=768
+  shipment-customer: cell=349.5 innerBox=303.5(native-input) textStart=33 slot=36/visible glyph=false
+  shipment-trade-direction: cell=349.5 innerBox=305.5(trigger) textStart=null slot=36/hidden glyph=false
+  shipment-booking-ref: cell=349.5 innerBox=303.5(native-input) textStart=33 slot=36/hidden glyph=false
+  shipment-shipping-line: cell=349.5 innerBox=303.5(native-input) textStart=392.5 slot=36/visible glyph=false
+PASS W768 AC1 inner boxes: KH vs XNK Δ≤2 — Δ=2
+PASS W768 AC1 inner boxes: Bill vs Hãng tàu Δ≤2 — Δ=0
+PASS W768 AC1 inner boxes: KH vs Bill Δ≤2 — Δ=0
+PASS W768 AC1 columns (cells) Δ≤2 — row1 Δ=0 row2 Δ=0
+PASS W768 '+' Khách hàng: slot bắt đầu sau field đúng gap 8 — gap=8
+PASS W768 '+' Khách hàng: không trôi qua mép ô (overrun ≤0.5) — overrun=0
+PASS W768 '+' Khách hàng: chip nhìn thấy được (border 1px, bg đặc) — border=1px bg=rgb(255, 255, 255)
+PASS W768 '+' Khách hàng: slot 36px — w=36
+PASS W768 pencil Hãng tàu: slot bắt đầu sau field đúng gap 8 — gap=8
+PASS W768 pencil Hãng tàu: không trôi qua mép ô (overrun ≤0.5) — overrun=0
+PASS W768 pencil Hãng tàu: chip nhìn thấy được (border 1px, bg đặc) — border=1px bg=rgb(255, 255, 255)
+PASS W768 pencil Hãng tàu: slot 36px — w=36
+PASS W768 AC4 Hình thức XNK: placeholder slot 36 + hidden + cùng margin-top — w=36 vis=hidden mt=26px (btn mt=26px)
+PASS W768 AC4 Số Bill/Booking: placeholder slot 36 + hidden + cùng margin-top — w=36 vis=hidden mt=26px (btn mt=26px)
+PASS W768 text parity: chữ KH bắt đầu = chữ Bill (±2) — Δ=0
+PASS W768 không còn search glyph trong section — count=0
+W=390
+  shipment-customer: cell=358 innerBox=312(native-input) textStart=27 slot=36/visible glyph=false
+  shipment-trade-direction: cell=358 innerBox=314(trigger) textStart=null slot=36/hidden glyph=false
+  shipment-booking-ref: cell=358 innerBox=312(native-input) textStart=29 slot=36/hidden glyph=false
+  shipment-shipping-line: cell=358 innerBox=312(native-input) textStart=27 slot=36/visible glyph=false
+PASS W390 AC1 inner boxes: KH vs XNK Δ≤2 — Δ=2
+PASS W390 AC1 inner boxes: Bill vs Hãng tàu Δ≤2 — Δ=0
+PASS W390 AC1 inner boxes: KH vs Bill Δ≤2 — Δ=0
+PASS W390 AC1 columns (cells) Δ≤2 — row1 Δ=0 row2 Δ=0
+PASS W390 '+' Khách hàng: slot bắt đầu sau field đúng gap 8 — gap=8
+PASS W390 '+' Khách hàng: không trôi qua mép ô (overrun ≤0.5) — overrun=0
+PASS W390 '+' Khách hàng: chip nhìn thấy được (border 1px, bg đặc) — border=1px bg=rgb(255, 255, 255)
+PASS W390 '+' Khách hàng: slot 36px — w=36
+PASS W390 pencil Hãng tàu: slot bắt đầu sau field đúng gap 8 — gap=8
+PASS W390 pencil Hãng tàu: không trôi qua mép ô (overrun ≤0.5) — overrun=0
+PASS W390 pencil Hãng tàu: chip nhìn thấy được (border 1px, bg đặc) — border=1px bg=rgb(255, 255, 255)
+PASS W390 pencil Hãng tàu: slot 36px — w=36
+PASS W390 AC4 Hình thức XNK: placeholder slot 36 + hidden + cùng margin-top — w=36 vis=hidden mt=26px (btn mt=26px)
+PASS W390 AC4 Số Bill/Booking: placeholder slot 36 + hidden + cùng margin-top — w=36 vis=hidden mt=26px (btn mt=26px)
+PASS W390 text parity: chữ KH bắt đầu = chữ Bill (±2) — Δ=2
+PASS W390 không còn search glyph trong section — count=0
+METRICS-SAVED qa/2026-11-03_sil641/after/dom-metrics-after.json
+DB-SIDE-EFFECT read-only drive: shipments count before=671 after=671 (expect equal)
+PASS DB: drive không tạo/sửa lot (read-only layout drive) — 671 → 671
+RESULT GREEN failures=0

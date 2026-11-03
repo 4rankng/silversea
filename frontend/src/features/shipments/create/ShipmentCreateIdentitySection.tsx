@@ -98,6 +98,11 @@ export function ShipmentCreateIdentitySection({
             popoverClassName="csc-customer-popover"
             optionClassName="csc-customer-option"
             searchable
+            // SIL-641 residual (id 745): the decorative search glyph reserved
+            // ~42px inside the flex row, so this field's inner typing box
+            // measured 40px narrower than the plain-text sibling across the
+            // row (QA Δ42/Δ40, 03/11). See hideSearchIcon on USearchableField.
+            hideSearchIcon
             {...(form.isAdHoc && customerCustomText ? { onCustomValue: customerCustomText } : {})}
           />
           <button
@@ -208,6 +213,9 @@ export function ShipmentCreateIdentitySection({
               // The affordances keep their names: the pencil button's
               // aria-label/title still says what it adds.
               searchable
+              // SIL-641 residual (id 745): same inner-box parity as the
+              // customer field — see hideSearchIcon on USearchableField.
+              hideSearchIcon
             />
             <button
               ref={shippingLineAddButtonRef as RefObject<HTMLButtonElement>}
