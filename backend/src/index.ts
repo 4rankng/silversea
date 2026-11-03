@@ -53,7 +53,7 @@ import { uploadRouter, photosRouter } from './routes/upload';
 import ocrRoutes from './routes/ocr';
 import mapsRoutes from './routes/maps';
 import notificationRoutes from './routes/notifications';
-import opsRoutes from './routes/ops';
+import opsRoutes, { settlementsListAliasRoutes } from './routes/ops';
 import accountingRoutes from './routes/accounting';
 import accountingDepositRoutes from './routes/accounting-deposit';
 import accountingDebitRoutes from './routes/accounting-debit';
@@ -219,6 +219,10 @@ app.use('/api/forwarder/me', authMiddleware, casbinAuthz('operations_portal'), f
 // the router (OPS portal routes / ADMIN·MANAGER·ACCOUNTANT approvals /
 // ADMIN-only truck assignment), so no Casbin resource is introduced here.
 app.use('/api/ops', authMiddleware, opsRoutes);
+// SIL-676: the plain settlements path is a registered alias of the ops self
+// list (same gate inside the router) — mounted here so /api/settlements stops
+// falling to the 404 catch-all below.
+app.use('/api/settlements', authMiddleware, settlementsListAliasRoutes);
 app.use('/api/accounting', authMiddleware, casbinAuthz('accounting'), accountingRoutes);
 app.use('/api/accounting/deposits', authMiddleware, casbinAuthz('accounting'), accountingDepositRoutes);
 // Card 20260921_21 — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP (chot-debit CORE); mounted

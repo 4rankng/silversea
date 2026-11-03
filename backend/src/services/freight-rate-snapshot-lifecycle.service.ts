@@ -69,11 +69,14 @@ const MANUAL_ZERO_RESULT: Omit<ResolvedFreightRate, 'formula'> = {
 };
 
 /**
- * `resolveFreightRate`, but engine lookups that miss (missing terms / base
- * price / norm / fuel period, incl. the lag-before-first-period edge) degrade
- * to a MANUAL result instead of throwing — the pricing wave must never block
- * shipment intake or dispatch. The engine's Vietnamese error message becomes
- * the formula hint shown to CUS/accounting.
+ * `resolveFreightRate`, but the engine's one remaining lookup miss (terms —
+ * customer × route × transport date unconfigured) degrades to a MANUAL result
+ * instead of throwing — the pricing wave must never block shipment intake or
+ * dispatch. Every LATER parameter miss (base price, vehicle class, norm, fuel
+ * period) already returns MANUAL from inside the engine carrying the trace ids
+ * resolved so far (SIL-676), so `MANUAL_ZERO_RESULT`'s zeroed ids are truthful
+ * here: rateTermsId 0 ⟺ the terms lookup itself missed. The engine's
+ * Vietnamese error message becomes the formula hint shown to CUS/accounting.
  */
 export async function resolveFreightRateWithManualFallback(
   input: ResolveFreightRateInput,

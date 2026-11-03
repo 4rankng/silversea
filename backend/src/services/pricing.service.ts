@@ -30,6 +30,7 @@ import { computeFuelSurcharge, computeTripTotals, FuelMode } from '@tingting/sha
 import type { FuelSurchargeSnapshot } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { resolveFuelNorm } from './fuel.service';
+import { partitionTablePricingLane, pickTablePricingRow } from './pricing-table-selection';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -627,20 +628,16 @@ async function resolveTablePrice(
     lte(s.pricingTables.effectiveDate, input.date),
     isNull(s.pricingTables.deletedAt),
   ];
-  const findLatest = (selector: SQL) => db.select()
-    .from(s.pricingTables)
-    .where(and(...baseConditions, selector))
-    .orderBy(desc(s.pricingTables.effectiveDate), desc(s.pricingTables.id));
-  const [containerRate] = input.containerTypeId != null
-    ? await findLatest(eq(s.pricingTables.containerTypeId, input.containerTypeId)).limit(1)
-    : [];
-  const [rateClass] = containerRate || requestedRateKey == null
-    ? []
-    : await findLatest(eq(s.pricingTables.rateKey, requestedRateKey)).limit(1);
-  const [generalRate] = containerRate || rateClass
-    ? []
-    : await findLatest(and(isNull(s.pricingTables.containerTypeId), isNull(s.pricingTables.rateKey))!).limit(1);
-  const pricing = containerRate ?? rateClass ?? generalRate;
+  // SIL-676: ONE lane read, partitioned + selected by the pure law
+  // (pricing-table-selection.ts) — explicit selectors resolve exactly, the
+  // selector-less legacy callers resolve the lane's head row instead of 0.
+  const laneRows = await db.select().from(s.pricingTables).where(and(...baseConditions));
+  const buckets = partitionTablePricingLane(laneRows, input.containerTypeId ?? null, requestedRateKey);
+  const selection = pickTablePricingRow(buckets, {
+    containerTypeId: input.containerTypeId ?? null,
+    pricingRateKey: requestedRateKey,
+  });
+  const pricing = selection.row;
 
   if (!pricing) {
     return {
