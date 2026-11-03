@@ -43,10 +43,13 @@
    SIL-639 (id 743, owner 31/10): the field's "Ngày giờ đóng trả *" label
    rides INLINE — label trái, the two segment inputs phải, ONE control row —
    the same pattern as the "Loại hàng *" fieldset beside it (legend compact
-   tokens, baseline-aligned bottom edge). SIL-637's hide is superseded; the
-   group's aria-label and the required validation are untouched. flex-wrap
-   stacks label above inputs on phones where the pair cannot share a line. */
-.csc-lcl-delivery { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px; min-width: 0; }
+   tokens). SIL-637's hide is superseded; the group's aria-label and the
+   required validation are untouched. flex-wrap stacks label above inputs on
+   phones where the pair cannot share a line. SIL-663 (id 770): the row
+   aligns items CENTER — the label's vertical center coincides with the
+   control's (bottom-align measured 6px label-low in QA); the touch bands
+   below keep their explicit center guards. */
+.csc-lcl-delivery { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-width: 0; }
 .csc-lcl-delivery .split-datetime__label { font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); color: var(--fg-1); white-space: nowrap; }
 .csc-lcl-delivery .csc-uui-field { flex: 0 1 auto; min-width: 0; width: auto; }
 @media (max-width: 640px) {
@@ -214,12 +217,13 @@
 /* Cards 211026130215/30315: the top-of-form mode band — the segmented Loại
    hàng control and the SIL-587 "Ngày giờ đóng trả" field (one always-visible
    datetime, no reveal) share a row so both sit trước mắt the moment the form
-   opens; they wrap to a stack on narrow screens. SIL-604 (id 707): flex-end
-   bottom-aligns the children so the segmented control and the datetime's
-   HH:mm / DD/MM/YYYY segment inputs share one baseline row (§10.8.2: one
-   control line, no drift) — flex-start left the segmented floating ~22px
-   above the segments once the band stopped wrapping. */
-.csc-mode-band__row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 24px; min-width: 0; }
+   opens; they wrap to a stack on narrow screens. SIL-604 (id 707) chose
+   flex-end to share one control bottom line; SIL-663 (id 770) supersedes the
+   vertical axis: the band's control shells are all exactly --uui-control-h
+   (SIL-616 geometry law), so CENTER alignment keeps the identical one-baseline
+   row while the 18px labels center against the 30px shells instead of
+   bottom-aligning (QA staging: label center 6px below control center). */
+.csc-mode-band__row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; min-width: 0; }
 /* SIL-604 (deepseek second opinion 30/10 — "never let error messages
    participate in flex baseline"): flex-end aligns CONTROL bottoms; an
    in-flow validation line under the datetime would sink the segmented
@@ -234,11 +238,25 @@
 .csc-mode-band__row .csc-cargo-choice-grid { flex: 0 0 auto; }
 .csc-mode-band__row .csc-lcl-delivery { flex: 1 1 220px; }
 /* SIL-662 (id 768): on desktop viewports (≥1024px), "Ngày giờ đóng trả"
-   must always share the same row with "Loại hàng" — legend floats beside
-   the segmented buttons so both groups sit on one baseline line. */
+   must always share the same row with "Loại hàng" — the legend rides the
+   segmented control's line so both groups sit on one line.
+   SIL-663 (id 770): the legend is vertically CENTERED against the shell.
+   Chrome renders an in-flow fieldset legend as a stacked special slot box
+   (SIL-662 finding; display:inline is forced back to block by the slot), so
+   the legend's content joins the fieldset's inline flow via display:
+   contents and both inline boxes center mutually with vertical-align:
+   middle — the same items-center law the row uses, expressed in the line
+   box. No margins, no pixel offsets; it adapts to any control height
+   (30px compact, 44px touch) because the midpoints coincide by
+   construction. The legend element stays the fieldset's first child, so
+   the accessible name is untouched (verified: group name 'Loại hàng *'
+   semantics unchanged; the * is aria-hidden before and after). nowrap
+   keeps legend + shell on one line; the shell's 10px left margin is the
+   label→control gap the float's margin-right used to provide. */
 @media (min-width: 1024px) {
-  .csc-mode { display: block; }
-  .csc-mode legend { float: left; margin: 12px 10px 0 0; }
+  .csc-mode { display: block; white-space: nowrap; }
+  .csc-mode legend { display: contents; vertical-align: middle; }
+  .csc-mode > div { vertical-align: middle; margin-left: 10px; }
   .csc-mode-band__row { gap: 10px; flex-wrap: nowrap; }
 }
 /* SIL-616 (id 720, owner 31/10): every segmented datetime group in the band

@@ -555,9 +555,11 @@ describe('create-page whole-sheet density (SIL-534)', () => {
   it('field stacks, flags and notes keep the compact rhythm', () => {
     expect(css).toMatch(/\.csc-searchable-field \{ display: grid; gap: 6px;/);
     expect(css).toMatch(/repeat\(12, minmax\(0, 1fr\)\); gap: 6px 10px;/);
-    // SIL-604 (id 707): flex-end bottom-aligns the band children so the
-    // segmented control and the datetime segments share one baseline row.
-    expect(css).toMatch(/\.csc-mode-band__row \{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 24px;/);
+    // SIL-604 (id 707) chose flex-end for one control bottom line; SIL-663
+    // (id 770, owner) supersedes the vertical axis: the shells are all
+    // --uui-control-h (SIL-616), so center keeps the identical baseline row
+    // while labels center against the controls instead of bottom-aligning.
+    expect(css).toMatch(/\.csc-mode-band__row \{ display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px;/);
     expect(css).toMatch(/\.csc-notes-grid \{ display: grid; grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); align-items: start; gap: 8px;/);
     expect(css).toMatch(/\.csc-section textarea \{ width: 100%; min-height: 60px;/);
     expect(css).toMatch(/\.csc-flag-checkbox \{ display: inline-flex; align-items: center; gap: 8px; min-width: 0; min-height: 30px;/);
