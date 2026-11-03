@@ -175,6 +175,6 @@ export function useSearchableSelectPosition({
       window.removeEventListener('resize', positionPopover);
       window.removeEventListener('scroll', positionPopover, true);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- caller-provided deps array is spread verbatim; exhaustive-deps cannot verify spreads (isOpen/positionPopover are already listed)
   }, [isOpen, positionPopover, ...dependencies]);
 }

@@ -75,7 +75,7 @@ export function TruckFormModal({
       setInsuranceExpiryDate(item?.insuranceExpiryDate ?? "");
       setNote(item?.note || "");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-seed only when the modal opens or the target truck ID changes, not on every prop update
   }, [isOpen, item?.id]);
 
   const alerts = computeVehicleAlerts({

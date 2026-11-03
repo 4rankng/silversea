@@ -27,6 +27,12 @@ const ROUTE_OPERATIONAL_NAME = operationalName(s.routes.shortName, s.routes.name
  * range so per-cont values always sort first.
  */
 const CONTAINER_ORD_BASE = 1_000_000;
+// This constant is interpolated into SQL via sql.raw, so it must stay a plain
+// integer constant — never user-derived input — or the raw path becomes an
+// SQL injection hatch. Fail fast on any future edit that breaks that invariant.
+if (!Number.isInteger(CONTAINER_ORD_BASE)) {
+  throw new Error('CONTAINER_ORD_BASE must be an integer before it can be used in sql.raw');
+}
 const lotDeclarationNumbersSql = (shipmentIdExpr: SQL): SQL<string | null> => sql<string | null>`(
   SELECT string_agg(kept.declaration_number, ', ' ORDER BY kept.ord)
   FROM (

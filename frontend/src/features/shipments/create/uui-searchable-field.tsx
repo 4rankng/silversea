@@ -215,7 +215,7 @@ export function USearchableField({
     const fromLiveTyping = typingSessionLive
       && normalizeSearchText(selectedLabel ?? '') === normalizeSearchText(typedText);
     setChosenKey(fromLiveTyping ? null : selected?.value ?? null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- sync runs on pick events only (value/selectedLabel); typedText/typingSessionLive must not re-run it (typing-session law above)
   }, [value, selectedLabel]);
   // 20260922_4: bare Enter (menu open, no highlighted option) commits the
   // UNIQUE filtered match — the same predicate/normalization the menu itself

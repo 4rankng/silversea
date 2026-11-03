@@ -40,7 +40,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
       setCuocDueDays(item?.cuocDueDays != null ? String(item.cuocDueDays) : '');
       setTypes(item?.types ?? []);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-seed only when the modal opens or the target supplier ID changes, not on every prop update
   }, [isOpen, item?.id]);
 
   const handleSave = () => {
