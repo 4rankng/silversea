@@ -103,10 +103,14 @@
   .csc-topline { margin-bottom: 12px; }
 
   /* Loại hàng: legend rides the segmented control's line (was stacked).
-     Chrome renders a flex fieldset's legend as a stacked special box, so
-     the legend floats beside the control instead — same tree, one line. */
-  .csc-mode { display: block; }
-  .csc-mode legend { float: left; margin: 12px 10px 0 0; }
+     Chrome renders an in-flow fieldset legend as a stacked special slot box,
+     so the legend's content joins the inline flow via display: contents and
+     centers mutually with the shell through vertical-align: middle —
+     SIL-663 (id 770), same law as the base sheet's ≥1024 block: no margins,
+     no pixel offsets, any control height. */
+  .csc-mode { display: block; white-space: nowrap; }
+  .csc-mode legend { display: contents; vertical-align: middle; }
+  .csc-mode > div { vertical-align: middle; margin-left: 10px; }
   .csc-mode-band__row { gap: 10px; }
 
   /* Section band 36px: title + description share ONE nowrap line (the

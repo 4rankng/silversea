@@ -183,9 +183,10 @@ describe('SIL-616 — band control height pins (styles)', () => {
 
   it('SIL-639: the LCL band label rides INLINE — label trái, control phải, one row', () => {
     // The band is a wrapping flex row (label a flex SIBLING of the field
-    // group), bottom-aligned so the label shares the control baseline — the
-    // "Loại hàng *" pattern — and never a stacked label-over-control grid.
-    expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px 12px; min-width: 0; \}/);
+    // group). SIL-639 pinned bottom-alignment; SIL-663 (id 770) supersedes
+    // the vertical axis — the row centers the label against the control —
+    // and never a stacked label-over-control grid.
+    expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \{ display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-width: 0; \}/);
     // The label wears the same compact tokens as the "Loại hàng" legend.
     expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \.split-datetime__label \{ font-size: var\(--control-compact-font-size\); font-weight: 700; line-height: var\(--control-compact-line-height\); color: var\(--fg-1\); white-space: nowrap; \}/);
     // Phones keep the shared touch tokens when the label wraps above the pair.
@@ -206,8 +207,11 @@ describe('SIL-616 — band control height pins (styles)', () => {
   });
 
   it('SIL-662: desktop ≥1024px keeps Loại hàng and Ngày giờ đóng trả in one row (legend inline, nowrap, vertical center at ≤640/768)', () => {
-    // Desktop: legend floated beside buttons, gap 10px, row nowrap
-    expect(PAGE_CSS).toMatch(/@media \(min-width: 1024px\) \{\s*\.csc-mode \{ display: block; \}\s*\.csc-mode legend \{ float: left; margin: 12px 10px 0 0; \}\s*\.csc-mode-band__row \{ gap: 10px; flex-wrap: nowrap; \}\s*\}/);
+    // Desktop: the legend's content joins the inline flow (display:contents,
+    // Chrome slots any in-flow legend box) and centers mutually with the
+    // shell via vertical-align: middle — the SIL-663 (id 770) items-center
+    // law in the line box; no float margin survives.
+    expect(PAGE_CSS).toMatch(/@media \(min-width: 1024px\) \{\s*\.csc-mode \{ display: block; white-space: nowrap; \}\s*\.csc-mode legend \{ display: contents; vertical-align: middle; \}\s*\.csc-mode > div \{ vertical-align: middle; margin-left: 10px; \}\s*\.csc-mode-band__row \{ gap: 10px; flex-wrap: nowrap; \}\s*\}/);
     // Touch screens: label vertically centered with the 44px touch inputs
     expect(PAGE_CSS).toMatch(/@media \(max-width: 640px\) \{[\s\S]*?\.csc-lcl-delivery \{ align-items: center; \}/);
     expect(PAGE_CSS).toMatch(/@media \(max-width: 768px\) \{\s*\.csc-lcl-delivery \{ align-items: center; \}\s*\}/);
