@@ -302,19 +302,43 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
   };
 
   /** One photo slot: a plain-tile button when populated (opens the viewer),
-   *  the labelled placeholder when empty — never an empty button. */
-  const attachmentTile = (photoKey: string | null, label: string) => photoKey ? (
-    <button
-      type="button"
-      className="dcc-bento__tile-btn"
-      aria-label={`Xem ảnh ${label.toLowerCase()}`}
-      onClick={(e) => openViewer(photoKey, e.currentTarget)}
-    >
-      {renderThumb(photoKey, label)}
-    </button>
-  ) : (
-    renderThumb(photoKey, label)
-  );
+   *  the clickable placeholder button when empty (opens capture sheet),
+   *  or static placeholder when readOnly. */
+  const attachmentTile = (
+    photoKey: string | null,
+    label: string,
+    sheetTarget?: 'CONTAINER' | 'SEAL',
+  ) => {
+    if (photoKey) {
+      return (
+        <button
+          type="button"
+          className="dcc-bento__tile-btn"
+          aria-label={`Xem ảnh ${label.toLowerCase()}`}
+          onClick={(e) => openViewer(photoKey, e.currentTarget)}
+        >
+          {renderThumb(photoKey, label)}
+        </button>
+      );
+    }
+
+    if (!readOnly && sheetTarget) {
+      const isUploading = sheetTarget === 'CONTAINER' ? uploading.cont : uploading.seal;
+      return (
+        <button
+          type="button"
+          className="dcc-bento__tile-btn dcc-bento__tile-btn--empty"
+          aria-label={`Thêm ảnh ${label.toLowerCase()}`}
+          disabled={isUploading}
+          onClick={() => setSheetType(sheetTarget)}
+        >
+          {renderThumb(photoKey, label, isUploading)}
+        </button>
+      );
+    }
+
+    return renderThumb(photoKey, label);
+  };
 
   const handleSave = async () => {
     if (readOnly || saving || uploading.cont || uploading.seal || uploadingNote) return;
@@ -450,8 +474,8 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
             <div className="dcc-bento__photos">
               <div className="dcc-bento__eyebrow">Hình ảnh</div>
               <div className="dcc-bento__thumbs">
-                {attachmentTile(effectiveContKey, 'Cont')}
-                {attachmentTile(effectiveSealKey, 'Seal')}
+                {attachmentTile(effectiveContKey, 'Cont', 'CONTAINER')}
+                {attachmentTile(effectiveSealKey, 'Seal', 'SEAL')}
                 {/* Every biên bản photo is its own slot with its own delete —
                     the photo block is the single display + management surface
                     for all 3 types, and an upload never replaces its
@@ -484,33 +508,9 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                   );
                 })}
               </div>
-              {/* Ghost retake affordances under the saved slots — one style,
-                  ≥44px touch on coarse pointers (design spec photo block).
-                  Card 051026230636: all three zones get the entry here — the
-                  photo block is the single management surface, and Cont/Seal
-                  previously uploaded ONLY from the (unmounted) edit form. */}
-              {!readOnly && (
-                <>
-                  <button
-                    type="button"
-                    className="dcc-capture-btn dcc-capture-btn--primary dcc-capture-btn--note"
-                    disabled={uploading.cont}
-                    onClick={() => setSheetType('CONTAINER')}
-                  >
-                    {uploading.cont ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                    <span>Thêm ảnh cont</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="dcc-capture-btn dcc-capture-btn--primary dcc-capture-btn--note"
-                    disabled={uploading.seal}
-                    onClick={() => setSheetType('SEAL')}
-                  >
-                    {uploading.seal ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
-                    <span>Thêm ảnh seal</span>
-                  </button>
-                </>
-              )}
+              {/* Card SIL-665: Cont and Seal upload directly from their placeholder
+                  frames; only biên bản (which supports multiple uploads without a
+                  fixed empty slot) retains its standalone Thêm ảnh button. */}
               {!readOnly && (
                 <button
                   type="button"

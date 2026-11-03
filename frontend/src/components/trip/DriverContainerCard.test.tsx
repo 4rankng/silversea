@@ -583,3 +583,88 @@ describe('DriverContainerCard — DRI-03 kẹp driver view (2 containers)', () =
     expect(mismatch.textContent).toContain('MSKU7654328');
   });
 });
+
+/* ─── SIL-665 — Clickable Cont/Seal placeholder frames (bento view) ──────
+ * In the saved bento view, the Cont and Seal placeholder frames are clickable
+ * buttons that directly open the action sheet (Chụp ảnh / Chọn từ thư viện),
+ * eliminating the redundant separate "Thêm ảnh cont" and "Thêm ảnh seal"
+ * buttons under the slots. Standalone "Thêm ảnh biên bản" remains. */
+describe('DriverContainerCard — SIL-665 clickable cont/seal photo frames', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('clicking empty Cont frame opens CONTAINER action sheet', async () => {
+    stubPhotoTransport();
+    renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    const contFrame = await screen.findByRole('button', { name: 'Thêm ảnh cont' });
+    expect(contFrame).toHaveClass('dcc-bento__tile-btn--empty');
+    expect(contFrame.textContent).toContain('Cont');
+
+    fireEvent.click(contFrame);
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm ảnh cont' });
+    expect(dialog).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Chụp ảnh' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Chọn từ thư viện' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Hủy' })).toBeTruthy();
+  });
+
+  it('clicking empty Seal frame opens SEAL action sheet without bleeding into Cont', async () => {
+    stubPhotoTransport();
+    renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    const sealFrame = screen.getByRole('button', { name: 'Thêm ảnh seal' });
+    expect(sealFrame).toHaveClass('dcc-bento__tile-btn--empty');
+    expect(sealFrame.textContent).toContain('Seal');
+
+    fireEvent.click(sealFrame);
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm ảnh seal' });
+    expect(dialog).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Chụp ảnh' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Chọn từ thư viện' })).toBeTruthy();
+  });
+
+  it('removes the redundant standalone Thêm ảnh cont/seal buttons; retains Thêm ảnh biên bản', async () => {
+    stubPhotoTransport();
+    renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    // The only standalone capture button under .dcc-bento__photos is 'Thêm ảnh biên bản'
+    const captureBtns = document.querySelectorAll('.dcc-bento__photos .dcc-capture-btn');
+    expect(captureBtns).toHaveLength(1);
+    expect(captureBtns[0].textContent).toContain('Thêm ảnh biên bản');
+
+    // Exactly 1 button for cont (the frame), 1 for seal (the frame), 1 for note
+    expect(screen.getAllByRole('button', { name: 'Thêm ảnh cont' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Thêm ảnh seal' })).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: 'Thêm ảnh biên bản' })).toHaveLength(1);
+  });
+
+  it('when photos exist, frames become viewer openers and no Thêm ảnh cont/seal buttons remain', async () => {
+    stubPhotoTransport();
+    renderCard({
+      containers: [declaredContainer('MSKU1234567')],
+      contPhotoKey: 'trips/55/cont.jpg',
+      sealPhotoKey: 'trips/55/seal.jpg',
+    });
+
+    expect(await screen.findByRole('button', { name: 'Xem ảnh cont' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xem ảnh seal' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Thêm ảnh cont' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Thêm ảnh seal' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Thêm ảnh biên bản' })).toBeTruthy();
+  });
+
+  it('in readOnly mode, empty frames are static and not clickable buttons', async () => {
+    stubPhotoTransport();
+    renderCard({
+      containers: [declaredContainer('MSKU1234567')],
+      readOnly: true,
+    });
+
+    await screen.findByText('MSKU1234567');
+    expect(screen.queryByRole('button', { name: 'Thêm ảnh cont' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Thêm ảnh seal' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Thêm ảnh biên bản' })).toBeNull();
+  });
+});

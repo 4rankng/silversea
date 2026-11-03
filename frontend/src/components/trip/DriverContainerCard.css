@@ -418,6 +418,29 @@
   outline-offset: 2px;
 }
 
+.dcc-bento__tile-btn--empty {
+  cursor: pointer;
+}
+
+.dcc-bento__tile-btn--empty .dcc-bento__thumb-empty {
+  pointer-events: none;
+}
+
+.dcc-bento__tile-btn--empty:hover:not(:disabled) .dcc-bento__thumb-empty {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.dcc-bento__tile-btn--empty:active:not(:disabled) .dcc-bento__thumb-empty {
+  border-color: var(--brand-dark, var(--brand));
+  background: var(--surface-2);
+}
+
+.dcc-bento__tile-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Ghost retake row under the saved tile strip — full cell width, one ghost
    style (design spec photo block). */
 .dcc-capture--note {
