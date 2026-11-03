@@ -1,0 +1,2 @@
+../../../../../private/var/folders/8j/qs8k8y3n1hlfbl4q20k0hgjh0000gn/T/opencode/sil655-41c75/backend/src/services/shipment-detail-reads.service.ts(221,22): error TS2871: This expression is always nullish.
+../../../../../private/var/folders/8j/qs8k8y3n1hlfbl4q20k0hgjh0000gn/T/opencode/sil655-41c75/backend/src/services/shipment-detail-reads.service.ts(223,23): error TS2871: This expression is always nullish.
