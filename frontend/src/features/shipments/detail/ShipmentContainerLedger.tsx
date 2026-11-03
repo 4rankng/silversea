@@ -698,7 +698,7 @@ function InlineEditor({
           routeId={routeId} setRouteId={setRouteId} deliveryLocation={deliveryLocation} setDeliveryLocation={setDeliveryLocation} routeOptions={routeOptions} />
       )}
       {mode === 'documents' && (
-        <div className="shipment-container-ledger__editor-grid">
+        <div className="shipment-container-ledger__editor-grid shipment-container-ledger__editor-grid--docs">
           {/* Card 171026122140 (FB-113): the operator asked for the four
               document fields in the order Số Bill/Số Booking → Số tờ khai →
               Nhập/Xuất → Hãng tàu, so the reference number now leads and the
@@ -735,9 +735,10 @@ function InlineEditor({
               </button>
             </div>
           )}
-          <small>Số tờ khai lưu theo {row.isLotLevel
-            ? 'LÔ hàng lẻ — nhập hoặc sửa số một lần cho cả lô'
-            : 'từng container của lô — mỗi container giữ số tờ khai riêng; nhập số ở một container sẽ tự điền sang các container còn trống'}.</small>
+          {/* SIL-661: the per-container persistence guidance line is gone —
+              the 2-column dialog drops prose. The LCL variant (SIL-503) is a
+              separate ruling and stays for lot-level rows only. */}
+          {row.isLotLevel && <small>Số tờ khai lưu theo LÔ hàng lẻ — nhập hoặc sửa số một lần cho cả lô.</small>}
           {/* Card 171026122140 (FB-113): positions 3 and 4 of the requested
               order. The direction select keeps its handler verbatim — it still
               owns the Bill-vs-Booking switch and clears the other side. */}
@@ -788,7 +789,9 @@ function InlineEditor({
                   )}
                 </div>
               )}
-              <small>Số cont lưu theo từng container — đồng bộ với ô THÔNG SỐ CONTAINER trên bảng.</small>
+              {/* SIL-661: the «lưu theo từng container» guidance line is gone —
+                  the field's sync contract lives in the save path (same
+                  container-line command as the cell), not in dialog prose. */}
             </>
           )}
         </div>

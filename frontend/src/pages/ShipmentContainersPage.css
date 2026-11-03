@@ -477,6 +477,18 @@
 .shipment-container-ledger__editor-heading span { color: var(--ink-3); font-family: var(--font-data); font-size: var(--text-caption-size); }
 .shipment-container-ledger__editor-grid { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 9px; }
 .shipment-container-ledger__editor-grid--schedule { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); }
+/* SIL-661: the documents dialog («Chỉnh sửa chứng từ và hãng tàu») lays its
+   fields in a 2-column desktop grid (Untitled UI user-settings-modal pattern,
+   consulted): 5 fields = 3 full rows (2/2/1) — the 5th field (Số cont) owns
+   the left cell of the last row while the right cell stays EMPTY grid space,
+   never a fake filler. Any non-field child (hints, the tờ khai copy action,
+   the ISO note) spans the whole row so it can never split a field pair.
+   Below 768px the grid stacks to one column (mobile-first). */
+.shipment-container-ledger__editor-grid--docs { gap: 16px; }
+@media (min-width: 768px) {
+  .shipment-container-ledger__editor-grid--docs { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .shipment-container-ledger__editor-grid--docs > :not(label) { grid-column: 1 / -1; }
+}
 .shipment-container-ledger__editor-grid > label { display: grid; min-width: 0; gap: 5px; }
 .shipment-container-ledger__editor-grid > label > span,
 .shipment-container-ledger__editor-grid [data-label] { color: var(--ink-3); font-size: var(--text-label-size); font-weight: var(--fw-bold); line-height: 1.3; }
