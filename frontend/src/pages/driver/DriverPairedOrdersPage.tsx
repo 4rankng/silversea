@@ -93,12 +93,12 @@ export default function DriverPairedOrdersPage() {
   const requestedDate = rawDate && PAIRED_ORDERS_DATE_PATTERN.test(rawDate) ? rawDate : undefined;
   const hasMalformedDate = Boolean(rawDate) && !requestedDate;
   const { data, isLoading: loading, error: queryError, refetch, isFetching } = useDriverPairedOrders(requestedDate);
-  const error = queryError ? 'Không thể tải thông tin lệnh trong ngày' : null;
+  const error = queryError ? 'Không thể tải thông tin lệnh ghép' : null;
   const { rootRef } = usePageAnimations({ ready: !loading });
 
   if (hasMalformedDate) return (
     <div className="driver-secondary-page">
-      <PageHeader title="Lệnh trong ngày" />
+      <PageHeader title="Lệnh ghép" />
       <EmptyState
         role="alert"
         variant="compact"
@@ -111,17 +111,17 @@ export default function DriverPairedOrdersPage() {
 
   if (loading) return (
     <div className="driver-secondary-page">
-      <PageHeader title="Lệnh trong ngày" />
+      <PageHeader title="Lệnh ghép" />
       <div className="driver-secondary-state" role="status">
         <Loader2 size={20} className="spin" />
-        <p>Đang tải lệnh trong ngày…</p>
+        <p>Đang tải lệnh ghép…</p>
       </div>
     </div>
   );
 
   if (error) return (
     <div className="driver-secondary-page">
-      <PageHeader title="Lệnh trong ngày" />
+      <PageHeader title="Lệnh ghép" />
       <EmptyState
         role="alert"
         variant="compact"
@@ -139,7 +139,10 @@ export default function DriverPairedOrdersPage() {
   const allToday: TripSummary[] = view?.allToday ?? [];
   const pairedTrips = view?.pair ? [view.pair.first, view.pair.second].filter((trip): trip is TripSummary => Boolean(trip)) : [];
   const hasPersistedPair = pairedTrips.length > 0;
-  const pageTitle = hasPersistedPair ? 'Lệnh ghép 2 chiều' : 'Lệnh trong ngày';
+  // SIL-672: this screen pairs one day's orders — it is NOT the generic day
+  // view (/my-trips already is). The title says "Lệnh ghép"; a persisted
+  // two-way pair names itself more specifically.
+  const pageTitle = hasPersistedPair ? 'Lệnh ghép 2 chiều' : 'Lệnh ghép';
 
   if (!view || (!hasPersistedPair && allToday.length === 0)) return (
     <div className="driver-secondary-page">

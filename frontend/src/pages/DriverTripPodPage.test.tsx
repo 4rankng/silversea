@@ -547,11 +547,11 @@ describe('DriverTripPodPage', () => {
   });
 
   // Card 051026230654 — completion moves the trip NEW/RUNNING → HISTORY, but
-  // the journey board (list + "Lệnh mới" badge) and the day-view chip kept
-  // their pre-completion cache: the global 5-minute staleTime masked the
-  // remount refetch, so the driver saw stale counts until the 15 s poll or a
-  // manual tab flip. The completion must invalidate its consumers BEFORE
-  // navigating back so /my-trips refetches on mount.
+  // the journey board (list + "Lệnh mới" badge) kept its pre-completion
+  // cache: the global 5-minute staleTime masked the remount refetch, so the
+  // driver saw stale counts until the 15 s poll or a manual tab flip. The
+  // completion must invalidate its consumers BEFORE navigating back so
+  // /my-trips refetches on mount.
   it('invalidates the journey board and day view when the trip completes', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({

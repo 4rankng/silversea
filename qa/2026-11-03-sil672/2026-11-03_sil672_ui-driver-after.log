@@ -1,0 +1,22 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175 mode=after
+LOGIN ok driver=bqhuong
+API journey-board items=10 buckets={"RUNNING":2,"HISTORY":8}
+PASS CONTRACT journey-board readable — items=10
+API paired-orders allToday=0 hasPair=false
+DB trips_total=11 today=1 (driver=bqhuong, read-only identity)
+DOM my-trips shortcut=[] tabs=3 cards=0 title="Hành trình · TransTing"
+PASS AFTER no shortcut link on /my-trips (SIL-672 AC1) — []
+PASS AFTER no "Lệnh trong ngày" text on /my-trips
+PASS AFTER day-view tabs intact (SIL-672 AC2) — ["Lệnh mới0","Đã nhận2","Lịch sử5"]
+PASS AFTER tab click-through "Lệnh mới" — panel="Chưa có lệnh mới nào được giao.Điều vận đẩy lệnh mới xuống ngay khi phân công xo"
+PASS AFTER tab click-through "Đã nhận" — panel="SIL631-1793422709765Giờ chạy:04/11/2026 12:00 SUNRISE+  SJChưa có số contKẸP20'D"
+PASS AFTER tab click-through "Lịch sử" — panel="SIL631-1793422147212-AGiờ chạy:04/11/2026 09:00 SUNRISE+  SJChưa có số contĐƠN20"
+DOM paired-orders h1="Lệnh ghép" title="Hành trình · Lệnh ghép · TransTing" notFound=false
+PASS AFTER paired-orders loads directly, no 404 (SIL-672 AC3) — h1="Lệnh ghép"
+PASS AFTER paired-orders h1 renamed (AC4) — h1="Lệnh ghép"
+PASS AFTER paired-orders no "Lệnh trong ngày" anywhere (AC4)
+PASS AFTER paired-orders document.title = "Hành trình · Lệnh ghép…" — Hành trình · Lệnh ghép · TransTing
+PASS AFTER 768px no horizontal overflow, no shortcut — {"horizontalOverflow":false,"shortcutLinks":0}
+PASS AFTER 1440px no horizontal overflow, no shortcut — {"horizontalOverflow":false,"shortcutLinks":0}
+PASS console errors none — clean
+DONE mode=after failures=0

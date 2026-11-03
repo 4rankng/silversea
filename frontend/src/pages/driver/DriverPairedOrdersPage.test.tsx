@@ -243,7 +243,9 @@ describe('DriverPairedOrdersPage — M8.3 paired-orders view (SIL-664 date-scope
     });
     renderAt();
     await waitFor(() => expect(screen.getByText(/Hôm nay không có lệnh/)).toBeTruthy());
-    expect(screen.getByRole('heading', { level: 1, name: 'Lệnh trong ngày' })).toBeTruthy();
+    // SIL-672: the paired-orders screen is named "Lệnh ghép" — it is the
+    // pair view, not the generic day view.
+    expect(screen.getByRole('heading', { level: 1, name: 'Lệnh ghép' })).toBeTruthy();
     expect(screen.queryByText(/Hai lệnh hôm nay/)).toBeNull();
   });
 
@@ -257,12 +259,12 @@ describe('DriverPairedOrdersPage — M8.3 paired-orders view (SIL-664 date-scope
   it('shows the loading spinner while loading', () => {
     useDriverPairedOrdersMock.mockReturnValue({ data: undefined, isLoading: true, error: null });
     renderAt();
-    expect(screen.getByText(/Đang tải lệnh trong ngày/)).toBeTruthy();
+    expect(screen.getByText(/Đang tải lệnh ghép/)).toBeTruthy();
   });
 
   it('shows the error state when the query fails', async () => {
     useDriverPairedOrdersMock.mockReturnValue({ data: undefined, isLoading: false, error: new Error('boom') });
     renderAt();
-    await waitFor(() => expect(screen.getByText(/Không thể tải thông tin lệnh trong ngày/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Không thể tải thông tin lệnh ghép/)).toBeTruthy());
   });
 });

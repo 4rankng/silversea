@@ -3,16 +3,14 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DriverJourneyCard } from '../api/driverClient';
 
-const { useDriverJourneyBoardMock, useDriverPairedOrdersMock, navigateMock, refetchMock } = vi.hoisted(() => ({
+const { useDriverJourneyBoardMock, navigateMock, refetchMock } = vi.hoisted(() => ({
   useDriverJourneyBoardMock: vi.fn(),
-  useDriverPairedOrdersMock: vi.fn(),
   navigateMock: vi.fn(),
   refetchMock: vi.fn(),
 }));
 
 vi.mock('../hooks/useDriverQueries', () => ({
   useDriverJourneyBoard: useDriverJourneyBoardMock,
-  useDriverPairedOrders: useDriverPairedOrdersMock,
 }));
 
 vi.mock('../hooks/useMonth', () => ({
@@ -35,11 +33,6 @@ function board(cards: DriverJourneyCard[], knownTagLabels: string[] = []) {
     refetch: refetchMock,
     isFetching: false,
   };
-}
-
-/** M8.3 day view — the journey header only reads today's order count. */
-function dayView(todayOrderCount: number) {
-  return { data: { allToday: Array.from({ length: todayOrderCount }, (_, i) => ({ id: i + 1 })) } };
 }
 
 function card(overrides: Partial<DriverJourneyCard> = {}): DriverJourneyCard {
@@ -156,8 +149,6 @@ describe('DriverTripsPage', () => {
   beforeEach(() => {
     navigateMock.mockReset();
     refetchMock.mockReset();
-    useDriverPairedOrdersMock.mockReset();
-    useDriverPairedOrdersMock.mockReturnValue(dayView(0));
   });
 
   it('POLISH-DRV-02 keeps journey tabs keyboard reachable and labels the visible panel', () => {
@@ -594,36 +585,23 @@ describe('DriverTripsPage', () => {
     expect(drop.closest('.driver-journey-card__port')!.textContent).toContain('Sóng Thần');
   });
 
-  // Card 20260922_30(b): /my-trips/paired-orders (M8.3, SIL-664 rename) had no inbound link
-  // anywhere in the app — only tests reached it. The journey header owns the
-  // entry, so the route is reachable from the driver's primary screen.
-  it('links the paired-orders day view from the journey header', async () => {
+  // SIL-672: the journey board IS the driver's day view (tabs + in-day
+  // cards), so the header no longer carries a "Lệnh trong ngày" shortcut —
+  // it redirected to the paired-orders screen under the same name. The
+  // paired-orders route itself stays alive for direct links/redirect.
+  it('drops the paired-orders shortcut from the journey header (SIL-672)', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([card()]));
     renderPage();
 
-    const entry = screen.getByRole('link', { name: /Lệnh trong ngày/ });
-    expect(entry.getAttribute('href')).toBe('/my-trips/paired-orders');
-    // Page chrome, not tab content: the entry survives every bucket.
-    fireEvent.click(screen.getByRole('tab', { name: /Đã nhận/ }));
-    expect(screen.getByRole('link', { name: /Lệnh trong ngày/ })).toBeVisible();
-  });
-
-  // The count is the promotion: it appears exactly on the 2+ orders/day the
-  // screen exists for (PRD M08-03-03).
-  it('promotes the day-view entry with the count when the day carries 2+ orders', async () => {
-    useDriverJourneyBoardMock.mockReturnValue(board([]));
-    useDriverPairedOrdersMock.mockReturnValue(dayView(2));
-    renderPage();
-
-    expect(screen.getByRole('link', { name: /Lệnh trong ngày/ }).textContent).toContain('2 lệnh');
-  });
-
-  it('keeps the day-view entry count-free on a single-order day', async () => {
-    useDriverJourneyBoardMock.mockReturnValue(board([]));
-    useDriverPairedOrdersMock.mockReturnValue(dayView(1));
-    renderPage();
-
-    expect(screen.getByRole('link', { name: /Lệnh trong ngày/ }).textContent).toBe('Lệnh trong ngày');
+    expect(screen.queryByRole('link', { name: /Lệnh trong ngày/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Lệnh ghép/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /paired-orders/ })).toBeNull();
+    // The day view the screen already is keeps working: tabs render and the
+    // in-day card content is intact.
+    expect(screen.getByRole('tab', { name: /Lệnh mới/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Đã nhận/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Lịch sử/ })).toBeTruthy();
+    expect(document.querySelector('.driver-journey-card__footer')).toBeTruthy();
   });
 
   // Card 20260922_30: the primitive's own count chip floated above the label
