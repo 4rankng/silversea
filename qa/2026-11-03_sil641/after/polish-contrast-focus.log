@@ -1,0 +1,35 @@
+{
+  "chip": {
+    "border": "rgb(209, 217, 212)",
+    "background": "rgb(255, 255, 255)",
+    "radius": "8px",
+    "width": "36.0",
+    "height": "36.0"
+  },
+  "iconColor": "rgb(74, 158, 125)",
+  "inputBorder": "rgb(77, 88, 82)",
+  "sectionBg": "rgb(255, 255, 255)",
+  "ratios": {
+    "iconVsChipBg": 3.24,
+    "borderVsChipBg": 1.44,
+    "borderVsSectionBg": 1.44,
+    "inputBorderVsChipBg": 7.41
+  }
+}
+FOCUS {"outline":"rgb(74, 158, 125) solid 2px","outlineOffset":"1px","focused":true}
+    "background": "rgb(255, 255, 255)",
+    "radius": "8px",
+    "width": "36.0",
+    "height": "36.0"
+  },
+  "iconColor": "rgb(74, 158, 125)",
+  "inputBorder": "rgb(77, 88, 82)",
+  "sectionBg": "rgb(255, 255, 255)",
+  "ratios": {
+    "iconVsChipBg": 3.24,
+    "borderVsChipBg": 3.05,
+    "borderVsSectionBg": 3.05,
+    "inputBorderVsChipBg": 7.41
+  }
+}
+FOCUS {"outline":"rgb(74, 158, 125) solid 2px","outlineOffset":"1px","focused":true}

@@ -1,0 +1,258 @@
+{
+  "shipment-customer": [
+    {
+      "what": "CELL",
+      "tag": "div",
+      "cls": "csc-identity-grid__customer csc-field-with-append",
+      "x": 70,
+      "w": 602.5,
+      "right": 672.5,
+      "y": 213.4,
+      "h": 62
+    },
+    {
+      "what": "SEARCHABLE-ROOT",
+      "tag": "div",
+      "x": 70,
+      "w": 558.5,
+      "right": 628.5,
+      "y": 213.4,
+      "h": 54,
+      "cls": "csc-searchable-field csc-customer-field"
+    },
+    {
+      "what": "div/span",
+      "tag": "div",
+      "x": 70,
+      "w": 558.5,
+      "right": 628.5,
+      "y": 237.4,
+      "h": 30,
+      "cls": "uui-combobox relative flex w-full items-center rounded-lg bo"
+    },
+    {
+      "what": "div/span",
+      "tag": "div",
+      "x": 71,
+      "w": 556.5,
+      "right": 627.5,
+      "y": 238.4,
+      "h": 28,
+      "cls": "flex w-full items-center *:data-icon:shrink-0 *:data-icon:te"
+    },
+    {
+      "what": "combo-input-wrap",
+      "tag": "div",
+      "x": 103,
+      "w": 516.5,
+      "right": 619.5,
+      "y": 242.4,
+      "h": 20,
+      "cls": "uui-combobox__input relative flex min-w-0 w-full items-cente"
+    },
+    {
+      "what": "INPUT(native)",
+      "tag": "input",
+      "x": 103,
+      "w": 516.5,
+      "right": 619.5,
+      "y": 240.3,
+      "h": 24.2,
+      "cls": "z-10 w-full text-ellipsis appearance-none bg-transparent tex"
+    }
+  ],
+  "shipment-trade-direction": [
+    {
+      "what": "CELL",
+      "tag": "div",
+      "cls": "csc-identity-grid__trade-direction csc-field-with-append",
+      "x": 682.5,
+      "w": 602.5,
+      "right": 1285,
+      "y": 213.4,
+      "h": 62
+    },
+    {
+      "what": "SELECT-WRAP",
+      "tag": "div",
+      "x": 682.5,
+      "w": 558.5,
+      "right": 1241,
+      "y": 213.4,
+      "h": 52.5,
+      "cls": "ds-uui-select csc-select-field"
+    },
+    {
+      "what": "GROUP(csc-uui-field)",
+      "tag": "button",
+      "x": 682.5,
+      "w": 558.5,
+      "right": 1241,
+      "y": 235.9,
+      "h": 30,
+      "cls": "relative flex w-full cursor-pointer items-center rounded-lg "
+    },
+    {
+      "what": "div/span",
+      "tag": "span",
+      "x": 683.5,
+      "w": 556.5,
+      "right": 1240,
+      "y": 236.9,
+      "h": 28,
+      "cls": "flex h-max w-full items-center justify-start truncate text-l"
+    }
+  ],
+  "shipment-booking-ref": [
+    {
+      "what": "CELL",
+      "tag": "div",
+      "cls": "csc-identity-grid__booking csc-field-with-append",
+      "x": 70,
+      "w": 602.5,
+      "right": 672.5,
+      "y": 283.4,
+      "h": 76.5
+    },
+    {
+      "what": "TEXT-WRAP",
+      "tag": "div",
+      "x": 70,
+      "w": 558.5,
+      "right": 628.5,
+      "y": 283.4,
+      "h": 76.5,
+      "cls": "csc-text-field-with-warning"
+    },
+    {
+      "what": "div/span",
+      "tag": "div",
+      "x": 70,
+      "w": 558.5,
+      "right": 628.5,
+      "y": 307.4,
+      "h": 30,
+      "cls": "group/input relative flex w-full flex-row place-content-cent"
+    },
+    {
+      "what": "INPUT(native)",
+      "tag": "input",
+      "x": 71,
+      "w": 556.5,
+      "right": 627.5,
+      "y": 308.4,
+      "h": 28,
+      "cls": "m-0 w-full text-ellipsis bg-transparent text-primary ring-0 "
+    }
+  ],
+  "shipment-shipping-line": [
+    {
+      "what": "CELL",
+      "tag": "div",
+      "cls": "csc-identity-grid__shipping-line csc-field-with-append",
+      "x": 682.5,
+      "w": 602.5,
+      "right": 1285,
+      "y": 283.4,
+      "h": 76.5
+    },
+    {
+      "what": "SEARCHABLE-ROOT",
+      "tag": "div",
+      "x": 682.5,
+      "w": 558.5,
+      "right": 1241,
+      "y": 283.4,
+      "h": 54,
+      "cls": "csc-searchable-field"
+    },
+    {
+      "what": "div/span",
+      "tag": "div",
+      "x": 682.5,
+      "w": 558.5,
+      "right": 1241,
+      "y": 307.4,
+      "h": 30,
+      "cls": "uui-combobox relative flex w-full items-center rounded-lg bo"
+    },
+    {
+      "what": "div/span",
+      "tag": "div",
+      "x": 683.5,
+      "w": 556.5,
+      "right": 1240,
+      "y": 308.4,
+      "h": 28,
+      "cls": "flex w-full items-center *:data-icon:shrink-0 *:data-icon:te"
+    },
+    {
+      "what": "combo-input-wrap",
+      "tag": "div",
+      "x": 715.5,
+      "w": 516.5,
+      "right": 1232,
+      "y": 312.4,
+      "h": 20,
+      "cls": "uui-combobox__input relative flex min-w-0 w-full items-cente"
+    },
+    {
+      "what": "INPUT(native)",
+      "tag": "input",
+      "x": 715.5,
+      "w": 516.5,
+      "right": 1232,
+      "y": 310.3,
+      "h": 24.2,
+      "cls": "z-10 w-full text-ellipsis appearance-none bg-transparent tex"
+    }
+  ],
+  "comboComputed": {
+    "padding": "0px",
+    "border": "0px",
+    "display": "flex"
+  },
+  "icon": {
+    "tag": "svg",
+    "cls": "pointer-events-none",
+    "x": 81,
+    "w": 16,
+    "right": 97,
+    "y": 244.4,
+    "h": 16
+  },
+  "comboInnerWrap": {
+    "tag": "div",
+    "cls": "uui-combobox__input relative flex min-w-0 w-full items-center",
+    "x": 103,
+    "w": 516.5,
+    "right": 619.5,
+    "y": 242.4,
+    "h": 20
+  },
+  "comboNativeInput": {
+    "tag": "input",
+    "cls": "z-10 w-full text-ellipsis appearance-none bg-transparent text-transparent caret-",
+    "x": 103,
+    "w": 516.5,
+    "right": 619.5,
+    "y": 240.3,
+    "h": 24.2
+  },
+  "nativeComputed": {
+    "padding": "4px 0px",
+    "h": "24.1875px"
+  },
+  "textNativeInput": {
+    "tag": "input",
+    "cls": "m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden place",
+    "x": 71,
+    "w": 556.5,
+    "right": 627.5,
+    "y": 308.4,
+    "h": 28
+  },
+  "textNativeComputed": {
+    "padding": "4px 10px"
+  }
+}

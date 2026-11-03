@@ -125,4 +125,19 @@ describe('SIL-641 (id 745): identity cells share ONE action slot', () => {
       expect(cell(id).className, id).toContain(columnClass);
     }
   });
+
+  // SIL-641 residual (id 745, QA fail 03/11): QA's yardstick is the INNER
+  // typing box of each field ("ô nhập trong": combobox native input vs the
+  // select trigger vs the plain text input). The decorative SearchLg glyph
+  // reserved ~42px inside the combobox row, so its native input measured
+  // 517 while the plain input measured 557 (Δ40/Δ42). The identity
+  // comboboxes render without the glyph — a DOM absence, not a CSS hide —
+  // so this pin holds in jsdom and the widths themselves are proved by the
+  // browser drive (qa/2026-11-03_sil641/).
+  it('the identity comboboxes render WITHOUT the decorative search icon (equal inner typing boxes)', () => {
+    render(<Harness />);
+    for (const id of ['shipment-customer', 'shipment-shipping-line']) {
+      expect(cell(id).querySelector('[data-combobox-search]'), `${id} search glyph absent`).toBeNull();
+    }
+  });
 });

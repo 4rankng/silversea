@@ -1,0 +1,7 @@
+PASS typing/focus opens dropdown with options — options=45
+PASS pick commits a value into the input — value="LOG COM"
+PASS '+' opens the customer dialog — {"title":"","visible":true}
+PASS pencil opens the shipping-line dialog — {"title":"","visible":true}
+PASS aria-label '+' giữ nguyên — Thêm khách hàng
+PASS aria-label pencil giữ nguyên — Đặt tên hãng tàu cho lô này
+RESULT GREEN failures=0

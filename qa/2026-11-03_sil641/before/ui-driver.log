@@ -1,0 +1,30 @@
+PHASE=before HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175
+LOGIN ok role=cus account=tiepvv
+W=1440 cells=4 grid="86.5px 86.5px 86.5px 86.5px 86.5px 86.5px 86.5px 86.5px 86.5px 86.5px 86.5px 86.5px"
+  shipment-customer: cell=569 field=525 control=525 input=483 slot=36(btn,vis=visible,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-trade-direction: cell=569 field=525 control=525 input=undefined slot=36(ph,vis=hidden,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-booking-ref: cell=569 field=525 control=525 input=523 slot=36(ph,vis=hidden,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-shipping-line: cell=569 field=525 control=525 input=483 slot=36(btn,vis=visible,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  Δcell L/R=0 Δfield=0 Δinput=40
+W=1366 cells=4 grid="97px 97px 97px 97px 97px 97px 97px 97px 97px 97px 97px 97px"
+  shipment-customer: cell=632 field=588 control=588 input=546 slot=36(btn,vis=visible,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-trade-direction: cell=632 field=588 control=588 input=undefined slot=36(ph,vis=hidden,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-booking-ref: cell=632 field=588 control=588 input=586 slot=36(ph,vis=hidden,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-shipping-line: cell=632 field=588 control=588 input=546 slot=36(btn,vis=visible,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  Δcell L/R=0 Δfield=0 Δinput=40
+W=768 cells=4 grid="357px 357px"
+  shipment-customer: cell=357 field=313 control=313 input=271 slot=36(btn,vis=visible,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-trade-direction: cell=357 field=313 control=313 input=undefined slot=36(ph,vis=hidden,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-booking-ref: cell=357 field=313 control=313 input=311 slot=36(ph,vis=hidden,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-shipping-line: cell=357 field=313 control=313 input=271 slot=36(btn,vis=visible,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  Δcell L/R=0 Δfield=0 Δinput=40
+W=390 cells=4 grid="358px"
+  shipment-customer: cell=358 field=314 control=314 input=268 slot=36(btn,vis=visible,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-trade-direction: cell=358 field=314 control=314 input=undefined slot=36(ph,vis=hidden,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-booking-ref: cell=358 field=314 control=314 input=312 slot=36(ph,vis=hidden,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  shipment-shipping-line: cell=358 field=314 control=314 input=268 slot=36(btn,vis=visible,flex=0 0 36px) gapFieldSlot=8 slotOverrun=0
+  Δcell L/R=0 Δfield=0 Δinput=44
+METRICS-SAVED qa/2026-11-03_sil641/before/dom-metrics-before.json
+DB-SIDE-EFFECT read-only drive: shipments count before=628 after=628 (expect equal)
+PASS DB: drive không tạo/sửa lot (read-only layout drive) — 628 → 628
+RESULT GREEN failures=0 (PHASE=before đo lường, assertion AC chạy ở PHASE=after)
