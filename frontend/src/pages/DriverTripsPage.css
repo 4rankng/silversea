@@ -47,39 +47,6 @@
   text-align: center;
 }
 
-/* The day-view navigation shares the ordinary house control budget. */
-.driver-journey__day-view {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: var(--control-h);
-  padding: 6px 12px;
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: var(--text-control-size);
-  font-weight: var(--fw-semibold);
-  text-decoration: none;
-}
-
-.driver-journey__day-view > svg {
-  flex-shrink: 0;
-  color: var(--ink-3);
-}
-
-.driver-journey__day-view-label {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-@media (hover: hover) {
-  .driver-journey__day-view:hover {
-    background: var(--surface-accent);
-    border-color: color-mix(in srgb, var(--accent) 35%, var(--line-2));
-  }
-}
-
 .driver-journey__list {
   display: grid;
   gap: 10px;

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Building2, ChevronRight, Loader2, Package2, Route, Truck } from 'lucide-react';
-import { useDriverJourneyBoard, useDriverPairedOrders } from '../hooks/useDriverQueries';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, Building2, Loader2, Package2, Route } from 'lucide-react';
+import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import { useMonth } from '../hooks/useMonth';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
@@ -280,17 +280,13 @@ export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
   const { month, year } = useMonth();
   const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
-  // Card 20260922_30(b): the M8.3 day-view screen (/my-trips/paired-orders,
-  // SIL-664 rename) had no inbound link anywhere in the app — only tests
-  // reached it. It reads the same query key, so tapping through renders from
-  // cache. The entry names the day view state-free ("Lệnh trong ngày"): the
-  // old "Hai lệnh hôm nay" label asserted a count the tab counters beside it
-  // contradicted on a 0/1-order day. The count chip carries the real number
-  // only when the day actually holds 2+ orders; the entry itself stays put,
-  // because a driver checks the day's sequence before dispatch pushes
-  // anything.
-  const { data: dayView } = useDriverPairedOrders();
-  const todayOrders = dayView?.allToday.length ?? 0;
+  // SIL-672: this board IS the driver's day view — the tabs + in-day cards
+  // already carry today's Lệnh mới / Đã nhận / Lịch sử. The former header
+  // shortcut labelled "Lệnh trong ngày" only redirected to /my-trips/paired-
+  // orders (the paired-orders screen), which duplicated the name and read as
+  // "no orders" on days without a persisted pair. The shortcut is removed per
+  // the ticket ruling; paired-orders stays reachable by direct URL and the
+  // /my-trips/two-orders redirect, and its screen is named "Lệnh ghép".
   // Tag labels ride on the board response — the driver portal fetches nothing
   // from the dispatcher-only tag pool (ticket 53a536f9).
   const cards = useMemo(() => {
@@ -313,17 +309,7 @@ export default function DriverTripsPage() {
 
   return (
     <div className="driver-journey">
-      <PageHeader
-        title="Hành trình của tôi"
-        action={
-          <Link className="driver-journey__day-view" to="/my-trips/paired-orders">
-            <Truck size={16} aria-hidden="true" />
-            <span className="driver-journey__day-view-label">Lệnh trong ngày</span>
-            {todayOrders >= 2 && <span className="driver-journey__tab-count">{todayOrders} lệnh</span>}
-            <ChevronRight size={16} aria-hidden="true" />
-          </Link>
-        }
-      />
+      <PageHeader title="Hành trình của tôi" />
 
       <Tabs
         className="driver-journey__tabs"

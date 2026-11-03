@@ -439,7 +439,7 @@ export const PAGE_CATALOG = {
     requiresParams: ['id'],
   },
   myPairedOrders: {
-    title: 'Hành trình · Lệnh trong ngày',
+    title: 'Hành trình · Lệnh ghép',
     path: '/my-trips/paired-orders',
   },
   myPayslips: {

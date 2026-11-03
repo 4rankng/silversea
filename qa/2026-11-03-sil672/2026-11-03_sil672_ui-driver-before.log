@@ -1,0 +1,17 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175 mode=before
+LOGIN ok driver=bqhuong
+API journey-board items=10 buckets={"RUNNING":2,"HISTORY":8}
+PASS CONTRACT journey-board readable — items=10
+API paired-orders allToday=0 hasPair=false
+DB trips_total=11 today=1 (driver=bqhuong, read-only identity)
+DOM my-trips shortcut=["Lệnh trong ngày"] tabs=3 cards=0 title="Hành trình · TransTing"
+PASS BEFORE shortcut link exists (old UI) — ["Lệnh trong ngày"]
+PASS BEFORE shortcut named "Lệnh trong ngày"
+PASS AFTER tab click-through "Lệnh mới" — panel="Chưa có lệnh mới nào được giao.Điều vận đẩy lệnh mới xuống ngay khi phân công xo"
+PASS AFTER tab click-through "Đã nhận" — panel="SIL631-1793422709765Giờ chạy:04/11/2026 12:00 SUNRISE+  SJChưa có số contKẸP20'D"
+PASS AFTER tab click-through "Lịch sử" — panel="SIL631-1793422147212-AGiờ chạy:04/11/2026 09:00 SUNRISE+  SJChưa có số contĐƠN20"
+DOM paired-orders h1="Lệnh trong ngày" title="Hành trình · Lệnh trong ngày · TransTing" notFound=false
+PASS BEFORE paired-orders loads by URL — h1="Lệnh trong ngày"
+PASS BEFORE paired-orders header still old label — h1="Lệnh trong ngày"
+PASS console errors none — clean
+DONE mode=before failures=0

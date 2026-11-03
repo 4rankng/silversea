@@ -267,11 +267,11 @@ export function DriverTripPodPage() {
       );
       await driverClient.completeTrip(validFulfillmentId, { expectedVersion: trip.version }, idempotencyKey);
       // Card 051026230654 — completion moves the trip NEW/RUNNING → HISTORY.
-      // The journey board (list + tab counts) and the day-view chip keep their
-      // cached pre-completion data otherwise: the app-wide 5-minute staleTime
-      // masks the remount refetch on /my-trips, so both consumers must be
-      // invalidated BEFORE navigating back for the badge and list to refresh
-      // immediately.
+      // The journey board (list + tab counts) keeps its cached pre-completion
+      // data otherwise: the app-wide 5-minute staleTime masks the remount
+      // refetch on /my-trips, so both queries must be invalidated BEFORE
+      // navigating back for the badge and list to refresh immediately
+      // (paired-orders keeps its own screen fresh for the next open).
       await queryClient.invalidateQueries({ queryKey: qk.driver.journeyBoard });
       await queryClient.invalidateQueries({ queryKey: qk.driver.pairedOrders });
       toast({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });

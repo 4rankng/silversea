@@ -21,7 +21,9 @@ describe('UI54 legacy trip control ownership', () => {
     expect(detail).toMatch(/@media \(pointer: coarse\)\s*\{\s*\.driver-task-section__toggle\s*\{[^}]*min-height:\s*var\(--control-touch-h\);[^}]*padding:\s*0;/);
     expect(detail).toMatch(/\.driver-task-fact\s*\{[^}]*min-height:\s*48px;[^}]*padding:\s*12px 0;/);
     const list = read('pages/DriverTripsPage.css');
-    for (const selector of ['driver-journey__day-view', 'driver-journey-card__footer']) {
+    // SIL-672 removed the header day-view shortcut; only the card footer
+    // remains as an interactive control owned by this page.
+    for (const selector of ['driver-journey-card__footer']) {
       const rules = [...list.matchAll(new RegExp(`\\.${selector}\\s*\\{([^}]+)\\}`, 'g'))];
       expect(rules.length, selector).toBeGreaterThan(0);
       for (const rule of rules) expect(rule[1], selector).toMatch(/min-height:\s*var\(--control-h\)/);
