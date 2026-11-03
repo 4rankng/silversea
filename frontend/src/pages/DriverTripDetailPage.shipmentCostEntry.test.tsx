@@ -43,6 +43,9 @@ vi.mock('../hooks/useDriverQueries', () => ({
   useDriverTaskDetail: useDriverTaskDetailMock,
   useDriverTaskProgress: useDriverTaskProgressMock,
   useDriverEvidenceStatus: useDriverEvidenceStatusMock,
+  // The detail page reads the journey board for the pair lock + SIL-636 tag;
+  // these layout tests need no board cards.
+  useDriverJourneyBoard: () => ({ data: { items: [] } }),
 }));
 
 vi.mock('../hooks/useGeolocation', () => ({

@@ -25,8 +25,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
-import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
-import * as driverQueries from '../hooks/useDriverQueries';
+import { useDriverTaskDetail, useDriverTaskProgress, useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '../api/keys';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
@@ -42,7 +41,7 @@ import { AccountingLockBanner } from '../components/shipment/AccountingLockBanne
 import { ContainerScanner, dataUrlToFile } from '../components/shared/ContainerScanner';
 import './DriverTripDetailPage.css';
 
-import { MILESTONES, FUEL_EVIDENCE_OUTCOME_LABELS, FUEL_EVIDENCE_REVIEW_LABELS, completeCtaLabel, fuelEvidenceUploadErrorMessage, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, formatDateTime, PAIR_LOCKED_MESSAGE, isTripPairLocked } from '../features/driver/driver-trip-model';
+import { MILESTONES, FUEL_EVIDENCE_OUTCOME_LABELS, FUEL_EVIDENCE_REVIEW_LABELS, completeCtaLabel, fuelEvidenceUploadErrorMessage, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, formatDateTime, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
 import { parseDriverTaskNote } from '@tingting/shared';
 
 export default function DriverTripDetailPage() {
@@ -60,9 +59,7 @@ function DriverTripDetailContent() {
   const { toast } = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
   const geolocation = useGeolocation();
-  const journeyBoard = Object.keys(driverQueries).includes('useDriverJourneyBoard')
-    ? (driverQueries as unknown as { useDriverJourneyBoard: () => { data?: { items?: Array<Record<string, unknown>> } } }).useDriverJourneyBoard()
-    : { data: undefined };
+  const journeyBoard = useDriverJourneyBoard();
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
   const [fuelScanning, setFuelScanning] = useState(false);
   const [chipsExpanded, setChipsExpanded] = useState(false);
@@ -119,15 +116,20 @@ function DriverTripDetailContent() {
     );
   }, [journeyBoard.data?.items, validTripId, validFulfillmentId]);
   const pairLocked = isTripPairLocked(journeyCard);
-  // SIL-636 — the [KẸP]/[KẾT HỢP] tag rides the container number, derived
-  // from the ACTIVE pair row the API reports (pairKind). Never a Trip_ID:
-  // the ruling keeps internal ids off the driver UI; partnerTripId stays a
-  // wire-only key.
-  const pairTagLabel = trip?.pairKind === 'KEP'
-    ? '[KẸP]'
-    : trip?.pairKind === 'KET_HOP'
-      ? '[KẾT HỢP]'
-      : null;
+  // SIL-636 — the [KẸP]/[KẾT HỢP] tag rides the container number. Resolution
+  // mirrors the journey list exactly (shared tagLabelFor): the detail wire's
+  // ACTIVE pairKind is primary, and when the wire carries no pair the board
+  // card's classification/linked fallbacks decide — so a card tagged KẸP/
+  // KẾT HỢP on the list keeps its tag here (QA round-3b: DOUBLE-classified
+  // cards showed no tag on detail). Never a Trip_ID: the ruling keeps internal
+  // ids off the driver UI; partnerTripId stays a wire-only key. Single trips
+  // (ĐƠN) carry no tag on the detail screen.
+  const pairTagLabel = useMemo(() => {
+    if (trip?.pairKind === 'KEP') return '[KẸP]';
+    if (trip?.pairKind === 'KET_HOP') return '[KẾT HỢP]';
+    const label = tagLabelFor(journeyCard);
+    return label === 'KẸP' || label === 'KẾT HỢP' ? `[${label}]` : null;
+  }, [trip?.pairKind, journeyCard]);
   const completed = trip?.status === TripStatus.COMPLETED;
   const cancelled = trip?.status === TripStatus.CANCELED;
   const closed = completed || cancelled;

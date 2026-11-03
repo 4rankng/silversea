@@ -630,6 +630,108 @@ describe('DriverTripDetailPage', () => {
       expect(screen.queryByTestId('driver-pair-tag')).toBeNull();
     });
 
+    // QA round-3b: a DOUBLE-classified trip with no ACTIVE pair row shows KẸP
+    // on the journey list (tagLabelFor classification fallback) but showed
+    // nothing on the detail screen — the detail read the wire pairKind only.
+    // The detail now resolves through the same shared tagLabelFor.
+    it('QA round-3b: DOUBLE-classified board card without pairKind keeps [KẸP] on detail', async () => {
+      boardItems = [
+        {
+          tripId: TRIP_ID,
+          fulfillmentId: FULFILLMENT_ID,
+          pairId: null,
+          pairKind: null,
+          classification: 'DOUBLE',
+          linked: false,
+          containerNumber: 'MSCU1234561',
+        },
+      ];
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ pairKind: null, partnerTripId: null }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      await screen.findByText(/Số cont & seal/);
+      const tag = screen.getByTestId('driver-pair-tag');
+      expect(tag.textContent).toBe('[KẸP]');
+      expect(tag.closest('.dcc-bento__plate-row')?.textContent).toContain('MSCU1234561');
+    });
+
+    it('QA round-3b: COMBINED-classified board card without pairKind renders [KẾT HỢP]', async () => {
+      boardItems = [
+        {
+          tripId: TRIP_ID,
+          fulfillmentId: FULFILLMENT_ID,
+          pairId: null,
+          pairKind: null,
+          classification: 'COMBINED',
+          linked: false,
+          containerNumber: 'MSCU1234561',
+        },
+      ];
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ pairKind: null, partnerTripId: null }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      await screen.findByText(/Số cont & seal/);
+      expect(screen.getByTestId('driver-pair-tag').textContent).toBe('[KẾT HỢP]');
+    });
+
+    it('QA round-3b: isCombined linked fallback (SINGLE classification, linked sibling) renders [KẸP]', async () => {
+      boardItems = [
+        {
+          tripId: TRIP_ID,
+          fulfillmentId: FULFILLMENT_ID,
+          pairId: null,
+          pairKind: null,
+          classification: 'SINGLE',
+          linked: true,
+          containerNumber: 'MSCU1234561',
+        },
+      ];
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ pairKind: null, partnerTripId: null }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      await screen.findByText(/Số cont & seal/);
+      expect(screen.getByTestId('driver-pair-tag').textContent).toBe('[KẸP]');
+    });
+
+    it('QA round-3b: unpaired ĐƠN card (SINGLE, unlinked) keeps detail tag-free', async () => {
+      boardItems = [
+        {
+          tripId: TRIP_ID,
+          fulfillmentId: FULFILLMENT_ID,
+          pairId: null,
+          pairKind: null,
+          classification: 'SINGLE',
+          linked: false,
+          containerNumber: 'MSCU1234561',
+        },
+      ];
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ pairKind: null, partnerTripId: null }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+      renderPage();
+
+      await screen.findByText(/Số cont & seal/);
+      expect(screen.queryByTestId('driver-pair-tag')).toBeNull();
+    });
+
     it('SIL-638 TC4: Kẹp pair renders [KẸP] next to container number without lock on either order (order-free)', async () => {
       boardItems = [
         {
