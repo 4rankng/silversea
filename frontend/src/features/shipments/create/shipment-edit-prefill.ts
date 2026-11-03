@@ -47,6 +47,16 @@ export interface ShipmentEditSeed {
    *  row set (and a delete-all edit still reaches the server). LCL is
    *  containerless by design and never reconciles. */
   fclContainers: boolean;
+  /**
+   * SIL-660 (owner ruling 02/11): the LCL lot-level declaration state the
+   * workflow reconciles through POST/PUT /shipments/:id/declarations.
+   * `rowId` null = the lot carries no declaration row yet (the first save
+   * with a number POSTs one; a rowid-bearing save PUTs — the entity POST is
+   * an insert, so the FE must track the id). Absent on FCL lots: per-cont
+   * số tờ khai is the law there (SIL-600) and the workflow never touches
+   * the entity.
+   */
+  declaration?: { rowId: number | null; declarationNumber: string | null };
 }
 
 export interface ShipmentEditPrefill {
@@ -97,7 +107,13 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
   const warehouseFreeText = shipment.tradeDirection === 'EXPORT'
     ? shipment.deliveryLocation ?? ''
     : shipment.pickupLocation ?? '';
-  // SIL-521: tờ khai không còn prefill cấp lô — số tờ khai chỉ sống ở cấp cont.
+  // SIL-660 (owner ruling 02/11): tờ khai cấp lô sống lại CHO RIÊNG LCL —
+  // prefill từ entity row đầu (id nhỏ nhất) khi lô đã có; rowId đi theo seed
+  // để save đi PUT thay vì POST thêm row trùng. FCL bỏ qua hoàn toàn
+  // (per-cont là luật SIL-600).
+  const lclDeclarationRow = isLcl
+    ? (detail.declarations ?? []).slice().sort((a, b) => a.id - b.id)[0] ?? null
+    : null;
 
   const form: ShipmentCreateFormState = {
     customerId: shipment.customerId != null ? String(shipment.customerId) : '',
@@ -137,6 +153,9 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     // Extra delivery days persist inside the driver note (create model §);
     // they are not parsed back out — the note itself round-trips below.
     extraDeliveryDates: [],
+    // SIL-660: the LCL lot-level declaration round-trips through the edit
+    // form (empty on FCL — the field is LCL-only).
+    declarationNumber: lclDeclarationRow?.declarationNumber ?? '',
     cargoWeightKg: shipment.cargoWeightKg ?? '',
     cargoVolumeCbm: shipment.cargoVolumeCbm ?? '',
     packageCount: shipment.packageCount != null ? String(shipment.packageCount) : '',
@@ -158,6 +177,14 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
       shipmentId: shipment.id,
       version: shipment.version,
       fclContainers: !isLcl,
+      // SIL-660: LCL carries its declaration entity state (rowId null = no
+      // row yet); FCL omits the key entirely.
+      ...(isLcl ? {
+        declaration: {
+          rowId: lclDeclarationRow?.id ?? null,
+          declarationNumber: lclDeclarationRow?.declarationNumber ?? null,
+        },
+      } : {}),
     },
   };
 }

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
   buildShipmentContainerPayload,
+  buildShipmentDeclarationPayload,
   createContainerFromPrevious,
   duplicateContainerRow,
   buildShipmentRootPayload,
@@ -887,5 +888,39 @@ describe('buildShipmentRootPayload — shared-catalog kho label resolution', () 
     expect(missing.pickupLocation).toBeNull(); // documents why the union is required
     const resolved = buildShipmentRootPayload(sharedKhoForm, [], withShared);
     expect(resolved.pickupLocation).toBe('ICD Hà Nội');
+  });
+});
+
+// SIL-660 (owner ruling 02/11): hàng lẻ được nhập Số tờ khai CẤP LÔ — bản
+// hẹp hóa của máy declaration pre-SIL-521, chỉ cho LCL (SIL-601: lẻ = 1 lô
+// 1 cont). Giá trị persist vào entity `shipment_declarations` qua
+// POST/PUT /shipments/:id/declarations; root payload vẫn KHÔNG mang
+// declarationNumber (SIL-521 giữ nguyên cho FCL — per-cont là luật).
+describe('SIL-660 — buildShipmentDeclarationPayload (LCL-only tờ khai cấp lô)', () => {
+  it('LCL: số đã nhập → { declarationNumber } (trim) cho entity declarations', () => {
+    const form: ShipmentCreateFormState = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      cargoMode: 'LCL',
+      declarationNumber: '  TK-660-001 ',
+    };
+    expect(buildShipmentDeclarationPayload(form)).toEqual({ declarationNumber: 'TK-660-001' });
+  });
+
+  it('LCL: để trống → { declarationNumber: null } (clear giá trị đã lưu)', () => {
+    const form: ShipmentCreateFormState = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      cargoMode: 'LCL',
+      declarationNumber: '   ',
+    };
+    expect(buildShipmentDeclarationPayload(form)).toEqual({ declarationNumber: null });
+  });
+
+  it('FCL → null: per-cont giữ luật SIL-600, workflow không đụng entity declarations', () => {
+    const form: ShipmentCreateFormState = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      cargoMode: 'FCL',
+      declarationNumber: 'TK-LEAK',
+    };
+    expect(buildShipmentDeclarationPayload(form)).toBeNull();
   });
 });

@@ -2,8 +2,9 @@
 // tạo lô có cột SỐ TỜ KHAI THEO TỪNG CONTAINER — nhập được ngay lúc tạo lô,
 // đặt ngay sau nhóm SỐ CONTAINER (đúng thứ tự sheet Thông tin hàng phía CUS),
 // theo mô hình SIL-521: từng cont nhập/sửa riêng, trùng số trong cùng lô
-// KHÔNG bị chặn. Ô cấp lô vẫn cấm (pin sống ở
-// ShipmentCreateWorkspace.sil502-declaration-draft.test.tsx).
+// KHÔNG bị chặn. (SIL-660, ruling 02/11: ô cấp lô sống lại RIÊNG cho tab
+// HÀNG LẺ — pin đó chuyển sang ShipmentCreateWorkspace.sil660-lcl-declaration.test.tsx;
+// tab FCL dưới đây giữ luật per-cont, không có ô cấp lô.)
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';

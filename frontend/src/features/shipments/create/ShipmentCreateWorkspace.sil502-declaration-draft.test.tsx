@@ -22,14 +22,17 @@ import type * as ShipmentClientModule from '../../../api/shipmentClient';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ShipmentCreateWorkspace } from './ShipmentCreateWorkspace';
 
-/** SIL-521 (owner 26/10) → SIL-701/SIL-600 (owner ruling 30/10): the create
- *  form still has NO lot-level số tờ khai entry — the retired chip strip
- *  (SIL-502's bug class) stays dead (`shipment-declarations` field,
- *  `.csc-declaration-strip`, Sửa hàng loạt / Xóa tất cả). The owner ruling
- *  REVERSES the old absence pin ONLY at the per-container tier: the Thông tin
- *  hàng table now carries a per-cont SỐ TỜ KHAI column (entered at create
- *  time, từng cont riêng, trùng số trong lô hợp lệ) alongside the Tổng quan
- *  ledger cells / drawer DeclarationCell editors. */
+/** SIL-521 (owner 26/10) → SIL-701/SIL-600 (owner ruling 30/10) → SIL-660
+ *  (owner ruling 02/11): lịch sử luật tờ khai trên form tạo lô.
+ *  - SIL-521 chết máy tờ khai CẤP LÔ (chip strip retired: `shipment-declarations`
+ *    field, `.csc-declaration-strip`, Sửa hàng loạt / Xóa tất cả) — máy đó
+ *    VẪN CHẾT, pin giữ nguyên.
+ *  - SIL-701/SIL-600 sống lại tờ khai theo CONT (cột per-cont, nhập lúc tạo).
+ *  - SIL-660 (ruling 02/11, cập nhật luật cho RIÊNG hàng lẻ — khách báo mất
+ *    chỗ nhập tờ khai vì tab LCL không có bảng container): tab HÀNG LẺ có ô
+ *    "Số tờ khai" CẤP LÔ duy nhất (SIL-601: lẻ = 1 lô 1 cont), persist qua
+ *    entity shipment_declarations. Pin absence cấp lô giờ chỉ đúng cho FCL.
+ *    Pin chi tiết LCL sống ở ShipmentCreateWorkspace.sil660-lcl-declaration.test.tsx. */
 function renderWorkspace() {
   return render(
     <MemoryRouter initialEntries={['/shipments', '/shipments/new']}>
@@ -45,7 +48,7 @@ function renderWorkspace() {
   );
 }
 
-describe('SIL-521/SIL-600 — tờ khai: cấp lô vẫn chết, cấp cont sống trên form tạo', { timeout: 30000 }, () => {
+describe('SIL-521/600/660 — tờ khai: máy cấp lô cũ vẫn chết, per-cont sống (FCL), ô cấp lô sống riêng cho LCL', { timeout: 30000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
     quickCreateShipment.mockReset();
@@ -60,12 +63,12 @@ describe('SIL-521/SIL-600 — tờ khai: cấp lô vẫn chết, cấp cont số
     });
   });
 
-  it('hết ô Số tờ khai CẤP LÔ; cột per-cont TỒN TẠI (đảo pin SIL-701, ruling 30/10)', async () => {
-    // SIL-521 điểm 4 keeps the LOT-level input retired — strip/chips/textarea
-    // cấp lô stay gone. Owner ruling 30/10 (SIL-701) REVERSES the old
-    // "no tờ khai anywhere on the create form" pin for the per-cont half:
-    // the Thông tin hàng table now carries one Số tờ khai input per container
-    // row, entered at create time (per-cont, trùng số trong lô là hợp lệ).
+  it('máy chip-strip cấp lô SIL-502 vẫn chết; ô cấp lô SIL-660 chỉ tồn tại trên tab LCL, không trên FCL', async () => {
+    // SIL-521 điểm 4 keeps the RETIRED MACHINERY dead — strip/chips/textarea
+    // + Sửa hàng loạt/Xóa tất cả stay gone on BOTH tabs. Owner ruling 30/10
+    // (SIL-701) revived the per-cont half; owner ruling 02/11 (SIL-660) added
+    // the LCL lot-level input — so the "no lot-level input anywhere" pin now
+    // scopes to the FCL tab only (the default this render opens with).
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
@@ -73,7 +76,8 @@ describe('SIL-521/SIL-600 — tờ khai: cấp lô vẫn chết, cấp cont số
     expect(document.querySelector('.csc-declaration-strip')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Sửa hàng loạt' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xóa tất cả' })).toBeNull();
-    // Per-cont column present on the cargo table — one input per row.
+    // FCL: no lot-level declaration input — per-cont column only.
+    expect(document.querySelector('[data-field-id="shipment-lcl-declaration-number"]')).toBeNull();
     const table = screen.getByRole('table', { name: 'Danh sách container' });
     expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toContain('Số tờ khai');
     expect(within(table).getAllByLabelText('Số tờ khai')).toHaveLength(1);

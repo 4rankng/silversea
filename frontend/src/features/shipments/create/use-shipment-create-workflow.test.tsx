@@ -8,12 +8,16 @@ const {
   getShipmentDetail,
   saveShipmentContainers,
   submitShipmentForDispatch,
+  createShipmentDeclaration,
+  updateShipmentDeclaration,
 } = vi.hoisted(() => ({
   quickCreateShipment: vi.fn(),
   updateShipment: vi.fn(),
   getShipmentDetail: vi.fn(),
   saveShipmentContainers: vi.fn(),
   submitShipmentForDispatch: vi.fn(),
+  createShipmentDeclaration: vi.fn(),
+  updateShipmentDeclaration: vi.fn(),
 }));
 
 vi.mock('../../../api/shipmentClient', () => ({
@@ -22,6 +26,8 @@ vi.mock('../../../api/shipmentClient', () => ({
   getShipmentDetail,
   saveShipmentContainers,
   submitShipmentForDispatch,
+  createShipmentDeclaration,
+  updateShipmentDeclaration,
 }));
 
 import {
@@ -30,6 +36,7 @@ import {
   type ShipmentContainerDraft,
   type ShipmentCreateFormState,
 } from './shipment-create-model';
+import type { ShipmentEditSeed } from './shipment-edit-prefill';
 import { useShipmentCreateWorkflow } from './use-shipment-create-workflow';
 
 /** The post-create landing is the card's contract (FB-106 (a)), so the tests
@@ -63,7 +70,11 @@ const adHocLclForm: ShipmentCreateFormState = {
   expectedDeliveryDate: '2026-08-03',
 };
 
-function renderWorkflow(form: ShipmentCreateFormState, containers: ShipmentContainerDraft[] = []) {
+function renderWorkflow(
+  form: ShipmentCreateFormState,
+  containers: ShipmentContainerDraft[] = [],
+  editSeed?: ShipmentEditSeed,
+) {
   return renderHook(
     ({ current }: { current: ShipmentCreateFormState }) => useShipmentCreateWorkflow({
       form: current,
@@ -71,6 +82,7 @@ function renderWorkflow(form: ShipmentCreateFormState, containers: ShipmentConta
       sites: [],
       readiness: getShipmentCreateReadiness(current, containers),
       onValidationIssues: () => {},
+      editSeed,
     }),
     { wrapper, initialProps: { current: form } },
   );
@@ -238,5 +250,192 @@ describe('declaration wire — per-cont only (SIL-521)', () => {
     const body = quickCreateShipment.mock.calls[0][0] as Record<string, unknown>;
     expect(body).not.toHaveProperty('declarationNumber');
     expect(body).not.toHaveProperty('declarationNumbers');
+  });
+});
+
+/** SIL-660 (owner ruling 02/11): máy declaration HẸP cho hàng lẻ — giá trị
+ *  ô "Số tờ khai" cấp lô persist vào entity shipment_declarations qua
+ *  POST/PUT /shipments/:id/declarations, tách khỏi root payload (SIL-521
+ *  giữ nguyên). FCL không bao giờ đụng hai API này. */
+describe('SIL-660 — LCL declaration entity reconcile', () => {
+  const lclDeclarationForm: ShipmentCreateFormState = {
+    ...adHocLclForm,
+    declarationNumber: '  TK-660-01  ',
+  };
+  const declarationRow = (id: number, declarationNumber: string | null) => ({
+    id,
+    shipmentId: 501,
+    declarationNumber,
+    issuedAt: null,
+    scope: 'SINGLE',
+    note: null,
+    createdBy: null,
+    createdAt: '2026-11-02T00:00:00.000Z',
+    updatedAt: '2026-11-02T00:00:00.000Z',
+  });
+
+  beforeEach(() => {
+    quickCreateShipment.mockReset();
+    updateShipment.mockReset();
+    getShipmentDetail.mockReset();
+    saveShipmentContainers.mockReset();
+    submitShipmentForDispatch.mockReset();
+    createShipmentDeclaration.mockReset();
+    updateShipmentDeclaration.mockReset();
+    quickCreateShipment.mockResolvedValue({ id: 501, version: 3 });
+    updateShipment.mockResolvedValue({ version: 4 });
+    createShipmentDeclaration.mockResolvedValue(declarationRow(900, 'TK-660-01'));
+    updateShipmentDeclaration.mockResolvedValue(declarationRow(900, null));
+  });
+
+  it('LCL create: số tờ khai lên POST /declarations (trim), root payload không mang key cấp lô', async () => {
+    const { result } = renderWorkflow(lclDeclarationForm);
+
+    await act(async () => { await result.current.save('DRAFT'); });
+
+    expect(quickCreateShipment).toHaveBeenCalledTimes(1);
+    expect(createShipmentDeclaration).toHaveBeenCalledTimes(1);
+    expect(createShipmentDeclaration.mock.calls[0][0]).toBe(501);
+    expect(createShipmentDeclaration.mock.calls[0][1]).toEqual({ declarationNumber: 'TK-660-01' });
+    const body = quickCreateShipment.mock.calls[0][0] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('declarationNumber');
+    expect(body).not.toHaveProperty('declarationNumbers');
+  });
+
+  it('LCL create để trống tờ khai: không gọi API declarations', async () => {
+    const { result } = renderWorkflow({ ...adHocLclForm, declarationNumber: '' });
+
+    await act(async () => { await result.current.save('DRAFT'); });
+
+    expect(createShipmentDeclaration).not.toHaveBeenCalled();
+    expect(updateShipmentDeclaration).not.toHaveBeenCalled();
+  });
+
+  it('lưu lại không đổi số → không phát hành thêm write declarations', async () => {
+    const { result } = renderWorkflow(lclDeclarationForm);
+
+    await act(async () => { await result.current.save('DRAFT'); });
+    await act(async () => { await result.current.save('DRAFT'); });
+
+    expect(createShipmentDeclaration).toHaveBeenCalledTimes(1);
+  });
+
+  it('số thay đổi giữa hai lần lưu → POST lần đầu, PUT lần sau (rowId ghi nhận từ kết quả POST)', async () => {
+    updateShipmentDeclaration.mockResolvedValue(declarationRow(900, 'TK-660-02'));
+    const { result, rerender } = renderWorkflow(lclDeclarationForm);
+
+    await act(async () => { await result.current.save('DRAFT'); });
+    rerender({ current: { ...lclDeclarationForm, declarationNumber: 'TK-660-02' } });
+    await act(async () => { await result.current.save('DRAFT'); });
+
+    expect(createShipmentDeclaration).toHaveBeenCalledTimes(1);
+    expect(updateShipmentDeclaration).toHaveBeenCalledTimes(1);
+    expect(updateShipmentDeclaration.mock.calls[0]).toEqual([
+      501,
+      900,
+      { declarationNumber: 'TK-660-02' },
+    ]);
+  });
+
+  it('edit seed có row: số mới → PUT theo rowId, KHÔNG POST thêm row', async () => {
+    const seed: ShipmentEditSeed = {
+      shipmentId: 501,
+      version: 3,
+      fclContainers: false,
+      declaration: { rowId: 66, declarationNumber: 'TK-OLD' },
+    };
+    updateShipmentDeclaration.mockResolvedValue(declarationRow(66, 'TK-NEW'));
+    const { result } = renderWorkflow(
+      { ...adHocLclForm, declarationNumber: 'TK-NEW' },
+      [],
+      seed,
+    );
+
+    await act(async () => { await result.current.save('DRAFT'); });
+
+    expect(updateShipmentDeclaration).toHaveBeenCalledTimes(1);
+    expect(updateShipmentDeclaration.mock.calls[0]).toEqual([
+      501,
+      66,
+      { declarationNumber: 'TK-NEW' },
+    ]);
+    expect(createShipmentDeclaration).not.toHaveBeenCalled();
+  });
+
+  it('edit seed có row: xoá trắng số → PUT declarationNumber null (clear, không xoá row)', async () => {
+    const seed: ShipmentEditSeed = {
+      shipmentId: 501,
+      version: 3,
+      fclContainers: false,
+      declaration: { rowId: 66, declarationNumber: 'TK-OLD' },
+    };
+    const { result } = renderWorkflow(
+      { ...adHocLclForm, declarationNumber: '' },
+      [],
+      seed,
+    );
+
+    await act(async () => { await result.current.save('DRAFT'); });
+
+    expect(updateShipmentDeclaration).toHaveBeenCalledTimes(1);
+    expect(updateShipmentDeclaration.mock.calls[0]).toEqual([
+      501,
+      66,
+      { declarationNumber: null },
+    ]);
+    expect(createShipmentDeclaration).not.toHaveBeenCalled();
+  });
+
+  it('edit seed có row: giữ nguyên số → không gọi API declarations nào', async () => {
+    const seed: ShipmentEditSeed = {
+      shipmentId: 501,
+      version: 3,
+      fclContainers: false,
+      declaration: { rowId: 66, declarationNumber: 'TK-OLD' },
+    };
+    const { result } = renderWorkflow(
+      { ...adHocLclForm, declarationNumber: 'TK-OLD' },
+      [],
+      seed,
+    );
+
+    await act(async () => { await result.current.save('DRAFT'); });
+
+    expect(createShipmentDeclaration).not.toHaveBeenCalled();
+    expect(updateShipmentDeclaration).not.toHaveBeenCalled();
+  });
+
+  it('FCL: per-cont có số cũng không đụng entity declarations', async () => {
+    const fclRow: ShipmentContainerDraft = {
+      key: 'row-1',
+      containerNumber: 'TRHU4948488',
+      containerTypeId: '3',
+      declarationNumber: 'TK-PER-CONT',
+      routeId: '9',
+      rawRouteName: '',
+      pickupPortId: '4',
+      dropoffPortId: '5',
+      rawPickupPortName: '',
+      rawDropoffPortName: '',
+      cargoWeightKg: '24000',
+      cargoVolumeCbm: '',
+      customerAppointmentAt: '2026-08-03T09:00',
+      operationalSiteId: '2',
+      rawFactoryName: '',
+    };
+    const fclForm: ShipmentCreateFormState = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      cargoMode: 'FCL',
+      blNumber: 'BL-660-FCL',
+      tradeDirection: 'IMPORT',
+    };
+    saveShipmentContainers.mockResolvedValue({ shipmentVersion: 3 });
+    const { result } = renderWorkflow(fclForm, [fclRow]);
+
+    await act(async () => { await result.current.save('DRAFT'); });
+
+    expect(createShipmentDeclaration).not.toHaveBeenCalled();
+    expect(updateShipmentDeclaration).not.toHaveBeenCalled();
   });
 });
