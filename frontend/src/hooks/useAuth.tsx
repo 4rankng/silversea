@@ -4,6 +4,7 @@ import { api, ApiError } from '../lib/api';
 import { Role } from '@tingting/shared';
 import { qk } from '../api/keys';
 import { clearTokenIfCurrent, getToken, isCurrentToken, onStoredTokenChange } from '../lib/token';
+import { AUTH_USER_ID_UNRESOLVABLE_MESSAGE } from '../lib/version-conflict-messages';
 import {
   notifySessionIdentityChanged,
   onSessionExpired,
@@ -35,7 +36,7 @@ type AuthUserWire = Omit<AuthUser, 'userId'> & { id?: number; userId?: number };
 function normalizeAuthUser(user: AuthUserWire): AuthUser {
   const userId = user.id ?? user.userId;
   if (typeof userId !== 'number' || !Number.isInteger(userId) || userId <= 0) {
-    throw new Error('Không thể xác định tài khoản. Vui lòng tải lại.');
+    throw new Error(AUTH_USER_ID_UNRESOLVABLE_MESSAGE);
   }
   return { ...user, userId };
 }

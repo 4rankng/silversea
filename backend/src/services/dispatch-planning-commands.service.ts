@@ -5,7 +5,7 @@
  */
 import { assertKepIssuingContainerClass, assertResourceAvailability } from './dispatch-resource-availability.service';
 export { assertResourceAvailability } from './dispatch-resource-availability.service';
-import { LiveTripRow } from './dispatch-planning-utils.service';
+import { LiveTripRow, assertExpectedVersion } from './dispatch-planning-utils.service';
 import { getTripCompositeInTx, splitTripPatch, upsertTripCarrierInfo } from './trip-composite.service';
 import { DispatchActor, Tx, assertDispatchActor, authoritativeCargoWeightKg, buildNotificationPayload, dispatchAssignmentChanged, hasExplicitNotificationTarget, inferredVehicleCapacityKg, parseIsoWithZone, requiredTrailerTypeForFulfillment, toIsoOrNull, trimBounded, truckTowCapacityKg } from './dispatch-planning-utils.service';
 import { issueClaimWindowEnd } from './trip-pair-rules.service';
@@ -345,9 +345,7 @@ export async function issueOrderCreateOrUpdate(
     .for('update');
   if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
   if (fulfillment.canceledAt) throw new ApiError(409, 'Tác vụ đã bị hủy.');
-  if (fulfillment.version !== input.expectedVersion) {
-    throw new ApiError(409, 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
-  }
+  assertExpectedVersion(fulfillment, input.expectedVersion);
   const [containerRoute] = fulfillment.shipmentContainerId == null
     ? []
     : await tx.select({

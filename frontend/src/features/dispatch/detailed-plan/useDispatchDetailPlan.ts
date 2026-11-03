@@ -24,6 +24,7 @@ import { configClient } from '../../../api/configClient';
 import { useMonth } from '../../../hooks/useMonth';
 import { useToastOptional } from '../../../components/shared/Toast';
 import { billBookingReference } from '../../../lib/business-reference';
+import { DISPATCH_VERSION_CONFLICT_MESSAGE, STALE_DATA_RELOAD_MESSAGE } from '../../../lib/version-conflict-messages';
 import { dispatchShipment, updateCusShipmentContainerLine, type DispatchShipmentRequest } from '../../../api/shipmentClient';
 
 const PAGE_SIZE = 50;
@@ -260,7 +261,7 @@ export function useDispatchDetailPlan() {
       // ("Lô hàng đã kết thúc, không thể gán biển số."); a blanket reload
       // banner cannot fix it. Keep the reload copy for a message-less 409.
       if (status === 409) {
-        setAssignmentError((mutationError as { message?: string }).message || 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.');
+        setAssignmentError((mutationError as { message?: string }).message || DISPATCH_VERSION_CONFLICT_MESSAGE);
       } else {
         setAssignmentError('Không thể lưu biển số xe. Vui lòng thử lại.');
       }
@@ -309,7 +310,7 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       setAssignmentError((mutationError as { status?: number }).status === 409
-        ? ((mutationError as { message?: string }).message || 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.')
+        ? ((mutationError as { message?: string }).message || DISPATCH_VERSION_CONFLICT_MESSAGE)
         : 'Không thể đổi nhà xe. Vui lòng thử lại.');
       throw mutationError;
     }
@@ -338,7 +339,7 @@ export function useDispatchDetailPlan() {
       return result;
     } catch (mutationError) {
       setAssignmentError((mutationError as { status?: number }).status === 409
-        ? 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.'
+        ? DISPATCH_VERSION_CONFLICT_MESSAGE
         : 'Không thể lưu cước dự kiến. Vui lòng thử lại.');
       throw mutationError;
     }
@@ -499,7 +500,7 @@ export function useDispatchDetailPlan() {
       } else {
         setPendingWeightWarning(null);
         setAssignmentError(status === 409
-          ? (errObj.message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
+          ? (errObj.message || STALE_DATA_RELOAD_MESSAGE)
           : 'Không thể lưu kế hoạch. Vui lòng thử lại.');
       }
       throw mutationError;
@@ -594,7 +595,7 @@ export function useDispatchDetailPlan() {
       } else {
         setPendingWeightWarning(null);
         setAssignmentError(status === 409
-          ? (errObj.message || 'Dữ liệu đã thay đổi. Vui lòng tải lại.')
+          ? (errObj.message || STALE_DATA_RELOAD_MESSAGE)
           : 'Không thể phát lệnh. Vui lòng thử lại.');
       }
       throw mutationError;
@@ -627,7 +628,7 @@ export function useDispatchDetailPlan() {
       setAssignmentError(
         (mutationError as { message?: string }).message?.trim()
         || (status === 409
-          ? 'Dữ liệu đã thay đổi. Vui lòng tải lại.'
+          ? STALE_DATA_RELOAD_MESSAGE
           : 'Không thể hoàn thành chuyến. Vui lòng thử lại.'));
       throw mutationError;
     }

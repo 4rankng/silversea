@@ -26,6 +26,7 @@ import { OcrSection } from '../../features/app-settings/OcrSection';
 import { EmailSection } from '../../features/app-settings/EmailSection';
 import { PairSalarySection } from '../../features/app-settings/PairSalarySection';
 import { formatViMonth } from '../../lib/format';
+import { POLICY_SAVE_API_UNREACHABLE_MESSAGE } from '../../lib/version-conflict-messages';
 
 // Percent-field converters for the settings form (moved verbatim from the
 // deleted features/app-settings/formatters.ts — field parsing, not display
@@ -226,7 +227,7 @@ export default function AppSettingsConfigPage() {
         message.includes('đã có phiên bản')
           ? 'Tháng hiệu lực này đã có phiên bản chính sách — xem Lịch sử phiên bản hoặc chọn tháng khác.'
           : message.includes('Không tìm thấy API') || message.includes('404')
-            ? 'Không kết nối được API lưu chính sách. Vui lòng tải lại trang và thử lại; nếu vẫn lỗi, báo quản trị hệ thống.'
+            ? POLICY_SAVE_API_UNREACHABLE_MESSAGE
             : message,
       );
     }

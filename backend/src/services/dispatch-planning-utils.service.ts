@@ -174,6 +174,28 @@ export function assertDispatchActor(actor: AuthUser): asserts actor is DispatchA
   }
 }
 
+/**
+ * SIL-675 — shared optimistic-concurrency copy for dispatch-planning
+ * mutations: the fulfillment row moved between read and write, so the caller
+ * must reload before retrying. Single source of truth for the 9 former inline
+ * throws (detail-plan ×8, commands ×1).
+ */
+export const DISPATCH_VERSION_CONFLICT_MESSAGE = 'Tác vụ điều xe đã thay đổi. Vui lòng tải lại.';
+
+export function assertExpectedVersion(row: { version: number }, expectedVersion: number): void {
+  if (row.version !== expectedVersion) {
+    throw new ApiError(409, DISPATCH_VERSION_CONFLICT_MESSAGE);
+  }
+}
+
+/** A version-guarded UPDATE … RETURNING missing its row means a concurrent
+ *  write already bumped the version — same reload contract as above. */
+export function assertUpdatedRow<T>(row: T | undefined | null): asserts row is T {
+  if (row == null) {
+    throw new ApiError(409, DISPATCH_VERSION_CONFLICT_MESSAGE);
+  }
+}
+
 
 export function accountantCustomerScopeIds(actor: AuthUser): number[] {
   return [...new Set([

@@ -19,6 +19,7 @@ import {
 } from '@tingting/shared';
 import { api, ApiError } from '../../lib/api';
 import { buildIdempotencyKey } from '../../lib/idempotency';
+import { SHIPMENT_VERSION_CONFLICT_MESSAGE } from '../../lib/version-conflict-messages';
 import { formatNumber, formatDateTimeShort } from '../../lib/format';
 import { forwarderClient } from '../../api/forwarderClient';
 import { Tabs } from '../../design-system';
@@ -294,7 +295,7 @@ const sortable = (label: string, key: 'title' | 'state' | 'freshness') => (
       await load();
     } catch (error) {
       if (error instanceof ApiError && (error.status === 409 || error.status === 428)) {
-        setResponseMessage({ kind: 'conflict', text: error.message ?? 'Lô hàng đã thay đổi. Vui lòng tải lại.' });
+        setResponseMessage({ kind: 'conflict', text: error.message ?? SHIPMENT_VERSION_CONFLICT_MESSAGE });
       } else if (error instanceof ApiError) {
         setResponseMessage({ kind: 'error', text: error.message ?? 'Máy chủ từ chối lệnh.' });
       } else {

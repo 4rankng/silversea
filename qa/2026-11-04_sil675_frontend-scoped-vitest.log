@@ -1,0 +1,11 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/sil675-vguard/frontend
+
+
+ Test Files  12 passed (12)
+      Tests  237 passed (237)
+   Start at  00:22:41
+   Duration  17.64s (transform 6.68s, setup 3.54s, import 23.40s, tests 25.72s, environment 16.34s)
+
+
+[exit status] frontend scoped vitest: EXIT=0 (12 files / 237 tests passed)

@@ -1,5 +1,6 @@
 import { decomposeDispatchDetailBranch } from '../../../api/dispatchDetailBranch';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import { DISPATCH_BRANCH_MISSING_CONTAINER_MESSAGE } from '../../../lib/version-conflict-messages';
 
 /** One copy of the decompose-failure sentence — the grid banner (via
  *  `onError`) and the inline-classification toast (SIL-667) must read the
@@ -20,7 +21,7 @@ export async function ensureFulfillmentFor(
 ): Promise<DispatchDetailPlanRow | null> {
   if (row.shipmentContainerId == null) {
     // No container id (serializer gap) — never no-op silently.
-    options.onError('Dòng này không mang mã container — không thể tạo tác vụ. Vui lòng tải lại trang.');
+    options.onError(DISPATCH_BRANCH_MISSING_CONTAINER_MESSAGE);
     return null;
   }
   try {
