@@ -1,0 +1,7 @@
+ECON trip 1267: tollsStations=2 pair=30 order=1 status=COMPLETED
+      snapshot(total/rateTerms/pricingTable)=3952000|1|33
+      revenue=0 tollCost=110000 tollDeduction=0 driverSalary=192308 totalCost=371308
+ECON trip 1268: tollsStations=2 pair=30 order=2 status=COMPLETED
+      snapshot(total/rateTerms/pricingTable)=3952000|1|33
+      revenue=0 tollCost=0 tollDeduction=110000 driverSalary=200000 totalCost=269000
+PAIR COMPLETE DONE

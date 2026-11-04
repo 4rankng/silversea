@@ -1,0 +1,12 @@
+SIL-676 R2 AFTER (local build :3102):
+  [PASS] admin    ADMIN       GET /api/settlements -> 200 (expect 200) items=1
+         self-scoped rows only: False
+  [PASS] giaonhan OPS         GET /api/settlements -> 200 (expect 200) items=0
+         self-scoped rows only: True
+  [PASS] dungnv   DISPATCHER  GET /api/settlements -> 403 (expect 403) items=None
+  [PASS] tiepvv   CUS         GET /api/settlements -> 403 (expect 403) items=None
+  [PASS] bqhuong  DRIVER      GET /api/settlements -> 403 (expect 403) items=None
+canonical /api/ops/settlements (policy unchanged):
+  [PASS] giaonhan OPS         GET /api/ops/settlements -> 200 (expect 200)
+  [PASS] admin    ADMIN       GET /api/ops/settlements -> 403 (expect 403)
+MATRIX FAILURES: 0

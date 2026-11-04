@@ -5,11 +5,14 @@
  *  1. resolveTablePrice selects through the PURE law (pricing-table-selection)
  *     — the selector-less lane resolves its head row instead of 0, explicit
  *     selectors stay exact-match.
- *  2. The engine's vehicle-class miss returns MANUAL carrying the resolved
- *     terms id — ApiError(404) remains ONLY on the terms lookup, so the
- *     lifecycle fallback's zeroed ids are truthful.
- *  3. GET /api/settlements is a registered alias of the ops self list, and
- *     the SPA /settlements path routes roles to real surfaces.
+ *  2. The engine prices from the customer's price sheet through the PURE
+ *     selection law (exact keyed row → base class → general row → giá đầu
+ *     bảng); the vehicle-size-class catalog no longer gates pricing, and
+ *     ApiError(404) remains ONLY on the terms lookup, so the lifecycle
+ *     fallback's zeroed ids are truthful.
+ *  3. GET /api/settlements is a registered alias reading for OPS (self list)
+ *     and ADMIN (office list), and the SPA /settlements path routes roles to
+ *     real surfaces.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -48,13 +51,29 @@ describe('SIL-676 wiring — pricing lookup resolves keyed lanes', () => {
 });
 
 describe('SIL-676 wiring — engine trace ids stay truthful', () => {
-  test('vehicle-class miss degrades to MANUAL with the resolved terms id', () => {
-    // The MANUAL return sits INSIDE the !vehicleClass block, before the
-    // missing-base-price MANUAL — both carry the real terms id.
-    const classMiss = engine.match(/if \(!vehicleClass\) \{[\s\S]*?\n  \}/)![0];
-    assert.match(classMiss, /source: 'MANUAL'/);
-    assert.match(classMiss, /rateTermsId: terms\.id/);
-    assert.match(classMiss, /Không tìm thấy loại xe/);
+  test('base price selects through the pure law; the class catalog no longer gates pricing', () => {
+    // Round-3c staging proof: the mirror's vehicle_size_classes lacks plain
+    // CONT20/CONT40, and the old `if (!vehicleClass)` gate zeroed every leg
+    // although the sheet had the row. The gate must stay dead.
+    assert.doesNotMatch(engine, /if \(!vehicleClass\)/);
+    assert.match(engine, /import \{ partitionTablePricingLane \} from '\.\/pricing-table-selection'/);
+    // ONE lane read + the selection chain: exact class → base class →
+    // general row → giá đầu bảng.
+    assert.match(engine, /partitionTablePricingLane\(laneRows, null, priceClassCode\)/);
+    assert.match(engine, /partitionTablePricingLane\(laneRows, null, vehicleSizeClassCode\)/);
+    const chain = engine.match(/let basePriceRow = exactBuckets\.rateKey\[0\][\s\S]*?laneHeadOrder\[0\]/)![0];
+    assert.match(chain, /baseBuckets\?\.rateKey\[0\]/);
+    assert.match(chain, /exactBuckets\.general\[0\]/);
+    assert.match(chain, /exactBuckets\.laneHeadOrder\[0\]/);
+    // The base-price MANUAL still carries the resolved terms id and whatever
+    // row id the chain reached (read side rebuilds the hint from trace ids).
+    // The chain's stop law: a found row with price 0 is an operator statement
+    // — it wins the chain and yields MANUAL; no fallback below it.
+    assert.match(engine, /if \(!basePriceRow \|\| Number\(basePriceRow\.price\) === 0\)/);
+    const baseMiss = engine.match(/No base price ⇒ MANUAL mode[\s\S]*?\n  \}/)![0];
+    assert.match(baseMiss, /source: 'MANUAL'/);
+    assert.match(baseMiss, /rateTermsId: terms\.id/);
+    assert.match(baseMiss, /pricingTableId: basePriceRow\?\.id \?\? 0/);
   });
 
   test('ApiError(404) survives ONLY on the freight_rate_terms lookup', () => {
@@ -71,11 +90,16 @@ describe('SIL-676 wiring — engine trace ids stay truthful', () => {
 });
 
 describe('SIL-676 wiring — /settlements registered on both sides', () => {
-  test('backend mounts the ops-list alias at /api/settlements', () => {
+  test('backend mounts the role-aware alias at /api/settlements', () => {
     assert.match(opsRoutes, /export const settlementsListAliasRoutes = Router\(\)/);
-    assert.match(opsRoutes, /settlementsListAliasRoutes\.get\('\/', OPS_ONLY, asyncHandler\(listOpsSettlementsHandler\)\)/);
+    // Round-3c: the alias must read for OPS AND ADMIN — OPS self-scoped
+    // (the /api/ops/settlements policy), ADMIN unscoped (the
+    // /api/ops/admin/settlements policy); other roles stay 403.
+    assert.match(opsRoutes, /settlementsListAliasRoutes\.get\('\/', requireRoles\(Role\.OPS, Role\.ADMIN\), asyncHandler/);
+    assert.match(opsRoutes, /user\.role === Role\.ADMIN\n\s*\? await listOpsSettlements\(\{ status \}\)/);
+    assert.match(opsRoutes, /: await listOpsSettlements\(\{ opsUserId: user\.userId, status \}\)/);
     assert.match(index, /app\.use\('\/api\/settlements', authMiddleware, settlementsListAliasRoutes\)/);
-    // Same gate as the canonical /api/ops/settlements list.
+    // The canonical /api/ops/settlements list keeps its OPS-only policy.
     assert.match(opsRoutes, /router\.get\('\/settlements', OPS_ONLY, asyncHandler\(listOpsSettlementsHandler\)\)/);
   });
 
