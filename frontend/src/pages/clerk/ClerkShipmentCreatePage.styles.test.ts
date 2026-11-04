@@ -277,9 +277,11 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-field-with-append > :first-child\s*\{[^}]*flex:\s*1 1 auto;[^}]*align-self:\s*start;/);
     // The input no longer reserves room for an overlay that is not there.
     expect(css).not.toMatch(/\.csc-field-with-append > :first-child input\s*\{[^}]*padding-right:/);
-    // 36px square on the control row (label 18px + gap 8px margin-top);
-    // no absolute positioning left to lose a click race.
-    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*margin-top:\s*26px;/);
+    // 36px square on the control row (label 18px + the UUI field's real 6px
+    // gap — measured live 04/11, SIL-678; the old 26px assumed 8px and sat
+    // 2px below the input's row line); no absolute positioning left to lose
+    // a click race.
+    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*margin-top:\s*24px;/);
     expect(css).not.toMatch(/\.csc-append-button\s*\{[^}]*position:\s*absolute;/);
     // A press must register visually (FB-114: the click felt dead).
     expect(css).toMatch(/\.csc-append-button:not\(:disabled\):active\s*\{[^}]*transform:\s*translateY\(1px\);/);
