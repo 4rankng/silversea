@@ -95,17 +95,18 @@
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
 /* SIL-168 (owner ruling B 24/10 — khách yêu cầu lần 3): Hình thức XNK stands
-   FIRST beside Khách hàng. Column map: Khách hàng 6 · Hình thức XNK 6, then —
-   SIL-673 (owner ruling 03/11) — Số tờ khai 6 (tab Hàng lẻ only) on its own
-   row directly ABOVE Số Bill/Booking, then Số Bill/Booking 6 · Hãng tàu 6,
-   the Tuỳ chọn chips full width. Supersedes the FB-127 cluster split
-   (9f174360); restores the 2425726d band map. Gate blNumber XOR bookingRef
-   theo hướng GIỮ NGUYÊN (FB-113). */
+   FIRST beside Khách hàng. Column map: Khách hàng 6 · Hình thức XNK 6, then
+   Số Bill/Booking 6 · (Hãng tàu 6 | Số tờ khai 6 — SIL-678, customer 04/11:
+   cùng một hàng, tờ khai bên phải, tab Hàng lẻ only; supersedes SIL-673's
+   stacked row), the Tuỳ chọn chips full width. Supersedes the FB-127 cluster
+   split (9f174360); restores the 2425726d band map. Gate blNumber XOR
+   bookingRef theo hướng GIỮ NGUYÊN (FB-113). */
 .csc-identity-grid__customer { grid-column: span 6; }
 .csc-identity-grid__trade-direction { grid-column: span 6; }
-/* SIL-673: same 6-track half column as the booking cell below it — same left
-   column, same width, so the pair reads as one stacked identity block. The
-   36px placeholder slot (SIL-641) keeps the control's right edge aligned. */
+/* SIL-678: span 6 in the refs band AFTER the booking cell — grid auto-place
+   lands it on cols 7-12 (right half of the SAME row as Số Bill/Booking),
+   the slot hãng tàu occupies for FCL. The 36px placeholder slot (SIL-641)
+   keeps the control's right edge aligned. */
 .csc-identity-grid__declaration { grid-column: span 6; }
 .csc-identity-grid__booking { grid-column: span 6; }
 .csc-identity-grid__shipping-line { grid-column: span 6; }
@@ -131,8 +132,10 @@
 .csc-field-with-append > :first-child { flex: 1 1 auto; min-width: 0; align-self: start; }
 /* 36px hit target (FB-114): at/above the 32px touch floor, inside the ≤40px
    ordinary-control ceiling; inline-grid place-items keeps the 15px icon
-   optically centered. 26px margin-top = the house label line (18px) + the
-   field grid's gap (8px), so the icon lands on the CONTROL row whatever the
+   optically centered. 24px margin-top = the house label line (18px) + the
+   UUI field's real label→control gap (6px, measured live 04/11 — SIL-678;
+   the old 26px assumed an 8px gap and dropped the button 2px below the
+   input's row line), so the icon lands on the CONTROL row whatever the
    cell's height, hint or error state. SIL-641 residual (id 745, QA 03/11):
    the transparent button read as a floating glyph ("+' lơ lửng ở gutter",
    "pencil ngoài ô Hãng tàu") — it now carries the ordinary-control boundary
@@ -142,7 +145,7 @@
    a-c-form-input-groups-06 pattern, rebuilt with house tokens; keeps the
    law's own 36px box + 8px gap — the edge is NOT joined to the input's
    border). */
-.csc-append-button { flex: 0 0 auto; display: inline-grid; place-items: center; width: 36px; height: 36px; margin-top: 26px; padding: 0; border: 1px solid var(--control-border); border-radius: 8px; background: var(--surface); color: var(--accent); cursor: pointer; }
+.csc-append-button { flex: 0 0 auto; display: inline-grid; place-items: center; width: 36px; height: 36px; margin-top: 24px; padding: 0; border: 1px solid var(--control-border); border-radius: 8px; background: var(--surface); color: var(--accent); cursor: pointer; }
 .csc-append-button svg { pointer-events: none; }
 .csc-append-button:not(:disabled):hover { background: var(--surface-3); }
 .csc-append-button:not(:disabled):active { background: var(--surface-3); transform: translateY(1px); }
@@ -155,14 +158,15 @@
    measured 551/595/595/551 before, i.e. "one long one short" (QA 02/11 @1307).
    FB-114 keeps the button a flex sibling with its own box (never an overlay),
    so the only way to equalise is for every cell to carry the slot.
-   margin-top: 26px MUST match .csc-append-button or the two rows lose their
-   shared baseline (62px vs 36px cells). visibility:hidden — never display:none,
+   margin-top: 24px MUST match .csc-append-button (18px label + the real 6px
+   gap, measured 04/11 — SIL-678) or the two rows lose their shared baseline
+   (62px vs 36px cells). visibility:hidden — never display:none,
    which would drop the slot and re-open the 44px gap. */
 .csc-identity-grid__action-slot {
   flex: 0 0 36px;
   width: 36px;
   height: 36px;
-  margin-top: 26px;
+  margin-top: 24px;
 }
 .csc-identity-grid__action-slot--placeholder {
   visibility: hidden;

@@ -63,9 +63,11 @@ describe('SIL-641 (id 745) — Form tạo lô, section "Nhận diện lô": 2 in
     expect(rule).toContain('flex: 0 0 36px');
     expect(rule).toContain('width: 36px');
     expect(rule).toContain('height: 36px');
-    // MUST match .csc-append-button's 26px (label 18px + field gap 8px) or the
-    // two rows lose their shared baseline and the columns stop lining up.
-    expect(rule).toContain('margin-top: 26px');
+    // MUST match .csc-append-button's 24px (label line 18px + the UUI field's
+    // real 6px label→control gap, measured live 04/11 — SIL-678) or the two
+    // rows lose their shared baseline and the columns stop lining up. The old
+    // 26px assumed an 8px gap and dropped the button 2px below the input row.
+    expect(rule).toContain('margin-top: 24px');
   });
 
   it('keeps the placeholder slot in layout — visibility:hidden, never display:none', () => {
