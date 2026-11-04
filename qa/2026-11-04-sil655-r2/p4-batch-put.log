@@ -1,0 +1,34 @@
+fixture: baseTrip=39 lot=shipment#113 fixtureTrip=883 (v1) fixtureContainer=sc#1466 number=TEMU8712563
+PASS p4.batch-items :: batch returned 1 item(s)
+PASS p4.inserted-id :: (a) inserted trip_container id=800
+PASS p4.link-set :: (b) source_shipment_container_id=1466 expected 1466
+PASS p4.source-shipment :: source_shipment_id=113 expected 113
+PASS p4.number-canonical :: container_number stored=TEMU8712563 expected TEMU8712563
+PASS p4.primary-seal :: seal_number=SIL655R2-BATCH expected SIL655R2-BATCH
+PASS p4.version-bumped :: trips.version=2 expected 2 (real batch path executed)
+PASS p4.bridge-seal-mirrored :: (c) lot sc#1466 seal after=SIL655R2-BATCH expected SIL655R2-BATCH (bridge wrote it)
+PASS p4.bridge-number-about-lot :: (c) lot sc#1466 container_number=TEMU8712563 = trip number
+PASS p4.undeclared-409 :: undeclared TEMU8718290 → ApiError 409
+PASS p4.undeclared-message :: message="Số container "TEMU8718290" chưa được khai trên lô hàng của chuyến."
+PASS p4.rollback-rows :: rejected batch left exactly the arm-1 row (rows=1, link=1466) — full rollback
+PASS p4.rollback-version :: version=2 unchanged by rejected batch
+
+--- p4-batch-put: mismatch query (issue 762, verbatim) ---
+id 
+----
+(0 rows)
+--- p4-batch-put: orphan-with-number query ---
+id 
+----
+(0 rows)
+PASS p4-batch-put.mismatch-0row :: Q1 = 0 rows
+PASS p4-batch-put.orphan-0row :: Q2 = 0 rows
+
+--- summary counts (round-1 shape) ---
+numbered_rows | numbered_and_linked | numberless_rows | total_rows 
+---------------+---------------------+-----------------+------------
+           430 |                 430 |              41 |        471
+(1 row)
+PASS p4-batch-put.cleanup :: fixture rows removed (residual=0|0|0)
+
+== p4-batch-put: 16/16 checks passed ==

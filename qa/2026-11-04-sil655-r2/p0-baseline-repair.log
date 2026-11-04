@@ -1,0 +1,13 @@
+--- baseline mismatch query BEFORE repair (issue 762, verbatim) ---
+id 
+----
+(0 rows)
+baseline already clean — nothing to repair
+PASS p0.noop :: mismatch 0 rows before repair
+--- orphan-with-number query after ---
+id 
+----
+(0 rows)
+PASS p0.orphan-0row :: Q2 = 0 rows
+
+== p0-baseline-repair: 2/2 checks passed ==

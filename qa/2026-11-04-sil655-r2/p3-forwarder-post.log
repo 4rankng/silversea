@@ -1,0 +1,36 @@
+actor userId=1
+fixture: baseTrip=39 lot=shipment#113 fixtureTrip=1266 (v1) fixtureContainer=sc#2031 number=TEMU0772756
+PASS pre.lot-seal-null :: sc#2031 seal before=<NULL>
+PASS p3.inserted-id :: inserted trip_container id=1273
+PASS p3.link-set :: (b) source_shipment_container_id=2031 expected 2031
+PASS p3.source-shipment :: source_shipment_id=113 expected 113
+PASS p3.number-canonical :: container_number stored=TEMU0772756 expected TEMU0772756 (normalized from spaced/lowercase input)
+PASS p3.primary-seal :: seal_number=SIL655R2-SEAL1 expected SIL655R2-SEAL1
+PASS p3.seal-row :: trip_container_seals rows=1
+PASS p3.bridge-seal-mirrored :: (c) lot sc#2031 seal after=SIL655R2-SEAL1 expected SIL655R2-SEAL1 (bridge wrote it)
+PASS p3.bridge-number-about-lot :: (c) lot sc#2031 container_number=TEMU0772756 = trip number
+PASS p3.undeclared-409 :: undeclared TEMU0780556 → ApiError 409
+PASS p3.undeclared-message :: message="Số container "TEMU0780556" chưa được khai trên lô hàng của chuyến."
+PASS p3.undeclared-no-row :: trip rows before=1 after=1 (no orphan row stored)
+PASS p3.duplicate-409 :: duplicate TEMU0772756 → ApiError 409
+PASS p3.duplicate-message :: message="Số container "TEMU0772756" đã có trên chuyến này."
+
+--- p3-forwarder-post: mismatch query (issue 762, verbatim) ---
+id 
+----
+(0 rows)
+--- p3-forwarder-post: orphan-with-number query ---
+id 
+----
+(0 rows)
+PASS p3-forwarder-post.mismatch-0row :: Q1 = 0 rows
+PASS p3-forwarder-post.orphan-0row :: Q2 = 0 rows
+
+--- summary counts (round-1 shape) ---
+numbered_rows | numbered_and_linked | numberless_rows | total_rows 
+---------------+---------------------+-----------------+------------
+           412 |                 412 |              41 |        453
+(1 row)
+PASS p3-forwarder-post.cleanup :: fixture rows removed (residual=0|0|0)
+
+== p3-forwarder-post: 17/17 checks passed ==

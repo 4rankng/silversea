@@ -1,0 +1,41 @@
+source trip=52 lot=shipment#228 status=CREATED numbered+linked containers=1
+source rows: tc#103→sc#272 (MSKU1234565)
+PASS p2.live-copy-refused :: (escalation repro) live-source copy → DrizzleQueryError constraint=trips_shipment_without_fulfillment_live_uniq
+PASS p2.source-canceled-fixture :: fixture: source trip 52 temporarily CANCELED during copy
+PASS p2.copy-trip-created :: (a) copyTrip → trip id=880
+PASS p2.copy-stays-lot-linked :: copy shipment_id=228 expected 228
+PASS p2.copy-count :: copied container rows=2 expected 2 (1:1 with all source rows)
+PASS p2.link-set-parity :: lot-link id sets identical (source=[,272] copy=[,272])
+PASS p2.sc.parity :: sc#: 1 source → 1 copied
+PASS p2.sc272.parity :: sc#272: 1 source → 1 copied
+PASS p2.row0.id :: (a) copied trip_container id=796
+PASS p2.row0.link :: (b) source_shipment_container_id=<NULL> carried from its source row
+PASS p2.row0.numberless :: (c) containerNumber null per copy law (got <NULL>)
+PASS p2.row0.sealless :: (c) sealNumber null per copy law (got <NULL>)
+PASS p2.row1.id :: (a) copied trip_container id=797
+PASS p2.row1.link :: (b) source_shipment_container_id=272 carried from its source row
+PASS p2.row1.numberless :: (c) containerNumber null per copy law (got <NULL>)
+PASS p2.row1.sealless :: (c) sealNumber null per copy law (got <NULL>)
+PASS p2.zero-numbered-copies :: numbered copied rows=0 (law: numbers must be new)
+PASS p2.lot-number-intact :: (c) lot sc#272 container_number=MSKU1234565 untouched by numberless copy
+PASS p2.source-restored :: fixture undone: trip 52 status=CREATED
+PASS p2.cleanup :: probe copy removed (residual=0)
+
+--- p2-copytrip-link: mismatch query (issue 762, verbatim) ---
+id 
+----
+(0 rows)
+--- p2-copytrip-link: orphan-with-number query ---
+id 
+----
+(0 rows)
+PASS p2-copytrip-link.mismatch-0row :: Q1 = 0 rows
+PASS p2-copytrip-link.orphan-0row :: Q2 = 0 rows
+
+--- summary counts (round-1 shape) ---
+numbered_rows | numbered_and_linked | numberless_rows | total_rows 
+---------------+---------------------+-----------------+------------
+           429 |                 429 |              41 |        470
+(1 row)
+
+== p2-copytrip-link: 22/22 checks passed ==
