@@ -703,3 +703,33 @@ supersessions from the /dispatch master-plan lane:
 *Source:* plan.tingting.vip id 708 (SIL-605) + owner messages 30/10; drive
 `qa/scripts/ui-sil708-le-chip-verify-20261030.mjs` (12/12 PASS), pins in
 `MasterPlanGrid.lcl-display.test.tsx` + `MasterPlanCardList.test.tsx`.
+
+**Ruling 2026-11-04 (owner ticket SIL-681 — "Tab Hàng lẻ — Nhận diện lô: gộp icon action vào
+trong input (trailing action, cùng chiều cao input), bỏ nút rời oversize"; owner kèm ảnh).**
+The two quick-create actions of section Nhận diện lô (Khách hàng `+`, Hãng tàu `✎`) move
+INSIDE their inputs as trailing actions, superseding FB-114's flex-sibling chip (and 11/10's
+"plus at the end of the search bar" beside-the-field reading) FOR THESE TWO CONTROLS:
+
+1. *In-input trailing action is the pattern* (`csc-field-with-trailing` +
+   `csc-trailing-action`, ClerkShipmentCreatePage.css): absolute at the input's right end,
+   `top: 24px` (label 18px + the UUI field's real 6px gap, SIL-678 measurement), 40px-wide
+   hit box, height = the input's OWN geometry token (`--control-compact-h` desktop,
+   `--control-touch-h` at ≤768px/coarse — control-geometry.css's sm band; never a hardcoded
+   px). House precedent: the UUI kit's own in-input trailing buttons (InputBase password
+   eye, combobox clear ×). Provenance: house primitive, not a catalog import.
+2. *The FB-114 click race stays dead by construction*: the button rides
+   `z-index: var(--z-dropdown)` (above the kit's in-control input z-10 / clear × z-20;
+   raw z-index integers stay drift-banned in page CSS), and the input + its ghost value
+   span reserve the zone (`padding-right: 44px`; 72px when the combobox clear × shows,
+   which shifts LEFT of the action at `right: 44px` — SIL-482's × contract unchanged).
+   Focus ring keeps the section's house ring (`outline: 2px solid var(--accent)`).
+3. *The SIL-641 shared-right-edge law changes mechanism, not outcome*: the external
+   "control + gap 8 + action slot 36" pattern and its hidden placeholders are retired
+   everywhere — every identity cell renders its control at FULL cell width, so same-column
+   cells stay equal and the section keeps one consistent edge per column with no reserved
+   44px. Aria-labels/titles, dialog behaviors, refs (dialog-return focus) and the
+   searchable/Enter contracts are untouched — layout only.
+*Source:* plan.tingting.vip SIL-681 (owner 04/11, kèm ảnh); drive
+`qa/scripts/2026-11-04-sil681-trailing-ui-drive.mjs` (PHASE=before/after, after 84 PASS,
+DB read-only bookend 858/80/1 unchanged), pins in `ShipmentCreateAppendAction.test.tsx` +
+`ShipmentCreateIdentitySection.sil681-trailing.test.tsx` + styles tests.

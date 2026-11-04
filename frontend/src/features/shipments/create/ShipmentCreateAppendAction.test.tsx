@@ -64,41 +64,74 @@ function renderHarness(onUpdate: Update = () => {}) {
   return render(<AppendActionHarness onUpdate={onUpdate} />);
 }
 
-describe('shipment-create append action — hit target geometry', () => {
-  it('declares a ≥32px square hit target for the trailing append button', () => {
+describe('SIL-681 trailing action — hit target geometry (stylesheet contract)', () => {
+  it('declares the trailing action 40px wide and the input\'s OWN height token', () => {
     // jsdom computes no layout — getBoundingClientRect() here would measure
     // the environment, not the CSS. The geometry is pinned against the real
     // stylesheet, the same house pattern as the other styles contracts.
-    const rule = pageCss.match(/\.csc-append-button\s*\{([^}]*)\}/)?.[1] ?? '';
-    const width = Number(rule.match(/width:\s*(\d+)px/)?.[1] ?? 0);
-    const height = Number(rule.match(/height:\s*(\d+)px/)?.[1] ?? 0);
-    expect(width).toBeGreaterThanOrEqual(32);
-    expect(height).toBeGreaterThanOrEqual(32);
+    const rule = pageCss.match(/\.csc-trailing-action\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule, 'trailing action rule').not.toBe('');
+    // Brief floor: hit area 40px wide. Height inherits the input's own
+    // geometry token (control-geometry.css sm band) — never a hardcoded px.
+    expect(rule).toContain('width: 40px');
+    expect(rule).toContain('height: var(--control-compact-h)');
+    expect(rule).not.toMatch(/height:\s*\d+px/);
   });
 
-  it('owns its box beside the field — no absolute overlay racing the input', () => {
-    const rule = pageCss.match(/\.csc-append-button\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(rule).not.toContain('position: absolute');
-    expect(pageCss).not.toMatch(/\.csc-field-with-append\s*\{[^}]*position:\s*relative;/);
-    // The input no longer reserves padding for an overlay that is not there.
-    expect(pageCss).not.toMatch(/\.csc-field-with-append > :first-child input\s*\{/);
+  it('mirrors the control\'s touch band — height grows with the input at ≤768px/coarse', () => {
+    expect(pageCss).toMatch(
+      /@media \(pointer: coarse\), \(max-width: 768px\)\s*\{\s*\.csc-trailing-action\s*\{[^}]*height:\s*var\(--control-touch-h\);[^}]*\}\s*\}/,
+    );
+  });
+
+  it('sits INSIDE the input — absolute, on the control row, above the input for clicks', () => {
+    const rule = pageCss.match(/\.csc-trailing-action\s*\{([^}]*)\}/)?.[1] ?? '';
+    // The owner 04/11 pattern: absolute overlay at the input's right end.
+    expect(rule).toContain('position: absolute');
+    // 24px = house label line 18px + the UUI field's real 6px gap (SIL-678
+    // measurement) — the button lands on the control's row.
+    expect(rule).toContain('top: 24px');
+    // FB-114's click race stays dead: the button must out-rank the kit's
+    // in-control layers (input z-10, clear × z-20) — token-derived, never a
+    // raw integer (design-drift ban).
+    expect(rule).toContain('z-index: var(--z-dropdown)');
     // A press registers visually.
-    expect(pageCss).toMatch(/\.csc-append-button:not\(:disabled\):active\s*\{[^}]*transform:\s*translateY\(1px\);/);
+    expect(pageCss).toMatch(/\.csc-trailing-action:not\(:disabled\):active\s*\{[^}]*background:\s*var\(--surface-3\);/);
+  });
+
+  it('reserves the input\'s right zone so text never runs under the icon or the clear ×', () => {
+    // Base reservation: the trailing button zone.
+    expect(pageCss).toMatch(/\.csc-field-with-trailing \.uui-combobox__input input\[role='combobox'\],\s*\n\.csc-field-with-trailing \.uui-combobox__input > span\[aria-hidden='true'\]\s*\{\s*padding-right: 44px;/);
+    // When the combobox clear × shows (SIL-482 contract unchanged), the ×
+    // shifts LEFT of the trailing action and the reservation covers both.
+    expect(pageCss).toMatch(/\.csc-field-with-trailing \.uui-combobox:has\(button\[aria-label='Xoá'\]\)[\s\S]*?padding-right: 72px;/);
+    expect(pageCss).toMatch(/\.csc-field-with-trailing \.uui-combobox button\[aria-label='Xoá'\]\s*\{\s*right: 44px;/);
+  });
+
+  it('retires the detached append pattern everywhere — no legacy class in CSS or DOM', () => {
+    expect(pageCss).not.toContain('csc-append-button');
+    expect(pageCss).not.toContain('csc-field-with-append');
+    expect(pageCss).not.toContain('csc-identity-grid__action-slot');
+    renderHarness();
+    expect(document.querySelector('.csc-append-button')).toBeNull();
+    expect(document.querySelector('.csc-identity-grid__action-slot')).toBeNull();
+    expect(document.querySelectorAll('.csc-trailing-action')).toHaveLength(2);
   });
 });
 
-describe('shipment-create append action — DOM placement and naming', () => {
-  it('renders both append buttons as flex siblings outside the field controls', () => {
+describe('SIL-681 trailing action — DOM placement and naming', () => {
+  it('renders both actions inside their cell wrapper but OUTSIDE the combobox control subtree', () => {
     renderHarness();
     const customerButton = screen.getByRole('button', { name: 'Thêm khách hàng' });
     const lineButton = screen.getByRole('button', { name: 'Đặt tên hãng tàu cho lô này' });
     for (const button of [customerButton, lineButton]) {
-      const wrapper = button.closest('.csc-field-with-append');
+      const wrapper = button.closest('.csc-field-with-trailing');
       expect(wrapper).toBeTruthy();
-      // Sibling of the field adapter, never nested inside its control —
-      // nesting it back would resurrect the overlay click race.
-      expect(button.closest('.csc-uui-field')).toBeNull();
-      expect(wrapper?.lastElementChild).toBe(button);
+      // The overlay is positioned by CSS over the input — it must NOT nest
+      // inside the combobox control subtree (no RAC press/combobox semantics
+      // leak into the action).
+      expect(button.closest('[data-uui-control]')).toBeNull();
+      expect(button.className).toContain('csc-trailing-action');
     }
   });
 
@@ -123,7 +156,7 @@ describe('shipment-create append action — DOM placement and naming', () => {
   });
 });
 
-describe('shipment-create append action — click through the naming dialog', () => {
+describe('SIL-681 trailing action — click through the naming dialog', () => {
   it('opens the naming dialog on click and keeps the honest copy', async () => {
     renderHarness();
     fireEvent.click(screen.getByRole('button', { name: 'Đặt tên hãng tàu cho lô này' }));

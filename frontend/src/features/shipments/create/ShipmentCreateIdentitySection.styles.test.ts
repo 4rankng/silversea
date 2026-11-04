@@ -54,36 +54,31 @@ describe('SIL-641 (id 745) — Form tạo lô, section "Nhận diện lô": 2 in
   // CTO design ruling 02/11 (plans/reports/sil641-design-ruling.md): equal
   // grid TRACKS were never the defect — QA measured the rendered control
   // boxes 551/595/595/551 @1307 because only the two quick-add cells
-  // reserved the button's 44px. Every identity cell now carries ONE action
-  // slot (real button or hidden placeholder), so all four boxes measure the
-  // same width and land on the same right edge.
-  it('declares the shared 36px action slot with the button-matching baseline', () => {
-    const rule = css.match(/\.csc-identity-grid__action-slot\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(rule, 'shared action-slot rule').not.toBe('');
-    expect(rule).toContain('flex: 0 0 36px');
-    expect(rule).toContain('width: 36px');
-    expect(rule).toContain('height: 36px');
-    // MUST match .csc-append-button's 24px (label line 18px + the UUI field's
-    // real 6px label→control gap, measured live 04/11 — SIL-678) or the two
-    // rows lose their shared baseline and the columns stop lining up. The old
-    // 26px assumed an 8px gap and dropped the button 2px below the input row.
-    expect(rule).toContain('margin-top: 24px');
+  // reserved the button's 44px. SIL-681 (owner 04/11) retired the slot
+  // mechanism: the two quick-create actions moved INSIDE their inputs as
+  // trailing actions, and every cell now renders its control at FULL cell
+  // width — the shared right edge holds by construction, no placeholder.
+  it('renders every identity cell full width — no external slot reserves width any more', () => {
+    // The legacy pattern is retired everywhere in this stylesheet (clean
+    // cutover — DOM half pinned in ShipmentCreateAppendAction.test.tsx).
+    expect(css).not.toContain('csc-field-with-append');
+    expect(css).not.toContain('csc-append-button');
+    expect(css).not.toContain('csc-identity-grid__action-slot');
+    // The trailing cell wrapper exists for the two action cells.
+    expect(css).toMatch(/\.csc-field-with-trailing\s*\{[^}]*position:\s*relative;/);
   });
 
-  it('keeps the placeholder slot in layout — visibility:hidden, never display:none', () => {
-    const rule = css.match(/\.csc-identity-grid__action-slot--placeholder\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(rule, 'placeholder modifier').not.toBe('');
-    expect(rule).toContain('visibility: hidden');
-    expect(rule).toContain('pointer-events: none');
-    // display:none drops the slot from layout → the button-less control jumps
-    // back to the full cell width and the 44px mismatch returns.
-    expect(rule).not.toMatch(/display:\s*none/);
-  });
-
-  it('the two button-less cells reuse the existing .csc-field-with-append rule (no duplicate layout rule)', () => {
-    // Both plain cells join the SAME pattern the quick-add cells already run —
-    // one shared implementation, per the design-system "rule of one answer".
-    expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*display:\s*flex;/);
-    expect(css.match(/\.csc-field-with-append\s*\{/g)).toHaveLength(1);
+  it('positions the trailing action on the control row at the input\'s own height', () => {
+    const rule = css.match(/\.csc-trailing-action\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule, 'trailing action rule').not.toBe('');
+    // top: 24px = the house label line (18px) + the UUI field's real 6px
+    // label→control gap, measured live 04/11 — SIL-678. The input's height
+    // token is inherited, never hardcoded.
+    expect(rule).toContain('top: 24px');
+    expect(rule).toContain('height: var(--control-compact-h)');
+    // FB-114's click race stays dead: above the kit's input z-10 / × z-20.
+    expect(rule).toContain('z-index: var(--z-dropdown)');
+    // The touch band keeps height == input height when the control grows.
+    expect(css).toMatch(/@media \(pointer: coarse\), \(max-width: 768px\)\s*\{\s*\.csc-trailing-action\s*\{[^}]*height:\s*var\(--control-touch-h\);/);
   });
 });

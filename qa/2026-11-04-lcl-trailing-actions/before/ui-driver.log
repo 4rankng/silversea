@@ -1,0 +1,15 @@
+PHASE=before HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175
+LOGIN ok role=cus account=tiepvv
+DB-BEFORE shipments=858 customers=80 shipping-line-suppliers=1
+W=1440 TAB=FCL legacyAppend=2 legacySlot=4 trailing=0
+SHOT qa/2026-11-04-lcl-trailing-actions/before/2026-11-04_lcl-trailing-actions_ui-before-fcl-1440.png
+W=768 TAB=FCL legacyAppend=2 legacySlot=4 trailing=0
+SHOT qa/2026-11-04-lcl-trailing-actions/before/2026-11-04_lcl-trailing-actions_ui-before-fcl-768.png
+W=390 TAB=FCL legacyAppend=2 legacySlot=4 trailing=0
+SHOT qa/2026-11-04-lcl-trailing-actions/before/2026-11-04_lcl-trailing-actions_ui-before-fcl-390.png
+W=1440 TAB=LCL trailing=0
+SHOT qa/2026-11-04-lcl-trailing-actions/before/2026-11-04_lcl-trailing-actions_ui-before-lcl-1440.png
+METRICS-SAVED qa/2026-11-04-lcl-trailing-actions/before/dom-metrics-before.json
+DB-AFTER shipments=858 customers=80 shipping-line-suppliers=1
+PASS DB: drive không tạo/sửa dữ liệu (read-only layout + dialog-open drive) — 858/80/1 → 858/80/1
+RESULT GREEN failures=0

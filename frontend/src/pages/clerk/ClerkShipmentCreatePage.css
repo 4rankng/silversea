@@ -105,8 +105,8 @@
 .csc-identity-grid__trade-direction { grid-column: span 6; }
 /* SIL-678: span 6 in the refs band AFTER the booking cell — grid auto-place
    lands it on cols 7-12 (right half of the SAME row as Số Bill/Booking),
-   the slot hãng tàu occupies for FCL. The 36px placeholder slot (SIL-641)
-   keeps the control's right edge aligned. */
+   the slot hãng tàu occupies for FCL. Every control fills its cell, so the
+   shared right edge holds by construction (SIL-641 law, SIL-681 mechanism). */
 .csc-identity-grid__declaration { grid-column: span 6; }
 .csc-identity-grid__booking { grid-column: span 6; }
 .csc-identity-grid__shipping-line { grid-column: span 6; }
@@ -120,58 +120,68 @@
 .csc-identity-grid__flags-label { color: var(--fg-1); font-size: var(--text-label-size); font-weight: 600; line-height: 18px; }
 .csc-identity-grid__flags-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .csc-identity-grid__flags .csc-flag-checkbox { flex: 0 0 auto; }
-/* Field + quick-create on ONE row. The action trails the field as an
-   icon-only affordance (owner ruling 11/10: "plus icon at the end of the
-   search bar", "just plus is enough, no need text"). FB-114 moved it OUT of
-   the control's box: the old absolute overlay (26px, z-index 1, sitting on
-   the input's reserved right edge) lost the click race with the input and
-   sat under the 32px touch floor. As a flex SIBLING it owns its own box —
-   no overlap with the input or the combobox's own clear affordance — and
-   still never wraps below the field or drifts with the row height. */
-.csc-field-with-append { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
-.csc-field-with-append > :first-child { flex: 1 1 auto; min-width: 0; align-self: start; }
-/* 36px hit target (FB-114): at/above the 32px touch floor, inside the ≤40px
-   ordinary-control ceiling; inline-grid place-items keeps the 15px icon
-   optically centered. 24px margin-top = the house label line (18px) + the
-   UUI field's real label→control gap (6px, measured live 04/11 — SIL-678;
-   the old 26px assumed an 8px gap and dropped the button 2px below the
-   input's row line), so the icon lands on the CONTROL row whatever the
-   cell's height, hint or error state. SIL-641 residual (id 745, QA 03/11):
-   the transparent button read as a floating glyph ("+' lơ lửng ở gutter",
-   "pencil ngoài ô Hãng tàu") — it now carries the ordinary-control boundary
-   (1px --control-border, the token documented for WCAG 1.4.11 non-text at
-   3.05:1, measured 3.05 vs --surface) on --surface, so the slot box is
-   visible and binds to its field as an append chip (Tailkit
-   a-c-form-input-groups-06 pattern, rebuilt with house tokens; keeps the
-   law's own 36px box + 8px gap — the edge is NOT joined to the input's
-   border). */
-.csc-append-button { flex: 0 0 auto; display: inline-grid; place-items: center; width: 36px; height: 36px; margin-top: 24px; padding: 0; border: 1px solid var(--control-border); border-radius: 8px; background: var(--surface); color: var(--accent); cursor: pointer; }
-.csc-append-button svg { pointer-events: none; }
-.csc-append-button:not(:disabled):hover { background: var(--surface-3); }
-.csc-append-button:not(:disabled):active { background: var(--surface-3); transform: translateY(1px); }
-.csc-append-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.csc-append-button:disabled { cursor: not-allowed; opacity: .55; }
-/* SIL-641 (id 745) — CTO design ruling 02/11: ONE "control + gap 8 + action
-   slot 36" pattern for every cell in section Nhận diện lô. The real quick-add
-   button and the placeholder in a button-less cell share this rule, so all
-   four control boxes reserve the same 44px and end at the same right edge —
-   measured 551/595/595/551 before, i.e. "one long one short" (QA 02/11 @1307).
-   FB-114 keeps the button a flex sibling with its own box (never an overlay),
-   so the only way to equalise is for every cell to carry the slot.
-   margin-top: 24px MUST match .csc-append-button (18px label + the real 6px
-   gap, measured 04/11 — SIL-678) or the two rows lose their shared baseline
-   (62px vs 36px cells). visibility:hidden — never display:none,
-   which would drop the slot and re-open the 44px gap. */
-.csc-identity-grid__action-slot {
-  flex: 0 0 36px;
-  width: 36px;
-  height: 36px;
-  margin-top: 24px;
+/* SIL-681 (owner 04/11, kèm ảnh): the two quick-create actions move INSIDE
+   the input as trailing actions — same height as the input, no detached
+   oversize chip beside it (Khách hàng '+', Hãng tàu '✎'). Supersedes
+   FB-114's flex-sibling placement for these two controls (the owner
+   re-chose the in-input pattern); the FB-114 defect class stays dead:
+   the button is absolutely positioned with a z-index ABOVE the combobox
+   input's own z-10 and clear-× z-20 layers, its 40px-wide hit box sits
+   inside the control's right edge, and the input's padding-right reserves
+   the zone so text never runs under the icon. Cells without an action
+   render the control full-width — the SIL-641 "one shared right edge" law
+   keeps holding by construction (every control fills its cell), no
+   placeholder slots needed. Provenance: house primitive — the UUI kit's
+   own in-input trailing buttons (InputBase password eye, combobox clear
+   ×). Hit box 40px wide (brief floor) × the input's OWN height token:
+   --control-compact-h desktop / --control-touch-h at ≤768px or coarse
+   pointers, mirroring control-geometry.css's sm band — no hardcoded
+   height, the icon never exceeds or floats off the input. */
+.csc-field-with-trailing { position: relative; min-width: 0; }
+.csc-trailing-action {
+  position: absolute;
+  /* house label line 18px + the UUI field's real 6px label→control gap,
+     measured live 04/11 — SIL-678 (the same constant the old slot used). */
+  top: 24px;
+  right: 1px; /* inside the control's own 1px border */
+  /* --z-dropdown (50): above the kit's in-control utilities (input z-10,
+     clear × z-20) so clicks always land on the button — the FB-114 race
+     cannot recur — while staying below --z-popover (the combobox popover
+     portals to body at 400 and is unaffected). Raw z-index integers are
+     drift-banned in page CSS. */
+  z-index: var(--z-dropdown);
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: var(--control-compact-h);
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
 }
-.csc-identity-grid__action-slot--placeholder {
-  visibility: hidden;
-  pointer-events: none;
+/* Touch band mirrors the control's own band (control-geometry.css): at
+   ≤768px or coarse pointers the sm control grows to the touch floor, so
+   the trailing action grows with it — height stays = input height. */
+@media (pointer: coarse), (max-width: 768px) {
+  .csc-trailing-action { height: var(--control-touch-h); }
 }
+.csc-trailing-action svg { pointer-events: none; }
+.csc-trailing-action:not(:disabled):hover { background: var(--surface-3); }
+.csc-trailing-action:not(:disabled):active { background: var(--surface-3); }
+.csc-trailing-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.csc-trailing-action:disabled { cursor: not-allowed; opacity: .55; }
+/* Text clearance: the native typing input and its ghost value span reserve
+   the trailing zone (40px button + inset). When the combobox clear × shows
+   (SIL-482 contract unchanged), it shifts LEFT of the action and the
+   reservation grows so a committed value can never run under either
+   affordance. */
+.csc-field-with-trailing .uui-combobox__input input[role='combobox'],
+.csc-field-with-trailing .uui-combobox__input > span[aria-hidden='true'] { padding-right: 44px; }
+.csc-field-with-trailing .uui-combobox:has(button[aria-label='Xoá']) .uui-combobox__input input[role='combobox'],
+.csc-field-with-trailing .uui-combobox:has(button[aria-label='Xoá']) .uui-combobox__input > span[aria-hidden='true'] { padding-right: 72px; }
+.csc-field-with-trailing .uui-combobox button[aria-label='Xoá'] { right: 44px; }
 /* SIL-641 residual (id 745) — QA 03/11: the INNER typing boxes ("ô nhập
    trong") still measured Δ42/Δ40 across the two rows. The yardstick element
    per field: the combobox's native input (Khách hàng / Hãng tàu), the

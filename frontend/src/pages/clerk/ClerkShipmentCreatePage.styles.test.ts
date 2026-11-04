@@ -266,28 +266,30 @@ describe('shipment create responsive layout', () => {
     expect(css).toMatch(/\.csc-add-container\s*\{[^}]*background:\s*color-mix\(in srgb,\s*var\(--accent-soft\) 52%,\s*var\(--surface\)\);[^}]*color:\s*var\(--accent-2\);/);
   });
 
-  it('keeps the quick-create action trailing its field as a flex sibling with a real hit target', () => {
-    // Owner ruling 11/10 put an icon-only + INSIDE the control's right edge.
-    // FB-114 superseded that for this control: the absolute 26px overlay raced
-    // the input for clicks (z-index 1 over the input's reserved padding) and
-    // sat under the 32px touch floor. The action now trails the field as a
-    // flex SIBLING — never a row of its own, never an overlay on the input.
-    expect(css).toMatch(/\.csc-field-with-append\s*\{[^}]*display:\s*flex;[^}]*align-items:\s*flex-start;/);
-    expect(css).not.toMatch(/\.csc-field-with-append\s*\{[^}]*position:\s*relative;/);
-    expect(css).toMatch(/\.csc-field-with-append > :first-child\s*\{[^}]*flex:\s*1 1 auto;[^}]*align-self:\s*start;/);
-    // The input no longer reserves room for an overlay that is not there.
-    expect(css).not.toMatch(/\.csc-field-with-append > :first-child input\s*\{[^}]*padding-right:/);
-    // 36px square on the control row (label 18px + the UUI field's real 6px
-    // gap — measured live 04/11, SIL-678; the old 26px assumed 8px and sat
-    // 2px below the input's row line); no absolute positioning left to lose
-    // a click race.
-    expect(css).toMatch(/\.csc-append-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*margin-top:\s*24px;/);
-    expect(css).not.toMatch(/\.csc-append-button\s*\{[^}]*position:\s*absolute;/);
+  it('moves the quick-create actions INSIDE their inputs as trailing actions (SIL-681)', () => {
+    // Owner ruling 04/11 (kèm ảnh): the detached icon chip beside the input
+    // read oversize — the action now lives INSIDE the input at its right
+    // end, same height as the input. FB-114's click race stays dead: the
+    // button is absolutely positioned with the token ladder's --z-dropdown
+    // (above the kit's input z-10 and clear × z-20), its 40px hit box sits
+    // inside the control's right edge, and the input's padding-right
+    // reserves the zone so text never runs under it.
+    expect(css).toMatch(/\.csc-field-with-trailing\s*\{[^}]*position:\s*relative;/);
+    expect(css).toMatch(/\.csc-trailing-action\s*\{[^}]*position:\s*absolute;[^}]*z-index:\s*var\(--z-dropdown\);[^}]*width:\s*40px;[^}]*height:\s*var\(--control-compact-h\);/);
+    // The height follows the input through the touch band (control-geometry
+    // sm law): 44px floor at ≤768px or coarse pointers.
+    expect(css).toMatch(/@media \(pointer: coarse\), \(max-width: 768px\)\s*\{\s*\.csc-trailing-action\s*\{[^}]*height:\s*var\(--control-touch-h\);/);
+    // Text clearance: base trailing zone, wider with the clear × shifted left.
+    expect(css).toMatch(/\.csc-field-with-trailing \.uui-combobox__input input\[role='combobox'\],\s*\n\.csc-field-with-trailing \.uui-combobox__input > span\[aria-hidden='true'\]\s*\{\s*padding-right: 44px;/);
+    expect(css).toMatch(/\.csc-field-with-trailing \.uui-combobox:has\(button\[aria-label='Xoá'\]\)[\s\S]*?padding-right: 72px;/);
+    expect(css).toMatch(/\.csc-field-with-trailing \.uui-combobox button\[aria-label='Xoá'\]\s*\{\s*right: 44px;/);
     // A press must register visually (FB-114: the click felt dead).
-    expect(css).toMatch(/\.csc-append-button:not\(:disabled\):active\s*\{[^}]*transform:\s*translateY\(1px\);/);
-    // The old beside-the-field row (and its phone full-width override) is gone.
-    expect(css).not.toMatch(/\.csc-append-button\s*\{[^}]*white-space:\s*nowrap/);
-    expect(css).not.toMatch(/\.csc-field-with-append\s*\{\s*flex-wrap:\s*wrap;/);
+    expect(css).toMatch(/\.csc-trailing-action:not\(:disabled\):active\s*\{[^}]*background:\s*var\(--surface-3\);/);
+    // The detached pattern (FB-114's flex sibling + 36px chip + placeholder
+    // slots) is retired everywhere — clean cutover, no leftover rules.
+    expect(css).not.toContain('csc-append-button');
+    expect(css).not.toContain('csc-field-with-append');
+    expect(css).not.toContain('csc-identity-grid__action-slot');
   });
 
   it('pairs the two recipient notes on one dense row', () => {
