@@ -148,6 +148,19 @@ export interface DriverTaskEvidenceStatus {
   hasSubmittedPod?: boolean;
 }
 
+/** Wave 7 (SIL-676/SIL-638 TC3-T3) — the backend-composed per-leg cost
+ *  breakdown. Every number is present: tolls 0 / surcharge 0 are honest
+ *  computed values, never gaps. Integer VND. */
+export interface DriverTripCostBreakdown {
+  freight: number;
+  tolls: number;
+  salary: number;
+  surcharge: number;
+  fuel: number;
+  allowance: number;
+  totalCost: number;
+}
+
 /** Wire row of a saved driver incidental cost — create result and list item
  *  share one shape. */
 export interface DriverIncidentalCostView {
@@ -200,6 +213,9 @@ export interface DriverTaskDetail {
   fuelSupplierName: string | null;
   totalRoadAllowance: string | null;
   driverSalary: string | null;
+  /** Wave 7 (SIL-638 TC3-T3) — the explicit per-leg cost breakdown the
+   *  Chi phí chuyến section reads; present once the backend composes it. */
+  costBreakdown?: DriverTripCostBreakdown | null;
   hasReturnCargo: boolean | null;
   notes: string | null;
   /** 27.8 cost-section Ghi chú — driver-written note for accounting re-check

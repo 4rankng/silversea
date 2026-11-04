@@ -1,0 +1,16 @@
+catalog plain rows before: 15|CONT20|
+16|CONT40|
+staging shape applied: plain CONT20/CONT40 soft-deleted for this run
+qa-config: road_config toll_per_station=55000; route 6 tolls_stations=2; salary.pair_surcharge_kep=200000
+logins ok (admin, ketoan) against :3103
+catalog: containerType 20DC = 1 | rig: ['42', '60C-12345', '42'] (driver base_salary 5.000.000 for the run, was 5000000)
+lotA: dispatched -> trip 1310; snapshot id=700 total=3952000 rateTerms=1 pricingTable=33 heSo=1.0000
+  formula: 3800000 × (1 + 4.00%) = 3952000 — phụ phí dầu chờ xác nhận (ngưỡng biến động giá dầu chưa
+lotB: dispatched -> trip 1311; snapshot id=702 total=3952000 rateTerms=1 pricingTable=33 heSo=1.0000
+  formula: 3800000 × (1 + 4.00%) = 3952000 — phụ phí dầu chờ xác nhận (ngưỡng biến động giá dầu chưa
+pair created: 34 KEP
+trip 1310 (A): COMPLETED via driver-app close (no actuals save)
+trip 1311 (B): COMPLETED via driver-app close (no actuals save)
+--- STATE DUMP (before) ---
+cleanup: catalog restored 15|CONT20
+16|CONT40 | driver 42 base_salary restored to 5000000

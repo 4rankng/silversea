@@ -8,7 +8,7 @@
  * DOC logic-hang-kep-kethop (ticket SIL-638 id 742) — the ticket prose is a
  * paraphrase; the DOC texts below are verbatim.
  */
-import { localDateInBusinessZone } from '@tingting/shared';
+import { localDateInBusinessZone, resolveTripDriverSalary } from '@tingting/shared';
 
 export type ContainerFootClass = '20' | '40';
 
@@ -417,6 +417,229 @@ export function pairSurchargeFor(
   settings: PairSalarySettings,
 ): number {
   return kind === 'KEP' ? settings.kepSurcharge : settings.ketHopSurcharge;
+}
+
+// ─── Wave 7 (SIL-676 / SIL-638 TC3-T3) — completed-leg economics laws ──────
+//
+// QA pair 29 (trips 320+321, both COMPLETED) showed tollCost 0/null and
+// driverSalary null on BOTH legs: the only salary/toll writers lived in the
+// dispatcher figures-save path (updateTripFigures) and the pairing
+// transaction, so a pair closed purely through the driver app completed with
+// unmaterialed economics. These db-free laws define what a COMPLETED leg
+// must carry; the tx writer is trip-completion-economics.service.
+
+/** Facts a completed leg carries for the once-per-pair VETC law (TC3). */
+export interface CompletedLegTollFacts {
+  tollsStations: number | string | null;
+  tollPerStationApplied: number | string | null;
+  tollDeduction: number | string | null;
+  reconciledTollCost: number | string | null;
+}
+
+export interface CompletedLegTollLaw {
+  /** Net toll this leg owes after the pair dedup (or driver reconciliation). */
+  tollCost: number;
+  /** Gross stations × rate before any dedup/reconciliation. */
+  grossToll: number;
+  tollDeduction: number;
+  /** True when a driver-claimed TOLL row (reconciledTollCost) wins. */
+  reconciled: boolean;
+}
+
+/**
+ * Net toll for one completed leg: a reconciled driver claim wins verbatim;
+ * otherwise stations × per-station rate minus this leg's pair dedup, clamped
+ * ≥ 0. A route without stations honestly computes 0 — never a null.
+ */
+export function netTollForCompletedLeg(facts: CompletedLegTollFacts): CompletedLegTollLaw {
+  const stations = Math.max(0, Math.trunc(Number(facts.tollsStations ?? 0)) || 0);
+  const rate = Math.max(0, Number(facts.tollPerStationApplied ?? 0) || 0);
+  const grossToll = stations * rate;
+  const deduction = Math.max(0, Number(facts.tollDeduction ?? 0) || 0);
+  if (facts.reconciledTollCost != null && Number.isFinite(Number(facts.reconciledTollCost))) {
+    return {
+      tollCost: Math.max(0, Math.round(Number(facts.reconciledTollCost))),
+      grossToll,
+      tollDeduction: deduction,
+      reconciled: true,
+    };
+  }
+  return { tollCost: Math.max(0, grossToll - deduction), grossToll, tollDeduction: deduction, reconciled: false };
+}
+
+/** Facts the completion-time salary law reads (TC3: lương = cơ bản + phụ phí). */
+export interface CompletedLegSalaryFacts {
+  storedDriverSalary: number | string | null;
+  driverBaseSalary: number | string | null;
+  routeDriverSalary: number | string | null;
+  storedTripWageDays: number | string | null;
+  departureDate: string;
+  completedAt: Date;
+  pair: { order: 1 | 2; active: boolean; surcharge: number } | null;
+}
+
+export interface CompletedLegSalaryLaw {
+  /** True when this completion transition writes a salary (stored was unset). */
+  applied: boolean;
+  source: 'stored' | 'pair_surcharge' | 'base_allocation' | 'route_default' | 'none';
+  /** The effective wage this leg carries after the law. */
+  driverSalary: number;
+  tripWageDays: number;
+  /** The configured pair-surtax component this leg's wage carries (0 otherwise). */
+  surchargeApplied: number;
+}
+
+/**
+ * Wage days for a completed cuốc — verbatim the updateTripFigures rule:
+ * stored override wins; otherwise departure → completion inclusive
+ * (`new Date(departureDate)` parses a date-only string as UTC midnight —
+ * the same anchor the figures path uses; same-day morning completion = 1
+ * day, each started additional day adds 1).
+ */
+export function completedTripWageDays(
+  stored: number | string | null,
+  departureDate: string,
+  completedAt: Date,
+): number {
+  const storedDays = Number(stored);
+  if (Number.isFinite(storedDays) && storedDays > 0) return Math.trunc(storedDays);
+  const dep = new Date(departureDate);
+  if (Number.isNaN(dep.getTime())) return 1;
+  const diffMs = completedAt.getTime() - dep.getTime();
+  return Math.max(1, Math.round(diffMs / 86_400_000) + 1);
+}
+
+function pairSurchargeComponent(pair: CompletedLegSalaryFacts['pair']): number {
+  return pair?.active && pair.order === 2 && pair.surcharge > 0 ? pair.surcharge : 0;
+}
+
+/**
+ * Completion-time salary law — the same precedence updateTripFigures applies,
+ * moved to the completion moment so a driver-app close materializes the wage:
+ * stored (governed/earlier) wins → leg 2 of a configured ACTIVE pair carries
+ * exactly the phụ phí → otherwise the standard base allocation
+ * (drivers.baseSalary / 26 × days, route default fallback). An unconfigured
+ * surcharge (0) leaves the standard allocation, never a zeroed wage.
+ */
+export function completedLegSalaryLaw(facts: CompletedLegSalaryFacts): CompletedLegSalaryLaw {
+  const tripWageDays = completedTripWageDays(facts.storedTripWageDays, facts.departureDate, facts.completedAt);
+  const stored = Number(facts.storedDriverSalary ?? 0);
+  if (Number.isFinite(stored) && stored > 0) {
+    return {
+      applied: false,
+      source: 'stored',
+      driverSalary: Math.round(stored),
+      tripWageDays,
+      surchargeApplied: pairSurchargeComponent(facts.pair),
+    };
+  }
+  const surcharge = pairSurchargeComponent(facts.pair);
+  if (surcharge > 0) {
+    return { applied: true, source: 'pair_surcharge', driverSalary: surcharge, tripWageDays, surchargeApplied: surcharge };
+  }
+  const baseSalary = Number(facts.driverBaseSalary ?? 0) || 0;
+  const allocated = resolveTripDriverSalary(
+    baseSalary,
+    tripWageDays,
+    Number(facts.routeDriverSalary ?? 0) || 0,
+  );
+  return {
+    applied: allocated > 0,
+    source: allocated > 0 ? (baseSalary > 0 ? 'base_allocation' : 'route_default') : 'none',
+    driverSalary: allocated,
+    tripWageDays,
+    surchargeApplied: 0,
+  };
+}
+
+/** One leg's explicit cost breakdown — the numbers a "Chi phí" panel reads. */
+export interface TripCostBreakdown {
+  /** Cước chuyến (revenue). */
+  freight: number;
+  /** VETC net for THIS leg (pair: the carrying leg once, the other 0). */
+  tolls: number;
+  /** Lương tài xế (base allocation or pair surcharge). */
+  salary: number;
+  /** Phụ phí Kẹp component (0 when unconfigured — explicit, not missing). */
+  surcharge: number;
+  /** Chi phí dầu. */
+  fuel: number;
+  /** Tiền đường. */
+  allowance: number;
+  totalCost: number;
+}
+
+export interface TripCostBreakdownFacts {
+  revenue: number | string | null;
+  driverSalary: number | string | null;
+  totalFuelCost: number | string | null;
+  totalRoadAllowance: number | string | null;
+  totalCost: number | string | null;
+  tollsStations: number | string | null;
+  tollPerStationApplied: number | string | null;
+  tollDeduction: number | string | null;
+  reconciledTollCost: number | string | null;
+  pair: { order: 1 | 2; active: boolean; surcharge: number } | null;
+}
+
+function vnd(value: number | string | null | undefined): number {
+  const parsed = Math.round(Number(value ?? 0));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+/**
+ * Explicit per-leg cost breakdown. Every number is present — a route without
+ * toll stations shows `tolls: 0`, an unconfigured phụ phí shows
+ * `surcharge: 0` — so "0" is always an honest computed value, never a gap.
+ */
+export function tripCostBreakdown(facts: TripCostBreakdownFacts): TripCostBreakdown {
+  return {
+    freight: vnd(facts.revenue),
+    tolls: netTollForCompletedLeg(facts).tollCost,
+    salary: vnd(facts.driverSalary),
+    surcharge: pairSurchargeComponent(facts.pair),
+    fuel: vnd(facts.totalFuelCost),
+    allowance: vnd(facts.totalRoadAllowance),
+    totalCost: vnd(facts.totalCost),
+  };
+}
+
+/** Pair-level settlement economics — the record a completed pair surfaces. */
+export interface PairSettlementEconomics {
+  /** Which leg carries the once-per-pair VETC toll (null = honest 0). */
+  tollOnceLeg: 1 | 2 | null;
+  /** The once-per-pair toll amount (sum of both legs' nets). */
+  tollAmount: number;
+  /** Lương cơ bản (leg 1's wage). */
+  baseSalary: number;
+  /** Phụ phí Kẹp (leg 2's configured component). */
+  surcharge: number;
+  /** Base + surcharge — the driver's pair wage, never two single cuốc. */
+  totalSalary: number;
+  /** Toll + total salary. */
+  totalAmount: number;
+}
+
+/**
+ * TC3 economics across the pair: VETC counted once (never doubled), wage =
+ * base cuốc + phụ phí. Leg 1 normally carries the toll; a reconciled-claim
+ * rewrite can leave it on leg 2 — the law reads the actual stored nets.
+ */
+export function pairSettlementEconomics(
+  first: TripCostBreakdown,
+  second: TripCostBreakdown,
+): PairSettlementEconomics {
+  const tollAmount = first.tolls + second.tolls;
+  const tollOnceLeg: 1 | 2 | null = first.tolls > 0 ? 1 : second.tolls > 0 ? 2 : null;
+  const totalSalary = first.salary + second.salary;
+  return {
+    tollOnceLeg,
+    tollAmount,
+    baseSalary: first.salary,
+    surcharge: second.surcharge,
+    totalSalary,
+    totalAmount: tollAmount + totalSalary,
+  };
 }
 
 /**

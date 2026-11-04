@@ -18,7 +18,7 @@ import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
-import { DriverTaskInfoSections, DriverInvoiceSection } from './driver/DriverTaskInfoSections';
+import { DriverTaskInfoSections, DriverInvoiceSection, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
 import { EmptyState } from '../design-system';
 import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
@@ -695,6 +695,10 @@ function DriverTripDetailContent() {
         costSubmissionNote={trip.costSubmissionNote}
         readOnly={cancelled || Boolean(accountingLock)}
         onEntriesCountChange={setCostEntryCount} />
+
+      {/* Wave 7 (SIL-638 TC3-T3): the completed trip's explicit economics —
+          cước / VETC (1 lần trên chân mang phí) / lương / phụ phí Kẹp. */}
+      <DriverCostBreakdownSection trip={trip} />
 
       <DriverInvoiceSection trip={trip} />
 

@@ -96,8 +96,11 @@ describe('SIL-676 wiring — /settlements registered on both sides', () => {
     // (the /api/ops/settlements policy), ADMIN unscoped (the
     // /api/ops/admin/settlements policy); other roles stay 403.
     assert.match(opsRoutes, /settlementsListAliasRoutes\.get\('\/', requireRoles\(Role\.OPS, Role\.ADMIN\), asyncHandler/);
-    assert.match(opsRoutes, /user\.role === Role\.ADMIN\n\s*\? await listOpsSettlements\(\{ status \}\)/);
-    assert.match(opsRoutes, /: await listOpsSettlements\(\{ opsUserId: user\.userId, status \}\)/);
+    // Wave 7: the ADMIN office-wide read now appends the derived completed-
+    // pair economics records (source TRIP_PAIR); the batch read policies are
+    // unchanged — ADMIN unscoped, OPS self-scoped.
+    assert.match(opsRoutes, /const batches = await listOpsSettlements\(\{ status \}\)/);
+    assert.match(opsRoutes, /const items = await listOpsSettlements\(\{ opsUserId: user\.userId, status \}\)/);
     assert.match(index, /app\.use\('\/api\/settlements', authMiddleware, settlementsListAliasRoutes\)/);
     // The canonical /api/ops/settlements list keeps its OPS-only policy.
     assert.match(opsRoutes, /router\.get\('\/settlements', OPS_ONLY, asyncHandler\(listOpsSettlementsHandler\)\)/);

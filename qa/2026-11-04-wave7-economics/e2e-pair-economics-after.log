@@ -1,0 +1,28 @@
+catalog plain rows before: 15|CONT20|
+16|CONT40|
+staging shape applied: plain CONT20/CONT40 soft-deleted for this run
+qa-config: road_config toll_per_station=55000; route 6 tolls_stations=2; salary.pair_surcharge_kep=200000
+logins ok (admin, ketoan) against :3102
+catalog: containerType 20DC = 1 | rig: ['42', '60C-12345', '42'] (driver base_salary 5.000.000 for the run, was 5000000)
+lotA: dispatched -> trip 1321; snapshot id=708 total=3952000 rateTerms=1 pricingTable=33 heSo=1.0000
+  formula: 3800000 × (1 + 4.00%) = 3952000 — phụ phí dầu chờ xác nhận (ngưỡng biến động giá dầu chưa
+lotB: dispatched -> trip 1322; snapshot id=710 total=3952000 rateTerms=1 pricingTable=33 heSo=1.0000
+  formula: 3800000 × (1 + 4.00%) = 3952000 — phụ phí dầu chờ xác nhận (ngưỡng biến động giá dầu chưa
+pair created: 36 KEP
+trip 1321 (A): COMPLETED via driver-app close (no actuals save)
+trip 1322 (B): COMPLETED via driver-app close (no actuals save)
+--- ASSERTIONS (after) ---
+ECON trip 1321 (leg A): revenue=3800000 tollCost=110000 tollDeduction=0 driverSalary=192308 totalCost=192308
+ECON trip 1322 (leg B): revenue=3800000 tollCost=0 tollDeduction=110000 driverSalary=200000 totalCost=90000
+1. VETC once: legA tollCost=110000 (expect 110000) | legB tollCost=0 (expect 0) tollDeduction=110000 (expect 110000)
+2. driverSalary right after driver close: A=192308 (expect 192308) B=200000 (expect 200000 phụ phí)
+3a. GET /api/trips/1321 -> 200 costBreakdown={"freight": 3800000, "tolls": 110000, "salary": 192308, "surcharge": 0, "fuel": 0, "allowance": 0, "totalCost": 192308}
+3b. GET /api/driver/me/trips/1321 -> 200 costBreakdown={"freight": 3800000, "tolls": 110000, "salary": 192308, "surcharge": 0, "fuel": 0, "allowance": 0, "totalCost": 192308}
+3c. GET /api/driver/me/trips/1322 -> 200 costBreakdown={"freight": 3800000, "tolls": 0, "salary": 200000, "surcharge": 200000, "fuel": 0, "allowance": 0, "totalCost": 90000}
+4. GET /api/settlements -> 200 items=9 pairRecords=[{"source": "TRIP_PAIR", "pairId": 36, "pairKind": "KEP", "pairStatus": "ACTIVE", "code": "OS-PAIR-36", "status": "RECORDED", "totalAmount": "502308", "note": "Quy\u1ebft to\u00e1n economics c\u1eb7p K\u1eb8P \u2014 VETC 1 l\u1ea7n 110.000 \u20ab + l\u01b0\u01a1ng c\u01a1 b\u1ea3n 192.308 \u20ab + ph\u1ee5 ph\u00ed 200.000 \u20ab", "createdAt": "2026-11-04T11:45:00.585Z", "firstTripId": 1321, "sec
+5. ledger DRIVER_SALARY entries: legA=1 legB=1
+REG snapshot: total=3952000 (expect 3952000) pricingTableId=33 (expect 33) rateTermsId=1
+REG pricing lookup -> 200 {"price": 3800000}
+WAVE7 MODE=after FAILURES: 0
+cleanup: catalog restored 15|CONT20
+16|CONT40 | driver 42 base_salary restored to 5000000

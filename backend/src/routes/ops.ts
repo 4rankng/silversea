@@ -42,6 +42,7 @@ import {
   getOpsSettlementDetail,
   listOpsSettlements,
 } from '../services/ops-settlements.service';
+import { listCompletedPairSettlements } from '../services/trip-completion-economics.service';
 import { exportOpsSettlementXlsx } from '../services/ops-settlement-export.service';
 import { getOpsFleet, listActiveTruckOpsAssignments, setTruckOpsAssignment } from '../services/ops-fleet.service';
 import { declareNonMaterialWrite } from '../middleware/material-write';
@@ -322,15 +323,25 @@ router.get('/settlements', OPS_ONLY, asyncHandler(listOpsSettlementsHandler));
 // the QA round-3c verdict rejected the round-1 alias whose OPS_ONLY gate
 // 403'd even admin. No new permission is invented: each allowed role reads
 // through a policy it already holds on a named endpoint.
+//
+// Wave 7 (SIL-676 economics / SIL-638 TC3-T3): the office-wide ADMIN read
+// also carries one derived economics record per trip pair whose BOTH legs
+// are COMPLETED (source: 'TRIP_PAIR', code OS-PAIR-<pairId>) — VETC once +
+// base wage + phụ phí. Derived at read from stored trip economics; the
+// ops_settlements manual-batch table and its semantics stay untouched.
 export const settlementsListAliasRoutes = Router();
 settlementsListAliasRoutes.get('/', requireRoles(Role.OPS, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const status = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional().parse(req.query.status);
-  res.json({
-    items: user.role === Role.ADMIN
-      ? await listOpsSettlements({ status })
-      : await listOpsSettlements({ opsUserId: user.userId, status }),
-  });
+  if (user.role === Role.ADMIN) {
+    const batches = await listOpsSettlements({ status });
+    const includePairRecords = status == null || status === 'RECORDED';
+    const pairRecords = includePairRecords ? await listCompletedPairSettlements() : [];
+    res.json({ items: [...batches.map((batch) => ({ ...batch, source: 'OPS_BATCH' as const })), ...pairRecords] });
+    return;
+  }
+  const items = await listOpsSettlements({ opsUserId: user.userId, status });
+  res.json({ items: items.map((batch) => ({ ...batch, source: 'OPS_BATCH' as const })) });
 }));
 
 router.post('/settlements', declareMaterialWrite('ops.settlements.create', { method: 'POST', path: '/api/ops/settlements' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {

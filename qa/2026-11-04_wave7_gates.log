@@ -1,0 +1,8 @@
+# Wave-7 gates (2026-11-04, branch fix/sil-wave7-economics)
+BE typecheck:  cd backend && npx tsc --noEmit            -> 0 errors
+BE unit full:  npx tsx --test 'src/tests/unit/*.test.ts' -> 872/872 pass (20 new wave-7 + updated sil676 alias pin)
+FE typecheck:  cd frontend && npx tsc -b                 -> 0 errors
+FE vitest:     npx vitest run                            -> 6181 passed; 2 timeouts in RoleWorkInbox/AccountingDebitClosePage.fb093/AssignTruckGroupDialog (files untouched by wave7) — PASS 48/48 in isolation (load flake)
+FE vitest:     npx vitest run src/pages/driver/          -> 7 files / 88 tests pass
+Build:         make build                                -> succeeds (vite built in 40.18s)
+Root lint:     pnpm lint                                 -> BASE (stash-run at merge-base) already reports 6 problems incl. 2 errors (backend n/a at base; frontend DetailedPlanGrid.tsx:347 'rowIdentity' unused + Modal.tsx/CustomersConfigPage warnings) — PRE-EXISTING, not wave7. Wave7 changed files scoped eslint: 0 problems (after removing one unused `settings` var the first run flagged).

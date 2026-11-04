@@ -1,0 +1,6 @@
+BEFORE trip 1310: COMPLETED|34|1|2 fin[revenue,toll,tollDed,salary,totalCost]=3800000|110000|0|NULL|NULL
+BEFORE trip 1311: COMPLETED|34|2|2 fin[revenue,toll,tollDed,salary,totalCost]=3800000|0|110000|200000|90000
+pair 34: 34|KEP|ACTIVE|1310|1311
+ledger DRIVER_SALARY entries: legA=0 legB=1
+GET /api/trips/1310 -> 200; has costBreakdown key: False; value=null
+GET /api/settlements -> 200; items=1; TRIP_PAIR rows=0
