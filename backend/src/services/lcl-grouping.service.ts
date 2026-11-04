@@ -57,7 +57,9 @@ import {
 } from './lcl-grouping-law';
 import {
   isRevGroupNote,
+  isRevManualPriceNote,
   REV_LOT_AWAITING_REPRICE_REASON,
+  REV_LOT_MANUAL_CLEARED_REASON,
   REV_LOT_MANUAL_PRICE_REASON,
   REV_LOT_OWN_CUOC_REASON,
   revGroupManualPriceNote,
@@ -1754,6 +1756,141 @@ export async function mergeLclRevGroup(
   });
 }
 
+/** SIL-679 r2 (QA comment 3834 §2) — the CLEAR law behind "Bỏ trống = tự
+ *  động tra cứu": remove the saved manual "Giá cước thu khách" from its
+ *  money channel so `revManualPrice` reads null again (the SIL-548 wire),
+ *  then let the standing auto lookup speak. Per channel:
+ *
+ *  - live trip, lane HIT: the lane price writes through the standing
+ *    override channel with the class-pick AUTO note — exactly what the
+ *    class-pick save writes, so the board keeps its one vocabulary.
+ *  - live trip, lane MISS, manual stamp: the stamp clears (the unmerge
+ *    restore's legacy law — revenue returns to `revenueOriginal`, markers
+ *    null) and the board falls back to the snapshot channel / unset.
+ *  - trip-less, lane HIT: a fresh trip-NULL snapshot cites the auto trace
+ *    (INSERT-only, max-id-wins — the manual row stops being the winner).
+ *  - trip-less, lane MISS, manual row: the pre-manual row re-materializes
+ *    VERBATIM (the restoreRevPreMergeMoney law, rewound past manual notes);
+ *    no pre-manual row ⇒ the cited-zero clear marker (D02: a snapshot
+ *    cannot hold null) which every board prints as "Chưa xác định".
+ *
+ *  A non-manual winner with a lane miss writes nothing — there is no manual
+ *  price to remove. Auto-lookup logic itself is untouched (SIL-679 r2:
+ *  "chỉ mở đường clear"). */
+async function clearLotManualRevPrice(
+  tx: Tx,
+  row: ShipmentRow,
+  trip: LiveTripFacts | null,
+  vehicleClass: { id: number; code: string } | null,
+  actor: LclGroupActor,
+): Promise<{ freightAuto: string | null; freight: string | null; channel: 'TRIP' | 'SNAPSHOT' | 'NONE'; reason: string | null }> {
+  const laneDate = row.expectedDeliveryDate;
+  const lane = vehicleClass != null
+    && row.customerId != null && row.routeId != null && laneDate != null
+    ? await resolveCustomerVehicleClassPrice({
+      customerId: row.customerId,
+      routeId: row.routeId,
+      vehicleSizeClassId: vehicleClass.id,
+      date: laneDate,
+    })
+    : null;
+  const autoTraceNote = vehicleClass != null
+    ? `Chọn loại xe tính cước thu khách — 100% bảng giá khách × tuyến × ${vehicleClass.code}, ngày ${laneDate}`
+    : null;
+  const classPickReason = vehicleClass != null
+    ? `Chọn loại xe tính cước thu khách — Xe ${vehicleClass.code}`
+    : null;
+
+  if (trip != null) {
+    if (lane != null) {
+      const previous = trip.revenueOriginal ?? trip.revenue ?? '0';
+      await upsertTripFinancialState(tx, trip.tripId, {
+        revenue: String(lane.price),
+        revenueOriginal: previous,
+        revenueOverriddenBy: actor.userId,
+        revenueOverriddenAt: new Date(),
+        revenueOverrideReason: classPickReason ?? autoTraceNote ?? 'Xóa giá nhập tay — về tự tra',
+      });
+      return { freightAuto: String(lane.price), freight: String(lane.price), channel: 'TRIP', reason: classPickReason };
+    }
+    const stampedManual = trip.revenueOverrideReason != null && isRevManualPriceNote(trip.revenueOverrideReason);
+    if (!stampedManual) return { freightAuto: null, freight: null, channel: 'NONE', reason: null };
+    await upsertTripFinancialState(tx, trip.tripId, {
+      // The unmerge restore's legacy law: the pre-override value is the best
+      // available pre-manual face; absent ⇒ the amount stays and only the
+      // stamp clears (the board then reads the snapshot channel).
+      ...(trip.revenueOriginal != null ? { revenue: trip.revenueOriginal } : {}),
+      revenueOverriddenBy: null,
+      revenueOverriddenAt: null,
+      revenueOverrideReason: null,
+    });
+    return { freightAuto: null, freight: null, channel: 'NONE', reason: 'Xóa giá nhập tay — về tự tra' };
+  }
+
+  if (lane != null && autoTraceNote != null) {
+    await insertRevMergeSnapshot(tx, row.id, lane.price, autoTraceNote);
+    return { freightAuto: String(lane.price), freight: String(lane.price), channel: 'SNAPSHOT', reason: autoTraceNote };
+  }
+  const rows = await tx.select({
+    freightAmount: s.freightRateSnapshots.freightAmount,
+    surchargeAmount: s.freightRateSnapshots.surchargeAmount,
+    totalAmount: s.freightRateSnapshots.totalAmount,
+    rateTermsId: s.freightRateSnapshots.rateTermsId,
+    pricingTableId: s.freightRateSnapshots.pricingTableId,
+    fuelNormId: s.freightRateSnapshots.fuelNormId,
+    fuelPricePeriodId: s.freightRateSnapshots.fuelPricePeriodId,
+    billedKm: s.freightRateSnapshots.billedKm,
+    liters: s.freightRateSnapshots.liters,
+    fuelDelta: s.freightRateSnapshots.fuelDelta,
+    sharePct: s.freightRateSnapshots.sharePct,
+    heSo: s.freightRateSnapshots.heSo,
+    surchargeRaw: s.freightRateSnapshots.surchargeRaw,
+    formulaText: s.freightRateSnapshots.formulaText,
+  }).from(s.freightRateSnapshots)
+    .where(and(
+      eq(s.freightRateSnapshots.shipmentId, row.id),
+      isNull(s.freightRateSnapshots.tripId),
+    ))
+    .orderBy(asc(s.freightRateSnapshots.id));
+  const latest = rows.at(-1);
+  if (latest == null || !isRevManualPriceNote(latest.formulaText)) {
+    return { freightAuto: null, freight: null, channel: 'NONE', reason: null };
+  }
+  let cursor = rows.length - 1;
+  while (cursor >= 0 && isRevManualPriceNote(rows[cursor]!.formulaText)) cursor -= 1;
+  if (cursor < 0) {
+    // No pre-manual row: the manual WAS the lot's only own money. A snapshot
+    // cannot hold null — the clear cites its zero (D02) and the boards read
+    // it as "Chưa xác định" (lcl-effective-freight rule 1).
+    await insertRevMergeSnapshot(tx, row.id, 0, REV_LOT_MANUAL_CLEARED_REASON);
+    return { freightAuto: null, freight: null, channel: 'SNAPSHOT', reason: REV_LOT_MANUAL_CLEARED_REASON };
+  }
+  const pre = rows[cursor]!;
+  await persistFreightRateSnapshot({
+    freight: Number(pre.freightAmount),
+    surcharge: Number(pre.surchargeAmount),
+    total: Number(pre.totalAmount),
+    fuelDelta: Number(pre.fuelDelta),
+    fuelPricePeriodId: pre.fuelPricePeriodId,
+    rateTermsId: pre.rateTermsId,
+    pricingTableId: pre.pricingTableId,
+    fuelNormId: pre.fuelNormId,
+    billedKm: Number(pre.billedKm),
+    liters: Number(pre.liters),
+    sharePct: Number(pre.sharePct),
+    source: 'AUTO',
+    formula: 'Xóa giá nhập tay — trở về cước thu trước khi nhập tay',
+    ...(pre.heSo != null ? { heSo: Number(pre.heSo) } : {}),
+    ...(pre.surchargeRaw != null ? { surchargeRaw: Number(pre.surchargeRaw) } : {}),
+    ...(pre.formulaText != null ? { formulaText: pre.formulaText } : {}),
+  }, {
+    shipmentId: row.id,
+    tripId: null,
+    executor: tx,
+  });
+  return { freightAuto: null, freight: String(pre.totalAmount), channel: 'SNAPSHOT', reason: pre.formulaText ?? null };
+}
+
 /**
  * 161026232349 (DEV SPEC Hàng lẻ §II.3.2 — "Trường hợp 1 · Thu riêng từng lô")
  * + spec 23/10 §4.1 — the per-lot CUS outputs of ONE lot WITHOUT grouping it:
@@ -1817,6 +1954,38 @@ export async function setLclLotRevClass(
         updatedBy: actor.userId,
         updatedAt: new Date(),
       }).where(eq(s.shipments.id, row.id));
+    }
+
+    // SIL-679 r2 (QA comment 3834 §2) — "Bỏ trống = tự động tra cứu": the
+    // wire now expresses CLEAR intent (explicit null; '' preprocesses to
+    // null) and the saved manual price actually leaves the money channels.
+    // The auto-lookup trace itself is untouched — clear only removes the
+    // manual marker and re-traces, never re-prices by itself.
+    const clearManualRevenue = input.freightRevenue !== undefined && input.freightRevenue == null;
+    if (clearManualRevenue) {
+      const cleared = await clearLotManualRevPrice(tx, row, trip ?? null, vehicleClass, actor);
+      await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_UPDATED, row, {
+        dimension: 'REV',
+        action: 'rev-class-single-lot-clear-manual',
+        vehicleSizeClassId: vehicleClass?.id ?? null,
+        vehicleClassCode: vehicleClass?.code ?? null,
+        channel: cleared.channel,
+        freightAuto: cleared.freightAuto,
+        freightManual: null,
+        freight: cleared.freight,
+        clearedReason: cleared.reason,
+      });
+      return {
+        shipmentId: row.id,
+        reference: lotReference(row),
+        vehicleSizeClassId: vehicleClass?.id ?? null,
+        vehicleClassCode: vehicleClass?.code ?? null,
+        freightAuto: cleared.freightAuto,
+        freightManual: null,
+        freight: cleared.freight,
+        channel: cleared.channel,
+        reason: cleared.reason,
+      };
     }
 
     // The lane needs the customer (the lot's own), the route and a date to

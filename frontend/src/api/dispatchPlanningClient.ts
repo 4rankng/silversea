@@ -271,7 +271,7 @@ export async function updateLclTruck(input: { shipmentId: number; actualTruckNo?
  * unless `freightRevenue` overrides it; `freightAuto` comes back null (never
  * 0) when the lane has no price row — the class still saves.
  */
-export async function setLclLotRevClass(input: { shipmentId: number; vehicleSizeClassId?: number; freightRevenue?: number }) {
+export async function setLclLotRevClass(input: { shipmentId: number; vehicleSizeClassId?: number; /** SIL-679 r2 — explicit null = XÓA giá nhập tay ("Bỏ trống = tự tra"); absent = untouched. */ freightRevenue?: number | null }) {
   return api.post<{
     shipmentId: number;
     reference: string;

@@ -87,10 +87,13 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   const revClassDirty = revClassId !== '' && revClassId !== currentRevClassId;
   const manualSeed: number | '' = row.revFreightManual == null ? '' : Number(row.revFreightManual);
   const priceDirty = manualFreightRevenue !== manualSeed;
-  // "Bỏ trống = tự tra": clearing a SAVED override arms the save only when a
-  // class exists to re-trace from — without one the wire (which needs one of
-  // the two outputs) has nothing to say, so that clear cannot arm.
-  const clearToAuto = priceDirty && manualFreightRevenue === '' && currentRevClassId !== '';
+  // "Bỏ trống = tự tra" (SIL-679 r2): clearing a SAVED override arms the save
+  // and the wire now carries the intent itself — `freightRevenue: null`
+  // (the server accepts null | '' as the clear command). No stored class is
+  // required anymore: the server un-marks the manual price and lets the auto
+  // lookup speak (lane hit ⇒ the lane price; miss ⇒ về trạng thái trước khi
+  // nhập tay / Chưa xác định — never the stale manual number).
+  const clearToAuto = priceDirty && manualFreightRevenue === '';
   // Spec 23/10 §4.1 — the save arms on EITHER output: a new class (auto cước
   // theo loại xe), a typed negotiated price (override), or a cleared override
   // (re-trace the stored class).
@@ -139,19 +142,26 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
       const result = await setLclLotRevClass({
         shipmentId: row.shipmentId,
         ...(revClassDirty && selected ? { vehicleSizeClassId: selected.id } : {}),
+        // SIL-679 r2 — the cleared override rides the wire as explicit null
+        // (the schema preprocesses '' to null): the server un-marks the
+        // saved manual price and re-traces the auto lookup. The old
+        // class-re-pick hack omitted the field, so a lane miss left the
+        // manual price stuck (QA: lot still 3.679.000 after clear+save).
+        ...(clearToAuto ? { freightRevenue: null } : {}),
         ...(manualFreightRevenue !== '' ? { freightRevenue: manualFreightRevenue } : {}),
-        // "Bỏ trống = tự tra": a cleared override re-traces the CURRENT
-        // class' lane price — re-picking the stored class is the auto-trace
-        // command the wire can express (it needs one of the two outputs).
-        ...(clearToAuto && !revClassDirty ? { vehicleSizeClassId: Number(currentRevClassId) } : {}),
       });
       toast({
         kind: 'success',
         message: manualFreightRevenue !== ''
           ? `Đã lưu giá cước thu khách nhập tay — ${formatMoney(manualFreightRevenue)} ₫ áp cho lô này`
-          : result.freightAuto == null
-            ? `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — bảng giá khách × tuyến chưa có giá: CƯỚC VẬN TẢI (AUTO) đang Chưa xác định`
-            : `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — CƯỚC VẬN TẢI (AUTO) = 100% đơn giá loại xe`,
+          // SIL-679 r2: the clear can now arm without a stored class (the
+          // server un-marks the manual price on its own) — a classless clear
+          // must not leak "Xe null"; it names the actual state instead.
+          : result.vehicleClassCode == null && result.freightAuto == null
+            ? 'Đã xóa giá nhập tay — lô chưa chọn loại xe tính cước thu: CƯỚC VẬN TẢI (AUTO) đang Chưa xác định'
+            : result.freightAuto == null
+              ? `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — bảng giá khách × tuyến chưa có giá: CƯỚC VẬN TẢI (AUTO) đang Chưa xác định`
+              : `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — CƯỚC VẬN TẢI (AUTO) = 100% đơn giá loại xe`,
       });
       // SIL-548: the save's own response IS the saved state until the
       // refetch lands — seed from it (null ⇒ blank = auto-trace), keeping

@@ -414,6 +414,11 @@ export async function deleteOpsExpense(
   const source = await lockExpenseSource(executor, 'OPS', expenseId);
   if (source) {
     await assertExpenseSourceMutable(executor, source);
+    // SIL-679 r2 (QA comment 3834 §3 sweep) — the soft void removes the
+    // row's amount from the lot's payable totals: under an ACTIVE cost lock
+    // it 409s with the lock message, the same boundary the accounting-side
+    // phoi-phieu void (phoi-phieu-control voidPhoiPhieuRow) now carries.
+    await assertShipmentCostUnlocked(executor, source.shipmentId);
     await executor.update(s.expenseAccountingSources).set({ status: 'VOIDED', version: source.version + 1, updatedAt: new Date() }).where(eq(s.expenseAccountingSources.id, source.id));
   }
   const [voided] = await executor.update(s.opsExpenseEntries).set({

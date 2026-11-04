@@ -3,7 +3,8 @@
 // the kỳ kế toán lock: guards chain (the accounting lock still wins for cost
 // edits). Snapshots are assembled server-side from engine values and are
 // never recomputed after lock — "mở kỳ mới không đổi số đã khóa".
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { createHash } from 'node:crypto';
 import { effectiveBillingPlate } from '@tingting/shared';
 import * as s from '../db/schema';
@@ -185,7 +186,15 @@ export interface LockShipmentCostInput {
   idempotencyKey: string;
 }
 
-export async function lockShipmentCost(input: LockShipmentCostInput): Promise<{ id: number }> {
+export interface ShipmentCostLockAuditResult {
+  id: number;
+  lockedBy: number;
+  lockedByName: string | null;
+  lockedAt: string;
+  lockNote: string | null;
+}
+
+export async function lockShipmentCost(input: LockShipmentCostInput): Promise<ShipmentCostLockAuditResult> {
   const { result } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_LOCK,
     idempotencyKey: input.idempotencyKey,
@@ -214,8 +223,21 @@ export async function lockShipmentCost(input: LockShipmentCostInput): Promise<{ 
         costSnapshot: snapshot,
         lockedBy: input.actor.userId,
         lockNote: input.lockNote?.trim() || null,
-      }).returning({ id: s.shipmentCostLocks.id });
-      return { id: row.id };
+      }).returning({
+        id: s.shipmentCostLocks.id,
+        lockedBy: s.shipmentCostLocks.lockedBy,
+        lockedAt: s.shipmentCostLocks.lockedAt,
+        lockNote: s.shipmentCostLocks.lockNote,
+      });
+      // Audit 2026-11-04 r2 (QA comment 3834): the write responses carry the
+      // audit fields themselves — never id-only.
+      return {
+        id: row.id,
+        lockedBy: row.lockedBy,
+        lockedByName: input.actor.fullName ?? input.actor.username ?? null,
+        lockedAt: row.lockedAt.toISOString(),
+        lockNote: row.lockNote,
+      };
     },
   });
   return result;
@@ -240,7 +262,15 @@ export interface UnlockShipmentCostInput {
  * (canceling releases the claim, `debit-note-lifecycle.service.ts`). The
  * accounting lock is deliberately NOT asserted here — unlock is a lock-state
  * write, not cost data, and that lock keeps its own ADMIN reopen channel. */
-export async function unlockShipmentCost(input: UnlockShipmentCostInput): Promise<{ id: number }> {
+export interface ShipmentCostUnlockAuditResult {
+  id: number;
+  unlockedBy: number;
+  unlockedByName: string | null;
+  unlockedAt: string;
+  unlockReason: string;
+}
+
+export async function unlockShipmentCost(input: UnlockShipmentCostInput): Promise<ShipmentCostUnlockAuditResult> {
   const reason = input.reason?.trim() ?? '';
   if (!reason) throw new ApiError(400, 'Vui lòng nhập lý do mở khóa.');
   if (reason.length > 2000) throw new ApiError(400, 'Lý do mở khóa không được vượt quá 2000 ký tự.');
@@ -283,8 +313,90 @@ export async function unlockShipmentCost(input: UnlockShipmentCostInput): Promis
       entityId: input.shipmentId,
       payload: { lockId: active.id, reason },
     });
-    return { id: active.id };
+    // Audit 2026-11-04 r2 (QA comment 3834): the unlock response carries the
+    // audit fields themselves — who, why, when — never id-only.
+    return {
+      id: active.id,
+      unlockedBy: input.actor.userId,
+      unlockedByName: input.actor.fullName ?? input.actor.username ?? null,
+      unlockedAt: new Date().toISOString(),
+      unlockReason: reason,
+    };
   });
+}
+
+export interface ShipmentCostLockHistoryEvent {
+  action: 'LOCK' | 'UNLOCK';
+  lockId: number;
+  actorId: number | null;
+  actorName: string | null;
+  reason: string | null;
+  /** ISO instant of lockedAt (LOCK) / unlockedAt (UNLOCK). */
+  timestamp: string;
+  /** The lot's unreleased Debit Note claim at read time, if any — the same
+   *  claim the unlock path refuses on (ruling 2026-09-19, one issued note
+   *  per locked lot). null once the note releases the claim. */
+  debitNoteId: number | null;
+}
+
+/** Audit 2026-11-04 r2 (QA comment 3834 §1) — the lot's full khóa/mở khóa
+ * history: one LOCK event per lock row plus its UNLOCK when closed, each
+ * with actor name, reason, timestamp and the debit-note link when the lot
+ * sits under an unreleased claim. ADMIN-only surface (route gate) — the
+ * unlock governance is ADMIN, so reading its audit trail rides the same
+ * clearance. */
+export async function listShipmentCostLockHistory(shipmentId: number): Promise<{ events: ShipmentCostLockHistoryEvent[] }> {
+  const [shipment] = await db.select({ id: s.shipments.id, deletedAt: s.shipments.deletedAt })
+    .from(s.shipments).where(eq(s.shipments.id, shipmentId)).limit(1);
+  if (!shipment || shipment.deletedAt) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
+  const locker = alias(s.users, 'cost_lock_locker');
+  const unlocker = alias(s.users, 'cost_lock_unlocker');
+  const [rows, claims] = await Promise.all([
+    db.select({
+      id: s.shipmentCostLocks.id,
+      lockedBy: s.shipmentCostLocks.lockedBy,
+      lockedAt: s.shipmentCostLocks.lockedAt,
+      lockNote: s.shipmentCostLocks.lockNote,
+      lockedByName: locker.fullName,
+      unlockedBy: s.shipmentCostLocks.unlockedBy,
+      unlockedAt: s.shipmentCostLocks.unlockedAt,
+      unlockReason: s.shipmentCostLocks.unlockReason,
+      unlockedByName: unlocker.fullName,
+    }).from(s.shipmentCostLocks)
+      .leftJoin(locker, eq(locker.id, s.shipmentCostLocks.lockedBy))
+      .leftJoin(unlocker, eq(unlocker.id, s.shipmentCostLocks.unlockedBy))
+      .where(eq(s.shipmentCostLocks.shipmentId, shipmentId))
+      .orderBy(asc(s.shipmentCostLocks.lockedAt), asc(s.shipmentCostLocks.id)),
+    db.select({ documentId: s.debitNoteLots.documentId })
+      .from(s.debitNoteLots)
+      .where(and(eq(s.debitNoteLots.shipmentId, shipmentId), isNull(s.debitNoteLots.releasedAt)))
+      .limit(1),
+  ]);
+  const debitNoteId = claims[0]?.documentId ?? null;
+  const events: ShipmentCostLockHistoryEvent[] = [];
+  for (const row of rows) {
+    events.push({
+      action: 'LOCK',
+      lockId: row.id,
+      actorId: row.lockedBy,
+      actorName: row.lockedByName ?? null,
+      reason: row.lockNote ?? null,
+      timestamp: row.lockedAt.toISOString(),
+      debitNoteId,
+    });
+    if (row.unlockedAt != null) {
+      events.push({
+        action: 'UNLOCK',
+        lockId: row.id,
+        actorId: row.unlockedBy ?? null,
+        actorName: row.unlockedByName ?? null,
+        reason: row.unlockReason ?? null,
+        timestamp: row.unlockedAt.toISOString(),
+        debitNoteId,
+      });
+    }
+  }
+  return { events };
 }
 
 export interface AdjustShipmentCostInput {

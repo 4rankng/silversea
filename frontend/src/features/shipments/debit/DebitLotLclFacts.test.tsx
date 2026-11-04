@@ -316,7 +316,7 @@ describe('SIL-548 reopen law on the strip (audit 2026-11-04 §2.2 — "giá bị
     expect(saveClassButton()).toBeDisabled();
   });
 
-  it('clearing a saved override re-sends the stored class — the auto-trace command', async () => {
+  it('clearing a saved override sends freightRevenue null — the clear command (SIL-679 r2)', async () => {
     setClass.mockResolvedValue({
       shipmentId: 9001,
       reference: 'BL-1',
@@ -325,7 +325,7 @@ describe('SIL-548 reopen law on the strip (audit 2026-11-04 §2.2 — "giá bị
       freightAuto: '2650000',
       freightManual: null,
       channel: 'TRIP',
-      reason: null,
+      reason: 'Chọn loại xe tính cước thu khách — Xe 5T',
     });
     renderStrip({ revVehicleClassCode: '5T', revFreightManual: '2800000' });
 
@@ -333,16 +333,38 @@ describe('SIL-548 reopen law on the strip (audit 2026-11-04 §2.2 — "giá bị
     expect(saveClassButton()).not.toBeDisabled();
     fireEvent.click(saveClassButton());
 
-    // "Bỏ trống = tự tra": re-picking the stored class (id 9 = '5T') is the
-    // clear command the wire can express; freightRevenue is NOT sent.
-    await waitFor(() => expect(setClass).toHaveBeenCalledWith({ shipmentId: 9001, vehicleSizeClassId: 9 }));
+    // "Bỏ trống = tự tra" (SIL-679 r2): the wire now carries the clear
+    // intent itself — freightRevenue: null. The old class-re-pick hack
+    // omitted the field, so a lane miss left the manual price stuck.
+    await waitFor(() => expect(setClass).toHaveBeenCalledWith({ shipmentId: 9001, freightRevenue: null }));
+    // The response re-seeds the field from the SAVED state (null ⇒ blank).
+    await waitFor(() => expect(priceValue()).toBe(''));
   });
 
-  it('a clear cannot arm without a stored class — the wire needs one of the two outputs', () => {
+  it('clear arms even without a stored class — the server un-marks the manual price', async () => {
+    setClass.mockResolvedValue({
+      shipmentId: 9001,
+      reference: 'BL-1',
+      vehicleSizeClassId: 0,
+      vehicleClassCode: '',
+      freightAuto: null,
+      freightManual: null,
+      channel: 'SNAPSHOT',
+      reason: 'Xóa giá nhập tay — bảng giá khách × tuyến chưa có giá',
+    });
+    renderStrip({ revVehicleClassCode: '', revFreightManual: '3679000' });
+
+    fireEvent.change(priceField(), { target: { value: '' } });
+    expect(saveClassButton()).not.toBeDisabled();
+    fireEvent.click(saveClassButton());
+    await waitFor(() => expect(setClass).toHaveBeenCalledWith({ shipmentId: 9001, freightRevenue: null }));
+  });
+
+  it('a clear arms without a stored class too — the null wire needs no class (SIL-679 r2)', () => {
     renderStrip({ revFreightManual: '2800000' });
     expect(priceValue()).toBe(2800000);
     fireEvent.change(priceField(), { target: { value: '' } });
-    expect(saveClassButton()).toBeDisabled();
+    expect(saveClassButton()).not.toBeDisabled();
     expect(setClass).not.toHaveBeenCalled();
   });
 });

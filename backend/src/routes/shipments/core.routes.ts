@@ -48,7 +48,7 @@ import { assignShipmentCarriers, createOperationalSiteForIntake, createShippingL
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
-import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listShipmentCostAdjustments, lockShipmentCost, unlockShipmentCost } from '../../services/shipment-cost-lock.service';
+import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listShipmentCostAdjustments, listShipmentCostLockHistory, lockShipmentCost, unlockShipmentCost } from '../../services/shipment-cost-lock.service';
 import { assertNoPendingRateAdjustment } from '../../services/accounting-debit-close.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
@@ -1001,7 +1001,8 @@ coreRoutes.post(
       actor: getUser(req),
       idempotencyKey,
     });
-    res.status(201).json({ id: lock.id });
+    // Audit 2026-11-04 r2 (QA comment 3834): audit fields ride the response.
+    res.status(201).json(lock);
   }),
 );
 
@@ -1026,7 +1027,22 @@ coreRoutes.post(
       expectedShipmentVersion: parsed.data.expectedShipmentVersion ?? null,
       actor: getUser(req),
     });
-    res.status(200).json({ id: lock.id });
+    // Audit 2026-11-04 r2 (QA comment 3834): audit fields ride the response.
+    res.status(200).json(lock);
+  }),
+);
+
+// ─── GET /:id/cost-lock-history — lịch sử khóa/mở khóa (audit r2 §1) ────────
+// ADMIN-only: the unlock channel is ADMIN-governed, so its audit trail reads
+// under the same clearance. Each event carries action/actor/reason/time and
+// the lot's unreleased Debit Note claim when present.
+coreRoutes.get(
+  '/:id/cost-lock-history',
+  requireRoles(Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    res.status(200).json(await listShipmentCostLockHistory(shipmentId));
   }),
 );
 

@@ -6,13 +6,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { shipmentDebitEditPayloadSchema } from '@tingting/shared';
 import { Role } from '@tingting/shared';
 
-const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, unlockCost, toastMock, useAuthMock } = vi.hoisted(() => ({
+const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, unlockCost, listLockHistory, toastMock, useAuthMock } = vi.hoisted(() => ({
   getDetail: vi.fn(),
   saveEdits: vi.fn(),
   lockCost: vi.fn(),
   adjustCost: vi.fn(),
   listAdjustments: vi.fn(),
   unlockCost: vi.fn(),
+  listLockHistory: vi.fn(),
   toastMock: vi.fn(),
   useAuthMock: vi.fn(),
 }));
@@ -25,6 +26,7 @@ vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   adjustShipmentCost: adjustCost,
   listShipmentCostAdjustments: listAdjustments,
   unlockShipmentCost: unlockCost,
+  listShipmentCostLockHistory: listLockHistory,
 }));
 
 vi.mock('../../../components/shared/Toast', () => ({
@@ -85,8 +87,10 @@ beforeEach(() => {
   adjustCost.mockReset();
   listAdjustments.mockReset();
   unlockCost.mockReset();
+  listLockHistory.mockReset();
   toastMock.mockReset();
   unlockCost.mockResolvedValue(undefined);
+  listLockHistory.mockResolvedValue([]);
   useAuthMock.mockReturnValue({ user: { userId: 3, role: Role.CUS } });
 });
 
@@ -331,6 +335,46 @@ describe('MỞ KHÓA lô (audit 2026-11-04 §2.1)', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).toBeNull());
     expect(unlockCost).not.toHaveBeenCalled();
+  });
+});
+
+describe('Lịch sử khóa (SIL-679 r2 — QA comment 3834 §1b)', () => {
+  const historyEvents = [
+    { action: 'LOCK' as const, lockId: 11, actorId: 1, actorName: 'Quản lý Tài', reason: 'Chốt số liệu quyết toán', timestamp: '2026-11-04T10:00:00.000Z', debitNoteId: 10 },
+    { action: 'UNLOCK' as const, lockId: 11, actorId: 1, actorName: 'Quản lý Tài', reason: 'Khóa nhầm lô — mở để sửa chi phí', timestamp: '2026-11-04T11:30:00.000Z', debitNoteId: 10 },
+    { action: 'LOCK' as const, lockId: 14, actorId: 2, actorName: 'Kế toán Hằng', reason: null, timestamp: '2026-11-04T12:00:00.000Z', debitNoteId: 10 },
+  ];
+
+  it('renders the LOCK/UNLOCK trail with actor names, reasons and the debit-note link for ADMIN', async () => {
+    useAuthMock.mockReturnValue({ user: { userId: 1, role: Role.ADMIN } });
+    listLockHistory.mockResolvedValue(historyEvents);
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true });
+
+    const section = await screen.findByRole('region', { name: 'Lịch sử khóa' });
+    expect(within(section).getByText('Lô đang nằm trong Debit Note #10')).toBeTruthy();
+    const rows = within(section).getAllByRole('listitem');
+    expect(rows).toHaveLength(3);
+    // Chronological trail: verb + actor name + reason — never a bare id.
+    expect(rows[0]!.textContent).toContain('Khóa lô — Quản lý Tài: Chốt số liệu quyết toán');
+    expect(rows[1]!.textContent).toContain('Mở khóa lô — Quản lý Tài: Khóa nhầm lô — mở để sửa chi phí');
+    expect(rows[2]!.textContent).toContain('Khóa lô — Kế toán Hằng');
+    expect(listLockHistory).toHaveBeenCalledWith(101);
+  });
+
+  it('shows the never-locked empty state and hides the section from non-admins', async () => {
+    useAuthMock.mockReturnValue({ user: { userId: 3, role: Role.CUS } });
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: false });
+    await screen.findByText('Cước vận tải');
+    expect(screen.queryByRole('region', { name: 'Lịch sử khóa' })).toBeNull();
+    expect(listLockHistory).not.toHaveBeenCalled();
+
+    useAuthMock.mockReturnValue({ user: { userId: 1, role: Role.ADMIN } });
+    listLockHistory.mockResolvedValue([]);
+    renderWorkspace({ locked: false });
+    const section = await screen.findByRole('region', { name: 'Lịch sử khóa' });
+    expect(within(section).getByText('Lô chưa từng khóa chi phí.')).toBeTruthy();
   });
 });
 

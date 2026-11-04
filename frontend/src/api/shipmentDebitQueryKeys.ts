@@ -16,5 +16,7 @@ export const shipmentDebitQueryKeys = {
     detail: (shipmentId: number) => ['shipment-debit-detail', shipmentId] as const,
     /** Before/after cước-adjustment history for one lot. */
     costAdjustments: (shipmentId: number) => ['shipment-cost-adjustments', shipmentId] as const,
+    /** SIL-679 r2 — the lot's khóa/mở khóa audit trail (ADMIN-only read). */
+    costLockHistory: (shipmentId: number) => ['shipment-cost-lock-history', shipmentId] as const,
   },
 };

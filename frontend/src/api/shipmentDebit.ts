@@ -158,10 +158,38 @@ export async function saveShipmentDebitEdits(shipmentId: number, body: ShipmentD
 
 // ── Card _19: lot lock + adjust-cước (snapshot contract) ───────────────────
 
+/** SIL-679 r2 (QA comment 3834 §1c) — the lock/unlock responses carry the
+ * audit fields themselves (actor, timestamp, note/reason), never id-only. */
+export interface ShipmentCostLockAudit {
+  id: number;
+  lockedBy: number;
+  lockedByName: string | null;
+  lockedAt: string;
+  lockNote: string | null;
+}
+
+export interface ShipmentCostUnlockAudit {
+  id: number;
+  unlockedBy: number;
+  unlockedByName: string | null;
+  unlockedAt: string;
+  unlockReason: string;
+}
+
+export interface ShipmentCostLockHistoryEvent {
+  action: 'LOCK' | 'UNLOCK';
+  lockId: number;
+  actorId: number | null;
+  actorName: string | null;
+  reason: string | null;
+  timestamp: string;
+  debitNoteId: number | null;
+}
+
 /** POST /shipments/:id/lock — active-lock conflicts return 409 with the
  * dedicated message; retries with the same key return the original lock. */
-export async function lockShipmentCost(shipmentId: number, idempotencyKey: string, expectedShipmentVersion?: number): Promise<void> {
-  await api.post(`/shipments/${encodeURIComponent(shipmentId)}/lock`, expectedShipmentVersion != null ? { expectedShipmentVersion } : {}, {
+export async function lockShipmentCost(shipmentId: number, idempotencyKey: string, expectedShipmentVersion?: number): Promise<ShipmentCostLockAudit> {
+  return api.post<ShipmentCostLockAudit>(`/shipments/${encodeURIComponent(shipmentId)}/lock`, expectedShipmentVersion != null ? { expectedShipmentVersion } : {}, {
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 }
@@ -174,10 +202,18 @@ export async function unlockShipmentCost(
   shipmentId: number,
   body: { reason: string; expectedShipmentVersion?: number },
   idempotencyKey: string,
-): Promise<void> {
-  await api.post(`/shipments/${encodeURIComponent(shipmentId)}/unlock`, body, {
+): Promise<ShipmentCostUnlockAudit> {
+  return api.post<ShipmentCostUnlockAudit>(`/shipments/${encodeURIComponent(shipmentId)}/unlock`, body, {
     headers: { 'Idempotency-Key': idempotencyKey },
   });
+}
+
+/** GET /shipments/:id/cost-lock-history — the lot's khóa/mở khóa trail
+ * (ADMIN-only, mirrors the unlock clearance). Each event carries action,
+ * actor name, reason, timestamp and the unreleased Debit Note claim. */
+export async function listShipmentCostLockHistory(shipmentId: number): Promise<ShipmentCostLockHistoryEvent[]> {
+  const response = await api.get<{ events: ShipmentCostLockHistoryEvent[] }>(`/shipments/${encodeURIComponent(shipmentId)}/cost-lock-history`);
+  return response.events;
 }
 
 export interface ShipmentCostAdjustment {

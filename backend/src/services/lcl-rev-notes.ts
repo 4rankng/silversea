@@ -66,3 +66,15 @@ export function isRevManualPriceNote(note: string | null): boolean {
   return note != null && (note === REV_LOT_MANUAL_PRICE_REASON
     || note.startsWith(REV_GROUP_MANUAL_PRICE_NOTE_PREFIX));
 }
+
+/** SIL-679 r2 (QA comment 3834 §2) — the per-lot editor's "Bỏ trống = tự
+ *  động tra cứu" writes this citation when the cleared manual price cannot be
+ *  replaced by an auto price: lane miss and no pre-manual row to restore (a
+ *  snapshot cannot hold null — D02). The cited zero reads UNSET ("Chưa xác
+ *  định") on every board, never a fabricated 0₫, and never re-reads as the
+ *  manual price. */
+export const REV_LOT_MANUAL_CLEARED_REASON = 'Xóa giá nhập tay — bảng giá khách × tuyến chưa có giá';
+
+export function isRevManualClearNote(note: string | null): boolean {
+  return note === REV_LOT_MANUAL_CLEARED_REASON;
+}
