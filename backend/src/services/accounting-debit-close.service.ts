@@ -676,14 +676,14 @@ export async function createRateAdjustmentRequests(input: {
   shipmentIds: number[];
   ghiChu?: string;
   userId: number;
-}, transaction?: Tx): Promise<{ requested: number[]; alreadyPending: number[]; locked: number[] }> {
+}, transaction?: Tx): Promise<{ requested: number[]; alreadyPending: number[]; locked: number[]; requestIds: number[] }> {
   const execute = async (tx: Tx) => {
     const shipmentIds = [...new Set(input.shipmentIds)].sort((a, b) => a - b);
     await lockApplicationOwnedUniquenessSet(tx, shipmentIds.map((id) => ({ scope: 'shipment-rate-adjustment', parts: [id] })));
     const requested: number[] = [];
     const alreadyPending: number[] = [];
     const locked: number[] = [];
-    if (shipmentIds.length === 0) return { requested, alreadyPending, locked };
+    if (shipmentIds.length === 0) return { requested, alreadyPending, locked, requestIds: [] };
 
     // Three set reads instead of three reads per shipment; per-item outcomes
     // are resolved in memory in the same sorted order as before.
@@ -711,10 +711,18 @@ export async function createRateAdjustmentRequests(input: {
       insertValues.push({ shipmentId, ghiChu: input.ghiChu ?? null, requestedBy: input.userId });
       requested.push(shipmentId);
     }
-    if (insertValues.length > 0) {
-      await tx.insert(s.shipmentRateAdjustmentRequests).values(insertValues);
-    }
-    return { requested, alreadyPending, locked };
+    // QA 2026-11-04: `requested` carries SHIPMENT ids while confirm/withdraw
+    // take REQUEST ids — callers that echoed create's arrays into those
+    // endpoints silently no-opped. requestIds closes that trap: the created
+    // rows' ids in the same order as `requested`.
+    const inserted = insertValues.length > 0
+      ? await tx.insert(s.shipmentRateAdjustmentRequests).values(insertValues)
+        .returning({ id: s.shipmentRateAdjustmentRequests.id, shipmentId: s.shipmentRateAdjustmentRequests.shipmentId })
+      : [];
+    const idByShipment = new Map(inserted.map((row) => [row.shipmentId, row.id]));
+    const requestIds = requested.map((shipmentId) => idByShipment.get(shipmentId))
+      .filter((id): id is number => id != null);
+    return { requested, alreadyPending, locked, requestIds };
   };
   return transaction ? execute(transaction) : db.transaction(execute);
 }

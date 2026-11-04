@@ -41,9 +41,13 @@ async function generateOpsSettlementCode(tx: Tx, now: Date = new Date()): Promis
 }
 
 /**
- * Freeze every open PENDING+APPROVED entry of the caller into a new batch.
- * The per-user advisory lock serializes concurrent creators; the row lock +
- * re-filter inside the transaction is the actual freeze authority.
+ * Freeze every open RECORDED+APPROVED entry of the caller into a new DRAFT
+ * batch. The per-user advisory lock serializes concurrent creators; the row
+ * lock + re-filter inside the transaction is the actual freeze authority.
+ * QA 2026-11-04: the batch starts DRAFT ("Bản nháp cần hoàn tất" in
+ * OpsSettlementsPanel) — finalizeOpsSettlement (DRAFT|PENDING → RECORDED)
+ * and reopenOpsSettlementDraft (DRAFT|PENDING → VOIDED) are the only exits.
+ * Inserting RECORDED here had orphaned both endpoints and the UI buttons.
  */
 export async function createOpsSettlement(
   userId: number,
@@ -75,7 +79,7 @@ export async function createOpsSettlement(
       .values({
         code,
         opsUserId: userId,
-        status: 'RECORDED',
+        status: 'DRAFT',
         totalAmount: total.toString(),
         note: note?.trim() || null,
       })

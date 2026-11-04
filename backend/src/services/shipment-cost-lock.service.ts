@@ -3,7 +3,7 @@
 // the kỳ kế toán lock: guards chain (the accounting lock still wins for cost
 // edits). Snapshots are assembled server-side from engine values and are
 // never recomputed after lock — "mở kỳ mới không đổi số đã khóa".
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 import { effectiveBillingPlate } from '@tingting/shared';
 import * as s from '../db/schema';
@@ -20,7 +20,7 @@ import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { documentVatTotals, VAT_TREATMENT_VERSION } from './billing-document-shared.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
 
-export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần mở khóa (sẽ cấp sau) để chỉnh sửa chi phí.';
+export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần ADMIN mở khóa (kèm lý do) để chỉnh sửa chi phí.';
 export const SHIPMENT_COST_NOT_LOCKED_MESSAGE = 'Lô hàng chưa khóa chi phí — hãy khóa lô trước khi điều chỉnh.';
 
 /** Advisory-locked lot-claim namespace: serializes concurrent exports that
@@ -61,7 +61,10 @@ async function assertLotsNotInIssuedDebitNote(
 
 /** Freeze gate for every Lớp-2 write surface on the shipment (mirrors
  *  assertShipmentAccountingUnlocked). Violations → 409 with the dedicated
- *  message. */
+ *  message. QA 2026-11-04: when the locked lot already sits in an issued
+ *  Debit Note, "ADMIN mở khóa" is itself refused (unlockShipmentCost 409s on
+ *  the same debitNoteLots claim), so the guidance names the document
+ *  instead of pointing at an impossible unlock. */
 export async function assertShipmentCostUnlocked(executor: Executor, shipmentId: number): Promise<void> {
   const [active] = await executor.select({ id: s.shipmentCostLocks.id })
     .from(s.shipmentCostLocks)
@@ -70,7 +73,45 @@ export async function assertShipmentCostUnlocked(executor: Executor, shipmentId:
       isNull(s.shipmentCostLocks.unlockedAt),
     ))
     .limit(1);
-  if (active) throw new ApiError(409, SHIPMENT_COST_LOCKED_MESSAGE);
+  if (!active) return;
+  const [claim] = await executor.select({ documentId: s.debitNoteLots.documentId })
+    .from(s.debitNoteLots)
+    .where(and(
+      eq(s.debitNoteLots.shipmentId, shipmentId),
+      isNull(s.debitNoteLots.releasedAt),
+    ))
+    .limit(1);
+  if (claim) {
+    throw new ApiError(409, `Lô đã nằm trong Debit Note #${claim.documentId} — không sửa được chi phí; xử lý chứng từ debit trước khi mở khóa lô.`);
+  }
+  throw new ApiError(409, SHIPMENT_COST_LOCKED_MESSAGE);
+}
+
+/** Audit 2026-11-04 §2.3 — trip-level freeze gate for the cost lock, the
+ * byte-for-byte mirror of assertTripShipmentAccountingUnlocked: the lot a
+ * trip executes resolves through the fulfillment (direct link wins; the
+ * wave-model fulfillment lot is the fallback; a soft-deleted lot counts as
+ * unlocked — nothing live left to protect). No resolvable lot ⇒ allow
+ * (fail-open, the accounting variant's own ruling). */
+export async function assertTripShipmentCostUnlocked(executor: Executor, tripId: number) {
+  const [trip] = await executor.select({
+    shipmentId: sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`,
+  })
+    .from(s.trips)
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .where(and(eq(s.trips.id, tripId), isNull(s.trips.deletedAt)))
+    .limit(1);
+  if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến đi');
+  if (trip.shipmentId != null) {
+    const [shipment] = await executor.select({ deletedAt: s.shipments.deletedAt })
+      .from(s.shipments)
+      .where(eq(s.shipments.id, trip.shipmentId))
+      .limit(1);
+    if (shipment && shipment.deletedAt == null) {
+      await assertShipmentCostUnlocked(executor, trip.shipmentId);
+    }
+  }
+  return trip.shipmentId;
 }
 
 /** Server-assembled frozen Lớp-1 totals from the rollup engine values —
@@ -178,6 +219,72 @@ export async function lockShipmentCost(input: LockShipmentCostInput): Promise<{ 
     },
   });
   return result;
+}
+
+export interface UnlockShipmentCostInput {
+  shipmentId: number;
+  reason: string;
+  actor: AuthUser;
+  expectedShipmentVersion?: number | null;
+}
+
+/** Mở khóa lô (audit 2026-11-04 §2.1): closes the ACTIVE cost lock with the
+ * actor + reason on the row itself — history survives, and a later re-lock
+ * inserts a NEW active row (the partial unique index
+ * `shipment_cost_locks_active_uniq … WHERE unlocked_at is null` permits it).
+ * Mirrors the accounting-lock reopen governance the customer accepted: ADMIN
+ * route gate + a mandatory reason.
+ *
+ * Refused while an unreleased debit-note claim holds the lot: the issued note
+ * priced THIS lock's frozen snapshot, so the document must be handled first
+ * (canceling releases the claim, `debit-note-lifecycle.service.ts`). The
+ * accounting lock is deliberately NOT asserted here — unlock is a lock-state
+ * write, not cost data, and that lock keeps its own ADMIN reopen channel. */
+export async function unlockShipmentCost(input: UnlockShipmentCostInput): Promise<{ id: number }> {
+  const reason = input.reason?.trim() ?? '';
+  if (!reason) throw new ApiError(400, 'Vui lòng nhập lý do mở khóa.');
+  if (reason.length > 2000) throw new ApiError(400, 'Lý do mở khóa không được vượt quá 2000 ký tự.');
+  return db.transaction(async (tx) => {
+    const [shipment] = await tx.select({ id: s.shipments.id, version: s.shipments.version, deletedAt: s.shipments.deletedAt })
+      .from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
+    if (!shipment || shipment.deletedAt) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
+    if (input.expectedShipmentVersion != null && shipment.version !== input.expectedShipmentVersion) {
+      throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
+    }
+    const [active] = await tx.select({ id: s.shipmentCostLocks.id })
+      .from(s.shipmentCostLocks)
+      .where(and(
+        eq(s.shipmentCostLocks.shipmentId, input.shipmentId),
+        isNull(s.shipmentCostLocks.unlockedAt),
+      ))
+      .limit(1)
+      .for('update');
+    if (!active) throw new ApiError(409, 'Lô hàng chưa khóa chi phí — không có khóa nào để mở.');
+    const [claim] = await tx.select({ documentId: s.debitNoteLots.documentId })
+      .from(s.debitNoteLots)
+      .where(and(
+        eq(s.debitNoteLots.shipmentId, input.shipmentId),
+        isNull(s.debitNoteLots.releasedAt),
+      ))
+      .limit(1);
+    if (claim) {
+      throw new ApiError(409, `Lô đã nằm trong Debit Note #${claim.documentId} — xử lý chứng từ trước khi mở khóa lô.`);
+    }
+    await tx.update(s.shipmentCostLocks).set({
+      unlockedBy: input.actor.userId,
+      unlockedAt: new Date(),
+      unlockReason: reason,
+    }).where(eq(s.shipmentCostLocks.id, active.id));
+    await tx.insert(s.auditLogs).values({
+      userId: input.actor.userId,
+      actorName: input.actor.fullName ?? input.actor.username ?? undefined,
+      message: 'SHIPMENT_COST_UNLOCKED',
+      entityType: 'shipment',
+      entityId: input.shipmentId,
+      payload: { lockId: active.id, reason },
+    });
+    return { id: active.id };
+  });
 }
 
 export interface AdjustShipmentCostInput {

@@ -140,7 +140,9 @@ async function getEditableExpense(userId: number, expenseId: number, executor: E
     throw new ApiError(400, 'Khoản chi đã hủy chỉ được xem trong lịch sử.');
   }
   if (entry.opsSettlementId != null) {
-    throw new ApiError(400, 'Khoản chi đã nằm trong phiếu quyết toán, không thể chỉnh sửa.');
+    // QA 2026-11-04: 409 — a frozen-in-settlement state conflict, matching
+    // the sibling "vừa thay đổi trạng thái" guards below (not input validation).
+    throw new ApiError(409, 'Khoản chi đã nằm trong phiếu quyết toán, không thể chỉnh sửa.');
   }
   return entry;
 }
