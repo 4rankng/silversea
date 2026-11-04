@@ -62,6 +62,16 @@ describe('DriverCostBreakdownSection (wave 7 — SIL-638 TC3-T3)', () => {
     expect(zeros.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('r4: a route without stations shows the owner warning next to the 0 ₫, never a silent null', () => {
+    render(
+      <MemoryRouter>
+        <DriverCostBreakdownSection trip={{ ...baseTrip, costBreakdown: { ...breakdown, tolls: 0, tollZeroReason: 'route_chua_cau_hinh_tram' } }} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('Phí cầu đường VETC')).toBeInTheDocument();
+    expect(screen.getByText('0 ₫ · Route chưa cấu hình trạm thu VETC — cần nhập để tính')).toBeInTheDocument();
+  });
+
   it('renders nothing before completion or when the wire carries no breakdown', () => {
     const { container: inTransit } = render(
       <MemoryRouter>

@@ -1,0 +1,41 @@
+login laixe ok (token len 332)
+staging leg A head:
+  staging leg A row Cước chuyến=3.800.000 ₫
+  staging leg A row Phí cầu đường VETC=0 ₫ · Route chưa cấu hình trạm thu VETC — cần nhập để tính
+  staging leg A row Lương chuyến=0 ₫
+  staging leg A row Phụ phí Kẹp=0 ₫
+  staging leg A row Chi phí dầu=0 ₫
+  staging leg A row Tiền đường=0 ₫
+  staging leg A row Tổng chi phí=0 ₫
+PASS staging leg A: Chi phí chuyến section visible — trip 1330
+PASS staging leg A: VETC row shows 0 ₫ + owner warning — Phí cầu đường VETC=0 ₫ · Route chưa cấu hình trạm thu VETC — cần nhập để tính
+PASS staging leg A: Lương chuyến shows explicit 0 ₫ (never hidden)
+PASS staging leg A: warning text is on the page
+screenshot ui-390-staging-legA-warning.png saved
+configured leg A head:
+  configured leg A row Cước chuyến=3.800.000 ₫
+  configured leg A row Phí cầu đường VETC=110.000 ₫
+  configured leg A row Lương chuyến=384.615 ₫
+  configured leg A row Phụ phí Kẹp=0 ₫
+  configured leg A row Chi phí dầu=0 ₫
+  configured leg A row Tiền đường=0 ₫
+  configured leg A row Tổng chi phí=384.615 ₫
+PASS configured leg A: Chi phí chuyến section visible — trip 1336
+PASS configured leg A: VETC row shows 110.000 ₫ without warning — Phí cầu đường VETC=110.000 ₫
+PASS configured leg A: Lương chuyến shows 384.615 ₫ (wage law 2 days)
+PASS configured leg A: header total (summary) non-zero — summary=384.615 ₫
+PASS configured leg A: no warning text on the page
+screenshot ui-390-configured-legA.png saved
+  configured leg B row Cước chuyến=3.800.000 ₫
+  configured leg B row Phí cầu đường VETC=0 ₫
+  configured leg B row Lương chuyến=200.000 ₫
+  configured leg B row Phụ phí Kẹp=200.000 ₫
+  configured leg B row Chi phí dầu=0 ₫
+  configured leg B row Tiền đường=0 ₫
+  configured leg B row Tổng chi phí=90.000 ₫
+PASS configured leg B: Phụ phí Kẹp shows 200.000 ₫
+PASS configured leg B: VETC honest 0 ₫ without warning
+PASS configured leg B: Lương chuyến shows 200.000 ₫ (pair wage law)
+screenshot ui-390-configured-legB.png saved
+PASS no console errors during drive
+UI DRIVE FAILURES: 0

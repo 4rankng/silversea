@@ -1,0 +1,22 @@
+catalog plain rows before: 15|CONT20|
+16|CONT40|
+staging shape applied: plain CONT20/CONT40 soft-deleted for this run
+staging shape: route 6 tolls_stations NULL (was 2); salary.pair_surcharge_kep removed (was 200000)
+login admin ok against :3103
+catalog: containerType 20DC = 1 | rig: ['42', '60C-12345', '42'] (driver base_salary 0 for the run, was 5000000)
+lotA: dispatched -> trip 1330; snapshot id=713 total=3952000 rateTerms=1 pricingTable=33 heSo=1.0000
+lotB: dispatched -> trip 1331; snapshot id=715 total=3952000 rateTerms=1 pricingTable=33 heSo=1.0000
+pair created: 37 KEP
+trip 1330 (A): COMPLETED via driver-app close (no actuals save)
+trip 1331 (B): COMPLETED via driver-app close (no actuals save)
+--- ASSERTIONS ---
+ECON trip 1330 (leg A): driverSalary=0 tollCost=0 tollDeduction=0 totalCost=NULL
+ECON trip 1331 (leg B): driverSalary=0 tollCost=0 tollDeduction=0 totalCost=0
+1. staging shape: driverSalary A=0 B=0 — explicit 0, never NULL
+2a. GET /api/trips/1330 -> 200 costBreakdown={"freight": 3800000, "tolls": 0, "tollZeroReason": "route_chua_cau_hinh_tram", "salary": 0, "surcharge": 0, "fuel": 0, "allowance": 0, "totalCost": 0}
+2b. GET /api/driver/me/trips/1330 -> 200 costBreakdown={"freight": 3800000, "tolls": 0, "tollZeroReason": "route_chua_cau_hinh_tram", "salary": 0, "surcharge": 0, "fuel": 0, "allowance": 0, "totalCost": 0}
+3. GET /api/settlements -> 200 items=15 pairRecord=[{"source": "TRIP_PAIR", "pairId": 37, "pairKind": "KEP", "pairStatus": "ACTIVE", "code": "OS-PAIR-37", "status": "RECORDED", "totalAmount": "0", "note": "Quy\u1ebft to\u00e1n economics c\u1eb7p K\u1eb8P \u2014 VETC 1 l\u1ea7n 0 \u20ab + l\u01b0\u01a1ng c\u01a1 b\u1ea3n 0 \u20ab + ph\u1ee5 ph\u00ed 0 \u20ab (Route ch\u01b0a c\u1ea5u h\u00ecnh tr\u1ea1m thu VETC \u2014 c\u1ea7n nh\u1eadp \u0111\u1ec3 t\u00ednh)", "createdAt": "2026-11-04T15:08:13.773Z", "firstTripId": 1330, "secondTripId": 1331, 
+4. staging marker: settlements + driver detail carry route_chua_cau_hinh_tram + warning
+R4 MODE=staging FAILURES: 0
+DRIVER_USER=laixe TRIPS_A_B=1330|1331 PAIR=37
+cleanup: catalog restored; route 6 tolls_stations restored

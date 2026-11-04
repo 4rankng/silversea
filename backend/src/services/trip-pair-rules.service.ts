@@ -427,6 +427,20 @@ export function pairSurchargeFor(
 // transaction, so a pair closed purely through the driver app completed with
 // unmaterialed economics. These db-free laws define what a COMPLETED leg
 // must carry; the tx writer is trip-completion-economics.service.
+//
+// r4 (QA pair 30, staging e9afda3f): a route WITHOUT toll stations settled
+// VETC as a silent null — tollOnceLeg null, no reason anywhere. The owner law
+// (card 20261002_293, D02) applies: a computed financial zero is a value.
+// The VETC record materializes once per pair ALWAYS; an unconfigured route
+// carries amount 0 PLUS an explicit reason marker.
+
+/** Why a completed leg's VETC net is 0 (surfaced verbatim on economics). */
+export const VETC_ROUTE_UNCONFIGURED_REASON = 'route_chua_cau_hinh_tram' as const;
+export type VetcZeroReason = typeof VETC_ROUTE_UNCONFIGURED_REASON;
+
+/** The warning economics surfaces for that reason — verbatim owner copy. */
+export const VETC_ROUTE_UNCONFIGURED_WARNING =
+  'Route chưa cấu hình trạm thu VETC — cần nhập để tính';
 
 /** Facts a completed leg carries for the once-per-pair VETC law (TC3). */
 export interface CompletedLegTollFacts {
@@ -444,12 +458,17 @@ export interface CompletedLegTollLaw {
   tollDeduction: number;
   /** True when a driver-claimed TOLL row (reconciledTollCost) wins. */
   reconciled: boolean;
+  /** Why the net is 0 — `route_chua_cau_hinh_tram` when the route has no
+   *  toll stations configured (never on a reconciled claim). */
+  tollZeroReason: VetcZeroReason | null;
 }
 
 /**
  * Net toll for one completed leg: a reconciled driver claim wins verbatim;
  * otherwise stations × per-station rate minus this leg's pair dedup, clamped
- * ≥ 0. A route without stations honestly computes 0 — never a null.
+ * ≥ 0. A route without stations honestly computes 0 — never a null — and
+ * names the reason (`route_chua_cau_hinh_tram`) so the economics surface can
+ * say what is missing instead of staying silently empty.
  */
 export function netTollForCompletedLeg(facts: CompletedLegTollFacts): CompletedLegTollLaw {
   const stations = Math.max(0, Math.trunc(Number(facts.tollsStations ?? 0)) || 0);
@@ -462,9 +481,16 @@ export function netTollForCompletedLeg(facts: CompletedLegTollFacts): CompletedL
       grossToll,
       tollDeduction: deduction,
       reconciled: true,
+      tollZeroReason: null,
     };
   }
-  return { tollCost: Math.max(0, grossToll - deduction), grossToll, tollDeduction: deduction, reconciled: false };
+  return {
+    tollCost: Math.max(0, grossToll - deduction),
+    grossToll,
+    tollDeduction: deduction,
+    reconciled: false,
+    tollZeroReason: stations === 0 ? VETC_ROUTE_UNCONFIGURED_REASON : null,
+  };
 }
 
 /** Facts the completion-time salary law reads (TC3: lương = cơ bản + phụ phí). */
@@ -558,6 +584,8 @@ export interface TripCostBreakdown {
   freight: number;
   /** VETC net for THIS leg (pair: the carrying leg once, the other 0). */
   tolls: number;
+  /** Why the VETC net is 0 (`route_chua_cau_hinh_tram`), null otherwise. */
+  tollZeroReason: VetcZeroReason | null;
   /** Lương tài xế (base allocation or pair surcharge). */
   salary: number;
   /** Phụ phí Kẹp component (0 when unconfigured — explicit, not missing). */
@@ -589,13 +617,16 @@ function vnd(value: number | string | null | undefined): number {
 
 /**
  * Explicit per-leg cost breakdown. Every number is present — a route without
- * toll stations shows `tolls: 0`, an unconfigured phụ phí shows
- * `surcharge: 0` — so "0" is always an honest computed value, never a gap.
+ * toll stations shows `tolls: 0` plus the `route_chua_cau_hinh_tram` reason,
+ * an unconfigured phụ phí shows `surcharge: 0` — so "0" is always an honest
+ * computed value, never a gap.
  */
 export function tripCostBreakdown(facts: TripCostBreakdownFacts): TripCostBreakdown {
+  const toll = netTollForCompletedLeg(facts);
   return {
     freight: vnd(facts.revenue),
-    tolls: netTollForCompletedLeg(facts).tollCost,
+    tolls: toll.tollCost,
+    tollZeroReason: toll.tollZeroReason,
     salary: vnd(facts.driverSalary),
     surcharge: pairSurchargeComponent(facts.pair),
     fuel: vnd(facts.totalFuelCost),
@@ -606,10 +637,13 @@ export function tripCostBreakdown(facts: TripCostBreakdownFacts): TripCostBreakd
 
 /** Pair-level settlement economics — the record a completed pair surfaces. */
 export interface PairSettlementEconomics {
-  /** Which leg carries the once-per-pair VETC toll (null = honest 0). */
-  tollOnceLeg: 1 | 2 | null;
+  /** Which leg carries the once-per-pair VETC record — ALWAYS set (the
+   *  record materializes even when the amount is 0; default carrier leg 1). */
+  tollOnceLeg: 1 | 2;
   /** The once-per-pair toll amount (sum of both legs' nets). */
   tollAmount: number;
+  /** Why the amount is 0 (`route_chua_cau_hinh_tram`), null otherwise. */
+  tollZeroReason: VetcZeroReason | null;
   /** Lương cơ bản (leg 1's wage). */
   baseSalary: number;
   /** Phụ phí Kẹp (leg 2's configured component). */
@@ -622,19 +656,25 @@ export interface PairSettlementEconomics {
 
 /**
  * TC3 economics across the pair: VETC counted once (never doubled), wage =
- * base cuốc + phụ phí. Leg 1 normally carries the toll; a reconciled-claim
- * rewrite can leave it on leg 2 — the law reads the actual stored nets.
+ * base cuốc + phụ phí. Leg 1 normally carries the toll record; a
+ * reconciled-claim rewrite can leave it on leg 2 — the law reads the actual
+ * stored nets. A route without stations keeps the record on leg 1 with
+ * amount 0 + the `route_chua_cau_hinh_tram` reason — never a silent null.
  */
 export function pairSettlementEconomics(
   first: TripCostBreakdown,
   second: TripCostBreakdown,
 ): PairSettlementEconomics {
   const tollAmount = first.tolls + second.tolls;
-  const tollOnceLeg: 1 | 2 | null = first.tolls > 0 ? 1 : second.tolls > 0 ? 2 : null;
+  const tollOnceLeg: 1 | 2 = first.tolls > 0 ? 1 : second.tolls > 0 ? 2 : 1;
+  const tollZeroReason: VetcZeroReason | null = tollAmount === 0
+    ? (first.tollZeroReason ?? second.tollZeroReason ?? VETC_ROUTE_UNCONFIGURED_REASON)
+    : null;
   const totalSalary = first.salary + second.salary;
   return {
     tollOnceLeg,
     tollAmount,
+    tollZeroReason,
     baseSalary: first.salary,
     surcharge: second.surcharge,
     totalSalary,

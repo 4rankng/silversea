@@ -150,10 +150,17 @@ export interface DriverTaskEvidenceStatus {
 
 /** Wave 7 (SIL-676/SIL-638 TC3-T3) — the backend-composed per-leg cost
  *  breakdown. Every number is present: tolls 0 / surcharge 0 are honest
- *  computed values, never gaps. Integer VND. */
+ *  computed values, never gaps. Integer VND.
+ *  r4: `tollZeroReason` names why the VETC net is 0 (`route_chua_cau_hinh_
+ *  tram` = the route has no toll stations configured) — the same marker the
+ *  settlements record carries; the twin of the backend law constant. */
+export const VETC_ROUTE_UNCONFIGURED_WARNING =
+  'Route chưa cấu hình trạm thu VETC — cần nhập để tính';
+
 export interface DriverTripCostBreakdown {
   freight: number;
   tolls: number;
+  tollZeroReason?: 'route_chua_cau_hinh_tram' | null;
   salary: number;
   surcharge: number;
   fuel: number;

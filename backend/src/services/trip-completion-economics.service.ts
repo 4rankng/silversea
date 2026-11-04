@@ -21,7 +21,11 @@ import { getPairSalarySettingsFrom, pairSurchargeFor } from './pair-salary-setti
 import {
   completedLegSalaryLaw,
   netTollForCompletedLeg,
+  pairSettlementEconomics,
   tripCostBreakdown,
+  VETC_ROUTE_UNCONFIGURED_WARNING,
+  type CompletedLegSalaryLaw,
+  type CompletedLegTollLaw,
   type TripCostBreakdown,
 } from './trip-pair-rules.service';
 
@@ -107,11 +111,76 @@ export async function buildTripBreakdown(row: {
 }
 
 /**
+ * The pure write decision behind the materializer — db-free and unit-pinnable.
+ *
+ * r4 law (QA pair 30, staging e9afda3f): a COMPLETED OWN leg NEVER leaves
+ * driverSalary/tollCost as a NULL gap. When the stored field is unset the
+ * completion writes the law's computed number even when it is 0 — a computed
+ * financial zero is a value (owner ruling D02, card 20261002_293); null stays
+ * a gap. A stored value (governed correction, earlier save) always wins.
+ * Every completion path — driver close, POD close, điều vận governed close,
+ * routine shipment close — funnels through the one materializer that applies
+ * this decision before the completion posting.
+ */
+export interface CompletionEconomicsWrite {
+  changed: boolean;
+  /** The trip_financial_state patch (driverSalary/tripWageDays/tollCost/
+   *  totalCost/grossProfit split already handled by applyTripPatch). */
+  patch: {
+    driverSalary?: string;
+    tripWageDays?: number;
+    tollCost?: string;
+    totalCost?: string;
+    grossProfit?: string;
+  };
+}
+
+export function completionEconomicsWrite(facts: {
+  storedDriverSalary: number | string | null;
+  storedTollCost: number | string | null;
+  storedTotalCost: number | string | null;
+  storedGrossProfit: number | string | null;
+  storedRevenue: number | string | null;
+  salary: CompletedLegSalaryLaw;
+  toll: CompletedLegTollLaw;
+}): CompletionEconomicsWrite {
+  const salaryUnset = facts.storedDriverSalary == null;
+  const tollUnset = facts.storedTollCost == null;
+  const salaryBefore = Math.max(0, Math.round(Number(facts.storedDriverSalary ?? 0)) || 0);
+  const tollBefore = Math.max(0, Math.round(Number(facts.storedTollCost ?? 0)) || 0);
+  const salaryWrites = facts.salary.applied || salaryUnset;
+  const tollWrites = facts.toll.tollCost !== tollBefore || tollUnset;
+  const costDelta = round2dp(facts.salary.driverSalary - salaryBefore + facts.toll.tollCost - tollBefore);
+  if (!salaryWrites && !tollWrites && costDelta === 0) {
+    return { changed: false, patch: {} };
+  }
+  const storedTotalCost = Math.max(0, Math.round(Number(facts.storedTotalCost ?? 0)) || 0);
+  const storedGrossProfit = facts.storedGrossProfit != null
+    ? Math.round(Number(facts.storedGrossProfit))
+    : Math.round(Number(facts.storedRevenue ?? 0) || 0) - storedTotalCost;
+  return {
+    changed: true,
+    patch: {
+      ...(salaryWrites ? {
+        driverSalary: String(facts.salary.driverSalary),
+        tripWageDays: facts.salary.tripWageDays,
+      } : {}),
+      ...(tollWrites ? { tollCost: String(facts.toll.tollCost) } : {}),
+      ...(costDelta !== 0 ? {
+        totalCost: String(Math.max(0, round2dp(storedTotalCost + costDelta))),
+        grossProfit: String(round2dp(storedGrossProfit - costDelta)),
+      } : {}),
+    },
+  };
+}
+
+/**
  * Materialize a COMPLETED leg's economics per the pure laws:
  * driver salary (stored → pair surcharge → base allocation) and the
  * once-per-pair VETC net toll, with the matching totalCost/grossProfit delta.
- * Idempotent: an already-materialized leg whose stored values agree with the
- * laws writes nothing.
+ * An unset stored field always becomes the law's computed number — 0 is an
+ * honest value, never a silent null. Idempotent: an already-materialized leg
+ * whose stored values agree with the laws writes nothing.
  */
 export async function materializeCompletedTripEconomics(
   tx: Tx,
@@ -160,10 +229,18 @@ export async function materializeCompletedTripEconomics(
     reconciledTollCost: trip.reconciledTollCost,
   });
 
+  const write = completionEconomicsWrite({
+    storedDriverSalary: trip.driverSalary,
+    storedTollCost: trip.tollCost,
+    storedTotalCost: trip.totalCost,
+    storedGrossProfit: trip.grossProfit,
+    storedRevenue: trip.revenue,
+    salary,
+    toll,
+  });
   const salaryBefore = Math.max(0, Math.round(Number(trip.driverSalary ?? 0)) || 0);
   const tollBefore = Math.max(0, Math.round(Number(trip.tollCost ?? 0)) || 0);
-  const costDelta = round2dp(salary.driverSalary - salaryBefore + toll.tollCost - tollBefore);
-  if (!salary.applied && costDelta === 0) {
+  if (!write.changed) {
     return {
       tripId, changed: false, salarySource: salary.source,
       salaryBefore, salaryAfter: salary.driverSalary,
@@ -173,23 +250,10 @@ export async function materializeCompletedTripEconomics(
     };
   }
 
-  const storedTotalCost = Math.max(0, Math.round(Number(trip.totalCost ?? 0)) || 0);
-  const storedGrossProfit = trip.grossProfit != null
-    ? Math.round(Number(trip.grossProfit))
-    : Math.round(Number(trip.revenue ?? 0) || 0) - storedTotalCost;
-
   // Trips-split: driverSalary/tripWageDays/tollCost/totalCost/grossProfit all
   // route to trip_financial_state via the composite patch.
   await applyTripPatch(tx, tripId, {
-    ...(salary.applied ? {
-      driverSalary: String(salary.driverSalary),
-      tripWageDays: salary.tripWageDays,
-    } : {}),
-    ...(toll.tollCost !== tollBefore ? { tollCost: String(toll.tollCost) } : {}),
-    ...(costDelta !== 0 ? {
-      totalCost: String(Math.max(0, round2dp(storedTotalCost + costDelta))),
-      grossProfit: String(round2dp(storedGrossProfit - costDelta)),
-    } : {}),
+    ...write.patch,
     updatedAt: new Date(),
   });
 
@@ -220,8 +284,10 @@ export interface CompletedPairSettlementRecord {
   firstTripCode: string | null;
   secondTripCode: string | null;
   economics: {
-    tollOnceLeg: 1 | 2 | null;
+    tollOnceLeg: 1 | 2;
     tollAmount: number;
+    /** Why the amount is 0 (`route_chua_cau_hinh_tram`), null otherwise. */
+    tollZeroReason: 'route_chua_cau_hinh_tram' | null;
     baseSalary: number;
     surcharge: number;
     totalSalary: number;
@@ -285,8 +351,11 @@ export async function listCompletedPairSettlements(limit = 50): Promise<Complete
     const secondPair = await legPairContextFrom(db, secondLeg.activeTripPairId, secondLeg.activeTripPairOrder);
     const firstBreakdown = tripCostBreakdown({ ...firstLeg, pair: firstPair });
     const secondBreakdown = tripCostBreakdown({ ...secondLeg, pair: secondPair });
-    const tollAmount = firstBreakdown.tolls + secondBreakdown.tolls;
-    const totalSalary = firstBreakdown.salary + secondBreakdown.salary;
+    // The r4 law (pairSettlementEconomics): the VETC record ALWAYS carries a
+    // carrier leg (default 1) — an unconfigured route keeps the record with
+    // amount 0 + the `route_chua_cau_hinh_tram` reason, never a silent null,
+    // and the toll never doubles across legs.
+    const economics = pairSettlementEconomics(firstBreakdown, secondBreakdown);
     records.push({
       source: 'TRIP_PAIR',
       pairId: row.id,
@@ -294,19 +363,21 @@ export async function listCompletedPairSettlements(limit = 50): Promise<Complete
       pairStatus: row.status as 'ACTIVE' | 'BROKEN',
       code: `OS-PAIR-${row.id}`,
       status: 'RECORDED',
-      totalAmount: String(tollAmount + totalSalary),
-      note: `Quyết toán economics cặp ${row.pairKind === 'KEP' ? 'KẸP' : 'KẾT HỢP'} — VETC 1 lần ${tollAmount.toLocaleString('vi-VN')} ₫ + lương cơ bản ${firstBreakdown.salary.toLocaleString('vi-VN')} ₫ + phụ phí ${secondBreakdown.surcharge.toLocaleString('vi-VN')} ₫`,
+      totalAmount: String(economics.totalAmount),
+      note: `Quyết toán economics cặp ${row.pairKind === 'KEP' ? 'KẸP' : 'KẾT HỢP'} — VETC 1 lần ${economics.tollAmount.toLocaleString('vi-VN')} ₫ + lương cơ bản ${economics.baseSalary.toLocaleString('vi-VN')} ₫ + phụ phí ${economics.surcharge.toLocaleString('vi-VN')} ₫`
+        + (economics.tollZeroReason != null ? ` (${VETC_ROUTE_UNCONFIGURED_WARNING})` : ''),
       createdAt: (row.firstCompletedAt ?? new Date()).toISOString(),
       firstTripId: row.firstTripId,
       secondTripId: row.secondTripId,
       firstTripCode: firstLeg.tripCode,
       secondTripCode: secondLeg.tripCode,
       economics: {
-        tollOnceLeg: firstBreakdown.tolls > 0 ? 1 : secondBreakdown.tolls > 0 ? 2 : null,
-        tollAmount,
-        baseSalary: firstBreakdown.salary,
-        surcharge: secondBreakdown.surcharge,
-        totalSalary,
+        tollOnceLeg: economics.tollOnceLeg,
+        tollAmount: economics.tollAmount,
+        tollZeroReason: economics.tollZeroReason,
+        baseSalary: economics.baseSalary,
+        surcharge: economics.surcharge,
+        totalSalary: economics.totalSalary,
         firstLeg: firstBreakdown,
         secondLeg: secondBreakdown,
       },
