@@ -2,9 +2,10 @@ import { useState, type ReactNode } from 'react';
 import { operationalSiteContacts } from '@tingting/shared';
 import { Modal, Btn } from '../../components/UI';
 import { OperationalSiteContactsList } from '../../components/shipment/OperationalSiteContactsList';
-import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package, Phone, PhoneCall } from 'lucide-react';
+import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package, Phone, PhoneCall, Banknote, HandCoins, ReceiptText, Fuel, Milestone, Wallet } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
+import { formatCurrency } from '../../lib/format';
 import type { DriverTaskDetail } from '../../api/driverClient';
 import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
 import { TelLink, telHref } from '../../components/TelLink';
@@ -285,6 +286,42 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           both independently collapsible sections. */}
       {children}
     </>
+  );
+}
+
+/**
+ * Wave 7 (SIL-638 TC3-T3) — "Chi phí chuyến": the backend-composed per-leg
+ * economics on a COMPLETED trip (cước / VETC / lương / phụ phí / dầu / tiền
+ * đường / tổng). The QA driver-detail complaint ("Chi phí 0") was the missing
+ * cost surface; this section renders the explicit numbers, where a route
+ * without toll stations shows "VETC — 0 ₫" as an honest computed value, and
+ * an unconfigured phụ phí shows its 0 ₫ line instead of hiding the row.
+ * Text-only values (house law): no status pills, no decorative icons — the
+ * one icon per fact row is this grid's established marker convention.
+ */
+export function DriverCostBreakdownSection({ trip }: { trip: DriverTaskDetail }) {
+  const [open, setOpen] = useState(true);
+  const breakdown = trip.costBreakdown ?? null;
+  if (trip.status !== 'COMPLETED' || !breakdown) return null;
+  return (
+    <section className={`driver-task-section${open ? '' : ' driver-task-section--collapsed'}`}>
+      <CollapsibleSectionHead
+        id="driver-task-cost-grid"
+        label="Chi phí chuyến"
+        summary={formatCurrency(breakdown.totalCost)}
+        open={open}
+        onToggle={() => setOpen((v) => !v)}
+      />
+      <div className="driver-task-grid" id="driver-task-cost-grid" hidden={!open}>
+        <TaskFact icon={<Banknote size={16} aria-hidden="true" />} label="Cước chuyến" value={formatCurrency(breakdown.freight)} />
+        <TaskFact icon={<ReceiptText size={16} aria-hidden="true" />} label="Phí cầu đường VETC" value={formatCurrency(breakdown.tolls)} />
+        <TaskFact icon={<Wallet size={16} aria-hidden="true" />} label="Lương chuyến" value={formatCurrency(breakdown.salary)} />
+        <TaskFact icon={<HandCoins size={16} aria-hidden="true" />} label="Phụ phí Kẹp" value={formatCurrency(breakdown.surcharge)} />
+        <TaskFact icon={<Fuel size={16} aria-hidden="true" />} label="Chi phí dầu" value={formatCurrency(breakdown.fuel)} />
+        <TaskFact icon={<Milestone size={16} aria-hidden="true" />} label="Tiền đường" value={formatCurrency(breakdown.allowance)} />
+        <TaskFact icon={<Banknote size={16} aria-hidden="true" />} label="Tổng chi phí" value={formatCurrency(breakdown.totalCost)} fullWidth />
+      </div>
+    </section>
   );
 }
 

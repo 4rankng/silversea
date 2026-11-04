@@ -17,6 +17,7 @@ import { getUser } from '../../middleware/auth';
 import { config } from '../../config';
 import * as tripService from '../../services/trip.service';
 import { getTripFactorySiteView } from '../../services/trip-factory-site.service';
+import { buildTripBreakdown } from '../../services/trip-completion-economics.service';
 import { createTripPair } from '../../services/trip-pairs.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
@@ -234,7 +235,12 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
     tripService.getTripById(id),
     getTripFactorySiteView(id),
   ]);
-  res.json({ ...trip, factorySite });
+  // Wave 7 (SIL-676 / SIL-638 TC3-T3): the explicit per-leg cost breakdown —
+  // freight / tolls / salary / phụ phí / fuel / allowance / totalCost — so a
+  // completed leg answers "chi phí nào" without re-deriving the laws. 0 is an
+  // honest computed value (no toll stations, unconfigured phụ phí), never a gap.
+  const { breakdown } = await buildTripBreakdown(trip);
+  res.json({ ...trip, factorySite, costBreakdown: breakdown });
 }));
 
 // Soft-delete trip — only ADMIN/MANAGER, only CREATED status (flow 01 §2.6)

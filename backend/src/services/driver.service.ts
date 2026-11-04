@@ -15,6 +15,7 @@ import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { getActiveTruckIdForDriver } from './truck-driver-assignment.service';
 import { getShipmentAccountingLockSummary } from './shipment-accounting-lock.service';
 import { listDispatchTaskTags } from './dispatch-task-tags.service';
+import { buildTripBreakdown } from './trip-completion-economics.service';
 import { readSnapshotDeliverySiteName, resolveDeliveryStage } from './delivery-stage';
 import type { Tx } from './trip-shared';
 import {
@@ -426,6 +427,21 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     fuelMode: s.tripsComposite.fuelMode,
     totalRoadAllowance: s.tripsComposite.totalRoadAllowance,
     driverSalary: s.tripsComposite.driverSalary,
+    // Wave 7 economics: fields the cost breakdown (freight/tolls/salary/
+    // phụ phí/fuel/allowance/totalCost) reads — 0 stays honest on the surface.
+    revenue: s.tripsComposite.revenue,
+    tollCost: s.tripsComposite.tollCost,
+    tollsStations: s.tripsComposite.tollsStations,
+    tollPerStationApplied: s.tripsComposite.tollPerStationApplied,
+    tollDeduction: s.tripsComposite.tollDeduction,
+    reconciledTollCost: s.tripsComposite.reconciledTollCost,
+    totalFuelCost: s.tripsComposite.totalFuelCost,
+    totalCost: s.tripsComposite.totalCost,
+    activeTripPairId: s.tripsComposite.activeTripPairId,
+    activeTripPairOrder: s.tripsComposite.activeTripPairOrder,
+    completedAt: s.tripsComposite.completedAt,
+    tripWageDays: s.tripsComposite.tripWageDays,
+    carrierType: s.tripsComposite.carrierType,
     hasReturnCargo: s.tripsComposite.hasReturnCargo,
     notes: s.tripsComposite.notes,
     costSubmissionNote: s.tripsComposite.costSubmissionNote,
@@ -510,8 +526,14 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
   const contPhotoKey = contPhotoKeys[0] ?? null;
   const sealPhotoKey = sealPhotoKeys[0] ?? null;
 
+  // Wave 7 (SIL-638 TC3-T3): the explicit cost breakdown on the driver
+  // surface — a completed leg shows freight/tolls/salary/phụ phí numbers,
+  // with tolls: 0 as an honest computed value when the route has no stations.
+  const { breakdown } = await buildTripBreakdown(trip);
+
   return {
     ...trip,
+    costBreakdown: breakdown,
     legs,
     containers,
     contPhotoKey,

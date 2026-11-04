@@ -1,0 +1,28 @@
+login laixe ok (token len 332)
+leg A section head:
+  leg A row Cước chuyến=3.800.000 ₫
+  leg A row Phí cầu đường VETC=110.000 ₫
+  leg A row Lương chuyến=192.308 ₫
+  leg A row Phụ phí Kẹp=0 ₫
+  leg A row Chi phí dầu=0 ₫
+  leg A row Tiền đường=0 ₫
+  leg A row Tổng chi phí=192.308 ₫
+PASS leg A: Chi phí chuyến section visible — trip 1321
+PASS leg A: VETC row shows 110.000 ₫ — Phí cầu đường VETC=110.000 ₫
+PASS leg A: Lương chuyến shows 192.308 ₫
+PASS leg A: Phụ phí Kẹp shows 0 ₫ (leg 1 carries no surcharge)
+screenshot ui-390-legA-cost-breakdown.png saved
+  leg B row Cước chuyến=3.800.000 ₫
+  leg B row Phí cầu đường VETC=0 ₫
+  leg B row Lương chuyến=200.000 ₫
+  leg B row Phụ phí Kẹp=200.000 ₫
+  leg B row Chi phí dầu=0 ₫
+  leg B row Tiền đường=0 ₫
+  leg B row Tổng chi phí=90.000 ₫
+PASS leg B: VETC row shows honest 0 ₫
+PASS leg B: Phụ phí Kẹp shows 200.000 ₫
+PASS leg B: Lương chuyến shows 200.000 ₫ (pair wage law)
+screenshot ui-390-legB-cost-breakdown.png saved
+SKIP non-completed check — no open trip for laixe right now
+PASS no console errors during drive
+UI DRIVE FAILURES: 0

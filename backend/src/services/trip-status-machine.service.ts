@@ -12,6 +12,7 @@ import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { applyTripPairLifecycleEffects } from './trip-pairs.service';
+import { materializeCompletedTripEconomics } from './trip-completion-economics.service';
 import {
   getTripCompositeInTx, splitTripPatch, tripCompositeSelect,
   upsertTripCarrierInfo, upsertTripFinancialState,
@@ -589,12 +590,13 @@ export async function transitionTripStatus(
       return updated;
     }
 
+    const completedAt = targetStatus === TripStatus.COMPLETED ? new Date() : null;
     const { ops: transitionOps, financial: transitionFinancial } = splitTripPatch({
       status: targetStatus,
       version: sql`${s.trips.version} + 1`,
       ...(targetStatus === TripStatus.COMPLETED
         ? {
-            completedAt: new Date(),
+            completedAt,
             ...(options?.vatRateOverride !== undefined
               ? { vatRate: String(options.vatRateOverride) }
               : {}),
@@ -610,6 +612,16 @@ export async function transitionTripStatus(
       throw new ApiError(409, 'Trạng thái chuyến đi đã bị thay đổi bởi người khác. Vui lòng tải lại.');
     }
     await upsertTripFinancialState(tx, tripId, transitionFinancial);
+    // Wave 7 (SIL-676 / SIL-638 TC3-T3): a leg closing through ANY completion
+    // path carries its economics — driver salary (base cuốc / pair phụ phí)
+    // and the once-per-pair VETC net toll — materialized HERE, before the
+    // completion posting, so the ledger and every economics surface read
+    // complete numbers even when no dispatcher figures-save touched the trip.
+    // Runs inside the completion commit moment; afterwards a COMPLETED trip's
+    // figures still change only through governed corrections.
+    if (completedAt != null) {
+      await materializeCompletedTripEconomics(tx, tripId, completedAt);
+    }
     const updated = await getTripCompositeInTx(tx, tripId);
     if (!updated) throw new Error(`trip ${tripId} composed row missing after status transition`);
 
