@@ -6,10 +6,12 @@ import {
   listShipmentCostAdjustments,
   lockShipmentCost,
   saveShipmentDebitEdits,
+  unlockShipmentCost,
 } from '../../../api/shipmentClient';
 import { useAuth } from '../../../hooks/useAuth';
 import { useActiveQuotationFees } from '../../../hooks/useQuotationQueries';
 import { useReasonPrompt } from '../../../components/reason-prompt';
+import { useToast } from '../../../components/shared/Toast';
 import { qk } from '../../../api/keys';
 import { Role } from '@tingting/shared';
 import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, PayablesTable, buildDelta, buildDraft, deltaIsEmpty, type DraftState } from './ShipmentDebitTables';
@@ -17,7 +19,7 @@ import { UnattachedTripsTable } from './ShipmentDebitTables.unattached';
 import './ShipmentDebitWorkspace.css';
 
 
-export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved }: {
+export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode, onSaved }: {
   shipmentId: number;
   /** Card _202: the ROW's own customer — keys the active-frame fee catalog
    *  (dedicated routing columns + the ghi chú aggregation). `shipments.
@@ -26,6 +28,8 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved
    *  than asked for a customer `0` that does not exist. */
   customerId: number | null;
   locked: boolean;
+  /** The lot's display code for the unlock toast; falls back to #id. */
+  lotCode?: string | null;
   onSaved: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -127,6 +131,30 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved
     },
   });
 
+  // Audit 2026-11-04 §2.1 — MỞ KHÓA the active cost lock. ADMIN-only mirrors
+  // the backend route (the accounting-lock reopen governance); the mandatory
+  // reason rides the house prompt. Shown while a lock is active (`settled`),
+  // including the one this screen just took.
+  const canUnlock = role === Role.ADMIN;
+  const { toast } = useToast();
+  const unlockCost = useMutation({
+    mutationFn: (reason: string) => unlockShipmentCost(shipmentId, { reason }, crypto.randomUUID()),
+    onSuccess: async () => {
+      setJustLocked(false);
+      await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.detail(shipmentId) });
+      await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.summaryAll });
+      toast({ kind: 'success', message: `Đã mở khóa chi phí lô ${lotCode ?? `#${shipmentId}`}` });
+      onSaved();
+    },
+  });
+
+  async function unlockLot() {
+    const reason = await prompt('Nhập lý do mở khóa chi phí lô.', { confirmLabel: 'Mở khóa', reasonLabel: 'Lý do mở khóa (bắt buộc)' });
+    if (reason == null) return;
+    unlockCost.mutate(reason);
+  }
+
+
   const adjust = useMutation({
     mutationFn: (reason: string) => adjustShipmentCost(shipmentId, { reason, changes: detail.data ? buildDelta(detail.data, draft) : {} }, crypto.randomUUID()),
     onSuccess: async () => {
@@ -182,6 +210,13 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, onSaved
         <button type="button" className="csc-debit-actions__lock" disabled={settled || !canLock} aria-label="Khóa lô hàng" title={settled ? 'Quyết toán đã khóa' : !canLock ? 'Cần quyền khóa lô hàng' : undefined} onClick={() => lockCost.mutate()}>KHÓA LÔ HÀNG</button>
         {lockCost.isPending && <span className="csc-debit-saved" role="status">Đang khóa…</span>}
         {lockError && <span className="csc-debit-save-error" role="alert">{lockError}</span>}
+        {canUnlock && settled && (
+          <button type="button" className="csc-debit-actions__unlock" disabled={unlockCost.isPending} aria-label="Mở khóa lô hàng" onClick={() => void unlockLot()}>MỞ KHÓA</button>
+        )}
+        {unlockCost.isPending && <span className="csc-debit-saved" role="status">Đang mở khóa…</span>}
+        {unlockCost.isError && unlockCost.error instanceof Error && (
+          <span className="csc-debit-save-error" role="alert">{unlockCost.error.message}</span>
+        )}
       </div>
         {reasonDialog}
     </div>

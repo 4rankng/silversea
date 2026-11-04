@@ -119,7 +119,7 @@ export function ShipmentDebitRecords({ rows, canManage, mergeMode, selectedIds, 
           { key: 'address', label: 'Địa chỉ nhà máy', value: row.factoryAddress ?? '—' },
         ]} />
         {canManage && (
-          <ShipmentDebitWorkspace shipmentId={row.shipmentId} customerId={row.customerId} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
+          <ShipmentDebitWorkspace shipmentId={row.shipmentId} customerId={row.customerId} locked={row.lockStatus === 'LOCKED'} lotCode={row.code} onSaved={onSaved} />
         )}
       </>
     );

@@ -44,6 +44,7 @@ import type {
 import { AuditEvent } from './audit-types';
 import { persistAuditInTransaction } from './audit.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
+import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { upsertTripCarrierInfo, upsertTripFinancialState } from './trip-composite.service';
 import { resolveCustomerVehicleClassPrice } from './pricing.service';
 import { persistFreightRateSnapshot, type ResolvedFreightRate } from './freight-pricing-engine.service';
@@ -269,7 +270,11 @@ function assertGroupable(rows: ShipmentRow[], shipmentIds: number[], dimension: 
 
 async function assertMergeableMoney(tx: Tx, rows: ShipmentRow[], tripFacts: Map<number, LiveTripFacts>): Promise<void> {
   for (const row of rows) {
+    // Audit 2026-11-04 §2.3 (PRD §7.9): a cost-locked lot's frozen snapshot
+    // must not silently diverge — BOTH locks gate every money write here, for
+    // every member lot of the composition change, never just the clicked one.
     await assertShipmentAccountingUnlocked(tx, row.id);
+    await assertShipmentCostUnlocked(tx, row.id);
     const trip = tripFacts.get(row.id);
     if (trip && trip.status === 'COMPLETED') {
       throw new ApiError(409, `Lô ${lotReference(row)} đã hoàn thành chuyến — không thay đổi nhóm ghép được nữa`);
@@ -1792,6 +1797,7 @@ export async function setLclLotRevClass(
       );
     }
     await assertShipmentAccountingUnlocked(tx, row.id);
+    await assertShipmentCostUnlocked(tx, row.id);
 
     const vehicleClass = input.vehicleSizeClassId != null
       ? await loadVehicleClass(tx, input.vehicleSizeClassId)
@@ -1926,6 +1932,7 @@ export async function updateLclGroupTruck(
       throw new ApiError(400, 'Không có gì để cập nhật — truyền BKS thực hoặc BKS báo khách');
     }
     await assertShipmentAccountingUnlocked(tx, row.id);
+    await assertShipmentCostUnlocked(tx, row.id);
 
     // The cost group shares one physical truck; ungrouped edits touch the lot.
     const groupTargets = input.actualTruckNo != null && row.costGroupId != null
@@ -1949,6 +1956,13 @@ export async function updateLclGroupTruck(
           await assertShipmentAccountingUnlocked(tx, target.id);
         } catch {
           throw new ApiError(409, `Nhóm ghép đã chốt kế toán — Lô ${lotReference(target)} đang khóa sổ, không sửa BKS thực của nhóm được`);
+        }
+        try {
+          // Audit 2026-11-04 §2.3: the cost lock gates the group plate edit
+          // with the same whole-group boundary as the accounting lock above.
+          await assertShipmentCostUnlocked(tx, target.id);
+        } catch {
+          throw new ApiError(409, `Nhóm ghép đã khóa chi phí — Lô ${lotReference(target)} đang khóa, không sửa BKS thực của nhóm được`);
         }
       }
     }

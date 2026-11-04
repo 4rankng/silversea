@@ -344,7 +344,7 @@ export function DetailedPlanGrid({
     row: DispatchDetailPlanRow,
     nextClassification: DispatchClassification,
     rowKey: string,
-    rowIdentity: string,
+    _rowIdentity: string,
   ) => {
     setOptimisticClassifications((prev) => ({ ...prev, [rowKey]: nextClassification }));
     setSavingClassificationKey(rowKey);

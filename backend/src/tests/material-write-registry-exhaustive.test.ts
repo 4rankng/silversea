@@ -231,6 +231,13 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_LOCK',
   }],
+  ['shipments/core.routes.ts|POST|/:id/unlock', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
+    marker: 'export async function unlockShipmentCost(',
+    // audit_logs: entityType shipment, message 'SHIPMENT_COST_UNLOCKED',
+    // written inside the same transaction. A replay converges — no active
+    // lock left ⇒ 409 — so no durable idempotency envelope is needed.
+  }],
   ['shipments/core.routes.ts|POST|/:id/cost-adjustments', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
     marker: 'eq(s.shipmentCostAdjustments.idempotencyKey, input.idempotencyKey)',

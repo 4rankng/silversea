@@ -47,6 +47,13 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // operator reasons) — the spec §3.2 "chú thích nhỏ bên dưới" the money
   // cell. null when the snapshot channel produced the value.
   freightOverrideReason: z.string().nullable(),
+  // Audit 2026-11-04 §2.2 (SIL-548 pattern): the lot's SAVED manual "Giá
+  // cước thu khách" (the §4.1 field-2 negotiated override) over the same
+  // channel the money boards read (`loadRevManualPriceByLot`) — the strip
+  // seeds from it so a saved price survives a reopen. null = auto-trace.
+  // Optional/nullable like every late-added wire field: an older response
+  // drops it and the strip falls back to blank (auto).
+  revFreightManual: moneyString.nullable().optional(),
   // What SS pays on the customer's behalf (CVC + Ops fees, trip expenses).
   chiHoTotal: moneyString.nullable(),
   receivableTotal: moneyString.nullable(),

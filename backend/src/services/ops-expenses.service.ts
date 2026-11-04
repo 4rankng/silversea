@@ -12,6 +12,7 @@ import { storageService } from './storage.service';
 import { opsInvoicedCostGroupOf, type ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 
 // Tx / Executor come from ../db (the one Executor seam).
 
@@ -184,6 +185,10 @@ export async function createOpsExpense(
   assertValidPaidAt(input.paidAt);
   const expenseType = await assertActiveExpenseType(input.expenseTypeCode);
   await assertShipmentAccountingUnlocked(executor, input.shipmentId);
+  // Audit 2026-11-04 §2.3 (PRD §7.9): an Ops expense write is lot money — a
+  // cost-locked lot refuses it beside the accounting lock, so the frozen
+  // snapshot never silently diverges.
+  await assertShipmentCostUnlocked(executor, input.shipmentId);
 
   const [shipment] = await executor
     .select({ id: s.shipments.id, customerId: s.shipments.customerId })
@@ -315,6 +320,8 @@ export async function updateOpsExpense(
   const entry = await getEditableExpense(userId, expenseId, executor);
   if (!patch.reason?.trim()) throw new ApiError(400, 'Nhập lý do điều chỉnh khoản chi.');
   await assertShipmentAccountingUnlocked(executor, entry.shipmentId);
+  // Audit 2026-11-04 §2.3 — same law as create (see above).
+  await assertShipmentCostUnlocked(executor, entry.shipmentId);
   const source = await lockExpenseSource(executor, 'OPS', expenseId);
   if (source) {
     await assertExpenseSourceMutable(executor, source);

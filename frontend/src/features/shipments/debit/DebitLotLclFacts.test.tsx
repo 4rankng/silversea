@@ -247,6 +247,106 @@ describe('161026232349 — the lot strip thu-class picker (§II.3.2 "Thu riêng 
   });
 });
 
+describe('SIL-548 reopen law on the strip (audit 2026-11-04 §2.2 — "giá bị tiêu khi lưu")', () => {
+  const priceValue = () => {
+    const raw = (priceField() as HTMLInputElement).value;
+    return raw === '' ? '' : Number(raw.replace(/\./g, ''));
+  };
+
+  function renderStripForRerender(initial: Partial<ShipmentDebitLotRow>) {
+    const onChanged = vi.fn();
+    const view = render(
+      <ToastProvider>
+        <DebitLotLclFacts
+          row={row(initial)}
+          plateOptions={[]}
+          onChanged={onChanged}
+        />
+      </ToastProvider>,
+    );
+    return {
+      onChanged,
+      rerenderWith: (next: Partial<ShipmentDebitLotRow>) => view.rerender(
+        <ToastProvider>
+          <DebitLotLclFacts
+            row={row(next)}
+            plateOptions={[]}
+            onChanged={onChanged}
+          />
+        </ToastProvider>,
+      ),
+    };
+  }
+
+  it('reopens on the SAVED manual price — the value survives, nothing is dirty', () => {
+    renderStrip({ revVehicleClassCode: '5T', revFreightManual: '2800000' });
+    expect(priceValue()).toBe(2800000);
+    expect(saveClassButton()).toBeDisabled();
+  });
+
+  it('blank still means auto-trace when nothing was saved', () => {
+    renderStrip({ revVehicleClassCode: '5T' });
+    expect(priceValue()).toBe('');
+    expect(saveClassButton()).toBeDisabled();
+  });
+
+  it('save-then-refetch re-seeds: the typed price is no longer consumed to blank', async () => {
+    setClass.mockResolvedValue({
+      shipmentId: 9001,
+      reference: 'BL-1',
+      vehicleSizeClassId: 9,
+      vehicleClassCode: '5T',
+      freightAuto: null,
+      freightManual: '2800000',
+      channel: 'TRIP',
+      reason: 'Chọn giá cước thu khách — giá nhập tay (thỏa thuận với khách)',
+    });
+    const { onChanged, rerenderWith } = renderStripForRerender({ revVehicleClassCode: '5T' });
+
+    fireEvent.change(priceField(), { target: { value: '2800000' } });
+    fireEvent.click(saveClassButton());
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    // The save's own response IS the saved state until the refetch lands.
+    expect(priceValue()).toBe(2800000);
+
+    // The refetch re-seeds from the wire (revFreightManual) — the saved value
+    // stays; before the fix this re-opened blank ("giá bị tiêu khi lưu").
+    rerenderWith({ revVehicleClassCode: '5T', revFreightManual: '2800000' });
+    expect(priceValue()).toBe(2800000);
+    expect(saveClassButton()).toBeDisabled();
+  });
+
+  it('clearing a saved override re-sends the stored class — the auto-trace command', async () => {
+    setClass.mockResolvedValue({
+      shipmentId: 9001,
+      reference: 'BL-1',
+      vehicleSizeClassId: 9,
+      vehicleClassCode: '5T',
+      freightAuto: '2650000',
+      freightManual: null,
+      channel: 'TRIP',
+      reason: null,
+    });
+    renderStrip({ revVehicleClassCode: '5T', revFreightManual: '2800000' });
+
+    fireEvent.change(priceField(), { target: { value: '' } });
+    expect(saveClassButton()).not.toBeDisabled();
+    fireEvent.click(saveClassButton());
+
+    // "Bỏ trống = tự tra": re-picking the stored class (id 9 = '5T') is the
+    // clear command the wire can express; freightRevenue is NOT sent.
+    await waitFor(() => expect(setClass).toHaveBeenCalledWith({ shipmentId: 9001, vehicleSizeClassId: 9 }));
+  });
+
+  it('a clear cannot arm without a stored class — the wire needs one of the two outputs', () => {
+    renderStrip({ revFreightManual: '2800000' });
+    expect(priceValue()).toBe(2800000);
+    fireEvent.change(priceField(), { target: { value: '' } });
+    expect(saveClassButton()).toBeDisabled();
+    expect(setClass).not.toHaveBeenCalled();
+  });
+});
+
 describe('FB-095 — nút "Hủy ghép" trên khối NHÓM GHÉP', () => {
   const confirmButton = () => screen.getAllByRole('button', { name: 'Hủy ghép' }).at(-1)!;
 

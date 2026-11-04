@@ -60,7 +60,10 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   const [revClassId, setRevClassId] = useState(currentRevClassId);
   // Spec 23/10 §4.1 field 2 — "Giá cước thu khách": auto-traced from the
   // picked class; a typed value is the negotiated override (blank = auto).
-  const [manualFreightRevenue, setManualFreightRevenue] = useState<number | ''>('');
+  // Audit 2026-11-04 §2.2 (SIL-548 pattern): the field seeds from the SAVED
+  // price on the wire (`revFreightManual`) — a saved value survives a reopen
+  // instead of vanishing ("giá bị tiêu khi lưu").
+  const [manualFreightRevenue, setManualFreightRevenue] = useState<number | ''>(row.revFreightManual == null ? '' : Number(row.revFreightManual));
 
   useEffect(() => {
     setActual(row.actualTruckNo ?? '');
@@ -70,11 +73,11 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   useEffect(() => {
     setRevClassId(currentRevClassId);
   }, [row.shipmentId, currentRevClassId]);
-  // A per-lot manual price never survives a lot switch (it belongs to the lot
-  // being edited, not the strip).
+  // SIL-548 reopen law: re-seed from the wire on every refetch/lot switch —
+  // the row IS the post-refetch truth, never a blank-by-default.
   useEffect(() => {
-    setManualFreightRevenue('');
-  }, [row.shipmentId]);
+    setManualFreightRevenue(row.revFreightManual == null ? '' : Number(row.revFreightManual));
+  }, [row.shipmentId, row.revFreightManual]);
 
   const truckDirty = useMemo(
     () => actual.trim() !== (row.actualTruckNo ?? '') || billing.trim() !== (row.billingTruckNo ?? ''),
@@ -82,9 +85,16 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   );
 
   const revClassDirty = revClassId !== '' && revClassId !== currentRevClassId;
+  const manualSeed: number | '' = row.revFreightManual == null ? '' : Number(row.revFreightManual);
+  const priceDirty = manualFreightRevenue !== manualSeed;
+  // "Bỏ trống = tự tra": clearing a SAVED override arms the save only when a
+  // class exists to re-trace from — without one the wire (which needs one of
+  // the two outputs) has nothing to say, so that clear cannot arm.
+  const clearToAuto = priceDirty && manualFreightRevenue === '' && currentRevClassId !== '';
   // Spec 23/10 §4.1 — the save arms on EITHER output: a new class (auto cước
-  // theo loại xe) or a typed negotiated price (override).
-  const revOutputDirty = revClassDirty || manualFreightRevenue !== '';
+  // theo loại xe), a typed negotiated price (override), or a cleared override
+  // (re-trace the stored class).
+  const revOutputDirty = revClassDirty || (priceDirty && manualFreightRevenue !== '') || clearToAuto;
   // A grouped lot's class is set by the merge (spec 23/10 §4.2: the group's
   // Lô-1 law owns its members' cước thu) — change it after un-grouping.
   // SIL-548 (id 615, QA fail round 3): ANY merge group locks (owner law «lô
@@ -130,6 +140,10 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
         shipmentId: row.shipmentId,
         ...(revClassDirty && selected ? { vehicleSizeClassId: selected.id } : {}),
         ...(manualFreightRevenue !== '' ? { freightRevenue: manualFreightRevenue } : {}),
+        // "Bỏ trống = tự tra": a cleared override re-traces the CURRENT
+        // class' lane price — re-picking the stored class is the auto-trace
+        // command the wire can express (it needs one of the two outputs).
+        ...(clearToAuto && !revClassDirty ? { vehicleSizeClassId: Number(currentRevClassId) } : {}),
       });
       toast({
         kind: 'success',
@@ -139,9 +153,10 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             ? `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — bảng giá khách × tuyến chưa có giá: CƯỚC VẬN TẢI (AUTO) đang Chưa xác định`
             : `Đã lưu loại xe tính cước thu (Xe ${result.vehicleClassCode}) — CƯỚC VẬN TẢI (AUTO) = 100% đơn giá loại xe`,
       });
-      // The typed price is consumed by the save — clear it so the button
-      // re-arms only on the NEXT real edit (no accidental double-send).
-      setManualFreightRevenue('');
+      // SIL-548: the save's own response IS the saved state until the
+      // refetch lands — seed from it (null ⇒ blank = auto-trace), keeping
+      // the wire re-seed above as the backstop. No third mechanism.
+      setManualFreightRevenue(result.freightManual == null ? '' : Number(result.freightManual));
       onChanged();
     } catch (err) {
       toast({ kind: 'error', message: err instanceof Error ? err.message : 'Lưu cước thu khách thất bại' });

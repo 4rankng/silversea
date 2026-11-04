@@ -6,12 +6,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { shipmentDebitEditPayloadSchema } from '@tingting/shared';
 import { Role } from '@tingting/shared';
 
-const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, useAuthMock } = vi.hoisted(() => ({
+const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, unlockCost, toastMock, useAuthMock } = vi.hoisted(() => ({
   getDetail: vi.fn(),
   saveEdits: vi.fn(),
   lockCost: vi.fn(),
   adjustCost: vi.fn(),
   listAdjustments: vi.fn(),
+  unlockCost: vi.fn(),
+  toastMock: vi.fn(),
   useAuthMock: vi.fn(),
 }));
 
@@ -22,6 +24,11 @@ vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
   lockShipmentCost: lockCost,
   adjustShipmentCost: adjustCost,
   listShipmentCostAdjustments: listAdjustments,
+  unlockShipmentCost: unlockCost,
+}));
+
+vi.mock('../../../components/shared/Toast', () => ({
+  useToast: () => ({ toast: toastMock }),
 }));
 
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: useAuthMock }));
@@ -61,7 +68,7 @@ const detail = (over: Partial<ShipmentDebitDetail> = {}): ShipmentDebitDetail =>
   ...over,
 });
 
-function renderWorkspace(props: Partial<{ shipmentId: number; customerId: number; locked: boolean; onSaved: () => void }> = {}) {
+function renderWorkspace(props: Partial<{ shipmentId: number; customerId: number; locked: boolean; lotCode: string; onSaved: () => void }> = {}) {
   const onSaved = vi.fn();
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
@@ -77,10 +84,9 @@ beforeEach(() => {
   lockCost.mockReset();
   adjustCost.mockReset();
   listAdjustments.mockReset();
-  saveEdits.mockResolvedValue(undefined);
-  lockCost.mockResolvedValue(undefined);
-  adjustCost.mockResolvedValue(undefined);
-  listAdjustments.mockResolvedValue({ items: [] });
+  unlockCost.mockReset();
+  toastMock.mockReset();
+  unlockCost.mockResolvedValue(undefined);
   useAuthMock.mockReturnValue({ user: { userId: 3, role: Role.CUS } });
 });
 
@@ -285,6 +291,46 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     await waitFor(() => expect(saveEdits).toHaveBeenCalledTimes(1));
     expect(saveEdits.mock.calls[0][1]).toMatchObject({ edits: [{ expenseId: 9002, buyAmount: 250000 }] });
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  });
+});
+
+describe('MỞ KHÓA lô (audit 2026-11-04 §2.1)', () => {
+  it('offers no unlock for ACCOUNTANT even on a locked row', async () => {
+    useAuthMock.mockReturnValue({ user: { userId: 4, role: Role.ACCOUNTANT } });
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true });
+    await screen.findByText('Cước vận tải');
+    expect(screen.queryByRole('button', { name: 'Mở khóa lô hàng' })).toBeNull();
+  });
+
+  it('ADMIN on a locked row: prompt gates the POST, success toasts the lot code and invalidates', async () => {
+    useAuthMock.mockReturnValue({ user: { userId: 1, role: Role.ADMIN } });
+    getDetail.mockResolvedValue(detail());
+    const { onSaved } = renderWorkspace({ locked: true, lotCode: 'SE-777' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở khóa lô hàng' }));
+
+    // The house reason prompt: empty reason keeps confirm disabled.
+    const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    const confirm = within(dialog).getByRole('button', { name: 'Mở khóa' });
+    expect((confirm as HTMLButtonElement).disabled).toBe(true);
+    expect(unlockCost).not.toHaveBeenCalled();
+
+    fireEvent.change(within(dialog).getByLabelText('Lý do mở khóa (bắt buộc)'), { target: { value: 'Khóa nhầm lô' } });
+    fireEvent.click(confirm);
+    await waitFor(() => expect(unlockCost).toHaveBeenCalledWith(101, { reason: 'Khóa nhầm lô' }, expect.any(String)));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã mở khóa chi phí lô SE-777' });
+  });
+
+  it('cancel in the prompt aborts the unlock with no POST', async () => {
+    useAuthMock.mockReturnValue({ user: { userId: 1, role: Role.ADMIN } });
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true });
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở khóa lô hàng' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).toBeNull());
+    expect(unlockCost).not.toHaveBeenCalled();
   });
 });
 

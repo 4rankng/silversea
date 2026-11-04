@@ -238,7 +238,7 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
   const tripIds = ids(sources.map(row => row.tripId));
   const userIds = ids([...sources.map(row => row.payerUserId), ...sources.map(row => row.confirmedById)]);
   const reversalMovement = alias(s.treasuryMovements, 'expense_reversal');
-  const [shipments, trips, users, customers, containers, assignments, locks, allocations, photos, attachments] = await Promise.all([
+  const [shipments, trips, users, customers, containers, assignments, locks, costLocks, allocations, photos, attachments] = await Promise.all([
     executor.select().from(s.shipments).where(inArray(s.shipments.id, shipmentIds)),
     tripIds.length ? executor.select({ trip: { id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, customerReference: s.tripsComposite.customerReference, driverId: s.tripsComposite.driverId,
         carrierType: s.tripsComposite.carrierType, externalEntityId: s.tripsComposite.externalEntityId, externalEntityType: s.tripsComposite.externalEntityType,
@@ -251,6 +251,10 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
     executor.select({ assignment: s.truckAccountantAssignments, plate: s.trucks.licensePlate }).from(s.trucks)
       .leftJoin(s.truckAccountantAssignments, and(eq(s.truckAccountantAssignments.truckId, s.trucks.id), isNull(s.truckAccountantAssignments.endedAt))),
     executor.select({ shipmentId: s.shipmentAccountingLocks.shipmentId }).from(s.shipmentAccountingLocks).where(and(inArray(s.shipmentAccountingLocks.shipmentId, shipmentIds), isNull(s.shipmentAccountingLocks.releasedAt))),
+    // Audit 2026-11-04 §2.3 — an ACTIVE lot cost lock locks the row in the
+    // board too, so the Ops chi phí surface disables it up front instead of
+    // letting the write 409 blind.
+    executor.select({ shipmentId: s.shipmentCostLocks.shipmentId }).from(s.shipmentCostLocks).where(and(inArray(s.shipmentCostLocks.shipmentId, shipmentIds), isNull(s.shipmentCostLocks.unlockedAt))),
     executor.select({ sourceId: s.expenseCashAllocations.expenseAccountingSourceId, amount: s.expenseCashAllocations.amount, direction: s.treasuryMovements.direction,
       status: s.expenseCashVouchers.status, valueDate: s.treasuryMovements.valueDate, reversalValueDate: reversalMovement.valueDate }).from(s.expenseCashAllocations)
       .innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
@@ -299,6 +303,7 @@ export async function loadExpenseAccountingEntries(actor: Actor, query: ExpenseL
       allocatedAdvanceAmount: canViewPayments && !row.legacy ? Number(row.allocatedAdvanceAmount) : null,
       accountantId: assignment?.accountantId ?? null, evidenceMissing: storedPhotos.length === 0 && !attachments.some(e => e.expenseAccountingSourceId === row.id),
       locked: row.status !== 'RECORDED' || !!row.confirmedAt || !!row.reconciliationId || locks.some(lock => lock.shipmentId === row.shipmentId)
+        || costLocks.some(lock => lock.shipmentId === row.shipmentId)
         || (payment.paidAmount ?? 0) > 0 || (payment.receivedAmount ?? 0) > 0,
       reconciliationId: canViewPayments ? row.reconciliationId : null,
       driverName: trip?.driverName ?? trip?.trip.externalDriverName ?? null, routeName: trip?.routeName ?? shipment?.rawRouteName ?? null,

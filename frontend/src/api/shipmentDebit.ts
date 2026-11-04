@@ -40,6 +40,10 @@ export interface ShipmentDebitLotRow {
    *  X" / FB-095 re-stamps / operator reasons) — rendered as the spec §3.2
    *  note under the money cell. null when the snapshot channel produced it. */
   freightOverrideReason?: string | null;
+  /** Audit 2026-11-04 §2.2 (SIL-548 pattern): the lot's SAVED manual "Giá
+   *  cước thu khách" — the strip seeds from this so a saved price survives a
+   *  reopen ("giá bị tiêu khi lưu" regression). null/absent = auto-trace. */
+  revFreightManual?: string | null;
   /** chi hộ total: CVC + Ops-paid items. null = chưa xác định. */
   chiHoTotal: number | null;
   /** phải thu khách − phải trả. null = chưa xác định. */
@@ -158,6 +162,20 @@ export async function saveShipmentDebitEdits(shipmentId: number, body: ShipmentD
  * dedicated message; retries with the same key return the original lock. */
 export async function lockShipmentCost(shipmentId: number, idempotencyKey: string, expectedShipmentVersion?: number): Promise<void> {
   await api.post(`/shipments/${encodeURIComponent(shipmentId)}/lock`, expectedShipmentVersion != null ? { expectedShipmentVersion } : {}, {
+    headers: { 'Idempotency-Key': idempotencyKey },
+  });
+}
+
+/** POST /shipments/:id/unlock — MỞ KHÓA the active lot cost lock. ADMIN +
+ * mandatory reason (audit 2026-11-04 §2.1). The material-write middleware
+ * demands an Idempotency-Key on every write; a replay converges server-side
+ * (no active lock left ⇒ 409), so a fresh UUID per click is the whole key. */
+export async function unlockShipmentCost(
+  shipmentId: number,
+  body: { reason: string; expectedShipmentVersion?: number },
+  idempotencyKey: string,
+): Promise<void> {
+  await api.post(`/shipments/${encodeURIComponent(shipmentId)}/unlock`, body, {
     headers: { 'Idempotency-Key': idempotencyKey },
   });
 }

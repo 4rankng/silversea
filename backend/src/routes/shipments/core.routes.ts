@@ -48,7 +48,7 @@ import { assignShipmentCarriers, createOperationalSiteForIntake, createShippingL
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
-import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listShipmentCostAdjustments, lockShipmentCost } from '../../services/shipment-cost-lock.service';
+import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listShipmentCostAdjustments, lockShipmentCost, unlockShipmentCost } from '../../services/shipment-cost-lock.service';
 import { assertNoPendingRateAdjustment } from '../../services/accounting-debit-close.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
@@ -1002,6 +1002,31 @@ coreRoutes.post(
       idempotencyKey,
     });
     res.status(201).json({ id: lock.id });
+  }),
+);
+
+// ─── POST /:id/unlock — Mở khóa lô (audit 2026-11-04 §2.1) ─────────────────
+// ADMIN + mandatory reason, mirroring the accounting-lock reopen governance
+// (shipment-accounting-lock-shared.service names ADMIN for reopen). A replay
+// converges: no active lock left ⇒ 409, so no idempotency envelope is needed.
+coreRoutes.post(
+  '/:id/unlock', declareMaterialWrite('shipments.cost-unlock', { method: 'POST', path: '/api/shipments/:id/unlock' }), 
+  requireRoles(Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    const parsed = z.object({
+      reason: z.string().trim().min(1, 'Vui lòng nhập lý do mở khóa.').max(2000),
+      expectedShipmentVersion: z.number().int().positive().optional(),
+    }).safeParse(req.body ?? {});
+    if (!parsed.success) throwValidation(parsed.error);
+    const lock = await unlockShipmentCost({
+      shipmentId,
+      reason: parsed.data.reason,
+      expectedShipmentVersion: parsed.data.expectedShipmentVersion ?? null,
+      actor: getUser(req),
+    });
+    res.status(200).json({ id: lock.id });
   }),
 );
 

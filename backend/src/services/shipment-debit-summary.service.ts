@@ -17,7 +17,7 @@ import { db } from '../db';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
 import type { ShipmentDebitSummaryItem, ShipmentDebitSummaryResponse } from '@tingting/shared';
 import { effectiveLotContainerCount } from '@tingting/shared';
-import { loadFreightSnapshotChannelByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
+import { loadFreightSnapshotChannelByLot, loadRevManualPriceByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
 
@@ -145,6 +145,17 @@ export async function getShipmentDebitSummary(query: {
   // in revenue-override-read.service — ONE reader rule shared with SIL-548's
   // manual-price prefill (`loadRevManualPriceByLot`), byte-for-byte.
   const snapshotChannelByLot = await loadFreightSnapshotChannelByLot(db, lotIds);
+
+  // Audit 2026-11-04 §2.2 — the strip's SAVED manual "Giá cước thu khách"
+  // rides the SAME SIL-548 channel the CUS ledger prefills from
+  // (`loadRevManualPriceByLot`: override channel precedence over the
+  // snapshot channel); null = auto-trace, never a parallel assembly here.
+  const revManualByLot = await loadRevManualPriceByLot(db, lots.map((lot) => ({
+    id: lot.id,
+    revGroupId: lot.revGroupId ?? null,
+    revGroupOrder: lot.revGroupOrder ?? null,
+    cargoMode: lot.cargoMode ?? null,
+  })));
 
   // F-2 (card 161026113900, owner ruling b) + FB-145 (card 231026163927):
   // CƯỚC VẬN TẢI (AUTO) follows ONE pure rule — `effectiveLclFreight`
@@ -386,6 +397,7 @@ export async function getShipmentDebitSummary(query: {
     // between them. The locked-receivable freeze (card _19) never mutates;
     // only these live columns follow the channel.
     const effectiveFreight = effectiveFreightByLot.get(lot.id) ?? { value: null, reason: null };
+    const revManual = revManualByLot.get(lot.id) ?? null;
     const freightAuto = effectiveFreight.value;
     const chiHo = chiHoByLot.get(lot.id);
     const hasTrips = (tripCountByLot.get(lot.id) ?? 0) > 0;
@@ -445,6 +457,8 @@ export async function getShipmentDebitSummary(query: {
       // Bill X" / FB-095 re-stamps). null when the snapshot channel
       // produced the value.
       freightOverrideReason: effectiveFreight.reason,
+      // §2.2 — the saved manual price for the strip's reopen-prefill law.
+      revFreightManual: revManual == null ? null : String(revManual),
       chiHoTotal: hasTrips || chiHo != null ? String(chiHo ?? 0) : null,
       receivableTotal: receivableValue == null ? null : String(receivableValue),
       // Redesign 23/10 — the payableTotal split, live values (a locked lot's

@@ -36,6 +36,7 @@ import { lockTripCloseAggregate } from './trip-close-readiness.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { assertExpenseSourceMutable, hydrateExpenseAccountingSource } from './expense-accounting-source.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertTripShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import {
   AUTO_OFFSET_RELEASE_REASON_DELETE,
@@ -380,6 +381,9 @@ export async function createTripExpense(
   const tx = executor as Tx;
   await lockTripFinancialAuthority(executor, [data.tripId]);
   await assertTripShipmentAccountingUnlocked(executor, data.tripId);
+  // Audit 2026-11-04 §2.3 (PRD §7.9): trip expenses are lot money — the cost
+  // lock gates them beside the accounting lock.
+  await assertTripShipmentCostUnlocked(executor, data.tripId);
   // O2C: costs stay editable after COMPLETED (no hard-freeze). CANCELED trips
   // remain immutable. A cost edit on a completed trip re-evaluates both
   // reconciliation snapshots so AR/AP queues stay honest.
@@ -511,6 +515,7 @@ export async function updateTripExpense(
   if (expectedTripId !== undefined && existing.tripId !== expectedTripId) throw new ApiError(404, 'Không tìm thấy chi phí của chuyến xe');
   if (existing.approvalStatus === 'VOIDED' || existing.approvalStatus === 'REJECTED') throw new ApiError(409, 'Chi phí đã hủy không thể sửa.');
   await assertTripShipmentAccountingUnlocked(executor, existing.tripId);
+  await assertTripShipmentCostUnlocked(executor, existing.tripId);
   if (existing.forwarderId != null) {
     // FB-033 (card 211026014819): the auto-offset settlement the CREATE hook
     // booked is released, never a lock — only a MANUAL phiếu hoàn ứng keeps
@@ -740,6 +745,7 @@ export async function deleteTripExpenseInTx(
   if (existing.approvalStatus === 'VOIDED' || existing.approvalStatus === 'REJECTED') throw new ApiError(409, 'Chi phí đã hủy được giữ lại để đối chiếu, không thể xóa.');
   if (existing.forwarderId == null || existing.forwarderId !== forwarderId) return 'FORBIDDEN';
   await assertTripShipmentAccountingUnlocked(executor, existing.tripId);
+  await assertTripShipmentCostUnlocked(executor, existing.tripId);
   await assertForwarderMutableTripScope(existing.tripId, forwarderId, executor);
   assertExpenseExpectedUpdatedAt(
     existing.updatedAt,
@@ -812,6 +818,7 @@ export async function deleteTripExpenseGuarded(
     if (expense.approvalStatus === 'VOIDED' || expense.approvalStatus === 'REJECTED') return { error: 'Chi phí đã hủy được giữ lại để đối chiếu, không thể xóa.', status: 409 };
     await acquireAdvisoryLock(executor, expense.tripContainerId != null ? lockKeys.containerScope(expense.tripContainerId) : lockKeys.tripScope(expense.tripId));
     await assertTripShipmentAccountingUnlocked(executor, tripId);
+    await assertTripShipmentCostUnlocked(executor, tripId);
     // Preserve posted trip history.
     const [trip] = await executor.select({ status: s.trips.status })
       .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
