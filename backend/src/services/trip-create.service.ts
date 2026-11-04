@@ -16,7 +16,7 @@ import { assertShipmentAccountingUnlocked, assertTripShipmentAccountingUnlocked 
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
 import { assertCreditLimit, consumeShipmentCreditOverride, recordTripCreditException, type DirectCreditException } from './credit-limit.service';
-import { buildCopiedTripValues, buildCopiedTripLegValues } from './trip-mutations-shared.service';
+import { buildCopiedTripValues, buildCopiedTripLegValues, mapCopyTripUniqueViolation } from './trip-mutations-shared.service';
 import { getTripCompositeInTx, insertTripComposite } from './trip-composite.service';
 import { assertTripRigAvailable } from './dispatch-plan-conflict-scan.service';
 
@@ -564,7 +564,14 @@ export async function copyTrip(sourceTripId: number, createdBy: number, transact
     if (!source) throw new ApiError(404, 'Không tìm thấy chuyến cần copy');
 
     const tripCode = await generateTripCode(source.departureDate);
-    const trip = await insertTripComposite(tx, buildCopiedTripValues(source, tripCode, createdBy));
+    // SIL-677: the insert is the only unique-index-capable statement in the
+    // copy flow — every slot-collision branch (23505; 40001 on the
+    // repeatable-read path) surfaces as a 409 with a business message instead
+    // of an unhandled 500.
+    const trip = await insertTripComposite(tx, buildCopiedTripValues(source, tripCode, createdBy))
+      .catch((err: unknown) => {
+        throw mapCopyTripUniqueViolation(err);
+      });
 
     const sourceLegs = await tx.select()
       .from(s.tripLegs)
@@ -583,10 +590,16 @@ export async function copyTrip(sourceTripId: number, createdBy: number, transact
     if (sourceContainers.length > 0) {
       await tx.insert(s.tripContainers).values(sourceContainers.map((container) => ({
         tripId: trip.id,
-        // SIL-655 (id 762) — keep the lot link across the copy: the copied
-        // trip stays shipment-linked (buildCopiedTripValues carries
-        // shipmentId), and a row without sourceShipmentContainerId is a
-        // silent bridge no-op once a number is entered on it.
+        // SIL-655 (id 762) — keep the line-level lot bridge across the copy:
+        // every copied row carries source_shipment_id /
+        // source_shipment_container_id / source_shipment_version so a number
+        // entered later still resolves against the lot, and a row without
+        // sourceShipmentContainerId is a silent bridge no-op once a number is
+        // entered on it. SIL-677: the trip-level link follows
+        // buildCopiedTripValues — kept only when the source is CANCELED (the
+        // copy re-takes the lot's live slot); a live-source copy detaches, and
+        // per the SIL-655 documented boundary numbers on a shipment-unlinked
+        // trip stay trip-local.
         sourceShipmentId: container.sourceShipmentId,
         sourceShipmentContainerId: container.sourceShipmentContainerId,
         sourceShipmentVersion: container.sourceShipmentVersion,

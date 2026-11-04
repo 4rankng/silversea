@@ -4,7 +4,7 @@
 // trip-mutations.service.ts verbatim (pure code movement).
 import * as s from '../db/schema';
 import { TripStatus } from '@tingting/shared';
-import { ApiError } from '../errors';
+import { ApiError, getPgErrorCode, isPgUniqueViolation } from '../errors';
 import type { TripCompositeRow } from './trip-composite.service';
 
 export function assertCustomerCommissionWithinRevenue(
@@ -90,32 +90,52 @@ type TripLegRow = typeof s.tripLegs.$inferSelect;
 // Identity / lifecycle / audit fields that must NOT carry over when copying a
 // trip. Financial and carrier fields copy verbatim — the split routes them to
 // their owning sidecar table via insertTripComposite.
-const COPY_EXCLUDED_TRIP_FIELDS = new Set<string>([
-  'id',
-  'tripCode',
-  'version',
-  'status',
-  'completedAt',
-  'createdBy',
-  'createdAt',
-  'updatedAt',
-  'deletedAt',
-  'revenueOverriddenBy',
-  'revenueOverriddenAt',
-]);
+// SIL-677: pair membership is ALWAYS excluded —
+// trips_active_trip_pair_order_uniq on (activeTripPairId, activeTripPairOrder)
+// has no status predicate, so a copy inheriting the source's pair slot
+// collides even when the source is CANCELED.
+const COPY_EXCLUDED_TRIP_FIELDS: Record<string, true> = {
+  id: true,
+  tripCode: true,
+  version: true,
+  status: true,
+  completedAt: true,
+  createdBy: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+  revenueOverriddenBy: true,
+  revenueOverriddenAt: true,
+  activeTripPairId: true,
+  activeTripPairOrder: true,
+};
 
-/**
- * Copy persisted plan and financial values, while resetting identity,
- * lifecycle, deletion, and audit metadata for a genuinely new trip.
- * Feeds insertTripComposite — the mixed object is split per owning table.
- */
+// SIL-677: lot-link columns a LIVE-source copy must drop. A live source still
+// occupies its lot's single live-trip slot (trips_fulfillment_id_live_uniq /
+// trips_shipment_without_fulfillment_live_uniq exclude only CANCELED rows), so
+// a lot-linked CREATED copy is a guaranteed 23505. The copy detaches: trip
+// copy = a genuinely new trip, not a second live trip on the same
+// lot/fulfillment; sourceShipmentVersion is the lot-version snapshot and goes
+// with the link. A CANCELED source keeps the link (SIL-655 r2 arm
+// SourceCanceled): the copy lawfully becomes the lot's sole live trip — the
+// schema comment on trips_fulfillment_id_live_uniq calls this the governed
+// replacement.
+const COPY_LOT_LINK_FIELDS: Record<string, true> = {
+  shipmentId: true,
+  fulfillmentId: true,
+  sourceShipmentVersion: true,
+};
+
 export function buildCopiedTripValues(
   source: TripCompositeRow,
   tripCode: string,
   createdBy: number,
 ): Record<string, unknown> {
+  const excluded: Record<string, true> = source.status === TripStatus.CANCELED
+    ? COPY_EXCLUDED_TRIP_FIELDS
+    : { ...COPY_EXCLUDED_TRIP_FIELDS, ...COPY_LOT_LINK_FIELDS };
   const copiedFields = Object.fromEntries(
-    Object.entries(source).filter(([key]) => !COPY_EXCLUDED_TRIP_FIELDS.has(key)),
+    Object.entries(source).filter(([key]) => !excluded[key]),
   );
 
   return {
@@ -145,4 +165,32 @@ export function buildCopiedTripLegValues(source: TripLegRow, tripId: number) {
     loadingType: source.loadingType,
     calculatedLiters: source.calculatedLiters,
   };
+}
+
+// SIL-677: any slot collision left inside the copy flow surfaces as an
+// explicit 409 with a business message instead of an unhandled error (500).
+// 23505 covers every reachable trips unique index. 40001 covers the
+// repeatable-read race on copyTrip's self-managed transaction (direct service
+// callers) — the idempotent HTTP path runs READ COMMITTED, where the same
+// race surfaces as 23505. A hit here means a concurrent writer claimed the
+// slot between the source read and the insert — the caller retries with fresh
+// state.
+export function mapCopyTripUniqueViolation(err: unknown): unknown {
+  if (getPgErrorCode(err) === '40001') {
+    return new ApiError(409, 'Dữ liệu chuyến vừa bị thay đổi bởi người khác. Tải lại và thử lại.');
+  }
+  if (!isPgUniqueViolation(err)) return err;
+  if (isPgUniqueViolation(err, 'trips_fulfillment_id_live_uniq')) {
+    return new ApiError(409, 'Không thể sao chép: fulfillment này vừa có chuyến đi khác chiếm chỗ. Tải lại lô và thử lại.');
+  }
+  if (isPgUniqueViolation(err, 'trips_shipment_without_fulfillment_live_uniq')) {
+    return new ApiError(409, 'Không thể sao chép: lô hàng này vừa có chuyến đi khác chiếm chỗ. Tải lại lô và thử lại.');
+  }
+  if (isPgUniqueViolation(err, 'trips_active_trip_pair_order_uniq')) {
+    return new ApiError(409, 'Không thể sao chép: trùng slot cặp chuyến. Tải lại và thử lại.');
+  }
+  if (isPgUniqueViolation(err, 'trip_code')) {
+    return new ApiError(409, 'Không thể sao chép: mã chuyến vừa bị tạo trùng. Thử lại để nhận mã mới.');
+  }
+  return new ApiError(409, 'Không thể sao chép: dữ liệu vừa bị trùng (lô/fulfillment/mã chuyến). Tải lại và thử lại.');
 }

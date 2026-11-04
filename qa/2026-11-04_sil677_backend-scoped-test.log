@@ -1,0 +1,23 @@
+▶ SIL-677 — copy trip live thuộc lô detach khỏi quan hệ lô
+  ✔ nhánh pair-active: pair columns + lot link đều không kế thừa (0.692458ms)
+  ✔ nhánh có-fulfillment: shipment/fulfillment/version lot-link không kế thừa (0.1865ms)
+  ✔ nhánh lot-linked-thường: shipment không kế thừa dù fulfillment null (0.125209ms)
+  ✔ source CANCELED giữ lot link (law SIL-655 arm SourceCanceled) nhưng vẫn không nhận pair (0.112041ms)
+✔ SIL-677 — copy trip live thuộc lô detach khỏi quan hệ lô (1.940709ms)
+▶ SIL-677 — mọi 23505 sót trong nhánh copy thành 409 có message
+  ✔ map trips_fulfillment_id_live_uniq → ApiError 409 (0.471875ms)
+  ✔ map trips_shipment_without_fulfillment_live_uniq → ApiError 409 (0.142625ms)
+  ✔ map trips_active_trip_pair_order_uniq → ApiError 409 (0.13825ms)
+  ✔ map trip_code_key → ApiError 409 (0.144959ms)
+  ✔ 40001 (race repeatable-read) → ApiError 409 retryable (0.159167ms)
+  ✔ lỗi không phải 23505 đi thẳng qua, không bị nuốt (0.260791ms)
+✔ SIL-677 — mọi 23505 sót trong nhánh copy thành 409 có message (1.703542ms)
+ℹ tests 10
+ℹ suites 2
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1938.497708
+EXIT=0

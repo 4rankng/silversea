@@ -1,0 +1,14 @@
+PASS  login  POST /auth/login → 200
+  [before] pair-active: trip 1272 (shipment=1769 fulfillment=2041) → HTTP 409 {"error":"active_trip_pair_id, active_trip_pair_order đã tồn tại"}
+PASS  pair-active.before-not-created  HTTP 409 (copy chưa hoạt động trước fix)
+  [before] co-fulfillment: trip 851 (shipment=1239 fulfillment=1453) → HTTP 409 {"error":"fulfillment_id đã tồn tại"}
+PASS  co-fulfillment.before-not-created  HTTP 409 (copy chưa hoạt động trước fix)
+  [before] lot-linked-thuong: trip 504 (shipment=777 fulfillment=) → HTTP 409 {"error":"shipment_id đã tồn tại"}
+PASS  lot-linked-thuong.before-not-created  HTTP 409 (copy chưa hoạt động trước fix)
+  [before] canceled-lot: trip 1272 → HTTP 409 {"error":"active_trip_pair_id, active_trip_pair_order đã tồn tại"}
+FAIL  canceled-lot.before-201  HTTP 409 (law SIL-655 arm SourceCanceled giữ nguyên)
+PASS  canceled-lot.restored  fixture undone: trip 1272 status=COMPLETED
+
+SUMMARY(before): live branches hitting 5xx = 0/3 (ticket reported 500 chưa bắt)
+
+BEFORE: 5/6 checks pass
