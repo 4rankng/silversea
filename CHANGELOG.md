@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-11-04 — fix(pricing): SIL-676 round-2 (id 783) — snapshot nối giá từ bảng giá dù catalog thiếu lớp xe nền, revenue chuyến hết NO_CARGO_TYPE, /api/settlements đọc được cho admin
+
+QA round-3c trên 386477c2 CONFIRM round-1 đúng 2 phần (/api/pricing
+3.800.000 ✓; settlements UI redirect ✓) nhưng còn đúng 2 lỗi: cặp KẸP mới
+(pair 25, trips 292/293) snapshot rateTermsId=1 ✓ mà pricingTableId vẫn 0 +
+mọi amount 0/null + driver "Chi phí 0", và GET /api/settlements 403 CẢ 3 ROLE
+kể cả admin.
+
+- **R6 engine khỏi cần catalog lớp xe** — staging `vehicle_size_classes`
+  không có dòng CONT20/CONT40 trần (mirror prod; local seed có 2 dòng nên
+  round-1 pass local fail staging): engine cũ hard-return MANUAL
+  pricingTableId=0 ngay ở gate catalog, TRƯỚC khi đọc bảng giá. Giờ Step 2
+  đọc MỘT lần cả lane và chọn qua pure selection law: dòng keyed của lớp
+  được hỏi → lớp nền (kế thừa card _58) → dòng general → GIÁ ĐẦU BẢNG; dòng
+  đầu tiên tìm thấy thắng (giá 0 = statement của operator, dừng chain).
+  Catalog lớp xe không còn được đọc — norm lookup vốn đã khóa theo CODE
+  family. Provenance note ghi đúng nguồn giá (kế thừa / dòng chung / đầu
+  bảng). (S676-R6)
+- **R7 revenue chuyến nối bảng giá** — dispatch issue không gửi cargoType:
+  trip-create cũ rơi vào MANUAL "Chưa có loại hàng" (NO_CARGO_TYPE) nên
+  revenue=0 vĩnh viễn (cả pair 25 staging lẫn pair 29 local). Chuyến
+  container-keyed thiếu cargoType giờ seed revenue từ bảng giá qua cùng
+  pure law /api/pricing — selector là pricingRateKey của điều độ, thiếu thì
+  map từ code loại cont (20DC→CONT20 như snapshot), KHÔNG dùng
+  containerTypeId (sheet không khóa theo id xe). Chuyến thường giữ nguyên
+  hành vi NO_CARGO_TYPE. (S676-R7)
+- **R8 alias /api/settlements đúng policy** — round-1 gắn OPS_ONLY cho alias
+  nên admin bị 403. Alias giờ gộp hai policy đọc đã tồn tại: OPS → self list
+  (policy của /api/ops/settlements), ADMIN → full list (policy của
+  /api/ops/admin/settlements); role khác giữ 403 như /api/ops/settlements.
+  Route gốc không đổi. (S676-R8)
+
+QA local (qa/2026-11-04-sil676-r2/), lane shaped như staging (soft-delete
+CONT20/CONT40 trong vehicle_size_classes, chạy xong restore): cặp KẸP mới
+pair 32 (trips 1271/1272, 2 chân CONT20 21t route 6): snapshot AUTO
+3.952.000 = 3.800.000 × 1.04, rate_terms_id=1, pricing_table_id=33 CẢ 2
+CHÂN; revenue 3.800.000/chân; VETC 110.000 chân 1, chân 2 tollCost 0 +
+tollDeduction 110.000; lương 192.308 cơ bản chân 1 + 200.000 phụ phí Kẹp
+chân 2; driver earnings LIVE. Before staging (read-only): 4 role đều 403;
+after local: admin 200 full list, OPS 200 self-scoped, DISPATCHER/CUS/
+DRIVER 403, route gốc OPS 200/admin 403. BE unit full 842/842, backend
+tsc 0; round-1 pins giữ xanh (/api/pricing 3.800.000/4.000.000, SPA
+redirect sweep). Chi tiết: testplan/2026-11-04-sil676-r2-snapshot-settlements.md.
+
 ## 2026-11-04 — fix(pricing): SIL-676 (id 783) — pricing lookup bỏ qua bảng giá keyed: /api/pricing trả giá đầu bảng, snapshot giữ trace id thật, /settlements có route thật
 
 Lookup/linkage hỏng (engine TỒN TẠI, không phải thiếu engine): bảng giá

@@ -314,14 +314,24 @@ async function listOpsSettlementsHandler(req: Request, res: Response) {
 
 router.get('/settlements', OPS_ONLY, asyncHandler(listOpsSettlementsHandler));
 
-// SIL-676: GET /api/settlements is a REGISTERED alias of the ops self list —
-// same gate, same self-scoping, zero new behavior. It exists so the audited
-// surface (audit-query.service) and any client that address the plain path
-// get the real list instead of the /api 404 catch-all. Non-OPS roles receive
-// the same 403 here as on /api/ops/settlements; the office view stays
-// /api/ops/admin/settlements.
+// SIL-676 round 2: GET /api/settlements unions the two settlements read
+// policies that already exist — OPS gets the self-scoped list (the exact
+// /api/ops/settlements policy), ADMIN gets the office full list (the exact
+// /api/ops/admin/settlements policy: admin already holds that unscoped read
+// there). Every other role keeps the OPS-only 403 of /api/ops/settlements —
+// the QA round-3c verdict rejected the round-1 alias whose OPS_ONLY gate
+// 403'd even admin. No new permission is invented: each allowed role reads
+// through a policy it already holds on a named endpoint.
 export const settlementsListAliasRoutes = Router();
-settlementsListAliasRoutes.get('/', OPS_ONLY, asyncHandler(listOpsSettlementsHandler));
+settlementsListAliasRoutes.get('/', requireRoles(Role.OPS, Role.ADMIN), asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const status = z.enum(['DRAFT', 'RECORDED', 'VOIDED']).optional().parse(req.query.status);
+  res.json({
+    items: user.role === Role.ADMIN
+      ? await listOpsSettlements({ status })
+      : await listOpsSettlements({ opsUserId: user.userId, status }),
+  });
+}));
 
 router.post('/settlements', declareMaterialWrite('ops.settlements.create', { method: 'POST', path: '/api/ops/settlements' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);

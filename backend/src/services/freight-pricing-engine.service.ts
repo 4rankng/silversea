@@ -35,6 +35,7 @@ import { roundHalfAwayFromZero } from '@tingting/shared';
 import type { ComputeFreightRateResult } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { effectiveFuelLagDays } from './freight-lot-basis';
+import { partitionTablePricingLane } from './pricing-table-selection';
 
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -234,87 +235,58 @@ export async function resolveFreightRate(
     customerId, routeId, vehicleSizeClassCode, transportDate,
   );
 
-  // ── Step 2: pricing_tables (base price) ──
-  const vehicleClass = await db
-    .select()
-    .from(s.vehicleSizeClasses)
-    .where(eq(s.vehicleSizeClasses.code, vehicleSizeClassCode))
-    .limit(1)
-    .then((rows) => rows[0]);
-
-  if (!vehicleClass) {
-    // SIL-676: a missing vehicle-class catalog row is the same failure class
-    // as a missing base price — MANUAL with the terms id this run HAD
-    // resolved. Throwing here made the lifecycle fallback zero EVERY trace id
-    // (rateTermsId 0) so the read side printed the false "khách × tuyến chưa
-    // cấu hình" hint although freight_rate_terms existed. This is now the
-    // ONLY throw path in the engine: a 404 reaching
-    // resolveFreightRateWithManualFallback means terms genuinely unresolved.
-    // No formulaText: the view infers source = AUTO from a present
-    // formulaText; buildFormulaHint reports the base-price gap from
-    // pricingTableId = 0.
-    return {
-      freight: 0,
-      surcharge: 0,
-      total: 0,
-      fuelDelta: 0,
-      fuelPricePeriodId: 0,
-      rateTermsId: terms.id,
-      pricingTableId: 0,
-      fuelNormId: 0,
-      billedKm: 0,
-      liters: 0,
-      sharePct: Number(terms.sharePct),
-      heSo: 1,
-      source: 'MANUAL',
-      formula: `Không tìm thấy loại xe: ${vehicleSizeClassCode} — cần nhập tay giá cước`,
-      quotationFrame: quotationFrame ?? undefined,
-    };
-  }
-
-  let basePriceRow = await db
+  // ── Step 2: pricing_tables (base price) — ONE lane read, selected by the
+  // SIL-676 pure law (pricing-table-selection.ts, the same law as the lookup
+  // endpoint). Selection chain: the asked class's keyed row → the base
+  // class's keyed row (card _58 inheritance) → the lane's general row → the
+  // lane's GIÁ ĐẦU BẢNG (latest effectiveDate, lowest id). The first FOUND
+  // row wins at every level — a price-0 row is an operator statement and
+  // stops the chain, exactly like the pre-round-2 exact-key behavior.
+  //
+  // SIL-676 round 2 (QA round-3c): the vehicle-class CATALOG row no longer
+  // gates this step and is no longer read at all. The staging mirror's
+  // vehicle_size_classes lacks the plain CONT20/CONT40 rows, so every
+  // container leg died on the old class-catalog gate with
+  // pricingTableId 0 + all amounts 0/null although the customer's sheet had
+  // the priced row (snapshot rateTermsId resolved, driver detail "Chi phí
+  // 0"). The catalog row was never used below — the norm lookup is keyed on
+  // the class CODE family — so the gate only destroyed price provenance.
+  const laneRows = await db
     .select()
     .from(s.pricingTables)
     .where(
       and(
         eq(s.pricingTables.customerId, customerId),
         eq(s.pricingTables.routeId, routeId),
-        eq(s.pricingTables.rateKey, priceClassCode),
         lte(s.pricingTables.effectiveDate, transportDate),
         isNull(s.pricingTables.deletedAt),
       ),
-    )
-    .orderBy(desc(s.pricingTables.effectiveDate))
-    .limit(1)
-    .then((rows) => rows[0]);
+    );
+  const exactBuckets = partitionTablePricingLane(laneRows, null, priceClassCode);
+  const baseBuckets = priceClassCode !== vehicleSizeClassCode
+    ? partitionTablePricingLane(laneRows, null, vehicleSizeClassCode)
+    : null;
 
+  let basePriceRow = exactBuckets.rateKey[0] ?? null;
+  let basePriceSource: 'EXACT' | 'INHERITED' | 'GENERAL' | 'LANE_HEAD' = 'EXACT';
   // Card 20260922_58 (PM đợt-2 doctrine): a customer whose catalog predates
   // the 4-class split (or whose weight-class row is blank) inherits the BASE
   // class row instead of dropping to MANUAL — the formula records the
   // inheritance so the giá-tạm marking has its ground truth.
-  let priceClassInherited = false;
-  let effectivePriceClass = priceClassCode;
-  if (!basePriceRow && priceClassCode !== vehicleSizeClassCode) {
-    const inheritedRow = await db
-      .select()
-      .from(s.pricingTables)
-      .where(
-        and(
-          eq(s.pricingTables.customerId, customerId),
-          eq(s.pricingTables.routeId, routeId),
-          eq(s.pricingTables.rateKey, vehicleSizeClassCode),
-          lte(s.pricingTables.effectiveDate, transportDate),
-          isNull(s.pricingTables.deletedAt),
-        ),
-      )
-      .orderBy(desc(s.pricingTables.effectiveDate))
-      .limit(1)
-      .then((rows) => rows[0]);
-    if (inheritedRow) {
-      basePriceRow = inheritedRow;
-      priceClassInherited = true;
-      effectivePriceClass = vehicleSizeClassCode;
-    }
+  if (!basePriceRow && baseBuckets?.rateKey[0]) {
+    basePriceRow = baseBuckets.rateKey[0];
+    basePriceSource = 'INHERITED';
+  }
+  // SIL-676 round 2: keyed misses keep resolving the lane through the
+  // selector-less law — general row, else giá đầu bảng — instead of pricing
+  // the leg 0/null.
+  if (!basePriceRow && exactBuckets.general[0]) {
+    basePriceRow = exactBuckets.general[0];
+    basePriceSource = 'GENERAL';
+  }
+  if (!basePriceRow && exactBuckets.laneHeadOrder[0]) {
+    basePriceRow = exactBuckets.laneHeadOrder[0];
+    basePriceSource = 'LANE_HEAD';
   }
 
   // No base price ⇒ MANUAL mode (e.g. 15T with no data)
@@ -333,7 +305,7 @@ export async function resolveFreightRate(
       sharePct: Number(terms.sharePct),
       heSo: 1,
       source: 'MANUAL',
-      formula: `Thiếu giá gốc cho ${effectivePriceClass} — cần nhập tay`,
+      formula: `Thiếu giá gốc cho ${priceClassCode} — cần nhập tay`,
       quotationFrame: quotationFrame ?? undefined,
     };
   }
@@ -567,9 +539,16 @@ export async function resolveFreightRate(
   const surcharge = applySurchargeRounding(roundingMode, surchargeAfterHeSo);
   const total = result.freight + surcharge;
 
-  const priceClassNote = priceClassInherited
-    ? `[${effectivePriceClass} kế thừa giá gốc của ${priceClassCode} — giá tạm] `
-    : (priceClassCode !== vehicleSizeClassCode ? `[giá theo hạng ${priceClassCode}] ` : '');
+  // Provenance note: EXACT keeps the pre-round-2 wording; every fallback
+  // source names the asked class and the row it actually priced from so the
+  // giá-tạm marking has its ground truth.
+  const priceClassNote = basePriceSource === 'EXACT'
+    ? (priceClassCode !== vehicleSizeClassCode ? `[giá theo hạng ${priceClassCode}] ` : '')
+    : basePriceSource === 'INHERITED'
+      ? `[${priceClassCode} kế thừa giá gốc của ${vehicleSizeClassCode} — giá tạm] `
+      : basePriceSource === 'GENERAL'
+        ? `[${priceClassCode} dùng dòng giá chung của bảng giá — giá tạm] `
+        : `[${priceClassCode} dùng giá đầu bảng — giá tạm] `;
 
   const formula = priceClassNote + [
     `${basePriceRow.price} × (1 + ${terms.sharePct}%) = ${result.freight}`,

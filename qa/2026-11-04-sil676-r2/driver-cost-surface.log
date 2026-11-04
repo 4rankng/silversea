@@ -1,0 +1,7 @@
+GET /driver/me/trips -> 200
+  driver trip 1271: status=COMPLETED totalCost=None driverSalary=192308 tollCost=None keys=['driverSalary']
+  driver trip 1272: status=COMPLETED totalCost=None driverSalary=200000 tollCost=None keys=['driverSalary']
+GET /driver/me/trips/1271 -> 200
+  detail: status=COMPLETED totalCost=None driverSalary=192308 tollCost=None
+GET /api/trips/1271 -> 200
+  composite: revenue=3800000 totalCost=371308 driverSalary=192308 tollCost=110000 costBreakdown=null

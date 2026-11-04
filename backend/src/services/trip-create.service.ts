@@ -9,7 +9,8 @@ import { eq, and, isNull, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, TripStatus, FuelMode, Role } from '@tingting/shared';
 import { computeTripTotals } from '@tingting/shared';
 import { ApiError } from '../errors';
-import { resolveFreightPrice, resolveFuelSurcharge } from './pricing.service';
+import { resolveFreightPrice, resolveFuelSurcharge, resolveTableFreightPrice, type ResolvedFreightPrice } from './pricing.service';
+import { containerTypeCodeToRateKey } from './freight-rate-snapshot-lifecycle.service';
 import { resolveFuelNorm } from './fuel.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked, assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -280,15 +281,45 @@ export async function createTrip(data: {
     //    fixed-price model (TABLE) AND the new weight-tier model (TIER),
     //    falling back to MANUAL (price 0) when no pricing exists — same
     //    behavior as before for routes without a pricing table.
-    const freightPrice = await resolveFreightPrice({
-      customerId: data.customerId,
-      routeId: data.routeId,
-      cargoTypeId: authoritativeCargoTypeId,
-      date: data.departureDate,
-      containerCount,
-      containerTypeId: data.containerTypeId ?? null,
-      pricingRateKey: data.pricingRateKey ?? null,
-    });
+    //    SIL-676 round 2 (QA round-3c): a container-keyed trip issued without
+    //    a cargo type (the dispatch flow sends none — staging pair 25's trips
+    //    froze pricing_source=MANUAL "Chưa có loại hàng", revenue 0) prices
+    //    its revenue from the customer's price sheet through the same pure
+    //    selection law as /api/pricing, instead of the NO_CARGO_TYPE 0. The
+    //    snapshot (the definitive lock) already priced the leg; this only
+    //    reconnects the trip's own revenue source. Non-container trips keep
+    //    the NO_CARGO_TYPE behavior untouched. The sheet selector is the RATE
+    //    KEY — the dispatcher's pricingRateKey, else the snapshot's
+    //    container-type-code mapping (20DC→CONT20) — never the truck-side
+    //    containerTypeId id, which the sheet does not key rows by.
+    let freightPrice: ResolvedFreightPrice;
+    if (authoritativeCargoTypeId != null || (data.containerTypeId == null && data.pricingRateKey == null)) {
+      freightPrice = await resolveFreightPrice({
+        customerId: data.customerId,
+        routeId: data.routeId,
+        cargoTypeId: authoritativeCargoTypeId,
+        date: data.departureDate,
+        containerCount,
+        containerTypeId: data.containerTypeId ?? null,
+        pricingRateKey: data.pricingRateKey ?? null,
+      });
+    } else {
+      let sheetRateKey = data.pricingRateKey ?? null;
+      if (sheetRateKey == null && data.containerTypeId != null) {
+        const [typeRow] = await tx.select({ code: s.containerTypes.code })
+          .from(s.containerTypes)
+          .where(eq(s.containerTypes.id, data.containerTypeId))
+          .limit(1);
+        sheetRateKey = containerTypeCodeToRateKey(typeRow?.code);
+      }
+      freightPrice = await resolveTableFreightPrice({
+        customerId: data.customerId,
+        routeId: data.routeId,
+        date: data.departureDate,
+        containerCount,
+        pricingRateKey: sheetRateKey,
+      });
+    }
 
     const revenue = freightPrice.price;
 

@@ -1,0 +1,3 @@
+GET /pricing?customerId=1&routeId=6 -> 200 {"price": 3800000}
+GET /pricing?customerId=1&routeId=6&pricingRateKey=CONT20 -> 200 {"price": 3800000}
+GET /pricing?customerId=1&routeId=6&pricingRateKey=CONT40 -> 200 {"price": 4000000}
