@@ -1,0 +1,48 @@
+PASS p1.pre-bulk-present :: pre-state: marker=0 bulk shipments=250 trip_containers total=465 (guard would skip — wipe required to exercise the seed)
+PASS p1.wipe-clean :: bulk wiped: shipments=0 bulk trips=0 marker=0
+
+📦 Seeding bulk QA dataset (this is a one-time idempotent load)…
+  ✅ Customers: +0 (total pool 72)
+  ✅ Suppliers: +0 (total pool 48)
+  ✅ Drivers: +11 (total pool 81)
+  ✅ Shipments: +250 (containers +278, fulfillments +278)
+  ✅ Trips: +185 (trip_containers +229)
+  ✅ Expenses: +60
+  ✅ Notifications: +25
+
+🎉 Bulk seed complete! Use the BL/booking prefix `BULK-` to identify synthetic rows.
+seedBulkData() → created=true in 2s; stats={"shipments":250,"containers":278,"fulfillments":278,"trips":185,"tripContainers":229,"expenses":60,"notifications":25}
+PASS p1.seed-ran :: seed executed (not skipped by the idempotency guard)
+PASS p1.bulk-recreated :: post-seed: bulk shipments=125 bulk trips=185 bulk trip_containers=229
+PASS p1.marker-restored :: BULK marker row present again (marker lives on booking_ref, seed-bulk-data.ts:510)
+PASS p1.numbered-linked :: (b) seeded numbered trip_containers=229, with source_shipment_container_id=229
+PASS p1.number-about-lot :: (c) seeded rows whose number differs from their lot row=0
+
+(a) sample of seeded linked rows (id → sc id, numbers):
+id  | sc_id |   tc_num    |   sc_num    
+------+-------+-------------+-------------
+ 1043 |  1755 | EGHU7353316 | EGHU7353316
+ 1044 |  1794 | DRYU7544061 | DRYU7544061
+ 1045 |  2025 | OOLU2970372 | OOLU2970372
+ 1046 |  2026 | TCLU7995100 | TCLU7995100
+ 1047 |  1923 | HLXU1917125 | HLXU1917125
+(5 rows)
+
+--- p1-seed-path: mismatch query (issue 762, verbatim) ---
+id 
+----
+(0 rows)
+--- p1-seed-path: orphan-with-number query ---
+id 
+----
+(0 rows)
+PASS p1-seed-path.mismatch-0row :: Q1 = 0 rows after seed
+PASS p1-seed-path.orphan-0row :: Q2 = 0 rows after seed
+
+--- summary counts (round-1 shape) ---
+numbered_rows | numbered_and_linked | numberless_rows | total_rows 
+---------------+---------------------+-----------------+------------
+           411 |                 411 |              41 |        452
+(1 row)
+
+== p1-seed-path: 9/9 checks passed ==
