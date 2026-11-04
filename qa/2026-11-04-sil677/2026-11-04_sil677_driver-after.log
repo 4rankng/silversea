@@ -1,0 +1,23 @@
+PASS  login  POST /auth/login → 200
+  [after] pair-active: trip 1272 (shipment=1769 fulfillment=2041) → HTTP 201 {"id":1295,"tripCode":"TRP-202611-0153","version":1,"createdBy":61,"customerId":1,"customerReference":"SIL676R2025606B","truckId":25,"driverId":25,"routeId":6,"
+PASS  pair-active.after-201  HTTP 201 (expect 201 — copy hoạt động)
+PASS  pair-active.after-detached  copy#1295: shipment=NULL fulfillment=NULL pair=NULL/NULL status=CREATED (expect NULL×4 + CREATED)
+PASS  pair-active.after-line-law  bridge cols: source 1 → copy 1; numbered/sealed copy rows=0 (expect 0)
+PASS  pair-active.cleanup  bản copy probe đã xóa (residual=0)
+  [after] co-fulfillment: trip 851 (shipment=1239 fulfillment=1453) → HTTP 201 {"id":1296,"tripCode":"TRP-202611-0154","version":1,"createdBy":61,"customerId":1,"customerReference":"SIL676QA182815B","truckId":33,"driverId":28,"routeId":6,"
+PASS  co-fulfillment.after-201  HTTP 201 (expect 201 — copy hoạt động)
+PASS  co-fulfillment.after-detached  copy#1296: shipment=NULL fulfillment=NULL pair=NULL/NULL status=CREATED (expect NULL×4 + CREATED)
+PASS  co-fulfillment.after-line-law  bridge cols: source 1 → copy 1; numbered/sealed copy rows=0 (expect 0)
+PASS  co-fulfillment.cleanup  bản copy probe đã xóa (residual=0)
+  [after] lot-linked-thuong: trip 504 (shipment=777 fulfillment=) → HTTP 201 {"id":1297,"tripCode":"TRP-202610-0065","version":1,"createdBy":61,"customerId":1,"customerReference":"SIL601-TRIP-1","truckId":1,"driverId":1,"routeId":6,"trai
+PASS  lot-linked-thuong.after-201  HTTP 201 (expect 201 — copy hoạt động)
+PASS  lot-linked-thuong.after-detached  copy#1297: shipment=NULL fulfillment=NULL pair=NULL/NULL status=CREATED (expect NULL×4 + CREATED)
+PASS  lot-linked-thuong.after-line-law  bridge cols: source 0 → copy 0; numbered/sealed copy rows=0 (expect 0)
+PASS  lot-linked-thuong.cleanup  bản copy probe đã xóa (residual=0)
+  [after] canceled-lot: trip 1272 → HTTP 201 {"id":1298,"tripCode":"TRP-202611-0155","version":1,"createdBy":61,"customerId":1,"customerReference":"SIL676R2025606B","truckId":25,"driverId":25,"routeId":6,"
+PASS  canceled-lot.after-201  HTTP 201 (law SIL-655 arm SourceCanceled giữ nguyên)
+PASS  canceled-lot.after-keeps-lot-link  copy#1298: shipment_id=1769 expect 1769 (p2.copy-stays-lot-linked)
+PASS  canceled-lot.after-created-status  copy status=CREATED
+PASS  canceled-lot.restored  fixture undone: trip 1272 status=COMPLETED
+
+AFTER: 17/17 checks pass

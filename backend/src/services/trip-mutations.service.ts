@@ -14,6 +14,7 @@ export {
   shouldMarkRevenueOverride,
   buildCopiedTripValues,
   buildCopiedTripLegValues,
+  mapCopyTripUniqueViolation,
 } from './trip-mutations-shared.service';
 export { createTrip, copyTrip } from './trip-create.service';
 export { updateTripFigures } from './trip-figure-updates.service';

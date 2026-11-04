@@ -16,11 +16,12 @@
 //   - trips_active_trip_pair_order_uniq        (source in an active pair)
 //   - trips_fulfillment_id_live_uniq           (source has a fulfillment)
 //   - trips_shipment_without_fulfillment_live_uniq (plain lot-linked source)
-// The route (routes/trips/crud.ts:89 → copyTripWriteCommand → copyTripCommand)
-// has NO guard, so "Sao chép chuyến" on a live lot-linked trip is an unhandled
-// 23505. Arm 0 below captures that repro; arm 1 executes the copy arm under
-// the ONLY schema-legal precondition — a CANCELED source (the copy becomes
-// the lot's sole live trip). The canceled status is probe fixture prep on the
+// → RESOLVED by SIL-677: a LIVE-source copy now detaches from the lot (trip
+// copy = chuyến mới; pair columns luôn loại vì pair index không lọc status) và
+// HTTP surface trả 4xx có message cho mọi 23505 sót lại. Arm 0 dưới đây pin
+// hành vi MỚI (copy thành công + detach); arm 1 giữ nguyên law SourceCanceled.
+// Arm 1 executes the copy arm under a CANCELED source (the copy becomes the
+// lot's sole live trip). The canceled status is probe fixture prep on the
 // LOCAL dev db and is restored + verified at the end.
 // Run: cd backend && npx tsx ../qa/scripts/2026-11-04-sil655-r2-p2-copytrip-link-probe.mjs
 import { copyTrip } from '../../backend/src/services/trip-create.service.js';
@@ -51,13 +52,27 @@ const sourceRows = psql(`SELECT id, source_shipment_container_id, container_numb
   .split('\n').filter(Boolean).map((l) => l.split('|'));
 console.log('source rows:', sourceRows.map((r) => `tc#${r[0]}→sc#${r[1]} (${r[2]})`).join('  '));
 
-// ── Arm 0: repro — copy of a LIVE lot-linked trip refuses with 23505 ────────
+// ── Arm 0: SIL-677 — copy of a LIVE lot-linked trip succeeds, detached ──────
+// (SIL-655 r2 originally captured the old behavior here as a 23505 escalation
+// repro; SIL-677 makes the copy work. The trip-level lot link detaches — the
+// line-level bridge law asserted below is untouched.)
 if (sourceStatus !== 'CANCELED') {
-  let liveThrew = null;
-  try { await copyTrip(sourceTripId, userId); } catch (e) { liveThrew = e; }
-  const constraint = liveThrew?.cause?.constraint_name ?? liveThrew?.constraint_name ?? null;
-  check('p2.live-copy-refused', liveThrew != null && constraint === 'trips_shipment_without_fulfillment_live_uniq',
-    `(escalation repro) live-source copy → ${liveThrew ? `${liveThrew.constructor.name} constraint=${constraint}` : 'NO THROW — copy of live trip succeeded'}`);
+  let liveCopied = null; let liveThrew = null;
+  try { liveCopied = await copyTrip(sourceTripId, userId); } catch (e) { liveThrew = e; }
+  check('p2.live-copy-works', liveCopied != null, `(SIL-677) live-source copy → ${liveCopied ? `trip id=${liveCopied.id}` : `STILL THROWS ${liveThrew?.constructor?.name} constraint=${liveThrew?.cause?.constraint_name ?? liveThrew?.constraint_name ?? '?'}`}`);
+  if (liveCopied != null) {
+    const detached = psql(`SELECT coalesce(shipment_id::text,'NULL'), coalesce(fulfillment_id::text,'NULL'), coalesce(active_trip_pair_id::text,'NULL'), status FROM trips WHERE id=${liveCopied.id}`).split('|');
+    check('p2.live-copy-detached', detached[0] === 'NULL' && detached[1] === 'NULL' && detached[2] === 'NULL' && detached[3] === 'CREATED',
+      `(SIL-677) copy#${liveCopied.id}: shipment=${detached[0]} fulfillment=${detached[1]} pair=${detached[2]} status=${detached[3]} (expect NULL×3 + CREATED)`);
+    // Remove the arm-0 copy before the arm-1 fixture cancel — the copy's
+    // container rows must not linger into the parity assertions below.
+    psql(`DELETE FROM trip_containers WHERE trip_id=${liveCopied.id}`);
+    psql(`DELETE FROM trip_legs WHERE trip_id=${liveCopied.id}`);
+    psql(`DELETE FROM trip_financial_state WHERE trip_id=${liveCopied.id}`);
+    psql(`DELETE FROM trip_carrier_info WHERE trip_id=${liveCopied.id}`);
+    psql(`DELETE FROM audit_logs WHERE entity_type='trip' AND entity_id=${liveCopied.id}`);
+    psql(`DELETE FROM trips WHERE id=${liveCopied.id}`);
+  }
 }
 
 // ── Fixture: cancel the source (local dev db), run the copy arm, restore ────

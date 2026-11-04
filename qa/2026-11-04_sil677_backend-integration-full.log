@@ -1,0 +1,11 @@
+Command: cd backend && npx tsx --test --test-concurrency=1 'src/tests/*.test.ts'
+(pnpm test:integration script; part of `pnpm test` gate — run 2026-11-04, branch fix/sil677-copytrip-live)
+Exit status: 0
+ℹ tests 342
+ℹ suites 80
+ℹ pass 342
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 165554.932667
