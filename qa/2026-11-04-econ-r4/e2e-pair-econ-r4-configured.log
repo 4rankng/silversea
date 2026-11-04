@@ -1,0 +1,26 @@
+catalog plain rows before: 15|CONT20|
+16|CONT40|
+staging shape applied: plain CONT20/CONT40 soft-deleted for this run
+configured shape: road_config toll 55000; route 6 tolls_stations=2; salary.pair_surcharge_kep=200000
+login admin ok against :3103
+catalog: containerType 20DC = 1 | rig: ['42', '60C-12345', '42'] (driver base_salary 5000000 for the run, was 5000000)
+lotA: dispatched -> trip 1336; snapshot id=725 total=3952000 rateTerms=1 pricingTable=33 heSo=1.0000
+lotB: dispatched -> trip 1337; snapshot id=727 total=3952000 rateTerms=1 pricingTable=33 heSo=1.0000
+pair created: 40 KEP
+trip 1336 (A): COMPLETED via driver-app close (no actuals save)
+trip 1337 (B): COMPLETED via driver-app close (no actuals save)
+--- ASSERTIONS ---
+ECON trip 1336 (leg A): driverSalary=384615 tollCost=110000 tollDeduction=0 totalCost=384615
+ECON trip 1337 (leg B): driverSalary=200000 tollCost=0 tollDeduction=110000 totalCost=90000
+wage law: days=2 expected base=384615 (departure 2026-11-04, completed 2026-11-04T15:10:58.871074+00:00)
+1. configured: salary A=384615 B=200.000; VETC once A=110.000 / B=0 + deduction 110.000
+2a. GET /api/trips/1336 -> 200 costBreakdown={"freight": 3800000, "tolls": 110000, "tollZeroReason": null, "salary": 384615, "surcharge": 0, "fuel": 0, "allowance": 0, "totalCost": 384615}
+2b. GET /api/driver/me/trips/1336 -> 200 costBreakdown={"freight": 3800000, "tolls": 110000, "tollZeroReason": null, "salary": 384615, "surcharge": 0, "fuel": 0, "allowance": 0, "totalCost": 384615}
+3. GET /api/settlements -> 200 items=18 pairRecord=[{"source": "TRIP_PAIR", "pairId": 40, "pairKind": "KEP", "pairStatus": "ACTIVE", "code": "OS-PAIR-40", "status": "RECORDED", "totalAmount": "694615", "note": "Quy\u1ebft to\u00e1n economics c\u1eb7p K\u1eb8P \u2014 VETC 1 l\u1ea7n 110.000 \u20ab + l\u01b0\u01a1ng c\u01a1 b\u1ea3n 384.615 \u20ab + ph\u1ee5 ph\u00ed 200.000 \u20ab", "createdAt": "2026-11-04T15:11:01.439Z", "firstTripId": 1336, "secondTripId": 1337, "firstTripCode": "TRP-202611-0170", "secondTripCode": "TRP-202611-0171", "economic
+4. configured: OS-PAIR tollOnceLeg=1 amount=110.000, no marker; header totalCost 384615
+5. ledger DRIVER_SALARY entries: legA=1 legB=1
+REG snapshot: total=3952000 (expect 3952000) pricingTableId=33 (expect 33) rateTermsId=1
+REG pricing lookup -> 200 {"price": 3800000}
+R4 MODE=configured FAILURES: 0
+DRIVER_USER=laixe TRIPS_A_B=1336|1337 PAIR=40
+cleanup: catalog restored; settings kept (wave7 values)

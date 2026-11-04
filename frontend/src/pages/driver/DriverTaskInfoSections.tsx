@@ -7,6 +7,7 @@ import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
 import { formatCurrency } from '../../lib/format';
 import type { DriverTaskDetail } from '../../api/driverClient';
+import { VETC_ROUTE_UNCONFIGURED_WARNING } from '../../api/driverClient';
 import { CopyCodeButton } from '../../components/trip/CopyCodeButton';
 import { TelLink, telHref } from '../../components/TelLink';
 import { driverDeliveryDestination, driverLocationLabels } from '../../features/driver/driver-display';
@@ -296,6 +297,8 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
  * cost surface; this section renders the explicit numbers, where a route
  * without toll stations shows "VETC — 0 ₫" as an honest computed value, and
  * an unconfigured phụ phí shows its 0 ₫ line instead of hiding the row.
+ * r4 (QA pair 30, staging e9afda3f): a route WITHOUT toll stations shows the
+ * owner warning verbatim next to the 0 ₫ — the gap is named, never silent.
  * Text-only values (house law): no status pills, no decorative icons — the
  * one icon per fact row is this grid's established marker convention.
  */
@@ -303,6 +306,9 @@ export function DriverCostBreakdownSection({ trip }: { trip: DriverTaskDetail })
   const [open, setOpen] = useState(true);
   const breakdown = trip.costBreakdown ?? null;
   if (trip.status !== 'COMPLETED' || !breakdown) return null;
+  const vetcValue = breakdown.tollZeroReason === 'route_chua_cau_hinh_tram'
+    ? `${formatCurrency(breakdown.tolls)} · ${VETC_ROUTE_UNCONFIGURED_WARNING}`
+    : formatCurrency(breakdown.tolls);
   return (
     <section className={`driver-task-section${open ? '' : ' driver-task-section--collapsed'}`}>
       <CollapsibleSectionHead
@@ -314,7 +320,7 @@ export function DriverCostBreakdownSection({ trip }: { trip: DriverTaskDetail })
       />
       <div className="driver-task-grid" id="driver-task-cost-grid" hidden={!open}>
         <TaskFact icon={<Banknote size={16} aria-hidden="true" />} label="Cước chuyến" value={formatCurrency(breakdown.freight)} />
-        <TaskFact icon={<ReceiptText size={16} aria-hidden="true" />} label="Phí cầu đường VETC" value={formatCurrency(breakdown.tolls)} />
+        <TaskFact icon={<ReceiptText size={16} aria-hidden="true" />} label="Phí cầu đường VETC" value={vetcValue} />
         <TaskFact icon={<Wallet size={16} aria-hidden="true" />} label="Lương chuyến" value={formatCurrency(breakdown.salary)} />
         <TaskFact icon={<HandCoins size={16} aria-hidden="true" />} label="Phụ phí Kẹp" value={formatCurrency(breakdown.surcharge)} />
         <TaskFact icon={<Fuel size={16} aria-hidden="true" />} label="Chi phí dầu" value={formatCurrency(breakdown.fuel)} />

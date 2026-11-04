@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/econ-r4-vetc-salary/frontend
+
+
+ Test Files  7 passed (7)
+      Tests  89 passed (89)
+   Start at  23:02:01
+   Duration  7.29s (transform 3.52s, setup 1.78s, import 17.07s, tests 2.34s, environment 7.42s)
+

@@ -1,0 +1,1 @@
+src/tests/unit/shipment-cost-lock-enforcement.test.ts(83,86): error TS2345: Argument of type 'RegExp' is not assignable to parameter of type 'string'.

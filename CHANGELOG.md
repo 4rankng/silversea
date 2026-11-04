@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-11-04 — fix(economics): SIL-676 r4 + SIL-638 TC3-T3 (id 783/742) — economics cặp hết null lặng: lương/chưa-cấu-hình được ghi thành giá trị tường minh, VETC record 1 lần/cặp có marker lý do
+
+QA pair 30 trên staging e9afda3f (trips 324/325, verdict comment 3832/3833):
+OS-PAIR record + costBreakdown + section Chi phí chuyến đã PASS, NHƯNG
+driverSalary null cả 2 chân, VETC 0 cả 2 chân, tollOnceLeg null, header
+'Chi phí 0'.
+
+- **Root cause** — mọi đường hoàn thành (driver close, POD close, điều vận
+  governed close, routine close) ĐÃ chạy materializer của wave-7; cổng no-op
+  r3 (`!salary.applied && costDelta === 0`) bỏ qua ghi khi staging chưa cấu
+  hình lương nào (route 6 `tolls_stations` null, không setting phụ phí,
+  driver chưa có base_salary), và `pairSettlementEconomics` trả
+  `tollOnceLeg: null` im lặng cho route không trạm. Local PASS trước đó vì
+  mirror đã cấu hình đủ.
+- **R10 lương hết null** — `completionEconomicsWrite` (pure): trường chưa có
+  giá trị luôn được ghi bằng số luật tính, kể cả 0 (D02: zero tính toán là
+  giá trị, null là khoảng trống); stored/governed vẫn thắng; idempotent. Trên
+  staging cấu hình đủ: chân 1 = base/26×ngày công, chân 2 = phụ phí
+  `salary.pair_surcharge_kep`. (S676-R10)
+- **R11 VETC record luôn có** — route có trạm: amount theo cấu hình, không
+  nhân đôi; route không trạm: amount 0 + `tollZeroReason:
+  'route_chua_cau_hinh_tram'` trên settlements + driver detail, note kèm cảnh
+  báo 'Route chưa cấu hình trạm thu VETC — cần nhập để tính'; reconciled
+  claim tài xế vẫn thắng và không mang marker. (S676-R11)
+- **FE** — section Chi phí chuyến hiện cảnh báo cạnh dòng VETC khi route
+  chưa cấu hình trạm (twin constant `VETC_ROUTE_UNCONFIGURED_WARNING`), 0
+  CSS mới.
+
+Evidence: qa/2026-11-04-econ-r4/ (pair 37 shape-staging: salary 0 tường minh
++ marker; pair 40 configured: 384.615/200.000 + VETC 110.000 1 lần + header
+tổng ≠ 0 + ledger 2 chân; UI DRIVEN 390px 13 PASS/0 FAIL). Gates: BE unit
+full 914/914 · scoped 37/37 · FE vitest driver 89 · FE tsc 0 · lint sạch mọi
+file đụng (1 tsc error pre-existing tại base, file lane 679 — xem README).
+Regression: testplan/2026-11-04-sil676-r4-vetc-salary.md (S676-R10/R11).
+
 ## 2026-11-04 — fix(pricing): SIL-676 round-2 (id 783) — snapshot nối giá từ bảng giá dù catalog thiếu lớp xe nền, revenue chuyến hết NO_CARGO_TYPE, /api/settlements đọc được cho admin
 
 QA round-3c trên 386477c2 CONFIRM round-1 đúng 2 phần (/api/pricing

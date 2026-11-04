@@ -182,6 +182,7 @@ describe('Wave 7 — explicit cost breakdown (tolls: 0 is honest, surcharge line
     assert.deepEqual(breakdown, {
       freight: 3_952_000,
       tolls: 0,
+      tollZeroReason: 'route_chua_cau_hinh_tram',
       salary: 0,
       surcharge: 0,
       fuel: 97,
@@ -230,15 +231,16 @@ describe('Wave 7 — pair settlement economics (exactly-one-record facts)', () =
     assert.equal(economics.totalAmount, 692_308);
   });
 
-  test('a route without stations settles VETC honestly at 0 (leg null, not doubled)', () => {
+  test('a route without stations keeps the record on leg 1 — 0 + reason, never null', () => {
     const noToll = tripCostBreakdown({
       revenue: null, driverSalary: null, totalFuelCost: null, totalRoadAllowance: null,
       totalCost: null, tollsStations: null, tollPerStationApplied: null, tollDeduction: null,
       reconciledTollCost: null, pair: null,
     });
     const economics = pairSettlementEconomics(noToll, noToll);
-    assert.equal(economics.tollOnceLeg, null);
+    assert.equal(economics.tollOnceLeg, 1);
     assert.equal(economics.tollAmount, 0);
+    assert.equal(economics.tollZeroReason, 'route_chua_cau_hinh_tram');
   });
 });
 
@@ -254,9 +256,13 @@ describe('Wave 7 — wiring pins (source scans; unit tests never boot db/app)', 
   });
 
   test('the materializer applies salary + toll through the composite patch', () => {
-    assert.match(completionEconomics, /driverSalary: String\(salary\.driverSalary\)/);
-    assert.match(completionEconomics, /tollCost: String\(toll\.tollCost\)/);
-    assert.match(completionEconomics, /tripWageDays: salary\.tripWageDays/);
+    // The write decision is the db-free completionEconomicsWrite (r4): an
+    // unset stored field always rides the patch — 0 is a value, null a gap.
+    assert.match(completionEconomics, /driverSalary: String\(facts\.salary\.driverSalary\)/);
+    assert.match(completionEconomics, /tollCost: String\(facts\.toll\.tollCost\)/);
+    assert.match(completionEconomics, /tripWageDays: facts\.salary\.tripWageDays/);
+    assert.match(completionEconomics, /const salaryUnset = facts\.storedDriverSalary == null/);
+    assert.match(completionEconomics, /const tollUnset = facts\.storedTollCost == null/);
     // External carriers have no driver wage in this model.
     assert.match(completionEconomics, /!== 'OWN'\) return null/);
   });
