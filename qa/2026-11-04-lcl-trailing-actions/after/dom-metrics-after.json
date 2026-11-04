@@ -1,0 +1,999 @@
+{
+  "fcl-1440": {
+    "cells": {
+      "shipment-customer": {
+        "cell": {
+          "x": 270,
+          "y": 213.39,
+          "w": 561.5,
+          "h": 54,
+          "right": 831.5,
+          "left": 270,
+          "top": 213.39,
+          "bottom": 267.39
+        },
+        "control": {
+          "x": 270,
+          "y": 237.39,
+          "w": 561.5,
+          "h": 30,
+          "right": 831.5,
+          "left": 270,
+          "top": 237.39,
+          "bottom": 267.39
+        },
+        "innerInput": {
+          "x": 271,
+          "y": 240.3,
+          "w": 559.5,
+          "h": 24.19,
+          "right": 830.5,
+          "left": 271,
+          "top": 240.3,
+          "bottom": 264.48
+        },
+        "innerPadRight": 44,
+        "button": {
+          "x": 790.5,
+          "y": 237.39,
+          "w": 40,
+          "h": 30,
+          "right": 830.5,
+          "left": 790.5,
+          "top": 237.39,
+          "bottom": 267.39
+        },
+        "buttonPosition": "absolute",
+        "buttonZ": "50",
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-trade-direction": {
+        "cell": {
+          "x": 841.5,
+          "y": 213.39,
+          "w": 561.5,
+          "h": 54,
+          "right": 1403,
+          "left": 841.5,
+          "top": 213.39,
+          "bottom": 267.39
+        },
+        "control": {
+          "x": 841.5,
+          "y": 235.89,
+          "w": 561.5,
+          "h": 30,
+          "right": 1403,
+          "left": 841.5,
+          "top": 235.89,
+          "bottom": 265.89
+        },
+        "innerInput": null,
+        "innerPadRight": null,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-booking-ref": {
+        "cell": {
+          "x": 270,
+          "y": 275.39,
+          "w": 561.5,
+          "h": 76.5,
+          "right": 831.5,
+          "left": 270,
+          "top": 275.39,
+          "bottom": 351.89
+        },
+        "control": {
+          "x": 270,
+          "y": 299.39,
+          "w": 561.5,
+          "h": 30,
+          "right": 831.5,
+          "left": 270,
+          "top": 299.39,
+          "bottom": 329.39
+        },
+        "innerInput": {
+          "x": 271,
+          "y": 300.39,
+          "w": 559.5,
+          "h": 28,
+          "right": 830.5,
+          "left": 271,
+          "top": 300.39,
+          "bottom": 328.39
+        },
+        "innerPadRight": 10,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-shipping-line": {
+        "cell": {
+          "x": 841.5,
+          "y": 275.39,
+          "w": 561.5,
+          "h": 76.5,
+          "right": 1403,
+          "left": 841.5,
+          "top": 275.39,
+          "bottom": 351.89
+        },
+        "control": {
+          "x": 841.5,
+          "y": 299.39,
+          "w": 561.5,
+          "h": 30,
+          "right": 1403,
+          "left": 841.5,
+          "top": 299.39,
+          "bottom": 329.39
+        },
+        "innerInput": {
+          "x": 842.5,
+          "y": 302.3,
+          "w": 559.5,
+          "h": 24.19,
+          "right": 1402,
+          "left": 842.5,
+          "top": 302.3,
+          "bottom": 326.48
+        },
+        "innerPadRight": 44,
+        "button": {
+          "x": 1362,
+          "y": 299.39,
+          "w": 40,
+          "h": 30,
+          "right": 1402,
+          "left": 1362,
+          "top": 299.39,
+          "bottom": 329.39
+        },
+        "buttonPosition": "absolute",
+        "buttonZ": "50",
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-lcl-declaration-number": null
+    },
+    "legacy": {
+      "appendButtonTotal": 0,
+      "actionSlotTotal": 0
+    },
+    "trailing": {
+      "present": 2,
+      "customer": {
+        "x": 790.5,
+        "y": 237.39,
+        "w": 40,
+        "h": 30,
+        "right": 830.5,
+        "left": 790.5,
+        "top": 237.39,
+        "bottom": 267.39
+      }
+    },
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    }
+  },
+  "fcl-768": {
+    "cells": {
+      "shipment-customer": {
+        "cell": {
+          "x": 22,
+          "y": 275.58,
+          "w": 349.5,
+          "h": 68,
+          "right": 371.5,
+          "left": 22,
+          "top": 275.58,
+          "bottom": 343.58
+        },
+        "control": {
+          "x": 22,
+          "y": 299.58,
+          "w": 349.5,
+          "h": 44,
+          "right": 371.5,
+          "left": 22,
+          "top": 299.58,
+          "bottom": 343.58
+        },
+        "innerInput": {
+          "x": 23,
+          "y": 309.48,
+          "w": 347.5,
+          "h": 24.19,
+          "right": 370.5,
+          "left": 23,
+          "top": 309.48,
+          "bottom": 333.67
+        },
+        "innerPadRight": 44,
+        "button": {
+          "x": 330.5,
+          "y": 299.58,
+          "w": 40,
+          "h": 44,
+          "right": 370.5,
+          "left": 330.5,
+          "top": 299.58,
+          "bottom": 343.58
+        },
+        "buttonPosition": "absolute",
+        "buttonZ": "50",
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-trade-direction": {
+        "cell": {
+          "x": 381.5,
+          "y": 275.58,
+          "w": 349.5,
+          "h": 68,
+          "right": 731,
+          "left": 381.5,
+          "top": 275.58,
+          "bottom": 343.58
+        },
+        "control": {
+          "x": 381.5,
+          "y": 298.08,
+          "w": 349.5,
+          "h": 44,
+          "right": 731,
+          "left": 381.5,
+          "top": 298.08,
+          "bottom": 342.08
+        },
+        "innerInput": null,
+        "innerPadRight": null,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-booking-ref": {
+        "cell": {
+          "x": 22,
+          "y": 353.58,
+          "w": 349.5,
+          "h": 90.5,
+          "right": 371.5,
+          "left": 22,
+          "top": 353.58,
+          "bottom": 444.08
+        },
+        "control": {
+          "x": 22,
+          "y": 377.58,
+          "w": 349.5,
+          "h": 44,
+          "right": 371.5,
+          "left": 22,
+          "top": 377.58,
+          "bottom": 421.58
+        },
+        "innerInput": {
+          "x": 23,
+          "y": 378.58,
+          "w": 347.5,
+          "h": 42,
+          "right": 370.5,
+          "left": 23,
+          "top": 378.58,
+          "bottom": 420.58
+        },
+        "innerPadRight": 10,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-shipping-line": {
+        "cell": {
+          "x": 381.5,
+          "y": 353.58,
+          "w": 349.5,
+          "h": 90.5,
+          "right": 731,
+          "left": 381.5,
+          "top": 353.58,
+          "bottom": 444.08
+        },
+        "control": {
+          "x": 381.5,
+          "y": 377.58,
+          "w": 349.5,
+          "h": 44,
+          "right": 731,
+          "left": 381.5,
+          "top": 377.58,
+          "bottom": 421.58
+        },
+        "innerInput": {
+          "x": 382.5,
+          "y": 387.48,
+          "w": 347.5,
+          "h": 24.19,
+          "right": 730,
+          "left": 382.5,
+          "top": 387.48,
+          "bottom": 411.67
+        },
+        "innerPadRight": 44,
+        "button": {
+          "x": 690,
+          "y": 377.58,
+          "w": 40,
+          "h": 44,
+          "right": 730,
+          "left": 690,
+          "top": 377.58,
+          "bottom": 421.58
+        },
+        "buttonPosition": "absolute",
+        "buttonZ": "50",
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-lcl-declaration-number": null
+    },
+    "legacy": {
+      "appendButtonTotal": 0,
+      "actionSlotTotal": 0
+    },
+    "trailing": {
+      "present": 2,
+      "customer": {
+        "x": 330.5,
+        "y": 299.58,
+        "w": 40,
+        "h": 44,
+        "right": 370.5,
+        "left": 330.5,
+        "top": 299.58,
+        "bottom": 343.58
+      }
+    },
+    "viewport": {
+      "w": 768,
+      "h": 1024
+    }
+  },
+  "fcl-390": {
+    "cells": {
+      "shipment-customer": {
+        "cell": {
+          "x": 16,
+          "y": 265.58,
+          "w": 358,
+          "h": 68,
+          "right": 374,
+          "left": 16,
+          "top": 265.58,
+          "bottom": 333.58
+        },
+        "control": {
+          "x": 16,
+          "y": 289.58,
+          "w": 358,
+          "h": 44,
+          "right": 374,
+          "left": 16,
+          "top": 289.58,
+          "bottom": 333.58
+        },
+        "innerInput": {
+          "x": 17,
+          "y": 296.78,
+          "w": 356,
+          "h": 29.59,
+          "right": 373,
+          "left": 17,
+          "top": 296.78,
+          "bottom": 326.38
+        },
+        "innerPadRight": 44,
+        "button": {
+          "x": 333,
+          "y": 289.58,
+          "w": 40,
+          "h": 44,
+          "right": 373,
+          "left": 333,
+          "top": 289.58,
+          "bottom": 333.58
+        },
+        "buttonPosition": "absolute",
+        "buttonZ": "50",
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-trade-direction": {
+        "cell": {
+          "x": 16,
+          "y": 339.58,
+          "w": 358,
+          "h": 66.5,
+          "right": 374,
+          "left": 16,
+          "top": 339.58,
+          "bottom": 406.08
+        },
+        "control": {
+          "x": 16,
+          "y": 362.08,
+          "w": 358,
+          "h": 44,
+          "right": 374,
+          "left": 16,
+          "top": 362.08,
+          "bottom": 406.08
+        },
+        "innerInput": null,
+        "innerPadRight": null,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-booking-ref": {
+        "cell": {
+          "x": 16,
+          "y": 416.08,
+          "w": 358,
+          "h": 90.5,
+          "right": 374,
+          "left": 16,
+          "top": 416.08,
+          "bottom": 506.58
+        },
+        "control": {
+          "x": 16,
+          "y": 440.08,
+          "w": 358,
+          "h": 44,
+          "right": 374,
+          "left": 16,
+          "top": 440.08,
+          "bottom": 484.08
+        },
+        "innerInput": {
+          "x": 17,
+          "y": 441.08,
+          "w": 356,
+          "h": 42,
+          "right": 373,
+          "left": 17,
+          "top": 441.08,
+          "bottom": 483.08
+        },
+        "innerPadRight": 12,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-shipping-line": {
+        "cell": {
+          "x": 16,
+          "y": 512.58,
+          "w": 358,
+          "h": 68,
+          "right": 374,
+          "left": 16,
+          "top": 512.58,
+          "bottom": 580.58
+        },
+        "control": {
+          "x": 16,
+          "y": 536.58,
+          "w": 358,
+          "h": 44,
+          "right": 374,
+          "left": 16,
+          "top": 536.58,
+          "bottom": 580.58
+        },
+        "innerInput": {
+          "x": 17,
+          "y": 543.78,
+          "w": 356,
+          "h": 29.59,
+          "right": 373,
+          "left": 17,
+          "top": 543.78,
+          "bottom": 573.38
+        },
+        "innerPadRight": 44,
+        "button": {
+          "x": 333,
+          "y": 536.58,
+          "w": 40,
+          "h": 44,
+          "right": 373,
+          "left": 333,
+          "top": 536.58,
+          "bottom": 580.58
+        },
+        "buttonPosition": "absolute",
+        "buttonZ": "50",
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-lcl-declaration-number": null
+    },
+    "legacy": {
+      "appendButtonTotal": 0,
+      "actionSlotTotal": 0
+    },
+    "trailing": {
+      "present": 2,
+      "customer": {
+        "x": 333,
+        "y": 289.58,
+        "w": 40,
+        "h": 44,
+        "right": 373,
+        "left": 333,
+        "top": 289.58,
+        "bottom": 333.58
+      }
+    },
+    "viewport": {
+      "w": 390,
+      "h": 844
+    }
+  },
+  "lcl-1440": {
+    "cells": {
+      "shipment-customer": {
+        "cell": {
+          "x": 270,
+          "y": 213.39,
+          "w": 561.5,
+          "h": 54,
+          "right": 831.5,
+          "left": 270,
+          "top": 213.39,
+          "bottom": 267.39
+        },
+        "control": {
+          "x": 270,
+          "y": 237.39,
+          "w": 561.5,
+          "h": 30,
+          "right": 831.5,
+          "left": 270,
+          "top": 237.39,
+          "bottom": 267.39
+        },
+        "innerInput": {
+          "x": 271,
+          "y": 240.3,
+          "w": 559.5,
+          "h": 24.19,
+          "right": 830.5,
+          "left": 271,
+          "top": 240.3,
+          "bottom": 264.48
+        },
+        "innerPadRight": 44,
+        "button": {
+          "x": 790.5,
+          "y": 237.39,
+          "w": 40,
+          "h": 30,
+          "right": 830.5,
+          "left": 790.5,
+          "top": 237.39,
+          "bottom": 267.39
+        },
+        "buttonPosition": "absolute",
+        "buttonZ": "50",
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-trade-direction": {
+        "cell": {
+          "x": 841.5,
+          "y": 213.39,
+          "w": 561.5,
+          "h": 54,
+          "right": 1403,
+          "left": 841.5,
+          "top": 213.39,
+          "bottom": 267.39
+        },
+        "control": {
+          "x": 841.5,
+          "y": 235.89,
+          "w": 561.5,
+          "h": 30,
+          "right": 1403,
+          "left": 841.5,
+          "top": 235.89,
+          "bottom": 265.89
+        },
+        "innerInput": null,
+        "innerPadRight": null,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-booking-ref": {
+        "cell": {
+          "x": 270,
+          "y": 275.39,
+          "w": 561.5,
+          "h": 76.5,
+          "right": 831.5,
+          "left": 270,
+          "top": 275.39,
+          "bottom": 351.89
+        },
+        "control": {
+          "x": 270,
+          "y": 299.39,
+          "w": 561.5,
+          "h": 30,
+          "right": 831.5,
+          "left": 270,
+          "top": 299.39,
+          "bottom": 329.39
+        },
+        "innerInput": {
+          "x": 271,
+          "y": 300.39,
+          "w": 559.5,
+          "h": 28,
+          "right": 830.5,
+          "left": 271,
+          "top": 300.39,
+          "bottom": 328.39
+        },
+        "innerPadRight": 10,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-shipping-line": null,
+      "shipment-lcl-declaration-number": {
+        "cell": {
+          "x": 841.5,
+          "y": 275.39,
+          "w": 561.5,
+          "h": 76.5,
+          "right": 1403,
+          "left": 841.5,
+          "top": 275.39,
+          "bottom": 351.89
+        },
+        "control": {
+          "x": 841.5,
+          "y": 299.39,
+          "w": 561.5,
+          "h": 30,
+          "right": 1403,
+          "left": 841.5,
+          "top": 299.39,
+          "bottom": 329.39
+        },
+        "innerInput": {
+          "x": 842.5,
+          "y": 300.39,
+          "w": 559.5,
+          "h": 28,
+          "right": 1402,
+          "left": 842.5,
+          "top": 300.39,
+          "bottom": 328.39
+        },
+        "innerPadRight": 10,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      }
+    },
+    "legacy": {
+      "appendButtonTotal": 0,
+      "actionSlotTotal": 0
+    },
+    "trailing": {
+      "present": 1,
+      "customer": {
+        "x": 790.5,
+        "y": 237.39,
+        "w": 40,
+        "h": 30,
+        "right": 830.5,
+        "left": 790.5,
+        "top": 237.39,
+        "bottom": 267.39
+      }
+    },
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    }
+  },
+  "lcl-390": {
+    "cells": {
+      "shipment-customer": {
+        "cell": {
+          "x": 16,
+          "y": 319.58,
+          "w": 358,
+          "h": 68,
+          "right": 374,
+          "left": 16,
+          "top": 319.58,
+          "bottom": 387.58
+        },
+        "control": {
+          "x": 16,
+          "y": 343.58,
+          "w": 358,
+          "h": 44,
+          "right": 374,
+          "left": 16,
+          "top": 343.58,
+          "bottom": 387.58
+        },
+        "innerInput": {
+          "x": 17,
+          "y": 350.78,
+          "w": 356,
+          "h": 29.59,
+          "right": 373,
+          "left": 17,
+          "top": 350.78,
+          "bottom": 380.38
+        },
+        "innerPadRight": 44,
+        "button": {
+          "x": 333,
+          "y": 343.58,
+          "w": 40,
+          "h": 44,
+          "right": 373,
+          "left": 333,
+          "top": 343.58,
+          "bottom": 387.58
+        },
+        "buttonPosition": "absolute",
+        "buttonZ": "50",
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-trade-direction": {
+        "cell": {
+          "x": 16,
+          "y": 393.58,
+          "w": 358,
+          "h": 66.5,
+          "right": 374,
+          "left": 16,
+          "top": 393.58,
+          "bottom": 460.08
+        },
+        "control": {
+          "x": 16,
+          "y": 416.08,
+          "w": 358,
+          "h": 44,
+          "right": 374,
+          "left": 16,
+          "top": 416.08,
+          "bottom": 460.08
+        },
+        "innerInput": null,
+        "innerPadRight": null,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-booking-ref": {
+        "cell": {
+          "x": 16,
+          "y": 470.08,
+          "w": 358,
+          "h": 90.5,
+          "right": 374,
+          "left": 16,
+          "top": 470.08,
+          "bottom": 560.58
+        },
+        "control": {
+          "x": 16,
+          "y": 494.08,
+          "w": 358,
+          "h": 44,
+          "right": 374,
+          "left": 16,
+          "top": 494.08,
+          "bottom": 538.08
+        },
+        "innerInput": {
+          "x": 17,
+          "y": 495.08,
+          "w": 356,
+          "h": 42,
+          "right": 373,
+          "left": 17,
+          "top": 495.08,
+          "bottom": 537.08
+        },
+        "innerPadRight": 12,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      },
+      "shipment-shipping-line": null,
+      "shipment-lcl-declaration-number": {
+        "cell": {
+          "x": 16,
+          "y": 566.58,
+          "w": 358,
+          "h": 68,
+          "right": 374,
+          "left": 16,
+          "top": 566.58,
+          "bottom": 634.58
+        },
+        "control": {
+          "x": 16,
+          "y": 590.58,
+          "w": 358,
+          "h": 44,
+          "right": 374,
+          "left": 16,
+          "top": 590.58,
+          "bottom": 634.58
+        },
+        "innerInput": {
+          "x": 17,
+          "y": 591.58,
+          "w": 356,
+          "h": 42,
+          "right": 373,
+          "left": 17,
+          "top": 591.58,
+          "bottom": 633.58
+        },
+        "innerPadRight": 12,
+        "button": null,
+        "buttonPosition": null,
+        "buttonZ": null,
+        "legacySlot": null,
+        "legacySlotCount": 0,
+        "legacyAppendButtons": 0,
+        "placeholderCount": 0,
+        "clearX": null,
+        "hasPopoverListbox": false
+      }
+    },
+    "legacy": {
+      "appendButtonTotal": 0,
+      "actionSlotTotal": 0
+    },
+    "trailing": {
+      "present": 1,
+      "customer": {
+        "x": 333,
+        "y": 343.58,
+        "w": 40,
+        "h": 44,
+        "right": 373,
+        "left": 333,
+        "top": 343.58,
+        "bottom": 387.58
+      }
+    },
+    "viewport": {
+      "w": 390,
+      "h": 844
+    }
+  }
+}

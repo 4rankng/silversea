@@ -1,0 +1,129 @@
+# SIL-681 UI driver — commands + exit status (§9 artifact 4/4)
+PHASE=before FRONT_PORT=7175 node qa/scripts/2026-11-04-sil681-trailing-ui-drive.mjs  -> exit 0 (RESULT GREEN failures=0, served code = worktree HEAD e9afda3f, same commit, clean trunk checkout)
+PHASE=after  FRONT_PORT=7176 node qa/scripts/2026-11-04-sil681-trailing-ui-drive.mjs  -> exit 0 (RESULT GREEN failures=0, vite dev from THIS worktree; first after-run caught a TS annotation syntax error in the .mjs driver itself — fixed, rerun green; drive-only, no product impact)
+
+== BEFORE log ==
+PHASE=before HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7175
+LOGIN ok role=cus account=tiepvv
+DB-BEFORE shipments=858 customers=80 shipping-line-suppliers=1
+W=1440 TAB=FCL legacyAppend=2 legacySlot=4 trailing=0
+SHOT qa/2026-11-04-lcl-trailing-actions/before/2026-11-04_lcl-trailing-actions_ui-before-fcl-1440.png
+W=768 TAB=FCL legacyAppend=2 legacySlot=4 trailing=0
+SHOT qa/2026-11-04-lcl-trailing-actions/before/2026-11-04_lcl-trailing-actions_ui-before-fcl-768.png
+W=390 TAB=FCL legacyAppend=2 legacySlot=4 trailing=0
+SHOT qa/2026-11-04-lcl-trailing-actions/before/2026-11-04_lcl-trailing-actions_ui-before-fcl-390.png
+W=1440 TAB=LCL trailing=0
+SHOT qa/2026-11-04-lcl-trailing-actions/before/2026-11-04_lcl-trailing-actions_ui-before-lcl-1440.png
+METRICS-SAVED qa/2026-11-04-lcl-trailing-actions/before/dom-metrics-before.json
+DB-AFTER shipments=858 customers=80 shipping-line-suppliers=1
+PASS DB: drive không tạo/sửa dữ liệu (read-only layout + dialog-open drive) — 858/80/1 → 858/80/1
+RESULT GREEN failures=0
+
+== AFTER log ==
+PHASE=after HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7176
+LOGIN ok role=cus account=tiepvv
+DB-BEFORE shipments=858 customers=80 shipping-line-suppliers=1
+W=1440 TAB=FCL legacyAppend=0 legacySlot=0 trailing=2
+PASS W1440 '+' Khách hàng: nút trong input (right edge sát mép trong) — btn.right=830.5 ctrl.right=831.5
+PASS W1440 '+' Khách hàng: nút trong input (trong biên trái/phải) — btn.left=790.5 ctrl=[270,831.5]
+PASS W1440 '+' Khách hàng: nút trong dải dọc của input — btn=[237.39,267.39] ctrl=[237.39,267.39]
+PASS W1440 '+' Khách hàng: cùng chiều cao input (±1) — btn.h=30 ctrl.h=30
+PASS W1440 '+' Khách hàng: không còn nút rời (legacy classes) — append=0 slot=0
+PASS W1440 '+' Khách hàng: absolute trailing (không flex sibling) — position=absolute z=50
+PASS W1440 '+' Khách hàng: z-index trên input (click race đã chết) — z=50
+PASS W1440 '+' Khách hàng: input pr ≥ 44 (chữ không chui dưới icon) — pr=44
+PASS W1440 pencil Hãng tàu: nút trong input (right edge sát mép trong) — btn.right=1402 ctrl.right=1403
+PASS W1440 pencil Hãng tàu: nút trong input (trong biên trái/phải) — btn.left=1362 ctrl=[841.5,1403]
+PASS W1440 pencil Hãng tàu: nút trong dải dọc của input — btn=[299.39,329.39] ctrl=[299.39,329.39]
+PASS W1440 pencil Hãng tàu: cùng chiều cao input (±1) — btn.h=30 ctrl.h=30
+PASS W1440 pencil Hãng tàu: không còn nút rời (legacy classes) — append=0 slot=0
+PASS W1440 pencil Hãng tàu: absolute trailing (không flex sibling) — position=absolute z=50
+PASS W1440 pencil Hãng tàu: z-index trên input (click race đã chết) — z=50
+PASS W1440 pencil Hãng tàu: input pr ≥ 44 (chữ không chui dưới icon) — pr=44
+PASS W1440 shipment-customer/shipment-trade-direction: control đầy ô (Δ≤1) — fillΔ shipment-customer=0 shipment-trade-direction=0
+PASS W1440 shipment-booking-ref/shipment-shipping-line: control đầy ô (Δ≤1) — fillΔ shipment-booking-ref=0 shipment-shipping-line=0
+PASS W1440 cùng cột bằng nhau (Δ≤2) — left=561.5/561.5 right=561.5/561.5
+PASS W1440 section hết legacy append/slot — append=0 slot=0
+PASS W1440 trailing actions render (2) — count=2
+PASS W1440 click '+' mở dialog Thêm khách hàng — dialog render
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-kh-dialog-1440.png
+PASS W1440 click '✎' mở dialog Đặt tên hãng tàu — dialog render
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-ht-dialog-1440.png
+PASS Enter search: gõ MSC thấy option MSC trong popover — options=1
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-ht-type-msc-popover.png
+PASS Enter search: Enter commit MSC vào ô Hãng tàu — value=MSC
+PASS Clear X dịch TRÁI nút trailing (không đè) — x.right=1358 btn.left=1362
+PASS Clear X vẫn xoá được giá trị — value=
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-fcl-1440.png
+W=768 TAB=FCL legacyAppend=0 legacySlot=0 trailing=2
+PASS W768 '+' Khách hàng: nút trong input (right edge sát mép trong) — btn.right=370.5 ctrl.right=371.5
+PASS W768 '+' Khách hàng: nút trong input (trong biên trái/phải) — btn.left=330.5 ctrl=[22,371.5]
+PASS W768 '+' Khách hàng: nút trong dải dọc của input — btn=[299.58,343.58] ctrl=[299.58,343.58]
+PASS W768 '+' Khách hàng: cùng chiều cao input (±1) — btn.h=44 ctrl.h=44
+PASS W768 '+' Khách hàng: không còn nút rời (legacy classes) — append=0 slot=0
+PASS W768 '+' Khách hàng: absolute trailing (không flex sibling) — position=absolute z=50
+PASS W768 '+' Khách hàng: z-index trên input (click race đã chết) — z=50
+PASS W768 '+' Khách hàng: input pr ≥ 44 (chữ không chui dưới icon) — pr=44
+PASS W768 pencil Hãng tàu: nút trong input (right edge sát mép trong) — btn.right=730 ctrl.right=731
+PASS W768 pencil Hãng tàu: nút trong input (trong biên trái/phải) — btn.left=690 ctrl=[381.5,731]
+PASS W768 pencil Hãng tàu: nút trong dải dọc của input — btn=[377.58,421.58] ctrl=[377.58,421.58]
+PASS W768 pencil Hãng tàu: cùng chiều cao input (±1) — btn.h=44 ctrl.h=44
+PASS W768 pencil Hãng tàu: không còn nút rời (legacy classes) — append=0 slot=0
+PASS W768 pencil Hãng tàu: absolute trailing (không flex sibling) — position=absolute z=50
+PASS W768 pencil Hãng tàu: z-index trên input (click race đã chết) — z=50
+PASS W768 pencil Hãng tàu: input pr ≥ 44 (chữ không chui dưới icon) — pr=44
+PASS W768 shipment-customer/shipment-trade-direction: control đầy ô (Δ≤1) — fillΔ shipment-customer=0 shipment-trade-direction=0
+PASS W768 shipment-booking-ref/shipment-shipping-line: control đầy ô (Δ≤1) — fillΔ shipment-booking-ref=0 shipment-shipping-line=0
+PASS W768 cùng cột bằng nhau (Δ≤2) — left=349.5/349.5 right=349.5/349.5
+PASS W768 section hết legacy append/slot — append=0 slot=0
+PASS W768 trailing actions render (2) — count=2
+PASS W768 click '+' mở dialog Thêm khách hàng — dialog render
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-kh-dialog-768.png
+PASS W768 click '✎' mở dialog Đặt tên hãng tàu — dialog render
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-ht-dialog-768.png
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-fcl-768.png
+W=390 TAB=FCL legacyAppend=0 legacySlot=0 trailing=2
+PASS W390 '+' Khách hàng: nút trong input (right edge sát mép trong) — btn.right=373 ctrl.right=374
+PASS W390 '+' Khách hàng: nút trong input (trong biên trái/phải) — btn.left=333 ctrl=[16,374]
+PASS W390 '+' Khách hàng: nút trong dải dọc của input — btn=[289.58,333.58] ctrl=[289.58,333.58]
+PASS W390 '+' Khách hàng: cùng chiều cao input (±1) — btn.h=44 ctrl.h=44
+PASS W390 '+' Khách hàng: không còn nút rời (legacy classes) — append=0 slot=0
+PASS W390 '+' Khách hàng: absolute trailing (không flex sibling) — position=absolute z=50
+PASS W390 '+' Khách hàng: z-index trên input (click race đã chết) — z=50
+PASS W390 '+' Khách hàng: input pr ≥ 44 (chữ không chui dưới icon) — pr=44
+PASS W390 pencil Hãng tàu: nút trong input (right edge sát mép trong) — btn.right=373 ctrl.right=374
+PASS W390 pencil Hãng tàu: nút trong input (trong biên trái/phải) — btn.left=333 ctrl=[16,374]
+PASS W390 pencil Hãng tàu: nút trong dải dọc của input — btn=[536.58,580.58] ctrl=[536.58,580.58]
+PASS W390 pencil Hãng tàu: cùng chiều cao input (±1) — btn.h=44 ctrl.h=44
+PASS W390 pencil Hãng tàu: không còn nút rời (legacy classes) — append=0 slot=0
+PASS W390 pencil Hãng tàu: absolute trailing (không flex sibling) — position=absolute z=50
+PASS W390 pencil Hãng tàu: z-index trên input (click race đã chết) — z=50
+PASS W390 pencil Hãng tàu: input pr ≥ 44 (chữ không chui dưới icon) — pr=44
+PASS W390 shipment-customer/shipment-trade-direction: control đầy ô (Δ≤1) — fillΔ shipment-customer=0 shipment-trade-direction=0
+PASS W390 shipment-booking-ref/shipment-shipping-line: control đầy ô (Δ≤1) — fillΔ shipment-booking-ref=0 shipment-shipping-line=0
+PASS W390 cùng cột bằng nhau (Δ≤2) — left=358/358 right=358/358
+PASS W390 section hết legacy append/slot — append=0 slot=0
+PASS W390 trailing actions render (2) — count=2
+PASS W390 click '+' mở dialog Thêm khách hàng — dialog render
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-kh-dialog-390.png
+PASS W390 click '✎' mở dialog Đặt tên hãng tàu — dialog render
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-ht-dialog-390.png
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-fcl-390.png
+W=1440 TAB=LCL trailing=1
+PASS W1440 LCL: '+' Khách hàng nằm trong input — btn.h=30 ctrl.h=30
+PASS W1440 LCL: ô Số tờ khai hết placeholder, full width — placeholder=0 slot=0
+PASS W1440 LCL: control đầy ô (Δ≤1) — fills=0,0,0,0
+PASS W1440 LCL: cùng cột bằng nhau (Δ≤2) — left=561.5/561.5 right=561.5/561.5
+PASS W1440 LCL: Hãng tàu không render (FCL-only) — correct
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-lcl-1440.png
+W=390 TAB=LCL trailing=1
+PASS W390 LCL: '+' Khách hàng nằm trong input — btn.h=44 ctrl.h=44
+PASS W390 LCL: ô Số tờ khai hết placeholder, full width — placeholder=0 slot=0
+PASS W390 LCL: control đầy ô (Δ≤1) — fills=0,0,0,0
+PASS W390 LCL: cùng cột bằng nhau (Δ≤2) — left=358/358 right=358/358
+PASS W390 LCL: Hãng tàu không render (FCL-only) — correct
+SHOT qa/2026-11-04-lcl-trailing-actions/after/2026-11-04_lcl-trailing-actions_ui-after-lcl-390.png
+METRICS-SAVED qa/2026-11-04-lcl-trailing-actions/after/dom-metrics-after.json
+DB-AFTER shipments=858 customers=80 shipping-line-suppliers=1
+PASS DB: drive không tạo/sửa dữ liệu (read-only layout + dialog-open drive) — 858/80/1 → 858/80/1
+RESULT GREEN failures=0

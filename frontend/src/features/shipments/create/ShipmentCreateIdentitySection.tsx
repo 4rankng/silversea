@@ -80,7 +80,7 @@ export function ShipmentCreateIdentitySection({
           khai strip band is retired — declaration entry is per-cont. */}
       <div className="csc-identity-grid csc-identity-grid--contact">
         <div
-          className="csc-identity-grid__customer csc-field-with-append"
+          className="csc-identity-grid__customer csc-field-with-trailing"
           data-field="shipment-customer"
           data-field-id="shipment-customer"
         >
@@ -114,21 +114,22 @@ export function ShipmentCreateIdentitySection({
             type="button"
             onClick={onOpenCustomerDialog}
             disabled={saving}
-            className="csc-append-button csc-identity-grid__action-slot"
+            className="csc-trailing-action"
             aria-label="Thêm khách hàng"
             title="Thêm khách hàng"
           >
-            <Plus size={15} aria-hidden="true" />
+            <Plus size={16} aria-hidden="true" />
           </button>
         </div>
 
-        {/* SIL-641 (id 745) CTO ruling 02/11: every identity cell runs the ONE
-            "control + gap 8 + action slot 36" pattern. This cell has no quick
-            add affordance, so it carries a hidden placeholder slot that holds
-            the same 44px the real button occupies — without it this control
-            would be 595px while its button-bearing peers are 551px and the
-            section reads "one long one short" again. */}
-        <div className="csc-identity-grid__trade-direction csc-field-with-append" data-field-id="shipment-trade-direction">
+        {/* SIL-641 (id 745) equal-width law now holds by construction: every
+            identity cell renders its control at the FULL cell width, so all
+            controls share one right edge without placeholder slots. SIL-681
+            (owner 04/11) retired the "control + gap 8 + action slot 36"
+            pattern — the two quick-add affordances live INSIDE their inputs
+            (trailing actions), so no cell reserves an external 44px any
+            more. */}
+        <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction">
           <SelectField
             id="shipment-trade-direction"
             label="Hình thức xuất nhập khẩu"
@@ -143,10 +144,6 @@ export function ShipmentCreateIdentitySection({
               { value: 'EXPORT', label: 'Xuất khẩu' },
             ]}
           />
-          <span
-            className="csc-identity-grid__action-slot csc-identity-grid__action-slot--placeholder"
-            aria-hidden="true"
-          />
         </div>
       </div>
 
@@ -157,9 +154,9 @@ export function ShipmentCreateIdentitySection({
           hint directly under the picker that sets it. SIL-499: `--refs` =
           wide-band grid hook (column 1). */}
       <div className="csc-identity-grid csc-identity-grid--refs">
-        {/* SIL-641 (id 745): same action slot as every other identity cell —
-            see the note on the trade-direction cell above. */}
-        <div className="csc-identity-grid__booking csc-field-with-append" data-field-id="shipment-booking-ref">
+        {/* SIL-641 (id 745): same full-width law as the trade-direction cell
+            above — see the note there. */}
+        <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref">
           <TextField
             id="shipment-booking-ref"
             label="Số Bill/Booking"
@@ -185,10 +182,6 @@ export function ShipmentCreateIdentitySection({
               ) : undefined
             }
           />
-          <span
-            className="csc-identity-grid__action-slot csc-identity-grid__action-slot--placeholder"
-            aria-hidden="true"
-          />
         </div>
         {/* SIL-678 (customer 04/11, supersedes SIL-673's stacked layout):
             the hàng-lẻ tờ khai cell rides the refs band's RIGHT column —
@@ -198,12 +191,11 @@ export function ShipmentCreateIdentitySection({
             (SIL-601: lẻ = 1 lô 1 cont), same declarationNumber state, same
             shipment_declarations persist path (SIL-660 — no validation, no
             payload change). FCL never renders it (per-cont column stays —
-            SIL-600/SIL-701). The cell keeps the ONE SIL-641 identity
-            pattern: `csc-field-with-append` + hidden 36px placeholder slot
-            so its control ends at the same right edge as every other cell. */}
+            SIL-600/SIL-701). The cell renders its control full width — the
+            SIL-641 shared-right-edge law holds by construction (SIL-681). */}
         {form.cargoMode === 'LCL' && (
           <div
-            className="csc-identity-grid__declaration csc-field-with-append"
+            className="csc-identity-grid__declaration"
             data-field-id="shipment-lcl-declaration-number"
           >
             <TextField
@@ -214,16 +206,12 @@ export function ShipmentCreateIdentitySection({
               disabled={saving}
               error={issueByField.get('shipment-lcl-declaration-number')}
             />
-            <span
-              className="csc-identity-grid__action-slot csc-identity-grid__action-slot--placeholder"
-              aria-hidden="true"
-            />
           </div>
         )}
 
         {form.cargoMode === 'FCL' && (
           <div
-            className="csc-identity-grid__shipping-line csc-field-with-append"
+            className="csc-identity-grid__shipping-line csc-field-with-trailing"
             data-field-id="shipment-shipping-line"
           >
             <SearchableField
@@ -257,11 +245,11 @@ export function ShipmentCreateIdentitySection({
               type="button"
               onClick={onOpenShippingLineDialog}
               disabled={saving}
-              className="csc-append-button csc-identity-grid__action-slot"
+              className="csc-trailing-action"
               aria-label="Đặt tên hãng tàu cho lô này"
               title="Đặt tên hãng tàu cho lô này"
             >
-              <Pencil size={15} aria-hidden="true" />
+              <Pencil size={16} aria-hidden="true" />
             </button>
           </div>
         )}
