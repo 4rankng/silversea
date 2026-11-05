@@ -6,6 +6,7 @@ import type { Executor, Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { assertDriverCostOnOwnCarrier } from './trip-carrier-scope';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { assertExpenseSourceMutable, ensureLegacyExpenseSource, assertActiveExpensePayer, hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
@@ -68,7 +69,15 @@ export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
   }
   if (input.tripId) throw new ApiError(400, 'Liên kết chuyến là thao tác riêng để giữ nguyên lịch sử chi phí.');
   const evidenceOnly = Object.keys(input).every(key => ['expectedVersion', 'reason', 'photoStorageKeys'].includes(key));
-  if (!evidenceOnly) await assertExpenseSourceMutable(tx, before);
+  if (!evidenceOnly) {
+    await assertExpenseSourceMutable(tx, before);
+    // SIL-679 r2 (QA comment 3834 §3a) — the accounting-side money edit is a
+    // lot-cost write: under an ACTIVE cost lock it 409s with the lock
+    // message (the Q5 question the customer verdict answered; the audit
+    // doc's ungated boundary is superseded). Evidence-only edits keep their
+    // existing governance, and the trip-link branch above stays untouched.
+    await assertShipmentCostUnlocked(tx, before.shipmentId);
+  }
   if (input.photoStorageKeys) await assertExpenseEvidenceAttachments(tx, actor, before, input.photoStorageKeys);
   if (input.photoStorageKeys && (before.confirmedAt || before.reconciliationId)
     && before.photoStorageKeys.some(key => !input.photoStorageKeys!.includes(key))) throw new ApiError(409, 'Giữ nguyên chứng từ đã đối chiếu; chỉ bổ sung ảnh.');

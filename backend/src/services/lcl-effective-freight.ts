@@ -34,7 +34,7 @@
 //
 // D02 stays honored: the writers keep citing 0₫ WITH its reason (a computed
 // zero is a value); this rule only governs what a BOARD prints from it.
-import { isRevGroupNote, isRevManualPriceNote, REV_LOT_AWAITING_REPRICE_REASON } from './lcl-rev-notes';
+import { isRevGroupNote, isRevManualClearNote, isRevManualPriceNote, REV_LOT_AWAITING_REPRICE_REASON } from './lcl-rev-notes';
 
 export interface LclFreightChannelFacts {
   /** The snapshot channel as the boards read it: Σ active trip-leg freezes
@@ -70,13 +70,15 @@ export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLcl
     // FB-145 rule 1 — a cited ZERO behind an ungrouped lot is a group
     // artifact (the merge's member-zero tail, the "chờ định giá lại"
     // citation, the moved-out "chuyển 100%" tail): "Chưa xác định", never a
-    // stale 0₫. A cited NON-ZERO is real money the service just moved or
-    // kept on the lot (the FB-095 promote's "Đón cước chính … — 100% cước
-    // thu", the 21/10-era own-cước marker) — it reads (SIL-490: the
-    // promotee's inherited 100% must reach the board or the toast lies).
+    // stale 0₫. SIL-679 r2: the manual-clear citation rides the same law —
+    // clearing the saved "giá nhập tay" with a lane miss must read UNSET,
+    // never the cited 0₫. A cited NON-ZERO is real money the service just
+    // moved or kept on the lot (the FB-095 promote's "Đón cước chính … —
+    // 100% cước thu", the 21/10-era own-cước marker) — it reads (SIL-489/
+    // SIL-490: hiding it made the merge/unmerge toasts lie).
     if (facts.snapshotChannel != null
       && facts.snapshotChannel.total === 0
-      && isRevGroupNote(facts.snapshotChannel.formulaNote)) {
+      && (isRevGroupNote(facts.snapshotChannel.formulaNote) || isRevManualClearNote(facts.snapshotChannel.formulaNote))) {
       return { value: null, reason: null };
     }
     return { value: facts.snapshotChannel?.total ?? null, reason: null };

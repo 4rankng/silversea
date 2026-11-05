@@ -117,6 +117,14 @@ test('Z4-MERGE-5: per-lot rev class needs one of its two money fields; unmerge d
   const manual = setLclLotRevClassSchema.parse({ shipmentId: 242, freightRevenue: 1_200_000 });
   assert.equal(manual.freightRevenue, 1_200_000);
 
+  // SIL-679 r2 (QA comment 3834 §2) — clear intent: explicit null HOẶC ''
+  // preprocessed to null ("Bỏ trống = tự động tra cứu" trên wire), beside the
+  // FB-141 billingTruckNo law.
+  const explicitNull = setLclLotRevClassSchema.parse({ shipmentId: 242, freightRevenue: null });
+  assert.equal(explicitNull.freightRevenue, null);
+  const blank = setLclLotRevClassSchema.parse({ shipmentId: 242, freightRevenue: '  ' });
+  assert.equal(blank.freightRevenue, null);
+
   assert.equal(unmergeLclLotSchema.safeParse({ shipmentId: 242, dimension: 'COST' }).success, true);
   assert.equal(unmergeLclLotSchema.safeParse({ shipmentId: 242, dimension: 'REV' }).success, true);
   assert.equal(unmergeLclLotSchema.safeParse({ shipmentId: 242, dimension: 'cost' }).success, false);

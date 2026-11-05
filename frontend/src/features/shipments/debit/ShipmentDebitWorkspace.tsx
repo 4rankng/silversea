@@ -4,10 +4,12 @@ import {
   adjustShipmentCost,
   getShipmentDebitDetail,
   listShipmentCostAdjustments,
+  listShipmentCostLockHistory,
   lockShipmentCost,
   saveShipmentDebitEdits,
   unlockShipmentCost,
 } from '../../../api/shipmentClient';
+import { formatDateTimeVN } from '../../../lib/format';
 import { useAuth } from '../../../hooks/useAuth';
 import { useActiveQuotationFees } from '../../../hooks/useQuotationQueries';
 import { useReasonPrompt } from '../../../components/reason-prompt';
@@ -127,6 +129,7 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
       setJustLocked(true);
       await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.detail(shipmentId) });
       await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.summaryAll });
+      await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.costLockHistory(shipmentId) });
       onSaved();
     },
   });
@@ -135,7 +138,6 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
   // the backend route (the accounting-lock reopen governance); the mandatory
   // reason rides the house prompt. Shown while a lock is active (`settled`),
   // including the one this screen just took.
-  const canUnlock = role === Role.ADMIN;
   const { toast } = useToast();
   const unlockCost = useMutation({
     mutationFn: (reason: string) => unlockShipmentCost(shipmentId, { reason }, crypto.randomUUID()),
@@ -143,6 +145,7 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
       setJustLocked(false);
       await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.detail(shipmentId) });
       await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.summaryAll });
+      await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.costLockHistory(shipmentId) });
       toast({ kind: 'success', message: `Đã mở khóa chi phí lô ${lotCode ?? `#${shipmentId}`}` });
       onSaved();
     },
@@ -168,6 +171,17 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
     queryKey: qk.shipmentDebit.costAdjustments(shipmentId),
     queryFn: () => listShipmentCostAdjustments(shipmentId),
     enabled: adjustOpen,
+  });
+  // SIL-679 r2 (QA comment 3834 §1b) — "Lịch sử khóa": the lot's khóa/mở
+  // khóa trail on the lot detail. ADMIN-only read (the route gate mirrors
+  // the unlock clearance), fetched whenever an ADMIN opens this workspace —
+  // a lock/unlock through the buttons above invalidates the key like the
+  // other queries, so the section always shows the persisted trail.
+  const canUnlock = role === Role.ADMIN;
+  const lockHistory = useQuery({
+    queryKey: qk.shipmentDebit.costLockHistory(shipmentId),
+    queryFn: () => listShipmentCostLockHistory(shipmentId),
+    enabled: canUnlock,
   });
   const adjustError = adjust.isError && adjust.error instanceof Error ? adjust.error.message : null;
   const lockError = lockCost.isError && lockCost.error instanceof Error ? lockCost.error.message : null;
@@ -204,6 +218,35 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
           {save.isSuccess && <span className="csc-debit-saved" role="status">Đã lưu</span>}
           {save.isError && <span className="csc-debit-save-error" role="alert">Không lưu được — thử lại.</span>}
         </div>
+      )}
+      {/* SIL-679 r2 (QA comment 3834 §1b) — "Lịch sử khóa": the lot's
+          khóa/mở khóa trail (ADMIN-only read, the route's clearance). Static
+          read-only status text — never styled actionable. */}
+      {canUnlock && (
+        <section className="csc-debit-lock-history" aria-label="Lịch sử khóa">
+          <p className="csc-debit-lock-history__title">Lịch sử khóa</p>
+          {lockHistory.isPending && <p className="csc-debit-lock-history__note">Đang tải lịch sử khóa…</p>}
+          {lockHistory.isError && <p className="csc-debit-lock-history__note" role="alert">Không tải được lịch sử khóa.</p>}
+          {lockHistory.data != null && (lockHistory.data.length === 0
+            ? <p className="csc-debit-lock-history__note">Lô chưa từng khóa chi phí.</p>
+            : <>
+              {lockHistory.data[0]?.debitNoteId != null && (
+                <p className="csc-debit-lock-history__note">Lô đang nằm trong Debit Note #{lockHistory.data[0].debitNoteId}</p>
+              )}
+              <ul className="csc-debit-adjust__history">
+                {lockHistory.data.map((event, index) => (
+                  <li key={`${event.lockId}-${event.action}-${index}`}>
+                    <span>{formatDateTimeVN(event.timestamp)}</span>
+                    <span>
+                      {event.action === 'LOCK' ? 'Khóa lô' : 'Mở khóa lô'}
+                      {` — ${event.actorName ?? (event.actorId != null ? `#${event.actorId}` : 'không rõ')}`}
+                      {event.reason ? `: ${event.reason}` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>)}
+        </section>
       )}
       <div className="csc-debit-actions">
         <button type="button" disabled={!settled || !canAdjust} aria-label="Điều chỉnh cước" title={!settled ? 'Chốt số liệu quyết toán trước khi điều chỉnh cước' : !canAdjust ? 'Lô đã khóa hoặc ngoài phạm vi được sửa' : undefined} onClick={() => setAdjustOpen((open) => !open)}>ĐIỀU CHỈNH CƯỚC</button>

@@ -157,10 +157,15 @@ export const setLclLotRevClassSchema = z.object({
   /** Loại xe tính cước thu khách — vehicle_size_classes.id (FB-090 catalog). */
   vehicleSizeClassId: z.number().int().positive().optional(),
   /** Giá cước thu khách nhập tay (VND). Omitted ⇒ auto tra bảng giá theo
-   *  loại xe + ngày của chính lô này. */
-  freightRevenue: z.number().int().min(0).optional(),
+   *  loại xe + ngày của chính lô này. SIL-679 r2 (QA comment 3834 §2):
+   *  explicit `null` HOẶC `''` = XÓA giá đã lưu ("Bỏ trống = tự động tra
+   *  cứu") — the FB-141 billingTruckNo wire law, on the money field. */
+  freightRevenue: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? null : value),
+    z.number().int().min(0).nullable().optional(),
+  ),
 }).refine(
-  (value) => value.vehicleSizeClassId != null || value.freightRevenue != null,
+  (value) => value.vehicleSizeClassId != null || value.freightRevenue !== undefined,
   { message: 'Cần ít nhất Loại xe thu khách hoặc Giá cước thu khách nhập tay' },
 );
 export type SetLclLotRevClassInput = z.infer<typeof setLclLotRevClassSchema>;

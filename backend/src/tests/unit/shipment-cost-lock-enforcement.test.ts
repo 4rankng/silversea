@@ -6,8 +6,10 @@
  * surface now carries — assertShipmentCostUnlocked beside the existing
  * accounting-lock assert, for every member lot of a composition change, with
  * tracking-reality fields (phoi-phieu deposit dates/money-received) left
- * writable. Accounting-origin edits (updateAccountingExpense) are
- * deliberately NOT gated here — that is question Q5 for the customer.
+ * writable. R2 (QA comment 3834): the accounting-origin MONEY edits
+ * (updateAccountingExpense, its composed correction, the phoi-phieu row void
+ * and the ops-side row delete) gate too — the Q5 question the verdict
+ * answered; the trip-link branch and evidence-only edits stay ungated.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -80,7 +82,7 @@ test('forwarder: create/update/delete trip expenses all gate through the trip he
   const del = slice(forwarder, 'export async function deleteTripExpenseInTx', 'export async function getTripExpenseAuditInfo');
   assert.match(del, /await assertTripShipmentAccountingUnlocked\(executor, existing\.tripId\);\s*await assertTripShipmentCostUnlocked\(executor, existing\.tripId\);/);
   // The trips-route hard-delete variant carries the same gate.
-  const guarded = slice(forwarder, 'export async function deleteTripExpenseGuarded', /\n\}/);
+  const guarded = slice(forwarder, 'export async function deleteTripExpenseGuarded', '\n}');
   assert.match(guarded, /await assertTripShipmentAccountingUnlocked\(executor, tripId\);\s*await assertTripShipmentCostUnlocked\(executor, tripId\);/);
 });
 
@@ -90,14 +92,33 @@ test('expense-accounting-reads: an ACTIVE cost lock locks the row so the board d
 });
 
 test('PRD §7.9 boundary: tracking-reality writes stay untouched', () => {
-  // setPhoiPhieuDeposit (dates / money-received) keeps writing under a cost
-  // lock — the PRD keeps thực tế fields open; nothing in its service gates on
-  // the cost lock.
+  // SIL-679 r2 (QA comment 3834 §3b): the phoi-phieu ROW VOID is a lot-cost
+  // write and gates beside the accounting lock. The tracking-reality writes
+  // in the same file — setPhoiPhieuDeposit (dates / money-received) and the
+  // phoi-meta update — stay writing under a cost lock per PRD §7.9: their
+  // slices carry no cost-lock assert.
   const phoiPhieu = read('../../services/phoi-phieu-control.service.ts');
-  assert.doesNotMatch(phoiPhieu, /assertShipmentCostUnlocked/);
+  const voidRow = slice(phoiPhieu, 'export async function voidPhoiPhieuRow', '// ── Card 20260921_14');
+  assert.match(voidRow, /await assertShipmentAccountingUnlocked\(tx, source\.shipmentId\);\s*\/\/ SIL-679 r2[\s\S]*?await assertShipmentCostUnlocked\(tx, source\.shipmentId\);/);
+  const deposit = slice(phoiPhieu, 'export async function setPhoiPhieuDeposit', '\n}');
+  assert.doesNotMatch(deposit, /assertShipmentCostUnlocked/);
+  const meta = slice(phoiPhieu, 'export async function updatePhoiPhieuMeta', '\n}');
+  assert.doesNotMatch(meta, /assertShipmentCostUnlocked/);
 });
 
-test('Q5 boundary: accounting-origin edits stay ungated pending the customer ruling', () => {
+test('SIL-679 r2: accounting-origin money edits gate on the cost lock (QA comment 3834 §3a)', () => {
   const writes = read('../../services/expense-accounting-write.service.ts');
-  assert.doesNotMatch(writes, /assertShipmentCostUnlocked/);
+  // The money branch of updateAccountingExpense (non-evidence-only) refuses
+  // under an ACTIVE cost lock; the correction flow composes this same
+  // function, so điều chỉnh bút toán rides the same boundary.
+  const update = slice(writes, 'export async function updateAccountingExpense', '/** Customer-billing projection');
+  assert.match(update, /if \(!evidenceOnly\) \{\s*await assertExpenseSourceMutable\(tx, before\);\s*\/\/ SIL-679 r2[\s\S]*?await assertShipmentCostUnlocked\(tx, before\.shipmentId\);\s*\}/);
+  // The trip-link branch and evidence-only edits keep their existing
+  // governance — the gate rides the money branch only.
+  const tripLink = slice(update, 'if (input.tripId && Object.keys', 'if (input.tripId) throw');
+  assert.doesNotMatch(tripLink, /assertShipmentCostUnlocked/);
+  // The OPS-side row delete voids lot money too — the same sweep closes it.
+  const opsExpenses = read('../../services/ops-expenses.service.ts');
+  const del = slice(opsExpenses, 'export async function deleteOpsExpense', '/**\n * The same uploaded object');
+  assert.match(del, /await assertShipmentCostUnlocked\(executor, source\.shipmentId\);/);
 });

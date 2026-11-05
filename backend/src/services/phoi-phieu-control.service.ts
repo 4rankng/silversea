@@ -22,6 +22,7 @@ import { createExpenseVoucher, getExpenseCashTotalsBatch } from './expense-accou
 import { FUND_SOURCES } from './treasury-fund-book.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { expenseVndSchema, round2dp, sumExcludingNegative, TripStatus } from '@tingting/shared';
 void expenseVndSchema;
 
@@ -960,6 +961,13 @@ export async function voidPhoiPhieuRow(tripId: number, sourceId: number, actor: 
         inArray(s.expenseAccountingSources.sourceKind, ['OPS', 'DRIVER']))).limit(1).for('update');
     if (!source) throw new ApiError(404, 'Không tìm thấy khoản phí chi hộ.');
     await assertShipmentAccountingUnlocked(tx, source.shipmentId);
+    // SIL-679 r2 (QA comment 3834 §3b) — the void is a lot-cost write (the
+    // row's amount leaves the phoi-phieu totals and its linked trip expense
+    // cancels): under an ACTIVE cost lock it 409s with the lock message,
+    // beside the accounting variant. The tracking-reality writes in this
+    // file (phoi-meta dates, deposit dates/money-received) stay open per
+    // PRD §7.9 — this gate rides the row void only.
+    await assertShipmentCostUnlocked(tx, source.shipmentId);
     if (source.shipmentId !== null) {
       // Card 191026100030 — the trip↔lot match resolves through the
       // fulfillment like every other read in this file; matching on
