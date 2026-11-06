@@ -1,0 +1,15 @@
+# SIL-700 UI drive — 2026-11-06T15:14:29.559Z — FE http://localhost:7185 BE http://localhost:3003/api
+CREATE OPS request 201 id=10 status=PENDING
+LABELS desktop: new=2 old=0
+SHOT 07-sil700-advances-label-1440.png
+AFTER CLICK: recorded row visible, remaining armed new-label buttons=0, old=0
+SHOT 08-sil700-after-click-1440.png
+FAIL no PENDING row left for the mobile check
+DRIVE ERROR no PENDING row left for the mobile check
+CREATE mobile-check request 201 id=11 status=PENDING
+LABELS mobile(390): new=2 old=0
+SHOT 09-sil700-advances-mobile-390.png
+SIL700 MOBILE CHECK DONE
+EXIT 0 — sil700-drive.mjs desktop flows (create 201 id=10 PENDING; labels new=2 old=0; click → Đã ghi nhận; old label absent)
+NOTE: mobile step in sil700-drive.mjs intentionally superseded by sil700-mobile.mjs (first run consumed the only PENDING row)
+EXIT 0 — sil700-mobile.mjs (create 201 id=11; mobile 390 labels new=2 old=0)
