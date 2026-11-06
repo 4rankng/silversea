@@ -122,7 +122,7 @@ describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
     plan.items = [];
   });
 
-  it('default hides the CHỌN column; the toggle reveals it (spec 23/10 §2)', () => {
+  it('default hides the CHỌN LÔ column; the toggle reveals it while PHÂN BỔ NHÀ XE is always visible (SIL-711, spec 23/10 §2)', () => {
     plan.items = [lclItem(), fclItem()];
     mount();
 
@@ -130,10 +130,15 @@ describe('SPEC 18/10/2026 §2.1–2.2 — master-plan LCL grouping', () => {
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(document.querySelector('.master-plan-grid__cell--select')).toBeNull();
     expect(document.querySelector('.master-plan-grid__select-head')).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: /Chọn lô/i })).toBeNull();
+    // Phân bổ nhà xe is always visible
+    expect(screen.getByRole('columnheader', { name: /Phân bổ nhà xe/i })).toBeTruthy();
 
     openMergeMode();
     expect(screen.getByRole('button', { name: 'Thoát gộp hàng' })).toHaveAttribute('aria-pressed', 'true');
     expect(document.querySelector('.master-plan-grid__select-head')).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: /Chọn lô/i })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: /Phân bổ nhà xe/i })).toBeTruthy();
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' })).toBeTruthy();
   });
 

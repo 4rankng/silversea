@@ -1,0 +1,4 @@
+> @tingting/frontend@0.1.0 typecheck
+> tsc -b
+Exit code: 0
+Errors: 0

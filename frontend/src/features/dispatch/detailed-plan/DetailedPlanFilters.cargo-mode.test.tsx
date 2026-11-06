@@ -54,18 +54,18 @@ function openFilterDialog() {
   return screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch' });
 }
 
-describe('DetailedPlanFilters — Loại hàng scope (card 171026154000)', () => {
-  it('rides the quick-filters group beside Điều xe and defaults to Tất cả', () => {
+describe('DetailedPlanFilters — Loại hàng scope (card 171026154000 + SIL-712 Spec I.4c)', () => {
+  it('rides the primary filter bar beside Xuất / Nhập and defaults to Tất cả (Spec I.4c, SIL-712)', () => {
     renderFilters(<DetailedPlanFilters {...baseProps()} />);
+    expect(screen.getByRole('button', { name: 'Loại hàng: Tất cả' })).toBeTruthy();
     const dialog = openFilterDialog();
     expect(withinDialog(dialog, 'Điều xe: Tất cả')).toBeTruthy();
-    expect(withinDialog(dialog, 'Loại hàng: Tất cả')).toBeTruthy();
+    expect(withinDialog(dialog, 'Loại hàng: Tất cả')).toBeNull();
   });
 
   it('picking a mode emits the cargoMode patch; Tất cả clears it back to the unfiltered scope', () => {
     const onChange = vi.fn();
     const { rerender } = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
-    openFilterDialog();
 
     fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Hàng lẻ (LCL)' }));
@@ -84,6 +84,14 @@ describe('DetailedPlanFilters — Loại hàng scope (card 171026154000)', () =>
     fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Hàng lẻ (LCL)' }));
     fireEvent.click(screen.getByRole('option', { name: 'Tất cả' }));
     expect(onChange).toHaveBeenCalledWith({ cargoMode: '' });
+  });
+
+  it('allows selecting Hàng Cont (FCL) (Spec I.4c)', () => {
+    const onChange = vi.fn();
+    renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Tất cả' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Hàng Cont (FCL)' }));
+    expect(onChange).toHaveBeenCalledWith({ cargoMode: 'FCL' });
   });
 
   it('a set mode reaches the API request query and the default omits it', () => {

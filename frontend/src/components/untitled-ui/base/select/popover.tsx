@@ -160,7 +160,7 @@ export const Popover = (props: PopoverProps) => {
             style={fitVarStyle}
             className={(state) =>
                 cx(
-                    "w-(--trigger-width) origin-(--trigger-anchor-point) overflow-x-hidden overflow-y-auto rounded-lg border border-secondary bg-[var(--surface)] py-1 outline-hidden will-change-transform",
+                    "z-[var(--z-popover,400)] w-(--trigger-width) origin-(--trigger-anchor-point) overflow-x-hidden overflow-y-auto rounded-lg border border-secondary bg-[var(--surface)] py-1 outline-hidden will-change-transform",
 
                     state.isEntering &&
                         "duration-150 ease-out animate-in fade-in placement-right:slide-in-from-left-0.5 placement-top:slide-in-from-bottom-0.5 placement-bottom:slide-in-from-top-0.5",

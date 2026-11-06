@@ -128,7 +128,9 @@ interface DetailedPlanGridProps {
       kepWeightWarningConfirmed?: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
-  onOpenTripReassign: (tripId: number) => void;
+  /** SIL-708 — Hủy phân xe flow for live issued trips. */
+  onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
+  onOpenTripReassign?: (tripId: number) => void;
   /** SIL-694 (id 806) — optional: hosts gate it by role (the staff close is
    *  ADMIN/MANAGER/DISPATCHER/CUS only); undefined removes every "Hoàn thành"
    *  affordance below (menu item, card slot, editor button). */
@@ -238,6 +240,7 @@ export function DetailedPlanGrid({
   sortDirection,
   onToggleSort,
   onAtomicSave,
+  onCancelDispatch,
   onOpenTripReassign,
   onCompleteExternalTrip,
   onIssueOrder,
@@ -645,6 +648,7 @@ export function DetailedPlanGrid({
               onToggleLclSelection={onToggleLclSelection}
               onEditPlan={requestEditPlan}
               onChangeGroupTruckInline={openGroupTruckEdit}
+              onCancelDispatch={onCancelDispatch}
               onOpenTripReassign={onOpenTripReassign}
               onOpenPair={onOpenPair}
               onUnmergeLclGroup={onUnmergeLclGroup}
@@ -686,12 +690,7 @@ export function DetailedPlanGrid({
               <tr>
                 {onToggleLclSelection && (
                   <th scope="col" className="detailed-plan-grid__th--select">
-                    {/* SIL-174: same structure as the master-plan header —
-                        visible label first, sr-only " lô" after — so both
-                        screens read the same "Chọn lô" (the old sr-only-first
-                        markup read "Chọn lô Chọn"). */}
-                    Chọn
-                    <span className="sr-only"> lô</span>
+                    Chọn lô
                   </th>
                 )}
                 <th scope="col" aria-sort={sortKey === 'runHour' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
@@ -960,6 +959,7 @@ export function DetailedPlanGrid({
                     <DispatchPlanEditorCell
                       row={row}
                       onAtomicSave={onAtomicSave}
+                      onCancelDispatch={onCancelDispatch}
                       onOpenTripReassign={onOpenTripReassign}
                       onEnsureFulfillment={onEnsureFulfillment}
                       autoOpenFulfillmentId={autoOpenFulfillmentId}
@@ -1103,6 +1103,7 @@ export function DetailedPlanGrid({
                         row={row}
                         onEditPlan={requestEditPlan}
                         onChangeGroupTruckInline={openGroupTruckEdit}
+                        onCancelDispatch={onCancelDispatch}
                         onOpenTripReassign={onOpenTripReassign}
                         onOpenPair={onOpenPair}
                         onUnmergeLclGroup={onUnmergeLclGroup}

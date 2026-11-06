@@ -474,10 +474,16 @@ export async function transitionTripStatus(
       // Falls through to the generic status update below; the financial posting
       // + postTripCompletion + captureSnapshot fire in the post-update block.
     } else if (targetStatus === TripStatus.CANCELED) {
-      if (userRole !== Role.ADMIN && userRole !== Role.MANAGER) {
+      // SIL-708: For uncompleted trips (dispatch cancellation), DISPATCHER is
+      // authorized to cancel the trip so the lot returns to unallocated state.
+      const allowedRoles: string[] = [Role.ADMIN, Role.MANAGER];
+      if (currentStatus !== TripStatus.COMPLETED) {
+        allowedRoles.push(Role.DISPATCHER);
+      }
+      if (!allowedRoles.includes(userRole)) {
         throw new ApiError(
           403,
-          'Chỉ Quản lý hoặc Quản trị viên mới có quyền hủy chuyến đi',
+          'Chỉ Điều vận, Quản lý hoặc Quản trị viên mới có quyền hủy chuyến đi',
         );
       }
       if (currentStatus === TripStatus.COMPLETED) {

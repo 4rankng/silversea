@@ -101,8 +101,10 @@ interface DispatchPlanEditorCellProps {
       kepWeightWarningConfirmed?: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
-  /** Opens the governed trip reassignment flow after an order is issued. */
-  onOpenTripReassign: (tripId: number) => void;
+  /** SIL-708 — Hủy phân xe flow for live issued trips (replaces Phân xe lại). */
+  onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
+  /** Opens the governed trip reassignment flow after an order is issued (legacy/compat). */
+  onOpenTripReassign?: (tripId: number) => void;
   /** Staff close for external-carrier trips: opens the confirm dialog so
    *  dispatch/CUS can complete the trip the external driver can't (no app). */
   onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
@@ -250,7 +252,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * hợp flag is CUS-owned and has no control here — the checkbox was removed as
  * redundant with the Kết hợp classification.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, openRequest, onOpenRequestConsumed, disabled = false }: DispatchPlanEditorCellProps) {
+export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, openRequest, onOpenRequestConsumed, disabled = false }: DispatchPlanEditorCellProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlanEditorDraft>(() => draftForRow(row));
   // Live completeness of the Giờ điều vận segments ('complete' | 'empty' |
@@ -598,7 +600,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
     // live-trip guard rejects any plan save, so the editor must never open.
     const liveTripId = row.dispatch.tripId;
     if (liveTripId != null && canReassignIssuedTrip(row)) {
-      onOpenTripReassign(liveTripId);
+      if (onCancelDispatch) {
+        onCancelDispatch(row);
+      } else {
+        onOpenTripReassign?.(liveTripId);
+      }
       return;
     }
     if (row.taskStatus === 'COMPLETED') return;
@@ -894,10 +900,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
           onClick={openEditor}
           aria-haspopup="dialog"
           aria-label={canReassign
-            ? `Phân xe lại · ${row.dispatch.carrierName ?? 'Chưa phân nhà xe'} · ${identity}`
+            ? `Hủy phân xe · ${row.dispatch.carrierName ?? 'Chưa phân nhà xe'} · ${identity}`
             : `Sửa điều phối · ${row.dispatch.carrierName ?? 'Chưa phân nhà xe'} · ${identity}`}
           title={canReassign
-            ? 'Phân xe lại trước khi chuyến xuất phát'
+            ? 'Hủy phân xe trước khi chuyến xuất phát để phân xe mới'
             : `Bấm để phân nhà xe / sửa điều phối · ${identity}`}
         >
           {row.dispatch.carrierName ?? 'Chưa phân nhà xe'}

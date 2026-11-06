@@ -1,0 +1,5 @@
+> tingting@ lint
+> eslint .
+
+✖ 6 problems (0 errors, 6 warnings)
+Exit code: 0

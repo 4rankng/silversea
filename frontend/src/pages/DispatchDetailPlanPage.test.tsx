@@ -77,7 +77,7 @@ const useTripDetailMock = vi.hoisted(() => vi.fn());
 vi.mock('../hooks/useTripQueries', () => ({ useTripDetail: useTripDetailMock }));
 
 vi.mock('../api/tripClient', () => ({
-  tripClient: { getTrip: vi.fn(), createPair: vi.fn() },
+  tripClient: { getTrip: vi.fn(), createPair: vi.fn(), cancelTrip: vi.fn().mockResolvedValue({}) },
 }));
 
 import { tripClient } from '../api/tripClient';
@@ -260,6 +260,25 @@ describe('DispatchDetailPlanPage — external completion role gate (SIL-694)', (
     expect(screen.queryByRole('menuitem', { name: 'Hoàn thành' })).toBeNull();
     // The menu itself still renders its other verbs — the gate hides one
     // affordance, not the row's whole action surface.
-    expect(screen.getByRole('menuitem', { name: 'Phân xe lại' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
+  });
+
+  it('SIL-708: clicking Hủy phân xe opens confirm dialog, and on confirm cancels the trip and refreshes plan', async () => {
+    auth.role = 'DISPATCHER';
+    plan.items = [externalDispatchedRow()];
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng · TGHU/ }));
+    const cancelMenuBtn = screen.getByRole('menuitem', { name: 'Hủy phân xe' });
+    expect(cancelMenuBtn).toBeTruthy();
+    fireEvent.click(cancelMenuBtn);
+
+    expect(screen.getByText(/Bạn có chắc chắn muốn hủy phân xe cho lô/)).toBeTruthy();
+    const confirmBtn = screen.getByRole('button', { name: 'Hủy phân xe' });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(tripClient.cancelTrip).toHaveBeenCalledWith(900);
+      expect(plan.refresh).toHaveBeenCalled();
+    });
   });
 });
