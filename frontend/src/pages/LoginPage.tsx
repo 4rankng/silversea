@@ -29,6 +29,21 @@ export default function LoginPage() {
   };
   const busy = useRef(false);
   const clearError = () => { setError(''); setCredentialError(false); setFieldError(null); };
+  // SIL-689 (id 801, hồi quy R17/R22): the Đăng nhập button is disabled while
+  // either field is empty — this supersedes SIL-563's "always enabled while
+  // typing" (owner ruling 06/11). The validate-on-submit path below stays:
+  // it still fires when a submit is dispatched some other way (state lags the
+  // DOM, programmatic submit), so missing-field errors remain reachable.
+  // QA1-003 guard rides along: form-level input events (autofill fires them)
+  // sync the state, so an autofilled form re-enables the button without a
+  // keystroke; the live-DOM read inside submit() stays as the last resort.
+  const canSubmit = username.trim().length > 0 && password.length > 0;
+  const syncLiveInputs = () => {
+    const liveUsername = (document.getElementById('username-input') as HTMLInputElement | null)?.value ?? '';
+    const livePassword = (document.getElementById('password-input') as HTMLInputElement | null)?.value ?? '';
+    if (liveUsername && !username.trim()) setUsername(liveUsername);
+    if (livePassword && !password) setPassword(livePassword);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +111,7 @@ export default function LoginPage() {
           </header>
 
           <div className="login-form-wrap">
-            <form className="login-form" onSubmit={submit} noValidate aria-busy={submitting}>
+            <form className="login-form" onSubmit={submit} onInput={syncLiveInputs} noValidate aria-busy={submitting}>
               <div className="login-intro">
                 <p className="login-eyebrow">Cổng vận hành</p>
                 <h1 id="login-title">Chào mừng trở lại</h1>
@@ -173,7 +188,7 @@ export default function LoginPage() {
                 className="login-submit"
                 icon={!submitting ? <ArrowRight size={18} aria-hidden="true" /> : undefined}
                 type="submit"
-                disabled={submitting}
+                disabled={submitting || !canSubmit}
               >
                 {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
               </Btn>
