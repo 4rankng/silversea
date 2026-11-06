@@ -607,11 +607,22 @@ describe('create-page whole-sheet density (SIL-534)', () => {
     expect(restRule).toContain('position: absolute');
     expect(restRule).toContain('opacity: 0');
     expect(restRule).toContain('pointer-events: none');
+    // SIL-692 (FB-129): the rest card owns no phantom geometry either —
+    // a 0×0 collapsed box (still focusable children, sr-only pattern) so a
+    // new row's invisible Lưu button can never hold a bounding box down
+    // inside the Ghi chú heading (elementFromPoint used to answer the
+    // heading there and clicks retried for 30s).
+    expect(restRule).toContain('width: 0');
+    expect(restRule).toContain('height: 0');
+    expect(restRule).toContain('overflow: hidden');
     // Open: the drawer editor's chrome on fixed coordinates — the floating
-    // editor never lives inside the table's layout or its scroll box clip.
+    // editor never lives inside the table's layout or its scroll box clip,
+    // and the open card restores the real 300px chrome dimensions the rest
+    // state collapses.
     const openIdx = css.indexOf('.csc-fline__card.is-open');
     const openRule = css.slice(openIdx, css.indexOf('}', openIdx));
     expect(openRule).toContain('position: fixed');
+    expect(openRule).toContain('width: 300px');
     expect(openRule).toContain('z-index');
     expect(openRule).toContain('border: 1px solid var(--brand)');
     // The arrow only exists on the open card (it points at the line).

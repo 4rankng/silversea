@@ -932,22 +932,38 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 300px;
-  max-width: calc(100vw - 24px);
-  padding: 8px 10px;
+  /* SIL-692 (FB-129, id 804 — QA 06/11): at rest the editor owns NO
+     geometry outside its own line. The old rest state kept this 300px card
+     absolutely positioned below the trigger, so a new row's invisible Lưu
+     button held a real bounding box down inside the Ghi chú heading —
+     elementFromPoint there returned the heading and clicks on the selector
+     retried for 30s. The editor stays MOUNTED and in the a11y/Tab walk
+     (the SIL-552 mount contract, reveal-on-focus, react-aria's constraint
+     walk) — only the phantom box collapses: 0×0 + overflow hidden keeps
+     every child focusable (the sr-only pattern) while giving the line no
+     hit-testable surface elsewhere. `.is-open` below overrides the whole
+     dimension set onto the fixed chrome. */
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  padding: 0;
   opacity: 0;
   pointer-events: none;
 }
 .csc-fline__card.is-open {
   position: fixed;
   z-index: var(--z-popover, 90);
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  height: auto;
+  overflow: clip;
+  padding: 8px 10px;
   opacity: 1;
   pointer-events: auto;
   background: var(--surface);
   border: 1px solid var(--brand);
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
-  overflow: clip;
   overflow-clip-margin: 12px;
 }
 .csc-fline__arrow {
