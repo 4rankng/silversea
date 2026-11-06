@@ -129,6 +129,15 @@ export interface FilterBarProps {
   status?: ReactNode;
   /** Right-side actions (reset, export) — pinned to the right end. */
   actions?: ReactNode;
+  /**
+   * Desktop (≥1280px) row-budget override. FB-056 (06/11): the dispatch
+   * toolbars (/dispatch, /dispatch-detail) are ruled to ONE line at 1440 and
+   * 1920 — the band folds its criteria (and, one rung deeper, the quick
+   * ranges) until a single row holds, exactly like the sub-1280 ladder does.
+   * The default stays the 2026-10-02 decision (3 inline rows from 1280, 2
+   * below); only surfaces with an explicit owner ruling pass this.
+   */
+  desktopMaxRows?: number;
 }
 
 export interface FilterBarColumns {
@@ -142,7 +151,7 @@ export interface FilterBarColumns {
   onReset: () => void;
 }
 
-export function FilterBar({ search, children, fold, columns, presets, quickFilters, quickFiltersLabel, status, actions }: FilterBarProps) {
+export function FilterBar({ search, children, fold, columns, presets, quickFilters, quickFiltersLabel, status, actions, desktopMaxRows }: FilterBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   const searchErrorId = useId();
   // Owner decision 2026-10-02 (law anchor 7cc800b0): filters stay visible when
@@ -158,8 +167,9 @@ export function FilterBar({ search, children, fold, columns, presets, quickFilte
   // that tree, not a property of this change.
   const wideBudget = useMediaQuery('(min-width: 1280px)');
   // Keep every criterion inline while the strip still fits its row budget; fold
-  // them into `Bộ lọc` only when the width leaves no other choice.
-  const mode = useFilterBarFit(barRef, wideBudget ? 3 : 2);
+  // them into `Bộ lọc` only when the width leaves no other choice. A surface
+  // with an owner one-line ruling (FB-056) lowers the desktop budget to 1.
+  const mode = useFilterBarFit(barRef, wideBudget ? (desktopMaxRows ?? 3) : 2);
   // The picker is ONE node in TWO possible homes: rendered here while the strip
   // is inline, and published to `FilterDropdown` (which renders it in the dialog
   // panel) once the width folds the criteria there. Exactly one instance exists
@@ -215,6 +225,12 @@ export function FilterBar({ search, children, fold, columns, presets, quickFilte
             inlineWhenRoom={!fold.neverInline}
             primary={fold.primary}
             primaryCount={fold.primaryCount}
+            // The band hides its own presets slot at `dialog-presets` — the
+            // SAME node then rides the fold's dialog body, so the quick
+            // ranges are reachable at the deepest rung too (one copy either
+            // way: the slot renders at inline/dialog, the dialog body at
+            // dialog-presets).
+            presets={presets}
           >
             {fold.criteria}
           </FilterDropdown>

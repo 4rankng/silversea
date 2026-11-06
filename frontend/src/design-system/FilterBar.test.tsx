@@ -237,8 +237,10 @@ describe('FilterBar fold — the law is structural (card 20260930_229)', () => {
     expect(bandSource).toMatch(/inlineWhenRoom=\{!fold\.neverInline\}/);
     // The row budget is the band's own measurement. The call takes the budget
     // explicitly, so pin the call — not an exact arity — or widening the band
-    // to three lines reads as a regression here.
-    expect(bandSource).toMatch(/useFilterBarFit\(barRef,\s*wideBudget\s*\?\s*3\s*:\s*2\)/);
+    // to three lines reads as a regression here. FB-056 (06/11): a surface may
+    // lower the DESKTOP budget (`desktopMaxRows`) — the default ladder (3 wide,
+    // 2 narrow) is untouched.
+    expect(bandSource).toMatch(/useFilterBarFit\(barRef,\s*wideBudget\s*\?\s*\(desktopMaxRows \?\? 3\)\s*:\s*2\)/);
     // Signature-agnostic: what the law needs is the TWO-line default, not the
     // absence of a type annotation on the ref parameter.
     expect(modeSource).toMatch(/useFilterBarFit\([^)]*maxLines = 2\)/);

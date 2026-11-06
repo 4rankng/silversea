@@ -1,0 +1,49 @@
+login ok → /dispatch
+shot → /Users/dev/.paseo/worktrees/dispatch/qa/2026-11-06-lane-dispatch/685-686-detail-1440.png
+PASS  SIL-685 /dispatch-detail@1440: toolbar is ONE visual row (h=48, rows=1)
+PASS  SIL-685 /dispatch-detail@1440: toolbar height in the 44–48px band (h=48)
+PASS  SIL-686 /dispatch-detail@1440: every header one line (thead h=45, non-nowrap: [])
+info /dispatch-detail@1440: rows=50
+shot → /Users/dev/.paseo/worktrees/dispatch/qa/2026-11-06-lane-dispatch/685-dispatch-1440.png
+PASS  SIL-685 /dispatch@1440: toolbar is ONE visual row (h=46, rows=1)
+PASS  SIL-685 /dispatch@1440: toolbar height in the 44–48px band (h=46)
+info /dispatch@1440: rows=20
+shot → /Users/dev/.paseo/worktrees/dispatch/qa/2026-11-06-lane-dispatch/685-686-detail-1920.png
+PASS  SIL-685 /dispatch-detail@1920: toolbar is ONE visual row (h=48, rows=1)
+PASS  SIL-685 /dispatch-detail@1920: toolbar height in the 44–48px band (h=48)
+PASS  SIL-686 /dispatch-detail@1920: every header one line (thead h=45, non-nowrap: [])
+info /dispatch-detail@1920: rows=50
+shot → /Users/dev/.paseo/worktrees/dispatch/qa/2026-11-06-lane-dispatch/685-dispatch-1920.png
+PASS  SIL-685 /dispatch@1920: toolbar is ONE visual row (h=46, rows=1)
+PASS  SIL-685 /dispatch@1920: toolbar height in the 44–48px band (h=46)
+info /dispatch@1920: rows=20
+PASS  API identity: dispatch-detail-plan-rows answered 200 (8 calls, last q=page=1&limit=20&status=READY_FOR_DISPATCH%2CDISPATCHED%2CIN_TRANSIT%2CCOMPLETED&includeDispatchSummary=true)
+api calls: [{"q":"page=1&limit=50&dateFrom=2026-11-01&dateTo=2026-11-30","status":200},{"q":"page=1&limit=20&status=READY_FOR_DISPATCH%2CDISPATCHED%2CIN_TRANSIT%2CCOMPLETED&includeDispatchSummary=true","status":200},{"q":"page=1&limit=20&status=READY_FOR_DISPATCH%2CDISPATCHED%2CIN_TRANSIT%2CCOMPLETED&includeDispatchSummary=true","status":200}]
+exit 0
+login ok → /dispatch
+shot → /Users/dev/.paseo/worktrees/dispatch/qa/2026-11-06-lane-dispatch/685-686-detail-1440.png
+PASS  SIL-685 /dispatch-detail@1440: toolbar is ONE visual row (h=48, rows=1)
+PASS  SIL-685 /dispatch-detail@1440: toolbar height in the 44–48px band (h=48)
+PASS  SIL-686 /dispatch-detail@1440: every header one line (thead h=45, non-nowrap: [])
+info /dispatch-detail@1440: rows=50
+shot → /Users/dev/.paseo/worktrees/dispatch/qa/2026-11-06-lane-dispatch/685-dispatch-1440.png
+PASS  SIL-685 /dispatch@1440: toolbar is ONE visual row (h=46, rows=1)
+PASS  SIL-685 /dispatch@1440: toolbar height in the 44–48px band (h=46)
+info /dispatch@1440: rows=20
+shot → /Users/dev/.paseo/worktrees/dispatch/qa/2026-11-06-lane-dispatch/685-686-detail-1920.png
+PASS  SIL-685 /dispatch-detail@1920: toolbar is ONE visual row (h=48, rows=1)
+PASS  SIL-685 /dispatch-detail@1920: toolbar height in the 44–48px band (h=48)
+PASS  SIL-686 /dispatch-detail@1920: every header one line (thead h=45, non-nowrap: [])
+info /dispatch-detail@1920: rows=50
+shot → /Users/dev/.paseo/worktrees/dispatch/qa/2026-11-06-lane-dispatch/685-dispatch-1920.png
+PASS  SIL-685 /dispatch@1920: toolbar is ONE visual row (h=46, rows=1)
+PASS  SIL-685 /dispatch@1920: toolbar height in the 44–48px band (h=46)
+info /dispatch@1920: rows=20
+PASS  API identity: dispatch-detail-plan-rows answered 200 (8 calls, last q=page=1&limit=20&status=READY_FOR_DISPATCH%2CDISPATCHED%2CIN_TRANSIT%2CCOMPLETED&includeDispatchSummary=true)
+api calls: [{"q":"page=1&limit=50&dateFrom=2026-11-01&dateTo=2026-11-30","status":200},{"q":"page=1&limit=20&status=READY_FOR_DISPATCH%2CDISPATCHED%2CIN_TRANSIT%2CCOMPLETED&includeDispatchSummary=true","status":200},{"q":"page=1&limit=20&status=READY_FOR_DISPATCH%2CDISPATCHED%2CIN_TRANSIT%2CCOMPLETED&includeDispatchSummary=true","status":200}]
+PASS  SIL-685 dialog opens from the one-line toolbar
+PASS  SIL-685 day scope reachable inside Bộ lọc at the folded width
+PASS  SIL-685 folded range filters the board (first row 01/11/2026 09:00 → 05/11/2026 00:08)
+PASS  SIL-685 list API carried the typed range (q=page=1&limit=50&dateFrom=2026-11-05&dateTo=2026-11-30)
+shot → /Users/dev/.paseo/worktrees/dispatch/qa/2026-11-06-lane-dispatch/685-detail-dialog-range-1440.png
+exit 0

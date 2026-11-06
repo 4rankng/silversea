@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/dispatch/frontend
+
+
+ Test Files  135 passed (135)
+      Tests  1326 passed (1326)
+   Start at  13:25:34
+   Duration  229.72s (transform 12.32s, setup 64.67s, import 332.89s, tests 416.07s, environment 288.49s)
+
+VITEST_EXIT=0

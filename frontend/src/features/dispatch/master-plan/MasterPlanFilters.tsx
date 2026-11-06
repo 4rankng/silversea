@@ -306,6 +306,11 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
         error: masterPlanSearchError(filters.q),
       }}
       actions={action}
+      // FB-056 (06/11): the dispatch toolbars are ONE line at 1440/1920 —
+      // the band folds the primary criteria (Xuất/Nhập, Phân xe, Loại hàng)
+      // into `Bộ lọc` once the width cannot hold them beside the from/to
+      // group and the action cluster on that single row.
+      desktopMaxRows={1}
       fold={{
         // Card 20261002_282 (R17): direction and allocation status are the
         // basic criteria — they ride the bar while it has room, beside the

@@ -1,12 +1,13 @@
 // SIL-515 (owner 26/10 — "CẤM truncate TOÀN BẢNG"): the column-floor +
 // wrap contract of the grid Điều vận Chi tiết. The 23/10 one-line/ellipsis
 // law is REVOKED: the table keeps its horizontal rail (fixed layout +
-// min-width floor + the wrapper's overflow rail) but every cell now WRAPS
-// its full text — ellipsis, clipping overflow and -webkit-line-clamp are
-// banned table-wide, and a nowrap line in a fixed-layout column is the
+// min-width floor + the wrapper's overflow rail) but every VALUE cell now
+// WRAPS its full text — ellipsis, clipping overflow and -webkit-line-clamp
+// are banned table-wide, and a nowrap line in a fixed-layout column is the
 // exact mechanism that painted "Ngày giao 23/10/2026" over the next
-// column. Headers wrap at spaces without a clamp; actions live in ONE
-// sticky-right column.
+// column. SIL-686 (06/11, FB-063) revokes the wrap allowance for HEADERS:
+// a header is ALWAYS one line, paid by the SIL-686 share rebalance; value
+// cells keep wrapping. Actions live in ONE sticky-right column.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -21,11 +22,11 @@ function columnShare(name: string): number {
   return Number(match?.[1] ?? 0);
 }
 
-const TABLE_MIN_WIDTH = 1340;
+const TABLE_MIN_WIDTH = 1520;
 
 describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 23/10)', () => {
   it('gives the table a min-width floor so every column keeps its one-line budget', () => {
-    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1340px;/);
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1520px;/);
     // Master-plan lane fix (same defect class, MP-RD-03 probe): the wrapper
     // is a BOUNDED PANE owning both scrolls — `overflow: auto` + the dvh
     // bound. The old `overflow-x: auto / overflow-y: clip` pair computed to
@@ -53,13 +54,30 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     // rail hosts at most TWO STACKED buttons — the 30px ⋯ trigger (or the
     // 28px Phát lệnh icon) + 2×8px cell padding + 1px sticky border ≈ 47px —
     // because "Hoàn thành" moved INTO the ⋯ menu. The rail stays a NARROW
-    // strip: never grows back into a pill-width budget.
+    // strip: never grows back into a pill-width budget. SIL-686 (06/11)
+    // raises the share to 5.7% (~87px) so the one-line "THAO TÁC" header
+    // (81px measured) rides it — still far under the retired 10.75% pill
+    // budget.
     expect(width('actions')).toBeGreaterThanOrEqual(47);
-    expect(width('actions')).toBeLessThanOrEqual(4.2 * TABLE_MIN_WIDTH / 100);
+    expect(width('actions')).toBeLessThanOrEqual(6 * TABLE_MIN_WIDTH / 100);
     // The formerly-fat columns came back to content budgets (owner spec
-    // addendum: "cột phình thu lại vừa nội dung").
-    expect(columnShare('schedule')).toBeLessThanOrEqual(10.5);
+    // addendum: "cột phình thu lại vừa nội dung"). SIL-686 (06/11, FB-063):
+    // one-line HEADERS raise schedule to 11.9% — the measured one-line
+    // "THỜI GIAN & LỊCH TRÌNH" label (174px) rides it; still below the old
+    // 17% defect and below route's own ceiling.
+    expect(columnShare('schedule')).toBeLessThanOrEqual(12.5);
     expect(columnShare('route')).toBeLessThanOrEqual(14);
+  });
+
+  it('SIL-686 (FB-063): every header is ONE line — the th carries the nowrap', () => {
+    const thRule = css.match(/\.detailed-plan-grid thead th \{([^}]*)\}/)?.[1] ?? '';
+    expect(thRule, 'the header rule must exist').not.toBe('');
+    expect(thRule).toContain('white-space: nowrap');
+    expect(thRule).not.toContain('white-space: normal');
+    // An oversized single token overflows visibly instead of chopping
+    // mid-token (the shared table-sort.css law).
+    expect(thRule).toContain('overflow-wrap: normal');
+    expect(thRule).toContain('word-break: normal');
   });
 
   it('sizes rows to wrapped content — the FB-043 fixed-height clip is gone and no line truncates (SIL-515)', () => {
@@ -99,8 +117,9 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     // the grid tests); the cell keeps ONE "Lẻ" (the classification span).
     expect(css).not.toContain("'Lẻ · Ghép (");
     expect(css).not.toContain('"Lẻ · Ghép (');
-    // 7% ≈ 94px at the 1340px floor — "PHÂN LOẠI" fits one line.
-    expect(columnShare('classification')).toBe(7);
+    // 6% ≈ 91px at the 1520px floor — "PHÂN LOẠI" fits one line (SIL-686
+    // rebalance; the measured one-line label is 85px).
+    expect(columnShare('classification')).toBe(6);
     // The 0.9% came back off Container, keeping the sum at exactly 100.
     const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'classification', 'notes', 'actions'];
     const total = names.map((name) => columnShare(name)).reduce((sum, share) => sum + share, 0) + columnShare('ports');

@@ -275,25 +275,31 @@ describe('DetailedPlanGrid', () => {
     });
 
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
-    // Owner spec floors at the 1340px table minimum: Khách hàng ≥180px,
+    // Owner spec floors, now at the 1520px table minimum (SIL-686 raised the
+    // floor to pay the measured one-line header widths): Khách hàng ≥180px,
     // Điều phối ≥200px (SĐT one line), Ghi chú ≥160px; the formerly-fat
     // schedule/route columns came back to content budgets.
-    expect(widths[columnNames.indexOf('route')] * 13.4).toBeGreaterThanOrEqual(180);
-    expect(widths[columnNames.indexOf('assignment')] * 13.4).toBeGreaterThanOrEqual(200);
-    expect(widths[columnNames.indexOf('notes')] * 13.4).toBeGreaterThanOrEqual(160);
-    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1340px;/);
+    expect(widths[columnNames.indexOf('route')] * 15.2).toBeGreaterThanOrEqual(180);
+    expect(widths[columnNames.indexOf('assignment')] * 15.2).toBeGreaterThanOrEqual(200);
+    expect(widths[columnNames.indexOf('notes')] * 15.2).toBeGreaterThanOrEqual(160);
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1520px;/);
     expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);
     // The squeezed-table card bands are gone; the <640px surface is the
     // dedicated card list (DispatchPlanCardList).
     expect(css).not.toContain('@container (max-width: 900px)');
   });
 
-  it('lets header labels wrap at spaces, fully visible — never nowrap, never a "…" cut, no clamp (SIL-515)', () => {
+  it('SIL-686 (FB-063): header labels are ONE line — nowrap, never a "…" cut, no clamp', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const headerRule = css.match(/\.detailed-plan-grid thead th \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(headerRule).toContain('white-space: normal;');
-    expect(headerRule).toContain('word-break: keep-all;');
+    // SIL-686 (06/11) supersedes SIL-515's wrap-at-spaces allowance for
+    // HEADERS: a header is always one line, the shared `table-sort.css` law;
+    // the width is paid by the column shares, not by wrapping. Value cells
+    // keep the SIL-515 wrap law.
+    expect(headerRule).toContain('white-space: nowrap;');
+    expect(headerRule).not.toContain('white-space: normal');
+    expect(headerRule).toContain('overflow-wrap: normal;');
     expect(headerRule).toContain('padding: 10px 8px;');
     // Master-plan lane fix (same defect class): the -webkit-box clamp must
     // NEVER ride on the th itself — it takes the cell out of table layout
@@ -302,9 +308,8 @@ describe('DetailedPlanGrid', () => {
     expect(headerRule).not.toContain('-webkit-line-clamp');
     expect(headerRule).not.toContain('display: -webkit-box');
     const sortRule = css.match(/\.detailed-plan-grid__sort \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    // SIL-515: the sort button is a plain block — the old 2-line clamp HID
-    // a third line (a truncation, banned table-wide). The header row grows
-    // to the label it holds instead.
+    // The sort button is a plain block carrying the th's nowrap — the old
+    // 2-line clamp HID a third line (a truncation, banned table-wide).
     expect(sortRule).toContain('display: block;');
     expect(sortRule).not.toContain('-webkit-line-clamp');
     expect(sortRule).not.toContain('-webkit-box');
