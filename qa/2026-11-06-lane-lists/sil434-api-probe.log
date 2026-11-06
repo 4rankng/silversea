@@ -1,0 +1,9 @@
+ITEMS1011 [{"bl":"BK-S674-U-1793712917233"},{"bl":"BK-S674-U-1793712917233"},{"bl":"BK-S674-N-1793712817663"},{"bl":"BK-S674-N-1793712817663"},{"bl":"BK-S674-O-1793712816786"}]
+{
+  "repro": "filter 10/11..10/11",
+  "lotVisibleOn1011": false,
+  "controlVisibleOn1011": true,
+  "totalOn1011": 35,
+  "lotVisibleOn0611": true,
+  "VERDICT": "PASS — filter agrees with the printed LỊCH TRÌNH day"
+}
