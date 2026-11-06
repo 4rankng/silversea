@@ -615,6 +615,7 @@ describe('create-page whole-sheet density (SIL-534)', () => {
     expect(restRule).toContain('width: 0');
     expect(restRule).toContain('height: 0');
     expect(restRule).toContain('overflow: hidden');
+    expect(restRule).toContain('visibility: hidden');
     // Open: the drawer editor's chrome on fixed coordinates — the floating
     // editor never lives inside the table's layout or its scroll box clip,
     // and the open card restores the real 300px chrome dimensions the rest
@@ -623,6 +624,7 @@ describe('create-page whole-sheet density (SIL-534)', () => {
     const openRule = css.slice(openIdx, css.indexOf('}', openIdx));
     expect(openRule).toContain('position: fixed');
     expect(openRule).toContain('width: 300px');
+    expect(openRule).toContain('visibility: visible');
     expect(openRule).toContain('z-index');
     expect(openRule).toContain('border: 1px solid var(--brand)');
     // The arrow only exists on the open card (it points at the line).

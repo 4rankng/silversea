@@ -948,6 +948,10 @@
   overflow: hidden;
   padding: 0;
   opacity: 0;
+  /* SIL-692: invisible also to the accessibility tree and to automation's
+     actionability — a closed editor is NOT a click target (the open editor
+     below restores visibility; the trigger button is the only entry). */
+  visibility: hidden;
   pointer-events: none;
 }
 .csc-fline__card.is-open {
@@ -959,6 +963,7 @@
   overflow: clip;
   padding: 8px 10px;
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   background: var(--surface);
   border: 1px solid var(--brand);

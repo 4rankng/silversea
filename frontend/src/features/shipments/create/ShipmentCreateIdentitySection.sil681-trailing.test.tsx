@@ -127,8 +127,8 @@ describe('SIL-681 r2 (QA fail comment 3885): the hàng-lẻ tab keeps the carrie
     expect(shipping).not.toBeNull();
     expect(shipping.classList.contains('csc-identity-grid__shipping-line--lcl')).toBe(true);
     const pencil = shipping.querySelector('button.csc-trailing-action');
-    expect(pencil).toBeTruthy();
-    expect(pencil.getAttribute('aria-label')).toBe('Đặt tên hãng tàu cho lô này');
+    expect(pencil).not.toBeNull();
+    expect(pencil!.getAttribute('aria-label')).toBe('Đặt tên hãng tàu cho lô này');
     expect(shipping.querySelector('input')).not.toBeNull();
   });
 });
