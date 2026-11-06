@@ -183,10 +183,13 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     seed: {
       shipmentId: shipment.id,
       version: shipment.version,
-      // SIL-688: the delete UI's lifecycle guard reads the same fulfillment
-      // presence the BE delete re-checks server-side. Tolerant of fixtures
-      // that omit the array (the wire contract always carries it).
-      hasDispatchedLegs: (detail.carrierAssignments ?? []).length > 0,
+      // SIL-688 r2: the delete UI's lifecycle guard reads the BE's live-trip
+      // law straight off the detail wire (hasLiveTrips). Counting
+      // carrierAssignments counted fulfillment PLANS — every LCL lot always
+      // carries ≥1 plan fulfillment, so its delete button was permanently
+      // disabled. A payload missing the field (stale fixture) fails OPEN:
+      // the BE delete re-checks the law server-side and answers 409.
+      hasDispatchedLegs: detail.hasLiveTrips === true,
       fclContainers: !isLcl,
       // SIL-660: LCL carries its declaration entity state (rowId null = no
       // row yet); FCL omits the key entirely.

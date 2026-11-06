@@ -298,6 +298,10 @@ export interface ShipmentDetail {
     externalCarrierId: number | null;
     externalCarrierName: string | null;
   }>;
+  /** SIL-688 r2: the lot holds a LIVE trip (not soft-deleted, not CANCELED)
+   *  linked directly or through a fulfillment — the BE delete law. A planned
+   *  carrier assignment (fulfillment without trip) is NOT a dispatch. */
+  hasLiveTrips: boolean;
   accountingLock: ShipmentAccountingLock | null;
   /** Auto freight pricing (T1 engine): latest frozen snapshot — null when the
    *  engine never locked a price for this lot (ad-hoc / no dispatch yet). */

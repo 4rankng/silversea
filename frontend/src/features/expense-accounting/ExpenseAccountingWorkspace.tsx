@@ -177,10 +177,12 @@ function PendingAdvanceApprovals({ requests }: { requests: PendingAdvanceRow[] }
         <header><span>{row.name ?? `OPS #${row.opsUserId}`}</span><span>{formatDate(row.date)} · {expenseMoney(row.amount)}</span></header>
         <p>{row.reason}</p>
         <div className="expense-accounting-toolbar-actions">
-          {/* Card 141026230770(a) — khách hàng đòi nút "PHÊ DUYỆT TẠM ỨNG"
-              rõ ràng trên bề mặt kế toán xử lý tạm ứng; nhãn generic "Phê
-              duyệt" bị đọc là không có nút. Vẫn là primary + giải ngân luôn. */}
-          <button type="button" className="btn btn--primary btn--sm" disabled={busy === row.id} onClick={() => void approve(row)}>PHÊ DUYỆT TẠM ỨNG</button>
+          {/* Card 141026230770(a) — khách hàng đòi nút giải ngân rõ ràng
+              trên bề mặt kế toán xử lý tạm ứng; nhãn generic "Phê duyệt" bị
+              đọc là không có nút. SIL-700 (06/11): design decision đổi vocabulary
+              — không có luồng duyệt nội bộ, bấm = ghi nhận giải ngân ngay,
+              nhãn thống nhất "Xác nhận giải ngân tạm ứng". Vẫn là primary. */}
+          <button type="button" className="btn btn--primary btn--sm" disabled={busy === row.id} onClick={() => void approve(row)}>Xác nhận giải ngân tạm ứng</button>
           <button type="button" className="btn btn--secondary btn--sm" disabled={busy === row.id} onClick={() => void reject(row)}>Từ chối</button>
         </div>
       </article>)}</div>}

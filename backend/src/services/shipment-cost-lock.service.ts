@@ -640,6 +640,14 @@ export async function createConsolidatedDebitNote(
     throw new ApiError(409, 'Xuất Debit Note chỉ áp dụng cho lô đã khóa chi phí.');
   }
   const customerId = lots[0]!.customerId ?? 0;
+  // SIL-693 r2: the derived key ignores client headers, so a selection ANY
+  // user once exported replays THEIR idempotency record — runIdempotent then
+  // 409s with the actor-collision line before `create` (and the overlap
+  // guard living inside it) ever runs. Answer the overlap law FIRST so the
+  // selection that is already inside a Debit Note always gets the friendly
+  // 409 (with overlappingLotCodes) instead of the actor-collision mask. The
+  // in-transaction guard below stays authoritative for the create path.
+  await assertLotsNotInIssuedDebitNote(db, shipmentIds);
   const idempotencyKey = `consolidated:${customerId}:${createHash('sha256').update(shipmentIds.join(',')).digest('hex').slice(0, 40)}`;
   const { result } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_CONSOLIDATED,

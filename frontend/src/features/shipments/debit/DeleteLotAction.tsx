@@ -53,7 +53,11 @@ export function DeleteLotAction({ shipmentId, lotRef, disabledReason, onDeleted 
     setError(null);
     try {
       const detail = await getShipmentDetail(shipmentId);
-      if (detail.carrierAssignments.length > 0) {
+      // SIL-688 r2: the BE delete law blocks on a LIVE trip only (soft-deleted
+      // or CANCELED trips never block; a planned fulfillment is not a
+      // dispatch). Counting carrierAssignments here disabled the delete for
+      // every LCL lot — they always carry a plan fulfillment.
+      if (detail.hasLiveTrips === true) {
         toast({ kind: 'error', message: 'Chỉ xóa được khi mọi container chưa phát lệnh.' });
         return;
       }
