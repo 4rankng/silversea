@@ -249,6 +249,27 @@ describe('OpsOverviewPage — metric cards from the existing Ops endpoints', () 
     expect(kpiMeta(ORDERS_LABEL)).toBe('Tất cả 2 lô trong ngày đã hoàn thành.');
   });
 
+  // SIL-687 (FB-021): /ops has no per-lot rows, so the phân loại nhãn rides
+  // the plan KPI meta — Ops sees the LCL share of the day without opening
+  // /ops/orders. Days without LCL lots keep the exact previous wording.
+  it('SIL-687 names the LCL share of the plan in the KPI meta', async () => {
+    mockApi({
+      orders: [
+        { ...order(1, 'NEW'), cargoMode: 'LCL' as const },
+        { ...order(2, 'NEW'), cargoMode: 'LCL' as const },
+        order(3, 'DISPATCHED'),
+      ],
+      fleet: [truck(1, 'IN_TRANSIT')],
+    });
+    renderPage();
+
+    expect(await screen.findByText(ORDERS_LABEL)).toBeTruthy();
+    // NEW/NEW/DISPATCHED — all three non-COMPLETED lots stay "chờ xử lý".
+    await waitFor(() => expect(kpiValue(ORDERS_LABEL)).toMatch(/^3\s*lô$/));
+    expect(kpiMeta(ORDERS_LABEL)).toContain('3 lô trong ngày giao dự kiến');
+    expect(kpiMeta(ORDERS_LABEL)).toContain('2 lô hàng lẻ');
+  });
+
   it('degrades a failed widget to a dash with a retry while the other widgets stay live', async () => {
     mockApi({
       orders: [order(1, 'NEW')],

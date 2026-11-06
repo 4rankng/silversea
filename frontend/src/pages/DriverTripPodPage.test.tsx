@@ -487,7 +487,6 @@ describe('DriverTripPodPage', () => {
   });
 
   it.each([
-    [TripStatus.COMPLETED, 'Chuyến đã hoàn thành. Bạn có thể xem hoặc tải lại chứng từ.'],
     [TripStatus.CANCELED, 'Chuyến đã hủy. Không thể thay đổi chứng từ.'],
   ])('DRV-FOLLOWUP-001 makes %s documents read-only and removes completion controls', (status, reason) => {
     useDriverTaskDetailMock.mockReturnValue({
@@ -496,6 +495,58 @@ describe('DriverTripPodPage', () => {
     });
     renderPage();
     expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBe(reason);
+    expect(document.querySelector('.driver-task-footer')).toBeNull();
+  });
+
+  // SIL-684 (id 796): a COMPLETED trip with no e-POD at all must keep the
+  // upload path open — the settlement chain blocks on a valid e-POD, and
+  // completion no longer requires one. Read-only only starts once the
+  // submission is frozen (SUBMITTED/ACCEPTED).
+  it('SIL-684 keeps POD upload unlocked on a completed trip that has no submission yet', () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: TripStatus.COMPLETED, currentPod: null, podHistory: [] }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    renderPage();
+    expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBeNull();
+    expect(document.querySelector('.driver-task-footer')).toBeNull();
+  });
+
+  it('SIL-684 keeps POD upload unlocked on a completed trip with a live DRAFT and offers the submit CTA', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        status: TripStatus.COMPLETED,
+        currentPod: makePod([]),
+      }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    submitPodMock.mockResolvedValueOnce({});
+    renderPage();
+    expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBeNull();
+    const submit = screen.getByRole('button', { name: 'NỘP CHỨNG TỪ E-POD' });
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    await waitFor(() => expect(submitPodMock).toHaveBeenCalledTimes(1));
+    expect(submitPodMock).toHaveBeenCalledWith(
+      FULFILLMENT_ID,
+      22,
+      { expectedVersion: 2 },
+      expect.any(String),
+    );
+    // Completion already happened before this screen; submit must never re-complete.
+    expect(completeTripMock).not.toHaveBeenCalled();
+  });
+
+  it('SIL-684 still locks the POD form once the completed trip has a SUBMITTED submission', () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        status: TripStatus.COMPLETED,
+        currentPod: { ...makePod([{ fileType: 'YARD_OR_DROP_RECEIPT' }]), status: TripPodStatus.SUBMITTED, submittedAt: '2026-11-06T01:00:00.000Z' },
+      }),
+      isLoading: false, error: null, isError: false, refetch: refetchMock,
+    });
+    renderPage();
+    expect(podSubmissionMock.mock.lastCall?.[0].readOnlyReason).toBe('Chuyến đã hoàn thành. Bạn có thể xem hoặc tải lại chứng từ.');
     expect(document.querySelector('.driver-task-footer')).toBeNull();
   });
 

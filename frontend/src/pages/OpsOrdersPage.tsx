@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Pin, PinOff, Plus } from 'lucide-react';
 import { useOpsOrders, useToggleShipmentPin, opsKeys } from '../hooks/useOpsQueries';
 import type { OpsOrderItem } from '../api/opsClient';
+import { StatusText } from '../components/shared/StatusText';
 import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
 import { localDateInputValue, shipmentStatusText, opsBillReference } from '../features/ops/opsStatus';
 import './OpsOrdersPage.css';
@@ -160,7 +161,16 @@ export default function OpsOrdersPage() {
                       {order.pinned ? <Pin size={15} /> : <PinOff size={15} />}
                     </button>
                   </td>
-                  <td className="col-code" data-label="Bill / Booking">{opsBillReference(order.billRef)}</td>
+                  {/* SIL-687 (FB-021): the LCL lot carries the same phân loại
+                      nhãn the driver flow shows (driver-trip-model tagLabelFor:
+                      LCL → LẺ) so Ops recognizes it in the plan list. Shared
+                      StatusText per design law §1 — no new chip class. */}
+                  <td className="col-code" data-label="Bill / Booking">
+                    {opsBillReference(order.billRef)}
+                    {order.cargoMode === 'LCL' && (
+                      <StatusText variant="info" title="Lô hàng lẻ (LCL)" aria-label="Lô hàng lẻ">{' LẺ'}</StatusText>
+                    )}
+                  </td>
                   <td className="col-customer" data-label="Khách hàng">{order.customerName ?? <span className="ops-orders__route-missing">Chưa có khách hàng</span>}</td>
                   <td className="col-route" data-label="Tuyến">{order.routeName ?? <span className="ops-orders__route-missing">Chưa có tuyến đường</span>}</td>
                   <td data-label="Container">

@@ -35,7 +35,37 @@ describe('login recovery', () => {
     expect(container.querySelectorAll('.input-icon,.password-toggle')).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Hiện mật khẩu' })).toHaveAttribute('data-uui-control', 'button');
     expect(screen.getByRole('button', { name: 'Đăng nhập' })).toHaveAttribute('data-uui-control', 'button');
-    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeEnabled();
+    // SIL-689: an empty form keeps the Đăng nhập button disabled.
+    expect(screen.getByRole('button', { name: 'Đăng nhập' })).toBeDisabled();
+  });
+
+  // SIL-689 (id 801, hồi quy R17/R22): the Đăng nhập button tracks field
+  // completeness — disabled while either field is empty, enabled only when
+  // both are filled. Supersedes SIL-563's always-enabled-while-typing.
+  describe('SIL-689 submit tracks field completeness', () => {
+    it('is disabled when empty and when only the username is filled, enabled when both are', () => {
+      render(<LoginPage />);
+      const submit = screen.getByRole('button', { name: 'Đăng nhập' });
+      expect(submit).toBeDisabled();
+      fireEvent.change(screen.getByLabelText('Tên đăng nhập hoặc số điện thoại'), { target: { value: 'admin' } });
+      expect(submit).toBeDisabled();
+      fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'Abc123' } });
+      expect(submit).toBeEnabled();
+    });
+
+    it('re-enables on a form-level input event so autofill never strands the button (QA1-003)', () => {
+      render(<LoginPage />);
+      const submit = screen.getByRole('button', { name: 'Đăng nhập' });
+      expect(submit).toBeDisabled();
+      // Autofill writes the DOM values without firing React onChange; the
+      // bubbling input event still reaches the form's onInput sync.
+      const username = screen.getByLabelText('Tên đăng nhập hoặc số điện thoại') as HTMLInputElement;
+      const password = screen.getByLabelText('Mật khẩu') as HTMLInputElement;
+      username.value = 'admin';
+      password.value = 'Abc123';
+      fireEvent.input(username.closest('form')!);
+      expect(submit).toBeEnabled();
+    });
   });
 
   it('clears stale credential feedback as the user corrects either field', async () => {
@@ -111,11 +141,10 @@ describe('login submit never no-ops (QA1-003)', () => {
   });
 });
 
-// SIL-563: the submit button stays enabled and validation happens on submit —
-// the inline message names the offending field, the first invalid field takes
-// focus, and its aria-invalid carries the state. Placeholders read as format
-// examples, not instructions.
-describe('login validates on submit (SIL-563)', () => {
+// SIL-563 validation survives SIL-689: the submit handler still names the
+// offending field, focuses it, and carries aria-invalid — reachable whenever
+// a submit is dispatched while a field is missing (state lag, programmatic).
+describe('login validates on submit (SIL-563, kept under SIL-689)', () => {
   beforeEach(() => { login.mockReset(); });
 
   it('bypasses the native bubble so the app message names the field (noValidate)', () => {
@@ -127,10 +156,12 @@ describe('login validates on submit (SIL-563)', () => {
     expect(form).toHaveAttribute('novalidate');
   });
 
-  it('names the empty username and focuses it instead of disabling the button', () => {
+  it('names the empty username and focuses it when a submit is dispatched anyway', () => {
     render(<LoginPage />);
     const submit = screen.getByRole('button', { name: 'Đăng nhập' });
-    expect(submit).toBeEnabled();
+    // SIL-689 disables the button on an empty form; the validate-on-submit
+    // path below stays as the safety net for any submit that still fires.
+    expect(submit).toBeDisabled();
     fireEvent.submit(submit.closest('form')!);
     expect(login).not.toHaveBeenCalled();
     expect(screen.getByRole('alert').textContent).toBe('Vui lòng nhập tên đăng nhập hoặc số điện thoại.');
