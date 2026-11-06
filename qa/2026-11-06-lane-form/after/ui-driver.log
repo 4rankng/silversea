@@ -1,8 +1,8 @@
-HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7185
+HEALTH status=ok api=http://localhost:3003/api front=http://localhost:7185
 PASS login cus+admin
-BOOKEND before shipments=870 containers=1072
-DISPATCHED-LOT id=1783
-PASS throwaway lot created for delete drive — {"id":779030,"status":201}
+BOOKEND before shipments=878 containers=1072
+DISPATCHED-LOT id=779038
+PASS throwaway lot created for delete drive — {"id":779044,"status":201}
 PASS 681r2 switch to LCL
 PASS 681r2 LCL hãng tàu cell + trailing ✎ — {"ok":true,"lclClass":true,"fullRow":true,"btnInsideInput":true,"sameHeight":true,"controlHeight":30,"btnHeight":30,"ariaLabel":"Đặt tên hãng tàu cho lô này"}
 PASS 681r2 LCL cell spans full row — {"ok":true,"lclClass":true,"fullRow":true,"btnInsideInput":true,"sameHeight":true,"controlHeight":30,"btnHeight":30,"ariaLabel":"Đặt tên hãng tàu cho lô này"}
@@ -37,13 +37,18 @@ SHOT after-688-debit-menu-xoa-lo-1440.png
 PASS 688 debit Xóa lô opens its confirm (reason required)
 PASS 688 tiepvv (role CUS): Xóa lô renders (BE admits CUS) — {"xoaLo":1}
 SHOT after-688-tiepvv-cus-sees-delete-1440.png
-PASS 688 dispatcher login for negative probe
-PASS 688 dispatcher: NO Xóa lô (BE refuses non-CUS/ADMIN) — {"xoaLo":0,"cluster":["Quay lại","Sửa","Tạo mới lô hàng"]}
-SHOT after-688-dispatcher-no-delete-1440.png
+PASS 688 dispatcher login
+PASS 688 dispatcher (Điều vận): Xóa lô armed (owner ruling 06/11) — {"xoaLo":1,"cluster":["Quay lại","Sửa","Tạo mới lô hàng","Xóa lô"]}
+SHOT after-688-dispatcher-delete-armed-1440.png
+PASS 688 dispatcher BE gate open (409 version mismatch, NOT 403) — {"status":409}
+PASS 688 ops login
+PASS 688 ops: NO Xóa lô anywhere — {"xoaLo":0,"cluster":[]}
+SHOT after-688-ops-no-delete-1440.png
+PASS 688 ops BE delete refused 403 — {"status":403}
 PASS 688 admin detail: Xóa lô armed last in the view cluster — {"found":true,"enabled":true,"cluster":["Quay lại","Sửa","Tạo mới lô hàng","Xóa lô"]}
 SHOT after-688-admin-delete-armed-1440.png
 PASS 688 UI delete lands back on the list with the toast — {"url":"/shipments","toast":"Đã chuyển đến Tổng quan lô hàng | Đã xóa lô hàng. | Đã xóa lô hàng."}
 SHOT after-688-deleted-toast-list-1440.png
-PASS 688 DB side effect: throwaway lot soft-deleted — {"id":779030,"liveRows":"0"}
-BOOKEND after shipments=871 containers=1072 (net = before: the drive created and deleted exactly one throwaway lot)
+PASS 688 DB side effect: throwaway lot soft-deleted — {"id":779044,"liveRows":"0"}
+BOOKEND after shipments=879 containers=1072 (net = before: the drive created and deleted exactly one throwaway lot)
 DONE failures=0

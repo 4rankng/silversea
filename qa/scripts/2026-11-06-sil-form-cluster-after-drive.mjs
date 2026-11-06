@@ -392,9 +392,10 @@ const tiepvvScan = await page.evaluate(() => ({
 check('688 tiepvv (role CUS): Xóa lô renders (BE admits CUS)', tiepvvScan.xoaLo === 1, tiepvvScan);
 await shot('after-688-tiepvv-cus-sees-delete-1440.png');
 
-// A genuinely refused role (DISPATCHER) sees NO delete affordance.
+// SIL-688 owner ruling 06/11 (comment 3953): ĐIỀU VẬN deletes too — the
+// dispatcher sees the armed button (BE requireRoles + casbin bridge widened).
 const tokenDisp = await login('dieuvan');
-check('688 dispatcher login for negative probe', Boolean(tokenDisp));
+check('688 dispatcher login', Boolean(tokenDisp));
 await page.evaluateOnNewDocument((t) => localStorage.setItem('token', t), tokenDisp);
 await page.goto(`${FRONT}/shipments/${throwaway.id}`, { waitUntil: 'networkidle2', timeout: 60000 });
 await sleep(1800);
@@ -402,8 +403,42 @@ const dispScan = await page.evaluate(() => ({
   xoaLo: [...document.querySelectorAll('button')].filter((b) => (b.textContent || '').trim() === 'Xóa lô').length,
   cluster: [...document.querySelectorAll('.csc-form-actions button')].map((b) => (b.textContent || '').trim()),
 }));
-check('688 dispatcher: NO Xóa lô (BE refuses non-CUS/ADMIN)', dispScan.xoaLo === 0, dispScan);
-await shot('after-688-dispatcher-no-delete-1440.png');
+check('688 dispatcher (Điều vận): Xóa lô armed (owner ruling 06/11)', dispScan.xoaLo === 1 && dispScan.cluster[dispScan.cluster.length - 1] === 'Xóa lô', dispScan);
+await shot('after-688-dispatcher-delete-armed-1440.png');
+// dispatcher's own BE authorization: a deliberately wrong version must fail
+// as the 409 version mismatch — which proves the role gate (route + casbin
+// bridge + service) passed; the lot stays untouched.
+const dispGate = await fetch(`${API}/shipments/cus-workspace/${throwaway.id}`, {
+  method: 'DELETE',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenDisp}`, 'Idempotency-Key': `disp-gate-${Date.now()}` },
+  body: JSON.stringify({ version: 999999, reason: 'dispatcher gate probe (version sai chủ ý)' }),
+});
+const dispGateBody = await dispGate.json().catch(() => ({}));
+check('688 dispatcher BE gate open (409 version mismatch, NOT 403)', dispGate.status === 409, { status: dispGate.status, message: dispGateBody.message });
+
+// OPS stays refused end-to-end: no button (FE) and the BE answers 403 with
+// the ruling's own voice.
+const tokenOps = await login('giaonhan');
+check('688 ops login', Boolean(tokenOps));
+await page.evaluateOnNewDocument((t) => localStorage.setItem('token', t), tokenOps);
+await page.goto(`${FRONT}/shipments/${throwaway.id}`, { waitUntil: 'networkidle2', timeout: 60000 });
+await sleep(1800);
+const opsScan = await page.evaluate(() => ({
+  xoaLo: [...document.querySelectorAll('button')].filter((b) => (b.textContent || '').trim() === 'Xóa lô').length,
+  cluster: [...document.querySelectorAll('.csc-form-actions button')].map((b) => (b.textContent || '').trim()),
+}));
+check('688 ops: NO Xóa lô anywhere', opsScan.xoaLo === 0, opsScan);
+await shot('after-688-ops-no-delete-1440.png');
+const opsGate = await fetch(`${API}/shipments/cus-workspace/${throwaway.id}`, {
+  method: 'DELETE',
+  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenOps}`, 'Idempotency-Key': `ops-gate-${Date.now()}` },
+  body: JSON.stringify({ version: throwaway.version ?? 1, reason: 'ops phải bị chặn (probe)' }),
+});
+const opsGateBody = await opsGate.json().catch(() => ({}));
+// The route's requireRoles denies OPS at the middleware (generic 403 voice);
+// the service's 'Chỉ Chứng từ, Điều vận hoặc Quản trị viên…' stays as the
+// defense-in-depth line for any caller that slips past requireRoles.
+check('688 ops BE delete refused 403', opsGate.status === 403, { status: opsGate.status, message: opsGateBody.message });
 
 // admin: UI delete of the throwaway lot.
 await page.evaluateOnNewDocument((t) => localStorage.setItem('token', t), tokenAdmin);
