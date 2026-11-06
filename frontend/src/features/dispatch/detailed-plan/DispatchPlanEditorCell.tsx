@@ -105,7 +105,7 @@ interface DispatchPlanEditorCellProps {
   onOpenTripReassign: (tripId: number) => void;
   /** Staff close for external-carrier trips: opens the confirm dialog so
    *  dispatch/CUS can complete the trip the external driver can't (no app). */
-  onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
+  onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
   /** Fulfillment-less branch rows must decompose before the editor can open;
    *  resolves to the fresh (fulfilled) row, or null when the write fails.
    *  Omitting `options` keeps the surviving-cell auto-open (20260916_9). */
@@ -988,7 +988,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onOpenTripReassign, 
                 </button>
               </DisabledActionTip>
             )}
-            {row.dispatch.carrierType === 'EXTERNAL' && row.dispatch.tripId != null && row.taskStatus === 'DISPATCHED' && (
+            {onCompleteExternalTrip != null && row.dispatch.carrierType === 'EXTERNAL' && row.dispatch.tripId != null && row.taskStatus === 'DISPATCHED' && (
               <DisabledActionTip id={`dispatch-plan-complete-${row.fulfillmentId ?? row.shipmentId}`} reason={completeDisabledReason}>
                 <button
                   type="button"

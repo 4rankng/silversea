@@ -1,0 +1,56 @@
+2026-11-06T14:55:29.357Z login hoapt ok → /accounting
+2026-11-06T14:55:45.360Z PASS  SIL-694: ACCOUNTANT sees the Hoàn thành button on an IN_TRANSIT trip
+2026-11-06T14:55:46.113Z shot sil694-ui-1-accountant-sees-close.png
+2026-11-06T14:55:46.674Z PASS  SIL-694: governance reason modal opened
+2026-11-06T14:56:34.693Z shot sil694-ui-2-governance-modal.png
+2026-11-06T14:56:36.141Z api POST /api/trips/576/complete -> 200
+2026-11-06T14:59:28.944Z login hoapt ok → /accounting
+2026-11-06T14:59:38.822Z PASS  SIL-694: ACCOUNTANT sees the Hoàn thành button on an IN_TRANSIT trip
+2026-11-06T14:59:39.336Z shot sil694-ui-1-accountant-sees-close.png
+2026-11-06T14:59:40.367Z PASS  SIL-694: governance reason modal opened
+2026-11-06T15:00:00.259Z shot sil694-ui-2-governance-modal.png
+2026-11-06T15:00:00.959Z api POST /api/trips/759/complete -> 400
+2026-11-06T15:02:23.182Z login hoapt ok → /accounting
+2026-11-06T15:02:29.473Z PASS  SIL-694: ACCOUNTANT sees the Hoàn thành button on an IN_TRANSIT trip
+2026-11-06T15:02:29.609Z shot sil694-ui-1-accountant-sees-close.png
+2026-11-06T15:02:29.759Z PASS  SIL-694: governance reason modal opened
+2026-11-06T15:02:44.771Z shot sil694-ui-2-governance-modal.png
+2026-11-06T15:02:45.320Z api POST /api/trips/575/complete -> 200
+2026-11-06T15:04:27.893Z login hoapt ok → /accounting
+2026-11-06T15:04:32.031Z PASS  SIL-694: ACCOUNTANT sees the Hoàn thành button on an IN_TRANSIT trip
+2026-11-06T15:04:32.214Z shot sil694-ui-1-accountant-sees-close.png
+2026-11-06T15:04:32.421Z PASS  SIL-694: governance reason modal opened
+2026-11-06T15:04:41.331Z shot sil694-ui-2-governance-modal.png
+2026-11-06T15:04:41.691Z api POST /api/trips/451/complete -> 200
+2026-11-06T15:04:48.307Z PASS  SIL-694: trip status flipped to Hoàn thành after accountant close
+2026-11-06T15:04:48.417Z shot sil694-ui-3-after-close-completed.png
+2026-11-06T15:04:58.736Z login dungnv ok → /dispatch
+2026-11-06T15:05:15.681Z FAIL  SIL-695: plated READY row shows the quick-issue action
+2026-11-06T15:05:15.833Z shot sil695-ui-0-plated-row.png
+2026-11-06T15:07:20.457Z SIL695_ONLY: skipping the SIL-694 section (evidence already captured)
+2026-11-06T15:07:24.486Z login dungnv ok → /dispatch
+2026-11-06T15:07:27.652Z FAIL  SIL-695: plated READY row shows the quick-issue action
+2026-11-06T15:07:27.830Z shot sil695-ui-0-plated-row.png
+2026-11-06T15:08:21.422Z SIL695_ONLY: skipping the SIL-694 section (evidence already captured)
+2026-11-06T15:08:26.182Z login dungnv ok → /dispatch
+2026-11-06T15:08:29.476Z FAIL  SIL-695: plated READY row shows the quick-issue action
+2026-11-06T15:08:29.610Z shot sil695-ui-0-plated-row.png
+2026-11-06T15:12:43.028Z SIL695_ONLY: skipping the SIL-694 section (evidence already captured)
+2026-11-06T15:12:47.080Z login dungnv ok → /dispatch
+2026-11-06T15:12:50.644Z FAIL  SIL-695: plated READY row shows the quick-issue action
+2026-11-06T15:12:50.820Z shot sil695-ui-0-plated-row.png
+2026-11-06T15:13:35.232Z SIL695_ONLY: skipping the SIL-694 section (evidence already captured)
+2026-11-06T15:13:38.860Z login dungnv ok → /dispatch
+2026-11-06T15:16:01.172Z SIL695_ONLY: skipping the SIL-694 section (evidence already captured)
+2026-11-06T15:16:07.108Z login dungnv ok → /dispatch
+2026-11-06T15:16:19.676Z PASS  SIL-695: plated READY row shows the quick-issue action
+2026-11-06T15:16:20.600Z shot sil695-ui-0-plated-row.png
+2026-11-06T15:16:20.692Z api POST /api/shipments/1094/dispatch -> 409
+2026-11-06T15:16:20.749Z PASS  SIL-695: warn-once dialog names the same-day completed trip (business-meaningful)
+2026-11-06T15:16:21.123Z shot sil695-ui-1-overlap-warn-dialog.png
+2026-11-06T15:16:21.376Z api POST /api/shipments/1094/dispatch -> 201
+2026-11-06T15:16:21.481Z PASS  SIL-695: confirm closed the dialog — no re-prompt loop
+2026-11-06T15:16:22.685Z PASS  SIL-695: 1.2s later still no dialog — no infinite re-confirm
+2026-11-06T15:16:22.842Z shot sil695-ui-2-after-confirm-issued.png
+2026-11-06T15:16:22.842Z api summary: [{"url":"http://localhost:7176/api/shipments/1094/dispatch","status":409},{"url":"http://localhost:7176/api/shipments/1094/dispatch","status":201}]
+2026-11-06T15:16:23.010Z driver done

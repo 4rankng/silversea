@@ -1,0 +1,24 @@
+login hoapt ok → /accounting
+PASS  SIL-694: ACCOUNTANT sees the Hoàn thành button on an IN_TRANSIT trip
+shot sil694-ui-1-accountant-sees-close.png
+PASS  SIL-694: governance reason modal opened
+shot sil694-ui-2-governance-modal.png
+api POST /api/trips/451/complete -> 200
+PASS  SIL-694: trip status flipped to Hoàn thành after accountant close
+shot sil694-ui-3-after-close-completed.png
+login dungnv ok → /dispatch
+FAIL  SIL-695: plated READY row shows the quick-issue action
+shot sil695-ui-0-plated-row.png
+file:///Users/dev/.paseo/worktrees/1njkloyy/w13-dispatch-1/node_modules/.pnpm/puppeteer-core@25.16.0/node_modules/puppeteer-core/lib/puppeteer/common/WaitTask.js:46
+            this.#timeoutError = new TimeoutError(`Waiting failed: ${options.timeout}ms exceeded`);
+                                 ^
+
+TimeoutError: Waiting failed: 15000ms exceeded
+    at new WaitTask (file:///Users/dev/.paseo/worktrees/1njkloyy/w13-dispatch-1/node_modules/.pnpm/puppeteer-core@25.16.0/node_modules/puppeteer-core/lib/puppeteer/common/WaitTask.js:46:34)
+    at IsolatedWorld.waitForFunction (file:///Users/dev/.paseo/worktrees/1njkloyy/w13-dispatch-1/node_modules/.pnpm/puppeteer-core@25.16.0/node_modules/puppeteer-core/lib/puppeteer/api/Realm.js:49:26)
+    at CdpFrame.waitForFunction (file:///Users/dev/.paseo/worktrees/1njkloyy/w13-dispatch-1/node_modules/.pnpm/puppeteer-core@25.16.0/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:585:43)
+    at CdpFrame.<anonymous> (file:///Users/dev/.paseo/worktrees/1njkloyy/w13-dispatch-1/node_modules/.pnpm/puppeteer-core@25.16.0/node_modules/puppeteer-core/lib/puppeteer/util/decorators.js:101:27)
+    at CdpPage.waitForFunction (file:///Users/dev/.paseo/worktrees/1njkloyy/w13-dispatch-1/node_modules/.pnpm/puppeteer-core@25.16.0/node_modules/puppeteer-core/lib/puppeteer/api/Page.js:1542:37)
+    at file:///Users/dev/.paseo/worktrees/1njkloyy/w13-dispatch-1/qa/2026-11-06-lane-694-695/ui-drive.mjs:100:14
+
+Node.js v25.8.1

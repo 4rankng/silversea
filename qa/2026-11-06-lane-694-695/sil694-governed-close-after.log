@@ -1,0 +1,12 @@
+
+=== governed close trip 779031 as ADMIN (phuongnt) version=2 status=IN_TRANSIT ===
+[POST /trips/779031/complete] -> 422 :: {"error":"Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh trước khi đề nghị hoàn thành."}
+
+=== governed close trip 779031 as MANAGER (giamdoc) version=2 status=IN_TRANSIT ===
+[POST /trips/779031/complete] -> 422 :: {"error":"Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh trước khi đề nghị hoàn thành."}
+
+=== governed close trip 779031 as DISPATCHER (dungnv) version=2 status=IN_TRANSIT ===
+[POST /trips/779031/complete] -> 403 :: {"error":"Không có quyền truy cập"}
+
+=== governed close trip 779031 as ACCOUNTANT (hoapt) version=2 status=IN_TRANSIT ===
+[POST /trips/779031/complete] -> 422 :: {"error":"Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh trước khi đề nghị hoàn thành."}

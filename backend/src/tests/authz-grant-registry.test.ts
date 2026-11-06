@@ -179,7 +179,11 @@ function oldTripAllowance(
   const isCloseRequest = method === 'POST'
     && /^\/\d+\/complete\/?$/.test(path);
   if (isCloseRequest) {
-    const closeMakerRoles = [Role.ACCOUNTANT, Role.CUS];
+    // SIL-694 (id 806): the exclusive row admits the TRIP_FINANCIAL_CLOSE
+    // close-maker set (governance-policy createRoles) — the pre-MC-4
+    // ACCOUNTANT/CUS list hard-403d ADMIN/MANAGER, the roles the trips
+    // screen shows the close button to.
+    const closeMakerRoles = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS];
     if (role && closeMakerRoles.includes(role as Role)) {
       return 'allow';
     }
@@ -524,11 +528,13 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
       }
     });
 
-    it('hard-denies ADMIN on the governed close even though policy is wildcard', async () => {
-      // ADMIN is `p, ADMIN, *, *` in policy.csv — only the exclusive effect
-      // can produce this 403. If this ever turns into a 200, the exclusive
-      // semantics silently degraded into a plain bypass.
-      assert.deepEqual(await authorizeTrip(Role.ADMIN, 'POST', '/42/complete'), {
+    it('hard-denies DISPATCHER on the governed close even though casbin policy allows trips write (SIL-694)', async () => {
+      // DISPATCHER holds `p, DISPATCHER, trips, write` in policy.csv — only
+      // the exclusive effect can produce this 403 (the governed close is a
+      // management/accounting action, never a dispatch one). If this ever
+      // turns into a next() passthrough, the exclusive semantics silently
+      // degraded into a plain bypass.
+      assert.deepEqual(await authorizeTrip(Role.DISPATCHER, 'POST', '/42/complete'), {
         nextCalled: false,
         statusCode: 403,
       });

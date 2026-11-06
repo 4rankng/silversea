@@ -285,7 +285,17 @@ export const GOVERNANCE_POLICY_CATALOG: Readonly<
     actionKind: 'TRIP_FINANCIAL_CLOSE',
     subjectType: 'TRIP',
     createRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS],
-    applyRoles: [Role.ADMIN, Role.MANAGER],
+    // SIL-694 (id 806): ACCOUNTANT joins the direct-apply set. The MC-4 era
+    // comment ("ACCOUNTANT/CUS can still make the request but cannot
+    // self-apply the director approval") described a two-stage chain that no
+    // longer exists — since 2026-09-11 (MC-4) make and apply run in ONE
+    // request, so a createRole outside applyRoles was a guaranteed 403
+    // dead-end AFTER the maker had satisfied the photo/evidence gates (QA
+    // 06/11: "kế toán bị lặp vô hạn, không đóng được chuyến"). CONTEXT.md
+    // Phase 3/4 already names the accountant as the role that finalizes the
+    // numbers and moves the trip to Hoàn thành. CUS stays create-only (the
+    // O2C close-maker legacy grant; apply remains management/accounting).
+    applyRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
     requiresReason: true,
     requiresEvidence: false,
     evidenceFields: [],

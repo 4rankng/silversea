@@ -1,0 +1,27 @@
+-- Lane SIL-694/695 repro + evidence fixtures on the LOCAL dev mirror (ss-prod-db @5441).
+-- Applied 2026-11-06 during the lane; the trips touched were pre-existing dev-mirror rows.
+-- Run against the local dev DB only. Verify ids before re-use.
+--
+-- SIL-695 repro state (truck 32 / 15H-154.26):
+--   trips 779046 (fulfillment 1271 / shipment 1088) — issued via API then flipped COMPLETED
+--     with departure_date = today and window 02:00–12:00 ICT (the "chuyến hoàn thành cùng ngày").
+--   trips 779047 (fulfillment 1273 / shipment 1090) — issued via API (no-confirm path, 201).
+--   trips 779048 (fulfillment 1275 / shipment 1092) — issued via API confirmed retry (201).
+--   shipment_fulfillments 1265/1266 + shipment_containers of shipments 1085 — schedule moved to
+--     today 08:00–10:00 ICT so the grid renders them in the default month window.
+--
+-- SIL-694 evidence fixtures (governed-close evidence for UI drives):
+--   trip 1308 — photo 16, POD submission 15 SUBMITTED, pod_recovered_at set, scopes 21/22 COMPLETED
+--     → governed close as ACCOUNTANT → COMPLETED (API-level acceptance proof).
+--   trip 576  — photo 18, POD submission 33 SUBMITTED, pod_recovered_at set, scopes 51/52/53 COMPLETED
+--     → accountant UI close (§9 rung 3) → COMPLETED.
+--   trip 759  — photo 22, POD submission 34 SUBMITTED, pod_recovered_at set, scopes 54/55 COMPLETED
+--     (December departure — completion gate 400'd; kept as the negative-dated fixture).
+--   trip 575  — photo 25, POD submission 35 SUBMITTED, pod_recovered_at set, scopes 56/57 COMPLETED
+--     → accountant UI close re-run (§9 rung 3) → COMPLETED.
+--
+-- Rollback (optional; dev mirror rows, kept for QA history by default):
+--   delete from trip_photos where storage_key like 'qa-lane-694/%';
+--   delete from trip_pod_submissions where id in (15, 33, 34, 35);
+--   delete from trip_expense_completion_scopes where id in (21, 22, 51, 52, 53, 54, 55, 56, 57);
+--   update trips set status='IN_TRANSIT', completed_at=null where id in (575, 576);

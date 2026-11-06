@@ -1,0 +1,4 @@
+=== raw issue shipment 1092 f1275 window 03:00-07:00 ICT ===
+{"status":409,"body":{"error":"Có 1 chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?","code":"RIG_OVERLAP_COMPLETED"}}
+=== confirmed retry (rigOverlapCompletedConfirmed) SAME Idempotency-Key ===
+{"status":201,"body":{"fulfillmentId":1275,"version":3,"trip":{"id":779048,"version":2,"tripCode":"TRP-202611-0175","status":"CREATED","plannedStartAt":"2026-11-05T20:00:00.000Z","plannedEndAt":"2026-11-06T00:00:00.000Z","carrierType":"OWN","truckId":32,"trailerId":97,"driverId":27,"externalCarrierId":null,"externalPlateNumber":null,"externalDriverName":null,"externalDriverPhone":null},"notification":{"type":"TRIP_DISPATCHED","deliveredInApp":true,"pushAttempted":true},"autoIssuedSiblings":[],"failedSiblings":[],"replayed":false}}

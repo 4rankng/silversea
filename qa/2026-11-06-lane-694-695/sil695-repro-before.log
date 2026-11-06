@@ -1,0 +1,61 @@
+=== fleet lookup 15H-154.26 ===
+[GET /shipments/dispatch-fleet?resource=TRUCK&q=15H-154.26] -> 200
+{
+  "items": [
+    {
+      "id": 32,
+      "licensePlate": "15H-154.26",
+      "trailerType": "40FT",
+      "currentTrailerId": 97,
+      "currentTrailerPlate": "RS-S638C-78136",
+      "capacityKg": "30000",
+      "status": "ACTIVE",
+      "assignedDriverId": 27,
+      "assignedDriverName": "Trần Thế Quân",
+      "carrierId": null,
+      "carrierName": null
+    }
+  ],
+  "suggestedItems": [],
+  "total": 1,
+  "limit": 100,
+  "nextCursor": null
+}
+truck 32 driver=27 Trần Thế Quân
+
+=== issue shipment 1090 fulfillment 1273 (raw, no confirm) ===
+[POST /shipments/1090/dispatch] -> 201
+{
+  "fulfillmentId": 1273,
+  "version": 3,
+  "trip": {
+    "id": 779047,
+    "version": 2,
+    "tripCode": "TRP-202611-0174",
+    "status": "CREATED",
+    "plannedStartAt": "2026-11-06T15:28:16.939Z",
+    "plannedEndAt": "2026-11-06T17:28:16.940Z",
+    "carrierType": "OWN",
+    "truckId": 32,
+    "trailerId": 97,
+    "driverId": 27,
+    "externalCarrierId": null,
+    "externalPlateNumber": null,
+    "externalDriverName": null,
+    "externalDriverPhone": null
+  },
+  "notification": {
+    "type": "TRIP_DISPATCHED",
+    "deliveredInApp": true,
+    "pushAttempted": true
+  },
+  "autoIssuedSiblings": [],
+  "failedSiblings": [],
+  "replayed": false
+}
+
+=== issue shipment 1090 fulfillment 1273 (rigOverlapCompletedConfirmed: true) ===
+[POST /shipments/1090/dispatch] -> 409
+{
+  "error": "Tác vụ điều xe đã thay đổi. Vui lòng tải lại."
+}

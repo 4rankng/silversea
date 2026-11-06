@@ -64,7 +64,18 @@ describe('O2C trip close HTTP authorization', () => {
   });
 
   it('keeps non-maker roles outside the close-maker boundary', async () => {
-    for (const role of [Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.DRIVER, Role.OPS]) {
+    // SIL-694 (id 806): the exclusive route row admits the TRIP_FINANCIAL_CLOSE
+    // close-maker set — ADMIN/MANAGER complete directly in-request since the
+    // 2026-09-11 maker-checker removal, and the trips screen shows them the
+    // close button. DISPATCHER/DRIVER/OPS stay outside: the trip financial
+    // close is a management/accounting action, never a dispatch or driver one.
+    for (const role of [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS]) {
+      assert.deepEqual(await authorize(role, 'POST', '/42/complete'), {
+        nextCalled: true,
+        statusCode: 200,
+      });
+    }
+    for (const role of [Role.DISPATCHER, Role.DRIVER, Role.OPS]) {
       assert.deepEqual(await authorize(role, 'POST', '/42/complete'), {
         nextCalled: false,
         statusCode: 403,

@@ -46,7 +46,9 @@ export interface DispatchCardEditorProps {
       isCombined?: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
-  onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
+  /** SIL-694 (id 806) — optional: role-gated by the hosting page; undefined
+   *  removes the "Hoàn thành" card affordance the server would 403. */
+  onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
   onIssueOrder: (
     row: DispatchDetailPlanRow,
     body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,

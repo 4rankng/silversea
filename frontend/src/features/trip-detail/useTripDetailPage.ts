@@ -199,7 +199,12 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
       // through the governed reopen/cancel flow (canAdjust), not a direct cancel.
       canCancel: s !== TripStatus.COMPLETED && s !== TripStatus.CANCELED && isManagerOrAdmin,
       canDispatch: s === TripStatus.CREATED && isManagerOrAdmin,
-      canComplete: s === TripStatus.IN_TRANSIT && isManagerOrAdmin,
+      // SIL-694 (id 806): ACCOUNTANT completes too — CONTEXT.md Phase 3/4
+      // names accounting as the role that finalizes the trip's numbers and
+      // moves it to Hoàn thành, and the backend TRIP_FINANCIAL_CLOSE policy
+      // now applies the accountant's close in-request. Without the button
+      // the accountant could never reach the end of the close flow.
+      canComplete: s === TripStatus.IN_TRANSIT && (isManagerOrAdmin || isAccountant),
     canReassign: s === TripStatus.CREATED && hasDispatchAuthority,
       // Adjustment/governed reopen available on a completed trip (manager/admin).
       canAdjust: s === TripStatus.COMPLETED && isManagerOrAdmin,

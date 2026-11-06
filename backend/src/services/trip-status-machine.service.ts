@@ -405,9 +405,16 @@ export async function transitionTripStatus(
         confirmZeroRevenue = true;
         confirmNoPhoto = true;
       } else {
+        // SIL-694 (id 806): an ACCOUNTANT completes through the governed
+        // financial close only — governanceAuthorized is true exclusively
+        // after assertActiveDirectApplication passed (governance-policy
+        // applyRoles), so the accountant cannot slip through a raw
+        // IN_TRANSIT → COMPLETED write: without a governed action the next
+        // line answers 409 naming the required channel.
         const canComplete = routineShipmentClose
           ? userRole === Role.ACCOUNTANT || userRole === Role.CUS
-          : userRole === Role.ADMIN || userRole === Role.MANAGER;
+          : userRole === Role.ADMIN || userRole === Role.MANAGER
+            || (userRole === Role.ACCOUNTANT && governanceAuthorized);
         if (!canComplete) {
           throw new ApiError(
             403,
