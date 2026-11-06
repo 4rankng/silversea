@@ -40,6 +40,11 @@ export default function OpsOverviewPage() {
 
   const orders = ordersQuery.data?.items ?? [];
   const pendingOrders = orders.filter((order) => order.status !== 'COMPLETED').length;
+  // SIL-687 (FB-021): surface the LCL share of the day's plan on the overview
+  // too — the page has no per-lot rows, so the nhãn phân loại rides the plan
+  // KPI meta (same taxonomy word the driver flow and /ops/orders use).
+  const lclOrders = orders.filter((order) => order.cargoMode === 'LCL').length;
+  const lclMetaSuffix = lclOrders > 0 ? ` · ${lclOrders} lô hàng lẻ` : '';
   const trucks = fleetQuery.data?.items ?? [];
   const runningTrucks = trucks.filter((truck) => truck.status === 'IN_TRANSIT').length;
   // KP-148: yêu cầu Ops tạo ra giờ ở PENDING (chờ kế toán duyệt) — vẫn là "chờ
@@ -71,8 +76,8 @@ export default function OpsOverviewPage() {
                 ? orders.length === 0
                   ? 'Không có lô hàng trong ngày này.'
                   : pendingOrders === 0
-                    ? `Tất cả ${orders.length} lô trong ngày đã hoàn thành.`
-                    : `${orders.length} lô trong ngày giao dự kiến ${formatDate(planDate)}`
+                    ? `Tất cả ${orders.length} lô trong ngày đã hoàn thành.${lclMetaSuffix}`
+                    : `${orders.length} lô trong ngày giao dự kiến ${formatDate(planDate)}${lclMetaSuffix}`
                 : undefined
             }
           />

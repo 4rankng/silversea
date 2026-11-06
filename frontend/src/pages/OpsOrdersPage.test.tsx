@@ -124,6 +124,25 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(fields).toContainEqual(['Container', '1 cont']);
   });
 
+  // SIL-687 (FB-021): Ops must see the phân loại nhãn on LCL lots in the plan
+  // list — the same LẺ word the driver flow shows (driver-trip-model
+  // tagLabelFor). FCL/plain rows carry no flag.
+  it('SIL-687 shows the LẺ classification flag on an LCL lot and none on FCL rows', async () => {
+    const data = makeItems();
+    data.items[0].cargoMode = 'LCL';
+    data.items[1].cargoMode = 'FCL';
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/orders')) return Promise.resolve(data);
+      if (url.startsWith('/ops/expense-types')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+    const lclRow = (await screen.findByText('BL-001')).closest('tr')!;
+    const fclRow = screen.getByText('BK-002').closest('tr')!;
+    expect(lclRow.querySelector('span[title="Lô hàng lẻ (LCL)"]')?.textContent).toContain('LẺ');
+    expect(fclRow.querySelector('span[title]')).toBeNull();
+  });
+
   it('retains all shipment fields and both actions in the labelled narrow-screen record', async () => {
     renderPage();
     const row = (await screen.findByText('BL-001')).closest('tr')!;
