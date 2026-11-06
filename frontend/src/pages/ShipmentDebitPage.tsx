@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Role } from '@tingting/shared';
 import { useAuth } from '../hooks/useAuth';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { canManageShipmentDebit } from '../lib/role-access';
@@ -56,6 +57,10 @@ function listTotals(items: ShipmentDebitLotRow[]) {
 export function ShipmentDebitPage() {
   const { user } = useAuth();
   const canManage = canManageShipmentDebit(user?.role);
+  // SIL-688 (id 800 — QA 06/11): Xóa lô admits exactly the BE delete roles
+  // (`requireRoles(Role.CUS, Role.ADMIN)`) — narrower than canManage, which
+  // also admits ACCOUNTANT.
+  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
   const phone = useMediaQuery('(max-width: 640px)');
   const print = useMediaQuery('print');
   const [params, setSearchParams] = useQueuedSearchParams();
@@ -439,6 +444,8 @@ export function ShipmentDebitPage() {
               <DebitLotTable
                 items={items}
                 canManage={canManage}
+                canDeleteLot={canDeleteLot}
+                onDeleted={() => { void summary.refetch(); }}
                 mergeMode={mergeMode}
                 selectedIds={selectedIds}
                 expandedId={expandedId}

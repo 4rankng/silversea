@@ -341,6 +341,7 @@ describe('SIL-660 — LCL declaration entity reconcile', () => {
     const seed: ShipmentEditSeed = {
       shipmentId: 501,
       version: 3,
+      hasDispatchedLegs: false,
       fclContainers: false,
       declaration: { rowId: 66, declarationNumber: 'TK-OLD' },
     };
@@ -366,6 +367,7 @@ describe('SIL-660 — LCL declaration entity reconcile', () => {
     const seed: ShipmentEditSeed = {
       shipmentId: 501,
       version: 3,
+      hasDispatchedLegs: false,
       fclContainers: false,
       declaration: { rowId: 66, declarationNumber: 'TK-OLD' },
     };
@@ -390,6 +392,7 @@ describe('SIL-660 — LCL declaration entity reconcile', () => {
     const seed: ShipmentEditSeed = {
       shipmentId: 501,
       version: 3,
+      hasDispatchedLegs: false,
       fclContainers: false,
       declaration: { rowId: 66, declarationNumber: 'TK-OLD' },
     };

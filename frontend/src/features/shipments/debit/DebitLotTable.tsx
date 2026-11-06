@@ -8,6 +8,7 @@ import { useToast } from '../../../components/shared/Toast';
 import { DebitLotLclFacts } from './DebitLotLclFacts';
 import { ShipmentDebitWorkspace } from './ShipmentDebitWorkspace';
 import { UnmergeRevGroupAction } from './UnmergeRevGroupAction';
+import { DeleteLotAction } from './DeleteLotAction';
 import {
   EMPTY_SUM_TOOLTIP, PENDING_TOOLTIP, ZERO_TOOLTIP,
   formatKnownMoney, lotDocuments, lotLabelOf, moneyState, sumMoneyStates, titleCaseName,
@@ -318,9 +319,13 @@ function MergedGroupTag({ row, onUnmerged }: {
  *  opening one menu closes whichever menu was open before it. */
 let closeOpenDebitMenu: (() => void) | null = null;
 
-function DebitRowMenu({ row, canManage, expanded, onToggle, onUnmerged }: {
+function DebitRowMenu({ row, canManage, canDeleteLot, onDeleted, expanded, onToggle, onUnmerged }: {
   row: ShipmentDebitLotRow;
   canManage: boolean;
+  /** SIL-688: CUS/ADMIN gate — renders the Xóa lô entry (last, danger). */
+  canDeleteLot?: boolean;
+  /** Board refresh after a successful delete. */
+  onDeleted: () => void;
   expanded: boolean;
   onToggle: () => void;
   onUnmerged: () => void;
@@ -428,6 +433,21 @@ function DebitRowMenu({ row, canManage, expanded, onToggle, onUnmerged }: {
               />
             </div>
           )}
+          {/* SIL-688 (id 800 — QA 06/11): Xóa lô rides LAST in the danger
+              voice — the destructive law the dispatch board's menu already
+              runs ("Xóa lô" last, behind its own confirm). The BE endpoint
+              (`DELETE /shipments/cus-workspace/:id`) has always accepted
+              CUS/ADMIN with version + reason; the entry was simply missing. */}
+          {canDeleteLot && row.shipmentId != null && (
+            <DeleteLotAction
+              shipmentId={row.shipmentId}
+              lotRef={label}
+              disabledReason={row.lockStatus === 'LOCKED'
+                ? 'Lô đã chốt kế toán — không thể xóa.'
+                : null}
+              onDeleted={onDeleted}
+            />
+          )}
         </div>,
         document.body,
       )}
@@ -436,9 +456,13 @@ function DebitRowMenu({ row, canManage, expanded, onToggle, onUnmerged }: {
 }
 
 /** ── One lot row: single baseline, 52px, eleven fixed columns. */
-function DebitLotRow({ row, canManage, mergeMode, expanded, onToggle, onSaved, onUnmerged, ratesRefreshing, selected, onSelect, plateOptions }: {
+function DebitLotRow({ row, canManage, canDeleteLot, onDeleted, mergeMode, expanded, onToggle, onSaved, onUnmerged, ratesRefreshing, selected, onSelect, plateOptions }: {
   row: ShipmentDebitLotRow;
   canManage: boolean;
+  /** SIL-688: CUS/ADMIN gate for the row menu's Xóa lô entry. */
+  canDeleteLot?: boolean;
+  /** Board refresh after a successful delete (the row disappears). */
+  onDeleted: () => void;
   /** SIL-537/538 — CHỌN column rides the page's [📦 Gộp hàng] mode. */
   mergeMode: boolean;
   expanded: boolean;
@@ -532,7 +556,7 @@ function DebitLotRow({ row, canManage, mergeMode, expanded, onToggle, onSaved, o
           {canManage && (row.revGroupId != null || row.costGroupId != null) && (
             <MergedGroupTag row={row} onUnmerged={onUnmerged} />
           )}
-          <DebitRowMenu row={row} canManage={canManage} expanded={expanded} onToggle={onToggle} onUnmerged={onUnmerged} />
+          <DebitRowMenu row={row} canManage={canManage} canDeleteLot={canDeleteLot} onDeleted={onDeleted} expanded={expanded} onToggle={onToggle} onUnmerged={onUnmerged} />
         </td>
       </tr>
       {canManage && expanded && (
@@ -613,9 +637,15 @@ function sumsToState(states: Array<ReturnType<typeof moneyState>>): ReturnType<t
   return sum == null ? { kind: 'pending' } : sum === 0 ? { kind: 'zero' } : { kind: 'known', value: sum };
 }
 
-export function DebitLotTable({ items, canManage, mergeMode, selectedIds, expandedId, onToggle, onSaved, onUnmerged, ratesRefreshing, plateOptions, onSelect }: {
+export function DebitLotTable({ items, canManage, canDeleteLot, onDeleted, mergeMode, selectedIds, expandedId, onToggle, onSaved, onUnmerged, ratesRefreshing, plateOptions, onSelect }: {
   items: ShipmentDebitLotRow[];
   canManage: boolean;
+  /** SIL-688 (id 800 — QA 06/11): the row menu's "Xóa lô" entry renders for
+   *  exactly the roles the BE delete admits (CUS/ADMIN — narrower than
+   *  canManage, which also admits ACCOUNTANT). */
+  canDeleteLot?: boolean;
+  /** Board refresh after a successful delete — the row disappears. */
+  onDeleted: () => void;
   /** SIL-537/538 (PRD 261023110000 §2) — the CHỌN column is on-demand: it
    *  only renders while the page's [📦 Gộp hàng] mode stands; merged rows
    *  carry their direct Tách-nhóm tag popover in every mode. */
@@ -668,6 +698,8 @@ export function DebitLotTable({ items, canManage, mergeMode, selectedIds, expand
                   key={row.shipmentId}
                   row={row}
                   canManage={canManage}
+                  canDeleteLot={canDeleteLot}
+                  onDeleted={onDeleted}
                   mergeMode={mergeMode}
                   expanded={canManage && expandedId === row.shipmentId}
                   onToggle={() => onToggle(row.shipmentId)}

@@ -43,6 +43,13 @@ export type ShipmentEditDetail = ShipmentDetail & {
 export interface ShipmentEditSeed {
   shipmentId: number;
   version: number;
+  /**
+   * SIL-688 (id 800 — QA 06/11): the lot carries at least one fulfillment
+   * (carrier leg) — delete UI disables with the lifecycle reason, mirroring
+   * the list workspace's `operational.deletable` gate. The BE DELETE stays
+   * the authority (a direct lot trip still 409s with its own message).
+   */
+  hasDispatchedLegs: boolean;
   /** FCL lots seed the container reconcile so the first save re-asserts the
    *  row set (and a delete-all edit still reaches the server). LCL is
    *  containerless by design and never reconciles. */
@@ -176,6 +183,9 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     seed: {
       shipmentId: shipment.id,
       version: shipment.version,
+      // SIL-688: the delete UI's lifecycle guard reads the same fulfillment
+      // presence the BE delete re-checks server-side.
+      hasDispatchedLegs: detail.carrierAssignments.length > 0,
       fclContainers: !isLcl,
       // SIL-660: LCL carries its declaration entity state (rowId null = no
       // row yet); FCL omits the key entirely.

@@ -11,10 +11,14 @@ import { useToast } from '../../../components/shared/Toast';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
   createShippingLine,
+  deleteCusShipment,
   listOperationalSites,
   listSharedWarehouseSites,
   type OperationalSite,
 } from '../../../api/shipmentClient';
+// SIL-688: the confirm modal's error voice — BE 409 lifecycle reasons must
+// reach the operator verbatim (they name the blocking rule).
+import { safeError } from '../cus/cusUtils';
 import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-duplicate-guard';
 import { useShipmentWorkspacePrefill } from './use-shipment-workspace-prefill';
 import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine } from './catalogMerger';
@@ -74,14 +78,18 @@ const newContainer = createEmptyContainer;
 export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   editTarget?: { shipmentId: number };
   /** `canEditLot` rides the target so the host page (owner of useAuth)
-   *  decides the role gate; the workspace layers the accounting lock on top. */
-  viewTarget?: { shipmentId: number; canEditLot?: boolean };
+   *  decides the role gate; the workspace layers the accounting lock on top.
+   *  `canDeleteLot` (SIL-688) follows the same pattern: the host reads
+   *  useAuth (BE delete = CUS/ADMIN), the workspace owns the confirm +
+   *  version/lifecycle guards. */
+  viewTarget?: { shipmentId: number; canEditLot?: boolean; canDeleteLot?: boolean };
 } = {}) {
   const navigate = useNavigate();
   const viewMode = Boolean(viewTarget);
   /** Role gate decided by the host page (it owns useAuth): may this viewer
    *  open the edit form? The lock is applied on top once the detail lands. */
   const viewCanEditLot = Boolean(viewTarget?.canEditLot);
+  const viewCanDeleteLot = Boolean(viewTarget?.canDeleteLot);
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
   const [sites, setSites] = useState<OperationalSite[]>([]);
   // Card 261022093245: the SHARED Kho (CFS/Cảng) catalog — customer-independent
@@ -115,6 +123,14 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [pendingModeSwitch, setPendingModeSwitch] = useState<CargoMode | null>(null);
   const [pendingContainerDelete, setPendingContainerDelete] = useState<ContainerRow | null>(null);
+  // SIL-688 (id 800 — QA 06/11): the view-mode Xóa lô flow — confirm modal
+  // with a REQUIRED reason (the BE answers 400 without one), the lot's
+  // optimistic-lock version, and the lifecycle guards (accounting lock /
+  // dispatched legs) layered on the host's role gate.
+  const [deleteLotOpen, setDeleteLotOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteLotError, setDeleteLotError] = useState<string | null>(null);
+  const [deleteLotSubmitting, setDeleteLotSubmitting] = useState(false);
   const [shippingLineDialogOpen, setShippingLineDialogOpen] = useState(false);
   const shippingLineAddButtonRef = useRef<HTMLButtonElement>(null);
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
@@ -644,6 +660,31 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     if (row) discardContainer(row);
   }
 
+  // SIL-688: the review-page delete. The BE (`DELETE /shipments/cus-workspace/:id`,
+  // CUS/ADMIN, version + reason) stays the authority — a dispatched leg it
+  // disagrees about answers 409 and the reason lands in the modal verbatim.
+  // Success follows the list drawer's contract: toast "Đã xóa lô hàng." and
+  // the deterministic home (/shipments).
+  async function submitDeleteLot() {
+    if (!viewTarget || !editSeed || deleteLotSubmitting) return;
+    if (!deleteReason.trim()) {
+      setDeleteLotError('Lý do là bắt buộc.');
+      return;
+    }
+    setDeleteLotSubmitting(true);
+    setDeleteLotError(null);
+    try {
+      await deleteCusShipment(viewTarget.shipmentId, editSeed.version, deleteReason.trim(), crypto.randomUUID());
+      setDeleteLotOpen(false);
+      toast({ kind: 'success', message: 'Đã xóa lô hàng.' });
+      navigate('/shipments');
+    } catch (error) {
+      setDeleteLotError(safeError(error, 'Không thể xóa lô hàng. Vui lòng thử lại.'));
+    } finally {
+      setDeleteLotSubmitting(false);
+    }
+  }
+
   function goBack() {
     if (isDirty || hasDateDraft(workspaceFormRef.current)) {
       setBackConfirmOpen(true);
@@ -1027,12 +1068,18 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         <div ref={actionBarRef} className="csc-form-actions">
           {viewMode ? (
             /* SIL-481: the read-only review bar repeats the VIEW cluster
-             * (Quay lại / Sửa / Tạo mới lô hàng — SIL-500), not a save cluster. */
+             * (Quay lại / Sửa / Tạo mới lô hàng — SIL-500), not a save cluster.
+             * SIL-688: Xóa lô rides last in the danger voice for the roles
+             * the BE delete admits (CUS/ADMIN — the host's canDeleteLot);
+             * a locked or already-dispatched lot disables it with the reason. */
             <ShipmentViewActions
               onBack={goShipmentList}
               onEdit={viewCanEditLot ? goEdit : undefined}
               editLocked={viewLocked}
               onCreateNew={viewCreateNew}
+              onDelete={viewCanDeleteLot && editSeed ? () => { setDeleteReason(''); setDeleteLotError(null); setDeleteLotOpen(true); } : undefined}
+              deleteLocked={viewLocked}
+              deleteBlockedReason={editSeed?.hasDispatchedLegs ? 'Chỉ xóa được khi mọi container chưa phát lệnh' : undefined}
             />
           ) : (
             <ShipmentCreateActions
@@ -1080,6 +1127,13 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         pendingContainerDelete={pendingContainerDelete}
         onClosePendingContainerDelete={() => setPendingContainerDelete(null)}
         onConfirmContainerDelete={confirmContainerDelete}
+        deleteLotOpen={deleteLotOpen}
+        deleteReason={deleteReason}
+        onDeleteReasonChange={setDeleteReason}
+        deleteLotError={deleteLotError}
+        deleteLotSubmitting={deleteLotSubmitting}
+        onCloseDeleteLot={() => { if (!deleteLotSubmitting) setDeleteLotOpen(false); }}
+        onConfirmDeleteLot={() => void submitDeleteLot()}
       />
     </div>
   );
