@@ -42,7 +42,9 @@ describe('the band owns the two-row law by construction', () => {
     expect(band).toMatch(/inlineWhenRoom=\{!fold\.neverInline\}/);
     // The landed call carries the wide-surface budget curve (card 20261002_282:
     // 3 rows where the surface opts in, 2 elsewhere — the default stays law).
-    expect(band).toContain('useFilterBarFit(barRef, wideBudget ? 3 : 2)');
+    // SIL-685/686: the wide budget is the band's own measured `desktopMaxRows`
+    // (defaults to 3 — pages cannot tune it, the ?? keeps the default a law).
+    expect(band).toContain('useFilterBarFit(barRef, wideBudget ? (desktopMaxRows ?? 3) : 2)');
   });
 
   it('measures against a TWO-line budget — the default is the law, not a parameter pages tune', () => {
