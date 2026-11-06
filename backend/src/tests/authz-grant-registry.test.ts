@@ -552,9 +552,10 @@ describe('CUS delete-request bridge (cards 351/352)', () => {
   // bypass bridge (declarations 20260921_3, operational-sites 20261002_263):
   // the route keeps the role set, the bridge opens only this path, general
   // shipment delete stays closed.
-  it('bridges DELETE /cus-workspace/:id for CUS + DISPATCHER (SIL-688 owner ruling 06/11)', () => {
+  it('bridges DELETE /cus-workspace/:id for CUS only (SIL-706 owner confirmation 07/11 revokes DISPATCHER)', () => {
     assert.ok(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.CUS));
-    assert.ok(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.DISPATCHER));
+    // SIL-706: DISPATCHER revoked — does NOT match bypass grant
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.DISPATCHER), undefined);
     // patterns are strict (no trailing-slash normalization in the matcher)
     assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313/', Role.CUS), undefined);
     assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313/', Role.DISPATCHER), undefined);

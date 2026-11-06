@@ -1,5 +1,5 @@
 import { Navigate, useParams } from 'react-router-dom';
-import { SHIPMENT_INTAKE_MUTATION_ROLES, Role } from '@tingting/shared';
+import { Role } from '@tingting/shared';
 import { useAuth } from '../hooks/useAuth';
 import { ShipmentCreateWorkspace } from '../features/shipments/create/ShipmentCreateWorkspace';
 
@@ -24,12 +24,11 @@ export default function ShipmentDetailPage() {
   if (!Number.isInteger(shipmentId) || shipmentId <= 0) {
     return <Navigate to="/shipments" replace />;
   }
-  const canEditLot = !!user?.role && SHIPMENT_INTAKE_MUTATION_ROLES.includes(user.role);
-  // SIL-688 (id 800 — QA 06/11): the review page carries Xóa lô for exactly
-  // the roles the BE delete admits — owner ruling 06/11 (comment 3953):
-  // DELETE /shipments/cus-workspace/:id admits CUS + ĐIỀU VẬN + ADMIN
-  // (requireRoles); OPS stays without the affordance.
-  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.DISPATCHER || user?.role === Role.ADMIN;
+  // SIL-706 (owner confirm 07/11, reversing SIL-688 r2 / ruling 3953):
+  // Rút quyền XÓA + SỬA lô khỏi ĐIỀU VẬN.
+  // Sửa lô: ADMIN, MANAGER, CUS. Xóa lô: CUS, ADMIN.
+  const canEditLot = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS);
+  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
   // SIL-453 (FB-098 restore, QA fail 06/11): the review page carries "Khai
   // chi phí" for exactly the BE expense-write trio (`requireExpenseFinance`
   // = ADMIN/MANAGER/ACCOUNTANT); the accounting-lock half is applied inside

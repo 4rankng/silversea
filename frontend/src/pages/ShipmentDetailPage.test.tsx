@@ -61,11 +61,11 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     );
   });
 
-  it('DISPATCHER may open the edit form from the review', () => {
+  it('DISPATCHER has both edit and delete revoked (SIL-706)', () => {
     userRole.current = 'DISPATCHER';
     renderAt('/shipments/4');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 4, canEditLot: true, canDeleteLot: true, canDeclareCost: false } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 4, canEditLot: false, canDeleteLot: false, canDeclareCost: false } }),
       undefined,
     );
   });

@@ -248,13 +248,11 @@ function buildOperationalSummary(
     containerAppointments: containers.map((container) => container.customerAppointmentAt),
     bucket,
   });
-  // Quick-edit of schedule + notes opens to CUS, ADMIN and DISPATCHER
-  // (product ruling 2026-09-20); an active accounting lock still closes both
-  // for every role. The workboard triggers gate on this flag and the inline
-  // editor re-checks the four matching fieldAccess keys.
+  // Quick-edit of schedule + notes opens to CUS and ADMIN
+  // (SIL-706: DISPATCHER loses lot metadata edit authority); an active
+  // accounting lock still closes both for every role.
   const transportDateEditable = (actor.role === Role.CUS
-    || actor.role === Role.ADMIN
-    || actor.role === Role.DISPATCHER)
+    || actor.role === Role.ADMIN)
     && support.locksByShipment.get(row.shipment.id) == null;
 
   // Some trips link to a shipment directly (`trips.shipmentId`, e.g. a
@@ -809,11 +807,6 @@ function shipmentFieldAccess(
 ): ShipmentCusWorkspaceListItem['fieldAccess'] {
   const access = {} as ShipmentCusWorkspaceListItem['fieldAccess'];
   const canWriteShipment = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.MANAGER;
-  // Schedule + notes quick-edit opens to dispatchers as well: the workboard
-  // triggers gate on transportDateEditable, and the inline editor re-checks
-  // these four keys before opening — they must read DIRECT here for the
-  // dispatcher or the modal refuses despite the enabled trigger.
-  const scheduleNotesKeys = new Set(['closingAt', 'plannedReturnAt', 'customerNotes', 'operationalNotes']);
   for (const field of allShipmentFieldKeys) {
     if (field === 'declarationNumber') {
       access[field] = !canWriteShipment
@@ -824,12 +817,12 @@ function shipmentFieldAccess(
       continue;
     }
     // Product ruling 2026-09-20 ("both notes can be edit"): the two note
-    // fields decouple from the accounting lock for the three quick-edit
-    // roles (CUS/ADMIN/DISPATCHER). The lock clause and every other field
-    // stay closed exactly as before — MANAGER keeps its existing notes
-    // authority (direct unlocked, read-only under lock).
+    // fields decouple from the accounting lock for the quick-edit
+    // roles (CUS/ADMIN; SIL-706 removes DISPATCHER). The lock clause and
+    // every other field stay closed exactly as before — MANAGER keeps its
+    // existing notes authority (direct unlocked, read-only under lock).
     if (field === 'customerNotes' || field === 'operationalNotes') {
-      const notesWriter = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.DISPATCHER;
+      const notesWriter = actor.role === Role.CUS || actor.role === Role.ADMIN;
       access[field] = notesWriter
         ? { mode: 'DIRECT', reason: 'Ghi chú có thể cập nhật kể cả khi lô hàng đã khóa kế toán.' }
         : !canWriteShipment
@@ -841,7 +834,7 @@ function shipmentFieldAccess(
     }
     if (hasActiveLock) {
       access[field] = readOnly('Lô hàng đã khóa kế toán; không thể thay đổi dữ liệu vận hành.');
-    } else if (!canWriteShipment && !(actor.role === Role.DISPATCHER && scheduleNotesKeys.has(field))) {
+    } else if (!canWriteShipment) {
       access[field] = readOnly('Vai trò hiện tại chỉ được xem trường này.');
     } else if (hasContainers && (field === 'cargoWeightKg' || field === 'cargoVolumeCbm')) {
       access[field] = readOnly('Số liệu hiển thị là tổng theo container; hãy cập nhật từng container.');

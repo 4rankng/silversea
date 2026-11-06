@@ -97,28 +97,16 @@
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
-/* SIL-168 (owner ruling B 24/10 — khách yêu cầu lần 3): Hình thức XNK stands
-   FIRST beside Khách hàng. Column map: Khách hàng 6 · Hình thức XNK 6, then
-   Số Bill/Booking 6 · (Hãng tàu 6 | Số tờ khai 6 — SIL-678, customer 04/11:
-   cùng một hàng, tờ khai bên phải, tab Hàng lẻ only; supersedes SIL-673's
-   stacked row), then Hãng tàu full-width on Hàng lẻ (SIL-681 r2), the
-   Tuỳ chọn chips full width. Supersedes the FB-127 cluster
-   split (9f174360); restores the 2425726d band map. Gate blNumber XOR
-   bookingRef theo hướng GIỮ NGUYÊN (FB-113). */
-.csc-identity-grid__customer { grid-column: span 6; }
-.csc-identity-grid__trade-direction { grid-column: span 6; }
-/* SIL-678: span 6 in the refs band AFTER the booking cell — grid auto-place
-   lands it on cols 7-12 (right half of the SAME row as Số Bill/Booking),
-   the slot hãng tàu occupies for FCL. Every control fills its cell, so the
-   shared right edge holds by construction (SIL-641 law, SIL-681 mechanism). */
-.csc-identity-grid__declaration { grid-column: span 6; }
+/* SIL-710 (07/11): Thứ tự chứng từ: Booking → Tờ khai → Nhập/Xuất → Hãng tàu.
+   Khách hàng spans 12 (full row). Hàng chứng từ chia 2 cột 50/50 (span 6 mỗi ô):
+   Row 1: Số Bill/Booking 6 · Số tờ khai 6
+   Row 2: Hình thức XNK 6 · Hãng tàu 6 */
+.csc-identity-grid__customer { grid-column: span 12; }
 .csc-identity-grid__booking { grid-column: span 6; }
+.csc-identity-grid__declaration { grid-column: span 6; }
+.csc-identity-grid__trade-direction { grid-column: span 6; }
 .csc-identity-grid__shipping-line { grid-column: span 6; }
-/* SIL-681 r2 (QA fail comment 3885): on Hàng lẻ the refs band's right half
-   belongs to Số tờ khai (SIL-678), so the carrier cell drops to its own row
-   spanning the full band — no orphan half-cell, the control fills the cell
-   and the shared right edge holds (SIL-641 law). FCL keeps span 6. */
-.csc-identity-grid__shipping-line--lcl { grid-column: 1 / -1; }
+.csc-identity-grid__shipping-line--lcl { grid-column: span 6; }
 /* The flag band carries its own `Tuỳ chọn` label, so its chips row lands on
    the same baseline as the carrier field's input by construction — the old
    align-self/align-items: flex-end pair is retired. All three data flags

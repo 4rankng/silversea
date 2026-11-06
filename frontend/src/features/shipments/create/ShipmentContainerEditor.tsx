@@ -9,10 +9,11 @@ interface ShipmentContainerEditorProps {
   rows: ReactNode;
   saving: boolean;
   onAdd: (count: number) => void;
+  viewMode?: boolean;
 }
 
 /** Feature-local FCL editor shell for repeatable container records. */
-export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContainerEditorProps) {
+export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false }: ShipmentContainerEditorProps) {
   const [addCount, setAddCount] = useState<number | ''>(DEFAULT_ADD_COUNT);
   const addCountIsValid = typeof addCount === 'number'
     && Number.isInteger(addCount)
@@ -35,7 +36,7 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
             <col className="csc-container-col__pickup-port" />
             <col className="csc-container-col__dropoff-port" />
             <col className="csc-container-col__appointment" />
-            <col className="csc-container-col__actions" />
+            {!viewMode && <col className="csc-container-col__actions" />}
           </colgroup>
           <thead>
             <tr>
@@ -47,40 +48,42 @@ export function ShipmentContainerEditor({ rows, saving, onAdd }: ShipmentContain
               <th scope="col">Cảng nâng</th>
               <th scope="col">Cảng hạ</th>
               <th scope="col">Ngày giờ đóng trả</th>
-              <th scope="col"><span className="sr-only">Thao tác</span></th>
+              {!viewMode && <th scope="col"><span className="sr-only">Thao tác</span></th>}
             </tr>
           </thead>
           <tbody>{rows}</tbody>
         </table>
       </div>
-      <div className="csc-container-actions">
-        <div className="csc-container-add-control">
-          <NumberField
-            id="container-add-count"
-            min={1}
-            max={MAX_ADD_COUNT}
-            step={1}
-            value={addCount}
-            aria-label="Số container cần thêm"
-            aria-invalid={!addCountIsValid}
-            aria-describedby="container-add-count-hint"
-            onChange={setAddCount}
-            disabled={saving}
-          />
-          <span id="container-add-count-hint" className="sr-only">
-            Nhập từ 1 đến {MAX_ADD_COUNT} container.
-          </span>
-          <button
-            type="button"
-            className="csc-add-container"
-            onClick={() => { if (addCountIsValid && typeof addCount === 'number') onAdd(addCount); }}
-            disabled={saving || !addCountIsValid}
-          >
-            <Plus size={16} aria-hidden="true" />
-            <span>Thêm container</span>
-          </button>
+      {!viewMode && (
+        <div className="csc-container-actions">
+          <div className="csc-container-add-control">
+            <NumberField
+              id="container-add-count"
+              min={1}
+              max={MAX_ADD_COUNT}
+              step={1}
+              value={addCount}
+              aria-label="Số container cần thêm"
+              aria-invalid={!addCountIsValid}
+              aria-describedby="container-add-count-hint"
+              onChange={setAddCount}
+              disabled={saving}
+            />
+            <span id="container-add-count-hint" className="sr-only">
+              Nhập từ 1 đến {MAX_ADD_COUNT} container.
+            </span>
+            <button
+              type="button"
+              className="csc-add-container"
+              onClick={() => { if (addCountIsValid && typeof addCount === 'number') onAdd(addCount); }}
+              disabled={saving || !addCountIsValid}
+            >
+              <Plus size={16} aria-hidden="true" />
+              <span>Thêm container</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

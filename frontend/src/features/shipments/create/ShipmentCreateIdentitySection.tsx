@@ -121,42 +121,16 @@ export function ShipmentCreateIdentitySection({
             <Plus size={16} aria-hidden="true" />
           </button>
         </div>
-
-        {/* SIL-641 (id 745) equal-width law now holds by construction: every
-            identity cell renders its control at the FULL cell width, so all
-            controls share one right edge without placeholder slots. SIL-681
-            (owner 04/11) retired the "control + gap 8 + action slot 36"
-            pattern — the two quick-add affordances live INSIDE their inputs
-            (trailing actions), so no cell reserves an external 44px any
-            more. */}
-        <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction">
-          <SelectField
-            id="shipment-trade-direction"
-            label="Hình thức xuất nhập khẩu"
-            required
-            value={form.tradeDirection}
-            onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])}
-            disabled={saving}
-            error={issueByField.get('shipment-trade-direction')}
-            options={[
-              { value: '', label: '— Chọn hình thức —' },
-              { value: 'IMPORT', label: 'Nhập khẩu' },
-              { value: 'EXPORT', label: 'Xuất khẩu' },
-            ]}
-          />
-        </div>
       </div>
 
-      {/* BAND 2 — Số Bill/Booking (gated by the direction picked above), then
-          Số tờ khai beside it on Hàng lẻ (SIL-678), and Hãng tàu on BOTH
-          modes (SIL-681 r2 — full-width row on LCL, right half on FCL). The
-          handler is verbatim — the Bill-vs-Booking switch and the
-          prerequisite hint on the booking field keep working; a
-          not-yet-directed lot shows the hint directly under the picker that
-          sets it. SIL-499: `--refs` = wide-band grid hook (column 1). */}
+      {/* BAND 2 — Nhóm chứng từ (SIL-710):
+          1. Số Booking
+          2. Số tờ khai (Hàng lẻ)
+          3. Nhập/Xuất
+          4. Hãng tàu
+          SIL-499: `--refs` = wide-band grid hook (column 1). */}
       <div className="csc-identity-grid csc-identity-grid--refs">
-        {/* SIL-641 (id 745): same full-width law as the trade-direction cell
-            above — see the note there. */}
+        {/* 1. Số Bill/Booking */}
         <div className="csc-identity-grid__booking" data-field-id="shipment-booking-ref">
           <TextField
             id="shipment-booking-ref"
@@ -165,11 +139,6 @@ export function ShipmentCreateIdentitySection({
             value={form.tradeDirection === 'IMPORT' ? form.blNumber : form.bookingRef}
             onChange={(event) => update(form.tradeDirection === 'IMPORT' ? 'blNumber' : 'bookingRef', event.target.value)}
             maxLength={100}
-            // QA1-001: the fallback used to read "Chọn Nhập hoặc Xuất", which
-            // described the trade-direction picker sitting next to this field—
-            // on a disabled input it read as if this field were that picker.
-            // Name this field instead; the hint below already states the
-            // prerequisite, so there is nothing to repeat here.
             placeholder={form.tradeDirection === 'IMPORT' ? 'Nhập số Bill (hàng Nhập)' : form.tradeDirection === 'EXPORT' ? 'Nhập số Booking (hàng Xuất)' : 'Nhập số Bill/Booking'}
             disabled={!form.tradeDirection || saving}
             hint={!form.tradeDirection ? 'Chọn Hình thức xuất nhập khẩu trước' : undefined}
@@ -184,16 +153,8 @@ export function ShipmentCreateIdentitySection({
             }
           />
         </div>
-        {/* SIL-678 (customer 04/11, supersedes SIL-673's stacked layout):
-            the hàng-lẻ tờ khai cell rides the refs band's RIGHT column —
-            the same slot hãng tàu occupies for FCL — so Số Bill/Booking
-            (left) and Số tờ khai (right) share ONE row. DISPLAY-POSITION
-            ONLY: the exact same UTextField for the lot's single container
-            (SIL-601: lẻ = 1 lô 1 cont), same declarationNumber state, same
-            shipment_declarations persist path (SIL-660 — no validation, no
-            payload change). FCL never renders it (per-cont column stays —
-            SIL-600/SIL-701). The cell renders its control full width — the
-            SIL-641 shared-right-edge law holds by construction (SIL-681). */}
+
+        {/* 2. Số tờ khai */}
         {form.cargoMode === 'LCL' && (
           <div
             className="csc-identity-grid__declaration"
@@ -210,18 +171,25 @@ export function ShipmentCreateIdentitySection({
           </div>
         )}
 
-        {/* SIL-681 r2 (QA fail comment 3885, 06/11): Hãng tàu MUST exist on
-            the hàng-lẻ tab too — the old `cargoMode === 'FCL'` gate (from the
-            79ed4e03 section split) left LCL with no carrier entry at all,
-            while the carrier still rides the lot (CusQuickEdit + the detail
-            ledger edit it; the root payload nulled it for LCL since
-            0abff7aa). Same trailing pattern as FCL (SIL-681): the '✎' lives
-            INSIDE the input at the right end, same height as the input,
-            same dialog. On LCL the refs band's right column is taken by the
-            Số tờ khai cell (SIL-678), so the carrier cell spans the full
-            row below (1 / -1) — no orphan half-cell, control full-width per
-            the SIL-641 shared-right-edge law. Behavior/state unchanged:
-            same form state `shippingLineName`, same options, same dialog. */}
+        {/* 3. Hình thức xuất nhập khẩu (SIL-710) */}
+        <div className="csc-identity-grid__trade-direction" data-field-id="shipment-trade-direction">
+          <SelectField
+            id="shipment-trade-direction"
+            label="Hình thức xuất nhập khẩu"
+            required
+            value={form.tradeDirection}
+            onChange={(event) => update('tradeDirection', event.target.value as FormState['tradeDirection'])}
+            disabled={saving}
+            error={issueByField.get('shipment-trade-direction')}
+            options={[
+              { value: '', label: '— Chọn hình thức —' },
+              { value: 'IMPORT', label: 'Nhập khẩu' },
+              { value: 'EXPORT', label: 'Xuất khẩu' },
+            ]}
+          />
+        </div>
+
+        {/* 4. Hãng tàu */}
         <div
           className={`csc-identity-grid__shipping-line csc-field-with-trailing${form.cargoMode === 'LCL' ? ' csc-identity-grid__shipping-line--lcl' : ''}`}
           data-field-id="shipment-shipping-line"

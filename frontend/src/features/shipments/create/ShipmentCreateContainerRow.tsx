@@ -56,6 +56,7 @@ export interface ShipmentCreateContainerRowProps {
    *  workspace quick-add dialog (the customer-not-chosen gate lives there). */
   onAddFactory: () => void;
   saving: boolean;
+  viewMode?: boolean;
   routeOptions: { value: string; label: string }[];
   portOptions: { value: string; label: string }[];
 }
@@ -84,6 +85,7 @@ export function ShipmentCreateContainerRow({
   sitesLoading,
   onAddFactory,
   saving,
+  viewMode = false,
   routeOptions,
   portOptions,
 }: ShipmentCreateContainerRowProps) {
@@ -182,7 +184,7 @@ export function ShipmentCreateContainerRow({
             the icon sits next to it, it no longer replaces it. */}
         <span className="csc-container-row__index-row">
           <span className="csc-container-row__desktop-index">{index + 1}</span>
-          {!saving && (
+          {!saving && !viewMode && (
             <button
               type="button"
               className="csc-container-row__copy"
@@ -562,21 +564,24 @@ export function ShipmentCreateContainerRow({
           combinedPicker
         />
       </ShipmentContainerCell>
-      <td className="csc-container-row__actions">
-        {/* SIL-481: hidden while `saving` (the view mode's channel) — the
-            delete confirm reaches discardContainer → setContainers, a
-            mutation the read-only review must not offer. */}
-        {containersLength > 1 && !saving && (
-          <button
-            type="button"
-            className="csc-icon-button csc-icon-button--danger"
-            aria-label={`Xóa container ${index + 1}`}
-            onClick={(event) => removeContainer(row, event.currentTarget.closest('tr'))}
-          >
-            <Trash2 size={18} aria-hidden="true" />
-          </button>
-        )}
-      </td>
+      {!viewMode && (
+        <td className="csc-container-row__actions">
+          {/* SIL-481: hidden while `saving` (the view mode's channel) — the
+              delete confirm reaches discardContainer → setContainers, a
+              mutation the read-only review must not offer. SIL-709: in view mode
+              the entire column is omitted. */}
+          {containersLength > 1 && !saving && (
+            <button
+              type="button"
+              className="csc-icon-button csc-icon-button--danger"
+              aria-label={`Xóa container ${index + 1}`}
+              onClick={(event) => removeContainer(row, event.currentTarget.closest('tr'))}
+            >
+              <Trash2 size={18} aria-hidden="true" />
+            </button>
+          )}
+        </td>
+      )}
     </tr>
   );
 }

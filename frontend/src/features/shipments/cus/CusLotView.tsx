@@ -763,10 +763,16 @@ export function CusLotView({
               <p>Khách hàng, chứng từ và hướng xuất nhập khẩu</p>
             </header>
             <div className="cus-lot-card__body">
+              {/* SIL-710: thứ tự chứng từ: Booking → Tờ khai → Nhập/Xuất → Hãng tàu */}
               <div className="cus-lot-fact-grid">
                 <FactCell label="Khách hàng">{item.customerName ?? dash}</FactCell>
-                <FactCell label="Hình thức XNK">{item.raw.tradeDirection === 'EXPORT' ? 'Xuất' : item.raw.tradeDirection === 'IMPORT' ? 'Nhập' : dash}</FactCell>
                 <FactCell label="Số bill/booking">{item.billOrBookNumber ?? dash}</FactCell>
+                <FactCell label={`Số tờ khai${declarationNumbers.length > 0 ? ` (${declarationNumbers.length})` : ''}`}>
+                  {declarationNumbers.length === 0
+                    ? <span className="cus-lot-quiet">Chưa có tờ khai</span>
+                    : declarationNumbers.join(', ')}
+                </FactCell>
+                <FactCell label="Hình thức XNK">{item.raw.tradeDirection === 'EXPORT' ? 'Xuất' : item.raw.tradeDirection === 'IMPORT' ? 'Nhập' : dash}</FactCell>
                 <FactCell label="Hãng tàu">{item.shippingLineName ?? dash}</FactCell>
               </div>
               <div className="cus-lot-fact-grid cus-lot-fact-grid--secondary">
@@ -777,11 +783,6 @@ export function CusLotView({
                     <span className={`cus-lot-flag${item.isCombined ? ' cus-lot-flag--on' : ''}`}>Đóng kết hợp: {item.isCombined ? 'Có' : 'Không'}</span>
                   </span>
                 </div>
-                <FactCell label={`Số tờ khai (${declarationNumbers.length})`}>
-                  {declarationNumbers.length === 0
-                    ? <span className="cus-lot-quiet">Chưa có tờ khai</span>
-                    : declarationNumbers.join(', ')}
-                </FactCell>
               </div>
             </div>
           </section>
