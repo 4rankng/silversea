@@ -1,0 +1,42 @@
+
+=== complete-external trip 520 as ADMIN (phuongnt) ===
+[POST /trips/520/complete-external] -> 200
+{
+  "tripId": 520,
+  "tripCode": "TRP-202610-0050",
+  "fulfillmentId": 217,
+  "status": "COMPLETED",
+  "version": 3,
+  "completedAt": "2026-11-06T14:20:21.683Z",
+  "replayed": false
+}
+
+=== complete-external trip 520 as MANAGER (giamdoc) ===
+[POST /trips/520/complete-external] -> 200
+{
+  "tripId": 520,
+  "tripCode": "TRP-202610-0050",
+  "fulfillmentId": 217,
+  "status": "COMPLETED",
+  "version": 3,
+  "completedAt": "2026-11-06T14:20:21.683Z",
+  "replayed": false
+}
+
+=== complete-external trip 520 as DISPATCHER (dungnv) ===
+[POST /trips/520/complete-external] -> 200
+{
+  "tripId": 520,
+  "tripCode": "TRP-202610-0050",
+  "fulfillmentId": 217,
+  "status": "COMPLETED",
+  "version": 3,
+  "completedAt": "2026-11-06T14:20:21.683Z",
+  "replayed": false
+}
+
+=== complete-external trip 520 as ACCOUNTANT (hoapt) ===
+[POST /trips/520/complete-external] -> 403
+{
+  "error": "Không có quyền truy cập"
+}
