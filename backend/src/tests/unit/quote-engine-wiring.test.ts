@@ -27,8 +27,11 @@ test('lot lifecycle resolves through the pricing engine then persists a snapshot
   assert.match(lifecycle, /from '\.\/freight-pricing-engine\.service'/);
   assert.match(lifecycle, /await persistFreightRateSnapshot\(resolved,/);
   // Thiếu căn cứ → SKIP qua classifier thuần, không bịa số (QA R32).
-  assert.match(lifecycle, /classifyLotPricingBasis\(\{/);
-  assert.match(lifecycle, /import \{ classifyLotPricingBasis \} from '\.\/freight-lot-basis'/);
+  // SIL-693: classifier chạy trên grounds từ ONE shared derivation
+  // (`deriveLotPricingGrounds`, dùng chung với cost-lock freeze).
+  assert.match(lifecycle, /classifyLotPricingBasis\(grounds\)/);
+  assert.match(lifecycle, /deriveLotPricingGrounds\(tx, args\.shipmentId, args\)/);
+  assert.match(lifecycle, /import \{ classifyLotPricingBasis, type LotPricingGrounds \} from '\.\/freight-lot-basis'/);
 });
 
 test('every lot create/update surface locks the rate (FCL intake, reconcile, CUS edits, EDD change, dispatch)', () => {

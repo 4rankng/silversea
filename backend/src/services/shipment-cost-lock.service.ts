@@ -20,6 +20,8 @@ import { computeLotPayablesBreakdown } from './lot-payables.service';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { documentVatTotals, VAT_TREATMENT_VERSION } from './billing-document-shared.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
+import { deriveLotPricingGrounds } from './freight-rate-snapshot-lifecycle.service';
+import { classifyLotPricingBasis } from './freight-lot-basis';
 
 export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần ADMIN mở khóa (kèm lý do) để chỉnh sửa chi phí.';
 export const SHIPMENT_COST_NOT_LOCKED_MESSAGE = 'Lô hàng chưa khóa chi phí — hãy khóa lô trước khi điều chỉnh.';
@@ -116,8 +118,13 @@ export async function assertTripShipmentCostUnlocked(executor: Executor, tripId:
 }
 
 /** Server-assembled frozen Lớp-1 totals from the rollup engine values —
- *  never client amounts. */
-async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unknown>> {
+ *  never client amounts. SIL-693: the freeze also records the pricing engine's
+ *  đủ/thiếu-căn cứ verdict (`classifyLotPricingBasis` over the SAME grounds
+ *  derivation the dispatch freeze runs — one `deriveLotPricingGrounds`) so a
+ *  debit-note issuance can tell "unpriced by design" (ad-hoc) from "pricing
+ *  never ran" (the silent freight-less note defect). Locks frozen before
+ *  SIL-693 lack the key; readers treat missing keys as absent (legacy law). */
+async function buildCostSnapshot(shipmentId: number, executor: Executor = db): Promise<Record<string, unknown>> {
   const [lot] = await db.select({ customerId: s.shipments.customerId })
     .from(s.shipments).where(eq(s.shipments.id, shipmentId)).limit(1);
   if (!lot) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
@@ -164,6 +171,13 @@ async function buildCostSnapshot(shipmentId: number): Promise<Record<string, unk
     chiHoTotal: item?.chiHoTotal ?? null,
     receivableTotal: item?.receivableTotal ?? null,
     profit: item?.profit ?? null,
+    // SIL-693 provenance (see the function doc): the classifier's verdict over
+    // the shared grounds derivation. Intake-consistent scope (no dispatch
+    // container/rate-key override): the lot-level "should a price exist" law.
+    freightPricingBasis: await (async () => {
+      const grounds = await deriveLotPricingGrounds(executor, shipmentId, {});
+      return grounds ? classifyLotPricingBasis(grounds) : null;
+    })(),
     // Frozen 2.3 composition (ruling 2026-09-19): a catalog rename must not
     // rewrite the shape of an issued note. Old snapshots lack these keys —
     // readers treat missing keys as null (Chưa xác định).
@@ -216,7 +230,7 @@ export async function lockShipmentCost(input: LockShipmentCostInput): Promise<Sh
         ))
         .limit(1);
       if (active) throw new ApiError(409, SHIPMENT_COST_LOCKED_MESSAGE);
-      const snapshot = await buildCostSnapshot(input.shipmentId);
+      const snapshot = await buildCostSnapshot(input.shipmentId, tx);
       const [row] = await tx.insert(s.shipmentCostLocks).values({
         shipmentId: input.shipmentId,
         shipmentVersionAtLock: shipment.version,

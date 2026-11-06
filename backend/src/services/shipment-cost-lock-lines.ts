@@ -1,6 +1,6 @@
 import type { BillingDocumentLine, BillingLineRenderData } from '@tingting/shared';
 import { ApiError } from '../errors';
-import { calculateVatSnapshot } from './billing-document-shared.service';
+import { calculateVatSnapshot } from './billing-vat-math';
 
 /** FB-094 (card 161026232429): what the customer-facing Debit Note must print
  *  per lot — the BKS báo khách ("xe ảo") and the THU billing class. Resolved by
@@ -22,6 +22,30 @@ function frozenMoney(snapshot: Record<string, unknown>, key: string): number | n
   return calculateVatSnapshot(amount, 0, 'EXEMPT').grossAmount;
 }
 
+/** SIL-693 — the freeze's own record of what the pricing engine decided about
+ *  the lot at lock time (`classifyLotPricingBasis`, the same đủ/thiếu-căn cứ
+ *  classifier the dispatch freeze runs, derived by ONE shared
+ *  `deriveLotPricingGrounds`). Snapshots locked before SIL-693 lack the key:
+ *  legacy law keeps applying to them (missing key = old freeze, never blocked). */
+export interface FrozenFreightPricingBasis {
+  action: 'LOCK' | 'SKIP';
+  reason?: 'AD_HOC' | 'NO_CUSTOMER' | 'NO_ROUTE' | 'NO_RATE_KEY' | 'NO_TRANSPORT_DATE' | 'MISSING_WEIGHT';
+}
+
+/** Null-safe read: a malformed basis is NOT a valid unpriced proof — it reads
+ *  absent so the guard below never blocks on corrupted freeze data. */
+export function readFrozenFreightPricingBasis(snapshot: Record<string, unknown>): FrozenFreightPricingBasis | null {
+  const raw = snapshot.freightPricingBasis;
+  if (raw == null || typeof raw !== 'object') return null;
+  const basis = raw as Record<string, unknown>;
+  if (basis.action === 'LOCK') return { action: 'LOCK' };
+  if (basis.action === 'SKIP' && typeof basis.reason === 'string'
+    && ['AD_HOC', 'NO_CUSTOMER', 'NO_ROUTE', 'NO_RATE_KEY', 'NO_TRANSPORT_DATE', 'MISSING_WEIGHT'].includes(basis.reason)) {
+    return { action: 'SKIP', reason: basis.reason as FrozenFreightPricingBasis['reason'] };
+  }
+  return null;
+}
+
 /** Both issue paths use the frozen customer debt, never the company's cost.
  * Missing-key legacy snapshots retain their original frozen components;
  * existing issued documents are outside this builder and remain immutable. */
@@ -30,7 +54,26 @@ export function buildFrozenShipmentDebitLines(
   lotCode: string,
   lot: FrozenDebitLotRenderInfo = {},
 ): BillingDocumentLine[] {
-  const freight = frozenMoney(snapshot, 'freightAuto') ?? 0;
+  const freightFrozen = frozenMoney(snapshot, 'freightAuto');
+  const freight = freightFrozen ?? 0;
+  // SIL-693: a NEW-format freeze whose freightAuto is explicitly unset while
+  // the recorded pricing basis says the engine SKIPPED pricing for lack of
+  // grounds (NO_RATE_KEY on an LCL lot dispatched without a rate key, missing
+  // weight/route/customer/date) means the lot's freight NEVER entered the
+  // money system. Issuing here silently bills only the phát-sinh recharge —
+  // the exact 150.000₫-instead-of-freight defect on staging lot 832. Same
+  // doctrine as the receivable==null 409 below: refuse the note, name the
+  // designed remedy (determine the price on Quyết toán, re-lock). AD_HOC lots
+  // bill their customer-reported freight through the phát-sinh cells by
+  // design, and legacy snapshots (no basis key) keep their frozen law.
+  const pricingBasis = readFrozenFreightPricingBasis(snapshot);
+  if (freightFrozen == null
+    && Object.prototype.hasOwnProperty.call(snapshot, 'freightAuto')
+    && pricingBasis?.action === 'SKIP' && pricingBasis.reason !== 'AD_HOC') {
+    throw new ApiError(409,
+      `Cước vận tải của lô ${lotCode} chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: ${pricingBasis.reason}). `
+      + 'Không thể xuất Debit Note thiếu cước — hãy xác định giá cước thu khách trên màn hình Chi phí - Quyết toán (chọn loại xe tính cước hoặc nhập giá), khóa lại lô rồi xuất.');
+  }
   const receivable = frozenMoney(snapshot, 'receivableTotal');
   const lines: BillingDocumentLine[] = [];
   // FB-094 §II.4: the file's Biển số xe column is the BKS báo khách and the
