@@ -11,10 +11,14 @@ import { useToast } from '../../../components/shared/Toast';
 import { tripClient, type CatalogData } from '../../../api/tripClient';
 import {
   createShippingLine,
+  deleteCusShipment,
   listOperationalSites,
   listSharedWarehouseSites,
   type OperationalSite,
 } from '../../../api/shipmentClient';
+// SIL-688: the confirm modal's error voice — BE 409 lifecycle reasons must
+// reach the operator verbatim (they name the blocking rule).
+import { safeError } from '../cus/cusUtils';
 import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-duplicate-guard';
 import { useShipmentWorkspacePrefill } from './use-shipment-workspace-prefill';
 import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine } from './catalogMerger';
@@ -40,7 +44,7 @@ import { requiredCompletion } from './ShipmentCreateTopline.progress';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
-import { emptyAppointmentKeys, hasDateDraft } from './shipment-date-drafts';
+import { hasDateDraft } from './shipment-date-drafts';
 import { DEFAULT_SHIPPING_LINES, type Customer, type Port, type Route } from '@tingting/shared';
 import { useShipmentCreateWorkflow } from './use-shipment-create-workflow';
 import { createAdhocFieldLogic } from './createAdhocFieldLogic';
@@ -74,14 +78,18 @@ const newContainer = createEmptyContainer;
 export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   editTarget?: { shipmentId: number };
   /** `canEditLot` rides the target so the host page (owner of useAuth)
-   *  decides the role gate; the workspace layers the accounting lock on top. */
-  viewTarget?: { shipmentId: number; canEditLot?: boolean };
+   *  decides the role gate; the workspace layers the accounting lock on top.
+   *  `canDeleteLot` (SIL-688) follows the same pattern: the host reads
+   *  useAuth (BE delete = CUS/ADMIN), the workspace owns the confirm +
+   *  version/lifecycle guards. */
+  viewTarget?: { shipmentId: number; canEditLot?: boolean; canDeleteLot?: boolean };
 } = {}) {
   const navigate = useNavigate();
   const viewMode = Boolean(viewTarget);
   /** Role gate decided by the host page (it owns useAuth): may this viewer
    *  open the edit form? The lock is applied on top once the detail lands. */
   const viewCanEditLot = Boolean(viewTarget?.canEditLot);
+  const viewCanDeleteLot = Boolean(viewTarget?.canDeleteLot);
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
   const [sites, setSites] = useState<OperationalSite[]>([]);
   // Card 261022093245: the SHARED Kho (CFS/Cảng) catalog — customer-independent
@@ -115,6 +123,14 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [pendingModeSwitch, setPendingModeSwitch] = useState<CargoMode | null>(null);
   const [pendingContainerDelete, setPendingContainerDelete] = useState<ContainerRow | null>(null);
+  // SIL-688 (id 800 — QA 06/11): the view-mode Xóa lô flow — confirm modal
+  // with a REQUIRED reason (the BE answers 400 without one), the lot's
+  // optimistic-lock version, and the lifecycle guards (accounting lock /
+  // dispatched legs) layered on the host's role gate.
+  const [deleteLotOpen, setDeleteLotOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteLotError, setDeleteLotError] = useState<string | null>(null);
+  const [deleteLotSubmitting, setDeleteLotSubmitting] = useState(false);
   const [shippingLineDialogOpen, setShippingLineDialogOpen] = useState(false);
   const shippingLineAddButtonRef = useRef<HTMLButtonElement>(null);
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
@@ -555,42 +571,32 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   }
 
   // Case 2026-10-11-R14-02 (FB-008 round 14): bulk delivery-schedule entry.
-  // SIL-511 (owner 26/10) retired the 'Áp dụng cho N container' chip beside
-  // this input — the copy-down/copy-all buttons below are the apply-all
-  // paths — so the typed value feeds only the section clipboard copy.
-  // SIL-642 (id 746, owner 31/10) retires the input itself: the FCL band
-  // datetime (and its Copy apply path) is gone — the container table's
-  // NGÀY GIỜ ĐÓNG TRẢ column (required per row) is the schedule's only
-  // surface. The copy-down button below keeps writing every still-empty row.
-  // Case 2026-10-11-R14-03 (FB-009 round 14): the count gates visibility at
-  // >= 1 destination — any row still without a schedule, including one holding
-  // a partial segment draft (incomplete invalid input the copy replaces
-  // visibly; emptyAppointmentKeys is the single source of that truth). The
-  // DOM read sees the previous paint, which is exactly the state a click acts
-  // on.
-  const emptyAppointmentCount = emptyAppointmentKeys(containers).size;
-  // Verify-fail 091026225620: the section-level copy affordance (the
-  // discoverable position the "button missing" reports kept looking for)
-  // sources from the first row that has an appointment; the per-row hover
-  // buttons keep copying their own values.
+  // SIL-511 (owner 26/10) retired the 'Áp dụng cho N container' chip and
+  // SIL-642 (id 746, owner 31/10) retired the band datetime — the schedule's
+  // only entry surface is the container table's NGÀY GIỜ ĐÓNG TRẢ column.
+  // SIL-690 (FB-008, owner 06/11) then ordered the bulk-apply affordance
+  // BACK: copy-down-to-empty alone could not retune rows that ALREADY hold a
+  // schedule, so a multi-cont lot with a moved closing date had no one-shot
+  // path. `applyAppointmentToAll` restores the R17/R22 contract — the first
+  // scheduled row is the source, EVERY other row (empty or filled) receives
+  // it, the toast confirms — while the schedule keeps its single per-row
+  // surface (no second datetime input is resurrected).
   const copySourceRow = containers.find((row) => row.customerAppointmentAt);
-  function copyAppointmentToEmpty(fromKey: string) {
+  function applyAppointmentToAll(fromKey: string) {
     const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
     if (!source) return;
-    const targetKeys = emptyAppointmentKeys(containers);
-    if (!targetKeys.size) return;
+    const total = containers.length;
+    if (total < 2) return;
     setContainers((current) => current.map((row) => (
-      targetKeys.has(row.key) ? { ...row, customerAppointmentAt: source } : row
+      row.key === fromKey ? row : { ...row, customerAppointmentAt: source }
     )));
-    toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetKeys.size} container chưa có lịch` });
+    toast({ kind: 'success', message: `Đã áp dụng ngày giờ đóng trả cho ${total} container` });
   }
 
   // Ticket 211026125242 (CUS-03) — RETIRED by SIL-513 (owner 26/10): the
-  // "Copy giờ hẹn cho tất cả N cont" chip is gone. The copy-down button below
-  // keeps filling only the still-empty rows. SIL-642 (id 746) then retired
-  // the band datetime that QA ruling 15:10 (retest 30/10, ticket 710) had
-  // upgraded into a second apply path — its write-into-empty-rows behavior
-  // survives through copyAppointmentToEmpty alone.
+  // "Copy giờ hẹn cho tất cả N cont" chip is gone. SIL-690's apply-all above
+  // supersedes the old copy-down-to-empty button (empty rows are covered by
+  // the bulk write; per-row hover copy keeps its own clipboard law).
 
   // FB-009 (2026-10-14): the per-row copy-time affordance — the time itself
   // lands in the OS clipboard so a clerk can paste it anywhere; the toast
@@ -652,6 +658,31 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     const row = pendingContainerDelete;
     setPendingContainerDelete(null);
     if (row) discardContainer(row);
+  }
+
+  // SIL-688: the review-page delete. The BE (`DELETE /shipments/cus-workspace/:id`,
+  // CUS/ADMIN, version + reason) stays the authority — a dispatched leg it
+  // disagrees about answers 409 and the reason lands in the modal verbatim.
+  // Success follows the list drawer's contract: toast "Đã xóa lô hàng." and
+  // the deterministic home (/shipments).
+  async function submitDeleteLot() {
+    if (!viewTarget || !editSeed || deleteLotSubmitting) return;
+    if (!deleteReason.trim()) {
+      setDeleteLotError('Lý do là bắt buộc.');
+      return;
+    }
+    setDeleteLotSubmitting(true);
+    setDeleteLotError(null);
+    try {
+      await deleteCusShipment(viewTarget.shipmentId, editSeed.version, deleteReason.trim(), crypto.randomUUID());
+      setDeleteLotOpen(false);
+      toast({ kind: 'success', message: 'Đã xóa lô hàng.' });
+      navigate('/shipments');
+    } catch (error) {
+      setDeleteLotError(safeError(error, 'Không thể xóa lô hàng. Vui lòng thử lại.'));
+    } finally {
+      setDeleteLotSubmitting(false);
+    }
   }
 
   function goBack() {
@@ -873,8 +904,8 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                   column, which is required per row and is the schedule's
                   source of truth (getShipmentCreateReadiness). The band is
                   now exactly "Loại hàng *" + the segmented control in FCL;
-                  the copy-down button under the table keeps the
-                  fill-everywhere path (copyAppointmentToEmpty). LCL keeps
+                  the apply-all button under the table keeps the
+                  fill-everywhere path (applyAppointmentToAll, SIL-690). LCL keeps
                   its own schedule datetime beside the segmented control
                   (SIL-587; visible inline label per SIL-639). */}
             </div>
@@ -967,23 +998,25 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     </>
                   }
                 />
-                {/* SIL-611 (id 714, owner 30/10): the copy-down affordance
-                    rides the Thông tin hàng section now — directly under the
-                    table it fills — because the "Lịch & ghi chú" band it
-                    lived in is gone (that band's datetime had already moved
-                    up beside Loại hàng: LCL per SIL-587, FCL bulk per
-                    SIL-598). Same gate as before: a scheduled source + rows
-                    still without a schedule. */}
-                {copySourceRow && emptyAppointmentCount >= 1 && (
+                {/* SIL-611 (id 714, owner 30/10): the bulk affordance rides
+                    the Thông tin hàng section — directly under the table it
+                    fills — because the "Lịch & ghi chú" band it lived in is
+                    gone. SIL-690 (FB-008, owner 06/11) restores the R17/R22
+                    contract: ONE click applies the first scheduled row's
+                    ngày giờ đóng trả to EVERY container (empty or filled —
+                    retuning rows that already hold a schedule is the defect
+                    FB-008 reports), toast confirms. Same house dashed
+                    utility button as its copy predecessor. */}
+                {copySourceRow && containers.length >= 2 && (
                   <button
                     type="button"
                     className="csc-utility-button csc-utility-button--dashed"
                     style={{ justifySelf: 'start', alignSelf: 'start', width: 'fit-content' }}
-                    title={`Copy ngày giờ ${formatDateTime24(copySourceRow.customerAppointmentAt) || copySourceRow.customerAppointmentAt} từ dòng đầu tiên có lịch sang các container chưa có lịch`}
-                    onClick={() => copyAppointmentToEmpty(copySourceRow.key)}
+                    title={`Áp dụng ngày giờ ${formatDateTime24(copySourceRow.customerAppointmentAt) || copySourceRow.customerAppointmentAt} của dòng đầu tiên có lịch cho tất cả ${containers.length} container (ghi đè lịch hiện có)`}
+                    onClick={() => applyAppointmentToAll(copySourceRow.key)}
                     disabled={controlsDisabled}
                   >
-                    <Copy size={15} aria-hidden="true" />Copy giờ hẹn xuống cont trống
+                    <Copy size={15} aria-hidden="true" />Áp dụng cho {containers.length} container
                   </button>
                 )}
               </>
@@ -1035,12 +1068,18 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         <div ref={actionBarRef} className="csc-form-actions">
           {viewMode ? (
             /* SIL-481: the read-only review bar repeats the VIEW cluster
-             * (Quay lại / Sửa / Tạo mới lô hàng — SIL-500), not a save cluster. */
+             * (Quay lại / Sửa / Tạo mới lô hàng — SIL-500), not a save cluster.
+             * SIL-688: Xóa lô rides last in the danger voice for the roles
+             * the BE delete admits (CUS/ADMIN — the host's canDeleteLot);
+             * a locked or already-dispatched lot disables it with the reason. */
             <ShipmentViewActions
               onBack={goShipmentList}
               onEdit={viewCanEditLot ? goEdit : undefined}
               editLocked={viewLocked}
               onCreateNew={viewCreateNew}
+              onDelete={viewCanDeleteLot && editSeed ? () => { setDeleteReason(''); setDeleteLotError(null); setDeleteLotOpen(true); } : undefined}
+              deleteLocked={viewLocked}
+              deleteBlockedReason={editSeed?.hasDispatchedLegs ? 'Chỉ xóa được khi mọi container chưa phát lệnh' : undefined}
             />
           ) : (
             <ShipmentCreateActions
@@ -1088,6 +1127,13 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         pendingContainerDelete={pendingContainerDelete}
         onClosePendingContainerDelete={() => setPendingContainerDelete(null)}
         onConfirmContainerDelete={confirmContainerDelete}
+        deleteLotOpen={deleteLotOpen}
+        deleteReason={deleteReason}
+        onDeleteReasonChange={setDeleteReason}
+        deleteLotError={deleteLotError}
+        deleteLotSubmitting={deleteLotSubmitting}
+        onCloseDeleteLot={() => { if (!deleteLotSubmitting) setDeleteLotOpen(false); }}
+        onConfirmDeleteLot={() => void submitDeleteLot()}
       />
     </div>
   );

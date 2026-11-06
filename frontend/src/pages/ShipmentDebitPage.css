@@ -588,6 +588,13 @@
   display: flex;
 }
 
+/* SIL-688 (id 800): the menu's "Xóa lô" entry carries the destructive
+   voice — danger ink on the same item chrome (last entry, distinct color,
+   never a plain sibling). */
+.shipment-debit-menu__item--danger {
+  color: var(--danger);
+}
+
 /* ── Group header (owner spec v2 (b)): 38px, sticky under the 40px header ── */
 .shipment-debit-group td {
   position: sticky;

@@ -155,6 +155,22 @@ describe('shipment create model', () => {
     expect(buildShipmentContainerPayload(form, [typed])).toMatchObject([{ classification: 'SINGLE' }]);
   });
 
+  it('carries the carrier name on hàng-lẻ root payloads too (SIL-681 r2 — QA fail comment 3885)', () => {
+    // The old `cargoMode === 'FCL'` gate (0abff7aa, 14/08/2026) silently
+    // dropped LCL carriers on every save while the detail ledger and
+    // CusQuickEdit kept editing the field. The lot-level carrier is
+    // mode-independent now.
+    const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', cargoMode: 'LCL' as const, shippingLineName: 'MSC' };
+    expect(buildShipmentRootPayload(form, [container], [{ id: 41, name: 'Nhà máy Long Minh' }])).toMatchObject({
+      cargoMode: 'LCL',
+      shippingLineName: 'MSC',
+    });
+    expect(buildShipmentRootPayload({ ...form, shippingLineName: '' }, [container], [{ id: 41, name: 'Nhà máy Long Minh' }])).toMatchObject({
+      cargoMode: 'LCL',
+      shippingLineName: null,
+    });
+  });
+
   it('carries row-tier raw factory/route for adhoc rows and nulls the catalog ids', () => {
     const form = { ...EMPTY_SHIPMENT_CREATE_FORM, isAdHoc: true, tradeDirection: 'IMPORT' as const, blNumber: 'BL-ADHOC-ROW' };
     const rawRow = { ...createEmptyContainer(), containerTypeId: '31', rawFactoryName: 'Xưởng vãng lai 1', rawRouteName: 'Tuyến riêng 1' };

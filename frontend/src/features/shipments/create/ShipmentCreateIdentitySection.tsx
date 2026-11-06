@@ -148,11 +148,12 @@ export function ShipmentCreateIdentitySection({
       </div>
 
       {/* BAND 2 — Số Bill/Booking (gated by the direction picked above), then
-          Hãng tàu for FCL, Số tờ khai for Hàng lẻ (SIL-678). The handler is
-          verbatim — the Bill-vs-Booking switch and the prerequisite hint on
-          the booking field keep working; a not-yet-directed lot shows the
-          hint directly under the picker that sets it. SIL-499: `--refs` =
-          wide-band grid hook (column 1). */}
+          Số tờ khai beside it on Hàng lẻ (SIL-678), and Hãng tàu on BOTH
+          modes (SIL-681 r2 — full-width row on LCL, right half on FCL). The
+          handler is verbatim — the Bill-vs-Booking switch and the
+          prerequisite hint on the booking field keep working; a
+          not-yet-directed lot shows the hint directly under the picker that
+          sets it. SIL-499: `--refs` = wide-band grid hook (column 1). */}
       <div className="csc-identity-grid csc-identity-grid--refs">
         {/* SIL-641 (id 745): same full-width law as the trade-direction cell
             above — see the note there. */}
@@ -209,50 +210,60 @@ export function ShipmentCreateIdentitySection({
           </div>
         )}
 
-        {form.cargoMode === 'FCL' && (
-          <div
-            className="csc-identity-grid__shipping-line csc-field-with-trailing"
-            data-field-id="shipment-shipping-line"
+        {/* SIL-681 r2 (QA fail comment 3885, 06/11): Hãng tàu MUST exist on
+            the hàng-lẻ tab too — the old `cargoMode === 'FCL'` gate (from the
+            79ed4e03 section split) left LCL with no carrier entry at all,
+            while the carrier still rides the lot (CusQuickEdit + the detail
+            ledger edit it; the root payload nulled it for LCL since
+            0abff7aa). Same trailing pattern as FCL (SIL-681): the '✎' lives
+            INSIDE the input at the right end, same height as the input,
+            same dialog. On LCL the refs band's right column is taken by the
+            Số tờ khai cell (SIL-678), so the carrier cell spans the full
+            row below (1 / -1) — no orphan half-cell, control full-width per
+            the SIL-641 shared-right-edge law. Behavior/state unchanged:
+            same form state `shippingLineName`, same options, same dialog. */}
+        <div
+          className={`csc-identity-grid__shipping-line csc-field-with-trailing${form.cargoMode === 'LCL' ? ' csc-identity-grid__shipping-line--lcl' : ''}`}
+          data-field-id="shipment-shipping-line"
+        >
+          <SearchableField
+            id="shipment-shipping-line"
+            label="Hãng tàu"
+            value={form.shippingLineName}
+            onChange={(value) => update('shippingLineName', value)}
+            allowsCustomValue
+            options={shippingLineOptions}
+            placeholder="Gõ chọn hoặc nhập hãng tàu"
+            disabled={saving}
+            error={issueByField.get('shipment-shipping-line')}
+            // FB-114 verify-fail (171026185348): the dropdown is the SERVER
+            // catalog (defaults + SHIPPING_LINE suppliers). The pencil
+            // dialog persists its name there (survives reload for every
+            // user) AND writes this lot's field; a name typed straight into
+            // the field rides this lot only.
+            // SIL-499: the old 2-sentence usage hint under the field is
+            // GONE — §8 of the design law book bans lecturing helper text
+            // (trained operators), and at half-width columns it wrapped to
+            // four lines and alone cost ~50px of the one-viewport budget.
+            // The affordances keep their names: the pencil button's
+            // aria-label/title still says what it adds.
+            searchable
+            // SIL-641 residual (id 745): same inner-box parity as the
+            // customer field — see hideSearchIcon on USearchableField.
+            hideSearchIcon
+          />
+          <button
+            ref={shippingLineAddButtonRef as RefObject<HTMLButtonElement>}
+            type="button"
+            onClick={onOpenShippingLineDialog}
+            disabled={saving}
+            className="csc-trailing-action"
+            aria-label="Đặt tên hãng tàu cho lô này"
+            title="Đặt tên hãng tàu cho lô này"
           >
-            <SearchableField
-              id="shipment-shipping-line"
-              label="Hãng tàu"
-              value={form.shippingLineName}
-              onChange={(value) => update('shippingLineName', value)}
-              allowsCustomValue
-              options={shippingLineOptions}
-              placeholder="Gõ chọn hoặc nhập hãng tàu"
-              disabled={saving}
-              error={issueByField.get('shipment-shipping-line')}
-              // FB-114 verify-fail (171026185348): the dropdown is the SERVER
-              // catalog (defaults + SHIPPING_LINE suppliers). The pencil
-              // dialog persists its name there (survives reload for every
-              // user) AND writes this lot's field; a name typed straight into
-              // the field rides this lot only.
-              // SIL-499: the old 2-sentence usage hint under the field is
-              // GONE — §8 of the design law book bans lecturing helper text
-              // (trained operators), and at half-width columns it wrapped to
-              // four lines and alone cost ~50px of the one-viewport budget.
-              // The affordances keep their names: the pencil button's
-              // aria-label/title still says what it adds.
-              searchable
-              // SIL-641 residual (id 745): same inner-box parity as the
-              // customer field — see hideSearchIcon on USearchableField.
-              hideSearchIcon
-            />
-            <button
-              ref={shippingLineAddButtonRef as RefObject<HTMLButtonElement>}
-              type="button"
-              onClick={onOpenShippingLineDialog}
-              disabled={saving}
-              className="csc-trailing-action"
-              aria-label="Đặt tên hãng tàu cho lô này"
-              title="Đặt tên hãng tàu cho lô này"
-            >
-              <Pencil size={16} aria-hidden="true" />
-            </button>
-          </div>
-        )}
+            <Pencil size={16} aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
       {/* BAND 4 — the Tuỳ chọn flags on their own full-width band. All three

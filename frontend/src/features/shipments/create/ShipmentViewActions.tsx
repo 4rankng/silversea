@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, Plus } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 
 export interface ShipmentViewActionsProps {
@@ -15,6 +15,17 @@ export interface ShipmentViewActionsProps {
    *  → the role may not create lots (the /shipments/new route bounces the
    *  same authority), so the cluster degrades without it. */
   onCreateNew?: () => void;
+  /** SIL-688 (id 800 — QA 06/11): open the Xóa lô confirm. Omitted → the
+   *  role may not delete lots (BE `requireRoles(CUS, ADMIN)`), so the
+   *  cluster renders without the destructive affordance at all. */
+  onDelete?: () => void;
+  /** Accounting lock — the BE refuses the delete on a locked lot, so the
+   *  button disables with the same reason voice as Sửa. */
+  deleteLocked?: boolean;
+  /** Lifecycle guard: the lot carries a dispatched leg — delete would 409,
+   *  so the button disables and the reason rides the accessible description
+   *  (the same message the BE answers with). */
+  deleteBlockedReason?: string;
 }
 
 /**
@@ -32,12 +43,21 @@ export interface ShipmentViewActionsProps {
  * successor on the review — the KH's create → review → next-lot loop died.
  * "Tạo mới lô hàng" (→ /shipments/new) restores it as THE primary, so the
  * cluster keeps the house one-primary law (tertiary → secondary → primary).
+ *
+ * SIL-688 (id 800, QA 06/11): "Xóa lô" joins the review cluster LAST in the
+ * danger voice (`secondary-destructive` — the same treatment the dispatch
+ * row menu's Xóa lô law mandates: destructive actions last, distinct
+ * voice). It never renders for roles the BE delete refuses (CUS/ADMIN
+ * only), and it disables with a reason on a locked or dispatched lot.
  */
 export function ShipmentViewActions({
   onBack,
   onEdit,
   editLocked = false,
   onCreateNew,
+  onDelete,
+  deleteLocked = false,
+  deleteBlockedReason,
 }: ShipmentViewActionsProps) {
   return (
     <div className="csc-actions" role="group" aria-label="Thao tác xem lô hàng">
@@ -73,6 +93,23 @@ export function ShipmentViewActions({
           onClick={onCreateNew}
         >
           Tạo mới lô hàng
+        </UUIButton>
+      )}
+      {onDelete && (
+        <UUIButton
+          type="button"
+          size="md"
+          color="secondary-destructive"
+          iconLeading={Trash2}
+          onClick={onDelete}
+          isDisabled={deleteLocked || Boolean(deleteBlockedReason)}
+          aria-label={deleteLocked
+            ? 'Xóa lô — lô đã khóa kế toán'
+            : deleteBlockedReason
+              ? `Xóa lô — ${deleteBlockedReason}`
+              : 'Xóa lô'}
+        >
+          Xóa lô
         </UUIButton>
       )}
     </div>

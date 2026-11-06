@@ -98,7 +98,8 @@
    FIRST beside Khách hàng. Column map: Khách hàng 6 · Hình thức XNK 6, then
    Số Bill/Booking 6 · (Hãng tàu 6 | Số tờ khai 6 — SIL-678, customer 04/11:
    cùng một hàng, tờ khai bên phải, tab Hàng lẻ only; supersedes SIL-673's
-   stacked row), the Tuỳ chọn chips full width. Supersedes the FB-127 cluster
+   stacked row), then Hãng tàu full-width on Hàng lẻ (SIL-681 r2), the
+   Tuỳ chọn chips full width. Supersedes the FB-127 cluster
    split (9f174360); restores the 2425726d band map. Gate blNumber XOR
    bookingRef theo hướng GIỮ NGUYÊN (FB-113). */
 .csc-identity-grid__customer { grid-column: span 6; }
@@ -110,6 +111,11 @@
 .csc-identity-grid__declaration { grid-column: span 6; }
 .csc-identity-grid__booking { grid-column: span 6; }
 .csc-identity-grid__shipping-line { grid-column: span 6; }
+/* SIL-681 r2 (QA fail comment 3885): on Hàng lẻ the refs band's right half
+   belongs to Số tờ khai (SIL-678), so the carrier cell drops to its own row
+   spanning the full band — no orphan half-cell, the control fills the cell
+   and the shared right edge holds (SIL-641 law). FCL keeps span 6. */
+.csc-identity-grid__shipping-line--lcl { grid-column: 1 / -1; }
 /* The flag band carries its own `Tuỳ chọn` label, so its chips row lands on
    the same baseline as the carrier field's input by construction — the old
    align-self/align-items: flex-end pair is retired. All three data flags
@@ -926,22 +932,43 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 300px;
-  max-width: calc(100vw - 24px);
-  padding: 8px 10px;
+  /* SIL-692 (FB-129, id 804 — QA 06/11): at rest the editor owns NO
+     geometry outside its own line. The old rest state kept this 300px card
+     absolutely positioned below the trigger, so a new row's invisible Lưu
+     button held a real bounding box down inside the Ghi chú heading —
+     elementFromPoint there returned the heading and clicks on the selector
+     retried for 30s. The editor stays MOUNTED and in the a11y/Tab walk
+     (the SIL-552 mount contract, reveal-on-focus, react-aria's constraint
+     walk) — only the phantom box collapses: 0×0 + overflow hidden keeps
+     every child focusable (the sr-only pattern) while giving the line no
+     hit-testable surface elsewhere. `.is-open` below overrides the whole
+     dimension set onto the fixed chrome. */
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  padding: 0;
   opacity: 0;
+  /* SIL-692: invisible also to the accessibility tree and to automation's
+     actionability — a closed editor is NOT a click target (the open editor
+     below restores visibility; the trigger button is the only entry). */
+  visibility: hidden;
   pointer-events: none;
 }
 .csc-fline__card.is-open {
   position: fixed;
   z-index: var(--z-popover, 90);
+  width: 300px;
+  max-width: calc(100vw - 24px);
+  height: auto;
+  overflow: clip;
+  padding: 8px 10px;
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   background: var(--surface);
   border: 1px solid var(--brand);
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(16, 24, 40, 0.08);
-  overflow: clip;
   overflow-clip-margin: 12px;
 }
 .csc-fline__arrow {

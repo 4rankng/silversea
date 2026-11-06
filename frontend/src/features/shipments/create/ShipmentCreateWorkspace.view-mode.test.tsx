@@ -264,7 +264,7 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
     expect(screen.queryByRole('button', { name: /Nhân bản container/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xóa container 1' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Xóa container 2' })).toBeNull();
-    const sectionCopy = screen.queryByRole('button', { name: /Copy giờ hẹn xuống cont trống/ });
-    if (sectionCopy) expect(sectionCopy).toHaveAttribute('disabled');
+    const sectionApplyAll = screen.queryByRole('button', { name: /Áp dụng cho \d+ container/ });
+    if (sectionApplyAll) expect(sectionApplyAll).toHaveAttribute('disabled');
   });
 });

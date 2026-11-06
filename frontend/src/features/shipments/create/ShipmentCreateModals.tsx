@@ -46,6 +46,16 @@ export interface ShipmentCreateModalsProps {
   pendingContainerDelete: ShipmentContainerDraft | null;
   onClosePendingContainerDelete: () => void;
   onConfirmContainerDelete: () => void;
+  /** SIL-688 (id 800 — QA 06/11): the review page's Xóa lô confirm — a
+   *  destructive action with its own confirm + REQUIRED reason (the BE
+   *  answers 400 without one), danger voice, never auto-armed. */
+  deleteLotOpen: boolean;
+  deleteReason: string;
+  onDeleteReasonChange: (reason: string) => void;
+  deleteLotError: string | null;
+  deleteLotSubmitting: boolean;
+  onCloseDeleteLot: () => void;
+  onConfirmDeleteLot: () => void;
 }
 
 export function ShipmentCreateModals({
@@ -82,6 +92,13 @@ export function ShipmentCreateModals({
   pendingContainerDelete,
   onClosePendingContainerDelete,
   onConfirmContainerDelete,
+  deleteLotOpen,
+  deleteReason,
+  onDeleteReasonChange,
+  deleteLotError,
+  deleteLotSubmitting,
+  onCloseDeleteLot,
+  onConfirmDeleteLot,
 }: ShipmentCreateModalsProps) {
   return (
     <>
@@ -167,6 +184,57 @@ export function ShipmentCreateModals({
         )}
       >
         <p>Xóa container này sẽ mất dữ liệu đã nhập.</p>
+      </Modal>
+      {/* SIL-688 (id 800 — QA 06/11): the review page's Xóa lô confirm.
+          Destructive law: distinct voice + explicit confirmation + a reason
+          the BE stores. The confirm stays disabled until the reason carries
+          text, so the click can never be a reflex. */}
+      <Modal
+        isOpen={deleteLotOpen}
+        title="Xóa lô hàng?"
+        onClose={onCloseDeleteLot}
+        footer={(
+          <>
+            <button type="button" className="btn btn--ghost" onClick={onCloseDeleteLot}>Hủy</button>
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={onConfirmDeleteLot}
+              disabled={deleteLotSubmitting || !deleteReason.trim()}
+            >
+              {deleteLotSubmitting ? 'Đang xóa…' : 'Xóa lô hàng'}
+            </button>
+          </>
+        )}
+      >
+        <p>Xóa lô hàng sẽ loại bỏ hoàn toàn dữ liệu của lô cùng mọi container của nó. Thao tác không thể hoàn tác.</p>
+        <div style={{ display: 'grid', gap: 4, marginTop: 10 }}>
+          <label htmlFor="shipment-delete-lot-reason" style={{ color: 'var(--fg-1)', fontSize: 'var(--text-label-size)', fontWeight: 600 }}>
+            Lý do xóa *
+          </label>
+          <textarea
+            id="shipment-delete-lot-reason"
+            value={deleteReason}
+            onChange={(event) => onDeleteReasonChange(event.target.value)}
+            rows={2}
+            maxLength={500}
+            placeholder="Ví dụ: tạo trùng lô, sai khách hàng…"
+            disabled={deleteLotSubmitting}
+            aria-invalid={deleteLotError ? true : undefined}
+            style={{
+              border: '1px solid var(--control-border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: '6px 8px',
+              font: 'inherit',
+              fontSize: 'var(--text-data-size)',
+              background: 'var(--surface)',
+              resize: 'vertical',
+            }}
+          />
+          {deleteLotError && (
+            <span role="alert" style={{ color: 'var(--danger)', fontSize: 'var(--text-caption-size)' }}>{deleteLotError}</span>
+          )}
+        </div>
       </Modal>
     </>
   );

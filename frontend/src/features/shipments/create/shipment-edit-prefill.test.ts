@@ -64,6 +64,17 @@ function detailFixture(overrides: Partial<ShipmentEditDetail['shipment']>): Ship
 }
 
 describe('buildShipmentEditPrefill', () => {
+  it('SIL-688: seed mang hasDispatchedLegs từ carrierAssignments (guard Xóa lô)', () => {
+    const detail = detailFixture({});
+    expect(buildShipmentEditPrefill(detail).seed.hasDispatchedLegs).toBe(false);
+    detail.carrierAssignments = [{
+      fulfillmentId: 9, fulfillmentVersion: 1, shipmentContainerId: 55,
+      containerTypeCode: '40HC', containerTypeName: '40HC',
+      carrierType: 'OWN', externalCarrierId: null, externalCarrierName: null,
+    }];
+    expect(buildShipmentEditPrefill(detail).seed.hasDispatchedLegs).toBe(true);
+  });
+
   it('FCL: seed mang id/version + declaration ids, container giữ persisted id', () => {
     const detail = detailFixture({});
     detail.containers = [{
@@ -88,6 +99,7 @@ describe('buildShipmentEditPrefill', () => {
     expect(prefill.seed).toEqual({
       shipmentId: 186,
       version: 7,
+      hasDispatchedLegs: false,
       fclContainers: true,
     });
     expect(prefill.form.declarationNumber).toBe('');

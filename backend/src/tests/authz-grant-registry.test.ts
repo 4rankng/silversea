@@ -546,12 +546,15 @@ describe('CUS delete-request bridge (cards 351/352)', () => {
   // bypass bridge (declarations 20260921_3, operational-sites 20261002_263):
   // the route keeps the role set, the bridge opens only this path, general
   // shipment delete stays closed.
-  it('bridges DELETE /cus-workspace/:id for CUS only', () => {
+  it('bridges DELETE /cus-workspace/:id for CUS + DISPATCHER (SIL-688 owner ruling 06/11)', () => {
     assert.ok(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.CUS));
+    assert.ok(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.DISPATCHER));
     // patterns are strict (no trailing-slash normalization in the matcher)
     assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313/', Role.CUS), undefined);
-    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.DISPATCHER), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313/', Role.DISPATCHER), undefined);
+    // ADMIN passes the general casbin policy, not this bridge; OPS stays refused.
     assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.ADMIN), undefined);
+    assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/313', Role.OPS), undefined);
     assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/abc', Role.CUS), undefined);
     assert.equal(matchRouteBypassGrant('shipments', 'POST', '/cus-workspace/313', Role.CUS), undefined);
     assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/313', Role.CUS), undefined);

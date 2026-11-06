@@ -458,7 +458,11 @@ export function buildShipmentRootPayload(
       pickupLocation: (exportLot ? factoryName : warehouseName) || null,
       deliveryLocation: (exportLot ? warehouseName : factoryName) || null,
     } : {}),
-    shippingLineName: form.cargoMode === 'FCL' ? form.shippingLineName || null : null,
+    // SIL-681 r2 (QA fail comment 3885, 06/11): the carrier rides BOTH modes
+    // — hàng-lẻ lots carry a hãng tàu like FCL ones (the detail ledger and
+    // CusQuickEdit always edited it; the old `cargoMode === 'FCL'` gate,
+    // 0abff7aa 14/08/2026, silently dropped LCL carriers on save).
+    shippingLineName: form.shippingLineName || null,
     customsCutoffAt: localDateTimeToIso(form.customsCutoffAt),
     // SIL-642: FCL rides the derived earliest-container instant (see
     // fclClosingIso above); LCL keeps the SIL-587 direction-correct law.

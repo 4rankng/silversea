@@ -1,0 +1,25 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7185
+LOGIN ok account=tiepvv
+BOOKEND before shipments=866 containers=1072 trips=427
+DBFACT askey-contact-phone=ASKEY-XƯỞNG 2=NULL;ASKEY-XƯỞNG 1=NULL;ASKEY - XƯỞNG 2=NULL;ASKEY - XƯỞNG 1=NULL
+681R2 switch-lcl {"ok":true,"text":"Hàng lẻ"}
+681R2 hangtau-scan {"bodyMentions":0,"fieldIdCells":0}  ← BUG if bodyMentions=0
+SHOT before-681r2-lcl-no-hang-tau.png
+691 customer-field {"ok":false,"value":null}
+691 pick-customer {"ok":true}
+691 option-scan {"options":["ASKEY-XƯỞNG 1","ASKEY-XƯỞNG 2"],"anyPhone":false}  ← BUG if anyPhone=false
+SHOT before-691-askey-options-no-phone.png
+690 switch-fcl {"ok":true}
+690 add-row {"ok":true}
+690 fill-row1-appointment {"ok":true,"id":"container-d73e54e7-4f6f-41a0-aa26-66d264c72aa5-customer-appointment-date"}
+690 bulk-scan {"applyAllButtons":0,"copyDownButtons":0}  ← BUG if applyAllButtons=0
+SHOT before-690-fcl-no-bulk-apply.png
+692 fline-rest {"btnRect":{"x":512,"y":715,"w":42,"h":30},"hit":"DIV.csc-section__heading \"Ghi chú\"","card":{"position":"absolute","opacity":"0","pointerEvents":"none","visibility":"visible","zIndex":"auto"}}
+692 fline-open {"isOpenClass":true,"inlineStyle":"top: 527px; left: 410px; max-height: 361px;","card":{"position":"fixed","opacity":"1","pointerEvents":"auto","zIndex":"400"},"btnRect":{"x":657,"y":539,"w":42,"h":30},"hit":"BUTTON.csc-fline__save \"Lưu\"","notesHeadingNearby":true}  ← BUG if hit is not the save button while open
+SHOT before-692-fline-save-state.png
+688 detail-scan {"xoaLoButtons":0,"viewCluster":["Quay lại","Sửa","Tạo mới lô hàng"]}  ← BUG if xoaLoButtons=0
+SHOT before-688-detail-no-delete.png
+688 debit-menu {"menuItems":[],"hasXoaLo":false}  ← BUG if hasXoaLo=false
+SHOT before-688-debit-menu-no-delete.png
+BOOKEND after shipments=866 containers=1072 trips=427 unchanged=true
+DONE failures-are-expected-in-before-phase (baseline documentation)
