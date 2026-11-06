@@ -24,6 +24,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
 import { billBookingTitle } from '../lib/business-keys';
+import { tripCompletionBusinessDateTextSql } from './reporting-shared';
 
 const TIMEZONE = 'Asia/Ho_Chi_Minh' as const;
 const carrier = alias(s.customers, 'accounting_transport_carrier');
@@ -56,10 +57,12 @@ const carrierPayableProjection = db.select({
   .groupBy(s.ledger.financialPostingId)
   .as('accounting_transport_carrier_payable');
 
-const completionBusinessDate = sql<string>`to_char(
-  ${s.trips.completedAt} at time zone ${TIMEZONE},
-  'YYYY-MM-DD'
-)`;
+// SIL-683: the register's completion business date IS the shared reporting law
+// (reporting-shared.ts). The previous hand-rolled single `at time zone
+// 'Asia/Ho_Chi_Minh'` interpreted the stored UTC wall time as +07 and shifted
+// completions before 07:00Z a day early — 4/4 ticket trips were 11-05 instead
+// of 11-06.
+const completionBusinessDate = tripCompletionBusinessDateTextSql;
 
 // KP-151: e-POD state per trip — any submission counts (ACCEPTED filter
 // removed). Aggregated so multiple submissions never multiply register rows.

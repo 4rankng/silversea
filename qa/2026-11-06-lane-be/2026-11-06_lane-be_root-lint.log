@@ -1,0 +1,45 @@
+
+> tingting@ lint /Users/dev/.paseo/worktrees/be
+> eslint .
+
+
+/Users/dev/.paseo/worktrees/be/backend/src/services/reporting-shared.ts
+  7:10  error  'sql' is defined but never used  @typescript-eslint/no-unused-vars
+  8:13  error  's' is defined but never used    @typescript-eslint/no-unused-vars
+
+/Users/dev/.paseo/worktrees/be/frontend/src/components/layout/MobileAccountSheet.tsx
+  33:44  warning  The ref value 'openerRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'openerRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+/Users/dev/.paseo/worktrees/be/frontend/src/design-system/Modal.tsx
+  258:6  warning  React Hook useEffect has a missing dependency: 'externalOpenerRef'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/dev/.paseo/worktrees/be/frontend/src/hooks/usePopoverDialog.ts
+  181:47  warning  The ref value 'triggerRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'triggerRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+/Users/dev/.paseo/worktrees/be/frontend/src/pages/config/CustomersConfigPage.tsx
+  204:6  warning  React Hook useMemo has a missing dependency: 'riskOf'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 6 problems (2 errors, 4 warnings)
+
+ ELIFECYCLE  Command failed with exit code 1.
+exit=1
+
+> tingting@ lint /Users/dev/.paseo/worktrees/be
+> eslint .
+
+
+/Users/dev/.paseo/worktrees/be/frontend/src/components/layout/MobileAccountSheet.tsx
+  33:44  warning  The ref value 'openerRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'openerRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+/Users/dev/.paseo/worktrees/be/frontend/src/design-system/Modal.tsx
+  258:6  warning  React Hook useEffect has a missing dependency: 'externalOpenerRef'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/dev/.paseo/worktrees/be/frontend/src/hooks/usePopoverDialog.ts
+  181:47  warning  The ref value 'triggerRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'triggerRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+
+/Users/dev/.paseo/worktrees/be/frontend/src/pages/config/CustomersConfigPage.tsx
+  204:6  warning  React Hook useMemo has a missing dependency: 'riskOf'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 4 problems (0 errors, 4 warnings)
+
+rerun_exit=0

@@ -18,6 +18,7 @@ import { LedgerService } from './ledger.service';
 import { linkExpenseToRealTrip } from './expense-source-trip-link.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { releaseAutoOffsetAndFindActiveManualLink } from './advance-shared.service';
+import { resolveExpenseCommandId } from './expense-command-id.service';
 
 export type ExpenseActor = Pick<AuthUser, 'userId' | 'role'>;
 export function requireExpenseFinance(actor: ExpenseActor) {
@@ -54,9 +55,12 @@ export async function auditExpenseChange(tx: Tx, actor: ExpenseActor, before: Ex
 }
 
 export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind: ExpenseSourceKind, id: number, input: ExpenseAccountingUpdate) {
+  // SIL-682: the tiền-đường dialog's save loop sends expense_accounting_sources.id;
+  // normalize to the native id before the identity guard below compares it.
+  const nativeId = await resolveExpenseCommandId(tx, kind, id);
   if (input.tripId) await lockTripFinancialAuthority(tx, [input.tripId]);
-  const before = await getExpenseForCommand(tx, actor, { sourceKind: kind, sourceId: id, expectedVersion: input.expectedVersion });
-  if (before.sourceKind !== kind || before.sourceId !== id) throw new ApiError(409, 'Điều chỉnh từ nguồn chi phí gốc; không sửa bản liên kết chuyến.');
+  const before = await getExpenseForCommand(tx, actor, { sourceKind: kind, sourceId: nativeId, expectedVersion: input.expectedVersion });
+  if (before.sourceKind !== kind || before.sourceId !== nativeId) throw new ApiError(409, 'Điều chỉnh từ nguồn chi phí gốc; không sửa bản liên kết chuyến.');
   if (input.tripId && Object.keys(input).every(key => ['tripId', 'expectedVersion', 'reason'].includes(key))) {
     requireExpenseFinance(actor);
     await assertShipmentAccountingUnlocked(tx, before.shipmentId);
@@ -96,7 +100,7 @@ export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
     // keeps editing through the requireExpenseFinance branch / phơi phiếu.
     if (kind === 'DRIVER') {
       const [native] = await tx.select({ costType: s.driverIncidentalCosts.costType })
-        .from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, id)).limit(1);
+        .from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, nativeId)).limit(1);
       if (native?.costType === DriverIncidentalCostType.ROAD_ALLOWANCE || native?.costType === DriverIncidentalCostType.LIFT_DROP_ZONE) {
         throw new ApiError(403, 'Khoản này do hệ thống tự ghi nhận — kế toán điều chỉnh tại màn hình phơi phiếu.');
       }
@@ -139,25 +143,25 @@ export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
   const expenseDate = input.expenseDate ?? before.expenseDate;
   const note = input.note === undefined ? before.note : input.note;
   if (kind === 'OPS') await tx.update(s.opsExpenseEntries).set({ ...metadata, amount, paidAt: expenseDate, note,
-    ...(payerId ? { paidById: payerId } : {}), updatedAt: new Date() }).where(eq(s.opsExpenseEntries.id, id));
+    ...(payerId ? { paidById: payerId } : {}), updatedAt: new Date() }).where(eq(s.opsExpenseEntries.id, nativeId));
   if (kind === 'OPS' && input.photoStorageKeys) {
-    const photos = await tx.select().from(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, id));
+    const photos = await tx.select().from(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, nativeId));
     const removed = photos.filter(photo => !input.photoStorageKeys!.includes(photo.storageKey));
     if (removed.length) await tx.delete(s.opsExpensePhotos).where(inArray(s.opsExpensePhotos.id, removed.map(photo => photo.id)));
     const added = input.photoStorageKeys.filter(key => !photos.some(photo => photo.storageKey === key));
-    if (added.length) await tx.insert(s.opsExpensePhotos).values(added.map(storageKey => ({ opsExpenseId: id, storageKey, uploadedById: actor.userId }))).onConflictDoNothing();
+    if (added.length) await tx.insert(s.opsExpensePhotos).values(added.map(storageKey => ({ opsExpenseId: nativeId, storageKey, uploadedById: actor.userId }))).onConflictDoNothing();
     if (input.photoStorageKeys.length) await tx.delete(s.expenseAccountingEvidence).where(and(eq(s.expenseAccountingEvidence.expenseAccountingSourceId, before.id), notInArray(s.expenseAccountingEvidence.storageKey, input.photoStorageKeys)));
     else await tx.delete(s.expenseAccountingEvidence).where(eq(s.expenseAccountingEvidence.expenseAccountingSourceId, before.id));
   }
   if (kind === 'DRIVER') await tx.update(s.driverIncidentalCosts).set({ ...metadata, ...(input.driverCostType ? { costType: input.driverCostType } : {}), amount, occurredAt: expenseDate, note,
-    ...(payableEntityId ? { driverId: payableEntityId } : {}), receiptStorageKey: metadata.photoStorageKeys[0] ?? null }).where(eq(s.driverIncidentalCosts.id, id));
+    ...(payableEntityId ? { driverId: payableEntityId } : {}), receiptStorageKey: metadata.photoStorageKeys[0] ?? null }).where(eq(s.driverIncidentalCosts.id, nativeId));
   if (kind === 'TRIP') {
     await tx.update(s.tripExpenses).set({ costGroup: metadata.costGroup, feeName: metadata.feeName, recoveryNote: metadata.recoveryNote,
       buyAmount: amount, sellAmount: metadata.customerChargeAmount ?? '0', expenseDate, note,
       invoiceNumber: metadata.invoiceNumber, invoiceDate: metadata.invoiceDate,
       forwarderId: payerKind === 'USER' ? payerId : null, supplierId: payerKind === 'SUPPLIER' ? payableEntityId : null,
       settlementMethod: payerKind === 'USER' ? 'OPS_ADVANCE' : 'COMPANY_DIRECT', updatedAt: new Date(),
-    }).where(eq(s.tripExpenses.id, id));
+    }).where(eq(s.tripExpenses.id, nativeId));
   }
   const [link] = await tx.update(s.expenseAccountingSources).set({ version: before.version + 1, updatedAt: new Date() })
     .where(eq(s.expenseAccountingSources.id, before.id)).returning();
@@ -227,13 +231,18 @@ export async function syncShipmentExpenseSources(tx: Tx, shipmentId: number, act
  *  no carrier row is in-house by the column default. */
 export async function confirmAccountingExpenses(tx: Tx, actor: ExpenseActor, entries: ExpenseSourceRef[]) {
   requireExpenseFinance(actor);
-  const keys = entries.map(ref => `${ref.sourceKind}:${ref.sourceId}`);
+  // SIL-682: normalize the dialog's sources-PK id space to native ids BEFORE
+  // the dedupe/trip lookups, so every downstream query works in one id space.
+  const normalizedEntries = await Promise.all(entries.map(async ref => ({
+    ...ref, sourceId: await resolveExpenseCommandId(tx, ref.sourceKind, ref.sourceId),
+  })));
+  const keys = normalizedEntries.map(ref => `${ref.sourceKind}:${ref.sourceId}`);
   if (new Set(keys).size !== entries.length) throw new ApiError(400, 'Khoản chi bị chọn trùng.');
-  const links = entries.length ? await tx.select().from(s.expenseAccountingSources).where(or(...entries.map(ref =>
+  const links = normalizedEntries.length ? await tx.select().from(s.expenseAccountingSources).where(or(...normalizedEntries.map(ref =>
     and(eq(s.expenseAccountingSources.sourceKind, ref.sourceKind), eq(s.expenseAccountingSources.sourceId, ref.sourceId))))) : [];
   const tripIds = links.map(l => l.tripId).filter((id): id is number => id != null);
   for (const [kind, table] of [['TRIP', s.tripExpenses], ['DRIVER', s.driverIncidentalCosts]] as const) {
-    const ids = entries.filter(e => e.sourceKind === kind).map(e => e.sourceId);
+    const ids = normalizedEntries.filter(e => e.sourceKind === kind).map(e => e.sourceId);
     if (ids.length) tripIds.push(...(await tx.select({ tripId: table.tripId }).from(table).where(inArray(table.id, ids))).map(row => row.tripId));
   }
   const trips = tripIds.length ? await tx.select().from(s.trips).where(inArray(s.trips.id, tripIds)) : [];
@@ -241,7 +250,7 @@ export async function confirmAccountingExpenses(tx: Tx, actor: ExpenseActor, ent
   const pairs = pairIds.length ? await tx.select().from(s.tripPairs).where(inArray(s.tripPairs.id, pairIds)) : [];
   await lockTripFinancialAuthority(tx, [...tripIds, ...pairs.flatMap(p => [p.firstTripId, p.secondTripId])]);
   const result: ExpenseAccountingSource[] = [];
-  for (const ref of [...entries].sort((a, b) => `${a.sourceKind}:${a.sourceId}`.localeCompare(`${b.sourceKind}:${b.sourceId}`))) {
+  for (const ref of [...normalizedEntries].sort((a, b) => `${a.sourceKind}:${a.sourceId}`.localeCompare(`${b.sourceKind}:${b.sourceId}`))) {
     const before = await getExpenseForCommand(tx, actor, ref);
     await assertShipmentAccountingUnlocked(tx, before.shipmentId);
     if (before.paymentHistoryUnattributed) throw new ApiError(409, 'Lịch sử thu/chi chưa được phân bổ cho khoản chi cũ; không thể tạo nghĩa vụ thanh toán mới.');
