@@ -1,0 +1,49 @@
+HEALTH status=ok api=http://localhost:3002/api front=http://localhost:7185
+PASS login cus+admin
+BOOKEND before shipments=870 containers=1072
+DISPATCHED-LOT id=1783
+PASS throwaway lot created for delete drive — {"id":779030,"status":201}
+PASS 681r2 switch to LCL
+PASS 681r2 LCL hãng tàu cell + trailing ✎ — {"ok":true,"lclClass":true,"fullRow":true,"btnInsideInput":true,"sameHeight":true,"controlHeight":30,"btnHeight":30,"ariaLabel":"Đặt tên hãng tàu cho lô này"}
+PASS 681r2 LCL cell spans full row — {"ok":true,"lclClass":true,"fullRow":true,"btnInsideInput":true,"sameHeight":true,"controlHeight":30,"btnHeight":30,"ariaLabel":"Đặt tên hãng tàu cho lô này"}
+PASS 681r2 ✎ opens the shipping-line dialog
+SHOT after-681r2-lcl-hang-tau-dialog-1440.png
+PASS 681r2 typing MSC surfaces the catalog option
+PASS 681r2 Enter commits MSC into the field — {"value":"MSC"}
+SHOT after-681r2-lcl-hang-tau-committed-1440.png
+PASS 681r2 @390 touch band: ✎ grows with input, stays inside — {"ok":true,"controlHeight":44,"btnHeight":44,"inside":true}
+SHOT after-681r2-lcl-hang-tau-390.png
+PASS 690 switched to FCL
+PASS 690 bulk-apply button appears (2 rows, source scheduled) — {"found":true,"inCargo":true}
+PASS 690 apply-all overwrote the already-filled row 2 — {"times":["08","08"],"toast":" |  | Đã chuyển đến Tạo lô hàng | Đã áp dụng ngày giờ đóng trả cho 2 container | Đã áp dụng ngày giờ đóng trả cho 2 container"}
+PASS 690 success toast confirms — {"toast":" |  | Đã chuyển đến Tạo lô hàng | Đã áp dụng ngày giờ đóng trả cho 2 container | Đã áp dụng ngày giờ đóng trả cho 2 container"}
+SHOT after-690-bulk-apply-toast-1440.png
+PASS 691 customer picked
+PASS 691 suggestion carries the SĐT — {"text":"ASKEY-XƯỞNG 10912345678","hasPhone":true}
+SHOT after-691-askey-option-with-phone-1440.png
+PASS 691 popup renders the Số điện thoại row with the number — {"dialogFound":true,"hasPhoneRow":true,"phoneShown":true}
+SHOT after-691-askey-popup-phone-1440.png
+PASS 692 back to FCL default form
+PASS 692 rest state: closed editor invisible + not a click target — {"ok":true,"visibility":"hidden","hitTag":"SECTION.csc-section","inert":true}
+PASS 692 open editor: Lưu is the elementFromPoint answer (clickable) — {"isOpen":true,"w":42.171875,"hitIsSave":true,"hitLabel":"BUTTON.csc-fline__save"}
+SHOT after-692-open-editor-save-hit-1440.png
+PASS 692 real click on Lưu commits the weight into the line — {"closed":true,"value":"5.000"}
+PASS 692 @390: open editor Lưu still the hit answer — {"w":42.171875,"hitIsSave":true}
+SHOT after-692-open-editor-390.png
+PASS 688 dispatched lot: Xóa lô disabled with the BE-law reason — {"found":true,"disabled":true,"label":"Xóa lô — Chỉ xóa được khi mọi container chưa phát lệnh"}
+SHOT after-688-dispatched-disabled-1440.png
+PASS 688 debit menu carries Xóa lô in the danger voice — {"hasXoaLo":true,"dangerClass":true}
+SHOT after-688-debit-menu-xoa-lo-1440.png
+PASS 688 debit Xóa lô opens its confirm (reason required)
+PASS 688 tiepvv (role CUS): Xóa lô renders (BE admits CUS) — {"xoaLo":1}
+SHOT after-688-tiepvv-cus-sees-delete-1440.png
+PASS 688 dispatcher login for negative probe
+PASS 688 dispatcher: NO Xóa lô (BE refuses non-CUS/ADMIN) — {"xoaLo":0,"cluster":["Quay lại","Sửa","Tạo mới lô hàng"]}
+SHOT after-688-dispatcher-no-delete-1440.png
+PASS 688 admin detail: Xóa lô armed last in the view cluster — {"found":true,"enabled":true,"cluster":["Quay lại","Sửa","Tạo mới lô hàng","Xóa lô"]}
+SHOT after-688-admin-delete-armed-1440.png
+PASS 688 UI delete lands back on the list with the toast — {"url":"/shipments","toast":"Đã chuyển đến Tổng quan lô hàng | Đã xóa lô hàng. | Đã xóa lô hàng."}
+SHOT after-688-deleted-toast-list-1440.png
+PASS 688 DB side effect: throwaway lot soft-deleted — {"id":779030,"liveRows":"0"}
+BOOKEND after shipments=871 containers=1072 (net = before: the drive created and deleted exactly one throwaway lot)
+DONE failures=0
