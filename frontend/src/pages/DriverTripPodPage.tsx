@@ -23,7 +23,7 @@ import {
   Loader2,
   StickyNote,
 } from 'lucide-react';
-import { parseDriverTaskNote, TRIP_STATUS_LABELS, TripPodFileType, TripStatus } from '@tingting/shared';
+import { parseDriverTaskNote, TRIP_STATUS_LABELS, TripPodFileType, TripPodStatus, TripStatus } from '@tingting/shared';
 import { StatusPill, useConfirm } from '../components/UI';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { tripStatusVariant } from '../lib/tripStatus';
@@ -94,10 +94,18 @@ export function DriverTripPodPage() {
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
   const podHistory = trip?.podHistory ?? [];
   const documentNumber = trip?.fulfillment?.documentNumber?.trim() || 'Chưa có số Bill/Booking';
+  // SIL-684: a COMPLETED trip is read-only ONLY once its e-POD is frozen
+  // (SUBMITTED/ACCEPTED — TripPodSubmission locks those itself). With no
+  // submission, a DRAFT, or a REJECTED one, the driver must keep the upload
+  // path: the settlement chain blocks on a valid e-POD, and completion no
+  // longer requires one first. BE agrees — ensure-draft refuses only
+  // DRAFT/SUBMITTED/ACCEPTED latest versions and submit accepts DRAFT only.
+  const podFrozen = currentSubmission?.status === TripPodStatus.SUBMITTED
+    || currentSubmission?.status === TripPodStatus.ACCEPTED;
   const documentReadOnlyReason = trip?.accountingLock
     ? 'Lô hàng đã khóa kế toán. Không thể thay đổi chứng từ.'
     : trip?.status === TripStatus.COMPLETED
-      ? 'Chuyến đã hoàn thành. Bạn có thể xem hoặc tải lại chứng từ.'
+      ? (podFrozen ? 'Chuyến đã hoàn thành. Bạn có thể xem hoặc tải lại chứng từ.' : null)
       : trip?.status === TripStatus.CANCELED
         ? 'Chuyến đã hủy. Không thể thay đổi chứng từ.'
         : null;
@@ -433,6 +441,31 @@ export function DriverTripPodPage() {
           />
         </section>
       </main>
+
+      {/* SIL-684: after completion the completion CTA is gone, so a DRAFT e-POD
+          would sit unsubmitted forever — the settlement chain stays blocked on
+          "Chưa có e-POD hợp lệ". This footer is the one submit affordance left:
+          it submits exactly the open DRAFT (BE accepts DRAFT only) and never
+          completes the trip again. */}
+      {trip.status === TripStatus.COMPLETED && currentSubmission?.status === TripPodStatus.DRAFT && (
+        <footer className="driver-task-footer">
+          <div className="driver-task-footer__body">
+            <div className="driver-task-footer__summary">
+              <strong>Nộp chứng từ e-POD</strong>
+              <p>Hồ sơ chứng từ của chuyến đã hoàn thành nhưng chưa được nộp. Nộp để lô hàng đủ điều kiện quyết toán.</p>
+            </div>
+            <button
+              type="button"
+              className="driver-task-complete"
+              disabled={documentBusy || submitting || completing}
+              onClick={() => void handleSubmitPod(currentSubmission)}
+            >
+              {submitting ? <Loader2 size={18} className="spin" /> : <FileCheck2 size={18} />}
+              <span>{submitting ? 'Đang gửi…' : 'NỘP CHỨNG TỪ E-POD'}</span>
+            </button>
+          </div>
+        </footer>
+      )}
 
       {trip.status !== TripStatus.COMPLETED && trip.status !== TripStatus.CANCELED && <footer className="driver-task-footer">
         <div className="driver-task-footer__body">
