@@ -41,7 +41,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     renderAt('/shipments/9');
     expect(screen.getByTestId('view-workspace')).toBeTruthy();
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 9, canEditLot: true } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 9, canEditLot: true, canDeleteLot: true } }),
       undefined,
     );
   });
@@ -56,7 +56,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     userRole.current = 'ACCOUNTANT';
     renderAt('/shipments/3');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 3, canEditLot: false } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 3, canEditLot: false, canDeleteLot: false } }),
       undefined,
     );
   });
@@ -65,7 +65,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     userRole.current = 'DISPATCHER';
     renderAt('/shipments/4');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 4, canEditLot: true } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 4, canEditLot: true, canDeleteLot: true } }),
       undefined,
     );
   });
@@ -74,7 +74,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     userRole.current = undefined;
     renderAt('/shipments/5');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 5, canEditLot: false } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 5, canEditLot: false, canDeleteLot: false } }),
       undefined,
     );
   });

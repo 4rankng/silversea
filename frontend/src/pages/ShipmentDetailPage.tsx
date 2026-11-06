@@ -26,9 +26,9 @@ export default function ShipmentDetailPage() {
   }
   const canEditLot = !!user?.role && SHIPMENT_INTAKE_MUTATION_ROLES.includes(user.role);
   // SIL-688 (id 800 — QA 06/11): the review page carries Xóa lô for exactly
-  // the roles the BE delete admits (`requireRoles(Role.CUS, Role.ADMIN)` on
-  // DELETE /shipments/cus-workspace/:id) — the same law the list drawer's
-  // trash uses (canDeleteLot).
-  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
+  // the roles the BE delete admits — owner ruling 06/11 (comment 3953):
+  // DELETE /shipments/cus-workspace/:id admits CUS + ĐIỀU VẬN + ADMIN
+  // (requireRoles); OPS stays without the affordance.
+  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.DISPATCHER || user?.role === Role.ADMIN;
   return <ShipmentCreateWorkspace viewTarget={{ shipmentId, canEditLot, canDeleteLot }} />;
 }

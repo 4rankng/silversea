@@ -126,7 +126,10 @@ export default function ShipmentsPage() {
   // half is obsolete now, and keeping it would have left ADMIN able to delete
   // through the API but unable to reach the button. The affordance mirrors the
   // guard; when the guard moves, this moves with it.
-  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
+  // SIL-688 owner ruling 06/11 (comment 3953, keeping the 21/10 ruling):
+  // Chứng từ + Điều vận + Quản trị — the BE DELETE /cus-workspace/:id admits
+  // exactly these three (requireRoles); OPS stays without the affordance.
+  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN || user?.role === Role.DISPATCHER;
   // SIL-592 (id 692) — hide the external-trip staff close outside the
   // backend's complete-external allowlist (ADMIN/MANAGER/DISPATCHER/CUS).
   const canCloseExternal = canCloseExternalTrips(user?.role);

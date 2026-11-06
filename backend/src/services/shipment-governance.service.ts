@@ -33,8 +33,11 @@ export async function requestShipmentDelete(args: {
   // Card 20261007_396/204710 lineage: ADMIN cleans up lots too (round-5
   // retest re-confirmed the admin complaint at the audit-log level); the
   // CUS-only refusal below the requireRoles gate was the last holdout.
-  if (args.actor.role !== Role.CUS && args.actor.role !== Role.ADMIN) {
-    throw new ApiError(403, 'Chỉ CUS hoặc Quản trị viên mới được yêu cầu xóa lô hàng.');
+  // SIL-688 owner ruling 06/11 (board comment 3953, keeping the 21/10
+  // ruling): Điều vận deletes lots too — same PENDING/IN_TRANSIT scope,
+  // confirm + soft-delete with audit trail. OPS stays refused.
+  if (args.actor.role !== Role.CUS && args.actor.role !== Role.ADMIN && args.actor.role !== Role.DISPATCHER) {
+    throw new ApiError(403, 'Chỉ Chứng từ, Điều vận hoặc Quản trị viên mới được yêu cầu xóa lô hàng.');
   }
 
   const execute = async (tx: Tx) => {
