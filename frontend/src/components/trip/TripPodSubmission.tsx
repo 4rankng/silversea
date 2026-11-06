@@ -48,8 +48,8 @@ const FILE_TYPE_LABELS: Record<string, string> = {
 };
 
 const FILE_TYPE_HELP: Record<string, string> = {
-  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Tùy chọn. Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.',
-  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Tùy chọn. Phải có chữ ký giao nhận đầy đủ.',
+  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Bắt buộc trước khi hoàn thành chuyến. Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.',
+  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Bắt buộc trước khi hoàn thành chuyến. Phải có chữ ký giao nhận đầy đủ.',
 };
 
 // Driver submission completes directly; legacy review states remain readable
@@ -419,9 +419,8 @@ export function TripPodSubmission({
             Tiến độ chứng từ
             <span className="trip-pod__progress-pct">{uploadProgressPercent}%</span>
           </strong>
-          {/* Card 261022213755a: the progress bar is informational — the
-              photos are optional, "Hoàn thành chuyến" no longer waits for
-              100%. */}
+          {/* SIL-697: the progress bar tracks the two required file types —
+              "Hoàn thành chuyến" refuses while it is below 100%. */}
           <div
             className="trip-pod__progress"
             role="progressbar"
@@ -439,7 +438,7 @@ export function TripPodSubmission({
             <span>{isLocked ? 'Đã lưu đủ hai loại chứng từ.' : 'Đủ hai loại chứng từ.'}</span>
           ) : (
             <span>
-              Chưa có {missingRequired.map((fileType) => FILE_TYPE_LABELS[fileType]).join(', ')} (tùy chọn).
+              Còn thiếu {missingRequired.map((fileType) => FILE_TYPE_LABELS[fileType]).join(', ')} — cần bổ sung đủ hai loại trước khi hoàn thành chuyến.
             </span>
           )}
         </div>

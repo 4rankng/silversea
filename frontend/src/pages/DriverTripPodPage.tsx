@@ -27,7 +27,7 @@ import { parseDriverTaskNote, TRIP_STATUS_LABELS, TripPodFileType, TripPodStatus
 import { StatusPill, useConfirm } from '../components/UI';
 import TripPodSubmission from '../components/trip/TripPodSubmission';
 import { tripStatusVariant } from '../lib/tripStatus';
-import { podRequiredFilesReady } from '../lib/podReadiness';
+import { missingPodFilesMessage, podRequiredFilesReady } from '../lib/podReadiness';
 import { stripInternalCodeFromFileName } from '../lib/internalCode';
 import { usePageAnimations } from '../hooks/animations';
 import { usePageLeaveGuard } from '../hooks/usePageLeaveGuard';
@@ -121,13 +121,12 @@ export function DriverTripPodPage() {
     ? (parsedDriverNote.manualText || null)
     : (trip?.notes ?? null);
 
-  const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
+  const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
   const documentBusy = preparingPod || creatingDraft || uploadingPod;
-  // Card 261022213755a (owner ruling 22/10 — "let us keep them optional, not
-  // compulsory to have image"): the e-POD photos are optional evidence, so
-  // completion no longer waits on podReady; the backend gate is
-  // milestone-only. The readiness facts stay for the footer's informational
-  // hints.
+  // SIL-697 (owner decision Frank 06/11): both required file types gate the
+  // Hoàn thành action (missingPodFilesMessage above); these facts also drive
+  // the footer's required/ready copy. The backend completion gate itself
+  // stays milestone-only (outside this ticket).
   const completionBlocked = !validFulfillmentId
     || Boolean(trip?.accountingLock)
     || trip?.status !== 'IN_TRANSIT'
@@ -233,6 +232,13 @@ export function DriverTripPodPage() {
 
   async function handleSubmitPod(submission: DriverTaskPodSubmission): Promise<boolean> {
     if (!trip || !validFulfillmentId) return false;
+    // SIL-697: nộp nháp thiếu file tạo submission bị khóa, không thể bổ sung
+    // thêm — chặn TRƯỚC với thông báo nêu rõ loại còn thiếu.
+    const podBlock = missingPodFilesMessage(submission);
+    if (podBlock) {
+      toast({ kind: 'warning', message: podBlock });
+      return false;
+    }
     setSubmitting(true);
     try {
       const idempotencyKey = buildIdempotencyKey(
@@ -258,9 +264,18 @@ export function DriverTripPodPage() {
       return;
     }
     if (completionBlocked) {
-      // Card 261022213755a: the photo gate is gone; the remaining blocks are
-      // contextual (lock/read-only/busy) and each already has its own surface.
+      // The remaining blocks are contextual (lock/read-only/busy) and each
+      // already has its own surface.
       toast({ kind: 'warning', message: documentReadOnlyReason ?? 'Chưa thể hoàn thành chuyến lúc này. Vui lòng thử lại.' });
+      return;
+    }
+    // SIL-697 (owner decision Frank 06/11 — supersedes card 261022213755a's
+    // optional-photos completion): kiểm đủ CẢ 2 loại bằng chứng TRƯỚC khi nộp
+    // nháp — thiếu thì chặn ngay, không submit dở rồi fail ở bước hoàn thành
+    // (submission đã nộp bị khóa, không thể bổ sung file).
+    const podBlock = missingPodFilesMessage(currentSubmission);
+    if (podBlock) {
+      toast({ kind: 'warning', message: podBlock });
       return;
     }
     setCompleting(true);
@@ -471,20 +486,20 @@ export function DriverTripPodPage() {
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
-            {/* Card 261022213755a (owner ruling 22/10): e-POD photos are
-                OPTIONAL — the copy says so and names the uppercase command
-                without the retired "bắt buộc" claim. */}
+            {/* SIL-697 (owner decision Frank 06/11 — supersedes card
+                261022213755a): both required file types gate Hoàn thành, so
+                the copy names them and the missing ones, never "tùy chọn". */}
             <p>
-              Ảnh e-POD hiện tùy chọn: có thể thêm Phiếu bãi / phiếu hạ và Biên bản
-              giao nhận trước khi bấm HOÀN THÀNH CHUYẾN, hoặc hoàn thành ngay không cần ảnh.
+              Cần đủ cả Phiếu bãi / phiếu hạ và Biên bản giao nhận có ký nhận trước khi
+              bấm HOÀN THÀNH CHUYẾN — thiếu thì hệ thống sẽ chặn, không nộp nháp.
             </p>
-            {(!hasYardReceipt || !hasSignedNote) && (
+            {!podReady && (
               <ul className="driver-task-footer__issues">
-                {!hasYardReceipt && <li>Chưa có Phiếu bãi / phiếu hạ (tùy chọn)</li>}
-                {!hasSignedNote && <li>Chưa có Biên bản giao nhận (tùy chọn)</li>}
+                {!hasYardReceipt && <li>Chưa có Phiếu bãi / phiếu hạ</li>}
+                {!hasSignedNote && <li>Chưa có Biên bản giao nhận có ký nhận</li>}
               </ul>
             )}
-            {trip.status === 'IN_TRANSIT' && !trip.accountingLock && (
+            {trip.status === 'IN_TRANSIT' && !trip.accountingLock && podReady && (
               <div className="driver-task-footer__ready">
                 <CheckCircle2 size={16} />
                 <span>Đủ điều kiện hoàn thành chuyến.</span>

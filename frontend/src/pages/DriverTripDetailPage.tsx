@@ -20,7 +20,7 @@ import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
 import { DriverTaskInfoSections, DriverInvoiceSection, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
 import { EmptyState } from '../design-system';
-import { podRequiredFilesReady } from '../lib/podReadiness';
+import { missingPodFilesMessage, podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
@@ -257,7 +257,8 @@ function DriverTripDetailContent() {
   }
 
   // SIL-638 TC9 (id 742): completing transport order directly from the detail
-  // screen. e-POD photos are optional (owner ruling 31/10).
+  // screen. SIL-697 (owner decision Frank 06/11 — supersedes the 31/10
+  // optional-photos ruling): both required e-POD file types gate the action.
   async function handleCompleteTrip() {
     if (!trip || !validFulfillmentId || closed || completing) return;
     if (trip.status !== 'IN_TRANSIT') {
@@ -266,6 +267,14 @@ function DriverTripDetailContent() {
     }
     if (trip.accountingLock) {
       toast({ kind: 'warning', message: 'Lô hàng đã khóa kế toán. Không thể hoàn thành chuyến.' });
+      return;
+    }
+    // SIL-697: thiếu 1/2 loại bằng chứng thì chặn TRƯỚC, không nộp nháp dở
+    // rồi fail ở bước hoàn thành (submission đã nộp bị khóa, không thể bổ
+    // sung file).
+    const podBlock = missingPodFilesMessage(currentSubmission);
+    if (podBlock) {
+      toast({ kind: 'warning', message: podBlock });
       return;
     }
 
@@ -439,14 +448,15 @@ function DriverTripDetailContent() {
     .map((p) => p.storageKey);
   const accountingLock = trip.accountingLock ?? null;
   // Spec (Phần 4): the completion gate lives on the e-POD screen
-  // (/my-trips/:id/pod) — this page only links there. Card 261022213755a:
-  // the photos are optional, so the footer surfaces the doc facts as
-  // informational hints, not gaps the driver must fill.
+  // (/my-trips/:id/pod) — this page also completes directly via the sticky
+  // CTA. SIL-697: both required file types gate that CTA (missingPodFilesMessage);
+  // the footer names the missing docs so the driver uploads them first.
   const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
 
   // Card 20260926_28 item 10: live completion state for the sticky bar (and
-  // the top progress strip) — the count names the optional docs still absent
-  // (card 261022213755a: informational only, never a completion gate).
+  // the top progress strip). SIL-697: the missing docs are REQUIRED before
+  // completion — the strip names them so the driver uploads on the e-POD
+  // screen first.
   const podHave = (hasYardReceipt ? 1 : 0) + (hasSignedNote ? 1 : 0);
   const missingDocs = 2 - podHave;
   const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
@@ -736,10 +746,9 @@ function DriverTripDetailContent() {
         <div ref={actionBarRef} className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
           <div className="driver-task-complete-sticky__inner">
             <span className="driver-task-complete-sticky__status" data-testid="complete-sticky-status">
-              {/* Card 261022213755a: photos are optional — the status names
-                  the doc count factually instead of a "Còn thiếu" that reads
-                  like a blocker. */}
-              {missingDocs > 0 ? `Chưa có ${missingDocs}/2 ảnh chứng từ (tùy chọn)` : 'Đã có đủ 2 ảnh chứng từ'}
+              {/* SIL-697: the status names the doc count factually; the
+                  Hoàn thành tap itself refuses with the missing-type message. */}
+              {missingDocs > 0 ? `Chưa có ${missingDocs}/2 ảnh chứng từ` : 'Đã có đủ 2 ảnh chứng từ'}
             </span>
             <button
               type="button"
@@ -748,7 +757,7 @@ function DriverTripDetailContent() {
               onClick={() => void handleCompleteTrip()}
             >
               {completing ? <Loader2 size={16} className="spin" /> : <FileCheck2 size={16} />}
-              {/* SIL-638 TC9: "Hoàn tất lệnh vận chuyển" completes the order directly (photos optional) */}
+              {/* SIL-638 TC9 / SIL-697: "Hoàn tất lệnh vận chuyển" completes the order directly; both required e-POD file types gate it */}
               <span>{completing ? 'Đang gửi…' : completeCtaLabel(trip.status)}</span>
             </button>
           </div>
