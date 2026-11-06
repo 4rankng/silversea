@@ -6,7 +6,7 @@
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { ApiError } from '../errors';
 import { effectiveLotContainerCount, localDateInBusinessZone } from '@tingting/shared';
@@ -189,6 +189,11 @@ export interface ShipmentDetail {
   pendingChangeRequests: Awaited<ReturnType<typeof listPendingShipmentChangeRequests>>;
   podReviews: ShipmentPodReviewItemView[];
   carrierAssignments: Awaited<ReturnType<typeof listShipmentCarrierAssignments>>;
+  /** SIL-688 r2: whether the lot holds a LIVE trip (deleted_at null, status
+   *  != CANCELED) linked directly or through a fulfillment — the exact law
+   *  softDeleteShipment enforces. Planned fulfillments (carrier allocations
+   *  without a trip) and canceled legs never set it. */
+  hasLiveTrips: boolean;
   accountingLock: Awaited<ReturnType<typeof getShipmentAccountingLock>>;
   /** Auto freight pricing: latest frozen snapshot + formula trace + override. */
   freightRate: ShipmentFreightRateView;
@@ -290,6 +295,27 @@ async function decorateContainersWithPairKind<T extends ShipmentContainerRow & {
   }));
 }
 
+/** SIL-688 r2: the lot's live-trip fact for the delete gate — TRUE iff a trip
+ *  row is linked to the lot (directly via trips.shipment_id, or through the
+ *  lot's fulfillment) while not soft-deleted and not CANCELED. Byte-for-byte
+ *  the law softDeleteShipment re-checks server-side: planned fulfillments
+ *  (carrier allocations with no trip yet) and canceled legs never block. */
+export async function shipmentHasLiveTrips(shipmentId: number, executor: Executor = db): Promise<boolean> {
+  const [liveTrip] = await executor.select({ id: s.trips.id })
+    .from(s.trips)
+    .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
+    .where(and(
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+      or(
+        eq(s.trips.shipmentId, shipmentId),
+        eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      ),
+    ))
+    .limit(1);
+  return liveTrip != null;
+}
+
 export async function listShipmentCarrierAssignments(shipmentId: number, executor: Executor = db) {
   return executor.select({
     fulfillmentId: s.shipmentFulfillments.id,
@@ -351,7 +377,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     pickupWarehouseSiteName: joined?.pickupWarehouseSiteName ?? null,
     pickupWarehouseSiteType: joined?.pickupWarehouseSiteType ?? null,
   };
-  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, freightRate] = await Promise.all([
+  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, freightRate, hasLiveTrips] = await Promise.all([
     listShipmentContainers(id),
     listShipmentDocuments(id),
     listShipmentDeclarations(id),
@@ -361,6 +387,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     listShipmentCarrierAssignments(id),
     getShipmentAccountingLock(id),
     getShipmentFreightRateView(id),
+    shipmentHasLiveTrips(id),
   ]);
   const decoratedContainers = await decorateContainersWithPortNames(
     await decorateContainersWithPairKind(
@@ -382,6 +409,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     pendingChangeRequests,
     podReviews,
     carrierAssignments,
+    hasLiveTrips,
     accountingLock,
     // Auto freight pricing read model (docx §2-D): the latest frozen snapshot
     // + formula trace + any debit-note override. Read-only for every role —

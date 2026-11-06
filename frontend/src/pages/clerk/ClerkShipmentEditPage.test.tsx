@@ -130,6 +130,7 @@ const detail: ShipmentEditDetail = {
   pendingChangeRequests: [],
   podReviews: [],
   carrierAssignments: [],
+  hasLiveTrips: false,
   accountingLock: null,
 };
 

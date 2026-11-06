@@ -140,7 +140,13 @@ export function ShipmentDebitPage() {
         ? { kind: 'error', message: named
           ? `Các lô đã nằm trong Debit Note đã xuất: ${named}${rest > 0 ? ` +${rest}` : ''}`
           : 'Một số lô đã chọn đã nằm trong Debit Note đã xuất. Vui lòng bỏ chọn các lô đó rồi xuất lại.' }
-        : { kind: 'error', message: 'Không xuất được Debit Note. Vui lòng thử lại.' });
+        // SIL-693 r2: the 409/400 bodies carry the operator's remedy verbatim
+        // (cước chưa định giá guard, idempotency actor-collision) — surface
+        // ApiError.message as-is (the AccountingDebitClosePage pattern);
+        // collapsing it into the generic retry line hid the instruction.
+        : cause instanceof ApiError && cause.message
+          ? { kind: 'error', message: cause.message }
+          : { kind: 'error', message: 'Không xuất được Debit Note. Vui lòng thử lại.' });
     } finally {
       setIssuing(false);
     }

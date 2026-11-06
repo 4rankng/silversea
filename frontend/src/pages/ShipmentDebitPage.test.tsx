@@ -373,9 +373,35 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
     expect(await screen.findByText('Các lô đã nằm trong Debit Note đã xuất: BL-1, BL-2 +3')).toBeTruthy();
   });
 
-  it('keeps the generic failure toast when the error carries no lot codes', async () => {
+  // SIL-693 r2: the 409/400 remedy must reach the operator verbatim — the
+  // generic retry line used to swallow it (both the unpriced-freight guard
+  // and the idempotency actor-collision). The generic toast survives only
+  // for an error with no message at all.
+  it('SIL-693 r2: surfaces the unpriced-freight guard 409 remedy verbatim', async () => {
     listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'BL-1', lockStatus: 'LOCKED' })], total: 1 });
-    createBatch.mockRejectedValue(new ApiError(409, { error: 'Trùng lô đã xuất' }, 'conflict'));
+    const remedy = 'Cước vận tải của lô SHP-2611-00338 chưa được định giá. Hãy xác định giá trên Quyết toán rồi khóa lại trước khi xuất Debit Note.';
+    createBatch.mockRejectedValue(new ApiError(409, { error: remedy }, remedy));
+    renderPage('/shipments-debit?customer=1');
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    clickRow('BL-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    expect(await screen.findByText(remedy)).toBeTruthy();
+  });
+
+  it('SIL-693 r2: surfaces the idempotency actor-collision 409 verbatim', async () => {
+    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'BL-1', lockStatus: 'LOCKED' })], total: 1 });
+    const collision = 'Khóa giao dịch này thuộc về người thực hiện khác — vui lòng dùng mã giao dịch mới.';
+    createBatch.mockRejectedValue(new ApiError(409, { error: collision }, collision));
+    renderPage('/shipments-debit?customer=1');
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    clickRow('BL-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    expect(await screen.findByText(collision)).toBeTruthy();
+  });
+
+  it('keeps the generic failure toast when the error carries no message', async () => {
+    listSummary.mockResolvedValue({ items: [row({ shipmentId: 101, code: 'BL-1', lockStatus: 'LOCKED' })], total: 1 });
+    createBatch.mockRejectedValue(new ApiError(409, {}, ''));
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     clickRow('BL-1');

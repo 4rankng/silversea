@@ -58,20 +58,29 @@ function detailFixture(overrides: Partial<ShipmentEditDetail['shipment']>): Ship
     pendingChangeRequests: [],
     podReviews: [],
     carrierAssignments: [],
+    hasLiveTrips: false,
     accountingLock: null,
   };
   return base as ShipmentEditDetail;
 }
 
 describe('buildShipmentEditPrefill', () => {
-  it('SIL-688: seed mang hasDispatchedLegs từ carrierAssignments (guard Xóa lô)', () => {
+  // SIL-688 r2: the delete gate reads the BE's live-trip law (detail wire
+  // `hasLiveTrips`), never the fulfillment-plan count. An LCL lot always
+  // carries ≥1 plan fulfillment (LCL_SHIPMENT) — counting those disabled the
+  // Xóa lô button for every LCL lot forever; a live trip is what blocks.
+  it('SIL-688 r2: hasDispatchedLegs = hasLiveTrips; carrierAssignments (plan) KHÔNG chặn', () => {
     const detail = detailFixture({});
     expect(buildShipmentEditPrefill(detail).seed.hasDispatchedLegs).toBe(false);
+    // A planned fulfillment alone (no live trip) must NOT arm the block —
+    // the LCL-every-lot regression.
     detail.carrierAssignments = [{
       fulfillmentId: 9, fulfillmentVersion: 1, shipmentContainerId: 55,
       containerTypeCode: '40HC', containerTypeName: '40HC',
       carrierType: 'OWN', externalCarrierId: null, externalCarrierName: null,
     }];
+    expect(buildShipmentEditPrefill(detail).seed.hasDispatchedLegs).toBe(false);
+    detail.hasLiveTrips = true;
     expect(buildShipmentEditPrefill(detail).seed.hasDispatchedLegs).toBe(true);
   });
 
