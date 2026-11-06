@@ -60,6 +60,15 @@ export default function DispatchDetailPlanPage() {
   // guard's own reason instead of vanishing (same law as the drawer's Xóa lô).
   const { user } = useAuth();
   const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
+  // SIL-694 (id 806): the external-trip close (POST /trips/:id/complete-external)
+  // is allowlisted server-side to exactly these roles; ACCOUNTANT and OPS
+  // read the board but never get the actionable "Hoàn thành" affordance the
+  // server would 403 (SIL-551 writer law — a control that always errors is
+  // the loop QA reported: click → 403 → row unchanged → click again).
+  const canCloseExternalTrip = user?.role === Role.ADMIN
+    || user?.role === Role.MANAGER
+    || user?.role === Role.DISPATCHER
+    || user?.role === Role.CUS;
   const [deleteRow, setDeleteRow] = useState<DispatchDetailPlanRow | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
@@ -313,7 +322,7 @@ export default function DispatchDetailPlanPage() {
           onToggleSort={detailPlan.toggleSort}
           onAtomicSave={detailPlan.savePlan}
           onOpenTripReassign={setReassignTripId}
-          onCompleteExternalTrip={setCompletingRow}
+          onCompleteExternalTrip={canCloseExternalTrip ? setCompletingRow : undefined}
           onIssueOrder={detailPlan.issueOrder}
           onOpenPair={(row) => {
             setPairRow(row);

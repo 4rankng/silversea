@@ -1,0 +1,12 @@
+
+=== governed close trip 1308 as ADMIN (phuongnt) version=5 status=IN_TRANSIT ===
+[POST /trips/1308/complete] -> 403 :: {"error":"Không có quyền truy cập"}
+
+=== governed close trip 1308 as MANAGER (giamdoc) version=5 status=IN_TRANSIT ===
+[POST /trips/1308/complete] -> 403 :: {"error":"Không có quyền truy cập"}
+
+=== governed close trip 1308 as DISPATCHER (dungnv) version=5 status=IN_TRANSIT ===
+[POST /trips/1308/complete] -> 403 :: {"error":"Không có quyền truy cập"}
+
+=== governed close trip 1308 as ACCOUNTANT (hoapt) version=5 status=IN_TRANSIT ===
+[POST /trips/1308/complete] -> 422 :: {"error":"Chưa có ảnh bằng chứng. Vui lòng tải lên ít nhất 1 ảnh trước khi đề nghị hoàn thành."}

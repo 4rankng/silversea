@@ -15,7 +15,10 @@ vi.mock('../components/shared/Toast', () => ({
 }));
 
 // Card 211026005623 — the page now reads the role law (Xóa lô gate).
-vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: 'ADMIN' } }) }));
+// SIL-694: the role is mutable per test so the external-close gate can pin
+// the full allowlist matrix.
+const auth = vi.hoisted(() => ({ role: 'ADMIN' as string }));
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: auth.role } }) }));
 
 // The page's data owner is pinned; the grid still mounts the real
 // PairTripsDialog so the test exercises the wiring this audit found dead
@@ -138,6 +141,7 @@ beforeEach(() => {
   useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900 }), isLoading: false });
   vi.mocked(tripClient.getTrip).mockReset();
   vi.mocked(tripClient.createPair).mockReset();
+  auth.role = 'ADMIN';
 });
 
 describe('DispatchDetailPlanPage — ghép chuyến wiring (DISP-DP-12)', () => {
@@ -227,5 +231,35 @@ describe('DispatchDetailPlanPage — external completion identity (UI52-B)', () 
     expect(screen.getByRole('menuitem', { name: 'Hoàn thành' })).toBeTruthy();
     expect(plan.items).toHaveLength(1);
     expect(plan.refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('DispatchDetailPlanPage — external completion role gate (SIL-694)', () => {
+  // POST /trips/:id/complete-external is allowlisted server-side to
+  // ADMIN/MANAGER/DISPATCHER/CUS (authz-grants exclusive row). ACCOUNTANT
+  // and OPS read the dispatch board; giving them the actionable verb was the
+  // click → 403 → unchanged row → click-again loop QA reported.
+  const externalDispatchedRow = () => row(900, {
+    dispatch: { ...row(900).dispatch, carrierType: 'EXTERNAL', tripStatus: 'IN_TRANSIT' },
+  });
+
+  it.each(['ADMIN', 'MANAGER', 'DISPATCHER', 'CUS'])('offers the Hoàn thành verb to %s', (role) => {
+    auth.role = role;
+    plan.items = [externalDispatchedRow(), row(901)];
+    renderPage();
+    fireEvent.click(screen.getAllByRole('button', { name: /Thao tác dòng · TGHU/ })[0]!);
+    expect(screen.getByRole('menuitem', { name: 'Hoàn thành' })).toBeTruthy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+  });
+
+  it.each(['ACCOUNTANT', 'OPS'])('offers no dead Hoàn thành verb to %s', (role) => {
+    auth.role = role;
+    plan.items = [externalDispatchedRow(), row(901)];
+    renderPage();
+    fireEvent.click(screen.getAllByRole('button', { name: /Thao tác dòng · TGHU/ })[0]!);
+    expect(screen.queryByRole('menuitem', { name: 'Hoàn thành' })).toBeNull();
+    // The menu itself still renders its other verbs — the gate hides one
+    // affordance, not the row's whole action surface.
+    expect(screen.getByRole('menuitem', { name: 'Phân xe lại' })).toBeTruthy();
   });
 });

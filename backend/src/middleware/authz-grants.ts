@@ -255,11 +255,11 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     resource: 'trips',
     methods: ['POST'],
     pathPattern: /^\/\d+\/complete\/?$/,
-    roles: [Role.ACCOUNTANT, Role.CUS],
+    roles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS],
     effect: 'exclusive',
     reason:
-      'Governed close-maker command required by the O2C PRD: only the CUS close-maker command is exposed on the trip surface; all other CUS trip operations remain denied.',
-    source: 'O2C PRD (tripRouteAuthz doc comment)',
+      'Governed trip financial close (SIL-694): the route grant admits exactly the close-maker set of the TRIP_FINANCIAL_CLOSE policy (governance-policy.ts createRoles) — the pre-2026-09-11 CUS-maker-only list hard-403d ADMIN/MANAGER, the very roles the maker-checker removal taught to close directly in-request, so every close tap on the trips screen errored. The middleware stays exclusive (no casbin escape) but the service layer keeps the finer law: maker assert + apply assert + photo/POD/readiness gates.',
+    source: 'SIL-694 (id 806) — QA 06/11 governed close 403 for every button-visible role',
   },
   {
     resource: 'trips',

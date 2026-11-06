@@ -129,8 +129,10 @@ interface DetailedPlanGridProps {
     },
   ) => Promise<AtomicPlanSaveResult>;
   onOpenTripReassign: (tripId: number) => void;
-  /** Staff close for external-carrier trips (dispatch/CUS on the driver's behalf). */
-  onCompleteExternalTrip: (row: DispatchDetailPlanRow) => void;
+  /** SIL-694 (id 806) — optional: hosts gate it by role (the staff close is
+   *  ADMIN/MANAGER/DISPATCHER/CUS only); undefined removes every "Hoàn thành"
+   *  affordance below (menu item, card slot, editor button). */
+  onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
   /** Decompose-then-edit for fulfillment-less branch rows. The inline
    *  PHÂN LOẠI save passes `{ autoOpen: false }` — it must never pop the
    *  full editor modal (SIL-667); the editor cell omits it and inherits the

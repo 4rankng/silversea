@@ -26,12 +26,26 @@ describe('NO-APP-15: direct action permissions without approval stages', () => {
   });
 
   it('retains management-only close, reopen, treasury and price configuration actions', () => {
-    for (const actionKind of ['SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN', 'TRIP_FINANCIAL_CLOSE', 'TRIP_REOPEN', 'TREASURY_ACCOUNT_SETUP', 'TREASURY_MOVEMENT_REVERSAL', 'PRICE_CONFIG_CHANGE']) {
+    for (const actionKind of ['SALARY_PERIOD_CLOSE', 'SALARY_PERIOD_REOPEN', 'TRIP_REOPEN', 'TREASURY_ACCOUNT_SETUP', 'TREASURY_MOVEMENT_REVERSAL', 'PRICE_CONFIG_CHANGE']) {
       for (const role of [Role.ADMIN, Role.MANAGER]) {
         assert.doesNotThrow(() => assertCanApplyGovernanceAction(actionKind, role));
       }
       assertDenied(actionKind, Role.ACCOUNTANT);
       assertDenied(actionKind, Role.CUS);
+    }
+  });
+
+  it('applies the governed trip close for management AND the accounting maker (SIL-694)', () => {
+    // Since MC-4 (2026-09-11) make and apply run in one request — a
+    // close-maker outside applyRoles was a guaranteed 403 dead-end AFTER the
+    // photo/evidence gates, the "kế toán bị lặp vô hạn" QA reported. CUS
+    // keeps only the legacy O2C close-maker create grant; apply stays
+    // management/accounting.
+    for (const role of [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT]) {
+      assert.doesNotThrow(() => assertCanApplyGovernanceAction('TRIP_FINANCIAL_CLOSE', role));
+    }
+    for (const role of [Role.CUS, Role.OPS, Role.DISPATCHER, Role.DRIVER]) {
+      assertDenied('TRIP_FINANCIAL_CLOSE', role);
     }
   });
 

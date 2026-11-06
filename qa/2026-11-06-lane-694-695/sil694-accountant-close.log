@@ -1,0 +1,34 @@
+trip 1308 pre-close: status=IN_TRANSIT version=5
+POST /trips/1308/complete as hoapt -> 200
+{
+  "id": -1,
+  "version": 2,
+  "createdAt": "2026-11-06T14:49:41.069Z",
+  "updatedAt": "2026-11-06T14:49:41.070Z",
+  "status": "APPROVED",
+  "subjectId": 1308,
+  "subjectKey": "TRP-202611-0156",
+  "reason": "SIL-694 kế toán chốt chuyến sau khi đủ bằng chứng",
+  "originalVersion": 5,
+  "originalPeriodLockId": null,
+  "beforeSnapshot": {
+    "status": "IN_TRANSIT",
+    "revenue": "0",
+    "totalCost": "-110000",
+    "grossProfit": "110000"
+  },
+  "afterSnapshot": {
+    "status": "COMPLETED",
+    "acceptedPodSubmissionId": 15,
+    "acceptedPodSubmissionVersion": 1,
+    "acceptedPodSourceTripVersion": 5
+  },
+  "deltaSnapshot": null,
+  "checkerId": null,
+  "checkerRole": null,
+  "checkedAt": null,
+  "approverId": 9,
+  "approverRole": "ACCOUNTANT",
+  "approvedAt": "2026-11-06T14:49:41.070Z",
+  
+trip after: status=COMPLETED version=6
