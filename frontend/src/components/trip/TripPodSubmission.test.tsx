@@ -41,11 +41,12 @@ describe('TripPodSubmission', () => {
 
     expect(screen.getAllByText(/Phiếu bãi \/ phiếu hạ/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Biên bản giao nhận có ký nhận/).length).toBeGreaterThan(0);
-    // Card 261022213755a: photos are optional — the card state reads
-    // "Chưa có" and the foot names the missing types as optional under the
-    // informational "Tiến độ chứng từ", never a mandatory-gate claim.
+    // SIL-697 (owner Frank, 06/11): the draft submit boundary requires BOTH
+    // file types — the foot names the missing ones as required ("đủ hai loại"),
+    // never as optional (supersedes card 261022213755a's submit-anything rule).
     expect(screen.getAllByText('Chưa có').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Chưa có .+ \(tùy chọn\)\./)).toBeTruthy();
+    expect(screen.getByText(/Còn thiếu .+ — cần bổ sung đủ hai loại trước khi hoàn thành chuyến\./)).toBeTruthy();
+    expect(screen.queryByText(/tùy chọn/)).toBeNull();
     expect(screen.getByText(/Tiến độ chứng từ/)).toBeTruthy();
     expect(screen.queryByText(/Điều kiện hoàn thành/)).toBeNull();
     expect(screen.queryByText('Chứng từ bắt buộc')).toBeNull();

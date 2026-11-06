@@ -16,7 +16,12 @@ import { formatVietnamDateInput } from '../lib/shipment-operations';
 const { apiGet, apiPost, toastMock, authRole } = vi.hoisted(() => ({
   apiGet: vi.fn(), apiPost: vi.fn(), toastMock: vi.fn(), authRole: { value: 'CUS' },
 }));
-vi.mock('../components/shared/Toast', () => ({ useToast: () => ({ toast: toastMock }) }));
+vi.mock('../components/shared/Toast', () => ({
+  useToast: () => ({ toast: toastMock }),
+  // SIL-335: useCusDetail mount calls useToastOptional() for the best-effort
+  // carrier-catalog warning — same mock recipe the SIL-555/629 drawer fixes adopted.
+  useToastOptional: () => ({ toast: toastMock }),
+}));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: authRole.value } }) }));
 vi.mock('../lib/api', () => ({
   api: { get: apiGet, post: apiPost, put: vi.fn() },

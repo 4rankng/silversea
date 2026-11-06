@@ -13,6 +13,9 @@ vi.setConfig({ testTimeout: 15000 });
 const { apiGet, apiPost, apiPut, toastMock } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPost: vi.fn(), apiPut: vi.fn(), toastMock: vi.fn() }));
 vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast: toastMock }),
+  // SIL-335: useCusDetail mount calls useToastOptional() for the best-effort
+  // carrier-catalog warning — same mock recipe the SIL-555/629 drawer fixes adopted.
+  useToastOptional: () => ({ toast: toastMock }),
 }));
 vi.mock('../lib/api', () => ({
   api: { get: apiGet, post: apiPost, put: apiPut },
