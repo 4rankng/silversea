@@ -114,9 +114,36 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     expect(label, 'SIL-639 restores the visible inline label').toBeTruthy();
     expect(label!.textContent).toContain('Ngày giờ đóng trả');
     expect(label!.textContent).toContain('*');
-    expect(field.textContent).not.toContain('Ngày giao hàng');
+    // SIL-427 (ticket 221026103544 / QA fail 06/11) supersedes the old
+    // "never Ngày giao hàng" pin: the row now CARRIES the delivery-date
+    // identity as a subordinate chip, while the schedule field's own
+    // label/aria stay "Ngày giờ đóng trả" (asserted above).
+    const edd = field.querySelector('[data-field-id="shipment-lcl-expected-delivery"]');
+    expect(edd, 'SIL-427 names the delivery date on the same row').toBeTruthy();
+    expect(edd!.textContent).toContain('Ngày giao hàng');
+    // Empty draft: the label reads with an em-dash placeholder, never a date.
+    expect(edd!.textContent).toContain('—');
     expect(field.querySelectorAll('input[data-seg="hh"]').length).toBe(1);
     expect(field.querySelectorAll('input[data-seg="yyyy"]').length).toBe(1);
+  });
+
+  it('SIL-427: the delivery-date chip mirrors the typed closing datetime VN date', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+    fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
+    // Same segmented drive the SIL-587 guard runs: scope to the LCL band's
+    // own field, type a complete datetime, and the chip mirrors its VN
+    // wall-clock date — the fact shipment-create-model persists as
+    // expectedDeliveryDate.
+    const field = document.querySelector('[data-field-id="shipment-lcl-closing-at"]')!;
+    const seg = (key: string) => field.querySelector<HTMLInputElement>(`input[data-seg="${key}"]`)!;
+    fireEvent.change(seg('hh'), { target: { value: '09' } });
+    fireEvent.change(seg('mm'), { target: { value: '30' } });
+    fireEvent.change(seg('dd'), { target: { value: '25' } });
+    fireEvent.change(seg('mm2'), { target: { value: '10' } });
+    fireEvent.change(seg('yyyy'), { target: { value: '2026' } });
+    const edd = document.querySelector('[data-field-id="shipment-lcl-expected-delivery"]')!;
+    expect(edd.textContent).toBe('Ngày giao hàng: 25/10/2026');
   });
 
   it('drops the ad-hoc-waived marks when Lệnh chạy ngoài is on and keeps the rest', async () => {

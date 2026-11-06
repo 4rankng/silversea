@@ -41,8 +41,34 @@ describe('ScheduleEditorBody', () => {
     const props = baseProps();
     const { container } = render(<ScheduleEditorBody {...props} />);
     // The header icon crowded the narrow cell tray; the user asked for it gone.
-    expect(container.querySelector('.shipment-container-ledger__schedule-title svg')).toBeNull();
+    // SIL-251: the ONE svg allowed in the title row is the copy affordance's
+    // own (functional) icon — still no decorative calendar icon.
+    for (const svg of container.querySelectorAll('.shipment-container-ledger__schedule-title svg')) {
+      expect(svg.closest('.driver-copy-btn')).toBeTruthy();
+    }
+    expect(container.querySelector('.shipment-container-ledger__schedule-title .driver-copy-btn')).toBeTruthy();
     expect(screen.getByText('Chỉnh sửa lịch trình')).toBeTruthy();
+  });
+
+  it('SIL-251: the popover carries the copy-time affordance on a complete draft', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const props = baseProps({ appointmentDate: '2026-11-10', scheduleTime: '14:30' });
+    render(<ScheduleEditorBody {...props} />);
+
+    const copy = screen.getByRole('button', { name: 'Copy giờ hẹn trong hộp thoại' });
+    fireEvent.click(copy);
+    // The canonical date-first 24h text of the DRAFT (what a clerk pastes).
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('10/11/2026 14:30'));
+  });
+
+  it.each([
+    { appointmentDate: '2026-11-10', scheduleTime: '' },
+    { appointmentDate: '', scheduleTime: '14:30' },
+    { appointmentDate: '2026-11-10', scheduleTime: '14:' },
+  ])('SIL-251: a half-picked draft has no copy affordance — %o', ({ appointmentDate, scheduleTime }) => {
+    render(<ScheduleEditorBody {...baseProps({ appointmentDate, scheduleTime })} />);
+    expect(screen.queryByRole('button', { name: 'Copy giờ hẹn trong hộp thoại' })).toBeNull();
   });
 
   it('renders ngày before giờ with locale-independent 24h text entry (SIL-608)', () => {

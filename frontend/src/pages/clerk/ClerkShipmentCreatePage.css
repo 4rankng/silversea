@@ -52,8 +52,14 @@
 .csc-lcl-delivery { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-width: 0; }
 .csc-lcl-delivery .split-datetime__label { font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); color: var(--fg-1); white-space: nowrap; }
 .csc-lcl-delivery .csc-uui-field { flex: 0 1 auto; min-width: 0; width: auto; }
+/* SIL-427 (ticket 221026103544): the delivery-date identity chip rides the
+   same row as a subordinate fact — smaller than the primary label, quiet
+   ink, nowrap. flex-wrap stacks it under the datetime on phones. */
+.csc-lcl-delivery__edd { font-size: var(--text-caption-size); line-height: var(--control-compact-line-height); color: var(--ink-2); white-space: nowrap; }
+.csc-lcl-delivery__edd strong { color: var(--ink); font-weight: var(--fw-semibold); font-family: var(--font-data); }
 @media (max-width: 640px) {
   .csc-lcl-delivery .split-datetime__label { font-size: var(--control-compact-touch-font-size); line-height: var(--control-compact-touch-line-height); }
+  .csc-lcl-delivery__edd { font-size: var(--text-caption-touch-size, var(--text-caption-size)); }
   .csc-lcl-delivery { align-items: center; }
 }
 @media (max-width: 768px) {

@@ -9,7 +9,8 @@ import { useRef, useState } from 'react';
 import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
 import { BufferedUuiDateInput } from '../../../design-system';
 import { TimeInput } from '../../../design-system/forms/TimeInput';
-import { businessDateOffsetISO } from '../../../lib/format';
+import { CopyCodeButton } from '../../../components/trip/CopyCodeButton';
+import { businessDateOffsetISO, formatDateTime24 } from '../../../lib/format';
 
 /** Common appointment hours offered as one-tap shortcuts in the schedule editor. */
 const SCHEDULE_TIME_PRESETS = ['08:00', '10:00', '13:30', '16:00'];
@@ -55,6 +56,10 @@ export function ScheduleEditorBody({
   cargoMode, transportDate = '', canEditTransport = false, onTransportDateChange,
 }: ScheduleEditorBodyProps) {
   const [dateResetKey, setDateResetKey] = useState(0);
+  // SIL-251 (FB-009): the draft's canonical 'DD/MM/YYYY HH:mm' — '' until
+  // both halves parse (formatDateTime24 returns '' for a malformed draft),
+  // which gates the copy affordance below.
+  const copyValue = formatDateTime24(`${appointmentDate}T${scheduleTime}`);
   // SIL-608 (id 711, owner 30/10): NGÀY leads the pair, GIỜ closes it — the
   // VN order every datetime field now runs. The FB-030/075 no-stuck law
   // survives REVERSED: a completed năm hands focus to the giờ box (the same
@@ -67,6 +72,21 @@ export function ScheduleEditorBody({
         <div className="shipment-container-ledger__schedule-title">
           <strong>Chỉnh sửa lịch trình</strong>
           <span className="shipment-container-ledger__schedule-badge">{row.containerNumber || `Container số ${row.ordinal}`}</span>
+          {/* SIL-251 (FB-009, ticket 131026233500 / QA fail 06/11): the
+              schedule popover is the "dialog giờ / dialog ngày" the card
+              named — it carries the same copy-time affordance the combined
+              picker got (CopyCodeButton, house pattern): one tap writes the
+              canonical 'DD/MM/YYYY HH:mm' of the DRAFT (quick-day pills and
+              presets included), and the icon flips to a check for 1.6s. It
+              only exists once both halves parse — a half-picked draft has no
+              time to copy, the same FB-009 law the picker surface runs. */}
+          {copyValue && (
+            <CopyCodeButton
+              className="shipment-container-ledger__schedule-copy"
+              value={copyValue}
+              label="giờ hẹn trong hộp thoại"
+            />
+          )}
         </div>
         <button
           type="button"

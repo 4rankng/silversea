@@ -239,6 +239,31 @@
   overflow: hidden;
 }
 
+/* SIL-698 (id 810, owner 06/11) — the master-plan board's headers hold ONE
+   line at the desktop reading band, the same law FB-063/SIL-686 pinned for
+   /dispatch-detail. The master plan pays for it differently: its column
+   shares are PINNED by the R38 rebalance (card 20261002_302 — the one-line
+   shares of card 091026091550 starved the port columns once already), so the
+   one-line widths come from the condensed labels ("Lịch trình", "Tuyến &
+   hãng tàu", "Hàng hóa" — the td data-labels and the Excel export keep the
+   full names) plus the sanctioned "co chữ": 10px/0.02em inside this band.
+   Below 1440px the owner redesign 23/10 law (wrap at spaces up to two lines)
+   stays in force — the band is exactly the acceptance width of the ruling.
+   Overflow stays visible: an oversized label overlaps visibly instead of
+   clipping, the no-truncation doctrine. */
+@media (min-width: 1440px) {
+  .master-plan-grid thead th {
+    white-space: nowrap;
+    font-size: 10px;
+    letter-spacing: 0.02em;
+  }
+  .master-plan-grid__th-label {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+  }
+}
+
 /* A record is not itself an action. Restrict the quiet desktop scan aid to
    fine pointers: touch browsers otherwise retain :hover while the user is
    merely scrolling, which made whole records look selected.

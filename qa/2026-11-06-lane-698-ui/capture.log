@@ -1,0 +1,27 @@
+login ok → /dispatch
+PASS  SIL-698 1440: header count = 8 (expected ≥ 8)
+PASS  SIL-698 1440: 0 headers wrap/overflow (wrapped: none)
+PASS  SIL-698 1440: every header computes white-space nowrap
+PASS  SIL-698 1440: header font-size 10px (got: 10px)
+PASS  SIL-698 1920: header count = 8
+PASS  SIL-698 1920: 0 headers wrap/overflow (wrapped: none)
+SKIP  SIL-251: no editable schedule trigger on /shipments-detail rows (data-dependent surface) — component-level pins stand
+PASS  SIL-427: LCL form renders the Ngày giao hàng chip
+SIL-427 chip text: "Ngày giao hàng: —"
+PASS  SIL-427: chip names Ngày giao hàng
+PASS  SIL-427: schedule field label stays Ngày giờ đóng trả
+CAPTURE: ALL PASS
+login ok → /dispatch
+PASS  SIL-698 1440: header count = 8 (expected ≥ 8)
+PASS  SIL-698 1440: 0 headers wrap/overflow (wrapped: none)
+PASS  SIL-698 1440: every header computes white-space nowrap
+PASS  SIL-698 1440: header font-size 10px (got: 10px)
+PASS  SIL-698 1920: header count = 8
+PASS  SIL-698 1920: 0 headers wrap/overflow (wrapped: none)
+PASS  SIL-251: schedule popover renders the copy-time affordance
+SIL-251 popover state: {"copyLabel":"Copy giờ hẹn trong hộp thoại","timeValue":"08:00"}
+PASS  SIL-427: LCL form renders the Ngày giao hàng chip
+SIL-427 chip text: "Ngày giao hàng: —"
+PASS  SIL-427: chip names Ngày giao hàng
+PASS  SIL-427: schedule field label stays Ngày giờ đóng trả
+CAPTURE: ALL PASS

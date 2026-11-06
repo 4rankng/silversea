@@ -568,6 +568,11 @@
 .shipment-container-ledger__schedule-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line-2); }
 .shipment-container-ledger__schedule-title { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 5px; color: var(--ink); font-size: var(--text-data-size); }
 .shipment-container-ledger__schedule-badge { color: var(--ink-3); font-family: var(--font-data); font-size: var(--text-caption-size); background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
+/* SIL-251 (FB-009): the popover's copy-time affordance rides the title row —
+   the house CopyCodeButton geometry, shrunk to the badge's scale. */
+.shipment-container-ledger__schedule-copy { display: inline-grid; place-items: center; width: 22px; height: 22px; flex-shrink: 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-3); cursor: pointer; }
+.shipment-container-ledger__schedule-copy:hover { background: var(--surface-2); color: var(--ink); }
+.shipment-container-ledger__schedule-copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .shipment-container-ledger__schedule-close { display: inline-grid; place-items: center; width: 22px; height: 22px; flex-shrink: 0; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--ink-3); cursor: pointer; }
 .shipment-container-ledger__schedule-close:hover { background: var(--surface-2); color: var(--ink); }
 .shipment-container-ledger__schedule-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Copy } from 'lucide-react';
-import { formatDateTime24 } from '../../../lib/format';
+import { formatDateTime24, formatISODate } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
   UTextAreaField as TextAreaField,
@@ -895,6 +895,18 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     error={issueByField.get('shipment-lcl-closing-at')}
                     combinedPicker
                   />
+                  {/* SIL-427 (ticket 221026103544 / QA fail 06/11): the LCL
+                      form must NAME the delivery date. By the SIL-587 payload
+                      law this row's datetime IS the lot's
+                      expectedDeliveryDate — its VN wall-clock date, mirrored
+                      here live (string surgery, never the host timezone).
+                      The schedule field's own label, aria and validation stay
+                      SIL-587's "Ngày giờ đóng trả *"; this chip adds the
+                      delivery-date identity on the same row (no layout
+                      change) so a clerk reads both facts at a glance. */}
+                  <span className="csc-lcl-delivery__edd" data-field-id="shipment-lcl-expected-delivery">
+                    Ngày giao hàng: <strong>{formatISODate(form.lclClosingAt.slice(0, 10), { empty: '—' })}</strong>
+                  </span>
                 </div>
               )}
               {/* SIL-642 (id 746, owner 31/10): the FCL band datetime is
