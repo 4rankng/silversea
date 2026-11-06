@@ -184,8 +184,9 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
       shipmentId: shipment.id,
       version: shipment.version,
       // SIL-688: the delete UI's lifecycle guard reads the same fulfillment
-      // presence the BE delete re-checks server-side.
-      hasDispatchedLegs: detail.carrierAssignments.length > 0,
+      // presence the BE delete re-checks server-side. Tolerant of fixtures
+      // that omit the array (the wire contract always carries it).
+      hasDispatchedLegs: (detail.carrierAssignments ?? []).length > 0,
       fclContainers: !isLcl,
       // SIL-660: LCL carries its declaration entity state (rowId null = no
       // row yet); FCL omits the key entirely.
