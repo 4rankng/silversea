@@ -102,10 +102,17 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     expect(within(presetGroup).getByRole('tab', { name: 'Tất cả' }).getAttribute('aria-selected')).toBe('true');
     expect(bar.querySelector('.filter-bar__presets')?.contains(presetGroup)).toBe(true);
     // CHIEF 2026-09-27: two independent date fields, no range picker.
+    // SIL-685 (FB-056 one-line toolbar): the from/to group folds with the
+    // criteria — it lives in the `Bộ lọc` dialog at every width, never as a
+    // bar item of its own and never behind a page-local trigger.
+    expect(screen.queryByRole('group', { name: 'Khoảng ngày vận chuyển' })).toBeNull();
+    openFilterDialog();
     expect(screen.getByRole('group', { name: 'Khoảng ngày vận chuyển' })).toBeTruthy();
     expect(screen.getByLabelText('Từ ngày')).toBeTruthy();
     expect(screen.getByLabelText('Đến ngày')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Khoảng ngày vận chuyển' })).toBeNull();
+    // Back to the closed state the rest of the test asserts against.
+    fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
     // The page's own actions ride the bar's action cluster: Gán xe and Xóa lọc.
     const actions = bar.querySelector('.filter-bar__actions') as HTMLElement;
     expect(within(actions).getByRole('button', { name: 'Gán xe' })).toBeTruthy();
@@ -172,8 +179,11 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
       ),
     );
     // Both fields carry the scope date (segmented: DD / MM / YYYY); no popover,
-    // no merged range trigger.
+    // no merged range trigger. SIL-685: the fields live in the `Bộ lọc`
+    // dialog now, so the dialog is opened to read them — a preset click still
+    // never opens a date PICKER of its own.
     const [expectedDay, expectedMonth, expectedYear] = formatISODate(today).split('/');
+    openFilterDialog();
     const fromDay = screen.getByLabelText('Từ ngày') as HTMLInputElement;
     expect(fromDay.value).toBe(expectedDay);
     expect((screen.getByLabelText('Tháng — Từ ngày') as HTMLInputElement).value).toBe(expectedMonth);
@@ -181,12 +191,14 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     const toDay = screen.getByLabelText('Đến ngày') as HTMLInputElement;
     expect(toDay.value).toBe(expectedDay);
     expect((screen.getByLabelText('Tháng — Đến ngày') as HTMLInputElement).value).toBe(expectedMonth);
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('listbox')).toBeNull();
   });
 
   it('writes an explicit range through the two independent date fields (controlled flow)', () => {
     const onChange = vi.fn();
     const view = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
+    // SIL-685: the fields live in the `Bộ lọc` dialog at every width.
+    openFilterDialog();
 
     // Each field commits a complete DD/MM/YYYY draft as ISO, on its own.
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '15/09/2026' } });
@@ -201,8 +213,9 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     );
     fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '22/09/2026' } });
     expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-15', dateTo: '2026-09-22' });
-    // No picker is involved anywhere in the flow.
-    expect(screen.queryByRole('dialog')).toBeNull();
+    // No date PICKER is involved anywhere in the flow — the typed values go
+    // through the two fields inside the criteria dialog.
+    expect(screen.queryByRole('listbox')).toBeNull();
   });
 
   it('bounds each field by the other so an out-of-order range can never be written', () => {
@@ -213,6 +226,8 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
         filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, dateFrom: '2026-09-15', dateTo: '2026-09-22' }}
       />,
     );
+    // SIL-685: the fields live in the `Bộ lọc` dialog at every width.
+    openFilterDialog();
     // Each field carries the other's boundary, so neither the calendar nor a
     // typed date can invert the range.
     expect((screen.getByLabelText('Từ ngày') as HTMLInputElement).max).toBe('2026-09-22');
@@ -395,10 +410,11 @@ describe('DetailedPlanFilters — Bộ lọc dialog (hours/zone/points)', () => 
   });
 });
 
-// Card 20261002_285 AC1. RED-first: the date scope has TWO representations — the
-// `date` preset and the `dateFrom`/`dateTo` range — and `clearSecondaryFilters`
-// preserved only the preset. An identically-scoped custom range was therefore
-// silently wiped by the dialog's own `Đặt lại`, while the same preset survived.
+// Card 20261002_285 AC1, re-affirmed by SIL-685: the date scope has TWO
+// representations — the `date` preset and the `dateFrom`/`dateTo` range —
+// and both are the DATE SCOPE. The range now folds into the dialog at every
+// width (the one-line toolbar), but it is still scope, not criterion:
+// `Đặt lại` clears the folded criteria and leaves the whole scope in place.
 describe('detailed-plan Bộ lọc reset keeps the whole date scope (card 20261002_285)', () => {
   it('leaves a custom from/to range in place and clears the folded criteria', () => {
     const onChange = vi.fn();

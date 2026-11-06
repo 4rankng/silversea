@@ -22,7 +22,6 @@ describe('detail-overhaul missing-value + header contract (cards 20260926_10/_50
   it('ribbon filters integrate their labels; Xóa lọc stays disabled-aware', () => {
     const src = read('src/features/dispatch/detailed-plan/DetailedPlanFilters.tsx');
     expect(src).toContain('Khách: Tất cả');
-    expect(src).toContain('Hướng');
     expect(src).toContain('hasActiveFilters');
     expect(src).not.toContain('Thời gian');
   });

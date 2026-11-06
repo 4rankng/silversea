@@ -1,0 +1,4 @@
+# Root lint gate 2026-11-06 — pnpm lint
+command: pnpm lint (repo root)
+result: 0 errors, 4 pre-existing warnings (config/CustomersConfigPage.tsx:204 riskOf dep, others unchanged files — none in this lane's diff)
+LINT_EXIT=0

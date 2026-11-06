@@ -12,7 +12,9 @@ const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-
 
 describe('pinned Thao tác rail width reservation (SIL-572)', () => {
   it('declares the rail reserve and pays it at the Ghi chú cell edge', () => {
-    expect(css).toMatch(/--dpg-actions-reserve:\s*56px;/);
+    // SIL-686 (06/11): the rail share grew to 5.7% (~87px at the 1520px
+    // floor) so the one-line "THAO TÁC" header rides it; the reserve follows.
+    expect(css).toMatch(/--dpg-actions-reserve:\s*88px;/);
     expect(css).toMatch(
       /\.detailed-plan-grid td\.detailed-plan-grid__cell--notes\s*\{[^}]*padding-inline-end:\s*calc\(var\(--space-sm\) \+ var\(--dpg-actions-reserve\)\);/,
     );
@@ -46,15 +48,16 @@ describe('pager surface lift (SIL-572)', () => {
 // pane's overflow clip, so rows parked below the fold report rects straight
 // through the pager band at essentially every scroll offset. The pager
 // controls clear the pinned rail's geometric band horizontally — the same
-// 3.7%-of-max(1340px, width) share the sticky Thao tác cell occupies — so a
-// rail trigger and a pager control can never share pixels in any state.
+// 5.7%-of-max(1520px, width) share the sticky Thao tác cell occupies
+// (SIL-686 rebalance for the one-line header) — so a rail trigger and a
+// pager control can never share pixels in any state.
 describe('pager controls clear the rail band (SIL-572 round 3)', () => {
   const page = readFileSync(resolve(process.cwd(), 'src/pages/DispatchPlanPage.css'), 'utf8');
 
   it('reserves the rail share as pager inline-end clearance', () => {
     const rule = page.match(/\.dispatch-plan-page__workspace > \.ds-pagination\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(rule).toMatch(
-      /padding-inline-end:\s*calc\(max\(1340px,\s*100%\)\s*\*\s*0\.037\s*\+\s*var\(--space-sm\)\);/,
+      /padding-inline-end:\s*calc\(max\(1520px,\s*100%\)\s*\*\s*0\.057\s*\+\s*var\(--space-sm\)\);/,
     );
   });
 });

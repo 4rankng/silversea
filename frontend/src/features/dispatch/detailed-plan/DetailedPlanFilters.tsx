@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw } from 'lucide-react';
-import { useCoarsePointer } from '../useCoarsePointer';
 import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableSelect, Tabs, type DateRangeValue, type FilterBarResetScope } from '../../../design-system';
 import type { TabItem } from '../../../design-system';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -100,25 +99,23 @@ const DATE_SCOPE_TABS: TabItem[] = [
  * The filter plane of /dispatch-detail — an option adapter over the `FilterBar`
  * band (cards 20260927_152 / 20260930_229).
  *
- * The band's `search` slot carries the quick search, the criteria every list
- * shares (the ONE `DateRangeFields` from/to group, the quick day scope) are its
- * items, and the page's own actions — Gán xe and Xóa lọc — ride its `actions`.
- * Every criterion that is NOT shared (Khách hàng, Hướng, Điều xe, Dữ liệu,
- * Xe/Tài xế, giờ chạy, khu vực, the three điểm facet pickers, đội xe/rơ-moóc/
- * tuyến) is handed to the band's `fold` slot, which owns the `Bộ lọc` trigger,
- * the applied count and the reset — the panel the drawer used to hold, now the
- * band's dialog body.
+ * The band's `search` slot carries the quick search, the quick day scope rides
+ * its `presets`, and the page's own actions — Gán xe and Xóa lọc — ride its
+ * `actions`. Every criterion, INCLUDING the from/to date group (SIL-685: the
+ * one-line toolbar cannot hold it beside the tabs and actions at 1440), is
+ * handed to the band's `fold` slot, which owns the `Bộ lọc` trigger, the
+ * applied count and the reset — the panel the drawer used to hold, now the
+ * band's dialog body. This is the same shape the strip already used on coarse
+ * pointers; desktop now folds the range with everything else.
  *
- * `neverInline` is set because this surface mints fifteen criteria plus three
- * searchable facet pickers: the set can never hold the bar's two-row budget at
- * any width. Xuất / Nhập is the fold's `primary` criterion (card 20261002_282,
- * R17): on the bar while it has room, inside the dialog once it folds.
- *
- * The page therefore declares NO filter layout of its own: one wrapping line,
- * the search the only grower, every other control as wide as the value it
- * holds, and the fold measured by the band's own engine. Behaviour is frozen —
- * same state and URL params, same Vietnamese labels and placeholders, same
- * accessible names, same reset semantics.
+ * `desktopMaxRows={1}` is FB-056 (06/11): this surface's toolbar is ruled to
+ * ONE line at 1440/1920, so the band folds its criteria (and, one rung deeper,
+ * the quick ranges) until a single row holds. The page declares NO filter
+ * layout of its own: one wrapping line, the search the only grower, every
+ * other control as wide as the value it holds, and the fold measured by the
+ * band's own engine. Behaviour is frozen — same state and URL params, same
+ * Vietnamese labels and placeholders, same accessible names, same reset
+ * semantics.
  */
 export function DetailedPlanFilters({
   filters,
@@ -158,7 +155,10 @@ export function DetailedPlanFilters({
 
   // The badge is the only place a collapsed criterion announces itself, so it
   // counts every criterion behind `Bộ lọc`; the quick search and the date scope
-  // are bar controls and are not part of the count (unchanged contract).
+  // are bar controls and are not part of the count (unchanged contract). The
+  // from/to range folds with the criteria at every width (SIL-685) but stays
+  // the DATE SCOPE — the range is the `date` preset's second representation
+  // (card 20261002_285), and the date scope is neither counted nor reset here.
   const secondaryCount = [
     filters.zone !== '',
     filters.pickupIds.length > 0,
@@ -200,13 +200,10 @@ export function DetailedPlanFilters({
 
   /** `Đặt lại` of `Bộ lọc`: clears exactly the criteria in the dialog. The
    *  search and the date scope are bar controls and stay (`Xóa lọc` clears
-   *  everything, including them).
-   *
-   *  Card 20261002_285 AC1: the date scope has TWO representations — the
-   *  `date` preset and the `dateFrom`/`dateTo` range — and `selectDate` /
-   *  `applyRange` are last-writer-wins between them. Preserving only `date`
-   *  meant a preset survived the dialog reset while an identically-scoped
-   *  custom range was silently wiped by it. Both now ride through. */
+   *  everything, including them). The from/to range folds with the criteria
+   *  at every width now (SIL-685) but remains the DATE SCOPE — the `date`
+   *  preset's second representation (card 20261002_285) — so it rides
+   *  through `Đặt lại` exactly like the preset. */
   const clearSecondaryFilters = (scope: FilterBarResetScope) => {
     setDraftResetKey((key) => key + 1);
     onChange({
@@ -251,8 +248,6 @@ export function DetailedPlanFilters({
       ariaLabel="Phạm vi ngày vận chuyển"
     />
   );
-
-  const rangeFieldsOnCoarsePointer = useCoarsePointer();
 
   const rangeFields = (
     <DateRangeFields
@@ -419,12 +414,14 @@ export function DetailedPlanFilters({
               </div>
             </section>
             <FleetFilterFields filters={filters} routeOptions={routeOptions} onChange={onChange} />
-            {rangeFieldsOnCoarsePointer ? (
-              <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-range">
-                <h3 id="detailed-plan-filter-range" className="detailed-plan-filter-panel__title">Khoảng ngày vận chuyển</h3>
-                <div className="detailed-plan-filter-panel__fields">{rangeFields}</div>
-              </section>
-            ) : null}
+            {/* SIL-685: the from/to group folds with the criteria at EVERY
+                width — the one-line toolbar (FB-056) cannot hold it beside the
+                day scope, the assignment tabs and the action cluster at 1440.
+                Same node, same behaviour the coarse pointers already had. */}
+            <section className="detailed-plan-filter-panel__group" aria-labelledby="detailed-plan-filter-range">
+              <h3 id="detailed-plan-filter-range" className="detailed-plan-filter-panel__title">Khoảng ngày vận chuyển</h3>
+              <div className="detailed-plan-filter-panel__fields">{rangeFields}</div>
+            </section>
           </div>
           ),
           count: secondaryCount,
@@ -433,9 +430,8 @@ export function DetailedPlanFilters({
           onReset: clearSecondaryFilters,
           neverInline: true,
         }}
-      >
-        {!rangeFieldsOnCoarsePointer ? rangeFields : null}
-      </FilterBar>
+        desktopMaxRows={1}
+      />
     </>
   );
 }

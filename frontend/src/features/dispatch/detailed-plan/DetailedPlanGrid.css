@@ -235,20 +235,22 @@
      one-line budget): the Thao tác rail narrows to 4% (~54px at the floor)
      hosting TWO STACKED buttons (Phát lệnh icon above, ⋯ below) — "Hoàn
      thành" moved INTO the ⋯ menu, so no full-text pill sits in the rail. */
-  min-width: 1340px;
+  min-width: 1520px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
   font-size: var(--ops-table-supporting-size);
 }
 
-/* Shares sum to exactly 100 (ports covers two <col> elements). Measured
-   floors at the 1340px minimum: schedule 121 · route 180 · ports 111×2 ·
-   documents 94 · container 137 · assignment 201 · classification 82 ·
-   notes 160 · actions 144 (SIL-519 — the pill+trigger one-line budget).
-   The owner floors (Khách hàng ≥180, Điều phối ≥200, Ghi chú ≥160,
-   Nâng/Trả ≥110) hold; everything else wraps (SIL-515). */
-.detailed-plan-grid__col--schedule { width: 8.8%; }
+/* Shares sum to exactly 100 (ports covers two <col> elements). SIL-686
+   (06/11, FB-063): every HEADER is one line, so the shares pay the measured
+   one-line label widths at the 1520px minimum (labels incl. sort marker +
+   2×8px padding): schedule 174 · route 180 · ports 111 · documents 110 ·
+   container 90 · declaration 89 · assignment 81 · classification 85 ·
+   notes 69 · actions 81. The owner value floors (Khách hàng ≥180, Điều phối
+   ≥200, Ghi chú ≥160, Nâng/Trả ≥110) still hold; the value cells keep the
+   SIL-515 wrap law, so wider values wrap — only the header is one line. */
+.detailed-plan-grid__col--schedule { width: 11.9%; }
 /* Spec 23/10 (261023110000 §2) — the on-demand CHỌN column: fixed 48px
    (master-plan precedent) so the reading columns keep their percentage
    shares whether or not the merge mode is active. */
@@ -267,28 +269,27 @@
   align-items: center;
   justify-content: center;
 }
-.detailed-plan-grid__col--route { width: 13.45%; }
-.detailed-plan-grid__col--ports { width: 8.25%; }
-.detailed-plan-grid__col--documents { width: 7%; }
-/* SIL-591: the per-container tờ khai column — 7% (~94px at the floor) holds
-   the "SỐ TỜ KHAI" header on one line and an 11-digit number on one run;
-   longer values wrap (no cut). The 0.9 points came off Container
-   (10.6→9.35%) and 0.45 each off schedule (9.75→8.8%) and actions
-   (4→3.7%) to keep the exact-100 sum; notes 12.65→12.2 keeps its ≥160px
-   floor, assignment 17→15 stays ≥200px. */
-.detailed-plan-grid__col--container { width: 9.35%; }
-.detailed-plan-grid__col--declaration { width: 7%; }
+.detailed-plan-grid__col--route { width: 12.5%; }
+.detailed-plan-grid__col--ports { width: 8.4%; }
+.detailed-plan-grid__col--documents { width: 7.6%; }
+/* SIL-591: the per-container tờ khai column — the "SỐ TỜ KHAI" header holds
+   one line at the SIL-686 shares (~89px measured, 6.2% of the 1520px floor);
+   longer values wrap (no cut). */
+.detailed-plan-grid__col--container { width: 6.5%; }
+.detailed-plan-grid__col--declaration { width: 6.2%; }
 .detailed-plan-grid__col--assignment { width: 15%; }
-/* SIL-589 (owner 27/10): 6.1%→7% — at the 6.1% floor (~82px) the "PHÂN
-   LOẠI" header broke onto two lines (the ticket's own evidence); 7% (~94px)
-   holds the label on ONE line while the cell stays the board's smallest. */
-.detailed-plan-grid__col--classification { width: 7%; }
-.detailed-plan-grid__col--notes { width: 12.2%; }
-/* SIL-588 (owner 27/10): the rail hosts at most TWO STACKED buttons —
-   the 30px ⋯ trigger (or the 28px Phát lệnh icon) + cell padding — so the
-   former 10.75% pill budget collapses (SIL-591 rebalance: 3.7%, ~50px at
-   the floor). The freed width goes back to the value columns. */
-.detailed-plan-grid__col--actions { width: 3.7%; }
+/* SIL-589 (owner 27/10): the "PHÂN LOẠI" header holds one line. SIL-686's
+   rebalance gives the column 6% (~91px at the 1520px floor ≥ the measured
+   85px one-line label) — the cell stays the board's smallest. */
+.detailed-plan-grid__col--classification { width: 6%; }
+.detailed-plan-grid__col--notes { width: 11.8%; }
+/* SIL-588 (owner 27/10): the rail hosts at most TWO STACKED buttons — the
+   30px ⋯ trigger (or the 28px Phát lệnh icon) + cell padding. SIL-686 gives
+   the rail 5.7% (~87px at the floor): the one-line "THAO TÁC" header (81px
+   measured) rides it while the stack keeps its narrow-strip shape — still
+   far below the retired 10.75% pill budget. The freed width funds the
+   header-one-line law of FB-063/SIL-686. */
+.detailed-plan-grid__col--actions { width: 5.7%; }
 
 /* ── SIL-591 — SỐ TỜ KHAI cell (per-container, SIL-521 model) ──────────────
    The value reads as data text; the edit affordance is a house text button
@@ -387,15 +388,16 @@
   background: var(--surface-2);
   border-bottom: 1px solid var(--line-strong);
   line-height: var(--ops-table-header-line-height);
-  /* SIL-515 (owner 26/10): a header label wraps AT SPACES, to as many
-     lines as the label needs — the old nowrap law (card 091026091550)
-     starved the data columns, and the 2-line clamp that replaced it HID
-     a third line, which is a truncation (banned table-wide). word-break:
-     keep-all keeps words whole (the shattered-header defect, card
-     20260922_54); the column floors above carry the longest word. */
-  white-space: normal;
+  /* FB-063 (card 181026021137, R17) — SIL-686 (06/11): a header label is
+     ALWAYS one line, the same law `table-sort.css` pins for every other
+     table. This supersedes SIL-515's wrap-at-spaces allowance for HEADERS
+     only (26/10): the one-line widths are paid by the column shares below,
+     which SIL-686 rebalanced against the measured one-line label widths.
+     The value cells keep the SIL-515 wrap law untouched. An oversized
+     single word overflows visibly instead of chopping mid-token. */
+  white-space: nowrap;
   overflow-wrap: normal;
-  word-break: keep-all;
+  word-break: normal;
 }
 
 .detailed-plan-grid__sort {
@@ -409,14 +411,13 @@
   padding: 0;
   width: 100%;
   text-align: inherit;
-  /* Same wrap law as the plain th (SIL-515): the label and its inline ▲▼
-     marker wrap at spaces, never mid-word. The old 2-line clamp HID
-     everything past two lines — a truncation, banned table-wide; without
-      it the sticky header row simply grows to the label it holds. */
+  /* FB-063 (card 181026021137) / SIL-686: the label inherits the th's
+     one-line nowrap — label and marker never wrap. The old 2-line clamp HID
+     everything past two lines — a truncation, banned table-wide. */
   display: block;
   /* SIL-583 (29/10): the sort label button measured 94.5×14.8 (one 11px
-     line) — under the WCAG 2.5.8 24px floor. The th already wraps to its
-     label, so the floor costs at most one line of header height. */
+     line) — under the WCAG 2.5.8 24px floor. The th holds the label on one
+     line, so the floor costs at most one line of header height. */
   min-height: 24px;
 }
 
@@ -455,13 +456,13 @@
 /* SIL-572 — reserve the pinned Thao tác rail's width inside the last
    scrolling column (Ghi chú): its live note button (width: 100%) and the
    note-action pills stop one rail-width before the cell edge, so a scrolled
-   board can never park them under the sticky ⋯ trigger. The rail is 4% of
-   the 1340px floor ≈ 54px (SIL-588); the reserve covers it wherever the
-   board actually scrolls. Above the floor the board fits its pane and
-   nothing is ever covered — the reserve is resting whitespace inside the
-   roomy Ghi chú cell. */
+   board can never park them under the sticky ⋯ trigger. The rail is 5.7% of
+   the 1520px floor ≈ 87px (SIL-588 stack, SIL-686 one-line header); the
+   reserve covers it wherever the board actually scrolls. Above the floor the
+   board fits its pane and nothing is ever covered — the reserve is resting
+   whitespace inside the roomy Ghi chú cell. */
 .detailed-plan-grid {
-  --dpg-actions-reserve: 56px;
+  --dpg-actions-reserve: 88px;
 }
 .detailed-plan-grid td.detailed-plan-grid__cell--notes {
   padding-inline-end: calc(var(--space-sm) + var(--dpg-actions-reserve));
