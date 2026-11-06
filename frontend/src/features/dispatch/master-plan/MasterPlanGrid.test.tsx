@@ -311,12 +311,12 @@ describe('MasterPlanGrid', () => {
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers).toEqual([
-      'Thời gian & lịch trình',
+      'Lịch trình',
       'Khách hàng & nhà máy',
-      'Tuyến đường & hãng tàu',
+      'Tuyến & hãng tàu',
       'Cảng nâng',
       'Cảng hạ',
-      'Tổng quan hàng hóa',
+      'Hàng hóa',
       'Phân bổ nhà xe',
       'Ghi chú',
     ]);
@@ -329,12 +329,12 @@ describe('MasterPlanGrid', () => {
     );
     expect(screen.getAllByRole('columnheader').map((th) => th.textContent)).toEqual([
       'Chọn lô',
-      'Thời gian & lịch trình',
+      'Lịch trình',
       'Khách hàng & nhà máy',
-      'Tuyến đường & hãng tàu',
+      'Tuyến & hãng tàu',
       'Cảng nâng',
       'Cảng hạ',
-      'Tổng quan hàng hóa',
+      'Hàng hóa',
       'Phân bổ nhà xe',
       'Ghi chú',
     ]);

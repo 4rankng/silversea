@@ -233,12 +233,12 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                 <span className="sr-only"> lô</span>
               </th>
             )}
-            <th scope="col"><span className="master-plan-grid__th-label">Thời gian &amp; lịch trình</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Lịch trình</span></th>
             <th scope="col"><span className="master-plan-grid__th-label">Khách hàng &amp; nhà máy</span></th>
-            <th scope="col"><span className="master-plan-grid__th-label">Tuyến đường &amp; hãng tàu</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Tuyến &amp; hãng tàu</span></th>
             <th scope="col"><span className="master-plan-grid__th-label">Cảng nâng</span></th>
             <th scope="col"><span className="master-plan-grid__th-label">Cảng hạ</span></th>
-            <th scope="col"><span className="master-plan-grid__th-label">Tổng quan hàng hóa</span></th>
+            <th scope="col"><span className="master-plan-grid__th-label">Hàng hóa</span></th>
             <th scope="col"><span className="master-plan-grid__th-label">Phân bổ nhà xe</span></th>
             <th scope="col"><span className="master-plan-grid__th-label">Ghi chú</span></th>
           </tr>

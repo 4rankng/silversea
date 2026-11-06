@@ -316,6 +316,40 @@ describe('ShipmentContainerLedger inline editor dismissal', () => {
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 
+  // SIL-386 (ticket 201026092400 / QA fail 06/11, build dcaa8295): the EXACT
+  // QA repro — popover open, hand-typed "14:30" into GIỜ ĐÓNG HÀNG, Enter ON
+  // THE INPUT — must save like the Lưu button. The picker-open Enter swallow
+  // (FB-002 181026000027) lets a hand-TYPED valid draft through; these pins
+  // lock the QA path (click-open picker, typed while open) so a regression
+  // cannot re-land silently.
+  it.each([
+    { typed: '14:30', description: 'colon draft' },
+    { typed: '1430', description: '4-digit draft the field normalizes' },
+  ])('SIL-386: click-open picker + hand-typed $description + Enter saves', async ({ typed }) => {
+    vi.stubGlobal('matchMedia', vi.fn().mockImplementation(() => ({
+      matches: false, media: '', addEventListener: vi.fn(), removeEventListener: vi.fn(), addListener: vi.fn(), removeListener: vi.fn(),
+    })));
+    try {
+      const { onSaveSchedule } = renderLedger('schedule', baseRow({
+        direction: 'EXPORT',
+        customerAppointmentAt: '2026-11-10T01:00:00.000Z',
+        transportDate: null,
+      }));
+      const time = screen.getByLabelText('Giờ đóng hàng');
+      // The click that focuses the field opens the picker (the FB-002 case-2
+      // surface) — the user then hand-types the whole hour.
+      fireEvent.pointerDown(time); fireEvent.mouseDown(time);
+      fireEvent.focus(time); fireEvent.click(time);
+      await screen.findByRole('dialog', { name: 'Chọn giờ (24h) — Giờ đóng hàng' });
+      fireEvent.change(time, { target: { value: typed } });
+      fireEvent.keyDown(time, { key: 'Enter', code: 'Enter' });
+      await waitFor(() => expect(onSaveSchedule).toHaveBeenCalledTimes(1));
+      expect(onSaveSchedule).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({
+        customerAppointmentAt: expect.stringContaining('2026-11-10T14:30'),
+      }));
+    } finally { vi.unstubAllGlobals(); }
+  });
+
   it.each([false, true])('schedule editor retains its draft while picking a portaled time (mobile=%s)', async (mobile) => {
     vi.stubGlobal('matchMedia', vi.fn().mockImplementation((query: string) => ({
       matches: mobile && query === '(max-width: 640px)', media: query,
