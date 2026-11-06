@@ -41,7 +41,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     renderAt('/shipments/9');
     expect(screen.getByTestId('view-workspace')).toBeTruthy();
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 9, canEditLot: true, canDeleteLot: true } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 9, canEditLot: true, canDeleteLot: true, canDeclareCost: false } }),
       undefined,
     );
   });
@@ -56,7 +56,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     userRole.current = 'ACCOUNTANT';
     renderAt('/shipments/3');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 3, canEditLot: false, canDeleteLot: false } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 3, canEditLot: false, canDeleteLot: false, canDeclareCost: true } }),
       undefined,
     );
   });
@@ -65,7 +65,18 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     userRole.current = 'DISPATCHER';
     renderAt('/shipments/4');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 4, canEditLot: true, canDeleteLot: true } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 4, canEditLot: true, canDeleteLot: true, canDeclareCost: false } }),
+      undefined,
+    );
+  });
+
+  it('MANAGER holds both authorities: edit + the SIL-453 cost entry trio', () => {
+    // SIL-453: MANAGER is in BOTH authorities — SHIPMENT_INTAKE_MUTATION_ROLES
+    // (edit) and requireExpenseFinance (Khai chi phí).
+    userRole.current = 'MANAGER';
+    renderAt('/shipments/6');
+    expect(workspaceMock).toHaveBeenCalledWith(
+      expect.objectContaining({ viewTarget: { shipmentId: 6, canEditLot: true, canDeleteLot: false, canDeclareCost: true } }),
       undefined,
     );
   });
@@ -74,7 +85,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     userRole.current = undefined;
     renderAt('/shipments/5');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 5, canEditLot: false, canDeleteLot: false } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 5, canEditLot: false, canDeleteLot: false, canDeclareCost: false } }),
       undefined,
     );
   });

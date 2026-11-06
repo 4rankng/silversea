@@ -162,7 +162,9 @@ describe('SIL-681 trailing action — click through the naming dialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Đặt tên hãng tàu cho lô này' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Đặt tên hãng tàu cho lô này' });
-    expect(within(dialog).getByText('Tên hãng tàu sẽ được lưu cùng lô hàng hiện tại.')).toBeTruthy();
+    // SIL-335 (owner ruling 06/11): the dialog promises the shared catalog,
+    // not a per-lot-only save.
+    expect(within(dialog).getByText('Tên hãng tàu sẽ được lưu vào danh mục hãng tàu chung và dùng cho lô này.')).toBeTruthy();
   });
 
   it('applies the typed name to shippingLineName (trimmed) and the field holds it', async () => {

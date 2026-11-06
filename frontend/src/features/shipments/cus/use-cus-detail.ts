@@ -20,10 +20,12 @@ import {
   createShipmentDeclaration,
   getCusShipmentWorkspaceDetail,
   listCusShipmentContainers,
+  createShippingLine,
   updateCusShipmentContainerLine,
   updateShipment,
   updateShipmentDeclaration,
 } from '../../../api/shipmentClient';
+import { useToastOptional } from '../../../components/shared/Toast';
 import {
   formatVietnamDateTimeInput,
   localDateTimeToIso,
@@ -60,6 +62,7 @@ export interface CusDetailListParams {
 }
 
 export function useCusDetail(params: CusDetailListParams) {
+  const carrierToast = useToastOptional()?.toast;
   const { page, pageSize, searchSuffix, transportDateFrom, transportDateTo, customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir } = params;
   const [data, setData] = useState<ShipmentCusContainerFlatResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -311,6 +314,19 @@ export function useCusDetail(params: CusDetailListParams) {
     try {
       let expectedShipmentVersion = activeEdit.detail.summary.version;
       if (shipmentChanged) {
+        // SIL-335 (owner ruling 06/11 "ten hang tau go tay must be saved to
+        // db"): the documents quick-edit's Hãng tàu input is a carrier ENTRY
+        // path — the (changed) typed name must reach the shared catalog too.
+        // Best-effort per the ruling: a catalog failure warns; the lot PATCH
+        // below still runs. Server dedupes known names (created:false).
+        const carrierName = (draft.shippingLineName ?? '').trim();
+        if (carrierName) {
+          try {
+            await createShippingLine(carrierName);
+          } catch {
+            carrierToast?.({ kind: 'warning', message: `Không lưu được hãng tàu "${carrierName}" vào danh mục chung — lô hàng vẫn được lưu.`, duration: 6000 });
+          }
+        }
         const updated = await updateShipment(row.shipmentId, {
           expectedVersion: expectedShipmentVersion,
           blNumber: draft.blNumber,

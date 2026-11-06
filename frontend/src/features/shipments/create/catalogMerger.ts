@@ -41,6 +41,21 @@ export function mergeRoute(catalog: CatalogData | null, route: Route, merge: Cat
   } : current);
 }
 
+/** SIL-335 (owner ruling 06/11 "ten hang tau go tay must be saved to db"):
+ *  whether a typed carrier name still needs the catalog persist — it does
+ *  when blank (nothing to persist) or when the bootstrap shippingLines list
+ *  (DEFAULT ∪ active SHIPPING_LINE suppliers) does not already carry it.
+ *  Case-insensitive on trimmed names, mirroring the server's dedupe. A
+ *  missing catalog (bootstrap failed) conservatively returns true — the
+ *  server side is idempotent (`created: false` for known names). */
+export function shouldPersistShippingLine(name: string, catalog: CatalogData | null) {
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  if (!catalog) return true;
+  const normalized = trimmed.toLowerCase();
+  return !(catalog.shippingLines ?? []).some((item) => item.name.trim().toLowerCase() === normalized);
+}
+
 /** Append a shipping-line name to the bootstrap catalog (dedupe by name,
  *  case-insensitive — the server dedupes display names case-insensitively
  *  too). Mirrors the server derivation after `createShippingLine` persisted

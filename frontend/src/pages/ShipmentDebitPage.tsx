@@ -22,7 +22,9 @@ import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { DebitLotTable } from '../features/shipments/debit/DebitLotTable';
 import { ShipmentDebitRecords } from '../features/shipments/debit/ShipmentDebitRecords';
 import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
-import { sumMoneyStates, moneyState } from '../features/shipments/debit/debitMoney';
+import { ExpenseCreateDrawer } from '../features/expense-accounting/ExpenseCreateDrawer';
+import { expenseAccountingClient } from '../api/expenseAccountingClient';
+import { sumMoneyStates, moneyState, lotLabelOf } from '../features/shipments/debit/debitMoney';
 import './ShipmentDebitPage.css';
 
 /** sessionStorage key for the L2 open-state restore (reload persistence). */
@@ -94,6 +96,18 @@ export function ShipmentDebitPage() {
   // a filter change keeps it where it was, the rows just re-render).
   const [shadowOpen, setShadowOpen] = useState(false);
   const { toast } = useToast();
+  // SIL-452 (FB-097 entry restore, QA fail 06/11): the row menu's "Khai chi
+  // phí" opens the shared "Thêm khoản chi" drawer at LOT scope right from the
+  // settlement board — the accountant no longer has to leave for the lot
+  // detail. Role trio mirrors the BE write gate (`requireExpenseFinance` =
+  // ADMIN/MANAGER/ACCOUNTANT); the catalog query arms on open.
+  const canDeclareCost = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
+  const [costDrawerRow, setCostDrawerRow] = useState<{ shipmentId: number; label: string } | null>(null);
+  const costCatalogQuery = useQuery({
+    queryKey: qk.expenseAccounting.catalog,
+    queryFn: expenseAccountingClient.catalog,
+    enabled: costDrawerRow != null,
+  });
 
   // Xuất Debit Note: ONE issue call carries every selected locked lot id and
   // the backend builds the union document (per-lot line grouping preserved
@@ -452,6 +466,9 @@ export function ShipmentDebitPage() {
                 canManage={canManage}
                 canDeleteLot={canDeleteLot}
                 onDeleted={() => { void summary.refetch(); }}
+                // SIL-452: the row menu's lot-scope cost entry (trio roles).
+                canDeclareCost={canDeclareCost}
+                onDeclareCost={(row) => setCostDrawerRow({ shipmentId: row.shipmentId, label: lotLabelOf(row) === '—' ? String(row.shipmentId) : lotLabelOf(row) })}
                 mergeMode={mergeMode}
                 selectedIds={selectedIds}
                 expandedId={expandedId}
@@ -515,6 +532,20 @@ export function ShipmentDebitPage() {
             // CHỌN column hides itself and the floating bar closes with it
             // (the group changed; the ticks must not survive as a stale set).
             exitMergeMode();
+            void summary.refetch();
+          }}
+        />
+      )}
+      {/* SIL-452: the row menu's "Khai chi phí" drawer — LOT scope (tripId
+          null), the exact work shape ShipmentExpensePanel pins. The board
+          refreshes after a saved khoản chi so the money cells stay true. */}
+      {costDrawerRow && costCatalogQuery.data && (
+        <ExpenseCreateDrawer
+          work={{ tripId: null, shipmentId: costDrawerRow.shipmentId, shipmentCode: costDrawerRow.label, containerNumber: null }}
+          catalog={costCatalogQuery.data}
+          onClose={() => setCostDrawerRow(null)}
+          onSaved={() => {
+            void queryClient.invalidateQueries({ queryKey: qk.expenseAccounting.all });
             void summary.refetch();
           }}
         />
