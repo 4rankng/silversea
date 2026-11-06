@@ -109,9 +109,21 @@ export function isActiveKepPairPartner(
  * declaration: a SINGLE busy row stays blocking (SIL-638 TC1 — two plain lots
  * on one truck never ride together), and so does a SINGLE accepting leg.
  *
+ * SIL-704: this proof no longer re-probes the trips' physical container rows.
+ * The probe was a THIRD re-verification clause of an arrangement the issue-time
+ * gates already vetted — the same defect class as SIL-602's trailer clause and
+ * SIL-631's pointer stamps. The "bổ sung sau" issue path legitimately issues a
+ * declared DOUBLE leg with an untyped `trip_containers` row (no container-type
+ * link yet), so the probe read "not proven" on exactly those pairs and 409'd
+ * the second "Nhận lệnh". The physical 20' law keeps living where it gates NEW
+ * arrangements: the issue-time clamp (`dispatch-resource-availability.service.ts`)
+ * probes there, and `ensureDeclaredKepContainerSize` hard-blocks a declared
+ * non-20' DOUBLE at every dispatch write.
+ *
  * Deliberately NOT part of this proof:
  *  - the mooc/trailer — superseded by SIL-602 (card 211026152138, not part of
  *    the pair contract);
+ *  - the container rows' size/type — superseded by SIL-704 (see above);
  *  - the 2×20' weight sum — the issue-time clamp owns that gate (it already
  *    passed for both legs to exist); the pair-row proof doesn't re-check it
  *    either;
@@ -119,10 +131,6 @@ export function isActiveKepPairPartner(
  *    compatible partner, never a third load": the caller bounds this proof to
  *    exactly one shape-matching candidate, mirroring the issue-time
  *    `conflicts.length === 1` partner pick.
- *
- * `twentyFootShell` flags are the caller's DB probe result: exactly one
- * tripContainers row and its container-type code starts with '20' — the same
- * physical probe the issue-time clamp runs.
  */
 export interface DeclaredKepClampCandidateRow {
   id: number;
@@ -130,8 +138,6 @@ export interface DeclaredKepClampCandidateRow {
   departureDate: string | null;
   /** The candidate fulfillment's own dispatch classification. */
   classification: string | null | undefined;
-  /** Caller-proven: this trip carries exactly one 20' shell. */
-  twentyFootShell: boolean;
 }
 
 export function isDeclaredKepClampPartner(
@@ -141,13 +147,10 @@ export function isDeclaredKepClampPartner(
     tripDriverId: number | null | undefined;
     tripDepartureDate: string | null | undefined;
     tripClassification: string | null | undefined;
-    /** Caller-proven: the accepting trip carries exactly one 20' shell. */
-    tripTwentyFootShell: boolean;
   },
 ): boolean {
   if (candidate.id === args.tripId) return false;
   if (args.tripClassification !== 'DOUBLE' || candidate.classification !== 'DOUBLE') return false;
-  if (!args.tripTwentyFootShell || !candidate.twentyFootShell) return false;
   if (args.tripDriverId == null || candidate.driverId == null) return false;
   if (candidate.driverId !== args.tripDriverId) return false;
   if (args.tripDepartureDate == null || args.tripDepartureDate === '') return false;

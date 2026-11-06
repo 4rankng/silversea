@@ -45,21 +45,6 @@ export function assertCompletionNotBeforeDeparture(
   if (vnDate < dep) throw new ApiError(400, 'Ngày hoàn thành không thể trước ngày khởi hành.');
 }
 
-/**
- * SIL-634 — the issue-time clamp's physical container probe: a trip "proves a
- * 20' shell" when it carries exactly one tripContainers row and that row's
- * container-type code starts with '20'. Same shape as the Kẹp carve-outs in
- * assertResourceAvailability (dispatch-resource-availability.service.ts); a
- * missing type link or a second container reads as NOT proven.
- */
-async function provesSingleTwentyFootShellTx(tx: Tx, tripRowId: number): Promise<boolean> {
-  const containers = await tx.select({ code: s.containerTypes.code })
-    .from(s.tripContainers)
-    .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
-    .where(eq(s.tripContainers.tripId, tripRowId));
-  return containers.length === 1 && (containers[0].code?.startsWith('20') ?? false);
-}
-
 export async function transitionTripStatus(
   tripId: number,
   targetStatus: TripStatus,
@@ -276,8 +261,11 @@ export async function transitionTripStatus(
       // clamp: exactly ONE shape-matching busy row ("its one compatible
       // partner, never a third load" — the issue-time partner pick requires
       // `conflicts.length === 1`), both sides DOUBLE, shared driver, shared
-      // departure day, both proven one 20' shell. A SINGLE busy row (SIL-638
-      // TC1) or any shape mismatch keeps blocking.
+      // departure day. SIL-704: no container-row re-probe here — the
+      // "bổ sung sau" issue path legitimately leaves the trip container rows
+      // untyped, and re-verifying issue-time facts at accept time is the
+      // SIL-602/SIL-631 defect class. A SINGLE busy row (SIL-638 TC1) or any
+      // shape mismatch keeps blocking.
       const declaredClampCandidates = busyTrips.filter((candidate) =>
         candidate.fulfillmentClassification === 'DOUBLE'
         && candidate.driverId != null && candidate.driverId === trip.driverId
@@ -289,30 +277,22 @@ export async function transitionTripStatus(
           .from(s.shipmentFulfillments)
           .where(eq(s.shipmentFulfillments.id, trip.fulfillmentId))
           .limit(1);
-        if (ownFulfillment?.classification === 'DOUBLE') {
-          const ownTwentyFootShell = await provesSingleTwentyFootShellTx(tx, tripId);
-          if (ownTwentyFootShell) {
-            const candidateId = declaredClampCandidates[0].id;
-            const candidateTwentyFootShell = await provesSingleTwentyFootShellTx(tx, candidateId);
-            if (isDeclaredKepClampPartner(
-              {
-                id: candidateId,
-                driverId: declaredClampCandidates[0].driverId,
-                departureDate: declaredClampCandidates[0].departureDate,
-                classification: declaredClampCandidates[0].fulfillmentClassification,
-                twentyFootShell: candidateTwentyFootShell,
-              },
-              {
-                tripId,
-                tripDriverId: trip.driverId,
-                tripDepartureDate: trip.departureDate,
-                tripClassification: ownFulfillment.classification,
-                tripTwentyFootShell: ownTwentyFootShell,
-              },
-            )) {
-              declaredClampExempt.add(candidateId);
-            }
-          }
+        if (ownFulfillment?.classification === 'DOUBLE'
+          && isDeclaredKepClampPartner(
+            {
+              id: declaredClampCandidates[0].id,
+              driverId: declaredClampCandidates[0].driverId,
+              departureDate: declaredClampCandidates[0].departureDate,
+              classification: declaredClampCandidates[0].fulfillmentClassification,
+            },
+            {
+              tripId,
+              tripDriverId: trip.driverId,
+              tripDepartureDate: trip.departureDate,
+              tripClassification: ownFulfillment.classification,
+            },
+          )) {
+          declaredClampExempt.add(declaredClampCandidates[0].id);
         }
       }
       const blockingTrips: Array<{ id: number; tripCode: string | null }> = [];
