@@ -1,0 +1,19 @@
+# SIL-693r2/688r2 UI drive — 2026-11-06T14:46:41.389Z — FE http://localhost:7185 BE http://localhost:3003/api
+LOGIN admin ok
+SHOT 01-debit-board-loaded-1440.png
+MERGE MODE on
+TICK QA693R2-UNPRICED → clicked-selected
+TOAST[remedy] Cước vận tải của lô SHP-2611-00307 chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: NO_ROUTE). Không thể xuất Debit Note thiếu cước — hãy xác định giá cước thu khách trên màn hình Chi phí - Quyết toán (chọn loại xe tính cước hoặc nhập giá), khóa lại lô rồi xuất.
+SHOT 02-unpriced-remedy-toast-1440.png
+TICK QA-MC-B → clicked-selected
+TOAST[overlap] Cước vận tải của lô SHP-2611-00307 chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: NO_ROUTE). Không thể xuất Debit Note thiếu cước — hãy xác định giá cước thu khách trên màn hình Chi phí - Quyết toán (chọn loại xe tính cước hoặc nhập giá), khóa lại lô rồi xuất. | Các lô đã nằm trong Debit Note đã xuất: QA-MC-B
+SHOT 03-overlap-in-note-toast-1440.png
+SHOT 04-debit-board-390.png
+DELETE ARMED {"disabled":false,"aria":"Xóa lô"}
+SHOT 05-lcl-delete-armed-1440.png
+CONFIRM gated on reason: true
+TOAST[deleted] Đã xóa lô hàng.
+SHOT 06-lcl-deleted-toast-1440.png
+DRIVE DONE
+EXIT 0 — driver `node qa/2026-11-06-lane-693r2-688r2/ui-drive.mjs` (puppeteer 25, headless, 1440x900 + 390 spot-check), 70.7s wall.
+DB proof: shipments 779058 deleted_at=2026-11-06 14:47:50.208Z updated_by=61(admin) version 1→2; shipment_containers rows=0.
