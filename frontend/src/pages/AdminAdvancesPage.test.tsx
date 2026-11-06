@@ -229,27 +229,28 @@ describe('advance card creator line (card 071026141630)', () => {
   });
 });
 
-describe('PHÊ DUYỆT TẠM ỨNG (FB-100 — card 141026230770)', () => {
+describe('Xác nhận giải ngân tạm ứng (FB-100 — SIL-700 đổi nhãn, không đổi luồng)', () => {
   beforeEach(() => {
     approveAdvanceRequest.mockReset().mockResolvedValue({ id: 9, status: 'RECORDED', version: 2 });
   });
 
-  it('dòng PENDING có nút PHÊ DUYỆT TẠM ỨNG (spec token, card 181026183600); bấm gọi approve theo version của dòng', async () => {
+  it('dòng PENDING có nút "Xác nhận giải ngân tạm ứng" (SIL-700 — không còn nhãn PHÊ DUYỆT TẠM ỨNG); bấm gọi approve theo version của dòng', async () => {
     listAllAdvanceRequests.mockReset().mockResolvedValue({
       ...envelope,
       items: [makeRequest(9, AdvanceRequestStatus.PENDING, 'Cường Phạm')],
     });
     renderPage();
-    const buttons = await screen.findAllByRole('button', { name: 'PHÊ DUYỆT TẠM ỨNG' });
+    const buttons = await screen.findAllByRole('button', { name: 'Xác nhận giải ngân tạm ứng' });
     expect(buttons.length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('button', { name: 'PHÊ DUYỆT TẠM ỨNG' })).toHaveLength(0);
     fireEvent.click(buttons[0]);
     await waitFor(() => expect(approveAdvanceRequest).toHaveBeenCalledWith(9, 1));
   });
 
-  it('dòng đã ghi nhận/không phải PENDING không có nút phê duyệt', async () => {
+  it('dòng đã ghi nhận/không phải PENDING không có nút xác nhận giải ngân', async () => {
     renderPage();
     await screen.findAllByText('An Nguyễn');
-    expect(screen.queryAllByRole('button', { name: 'PHÊ DUYỆT TẠM ỨNG' })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: 'Xác nhận giải ngân tạm ứng' })).toHaveLength(0);
   });
 
   it('pill "Chờ duyệt" hiển thị count PENDING full-set và lọc status=PENDING (card 181026183600)', async () => {

@@ -81,7 +81,7 @@ function GridSortHeader({
 // Card 181026183600 — "Chờ duyệt" (PENDING) joins the pills: tabCounts already
 // computed the PENDING count but no pill rendered it, so Ops-submitted requests
 // (KP-148) were buried inside "Tất cả" and the accountant had no way to pull up
-// exactly the rows carrying PHÊ DUYỆT TẠM ỨNG.
+// exactly the rows carrying the disbursement confirm (SIL-700).
 const TABS: { key: StatusFilter; label: string }[] = [
   { key: '', label: 'Tất cả' },
   { key: AdvanceRequestStatus.PENDING, label: 'Chờ duyệt' },
@@ -147,7 +147,8 @@ function AdvanceGridRow({
 }: {
   req: AdvanceRequest;
   focusId?: string;
-  /** FB-100 — "PHÊ DUYỆT TẠM ỨNG" cho dòng PENDING (kế toán). */
+  /** FB-100 — the PENDING-row disbursement confirm for kế toán (SIL-700:
+   *  "Xác nhận giải ngân tạm ứng"). */
   onApprove?: (req: AdvanceRequest) => void;
   approveBusy?: boolean;
 }) {
@@ -186,7 +187,8 @@ function AdvanceGridRow({
       <div className="adv-reason">{req.reason}</div>
 
       {/* FB-100 (card 141026230770) — dòng PENDING (Ops mới gửi) có nút
-          "PHÊ DUYỆT TẠM ỨNG" cho kế toán; duyệt = giải ngân (KP-148). */}
+          xác nhận giải ngân cho kế toán; bấm = ghi nhận giải ngân ngay
+          (SIL-700, KP-148). */}
       <div className="adv-actions">
         {isDraft ? (
           <AdvanceDraftActions request={req} />
@@ -197,11 +199,11 @@ function AdvanceGridRow({
           <>
             {req.status === AdvanceRequestStatus.PENDING && onApprove && (
               <button type="button" className="btn btn--primary btn--sm" disabled={approveBusy} onClick={() => onApprove(req)}>
-                {/* Card 181026183600 — the spec token is the uppercase
-                    "PHÊ DUYỆT TẠM ỨNG"; cddf3315 relabeled only the expense
-                    workspace surface, this one kept title case and QA could
-                    not find the button by its spec name. */}
-                {approveBusy ? 'Đang phê duyệt…' : 'PHÊ DUYỆT TẠM ỨNG'}
+                {/* SIL-700 (id 820 — design decision 06/11): no internal
+                    approval flow exists — pressing IS the disbursement
+                    record. Supersedes card 181026183600's uppercase
+                    "PHÊ DUYỆT TẠM ỨNG" token. */}
+                {approveBusy ? 'Đang ghi nhận giải ngân…' : 'Xác nhận giải ngân tạm ứng'}
               </button>
             )}
             <div className="adv-approver">
@@ -224,7 +226,8 @@ function AdvanceMobileCard({
 }: {
   req: AdvanceRequest;
   focusId?: string;
-  /** FB-100 — "PHÊ DUYỆT TẠM ỨNG" cho dòng PENDING (kế toán). */
+  /** FB-100 — the PENDING-row disbursement confirm for kế toán (SIL-700:
+   *  "Xác nhận giải ngân tạm ứng"). */
   onApprove?: (req: AdvanceRequest) => void;
   approveBusy?: boolean;
 }) {
@@ -266,7 +269,7 @@ function AdvanceMobileCard({
         )}
       </div>
 
-      {/* Actions — FB-100: dòng PENDING có nút "PHÊ DUYỆT TẠM ỨNG". */}
+      {/* Actions — FB-100: dòng PENDING có nút "Xác nhận giải ngân tạm ứng" (SIL-700). */}
       {isDraft ? (
         <div className="adv-readonly-state adv-readonly-state--mobile">
           <AdvanceDraftActions request={req} />
@@ -274,8 +277,8 @@ function AdvanceMobileCard({
       ) : req.status === AdvanceRequestStatus.PENDING && onApprove ? (
         <div className="adv-readonly-state adv-readonly-state--mobile">
           <button type="button" className="btn btn--primary btn--sm" disabled={approveBusy} onClick={() => onApprove(req)}>
-            {/* Card 181026183600 — same uppercase spec token as the desktop row. */}
-            {approveBusy ? 'Đang phê duyệt…' : 'PHÊ DUYỆT TẠM ỨNG'}
+            {/* SIL-700 — same disbursement label as the desktop row. */}
+            {approveBusy ? 'Đang ghi nhận giải ngân…' : 'Xác nhận giải ngân tạm ứng'}
           </button>
         </div>
       ) : req.approverName ? (
@@ -308,9 +311,9 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
   const { data: balancesData } = useAdminAdvanceBalances();
   const { rootRef } = usePageAnimations({ ready: !table.isLoading });
 
-  // FB-100 (card 141026230770) — "PHÊ DUYỆT TẠM ỨNG" cho kế toán ngay trên
-  // danh sách Yêu cầu tạm ứng. Duyệt = giải ngân (KP-148) — cùng endpoint với
-  // tab "Tạm ứng chờ duyệt" của màn chi phí.
+  // FB-100 (card 141026230770) — nút xác nhận giải ngân cho kế toán ngay trên
+  // danh sách Yêu cầu tạm ứng. Bấm = ghi nhận giải ngân ngay (SIL-700, KP-148)
+  // — cùng endpoint với tab "Tạm ứng chờ duyệt" của màn chi phí.
   const cache = useQueryClient();
   const [approveBusyId, setApproveBusyId] = useState<number | null>(null);
   const [approveError, setApproveError] = useState('');
