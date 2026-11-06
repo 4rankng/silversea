@@ -120,15 +120,15 @@ describe('SIL-499 onescreen wide band', () => {
     expect(modeBandRegion, 'the LCL datetime stays').toMatch(/cargoMode === 'LCL' && \(/);
     // SIL-611 (id 714, owner 30/10): the "Lịch & ghi chú" section is gone —
     // no `id="schedule"` section in the DOM, and the Ghi chú band renders
-    // strictly AFTER Thông tin hàng (the copy-down button rides cargo,
-    // under the table it fills).
+    // strictly AFTER Thông tin hàng (the apply-all button rides cargo,
+    // under the table it fills — SIL-690).
     expect(WORKSPACE).not.toMatch(/id="schedule"/);
     expect(WORKSPACE.indexOf('id="notes"')).toBeGreaterThan(WORKSPACE.indexOf('id="cargo"'));
     const cargoRegion = WORKSPACE.slice(
       WORKSPACE.indexOf('id="cargo"'),
       WORKSPACE.indexOf('id="notes"'),
     );
-    expect(cargoRegion, 'copy-down button under the container table').toContain('Copy giờ hẹn xuống cont trống');
+    expect(cargoRegion, 'apply-all button under the container table (SIL-690)').toContain('Áp dụng cho');
     // No placement left for a schedule band; the 1fr/2fr split (which
     // measured a ~265px dead strip beside the 150px control) stays dead.
     expect(CSS).not.toMatch(/#shipment-section-schedule \.csc-bulk-appointment/);

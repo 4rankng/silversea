@@ -174,17 +174,17 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
   // scheduled source + rows still without a schedule. SIL-611 relocated the
   // button INTO the Thông tin hàng section, directly under the table it
   // fills (the "Lịch & ghi chú" band is gone).
-  it('offers a visible copy-down button under the container table while other rows lack a schedule', async () => {
+  it('offers a visible apply-all button under the container table whenever another row exists (SIL-690)', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
 
     addContainer();
     addContainer();
-    // No source appointment yet → nothing to copy.
-    expect(screen.queryByRole('button', { name: /Copy giờ hẹn xuống cont trống/ })).toBeNull();
+    // No source appointment yet → nothing to apply.
+    expect(screen.queryByRole('button', { name: /Áp dụng cho \d+ container/ })).toBeNull();
 
     fillAppointment(0, '20/09/2026', '09:00');
-    const sectionButton = await screen.findByRole('button', { name: /Copy giờ hẹn xuống cont trống/ });
+    const sectionButton = await screen.findByRole('button', { name: /Áp dụng cho 3 container/ });
     expect(sectionButton).toBeTruthy();
     // The button lives INSIDE the Thông tin hàng section — never a separate
     // schedule band again (SIL-611).
@@ -200,28 +200,29 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     expect(appointmentValue(0).time).toBe('09:00');
   });
 
-  it('copy-down fills every empty appointment and never touches set rows', async () => {
+  it('apply-all retunes rows that already hold a schedule (FB-008: the copy-down gap)', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
     addContainer();
     fillAppointment(0, '20/09/2026', '09:00');
+    fillAppointment(1, '21/09/2026', '10:00');
 
-    fireEvent.click(screen.getByRole('button', { name: /Copy giờ hẹn xuống cont trống/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Áp dụng cho 3 container/ }));
 
     await waitFor(() => {
       const dates = [0, 1, 2].map((i) => appointmentValue(i).date);
       expect(dates).toEqual(['20/09/2026', '20/09/2026', '20/09/2026']);
     });
     [0, 1, 2].forEach((i) => expect(appointmentValue(i).time).toBe('09:00'));
-    expect(await screen.findByText(/Đã copy ngày giờ đóng trả sang 2 container chưa có lịch/)).toBeTruthy();
+    expect(await screen.findByText(/Đã áp dụng ngày giờ đóng trả cho 3 container/)).toBeTruthy();
   });
 
-  // SIL-642 (id 746, owner 31/10): the band datetime itself is RETIRED —
+  // SIL-642 (id 746, owner 31/10): the band datetime itself stays RETIRED —
   // the container table's required NGÀY GIỜ ĐÓNG TRẢ column is the only FCL
-  // schedule surface. Locks the removal so a merge cannot resurrect the
-  // band inputs, the Copy affordance or the SIL-511-era chip.
-  it('SIL-642: the FCL band datetime is retired — no bulk inputs, no apply chip, no band copy', async () => {
+  // schedule INPUT surface. SIL-690 (owner 06/11) restores only the
+  // table-side apply-all BUTTON (no second datetime input comes back).
+  it('SIL-642 + SIL-690: no band datetime inputs, no band copy — the apply-all button is the one bulk affordance', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
@@ -232,21 +233,23 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     expect(document.querySelector<HTMLInputElement>('input[id$="-bulk-appointment-time"]')).toBeNull();
     expect(document.querySelector('.csc-bulk-appointment')).toBeNull();
     expect(document.querySelector('.csc-bulk-appointment__copy')).toBeNull();
-    expect(screen.queryByRole('button', { name: /Áp dụng cho \d+ container/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Copy giờ hẹn đóng trả/ })).toBeNull();
+    // SIL-690: the restored bulk affordance is the table-side apply-all.
+    const applyAll = screen.getByRole('button', { name: /Áp dụng cho 3 container/ });
+    expect(applyAll.closest('#shipment-section-cargo')).toBeTruthy();
   });
 
-  // CUS-03 guarantee (QA ruling 15:10, ticket 710) survives the band's
-  // retirement through the copy-down button: after it runs, every row holds
-  // a schedule and the submit paints NO appointment error anywhere.
-  it('copy-down fills the unscheduled rows so the submit paints no appointment error (QA 710 via SIL-642 path)', async () => {
+  // CUS-03 guarantee (QA ruling 15:10, ticket 710) now rides the apply-all
+  // button: after it runs, every row holds a schedule and the submit paints
+  // NO appointment error anywhere.
+  it('apply-all fills the unscheduled rows so the submit paints no appointment error (QA 710 path)', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
     addContainer();
     fillAppointment(0, '29/10/2026', '08:00');
 
-    fireEvent.click(screen.getByRole('button', { name: /Copy giờ hẹn xuống cont trống/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Áp dụng cho 3 container/ }));
     await waitFor(() => {
       [0, 1, 2].forEach((i) => {
         expect(appointmentValue(i).date).toBe('29/10/2026');

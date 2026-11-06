@@ -137,16 +137,16 @@ describe('SIL-607 appointment schedule error (dedupe + copy-all law)', { timeout
     expect(summaryAppointmentEntries()).toHaveLength(0);
   });
 
-  // CUS-03: the copy-all path (copy-down fills every still-empty row) DOES
+  // CUS-03: the apply-all path (SIL-690 — one click writes every row) DOES
   // satisfy the per-container requirement — after it runs, no appointment
   // error may remain anywhere.
-  it('copy-all fills the empty rows so no per-container appointment error remains', async () => {
+  it('apply-all fills the empty rows so no per-container appointment error remains', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     addContainer();
     fillAppointment(0, '29/10/2026', '08:00');
 
-    fireEvent.click(screen.getByRole('button', { name: /Copy giờ hẹn xuống cont trống/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Áp dụng cho \d+ container/ }));
     await waitFor(() => expect(appointmentValue(1).date).toBe('29/10/2026'));
     expect(appointmentValue(1).time).toBe('08:00');
 

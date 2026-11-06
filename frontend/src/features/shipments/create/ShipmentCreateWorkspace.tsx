@@ -40,7 +40,7 @@ import { requiredCompletion } from './ShipmentCreateTopline.progress';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
-import { emptyAppointmentKeys, hasDateDraft } from './shipment-date-drafts';
+import { hasDateDraft } from './shipment-date-drafts';
 import { DEFAULT_SHIPPING_LINES, type Customer, type Port, type Route } from '@tingting/shared';
 import { useShipmentCreateWorkflow } from './use-shipment-create-workflow';
 import { createAdhocFieldLogic } from './createAdhocFieldLogic';
@@ -555,42 +555,32 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   }
 
   // Case 2026-10-11-R14-02 (FB-008 round 14): bulk delivery-schedule entry.
-  // SIL-511 (owner 26/10) retired the 'Áp dụng cho N container' chip beside
-  // this input — the copy-down/copy-all buttons below are the apply-all
-  // paths — so the typed value feeds only the section clipboard copy.
-  // SIL-642 (id 746, owner 31/10) retires the input itself: the FCL band
-  // datetime (and its Copy apply path) is gone — the container table's
-  // NGÀY GIỜ ĐÓNG TRẢ column (required per row) is the schedule's only
-  // surface. The copy-down button below keeps writing every still-empty row.
-  // Case 2026-10-11-R14-03 (FB-009 round 14): the count gates visibility at
-  // >= 1 destination — any row still without a schedule, including one holding
-  // a partial segment draft (incomplete invalid input the copy replaces
-  // visibly; emptyAppointmentKeys is the single source of that truth). The
-  // DOM read sees the previous paint, which is exactly the state a click acts
-  // on.
-  const emptyAppointmentCount = emptyAppointmentKeys(containers).size;
-  // Verify-fail 091026225620: the section-level copy affordance (the
-  // discoverable position the "button missing" reports kept looking for)
-  // sources from the first row that has an appointment; the per-row hover
-  // buttons keep copying their own values.
+  // SIL-511 (owner 26/10) retired the 'Áp dụng cho N container' chip and
+  // SIL-642 (id 746, owner 31/10) retired the band datetime — the schedule's
+  // only entry surface is the container table's NGÀY GIỜ ĐÓNG TRẢ column.
+  // SIL-690 (FB-008, owner 06/11) then ordered the bulk-apply affordance
+  // BACK: copy-down-to-empty alone could not retune rows that ALREADY hold a
+  // schedule, so a multi-cont lot with a moved closing date had no one-shot
+  // path. `applyAppointmentToAll` restores the R17/R22 contract — the first
+  // scheduled row is the source, EVERY other row (empty or filled) receives
+  // it, the toast confirms — while the schedule keeps its single per-row
+  // surface (no second datetime input is resurrected).
   const copySourceRow = containers.find((row) => row.customerAppointmentAt);
-  function copyAppointmentToEmpty(fromKey: string) {
+  function applyAppointmentToAll(fromKey: string) {
     const source = containers.find((row) => row.key === fromKey)?.customerAppointmentAt;
     if (!source) return;
-    const targetKeys = emptyAppointmentKeys(containers);
-    if (!targetKeys.size) return;
+    const total = containers.length;
+    if (total < 2) return;
     setContainers((current) => current.map((row) => (
-      targetKeys.has(row.key) ? { ...row, customerAppointmentAt: source } : row
+      row.key === fromKey ? row : { ...row, customerAppointmentAt: source }
     )));
-    toast({ kind: 'success', message: `Đã copy ngày giờ đóng trả sang ${targetKeys.size} container chưa có lịch` });
+    toast({ kind: 'success', message: `Đã áp dụng ngày giờ đóng trả cho ${total} container` });
   }
 
   // Ticket 211026125242 (CUS-03) — RETIRED by SIL-513 (owner 26/10): the
-  // "Copy giờ hẹn cho tất cả N cont" chip is gone. The copy-down button below
-  // keeps filling only the still-empty rows. SIL-642 (id 746) then retired
-  // the band datetime that QA ruling 15:10 (retest 30/10, ticket 710) had
-  // upgraded into a second apply path — its write-into-empty-rows behavior
-  // survives through copyAppointmentToEmpty alone.
+  // "Copy giờ hẹn cho tất cả N cont" chip is gone. SIL-690's apply-all above
+  // supersedes the old copy-down-to-empty button (empty rows are covered by
+  // the bulk write; per-row hover copy keeps its own clipboard law).
 
   // FB-009 (2026-10-14): the per-row copy-time affordance — the time itself
   // lands in the OS clipboard so a clerk can paste it anywhere; the toast
@@ -873,8 +863,8 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                   column, which is required per row and is the schedule's
                   source of truth (getShipmentCreateReadiness). The band is
                   now exactly "Loại hàng *" + the segmented control in FCL;
-                  the copy-down button under the table keeps the
-                  fill-everywhere path (copyAppointmentToEmpty). LCL keeps
+                  the apply-all button under the table keeps the
+                  fill-everywhere path (applyAppointmentToAll, SIL-690). LCL keeps
                   its own schedule datetime beside the segmented control
                   (SIL-587; visible inline label per SIL-639). */}
             </div>
@@ -967,23 +957,25 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     </>
                   }
                 />
-                {/* SIL-611 (id 714, owner 30/10): the copy-down affordance
-                    rides the Thông tin hàng section now — directly under the
-                    table it fills — because the "Lịch & ghi chú" band it
-                    lived in is gone (that band's datetime had already moved
-                    up beside Loại hàng: LCL per SIL-587, FCL bulk per
-                    SIL-598). Same gate as before: a scheduled source + rows
-                    still without a schedule. */}
-                {copySourceRow && emptyAppointmentCount >= 1 && (
+                {/* SIL-611 (id 714, owner 30/10): the bulk affordance rides
+                    the Thông tin hàng section — directly under the table it
+                    fills — because the "Lịch & ghi chú" band it lived in is
+                    gone. SIL-690 (FB-008, owner 06/11) restores the R17/R22
+                    contract: ONE click applies the first scheduled row's
+                    ngày giờ đóng trả to EVERY container (empty or filled —
+                    retuning rows that already hold a schedule is the defect
+                    FB-008 reports), toast confirms. Same house dashed
+                    utility button as its copy predecessor. */}
+                {copySourceRow && containers.length >= 2 && (
                   <button
                     type="button"
                     className="csc-utility-button csc-utility-button--dashed"
                     style={{ justifySelf: 'start', alignSelf: 'start', width: 'fit-content' }}
-                    title={`Copy ngày giờ ${formatDateTime24(copySourceRow.customerAppointmentAt) || copySourceRow.customerAppointmentAt} từ dòng đầu tiên có lịch sang các container chưa có lịch`}
-                    onClick={() => copyAppointmentToEmpty(copySourceRow.key)}
+                    title={`Áp dụng ngày giờ ${formatDateTime24(copySourceRow.customerAppointmentAt) || copySourceRow.customerAppointmentAt} của dòng đầu tiên có lịch cho tất cả ${containers.length} container (ghi đè lịch hiện có)`}
+                    onClick={() => applyAppointmentToAll(copySourceRow.key)}
                     disabled={controlsDisabled}
                   >
-                    <Copy size={15} aria-hidden="true" />Copy giờ hẹn xuống cont trống
+                    <Copy size={15} aria-hidden="true" />Áp dụng cho {containers.length} container
                   </button>
                 )}
               </>
