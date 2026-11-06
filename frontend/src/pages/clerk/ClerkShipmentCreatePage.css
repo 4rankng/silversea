@@ -98,7 +98,8 @@
    FIRST beside Khách hàng. Column map: Khách hàng 6 · Hình thức XNK 6, then
    Số Bill/Booking 6 · (Hãng tàu 6 | Số tờ khai 6 — SIL-678, customer 04/11:
    cùng một hàng, tờ khai bên phải, tab Hàng lẻ only; supersedes SIL-673's
-   stacked row), the Tuỳ chọn chips full width. Supersedes the FB-127 cluster
+   stacked row), then Hãng tàu full-width on Hàng lẻ (SIL-681 r2), the
+   Tuỳ chọn chips full width. Supersedes the FB-127 cluster
    split (9f174360); restores the 2425726d band map. Gate blNumber XOR
    bookingRef theo hướng GIỮ NGUYÊN (FB-113). */
 .csc-identity-grid__customer { grid-column: span 6; }
@@ -110,6 +111,11 @@
 .csc-identity-grid__declaration { grid-column: span 6; }
 .csc-identity-grid__booking { grid-column: span 6; }
 .csc-identity-grid__shipping-line { grid-column: span 6; }
+/* SIL-681 r2 (QA fail comment 3885): on Hàng lẻ the refs band's right half
+   belongs to Số tờ khai (SIL-678), so the carrier cell drops to its own row
+   spanning the full band — no orphan half-cell, the control fills the cell
+   and the shared right edge holds (SIL-641 law). FCL keeps span 6. */
+.csc-identity-grid__shipping-line--lcl { grid-column: 1 / -1; }
 /* The flag band carries its own `Tuỳ chọn` label, so its chips row lands on
    the same baseline as the carrier field's input by construction — the old
    align-self/align-items: flex-end pair is retired. All three data flags

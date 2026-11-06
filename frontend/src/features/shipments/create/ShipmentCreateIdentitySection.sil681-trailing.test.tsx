@@ -113,14 +113,22 @@ describe('SIL-681: the two quick-create actions are in-input trailing actions', 
   });
 });
 
-describe('SIL-681: the hàng-lẻ tab keeps the same trailing contract', () => {
-  it('LCL renders Khách hàng trailing + the declaration cell full width, no hãng tàu', () => {
+describe('SIL-681 r2 (QA fail comment 3885): the hàng-lẻ tab keeps the carrier entry', () => {
+  it('LCL renders Khách hàng trailing, the declaration cell, AND the hãng tàu trailing cell (full-width)', () => {
     render(<Harness cargoMode="LCL" />);
     const customer = cell('shipment-customer');
     expect(customer.querySelector('.csc-trailing-action')).toBeTruthy();
     const declaration = cell('shipment-lcl-declaration-number');
     expect(declaration.querySelector('.csc-trailing-action')).toBeNull();
     expect(declaration.querySelector('.csc-identity-grid__action-slot')).toBeNull();
-    expect(document.querySelector('[data-field-id="shipment-shipping-line"]')).toBeNull();
+    // SIL-681 r2: hãng tàu exists on LCL — same trailing '✎' as FCL, on its
+    // own full-width row (the refs band's right half is Số tờ khai's).
+    const shipping = cell('shipment-shipping-line');
+    expect(shipping).not.toBeNull();
+    expect(shipping.classList.contains('csc-identity-grid__shipping-line--lcl')).toBe(true);
+    const pencil = shipping.querySelector('button.csc-trailing-action');
+    expect(pencil).toBeTruthy();
+    expect(pencil.getAttribute('aria-label')).toBe('Đặt tên hãng tàu cho lô này');
+    expect(shipping.querySelector('input')).not.toBeNull();
   });
 });
