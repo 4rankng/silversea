@@ -1,0 +1,5 @@
+window 2026-11-06..2026-11-06: HTTP 200 total=0
+exit06=0
+window 2026-11-05..2026-11-05: HTTP 200 total=1
+tripId=1337 SILR4151058B completionDate=2026-11-05
+exit05=0

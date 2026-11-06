@@ -12,6 +12,10 @@ import {
 } from '@tingting/shared';
 import type { Tx } from './trip-shared';
 import {
+  tripCompletionBusinessDateCompositeDateSql,
+  tripCompletionBusinessDateCompositeTextSql,
+} from './reporting-shared';
+import {
   postingChecksum,
   calculateVatSnapshot,
   buildTripSourceVersionToken,
@@ -60,8 +64,11 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
 
   const completionInRange = and(
     sql`${s.tripsComposite.completedAt} IS NOT NULL`,
-    gte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
-    lte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
+    // SIL-683: VN business day via the shared UTC→VN law; the previous single
+    // `at time zone 'Asia/Ho_Chi_Minh'` excluded trips from their true VN day
+    // (the 05/11–05/11 debit-note range on the ticket instead of 06/11).
+    gte(tripCompletionBusinessDateCompositeDateSql, from),
+    lte(tripCompletionBusinessDateCompositeDateSql, to),
   )!;
   const expenseInRange = sql`EXISTS (
     SELECT 1
@@ -79,7 +86,7 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     fulfillmentId: s.tripsComposite.fulfillmentId,
     status: s.tripsComposite.status,
     departureDate: s.tripsComposite.departureDate,
-    completionDate: sql<string | null>`to_char(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
+    completionDate: tripCompletionBusinessDateCompositeTextSql,
     revenue: s.tripsComposite.revenue,
     fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount,
     routeName: s.routes.name,
@@ -280,7 +287,7 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
 
   const trips = await db.select({
     id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, departureDate: s.tripsComposite.departureDate,
-    completionDate: sql<string | null>`to_char(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
+    completionDate: tripCompletionBusinessDateCompositeTextSql,
     revenue: s.tripsComposite.revenue, fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount, routeName: s.routes.name, notes: s.tripsComposite.notes,
     truckPlate: s.trucks.licensePlate, externalPlateNumber: s.tripsComposite.externalPlateNumber,
   }).from(s.tripsComposite)
@@ -293,8 +300,10 @@ async function buildCustomerPaymentStatementLines(customerId: number, from: stri
       or(
         and(
           sql`${s.tripsComposite.completedAt} IS NOT NULL`,
-          gte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
-          lte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
+          // SIL-683: shared VN business-day law (UTC→VN chain), not a bare
+          // +07 reinterpretation of the stored UTC wall clock.
+          gte(tripCompletionBusinessDateCompositeDateSql, from),
+          lte(tripCompletionBusinessDateCompositeDateSql, to),
         ),
         sql`EXISTS (
           SELECT 1
@@ -391,8 +400,9 @@ async function buildCarrierPaymentLines(carrierId: number, from: string, to: str
       inArray(s.tripsComposite.status, [...BILLABLE_TRIP_STATUSES]),
       isNull(s.tripsComposite.deletedAt),
       sql`${s.tripsComposite.completedAt} IS NOT NULL`,
-      gte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, from),
-      lte(sql`(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh')::date`, to),
+      // SIL-683: shared VN business-day law (UTC→VN chain).
+      gte(tripCompletionBusinessDateCompositeDateSql, from),
+      lte(tripCompletionBusinessDateCompositeDateSql, to),
     )).orderBy(s.tripsComposite.completedAt);
 
   const carrierTripIds = trips.map((t) => t.id);

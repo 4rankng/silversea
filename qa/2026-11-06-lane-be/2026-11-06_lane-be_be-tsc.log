@@ -1,0 +1,2 @@
+# cmd: cd backend && npx tsc --noEmit (final code, post-review fixes)
+exit=0

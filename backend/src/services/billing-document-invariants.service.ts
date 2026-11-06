@@ -21,6 +21,10 @@ import {
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import type { Tx } from './trip-shared';
 import type { DbLike } from './billing-document-identity.service';
+import {
+  tripCompletionBusinessDateCompositeTextSql,
+  tripCompletionBusinessDateTextSql,
+} from './reporting-shared';
 
 export type TripClaimSeed = {
   tripId: number;
@@ -332,7 +336,7 @@ export async function assertRecoverableSourcesClaimable(
     tripCustomerId: s.trips.customerId,
     shipmentId: s.trips.shipmentId,
     fulfillmentId: s.trips.fulfillmentId,
-    completionDate: sql<string | null>`to_char(${s.trips.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
+    completionDate: tripCompletionBusinessDateTextSql,
     shipmentCustomerId: s.shipments.customerId,
   })
     .from(s.tripExpenses)
@@ -503,7 +507,7 @@ export async function assertTripSourcesClaimable(
     fulfillmentId: s.tripsComposite.fulfillmentId,
     status: s.tripsComposite.status,
     departureDate: s.tripsComposite.departureDate,
-    completionDate: sql<string | null>`to_char(${s.tripsComposite.completedAt} at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD')`,
+    completionDate: tripCompletionBusinessDateCompositeTextSql,
     revenue: s.tripsComposite.revenue,
     fuelSurchargeAmount: s.tripsComposite.fuelSurchargeAmount,
     routeName: s.routes.name,

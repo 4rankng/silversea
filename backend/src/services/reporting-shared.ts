@@ -4,8 +4,6 @@
  * Date-range helpers and utility functions shared across reporting sub-modules.
  */
 
-import { sql } from 'drizzle-orm';
-import * as s from '../db/schema';
 import { resolveSalaryPeriodDateRange, resolveQuarterDateRange } from './salary-period.service';
 
 /** Local date string (YYYY-MM-DD) using system timezone — avoids toISOString() UTC drift. */
@@ -62,13 +60,16 @@ export async function quarterDateRange(quarter: number, year: number) {
   return { start: qStart, end: qEnd };
 }
 
-/**
- * Official trip financial reporting anchors to the Vietnam business date of
- * trip completion, not the trip's operational departure date.
- */
-export function tripCompletionBusinessDateSql() {
-  return sql<string>`(${s.trips.completedAt} AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
-}
+// SIL-683 — the completion business date law moved to the db-free
+// completion-business-date-sql.service.ts (drizzle chunks only) so unit tests
+// can render the real SQL without booting a pool. Re-exported here —
+// reporting-shared stays the import point for reporting consumers.
+export {
+  tripCompletionBusinessDateSql,
+  tripCompletionBusinessDateTextSql,
+  tripCompletionBusinessDateCompositeTextSql,
+  tripCompletionBusinessDateCompositeDateSql,
+} from './completion-business-date-sql.service';
 
 // ─── Cap-table helpers (shared between dashboard-stats and profit-distribution) ──
 

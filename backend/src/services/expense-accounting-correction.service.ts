@@ -7,6 +7,7 @@ import { ApiError } from '../errors';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { hydrateExpenseAccountingSource, upsertExpenseAccountingSource } from './expense-accounting-source.service';
 import { getExpenseForCommand, requireExpenseFinance, updateAccountingExpense, confirmAccountingExpenses, type ExpenseActor } from './expense-accounting-write.service';
+import { resolveExpenseCommandId } from './expense-command-id.service';
 import { LedgerService } from './ledger.service';
 import { propagateRecordedExpense } from './source-change.service';
 
@@ -15,7 +16,10 @@ import { propagateRecordedExpense } from './source-change.service';
 export async function correctAccountingExpense(tx: Tx, actor: ExpenseActor, kind: ExpenseSourceKind, id: number, input: ExpenseAccountingUpdate) {
   requireExpenseFinance(actor);
   if (kind !== 'OPS' && kind !== 'DRIVER') throw new ApiError(400, 'Điều chỉnh từ màn hình nguồn của khoản chi này.');
-  const before = await getExpenseForCommand(tx, actor, { sourceKind: kind, sourceId: id, expectedVersion: input.expectedVersion });
+  // SIL-682: accept the tiền-đường dialog's expense_accounting_sources.id too —
+  // everything below (native .for('update') reads, replacements, audit) is native-id keyed.
+  const nativeId = await resolveExpenseCommandId(tx, kind, id);
+  const before = await getExpenseForCommand(tx, actor, { sourceKind: kind, sourceId: nativeId, expectedVersion: input.expectedVersion });
   await assertShipmentAccountingUnlocked(tx, before.shipmentId);
   if (!before.confirmedAt) throw new ApiError(409, 'Khoản chưa đối chiếu có thể sửa trực tiếp.');
   if (before.paymentHistoryUnattributed) throw new ApiError(409, 'Đối chiếu lịch sử thanh toán cũ trước khi điều chỉnh.');
@@ -37,16 +41,16 @@ export async function correctAccountingExpense(tx: Tx, actor: ExpenseActor, kind
   }
   let sourceId: number;
   if (kind === 'OPS') {
-    const [native] = await tx.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, id)).for('update');
+    const [native] = await tx.select().from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, nativeId)).for('update');
     if (native.opsSettlementId) throw new ApiError(409, 'Hoàn tác phiếu quyết toán cũ trước khi điều chỉnh.');
     const [replacement] = await tx.insert(s.opsExpenseEntries).values({ shipmentId: native.shipmentId, shipmentContainerId: native.shipmentContainerId,
       expenseTypeCode: native.expenseTypeCode, amount: native.amount, paidById: native.paidById, paidAt: native.paidAt, note: native.note, approvalStatus: 'RECORDED' }).returning();
     sourceId = replacement.id;
-    const photos = await tx.select().from(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, id));
+    const photos = await tx.select().from(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, nativeId));
     if (photos.length) await tx.insert(s.opsExpensePhotos).values(photos.map(photo => ({ opsExpenseId: sourceId, storageKey: photo.storageKey, uploadedById: photo.uploadedById })));
-    await tx.update(s.opsExpenseEntries).set({ approvalStatus: 'VOIDED', updatedAt: new Date() }).where(eq(s.opsExpenseEntries.id, id));
+    await tx.update(s.opsExpenseEntries).set({ approvalStatus: 'VOIDED', updatedAt: new Date() }).where(eq(s.opsExpenseEntries.id, nativeId));
   } else {
-    const [native] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, id)).for('update');
+    const [native] = await tx.select().from(s.driverIncidentalCosts).where(eq(s.driverIncidentalCosts.id, nativeId)).for('update');
     const [replacement] = await tx.insert(s.driverIncidentalCosts).values({ tripId: native.tripId, driverId: native.driverId, costType: native.costType,
       driverEnteredAmount: native.driverEnteredAmount, expenseTypeCode: native.expenseTypeCode, feeNormCode: native.feeNormCode,
       amount: native.amount, occurredAt: native.occurredAt, note: native.note, receiptStorageKey: native.receiptStorageKey, recordedBy: actor.userId }).returning();
