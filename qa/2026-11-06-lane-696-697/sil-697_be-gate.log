@@ -1,0 +1,5 @@
+trip 754 version 4 detail keys fulfillmentId,shipmentId,shipmentCode,bookingRef,blNumber,cargoMode,tradeDirection,fulfillmentType,tripId,tripVersion
+ensure-draft 409
+latest submission 38 status DRAFT files []
+submit refused: 409 {"error":"Chưa đủ chứng từ giao hàng. Còn thiếu: Phiếu hạ bãi / trả hàng, Biên bản giao nhận đã ký. Vui lòng bổ sung đủ hai loại trước khi nộp."}
+BE GATE VERIFIED: incomplete draft submit → 409 naming both missing types.

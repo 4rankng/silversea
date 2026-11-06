@@ -434,9 +434,10 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByTestId(`pod-route-stub-${FULFILLMENT_ID}`)).toBeNull();
   });
 
-  // SIL-638 TC9 (id 742): completing transport order without e-POD photos directly
-  // from the detail screen. Owner ruling 31/10: e-POD is optional.
-  it('TC9: confirms and completes trip from sticky CTA without requiring e-POD upload, invalidating journeyBoard', async () => {
+  // SIL-638 TC9 (id 742): completing transport order directly from the detail
+  // screen. SIL-697 (owner decision Frank 06/11 — supersedes the 31/10
+  // optional-photos ruling): the action requires BOTH e-POD file types.
+  it('TC9: confirms and completes trip from sticky CTA with both e-POD files on the draft, invalidating journeyBoard', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -454,7 +455,10 @@ describe('DriverTripDetailPage', () => {
           rejectionReason: null,
           acceptedAt: null,
           supersedesSubmissionId: null,
-          files: [],
+          files: [
+            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', storageKey: 'k1' } as never,
+            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', storageKey: 'k2' } as never,
+          ],
         },
       }),
       isLoading: false,
@@ -490,6 +494,62 @@ describe('DriverTripDetailPage', () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: qk.driver.pairedOrders });
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
+  });
+
+  // SIL-697: the same CTA with a zero-file draft is refused BEFORE any write
+  // — the driver gets the missing-type message instead of a frozen submission.
+  it('SIL-697: the sticky CTA refuses completion on a zero-file draft without submitting', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          id: 22,
+          tripId: 55,
+          fulfillmentId: 88,
+          submissionVersion: 1,
+          status: TripPodStatus.DRAFT,
+          version: 2,
+          createdAt: '2026-08-01T01:00:00.000Z',
+          updatedAt: '2026-08-01T01:00:00.000Z',
+          submittedAt: null,
+          reviewedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          acceptedAt: null,
+          supersedesSubmissionId: null,
+          files: [],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const completeSpy = vi.spyOn(driverClient, 'completeTrip').mockResolvedValue({} as never);
+    const submitPodSpy = vi.spyOn(driverClient, 'submitPod').mockResolvedValue({} as never);
+    // The spies are shared module-level mocks — clear the TC9 test's history
+    // above so the refusal assertions below see only THIS test's calls.
+    submitPodSpy.mockClear();
+    completeSpy.mockClear();
+
+    renderPageWithBoard(freshClient());
+
+    await screen.findByTestId('complete-sticky-bar');
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' }));
+
+    expect(submitPodSpy).not.toHaveBeenCalled();
+    expect(completeSpy).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
+    expect(toastMock).toHaveBeenCalledWith({
+      kind: 'warning',
+      message: 'Chưa đủ chứng từ giao hàng. Còn thiếu: Phiếu bãi / phiếu hạ, Biên bản giao nhận có ký nhận. Vui lòng bổ sung đủ hai loại trước khi hoàn thành chuyến.',
+    });
   });
 
   // SIL-652 (id 758): L2 (locked) trip hides the dead accept button and shows
@@ -968,7 +1028,7 @@ describe('DriverTripDetailPage', () => {
     // (card 261022213755a: photos are optional, never a blocker) and the
     // completion action navigates to the e-POD screen.
     expect(screen.getByTestId('complete-sticky-bar')).toBeTruthy();
-    expect(screen.getByTestId('complete-sticky-status').textContent).toBe('Chưa có 2/2 ảnh chứng từ (tùy chọn)');
+    expect(screen.getByTestId('complete-sticky-status').textContent).toBe('Chưa có 2/2 ảnh chứng từ');
     const btn = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     expect(btn).toBeEnabled();
   });

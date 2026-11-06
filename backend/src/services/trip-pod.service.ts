@@ -859,12 +859,21 @@ export async function submitPod(args: {
         throw new ApiError(409, 'e-POD này không còn ở trạng thái nháp.');
       }
 
-      // Card 261022213755a (owner ruling 22/10): e-POD photos are optional
-      // evidence. Submitting a draft no longer demands the two required file
-      // types — the driver may submit whatever documents exist (or none) and
-      // the completion gate no longer depends on them either. The files are
-      // still listed for review; isReadyForReview still flags a submission
-      // missing its documents.
+      // SIL-697 (owner decision Frank 06/11, board id 809) — supersedes card
+      // 261022213755a's submit-anything rule: a draft missing either required
+      // evidence type must NOT move to SUBMITTED. A submitted submission is
+      // frozen, so an incomplete submit used to strand the trip: completion
+      // then failed and the driver could no longer add the missing file.
+      const presentTypes = new Set(
+        (await tx.select({ fileType: s.tripPodFiles.fileType })
+          .from(s.tripPodFiles)
+          .where(eq(s.tripPodFiles.submissionId, submission.id)))
+          .map((row) => row.fileType as TripPodFileType),
+      );
+      const missingTypes = TRIP_POD_REQUIRED_FILE_TYPES.filter((fileType) => !presentTypes.has(fileType));
+      if (missingTypes.length > 0) {
+        throw new ApiError(409, `Chưa đủ chứng từ giao hàng. Còn thiếu: ${missingTypes.map(fileTypeLabel).join(', ')}. Vui lòng bổ sung đủ hai loại trước khi nộp.`);
+      }
 
       const [updated] = await tx.update(s.tripPodSubmissions).set({
         status: TripPodStatus.SUBMITTED,

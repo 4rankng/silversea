@@ -1,0 +1,66 @@
+{
+  "submitRequests": [
+    {
+      "url": "http://localhost:7180/api/driver/me/fulfillments/171/pod/37/submit",
+      "method": "POST",
+      "at": "2026-11-06T15:12:41.119Z"
+    }
+  ],
+  "completeRequests": [
+    {
+      "url": "http://localhost:7180/api/driver/me/fulfillments/171/complete",
+      "method": "POST"
+    }
+  ],
+  "results": [
+    {
+      "name": "footer renders Hoàn thành chuyến with required-files copy",
+      "ok": true,
+      "detail": "Hoàn thành chuyếnCần đủ cả Phiếu bãi / phiếu hạ và Biên bản giao nhận có ký nhận trước khi bấm HOÀN THÀNH CHUYẾN — thiếu thì hệ thống sẽ chặn, không nộp nháp.Chưa có Phiếu bãi / phiếu hạChưa có Biên bản giao nhận có ký n"
+    },
+    {
+      "name": "yard receipt attached (1/2 files)",
+      "ok": false,
+      "detail": "files=[]"
+    },
+    {
+      "name": "tapped HOÀN THÀNH CHUYẾN with yard-only draft",
+      "ok": true
+    },
+    {
+      "name": "BLOCKED with message naming the missing type",
+      "ok": true,
+      "detail": "Đã tạo hồ sơ chứng từ giao hàng.Đã lưu tệp lane-pod-yard.png.Chưa đủ chứng từ giao hàng. Còn thiếu: Biên bản giao nhận có ký nhận. Vui lòng bổ sung đủ hai loại trước khi hoàn thành chuyến. | Đã tạo hồ sơ chứng từ giao hà"
+    },
+    {
+      "name": "ZERO submit requests went out",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "name": "ZERO complete requests went out",
+      "ok": true,
+      "detail": "[]"
+    },
+    {
+      "name": "submission still DRAFT (no nháp nộp dở)",
+      "ok": false,
+      "detail": "status=undefined"
+    },
+    {
+      "name": "both required types present",
+      "ok": false,
+      "detail": "[]"
+    },
+    {
+      "name": "trip COMPLETED after both files",
+      "ok": false,
+      "detail": "status=undefined"
+    },
+    {
+      "name": "exactly one submit + one complete fired",
+      "ok": true,
+      "detail": "submits=1 completes=1"
+    }
+  ]
+}
