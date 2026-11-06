@@ -7,7 +7,7 @@ import * as s from '../db/schema';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { eq, and, isNull, ne, or, sql } from 'drizzle-orm';
 import { TripStatus, Role, localDateInBusinessZone } from '@tingting/shared';
-import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner } from './trip-busy-gate';
+import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner, isSameRigLclSharePartner } from './trip-busy-gate';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -271,13 +271,25 @@ export async function transitionTripStatus(
         && candidate.driverId != null && candidate.driverId === trip.driverId
         && candidate.departureDate != null && candidate.departureDate !== ''
         && candidate.departureDate === trip.departureDate);
+      // SIL-705: the declared LCL share — same-rig same-day LCL legs the
+      // dispatcher stacked on this rig (plan tier allows with warn-once).
+      // Not bounded to one: consolidation stacks several lots; capacity is
+      // an issue-time gate. Requires the accepting leg's own 'LCL'.
+      const sameRigLclCandidates = busyTrips.filter((candidate) =>
+        candidate.fulfillmentClassification === 'LCL'
+        && candidate.driverId != null && candidate.driverId === trip.driverId
+        && candidate.departureDate != null && candidate.departureDate !== ''
+        && candidate.departureDate === trip.departureDate);
       const declaredClampExempt = new Set<number>();
-      if (trip.fulfillmentId != null && declaredClampCandidates.length === 1) {
+      const declaredLclExempt = new Set<number>();
+      if (trip.fulfillmentId != null
+        && (declaredClampCandidates.length === 1 || sameRigLclCandidates.length > 0)) {
         const [ownFulfillment] = await tx.select({ classification: s.shipmentFulfillments.dispatchClassification })
           .from(s.shipmentFulfillments)
           .where(eq(s.shipmentFulfillments.id, trip.fulfillmentId))
           .limit(1);
         if (ownFulfillment?.classification === 'DOUBLE'
+          && declaredClampCandidates.length === 1
           && isDeclaredKepClampPartner(
             {
               id: declaredClampCandidates[0].id,
@@ -294,6 +306,26 @@ export async function transitionTripStatus(
           )) {
           declaredClampExempt.add(declaredClampCandidates[0].id);
         }
+        if (ownFulfillment?.classification === 'LCL') {
+          for (const candidate of sameRigLclCandidates) {
+            if (isSameRigLclSharePartner(
+              {
+                id: candidate.id,
+                driverId: candidate.driverId,
+                departureDate: candidate.departureDate,
+                classification: candidate.fulfillmentClassification,
+              },
+              {
+                tripId,
+                tripDriverId: trip.driverId,
+                tripDepartureDate: trip.departureDate,
+                tripClassification: ownFulfillment.classification,
+              },
+            )) {
+              declaredLclExempt.add(candidate.id);
+            }
+          }
+        }
       }
       const blockingTrips: Array<{ id: number; tripCode: string | null }> = [];
       for (const candidate of busyTrips) {
@@ -308,6 +340,9 @@ export async function transitionTripStatus(
         // SIL-634: the unpaired declared kẹp partner — both legs DOUBLE, same
         // driver/day, both 20' (see isDeclaredKepClampPartner).
         if (declaredClampExempt.has(candidate.id)) continue;
+        // SIL-705: the declared LCL share — same-rig same-day LCL legs (see
+        // isSameRigLclSharePartner).
+        if (declaredLclExempt.has(candidate.id)) continue;
         if (!isTripRunningOnDepartureDay(candidate.departureDate, todayInBusinessZone)) continue;
         const evidence = await getDriverCompletionEvidenceStatus(candidate.id, tx);
         if (!evidence.ready) blockingTrips.push(candidate);

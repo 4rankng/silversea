@@ -157,3 +157,43 @@ export function isDeclaredKepClampPartner(
   if (candidate.departureDate == null || candidate.departureDate === '') return false;
   return candidate.departureDate === args.tripDepartureDate;
 }
+
+/**
+ * SIL-705: the DECLARED LCL share — the third exemption shape of the
+ * truck-busy gate. Điều vận may stack several Hàng lẻ (LCL) lots on ONE rig
+ * for one business day: the plan-row save allows the same-rig same-day share
+ * on the confirmable warn tier ("Đầu xe… đã được gán cho lô/tác vụ khác
+ * trong khung giờ trùng lặp. Vẫn lưu?"), and the issue gate issues each leg
+ * on non-overlapping windows. LCL fulfillments carry the dedicated 'LCL'
+ * dispatch classification (the DB check constrains LCL_SHIPMENT rows to it),
+ * so neither the pair-row proof (SIL-602/631) nor the declared DOUBLE clamp
+ * (SIL-634/704) can ever recognize the arrangement — the second "Nhận lệnh"
+ * stayed 409-blocked behind the first lot's still-running evidence, the
+ * exact accept-tier issue-tier mismatch SIL-634 fixed for Kẹp.
+ *
+ * The share proof mirrors the declared clamp minus the exactly-one bound:
+ * consolidation legitimately stacks MORE than two lots on one rig/day (the
+ * truck-busy scan already filters to the same truck), and the 2×20' physical
+ * law has no LCL analogue — capacity stays an issue-time gate. Both legs
+ * must carry the 'LCL' declaration: a plain ĐƠN (SINGLE) accepting onto an
+ * LCL holder keeps blocking (TC2's law), and so does an LCL leg accepting
+ * under a DOUBLE/Kết hợp holder. Shared driver + shared departure day stay
+ * mandatory; driver drift stays blocking.
+ */
+export function isSameRigLclSharePartner(
+  candidate: DeclaredKepClampCandidateRow,
+  args: {
+    tripId: number;
+    tripDriverId: number | null | undefined;
+    tripDepartureDate: string | null | undefined;
+    tripClassification: string | null | undefined;
+  },
+): boolean {
+  if (candidate.id === args.tripId) return false;
+  if (args.tripClassification !== 'LCL' || candidate.classification !== 'LCL') return false;
+  if (args.tripDriverId == null || candidate.driverId == null) return false;
+  if (candidate.driverId !== args.tripDriverId) return false;
+  if (args.tripDepartureDate == null || args.tripDepartureDate === '') return false;
+  if (candidate.departureDate == null || candidate.departureDate === '') return false;
+  return candidate.departureDate === args.tripDepartureDate;
+}

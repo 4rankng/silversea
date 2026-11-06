@@ -20,7 +20,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner } from '../../services/trip-busy-gate';
+import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner, isSameRigLclSharePartner } from '../../services/trip-busy-gate';
 
 // ── Transition Matrix ──────────────────────────────────────────────────────
 // Which target statuses are valid from each current status?
@@ -629,6 +629,110 @@ describe('Truck availability gate — SIL-634/SIL-704 declared Kẹp clamp witho
       ),
       false,
       'the canceled COMBINED declaration must never stand in for the live DOUBLE row',
+    );
+  });
+});
+
+// SIL-705 — "cổng lái xe chặn nhận lệnh 2 của chung xe hàng lẻ". Điều vận
+// xếp NHIỀU lô LCL lên một xe trong cùng ngày: plan-row save cho phép cùng
+// rig/cùng ngày ở tầng warn-once ("Đầu xe… đã được gán cho lô/tác vụ khác…
+// Vẫn lưu?") và issue gate phát từng chân trên windows rời nhau. Fulfillment
+// LCL chỉ mang classification 'LCL' (DB check chặn mọi giá trị khác cho
+// LCL_SHIPMENT), nên pair-row (602/631) lẫn declared DOUBLE clamp (634/704)
+// không bao giờ nhận ra sắp xếp này — chân 2 "Nhận lệnh" kẹt 409 sau evidence
+// chưa đủ của chân 1, đúng lệch-hợp-đồng hai gate mà SIL-634 đã sửa cho Kẹp.
+// The share proof mirrors the declared clamp minus the exactly-one bound
+// (consolidation xếp >2 lô là hợp lệ; capacity là gate issue-time). Cả hai
+// chân phải mang 'LCL': ĐƠN nhận lên holder LCL vẫn chặn (TC2), LCL nhận dưới
+// holder DOUBLE/Kết hợp vẫn chặn. Khác lái/khác ngày vẫn chặn.
+describe('Truck availability gate — SIL-705 declared LCL share', () => {
+  const DAY = '2026-10-31';
+  const acceptingLeg = {
+    tripId: 302,
+    tripDriverId: 9,
+    tripDepartureDate: DAY,
+    tripClassification: 'LCL',
+  };
+  const holder = { id: 201, driverId: 9, departureDate: DAY, classification: 'LCL' };
+
+  test('REG SIL-705: the same-rig same-day LCL holder is exempt — the second "Nhận lệnh" must not 409', () => {
+    assert.strictEqual(
+      isSameRigLclSharePartner(holder, acceptingLeg),
+      true,
+      'the LCL consolidation the dispatcher stacked on this rig must never block its own second leg',
+    );
+    // Untyped container rows are the LCL norm (mỗi LCL trip sinh 1 row
+    // trip_containers không type) — không có field container nào trong proof.
+  });
+
+  test('a plain ĐƠN accepting onto an LCL holder stays blocking (TC2)', () => {
+    assert.strictEqual(isSameRigLclSharePartner(
+      holder,
+      { ...acceptingLeg, tripClassification: 'SINGLE' },
+    ), false, 'the busy LCL row keeps blocking a plain ĐƠN leg');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, classification: 'SINGLE' },
+      acceptingLeg,
+    ), false, 'an LCL accepting leg keeps blocking behind a ĐƠN holder');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, classification: 'DOUBLE' },
+      acceptingLeg,
+    ), false, 'Kẹp legs stay with the declared-clamp proof, never the LCL share');
+    assert.strictEqual(isSameRigLclSharePartner(
+      holder,
+      { ...acceptingLeg, tripClassification: 'DOUBLE' },
+    ), false, 'a Kẹp accepting leg never rides the LCL share exemption');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, classification: 'COMBINED' },
+      { ...acceptingLeg, tripClassification: 'COMBINED' },
+    ), false, 'KẾT_HỢP legs are sequential — the sequencing gate stays the sole owner');
+  });
+
+  test('driver drift and day drift stay blocking', () => {
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, driverId: 10 },
+      acceptingLeg,
+    ), false, 'out-of-band driver drift stays blocking');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, driverId: null },
+      acceptingLeg,
+    ), false, 'an unassigned busy row proves nothing');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, departureDate: '2026-11-01' },
+      acceptingLeg,
+    ), false, 'another day is another run — the old law keeps it blocking');
+    assert.strictEqual(isSameRigLclSharePartner(
+      holder,
+      { ...acceptingLeg, tripDepartureDate: null },
+    ), false, 'a missing departure day keeps the conservative block');
+  });
+
+  test('self is never its own partner', () => {
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, id: 302 },
+      acceptingLeg,
+    ), false);
+  });
+
+  test('wiring pins: the busy loop consults the LCL share predicate and the accepting declaration', () => {
+    const serviceSource = readFileSync(
+      fileURLToPath(new URL('../../services/trip-status-machine.service.ts', import.meta.url)),
+      'utf8',
+    );
+    assert.match(
+      serviceSource,
+      /isSameRigLclSharePartner\(/,
+      'the status machine must consult the SIL-705 LCL share predicate',
+    );
+    assert.match(
+      serviceSource,
+      /declaredLclExempt\.has\(candidate\.id\)/,
+      'the busy-trip loop must skip the exempted LCL share holders before the running-day check',
+    );
+    assert.match(
+      serviceSource,
+      /fulfillmentClassification === 'LCL'/,
+      'the LCL share scan must key on the LCL dispatch classification',
     );
   });
 });

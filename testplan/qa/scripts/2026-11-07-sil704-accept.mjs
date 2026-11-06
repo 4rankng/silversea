@@ -5,11 +5,11 @@
 //   kep_paired   : như trên + ghép KEP pair (SIL-602/631) — EXPECT: chân 2 nhận OK.
 //   lcl_share    : 2 lô LCL riêng (classification 'LCL' — luật LCL_SHIPMENT), cùng
 //                  xe/driver/ngày, windows rời nhau — EXPECT (sau fix): chân 2 nhận OK.
-// Usage: QA_API=http://localhost:3102/api SIL704_MODE=kep_unpaired node testplan/qa/scripts/2026-11-07-sil704-accept.mjs
+// Usage: QA_API=http://localhost:3002/api SIL704_MODE=kep_unpaired node testplan/qa/scripts/2026-11-07-sil704-accept.mjs
 import fs from 'node:fs';
 import path from 'node:path';
 
-const API = process.env.QA_API || 'http://localhost:3102/api';
+const API = process.env.QA_API || 'http://localhost:3002/api';
 const MODE = process.env.SIL704_MODE || 'kep_unpaired';
 const OUT = path.resolve(process.env.QA_OUT || 'qa/2026-11-07-lane-r1');
 fs.mkdirSync(OUT, { recursive: true });
@@ -115,7 +115,7 @@ if (MODE === 'kep_unpaired' || MODE === 'kep_paired') {
     // (không có container nên bỏ qua validate factory/route/port).
     const sub = await j(await fetch(`${API}/shipments/${r.json.id}/submit-for-dispatch`, { method: 'POST', headers: { ...authed(cus), 'Idempotency-Key': `${bl}-sub` }, body: JSON.stringify({ expectedVersion: 1 }) }), `submit-for-dispatch ${bl}`, [200, 201]);
     if (!sub.ok) log(`submit ${bl} không pass (tiếp tục poll): ${sub.text.slice(0, 160)}`);
-    legs.push({ bl, shipId: r.json.id, start: w[1], end: w[2], lotIndex: i });
+    legs.push({ bl, shipId: r.json.id, start: w[1], end: w[2], lotIndex: 0 });
   }
 }
 
@@ -178,8 +178,9 @@ for (const leg of legs) {
 }
 
 // 6. Lái xe nhận lệnh A rồi B (SIL704_UI=1 → drive UI lái xe thật 390px;
-// mặc định: API recordProgress đúng đường FE dùng)
-const FRONT = process.env.QA_FRONT || 'http://localhost:7196';
+// mặc định: API recordProgress đúng đường FE dùng). UI mode nhận QA_FRONT
+// (mặc định 7175 — worktree khác có thể cần port riêng, ví dụ 7196).
+const FRONT = process.env.QA_FRONT || 'http://localhost:7175';
 const UI = process.env.SIL704_UI === '1';
 let browser = null;
 let page = null;

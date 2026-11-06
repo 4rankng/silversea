@@ -4,11 +4,11 @@
 //   B. Lot-level row tạo  — POST /shipments/:id/declarations {declarationNumber}
 //   C. Lot-level row sửa  — PUT  /shipments/:id/declarations/:did {declarationNumber}
 // EXPECT: mỗi đường ghi xong, CUS workspace detail + DB vẫn còn đúng giá trị.
-// Usage: QA_API=http://localhost:3102/api node testplan/qa/scripts/2026-11-07-sil716-declaration-persist.mjs
+// Usage: QA_API=http://localhost:3002/api node testplan/qa/scripts/2026-11-07-sil716-declaration-persist.mjs
 import fs from 'node:fs';
 import path from 'node:path';
 
-const API = process.env.QA_API || 'http://localhost:3102/api';
+const API = process.env.QA_API || 'http://localhost:3002/api';
 const OUT = path.resolve(process.env.QA_OUT || 'qa/2026-11-07-lane-r1');
 fs.mkdirSync(OUT, { recursive: true });
 const LOG = path.join(OUT, `sil716-api-${process.env.QA_TAG || 'run'}.log`);
