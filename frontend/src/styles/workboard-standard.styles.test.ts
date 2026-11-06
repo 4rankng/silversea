@@ -33,6 +33,12 @@ const THEAD_CASE_ALLOWLIST = [
   // two sheets that skin this surface.
   'src/pages/CustomersPage.css',
   'src/pages/config/customer-config-density.css',
+  // SIL-698 owner ruling 06/11 (same supersession pattern as ShipmentDebitPage
+  // above): the master-plan board condenses its headers to ONE line at the
+  // desktop reading band — sanctioned "co chữ" 10px / 0.02em inside the ≥1440px
+  // media band only; the R38 column shares stay pinned, full names live in the
+  // td data-labels and the Excel export.
+  'src/features/dispatch/master-plan/MasterPlanGrid.css',
 ];
 
 function cssFiles(dir: string): string[] {

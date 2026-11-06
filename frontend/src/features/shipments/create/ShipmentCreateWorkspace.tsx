@@ -895,18 +895,12 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     error={issueByField.get('shipment-lcl-closing-at')}
                     combinedPicker
                   />
-                  {/* SIL-427 (ticket 221026103544 / QA fail 06/11): the LCL
-                      form must NAME the delivery date. By the SIL-587 payload
-                      law this row's datetime IS the lot's
-                      expectedDeliveryDate — its VN wall-clock date, mirrored
-                      here live (string surgery, never the host timezone).
-                      The schedule field's own label, aria and validation stay
-                      SIL-587's "Ngày giờ đóng trả *"; this chip adds the
-                      delivery-date identity on the same row (no layout
-                      change) so a clerk reads both facts at a glance. */}
-                  <span className="csc-lcl-delivery__edd" data-field-id="shipment-lcl-expected-delivery">
-                    Ngày giao hàng: <strong>{formatISODate(form.lclClosingAt.slice(0, 10), { empty: '—' })}</strong>
-                  </span>
+                  {/* SIL-587 payload law: this row's datetime IS the lot's
+                      expectedDeliveryDate — no separate delivery chip on the
+                      LCL create form. (SIL-427's chip was reverted: it broke
+                      the golden pin `not.toContain('Ngày giao hàng')` and the
+                      Spec fix.docx Phần I carries NO delivery-label ruling;
+                      conflict parked on ticket 221026103544 for an owner call.) */}
                 </div>
               )}
               {/* SIL-642 (id 746, owner 31/10): the FCL band datetime is
