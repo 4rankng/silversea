@@ -30,7 +30,7 @@ import {
   type ResolveFreightRateInput,
   type ResolvedFreightRate,
 } from './freight-pricing-engine.service';
-import { classifyLotPricingBasis } from './freight-lot-basis';
+import { classifyLotPricingBasis, type LotPricingGrounds } from './freight-lot-basis';
 import type { Tx } from './trip-shared';
 
 type DbOrTx = typeof db | Tx;
@@ -146,10 +146,17 @@ export interface LockShipmentFreightRateArgs {
  * Always runs inside the caller's transaction: derivation reads see this
  * transaction's rows, and a rolled-back intake leaves no orphan snapshot.
  */
-export async function lockShipmentFreightRate(
-  tx: Tx,
-  args: LockShipmentFreightRateArgs,
-): Promise<FreightRateLockOutcome | null> {
+/** SIL-693 — the ONE pricing-grounds derivation, shared by the dispatch freeze
+ *  (`lockShipmentFreightRate`) and the cost-lock freeze (`buildCostSnapshot`,
+ *  which must record the same đủ/thiếu-căn cứ verdict the dispatch ran, so a
+ *  debit-note issuance can tell "unpriced by design" from "pricing never ran").
+ *  Returns null when the shipment row is missing — the caller's existing
+ *  silent-skip contract. */
+export async function deriveLotPricingGrounds(
+  tx: DbOrTx,
+  shipmentId: number,
+  args: Pick<LockShipmentFreightRateArgs, 'rateKeyOverride' | 'shipmentContainerId' | 'fallbackTransportDate'>,
+): Promise<LotPricingGrounds | null> {
   const [shipment] = await tx.select({
     id: s.shipments.id,
     customerId: s.shipments.customerId,
@@ -158,7 +165,7 @@ export async function lockShipmentFreightRate(
     expectedDeliveryDate: s.shipments.expectedDeliveryDate,
   })
     .from(s.shipments)
-    .where(and(eq(s.shipments.id, args.shipmentId), isNull(s.shipments.deletedAt)))
+    .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) return null;
 
@@ -173,7 +180,7 @@ export async function lockShipmentFreightRate(
     const [anchored] = await tx.select({ routeId: s.shipmentContainers.routeId })
       .from(s.shipmentContainers)
       .where(and(
-        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+        eq(s.shipmentContainers.shipmentId, shipmentId),
         eq(s.shipmentContainers.id, args.shipmentContainerId),
       ))
       .limit(1);
@@ -183,7 +190,7 @@ export async function lockShipmentFreightRate(
     const [routed] = await tx.select({ routeId: s.shipmentContainers.routeId })
       .from(s.shipmentContainers)
       .where(and(
-        eq(s.shipmentContainers.shipmentId, args.shipmentId),
+        eq(s.shipmentContainers.shipmentId, shipmentId),
         isNotNull(s.shipmentContainers.routeId),
       ))
       .orderBy(s.shipmentContainers.id)
@@ -207,10 +214,10 @@ export async function lockShipmentFreightRate(
       .innerJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .where(args.shipmentContainerId != null
         ? and(
-          eq(s.shipmentContainers.shipmentId, args.shipmentId),
+          eq(s.shipmentContainers.shipmentId, shipmentId),
           eq(s.shipmentContainers.id, args.shipmentContainerId),
         )
-        : eq(s.shipmentContainers.shipmentId, args.shipmentId))
+        : eq(s.shipmentContainers.shipmentId, shipmentId))
       .orderBy(s.shipmentContainers.id)
       .limit(1);
     rateKey = containerTypeCodeToRateKey(typedContainer?.typeCode);
@@ -230,11 +237,11 @@ export async function lockShipmentFreightRate(
       .from(s.shipmentContainers)
       .where(args.shipmentContainerId != null
         ? and(
-          eq(s.shipmentContainers.shipmentId, args.shipmentId),
+          eq(s.shipmentContainers.shipmentId, shipmentId),
           eq(s.shipmentContainers.id, args.shipmentContainerId),
         )
         : and(
-          eq(s.shipmentContainers.shipmentId, args.shipmentId),
+          eq(s.shipmentContainers.shipmentId, shipmentId),
           isNotNull(s.shipmentContainers.containerTypeId),
         ))
       .orderBy(s.shipmentContainers.id)
@@ -244,7 +251,7 @@ export async function lockShipmentFreightRate(
       : Number(anchorContainer.cargoWeightKg);
   }
 
-  const decision = classifyLotPricingBasis({
+  return {
     isAdHoc: shipment.isAdHoc,
     customerId: shipment.customerId,
     routeId,
@@ -253,7 +260,17 @@ export async function lockShipmentFreightRate(
     expectedDeliveryDate: shipment.expectedDeliveryDate,
     fallbackTransportDate: args.fallbackTransportDate ?? null,
     containerCargoWeightKg,
-  });
+  };
+}
+
+export async function lockShipmentFreightRate(
+  tx: Tx,
+  args: LockShipmentFreightRateArgs,
+): Promise<FreightRateLockOutcome | null> {
+  const grounds = await deriveLotPricingGrounds(tx, args.shipmentId, args);
+  if (!grounds) return null;
+
+  const decision = classifyLotPricingBasis(grounds);
   if (decision.action === 'SKIP') {
     // Ruling (c): missing weight = NO PRICE, deterministically — the freeze is
     // SKIPPED (no invented number, no stale column) rather than throwing:
@@ -269,11 +286,11 @@ export async function lockShipmentFreightRate(
 
   // classifyLotPricingBasis only LOCKs with customer + route present; these
   // guards keep the resolved call's types honest without inventing defaults.
-  if (shipment.customerId == null || routeId == null) return null;
+  if (grounds.customerId == null || grounds.routeId == null) return null;
 
   const resolved = await resolveFreightRateWithManualFallback({
-    customerId: shipment.customerId,
-    routeId,
+    customerId: grounds.customerId,
+    routeId: grounds.routeId,
     vehicleSizeClassCode: decision.rateKey,
     priceVehicleSizeClassCode: decision.priceVehicleSizeClassCode,
     transportDate: decision.transportDate,

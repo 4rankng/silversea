@@ -8,25 +8,15 @@ import { createHash } from 'node:crypto';
 import { inArray, desc } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import type {
   BillingDocumentLine,
-  BillingVatRate,
-  BillingVatTreatment,
 } from '@tingting/shared';
 
-export const VAT_TREATMENT_VERSION = 'VAT-V1' as const;
-
-const ALLOWED_VAT_RATES = new Set<number>([0, 0.05, 0.08, 0.10]);
-
-function normalizeVatRate(value: string | number | null | undefined): BillingVatRate {
-  const rate = Number(value ?? 0);
-  if (!ALLOWED_VAT_RATES.has(rate)) {
-    throw new ApiError(409, `Thuế suất VAT ${rate} không thuộc chính sách đang hiệu lực.`);
-  }
-  return rate as BillingVatRate;
-}
+// SIL-693 seam: the VAT math below moved verbatim to ./billing-vat-math (db-free)
+// so the Debit Note line builder chain stays unit-testable. This module keeps
+// re-exporting it — its existing import surface is unchanged.
+export { VAT_TREATMENT_VERSION, calculateVatSnapshot } from './billing-vat-math';
 
 /** Effective incl-VAT amount for a line: excluded → 0, else override ?? base. */
 export function effectiveAmount(line: { excluded?: boolean | null; baseAmount: number; amountOverride?: number | null; grossAmount?: number | null }): number {
@@ -54,32 +44,6 @@ export function postingChecksum(posting: {
       ? posting.effectiveAt.toISOString()
       : new Date(posting.effectiveAt).toISOString(),
   })).digest('hex');
-}
-
-export function calculateVatSnapshot(
-  grossAmount: number,
-  rateInput: string | number | null | undefined,
-  treatmentInput?: BillingVatTreatment,
-) {
-  const gross = Math.round(Number(grossAmount));
-  if (!Number.isFinite(gross) || gross < 0) throw new ApiError(409, 'Giá trị gồm VAT không hợp lệ.');
-  const rate = normalizeVatRate(rateInput);
-  const treatment = treatmentInput ?? (rate === 0 ? 'ZERO_RATED' : 'STANDARD');
-  if ((treatment === 'STANDARD') !== (rate > 0)) {
-    throw new ApiError(409, 'Cách xử lý VAT không khớp thuế suất.');
-  }
-  const net = treatment === 'STANDARD'
-    ? Math.floor(gross / (1 + rate) + 0.5)
-    : gross;
-  const tax = gross - net;
-  return {
-    vatTreatment: treatment,
-    vatRate: rate,
-    vatTreatmentVersion: VAT_TREATMENT_VERSION,
-    netAmount: net,
-    taxAmount: tax,
-    grossAmount: gross,
-  } as const;
 }
 
 export function documentVatTotals(lines: readonly BillingDocumentLine[]) {
