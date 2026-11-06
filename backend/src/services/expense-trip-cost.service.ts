@@ -21,8 +21,15 @@ export function reconciledDriverCosts(rows: ReadonlyArray<{ costType: string; co
     // rule as the money: a TOLL set holding only negative rows reads exactly
     // like no TOLL row at all, and the caller falls back to the station math.
     toll: tolls.some((row) => Number(row.amount) >= 0) ? sumExcludingNegative(tolls, (row) => row.amount) : null,
-    extra: sumExcludingNegative(rows.filter(row => row.costType !== 'TOLL' && row.costType !== 'ROAD_ALLOWANCE'
-      && (row.costGroup === 'DRIVER_ROAD' || Number(row.customerChargeAmount ?? 0) === 0)),
+    // SIL-696 (owner acceptance 06/11): every CONFIRMED driver claim — nâng,
+    // hạ, kho, đậu xe, … — is a direct cost of its trip, whether or not the
+    // lot also bills the customer for it (the receivable side lives in
+    // trip_expenses/debit-note data and never offsets this side). Only TOLL
+    // (its own reconciled branch above) and ROAD_ALLOWANCE (system-recorded
+    // salary law) stay out. The previous `customerChargeAmount === 0` /
+    // DRIVER_ROAD-only clause silently dropped an approved lift fee from
+    // totalCost whenever the lot charged the customer for it.
+    extra: sumExcludingNegative(rows.filter(row => row.costType !== 'TOLL' && row.costType !== 'ROAD_ALLOWANCE'),
     (row) => row.amount),
   };
 }
