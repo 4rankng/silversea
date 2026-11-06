@@ -231,6 +231,13 @@ export function ShipmentCreateIdentitySection({
             label="Hãng tàu"
             value={form.shippingLineName}
             onChange={(value) => update('shippingLineName', value)}
+            // SIL-335 (QA fail 06/11): a searchable+allowsCustomValue field
+            // writes ONLY through onCustomValue (uui-searchable-field's
+            // onInputChange never calls onChange for custom text) — without
+            // this wiring the typed name never reached the lot field at all,
+            // despite the FB-114 comment claiming it did. Live-commit per
+            // keystroke, exactly the field's documented contract.
+            onCustomValue={(text) => update('shippingLineName', text)}
             allowsCustomValue
             options={shippingLineOptions}
             placeholder="Gõ chọn hoặc nhập hãng tàu"
@@ -240,7 +247,8 @@ export function ShipmentCreateIdentitySection({
             // catalog (defaults + SHIPPING_LINE suppliers). The pencil
             // dialog persists its name there (survives reload for every
             // user) AND writes this lot's field; a name typed straight into
-            // the field rides this lot only.
+            // the field rides this lot AND the SIL-335 save persist puts it
+            // in the shared catalog too.
             // SIL-499: the old 2-sentence usage hint under the field is
             // GONE — §8 of the design law book bans lecturing helper text
             // (trained operators), and at half-width columns it wrapped to

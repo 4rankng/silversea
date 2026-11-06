@@ -44,6 +44,9 @@ export function useShipmentWorkspacePrefill({
   const [viewLocked, setViewLocked] = useState(false);
   // The pristine baseline the leave-confirm dirty diff reads (edit + view).
   const editBaselineRef = useRef<string | null>(null);
+  // SIL-453: the lot's business label for the review page's cost drawer
+  // (drawer context line names the Số Bill/Booking, never the internal id).
+  const [viewLotCode, setViewLotCode] = useState<string | null>(null);
   const editRequestRef = useRef(0);
 
   useEffect(() => {
@@ -52,10 +55,14 @@ export function useShipmentWorkspacePrefill({
     setEditLoadError(null);
     setViewLocked(false);
     setEditSeed(null);
+    setViewLotCode(null);
     getShipmentDetail(pinnedShipmentId)
       .then((detail) => {
         if (editRequestRef.current !== reqId) return;
         const prefill = buildShipmentEditPrefill(detail);
+        // SIL-453: the review page's cost drawer names the lot by its
+        // business key (AGENTS §2: internal ids never display).
+        setViewLotCode(detail.shipment.shipmentCode ?? detail.shipment.blNumber ?? detail.shipment.bookingRef ?? null);
         // Server refuses every non-notes write on a locked lot (ruling
         // 2026-09-20 carve-out aside) — arming a full editable form would
         // waste the whole edit on a guaranteed 409, so the lock stops edit
@@ -89,5 +96,5 @@ export function useShipmentWorkspacePrefill({
     // comment above describes.
   }, [pinnedShipmentId, setContainers, setCustomerNotes, setForm, viewMode]);
 
-  return { editSeed, editLoadError, viewLocked, editBaselineRef };
+  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode };
 }

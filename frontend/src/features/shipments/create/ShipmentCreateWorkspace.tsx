@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Copy } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
 import {
@@ -16,12 +17,15 @@ import {
   listSharedWarehouseSites,
   type OperationalSite,
 } from '../../../api/shipmentClient';
+import { expenseAccountingClient, type ExpenseAccountingCatalog } from '../../../api/expenseAccountingClient';
+import { ExpenseCreateDrawer } from '../../expense-accounting/ExpenseCreateDrawer';
+import { qk } from '../../../api/keys';
 // SIL-688: the confirm modal's error voice — BE 409 lifecycle reasons must
 // reach the operator verbatim (they name the blocking rule).
 import { safeError } from '../cus/cusUtils';
 import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-duplicate-guard';
 import { useShipmentWorkspacePrefill } from './use-shipment-workspace-prefill';
-import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine } from './catalogMerger';
+import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine, shouldPersistShippingLine } from './catalogMerger';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
   createContainerFromPrevious,
@@ -82,7 +86,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
    *  `canDeleteLot` (SIL-688) follows the same pattern: the host reads
    *  useAuth (BE delete = CUS/ADMIN), the workspace owns the confirm +
    *  version/lifecycle guards. */
-  viewTarget?: { shipmentId: number; canEditLot?: boolean; canDeleteLot?: boolean };
+  viewTarget?: { shipmentId: number; canEditLot?: boolean; canDeleteLot?: boolean; /** SIL-453: the host's ADMIN/MANAGER/ACCOUNTANT gate for the lot-scope cost entry (BE requireExpenseFinance trio). */ canDeclareCost?: boolean };
 } = {}) {
   const navigate = useNavigate();
   const viewMode = Boolean(viewTarget);
@@ -90,6 +94,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
    *  open the edit form? The lock is applied on top once the detail lands. */
   const viewCanEditLot = Boolean(viewTarget?.canEditLot);
   const viewCanDeleteLot = Boolean(viewTarget?.canDeleteLot);
+  // SIL-453 (FB-098 restore): the review page's "Khai chi phí" gate — the
+  // role half here, the accounting-lock half applied once the detail lands.
+  const viewCanDeclareCost = Boolean(viewTarget?.canDeclareCost);
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
   const [sites, setSites] = useState<OperationalSite[]>([]);
   // Card 261022093245: the SHARED Kho (CFS/Cảng) catalog — customer-independent
@@ -133,6 +140,26 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const [deleteLotSubmitting, setDeleteLotSubmitting] = useState(false);
   const [shippingLineDialogOpen, setShippingLineDialogOpen] = useState(false);
   const shippingLineAddButtonRef = useRef<HTMLButtonElement>(null);
+  // SIL-453 (FB-098 restore, QA fail 06/11): the review page's cost entry —
+  // "Khai chi phí" opens the shared "Thêm khoản chi" drawer at LOT scope
+  // (tripId null), the exact mount the pre-SIL-481 detail page ran. The
+  // catalog loads on open; a failed fetch closes loudly instead of a dead
+  // drawer.
+  const [costDrawerOpen, setCostDrawerOpen] = useState(false);
+  const [costCatalog, setCostCatalog] = useState<ExpenseAccountingCatalog | null>(null);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!costDrawerOpen || costCatalog) return;
+    let cancelled = false;
+    expenseAccountingClient.catalog()
+      .then((value) => { if (!cancelled) setCostCatalog(value); })
+      .catch(() => {
+        if (cancelled) return;
+        setCostDrawerOpen(false);
+        toast({ kind: 'error', message: 'Không tải được danh mục khoản chi. Vui lòng thử lại.' });
+      });
+    return () => { cancelled = true; };
+  }, [costCatalog, costDrawerOpen, toast]);
   const [routeDialogOpen, setRouteDialogOpen] = useState(false);
   const routeAddButtonRef = useRef<HTMLButtonElement>(null);
   const { getConflict: getReferenceConflict, reportServerConflict } = useShipmentReferenceDuplicateGuard({
@@ -162,7 +189,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // SIL-171 edit + SIL-481 view: the pinned-lot fetch/prefill lives in its
   // own hook (structure-guard split debt, D1 note).
   const pinnedShipmentId = editTarget?.shipmentId ?? viewTarget?.shipmentId;
-  const { editSeed, editLoadError, viewLocked, editBaselineRef } = useShipmentWorkspacePrefill({
+  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode } = useShipmentWorkspacePrefill({
     pinnedShipmentId,
     viewMode,
     setForm,
@@ -710,6 +737,24 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     else navigate(-1);
   }
 
+  // SIL-335 (owner ruling 06/11 "ten hang tau go tay must be saved to db"):
+  // a carrier name typed straight into the combobox (no ✎ dialog) must reach
+  // the shared SHIPPING_LINE catalog too — the pencil path persists on apply
+  // (applyShippingLine); this covers the free-typed path on every save in
+  // both create and edit mode, for every intake role (khách + Ops/điều vận).
+  // Best-effort per the ruling: blank/garbage (empty after trim) simply
+  // skips; a catalog hiccup warns but never blocks the lot save.
+  async function persistTypedShippingLine() {
+    const name = form.shippingLineName.trim();
+    if (!shouldPersistShippingLine(name, catalogs)) return;
+    try {
+      const result = await createShippingLine(name);
+      mergeShippingLine(catalogs, result.name, setCatalogs);
+    } catch {
+      toast({ kind: 'warning', message: `Không lưu được hãng tàu "${name}" vào danh mục chung — lô hàng vẫn được lưu.`, duration: 6000 });
+    }
+  }
+
   async function save(intent: SaveIntent) {
     // FB-048 (card 141026003600): the native pre-gate used to run FIRST and
     // return, so a partially-typed date/Time field (which sets customValidity
@@ -723,6 +768,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     // constraint the model does not express (an empty value passes validation
     // but the input is still `:invalid`), so nothing can slip through a save.
     const incomplete = workspaceFormRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid, [data-split-datetime] input:invalid');
+    await persistTypedShippingLine();
     const result = await runSave(intent);
     // A partial date/time draft still earns its own native message
     // ("Nhập đủ giờ và ngày hợp lệ.") — reported on top of the app-owned paint,
@@ -1076,6 +1122,12 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
               onBack={goShipmentList}
               onEdit={viewCanEditLot ? goEdit : undefined}
               editLocked={viewLocked}
+              // SIL-453 (FB-098 restore): role trio via the host + the card's
+              // "ẩn khi khóa kế toán" law — the affordance disappears on a
+              // locked lot instead of disabling (the Sửa/Xóa buttons keep
+              // their visible-disabled lock voice; cost entry was specified
+              // hidden).
+              onDeclareCost={viewCanDeclareCost && !viewLocked && editSeed ? () => { setCostCatalog(null); setCostDrawerOpen(true); } : undefined}
               onCreateNew={viewCreateNew}
               onDelete={viewCanDeleteLot && editSeed ? () => { setDeleteReason(''); setDeleteLotError(null); setDeleteLotOpen(true); } : undefined}
               deleteLocked={viewLocked}
@@ -1092,6 +1144,18 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           )}
         </div>
       </form>
+
+      {/* SIL-453 (FB-098 restore): the shared "Thêm khoản chi" drawer at LOT
+          scope — the ShipmentExpensePanel lot-work shape (tripId null). The
+          catalog gate keeps the drawer unmounted until its catalog lands. */}
+      {costDrawerOpen && costCatalog && viewTarget && (
+        <ExpenseCreateDrawer
+          work={{ tripId: null, shipmentId: viewTarget.shipmentId, shipmentCode: viewLotCode ?? `Lô ${viewTarget.shipmentId}`, containerNumber: null }}
+          catalog={costCatalog}
+          onClose={() => setCostDrawerOpen(false)}
+          onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.expenseAccounting.all }); }}
+        />
+      )}
 
       <ShipmentCreateModals
         detailSite={detailSite}

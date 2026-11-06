@@ -23,7 +23,7 @@ import {
 } from './shipment-accounting-lock.service';
 
 
-import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, containerDayTriageCondition, shipmentTransportDateCondition, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
+import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, workboardRowDaySql, containerDayTriageCondition, shipmentTransportDateCondition, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
 import { billOrBookNumberFor, deriveLegacyScheduleInstant, trimOrNull } from './cus-workspace-mapping.service';
 
 export * from './cus-workspace-sql.service';
@@ -813,7 +813,10 @@ async function buildShipmentPageConditions(
     ...(await buildScopeConditions(actor)),
   ];
   const transportDate = searchMode === 'container'
-    ? containerTransportDateSql()
+    // SIL-434: per-row-source day — container rows filter on the appointment
+    // coalesce, the container-less lot row on the SIL-645 display day its
+    // LỊCH TRÌNH cell prints. See workboardRowDaySql.
+    ? workboardRowDaySql()
     : s.shipments.expectedDeliveryDate;
   if (searchMode === 'container') {
     const dateArms: SQL[] = [];

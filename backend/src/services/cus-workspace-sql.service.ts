@@ -41,6 +41,43 @@ export function containerTransportDateSql() {
   )`;
 }
 
+/**
+ * SIL-434 (QA fail 06/11, build dcaa8295 — lot K-rows printing 06/11/07:11
+ * under a 10/11..10/11 filter): a container-less LCL lot row's FILTER day was
+ * the EDD leg of {@link containerTransportDateSql}, but its LỊCH TRÌNH cell
+ * prints the SIL-645 instant — the stored closingAt/plannedReturnAt
+ * (direction-aware cross-fallback, `lotScheduleInstantFor` in
+ * shipment-container-ledger-utils.tsx) — so a lot filtered on its EDD could
+ * display a day outside the chosen range. The filter must read the SAME day
+ * the cell prints: the stored instant's VN day with the exact same
+ * precedence (IMPORT prefers plannedReturnAt, EXPORT closingAt; nulls cross-
+ * fall back), else the EDD day — `derivedScheduleAt` (SIL-610) is anchored to
+ * the EDD's ICT day, so the EDD fallback agrees with that leg too.
+ */
+export function lotTransportDaySql() {
+  return sql<string>`coalesce(
+    date(case when ${s.shipments.tradeDirection} = 'IMPORT'
+      then coalesce(${s.shipments.plannedReturnAt}, ${s.shipments.closingAt})
+      else coalesce(${s.shipments.closingAt}, ${s.shipments.plannedReturnAt}) end
+      at time zone 'Asia/Ho_Chi_Minh'),
+    ${s.shipments.expectedDeliveryDate}
+  )`;
+}
+
+/**
+ * The workboard row's triage day: container rows keep the appointment/EDD
+ * coalesce (their cell prints the appointment); the container-less lot row
+ * (LEFT-JOIN null arm, card 365) reads the SIL-645 display day. This is a
+ * day-SOURCE switch, not a lane escape — every row still satisfies both date
+ * arms (`containerDayTriageCondition` stays a pure AND, SIL-506 law intact).
+ */
+export function workboardRowDaySql() {
+  return sql<string>`case when ${s.shipmentContainers.id} is null
+    then ${lotTransportDaySql()}
+    else ${containerTransportDateSql()}
+  end`;
+}
+
 /** Lot-level transport-date filter (cards 261022201006b and 231026000252,
  *  null lane superseded by SIL-588 — id 688, khách 29/10): the lot's schedule
  *  days are the UNION of its containers' coalesce(appointment VN date, EDD)

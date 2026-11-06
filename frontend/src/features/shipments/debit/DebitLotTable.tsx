@@ -319,11 +319,15 @@ function MergedGroupTag({ row, onUnmerged }: {
  *  opening one menu closes whichever menu was open before it. */
 let closeOpenDebitMenu: (() => void) | null = null;
 
-function DebitRowMenu({ row, canManage, canDeleteLot, onDeleted, expanded, onToggle, onUnmerged }: {
+function DebitRowMenu({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCost, onDeleted, expanded, onToggle, onUnmerged }: {
   row: ShipmentDebitLotRow;
   canManage: boolean;
   /** SIL-688: CUS/ADMIN gate — renders the Xóa lô entry (last, danger). */
   canDeleteLot?: boolean;
+  /** SIL-452 (FB-097 entry restore): trio gate + opener for the Khai chi phí
+   *  entry — the accountant's lot-scope cost entry without leaving the board. */
+  canDeclareCost?: boolean;
+  onDeclareCost?: () => void;
   /** Board refresh after a successful delete. */
   onDeleted: () => void;
   expanded: boolean;
@@ -420,6 +424,22 @@ function DebitRowMenu({ row, canManage, canDeleteLot, onDeleted, expanded, onTog
               Xem lô hàng
             </Link>
           )}
+          {/* SIL-452 (FB-097 entry restore, QA fail 06/11): the accountant's
+              lot-scope cost entry. A locked lot refuses expense writes
+              server-side (the 06/11 cost-lock law) — the entry disables with
+              the same reason voice as Tách nhóm/Xóa lô. */}
+          {canDeclareCost && onDeclareCost && (
+            <button
+              type="button"
+              role="menuitem"
+              className="shipment-debit-menu__item"
+              disabled={row.lockStatus === 'LOCKED'}
+              title={row.lockStatus === 'LOCKED' ? 'Lô đã chốt kế toán — không thể khai chi phí.' : undefined}
+              onClick={closeAnd(onDeclareCost)}
+            >
+              Khai chi phí
+            </button>
+          )}
           {canManage && row.revGroupId != null && (
             <div className="shipment-debit-menu__action">
               <UnmergeRevGroupAction
@@ -456,13 +476,16 @@ function DebitRowMenu({ row, canManage, canDeleteLot, onDeleted, expanded, onTog
 }
 
 /** ── One lot row: single baseline, 52px, eleven fixed columns. */
-function DebitLotRow({ row, canManage, canDeleteLot, onDeleted, mergeMode, expanded, onToggle, onSaved, onUnmerged, ratesRefreshing, selected, onSelect, plateOptions }: {
+function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCost, onDeleted, mergeMode, expanded, onToggle, onSaved, onUnmerged, ratesRefreshing, selected, onSelect, plateOptions }: {
   row: ShipmentDebitLotRow;
   canManage: boolean;
   /** SIL-688: CUS/ADMIN gate for the row menu's Xóa lô entry. */
   canDeleteLot?: boolean;
   /** Board refresh after a successful delete (the row disappears). */
   onDeleted: () => void;
+  /** SIL-452: trio gate + host opener for the row menu's Khai chi phí entry. */
+  canDeclareCost?: boolean;
+  onDeclareCost?: (row: ShipmentDebitLotRow) => void;
   /** SIL-537/538 — CHỌN column rides the page's [📦 Gộp hàng] mode. */
   mergeMode: boolean;
   expanded: boolean;
@@ -556,7 +579,7 @@ function DebitLotRow({ row, canManage, canDeleteLot, onDeleted, mergeMode, expan
           {canManage && (row.revGroupId != null || row.costGroupId != null) && (
             <MergedGroupTag row={row} onUnmerged={onUnmerged} />
           )}
-          <DebitRowMenu row={row} canManage={canManage} canDeleteLot={canDeleteLot} onDeleted={onDeleted} expanded={expanded} onToggle={onToggle} onUnmerged={onUnmerged} />
+          <DebitRowMenu row={row} canManage={canManage} canDeleteLot={canDeleteLot} onDeleted={onDeleted} canDeclareCost={canDeclareCost} onDeclareCost={onDeclareCost ? () => onDeclareCost(row) : undefined} expanded={expanded} onToggle={onToggle} onUnmerged={onUnmerged} />
         </td>
       </tr>
       {canManage && expanded && (
@@ -637,13 +660,19 @@ function sumsToState(states: Array<ReturnType<typeof moneyState>>): ReturnType<t
   return sum == null ? { kind: 'pending' } : sum === 0 ? { kind: 'zero' } : { kind: 'known', value: sum };
 }
 
-export function DebitLotTable({ items, canManage, canDeleteLot, onDeleted, mergeMode, selectedIds, expandedId, onToggle, onSaved, onUnmerged, ratesRefreshing, plateOptions, onSelect }: {
+export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, onDeclareCost, onDeleted, mergeMode, selectedIds, expandedId, onToggle, onSaved, onUnmerged, ratesRefreshing, plateOptions, onSelect }: {
   items: ShipmentDebitLotRow[];
   canManage: boolean;
   /** SIL-688 (id 800 — QA 06/11): the row menu's "Xóa lô" entry renders for
    *  exactly the roles the BE delete admits (CUS/ADMIN — narrower than
    *  canManage, which also admits ACCOUNTANT). */
   canDeleteLot?: boolean;
+  /** SIL-452 (FB-097 entry restore, QA fail 06/11): the row menu's "Khai chi
+   *  phí" entry — the BE expense-write trio (ADMIN/MANAGER/ACCOUNTANT), a
+   *  distinct gate from canManage/canDeleteLot, exactly like canDeleteLot. */
+  canDeclareCost?: boolean;
+  /** Opens the lot-scope "Thêm khoản chi" drawer on the host page. */
+  onDeclareCost?: (row: ShipmentDebitLotRow) => void;
   /** Board refresh after a successful delete — the row disappears. */
   onDeleted: () => void;
   /** SIL-537/538 (PRD 261023110000 §2) — the CHỌN column is on-demand: it
@@ -700,6 +729,8 @@ export function DebitLotTable({ items, canManage, canDeleteLot, onDeleted, merge
                   canManage={canManage}
                   canDeleteLot={canDeleteLot}
                   onDeleted={onDeleted}
+                  canDeclareCost={canDeclareCost}
+                  onDeclareCost={onDeclareCost}
                   mergeMode={mergeMode}
                   expanded={canManage && expandedId === row.shipmentId}
                   onToggle={() => onToggle(row.shipmentId)}

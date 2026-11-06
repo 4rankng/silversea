@@ -30,5 +30,10 @@ export default function ShipmentDetailPage() {
   // DELETE /shipments/cus-workspace/:id admits CUS + ĐIỀU VẬN + ADMIN
   // (requireRoles); OPS stays without the affordance.
   const canDeleteLot = user?.role === Role.CUS || user?.role === Role.DISPATCHER || user?.role === Role.ADMIN;
-  return <ShipmentCreateWorkspace viewTarget={{ shipmentId, canEditLot, canDeleteLot }} />;
+  // SIL-453 (FB-098 restore, QA fail 06/11): the review page carries "Khai
+  // chi phí" for exactly the BE expense-write trio (`requireExpenseFinance`
+  // = ADMIN/MANAGER/ACCOUNTANT); the accounting-lock half is applied inside
+  // the workspace once the detail lands (the card's "ẩn khi khóa kế toán").
+  const canDeclareCost = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.ACCOUNTANT);
+  return <ShipmentCreateWorkspace viewTarget={{ shipmentId, canEditLot, canDeleteLot, canDeclareCost }} />;
 }

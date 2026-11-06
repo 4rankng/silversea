@@ -56,7 +56,12 @@ export function ShippingLineAddDialog({ isOpen, currentName, onClose, onApply }:
       maxWidth={480}
     >
       <div className="csc-shipping-line-dialog">
-        <p>Tên hãng tàu sẽ được lưu cùng lô hàng hiện tại.</p>
+        {/* SIL-335 (owner ruling 06/11 "ten hang tau go tay must be saved to
+            db"): the name is BOTH a shared-catalog entry and this lot's
+            shipping line — the copy must say so, not pretend a per-lot-only
+            save ("sẽ được lưu cùng lô hàng hiện tại" was the verify-fail's
+            smoking gun). */}
+        <p>Tên hãng tàu sẽ được lưu vào danh mục hãng tàu chung và dùng cho lô này.</p>
         {error && <div role="alert" className="csc-shipping-line-dialog__error">{error}</div>}
         <div className="csc-shipping-line-dialog__name-action">
           <div className="csc-shipping-line-dialog__name-field">

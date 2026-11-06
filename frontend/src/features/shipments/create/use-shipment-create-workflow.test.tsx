@@ -1,6 +1,8 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../../../lib/api';
+import { ToastProvider } from '../../../components/shared/Toast';
 
 const {
   quickCreateShipment,
@@ -49,8 +51,10 @@ function RecordLocation() {
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <MemoryRouter initialEntries={['/shipments/new']}>
-    <RecordLocation />
-    {children}
+    <ToastProvider>
+      <RecordLocation />
+      {children}
+    </ToastProvider>
   </MemoryRouter>
 );
 
@@ -220,6 +224,37 @@ describe('post-create navigation (FB-106 card 171026115810)', () => {
 
     expect(currentPath).toBe('/shipments/new');
     expect(result.current.submitError).toMatch(/Không thể tạo lô hàng/);
+  });
+
+  // SIL-472 (QA fail 06/11, build dcaa8295, lô 847): the BE 409 on the
+  // container reconcile must be LOUD — before this pin the message only
+  // reached the top-of-worksheet banner, invisible from the fixed footer,
+  // so the refused delete read as a successful save. Create mode carries
+  // containers on the root POST; the reconcile PUT (and its 409) is the EDIT
+  // path (SIL-171 seed) — the exact surface QA drove.
+  it('a refused container reconcile surfaces the 409 reason as an error toast and keeps the form', async () => {
+    saveShipmentContainers.mockRejectedValue(new ApiError(
+      409,
+      { error: 'Cont có tờ khai R4B-TK-FCL2 — gỡ tờ khai trước khi xóa dòng container.' },
+      'Cont có tờ khai R4B-TK-FCL2 — gỡ tờ khai trước khi xóa dòng container.',
+    ));
+    const editSeed: ShipmentEditSeed = {
+      shipmentId: 847,
+      version: 3,
+      hasDispatchedLegs: false,
+      fclContainers: true,
+    };
+    const { result } = renderWorkflow(catalogFclForm, [fclContainer], editSeed);
+
+    await act(async () => { await result.current.save('CREATE'); });
+
+    expect(currentPath).toBe('/shipments/new');
+    // The root PATCH bumped the version before the reconcile fired; the pin
+    // is the refusal surfacing, not the optimistic-lock bookkeeping.
+    expect(saveShipmentContainers).toHaveBeenCalledWith(847, expect.anything());
+    expect(result.current.submitError).toBe('Cont có tờ khai R4B-TK-FCL2 — gỡ tờ khai trước khi xóa dòng container.');
+    // The in-viewport voice: the toast carries the backend refusal verbatim.
+    expect(await screen.findByText('Cont có tờ khai R4B-TK-FCL2 — gỡ tờ khai trước khi xóa dòng container.')).toBeTruthy();
   });
 });
 

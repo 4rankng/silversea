@@ -10,7 +10,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../../lib/api';
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
-import { updateShipment } from '../../../api/shipmentClient';
+import { createShippingLine, updateShipment } from '../../../api/shipmentClient';
+import { useToastOptional } from '../../../components/shared/Toast';
 import {
   buildQuickEditDraft,
   buildQuickEditPayload,
@@ -28,6 +29,7 @@ export interface UseCusQuickEditDeps {
 }
 
 export function useCusQuickEdit(deps: UseCusQuickEditDeps) {
+  const carrierToast = useToastOptional()?.toast;
   const { setError, setNotice, loadList, invalidateDetail } = deps;
   const [quickEditDraft, setQuickEditDraft] = useState<ShipmentQuickEditDraft | null>(null);
   const [savingQuickEdit, setSavingQuickEdit] = useState(false);
@@ -93,6 +95,22 @@ export function useCusQuickEdit(deps: UseCusQuickEditDeps) {
     setQuickEditError(null);
     try {
       const payload = buildQuickEditPayload(draft, item);
+      // SIL-335 (owner ruling 06/11 "ten hang tau go tay must be saved to
+      // db"): the classification quick-edit's Hãng tàu is a carrier ENTRY
+      // path — a typed name must reach the shared SHIPPING_LINE catalog too,
+      // not just this lot. Best-effort per the ruling: the server dedupes
+      // (created:false, no insert for known names) and a catalog failure
+      // warns without blocking the lot PATCH below.
+      if (draft.field === 'classification') {
+        const carrierName = (draft.shippingLineName ?? '').trim();
+        if (carrierName) {
+          try {
+            await createShippingLine(carrierName);
+          } catch {
+            carrierToast?.({ kind: 'warning', message: `Không lưu được hãng tàu "${carrierName}" vào danh mục chung — lô hàng vẫn được lưu.`, duration: 6000 });
+          }
+        }
+      }
       // A documents save always carries at least one writable key now — the
       // declaration-only shortcut (skip PATCH, walk the entity diff) retired
       // with the lot-level list itself (SIL-521).

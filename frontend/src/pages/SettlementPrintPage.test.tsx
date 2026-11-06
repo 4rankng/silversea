@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SettlementPrintPage from './SettlementPrintPage';
 import type { LinkedExpense } from '../api/forwarderClient';
 
-const { state, getBlob, recordSettlement } = vi.hoisted(() => ({ state: { role: 'ACCOUNTANT', status: 'RECORDED', checkedBy: null as number | null, checkedAt: null as string | null, checkerName: null as string | null, linkedExpenses: [] as LinkedExpense[], linkedRequests: [] as Array<{ id: number; amount: string; allocatedAmount?: string; reason: string; status: string; createdAt: string }> }, getBlob: vi.fn(), recordSettlement: vi.fn() }));
+const { state, getBlob, recordSettlement } = vi.hoisted(() => ({ state: { role: 'ACCOUNTANT', status: 'RECORDED', checkedBy: null as number | null, checkedAt: null as string | null, checkerName: null as string | null, approvedAt: '2026-10-16T02:00:00.000Z' as string | null, approverName: 'Người Lập Test' as string | null, linkedExpenses: [] as LinkedExpense[], linkedRequests: [] as Array<{ id: number; amount: string; allocatedAmount?: string; reason: string; status: string; createdAt: string }> }, getBlob: vi.fn(), recordSettlement: vi.fn() }));
 vi.mock('../lib/api', () => ({ api: { getBlob } }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 7, role: state.role } }) }));
 vi.mock('../hooks/animations', () => ({ usePageAnimations: () => ({ rootRef: { current: null } }) }));
@@ -14,7 +14,7 @@ vi.mock('../hooks/useForwarderQueries', () => {
     id: 11, version: 1, code: 'HU-11', status: state.status, forwarderId: 7,
     forwarderName: 'OPS Test', totalExpenseAmount: '0', refundAmount: '0',
     checkedBy: state.checkedBy, checkedAt: state.checkedAt, checkerName: state.checkerName,
-    approvedBy: 7, note: null, createdAt: '2026-09-17T00:00:00.000Z',
+    approvedBy: 7, approvedAt: state.approvedAt, approverName: state.approverName, note: null, createdAt: '2026-09-17T00:00:00.000Z',
     linkedRequests: state.linkedRequests, linkedExpenses: state.linkedExpenses,
   }, isLoading: false, error: null });
   return {
@@ -184,8 +184,12 @@ describe('settlement read-only exports', () => {
     }];
     page();
     await screen.findByText('OPS Test');
-    // Legacy self-stamp ⇒ không có dòng duyệt KT (review F6).
+    // Legacy self-stamp ⇒ không có dòng duyệt KT (review F6) — nhưng dòng
+    // XÁC NHẬN HOÀN ỨNG (người lập) của phiếu vẫn hiện (SIL-455, QA 06/11:
+    // phiếu phải mang xác nhận của người lập).
     expect(screen.queryByText(/Đã duyệt \(KT\):/)).not.toBeInTheDocument();
+    const creatorStamp = screen.getByText(/Xác nhận hoàn ứng \(người lập\):/);
+    expect(creatorStamp).toHaveTextContent('Người Lập Test');
     // A real accountant check (checked_by ≠ forwarder) shows the fact.
     state.checkedBy = 99;
     state.checkerName = 'KT Mai';
@@ -198,11 +202,17 @@ describe('settlement read-only exports', () => {
     expect(recordSettlement).not.toHaveBeenCalled();
   });
 
-  it('FB-100 (Option B) — phiếu chưa có checked_by không hiển thị dòng xác nhận', async () => {
+  it('FB-100 (Option B) — phiếu chưa có checked_by vẫn hiện xác nhận người lập, không hiện dòng duyệt KT (SIL-455)', async () => {
+    // The 06/11 repro class (PT-2610-0001/0002): created through the as-create
+    // dialog — checked_by NULL, approved_by stamped. Before SIL-455 the phiếu
+    // showed NO confirmation line at all.
     state.status = 'RECORDED';
     state.checkedBy = null;
     page();
     await screen.findByText('OPS Test');
     expect(screen.queryByText(/Đã duyệt \(KT\):/)).not.toBeInTheDocument();
+    const creatorStamp = screen.getByText(/Xác nhận hoàn ứng \(người lập\):/);
+    expect(creatorStamp).toHaveTextContent('Người Lập Test');
+    expect(creatorStamp).toHaveTextContent('16/10/2026');
   });
 });

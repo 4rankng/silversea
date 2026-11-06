@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Receipt, Trash2 } from 'lucide-react';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 
 export interface ShipmentViewActionsProps {
@@ -11,6 +11,12 @@ export interface ShipmentViewActionsProps {
   /** The lot carries an accounting lock — editing is refused server-side, so
    *  the button stays visible but disabled and says why. */
   editLocked?: boolean;
+  /** SIL-453 (FB-098 restore, QA fail 06/11): open the shared "Thêm khoản
+   *  chi" drawer at lot scope. Omitted → the role trio refuses (BE
+   *  `requireExpenseFinance` = ADMIN/MANAGER/ACCOUNTANT) OR the lot is
+   *  accounting-locked (the card's own "ẩn khi khóa kế toán" law) — the
+   *  affordance is not rendered at all, exactly like onEdit/onDelete. */
+  onDeclareCost?: () => void;
   /** SIL-500: the KH's next-lot loop — navigate to /shipments/new. Omitted
    *  → the role may not create lots (the /shipments/new route bounces the
    *  same authority), so the cluster degrades without it. */
@@ -54,6 +60,7 @@ export function ShipmentViewActions({
   onBack,
   onEdit,
   editLocked = false,
+  onDeclareCost,
   onCreateNew,
   onDelete,
   deleteLocked = false,
@@ -81,6 +88,20 @@ export function ShipmentViewActions({
           aria-label={editLocked ? 'Sửa — lô đã khóa kế toán' : undefined}
         >
           Sửa
+        </UUIButton>
+      )}
+      {/* SIL-453 (FB-098 restore): the accountant's lot-scope cost entry rides
+          the review cluster — the same position the pre-SIL-481 page mounted
+          it (first action, secondary voice). */}
+      {onDeclareCost && (
+        <UUIButton
+          type="button"
+          size="md"
+          color="secondary"
+          iconLeading={Receipt}
+          onClick={onDeclareCost}
+        >
+          Khai chi phí
         </UUIButton>
       )}
       {onCreateNew && (

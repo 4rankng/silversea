@@ -54,6 +54,9 @@ interface SettlementData {
   checkedAt?: string | null;
   checkerName?: string | null;
   approvedBy: number | null;
+  /** SIL-455: the as-create stamp's time — the shared AdvanceSettlement wire
+   *  always carries it; optional here because the page casts a Pick. */
+  approvedAt?: string | null;
   approverName?: string | null;
   note: string | null;
   createdAt: string;
@@ -489,6 +492,23 @@ export default function SettlementPrintPage() {
         {s.note && (
           <div className="settlement-detail__note">
             <strong>Ghi chú:</strong> {s.note}
+          </div>
+        )}
+
+        {/* ── FB-100 (card 141026230770): the filer's "Xác nhận hoàn ứng"
+            tick is stamped at creation (approved_by/approved_at — the
+            as-create contract; card 191026160000 §3b keeps checked_by for
+            kế toán's DUYỆT PHIẾU HOÀN ỨNG only). SIL-455 (QA fail 06/11,
+            PT-2610-0001/0002): the phiếu itself must SHOW that confirmation
+            — the voucher carried no confirmation line at all for the whole
+            as-create class. ── */}
+        {s.approvedBy != null && (
+          <div className="settlement-detail__confirm" data-field-id="settlement-creator-confirm-fact">
+            <CheckCircle2 size={14} />
+            <span>
+              Xác nhận hoàn ứng (người lập): <strong>{s.approverName ?? `#${s.approvedBy}`}</strong>
+              {s.approvedAt ? ` · ${new Date(s.approvedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}` : ''}
+            </span>
           </div>
         )}
 

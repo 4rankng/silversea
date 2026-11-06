@@ -85,7 +85,14 @@ export const CONFIG_ITEMS: SearchItem[] = [
   { id: 'forwarder-expense-types',type: 'config', label: 'Loại chi phí giao nhận',       description: 'Danh mục các khoản chi phí phát sinh do nhân viên giao nhận nhập (nâng hạ, hải quan, cân xe, kiểm tra…).', path: '/config/forwarder-expense-types', iconName: 'forwarder-expense', action: 'Sửa' },
   { id: 'debit-note-templates',  type: 'config', label: 'Mẫu giấy báo nợ',             description: 'Tạo và chọn mẫu xuất Excel giấy báo nợ theo từng khách hàng — logo, tiêu đề, cột, màu, điều khoản.',     path: '/config/debit-note-templates',  iconName: 'debit-note-template', action: 'Sửa' },
   // ADMIN-only — filtered out for MANAGER/ACCOUNTANT in getSearchItems below.
-  { id: 'app-settings',          type: 'config', label: 'Cài đặt ứng dụng',               description: 'Bật/tắt tính năng và chọn nhà cung cấp AI.',                       path: '/config/app-settings',          iconName: 'app-settings', action: 'Sửa', adminOnly: true },
+  // SIL-197 (QA fail 06/11): the policy-version surface ("Chính sách báo
+  // cáo" tab — save-version flow, dialog "Xác nhận thao tác", toast "Đã lưu
+  // chính sách báo cáo") lives here but the card's copy never said so — QA
+  // swept /admin-center, /settings, /system-config and the Hệ thống menu
+  // without finding it. The description now carries the vocabulary the
+  // operator (and the Cmd-K palette) searches for. The page itself never
+  // moved: ADMIN-only /config/app-settings, sidebar entry "Cài đặt ứng dụng".
+  { id: 'app-settings',          type: 'config', label: 'Cài đặt ứng dụng',               description: 'Chính sách báo cáo theo tháng (tạo phiên bản, ngày hiệu lực), hồ sơ tài chính xe, bật/tắt tính năng và nhà cung cấp AI.', path: '/config/app-settings',          iconName: 'app-settings', action: 'Sửa', adminOnly: true },
 ];
 
 const ACTION_ITEMS: SearchItem[] = [
