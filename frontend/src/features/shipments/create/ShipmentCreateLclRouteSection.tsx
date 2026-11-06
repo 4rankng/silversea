@@ -6,6 +6,9 @@ import {
   UTextField as TextField,
 } from './uui-fields';
 import { ShipmentCreateSection, shipmentCreateGridStyle } from './ShipmentCreateSections';
+// SIL-691 (FB-007): shared with the FCL container-row picker — the same
+// code + name + shortName + address + phone search-text recipe.
+import { buildFactoryOptionSearchText } from './ShipmentCreateContainerRow.factorySearch';
 import type { ShipmentCreateFormState } from './shipment-create-model';
 
 type FormState = ShipmentCreateFormState;
@@ -108,7 +111,15 @@ export function ShipmentCreateLclRouteSection({
             options={operationalSites.map((site) => ({
               value: String(site.id),
               label: site.shortName || site.name,
-              searchText: `${site.code} ${site.name} ${site.address ?? ''}`,
+              // SIL-691 (FB-007, id 803 — QA 06/11): the hàng-lẻ picker must
+              // match its FCL sibling (FB-007 round 16): the contact phone is
+              // VISIBLE as the option's secondary line (supportingText, same
+              // operational_sites.contact_phone the detail dialog reads) and
+              // searchable (code + name + address + phone), so a dispatcher
+              // can find the factory by its number. Phone-less sites render
+              // no stray line.
+              searchText: buildFactoryOptionSearchText(site),
+              supportingText: site.contactPhone?.trim() || undefined,
             }))}
             placeholder={
               sitesLoading
