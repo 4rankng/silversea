@@ -68,7 +68,15 @@ export function DebitBoardTable({ rows, columns, context, selection, ariaLabel, 
                     {column.key === 'ngay' && (
                       <span className="debit-row-tick" aria-hidden="true">{isRowSelected ? '✓' : ''}</span>
                     )}
-                    {column.cell(row, context)}
+                    {/* SIL-727 — only the pickable row's leading track gets
+                        the checkbox affordance; the toggle IS the shared
+                        selection state the row click drives. */}
+                    {column.cell(row, {
+                      ...context,
+                      rowSelect: pickable
+                        ? { selected: isRowSelected, toggle: () => selection.toggle(row.shipmentId) }
+                        : null,
+                    })}
                   </td>
                 ))}
               </tr>

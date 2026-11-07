@@ -32,6 +32,7 @@ import { BOARD_CAPTION, BOARD_COLUMNS, type CellContext } from './AccountingDebi
 import { DebitBoardTable } from './AccountingDebitClosePage.board';
 import { DebitRoundBoard } from './AccountingDebitClosePage.rounds';
 import { AccountingDebitRecords } from './AccountingDebitRecords';
+import '../../features/dispatch/LclSelectCheckbox.css';
 import './AccountingDebitClosePage.css';
 
 /**
@@ -106,15 +107,17 @@ export default function AccountingDebitClosePage() {
   // column that is still "Thiếu …" on every rendered row carries NO value, so
   // it hides itself until it does (column-visibility law).
   //
-  // Card 191026181942 (KT4): the board now OPENS on its essential set — dot
-  // chi phí, Ngày, lô, Tổng thu, Tổng 1, Đối soát (≤6 columns). With every
-  // breakdown visible the money matrix was unreadable and QA had to hide
-  // columns by hand on every visit; the breakdowns stay one toggle away in the
-  // picker, and a stored choice (per workstation, same key as before) still
-  // wins wholesale — minus the required columns (pinned, essential,
-  // essentialWhenHasData), which no stored choice can hide: FB-093 (lan 3)
-  // repairs a pre-essential payload on load, so an old workstation's
-  // `accounting-debit-hidden-cols` can no longer bury the "Tách nhóm" column.
+  // Card 191026181942 (KT4), amended by SIL-727 (owner ticket 07/11): the
+  // board opens on its essential set — now the FULL money matrix (dot chi phí,
+  // Ngày, lô, container, phân xe, 5× PHẢI THU, 5× PHẢI TRẢ, Đối soát; Lợi
+  // nhuận + Ghi chú stay one toggle away). With the breakdowns hidden the
+  // board read as "TỔNG THU 0₫ + TỔNG 1" only and QA filed it as missing
+  // columns; the ticket's AC lists the matrix explicitly. A stored choice
+  // (per workstation, same key as before) still wins wholesale — minus the
+  // required columns (pinned, essential, essentialWhenHasData), which no
+  // stored choice can hide: FB-093 (lan 3) repairs a pre-essential payload on
+  // load, so an old workstation's `accounting-debit-hidden-cols` can no
+  // longer bury the "Tách nhóm" column or the money matrix.
   const columns = useHiddenColumns({
     storageKey: 'accounting-debit-hidden-cols',
     columns: BOARD_COLUMNS,
