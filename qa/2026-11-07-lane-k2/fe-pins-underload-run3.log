@@ -1,0 +1,329 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/k2c-fix/frontend
+
+ ❯ src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx (6 tests | 2 failed) 13756ms
+     × opens the editor on the clicked badge and saves the edited plate 2213ms
+     × surfaces a server refusal verbatim, keeps the panel open and keeps the typed plate 5868ms
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx (94 tests | 1 failed) 81271ms
+     × UI-CD-12 selects the actual container factory and submits its site id 5700ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx > FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit > opens the editor on the clicked badge and saves the edited plate
+TestingLibraryElementError: Unable to find role="button" and name "Sửa BKS ảo: 30C-999.99"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page-shell"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header page-header--actions-only"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"page-header__title-visible"[39m
+        [36m>[39m
+          [0mKế toán chốt debit[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm lô hàng"[39m
+              [33mplaceholder[39m=[32m"Mã lô, bill/booking, khách hàng, container"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Khoảng ngày lô hàng"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"debit-board-date-range"[39m
+            [36m>[39m
+              [0mTừ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"debit-board-date-range-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--control-zoom-safe-font-size)] [@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"debit-board-date-range"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmax[39m=[32m"2026-11-07"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m"01"[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page-shell"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header page-header--actions-only"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"page-header__title-visible"[39m
+        [36m>[39m
+          [0mKế toán chốt debit[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm lô hàng"[39m
+              [33mplaceholder[39m=[32m"Mã lô, bill/booking, khách hàng, container"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Khoảng ngày lô hàng"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"debit-board-date-range"[39m
+            [36m>[39m
+              [0mTừ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"debit-board-date-range-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--control-zoom-safe-font-size)] [@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"debit-board-date-range"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmax[39m=[32m"2026-11-07"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m"01"[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx:116:32
+    114|     const { container } = renderPage();
+    115|
+    116|     const badge = await screen.findByRole('button', { name: 'Sửa BKS ả…
+       |                                ^
+    117|     fireEvent.click(badge);
+    118|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx > FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit > surfaces a server refusal verbatim, keeps the panel open and keeps the typed plate
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx:142:3
+    140|   });
+    141|
+    142|   it('surfaces a server refusal verbatim, keeps the panel open and kee…
+       |   ^
+    143|     listBoard.mockResolvedValue({ items: [lclRow(1, 'BL-1')], total: 1…
+    144|     updateLclTruck.mockRejectedValue(new Error('Lô hàng đã khóa chi ph…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/features/shipments/detail/ShipmentContainerLedger.test.tsx > ShipmentContainerLedger inline editor dismissal > UI-CD-12 selects the actual container factory and submits its site id
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx:211:3
+    209|
+    210| describe('ShipmentContainerLedger inline editor dismissal', () => {
+    211|   it('UI-CD-12 selects the actual container factory and submits its si…
+       |   ^
+    212|     const { onSaveIdentity, onCancelEdit } = renderLedger('identity');
+    213|     const factory = screen.getByRole('combobox', { name: /^Nhà máy/ });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed | 1 passed (3)
+      Tests  3 failed | 111 passed (114)
+   Start at  16:59:57
+   Duration  99.03s (transform 9.18s, setup 3.34s, import 35.15s, tests 126.06s, environment 12.93s)
+

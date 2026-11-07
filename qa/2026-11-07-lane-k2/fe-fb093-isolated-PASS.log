@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/k2c-fix/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  17:01:51
+   Duration  18.64s (transform 3.47s, setup 467ms, import 7.39s, tests 8.24s, environment 2.03s)
+

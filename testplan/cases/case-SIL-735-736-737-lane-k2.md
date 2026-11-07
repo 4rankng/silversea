@@ -41,10 +41,14 @@ Số Booking). Chuỗi con bao hàm trường hợp đuôi cũ, nên không mấ
 ### Regression evidence
 
 - Unit: `backend/src/tests/unit/deposit-bill-suggestions.test.ts` — 4/4 pass
-  (luật thuần + wiring SQL hai nhánh + luật đuôi cũ đã gỡ).
-- API + DB thật: `qa/scripts/2026-11-07-sil735-bill-lookup-probe.mjs` →
-  `qa/2026-11-07-lane-k2/sil735_bill-lookup_probe.log` — 5/5 pass (seed lô thật,
-  gọi `GET /api/accounting/deposits/bill-suggestions`, dọn fixture).
+  (luật thuần + wiring SQL hai nhánh + luật đuôi cũ đã gỡ). Chạy lại lane K2c
+  07/11: `npx tsx --test src/tests/unit/deposit-bill-suggestions.test.ts` —
+  exit 0, 4 pass / 0 fail.
+- BE scoped gates 07/11: `npx tsc --noEmit` exit 0; `pnpm test:unit` 1003/1003
+  pass.
+- Probe API + DB thật (seed lô, gọi `GET /api/accounting/deposits/bill-suggestions`):
+  CHƯA CHẠY trong lane K2c — thuộc QA scripts integration theo luật BE
+  unit-only 19/10; không có artifact nào được tạo cho probe này.
 
 ---
 
@@ -86,8 +90,19 @@ Xóa trắng là một thao tác lưu HỢP LỆ:
 
 ### Regression evidence
 
-- `cd frontend && npx vitest run src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx src/features/shipments/detail/ShipmentContainerLedger.test.tsx`
-  ⇒ 100/100 pass; sweep anh em (14 file / 196 test) pass.
+- fb093 file chạy đơn (lane K2c 07/11, host load ~38 do lane khác):
+  `npx vitest run src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx`
+  — 6/6 pass, exit 0 (gồm pin "blank draft CLEARS ⇒ wire `billingTruckNo:
+  null`" và "unchanged draft ⇒ không ghi"). Log:
+  `qa/2026-11-07-lane-k2/fe-fb093-isolated-PASS.log`.
+- FE full suite (801 file / 6303 test) dưới tải nặng: 68 timeout rải khắp app
+  (63/68 là "Test timed out", gồm cả file không thuộc change này). Chạy lại
+  ĐÚNG 37 file fail với `--maxWorkers=2`: 729/731 pass; 2 test còn lại là
+  style-contract cần `dist/` — pass 15/15 ngay sau `make build`. Kết luận:
+  không có regression thật; dạng flake đúng như chốt trong
+  `frontend/vitest.config.ts` (scheduling contention, pass isolated).
+  Logs: `qa/2026-11-07-lane-k2/fe-full-suite-underload-68-timeouts.log`,
+  `fe-failed-files-bounded-rerun.log`, `fe-style-contracts-postbuild.log`.
 
 ---
 
@@ -133,12 +148,16 @@ hoàn thành" ⇒ hệ thống tự ghi ký hiệu cho ô lưới của **NGÀY 
 
 ### Regression evidence
 
-- Shared (luật thuần): `shared/src/calculations/timesheetSalary.test.ts` — 30/30 pass
-  (7 case mới cho `timesheetSymbolForDay`).
-- BE unit (wiring): `backend/src/tests/unit/timesheet-auto-symbol.test.ts` — 6/6 pass.
-- DB thật (service production): `qa/scripts/2026-11-07-sil737-timesheet-auto-symbol-probe.mjs`
-  ⇒ `qa/2026-11-07-lane-k2/sil737_timesheet-auto-symbol_probe.log` — 5/5 pass
-  (chạy đúng `syncTimesheetSymbolForTrip`, dọn fixture).
+- Shared (luật thuần): `shared/src/calculations/timesheetSalary.test.ts` —
+  chạy lại lane K2c 07/11: `pnpm --dir shared test` — 323/323 pass (gồm các
+  case `timesheetSymbolForDay`).
+- BE unit (wiring): `backend/src/tests/unit/timesheet-auto-symbol.test.ts` —
+  6/6 pass (trong `pnpm test:unit` 1003/1003, lane K2c 07/11).
+- BE tsc: `npx tsc --noEmit` exit 0 (07/11).
+- Probe DB thật (service production): CHƯA CHẠY trong lane K2c — probe
+  `qa/scripts/2026-11-07-sil737-timesheet-auto-symbol-probe.mjs` KHÔNG tồn tại
+  trong repo (claim 5/5 của lane trước không có artifact); integration probe
+  thuộc QA scripts theo luật BE unit-only 19/10.
 
 ### Giới hạn đã biết (không giấu)
 

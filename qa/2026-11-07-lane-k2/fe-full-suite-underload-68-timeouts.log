@@ -1,0 +1,2124 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/k2c-fix/frontend
+
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx (79 tests | 2 failed) 59759ms
+     × mounts the editor on press 1 (branch decompose) and on every later press 5101ms
+     × renders a clickable button for uncompleted FCL rows, opens select on click, and saves in place 4925ms
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx (87 tests | 2 failed) 127067ms
+     × offers the free-text plate option on a carrier-less row so plate→carrier autofill can fire 1899ms
+     × choosing Lấy Lẻ seeds NO tag on a CONTAINER row — the note stays the dispatcher's own (card 362) 5083ms
+ ❯ src/pages/ShipmentsPage.test.tsx (131 tests | 8 failed) 228817ms
+     × edits schedule and notes from their cells with partial optimistic-version updates 7725ms
+     × FB-002 round 22: typed giờ + Enter saves the schedule quick-edit even with the picker open from the focusing click 9573ms
+     × SIL-608: a completed năm in the schedule quick-edit hands focus to the giờ box (date-first) 5904ms
+     × deduplicates repeated keyboard saves while a cell update is in flight 5559ms
+     × navigates to the edit workspace from the drawer footer and gates it by role 5704ms
+     × reuses the same idempotency key for a retried lock action and rotates after success 5597ms
+     × direction and kind ride the inline-label chips into the URL 6355ms
+     × Kế hoạch combobox: one bucket filters server-side; two buckets turn the lens on 6978ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/ShipmentDebitPage.test.tsx (34 tests | 2 failed) 45583ms
+     × keeps manager summaries read-only even with a restored expanded lot 6982ms
+     × mounts the workspace under the expanded lot row and collapses on the second open 5167ms
+ ❯ src/features/accounting/PhoiPhieuChiHoDialog.test.tsx (28 tests | 1 failed) 41692ms
+     × PHOI08 refreshes successful row versions after a later row failure and retries only the remaining change 5184ms
+ ❯ src/pages/ShipmentContainersPage.test.tsx (49 tests | 1 failed) 242968ms
+     × applies date, customer, direction, and valid suffix changes immediately 15786ms
+stderr | src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx > DetailedPlanFilters — the shared strip (card 20260927_152) > rides the shared bar: search, the from/to fields and the day scope on the line, criteria behind Bộ lọc
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx (22 tests | 1 failed) 29400ms
+     × rides the shared bar: search, the from/to fields and the day scope on the line, criteria behind Bộ lọc 8407ms
+ ❯ src/pages/accounting/AccountingDebitClosePage.test.tsx (25 tests | 1 failed) 39447ms
+     × offers phone facts and independent selection without writing a cancelled debit 5680ms
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx (17 tests | 4 failed) 71672ms
+     × PHOI03 clears hidden selection during a filter query and does not resurrect it on return 7137ms
+     × mini-filter on Khách hàng narrows by a diacritic-folded match; Bỏ lọc restores every row 6676ms
+     × mini-filter on Thông tin xe matches plate (case-folded) and carrier, and never re-sorts the grouped rows 7667ms
+     × a column filter narrowed to nothing offers Bỏ lọc cột and never pays a hidden pick 8680ms
+ ❯ src/pages/accounting/DepositRefundTrackerPage.test.tsx (14 tests | 1 failed) 52271ms
+     × submits depositDate + status and can mark Đã hoàn cược at creation 8025ms
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx (13 tests | 5 failed) 61802ms
+   × khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp 5244ms
+   × cặp số/ngày hóa đơn hiển thị sẵn, tùy chọn; không còn ô Loại chứng từ (FB-097) 5122ms
+   × OPS context chỉ chọn người thực chi là Ops; lưu được khi đã chọn người chi 5794ms
+   × không có nhà xe ngoài thì để chọn tay, không chặn lưu (FB-097) 7234ms
+   × lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực chi/ngày giữ nguyên (FB-097) 7433ms
+ ❯ src/pages/ShipmentContainersPage.gop-hang.test.tsx (10 tests | 5 failed) 49515ms
+     × mặc định ẩn mode: không nút Gộp hàng, không cột CHỌN (CUS vẫn thấy nút vì có quyền — kiểm tra trạng thái OFF) 5307ms
+     × tick ≥1 lô → floating bar đếm + [Gộp hàng] khóa dưới 2 lô chưa ghép; đủ 2 → popup «Gộp xe thu khách» 3 trường 7989ms
+     × AC1 — tick 1 lô → tìm theo bill (còn 1 dòng) → xoá tìm kiếm: tick VẪN CÒN, bar không về 0 5238ms
+     × AC2 — tick nhiều lô rồi filter: mọi tick giữ nguyên, bar đếm đủ, gộp tiếp được (popup mở với 2 lô đã chọn) 5090ms
+     × AC3 — bỏ tick MỘT lô khi đang filter: chỉ lô đó drop, lô kia giữ 8312ms
+stderr | src/pages/ShipmentDebitPage.tach-nhom.test.tsx > card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu khách > cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `section`. It was passed a child from $42ceafc619f9c3ba$export$fb8073518f34e6ec. See https://react.dev/link/warning-keys for more information.
+
+stderr | src/pages/ShipmentDebitPage.tach-nhom.test.tsx > card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu khách > cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm
+Query data cannot be undefined. Please make sure to return a value other than undefined from your query function. Affected query key: ["shipment-debit-detail",101]
+
+ ❯ src/pages/ShipmentDebitPage.tach-nhom.test.tsx (7 tests | 2 failed) 22376ms
+     × mỗi dòng trong nhóm mang <button> thật "Tách nhóm" (qua menu ⋯); dòng thường thì không 5575ms
+     × cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm 5557ms
+ ❯ src/features/users/components/UserForm.test.tsx (11 tests | 1 failed) 18034ms
+     × requires and submits every selected customer when creating an active CUSTOMER account 8616ms
+ ❯ src/pages/accounting/AccountingDebitClosePage.tach-nhom.test.tsx (12 tests | 1 failed) 33473ms
+     × chọn 2 lô CÙNG nhóm ghép → strip hiện nút, armed; click → confirm → unmergeLclGroup đúng nhóm 5651ms
+ ❯ src/pages/OpsWalletPage.test.tsx (13 tests | 1 failed) 41896ms
+     × lets the author edit a recorded unsettled expense (PRD §5.5 sửa) 8392ms
+ ❯ src/pages/ForwarderTripDetailPage.test.tsx (9 tests | 4 failed) 26440ms
+     × requires a reason before deleting and preserves the concurrency token (Q10, card 20260922_78) 5496ms
+     × fills the lift buy amount from the selected port and container matrix 6685ms
+     × keeps the visible advance method and submitted payload on the canonical OPS_ADVANCE value 6219ms
+     × reapplies the same matrix suggestion for a consecutive expense entry 5577ms
+stderr | src/pages/RecoverableCostsPage.test.tsx > RecoverableCostsPage > keeps pagination with each responsive record owner
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.sil503-lcl-cell-edit.test.tsx (9 tests | 1 failed) 27948ms
+     × cell Số tờ khai là trigger chỉnh sửa; click mở đúng phiên documents của row lot 7907ms
+ ❯ src/pages/RecoverableCostsPage.test.tsx (15 tests | 3 failed) 67087ms
+     × filters by recorded status and resets the requested page to one 26605ms
+     × keeps pagination with each responsive record owner 5383ms
+     × sends sortBy/sortDir on header clicks, toggles asc → desc, and resets to page 1 18187ms
+ ❯ src/pages/ExpenseListPage.test.tsx (15 tests | 1 failed) 36902ms
+     × sorts server-side: header click sends sortBy/sortDir and resets the page 5064ms
+ ❯ src/pages/config/AppSettingsConfigPage.test.tsx (11 tests | 1 failed) 29369ms
+     × navigates finance tabs with the keyboard and names the active panel 7899ms
+ ❯ src/pages/SalaryAttendancePage.test.tsx (10 tests | 1 failed) 23796ms
+     × shows the close action while the company period is still open 5434ms
+stderr | src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx > DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015) > the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly
+An update to DetailedPlanGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DetailedPlanGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx > DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015) > the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly
+An update to DetailedPlanGrid inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx > DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015) > the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/pages/DebtDetailPage.payment.test.tsx (5 tests | 1 failed) 21330ms
+     × rotates the retry key when the user edits the amount after a failed submit 5485ms
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx (14 tests | 1 failed) 21821ms
+     × the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly 7884ms
+ ❯ src/components/control-density.styles.test.ts (9 tests | 1 failed) 6523ms
+     × keeps controlClassName selectors honest — the class sits on the trigger button itself 5766ms
+ ❯ src/pages/ForwarderTripDetailPage.lcl.test.tsx (4 tests | 1 failed) 6323ms
+     × hides synthetic LCL container UI but preserves its scope id for expense and completion actions 5199ms
+ ❯ src/design-system/forms/DateTimePickerPanels.test.tsx (15 tests | 1 failed) 27158ms
+     × allows arrow navigation then Enter activation without confirming the parent appointment 5354ms
+ ❯ src/pages/config/QuotationConfigPage.import.test.tsx (8 tests | 1 failed) 14708ms
+     × TC-BG-15: uploads the picked fixture to /quotations/import and renders the mapping preview 6580ms
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.lcl-points.test.tsx (9 tests | 1 failed) 74431ms
+     × titles the kho quick-add dialog by hình thức xuất nhập khẩu 21630ms
+ ❯ src/pages/FinancePage.sort.test.tsx (8 tests | 1 failed) 19391ms
+     × keeps the report profit-desc default and sorts by profit and plate client-side 11986ms
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx (3 tests | 2 failed) 16090ms
+     × LCL lot: the lclspec field-set and NO container 20'/40' demand UI 6946ms
+     × LCL lot in a CONTAINER-class group: the BKS nhóm line renders and the picker imposes no moóc requirement 5100ms
+ ❯ src/pages/accounting/OpsReconciliationReportPage.test.tsx (8 tests | 1 failed) 23539ms
+     × a đợt the company owes offers ONLY the phiếu chi action (AC3) 5346ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+stderr | src/features/dispatch/detailed-plan/DispatchPlanEditorCell.disabled-reason.test.tsx > DispatchPlanEditorCell disabled reasons (card 20261008_1 sweep) > while a save is in flight the footer cancel and save explain their busy disable
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $c8bb816105474884$var$SelectInner inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $c8bb816105474884$var$SelectInner inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $c8bb816105474884$var$SelectInner inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.disabled-reason.test.tsx (6 tests | 2 failed) 19668ms
+     × an editable row opens the editor through the menu signal 5332ms
+     × while a save is in flight the footer cancel and save explain their busy disable 5070ms
+ ❯ src/pages/accounting/AccountingDebitClosePage.export.test.tsx (5 tests | 1 failed) 19320ms
+     × toolbar button downloads the issued note for the selected rows (FB094-UI-01/02) 6069ms
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.sil644-weight.test.tsx (7 tests | 2 failed) 26060ms
+     × renders the Trọng lượng field on an FCL row wired to a container line, seeded from the container weight 6443ms
+     × rides the edited weight on the atomic save as containerCargoWeightKg and closes the dialog 5494ms
+stderr | src/pages/DispatchDetailPlanPage.lcl-assign-reason.test.tsx > Spec 23/10 §2 — on-demand CHỌN column > default: no checkbox anywhere; the toggle reveals the leading column and flips its own label
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/pages/DispatchDetailPlanPage.lcl-assign-reason.test.tsx (3 tests | 1 failed) 7633ms
+     × default: no checkbox anywhere; the toggle reveals the leading column and flips its own label 5095ms
+Not implemented: navigation to another Document
+ ❯ src/styles/numeric-identity.styles.test.ts (6 tests | 2 failed) 37ms
+     × the production bundle holds the numeric law on the amount cells 3ms
+     × the production bundle holds the numeric law on the expense register cells 1ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 68 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/control-density.styles.test.ts > shared control density > keeps controlClassName selectors honest — the class sits on the trigger button itself
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/components/control-density.styles.test.ts:178:3
+    176|   });
+    177|
+    178|   it('keeps controlClassName selectors honest — the class sits on the …
+       |   ^
+    179|     // UuiSelectField forwards controlClassName to the vendored Select…
+    180|     // trigger <button> (triggerClassName), and no native <select> ren…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/68]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the amount cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:31:13
+     29|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     30|     if (!existsSync(distAssets)) {
+     31|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     32|     }
+     33|     const sharedChunk = readdirSync(distAssets).find((f) => f.startsWi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/68]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the expense register cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:66:13
+     64|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     65|     if (!existsSync(distAssets)) {
+     66|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     67|     }
+     68|     // The Money component itself is the law's rendering: the built `.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/68]⎯
+
+ FAIL  src/pages/DebtDetailPage.payment.test.tsx > DebtDetailPage payment flow > rotates the retry key when the user edits the amount after a failed submit
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/DebtDetailPage.payment.test.tsx:259:3
+    257|   });
+    258|
+    259|   it('rotates the retry key when the user edits the amount after a fai…
+       |   ^
+    260|     apiPostMock
+    261|       .mockRejectedValueOnce(new Error('Mạng chập chờn, vui lòng thử l…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/68]⎯
+
+ FAIL  src/pages/DispatchDetailPlanPage.lcl-assign-reason.test.tsx > Spec 23/10 §2 — on-demand CHỌN column > default: no checkbox anywhere; the toggle reveals the leading column and flips its own label
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/DispatchDetailPlanPage.lcl-assign-reason.test.tsx:161:3
+    159|
+    160| describe('Spec 23/10 §2 — on-demand CHỌN column', () => {
+    161|   it('default: no checkbox anywhere; the toggle reveals the leading co…
+       |   ^
+    162|     renderPage();
+    163|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/68]⎯
+
+ FAIL  src/pages/ExpenseListPage.test.tsx > ExpenseListPage > sorts server-side: header click sends sortBy/sortDir and resets the page
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ExpenseListPage.test.tsx:175:3
+    173|   });
+    174|
+    175|   it('sorts server-side: header click sends sortBy/sortDir and resets …
+       |   ^
+    176|     renderPage();
+    177|     await screen.findByText('Garage Auto 123');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/68]⎯
+
+ FAIL  src/pages/FinancePage.sort.test.tsx > FinancePage per-truck table column sorting > keeps the report profit-desc default and sorts by profit and plate client-side
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/FinancePage.sort.test.tsx:226:3
+    224|
+    225| describe('FinancePage per-truck table column sorting', () => {
+    226|   it('keeps the report profit-desc default and sorts by profit and pla…
+       |   ^
+    227|     const { container } = renderPage();
+    228|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/68]⎯
+
+ FAIL  src/pages/ForwarderTripDetailPage.lcl.test.tsx > ForwarderTripDetailPage LCL virtual scope UI > hides synthetic LCL container UI but preserves its scope id for expense and completion actions
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ForwarderTripDetailPage.lcl.test.tsx:210:3
+    208|   });
+    209|
+    210|   it('hides synthetic LCL container UI but preserves its scope id for …
+       |   ^
+    211|     renderPage();
+    212|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/68]⎯
+
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > requires a reason before deleting and preserves the concurrency token (Q10, card 20260922_78)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ForwarderTripDetailPage.test.tsx:214:3
+    212|   });
+    213|
+    214|   it('requires a reason before deleting and preserves the concurrency …
+       |   ^
+    215|     renderPage();
+    216|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/68]⎯
+
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > fills the lift buy amount from the selected port and container matrix
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ForwarderTripDetailPage.test.tsx:238:3
+    236|   });
+    237|
+    238|   it('fills the lift buy amount from the selected port and container m…
+       |   ^
+    239|     renderPage();
+    240|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/68]⎯
+
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > keeps the visible advance method and submitted payload on the canonical OPS_ADVANCE value
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ForwarderTripDetailPage.test.tsx:265:3
+    263|   });
+    264|
+    265|   it('keeps the visible advance method and submitted payload on the ca…
+       |   ^
+    266|     renderPage();
+    267|     fireEvent.click(screen.getByRole('button', { name: 'Thêm' }));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/68]⎯
+
+ FAIL  src/pages/ForwarderTripDetailPage.test.tsx > ForwarderTripDetailPage photo upload geolocation recovery > reapplies the same matrix suggestion for a consecutive expense entry
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ForwarderTripDetailPage.test.tsx:284:3
+    282|   });
+    283|
+    284|   it('reapplies the same matrix suggestion for a consecutive expense e…
+       |   ^
+    285|     renderPage();
+    286|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/68]⎯
+
+ FAIL  src/pages/OpsWalletPage.test.tsx > OpsWalletPage (OpsVanHanh §5) > lets the author edit a recorded unsettled expense (PRD §5.5 sửa)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/OpsWalletPage.test.tsx:163:3
+    161|   });
+    162|
+    163|   it('lets the author edit a recorded unsettled expense (PRD §5.5 sửa)…
+       |   ^
+    164|     apiPatch.mockResolvedValue(expense({ amount: '120000' }));
+    165|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/68]⎯
+
+ FAIL  src/pages/RecoverableCostsPage.test.tsx > RecoverableCostsPage > filters by recorded status and resets the requested page to one
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/RecoverableCostsPage.test.tsx:148:3
+    146|   });
+    147|
+    148|   it('filters by recorded status and resets the requested page to one'…
+       |   ^
+    149|     listRecoverableCostsMock.mockResolvedValue({ items: Array.from({ l…
+    150|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/68]⎯
+
+ FAIL  src/pages/RecoverableCostsPage.test.tsx > RecoverableCostsPage > keeps pagination with each responsive record owner
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/RecoverableCostsPage.test.tsx:164:3
+    162|   });
+    163|
+    164|   it('keeps pagination with each responsive record owner', async () =>…
+       |   ^
+    165|     listRecoverableCostsMock.mockResolvedValue({
+    166|       items: Array.from({ length: 25 }, (_, index) => makeCost({ id: i…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/68]⎯
+
+ FAIL  src/pages/RecoverableCostsPage.test.tsx > RecoverableCostsPage > sends sortBy/sortDir on header clicks, toggles asc → desc, and resets to page 1
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/RecoverableCostsPage.test.tsx:259:3
+    257|   // 2026-09-10 load-flake (timed out twice in the suite, never isolat…
+    258|   // Assertions untouched; only the budget grows.
+    259|   it('sends sortBy/sortDir on header clicks, toggles asc → desc, and r…
+       |   ^
+    260|     listRecoverableCostsMock.mockResolvedValue({
+    261|       items: Array.from({ length: 25 }, (_, index) => makeCost({ id: i…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/68]⎯
+
+ FAIL  src/pages/SalaryAttendancePage.test.tsx > SalaryAttendancePage Q11 post-close surface > shows the close action while the company period is still open
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/SalaryAttendancePage.test.tsx:149:3
+    147|   });
+    148|
+    149|   it('shows the close action while the company period is still open', …
+       |   ^
+    150|     renderPage();
+    151|     await waitFor(() => expect(screen.getByText('Nguyen Van A')).toBeT…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/68]⎯
+
+ FAIL  src/pages/ShipmentContainersPage.gop-hang.test.tsx > SIL-547 — [Gộp hàng] mode on Chi tiết lô hàng > mặc định ẩn mode: không nút Gộp hàng, không cột CHỌN (CUS vẫn thấy nút vì có quyền — kiểm tra trạng thái OFF)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentContainersPage.gop-hang.test.tsx:112:3
+    110|
+    111| describe('SIL-547 — [Gộp hàng] mode on Chi tiết lô hàng', () => {
+    112|   it('mặc định ẩn mode: không nút Gộp hàng, không cột CHỌN (CUS vẫn th…
+       |   ^
+    113|     wire([lotRow({})]);
+    114|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/68]⎯
+
+ FAIL  src/pages/ShipmentContainersPage.gop-hang.test.tsx > SIL-547 — [Gộp hàng] mode on Chi tiết lô hàng > tick ≥1 lô → floating bar đếm + [Gộp hàng] khóa dưới 2 lô chưa ghép; đủ 2 → popup «Gộp xe thu khách» 3 trường
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentContainersPage.gop-hang.test.tsx:141:3
+    139|   });
+    140|
+    141|   it('tick ≥1 lô → floating bar đếm + [Gộp hàng] khóa dưới 2 lô chưa g…
+       |   ^
+    142|     wire([
+    143|       lotRow({ shipmentId: 1, billOrBookNumber: 'BILL-LCL-1' }),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/68]⎯
+
+ FAIL  src/pages/ShipmentContainersPage.gop-hang.test.tsx > SIL-658 — selections persist through search/filter > AC1 — tick 1 lô → tìm theo bill (còn 1 dòng) → xoá tìm kiếm: tick VẪN CÒN, bar không về 0
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentContainersPage.gop-hang.test.tsx:253:3
+    251|   const searchBox = () => screen.getByRole('textbox', { name: 'Contain…
+    252|
+    253|   it('AC1 — tick 1 lô → tìm theo bill (còn 1 dòng) → xoá tìm kiếm: tic…
+       |   ^
+    254|     const lotA = lotRow({ shipmentId: 1, billOrBookNumber: 'BILL-LCL-1…
+    255|     const lotB = lotRow({ shipmentId: 2, billOrBookNumber: 'BILL-LCL-2…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/68]⎯
+
+ FAIL  src/pages/ShipmentContainersPage.gop-hang.test.tsx > SIL-658 — selections persist through search/filter > AC2 — tick nhiều lô rồi filter: mọi tick giữ nguyên, bar đếm đủ, gộp tiếp được (popup mở với 2 lô đã chọn)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentContainersPage.gop-hang.test.tsx:277:3
+    275|   });
+    276|
+    277|   it('AC2 — tick nhiều lô rồi filter: mọi tick giữ nguyên, bar đếm đủ,…
+       |   ^
+    278|     const lotA = lotRow({ shipmentId: 1, billOrBookNumber: 'BILL-LCL-1…
+    279|     const lotB = lotRow({ shipmentId: 2, billOrBookNumber: 'BILL-LCL-2…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/68]⎯
+
+ FAIL  src/pages/ShipmentContainersPage.gop-hang.test.tsx > SIL-658 — selections persist through search/filter > AC3 — bỏ tick MỘT lô khi đang filter: chỉ lô đó drop, lô kia giữ
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentContainersPage.gop-hang.test.tsx:300:3
+    298|   });
+    299|
+    300|   it('AC3 — bỏ tick MỘT lô khi đang filter: chỉ lô đó drop, lô kia giữ…
+       |   ^
+    301|     const lotA = lotRow({ shipmentId: 1, billOrBookNumber: 'BILL-LCL-1…
+    302|     const lotB = lotRow({ shipmentId: 2, billOrBookNumber: 'BILL-LCL-2…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/68]⎯
+
+ FAIL  src/pages/ShipmentContainersPage.test.tsx > ShipmentContainersPage — DOCX container workboard > applies date, customer, direction, and valid suffix changes immediately
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentContainersPage.test.tsx:649:3
+    647|   });
+    648|
+    649|   it('applies date, customer, direction, and valid suffix changes imme…
+       |   ^
+    650|     apiGet.mockResolvedValue(response);
+    651|     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/68]⎯
+
+ FAIL  src/pages/ShipmentDebitPage.tach-nhom.test.tsx > card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu khách > mỗi dòng trong nhóm mang <button> thật "Tách nhóm" (qua menu ⋯); dòng thường thì không
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentDebitPage.tach-nhom.test.tsx:169:3
+    167|   };
+    168|
+    169|   it('mỗi dòng trong nhóm mang <button> thật "Tách nhóm" (qua menu ⋯);…
+       |   ^
+    170|     listSummary.mockResolvedValue(summaryOf([
+    171|       ...mergedPair().items,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/68]⎯
+
+ FAIL  src/pages/ShipmentDebitPage.tach-nhom.test.tsx > card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu khách > cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentDebitPage.tach-nhom.test.tsx:272:3
+    270|   });
+    271|
+    272|   it('cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô…
+       |   ^
+    273|     listSummary.mockResolvedValue(summaryOf([lclRow({
+    274|       billOrBookNumber: 'BL-1',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/68]⎯
+
+ FAIL  src/pages/ShipmentDebitPage.test.tsx > Chi phí - Quyết toán — L1 lot list (20260918_17) > keeps manager summaries read-only even with a restored expanded lot
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentDebitPage.test.tsx:103:3
+    101|
+    102| describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
+    103|   it('keeps manager summaries read-only even with a restored expanded …
+       |   ^
+    104|     authRole.value = 'MANAGER';
+    105|     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/68]⎯
+
+ FAIL  src/pages/ShipmentDebitPage.test.tsx > Chi phí - Quyết toán — L2 expansion (20260918_18; kebab since 23/10) > mounts the workspace under the expanded lot row and collapses on the second open
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentDebitPage.test.tsx:276:3
+    274|
+    275| describe('Chi phí - Quyết toán — L2 expansion (20260918_18; kebab sinc…
+    276|   it('mounts the workspace under the expanded lot row and collapses on…
+       |   ^
+    277|     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED'…
+    278|     getDetail.mockResolvedValue({
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/68]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > edits schedule and notes from their cells with partial optimistic-version updates
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1065:3
+    1063|   });
+    1064|
+    1065|   it('edits schedule and notes from their cells with partial optimisti…
+       |   ^
+    1066|     apiGet.mockImplementation((url: string) => (
+    1067|       url === '/shipments/cus-workspace/1'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/68]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > FB-002 round 22: typed giờ + Enter saves the schedule quick-edit even with the picker open from the focusing click
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1099:3
+    1097|   });
+    1098|
+    1099|   it('FB-002 round 22: typed giờ + Enter saves the schedule quick-edit…
+       |   ^
+    1100|     apiGet.mockImplementation((url: string) => (
+    1101|       url === '/shipments/cus-workspace/1'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/68]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > SIL-608: a completed năm in the schedule quick-edit hands focus to the giờ box (date-first)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1126:3
+    1124|   });
+    1125|
+    1126|   it('SIL-608: a completed năm in the schedule quick-edit hands focus …
+       |   ^
+    1127|     apiGet.mockImplementation((url: string) => (
+    1128|       url === '/shipments/cus-workspace/1'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/68]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > deduplicates repeated keyboard saves while a cell update is in flight
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1942:3
+    1940|   });
+    1941|
+    1942|   it('deduplicates repeated keyboard saves while a cell update is in f…
+       |   ^
+    1943|     let resolveUpdate: ((value: unknown) => void) | undefined;
+    1944|     apiPut.mockImplementation(() => new Promise((resolve) => { resolve…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/68]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > navigates to the edit workspace from the drawer footer and gates it by role
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:2168:3
+    2166|   });
+    2167|
+    2168|   it('navigates to the edit workspace from the drawer footer and gates…
+       |   ^
+    2169|     // SIL-485: editing leaves the drawer — "Sửa" rides /shipments/:id…
+    2170|     // where ShipmentCreateWorkspace owns the form. The affordance exi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/68]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > reuses the same idempotency key for a retried lock action and rotates after success
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:2215:3
+    2213|   });
+    2214|
+    2215|   it('reuses the same idempotency key for a retried lock action and ro…
+       |   ^
+    2216|     const randomUUID = vi.spyOn(globalThis.crypto, 'randomUUID')
+    2217|       .mockReturnValueOnce('00000000-0000-4000-8000-000000000001')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/68]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > Card 20260926_48 — Row 2: compact filter toolbar + date-range + chips + Kế hoạch > direction and kind ride the inline-label chips into the URL
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:2867:3
+    2865|   });
+    2866|
+    2867|   it('direction and kind ride the inline-label chips into the URL', as…
+       |   ^
+    2868|     apiGet.mockResolvedValue(listResponse([row]));
+    2869|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/68]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > Card 20260926_48 — Row 2: compact filter toolbar + date-range + chips + Kế hoạch > Kế hoạch combobox: one bucket filters server-side; two buckets turn the lens on
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:2881:3
+    2879|   });
+    2880|
+    2881|   it('Kế hoạch combobox: one bucket filters server-side; two buckets t…
+       |   ^
+    2882|     // The base row sits in PENDING_LOCK; a second row lives in NEW so…
+    2883|     // lens has something to keep and something to cut.
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/68]⎯
+
+ FAIL  src/design-system/forms/DateTimePickerPanels.test.tsx > DateTimePickerDialog (_43 P0 rework: split NGÀY/GIỜ, compact) > allows arrow navigation then Enter activation without confirming the parent appointment
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/design-system/forms/DateTimePickerPanels.test.tsx:60:3
+     58|   });
+     59|
+     60|   it('allows arrow navigation then Enter activation without confirming…
+       |   ^
+     61|     const onConfirm = vi.fn();
+     62|     render(<DateTimePickerDialog title="Appointment" value="2026-09-19…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/68]⎯
+
+ FAIL  src/features/accounting/PhoiPhieuChiHoDialog.test.tsx > phơi chi-hộ row identity > PHOI08 refreshes successful row versions after a later row failure and retries only the remaining change
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/PhoiPhieuChiHoDialog.test.tsx:21:3
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/68]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload mang shipmentId và tripId null, Bên thực chi mặc định là Công ty trả trực tiếp
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:40:1
+     38|   chiHo.mockReset().mockResolvedValue({ tripId: 10, tripCode: null, sh…
+     39| });
+     40| it('khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payload ma…
+       | ^
+     41|   const onClose = vi.fn(); const onSaved = vi.fn();
+     42|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/68]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > cặp số/ngày hóa đơn hiển thị sẵn, tùy chọn; không còn ô Loại chứng từ (FB-097)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:72:1
+     70|   expect(sentItems(0)).toHaveLength(2);
+     71| });
+     72| it('cặp số/ngày hóa đơn hiển thị sẵn, tùy chọn; không còn ô Loại chứng…
+       | ^
+     73|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+     74|   // FB-097 (TC-COSTUX-03): cặp số/ngày hóa đơn hiện sẵn, điền hoặc kh…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/68]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > OPS context chỉ chọn người thực chi là Ops; lưu được khi đã chọn người chi
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:156:1
+    154|   expect(createBatch.mock.calls[1][1]).toBe(createBatch.mock.calls[0][…
+    155| });
+    156| it('OPS context chỉ chọn người thực chi là Ops; lưu được khi đã chọn n…
+       | ^
+    157|   const onClose = vi.fn(); const onSaved = vi.fn();
+    158|   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} entr…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/68]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > không có nhà xe ngoài thì để chọn tay, không chặn lưu (FB-097)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:202:1
+    200|   expect(sentItems(0)[0]).toMatchObject({ supplierId: 3 });
+    201| });
+    202| it('không có nhà xe ngoài thì để chọn tay, không chặn lưu (FB-097)', a…
+       | ^
+    203|   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onCl…
+    204|   fireEvent.click(screen.getByRole('button', { name: /Bên thực chi/ })…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/68]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseCreateDrawer.test.tsx > lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực chi/ngày giữ nguyên (FB-097)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ExpenseCreateDrawer.test.tsx:216:1
+    214|   expect(sentItems(0)[0]).toMatchObject({ supplierId: 3 });
+    215| });
+    216| it('lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực chi/ngày…
+       | ^
+    217|   const onClose = vi.fn();
+    218|   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} o…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/68]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.export.test.tsx > AccountingDebitClosePage — Xuất Debit Note (FB-094) > toolbar button downloads the issued note for the selected rows (FB094-UI-01/02)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/AccountingDebitClosePage.export.test.tsx:99:3
+     97| // Row selection is the row itself (card 20260929_207) on the settled …
+     98| describe('AccountingDebitClosePage — Xuất Debit Note (FB-094)', () => {
+     99|   it('toolbar button downloads the issued note for the selected rows (…
+       |   ^
+    100|     listBoard.mockResolvedValue({ items: [row(1, 'BL-1'), row(2, 'BL-2…
+    101|     createDebitNoteBatch.mockResolvedValue({ id: 30 });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/68]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.tach-nhom.test.tsx > SIL-191 — "Tách nhóm" trên strip chọn lô của /accounting/chot-debit > chọn 2 lô CÙNG nhóm ghép → strip hiện nút, armed; click → confirm → unmergeLclGroup đúng nhóm
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/AccountingDebitClosePage.tach-nhom.test.tsx:219:3
+    217|
+    218| describe('SIL-191 — "Tách nhóm" trên strip chọn lô của /accounting/cho…
+    219|   it('chọn 2 lô CÙNG nhóm ghép → strip hiện nút, armed; click → confir…
+       |   ^
+    220|     listBoard.mockResolvedValue({
+    221|       items: [
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/68]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.test.tsx > AccountingDebitClosePage — heading and board identity > offers phone facts and independent selection without writing a cancelled debit
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/AccountingDebitClosePage.test.tsx:99:3
+     97|     expect(sendRequests).not.toHaveBeenCalled(); expect(createRound).n…
+     98|   });
+     99|   it('offers phone facts and independent selection without writing a c…
+       |   ^
+    100|     window.matchMedia = (media): MediaQueryList => ({
+    101|       media, matches: media === '(max-width: 640px)', onchange: null,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/68]⎯
+
+ FAIL  src/pages/accounting/DepositRefundTrackerPage.test.tsx > deposit tracker workflows > submits depositDate + status and can mark Đã hoàn cược at creation
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/DepositRefundTrackerPage.test.tsx:144:3
+    142|   });
+    143|
+    144|   it('submits depositDate + status and can mark Đã hoàn cược at creati…
+       |   ^
+    145|     page(); await screen.findByText('QA-BILL');
+    146|     fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' }));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/68]⎯
+
+ FAIL  src/pages/accounting/OpsReconciliationReportPage.test.tsx > card 20260928_169 — báo cáo tổng hợp hoàn ứng > a đợt the company owes offers ONLY the phiếu chi action (AC3)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/OpsReconciliationReportPage.test.tsx:156:3
+    154|   });
+    155|
+    156|   it('a đợt the company owes offers ONLY the phiếu chi action (AC3)', …
+       |   ^
+    157|     currentLot = mkLot(rowPositive, 150000);
+    158|     page();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/68]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > card 20260929_207 — row selection replaces the checkbox column > PHOI03 clears hidden selection during a filter query and does not resurrect it on return
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:198:3
+    196|   });
+    197|
+    198|   it('PHOI03 clears hidden selection during a filter query and does no…
+       |   ^
+    199|     const { container } = renderBoard([row({ tripId: 1 })]);
+    200|     await screen.findAllByText('Chưa có số Bill/Booking', undefined, {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/68]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > register board — column mini-filters, phoi state, grouping > mini-filter on Khách hàng narrows by a diacritic-folded match; Bỏ lọc restores every row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:249:3
+    247|
+    248| describe('register board — column mini-filters, phoi state, grouping',…
+    249|   it('mini-filter on Khách hàng narrows by a diacritic-folded match; B…
+       |   ^
+    250|     const { container } = renderBoard([
+    251|       row({ tripId: 1, customerName: 'KH Bình', plateNumber: '51A-1', …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[49/68]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > register board — column mini-filters, phoi state, grouping > mini-filter on Thông tin xe matches plate (case-folded) and carrier, and never re-sorts the grouped rows
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:270:3
+    268|   });
+    269|
+    270|   it('mini-filter on Thông tin xe matches plate (case-folded) and carr…
+       |   ^
+    271|     const { container } = renderBoard([
+    272|       row({ tripId: 1, customerName: 'KH A', plateNumber: '51A-1', con…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[50/68]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > register board — column mini-filters, phoi state, grouping > a column filter narrowed to nothing offers Bỏ lọc cột and never pays a hidden pick
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:308:3
+    306|   });
+    307|
+    308|   it('a column filter narrowed to nothing offers Bỏ lọc cột and never …
+       |   ^
+    309|     const { container } = renderBoard([
+    310|       row({ tripId: 1, customerName: 'KH A' }),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[51/68]⎯
+
+ FAIL  src/pages/config/AppSettingsConfigPage.test.tsx > AppSettingsConfigPage > navigates finance tabs with the keyboard and names the active panel
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/AppSettingsConfigPage.test.tsx:183:3
+    181|   });
+    182|
+    183|   it('navigates finance tabs with the keyboard and names the active pa…
+       |   ^
+    184|     renderPage();
+    185|     const policy = screen.getByRole('tab', { name: 'Chính sách báo cáo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[52/68]⎯
+
+ FAIL  src/pages/config/QuotationConfigPage.import.test.tsx > quotation xlsx import preview (card 20260922_57, TC-BG-13/14/15) > TC-BG-15: uploads the picked fixture to /quotations/import and renders the mapping preview
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/QuotationConfigPage.import.test.tsx:102:3
+    100|
+    101| describe('quotation xlsx import preview (card 20260922_57, TC-BG-13/14…
+    102|   it('TC-BG-15: uploads the picked fixture to /quotations/import and r…
+       |   ^
+    103|     apiUpload.mockResolvedValueOnce(cleanPreview);
+    104|     render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[53/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx > DetailedPlanFilters — the shared strip (card 20260927_152) > rides the shared bar: search, the from/to fields and the day scope on the line, criteria behind Bộ lọc
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanFilters.test.tsx:79:3
+     77|
+     78| describe('DetailedPlanFilters — the shared strip (card 20260927_152)',…
+     79|   it('rides the shared bar: search, the from/to fields and the day sco…
+       |   ^
+     80|     const onChange = vi.fn();
+     81|     const { container } = renderFilters(<DetailedPlanFilters {...baseP…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[54/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx > DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015) > the assigned grouped row carries a ⋯ row menu whose item opens the PRE-FILLED truck edit directly
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx:131:3
+    129|
+    130| describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () =>…
+    131|   it('the assigned grouped row carries a ⋯ row menu whose item opens t…
+       |   ^
+    132|     updateLclTruckMock.mockClear();
+    133|     toastMock.mockClear();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[55/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > allocation editor mounts on every press (20260916_9) > mounts the editor on press 1 (branch decompose) and on every later press
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:1049:3
+    1047|   }
+    1048|
+    1049|   it('mounts the editor on press 1 (branch decompose) and on every lat…
+       |   ^
+    1050|     const branch = {
+    1051|       ...row({ fulfillmentId: undefined }),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[56/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > DetailedPlanGrid — SIL-648 PHÂN LOẠI column inline edit > renders a clickable button for uncompleted FCL rows, opens select on click, and saves in place
+TestingLibraryElementError: Found multiple elements with the text: Kẹp
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33maria-label[39m=[32m"Sửa phân loại · Kẹp"[39m
+  [33mclass[39m=[32m"detailed-plan-grid__classification"[39m
+  [33mtitle[39m=[32m"Bấm để sửa phân loại"[39m
+  [33mtype[39m=[32m"button"[39m
+[36m>[39m
+  [0mKẹp[0m
+[36m</button>[39m
+
+Ignored nodes: comments, script, style
+[36m<option[39m
+  [33mvalue[39m=[32m"DOUBLE"[39m
+[36m>[39m
+  [0mKẹp[0m
+[36m</option>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<header[39m
+      [33mclass[39m=[32m"detailed-plan-header"[39m
+      [33mdata-component[39m=[32m"detailed-plan-header"[39m
+    [36m>[39m
+      [36m<h1[39m
+        [33mclass[39m=[32m"detailed-plan-header__title"[39m
+      [36m>[39m
+        [0mKế hoạch Chi tiết Xe[0m
+      [36m</h1>[39m
+    [36m</header>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar__search-cell"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search"[39m
+          [33mdata-uui-control[39m=[32m"input"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-search"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m21 21-4.34-4.34"[39m
+            [36m/>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"11"[39m
+              [33mcy[39m=[32m"11"[39m
+              [33mr[39m=[32m"8"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Tìm nhanh"[39m
+            [33mplaceholder[39m=[32m"Bill, Cont, Tờ khai..."[39m
+            [33mtype[39m=[32m"text"[39m
+            [33mvalue[39m=[32m""[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"inline-label-select"[39m
+        [33mdata-component[39m=[32m"inline-label-select"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-expanded[39m=[32m"false"[39m
+          [33maria-haspopup[39m=[32m"listbox"[39m
+          [33mclass[39m=[32m"inline-label-select__trigger inline-label-select__trigger--sm"[39m
+          [33mid[39m=[32m"detailed-plan-direction"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mXuất / Nhập: Tất cả[0m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-chevron-down inline-label-select__chevron"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 9 6 6 6-6"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"inline-label-select"[39m
+        [33mdata-component[39m=[32m"inline-label-select"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-expanded[39m=[32m"false"[39m
+          [33maria-haspopup[39m=[32m"listbox"[39m
+          [33mclass[39m=[32m"inline-label-select__trigger inline-label-select__trigger--sm"[39m
+          [33mid[39m=[32m"detailed-plan-cargo-mode"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mLoại hàng: Tất cả[0m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-chevron-down inline-label-select__chevron"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 9 6 6 6-6"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-dropdown"[39m
+        [33mdata-component[39m=[32m"filter-dropdown"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-expanded[39m=[32m"false"[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Bộ lọc"[39m
+          [33mclass[39m=[32m"filter-dropdown__trigger"[39m
+          [33mdata-control-size[39m=[32m"sm"[39m
+          [33mdata-uui-control[39m=[32m"button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-list-filter"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M3 6h18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M7 12h10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M10 18h4"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"filter-dropdown__label"[39m
+          [36m>[39m
+            [0mBộ lọc[0m
+          [36m</span>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-chevron-down filter-dropdown__chevron"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+         ...
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m"overflow: hidden;"[39m
+  [36m>[39m
+    [36m<div>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"detailed-plan-header"[39m
+        [33mdata-component[39m=[32m"detailed-plan-header"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"detailed-plan-header__title"[39m
+        [36m>[39m
+          [0mKế hoạch Chi tiết Xe[0m
+        [36m</h1>[39m
+      [36m</header>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm nhanh"[39m
+              [33mplaceholder[39m=[32m"Bill, Cont, Tờ khai..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"inline-label-select"[39m
+          [33mdata-component[39m=[32m"inline-label-select"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33maria-haspopup[39m=[32m"listbox"[39m
+            [33mclass[39m=[32m"inline-label-select__trigger inline-label-select__trigger--sm"[39m
+            [33mid[39m=[32m"detailed-plan-direction"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mXuất / Nhập: Tất cả[0m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-chevron-down inline-label-select__chevron"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 9 6 6 6-6"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"inline-label-select"[39m
+          [33mdata-component[39m=[32m"inline-label-select"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33maria-haspopup[39m=[32m"listbox"[39m
+            [33mclass[39m=[32m"inline-label-select__trigger inline-label-select__trigger--sm"[39m
+            [33mid[39m=[32m"detailed-plan-cargo-mode"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mLoại hàng: Tất cả[0m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-chevron-down inline-label-select__chevron"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 9 6 6 6-6"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-dropdown"[39m
+          [33mdata-component[39m=[32m"filter-dropdown"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33maria-haspopup[39m=[32m"dialog"[39m
+            [33maria-label[39m=[32m"Bộ lọc"[39m
+            [33mclass[39m=[32m"filter-dropdown__trigger"[39m
+            [33mdata-control-size[39m=[32m"sm"[39m
+            [33mdata-uui-control[39m=[32m"button"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-list-filter"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M3 6h18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M7 12h10"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M10 18h4"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"filter-dropdown__label"[39m
+            [36m>[39m
+              [0mBộ lọc[0m
+            [36m</span>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+     ...
+ ❯ Proxy.waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:1164:11
+    1162|     );
+    1163|
+    1164|     await waitFor(() => {
+       |           ^
+    1165|       expect(screen.getByText('Kẹp')).toBeTruthy();
+    1166|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[57/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx > DispatchPlanEditorCell — cửa sổ điều phối theo cargoMode (operator report 191026) > LCL lot: the lclspec field-set and NO container 20'/40' demand UI
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx:200:3
+    198|
+    199| describe('DispatchPlanEditorCell — cửa sổ điều phối theo cargoMode (op…
+    200|   it('LCL lot: the lclspec field-set and NO container 20\'/40\' demand…
+       |   ^
+    201|     renderCell(row());
+    202|     await openDialog();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[58/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx > DispatchPlanEditorCell — cửa sổ điều phối theo cargoMode (operator report 191026) > LCL lot in a CONTAINER-class group: the BKS nhóm line renders and the picker imposes no moóc requirement
+TestingLibraryElementError: Unable to find an accessible element with the role "button" and name "Đổi BKS nhóm"
+
+Here are the accessible roles:
+
+  dialog:
+
+  Name "Phân loại":
+  [36m<div[39m
+    [33maria-labelledby[39m=[32m"react-aria-_r_14_"[39m
+    [33mclass[39m=[32m"z-[var(--z-popover,400)] w-(--trigger-width) origin-(--trigger-anchor-point) overflow-x-hidden overflow-y-auto rounded-lg border border-secondary bg-[var(--surface)] py-1 outline-hidden will-change-transform max-h-(--popover-fit,16rem)! ds-uui-select__popover"[39m
+    [33mdata-placement[39m=[32m"bottom"[39m
+    [33mdata-popover-gate[39m=[32m"settling"[39m
+    [33mdata-rac[39m=[32m""[39m
+    [33mdata-trigger[39m=[32m"Select"[39m
+    [33mdir[39m=[32m"ltr"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"position: absolute; z-index: 100000; max-height: 748px; --popover-fit: 224px; pointer-events: none; --trigger-anchor-point: -16px 0px; --trigger-width: 0px; left: 16px; top: 4px;"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  button:
+
+  Name "Dismiss":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Dismiss"[39m
+    [33mid[39m=[32m"react-aria-_r_1f_"[39m
+    [33mstyle[39m=[32m"width: 1px; height: 1px;"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  Name "Dismiss":
+  [36m<button[39m
+    [33maria-label[39m=[32m"Dismiss"[39m
+    [33mid[39m=[32m"react-aria-_r_1r_"[39m
+    [33mstyle[39m=[32m"width: 1px; height: 1px;"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listbox:
+
+  Name "Phân loại":
+  [36m<div[39m
+    [33maria-labelledby[39m=[32m"react-aria-_r_14_"[39m
+    [33maria-orientation[39m=[32m"vertical"[39m
+    [33mclass[39m=[32m"size-full outline-hidden"[39m
+    [33mdata-collection[39m=[32m"react-aria-_r_1g_"[39m
+    [33mdata-layout[39m=[32m"stack"[39m
+    [33mdata-orientation[39m=[32m"vertical"[39m
+    [33mdata-rac[39m=[32m""[39m
+    [33mid[39m=[32m"react-aria-_r_12_"[39m
+    [33mrole[39m=[32m"listbox"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  option:
+
+  Name "Lẻ":
+  [36m<div[39m
+    [33maria-labelledby[39m=[32m"react-aria-_r_1l_"[39m
+    [33maria-selected[39m=[32m"true"[39m
+    [33mclass[39m=[32m"w-full py-px outline-hidden px-1"[39m
+    [33mdata-collection[39m=[32m"react-aria-_r_1g_"[39m
+    [33mdata-focus-visible[39m=[32m"true"[39m
+    [33mdata-focused[39m=[32m"true"[39m
+    [33mdata-key[39m=[32m"LCL"[39m
+    [33mdata-rac[39m=[32m""[39m
+    [33mdata-react-aria-pressable[39m=[32m"true"[39m
+    [33mdata-selected[39m=[32m"true"[39m
+    [33mdata-selection-mode[39m=[32m"single"[39m
+    [33mid[39m=[32m"react-aria-_r_12_-option-LCL"[39m
+    [33mrole[39m=[32m"option"[39m
+    [33mtabindex[39m=[32m"0"[39m
+  [36m/>[39m
+
+  Name "Lấy Lẻ":
+  [36m<div[39m
+    [33maria-labelledby[39m=[32m"react-aria-_r_1o_"[39m
+    [33maria-selected[39m=[32m"false"[39m
+    [33mclass[39m=[32m"w-full py-px outline-hidden px-1"[39m
+    [33mdata-collection[39m=[32m"react-aria-_r_1g_"[39m
+    [33mdata-key[39m=[32m"LCL_PICKUP"[39m
+    [33mdata-rac[39m=[32m""[39m
+    [33mdata-react-aria-pressable[39m=[32m"true"[39m
+    [33mdata-selection-mode[39m=[32m"single"[39m
+    [33mid[39m=[32m"react-aria-_r_12_-option-LCL_PICKUP"[39m
+    [33mrole[39m=[32m"option"[39m
+    [33mtabindex[39m=[32m"-1"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"dispatch-assignment-cell"[39m
+      [33mdata-cell-label[39m=[32m"Điều phối"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-haspopup[39m=[32m"dialog"[39m
+        [33maria-label[39m=[32m"Sửa điều phối · SilverSea · BL-LCL-191026"[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action"[39m
+        [33mtitle[39m=[32m"Bấm để phân nhà xe / sửa điều phối · BL-LCL-191026"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [0mSilverSea[0m
+      [36m</button>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__vehicle-group"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"dispatch-assignment-cell__plate"[39m
+        [36m>[39m
+          [0m15H-052.82[0m
+        [36m</span>[39m
+        [36m<span[39m
+          [33mclass[39m=[32m"dispatch-assignment-cell__driver is-placeholder"[39m
+        [36m>[39m
+          [0mChưa có tài xế[0m
+        [36m</span>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__actions"[39m
+      [36m>[39m
+        [36m<span[39m
+          [33maria-label[39m=[32m"Đã điều xe"[39m
+          [33mclass[39m=[32m"dispatch-assignment-cell__issue"[39m
+          [33mstyle[39m=[32m"display: inline-flex; align-items: center; gap: var(--status-text-gap, 6px); font-size: var(--status-text-font-size, var(--text-caption-size, 12px)); font-weight: var(--status-text-weight, 700); letter-spacing: var(--status-text-letter-spacing, 0.02em); line-height: var(--status-text-line-height, 1.35); color: var(--warning-text, #6F3C10); background: transparent; border: medium; border-radius: 0px; padding: 0px; text-transform: none; vertical-align: baseline; white-space: normal;"[39m
+          [33mtitle[39m=[32m"Đã điều xe"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mstyle[39m=[32m"display: inline-block; width: var(--status-text-dot-size, 7px); height: var(--status-text-dot-size, 7px); border-radius: 50%; background: var(--warning, #A45D1C); flex-shrink: 0;"[39m
+          [36m/>[39m
+          [36m<span>[39m
+            [0mĐã điều xe[0m
+          [36m</span>[39m
+        [36m</span>[39m
+      [36m</div>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33maria-hidden[39m=[32m"true"[39m
+    [33maria-labelledby[39m=[32m"_r_t_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"modal modal--operational-density"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"opacity: 1;"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"modal__content"[39m
+      [33mstyle[39m=[32m"--modal-max-w: min(1000px, calc(100vw - 96px)); opacity: 1; will-change: opacity;"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__head"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<h3[39m
+            [33mclass[39m=[32m"modal__title"[39m
+            [33mid[39m=[32m"_r_t_"[39m
+          [36m>[39m
+            [0mChỉnh sửa điều phối · BL-LCL-191026[0m
+          [36m</h3>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+          [33mdata-tip[39m=[32m"Đóng"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Đóng"[39m
+            [33mclass[39m=[32m"btn btn--ghost btn--icon btn--sm modal__close"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__body"[39m
+      [36m>[39m
+        [36m<form[39m
+          [33maria-busy[39m=[32m"false"[39m
+          [33mclass[39m=[32m"dispatch-assignment-dialog"[39m
+          [33mnovalidate[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"lcl-group-truck-line"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"lcl-group-truck-line__text"[39m
+            [36m>[39m
+              [0mBKS nhóm: 15H-052.82[0m
+            [36m</span>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"btn btn--secondary btn--sm"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0mĐổi BKS nhóm[0m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"dispatch-assignment-dialog__fields"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"dispatch-assignment-dialog__carrier"[39m
+              [33mfor[39m=[32m"dispatch-carrier-101"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mNhà xe[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"searchable-select"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-haspopup[39m=[32m"listbox"[39m
+                  [33maria-required[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                  [33mid[39m=[32m"dispatch-carrier-101"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"searchable-select__value"[39m
+                  [36m>[39m
+                    [0mSilverSea — xe nội bộ[0m
+                  [36m</span>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+           ...
+ ❯ Object.getElementError ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.cargo-mode.test.tsx:231:28
+    229|     // The group's truck facts — the lclspec channel this window owns.
+    230|     expect(screen.getByText('BKS nhóm: 15H-052.82')).toBeTruthy();
+    231|     fireEvent.click(screen.getByRole('button', { name: 'Đổi BKS nhóm' …
+       |                            ^
+    232|     expect(onChangeGroupTruck).toHaveBeenCalledWith(expect.objectConta…
+    233|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[59/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.disabled-reason.test.tsx > DispatchPlanEditorCell disabled reasons (card 20261008_1 sweep) > an editable row opens the editor through the menu signal
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.disabled-reason.test.tsx:161:3
+    159|   });
+    160|
+    161|   it('an editable row opens the editor through the menu signal', async…
+       |   ^
+    162|     mockFleetResources();
+    163|     renderCell(row());
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[60/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.disabled-reason.test.tsx > DispatchPlanEditorCell disabled reasons (card 20261008_1 sweep) > while a save is in flight the footer cancel and save explain their busy disable
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.disabled-reason.test.tsx:167:3
+    165|   });
+    166|
+    167|   it('while a save is in flight the footer cancel and save explain the…
+       |   ^
+    168|     mockFleetResources();
+    169|     // Executor form on purpose: Promise.withResolvers is outside this
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[61/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.sil644-weight.test.tsx > SIL-644 — dispatch plan editor weight field (Sửa điều phối) > renders the Trọng lượng field on an FCL row wired to a container line, seeded from the container weight
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.sil644-weight.test.tsx:149:3
+    147|   });
+    148|
+    149|   it('renders the Trọng lượng field on an FCL row wired to a container…
+       |   ^
+    150|     renderCell(row({ container: { containerNumber: 'MSCU1234567', cont…
+    151|     await openDialog();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[62/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.sil644-weight.test.tsx > SIL-644 — dispatch plan editor weight field (Sửa điều phối) > rides the edited weight on the atomic save as containerCargoWeightKg and closes the dialog
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.sil644-weight.test.tsx:182:3
+    180|   });
+    181|
+    182|   it('rides the edited weight on the atomic save as containerCargoWeig…
+       |   ^
+    183|     const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
+    184|     renderCell(row(), onAtomicSave);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[63/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > DispatchPlanEditorCell — phát lệnh issue section > offers the free-text plate option on a carrier-less row so plate→carrier autofill can fire
+TestingLibraryElementError: Unable to find role="option" and name `/Dùng biển số: 15H-061\.14/`
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"dispatch-assignment-cell"[39m
+      [33mdata-cell-label[39m=[32m"Điều phối"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-haspopup[39m=[32m"dialog"[39m
+        [33maria-label[39m=[32m"Sửa điều phối · Chưa phân nhà xe · MSCU1234567"[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action"[39m
+        [33mtitle[39m=[32m"Bấm để phân nhà xe / sửa điều phối · MSCU1234567"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [0mChưa phân nhà xe[0m
+      [36m</button>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__vehicle-group"[39m
+      [36m/>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__actions"[39m
+      [36m/>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33maria-labelledby[39m=[32m"_r_nu_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"modal modal--operational-density"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"opacity: 1;"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"modal__content"[39m
+      [33mstyle[39m=[32m"--modal-max-w: min(1000px, calc(100vw - 96px)); opacity: 1; will-change: opacity;"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__head"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<h3[39m
+            [33mclass[39m=[32m"modal__title"[39m
+            [33mid[39m=[32m"_r_nu_"[39m
+          [36m>[39m
+            [0mChỉnh sửa điều phối · MSCU1234567[0m
+          [36m</h3>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+          [33mdata-tip[39m=[32m"Đóng"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Đóng"[39m
+            [33mclass[39m=[32m"btn btn--ghost btn--icon btn--sm modal__close"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__body"[39m
+      [36m>[39m
+        [36m<form[39m
+          [33maria-busy[39m=[32m"false"[39m
+          [33mclass[39m=[32m"dispatch-assignment-dialog"[39m
+          [33mnovalidate[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"dispatch-assignment-dialog__fields"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"dispatch-assignment-dialog__carrier"[39m
+              [33mfor[39m=[32m"dispatch-carrier-101"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mNhà xe[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"searchable-select"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-haspopup[39m=[32m"listbox"[39m
+                  [33maria-required[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                  [33mid[39m=[32m"dispatch-carrier-101"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                  [36m>[39m
+                    [0mChọn nhà xe[0m
+                  [36m</span>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"16"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"16"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"dispatch-assignment-dialog__vehicle"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"dispatch-assignment-dialog__vehicle-head"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mfor[39m=[32m"dispatch-vehicle-101"[39m
+                [36m>[39m
+                  [0mXe / biển số[0m
+                [36m</label>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"searchable-select"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-controls[39m=[32m"_r_o0_"[39m
+                  [33maria-expanded[39m=[32m"true"[39m
+                  [33maria-haspopup[39m=[32m"listbox"[39m
+                  [33maria-required[39m=[32m"false"[39m
+                  [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm searchable-select__trigger--open"[39m
+                  [33mid[39m=[32m"dispatch-vehicle-101"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                  [36m...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"dispatch-assignment-cell"[39m
+      [33mdata-cell-label[39m=[32m"Điều phối"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-haspopup[39m=[32m"dialog"[39m
+        [33maria-label[39m=[32m"Sửa điều phối · Chưa phân nhà xe · MSCU1234567"[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action"[39m
+        [33mtitle[39m=[32m"Bấm để phân nhà xe / sửa điều phối · MSCU1234567"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [0mChưa phân nhà xe[0m
+      [36m</button>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__vehicle-group"[39m
+      [36m/>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__actions"[39m
+      [36m/>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33maria-labelledby[39m=[32m"_r_nu_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"modal modal--operational-density"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"opacity: 1;"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"modal__content"[39m
+      [33mstyle[39m=[32m"--modal-max-w: min(1000px, calc(100vw - 96px)); opacity: 1; will-change: opacity;"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__head"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<h3[39m
+            [33mclass[39m=[32m"modal__title"[39m
+            [33mid[39m=[32m"_r_nu_"[39m
+          [36m>[39m
+            [0mChỉnh sửa điều phối · MSCU1234567[0m
+          [36m</h3>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+          [33mdata-tip[39m=[32m"Đóng"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Đóng"[39m
+            [33mclass[39m=[32m"btn btn--ghost btn--icon btn--sm modal__close"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__body"[39m
+      [36m>[39m
+        [36m<form[39m
+          [33maria-busy[39m=[32m"false"[39m
+          [33mclass[39m=[32m"dispatch-assignment-dialog"[39m
+          [33mnovalidate[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"dispatch-assignment-dialog__fields"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"dispatch-assignment-dialog__carrier"[39m
+              [33mfor[39m=[32m"dispatch-carrier-101"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mNhà xe[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"searchable-select"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-haspopup[39m=[32m"listbox"[39m
+                  [33maria-required[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                  [33mid[39m=[32m"dispatch-carrier-101"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                  [36m>[39m
+                    [0mChọn nhà xe[0m
+                  [36m</span>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"16"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"16"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"dispatch-assignment-dialog__vehicle"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"dispatch-assignment-dialog__vehicle-head"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mfor[39m=[32m"dispatch-vehicle-101"[39m
+                [36m>[39m
+                  [0mXe / biển số[0m
+                [36m</label>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"searchable-select"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-controls[39m=[32m"_r_o0_"[39m
+                  [33maria-expanded[39m=[32m"true"[39m
+                  [33maria-haspopup[39m=[32m"listbox"[39m
+                  [33maria-required[39m=[32m"false"[39m
+                  [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm searchable-select__trigger--open"[39m
+                  [33mid[39m=[32m"dispatch-vehicle-101"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                  [36m...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx:706:25
+    704|     fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    705|     fireEvent.change(screen.getByRole('combobox'), { target: { value: …
+    706|     expect(await screen.findByRole('option', { name: /Dùng biển số: 15…
+       |                         ^
+    707|   });
+    708|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[64/68]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > DispatchPlanEditorCell — phát lệnh issue section > choosing Lấy Lẻ seeds NO tag on a CONTAINER row — the note stays the dispatcher's own (card 362)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx:853:3
+    851|   });
+    852|
+    853|   it('choosing Lấy Lẻ seeds NO tag on a CONTAINER row — the note stays…
+       |   ^
+    854|     const onAtomicSave = vi.fn().mockResolvedValue({
+    855|       fulfillmentVersion: 4,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[65/68]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.lcl-points.test.tsx > hàng lẻ operating points (FB-105) > titles the kho quick-add dialog by hình thức xuất nhập khẩu
+Error: Test timed out in 20000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.lcl-points.test.tsx:143:3
+    141|   // must name the SAME direction as the field it opens from — the spe…
+    142|   // complaint was a hard-coded "Kho lấy hàng" applied to both directi…
+    143|   it('titles the kho quick-add dialog by hình thức xuất nhập khẩu', as…
+       |   ^
+    144|     await enterLclWithCatalogCustomer();
+    145|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[66/68]⎯
+
+ FAIL  src/features/shipments/detail/ShipmentContainerLedger.sil503-lcl-cell-edit.test.tsx > SIL-503 — lot row SỐ TỜ KHAI cell click-to-edit (documents session) > cell Số tờ khai là trigger chỉnh sửa; click mở đúng phiên documents của row lot
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.sil503-lcl-cell-edit.test.tsx:136:3
+    134|
+    135| describe('SIL-503 — lot row SỐ TỜ KHAI cell click-to-edit (documents s…
+    136|   it('cell Số tờ khai là trigger chỉnh sửa; click mở đúng phiên docume…
+       |   ^
+    137|     const { onStartEdit } = ledgerView([row()]);
+    138|     const trigger = lotDeclarationTrigger('EGLV503LOT0001');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[67/68]⎯
+
+ FAIL  src/features/users/components/UserForm.test.tsx > customer account scope > requires and submits every selected customer when creating an active CUSTOMER account
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/users/components/UserForm.test.tsx:136:3
+    134|
+    135| describe('customer account scope', () => {
+    136|   it('requires and submits every selected customer when creating an ac…
+       |   ^
+    137|     const onSave = vi.fn().mockResolvedValue(true);
+    138|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[68/68]⎯
+
+
+ Test Files  37 failed | 764 passed (801)
+      Tests  68 failed | 6235 passed (6303)
+   Start at  17:03:01
+   Duration  2212.50s (transform 78.09s, setup 563.08s, import 2902.16s, tests 4719.25s, environment 2457.93s)
+

@@ -1,0 +1,15 @@
+pnpm --dir shared build
+
+> @tingting/shared@0.1.0 build /Users/dev/.paseo/worktrees/1njkloyy/k2c-fix/shared
+> tsc && node fix-esm-imports.js
+
+Fixed 0 bare imports in /Users/dev/.paseo/worktrees/1njkloyy/k2c-fix/shared/dist
+pnpm --dir backend build
+
+> @tingting/backend@0.1.0 prebuild /Users/dev/.paseo/worktrees/1njkloyy/k2c-fix/backend
+> pnpm --dir ../shared build
+
+
+> @tingting/shared@0.1.0 build /Users/dev/.paseo/worktrees/1njkloyy/k2c-fix/shared
+> tsc && node fix-esm-imports.js
+
