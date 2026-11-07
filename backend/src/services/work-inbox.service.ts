@@ -268,11 +268,14 @@ export async function financialWorkInbox(query: InboxQuery) {
       && latestPod.status !== 'REJECTED';
     const settlementComplete = tripSettlementRows.every((expense) => expense.settlementStatus === 'RECORDED');
     const profitabilitySnapshotReady = snapshotTripIds.has(row.id) && !row.dirty;
+    // SIL-726 (spec fix 2 07/11 §II.1): e-POD và ảnh chụp lợi nhuận KHÔNG còn
+    // là điều kiện chặn trên lane kế toán — e-POD là tùy chọn (quyết định
+    // 22/10: 0 ảnh vẫn hoàn thành), profit snapshot backend tự sinh ngầm khi
+    // hoàn thành chuyến/tính cước (captureProfitabilityAttributionSnapshot chạy
+    // trong lần chốt). Chỉ hoàn thiện khoản chi + quyết toán tạm ứng còn chặn.
     const blockers = [];
-    if (!acceptedPodReady) blockers.push({ code: 'POD', label: 'Chưa có e-POD hợp lệ', ownerRole: 'OPS', ownerLabel: 'Vận hành' });
     if (pendingExpenseTripIds.has(row.id)) blockers.push({ code: 'EXPENSE_APPROVAL', label: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' });
     if (!settlementComplete) blockers.push({ code: 'SETTLEMENT', label: 'Quyết toán tạm ứng chưa hoàn tất', ownerRole: 'OPS', ownerLabel: 'Vận hành' });
-    if (!profitabilitySnapshotReady) blockers.push({ code: 'PROFITABILITY', label: 'Thiếu ảnh chụp lợi nhuận hiện hành', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' });
     const disputed = responses.some((response) => response.decision === 'DISPUTED');
     const unanswered = attempts.length > 0 && responses.some((response) => response.decision == null);
     const advisories = disputed ? [{ code: 'CUSTOMER_DISPUTE', label: 'Khách hàng báo sai lệch giao hàng (không chặn tài chính)', ownerRole: 'MANAGER', ownerLabel: 'Quản lý' }] : unanswered ? [{ code: 'CUSTOMER_NO_RESPONSE', label: 'Khách hàng chưa phản hồi giao hàng (không chặn tài chính)', ownerRole: 'CUSTOMER', ownerLabel: 'Khách hàng' }] : emptyParty;

@@ -47,11 +47,10 @@ describe('AccountingWorkspacePage', () => {
           id: 'financial:10', entityType: 'trip', entityId: 10,
           title: 'C-010', subtitle: 'S-010 · Khách hàng B', state: 'WAITING', priority: 20,
           dueAt: null, freshnessAt: '2026-08-22T01:00:00.000Z',
+          // SIL-726: e-POD + ảnh chụp lợi nhuận không còn là blocker từ backend.
           blockers: [
-            { code: 'POD_ACCEPTANCE', label: 'Thiếu POD đã chấp nhận', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
             { code: 'EXPENSE_APPROVAL', label: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
             { code: 'SETTLEMENT', label: 'Quyết toán chưa hoàn tất', ownerRole: 'OPS', ownerLabel: 'Nhân viên vận hành' },
-            { code: 'PROFITABILITY', label: 'Thiếu ảnh chụp lợi nhuận', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
           ],
           advisories: [{ code: 'CUSTOMER_NO_RESPONSE', label: 'Khách hàng chưa phản hồi giao hàng', ownerRole: 'CUSTOMER', ownerLabel: 'Khách hàng' }],
           nextAction: { label: 'Xử lý hồ sơ', targetRoute: '/accounting?view=transport&search=C-010' },
@@ -132,13 +131,13 @@ describe('AccountingWorkspacePage', () => {
     expect(screen.getByRole('link', { name: 'Mở đối chiếu' }).getAttribute('href'))
       .toBe('/accounting?view=transport&search=C-009');
 
-    expect(screen.getByText('Thiếu POD đã chấp nhận')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ' }).getAttribute('href'))
       .toBe('/trips/10');
     expect(screen.getByRole('link', { name: 'Quyết toán chưa hoàn tất' }).getAttribute('href'))
       .toBe('/advances?view=settlements&tripId=10');
-    expect(screen.getByRole('link', { name: 'Thiếu ảnh chụp lợi nhuận' }).getAttribute('href'))
-      .toBe('/profit?tripId=10');
+    // SIL-726: không còn blocker e-POD/ảnh lợi nhuận trên lane kế toán.
+    expect(screen.queryByText('Thiếu POD đã chấp nhận')).toBeNull();
+    expect(screen.queryByText('Thiếu ảnh chụp lợi nhuận')).toBeNull();
     expect(screen.getByText(/Tạo hàng loạt chỉ thực hiện trong Đối chiếu vận tải/)).toBeTruthy();
   });
 

@@ -18,7 +18,8 @@ function blockerRoute(item: AccountantWorkInboxItem, code: string): string {
   const trip = encodeURIComponent(String(item.tripId));
   if (code === 'EXPENSE_APPROVAL') return `/trips/${trip}`;
   if (code === 'SETTLEMENT') return `/advances?view=settlements&tripId=${trip}`;
-  if (code === 'PROFITABILITY') return `/profit?tripId=${trip}`;
+  // SIL-726 — POD/PROFITABILITY không còn là blocker từ backend; mã lạ về
+  // route hồ sơ vận tải mặc định.
   return `${item.targetRoute}`;
 }
 
@@ -118,7 +119,7 @@ export function AccountingWorkInbox() {
   return (
     <section className="accounting-work-inbox" aria-label="Hàng đợi sẵn sàng tài chính">
       <p className="accounting-work-inbox__batch-note">Tạo hàng loạt chỉ thực hiện trong Đối chiếu vận tải sau khi máy chủ xác nhận các dòng sẵn sàng và cùng một khách hàng.</p>
-      <InboxLane view="ACTION" title="Sẵn sàng xử lý" description="Đã đủ POD, chi phí, quyết toán và ảnh chụp lợi nhuận." />
+      <InboxLane view="ACTION" title="Sẵn sàng xử lý" description="Chi phí và quyết toán đã hoàn tất — sẵn sàng đối soát." />
       <InboxLane view="WAITING" title="Đang bị chặn" description="Mở đúng nghiệp vụ đang giữ hồ sơ để hoàn thiện điều kiện." />
     </section>
   );
