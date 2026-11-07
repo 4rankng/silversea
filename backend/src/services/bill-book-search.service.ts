@@ -9,7 +9,7 @@ import { and, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from 'drizzl
 import { db } from '../db';
 import * as s from '../db/schema';
 import { billBookingTitle } from '../lib/business-keys';
-import { ApiError } from '../errors';
+import { billDigitsNeedle } from './bill-digit-match';
 
 /** Display default for a lot with neither number: mirrored from the frontend
  *  `billBookingReference` helper (that module is frontend-only, so the
@@ -89,9 +89,6 @@ export async function searchBillBook(digits: string): Promise<BillBookMatch[]> {
  * tracker keeps a single owner.
  */
 
-/** The last-four-digits match is the customer's lookup habit; shorter input is
- *  ambiguous (every "0" ending bill would qualify) and is rejected loudly. */
-export const BILL_DIGITS = 4;
 /** Enough to choose a lot from the list, few enough to stay a fast typeahead. */
 export const BILL_SUGGESTION_LIMIT = 10;
 
@@ -105,14 +102,6 @@ export interface BillSuggestion {
   customerName: string;
   /** Deposits already recorded against this lot, so the form can warn. */
   existingTrackerCount: number;
-}
-
-export function parseBillDigits(input: string): string {
-  const digits = input.trim();
-  if (!/^\d{4}$/.test(digits)) {
-    throw new ApiError(400, `Nhập đúng ${BILL_DIGITS} số cuối của số Bill/Booking.`);
-  }
-  return digits;
 }
 
 export async function findBillSuggestions(digits: string): Promise<BillSuggestion[]> {
@@ -133,12 +122,14 @@ export async function findBillSuggestions(digits: string): Promise<BillSuggestio
     // bypass the tombstone filter. Each branch matches the typed digits as a
     // SUBSTRING of the field's digit run (SIL-735: khớp chuỗi con trên CẢ
     // blNumber VÀ bookingRef; FB-096 giữ soạn chuỗi số để đuôi không thuần
-    // chữ số như "-IMP" hay "9bzut2" không che mất match).
+    // chữ số như "-IMP" hay "9bzut2" không che mất match). The needle comes
+    // from the pure law (`billDigitsNeedle`) so the query cannot drift from
+    // the rule the unit tree pins.
     .where(and(
       isNull(s.shipments.deletedAt),
       or(
-        sql`regexp_replace(${s.shipments.blNumber}, '[^0-9]', '', 'g') ilike ${`%${digits}%`}`,
-        sql`regexp_replace(${s.shipments.bookingRef}, '[^0-9]', '', 'g') ilike ${`%${digits}%`}`,
+        sql`regexp_replace(${s.shipments.blNumber}, '[^0-9]', '', 'g') ilike ${billDigitsNeedle(digits)}`,
+        sql`regexp_replace(${s.shipments.bookingRef}, '[^0-9]', '', 'g') ilike ${billDigitsNeedle(digits)}`,
       ) as SQL,
     ))
     .orderBy(desc(s.shipments.createdAt), desc(s.shipments.id))

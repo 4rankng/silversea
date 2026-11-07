@@ -12,7 +12,8 @@ import {
   listDepositTrackers, createDepositTracker, updateDepositTrackerDates, markDepositRefunded, normalizeDepositDate,
   getDepositWeeklySummary,
 } from '../services/deposit-refund-tracker.service';
-import { findBillSuggestions, parseBillDigits } from '../services/bill-book-search.service';
+import { findBillSuggestions } from '../services/bill-book-search.service';
+import { parseBillDigits } from '../services/bill-digit-match';
 
 const router = Router()
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {

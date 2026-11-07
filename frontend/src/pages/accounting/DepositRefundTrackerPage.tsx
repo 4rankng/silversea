@@ -386,7 +386,7 @@ function CreateForm({ onSaved }: {
   });
   return (
     <form className="deposit-tracker-form" onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }}>
-      <FormGroup label="Tra cứu Bill (4 số cuối)" helpText="Gõ 4 số cuối số Bill/Booking để chọn nhanh lô hàng.">
+      <FormGroup label="Tra cứu Bill (4 số cuối)" helpText="Gõ 4 số cuối của Số Bill hoặc Số Booking để chọn nhanh lô hàng.">
         <input
           className="input"
           value={billLookup}
@@ -423,7 +423,7 @@ function CreateForm({ onSaved }: {
           </li>
         )}
         {billLookup.length === 4 && !suggestionQuery.isError && !suggestionQuery.isPending && (suggestionQuery.data ?? []).length === 0 && (
-          <li className="bill-suggestions__no-match">Không có lô hàng nào kết thúc bằng {billLookup}. Nhập tay bên dưới.</li>
+          <li className="bill-suggestions__no-match">Không có lô hàng nào khớp {billLookup} trong Số Bill/Số Booking. Nhập tay bên dưới.</li>
         )}
       </ul>
       <FormGroup label="Số Bill"><input className="input" value={billNumber} onChange={(event) => { setBillNumber(event.target.value); setShipmentId(null); }} required maxLength={80} /></FormGroup>
