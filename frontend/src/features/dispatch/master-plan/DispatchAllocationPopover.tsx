@@ -8,6 +8,7 @@ import {
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { CloseButton } from '../../../components/untitled-ui/base/buttons/close-button';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
+import { QuickAddVehicleDialog } from '../detailed-plan/QuickAddVehicleDialog';
 import { Modal } from '../../../design-system/Modal';
 import { billBookingReference } from '../../../lib/business-reference';
 import {
@@ -73,6 +74,18 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const hasUserEdited = useRef(false);
+  // SIL-390 (owner law 2026-11-07, KB chương 3) — the carrier cell of each
+  // allocation row carries the "+ Thêm nhanh biển số xe" affordance once that
+  // row has a chosen nhà xe (the fresh row defaults to đội xe nội bộ, so the
+  // affordance is there from the start — same contract as the dispatch
+  // editor's default-OWN row). The plate registers into THAT carrier's
+  // catalog (Xe ngoài API / truck catalog, luật 17/10: cả hai đường nhập
+  // đều lưu danh mục chung); the allocation field-set itself still owns no
+  // plate field — a carrier row can cover several containers.
+  const [quickAddCarrierKey, setQuickAddCarrierKey] = useState<string | null>(null);
+  const quickAddOption = quickAddCarrierKey
+    ? options.find((option) => option.key === quickAddCarrierKey)
+    : undefined;
 
   useEffect(() => {
     let active = true;
@@ -137,9 +150,12 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
 
     window.requestAnimationFrame(() => {
       const rowIndex = targetDay.rows.length;
+      // The row-focus law lands on the row's CARRIER select (the first
+      // button before SIL-390 added the quick-add beside it) — pinned by the
+      // "moves focus into a newly added carrier row" contract.
       const selector = isMultiDay
-        ? `[data-allocation-row="${dayIndex}-${rowIndex}"] button`
-        : `[data-allocation-row="${rowIndex}"] button`;
+        ? `[data-allocation-row="${dayIndex}-${rowIndex}"] button[data-uui-control="select"]`
+        : `[data-allocation-row="${rowIndex}"] button[data-uui-control="select"]`;
       dialogRef.current?.querySelector<HTMLButtonElement>(selector)?.focus();
     });
   };
@@ -157,8 +173,8 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
     window.requestAnimationFrame(() => {
       const nextIndex = Math.max(0, Math.min(rowIndex, targetDay.rows.length - 2));
       const selector = isMultiDay
-        ? `[data-allocation-row="${dayIndex}-${nextIndex}"] button`
-        : `[data-allocation-row="${nextIndex}"] button`;
+        ? `[data-allocation-row="${dayIndex}-${nextIndex}"] button[data-uui-control="select"]`
+        : `[data-allocation-row="${nextIndex}"] button[data-uui-control="select"]`;
       dialogRef.current?.querySelector<HTMLButtonElement>(selector)?.focus();
     });
   };
@@ -378,6 +394,7 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
               onUpdateRow={updateRow}
               onAddRow={addRow}
               onRemoveRow={removeRow}
+              onQuickAddCarrier={setQuickAddCarrierKey}
             />
           );
           globalRowOffset += day.rows.length;
@@ -411,6 +428,20 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
         </div>
         {error && (
           <div className="dispatch-allocation-popover__notice is-error" role="alert">{error}</div>
+        )}
+
+        {/* SIL-390 — the quick-add dialog registers the plate into the chosen
+            row's carrier catalog and closes; the allocation draft is untouched
+            (the created plate joins that carrier's fleet, selectable later in
+            Kế hoạch Chi tiết — the surface that owns a cont lot's plate). */}
+        {quickAddOption && (
+          <QuickAddVehicleDialog
+            isOpen
+            carrierId={quickAddOption.carrierType === 'EXTERNAL' ? quickAddOption.externalCarrierId ?? null : null}
+            carrierName={quickAddOption.carrierType === 'OWN' ? 'SilverSea — xe nội bộ' : quickAddOption.label}
+            onClose={() => setQuickAddCarrierKey(null)}
+            onCreated={() => setQuickAddCarrierKey(null)}
+          />
         )}
 
         <div className="dispatch-allocation-popover__actions">

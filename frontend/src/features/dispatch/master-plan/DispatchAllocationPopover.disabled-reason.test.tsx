@@ -149,7 +149,7 @@ describe('DispatchAllocationPopover disabled reasons (card 20261008_1 sweep)', (
       isOver: false, isComplete: false, state: 'partial', rowIssues: [], errors: [],
     } as never;
     const noop = vi.fn();
-    const base = { day, dayIndex: 0, isMultiDay: false, validation, globalRowOffset: 0, onUpdateRow: noop, onAddRow, onRemoveRow: noop };
+    const base = { day, dayIndex: 0, isMultiDay: false, validation, globalRowOffset: 0, onUpdateRow: noop, onAddRow, onRemoveRow: noop, onQuickAddCarrier: noop };
 
     const view = render(<DispatchAllocationDaySection {...base} options={[]} optionsLoading />);
     const loading = screen.getByRole('button', { name: /Thêm nhà xe/ });

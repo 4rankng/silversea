@@ -68,6 +68,11 @@ export function TripInfoCard(props: TripInfoCardProps) {
   // surface offer the new row without a reload.
   const [quickAddVehicleOpen, setQuickAddVehicleOpen] = React.useState(false);
   const [quickAddDriverOpen, setQuickAddDriverOpen] = React.useState(false);
+  // SIL-390 (owner law 2026-11-07, KB chương 3): ONE vehicle dialog serves
+  // both the own-fleet tractor picker and the XE NGOÀI plate field — the
+  // target picked at open time decides the registration path (own → truck
+  // catalog; external → that đối tác's Xe ngoài catalog, luật 17/10).
+  const [quickAddVehicleTarget, setQuickAddVehicleTarget] = React.useState<'own' | 'external'>('own');
   const refreshCatalogs = () => void invalidateAllCatalogs(queryClient);
   const filledContainerTypeIds = form.containerRows
     .map(row => row.containerTypeId)
@@ -201,7 +206,7 @@ export function TripInfoCard(props: TripInfoCardProps) {
                   <button
                     type="button"
                     className="tc-field-quick-add"
-                    onClick={() => setQuickAddVehicleOpen(true)}
+                    onClick={() => { setQuickAddVehicleTarget('own'); setQuickAddVehicleOpen(true); }}
                     disabled={props.loading}
                   >
                     <Plus size={14} aria-hidden="true" />Thêm nhanh
@@ -260,7 +265,27 @@ export function TripInfoCard(props: TripInfoCardProps) {
                   mono
                 />
               </Field>
-              <Field label="Biển số xe" controlId="externalPlateNumber">
+              {/* SIL-390 (owner law 2026-11-07, KB chương 3) — the XE NGOÀI
+                  branch regains the quick-add: once a đối tác is chosen, the
+                  shared affordance rides the Biển số xe field head (same shape
+                  as the own-branch selectors) and registers the plate into
+                  that đối tác's Xe ngoài catalog — the created plate fills the
+                  free-text field instead of a picker, because a trip's external
+                  plate stays free text on the wire. */}
+              <Field
+                label="Biển số xe"
+                controlId="externalPlateNumber"
+                action={form.externalCarrierId != null && (
+                  <button
+                    type="button"
+                    className="tc-field-quick-add"
+                    onClick={() => { setQuickAddVehicleTarget('external'); setQuickAddVehicleOpen(true); }}
+                    disabled={props.loading}
+                  >
+                    <Plus size={14} aria-hidden="true" />Thêm nhanh
+                  </button>
+                )}
+              >
                 <input
                   id="externalPlateNumber"
                   name="externalPlateNumber"
@@ -342,16 +367,25 @@ export function TripInfoCard(props: TripInfoCardProps) {
       </div>
 
       {/* FB-066: one dialog per selector, portalled by Modal — closed state
-          mounts nothing. */}
+          mounts nothing. SIL-390: the vehicle dialog also serves the XE NGOÀI
+          plate quick-add — external registers through the đối tác's Xe ngoài
+          API and fills the free-text plate field; own registers a tractor and
+          selects it in the picker. */}
       <QuickAddVehicleDialog
         isOpen={quickAddVehicleOpen}
-        carrierId={null}
-        carrierName="Đội xe nội bộ"
+        carrierId={quickAddVehicleTarget === 'external' ? (form.externalCarrierId ?? null) : null}
+        carrierName={quickAddVehicleTarget === 'external'
+          ? props.carrierCustomers.find((c) => c.id === form.externalCarrierId)?.label ?? 'Đối tác vận chuyển'
+          : 'Đội xe nội bộ'}
         onClose={() => setQuickAddVehicleOpen(false)}
-        onCreated={(vehicleId) => {
+        onCreated={(vehicleId, licensePlate) => {
           setQuickAddVehicleOpen(false);
-          form.setTruckId(String(vehicleId));
-          refreshCatalogs();
+          if (quickAddVehicleTarget === 'external') {
+            form.setExternalPlateNumber(licensePlate);
+          } else {
+            form.setTruckId(String(vehicleId));
+            refreshCatalogs();
+          }
         }}
       />
       <QuickAddDriverDialog

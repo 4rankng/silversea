@@ -230,6 +230,19 @@
   min-width: 0;
 }
 
+/* SIL-390 (owner law 2026-11-07) — the carrier cell carries the shared
+   quick-add affordance: select grows, the button keeps its own width and
+   rides the input line (same vocabulary as the LCL field-set's head row). */
+.dispatch-allocation-popover__carrier-quick {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.dispatch-allocation-popover__carrier-quick .dispatch-allocation-popover__carrier {
+  flex: 1 1 auto;
+}
+
 .dispatch-allocation-popover__control {
   text-align: left;
 }

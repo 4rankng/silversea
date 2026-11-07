@@ -1,0 +1,19 @@
+2026-11-07T06:25:42.219Z login — {"user":"dieuvan","url":"http://localhost:7194/dispatch"}
+2026-11-07T06:25:44.832Z grid filtered to 25/11 — target lot R4B-F3-021031551 in view — {}
+2026-11-07T06:25:45.145Z FCL allocation dialog open — {"lot":"R4B-F3-021031551"}
+2026-11-07T06:25:45.947Z quick-add visible beside Nhà xe dòng 1 (OWN default) — {}
+2026-11-07T06:25:46.014Z quick-add dialog open — context SilverSea — xe nội bộ — {}
+2026-11-07T06:25:46.443Z own quick-add applied — dialog closed over the allocation shell — {}
+2026-11-07T06:25:47.813Z external carrier picked for row 1 — {"carrier":"ĐĂNG QUÂN"}
+2026-11-07T06:25:48.486Z quick-add dialog open — context = picked nhà xe — {"context":"Thêm nhanh biển số xeNhà xe: ĐĂNG QUÂNXe được lưu vào danh sách Xe ngoài của nhà"}
+2026-11-07T06:25:48.888Z external quick-add applied — dialog closed — {}
+2026-11-07T06:25:49.559Z DB proof: own plate registered in trucks — {"row":"57|60C-390.23"}
+2026-11-07T06:25:49.635Z DB proof: external plate registered in carrier_fleet_vehicles — {"row":"9|11|61H-390.23"}
+2026-11-07T06:25:51.970Z login — {"user":"admin","url":"http://localhost:7194/config"}
+2026-11-07T06:25:54.571Z no quick-add before đối tác chosen ✓
+2026-11-07T06:25:55.706Z đối tác chosen — {"partner":"ĐĂNG QUÂN"}
+2026-11-07T06:25:56.308Z quick-add visible beside Biển số xe after đối tác chosen ✓
+2026-11-07T06:25:56.466Z quick-add dialog open — context = partner — {}
+2026-11-07T06:25:56.930Z created plate filled the Biển số xe field ✓ — {"tripPlate":"62H-390.23"}
+2026-11-07T06:25:57.278Z DB proof: trip plate registered under the partner — {"row":"10|11|62H-390.23"}
+2026-11-07T06:25:57.278Z ALL SIL-390 UI PROBES PASSED — {}
