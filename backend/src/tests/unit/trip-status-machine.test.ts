@@ -20,7 +20,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner } from '../../services/trip-busy-gate';
+import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner, isSameRigLclSharePartner } from '../../services/trip-busy-gate';
 
 // ── Transition Matrix ──────────────────────────────────────────────────────
 // Which target statuses are valid from each current status?
@@ -410,29 +410,34 @@ describe('Truck availability gate — SIL-602/SIL-631 KẸP pair partner exempti
 // 31/10, NO pair row — 409'd the second "Nhận lệnh" with "Xe đang chạy
 // chuyến…". PRD LoHangKepKetHop §3.2/§7.3 via ruling 602/635: the kẹp
 // exemption must not depend on the pairing step.
-// The declared shape (both DOUBLE, shared driver/day, both one 20' shell) is
-// the second exemption proof. A SINGLE busy row stays blocking (SIL-638 TC1 —
-// two plain lots on one truck never ride together), and the proof is bounded
-// to exactly ONE shape-matching busy row ("its one compatible partner, never
-// a third load") by the service wiring.
-describe('Truck availability gate — SIL-634 declared Kẹp clamp without a pair row', () => {
+// SIL-704: the proof also no longer re-probes the trips' physical container
+// rows — the "bổ sung sau" issue path legitimately issues a declared DOUBLE
+// leg with an untyped `trip_containers` row, and the probe read "not proven"
+// on exactly those pairs, 409ing the second leg again (the same
+// re-verification-clause defect class as SIL-602's trailer clause and
+// SIL-631's pointer stamps). The declaration + shared rig/day IS the pair
+// proof at accept time; the physical 20' law lives at issue time.
+// A SINGLE busy row stays blocking (SIL-638 TC1 — two plain lots on one truck
+// never ride together), and the proof is bounded to exactly ONE
+// shape-matching busy row ("its one compatible partner, never a third load")
+// by the service wiring.
+describe('Truck availability gate — SIL-634/SIL-704 declared Kẹp clamp without a pair row', () => {
   // The staging shape: busy trip 101 (leg 1, IN_TRANSIT), accepting trip 202
-  // (leg 2, CREATED) — both fulfillments DOUBLE, both one 20' shell, same
-  // driver, same departure day, no trip_pairs row anywhere.
+  // (leg 2, CREATED) — both fulfillments DOUBLE, same driver, same departure
+  // day, no trip_pairs row anywhere. Container data is deliberately absent
+  // from the shape: declared-20' stays an issue-time fact (SIL-704).
   const DAY = '2026-10-31';
   const acceptingLegArgs = {
     tripId: 202,
     tripDriverId: 9,
     tripDepartureDate: DAY,
     tripClassification: 'DOUBLE',
-    tripTwentyFootShell: true,
   };
   const stagingCandidate = {
     id: 101,
     driverId: 9,
     departureDate: DAY,
     classification: 'DOUBLE',
-    twentyFootShell: true,
   };
 
   test('REG SIL-634: the unpaired declared kẹp partner is exempt — the second "Nhận lệnh" must not 409', () => {
@@ -446,7 +451,7 @@ describe('Truck availability gate — SIL-634 declared Kẹp clamp without a pai
   test('REG SIL-638 TC1: two plain SINGLE lots on one truck stay blocked', () => {
     assert.strictEqual(
       isDeclaredKepClampPartner(
-        { id: 101, driverId: 9, departureDate: DAY, classification: 'SINGLE', twentyFootShell: true },
+        { id: 101, driverId: 9, departureDate: DAY, classification: 'SINGLE' },
         { ...acceptingLegArgs, tripClassification: 'SINGLE' },
       ),
       false,
@@ -509,17 +514,21 @@ describe('Truck availability gate — SIL-634 declared Kẹp clamp without a pai
     ), false);
   });
 
-  test('a non-20\' shell or a second container on either leg is not the clamp', () => {
-    // The 40' hull cannot share the mooc with a second box; a trip carrying
-    // two container rows is not the one-shell shape the clamp releases.
-    assert.strictEqual(isDeclaredKepClampPartner(
-      { ...stagingCandidate, twentyFootShell: false },
-      acceptingLegArgs,
-    ), false, 'a busy 40\'/multi-container trip stays blocking');
-    assert.strictEqual(isDeclaredKepClampPartner(
-      stagingCandidate,
-      { ...acceptingLegArgs, tripTwentyFootShell: false },
-    ), false, 'a 20\' declaration on a trip without one proven 20\' shell proves nothing');
+  test('REG SIL-704: untyped/unassigned container data never un-makes the declared pair', () => {
+    // The "bổ sung sau" issue path leaves the trip container rows untyped
+    // (no container-type link) or absent entirely. The old probe read that
+    // as "not proven" and 409'd the declared pair's second leg; the
+    // declaration alone carries the accept-time proof now.
+    assert.strictEqual(
+      isDeclaredKepClampPartner(stagingCandidate, acceptingLegArgs),
+      true,
+      'a declared DOUBLE pair with no container-type data must still accept its second leg',
+    );
+    // A declared 40' DOUBLE never existed legally: ensureDeclaredKepContainerSize
+    // hard-blocks it at every dispatch write, so the accept gate has no
+    // "40' hull" shape to protect against anymore — container facts stay at
+    // issue time on purpose (the re-verification clauses are the 602/631/704
+    // defect class).
   });
 
   test('self is never its own partner', () => {
@@ -529,7 +538,7 @@ describe('Truck availability gate — SIL-634 declared Kẹp clamp without a pai
     ), false);
   });
 
-  test('wiring pins: the busy loop consults the declared-clamp proof, bounded to exactly one shape-matching row, with both shells probed', () => {
+  test('wiring pins: the busy loop consults the declared-clamp proof, bounded to exactly one shape-matching row, with no container re-probe (SIL-704)', () => {
     const serviceSource = readFileSync(
       fileURLToPath(new URL('../../services/trip-status-machine.service.ts', import.meta.url)),
       'utf8',
@@ -564,10 +573,14 @@ describe('Truck availability gate — SIL-634 declared Kẹp clamp without a pai
       /eq\(s\.shipmentFulfillments\.id, trip\.fulfillmentId\)/,
       'the accepting leg\'s own declaration must be resolved by its fulfillment',
     );
-    assert.match(
+    // SIL-704: the accept path must not re-probe the trips' physical container
+    // rows — the "bổ sung sau" issue shape (untyped trip_containers row) is a
+    // legal declared pair, and re-verification clauses are the 602/631/704
+    // defect class. The 20' law lives at issue time only.
+    assert.doesNotMatch(
       serviceSource,
       /provesSingleTwentyFootShellTx/,
-      'both shells must be physically probed (exactly one 20\' container row) like the issue-time clamp',
+      'the accept-time declared clamp must not depend on the physical container probe (SIL-704)',
     );
   });
 
@@ -579,28 +592,27 @@ describe('Truck availability gate — SIL-634 declared Kẹp clamp without a pai
   // K4K5346345654) is disproven on live data. The full row shape matches this
   // exemption law exactly, so the pin below freezes the REAL values: both
   // legs' fulfillments DOUBLE, truck/trailer/driver 15E-016.26/1/3 (Nguyễn Duy
-  // Tuấn) shared, one departure day 2026-10-31, both trips proven one 20DC
-  // shell, and NO trip_pairs row. The partner lot's earlier COMBINED
-  // declaration was canceled and re-issued as DOUBLE (fulfillment 353 → 357) —
-  // a canceled predecessor must not disturb the proof (the classification the
-  // gate reads is the LIVE fulfillment's).
+  // Tuấn) shared, one departure day 2026-10-31, and NO trip_pairs row.
+  // SIL-704: the container facts (MNBU0001037/MNBU0001000, both 20DC) are no
+  // longer part of the accept-time proof — container data stays an issue-time
+  // fact, so the shape below carries no container field at all. The partner
+  // lot's earlier COMBINED declaration was canceled and re-issued as DOUBLE
+  // (fulfillment 353 → 357) — a canceled predecessor must not disturb the
+  // proof (the classification the gate reads is the LIVE fulfillment's).
   test('REG SIL-634 re-verify 31/10: the exact staging pair shape (K4K5346345654 + K4K423254356) is exempt', () => {
-    // Busy leg: trip 81 / fulfillment 357 (K4K423254356, MNBU0001037, 20DC,
-    // IN_TRANSIT). Accepting leg: trip 80 / fulfillment 350 (K4K5346345654,
-    // MNBU0001000 — the 1-of-6 container of the import lot, 20DC).
+    // Busy leg: trip 81 / fulfillment 357 (K4K423254356, IN_TRANSIT).
+    // Accepting leg: trip 80 / fulfillment 350 (K4K5346345654).
     const stagingBusyTrip = {
       id: 81,
       driverId: 3, // Nguyễn Duy Tuấn
       departureDate: '2026-10-31',
       classification: 'DOUBLE',
-      twentyFootShell: true, // exactly one trip_containers row, code 20DC
     };
     const acceptingLeg = {
       tripId: 80,
       tripDriverId: 3,
       tripDepartureDate: '2026-10-31',
       tripClassification: 'DOUBLE', // fulfillment 350 — MNBU0001000's own row
-      tripTwentyFootShell: true,
     };
     assert.strictEqual(
       isDeclaredKepClampPartner(stagingBusyTrip, acceptingLeg),
@@ -617,6 +629,110 @@ describe('Truck availability gate — SIL-634 declared Kẹp clamp without a pai
       ),
       false,
       'the canceled COMBINED declaration must never stand in for the live DOUBLE row',
+    );
+  });
+});
+
+// SIL-705 — "cổng lái xe chặn nhận lệnh 2 của chung xe hàng lẻ". Điều vận
+// xếp NHIỀU lô LCL lên một xe trong cùng ngày: plan-row save cho phép cùng
+// rig/cùng ngày ở tầng warn-once ("Đầu xe… đã được gán cho lô/tác vụ khác…
+// Vẫn lưu?") và issue gate phát từng chân trên windows rời nhau. Fulfillment
+// LCL chỉ mang classification 'LCL' (DB check chặn mọi giá trị khác cho
+// LCL_SHIPMENT), nên pair-row (602/631) lẫn declared DOUBLE clamp (634/704)
+// không bao giờ nhận ra sắp xếp này — chân 2 "Nhận lệnh" kẹt 409 sau evidence
+// chưa đủ của chân 1, đúng lệch-hợp-đồng hai gate mà SIL-634 đã sửa cho Kẹp.
+// The share proof mirrors the declared clamp minus the exactly-one bound
+// (consolidation xếp >2 lô là hợp lệ; capacity là gate issue-time). Cả hai
+// chân phải mang 'LCL': ĐƠN nhận lên holder LCL vẫn chặn (TC2), LCL nhận dưới
+// holder DOUBLE/Kết hợp vẫn chặn. Khác lái/khác ngày vẫn chặn.
+describe('Truck availability gate — SIL-705 declared LCL share', () => {
+  const DAY = '2026-10-31';
+  const acceptingLeg = {
+    tripId: 302,
+    tripDriverId: 9,
+    tripDepartureDate: DAY,
+    tripClassification: 'LCL',
+  };
+  const holder = { id: 201, driverId: 9, departureDate: DAY, classification: 'LCL' };
+
+  test('REG SIL-705: the same-rig same-day LCL holder is exempt — the second "Nhận lệnh" must not 409', () => {
+    assert.strictEqual(
+      isSameRigLclSharePartner(holder, acceptingLeg),
+      true,
+      'the LCL consolidation the dispatcher stacked on this rig must never block its own second leg',
+    );
+    // Untyped container rows are the LCL norm (mỗi LCL trip sinh 1 row
+    // trip_containers không type) — không có field container nào trong proof.
+  });
+
+  test('a plain ĐƠN accepting onto an LCL holder stays blocking (TC2)', () => {
+    assert.strictEqual(isSameRigLclSharePartner(
+      holder,
+      { ...acceptingLeg, tripClassification: 'SINGLE' },
+    ), false, 'the busy LCL row keeps blocking a plain ĐƠN leg');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, classification: 'SINGLE' },
+      acceptingLeg,
+    ), false, 'an LCL accepting leg keeps blocking behind a ĐƠN holder');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, classification: 'DOUBLE' },
+      acceptingLeg,
+    ), false, 'Kẹp legs stay with the declared-clamp proof, never the LCL share');
+    assert.strictEqual(isSameRigLclSharePartner(
+      holder,
+      { ...acceptingLeg, tripClassification: 'DOUBLE' },
+    ), false, 'a Kẹp accepting leg never rides the LCL share exemption');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, classification: 'COMBINED' },
+      { ...acceptingLeg, tripClassification: 'COMBINED' },
+    ), false, 'KẾT_HỢP legs are sequential — the sequencing gate stays the sole owner');
+  });
+
+  test('driver drift and day drift stay blocking', () => {
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, driverId: 10 },
+      acceptingLeg,
+    ), false, 'out-of-band driver drift stays blocking');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, driverId: null },
+      acceptingLeg,
+    ), false, 'an unassigned busy row proves nothing');
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, departureDate: '2026-11-01' },
+      acceptingLeg,
+    ), false, 'another day is another run — the old law keeps it blocking');
+    assert.strictEqual(isSameRigLclSharePartner(
+      holder,
+      { ...acceptingLeg, tripDepartureDate: null },
+    ), false, 'a missing departure day keeps the conservative block');
+  });
+
+  test('self is never its own partner', () => {
+    assert.strictEqual(isSameRigLclSharePartner(
+      { ...holder, id: 302 },
+      acceptingLeg,
+    ), false);
+  });
+
+  test('wiring pins: the busy loop consults the LCL share predicate and the accepting declaration', () => {
+    const serviceSource = readFileSync(
+      fileURLToPath(new URL('../../services/trip-status-machine.service.ts', import.meta.url)),
+      'utf8',
+    );
+    assert.match(
+      serviceSource,
+      /isSameRigLclSharePartner\(/,
+      'the status machine must consult the SIL-705 LCL share predicate',
+    );
+    assert.match(
+      serviceSource,
+      /declaredLclExempt\.has\(candidate\.id\)/,
+      'the busy-trip loop must skip the exempted LCL share holders before the running-day check',
+    );
+    assert.match(
+      serviceSource,
+      /fulfillmentClassification === 'LCL'/,
+      'the LCL share scan must key on the LCL dispatch classification',
     );
   });
 });

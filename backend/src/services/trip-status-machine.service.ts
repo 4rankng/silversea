@@ -7,7 +7,7 @@ import * as s from '../db/schema';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { eq, and, isNull, ne, or, sql } from 'drizzle-orm';
 import { TripStatus, Role, localDateInBusinessZone } from '@tingting/shared';
-import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner } from './trip-busy-gate';
+import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner, isSameRigLclSharePartner } from './trip-busy-gate';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -43,21 +43,6 @@ export function assertCompletionNotBeforeDeparture(
   const dep = typeof departureDate === 'string' ? departureDate.slice(0, 10) : departureDate.toISOString().slice(0, 10);
   const vnDate = new Date(completedAt.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
   if (vnDate < dep) throw new ApiError(400, 'Ngày hoàn thành không thể trước ngày khởi hành.');
-}
-
-/**
- * SIL-634 — the issue-time clamp's physical container probe: a trip "proves a
- * 20' shell" when it carries exactly one tripContainers row and that row's
- * container-type code starts with '20'. Same shape as the Kẹp carve-outs in
- * assertResourceAvailability (dispatch-resource-availability.service.ts); a
- * missing type link or a second container reads as NOT proven.
- */
-async function provesSingleTwentyFootShellTx(tx: Tx, tripRowId: number): Promise<boolean> {
-  const containers = await tx.select({ code: s.containerTypes.code })
-    .from(s.tripContainers)
-    .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
-    .where(eq(s.tripContainers.tripId, tripRowId));
-  return containers.length === 1 && (containers[0].code?.startsWith('20') ?? false);
 }
 
 export async function transitionTripStatus(
@@ -276,41 +261,68 @@ export async function transitionTripStatus(
       // clamp: exactly ONE shape-matching busy row ("its one compatible
       // partner, never a third load" — the issue-time partner pick requires
       // `conflicts.length === 1`), both sides DOUBLE, shared driver, shared
-      // departure day, both proven one 20' shell. A SINGLE busy row (SIL-638
-      // TC1) or any shape mismatch keeps blocking.
+      // departure day. SIL-704: no container-row re-probe here — the
+      // "bổ sung sau" issue path legitimately leaves the trip container rows
+      // untyped, and re-verifying issue-time facts at accept time is the
+      // SIL-602/SIL-631 defect class. A SINGLE busy row (SIL-638 TC1) or any
+      // shape mismatch keeps blocking.
       const declaredClampCandidates = busyTrips.filter((candidate) =>
         candidate.fulfillmentClassification === 'DOUBLE'
         && candidate.driverId != null && candidate.driverId === trip.driverId
         && candidate.departureDate != null && candidate.departureDate !== ''
         && candidate.departureDate === trip.departureDate);
+      // SIL-705: the declared LCL share — same-rig same-day LCL legs the
+      // dispatcher stacked on this rig (plan tier allows with warn-once).
+      // Not bounded to one: consolidation stacks several lots; capacity is
+      // an issue-time gate. Requires the accepting leg's own 'LCL'.
+      const sameRigLclCandidates = busyTrips.filter((candidate) =>
+        candidate.fulfillmentClassification === 'LCL'
+        && candidate.driverId != null && candidate.driverId === trip.driverId
+        && candidate.departureDate != null && candidate.departureDate !== ''
+        && candidate.departureDate === trip.departureDate);
       const declaredClampExempt = new Set<number>();
-      if (trip.fulfillmentId != null && declaredClampCandidates.length === 1) {
+      const declaredLclExempt = new Set<number>();
+      if (trip.fulfillmentId != null
+        && (declaredClampCandidates.length === 1 || sameRigLclCandidates.length > 0)) {
         const [ownFulfillment] = await tx.select({ classification: s.shipmentFulfillments.dispatchClassification })
           .from(s.shipmentFulfillments)
           .where(eq(s.shipmentFulfillments.id, trip.fulfillmentId))
           .limit(1);
-        if (ownFulfillment?.classification === 'DOUBLE') {
-          const ownTwentyFootShell = await provesSingleTwentyFootShellTx(tx, tripId);
-          if (ownTwentyFootShell) {
-            const candidateId = declaredClampCandidates[0].id;
-            const candidateTwentyFootShell = await provesSingleTwentyFootShellTx(tx, candidateId);
-            if (isDeclaredKepClampPartner(
+        if (ownFulfillment?.classification === 'DOUBLE'
+          && declaredClampCandidates.length === 1
+          && isDeclaredKepClampPartner(
+            {
+              id: declaredClampCandidates[0].id,
+              driverId: declaredClampCandidates[0].driverId,
+              departureDate: declaredClampCandidates[0].departureDate,
+              classification: declaredClampCandidates[0].fulfillmentClassification,
+            },
+            {
+              tripId,
+              tripDriverId: trip.driverId,
+              tripDepartureDate: trip.departureDate,
+              tripClassification: ownFulfillment.classification,
+            },
+          )) {
+          declaredClampExempt.add(declaredClampCandidates[0].id);
+        }
+        if (ownFulfillment?.classification === 'LCL') {
+          for (const candidate of sameRigLclCandidates) {
+            if (isSameRigLclSharePartner(
               {
-                id: candidateId,
-                driverId: declaredClampCandidates[0].driverId,
-                departureDate: declaredClampCandidates[0].departureDate,
-                classification: declaredClampCandidates[0].fulfillmentClassification,
-                twentyFootShell: candidateTwentyFootShell,
+                id: candidate.id,
+                driverId: candidate.driverId,
+                departureDate: candidate.departureDate,
+                classification: candidate.fulfillmentClassification,
               },
               {
                 tripId,
                 tripDriverId: trip.driverId,
                 tripDepartureDate: trip.departureDate,
                 tripClassification: ownFulfillment.classification,
-                tripTwentyFootShell: ownTwentyFootShell,
               },
             )) {
-              declaredClampExempt.add(candidateId);
+              declaredLclExempt.add(candidate.id);
             }
           }
         }
@@ -328,6 +340,9 @@ export async function transitionTripStatus(
         // SIL-634: the unpaired declared kẹp partner — both legs DOUBLE, same
         // driver/day, both 20' (see isDeclaredKepClampPartner).
         if (declaredClampExempt.has(candidate.id)) continue;
+        // SIL-705: the declared LCL share — same-rig same-day LCL legs (see
+        // isSameRigLclSharePartner).
+        if (declaredLclExempt.has(candidate.id)) continue;
         if (!isTripRunningOnDepartureDay(candidate.departureDate, todayInBusinessZone)) continue;
         const evidence = await getDriverCompletionEvidenceStatus(candidate.id, tx);
         if (!evidence.ready) blockingTrips.push(candidate);

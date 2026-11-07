@@ -109,9 +109,21 @@ export function isActiveKepPairPartner(
  * declaration: a SINGLE busy row stays blocking (SIL-638 TC1 — two plain lots
  * on one truck never ride together), and so does a SINGLE accepting leg.
  *
+ * SIL-704: this proof no longer re-probes the trips' physical container rows.
+ * The probe was a THIRD re-verification clause of an arrangement the issue-time
+ * gates already vetted — the same defect class as SIL-602's trailer clause and
+ * SIL-631's pointer stamps. The "bổ sung sau" issue path legitimately issues a
+ * declared DOUBLE leg with an untyped `trip_containers` row (no container-type
+ * link yet), so the probe read "not proven" on exactly those pairs and 409'd
+ * the second "Nhận lệnh". The physical 20' law keeps living where it gates NEW
+ * arrangements: the issue-time clamp (`dispatch-resource-availability.service.ts`)
+ * probes there, and `ensureDeclaredKepContainerSize` hard-blocks a declared
+ * non-20' DOUBLE at every dispatch write.
+ *
  * Deliberately NOT part of this proof:
  *  - the mooc/trailer — superseded by SIL-602 (card 211026152138, not part of
  *    the pair contract);
+ *  - the container rows' size/type — superseded by SIL-704 (see above);
  *  - the 2×20' weight sum — the issue-time clamp owns that gate (it already
  *    passed for both legs to exist); the pair-row proof doesn't re-check it
  *    either;
@@ -119,10 +131,6 @@ export function isActiveKepPairPartner(
  *    compatible partner, never a third load": the caller bounds this proof to
  *    exactly one shape-matching candidate, mirroring the issue-time
  *    `conflicts.length === 1` partner pick.
- *
- * `twentyFootShell` flags are the caller's DB probe result: exactly one
- * tripContainers row and its container-type code starts with '20' — the same
- * physical probe the issue-time clamp runs.
  */
 export interface DeclaredKepClampCandidateRow {
   id: number;
@@ -130,8 +138,6 @@ export interface DeclaredKepClampCandidateRow {
   departureDate: string | null;
   /** The candidate fulfillment's own dispatch classification. */
   classification: string | null | undefined;
-  /** Caller-proven: this trip carries exactly one 20' shell. */
-  twentyFootShell: boolean;
 }
 
 export function isDeclaredKepClampPartner(
@@ -141,13 +147,50 @@ export function isDeclaredKepClampPartner(
     tripDriverId: number | null | undefined;
     tripDepartureDate: string | null | undefined;
     tripClassification: string | null | undefined;
-    /** Caller-proven: the accepting trip carries exactly one 20' shell. */
-    tripTwentyFootShell: boolean;
   },
 ): boolean {
   if (candidate.id === args.tripId) return false;
   if (args.tripClassification !== 'DOUBLE' || candidate.classification !== 'DOUBLE') return false;
-  if (!args.tripTwentyFootShell || !candidate.twentyFootShell) return false;
+  if (args.tripDriverId == null || candidate.driverId == null) return false;
+  if (candidate.driverId !== args.tripDriverId) return false;
+  if (args.tripDepartureDate == null || args.tripDepartureDate === '') return false;
+  if (candidate.departureDate == null || candidate.departureDate === '') return false;
+  return candidate.departureDate === args.tripDepartureDate;
+}
+
+/**
+ * SIL-705: the DECLARED LCL share — the third exemption shape of the
+ * truck-busy gate. Điều vận may stack several Hàng lẻ (LCL) lots on ONE rig
+ * for one business day: the plan-row save allows the same-rig same-day share
+ * on the confirmable warn tier ("Đầu xe… đã được gán cho lô/tác vụ khác
+ * trong khung giờ trùng lặp. Vẫn lưu?"), and the issue gate issues each leg
+ * on non-overlapping windows. LCL fulfillments carry the dedicated 'LCL'
+ * dispatch classification (the DB check constrains LCL_SHIPMENT rows to it),
+ * so neither the pair-row proof (SIL-602/631) nor the declared DOUBLE clamp
+ * (SIL-634/704) can ever recognize the arrangement — the second "Nhận lệnh"
+ * stayed 409-blocked behind the first lot's still-running evidence, the
+ * exact accept-tier issue-tier mismatch SIL-634 fixed for Kẹp.
+ *
+ * The share proof mirrors the declared clamp minus the exactly-one bound:
+ * consolidation legitimately stacks MORE than two lots on one rig/day (the
+ * truck-busy scan already filters to the same truck), and the 2×20' physical
+ * law has no LCL analogue — capacity stays an issue-time gate. Both legs
+ * must carry the 'LCL' declaration: a plain ĐƠN (SINGLE) accepting onto an
+ * LCL holder keeps blocking (TC2's law), and so does an LCL leg accepting
+ * under a DOUBLE/Kết hợp holder. Shared driver + shared departure day stay
+ * mandatory; driver drift stays blocking.
+ */
+export function isSameRigLclSharePartner(
+  candidate: DeclaredKepClampCandidateRow,
+  args: {
+    tripId: number;
+    tripDriverId: number | null | undefined;
+    tripDepartureDate: string | null | undefined;
+    tripClassification: string | null | undefined;
+  },
+): boolean {
+  if (candidate.id === args.tripId) return false;
+  if (args.tripClassification !== 'LCL' || candidate.classification !== 'LCL') return false;
   if (args.tripDriverId == null || candidate.driverId == null) return false;
   if (candidate.driverId !== args.tripDriverId) return false;
   if (args.tripDepartureDate == null || args.tripDepartureDate === '') return false;
