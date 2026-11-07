@@ -117,6 +117,10 @@ export function DispatchAllocationDaySection({
                   wrapperClassName="dispatch-allocation-popover__carrier"
                   controlClassName="dispatch-allocation-popover__control"
                   popoverClassName="dispatch-allocation-popover__carrier-dropdown ds-uui-select__popover"
+                  /* SIL-707 r2 (QA 07/11) — open UPWARD: a row-1 picker must
+                     never cover the row below's combobox or escape the dialog's
+                     bottom edge (no-overlap doctrine). */
+                  popoverPlacement="top"
                   value={row.carrierKey}
                   onChange={(event) => onUpdateRow(dayIndex, rowIndex, { carrierKey: event.target.value })}
                   hint={issue?.carrier ?? (optionsLoading ? 'Đang tải danh sách nhà xe…' : undefined)}

@@ -1,0 +1,76 @@
+# K10 four-fails — UI drive log (local dev, worktree k10-fix, branch fix/k10-four-fails)
+
+- Date: 07–08/11/2026. Stack: backend :3001 (`make dev` DB containers ss-prod-db/ss-prod-redis reused —
+  fixed container names collide across checkouts, compose step skipped; data = local dev DB on :5441).
+  Frontend :7175 (vite, `VITE_API_PROXY_TARGET=http://localhost:3001`).
+- Accounts (password Abc123): hoapt (Phạm Thị Hòa, ACCOUNTANT, userId 9) · bqhuong (Bùi Quang Hường,
+  DRIVER, userId 33, driver 11) · dungnv (Nguyễn Văn Dũng, DISPATCHER, userId 15). Token injection per
+  puppeteer-spa-auth (localStorage key `token` before SPA navigation).
+- Each drive: real control clicked; DOM/text assertion + DB side-effect captured below. Screenshots are
+  attached in the orchestrator transcript (Paseo browser capture); this log is the driver record.
+
+## SIL-731 — DOANH THU lô chưa chốt để TRỐNG (lô 100GX19033, shipment id 121)
+- hoapt → /shipments-debit. Row `100GX19033` column mapping (headers: Mã lô / Tờ khai / Nhà máy / Chứng từ
+  / **Doanh thu (₫)** / Cước trả / Chi nội địa / Tổng chi / LN gộp / Trạng thái):
+  cells = ["100GX19033","—","—","Thiếu 1 C/T","","","120.000","","","Đang mở"].
+- Doanh thu cell textContent = '' (EMPTY) — before fix: '0' + title 'Phát sinh nhưng tổng bằng 0'.
+- Zero-tooltip count in row: 0. Page-wide: unfinalized lots render bare empty cells (snapshot + fullpage screenshot).
+- DB identity (unchanged by drive): shipment 121 READY_FOR_DISPATCH, 0 trips; ops_expense_entries id=4
+  amount=120000 customer_charge_amount=0; freight_rate_snapshots id=110 (dummy unpriced, carved out by r1).
+- BE unit: receivableDetermined 6/6 (ops-0 + ps-0 not arming; freight-0 + revenue rows stay armed → D02 zero).
+- VERDICT: PASS (rung 3 for the changed cell; read-only).
+
+## SIL-733 — Hoàn tất lệnh không chặn vì thiếu ảnh/chứng từ (FE decouple)
+- bqhuong → /my-trips/779101 (SIL704-kep_unpaired-1793984349668, IN_TRANSIT, 'Đang chạy',
+  **Chứng từ 0/2, Ảnh 0/3**, planned 16/11/2026).
+- Clicked sticky CTA 'Hoàn tất lệnh vận chuyển' → confirm dialog 'Xác nhận hoàn tất lệnh vận chuyển?' → [Hoàn tất].
+- Result toast (role=log): **'Ngày hoàn thành không thể trước ngày khởi hành.'** — the ONLY refusal is the
+  date rule. The pod gate toast ('Chưa đủ chứng từ giao hàng… trước khi nộp', BE submitPod 409) did NOT fire.
+- Repeat with a DRAFT present: opened /my-trips/779101/pod, a file attach attempt created **trip_pod_submissions
+  id=69 DRAFT v1 (0/2 files)** (fixture upload itself was rejected by the e-POD image pipeline — 8×8 png too
+  small; pending queue cleared via 'Bỏ tệp chưa gửi'). Re-drove the CTA with the incomplete DRAFT present →
+  same date-only toast → skip-submit branch exercised live (submitPod not called).
+- DB after both attempts: trips.id=779101 status IN_TRANSIT version 2 (unchanged); submission 69 still DRAFT,
+  submitted_at NULL, 0 files. Nothing frozen, nothing completed (read-only verification of the gate removal;
+  the date rule is BE law outside this ticket's scope).
+- FE unit pins: DriverTripDetailPage.test 67/67 (zero-file draft → completeTrip without submitPod; half-file
+  draft same; TC9 both-files → submitPod then completeTrip unchanged).
+- VERDICT: PASS (rung 3; completion-with-0-photo full success not executed — date rule refuses future
+  departure by BE law; the pod gate removal is the changed path and is proven end-to-end).
+
+## SIL-707 — picker chọn nhà xe không đè dòng dưới (popoverPlacement top)
+- dungnv → /dispatch → search DNKM13336 → 'Phân bổ nhà xe' → '+ Thêm nhà xe' (2 rows) → open picker row 1
+  ('Nhà xe dòng 1', 28 options incl. empty slot).
+- Measured (1440×900): overlay `.uui-select-popover` data-placement="top", --popover-fit 320px, computed
+  max-height 320px, rect top=174 bottom=494. Row 2 combobox ('ĐĂNG QUÂN') rect 556–580 →
+  **overlapRow2=false**, belowDialogBottom=false. Last option 'Gaya Container Lines' reachable+visible after
+  scroll (scrollIntoView check), options=28.
+- Screenshot: dialog with picker ABOVE row 1, row-2 combobox fully visible (transcript attachment).
+- Mobile 390×844: placement top, height 320, pop 68–388; row 1 399–428; row 2 534–564 overlapRow2=false,
+  belowDialog=false.
+- Unit pins: popover.fit.test (fitAboveMaxHeight mirror law 7/7) + DispatchAllocationCarrierPopover.
+  sil707.styles.test (placement wiring pins) — all green.
+- VERDICT: PASS (rung 3, both widths).
+
+## SIL-708 — Hủy phân xe chạy với xe ngoài (payload nhà xe trung tính)
+- dungnv → /dispatch-detail (Tháng 10/2026) → search KK95249354 (shipment 147, fulfillment 196, trip 362
+  CREATED = 'Đã phát lệnh', EXTERNAL carrier 11 ĐĂNG QUÂN, plate 15C-222.22, fulfillment ver 7 / trip ver 2).
+- Row ⋯ menu → 'Hủy phân xe' → confirm dialog ('Bạn có chắc chắn muốn hủy phân xe cho lô KK95249354?…') → confirm.
+- Result: NO error toast, NO 'Không thể lưu kế hoạch' banner; counters flip to 'Chưa gán xe 1 / Đã gán xe 0';
+  row shows the unassigned state.
+- DB: shipment_fulfillments 196 → planned_carrier_type=OWN, planned_external_carrier_id NULL,
+  planned_vehicle_plate_number NULL, version 7→8. trips 362 → CANCELED v3 (expected: hủy phân xe cancels the
+  live trip; this is the same result QA got on the internal lot R3K-KH1).
+- Before fix this exact flow returned BE 400 'Nhà xe ngoài là bắt buộc.' + red banner, fulfillment stayed EXTERNAL.
+- Unit pin: DispatchDetailPlanPage.test SIL-708 (external row → savePlan { carrierType:'OWN', clearVehicle:true }) — green.
+- VERDICT: PASS (rung 3, DB side-effect captured).
+- Restore note: full pre-drive restore (re-assign ĐĂNG QUÂN 15C-222.22 + 'Phát lệnh') rides the LCL plate-group
+  flow ('BKS nhóm' shared with shipment 150) — left 147 in the legitimate post-cancel 'Chưa phân xe' state
+  (trip 362 canceled, group BKS intact via lot 150). Same end-state class QA itself left on R3Q-680-B.
+
+## Gates
+- FE tsc -b: 0 errors. BE tsc --noEmit: 0 errors.
+- BE unit suite: 1037/1037 pass (incl. new arming pins).
+- FE full suite: see drive session (k10-fe-full-tests) — result recorded on the board comment.
+- Scoped suites: DriverTripDetailPage 67/67 · DispatchDetailPlanPage + detailed-plan 527/527 · sil707 styles +
+  popover.fit 31/31 · arming 6/6.

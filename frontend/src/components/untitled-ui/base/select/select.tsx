@@ -2,7 +2,7 @@
 import type { FC, ReactNode, RefAttributes } from "react";
 import { isValidElement, useEffect, useRef } from "react";
 import { ChevronDown } from "@untitledui/icons";
-import type { SelectProps as AriaSelectProps } from "react-aria-components";
+import type { SelectProps as AriaSelectProps, PopoverProps } from "react-aria-components";
 import { Button as AriaButton, ListBox as AriaListBox, Select as AriaSelect, SelectValue as AriaSelectValue } from "react-aria-components";
 import { Avatar } from "@/components/untitled-ui/base/avatar/avatar";
 import { HintText } from "@/components/untitled-ui/base/input/hint-text";
@@ -19,6 +19,8 @@ export { SelectContext, sizes, type CommonProps, type SelectItemType } from "./s
 export interface SelectProps extends Omit<AriaSelectProps<SelectItemType>, "children" | "items">, RefAttributes<HTMLDivElement>, CommonProps {
     items?: SelectItemType[];
     popoverClassName?: string;
+    /** SIL-707 r2 — pin the options overlay ABOVE the trigger (see ComboBox). */
+    popoverPlacement?: PopoverProps["placement"];
     /** Extra classes for the trigger button — the element that actually renders the visible boundary. */
     triggerClassName?: string;
     icon?: FC | ReactNode;
@@ -155,7 +157,7 @@ const Select = ({ placeholder = "Select", icon, size = "md", children, items, la
                             spread is not guaranteed to carry it. */}
                         <SelectValue {...state} isInvalid={rest.isInvalid} {...{ size, placeholder }} icon={icon} triggerClassName={rest.triggerClassName} />
 
-                        <Popover size={size} triggerRef={triggerRef} className={rest.popoverClassName}>
+                        <Popover size={size} triggerRef={triggerRef} placement={rest.popoverPlacement} className={rest.popoverClassName}>
                             <AriaListBox items={items} className="size-full outline-hidden">
                                 {children}
                             </AriaListBox>
