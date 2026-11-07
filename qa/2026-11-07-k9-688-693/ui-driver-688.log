@@ -1,0 +1,18 @@
+
+=== SIL-688 r4 UI drive 2026-11-07T13:56:09.342Z ===
+2026-11-07T13:56:12.304Z login admin: OK
+2026-11-07T13:56:12.531Z login tiepvv: OK
+2026-11-07T13:56:13.328Z login dieuvan: OK
+2026-11-07T13:56:31.952Z ASSERT PASS — CUS detail: Xóa lô armed trên lô IN_TRANSIT chưa phát lệnh (779166) — button={"disabled":false,"aria":"Xóa lô"}
+2026-11-07T13:56:32.103Z shot qa/2026-11-07-k9-688-693/688-01-cus-detail-armed-1440.png
+2026-11-07T13:56:32.892Z ASSERT PASS — CUS detail: confirm modal mở
+2026-11-07T13:57:02.970Z ASSERT PASS — confirm reason bắt buộc (nút enable sau khi nhập lý do) — after=false
+2026-11-07T13:57:04.841Z ASSERT PASS — toast "Đã xóa lô hàng." hiện
+2026-11-07T13:57:05.038Z ASSERT PASS — GET sau xóa → 404 — status=404
+2026-11-07T13:57:11.240Z ASSERT PASS — danh sách /shipments: hàng có nút Chi tiết (mở drawer)
+2026-11-07T13:57:12.648Z ASSERT PASS — drawer danh sách: nút Xóa lô có cho CUS — {"disabled":false,"aria":"Xóa lô"}
+2026-11-07T13:57:28.303Z ASSERT PASS — quyết toán /shipments-debit: menu "…" có mục Xóa lô cho CUS
+2026-11-07T13:57:35.337Z ASSERT PASS — Điều vận (dieuvan): KHÔNG có nút Xóa lô trên chi tiết lô
+2026-11-07T13:57:35.564Z ASSERT PASS — Điều vận: API DELETE → 403 — delete=403
+2026-11-07T13:57:42.688Z ASSERT PASS — Admin trên lô đã phát lệnh (779171): Xóa lô disabled + lý do luật — {"disabled":true,"aria":"Xóa lô — Chỉ xóa được khi mọi container chưa phát lệnh"}
+2026-11-07T13:57:43.082Z == SIL-688 UI drive: ALL PASS ==

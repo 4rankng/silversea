@@ -84,6 +84,24 @@ describe('buildShipmentEditPrefill', () => {
     expect(buildShipmentEditPrefill(detail).seed.hasDispatchedLegs).toBe(true);
   });
 
+  it('SIL-688 r4: trạng thái lô KHÔNG bao giờ chặn — DISPATCHED/IN_TRANSIT/COMPLETED không có chuyến sống vẫn armed', () => {
+    // QA fail build 8f29bea4 + re-open 07/11: SIL-653's commit 04627a9a ORed
+    // lot status into this seed, so a lot whose status read DISPATCHED or
+    // COMPLETED but whose containers carry no issued order (stale status,
+    // canceled legs) had its Xóa lô dead while the BE admits DELETE 200.
+    // Owner law: block on whether the CHUYẾN XE issued orders (a live trip),
+    // never on the lot's own status.
+    for (const status of [ShipmentStatus.DISPATCHED, ShipmentStatus.IN_TRANSIT, ShipmentStatus.COMPLETED]) {
+      const detail = detailFixture({ status });
+      expect(detail.hasLiveTrips).toBe(false);
+      expect(buildShipmentEditPrefill(detail).seed.hasDispatchedLegs).toBe(false);
+    }
+    // A live trip still blocks at any status — order issued is the only block.
+    const dispatched = detailFixture({ status: ShipmentStatus.DISPATCHED });
+    dispatched.hasLiveTrips = true;
+    expect(buildShipmentEditPrefill(dispatched).seed.hasDispatchedLegs).toBe(true);
+  });
+
   it('FCL: seed mang id/version + declaration ids, container giữ persisted id', () => {
     const detail = detailFixture({});
     detail.containers = [{

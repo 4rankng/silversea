@@ -1,0 +1,13 @@
+PASS  688/stale-lot-detail  —  GET 779169 status=200 hasLiveTrips=false
+PASS  688/admin-delete-stale-in-transit-200  —  DELETE admin → 200 
+PASS  688/deleted-lot-404  —  GET after delete → 404
+PASS  688/cus-sees-stale-detail  —  GET 779168 (CUS) status=200 hasLiveTrips=false
+PASS  688/cus-delete-stale-in-transit-200  —  DELETE CUS → 200 
+PASS  688/issued-lot-detail-live  —  GET 779171 status=200 hasLiveTrips=true
+PASS  688/admin-delete-issued-409  —  DELETE admin → 409 {"error":"Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh."}
+PASS  688/cus-delete-issued-409  —  DELETE CUS → 409
+PASS  688/dispatcher-delete-403  —  DELETE dispatcher → 403 {"error":"Không có quyền truy cập"}
+PASS  688/dispatcher-delete-issued-403  —  DELETE dispatcher issued → 403
+PASS  693/guard-unpriced-409-probe1  —  POST /shipments/779059/debit-note → 400 {"error":"Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này."}
+
+== 11/11 PASS ==

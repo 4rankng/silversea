@@ -1,0 +1,11 @@
+PASS  693/fact-completed-lot-readable  —  GET 779239 → 200 status=COMPLETED lock=null
+PASS  693/guard-per-lot-409-remedy  —  POST debit-notes [779059] → 409 {"error":"Cước vận tải của lô SHP-2611-00307 chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: NO_ROUTE). Không thể xuất Debit Note thiếu cước — hãy xác định giá cước thu khách trên mà
+PASS  693/guard-consolidated-409  —  POST debit-notes [779059,779247] → 409 {"error":"Cước vận tải của lô SHP-2611-00307 chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: NO_ROUTE). Không thể xuất Debit Note thiếu cước — hãy xác định giá cước thu khách trên mà
+FAIL  693/unlock-200  —  POST unlock → 400 {"error":"Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này."}
+FAIL  693/revclass-completed-trip-200  —  POST lcl/rev-class (ketoan) → 400 {"error":"Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này."}
+FAIL  693/relock-200  —  POST lock → 409 {"error":"Lô hàng đã khóa chi phí. Cần Quản trị, Giám đốc hoặc Kế toán mở khóa (kèm lý do) để chỉnh sửa chi phí."}
+PASS  693/export-priced-201  —  POST debit-notes [779239] → 201 id=19 
+PASS  693/reexport-overlap-409  —  re-export [779239] → 409 {"error":"Các lô SHP-2611-00399 đã được xuất Debit Note. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất.","overlappingLotCodes":["SHP-2611-00399"]}
+NOTE_ID=19
+
+== 5/8 PASS ==

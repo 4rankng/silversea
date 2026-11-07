@@ -193,9 +193,18 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
       // carries ≥1 plan fulfillment, so its delete button was permanently
       // disabled. A payload missing the field (stale fixture) fails OPEN:
       // the BE delete re-checks the law server-side and answers 409.
-      hasDispatchedLegs: detail.hasLiveTrips === true
-        || detail.shipment.status === 'DISPATCHED'
-        || detail.shipment.status === 'COMPLETED',
+      // SIL-688 r4 (QA fail build 8f29bea4 + re-open 07/11): owner law —
+      // deletion blocks on whether the CHUYẾN XE has issued orders, NEVER on
+      // the lot's own status. The status ORs (DISPATCHED/COMPLETED, added by
+      // SIL-653's 04627a9a on this shared seed) re-created the QA-fail class:
+      // a lot whose status moved but whose containers carry no issued order
+      // (stale status, canceled legs) had its Xóa lô button dead while the BE
+      // admits DELETE 200. Live trip = order issued (phát lệnh creates the
+      // trip row); no live trip ⇒ armed, whatever the status reads. The
+      // container-row edit lock shares this signal and stays correct: the BE
+      // container write law 409s on issued orders, which is exactly what a
+      // live trip proves.
+      hasDispatchedLegs: detail.hasLiveTrips === true,
       fclContainers: !isLcl,
       // SIL-660: LCL carries its declaration entity state (rowId null = no
       // row yet); FCL omits the key entirely.
