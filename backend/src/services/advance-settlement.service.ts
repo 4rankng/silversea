@@ -8,7 +8,7 @@ import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 'drizzle-orm';
-import { NotificationType, TxnType, round2dp, sumExcludingNegative } from '@tingting/shared';
+import { NotificationType, TxnType, round2dp, sumExcludingNegative, AdvanceSettlementStatus, type AdvanceSettlementWithRefs } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
 import { filterWholeSettlementAdvances } from './advance-consumption.service';
@@ -288,7 +288,258 @@ export interface PaginatedAdvanceSettlements {
   /** Full-set totalExpenseAmount per status for the page's KPI strip. */
   statusAmounts: Record<string, number>;
   /** Full-set totals for the page's KPI strip. */
-  totals: { totalExpenseAmount: number };
+  totals: { totalExpenseAmount: number; pendingCount?: number };
+}
+
+/** Offset added to ops_settlements IDs when presented on the unified advance-settlement surface */
+export const OPS_SETTLEMENT_ID_OFFSET = 1_000_000;
+
+export function mapOpsStatusToSettlementStatus(status: string): AdvanceSettlementStatus {
+  switch (status) {
+    case 'APPROVED':
+    case 'RECORDED':
+      return AdvanceSettlementStatus.RECORDED;
+    case 'VOIDED':
+    case 'REJECTED':
+      return AdvanceSettlementStatus.VOIDED;
+    case 'DRAFT':
+    case 'PENDING':
+    default:
+      return AdvanceSettlementStatus.DRAFT;
+  }
+}
+
+async function listOpsSettlementsForForwarderPaginated(filters: {
+  forwarderId: number;
+  status?: string;
+  page: number;
+  limit: number;
+}): Promise<PaginatedAdvanceSettlements> {
+  const { forwarderId, status, page, limit } = filters;
+
+  const allOpsRows = await db
+    .select({
+      id: s.opsSettlements.id,
+      code: s.opsSettlements.code,
+      status: s.opsSettlements.status,
+      totalAmount: s.opsSettlements.totalAmount,
+      note: s.opsSettlements.note,
+      createdAt: s.opsSettlements.createdAt,
+      approvedAt: s.opsSettlements.approvedAt,
+      opsUserId: s.opsSettlements.opsUserId,
+      opsUserName: s.users.fullName,
+    })
+    .from(s.opsSettlements)
+    .leftJoin(s.users, eq(s.users.id, s.opsSettlements.opsUserId))
+    .where(eq(s.opsSettlements.opsUserId, forwarderId))
+    .orderBy(desc(s.opsSettlements.id));
+
+  const statusCounts: Record<string, number> = {};
+  const statusAmounts: Record<string, number> = {};
+  let totalExpenseAmount = 0;
+  let pendingCount = 0;
+
+  for (const row of allOpsRows) {
+    const mapped = mapOpsStatusToSettlementStatus(row.status);
+    const amt = Number(row.totalAmount ?? 0);
+    statusCounts[mapped] = (statusCounts[mapped] ?? 0) + 1;
+    statusAmounts[mapped] = (statusAmounts[mapped] ?? 0) + amt;
+    totalExpenseAmount += amt;
+    if (mapped === AdvanceSettlementStatus.DRAFT) {
+      pendingCount++;
+    }
+  }
+
+  let filteredOpsRows = allOpsRows;
+  if (status) {
+    filteredOpsRows = allOpsRows.filter((row) => mapOpsStatusToSettlementStatus(row.status) === status);
+  }
+
+  const filteredTotal = filteredOpsRows.length;
+  const offset = (page - 1) * limit;
+  const pageRows = filteredOpsRows.slice(offset, offset + limit);
+  const pageSettlementIds = pageRows.map((r) => r.id);
+
+  const entries = pageSettlementIds.length > 0 ? await db
+    .select({
+      id: s.opsExpenseEntries.id,
+      opsSettlementId: s.opsExpenseEntries.opsSettlementId,
+      shipmentId: s.opsExpenseEntries.shipmentId,
+      customerName: s.customers.name,
+      billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
+        then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
+      containerNumber: s.shipmentContainers.containerNumber,
+      expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
+      expenseTypeName: s.forwarderExpenseTypes.name,
+      amount: s.opsExpenseEntries.amount,
+      createdAt: s.opsExpenseEntries.createdAt,
+      approvalStatus: s.opsExpenseEntries.approvalStatus,
+    })
+    .from(s.opsExpenseEntries)
+    .leftJoin(s.shipments, eq(s.shipments.id, s.opsExpenseEntries.shipmentId))
+    .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+    .leftJoin(
+      s.shipmentContainers,
+      eq(s.shipmentContainers.id, s.opsExpenseEntries.shipmentContainerId),
+    )
+    .leftJoin(
+      s.forwarderExpenseTypes,
+      eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode),
+    )
+    .where(inArray(s.opsExpenseEntries.opsSettlementId, pageSettlementIds))
+    .orderBy(s.opsExpenseEntries.id) : [];
+
+  const entriesBySettlementId = new Map<number, NonNullable<AdvanceSettlementWithRefs['linkedExpenses']>>();
+  for (const entry of entries) {
+    if (entry.opsSettlementId == null) continue;
+    const arr = entriesBySettlementId.get(entry.opsSettlementId) ?? [];
+    arr.push({
+      id: entry.id,
+      tripId: entry.shipmentId ?? 0,
+      forwarderId,
+      expenseType: entry.expenseTypeCode,
+      expenseTypeName: entry.expenseTypeName ?? entry.expenseTypeCode,
+      buyAmount: String(entry.amount),
+      sellAmount: '0',
+      containerNumber: entry.containerNumber ?? null,
+      customerName: entry.customerName ?? null,
+      tripCode: entry.billRef ?? null,
+      departureDate: entry.createdAt ? entry.createdAt.toISOString().slice(0, 10) : null,
+      createdAt: entry.createdAt ? entry.createdAt.toISOString() : new Date().toISOString(),
+      updatedAt: entry.createdAt ? entry.createdAt.toISOString() : new Date().toISOString(),
+      invoiceNumber: null,
+      note: null,
+      settlementMethod: 'DIRECT',
+      approvalStatus: entry.approvalStatus ?? 'RECORDED',
+    } as any);
+    entriesBySettlementId.set(entry.opsSettlementId, arr);
+  }
+
+  const items = pageRows.map((row) => ({
+    id: OPS_SETTLEMENT_ID_OFFSET + row.id,
+    version: 1,
+    code: row.code,
+    forwarderId: row.opsUserId,
+    forwarderName: row.opsUserName,
+    totalExpenseAmount: String(row.totalAmount),
+    refundAmount: '0',
+    status: mapOpsStatusToSettlementStatus(row.status),
+    checkedBy: null,
+    checkedAt: null,
+    approvedBy: row.opsUserId,
+    approvedAt: row.approvedAt ? row.approvedAt.toISOString() : null,
+    note: row.note,
+    createdAt: row.createdAt.toISOString(),
+    linkedExpenses: entriesBySettlementId.get(row.id) ?? [],
+    linkedRequests: [],
+  }));
+
+  return {
+    items: items as unknown as AdvanceSettlementRow[],
+    page,
+    limit,
+    total: filteredTotal,
+    totalPages: Math.max(1, Math.ceil(filteredTotal / limit)),
+    statusCounts,
+    statusAmounts,
+    totals: {
+      totalExpenseAmount,
+      pendingCount,
+    },
+  };
+}
+
+async function getAdvanceSettlementFromOps(
+  opsSettlementId: number,
+  displayId: number,
+) {
+  const [row] = await db
+    .select({
+      id: s.opsSettlements.id,
+      code: s.opsSettlements.code,
+      status: s.opsSettlements.status,
+      totalAmount: s.opsSettlements.totalAmount,
+      note: s.opsSettlements.note,
+      createdAt: s.opsSettlements.createdAt,
+      approvedAt: s.opsSettlements.approvedAt,
+      opsUserId: s.opsSettlements.opsUserId,
+      opsUserName: s.users.fullName,
+    })
+    .from(s.opsSettlements)
+    .leftJoin(s.users, eq(s.users.id, s.opsSettlements.opsUserId))
+    .where(eq(s.opsSettlements.id, opsSettlementId))
+    .limit(1);
+
+  if (!row) return null;
+
+  const entries = await db
+    .select({
+      id: s.opsExpenseEntries.id,
+      shipmentId: s.opsExpenseEntries.shipmentId,
+      customerName: s.customers.name,
+      billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
+        then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
+      containerNumber: s.shipmentContainers.containerNumber,
+      expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
+      expenseTypeName: s.forwarderExpenseTypes.name,
+      amount: s.opsExpenseEntries.amount,
+      createdAt: s.opsExpenseEntries.createdAt,
+      approvalStatus: s.opsExpenseEntries.approvalStatus,
+    })
+    .from(s.opsExpenseEntries)
+    .leftJoin(s.shipments, eq(s.shipments.id, s.opsExpenseEntries.shipmentId))
+    .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+    .leftJoin(
+      s.shipmentContainers,
+      eq(s.shipmentContainers.id, s.opsExpenseEntries.shipmentContainerId),
+    )
+    .leftJoin(
+      s.forwarderExpenseTypes,
+      eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode),
+    )
+    .where(eq(s.opsExpenseEntries.opsSettlementId, opsSettlementId))
+    .orderBy(s.opsExpenseEntries.id);
+
+  const linkedExpenses: NonNullable<AdvanceSettlementWithRefs['linkedExpenses']> = entries.map((entry) => ({
+    id: entry.id,
+    tripId: entry.shipmentId ?? 0,
+    forwarderId: row.opsUserId,
+    expenseType: entry.expenseTypeCode,
+    expenseTypeName: entry.expenseTypeName ?? entry.expenseTypeCode,
+    buyAmount: String(entry.amount),
+    sellAmount: '0',
+    containerNumber: entry.containerNumber ?? null,
+    customerName: entry.customerName ?? null,
+    tripCode: entry.billRef ?? null,
+    departureDate: entry.createdAt ? entry.createdAt.toISOString().slice(0, 10) : null,
+    createdAt: entry.createdAt ? entry.createdAt.toISOString() : new Date().toISOString(),
+    updatedAt: entry.createdAt ? entry.createdAt.toISOString() : new Date().toISOString(),
+    invoiceNumber: null,
+    note: null,
+    settlementMethod: 'DIRECT',
+    approvalStatus: entry.approvalStatus ?? 'RECORDED',
+  } as any));
+
+  return {
+    id: displayId,
+    version: 1,
+    code: row.code,
+    forwarderId: row.opsUserId,
+    forwarderName: row.opsUserName,
+    totalExpenseAmount: String(row.totalAmount),
+    refundAmount: '0',
+    status: mapOpsStatusToSettlementStatus(row.status),
+    checkedBy: null,
+    checkedAt: null,
+    approvedBy: row.opsUserId,
+    approvedAt: row.approvedAt ? row.approvedAt.toISOString() : null,
+    note: row.note,
+    createdAt: row.createdAt.toISOString(),
+    linkedExpenses,
+    linkedRequests: [],
+    eligibleAdvanceRequests: [],
+    eligibleExpenses: [],
+  };
 }
 
 /**
@@ -306,6 +557,23 @@ export async function listAdvanceSettlementsPaginated(filters: {
   limit?: number;
 }): Promise<PaginatedAdvanceSettlements> {
   const { page, limit } = clampPageLimit(filters.page, filters.limit, 50);
+
+  // SIL-730 (id 850): If forwarder has ops_settlements, sync data source with /ops/wallet
+  if (filters.forwarderId != null) {
+    const [opsCountRow] = await db
+      .select({ total: count() })
+      .from(s.opsSettlements)
+      .where(eq(s.opsSettlements.opsUserId, filters.forwarderId));
+    if (Number(opsCountRow?.total ?? 0) > 0) {
+      return listOpsSettlementsForForwarderPaginated({
+        forwarderId: filters.forwarderId,
+        status: filters.status,
+        page,
+        limit,
+      });
+    }
+  }
+
   const where = buildAdvanceSettlementConditions(filters);
   const whereAll = buildAdvanceSettlementConditions({ forwarderId: filters.forwarderId });
 
@@ -345,10 +613,19 @@ export async function listAdvanceSettlementsPaginated(filters: {
 }
 
 export async function getAdvanceSettlement(id: number, executor: DbLike = db) {
+  if (id >= OPS_SETTLEMENT_ID_OFFSET) {
+    const opsSettlementId = id - OPS_SETTLEMENT_ID_OFFSET;
+    return getAdvanceSettlementFromOps(opsSettlementId, id);
+  }
+
   const [row] = await executor.select()
     .from(s.advanceSettlements)
     .where(eq(s.advanceSettlements.id, id));
-  if (!row) return null;
+  if (!row) {
+    const opsFallback = await getAdvanceSettlementFromOps(id, id);
+    if (opsFallback) return opsFallback;
+    return null;
+  }
   const [enriched] = await enrichWithNames([row], executor);
   const detail = await enrichSettlementWithRequests(enriched, executor);
   const [blockedExpenses, requestCandidates, expenseCandidates] = await Promise.all([

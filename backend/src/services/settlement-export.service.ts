@@ -109,25 +109,28 @@ export interface SettlementExportData {
 export async function buildSettlementExportData(id: number, executor: Tx | typeof db = db): Promise<SettlementExportData | null> {
   const settlement = await getAdvanceSettlement(id, executor);
   if (!settlement) return null;
+  const createdAtStr = typeof settlement.createdAt === 'string'
+    ? settlement.createdAt
+    : (settlement.createdAt as Date).toISOString();
   return {
     id: settlement.id,
     code: settlement.code,
-    createdAt: settlement.createdAt.toISOString(),
-    forwarderName: settlement.forwarderName,
+    createdAt: createdAtStr,
+    forwarderName: settlement.forwarderName ?? null,
     refundAmount: settlement.refundAmount,
     note: settlement.note,
-    linkedRequests: settlement.linkedRequests.map(request => ({
-      amount: request.allocatedAmount,
+    linkedRequests: (settlement.linkedRequests ?? []).map(request => ({
+      amount: (request as { allocatedAmount?: string | number; amount?: string | number }).allocatedAmount ?? (request as { amount?: string | number }).amount ?? 0,
       reason: request.reason,
       createdAt: request.createdAt,
     })),
-    linkedExpenses: settlement.linkedExpenses.map(expense => ({
+    linkedExpenses: (settlement.linkedExpenses ?? []).map(expense => ({
       id: expense.id,
       tripId: expense.tripId,
       expenseType: expense.expenseType,
       amount: expense.buyAmount,
       containerNumber: expense.containerNumber,
-      invoiceNumber: expense.invoiceNumber,
+      invoiceNumber: expense.invoiceNumber ?? '',
       note: expense.note,
       createdAt: expense.createdAt,
       departureDate: expense.departureDate,

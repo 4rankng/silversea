@@ -34,6 +34,8 @@ export {
   getAdvanceSettlement,
   updateAdvanceSettlement,
   checkAdvanceSettlement,
+  OPS_SETTLEMENT_ID_OFFSET,
+  mapOpsStatusToSettlementStatus,
 } from './advance-settlement.service';
 export type {
   AdvanceSettlementRow,

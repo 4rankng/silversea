@@ -384,8 +384,7 @@ function buildNavItems(
         { key: 'ops-orders', path: routes.opsOrders, icon: ClipboardList, section: 'my-work' as SectionName },
         { key: 'ops-fleet-tracking', path: routes.opsFleetTracking, icon: Activity, section: 'my-work' as SectionName },
         { key: 'ops-wallet', path: routes.opsWallet, icon: Wallet, section: 'my-work' as SectionName },
-        // Công việc của tôi (My Work)
-        { key: 'my-orders', path: routes.myOrders, icon: Package, section: 'my-work' as SectionName },
+        // Công việc của tôi (My Work) — SIL-730 (id 850): gỡ /my-orders khỏi sidebar Ops (trùng lặp với /ops/orders)
         { key: 'my-advances', path: routes.myAdvances, icon: Wallet, section: 'my-work' as SectionName },
         { key: 'my-settlements', path: routes.mySettlements, icon: FileText, section: 'my-work' as SectionName },
       ];

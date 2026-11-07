@@ -117,7 +117,6 @@ describe('getNavItems', () => {
       ['Kế hoạch làm hàng', '/ops/orders'],
       ['Theo dõi phương tiện', '/ops/fleet-tracking'],
       ['Quỹ tạm ứng', '/ops/wallet'],
-      ['Lệnh giao nhận', '/my-orders'],
       ['Tạm ứng', '/my-advances'],
       ['Phiếu thanh toán', '/my-settlements'],
     ]],
