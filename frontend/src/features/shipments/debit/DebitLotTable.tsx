@@ -512,9 +512,11 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
   // board lands).
   const isRevMergeMember = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1;
   const showRevMergeTag = isRevMergeMember && !ratesRefreshing;
-  // SIL-731: unpriced lots without manual price or rev merge group render TRỐNG (empty), not 0
-  const isZeroWithoutRevenue = !isRevMergeMember && !row.revFreightManual && Number(row.receivableTotal) === 0 && row.lockStatus !== 'LOCKED';
-  const receivableState = ratesRefreshing || isZeroWithoutRevenue ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
+  // 24/10 owner law: the wire's null = chưa chốt → TRỐNG; a computed 0 (tính
+  // = 0, including a merge member's 0₫) renders '0'. The dummy-snapshot skip
+  // (SIL-731, BE revenue-override-read) keeps unpriced lots off the 0 lane,
+  // so a wire 0 is always a real zero — the FE never re-classifies it.
+  const receivableState = ratesRefreshing ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
   return (
     <>
       <tr
