@@ -315,11 +315,12 @@ describe('DriverTripDetailPage', () => {
   });
 
   // 27.8 spec: "ẢNH NHIÊN LIỆU (Chụp màn hình bơm gần nhất) : GIỮ NGUYÊN" —
-  // the fuel-evidence upload stays visible for the driver.
+  // the fuel-evidence upload stays visible for the driver (collapsed by default behind toggle).
   it('renders the fuel evidence upload section', async () => {
     renderPage();
 
     expect(await screen.findByText('Ảnh nhiên liệu')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('fuel-section-toggle'));
     expect(screen.getByText('Chụp màn hình bơm gần nhất')).toBeTruthy();
     expect(screen.getByText('Chưa có ảnh nhiên liệu nào cho chuyến này.')).toBeTruthy();
     expect(screen.getByText('Chụp ảnh nhiên liệu')).toBeTruthy();
@@ -364,6 +365,7 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
+    fireEvent.click(await screen.findByTestId('fuel-section-toggle'));
     // The alt no longer carries the trip code: internal ids never render on
     // a user surface (dc1b1cba), so the code-leading variant would fail here.
     const img = await screen.findByAltText('Ảnh nhiên liệu');
@@ -496,9 +498,8 @@ describe('DriverTripDetailPage', () => {
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
   });
 
-  // SIL-697: the same CTA with a zero-file draft is refused BEFORE any write
-  // — the driver gets the missing-type message instead of a frozen submission.
-  it('SIL-697: the sticky CTA refuses completion on a zero-file draft without submitting', async () => {
+  // SIL-733 (owner ruling 22/10, reversing SIL-697 blocker): photo is OPTIONAL, does not block completion when photos are missing
+  it('SIL-733: the sticky CTA allows completion on a zero-file draft (photos are optional)', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -543,13 +544,10 @@ describe('DriverTripDetailPage', () => {
     await screen.findByTestId('complete-sticky-bar');
     fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' }));
 
-    expect(submitPodSpy).not.toHaveBeenCalled();
-    expect(completeSpy).not.toHaveBeenCalled();
-    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
-    expect(toastMock).toHaveBeenCalledWith({
-      kind: 'warning',
-      message: 'Chưa đủ chứng từ giao hàng. Còn thiếu: Phiếu bãi / phiếu hạ, Biên bản giao nhận có ký nhận. Vui lòng bổ sung đủ hai loại trước khi hoàn thành chuyến.',
-    });
+    const confirmBtn = await screen.findByRole('button', { name: 'Hoàn tất' });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => expect(completeSpy).toHaveBeenCalled());
   });
 
   // SIL-652 (id 758): L2 (locked) trip hides the dead accept button and shows
@@ -1028,9 +1026,30 @@ describe('DriverTripDetailPage', () => {
     // (card 261022213755a: photos are optional, never a blocker) and the
     // completion action navigates to the e-POD screen.
     expect(screen.getByTestId('complete-sticky-bar')).toBeTruthy();
-    expect(screen.getByTestId('complete-sticky-status').textContent).toBe('Chưa có 2/2 ảnh chứng từ');
+    // SIL-733: warning removed next to complete button (photos are optional)
+    expect(screen.queryByTestId('complete-sticky-status')).toBeNull();
     const btn = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
     expect(btn).toBeEnabled();
+  });
+
+  it('SIL-733: collapses fuel section by default with toggle', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        status: 'IN_TRANSIT',
+        fuelEvidenceReviews: [],
+      }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Ảnh nhiên liệu/);
+    expect(screen.queryByText(/Chụp màn hình bơm gần nhất/)).toBeNull();
+    const toggle = screen.getByTestId('fuel-section-toggle');
+    expect(toggle.textContent).toContain('Mở rộng');
+
+    fireEvent.click(toggle);
+    expect(screen.getByText(/Chụp màn hình bơm gần nhất/)).toBeTruthy();
+    expect(toggle.textContent).toContain('Thu gọn');
   });
 
   it('card _28: the sticky bar never stacks with the accept bar', async () => {

@@ -429,8 +429,10 @@ function buildListItem(
     // container rows retain the exact route that drives dispatch.
     routeName: effectiveRouteNames.join(' · ') || null,
     isCombined: row.shipment.isCombined,
-    direction: row.shipment.tradeDirection,
-    containerSummary: buildContainerSummary(containers, row.shipment.packageCount, row.shipment.packageType),
+    direction: row.shipment.tradeDirection ?? (row.shipment.blNumber ? 'IMPORT' : (row.shipment.bookingRef ? 'EXPORT' : null)),
+    containerSummary: row.shipment.cargoMode === CARGO_MODE.LCL
+      ? (row.shipment.packageCount != null ? `${row.shipment.packageCount} ${trimOrNull(row.shipment.packageType) ?? 'kiện'}` : '')
+      : buildContainerSummary(containers, row.shipment.packageCount, row.shipment.packageType),
     packageCount: row.shipment.packageCount,
     packageType: trimOrNull(row.shipment.packageType),
     weightKg: sumDecimal(containers.map((container) => container.cargoWeightKg), 2)

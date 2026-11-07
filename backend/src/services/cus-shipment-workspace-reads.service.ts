@@ -1129,7 +1129,7 @@ function buildLotFlatRow(
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
     isCombined: row.shipment.isCombined,
     classification: lotAssignment?.dispatchClassification ?? 'LCL',
-    direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
+    direction: (row.shipment.tradeDirection ?? (row.shipment.blNumber ? 'IMPORT' : (row.shipment.bookingRef ? 'EXPORT' : null))) as 'IMPORT' | 'EXPORT' | null,
     containerNumber: null,
     containerTypeLabel: null,
     dispatchStatus,
@@ -1365,7 +1365,7 @@ export async function listCusShipmentContainers(
       isCombined: row.shipment.isCombined,
       classification: support.assignmentsByContainer.get(container.id)?.dispatchClassification
         ?? (row.shipment.cargoMode === CARGO_MODE.LCL ? 'LCL' : (row.shipment.isCombined ? 'COMBINED' : 'SINGLE')),
-      direction: row.shipment.tradeDirection as 'IMPORT' | 'EXPORT' | null,
+      direction: (row.shipment.tradeDirection ?? (row.shipment.blNumber ? 'IMPORT' : (row.shipment.bookingRef ? 'EXPORT' : null))) as 'IMPORT' | 'EXPORT' | null,
       containerNumber: line.containerNumber,
       containerTypeLabel: line.containerTypeLabel,
       dispatchStatus: line.dispatchStatus,

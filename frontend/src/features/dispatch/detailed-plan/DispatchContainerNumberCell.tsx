@@ -117,10 +117,6 @@ export function DispatchContainerNumberCell({ row, onSaved }: {
       });
   };
 
-  const pairTag = row.dispatch.pairKind
-    ? row.dispatch.pairKind === 'KEP' ? '[KẸP]' : '[KẾT HỢP]'
-    : null;
-
   if (editing) {
     // SIL-631 — the editor floats OUTSIDE the grid cell through a body
     // portal; the cell keeps its (dimmed) value while editing.
@@ -166,10 +162,9 @@ export function DispatchContainerNumberCell({ row, onSaved }: {
       <div className="detailed-plan-grid__cell-body" ref={anchorRef}>
         <div
           className={baseline ? 'detailed-plan-grid__line detailed-plan-grid__line--strong ops-container-line' : 'detailed-plan-grid__line detailed-plan-grid__line--missing'}
-          title={baseline ? `${baseline}${pairTag ? ` ${pairTag}` : ''}` : undefined}
+          title={baseline || undefined}
         >
           {baseline || 'Chưa có số cont'}
-          {pairTag && <span className="detailed-plan-grid__pair-tag">{pairTag}</span>}
         </div>
       </div>
     );
@@ -185,7 +180,6 @@ export function DispatchContainerNumberCell({ row, onSaved }: {
         title={baseline ? `Sửa số container: ${baseline}` : 'Bấm để nhập số container'}
       >
         {baseline || 'Chưa có số cont'}
-        {pairTag && <span className="detailed-plan-grid__pair-tag">{pairTag}</span>}
       </button>
     </div>
   );

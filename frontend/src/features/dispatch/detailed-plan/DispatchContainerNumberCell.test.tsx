@@ -52,11 +52,11 @@ beforeEach(() => {
 });
 
 describe('DispatchContainerNumberCell — value display', () => {
-  it('renders the container number as static text when no auth (never actionable-looking)', () => {
+  it('renders the container number as static text when no auth (never actionable-looking), no redundant KEP tag (SIL-732)', () => {
     render(<DispatchContainerNumberCell row={row()} />);
     expect(screen.getByText('MSCU1234567')).toBeTruthy();
     expect(screen.queryByRole('button')).toBeNull();
-    expect(screen.getByText('[KẸP]')).toBeTruthy();
+    expect(screen.queryByText('[KẸP]')).toBeNull();
   });
 
   it('names the missing field (Chưa có số cont) — the pre-sync dead state', () => {

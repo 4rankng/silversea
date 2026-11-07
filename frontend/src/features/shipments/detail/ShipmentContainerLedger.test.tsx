@@ -917,11 +917,11 @@ describe('vehicle plate clear affordance (20260916_6)', () => {
   });
 });
 
-describe('deferred-plate copy on the ledger (card 071026141560)', () => {
-  it('external carrier without plate reads CUS sẽ bổ sung, not the generic pending badge', () => {
+describe('deferred-plate copy on the ledger (laws 4.1.3 & 8.1.2)', () => {
+  it('external carrier without plate leaves it blank (no CUS sẽ bổ sung or Chưa gán biển số)', () => {
     const row = baseRow({ carrierType: 'EXTERNAL', carrierName: 'SilverSea', plateNumber: null });
     renderLedger('notes', row);
-    expect(screen.getByText('CUS sẽ bổ sung')).toBeTruthy();
+    expect(screen.queryByText('CUS sẽ bổ sung')).toBeNull();
     expect(screen.queryByText('Chưa gán biển số')).toBeNull();
   });
 

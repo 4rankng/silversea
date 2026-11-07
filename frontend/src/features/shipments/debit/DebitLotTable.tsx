@@ -501,7 +501,6 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
   const label = lotLabelOf(row);
   const laneText = row.factoryName || row.factoryAddress || '';
   const profitState = moneyState(row.profit);
-  const receivableState = ratesRefreshing ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
   // SIL-546 — a REV-group member (Lô 2..N: cước thu 0₫ vì nằm cùng Lô 1)
   // carries the spec's visible tag on its receivable cell; Lô 1 and ungrouped
   // rows never do. Same law the BE stamps on the dispatch summary
@@ -513,6 +512,9 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
   // board lands).
   const isRevMergeMember = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1;
   const showRevMergeTag = isRevMergeMember && !ratesRefreshing;
+  // SIL-731: unpriced lots without manual price or rev merge group render TRỐNG (empty), not 0
+  const isZeroWithoutRevenue = !isRevMergeMember && !row.revFreightManual && Number(row.receivableTotal) === 0 && row.lockStatus !== 'LOCKED';
+  const receivableState = ratesRefreshing || isZeroWithoutRevenue ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
   return (
     <>
       <tr

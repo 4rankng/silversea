@@ -199,6 +199,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
+  width: 100%;
   flex-shrink: 0;
   /* Navigation and completion share the current house control budget. */
   min-height: var(--control-h);
