@@ -65,12 +65,18 @@ export function DateRangeFields({
   id,
   className = '',
 }: DateRangeFieldsProps) {
-  // Order is enforced by the fields themselves: each one carries the other's
-  // value as `min`/`max`, so a complete date that would invert the range is
-  // refused before it can be emitted (typed or picked) — no clamp is needed
-  // here, and a clamp could never fire anyway.
-  const setFrom = (value: string) => onChange({ from: value, to });
-  const setTo = (value: string) => onChange({ from, to: value });
+  // SIL-434: Setting Từ first must never silently drop when from > to.
+  // When a user selects a From date beyond current To date, adjust To to match
+  // so the range remains valid [value, value] without refusing or dropping the user's input.
+  // Similarly, selecting a To date before From adjusts From to match.
+  const setFrom = (value: string) => {
+    const nextTo = value && to && value > to ? value : to;
+    onChange({ from: value, to: nextTo });
+  };
+  const setTo = (value: string) => {
+    const nextFrom = value && from && value < from ? value : from;
+    onChange({ from: nextFrom, to: value });
+  };
 
   return (
     <div className={`date-range-fields${className ? ` ${className}` : ''}`} role="group" aria-label={ariaLabel}>
@@ -82,7 +88,6 @@ export function DateRangeFields({
         size={size}
         value={from}
         onChange={setFrom}
-        inputProps={{ max: to || undefined }}
       />
       {/* The seam marker: decorative only — the two fields stay independent
           controls (CHIEF 2026-09-27: "I dont want daterangepicker"). */}
@@ -95,7 +100,6 @@ export function DateRangeFields({
         size={size}
         value={to}
         onChange={setTo}
-        inputProps={{ min: from || undefined }}
       />
     </div>
   );

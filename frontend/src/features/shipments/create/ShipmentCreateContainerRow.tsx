@@ -59,6 +59,8 @@ export interface ShipmentCreateContainerRowProps {
   viewMode?: boolean;
   routeOptions: { value: string; label: string }[];
   portOptions: { value: string; label: string }[];
+  /** SIL-653: container number input is locked once lot is dispatched */
+  dispatchedLocked?: boolean;
 }
 
 export function ShipmentCreateContainerRow({
@@ -88,6 +90,7 @@ export function ShipmentCreateContainerRow({
   viewMode = false,
   routeOptions,
   portOptions,
+  dispatchedLocked = false,
 }: ShipmentCreateContainerRowProps) {
   const containerType = (catalogs.containerTypes ?? []).find((item) => String(item.id) === row.containerTypeId);
   const pickupPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.pickupPortId);
@@ -221,28 +224,31 @@ export function ShipmentCreateContainerRow({
             placeholder="Nhập số container"
             fieldId={`container-${row.key}-number`}
             error={issueByField.get(`container-${row.key}-number`)}
+            displayTitle={dispatchedLocked ? 'Lô hàng đã phát lệnh điều xe — chỉ bổ sung trước phát lệnh' : undefined}
             onRevert={(value) => updateContainer(row.key, 'containerNumber', value)}
           >
-            <TextField
-              id={`container-${row.key}-number`}
-              label="Số container"
-              hideLabel
-              value={row.containerNumber}
-              onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())}
-              onKeyDown={(event) => {
-                // Card 20261002_272 (PM 03/10, option a): Tab LEAVING the paired
-                // Số container field opens the Loại container editor's menu
-                // exactly once — a deliberate navigation act. Bare focus and
-                // pass-through stay closed (the 2026-09-21 ruling stands). The
-                // default Tab proceeds: focus lands on the line trigger's
-                // floating editor (SIL-552), then we open its menu.
-                if (event.key === 'Tab' && !event.shiftKey) {
-                  window.setTimeout(() => openGroupLine('type', true), 0);
-                }
-              }}
-              disabled={saving}
-              error={issueByField.get(`container-${row.key}-number`)}
-            />
+            <div title={dispatchedLocked ? 'Lô hàng đã phát lệnh điều xe — chỉ bổ sung trước phát lệnh' : undefined}>
+              <TextField
+                id={`container-${row.key}-number`}
+                label="Số container"
+                hideLabel
+                value={row.containerNumber}
+                onChange={(event) => updateContainer(row.key, 'containerNumber', event.target.value.toUpperCase())}
+                onKeyDown={(event) => {
+                  // Card 20261002_272 (PM 03/10, option a): Tab LEAVING the paired
+                  // Số container field opens the Loại container editor's menu
+                  // exactly once — a deliberate navigation act. Bare focus and
+                  // pass-through stay closed (the 2026-09-21 ruling stands). The
+                  // default Tab proceeds: focus lands on the line trigger's
+                  // floating editor (SIL-552), then we open its menu.
+                  if (event.key === 'Tab' && !event.shiftKey) {
+                    window.setTimeout(() => openGroupLine('type', true), 0);
+                  }
+                }}
+                disabled={saving || dispatchedLocked}
+                error={issueByField.get(`container-${row.key}-number`)}
+              />
+            </div>
           </ShipmentContainerCell>
           {/* SIL-552 (QA 29/10) — LOẠI + TRỌNG LƯỢNG are ghost lines: label +
               value trigger; activating a line floats its editor outside the

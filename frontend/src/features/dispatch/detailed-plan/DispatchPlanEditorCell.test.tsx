@@ -1786,3 +1786,53 @@ describe('DispatchPlanEditorCell — SIL-638 TC6.2 (id 742) soft weight warning 
     await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
   });
 });
+
+describe('DispatchPlanEditorCell — SIL-718 Kẹp pair plate mismatch confirm (KEP_PAIR_SPLIT_WARNING)', () => {
+  it('a 409 KEP_PAIR_SPLIT_WARNING prompts confirm; confirming retries with kepPairSplitConfirmed: true', async () => {
+    const apiError = Object.assign(new Error('2 chân Kẹp phải cùng xe — hủy ghép trước nếu muốn tách.'), {
+      status: 409,
+      raw: { code: 'KEP_PAIR_SPLIT_WARNING' },
+    });
+    const onAtomicSave = vi.fn()
+      .mockRejectedValueOnce(apiError)
+      .mockResolvedValue({
+        fulfillmentVersion: 5,
+        shipmentVersion: 7,
+        classification: 'DOUBLE',
+        isCombined: false,
+        operationalNotes: null,
+        dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+        estimates: { plannedRevenue: null, plannedCarrierCost: null },
+        lotFullyPlated: false,
+      });
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(within(confirmDialog).getByText(/2 chân Kẹp phải cùng xe — hủy ghép trước nếu muốn tách/)).toBeTruthy();
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Xác nhận' }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(2));
+    const retryBody = onAtomicSave.mock.calls[1][1] as { kepPairSplitConfirmed?: boolean };
+    expect(retryBody.kepPairSplitConfirmed).toBe(true);
+    await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
+  });
+
+  it('declining the confirm keeps dialog open and shows inline error', async () => {
+    const apiError = Object.assign(new Error('2 chân Kẹp phải cùng xe — hủy ghép trước nếu muốn tách.'), {
+      status: 409,
+      raw: { code: 'KEP_PAIR_SPLIT_WARNING' },
+    });
+    const onAtomicSave = vi.fn().mockRejectedValueOnce(apiError);
+    renderCell(row({ plannedEndAt: '2026-10-05T08:30:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(within(confirmDialog).getByText(/2 chân Kẹp phải cùng xe — hủy ghép trước nếu muốn tách/)).toBeTruthy();
+    // Decline confirm in confirm dialog
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    // Dialog stays open with error
+    expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
+    expect(screen.getByRole('alert').textContent).toContain('2 chân Kẹp phải cùng xe — hủy ghép trước nếu muốn tách.');
+  });
+});

@@ -1,0 +1,15 @@
+[1] Login as dieuvan on http://localhost:7191...
+Login ok, on /dispatch
+
+=== Testing SIL-707 on /dispatch ===
+Clicked Phân bổ cell: true
+SIL-707 .dispatch-allocation-popover: {"found":true,"width":760,"height":407.15625,"maxHeight":"852px","overflowY":"auto","top":246.421875,"bottom":653.578125}
+SIL-707 inner select clicked: false
+SIL-707 inner select dropdown: {"found":false}
+
+=== Testing SIL-434 on /shipments ===
+Date filter initial: {"hasFrom":true,"fromVal":"","hasTo":true,"toVal":""}
+SIL-434 fromGroup inspect: {"found":true,"segments":[{"label":"","val":"","max":""},{"label":"Tháng — Từ ngày","val":"","max":""},{"label":"Năm — Từ ngày","val":"","max":""}]}
+SIL-434 typing simulated: {"success":true}
+SIL-434 after setting From: {"from":"15/11/2026","to":"//","url":""}
+Probe finished.

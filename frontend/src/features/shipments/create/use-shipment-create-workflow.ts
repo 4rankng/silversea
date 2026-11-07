@@ -206,23 +206,13 @@ export function useShipmentCreateWorkflow({
         // replay them for this save.
         attempt.containerSignature = containerSignature;
       }
-      if (attempt.rootSignature !== rootSignature) {
-        // The update schema accepts customerId only as a positive int — an
-        // ad-hoc lot (null) must OMIT the key so the server keeps the stored
-        // identity instead of rejecting the whole PATCH.
-        const updateBody: Parameters<typeof updateShipment>[1] = {
-          expectedVersion: attempt.version,
-          ...createPayload,
-        };
-        if (updateBody.customerId == null) delete updateBody.customerId;
-        const updated = await updateShipment(attempt.shipmentId, updateBody);
-        attempt.version = updated.version;
-        attempt.rootSignature = rootSignature;
-      }
-
       const shipmentId = attempt.shipmentId;
       let version = attempt.version;
 
+      // SIL-653: Reconcile containers BEFORE updating the lot root.
+      // If containers PUT fails (e.g. 409 because lot is dispatched), the root update
+      // must NOT have run already — keeping the save atomic and preventing partial
+      // lot updates when container saves are rejected.
       const mustReconcileContainers = containerPayload.length > 0
         || attempt.containerSignature != null || attempt.containerRecoveryNeeded === true;
       if (mustReconcileContainers && attempt.containerSignature !== containerSignature) {
@@ -241,6 +231,21 @@ export function useShipmentCreateWorkflow({
           attempt.containerRecoveryNeeded = true;
           throw error;
         }
+      }
+
+      if (attempt.rootSignature !== rootSignature) {
+        // The update schema accepts customerId only as a positive int — an
+        // ad-hoc lot (null) must OMIT the key so the server keeps the stored
+        // identity instead of rejecting the whole PATCH.
+        const updateBody: Parameters<typeof updateShipment>[1] = {
+          expectedVersion: version,
+          ...createPayload,
+        };
+        if (updateBody.customerId == null) delete updateBody.customerId;
+        const updated = await updateShipment(attempt.shipmentId, updateBody);
+        attempt.version = updated.version;
+        attempt.rootSignature = rootSignature;
+        version = updated.version;
       }
       // SIL-660 (owner ruling 02/11): the LCL lot-level declaration entity
       // write. Narrow revival of the pre-SIL-521 machine — LCL only (SIL-601:

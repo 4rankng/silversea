@@ -218,7 +218,7 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     expect(screen.queryByRole('listbox')).toBeNull();
   });
 
-  it('bounds each field by the other so an out-of-order range can never be written', () => {
+  it('adjusts range smoothly when date order would invert (SIL-434 From-first)', () => {
     const onChange = vi.fn();
     renderFilters(
       <DetailedPlanFilters
@@ -228,16 +228,14 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     );
     // SIL-685: the fields live in the `Bộ lọc` dialog at every width.
     openFilterDialog();
-    // Each field carries the other's boundary, so neither the calendar nor a
-    // typed date can invert the range.
-    expect((screen.getByLabelText('Từ ngày') as HTMLInputElement).max).toBe('2026-09-22');
-    expect((screen.getByLabelText('Đến ngày') as HTMLInputElement).min).toBe('2026-09-15');
 
+    // Setting Từ ngày past the current Đến ngày gracefully moves Đến ngày forward (SIL-434)
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '25/09/2026' } });
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-25', dateTo: '2026-09-25' });
 
+    // Setting Đến ngày before the current Từ ngày moves Từ ngày back (SIL-434)
     fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '01/09/2026' } });
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenLastCalledWith({ date: '', dateFrom: '2026-09-01', dateTo: '2026-09-01' });
 
     // A date inside the boundary is written through.
     fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '20/09/2026' } });

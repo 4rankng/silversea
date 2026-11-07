@@ -1047,6 +1047,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                           viewMode={viewMode}
                           routeOptions={routeOptions}
                           portOptions={portOptions}
+                          dispatchedLocked={Boolean(editSeed?.hasDispatchedLegs)}
                         />
                       ))}
                     </>

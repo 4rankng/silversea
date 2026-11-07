@@ -1,0 +1,19 @@
+[1] Login as dieuvan on http://localhost:7191...
+Login ok, on /dispatch
+
+=== Testing SIL-707 on /dispatch ===
+Clicked Phân bổ cell: true
+SIL-707 .dispatch-allocation-popover: {"found":true,"width":760,"height":407.15625,"maxHeight":"852px","overflowY":"auto","top":246.421875,"bottom":653.578125}
+
+=== Testing SIL-434 on /shipments ===
+SIL-434 typing simulated: {"success":true}
+SIL-434 after setting From: {"from":"//","to":"//"}
+
+=== Testing SIL-653 on /shipments ===
+SIL-653 edit dispatched clicked: {"found":true,"text":"LONG MINHChưa có nhà máySUNRISESIL704-lcl_share-1793985157461-L1Chưa có tờ khaiChưa có hãng tàuNhập "}
+SIL-653 container inputs: []
+
+=== Testing SIL-718 on /dispatch-detail ===
+SIL-718 opened editor: true
+SIL-718 modal open: true
+Probe finished.

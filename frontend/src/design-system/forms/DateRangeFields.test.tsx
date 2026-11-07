@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -31,14 +32,38 @@ describe('UI48 independent date range content allocation', () => {
     }
   });
 
-  it('preserves min/max rejection and only emits a complete valid independent date', () => {
+  it('SIL-434: setting Từ before Đến does not drop when from > to and adjusts range gracefully', () => {
     const changes: DateRangeValue[] = [];
-    render(<DateRangeFields id="range" ariaLabel="Khoảng ngày" from="2026-10-01" to="2026-10-31" onChange={value => changes.push(value)} />);
+    function Controlled() {
+      const [range, setRange] = useState<DateRangeValue>({ from: '2026-10-01', to: '2026-10-31' });
+      return (
+        <DateRangeFields
+          id="range"
+          ariaLabel="Khoảng ngày"
+          from={range.from}
+          to={range.to}
+          onChange={(val) => {
+            changes.push(val);
+            setRange(val);
+          }}
+        />
+      );
+    }
+    render(<Controlled />);
+
+    // Setting Từ beyond current Đến (e.g. 01/11/2026 > 31/10/2026) must emit and advance Đến to match
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/11/2026' } });
+    expect(changes).toEqual([{ from: '2026-11-01', to: '2026-11-01' }]);
+
+    changes.length = 0;
+    // Setting Đến before current Từ (e.g. 30/09/2026 < 01/11/2026) must emit and move Từ to match
     fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '30/09/2026' } });
-    expect(changes).toEqual([]);
-    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '02/10/2026' } });
-    expect(changes).toEqual([{ from: '2026-10-02', to: '2026-10-31' }]);
+    expect(changes).toEqual([{ from: '2026-09-30', to: '2026-09-30' }]);
+
+    changes.length = 0;
+    // Normal within-range selection retains the other boundary
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '02/09/2026' } });
+    expect(changes).toEqual([{ from: '2026-09-02', to: '2026-09-30' }]);
   });
 
   it('retains a partial draft locally and emits the cleared endpoint only when all its segments are empty', () => {

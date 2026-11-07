@@ -69,10 +69,10 @@ describe('PeriodFilter', () => {
     fireEvent.change(from, { target: { value: '05/07/2026' } });
     expect(onRangeChange).toHaveBeenCalledWith({ dateFrom: '2026-07-05', dateTo: '2026-07-31' });
 
-    // …and one past Đến ngày is refused by the field's own bound.
+    // SIL-434: setting Từ past Đến ngày adjusts Đến to match rather than silently refusing.
     onRangeChange.mockClear();
     fireEvent.change(from, { target: { value: '05/08/2026' } });
-    expect(onRangeChange).not.toHaveBeenCalled();
+    expect(onRangeChange).toHaveBeenCalledWith({ dateFrom: '2026-08-05', dateTo: '2026-08-05' });
 
     const root = screen.getByRole('group', { name: 'Bộ lọc thời gian' });
     expect(root.className).toContain('period-filter');
