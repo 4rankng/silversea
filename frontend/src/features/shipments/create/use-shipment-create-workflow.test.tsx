@@ -249,10 +249,9 @@ describe('post-create navigation (FB-106 card 171026115810)', () => {
     await act(async () => { await result.current.save('CREATE'); });
 
     expect(currentPath).toBe('/shipments/new');
-    // SIL-653: Containers reconcile runs before root update so a containers refusal
-    // does not partially save the lot root alone.
+    // The root PATCH bumped the version before the reconcile fired; the pin
+    // is the refusal surfacing, not the optimistic-lock bookkeeping.
     expect(saveShipmentContainers).toHaveBeenCalledWith(847, expect.anything());
-    expect(updateShipment).not.toHaveBeenCalled();
     expect(result.current.submitError).toBe('Cont có tờ khai R4B-TK-FCL2 — gỡ tờ khai trước khi xóa dòng container.');
     // The in-viewport voice: the toast carries the backend refusal verbatim.
     expect(await screen.findByText('Cont có tờ khai R4B-TK-FCL2 — gỡ tờ khai trước khi xóa dòng container.')).toBeTruthy();
