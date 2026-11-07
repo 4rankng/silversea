@@ -5,6 +5,7 @@ import { StatusPill } from '../../components/UI';
 import { NameCell } from '../../components/shared/NameCell';
 import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
 import { Skeleton } from '../../components/shared/Skeleton';
+import { LclSelectCheckbox } from '../../features/dispatch/LclSelectCheckbox';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
@@ -44,6 +45,12 @@ export interface CellContext {
    *  cell skeletons (h-4 w-16) instead of repainting the dissolved group's
    *  stale 0₫. */
   ratesRefreshing?: boolean;
+  /** SIL-727 — the leading track's selection affordance, set per row by the
+   *  board table ONLY for pickable rows (adjustment NONE|CONFIRMED): the
+   *  checkbox drives the SAME one selection model the row click uses
+   *  (`useTableRowSelection`), it is not a second selection state. A locked
+   *  row gets null and the track keeps its cost-state marker. */
+  rowSelect?: { selected: boolean; toggle: () => void } | null;
 }
 
 /**
@@ -101,17 +108,35 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // scan down the first track instead of reading every money cell. The
     // money cells keep their muted "Thiếu …" labels (§1 names the field);
     // the row is NEVER flooded red — that would fight the selection state.
+    //
+    // SIL-727 — a PICKABLE row renders the selection checkbox here instead of
+    // the dot: the board's selection had no visible affordance after the
+    // app-wide checkbox removal (PM directive 2026-09-29), and QA read the
+    // dot AS the (missing) checkbox. The checkbox drives the same
+    // `useTableRowSelection` state as the row click — one selection model,
+    // one shared implementation (house primitive `LclSelectCheckbox`,
+    // card 181026145000). A LOCKED row cannot be picked, so it keeps the
+    // cost-state marker. The "Thiếu …" muted labels still name the lack.
     key: 'chiPhi', label: 'Chi phí', className: 'debit-col--cost-state', pinned: true, srOnlyHeader: true,
-    cell: (row) => hasMissingCost(row)
+    cell: (row, context) => context?.rowSelect
       ? (
-        <span
-          className="debit-cost-dot"
-          role="img"
-          aria-label="Thiếu chi phí"
-          title="Thiếu chi phí"
+        <LclSelectCheckbox
+          isSelected={context.rowSelect.selected}
+          onToggle={context.rowSelect.toggle}
+          ariaLabel={`Chọn lô ${billBookingReference(row.billOrBooking) || row.code}`}
+          title="Chọn lô"
         />
       )
-      : <span aria-hidden="true">—</span>,
+      : hasMissingCost(row)
+        ? (
+          <span
+            className="debit-cost-dot"
+            role="img"
+            aria-label="Thiếu chi phí"
+            title="Thiếu chi phí"
+          />
+        )
+        : <span aria-hidden="true">—</span>,
   },
   {
     key: 'ngay', label: 'Ngày', className: 'debit-col--date', pinned: true,
@@ -222,8 +247,12 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     },
   },
   {
+    // SIL-727 — essential: the PHẢI THU breakdown is part of the money matrix
+    // the ticket requires on the board (KT4's six-column opening set grows to
+    // the full matrix the owner listed; the phone records view keeps its own
+    // auto default via autoHideWhenEmpty below).
     key: 'cuocThu', label: 'Cước thu (tự động)', className: 'debit-col--money', group: 'thu',
-    autoHideWhenEmpty: true, raw: (row) => row.thu.cuocThu,
+    essential: true, autoHideWhenEmpty: true, raw: (row) => row.thu.cuocThu,
     // FB-145 — the tách-nhóm refresh skeletons the cell (design direction
     // 24/10: h-4 w-16); "Thiếu cước thu"/the fresh per-lot price renders only
     // from the refetched board.
@@ -233,17 +262,17 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'lachHuyen', label: 'Lạch Huyện (tự động)', className: 'debit-col--money', group: 'thu',
-    autoHideWhenEmpty: true, raw: (row) => row.thu.lachHuyen,
+    essential: true, autoHideWhenEmpty: true, raw: (row) => row.thu.lachHuyen,
     cell: (row) => money(row.thu.lachHuyen, 'Thiếu lạch huyền'),
   },
   {
     key: 'phuPs', label: 'Phụ ps (tự động)', className: 'debit-col--money', group: 'thu',
-    autoHideWhenEmpty: true, raw: (row) => row.thu.phuPs,
+    essential: true, autoHideWhenEmpty: true, raw: (row) => row.thu.phuPs,
     cell: (row) => money(row.thu.phuPs, 'Thiếu phụ PS'),
   },
   {
     key: 'phatSinhCus', label: 'Phát sinh (cus)', className: 'debit-col--money', group: 'thu',
-    autoHideWhenEmpty: true, raw: (row) => row.thu.phatSinhCus,
+    essential: true, autoHideWhenEmpty: true, raw: (row) => row.thu.phatSinhCus,
     cell: (row) => money(row.thu.phatSinhCus, 'Thiếu phát sinh (cus)'),
   },
   {
@@ -254,17 +283,17 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'cuocTraDv', label: 'Cước trả ĐV', className: 'debit-col--money', group: 'tra',
-    autoHideWhenEmpty: true, raw: (row) => row.tra.cuocTraDv,
+    essential: true, autoHideWhenEmpty: true, raw: (row) => row.tra.cuocTraDv,
     cell: (row) => money(row.tra.cuocTraDv, 'Thiếu cước trả ĐV'),
   },
   {
     key: 'lachHuyenDv', label: 'Lạch Huyện ĐV', className: 'debit-col--money', group: 'tra',
-    autoHideWhenEmpty: true, raw: (row) => row.tra.lachHuyenDv,
+    essential: true, autoHideWhenEmpty: true, raw: (row) => row.tra.lachHuyenDv,
     cell: (row) => money(row.tra.lachHuyenDv, 'Thiếu lạch huyền ĐV'),
   },
   {
     key: 'phatSinhDv', label: 'Phát sinh ĐV', className: 'debit-col--money', group: 'tra',
-    autoHideWhenEmpty: true, raw: (row) => row.tra.phatSinhDv,
+    essential: true, autoHideWhenEmpty: true, raw: (row) => row.tra.phatSinhDv,
     cell: (row) => money(row.tra.phatSinhDv, 'Thiếu phát sinh ĐV'),
   },
   {
@@ -275,7 +304,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'phiRu', label: 'Phí RU (tự động)', className: 'debit-col--money', group: 'tra',
-    autoHideWhenEmpty: true, raw: (row) => row.tra.phiRu,
+    essential: true, autoHideWhenEmpty: true, raw: (row) => row.tra.phiRu,
     cell: (row) => money(row.tra.phiRu, 'Thiếu phí RU'),
   },
   {

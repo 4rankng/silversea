@@ -117,7 +117,7 @@ p.debit-note { margin: 0 0 8px; }
   width: 34px;
   min-width: 34px;
   max-width: 34px;
-  padding: 6px 4px;
+  padding: 6px 2px;
   text-align: center;
   white-space: nowrap;
 }
@@ -132,6 +132,40 @@ p.debit-note { margin: 0 0 8px; }
   border-radius: 50%;
   background: var(--danger);
   vertical-align: middle;
+}
+
+/* SIL-727 — the leading track hosts the row-selection checkbox for pickable
+ * rows: the same 30px hit target the dispatch grids paint for their merge-mode
+ * tick (SIL-507 compact budget), with the painted 18px box on ::before so the
+ * shared LclSelectCheckbox keeps its shape inside the 34px track. */
+.debit-board .ops-lcl-check {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  flex: none;
+}
+.debit-board .ops-lcl-check::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--slate-1);
+  border-radius: 4px;
+  background: var(--surface);
+}
+.debit-board .ops-lcl-check--on::before {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.debit-board .ops-lcl-check svg {
+  position: absolute;
+  inset: 0;
+  margin: auto;
 }
 
 /* ── Sticky identity pair ──────────────────────────────────────────────────
