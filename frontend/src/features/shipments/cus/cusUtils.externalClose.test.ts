@@ -8,7 +8,7 @@ import { canCompleteExternalTrip } from './cusUtils';
 // 20261004_359: a trip that ran must carry its biển số): a plated live
 // EXTERNAL trip is closable from CUS; own-fleet trips close through the driver
 // app, terminal states must never re-close, and a deferred-plate trip shows no
-// affordance until "Phân xe lại" fills the plate. Retest 30/10 added the
+// affordance until "Cập nhật biển số" fills the plate. Retest 30/10 added the
 // departure half (assertCompletionNotBeforeDeparture, card 061026221826): a
 // trip whose planned departure is still in the future always 400s, so the row
 // must not show the dead affordance.
@@ -47,7 +47,7 @@ describe('canCompleteExternalTrip — CUS staff-close gate', () => {
     expect(canCompleteExternalTrip({ tripId: 55, tripStatus: null, carrierType: 'EXTERNAL', plateNumber: '30A-123.45' })).toBe(false);
   });
 
-  it('refuses a deferred-plate trip — the server 409s until Phân xe lại fills the biển số', () => {
+  it('refuses a deferred-plate trip — the server 409s until Cập nhật biển số fills the biển số', () => {
     expect(canCompleteExternalTrip({ tripId: 55, tripStatus: TripStatus.IN_TRANSIT, carrierType: 'EXTERNAL', plateNumber: null })).toBe(false);
     expect(canCompleteExternalTrip({ tripId: 55, tripStatus: TripStatus.CREATED, carrierType: 'EXTERNAL', plateNumber: '  ' })).toBe(false);
   });

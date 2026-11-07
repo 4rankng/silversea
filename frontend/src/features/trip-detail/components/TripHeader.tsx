@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, Play, Pencil, Check, XCircle, Shuffle, FilePen,
+  ArrowLeft, Play, Pencil, Check, XCircle, FilePen,
   Building2, Loader2, MoreHorizontal, Package,
 } from 'lucide-react';
 import { TRIP_STATUS_LABELS, TripStatus, type TripDetail } from '@tingting/shared';

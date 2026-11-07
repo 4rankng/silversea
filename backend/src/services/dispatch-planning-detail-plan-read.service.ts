@@ -491,6 +491,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         driverPhone: s.drivers.phone,
         externalDriverName: s.tripsComposite.externalDriverName,
         externalDriverPhone: s.tripsComposite.externalDriverPhone,
+        externalPlateNumber: s.tripsComposite.externalPlateNumber,
       }).from(s.tripsComposite)
         .leftJoin(s.drivers, eq(s.drivers.id, s.tripsComposite.driverId))
         .where(inArray(s.tripsComposite.id, tripIds)),
@@ -503,6 +504,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // contact for contractor trips.
     const tripDriverPhones = new Map(tripDrivers.map((trip) => [trip.tripId,
       trip.carrierType === 'EXTERNAL' ? trip.externalDriverPhone : trip.driverPhone]));
+    // SIL-714 read-through: a live EXTERNAL trip's actual plate (filled via
+    // Cập nhật biển số on the carrier sidecar) outranks the planned plate on
+    // the cell — the plan never gets a plate write while the trip runs, so
+    // without this the cell would keep reading plateless after the fill.
+    const tripExternalPlates = new Map(tripDrivers.map((trip) => [trip.tripId, trip.externalPlateNumber]));
     const carriersById = new Map(carriers.map((row) => [row.id, row]));
     const portsById = new Map(ports.map((row) => [row.id, row]));
     const platedByShipment = new Map(platedCounts.map((row) => [row.shipmentId, { total: Number(row.total), plated: Number(row.plated) }]));
@@ -631,7 +637,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
                 : null,
             externalCarrierId: row.plannedExternalCarrierId,
             externalCarrierVehicleId: row.plannedExternalCarrierVehicleId,
-            assignedPlate: row.plannedVehiclePlateNumber,
+            // SIL-714 — the live external trip's actual plate outranks the
+            // plan cell's planned plate (see tripExternalPlates above).
+            assignedPlate: row.tripId != null && row.plannedCarrierType === 'EXTERNAL'
+              ? tripExternalPlates.get(row.tripId) ?? row.plannedVehiclePlateNumber
+              : row.plannedVehiclePlateNumber,
             assignedDriverName: row.tripId != null
               ? tripDriverNames.get(row.tripId) ?? null
               : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber

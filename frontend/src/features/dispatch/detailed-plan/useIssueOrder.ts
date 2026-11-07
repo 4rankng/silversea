@@ -277,7 +277,7 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
         // Card B 18/10 (B.2): issuing an EXTERNAL order whose plate is not
         // known yet warns once — the operator confirms and the confirmed
         // retry rides `plateDeferredConfirmed`. Declining keeps the row
-        // unissued (add the plate first via Phân xe lại / Sửa điều phối).
+        // unissued (add the plate first via Cập nhật biển số / Sửa điều phối).
         const proceed = await confirm(err.message
           ?? 'Phát lệnh chưa có biển số xe nhà xe ngoài. Vẫn phát lệnh?');
         if (proceed) {

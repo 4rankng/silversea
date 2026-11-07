@@ -370,6 +370,9 @@
 .shipment-container-ledger__schedule-gap svg { width: 12px; height: 12px; margin-right: 4px; }
 .shipment-container-ledger__plate { display: inline-flex; width: fit-content; padding: 2px 5px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--surface-2); color: var(--ink) !important; font-family: var(--font-data); font-weight: var(--fw-bold); letter-spacing: .03em; white-space: nowrap; }
 .shipment-container-ledger__vehicle { gap: 4px; }
+/* SIL-714 — the Cập nhật biển số affordance sits under the "CUS sẽ bổ sung"
+   badge in the same multiline stack; width: fit-content keeps it compact. */
+.shipment-container-ledger__plate-update { width: fit-content; }
 .shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 52%, var(--surface)) !important; }
 .shipment-container-ledger tbody > tr:hover > .shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 74%, var(--surface)) !important; }
 /* Status chips below are UUI badges (Badge/BadgeWithDot warning): the badge

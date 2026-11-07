@@ -148,7 +148,6 @@ function renderCell(
     onAtomicSave?: (row: DispatchDetailPlanRow, body: Record<string, unknown>) => Promise<AtomicPlanSaveResult>;
     onIssueOrder?: (row: DispatchDetailPlanRow, body: IssueOrderBody) => Promise<DispatchShipmentResponse>;
     onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
-    onOpenTripReassign?: (tripId: number) => void;
     onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
     onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
     onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
@@ -182,7 +181,6 @@ function renderCell(
       row={item}
       onAtomicSave={(handlers.onAtomicSave as never) ?? (defaultAtomicSave as never)}
       onCancelDispatch={handlers.onCancelDispatch}
-      onOpenTripReassign={(handlers.onOpenTripReassign as never) ?? (vi.fn() as never)}
       onCompleteExternalTrip={(handlers.onCompleteExternalTrip as never) ?? (vi.fn() as never)}
       onIssueOrder={(handlers.onIssueOrder as never) ?? (defaultIssueOrder as never)}
       onEnsureFulfillment={handlers.onEnsureFulfillment}
@@ -490,26 +488,26 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(issueButton()).toBeUndefined();
   });
 
-  it('routes ISSUED rows to the trip-reassign flow instead of the editor', async () => {
-    const onOpenTripReassign = vi.fn();
+  it('routes ISSUED rows to the Hủy phân xe flow instead of the editor (SIL-708)', async () => {
+    const onCancelDispatch = vi.fn();
     renderCell(row({
       taskStatus: 'DISPATCHED',
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 55, tripStatus: 'CREATED' },
-    }), { onOpenTripReassign });
-    // Owner redesign 23/10: the row menu's open signal drives the same
-    // reroute the old inline trigger owned — a live trip never opens the
-    // plan editor, it goes straight to the governed reassignment dialog.
-    await waitFor(() => expect(onOpenTripReassign).toHaveBeenCalledWith(55));
+    }), { onCancelDispatch });
+    // Owner redesign 23/10 + SIL-708: the row menu's open signal drives the
+    // same reroute the old inline trigger owned — a live trip never opens the
+    // plan editor, it goes straight to the cancel-dispatch confirm.
+    await waitFor(() => expect(onCancelDispatch).toHaveBeenCalled());
     expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
   });
 
-  it('routes in-flight (IN_TRANSIT) trips to the reassign flow too — the plan is no longer editable', async () => {
-    const onOpenTripReassign = vi.fn();
+  it('routes in-flight (IN_TRANSIT) trips to the cancel flow too — the plan is no longer editable', async () => {
+    const onCancelDispatch = vi.fn();
     renderCell(row({
       taskStatus: 'DISPATCHED',
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 55, tripStatus: 'IN_TRANSIT' },
-    }), { onOpenTripReassign });
-    await waitFor(() => expect(onOpenTripReassign).toHaveBeenCalledWith(55));
+    }), { onCancelDispatch });
+    await waitFor(() => expect(onCancelDispatch).toHaveBeenCalled());
     expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
   });
 
@@ -593,11 +591,10 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
   });
 
   it('flips the row chip to Đã hoàn thành and locks the editor once the trip completes', () => {
-    const onOpenTripReassign = vi.fn();
     renderCell(row({
       taskStatus: 'COMPLETED',
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1', tripId: 77, tripStatus: 'COMPLETED' },
-    }), { onOpenTripReassign });
+    }));
     expect(screen.getByText('Đã hoàn thành')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Hoàn thành chuyến xe ngoài/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Phát lệnh nhanh/ })).toBeNull();
@@ -909,7 +906,6 @@ describe('DispatchPlanEditorCell — editor mount stability across background re
         estimates: { plannedRevenue: null, plannedCarrierCost: null },
         lotFullyPlated: false,
       }),
-      onOpenTripReassign: vi.fn(),
       onCompleteExternalTrip: vi.fn(),
       onIssueOrder: vi.fn().mockResolvedValue({
         fulfillmentId: 101,
@@ -1718,7 +1714,6 @@ describe('DispatchPlanEditorCell — grouped LCL lot BKS law (card 191026100010)
     rerender(<DispatchPlanEditorCell
       row={groupedRow()}
       onAtomicSave={vi.fn() as never}
-      onOpenTripReassign={vi.fn()}
       onCompleteExternalTrip={vi.fn() as never}
       onIssueOrder={vi.fn() as never}
     />);

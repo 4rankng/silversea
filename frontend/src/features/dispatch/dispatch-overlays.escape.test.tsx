@@ -1,5 +1,5 @@
 // SIL-577 — Escape phải đóng shell của cả 3 overlay dispatch (container drawer,
-// Phân xe lại, Phân bổ nhà xe) từ bất kỳ đâu bên trong; Escape trên inline edit
+// Gán xe nhóm, Phân bổ nhà xe) từ bất kỳ đâu bên trong; Escape trên inline edit
 // input của drawer chỉ revert edit (không đóng shell). Fixtures/mocks theo
 // đúng recipe của DispatchAllocationLclDialog.quick-add.test.tsx.
 import { render, screen, fireEvent, waitFor, configure } from '@testing-library/react';
@@ -142,7 +142,7 @@ describe('dispatch overlays — shell Escape (SIL-577)', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
-  it('Phân xe lại: Escape closes the dialog', async () => {
+  it('Gán xe nhóm: Escape closes the dialog', async () => {
     const onClose = vi.fn();
     renderWithClient(<AssignTruckGroupDialog rows={lclRows} onClose={onClose} onAssigned={vi.fn()} />);
     await screen.findByRole('dialog', { name: /Gán xe nhóm/ });

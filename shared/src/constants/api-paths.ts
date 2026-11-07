@@ -51,6 +51,8 @@ export const SHIPMENTS = {
   CUS_WORKSPACE_REOPEN_REQUEST: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/reopen-requests`,
   CUS_WORKSPACE_REOPEN_DECISION: (shipmentId: number, actionId: number) => `/shipments/cus-workspace/${shipmentId}/reopen-requests/${actionId}/decision`,
   RECOVERY_FACTS: (shipmentId: number) => `/shipments/${shipmentId}/recovery-facts`,
+  /** SIL-714 — trip-scoped external-plate update (Cập nhật biển số xe ngoài). */
+  TRIP_EXTERNAL_PLATE: (tripId: number) => `/shipments/trips/${tripId}/external-plate`,
   // FB-092/093 — LCL lot grouping commands (cost = cước trả ĐV, rev = cước
   // thu khách). POST-shaped on purpose: the /api/shipments mount maps DELETE
   // to casbin's delete action, which CUS/DISPATCHER do not hold.

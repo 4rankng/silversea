@@ -1,0 +1,20 @@
+{
+  "sil699": {
+    "urlAfter": "http://localhost:7186/shipments",
+    "drawerPresent": true,
+    "drawerText": "LOG COMHàng FCLChờ chốt lịchChưa phân xeChờ đối soát1Chốt lịch2Phân xe3Đối soát4Khóa lôNhận diện lôKhách hàng, chứng từ và hướng xuất nhập khẩuKhách hàngLOG COMSố bill/bookingSIL335-BK-002Số tờ khaiCh"
+  },
+  "sil708TripsMenu": [
+    "Hủy chuyến"
+  ],
+  "sil714DispatchMenu": [
+    "Hủy phân xe",
+    "Cập nhật biển số",
+    "Hoàn thành"
+  ],
+  "sil714DispatchMenuAfter": [
+    "Hủy phân xe",
+    "Hoàn thành"
+  ],
+  "opsPatchStatus": 403
+}

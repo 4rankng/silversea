@@ -2,9 +2,9 @@
  * DIS-09 (card 211026130015) — "Đổi nhà xe/BKS" moves to the ROW MENU (⋯) of
  * every assigned task on the main dispatch screen (Kế hoạch Chi tiết Xe):
  * one click from the row opens the SAME pre-filled group-truck edit the
- * badge modal owns — no badge-first detour. An issued task additionally gets
- * "Phân xe lại" (the governed trip reassignment dialog) so every assigned row
- * carries its truck-change affordance. Unassigned and completed rows render
+ * badge modal owns — no badge-first detour. An issued task's vehicle verb is
+ * "Hủy phân xe" (SIL-708 — Phân xe lại is gone; cancel then reassign).
+ * Unassigned and completed rows render
  * no menu (nothing to change / frozen history).
  */
 import { fireEvent, render, screen } from '@testing-library/react';
@@ -86,7 +86,7 @@ function makeRow(overrides: {
   } as unknown as DispatchDetailPlanRow;
 }
 
-function renderGrid(row: DispatchDetailPlanRow, props: { onCancelDispatch?: (row: DispatchDetailPlanRow) => void; onOpenTripReassign?: (tripId: number) => void; onLclTruckUpdated?: () => void; onOpenPair?: (row: DispatchDetailPlanRow) => void; onUnmergeLclGroup?: (groupId: string) => void; onDeleteLot?: (row: DispatchDetailPlanRow) => void; onStartLclMerge?: (row: DispatchDetailPlanRow) => void } = {}) {
+function renderGrid(row: DispatchDetailPlanRow, props: { onCancelDispatch?: (row: DispatchDetailPlanRow) => void; onUpdateExternalPlate?: (row: DispatchDetailPlanRow) => void; onLclTruckUpdated?: () => void; onOpenPair?: (row: DispatchDetailPlanRow) => void; onUnmergeLclGroup?: (groupId: string) => void; onDeleteLot?: (row: DispatchDetailPlanRow) => void; onStartLclMerge?: (row: DispatchDetailPlanRow) => void } = {}) {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={new QueryClient()}>
@@ -111,7 +111,7 @@ function renderGrid(row: DispatchDetailPlanRow, props: { onCancelDispatch?: (row
             onToggleSort={vi.fn()}
             onAtomicSave={vi.fn()}
             onCancelDispatch={props.onCancelDispatch}
-            onOpenTripReassign={props.onOpenTripReassign ?? vi.fn()}
+            onUpdateExternalPlate={props.onUpdateExternalPlate}
             onCompleteExternalTrip={vi.fn()}
             onIssueOrder={vi.fn()}
             onOpenPair={props.onOpenPair}
@@ -174,6 +174,29 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
     expect(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
+  });
+
+  it('an external live trip still waiting for its plate carries Cập nhật biển số (SIL-714)', () => {
+    const onUpdateExternalPlate = vi.fn();
+    renderGrid(makeRow({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'ĐĂNG QUÂN', externalCarrierId: 11, externalCarrierVehicleId: null, assignedPlate: null, tripId: 356, tripStatus: 'CREATED' },
+    }), { onUpdateExternalPlate });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cập nhật biển số' }));
+
+    expect(onUpdateExternalPlate).toHaveBeenCalled();
+  });
+
+  it('a plated external trip and an OWN live trip never offer Cập nhật biển số (SIL-708 law)', () => {
+    renderGrid(makeRow({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'ĐĂNG QUÂN', externalCarrierId: 11, externalCarrierVehicleId: null, assignedPlate: '60H-222.22', tripId: 356, tripStatus: 'CREATED' },
+    }), { onUpdateExternalPlate: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Cập nhật biển số' })).toBeNull();
     expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
   });
 

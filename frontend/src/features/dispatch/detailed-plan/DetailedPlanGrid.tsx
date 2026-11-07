@@ -130,7 +130,8 @@ interface DetailedPlanGridProps {
   ) => Promise<AtomicPlanSaveResult>;
   /** SIL-708 — Hủy phân xe flow for live issued trips. */
   onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
-  onOpenTripReassign?: (tripId: number) => void;
+  /** SIL-714 — Cập nhật biển số for a live EXTERNAL trip awaiting its plate. */
+  onUpdateExternalPlate?: (row: DispatchDetailPlanRow) => void;
   /** SIL-694 (id 806) — optional: hosts gate it by role (the staff close is
    *  ADMIN/MANAGER/DISPATCHER/CUS only); undefined removes every "Hoàn thành"
    *  affordance below (menu item, card slot, editor button). */
@@ -241,7 +242,7 @@ export function DetailedPlanGrid({
   onToggleSort,
   onAtomicSave,
   onCancelDispatch,
-  onOpenTripReassign,
+  onUpdateExternalPlate,
   onCompleteExternalTrip,
   onIssueOrder,
   onOpenPair,
@@ -649,7 +650,7 @@ export function DetailedPlanGrid({
               onEditPlan={requestEditPlan}
               onChangeGroupTruckInline={openGroupTruckEdit}
               onCancelDispatch={onCancelDispatch}
-              onOpenTripReassign={onOpenTripReassign}
+              onUpdateExternalPlate={onUpdateExternalPlate}
               onOpenPair={onOpenPair}
               onUnmergeLclGroup={onUnmergeLclGroup}
               onDeleteLot={onDeleteLot}
@@ -960,7 +961,6 @@ export function DetailedPlanGrid({
                       row={row}
                       onAtomicSave={onAtomicSave}
                       onCancelDispatch={onCancelDispatch}
-                      onOpenTripReassign={onOpenTripReassign}
                       onEnsureFulfillment={onEnsureFulfillment}
                       autoOpenFulfillmentId={autoOpenFulfillmentId}
                       onAutoOpenConsumed={onAutoOpenConsumed}
@@ -1104,7 +1104,7 @@ export function DetailedPlanGrid({
                         onEditPlan={requestEditPlan}
                         onChangeGroupTruckInline={openGroupTruckEdit}
                         onCancelDispatch={onCancelDispatch}
-                        onOpenTripReassign={onOpenTripReassign}
+                        onUpdateExternalPlate={onUpdateExternalPlate}
                         onOpenPair={onOpenPair}
                         onUnmergeLclGroup={onUnmergeLclGroup}
                         onDeleteLot={onDeleteLot}

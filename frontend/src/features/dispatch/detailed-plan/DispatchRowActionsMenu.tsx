@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, Layers, Link2, MoreHorizontal, PencilLine, Repeat, Trash2, Undo2, Unlink } from 'lucide-react';
+import { CheckCircle2, Layers, Link2, MoreHorizontal, PencilLine, Repeat, Trash2, Truck, Undo2, Unlink } from 'lucide-react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { billBookingReference } from '../../../lib/business-reference';
@@ -33,9 +33,10 @@ const MENU_DANGER_BLOCK_H = 46;
  * the data cells stay text-only (design law §1) and no button ever covers a
  * value:
  *
- * - "Sửa điều phối" (or "Phân xe lại" on a live issued trip — the same
- *   reroute the old editor trigger owned) on EVERY non-completed row,
- *   including unassigned ones (assigning is the menu's most common verb).
+ * - "Sửa điều phối" (or "Hủy phân xe" on a live issued trip — SIL-708
+ *   replaced Phân xe lại with the cancel-then-reassign flow) on EVERY
+ *   non-completed row, including unassigned ones (assigning is the menu's
+ *   most common verb).
  * - "Đổi nhà xe/BKS" on grouped LCL rows — opens the same pre-filled
  *   group-truck edit the badge modal owns.
  * - "Ghép chuyến" on pairable rows (the DispatchPairAction law).
@@ -58,7 +59,7 @@ const MENU_DANGER_BLOCK_H = 46;
  * external live trips so the old foot button could be removed without
  * losing the staff close flow.
  */
-export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onCancelDispatch, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, triggerless = false, openRequest, onOpenRequestConsumed }: {
+export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, triggerless = false, openRequest, onOpenRequestConsumed }: {
   row: DispatchDetailPlanRow;
   /** Opens the row's plan editor (the grid routes it to the cell's signal). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
@@ -66,8 +67,8 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   onChangeGroupTruckInline: (row: DispatchDetailPlanRow) => void;
   /** SIL-708 — Hủy phân xe flow for live issued trips (replaces Phân xe lại). */
   onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
-  /** Opens the page-owned trip reassignment dialog (legacy/compat). */
-  onOpenTripReassign?: (tripId: number) => void;
+  /** SIL-714 — Cập nhật biển số for a live EXTERNAL trip awaiting its plate. */
+  onUpdateExternalPlate?: (row: DispatchDetailPlanRow) => void;
   /** Opens the pair-trips dialog anchored on this row (optional — parity
    *  with the old DispatchPairAction wiring). */
   onOpenPair?: (row: DispatchDetailPlanRow) => void;
@@ -129,9 +130,18 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
     && row.dispatch.carrierType === 'EXTERNAL'
     && row.dispatch.tripId != null
     && row.taskStatus === 'DISPATCHED';
+  // SIL-714 (Spec I.4e): a live EXTERNAL trip still waiting for its actual
+  // plate gets the Cập nhật biển số entry (both Điều vận and CUS hold the
+  // write). A plated trip corrects through Hủy phân xe + phân xe mới
+  // (SIL-708) — the entry disappears once the plate is on the trip.
+  const canUpdateExternalPlate = onUpdateExternalPlate != null
+    && row.dispatch.carrierType === 'EXTERNAL'
+    && row.dispatch.tripId != null
+    && !row.dispatch.assignedPlate
+    && canReassignIssuedTrip(row);
 
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
-  const itemCount = 1 + (canCompleteExternal ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canStartLclMerge ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
+  const itemCount = 1 + (canCompleteExternal ? 1 : 0) + (canUpdateExternalPlate ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canStartLclMerge ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
   const menuHeight = itemCount * MENU_ITEM_H + (onDeleteLot ? MENU_DANGER_BLOCK_H : 0) + 12;
 
   const placeAt = (anchor: { top: number; left: number; right: number; bottom: number } | null | undefined) => {
@@ -190,8 +200,6 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
             setOpen(false);
             if (onCancelDispatch) {
               onCancelDispatch(row);
-            } else if (onOpenTripReassign && row.dispatch.tripId != null) {
-              onOpenTripReassign(row.dispatch.tripId);
             }
           }}
           title="Hủy phân xe để trả lô về trạng thái chưa phân xe"
@@ -210,6 +218,20 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
         >
           <PencilLine size={14} aria-hidden="true" />
           Sửa điều phối
+        </button>
+      )}
+      {canUpdateExternalPlate && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            onUpdateExternalPlate?.(row);
+          }}
+          title="Nhập biển số thực tế cho chuyến xe ngoài đang chờ biển (Điều vận và Chứng từ đều được sửa)"
+        >
+          <Truck size={14} aria-hidden="true" />
+          Cập nhật biển số
         </button>
       )}
       {canCompleteExternal && (

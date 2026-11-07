@@ -1,0 +1,6 @@
+ trip_id |    trip_code    | status  | version | carrier_type | external_plate_number 
+---------+-----------------+---------+---------+--------------+-----------------------
+      37 | TRP-202610-0013 | CREATED |       3 | EXTERNAL     | 60H-714.31
+      39 | TRP-202610-0015 | CREATED |       3 | EXTERNAL     | 60H-714.32
+(2 rows)
+

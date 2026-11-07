@@ -128,6 +128,8 @@ export const IDEMPOTENCY_ENDPOINTS = {
   DRIVER_FULFILLMENT_COMPLETE: 'driver.fulfillment.complete',
   /** Staff close for external-carrier trips (dispatch/CUS on the driver's behalf). */
   DISPATCH_EXTERNAL_FULFILLMENT_COMPLETE: 'dispatch.external-fulfillment.complete',
+  /** SIL-714 — external plate update while the trip awaits its biển số. */
+  TRIP_EXTERNAL_PLATE_UPDATE: 'shipments.trip-external-plate.update',
   TRIP_POD_CREATE: 'trips.pod.create',
   TRIP_POD_FILE_ATTACH: 'trips.pod.files.attach',
   TRIP_POD_FILE_DELETE: 'trips.pod.files.delete',

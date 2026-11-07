@@ -30,7 +30,8 @@ import { useVietnamToday } from '../hooks/useVietnamToday';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import { nextTableSort, readTableSort } from '../lib/table-sort';
 import { completeDispatchExternalTrip } from '../api/dispatchPlanningClient';
-import { canCloseExternalTrips, canManageShipmentDebit } from '../lib/role-access';
+import { TripExternalPlateDialog } from '../components/trip/TripExternalPlateDialog';
+import { canCloseExternalTrips, canManageShipmentDebit, canUpdateExternalPlates } from '../lib/role-access';
 import { formatNumber, formatVolumeCbm, formatWeight } from '../lib/format';
 import {
   CUS_SEARCH_PATTERN,
@@ -85,6 +86,8 @@ export default function ShipmentContainersPage() {
   // SIL-592 — hide the staff close outside the backend's complete-external
   // allowlist (ADMIN/MANAGER/DISPATCHER/CUS).
   const canCloseExternal = canCloseExternalTrips(auth?.user?.role);
+  // SIL-714 — same four roles on the external-plate update endpoint.
+  const canUpdatePlate = canUpdateExternalPlates(auth?.user?.role);
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = readPositiveInteger(searchParams.get('page'), 1);
   // Rows per page lives in the URL like every other workboard param, so a
@@ -273,6 +276,19 @@ export default function ShipmentContainersPage() {
       toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể hoàn thành chuyến xe ngoài.' });
       throw error;
     }
+  }, [detail, toast]);
+
+  // SIL-714 (Spec I.4e) — Cập nhật biển số: the shared dialog self-loads the
+  // trip context and reports back here; the workboard refetches so the PHÂN
+  // XE cell drops its "CUS sẽ bổ sung" badge for the real plate.
+  const [plateTripId, setPlateTripId] = useState<number | null>(null);
+  const updateExternalPlate = useCallback((row: ShipmentCusContainerFlatRow) => {
+    if (row.tripId != null) setPlateTripId(row.tripId);
+  }, []);
+  const handleExternalPlateSaved = useCallback(() => {
+    setPlateTripId(null);
+    toast({ kind: 'success', message: 'Đã cập nhật biển số xe ngoài.' });
+    void detail.loadRows();
   }, [detail, toast]);
 
   /** Card 171026122100 (FB-109) auto-sync law — owner ruling 26/10 (SIL-498
@@ -587,7 +603,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} mergeMode={canManageMerge && mergeMode} selectedLotIds={selectedLotIds} onSelectLot={selectLot} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} onCopyDeclaration={copyDeclaration} onCompleteExternalTrip={canCloseExternal ? completeExternalTrip : undefined} />
+          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} mergeMode={canManageMerge && mergeMode} selectedLotIds={selectedLotIds} onSelectLot={selectLot} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} onUpdateExternalPlate={canUpdatePlate ? updateExternalPlate : undefined} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} onCopyDeclaration={copyDeclaration} onCompleteExternalTrip={canCloseExternal ? completeExternalTrip : undefined} />
           {/* Spec 23/10 §2 — the Bottom Floating Bar (shared lcl-merge.css
               look): «Đang chọn N lô: Tổng X tấn | Y CBM — Lô 1 giữ 100% tiền
               thu khách…» + [Bỏ chọn] + [Gộp hàng] (opens the §4.2 popup).
@@ -639,6 +655,14 @@ export default function ShipmentContainersPage() {
           }}
         />
       )}
+
+      {/* SIL-714 (Spec I.4e) — the shared Cập nhật biển số dialog; self-loads
+          the trip context, the page only owns the toast + refetch. */}
+      <TripExternalPlateDialog
+        tripId={plateTripId}
+        onClose={() => setPlateTripId(null)}
+        onSaved={handleExternalPlateSaved}
+      />
     </div>
   );
 }

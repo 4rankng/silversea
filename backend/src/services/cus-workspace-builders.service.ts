@@ -54,6 +54,9 @@ export type AssignmentPlannedIdentity = Pick<AssignmentRow,
   | 'plannedExternalCarrierVehicleId'
   | 'plannedVehiclePlateNumber'
   | 'plannedCarrierShortName'
+  | 'tripCarrierType'
+  | 'tripStatus'
+  | 'tripExternalPlateNumber'
   | 'plannedCarrierName'
 >;
 
@@ -65,6 +68,15 @@ function currentAssignmentIdentity(assignment?: AssignmentPlannedIdentity | null
   plateNumber: string | null;
 } {
   const carrierType = (assignment?.plannedCarrierType as 'OWN' | 'EXTERNAL' | null) ?? null;
+  // SIL-714 read-through — a live EXTERNAL trip's actual plate (filled via
+  // Cập nhật biển số on trip_carrier_info) outranks the plan's planned plate:
+  // the plan never receives a plate write while the trip runs, so without
+  // this the PHÂN XE cell would keep its "CUS sẽ bổ sung" badge after the
+  // fill. The statuses mirror the staff-close live-trip law.
+  const liveTripPlate = assignment?.tripCarrierType === 'EXTERNAL'
+    && (assignment?.tripStatus === 'CREATED' || assignment?.tripStatus === 'IN_TRANSIT')
+    ? trimOrNull(assignment?.tripExternalPlateNumber)
+    : null;
   return {
     carrierType,
     externalCarrierId: assignment?.plannedExternalCarrierId ?? null,
@@ -74,7 +86,7 @@ function currentAssignmentIdentity(assignment?: AssignmentPlannedIdentity | null
       : carrierType === 'OWN'
         ? 'SilverSea'
         : (assignment?.plannedCarrierShortName?.trim() || assignment?.plannedCarrierName) ?? null,
-    plateNumber: trimOrNull(assignment?.plannedVehiclePlateNumber),
+    plateNumber: liveTripPlate ?? trimOrNull(assignment?.plannedVehiclePlateNumber),
   };
 }
 

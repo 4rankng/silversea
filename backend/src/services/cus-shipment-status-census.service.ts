@@ -12,7 +12,7 @@
  * `currentAssignmentIdentity` / `getShipmentFinanceConfirmationSummaries`) —
  * deliberately no SQL mirror of the readiness rules: one rule, two callers.
  */
-import { and, eq, inArray, isNull, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne, type SQL } from 'drizzle-orm';
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { plannedCarrier } from './cus-workspace-sql.service';
@@ -71,8 +71,20 @@ export async function loadCusShipmentStatusCounts(
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
       plannedCarrierName: plannedCarrier.name,
       plannedCarrierShortName: plannedCarrier.shortName,
+      // SIL-714 read-through — the census must agree with the row the tab
+      // sizes (builders' law): a live EXTERNAL trip's actual plate counts as
+      // present, same as the PHÂN XE cell shows.
+      tripStatus: s.trips.status,
+      tripCarrierType: s.tripCarrierInfo.carrierType,
+      tripExternalPlateNumber: s.tripCarrierInfo.externalPlateNumber,
     }).from(s.shipmentFulfillments)
       .leftJoin(plannedCarrier, eq(plannedCarrier.id, s.shipmentFulfillments.plannedExternalCarrierId))
+      .leftJoin(s.trips, and(
+        eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+        isNull(s.trips.deletedAt),
+        ne(s.trips.status, 'CANCELED'),
+      ))
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
       .where(and(
         inArray(s.shipmentFulfillments.shipmentId, shipmentIds),
         isNull(s.shipmentFulfillments.canceledAt),

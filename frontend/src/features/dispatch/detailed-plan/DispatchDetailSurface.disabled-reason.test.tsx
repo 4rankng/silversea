@@ -3,7 +3,7 @@
  * silently must explain themselves through the aria-described +
  * aria-disabled pattern (components/shared/DisabledActionTip, landed by card
  * 081026093510). This file pins the grid retry, the filter reset, the quick
- * issue button, the pair dialog and the trip-reassign dialog; the plan-editor
+ * issue button and the pair dialog; the plan-editor
  * cell pins live in DispatchPlanEditorCell.disabled-reason.test.tsx.
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -23,7 +23,7 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
   return { ...actual, listDispatchFleetResources: listFleet };
 });
 vi.mock('../../../api/tripClient', () => ({
-  tripClient: { getTrip: vi.fn(), createPair: vi.fn(), reassignTrip: vi.fn() },
+  tripClient: { getTrip: vi.fn(), createPair: vi.fn() },
 }));
 const useTripDetailMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../hooks/useTripQueries', () => ({ useTripDetail: useTripDetailMock }));
@@ -49,7 +49,6 @@ import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { EMPTY_DETAILED_PLAN_FILTERS, createDefaultDetailedPlanFilters } from './useDispatchDetailPlan';
 import { QuickIssueOrderButton } from './QuickIssueOrderButton';
 import { PairTripsDialog } from './PairTripsDialog';
-import { TripReassignDialog } from './TripReassignDialog';
 
 function reasonOf(button: HTMLElement): string {
   const reasonId = button.getAttribute('aria-describedby');
@@ -111,7 +110,6 @@ function renderGrid(extraProps: Record<string, unknown>) {
       sortDirection="asc"
       onToggleSort={vi.fn()}
       onAtomicSave={vi.fn()}
-      onOpenTripReassign={vi.fn()}
       onCompleteExternalTrip={vi.fn()}
       onIssueOrder={vi.fn()}
       {...extraProps}
@@ -340,93 +338,4 @@ describe('PairTripsDialog (card 20261008_1 sweep)', () => {
 
     resolvePair({ id: 55, status: 'ACTIVE', pairKind: 'KET_HOP', warnings: [] });
   }, 20_000);
-});
-
-describe('TripReassignDialog (card 20261008_1 sweep)', () => {
-  const TRIP = {
-    id: 3,
-    version: 3,
-    carrierType: 'OWN',
-    truckId: 20,
-    driverId: 7,
-    externalCarrierId: null,
-    externalPlateNumber: null,
-    externalDriverName: null,
-    externalDriverPhone: null,
-    status: 'CREATED',
-    driverAccepted: false,
-  } as unknown as TripDetail;
-
-  function dialog() {
-    return (
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <TripReassignDialog tripId={3} onClose={vi.fn()} onReassigned={vi.fn()} />
-      </QueryClientProvider>
-    );
-  }
-
-  beforeEach(() => {
-    vi.mocked(tripClient.reassignTrip).mockReset();
-    useTripDetailMock.mockReset();
-    catalogsMock.mockReturnValue({ data: { customers: [], externalCarriers: [] } });
-    trucksDriversMock.mockReturnValue({
-      data: { trucks: [{ id: 20, licensePlate: '51H-123.45' }, { id: 21, licensePlate: '60C-888.88' }], drivers: [{ id: 7, name: 'Anh Hùng' }, { id: 8, name: 'Anh Bình' }] },
-    });
-  });
-
-  it('without a truck the confirm explains the missing tractor and stays inert', () => {
-    useTripDetailMock.mockReturnValue({
-      data: { ...TRIP, truckId: null, driverId: null }, isLoading: false, error: null, refetch: vi.fn(),
-    } as never);
-    render(dialog());
-    const confirm = screen.getByRole('button', { name: /Xác nhận phân xe lại/ });
-    expect(confirm).toHaveAttribute('aria-disabled', 'true');
-    expect(confirm).not.toBeDisabled();
-    // Card 091026190520: once the driver has accepted, a vehicle-only
-    // reassignment stays allowed, so an own-carrier trip needs ONLY the
-    // tractor here. The copy names the tractor — this assertion pins that
-    // contract, and would catch the dialog drifting back to demanding both.
-    expect(reasonOf(confirm)).toBe('Chọn xe đầu kéo để xác nhận.');
-    fireEvent.click(confirm);
-    expect(tripClient.reassignTrip).not.toHaveBeenCalled();
-  });
-
-  it('while the save is in flight both dialog buttons explain their busy disable', async () => {
-    useTripDetailMock.mockReturnValue({ data: TRIP, isLoading: false, error: null, refetch: vi.fn() } as never);
-    // Executor form on purpose: Promise.withResolvers is outside this
-    // project's TS lib (TS2550).
-    let resolveSave: (value: unknown) => void = () => {};
-    vi.mocked(tripClient.reassignTrip).mockReturnValue(new Promise((resolve) => { resolveSave = resolve; }) as never);
-    render(dialog());
-
-    fireEvent.change(screen.getByLabelText(/Lý do điều chuyển/), { target: { value: 'Đổi ca tải.' } });
-    fireEvent.click(screen.getByRole('button', { name: /Xác nhận phân xe lại/ }));
-    await waitFor(() => expect(tripClient.reassignTrip).toHaveBeenCalledTimes(1));
-
-    const cancel = screen.getByRole('button', { name: 'Hủy' });
-    expect(cancel).toHaveAttribute('aria-disabled', 'true');
-    expect(cancel).not.toBeDisabled();
-    expect(reasonOf(cancel)).toBe('Đang lưu phân xe lại — chưa hủy được.');
-    fireEvent.click(cancel);
-
-    const confirm = screen.getByRole('button', { name: /Xác nhận phân xe lại/ });
-    expect(confirm).toHaveAttribute('aria-disabled', 'true');
-    expect(confirm).not.toBeDisabled();
-    expect(reasonOf(confirm)).toBe('Đang lưu phân xe lại…');
-
-    resolveSave(TRIP);
-  });
-
-  it('with truck, driver and reason filled it is armed (no reason) and reassigns', async () => {
-    useTripDetailMock.mockReturnValue({ data: TRIP, isLoading: false, error: null, refetch: vi.fn() } as never);
-    vi.mocked(tripClient.reassignTrip).mockResolvedValue({ ...TRIP, version: 4 } as never);
-    render(dialog());
-
-    fireEvent.change(screen.getByLabelText(/Lý do điều chuyển/), { target: { value: 'Đổi ca tải.' } });
-    const confirm = screen.getByRole('button', { name: /Xác nhận phân xe lại/ });
-    expect(confirm).not.toHaveAttribute('aria-disabled');
-    expect(confirm).not.toHaveAttribute('aria-describedby');
-    fireEvent.click(confirm);
-    await waitFor(() => expect(tripClient.reassignTrip).toHaveBeenCalledTimes(1));
-  });
 });

@@ -10,7 +10,7 @@ import type {
 } from '@tingting/shared';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
-import { canCompleteExternalTrip, displayNote } from '../cus/cusUtils';
+import { canCompleteExternalTrip, canUpdateExternalTripPlate, displayNote } from '../cus/cusUtils';
 import { checkContainerNumber } from '../../../components/trip/container-instance-helpers';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
@@ -952,6 +952,13 @@ interface ShipmentContainerLedgerProps {
    */
   onCompleteExternalTrip?: (row: ShipmentCusContainerFlatRow) => Promise<void>;
   /**
+   * SIL-714 (Spec I.4e) — opens the shared Cập nhật biển số dialog for the
+   * row's live external trip. Absent when the signed-in role sits outside
+   * the backend allowlist; the row gate (canUpdateExternalTripPlate) hides
+   * it everywhere else.
+   */
+  onUpdateExternalPlate?: (row: ShipmentCusContainerFlatRow) => void;
+  /**
    * Column keys the picker on the page's filter bar is hiding (card
    * 20260928_193, restoring 20260917_4). The ledger renders `col`/`th`/`td`
    * conditionally so a `table-layout: fixed` table never shows ghost columns.
@@ -992,6 +999,7 @@ export function ShipmentContainerLedger({
   onCopyAppointment,
   onCopyDeclaration,
   onCompleteExternalTrip,
+  onUpdateExternalPlate,
   hiddenColumns = [],
   mergeMode = false,
   selectedLotIds,
@@ -1758,6 +1766,23 @@ export function ShipmentContainerLedger({
                             <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
                           ) : row.carrierType === 'EXTERNAL' ? null : (
                             <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">Chưa gán biển số</BadgeWithDot>
+                          )}
+                          {/* SIL-714 (Spec I.4e) — Cập nhật biển số lives in
+                              the cell that read "CUS sẽ bổ sung": the operator
+                              fills the actual plate without leaving the
+                              workboard. Own-fleet rows keep their plate on the
+                              plan (Hủy phân xe law) — never here. SIL-731
+                              removed the deferred badge itself; an external row
+                              awaiting its plate renders blank here. */}
+                          {onUpdateExternalPlate && canUpdateExternalTripPlate(row) && (
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--sm shipment-container-ledger__plate-update"
+                              aria-label={`Cập nhật biển số xe ngoài cho ${row.containerNumber?.trim() || row.billOrBookNumber || `cont ${row.ordinal}`}`}
+                              onClick={() => onUpdateExternalPlate(row)}
+                            >
+                              Cập nhật biển số
+                            </button>
                           )}
                         </>
                       )}

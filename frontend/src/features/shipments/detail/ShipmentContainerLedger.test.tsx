@@ -934,6 +934,79 @@ describe('deferred-plate copy on the ledger (laws 4.1.3 & 8.1.2)', () => {
   });
 });
 
+describe('SIL-714 — Cập nhật biển số affordance on the PHÂN XE cell', () => {
+  function renderPlateCell(row: ShipmentCusContainerFlatRow, onUpdateExternalPlate?: (row: ShipmentCusContainerFlatRow) => void) {
+    return render(
+      <ShipmentContainerLedger
+        rows={[row]}
+        totalContainers={1}
+        today="2026-09-10"
+        sort={null}
+        onSortChange={vi.fn()}
+        activeEdit={null}
+        editLoadingRowId={null}
+        editError={null}
+        onStartEdit={vi.fn()}
+        onCancelEdit={vi.fn()}
+        onSaveRoute={vi.fn(async () => {})}
+        onSaveVehicle={vi.fn(async () => {})}
+        onSaveSchedule={vi.fn(async () => {})}
+        onSaveNotes={vi.fn(async () => {})}
+        onSaveIdentity={vi.fn(async () => {})}
+        onSaveDocuments={vi.fn(async () => {})}
+        onSaveContainer={vi.fn(async () => {})}
+        onUpdateExternalPlate={onUpdateExternalPlate}
+      />,
+      { wrapper: MemoryRouter },
+    );
+  }
+
+  const awaitingPlate = () => baseRow({
+    carrierType: 'EXTERNAL',
+    carrierName: 'ĐĂNG QUÂN',
+    plateNumber: null,
+    tripId: 356,
+    tripStatus: TripStatus.CREATED,
+  }) as ShipmentCusContainerFlatRow;
+
+  it('an external awaiting-plate row with the handler shows the button and opens the dialog with that row', () => {
+    const onUpdateExternalPlate = vi.fn();
+    renderPlateCell(awaitingPlate(), onUpdateExternalPlate);
+    const button = screen.getByRole('button', { name: /Cập nhật biển số xe ngoài cho/ });
+    fireEvent.click(button);
+    expect(onUpdateExternalPlate).toHaveBeenCalledWith(expect.objectContaining({ tripId: 356 }));
+  });
+
+  it('a plated external row never offers it — plate corrections ride Hủy phân xe (SIL-708)', () => {
+    renderPlateCell(baseRow({
+      carrierType: 'EXTERNAL',
+      plateNumber: '15C-12345',
+      tripId: 356,
+      tripStatus: TripStatus.CREATED,
+    }) as ShipmentCusContainerFlatRow, vi.fn());
+    expect(screen.queryByRole('button', { name: /Cập nhật biển số/ })).toBeNull();
+  });
+
+  it('an OWN row and a terminal external trip never offer it', () => {
+    const onUpdateExternalPlate = vi.fn();
+    renderPlateCell(baseRow({ carrierType: 'OWN', tripId: 900, tripStatus: TripStatus.CREATED, plateNumber: null }) as ShipmentCusContainerFlatRow, onUpdateExternalPlate);
+    expect(screen.queryByRole('button', { name: /Cập nhật biển số/ })).toBeNull();
+    renderPlateCell(baseRow({
+      carrierType: 'EXTERNAL',
+      plateNumber: null,
+      tripId: 356,
+      tripStatus: TripStatus.COMPLETED,
+    }) as ShipmentCusContainerFlatRow, onUpdateExternalPlate);
+    expect(screen.queryByRole('button', { name: /Cập nhật biển số/ })).toBeNull();
+  });
+
+  it('without the handler (role outside the allowlist) even the eligible row stays read-only', () => {
+    renderPlateCell(awaitingPlate());
+    expect(screen.queryByText('CUS sẽ bổ sung')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Cập nhật biển số/ })).toBeNull();
+  });
+});
+
 describe('external-vendor plate quick-select (card 20260925_6)', () => {
   const vendorDetail = () => {
     const detail = baseDetail();

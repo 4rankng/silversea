@@ -53,7 +53,6 @@ const renderCards = (items: DispatchDetailPlanRow[], overrides: Record<string, u
     items={items}
     onEditPlan={vi.fn()}
     onChangeGroupTruckInline={vi.fn()}
-    onOpenTripReassign={vi.fn()}
     onExpandNote={vi.fn()}
     onDeleteLot={vi.fn()}
     {...editorProps}

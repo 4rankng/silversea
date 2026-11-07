@@ -124,7 +124,6 @@ function renderCell(
         estimates: { plannedRevenue: null, plannedCarrierCost: null },
         lotFullyPlated: false,
       })}
-      onOpenTripReassign={vi.fn()}
       onCompleteExternalTrip={handlers.onCompleteExternalTrip ?? vi.fn()}
       onIssueOrder={handlers.onIssueOrder ?? vi.fn().mockResolvedValue({})}
       openRequest={{ key: detailRowKey(item), nonce: 1 }}
