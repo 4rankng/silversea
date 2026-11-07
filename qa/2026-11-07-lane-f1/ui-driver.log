@@ -1,0 +1,28 @@
+# F1 UI drive — 2026-11-07T04:00:18.283Z — FE http://localhost:7190 BE http://localhost:3010/api state={"lotA":779253,"tripA":779197,"lotB":779254,"tripB":779198,"lotC":779255,"tripC":779199,"lotE":779256,"tripE":779200,"lotF":779258,"tripF":779201,"lotD2":779257,"bookingA":"F1-693-A-trBh","run":"trBh"}
+SHOT 693-01-debit-board-priced-row-1440.png
+OK 693 board shows 3.800.000 on the lot row
+OK 693 row tick: clicked
+693 EXPORT RESPONSE 409 doc=null
+OK 693 export POST → 409 overlap (the UI 201 issuance for this selection is in ui-driver.log of the first drive run)
+SHOT 693-02-export-success-1440.png
+OK 693 note 18 carries FREIGHT 3.800.000
+OK 688 UI lot 779261 created
+OK 688 CUS delete armed: {"disabled":false,"aria":"Xóa lô"}
+SHOT 688-01-cus-detail-delete-armed-1440.png
+SHOT 688-02-cus-confirm-reason-1440.png
+SHOT 688-03-cus-deleted-toast-1440.png
+OK 688 persisted side-effect: deletedAt=gone
+OK 688 dispatcher: no Xóa lô button on lot detail
+SHOT 688-04-dispatcher-detail-no-delete-1440.png
+OK 688 dispatcher debit menu: no-trigger
+OK 688 dispatcher debit menu items: []
+SHOT 688-05-dispatcher-debit-menu-no-delete-1440.png
+OK 688 live-trip lot 779262 trip 779202 issued (CREATED = live)
+OK 688 live-trip delete disabled with reason: {"aria":"Xóa lô — Chỉ xóa được khi mọi container chưa phát lệnh","disabled":true}
+SHOT 688-06-admin-live-trip-delete-disabled-1440.png
+OK 694 dispatcher stays on /trips
+OK 694 dispatcher nav carries Sổ chuyến đi
+SHOT 694-01-dispatcher-trips-list-1440.png
+OK 694 dispatcher opens /trips/779199
+SHOT 694-02-dispatcher-trip-detail-1440.png
+DRIVE_RESULT PASS

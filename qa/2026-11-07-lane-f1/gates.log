@@ -1,0 +1,22 @@
+# Lane F1 gates — 2026-11-07 — worktree fix/f1-693-688-694 (base 95e2bd13)
+
+backend npx tsc --noEmit            → 0 errors (exit 0)
+backend pnpm test:unit              → 975/975 pass (incl. 6 new SIL-693 pins, 3 new SIL-694 pins)
+frontend npx tsc -b                 → 0 errors (exit 0)
+frontend vitest affected            → App.dispatcher-trips-route + Layout.test + DispatchDetailPlanPage.delete-lot + DispatchDetailPlanPage + detailed-plan (48 files / 531 tests) → all pass
+pnpm lint                           → 0 errors, 6 pre-existing warnings (files untouched by this lane)
+make build                          → exit 0 (shared tsc + backend tsc + frontend vite build)
+
+frontend vitest FULL suite — run 1 (machine loaded: 3 chrome UI drives + dev
+servers + make build rewriting dist mid-run): 9 failed / 6259 passed. run 2
+(build finished): same 4 files fail. ISOLATION: the same 4 files run alone →
+131/131 PASS (numeric-identity.styles.test.ts reads dist bundle — the parallel
+make build rewrote it mid-suite; PhoiPhieuDialogs + AccountingDebitClosePage +
+DetailedPlanGrid are time-sensitive suites that only fail under full parallel
+load). run 3 on an idle machine: see the tail of this log.
+
+run 3 (idle machine, no parallel load): Test Files 798 passed (798) · Tests 6268
+passed (6268) — exit 0. The run-1/2 failures were parallel-load flakes (the
+isolation proof above stands: same files 131/131 alone).
+
+ALL GATES GREEN.

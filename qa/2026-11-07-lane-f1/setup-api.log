@@ -1,0 +1,182 @@
+2026-11-07T03:42:57.795Z OK create lot 693-A status=201 body={"id":779253,"shipmentCode":"SHP-2611-00413","version":1,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":6,"cargoTypeId":null,"responsibleUnitId":null,"status":"READY_FOR_DISPATCH","bookingRef":"F1-693-A-trBh","blNumber":null,"tradeDirection":null,"cargoMode":"LCL","operationalSiteId":null,"pickupWarehouseSiteId":null,"factoryName":null,"isCombined":false,"shipp
+2026-11-07T03:42:57.848Z OK dispatch rows p1 status=200 body={"count":50}
+2026-11-07T03:42:57.945Z OK dispatch rows p2 status=200 body={"count":50}
+2026-11-07T03:42:57.993Z OK dispatch rows p3 status=200 body={"count":50}
+2026-11-07T03:42:58.044Z OK dispatch rows p4 status=200 body={"count":50}
+2026-11-07T03:42:58.104Z OK dispatch rows p5 status=200 body={"count":50}
+2026-11-07T03:42:58.136Z OK dispatch rows p6 status=200 body={"count":50}
+2026-11-07T03:42:58.170Z OK dispatch rows p7 status=200 body={"count":50}
+2026-11-07T03:42:58.218Z OK dispatch rows p8 status=200 body={"count":50}
+2026-11-07T03:42:58.247Z OK dispatch rows p9 status=200 body={"count":50}
+2026-11-07T03:42:58.288Z OK dispatch rows p10 status=200 body={"count":50}
+2026-11-07T03:42:58.334Z OK dispatch rows p11 status=200 body={"count":50}
+2026-11-07T03:42:58.369Z OK dispatch rows p12 status=200 body={"count":50}
+2026-11-07T03:42:58.427Z OK dispatch rows p13 status=200 body={"count":50}
+2026-11-07T03:42:58.510Z OK dispatch rows p14 status=200 body={"count":50}
+2026-11-07T03:42:58.605Z OK dispatch rows p15 status=200 body={"count":50}
+2026-11-07T03:42:58.768Z OK dispatch rows p16 status=200 body={"count":50}
+2026-11-07T03:42:58.897Z OK dispatch rows p17 status=200 body={"count":50}
+2026-11-07T03:42:58.984Z OK dispatch rows p18 status=200 body={"count":50}
+2026-11-07T03:42:59.030Z OK dispatch rows p19 status=200 body={"count":50}
+2026-11-07T03:42:59.163Z OK dispatch rows p20 status=200 body={"count":50}
+2026-11-07T03:42:59.235Z OK dispatch rows p21 status=200 body={"count":50}
+2026-11-07T03:42:59.255Z assigned-driver status=200 body={"truckId":19,"driverId":33,"previousDriverId":null,"replayed":false}
+2026-11-07T03:42:59.299Z OK plan issue 693-A status=200 body={"fulfillmentId":2327,"fulfillmentVersion":2,"shipmentId":779253,"shipmentVersion":1,"classification":"LCL","isCombined":false,"operationalNotes":null,"dispatch":{"carrierType":"OWN","carrierName":"SilverSea","externalCarrierId":null,"externalCarrierVehicleId":null,"assignedPlate":"15H-039.39","assignedDriverName":"Nguyễn Văn Cần","assignedDriverPhone":"0359980666","driverAccepted":false},"estimat
+2026-11-07T03:42:59.508Z dispatch issued 693-A status=201 body={"fulfillmentId":2327,"version":3,"trip":{"id":779197,"version":2,"tripCode":"TRP-202611-0224","status":"CREATED","plannedStartAt":"2026-11-07T01:42:00.000Z","plannedEndAt":"2026-11-07T05:04:00.000Z","carrierType":"OWN","truckId":19,"trailerId":18,"driverId":33,"externalCarrierId":null,"externalPlateNumber":null,"externalDriverName":null,"externalDriverPhone":null},"notification":{"type":"TRIP_DIS
+2026-11-07T03:42:59.509Z trip issued 693-A status=200 body={"tripId":779197,"fid":2327,"truckId":19}
+2026-11-07T03:42:59.725Z driver ORDER_RECEIVED status=201 body={"id":314,"tripId":779197,"driverId":33,"eventType":"ORDER_RECEIVED","occurredAt":"2026-11-07T03:42:59.509Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:42:59.601Z"}
+2026-11-07T03:42:59.783Z driver PICKED_UP status=201 body={"id":315,"tripId":779197,"driverId":33,"eventType":"PICKED_UP","occurredAt":"2026-11-07T03:42:59.509Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:42:59.762Z"}
+2026-11-07T03:42:59.896Z driver LOADING_OR_RETURNING status=201 body={"id":316,"tripId":779197,"driverId":33,"eventType":"LOADING_OR_RETURNING","occurredAt":"2026-11-07T03:42:59.509Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:42:59.846Z"}
+2026-11-07T03:43:00.080Z driver DELIVERED status=201 body={"id":317,"tripId":779197,"driverId":33,"eventType":"DELIVERED","occurredAt":"2026-11-07T03:42:59.509Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:42:59.977Z"}
+2026-11-07T03:43:00.128Z pod create status=201 body={"id":66,"tripId":779197,"fulfillmentId":2327,"submissionVersion":1,"status":"DRAFT","version":1,"createdAt":"2026-11-07T03:43:00.111Z","submittedAt":null,"submittedBy":null,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":["YARD_OR_DROP_RECEIPT","SIGNED_DELIVERY_NOTE"],"isReadyForReview":false,"files":[]}
+2026-11-07T03:43:00.196Z pod file YARD_OR_DROP_RECEIPT status=200 body={"id":66,"tripId":779197,"fulfillmentId":2327,"submissionVersion":1,"status":"DRAFT","version":2,"createdAt":"2026-11-07T03:43:00.111Z","submittedAt":null,"submittedBy":null,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":["SIGNED_DELIVERY_NOTE"],"isReadyForReview":false,"files":[{"id":86,"fileType":"YARD_OR_
+2026-11-07T03:43:00.246Z pod file SIGNED_DELIVERY_NOTE status=200 body={"id":66,"tripId":779197,"fulfillmentId":2327,"submissionVersion":1,"status":"DRAFT","version":3,"createdAt":"2026-11-07T03:43:00.111Z","submittedAt":null,"submittedBy":null,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":[],"isReadyForReview":false,"files":[{"id":86,"fileType":"YARD_OR_DROP_RECEIPT","label":
+2026-11-07T03:43:00.344Z pod submit status=200 body={"id":66,"tripId":779197,"fulfillmentId":2327,"submissionVersion":1,"status":"SUBMITTED","version":4,"createdAt":"2026-11-07T03:43:00.111Z","submittedAt":"2026-11-07T03:43:00.325Z","submittedBy":55,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":[],"isReadyForReview":true,"files":[{"id":86,"fileType":"YARD_OR
+2026-11-07T03:43:00.661Z trip A driver-completed status=200 body={"tripId":779197,"fulfillmentId":2327,"status":"COMPLETED","version":4,"completedAt":"2026-11-07T03:43:00.403Z","evidenceStatus":{"ready":true,"missing":[],"hasDeliveredMilestone":true,"hasSubmittedPod":true,"hasRequiredPodFiles":true,"latestSubmissionId":66,"latestSubmissionStatus":"SUBMITTED"}}
+2026-11-07T03:43:01.023Z OK lock lot A (freeze unpriced) status=201 body={"id":115,"lockedBy":61,"lockedByName":"Quản trị viên","lockedAt":"2026-11-07T03:43:00.700Z","lockNote":"QA F1-693 freeze v1"}
+2026-11-07T03:43:01.065Z OK 693 BEFORE: export 409 NO_RATE_KEY (guard kept) status=409 body={"error":"Cước vận tải của lô SHP-2611-00413 chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: NO_RATE_KEY). Không thể xuất Debit Note thiếu cước — hãy xác định giá cước thu khách trên màn hình Chi phí - Quyết toán (chọn loại xe tính cước hoặc nhập giá), khóa lại lô rồi xuất."}
+2026-11-07T03:43:01.123Z OK unlock lot A status=200 body={"id":115,"unlockedBy":61,"unlockedByName":"Quản trị viên","unlockedAt":"2026-11-07T03:43:01.111Z","unlockReason":"QA F1-693 remedy — định giá bù sau hoàn thành"}
+2026-11-07T03:43:01.154Z OK 693 FIX: completed-trip manual price 200 (was 409) status=200 body={"shipmentId":779253,"reference":"F1-693-A-trBh","vehicleSizeClassId":null,"vehicleClassCode":null,"freightAuto":null,"freightManual":"3800000","freight":"3800000","channel":"TRIP","reason":"Chọn giá cước thu khách — giá nhập tay (thỏa thuận với khách)"}
+2026-11-07T03:43:01.484Z OK re-lock lot A status=201 body={"id":116,"lockedBy":61,"lockedByName":"Quản trị viên","lockedAt":"2026-11-07T03:43:01.218Z","lockNote":"QA F1-693 freeze v2 (priced)"}
+2026-11-07T03:43:01.536Z OK create lot 694-B-ops status=201 body={"id":779254,"shipmentCode":"SHP-2611-00414","version":1,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":6,"cargoTypeId":null,"responsibleUnitId":null,"status":"READY_FOR_DISPATCH","bookingRef":"F1-694-B-ops-trBh","blNumber":null,"tradeDirection":null,"cargoMode":"LCL","operationalSiteId":null,"pickupWarehouseSiteId":null,"factoryName":null,"isCombined":false,"s
+2026-11-07T03:43:01.609Z OK dispatch rows p1 status=200 body={"count":50}
+2026-11-07T03:43:01.644Z OK dispatch rows p2 status=200 body={"count":50}
+2026-11-07T03:43:01.673Z OK dispatch rows p3 status=200 body={"count":50}
+2026-11-07T03:43:01.721Z OK dispatch rows p4 status=200 body={"count":50}
+2026-11-07T03:43:01.749Z OK dispatch rows p5 status=200 body={"count":50}
+2026-11-07T03:43:01.782Z OK dispatch rows p6 status=200 body={"count":50}
+2026-11-07T03:43:01.858Z OK dispatch rows p7 status=200 body={"count":50}
+2026-11-07T03:43:01.905Z OK dispatch rows p8 status=200 body={"count":50}
+2026-11-07T03:43:01.957Z OK dispatch rows p9 status=200 body={"count":50}
+2026-11-07T03:43:02.058Z OK dispatch rows p10 status=200 body={"count":50}
+2026-11-07T03:43:02.118Z OK dispatch rows p11 status=200 body={"count":50}
+2026-11-07T03:43:02.173Z OK dispatch rows p12 status=200 body={"count":50}
+2026-11-07T03:43:02.233Z OK dispatch rows p13 status=200 body={"count":50}
+2026-11-07T03:43:02.266Z OK dispatch rows p14 status=200 body={"count":50}
+2026-11-07T03:43:02.299Z OK dispatch rows p15 status=200 body={"count":50}
+2026-11-07T03:43:02.396Z OK dispatch rows p16 status=200 body={"count":50}
+2026-11-07T03:43:02.424Z OK dispatch rows p17 status=200 body={"count":50}
+2026-11-07T03:43:02.475Z OK dispatch rows p18 status=200 body={"count":50}
+2026-11-07T03:43:02.507Z OK dispatch rows p19 status=200 body={"count":50}
+2026-11-07T03:43:02.537Z OK dispatch rows p20 status=200 body={"count":50}
+2026-11-07T03:43:02.578Z OK dispatch rows p21 status=200 body={"count":50}
+2026-11-07T03:43:02.595Z assigned-driver status=200 body={"truckId":19,"driverId":33,"previousDriverId":33,"replayed":false}
+2026-11-07T03:43:02.631Z OK plan issue 694-B-ops status=200 body={"fulfillmentId":2328,"fulfillmentVersion":2,"shipmentId":779254,"shipmentVersion":1,"classification":"LCL","isCombined":false,"operationalNotes":null,"dispatch":{"carrierType":"OWN","carrierName":"SilverSea","externalCarrierId":null,"externalCarrierVehicleId":null,"assignedPlate":"15H-039.39","assignedDriverName":"Nguyễn Văn Cần","assignedDriverPhone":"0359980666","driverAccepted":false},"estimat
+2026-11-07T03:43:02.757Z dispatch issued 694-B-ops status=201 body={"fulfillmentId":2328,"version":3,"trip":{"id":779198,"version":2,"tripCode":"TRP-202611-0225","status":"CREATED","plannedStartAt":"2026-11-07T01:43:00.000Z","plannedEndAt":"2026-11-07T05:05:00.000Z","carrierType":"OWN","truckId":19,"trailerId":18,"driverId":33,"externalCarrierId":null,"externalPlateNumber":null,"externalDriverName":null,"externalDriverPhone":null},"notification":{"type":"TRIP_DIS
+2026-11-07T03:43:02.759Z trip issued 694-B-ops status=200 body={"tripId":779198,"fid":2328,"truckId":19}
+2026-11-07T03:43:02.852Z driver ORDER_RECEIVED status=201 body={"id":318,"tripId":779198,"driverId":33,"eventType":"ORDER_RECEIVED","occurredAt":"2026-11-07T03:43:02.759Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:43:02.802Z"}
+2026-11-07T03:43:02.893Z driver PICKED_UP status=201 body={"id":319,"tripId":779198,"driverId":33,"eventType":"PICKED_UP","occurredAt":"2026-11-07T03:43:02.759Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:43:02.876Z"}
+2026-11-07T03:43:03.006Z driver LOADING_OR_RETURNING status=201 body={"id":320,"tripId":779198,"driverId":33,"eventType":"LOADING_OR_RETURNING","occurredAt":"2026-11-07T03:43:02.759Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:43:02.925Z"}
+2026-11-07T03:43:03.057Z driver DELIVERED status=201 body={"id":321,"tripId":779198,"driverId":33,"eventType":"DELIVERED","occurredAt":"2026-11-07T03:43:02.759Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:43:03.035Z"}
+2026-11-07T03:43:03.161Z pod create status=201 body={"id":67,"tripId":779198,"fulfillmentId":2328,"submissionVersion":1,"status":"DRAFT","version":1,"createdAt":"2026-11-07T03:43:03.141Z","submittedAt":null,"submittedBy":null,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":["YARD_OR_DROP_RECEIPT","SIGNED_DELIVERY_NOTE"],"isReadyForReview":false,"files":[]}
+2026-11-07T03:43:03.233Z pod file YARD_OR_DROP_RECEIPT status=200 body={"id":67,"tripId":779198,"fulfillmentId":2328,"submissionVersion":1,"status":"DRAFT","version":2,"createdAt":"2026-11-07T03:43:03.141Z","submittedAt":null,"submittedBy":null,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":["SIGNED_DELIVERY_NOTE"],"isReadyForReview":false,"files":[{"id":88,"fileType":"YARD_OR_
+2026-11-07T03:43:03.278Z pod file SIGNED_DELIVERY_NOTE status=200 body={"id":67,"tripId":779198,"fulfillmentId":2328,"submissionVersion":1,"status":"DRAFT","version":3,"createdAt":"2026-11-07T03:43:03.141Z","submittedAt":null,"submittedBy":null,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":[],"isReadyForReview":false,"files":[{"id":88,"fileType":"YARD_OR_DROP_RECEIPT","label":
+2026-11-07T03:43:03.396Z pod submit status=200 body={"id":67,"tripId":779198,"fulfillmentId":2328,"submissionVersion":1,"status":"SUBMITTED","version":4,"createdAt":"2026-11-07T03:43:03.141Z","submittedAt":"2026-11-07T03:43:03.366Z","submittedBy":55,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":[],"isReadyForReview":true,"files":[{"id":88,"fileType":"YARD_OR
+2026-11-07T03:43:03.456Z trip photo OTHER status=201 body={"ok":true,"storageKey":"trips/779198/other-bc340d14b6f8399a3866eaa7b95296d0.png","url":"/api/photos/trips%2F779198%2Fother-bc340d14b6f8399a3866eaa7b95296d0.png"}
+2026-11-07T03:43:03.475Z hoangnh current links status=200 body={"existing":[779243,779248],"hoangnhUpdatedAt":"2026-11-07T03:42:15.631Z"}
+2026-11-07T03:43:03.526Z OK assign hoangnh to lot B status=200 body={"id":3,"username":"hoangnh","email":null,"phone":"0325485114","role":"OPS","status":"ACTIVE","fullName":"Nguyễn Huy Hoàng","createdAt":"2026-09-03T16:37:51.957Z","updatedAt":"2026-11-07T03:43:03.478Z","customerId":null,"customerAccountType":"SINGLE_ENTITY","employeeCode":"NV003","driverId":null,"driverName":null,"driverPhone":null,"assignedTruckId":null,"baseSalary":null,"socialInsurance":null,"d
+2026-11-07T03:43:03.603Z OK 694 WITH-ops: close 409 ops gate (law intact) status=409 body={"error":"Ops chưa xác nhận hoàn tất kê khai chi phí chung và toàn bộ container."}
+2026-11-07T03:43:03.669Z trip containers (ops view) status=200 body=[{"id":1448}]
+2026-11-07T03:43:03.748Z OK 694 with-ops: Ops toggle general 200 status=200 body={"id":67,"tripId":779198,"tripContainerId":null,"status":"COMPLETED","completedBy":3,"completedAt":"2026-11-07T03:43:03.730Z","createdAt":"2026-11-07T03:43:03.687Z","updatedAt":"2026-11-07T03:43:03.730Z"}
+2026-11-07T03:43:03.969Z OK 694 with-ops: Ops toggle 1448 200 status=200 body={"id":68,"tripId":779198,"tripContainerId":1448,"status":"COMPLETED","completedBy":3,"completedAt":"2026-11-07T03:43:03.906Z","createdAt":"2026-11-07T03:43:03.794Z","updatedAt":"2026-11-07T03:43:03.906Z"}
+2026-11-07T03:43:03.982Z pod-recovered B status=200 body={"id":779198,"tripCode":"TRP-202611-0225","version":4,"createdBy":61,"customerId":1,"customerReference":"F1-694-B-ops-trBh","truckId":19,"driverId":33,"routeId":6,"trailerId":18,"trailerType":"40FT","cargoTypeId":null,"containerCount":1,"status":"IN_TRANSIT","departureDate":"2026-11-07","plannedStartAt":"2026-11-07T01:43:00.000Z","plannedEndAt":"2026-11-07T05:05:00.000Z","factorySiteName":null,"fa
+2026-11-07T03:43:04.176Z OK 694 WITH-ops: close 200 after Ops confirmed status=200 body={"id":-6,"version":2,"createdAt":"2026-11-07T03:43:04.015Z","updatedAt":"2026-11-07T03:43:04.015Z","status":"APPROVED","subjectId":779198,"subjectKey":"TRP-202611-0225","reason":"QA F1-694 with-ops close after toggle","originalVersion":4,"originalPeriodLockId":null,"beforeSnapshot":{"status":"IN_TRANSIT","revenue":"0","totalCost":null,"grossProfit":null},"afterSnapshot":{"status":"COMPLETED","acce
+2026-11-07T03:43:04.255Z OK create lot 694-C-noops status=201 body={"id":779255,"shipmentCode":"SHP-2611-00415","version":1,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":6,"cargoTypeId":null,"responsibleUnitId":null,"status":"READY_FOR_DISPATCH","bookingRef":"F1-694-C-noops-trBh","blNumber":null,"tradeDirection":null,"cargoMode":"LCL","operationalSiteId":null,"pickupWarehouseSiteId":null,"factoryName":null,"isCombined":false,
+2026-11-07T03:43:04.293Z OK dispatch rows p1 status=200 body={"count":50}
+2026-11-07T03:43:04.373Z OK dispatch rows p2 status=200 body={"count":50}
+2026-11-07T03:43:04.407Z OK dispatch rows p3 status=200 body={"count":50}
+2026-11-07T03:43:04.450Z OK dispatch rows p4 status=200 body={"count":50}
+2026-11-07T03:43:04.488Z OK dispatch rows p5 status=200 body={"count":50}
+2026-11-07T03:43:04.515Z OK dispatch rows p6 status=200 body={"count":50}
+2026-11-07T03:43:04.550Z OK dispatch rows p7 status=200 body={"count":50}
+2026-11-07T03:43:04.609Z OK dispatch rows p8 status=200 body={"count":50}
+2026-11-07T03:43:04.652Z OK dispatch rows p9 status=200 body={"count":50}
+2026-11-07T03:43:04.836Z OK dispatch rows p10 status=200 body={"count":50}
+2026-11-07T03:43:04.891Z OK dispatch rows p11 status=200 body={"count":50}
+2026-11-07T03:43:04.931Z OK dispatch rows p12 status=200 body={"count":50}
+2026-11-07T03:43:04.969Z OK dispatch rows p13 status=200 body={"count":50}
+2026-11-07T03:43:05.026Z OK dispatch rows p14 status=200 body={"count":50}
+2026-11-07T03:43:05.103Z OK dispatch rows p15 status=200 body={"count":50}
+2026-11-07T03:43:05.173Z OK dispatch rows p16 status=200 body={"count":50}
+2026-11-07T03:43:05.229Z OK dispatch rows p17 status=200 body={"count":50}
+2026-11-07T03:43:05.271Z OK dispatch rows p18 status=200 body={"count":50}
+2026-11-07T03:43:05.320Z OK dispatch rows p19 status=200 body={"count":50}
+2026-11-07T03:43:05.352Z OK dispatch rows p20 status=200 body={"count":50}
+2026-11-07T03:43:05.383Z OK dispatch rows p21 status=200 body={"count":50}
+2026-11-07T03:43:05.396Z assigned-driver status=200 body={"truckId":19,"driverId":33,"previousDriverId":33,"replayed":false}
+2026-11-07T03:43:05.430Z OK plan issue 694-C-noops status=200 body={"fulfillmentId":2329,"fulfillmentVersion":2,"shipmentId":779255,"shipmentVersion":1,"classification":"LCL","isCombined":false,"operationalNotes":null,"dispatch":{"carrierType":"OWN","carrierName":"SilverSea","externalCarrierId":null,"externalCarrierVehicleId":null,"assignedPlate":"15H-039.39","assignedDriverName":"Nguyễn Văn Cần","assignedDriverPhone":"0359980666","driverAccepted":false},"estimat
+2026-11-07T03:43:05.665Z dispatch issued 694-C-noops status=201 body={"fulfillmentId":2329,"version":3,"trip":{"id":779199,"version":2,"tripCode":"TRP-202611-0226","status":"CREATED","plannedStartAt":"2026-11-07T01:43:00.000Z","plannedEndAt":"2026-11-07T05:05:00.000Z","carrierType":"OWN","truckId":19,"trailerId":18,"driverId":33,"externalCarrierId":null,"externalPlateNumber":null,"externalDriverName":null,"externalDriverPhone":null},"notification":{"type":"TRIP_DIS
+2026-11-07T03:43:05.667Z trip issued 694-C-noops status=200 body={"tripId":779199,"fid":2329,"truckId":19}
+2026-11-07T03:43:05.803Z driver ORDER_RECEIVED status=201 body={"id":322,"tripId":779199,"driverId":33,"eventType":"ORDER_RECEIVED","occurredAt":"2026-11-07T03:43:05.667Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:43:05.751Z"}
+2026-11-07T03:43:05.949Z driver PICKED_UP status=201 body={"id":323,"tripId":779199,"driverId":33,"eventType":"PICKED_UP","occurredAt":"2026-11-07T03:43:05.667Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:43:05.891Z"}
+2026-11-07T03:43:06.074Z driver LOADING_OR_RETURNING status=201 body={"id":324,"tripId":779199,"driverId":33,"eventType":"LOADING_OR_RETURNING","occurredAt":"2026-11-07T03:43:05.667Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:43:06.022Z"}
+2026-11-07T03:43:06.171Z driver DELIVERED status=201 body={"id":325,"tripId":779199,"driverId":33,"eventType":"DELIVERED","occurredAt":"2026-11-07T03:43:05.667Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:43:06.129Z"}
+2026-11-07T03:43:06.286Z pod create status=201 body={"id":68,"tripId":779199,"fulfillmentId":2329,"submissionVersion":1,"status":"DRAFT","version":1,"createdAt":"2026-11-07T03:43:06.243Z","submittedAt":null,"submittedBy":null,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":["YARD_OR_DROP_RECEIPT","SIGNED_DELIVERY_NOTE"],"isReadyForReview":false,"files":[]}
+2026-11-07T03:43:06.380Z pod file YARD_OR_DROP_RECEIPT status=200 body={"id":68,"tripId":779199,"fulfillmentId":2329,"submissionVersion":1,"status":"DRAFT","version":2,"createdAt":"2026-11-07T03:43:06.243Z","submittedAt":null,"submittedBy":null,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":["SIGNED_DELIVERY_NOTE"],"isReadyForReview":false,"files":[{"id":90,"fileType":"YARD_OR_
+2026-11-07T03:43:06.432Z pod file SIGNED_DELIVERY_NOTE status=200 body={"id":68,"tripId":779199,"fulfillmentId":2329,"submissionVersion":1,"status":"DRAFT","version":3,"createdAt":"2026-11-07T03:43:06.243Z","submittedAt":null,"submittedBy":null,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":[],"isReadyForReview":false,"files":[{"id":90,"fileType":"YARD_OR_DROP_RECEIPT","label":
+2026-11-07T03:43:06.619Z pod submit status=200 body={"id":68,"tripId":779199,"fulfillmentId":2329,"submissionVersion":1,"status":"SUBMITTED","version":4,"createdAt":"2026-11-07T03:43:06.243Z","submittedAt":"2026-11-07T03:43:06.547Z","submittedBy":55,"reviewedAt":null,"reviewedBy":null,"rejectionReason":null,"supersedesSubmissionId":null,"sourceTripVersion":3,"missingRequiredFileTypes":[],"isReadyForReview":true,"files":[{"id":90,"fileType":"YARD_OR
+2026-11-07T03:43:06.679Z trip photo OTHER status=201 body={"ok":true,"storageKey":"trips/779199/other-7fb7cbed90200c8b9434a7a4d3d6e921.png","url":"/api/photos/trips%2F779199%2Fother-7fb7cbed90200c8b9434a7a4d3d6e921.png"}
+2026-11-07T03:43:06.713Z pod-recovered C status=200 body={"id":779199,"tripCode":"TRP-202611-0226","version":4,"createdBy":61,"customerId":1,"customerReference":"F1-694-C-noops-trBh","truckId":19,"driverId":33,"routeId":6,"trailerId":18,"trailerType":"40FT","cargoTypeId":null,"containerCount":1,"status":"IN_TRANSIT","departureDate":"2026-11-07","plannedStartAt":"2026-11-07T01:43:00.000Z","plannedEndAt":"2026-11-07T05:05:00.000Z","factorySiteName":null,"
+2026-11-07T03:43:06.891Z OK 694 NO-ops: governed close 200 WITHOUT any Ops assignment (the fix) status=200 body={"id":-7,"version":2,"createdAt":"2026-11-07T03:43:06.741Z","updatedAt":"2026-11-07T03:43:06.741Z","status":"APPROVED","subjectId":779199,"subjectKey":"TRP-202611-0226","reason":"QA F1-694 no-ops close (fail-open)","originalVersion":4,"originalPeriodLockId":null,"beforeSnapshot":{"status":"IN_TRANSIT","revenue":"0","totalCost":null,"grossProfit":null},"afterSnapshot":{"status":"COMPLETED","accepte
+2026-11-07T03:43:07.056Z OK create lot 688-E-dispatched status=201 body={"id":779256,"shipmentCode":"SHP-2611-00416","version":1,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":6,"cargoTypeId":null,"responsibleUnitId":null,"status":"READY_FOR_DISPATCH","bookingRef":"F1-688-E-dispatched-trBh","blNumber":null,"tradeDirection":null,"cargoMode":"LCL","operationalSiteId":null,"pickupWarehouseSiteId":null,"factoryName":null,"isCombined":f
+2026-11-07T03:43:07.098Z OK dispatch rows p1 status=200 body={"count":50}
+2026-11-07T03:43:07.139Z OK dispatch rows p2 status=200 body={"count":50}
+2026-11-07T03:43:07.182Z OK dispatch rows p3 status=200 body={"count":50}
+2026-11-07T03:43:07.224Z OK dispatch rows p4 status=200 body={"count":50}
+2026-11-07T03:43:07.256Z OK dispatch rows p5 status=200 body={"count":50}
+2026-11-07T03:43:07.295Z OK dispatch rows p6 status=200 body={"count":50}
+2026-11-07T03:43:07.390Z OK dispatch rows p7 status=200 body={"count":50}
+2026-11-07T03:43:07.486Z OK dispatch rows p8 status=200 body={"count":50}
+2026-11-07T03:43:07.528Z OK dispatch rows p9 status=200 body={"count":50}
+2026-11-07T03:43:07.589Z OK dispatch rows p10 status=200 body={"count":50}
+2026-11-07T03:43:07.653Z OK dispatch rows p11 status=200 body={"count":50}
+2026-11-07T03:43:07.713Z OK dispatch rows p12 status=200 body={"count":50}
+2026-11-07T03:43:07.760Z OK dispatch rows p13 status=200 body={"count":50}
+2026-11-07T03:43:07.826Z OK dispatch rows p14 status=200 body={"count":50}
+2026-11-07T03:43:07.865Z OK dispatch rows p15 status=200 body={"count":50}
+2026-11-07T03:43:07.903Z OK dispatch rows p16 status=200 body={"count":50}
+2026-11-07T03:43:07.932Z OK dispatch rows p17 status=200 body={"count":50}
+2026-11-07T03:43:08.026Z OK dispatch rows p18 status=200 body={"count":50}
+2026-11-07T03:43:08.056Z OK dispatch rows p19 status=200 body={"count":50}
+2026-11-07T03:43:08.098Z OK dispatch rows p20 status=200 body={"count":50}
+2026-11-07T03:43:08.211Z OK dispatch rows p21 status=200 body={"count":50}
+2026-11-07T03:43:08.309Z assigned-driver status=200 body={"truckId":19,"driverId":33,"previousDriverId":33,"replayed":false}
+2026-11-07T03:43:08.406Z OK plan issue 688-E-dispatched status=200 body={"fulfillmentId":2330,"fulfillmentVersion":2,"shipmentId":779256,"shipmentVersion":1,"classification":"LCL","isCombined":false,"operationalNotes":null,"dispatch":{"carrierType":"OWN","carrierName":"SilverSea","externalCarrierId":null,"externalCarrierVehicleId":null,"assignedPlate":"15H-039.39","assignedDriverName":"Nguyễn Văn Cần","assignedDriverPhone":"0359980666","driverAccepted":false},"estimat
+2026-11-07T03:43:08.728Z dispatch issued 688-E-dispatched status=201 body={"fulfillmentId":2330,"version":3,"trip":{"id":779200,"version":2,"tripCode":"TRP-202611-0227","status":"CREATED","plannedStartAt":"2026-11-07T01:43:00.000Z","plannedEndAt":"2026-11-07T05:05:00.000Z","carrierType":"OWN","truckId":19,"trailerId":18,"driverId":33,"externalCarrierId":null,"externalPlateNumber":null,"externalDriverName":null,"externalDriverPhone":null},"notification":{"type":"TRIP_DIS
+2026-11-07T03:43:08.729Z trip issued 688-E-dispatched status=200 body={"tripId":779200,"fid":2330,"truckId":19}
+2026-11-07T03:43:08.775Z OK 688 DISPATCHED admin 409 live-trip law status=409 body={"error":"Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh."}
+2026-11-07T03:43:08.878Z OK 688 DISPATCHED CUS 409 live-trip law status=409 body={"error":"Không thể xóa lô hàng đã có container được điều xe. Chỉ xóa được khi mọi container chưa phát lệnh."}
+2026-11-07T03:43:08.904Z OK 688 dispatcher 403 (SIL-706 kept) status=403 body={"error":"Không có quyền truy cập"}
+2026-11-07T03:43:08.971Z cancel trip E status=200 body={"id":779200,"tripCode":"TRP-202611-0227","version":3,"createdBy":61,"customerId":1,"customerReference":"F1-688-E-dispatched-trBh","truckId":19,"driverId":33,"routeId":6,"trailerId":18,"trailerType":"40FT","cargoTypeId":null,"containerCount":1,"status":"CANCELED","departureDate":"2026-11-07","plannedStartAt":"2026-11-07T01:43:00.000Z","plannedEndAt":"2026-11-07T05:05:00.000Z","canonicalOrigin":nul
+2026-11-07T03:43:09.029Z OK create lot 688-D2-cus status=201 body={"id":779257,"shipmentCode":"SHP-2611-00417","version":1,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":6,"cargoTypeId":null,"responsibleUnitId":null,"status":"READY_FOR_DISPATCH","bookingRef":"F1-688-D2-cus-trBh","blNumber":null,"tradeDirection":null,"cargoMode":"LCL","operationalSiteId":null,"pickupWarehouseSiteId":null,"factoryName":null,"isCombined":false,"
+2026-11-07T03:43:09.090Z OK 688 CUS delete PENDING 200 status=200 body={"action":null,"deleted":{"id":779257,"shipmentCode":"SHP-2611-00417","version":2,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":6,"cargoTypeId":null,"responsibleUnitId":null,"status":"READY_FOR_DISPATCH","bookingRef":"F1-688-D2-cus-trBh","blNumber":null,"tradeDirection":null,"cargoMode":"LCL","operationalSiteId":null,"pickupWarehouseSiteId":null,"factoryName":
+2026-11-07T03:43:09.103Z OK 688 CUS-deleted lot reads deleted status=404 body={}
+2026-11-07T03:43:09.158Z OK create lot 688-F-stale-intransit status=201 body={"id":779258,"shipmentCode":"SHP-2611-00418","version":1,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"routeId":6,"cargoTypeId":null,"responsibleUnitId":null,"status":"READY_FOR_DISPATCH","bookingRef":"F1-688-F-stale-intransit-trBh","blNumber":null,"tradeDirection":null,"cargoMode":"LCL","operationalSiteId":null,"pickupWarehouseSiteId":null,"factoryName":null,"isCombin
+2026-11-07T03:43:09.225Z OK dispatch rows p1 status=200 body={"count":50}
+2026-11-07T03:43:09.269Z OK dispatch rows p2 status=200 body={"count":50}
+2026-11-07T03:43:09.372Z OK dispatch rows p3 status=200 body={"count":50}
+2026-11-07T03:43:09.418Z OK dispatch rows p4 status=200 body={"count":50}
+2026-11-07T03:43:09.503Z OK dispatch rows p5 status=200 body={"count":50}
+2026-11-07T03:43:09.530Z OK dispatch rows p6 status=200 body={"count":50}
+2026-11-07T03:43:09.584Z OK dispatch rows p7 status=200 body={"count":50}
+2026-11-07T03:43:09.616Z OK dispatch rows p8 status=200 body={"count":50}
+2026-11-07T03:43:09.649Z OK dispatch rows p9 status=200 body={"count":50}
+2026-11-07T03:43:09.682Z OK dispatch rows p10 status=200 body={"count":50}
+2026-11-07T03:43:09.807Z OK dispatch rows p11 status=200 body={"count":50}
+2026-11-07T03:43:09.845Z OK dispatch rows p12 status=200 body={"count":50}
+2026-11-07T03:43:09.875Z OK dispatch rows p13 status=200 body={"count":50}
+2026-11-07T03:43:09.913Z OK dispatch rows p14 status=200 body={"count":50}
+2026-11-07T03:43:10.080Z OK dispatch rows p15 status=200 body={"count":50}
+2026-11-07T03:43:10.129Z OK dispatch rows p16 status=200 body={"count":50}
+2026-11-07T03:43:10.187Z OK dispatch rows p17 status=200 body={"count":50}
+2026-11-07T03:43:10.218Z OK dispatch rows p18 status=200 body={"count":50}
+2026-11-07T03:43:10.252Z OK dispatch rows p19 status=200 body={"count":50}
+2026-11-07T03:43:10.291Z OK dispatch rows p20 status=200 body={"count":50}
+2026-11-07T03:43:10.337Z OK dispatch rows p21 status=200 body={"count":50}
+2026-11-07T03:43:10.355Z assigned-driver status=200 body={"truckId":19,"driverId":33,"previousDriverId":33,"replayed":false}
+2026-11-07T03:43:10.392Z OK plan issue 688-F-stale-intransit status=200 body={"fulfillmentId":2332,"fulfillmentVersion":2,"shipmentId":779258,"shipmentVersion":1,"classification":"LCL","isCombined":false,"operationalNotes":null,"dispatch":{"carrierType":"OWN","carrierName":"SilverSea","externalCarrierId":null,"externalCarrierVehicleId":null,"assignedPlate":"15H-039.39","assignedDriverName":"Nguyễn Văn Cần","assignedDriverPhone":"0359980666","driverAccepted":false},"estimat
+2026-11-07T03:43:10.506Z dispatch issued 688-F-stale-intransit status=201 body={"fulfillmentId":2332,"version":3,"trip":{"id":779201,"version":2,"tripCode":"TRP-202611-0228","status":"CREATED","plannedStartAt":"2026-11-07T01:43:00.000Z","plannedEndAt":"2026-11-07T05:05:00.000Z","carrierType":"OWN","truckId":19,"trailerId":18,"driverId":33,"externalCarrierId":null,"externalPlateNumber":null,"externalDriverName":null,"externalDriverPhone":null},"notification":{"type":"TRIP_DIS
+2026-11-07T03:43:10.507Z trip issued 688-F-stale-intransit status=200 body={"tripId":779201,"fid":2332,"truckId":19}
+2026-11-07T03:43:10.657Z driver ORDER_RECEIVED status=201 body={"id":326,"tripId":779201,"driverId":33,"eventType":"ORDER_RECEIVED","occurredAt":"2026-11-07T03:43:10.509Z","note":null,"recordedBy":55,"createdAt":"2026-11-07T03:43:10.535Z"}
+2026-11-07T03:43:10.712Z cancel trip F status=200 body={"id":779201,"tripCode":"TRP-202611-0228","version":4,"createdBy":61,"customerId":1,"customerReference":"F1-688-F-stale-intransit-trBh","truckId":19,"driverId":33,"routeId":6,"trailerId":18,"trailerType":"40FT","cargoTypeId":null,"containerCount":1,"status":"CANCELED","departureDate":"2026-11-07","plannedStartAt":"2026-11-07T01:43:00.000Z","plannedEndAt":"2026-11-07T05:05:00.000Z","canonicalOrigin
+2026-11-07T03:43:10.713Z FIXTURE-NOTE lot F status=0 body={"note":"status pinned to IN_TRANSIT via SQL fixture before delete"}
