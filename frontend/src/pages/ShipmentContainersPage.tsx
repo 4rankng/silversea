@@ -98,6 +98,17 @@ export default function ShipmentContainersPage() {
   const datesAreOrdered = !parsedDateFrom || !parsedDateTo || parsedDateFrom <= parsedDateTo;
   const dateFrom = datesAreOrdered ? (parsedDateFrom || (!allDates && !parsedDateTo ? today : '')) : today;
   const dateTo = datesAreOrdered ? (parsedDateTo || (!allDates && !parsedDateFrom ? today : '')) : today;
+  // SIL-434 (Muse wave-2 FAIL, 07/11/2026): the two date fields carry the
+  // operator's OWN range; the page's default scope (today) is a QUERY fact and
+  // never a field value. The scope's Đến used to sit in the Đến field, and the
+  // shared group bounds each field by the other (CHIEF 2026-09-27) — so every
+  // Từ after today was REFUSED before it could be emitted: the typed Từ never
+  // reached the page, and the next Đến edit wrote the scope's Từ instead, so
+  // the request went out with transportDateFrom=<today> (93 rows for a
+  // 10/11..10/11 range that holds 26). An end the operator never filled stays
+  // empty: only a value they chose may bound theirs.
+  const fieldDateFrom = datesAreOrdered ? parsedDateFrom : '';
+  const fieldDateTo = datesAreOrdered ? parsedDateTo : '';
   const customerId = readPositiveInteger(searchParams.get('customerId'));
   const rawDirection = searchParams.get('direction');
   const direction = rawDirection === 'IMPORT' || rawDirection === 'EXPORT' ? rawDirection : '';
@@ -442,16 +453,24 @@ export default function ShipmentContainersPage() {
     // SIL-658: a date-scope write keeps the picks.
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      if (range.from) next.set('transportDateFrom', range.from); else next.delete('transportDateFrom');
-      if (range.to) next.set('transportDateTo', range.to); else next.delete('transportDateTo');
+      // SIL-434: a missing end takes the scope's end while the pair stays
+      // ordered; when that would invert the range it takes the operator's own
+      // end instead. Either way the range stays closed, ordered, and holds the
+      // value they typed — the end they filled is never dropped for the scope.
+      const scopeEnd = current.get('dateScope') === 'all' ? '' : today;
+      let { from, to } = range;
+      if (from && !to) to = scopeEnd ? (from <= scopeEnd ? scopeEnd : from) : '';
+      if (!from && to) from = scopeEnd ? (scopeEnd <= to ? scopeEnd : to) : '';
+      if (from) next.set('transportDateFrom', from); else next.delete('transportDateFrom');
+      if (to) next.set('transportDateTo', to); else next.delete('transportDateTo');
       if (settleScope) {
-        if (range.from || range.to) next.delete('dateScope');
+        if (from || to) next.delete('dateScope');
         else next.set('dateScope', 'all');
       }
       next.delete('page');
       return next;
     }, { replace: true });
-  }, [setSearchParams]);
+  }, [setSearchParams, today]);
 
   const applyDateRange = useCallback((range: DateRangeValue) => writeDateRange(range, false), [writeDateRange]);
 
