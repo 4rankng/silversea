@@ -11,6 +11,7 @@ import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../a
 import { deleteCusShipment } from '../api/shipmentClient';
 import { tripClient } from '../api/tripClient';
 import { ShipmentActionModal, type ShipmentActionController } from '../components/shipments/ShipmentActionModal';
+import { TripExternalPlateDialog } from '../components/trip/TripExternalPlateDialog';
 import type { LclUnmergeLotRequest } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { useToast } from '../components/shared/Toast';
 import { useAuth } from '../hooks/useAuth';
@@ -76,6 +77,20 @@ export default function DispatchDetailPlanPage() {
   // SIL-708: Hủy phân xe — replaces Phân xe lại. Cancels the live trip and clears the vehicle.
   const [cancelDispatchRow, setCancelDispatchRow] = useState<DispatchDetailPlanRow | null>(null);
   const [cancelingDispatch, setCancelingDispatch] = useState(false);
+  // SIL-714 (Spec I.4e): Cập nhật biển số for a live external trip awaiting
+  // its plate — same roles as the server allowlist (ADMIN/MANAGER/DISP/CUS);
+  // the dialog itself is shared with the CUS surface.
+  const canUpdateExternalPlate = user?.role === Role.ADMIN
+    || user?.role === Role.MANAGER
+    || user?.role === Role.DISPATCHER
+    || user?.role === Role.CUS;
+  const [plateRow, setPlateRow] = useState<DispatchDetailPlanRow | null>(null);
+
+  const handleExternalPlateSaved = () => {
+    setPlateRow(null);
+    void detailPlan.refresh();
+    toast({ kind: 'success', message: 'Đã cập nhật biển số xe ngoài.' });
+  };
 
   const handleCancelDispatch = async () => {
     if (!cancelDispatchRow) return;
@@ -328,6 +343,7 @@ export default function DispatchDetailPlanPage() {
           onToggleSort={detailPlan.toggleSort}
           onAtomicSave={detailPlan.savePlan}
           onCancelDispatch={setCancelDispatchRow}
+          onUpdateExternalPlate={canUpdateExternalPlate ? setPlateRow : undefined}
           onCompleteExternalTrip={canCloseExternalTrip ? setCompletingRow : undefined}
           onIssueOrder={detailPlan.issueOrder}
           onOpenPair={(row) => {
@@ -435,6 +451,13 @@ export default function DispatchDetailPlanPage() {
         candidates={pairCandidates}
         onClose={() => setPairRow(null)}
         onPaired={detailPlan.refresh}
+      />
+
+      <TripExternalPlateDialog
+        tripId={plateRow?.dispatch.tripId ?? null}
+        carrierName={plateRow?.dispatch.carrierName ?? null}
+        onClose={() => setPlateRow(null)}
+        onSaved={handleExternalPlateSaved}
       />
 
       {truckGroupOpen && selectedLclRows.length > 0 && (

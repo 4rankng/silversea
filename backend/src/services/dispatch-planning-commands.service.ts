@@ -601,12 +601,12 @@ export async function issueOrderCreateOrUpdate(
     // and the confirmed retry proceeds. The trip then runs with a NULL
     // external plate — recorded downstream (trips, POD print, the completion
     // gate at trip-external-close which refuses the close until the plate is
-    // added via Phân xe lại). Internal fleet keeps the exact truck contract
+    // added via Cập nhật biển số). Internal fleet keeps the exact truck contract
     // above; this gate never sees it.
     if (externalPlateNumber == null && externalCarrierVehicleId == null && input.plateDeferredConfirmed !== true) {
       throw new ApiError(409,
         'Phát lệnh chưa có biển số xe nhà xe ngoài — chuyến sẽ ghi nhận "chưa có biển" '
-        + 'cho đến khi bổ sung qua Phân xe lại (và không thể hoàn thành trước khi có biển). Vẫn phát lệnh?',
+        + 'cho đến khi bổ sung qua Cập nhật biển số (và không thể hoàn thành trước khi có biển). Vẫn phát lệnh?',
         undefined,
         { code: 'PLATE_DEFERRED_CONFIRM' });
     }

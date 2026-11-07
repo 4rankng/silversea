@@ -44,7 +44,6 @@ export interface TripPermissions {
   canCancel: boolean;
   canDispatch: boolean;
   canComplete: boolean;
-  canReassign: boolean;
   canAdjust: boolean;
   canChangeDate: boolean;
   needsPhotos: boolean;
@@ -55,17 +54,6 @@ export interface TripPermissions {
 export interface TripUIState {
   actionLoading: boolean;
   actionError: string;
-  showReassign: boolean;
-  reassignCarrierType: 'OWN' | 'EXTERNAL';
-  reassignTruckId: string;
-  reassignDriverId: string;
-  reassignExternalCarrierId: string;
-  reassignExternalPlateNumber: string;
-  reassignExternalDriverName: string;
-  reassignExternalDriverPhone: string;
-  reassignReason: string;
-  reassignLoading: boolean;
-  reassignError: string;
   showAdjust: boolean;
   adjustAmount: string;
   adjustNote: string;
@@ -86,27 +74,14 @@ export interface TripDetailPageData {
   fuelPriceConfig: number | null;
   carrierCustomers: { id: number; label: string }[];
   adjustments: unknown[];
-  reassignTrucks: { id: number; licensePlate: string }[];
-  reassignDrivers: { id: number; name: string }[];
   /** React Confirm dialog instance & trigger */
   confirm: (message: string, options?: { variant?: 'danger' | 'primary' | 'warning'; confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
   confirmDialog: ReactNode;
   /** Action handlers — call from UI components. */
   handleAction: (action: string, method: () => Promise<unknown>) => Promise<void>;
   handleChangeDepartureDate: (newDate: string) => Promise<void>;
-  openReassign: () => void;
-  handleReassign: () => Promise<void>;
   openAdjust: () => void;
   handleAdjustSubmit: () => Promise<void>;
-  setReassignCarrierType: (v: 'OWN' | 'EXTERNAL') => void;
-  setReassignTruckId: (v: string) => void;
-  setReassignDriverId: (v: string) => void;
-  setReassignExternalCarrierId: (v: string) => void;
-  setReassignExternalPlateNumber: (v: string) => void;
-  setReassignExternalDriverName: (v: string) => void;
-  setReassignExternalDriverPhone: (v: string) => void;
-  setReassignReason: (v: string) => void;
-  setShowReassign: (v: boolean) => void;
   setShowAdjust: (v: boolean) => void;
   setAdjustAmount: (v: string) => void;
   setAdjustNote: (v: string) => void;

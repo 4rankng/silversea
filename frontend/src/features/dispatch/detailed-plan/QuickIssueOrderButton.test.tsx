@@ -92,7 +92,7 @@ describe('VID-DSP-02 direct release', () => {
   it('a plate-less external issue warns once, and the confirmed retry carries the flag (card B 18/10, B.2)', async () => {
     const deferred = Object.assign(
       new Error('Phát lệnh chưa có biển số xe nhà xe ngoài — chuyến sẽ ghi nhận "chưa có biển" '
-        + 'cho đến khi bổ sung qua Phân xe lại (và không thể hoàn thành trước khi có biển). Vẫn phát lệnh?'),
+        + 'cho đến khi bổ sung qua Cập nhật biển số (và không thể hoàn thành trước khi có biển). Vẫn phát lệnh?'),
       { status: 409, raw: { code: 'PLATE_DEFERRED_CONFIRM' } },
     );
     const plateless = row('EXTERNAL');

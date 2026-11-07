@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowLeft, Play, Pencil, Check, XCircle, Shuffle, FilePen,
+  ArrowLeft, Play, Pencil, Check, XCircle, FilePen,
   Building2, Loader2, MoreHorizontal, Package,
 } from 'lucide-react';
 import { TRIP_STATUS_LABELS, TripStatus, type TripDetail } from '@tingting/shared';
@@ -18,15 +18,14 @@ interface TripHeaderProps {
   onDispatch: () => void;
   onComplete: () => void;
   onCancel: () => void;
-  onReassign: () => void;
   onAdjust: () => void;
 }
 
 export function TripHeader({
   trip, permissions, actionLoading,
-  onBack, onEdit, onDispatch, onComplete, onCancel, onReassign, onAdjust,
+  onBack, onEdit, onDispatch, onComplete, onCancel, onAdjust,
 }: TripHeaderProps) {
-  const { canEdit, canEditActuals, canCancel, canDispatch, canComplete, canReassign, canAdjust } = permissions;
+  const { canEdit, canEditActuals, canCancel, canDispatch, canComplete, canAdjust } = permissions;
   const statusClass = trip.status === TripStatus.IN_TRANSIT
     ? 'in-transit'
     : trip.status === TripStatus.COMPLETED
@@ -35,7 +34,7 @@ export function TripHeader({
         ? 'canceled'
         : 'draft';
   const statusLabel = TRIP_STATUS_LABELS[trip.status] ?? trip.status;
-  const hasOverflowActions = canReassign || canCancel || canAdjust;
+  const hasOverflowActions = canCancel || canAdjust;
 
   return (
     <header className="tc-page-head td-page-head anim d1">
@@ -109,11 +108,6 @@ export function TripHeader({
               <MoreHorizontal size={18} />
             </summary>
             <div className="header-overflow__menu" role="menu">
-              {canReassign && (
-                <button type="button" role="menuitem" onClick={onReassign}>
-                  <Shuffle size={15} />Phân xe lại
-                </button>
-              )}
               {canAdjust && (
                 <button type="button" role="menuitem" onClick={onAdjust}>
                   <FilePen size={15} />Điều chỉnh

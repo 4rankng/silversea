@@ -126,7 +126,6 @@ function renderCell(item: DispatchDetailPlanRow, onAtomicSave: (row: DispatchDet
     <DispatchPlanEditorCell
       row={item}
       onAtomicSave={onAtomicSave as never}
-      onOpenTripReassign={vi.fn() as never}
       onCompleteExternalTrip={vi.fn() as never}
       onIssueOrder={vi.fn().mockResolvedValue({} as DispatchShipmentResponse) as never}
       openRequest={{ key, nonce: 1 }}

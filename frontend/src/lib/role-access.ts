@@ -26,6 +26,16 @@ export function canCloseExternalTrips(role: string | undefined): boolean {
   return role === Role.ADMIN || role === Role.MANAGER || role === Role.DISPATCHER || role === Role.CUS;
 }
 
+/**
+ * SIL-714 (Spec I.4e) — updating the external trip's actual plate
+ * (`PATCH /api/shipments/trips/:id/external-plate`) is allowlisted server-side
+ * to the same four roles as the staff close; the CUS/dispatch surfaces hide
+ * the "Cập nhật biển số" affordance for everyone else.
+ */
+export function canUpdateExternalPlates(role: string | undefined): boolean {
+  return role === Role.ADMIN || role === Role.MANAGER || role === Role.DISPATCHER || role === Role.CUS;
+}
+
 export function canReadShipmentDebitRoutes(role: string | undefined): boolean {
   return canManageShipmentDebit(role) || role === Role.MANAGER;
 }

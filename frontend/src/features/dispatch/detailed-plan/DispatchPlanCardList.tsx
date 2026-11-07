@@ -70,7 +70,8 @@ interface DispatchPlanCardListProps extends DispatchCardEditorProps {
   onChangeGroupTruckInline: (row: DispatchDetailPlanRow) => void;
   /** SIL-708 — Hủy phân xe flow for live issued trips. */
   onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
-  onOpenTripReassign?: (tripId: number) => void;
+  /** SIL-714 — Cập nhật biển số for a live EXTERNAL trip awaiting its plate. */
+  onUpdateExternalPlate?: (row: DispatchDetailPlanRow) => void;
   onOpenPair?: (row: DispatchDetailPlanRow) => void;
   onUnmergeLclGroup?: (groupId: string) => void;
   onDeleteLot?: (row: DispatchDetailPlanRow) => void;
@@ -197,7 +198,7 @@ function infoMetaLine(row: DispatchDetailPlanRow, lift: string, drop: string): s
  *  the menu's "Sửa điều phối" opens the exact same dialog the table serves. */
 export function DispatchPlanCardList({
   items, selectedLclShipmentIds, onToggleLclSelection,
-  onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
+  onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
   onOpenGroupMenu, onExpandNote,
   onAtomicSave, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck,
   editRequest, onOpenRequestConsumed,
@@ -329,7 +330,7 @@ export function DispatchPlanCardList({
                     onEditPlan={onEditPlan}
                     onChangeGroupTruckInline={onChangeGroupTruckInline}
                     onCancelDispatch={onCancelDispatch}
-                    onOpenTripReassign={onOpenTripReassign}
+                    onUpdateExternalPlate={onUpdateExternalPlate}
                     onOpenPair={onOpenPair}
                     onUnmergeLclGroup={onUnmergeLclGroup}
                     onDeleteLot={onDeleteLot}
@@ -388,7 +389,6 @@ export function DispatchPlanCardList({
               <DispatchPlanEditorCell
                 row={row}
                 onAtomicSave={onAtomicSave}
-                onOpenTripReassign={onOpenTripReassign}
                 onCompleteExternalTrip={onCompleteExternalTrip}
                 onIssueOrder={onIssueOrder}
                 onEnsureFulfillment={onEnsureFulfillment}

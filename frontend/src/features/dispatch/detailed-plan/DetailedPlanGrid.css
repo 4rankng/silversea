@@ -735,7 +735,7 @@
 }
 
 /* ── DIS-09 (card 211026130015) — row actions menu (⋯) ────────────────────
-   The assigned task's "Đổi nhà xe/BKS" (and an issued row's "Phân xe lại")
+   The assigned task's "Đổi nhà xe/BKS" (and an issued row's "Hủy phân xe")
    lives in this dropdown on the row itself, one click from the row instead of
    behind the Phân loại badge. React-state dropdown on the global dismissal
    layer (data-dropdown-root); the open list portals to body with FIXED

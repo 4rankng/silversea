@@ -1,0 +1,23 @@
+2026-11-07T09:59:53.758Z login — {"user":"cus","url":"http://localhost:7186/shipments"}
+2026-11-07T09:59:58.065Z SIL-699 drawer opened — {"urlAfter":"http://localhost:7186/shipments","drawerText":"LOG COMHàng FCLChờ chốt lịchChưa phân xeChờ đối soát1Chốt lịch2Phân xe3Đối soát4Khóa lôNhận diện lôKhách hàng, chứng từ và hướng xuất nhập khẩuKhách hàngLOG COMSố bill/bookingSIL335-BK-002Số tờ khaiCh"}
+2026-11-07T09:59:58.065Z SIL-699 PASS: URL stayed on the list — {}
+2026-11-07T09:59:58.316Z screenshot — {"file":"/Users/dev/.paseo/worktrees/1njkloyy/h1b-fix/qa/2026-11-07-lane-h1/01-sil699-drawer.png"}
+2026-11-07T10:00:05.980Z login — {"user":"admin","url":"http://localhost:7186/config"}
+2026-11-07T10:00:09.668Z SIL-708 trips overflow menu items — {"menuItems":["Hủy chuyến"]}
+2026-11-07T10:00:09.668Z SIL-708 PASS: no Phân xe lại in the trips header menu — {}
+2026-11-07T10:00:09.828Z screenshot — {"file":"/Users/dev/.paseo/worktrees/1njkloyy/h1b-fix/qa/2026-11-07-lane-h1/02-sil708-trips-menu.png"}
+2026-11-07T10:00:16.678Z login — {"user":"dieuvan","url":"http://localhost:7186/dispatch"}
+2026-11-07T10:00:19.841Z SIL-714 dispatch row menu items — {"items":["Hủy phân xe","Cập nhật biển số","Hoàn thành"]}
+2026-11-07T10:00:19.965Z screenshot — {"file":"/Users/dev/.paseo/worktrees/1njkloyy/h1b-fix/qa/2026-11-07-lane-h1/03-sil714-dispatch-menu.png"}
+2026-11-07T10:00:20.308Z screenshot — {"file":"/Users/dev/.paseo/worktrees/1njkloyy/h1b-fix/qa/2026-11-07-lane-h1/03b-sil714-dispatch-dialog.png"}
+2026-11-07T10:00:20.510Z plate typed — {"typed":"60H-714.31","input":"60H-714.31"}
+2026-11-07T10:00:21.662Z screenshot — {"file":"/Users/dev/.paseo/worktrees/1njkloyy/h1b-fix/qa/2026-11-07-lane-h1/04-sil714-dispatch-saved.png"}
+2026-11-07T10:00:21.681Z SIL-714 dispatch row menu after save — {"itemsAfter":["Hủy phân xe","Hoàn thành"]}
+2026-11-07T10:00:29.689Z login — {"user":"cus","url":"http://localhost:7186/shipments"}
+2026-11-07T10:00:33.405Z screenshot — {"file":"/Users/dev/.paseo/worktrees/1njkloyy/h1b-fix/qa/2026-11-07-lane-h1/05-sil714-cus-cell.png"}
+2026-11-07T10:00:33.852Z screenshot — {"file":"/Users/dev/.paseo/worktrees/1njkloyy/h1b-fix/qa/2026-11-07-lane-h1/05b-sil714-cus-dialog.png"}
+2026-11-07T10:00:34.201Z plate typed — {"typed":"60H-714.32","input":"60H-714.32"}
+2026-11-07T10:00:35.490Z screenshot — {"file":"/Users/dev/.paseo/worktrees/1njkloyy/h1b-fix/qa/2026-11-07-lane-h1/06-sil714-cus-saved.png"}
+2026-11-07T10:00:35.495Z SIL-714 CUS PASS: plate visible on the workboard after save — {}
+2026-11-07T10:00:35.751Z SIL-714 OPS PATCH status — {"status":403,"body":{"error":"Không có quyền truy cập"}}
+2026-11-07T10:00:35.751Z SIL-714 PASS: OPS PATCH denied 403 — {}

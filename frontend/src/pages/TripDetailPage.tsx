@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Loader2, Shuffle, FilePen, X } from 'lucide-react';
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Loader2, FilePen } from 'lucide-react';
 import { api } from '../lib/api';
 import { Modal, Drawer } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -10,7 +10,7 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import { TelLink } from '../components/TelLink';
-import { NumberField, UuiSelectField } from '../design-system';
+import { NumberField } from '../design-system';
 // Shared rose required marker (`.ds-field__required`) — the ds form stylesheet
 // is not part of the global bundle, so import it where the marker renders.
 import '../design-system/forms/TextField.css';
@@ -29,7 +29,6 @@ import './TripDetailPage.css';
 export default function TripDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const page = useTripDetailPage(id);
   const { rootRef } = usePageAnimations({ ready: !page.loading });
   const [governanceIntent, setGovernanceIntent] = useState<'complete' | 'cancel' | null>(null);

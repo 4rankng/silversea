@@ -3,12 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
 import { qk } from '../../api/keys';
-import { requiresLegacyCarrierSelection } from '../../hooks/tripSubmitReconcile';
 import { getExternalTripDisplayTotals } from '../trips/tripHelpers';
 import {
   useTripDetail,
   useTripAdjustments,
-  useTrucksAndDrivers,
   useFuelConfig,
 } from '../../hooks/useQueries';
 import { useCatalogs } from '../../hooks/useCatalogs';
@@ -64,23 +62,6 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
 
-  const [showReassign, setShowReassign] = useState(false);
-  const { data: trucksDriversData } = useTrucksAndDrivers({
-    enabled: showReassign || trip?.status === TripStatus.CREATED,
-  });
-  const reassignTrucks = trucksDriversData?.trucks ?? [];
-  const reassignDrivers = trucksDriversData?.drivers ?? [];
-  const [reassignCarrierType, setReassignCarrierType] = useState<'OWN' | 'EXTERNAL'>('OWN');
-  const [reassignTruckId, setReassignTruckId] = useState('');
-  const [reassignDriverId, setReassignDriverId] = useState('');
-  const [reassignExternalCarrierId, setReassignExternalCarrierId] = useState('');
-  const [reassignExternalPlateNumber, setReassignExternalPlateNumber] = useState('');
-  const [reassignExternalDriverName, setReassignExternalDriverName] = useState('');
-  const [reassignExternalDriverPhone, setReassignExternalDriverPhone] = useState('');
-  const [reassignReason, setReassignReason] = useState('');
-  const [reassignLoading, setReassignLoading] = useState(false);
-  const [reassignError, setReassignError] = useState('');
-
   const [showAdjust, setShowAdjust] = useState(false);
   const [adjustAmount, setAdjustAmount] = useState('');
   const [adjustNote, setAdjustNote] = useState('');
@@ -96,17 +77,6 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   const ui: TripUIState = {
     actionLoading,
     actionError,
-    showReassign,
-    reassignCarrierType,
-    reassignTruckId,
-    reassignDriverId,
-    reassignExternalCarrierId,
-    reassignExternalPlateNumber,
-    reassignExternalDriverName,
-    reassignExternalDriverPhone,
-    reassignReason,
-    reassignLoading,
-    reassignError,
     showAdjust,
     adjustAmount,
     adjustNote,
@@ -174,7 +144,6 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   /* ── Permissions ────────────────────────────────────────────────────── */
   const permissions: TripPermissions = useMemo(() => {
     const isManagerOrAdmin = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
-  const hasDispatchAuthority = isManagerOrAdmin || user?.role === Role.DISPATCHER;
     const isAccountant = user?.role === Role.ACCOUNTANT;
     const s = trip?.status;
     // Lifecycle / structural edits (route, customer, truck, driver, status
@@ -205,7 +174,6 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
       // now applies the accountant's close in-request. Without the button
       // the accountant could never reach the end of the close flow.
       canComplete: s === TripStatus.IN_TRANSIT && (isManagerOrAdmin || isAccountant),
-    canReassign: s === TripStatus.CREATED && hasDispatchAuthority,
       // Adjustment/governed reopen available on a completed trip (manager/admin).
       canAdjust: s === TripStatus.COMPLETED && isManagerOrAdmin,
       canChangeDate: s !== TripStatus.CANCELED && isManagerOrAdmin,
@@ -250,56 +218,6 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
       setActionError((err as Error).message || 'Lỗi khi thay đổi ngày khởi hành.');
     } finally {
       setActionLoading(false);
-    }
-  };
-
-  const openReassign = () => {
-    setReassignError('');
-    setReassignCarrierType(trip?.carrierType || 'OWN');
-    setReassignTruckId(String(trip?.truckId ?? ''));
-    setReassignDriverId(String(trip?.driverId ?? ''));
-    setReassignExternalCarrierId(String(trip?.externalCarrierId ?? ''));
-    setReassignExternalPlateNumber(trip?.externalPlateNumber ?? '');
-    setReassignExternalDriverName(trip?.externalDriverName ?? '');
-    setReassignExternalDriverPhone(trip?.externalDriverPhone ?? '');
-    setShowReassign(true);
-  };
-
-  const handleReassign = async () => {
-    if (!id) return;
-    if (requiresLegacyCarrierSelection(trip?.externalEntityType, reassignCarrierType, reassignExternalCarrierId)) {
-      setReassignError('Vui lòng chọn đối tác vận chuyển đã liên kết trước khi phân xe lại.');
-      return;
-    }
-    if (reassignCarrierType === 'OWN') {
-      if (!reassignTruckId || !reassignDriverId) return;
-    } else {
-      if (!reassignExternalCarrierId && !reassignExternalPlateNumber) return;
-    }
-    if (!reassignReason.trim()) {
-      setReassignError('Lý do điều chuyển là bắt buộc');
-      return;
-    }
-    setReassignLoading(true);
-    setReassignError('');
-    try {
-      await api.patch(`/trips/${id}/reassign`, {
-        expectedVersion: trip?.version,
-        carrierType: reassignCarrierType,
-        truckId: reassignTruckId ? Number(reassignTruckId) : null,
-        driverId: reassignDriverId ? Number(reassignDriverId) : null,
-        externalCarrierId: reassignExternalCarrierId ? Number(reassignExternalCarrierId) : null,
-        externalPlateNumber: reassignExternalPlateNumber,
-        externalDriverName: reassignExternalDriverName,
-        externalDriverPhone: reassignExternalDriverPhone,
-        reason: reassignReason.trim(),
-      });
-      setShowReassign(false);
-      await refetchTrip();
-    } catch (e: unknown) {
-      setReassignError((e as Error).message || 'Lỗi khi phân xe lại');
-    } finally {
-      setReassignLoading(false);
     }
   };
 
@@ -371,27 +289,14 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     ui,
     fuelPriceConfig,
     adjustments,
-    reassignTrucks,
-    reassignDrivers,
     confirm,
     confirmDialog,
     handleAction,
     handleChangeDepartureDate,
-    openReassign,
-    handleReassign,
     openAdjust,
     handleAdjustSubmit,
-    setReassignCarrierType,
-    setReassignTruckId,
-    setReassignDriverId,
-    setReassignExternalCarrierId,
-    setReassignExternalPlateNumber,
-    setReassignExternalDriverName,
-    setReassignExternalDriverPhone,
-    setReassignReason,
     cancelLoading,
     carrierCustomers: catalogData?.externalCarriers?.map(c => ({ id: c.id, label: c.name })) ?? [],
-    setShowReassign,
     setShowAdjust,
     setAdjustAmount,
     setAdjustNote,

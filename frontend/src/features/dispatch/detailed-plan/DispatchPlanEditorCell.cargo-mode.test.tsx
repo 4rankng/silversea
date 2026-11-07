@@ -154,7 +154,6 @@ function renderCell(item: DispatchDetailPlanRow, handlers: { onChangeGroupTruck?
     <DispatchPlanEditorCell
       row={item}
       onAtomicSave={onAtomicSave}
-      onOpenTripReassign={vi.fn()}
       onCompleteExternalTrip={vi.fn()}
       onIssueOrder={vi.fn()}
       onChangeGroupTruck={handlers.onChangeGroupTruck}

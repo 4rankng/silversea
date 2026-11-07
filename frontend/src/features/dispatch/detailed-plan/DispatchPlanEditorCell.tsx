@@ -105,8 +105,6 @@ interface DispatchPlanEditorCellProps {
   ) => Promise<AtomicPlanSaveResult>;
   /** SIL-708 — Hủy phân xe flow for live issued trips (replaces Phân xe lại). */
   onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
-  /** Opens the governed trip reassignment flow after an order is issued (legacy/compat). */
-  onOpenTripReassign?: (tripId: number) => void;
   /** Staff close for external-carrier trips: opens the confirm dialog so
    *  dispatch/CUS can complete the trip the external driver can't (no app). */
   onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
@@ -254,7 +252,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * hợp flag is CUS-owned and has no control here — the checkbox was removed as
  * redundant with the Kết hợp classification.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, onOpenTripReassign, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, openRequest, onOpenRequestConsumed, disabled = false }: DispatchPlanEditorCellProps) {
+export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, openRequest, onOpenRequestConsumed, disabled = false }: DispatchPlanEditorCellProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlanEditorDraft>(() => draftForRow(row));
   // Live completeness of the Giờ điều vận segments ('complete' | 'empty' |
@@ -596,16 +594,13 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
 
   async function openEditor() {
     if (disabled || ensuring) return;
-    // An issued order owns a trip. While it runs, its vehicle must be changed
-    // through the trip reassignment flow so the driver/vehicle state stays
-    // coherent. Once it completes, the plan is frozen history — the backend's
-    // live-trip guard rejects any plan save, so the editor must never open.
-    const liveTripId = row.dispatch.tripId;
-    if (liveTripId != null && canReassignIssuedTrip(row)) {
+    // An issued order owns a trip. While it runs, its vehicle can only leave
+    // through the Hủy phân xe flow (SIL-708 — Phân xe lại is gone). Once it
+    // completes, the plan is frozen history — the backend's live-trip guard
+    // rejects any plan save, so the editor must never open.
+    if (row.dispatch.tripId != null && canReassignIssuedTrip(row)) {
       if (onCancelDispatch) {
         onCancelDispatch(row);
-      } else {
-        onOpenTripReassign?.(liveTripId);
       }
       return;
     }
@@ -963,7 +958,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
         )}
         {/* SIL-500 (KHĐ 26/10): the open verb rides the carrier line itself
             again (click-to-edit, above); the row ⋯ menu keeps "Sửa điều phối"/
-            "Phân xe lại" via the `openRequest` signal as the second path. */}
+            "Hủy phân xe" via the `openRequest` signal as the second path. */}
       </div>
 
       <Modal

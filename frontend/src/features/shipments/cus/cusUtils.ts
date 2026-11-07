@@ -229,7 +229,7 @@ export function dispatchStatusLabel(status: ShipmentCusWorkspaceContainerLine['d
  * external trip never enters IN_TRANSIT on its own. OWN-fleet trips close
  * through the driver app; terminal states never re-close. And a trip that ran
  * must carry its biển số (trip-external-close, card 20261004_359): the
- * deferred-plate row shows no affordance until "Phân xe lại" fills the plate,
+ * deferred-plate row shows no affordance until "Cập nhật biển số" fills the plate,
  * so the button never dead-ends at the server's 409. SIL-592 retest 30/10
  * added the departure half: the close refuses while the trip's planned
  * departure date (VN wall clock, assertCompletionNotBeforeDeparture card
@@ -259,6 +259,25 @@ export function canCompleteExternalTrip(trip: {
   const today = localDateInBusinessZone(new Date());
   if (!today) return true;
   return departureDate <= today;
+}
+
+/**
+ * SIL-714 (Spec I.4e) — the Cập nhật biển số gate: a live EXTERNAL trip with
+ * no actual plate yet offers the plate-fill affordance to both Điều vận and
+ * Chứng từ (same server allowlist). Terminal trips never re-plate — the
+ * ticket's law is the awaiting-plate state. Same live-trip statuses as the
+ * staff close above.
+ */
+export function canUpdateExternalTripPlate(trip: {
+  tripId?: number | null;
+  tripStatus?: TripStatus | null;
+  carrierType?: 'OWN' | 'EXTERNAL' | null;
+  plateNumber?: string | null;
+}): boolean {
+  return trip.tripId != null
+    && trip.carrierType === 'EXTERNAL'
+    && (trip.tripStatus === TripStatus.CREATED || trip.tripStatus === TripStatus.IN_TRANSIT)
+    && (trip.plateNumber?.trim().length ?? 0) === 0;
 }
 
 export function accountingConfirmationLabel(

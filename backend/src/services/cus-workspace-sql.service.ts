@@ -383,12 +383,30 @@ function activeCarrierTypeSql(): SQL {
   return activePlannedCarrierTypeSql();
 }
 
+/**
+ * SIL-714 read-through — the plate the Phân XE cell shows: a live EXTERNAL
+ * trip's actual plate (filled via Cập nhật biển số on trip_carrier_info)
+ * outranks the plan's planned plate — the plan never gets a plate write
+ * while the trip runs. The same expression gates the missing-BKS census bit,
+ * so a filled plate also resolves "Thiếu thông tin" the way a planned plate
+ * does.
+ */
 function activePlannedPlateSql(): SQL {
-  return sql`(select ${s.shipmentFulfillments.plannedVehiclePlateNumber}
-    from ${s.shipmentFulfillments}
-    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-      and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1)`;
+  return sql`(select coalesce(
+    (select t.external_plate_number
+      from ${s.shipmentFulfillments} sf
+      left join ${s.tripsComposite} t
+        on t.fulfillment_id = sf.id and t.deleted_at is null
+          and t.status in ('CREATED', 'IN_TRANSIT') and t.carrier_type = 'EXTERNAL'
+      where sf.shipment_container_id = ${s.shipmentContainers.id}
+        and sf.canceled_at is null
+      order by sf.id, t.id
+      limit 1),
+    (select ${s.shipmentFulfillments.plannedVehiclePlateNumber}
+      from ${s.shipmentFulfillments}
+      where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
+        and ${s.shipmentFulfillments.canceledAt} is null
+      limit 1)))`;
 }
 
 // Lift/drop presence in SQL mirrors resolveLiftSite/resolveDropoffSite: the

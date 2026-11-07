@@ -120,7 +120,6 @@ function renderCell(item: DispatchDetailPlanRow, onAtomicSave: ReturnType<typeof
     <DispatchPlanEditorCell
       row={item}
       onAtomicSave={onAtomicSave as never}
-      onOpenTripReassign={vi.fn() as never}
       onCompleteExternalTrip={vi.fn() as never}
       onIssueOrder={vi.fn() as never}
       openRequest={{ key, nonce }}

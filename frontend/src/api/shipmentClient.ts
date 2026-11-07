@@ -1172,6 +1172,33 @@ export async function getCusShipmentWorkspaceDetail(
   return api.get<ShipmentCusWorkspaceDetail>(SHIPMENTS.CUS_WORKSPACE_DETAIL(shipmentId));
 }
 
+/* ── SIL-714 (Spec I.4e) — external plate update (Cập nhật biển số xe ngoài).
+   Both Điều vận and Chứng từ fill/correct the actual plate of a live external
+   trip through this trip-scoped pair on the /api/shipments mount. */
+export interface ExternalTripPlateContext {
+  tripId: number;
+  tripCode: string | null;
+  status: string | null;
+  carrierType: 'OWN' | 'EXTERNAL';
+  version: number;
+  externalPlateNumber: string | null;
+}
+
+export async function getExternalTripPlateContext(tripId: number): Promise<ExternalTripPlateContext> {
+  return api.get<ExternalTripPlateContext>(SHIPMENTS.TRIP_EXTERNAL_PLATE(tripId));
+}
+
+export async function updateExternalTripPlate(
+  tripId: number,
+  body: { externalPlateNumber: string; expectedVersion: number },
+): Promise<ExternalTripPlateContext> {
+  // One key per attempt: an in-flight retry replays safely, a corrected
+  // resubmit is a new logical submission (house law — see the adjustment
+  // publish flow).
+  return api.patch<ExternalTripPlateContext>(SHIPMENTS.TRIP_EXTERNAL_PLATE(tripId), body,
+    { headers: { 'Idempotency-Key': crypto.randomUUID() } });
+}
+
 export async function updateCusShipmentDocumentCustody(
   shipmentId: number,
   body: ShipmentCusDocumentCustodyUpdateInput,

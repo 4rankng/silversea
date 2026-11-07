@@ -526,7 +526,7 @@ describe('useDispatchDetailPlan assign refusals keep the backend reason (card 06
 
   it.each([
     { reason: 'Chuyến đã bị hủy.' },
-    { reason: 'Chuyến chưa có biển số xe — bổ sung biển (Phân xe lại) trước khi hoàn thành.' },
+    { reason: 'Chuyến chưa có biển số xe — bổ sung biển (Cập nhật biển số) trước khi hoàn thành.' },
     // FB-018: a 500 carries the server's Vietnamese cause (e.g. the dangling
     // supplier link that killed every completion attempt). The banner must
     // show that cause — the generic retry line read as flakiness and the

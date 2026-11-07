@@ -52,6 +52,7 @@ import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
 import { decomposeFulfillmentLessContainer } from '../../services/dispatch-detail-plan-fulfillment-less';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
+import { getExternalTripPlateContext, updateExternalTripPlateInTx } from '../../services/trip-external-close.service';
 
 const updateCarrierFleetVehicleSchema = partialUpdateSchema(
   carrierFleetVehicleSchema.pick({ licensePlate: true, isActive: true }),
@@ -507,7 +508,7 @@ dispatchPlanningRoutes.patch(
 );
 
 dispatchPlanningRoutes.post(
-  '/dispatch-detail-plan-rows/:fulfillmentId/complete-external', declareMaterialWrite('dispatch.external-fulfillment.complete', { method: 'POST', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/complete-external' }), 
+  '/dispatch-detail-plan-rows/:fulfillmentId/complete-external', declareMaterialWrite('dispatch.external-fulfillment.complete', { method: 'POST', path: '/api/shipments/dispatch-detail-plan-rows/:fulfillmentId/complete-external' }),
   requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const fulfillmentId = Number(req.params.fulfillmentId);
@@ -524,6 +525,52 @@ dispatchPlanningRoutes.post(
       actor: user as { userId: number; role: Role },
     });
     res.json(result);
+  }),
+);
+
+/* ── SIL-714 (Spec I.4e) — external plate update while the trip awaits its
+   biển số. The trips mount casbin-gates CUS out of every /api/trips write,
+   so this trip-scoped pair rides the shipments mount where CUS already holds
+   write — the same CUS-admitting shape as complete-external above. */
+const externalTripPlateSchema = z.object({
+  externalPlateNumber: z.string().trim().min(1, 'Biển số xe là bắt buộc').max(20, 'Biển số xe tối đa 20 ký tự')
+    .transform((value) => value.toUpperCase()),
+  expectedVersion: z.number().int().positive('Phiên bản chuyến đi không hợp lệ'),
+});
+
+dispatchPlanningRoutes.get(
+  '/trips/:tripId/external-plate',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const tripId = Number(req.params.tripId);
+    if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'tripId không hợp lệ.');
+    res.json(await getExternalTripPlateContext(tripId));
+  }),
+);
+
+dispatchPlanningRoutes.patch(
+  '/trips/:tripId/external-plate', declareMaterialWrite(IDEMPOTENCY_ENDPOINTS.TRIP_EXTERNAL_PLATE_UPDATE, { method: 'PATCH', path: '/api/shipments/trips/:tripId/external-plate' }),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.CUS),
+  asyncHandler(async (req: Request, res: Response) => {
+    const tripId = Number(req.params.tripId);
+    if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'tripId không hợp lệ.');
+    const parsed = externalTripPlateSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.TRIP_EXTERNAL_PLATE_UPDATE,
+      { tripId, externalPlateNumber: parsed.data.externalPlateNumber, expectedVersion: parsed.data.expectedVersion },
+      async (tx) => ({
+        body: await updateExternalTripPlateInTx(tx, {
+          tripId,
+          externalPlateNumber: parsed.data.externalPlateNumber,
+          expectedVersion: parsed.data.expectedVersion,
+        }),
+        status: 200 as const,
+        auditEntityId: tripId,
+      }),
+    );
+    sendShipmentWrite(res, result);
   }),
 );
 

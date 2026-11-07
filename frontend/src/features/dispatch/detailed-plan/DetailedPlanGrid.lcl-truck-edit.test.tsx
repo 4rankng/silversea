@@ -88,7 +88,6 @@ function renderGrid(onLclTruckUpdated: () => void) {
             sortDirection="asc"
             onToggleSort={vi.fn()}
             onAtomicSave={vi.fn()}
-            onOpenTripReassign={vi.fn()}
             onCompleteExternalTrip={vi.fn()}
             onIssueOrder={vi.fn()}
             onUnmergeLclLot={vi.fn()}

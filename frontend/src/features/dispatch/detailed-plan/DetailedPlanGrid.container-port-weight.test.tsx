@@ -76,7 +76,6 @@ function renderGrid(items: DispatchDetailPlanRow[]) {
             sortDirection="asc"
             onToggleSort={vi.fn()}
             onAtomicSave={vi.fn()}
-            onOpenTripReassign={vi.fn()}
             onCompleteExternalTrip={vi.fn()}
             onIssueOrder={vi.fn()}
           />
