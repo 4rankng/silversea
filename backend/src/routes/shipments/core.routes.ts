@@ -1008,13 +1008,15 @@ coreRoutes.post(
   }),
 );
 
-// ─── POST /:id/unlock — Mở khóa lô (audit 2026-11-04 §2.1) ─────────────────
-// ADMIN + mandatory reason, mirroring the accounting-lock reopen governance
-// (shipment-accounting-lock-shared.service names ADMIN for reopen). A replay
-// converges: no active lock left ⇒ 409, so no idempotency envelope is needed.
+// ─── POST /:id/unlock — Mở khóa lô (audit 2026-11-04 §2.1; SIL-721 07/11) ───
+// Owner 07/11 ("giám đốc, kế toán, quản trị đều mở được"): Quản trị (ADMIN) ·
+// Giám đốc (MANAGER — the role 'Giám đốc' accounts hold per seed-prod
+// ROLE_BY_GROUP) · Kế toán (ACCOUNTANT). Mandatory reason + audit unchanged.
+// A replay converges: no active lock left ⇒ 409, so no idempotency envelope
+// is needed. (Supersedes SIL-679's admin-only clearance for these roles.)
 coreRoutes.post(
   '/:id/unlock', declareMaterialWrite('shipments.cost-unlock', { method: 'POST', path: '/api/shipments/:id/unlock' }), 
-  requireRoles(Role.ADMIN),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
@@ -1035,12 +1037,13 @@ coreRoutes.post(
 );
 
 // ─── GET /:id/cost-lock-history — lịch sử khóa/mở khóa (audit r2 §1) ────────
-// ADMIN-only: the unlock channel is ADMIN-governed, so its audit trail reads
-// under the same clearance. Each event carries action/actor/reason/time and
-// the lot's unreleased Debit Note claim when present.
+// Same clearance as the unlock channel (SIL-721, owner 07/11): Quản trị ·
+// Giám đốc (MANAGER) · Kế toán — the unlock trail reads under the clearance
+// of the people allowed to unlock. Each event carries action/actor/reason/
+// time and the lot's unreleased Debit Note claim when present.
 coreRoutes.get(
   '/:id/cost-lock-history',
-  requireRoles(Role.ADMIN),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;

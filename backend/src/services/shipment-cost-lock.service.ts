@@ -23,7 +23,7 @@ import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
 import { deriveLotPricingGrounds } from './freight-rate-snapshot-lifecycle.service';
 import { classifyLotPricingBasis } from './freight-lot-basis';
 
-export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần ADMIN mở khóa (kèm lý do) để chỉnh sửa chi phí.';
+export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần Quản trị, Giám đốc hoặc Kế toán mở khóa (kèm lý do) để chỉnh sửa chi phí.';
 export const SHIPMENT_COST_NOT_LOCKED_MESSAGE = 'Lô hàng chưa khóa chi phí — hãy khóa lô trước khi điều chỉnh.';
 
 /** Advisory-locked lot-claim namespace: serializes concurrent exports that
@@ -65,9 +65,9 @@ async function assertLotsNotInIssuedDebitNote(
 /** Freeze gate for every Lớp-2 write surface on the shipment (mirrors
  *  assertShipmentAccountingUnlocked). Violations → 409 with the dedicated
  *  message. QA 2026-11-04: when the locked lot already sits in an issued
- *  Debit Note, "ADMIN mở khóa" is itself refused (unlockShipmentCost 409s on
- *  the same debitNoteLots claim), so the guidance names the document
- *  instead of pointing at an impossible unlock. */
+ *  Debit Note, mở khóa is itself refused for every allowed role
+ *  (unlockShipmentCost 409s on the same debitNoteLots claim), so the guidance
+ *  names the document instead of pointing at an impossible unlock. */
 export async function assertShipmentCostUnlocked(executor: Executor, shipmentId: number): Promise<void> {
   const [active] = await executor.select({ id: s.shipmentCostLocks.id })
     .from(s.shipmentCostLocks)

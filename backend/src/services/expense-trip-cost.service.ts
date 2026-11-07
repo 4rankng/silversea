@@ -24,12 +24,16 @@ export function reconciledDriverCosts(rows: ReadonlyArray<{ costType: string; co
     // SIL-696 (owner acceptance 06/11): every CONFIRMED driver claim — nâng,
     // hạ, kho, đậu xe, … — is a direct cost of its trip, whether or not the
     // lot also bills the customer for it (the receivable side lives in
-    // trip_expenses/debit-note data and never offsets this side). Only TOLL
-    // (its own reconciled branch above) and ROAD_ALLOWANCE (system-recorded
-    // salary law) stay out. The previous `customerChargeAmount === 0` /
-    // DRIVER_ROAD-only clause silently dropped an approved lift fee from
-    // totalCost whenever the lot charged the customer for it.
-    extra: sumExcludingNegative(rows.filter(row => row.costType !== 'TOLL' && row.costType !== 'ROAD_ALLOWANCE'),
+    // trip_expenses/debit-note data and never offsets this side). SIL-722
+    // (owner decision 07/11, superseding the "system salary law" exclusion
+    // 754efdee kept): approved TIỀN ĐƯỜNG rows enter too — these are the
+    // fee-norm claims beyond the route allowance (Trả đêm, Quá tải, đảo
+    // chuyển, …), never the route figure itself: trips.totalRoadAllowance
+    // keeps its own seat in totalCost via computeTripTotals, so the two
+    // never double-count. TOLL keeps its own reconciled branch above (it
+    // REPLACES the station estimate rather than adding). Signed/negative-row
+    // law unchanged (sumExcludingNegative).
+    extra: sumExcludingNegative(rows.filter(row => row.costType !== 'TOLL'),
     (row) => row.amount),
   };
 }

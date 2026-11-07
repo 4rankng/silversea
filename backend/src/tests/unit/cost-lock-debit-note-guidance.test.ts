@@ -34,7 +34,7 @@ test('a claimed lot gets the Debit-Note guidance naming the document', () => {
   assert.match(assertBody, /`Lô đã nằm trong Debit Note #\$\{claim\.documentId\} — không sửa được chi phí; xử lý chứng từ debit trước khi mở khóa lô\.`/);
 });
 
-test('the plain cost-locked message and unlock refusal stay unchanged', () => {
-  assert.match(svc, /export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí\. Cần ADMIN mở khóa \(kèm lý do\) để chỉnh sửa chi phí\.';/);
+test('the plain cost-locked message names the three-role unlock channel and the unlock refusal stays unchanged', () => {
+  assert.match(svc, /export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí\. Cần Quản trị, Giám đốc hoặc Kế toán mở khóa \(kèm lý do\) để chỉnh sửa chi phí\.';/);
   assert.match(svc, /`Lô đã nằm trong Debit Note #\$\{claim\.documentId\} — xử lý chứng từ trước khi mở khóa lô\.`/);
 });

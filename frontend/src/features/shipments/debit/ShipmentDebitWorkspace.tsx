@@ -134,8 +134,9 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
     },
   });
 
-  // Audit 2026-11-04 §2.1 — MỞ KHÓA the active cost lock. ADMIN-only mirrors
-  // the backend route (the accounting-lock reopen governance); the mandatory
+  // Audit 2026-11-04 §2.1 — MỞ KHÓA the active cost lock. Clearance mirrors
+  // the backend route (SIL-721, owner 07/11: Quản trị · Giám đốc · Kế toán —
+  // supersedes the audit's original ADMIN-only note); the mandatory
   // reason rides the house prompt. Shown while a lock is active (`settled`),
   // including the one this screen just took.
   const { toast } = useToast();
@@ -173,11 +174,12 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
     enabled: adjustOpen,
   });
   // SIL-679 r2 (QA comment 3834 §1b) — "Lịch sử khóa": the lot's khóa/mở
-  // khóa trail on the lot detail. ADMIN-only read (the route gate mirrors
-  // the unlock clearance), fetched whenever an ADMIN opens this workspace —
-  // a lock/unlock through the buttons above invalidates the key like the
-  // other queries, so the section always shows the persisted trail.
-  const canUnlock = role === Role.ADMIN;
+  // khóa trail on the lot detail. Read clearance mirrors the unlock route
+  // (SIL-721, owner 07/11: Quản trị · Giám đốc (MANAGER) · Kế toán),
+  // fetched whenever an allowed role opens this workspace — a lock/unlock
+  // through the buttons above invalidates the key like the other queries,
+  // so the section always shows the persisted trail.
+  const canUnlock = role === Role.ADMIN || role === Role.MANAGER || role === Role.ACCOUNTANT;
   const lockHistory = useQuery({
     queryKey: qk.shipmentDebit.costLockHistory(shipmentId),
     queryFn: () => listShipmentCostLockHistory(shipmentId),
@@ -220,8 +222,9 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
         </div>
       )}
       {/* SIL-679 r2 (QA comment 3834 §1b) — "Lịch sử khóa": the lot's
-          khóa/mở khóa trail (ADMIN-only read, the route's clearance). Static
-          read-only status text — never styled actionable. */}
+          khóa/mở khóa trail (read clearance mirrors the unlock route —
+          Quản trị · Giám đốc · Kế toán per SIL-721). Static read-only
+          status text — never styled actionable. */}
       {canUnlock && (
         <section className="csc-debit-lock-history" aria-label="Lịch sử khóa">
           <p className="csc-debit-lock-history__title">Lịch sử khóa</p>

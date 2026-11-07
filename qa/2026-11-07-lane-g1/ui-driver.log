@@ -1,0 +1,27 @@
+logged in ketoan(ACCOUNTANT) giaonhan(OPS) — BASE http://localhost:7193 API http://localhost:3014/api
+
+U1 — SIL-721 ketoan unlock on /shipments-debit (1440)
+  PASS board shows the locked lot row — SILW7114252A
+  PASS row ⋯ menu opened
+  PASS lô đang mở: MỞ KHÓA chưa render, KHÓA LÔ HÀNG enabled — {"unlockAbsentWhenOpen":true,"lockEnabled":true,"history":true}
+  PASS Lịch sử khóa section renders for ACCOUNTANT
+  PASS MỞ KHÓA renders for ACCOUNTANT on the locked row — {"present":true,"disabled":false,"history":true,"lockEvent":true}
+  PASS reason prompt accepted text
+  PASS unlock success toast "Đã mở khóa chi phí lô …"
+  PASS history shows the new UNLOCK event (actor + reason)
+  PASS re-lock through UI
+  PASS lot restored to its original unlocked state
+
+U2 — SIL-723 giaonhan khai chi phí drawer (1440)
+  PASS drawer "Khai báo chi phí" opens
+  PASS invoice row w/o Số hóa đơn keeps Lưu disabled — {"disabled":true,"notice":"Nhập \"Số hóa đơn\" — khoản có hóa đơn bắt buộc có số hóa đơn.","footerText":"Tổng: 450.000 ₫\n\nNhập \"Số hóa đơn\" — khoản có hóa đơn bắt buộc có số hóa đơn.\n\nĐóng\nLưu","comboValue":"FIX17-S01 scope probe","hints":["Nhập \"Số hóa đơn\" — khoản có hóa đơn bắt buộc có số hóa đơn."],"pending":0}
+  PASS footer notice names "Số hóa đơn" — Nhập "Số hóa đơn" — khoản có hóa đơn bắt buộc có số hóa đơn.
+  PASS Lưu re-enables after Số hóa đơn filled — disabled=false
+  PASS no-invoice row Loại+Số tiền+Ghi chú → Lưu enabled, no blocking notice — {"disabled":false,"notice":false}
+  PASS success toast "Đã ghi nhận N khoản chi"
+
+U3 — SIL-723 blocked notice @390
+  PASS @390 Lưu disabled without Ghi chú
+  PASS @390 footer notice names "Ghi chú" — Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".
+
+checks 18, fails 0

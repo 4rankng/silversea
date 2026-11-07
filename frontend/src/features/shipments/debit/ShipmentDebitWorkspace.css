@@ -392,7 +392,8 @@
 /* Caption line under a table cell (lift/drop site labels, card _35). */
 .csc-debit-channel { display: block; font-size: var(--text-caption-size); color: var(--fg-3); }
 
-/* SIL-679 r2 — "Lịch sử khóa" section on the lot detail (ADMIN-only): a
+/* SIL-679 r2 — "Lịch sử khóa" section on the lot detail (clearance mirrors
+   the unlock channel — Quản trị · Giám đốc · Kế toán per SIL-721): a
    quiet read-only block reusing the adjust-history list primitive. */
 .csc-debit-lock-history { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-1); }
 .csc-debit-lock-history__title { margin: 0 0 6px; font-weight: 600; color: var(--ink-2); font-size: var(--text-caption-size); }

@@ -298,13 +298,24 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
   });
 });
 
-describe('MỞ KHÓA lô (audit 2026-11-04 §2.1)', () => {
-  it('offers no unlock for ACCOUNTANT even on a locked row', async () => {
-    useAuthMock.mockReturnValue({ user: { userId: 4, role: Role.ACCOUNTANT } });
+describe('MỞ KHÓA lô (audit 2026-11-04 §2.1; SIL-721 owner 07/11)', () => {
+  it.each([Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT])('offers unlock + lịch sử khóa for %s on a locked row', async (role) => {
+    useAuthMock.mockReturnValue({ user: { userId: 4, role } });
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true });
+    await screen.findByText('Cước vận tải');
+    expect(screen.getByRole('button', { name: 'Mở khóa lô hàng' })).toBeTruthy();
+    // The trail section reads under the same clearance as the unlock route.
+    expect(screen.getByLabelText('Lịch sử khóa')).toBeTruthy();
+  });
+
+  it.each([Role.CUS, Role.OPS, Role.DISPATCHER, Role.DRIVER])('offers no unlock for %s even on a locked row', async (role) => {
+    useAuthMock.mockReturnValue({ user: { userId: 4, role } });
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true });
     await screen.findByText('Cước vận tải');
     expect(screen.queryByRole('button', { name: 'Mở khóa lô hàng' })).toBeNull();
+    expect(screen.queryByLabelText('Lịch sử khóa')).toBeNull();
   });
 
   it('ADMIN on a locked row: prompt gates the POST, success toasts the lot code and invalidates', async () => {

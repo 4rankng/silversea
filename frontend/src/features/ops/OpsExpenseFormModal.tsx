@@ -126,16 +126,23 @@ function isEmptyDraft(draft: FeeDraft): boolean {
 function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | null {
   if (isEmptyDraft(draft)) return null;
   const valid = amountValidOf(draft.amount);
-  if (!draft.typeCode) return 'Chọn loại phí.';
+  if (!draft.typeCode) return 'Chọn "Loại phí".';
   if (!valid) return draft.amount === ''
     ? 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ'
     : draft.amount === 0 ? 'Số tiền không được bằng 0'
     : draft.amount < 0 ? 'Số tiền không được âm'
     : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
   const charge = chargeOf(block, draft, valid);
-  if (Number.isNaN(charge) || charge < 0) return 'Thực thu (thu khách) phải là số không âm.';
-  if (charge <= 0 && draft.note.trim() === '') return 'Dòng không thu khách — bắt buộc ghi chú lý do.';
-  if (draft.pendingFiles.length > 0) return 'Còn ảnh chưa tải xong.';
+  if (Number.isNaN(charge) || charge < 0) return '"Thực thu (thu khách)" phải là số không âm.';
+  // Card 20260928_162 (server authority unchanged): a row that does not
+  // charge the customer must say why. SIL-723: the message NAMES the field —
+  // this form has two note inputs ("Ghi chú thu khách" vs "Ghi chú"), and the
+  // dead button never said which one was missing.
+  if (charge <= 0 && draft.note.trim() === '') return 'Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".';
+  // KB Chương 6 — only the INVOICE group requires the invoice number; the
+  // no-invoice block never asks for it (and receipt photos stay optional).
+  if (block === 'invoice' && draft.invoiceNumber.trim() === '') return 'Nhập "Số hóa đơn" — khoản có hóa đơn bắt buộc có số hóa đơn.';
+  if (draft.pendingFiles.length > 0) return 'Ảnh biên lai chưa tải xong — bấm "Thử tải lại ảnh" hoặc "Bỏ ảnh chưa tải".';
   return null;
 }
 
@@ -287,6 +294,26 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   // A form of untouched "+ rows" has nothing to save.
   const hasAnyRow = drafts.some((draft) => !isEmptyDraft(draft));
   const canSubmit = typesReady && hasAnyRow && invalidKeys.size === 0 && !createExpense.isPending && !anyPendingFiles;
+  // SIL-723 — Lưu must never be disabled in silence: when a non-blank draft
+  // blocks the save, the footer repeats the row's message (which NAMES the
+  // missing field) right beside the button, so the dead state always says
+  // what to fill. Amount messages stay out — NumberField prints its own
+  // inline error and the footer must not duplicate it (OpsOrdersPage pin
+  // getByText uniqueness). The catalog-loading cases stay on the body's own
+  // status.
+  const saveBlockedReason = useMemo(() => {
+    if (!typesReady) return null;
+    if (!hasAnyRow) return 'Chưa điền khoản chi nào — "Loại phí" và "Số tiền" là bắt buộc.';
+    for (const draft of noInvoiceRows) {
+      const message = draftErrors('noInvoice', draft);
+      if (message && !message.startsWith('Số tiền')) return message;
+    }
+    for (const draft of invoiceRows) {
+      const message = draftErrors('invoice', draft);
+      if (message && !message.startsWith('Số tiền')) return message;
+    }
+    return null;
+  }, [typesReady, hasAnyRow, noInvoiceRows, invoiceRows]);
 
   const pendingResume = useRef<{ tasks: SaveTask[]; index: number } | null>(null);
 
@@ -524,7 +551,10 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         </div>
 
         <footer className="ops-modal__foot">
-          <div>{`Tổng: ${formatMoney(total)} ₫`}</div>
+          <div>
+            {`Tổng: ${formatMoney(total)} ₫`}
+            {saveBlockedReason && <p className="ops-modal-hint" role="status">{saveBlockedReason}</p>}
+          </div>
           <div className="ops-modal__actions">
             <button type="button" className="btn btn--secondary" onClick={onClose} disabled={busy}>Đóng</button>
             <button type="submit" className="btn btn--primary" disabled={!canSubmit}>
@@ -628,7 +658,7 @@ const { typesData, typesReady, busy, patch: patchDraft, upload: uploadRowPhotos,
         />
       </label>
       {chargeOf(block, draft, amountValidOf(draft.amount)) <= 0 && !invoiced
-        && <p className="ops-modal-hint">Dòng chi này không thu khách hàng — ghi chú bắt buộc, ghi rõ lý do để kế toán / CUS đọc được.</p>}
+        && <p className="ops-modal-hint">Dòng chi này không thu khách hàng (Thực thu để trống) — ghi chú bắt buộc: nhập trường "Ghi chú", ghi rõ lý do để kế toán / CUS đọc được.</p>}
       {/* A quiet hint, not role=alert: an untouched "+ row" must not keep a
           permanent alert alive over the whole form (the catalog-recovery
           contract clears its alert once the catalog reloads). */}

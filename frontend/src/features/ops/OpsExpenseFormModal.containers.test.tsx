@@ -60,12 +60,27 @@ async function addInvoiceRow() {
 async function chooseType(blockName: string, name: string) {
   // ≤ SEARCH_THRESHOLD options render the plain click-to-open list (button
   // trigger + listbox), not the type-to-search combobox input.
-  await act(async () => { fireEvent.click(within(block(blockName)).getByRole('button', { name: /Loại phí/ })); });
+  const trigger = within(block(blockName)).getByRole('button', { name: /Loại phí/ });
+  // The trigger is `disabled={!typesReady}` until the catalog query lands —
+  // show()'s heading await resolves before that, so wait for the gate.
+  await waitFor(() => expect(trigger).toBeEnabled());
+  await act(async () => { fireEvent.click(trigger); });
   fireEvent.click(await screen.findByRole('option', { name }));
 }
 
 async function fillAmount(blockName: string, value: string) {
   fireEvent.change(within(block(blockName)).getByLabelText(/Thực chi \(VND\)/), { target: { value } });
+}
+
+/** SIL-723 (KB Chương 6): the invoice block requires Số hóa đơn, so any
+ *  submit-driving case fills it — the container focus of A2/A3/A5 stays on
+ *  the Số Cont payload, never on the invoice law. */
+async function fillInvoiceNumber(blockName: string, value: string) {
+  fireEvent.change(within(block(blockName)).getByLabelText('Số hóa đơn'), { target: { value } });
+}
+
+async function fillNote(blockName: string, value: string) {
+  fireEvent.change(within(block(blockName)).getByLabelText('Ghi chú'), { target: { value } });
 }
 
 async function pickContainers(...labels: string[]) {
@@ -108,6 +123,7 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
@@ -124,6 +140,7 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
@@ -151,6 +168,7 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
@@ -162,5 +180,65 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(3));
     expect(api.createExpense.mock.calls[1][0]).toMatchObject({ shipmentContainerId: 33, duplicateConfirmed: true });
     expect(api.createExpense.mock.calls[2][0]).toMatchObject({ shipmentContainerId: 44 });
+  });
+});
+
+// SIL-723 — the Lưu button must obey KB Chương 6 (bắt buộc tối thiểu = Loại +
+// Số tiền; Số hóa đơn CHỈ trong block có hóa đơn; ảnh biên lai tùy chọn) and
+// never disable in silence: the blocked footer NAMES the missing field.
+describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20_000 }, () => {
+  it('B1: Loại + Số tiền + Ghi chú on a no-invoice row saves — no invoice number, no photo required', async () => {
+    await show();
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '80000');
+    await fillNote('Phí không hóa đơn', 'Chi tiền mặt cho 2 công nhân dỡ hàng');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({
+      expenseTypeCode: 'CONG_NHAN',
+      amount: '80000',
+      note: 'Chi tiền mặt cho 2 công nhân dỡ hàng',
+      shipmentContainerId: null,
+      invoiceNumber: null,
+      photoStorageKeys: [],
+    });
+  });
+
+  it('B2: a no-charge row without Ghi chú stays blocked and the footer names "Ghi chú"', async () => {
+    await show();
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '80000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    // The message shows twice: the row hint AND the footer notice beside Lưu
+    // (the two surfaces SIL-723 requires; footer read via findAllByText).
+    expect((await screen.findAllByText('Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".')).length).toBeGreaterThan(0);
+    // Filling the field the message names re-enables the save.
+    await fillNote('Phí không hóa đơn', 'Không thu khách — phí nội bộ');
+    expect(save).toBeEnabled();
+    expect(screen.queryAllByText('Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".')).toHaveLength(0);
+  });
+
+  it('B3: the invoice block requires "Số hóa đơn" and the footer names it', async () => {
+    await show();
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    expect((await screen.findAllByText('Nhập "Số hóa đơn" — khoản có hóa đơn bắt buộc có số hóa đơn.')).length).toBeGreaterThan(0);
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
+    expect(save).toBeEnabled();
+  });
+
+  it('B4: the no-invoice block never demands Số hóa đơn (KB: chỉ nhóm có hóa đơn)', async () => {
+    await show();
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '50000');
+    await fillNote('Phí không hóa đơn', 'Chi áp ván');
+    expect(screen.getByRole('button', { name: 'Lưu' }).getAttribute('disabled')).toBeNull();
+    expect(screen.queryByText(/Số hóa đơn/)).toBeNull();
   });
 });
