@@ -281,12 +281,13 @@ describe('MasterPlanGrid', () => {
     // "DD/MM/YYYY HH:mm" leads and "factory · containers" indents beneath.
     expect(screen.getByText('24/08/2026 11:00')).toBeTruthy();
     expect(screen.getByText('25/08/2026 11:00')).toBeTruthy();
-    expect(screen.getAllByText('Sunrise · 1 x 40DC')).toHaveLength(2);
+    // SIL-732: redundant factory name removed from subline to fit container type without truncation
+    expect(screen.getAllByText('1 x 40DC')).toHaveLength(2);
     // The "Giờ:" label is gone; only the value leads each block.
     const scheduleCell = screen.getByText('24/08/2026 11:00').closest('td');
     expect(scheduleCell).toBeTruthy();
     expect(within(scheduleCell!).queryAllByText(/Giờ:/).length).toBe(0);
-    expect(within(scheduleCell!).getAllByText('Sunrise · 1 x 40DC').length).toBe(2);
+    expect(within(scheduleCell!).getAllByText('1 x 40DC').length).toBe(2);
   });
 
   it('falls back to the shipment-level closingAt when no per-container appointments exist', () => {

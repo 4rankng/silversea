@@ -42,10 +42,12 @@ export function scheduleBlocks(item: ShipmentListItem, scheduleDate?: string | n
     ? item.appointmentGroups.filter((group) => group.localDate === scheduleDate)
     : item.appointmentGroups;
   return groups.map((group) => {
-    const factory = group.factoryName?.trim();
+    // SIL-732: subline under datetime shows containerSummary (e.g. 1 x 20DC)
+    // without redundant factory name, which is already rendered in the
+    // "Khách hàng & nhà máy" column, preventing truncation of the container type.
     return {
       head: formatAppointmentGroupLine(group.at, group.localDate),
-      sub: factory ? `${factory} · ${group.containerSummary}` : group.containerSummary,
+      sub: group.containerSummary,
     };
   });
 }
