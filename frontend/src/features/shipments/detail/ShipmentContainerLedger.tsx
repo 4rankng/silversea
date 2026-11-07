@@ -1041,10 +1041,12 @@ export function ShipmentContainerLedger({
   // until the page refetches its rows. The overlay is self-healing — the
   // moment the row carries a different value the server is authoritative
   // again. SIL-503 adds the BKS THỰC side (the CUS "phân xe" act on this
-  // board): same endpoint, `actualTruckNo`. Clearing either plate is a
-  // dispatch/settlement-screen concern — the wire forbids an empty actual
-  // plate and `billingTruckNo: null` is the settlement path — so both
-  // editors refuse empty drafts.
+  // board): same endpoint, `actualTruckNo`. KB 3.6.6 / spec 23/10 §4.1 splits
+  // the two: the BKS báo khách is the CUS's own output and MAY be blank — a
+  // blank draft is a CLEAR (`null` on the wire) and the read side falls back
+  // to the BKS thực; the BKS THỰC is the opposite, the wire forbids an empty
+  // actual plate (`truckNo` = trim().min(1)), so that editor keeps refusing
+  // empty drafts.
   type PlateEditorKind = 'billing' | 'actual';
   const [plateEditor, setPlateEditor] = useState<{ rowId: number; kind: PlateEditorKind } | null>(null);
   const [billingDraft, setBillingDraft] = useState('');
@@ -1073,8 +1075,13 @@ export function ShipmentContainerLedger({
         if (plate?.trim()) plates.add(plate.trim());
       }
     }
-    for (const override of Object.values(billingOverrides)) plates.add(override.saved);
-    for (const override of Object.values(actualOverrides)) plates.add(override.saved);
+    for (const override of Object.values(billingOverrides)) {
+      // A CLEARED ảo plate is an EMPTY saved value — never a suggestion.
+      if (override.saved.trim()) plates.add(override.saved);
+    }
+    for (const override of Object.values(actualOverrides)) {
+      if (override.saved.trim()) plates.add(override.saved);
+    }
     return [...plates].map((plate) => ({ value: plate, label: plate, searchText: plate }));
   }, [rows, billingOverrides, actualOverrides]);
 
@@ -1090,9 +1097,21 @@ export function ShipmentContainerLedger({
   async function saveBillingPlate(row: ShipmentCusContainerFlatRow, kind: PlateEditorKind) {
     const base = kind === 'actual' ? actualTruckNoFor(row) : billingPlateFor(row);
     const next = billingDraft.trim();
-    // The wire contract forbids an empty plate (`truckNo` = trim().min(1)) —
-    // clearing the ảo plate is a settlement-screen action, never a row edit.
-    if (next === '' || next === base) {
+    // The BKS THỰC is the ĐV's own plate: the wire forbids an empty one
+    // (`truckNo` = trim().min(1)), so that editor still refuses a blank draft
+    // — it closes without writing.
+    if (kind === 'actual' && next === '') {
+      setPlateEditor(null);
+      return;
+    }
+    // KB 3.6.6 / spec 23/10 §4.1 splits the two sides: the BKS báo khách is
+    // the CUS's OWN output and MAY be blank — a blank draft is a CLEAR, and
+    // the wire carries `null` (never '', and never `undefined`, which the
+    // server reads as "untouched"). Every read surface then falls back to the
+    // ĐV-assigned BKS thực, and the Debit Note prints that plate.
+    // An unchanged draft is a no-op either way: close the editor, write
+    // NOTHING (no version bump, no audit noise).
+    if (next === base) {
       setPlateEditor(null);
       return;
     }
@@ -1103,7 +1122,7 @@ export function ShipmentContainerLedger({
         await updateLclTruck({ shipmentId: row.shipmentId, actualTruckNo: next });
         setActualOverrides((prev) => ({ ...prev, [row.shipmentId]: { base, saved: next } }));
       } else {
-        await updateLclTruck({ shipmentId: row.shipmentId, billingTruckNo: next });
+        await updateLclTruck({ shipmentId: row.shipmentId, billingTruckNo: next === '' ? null : next });
         setBillingOverrides((prev) => ({ ...prev, [row.shipmentId]: { base, saved: next } }));
       }
       setPlateEditor(null);
@@ -1149,7 +1168,12 @@ export function ShipmentContainerLedger({
           {billingError && <span className="shipment-container-ledger__edit-error" role="alert">{billingError}</span>}
           <EditActions
             saving={billingSaving}
-            saveDisabled={billingDraft.trim() === ''}
+            // A blank draft is a CLEAR for the BKS ảo (the CUS's own output —
+            // the wire carries `billingTruckNo: null`), so its Save button
+            // stays LIVE on an empty field. The BKS thực keeps the strict
+            // rule: the wire forbids an empty actual plate, so its Save stays
+            // disabled until a plate is typed.
+            saveDisabled={kind === 'actual' && billingDraft.trim() === ''}
             label={actionLabel}
             onCancel={() => setPlateEditor(null)}
             onSave={() => void saveBillingPlate(row, kind)}

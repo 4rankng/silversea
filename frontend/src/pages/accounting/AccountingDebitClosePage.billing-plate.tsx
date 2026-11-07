@@ -51,7 +51,12 @@ export function BillingPlateEditor({
           : <small>BKS ảo là biển số in cho khách.</small>}
         <EditActions
           saving={saving}
-          saveDisabled={draft.trim() === ''}
+          // KB 3.6.6 / spec 23/10 §4.1: "BKS báo khách" is the CUS's OWN
+          // output and MAY be blank — a blank draft is a CLEAR (the wire
+          // carries `billingTruckNo: null`), so the Save button must stay
+          // LIVE on an empty field. `EditActions` still disables it while the
+          // save is in flight (`saving`).
+          saveDisabled={false}
           label="BKS ảo"
           onCancel={onCancel}
           onSave={onSave}

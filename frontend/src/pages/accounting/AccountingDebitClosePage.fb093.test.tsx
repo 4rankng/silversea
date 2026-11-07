@@ -13,6 +13,10 @@
  *    refetches the board (the badge then renders the server's value);
  *  - a server refusal (cost-locked lot → 409) surfaces verbatim in an alert and
  *    leaves the panel OPEN with the typed value intact — nothing is discarded;
+ *  - a BLANK draft CLEARS the BKS báo khách (KB 3.6.6 / spec 23/10 §4.1: the
+ *    CUS's own output MAY be blank) — the wire carries `billingTruckNo: null`,
+ *    never '', and the panel closes after the board refetches; an UNCHANGED
+ *    draft writes nothing at all;
  *  - the merge button is aria-disabled with an explanation until ≥2 ungrouped
  *    lô lẻ are selected, and then opens the shared MergeRevGroupDialog with
  *    exactly those lots.
@@ -155,19 +159,48 @@ describe('FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit
       .toBe('51G-888.88');
   });
 
-  it('will not save an empty plate — the wire forbids it', async () => {
+  it('a blank draft CLEARS the BKS báo khách — the wire carries null, and the panel closes', async () => {
+    listBoard.mockResolvedValue({ items: [lclRow(1, 'BL-1')], total: 1 });
+    updateLclTruck.mockResolvedValue({ updatedShipmentIds: [1] });
+    renderPage();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa BKS ảo: 30C-999.99' }));
+    const panel = await screen.findByRole('region', { name: /Sửa BKS ảo/ });
+    const save = screen.getByRole('button', { name: 'Lưu BKS ảo' }) as HTMLButtonElement;
+
+    fireEvent.change(panel.querySelector('input')!, { target: { value: '   ' } });
+    // KB 3.6.6 / spec 23/10 §4.1: "BKS báo khách" is the CUS's OWN output and
+    // MAY be blank — a blank draft is a CLEAR, not a refusal, so the Save
+    // button is live on an empty field.
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+
+    // The wire carries `null` (never '', never undefined — undefined means
+    // "untouched" to the server).
+    await waitFor(() => {
+      expect(updateLclTruck).toHaveBeenCalledWith({ shipmentId: 1, billingTruckNo: null });
+    });
+    // The panel closes and the board refetches — the badge cell then renders
+    // whatever the server holds (the cleared ảo plate).
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: /Sửa BKS ảo/ })).toBeNull();
+    });
+    expect(listBoard.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  it('an unchanged draft is a no-op: the panel closes and nothing is written', async () => {
     listBoard.mockResolvedValue({ items: [lclRow(1, 'BL-1')], total: 1 });
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Sửa BKS ảo: 30C-999.99' }));
     await screen.findByRole('region', { name: /Sửa BKS ảo/ });
-    const save = screen.getByRole('button', { name: 'Lưu BKS ảo' }) as HTMLButtonElement;
+    // The draft still holds the stored plate — saving it changes nothing, so
+    // there is no write (no version bump, no audit noise).
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu BKS ảo' }));
 
-    fireEvent.change(screen.getByRole('region', { name: /Sửa BKS ảo/ }).querySelector('input')!, {
-      target: { value: '   ' },
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: /Sửa BKS ảo/ })).toBeNull();
     });
-    expect(save.disabled).toBe(true);
-    fireEvent.click(save);
     expect(updateLclTruck).not.toHaveBeenCalled();
   });
 });
