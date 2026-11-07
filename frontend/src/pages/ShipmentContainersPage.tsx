@@ -105,8 +105,10 @@ export default function ShipmentContainersPage() {
   // Từ after today was REFUSED before it could be emitted: the typed Từ never
   // reached the page, and the next Đến edit wrote the scope's Từ instead, so
   // the request went out with transportDateFrom=<today> (93 rows for a
-  // 10/11..10/11 range that holds 26). An end the operator never filled stays
-  // empty: only a value they chose may bound theirs.
+  // 10/11..10/11 range that holds 26). At load the fields are empty, so the
+  // first pick is unbounded and reaches the page; `writeDateRange` closes the
+  // pair right after, and from then on the fields mirror exactly what the
+  // query holds — display and applied filter can never diverge again.
   const fieldDateFrom = datesAreOrdered ? parsedDateFrom : '';
   const fieldDateTo = datesAreOrdered ? parsedDateTo : '';
   const customerId = readPositiveInteger(searchParams.get('customerId'));
@@ -550,15 +552,18 @@ export default function ShipmentContainersPage() {
               {/* Card 20260927_150/151: the from/to dates are the shared
                   DateRangeFields group — two independent single-date fields,
                   no merged trigger and no dual-calendar popover (CHIEF
-                  2026-09-27). */}
+                  2026-09-27). The fields take the OPERATOR's range
+                  (`fieldDate*`), never the scope default: a scope value in a
+                  field becomes a min/max bound that silently refuses the
+                  opposite field's next pick (SIL-434). */}
               <DateRangeFields
                 key={`shipments-detail-dates-${dateResetKey}`}
                 className="shipments-detail-filter"
                 id="shipments-detail-date-range"
                 ariaLabel="Khoảng ngày vận chuyển"
                 size="sm"
-                from={dateFrom}
-                to={dateTo}
+                from={fieldDateFrom}
+                to={fieldDateTo}
                 onChange={applyDateRange}
               />
               <FilterDropdown
