@@ -1,9 +1,10 @@
-// Card 191026181942 (KT8) — the leading cost-state track: a red dot on rows
-// that still lack cost data, so "dễ kiểm tra" is a scan down the first column
-// instead of reading every money cell. The money cells keep their muted
+// Card 191026181942 (KT8) — the leading cost-state track. SIL-727 amends the
+// track's law on this board: a PICKABLE row hosts the selection checkbox (the
+// same `useTableRowSelection` state the row click drives), a LOCKED row keeps
+// the red dot naming the missing cost. The money cells keep their muted
 // "Thiếu …" labels (§1); the row is never flooded red (selection state owns
-// that channel). Card KT4 rides along: the dot column is pinned (non-hideable)
-// and the board opens on its essential set.
+// that channel). The dot track stays pinned, and the ticket's money matrix
+// opens essential-locked (card KT4 as amended by SIL-727).
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -97,53 +98,71 @@ describe('hasMissingCost — the dot predicate (card 191026181942 KT8)', () => {
 });
 
 describe('the leading cost-state track on the board', () => {
-  it('dots exactly the rows that lack cost data, with the tooltip naming the lack', async () => {
+  it('SIL-727 — the track hosts the checkbox on pickable rows and keeps the dot for locked ones', async () => {
     listBoard.mockResolvedValue({
       items: [
+        // Pickable + complete → the checkbox affordance, no dot.
         row(),
-        row({ shipmentId: 2, billOrBooking: 'BL-2', tra: { ...CARRIER_RATES, cuocTraDv: null } }),
+        // Pickable + a missing breakdown → still the checkbox; the muted
+        // "Thiếu …" money label names the lack instead of the track.
+        row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', tra: { ...CARRIER_RATES, cuocTraDv: null } }),
+        // Locked (PENDING) + a missing breakdown → the dot names the lack.
+        row({ shipmentId: 3, code: 'SHP-26-0003', billOrBooking: 'BL-3', tra: { ...CARRIER_RATES, cuocTraDv: null }, adjustment: { status: 'PENDING', requestId: 55, requestedAt: null, confirmedAt: null } }),
       ],
-      total: 2,
+      total: 3,
     });
-    const { container } = renderPage();
+    renderPage();
     await screen.findByText('BL-1');
 
-    const dots = screen.getAllByRole('img', { name: 'Thiếu chi phí' });
+    const boardRegion = within(screen.getByRole('region', { name: 'Bảng kế hoạch điều động tổng hợp' }));
+    const checkbox1 = boardRegion.getByRole('checkbox', { name: 'Chọn lô BL-1' });
+    expect(checkbox1.getAttribute('aria-checked')).toBe('false');
+    const checkbox2 = boardRegion.getByRole('checkbox', { name: 'Chọn lô BL-2' });
+    expect(checkbox2).toBeTruthy();
+    expect(boardRegion.queryByRole('img', { name: 'Thiếu chi phí' })).toBeNull();
+    expect(boardRegion.getByText('Thiếu cước trả ĐV')).toHaveClass('debit-missing');
+
+    // The locked row keeps the dot in ITS leading cell (the pending zone),
+    // with the tooltip naming the lack.
+    const pendingRegion = within(screen.getByRole('region', { name: 'Bảng chờ xác nhận điều chỉnh cước' }));
+    const dots = pendingRegion.getAllByRole('img', { name: 'Thiếu chi phí' });
     expect(dots).toHaveLength(1);
     expect(dots[0]).toHaveAttribute('title', 'Thiếu chi phí');
-    // The dotted row is BL-2's: the dot sits in that row's leading cell.
-    expect(dots[0].closest('tr')?.textContent).toContain('BL-2');
-    // A complete row reads as complete in the same track — no dot element.
-    const firstRow = [...container.querySelectorAll('.debit-board tbody tr')] as HTMLElement[];
-    expect(firstRow[0]?.querySelector('.debit-cost-dot')).toBeNull();
+    expect(dots[0].closest('tr')?.textContent).toContain('BL-3');
   });
 
-  it('the money cell stays muted prose (§1) — no red flood beside the dot', async () => {
+  it('the money cell stays muted prose (§1) — the track never floods red', async () => {
     listBoard.mockResolvedValue({ items: [row({ tra: { ...CARRIER_RATES, tong1: null } })], total: 1 });
     renderPage();
     // Tổng 1 is essential — visible by default, its missing label still names
-    // the field in the muted face; the dot column is the only red signal.
+    // the field in the muted face; the pickable row's track hosts the
+    // checkbox, and no red dot floods beside it.
     expect(await screen.findByText('Thiếu tổng 1')).toHaveClass('debit-missing');
-    expect(screen.getByRole('img', { name: 'Thiếu chi phí' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeTruthy();
+    expect(screen.queryByRole('img', { name: 'Thiếu chi phí' })).toBeNull();
   });
 
-  it('the dot column is pinned — the picker never offers it, and the essential default opens ≤6 columns', async () => {
+  it('the pinned track stays out of the picker, and the SIL-727 money matrix opens essential-locked', async () => {
     listBoard.mockResolvedValue({ items: [row()], total: 1 });
     renderPage();
     await screen.findByText('BL-1');
     fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
     const dialog = screen.getByRole('dialog', { name: 'Cột hiển thị' });
-    // Pinned columns (dot, Ngày, lô, Đối soát) are not offered at all…
+    // Pinned columns (track, Ngày, lô, Đối soát) are not offered at all…
     for (const label of ['Chi phí', 'Ngày', 'Thông tin lô hàng', 'Đối soát']) {
       expect(within(dialog).queryByRole('checkbox', { name: label })).toBeNull();
     }
-    // …and the board opened on the essential set: the two rollups are there,
-    // the breakdowns are not (one toggle away).
-    expect(within(dialog).getByRole('checkbox', { name: 'Tổng thu' })).toBeChecked();
-    expect(within(dialog).getByRole('checkbox', { name: 'Tổng 1' })).toBeChecked();
-    expect(within(dialog).getByRole('checkbox', { name: 'Cước thu (tự động)' })).not.toBeChecked();
-    expect(screen.queryByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeNull();
-    expect(screen.getByRole('columnheader', { name: 'Tổng thu' })).toBeTruthy();
+    // …and the ticket's matrix is on the board: every PHẢI THU/PHẢI TRẢ
+    // column reads locked in the picker (disabled + checked — a stored choice
+    // cannot hide it, FB-093 lan 3)…
+    for (const label of ['Cước thu (tự động)', 'Lạch Huyện (tự động)', 'Phụ ps (tự động)', 'Phát sinh (cus)', 'Tổng thu', 'Cước trả ĐV', 'Lạch Huyện ĐV', 'Phát sinh ĐV', 'Tổng 1', 'Phí RU (tự động)']) {
+      const option = within(dialog).getByRole('checkbox', { name: label });
+      expect(option).toBeChecked();
+      expect(option).toBeDisabled();
+    }
+    // …and renders on the board.
+    expect(screen.getByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Phí RU (tự động)' })).toBeInTheDocument();
   });
 
   it('phone records never render the dot track as a fact', async () => {

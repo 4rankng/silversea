@@ -4,7 +4,10 @@
   width: 18px;
   height: 18px;
   padding: 0;
-  border: 1.5px solid #94a3b8;
+  /* 1.4.11 non-text boundary: --control-border is the calibrated 3.05:1 rung;
+   * the former pale #94a3b8 computed 2.57:1 on white — the same pair the
+   * DetailedPlanGrid QA-007 pins exist to keep out. */
+  border: 1.5px solid var(--control-border);
   border-radius: 4px;
   background: #fff;
   color: var(--fg-on-accent, #00381a);
