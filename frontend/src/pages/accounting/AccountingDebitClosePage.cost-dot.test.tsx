@@ -121,9 +121,9 @@ describe('the leading cost-state track on the board', () => {
   it('the money cell stays muted prose (§1) — no red flood beside the dot', async () => {
     listBoard.mockResolvedValue({ items: [row({ tra: { ...CARRIER_RATES, tong1: null } })], total: 1 });
     renderPage();
-    // Tổng 1 is essential — visible by default, its missing label still names
+    // Tổng trả is essential — visible by default, its missing label still names
     // the field in the muted face; the dot column is the only red signal.
-    expect(await screen.findByText('Thiếu tổng 1')).toHaveClass('debit-missing');
+    expect(await screen.findByText('Thiếu tổng trả')).toHaveClass('debit-missing');
     expect(screen.getByRole('img', { name: 'Thiếu chi phí' })).toBeTruthy();
   });
 
@@ -140,7 +140,7 @@ describe('the leading cost-state track on the board', () => {
     // …and the board opened on the essential set: the two rollups are there,
     // the breakdowns are not (one toggle away).
     expect(within(dialog).getByRole('checkbox', { name: 'Tổng thu' })).toBeChecked();
-    expect(within(dialog).getByRole('checkbox', { name: 'Tổng 1' })).toBeChecked();
+    expect(within(dialog).getByRole('checkbox', { name: 'Tổng trả' })).toBeChecked();
     expect(within(dialog).getByRole('checkbox', { name: 'Cước thu (tự động)' })).not.toBeChecked();
     expect(screen.queryByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeNull();
     expect(screen.getByRole('columnheader', { name: 'Tổng thu' })).toBeTruthy();
@@ -156,6 +156,6 @@ describe('the leading cost-state track on the board', () => {
     const record = await screen.findByRole('article', { name: 'BL-1' });
     expect(within(record).queryByRole('img', { name: 'Thiếu chi phí' })).toBeNull();
     // The per-field muted labels still carry the fact on the card face.
-    expect(within(record).getByText('Thiếu tổng 1')).toBeTruthy();
+    expect(within(record).getByText('Thiếu tổng trả')).toBeTruthy();
   });
 });

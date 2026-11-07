@@ -1,0 +1,105 @@
+
+=== [1] Testing SIL-701 on /accounting/chot-debit (Kế toán) ===
+Logging in as ketoan on http://localhost:7199...
+Login ok, currently on /accounting
+Navigating to /accounting/chot-debit...
+Header inspection: {"allHeaders":["Chi phí","Ngày","Thông tin lô hàng","Thông số container","Phải thu","Phải trả","Đối soát","Tổng thu","Tổng trả","Chi phí","Ngày","Thông tin lô hàng","Thông số container","Phải thu","Phải trả","Đối soát","Tổng thu","Tổng trả","Kỳ theo dõi","Khách hàng","Đối tượng","Chiều","Từ ngày","Đến ngày","Số tiền (chưa VAT)","VAT","Tiền VAT","Tổng tiền (gồm VAT)","Ghi chú"],"hasTongTra":true,"hasTong1":false}
+PASS — SIL-701: Cột rollup Phải trả có nhãn "TỔNG TRẢ" (hoặc "Tổng trả")
+PASS — SIL-701: Không còn nhãn sai "TỔNG 1" trong header
+Missing cells inspection: {"missingLabelsSample":["Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả"],"hasThieuTongTra":true,"hasThieuTong1":false}
+PASS — SIL-701: Ô thiếu chi phí dùng "Thiếu tổng trả", không còn "Thiếu tổng 1"
+Clicked Cột hiển thị: true
+Dialog column picker check: {"found":true,"hasTongTraCheckbox":true,"hasTong1Checkbox":false}
+PASS — SIL-701: Checkbox trong dialog Cột hiển thị mang tên "Tổng trả"
+PASS — SIL-701: Dialog Cột hiển thị không còn "Tổng 1"
+
+=== [2] Testing SIL-707 on /dispatch (Master plan allocation popup) ===
+Logging out ketoan and logging in as dieuvan...
+ERROR: Error: No element found for selector: input[type="password"]
+    at assert (file:///Users/dev/.paseo/worktrees/1njkloyy/h2-fix/node_modules/.pnpm/puppeteer-core@25.16.0/node_modules/puppeteer-core/lib/puppeteer/util/assert.js:15:15)
+    at CdpFrame.type (file:///Users/dev/.paseo/worktrees/1njkloyy/h2-fix/node_modules/.pnpm/puppeteer-core@25.16.0/node_modules/puppeteer-core/lib/puppeteer/api/Frame.js:887:17)
+    at async file:///Users/dev/.paseo/worktrees/1njkloyy/h2-fix/qa/2026-11-07-lane-h2/drive-h2.mjs:135:3
+
+=== [1] Testing SIL-701 on /accounting/chot-debit (Kế toán) ===
+Logging in as ketoan on http://localhost:7199...
+Login ok, currently on /accounting
+Navigating to /accounting/chot-debit...
+Header inspection: {"allHeaders":["Chi phí","Ngày","Thông tin lô hàng","Thông số container","Phải thu","Phải trả","Đối soát","Tổng thu","Tổng trả","Chi phí","Ngày","Thông tin lô hàng","Thông số container","Phải thu","Phải trả","Đối soát","Tổng thu","Tổng trả","Kỳ theo dõi","Khách hàng","Đối tượng","Chiều","Từ ngày","Đến ngày","Số tiền (chưa VAT)","VAT","Tiền VAT","Tổng tiền (gồm VAT)","Ghi chú"],"hasTongTra":true,"hasTong1":false}
+PASS — SIL-701: Cột rollup Phải trả có nhãn "TỔNG TRẢ" (hoặc "Tổng trả")
+PASS — SIL-701: Không còn nhãn sai "TỔNG 1" trong header
+Missing cells inspection: {"missingLabelsSample":["Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả"],"hasThieuTongTra":true,"hasThieuTong1":false}
+PASS — SIL-701: Ô thiếu chi phí dùng "Thiếu tổng trả", không còn "Thiếu tổng 1"
+Clicked Cột hiển thị: true
+Dialog column picker check: {"found":true,"hasTongTraCheckbox":true,"hasTong1Checkbox":false}
+PASS — SIL-701: Checkbox trong dialog Cột hiển thị mang tên "Tổng trả"
+PASS — SIL-701: Dialog Cột hiển thị không còn "Tổng 1"
+
+=== [2] Testing SIL-707 on /dispatch (Master plan allocation popup) ===
+Clearing session and logging in as dieuvan...
+Login as dieuvan ok, on /dispatch
+Navigating to /dispatch...
+Allocation cell clicked: true
+Allocation popover open: true
+PASS — SIL-707: Dialog Phân bổ nhà xe mở thành công
+Row count before add: 0
+Row count after add: 0
+Row 1 carrier select clicked: false
+Dropdown metrics: {"found":false}
+FAIL — SIL-707: Dropdown danh sách nhà xe hiển thị
+FAIL — SIL-707: Dropdown có undefined lựa chọn
+FAIL — SIL-707: Chiều cao dropdown (undefinedpx) <= 400px (đáp ứng tiêu chuẩn data-dense 320-400px)
+FAIL — SIL-707: Đáy dropdown (undefinedpx) nằm trong viewport 900px (không bị tràn y≈1352)
+FAIL — SIL-707: overflow-y là undefined cho phép cuộn
+FAIL — SIL-707: scrollHeight (undefinedpx) > clientHeight (undefinedpx) chứng minh danh sách cuộn được
+
+=== Testing /dispatch-detail ===
+Opened dispatch detail edit modal: true
+Dispatch detail select clicked: true
+Dispatch detail select metrics: {"found":true,"popoverHeight":360,"popoverMaxHeight":"360px","listMaxHeight":"320px","listOverflowY":"auto","bottom":646}
+PASS — SIL-707: /dispatch-detail select popover height (360px) <= 420px
+PASS — SIL-707: /dispatch-detail select list có overflow-y auto
+
+=== All drives completed ===
+Final status: FAILED
+
+=== [1] Testing SIL-701 on /accounting/chot-debit (Kế toán) ===
+Logging in as ketoan on http://localhost:7199...
+Login ok, currently on /accounting
+Navigating to /accounting/chot-debit...
+Header inspection: {"allHeaders":["Chi phí","Ngày","Thông tin lô hàng","Thông số container","Phải thu","Phải trả","Đối soát","Tổng thu","Tổng trả","Chi phí","Ngày","Thông tin lô hàng","Thông số container","Phải thu","Phải trả","Đối soát","Tổng thu","Tổng trả","Kỳ theo dõi","Khách hàng","Đối tượng","Chiều","Từ ngày","Đến ngày","Số tiền (chưa VAT)","VAT","Tiền VAT","Tổng tiền (gồm VAT)","Ghi chú"],"hasTongTra":true,"hasTong1":false}
+PASS — SIL-701: Cột rollup Phải trả có nhãn "TỔNG TRẢ" (hoặc "Tổng trả")
+PASS — SIL-701: Không còn nhãn sai "TỔNG 1" trong header
+Missing cells inspection: {"missingLabelsSample":["Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả","Thiếu tổng trả"],"hasThieuTongTra":true,"hasThieuTong1":false}
+PASS — SIL-701: Ô thiếu chi phí dùng "Thiếu tổng trả", không còn "Thiếu tổng 1"
+Clicked Cột hiển thị: true
+Dialog column picker check: {"found":true,"hasTongTraCheckbox":true,"hasTong1Checkbox":false}
+PASS — SIL-701: Checkbox trong dialog Cột hiển thị mang tên "Tổng trả"
+PASS — SIL-701: Dialog Cột hiển thị không còn "Tổng 1"
+
+=== [2] Testing SIL-707 on /dispatch (Master plan allocation popup) ===
+Clearing session and logging in as dieuvan...
+Login as dieuvan ok, on /dispatch
+Navigating to /dispatch...
+Allocation cell clicked: {"clicked":true,"isFcl":true}
+Allocation popover open: true
+PASS — SIL-707: Dialog Phân bổ nhà xe mở thành công
+Row count before add: 1
+Row count after add: 2
+Row 1 carrier select clicked: true
+Dropdown metrics: {"found":true,"tag":"DIV","className":"uui-select-popover z-[var(--z-popover,400)] w-(--trigger-width) origin-(--trigger-anchor-point) overflow-x-hidden overflow-y-auto rounded-lg border border-secondary bg-[var(--surface)] py-1 outline-hidden will-change-transform !max-h-[var(--popover-fit,360px)] dispatch-allocation-popover__carrier-dropdown ds-uui-select__popover","optionCount":28,"top":537,"bottom":857,"width":355,"height":320,"clientHeight":318,"scrollHeight":853,"maxHeight":"320px","overflowY":"auto","viewportHeight":900,"row2Top":550}
+PASS — SIL-707: Dropdown danh sách nhà xe hiển thị
+PASS — SIL-707: Dropdown có 28 lựa chọn
+PASS — SIL-707: Chiều cao dropdown (318px) <= 400px (đáp ứng tiêu chuẩn data-dense 320-400px)
+PASS — SIL-707: Đáy dropdown (857px) nằm trong viewport 900px (không bị tràn y≈1352)
+PASS — SIL-707: overflow-y là auto cho phép cuộn
+PASS — SIL-707: scrollHeight (853px) > clientHeight (318px) chứng minh danh sách cuộn được
+
+=== Testing /dispatch-detail ===
+Opened dispatch detail edit modal: true
+Dispatch detail select clicked: true
+Dispatch detail select metrics: {"found":true,"popoverHeight":360,"popoverMaxHeight":"360px","listMaxHeight":"320px","listOverflowY":"auto","bottom":646}
+PASS — SIL-707: /dispatch-detail select popover height (360px) <= 420px
+PASS — SIL-707: /dispatch-detail select list có overflow-y auto
+
+=== All drives completed ===
+Final status: ALL PASSED

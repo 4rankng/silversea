@@ -116,6 +116,7 @@ export function DispatchAllocationDaySection({
                   ariaLabel={`Nhà xe dòng ${rowNum}`}
                   wrapperClassName="dispatch-allocation-popover__carrier"
                   controlClassName="dispatch-allocation-popover__control"
+                  popoverClassName="dispatch-allocation-popover__carrier-dropdown ds-uui-select__popover"
                   value={row.carrierKey}
                   onChange={(event) => onUpdateRow(dayIndex, rowIndex, { carrierKey: event.target.value })}
                   hint={issue?.carrier ?? (optionsLoading ? 'Đang tải danh sách nhà xe…' : undefined)}

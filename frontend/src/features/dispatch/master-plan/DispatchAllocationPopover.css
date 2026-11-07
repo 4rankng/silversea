@@ -247,6 +247,14 @@
   text-align: left;
 }
 
+/* SIL-707: carrier select popup must cap height to ~8 options (~320-400px) with overflow-y: auto
+   so it never overflows viewport (y≈1352) or completely covers the next row's carrier field */
+.dispatch-allocation-popover__carrier-dropdown,
+.dispatch-allocation-popover .ds-uui-select__popover {
+  max-height: min(360px, calc(100dvh - 48px)) !important;
+  overflow-y: auto !important;
+}
+
 .dispatch-allocation-popover__count .dispatch-allocation-popover__control {
   text-align: right;
 }

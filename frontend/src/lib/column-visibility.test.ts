@@ -162,7 +162,7 @@ describe('column visibility — a stored choice cannot hide a required column (F
     { key: 'container', label: 'Thông số container', essentialWhenHasData: true },
     { key: 'phanXe', label: 'Phân xe' },
     { key: 'tongThu', label: 'Tổng thu', essential: true },
-    { key: 'tong1', label: 'Tổng 1', essential: true },
+    { key: 'tong1', label: 'Tổng trả', essential: true },
     { key: 'ghiChu', label: 'Ghi chú', autoHideWhenEmpty: true },
   ];
 

@@ -75,6 +75,9 @@
   width: max-content;
   min-width: min(max(220px, var(--trigger-width, 220px)), calc(100vw - 32px));
   max-width: calc(100vw - 32px);
+  /* SIL-707: max-height ~8 items (~320-400px) with vertical scroll so it never spills past viewport or covers sibling rows */
+  max-height: min(var(--popover-fit, 360px), 360px, calc(100dvh - 48px)) !important;
+  overflow-y: auto !important;
   z-index: var(--z-popover, 400);
 }
 
