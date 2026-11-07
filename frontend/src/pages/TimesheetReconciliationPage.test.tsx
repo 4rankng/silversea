@@ -46,11 +46,11 @@ const month: TimesheetMonth = {
   days: [
     {
       id: 11, workDate: '2026-10-05', symbol: 'Q', trips: 2, isSunday: false,
-      tripAdjustment: 0, note: null, enteredBy: 2, enteredAt: null, adjustedBy: null, adjustedAt: null,
+      tripAdjustment: 0, note: null, source: 'MANUAL', enteredBy: 2, enteredAt: null, adjustedBy: null, adjustedAt: null,
     },
     {
       id: 12, workDate: '2026-10-11', symbol: 'Đ', trips: 1, isSunday: true,
-      tripAdjustment: 0, note: null, enteredBy: 2, enteredAt: null, adjustedBy: null, adjustedAt: null,
+      tripAdjustment: 0, note: null, source: 'MANUAL', enteredBy: 2, enteredAt: null, adjustedBy: null, adjustedAt: null,
     },
   ],
   salary: {

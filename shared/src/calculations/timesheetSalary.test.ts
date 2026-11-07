@@ -10,6 +10,7 @@ import {
   isSundayUtc,
   PER_TRIP_RATE,
   TIMESHEET_SYMBOL_RULES,
+  timesheetSymbolForDay,
   type TimesheetDayInput,
 } from './timesheetSalary';
 
@@ -211,5 +212,38 @@ describe('symbol counts and the month helper', () => {
     assert.equal(daysOfMonth(2026, 2).length, 28);
     assert.equal(daysOfMonth(2026, 10)[0], '2026-10-01');
     assert.equal(daysOfMonth(2026, 10)[30], '2026-10-31');
+  });
+});
+
+describe('day → symbol (SIL-737, chuyến hoàn thành tự ghi ký hiệu)', () => {
+  it('writes no symbol for a day without a completed trip', () => {
+    assert.equal(timesheetSymbolForDay([]), null);
+  });
+
+  it('writes Đ for a single ordinary run', () => {
+    assert.equal(timesheetSymbolForDay(['DON']), 'Đ');
+  });
+
+  it('writes Đ for a single lẻ run — a lẻ run is one trip, one attended day', () => {
+    assert.equal(timesheetSymbolForDay(['LAY_LE']), 'Đ');
+  });
+
+  it('writes K for a single kẹp run (two containers, ONE trip)', () => {
+    assert.equal(timesheetSymbolForDay(['KEP']), 'K');
+  });
+
+  it('writes Q for a day with two trips (quay đầu)', () => {
+    assert.equal(timesheetSymbolForDay(['DON', 'DON']), 'Q');
+    assert.equal(timesheetSymbolForDay(['KET_HOP', 'KET_HOP']), 'Q');
+  });
+
+  it('keeps the trip count honest for a kết hợp pair split over two days', () => {
+    // Each leg on its own day = one trip that day ⇒ two days of Đ = two trips.
+    assert.equal(timesheetSymbolForDay(['KET_HOP']), 'Đ');
+    assert.equal(timesheetSymbolForDay(['KET_HOP']), 'Đ');
+  });
+
+  it('counts a busier day as Q — the grid has no symbol for 3+ trips', () => {
+    assert.equal(timesheetSymbolForDay(['DON', 'DON', 'DON']), 'Q');
   });
 });

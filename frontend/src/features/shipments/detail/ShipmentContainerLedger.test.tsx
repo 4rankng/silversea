@@ -1538,6 +1538,49 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     expect(screen.getByRole('combobox', { name: 'BKS ảo' })).toBeTruthy();
   });
 
+  it('AC3 a blank ảo draft CLEARS the BKS báo khách — the wire carries null and the ảo line disappears', async () => {
+    updateLclTruckMock.mockClear();
+    renderLot(lotRow({ carrierName: 'Nhà xe Hùng', actualTruckNo: '15C-111.11', billingTruckNo: '15C-999.99' }));
+
+    fireEvent.click(screen.getByText('BKS ảo: 15C-999.99'));
+    const combo = screen.getByRole('combobox', { name: 'BKS ảo' });
+    fireEvent.change(combo, { target: { value: '   ' } });
+    fireEvent.keyDown(combo, { key: 'Escape' });
+    const save = screen.getByRole('button', { name: 'Lưu BKS ảo' }) as HTMLButtonElement;
+    // KB 3.6.6 / spec 23/10 §4.1: the BKS báo khách is the CUS's OWN output
+    // and MAY be blank — a blank draft is a CLEAR, not a refusal, so the Save
+    // button is live on an empty field.
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+
+    // The wire carries `null` (never '', never undefined — undefined means
+    // "untouched" to the server).
+    await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledWith({ shipmentId: 1, billingTruckNo: null }));
+    expect(updateLclTruckMock).toHaveBeenCalledTimes(1);
+    // The optimistic overlay holds the cleared value, so the ảo line is gone
+    // and the cell falls back to the ĐV-assigned BKS thực.
+    await waitFor(() => expect(screen.queryByText('BKS ảo: 15C-999.99')).toBeNull());
+    expect(screen.getByText('Nhà xe Hùng - BKS Thực: 15C-111.11')).toBeTruthy();
+    // The editor closed.
+    expect(screen.queryByRole('combobox', { name: 'BKS ảo' })).toBeNull();
+  });
+
+  it('AC3 the BKS thực editor never sends an empty actual plate', async () => {
+    updateLclTruckMock.mockClear();
+    renderLot(lotRow({ carrierName: 'Nhà xe Hùng', actualTruckNo: '15C-111.11', billingTruckNo: '15C-999.99' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'BKS thực cho lô EGLV149607019409' }));
+    const combo = screen.getByRole('combobox', { name: 'BKS thực' });
+    fireEvent.change(combo, { target: { value: '   ' } });
+    fireEvent.keyDown(combo, { key: 'Escape' });
+    // The wire forbids an empty actual plate (`truckNo` = trim().min(1)) — the
+    // BKS thực is the ĐV's own plate, never the CUS's to clear.
+    const save = screen.getByRole('button', { name: 'Lưu BKS thực' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(save);
+    expect(updateLclTruckMock).not.toHaveBeenCalled();
+  });
+
   it('AC4 FCL rows keep their rendering: container cell and single-plate phân xe cell', () => {
     renderLot(baseRow({ plateNumber: '29H-123.45', carrierName: 'SilverSea' }));
     expect(screen.getByText('MSKU1234567')).toBeTruthy();

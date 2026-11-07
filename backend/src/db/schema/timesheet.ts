@@ -58,6 +58,13 @@ export const driverTimesheetDays = pgTable('driver_timesheet_days', {
   workDate: date('work_date').notNull(),
   /** K | Q | Đ | L | N | P — the server owns the trips this symbol implies. */
   symbol: varchar('symbol', { length: 1 }).notNull(),
+  /**
+   * Who wrote the cell (SIL-737): 'MANUAL' = Điều vận typed it, 'AUTO' = the
+   * system derived it from the trips that completed that day. The marker keeps
+   * the auto-write from overwriting a cell the dispatcher owns, and lets the
+   * auto-write refresh its own cell when a second trip lands the same day.
+   */
+  source: varchar('source', { length: 6 }).notNull().default('MANUAL'),
   /** Snapshot of the weekday: a Sunday is recorded but is never an attended
    *  day, and history must not shift when the calendar is edited. */
   isSunday: boolean('is_sunday').notNull().default(false),
@@ -76,4 +83,5 @@ export const driverTimesheetDays = pgTable('driver_timesheet_days', {
   uniqueIndex('driver_timesheet_days_month_date_unq').on(table.monthId, table.workDate),
   index('driver_timesheet_days_driver_date_idx').on(table.driverId, table.workDate),
   check('driver_timesheet_days_symbol_check', sql`${table.symbol} in ('K', 'Q', 'Đ', 'L', 'N', 'P')`),
+  check('driver_timesheet_days_source_check', sql`${table.source} in ('MANUAL', 'AUTO')`),
 ]);

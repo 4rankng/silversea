@@ -16,6 +16,10 @@ export interface TimesheetDayCell {
   isSunday: boolean;
   tripAdjustment: number;
   note: string | null;
+  /** SIL-737 — 'MANUAL' = the dispatcher typed this cell, 'AUTO' = the system
+   *  derived it from the trips that completed that day. A manual cell is never
+   *  overwritten by the auto-write. */
+  source: 'MANUAL' | 'AUTO';
   enteredBy: number | null;
   enteredAt: string | null;
   adjustedBy: number | null;

@@ -215,7 +215,7 @@ describe('deposit tracker workflows', () => {
       api.searchBillSuggestions.mockResolvedValue([]);
       const form = await openCreateForm();
       fireEvent.change(form.getByLabelText('Tra cứu Bill (4 số cuối)'), { target: { value: '0211' } });
-      expect(await form.findByText('Không có lô hàng nào kết thúc bằng 0211. Nhập tay bên dưới.')).toBeInTheDocument();
+      expect(await form.findByText('Không có lô hàng nào khớp 0211 trong Số Bill/Số Booking. Nhập tay bên dưới.')).toBeInTheDocument();
       expect(form.queryByText(/Không tra cứu được/)).not.toBeInTheDocument();
     });
 
@@ -224,7 +224,26 @@ describe('deposit tracker workflows', () => {
       const form = await openCreateForm();
       fireEvent.change(form.getByLabelText('Tra cứu Bill (4 số cuối)'), { target: { value: '0211' } });
       expect(await form.findByRole('alert')).toHaveTextContent('Không tra cứu được lô hàng (Phiên đăng nhập hết hạn)');
-      expect(form.queryByText(/Không có lô hàng nào kết thúc bằng/)).not.toBeInTheDocument();
+      expect(form.queryByText(/Không có lô hàng nào khớp/)).not.toBeInTheDocument();
+    });
+
+    // SIL-735: ô tra cứu phủ CẢ Số Bill lẫn Số Booking — lô chỉ có Số
+    // Booking vẫn ra dòng gợi ý và tự điền Khách hàng + Hãng tàu.
+    it('tra cứu được cả lô chỉ có Số Booking (khớp chuỗi con trên CẢ HAI trường)', async () => {
+      api.searchBillSuggestions.mockResolvedValue([{
+        shipmentId: 77, billNumber: null, bookingRef: 'RARBOOK-1792226038601-9bzut2',
+        billDisplay: 'RARBOOK-1792226038601-9bzut2', carrierName: 'YML', customerName: 'CÔNG TY LONG MINH',
+        existingTrackerCount: 0,
+      }]);
+      const form = await openCreateForm();
+      const lookup = form.getByLabelText('Tra cứu Bill (4 số cuối)');
+      expect(form.getByText(/4 số cuối của Số Bill hoặc Số Booking/)).toBeInTheDocument();
+      fireEvent.change(lookup, { target: { value: '8601' } });
+      await waitFor(() => expect(api.searchBillSuggestions).toHaveBeenCalledExactlyOnceWith('8601'));
+      fireEvent.click(await form.findByText('RARBOOK-1792226038601-9bzut2'));
+      expect(form.getByLabelText('Số Bill')).toHaveValue('RARBOOK-1792226038601-9bzut2');
+      expect(form.getByLabelText('Khách hàng')).toHaveValue('CÔNG TY LONG MINH');
+      expect(form.getByLabelText('Hãng tàu')).toHaveValue('YML');
     });
   });
 });

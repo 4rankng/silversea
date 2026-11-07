@@ -35,7 +35,7 @@ import TimesheetGridPage from './TimesheetGridPage';
 
 const day = (workDate: string, overrides: Partial<TimesheetDayCell> = {}): TimesheetDayCell => ({
   id: 1, workDate, symbol: null, trips: 0, isSunday: false, tripAdjustment: 0,
-  note: null, enteredBy: null, enteredAt: null, adjustedBy: null, adjustedAt: null,
+  note: null, source: 'MANUAL', enteredBy: null, enteredAt: null, adjustedBy: null, adjustedAt: null,
   ...overrides,
 });
 
@@ -207,5 +207,21 @@ describe('SIL-649 — Driver timesheet empty-state redesign & stray stripe exter
     });
     expect(driverSelect).toBeVisible();
     expect(within(driverSelect as HTMLElement).getByRole('button', { name: /Chọn lái xe/ })).toBeVisible();
+  });
+});
+
+describe('SIL-737 — marker nguồn ô lưới', () => {
+  it('ô tự ghi mang data-source AUTO; ô Điều vận gõ tay vào thì đổi sang MANUAL', async () => {
+    listMonths.mockReset().mockResolvedValue([{
+      ...month,
+      days: [day('2026-10-05', { symbol: 'Đ', trips: 1, source: 'AUTO' })],
+    }]);
+    page();
+    const cells = await screen.findAllByRole('textbox');
+    expect(cells[0]).toHaveAttribute('data-source', 'AUTO');
+
+    // Điều vận gõ tay vào ô tự ghi → ô đó thuộc của người, không còn là ô tự ghi.
+    fireEvent.keyDown(cells[0], { key: 'q' });
+    await waitFor(() => expect(screen.getAllByRole('textbox')[0]).toHaveAttribute('data-source', 'MANUAL'));
   });
 });

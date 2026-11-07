@@ -380,6 +380,7 @@ export {
   computeTimesheetSalary,
   daysOfMonth,
   monthOfDay,
+  timesheetSymbolForDay,
 } from './calculations/timesheetSalary';
 export type {
   TimesheetSymbol,
@@ -388,6 +389,7 @@ export type {
   TimesheetDayInput,
   TimesheetSalaryInput,
   TimesheetSalaryResult,
+  TimesheetTripRun,
 } from './calculations/timesheetSalary';
 
 export { round2dp, roundInt, roundHalfAwayFromZero } from './calculations/round';

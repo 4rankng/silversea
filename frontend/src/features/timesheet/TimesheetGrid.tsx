@@ -46,8 +46,23 @@ const ARROW_MOVES: Record<string, TimesheetMove> = {
   ArrowUp: -7,
 };
 
+// SIL-737 — a cell the system wrote from a completed trip must LOOK different
+// from a cell the dispatcher typed: the auto-write owns its cell (it refreshes
+// it when a second trip lands), so the operator has to know which is which
+// before overwriting anything.
+const AUTO_SOURCE_TITLE = 'Tự ghi từ chuyến hoàn thành';
+/** Same fact for the screen reader — lower case because it trails the label. */
+const AUTO_SOURCE_LABEL = 'tự ghi từ chuyến hoàn thành';
+
 export function TimesheetGridCell({ day, readOnly, onEnter, onMove, registerRef }: TimesheetCellProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const isAuto = day.source === 'AUTO';
+  // The Sunday rule and the auto-write marker are two independent facts about
+  // the same cell, so the title carries both when both apply.
+  const titleParts: string[] = [];
+  if (day.isSunday) titleParts.push('Chủ nhật: ghi chuyến, không tính ngày công');
+  if (isAuto) titleParts.push(AUTO_SOURCE_TITLE);
 
   return (
     <input
@@ -63,8 +78,10 @@ export function TimesheetGridCell({ day, readOnly, onEnter, onMove, registerRef 
       data-symbol={day.symbol ?? undefined}
       data-sunday={day.isSunday ? 'true' : undefined}
       data-adjustment={day.tripAdjustment !== 0 ? String(day.tripAdjustment) : undefined}
-      aria-label={`Ngày ${day.workDate}${day.symbol ? ` — ${TIMESHEET_SYMBOL_RULES[day.symbol].label}` : ' — chưa nhập'}${day.isSunday ? ' (Chủ nhật)' : ''}`}
-      title={day.isSunday ? 'Chủ nhật: ghi chuyến, không tính ngày công' : undefined}
+      // Always present, so the grid can be read without hovering any cell.
+      data-source={day.source}
+      aria-label={`Ngày ${day.workDate}${day.symbol ? ` — ${TIMESHEET_SYMBOL_RULES[day.symbol].label}` : ' — chưa nhập'}${day.isSunday ? ' (Chủ nhật)' : ''}${isAuto ? ` — ${AUTO_SOURCE_LABEL}` : ''}`}
+      title={titleParts.length > 0 ? titleParts.join(' — ') : undefined}
       onChange={(event) => {
         // Controlled one-character cell: emptying it (Backspace/Delete on a
         // filled cell) is how the operator clears the day.

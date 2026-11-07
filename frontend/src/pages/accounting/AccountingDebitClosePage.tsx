@@ -326,13 +326,25 @@ export default function AccountingDebitClosePage() {
   async function saveBillingPlate() {
     if (billingEditorShipmentId == null || billingSaving) return;
     const next = billingDraft.trim();
-    // The wire forbids an empty plate — clearing the ảo plate is a settlement
-    // act, never a row edit (the same rule the ledger's editor enforces).
-    if (next === '') return;
+    // KB 3.6.6 / spec 23/10 §4.1: "BKS báo khách" is the CUS's OWN output and
+    // MAY be blank — a blank draft is a CLEAR, not a refusal. The wire carries
+    // `null` (never '', and never `undefined`, which the server reads as
+    // "untouched"); every read surface then falls back to the ĐV-assigned
+    // BKS thực, and the customer's Debit Note prints that plate.
+    const current = rows.find((candidate) => candidate.shipmentId === billingEditorShipmentId)
+      ?.lcl?.billingTruckNo?.trim() ?? '';
+    // An unchanged draft is a no-op: close the panel and write NOTHING (no
+    // version bump, no audit noise) — saving what the server already holds is
+    // not an edit.
+    if (next === current) {
+      setBillingEditorShipmentId(null);
+      setBillingError(null);
+      return;
+    }
     setBillingSaving(true);
     setBillingError(null);
     try {
-      await updateLclTruck({ shipmentId: billingEditorShipmentId, billingTruckNo: next });
+      await updateLclTruck({ shipmentId: billingEditorShipmentId, billingTruckNo: next === '' ? null : next });
       setBillingEditorShipmentId(null);
       void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
     } catch (error) {

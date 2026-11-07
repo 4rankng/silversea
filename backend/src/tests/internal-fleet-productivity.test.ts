@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  classifyTripRun,
   computeProductivityBreakdown,
   getDailyFleetProductivity,
   getMonthlyFleetProductivity,
   exportMonthlyFleetProductivityXlsx,
 } from '../services/internal-fleet-productivity.service';
+import { classifyTripRun } from '../services/trip-run-shape';
 
 test('classifyTripRun categorizes operational runs correctly', () => {
   // Kẹp
