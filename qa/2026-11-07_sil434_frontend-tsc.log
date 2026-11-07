@@ -1,0 +1,3 @@
+# Command: cd frontend && npx tsc -b
+# Output: (none — 0 errors)
+# Exit: 0

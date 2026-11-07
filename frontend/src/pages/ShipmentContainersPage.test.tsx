@@ -652,9 +652,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
     await screen.findByText('CONT-001');
     // The from/to group is two independent fields (card 20260927_150): each is
-    // labelled on its own, and editing ONE side writes the pair as the two
-    // fields actually read — the untouched Đến keeps the value it displays
-    // (the page's default scope is today), so the range is never implicit.
+    // labelled on its own, and editing ONE side writes a CLOSED ordered pair —
+    // the untouched end takes the scope's end (today) when that keeps the
+    // range ordered (SIL-434), so the range is never implicit.
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '15/08/2026' } });
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=2026-08-15&transportDateTo=${today}`));
 
@@ -1173,5 +1173,76 @@ describe('workboard day rollover (tab left open past Vietnam midnight)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// SIL-434 (Muse wave-2 FAIL, 07/11/2026): the date fields carry the
+// OPERATOR's own range; the page's default scope (today) is a query fact and
+// never a field value. The scope's Đến used to sit in the Đến field, so the
+// shared group's max bound refused every future Từ typed FIRST — the typed Từ
+// never reached the page, and the next Đến edit wrote the scope's Từ instead
+// (transportDateFrom=<today>, 93 rows for a 10/11..10/11 range that holds 26).
+// These pins fix BOTH entry orders and the display≡query mirror. Each field
+// is three segments (Ngày/Tháng/Năm) sharing the field label, so a composed
+// display is asserted part by part.
+describe('SIL-434 — first-pick date edits are never reset to the scope default', () => {
+  const plus3 = formatVietnamDateInput(new Date(Date.now() + 3 * 86_400_000));
+  const plus5 = formatVietnamDateInput(new Date(Date.now() + 5 * 86_400_000));
+  const isoToText = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+  const plus3Text = isoToText(plus3);
+  const plus5Text = isoToText(plus5);
+  const expectDisplayed = (field: 'Từ ngày' | 'Đến ngày', iso: string) => {
+    expect(screen.getByLabelText(field)).toHaveValue(iso.slice(8, 10));
+    expect(screen.getByLabelText(`Tháng — ${field}`)).toHaveValue(iso.slice(5, 7));
+    expect(screen.getByLabelText(`Năm — ${field}`)).toHaveValue(iso.slice(0, 4));
+  };
+  const typeInto = (field: 'Từ ngày' | 'Đến ngày', text: string) => {
+    fireEvent.change(screen.getByLabelText(field), { target: { value: text } });
+  };
+
+  it('keeps a future Từ typed first: the query closes at the operator\'s own end, never today (QA repro)', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+    await screen.findByText('CONT-001');
+
+    typeInto('Từ ngày', plus3Text);
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${plus3}&transportDateTo=${plus3}`));
+    // Display mirrors the applied query — the typed value must not silently
+    // diverge from what the grid actually filtered (the wave-2 defect).
+    expectDisplayed('Từ ngày', plus3);
+    expectDisplayed('Đến ngày', plus3);
+
+    typeInto('Đến ngày', plus5Text);
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${plus3}&transportDateTo=${plus5}`));
+  });
+
+  it('keeps the To-first order correct: Đến first closes at the scope end, then Từ overrides it', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+    await screen.findByText('CONT-001');
+
+    typeInto('Đến ngày', plus3Text);
+    // A missing end takes the scope's end while the pair stays ordered.
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${plus3}`));
+
+    typeInto('Từ ngày', plus3Text);
+    // The max bound is now the operator's OWN Đến — the pick must land.
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${plus3}&transportDateTo=${plus3}`));
+    expectDisplayed('Từ ngày', plus3);
+    expectDisplayed('Đến ngày', plus3);
+  });
+
+  it('refills a cleared end with the scope default visibly — the range never goes implicit', async () => {
+    apiGet.mockResolvedValue(response);
+    render(<MemoryRouter initialEntries={[`/?transportDateFrom=${plus3}&transportDateTo=${plus3}`]}><ShipmentContainersPage /></MemoryRouter>);
+    await screen.findByText('CONT-001');
+
+    // Clearing composes only when every segment is empty (the canonical goes
+    // empty and the field emits the clear).
+    typeInto('Từ ngày', '');
+    fireEvent.change(screen.getByLabelText('Tháng — Từ ngày'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Năm — Từ ngày'), { target: { value: '' } });
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${plus3}`));
+    expectDisplayed('Từ ngày', today);
   });
 });

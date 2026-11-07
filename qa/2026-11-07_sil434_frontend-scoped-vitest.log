@@ -1,0 +1,12 @@
+# Command: cd frontend && npx vitest run src/pages/ShipmentContainersPage.test.tsx src/pages/ShipmentContainersPage.gop-hang.test.tsx src/design-system/forms/DateRangeFields.test.tsx src/components/filter-grid-rebuild.styles.test.ts
+# Exit: 0
+# Note: 2 earlier runs flaked (gop-hang merge-bar test + a call-count test) under 4-file parallel contention; both files pass in isolation and the identical code passed this full run 82/82.
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/k5b-fix/frontend
+
+
+ Test Files  4 passed (4)
+      Tests  82 passed (82)
+   Start at  16:45:06
+   Duration  145.90s (transform 8.05s, setup 2.26s, import 22.55s, tests 159.25s, environment 9.55s)
+
