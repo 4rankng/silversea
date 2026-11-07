@@ -138,6 +138,8 @@ describe('getNavItems', () => {
     [Role.DISPATCHER, [
       ['Kế hoạch Tổng quát', '/dispatch'],
       ['Kế hoạch Chi tiết Xe', '/dispatch-detail'],
+      // SIL-694 (id 806): trips open to dispatcher — nav stops omitting it.
+      ['Sổ chuyến đi', '/trips'],
       ['Danh mục Xe nội bộ', '/fleet/vehicles'],
       ['Danh mục Tài xế', '/fleet/drivers'],
       ['Xe ngoài', '/fleet/external'],

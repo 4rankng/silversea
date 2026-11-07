@@ -38,7 +38,7 @@ import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
 
 describe('AppRoutes DISPATCHER trips access', () => {
-  it('bounces DISPATCHER off /trips to their dispatch home (user 2026-09-01: role never meant to have it)', async () => {
+  it('opens /trips for DISPATCHER (SIL-694 id 806 supersedes the 2026-09-01 exclusion)', async () => {
     render(
       <ToastProvider>
         <MemoryRouter initialEntries={['/trips']}>
@@ -46,11 +46,10 @@ describe('AppRoutes DISPATCHER trips access', () => {
       </MemoryRouter>
       </ToastProvider>,
   );
-    expect(screen.queryByTestId('trip-list-page')).toBeNull();
-    expect(await screen.findByTestId('dispatch-master-plan')).toBeTruthy();
+    expect(await screen.findByTestId('trip-list-page')).toBeTruthy();
   });
 
-  it('keeps the dispatcher dispatch surfaces reachable', () => {
+  it('keeps the dispatcher dispatch surfaces reachable', async () => {
     render(
       <ToastProvider>
         <MemoryRouter initialEntries={['/dispatch']}>
@@ -58,6 +57,6 @@ describe('AppRoutes DISPATCHER trips access', () => {
       </MemoryRouter>
       </ToastProvider>,
   );
-    expect(screen.getByTestId('dispatch-master-plan')).toBeTruthy();
+    expect(await screen.findByTestId('dispatch-master-plan')).toBeTruthy();
   });
 });

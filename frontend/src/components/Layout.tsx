@@ -315,6 +315,10 @@ function buildNavItems(
         // Điều độ Phương tiện (Dispatch Planning) - PRIMARY SECTION per spec
         { key: 'dispatch-master-plan', path: routes.dispatchMasterPlan, icon: Compass, section: 'dispatch-planning' as SectionName },
         { key: 'dispatch-detailed-plan', path: routes.dispatchDetailedPlan, icon: Route, section: 'dispatch-planning' as SectionName },
+        // SIL-694 (id 806): Sổ chuyến đi opens to DISPATCHER (read surfaces)
+        // — the trip page is where dispatch reads completion evidence and
+        // closes external trips, so the nav stops omitting it.
+        { key: 'trips', path: routes.trips, icon: Truck, section: 'dispatch-planning' as SectionName },
 
         // Quản lý Tài nguyên (Resources) per spec
         { key: 'fleet-vehicles', path: routes.fleetVehicles, icon: Truck, section: 'resources' as SectionName },

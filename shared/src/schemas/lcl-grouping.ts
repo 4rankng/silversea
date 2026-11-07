@@ -164,6 +164,11 @@ export const setLclLotRevClassSchema = z.object({
     (value) => (typeof value === 'string' && value.trim() === '' ? null : value),
     z.number().int().min(0).nullable().optional(),
   ),
+  /** SIL-693 — lý do định giá bù trên lô ĐÃ hoàn thành chuyến (remedy của
+   *  guard 409 thiếu căn cứ định giá). Optional: absent ⇒ service records a
+   *  deterministic default reason in the audit trail, so the existing
+   *  Quyết toán UI flow keeps working unchanged. */
+  reason: z.string().trim().max(500).optional(),
 }).refine(
   (value) => value.vehicleSizeClassId != null || value.freightRevenue !== undefined,
   { message: 'Cần ít nhất Loại xe thu khách hoặc Giá cước thu khách nhập tay' },

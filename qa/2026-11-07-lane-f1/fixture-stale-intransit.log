@@ -1,0 +1,4 @@
+before fixture: status=IN_TRANSIT version=3
+fixture: status pinned to IN_TRANSIT (stale row, no live trips)
+admin delete → 200 {"action":null,"deleted":{"id":779258,"shipmentCode":"SHP-2611-00418","version":4,"customerId":1,"isAdHoc":false,"rawCustomerName":null,"rawRouteName":null,"rou
+after admin delete: deletedAt=(gone)

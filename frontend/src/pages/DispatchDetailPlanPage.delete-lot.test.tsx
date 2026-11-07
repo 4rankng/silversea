@@ -189,18 +189,17 @@ describe('FB-095 — Điều vận "Xóa lô" (FB095-UI-05..07, card 21102600562
     dismissMenu();
   });
 
-  it('FB095-UI-05b: DISPATCHER gets the guard\'s law text instead of a delete execution (role law not loosened)', () => {
+  it('FB095-UI-05b: DISPATCHER sees no "Xóa lô" item at all (SIL-688: no blocked-item affordance)', () => {
     auth.user = { userId: 9, role: Role.DISPATCHER };
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'Thao tác dòng · CL4C-01' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Xóa lô' }));
-    // Verbatim the `requestShipmentDelete` refusal — the affordance answers
-    // with the guard's own reason (card 20260923_1) and never reaches the API.
-    expect(screen.getByRole('alert').textContent).toBe(
-      'Chỉ CUS hoặc Quản trị viên mới được yêu cầu xóa lô hàng.',
-    );
-    expect(screen.queryByRole('dialog', { name: 'Xóa lô hàng' })).toBeNull();
-    expect(deleteLot).not.toHaveBeenCalled();
+    const items = screen.getAllByRole('menuitem');
+    // The menu never renders the destructive item for a role the server
+    // would 403 (SIL-706 revoked Điều vận delete; SIL-688 hid the item) —
+    // no banner, no dialog, no dead click.
+    expect(items.some((item) => item.textContent === 'Xóa lô')).toBe(false);
+    // The row's other actions stay reachable.
+    expect(items.length).toBeGreaterThan(0);
   });
 
   it('FB095-UI-06: host-lot delete names the FB-095 promotion, demands a reason, deletes, toasts and refreshes', async () => {
