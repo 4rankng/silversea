@@ -193,12 +193,13 @@ describe('shipment create responsive layout', () => {
 
   it('equalises the 2 identity columns (50/50) and reflows cleanly by viewport (SIL-641)', () => {
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
-    // Card 261023093200 column map: the document fields read Hình thức XNK →
-    // Số Bill/Booking → Hãng tàu (SIL-521: band Số tờ khai retired), so band
-    // 1 is 6 / 6 (customer + direction) and band 2 is 6 / 6 (booking + carrier).
-    expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
+    // Card 261023093200 column map, RESTATED by SIL-710 (07/11): the customer
+    // spans 12 (full row) and the document band reads Booking 6 · Tờ khai 6 /
+    // Hình thức XNK 6 · Hãng tàu 6 — two equal 50/50 rows.
+    expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 12;/);
     expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 6;/);
+    expect(css).toMatch(/\.csc-identity-grid__declaration\s*\{[^}]*grid-column:\s*span 6;/);
     // SIL-641 (id 745): customer column does NOT expand to 1 / -1 at <=820px;
     // both columns remain equal 50/50 (repeat(2, minmax(0, 1fr)) with auto spans).
     expect(css).not.toMatch(/@media\s*\(max-width:\s*820px\)[\s\S]*?\.csc-identity-grid__customer[^{]*\{[^}]*grid-column:\s*1 \/ -1;/);

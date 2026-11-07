@@ -50,10 +50,13 @@ function LocationProbe() {
   return <div data-testid="loc">{location.pathname}</div>;
 }
 
-function renderRoute(path: string) {
+import { ToastProvider } from './components/shared/Toast';
+
+function renderRoute(path: string, opts?: { toast?: boolean }) {
+  const routes = <AppRoutes />;
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <AppRoutes />
+      {opts?.toast ? <ToastProvider>{routes}</ToastProvider> : routes}
       <LocationProbe />
     </MemoryRouter>,
   );
@@ -69,12 +72,24 @@ describe('AppRoutes /shipments/:id/edit — SIL-171 real edit form', () => {
     editRendered.count = 0;
   });
 
-  it('lands a guessed edit URL on the shipment EDIT FORM instead of the 404', async () => {
+  it('lands a guessed edit URL on the shipment EDIT FORM instead of the 404 (CUS)', async () => {
+    // SIL-706 (07/11): the edit surface is ADMIN/CUS/MANAGER — DISPATCHER lost
+    // lot metadata edit authority, so the canonical landing is asserted for CUS.
+    authState.role = Role.CUS;
     renderRoute('/shipments/315/edit');
     expect(await screen.findByText('shipment edit form surface')).toBeTruthy();
     expect(screen.queryByText(/Trang bạn tìm|Không tìm thấy|404/)).toBeNull();
     // The URL stays put — no redirect to the detail page.
     expect(screen.getByTestId('loc').textContent).toBe('/shipments/315/edit');
+  });
+
+  it('SIL-706: a guessed edit URL as DISPATCHER redirects home — no edit form, no 404', async () => {
+    authState.role = Role.DISPATCHER;
+    renderRoute('/shipments/315/edit', { toast: true });
+    // DeniedRedirect bounces to the dispatcher home instead of rendering the
+    // edit surface — the URL never dead-ends on a 404, but the form is gone.
+    expect(screen.queryByText('shipment edit form surface')).toBeNull();
+    expect(screen.queryByText(/Trang bạn tìm|Không tìm thấy|404/)).toBeNull();
   });
 
   it('keeps the plain detail route untouched', async () => {
