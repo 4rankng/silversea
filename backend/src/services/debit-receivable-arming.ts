@@ -19,6 +19,9 @@ export interface ReceivableArmingInput {
   opsChargeKnownTotal: number | null;
 }
 
+/** The side checks are SUM-based: a side "arms" when its Σ ≠ 0. Mixed-sign
+ *  rows summing to 0 are pathological data (intake rejects negatives on the
+ *  cost sides) and read as not-armed — the Σ wording of the 24/10 law. */
 export function receivableDetermined(input: ReceivableArmingInput): boolean {
   return input.hasRevenueRows
     || input.freightKnown

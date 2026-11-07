@@ -389,7 +389,7 @@ describe('DriverTripDetailPage', () => {
   // Offline queue and conflict recovery have been removed — the accept bar
   // now uses a direct API call.  Conflict-banner tests are no longer applicable.
 
-  it('renders the e-POD footer CTA enabled and gates on the two missing photos', async () => {
+  it('renders the e-POD footer CTA enabled and names the two missing photos (informational only)', async () => {
     renderPage();
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
@@ -437,8 +437,9 @@ describe('DriverTripDetailPage', () => {
   });
 
   // SIL-638 TC9 (id 742): completing transport order directly from the detail
-  // screen. SIL-697 (owner decision Frank 06/11 — supersedes the 31/10
-  // optional-photos ruling): the action requires BOTH e-POD file types.
+  // screen. With BOTH file types on the DRAFT the completion submits the POD
+  // first (SIL-697 stays enforced on this complete-draft submit) and then
+  // completes; with files missing SIL-733 r2 completes WITHOUT submitting.
   it('TC9: confirms and completes trip from sticky CTA with both e-POD files on the draft, invalidating journeyBoard', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({

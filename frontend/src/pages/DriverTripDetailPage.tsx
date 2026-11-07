@@ -286,7 +286,7 @@ function DriverTripDetailContent() {
       const draftSubmission = currentSubmission?.status === 'DRAFT' ? currentSubmission : null;
       const draftHasBothTypes = draftSubmission != null
         && missingRequiredPodFileTypes(draftSubmission).length === 0;
-      if (draftSubmission != null && draftHasBothTypes) {
+      if (draftHasBothTypes) {
         const idempotencyKey = buildIdempotencyKey(
           'driver', 'task', validFulfillmentId,
           'pod-submit', draftSubmission.id, 'version', draftSubmission.version,
@@ -449,14 +449,15 @@ function DriverTripDetailContent() {
   const accountingLock = trip.accountingLock ?? null;
   // Spec (Phần 4): the completion gate lives on the e-POD screen
   // (/my-trips/:id/pod) — this page also completes directly via the sticky
-  // CTA. SIL-697: both required file types gate that CTA (missingPodFilesMessage);
-  // the footer names the missing docs so the driver uploads them first.
+  // CTA. SIL-733 r2 (22/10 law, reaffirmed 07/11): photos are OPTIONAL on
+  // this CTA — completion never blocks on missing e-POD files. These flags
+  // only feed the Chứng từ card copy so the driver knows what is still
+  // missing; upload them on the e-POD screen any time.
   const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
 
   // Card 20260926_28 item 10: live completion state for the sticky bar (and
-  // the top progress strip). SIL-697: the missing docs are REQUIRED before
-  // completion — the strip names them so the driver uploads on the e-POD
-  // screen first.
+  // the top progress strip). SIL-733 r2: the strip NAMES the missing docs
+  // (informational) — it never disables completion.
   const podHave = (hasYardReceipt ? 1 : 0) + (hasSignedNote ? 1 : 0);
   const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
   const photoHave = ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].filter((type) => photoTypes.has(type as never)).length;

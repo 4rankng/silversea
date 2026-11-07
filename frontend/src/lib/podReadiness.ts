@@ -1,10 +1,13 @@
 // Pod readiness — the shared e-POD photo facts for the trip detail footer
-// and the e-POD screen. SIL-697 (owner decision Frank 06/11, board id 809)
-// supersedes card 261022213755a for the submit/complete flow: both required
-// file types must exist BEFORE the "Hoàn thành chuyến" action submits the
-// draft — a missing type blocks the action with a message naming it. The
-// required-file vocabulary comes from the shared constant the backend review
-// flow uses.
+// and the e-POD screen. Law map after SIL-733 r2 (07/11):
+//   • Trip-detail sticky CTA (handleCompleteTrip): photos are OPTIONAL
+//     (card 261022213755a, 22/10 — "0 ảnh vẫn hoàn thành chuyến"). An
+//     incomplete DRAFT is NOT auto-submitted there; completeTrip runs.
+//   • Explicit e-POD submit path (DriverTripPodPage): SIL-697 (owner Frank
+//     06/11) stays enforced — both required file types must exist BEFORE the
+//     draft moves to SUBMITTED, with a message naming the missing type.
+// The required-file vocabulary comes from the shared constant the backend
+// review flow uses.
 import { TRIP_POD_REQUIRED_FILE_TYPES, TripPodFileType } from '@tingting/shared';
 import type { DriverTaskPodSubmission } from '../api/driverClient';
 
