@@ -1,0 +1,11 @@
+PASS  693/fact-completed-lot-readable  —  GET 779239 → 200 status=COMPLETED lock=null
+PASS  693/guard-per-lot-409-remedy  —  POST debit-notes [779059] → 409 {"error":"Cước vận tải của lô SHP-2611-00307 chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: NO_ROUTE). Không thể xuất Debit Note thiếu cước — hãy xác định giá cước thu khách trên mà
+FAIL  693/guard-consolidated-409  —  POST debit-notes [779059,779247] → 409 {"error":"Các lô SHP-2611-00407 đã được xuất Debit Note. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất.","overlappingLotCodes":["SHP-2611-00407"]}
+PASS  693/unlock-200  —  POST unlock → 200 {"id":112,"unlockedBy":61,"unlockedByName":"Quản trị viên","unlockedAt":"2026-11-07T13:50:17.215Z","unlockReason":"SIL-6
+PASS  693/revclass-completed-trip-200  —  POST lcl/rev-class (ketoan) → 200 channel=TRIP freightManual=3800000
+PASS  693/relock-201  —  POST lock → 201 {"id":144,"lockedBy":61,"lockedByName":"Quản trị viên","lockedAt":"2026-11-07T13:50:17.252Z","lockNote":"SIL-693 QA: khoa lai sau dinh gia b
+PASS  693/export-priced-201  —  POST debit-notes [779242] → 201 id=21 
+PASS  693/reexport-overlap-409  —  re-export [779242] → 409 {"error":"Các lô SHP-2611-00402 đã được xuất Debit Note. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất.","overlappingLotCodes":["SHP-2611-00402"]}
+NOTE_ID=21
+
+== 7/8 PASS ==

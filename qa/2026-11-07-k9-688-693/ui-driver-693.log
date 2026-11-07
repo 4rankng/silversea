@@ -1,0 +1,70 @@
+
+=== SIL-693 r3 UI drive 2026-11-07T13:58:23.574Z ===
+2026-11-07T13:58:25.811Z login admin: OK
+2026-11-07T13:58:26.332Z login hoapt: OK
+2026-11-07T13:58:26.666Z guard lot 779059 bill=QA693R2-UNPRICED · chain lot 779237 bill=F1-693-A-trWb
+2026-11-07T13:58:40.045Z ASSERT FAIL — chọn lô chưa định giá SHP-2611-00307 trên Quyết toán — bill=QA693R2-UNPRICED
+2026-11-07T13:58:41.954Z ASSERT FAIL — Xuất Debit Note trên lô chưa định giá → toast remedy NGUYÊN VĂN — (no toast)
+2026-11-07T13:58:42.219Z shot qa/2026-11-07-k9-688-693/693-01-guard-remedy-toast-1440.png
+2026-11-07T13:58:57.471Z ASSERT PASS — mở menu "…" của lô SHP-2611-00397 — bill=F1-693-A-trWb
+2026-11-07T13:59:02.870Z ASSERT PASS — mở chi tiết quyết toán của lô (Mở chi tiết lô)
+2026-11-07T13:59:04.181Z ASSERT FAIL — nút MỞ KHÓA hiển thị cho kế toán trên panel quyết toán — button not found
+2026-11-07T13:59:04.553Z ASSERT PASS — DB sau mở khóa: không còn active lock — active=0
+2026-11-07T13:59:07.554Z ASSERT FAIL — nhập giá tay 3.800.000 + Lưu cước thu trên lô COMPLETED
+2026-11-07T13:59:07.779Z ASSERT FAIL — audit ghi completedTrip + freightManual 3800000 (channel TRIP) — {"event": "SHIPMENT_UPDATED", "action": "rev-class-single-lot", "channel": "NONE", "dimension": "REV", "freightAuto": null, "completedTrip":
+2026-11-07T13:59:10.009Z ASSERT PASS — KHÓA LÔ HÀNG lại qua UI + freeze mang freightAuto 3800000 — locked=true active=1 freightAuto=3800000
+2026-11-07T13:59:33.513Z ASSERT FAIL — Xuất Debit Note sau định giá → KHÔNG còn toast remedy
+2026-11-07T13:59:34.149Z ASSERT FAIL — DB: note mới mang dòng FREIGHT 3.800.000
+2026-11-07T13:59:34.495Z == SIL-693 UI drive: 7 FAILURES ==
+
+=== SIL-693 r3 UI drive v2 2026-11-07T14:02:38.058Z ===
+2026-11-07T14:02:41.578Z login admin: OK
+2026-11-07T14:02:42.107Z login hoapt: OK
+2026-11-07T14:02:42.874Z lots — guard 779059=QA693R2-UNPRICED · unlock 779234=F1-693-A-trUz · chain 779237=F1-693-A-trWb
+2026-11-07T14:02:43.116Z pre-unlock 779237: 200
+2026-11-07T14:02:43.333Z precondition — chain active lock=1 (want 0) · unlock-leg active lock=1 (want 1)
+2026-11-07T14:03:21.110Z ASSERT FAIL — bảng Quyết toán hiện lô QA693R2-UNPRICED
+2026-11-07T14:04:02.012Z ASSERT PASS — MỞ KHÓA hiển thị trên panel quyết toán của lô F1-693-A-trUz
+2026-11-07T14:04:04.836Z ASSERT PASS — MỞ KHÓA qua UI (lý do bắt buộc) → DB hết active lock — confirmed=true active=0
+2026-11-07T14:04:18.078Z ASSERT PASS — KHÓA LÔ HÀNG lại qua UI → active lock 1 — active=1
+2026-11-07T14:05:02.903Z ASSERT PASS — panel giá thu khách hiện trên lô COMPLETED F1-693-A-trWb
+2026-11-07T14:05:05.477Z ASSERT FAIL — giá nhập tay 3.800.000 + Lưu cước thu → audit TRIP + manual + completedTrip — {"event": "SHIPMENT_UPDATED", "action": "rev-class-single-lot", "channel": "NONE", "dimension": "REV", "freightAuto": null, "completedTrip": true, "freightManual": null, "completedTripId": 779185, "ve
+2026-11-07T14:06:05.539Z ASSERT PASS — KHÓA LÔ HÀNG lại → freeze mang freightAuto 3800000 — freightAuto=3800000
+2026-11-07T14:06:35.539Z ASSERT FAIL — Xuất Debit Note sau định giá → KHÔNG còn toast remedy
+2026-11-07T14:06:36.263Z ASSERT FAIL — DB: note mới mang dòng FREIGHT 3.800.000
+2026-11-07T14:06:36.612Z == SIL-693 UI drive v2: 4 FAILURES ==
+
+=== SIL-693 r3 UI drive v3 2026-11-07T14:11:17.912Z ===
+2026-11-07T14:11:20.488Z login admin: OK
+2026-11-07T14:11:20.824Z login hoapt: OK
+2026-11-07T14:11:21.268Z lots — guard 779059=QA693R2-UNPRICED · unlock 779234=F1-693-A-trUz · chain 779237=F1-693-A-trWb
+2026-11-07T14:11:21.410Z pre-unlock 779237: 409
+2026-11-07T14:11:27.770Z ASSERT PASS — bảng Quyết toán (?lock=LOCKED) hiện lô QA693R2-UNPRICED
+2026-11-07T14:11:30.132Z ASSERT PASS — Xuất Debit Note trên lô chưa định giá → toast remedy NGUYÊN VĂN — Cước vận tải của lô SHP-2611-00307 chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: NO_ROUTE). Không thể xuất Debit Note thiếu cước — hãy xác định giá cư
+2026-11-07T14:11:30.398Z shot qa/2026-11-07-k9-688-693/693-01-guard-remedy-toast-1440.png
+2026-11-07T14:11:38.516Z ASSERT PASS — MỞ KHÓA hiển thị trên panel quyết toán của lô F1-693-A-trUz
+2026-11-07T14:11:42.401Z ASSERT PASS — MỞ KHÓA qua UI (kế toán quyền mở, lý do bắt buộc) → DB hết active lock — active=0
+2026-11-07T14:11:58.525Z ASSERT FAIL — KHÓA LÔ HÀNG lại qua UI → active lock 1 — active=0
+2026-11-07T14:12:53.502Z ASSERT FAIL — ô Giá cước thu khách armed trên lô COMPLETED F1-693-A-trWb
+2026-11-07T14:13:15.992Z ASSERT PASS — KHÓA LÔ HÀNG lại → freeze mang freightAuto 3800000 — freightAuto=3800000
+2026-11-07T14:13:20.647Z ASSERT PASS — Xuất Debit Note sau định giá → KHÔNG còn toast remedy
+2026-11-07T14:13:20.931Z ASSERT PASS — DB: note mới mang dòng FREIGHT 3.800.000 — FREIGHT|3800000
+2026-11-07T14:13:21.120Z == SIL-693 UI drive v3: 2 FAILURES ==
+
+=== SIL-693 r3 UI pricing leg v4 2026-11-07T14:15:25.146Z ===
+2026-11-07T14:15:28.236Z pricing leg lot 779234 bill=F1-693-A-trUz (COMPLETED trip, open lock state required)
+2026-11-07T14:15:45.210Z ASSERT PASS — ô Giá cước thu khách armed trên lô COMPLETED F1-693-A-trUz
+2026-11-07T14:15:49.604Z ASSERT PASS — Lưu cước thu enabled sau khi nhập giá tay (React state dirty) — {"found":true,"disabled":false}
+2026-11-07T14:15:52.293Z ASSERT FAIL — audit mới: TRIP + freightManual 3800000 + completedTrip — remedy UI thật — {"event": "SHIPMENT_UPDATED", "action": "rev-class-single-lot", "channel": "TRIP", "freight": "38000003800000", "dimension": "REV", "freightAuto": null, "completedTrip": true, "freightManual": "38000003800000", "complete
+2026-11-07T14:15:57.160Z ASSERT FAIL — KHÓA LÔ HÀNG lại qua UI → active lock mang freightAuto 3800000 — active=1 freightAuto=38000003800000
+2026-11-07T14:16:03.000Z == SIL-693 UI pricing leg v4: 2 FAILURES ==
+
+=== SIL-693 r3 UI pricing leg v4 2026-11-07T14:18:34.857Z ===
+2026-11-07T14:18:37.343Z pricing leg lot 779234 bill=F1-693-A-trUz (COMPLETED trip, open lock state required)
+2026-11-07T14:18:47.451Z ASSERT PASS — MỞ KHÓA hiển thị trên lô khóa F1-693-A-trUz (kế toán)
+2026-11-07T14:18:51.581Z ASSERT PASS — MỞ KHÓA qua UI → DB hết active lock — active=0
+2026-11-07T14:19:05.605Z ASSERT PASS — ô Giá cước thu khách armed trên lô COMPLETED F1-693-A-trUz
+2026-11-07T14:19:09.812Z ASSERT FAIL — ô giá hiển thị 3.800.000 + Lưu cước thu enabled (React state dirty) — value=3.800.000 save={"found":true,"disabled":true}
+2026-11-07T14:19:12.440Z ASSERT PASS — audit mới: TRIP + freightManual đúng 3800000 + completedTrip — remedy UI thật — {"event": "SHIPMENT_UPDATED", "action": "rev-class-single-lot", "channel": "TRIP", "freight": "3800000", "dimension": "REV", "freightAuto": null, "completedTrip": true, "freightManual": "3800000", "completedTripId": 7791
+2026-11-07T14:19:29.570Z ASSERT PASS — KHÓA LÔ HÀNG lại qua UI → active lock mang freightAuto 3800000 — active=1 freightAuto=3800000
+2026-11-07T14:19:34.186Z == SIL-693 UI pricing leg v4: 1 FAILURES ==
