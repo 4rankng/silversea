@@ -180,6 +180,43 @@ export function monthOfDay(workDate: string): { year: number; month: number } {
   return { year, month };
 }
 
+/**
+ * The operational run shapes a trip can have — the house fleet-productivity
+ * vocabulary (KEP = kẹp, KET_HOP = kết hợp/quay đầu, LAY_LE = lẻ, DON = đơn).
+ * The grid derives its symbol from these, so one classifier serves both the
+ * productivity report and the timesheet.
+ */
+export type TimesheetTripRun = 'KEP' | 'KET_HOP' | 'LAY_LE' | 'DON';
+
+/**
+ * The symbol ONE driver-day carries, derived from the trips that completed
+ * that day (SIL-737 — "hoàn thành chuyến nội bộ tự ghi ký hiệu").
+ *
+ * The grid holds ONE symbol per day and the symbol implies the day's trip
+ * count (see `TIMESHEET_SYMBOL_RULES`), so the symbol is derived from the
+ * day's trips as a whole — never from a single trip:
+ *
+ *   0 trip  → no cell at all (the driver ran nothing; L/N/P stay the
+ *             dispatcher's to write).
+ *   1 trip  → `K` when that run is a KẸP (kẹp 2 cont = TWO containers, ONE
+ *             trip — the house rule), otherwise `Đ` (chạy đơn).
+ *   2 trips → `Q` (quay đầu = out and back = two trips, one attended day).
+ *
+ * Deriving the day (not the trip) is what keeps the trip count honest: a
+ * kết hợp pair whose two legs finish on the SAME day counts 2 trips (Q), and
+ * a pair split over two days counts 1 trip on each day (Đ, Đ) — 2 trips in
+ * total either way.
+ *
+ * The house grid models a day as 0..2 trips ("1 ngày = 0..2 chuyến"), so a
+ * busier day (3+ trips) has no exact symbol: `Q` is the closest and the
+ * remaining trips are the accountant's correction on the cell.
+ */
+export function timesheetSymbolForDay(runs: TimesheetTripRun[]): TimesheetSymbol | null {
+  if (runs.length === 0) return null;
+  if (runs.length === 1) return runs[0] === 'KEP' ? 'K' : 'Đ';
+  return 'Q';
+}
+
 /** YYYY-MM-01 … YYYY-MM-last: every calendar day of the month, in order. */
 export function daysOfMonth(year: number, month: number): string[] {
   const last = new Date(Date.UTC(year, month, 0)).getUTCDate();

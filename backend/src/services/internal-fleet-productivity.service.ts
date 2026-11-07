@@ -11,28 +11,7 @@ import {
 } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
-
-/** Classify a trip into one of the four operational productivity categories. */
-export function classifyTripRun(row: {
-  pairKind?: string | null;
-  dispatchClassification?: string | null;
-  fulfillmentType?: string | null;
-}): FleetProductivityClassification {
-  if (row.pairKind === 'KEP' || row.dispatchClassification === 'DOUBLE') {
-    return 'KEP';
-  }
-  if (row.pairKind === 'KET_HOP' || row.dispatchClassification === 'COMBINED') {
-    return 'KET_HOP';
-  }
-  if (
-    row.dispatchClassification === 'LCL' ||
-    row.dispatchClassification === 'LCL_PICKUP' ||
-    row.fulfillmentType === 'LCL_SHIPMENT'
-  ) {
-    return 'LAY_LE';
-  }
-  return 'DON';
-}
+import { classifyTripRun } from './trip-run-shape';
 
 /** Compute breakdown and percentages with round2dp precision. */
 export function computeProductivityBreakdown(

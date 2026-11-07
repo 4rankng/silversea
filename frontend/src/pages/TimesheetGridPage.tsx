@@ -79,7 +79,9 @@ export default function TimesheetGridPage() {
     // Trips are recomputed from the LOCAL symbol, so the running totals follow
     // the keystroke instead of waiting for the save round-trip.
     day.workDate in pending
-      ? { ...day, symbol: pending[day.workDate], trips: countDayTrips({ symbol: pending[day.workDate], workDate: day.workDate, tripAdjustment: day.tripAdjustment }) }
+      // A cell the dispatcher just typed is THEIRS: the backend records it as
+      // MANUAL on save, so the marker must not still say "auto" meanwhile.
+      ? { ...day, symbol: pending[day.workDate], source: 'MANUAL' as const, trips: countDayTrips({ symbol: pending[day.workDate], workDate: day.workDate, tripAdjustment: day.tripAdjustment }) }
       : day
   )), [timesheet, pending]);
 

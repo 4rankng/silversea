@@ -16,6 +16,7 @@ function day(overrides: Partial<TimesheetDayCell> = {}): TimesheetDayCell {
     isSunday: false,
     tripAdjustment: 0,
     note: null,
+    source: 'MANUAL',
     enteredBy: null,
     enteredAt: null,
     adjustedBy: null,
@@ -110,5 +111,33 @@ describe('TimesheetGridCell keyboard entry', () => {
     const { cell } = renderCell({ day: day({ workDate: '2026-10-11', isSunday: true, symbol: 'Đ' }) });
     expect(cell.getAttribute('aria-label')).toContain('Chủ nhật');
     expect(cell.getAttribute('title')).toBe('Chủ nhật: ghi chuyến, không tính ngày công');
+  });
+});
+
+describe('TimesheetGridCell auto-write marker (SIL-737)', () => {
+  it('marks an auto-written cell and says it was written from a completed trip', () => {
+    const { cell } = renderCell({ day: day({ symbol: 'Đ', source: 'AUTO' }) });
+    expect(cell.getAttribute('data-source')).toBe('AUTO');
+    expect(cell.getAttribute('title')).toContain('Tự ghi từ chuyến hoàn thành');
+    expect(cell.getAttribute('aria-label')).toContain('tự ghi từ chuyến hoàn thành');
+    // The symbol is still named — the marker adds to the label, never replaces it.
+    expect(cell.getAttribute('aria-label')).toContain('Chạy đơn');
+  });
+
+  it('keeps BOTH the Sunday rule and the auto-write note on a Sunday auto cell', () => {
+    const { cell } = renderCell({ day: day({ workDate: '2026-10-11', isSunday: true, symbol: 'Đ', source: 'AUTO' }) });
+    const title = cell.getAttribute('title') ?? '';
+    expect(title).toContain('Chủ nhật: ghi chuyến, không tính ngày công');
+    expect(title).toContain('Tự ghi từ chuyến hoàn thành');
+    const label = cell.getAttribute('aria-label') ?? '';
+    expect(label).toContain('Chủ nhật');
+    expect(label).toContain('tự ghi từ chuyến hoàn thành');
+  });
+
+  it('never claims a hand-typed cell was auto-written', () => {
+    const { cell } = renderCell({ day: day({ symbol: 'Đ', source: 'MANUAL' }) });
+    expect(cell.getAttribute('data-source')).toBe('MANUAL');
+    expect(cell.getAttribute('title')).toBeNull();
+    expect(cell.getAttribute('aria-label')).not.toContain('tự ghi từ chuyến hoàn thành');
   });
 });

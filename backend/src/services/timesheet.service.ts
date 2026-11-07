@@ -27,6 +27,7 @@ import {
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
+import type { TimesheetDaySource } from './timesheet-auto-symbol.service';
 
 export interface TimesheetActor {
   userId: number;
@@ -47,6 +48,9 @@ export interface TimesheetDayCell {
   isSunday: boolean;
   tripAdjustment: number;
   note: string | null;
+  /** SIL-737 — 'MANUAL' = Điều vận gõ tay, 'AUTO' = hệ thống suy ra từ chuyến
+   *  hoàn thành trong ngày. Ô tay không bị auto-write đè. */
+  source: TimesheetDaySource;
   enteredBy: number | null;
   enteredAt: string | null;
   adjustedBy: number | null;
@@ -214,6 +218,7 @@ async function buildMonthView(monthRow: typeof s.driverTimesheetMonths.$inferSel
       isSunday: sunday,
       tripAdjustment: row?.tripAdjustment ?? 0,
       note: row?.note ?? null,
+      source: (row?.source as TimesheetDaySource | undefined) ?? 'MANUAL',
       enteredBy: row?.enteredBy ?? null,
       enteredAt: isoOrNull(row?.enteredAt ?? null),
       adjustedBy: row?.adjustedBy ?? null,
@@ -432,6 +437,9 @@ export async function saveTimesheetDays(actor: TimesheetActor, monthId: number, 
           adjustedBy: null,
           adjustedAt: null,
           note: item.note ?? null,
+          // SIL-737 — ô Điều vận gõ tay là ô của Điều vận: auto-write từ
+          // chuyến hoàn thành không được đè lên nó nữa.
+          source: 'MANUAL',
           enteredBy: actor.userId,
           enteredAt: new Date(),
           updatedAt: new Date(),
@@ -443,6 +451,7 @@ export async function saveTimesheetDays(actor: TimesheetActor, monthId: number, 
           workDate: item.workDate,
           symbol: item.symbol,
           isSunday,
+          source: 'MANUAL',
           note: item.note ?? null,
           enteredBy: actor.userId,
           enteredAt: new Date(),

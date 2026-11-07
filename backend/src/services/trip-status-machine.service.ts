@@ -29,6 +29,7 @@ import { SnapshotServices } from './snapshot-services';
 import { lockTripCloseAggregate } from './trip-close-readiness.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
+import { syncTimesheetSymbolForTrip } from './timesheet-auto-symbol.service';
 
 /** Card 061026221826: Ngày hoàn thành never precedes Ngày khởi hành. The VN
  *  wall-clock date of the completion instant is compared against the planned
@@ -613,6 +614,11 @@ export async function transitionTripStatus(
         actorId: userId,
       });
 
+      // SIL-737 — chuyến bị huỷ thì ngày hoàn thành của nó có thể mất hết
+      // chuyến: ô chấm công do hệ thống ghi cho ngày đó phải được làm mới
+      // (xoá hẳn nếu không còn chuyến nào). Ô Điều vận gõ tay không bị đè.
+      await syncTimesheetSymbolForTrip(tripId, userId, tx);
+
       // Cancel audit row is written by the middleware for POST /cancel
       // ("Quản lý <actor> hủy chuyến <tripCode>") — skip duplicate write.
       return updated;
@@ -649,6 +655,14 @@ export async function transitionTripStatus(
     // figures still change only through governed corrections.
     if (completedAt != null) {
       await materializeCompletedTripEconomics(tx, tripId, completedAt);
+    }
+    // SIL-737 — chuyến nội bộ hoàn thành tự ghi ký hiệu (Đ/K/Q) vào lưới
+    // chấm công lái xe theo NGÀY HOÀN THÀNH. Ghi ở đây (đúng một cửa chuyển
+    // trạng thái) nên mọi đường hoàn thành — Điều vận, app lái xe, đóng hộ
+    // cho nhà xe ngoài — đều nhận cùng một luật. Chạy trong cùng tx: lưới
+    // chấm công và trạng thái chuyến đi luôn nhất quán.
+    if (completedAt != null) {
+      await syncTimesheetSymbolForTrip(tripId, userId, tx);
     }
     const updated = await getTripCompositeInTx(tx, tripId);
     if (!updated) throw new Error(`trip ${tripId} composed row missing after status transition`);

@@ -27,7 +27,7 @@ const day = (dayNumber: number, symbol: TimesheetDayCell['symbol'], isSunday = f
   trips: symbol === 'Q' ? 2 : symbol ? 1 : 0,
   isSunday,
   tripAdjustment: 0,
-  note: null, enteredBy: null, enteredAt: null, adjustedBy: null, adjustedAt: null,
+  note: null, source: 'MANUAL', enteredBy: null, enteredAt: null, adjustedBy: null, adjustedAt: null,
 });
 
 const salary = (trips: number, workdays: number) => ({
