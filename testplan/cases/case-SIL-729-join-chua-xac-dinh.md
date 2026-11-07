@@ -7,7 +7,10 @@
 
 ## Bug (kết quả thực tế trước fix)
 
-12 chuyến 7.298.000₫ gom 1 dòng 'Chưa xác định'. Nguyên nhân: bucket step
+12 chuyến 7.298.000₫ gom 1 dòng 'Chưa xác định' (báo cáo gốc). Evidence PewPie
+07/11 (SIL-741, account hoapt): dữ liệu tăng — **13 chuyến / 7.418.000₫** vẫn
+gom 'Chưa xác định', mỗi dòng chi tiết 'Phải thu: Chưa xác định | Phải trả:
+Chưa xác định'. Nguyên nhân: bucket step
 (:1333-1338) chỉ tra party qua `source.tripId` — phí OPS gắn shipment nhưng
 tripId NULL (lô nhiều chuyến, phí chung lô, link chỉ tự gắn khi shipment có
 đúng 1 chuyến live) rơi hết vào 1 bucket theo TÊN. Không có fallback
@@ -36,8 +39,9 @@ shipment → khách hàng/nhà xe dù `expense_accounting_sources.shipmentId` NO
    mặt logic), master KH đã xóa (FB-061), TRA không xác định được nhà xe.
 5. Drill-down party-lots: phí trip-less đã resolve phải hiện trong drawer
    đúng party (bỏ skip trip-less vô điều kiện).
-6. Money pin: 12 nguồn phí, tổng đúng 7.298.000₫, không mất đồng nào, mỗi
-   đồng đúng 1 bucket.
+6. Money pin: tổng phí trip-less resolve được phải ra đúng tên; tiền KHÔNG
+   bao giờ rơi khỏi báo cáo, mỗi đồng đúng 1 bucket (số đo 07/11: 13 chuyến /
+   7.418.000₫ — pin bất biến, không hard-code số dữ liệu).
 
 ## Regression evidence
 

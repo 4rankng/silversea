@@ -46,6 +46,8 @@ export const expenseAccountingClient = {
   get: (entry: Pick<ExpenseSourceRef, 'sourceKind' | 'sourceId'>) => api.get<ExpenseAccountingEntry>(`${BASE}/entries/${entry.sourceKind}/${entry.sourceId}`),
   refundReconciliation: (id: number, body: { treasuryAccountId: number; valueDate: string; physicalReference: string; amount: number; reason: string }, key: string) => api.post<ExpenseVoucher>(`${BASE}/reconciliations/${id}/refund`, body, { headers: { 'Idempotency-Key': key } }),
   fundAdvance: (body: { opsUserId: number; amount: number; reason: string; treasuryAccountId: number; valueDate: string; physicalReference: string; advanceRequestId?: number }, key: string) => api.post(`${BASE}/advances`, body, { headers: { 'Idempotency-Key': key } }),
+  /** SIL-728 — Xác nhận hoàn ứng staff-level: thu hồi số dư ứng ÂM về Quỹ công ty. */
+  advanceRecovery: (body: { opsUserId: number; amount: number; reason: string; treasuryAccountId: number; valueDate: string; physicalReference: string }, key: string) => api.post<ExpenseVoucher>(`${BASE}/advance-recovery`, body, { headers: { 'Idempotency-Key': key } }),
   work: (params: ExpenseListQuery) => api.get<ExpenseWorkList>(`${BASE}/work?${query(params)}`),
   catalog: () => api.get<ExpenseAccountingCatalog>(`${BASE}/catalog`),
   create: (body: ExpenseAccountingCreate, key: string) => api.post<ExpenseAccountingEntry>(`${BASE}/entries`, body, { headers: { 'Idempotency-Key': key } }),

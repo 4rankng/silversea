@@ -154,7 +154,9 @@ p.debit-note { margin: 0 0 8px; }
   inset: 6px;
   width: 18px;
   height: 18px;
-  border: 1.5px solid var(--slate-1);
+  /* 1.4.11: the same calibrated 3.05:1 control-boundary rung as the shared
+   * primitive — never the pale --slate-1 (2.57:1). */
+  border: 1.5px solid var(--control-border);
   border-radius: 4px;
   background: var(--surface);
 }

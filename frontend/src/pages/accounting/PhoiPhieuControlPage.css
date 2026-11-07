@@ -246,6 +246,20 @@
   color: var(--ink-3, #667085);
   font-size: var(--text-caption-size);
 }
+/* SIL-729 — the shared shipment fees shown under the clicked party: visible
+ * for reconciliation, deliberately outside the selectable table (the voucher
+ * engine books trips), so the same muted face as the hint carries it. */
+.ppc-lots-shared {
+  margin: 8px 0 0;
+  color: var(--ink-3, #667085);
+  font-size: var(--text-caption-size);
+}
+.ppc-lots-shared p {
+  margin: 2px 0 0;
+}
+.ppc-lots-shared__title {
+  font-weight: 600;
+}
 .ppc-lots-bar {
   display: flex;
   flex-wrap: wrap;

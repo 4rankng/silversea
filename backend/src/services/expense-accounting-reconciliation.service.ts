@@ -12,6 +12,7 @@ import { getExpenseForCommand, requireExpenseFinance, type ExpenseActor } from '
 import { LedgerService } from './ledger.service';
 import { assertTreasuryFundAssigned, resolveTreasuryPaymentContract, insertTreasuryMovement } from './treasury.service';
 import { createAdvanceRequest } from './advance-request.service';
+import { getSignedOutstandingAdvanceBalances } from './advance-shared.service';
 import { assertActiveExpensePayer } from './expense-accounting-source.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
@@ -118,5 +119,59 @@ export async function refundExpenseReconciliation(tx: Tx, actor: ExpenseActor, i
     valueDate: treasury.valueDate, physicalReference: treasury.physicalReference, ledgerEntryId: ledger.id, sourceVersion: 1, paymentContractVersion: 2, createdBy: actor.userId });
   const [voucher] = await tx.insert(s.expenseCashVouchers).values({ code, counterpartyType: 'FORWARDER', counterpartyId: batch.opsUserId,
     treasuryMovementId: movement.id, reconciliationId: id, createdById: actor.userId, note: input.reason }).returning();
+  return hydrateExpenseCashVoucher(tx, voucher);
+}
+
+// ─── SIL-728 — Xác nhận hoàn ứng staff-level (thu hồi số dư ứng ÂM) ──────────
+//
+// The report's "Còn phải hoàn ứng" can be NEGATIVE per staff (Ops over-advanced
+// or over-consumed: Nguyễn Huy Hoàng −420.000₫, Vũ Đình Cường −4.300.000₫) but
+// the only collection paths until now were per-đợt (refundExpenseReconciliation)
+// or phiếu-CHI-side — a staff with no đợt filter had no way to hand the money
+// back. This flow books the SAME voucher family the signed balance authority
+// already reads (a RECORDED expense-cash IN voucher with FORWARDER counterparty
+// — reconciliationId NULL is fine: getSignedOutstandingAdvanceBalances counts
+// every RECORDED IN voucher of the staff), so one phiếu reduces the staff's
+// outstanding exactly once and the report converges. Owner wording 07/11: this
+// is "Xác nhận" — the accountant's direct bookkeeping act, never "phê duyệt".
+
+export interface AdvanceRecoveryInput extends ExpenseFundFields { opsUserId: number; amount: number; reason: string; }
+
+/** Pure deficit decision shared by the write path and the unit pins: the staff
+ *  must hold a NEGATIVE signed balance and the recovery may not exceed the
+ *  deficit (partial recovery allowed — thu từng phần). No number is invented:
+ *  the message names the exact deficit the authority reported. */
+export function advanceRecoveryDeficitDecision(outstanding: number, amount: number):
+  { ok: true; deficit: number } | { ok: false; status: 409; message: string } {
+  const deficit = Math.round(-outstanding);
+  if (!(outstanding < 0)) return { ok: false, status: 409, message: 'Nhân viên không còn nắm tiền ứng âm — không có gì để thu hồi.' };
+  if (amount <= 0) return { ok: false, status: 409, message: 'Số tiền thu hồi phải nguyên dương.' };
+  if (amount > deficit) return { ok: false, status: 409, message: `Nhân viên này chỉ còn nắm ${deficit.toLocaleString('vi-VN')}₫ tiền ứng — không thu hồi vượt.` };
+  return { ok: true, deficit };
+}
+
+export async function recoverOpsAdvanceDeficit(tx: Tx, actor: ExpenseActor, input: AdvanceRecoveryInput) {
+  requireExpenseFinance(actor);
+  const payer = await assertActiveExpensePayer(tx, input.opsUserId);
+  if (payer.role !== Role.OPS) throw new ApiError(400, 'Chọn nhân viên Ops.');
+  // Same per-staff lock the đợt creation path takes, so a recovery and a đợt
+  // refund cannot interleave two IN vouchers against one âm balance.
+  await lockApplicationOwnedUniqueness(tx, 'expense-reconciliation-user', [input.opsUserId]);
+  const signed = await getSignedOutstandingAdvanceBalances(input.opsUserId, tx);
+  const outstanding = signed.items.find(row => row.forwarderId === input.opsUserId)?.outstanding ?? 0;
+  const decision = advanceRecoveryDeficitDecision(outstanding, input.amount);
+  if (!decision.ok) throw new ApiError(decision.status, decision.message);
+  await assertTreasuryFundAssigned(tx, input.treasuryAccountId);
+  const treasury = await resolveTreasuryPaymentContract(tx, input, new Date());
+  if (!treasury.treasuryAccountId || !treasury.valueDate || !treasury.physicalReference) throw new ApiError(400, 'Chọn quỹ và thông tin tiền thực nhận.');
+  const code = `HU-THU-${randomUUID()}`;
+  const ledger = await LedgerService.postEntry(tx, { txnType: TxnType.OPS_SETTLEMENT, entityType: 'FORWARDER', entityId: input.opsUserId,
+    debit: input.amount, credit: 0, receiptId: code, note: input.reason });
+  const movement = await insertTreasuryMovement(tx, { treasuryAccountId: treasury.treasuryAccountId, direction: 'IN', amount: input.amount,
+    valueDate: treasury.valueDate, physicalReference: treasury.physicalReference, ledgerEntryId: ledger.id, sourceVersion: 1, paymentContractVersion: 2, createdBy: actor.userId });
+  const [voucher] = await tx.insert(s.expenseCashVouchers).values({ code, counterpartyType: 'FORWARDER', counterpartyId: input.opsUserId,
+    treasuryMovementId: movement.id, reconciliationId: null, createdById: actor.userId, note: input.reason }).returning();
+  await tx.insert(s.auditLogs).values({ userId: actor.userId, message: 'EXPENSE_ADVANCE_RECOVERY_RECORDED', entityType: 'expense_cash_voucher', entityId: voucher.id,
+    payload: { opsUserId: input.opsUserId, amount: input.amount, outstandingBefore: outstanding, deficit: decision.deficit } });
   return hydrateExpenseCashVoucher(tx, voucher);
 }

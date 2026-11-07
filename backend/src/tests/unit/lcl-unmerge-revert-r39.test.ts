@@ -397,7 +397,7 @@ test('SIL-539 retry: Hủy ghép — LÔ CHÍNH rời nhóm cũng tự tra bản
   );
 });
 
-test('SIL-539 retry: Tách nhóm CẢ NHÓM giữ luật restore — re-lookup KHÔNG tiêm vào đường giải tán', () => {
+test('SIL-539 retry + SIL-734(b): Tách nhóm CẢ NHÓM giữ luật restore — member không pre-merge tự tra bảng giá', () => {
   const svc = read('../../services/lcl-grouping.service.ts');
   const unmergeGroup = svc.slice(
     svc.indexOf('export async function unmergeLclGroup'),
@@ -405,9 +405,13 @@ test('SIL-539 retry: Tách nhóm CẢ NHÓM giữ luật restore — re-lookup K
   );
   // Whole-group Tách nhóm restores each lot's EXACT pre-merge money
   // (spec 23/10 "đúng trạng thái trước ghép" — QA end-state 242 = 3.000.000,
-  // 244 = 3.100.000) and keeps FB-145's class clear; the price-table
-  // re-lookup is the per-lot Hủy ghép law only.
-  assert.match(unmergeGroup, /restoreRevPreMergeMoney\(tx, member, tripFacts\.get\(member\.id\) \?\? null\)/);
-  assert.doesNotMatch(unmergeGroup, /repriceRevLeaverFromPriceTable/);
+  // 244 = 3.100.000) and keeps FB-145's class clear. SIL-734(b) amends the
+  // "re-lookup is per-lot only" clause: a member with NO pre-merge truth now
+  // re-prices from the bảng giá (restore reports 'cited'/'cleared'; the
+  // decision + reprice follow), while restored/operator-owned money still
+  // never re-prices.
+  assert.match(unmergeGroup, /const outcome = await restoreRevPreMergeMoney\(tx, member, trip\)/);
+  assert.match(unmergeGroup, /revWholeGroupRepriceDecision\(outcome, member\.revVehicleClassId\)/);
+  assert.match(unmergeGroup, /await repriceRevLeaverFromPriceTable\(tx, member, trip, actor\)/);
 });
 

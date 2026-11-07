@@ -615,7 +615,36 @@ export async function unmergeLclGroup(
       }).where(eq(s.shipments.id, member.id));
 
       if (input.dimension === 'REV') {
-        await restoreRevPreMergeMoney(tx, member, tripFacts.get(member.id) ?? null);
+        const trip = tripFacts.get(member.id) ?? null;
+        const outcome = await restoreRevPreMergeMoney(tx, member, trip);
+        // SIL-734(b) — a member with NO pre-merge truth re-prices itself from
+        // the bảng giá thu khách before anything reads it: the lane key rides
+        // the in-memory class captured BEFORE the FB-145 clear above, plus the
+        // lot's own route/customer/ngày. Hit ⇒ the lot's own cước thu with a
+        // reason OUTSIDE the group; miss ⇒ the honest citation stands (never a
+        // fabricated number). Restored and operator-owned money never
+        // re-prices.
+        if (revWholeGroupRepriceDecision(outcome, member.revVehicleClassId)) {
+          const repriced = await repriceRevLeaverFromPriceTable(tx, member, trip, actor);
+          if (!repriced) {
+            // Lane miss (or own money appeared): the standing zero must not
+            // read as a naked group artifact — the same citation law the
+            // single-leaver path restates (D02: a computed zero carries its
+            // reason; a non-zero standing carries the own-cước marker).
+            if (trip != null) {
+              const isZero = trip.revenue == null || Number(trip.revenue) === 0;
+              await upsertTripFinancialState(tx, trip.tripId, {
+                revenuePreGroup: null,
+                revenuePreGroupCaptured: false,
+                revenueOverriddenBy: actor.userId,
+                revenueOverriddenAt: new Date(),
+                revenueOverrideReason: isZero ? REV_LOT_AWAITING_REPRICE_REASON : REV_LOT_OWN_CUOC_REASON,
+              });
+            }
+            // Trip-less: the 'cited' restore arm already wrote the snapshot
+            // citation — nothing to add.
+          }
+        }
       }
     }
 
@@ -944,10 +973,10 @@ async function restoreRevPreMergeMoney(
   tx: Tx,
   member: ShipmentRow,
   trip: LiveTripFacts | null,
-): Promise<void> {
+): Promise<RevWholeGroupRestoreOutcome> {
   if (trip != null) {
     const reason = trip.revenueOverrideReason;
-    if (reason != null && !isRevGroupNote(reason)) return;
+    if (reason != null && !isRevGroupNote(reason)) return 'untouched';
     await upsertTripFinancialState(tx, trip.tripId, {
       ...(trip.revenuePreGroupCaptured
         // The capture is authoritative: a pre-merge NULL restores to null.
@@ -962,7 +991,10 @@ async function restoreRevPreMergeMoney(
       revenueOverriddenAt: null,
       revenueOverrideReason: null,
     });
-    return;
+    // No capture and no legacy original: the standing money stays exactly as
+    // the merge left it (a group artifact) — the caller decides whether the
+    // lot can re-price itself (SIL-734b).
+    return trip.revenuePreGroupCaptured || trip.revenueOriginal != null ? 'restored' : 'cleared';
   }
 
   const rows = await tx.select({
@@ -989,14 +1021,14 @@ async function restoreRevPreMergeMoney(
   let cursor = rows.length - 1;
   while (cursor >= 0 && isRevGroupNote(rows[cursor]!.formulaText)) cursor -= 1;
   // Tail is already the lot's own money — history stays as it is.
-  if (cursor === rows.length - 1) return;
+  if (cursor === rows.length - 1) return 'untouched';
   const pre = cursor >= 0 ? rows[cursor]! : null;
   if (pre == null) {
     // No pre-merge row at all: the lot read "Chưa xác định"; a snapshot
     // cannot hold null, so the zero is re-cited as awaiting re-pricing
     // (D02: a computed zero is a value and must carry its reason).
     await insertRevMergeSnapshot(tx, member.id, 0, REV_LOT_AWAITING_REPRICE_REASON);
-    return;
+    return 'cited';
   }
   // Re-materialize the pre-merge snapshot — money AND trace ids AND its
   // frozen prose — so the reader rebuilds the pre-merge face (a zero-trace
@@ -1025,6 +1057,28 @@ async function restoreRevPreMergeMoney(
     tripId: null,
     executor: tx,
   });
+  return 'restored';
+}
+
+/** SIL-734(b) — what the whole-group REV restore did with a member's cước thu.
+ *  `untouched`: an operator's own money stands (never re-priced away);
+ *  `restored`: the pre-merge truth is back; `cleared`: a live trip whose merge
+ *  stamp carried no capture and no legacy original — the standing money is a
+ *  group artifact; `cited`: the honest 0₫ 'Chờ tra lại bảng giá' citation. */
+export type RevWholeGroupRestoreOutcome = 'untouched' | 'restored' | 'cleared' | 'cited';
+
+/** Pure re-price decision for the whole-group "Tách nhóm" (SIL-734b): a member
+ *  with NO pre-merge truth re-prices itself from the bảng giá thu khách — with
+ *  its own lane key (Loại xe captured BEFORE the FB-145 clear + Tuyến + khách
+ *  + ngày). A restored or operator-owned member never re-prices, and a lot
+ *  without a captured class has no lane key — no price is ever invented
+ *  (`repriceRevLeaverFromPriceTable` still guards: only a zeroish standing
+ *  amount re-prices, and a lane miss keeps the citation). */
+export function revWholeGroupRepriceDecision(
+  outcome: RevWholeGroupRestoreOutcome,
+  revVehicleClassId: number | null,
+): boolean {
+  return (outcome === 'cited' || outcome === 'cleared') && revVehicleClassId != null;
 }
 
 /**

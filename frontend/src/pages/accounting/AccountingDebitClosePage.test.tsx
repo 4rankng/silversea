@@ -180,34 +180,43 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(screen.queryByText('Chưa xác định')).not.toBeInTheDocument();
   });
 
-  it('a breakdown column stays off the board until the operator asks for it, and the choice persists (card 191026181942)', async () => {
-    // The essential-set law supersedes the auto-hide default ON THE BOARD: a
-    // breakdown is one toggle away, not a wall of "Thiếu …" the QA had to
-    // hide by hand. The totals keep their tracks; the phone records (auto
-    // default) still show a breakdown that carries data.
-    boardWith([row({ thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null } })]);
+  it('SIL-727 — the money matrix opens essential, no stored choice can bury it, and the still-hideable choice persists (card 191026181942)', async () => {
+    // SIL-727 amends the KT4 default ON THIS BOARD: the ticket lists the full
+    // PHẢI THU/PHẢI TRẢ matrix explicitly, so the breakdowns are essential —
+    // visible at open, locked in the picker, immune to a stale payload. The
+    // Lợi nhuận/Ghi chú breakdowns stay one toggle away, and a choice about
+    // them is still the per-workstation memory.
+    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', thu: { ...RATES, cuocThu: null } })]);
     const { unmount } = renderPage();
     await screen.findByText('BL-1');
-    expect(screen.queryByText('Cước thu (tự động)')).not.toBeInTheDocument();
-    expect(screen.getByText('Tổng thu')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Tổng thu' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Phí RU (tự động)' })).toBeInTheDocument();
+    // The picker locks the matrix: the essential option reads disabled +
+    // checked, offering nothing the toggle would refuse anyway.
+    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
+    const cuocThuOption = within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Cước thu (tự động)' });
+    expect(cuocThuOption).toBeChecked();
+    expect(cuocThuOption).toBeDisabled();
     unmount();
 
-    // Even WITH data, the breakdown stays off the default board…
-    boardWith([row({ thu: { ...RATES, cuocThu: null } }), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2' })]);
+    // FB-093 (lan 3): a choice written before the matrix joined the required
+    // set cannot bury it — the payload is repaired on read.
+    localStorage.setItem('accounting-debit-hidden-cols', JSON.stringify(['cuocThu', 'tongThu']));
     const { unmount: unmountSecond } = renderPage();
-    await screen.findByText('BL-1');
-    expect(screen.queryByText('Cước thu (tự động)')).not.toBeInTheDocument();
-    // …one picker toggle brings it back (columnheader: the open picker's own
-    // checkbox carries the same label, so the table header is the precise
-    // target)…
-    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Cước thu (tự động)' }));
     expect(await screen.findByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
     unmountSecond();
 
-    // …and the choice is the per-workstation memory: a fresh mount keeps it.
+    // …while the still-hideable Lợi nhuận keeps its per-workstation memory.
+    const { unmount: unmountThird } = renderPage();
+    await screen.findByText('BL-1');
+    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Lợi nhuận' }));
+    expect(screen.queryByRole('columnheader', { name: 'Lợi nhuận' })).toBeNull();
+    unmountThird();
     renderPage();
-    expect(await screen.findByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
+    await screen.findByText('BL-1');
+    expect(screen.queryByRole('columnheader', { name: 'Lợi nhuận' })).toBeNull();
   });
 
   it('offers the column picker on the shared strip', async () => {
@@ -218,13 +227,25 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
   });
 });
 
-describe('AccountingDebitClosePage — selection and bulk actions (card 20260929_207)', () => {
-  it('has no checkbox column; a row is picked by clicking it', async () => {
+describe('AccountingDebitClosePage — selection and bulk actions (card 20260929_207; SIL-727 restores the visible checkbox on this board)', () => {
+  it('SIL-727 — the leading checkbox toggles the same one selection the row click drives', async () => {
     boardWith([row()]);
     const { container } = renderPage();
     await screen.findByText('BL-1');
-    expect(screen.queryAllByRole('checkbox')).toEqual([]);
     const first = dataRows(container)[0];
+    const checkbox = within(first).getByRole('checkbox', { name: 'Chọn lô BL-1' });
+    expect(checkbox.getAttribute('aria-checked')).toBe('false');
+    // One click, one toggle: the control stops propagation, so the row's own
+    // click handler never double-toggles it.
+    fireEvent.click(checkbox);
+    expect(first.getAttribute('data-selected')).toBe('true');
+    expect(checkbox.getAttribute('aria-checked')).toBe('true');
+    // The Ngày tick still names WHICH row is picked (§2c).
+    expect(first.querySelector('.debit-row-tick')?.textContent).toBe('✓');
+    fireEvent.click(checkbox);
+    expect(first.getAttribute('data-selected')).toBeNull();
+    expect(checkbox.getAttribute('aria-checked')).toBe('false');
+    // …and the row click keeps working alongside the checkbox.
     fireEvent.click(first);
     expect(first.getAttribute('data-selected')).toBe('true');
     fireEvent.click(first);

@@ -33,7 +33,7 @@ import {
 } from '../../api/opsReconciliationReportClient';
 import { qk } from '../../api/keys';
 import { formatDate, formatMoney } from '../../lib/format';
-import { ExpenseCashDrawer } from '../../features/expense-accounting/ExpenseCashDrawer';
+import { ExpenseCashDrawer, type AdvanceRecoveryTarget } from '../../features/expense-accounting/ExpenseCashDrawer';
 import { ExpenseVoucherDrawer } from '../../features/expense-accounting/ExpenseVoucherDrawer';
 // The record-table base + ops-table typography: the shared table pattern
 // (recipe at styles/record-table.css). Page CSS declares no table skin.
@@ -75,6 +75,9 @@ export default function OpsReconciliationReportPage() {
   const [lotId, setLotId] = useState('');
   const [chiLot, setChiLot] = useState<ExpenseReconciliation | null>(null);
   const [thuLot, setThuLot] = useState<ExpenseReconciliation | null>(null);
+  // SIL-728 — Xác nhận hoàn ứng staff-level: một dòng ÂM bất kỳ (không cần lọc
+  // đợt) mở bút toán thu hồi về Quỹ công ty.
+  const [recovery, setRecovery] = useState<AdvanceRecoveryTarget | null>(null);
   const queryClient = useQueryClient();
   const validRange = !from || !to || from <= to;
 
@@ -209,6 +212,7 @@ export default function OpsReconciliationReportPage() {
                   index={index}
                   actionLot={row.staffId === liveLot?.opsUserId ? liveLot : undefined}
                   onVoucher={(lot) => (lot.remainingDifference > 0 ? setChiLot(lot) : setThuLot(lot))}
+                  onRecover={(target) => setRecovery(target)}
                 />
               ))}
             </tbody>
@@ -231,17 +235,26 @@ export default function OpsReconciliationReportPage() {
           onClose={() => { setThuLot(null); invalidate(); }}
         />
       )}
+      {recovery && catalog.data && (
+        <ExpenseCashDrawer
+          catalog={catalog.data}
+          recovery={recovery}
+          onClose={() => setRecovery(null)}
+        />
+      )}
     </div>
   );
 }
 
-function ReportRow({ row, index, actionLot, onVoucher }: {
+function ReportRow({ row, index, actionLot, onVoucher, onRecover }: {
   row: OpsReconciliationReportRow;
   index: number;
   /** The scoped đợt, only when its live difference is still open and belongs
    *  to this row's staff — the wrong-direction control is never rendered. */
   actionLot?: ExpenseReconciliation;
   onVoucher: (lot: ExpenseReconciliation) => void;
+  /** SIL-728 — present for finance actors: opens the staff-level recovery. */
+  onRecover: (target: AdvanceRecoveryTarget) => void;
 }) {
   return (
     <tr>
@@ -263,6 +276,18 @@ function ReportRow({ row, index, actionLot, onVoucher }: {
             : <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>}
       </td>
       <td data-label="" className="record-table__action">
+        {/* SIL-728 — the staff-level "Xác nhận hoàn ứng": every âm row, in
+            every filter state, no đợt needed. Naming per owner 07/11: this is
+            the accountant's direct "Xác nhận", never a "phê duyệt". */}
+        {row.needsCollection && row.outstandingSigned < 0 && (
+          <Btn
+            variant="primary"
+            size="sm"
+            onClick={() => onRecover({ opsUserId: row.staffId, staffName: row.staffName, deficit: Math.abs(row.outstandingSigned) })}
+          >
+            Xác nhận hoàn ứng
+          </Btn>
+        )}
         {actionLot && (
           <Btn variant="primary" size="sm" onClick={() => onVoucher(actionLot)}>
             {actionLot.remainingDifference > 0 ? 'Lập phiếu chi' : 'Lập phiếu thu'}

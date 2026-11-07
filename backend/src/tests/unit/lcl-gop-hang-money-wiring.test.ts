@@ -123,7 +123,10 @@ test('tách 1 lô về riêng + tách cả nhóm: tiền về đúng trạng th�
   assert.match(merge(), /revenuePreGroup: trip\.revenue,\s*revenuePreGroupCaptured: true/);
   assert.match(svc, /trip\.revenuePreGroupCaptured/);
   assert.match(svc, /\? \{ revenue: trip\.revenuePreGroup \}/);
-  assert.match(svc, /await restoreRevPreMergeMoney\(tx, member, tripFacts\.get\(member\.id\) \?\? null\)/);
+  // SIL-734(b): the restore reports its outcome and the whole-group loop now
+  // routes a no-pre-merge-truth member through the bảng giá re-price — the
+  // restore call itself keeps the same per-member facts.
+  assert.match(svc, /const outcome = await restoreRevPreMergeMoney\(tx, member, trip\)/);
   // A single member leaving keeps its current cước + a fresh reason
   // (cited 0₫ ⇒ chờ định giá lại; own cước ⇒ per-lot marker) and sheds its
   // capture (it left the group). SIL-539 retry: the facts resolve per leaver

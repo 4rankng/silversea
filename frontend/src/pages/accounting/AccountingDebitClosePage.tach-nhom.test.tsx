@@ -115,8 +115,11 @@ describe('card 211026024348 — "Tách nhóm" trên /accounting/chot-debit', () 
     await screen.findAllByText('BL-1');
 
     expect(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' })).toBeTruthy();
-    // the money-breakdown columns stay hidden on the essential default
-    expect(screen.queryByText('Cước thu (tự động)')).toBeNull();
+    // SIL-727 amends the KT4 default: the money matrix is essential, so the
+    // breakdown column is on the board (locked in the picker) — while the
+    // action-bearing container column keeps showing itself once it has data.
+    expect(screen.getByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Thông số container' })).toBeTruthy();
   });
 
   it('máy trạm CŨ (localStorage cũ chứa cột action): load tự sanitize → nút "Tách nhóm" vẫn thấy, cột thường vẫn theo saved (FB-093 lan 3)', async () => {
@@ -355,5 +358,43 @@ describe('SIL-191 — "Tách nhóm" trên strip chọn lô của /accounting/cho
     expect(dialog.textContent).toContain('cước trả ĐV độc lập');
     fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
     await waitFor(() => expect(unmergeLclGroup).toHaveBeenCalledWith({ groupId: 'g-cost-1', dimension: 'COST' }));
+  });
+});
+
+// ── SIL-734(a) — per-row [Tách nhóm] on BOTH merged dimensions ─────────────
+// The strip entry needs ≥2 selected rows; a single COST-merged row (revGroupId
+// null, costGroupId set — case R42) had NO row-level entry. The container
+// column's per-row action now arms for both dimensions; a cost-locked row
+// stays blocked with the exact reason.
+describe('AccountingDebitClosePage — SIL-734(a) Tách nhóm per-row trên dòng ghép COST', () => {
+  it('dòng ghép COST đơn lẻ có nút per-row → xác nhận gọi đúng dimension COST, không cần chọn trước', async () => {
+    listBoard.mockResolvedValue({
+      items: [lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: null, costGroupId: 'g-cost-1' } })],
+      total: 1,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    fireEvent.click(screen.getByRole('button', { name: 'Tách nhóm ghép trả ĐV — lô BL-1' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog.textContent).toContain('Tách nhóm ghép trả ĐV?');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
+    await waitFor(() => expect(unmergeLclGroup).toHaveBeenCalledWith({ groupId: 'g-cost-1', dimension: 'COST' }));
+  });
+
+  it('dòng ghép COST đã chốt kế toán → nút per-row aria-disabled với lý do nguyên văn', async () => {
+    listBoard.mockResolvedValue({
+      items: [lclRow({ costLockedAt: '2026-11-07T08:00:00.000Z', lcl: { ghépCùngRef: 'BL-1', revGroupId: null, costGroupId: 'g-cost-1' } })],
+      total: 1,
+    });
+    renderPage();
+    await screen.findAllByText('BL-1');
+    const button = screen.getByRole('button', { name: 'Tách nhóm ghép trả ĐV — lô BL-1' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    const describedBy = button.getAttribute('aria-describedby');
+    expect(document.getElementById(describedBy!)?.textContent)
+      .toContain('Nhóm ghép đã chốt kế toán — không thể tách nhóm.');
+    fireEvent.click(button);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(unmergeLclGroup).not.toHaveBeenCalled();
   });
 });

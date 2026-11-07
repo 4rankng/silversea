@@ -173,25 +173,34 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // Card 211026024348: a lot inside a merged rev group also carries the
     // shared "Tách nhóm" action here — the same component (and the same
     // existing unmerge endpoint) the CUS settlement board runs.
-    cell: (row, context) => row.lcl ? (
-      <div className="record-cell-stack">
-        <span>
-          {row.lcl.label}
-          {row.lcl.ghépCùngRef ? ` (Ghép cùng Bill ${row.lcl.ghépCùngRef})` : ''}
-        </span>
-        {row.lcl.revGroupId != null && (
-          <UnmergeRevGroupAction
-            id={`accounting-debit-tach-nhom-${row.shipmentId}`}
-            groupId={row.lcl.revGroupId}
-            lotRef={billBookingReference(row.billOrBooking) || '—'}
-            disabledReason={row.costLockedAt != null
-              ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
-              : null}
-            onUnmerged={context.onRevGroupUnmerged}
-          />
-        )}
-      </div>
-    ) : (row.containers.length > 0 ? row.containers.join(' · ') : '—'),
+    cell: (row, context) => {
+      // SIL-734(a) — the row-level entry exists for BOTH merged dimensions: a
+      // COST-merged row (revGroupId null, costGroupId set — case R42) rides
+      // the SAME shared action with dimension='COST', never a second unmerge
+      // path. A cost-locked row stays blocked with the exact reason.
+      const mergedGroupId = row.lcl?.revGroupId ?? row.lcl?.costGroupId ?? null;
+      const mergedDimension = row.lcl?.revGroupId != null ? 'REV' as const : 'COST' as const;
+      return row.lcl ? (
+        <div className="record-cell-stack">
+          <span>
+            {row.lcl.label}
+            {row.lcl.ghépCùngRef ? ` (Ghép cùng Bill ${row.lcl.ghépCùngRef})` : ''}
+          </span>
+          {mergedGroupId != null && (
+            <UnmergeRevGroupAction
+              id={`accounting-debit-tach-nhom-${row.shipmentId}`}
+              groupId={mergedGroupId}
+              dimension={mergedDimension}
+              lotRef={billBookingReference(row.billOrBooking) || '—'}
+              disabledReason={row.costLockedAt != null
+                ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
+                : null}
+              onUnmerged={context.onRevGroupUnmerged}
+            />
+          )}
+        </div>
+      ) : (row.containers.length > 0 ? row.containers.join(' · ') : '—');
+    },
   },
   {
     key: 'phanXe', label: 'Phân xe', className: 'debit-col--truck',

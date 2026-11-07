@@ -1319,11 +1319,73 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
   return tripParty;
 }
 
+/** SIL-729 — the shipment-level party fallback for trip-less OPS sources.
+ *  A fee attached to the SHIPMENT (shared by the lot's trips) has tripId NULL;
+ *  the bucket step used to drop it into 'Chưa xác định' wholesale. The
+ *  fallback resolves:
+ *    · THU — the shipment's customer operationalName (FB-061: a soft-deleted
+ *      master never prints; the money keeps reporting under 'Chưa xác định').
+ *    · TRA — through the shipment's UNIQUE live trip (the exact candidate law
+ *      `expenseTripCandidates` links sources by: deletedAt NULL, not
+ *      CANCELED): 0 or ≥2 live trips stay 'Chưa xác định', never a guess.
+ *  Returns the party plus, when a unique live trip exists, its id — the
+ *  drill-down groups the resolved money under that real trip. */
+async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: number[]): Promise<Map<number, { party: ReportPartyInfo; liveTripId: number | null }>> {
+  const map = new Map<number, { party: ReportPartyInfo; liveTripId: number | null }>();
+  const ids = [...new Set(shipmentIds.filter((id): id is number => id != null))];
+  if (ids.length === 0) return map;
+  if (kind === 'THU') {
+    const rows = await db.select({
+      shipmentId: s.shipments.id,
+      id: s.customers.id,
+      name: s.customers.name,
+      shortName: sql<string | null>`${operationalName(s.customers.shortName, s.customers.name)}`,
+      ghiChu: s.shipments.customerNotes,
+    })
+      .from(s.shipments)
+      .leftJoin(s.customers, and(eq(s.customers.id, s.shipments.customerId), isNull(s.customers.deletedAt)))
+      .where(inArray(s.shipments.id, ids));
+    for (const row of rows) {
+      map.set(row.shipmentId, {
+        party: {
+          name: row.name, ghiChu: row.ghiChu,
+          shortName: row.shortName && row.shortName.trim() ? row.shortName : row.name,
+          partyId: row.id ?? null, partyKind: row.id != null ? 'customer' : null,
+        },
+        liveTripId: null,
+      });
+    }
+    return map;
+  }
+  const liveTrips = await db.select({ shipmentId: s.trips.shipmentId, tripId: s.trips.id })
+    .from(s.trips)
+    .where(and(inArray(s.trips.shipmentId, ids), isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')));
+  const liveByShipment = new Map<number, number[]>();
+  for (const row of liveTrips) {
+    if (row.shipmentId == null) continue;
+    const list = liveByShipment.get(row.shipmentId) ?? [];
+    list.push(row.tripId);
+    liveByShipment.set(row.shipmentId, list);
+  }
+  const uniqueTripIds = [...liveByShipment.values()].filter((trips) => trips.length === 1).map((trips) => trips[0]);
+  const tripParty = await resolveReportTripParties('TRA', uniqueTripIds);
+  for (const [shipmentId, trips] of liveByShipment) {
+    if (trips.length !== 1) continue;
+    const party = tripParty.get(trips[0]);
+    if (party) map.set(shipmentId, { party, liveTripId: trips[0] });
+  }
+  return map;
+}
+
 export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{ rows: PhoiPhieuReportRow[]; grand: PhoiPhieuReportRow }> {
   const tripIds = await reportTripIds(query);
   const sources = await reportSources(tripIds, query.dateFrom, query.dateTo);
   // Party attribution.
   const tripParty = await resolveReportTripParties(query.kind, tripIds);
+  // SIL-729 — trip-less sources resolve through the shipment fallback before
+  // the 'Chưa xác định' bucket claims them.
+  const shipmentFallback = await resolveShipmentFallbackParties(query.kind,
+    sources.filter((source) => source.tripId == null).map((source) => source.shipmentId).filter((id): id is number => id != null));
 
   // Card 20260927_147 sweep — the same one-read-per-source pattern the voucher
   // path already dropped: this loop only needs each source's recorded cash
@@ -1332,9 +1394,12 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
   const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null; soLuong: number; phaiThu: number; phaiTra: number; movements: Set<string>; partyInfo: ReportPartyInfo | null }>();
   for (const source of sources) {
     // A NULL trip (the correct-route linked-replacement nulls the source's
-    // trip_id) must not silently drop the money from the report — it keeps
-    // reporting, bucketed under the unknown party.
-    const partyInfo = source.tripId != null ? tripParty.get(source.tripId) : undefined;
+    // trip_id, or the fee attaches to the shared shipment) must not silently
+    // drop the money from the report — SIL-729: a trip-less source first
+    // tries the shipment fallback, and only truly unresolved money reports
+    // under the unknown party.
+    const partyInfo = source.tripId != null ? tripParty.get(source.tripId)
+      : source.shipmentId != null ? shipmentFallback.get(source.shipmentId)?.party : undefined;
     const party = partyInfo?.name ?? 'Chưa xác định';
     const bucket = groups.get(party) ?? {
       tienNang: 0, tienHa: 0, psKhac: 0, da: 0, ghiChu: partyInfo?.ghiChu ?? null,
@@ -1406,7 +1471,9 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
  *  carries each source's open remainder so the batch phiếu the drawer issues
  *  previews exactly what the voucher engine will consume. */
 export interface PhoiPhieuPartyLot {
-  tripId: number;
+  /** The trip the lot books through; NULL for a shared shipment's fees with
+   *  no single live trip (SIL-729 — shown in the drawer, not bookable). */
+  tripId: number | null;
   shipmentId: number;
   billOrBooking: string | null;
   containerNumber: string | null;
@@ -1426,30 +1493,47 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
   const tripIds = await reportTripIds(query);
   const sources = await reportSources(tripIds, query.dateFrom, query.dateTo);
   const tripParty = await resolveReportTripParties(query.kind, tripIds);
+  // SIL-729 — the drill-down resolves the SAME fallback the summary bucket
+  // prints, so a clicked label opens exactly the money that carries its name.
+  const shipmentFallback = await resolveShipmentFallbackParties(query.kind,
+    sources.filter((source) => source.tripId == null).map((source) => source.shipmentId).filter((id): id is number => id != null));
   const wanted = query.party.trim();
   // Card 20260927_147 sweep — one cash read for the whole selection, never one
   // per source.
   const cashBySourceId = await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
   const lots = new Map<number, PhoiPhieuPartyLot>();
   for (const source of sources) {
-    const partyInfo = source.tripId != null ? tripParty.get(source.tripId) : undefined;
     // The drill-down opens from a summary row, so the party label must match
-    // it exactly — the same resolve, the same 'Chưa xác định' fallback.
+    // it exactly — the same resolve (trip party, then the SIL-729 shipment
+    // fallback), the same 'Chưa xác định' fallback. A trip-less source that
+    // the fallback resolved joins the drawer under ITS party; truly
+    // unresolved money keeps no lot row (the summary bucket is the audit
+    // surface, FB-061).
+    const fallback = source.tripId == null && source.shipmentId != null
+      ? shipmentFallback.get(source.shipmentId)
+      : undefined;
+    const partyInfo = source.tripId != null ? tripParty.get(source.tripId) : fallback?.party;
     if ((partyInfo?.name ?? 'Chưa xác định') !== wanted) continue;
-    if (source.tripId == null) continue;
+    // Group under the source's own trip; a resolved trip-less source groups
+    // under the shipment's unique live trip (a REAL trip lot — bookable), or
+    // under a synthetic shipment key when no single trip exists (the shared
+    // lot's fees — shown, not bookable: the voucher engine books trips).
+    const lotKey = source.tripId ?? fallback?.liveTripId
+      ?? (fallback?.party.name != null ? -source.shipmentId! : null);
+    if (lotKey == null) continue;
     const cash = cashBySourceId.get(source.id) ?? { IN: 0, OUT: 0 };
     const amount = sumExcludingNegative([source], (row) => row.amount ?? 0);
     const bucket = bucketByCategory(source.category);
     const chargeSide = Number(source.customerChargeAmount ?? 0);
     const costSide = Number(source.amount) - Number(source.allocatedAdvanceAmount ?? 0);
     const remaining = Math.max(query.kind === 'THU' ? chargeSide - cash.IN : costSide - cash.OUT, 0);
-    let lot = lots.get(source.tripId);
+    let lot = lots.get(lotKey);
     if (!lot) {
       lot = {
-        tripId: source.tripId, shipmentId: source.shipmentId, billOrBooking: null, containerNumber: null,
+        tripId: lotKey > 0 ? lotKey : null, shipmentId: source.shipmentId, billOrBooking: null, containerNumber: null,
         departureDate: null, tienNang: 0, tienHa: 0, psKhac: 0, total: 0, daThuTra: 0, conLai: 0, entries: [],
       };
-      lots.set(source.tripId, lot);
+      lots.set(lotKey, lot);
     }
     if (bucket === 'nang') lot.tienNang += amount;
     else if (bucket === 'ha') lot.tienHa += amount;
@@ -1460,9 +1544,11 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
     }
   }
   // Identity columns in one batched read; the lot's money comes only from the
-  // sources above, so these lookups never change an amount.
-  const lotIds = [...lots.keys()];
-  if (lotIds.length > 0) {
+  // sources above, so these lookups never change an amount. Trip lots read
+  // through the trip (fulfillment-aware); SIL-729 shipment-keyed lots (no
+  // single live trip) read the shipment row directly.
+  const tripLotIds = [...lots.keys()].filter((key) => key > 0);
+  if (tripLotIds.length > 0) {
     const identities = await db.select({
       tripId: s.trips.id,
       departureDate: s.trips.departureDate,
@@ -1474,7 +1560,7 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
       .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
       .innerJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
       .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
-      .where(inArray(s.trips.id, lotIds));
+      .where(inArray(s.trips.id, tripLotIds));
     for (const identity of identities) {
       const lot = lots.get(identity.tripId);
       if (!lot) continue;
@@ -1487,13 +1573,27 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
       lot.shipmentId = identity.shipmentId ?? lot.shipmentId;
     }
   }
+  const sharedLotKeys = [...lots.keys()].filter((key) => key < 0);
+  if (sharedLotKeys.length > 0) {
+    const sharedIds = sharedLotKeys.map((key) => -key);
+    const identities = await db.select({
+      shipmentId: s.shipments.id,
+      blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef,
+    }).from(s.shipments).where(inArray(s.shipments.id, sharedIds));
+    for (const identity of identities) {
+      const lot = lots.get(-identity.shipmentId);
+      if (!lot) continue;
+      lot.billOrBooking = billOrBookingOf(null, identity.blNumber, identity.bookingRef);
+    }
+  }
   const items = [...lots.values()]
     .map((lot) => ({ ...lot, total: lot.tienNang + lot.tienHa + lot.psKhac }))
     .map((lot) => ({ ...lot, conLai: round2dp(lot.total - lot.daThuTra) }))
     // "Các lô CHƯA thanh toán": a settled lot (remainder ≤ 0, overpaid
     // included) is not the drawer's subject — the summary already shows it at 0.
     .filter((lot) => lot.entries.length > 0)
-    .sort((a, b) => (a.departureDate ?? '').localeCompare(b.departureDate ?? '') || a.tripId - b.tripId);
+    .sort((a, b) => (a.departureDate ?? '').localeCompare(b.departureDate ?? '')
+      || (a.tripId ?? Number.MAX_SAFE_INTEGER) - (b.tripId ?? Number.MAX_SAFE_INTEGER));
   return { items };
 }
 

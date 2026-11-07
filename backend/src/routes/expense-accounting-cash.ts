@@ -11,7 +11,7 @@ import { asyncHandler } from '../middleware/asyncHandler';
 import { throwValidation } from '../lib/validation';
 import { requireExpenseFinance } from '../services/expense-accounting-write.service';
 import { allocateOutstandingExpenseVoucher, createExpenseVoucher, reverseExpenseVoucher } from '../services/expense-accounting-voucher.service';
-import { createExpenseReconciliation, recordFundedOpsAdvance, refundExpenseReconciliation } from '../services/expense-accounting-reconciliation.service';
+import { createExpenseReconciliation, recoverOpsAdvanceDeficit, recordFundedOpsAdvance, refundExpenseReconciliation } from '../services/expense-accounting-reconciliation.service';
 import { settleExpenseReconciliationRefund } from '../services/expense-reconciliation-settle.service';
 import { getExpenseReconciliation, getExpenseVoucher, listExpenseReconciliations, listExpenseVouchers } from '../services/expense-accounting-reads.service';
 import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../services/idempotency.service';
@@ -166,6 +166,18 @@ router.post('/advances', declareMaterialWrite('ops.advance-requests.create', { m
   const result = await runIdempotent({ endpoint: IDEMPOTENCY_ENDPOINTS.OPS_ADVANCE_REQUEST_CREATE, idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
     payload: input, createdBy: actor.userId, entityType: 'advance_request', responseStatusCode: 201,
     create: tx => recordFundedOpsAdvance(tx, actor, input) });
+  res.status(result.statusCode).json({ ...result.result, replayed: result.replayed });
+}));
+// SIL-728 — Xác nhận hoàn ứng staff-level: thu hồi số dư ứng ÂM (staff trả lại
+// tiền ứng vượt chi) về Quỹ công ty. Cùng họ phiếu với refund đợt (OPS_SETTLEMENT
+// debit + movement IN + voucher RECORDED FORWARDER), reconciliationId NULL, mọi
+// bước trong 1 tx, idempotent qua Idempotency-Key.
+router.post('/advance-recovery', declareMaterialWrite('expense-advance.recover', { method: 'POST', path: '/api/expense-accounting/advance-recovery' }),  asyncHandler(async (req, res) => {
+  const actor = getUser(req);
+  const input = parse(z.object({ ...fund, opsUserId: positiveId, amount: expenseVndSchema.refine(v => v > 0), reason: z.string().trim().min(1).max(2000) }).strict(), req.body);
+  const result = await runIdempotent({ endpoint: 'expense-advance.recover', idempotencyKey: resolveIdempotencyKey({ headerValue: req.header('Idempotency-Key') }),
+    payload: input, createdBy: actor.userId, entityType: 'expense_cash_voucher', responseStatusCode: 201,
+    create: async tx => { const voucher = await recoverOpsAdvanceDeficit(tx, actor, input); return getExpenseVoucher(actor, voucher.id, tx); } });
   res.status(result.statusCode).json({ ...result.result, replayed: result.replayed });
 }));
 export default router;

@@ -12,10 +12,13 @@ vi.mock('../../api/opsReconciliationReportClient', async (importOriginal) => ({
 const expenseApi = vi.hoisted(() => ({ catalog: vi.fn(), reconciliations: vi.fn(), get: vi.fn() }));
 vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: expenseApi }));
 // The drawers are the existing engine surfaces this page composes; their
-// internals have their own suites. Mocked here so the page test pins the page's
-// own contract: which direction each sign opens, and that the wrong direction
-// is never offered.
-vi.mock('../../features/expense-accounting/ExpenseCashDrawer', () => ({ ExpenseCashDrawer: () => <div data-testid="thu-drawer" /> }));
+// internals have their own suites. Mocked here so the page test pins the
+// page's own contract: which direction each sign opens, and that the wrong
+// direction is never offered. The props spy lets the SIL-728 recovery pin
+// assert WHAT the page hands the drawer (staff + deficit) without rebuilding
+// the money form here.
+const drawerCapture = vi.hoisted(() => ({ last: null as null | Record<string, unknown> }));
+vi.mock('../../features/expense-accounting/ExpenseCashDrawer', () => ({ ExpenseCashDrawer: (props: Record<string, unknown>) => { drawerCapture.last = props; return <div data-testid={props.recovery ? 'recovery-drawer' : 'thu-drawer'} />; } }));
 vi.mock('../../features/expense-accounting/ExpenseVoucherDrawer', () => ({ ExpenseVoucherDrawer: () => <div data-testid="chi-drawer" /> }));
 
 import OpsReconciliationReportPage from './OpsReconciliationReportPage';
@@ -222,5 +225,46 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
     await waitFor(() => expect(reportApi.report).toHaveBeenCalledWith(expect.objectContaining({
       opsUserId: undefined, from: undefined, to: undefined,
     })));
+  });
+});
+
+// ── SIL-728 — "Xác nhận hoàn ứng" staff-level trên dòng ÂM ─────────────────
+// A negative WALLET balance (outstandingSigned < 0) had no collection path
+// outside the đợt filter; the row action now opens the shared drawer with the
+// deficit pre-filled. The report-side rule: only the wallet-deficit rows get
+// the button — a row that merely has ĐNTT > ĐÃ ỨNG while the staff still holds
+// granted money (outstandingSigned ≥ 0) must NOT offer it, because the
+// recovery endpoint refuses exactly that case (409 naming the deficit).
+const rowDeficit: OpsReconciliationReportRow = {
+  staffId: 12, staffName: 'Vũ Đình Cường', dntt: 0, advanced: 4300000, remaining: 0,
+  remainingSigned: 0, outstandingSigned: -4300000, needsCollection: true,
+  direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
+};
+
+describe('OpsReconciliationReportPage — Xác nhận hoàn ứng (SIL-728)', () => {
+  it('a wallet-deficit row offers the recovery action in ANY filter state and hands the drawer the deficit', async () => {
+    reportApi.report.mockResolvedValue({
+      from: TODAY, to: TODAY, rows: [rowDeficit],
+      totals: { dntt: 0, advanced: 4300000, remaining: 0, remainingSigned: 0 },
+    });
+    page();
+    await screen.findByText('Vũ Đình Cường', { selector: 'td' });
+    // No đợt filter is set — the action is still on the row.
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận hoàn ứng' }));
+    expect(await screen.findByTestId('recovery-drawer')).toBeTruthy();
+    expect(drawerCapture.last?.recovery).toMatchObject({ opsUserId: 12, staffName: 'Vũ Đình Cường', deficit: 4300000 });
+  });
+
+  it('a row holding granted money (outstandingSigned ≥ 0) never offers the recovery the backend would refuse', async () => {
+    // rowCollection: needsCollection=true through the remainingSigned arm, but
+    // the staff wallet is POSITIVE (+500.000) — recovery would 409.
+    reportApi.report.mockResolvedValue({
+      from: TODAY, to: TODAY, rows: [rowCollection],
+      totals: { dntt: 300000, advanced: 500000, remaining: 500000, remainingSigned: -200000 },
+    });
+    page();
+    await screen.findByText('NV C', { selector: 'td' });
+    expect(screen.queryByRole('button', { name: 'Xác nhận hoàn ứng' })).not.toBeInTheDocument();
+    expect(screen.getByText('ÂM — đề nghị thu lại tiền ứng')).toBeTruthy();
   });
 });
