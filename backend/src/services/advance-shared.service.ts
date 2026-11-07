@@ -499,15 +499,19 @@ export interface OutstandingAdvanceBalances {
  *  hoàn ứng report must say so, card 141026230770). The wallet, catalog and
  *  Sổ quỹ keep the floored {@link getOutstandingAdvanceBalances} view so
  *  their "money actually held" semantics stay ≥ 0 (card 377 parity). */
-export async function getSignedOutstandingAdvanceBalances(forwarderUserId?: number): Promise<OutstandingAdvanceBalances> {
-  const rows = await db.select({ request: s.advanceRequests, name: s.users.fullName }).from(s.advanceRequests)
+export async function getSignedOutstandingAdvanceBalances(forwarderUserId?: number, executor: DbLike = db): Promise<OutstandingAdvanceBalances> {
+  // SIL-728: the executor param lets the recovery flow re-read the SAME
+  // authority INSIDE its own transaction (under the per-staff lock), so the
+  // deficit it collects against is the deficit that exists at write time —
+  // never a stale committed snapshot racing a concurrent đợt refund.
+  const rows = await executor.select({ request: s.advanceRequests, name: s.users.fullName }).from(s.advanceRequests)
     .innerJoin(s.users, eq(s.users.id, s.advanceRequests.requesterId))
     .where(and(eq(s.advanceRequests.status, 'RECORDED'), forwarderUserId ? eq(s.advanceRequests.requesterId, forwarderUserId) : undefined));
   const ids = rows.map(row => row.request.id);
   const [funded, consumed, returned] = await Promise.all([
-    getAdvanceFundedAmounts(db, ids),
-    getAdvanceConsumedAmounts(db, ids),
-    db.select({ staffId: s.expenseCashVouchers.counterpartyId, amount: s.treasuryMovements.amount })
+    getAdvanceFundedAmounts(executor, ids),
+    getAdvanceConsumedAmounts(executor, ids),
+    executor.select({ staffId: s.expenseCashVouchers.counterpartyId, amount: s.treasuryMovements.amount })
       .from(s.expenseCashVouchers)
       .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
       .where(and(

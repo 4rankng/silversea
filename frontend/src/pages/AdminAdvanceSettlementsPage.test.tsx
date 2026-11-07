@@ -28,6 +28,14 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: authUser() }) }));
 vi.mock('../api/forwarderClient', () => ({
   forwarderClient: { checkAdvanceSettlement: checkSettlement },
 }));
+// SIL-728 — the recovery drawer + its catalog read are the engine surfaces the
+// page composes; this file pins the PAGE's contract (who gets the button, what
+// the page hands the drawer), the drawer internals have their own suite.
+const { catalogApi, drawerCapture } = vi.hoisted(() => ({ catalogApi: { catalog: vi.fn() }, drawerCapture: { last: null as null | Record<string, unknown> } }));
+vi.mock('../api/expenseAccountingClient', () => ({ expenseAccountingClient: catalogApi }));
+vi.mock('../features/expense-accounting/ExpenseCashDrawer', () => ({
+  ExpenseCashDrawer: (props: Record<string, unknown>) => { drawerCapture.last = props; return <div data-testid={props.recovery ? 'recovery-drawer' : 'thu-drawer'} />; },
+}));
 
 const response = { items: [], totalPages: 1, statusCounts: { DRAFT: 4, RECORDED: 3 }, statusAmounts: {} };
 beforeEach(() => {
@@ -254,5 +262,50 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', 
     renderPage();
     openCreateDialog();
     expect(screen.getByText('Không có tạm ứng nào còn tồn trên hệ thống.')).toBeInTheDocument();
+  });
+});
+
+// ── SIL-728 — "Xác nhận hoàn ứng" trên phiếu hoàn siêu âm (refundAmount < 0) ─
+// The negative refund phiếu (FB-100) only records the INTENT to collect; the
+// button opens the shared drawer pre-filled with |refundAmount| and a reason
+// citing the phiếu, and books the payback to Quỹ công ty.
+beforeEach(() => {
+  catalogApi.catalog.mockReset().mockResolvedValue({
+    staff: [], accountants: [], suppliers: [], expenseTypes: [], advances: [], pendingAdvances: [],
+    opsUsers: [{ id: 9, name: 'Nguyễn Văn Giao' }],
+    accounts: [{ id: 3, name: 'ACB công ty', fundCode: 'COMPANY' as const }],
+  });
+});
+
+describe('AdminAdvanceSettlementsPage — Xác nhận hoàn ứng (SIL-728)', () => {
+  it('a RECORDED phiếu with a negative refund offers the recovery and hands the drawer |refundAmount| + the phiếu citation', async () => {
+    settlementsQuery.mockReturnValue({
+      data: { ...response, items: [settlementRow({ refundAmount: '-4300000' })], totalPages: 1, statusCounts: { RECORDED: 1 }, statusAmounts: {} },
+      isLoading: false,
+    });
+    renderPage();
+    // Desktop grid row and mobile card both carry the action — one click.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Xác nhận hoàn ứng' })[0]);
+    expect(await screen.findByTestId('recovery-drawer')).toBeTruthy();
+    expect(drawerCapture.last?.recovery).toMatchObject({
+      opsUserId: 9, staffName: 'Nguyễn Văn Giao', deficit: 4300000,
+      reason: 'Thu hồi hoàn siêu âm — phiếu PC-26-0041',
+    });
+  });
+
+  it('a phiếu that owes the staff (refundAmount > 0) or is not RECORDED never offers the recovery', () => {
+    settlementsQuery.mockReturnValue({
+      data: {
+        ...response,
+        items: [
+          settlementRow({ id: 42, refundAmount: '200000' }),
+          settlementRow({ id: 43, status: 'DRAFT', refundAmount: '-4300000' }),
+        ],
+        totalPages: 1, statusCounts: { RECORDED: 1, DRAFT: 1 }, statusAmounts: {},
+      },
+      isLoading: false,
+    });
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Xác nhận hoàn ứng' })).not.toBeInTheDocument();
   });
 });
