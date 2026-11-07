@@ -1,0 +1,18 @@
+✔ SIL-735 — parseBillDigits chỉ nhận đúng 4 chữ số (thói quen tra cứu) (20.028125ms)
+✔ SIL-735 — needle là CHUỖI CON của chuỗi số (không phải đuôi) (5.893333ms)
+✔ SIL-735 — cả hai nhánh blNumber VÀ bookingRef dùng chuỗi số + needle của luật thuần (0.386459ms)
+✔ SIL-735 — luật đuôi `right(...) = digits` cũ đã gỡ (thay bằng chuỗi con) (0.114208ms)
+✔ SIL-737 — cửa chuyển trạng thái gọi auto-write khi hoàn thành VÀ khi huỷ (1.240417ms)
+✔ SIL-737 — auto-write chỉ nhận chuyến XE NỘI BỘ (xe không thuộc nhà xe ngoài) (0.233ms)
+✔ SIL-737 — ngày ghi là NGÀY HOÀN THÀNH theo luật SIL-683 (UTC → VN), không phải ngày xuất phát (0.109083ms)
+✔ SIL-737 — ô Điều vận gõ tay không bị đè; ô hệ thống ghi thì được làm mới (0.087958ms)
+✔ SIL-737 — lưới ghi tay đánh dấu ô là MANUAL (ô của Điều vận) (0.049125ms)
+✔ SIL-737 — cột source tồn tại trong schema với default MANUAL + ràng buộc (1.690875ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1223.993709
