@@ -107,7 +107,7 @@ export default function AccountingDebitClosePage() {
   // it hides itself until it does (column-visibility law).
   //
   // Card 191026181942 (KT4): the board now OPENS on its essential set — dot
-  // chi phí, Ngày, lô, Tổng thu, Tổng 1, Đối soát (≤6 columns). With every
+  // chi phí, Ngày, lô, Tổng thu, Tổng trả, Đối soát (≤6 columns). With every
   // breakdown visible the money matrix was unreadable and QA had to hide
   // columns by hand on every visit; the breakdowns stay one toggle away in the
   // picker, and a stored choice (per workstation, same key as before) still

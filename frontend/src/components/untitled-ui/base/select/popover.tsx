@@ -9,9 +9,9 @@ interface PopoverProps extends AriaPopoverProps, RefAttributes<HTMLElement> {
     size: "sm" | "md" | "lg";
 }
 
-/** Height caps per size, mirroring the retired `max-h-*!` classes (px). */
-const SIZE_CAP: Record<string, number> = { sm: 224, md: 256, lg: 320 };
-const DEFAULT_CAP = 288;
+/** Height caps per size, mirroring the retired `max-h-*!` classes (px). SIL-707: ~8 options ~320-400px. */
+const SIZE_CAP: Record<string, number> = { sm: 320, md: 360, lg: 400 };
+const DEFAULT_CAP = 360;
 /** Below this much usable space the list would collapse to a sliver — let
  *  react-aria flip above instead (the card's "trừ khi không còn không gian
  *  hiển thị"). */
@@ -125,12 +125,19 @@ export const Popover = (props: PopoverProps) => {
     const belowSpace = triggerRect
         ? fitBelowMaxHeight(window.innerHeight, triggerRect.bottom, cap, props.containerPadding ?? 16, props.offset ?? 4)
         : null;
-    const fitVarStyle = { ...props.style, "--popover-fit": `${belowSpace ?? cap}px` } as CSSProperties;
+    const resolvedFit = `${belowSpace ?? cap}px`;
+    const fitVarStyle = {
+        maxHeight: resolvedFit,
+        overflowY: "auto",
+        ...props.style,
+        ...({ "--popover-fit": resolvedFit } as Record<string, string>),
+    } as unknown as CSSProperties;
     // The `!` max-height class consumes the fit variable set above. An inline
     // max-height loses to react-aria's own positioning style (it assigns
     // inline after the user style), but class importance beats that inline
     // and react-aria never touches custom properties — so the fit survives.
-    const maxHeightClass = "max-h-(--popover-fit,16rem)!";
+    // SIL-707: support standard tailwind arbitrary variable syntax + class.
+    const maxHeightClass = "max-h-[var(--popover-fit,360px)]! !max-h-[var(--popover-fit,360px)]";
 
     // SIL-630: the gate rides INSIDE the overlay's children — function
     // children (render props) get it appended after their output so both
@@ -160,7 +167,7 @@ export const Popover = (props: PopoverProps) => {
             style={fitVarStyle}
             className={(state) =>
                 cx(
-                    "z-[var(--z-popover,400)] w-(--trigger-width) origin-(--trigger-anchor-point) overflow-x-hidden overflow-y-auto rounded-lg border border-secondary bg-[var(--surface)] py-1 outline-hidden will-change-transform",
+                    "uui-select-popover z-[var(--z-popover,400)] w-(--trigger-width) origin-(--trigger-anchor-point) overflow-x-hidden overflow-y-auto rounded-lg border border-secondary bg-[var(--surface)] py-1 outline-hidden will-change-transform",
 
                     state.isEntering &&
                         "duration-150 ease-out animate-in fade-in placement-right:slide-in-from-left-0.5 placement-top:slide-in-from-bottom-0.5 placement-bottom:slide-in-from-top-0.5",

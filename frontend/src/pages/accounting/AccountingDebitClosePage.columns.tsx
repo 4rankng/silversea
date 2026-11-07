@@ -268,10 +268,10 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     cell: (row) => money(row.tra.phatSinhDv, 'Thiếu phát sinh ĐV'),
   },
   {
-    // Card 191026181942 (KT4) — essential: the PHẢI TRẢ rollup (Tổng 1) is one
-    // of the six columns the board opens on.
-    key: 'tong1', label: 'Tổng 1', className: 'debit-col--money', group: 'tra', essential: true,
-    cell: (row) => money(row.tra.tong1, 'Thiếu tổng 1'),
+    // Card 191026181942 (KT4) — essential: the PHẢI TRẢ rollup (Tổng trả) is one
+    // of the six columns the board opens on. SIL-701: nhãn đúng là 'Tổng trả'.
+    key: 'tong1', label: 'Tổng trả', className: 'debit-col--money', group: 'tra', essential: true,
+    cell: (row) => money(row.tra.tong1, 'Thiếu tổng trả'),
   },
   {
     key: 'phiRu', label: 'Phí RU (tự động)', className: 'debit-col--money', group: 'tra',

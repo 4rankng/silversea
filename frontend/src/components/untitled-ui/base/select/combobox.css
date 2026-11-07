@@ -60,6 +60,13 @@
   #root .uui-combobox [data-combobox-value] {
     padding-block: 0;
   }
-
-
 }
+
+/* SIL-707: popover must have max-height (~8 items, 320-400px) and overflow-y auto so it doesn't spill out of viewport */
+.uui-select-popover,
+.react-aria-Popover[data-trigger="Select"],
+.react-aria-Popover[data-trigger="ComboBox"] {
+  max-height: min(var(--popover-fit, 360px), 360px, calc(100dvh - 48px)) !important;
+  overflow-y: auto !important;
+}
+

@@ -14,6 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { BOARD_COLUMNS } from './AccountingDebitClosePage.columns';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/accounting/AccountingDebitClosePage.css'), 'utf8')
   // The comments carry the measurement that justifies each track; they are
@@ -68,5 +69,12 @@ describe('SIL-701 — chốt debit: cột NGÀY hiển thị đủ DD/MM/YYYY', 
     // The money NUMBER still never wraps — a broken number is unreadable.
     expect(ruleWith('.debit-board td.debit-col--money', /white-space:\s*nowrap/))
       .toMatch(/white-space:\s*nowrap/);
+  });
+
+  it('SIL-701 — cột tổng phía Phải trả có nhãn "Tổng trả" (không phải "Tổng 1")', () => {
+    const tong1Col = BOARD_COLUMNS.find((col) => col.key === 'tong1');
+    expect(tong1Col).toBeDefined();
+    expect(tong1Col?.label).toBe('Tổng trả');
+    expect(tong1Col?.group).toBe('tra');
   });
 });
