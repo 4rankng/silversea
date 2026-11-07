@@ -41,7 +41,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     renderAt('/shipments/9');
     expect(screen.getByTestId('view-workspace')).toBeTruthy();
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 9, canEditLot: true, canDeleteLot: true, canDeclareCost: false } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 9, canEditLot: true, canDeleteLot: true, canDeclareCost: false, canEditDeclaration: true } }),
       undefined,
     );
   });
@@ -56,7 +56,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     userRole.current = 'ACCOUNTANT';
     renderAt('/shipments/3');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 3, canEditLot: false, canDeleteLot: false, canDeclareCost: true } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 3, canEditLot: false, canDeleteLot: false, canDeclareCost: true, canEditDeclaration: false } }),
       undefined,
     );
   });
@@ -64,8 +64,11 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
   it('DISPATCHER has both edit and delete revoked (SIL-706)', () => {
     userRole.current = 'DISPATCHER';
     renderAt('/shipments/4');
+    // SIL-720 (id 840): the per-container tờ khai write follows the SIL-551
+    // writer law (ADMIN/MANAGER/CUS/DISPATCHER) — the Điều vận may set the
+    // declaration even though SIL-706 revoked its lot edit/delete.
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 4, canEditLot: false, canDeleteLot: false, canDeclareCost: false } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 4, canEditLot: false, canDeleteLot: false, canDeclareCost: false, canEditDeclaration: true } }),
       undefined,
     );
   });
@@ -76,7 +79,7 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     userRole.current = 'MANAGER';
     renderAt('/shipments/6');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 6, canEditLot: true, canDeleteLot: false, canDeclareCost: true } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 6, canEditLot: true, canDeleteLot: false, canDeclareCost: true, canEditDeclaration: true } }),
       undefined,
     );
   });
@@ -85,7 +88,18 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     userRole.current = undefined;
     renderAt('/shipments/5');
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 5, canEditLot: false, canDeleteLot: false, canDeclareCost: false } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 5, canEditLot: false, canDeleteLot: false, canDeclareCost: false, canEditDeclaration: false } }),
+      undefined,
+    );
+  });
+
+  it.each(['OPS', 'DRIVER', 'ACCOUNTANT'])('role %s gets no declaration affordance (SIL-551 writer law)', (role) => {
+    // SIL-720 (id 840): the per-container tờ khai write is ADMIN/MANAGER/CUS/
+    // ĐIỀU VẬN. Everyone else reads static text (the server would 403).
+    userRole.current = role;
+    renderAt('/shipments/7');
+    expect(workspaceMock).toHaveBeenCalledWith(
+      expect.objectContaining({ viewTarget: { shipmentId: 7, canEditLot: false, canDeleteLot: false, canDeclareCost: role === 'ACCOUNTANT', canEditDeclaration: false } }),
       undefined,
     );
   });

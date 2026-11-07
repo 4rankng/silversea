@@ -1,0 +1,14 @@
+{
+  "shipmentId": 779203,
+  "declaration": "TK-F3-021180278",
+  "containers": [
+    {
+      "containerNumber": "FTST0000006",
+      "declarationNumber": "TK-F3-021180278"
+    },
+    {
+      "containerNumber": "FTST0000011",
+      "declarationNumber": "TK-F3-021180278"
+    }
+  ]
+}

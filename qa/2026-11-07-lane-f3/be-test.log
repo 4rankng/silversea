@@ -1,0 +1,41 @@
+✔ the VN pin differs from a system-local date at the boundary (the bug class) (0.2665ms)
+▶ treasury position sort
+  ✔ absent sort params keep the input (account-query) order untouched (0.847541ms)
+  ✔ bookBalance sorts numerically asc and desc with accountId tiebreaker (0.511584ms)
+  ✔ totalIn sorts asc/desc and completeness ranks COMPLETE before PARTIAL (0.134417ms)
+  ✔ name sorts lexically asc and desc (0.117708ms)
+  ✔ sorting never mutates the caller’s array (0.071958ms)
+✔ treasury position sort (2.508458ms)
+▶ trip children foreign keys
+  ✔ completeness pin: all 22 trip_id constraints live with the approved policies (61.561125ms)
+  ✔ insert with a dead trip_id is rejected by the FK (23503) (4.091583ms)
+✔ trip children foreign keys (2703.832458ms)
+▶ trip child behavior under delete
+  ✔ deleting a trip cascades payload children and detaches nullable ones (12.969292ms)
+  ✔ RESTRICT blocks a trip delete that would strand financial postings (4.412ms)
+✔ trip child behavior under delete (17.718292ms)
+▶ trip command service
+  ✔ creates a trip, invalidates dashboard reports, emits creation notification, and returns the trip (1.363125ms)
+  ✔ copies a trip, invalidates reports, and emits the standard creation notification (0.2465ms)
+  ✔ dispatches a trip through the lifecycle service before attendance sync and notification (0.316042ms)
+✔ trip command service (2.689709ms)
+▶ trip copy field contract
+  ✔ preserves planning and financial fields while resetting new-trip metadata (0.70375ms)
+  ✔ copies the exact leg distance instead of regenerating it from the route (0.677209ms)
+✔ trip copy field contract (2.441458ms)
+▶ trips route disposition
+  ✔ a dangling route stamp removes its trip, the live assignment survives, and the constraint validates (1.70025ms)
+✔ trips route disposition (1095.842333ms)
+{"level":30,"time":1794020698003,"pid":92707,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+▶ customer-service finance capabilities
+  ✔ exposes only the role-authorized workflow capabilities (33.93775ms)
+✔ customer-service finance capabilities (58.566583ms)
+ℹ tests 342
+ℹ suites 80
+ℹ pass 342
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 149733.172625
+BE TEST EXIT: 0

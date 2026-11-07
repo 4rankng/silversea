@@ -203,7 +203,7 @@ export {
   quotationFeeSchema,
 } from './schemas';
 
-export { partialUpdateSchema } from './schemas';
+export { partialUpdateSchema, shipmentVolumeCbm } from './schemas';
 
 export type {
   QuotationColumnKey, QuotationCellInput, QuotationCreateInput,

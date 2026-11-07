@@ -211,6 +211,8 @@ describe('DispatchPlanEditorCell — cửa sổ điều phối theo cargoMode (o
     expect(screen.getByText('Cước trả dự kiến')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Lẻ Phân loại' }));
     expect(screen.getByRole('option', { name: 'Lẻ' })).toBeTruthy();
+    // SIL-702 (id 822): the LCL pair is Lẻ / Lấy Lẻ — never a cont model.
+    expect(screen.getByRole('option', { name: 'Lấy Lẻ' })).toBeTruthy();
     expect(screen.queryByRole('option', { name: 'Đơn' })).toBeNull();
 
     // The cont contract is gone — every string the master-plan cont body owns.

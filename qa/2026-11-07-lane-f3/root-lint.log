@@ -1,0 +1,7 @@
+
+/Users/dev/.paseo/worktrees/1njkloyy/f3-small/frontend/src/pages/config/CustomersConfigPage.tsx
+  204:6  warning  React Hook useMemo has a missing dependency: 'riskOf'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 6 problems (0 errors, 6 warnings)
+
+ROOT LINT EXIT: 0

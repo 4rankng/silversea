@@ -11,9 +11,11 @@ import {
 } from './uui-fields';
 import { UDateTimeField as DateTimeField } from './uui-datetime-field';
 import { ShipmentContainerCell } from './ShipmentContainerCell';
+import { DeclarationInlineCell } from '../detail/DeclarationInlineCell';
 import { buildFactoryOptionSearchText } from './ShipmentCreateContainerRow.factorySearch';
 import { ContainerTypeCellPicker } from './ContainerTypeCellPicker';
 import type { ShipmentContainerDraft } from './shipment-create-model';
+import './ShipmentDeclarationInline.css';
 
 type ContainerRow = ShipmentContainerDraft;
 
@@ -57,6 +59,19 @@ export interface ShipmentCreateContainerRowProps {
   onAddFactory: () => void;
   saving: boolean;
   viewMode?: boolean;
+  /** SIL-720 (id 840): on the lot page (view mode) the SỐ TỜ KHAI cell edits
+   *  INLINE — the same shared cell the dispatch grid uses. The context carries
+   *  the lot identity + version (the container-line command guards a stale
+   *  write), the writer gate and the refresh after the save (the FB-109
+   *  auto-copy fills the lot's still-empty sibling containers). */
+  declarationContext?: {
+    /** The lot that owns the container — null when the workspace has no
+     *  pinned lot yet (the command must never target a made-up id). */
+    shipmentId: number | null;
+    version: number | null;
+    canEdit: boolean;
+    onSaved: () => void;
+  };
   routeOptions: { value: string; label: string }[];
   portOptions: { value: string; label: string }[];
   /** SIL-653: container number input is locked once lot is dispatched */
@@ -88,11 +103,29 @@ export function ShipmentCreateContainerRow({
   onAddFactory,
   saving,
   viewMode = false,
+  declarationContext,
   routeOptions,
   portOptions,
   dispatchedLocked = false,
 }: ShipmentCreateContainerRowProps) {
   const containerType = (catalogs.containerTypes ?? []).find((item) => String(item.id) === row.containerTypeId);
+  // SIL-720 (id 840): the lot page (view mode) edits the tờ khai INLINE. The
+  // cell needs the persisted container id and the lot version; without them
+  // the container-line command has nothing to write, so the cell keeps the
+  // frozen input it has always shown.
+  const declarationInline = viewMode
+    && declarationContext != null
+    && declarationContext.canEdit
+    && declarationContext.shipmentId != null
+    && row.id != null
+    && declarationContext.version != null
+    ? {
+      shipmentId: declarationContext.shipmentId,
+      containerId: row.id,
+      version: declarationContext.version,
+      onSaved: declarationContext.onSaved,
+    }
+    : null;
   const pickupPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.pickupPortId);
   const dropoffPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.dropoffPortId);
   const factory = operationalSites.find((site) => String(site.id) === row.operationalSiteId);
@@ -357,7 +390,13 @@ export function ShipmentCreateContainerRow({
           is typed, never picked), placed right after the SỐ CONTAINER group
           for parity with the drawer's locked sheet order (STT · Số container
           · Số tờ khai · Nhà máy · …, SIL-508/552 family). Same-lot repeats
-          are legal (SIL-521) — no duplicate guard here. */}
+          are legal (SIL-521) — no duplicate guard here.
+
+          SIL-720 (id 840): on the lot page (view mode) the same cell becomes
+          the SHARED inline declaration cell — click the value, edit it in the
+          floating editor, Enter saves (the FB-109 auto-copy to the lot's
+          still-empty sibling containers runs server-side; the page refreshes
+          to show it). The create/edit path keeps the typed input. */}
       <ShipmentContainerCell
         label="Số tờ khai"
         alwaysVisible
@@ -366,17 +405,39 @@ export function ShipmentCreateContainerRow({
         fieldId={`container-${row.key}-declaration`}
         onRevert={(value) => updateContainer(row.key, 'declarationNumber', value)}
         mobileFieldChrome
+        className={declarationInline ? 'csc-container-cell--inline-declaration' : undefined}
       >
-        <TextField
-          id={`container-${row.key}-declaration`}
-          label="Số tờ khai"
-          hideLabel
-          value={row.declarationNumber}
-          onChange={(event) => updateContainer(row.key, 'declarationNumber', event.target.value)}
-          placeholder="Nhập số tờ khai"
-          maxLength={50}
-          disabled={saving}
-        />
+        {declarationInline ? (
+          <DeclarationInlineCell
+            shipmentId={declarationInline.shipmentId}
+            containerId={declarationInline.containerId}
+            expectedShipmentVersion={declarationInline.version}
+            value={row.declarationNumber}
+            canEdit
+            onSaved={declarationInline.onSaved}
+            ariaLabel={`Sửa số tờ khai · ${row.containerNumber.trim() || `container ${index + 1}`}`}
+            classNames={{
+              body: 'csc-decl-inline',
+              value: 'csc-decl-inline__value',
+              missing: 'csc-decl-inline__value csc-decl-inline__value--empty',
+              trigger: 'csc-decl-inline__trigger',
+              editor: 'csc-decl-inline__editor',
+              input: 'csc-decl-inline__input',
+              hint: 'csc-decl-inline__hint',
+            }}
+          />
+        ) : (
+          <TextField
+            id={`container-${row.key}-declaration`}
+            label="Số tờ khai"
+            hideLabel
+            value={row.declarationNumber}
+            onChange={(event) => updateContainer(row.key, 'declarationNumber', event.target.value)}
+            placeholder="Nhập số tờ khai"
+            maxLength={50}
+            disabled={saving}
+          />
+        )}
       </ShipmentContainerCell>
       <td className="csc-container-row__group" aria-hidden="true">Lộ trình</td>
       <ShipmentContainerCell

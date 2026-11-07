@@ -86,7 +86,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
    *  `canDeleteLot` (SIL-688) follows the same pattern: the host reads
    *  useAuth (BE delete = CUS/ADMIN), the workspace owns the confirm +
    *  version/lifecycle guards. */
-  viewTarget?: { shipmentId: number; canEditLot?: boolean; canDeleteLot?: boolean; /** SIL-453: the host's ADMIN/MANAGER/ACCOUNTANT gate for the lot-scope cost entry (BE requireExpenseFinance trio). */ canDeclareCost?: boolean };
+  viewTarget?: { shipmentId: number; canEditLot?: boolean; canDeleteLot?: boolean; /** SIL-453: the host's ADMIN/MANAGER/ACCOUNTANT gate for the lot-scope cost entry (BE requireExpenseFinance trio). */ canDeclareCost?: boolean; /** SIL-720: the host's SIL-551 gate for the per-container tờ khai write (ADMIN/MANAGER/CUS/DISPATCHER). */ canEditDeclaration?: boolean };
 } = {}) {
   const navigate = useNavigate();
   const viewMode = Boolean(viewTarget);
@@ -97,6 +97,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // SIL-453 (FB-098 restore): the review page's "Khai chi phí" gate — the
   // role half here, the accounting-lock half applied once the detail lands.
   const viewCanDeclareCost = Boolean(viewTarget?.canDeclareCost);
+  // SIL-720 (id 840): the per-container tờ khai edits INLINE on the lot page
+  // (view mode) — the writer law is the host's (SIL-551), the accounting-lock
+  // half is applied here once the detail lands.
+  const viewCanEditDeclaration = Boolean(viewTarget?.canEditDeclaration);
   const [catalogs, setCatalogs] = useState<CatalogData | null>(null);
   const [sites, setSites] = useState<OperationalSite[]>([]);
   // Card 261022093245: the SHARED Kho (CFS/Cảng) catalog — customer-independent
@@ -189,7 +193,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // SIL-171 edit + SIL-481 view: the pinned-lot fetch/prefill lives in its
   // own hook (structure-guard split debt, D1 note).
   const pinnedShipmentId = editTarget?.shipmentId ?? viewTarget?.shipmentId;
-  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode } = useShipmentWorkspacePrefill({
+  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, reload: reloadLot } = useShipmentWorkspacePrefill({
     pinnedShipmentId,
     viewMode,
     setForm,
@@ -1045,6 +1049,17 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                           onAddFactory={() => openCreateSiteDialog('FACTORY')}
                           saving={controlsDisabled}
                           viewMode={viewMode}
+                          declarationContext={viewMode ? {
+                            // SIL-720 (id 840): the inline tờ khai edit needs
+                            // the lot's identity + version (the container-line
+                            // command guards against a stale write) and the
+                            // writer gate. A locked lot (accounting) refuses
+                            // every write, so the affordance steps aside.
+                            shipmentId: pinnedShipmentId ?? null,
+                            version: editSeed?.version ?? null,
+                            canEdit: viewCanEditDeclaration && !viewLocked,
+                            onSaved: reloadLot,
+                          } : undefined}
                           routeOptions={routeOptions}
                           portOptions={portOptions}
                           dispatchedLocked={Boolean(editSeed?.hasDispatchedLegs)}

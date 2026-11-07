@@ -1,0 +1,12 @@
+2026-11-07T03:13:03.909Z login — {"user":"cus","url":"http://localhost:7192/shipments"}
+2026-11-07T03:13:04.150Z fixture — {"status":201,"id":779203,"error":null,"raw":"{\"id\":779203,\"shipmentCode\":\"SHP-2611-00363\",\"version\":1,\"customerId\":1,\"isAdHoc\":false,\"rawCustomerName\":null,\"rawRouteName\":null,\"routeId\":null,\"cargoTypeId\":null,\"responsibleUnitId\":null,\"status\":\"PENDING_DATE\",\"bookingRef\":null,\"blNumber\":\"R4B-F3-021184078\",\"tradeDirection\":\"IMPORT\",\"cargoMode\":"}
+2026-11-07T03:13:06.714Z inline-triggers — ["Sửa số tờ khai · FTST0000006","Sửa số tờ khai · FTST0000011"]
+2026-11-07T03:13:06.756Z editor-open — {"editorLabel":"Sửa số tờ khai · FTST0000006","hint":"Enter lưu · Esc thoát"}
+2026-11-07T03:13:07.022Z typed — {"typed":"TK-F3-021180278"}
+2026-11-07T03:13:10.031Z after-enter — {"toastLines":["Đã lưu số tờ khai — tự điền thêm cho 1 container còn trống của lô."]}
+2026-11-07T03:13:11.547Z after-save — {"toast":["Đã lưu số tờ khai — tự điền thêm cho 1 container còn trống của lô."],"cells":["TK-F3-021180278","TK-F3-021180278"]}
+2026-11-07T03:13:11.803Z api-proof — [{"containerNumber":"FTST0000006","declarationNumber":"TK-F3-021180278"},{"containerNumber":"FTST0000011","declarationNumber":"TK-F3-021180278"}]
+2026-11-07T03:13:11.855Z cleanup — {"shipmentId":779203,"deleteStatus":200}
+2026-11-07T03:13:11.856Z VERDICT — "PASS — inline tờ khai on the lot page (SIL-720)"
+2026-11-07T03:13:11.856Z fixture 779203 may still exist — delete it with DELETE /api/shipments/cus-workspace/779203 (reason: lane F3 probe).
+EXIT 0

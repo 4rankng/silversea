@@ -1,0 +1,9 @@
+2026-11-07T03:18:48.800Z login — {"user":"cus","url":"http://localhost:7192/shipments"}
+2026-11-07T03:18:53.734Z sil719-cbm-zero — {"value":"0","cellText":"Thể tích (CBM)","invalid":null,"pageHasOldError":false,"denominator":null}
+2026-11-07T03:18:53.993Z sil719-lcl-lot — {"id":779208,"stored":{"cargoVolumeCbm":"0.000","packageCount":10}}
+2026-11-07T03:18:54.044Z sil719-cleanup — {"id":779208,"deleteStatus":200}
+2026-11-07T03:18:55.638Z login — {"user":"dieuvan","url":"http://localhost:7192/dispatch"}
+2026-11-07T03:19:03.475Z sil702-lcl-row — {"found":true,"rowText":"05/11/2026 09:30 trả hàng LOG COM — Bill: BL660-UI Kho CFS Sil660 NM Sil660 UI Thuận Thành Nhập Lẻ 6 Pallet Sil660 0,42 tấn · 2,4 CBM TK660-","rowCount":19}
+2026-11-07T03:19:05.405Z sil702-options — {"dialogTitle":"Chỉnh sửa điều phối · BL660-UI","triggerFound":true,"dialogText":"Chỉnh sửa điều phối · BL660-UI Nhà xe Chọn nhà xe Xe / biển số Chọn biển số xe Phân loại Lẻ Lẻ Lấy Lẻ Hàng lẻ chỉ chọn Lẻ hoặc Lấy Lẻ — gắn với hình thức lô hàng. Cước thu dự kiến đ Cước trả dự kiến đ Giờ điều vận / / : ","options":["Lẻ","Lấy Lẻ"]}
+2026-11-07T03:19:05.536Z VERDICT — "PASS — SIL-719 (CBM = 0 legal) + SIL-702 (LCL row offers Lẻ + Lấy Lẻ)"
+EXIT 0

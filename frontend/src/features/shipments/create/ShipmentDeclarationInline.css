@@ -1,0 +1,42 @@
+/* SIL-720 (id 840) — the inline "Số tờ khai" cell on the lot page
+   (/shipments/:id, view mode).
+   The cell reuses the shared value-first chrome (ShipmentContainerCell): the
+   display line steps aside so the click-to-edit trigger is the only reading of
+   the value, and the trigger keeps the cell's type scale + padding so the
+   column never jumps when the editor opens. */
+
+.csc-container-cell--inline-declaration .csc-container-cell__display { display: none; }
+.csc-container-cell--inline-declaration .csc-container-cell__editor > * { opacity: 1; }
+
+.csc-decl-inline { display: flex; min-width: 0; }
+
+.csc-decl-inline__value {
+  display: flex; min-width: 0; align-items: center;
+  min-height: var(--control-touch-h); padding: 0 10px;
+  color: var(--fg-1); font-size: var(--text-data-size); line-height: 1.35;
+  white-space: normal; overflow-wrap: anywhere;
+}
+
+.csc-decl-inline__value--empty { color: var(--fg-3); }
+
+.csc-decl-inline__trigger {
+  display: flex; width: 100%; min-width: 0; align-items: center;
+  min-height: var(--control-touch-h); padding: 0 10px;
+  color: var(--fg-1); font-family: inherit; font-size: var(--text-data-size);
+  line-height: 1.35; text-align: left; white-space: normal;
+  overflow-wrap: anywhere; background: transparent; border: 0; cursor: pointer;
+}
+
+.csc-decl-inline__trigger.is-empty { color: var(--fg-3); }
+.csc-decl-inline__trigger:hover { text-decoration: underline; }
+
+.csc-decl-inline__editor { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+
+.csc-decl-inline__input {
+  width: 100%; min-height: var(--control-touch-h); padding: 0 10px;
+  color: var(--fg-1); font-family: inherit; font-size: var(--text-data-size);
+  background: var(--surface); border: 1px solid var(--control-border);
+  border-radius: var(--r-sm);
+}
+
+.csc-decl-inline__hint { color: var(--fg-3); font-size: var(--text-caption-size); }

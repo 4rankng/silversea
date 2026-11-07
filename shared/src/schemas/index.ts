@@ -122,7 +122,18 @@ const shipmentTimestamp = z.iso.datetime({ offset: true }).refine((value) => {
   return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
 }, 'Thời gian không phải ngày hợp lệ');
 const shipmentWeightKg = fixedScaleDecimal('Trọng lượng', 8, 2);
-const shipmentVolumeCbm = fixedScaleDecimal('Thể tích', 7, 3);
+/** Thể tích (CBM) — the volume rule of the INTAKE contracts: a non-negative
+ *  number (SIL-719 id 839: 0 is legal — "không có thể tích" is a real
+ *  answer), at most 7 integer digits and 3 decimals. The LCL create form
+ *  validates the field with this schema so the browser never sends a value
+ *  the API would reject with 400.
+ *
+ *  Known divergence (follow-up, not fixed here): the CUS-workspace container
+ *  contract keeps its own copy of the same rule with a 9-digit limit
+ *  (`shared/src/schemas/cus-shipment-workspace.ts`) — that copy matches the
+ *  `numeric(12,3)` column, this one is stricter. One owner per rule is the
+ *  law; reconciling the two copies needs the CUS workspace schema too. */
+export const shipmentVolumeCbm = fixedScaleDecimal('Thể tích', 7, 3);
 const shipmentPackageCount = z.coerce.number()
   .int('Số kiện phải là số nguyên')
   .nonnegative('Số kiện phải là số không âm')

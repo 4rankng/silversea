@@ -81,7 +81,11 @@ const isoDate = (value: string | null | undefined) =>
 
 function containerDraftFromRow(row: ShipmentEditDetail['containers'][number]): ShipmentContainerDraft {
   return {
-    key: crypto.randomUUID(),
+    // SIL-720 (id 840): a PERSISTED container keeps a STABLE draft key, so a
+    // re-read of the lot RECONCILES the rows instead of remounting them — the
+    // inline editor (and its draft) of another container survives the refresh
+    // that follows a save. A row with no id is a new draft: a random key.
+    key: row.id != null ? `c-${row.id}` : crypto.randomUUID(),
     id: row.id,
     containerNumber: row.containerNumber ?? '',
     containerTypeId: idString(row.containerTypeId),

@@ -775,7 +775,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.queryByText('Đóng kết hợp (kẹp chuyến)')).toBeNull();
   });
 
-  it('offers Lẻ ONLY on LCL rows — never Lấy Lẻ, never the cont models (card 20261006_392)', async () => {
+  it('offers the Lẻ + Lấy Lẻ pair on LCL rows and never the cont models (SIL-702)', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,
       shipmentVersion: 6,
@@ -797,13 +797,14 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     const trigger = screen.getByRole('button', { name: 'Lẻ Phân loại' });
     expect(trigger).not.toHaveAttribute('aria-disabled');
     fireEvent.click(trigger);
-    // Card 20261006_392: an LCL lot is ONE whole-lot LCL_SHIPMENT fulfillment and
-    // shipment_fulfillments_lcl_dispatch_classification_check pins its
-    // classification to 'LCL'. Offering 'Lấy Lẻ' here produced a save that died
-    // on that constraint as a raw 23514 surfaced as HTTP 500 — the option list
-    // must not offer a value the row can never store.
+    // SIL-702 (id 822): the LCL row's select is the cargo-mode-bound PAIR
+    // Lẻ / Lấy Lẻ (testplan/flows/02-dieuvan-dispatch.md §2.13; TC-DV-
+    // DISPATCH-053). 'Lấy Lẻ' is the empty-shell run and is storable again
+    // since migration 20261107094500 widened the DB check that had pinned an
+    // LCL_SHIPMENT row to 'LCL' (it predated the classification and turned a
+    // legal save into a raw 23514 → HTTP 500).
     expect(screen.getByRole('option', { name: 'Lẻ' })).toBeTruthy();
-    expect(screen.queryByRole('option', { name: 'Lấy Lẻ' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Lấy Lẻ' })).toBeTruthy();
     // The cont models stay off an LCL lot — it is bound to its cargo mode.
     expect(screen.queryByRole('option', { name: 'Đơn' })).toBeNull();
     expect(screen.queryByRole('option', { name: 'Kẹp' })).toBeNull();
@@ -817,6 +818,35 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(onAtomicSave).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ classification: 'LCL' }),
+    );
+  });
+
+  it('saves Lấy Lẻ on an LCL row — the dispatcher moves between the pair (SIL-702)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'LCL_PICKUP',
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    renderCell(row({
+      cargoMode: 'LCL',
+      fulfillmentType: 'LCL_SHIPMENT',
+      container: { containerNumber: null, containerTypeLabel: null, cargoWeightKg: null } as never,
+      classification: 'LCL' as never,
+    }), { onAtomicSave });
+    await openDialog();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lẻ Phân loại' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Lấy Lẻ' }));
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    expect(onAtomicSave).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ classification: 'LCL_PICKUP' }),
     );
   });
 

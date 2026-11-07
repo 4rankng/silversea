@@ -1,0 +1,41 @@
+=== 1. the check that ships today (pre-migration) ===
+                         conname                         |                                           definition                                            
+---------------------------------------------------------+-------------------------------------------------------------------------------------------------
+ shipment_fulfillments_lcl_dispatch_classification_check | CHECK (((fulfillment_type <> 'LCL_SHIPMENT'::text) OR (dispatch_classification = 'LCL'::text)))
+(1 row)
+
+=== 2. an LCL_SHIPMENT row to probe ===
+ id  | fulfillment_type | dispatch_classification 
+-----+------------------+-------------------------
+ 140 | LCL_SHIPMENT     | LCL
+ 168 | LCL_SHIPMENT     | LCL
+ 181 | LCL_SHIPMENT     | LCL
+(3 rows)
+
+BEGIN
+=== 3. the OLD check refuses LCL_PICKUP (23514) ===
+psql:<stdin>:24: NOTICE:  old check refused LCL_PICKUP as expected (SQLSTATE new row for relation "shipment_fulfillments" violates check constraint "shipment_fulfillments_lcl_dispatch_classification_check")
+DO
+=== 4. apply the lane migration (20261107094500) ===
+ALTER TABLE
+ALTER TABLE
+=== 5. the NEW check stores LCL_PICKUP on that LCL_SHIPMENT row ===
+DO
+psql:<stdin>:38: NOTICE:  stored LCL_PICKUP on fulfillment 140
+ id  | fulfillment_type | dispatch_classification 
+-----+------------------+-------------------------
+ 140 | LCL_SHIPMENT     | LCL_PICKUP
+ 168 | LCL_SHIPMENT     | LCL
+ 181 | LCL_SHIPMENT     | LCL
+(3 rows)
+
+=== 6. a cont model is still refused on an LCL row ===
+psql:<stdin>:54: NOTICE:  the new check still refuses a cont model (SQLSTATE new row for relation "shipment_fulfillments" violates check constraint "shipment_fulfillments_lcl_dispatch_classification_check")
+DO
+ROLLBACK
+=== 7. after ROLLBACK the shipped check is intact ===
+                         conname                         |                                           definition                                            
+---------------------------------------------------------+-------------------------------------------------------------------------------------------------
+ shipment_fulfillments_lcl_dispatch_classification_check | CHECK (((fulfillment_type <> 'LCL_SHIPMENT'::text) OR (dispatch_classification = 'LCL'::text)))
+(1 row)
+

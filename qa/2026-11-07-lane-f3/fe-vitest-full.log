@@ -1,0 +1,41 @@
+> vitest run
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/f3-small/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/config/MasterDataImportPage.sort.test.tsx (2 tests | 1 failed) 7193ms
+     × keeps the sheet order first, then sorts Dòng asc → desc 5272ms
+Not implemented: navigation to another Document
+calls=0
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/config/MasterDataImportPage.sort.test.tsx > MasterDataImportPage preview sort headers > keeps the sheet order first, then sorts Dòng asc → desc
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/MasterDataImportPage.sort.test.tsx:54:3
+     52|   });
+     53|
+     54|   it('keeps the sheet order first, then sorts Dòng asc → desc', async …
+       |   ^
+     55|     await renderWithAnalyzedBatch();
+     56|     expect(rowNumberColumn()).toEqual(['9', '2', '5']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 800 passed (801)
+      Tests  1 failed | 6279 passed (6280)
+   Start at  12:08:14
+   Duration  1661.09s (transform 72.41s, setup 494.42s, import 2435.37s, tests 2906.04s, environment 2132.07s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+FE TEST EXIT: 1
