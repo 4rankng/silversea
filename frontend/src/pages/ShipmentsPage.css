@@ -663,7 +663,23 @@
 /* Classifications are information, not controls (owner session ruling). */
 .cus-direction-badge--import,
 .cus-direction-badge--export,
+.cus-direction-badge--lcl,
 .cus-combined-tag { background: transparent; color: var(--ink-2) !important; border: 0; border-radius: 0; padding: 0; }
+
+.master-plan-grid__lcl-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-sm, 8px);
+  border-radius: 999px;
+  border: 1px solid var(--chip-open-border, rgba(16, 185, 129, 0.2));
+  background: var(--chip-open-bg, rgba(16, 185, 129, 0.1));
+  color: var(--chip-open-text, #059669);
+  font-size: var(--text-body-size, 13px);
+  line-height: 16px;
+  font-weight: 500;
+  margin-right: 6px;
+}
 
 /* The cell is the click target, so it carries the shared control floor. It was
    a bare 44px — a private number that contradicted the 2026-09-27 ceiling

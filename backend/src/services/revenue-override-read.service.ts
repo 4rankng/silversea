@@ -120,6 +120,8 @@ export async function loadFreightSnapshotChannelByLot(
     shipmentId: s.freightRateSnapshots.shipmentId,
     tripId: s.freightRateSnapshots.tripId,
     totalAmount: s.freightRateSnapshots.totalAmount,
+    pricingTableId: s.freightRateSnapshots.pricingTableId,
+    rateTermsId: s.freightRateSnapshots.rateTermsId,
     // FB-145 (card 231026163927) — the intake row's formula note decides
     // whether its amount is a live price or a group artifact (merge member
     // zero / "chờ định giá lại" citation) on an UNGROUPED lot.
@@ -147,6 +149,10 @@ export async function loadFreightSnapshotChannelByLot(
     // a freeze row counts 0 (Number(null) is finite 0), never a skipped leg.
     const rawAmount = Number(row.totalAmount);
     const amount = Number.isFinite(rawAmount) ? rawAmount : 0;
+    // SIL-731: an unpriced dummy snapshot (table 0, terms 0, total 0) is not a priced snapshot
+    if (row.pricingTableId === 0 && row.rateTermsId === 0 && amount === 0) {
+      continue;
+    }
     if (row.tripId != null) {
       tripLegFreight.set(lot, (tripLegFreight.get(lot) ?? 0) + amount);
     } else {

@@ -7,7 +7,7 @@ export function directionLabel(direction: ShipmentCusContainerFlatRow['direction
   // glance in the same direction cell.
   if (direction === 'IMPORT') return isLotLevel ? 'Nhập lẻ' : 'Nhập';
   if (direction === 'EXPORT') return isLotLevel ? 'Xuất lẻ' : 'Xuất';
-  return 'Chưa xác định';
+  return isLotLevel ? 'Lẻ' : '—';
 }
 
 export function formatScheduleTime(row: ShipmentCusContainerFlatRow): string | null {

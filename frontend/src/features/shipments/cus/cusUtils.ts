@@ -57,6 +57,12 @@ export function cargoModeLabel(cargoMode: ShipmentCusWorkspaceListItem['cargoMod
 }
 
 export function worksheetQuantity(item: ShipmentCusWorkspaceListItem): string {
+  if (item.cargoMode === 'LCL') {
+    if (item.packageCount != null) {
+      return `${formatNumber(item.packageCount)} ${item.packageType || 'kiện'}`;
+    }
+    return '—';
+  }
   if (item.operational.totalContainers > 0) {
     return `${formatNumber(item.operational.totalContainers)} cont`;
   }

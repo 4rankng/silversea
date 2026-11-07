@@ -215,9 +215,11 @@ export function CusShipmentRow({
           {/* No direction yet means no badge at all: a filled pill holding a
               bare '—' was chrome (and a generic placeholder) inside a data
               cell — design law §1 (text-only cells, name the missing field). */}
-          {item.direction && (
+          {item.direction ? (
             <span className={`cus-direction-badge cus-direction-badge--${item.direction.toLowerCase()}`}>{directionLabel(item.direction, item.cargoMode)}</span>
-          )}
+          ) : item.cargoMode === 'LCL' ? (
+            <span className="cus-direction-badge cus-direction-badge--lcl">Lẻ</span>
+          ) : null}
         </span></button>
       </td>)}
       {!isHidden('cargo') && (<td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
@@ -239,6 +241,14 @@ export function CusShipmentRow({
               return <span className="cus-cargo-summary__containers cus-empty">{emptyDayCargoLabel(item.cargoMode)}</span>;
             }
             const quantity = worksheetQuantity(item);
+            if (item.cargoMode === 'LCL') {
+              return (
+                <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <span className="master-plan-grid__lcl-chip" title="Hàng lẻ (LCL)">Lẻ</span>
+                  <strong className="cus-cargo-summary__containers">{quantity !== '—' ? quantity : 'Chưa có hàng hóa'}</strong>
+                </div>
+              );
+            }
             // Density + the text-only-cell law: when the card knows NOTHING about
             // the cargo, name the missing fact once instead of printing two em
             // dashes ("—" beside "— kg") on the dense fact row.

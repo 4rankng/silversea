@@ -1730,9 +1730,11 @@ export function ShipmentContainerLedger({
                           {row.carrierName
                             ? <NameCell as="strong" name={row.carrierName} />
                             : <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}
-                          {row.plateNumber
-                            ? <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
-                            : <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">{row.carrierType === 'EXTERNAL' ? 'CUS sẽ bổ sung' : 'Chưa gán biển số'}</BadgeWithDot>}
+                          {row.plateNumber ? (
+                            <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
+                          ) : row.carrierType === 'EXTERNAL' ? null : (
+                            <BadgeWithDot size="sm" color="warning" className="shipment-container-ledger__plate--missing">Chưa gán biển số</BadgeWithDot>
+                          )}
                         </>
                       )}
                     </div>)}
