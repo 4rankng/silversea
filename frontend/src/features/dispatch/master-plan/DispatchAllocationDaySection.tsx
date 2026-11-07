@@ -2,6 +2,7 @@ import { Calendar, Plus, Trash2 } from 'lucide-react';
 import type { CarrierAllocationOption } from '../../../components/shipment/CarrierAllocationSummary';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
+import { QuickAddButton } from '../../../components/shared/QuickAddButton';
 import { Input as UUIInput } from '../../../components/untitled-ui/base/input/input';
 import { UuiSelectField } from '../../../design-system';
 import {
@@ -25,6 +26,9 @@ interface DispatchAllocationDaySectionProps {
   onUpdateRow: (dayIndex: number, rowIndex: number, patch: Partial<AllocationRow>) => void;
   onAddRow: (dayIndex: number) => void;
   onRemoveRow: (dayIndex: number, rowIndex: number) => void;
+  /** SIL-390 — the row's chosen carrierKey, for the "+ Thêm nhanh biển số
+   *  xe" affordance beside the carrier select (owner law 2026-11-07). */
+  onQuickAddCarrier: (carrierKey: string) => void;
 }
 
 /**
@@ -46,6 +50,7 @@ export function DispatchAllocationDaySection({
   onUpdateRow,
   onAddRow,
   onRemoveRow,
+  onQuickAddCarrier,
 }: DispatchAllocationDaySectionProps) {
   const dayState = validation.state;
   const usedKeys = new Set(day.rows.map((r) => r.carrierKey));
@@ -99,23 +104,33 @@ export function DispatchAllocationDaySection({
             data-allocation-row={isMultiDay ? `${dayIndex}-${rowIndex}` : `${rowIndex}`}
           >
             <div role="cell" className="dispatch-allocation-popover__row-carrier">
-              <UuiSelectField
-                label="Nhà xe"
-                hideLabel
-                ariaLabel={`Nhà xe dòng ${rowNum}`}
-                wrapperClassName="dispatch-allocation-popover__carrier"
-                controlClassName="dispatch-allocation-popover__control"
-                value={row.carrierKey}
-                onChange={(event) => onUpdateRow(dayIndex, rowIndex, { carrierKey: event.target.value })}
-                hint={issue?.carrier ?? (optionsLoading ? 'Đang tải danh sách nhà xe…' : undefined)}
-                invalid={Boolean(issue?.carrier)}
-                disabled={optionsLoading}
-                options={options.map((option) => ({
-                  label: option.label,
-                  value: option.key,
-                  disabled: option.isActive === false,
-                }))}
-              />
+              {/* SIL-390 (owner law 2026-11-07, KB chương 3) — once the row
+                  has a chosen nhà xe (fresh rows default to đội xe nội bộ),
+                  the shared "+ Thêm nhanh" affordance rides the carrier cell:
+                  it registers a brand-new plate into THAT carrier's catalog
+                  without leaving the Phân bổ nhà xe flow. */}
+              <div className="dispatch-allocation-popover__carrier-quick">
+                <UuiSelectField
+                  label="Nhà xe"
+                  hideLabel
+                  ariaLabel={`Nhà xe dòng ${rowNum}`}
+                  wrapperClassName="dispatch-allocation-popover__carrier"
+                  controlClassName="dispatch-allocation-popover__control"
+                  value={row.carrierKey}
+                  onChange={(event) => onUpdateRow(dayIndex, rowIndex, { carrierKey: event.target.value })}
+                  hint={issue?.carrier ?? (optionsLoading ? 'Đang tải danh sách nhà xe…' : undefined)}
+                  invalid={Boolean(issue?.carrier)}
+                  disabled={optionsLoading}
+                  options={options.map((option) => ({
+                    label: option.label,
+                    value: option.key,
+                    disabled: option.isActive === false,
+                  }))}
+                />
+                {options.some((option) => option.key === row.carrierKey) && (
+                  <QuickAddButton onClick={() => onQuickAddCarrier(row.carrierKey)} />
+                )}
+              </div>
             </div>
             <div role="cell" className="dispatch-allocation-popover__row-count" data-label="Container 20'">
               <UUIInput

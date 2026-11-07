@@ -1,15 +1,17 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { createInternalTruckMock, apiPostMock, formContextMock } = vi.hoisted(() => ({
+const { createInternalTruckMock, createCarrierFleetVehicleMock, apiPostMock, formContextMock } = vi.hoisted(() => ({
   createInternalTruckMock: vi.fn(),
+  createCarrierFleetVehicleMock: vi.fn(),
   apiPostMock: vi.fn(),
   formContextMock: vi.fn(),
 }));
 
 vi.mock('../../api/dispatchPlanningClient', () => ({
   createInternalTruck: createInternalTruckMock,
+  createCarrierFleetVehicle: createCarrierFleetVehicleMock,
 }));
 vi.mock('../../lib/api', () => ({
   api: { post: apiPostMock, get: vi.fn(), patch: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -23,6 +25,7 @@ import type { SelectOption, RouteOption, TrailerTypeOption } from '../../hooks/u
 
 const setTruckId = vi.fn();
 const setDriverId = vi.fn();
+const setExternalPlateNumber = vi.fn();
 
 function baseForm(overrides: Record<string, unknown> = {}) {
   return {
@@ -46,7 +49,7 @@ function baseForm(overrides: Record<string, unknown> = {}) {
     externalFreightCost: '',
     setExternalFreightCost: vi.fn(),
     externalPlateNumber: '',
-    setExternalPlateNumber: vi.fn(),
+    setExternalPlateNumber,
     externalDriverName: '',
     setExternalDriverName: vi.fn(),
     externalDriverPhone: '',
@@ -67,7 +70,7 @@ function baseForm(overrides: Record<string, unknown> = {}) {
 
 const props = {
   customers: [] as SelectOption[],
-  carrierCustomers: [] as SelectOption[],
+  carrierCustomers: [{ id: 55, label: 'Nhà xe Hải Vân' }] as SelectOption[],
   routes: [] as RouteOption[],
   trucks: [{ id: 3, label: '60C-12345' }] as SelectOption[],
   trailerTypes: [{ value: '40FT', label: '40FT' }] as TrailerTypeOption[],
@@ -93,9 +96,11 @@ function renderCard(form = baseForm()) {
 describe('TripInfoCard quick-add on vehicle/driver selectors (FB-066)', () => {
   beforeEach(() => {
     createInternalTruckMock.mockReset();
+    createCarrierFleetVehicleMock.mockReset();
     apiPostMock.mockReset();
     setTruckId.mockClear();
     setDriverId.mockClear();
+    setExternalPlateNumber.mockClear();
   });
 
   it('mounts a Thêm nhanh button beside Xe đầu kéo and Lái xe on the OWN branch', () => {
@@ -139,9 +144,38 @@ describe('TripInfoCard quick-add on vehicle/driver selectors (FB-066)', () => {
     expect(apiPostMock).not.toHaveBeenCalled();
   });
 
-  it('keeps the EXTERNAL branch quick-add free — the partner fields are free text', () => {
-    renderCard(baseForm({ carrierType: 'EXTERNAL' }));
+  // SIL-390 (owner law 2026-11-07, KB chương 3 — supersedes the old
+  // "EXTERNAL branch stays quick-add free" pin): the XE NGOÀI branch carries
+  // the quick-add too. Before a đối tác is chosen there is no registration
+  // target, so the affordance waits; after choosing, it registers the plate
+  // into THAT đối tác's Xe ngoài catalog (luật 17/10) and fills the free-text
+  // field with the created plate.
+  it('EXTERNAL branch: no quick-add before a đối tác is chosen', () => {
+    renderCard(baseForm({ carrierType: 'EXTERNAL', externalCarrierId: null }));
     expect(screen.queryByText('Thêm nhanh')).toBeNull();
+  });
+
+  it('EXTERNAL branch: quick-add beside Biển số xe after choosing the đối tác; the created plate fills the field', async () => {
+    createCarrierFleetVehicleMock.mockResolvedValue({ id: 12, licensePlate: '51K-999.66' });
+    renderCard(baseForm({ carrierType: 'EXTERNAL', externalCarrierId: 55 }));
+
+    const plateField = screen.getByLabelText('Biển số xe').closest('.field') as HTMLElement;
+    fireEvent.click(withinFieldButton(plateField, 'Thêm nhanh'));
+
+    const dialog = (await screen.findByText('Thêm nhanh biển số xe')).closest('[role="dialog"]') as HTMLElement;
+    expect(dialog).toBeTruthy();
+    expect(dialog.textContent).toContain('Nhà xe Hải Vân');
+    // The dialog's plate input shares its label with the trip form's field —
+    // scope inside the dialog.
+    fireEvent.change(within(dialog).getByLabelText('Biển số xe'), { target: { value: '51k 999.66' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Áp dụng' }));
+
+    await waitFor(() => expect(createCarrierFleetVehicleMock).toHaveBeenCalledWith({ carrierId: 55, licensePlate: '51K 999.66' }));
+    expect(createInternalTruckMock).not.toHaveBeenCalled();
+    // onCreated hands back the CREATED row's plate — the mock's echo.
+    await waitFor(() => expect(setExternalPlateNumber).toHaveBeenCalledWith('51K-999.66'));
+    expect(setTruckId).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText('Thêm nhanh biển số xe')).toBeNull());
   });
 });
 
