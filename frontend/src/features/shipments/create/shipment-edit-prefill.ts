@@ -189,7 +189,9 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
       // carries ≥1 plan fulfillment, so its delete button was permanently
       // disabled. A payload missing the field (stale fixture) fails OPEN:
       // the BE delete re-checks the law server-side and answers 409.
-      hasDispatchedLegs: detail.hasLiveTrips === true,
+      hasDispatchedLegs: detail.hasLiveTrips === true
+        || detail.shipment.status === 'DISPATCHED'
+        || detail.shipment.status === 'COMPLETED',
       fclContainers: !isLcl,
       // SIL-660: LCL carries its declaration entity state (rowId null = no
       // row yet); FCL omits the key entirely.

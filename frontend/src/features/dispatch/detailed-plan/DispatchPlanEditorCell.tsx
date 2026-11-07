@@ -99,6 +99,8 @@ interface DispatchPlanEditorCellProps {
       rigOverlapCompletedConfirmed?: boolean;
       /** SIL-638 TC6.2 (id 742) — soft weight warning confirmation retry. */
       kepWeightWarningConfirmed?: boolean;
+      /** SIL-718 — confirm saving a Kẹp pair leg on a plate different from partner leg. */
+      kepPairSplitConfirmed?: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
   /** SIL-708 — Hủy phân xe flow for live issued trips (replaces Phân xe lại). */
@@ -781,7 +783,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
       classification: draft.classification,
       operationalNotes: draft.operationalNotes,
     };
-    const attemptSave = async (extra: { rigOverlapCompletedConfirmed?: boolean; kepWeightWarningConfirmed?: boolean }) => {
+    const attemptSave = async (extra: { rigOverlapCompletedConfirmed?: boolean; kepWeightWarningConfirmed?: boolean; kepPairSplitConfirmed?: boolean }) => {
       await onAtomicSave(row, { ...saveBody, ...extra });
     };
     try {
@@ -840,6 +842,22 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
           }
         } else {
           setError(err.message ?? 'Đã huỷ lưu.');
+        }
+      } else if (err.status === 409 && (err.raw?.code === 'KEP_PAIR_SPLIT_WARNING' || err.code === 'KEP_PAIR_SPLIT_WARNING' || (err.message?.includes('2 chân Kẹp phải cùng xe') ?? false))) {
+        // SIL-718 — soft split warning: prompt confirm before retry
+        const msg = err.message ?? '2 chân Kẹp phải cùng xe — hủy ghép trước nếu muốn tách.';
+        const prompt = msg.includes('Vẫn lưu?') ? msg : `${msg} Vẫn lưu?`;
+        const proceed = await confirm(prompt);
+        if (proceed) {
+          try {
+            await attemptSave({ kepPairSplitConfirmed: true });
+            setOpen(false);
+          } catch (retryError) {
+            const retry = retryError as { status?: number; message?: string };
+            setError(retry.status === 409 && retry.message ? retry.message : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+          }
+        } else {
+          setError(msg);
         }
       } else {
         setError(err.status === 409 && err.message

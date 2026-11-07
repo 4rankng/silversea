@@ -560,6 +560,10 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
    *  in the dialog — the confirmed retry rides the flag, exactly like the
    *  issue path's rigOverlapCompletedConfirmed. */
   rigOverlapCompletedConfirmed?: boolean;
+  /** SIL-638 TC6.2 (id 742) — soft weight warning confirmation retry. */
+  kepWeightWarningConfirmed?: boolean;
+  /** SIL-718 — confirm saving a Kẹp pair leg on a plate different from partner leg. */
+  kepPairSplitConfirmed?: boolean;
 }) {
   return api.patch<{
     fulfillmentId: number;

@@ -26,6 +26,11 @@ export const KEP_WEIGHT_WARNING_MESSAGE =
 /** 409 payload code the FE uses to offer the confirm-and-retry dialog. */
 export const KEP_WEIGHT_WARNING_CODE = 'KEP_WEIGHT_WARNING';
 
+/** SIL-718 — verbatim warning text when legs of a Kẹp pair are assigned different license plates. */
+export const KEP_PAIR_SPLIT_WARNING_MESSAGE =
+  '2 chân Kẹp phải cùng xe — hủy ghép trước nếu muốn tách.';
+export const KEP_PAIR_SPLIT_WARNING_CODE = 'KEP_PAIR_SPLIT_WARNING';
+
 /**
  * Length class of a container-type code ("20DV" → 20, "40HC" → 40). Codes
  * outside the two classes (or missing) resolve null — callers decide whether

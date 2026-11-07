@@ -382,6 +382,8 @@ export function useDispatchDetailPlan() {
       rigOverlapCompletedConfirmed?: boolean;
       /** SIL-638 (id 742) TC6(2) — soft weight warning confirmation retry. */
       kepWeightWarningConfirmed?: boolean;
+      /** SIL-718 — confirm saving a Kẹp pair leg on a plate different from partner leg. */
+      kepPairSplitConfirmed?: boolean;
     },
   ) => {
     setAssignmentError(null);

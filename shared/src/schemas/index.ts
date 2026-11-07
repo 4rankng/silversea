@@ -1357,6 +1357,8 @@ export const atomicDispatchPlanEditSchema = z.object({
    *  with this flag and it proceeds (chạy gối đầu onto a finished trip is
    *  legal). An ACTIVE (CREATED/IN_TRANSIT) overlap still blocks outright. */
   rigOverlapCompletedConfirmed: z.boolean().optional(),
+  /** SIL-718: confirm saving a Kẹp pair leg on a plate different from partner leg */
+  kepPairSplitConfirmed: z.boolean().optional(),
   /** Driver-facing note (shipments.operational_notes). Optional: an editor
    *  save that touches only plan fields omits it and the stored note stays
    *  untouched. '' clears the note; null ≡ '' for change detection. */

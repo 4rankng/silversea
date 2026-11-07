@@ -27,12 +27,12 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
-import { and, eq, inArray, isNotNull, isNull, lt, notInArray, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification } from '@tingting/shared';
 import * as s from '../db/schema';
 import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
 import { assertKepIssuingContainerClass, countDateOnlyTripClaims } from './dispatch-resource-availability.service';
-import { busyDayClaimOverlaps, busyRigWarnMessage, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, MIXED_DECLARATION_KEP_WARN_MESSAGE, rigConflictBusyMessage } from './trip-pair-rules.service';
+import { busyDayClaimOverlaps, busyRigWarnMessage, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, KEP_PAIR_SPLIT_WARNING_CODE, KEP_PAIR_SPLIT_WARNING_MESSAGE, MIXED_DECLARATION_KEP_WARN_MESSAGE, rigConflictBusyMessage } from './trip-pair-rules.service';
 import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
@@ -74,6 +74,8 @@ export interface UpdateDispatchDetailPlanInput {
    *  before this retry. Covers both warn tiers (a COMPLETED trip's window and
    *  a display-slot overlap) and lets the confirmed save proceed. */
   rigOverlapCompletedConfirmed?: boolean;
+  /** SIL-718 — the dispatcher confirmed saving a Kẹp pair leg on a plate different from partner leg. */
+  kepPairSplitConfirmed?: boolean;
   /** Driver-facing note (shipments.operational_notes). Undefined = note
    *  untouched by this save. '' clears; null ≡ '' for change detection. */
   operationalNotes?: string | null;
@@ -1276,6 +1278,63 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   if (input.classification && fulfillment.fulfillmentType === 'LCL_SHIPMENT'
     && input.classification !== 'LCL') {
     throw new ApiError(409, 'Phân loại không hợp lệ cho lô Hàng lẻ. Lô hàng lẻ là một tác vụ cả lô nên chỉ dùng phân loại "Lẻ".');
+  }
+
+  // SIL-718: When assigning or changing vehicle / classification on a Kẹp (DOUBLE) pair leg,
+  // both legs must share the same rig. Editing one leg to a different plate without confirming
+  // emits KEP_PAIR_SPLIT_WARNING ("2 chân Kẹp phải cùng xe — hủy ghép trước nếu muốn tách").
+  const effectiveClassification = input.classification ?? fulfillment.dispatchClassification;
+  if (effectiveClassification === 'DOUBLE') {
+    const rawPlateCandidate = vehicleSelected
+      ? vehicle?.plannedVehiclePlateNumber
+      : fulfillment.plannedVehiclePlateNumber;
+    if (rawPlateCandidate != null && rawPlateCandidate.trim() !== '') {
+      const incomingPlate = normalizeFreeTextPlate(rawPlateCandidate);
+      // 1. Check intra-lot sibling fulfillment(s) declared as DOUBLE
+      const siblingFulfillments = await tx.select({
+        id: s.shipmentFulfillments.id,
+        plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+      })
+        .from(s.shipmentFulfillments)
+        .where(and(
+          eq(s.shipmentFulfillments.shipmentId, shipment.id),
+          ne(s.shipmentFulfillments.id, fulfillment.id),
+          isNull(s.shipmentFulfillments.canceledAt),
+          eq(s.shipmentFulfillments.dispatchClassification, 'DOUBLE'),
+        ));
+      for (const sib of siblingFulfillments) {
+        if (sib.plannedVehiclePlateNumber != null && sib.plannedVehiclePlateNumber.trim() !== '') {
+          const sibPlate = normalizeFreeTextPlate(sib.plannedVehiclePlateNumber);
+          if (sibPlate !== '' && sibPlate !== incomingPlate && !input.kepPairSplitConfirmed) {
+            throw new ApiError(409, KEP_PAIR_SPLIT_WARNING_MESSAGE, undefined, { code: KEP_PAIR_SPLIT_WARNING_CODE });
+          }
+        }
+      }
+      // 2. Check cross-lot active KEP pair partner
+      const activeKepPartner = await findActiveKepPairPartnerByFulfillment(tx, fulfillment.id);
+      if (activeKepPartner != null) {
+        const [partnerTrip] = await tx.select({
+          fulfillmentId: s.trips.fulfillmentId,
+        })
+          .from(s.trips)
+          .where(and(eq(s.trips.id, activeKepPartner.partnerTripId), isNull(s.trips.deletedAt)))
+          .limit(1);
+        if (partnerTrip?.fulfillmentId != null) {
+          const [partnerFulfillment] = await tx.select({
+            plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+          })
+            .from(s.shipmentFulfillments)
+            .where(eq(s.shipmentFulfillments.id, partnerTrip.fulfillmentId))
+            .limit(1);
+          if (partnerFulfillment?.plannedVehiclePlateNumber != null && partnerFulfillment.plannedVehiclePlateNumber.trim() !== '') {
+            const partnerPlate = normalizeFreeTextPlate(partnerFulfillment.plannedVehiclePlateNumber);
+            if (partnerPlate !== '' && partnerPlate !== incomingPlate && !input.kepPairSplitConfirmed) {
+              throw new ApiError(409, KEP_PAIR_SPLIT_WARNING_MESSAGE, undefined, { code: KEP_PAIR_SPLIT_WARNING_CODE });
+            }
+          }
+        }
+      }
+    }
   }
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
     plannedCarrierType: input.carrierType,
