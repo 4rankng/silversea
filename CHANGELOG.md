@@ -1,5 +1,68 @@
 # Changelog
 
+## 2026-11-07 — fix(dispatch/shipments): SIL-702 + SIL-719 + SIL-720 (id 822/839/840) — lô hàng lẻ chọn được "Lấy Lẻ", CBM = 0 là giá trị hợp lệ, sửa số tờ khai inline ngay trên trang lô
+
+Lane F3 trên `fix/f3-small` (base `95e2bd13`), 5 ticket (SIL-390 + SIL-703 xác nhận,
+không đổi code — xem cuối mục).
+
+- **SIL-702 — dòng LCL chọn được "Lấy Lẻ" (LCL_PICKUP) trong "Chỉnh sửa điều
+  phối".** Trước fix, select "Phân loại" của dòng hàng lẻ chỉ có "Lẻ" trong khi
+  hint của chính dialog vẫn hứa "Hàng lẻ chỉ chọn Lẻ hoặc Lấy Lẻ" — dòng
+  LCL bị thu hẹp vào 06/10 (`007352d6`) vì check DB
+  `shipment_fulfillments_lcl_dispatch_classification_check` (thêm **20/08**, tức
+  TRƯỚC khi có phân loại "Lấy Lẻ") ghim `LCL_SHIPMENT` vào `'LCL'`, nên lưu
+  "Lấy Lẻ" chết với 23514 → HTTP 500; cách vá là BỎ option thay vì mở rộng
+  check. Luật đã ghi ở `testplan/flows/02-dieuvan-dispatch.md` §2.13 (03/10) +
+  `TC-DV-DISPATCH-053` ("Dòng LCL chỉ chọn được Lẻ/Lấy Lẻ") chưa được làm
+  đúng. Fix = migration `20261107094500_lcl_fulfillment_lcl_pickup_classification`
+  (chỉ MỞ RỘNG, không restate dữ liệu) + chốt chặn ở write path nới theo cặp
+  (module thuần `backend/src/services/dispatch-plan-classification.ts`) + select
+  trả lại đủ 2 option. Mô hình cont (Đơn/Kẹp/Kết hợp) vẫn bị chặn 409 như cũ.
+- **SIL-719 — nhập CBM = 0 không còn bị chặn.** CBM là trường tùy chọn (SIL-328
+  đã bỏ `required`) và contract chung đã chấp nhận số KHÔNG ÂM
+  (`shipmentVolumeCbm`); chỉ có readiness của form LCL chặn `<= 0` nên khách
+  gõ 0 (ý "không có thể tích") không lưu được lô. Form nay kiểm bằng chính
+  schema chung (một chủ sở hữu cho luật) → 0 lưu được, chỉ số ÂM (hoặc giá trị
+  sai định dạng) mới chặn, và form không bao giờ gửi giá trị mà API sẽ trả 400.
+- **SIL-720 — sửa số tờ khai INLINE ngay trên trang lô (/shipments/:id).** Trước
+  fix, ô SỐ TỜ KHAI ở chế độ xem chỉ hiển thị; CUS phải mở "Sửa" (cả form) hoặc
+  sang lưới `/shipments-detail`. Nay ô đó là cell inline DÙNG CHUNG
+  (`features/shipments/detail/DeclarationInlineCell.tsx` — lưới điều vận đã
+  chuyển sang dùng chính cell này; drawer "Chi tiết container" giữ ô
+  click-to-edit riêng vì nó sửa SỐ CONTAINER trên cùng tương tác): click để mở
+  editor nổi, Enter lưu qua lệnh per-container, Esc hoàn tác. Phần "Ghi chú thêm"
+  của ticket (trang lô hiện 2 dòng có số, 1 dòng trống trong khi lưới báo đã
+  đồng bộ hết) là do trang lô đọc dữ liệu cũ — nay trang lô tự đọc lại sau khi
+  lưu nên hiện đủ (tự điền thêm FB-109 chạy ở server).
+- **SIL-390 — KHÔNG đổi code: field-set FCL của "Phân bổ nhà xe" không có ô
+  biển số theo contract.** Bản ghi FB-066 lần 3 (card 201026101600, 20/10) đã
+  chốt: FCL là "số cont 20'/40' theo nhà xe theo ngày" — biển số của lô cont
+  gán ở Kế hoạch Chi tiết ("Xe / biển số", có quick-add); wire contract
+  `shipmentCarrierAllocationSchema` cũng không có trường biển số. Nút "+ Thêm
+  nhanh" có ở MỌI mặt sở hữu biển số (editor điều phối, Gán xe nhóm,
+  `/trips/new`, field-set LCL của dialog phân bổ). Đã ghim lại contract để lần
+  quét sau không báo nhầm.
+- **SIL-703 — xác nhận: trang quản lý phiên bản chính sách CÓ, ở
+  `/config/app-settings` → tab "Chính sách báo cáo" (ADMIN-only).** Trang không
+  bị xóa (commit `58557c19` là ancestor của HEAD); SIL-197 đã sửa mô tả Cmd-K
+  để tìm được theo từ khóa "Chính sách báo cáo". Đã ghim entry để không mất
+  lần nữa.
+
+Evidence: `qa/2026-11-07-lane-f3/` — UI DRIVEN: `driver-sil720-inline-declaration.mjs`
+exit 0 (mở ô → gõ → Enter → lưu → tự điền thêm cho container còn trống → hai
+dòng đều hiện số trên chính trang lô), `driver-sil719-sil702.mjs` exit 0 (CBM = 0
+không báo lỗi và lô LCL lưu được `cargoVolumeCbm = 0.000`; select Phân loại LCL
+ra đúng Lẻ + Lấy Lẻ). SIL-702 END-TO-END: `probe-sil702-end-to-end.mjs` exit 0 —
+clone DB `silversea_f3` (DB dev KHÔNG bị migrate) + migration của lane + backend
+của lane chạy trên clone: PATCH plan của một dòng LCL_SHIPMENT trả **200** với
+`classification = LCL_PICKUP`, đọc lại DB thấy `LCL_SHIPMENT | LCL_PICKUP`, còn
+mô hình cont vẫn bị **409** ("Phân loại không hợp lệ cho lô Hàng lẻ…"). DB:
+`sil702-constraint-probe.log` — check mới nhận `LCL_PICKUP` trên dòng
+`LCL_SHIPMENT` thật (mô hình cont vẫn bị check từ chối), ROLLBACK nên DB dev
+không đổi. Gates: FE scoped 24/24 + 91/91 + 3/3 + 9/9 · BE unit 973/973 (+1
+wiring pin) · BE integration 342/342 · FE tsc 0 · BE tsc 0 · lint 0 lỗi ·
+`make build` ✓ · uiux AUDIT Approve (comment 4269 trên SIL-720).
+
 ## 2026-11-07 — fix(shipments/accounting): SIL-699 + SIL-701 + SIL-717 (id 819/821/837) — Tổng quan lô hàng mở drawer tại chỗ (không rời trang), cột NGÀY chốt debit hiện đủ DD/MM/YYYY, thêm cont mới copy dòng trên trừ số cont + loại cont
 
 Lane R4 trên `fix/r4-small-ui` (base `25dc1a2e`), 4 ticket khách/QA báo (SIL-700

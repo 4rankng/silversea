@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/f3-small/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  12:36:24
+   Duration  10.18s (transform 2.37s, setup 425ms, import 5.46s, tests 1.47s, environment 2.29s)
+
+ISOLATION EXIT: 0

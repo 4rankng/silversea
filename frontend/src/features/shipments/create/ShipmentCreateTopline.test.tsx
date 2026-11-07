@@ -121,10 +121,14 @@ describe('required completion — the whole form, live', () => {
   });
 
   it('counts an entered-invalid optional CBM in the denominator instead of claiming done', () => {
-    const invalidCbm = { ...FULL_LCL_FORM, cargoVolumeCbm: '0' };
-    // The optional field is not a required slot, but shipping it still blocks:
-    // 10 required done + 1 extra blocker.
-    expect(completion(invalidCbm, [])).toEqual({ done: 10, total: 11 });
+    // SIL-719 (id 839): 0 is a LEGAL volume ("không có thể tích"), so the
+    // optional field is no longer a blocker at 0 — only a negative one is.
+    const zeroCbm = { ...FULL_LCL_FORM, cargoVolumeCbm: '0' };
+    expect(completion(zeroCbm, [])).toEqual({ done: 10, total: 10 });
+
+    // A negative volume still blocks — and it is counted, not silently dropped.
+    const negativeCbm = { ...FULL_LCL_FORM, cargoVolumeCbm: '-1' };
+    expect(completion(negativeCbm, [])).toEqual({ done: 10, total: 11 });
   });
 
   it('accepts typed text for the LCL operating points (FB-105)', () => {

@@ -1,0 +1,92 @@
+⚠️  Web Push disabled — set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY to enable
+{"level":30,"time":1794025187327,"pid":46791,"hostname":"mini","msg":"[casbin] Enforcer initialized — 140 policies loaded"}
+{"level":30,"time":1794025187370,"pid":46791,"hostname":"mini","job":"scheduler-heartbeat","cron":"* * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1794025187370,"pid":46791,"hostname":"mini","job":"receivable-reminder","cron":"*/15 * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1794025187371,"pid":46791,"hostname":"mini","job":"receivable-reminder-retry","cron":"*/15 * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1794025187371,"pid":46791,"hostname":"mini","job":"fund-negative-alert","cron":"*/15 * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1794025187371,"pid":46791,"hostname":"mini","job":"durable-effect-dispatch","cron":"* * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1794025187371,"pid":46791,"hostname":"mini","job":"retention-daily","cron":"15 3 * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1794025187371,"pid":46791,"hostname":"mini","job":"scheduler-stale-sweeper","cron":"5 * * * *","msg":"scheduler: scheduled"}
+{"level":30,"time":1794025187371,"pid":46791,"hostname":"mini","count":7,"msg":"scheduler started"}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42710',
+  message: 'extension "unaccent" already exists, skipping',
+  file: 'extension.c',
+  line: '2017',
+  routine: 'CreateExtension'
+}
+{"level":30,"time":1794025187633,"pid":46791,"hostname":"mini","msg":"PostgreSQL unaccent extension initialized successfully."}
+{"level":30,"time":1794025187735,"pid":46791,"hostname":"mini","msg":"[Boot] redis ok at redis://localhost:6391"}
+{"level":30,"time":1794025187739,"pid":46791,"hostname":"mini","msg":"NEPO API running on port 3005 [development]"}
+{"level":30,"time":1794025200147,"pid":46791,"hostname":"mini","msg":"[scheduler] heartbeat tick"}
+{"level":30,"time":1794025200161,"pid":46791,"hostname":"mini","job":"scheduler-heartbeat","attempt":1,"msg":"scheduler: job succeeded"}
+{"level":30,"time":1794025200193,"pid":46791,"hostname":"mini","job":"durable-effect-dispatch","attempt":1,"msg":"scheduler: job succeeded"}
+{"level":30,"time":1794025207749,"pid":46791,"hostname":"mini","trace_id":"267738d6e363e0e51a84cbbf471e797d","span_id":"fad023c8b78d3d9a","msg":"POST /api/auth/login 400 12ms"}
+{"level":30,"time":1794025239511,"pid":46791,"hostname":"mini","trace_id":"9d1a12b8810abeceeae7cfed72d5f832","span_id":"ba74c0917b598c3a","msg":"POST /login 200 645ms"}
+{"level":30,"time":1794025239769,"pid":46791,"hostname":"mini","trace_id":"d32ece373c3d1467719cb13dd5f6e130","span_id":"141dfc3cdccb107e","msg":"GET /dispatch-detail-plan-rows 200 170ms"}
+{"level":30,"time":1794025239824,"pid":46791,"hostname":"mini","trace_id":"a17b313bf95754e03e4b1accc8fc641f","span_id":"14decb6b284c73de","msg":"PATCH /api/shipments/dispatch-detail-plan-rows/140/plan 409 49ms"}
+{"level":30,"time":1794025260064,"pid":46791,"hostname":"mini","msg":"[scheduler] heartbeat tick"}
+{"level":30,"time":1794025260066,"pid":46791,"hostname":"mini","job":"scheduler-heartbeat","attempt":1,"msg":"scheduler: job succeeded"}
+{"level":30,"time":1794025260076,"pid":46791,"hostname":"mini","job":"durable-effect-dispatch","attempt":1,"msg":"scheduler: job succeeded"}
+{"level":30,"time":1794025264447,"pid":46791,"hostname":"mini","trace_id":"86fb954fde6a8798a6b3cbfc1b328ec7","span_id":"b5ccd1b294b3615a","msg":"POST /login 200 337ms"}
+{"level":30,"time":1794025264522,"pid":46791,"hostname":"mini","trace_id":"18511032da4b999f8cde229df3aa3d4a","span_id":"0ce34f560d9ebaea","msg":"GET /dispatch-detail-plan-rows 200 66ms"}
+{"level":30,"time":1794025264673,"pid":46791,"hostname":"mini","trace_id":"71ea456264bfe956614650e8e79d73c4","span_id":"7ea48475be7aa9b1","msg":"PATCH /dispatch-detail-plan-rows/181/plan 200 145ms"}
+{"level":30,"time":1794025264862,"pid":46791,"hostname":"mini","trace_id":"af6b3ab908206b016e631d92041fe2c4","span_id":"d433438927fa64cb","msg":"PATCH /api/shipments/dispatch-detail-plan-rows/181/plan 409 178ms"}
+{
+  resource: {
+    attributes: {
+      'host.name': 'mini',
+      'host.arch': 'arm64',
+      'host.id': '79DC6818-2A91-55DB-85FB-BE5709D37783',
+      'process.pid': 46791,
+      'process.executable.name': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.executable.path': '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+      'process.command_args': [
+        '/Users/dev/.nvm/versions/node/v25.8.1/bin/node',
+        '--require',
+        '/Users/dev/.paseo/worktrees/1njkloyy/f3-small/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/preflight.cjs',
+        '--import',
+        'file:///Users/dev/.paseo/worktrees/1njkloyy/f3-small/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/loader.mjs',
+        '/Users/dev/.paseo/worktrees/1njkloyy/f3-small/backend/src/index.ts'
+      ],
+      'process.runtime.version': '25.8.1',
+      'process.runtime.name': 'nodejs',
+      'process.runtime.description': 'Node.js',
+      'process.command': '/Users/dev/.paseo/worktrees/1njkloyy/f3-small/backend/src/index.ts',
+      'process.owner': 'dev',
+      'service.name': 'transting-backend'
+    }
+  },
+  instrumentationScope: {
+    name: '@opentelemetry/instrumentation-net',
+    version: '0.67.0',
+    schemaUrl: undefined
+  },
+  traceId: '1c5c99b9db96bd33289dd5dee8ca5837',
+  parentSpanContext: undefined,
+  traceState: undefined,
+  name: 'tcp.connect',
+  id: '9eaeef165e75fc6f',
+  kind: 0,
+  timestamp: 1794025260054000,
+  duration: 3475.375,
+  attributes: {
+    'network.transport': 'tcp',
+    'server.address': 'localhost',
+    'server.port': 5441,
+    'network.peer.address': '::1',
+    'network.local.address': '::1',
+    'network.local.port': 58067
+  },
+  status: { code: 0 },
+  events: [],
+  links: []
+}
+{"level":30,"time":1794025271389,"pid":46791,"hostname":"mini","trace_id":"753ec957d68901abe308f681e3023dad","span_id":"45a212ff2b96d681","msg":"POST /login 200 357ms"}
+{"level":30,"time":1794025271521,"pid":46791,"hostname":"mini","trace_id":"e502ee0ea1b423e44f1c4217d991186e","span_id":"54cab49fb6ed2239","msg":"GET /dispatch-detail-plan-rows 200 112ms"}
+{"level":30,"time":1794025271676,"pid":46791,"hostname":"mini","trace_id":"55bb60bbe0499b35955a7e4103b438ed","span_id":"27375dea2f1bc736","msg":"PATCH /dispatch-detail-plan-rows/181/plan 200 144ms"}
+{"level":30,"time":1794025271735,"pid":46791,"hostname":"mini","trace_id":"45902385d30c92044d0c31b77f8157c3","span_id":"13811edd94eb870a","msg":"PATCH /api/shipments/dispatch-detail-plan-rows/181/plan 409 32ms"}
+{"level":30,"time":1794025286244,"pid":46791,"hostname":"mini","msg":"\nSIGTERM received — shutting down…"}
+{"level":30,"time":1794025286247,"pid":46791,"hostname":"mini","msg":"scheduler stopped"}

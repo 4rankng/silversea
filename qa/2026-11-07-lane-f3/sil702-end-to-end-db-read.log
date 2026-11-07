@@ -1,0 +1,5 @@
+ id  | fulfillment_type | dispatch_classification | version 
+-----+------------------+-------------------------+---------
+ 181 | LCL_SHIPMENT     | LCL_PICKUP              |       3
+(1 row)
+

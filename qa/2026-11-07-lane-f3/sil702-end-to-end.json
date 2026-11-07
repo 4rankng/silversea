@@ -1,0 +1,7 @@
+{
+  "fulfillmentId": 181,
+  "saveStatus": 200,
+  "savedClassification": "LCL_PICKUP",
+  "contModelStatus": 409,
+  "contModelMessage": "Phân loại không hợp lệ cho lô Hàng lẻ. Lô hàng lẻ chỉ dùng phân loại \"Lẻ\" hoặc \"Lấy Lẻ\"."
+}

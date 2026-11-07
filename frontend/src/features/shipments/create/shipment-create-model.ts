@@ -1,5 +1,5 @@
 import { localDateTimeToIso } from '../../../lib/shipment-operations';
-import { ShipmentStatus } from '@tingting/shared';
+import { ShipmentStatus, shipmentVolumeCbm } from '@tingting/shared';
 
 export type CargoMode = 'FCL' | 'LCL';
 export type SaveIntent = 'DRAFT' | 'CREATE' | 'SUBMIT';
@@ -314,9 +314,19 @@ export function getShipmentCreateReadiness(
     if (!form.packageType) issues.push(issue('shipment-package-type', 'Nhập quy cách đóng gói.', 'cargo'));
     if (!form.packageCount || Number(form.packageCount) < 1) issues.push(issue('shipment-package-count', 'Nhập số lượng kiện lớn hơn 0.', 'cargo'));
     if (!form.cargoWeightKg || Number(form.cargoWeightKg) <= 0) issues.push(issue('shipment-cargo-weight', 'Nhập trọng lượng lớn hơn 0.', 'cargo'));
-    // Helpdesk 2026-10-13 (ops Tiếp Vu): CBM is optional for LCL — blank (or
-    // whitespace-only) is not an issue; an entered value must still be > 0.
-    if (form.cargoVolumeCbm.trim() && Number(form.cargoVolumeCbm) <= 0) issues.push(issue('shipment-cargo-volume', 'Nhập thể tích lớn hơn 0.', 'cargo'));
+    // SIL-719 (id 839): CBM is optional for LCL (SIL-328 dropped `required`)
+    // and the shared contract owns the rule — "Thể tích phải là số không âm"
+    // — so a typed 0 is a LEGAL value ("không có thể tích" is a real answer)
+    // and the customer must be able to save it. Only a negative or malformed
+    // volume is an issue, and the shared schema is the single owner of that
+    // rule: the form never sends a value the API would answer with 400.
+    const cbm = form.cargoVolumeCbm.trim();
+    if (cbm) {
+      const parsedCbm = shipmentVolumeCbm.safeParse(cbm);
+      if (!parsedCbm.success) {
+        issues.push(issue('shipment-cargo-volume', parsedCbm.error.issues[0]?.message ?? 'Thể tích không hợp lệ.', 'cargo'));
+      }
+    }
     // SIL-587: one required "Ngày giờ đóng trả" datetime. A stored EDD
     // (edit-prefilled legacy lot) also satisfies the schedule requirement, so
     // editing an old lot is never blocked on re-entering the new field.

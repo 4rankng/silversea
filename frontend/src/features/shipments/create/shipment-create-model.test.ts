@@ -654,8 +654,10 @@ describe('shipment create model', () => {
   // Helpdesk 2026-10-13 (ops Tiếp Vu): "hàng lẻ: phần thể tích (cbm) k bắt
   // buộc cần nhập" — CBM is optional on the LCL create path. A blank (or
   // whitespace-only) volume raises no validation issue and round-trips as
-  // null, never 0; an entered value must still be > 0 (zero-rejection pin
-  // in the test below stays).
+  // null, never 0. SIL-719 (id 839): an entered 0 is ALSO legal now — the
+  // customer types 0 to mean "không có thể tích" and must be able to save
+  // it; only a negative or malformed volume is an issue (the shared schema
+  // owns that rule).
   it('treats LCL cargo volume (CBM) as optional and round-trips blank as null', () => {
     const lclWithoutCbm = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
@@ -720,6 +722,9 @@ describe('shipment create model', () => {
   });
 
   it('rejects zero-valued LCL quantities and preserves the common factory detail', () => {
+    // SIL-719 (id 839): the VOLUME is the one zero the customer may enter —
+    // 0 CBM means "không có thể tích" and is legal (the shared contract
+    // says "số không âm"). Số lượng kiện and trọng lượng still block at 0.
     const form = {
       ...EMPTY_SHIPMENT_CREATE_FORM,
       customerId: '7',
@@ -741,13 +746,50 @@ describe('shipment create model', () => {
     expect(readiness.issues.map((item) => item.fieldId)).toEqual([
       'shipment-package-count',
       'shipment-cargo-weight',
-      'shipment-cargo-volume',
     ]);
     expect(buildShipmentRootPayload(form, [container], [{ id: 41, name: 'Nhà máy Long Minh' }])).toMatchObject({
       operationalSiteId: 41,
       factoryName: 'Nhà máy Long Minh',
       pickupWarehouseSiteId: 42,
     });
+  });
+
+  it('SIL-719 (id 839): CBM = 0 saves as a legal volume — only a negative one blocks', () => {
+    // The customer types 0 to mean "không có thể tích" and must be able to
+    // save the lot (the old "> 0" rule blocked it with "Nhập thể tích lớn
+    // hơn 0."). The shared contract owns the rule: non-negative, and the
+    // value reaches the wire unchanged so the API stores it.
+    const base = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      routeId: '11',
+      blNumber: 'BL-LCL-CBM-ZERO',
+      tradeDirection: 'IMPORT' as const,
+      cargoMode: 'LCL' as const,
+      cargoTypeId: '32',
+      operationalSiteId: '41',
+      pickupWarehouseSiteId: '42',
+      packageType: 'Pallet',
+      packageCount: '10',
+      cargoWeightKg: '5000',
+      expectedDeliveryDate: '2026-08-14',
+    };
+
+    const zero = { ...base, cargoVolumeCbm: '0' };
+    expect(getShipmentCreateReadiness(zero, []).issues).toEqual([]);
+    expect(getShipmentCreateReadiness(zero, []).dispatchReady).toBe(true);
+    expect(buildShipmentRootPayload(zero, [], []).cargoVolumeCbm).toBe('0');
+
+    // A negative volume is still refused, and the message names the rule.
+    const negative = { ...base, cargoVolumeCbm: '-1' };
+    const negativeIssues = getShipmentCreateReadiness(negative, []).issues;
+    expect(negativeIssues.map((item) => item.fieldId)).toEqual(['shipment-cargo-volume']);
+    expect(negativeIssues[0]?.message).toMatch(/không âm/i);
+
+    // A malformed value is refused too — the form never sends what the API
+    // would answer with 400.
+    const malformed = { ...base, cargoVolumeCbm: 'abc' };
+    expect(getShipmentCreateReadiness(malformed, []).issues.map((item) => item.fieldId)).toEqual(['shipment-cargo-volume']);
   });
 
   it('maps the per-container appointment date and time to customerAppointmentAt (ISO)', () => {

@@ -34,6 +34,7 @@ import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service
 import { assertKepIssuingContainerClass, countDateOnlyTripClaims } from './dispatch-resource-availability.service';
 import { busyDayClaimOverlaps, busyRigWarnMessage, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, MIXED_DECLARATION_KEP_WARN_MESSAGE, rigConflictBusyMessage } from './trip-pair-rules.service';
 import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
+import { isStorablePlanClassification, LCL_ROW_CLASSIFICATION_REFUSAL_MESSAGE } from './dispatch-plan-classification';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
   dispatchDetailPriorityOrderSql, listDispatchDetailPlanRows, listDispatchDeliveryPointFacets, listDispatchPortFacets,
@@ -1265,17 +1266,18 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       });
     }
   }
-  // Card 20261006_392: an LCL lot is ONE whole-lot LCL_SHIPMENT fulfillment, so
-  // its only legal classification is 'LCL'. The DB enforces that with
-  // shipment_fulfillments_lcl_dispatch_classification_check, and a save that
-  // reached it answered the dispatcher with a raw PostgresError 23514 surfaced as
-  // HTTP 500 'Lỗi máy chủ'. Refuse it as the business error it is, before the
-  // write. 'LCL_PICKUP' ("Lấy Lẻ") stays legal on a CONTAINER row — it is the
-  // 40'-trailer pickup run (see requiredTrailerTypeForFulfillment), and no
-  // fulfillment row in the database has ever carried it.
+  // SIL-702 (id 822): an LCL lot is ONE whole-lot LCL_SHIPMENT fulfillment, so
+  // its classification is the cargo-mode-bound PAIR Lẻ / Lấy Lẻ — the cont
+  // models (Đơn/Kẹp/Kết hợp) are the only illegal values. The DB check
+  // shipment_fulfillments_lcl_dispatch_classification_check pinned the row to
+  // 'LCL' alone (added 2026-08-20, before the 'Lấy Lẻ' classification
+  // existed), so saving 'Lấy Lẻ' hit it and answered the dispatcher with a raw
+  // PostgresError 23514 surfaced as HTTP 500 'Lỗi máy chủ'; the check now
+  // admits the pair (migration 20261107094500). Refuse a cont model as the
+  // business error it is, before the write.
   if (input.classification && fulfillment.fulfillmentType === 'LCL_SHIPMENT'
-    && input.classification !== 'LCL') {
-    throw new ApiError(409, 'Phân loại không hợp lệ cho lô Hàng lẻ. Lô hàng lẻ là một tác vụ cả lô nên chỉ dùng phân loại "Lẻ".');
+    && !isStorablePlanClassification(fulfillment.fulfillmentType, input.classification)) {
+    throw new ApiError(409, LCL_ROW_CLASSIFICATION_REFUSAL_MESSAGE);
   }
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
     plannedCarrierType: input.carrierType,

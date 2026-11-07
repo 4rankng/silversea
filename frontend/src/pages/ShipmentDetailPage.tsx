@@ -34,5 +34,11 @@ export default function ShipmentDetailPage() {
   // = ADMIN/MANAGER/ACCOUNTANT); the accounting-lock half is applied inside
   // the workspace once the detail lands (the card's "ẩn khi khóa kế toán").
   const canDeclareCost = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.ACCOUNTANT);
-  return <ShipmentCreateWorkspace viewTarget={{ shipmentId, canEditLot, canDeleteLot, canDeclareCost }} />;
+  // SIL-720 (id 840): the per-container tờ khai writes under the SIL-551
+  // writer law (the container-line command): ADMIN, MANAGER, CUS, ĐIỀU VẬN.
+  // The accounting-lock half is applied inside the workspace once the detail
+  // lands (a locked lot refuses every write).
+  const canEditDeclaration = !!user?.role
+    && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS || user.role === Role.DISPATCHER);
+  return <ShipmentCreateWorkspace viewTarget={{ shipmentId, canEditLot, canDeleteLot, canDeclareCost, canEditDeclaration }} />;
 }

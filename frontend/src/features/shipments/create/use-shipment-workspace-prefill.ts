@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getShipmentDetail } from '../../../api/shipmentClient';
 import { ApiError } from '../../../lib/api';
 import type { ShipmentContainerDraft, ShipmentCreateFormState } from './shipment-create-model';
@@ -48,13 +48,25 @@ export function useShipmentWorkspacePrefill({
   // (drawer context line names the Số Bill/Booking, never the internal id).
   const [viewLotCode, setViewLotCode] = useState<string | null>(null);
   const editRequestRef = useRef(0);
+  // SIL-720 (id 840): a silent refresh — the inline tờ khai save runs on the
+  // server (FB-109 auto-copies the number onto the lot's still-empty sibling
+  // containers), so the lot page must re-read to SHOW the synced rows. The
+  // reload keeps the current seed on screen (no blank skeleton) and only the
+  // fetched values change.
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const reload = useCallback(() => setReloadNonce((value) => value + 1), []);
 
   useEffect(() => {
     if (pinnedShipmentId == null) return;
     const reqId = ++editRequestRef.current;
-    setEditLoadError(null);
-    setViewLocked(false);
-    setEditSeed(null);
+    const isReload = reloadNonce > 0;
+    if (!isReload) {
+      setEditLoadError(null);
+      setViewLocked(false);
+      // A reload is a refresh, not a re-open: the seed stays mounted so the
+      // page never flashes an empty skeleton under the operator's cursor.
+      setEditSeed(null);
+    }
     setViewLotCode(null);
     getShipmentDetail(pinnedShipmentId)
       .then((detail) => {
@@ -83,6 +95,11 @@ export function useShipmentWorkspacePrefill({
       })
       .catch((error: unknown) => {
         if (editRequestRef.current !== reqId) return;
+        // SIL-720 (id 840): a FAILED RE-READ after a successful save must not
+        // replace the page with a dead-end error — the save already landed on
+        // the server, and the operator's data is on screen. The lot stays as it
+        // is; the next navigation re-reads it.
+        if (isReload) return;
         // SIL-593: a 404 is definitive — the lot does not exist, so retrying can
         // never succeed. It must not share the transient-failure wording (that
         // conflation read as "the page is broken" and masked an id/data gap).
@@ -94,7 +111,7 @@ export function useShipmentWorkspacePrefill({
       });
     // The setters are stable useState fns; pinnedShipmentId is the scalar the
     // comment above describes.
-  }, [pinnedShipmentId, setContainers, setCustomerNotes, setForm, viewMode]);
+  }, [pinnedShipmentId, reloadNonce, setContainers, setCustomerNotes, setForm, viewMode]);
 
-  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode };
+  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, reload };
 }
