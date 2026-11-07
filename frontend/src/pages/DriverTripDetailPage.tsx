@@ -20,7 +20,7 @@ import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
 import { DriverTaskInfoSections, DriverInvoiceSection, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
 import { EmptyState } from '../design-system';
-import { missingPodFilesMessage, podRequiredFilesReady } from '../lib/podReadiness';
+import { podRequiredFilesReady } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
@@ -452,7 +452,6 @@ function DriverTripDetailContent() {
   // completion — the strip names them so the driver uploads on the e-POD
   // screen first.
   const podHave = (hasYardReceipt ? 1 : 0) + (hasSignedNote ? 1 : 0);
-  const missingDocs = 2 - podHave;
   const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
   const photoHave = ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].filter((type) => photoTypes.has(type as never)).length;
   // Card 061026043643: the counter reports UPLOADED PHOTOS, not filled zones —

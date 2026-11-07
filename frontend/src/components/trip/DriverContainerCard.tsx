@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Camera, Loader2, Save, Package, AlertCircle, Pencil, X, Check } from 'lucide-react';
 import { api, fileCommandFingerprint } from '../../lib/api';
-import { formatNumber, formatWeight } from '../../lib/format';
+import { formatWeight } from '../../lib/format';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useToast } from '../shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';

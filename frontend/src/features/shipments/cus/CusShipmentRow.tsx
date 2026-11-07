@@ -32,7 +32,7 @@ import {
   worksheetQuantity,
   type ShipmentQuickEditDraft,
 } from './cusUtils';
-import { formatDateTimeShort, formatISODate, formatWeight } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate, formatNumber, formatWeight } from '../../../lib/format';
 import { NameCell } from '../../../components/shared/NameCell';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 
@@ -229,30 +229,36 @@ export function CusShipmentRow({
             // active, show the per-day cont count instead of
             // the master lô totals.
             const summary = hasDateFilter ? dayFilteredSummary : item.containerSummary;
+            if (hasDateFilter && !summary) {
+              // Card 191026181942 (wording hàng lẻ): the empty state names the
+              // lot's own cargo object — an LCL lot has no cont to miss.
+              return <span className="cus-cargo-summary__containers cus-empty">{emptyDayCargoLabel(item.cargoMode)}</span>;
+            }
+            if (item.cargoMode === 'LCL') {
+              const countAndType = item.packageCount != null
+                ? `${formatNumber(item.packageCount)} ${item.packageType?.trim() || 'kiện'}`
+                : null;
+              const weightStr = item.weightKg != null ? formatWeight(item.weightKg) : null;
+              const cleanSummary = item.containerSummary && !item.containerSummary.includes('cont') ? item.containerSummary : null;
+              const specText = countAndType ?? cleanSummary ?? weightStr ?? 'Chưa có hàng hóa';
+              return (
+                <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <span className="master-plan-grid__lcl-chip" title="Hàng lẻ (LCL)">Lẻ</span>
+                  <strong className="cus-cargo-summary__containers">{specText}</strong>
+                </div>
+              );
+            }
             const lines = splitContainerSummaryLines(summary);
             if (lines.length > 0) {
               return lines.map((summaryLine) => (
                 <strong key={summaryLine} className="cus-cargo-summary__containers">{summaryLine}</strong>
               ));
             }
-            if (hasDateFilter && !summary) {
-              // Card 191026181942 (wording hàng lẻ): the empty state names the
-              // lot's own cargo object — an LCL lot has no cont to miss.
-              return <span className="cus-cargo-summary__containers cus-empty">{emptyDayCargoLabel(item.cargoMode)}</span>;
-            }
             const quantity = worksheetQuantity(item);
-            if (item.cargoMode === 'LCL') {
-              return (
-                <div style={{ display: 'inline-flex', alignItems: 'center' }}>
-                  <span className="master-plan-grid__lcl-chip" title="Hàng lẻ (LCL)">Lẻ</span>
-                  <strong className="cus-cargo-summary__containers">{quantity !== '—' ? quantity : 'Chưa có hàng hóa'}</strong>
-                </div>
-              );
-            }
             // Density + the text-only-cell law: when the card knows NOTHING about
             // the cargo, name the missing fact once instead of printing two em
             // dashes ("—" beside "— kg") on the dense fact row.
-            if (quantity === '—' && item.cargoMode !== 'LCL' && item.weightKg == null) {
+            if (quantity === '—' && item.weightKg == null) {
               return <span className="cus-cargo-summary__containers cus-empty">Chưa có hàng hóa</span>;
             }
             return <strong className="cus-cargo-summary__containers">{quantity}</strong>;
@@ -265,9 +271,11 @@ export function CusShipmentRow({
                     placeholder sat beside real weight as if the volume were
                     measured and zero. Weight reads tấn (CUS-08). */}
                 {item.cargoMode === 'LCL'
-                  ? (item.volumeCbm
-                    ? `${formatWeight(item.weightKg)} · ${formatQuantity(item.volumeCbm)} CBM`
-                    : formatWeight(item.weightKg))
+                  ? (item.packageCount != null || (!item.containerSummary?.includes('cont') && item.containerSummary)
+                    ? (item.volumeCbm
+                      ? `${formatWeight(item.weightKg)} · ${formatQuantity(item.volumeCbm)} CBM`
+                      : formatWeight(item.weightKg))
+                    : (item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : null))
                   : formatWeight(item.weightKg)}
               </span>
             </span>

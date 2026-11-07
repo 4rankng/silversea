@@ -513,7 +513,7 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
   const isRevMergeMember = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1;
   const showRevMergeTag = isRevMergeMember && !ratesRefreshing;
   // SIL-731: unpriced lots without manual price or rev merge group render TRỐNG (empty), not 0
-  const isZeroWithoutRevenue = !isRevMergeMember && !row.manualPrice && Number(row.receivableTotal) === 0 && row.lockStatus !== 'LOCKED';
+  const isZeroWithoutRevenue = !isRevMergeMember && !row.revFreightManual && Number(row.receivableTotal) === 0 && row.lockStatus !== 'LOCKED';
   const receivableState = ratesRefreshing || isZeroWithoutRevenue ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
   return (
     <>

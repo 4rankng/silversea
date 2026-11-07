@@ -114,9 +114,8 @@ function firstNote(row: DispatchDetailPlanRow): DispatchCardNoteRequest & { prev
 function cargoLine(row: DispatchDetailPlanRow): string {
   if (row.cargoMode === 'FCL') {
     const serial = row.container.containerNumber?.trim() || 'Chưa có số cont';
-    const pair = row.dispatch.pairKind === 'KEP' ? ' [KẸP]' : row.dispatch.pairKind === 'KET_HOP' ? ' [KẾT HỢP]' : '';
     return [
-      `${serial}${pair}`,
+      serial,
       row.container.containerTypeLabel,
       row.container.cargoWeightKg ? formatWeight(row.container.cargoWeightKg) : null,
     ].filter(Boolean).join(' · ');

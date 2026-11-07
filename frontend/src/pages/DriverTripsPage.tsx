@@ -6,7 +6,7 @@ import { useMonth } from '../hooks/useMonth';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
 import type { DriverJourneyCard } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
-import { formatDateTimeShort, formatNumber, formatWeight } from '../lib/format';
+import { formatDateTimeShort, formatWeight } from '../lib/format';
 import { PageHeader } from '../components/UI';
 import { EmptyState } from '../design-system';
 import { Tabs } from '../design-system/Tabs';
