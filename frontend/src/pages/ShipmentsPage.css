@@ -2277,7 +2277,44 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
 }
 
 .cus-drawer-editbar .cus-drawer-edit {
+  margin-left: 0;
+}
+
+/* SIL-699 (id 819): the drawer's secondary route to the container ledger —
+   scoped to this lot's customer + reference, the per-container factory
+   workspace the list no longer navigates to. It sits LEFT of "Sửa" and never
+   claims the primary slot. */
+.cus-drawer-editbar .cus-drawer-ledger {
   margin-left: auto;
+}
+
+/* SIL-717 (id 837): the CUS Tổng quan drawer's "Thêm container" — the
+   trigger sits under the container sheet; the FORM itself is the shared
+   `features/shipments/ContainerAddForm` (its styles live beside it). */
+.cus-lot-add {
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--border-1, var(--border));
+  background: var(--surface);
+}
+
+.cus-lot-add__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px dashed var(--border-1, var(--border));
+  border-radius: var(--radius-field, 8px);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-medium, 500);
+  cursor: pointer;
+}
+
+.cus-lot-add__trigger:hover {
+  color: var(--ink);
+  border-color: var(--ink-3);
 }
 
 @container shipment-drawer (max-width: 760px) {

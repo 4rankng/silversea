@@ -172,7 +172,12 @@ export function CusShipmentRow({
     >
       <th scope="row" data-label="Khách hàng & nhà máy" className="cus-dashboard-cell--editable cus-dashboard-cell--identity">
         <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />
-        <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" data-cell-short="Khách hàng" disabled={(item.cargoMode !== 'FCL' && item.fieldAccess.factoryName.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.cargoMode === 'FCL' ? 'Xem và chỉnh nhà máy theo từng container' : item.fieldAccess.factoryName.reason} onClick={() => onStartQuickEdit(item, 'identity')} aria-haspopup={item.cargoMode === 'FCL' ? undefined : 'dialog'} aria-label={`Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
+        {/* SIL-699 (id 819, Spec I.4a): /shipments is a flat list + drawer —
+            the FCL identity cell opens the lot's DRAWER (nhà máy theo từng
+            container), never a separate page. The LCL cell keeps the
+            quick-edit dialog (an LCL lot has no per-container factory). The
+            FCL name never repeats the row's "Chi tiết" opener. */}
+        <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" data-cell-short="Khách hàng" disabled={(item.cargoMode !== 'FCL' && item.fieldAccess.factoryName.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.cargoMode === 'FCL' ? 'Mở chi tiết lô hàng — nhà máy theo từng container' : item.fieldAccess.factoryName.reason} onClick={() => onStartQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-controls={item.cargoMode === 'FCL' ? `cus-detail-drawer-${item.id}` : undefined} aria-label={item.cargoMode === 'FCL' ? `Xem nhà máy theo từng container ${identity}` : `Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
           {/* Card 191026181942: names ride the shared NameCell — the wire
               already carries the operational (short) name; the cell keeps it
               unclipped with the accessible full-name layer. */}
