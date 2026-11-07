@@ -20,7 +20,7 @@ import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
 import { DriverTaskInfoSections, DriverInvoiceSection, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
 import { EmptyState } from '../design-system';
-import { podRequiredFilesReady } from '../lib/podReadiness';
+import { podRequiredFilesReady, missingRequiredPodFileTypes } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
@@ -258,8 +258,12 @@ function DriverTripDetailContent() {
   }
 
   // SIL-638 TC9 (id 742): completing transport order directly from the detail
-  // screen. SIL-697 (owner decision Frank 06/11 — supersedes the 31/10
-  // optional-photos ruling): both required e-POD file types gate the action.
+  // screen. Owner law (card 261022213755a 22/10, reaffirmed 07/11 — "ảnh tùy
+  // chọn, 0 ảnh vẫn hoàn thành chuyến"): completion NEVER blocks on missing
+  // e-POD photos. The two required evidence types stay enforced on the
+  // explicit e-POD submit path only (SIL-697, DriverTripPodPage) — here an
+  // incomplete DRAFT is simply NOT auto-submitted (nothing freezes, files can
+  // still be added and nộp'd later); the trip completes regardless.
   async function handleCompleteTrip() {
     if (!trip || !validFulfillmentId || closed || completing) return;
     if (trip.status !== 'IN_TRANSIT') {
@@ -270,7 +274,6 @@ function DriverTripDetailContent() {
       toast({ kind: 'warning', message: 'Lô hàng đã khóa kế toán. Không thể hoàn thành chuyến.' });
       return;
     }
-    // SIL-733 (owner ruling 22/10): photo is OPTIONAL, do not block completion when photos are missing.
 
     const confirmed = await confirm('Xác nhận hoàn tất lệnh vận chuyển?', {
       variant: 'primary',
@@ -280,15 +283,18 @@ function DriverTripDetailContent() {
 
     setCompleting(true);
     try {
-      if (currentSubmission?.status === 'DRAFT') {
+      const draftSubmission = currentSubmission?.status === 'DRAFT' ? currentSubmission : null;
+      const draftHasBothTypes = draftSubmission != null
+        && missingRequiredPodFileTypes(draftSubmission).length === 0;
+      if (draftSubmission != null && draftHasBothTypes) {
         const idempotencyKey = buildIdempotencyKey(
           'driver', 'task', validFulfillmentId,
-          'pod-submit', currentSubmission.id, 'version', currentSubmission.version,
+          'pod-submit', draftSubmission.id, 'version', draftSubmission.version,
         );
         await driverClient.submitPod(
           validFulfillmentId,
-          currentSubmission.id,
-          { expectedVersion: currentSubmission.version },
+          draftSubmission.id,
+          { expectedVersion: draftSubmission.version },
           idempotencyKey,
         );
       }
