@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useId, type InputHTMLAttributes, type ReactNode, type Ref } from 'react';
 import './TextField.css';
 
 export interface BaseFieldProps {
@@ -19,6 +19,9 @@ export interface TextFieldProps extends BaseFieldProps, Omit<InputHTMLAttributes
   controlSize?: 'sm' | 'md';
   /** Content-sized editor for coefficients and other short numeric values. */
   controlWidth?: 'short-number';
+  /** React 19 passes the ref straight to the inner <input> — a form that
+   *  validates on submit needs to move focus to the first invalid field. */
+  ref?: Ref<HTMLInputElement>;
 }
 
 export function TextField({

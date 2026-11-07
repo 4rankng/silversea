@@ -18,6 +18,8 @@ import {
   dispatchStatusLabel,
 } from './cusUtils';
 import { ExternalTripCompleteAction } from '../detail/ExternalTripCompleteAction';
+import { CusContainerAddSection } from './CusContainerAddSection';
+import type { ContainerAddEntry } from '../ContainerAddForm';
 
 /**
  * SIL-485 (owner mockup 25/10, superseding the earlier "workspace view mode"
@@ -42,6 +44,11 @@ import { ExternalTripCompleteAction } from '../detail/ExternalTripCompleteAction
  * fieldAccess mode. The standalone LOẠI / TRỌNG LƯỢNG columns died with the
  * merge so the sheet fits the drawer without a horizontal scrollbar at
  * standard viewports.
+ *
+ * SIL-717 (id 837, 07/11): the THIRD sanctioned write exception is the
+ * "Thêm container" affordance under the sheet — the customer's own rule
+ * (SIL-180's card 221026173728): the new row copies the row directly above
+ * it, EXCEPT số container + loại container.
  *
  * Every value renders from the same CUS workspace payload the workboard row
  * already reads (list item + lazily loaded detail); a missing value is "—",
@@ -708,6 +715,8 @@ export function CusLotView({
   canEditCargoLines = false,
   containerLineActions,
   onCompleteExternalTrip,
+  onAddContainer,
+  addContainerSource = null,
 }: {
   item: ShipmentCusWorkspaceListItem;
   detail?: ShipmentCusWorkspaceDetail;
@@ -729,6 +738,10 @@ export function CusLotView({
    * OWN/terminal/planned lines clean. Rejects keep the dialog open.
    */
   onCompleteExternalTrip?: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
+  /** SIL-717 (id 837) — the drawer's "Thêm container" write + the row it
+   *  copies (the sheet's LAST row); the host page owns both. */
+  onAddContainer?: (entry: ContainerAddEntry) => Promise<boolean>;
+  addContainerSource?: ShipmentCusWorkspaceContainerLine | null;
 }) {
   const containers = detail?.containers ?? [];
   const totalWeight = containers.reduce((sum, line) => sum + Number(line.raw.cargoWeightKg ?? 0), 0);
@@ -877,6 +890,17 @@ export function CusLotView({
                 </div>
               )}
             </div>
+            {/* SIL-717 (id 837): the CUS Tổng quan drawer's "Thêm container"
+                (SIL-180's card 221026173728) — the new row copies the row
+                above, EXCEPT số cont + loại cont. The host page owns the
+                write AND the source row. */}
+            {onAddContainer && (
+              <CusContainerAddSection
+                source={addContainerSource ?? null}
+                detail={detail}
+                onAdd={onAddContainer}
+              />
+            )}
           </section>
 
           <div className="cus-lot-cards-row">

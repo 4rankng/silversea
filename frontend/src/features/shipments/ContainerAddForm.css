@@ -1,0 +1,37 @@
+/* SIL-717 (id 837) — the shared "Thêm container" form (ContainerAddForm.tsx).
+ *
+ * One compact row: the caption names what the new row copies (the law of
+ * SIL-180's card 221026173728), the two identifiers sit empty, and the
+ * actions ride the right edge. The controls wrap on a narrow canvas — the
+ * house row never clips a control. */
+
+.container-add-form__caption {
+  margin: 0 0 8px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+
+.container-add-form__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.container-add-form__row > * {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.container-add-form__row > .container-add-form__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.container-add-form__error {
+  margin: 8px 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--danger-text, var(--danger));
+}

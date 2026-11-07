@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026-11-07 — fix(shipments/accounting): SIL-699 + SIL-701 + SIL-717 (id 819/821/837) — Tổng quan lô hàng mở drawer tại chỗ (không rời trang), cột NGÀY chốt debit hiện đủ DD/MM/YYYY, thêm cont mới copy dòng trên trừ số cont + loại cont
+
+Lane R4 trên `fix/r4-small-ui` (base `25dc1a2e`), 4 ticket khách/QA báo (SIL-700
+đã có trong base — commit `0e0079b2`, xác minh lại ở đây).
+
+- **SIL-699 (Spec I.4a) — /shipments là danh sách phẳng + drawer.** Trước fix,
+  ô "Khách hàng & nhà máy" của dòng lô FCL điều hướng sang trang riêng
+  `/shipments-detail?…` (đo trên dev local: URL đổi hẳn khỏi /shipments). Sau
+  fix ô đó mở DRAWER chi tiết lô ngay trên danh sách; URL giữ `/shipments`.
+  Bảng chi tiết container (giới hạn theo khách + số tham chiếu của lô) vẫn
+  tới được từ chân drawer (nút "Mở bảng chi tiết container") → không mất
+  đường sửa nhà máy theo từng container. Tên truy cập của ô đổi theo hành vi
+  ("Xem nhà máy theo từng container" cho FCL, giữ nguyên "Sửa ô khách hàng và
+  nhà máy" cho LCL).
+- **SIL-701 — cột NGÀY chốt debit không cắt chữ.** Đo trước fix:
+  `td.debit-col--date` `clientWidth 96` vs `scrollWidth 100` → "01/11/2026" bị
+  cắt mất số cuối. Track cứng 96px không đủ cho tick chọn dòng (13.2px) +
+  "04/11/2026" (74.3px) + padding (20px) = 109.5px → track 116px, offset sticky
+  của cột lô 130px → 150px. Nhãn tiền thiếu ("Thiếu tổng thu") giờ WRAP thay
+  vì bị cắt; số tiền vẫn không bao giờ xuống dòng.
+- **SIL-717 — "Thêm container" ở drawer Tổng quan CUS theo luật copy-trừ-2-trường
+  (SIL-180, card gốc `221026173728`).** Drawer có nút "Thêm container": dòng
+  mới copy dòng NGAY TRÊN (trọng lượng, thể tích, tuyến, nhà máy, cảng
+  nâng/hạ, ngày giờ đóng trả), SỐ CONT + LOẠI CONT để TRỐNG cho người nhập —
+  loại cont gửi `null` tường minh để server không tự copy loại cont của lô,
+  còn trọng lượng/thể tích gửi tường minh vì server không kế thừa cargo
+  metrics. Luật nằm ở module thuần DÙNG CHUNG `features/shipments/containerCopyLaw.ts`
+  (chủ sở hữu duy nhất: cặp trừ, tập field copy, và "dòng ngay trên" = dòng
+  cuối) + form dùng chung `features/shipments/ContainerAddForm.tsx`;
+  `cusContainerAdd.ts` chỉ là adapter wire của CUS, đi qua
+  `POST /shipments/cus-workspace/:id/containers` (đã có sẵn).
+- **SIL-700 — đã sửa ở base** (`0e0079b2`): /advances không còn nhãn "PHÊ DUYỆT
+  TẠM ỨNG", nút là "Xác nhận giải ngân tạm ứng" (luồng không đổi).
+
+Evidence: `qa/2026-11-07-lane-r4/` — UI DRIVEN: "Chi tiết" mở drawer + URL
+giữ /shipments; ô định danh FCL mở drawer, KHÔNG điều hướng /shipments-detail;
+form "Thêm container" để trống số cont + loại cont, prefilled trọng lượng 5.000
+kg từ dòng trên; sau khi thêm, DB `shipment_containers` có dòng mới
+`2228|SILU9865030||5000.00||6|` (container_type_id NULL — loại cont TRỐNG,
+cargo_weight_kg 5000.00 + route_id 6 copy đúng dòng trên; dòng test được
+driver xoá sau khi chụp bằng chứng); mọi ô NGÀY của chốt debit
+`scrollWidth == clientWidth` ở 390/768/1440; /advances chỉ còn nhãn "Xác nhận
+giải ngân tạm ứng".
+Gates: FE vitest scoped + toàn bộ · FE tsc 0 · lint 0 error · `make build` ✓.
+Regression: `testplan/2026-11-07-lane-r4-sil699-700-701-717.md` (R4-01..R4-04).
+
 ## 2026-11-04 — fix(economics): SIL-676 r4 + SIL-638 TC3-T3 (id 783/742) — economics cặp hết null lặng: lương/chưa-cấu-hình được ghi thành giá trị tường minh, VETC record 1 lần/cặp có marker lý do
 
 QA pair 30 trên staging e9afda3f (trips 324/325, verdict comment 3832/3833):

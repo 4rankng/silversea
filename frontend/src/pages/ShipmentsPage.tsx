@@ -25,6 +25,8 @@ import { isOverlayOpen } from '../lib/overlayState';
 import { ShipmentQuickEditModal } from '../features/shipments/cus/ShipmentQuickEditModal';
 import { CusLotStatusChips, CusLotView } from '../features/shipments/cus/CusLotView';
 import { copyCusShipmentContainerDeclaration, updateCusShipmentContainerLine } from '../api/shipmentClient';
+import { useCusDrawerContainerAdd } from '../features/shipments/cus/use-cus-drawer-container-add';
+import { CusLotDrawerFooter } from '../features/shipments/cus/CusLotDrawerFooter';
 import { CusShipmentRow, CUS_ROW_COLUMNS } from '../features/shipments/cus/CusShipmentRow';
 import { SHIPMENT_CUS_PAGE_SIZES, readCusPageSize, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
 import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
@@ -511,6 +513,30 @@ export default function ShipmentsPage() {
   const drawerContainerLineActions = useMemo(() => (
     drawerCargoEditable ? { onSaveField: saveDrawerContainerField } : undefined
   ), [drawerCargoEditable, saveDrawerContainerField]);
+  // SIL-717 (id 837) — the CUS Tổng quan drawer's "Thêm container": the write
+  // AND the source row (the sheet's LAST row) live in the hook, so the caption
+  // the operator reads and the wire body the page sends name one row.
+  // The deps object is memoized on the STABLE callbacks: an inline literal
+  // would give the write a new identity on every render (and the form would
+  // re-render with it).
+  const drawerAddDeps = useMemo(() => ({
+    getIdempotencyKey: ws.getIdempotencyKey,
+    clearIdempotencyKey: ws.clearIdempotencyKey,
+    setNotice: ws.setNotice,
+    loadDetail: ws.loadDetail,
+    loadList: ws.loadList,
+  }), [ws.clearIdempotencyKey, ws.getIdempotencyKey, ws.loadDetail, ws.loadList, ws.setNotice]);
+  const { source: drawerAddSource, addContainer: addDrawerContainer } = useCusDrawerContainerAdd(
+    drawerId,
+    drawerDetail,
+    drawerAddDeps,
+  );
+  // The affordance rides the same gate as the container-line editor (intake
+  // authority + no accounting lock) and only on an FCL lot — an LCL lot owns
+  // no container rows to add.
+  const drawerCanAddContainer = Boolean(
+    drawerCargoEditable && drawerItem?.cargoMode === 'FCL',
+  );
   const quickEditItem = quickEditDraft
     ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
     : null;
@@ -737,9 +763,14 @@ export default function ShipmentsPage() {
                       onStartQuickEdit={(item, field) => {
                         // Card 20260923_1: the cargo cell returns to quick-edit
                         // for every cargo mode — container composition is
-                        // managed in the drawer now. FCL identity keeps the
-                        // per-container factory workspace (rest of _41).
-                        if (item.cargoMode === 'FCL' && field === 'identity') return navigate(factoryDetailPath(item));
+                        // managed in the drawer now.
+                        // SIL-699 (id 819, Spec I.4a): /shipments is a FLAT
+                        // list + drawer — the lot detail opens as a drawer ON
+                        // the list, never as a separate page. The FCL identity
+                        // cell therefore opens the SAME drawer as "Chi tiết";
+                        // the per-container factory workspace stays one click
+                        // away INSIDE the drawer (the footer action).
+                        if (item.cargoMode === 'FCL' && field === 'identity') return openShipmentDetail(item.id);
                         startQuickEdit(item, field);
                       }}
                       onOpenDetail={openShipmentDetail}
@@ -816,19 +847,13 @@ export default function ShipmentsPage() {
             )}
           </>
         ) : undefined}
-        footer={drawerItem && canEditLot ? (
-          <div className="cus-drawer-editbar">
-            {lotEditLocked && <span className="cus-drawer-editbar__reason">Lô đã khóa kế toán — dữ liệu chỉ đọc.</span>}
-            <UUIButton
-              size="sm"
-              color="primary"
-              className="cus-drawer-edit"
-              isDisabled={lotEditLocked}
-              onPress={() => navigate(routes.shipmentDetailEdit(drawerItem.id))}
-            >
-              Sửa
-            </UUIButton>
-          </div>
+        footer={drawerItem ? (
+          <CusLotDrawerFooter
+            canEdit={canEditLot}
+            locked={lotEditLocked}
+            onEdit={() => navigate(routes.shipmentDetailEdit(drawerItem.id))}
+            onOpenLedger={() => navigate(factoryDetailPath(drawerItem))}
+          />
         ) : undefined}
       >
         <div id={drawerItem ? `cus-detail-drawer-${drawerItem.id}` : undefined}>
@@ -849,6 +874,8 @@ export default function ShipmentsPage() {
                 declarationActions={drawerDeclarationActions}
                 canEditCargoLines={drawerCargoEditable}
                 containerLineActions={drawerContainerLineActions}
+                onAddContainer={drawerCanAddContainer ? addDrawerContainer : undefined}
+                addContainerSource={drawerCanAddContainer ? drawerAddSource : null}
                 onCompleteExternalTrip={canCloseExternal ? completeDrawerExternalTrip : undefined}
               />
             </>

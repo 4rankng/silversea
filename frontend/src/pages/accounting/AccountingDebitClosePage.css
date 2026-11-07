@@ -53,6 +53,14 @@ p.debit-note { margin: 0 0 8px; }
   border-radius: 8px;
 }
 
+/* SIL-701 (id 821): the NGÀY track — one property, so the sticky lot column
+   always sits at the date's real edge. 116px is the MEASURED floor (tick +
+   "DD/MM/YYYY" + padding at 12px); 12ch grows it when the loaded font is
+   wider, so the date can never be cut again. */
+.debit-board {
+  --debit-date-track: max(116px, 12ch);
+}
+
 /* The global `tbody td` emergency break fractures codes and container numbers
    mid-token (law §4) — this board holds whole tokens, so it withdraws it. */
 .debit-board th,
@@ -81,6 +89,11 @@ p.debit-note { margin: 0 0 8px; }
 .debit-board .num,
 .debit-board td.debit-col--money { font-variant-numeric: tabular-nums; }
 .debit-board td.debit-col--money { white-space: nowrap; }
+/* SIL-701 (id 821): the money CELL numbers never wrap (a broken number is
+   unreadable), but the PROSE label of a missing value ("Thiếu tổng thu")
+   wraps instead of being cut — the no-truncate doctrine reaches the label
+   too, so a narrow track shows the whole phrase. */
+.debit-board td.debit-col--money .debit-missing { white-space: normal; }
 .debit-board th.debit-col--lot,
 .debit-board td.debit-col--lot { min-width: 188px; }
 .debit-board th.debit-col--container,
@@ -134,13 +147,23 @@ p.debit-note { margin: 0 0 8px; }
 .debit-board th.debit-col--date,
 .debit-board td.debit-col--date {
   left: 34px;
-  width: 96px;
-  min-width: 96px;
-  max-width: 96px;
+  /* SIL-701 (id 821): the track must hold the WHOLE DD/MM/YYYY plus the
+   * row's selection tick — measured on the running board at 12px Inter
+   * Digits: the tick 13.2px + 2px gap + "04/11/2026" 74.3px + the cell's
+   * 20px padding = 109.5px, so the old 96px cut the last digit ("01/11/202").
+   * The track reads ONE custom property so the sticky lot column always
+   * sits at the date's real edge, and `12ch` grows the track when the loaded
+   * font is wider than the measured one (the date is 10 characters). No
+   * `max-width`: the track may grow, never clip. */
+  width: var(--debit-date-track);
+  min-width: var(--debit-date-track);
   white-space: nowrap;
+  /* The date is a numeric column: tabular digits keep every row's date the
+   * same width, so the track never depends on the loaded font. */
+  font-variant-numeric: tabular-nums;
 }
 .debit-board th.debit-col--lot,
-.debit-board td.debit-col--lot { left: 130px; }
+.debit-board td.debit-col--lot { left: calc(34px + var(--debit-date-track)); }
 .debit-board td.debit-col--date,
 .debit-board td.debit-col--lot {
   z-index: var(--z-base);
