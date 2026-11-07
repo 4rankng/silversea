@@ -254,7 +254,9 @@ export async function getPhoiPhieuReport(kind: 'THU' | 'TRA', params: {
  *  lots in the same window, carrying the per-fee family split (nâng / hạ /
  *  PS khác) and each source's open remainder. */
 export interface PhoiPhieuPartyLot {
-  tripId: number;
+  /** The trip the lot books through; NULL = the shipment's shared fees with
+   *  no single live trip (SIL-729 — shown for reconciliation, not bookable). */
+  tripId: number | null;
   shipmentId: number;
   billOrBooking: string | null;
   containerNumber: string | null;

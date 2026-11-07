@@ -38,11 +38,19 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const lots = useMemo(() => lotsQuery.data?.items ?? [], [lotsQuery.data]);
+  // SIL-729 — a trip lot is bookable through the trip-keyed voucher engine; a
+  // shared shipment's fees (no single live trip) only DISPLAY here for the
+  // clicked party's reconciliation — they never join the batch phiếu.
+  const tripLots = useMemo(
+    () => lots.filter((lot): lot is PhoiPhieuPartyLot & { tripId: number } => lot.tripId != null),
+    [lots],
+  );
+  const sharedLots = useMemo(() => lots.filter((lot) => lot.tripId == null), [lots]);
   const direction = kind === 'THU' ? 'IN' as const : 'OUT' as const;
   const verb = kind === 'THU' ? 'thu' : 'chi';
   const selectedLots = useMemo(() => selected === 'all'
-    ? lots
-    : lots.filter((lot) => selected.has(lot.tripId)), [lots, selected]);
+    ? tripLots
+    : tripLots.filter((lot) => selected.has(lot.tripId)), [tripLots, selected]);
   // The phiếu books each source's open remainder — the exact amount the
   // voucher engine will consume — not the lot's conLai remainder, which can
   // differ when a THU charge sits below the lot's cost.
@@ -118,7 +126,7 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
       {lotsQuery.isSuccess && lots.length === 0 && (
         <p role="status">Không còn lô chưa thanh toán của {party} trong kỳ này.</p>
       )}
-      {lots.length > 0 && (
+      {tripLots.length > 0 && (
         // react-aria's own selection strings (Select All / Select) localize
         // through the I18nProvider — the drawer speaks Vietnamese to AT.
         <I18nProvider locale="vi-VN">
@@ -141,8 +149,8 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
             <Table.Head id="paid">{kind === 'THU' ? 'Đã thu' : 'Đã trả'}</Table.Head>
             <Table.Head id="remain">Còn lại</Table.Head>
           </Table.Header>
-          <Table.Body items={lots}>
-            {(lot: PhoiPhieuPartyLot) => (
+          <Table.Body items={tripLots}>
+            {(lot) => (
               <Table.Row id={lot.tripId}>
                 {/* isRowHeader lives on the STT column; the cell prints the
                     position so the mockup's numbered rows stay readable. */}
@@ -161,6 +169,18 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
           </Table.Body>
         </Table>
         </I18nProvider>
+      )}
+      {sharedLots.length > 0 && (
+        <div className="ppc-lots-shared" role="note">
+          <p className="ppc-lots-shared__title">Phí chung lô (chưa gắn chuyến) — đối chiếu, chưa lập phiếu được:</p>
+          {sharedLots.map((lot) => (
+            <p key={`s-${lot.shipmentId}`}>
+              {billBookingReference(lot.billOrBooking) || 'Chưa có số Bill/Booking'}
+              {' · '}<strong>{formatMoney(lot.total)}</strong>
+              {' · '}còn lại {formatMoney(lot.conLai)}
+            </p>
+          ))}
+        </div>
       )}
       <p className="ppc-lots-hint">Tổng lập phiếu cộng từng khoản còn mở của các lô đã chọn — đúng số phiếu sẽ ghi vào quỹ.</p>
     </Drawer>
