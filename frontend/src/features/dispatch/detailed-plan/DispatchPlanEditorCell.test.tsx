@@ -147,6 +147,7 @@ function renderCell(
   handlers: {
     onAtomicSave?: (row: DispatchDetailPlanRow, body: Record<string, unknown>) => Promise<AtomicPlanSaveResult>;
     onIssueOrder?: (row: DispatchDetailPlanRow, body: IssueOrderBody) => Promise<DispatchShipmentResponse>;
+    onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
     onOpenTripReassign?: (tripId: number) => void;
     onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
     onEnsureFulfillment?: (row: DispatchDetailPlanRow) => Promise<DispatchDetailPlanRow | null>;
@@ -180,6 +181,7 @@ function renderCell(
     <DispatchPlanEditorCell
       row={item}
       onAtomicSave={(handlers.onAtomicSave as never) ?? (defaultAtomicSave as never)}
+      onCancelDispatch={handlers.onCancelDispatch}
       onOpenTripReassign={(handlers.onOpenTripReassign as never) ?? (vi.fn() as never)}
       onCompleteExternalTrip={(handlers.onCompleteExternalTrip as never) ?? (vi.fn() as never)}
       onIssueOrder={(handlers.onIssueOrder as never) ?? (defaultIssueOrder as never)}
@@ -295,13 +297,13 @@ describe('SIL-500 — carrier click-to-edit (KHĐ 26/10)', () => {
     expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeInTheDocument();
   });
 
-  it('a live issued trip routes the carrier click to the governed reassign flow', async () => {
+  it('a live issued trip routes the carrier click to cancel dispatch (SIL-708)', async () => {
     mockFleetResources();
-    const onOpenTripReassign = vi.fn();
+    const onCancelDispatch = vi.fn();
     const issued = row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 77, tripStatus: 'CREATED' } });
-    renderCell(issued, { onOpenTripReassign }, { open: false });
-    fireEvent.click(screen.getByRole('button', { name: 'Phân xe lại · SilverSea · MSCU1234567' }));
-    await waitFor(() => expect(onOpenTripReassign).toHaveBeenCalledWith(77));
+    renderCell(issued, { onCancelDispatch }, { open: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy phân xe · SilverSea · MSCU1234567' }));
+    await waitFor(() => expect(onCancelDispatch).toHaveBeenCalledWith(issued));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

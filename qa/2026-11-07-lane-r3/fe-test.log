@@ -1,0 +1,6 @@
+> @tingting/frontend@0.1.0 test
+> vitest run src/features/dispatch/detailed-plan/DetailedPlanFilters.cargo-mode.test.tsx src/features/dispatch/detailed-plan/DetailedPlanGrid.row-menu.test.tsx src/features/dispatch/detailed-plan/DetailedPlanGrid.rowheights.styles.test.ts src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx src/features/dispatch/detailed-plan/DispatchPlanCardList.test.tsx src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx src/pages/DispatchDetailPlanPage.test.tsx src/pages/MasterPlanPage.lcl-grouping.test.tsx src/features/dispatch/master-plan/DispatchAllocationPopover.test.tsx
+
+Test Files  9 passed (9)
+     Tests  252 passed (252)
+Exit code: 0

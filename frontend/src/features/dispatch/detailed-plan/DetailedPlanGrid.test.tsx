@@ -358,8 +358,8 @@ describe('DetailedPlanGrid', () => {
     expect(screen.queryByText('Đã phân xe')).toBeNull();
   });
 
-  it('opens governed reassignment for a dispatched trip that has not departed', () => {
-    const onOpenTripReassign = vi.fn();
+  it('opens cancel dispatch confirmation for a dispatched trip (SIL-708)', () => {
+    const onCancelDispatch = vi.fn();
     renderGrid([row({
       taskStatus: 'DISPATCHED',
       dispatch: {
@@ -371,11 +371,11 @@ describe('DetailedPlanGrid', () => {
         tripId: 77,
         tripStatus: 'CREATED',
       },
-    })], { onOpenTripReassign });
+    })], { onCancelDispatch });
 
     fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng · MSCU1234567/ }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Phân xe lại' }));
-    expect(onOpenTripReassign).toHaveBeenCalledWith(77);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hủy phân xe' }));
+    expect(onCancelDispatch).toHaveBeenCalled();
     expect(screen.queryByRole('dialog', { name: /Chỉnh sửa điều phối/i })).toBeNull();
   });
 

@@ -177,4 +177,15 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     const bodies = tsx.match(/detailed-plan-grid__cell-body/g) ?? [];
     expect(bodies.length).toBeGreaterThanOrEqual(8);
   });
+
+  it('SIL-713: actions column is vertically stacked in 44-48px width without horizontal spreading', () => {
+    const actionCellRule = css.match(/\.detailed-plan-grid th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(actionCellRule).toContain('width: 48px');
+    expect(actionCellRule).toContain('min-width: 44px');
+    expect(actionCellRule).toContain('max-width: 48px');
+
+    const stackRule = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(stackRule).toContain('flex-direction: column');
+    expect(stackRule).toContain('align-items: center');
+  });
 });

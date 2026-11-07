@@ -75,7 +75,7 @@ const DATA_STATUS_OPTIONS: Array<{ id: string; label: string }> = [
  *  out so the wire param is readable in the shared bar's state. */
 const CARGO_MODE_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'ALL_CARGO_MODES', label: 'Tất cả' },
-  { id: 'FCL', label: 'Cont (FCL)' },
+  { id: 'FCL', label: 'Hàng Cont (FCL)' },
   { id: 'LCL', label: 'Hàng lẻ (LCL)' },
 ];
 import { FacetMultiSelect } from './DetailedPlanFacetMultiSelect';
@@ -212,9 +212,9 @@ export function DetailedPlanFilters({
       date: filters.date,
       dateFrom: filters.dateFrom,
       dateTo: filters.dateTo,
-      // Card 20261002_282: while Xuất / Nhập rides the bar the dialog does not
-      // show it, so its `Đặt lại` leaves it alone.
-      ...(scope === 'folded' ? { direction: filters.direction } : {}),
+      // While Xuất / Nhập & Loại hàng ride the bar the dialog does not
+      // show them, so its `Đặt lại` leaves them alone.
+      ...(scope === 'folded' ? { direction: filters.direction, cargoMode: filters.cargoMode } : {}),
     });
   };
 
@@ -318,20 +318,30 @@ export function DetailedPlanFilters({
           </>
         )}
         fold={{
-          // Card 20261002_282 (R17): direction is a basic criterion — on the
-          // bar while it has room (status rides the quick tabs, dates the
-          // from/to group), inside the dialog once the width folds it.
+          // Card 20261002_282 + SIL-712 (Spec I.4c): direction and cargoMode
+          // are basic criteria on the primary bar while there is room, and
+          // inside the dialog once the width folds them.
           primary: (
-            <InlineLabelSelect
-              id="detailed-plan-direction"
-              label="Xuất / Nhập"
-              items={DIRECTION_OPTIONS}
-              selectedKey={filters.direction || 'ALL_DIRECTIONS'}
-              onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })}
-              ariaLabel="Xuất / Nhập"
-            />
+            <>
+              <InlineLabelSelect
+                id="detailed-plan-direction"
+                label="Xuất / Nhập"
+                items={DIRECTION_OPTIONS}
+                selectedKey={filters.direction || 'ALL_DIRECTIONS'}
+                onSelectionChange={(key) => onChange({ direction: key === 'ALL_DIRECTIONS' ? '' : key as DetailedPlanFilterState['direction'] })}
+                ariaLabel="Xuất / Nhập"
+              />
+              <InlineLabelSelect
+                id="detailed-plan-cargo-mode"
+                label="Loại hàng"
+                items={CARGO_MODE_OPTIONS}
+                selectedKey={filters.cargoMode || 'ALL_CARGO_MODES'}
+                onSelectionChange={(key) => onChange({ cargoMode: key === 'ALL_CARGO_MODES' ? '' : key as DetailedPlanFilterState['cargoMode'] })}
+                ariaLabel="Loại hàng"
+              />
+            </>
           ),
-          primaryCount: filters.direction !== '' ? 1 : 0,
+          primaryCount: (filters.direction !== '' ? 1 : 0) + (filters.cargoMode !== '' ? 1 : 0),
           criteria: (
             <div className="detailed-plan-filter-panel">
             {/* The four quick facets live HERE, not on the bar (operator,
@@ -362,16 +372,6 @@ export function DetailedPlanFilters({
                   selectedKey={filters.assignmentStatus || 'ALL_ASSIGNMENTS'}
                   onSelectionChange={(key) => onChange({ assignmentStatus: key === 'ALL_ASSIGNMENTS' ? '' : key as DetailedPlanFilterState['assignmentStatus'] })}
                   ariaLabel="Trạng thái điều xe"
-                />
-                {/* Card 171026154000: hàng lẻ used to hide on pages 2-3 behind
-                    FCL pagination — the Loại hàng scope puts it one pick away. */}
-                <InlineLabelSelect
-                  id="detailed-plan-cargo-mode"
-                  label="Loại hàng"
-                  items={CARGO_MODE_OPTIONS}
-                  selectedKey={filters.cargoMode || 'ALL_CARGO_MODES'}
-                  onSelectionChange={(key) => onChange({ cargoMode: key === 'ALL_CARGO_MODES' ? '' : key as DetailedPlanFilterState['cargoMode'] })}
-                  ariaLabel="Loại hàng"
                 />
                 <InlineLabelSelect
                   id="detailed-plan-data-status"

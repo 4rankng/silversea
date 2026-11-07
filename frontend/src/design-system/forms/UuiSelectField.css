@@ -75,6 +75,7 @@
   width: max-content;
   min-width: min(max(220px, var(--trigger-width, 220px)), calc(100vw - 32px));
   max-width: calc(100vw - 32px);
+  z-index: var(--z-popover, 400);
 }
 
 .ds-uui-select__hint,

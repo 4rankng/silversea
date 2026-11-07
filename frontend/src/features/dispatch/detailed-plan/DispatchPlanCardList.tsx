@@ -65,10 +65,12 @@ interface DispatchPlanCardListProps extends DispatchCardEditorProps {
   items: DispatchDetailPlanRow[];
   selectedLclShipmentIds?: ReadonlySet<number>;
   onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
-  /** Row ⋯ menu wiring (Sửa / Đổi nhà xe/BKS / Phân xe lại / Ghép / Tách nhóm / Xóa lô). */
+  /** Row ⋯ menu wiring (Sửa / Đổi nhà xe/BKS / Hủy phân xe / Ghép / Tách nhóm / Xóa lô). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
   onChangeGroupTruckInline: (row: DispatchDetailPlanRow) => void;
-  onOpenTripReassign: (tripId: number) => void;
+  /** SIL-708 — Hủy phân xe flow for live issued trips. */
+  onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
+  onOpenTripReassign?: (tripId: number) => void;
   onOpenPair?: (row: DispatchDetailPlanRow) => void;
   onUnmergeLclGroup?: (groupId: string) => void;
   onDeleteLot?: (row: DispatchDetailPlanRow) => void;
@@ -195,7 +197,7 @@ function infoMetaLine(row: DispatchDetailPlanRow, lift: string, drop: string): s
  *  the menu's "Sửa điều phối" opens the exact same dialog the table serves. */
 export function DispatchPlanCardList({
   items, selectedLclShipmentIds, onToggleLclSelection,
-  onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
+  onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
   onOpenGroupMenu, onExpandNote,
   onAtomicSave, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck,
   editRequest, onOpenRequestConsumed,
@@ -326,6 +328,7 @@ export function DispatchPlanCardList({
                     row={row}
                     onEditPlan={onEditPlan}
                     onChangeGroupTruckInline={onChangeGroupTruckInline}
+                    onCancelDispatch={onCancelDispatch}
                     onOpenTripReassign={onOpenTripReassign}
                     onOpenPair={onOpenPair}
                     onUnmergeLclGroup={onUnmergeLclGroup}

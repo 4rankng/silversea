@@ -229,8 +229,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
           <tr>
             {onToggleLclSelection && (
               <th scope="col" className="master-plan-grid__select-head">
-                <span className="master-plan-grid__select-head-label">Chọn</span>
-                <span className="sr-only"> lô</span>
+                <span className="master-plan-grid__select-head-label">Chọn lô</span>
               </th>
             )}
             <th scope="col"><span className="master-plan-grid__th-label">Lịch trình</span></th>

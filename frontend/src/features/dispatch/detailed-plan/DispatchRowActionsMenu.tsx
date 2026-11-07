@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, Layers, Link2, MoreHorizontal, PencilLine, Repeat, Shuffle, Trash2, Unlink } from 'lucide-react';
+import { CheckCircle2, Layers, Link2, MoreHorizontal, PencilLine, Repeat, Trash2, Undo2, Unlink } from 'lucide-react';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { billBookingReference } from '../../../lib/business-reference';
@@ -58,14 +58,16 @@ const MENU_DANGER_BLOCK_H = 46;
  * external live trips so the old foot button could be removed without
  * losing the staff close flow.
  */
-export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, triggerless = false, openRequest, onOpenRequestConsumed }: {
+export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onOpenTripReassign, onCancelDispatch, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, triggerless = false, openRequest, onOpenRequestConsumed }: {
   row: DispatchDetailPlanRow;
   /** Opens the row's plan editor (the grid routes it to the cell's signal). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
   /** Opens the grid's pre-filled "Đổi nhà xe/BKS" group-truck edit (grouped LCL). */
   onChangeGroupTruckInline: (row: DispatchDetailPlanRow) => void;
-  /** Opens the page-owned trip reassignment dialog (issued trips). */
-  onOpenTripReassign: (tripId: number) => void;
+  /** SIL-708 — Hủy phân xe flow for live issued trips (replaces Phân xe lại). */
+  onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
+  /** Opens the page-owned trip reassignment dialog (legacy/compat). */
+  onOpenTripReassign?: (tripId: number) => void;
   /** Opens the pair-trips dialog anchored on this row (optional — parity
    *  with the old DispatchPairAction wiring). */
   onOpenPair?: (row: DispatchDetailPlanRow) => void;
@@ -180,22 +182,36 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
       data-dropdown-root=""
       style={{ position: 'fixed', top: placement.top, left: placement.left, width: MENU_WIDTH }}
     >
-      <button
-        type="button"
-        role="menuitem"
-        onClick={() => {
-          setOpen(false);
-          if (canReassignIssued && row.dispatch.tripId != null) {
-            onOpenTripReassign(row.dispatch.tripId);
-          } else {
+      {canReassignIssued ? (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            if (onCancelDispatch) {
+              onCancelDispatch(row);
+            } else if (onOpenTripReassign && row.dispatch.tripId != null) {
+              onOpenTripReassign(row.dispatch.tripId);
+            }
+          }}
+          title="Hủy phân xe để trả lô về trạng thái chưa phân xe"
+        >
+          <Undo2 size={14} aria-hidden="true" />
+          Hủy phân xe
+        </button>
+      ) : (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
             onEditPlan(row);
-          }
-        }}
-      >
-        {canReassignIssued
-          ? <><Shuffle size={14} aria-hidden="true" />Phân xe lại</>
-          : <><PencilLine size={14} aria-hidden="true" />Sửa điều phối</>}
-      </button>
+          }}
+        >
+          <PencilLine size={14} aria-hidden="true" />
+          Sửa điều phối
+        </button>
+      )}
       {canCompleteExternal && (
         <button
           type="button"

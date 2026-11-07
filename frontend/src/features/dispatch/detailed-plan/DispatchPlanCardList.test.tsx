@@ -164,18 +164,19 @@ describe('DispatchPlanCardList — dynamic action slot (C3L-02)', () => {
     expect(menu.textContent).toContain('Xóa lô');
   });
 
-  it('ĐÃ phát lệnh: slot là nút ⋯ duy nhất (không paper-plane); menu theo trip sống', () => {
-    const onOpenTripReassign = vi.fn();
-    renderCards([row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 77, tripStatus: 'CREATED' } })], { onOpenTripReassign });
+  it('ĐÃ phát lệnh: slot là nút ⋯ duy nhất (không paper-plane); menu theo trip sống (SIL-708)', () => {
+    const onCancelDispatch = vi.fn();
+    const issuedRow = row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 77, tripStatus: 'CREATED' } });
+    renderCards([issuedRow], { onCancelDispatch });
     const slot = document.querySelector('.dpcard__action') as HTMLElement;
     const slotButtons = [...slot.querySelectorAll('button')];
     expect(slotButtons).toHaveLength(1);
     expect(slotButtons[0].className).toContain('dispatch-row-menu__trigger');
     fireEvent.click(slotButtons[0]);
     const menu = screen.getByRole('menu', { name: 'Thao tác dòng · MSCU1234567' });
-    expect(menu.textContent).toContain('Phân xe lại');
+    expect(menu.textContent).toContain('Hủy phân xe');
     fireEvent.click(menu.querySelector('[role="menuitem"]') as HTMLElement);
-    expect(onOpenTripReassign).toHaveBeenCalledWith(77);
+    expect(onCancelDispatch).toHaveBeenCalledWith(issuedRow);
   });
 
   it('xe ngoài đang chạy: Hoàn thành sống trong menu ⋯ (foot button đã bỏ)', () => {

@@ -282,14 +282,10 @@
    rebalance gives the column 6% (~91px at the 1520px floor ≥ the measured
    85px one-line label) — the cell stays the board's smallest. */
 .detailed-plan-grid__col--classification { width: 6%; }
-.detailed-plan-grid__col--notes { width: 11.8%; }
-/* SIL-588 (owner 27/10): the rail hosts at most TWO STACKED buttons — the
-   30px ⋯ trigger (or the 28px Phát lệnh icon) + cell padding. SIL-686 gives
-   the rail 5.7% (~87px at the floor): the one-line "THAO TÁC" header (81px
-   measured) rides it while the stack keeps its narrow-strip shape — still
-   far below the retired 10.75% pill budget. The freed width funds the
-   header-one-line law of FB-063/SIL-686. */
-.detailed-plan-grid__col--actions { width: 5.7%; }
+.detailed-plan-grid__col--notes { width: 14.35%; }
+/* SIL-588 (owner 27/10) / SIL-713 (Spec I.4d): the rail hosts TWO STACKED
+   buttons (Phát lệnh icon above, ⋯ below) in a 44–48px narrow strip (~3.15% of 1520px). */
+.detailed-plan-grid__col--actions { width: 3.15%; }
 
 /* ── SIL-591 — SỐ TỜ KHAI cell (per-container, SIL-521 model) ──────────────
    The value reads as data text; the edit affordance is a house text button
@@ -462,7 +458,7 @@
    board fits its pane and nothing is ever covered — the reserve is resting
    whitespace inside the roomy Ghi chú cell. */
 .detailed-plan-grid {
-  --dpg-actions-reserve: 88px;
+  --dpg-actions-reserve: 48px;
 }
 .detailed-plan-grid td.detailed-plan-grid__cell--notes {
   padding-inline-end: calc(var(--space-sm) + var(--dpg-actions-reserve));
@@ -537,6 +533,12 @@
   z-index: var(--z-base, 1);
   background: var(--surface);
   border-left: 1px solid var(--border-color-secondary, var(--line));
+  width: 48px;
+  min-width: 44px;
+  max-width: 48px;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 6px 4px;
 }
 
 .detailed-plan-grid th.detailed-plan-grid__th--actions {
@@ -544,20 +546,23 @@
      scrolling header never paints over the pinned rail. Rides the base token
      the same way the band rule does, keeping the drift counters flat. */
   z-index: calc(var(--z-base, 1) + 3);
+  font-size: var(--text-label-size, 11px);
+  padding: 6px 2px;
 }
 
-/* SIL-588 (owner 27/10, supersedes the SIL-519 one-line flex rail): the
-   actions stack VERTICALLY — the compact primary (Phát lệnh icon) on top,
-   the ⋯ menu below — so the rail narrows to its button instead of hosting
-   a full-text pill beside the kebab. Right-aligned keeps the stack inside
-   the sticky cell's visual edge; no wrap needed (each button is one row). */
+/* SIL-588 (owner 27/10, supersedes the SIL-519 one-line flex rail) / SIL-713:
+   the actions stack VERTICALLY — the compact primary (Phát lệnh icon) on top,
+   the ⋯ menu below (containing Hoàn thành) — in a 44–48px narrow strip.
+   Centered alignment keeps the stack neatly inside the sticky cell's visual
+   edge; no wrap needed (each button is one row). */
 .detailed-plan-grid__row-actions {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   justify-content: flex-start;
   gap: 6px;
   min-width: 0;
+  width: 100%;
 }
 
 .detailed-plan-grid__cell {

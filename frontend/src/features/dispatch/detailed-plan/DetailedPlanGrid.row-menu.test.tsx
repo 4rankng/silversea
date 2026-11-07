@@ -86,7 +86,7 @@ function makeRow(overrides: {
   } as unknown as DispatchDetailPlanRow;
 }
 
-function renderGrid(row: DispatchDetailPlanRow, props: { onOpenTripReassign?: (tripId: number) => void; onLclTruckUpdated?: () => void; onOpenPair?: (row: DispatchDetailPlanRow) => void; onUnmergeLclGroup?: (groupId: string) => void; onDeleteLot?: (row: DispatchDetailPlanRow) => void; onStartLclMerge?: (row: DispatchDetailPlanRow) => void } = {}) {
+function renderGrid(row: DispatchDetailPlanRow, props: { onCancelDispatch?: (row: DispatchDetailPlanRow) => void; onOpenTripReassign?: (tripId: number) => void; onLclTruckUpdated?: () => void; onOpenPair?: (row: DispatchDetailPlanRow) => void; onUnmergeLclGroup?: (groupId: string) => void; onDeleteLot?: (row: DispatchDetailPlanRow) => void; onStartLclMerge?: (row: DispatchDetailPlanRow) => void } = {}) {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={new QueryClient()}>
@@ -110,6 +110,7 @@ function renderGrid(row: DispatchDetailPlanRow, props: { onOpenTripReassign?: (t
             sortDirection="asc"
             onToggleSort={vi.fn()}
             onAtomicSave={vi.fn()}
+            onCancelDispatch={props.onCancelDispatch}
             onOpenTripReassign={props.onOpenTripReassign ?? vi.fn()}
             onCompleteExternalTrip={vi.fn()}
             onIssueOrder={vi.fn()}
@@ -152,17 +153,17 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
     expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' }));
   });
 
-  it('an issued assigned row also carries Phân xe lại through the governed reassignment dialog', () => {
-    const onOpenTripReassign = vi.fn();
+  it('an issued assigned row also carries Hủy phân xe to cancel dispatch (SIL-708)', () => {
+    const onCancelDispatch = vi.fn();
     renderGrid(makeRow({
       taskStatus: 'DISPATCHED',
       dispatch: { tripId: 9001, tripStatus: 'IN_TRANSIT' },
-    }), { onOpenTripReassign });
+    }), { onCancelDispatch });
 
     fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Phân xe lại' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hủy phân xe' }));
 
-    expect(onOpenTripReassign).toHaveBeenCalledWith(9001);
+    expect(onCancelDispatch).toHaveBeenCalled();
   });
 
   it('a grouped row that is also issued offers BOTH actions in the same menu', () => {
@@ -173,7 +174,7 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
     expect(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeTruthy();
-    expect(screen.getByRole('menuitem', { name: 'Phân xe lại' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
   });
 
   it('an unassigned row (no carrier on the plan) still gets the menu — "Sửa điều phối" is the assign verb', () => {

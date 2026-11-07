@@ -66,7 +66,7 @@ export function DispatchAllocationPopover(props: DispatchAllocationPopoverProps)
  * dismissal, Escape, focus and scroll lock are module-owned; this component
  * owns only the allocation surface.
  */
-function DispatchAllocationContBody({ shipment, onClose, onSaved }: DispatchAllocationPopoverProps) {
+function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: DispatchAllocationPopoverProps) {
   const { options, loading: optionsLoading, error: optionsError, empty: optionsEmpty, reload: reloadOptions } = useCarrierAllocationOptions();
   const [days, setDays] = useState<AllocationDayGroup[]>(() => buildInitialDayGroups(shipment));
   const [saving, setSaving] = useState(false);
@@ -257,6 +257,7 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved }: DispatchAllo
       chrome="bare"
       isOpen
       onClose={onClose}
+      openerRef={openerRef}
       title="Phân bổ nhà xe"
       ariaLabel="Phân bổ nhà xe"
       ariaDescribedBy="dispatch-allocation-description"

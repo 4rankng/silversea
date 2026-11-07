@@ -1,0 +1,13 @@
+> tingting@ build
+> pnpm --dir shared build && pnpm --dir backend build && pnpm --dir frontend build
+
+> @tingting/shared@0.1.0 build
+Fixed 0 bare imports in shared/dist
+
+> @tingting/backend@0.1.0 build
+Fixed 2742 bare imports in backend/dist
+
+> @tingting/frontend@0.1.0 build
+vite v6.4.5 building for production...
+✓ built in 1m
+Exit code: 0

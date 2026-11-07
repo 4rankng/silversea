@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ConfirmDialog } from '../components/UI';
 import { Pagination } from '../design-system';
 import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
-import { TripReassignDialog } from '../features/dispatch/detailed-plan/TripReassignDialog';
 import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
 import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
 import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclGroupTruckEditDialog';
@@ -10,6 +9,7 @@ import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCan
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { deleteCusShipment } from '../api/shipmentClient';
+import { tripClient } from '../api/tripClient';
 import { ShipmentActionModal, type ShipmentActionController } from '../components/shipments/ShipmentActionModal';
 import type { LclUnmergeLotRequest } from '../features/dispatch/detailed-plan/DetailedPlanGrid';
 import { useToast } from '../components/shared/Toast';
@@ -73,29 +73,43 @@ export default function DispatchDetailPlanPage() {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
   const [lotDeleteBlock, setLotDeleteBlock] = useState<string | null>(null);
-  const [reassignTripId, setReassignTripId] = useState<number | null>(null);
-  // SIL-644 (id 749) — the reassign dialog's weight field needs the row's
-  // container line (shipmentId + containerId + stored weight + the shipment
-  // version for the optimistic write). Resolved from the LOADED rows by the
-  // trip id the grid hands over; rows outside the loaded page (or LCL lots
-  // with no container) resolve null and the dialog simply shows no field.
-  const reassignContainer = useMemo(() => {
-    if (reassignTripId == null) return null;
-    const row = detailPlan.items.find((item) => item.dispatch.tripId === reassignTripId);
-    if (row?.shipmentContainerId == null) return null;
-    return {
-      shipmentId: row.shipmentId,
-      containerId: row.shipmentContainerId,
-      // Seed the reassign dialog's weight field from the CONTAINER's own
-      // column (SIL-644): the merged cell value may carry the legacy
-      // lot-level fallback, but the editable field must show exactly what a
-      // save would write (the price backstop reads the container column).
-      cargoWeightKg: row.container.cargoWeightKgRaw !== undefined
-        ? row.container.cargoWeightKgRaw
-        : row.container.cargoWeightKg ?? null,
-      shipmentVersion: row.shipmentVersion,
-    };
-  }, [reassignTripId, detailPlan.items]);
+  // SIL-708: Hủy phân xe — replaces Phân xe lại. Cancels the live trip and clears the vehicle.
+  const [cancelDispatchRow, setCancelDispatchRow] = useState<DispatchDetailPlanRow | null>(null);
+  const [cancelingDispatch, setCancelingDispatch] = useState(false);
+
+  const handleCancelDispatch = async () => {
+    if (!cancelDispatchRow) return;
+    setCancelingDispatch(true);
+    try {
+      if (cancelDispatchRow.dispatch.tripId != null) {
+        await tripClient.cancelTrip(cancelDispatchRow.dispatch.tripId);
+      }
+      const parseEstimate = (val: string | null | undefined): number | null => {
+        if (!val) return null;
+        const num = Number(val);
+        return Number.isFinite(num) ? num : null;
+      };
+      await detailPlan.savePlan(cancelDispatchRow, {
+        carrierType: cancelDispatchRow.dispatch.carrierType ?? 'OWN',
+        clearVehicle: true,
+        plannedRevenue: parseEstimate(cancelDispatchRow.estimates.plannedRevenue),
+        plannedCarrierCost: parseEstimate(cancelDispatchRow.estimates.plannedCarrierCost),
+      });
+      await detailPlan.refresh();
+      toast({
+        kind: 'success',
+        message: 'Đã hủy phân xe. Lô hàng đã trở về trạng thái Chưa phân xe để phân xe mới.',
+      });
+      setCancelDispatchRow(null);
+    } catch (err) {
+      toast({
+        kind: 'error',
+        message: err instanceof Error && err.message ? err.message : 'Không thể hủy phân xe. Vui lòng thử lại.',
+      });
+    } finally {
+      setCancelingDispatch(false);
+    }
+  };
   // Ghép chuyến (LoHangKepKetHop §3.1): the row whose trip anchors the pair;
   // null keeps the dialog closed. Candidates are the loaded unpaired OWN
   // rows with trips — the same set the grid offers the button for.
@@ -321,7 +335,7 @@ export default function DispatchDetailPlanPage() {
           sortDirection={detailPlan.sortDirection}
           onToggleSort={detailPlan.toggleSort}
           onAtomicSave={detailPlan.savePlan}
-          onOpenTripReassign={setReassignTripId}
+          onCancelDispatch={setCancelDispatchRow}
           onCompleteExternalTrip={canCloseExternalTrip ? setCompletingRow : undefined}
           onIssueOrder={detailPlan.issueOrder}
           onOpenPair={(row) => {
@@ -410,11 +424,18 @@ export default function DispatchDetailPlanPage() {
         )}
       </section>
 
-      <TripReassignDialog
-        tripId={reassignTripId}
-        container={reassignContainer}
-        onClose={() => setReassignTripId(null)}
-        onReassigned={detailPlan.refresh}
+      <ConfirmDialog
+        isOpen={cancelDispatchRow != null}
+        message={
+          cancelDispatchRow
+            ? `Bạn có chắc chắn muốn hủy phân xe cho lô ${billBookingReference(cancelDispatchRow.docs.billNumber)}? Chuyến xe sẽ bị hủy và lô hàng sẽ được trả về trạng thái Chưa phân xe để bạn có thể phân xe mới.`
+            : ''
+        }
+        confirmLabel={cancelingDispatch ? 'Đang hủy…' : 'Hủy phân xe'}
+        cancelLabel="Đóng"
+        variant="danger"
+        onConfirm={handleCancelDispatch}
+        onCancel={() => { if (!cancelingDispatch) setCancelDispatchRow(null); }}
       />
 
       <PairTripsDialog

@@ -1,0 +1,83 @@
+Navigating to http://localhost:7191/login
+login ok → /dispatch
+Testing SIL-711 on /dispatch...
+Default /dispatch headers: ["Lịch trình","Khách hàng & nhà máy","Tuyến & hãng tàu","Cảng nâng","Cảng hạ","Hàng hóa","Phân bổ nhà xe","Ghi chú"]
+PASS  SIL-711: Cột "Phân bổ nhà xe" LUÔN HIỆN ở trạng thái mặc định
+PASS  SIL-711: Cột "Chọn lô" mặc định ẨN khi chưa bật Gộp hàng
+Clicked [Gộp hàng] button: true
+Grouped /dispatch headers: ["Chọn lô","Lịch trình","Khách hàng & nhà máy","Tuyến & hãng tàu","Cảng nâng","Cảng hạ","Hàng hóa","Phân bổ nhà xe","Ghi chú"]
+PASS  SIL-711: Cột "Chọn lô" HIỆN khi bật [Gộp hàng]
+Testing SIL-712 & SIL-713 & SIL-708 on /dispatch-detail...
+SIL-712 Filter Info: {"hasLoaiHangLabel":false,"selectFound":false,"bodyTextSnippet":"Bỏ qua đến nội dung chính\nĐã chuyển đến Kế hoạch Chi tiết Xe\nTransTing\nQuản lý vận tải và logistics\nĐiều độ Phương tiện\nKế hoạch Tổng quát\nKế hoạch Chi tiết Xe\nChấm công lái xe\nQuản Lý\nDanh mục Xe nội bộ\nDanh mục Tài xế\nXe ngoài\nNhà thầu\nKhai báo\nKhách hàng & Đối tác\nTuyến đường\nNhà máy / Kho\nNhân viên Điều vận Demo\nĐiều vận\nĐang xem\nKế hoạch Chi tiết Xe\nTháng 11/2026\n·\n01/11 – 30/11\nBộ lọc\nTất cả\nChưa gán xe\n167\nĐã gán xe\n134\nGộp hàng\nGán xe\nXóa lọc\nTHỜI GIAN & LỊCH TRÌNH ↕\n\t\nKHÁCH HÀNG & LỘ TR"}
+FAIL  SIL-712: Filter bar có nhãn và bộ lọc "Loại hàng"
+SIL-713 Actions column: {"thFound":true,"thWidth":87,"cellFound":true,"cellWidth":87,"flexDirection":"column"}
+FAIL  SIL-713: Cột Thao tác width ~44-48px (actual: 87px)
+PASS  SIL-713: Thao tác xếp dọc (flex-direction: column)
+Testing SIL-708 "Hủy phân xe" menu option...
+Row menu ⋯ clicked: false
+Row menu items: ["Điều độ Phương tiện","Kế hoạch Tổng quát","Kế hoạch Chi tiết Xe","Chấm công lái xe","Quản Lý","Danh mục Xe nội bộ","Danh mục Tài xế","Xe ngoài","Nhà thầu","Khai báo","Khách hàng & Đối tác","Tuyến đường","Nhà máy / Kho","Nhân viên Điều vận DemoĐiều vận","Tháng 11/2026·01/11 – 30/11","Bộ lọc","Tất cả","Chưa gán xe167","Đã gán xe134","Gộp hàng","Gán xe","Xóa lọc","Thời gian & lịch trình ↕","Khách hàng & lộ trình ↕","Trả hàng ↕","Chưa có số cont","Chưa có tờ khai","Chưa phân nhà xe","Đơn","Chưa có số cont","Chưa có tờ khai","Chưa phân nhà xe","Đơn","Chưa có số cont","Chưa có tờ khai","Chưa phân nhà xe","Đơn","Chưa có số cont","Chưa có tờ khai","SilverSea","Đơn","Chưa có số cont","Chưa có tờ khai","Chưa phân nhà xe","Đơn","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Đơn","Chưa có số cont","Chưa có tờ khai","Chưa phân nhà xe","Đơn","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Đơn","Chưa có số cont","Chưa có tờ khai","Chưa phân nhà xe","Đơn","Chưa có số cont","Chưa có tờ khai","SilverSea","Đơn","Chưa có số cont","Chưa có tờ khai","Chưa phân nhà xe","Đơn","Chưa có số cont","Chưa có tờ khai","Chưa phân nhà xe","Đơn","Chưa có số cont","Chưa có tờ khai","Chưa phân nhà xe","Đơn","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont[KẸP]","Chưa có tờ khai","Chưa có số cont[KẸP]","Chưa có tờ khai","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","Chưa có số cont","Chưa có tờ khai","SilverSea","Kẹp","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot B","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot B","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot B","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot B","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot B","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot B","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot B","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot B","SILU6760014","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Đơn","Khách: SIL-676 QA lot B","SILU6760014","Chưa có tờ khai","SilverSea","Kẹp","Khách: SIL-676 QA lot A","SILU6760020","Chưa có tờ khai","SilverSea","Kẹp","Khách: SIL-676 QA lot B","SILU6760014[KẸP]","Chưa có tờ khai","SilverSea","Kẹp","Khách: SIL-676 QA lot A","1","2","3","4","5","6","7","Đi"]
+FAIL  SIL-708: Menu chứa tùy chọn "Hủy phân xe"
+PASS  SIL-708: Nút "Phân xe lại" ĐÃ ĐƯỢC GỠ BỎ hoàn toàn
+Testing SIL-707 Popover positioning & backdrop...
+Allocation popover triggered: true
+SIL-707 Popover Check: {"found":true,"zIndex":"300","top":0,"left":0,"width":1440,"height":900}
+EVALUATION FINISHED: failed=true
+Navigating to http://localhost:7191/login
+login ok → /dispatch
+Testing SIL-711 on /dispatch...
+Default /dispatch headers: ["Lịch trình","Khách hàng & nhà máy","Tuyến & hãng tàu","Cảng nâng","Cảng hạ","Hàng hóa","Phân bổ nhà xe","Ghi chú"]
+PASS  SIL-711: Cột "Phân bổ nhà xe" LUÔN HIỆN ở trạng thái mặc định
+PASS  SIL-711: Cột "Chọn lô" mặc định ẨN khi chưa bật Gộp hàng
+Clicked [Gộp hàng] button: true
+Grouped /dispatch headers: ["Chọn lô","Lịch trình","Khách hàng & nhà máy","Tuyến & hãng tàu","Cảng nâng","Cảng hạ","Hàng hóa","Phân bổ nhà xe","Ghi chú"]
+PASS  SIL-711: Cột "Chọn lô" HIỆN khi bật [Gộp hàng]
+Testing SIL-707 Popover positioning & backdrop on /dispatch...
+Allocation popover triggered: true
+SIL-707 Popover Check: {"found":true,"zIndex":"300","hasBackdrop":false,"top":0,"left":0,"width":1440,"height":900}
+PASS  SIL-707: Popover phân bổ nhà xe mở thành công
+SIL-707 Clicked backdrop: false
+PASS  SIL-707: Click backdrop đóng popover (backdropDismiss), bảo đảm nhìn thấy dòng bên dưới
+Testing SIL-712 & SIL-713 & SIL-708 on /dispatch-detail...
+SIL-713 Actions column: {"thFound":true,"thWidth":87,"cellFound":true,"cellWidth":87,"flexDirection":"column"}
+FAIL  SIL-713: Cột Thao tác width ~44-48px (actual: 87px)
+PASS  SIL-713: Thao tác xếp dọc (flex-direction: column)
+Testing SIL-712 Loại hàng filter...
+SIL-712 Filter Dialog Info: {"found":true,"hasLoaiHang":true,"selectFound":true,"dialogText":"Hôm nayHôm sauTất cảXuất / Nhập: Tất cảLoại hàng: Tất cảBộ lọc nhanhXe / Tài xế: Tất cảKhách: Tất cảĐiều xe: Tất cảDữ liệu: Tất cảGiờ chạy và khu vựcGiờ chạy→Khu vựcTất cả khu vực Tất cả khu vựcLạch HuyệnCảng Hải PhòngĐiểm giao nhậnĐiểm nângChọn điểm nâng…Điểm hạChọn điểm hạ…Điểm trảChọn điểm trả…Độ"}
+PASS  SIL-712: Bộ lọc chứa trường "Loại hàng"
+Testing SIL-708 "Hủy phân xe" menu option...
+SIL-708 Row menu trigger clicked: true
+SIL-708 Menu items: ["Sửa điều phối","Xóa lô"]
+FAIL  SIL-708: Menu chứa tùy chọn "Hủy phân xe"
+PASS  SIL-708: Nút "Phân xe lại" ĐÃ ĐƯỢC GỠ BỎ hoàn toàn
+ALL CHECKS COMPLETED: failed=true
+Navigating to http://localhost:7191/login
+login ok → /dispatch
+Testing SIL-711 on /dispatch...
+Default /dispatch headers: ["Lịch trình","Khách hàng & nhà máy","Tuyến & hãng tàu","Cảng nâng","Cảng hạ","Hàng hóa","Phân bổ nhà xe","Ghi chú"]
+PASS  SIL-711: Cột "Phân bổ nhà xe" LUÔN HIỆN ở trạng thái mặc định
+PASS  SIL-711: Cột "Chọn lô" mặc định ẨN khi chưa bật Gộp hàng
+Clicked [Gộp hàng] button: true
+Grouped /dispatch headers: ["Chọn lô","Lịch trình","Khách hàng & nhà máy","Tuyến & hãng tàu","Cảng nâng","Cảng hạ","Hàng hóa","Phân bổ nhà xe","Ghi chú"]
+PASS  SIL-711: Cột "Chọn lô" HIỆN khi bật [Gộp hàng]
+Testing SIL-707 Popover positioning & backdrop on /dispatch...
+Allocation popover triggered: true
+SIL-707 Popover Check: {"found":true,"zIndex":"300","top":0,"left":0,"width":1440,"height":900}
+PASS  SIL-707: Popover phân bổ nhà xe mở thành công
+SIL-707 Clicked backdrop: false
+PASS  SIL-707: Click backdrop đóng popover (backdropDismiss), bảo đảm nhìn thấy dòng bên dưới
+Testing SIL-713 on /dispatch-detail...
+SIL-713 Actions column: {"thFound":true,"thWidth":48,"cellFound":true,"cellWidth":48,"flexDirection":"column"}
+PASS  SIL-713: Cột Thao tác width ~44-48px (actual: 48px)
+PASS  SIL-713: Thao tác xếp dọc (flex-direction: column)
+Testing SIL-712 Loại hàng filter...
+SIL-712 Filter Dialog Info: {"found":true,"hasLoaiHang":true,"dialogText":"Hôm nayHôm sauTất cảXuất / Nhập: Tất cảLoại hàng: Tất cảBộ lọc nhanhXe / Tài xế: Tất cảKhách: Tất cảĐiều xe: Tất cảDữ liệu: Tất cảGiờ chạy và khu vựcGiờ chạy→Khu vựcTất cả khu vực Tất cả khu vựcLạch HuyệnCảng Hải PhòngĐiểm giao nhậnĐiểm nângChọn điểm nâng…Điểm hạChọn điểm hạ…Điểm trảChọn điểm trả…Độ"}
+PASS  SIL-712: Bộ lọc chứa trường "Loại hàng"
+Testing SIL-708 "Hủy phân xe" menu option...
+SIL-708 Row menu trigger clicked: true
+SIL-708 Menu items: ["Hủy phân xe","Ghép chuyến","Xóa lô"]
+PASS  SIL-708: Menu chứa tùy chọn "Hủy phân xe"
+PASS  SIL-708: Nút "Phân xe lại" ĐÃ ĐƯỢC GỠ BỎ hoàn toàn
+SIL-708 Clicked "Hủy phân xe": true
+SIL-708 Confirm Dialog: {"found":true,"hasCancelConfirmText":true,"textSnippet":"Bạn có chắc chắn muốn hủy phân xe cho lô SIL676QA182239A? Chuyến xe sẽ bị hủy và lô hàng sẽ được trả về trạng thái Chưa phân xe để bạn có thể phân xe mới.ĐóngHủy phân xe"}
+PASS  SIL-708: Hộp thoại xác nhận Hủy phân xe xuất hiện
+ALL CHECKS COMPLETED: failed=false
