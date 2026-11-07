@@ -38,17 +38,6 @@ export default function TripDetailPage() {
   const handleBack = () => navigate('/trips');
   useBackShortcut(handleBack);
 
-  useEffect(() => {
-    if (searchParams.get('reassign') !== '1'
-      || !page.trip
-      || !page.permissions.canReassign
-      || page.trip.accountingLock != null) return;
-    page.openReassign();
-    const nextSearchParams = new URLSearchParams(searchParams);
-    nextSearchParams.delete('reassign');
-    setSearchParams(nextSearchParams, { replace: true });
-  }, [page, searchParams, setSearchParams]);
-
   /* ── Loading / Error / Empty guards ────────────────────────────────── */
   if (page.loading) {
     return (
@@ -84,7 +73,6 @@ export default function TripDetailPage() {
         canCancel: false,
         canDispatch: false,
         canComplete: false,
-        canReassign: false,
         canAdjust: false,
         canChangeDate: false,
         needsPhotos: false,
@@ -122,7 +110,6 @@ export default function TripDetailPage() {
           setGovernanceReason('');
           setGovernanceIntent('cancel');
         }}
-        onReassign={page.openReassign}
         onAdjust={page.openAdjust}
       />
 
@@ -276,117 +263,6 @@ export default function TripDetailPage() {
           )}
         </div>
       </div>
-
-      {/* ── Reassign Modal ──────────────────────────────────────────────── */}
-      <Modal
-        isOpen={ui.showReassign}
-        title="Phân xe lại"
-        onClose={() => page.setShowReassign(false)}
-        onConfirm={page.handleReassign}
-        maxWidth={440}
-        footer={
-          <>
-            <button className="btn btn--ghost btn--sm" onClick={() => page.setShowReassign(false)}>
-              <X size={14} /> Hủy
-            </button>
-            <button
-              className="btn btn--primary btn--sm"
-              disabled={ui.reassignLoading || (ui.reassignCarrierType === 'OWN' ? (!ui.reassignTruckId || !ui.reassignDriverId) : (!ui.reassignExternalCarrierId && !ui.reassignExternalPlateNumber))}
-              onClick={page.handleReassign}
-            >
-              {ui.reassignLoading ? <Loader2 size={14} className="spin" /> : <Shuffle size={14} />}
-              Xác nhận phân xe lại
-            </button>
-          </>
-        }
-      >
-        {ui.reassignError && (
-          <div className="tdp-modal-error">
-            {ui.reassignError}
-          </div>
-        )}
-        <div className="tdp-reassign-toggle-group">
-          <button
-            type="button"
-            onClick={() => page.setReassignCarrierType('OWN')}
-            aria-pressed={ui.reassignCarrierType === 'OWN'}
-            className="tdp-reassign-toggle-btn"
-          >
-            Xe nhà
-          </button>
-          <button
-            type="button"
-            onClick={() => page.setReassignCarrierType('EXTERNAL')}
-            aria-pressed={ui.reassignCarrierType === 'EXTERNAL'}
-            className="tdp-reassign-toggle-btn"
-          >
-            Xe ngoài
-          </button>
-        </div>
-
-        {ui.reassignCarrierType === 'OWN' ? (
-          <>
-            <UuiSelectField
-              id="reassignTruckId"
-              label="Xe đầu kéo"
-              value={ui.reassignTruckId}
-              onChange={e => page.setReassignTruckId(e.target.value)}
-              options={[{ value: '', label: '-- Chọn xe --' }, ...page.reassignTrucks.map(t => ({ value: String(t.id), label: t.licensePlate }))]}
-              wrapperClassName="field"
-            />
-            <UuiSelectField
-              id="reassignDriverId"
-              label="Lái xe"
-              value={ui.reassignDriverId}
-              onChange={e => page.setReassignDriverId(e.target.value)}
-              options={[{ value: '', label: '-- Chọn lái xe --' }, ...page.reassignDrivers.map(d => ({ value: String(d.id), label: d.name }))]}
-              wrapperClassName="field"
-            />
-          </>
-        ) : (
-          <>
-            <UuiSelectField
-              id="reassignExternalCarrierId"
-              label="Đối tác xe ngoài"
-              value={ui.reassignExternalCarrierId}
-              onChange={e => {
-                // Round-19 sibling sweep (m3): a different nhà xe means a
-                // different fleet — drop the seeded plate so the previous
-                // carrier's plate cannot commit under the new carrier.
-                if (e.target.value !== ui.reassignExternalCarrierId) page.setReassignExternalPlateNumber('');
-                page.setReassignExternalCarrierId(e.target.value);
-              }}
-              options={[{ value: '', label: '-- Chọn đối tác --' }, ...page.carrierCustomers.map(c => ({ value: String(c.id), label: c.label }))]}
-              wrapperClassName="field"
-            />
-            <div className="field">
-              <label htmlFor="reassignExternalPlateNumber">Biển số xe</label>
-              <input id="reassignExternalPlateNumber" name="reassignExternalPlateNumber" type="text" className="input" placeholder="Ví dụ: 15C-12345" value={ui.reassignExternalPlateNumber} onChange={e => page.setReassignExternalPlateNumber(e.target.value)} />
-            </div>
-            <div className="field">
-              <label htmlFor="reassignExternalDriverName">Tên lái xe</label>
-              <input id="reassignExternalDriverName" name="reassignExternalDriverName" type="text" className="input" placeholder="Tên lái xe ngoài" value={ui.reassignExternalDriverName} onChange={e => page.setReassignExternalDriverName(e.target.value)} />
-            </div>
-            <div className="field">
-              <label htmlFor="reassignExternalDriverPhone">SĐT lái xe</label>
-              <input id="reassignExternalDriverPhone" name="reassignExternalDriverPhone" type="tel" autoComplete="tel" className="input" placeholder="SĐT lái xe" value={ui.reassignExternalDriverPhone} onChange={e => page.setReassignExternalDriverPhone(e.target.value)} />
-            </div>
-          </>
-        )}
-
-        <div className="field">
-          <label htmlFor="reassignReason">Lý do điều chuyển *</label>
-          <textarea
-            id="reassignReason"
-            name="reassignReason"
-            rows={2}
-            className="input"
-            placeholder="Bắt buộc — ghi vào nhật ký nghiệp vụ cùng người thực hiện và thời gian"
-            value={ui.reassignReason}
-            onChange={e => page.setReassignReason(e.target.value)}
-          />
-        </div>
-      </Modal>
 
       {/* ── Adjustment Drawer ───────────────────────────────────────────── */}
       <Drawer isOpen={ui.showAdjust} onClose={() => page.setShowAdjust(false)} title="Hóa đơn điều chỉnh">
