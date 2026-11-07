@@ -214,12 +214,12 @@ export function CusShipmentRow({
           {item.isCombined && <span className="cus-combined-tag">Đóng kết hợp</span>}
           {/* No direction yet means no badge at all: a filled pill holding a
               bare '—' was chrome (and a generic placeholder) inside a data
-              cell — design law §1 (text-only cells, name the missing field). */}
-          {item.direction ? (
+              cell — design law §1 (text-only cells, name the missing field).
+              The Cont/Lẻ cargo label is XLSX-export-only (owner ruling): the
+              board states the mode through its own content, never a pill. */}
+          {item.direction && (
             <span className={`cus-direction-badge cus-direction-badge--${item.direction.toLowerCase()}`}>{directionLabel(item.direction, item.cargoMode)}</span>
-          ) : item.cargoMode === 'LCL' ? (
-            <span className="cus-direction-badge cus-direction-badge--lcl">Lẻ</span>
-          ) : null}
+          )}
         </span></button>
       </td>)}
       {!isHidden('cargo') && (<td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
@@ -235,18 +235,24 @@ export function CusShipmentRow({
               return <span className="cus-cargo-summary__containers cus-empty">{emptyDayCargoLabel(item.cargoMode)}</span>;
             }
             if (item.cargoMode === 'LCL') {
+              // Owner ruling: the Cont/Lẻ label rides the XLSX export only —
+              // the cell states the mode through its own content (spec lines
+              // vs kiện/CBM metrics), never a table pill. The package
+              // authority wins when priced; a mixed summary splits one line
+              // per container type (Kiến nghị L2 item 1.2).
               const countAndType = item.packageCount != null
                 ? `${formatNumber(item.packageCount)} ${item.packageType?.trim() || 'kiện'}`
                 : null;
               const weightStr = item.weightKg != null ? formatWeight(item.weightKg) : null;
               const cleanSummary = item.containerSummary && !item.containerSummary.includes('cont') ? item.containerSummary : null;
-              const specText = countAndType ?? cleanSummary ?? weightStr ?? 'Chưa có hàng hóa';
-              return (
-                <div style={{ display: 'inline-flex', alignItems: 'center' }}>
-                  <span className="master-plan-grid__lcl-chip" title="Hàng lẻ (LCL)">Lẻ</span>
-                  <strong className="cus-cargo-summary__containers">{specText}</strong>
-                </div>
-              );
+              const specLines = splitContainerSummaryLines(countAndType ?? cleanSummary);
+              if (specLines.length > 0) {
+                return specLines.map((specLine) => (
+                  <strong key={specLine} className="cus-cargo-summary__containers">{specLine}</strong>
+                ));
+              }
+              if (weightStr) return <strong className="cus-cargo-summary__containers">{weightStr}</strong>;
+              return <span className="cus-cargo-summary__containers cus-empty">Chưa có hàng hóa</span>;
             }
             const lines = splitContainerSummaryLines(summary);
             if (lines.length > 0) {
