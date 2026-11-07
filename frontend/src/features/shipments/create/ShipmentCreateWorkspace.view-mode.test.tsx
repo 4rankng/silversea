@@ -153,6 +153,16 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
     expect(screen.queryByText(/Bắt buộc:/)).toBeNull();
   });
 
+  it('SIL-709: does NOT render Thêm container or Xóa container in view mode', async () => {
+    renderView({ canEditLot: true });
+    expect(await screen.findByRole('heading', { name: 'Chi tiết lô hàng' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Thêm container/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
+    expect(document.querySelector('.csc-container-actions')).toBeNull();
+    expect(document.querySelector('.csc-container-col__actions')).toBeNull();
+    expect(document.querySelector('.csc-container-row__actions')).toBeNull();
+  });
+
   it('the action cluster is Quay lại + Sửa + Tạo mới lô hàng on the fixed footer bar', async () => {
     renderView({ canEditLot: true });
 

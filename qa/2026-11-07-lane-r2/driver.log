@@ -1,0 +1,48 @@
+=== Lane R2 UI Drive Started at 2026-11-06T17:21:38.893Z ===
+[2026-11-06T17:21:38.895Z] --- Part 1: API Level Authz Checks (SIL-706) ---
+[2026-11-06T17:21:39.249Z] Login dieuvan: OK (role=DISPATCHER)
+[2026-11-06T17:21:39.271Z] DISPATCHER DELETE /cus-workspace/5 -> status: 403
+[2026-11-06T17:21:39.271Z] DISPATCHER DELETE response: {"error":"Không có quyền truy cập"}
+[2026-11-06T17:21:39.272Z] PASS: DISPATCHER DELETE rejected with 403 by route middleware (requireRoles)
+[2026-11-06T17:21:39.314Z] DISPATCHER PUT /shipments/5 -> status: 403
+[2026-11-06T17:21:39.314Z] DISPATCHER PUT response: {"error":"Không có quyền truy cập"}
+[2026-11-06T17:21:39.315Z] PASS: DISPATCHER PUT /shipments/:id rejected with 403
+[2026-11-06T17:21:39.623Z] Login cus: OK (role=CUS)
+[2026-11-06T17:21:39.752Z] CUS GET /shipments/5 -> status: 200
+[2026-11-06T17:21:39.752Z] PASS: CUS GET /shipments/:id returns 200
+[2026-11-06T17:21:40.224Z] Login admin: OK (role=ADMIN)
+[2026-11-06T17:21:40.309Z] ADMIN GET /shipments/5 -> status: 200
+[2026-11-06T17:21:40.309Z] PASS: ADMIN GET /shipments/:id returns 200
+[2026-11-06T17:21:40.309Z] 
+--- Part 2: Puppeteer Browser UI Verification ---
+[2026-11-06T17:21:42.331Z] --- Testing DISPATCHER (dieuvan) ---
+[2026-11-06T17:21:42.603Z] Login dieuvan: OK (role=DISPATCHER)
+[2026-11-06T17:21:49.534Z] Saved screenshot: 01_dispatcher_shipments_list.png
+[2026-11-06T17:21:56.877Z] DISPATCHER on /shipments/5: hasEditBtn=false, hasDeleteBtn=false
+[2026-11-06T17:21:56.877Z] PASS: DISPATCHER has NO delete button on shipment detail
+[2026-11-06T17:21:56.880Z] DISPATCHER viewMode container affordances: add=false, del=false, actionHeader=false
+[2026-11-06T17:21:56.880Z] PASS: SIL-709 verified in View Mode: NO [Thêm container] and NO [Xóa container]
+[2026-11-06T17:21:56.967Z] Saved screenshot: 02_dispatcher_shipment_detail_view.png
+[2026-11-06T17:22:03.003Z] DISPATCHER direct navigation to /edit -> redirected to: http://localhost:7186/dispatch
+[2026-11-06T17:22:03.004Z] PASS: SIL-706 verified: DISPATCHER is blocked from /shipments/:id/edit by route guard
+[2026-11-06T17:22:03.235Z] Saved screenshot: 03_dispatcher_shipment_edit_blocked.png
+[2026-11-06T17:22:03.236Z] 
+--- Testing CUS (cus) ---
+[2026-11-06T17:22:03.421Z] Login cus: OK (role=CUS)
+[2026-11-06T17:22:11.707Z] CUS on /shipments/5 (view): edit=true, delete=true, addCont=false, delCont=false
+[2026-11-06T17:22:11.707Z] PASS: CUS view mode also omits container add/delete buttons (SIL-709)
+[2026-11-06T17:22:11.711Z] CusLotView fact labels: []
+[2026-11-06T17:22:11.711Z] CusLotView fact indices: booking=-1, tokhai=-1, trade=-1, shipping=-1
+[2026-11-06T17:22:11.865Z] Saved screenshot: 04_cus_shipment_detail_view.png
+[2026-11-06T17:22:20.098Z] CUS editMode container affordances: add=true, del=true, actionHeader=true
+[2026-11-06T17:22:20.099Z] PASS: SIL-709 verified in Edit Mode: [Thêm container] and [Xóa container] buttons are present
+[2026-11-06T17:22:20.103Z] Edit form refs grid testids: {"found":true,"order":["hidden-select-container"]}
+[2026-11-06T17:22:20.103Z] Edit form indices: booking=-1, trade=-1, shipping=-1
+[2026-11-06T17:22:20.331Z] Saved screenshot: 05_cus_shipment_edit_form.png
+[2026-11-06T17:22:20.331Z] 
+--- Testing ADMIN (admin) ---
+[2026-11-06T17:22:20.510Z] Login admin: OK (role=ADMIN)
+[2026-11-06T17:22:29.906Z] ADMIN on /shipments/5: edit=true, delete=true
+[2026-11-06T17:22:30.073Z] Saved screenshot: 06_admin_shipment_detail.png
+[2026-11-06T17:22:30.073Z] 
+=== ALL UI & AUTHZ VERIFICATION TESTS PASSED ===

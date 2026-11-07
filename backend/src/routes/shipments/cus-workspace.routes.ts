@@ -417,7 +417,7 @@ cusWorkspaceRoutes.post(
 
 cusWorkspaceRoutes.delete(
   '/cus-workspace/:id', declareMaterialWrite('shipments.delete-request', { method: 'DELETE', path: '/api/shipments/cus-workspace/:id' }), 
-  requireRoles(Role.CUS, Role.ADMIN, Role.DISPATCHER),
+  requireRoles(Role.CUS, Role.ADMIN),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;

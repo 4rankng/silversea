@@ -59,20 +59,34 @@ describe('QA1-001 — Bill/Booking placeholder before a trade direction is picke
   });
 });
 
-describe('SIL-168 (owner ruling B 24/10, khách yêu cầu lần 3) — Nhận diện lô field order', () => {
-  it('reads Khách hàng → Hình thức XNK → Số Bill/Booking → Hãng tàu → Tuỳ chọn in DOM order (SIL-521: hết band Số tờ khai)', () => {
-    renderSection({ tradeDirection: 'EXPORT' } as Partial<ShipmentCreateFormState>);
-    // SIL-168 ruling B (owner 24/10 "why not handled yet"): Hình thức XNK
-    // đứng TRƯỚC Số Bill/Booking — supersedes the FB-127 reading (9f174360:
-    // Bill trước XNK, 2 cụm divider) and restores the 2425726d band order
-    // the customer quoted verbatim on 23+24/10. Older history: 2425726d
-    // superseded the A.3 order of card 181026200200. The Bill/Booking gate
-    // (blNumber XOR bookingRef theo hướng, FB-113) is unchanged — only the
-    // layout moved. SIL-521: the strip band is retired entirely.
+describe('SIL-710 — Nhận diện lô document group order (Booking → Tờ khai → Nhập/Xuất → Hãng tàu)', () => {
+  it('reads Khách hàng → Số Bill/Booking → Hình thức XNK → Hãng tàu → Tuỳ chọn in DOM order for FCL', () => {
+    renderSection({ tradeDirection: 'EXPORT', cargoMode: 'FCL' } as Partial<ShipmentCreateFormState>);
+    // SIL-710: thứ tự chứng từ: 1. Số Booking → 2. Số tờ khai (LCL) → 3. Nhập/Xuất → 4. Hãng tàu
     const chain = [
       '[data-field-id="shipment-customer"]',
-      '[data-field-id="shipment-trade-direction"]',
       '[data-field-id="shipment-booking-ref"]',
+      '[data-field-id="shipment-trade-direction"]',
+      '[data-field-id="shipment-shipping-line"]',
+      '[data-field-id="shipment-deposit"]',
+    ].map((selector) => document.querySelector(selector));
+    for (const node of chain) expect(node, `missing ${node}`).toBeTruthy();
+    for (let i = 0; i < chain.length - 1; i += 1) {
+      expect(
+        chain[i]!.compareDocumentPosition(chain[i + 1]!) & Node.DOCUMENT_POSITION_FOLLOWING,
+        `field ${i + 1} must precede field ${i + 2}`,
+      ).toBeTruthy();
+    }
+  });
+
+  it('reads Khách hàng → Số Bill/Booking → Số tờ khai → Hình thức XNK → Hãng tàu → Tuỳ chọn in DOM order for LCL', () => {
+    renderSection({ tradeDirection: 'EXPORT', cargoMode: 'LCL' } as Partial<ShipmentCreateFormState>);
+    // SIL-710: thứ tự chứng từ LCL: 1. Số Booking → 2. Số tờ khai → 3. Nhập/Xuất → 4. Hãng tàu
+    const chain = [
+      '[data-field-id="shipment-customer"]',
+      '[data-field-id="shipment-booking-ref"]',
+      '[data-field-id="shipment-lcl-declaration-number"]',
+      '[data-field-id="shipment-trade-direction"]',
       '[data-field-id="shipment-shipping-line"]',
       '[data-field-id="shipment-deposit"]',
     ].map((selector) => document.querySelector(selector));

@@ -76,11 +76,11 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     resource: 'shipments',
     methods: ['DELETE'],
     pathPattern: /^\/cus-workspace\/\d+$/,
-    roles: [Role.CUS, Role.DISPATCHER],
+    roles: [Role.CUS],
     effect: 'bypass',
     reason:
-      'Cards 351/352 (QA gap found 05/10): the Xóa lô flow is the CUS DIRECT delete — 2026-09-10 user directive removed the approval flow (requestShipmentDelete) and the route\'s own requireRoles(Role.CUS) admits the CUS user, but the mount-level casbinAuthz(\'shipments\') had no DELETE grant here so every confirm tap died 403. Bridge scoped to exactly this path; general shipment delete stays closed. SIL-688 owner ruling 06/11 (board comment 3953, keeping the 21/10 ruling): Điều vận joins the delete authority (same PENDING/IN_TRANSIT scope, confirm + soft delete with audit trail) — the bridge must admit DISPATCHER or the mount still answers 403; OPS stays closed.',
-    source: 'Cards 351/352; user directive 2026-09-10 (direct CUS delete); SIL-688 owner ruling 06/11 (Điều vận)',
+      'Cards 351/352 (QA gap found 05/10): the Xóa lô flow is the CUS DIRECT delete — 2026-09-10 user directive removed the approval flow (requestShipmentDelete) and the route\'s own requireRoles(Role.CUS) admits the CUS user, but the mount-level casbinAuthz(\'shipments\') had no DELETE grant here so every confirm tap died 403. Bridge scoped to exactly this path; general shipment delete stays closed. SIL-706 owner confirmation 07/11: Điều vận delete authority revoked (reversing SIL-688 r2) — only CUS uses this bypass; ADMIN passes normal casbin policy; DISPATCHER/OPS stay closed.',
+    source: 'Cards 351/352; user directive 2026-09-10 (direct CUS delete); SIL-706 owner confirm 07/11 (revoke Điều vận)',
   },
   {
     resource: 'config',

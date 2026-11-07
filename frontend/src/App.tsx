@@ -399,6 +399,13 @@ export function AppRoutes() {
       ? el
       : <DeniedRedirect to={homeRedirect} />
   );
+  // SIL-706: DISPATCHER loses lot metadata edit authority.
+  // Guard = shipmentEditorOnly: ADMIN, CUS, MANAGER.
+  const shipmentEditorOnly = (el: ReactElement) => (
+    isAdmin || isCus || currentRole === Role.MANAGER
+      ? el
+      : <DeniedRedirect to={homeRedirect} />
+  );
   // Strict ADMIN-only — these surfaces expose raw operational data and must
   // never be reachable by MANAGER/ACCOUNTANT. Mirrors managerOrAdminOnly's shape:
   // admit only when the role matches, else bounce to the portal or staff home.
@@ -502,11 +509,9 @@ export function AppRoutes() {
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
           {/* SIL-171 (FB-147, 24/10): /shipments/:id/edit is now the REAL
               "Sửa lô" form — the Tạo lô hàng workspace in edit mode (pre-fill
-              + PATCH). It supersedes card 20261004_358's redirect alias: the
-              guessed URL still never 404s, it lands on the edit surface
-              itself. Guard = shipmentCreatorOnly, the same roles the detail
-              page's "Sửa lô" button and PUT /shipments/:id authorize. */}
-          <Route path="/shipments/:id/edit" element={shipmentCreatorOnly(page(<ClerkShipmentEditPage />))} />
+              + PATCH). Guard = shipmentEditorOnly (SIL-706: ADMIN, CUS, MANAGER;
+              DISPATCHER denied), matching PUT /shipments/:id authority. */}
+          <Route path="/shipments/:id/edit" element={shipmentEditorOnly(page(<ClerkShipmentEditPage />))} />
           <Route path="/routes" element={<Navigate to="/config/routes" replace />} />
           <Route path="/trucks" element={<Navigate to="/fleet" replace />} />
           <Route path="/drivers" element={<Navigate to="/fleet" replace />} />

@@ -1008,6 +1008,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
               <>
                 <ShipmentContainerEditor
                   saving={controlsDisabled}
+                  viewMode={viewMode}
                   onAdd={(count) => setContainers((current) => {
                     const source = current[current.length - 1];
                     return [
@@ -1043,6 +1044,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                           sitesLoading={sitesLoading}
                           onAddFactory={() => openCreateSiteDialog('FACTORY')}
                           saving={controlsDisabled}
+                          viewMode={viewMode}
                           routeOptions={routeOptions}
                           portOptions={portOptions}
                         />
@@ -1059,7 +1061,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     retuning rows that already hold a schedule is the defect
                     FB-008 reports), toast confirms. Same house dashed
                     utility button as its copy predecessor. */}
-                {copySourceRow && containers.length >= 2 && (
+                {copySourceRow && containers.length >= 2 && !viewMode && (
                   <button
                     type="button"
                     className="csc-utility-button csc-utility-button--dashed"

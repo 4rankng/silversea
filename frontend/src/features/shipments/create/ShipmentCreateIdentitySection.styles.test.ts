@@ -7,30 +7,39 @@ const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8');
 
 const css = read('src/pages/clerk/ClerkShipmentCreatePage.css');
 
-describe('SIL-641 (id 745) — Form tạo lô, section "Nhận diện lô": 2 input columns equal width (50/50)', () => {
+describe('SIL-641 / SIL-710 — Form tạo lô, section "Nhận diện lô": 2 input columns equal width (50/50)', () => {
   it('defines equal 50/50 column tracks at desktop (repeat(12, minmax(0, 1fr)) with span 6 for each column)', () => {
     // 12-column track with 6/12 split per column = exactly 50% left, 50% right.
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
 
     const custMatch = css.match(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span\s*(\d+);/);
+    const declMatch = css.match(/\.csc-identity-grid__declaration\s*\{[^}]*grid-column:\s*span\s*(\d+);/);
     const tradeMatch = css.match(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span\s*(\d+);/);
     const bookingMatch = css.match(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span\s*(\d+);/);
     const shippingMatch = css.match(/\.csc-identity-grid__shipping-line\s*\{[^}]*grid-column:\s*span\s*(\d+);/);
 
     expect(custMatch).not.toBeNull();
+    expect(declMatch).not.toBeNull();
     expect(tradeMatch).not.toBeNull();
     expect(bookingMatch).not.toBeNull();
     expect(shippingMatch).not.toBeNull();
 
-    const leftTrackSpan = Number(custMatch![1]);
-    const rightTrackSpan = Number(tradeMatch![1]);
+    const customerSpan = Number(custMatch![1]);
+    const declSpan = Number(declMatch![1]);
     const bookingSpan = Number(bookingMatch![1]);
+    const tradeSpan = Number(tradeMatch![1]);
     const shippingSpan = Number(shippingMatch![1]);
 
-    // Compare the two column track spans directly: Left Column === Right Column
-    expect(leftTrackSpan).toBe(rightTrackSpan);
-    expect(bookingSpan).toBe(shippingSpan);
-    expect(leftTrackSpan + rightTrackSpan).toBe(12);
+    // Customer spans full row (12)
+    expect(customerSpan).toBe(12);
+
+    // Row 1 (Booking | Tờ khai): 50/50 (span 6 each, total 12)
+    expect(bookingSpan).toBe(declSpan);
+    expect(bookingSpan + declSpan).toBe(12);
+
+    // Row 2 (Nhập/Xuất | Hãng tàu): 50/50 (span 6 each, total 12)
+    expect(tradeSpan).toBe(shippingSpan);
+    expect(tradeSpan + shippingSpan).toBe(12);
   });
 
   it('keeps 2 equal columns (repeat(2, minmax(0, 1fr))) at tablet (<=820px, including 768px)', () => {

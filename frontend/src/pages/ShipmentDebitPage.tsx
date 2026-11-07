@@ -59,10 +59,10 @@ function listTotals(items: ShipmentDebitLotRow[]) {
 export function ShipmentDebitPage() {
   const { user } = useAuth();
   const canManage = canManageShipmentDebit(user?.role);
-  // SIL-688 (id 800 — QA 06/11): Xóa lô admits exactly the BE delete roles —
-  // owner ruling 06/11 (comment 3953): Chứng từ + ĐIỀU VẬN + Quản trị
-  // (narrower than canManage, which also admits ACCOUNTANT); OPS stays out.
-  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.DISPATCHER || user?.role === Role.ADMIN;
+  // SIL-706 (owner confirm 07/11, reversing SIL-688 r2 / ruling 3953):
+  // Rút quyền XÓA lô khỏi ĐIỀU VẬN.
+  // Xóa lô: Chứng từ + Quản trị; OPS và DISPATCHER không có quyền.
+  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
   const phone = useMediaQuery('(max-width: 640px)');
   const print = useMediaQuery('print');
   const [params, setSearchParams] = useQueuedSearchParams();

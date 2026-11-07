@@ -746,9 +746,11 @@ coreRoutes.get('/:id', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 // ─── PUT /:id — update with optimistic-lock version ────────────────────────
+// SIL-706 (owner confirm 07/11): DISPATCHER loses lot metadata edit authority.
+// Only ADMIN, MANAGER, CUS can update shipment metadata.
 coreRoutes.put(
   '/:id', declareMaterialWrite('shipments.update', { method: 'PUT', path: '/api/shipments/:id' }), 
-  requireRoles(...SHIPMENT_INTAKE_MUTATION_ROLES),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;

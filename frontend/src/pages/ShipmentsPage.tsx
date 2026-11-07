@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CircleCheck, FileLock2, FileSpreadsheet, Loader2, LockOpen, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
   CUS_SEARCH_PATTERN, SHIPMENT_CUS_WORKSPACE_SORT_KEYS, SHIPMENT_CUS_BUCKET_LABELS,
-  SHIPMENT_INTAKE_MUTATION_ROLES, ShipmentCusBucket, Role,
+  ShipmentCusBucket, Role,
   type ShipmentCusWorkspaceContainerLine, type ShipmentCusWorkspaceListItem,
   type ShipmentCusContainerLineUpdateInput,
   type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceSortKey,
@@ -126,17 +126,15 @@ export default function ShipmentsPage() {
   // half is obsolete now, and keeping it would have left ADMIN able to delete
   // through the API but unable to reach the button. The affordance mirrors the
   // guard; when the guard moves, this moves with it.
-  // SIL-688 owner ruling 06/11 (comment 3953, keeping the 21/10 ruling):
-  // Chứng từ + Điều vận + Quản trị — the BE DELETE /cus-workspace/:id admits
-  // exactly these three (requireRoles); OPS stays without the affordance.
-  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN || user?.role === Role.DISPATCHER;
+  // SIL-706 (owner confirm 07/11, reversing SIL-688 r2 / ruling 3953):
+  // Rút quyền XÓA + SỬA lô khỏi ĐIỀU VẬN.
+  // Chỉ Chứng từ (CUS) + Quản trị được xóa lô.
+  const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
   // SIL-592 (id 692) — hide the external-trip staff close outside the
   // backend's complete-external allowlist (ADMIN/MANAGER/DISPATCHER/CUS).
   const canCloseExternal = canCloseExternalTrips(user?.role);
-  // SIL-485: the drawer's "Sửa" rides the same intake-mutation authority the
-  // /shipments/:id/edit route guard enforces — the host page owns useAuth and
-  // decides here whether the edit affordance exists at all.
-  const canEditLot = !!user?.role && SHIPMENT_INTAKE_MUTATION_ROLES.includes(user.role);
+  // SIL-706: Sửa lô metadata chỉ dành cho ADMIN, MANAGER, CUS (DISPATCHER bị rút quyền sửa metadata).
+  const canEditLot = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS);
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const pageSize = readCusPageSize(searchParams.get('limit'));
