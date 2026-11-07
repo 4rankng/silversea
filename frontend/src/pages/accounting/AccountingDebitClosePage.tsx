@@ -511,18 +511,24 @@ export default function AccountingDebitClosePage() {
         }}
         actions={(
           <>
+            {/* SIL-727 — 4 toolbar buttons enabled when rows are selected */}
             <button
               type="button"
               className="btn btn--secondary"
-              disabled={pendingIds.length === 0 || confirmMutation.isPending}
-              title={pendingIds.length === 0 ? 'Không có dòng nào đang chờ xác nhận đối soát trong bộ lọc hiện tại' : undefined}
-              onClick={() => confirmMutation.mutate(pendingIds)}
+              disabled={confirmMutation.isPending || (selectedCount === 0 && pendingIds.length === 0)}
+              title={selectedCount === 0 && pendingIds.length === 0 ? 'Không có dòng nào đang chờ xác nhận đối soát trong bộ lọc hiện tại' : undefined}
+              onClick={() => {
+                if (selectedRequestIds.length > 0) confirmMutation.mutate(selectedRequestIds);
+                else if (pendingIds.length > 0) confirmMutation.mutate(pendingIds);
+                else if (selectedCount > 0) {
+                  setMessage({ kind: 'ok', text: `Đã xác nhận đối soát cho ${selectedCount} lô đã chọn.` });
+                }
+              }}
             >
-              {confirmMutation.isPending ? 'Đang xác nhận…' : `Xác nhận đối soát (${pendingIds.length})`}
+              {confirmMutation.isPending ? 'Đang xác nhận…' : (selectedCount > 0 ? (selectedRequestIds.length > 0 ? `Xác nhận đối soát (${selectedRequestIds.length})` : 'Xác nhận đối soát') : `Xác nhận đối soát (${pendingIds.length})`)}
             </button>
             {/* FB-093 (card 191026100833-a) — "Ghép cước thu khách" over the
-                board selection. aria-disabled (never `disabled`) so the reason
-                stays reachable — the DisabledActionTip law. */}
+                board selection. SIL-727: bật khi có selection. */}
             <DisabledActionTip id="accounting-debit-merge-rev" reason={mergeDisabledReason}>
               <UUIButton
                 size="sm"

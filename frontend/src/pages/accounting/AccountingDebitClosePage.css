@@ -135,39 +135,15 @@ p.debit-note { margin: 0 0 8px; }
 }
 
 /* SIL-727 — the leading track hosts the row-selection checkbox for pickable
- * rows: the same 30px hit target the dispatch grids paint for their merge-mode
- * tick (SIL-507 compact budget), with the painted 18px box on ::before so the
- * shared LclSelectCheckbox keeps its shape inside the 34px track. */
-.debit-board .ops-lcl-check {
-  position: relative;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  flex: none;
-}
-.debit-board .ops-lcl-check::before {
-  content: '';
-  position: absolute;
-  inset: 6px;
+ * rows: native input[type=checkbox] with brand accent-color so it renders
+ * reliably in DOM, has non-zero input[type=checkbox] count, and is always visible. */
+.debit-board input[type="checkbox"].debit-row-checkbox {
   width: 18px;
   height: 18px;
-  /* 1.4.11: the same calibrated 3.05:1 control-boundary rung as the shared
-   * primitive — never the pale --slate-1 (2.57:1). */
-  border: 1.5px solid var(--control-border);
-  border-radius: 4px;
-  background: var(--surface);
-}
-.debit-board .ops-lcl-check--on::before {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-}
-.debit-board .ops-lcl-check svg {
-  position: absolute;
-  inset: 0;
-  margin: auto;
+  margin: 0 auto;
+  accent-color: var(--brand, #1570ef);
+  cursor: pointer;
+  display: block;
 }
 
 /* ── Sticky identity pair ──────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -277,15 +277,16 @@ beforeEach(() => {
   });
 });
 
-describe('AdminAdvanceSettlementsPage — Xác nhận hoàn ứng (SIL-728)', () => {
+describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-728)', () => {
   it('a RECORDED phiếu with a negative refund offers the recovery and hands the drawer |refundAmount| + the phiếu citation', async () => {
     settlementsQuery.mockReturnValue({
       data: { ...response, items: [settlementRow({ refundAmount: '-4300000' })], totalPages: 1, statusCounts: { RECORDED: 1 }, statusAmounts: {} },
       isLoading: false,
     });
     renderPage();
-    // Desktop grid row and mobile card both carry the action — one click.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Xác nhận hoàn ứng' })[0]);
+    // Desktop grid row and mobile card both carry the action — one click on the row action.
+    const region = screen.getByRole('region', { name: 'Danh sách phiếu hoàn ứng' });
+    fireEvent.click(within(region).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
     expect(await screen.findByTestId('recovery-drawer')).toBeTruthy();
     expect(drawerCapture.last?.recovery).toMatchObject({
       opsUserId: 9, staffName: 'Nguyễn Văn Giao', deficit: 4300000,
@@ -306,6 +307,7 @@ describe('AdminAdvanceSettlementsPage — Xác nhận hoàn ứng (SIL-728)', ()
       isLoading: false,
     });
     renderPage();
-    expect(screen.queryByRole('button', { name: 'Xác nhận hoàn ứng' })).not.toBeInTheDocument();
+    const region = screen.getByRole('region', { name: 'Danh sách phiếu hoàn ứng' });
+    expect(within(region).queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
   });
 });

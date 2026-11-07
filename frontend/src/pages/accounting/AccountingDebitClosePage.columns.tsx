@@ -5,7 +5,6 @@ import { StatusPill } from '../../components/UI';
 import { NameCell } from '../../components/shared/NameCell';
 import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
 import { Skeleton } from '../../components/shared/Skeleton';
-import { LclSelectCheckbox } from '../../features/dispatch/LclSelectCheckbox';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
@@ -120,11 +119,16 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     key: 'chiPhi', label: 'Chi phí', className: 'debit-col--cost-state', pinned: true, srOnlyHeader: true,
     cell: (row, context) => context?.rowSelect
       ? (
-        <LclSelectCheckbox
-          isSelected={context.rowSelect.selected}
-          onToggle={context.rowSelect.toggle}
-          ariaLabel={`Chọn lô ${billBookingReference(row.billOrBooking) || row.code}`}
+        <input
+          type="checkbox"
+          role="checkbox"
+          className="debit-row-checkbox"
+          checked={context.rowSelect.selected}
+          aria-checked={context.rowSelect.selected}
+          aria-label={`Chọn lô ${billBookingReference(row.billOrBooking) || row.code}`}
           title="Chọn lô"
+          onClick={(e) => e.stopPropagation()}
+          onChange={() => context.rowSelect?.toggle()}
         />
       )
       : hasMissingCost(row)
@@ -256,12 +260,10 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     },
   },
   {
-    // SIL-727 — essential: the PHẢI THU breakdown is part of the money matrix
-    // the ticket requires on the board (KT4's six-column opening set grows to
-    // the full matrix the owner listed; the phone records view keeps its own
-    // auto default via autoHideWhenEmpty below).
+    // SIL-727 — essential: the full 10-column money matrix (5 PHẢI THU + 5 PHẢI TRẢ)
+    // always renders on the board and is never hidden by autoHideWhenEmpty.
     key: 'cuocThu', label: 'Cước thu (tự động)', className: 'debit-col--money', group: 'thu',
-    essential: true, autoHideWhenEmpty: true, raw: (row) => row.thu.cuocThu,
+    essential: true,
     // FB-145 — the tách-nhóm refresh skeletons the cell (design direction
     // 24/10: h-4 w-16); "Thiếu cước thu"/the fresh per-lot price renders only
     // from the refetched board.
@@ -271,17 +273,17 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'lachHuyen', label: 'Lạch Huyện (tự động)', className: 'debit-col--money', group: 'thu',
-    essential: true, autoHideWhenEmpty: true, raw: (row) => row.thu.lachHuyen,
+    essential: true,
     cell: (row) => money(row.thu.lachHuyen, 'Thiếu lạch huyền'),
   },
   {
     key: 'phuPs', label: 'Phụ ps (tự động)', className: 'debit-col--money', group: 'thu',
-    essential: true, autoHideWhenEmpty: true, raw: (row) => row.thu.phuPs,
+    essential: true,
     cell: (row) => money(row.thu.phuPs, 'Thiếu phụ PS'),
   },
   {
     key: 'phatSinhCus', label: 'Phát sinh (cus)', className: 'debit-col--money', group: 'thu',
-    essential: true, autoHideWhenEmpty: true, raw: (row) => row.thu.phatSinhCus,
+    essential: true,
     cell: (row) => money(row.thu.phatSinhCus, 'Thiếu phát sinh (cus)'),
   },
   {
@@ -292,17 +294,17 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'cuocTraDv', label: 'Cước trả ĐV', className: 'debit-col--money', group: 'tra',
-    essential: true, autoHideWhenEmpty: true, raw: (row) => row.tra.cuocTraDv,
+    essential: true,
     cell: (row) => money(row.tra.cuocTraDv, 'Thiếu cước trả ĐV'),
   },
   {
     key: 'lachHuyenDv', label: 'Lạch Huyện ĐV', className: 'debit-col--money', group: 'tra',
-    essential: true, autoHideWhenEmpty: true, raw: (row) => row.tra.lachHuyenDv,
+    essential: true,
     cell: (row) => money(row.tra.lachHuyenDv, 'Thiếu lạch huyền ĐV'),
   },
   {
     key: 'phatSinhDv', label: 'Phát sinh ĐV', className: 'debit-col--money', group: 'tra',
-    essential: true, autoHideWhenEmpty: true, raw: (row) => row.tra.phatSinhDv,
+    essential: true,
     cell: (row) => money(row.tra.phatSinhDv, 'Thiếu phát sinh ĐV'),
   },
   {
@@ -313,7 +315,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     key: 'phiRu', label: 'Phí RU (tự động)', className: 'debit-col--money', group: 'tra',
-    essential: true, autoHideWhenEmpty: true, raw: (row) => row.tra.phiRu,
+    essential: true,
     cell: (row) => money(row.tra.phiRu, 'Thiếu phí RU'),
   },
   {

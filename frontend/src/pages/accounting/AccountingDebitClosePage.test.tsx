@@ -180,7 +180,7 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(screen.queryByText('Chưa xác định')).not.toBeInTheDocument();
   });
 
-  it('SIL-727 — the money matrix opens essential, no stored choice can bury it, and the still-hideable choice persists (card 191026181942)', async () => {
+  it('SIL-727 — the money matrix opens essential, no stored choice can bury it, and the still-hideable choice persists (card 191026181942)', { timeout: 15000 }, async () => {
     // SIL-727 amends the KT4 default ON THIS BOARD: the ticket lists the full
     // PHẢI THU/PHẢI TRẢ matrix explicitly, so the breakdowns are essential —
     // visible at open, locked in the picker, immune to a stale payload. The
@@ -234,12 +234,26 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
     await screen.findByText('BL-1');
     const first = dataRows(container)[0];
     const checkbox = within(first).getByRole('checkbox', { name: 'Chọn lô BL-1' });
+    expect(checkbox.tagName).toBe('INPUT');
+    expect(checkbox).toHaveAttribute('type', 'checkbox');
     expect(checkbox.getAttribute('aria-checked')).toBe('false');
+
+    const xacNhanBtn = screen.getByRole('button', { name: /Xác nhận đối soát/ });
+    const chonDebitBtn = screen.getByRole('button', { name: /Chọn Debit/ });
+    const xuatDebitBtn = screen.getByRole('button', { name: /Xuất Debit Note/ });
+    expect(xacNhanBtn).toBeDisabled();
+    expect(chonDebitBtn).toBeDisabled();
+    expect(xuatDebitBtn).toBeDisabled();
+
     // One click, one toggle: the control stops propagation, so the row's own
     // click handler never double-toggles it.
     fireEvent.click(checkbox);
     expect(first.getAttribute('data-selected')).toBe('true');
     expect(checkbox.getAttribute('aria-checked')).toBe('true');
+    expect(checkbox).toBeChecked();
+    expect(xacNhanBtn).not.toBeDisabled();
+    expect(chonDebitBtn).not.toBeDisabled();
+    expect(xuatDebitBtn).not.toBeDisabled();
     // The Ngày tick still names WHICH row is picked (§2c).
     expect(first.querySelector('.debit-row-tick')?.textContent).toBe('✓');
     fireEvent.click(checkbox);

@@ -239,7 +239,7 @@ export default function OpsReconciliationReportPage() {
         <ExpenseCashDrawer
           catalog={catalog.data}
           recovery={recovery}
-          onClose={() => setRecovery(null)}
+          onClose={() => { setRecovery(null); invalidate(); }}
         />
       )}
     </div>
@@ -276,16 +276,19 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover }: {
             : <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>}
       </td>
       <td data-label="" className="record-table__action">
-        {/* SIL-728 — the staff-level "Xác nhận hoàn ứng": every âm row, in
-            every filter state, no đợt needed. Naming per owner 07/11: this is
-            the accountant's direct "Xác nhận", never a "phê duyệt". */}
+        {/* SIL-728 — the staff-level "Lập phiếu hoàn ứng": every âm row, in
+            every filter state, no đợt needed. Nút tất toán số dư âm cho Kế toán. */}
         {row.needsCollection && row.outstandingSigned < 0 && (
           <Btn
             variant="primary"
             size="sm"
-            onClick={() => onRecover({ opsUserId: row.staffId, staffName: row.staffName, deficit: Math.abs(row.outstandingSigned) })}
+            onClick={() => onRecover({
+              opsUserId: row.staffId,
+              staffName: row.staffName,
+              deficit: Math.abs(row.outstandingSigned),
+            })}
           >
-            Xác nhận hoàn ứng
+            Lập phiếu hoàn ứng
           </Btn>
         )}
         {actionLot && (

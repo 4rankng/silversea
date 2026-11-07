@@ -5,6 +5,7 @@ import { Drawer } from '../../components/UI';
 import { DateField, NumberField, TextField, UuiSelectField } from '../../design-system';
 import { expenseAccountingClient, type ExpenseAccountingCatalog } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
+import { opsReconciliationReportKeys } from '../../api/opsReconciliationReportClient';
 import { businessDateISO } from '../../lib/format';
 import { expenseMoney } from './expense-accounting-model';
 
@@ -40,7 +41,11 @@ export function ExpenseCashDrawer({ catalog, reconciliation, recovery, onClose }
     if (recovery) return expenseAccountingClient.advanceRecovery({ opsUserId: recovery.opsUserId, ...body }, command.current.key);
     return reconciliation ? expenseAccountingClient.refundReconciliation(reconciliation.id, body, command.current.key)
       : expenseAccountingClient.fundAdvance({ ...body, opsUserId: Number(person), ...(requestId ? { advanceRequestId: Number(requestId) } : {}) }, command.current.key);
-  }, onSuccess: async () => { await cache.invalidateQueries({ queryKey: qk.expenseAccounting.all }); onClose(); } });
+  }, onSuccess: async () => {
+    await cache.invalidateQueries({ queryKey: qk.expenseAccounting.all });
+    await cache.invalidateQueries({ queryKey: opsReconciliationReportKeys.all });
+    onClose();
+  } });
   const close = () => { if (!lock.current) onClose(); };
   async function save(event: React.FormEvent) {
     event.preventDefault(); if (lock.current) return;

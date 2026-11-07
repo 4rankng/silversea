@@ -261,16 +261,15 @@ export function SettlementGridRow({
             <Link className="as-row-action as-row-action--quiet" to={`/settlements/${s.id}`}>
               Xem phiếu
             </Link>
-            {/* SIL-728 — hoàn siêu âm (refundAmount < 0) chỉ ghi nhận ý định:
-                nút này mới di chuyển tiền về Quỹ công ty. "Xác nhận" — nghiệp
-                vụ trực tiếp của kế toán, không phải phê duyệt (owner 07/11). */}
+            {/* SIL-728 — hoàn siêu âm (refundAmount < 0): nút Lập phiếu hoàn ứng
+                tất toán số dư âm về Quỹ công ty cho Kế toán. */}
             {onRecover && canRecoverSettlement(s) && (
               <button
                 type="button"
                 className="btn btn--primary btn--sm"
                 onClick={() => onRecover(s)}
               >
-                Xác nhận hoàn ứng
+                Lập phiếu hoàn ứng
               </button>
             )}
             {/* §3b — nút/flow DUYỆT PHIẾU HOÀN ỨNG (chiphispec round 2):
@@ -424,7 +423,7 @@ export function SettlementMobileCard({
           className="btn btn--primary btn--sm"
           onClick={() => onRecover(s)}
         >
-          Xác nhận hoàn ứng
+          Lập phiếu hoàn ứng
         </button>
       )}
       {(s.approverName || ktChecked) ? (
@@ -666,9 +665,17 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
         <AdminAdvanceSettlementCreateDialog open={createOpen} onClose={() => setCreateOpen(false)} />
       )}
 
-      {/* SIL-728 — Xác nhận hoàn ứng: thu hồi số dư ứng âm về Quỹ công ty. */}
+      {/* SIL-728 — Lập phiếu hoàn ứng: thu hồi số dư ứng âm về Quỹ công ty. */}
       {recovery && catalog.data && (
-        <ExpenseCashDrawer catalog={catalog.data} recovery={recovery} onClose={() => setRecovery(null)} />
+        <ExpenseCashDrawer
+          catalog={catalog.data}
+          recovery={recovery}
+          onClose={() => {
+            setRecovery(null);
+            void cache.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
+            void cache.invalidateQueries({ queryKey: qk.adminForwarder.advanceBalances });
+          }}
+        />
       )}
     </div>
   );

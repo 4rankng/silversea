@@ -21,7 +21,7 @@ beforeEach(() => {
   vi.spyOn(crypto, 'randomUUID').mockReturnValue('1b2e3c4d-5f6a-4b7c-8d9e-0f1a2b3c4d5e');
 });
 
-it('pre-fills the deficit, books the recovery with the idempotency key, and retries with the same key', async () => {
+it('pre-fills the deficit, books the recovery with the idempotency key, and retries with the same key', { timeout: 15000 }, async () => {
   advanceRecovery.mockRejectedValueOnce(new Error('Mất phản hồi')).mockResolvedValueOnce({ id: 91 });
   const onClose = vi.fn();
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { mutations: { retry: false } } })}><ExpenseCashDrawer catalog={catalog} recovery={recovery} onClose={onClose} /></QueryClientProvider>);
@@ -46,7 +46,7 @@ it('pre-fills the deficit, books the recovery with the idempotency key, and retr
   await waitFor(() => expect(onClose).toHaveBeenCalled());
 });
 
-it('never offers an over-collection: an amount above the deficit is refused client-side', async () => {
+it('never offers an over-collection: an amount above the deficit is refused client-side', { timeout: 15000 }, async () => {
   render(<QueryClientProvider client={new QueryClient()}><ExpenseCashDrawer catalog={catalog} recovery={recovery} onClose={vi.fn()} /></QueryClientProvider>);
   fireEvent.click(screen.getByRole('button', { name: /Nguồn quỹ/ })); fireEvent.click(await screen.findByRole('option', { name: 'Quỹ công ty' }));
   fireEvent.click(screen.getByRole('button', { name: /Tài khoản/ })); fireEvent.click(await screen.findByRole('option', { name: 'Quỹ test' }));

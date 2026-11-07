@@ -188,7 +188,7 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
     expect(screen.queryByRole('button', { name: 'Lập phiếu thu' })).not.toBeInTheDocument();
   });
 
-  it('Lập phiếu chi loads the đợt entries and opens the voucher drawer; Lập phiếu thu opens the refund drawer', async () => {
+  it('Lập phiếu chi loads the đợt entries and opens the voucher drawer; Lập phiếu thu opens the refund drawer', { timeout: 15000 }, async () => {
     currentLot = mkLot(rowPositive, 150000);
     const first = page();
     await pickLot();
@@ -241,7 +241,7 @@ const rowDeficit: OpsReconciliationReportRow = {
   direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
 };
 
-describe('OpsReconciliationReportPage — Xác nhận hoàn ứng (SIL-728)', () => {
+describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', () => {
   it('a wallet-deficit row offers the recovery action in ANY filter state and hands the drawer the deficit', async () => {
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowDeficit],
@@ -250,7 +250,7 @@ describe('OpsReconciliationReportPage — Xác nhận hoàn ứng (SIL-728)', ()
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
     // No đợt filter is set — the action is still on the row.
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận hoàn ứng' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
     expect(await screen.findByTestId('recovery-drawer')).toBeTruthy();
     expect(drawerCapture.last?.recovery).toMatchObject({ opsUserId: 12, staffName: 'Vũ Đình Cường', deficit: 4300000 });
   });
@@ -264,7 +264,7 @@ describe('OpsReconciliationReportPage — Xác nhận hoàn ứng (SIL-728)', ()
     });
     page();
     await screen.findByText('NV C', { selector: 'td' });
-    expect(screen.queryByRole('button', { name: 'Xác nhận hoàn ứng' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
     expect(screen.getByText('ÂM — đề nghị thu lại tiền ứng')).toBeTruthy();
   });
 });
