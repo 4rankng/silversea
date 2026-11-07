@@ -54,10 +54,11 @@ export default function DispatchDetailPlanPage() {
   // Card 211026005623 (FB-095) — the Điều vận surface's "Xóa lô": same delete
   // flow as the /shipments drawer + lot detail (confirm + lý do →
   // deleteCusShipment). Role law stays CUS/ADMIN (`requestShipmentDelete`
-  // 403s everyone else — cards 351/352 + 20261007_396), so DISPATCHER /
-  // MANAGER get no delete execution here either; the guard is not loosened.
-  // Per card 20260923_1 the affordance stays reachable and answers with the
-  // guard's own reason instead of vanishing (same law as the drawer's Xóa lô).
+  // 403s everyone else — cards 351/352 + 20261007_396). SIL-688 (owner,
+  // 07/11): the row menu must NOT render the item for roles without the
+  // authority — a menu entry whose only answer is "bạn không có quyền" is a
+  // blocked affordance (Điều vận no longer holds delete per SIL-706), so the
+  // item vanishes for them instead of answering.
   const { user } = useAuth();
   const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
   // SIL-694 (id 806): the external-trip close (POST /trips/:id/complete-external)
@@ -72,7 +73,6 @@ export default function DispatchDetailPlanPage() {
   const [deleteRow, setDeleteRow] = useState<DispatchDetailPlanRow | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
-  const [lotDeleteBlock, setLotDeleteBlock] = useState<string | null>(null);
   // SIL-708: Hủy phân xe — replaces Phân xe lại. Cancels the live trip and clears the vehicle.
   const [cancelDispatchRow, setCancelDispatchRow] = useState<DispatchDetailPlanRow | null>(null);
   const [cancelingDispatch, setCancelingDispatch] = useState(false);
@@ -262,15 +262,10 @@ export default function DispatchDetailPlanPage() {
   }
 
   // Card 211026005623 — the row action routes: authorized roles open the
-  // delete confirm; everyone else gets the guard's own law text inline
-  // (verbatim the `requestShipmentDelete` refusal) — the button never
-  // vanishes, it answers (card 20260923_1).
+  // delete confirm. The page only wires onDeleteLot for CUS/ADMIN (see the
+  // canDeleteLot comment), so the menu item never renders for other roles
+  // (SIL-688) and this handler needs no further role check.
   function requestDeleteLot(row: DispatchDetailPlanRow) {
-    if (!canDeleteLot) {
-      setLotDeleteBlock('Chỉ CUS hoặc Quản trị viên mới được yêu cầu xóa lô hàng.');
-      return;
-    }
-    setLotDeleteBlock(null);
     setDeleteRow(row);
   }
 
@@ -312,9 +307,6 @@ export default function DispatchDetailPlanPage() {
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
       <section className="dispatch-plan-page__workspace">
-        {lotDeleteBlock && (
-          <div className="dispatch-plan-page__error" role="alert">{lotDeleteBlock}</div>
-        )}
         <DetailedPlanGrid
           filters={detailPlan.filters}
           onFilterChange={detailPlan.updateFilters}
@@ -366,7 +358,7 @@ export default function DispatchDetailPlanPage() {
           onUnmergeLclLot={setUnmergeLot}
           onLclTruckUpdated={() => { void detailPlan.refresh(); }}
           onChangeGroupTruck={setGroupTruckRow}
-          onDeleteLot={requestDeleteLot}
+          onDeleteLot={canDeleteLot ? requestDeleteLot : undefined}
           onRowsChanged={() => { void detailPlan.refresh(); }}
         />
         {selectedLclRows.length > 0 && (
