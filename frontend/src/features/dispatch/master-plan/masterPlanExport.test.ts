@@ -159,8 +159,14 @@ describe('mapMasterPlanExportRow', () => {
 
     const cells = mapMasterPlanExportRow(item, '2026-08-20');
 
-    expect(cells[0]).toContain('Nhà máy XYZ · 1 x 40HC');
+    // SIL-732: the subline under the datetime is the container summary alone —
+    // the factory name lives in the "Khách hàng & nhà máy" column (cells[1]),
+    // never in the schedule cell, so the container type cannot truncate.
+    expect(cells[0]).toContain('20/08/2026 09:00');
+    expect(cells[0]).toContain('1 x 40HC');
+    expect(cells[0]).not.toContain('Nhà máy XYZ');
     expect(cells[0]).not.toContain('1 x 20DC');
+    expect(cells[1]).toContain('Nhà máy XYZ');
     expect(cells[5]).toBe('1 x 40HC\n41 tấn');
   });
 });
