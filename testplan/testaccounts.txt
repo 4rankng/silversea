@@ -55,10 +55,11 @@ staging:
   # name-based rename (firstname-initials style, e.g. dungnv = Dũng Nguyễn Văn).
   # NO MANAGER / CUSTOMER-role accounts exist on staging — prod has none.
   # Demo accounts (dieuvan, ketoan, giamdoc, laixe…) DO NOT exist on
-  # staging anymore; they only exist on local dev. EXCEPTION (card
-  # 20260930_248 staging evidence, build 2c9ecf9f, 2026-10-01): the CUS
-  # demo account `cus` DOES exist on staging (6 CUS-role users; suite 19
-  # logged in as cus/Abc123 and passed 54/54).
+  # staging anymore; they only exist on local dev. UPDATE (2026-11-07,
+  # admin roster via /api/auth/users: 64 users): the CUS demo account
+  # `cus` from card 20260930_248 has been PURGED from staging — no demo
+  # or CUSTOMER-role accounts remain (cus/samsung-cs/canon-cs all fail
+  # login with 401). CUS logins on staging = the 5 named staff only.
   users:
     ADMIN:       admin, phuongnt (NV001), namnv (NV002)
     ACCOUNTANT:  hoapt (NV009), liennt (NV010), lydp (NV011),
@@ -69,8 +70,10 @@ staging:
     OPS:         hoangnh (NV003), hungld (NV004), duongtt (NV005),
                  tuvn (NV006), hoangnm (NV007), cuongvd (NV008),
                  vanchuyen (QA fixture, card 20260922_49 — PURGED 26/09: QA-named account removed by the qa-fixture purge per the data class; use a named-role account instead)
-    DRIVER:      bqhuong, btdung, vvtrung, tvtham — 38 named drivers
-                 (no Mã NV); every one logs in with username + Abc123
+    DRIVER:      bqhuong, btdung, vvtrung, tvtham — 41 named drivers
+                 (no Mã NV; count verified 2026-11-07 via admin roster,
+                 up from 38 documented earlier); every one logs in with
+                 username + Abc123
   # API notes for scripted testing (learned 2026-09-06):
   #   - POST /api/auth/login takes {"identifier", "password"} — "username"
   #     field gets 400. Identifier may be username, email, or phone.
