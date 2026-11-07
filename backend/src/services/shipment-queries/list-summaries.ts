@@ -590,10 +590,14 @@ export async function loadShipmentListAppointmentGroups(
   // shipment_containers has no deletedAt column (deletion is hard-delete at
   // the service layer, see reconcileShipmentContainersInTx) so no soft-delete
   // filter is needed here.
-  // Precedence matches DetailedPlanGrid schedule display:
-  // 1. Live trip plannedEndAt
-  // 2. Stored fulfillment plannedEndAt (explicit dispatch override)
-  // 3. Container customerAppointmentAt
+  // Precedence mirrors the /dispatch-detail schedule cell law (SIL-746):
+  // 1. Stored fulfillment plannedEndAt (explicit dispatch override)
+  // 2. Container customerAppointmentAt
+  // The live trip's plannedEndAt is an ESTIMATED trip completion instant the
+  // issue command synthesizes (+2h from the start) — nobody enters it as a
+  // giờ hẹn — so it must never surface as the schedule instant (SIL-746: the
+  // column printed 16:30 trip end after Phát lệnh while /dispatch-detail and
+  // the drawer kept the saved 14:30).
   const containerRows = await db.select({
     shipmentId: s.shipmentContainers.shipmentId,
     customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
@@ -601,17 +605,11 @@ export async function loadShipmentListAppointmentGroups(
     containerTypeCode: s.containerTypes.code,
     containerTypeName: s.containerTypes.name,
     fulfillmentPlannedEndAt: s.shipmentFulfillments.plannedEndAt,
-    tripPlannedEndAt: s.trips.plannedEndAt,
   }).from(s.shipmentContainers)
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
     .leftJoin(s.shipmentFulfillments, and(
       eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id),
       isNull(s.shipmentFulfillments.canceledAt),
-    ))
-    .leftJoin(s.trips, and(
-      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
-      isNull(s.trips.deletedAt),
-      ne(s.trips.status, 'CANCELED'),
     ))
     .where(inArray(s.shipmentContainers.shipmentId, ids))
     .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id));
@@ -640,7 +638,7 @@ export async function loadShipmentListAppointmentGroups(
   // first and filling shipment-level fallbacks later splits containers which
   // share one effective factory into duplicate display lines.
   return groupShipmentAppointmentGroups(containerRows.flatMap((row) => {
-    const effectiveAt = row.tripPlannedEndAt ?? row.fulfillmentPlannedEndAt ?? row.customerAppointmentAt;
+    const effectiveAt = row.fulfillmentPlannedEndAt ?? row.customerAppointmentAt;
     if (effectiveAt == null) return [];
     const shipment = shipmentsById.get(row.shipmentId);
     const factorySiteId = row.operationalSiteId ?? shipment?.operationalSiteId ?? null;

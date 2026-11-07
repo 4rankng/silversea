@@ -155,7 +155,6 @@ export type AssignmentRow = {
   tripId: number | null;
   tripVersion: number | null;
   tripStatus: string | null;
-  tripPlannedEndAt: Date | null;
   /** Planned run date (YYYY-MM-DD) of the linked trip — the staff-close gate's
    *  departure half (SIL-592 retest 30/10). */
   tripDepartureDate: string | null;
@@ -422,7 +421,6 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       tripId: s.trips.id,
       tripVersion: s.trips.version,
       tripStatus: s.trips.status,
-      tripPlannedEndAt: s.trips.plannedEndAt,
       tripDepartureDate: s.trips.departureDate,
       tripCarrierType: s.tripCarrierInfo.carrierType,
       tripExternalCarrierId: s.tripCarrierInfo.externalEntityId,

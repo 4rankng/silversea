@@ -89,7 +89,7 @@ test('(b-pin) conservation — canonical merge (group freight = Σ per-lot bản
   // No coin created, no coin lost: the pre-tách total equals the Σ after.
   assert.equal(after.reduce((sum, amount) => sum + amount, 0), groupFreight);
   // ...and per-lot: nobody dropped below their own pre-merge truth.
-  for (const [index, amount] of after.entries()) assert.ok(amount >= 0 && amount != null);
+  for (const amount of after.values()) assert.ok(amount >= 0 && amount != null);
 });
 
 test('(c) Xóa Lô chính — the survivor engine follows the crown inside the delete transaction', () => {
