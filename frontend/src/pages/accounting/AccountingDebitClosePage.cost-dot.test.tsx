@@ -137,7 +137,7 @@ describe('the leading cost-state track on the board', () => {
     // Tổng 1 is essential — visible by default, its missing label still names
     // the field in the muted face; the pickable row's track hosts the
     // checkbox, and no red dot floods beside it.
-    expect(await screen.findByText('Thiếu tổng 1')).toHaveClass('debit-missing');
+    expect(await screen.findByText('Thiếu tổng trả')).toHaveClass('debit-missing');
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeTruthy();
     expect(screen.queryByRole('img', { name: 'Thiếu chi phí' })).toBeNull();
   });
@@ -155,7 +155,7 @@ describe('the leading cost-state track on the board', () => {
     // …and the ticket's matrix is on the board: every PHẢI THU/PHẢI TRẢ
     // column reads locked in the picker (disabled + checked — a stored choice
     // cannot hide it, FB-093 lan 3)…
-    for (const label of ['Cước thu (tự động)', 'Lạch Huyện (tự động)', 'Phụ ps (tự động)', 'Phát sinh (cus)', 'Tổng thu', 'Cước trả ĐV', 'Lạch Huyện ĐV', 'Phát sinh ĐV', 'Tổng 1', 'Phí RU (tự động)']) {
+    for (const label of ['Cước thu (tự động)', 'Lạch Huyện (tự động)', 'Phụ ps (tự động)', 'Phát sinh (cus)', 'Tổng thu', 'Cước trả ĐV', 'Lạch Huyện ĐV', 'Phát sinh ĐV', 'Tổng trả', 'Phí RU (tự động)']) {
       const option = within(dialog).getByRole('checkbox', { name: label });
       expect(option).toBeChecked();
       expect(option).toBeDisabled();
@@ -175,6 +175,6 @@ describe('the leading cost-state track on the board', () => {
     const record = await screen.findByRole('article', { name: 'BL-1' });
     expect(within(record).queryByRole('img', { name: 'Thiếu chi phí' })).toBeNull();
     // The per-field muted labels still carry the fact on the card face.
-    expect(within(record).getByText('Thiếu tổng 1')).toBeTruthy();
+    expect(within(record).getByText('Thiếu tổng trả')).toBeTruthy();
   });
 });
