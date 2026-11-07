@@ -578,6 +578,26 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
   const cssSource = () => readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
   const rule = (re: RegExp) => cssSource().match(re)?.[1] ?? '';
 
+  it('the L1 status renders as shared text+dot — the pill bubble never returns (design law §1)', async () => {
+    listSummary.mockResolvedValue({ items: [row()], total: 1 });
+    const { container } = renderPage('/shipments-debit?customer=1');
+    expect(await screen.findByText('Đang mở')).toBeTruthy();
+    const tsx = readFileSync(resolve(process.cwd(), 'src/features/shipments/debit/DebitLotTable.tsx'), 'utf8');
+    // The status value renders through the shared StatusText primitive —
+    // no page-local pill class (the old 999px pill wrapped above the kebab
+    // on every row and read as a detached rail of stray pills).
+    expect(tsx).toContain('<StatusText variant={row.lockStatus === \'LOCKED\' ? \'neutral\' : \'info\'}>');
+    expect(tsx).not.toContain('shipment-debit-status');
+    expect(cssSource()).not.toContain('shipment-debit-status');
+    // The cell keeps the status and the kebab on one baseline: wrapping flex,
+    // never the old white-space: normal inline stack.
+    const cell = rule(/\.shipment-debit-table td\.shipment-debit-cell--status\s*\{([^}]*)\}/);
+    expect(cell).toMatch(/display:\s*flex/);
+    expect(cell).toMatch(/flex-wrap:\s*wrap/);
+    expect(cell).toMatch(/justify-content:\s*flex-end/);
+    expect(container.querySelectorAll('.shipment-debit-status').length).toBe(0);
+  });
+
   it('keeps the red shadow line out of the scroll pane', async () => {
     listSummary.mockResolvedValue({ items: [row()], total: 1, excludedCount: 2, excludedSum: '1150000' });
     const { container } = renderPage('/shipments-debit?customer=1');
@@ -596,14 +616,17 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
     const cue = screen.getByText('Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.');
     expect(cue.className).not.toMatch(/ledger-desktop/);
     expect(rule(/\.shipment-debit-scroll-hint\s*\{([^}]*)\}/)).toMatch(/display:\s*none/);
-    expect(cssSource()).toMatch(/@media \(min-width: 641px\) and \(max-width: 1347px\)\s*\{[^}]*\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
+    expect(cssSource()).toMatch(/@media \(min-width: 641px\) and \(max-width: 1369px\)\s*\{[^}]*\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
   });
 
   it('redesign 23/10 (a): fixed 11-column board, nowrap headers, 52px rows, sticky bands', () => {
     // The honest sum of the eleven measured columns (44+130+160+144+130+130
-    // +120+130+130+140+90 = 1348) floors the table; below that width the
-    // pane scrolls sideways.
-    expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/min-width:\s*1348px/);
+    // +120+130+130+140+112 = 1370) floors the table; below that width the
+    // pane scrolls sideways. The status column is 112px: the §1 text+dot
+    // status + the ⋯ kebab on ONE baseline (55+6+28) plus a merged row's
+    // [Ghép (i/N) ⋯] second line (66+6+28) inside its 104px usable width —
+    // the old 90px wrapped the pill above the kebab on every row.
+    expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/min-width:\s*1370px/);
     expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/table-layout:\s*fixed/);
     expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/font-variant-numeric:\s*tabular-nums/);
     // Headers: one nowrap uppercase line; money headers match the data edge.

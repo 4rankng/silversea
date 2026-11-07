@@ -146,6 +146,21 @@
   }
 }
 
+/* The 1024–1279 desktop band bites from the other side: with the sidebar
+   open (248px) the row holds toggle 40 + search 360 (the band's fixed floor)
+   + context + chip 243 + bell 40 and still ran 88–112px over on /accounting —
+   the chip's period tail clipped past the viewport edge and the bell went
+   fully off-screen (07/11 owner screenshots at ~1067 CSS px). Same trade as
+   the ≤767 band above: the month IS the control's state and the range is
+   repeated in the trigger's aria-label and in the picker, so this band drops
+   the visible range only. */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .topbar-date__sep,
+  .topbar-date__period {
+    display: none;
+  }
+}
+
 /* MonthNavigator trigger + popover */
 .topbar-date {
   position: relative;
@@ -602,6 +617,13 @@
   align-items: center;
   gap: 8px;
   margin-left: auto;
+  /* The actions cluster (month chip + bell) is never the flex-shrink victim:
+     `.topbar > *` sets min-width: 0 on every child, so on a tight row
+     (1024–1279 band, sidebar open) the box shrank BELOW its own content and
+     the bell painted past the viewport edge — invisible controls, no scroll
+     to reach them. The shrink victims are the fluid search and the context
+     block, which have real floors; the actions keep their content width. */
+  flex-shrink: 0;
 }
 
 /* SIL-670 (03/11 owner ruling): badge overlaps top-right of bell icon without adding extra height. */

@@ -5,6 +5,10 @@ import { Check, ChevronDown, ChevronRight, Copy, Layers, MoreHorizontal, X } fro
 import { LCL_REV_MERGE_TAG } from '@tingting/shared';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 import { useToast } from '../../../components/shared/Toast';
+// Design law §1 (2026-09-22, card 20260922_27): a status value renders as
+// text + house color-dot — never a pill bubble. The desktop board's own
+// 999px pill was the last straggler of that ruling on this page.
+import { StatusText } from '../../../components/shared/StatusText';
 import { DebitLotLclFacts } from './DebitLotLclFacts';
 import { ShipmentDebitWorkspace } from './ShipmentDebitWorkspace';
 import { UnmergeRevGroupAction } from './UnmergeRevGroupAction';
@@ -573,9 +577,12 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
         <MoneyCell state={moneyState(row.payableTotal)} variant="payable" />
         <MoneyCell state={profitState} variant="profit" />
         <td className="shipment-debit-cell--status">
-          <span className={`shipment-debit-status${row.lockStatus === 'LOCKED' ? ' shipment-debit-status--locked' : ''}`}>
+          {/* §1 text+dot, no pill. Tones mirror the phone card's own mapping
+              (ShipmentDebitRecords: open = a state hue, LOCKED = neutral) —
+              info teal for the open state, neutral gray once khóa. */}
+          <StatusText variant={row.lockStatus === 'LOCKED' ? 'neutral' : 'info'}>
             {row.lockStatus === 'LOCKED' ? 'Đã khóa' : 'Đang mở'}
-          </span>
+          </StatusText>
           {/* SIL-538 — the merged row's merge tag IS the direct surface: click
               opens a small popover hosting [Tách nhóm] (rev/cost) so CUS never
               has to dig the action out of the ⋯ kebab (PRD 261023110000 §4.2).

@@ -207,7 +207,7 @@
 }
 .ppc-report-tabs {
   display: inline-flex;
-  border: 1px solid var(--border, #d5d9e0);
+  border: 1px solid var(--border-1);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -216,12 +216,12 @@
   padding: 0 14px;
   border: 0;
   background: transparent;
-  color: var(--ink-2, #344054);
+  color: var(--ink-2);
   font-size: var(--text-caption-size);
   cursor: pointer;
 }
 .ppc-report-tab.is-active {
-  background: var(--brand, #1570ef);
+  background: var(--brand);
   color: #fff;
 }
 .ppc-report__party-link {
@@ -239,11 +239,11 @@
   gap: 12px;
 }
 .ppc-lots-ordinal {
-  color: var(--ink-3, #667085);
+  color: var(--ink-3);
 }
 .ppc-lots-hint {
   margin: 8px 0 0;
-  color: var(--ink-3, #667085);
+  color: var(--ink-3);
   font-size: var(--text-caption-size);
 }
 /* SIL-729 — the shared shipment fees shown under the clicked party: visible
@@ -251,7 +251,7 @@
  * engine books trips), so the same muted face as the hint carries it. */
 .ppc-lots-shared {
   margin: 8px 0 0;
-  color: var(--ink-3, #667085);
+  color: var(--ink-3);
   font-size: var(--text-caption-size);
 }
 .ppc-lots-shared p {
@@ -269,7 +269,7 @@
 .ppc-lots-bar__count {
   margin: 0 auto 0 0;
   font-size: var(--text-caption-size);
-  color: var(--ink-2, #344054);
+  color: var(--ink-2);
 }
 
 @media (pointer: coarse), (max-width: 767px) {

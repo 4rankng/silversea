@@ -1,14 +1,14 @@
 {
   "note": "Ratchet: counts may fall, never rise. Regenerate with `pnpm design:drift --update` after a deliberate cleanup.",
   "measured": {
-    "scannedFiles": 211,
-    "hexDirect": 168,
-    "hexFallback": 82,
+    "scannedFiles": 213,
+    "hexDirect": 167,
+    "hexFallback": 76,
     "radiusOffLadder": 1,
     "rawShadow": 47,
     "rawZIndex": 72,
     "untokenizedTransition": 133,
-    "mediaWidthValues": 49,
+    "mediaWidthValues": 50,
     "containerWidthValues": 22
   },
   "worstFiles": [

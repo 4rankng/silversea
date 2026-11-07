@@ -177,8 +177,8 @@
   table-layout: fixed;
   border-collapse: collapse;
   /* The honest sum of the eleven columns (44+130+160+144+130+130+120+130+130
-   * +140+90); below this width the pane scrolls sideways (cue below). */
-  min-width: 1348px;
+   * +140+112); below this width the pane scrolls sideways (cue below). */
+  min-width: 1370px;
   font-size: var(--text-body-size);
   line-height: 20px;
   font-variant-numeric: tabular-nums;
@@ -219,7 +219,7 @@
 .shipment-debit-table th.shipment-debit-col--domestic { width: 130px; }
 .shipment-debit-table th.shipment-debit-col--payable { width: 130px; }
 .shipment-debit-table th.shipment-debit-col--profit { width: 140px; }
-.shipment-debit-table th.shipment-debit-col--status { width: 90px; padding-inline: 6px; }
+.shipment-debit-table th.shipment-debit-col--status { width: 112px; padding-inline: 6px; }
 
 /* Rows: 52px, vertical-middle, ONE baseline per cell (owner spec v2 (e)) —
  * no vertical cell borders, hairline bottom rules only, quiet hover. */
@@ -468,32 +468,24 @@
 }
 
 /* ── Trạng thái + ⋯ kebab ──────────────────────────────────────────────── */
+/* §1 (card 20260922_27): the status value is the shared text+dot StatusText —
+   the page-local 999px pill (and its locked variant fill) are deleted. The
+   cell is a right-aligned wrapping flex row so [status ⋯ kebab] keeps ONE
+   baseline on every normal row (owner spec v2 (e)); the 90px inline cell
+   wrapped the pill ABOVE the kebab on every single row, and a merged row's
+   Ghép (i/N) tag + kebab packed as a third drifting line — the column read
+   as a detached rail of stray pills. A merged row now wraps as one clean
+   second line ([Ghép (i/N) ⋯] = 66+6+28 ≤ the 110px column's 104 usable). */
 .shipment-debit-table td.shipment-debit-cell--status {
-  padding-inline: 4px;
-  text-align: right;
-  white-space: normal;
-}
-
-.shipment-debit-status {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--ink-3);
-  font-size: var(--text-caption-size);
-  font-weight: 500;
-  vertical-align: middle;
+  justify-content: flex-end;
+  gap: 4px 6px;
+  padding-inline: 4px;
 }
 
-.shipment-debit-status--locked {
-  border-color: var(--line-2);
-  background: var(--surface-3);
-  color: var(--ink-1, var(--ink));
-  font-weight: 600;
-}
+.shipment-debit-cell--status .shipment-debit-menu { margin-left: 0; }
 
 /* SIL-583 QA round 3 (2026-10-30): the merged-group trigger measured 66×20 —
    under the WCAG 2.5.8 24px floor at every pointer. The cell stacks the
@@ -783,7 +775,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Scroll cue: the table's 1348px floor cannot fit below that width — the cue
+/* Scroll cue: the table's 1370px floor cannot fit below that width — the cue
    is honest exactly there. At ≤640 the phone record cards render instead. */
 .shipment-debit-scroll-hint {
   display: none;
@@ -793,7 +785,7 @@
   font-size: var(--text-caption-size);
 }
 
-@media (min-width: 641px) and (max-width: 1347px) {
+@media (min-width: 641px) and (max-width: 1369px) {
   .shipment-debit-scroll-hint {
     display: block;
   }

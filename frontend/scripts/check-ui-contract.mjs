@@ -42,10 +42,16 @@ async function visit(directoryUrl) {
 await visit(sourceRoot);
 
 const tokenCss = await readFile(new URL('../src/styles/tokens.css', import.meta.url), 'utf8');
-const touchFloor = Number(tokenCss.match(/--control-max-h:\s*(\d+)px\s*;/)?.[1]);
-if (!Number.isFinite(touchFloor) || touchFloor !== 40
-  || !tokenCss.includes('--control-touch-h: var(--control-max-h);')) {
-  failures.push('styles/tokens.css: a valid canonical touch floor/ceiling is required');
+// SIL-583 round 2 (QA verdict 2026-10-30, comment 2881): the touch floor is
+// DECOUPLED from the desktop ceiling — --control-touch-h is its own 44px §5
+// tap-target floor on touch form factors, while --control-max-h stays the
+// 40px ordinary/desktop ceiling. Consumers that must never grow on touch
+// re-anchor to the ceiling token, so the canonical pair is 44 + 40.
+const touchFloor = Number(tokenCss.match(/--control-touch-h:\s*(\d+)px\s*;/)?.[1]);
+const touchCeiling = Number(tokenCss.match(/--control-max-h:\s*(\d+)px\s*;/)?.[1]);
+if (!Number.isFinite(touchFloor) || touchFloor !== 44
+  || !Number.isFinite(touchCeiling) || touchCeiling !== 40) {
+  failures.push('styles/tokens.css: a valid canonical touch floor/ceiling is required (--control-touch-h: 44px floor, --control-max-h: 40px ceiling)');
 }
 if (!tokenCss.includes('--status-strip-width: 3px;')
   || !tokenCss.includes('--status-strip-height: 20px;')) {
@@ -327,11 +333,11 @@ async function checkInlineTouchTargets(directoryUrl) {
                 .replaceAll(/['"]/g, '')
                 .replace('px', '');
               const value = Number(valueText);
-              if (Number.isFinite(value) && value !== touchFloor) {
+              if (Number.isFinite(value) && value !== touchFloor && value !== touchCeiling) {
                 const line = sourceFile.getLineAndCharacterOfPosition(
                   minHeightProperty.getStart(sourceFile),
                 ).line + 1;
-                failures.push(`${displayPath}:${line}: inline interactive minHeight must match the ${touchFloor}px floor/ceiling or use its token`);
+                failures.push(`${displayPath}:${line}: inline interactive minHeight must match the ${touchFloor}px touch floor or the ${touchCeiling}px ceiling, or use their token`);
               }
             }
           }

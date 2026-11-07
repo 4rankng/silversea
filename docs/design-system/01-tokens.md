@@ -115,6 +115,8 @@ listed in `./README.md`. All numbers below are counted from the tree
   | 768–815px | Desk-ish width, but the /shipments control plane still cannot fit title + 4 status tabs + 2 actions on one line. |
   | 816px+ | The /shipments tab group fits inline and shrink-wraps; the whole control row is one 38px line. |
   | 1024px+ | Full desktop density for the control plane. |
+  | 1369px and below | The L1 settlement board's honest 11-column floor is 1370px (`ShipmentDebitPage.css`), so its horizontal scroll cue band is the floor minus one. |
+  | 1440px+ | The master-plan grid's condensed header labels hold ONE nowrap 10px line (owner redesign 23/10 acceptance width); below it the wrap-at-spaces law stays in force (`MasterPlanGrid.css`). |
 
   A page's own control-plane crossover is a **content measurement**, not a guess:
   the four status cells are 429px at every width, and title(127) + tabs(429) +

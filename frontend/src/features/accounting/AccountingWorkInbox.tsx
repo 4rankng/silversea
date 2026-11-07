@@ -67,7 +67,12 @@ function InboxLane({
     <section className={`accounting-work-inbox__lane is-${view.toLowerCase()}`} aria-labelledby={`accounting-${view.toLowerCase()}-title`}>
       <header>
         <div>
-          <h2 id={`accounting-${view.toLowerCase()}-title`}>{title} <span>{data?.total ?? 0}</span></h2>
+          {/* The count is honest or absent: `0` only ever means the server
+              answered zero rows. While the lane loads the badge reads "…"
+              (pending copy ends with …, law §8), and on a failed load with no
+              data it disappears — a fabricated 0 beside "Không thể tải nhóm
+              này" contradicted the error right below it. */}
+          <h2 id={`accounting-${view.toLowerCase()}-title`}>{title} {query.isLoading ? <span>…</span> : data ? <span>{data.total}</span> : null}</h2>
           <p>{description}</p>
         </div>
         <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching} aria-label={`Làm mới ${title.toLowerCase()}`}><RefreshCw size={14} aria-hidden="true" /></button>
