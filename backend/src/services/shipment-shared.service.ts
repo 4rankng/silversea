@@ -59,6 +59,33 @@ export function hasCompletedExpenseScopes(
     ));
 }
 
+/** SIL-694 — the Ops expense-declaration channel exists only when an ACTIVE
+ *  OPS user is assigned to the trip's shipment (`user_shipment_links`, the
+ *  same link the Ops trip list, the expense-completion toggle's scope guard
+ *  and settlement validation all require). No such assignment ⇒ nobody can
+ *  ever declare or confirm the scopes ⇒ the completion gate must fail open;
+ *  with an assignment the gate keeps its whole law untouched. */
+export async function tripShipmentHasActiveOpsAssignment(
+  executor: Executor,
+  tripId: number,
+): Promise<boolean> {
+  const [trip] = await executor.select({ shipmentId: s.trips.shipmentId })
+    .from(s.trips)
+    .where(eq(s.trips.id, tripId))
+    .limit(1);
+  if (trip?.shipmentId == null) return false;
+  const [assignment] = await executor.select({ id: s.userShipmentLinks.id })
+    .from(s.userShipmentLinks)
+    .innerJoin(s.users, and(
+      eq(s.users.id, s.userShipmentLinks.userId),
+      eq(s.users.role, 'OPS'),
+      eq(s.users.status, 'ACTIVE'),
+    ))
+    .where(eq(s.userShipmentLinks.shipmentId, trip.shipmentId))
+    .limit(1);
+  return assignment != null;
+}
+
 export async function loadTripExpenseScopeState(tx: Tx, tripIds: number[]) {
   if (tripIds.length === 0) {
     return {
@@ -111,8 +138,13 @@ export async function assertShipmentDirectCloseTripReadiness(
     throw new ApiError(409, 'Chưa có e-POD hợp lệ. Không thể chốt tài chính chuyến đi.');
   }
   const resolvedScopeState = scopeState ?? await loadTripExpenseScopeState(tx, [tripId]);
+  // SIL-694 — fail open when no ACTIVE OPS user is assigned to the trip's
+  // shipment: the confirmation toggle lives only in the assigned Ops portal,
+  // so without an assignment this gate was a permanent dead-end for every
+  // close (QA trip 380). With an assignment the law is unchanged.
   if (
-    !hasCompletedExpenseScopes(
+    await tripShipmentHasActiveOpsAssignment(tx, tripId)
+    && !hasCompletedExpenseScopes(
       tripId,
       resolvedScopeState.containersByTrip.get(tripId) ?? [],
       resolvedScopeState.completedExpenseScopeKeys,

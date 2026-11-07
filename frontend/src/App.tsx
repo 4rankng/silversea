@@ -338,10 +338,12 @@ export function AppRoutes() {
   // PRD pins "Vận hành liên quan" (fleet/trips/shipments) as visible — and
   // therefore reachable — for ACCOUNTANT, and backend Casbin already grants
   // accountant trips read; only edit/create routes stay adminOnly.
+  // SIL-694 (id 806, owner 07/11) supersedes the 2026-09-01 exclusion:
+  // DISPATCHER opens the trip list + detail (read-only surfaces — the close
+  // gate and BE Casbin still decide writes), which is where dispatch closes
+  // a trip and reads the completion evidence it is asked about.
   const tripDetailOnly = (el: ReactElement) => (
-    // DISPATCHER deliberately excluded (user 2026-09-01: the role was never
-    // meant to have Sổ chuyến đi) — nav, search, and route all omit it.
-    isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT
+    isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT || isDispatcher
       ? el
       : <DeniedRedirect to={homeRedirect} />
   );

@@ -3,6 +3,7 @@ import { TripPodStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import { tripCompositeSelect } from './trip-composite.service';
+import { tripShipmentHasActiveOpsAssignment } from './shipment-shared.service';
 import type { Tx } from './trip-shared';
 
 export interface TripCloseEvidenceSnapshot {
@@ -79,32 +80,39 @@ export async function requireTripCloseReadiness(
     throw new ApiError(409, 'Chưa có e-POD hợp lệ. Không thể chốt tài chính chuyến đi.');
   }
 
-  const [containers, scopes] = await Promise.all([
-    tx.select({ id: s.tripContainers.id })
-      .from(s.tripContainers)
-      .where(eq(s.tripContainers.tripId, tripId))
-      .for('update'),
-    tx.select({
-      tripContainerId: s.tripExpenseCompletionScopes.tripContainerId,
-      status: s.tripExpenseCompletionScopes.status,
-    }).from(s.tripExpenseCompletionScopes)
-      .where(eq(s.tripExpenseCompletionScopes.tripId, tripId))
-      .for('update'),
-  ]);
-  const completedKeys = new Set(
-    scopes
-      .filter((scope) => scope.status === 'COMPLETED')
-      .map((scope) => scope.tripContainerId == null ? 'general' : String(scope.tripContainerId)),
-  );
-  const missingGeneral = !completedKeys.has('general');
-  const missingContainerIds = containers
-    .map((container) => container.id)
-    .filter((containerId) => !completedKeys.has(String(containerId)));
-  if (missingGeneral || missingContainerIds.length > 0) {
-    throw new ApiError(
-      409,
-      'Ops chưa xác nhận hoàn tất kê khai chi phí chung và toàn bộ container.',
+  // SIL-694 — fail open when no ACTIVE OPS user is assigned to the trip's
+  // shipment: the scope confirmation toggle lives only in the assigned Ops
+  // portal (user_shipment_links scope), so without an assignment this gate
+  // was a permanent dead-end for every governed close. With an assignment
+  // the scope law below is byte-for-byte unchanged.
+  if (await tripShipmentHasActiveOpsAssignment(tx, tripId)) {
+    const [containers, scopes] = await Promise.all([
+      tx.select({ id: s.tripContainers.id })
+        .from(s.tripContainers)
+        .where(eq(s.tripContainers.tripId, tripId))
+        .for('update'),
+      tx.select({
+        tripContainerId: s.tripExpenseCompletionScopes.tripContainerId,
+        status: s.tripExpenseCompletionScopes.status,
+      }).from(s.tripExpenseCompletionScopes)
+        .where(eq(s.tripExpenseCompletionScopes.tripId, tripId))
+        .for('update'),
+    ]);
+    const completedKeys = new Set(
+      scopes
+        .filter((scope) => scope.status === 'COMPLETED')
+        .map((scope) => scope.tripContainerId == null ? 'general' : String(scope.tripContainerId)),
     );
+    const missingGeneral = !completedKeys.has('general');
+    const missingContainerIds = containers
+      .map((container) => container.id)
+      .filter((containerId) => !completedKeys.has(String(containerId)));
+    if (missingGeneral || missingContainerIds.length > 0) {
+      throw new ApiError(
+        409,
+        'Ops chưa xác nhận hoàn tất kê khai chi phí chung và toàn bộ container.',
+      );
+    }
   }
 
   return {
