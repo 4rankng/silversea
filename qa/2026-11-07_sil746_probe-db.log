@@ -1,0 +1,4 @@
+PASS A: trip plannedEndAt (00:30 11/11 VN) ignored; appointmentGroups + cảng grouping read 14:30 10/11 VN
+PASS B: fulfillment plannedEndAt override still propagates (13:00 over 14:30, card 343 intact)
+SIL746 PROBE: ALL PASS
+probe rows cleaned up

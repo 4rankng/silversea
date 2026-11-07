@@ -6,7 +6,7 @@
 
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { and, asc, eq, inArray, isNull, ne } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { localDateInBusinessZone } from '@tingting/shared';
 
 
@@ -112,17 +112,11 @@ export async function loadShipmentListContainerPortGroups(
     // dispatcher filters by a single day.
     customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
     fulfillmentPlannedEndAt: s.shipmentFulfillments.plannedEndAt,
-    tripPlannedEndAt: s.trips.plannedEndAt,
   }).from(s.shipmentContainers)
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
     .leftJoin(s.shipmentFulfillments, and(
       eq(s.shipmentFulfillments.shipmentContainerId, s.shipmentContainers.id),
       isNull(s.shipmentFulfillments.canceledAt),
-    ))
-    .leftJoin(s.trips, and(
-      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
-      isNull(s.trips.deletedAt),
-      ne(s.trips.status, 'CANCELED'),
     ))
     .where(inArray(s.shipmentContainers.shipmentId, shipmentIds))
     .orderBy(asc(s.shipmentContainers.shipmentId), asc(s.shipmentContainers.id));
@@ -136,7 +130,10 @@ export async function loadShipmentListContainerPortGroups(
       .map((port) => [port.id, port.shortName?.trim() || port.name]));
 
   return groupShipmentContainerPortGroups(containerRows.map((row) => {
-    const effectiveAt = row.tripPlannedEndAt ?? row.fulfillmentPlannedEndAt ?? row.customerAppointmentAt;
+    // SIL-746 — same law as the appointment groups: the trip's estimated
+    // plannedEndAt is not an appointment instant, so the cảng day grouping
+    // follows the stored override / appointment date only.
+    const effectiveAt = row.fulfillmentPlannedEndAt ?? row.customerAppointmentAt;
     return {
       shipmentId: row.shipmentId,
       pickupPortName: row.pickupPortId == null ? null : portNamesById.get(row.pickupPortId) ?? null,

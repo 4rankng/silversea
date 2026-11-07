@@ -1,5 +1,11 @@
 # Case QA-2026-10-04-343 — Dispatch time not propagating to overview (card 20261004_343)
 
+> SUPERSEDED (trip leg) 2026-11-07: SIL-746 (id 866) removed the live-trip
+> `plannedEndAt` leg from the precedence — the trip end is a synthesized
+> estimate, not an entered giờ hẹn. The override-propagation leg verified
+> below (fulfillment `plannedEndAt` over `customerAppointmentAt`) still
+> holds; see `case-QA-2026-11-07-746-trip-end-not-schedule-instant.md`.
+
 ## Claim
 When a dispatcher edits "Giờ trả hàng" in "Chỉnh sửa điều phối" on `/dispatch-detail` (e.g. changing MSCU3332915 from 10:00 05/10/2026 to 13:00 04/10/2026), the saved time immediately and persistently propagates to `/dispatch` (Master Plan) column "THỜI GIAN & LỊCH TRÌNH".
 1. `/dispatch` (Master Plan) loads `appointmentGroups` with the effective dispatch schedule timestamp, honoring live trip `plannedEndAt` -> fulfillment `plannedEndAt` -> container `customerAppointmentAt`.

@@ -956,7 +956,10 @@ function buildAppointmentGroups(
   const byKey = new Map<string, { at: string; localDate: string; factoryName: string | null; factoryShortName: string | null; factoryFullName: string | null; group: ContainerRow[] }>();
   for (const container of containers) {
     const assignment = assignmentsByContainer?.get(container.id);
-    const effectiveAt = assignment?.tripPlannedEndAt ?? assignment?.plannedEndAt ?? container.customerAppointmentAt;
+    // SIL-746 — the trip's estimated plannedEndAt is not an appointment
+    // instant: the schedule follows the stored dispatch override then the
+    // container appointment, exactly like /dispatch-detail.
+    const effectiveAt = assignment?.plannedEndAt ?? container.customerAppointmentAt;
     if (effectiveAt == null) continue;
     const localDate = localDateInBusinessZone(effectiveAt) ?? '0000-00-00';
     const factorySiteId = container.operationalSiteId ?? shipment.operationalSiteId ?? null;
