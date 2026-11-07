@@ -5,9 +5,10 @@
  * lot's lock/unlock history. Static source pins + route pins (unit-only
  * tree, 2026-10-19 owner ruling — the db-bound read cannot run here):
  *   - POST lock/unlock responses carry the audit fields themselves;
- *   - GET /:id/cost-lock-history is ADMIN-only and returns the LOCK/UNLOCK
- *     event list (actor name, reason, timestamp) with the unreleased Debit
- *     Note claim attached.
+ *   - GET /:id/cost-lock-history reads under the unlock clearance — Quản trị ·
+ *     Giám đốc (MANAGER) · Kế toán (SIL-721, owner 07/11; superseded the
+ *     admin-only pin) — and returns the LOCK/UNLOCK event list (actor name,
+ *     reason, timestamp) with the unreleased Debit Note claim attached.
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -55,8 +56,8 @@ test('unlock response carries actor, timestamp and reason — never id-only', ()
   assert.doesNotMatch(unlockRoute(), /res\.status\(200\)\.json\(\{ id: lock\.id \}\)/);
 });
 
-test('history GET is ADMIN-only (the unlock governance mirrors its read clearance)', () => {
-  assert.match(historyRoute(), /requireRoles\(Role\.ADMIN\)/);
+test('history GET reads under the unlock clearance (Quản trị · Giám đốc · Kế toán)', () => {
+  assert.match(historyRoute(), /requireRoles\(Role\.ADMIN, Role\.MANAGER, Role\.ACCOUNTANT\)/);
   assert.match(historyRoute(), /'\/:id\/cost-lock-history'/);
   assert.match(historyRoute(), /listShipmentCostLockHistory\(shipmentId\)/);
   // A read, not a material write — no declareMaterialWrite on the history route.

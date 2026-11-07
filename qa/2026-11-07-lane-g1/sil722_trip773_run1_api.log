@@ -1,0 +1,38 @@
+# Lane G1 — API evidence, run 1 (lot 779253 + trip 773), 2026-11-07
+# Command: LOT_ID=779253 node qa/scripts/lane-g1-sil721-722-verify.mjs
+# Exit: 1 (SIL-721 section blocked by a REAL Debit-Note claim — lot 779253 is
+# claimed by Debit Note #18, unlock correctly refuses 409 per the claim law;
+# SIL-722 section: ALL PASS on trip 773 / lô 1138).
+# SIL-721 was re-run clean on claim-free lot 779247 → sil721_lot779247_run2.log.
+logged in: admin/ADMIN ketoan/ACCOUNTANT giamdoc/MANAGER dieuvan/DISPATCHER
+
+SIL-721 on lot 779253:
+  PASS ketoan GET cost-lock-history → 200 (was 403) — status 200
+  PASS giamdoc GET cost-lock-history → 200 — status 200
+  PASS dieuvan GET cost-lock-history → 403 — status 403
+  FAIL ketoan POST unlock → 200 (was 403) — status 409 {"error":"Lô đã nằm trong Debit Note #18 — xử lý chứng từ trước khi mở khóa lô."}
+  FAIL history records UNLOCK with actor + reason — {"action":"UNLOCK","lockId":115,...reason "QA F1-693 remedy — định giá bù sau hoàn thành"...}
+  FAIL ketoan POST lock → 201 (restore) — status 409
+  FAIL giamdoc POST unlock → 200 (was 403) — status 409
+  FAIL admin POST lock → 201 (restore) — status 409
+  PASS dieuvan POST unlock → 403 (không đổi) — status 403
+  PASS lot ends locked (state restored) — LOCK 2 / UNLOCK 1
+
+SIL-722:
+work rows with trips: 100
+probe create ok on trip 773 (lô 1138)
+  PASS road row recorded on màn duyệt (tien-duong) at 80.000₫ — amount 80000 confirmed=false
+  PASS ketoan confirm (duyệt) → ok — status 200 {"items":[{"id":5146,"sourceKind":"DRIVER","sourceId":19,"version":2,"shipmentId":1138,"tripId":773,...,"confirmedAt":"2026-11-07T04:24:58.395Z",...}]}
+  PASS totalCost tăng đúng +80.000₫ sau duyệt — before 0 after 80000 delta 80000
+  PASS reconciledExtraCost mang thêm 80.000₫ — before 0 after 80000
+SIL-722 trip 773 (lô 1138): totalCost 0 → 80000
+
+checks 14, fails 5
+FAILED: (SIL-721 section only — Debit-Note claim law, rerun on lot 779247)
+
+# DB readback after this run:
+# SELECT id, trip_id, cost_type, amount, fee_name FROM driver_incidental_costs
+#   WHERE fee_name LIKE 'QA-722%';
+# → 19|773|ROAD_ALLOWANCE|80000|QA-722 tien duong da duyet  (exactly ONE row,
+#   CONFIRMED — run 2's batch create replayed via the same Idempotency-Key, so
+#   no duplicate row ever landed; trip 773 totalCost stands at 80.000₫)

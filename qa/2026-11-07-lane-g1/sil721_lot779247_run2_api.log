@@ -1,0 +1,31 @@
+# Lane G1 — API evidence, run 2 (lot 779247 claim-free), 2026-11-07
+# Command: LOT_ID=779247 node qa/scripts/lane-g1-sil721-722-verify.mjs
+# Exit: 1 — SIL-721 section ALL PASS. The SIL-722 section of THIS run
+# replayed trip 773 via the same Idempotency-Key as run 1 (create replayed,
+# row already confirmed, confirm bounced 409 same-key-different-content,
+# delta 0) — replay artifacts, not regressions. Authoritative SIL-722
+# evidence: sil722_trip773_run1_api.log (run 1, all PASS).
+logged in: admin/ADMIN ketoan/ACCOUNTANT giamdoc/MANAGER dieuvan/DISPATCHER
+
+SIL-721 on lot 779247:
+  PASS ketoan GET cost-lock-history → 200 (was 403) — status 200
+  PASS giamdoc GET cost-lock-history → 200 — status 200
+  PASS dieuvan GET cost-lock-history → 403 — status 403
+  PASS ketoan POST unlock → 200 (was 403) — status 200 {"id":114,"unlockedBy":147,"unlockedByName":"Nguyễn Thị Mai","unlockedAt":"2026-11-07T04:25:15.361Z","unlockReason":"QA lane G1 SIL-721 — kế toán mở khóa theo quyết định boss 07/11"}
+  PASS history records UNLOCK with actor + reason — {"action":"UNLOCK","lockId":114,"actorId":147,"actorName":"Nguyễn Thị Mai","reason":"QA lane G1 SIL-721 — kế toán mở khóa theo quyết định boss 07/11","timestamp":"2026-11-07T04:25:15.354Z","debitNoteId":null}
+  PASS ketoan POST lock → 201 (restore) — status 201
+  PASS giamdoc POST unlock → 200 (was 403) — status 200
+  PASS admin POST lock → 201 (restore) — status 201
+  PASS dieuvan POST unlock → 403 (không đổi) — status 403
+  PASS lot ends locked (state restored) — LOCK 4 / UNLOCK 3
+
+SIL-722:
+work rows with trips: 100
+probe create ok on trip 773 (lô 1138)
+  PASS road row recorded on màn duyệt (tien-duong) at 80.000₫ — amount 80000 confirmed=true
+  FAIL ketoan confirm (duyệt) → ok — status 409 {"error":"Khóa giao dịch trùng nhưng nội dung khác — vui lòng dùng mã giao dịch mới.","details":"idempotency_key=g1-722-confirm-773-2026-11-07"}
+  FAIL totalCost tăng đúng +80.000₫ sau duyệt — before 80000 after 80000 delta 0
+  FAIL reconciledExtraCost mang thêm 80.000₫ — before 80000 after 80000
+SIL-722 trip 773 (lô 1138): totalCost 80000 → 80000
+
+checks 14, fails 3

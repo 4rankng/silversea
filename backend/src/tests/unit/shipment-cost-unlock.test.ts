@@ -11,7 +11,9 @@
  *   - a lot claimed by an unreleased Debit Note refuses unlock naming the
  *     document (mirror of expense-accounting-correction's claim guard);
  *   - the accounting lock is deliberately NOT asserted on unlock;
- *   - route gate is ADMIN-only (accounting-lock reopen governance).
+ *   - route gate is Quản trị · Giám đốc · Kế toán (SIL-721, owner 07/11 —
+ *     supersedes SIL-679's admin-only clearance; MANAGER is the role
+ *     'Giám đốc' accounts hold per seed-prod ROLE_BY_GROUP).
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -83,18 +85,20 @@ test('re-lock after unlock lands as a NEW active row (partial unique index)', ()
   assert.match(schema, /shipment_cost_locks_active_uniq.*\.where\(sql`unlocked_at is null`\)/);
 });
 
-test('the 409 message now names the ADMIN unlock channel (clean cutover)', () => {
+test('the 409 message names the three-role unlock channel (SIL-721 clean cutover)', () => {
   assert.match(
     svc,
-    /export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí\. Cần ADMIN mở khóa \(kèm lý do\) để chỉnh sửa chi phí\.';/,
+    /export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí\. Cần Quản trị, Giám đốc hoặc Kế toán mở khóa \(kèm lý do\) để chỉnh sửa chi phí\.';/,
   );
+  assert.doesNotMatch(svc, /Cần ADMIN mở khóa/);
   assert.doesNotMatch(svc, /sẽ cấp sau/);
 });
 
-test('route: ADMIN-only gate + reason body + optimistic version', () => {
+test('route: Quản trị · Giám đốc (MANAGER) · Kế toán gate + reason body + optimistic version', () => {
   const route = unlockRoute();
-  assert.match(route, /requireRoles\(Role\.ADMIN\)/);
-  assert.doesNotMatch(route, /Role\.ACCOUNTANT|Role\.CUS/);
+  assert.match(route, /requireRoles\(Role\.ADMIN, Role\.MANAGER, Role\.ACCOUNTANT\)/);
+  // Other roles stay out — CUS locks but never unlocks (SIL-721 scope).
+  assert.doesNotMatch(route, /Role\.CUS|Role\.DISPATCHER|Role\.OPS|Role\.DRIVER/);
   assert.match(route, /reason: z\.string\(\)\.trim\(\)\.min\(1, 'Vui lòng nhập lý do mở khóa\.'\)\.max\(2000\)/);
   assert.match(route, /expectedShipmentVersion: z\.number\(\)\.int\(\)\.positive\(\)\.optional\(\)/);
   assert.match(route, /declareMaterialWrite\('shipments\.cost-unlock'/);

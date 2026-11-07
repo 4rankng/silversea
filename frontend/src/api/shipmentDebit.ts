@@ -194,8 +194,9 @@ export async function lockShipmentCost(shipmentId: number, idempotencyKey: strin
   });
 }
 
-/** POST /shipments/:id/unlock — MỞ KHÓA the active lot cost lock. ADMIN +
- * mandatory reason (audit 2026-11-04 §2.1). The material-write middleware
+/** POST /shipments/:id/unlock — MỞ KHÓA the active lot cost lock. Quản trị ·
+ * Giám đốc (MANAGER) · Kế toán + mandatory reason (audit 2026-11-04 §2.1;
+ * SIL-721 owner decision 07/11). The material-write middleware
  * demands an Idempotency-Key on every write; a replay converges server-side
  * (no active lock left ⇒ 409), so a fresh UUID per click is the whole key. */
 export async function unlockShipmentCost(
@@ -209,8 +210,9 @@ export async function unlockShipmentCost(
 }
 
 /** GET /shipments/:id/cost-lock-history — the lot's khóa/mở khóa trail
- * (ADMIN-only, mirrors the unlock clearance). Each event carries action,
- * actor name, reason, timestamp and the unreleased Debit Note claim. */
+ * (read clearance mirrors the unlock channel: Quản trị · Giám đốc · Kế toán,
+ * SIL-721). Each event carries action, actor name, reason, timestamp and the
+ * unreleased Debit Note claim. */
 export async function listShipmentCostLockHistory(shipmentId: number): Promise<ShipmentCostLockHistoryEvent[]> {
   const response = await api.get<{ events: ShipmentCostLockHistoryEvent[] }>(`/shipments/${encodeURIComponent(shipmentId)}/cost-lock-history`);
   return response.events;
