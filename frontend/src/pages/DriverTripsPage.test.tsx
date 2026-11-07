@@ -92,7 +92,8 @@ describe('DriverTripsPage', () => {
     ]));
     renderPage();
     const weight = screen.getByTestId('cont-weight');
-    expect(weight.textContent).toBe('15.000 kg');
+    // SIL-733: formatted in tons (standard CUS-08)
+    expect(weight.textContent).toBe('15 tấn');
   });
 
   it('journey card omits the weight segment when the container is unweighted (card 356)', () => {

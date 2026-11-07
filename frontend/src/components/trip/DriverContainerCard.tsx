@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Camera, Loader2, Save, Package, AlertCircle, Pencil, X, Check } from 'lucide-react';
 import { api, fileCommandFingerprint } from '../../lib/api';
-import { formatNumber } from '../../lib/format';
+import { formatNumber, formatWeight } from '../../lib/format';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useToast } from '../shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
@@ -440,9 +440,8 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                       {c.containerTypeName && (
                         <div className="dcc-bento__hero-meta">
                           {c.containerTypeName}
-                          {/* Card 20261004_356 — payload beside the type in the
-                              read-only bento; omitted when unweighted. */}
-                          {c.cargoWeightKg ? <> · {formatNumber(c.cargoWeightKg)} kg</> : null}
+                          {/* SIL-733 (standard CUS-08) — payload formatted in tons (e.g. "12 tấn") */}
+                          {c.cargoWeightKg ? <> · {formatWeight(c.cargoWeightKg)}</> : null}
                         </div>
                       )}
                     </div>

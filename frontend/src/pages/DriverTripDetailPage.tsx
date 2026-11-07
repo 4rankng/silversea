@@ -63,6 +63,7 @@ function DriverTripDetailContent() {
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
   const [fuelScanning, setFuelScanning] = useState(false);
   const [chipsExpanded, setChipsExpanded] = useState(false);
+  const [fuelExpanded, setFuelExpanded] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [completing, setCompleting] = useState(false);
   // KP-087: the parsed TRP code from the busy-trip 409 — banner PRESENCE
@@ -269,14 +270,7 @@ function DriverTripDetailContent() {
       toast({ kind: 'warning', message: 'Lô hàng đã khóa kế toán. Không thể hoàn thành chuyến.' });
       return;
     }
-    // SIL-697: thiếu 1/2 loại bằng chứng thì chặn TRƯỚC, không nộp nháp dở
-    // rồi fail ở bước hoàn thành (submission đã nộp bị khóa, không thể bổ
-    // sung file).
-    const podBlock = missingPodFilesMessage(currentSubmission);
-    if (podBlock) {
-      toast({ kind: 'warning', message: podBlock });
-      return;
-    }
+    // SIL-733 (owner ruling 22/10): photo is OPTIONAL, do not block completion when photos are missing.
 
     const confirmed = await confirm('Xác nhận hoàn tất lệnh vận chuyển?', {
       variant: 'primary',
@@ -621,74 +615,86 @@ function DriverTripDetailContent() {
           CTA at the bottom navigates there. The cost-entry form is hidden
           here per the trial-readiness plan ("kế toán từ từ"). Backend
           schema + endpoints for both are retained for the post-trial phase. */}
-      <section className="driver-task-section">
-        <div className="driver-task-section__head">
+      <section className="driver-task-section" data-testid="fuel-section">
+        <div className="driver-task-section__head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>Ảnh nhiên liệu</span>
+          <button
+            type="button"
+            className="driver-task-ops-toggle"
+            aria-expanded={fuelExpanded}
+            onClick={() => setFuelExpanded((v) => !v)}
+            data-testid="fuel-section-toggle"
+          >
+            {fuelExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <span>{fuelExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
+          </button>
         </div>
-        <div className="driver-task-fuel-section">
-          <div className="driver-task-fuel-card">
-            <div className="driver-task-fuel-header">
-              <div>
-                <strong className="driver-task-fuel-title">Chụp màn hình bơm gần nhất</strong>
-                <div className="driver-task-fuel-subtitle">
-                  {latestFuelEvidence
-                    ? `${FUEL_EVIDENCE_OUTCOME_LABELS[latestFuelEvidence.ocrOutcome]} · ${FUEL_EVIDENCE_REVIEW_LABELS[latestFuelEvidence.reviewStatus]}`
-                    : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
+        {fuelExpanded && (
+          <div className="driver-task-fuel-section">
+            <div className="driver-task-fuel-card">
+              <div className="driver-task-fuel-header">
+                <div>
+                  <strong className="driver-task-fuel-title">Chụp màn hình bơm gần nhất</strong>
+                  <div className="driver-task-fuel-subtitle">
+                    {latestFuelEvidence
+                      ? `${FUEL_EVIDENCE_OUTCOME_LABELS[latestFuelEvidence.ocrOutcome]} · ${FUEL_EVIDENCE_REVIEW_LABELS[latestFuelEvidence.reviewStatus]}`
+                      : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
+                  </div>
                 </div>
+                {!cancelled && <button
+                  type="button"
+                  className={`btn btn--secondary btn--sm driver-task-fuel-btn${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}
+                  disabled={uploadingFuelEvidence}
+                  onClick={() => setFuelScanning(true)}
+                >
+                  <Camera size={16} />
+                  <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
+                </button>}
               </div>
-              {!cancelled && <button
-                type="button"
-                className={`btn btn--secondary btn--sm driver-task-fuel-btn${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}
-                disabled={uploadingFuelEvidence}
-                onClick={() => setFuelScanning(true)}
-              >
-                <Camera size={16} />
-                <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
-              </button>}
-            </div>
-            {!latestFuelEvidence && !cancelled && (
-              <EmptyState
-                variant="compact"
-                context="driver-fuel"
-                title="Chưa có ảnh nhiên liệu"
-                description="Chụp màn hình bơm để làm bằng chứng nhiên liệu."
-              />
-            )}
-            {latestFuelEvidence && (
-              <div className="driver-task-fuel-details">
-                <div className="driver-task-fuel-grid">
-                  <PhotoImage
-                    src={fuelEvidencePhotoUrl}
-                    alt="Ảnh nhiên liệu"
-                    className="driver-task-fuel-img"
-                  />
-                  <div className="driver-task-fuel-facts">
-                    <div><strong>Thời điểm chụp:</strong> {formatDateTime(latestFuelEvidence.capturedAt)}</div>
-                    <div><strong>Lít:</strong> {latestFuelEvidence.litres ?? '—'}</div>
-                    <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice != null ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
-                    <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount != null ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
-                    <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal != null ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
-                    <div>
-                      <strong>GPS:</strong>
-                      {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? (
-                        <span className="driver-task-fuel-gps-ok">
-                          <CheckCircle2 size={13} /> Đã ghi nhận GPS
-                        </span>
-                      ) : 'Chưa có'}
+              {!latestFuelEvidence && !cancelled && (
+                <EmptyState
+                  variant="compact"
+                  context="driver-fuel"
+                  title="Chưa có ảnh nhiên liệu"
+                  description="Chụp màn hình bơm để làm bằng chứng nhiên liệu."
+                />
+              )}
+              {latestFuelEvidence && (
+                <div className="driver-task-fuel-details">
+                  <div className="driver-task-fuel-grid">
+                    <PhotoImage
+                      src={fuelEvidencePhotoUrl}
+                      alt="Ảnh nhiên liệu"
+                      className="driver-task-fuel-img"
+                    />
+                    <div className="driver-task-fuel-facts">
+                      <div><strong>Thời điểm chụp:</strong> {formatDateTime(latestFuelEvidence.capturedAt)}</div>
+                      <div><strong>Lít:</strong> {latestFuelEvidence.litres ?? '—'}</div>
+                      <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice != null ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
+                      <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount != null ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
+                      <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal != null ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
+                      <div>
+                        <strong>GPS:</strong>
+                        {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? (
+                          <span className="driver-task-fuel-gps-ok">
+                            <CheckCircle2 size={13} /> Đã ghi nhận GPS
+                          </span>
+                        ) : 'Chưa có'}
+                      </div>
                     </div>
                   </div>
+                  {(latestFuelEvidence.anomalyReason || latestFuelEvidence.ocrError || latestFuelEvidence.reviewNote) && (
+                    <div className="driver-task-fuel-notes">
+                      {latestFuelEvidence.anomalyReason && <div><strong>Lưu ý OCR:</strong> {latestFuelEvidence.anomalyReason}</div>}
+                      {latestFuelEvidence.ocrError && <div><strong>Lỗi OCR:</strong> {latestFuelEvidence.ocrError}</div>}
+                      {latestFuelEvidence.reviewNote && <div><strong>Ghi chú kế toán:</strong> {latestFuelEvidence.reviewNote}</div>}
+                    </div>
+                  )}
                 </div>
-                {(latestFuelEvidence.anomalyReason || latestFuelEvidence.ocrError || latestFuelEvidence.reviewNote) && (
-                  <div className="driver-task-fuel-notes">
-                    {latestFuelEvidence.anomalyReason && <div><strong>Lưu ý OCR:</strong> {latestFuelEvidence.anomalyReason}</div>}
-                    {latestFuelEvidence.ocrError && <div><strong>Lỗi OCR:</strong> {latestFuelEvidence.ocrError}</div>}
-                    {latestFuelEvidence.reviewNote && <div><strong>Ghi chú kế toán:</strong> {latestFuelEvidence.reviewNote}</div>}
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </section>
 
       {trip.legs.length > 0 && (
@@ -745,11 +751,6 @@ function DriverTripDetailContent() {
       {!closed && !showAcceptStickyBar && (
         <div ref={actionBarRef} className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
           <div className="driver-task-complete-sticky__inner">
-            <span className="driver-task-complete-sticky__status" data-testid="complete-sticky-status">
-              {/* SIL-697: the status names the doc count factually; the
-                  Hoàn thành tap itself refuses with the missing-type message. */}
-              {missingDocs > 0 ? `Chưa có ${missingDocs}/2 ảnh chứng từ` : 'Đã có đủ 2 ảnh chứng từ'}
-            </span>
             <button
               type="button"
               className="driver-task-complete-sticky__btn"
@@ -757,7 +758,7 @@ function DriverTripDetailContent() {
               onClick={() => void handleCompleteTrip()}
             >
               {completing ? <Loader2 size={16} className="spin" /> : <FileCheck2 size={16} />}
-              {/* SIL-638 TC9 / SIL-697: "Hoàn tất lệnh vận chuyển" completes the order directly; both required e-POD file types gate it */}
+              {/* SIL-733 / owner ruling 22/10: photos are optional, do not block completion */}
               <span>{completing ? 'Đang gửi…' : completeCtaLabel(trip.status)}</span>
             </button>
           </div>
