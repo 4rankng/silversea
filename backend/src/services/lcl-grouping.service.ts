@@ -1914,6 +1914,13 @@ async function clearLotManualRevPrice(
  *
  * A lot already inside a REV group is refused: the group owns its members'
  * cước thu (merge Lô-1 100% / 0₫ law), so CUS must tách nhóm first.
+ *
+ * SIL-693 — a lot whose live trip already COMPLETED is PRICABLE again: the
+ * per-lot outputs are the remedy the unpriced-debit-note guard names ("xác
+ * định giá trên Quyết toán rồi khóa lại"). The money rides the same trip
+ * override channel as before, the lock gates stay ahead of every write, and
+ * each completed-trip write carries a reason + completed-trip marker in the
+ * audit trail. Grouping (merge/assign) still refuses completed trips.
  */
 export async function setLclLotRevClass(
   input: SetLclLotRevClassInput,
@@ -1943,9 +1950,23 @@ export async function setLclLotRevClass(
         : null;
     const tripFacts = await loadLiveTripFactsByShipment(tx, [row.id]);
     const trip = tripFacts.get(row.id);
-    if (trip && trip.status === 'COMPLETED') {
-      throw new ApiError(409, `Lô ${lotReference(row)} đã hoàn thành chuyến — không đổi loại xe/giá cước thu được nữa`);
-    }
+    // SIL-693 — completed-trip pricing carve-out. The debit-note guard's 409
+    // (freightAuto null + SKIP basis) names exactly this remedy: "hãy xác định
+    // giá trên Quyết toán rồi khóa lại". A COMPLETED trip previously dead-ended
+    // that remedy (this check threw 409 on every pricing write), so the lot
+    // stayed locked, unpriced, and un-exportable forever. The write itself is
+    // the SAME money channel as a live trip (trip_financial_state override
+    // stamp; the completed trip is still a live trip for every money board and
+    // for effectiveLclFreight), so re-locking after pricing freezes a real
+    // freightAuto and the note carries FREIGHT. Grouping laws are untouched —
+    // assertMergeableMoney keeps refusing merge/assign on completed trips.
+    // Kèm lý do + audit: every completed-trip write lands in the audit trail
+    // with the operator's `reason` (or a deterministic default — the existing
+    // Quyết toán UI sends no reason field, so the remedy must not depend on it)
+    // plus the completed-trip marker.
+    const completedTrip = trip != null && trip.status === 'COMPLETED';
+    const completedTripReason = input.reason?.trim()
+      || 'Định giá bù trên lô đã hoàn thành chuyến — remedy Debit Note thiếu căn cứ định giá (SIL-693)';
 
     if (input.vehicleSizeClassId != null && vehicleClass != null) {
       await tx.update(s.shipments).set({
@@ -1974,6 +1995,7 @@ export async function setLclLotRevClass(
         freightManual: null,
         freight: cleared.freight,
         clearedReason: cleared.reason,
+        ...(completedTrip ? { completedTrip: true, completedTripId: trip?.tripId ?? null, completedTripReason } : {}),
       });
       return {
         shipmentId: row.id,
@@ -2020,6 +2042,7 @@ export async function setLclLotRevClass(
         channel: 'NONE',
         freightAuto: null,
         freightManual: input.freightRevenue != null ? String(input.freightRevenue) : null,
+        ...(completedTrip ? { completedTrip: true, completedTripId: trip?.tripId ?? null, completedTripReason } : {}),
       });
       return {
         shipmentId: row.id,
@@ -2059,6 +2082,7 @@ export async function setLclLotRevClass(
       freightAuto: price != null ? price.price : null,
       freightManual: input.freightRevenue != null ? String(input.freightRevenue) : null,
       freight: String(amount),
+      ...(completedTrip ? { completedTrip: true, completedTripId: trip?.tripId ?? null, completedTripReason } : {}),
     });
 
     return {
