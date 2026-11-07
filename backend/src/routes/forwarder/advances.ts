@@ -8,8 +8,9 @@ import { asyncHandler } from '../../middleware/asyncHandler';
 import { ApiError } from '../../errors';
 import { throwValidation } from '../../lib/validation';
 import { parseId } from '../utils/parse-id';
-import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, listAdvanceRequestsPaginated, createAdvanceSettlement, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance } from '../../services/advance.service';
+import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, listAdvanceRequestsPaginated, createAdvanceSettlement, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance, OPS_SETTLEMENT_ID_OFFSET } from '../../services/advance.service';
 import { runIdempotent } from '../../services/idempotency.service';
+import { exportOpsSettlementXlsx } from '../../services/ops-settlement-export.service';
 
 import {
   exportSettlementXlsx, exportSettlementHtml, previewSettlementHtml, previewSettlementXlsx,
@@ -108,6 +109,22 @@ router.get('/advance-settlements/:id/export', asyncHandler(async (req: Request, 
   if (settlement.forwarderId !== forwarder.id) throw new ApiError(403, 'Không có quyền truy cập');
 
   const format = (req.query.format as string) || 'xlsx';
+  if (settlement.code.startsWith('OS-')) {
+    const opsSettlementId = id >= OPS_SETTLEMENT_ID_OFFSET ? id - OPS_SETTLEMENT_ID_OFFSET : id;
+    if (format === 'pdf' || format === 'html') {
+      const html = await exportSettlementHtml(id);
+      if (!html) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+      return;
+    }
+    const { buffer, filename } = await exportOpsSettlementXlsx(opsSettlementId);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(buffer);
+    return;
+  }
+
   if (format === 'pdf' || format === 'html') {
     const html = await exportSettlementHtml(id);
     if (!html) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
