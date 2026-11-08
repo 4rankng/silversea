@@ -237,11 +237,9 @@ export function CusShipmentRow({
               return <span className="cus-cargo-summary__containers cus-empty">{emptyDayCargoLabel(item.cargoMode)}</span>;
             }
             if (item.cargoMode === 'LCL') {
-              // Owner ruling: the Cont/Lẻ label rides the XLSX export only —
-              // the cell states the mode through its own content (spec lines
-              // vs kiện/CBM metrics), never a table pill. The package
-              // authority wins when priced; a mixed summary splits one line
-              // per container type (Kiến nghị L2 item 1.2).
+              // SIL-758 (id 879) — badge 'Lẻ' inline gọn cùng dòng (suffix nhỏ
+              // cạnh số lượng, không chiếm dòng riêng phía trên), đồng bộ với
+              // hệ thống badge hiện có (NHẬP LẺ/XUẤT LẺ ở cột PHÂN LOẠI).
               const countAndType = item.packageCount != null
                 ? `${formatNumber(item.packageCount)} ${item.packageType?.trim() || 'kiện'}`
                 : null;
@@ -252,17 +250,38 @@ export function CusShipmentRow({
               const volumeStr = item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : null;
               const measures = [weightStr, volumeStr].filter(Boolean).join(' · ');
 
+              const lclBadge = (
+                <span className="cus-cargo-summary__lcl-badge" title="Hàng lẻ (LCL)">
+                  Lẻ
+                </span>
+              );
+
               if (specLines.length > 0 || measures) {
                 return (
                   <>
-                    {specLines.map((specLine) => (
-                      <strong key={specLine} className="cus-cargo-summary__containers">{specLine}</strong>
-                    ))}
+                    {specLines.length > 0 ? (
+                      specLines.map((specLine, index) => (
+                        <span key={specLine} className="cus-cargo-summary__line">
+                          <strong className="cus-cargo-summary__containers">{specLine}</strong>
+                          {index === 0 && lclBadge}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="cus-cargo-summary__line">
+                        <strong className="cus-cargo-summary__containers">{measures ? '' : 'Chưa có hàng hóa'}</strong>
+                        {lclBadge}
+                      </span>
+                    )}
                     {measures && <span className="cus-cargo-summary__weight">{measures}</span>}
                   </>
                 );
               }
-              return <span className="cus-cargo-summary__containers cus-empty">Chưa có hàng hóa</span>;
+              return (
+                <span className="cus-cargo-summary__line">
+                  <span className="cus-cargo-summary__containers cus-empty">Chưa có hàng hóa</span>
+                  {lclBadge}
+                </span>
+              );
             }
             const lines = splitContainerSummaryLines(summary);
             if (lines.length > 0) {

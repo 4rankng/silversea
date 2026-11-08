@@ -175,6 +175,24 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
     expect(container.querySelector('.cus-cargo-summary__weight')?.textContent).toBe('5 tấn · 12 CBM');
   });
 
+  it('renders inline Lẻ badge beside packaging demand in cargo summary for LCL lot (SIL-758)', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      packageCount: 10,
+      packageType: 'Pallet',
+      weightKg: '5000',
+      volumeCbm: '12',
+    }));
+    const line = container.querySelector('.cus-cargo-summary__line')!;
+    expect(line).toBeTruthy();
+    expect(line.querySelector('.cus-cargo-summary__containers')?.textContent).toBe('10 Pallet');
+    const badge = line.querySelector('.cus-cargo-summary__lcl-badge')!;
+    expect(badge).toBeTruthy();
+    expect(badge.textContent).toBe('Lẻ');
+    expect(badge.getAttribute('title')).toBe('Hàng lẻ (LCL)');
+    expect(container.querySelector('.cus-cargo-summary__weight')?.textContent).toBe('5 tấn · 12 CBM');
+  });
+
   it('R3 names the LCL lot cargo object in the day-filter empty state (SIL-504: one-line label)', () => {
     renderRow(makeItem({ cargoMode: 'LCL', containerSummary: null }), { from: '2026-10-19', to: '2026-10-19' });
     expect(screen.getByText('Chưa chọn hàng lẻ')).toBeTruthy();
