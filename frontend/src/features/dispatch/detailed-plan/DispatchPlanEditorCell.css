@@ -140,13 +140,16 @@
   line-height: var(--ops-table-meta-line-height);
 }
 
+.dispatch-assignment-cell__carrier.is-placeholder,
 .dispatch-assignment-cell__plate.is-placeholder,
 .dispatch-assignment-cell__driver.is-placeholder,
 .dispatch-assignment-cell__estimate.is-placeholder {
   /* Placeholder copy ("CUS sẽ bổ sung", "Chưa phân xe") is operational
      guidance, not disabled UI — the fallback must meet text contrast
      (4.76:1 on white); italic + regular weight already mark the
-     placeholder semantic. */
+     placeholder semantic. SIL-753: the carrier line joins the group —
+     an unassigned row reads 'Chưa phân xe' there instead of an invented
+     carrier name. */
   color: var(--fg-3);
   font-family: inherit;
   font-style: italic;

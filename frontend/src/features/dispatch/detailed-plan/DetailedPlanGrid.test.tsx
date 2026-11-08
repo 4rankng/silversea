@@ -506,16 +506,21 @@ describe('DetailedPlanGrid', () => {
 
   it('keeps the assignment cell one-line facts with the carrier click-to-edit (SIL-500)', () => {
     const item = row();
+    // SIL-753: pin the true unassigned shape — OWN, no plate, no live trip,
+    // carrierName null (what Hủy phân xe leaves behind).
+    item.dispatch = { ...item.dispatch, carrierName: null };
     const { container } = renderGrid([item]);
     const cell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
     if (!cell) throw new Error('Missing actual assignment cell');
     // SIL-500 (KHĐ 26/10): exactly ONE interactive element — the carrier
     // line (click-to-edit); the facts stay text, no editor inputs inline.
     expect(cell.querySelectorAll('button')).toHaveLength(1);
-    expect(within(cell).getByRole('button', { name: 'Sửa điều phối · SilverSea · MSCU1234567' })).toHaveTextContent(item.dispatch.carrierName ?? 'Chưa phân nhà xe');
-    for (const text of [item.dispatch.carrierName ?? 'Chưa phân nhà xe', 'Chưa phân xe']) {
-      expect(within(cell).getByText(text)).toBeTruthy();
-    }
+    // SIL-753: the unassigned row shape is OWN with NO carrier name — the
+    // cell reads 'Chưa phân xe' exactly once and invents no carrier.
+    expect(within(cell).getByRole('button', { name: 'Sửa điều phối · Chưa phân xe · MSCU1234567' })).toHaveTextContent('Chưa phân xe');
+    expect(within(cell).getAllByText('Chưa phân xe')).toHaveLength(1);
+    expect(within(cell).queryByText('SilverSea')).toBeNull();
+    expect(within(cell).queryByText('Chưa phân nhà xe')).toBeNull();
     expect(cell).toHaveAttribute('data-label-short', 'Điều phối');
     expect(within(cell).queryByRole('textbox')).toBeNull();
     const editorCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');

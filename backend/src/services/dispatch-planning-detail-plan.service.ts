@@ -1439,7 +1439,14 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     operationalNotes: storedNote ?? null,
     dispatch: {
       carrierType: input.carrierType,
-      carrierName,
+      // SIL-753 — same law as the grid read: 'OWN' with no planned plate (and
+      // plan saves never carry a live trip) is the stored shape of "chưa phân
+      // xe" — Hủy phân xe lands here. The optimistic row patch consumes this
+      // payload, so a fabricated 'SilverSea' here would flash the exact bug
+      // this ticket fixes until the trailing refetch reconciles.
+      carrierName: input.carrierType === 'OWN'
+        ? (updatedFulfillment.plannedVehiclePlateNumber ? INTERNAL_FLEET_CARRIER_NAME : null)
+        : carrierName,
       externalCarrierId: plannedExternalCarrierId,
       externalCarrierVehicleId: vehicle?.plannedExternalCarrierVehicleId ?? updatedFulfillment.plannedExternalCarrierVehicleId,
       assignedPlate: updatedFulfillment.plannedVehiclePlateNumber,
