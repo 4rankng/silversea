@@ -31,8 +31,8 @@ vi.mock('./components/Layout', () => ({
   default: ({ children }: { children: React.ReactNode }) => <div data-testid="layout-shell">{children}</div>,
 }));
 
-vi.mock('./pages/ForwarderTripsPage', () => ({
-  default: () => <div>Ops order workspace</div>,
+vi.mock('./pages/OpsOrdersPage', () => ({
+  default: () => <div>Ops orders plan</div>,
 }));
 
 import { ToastProvider } from './components/shared/Toast';
@@ -51,18 +51,19 @@ function renderRoute(path: string) {
 describe('AppRoutes legacy FORWARDER compatibility', () => {
   it.each(['/', '/my-orders'])('renders the canonical Ops workspace at %s', async (path) => {
     renderRoute(path);
-    expect(await screen.findByText('Ops order workspace')).toBeTruthy();
+    expect(await screen.findByText('Ops orders plan')).toBeTruthy();
     expect(screen.getByTestId('layout-shell')).toBeTruthy();
   });
 
   it('redirects a legacy FORWARDER away from an office-only customer page', async () => {
     renderRoute('/customers/1');
-    expect(await screen.findByText('Ops order workspace')).toBeTruthy();
+    expect(await screen.findByText('Ops orders plan')).toBeTruthy();
   });
 });
 
 // Card 061026172806 — QA retest reported OPS being bounced off /fleet and
-// /expenses back to /my-orders. That is NOT a defect: it is the designed
+// /expenses back to the Ops home (then /my-orders, now /ops/orders — SIL-730).
+// That is NOT a defect: it is the designed
 // authorization, agreed by three independent layers.
 //
 //   1. Nav      — the OPS menu (Layout.tsx) deliberately omits "Đội xe" and
@@ -87,7 +88,7 @@ describe('AppRoutes Ops is deliberately outside the office-only fleet and expens
     { path: '/expenses', reason: 'company-wide expense list' },
   ])('redirects OPS away from $path ($reason)', async ({ path }) => {
     renderRoute(path);
-    expect(await screen.findByText('Ops order workspace')).toBeTruthy();
+    expect(await screen.findByText('Ops orders plan')).toBeTruthy();
   });
 });
 
@@ -102,13 +103,13 @@ describe('guarded redirects announce the denial', () => {
     async (path) => {
       renderRoute(path);
       expect(await screen.findByText('Bạn không có quyền truy cập trang này.')).toBeTruthy();
-      expect(await screen.findByText('Ops order workspace')).toBeTruthy();
+      expect(await screen.findByText('Ops orders plan')).toBeTruthy();
     },
   );
 
-  it('shows no denial notice on an allowed route', async () => {
+  it('retires /my-orders onto /ops/orders without a denial notice (SIL-730)', async () => {
     renderRoute('/my-orders');
-    expect(await screen.findByText('Ops order workspace')).toBeTruthy();
+    expect(await screen.findByText('Ops orders plan')).toBeTruthy();
     expect(screen.queryByText('Bạn không có quyền truy cập trang này.')).toBeNull();
   });
 });

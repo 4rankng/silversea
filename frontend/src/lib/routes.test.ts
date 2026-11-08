@@ -54,7 +54,6 @@ describe('titleForPath destination labels and route precedence', () => {
     '/my-trips': 'Hành trình',
     '/my-trips/3': 'Hành trình',
     '/my-earnings': 'Thu nhập',
-    '/my-orders': 'Lệnh giao nhận',
     '/ops': 'Tổng quan Ops', // exact-match rule — must not inherit any /ops/* title
     '/my-forwarder-trips': 'Chuyến đi',
     '/my-advances': 'Tạm ứng',
@@ -99,9 +98,9 @@ describe('homeForRole', () => {
     expect(homeForRole('DISPATCHER')).toBe('/dispatch');
   });
 
-  it('routes OPS and legacy FORWARDER users to the order-exchange workspace', () => {
-    expect(homeForRole('OPS')).toBe('/my-orders');
-    expect(homeForRole('FORWARDER')).toBe('/my-orders');
+  it('routes OPS and legacy FORWARDER users to Kế hoạch làm hàng (SIL-730 — /my-orders retired)', () => {
+    expect(homeForRole('OPS')).toBe('/ops/orders');
+    expect(homeForRole('FORWARDER')).toBe('/ops/orders');
   });
 });
 

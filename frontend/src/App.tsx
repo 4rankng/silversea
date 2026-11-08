@@ -300,7 +300,7 @@ export function AppRoutes() {
   const isAdmin = currentRole === Role.ADMIN;
   const isDispatcher = currentRole === Role.DISPATCHER;
   const driverHome = routes.myTrips;
-  const opsHome = routes.myOrders; // formerly forwarderHome
+  const opsHome = routes.opsOrders; // SIL-730 (id 850): Ops home là Kế hoạch làm hàng — /my-orders đã retired
   const cusHome = routes.shipments; // formerly clerkHome
   const isPortalUser = isDriver || isOps; // updated to use isOps
   const customerHome = routes.portalShipments;
@@ -606,7 +606,10 @@ export function AppRoutes() {
           <Route path="/my-earnings" element={driverOnly(page(<DriverEarningsPage />))} />
           <Route path="/my-payslips" element={driverOnly(page(<DriverPayslipsPage />))} />
           <Route path="/notifications" element={driverOnly(page(<NotificationsPage />))} />
-          <Route path="/my-orders" element={opsOnly(page(<ForwarderTripsPage />))} />
+          {/* SIL-730 (id 850): /my-orders (Lệnh giao nhận trống) is retired —
+              the screen lived only as the Ops landing; every hit now lands on
+              the real work surface. */}
+          <Route path="/my-orders" element={<Navigate to="/ops/orders" replace />} />
           <Route path="/ops" element={opsOnly(page(<OpsOverviewPage />))} />
           <Route path="/ops/orders" element={opsOnly(page(<OpsOrdersPage />))} />
           <Route path="/ops/fleet-tracking" element={opsOnly(page(<OpsFleetTrackingPage />))} />

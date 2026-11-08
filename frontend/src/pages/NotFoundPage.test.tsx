@@ -7,7 +7,7 @@ const { state } = vi.hoisted(() => ({ state: { role: 'ADMIN' } }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: state.role } }) }));
 
 describe('unknown page recovery', () => {
-  it.each([['ADMIN', '/config'], ['CUSTOMER', '/portal/shipments'], ['OPS', '/my-orders']])('keeps %s recovery inside its permitted workspace', (role, target) => {
+  it.each([['ADMIN', '/config'], ['CUSTOMER', '/portal/shipments'], ['OPS', '/ops/orders']])('keeps %s recovery inside its permitted workspace', (role, target) => {
     state.role = role;
     render(<MemoryRouter><NotFoundPage /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeVisible();

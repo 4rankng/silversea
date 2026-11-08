@@ -1,0 +1,36 @@
+
+=== run 2026-11-08T07:15:57.548Z ===
+2026-11-08T07:15:59.226Z login hoangnh: OK
+2026-11-08T07:16:20.969Z landing url=/my-orders heading=Lệnh giao nhận rows=0
+2026-11-08T07:16:20.972Z FAIL post-login landing is /ops/orders (got /my-orders)
+2026-11-08T07:16:20.973Z FAIL no legacy empty-workboard copy (Cần làm 0)
+2026-11-08T07:16:20.973Z FAIL sidebar carries no Lệnh giao nhận entry
+2026-11-08T07:16:21.350Z shot 01-ops-landing
+2026-11-08T07:16:34.211Z redirect url=/my-orders heading=Lệnh giao nhận
+2026-11-08T07:16:34.212Z FAIL direct /my-orders redirects to /ops/orders (got /my-orders)
+2026-11-08T07:16:34.456Z shot 02-my-orders-redirect
+2026-11-08T07:16:36.758Z DRIVER_EXIT:1 failures=4
+
+=== run 2026-11-08T07:17:23.952Z ===
+2026-11-08T07:17:25.673Z login hoangnh: OK
+2026-11-08T07:17:54.935Z landing url=/my-orders heading=Lệnh giao nhận rows=0
+2026-11-08T07:17:54.936Z FAIL post-login landing is /ops/orders (got /my-orders)
+2026-11-08T07:17:54.936Z FAIL no legacy empty-workboard copy (Cần làm 0)
+2026-11-08T07:17:54.937Z FAIL sidebar carries no Lệnh giao nhận entry
+2026-11-08T07:17:55.665Z shot 01-ops-landing
+2026-11-08T07:18:07.219Z redirect url=/my-orders heading=Lệnh giao nhận
+2026-11-08T07:18:07.221Z FAIL direct /my-orders redirects to /ops/orders (got /my-orders)
+2026-11-08T07:18:07.557Z shot 02-my-orders-redirect
+2026-11-08T07:18:08.207Z DRIVER_EXIT:1 failures=4
+
+=== run 2026-11-08T07:23:30.761Z ===
+2026-11-08T07:23:31.145Z login hoangnh: OK
+2026-11-08T07:23:41.774Z landing url=/ops/orders heading=Kế hoạch làm hàng rows=1
+2026-11-08T07:23:41.775Z PASS post-login landing is /ops/orders (got /ops/orders)
+2026-11-08T07:23:41.775Z PASS no legacy empty-workboard copy (Cần làm 0)
+2026-11-08T07:23:41.775Z PASS sidebar carries no Lệnh giao nhận entry
+2026-11-08T07:23:41.842Z shot 01-ops-landing
+2026-11-08T07:23:49.474Z redirect url=/ops/orders heading=Kế hoạch làm hàng
+2026-11-08T07:23:49.474Z PASS direct /my-orders redirects to /ops/orders (got /ops/orders)
+2026-11-08T07:23:49.550Z shot 02-my-orders-redirect
+2026-11-08T07:23:49.823Z DRIVER_EXIT:0 failures=0
