@@ -28,8 +28,8 @@ describe('driver-trip-model', () => {
   });
 
   describe('completeCtaLabel', () => {
-    it('returns "Hoàn tất lệnh vận chuyển" when status is IN_TRANSIT', () => {
-      expect(completeCtaLabel(TripStatus.IN_TRANSIT)).toBe('Hoàn tất lệnh vận chuyển');
+    it('returns "Hoàn tất" when status is IN_TRANSIT', () => {
+      expect(completeCtaLabel(TripStatus.IN_TRANSIT)).toBe('Hoàn tất');
     });
 
     it('returns "Đã hoàn thành chuyến" when status is COMPLETED', () => {

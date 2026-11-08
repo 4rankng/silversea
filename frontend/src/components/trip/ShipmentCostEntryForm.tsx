@@ -335,7 +335,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
           while editing. */}
       {noteOpen ? (
         <>
-          <TextField controlSize="sm" label="Ghi chú cho kế toán" value={sectionNote} maxLength={2000} disabled={readOnly || noteSaving} onChange={(event) => setSectionNote(event.target.value)} />
+          <TextField controlSize="sm" label="Ghi chú kế toán" value={sectionNote} maxLength={2000} disabled={readOnly || noteSaving} onChange={(event) => setSectionNote(event.target.value)} />
           {noteError && <p role="alert" className="shipment-cost-entry__banner--error">{noteError}</p>}
           {!readOnly && <button type="button" className="btn btn--secondary btn--sm" disabled={disabled || noteSaving || sectionNote === savedNote} onClick={() => void saveNote()}>{noteSaving ? 'Đang lưu…' : 'Lưu ghi chú'}</button>}
         </>
@@ -347,7 +347,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
       ) : (
         <button type="button" className="shipment-cost-entry__note-collapsed" onClick={() => setNoteOpen(true)}>
           <Plus size={14} aria-hidden="true" />
-          <span>Thêm ghi chú cho kế toán</span>
+          <span>Ghi chú kế toán</span>
         </button>
       )}
     </div>

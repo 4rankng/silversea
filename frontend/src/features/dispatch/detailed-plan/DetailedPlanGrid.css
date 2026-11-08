@@ -282,10 +282,11 @@
    rebalance gives the column 6% (~91px at the 1520px floor ≥ the measured
    85px one-line label) — the cell stays the board's smallest. */
 .detailed-plan-grid__col--classification { width: 6%; }
-.detailed-plan-grid__col--notes { width: 14.35%; }
-/* SIL-588 (owner 27/10) / SIL-713 (Spec I.4d): the rail hosts TWO STACKED
-   buttons (Phát lệnh icon above, ⋯ below) in a 44–48px narrow strip (~3.15% of 1520px). */
-.detailed-plan-grid__col--actions { width: 3.15%; }
+.detailed-plan-grid__col--notes { width: 12%; }
+/* SIL-588 (owner 27/10) / SIL-713 / SIL-755: the rail hosts TWO STACKED
+   buttons (Phát lệnh icon above, ⋯ below) while the "THAO TÁC" header fits
+   on one line without truncation (5.5% of 1520px ≈ 83.6px). */
+.detailed-plan-grid__col--actions { width: 5.5%; }
 
 /* ── SIL-591 — SỐ TỜ KHAI cell (per-container, SIL-521 model) ──────────────
    The value reads as data text; the edit affordance is a house text button
@@ -293,7 +294,9 @@
    and the inline editor is a single compact input with an Enter/Esc hint. */
 .detailed-plan-grid__decl-value {
   font-family: var(--font-data, inherit);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* SIL-631: the cell keeps its value (dimmed) while the editor floats outside
@@ -458,7 +461,7 @@
    board fits its pane and nothing is ever covered — the reserve is resting
    whitespace inside the roomy Ghi chú cell. */
 .detailed-plan-grid {
-  --dpg-actions-reserve: 48px;
+  --dpg-actions-reserve: 72px;
 }
 .detailed-plan-grid td.detailed-plan-grid__cell--notes {
   padding-inline-end: calc(var(--space-sm) + var(--dpg-actions-reserve));
@@ -533,9 +536,9 @@
   z-index: var(--z-base, 1);
   background: var(--surface);
   border-left: 1px solid var(--border-color-secondary, var(--line));
-  width: 48px;
-  min-width: 44px;
-  max-width: 48px;
+  width: 72px;
+  min-width: 68px;
+  max-width: 88px;
   box-sizing: border-box;
   text-align: center;
   padding: 6px 4px;
@@ -547,7 +550,7 @@
      the same way the band rule does, keeping the drift counters flat. */
   z-index: calc(var(--z-base, 1) + 3);
   font-size: var(--text-label-size, 11px);
-  padding: 6px 2px;
+  padding: 6px 4px;
 }
 
 /* SIL-588 (owner 27/10, supersedes the SIL-519 one-line flex rail) / SIL-713:
@@ -588,6 +591,16 @@
  * 211026180428). */
 .detailed-plan-grid__cell--container .detailed-plan-grid__line--strong {
   font-size: var(--text-caption-size);
+}
+
+/* SIL-756: Container numbers are unbreakable ISO codes (11 chars) —
+ * white-space: nowrap + overflow-wrap: normal on .ops-container-line
+ * prevents breaking mid-string (e.g. QACU200050 + 7), while the pair tag
+ * can wrap as a whole token to the next line. */
+.detailed-plan-grid__cell--container .ops-container-line {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .detailed-plan-grid__line--muted {

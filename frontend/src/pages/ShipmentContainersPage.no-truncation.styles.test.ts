@@ -116,11 +116,17 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(width('direction')).toBeGreaterThanOrEqual(7);
     // The in-cell BKS editor stays inside its cell at the SIL-543 share.
     expect(width('vehicle')).toBeGreaterThanOrEqual(12);
-    // Container numbers wrap nowhere — whole-token nowrap, zero clip.
+    // Container numbers, declaration numbers, and Bill/Booking wrap nowhere — whole-token nowrap, zero clip.
     const codeRules = rulesFor(css, /td\[data-label="Thông số container"\] \.shipment-container-ledger__code$/);
     expect(codeRules.length).toBeGreaterThan(0);
     expect(codeRules[0]).toMatch(/white-space:\s*nowrap/);
+    expect(codeRules[0]).toMatch(/overflow-wrap:\s*normal/);
+    expect(codeRules[0]).toMatch(/word-break:\s*normal/);
     expectNoClip(codeRules);
+
+    // SIL-756: declaration numbers and Bill/Booking share the identifier nowrap law
+    expect(css).toMatch(/td\[data-label="Số tờ khai"\] \.shipment-container-ledger__code/);
+    expect(css).toMatch(/td\[data-label="Bill\/Booking"\] \.shipment-container-ledger__code/);
     // Plate chips are identifiers too.
     const plateRules = rulesFor(css, /^\.shipment-container-ledger__plate$/);
     expect(plateRules[0]).toMatch(/white-space:\s*nowrap/);

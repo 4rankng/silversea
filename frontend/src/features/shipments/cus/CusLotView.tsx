@@ -191,7 +191,7 @@ function DeclarationCell({
 
   if (!editable || !actions) {
     return persisted
-      ? <span className="cus-lot-decl__value">{persisted}</span>
+      ? <span className="cus-lot-decl__value" title={persisted}>{persisted}</span>
       : <span className="cus-lot-quiet">Chưa có tờ khai</span>;
   }
 
@@ -209,7 +209,9 @@ function DeclarationCell({
         // SIL-552 (owner 28/10): the 11ch mono box shows its hint WHOLE — the
         // old "Nhập số tờ khai…" was clipped mid-word inside the box (the
         // no-truncation doctrine reaches the field's own placeholder).
+        // SIL-754: provide title tooltip with full value when text overflows box.
         placeholder="Số tờ khai"
+        title={draft || undefined}
         value={draft}
         disabled={busy}
         onChange={(event) => setDraft(event.target.value)}

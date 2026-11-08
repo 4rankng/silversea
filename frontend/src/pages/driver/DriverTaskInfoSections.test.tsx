@@ -423,7 +423,7 @@ describe('DriverTaskInfoSections', () => {
   it('explains missing invoice configuration for the displayed factory instead of silently hiding it', () => {
     renderBoth(makeTrip());
 
-    expect(screen.getByText('Thông tin xuất hóa đơn')).toBeTruthy();
+    expect(screen.getByText('Thông tin hóa đơn')).toBeTruthy();
     expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
   });
 

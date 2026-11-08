@@ -2168,10 +2168,11 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
    baseline band. */
 .cus-lot-decl {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px;
   min-width: 0;
+  width: 100%;
 }
 
 .cus-lot-decl__value {
@@ -2179,10 +2180,11 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
 }
 
 .cus-lot-decl__input {
-  width: 11ch;
+  width: 100%;
+  min-width: 11ch;
+  max-width: 136px;
   height: 36px;
-  min-width: 0;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   padding: 0 8px;
   border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);

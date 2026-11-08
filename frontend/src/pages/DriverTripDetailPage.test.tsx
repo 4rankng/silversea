@@ -288,7 +288,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Sửa số cont' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Chụp.*nhiên liệu|Chụp lại ảnh mới/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Hoàn tất lệnh vận chuyển/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Hoàn tất' })).toBeNull();
     expect(screen.getByText('Chuyến đã hủy')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Xem chứng từ giao hàng' })).toHaveAttribute('href', '/my-trips/88/pod');
   });
@@ -379,7 +379,7 @@ describe('DriverTripDetailPage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders the sticky accept bar and the Hoàn tất lệnh vận chuyển footer button (e-POD lives on its own page now)', async () => {
+  it('renders the sticky accept bar and the Hoàn tất footer button (e-POD lives on its own page now)', async () => {
     renderPage();
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
@@ -483,12 +483,12 @@ describe('DriverTripDetailPage', () => {
 
     renderPageWithBoard(client);
 
-    await screen.findByTestId('complete-sticky-bar');
-    const cta = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
+    const stickyBar = await screen.findByTestId('complete-sticky-bar');
+    const cta = within(stickyBar).getByRole('button', { name: 'Hoàn tất' });
     fireEvent.click(cta);
 
     // Confirmation dialog appears
-    const confirmBtn = await screen.findByRole('button', { name: 'Hoàn tất' });
+    const confirmBtn = await within(screen.getByRole('dialog')).findByRole('button', { name: 'Hoàn tất' });
     fireEvent.click(confirmBtn);
 
     expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
@@ -545,10 +545,10 @@ describe('DriverTripDetailPage', () => {
 
     renderPageWithBoard(freshClient());
 
-    await screen.findByTestId('complete-sticky-bar');
-    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' }));
+    const stickyBar = await screen.findByTestId('complete-sticky-bar');
+    fireEvent.click(within(stickyBar).getByRole('button', { name: 'Hoàn tất' }));
 
-    const confirmBtn = await screen.findByRole('button', { name: 'Hoàn tất' });
+    const confirmBtn = await within(screen.getByRole('dialog')).findByRole('button', { name: 'Hoàn tất' });
     fireEvent.click(confirmBtn);
 
     await waitFor(() => expect(completeSpy).toHaveBeenCalled());
@@ -597,10 +597,10 @@ describe('DriverTripDetailPage', () => {
 
     renderPageWithBoard(freshClient());
 
-    await screen.findByTestId('complete-sticky-bar');
-    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' }));
+    const stickyBar = await screen.findByTestId('complete-sticky-bar');
+    fireEvent.click(within(stickyBar).getByRole('button', { name: 'Hoàn tất' }));
 
-    const confirmBtn = await screen.findByRole('button', { name: 'Hoàn tất' });
+    const confirmBtn = await within(screen.getByRole('dialog')).findByRole('button', { name: 'Hoàn tất' });
     fireEvent.click(confirmBtn);
 
     await waitFor(() => expect(completeSpy).toHaveBeenCalled());
@@ -698,7 +698,7 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     expect(await screen.findByText(/Số cont & seal/)).toBeTruthy();
-    expect(screen.getByText(/Thông tin xuất hóa đơn/)).toBeTruthy();
+    expect(screen.getByText(/Thông tin hóa đơn/)).toBeTruthy();
     expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
   });
 
@@ -1085,7 +1085,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByTestId('complete-sticky-bar')).toBeTruthy();
     // SIL-733: warning removed next to complete button (photos are optional)
     expect(screen.queryByTestId('complete-sticky-status')).toBeNull();
-    const btn = screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' });
+    const btn = within(screen.getByTestId('complete-sticky-bar')).getByRole('button', { name: 'Hoàn tất' });
     expect(btn).toBeEnabled();
   });
 
@@ -1307,7 +1307,7 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    await screen.findByText('Thông tin xuất hóa đơn');
+    await screen.findByText('Thông tin hóa đơn');
     const headLabels = Array.from(document.querySelectorAll('.driver-task-grid .driver-task-fact__label'))
       .map((el) => el.textContent)
       .filter((label) => ['Tên công ty', 'Địa chỉ', 'MST'].includes(label ?? ''));
@@ -1396,7 +1396,7 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    await screen.findByText('Thông tin xuất hóa đơn');
+    await screen.findByText('Thông tin hóa đơn');
     const invoiceToggle = screen.getByTestId('task-section-toggle-driver-task-invoice-grid');
     const invoiceGrid = document.getElementById('driver-task-invoice-grid') as HTMLElement;
     const infoGrid = document.getElementById('driver-task-info-grid') as HTMLElement;

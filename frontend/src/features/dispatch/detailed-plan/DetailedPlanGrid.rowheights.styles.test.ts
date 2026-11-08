@@ -178,14 +178,24 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(bodies.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('SIL-713: actions column is vertically stacked in 44-48px width without horizontal spreading', () => {
+  it('SIL-755 (supersedes SIL-713 44-48px): actions column fits THAO TÁC header and vertically stacked actions in 68-88px width', () => {
     const actionCellRule = css.match(/\.detailed-plan-grid th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(actionCellRule).toContain('width: 48px');
-    expect(actionCellRule).toContain('min-width: 44px');
-    expect(actionCellRule).toContain('max-width: 48px');
+    expect(actionCellRule).toContain('width: 72px');
+    expect(actionCellRule).toContain('min-width: 68px');
+    expect(actionCellRule).toContain('max-width: 88px');
 
     const stackRule = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(stackRule).toContain('flex-direction: column');
     expect(stackRule).toContain('align-items: center');
+  });
+
+  it('SIL-756: container number and declaration number do not wrap mid-string (white-space: nowrap + overflow-wrap: normal)', () => {
+    // Container serial numbers are single-token ISO identifiers (e.g. QACU2000507)
+    expect(css).toMatch(/\.detailed-plan-grid__cell--container \.ops-container-line\s*\{[^}]*white-space:\s*nowrap/);
+    expect(css).toMatch(/\.detailed-plan-grid__cell--container \.ops-container-line\s*\{[^}]*overflow-wrap:\s*normal/);
+
+    // Declaration numbers are also single-token codes (e.g. TK1108R002)
+    expect(css).toMatch(/\.detailed-plan-grid__decl-value\s*\{[^}]*white-space:\s*nowrap/);
+    expect(css).toMatch(/\.detailed-plan-grid__decl-value\s*\{[^}]*overflow-wrap:\s*normal/);
   });
 });
