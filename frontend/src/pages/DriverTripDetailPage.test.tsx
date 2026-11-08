@@ -1089,7 +1089,7 @@ describe('DriverTripDetailPage', () => {
     expect(btn).toBeEnabled();
   });
 
-  it('SIL-733: collapses fuel section by default with toggle', async () => {
+  it('SIL-733: collapses fuel section by default with toggle and summary', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         status: 'IN_TRANSIT',
@@ -1101,12 +1101,17 @@ describe('DriverTripDetailPage', () => {
 
     await screen.findByText(/Ảnh nhiên liệu/);
     expect(screen.queryByText(/Chụp màn hình bơm gần nhất/)).toBeNull();
+    const section = screen.getByTestId('fuel-section');
+    expect(section.className).toContain('driver-task-section--fuel-collapsed');
+    expect(screen.getByText('Không bắt buộc')).toBeTruthy();
+
     const toggle = screen.getByTestId('fuel-section-toggle');
     expect(toggle.textContent).toContain('Mở rộng');
 
     fireEvent.click(toggle);
     expect(screen.getByText(/Chụp màn hình bơm gần nhất/)).toBeTruthy();
     expect(toggle.textContent).toContain('Thu gọn');
+    expect(section.className).not.toContain('driver-task-section--fuel-collapsed');
   });
 
   it('card _28: the sticky bar never stacks with the accept bar', async () => {

@@ -15,7 +15,7 @@ const access = (mode: string) => ({ mode, reason: `reason:${mode}` });
 
 function makeItem(overrides: {
   cargoMode?: 'FCL' | 'LCL';
-  direction?: 'IMPORT' | 'EXPORT';
+  direction?: 'IMPORT' | 'EXPORT' | null;
   containerSummary?: string | null;
   packageCount?: number | null;
   packageType?: string | null;
@@ -37,7 +37,7 @@ function makeItem(overrides: {
 } = {}): ShipmentCusWorkspaceListItem {
   const {
     cargoMode = 'LCL',
-    direction = 'IMPORT',
+    direction = ('direction' in overrides ? overrides.direction : 'IMPORT'),
     containerSummary = '',
     weightKg = '1200',
     volumeCbm = null,

@@ -5,6 +5,7 @@
 // (Spec I.4a) — so the ledger (scoped to this lot's customer + reference)
 // stays reachable as a deliberate action from inside the drawer.
 
+import { Plus } from 'lucide-react';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 
 export interface CusLotDrawerFooterProps {
@@ -38,7 +39,7 @@ export function CusLotDrawerFooter({ canEdit, locked, onEdit, onOpenLedger, onDe
           className="cus-drawer-declare-expense"
           onPress={onDeclareExpense}
         >
-          Khai chi phí
+          <Plus size={14} /> Khai chi phí
         </UUIButton>
       )}
       {canEdit && (

@@ -156,7 +156,7 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
     delete idempotencyKeysRef.current[signature];
   }, []);
 
-  const loadDetail = useCallback(async (shipmentId: number, force = false) => {
+  const loadDetail = useCallback(async (shipmentId: number, force = false): Promise<void> => {
     if (!force && details[shipmentId]) return;
     const requestId = (detailRequestSequence.current[shipmentId] ?? 0) + 1;
     detailRequestSequence.current[shipmentId] = requestId;

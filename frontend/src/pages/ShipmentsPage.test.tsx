@@ -1800,6 +1800,19 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiPost).not.toHaveBeenCalled();
   });
 
+  it('SIL-748: renders [Khai chi phí] in drawer body and footer for Ops role', async () => {
+    authState.user.role = Role.OPS;
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    await screen.findByRole('dialog');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    const expenseButtons = within(drawer).getAllByRole('button', { name: /Khai chi phí/ });
+    expect(expenseButtons.length).toBeGreaterThanOrEqual(2);
+    expect(expenseButtons.some((b) => b.className.includes('cus-lot-declare-expense'))).toBe(true);
+    expect(expenseButtons.some((b) => b.className.includes('cus-drawer-declare-expense'))).toBe(true);
+  });
+
 
   it('does not open edit dialogs or the drawer from locked shipment cells', async () => {
     const lockedFieldAccess = Object.fromEntries(Object.entries(row.fieldAccess).map(([key, access]) => [

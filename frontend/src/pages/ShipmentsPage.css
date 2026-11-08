@@ -1780,6 +1780,11 @@
   color: var(--ink-3);
 }
 
+.cus-lot-card__band .cus-lot-declare-expense {
+  margin-left: auto;
+  align-self: center;
+}
+
 .cus-lot-card__body {
   display: grid;
   gap: 14px;

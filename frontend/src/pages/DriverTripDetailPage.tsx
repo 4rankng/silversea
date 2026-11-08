@@ -621,9 +621,19 @@ function DriverTripDetailContent() {
           CTA at the bottom navigates there. The cost-entry form is hidden
           here per the trial-readiness plan ("kế toán từ từ"). Backend
           schema + endpoints for both are retained for the post-trial phase. */}
-      <section className="driver-task-section" data-testid="fuel-section">
+      <section
+        className={`driver-task-section${!fuelExpanded ? ' driver-task-section--collapsed driver-task-section--fuel-collapsed' : ''}`}
+        data-testid="fuel-section"
+      >
         <div className="driver-task-section__head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Ảnh nhiên liệu</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+            <span>Ảnh nhiên liệu</span>
+            {!fuelExpanded && (
+              <span className="driver-task-section__summary" style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', fontWeight: 500 }}>
+                {latestFuelEvidence ? 'Đã có ảnh' : 'Không bắt buộc'}
+              </span>
+            )}
+          </div>
           <button
             type="button"
             className="driver-task-ops-toggle"

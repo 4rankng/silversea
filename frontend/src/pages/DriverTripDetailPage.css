@@ -359,6 +359,11 @@
   margin-bottom: 0;
 }
 
+.driver-task-section--collapsed.driver-task-section--fuel-collapsed {
+  gap: 0;
+  padding: 8px 12px;
+}
+
 @media (pointer: coarse) {
   .driver-task-section__toggle {
     min-height: var(--control-touch-h);

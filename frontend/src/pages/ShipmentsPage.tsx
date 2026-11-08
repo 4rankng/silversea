@@ -19,12 +19,13 @@ import { DateRangeFields, DateRangePresetSelect, DateRangePresets, EmptyState, I
 import { nextTableSort, readTableSort, type TableSortState } from '../lib/table-sort';
 import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
+import { getModernRole } from '../lib/role-helpers';
 import { useAuth } from '../hooks/useAuth';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { isOverlayOpen } from '../lib/overlayState';
 import { ShipmentQuickEditModal } from '../features/shipments/cus/ShipmentQuickEditModal';
 import { CusLotStatusChips, CusLotView } from '../features/shipments/cus/CusLotView';
-import { copyCusShipmentContainerDeclaration, updateCusShipmentContainerLine } from '../api/shipmentClient';
+import { copyCusShipmentContainerDeclaration, getCusShipmentWorkspaceDetail, updateCusShipmentContainerLine } from '../api/shipmentClient';
 import { useCusDrawerContainerAdd } from '../features/shipments/cus/use-cus-drawer-container-add';
 import { CusLotDrawerFooter } from '../features/shipments/cus/CusLotDrawerFooter';
 import { CusShipmentRow, CUS_ROW_COLUMNS } from '../features/shipments/cus/CusShipmentRow';
@@ -139,7 +140,9 @@ export default function ShipmentsPage() {
   const canCloseExternal = canCloseExternalTrips(user?.role);
   // SIL-706: Sửa lô metadata chỉ dành cho ADMIN, MANAGER, CUS (DISPATCHER bị rút quyền sửa metadata).
   const canEditLot = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS);
-  const isOps = user?.role === Role.OPS;
+  const userRole = getModernRole(user?.role || '').toUpperCase();
+  const isOps = userRole === Role.OPS || userRole === 'FORWARDER';
+  const canDeclareOpsExpense = isOps || userRole === Role.ADMIN || userRole === Role.MANAGER;
   const [expenseOrder, setExpenseOrder] = useState<OpsOrderItem | null>(null);
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
@@ -308,6 +311,34 @@ export default function ShipmentsPage() {
     setLotActionBlock(null);
     void loadDetail(shipmentId);
   }, [loadDetail]);
+
+  const handleOpenExpenseModal = useCallback(async (item: ShipmentCusWorkspaceListItem) => {
+    let detail = ws.details[item.id];
+    if (!detail) {
+      try {
+        detail = await getCusShipmentWorkspaceDetail(item.id);
+      } catch {
+        // fallback
+      }
+    }
+    const containers = detail?.containers ?? [];
+    const orderItem: OpsOrderItem = {
+      id: item.id,
+      shipmentCode: item.billOrBookNumber,
+      status: item.status,
+      tradeDirection: item.direction,
+      billRef: item.billOrBookNumber,
+      customerName: item.customerName,
+      routeName: item.routeName,
+      pinned: false,
+      pinnedAt: null,
+      containerCount: containers.length,
+      containerNumbers: containers.map((c) => c.containerNumber).filter((n): n is string => Boolean(n)),
+      containerIds: containers.map((c) => c.id),
+      cargoMode: item.cargoMode,
+    };
+    setExpenseOrder(orderItem);
+  }, [ws.details]);
 
   // Cards 351 & 352: Xóa lô lives in the drawer header. It is blocked with the
   // lifecycle guard's reason when a trip already left the lot (deletable=false).
@@ -855,26 +886,7 @@ export default function ShipmentsPage() {
             locked={lotEditLocked}
             onEdit={() => navigate(routes.shipmentDetailEdit(drawerItem.id))}
             onOpenLedger={() => navigate(factoryDetailPath(drawerItem))}
-            onDeclareExpense={isOps ? () => {
-              const detail = ws.details[drawerItem.id];
-              const containers = detail?.containers ?? [];
-              const orderItem: OpsOrderItem = {
-                id: drawerItem.id,
-                shipmentCode: drawerItem.billOrBookNumber,
-                status: drawerItem.status,
-                tradeDirection: drawerItem.direction,
-                billRef: drawerItem.billOrBookNumber,
-                customerName: drawerItem.customerName,
-                routeName: drawerItem.routeName,
-                pinned: false,
-                pinnedAt: null,
-                containerCount: containers.length,
-                containerNumbers: containers.map((c) => c.containerNumber).filter((n): n is string => Boolean(n)),
-                containerIds: containers.map((c) => c.id),
-                cargoMode: drawerItem.cargoMode,
-              };
-              setExpenseOrder(orderItem);
-            } : undefined}
+            onDeclareExpense={canDeclareOpsExpense ? () => void handleOpenExpenseModal(drawerItem) : undefined}
           />
         ) : undefined}
       >
@@ -899,6 +911,7 @@ export default function ShipmentsPage() {
                 onAddContainer={drawerCanAddContainer ? addDrawerContainer : undefined}
                 addContainerSource={drawerCanAddContainer ? drawerAddSource : null}
                 onCompleteExternalTrip={canCloseExternal ? completeDrawerExternalTrip : undefined}
+                onDeclareExpense={canDeclareOpsExpense ? () => void handleOpenExpenseModal(drawerItem) : undefined}
               />
             </>
           )}

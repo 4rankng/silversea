@@ -174,7 +174,7 @@ describe('SIL-478 — the grouped row face', () => {
     expect(screen.queryByText('Chưa xác định')).toBeNull();
 
     // Rule 24/10: uncalculated 0 for unpriced shipment renders BLANK (SIL-731)
-    renderOnPhone([factRow({ shipmentId: 206, billOrBookNumber: 'BL-ZERO-UNPRICED', receivableTotal: '0', freightAuto: null, revGroupId: null, lockStatus: null })]);
+    renderOnPhone([factRow({ shipmentId: 206, billOrBookNumber: 'BL-ZERO-UNPRICED', receivableTotal: 0, freightAuto: null, revGroupId: null, lockStatus: undefined })]);
     const zeroUnpriced = await screen.findByRole('article', { name: 'BL-ZERO-UNPRICED' });
     expect(zeroUnpriced.querySelector('.ledger-glist__amount')?.textContent ?? '').toBe('');
   });

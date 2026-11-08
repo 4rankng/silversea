@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, CopyPlus, Loader2 } from 'lucide-react';
+import { ChevronDown, CopyPlus, Loader2, Plus } from 'lucide-react';
+import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { UuiSelectField } from '../../../design-system';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
@@ -717,6 +718,7 @@ export function CusLotView({
   onCompleteExternalTrip,
   onAddContainer,
   addContainerSource = null,
+  onDeclareExpense,
 }: {
   item: ShipmentCusWorkspaceListItem;
   detail?: ShipmentCusWorkspaceDetail;
@@ -742,6 +744,8 @@ export function CusLotView({
    *  copies (the sheet's LAST row); the host page owns both. */
   onAddContainer?: (entry: ContainerAddEntry) => Promise<boolean>;
   addContainerSource?: ShipmentCusWorkspaceContainerLine | null;
+  /** SIL-748: Ops lot expense declaration entry in drawer body */
+  onDeclareExpense?: () => void;
 }) {
   const containers = detail?.containers ?? [];
   const totalWeight = containers.reduce((sum, line) => sum + Number(line.raw.cargoWeightKg ?? 0), 0);
@@ -772,8 +776,20 @@ export function CusLotView({
         <>
           <section className="cus-lot-card" aria-labelledby={`cus-lot-identity-${item.id}`}>
             <header className="cus-lot-card__band">
-              <h3 id={`cus-lot-identity-${item.id}`}>Nhận diện lô</h3>
-              <p>Khách hàng, chứng từ và hướng xuất nhập khẩu</p>
+              <div className="cus-lot-card__band-title">
+                <h3 id={`cus-lot-identity-${item.id}`}>Nhận diện lô</h3>
+                <p>Khách hàng, chứng từ và hướng xuất nhập khẩu</p>
+              </div>
+              {onDeclareExpense && (
+                <UUIButton
+                  size="sm"
+                  color="secondary"
+                  className="cus-lot-declare-expense"
+                  onPress={onDeclareExpense}
+                >
+                  <Plus size={14} /> Khai chi phí
+                </UUIButton>
+              )}
             </header>
             <div className="cus-lot-card__body">
               {/* SIL-710: thứ tự chứng từ: Booking → Tờ khai → Nhập/Xuất → Hãng tàu */}
