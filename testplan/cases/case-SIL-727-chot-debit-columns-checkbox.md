@@ -46,3 +46,30 @@
 - Catalog provenance: house primitive `LclSelectCheckbox` (card 181026145000 —
   Untitled UI Checkbox render vô hình với stylesheet app → reuse house control,
   không invent layout).
+
+## Round 2 (QA fail 08/11, build 9f900f39) — re-export lô đã khóa TỪ TRƯỚC
+
+### Hành vi trước fix
+
+- R3M-KR1: POST /api/shipments/debit-notes 201 (replay idempotency record của
+  wave ca0e72b9, key phái sinh từ selection) trả `{id:13}` — billing_documents
+  13 đã biến mất (purge giữa các wave) → GET export 404 'Không tìm thấy tài
+  liệu' (documentId 13), không file. Lô mới khóa thì export OK (R3M-KR2).
+- R3P-KR1: POST 409 'đã được xuất Debit Note' — KHÔNG nêu số note.
+
+### Luật sau (owner: re-export phải ra file HOẶC 409 có lý do đúng; cấm
+'Không tìm thấy tài liệu')
+
+1. Replay chỉ trả documentId khi billing_documents row còn LIVE (exists +
+   deletedAt IS NULL); dead id ⇒ re-issue qua cùng create path — guard trùng
+   lô + advisory claim locks giữ nguyên luật 1-note/1-lô. Pin:
+   `backend/src/tests/unit/sil727-debit-note-stale-replay.test.ts`.
+2. 409 trùng lô nêu đúng note: '…đã xuất Debit Note #N…'. Pin:
+   `debit-note-consolidated-overlap-precheck.test.ts` (update 08/11).
+
+### Case pin (r2)
+
+1. Lô khóa cũ có idempotency record chết ⇒ Xuất Debit Note → POST 201 id MỚI
+   live → GET export 200 ra file giay-bao-no-*.xlsx.
+2. Lô đang nằm trong note live ⇒ POST 409 nêu đúng #id note (payload
+   overlappingDocumentIds), không xuất thêm note mới.

@@ -24,11 +24,15 @@ const SOURCE = readFileSync(path.join(SERVICE_DIR, 'shipment-cost-lock.service.t
 const IDEMPOTENCY = readFileSync(path.join(SERVICE_DIR, 'idempotency.service.ts'), 'utf8');
 
 /** The createConsolidatedDebitNote function body, up to the next top-level
- *  export — the only surface this lane's law touches. */
-const consolidated = SOURCE.slice(
-  SOURCE.indexOf('export async function createConsolidatedDebitNote'),
-  SOURCE.indexOf('export ', SOURCE.indexOf('export async function createConsolidatedDebitNote') + 10),
-);
+ *  export — the only surface this lane's law touches. Line-start boundary:
+ *  the body's comments contain the word 'export ' (SIL-727), so a naive
+ *  indexOf('export ') would truncate mid-body. */
+const consolidated = (() => {
+  const start = SOURCE.indexOf('export async function createConsolidatedDebitNote');
+  const after = SOURCE.slice(start + 10);
+  const endRel = after.search(/^export /m);
+  return endRel === -1 ? after : after.slice(0, endRel);
+})();
 
 describe('consolidated debit note — overlap pre-check before runIdempotent (SIL-693 r2)', () => {
   it('the pre-check runs on the pool BEFORE the idempotency key is derived / runIdempotent is called', () => {
@@ -41,7 +45,9 @@ describe('consolidated debit note — overlap pre-check before runIdempotent (SI
   });
 
   it('the in-transaction guard stays authoritative inside the idempotent create', () => {
-    const createBody = consolidated.slice(consolidated.indexOf('create: async (tx) => {'));
+    // SIL-727 renamed the create closure to `issueInTx` (extracted so the
+    // stale-replay repair can re-run it); the guard stays its first statement.
+    const createBody = consolidated.slice(consolidated.indexOf('const issueInTx'));
     assert.match(
       createBody,
       /await assertLotsNotInIssuedDebitNote\(tx, shipmentIds\);/,
@@ -49,10 +55,10 @@ describe('consolidated debit note — overlap pre-check before runIdempotent (SI
     );
   });
 
-  it('the guard still answers 409 with the overlappingLotCodes detail the FE names lots by', () => {
+  it('the guard still answers 409 with overlappingLotCodes AND names the holding note (#id, SIL-727)', () => {
     assert.match(
       SOURCE,
-      /throw new ApiError\(\s*409,\s*`Các lô \$\{overlappingLotCodes\.join\(', '\)\} đã được xuất Debit Note\. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất\.`,\s*undefined,\s*\{ overlappingLotCodes \},\s*\)/,
+      /throw new ApiError\(\s*409,\s*`Các lô \$\{overlappingLotCodes\.join\(', '\)\} đã xuất Debit Note \$\{overlappingDocumentIds\.map\(\(id\) => `#\$\{id\}`\)\.join\(', '\)\}\. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất\.`,\s*undefined,\s*\{ overlappingLotCodes, overlappingDocumentIds \},\s*\)/,
     );
   });
 

@@ -47,3 +47,29 @@ shipment → khách hàng/nhà xe dù `expense_accounting_sources.shipmentId` NO
 
 - (điền sau) BE pure-function tests (party resolution + bucket math) +
   giữ xanh `phoi-phieu-party-lots.test.ts` hiện có, qa/2026-11-07-lane-k1/.
+
+## Round 2 (QA fail 08/11, build 9f900f39) — payables còn 5 chuyến / 630.000₫
+
+### Hành vi trước fix
+
+Receivables sạch (Long Minh only) nhưng payables 'Chưa xác định' còn 5 chuyến /
+630.000₫ (R3M-D2-A 120k tiền hạ, R4B-3E-FCL1 150k, QBOBD39C 150k, R3Q-680-A
+150k, R4B-CC-001 500k phát sinh khác — tripId NULL, shipmentCode CÓ): luật
+r2-trước chỉ resolve TRA khi shipment có ĐÚNG 1 chuyến live.
+
+### Luật sau (owner 08/11: CHỈ chi rời KHÔNG gắn lô mới được vào nhóm này)
+
+TRA fallback resolve qua TẤT CẢ live trip của shipment (cùng predicate
+expenseTripCandidates: deletedAt NULL, ≠ CANCELED); mọi live trip cùng MỘT
+identity nhà xe (partyKind+partyId+name — không so chuỗi hiển thị alone) ⇒
+resolve. ≥1 chuyến không resolve được / khác nhà xe / 0 live trip ⇒ giữ
+'Chưa xác định' (phí chung lô không đoán chia cho nhiều nhà xe). liveTripId
+chỉ khi unique (drill-down bookable); multi-trip resolve → key shipment tổng
+hợp (display-only). Pin: `phoi-phieu-shipment-fallback.test.ts` (r2 pins).
+
+### Case pin (r2)
+
+1. Shipment 2 live trip CÙNG nhà xe + phí chi hộ trip-less ⇒ bucket đúng tên
+   nhà xe (trước đây rơi 'Chưa xác định').
+2. Shipment 2 live trip KHÁC nhà xe ⇒ giữ 'Chưa xác định'.
+3. Shipment có 1 live trip không resolve được carrier ⇒ giữ 'Chưa xác định'.

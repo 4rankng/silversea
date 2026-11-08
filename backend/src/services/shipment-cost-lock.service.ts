@@ -11,7 +11,7 @@ import * as s from '../db/schema';
 import { db } from '../db';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
-import type { Executor } from '../db';
+import type { Executor, Tx } from '../db';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
 import { getShipmentDebitSummary } from './shipment-debit-summary.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
@@ -44,6 +44,7 @@ async function assertLotsNotInIssuedDebitNote(
   const overlapping = await executor.select({
     shipmentId: s.debitNoteLots.shipmentId,
     shipmentCode: s.shipments.shipmentCode,
+    documentId: s.debitNoteLots.documentId,
   })
     .from(s.debitNoteLots)
     .innerJoin(s.shipments, eq(s.shipments.id, s.debitNoteLots.shipmentId))
@@ -53,13 +54,31 @@ async function assertLotsNotInIssuedDebitNote(
     ));
   if (overlapping.length > 0) {
     const overlappingLotCodes = [...new Set(overlapping.map((row) => row.shipmentCode ?? String(row.shipmentId)))];
+    // SIL-727 — the refusal names WHICH note holds the lots ('đã xuất note #N'):
+    // QA 08/11 saw a bare "đã được xuất Debit Note" 409 on R3P-KR1 with no way
+    // to reach the file; the id is the handle the accountant needs.
+    const overlappingDocumentIds = [...new Set(overlapping.map((row) => row.documentId))].sort((a, b) => a - b);
     throw new ApiError(
       409,
-      `Các lô ${overlappingLotCodes.join(', ')} đã được xuất Debit Note. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất.`,
+      `Các lô ${overlappingLotCodes.join(', ')} đã xuất Debit Note ${overlappingDocumentIds.map((id) => `#${id}`).join(', ')}. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất.`,
       undefined,
-      { overlappingLotCodes },
+      { overlappingLotCodes, overlappingDocumentIds },
     );
   }
+}
+
+/** SIL-727 — a replayed Debit Note response is only as good as its document.
+ *  The idempotency record survives waves that purge the document itself (QA
+ *  08/11: staging R3M-KR1's ca0e72b9-wave record replayed `{id:13}` for a
+ *  billing_documents row that no longer existed — the export GET then 404'd
+ *  'Không tìm thấy tài liệu' with no file ever reachable). A document counts
+ *  as live only when the row still exists and is not soft-deleted. */
+async function billingDocumentIsLive(documentId: number): Promise<boolean> {
+  const [row] = await db.select({ id: s.billingDocuments.id })
+    .from(s.billingDocuments)
+    .where(and(eq(s.billingDocuments.id, documentId), isNull(s.billingDocuments.deletedAt)))
+    .limit(1);
+  return row != null;
 }
 
 /** Freeze gate for every Lớp-2 write surface on the shipment (mirrors
@@ -505,13 +524,7 @@ export interface CreateDebitNoteFromCostLockInput {
 export async function createDebitNoteFromCostLock(
   input: CreateDebitNoteFromCostLockInput,
 ): Promise<{ id: number }> {
-  const { result } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_FROM_LOCK,
-    idempotencyKey: input.idempotencyKey,
-    payload: { shipmentId: input.shipmentId },
-    createdBy: input.actor.userId,
-    entityType: 'billing_document',
-    create: async (tx) => {
+  const issueInTx = async (tx: Tx): Promise<{ id: number }> => {
       const [lot] = await tx.select({
         id: s.shipments.id,
         customerId: s.shipments.customerId,
@@ -587,8 +600,23 @@ export async function createDebitNoteFromCostLock(
         createdBy: input.actor.userId,
       }]);
       return { id: doc.id };
-    },
+  };
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_FROM_LOCK,
+    idempotencyKey: input.idempotencyKey,
+    payload: { shipmentId: input.shipmentId },
+    createdBy: input.actor.userId,
+    entityType: 'billing_document',
+    create: issueInTx,
   });
+  // SIL-727 — a replay whose document was purged/soft-deleted must never hand
+  // the caller a dead id (the export GET would 404 'Không tìm thấy tài liệu').
+  // Re-issue through the same authoritative create path — its own overlap
+  // guard + advisory claim locks keep one-note-per-lot intact. A later re-click
+  // hits the overlap 409 (naming the new #id) instead of re-issuing again.
+  if (replayed && !(await billingDocumentIsLive(result.id))) {
+    return db.transaction(issueInTx);
+  }
   return result;
 }
 
@@ -649,13 +677,7 @@ export async function createConsolidatedDebitNote(
   // in-transaction guard below stays authoritative for the create path.
   await assertLotsNotInIssuedDebitNote(db, shipmentIds);
   const idempotencyKey = `consolidated:${customerId}:${createHash('sha256').update(shipmentIds.join(',')).digest('hex').slice(0, 40)}`;
-  const { result } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_CONSOLIDATED,
-    idempotencyKey,
-    payload: { shipmentIds },
-    createdBy: input.actor.userId,
-    entityType: 'billing_document',
-    create: async (tx) => {
+  const issueInTx = async (tx: Tx): Promise<{ id: number }> => {
       await assertLotsNotInIssuedDebitNote(tx, shipmentIds);
       const { rangeFrom, rangeTo } = deriveRangeFromSelection(lots);
       const lineRows = lots.flatMap((lot) => {
@@ -707,7 +729,22 @@ export async function createConsolidatedDebitNote(
         createdBy: input.actor.userId,
       })));
       return { id: doc.id };
-    },
+  };
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_CONSOLIDATED,
+    idempotencyKey,
+    payload: { shipmentIds },
+    createdBy: input.actor.userId,
+    entityType: 'billing_document',
+    create: issueInTx,
   });
+  // SIL-727 — same stale-replay law as the per-lot creator: the QA 08/11
+  // repro (R3M-KR1) replayed a purged ca0e72b9-wave document id and the export
+  // GET 404'd 'Không tìm thấy tài liệu'. A replayed id must point at a LIVE
+  // billing_documents row; otherwise re-issue (the create path's own overlap
+  // guard + claim locks keep one-note-per-lot intact).
+  if (replayed && !(await billingDocumentIsLive(result.id))) {
+    return db.transaction(issueInTx);
+  }
   return result;
 }

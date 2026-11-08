@@ -8,6 +8,9 @@ vi.mock('../../api/shipmentFinanceClient', () => ({ shipmentFinanceClient: api }
 vi.mock('../../api/shipmentClient', () => ({ listShipments: vi.fn() }));
 vi.mock('../../components/UI', () => ({ Drawer: ({ children, footer }: { children: ReactNode; footer: ReactNode }) => <section>{children}{footer}</section> }));
 import { ShipmentFinanceForm } from './ShipmentFinanceForm';
+import { listShipments } from '../../api/shipmentClient';
+import type { ShipmentListItem } from '../../api/shipmentClient';
+import { ShipmentStatus } from '@tingting/shared';
 
 function show(editor: Parameters<typeof ShipmentFinanceForm>[0]['editor']) {
   const saved = vi.fn();
@@ -112,5 +115,54 @@ describe('CPB-02 — lot context arrives after mount', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }));
     await waitFor(() => expect(api.saveDeposit).toHaveBeenCalledTimes(1));
     expect(api.saveDeposit.mock.calls[0][0]).toBe(12);
+  });
+});
+
+// SIL-735 (third QA fail in a row): the Thêm cược lot lookup SUGGESTED the
+// right lot but picking it left 'Số Bill *' and 'Hãng tàu *' empty — the
+// select's onChange never touched the deposit identity. The fix fills both
+// straight from the loaded row (same convention as the invoice branch's
+// 'Chi phí nguồn' pick); fields stay plain inputs, so manual override works.
+describe('SIL-735 — picking the looked-up lot pre-fills the deposit identity', () => {
+  beforeEach(() => { vi.resetAllMocks(); });
+  it('fills Số Bill and Hãng tàu from the picked lot row', async () => {
+    // Narrow-typed fixture (review 08/11): a full ShipmentListItem literal —
+    // no `as never` widening, so a future field rename breaks this pin at
+    // compile time instead of silently testing a stale shape.
+    const lotRow = (overrides: Partial<ShipmentListItem>): ShipmentListItem => ({
+      id: 0, shipmentCode: null, version: 1, customerId: 7, responsibleUnitId: null,
+      status: ShipmentStatus.READY_FOR_DISPATCH, bookingRef: null, blNumber: null,
+      expectedDeliveryDate: null, pickupLocation: null, deliveryLocation: null,
+      contactName: null, contactPhone: null, createdBy: null, updatedBy: null,
+      createdAt: '2026-11-08T00:00:00.000Z', updatedAt: '2026-11-08T00:00:00.000Z',
+      customerName: null,
+      containerCount20: 0, containerCount40: 0, containerTypeSummary: null,
+      totalCargoWeightKg: null, allocationStatus: 'NOT_ALLOCATED',
+      carrierAllocationSummary: [], appointmentGroups: [],
+      ...overrides,
+    });
+    vi.mocked(listShipments).mockResolvedValue({
+      items: [
+        lotRow({ id: 1000, shipmentCode: 'S-1000', blNumber: '9997712ABC', shippingLineName: 'ONE', customerName: 'Khách A' }),
+        lotRow({ id: 2, shipmentCode: 'S-2', blNumber: 'EGLV149607019409', bookingRef: 'BKG-9409', shippingLineName: 'EVER', customerName: 'Long Minh' }),
+      ],
+      total: 2, page: 1, limit: 20,
+    });
+    const cache = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(<QueryClientProvider client={cache}><ShipmentFinanceForm editor={{ kind: 'deposit' }} onClose={vi.fn()} onSaved={vi.fn()} /></QueryClientProvider>);
+    await waitFor(() => expect(vi.mocked(listShipments)).toHaveBeenCalled());
+    // React Aria select: open the trigger, then pick the option (the adapter
+    // synthesizes the native-shaped change event).
+    const pick = async (optionName: RegExp) => {
+      fireEvent.click(screen.getByRole('button', { name: /Lô hàng/ }));
+      fireEvent.click(await screen.findByRole('option', { name: optionName }));
+    };
+    await pick(/EGLV149607019409/);
+    expect((screen.getByLabelText(/Số Bill/) as HTMLInputElement).value).toBe('EGLV149607019409');
+    expect((screen.getByLabelText(/Hãng tàu/) as HTMLInputElement).value).toBe('EVER');
+    // Switching the pick re-fills from the OTHER row — never a stale fill.
+    await pick(/9997712ABC/);
+    expect((screen.getByLabelText(/Số Bill/) as HTMLInputElement).value).toBe('9997712ABC');
+    expect((screen.getByLabelText(/Hãng tàu/) as HTMLInputElement).value).toBe('ONE');
   });
 });

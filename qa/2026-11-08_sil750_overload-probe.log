@@ -1,0 +1,10 @@
+PASS  login dungnv — status 200
+PASS  fixture trips 848+849 pairable — found 2
+PASS  fixture is a proven overload — 42000kg > 22000kg
+PASS  fixture shipments not cost-locked — 0 locks
+PASS  POST /trips/pairs → 201 — status 201 body {"id":42,"status":"ACTIVE","pairKind":"KEP","firstTripId":848,"secondTripId":849,"emptyDistanceKm":"0.00","combinedEfficiencyPercent":"100.00","requiredGapMinutes":null,"actualGapMinutes":30,"breakRea
+PASS  response carries the DOC overload warning — warnings ["Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại"]
+PASS  no missing-capacity advisory (capacity declared) — warnings ["Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại"]
+PASS  pair row ACTIVE — pairId 42
+PASS  trip_pairs row exists ACTIVE — status ACTIVE
+PROBE PASS — proven overload saves 201 WITH the DOC soft warning (dialog keeps it visible).

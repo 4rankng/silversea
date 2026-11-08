@@ -1,0 +1,2636 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+> @tingting/frontend@0.1.0 test /Users/dev/.paseo/worktrees/1njkloyy/k11-fix/frontend
+> vitest run
+
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/k11-fix/frontend
+
+ ❯ src/pages/config/MasterDataImportPage.sort.test.tsx (2 tests | 1 failed) 9961ms
+     × keeps the sheet order first, then sorts Dòng asc → desc 5380ms
+ ❯ src/pages/AccountingInvoiceTrackingPage.money-node.test.tsx (2 tests | 1 failed) 7812ms
+     × Số tiền trả and Chênh lệch hold the whole amount + unit in a single node 5067ms
+stderr | src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > DetailedPlanGrid > DSP-6377 separates legacy task labels and multiline manual notes in the row and full view
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DetailedPlanFilters inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.deposit.test.tsx (5 tests | 1 failed) 6059ms
+     × ticking shows the expected-amount field; unticking hides it 6034ms
+stderr | src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > DetailedPlanGrid > saves without blocking on classification — the default Đơn is always present
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Modal inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DispatchPlanEditorCell inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DispatchPlanEditorCell inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/expense-accounting/ShipmentExpensePanel.test.tsx (2 tests | 1 failed) 5870ms
+   × shows + Thêm khoản chi for OPS and opens the drawer scoped to Ops payers 5835ms
+ ❯ src/styles/numeric-identity.styles.test.ts (6 tests | 2 failed) 234ms
+     × the production bundle holds the numeric law on the amount cells 3ms
+     × the production bundle holds the numeric law on the expense register cells 1ms
+ ❯ src/features/accounting/PhoiPhieuChiHoDialog.test.tsx (28 tests | 2 failed) 62953ms
+     × PHOI08 refreshes successful row versions after a later row failure and retries only the remaining change 6945ms
+     × PHOI08 blocks stale saves after failed authoritative reads and reloads before retrying metadata 5133ms
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx (79 tests | 5 failed) 106160ms
+     × DSP-6377 separates legacy task labels and multiline manual notes in the row and full view 5098ms
+     × saves the whole editor atomically: estimates plus the dispatcher Phân loại — lot flag stays CUS-owned 8326ms
+     × saves without blocking on classification — the default Đơn is always present 9004ms
+     × mounts the editor on press 1 (branch decompose) and on every later press 5168ms
+     × renders a clickable button for uncompleted FCL rows, opens select on click, and saves in place 6381ms
+stderr | src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > UI52-B editor business identity > keeps 'BL-2026-010' in the editor title and Cancel preserves the exact row
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $c8bb816105474884$var$SelectInner inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $c8bb816105474884$var$SelectInner inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $c8bb816105474884$var$SelectInner inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to $42ceafc619f9c3ba$export$bf788dd355e3a401 inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx (98 tests | 2 failed) 109143ms
+     × UI-CD-12 selects the actual container factory and submits its site id 5269ms
+     × container editor shows the live ISO 6346 warning and the one-tap correction (card 261022095235b) 5673ms
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx (87 tests | 5 failed) 155193ms
+     × keeps 'MSCU1234567' in the editor title and Cancel preserves the exact row 6161ms
+     × keeps 'BL-2026-010' in the editor title and Cancel preserves the exact row 5517ms
+     × a stored Giờ trả hàng override survives the save — plannedEndAt never rides the body (id 712) 5169ms
+     × offers the free-text plate option on a carrier-less row so plate→carrier autofill can fire 1886ms
+     × offers the Lẻ + Lấy Lẻ pair on LCL rows and never the cont models (SIL-702) 5789ms
+ ❯ src/pages/ShipmentsPage.test.tsx (132 tests | 13 failed) 265052ms
+     × row actions: text "Chi tiết" without an icon; no trash on the row 6215ms
+     × quick-view dialog renders identical content with no tablist on every reopen (card 091026164530) 5534ms
+     × opens straight into the content — stepper, chips and cards, no tabs (SIL-485) 5656ms
+     × edits schedule and notes from their cells with partial optimistic-version updates 10054ms
+     × FB-002 round 22: typed giờ + Enter saves the schedule quick-edit even with the picker open from the focusing click 7045ms
+     × SIL-608: a completed năm in the schedule quick-edit hands focus to the giờ box (date-first) 5969ms
+     × documents quick-edit: Bill only, KHÔNG còn ô Số tờ khai cấp lô (SIL-521) 5549ms
+     × SIL-717: "Thêm container" copies the row above and leaves số cont + loại cont for the operator 5098ms
+     × uses exactly one full-cell button to open the matching edit dialog 15152ms
+     × persists classification and cargo cells through one-field-authority shipment patches 5767ms
+     × opens the lot container dialog from the FCL cargo cell without navigating (card 20260923_1) 6300ms
+     × requires explicit save instead of saving when focus leaves the edit dialog 5050ms
+     × VID-CUS-15: quick-edit footer respects native date validity before saving 6518ms
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx (17 tests | 1 failed) 42328ms
+     × PHOI03 clears hidden selection during a filter query and does not resurrect it on return 5996ms
+ ❯ src/pages/ShipmentContainersPage.test.tsx (52 tests | 2 failed) 225720ms
+     × loads today by default and renders the seven multi-line groups with warning semantics 18560ms
+     × opens value-cell editors with click, Enter, and Space without pencil controls 18490ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx (6 tests | 1 failed) 13233ms
+     × opens the editor on the clicked badge and saves the edited plate 2561ms
+ ❯ src/pages/config/CarrierPricingConfigPage.test.tsx (4 tests | 1 failed) 12024ms
+     × saves a generic (giá chung) row with supplierId null by default 6651ms
+ ❯ src/pages/accounting/AccountingDebitClosePage.cost-dot.test.tsx (10 tests | 1 failed) 9914ms
+     × the pinned track stays out of the picker, and the SIL-727 money matrix opens essential-locked 5509ms
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx (4 tests | 1 failed) 11128ms
+     × saves vehicleSizeClassId (not a free-text key) when a class is chosen 5942ms
+ ❯ src/features/ops/OpsExpenseCatalogRecovery.test.tsx (3 tests | 1 failed) 9930ms
+     × retains draft and retries the catalog without submitting (edit=false) 5399ms
+ ❯ src/features/penalties/components/PenaltyFormDrawer.test.tsx (1 test | 1 failed) 5947ms
+     × queries a bounded driver-scoped page and forwards the debounced search term 5938ms
+ ❯ src/features/ops/ops-delete-affordance-labels.test.tsx (4 tests | 1 failed) 5130ms
+     × O4: the ops edit-modal photo delete button names the lot and the photo position, not photo.id 5126ms
+ ❯ src/pages/customers-grid.toast.test.tsx (1 test | 1 failed) 5037ms
+     × traces urls 5034ms
+stderr | src/features/shipments/debit/MergeRevGroupDialog.test.tsx > GP-04 — merge server-error path is never silent > BE 400 (khác KH) → inline alert + error toast, dialog stays open for a retry
+Each child in a list should have a unique "key" prop.
+
+Check the render method of `section`. It was passed a child from $42ceafc619f9c3ba$export$fb8073518f34e6ec. See https://react.dev/link/warning-keys for more information.
+
+stderr | src/features/shipments/debit/MergeRevGroupDialog.test.tsx > GP-04 — merge server-error path is never silent > BE 400 (khác KH) → inline alert + error toast, dialog stays open for a retry
+An update to MergeRevGroupDialog inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to MergeRevGroupDialog inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/features/shipments/debit/MergeRevGroupDialog.test.tsx (4 tests | 1 failed) 6682ms
+     × BE 400 (khác KH) → inline alert + error toast, dialog stays open for a retry 5569ms
+ ❯ src/features/expense-accounting/ExpenseReport.test.tsx (4 tests | 1 failed) 4435ms
+   × FIX-WS-13: clicked report money opens the exact source contribution at the selected cutoff 2265ms
+Not implemented: navigation to another Document
+stderr | src/components/UI.drawer-animation.test.tsx > Drawer slide (card 20260923_1 D1/D2) > D1: reopening mid-exit still leaves the open panel at rest
+An update to Drawer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/components/UI.drawer-animation.test.tsx > Drawer slide (card 20260923_1 D1/D2) > D1: reopening mid-exit still leaves the open panel at rest
+An update to Drawer inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/components/UI.drawer-animation.test.tsx (2 tests | 1 failed) 4566ms
+     × D1: reopening mid-exit still leaves the open panel at rest 4116ms
+ ❯ src/pages/portal/PortalPages.test.tsx (19 tests | 1 failed) 7395ms
+     × loads the customer statement without accepting a customer id from the browser 556ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+ ❯ src/pages/ProfitPage.governance.test.tsx (3 tests | 1 failed) 3388ms
+     × finalizes directly and refreshes persisted allocation without claiming a cash transfer 2622ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 49 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/UI.drawer-animation.test.tsx > Drawer slide (card 20260923_1 D1/D2) > D1: reopening mid-exit still leaves the open panel at rest
+AssertionError: expected 'true' to be 'false' // Object.is equality
+
+Expected: "false"
+Received: "true"
+
+ ❯ src/components/UI.drawer-animation.test.tsx:47:48
+     45|     await delay(SETTLE_MS);
+     46|
+     47|     expect(drawer.getAttribute('aria-hidden')).toBe('false');
+       |                                                ^
+     48|     expect(drawer.style.transform).toBe('translateX(0%)');
+     49|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/49]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the amount cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:31:13
+     29|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     30|     if (!existsSync(distAssets)) {
+     31|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     32|     }
+     33|     const sharedChunk = readdirSync(distAssets).find((f) => f.startsWi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/49]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the expense register cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:66:13
+     64|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     65|     if (!existsSync(distAssets)) {
+     66|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     67|     }
+     68|     // The Money component itself is the law's rendering: the built `.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/49]⎯
+
+ FAIL  src/pages/AccountingInvoiceTrackingPage.money-node.test.tsx > invoice tracking — amount cells render one text node (numeric law) > Số tiền trả and Chênh lệch hold the whole amount + unit in a single node
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/AccountingInvoiceTrackingPage.money-node.test.tsx:60:3
+     58|
+     59| describe('invoice tracking — amount cells render one text node (numeri…
+     60|   it('Số tiền trả and Chênh lệch hold the whole amount + unit in a sin…
+       |   ^
+     61|     renderPage();
+     62|     await screen.findByText(/Số hóa đơn:/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/49]⎯
+
+ FAIL  src/pages/ProfitPage.governance.test.tsx > ProfitPage governance request UX > finalizes directly and refreshes persisted allocation without claiming a cash transfer
+AssertionError: expected "vi.fn()" to be called with arguments: [ '/reports/distribute-profit', …(1) ]
+
+Received:
+
+  1st vi.fn() call:
+
+  [
+-   "/reports/distribute-profit",
++   "/reports/distribute-profit/preview",
+    {
+      "quarter": 4,
+      "year": 2026,
+    },
+  ]
+
+
+Number of calls: 1
+
+
+Ignored nodes: comments, script, style
+[36m<html>[39m
+  [36m<head />[39m
+  [36m<body>[39m
+    [36m<div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"profit-page"[39m
+      [36m>[39m
+        [36m<h1>[39m
+          [0mPhân chia lợi nhuận[0m
+        [36m</h1>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"profit-layout"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"profit-bento-hero"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"profit-hero profit-hero--fill"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"profit-hero__label"[39m
+              [36m>[39m
+                [0mLợi nhuận ròng để phân chia · T[0m
+                [0m7[0m
+                [0m / [0m
+                [0m2026[0m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"profit-hero__value"[39m
+              [36m>[39m
+                [36m<span>[39m
+                  [0m0[0m
+                [36m</span>[39m
+                [36m<span[39m
+                  [33mclass[39m=[32m"profit-hero__currency"[39m
+                [36m>[39m
+                  [0m₫[0m
+                [36m</span>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"profit-hero__sub"[39m
+              [36m>[39m
+                [0mDựa trên [0m
+                [36m<strong>[39m
+                  [0m1[0m
+                [36m</strong>[39m
+                [0m chuyến hoàn thành trong kỳ[0m
+              [36m</div>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"profit-bento-breakdown"[39m
+          [36m>[39m
+            [36m<section>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"profit-page__card-title"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"lucide lucide-trending-up profit-page__card-title-icon"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"16"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"16"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M16 7h6v6"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m22 7-8.5 8.5-5-5L2 17"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+                [0mDiễn giải kế toán[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"calc-breakdown profit-calc-breakdown"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"calc-row"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"calc-row__label calc-row__label--bold"[39m
+                  [36m>[39m
+                    [0mDoanh thu vận hành[0m
+                  [36m</div>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"calc-row__value"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"money"[39m
+                    [36m>[39m
+                      [0m1.500.000 ₫[0m
+                    [36m</span>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"calc-row"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"calc-row__label"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"calc-row__op"[39m
+                    [36m>[39m
+                      [0m-[0m
+                    [36m</span>[39m
+                    [0mChi phí biến đổi chuyến[0m
+                  [36m</div>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"calc-row__value "[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"money"[39m
+                    [36m>[39m
+                      [0m0 ₫[0m
+                    [36m</span>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"calc-row calc-row--total"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"calc-row__label calc-row__label--bold"[39m
+                  [36m>[39m
+                    [0mLợi nhuận gộp hoạt động[0m
+                  [36m</div>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"calc-row__value"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"money"[39m
+                    [36m>[39m
+                      [0m1.000.000 ₫[0m
+                    [36m</span>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"calc-row"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"calc-row__label"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"calc-row__op"[39m
+                    [36m>[39m
+                      [0m-[0m
+                    [36m</span>[39m
+                    [0mChi phí chung công ty[0m
+                  [36m</div>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"calc-row__value "[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"money"[39m
+                    [36m>[39m
+                      [0m0 ₫[0m
+                    [36m</span>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"calc-row"[39m
+                [36m>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"calc-row__label"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"calc-row__op"[39m
+                    [36m>[39m
+                      [0m+[0m
+                    [36m</span>[39m
+                    [0mThu nhập...
+ ❯ src/pages/ProfitPage.governance.test.tsx:136:27
+    134|
+    135|     await waitFor(() => {
+    136|       expect(apiPostMock).toHaveBeenCalledWith('/reports/distribute-pr…
+       |                           ^
+    137|         quarter: quarterNow,
+    138|         year: yearNow,
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/49]⎯
+
+ FAIL  src/pages/ShipmentContainersPage.test.tsx > ShipmentContainersPage — DOCX container workboard > loads today by default and renders the seven multi-line groups with warning semantics
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentContainersPage.test.tsx:128:3
+    126|
+    127| describe('ShipmentContainersPage — DOCX container workboard', () => {
+    128|   it('loads today by default and renders the seven multi-line groups w…
+       |   ^
+    129|     apiGet.mockResolvedValueOnce(response);
+    130|     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/49]⎯
+
+ FAIL  src/pages/ShipmentContainersPage.test.tsx > ShipmentContainersPage — DOCX container workboard > opens value-cell editors with click, Enter, and Space without pencil controls
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentContainersPage.test.tsx:443:3
+    441|   });
+    442|
+    443|   it('opens value-cell editors with click, Enter, and Space without pe…
+       |   ^
+    444|     // Endpoint-aware (not queued): each editor open re-fetches its sh…
+    445|     // detail, and the exact call count across the four phases is inci…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > row actions: text "Chi tiết" without an icon; no trash on the row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:326:3
+    324|   // link — no chevron icon, and the lot-delete affordance leaves the …
+    325|   // entirely (it moves into the drawer header).
+    326|   it('row actions: text "Chi tiết" without an icon; no trash on the ro…
+       |   ^
+    327|     renderPage();
+    328|     await screen.findByRole('table');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > quick-view dialog renders identical content with no tablist on every reopen (card 091026164530)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:505:3
+    503|   // any reopen-divergent render state (a flag not reset on close, a
+    504|   // condition keyed to the detail cache) turns this red.
+    505|   it('quick-view dialog renders identical content with no tablist on e…
+       |   ^
+    506|     const lclRow = { ...row, cargoMode: 'LCL' as const, customerName: …
+    507|     const lclDetail = { ...detail, summary: lclRow, containers: [] };
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > opens straight into the content — stepper, chips and cards, no tabs (SIL-485)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:532:3
+    530|   });
+    531|
+    532|   it('opens straight into the content — stepper, chips and cards, no t…
+       |   ^
+    533|     renderPage();
+    534|     await screen.findByRole('table');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > edits schedule and notes from their cells with partial optimistic-version updates
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1065:3
+    1063|   });
+    1064|
+    1065|   it('edits schedule and notes from their cells with partial optimisti…
+       |   ^
+    1066|     apiGet.mockImplementation((url: string) => (
+    1067|       url === '/shipments/cus-workspace/1'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > FB-002 round 22: typed giờ + Enter saves the schedule quick-edit even with the picker open from the focusing click
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1099:3
+    1097|   });
+    1098|
+    1099|   it('FB-002 round 22: typed giờ + Enter saves the schedule quick-edit…
+       |   ^
+    1100|     apiGet.mockImplementation((url: string) => (
+    1101|       url === '/shipments/cus-workspace/1'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > SIL-608: a completed năm in the schedule quick-edit hands focus to the giờ box (date-first)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1126:3
+    1124|   });
+    1125|
+    1126|   it('SIL-608: a completed năm in the schedule quick-edit hands focus …
+       |   ^
+    1127|     apiGet.mockImplementation((url: string) => (
+    1128|       url === '/shipments/cus-workspace/1'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > documents quick-edit: Bill only, KHÔNG còn ô Số tờ khai cấp lô (SIL-521)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1149:3
+    1147|   });
+    1148|
+    1149|   it('documents quick-edit: Bill only, KHÔNG còn ô Số tờ khai cấp lô (…
+       |   ^
+    1150|     apiGet.mockImplementation((url: string) => (
+    1151|       url === '/shipments/cus-workspace/1'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > SIL-717: "Thêm container" copies the row above and leaves số cont + loại cont for the operator
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1408:3
+    1406|   });
+    1407|
+    1408|   it('SIL-717: "Thêm container" copies the row above and leaves số con…
+       |   ^
+    1409|     apiGet.mockImplementation((url: string) => (
+    1410|       url === '/shipments/cus-workspace/1'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > uses exactly one full-cell button to open the matching edit dialog
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1600:3
+    1598|   // a genuine hang still fails — at 15s instead of 5s. Matches the two
+    1599|   // `{ timeout: 15000 }` cases already in this file (lines ~2003, ~20…
+    1600|   it('uses exactly one full-cell button to open the matching edit dial…
+       |   ^
+    1601|     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' …
+    1602|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > persists classification and cargo cells through one-field-authority shipment patches
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1646:3
+    1644|   });
+    1645|
+    1646|   it('persists classification and cargo cells through one-field-author…
+       |   ^
+    1647|     // Card 20260922_41: the FCL cargo cell opens the lot's "Quản lý c…
+    1648|     // dialog (composition at lot level) — the lot-cargo quick-edit li…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > opens the lot container dialog from the FCL cargo cell without navigating (card 20260923_1)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1667:3
+    1665|   });
+    1666|
+    1667|   it('opens the lot container dialog from the FCL cargo cell without n…
+       |   ^
+    1668|     apiGet.mockImplementation((url: string) => (
+    1669|       url === '/shipments/cus-workspace/1'
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > requires explicit save instead of saving when focus leaves the edit dialog
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1898:3
+    1896|   });
+    1897|
+    1898|   it('requires explicit save instead of saving when focus leaves the e…
+       |   ^
+    1899|     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' …
+    1900|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/49]⎯
+
+ FAIL  src/pages/ShipmentsPage.test.tsx > ShipmentsPage — CUS closeout workspace > VID-CUS-15: quick-edit footer respects native date validity before saving
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentsPage.test.tsx:1936:3
+    1934|   });
+    1935|
+    1936|   it('VID-CUS-15: quick-edit footer respects native date validity befo…
+       |   ^
+    1937|     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' …
+    1938|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/49]⎯
+
+ FAIL  src/pages/customers-grid.toast.test.tsx > debug multi bucket > traces urls
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/customers-grid.toast.test.tsx:21:3
+     19| describe('debug multi bucket', () => {
+     20|   afterEach(() => vi.restoreAllMocks());
+     21|   it('traces urls', async () => {
+       |   ^
+     22|     apiGet.mockResolvedValue({ items: [], total: 0, totalPages: 0, sta…
+     23|     const qc = new QueryClient({ defaultOptions: { queries: { retry: f…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/49]⎯
+
+ FAIL  src/features/accounting/PhoiPhieuChiHoDialog.test.tsx > phơi chi-hộ row identity > PHOI08 refreshes successful row versions after a later row failure and retries only the remaining change
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/PhoiPhieuChiHoDialog.test.tsx:21:3
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/49]⎯
+
+ FAIL  src/features/accounting/PhoiPhieuChiHoDialog.test.tsx > phơi chi-hộ row identity > PHOI08 blocks stale saves after failed authoritative reads and reloads before retrying metadata
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/accounting/PhoiPhieuChiHoDialog.test.tsx:55:3
+     53|     expect(api.meta).toHaveBeenLastCalledWith(7, { trangThaiLay: 'Đã l…
+     54|   });
+     55|   it('PHOI08 blocks stale saves after failed authoritative reads and r…
+       |   ^
+     56|     let authoritative = rows.map(row => ({ ...row }));
+     57|     api.detail.mockImplementationOnce(() => Promise.resolve({ tripId: …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/49]⎯
+
+ FAIL  src/features/expense-accounting/ExpenseReport.test.tsx > FIX-WS-13: clicked report money opens the exact source contribution at the selected cutoff
+TestingLibraryElementError: Unable to find role="button" and name "Đã thanh toán · Khách A"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<output[39m
+      [33maria-label[39m=[32m"URL"[39m
+    [36m>[39m
+      [0m?reportDirection=IN&reportAsOf=2026-09-15[0m
+    [36m</output>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Báo cáo công nợ chi phí"[39m
+      [33mclass[39m=[32m"expense-accounting"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"ds-field ds-field--sm"[39m
+        [36m>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"ds-field__label"[39m
+            [33mfor[39m=[32m"_r_1_"[39m
+          [36m>[39m
+            [0mThanh toán tính đến[0m
+            [36m<span[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"ds-field__required"[39m
+            [36m>[39m
+              [0m *[0m
+            [36m</span>[39m
+          [36m</label>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"date-input-wrap"[39m
+            [33mdata-date-control[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<input[39m
+              [33maria-expanded[39m=[32m"false"[39m
+              [33maria-haspopup[39m=[32m"dialog"[39m
+              [33maria-invalid[39m=[32m"false"[39m
+              [33mautocomplete[39m=[32m"off"[39m
+              [33mclass[39m=[32m"ds-field__input"[39m
+              [33mdata-date-input[39m=[32m"true"[39m
+              [33mid[39m=[32m"_r_1_"[39m
+              [33mmaxlength[39m=[32m"10"[39m
+              [33mplaceholder[39m=[32m"DD/MM/YYYY"[39m
+              [33mrequired[39m=[32m""[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m"15/09/2026"[39m
+            [36m/>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Mở lịch"[39m
+              [33mclass[39m=[32m"date-input-calendar-btn"[39m
+              [33mtabindex[39m=[32m"-1"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-calendar"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"14"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"14"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M8 2v4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 2v4"[39m
+                [36m/>[39m
+                [36m<rect[39m
+                  [33mheight[39m=[32m"18"[39m
+                  [33mrx[39m=[32m"2"[39m
+                  [33mwidth[39m=[32m"18"[39m
+                  [33mx[39m=[32m"3"[39m
+                  [33my[39m=[32m"4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3 10h18"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"ds-uui-select ds-uui-select--operational"[39m
+        [36m>[39m
+          [36m<template />[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-col gap-1.5 ds-uui-select__control"[39m
+            [33mdata-rac[39m=[32m""[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mid[39m=[32m"react-aria-_r_8_"[39m
+            [36m>[39m
+              [0mLoại báo cáo[0m
+            [36m</span>[39m
+            [36m<button[39m
+              [33maria-expanded[39m=[32m"false"[39m
+              [33maria-haspopup[39m=[32m"listbox"[39m
+              [33maria-labelledby[39m=[32m"react-aria-_r_c_ react-aria-_r_8_"[39m
+              [33mclass[39m=[32m"relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear outline-focus-ring"[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-rac[39m=[32m""[39m
+              [33mdata-react-aria-pressable[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"select"[39m
+              [33mid[39m=[32m"react-aria-_r_7_"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"flex h-max w-full items-center justify-start truncate text-left align-middle py-1 pl-2.5 pr-2 gap-1.5 max-md:pl-3 max-md:pr-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] *:data-icon:shrink-0 *:data-icon:text-fg-quaternary"[39m
+                [33mdata-rac[39m=[32m""[39m
+                [33mdata-uui-select-value[39m=[32m"true"[39m
+                [33mid[39m=[32m"react-aria-_r_c_"[39m
+              [36m>[39m
+                [36m<section[39m
+                  [33mclass[39m=[32m"flex w-full truncate gap-x-1.5"[39m
+                [36m>[39m
+                  [36m<p[39m
+                    [33mclass[39m=[32m"truncate font-medium text-primary text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--control-zoom-safe-font-size)] [@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)]"[39m
+                  [36m>[39m
+                    [0mPhải thu khách hàng[0m
+                  [36m</p>[39m
+                [36m</section>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"ml-auto shrink-0 text-fg-quaternary size-4 stroke-[2.25px]"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</span>[39m
+            [36m</button>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mdata-a11y-ignore[39m=[32m"aria-hidden-focus"[39m
+              [33mdata-react-aria-prevent-focus[39m=[32m"true"[39m
+              [33mdata-testid[39m=[32m"hidden-select-container"[39m
+              [33mstyle[39m=[32m"border: 0px; clip: rect(0px); clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: fixed; width: 1px; white-space: nowrap; top: 0px; left: 0px;"[39m
+            [36m>[39m
+              [36m<label>[39m
+                [36m<select[39m
+                  [33mtabindex[39m=[32m"-1"[39m
+                  [33mtitle[39m=[32m""[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mlabel[39m=[32m" "[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0m [0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"IN"[39m
+                  [36m>[39m
+                    [0mPhải thu khách hàng[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"OUT"[39m
+                  [36m>[39m
+                    [0mPhải trả / chi phí xe[0m
+                  [36m</option>[39m
+                [36m</select>[39m
+              [36m</label>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__spacer"[39m
+        [36m/>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__actions"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"btn btn--secondary btn--sm"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mTải XLSX[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"expense-accounting-hint"[39m
+      [36m>[39m
+        [0mKhoảng ngày lọc theo ngày phát sinh chi phí. Đã thu / trả tính đến ngày được chọn; cùng bộ lọc được dùng khi xuất.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mĐang tải báo cáo…[0m
+      [36m</p>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<output[39m
+      [33maria-label[39m=[32m"URL"[39m
+    [36m>[39m
+      [0m?reportDirection=IN&reportAsOf=2026-09-15[0m
+    [36m</output>[39m
+    [36m<section[39m
+      [33maria-label[39m=[32m"Báo cáo công nợ chi phí"[39m
+      [33mclass[39m=[32m"expense-accounting"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"ds-field ds-field--sm"[39m
+        [36m>[39m
+          [36m<label[39m
+            [33mclass[39m=[32m"ds-field__label"[39m
+            [33mfor[39m=[32m"_r_1_"[39m
+          [36m>[39m
+            [0mThanh toán tính đến[0m
+            [36m<span[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"ds-field__required"[39m
+            [36m>[39m
+              [0m *[0m
+            [36m</span>[39m
+          [36m</label>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"date-input-wrap"[39m
+            [33mdata-date-control[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<input[39m
+              [33maria-expanded[39m=[32m"false"[39m
+              [33maria-haspopup[39m=[32m"dialog"[39m
+              [33maria-invalid[39m=[32m"false"[39m
+              [33mautocomplete[39m=[32m"off"[39m
+              [33mclass[39m=[32m"ds-field__input"[39m
+              [33mdata-date-input[39m=[32m"true"[39m
+              [33mid[39m=[32m"_r_1_"[39m
+              [33mmaxlength[39m=[32m"10"[39m
+              [33mplaceholder[39m=[32m"DD/MM/YYYY"[39m
+              [33mrequired[39m=[32m""[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m"15/09/2026"[39m
+            [36m/>[39m
+            [36m<button[39m
+              [33maria-label[39m=[32m"Mở lịch"[39m
+              [33mclass[39m=[32m"date-input-calendar-btn"[39m
+              [33mtabindex[39m=[32m"-1"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"lucide lucide-calendar"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"14"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"14"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M8 2v4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 2v4"[39m
+                [36m/>[39m
+                [36m<rect[39m
+                  [33mheight[39m=[32m"18"[39m
+                  [33mrx[39m=[32m"2"[39m
+                  [33mwidth[39m=[32m"18"[39m
+                  [33mx[39m=[32m"3"[39m
+                  [33my[39m=[32m"4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M3 10h18"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"ds-uui-select ds-uui-select--operational"[39m
+        [36m>[39m
+          [36m<template />[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-col gap-1.5 ds-uui-select__control"[39m
+            [33mdata-rac[39m=[32m""[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mid[39m=[32m"react-aria-_r_8_"[39m
+            [36m>[39m
+              [0mLoại báo cáo[0m
+            [36m</span>[39m
+            [36m<button[39m
+              [33maria-expanded[39m=[32m"false"[39m
+              [33maria-haspopup[39m=[32m"listbox"[39m
+              [33maria-labelledby[39m=[32m"react-aria-_r_c_ react-aria-_r_8_"[39m
+              [33mclass[39m=[32m"relative flex w-full cursor-pointer items-center rounded-lg border border-primary bg-primary transition duration-100 ease-linear outline-focus-ring"[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-rac[39m=[32m""[39m
+              [33mdata-react-aria-pressable[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"select"[39m
+              [33mid[39m=[32m"react-aria-_r_7_"[39m
+              [33mtabindex[39m=[32m"0"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"flex h-max w-full items-center justify-start truncate text-left align-middle py-1 pl-2.5 pr-2 gap-1.5 max-md:pl-3 max-md:pr-2.5 *:data-icon:size-4 *:data-icon:stroke-[2.25px] *:data-icon:shrink-0 *:data-icon:text-fg-quaternary"[39m
+                [33mdata-rac[39m=[32m""[39m
+                [33mdata-uui-select-value[39m=[32m"true"[39m
+                [33mid[39m=[32m"react-aria-_r_c_"[39m
+              [36m>[39m
+                [36m<section[39m
+                  [33mclass[39m=[32m"flex w-full truncate gap-x-1.5"[39m
+                [36m>[39m
+                  [36m<p[39m
+                    [33mclass[39m=[32m"truncate font-medium text-primary text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--control-zoom-safe-font-size)] [@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)]"[39m
+                  [36m>[39m
+                    [0mPhải thu khách hàng[0m
+                  [36m</p>[39m
+                [36m</section>[39m
+                [36m<svg[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"ml-auto shrink-0 text-fg-quaternary size-4 stroke-[2.25px]"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</span>[39m
+            [36m</button>[39m
+            [36m<div[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mdata-a11y-ignore[39m=[32m"aria-hidden-focus"[39m
+              [33mdata-react-aria-prevent-focus[39m=[32m"true"[39m
+              [33mdata-testid[39m=[32m"hidden-select-container"[39m
+              [33mstyle[39m=[32m"border: 0px; clip: rect(0px); clip-path: inset(50%); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: fixed; width: 1px; white-space: nowrap; top: 0px; left: 0px;"[39m
+            [36m>[39m
+              [36m<label>[39m
+                [36m<select[39m
+                  [33mtabindex[39m=[32m"-1"[39m
+                  [33mtitle[39m=[32m""[39m
+                [36m>[39m
+                  [36m<option[39m
+                    [33mlabel[39m=[32m" "[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m>[39m
+                    [0m [0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"IN"[39m
+                  [36m>[39m
+                    [0mPhải thu khách hàng[0m
+                  [36m</option>[39m
+                  [36m<option[39m
+                    [33mvalue[39m=[32m"OUT"[39m
+                  [36m>[39m
+                    [0mPhải trả / chi phí xe[0m
+                  [36m</option>[39m
+                [36m</select>[39m
+              [36m</label>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__spacer"[39m
+        [36m/>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__actions"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"btn btn--secondary btn--sm"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mTải XLSX[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<p[39m
+        [33mclass[39m=[32m"expense-accounting-hint"[39m
+      [36m>[39m
+        [0mKhoảng ngày lọc theo ngày phát sinh chi phí. Đã thu / trả tính đến ngày được chọn; cùng bộ lọc được dùng khi xuất.[0m
+      [36m</p>[39m
+      [36m<p[39m
+        [33mrole[39m=[32m"status"[39m
+      [36m>[39m
+        [0mĐang tải báo cáo…[0m
+      [36m</p>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/expense-accounting/ExpenseReport.test.tsx:19:32
+     17| it('FIX-WS-13: clicked report money opens the exact source contributio…
+     18|   show();
+     19|   fireEvent.click(await screen.findByRole('button', { name: 'Đã thanh …
+       |                                ^
+     20|   expect(screen.getByRole('dialog', { name: 'Đã thanh toán · Khách A' …
+     21|   expect(screen.getByRole('dialog')).toHaveTextContent('Giao nhận—');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/49]⎯
+
+ FAIL  src/features/expense-accounting/ShipmentExpensePanel.test.tsx > shows + Thêm khoản chi for OPS and opens the drawer scoped to Ops payers
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/expense-accounting/ShipmentExpensePanel.test.tsx:46:1
+     44| // chiphispec §1 — the entry affordance is NOT hidden for OPS: an Ops …
+     45| // same drawer the accountant uses, with the payer list scoped to fell…
+     46| it('shows + Thêm khoản chi for OPS and opens the drawer scoped to Ops …
+       | ^
+     47|   renderPanel();
+     48|   fireEvent.click(await screen.findByRole('button', { name: '+ Thêm kh…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/49]⎯
+
+ FAIL  src/features/ops/OpsExpenseCatalogRecovery.test.tsx > OPS expense catalog failure recovery > retains draft and retries the catalog without submitting (edit=false)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/ops/OpsExpenseCatalogRecovery.test.tsx:34:24
+     32|     api.updateExpense.mockResolvedValue(entry);
+     33|   });
+     34|   it.each([false, true])('retains draft and retries the catalog withou…
+       |                        ^
+     35|     api.getExpenseTypes.mockRejectedValueOnce(new Error('Catalog unava…
+     36|     const { client, close } = show(edit);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/49]⎯
+
+ FAIL  src/features/ops/ops-delete-affordance-labels.test.tsx > delete affordances announce business keys, never DB ids (QA-2026-09-24-09 O4/F2) > O4: the ops edit-modal photo delete button names the lot and the photo position, not photo.id
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/ops/ops-delete-affordance-labels.test.tsx:47:3
+     45|
+     46| describe('delete affordances announce business keys, never DB ids (QA-…
+     47|   it('O4: the ops edit-modal photo delete button names the lot and the…
+       |   ^
+     48|     showEdit();
+     49|     const button = await screen.findByRole('button', { name: 'Xóa ảnh …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/49]⎯
+
+ FAIL  src/pages/config/CarrierPricingConfigPage.test.tsx > FB090-05 CarrierPricingConfigPage — bảng giá cước trả nhà xe > saves a generic (giá chung) row with supplierId null by default
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/CarrierPricingConfigPage.test.tsx:64:3
+     62|
+     63| describe('FB090-05 CarrierPricingConfigPage — bảng giá cước trả nhà xe…
+     64|   it('saves a generic (giá chung) row with supplierId null by default'…
+       |   ^
+     65|     const onSave = vi.fn();
+     66|     renderPageAndForm({ onSave });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/49]⎯
+
+ FAIL  src/pages/config/MasterDataImportPage.sort.test.tsx > MasterDataImportPage preview sort headers > keeps the sheet order first, then sorts Dòng asc → desc
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/MasterDataImportPage.sort.test.tsx:54:3
+     52|   });
+     53|
+     54|   it('keeps the sheet order first, then sorts Dòng asc → desc', async …
+       |   ^
+     55|     await renderWithAnalyzedBatch();
+     56|     expect(rowNumberColumn()).toEqual(['9', '2', '5']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/49]⎯
+
+ FAIL  src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx > FB090-05 PricingTablesConfigPage — structured Loại xe selector > saves vehicleSizeClassId (not a free-text key) when a class is chosen
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/config/PricingTablesConfigPage.vehicle-class.test.tsx:67:3
+     65|
+     66| describe('FB090-05 PricingTablesConfigPage — structured Loại xe select…
+     67|   it('saves vehicleSizeClassId (not a free-text key) when a class is c…
+       |   ^
+     68|     const onSave = vi.fn();
+     69|     renderPageAndForm({ onSave });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/49]⎯
+
+ FAIL  src/pages/portal/PortalPages.test.tsx > customer portal pages > loads the customer statement without accepting a customer id from the browser
+TestingLibraryElementError: Unable to find an element with the text: 1.250.000 ₫. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"portal-page"[39m
+    [36m>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"portal-page__header"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"portal-page__title"[39m
+        [36m>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"portal-page__eyebrow"[39m
+          [36m>[39m
+            [0mCông nợ phải thu[0m
+          [36m</span>[39m
+          [36m<h1>[39m
+            [0mSao kê công nợ[0m
+          [36m</h1>[39m
+          [36m<p>[39m
+            [0mĐối chiếu số dư, các khoản phát sinh và thanh toán theo từng thời kỳ.[0m
+          [36m</p>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Số dư công nợ hiện tại"[39m
+          [33mclass[39m=[32m"portal-page__headline-stat"[39m
+        [36m>[39m
+          [36m<span>[39m
+            [0mSố dư hiện tại[0m
+          [36m</span>[39m
+          [36m<strong>[39m
+            [0m—[0m
+          [36m</strong>[39m
+          [36m<small>[39m
+            [0mTài khoản đang xem[0m
+          [36m</small>[39m
+        [36m</div>[39m
+      [36m</header>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"portal-panel"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"portal-panel__heading"[39m
+        [36m>[39m
+          [36m<div>[39m
+            [36m<span>[39m
+              [0mKhoảng thời gian[0m
+            [36m</span>[39m
+            [36m<h2>[39m
+              [0mLọc và xuất sao kê[0m
+            [36m</h2>[39m
+          [36m</div>[39m
+          [36m<strong>[39m
+            [0mToàn bộ lịch sử[0m
+          [36m</strong>[39m
+        [36m</div>[39m
+        [36m<form>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33maria-label[39m=[32m"Khoảng ngày sao kê"[39m
+              [33mclass[39m=[32m"date-range-fields"[39m
+              [33mrole[39m=[32m"group"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+                [33mdata-has-prefix[39m=[32m""[39m
+                [33mdata-input-size[39m=[32m"sm"[39m
+                [33mdata-input-wrapper[39m=[32m"true"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+                  [33mdata-label[39m=[32m"true"[39m
+                  [33mfor[39m=[32m"portal-statement-date-range"[39m
+                [36m>[39m
+                  [0mTừ ngày[0m
+                [36m</label>[39m
+                [36m<div[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-date-boundary[39m=[32m"true"[39m
+                  [33mdata-uui-control[39m=[32m"date"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"uui-date-prefix"[39m
+                  [36m>[39m
+                    [0mTừ[0m
+                  [36m</span>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"date-seg-group"[39m
+                    [33mdata-control-size[39m=[32m"sm"[39m
+                    [33mdata-seg-part[39m=[32m"date"[39m
+                    [33mdata-uui-control[39m=[32m"segments"[39m
+                    [33mid[39m=[32m"portal-statement-date-range-segments"[39m
+                    [33mrole[39m=[32m"group"[39m
+                  [36m>[39m
+                    [36m<div[39m
+                      [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                      [33mdata-control-size[39m=[32m"sm"[39m
+                      [33mdata-rac[39m=[32m""[39m
+                      [33mdata-uui-control[39m=[32m"input"[39m
+                      [33mrole[39m=[32m"group"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33maria-expanded[39m=[32m"false"[39m
+                        [33maria-haspopup[39m=[32m"dialog"[39m
+                        [33mautocomplete[39m=[32m"off"[39m
+                        [33mclass[39m=[32m"m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--control-zoom-safe-font-size)] [@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)] date-seg"[39m
+                        [33mdata-date-input[39m=[32m"true"[39m
+                        [33mdata-rac[39m=[32m""[39m
+                        [33mdata-seg[39m=[32m"dd"[39m
+                        [33mid[39m=[32m"portal-statement-date-range"[39m
+                        [33minputmode[39m=[32m"numeric"[39m
+                        [33mmaxlength[39m=[32m"2"[39m
+                        [33mplaceholder[39m=[32m"DD"[39m
+                        [33mtype[39m=[32m"text"[39m
+                        [33mvalue[39m=[32m""[39m
+                      [36m/>[39m
+                      [36m<svg[39m
+                        [33maria-hidden[39m=[32m"true"[39m
+                        [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                      [36m>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                    [36m</div>[39m
+                    [36m<...
+ ❯ Object.getElementError ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:109:15
+ ❯ src/pages/portal/PortalPages.test.tsx:406:19
+    404|
+    405|     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/portal/s…
+    406|     expect(screen.getAllByText('1.250.000 ₫')).toHaveLength(3);
+       |                   ^
+    407|     const equation = screen.getByLabelText(/Số dư đầu kỳ 0 đồng/);
+    408|     expect(equation.textContent).toContain('Số dư đầu kỳ');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/49]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > DetailedPlanGrid > DSP-6377 separates legacy task labels and multiline manual notes in the row and full view
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:95:3
+     93|
+     94| describe('DetailedPlanGrid', () => {
+     95|   it('DSP-6377 separates legacy task labels and multiline manual notes…
+       |   ^
+     96|     const manual = '- Gọi trước khi đến\n- Gặp anh Bình ở cổng 2';
+     97|     const { container } = renderGrid([row({
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/49]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > DetailedPlanGrid > saves the whole editor atomically: estimates plus the dispatcher Phân loại — lot flag stays CUS-owned
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:401:3
+    399|   });
+    400|
+    401|   it('saves the whole editor atomically: estimates plus the dispatcher…
+       |   ^
+    402|     const onAtomicSave = vi.fn().mockResolvedValue({
+    403|       fulfillmentVersion: 4,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/49]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > DetailedPlanGrid > saves without blocking on classification — the default Đơn is always present
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:439:3
+    437|   });
+    438|
+    439|   it('saves without blocking on classification — the default Đơn is al…
+       |   ^
+    440|     const onAtomicSave = vi.fn().mockResolvedValue({
+    441|       fulfillmentVersion: 4,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/49]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > allocation editor mounts on every press (20260916_9) > mounts the editor on press 1 (branch decompose) and on every later press
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:1047:3
+    1045|   }
+    1046|
+    1047|   it('mounts the editor on press 1 (branch decompose) and on every lat…
+       |   ^
+    1048|     const branch = {
+    1049|       ...row({ fulfillmentId: undefined }),
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/49]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx > DetailedPlanGrid — SIL-648 PHÂN LOẠI column inline edit > renders a clickable button for uncompleted FCL rows, opens select on click, and saves in place
+TestingLibraryElementError: Found multiple elements with the text: Kẹp
+
+Here are the matching elements:
+
+Ignored nodes: comments, script, style
+[36m<button[39m
+  [33maria-label[39m=[32m"Sửa phân loại · Kẹp"[39m
+  [33mclass[39m=[32m"detailed-plan-grid__classification"[39m
+  [33mtitle[39m=[32m"Bấm để sửa phân loại"[39m
+  [33mtype[39m=[32m"button"[39m
+[36m>[39m
+  [0mKẹp[0m
+[36m</button>[39m
+
+Ignored nodes: comments, script, style
+[36m<option[39m
+  [33mvalue[39m=[32m"DOUBLE"[39m
+[36m>[39m
+  [0mKẹp[0m
+[36m</option>[39m
+
+(If this is intentional, then use the `*AllBy*` variant of the query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<header[39m
+      [33mclass[39m=[32m"detailed-plan-header"[39m
+      [33mdata-component[39m=[32m"detailed-plan-header"[39m
+    [36m>[39m
+      [36m<h1[39m
+        [33mclass[39m=[32m"detailed-plan-header__title"[39m
+      [36m>[39m
+        [0mKế hoạch Chi tiết Xe[0m
+      [36m</h1>[39m
+    [36m</header>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar__search-cell"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search"[39m
+          [33mdata-uui-control[39m=[32m"input"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-search"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m21 21-4.34-4.34"[39m
+            [36m/>[39m
+            [36m<circle[39m
+              [33mcx[39m=[32m"11"[39m
+              [33mcy[39m=[32m"11"[39m
+              [33mr[39m=[32m"8"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<input[39m
+            [33maria-label[39m=[32m"Tìm nhanh"[39m
+            [33mplaceholder[39m=[32m"Bill, Cont, Tờ khai..."[39m
+            [33mtype[39m=[32m"text"[39m
+            [33mvalue[39m=[32m""[39m
+          [36m/>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"inline-label-select"[39m
+        [33mdata-component[39m=[32m"inline-label-select"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-expanded[39m=[32m"false"[39m
+          [33maria-haspopup[39m=[32m"listbox"[39m
+          [33mclass[39m=[32m"inline-label-select__trigger inline-label-select__trigger--sm"[39m
+          [33mid[39m=[32m"detailed-plan-direction"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mXuất / Nhập: Tất cả[0m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-chevron-down inline-label-select__chevron"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 9 6 6 6-6"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"inline-label-select"[39m
+        [33mdata-component[39m=[32m"inline-label-select"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-expanded[39m=[32m"false"[39m
+          [33maria-haspopup[39m=[32m"listbox"[39m
+          [33mclass[39m=[32m"inline-label-select__trigger inline-label-select__trigger--sm"[39m
+          [33mid[39m=[32m"detailed-plan-cargo-mode"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [0mLoại hàng: Tất cả[0m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-chevron-down inline-label-select__chevron"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"m6 9 6 6 6-6"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+        [36m</button>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-dropdown"[39m
+        [33mdata-component[39m=[32m"filter-dropdown"[39m
+      [36m>[39m
+        [36m<button[39m
+          [33maria-expanded[39m=[32m"false"[39m
+          [33maria-haspopup[39m=[32m"dialog"[39m
+          [33maria-label[39m=[32m"Bộ lọc"[39m
+          [33mclass[39m=[32m"filter-dropdown__trigger"[39m
+          [33mdata-control-size[39m=[32m"sm"[39m
+          [33mdata-uui-control[39m=[32m"button"[39m
+          [33mtype[39m=[32m"button"[39m
+        [36m>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-list-filter"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+            [33mviewBox[39m=[32m"0 0 24 24"[39m
+            [33mwidth[39m=[32m"14"[39m
+            [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+          [36m>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M3 6h18"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M7 12h10"[39m
+            [36m/>[39m
+            [36m<path[39m
+              [33md[39m=[32m"M10 18h4"[39m
+            [36m/>[39m
+          [36m</svg>[39m
+          [36m<span[39m
+            [33mclass[39m=[32m"filter-dropdown__label"[39m
+          [36m>[39m
+            [0mBộ lọc[0m
+          [36m</span>[39m
+          [36m<svg[39m
+            [33maria-hidden[39m=[32m"true"[39m
+            [33mclass[39m=[32m"lucide lucide-chevron-down filter-dropdown__chevron"[39m
+            [33mfill[39m=[32m"none"[39m
+            [33mheight[39m=[32m"14"[39m
+            [33mstroke[39m=[32m"currentColor"[39m
+            [33mstroke-linecap[39m=[32m"round"[39m
+            [33mstroke-linejoin[39m=[32m"round"[39m
+            [33mstroke-width[39m=[32m"2"[39m
+         ...
+
+Ignored nodes: comments, script, style
+[36m<html[39m
+  [33mstyle[39m=[32m""[39m
+[36m>[39m
+  [36m<head />[39m
+  [36m<body[39m
+    [33mstyle[39m=[32m"overflow: hidden;"[39m
+  [36m>[39m
+    [36m<div>[39m
+      [36m<header[39m
+        [33mclass[39m=[32m"detailed-plan-header"[39m
+        [33mdata-component[39m=[32m"detailed-plan-header"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"detailed-plan-header__title"[39m
+        [36m>[39m
+          [0mKế hoạch Chi tiết Xe[0m
+        [36m</h1>[39m
+      [36m</header>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm nhanh"[39m
+              [33mplaceholder[39m=[32m"Bill, Cont, Tờ khai..."[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"inline-label-select"[39m
+          [33mdata-component[39m=[32m"inline-label-select"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33maria-haspopup[39m=[32m"listbox"[39m
+            [33mclass[39m=[32m"inline-label-select__trigger inline-label-select__trigger--sm"[39m
+            [33mid[39m=[32m"detailed-plan-direction"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mXuất / Nhập: Tất cả[0m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-chevron-down inline-label-select__chevron"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 9 6 6 6-6"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"inline-label-select"[39m
+          [33mdata-component[39m=[32m"inline-label-select"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33maria-haspopup[39m=[32m"listbox"[39m
+            [33mclass[39m=[32m"inline-label-select__trigger inline-label-select__trigger--sm"[39m
+            [33mid[39m=[32m"detailed-plan-cargo-mode"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [0mLoại hàng: Tất cả[0m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-chevron-down inline-label-select__chevron"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 9 6 6 6-6"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-dropdown"[39m
+          [33mdata-component[39m=[32m"filter-dropdown"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-expanded[39m=[32m"false"[39m
+            [33maria-haspopup[39m=[32m"dialog"[39m
+            [33maria-label[39m=[32m"Bộ lọc"[39m
+            [33mclass[39m=[32m"filter-dropdown__trigger"[39m
+            [33mdata-control-size[39m=[32m"sm"[39m
+            [33mdata-uui-control[39m=[32m"button"[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-list-filter"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M3 6h18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M7 12h10"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M10 18h4"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"filter-dropdown__label"[39m
+            [36m>[39m
+              [0mBộ lọc[0m
+            [36m</span>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+     ...
+ ❯ Proxy.waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ src/features/dispatch/detailed-plan/DetailedPlanGrid.test.tsx:1162:11
+    1160|     );
+    1161|
+    1162|     await waitFor(() => {
+       |           ^
+    1163|       expect(screen.getByText('Kẹp')).toBeTruthy();
+    1164|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/49]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > UI52-B editor business identity > keeps 'MSCU1234567' in the editor title and Cancel preserves the exact row
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > UI52-B editor business identity > keeps 'BL-2026-010' in the editor title and Cancel preserves the exact row
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx:215:4
+    213|     { container: null, bill: null, expected: 'Chưa có số Bill/Booking'…
+    214|     { container: ' ', bill: ' ', expected: 'Chưa có số Bill/Booking' },
+    215|   ])('keeps $expected in the editor title and Cancel preserves the exa…
+       |    ^
+    216|     mockFleetResources();
+    217|     const original = row();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/49]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > DispatchPlanEditorCell — single datetime field (id 712, owner 30/10) > a stored Giờ trả hàng override survives the save — plannedEndAt never rides the body (id 712)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx:402:3
+    400|   });
+    401|
+    402|   it('a stored Giờ trả hàng override survives the save — plannedEndAt …
+       |   ^
+    403|     // The dialog no longer edits the return time: no field, no draft,…
+    404|     // wire write — the stored override (and the schedule display that…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/49]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > DispatchPlanEditorCell — phát lệnh issue section > offers the free-text plate option on a carrier-less row so plate→carrier autofill can fire
+TestingLibraryElementError: Unable to find role="option" and name `/Dùng biển số: 15H-061\.14/`
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"dispatch-assignment-cell"[39m
+      [33mdata-cell-label[39m=[32m"Điều phối"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-haspopup[39m=[32m"dialog"[39m
+        [33maria-label[39m=[32m"Sửa điều phối · Chưa phân nhà xe · MSCU1234567"[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action"[39m
+        [33mtitle[39m=[32m"Bấm để phân nhà xe / sửa điều phối · MSCU1234567"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [0mChưa phân nhà xe[0m
+      [36m</button>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__vehicle-group"[39m
+      [36m/>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__actions"[39m
+      [36m/>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33maria-labelledby[39m=[32m"_r_nu_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"modal modal--operational-density"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"opacity: 1;"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"modal__content"[39m
+      [33mstyle[39m=[32m"--modal-max-w: min(1000px, calc(100vw - 96px)); opacity: 1; will-change: opacity;"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__head"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<h3[39m
+            [33mclass[39m=[32m"modal__title"[39m
+            [33mid[39m=[32m"_r_nu_"[39m
+          [36m>[39m
+            [0mChỉnh sửa điều phối · MSCU1234567[0m
+          [36m</h3>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+          [33mdata-tip[39m=[32m"Đóng"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Đóng"[39m
+            [33mclass[39m=[32m"btn btn--ghost btn--icon btn--sm modal__close"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__body"[39m
+      [36m>[39m
+        [36m<form[39m
+          [33maria-busy[39m=[32m"false"[39m
+          [33mclass[39m=[32m"dispatch-assignment-dialog"[39m
+          [33mnovalidate[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"dispatch-assignment-dialog__fields"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"dispatch-assignment-dialog__carrier"[39m
+              [33mfor[39m=[32m"dispatch-carrier-101"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mNhà xe[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"searchable-select"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-haspopup[39m=[32m"listbox"[39m
+                  [33maria-required[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                  [33mid[39m=[32m"dispatch-carrier-101"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                  [36m>[39m
+                    [0mChọn nhà xe[0m
+                  [36m</span>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"16"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"16"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"dispatch-assignment-dialog__vehicle"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"dispatch-assignment-dialog__vehicle-head"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mfor[39m=[32m"dispatch-vehicle-101"[39m
+                [36m>[39m
+                  [0mXe / biển số[0m
+                [36m</label>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"searchable-select"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-controls[39m=[32m"_r_o0_"[39m
+                  [33maria-expanded[39m=[32m"true"[39m
+                  [33maria-haspopup[39m=[32m"listbox"[39m
+                  [33maria-required[39m=[32m"false"[39m
+                  [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm searchable-select__trigger--open"[39m
+                  [33mid[39m=[32m"dispatch-vehicle-101"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                  [36m...
+
+Ignored nodes: comments, script, style
+[36m<body[39m
+  [33mstyle[39m=[32m"overflow: hidden;"[39m
+[36m>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"dispatch-assignment-cell"[39m
+      [33mdata-cell-label[39m=[32m"Điều phối"[39m
+    [36m>[39m
+      [36m<button[39m
+        [33maria-haspopup[39m=[32m"dialog"[39m
+        [33maria-label[39m=[32m"Sửa điều phối · Chưa phân nhà xe · MSCU1234567"[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action"[39m
+        [33mtitle[39m=[32m"Bấm để phân nhà xe / sửa điều phối · MSCU1234567"[39m
+        [33mtype[39m=[32m"button"[39m
+      [36m>[39m
+        [0mChưa phân nhà xe[0m
+      [36m</button>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__vehicle-group"[39m
+      [36m/>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"dispatch-assignment-cell__actions"[39m
+      [36m/>[39m
+    [36m</div>[39m
+  [36m</div>[39m
+  [36m<div[39m
+    [33maria-labelledby[39m=[32m"_r_nu_"[39m
+    [33maria-modal[39m=[32m"true"[39m
+    [33mclass[39m=[32m"modal modal--operational-density"[39m
+    [33mrole[39m=[32m"dialog"[39m
+    [33mstyle[39m=[32m"opacity: 1;"[39m
+  [36m>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"modal__content"[39m
+      [33mstyle[39m=[32m"--modal-max-w: min(1000px, calc(100vw - 96px)); opacity: 1; will-change: opacity;"[39m
+      [33mtabindex[39m=[32m"-1"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__head"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<h3[39m
+            [33mclass[39m=[32m"modal__title"[39m
+            [33mid[39m=[32m"_r_nu_"[39m
+          [36m>[39m
+            [0mChỉnh sửa điều phối · MSCU1234567[0m
+          [36m</h3>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"d-tooltip d-tooltip-bottom"[39m
+          [33mdata-tip[39m=[32m"Đóng"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33maria-label[39m=[32m"Đóng"[39m
+            [33mclass[39m=[32m"btn btn--ghost btn--icon btn--sm modal__close"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-x"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"16"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"16"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M18 6 6 18"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m6 6 12 12"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"modal__body"[39m
+      [36m>[39m
+        [36m<form[39m
+          [33maria-busy[39m=[32m"false"[39m
+          [33mclass[39m=[32m"dispatch-assignment-dialog"[39m
+          [33mnovalidate[39m=[32m""[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"dispatch-assignment-dialog__fields"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"dispatch-assignment-dialog__carrier"[39m
+              [33mfor[39m=[32m"dispatch-carrier-101"[39m
+            [36m>[39m
+              [36m<span>[39m
+                [0mNhà xe[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"searchable-select"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-expanded[39m=[32m"false"[39m
+                  [33maria-haspopup[39m=[32m"listbox"[39m
+                  [33maria-required[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm"[39m
+                  [33mid[39m=[32m"dispatch-carrier-101"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                  [36m>[39m
+                    [0mChọn nhà xe[0m
+                  [36m</span>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"lucide lucide-chevron-down searchable-select__chevron"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"16"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"16"[39m
+                    [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"m6 9 6 6 6-6"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</button>[39m
+              [36m</div>[39m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"dispatch-assignment-dialog__vehicle"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"dispatch-assignment-dialog__vehicle-head"[39m
+              [36m>[39m
+                [36m<label[39m
+                  [33mfor[39m=[32m"dispatch-vehicle-101"[39m
+                [36m>[39m
+                  [0mXe / biển số[0m
+                [36m</label>[39m
+              [36m</div>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"searchable-select"[39m
+              [36m>[39m
+                [36m<button[39m
+                  [33maria-controls[39m=[32m"_r_o0_"[39m
+                  [33maria-expanded[39m=[32m"true"[39m
+                  [33maria-haspopup[39m=[32m"listbox"[39m
+                  [33maria-required[39m=[32m"false"[39m
+                  [33mclass[39m=[32m"input searchable-select__trigger searchable-select__trigger--sm searchable-select__trigger--open"[39m
+                  [33mid[39m=[32m"dispatch-vehicle-101"[39m
+                  [33mtype[39m=[32m"button"[39m
+                [36m>[39m
+                  [36m<span[39m
+                    [33mclass[39m=[32m"searchable-select__placeholder"[39m
+                  [36m...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx:703:25
+    701|     fireEvent.click(document.getElementById('dispatch-vehicle-101')!);
+    702|     fireEvent.change(screen.getByRole('combobox'), { target: { value: …
+    703|     expect(await screen.findByRole('option', { name: /Dùng biển số: 15…
+       |                         ^
+    704|   });
+    705|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/49]⎯
+
+ FAIL  src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx > DispatchPlanEditorCell — phát lệnh issue section > offers the Lẻ + Lấy Lẻ pair on LCL rows and never the cont models (SIL-702)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/dispatch/detailed-plan/DispatchPlanEditorCell.test.tsx:775:3
+    773|   });
+    774|
+    775|   it('offers the Lẻ + Lấy Lẻ pair on LCL rows and never the cont model…
+       |   ^
+    776|     const onAtomicSave = vi.fn().mockResolvedValue({
+    777|       fulfillmentVersion: 4,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/49]⎯
+
+ FAIL  src/features/penalties/components/PenaltyFormDrawer.test.tsx > PenaltyFormDrawer trip selector > queries a bounded driver-scoped page and forwards the debounced search term
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/penalties/components/PenaltyFormDrawer.test.tsx:39:3
+     37|   });
+     38|
+     39|   it('queries a bounded driver-scoped page and forwards the debounced …
+       |   ^
+     40|     renderDrawer();
+     41|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/49]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.cost-dot.test.tsx > the leading cost-state track on the board > the pinned track stays out of the picker, and the SIL-727 money matrix opens essential-locked
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/AccountingDebitClosePage.cost-dot.test.tsx:145:3
+    143|   });
+    144|
+    145|   it('the pinned track stays out of the picker, and the SIL-727 money …
+       |   ^
+    146|     listBoard.mockResolvedValue({ items: [row()], total: 1 });
+    147|     renderPage();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/49]⎯
+
+ FAIL  src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx > FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit > opens the editor on the clicked badge and saves the edited plate
+TestingLibraryElementError: Unable to find role="button" and name "Sửa BKS ảo: 30C-999.99"
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page-shell"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header page-header--actions-only"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"page-header__title-visible"[39m
+        [36m>[39m
+          [0mKế toán chốt debit[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm lô hàng"[39m
+              [33mplaceholder[39m=[32m"Mã lô, bill/booking, khách hàng, container"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Khoảng ngày lô hàng"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"debit-board-date-range"[39m
+            [36m>[39m
+              [0mTừ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"debit-board-date-range-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--control-zoom-safe-font-size)] [@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"debit-board-date-range"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmax[39m=[32m"2026-11-08"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m"01"[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"...
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<div[39m
+      [33mclass[39m=[32m"page-shell"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"page-header page-header--actions-only"[39m
+      [36m>[39m
+        [36m<h1[39m
+          [33mclass[39m=[32m"page-header__title-visible"[39m
+        [36m>[39m
+          [0mKế toán chốt debit[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"filter-bar filter-bar--card list-filter-bar"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"filter-bar__search-cell"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"filter-bar__search"[39m
+            [33mdata-uui-control[39m=[32m"input"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33maria-hidden[39m=[32m"true"[39m
+              [33mclass[39m=[32m"lucide lucide-search"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"14"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"14"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"m21 21-4.34-4.34"[39m
+              [36m/>[39m
+              [36m<circle[39m
+                [33mcx[39m=[32m"11"[39m
+                [33mcy[39m=[32m"11"[39m
+                [33mr[39m=[32m"8"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<input[39m
+              [33maria-label[39m=[32m"Tìm lô hàng"[39m
+              [33mplaceholder[39m=[32m"Mã lô, bill/booking, khách hàng, container"[39m
+              [33mtype[39m=[32m"text"[39m
+              [33mvalue[39m=[32m""[39m
+            [36m/>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<div[39m
+          [33maria-label[39m=[32m"Khoảng ngày lô hàng"[39m
+          [33mclass[39m=[32m"date-range-fields"[39m
+          [33mrole[39m=[32m"group"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"group flex h-max w-full flex-col items-start justify-start gap-1.5 date-range-fields__from"[39m
+            [33mdata-has-prefix[39m=[32m""[39m
+            [33mdata-input-size[39m=[32m"sm"[39m
+            [33mdata-input-wrapper[39m=[32m"true"[39m
+          [36m>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"flex cursor-default items-center gap-0.5 text-secondary text-xs leading-[1.5] font-semibold sr-only"[39m
+              [33mdata-label[39m=[32m"true"[39m
+              [33mfor[39m=[32m"debit-board-date-range"[39m
+            [36m>[39m
+              [0mTừ ngày[0m
+            [36m</label>[39m
+            [36m<div[39m
+              [33mdata-control-size[39m=[32m"sm"[39m
+              [33mdata-date-boundary[39m=[32m"true"[39m
+              [33mdata-uui-control[39m=[32m"date"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33maria-hidden[39m=[32m"true"[39m
+                [33mclass[39m=[32m"uui-date-prefix"[39m
+              [36m>[39m
+                [0mTừ[0m
+              [36m</span>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"date-seg-group"[39m
+                [33mdata-control-size[39m=[32m"sm"[39m
+                [33mdata-seg-part[39m=[32m"date"[39m
+                [33mdata-uui-control[39m=[32m"segments"[39m
+                [33mid[39m=[32m"debit-board-date-range-segments"[39m
+                [33mrole[39m=[32m"group"[39m
+              [36m>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"group/input relative flex w-full flex-row place-content-center place-items-center overflow-hidden rounded-lg border border-primary bg-primary outline-focus-ring transition duration-100 ease-linear group-disabled:cursor-not-allowed group-disabled:opacity-50 group-invalid:border-error_subtle date-seg-wrapper"[39m
+                  [33mdata-control-size[39m=[32m"sm"[39m
+                  [33mdata-rac[39m=[32m""[39m
+                  [33mdata-uui-control[39m=[32m"input"[39m
+                  [33mrole[39m=[32m"group"[39m
+                [36m>[39m
+                  [36m<input[39m
+                    [33maria-expanded[39m=[32m"false"[39m
+                    [33maria-haspopup[39m=[32m"dialog"[39m
+                    [33mautocomplete[39m=[32m"off"[39m
+                    [33mclass[39m=[32m"m-0 w-full text-ellipsis bg-transparent text-primary ring-0 outline-hidden placeholder:text-placeholder autofill:rounded-lg autofill:text-primary disabled:cursor-not-allowed px-2.5 py-1 max-md:px-3 text-[length:var(--text-control-compact-size)] leading-[1.35] max-md:text-[length:var(--control-zoom-safe-font-size)] [@media(pointer:coarse)]:text-[length:var(--control-zoom-safe-font-size)] date-seg"[39m
+                    [33mdata-date-input[39m=[32m"true"[39m
+                    [33mdata-rac[39m=[32m""[39m
+                    [33mdata-seg[39m=[32m"dd"[39m
+                    [33mid[39m=[32m"debit-board-date-range"[39m
+                    [33minputmode[39m=[32m"numeric"[39m
+                    [33mmax[39m=[32m"2026-11-08"[39m
+                    [33mmaxlength[39m=[32m"2"[39m
+                    [33mplaceholder[39m=[32m"DD"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m"01"[39m
+                  [36m/>[39m
+                  [36m<svg[39m
+                    [33maria-hidden[39m=[32m"true"[39m
+                    [33mclass[39m=[32m"pointer-events-none absolute hidden size-4 stroke-[2.25px] text-fg-error-secondary group-invalid/input:block right-2.5 max-md:right-3"[39m
+                    [33mfill[39m=[32m"none"[39m
+                    [33mheight[39m=[32m"24"[39m
+                    [33mstroke[39m=[32m"currentColor"[39m
+                    [33mstroke-linecap[39m=[32m"round"[39m
+                    [33mstroke-linejoin[39m=[32m"round"[39m
+                    [33mstroke-width[39m=[32m"2"[39m
+                    [33mviewBox[39m=[32m"0 0 24 24"[39m
+                    [33mwidth[39m=[32m"24"[39m
+                  [36m>[39m
+                    [36m<path[39m
+                      [33md[39m=[32m"M12 16v-4m0-4h.01M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10Z"[39m
+                    [36m/>[39m
+                  [36m</svg>[39m
+                [36m</div>[39m
+                [36m<span[39m
+                  [33maria-hidden[39m=[32m"true"[39m
+                  [33mclass[39m=[32m"date-sep"...
+ ❯ waitForWrapper ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ ../node_modules/.pnpm/@testing-library+dom@10.4.1/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ src/pages/accounting/AccountingDebitClosePage.fb093.test.tsx:116:32
+    114|     const { container } = renderPage();
+    115|
+    116|     const badge = await screen.findByRole('button', { name: 'Sửa BKS ả…
+       |                                ^
+    117|     fireEvent.click(badge);
+    118|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/49]⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > card 20260929_207 — row selection replaces the checkbox column > PHOI03 clears hidden selection during a filter query and does not resurrect it on return
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:198:3
+    196|   });
+    197|
+    198|   it('PHOI03 clears hidden selection during a filter query and does no…
+       |   ^
+    199|     const { container } = renderBoard([row({ tripId: 1 })]);
+    200|     await screen.findAllByText('Chưa có số Bill/Booking', undefined, {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/49]⎯
+
+ FAIL  src/features/shipments/debit/MergeRevGroupDialog.test.tsx > GP-04 — merge server-error path is never silent > BE 400 (khác KH) → inline alert + error toast, dialog stays open for a retry
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/debit/MergeRevGroupDialog.test.tsx:67:3
+     65|   });
+     66|
+     67|   it('BE 400 (khác KH) → inline alert + error toast, dialog stays open…
+       |   ^
+     68|     const serverMessage = 'Chỉ cho phép ghép các lô của cùng một khách…
+     69|     // The wire carried stale customerIds (gate passed), the server re…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/49]⎯
+
+ FAIL  src/features/shipments/detail/ShipmentContainerLedger.test.tsx > ShipmentContainerLedger inline editor dismissal > UI-CD-12 selects the actual container factory and submits its site id
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx:211:3
+    209|
+    210| describe('ShipmentContainerLedger inline editor dismissal', () => {
+    211|   it('UI-CD-12 selects the actual container factory and submits its si…
+       |   ^
+    212|     const { onSaveIdentity, onCancelEdit } = renderLedger('identity');
+    213|     const factory = screen.getByRole('combobox', { name: /^Nhà máy/ });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/49]⎯
+
+ FAIL  src/features/shipments/detail/ShipmentContainerLedger.test.tsx > ShipmentContainerLedger inline editor dismissal > container editor shows the live ISO 6346 warning and the one-tap correction (card 261022095235b)
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/detail/ShipmentContainerLedger.test.tsx:247:3
+    245|     expect(onSaveNotes).toHaveBeenCalledTimes(1);
+    246|   });
+    247|   it('container editor shows the live ISO 6346 warning and the one-tap…
+       |   ^
+    248|     // A mistyped "đổi số cont" (bad check digit) used to dead-end at …
+    249|     // server's 400 — the editor now pre-checks with the same shared h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/49]⎯
+
+ FAIL  src/features/shipments/create/ShipmentCreateWorkspace.deposit.test.tsx > deposit toggle (render, card 20260922_6) > ticking shows the expected-amount field; unticking hides it
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/features/shipments/create/ShipmentCreateWorkspace.deposit.test.tsx:81:3
+     79|   });
+     80|
+     81|   it('ticking shows the expected-amount field; unticking hides it', as…
+       |   ^
+     82|     renderWorkspace();
+     83|     const toggle = await screen.findByText('Có cược container');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/49]⎯
+
+
+ Test Files  25 failed | 779 passed (804)
+      Tests  49 failed | 6275 passed (6324)
+   Start at  15:15:31
+   Duration  2293.28s (transform 150.59s, setup 626.03s, import 3132.26s, tests 3855.80s, environment 2742.80s)
+
+ ELIFECYCLE  Test failed. See above for more details.
+fe-suite-exit=1

@@ -1,0 +1,28 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/k11-fix/frontend
+
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx (17 tests | 1 failed) 45061ms
+     × PHOI03 clears hidden selection during a filter query and does not resurrect it on return 5364ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx > card 20260929_207 — row selection replaces the checkbox column > PHOI03 clears hidden selection during a filter query and does not resurrect it on return
+Error: Test timed out in 5000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/accounting/PhoiPhieuControlPage.selection.test.tsx:198:3
+    196|   });
+    197|
+    198|   it('PHOI03 clears hidden selection during a filter query and does no…
+       |   ^
+    199|     const { container } = renderBoard([row({ tripId: 1 })]);
+    200|     await screen.findAllByText('Chưa có số Bill/Booking', undefined, {…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 24 passed (25)
+      Tests  1 failed | 574 passed (575)
+   Start at  15:59:47
+   Duration  346.95s (transform 17.33s, setup 13.51s, import 148.96s, tests 459.11s, environment 62.06s)
+
+rerun exit=1

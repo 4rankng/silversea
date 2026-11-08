@@ -14,9 +14,15 @@
  *   2. THU fallback: shipment → customer with the FB-061 soft-delete law
  *      (isNull(deletedAt) — a deleted master never prints, its money stays in
  *      the 'Chưa xác định' audit bucket).
- *   3. TRA fallback: through the shipment's UNIQUE live trip — the exact
- *      candidate law `expenseTripCandidates` links sources by (deletedAt NULL,
- *      status ≠ CANCELED); 0 or ≥2 live trips never guess a name.
+ *   3. TRA fallback (r2, QA 08/11): through EVERY live trip of the shipment —
+ *      the exact candidate law `expenseTripCandidates` links sources by
+ *      (deletedAt NULL, status ≠ CANCELED). Ops 'chi hộ' money rides the
+ *      SHARED lot, so the carrier fact is whatever ALL live trips agree on
+ *      (entity identity, never the display string); a mixed-carrier lot, a
+ *      trip whose carrier does not resolve, or a no-live-trip lot stays
+ *      'Chưa xác định'. The unique live trip still carries its id for the
+ *      drill-down's bookable grouping; a multi-trip resolution groups under
+ *      the synthetic shipment key.
  *   4. The drill-down drops the unconditional trip-less skip: a RESOLVED
  *      trip-less source joins under its party (booking through the unique
  *      live trip when one exists, a display-only shipment row otherwise);
@@ -61,14 +67,24 @@ describe('SIL-729 — the summary bucket resolves through the shipment fallback'
     assert.ok(fallback.includes('operationalName(s.customers.shortName, s.customers.name)'), 'THU party keeps the operational label law');
   });
 
-  it('TRA fallback resolves through the UNIQUE live trip — the link candidate law', () => {
+  it('TRA fallback resolves through ALL live trips under the all-agree carrier law', () => {
     const fallback = fnBody('resolveShipmentFallbackParties');
     // The exact live predicate expenseTripCandidates links sources by.
     assert.ok(fallback.includes('isNull(s.trips.deletedAt), ne(s.trips.status, \'CANCELED\')'),
       'live trip = deletedAt NULL and not CANCELED');
-    assert.ok(fallback.includes('trips.length === 1'), 'exactly one live trip resolves; 0 or ≥2 stay unresolved');
-    assert.ok(fallback.includes("resolveReportTripParties('TRA', uniqueTripIds)"),
-      'the unique trip rides the SAME TRA case-expression as every trip party');
+    assert.ok(fallback.includes("resolveReportTripParties('TRA', allTripIds)"),
+      'EVERY live trip rides the SAME TRA case-expression as every trip party');
+    // One unresolvable trip never names the bucket.
+    assert.ok(fallback.includes('parties.some((party) => party == null)') && fallback.includes('continue'),
+      'a trip whose carrier does not resolve keeps the lot in the unknown bucket');
+    // All-agree on entity identity — never a display-string guess.
+    assert.ok(fallback.includes('parties.every((party): party is ReportPartyInfo => party != null && identityOf(party) === identityOf(first))'),
+      'the lot resolves only when every live trip names the same carrier identity');
+    assert.ok(fallback.includes('`${party.partyKind ?? \'\'}:${party.partyId ?? \'\'}:${party.name ?? \'\'}\`'),
+      'identity = kind + entity id + label (card 201026095604b — never derive-by-string alone)');
+    // The unique live trip keeps its id; a multi-trip resolution does not.
+    assert.ok(fallback.includes('liveTripId: trips.length === 1 ? trips[0]! : null'),
+      'unique live trip stays bookable in the drill-down; multi-trip groups under the shipment key');
   });
 });
 

@@ -18,6 +18,8 @@ import {
   containerNumberToInherit,
   declaredCombinedPairCarve,
   kepContainerSizeBlockMessage,
+  KEP_WEIGHT_WARNING_MESSAGE,
+  kepPairWeightVerdict,
 } from './trip-pair-rules.service';
 import {
   breakTripPairOnCancellation,
@@ -797,6 +799,16 @@ async function createTripPairCoreInTx(
     // the dispatcher must see that no weight check was possible.
     if (capacityMissing) {
       warnings.push('Xe chưa khai tải trọng trong danh mục — hệ thống không đối chiếu được tổng trọng lượng cặp. Điều vận chịu trách nhiệm kiểm tra tải trước khi chạy.');
+    }
+    // SIL-750 — the manual-dialog mirror of the issue-path TC6(2) soft rule: a
+    // PROVEN overload (declared capacity + both legs' finite weights, sum >
+    // capacity) saves with the DOC verbatim warning — the pair dialog must
+    // never silently save an overweight cặp, and must never hard-block it
+    // either (the 409 KEP_WEIGHT_WARNING + confirm gate stays at phát lệnh,
+    // SIL-674/TC6 scope). Unprovable keeps the missing-capacity advisory
+    // above; a proven pass stays silent.
+    if (kepPairWeightVerdict(locked.first.cargoWeightKg, locked.second.cargoWeightKg, firstCapacity) === 'overload') {
+      warnings.push(KEP_WEIGHT_WARNING_MESSAGE);
     }
     return warnings.length > 0 ? { ...serializePairRecord(pair), warnings } : serializePairRecord(pair);
   };

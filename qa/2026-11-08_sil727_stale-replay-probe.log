@@ -1,0 +1,8 @@
+PASS  login hoapt — status 200 body {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjksInVzZXJuYW1lIjoiaG9hcHQiLCJlbWFpbCI6bnVsbCwiZnVsbE5hbWUiO
+... lot 779232 (SHP-2611-00392)
+PASS  issue note #1 → 201 {id} — status 201 body {"id":25}
+PASS  re-export after purge → 201 NEW live id — status 201 id {"id":26}
+PASS  re-issued document is live
+PASS  export GET 200 xlsx bytes — status 200 bytes 8304
+PASS  third click → 409 naming #N — status 409 body {"error":"Các lô SHP-2611-00392 đã xuất Debit Note #26. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất.","overlappingLotCodes":["SHP-2611-00392"],"overlappingDocumentIds":[26]}
+PROBE PASS — stale replay repairs to a live document; overlap 409 names the note.
