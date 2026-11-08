@@ -74,3 +74,21 @@
 - FE full suite: see drive session (k10-fe-full-tests) — result recorded on the board comment.
 - Scoped suites: DriverTripDetailPage 67/67 · DispatchDetailPlanPage + detailed-plan 527/527 · sil707 styles +
   popover.fit 31/31 · arming 6/6.
+
+## SIL-749 — /shipments padding trái/phải bảng đối xứng (bổ sung scope 08/11)
+- dungnv → /shipments @1440×900 (local dev, FE :7175 proxy :3001, build có fix).
+- Measure (scrollport frame .app-body content area 248→1425; scrollbar 15px là
+  chrome cuộn, không phải padding): board `.cus-workspace--worksheet` rect
+  272→1401 → **leftGap = 24px = rightGap = 24px, symmetric=true**.
+  Trước fix: trái 24px (SIL-615 gutter), phải 0 (bleed tới mép).
+- Geometry sau fix: `:has()` zero .app-body padding (giữ nguyên, scoped) +
+  page `padding-inline: max(var(--app-body-pad-x), …)` 24/24 (giữ nguyên) +
+  `.cus-workspace--worksheet { margin-inline: 0 }` (bleed + override
+  `margin-left: 0` @≥1024 đã gỡ — SIL-749 supersede SIL-603/SIL-615 edges).
+- Canvas giữ uncapped (width 100%, max-width none) — chỉ bỏ flush edges.
+- Screenshot 1440: đính kèm transcript (board inset đều 2 bên); log này là
+  driver record.
+- Pins: ShipmentsPage.sidebar-gutter.styles.test.ts viết lại theo luật
+  SIL-749 (no-bleed mọi bề rộng, :has scoping giữ, SIL-612 non-regression
+  giữ) + CusShipmentRow.cus-cards.test.tsx pin đổi sang symmetric law.
+  Scoped: 6 file / 187 tests pass.
