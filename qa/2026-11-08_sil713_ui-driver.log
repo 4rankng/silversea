@@ -1,0 +1,69 @@
+
+=== run 2026-11-08T07:24:03.933Z ===
+2026-11-08T07:24:04.470Z login dungnv: OK
+2026-11-08T07:24:04.749Z trip 779202 pre-drive: CREATED|null
+2026-11-08T07:24:24.506Z DRIVE ERROR: row SHP-2611-00422 not on page 1
+2026-11-08T07:24:24.628Z shot 99-error
+2026-11-08T07:24:25.041Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-08T07:24:59.323Z ===
+2026-11-08T07:24:59.645Z login dungnv: OK
+2026-11-08T07:24:59.853Z trip 779202 pre-drive: CREATED|null
+2026-11-08T07:25:20.324Z DRIVE ERROR: row SHP-2611-00422 not on page 1
+2026-11-08T07:25:21.131Z shot 99-error
+2026-11-08T07:25:21.627Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-08T07:26:26.017Z ===
+2026-11-08T07:26:26.875Z login dungnv: OK
+2026-11-08T07:26:27.200Z trip 779202 pre-drive: CREATED|null
+2026-11-08T07:26:52.979Z DRIVE ERROR: row SHP-2611-00422 not on page 1
+2026-11-08T07:26:54.016Z shot 99-error
+2026-11-08T07:26:54.342Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-08T07:28:16.627Z ===
+2026-11-08T07:28:17.374Z login dungnv: OK
+2026-11-08T07:28:17.568Z trip 779202 pre-drive: CREATED|null
+2026-11-08T07:28:36.003Z DRIVE ERROR: row F1-688-LIVE-trBh not on page 1
+2026-11-08T07:28:36.393Z shot 99-error
+2026-11-08T07:28:36.769Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-08T07:28:57.805Z ===
+2026-11-08T07:28:58.477Z login dungnv: OK
+2026-11-08T07:28:58.897Z trip 779202 pre-drive: CREATED|null
+2026-11-08T07:29:28.991Z menu Thao tác dòng · F1-688-LIVE-trBh: [Hủy phân xe · Hoàn thành · Gộp hàng · Ghép chuyến]
+2026-11-08T07:29:28.992Z PASS issued row menu carries Hủy phân xe
+2026-11-08T07:29:28.993Z PASS issued row menu carries Hoàn thành (the SIL-713 regression)
+2026-11-08T07:29:29.102Z shot 01-issued-row-menu
+2026-11-08T07:29:29.873Z confirm dialog: Hoàn thành chuyến F1-688-LIVE-trBh? Chốt chuyến thay tài xế — xe nội bộ thường tự hoàn thành trên app tài xế. Hủy Hoàn thành chuyến
+2026-11-08T07:29:30.169Z shot 02-confirm-dialog
+2026-11-08T07:29:32.016Z row after close: null
+2026-11-08T07:29:32.092Z shot 03-after-complete
+2026-11-08T07:29:32.365Z trip 779202 post-drive: CREATED|null
+2026-11-08T07:29:32.365Z FAIL trips.status=COMPLETED with completed_at set (got CREATED|null)
+2026-11-08T07:29:32.845Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-08T07:30:10.985Z ===
+2026-11-08T07:30:11.982Z login dungnv: OK
+2026-11-08T07:30:12.265Z trip 779202 pre-drive: CREATED|null
+2026-11-08T07:30:45.915Z menu Thao tác dòng · F1-688-LIVE-trBh: [Hủy phân xe · Hoàn thành · Gộp hàng · Ghép chuyến]
+2026-11-08T07:30:45.916Z PASS issued row menu carries Hủy phân xe
+2026-11-08T07:30:45.917Z PASS issued row menu carries Hoàn thành (the SIL-713 regression)
+2026-11-08T07:30:46.070Z shot 01-issued-row-menu
+2026-11-08T07:30:46.919Z confirm dialog: Hoàn thành chuyến F1-688-LIVE-trBh? Chốt chuyến thay tài xế — xe nội bộ thường tự hoàn thành trên app tài xế. Hủy Hoàn thành chuyến
+2026-11-08T07:30:47.127Z shot 02-confirm-dialog
+2026-11-08T07:30:47.245Z API POST http://localhost:7189/api/trips/779202/complete-external → 409
+2026-11-08T07:30:47.326Z API body: {"error":"Chỉ hoàn thành bằng đường này với chuyến xe ngoài."}
+2026-11-08T07:30:49.048Z row after close: null
+2026-11-08T07:30:49.215Z shot 03-after-complete
+2026-11-08T07:30:49.697Z trip 779202 post-drive: CREATED|null
+2026-11-08T07:30:49.698Z FAIL trips.status=COMPLETED with completed_at set (got CREATED|null)
+2026-11-08T07:30:50.208Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-08T07:36:33.699Z ===
+2026-11-08T07:36:34.136Z login dungnv: OK
+2026-11-08T07:36:34.401Z trip 54 fixture: CREATED|EXTERNAL|null
+2026-11-08T07:37:13.840Z menu Thao tác dòng · R42DIS-02: [Hủy phân xe · Hoàn thành · Gộp hàng]
+2026-11-08T07:37:13.842Z PASS external issued row menu carries Hủy phân xe
+2026-11-08T07:37:13.842Z PASS external issued row menu carries Hoàn thành (Spec I.4d — the QA '0 occurrences' repro)
+2026-11-08T07:37:14.042Z shot 01-external-issued-row-menu
+2026-11-08T07:37:14.707Z DRIVER_EXIT:0 failures=0

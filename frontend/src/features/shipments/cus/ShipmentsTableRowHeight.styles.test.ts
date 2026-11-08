@@ -13,7 +13,7 @@ describe('SIL-646 (id 751) — shipments table row height and overflow laws', ()
 
   it('enforces cell trigger padding alignment with table cells (padding: 6px 10px)', () => {
     const triggerRule = css.match(
-      /\.cus-dashboard-cell--editable > \.cus-inline-trigger,\s*\.cus-dashboard-cell--readonly > \.cus-inline-trigger\s*\{([^}]*)\}/,
+      /\.cus-dashboard-cell--editable > \.cus-inline-trigger\s*\{([^}]*)\}/,
     )?.[1] ?? '';
     expect(triggerRule, 'trigger rule exists').not.toBe('');
     expect(triggerRule).toMatch(/min-height:\s*100%;/);

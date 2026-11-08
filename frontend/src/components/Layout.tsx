@@ -377,8 +377,8 @@ function buildNavItems(
     case 'OPS': {
       return [
         // Tổng quan Ops (route /ops) — ungrouped home entry, first, the same
-        // way /dashboard and /accounting lead their roles. opsHome stays
-        // /my-orders; this is the overview dashboard, not the role home.
+        // way /dashboard and /accounting lead their roles. opsHome is
+        // /ops/orders (SIL-730); this is the overview dashboard, not the role home.
         { key: 'ops-overview', path: routes.opsOverview, icon: LayoutDashboard, section: undefined },
         // Vận hành hiện trường (OpsVanHanh) — kế hoạch làm hàng là màn chính.
         { key: 'ops-orders', path: routes.opsOrders, icon: ClipboardList, section: 'my-work' as SectionName },

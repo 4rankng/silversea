@@ -1,0 +1,3 @@
+2026-11-08 lane GLM (k12b-fix) — root pnpm lint
+exit 0 — 0 errors, 6 warnings (pre-existing: usePopoverDialog.ts:181, CustomersConfigPage.tsx:204 — untouched files)
+LINT_EXIT:0

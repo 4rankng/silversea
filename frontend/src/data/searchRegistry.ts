@@ -127,11 +127,12 @@ const CUS_ITEMS: SearchItem[] = [
 ];
 
 const FORWARDER_ITEMS: SearchItem[] = [
-  { id: 'my-orders',           type: 'page',   label: 'Lệnh giao nhận',  path: '/my-orders',           iconName: 'cargo' },
+  // SIL-730 (id 850): the 'Lệnh giao nhận' page entry is gone — /my-orders
+  // retired; the work surface is /ops/orders.
   // Owner ruling 2026-10-12 (FB-033): the expense dialog stays OPS-only and
   // keeps its 'Khai chi phí' button label — the palette just answers the
   // vocabulary people actually use when they search for it.
-  { id: 'my-orders-expense',   type: 'action', label: 'Ghi nhận chi phí', path: '/my-orders',          iconName: 'expense-category', description: 'Mở Kế hoạch làm hàng rồi bấm "Khai chi phí" trên dòng lô cần ghi.' },
+  { id: 'my-orders-expense',   type: 'action', label: 'Ghi nhận chi phí', path: '/ops/orders',          iconName: 'expense-category', description: 'Mở Kế hoạch làm hàng rồi bấm "Khai chi phí" trên dòng lô cần ghi.' },
   { id: 'my-forwarder-trips', type: 'page', label: 'Chuyến đi',         path: '/my-forwarder-trips', iconName: 'cargo' },
   { id: 'my-advances',        type: 'page', label: 'Tạm ứng',           path: '/my-advances',        iconName: 'advances' },
   { id: 'my-settlements',     type: 'page', label: 'Phiếu thanh toán',  path: '/my-settlements',     iconName: 'settlement' },
@@ -188,7 +189,7 @@ export function getSearchItems(role: string, capabilities: readonly string[] = [
       return CUS_ITEMS;
     case 'FORWARDER':
       return FORWARDER_ITEMS;
-    // FB-033 (111026164510): OPS drives the same /my-orders surface as FORWARDER
+    // FB-033 (111026164510): OPS drives the same work palette as FORWARDER
     // (and owns the 'Khai chi phí' expense dialog), so it mirrors the forwarder
     // palette. Without this case OPS fell through to `default` and the palette
     // came up empty for the whole role.

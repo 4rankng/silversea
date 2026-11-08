@@ -37,7 +37,8 @@ import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
 import { useHiddenColumns } from '../hooks/useHiddenColumns';
 import { noteLines, safeError } from '../features/shipments/cus/cusUtils';
 import { completeDispatchExternalTrip } from '../api/dispatchPlanningClient';
-import { canCloseExternalTrips } from '../lib/role-access';
+import { canCloseExternalTrips, canUpdateExternalPlates } from '../lib/role-access';
+import { TripExternalPlateDialog } from '../components/trip/TripExternalPlateDialog';
 import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
 import type { OpsOrderItem } from '../api/opsClient';
 import '../styles/operational-table-typography.css';
@@ -138,6 +139,8 @@ export default function ShipmentsPage() {
   // SIL-592 (id 692) — hide the external-trip staff close outside the
   // backend's complete-external allowlist (ADMIN/MANAGER/DISPATCHER/CUS).
   const canCloseExternal = canCloseExternalTrips(user?.role);
+  // SIL-714 (Spec I.4e): Cập nhật biển số rides the SAME four-role allowlist.
+  const canUpdatePlate = canUpdateExternalPlates(user?.role);
   // SIL-706: Sửa lô metadata chỉ dành cho ADMIN, MANAGER, CUS (DISPATCHER bị rút quyền sửa metadata).
   const canEditLot = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS);
   const userRole = getModernRole(user?.role || '').toUpperCase();
@@ -510,6 +513,19 @@ export default function ShipmentsPage() {
   const drawerDeclarationActions = useMemo(() => (
     drawerDeclarationEditable ? { onSaveDeclaration: saveDrawerDeclaration, onCopyDeclaration: copyDrawerDeclaration } : undefined
   ), [copyDrawerDeclaration, drawerDeclarationEditable, saveDrawerDeclaration]);
+  // SIL-714 (Spec I.4e) — Cập nhật biển số on the drawer's Nhà xe / BKS cell
+  // (D2 click-sửa): the shared dialog owns the input; the page owns the
+  // reload + notice, the same contract as the staff close above.
+  const [drawerPlateTrip, setDrawerPlateTrip] = useState<{ tripId: number; carrierName: string | null } | null>(null);
+  const updateDrawerExternalPlate = useCallback((line: ShipmentCusWorkspaceContainerLine) => {
+    if (line.tripId != null) setDrawerPlateTrip({ tripId: line.tripId, carrierName: line.carrierName });
+  }, []);
+  const handleDrawerPlateSaved = useCallback(() => {
+    setDrawerPlateTrip(null);
+    ws.setNotice('Đã cập nhật biển số xe ngoài.');
+    if (drawerId != null) void ws.loadDetail(drawerId, true);
+    void ws.loadList();
+  }, [drawerId, ws]);
   // SIL-508: the SỐ CONTAINER group's inline lines (số cont / loại / trọng
   // lượng) ride the SAME container-line command and gate split as tờ khai —
   // intake authority + no accounting lock from the page, the per-field
@@ -911,6 +927,7 @@ export default function ShipmentsPage() {
                 onAddContainer={drawerCanAddContainer ? addDrawerContainer : undefined}
                 addContainerSource={drawerCanAddContainer ? drawerAddSource : null}
                 onCompleteExternalTrip={canCloseExternal ? completeDrawerExternalTrip : undefined}
+                onUpdateExternalPlate={canUpdatePlate ? updateDrawerExternalPlate : undefined}
                 onDeclareExpense={canDeclareOpsExpense ? () => void handleOpenExpenseModal(drawerItem) : undefined}
               />
             </>
@@ -919,6 +936,15 @@ export default function ShipmentsPage() {
       </Drawer>
 
       <ShipmentActionModal actions={actions} />
+
+      {/* SIL-714 (Spec I.4e): the shared Cập nhật biển số dialog for the
+          drawer's awaiting-plate external lines; closed while tripId null. */}
+      <TripExternalPlateDialog
+        tripId={drawerPlateTrip?.tripId ?? null}
+        carrierName={drawerPlateTrip?.carrierName ?? null}
+        onClose={() => setDrawerPlateTrip(null)}
+        onSaved={handleDrawerPlateSaved}
+      />
 
       {expenseOrder && (
         <OpsExpenseFormModal

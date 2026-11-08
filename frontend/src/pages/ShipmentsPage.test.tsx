@@ -327,7 +327,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     const row = masterRow();
-    const detailButton = within(row).getByRole('button', { name: /Mở chi tiết lô hàng/ });
+    // SIL-699 r2: every read-only cell also opens the drawer with the same
+    // 'Mở chi tiết lô hàng' name — pin the row's LINK button via its class.
+    const detailButton = masterRowDetailButton();
+    expect(row.contains(detailButton)).toBe(true);
     expect(detailButton.textContent).toContain('Chi tiết');
     expect(detailButton.querySelector('svg')).toBeNull();
     expect(within(row).queryByRole('button', { name: /Xóa lô hàng/ })).toBeNull();
@@ -447,7 +450,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       : Promise.resolve(listResponse()));
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     // SIL-485 view sheet + SIL-508 group: an empty SỐ line still names the
     // missing fact in words — the writable drawer shows the action phrase
     // ("Nhập số cont") on its ghost trigger, the read-only drawer says
@@ -532,7 +535,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('opens straight into the content — stepper, chips and cards, no tabs (SIL-485)', async () => {
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     const drawer = await screen.findByRole('dialog');
     // Still a single-view surface: no segmented lot bar and no 'Chi tiết lô
     // hàng' Link to /shipments/:id inside the drawer.
@@ -614,7 +617,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     const statusCell = within(masterRow()).getByText('Sẵn sàng điều xe').closest('td');
     expect(statusCell).toBeTruthy();
     expect(statusCell?.querySelector('.cus-row-actions__status')).toBeTruthy();
-    expect(within(statusCell!).getByRole('button', { name: /Mở chi tiết lô hàng BILL-12345/ }).textContent).toContain('Chi tiết');
+    // ', trạng thái' suffix keeps this on the row's LINK button — the cell
+    // triggers (SIL-699 r2) carry the same prefix without the suffix.
+    expect(within(statusCell!).getByRole('button', { name: /Mở chi tiết lô hàng BILL-12345, trạng thái/ }).textContent).toContain('Chi tiết');
     expect(css).toContain('.cus-dashboard-detail {');
     expect(recordCss).toMatch(/\.cus-row-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*justify-content:\s*space-between;/);
   });
@@ -1252,7 +1257,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(lines).toHaveLength(2);
   });
 
-  it('documents quick-edit với Bill/Booking READ_ONLY: nhóm bị chặn mở — hết đường ghi tờ khai cấp lô (SIL-521)', async () => {
+  it('documents cell với Bill/Booking READ_ONLY: mở DRAWER thay editor — hết đường ghi tờ khai cấp lô (SIL-521, SIL-699 r2)', async () => {
     const declarationOnlyRow: ShipmentCusWorkspaceListItem = {
       ...row,
       fieldAccess: {
@@ -1270,9 +1275,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
 
     // documents mode giờ chỉ ghi Bill/Booking (SIL-521 bỏ tờ khai cấp lô) —
-    // khi cả hai READ_ONLY, nhóm không còn gì ghi được: click bị từ chối,
-    // không dialog, không API call.
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
+    // khi cả hai READ_ONLY, nhóm không còn gì ghi được: ô chuyển sang mở
+    // DRAWER chi tiết lô (SIL-699 r2: không còn ô chết), không editor, không ghi.
+    const documentsTrigger = within(masterRow()).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
+      .find((button) => button.getAttribute('data-cell-label') === 'Chứng từ');
+    expect(documentsTrigger).toBeTruthy();
+    fireEvent.click(documentsTrigger!);
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
     expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull();
     expect(apiPut).not.toHaveBeenCalled();
     expect(apiPost).not.toHaveBeenCalled();
@@ -1633,12 +1643,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(source).not.toContain('ReactMouseEvent');
     expect(rowSource).toContain('data-cell-label="Chứng từ"');
     expect(css).toMatch(/\.cus-dashboard-cell--editable\s*\{[^}]*padding:\s*0 !important;/);
-    expect(css).toMatch(/\.cus-dashboard-cell--readonly\s*\{[^}]*padding:\s*0 !important;/);
-    expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger,\s*\.cus-dashboard-cell--readonly > \.cus-inline-trigger\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*100%;/);
-    // Read-only FCL schedule cells fill their row and stay visually inert:
-    // the transparent background/border must be locked so neither the
-    // trigger-hover rule nor the td:hover rule can repaint them.
-    expect(css).toMatch(/\.cus-dashboard-cell--readonly > \.cus-inline-trigger\s*\{[^}]*cursor:\s*default;[^}]*background:\s*transparent !important;[^}]*border-color:\s*transparent !important;/);
+    // SIL-699 r2: no read-only cells remain — every data cell answers its
+    // click (quick-edit or the lot drawer), so the readonly geometry rules
+    // are gone with the class.
+    expect(css).not.toContain('cus-dashboard-cell--readonly');
+    expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*100%;/);
     expect(recordCss).toMatch(/tbody > tr > td::before\s*\{\s*display:\s*none;/);
     expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*content:\s*attr\(data-cell-label\);/);
   });
@@ -1682,7 +1691,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.keyDown(screen.getByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' }), { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeNull());
 
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     // SIL-485: the drawer shows the read-only review sheet; editing leaves the
     // drawer entirely (footer "Sửa" navigates).
     await within(await screen.findByRole('dialog')).findByText('MSKU1234567');
@@ -1706,7 +1715,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
@@ -1727,7 +1736,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     authState.user.role = Role.CUS;
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
@@ -1749,7 +1758,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     authState.user.role = Role.ADMIN;
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
@@ -1768,7 +1777,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     authState.user.role = Role.ACCOUNTANT;
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     expect(within(drawer).queryByRole('button', { name: 'Xóa lô' })).toBeNull();
@@ -1790,7 +1799,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
 
@@ -1804,7 +1813,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     authState.user.role = Role.OPS;
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     const expenseButtons = within(drawer).getAllByRole('button', { name: /Khai chi phí/ });
@@ -1814,7 +1823,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
 
-  it('does not open edit dialogs or the drawer from locked shipment cells', async () => {
+  it('locked shipment cells answer with the lot DRAWER — no editor, no write (SIL-699 r2)', async () => {
     const lockedFieldAccess = Object.fromEntries(Object.entries(row.fieldAccess).map(([key, access]) => [
       key,
       { ...access, mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
@@ -1827,31 +1836,32 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       fieldAccess: lockedFieldAccess,
       operational: { ...row.operational, transportDateEditable: false },
     };
-    apiGet.mockResolvedValue(listResponse([lockedRow]));
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([lockedRow]))
+    ));
 
     renderPage();
     await screen.findByRole('table');
     const rowElement = masterRow();
-    for (const name of [
-      'Sửa ô khách hàng và nhà máy BILL-12345',
-      'Sửa ô chứng từ BILL-12345',
-      'Sửa ô phân loại và hãng tàu BILL-12345',
-      'Sửa ô tổng quan hàng hóa BILL-12345',
-      'Sửa ô lịch trình lô hàng BILL-12345',
-      'Sửa ô ghi chú lô hàng BILL-12345',
-    ]) {
-      const cell = within(rowElement).getByRole('button', { name }).closest('th, td');
-      expect(cell).toBeTruthy();
-      fireEvent.click(cell!);
+    // Every read-only cell trigger answers with the same drawer action name —
+    // click each of them in turn (SIL-699 r2: no dead cells).
+    const cellTriggers = within(rowElement).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' });
+    expect(cellTriggers.length).toBeGreaterThanOrEqual(5);
+    for (const cellTrigger of cellTriggers) {
+      fireEvent.click(cellTrigger);
+      // The read-only cell opens the lot DRAWER — never an editor dialog.
+      const drawer = await screen.findByRole('dialog');
+      expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
+      expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
+      expect(screen.queryByLabelText('Ghi chú cho khách hàng')).toBeNull();
+      fireEvent.click(within(drawer).getByRole('button', { name: 'Đóng' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     }
-
-    expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
-    expect(screen.queryByLabelText('Ghi chú cho khách hàng')).toBeNull();
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
   });
 
-  it('keeps the notes cell editable on locked lots while the schedule stays locked', async () => {
+  it('keeps the notes cell editable on locked lots while the locked schedule opens the drawer (SIL-699 r2)', async () => {
     const lockedFieldAccess = Object.fromEntries(Object.entries(row.fieldAccess).map(([key, access]) => [
       key,
       { ...access, mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
@@ -1868,7 +1878,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       },
       operational: { ...row.operational, transportDateEditable: false },
     };
-    apiGet.mockResolvedValue(listResponse([lockedRow]));
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/1'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([lockedRow]))
+    ));
 
     renderPage();
     await screen.findByRole('table');
@@ -1877,8 +1891,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(notesButton).not.toBeDisabled();
     fireEvent.click(notesButton);
     expect(await screen.findByLabelText('Ghi chú cho khách hàng')).toBeTruthy();
-    const scheduleButton = within(rowElement).getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' });
-    expect(scheduleButton).toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByLabelText('Ghi chú cho khách hàng')).toBeNull());
+    // The locked schedule cell is not a dead trigger: it opens the lot drawer.
+    const scheduleTrigger = within(rowElement).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
+      .find((button) => button.getAttribute('data-cell-label') === 'Lịch trình & điều xe');
+    expect(scheduleTrigger).toBeTruthy();
+    fireEvent.click(scheduleTrigger!);
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
+    expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
   });
 
   it('cancels a cell dialog with Escape without persisting', async () => {
@@ -2187,7 +2209,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Mở chi tiết lô hàng/ }));
+    fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Sửa' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

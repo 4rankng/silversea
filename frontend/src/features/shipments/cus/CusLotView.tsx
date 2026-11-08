@@ -15,6 +15,7 @@ import { formatTimeShortDate } from '../../../lib/shipment-operations';
 import {
   accountingConfirmationLabel,
   canCompleteExternalTrip,
+  canUpdateExternalTripPlate,
   deriveShipmentSignals,
   dispatchStatusLabel,
 } from './cusUtils';
@@ -718,6 +719,7 @@ export function CusLotView({
   canEditCargoLines = false,
   containerLineActions,
   onCompleteExternalTrip,
+  onUpdateExternalPlate,
   onAddContainer,
   addContainerSource = null,
   onDeclareExpense,
@@ -742,6 +744,14 @@ export function CusLotView({
    * OWN/terminal/planned lines clean. Rejects keep the dialog open.
    */
   onCompleteExternalTrip?: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
+  /**
+   * SIL-714 (Spec I.4e) — Cập nhật biển số for the line's live external trip
+   * still awaiting its plate: the Nhà xe / BKS cell becomes a click-to-edit
+   * trigger (D2 quick edit) opening the shared dialog. Absent outside the
+   * backend allowlist (ADMIN/MANAGER/DISPATCHER/CUS); the row gate keeps
+   * OWN/plated/terminal lines plain text.
+   */
+  onUpdateExternalPlate?: (line: ShipmentCusWorkspaceContainerLine) => void;
   /** SIL-717 (id 837) — the drawer's "Thêm container" write + the row it
    *  copies (the sheet's LAST row); the host page owns both. */
   onAddContainer?: (entry: ContainerAddEntry) => Promise<boolean>;
@@ -886,7 +896,25 @@ export function CusLotView({
                           </td>
                           <td>{siteLabel(detail, line.operationalSiteId)}</td>
                           <td>{line.routeName ?? dash}</td>
-                          <td>{carrierLine(line)}</td>
+                          <td>
+                            {/* SIL-714 (Spec I.4e): a live external trip still
+                                awaiting its plate makes the Nhà xe / BKS cell a
+                                click-to-edit trigger (D2 quick edit) — the same
+                                house trigger idiom as the SỐ CONTAINER group;
+                                plated/OWN/terminal lines stay plain text. */}
+                            {onUpdateExternalPlate && canUpdateExternalTripPlate(line) ? (
+                              <button
+                                type="button"
+                                className="cus-lot-line--trigger"
+                                aria-haspopup="dialog"
+                                aria-label={`Cập nhật biển số xe ngoài cho ${line.containerNumber?.trim() || `cont ${line.ordinal}`}`}
+                                title="Bấm để nhập biển số thực tế — Điều vận và Chứng từ đều được sửa"
+                                onClick={() => onUpdateExternalPlate(line)}
+                              >
+                                <span className="cus-lot-line__value">{carrierLine(line)}</span>
+                              </button>
+                            ) : carrierLine(line)}
+                          </td>
                           <td>{line.liftSite ?? dash}</td>
                           <td>{line.dropoffSite ?? dash}</td>
                           <td>{line.customerAppointmentAt ? formatTimeShortDate(line.customerAppointmentAt) : dash}</td>

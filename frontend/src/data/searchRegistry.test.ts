@@ -146,9 +146,10 @@ describe('forwarder (Ops) palette covers the expense vocabulary (FB-033)', () =>
     const ops = getSearchItems('FORWARDER');
     for (const query of ['ghi nhận chi phí', 'khai chi phí', 'chi phí']) {
       const hits = filterItems(ops, query);
-      expect(hits.some(i => i.id === 'my-orders-expense' && i.path === '/my-orders'), query).toBe(true);
+      // SIL-730: the expense action rides /ops/orders — /my-orders is retired.
+      expect(hits.some(i => i.id === 'my-orders-expense' && i.path === '/ops/orders'), query).toBe(true);
     }
-    expect(ops.some(i => i.id === 'my-orders' && i.type === 'page')).toBe(true);
+    expect(ops.some(i => i.id === 'my-orders' && i.type === 'page')).toBe(false);
   });
 
   // FB-033 follow-up (111026164510): the 'OPS' role value fell through to the

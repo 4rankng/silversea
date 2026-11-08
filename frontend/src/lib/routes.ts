@@ -126,7 +126,6 @@ export const routes = {
 
   /* ── Forwarder portal ──────────────────────────────────────────────── */
 
-  myOrders: PAGE_CATALOG.myOrders.path,
   myForwarderTrips: PAGE_CATALOG.myForwarderTrips.path,
   myForwarderTripDetail: (id: number | string) => PAGE_CATALOG.myForwarderTripDetail.path({ id }),
   myAdvances: PAGE_CATALOG.myAdvances.path,
@@ -180,7 +179,7 @@ export const routes = {
  * - ACCOUNTANT → /accounting
  * - DISPATCHER → /dispatch
  * - CLERK/CUS → /shipments
- * - FORWARDER/OPS → /my-orders
+ * - FORWARDER/OPS → /ops/orders (SIL-730, id 850 — /my-orders retired)
  * - DRIVER → /my-trips
  * - CUSTOMER → /portal/shipments
  */
@@ -190,7 +189,7 @@ export function homeForRole(role: string): string {
       return routes.myTrips;
     case 'OPS':
     case 'FORWARDER':
-      return routes.myOrders;
+      return routes.opsOrders;
     case 'CUSTOMER':
       return routes.portalShipments;
     case 'CUS':
@@ -302,7 +301,6 @@ const titleRules: TitleRule[] = [
   { test: p => p === routes.opsWallet, title: PAGE_CATALOG.opsWallet.title },
   { test: p => p === routes.opsOrders, title: PAGE_CATALOG.opsOrders.title },
   { test: p => p === routes.opsFleetTracking, title: PAGE_CATALOG.opsFleetTracking.title },
-  { test: p => p.startsWith(routes.myOrders), title: PAGE_CATALOG.myOrders.title },
   { test: p => p.startsWith(routes.myForwarderTrips), title: PAGE_CATALOG.myForwarderTrips.title },
   { test: p => p.startsWith(routes.myAdvances), title: PAGE_CATALOG.myAdvances.title },
   { test: p => /^\/my-settlements\/\d+$/.test(p), title: PAGE_CATALOG.mySettlementDetail.title },

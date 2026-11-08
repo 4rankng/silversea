@@ -177,6 +177,45 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
     expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
   });
 
+  // SIL-713 (Spec I.4d, QA 08/11 — "Hoàn thành occurs 0 times on the board"):
+  // the verb lives in the ⋯ menu of EVERY live EXTERNAL issued row — đã phát
+  // lệnh (CREATED) lẫn đang chạy (IN_TRANSIT). The QA sweep that day had no
+  // external live row, so the board showed no Hoàn thành anywhere; these pins
+  // guard the two live states the ruling names. OWN live trips carry NO
+  // Hoàn thành: the status machine refuses the staff close for own trips
+  // (409 'Chỉ hoàn thành bằng đường này với chuyến xe ngoài') — the driver
+  // app owns that flow; a menu item there would be a dead control (SIL-551).
+  it('an EXTERNAL issued trip carries Hoàn thành in the ⋯ menu (SIL-713)', () => {
+    renderGrid(makeRow({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'ĐĂNG QUÂN', externalCarrierId: 11, externalCarrierVehicleId: null, assignedPlate: null, tripId: 356, tripStatus: 'CREATED' },
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.getByRole('menuitem', { name: 'Hoàn thành' })).toBeTruthy();
+  });
+
+  it('an EXTERNAL running trip still carries Hoàn thành (SIL-713)', () => {
+    renderGrid(makeRow({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'ĐĂNG QUÂN', externalCarrierId: 11, externalCarrierVehicleId: null, assignedPlate: null, tripId: 357, tripStatus: 'IN_TRANSIT' },
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.getByRole('menuitem', { name: 'Hoàn thành' })).toBeTruthy();
+  });
+
+  it('an OWN live trip never carries Hoàn thành — the driver app closes own trips (SIL-713)', () => {
+    renderGrid(makeRow({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, tripId: 9003, tripStatus: 'IN_TRANSIT' },
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Hoàn thành' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
+  });
+
   it('an external live trip still waiting for its plate carries Cập nhật biển số (SIL-714)', () => {
     const onUpdateExternalPlate = vi.fn();
     renderGrid(makeRow({
