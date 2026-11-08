@@ -20,6 +20,7 @@ import { effectiveLotContainerCount } from '@tingting/shared';
 import { loadFreightSnapshotChannelByLot, loadRevManualPriceByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
+import { receivableDetermined } from './debit-receivable-arming';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -404,10 +405,15 @@ export async function getShipmentDebitSummary(query: {
     const lock = lockedByLot.get(lot.id);
     const revenue = revenueByLot.get(lot.id);
     const ps = psByLot.get(lot.id);
-    const hasAnyRevenue = revenue != null
-      || freightAuto != null
-      || (ps?.known ?? false)
-      || (opsChargeByLot.get(lot.id)?.known ?? false);
+    const opsCharge = opsChargeByLot.get(lot.id);
+    // SIL-731 r2 — arming rides receivableDetermined: a known-but-zero PS or
+    // ops charge alone must not fabricate a DOANH THU 0 (lô 100GX19033).
+    const hasAnyRevenue = receivableDetermined({
+      hasRevenueRows: revenue != null,
+      freightKnown: freightAuto != null,
+      psKnownTotal: ps?.known ? ps.total : null,
+      opsChargeKnownTotal: opsCharge?.known ? opsCharge.total : null,
+    });
     const receivableValue = lock != null
       ? frozenNumber(lock.snapshot, 'receivableTotal')
       : hasAnyRevenue

@@ -104,8 +104,14 @@ export default function DispatchDetailPlanPage() {
         const num = Number(val);
         return Number.isFinite(num) ? num : null;
       };
+      // SIL-708 — the cancel payload must be the NEUTRAL unassigned carrier
+      // ('OWN' + clearVehicle) for BOTH fleet types. Keeping the row's
+      // EXTERNAL carrierType here shipped a plan save without externalCarrierId
+      // → schema 400 'Nhà xe ngoài là bắt buộc.' and the lot never returned to
+      // 'Chưa phân xe' (QA 07/11, lô R3Q-680-B). 'OWN' with no vehicle is the
+      // stored shape of an unassigned row on every surface.
       await detailPlan.savePlan(cancelDispatchRow, {
-        carrierType: cancelDispatchRow.dispatch.carrierType ?? 'OWN',
+        carrierType: 'OWN',
         clearVehicle: true,
         plannedRevenue: parseEstimate(cancelDispatchRow.estimates.plannedRevenue),
         plannedCarrierCost: parseEstimate(cancelDispatchRow.estimates.plannedCarrierCost),

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useId, useState } from 'react';
 import { Select as UUISelect } from '../../components/untitled-ui/base/select/select';
+import type { PopoverProps } from 'react-aria-components';
 import { currentPathname, hasOperationalDensity } from '../../lib/operational-density';
 import './UuiSelectField.css';
 
@@ -54,6 +55,9 @@ export interface UuiSelectFieldProps {
   wrapperClassName?: string;
   controlClassName?: string;
   popoverClassName?: string;
+  /** SIL-707 r2 — pin the options overlay ABOVE the trigger (row pickers in
+   *  dense dialogs so an open picker never covers the row below). */
+  popoverPlacement?: PopoverProps["placement"];
   /** Compact filters by default; ordinary form controls can opt into md. */
   size?: 'sm' | 'md';
   /** Finite category pickers can keep a plain dropdown even with many choices. */
@@ -89,6 +93,7 @@ export function UuiSelectField({
   wrapperClassName,
   controlClassName,
   popoverClassName,
+  popoverPlacement,
   icon,
   size = 'sm',
   searchable,
@@ -145,6 +150,7 @@ export function UuiSelectField({
           isInvalid={invalid ?? Boolean(error)}
           hideRequiredIndicator={!required}
           popoverClassName={popoverClassName ?? 'ds-uui-select__popover'}
+          popoverPlacement={popoverPlacement}
           className="ds-uui-select__control"
           triggerClassName={controlClassName}
         >
@@ -173,6 +179,7 @@ export function UuiSelectField({
           isInvalid={invalid ?? Boolean(error)}
           hideRequiredIndicator={!required}
           popoverClassName={popoverClassName ?? 'ds-uui-select__popover'}
+          popoverPlacement={popoverPlacement}
           className="ds-uui-select__control"
           triggerClassName={controlClassName}
           icon={icon}

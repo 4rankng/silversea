@@ -389,7 +389,7 @@ describe('DriverTripDetailPage', () => {
   // Offline queue and conflict recovery have been removed — the accept bar
   // now uses a direct API call.  Conflict-banner tests are no longer applicable.
 
-  it('renders the e-POD footer CTA enabled and gates on the two missing photos', async () => {
+  it('renders the e-POD footer CTA enabled and names the two missing photos (informational only)', async () => {
     renderPage();
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
@@ -437,8 +437,9 @@ describe('DriverTripDetailPage', () => {
   });
 
   // SIL-638 TC9 (id 742): completing transport order directly from the detail
-  // screen. SIL-697 (owner decision Frank 06/11 — supersedes the 31/10
-  // optional-photos ruling): the action requires BOTH e-POD file types.
+  // screen. With BOTH file types on the DRAFT the completion submits the POD
+  // first (SIL-697 stays enforced on this complete-draft submit) and then
+  // completes; with files missing SIL-733 r2 completes WITHOUT submitting.
   it('TC9: confirms and completes trip from sticky CTA with both e-POD files on the draft, invalidating journeyBoard', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
@@ -498,8 +499,11 @@ describe('DriverTripDetailPage', () => {
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
   });
 
-  // SIL-733 (owner ruling 22/10, reversing SIL-697 blocker): photo is OPTIONAL, does not block completion when photos are missing
-  it('SIL-733: the sticky CTA allows completion on a zero-file draft (photos are optional)', async () => {
+  // SIL-733 (owner law 22/10 card 261022213755a, reaffirmed 07/11): photos are
+  // OPTIONAL — completion never blocks on missing files. The incomplete DRAFT
+  // is NOT auto-submitted (SIL-697 stays enforced on the explicit e-POD
+  // submit path); the trip completes regardless.
+  it('SIL-733: the sticky CTA completes on a zero-file draft without submitting it', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -548,6 +552,59 @@ describe('DriverTripDetailPage', () => {
     fireEvent.click(confirmBtn);
 
     await waitFor(() => expect(completeSpy).toHaveBeenCalled());
+    // The 0-file DRAFT must NOT be auto-submitted: a submit would either 409
+    // (BE SIL-697 gate) or freeze the submission incomplete.
+    expect(submitPodSpy).not.toHaveBeenCalled();
+  });
+
+  it('SIL-733: a half-file draft (1/2 types) also completes without submitting — QA repro R8B-697-B', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          id: 22,
+          tripId: 55,
+          fulfillmentId: 88,
+          submissionVersion: 1,
+          status: TripPodStatus.DRAFT,
+          version: 2,
+          createdAt: '2026-08-01T01:00:00.000Z',
+          updatedAt: '2026-08-01T01:00:00.000Z',
+          submittedAt: null,
+          reviewedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          acceptedAt: null,
+          supersedesSubmissionId: null,
+          files: [{ id: 1, fileType: 'YARD_OR_DROP_RECEIPT', storageKey: 'k1' } as never],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    useDriverTaskProgressMock.mockReturnValue({
+      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const completeSpy = vi.spyOn(driverClient, 'completeTrip').mockResolvedValue({} as never);
+    const submitPodSpy = vi.spyOn(driverClient, 'submitPod').mockResolvedValue({} as never);
+    submitPodSpy.mockClear();
+    completeSpy.mockClear();
+
+    renderPageWithBoard(freshClient());
+
+    await screen.findByTestId('complete-sticky-bar');
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất lệnh vận chuyển' }));
+
+    const confirmBtn = await screen.findByRole('button', { name: 'Hoàn tất' });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => expect(completeSpy).toHaveBeenCalled());
+    expect(submitPodSpy).not.toHaveBeenCalled();
   });
 
   // SIL-652 (id 758): L2 (locked) trip hides the dead accept button and shows

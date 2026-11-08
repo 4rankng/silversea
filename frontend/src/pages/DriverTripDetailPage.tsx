@@ -20,7 +20,7 @@ import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
 import { DriverTaskInfoSections, DriverInvoiceSection, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
 import { EmptyState } from '../design-system';
-import { podRequiredFilesReady } from '../lib/podReadiness';
+import { podRequiredFilesReady, missingRequiredPodFileTypes } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
@@ -258,8 +258,12 @@ function DriverTripDetailContent() {
   }
 
   // SIL-638 TC9 (id 742): completing transport order directly from the detail
-  // screen. SIL-697 (owner decision Frank 06/11 — supersedes the 31/10
-  // optional-photos ruling): both required e-POD file types gate the action.
+  // screen. Owner law (card 261022213755a 22/10, reaffirmed 07/11 — "ảnh tùy
+  // chọn, 0 ảnh vẫn hoàn thành chuyến"): completion NEVER blocks on missing
+  // e-POD photos. The two required evidence types stay enforced on the
+  // explicit e-POD submit path only (SIL-697, DriverTripPodPage) — here an
+  // incomplete DRAFT is simply NOT auto-submitted (nothing freezes, files can
+  // still be added and nộp'd later); the trip completes regardless.
   async function handleCompleteTrip() {
     if (!trip || !validFulfillmentId || closed || completing) return;
     if (trip.status !== 'IN_TRANSIT') {
@@ -270,7 +274,6 @@ function DriverTripDetailContent() {
       toast({ kind: 'warning', message: 'Lô hàng đã khóa kế toán. Không thể hoàn thành chuyến.' });
       return;
     }
-    // SIL-733 (owner ruling 22/10): photo is OPTIONAL, do not block completion when photos are missing.
 
     const confirmed = await confirm('Xác nhận hoàn tất lệnh vận chuyển?', {
       variant: 'primary',
@@ -280,15 +283,18 @@ function DriverTripDetailContent() {
 
     setCompleting(true);
     try {
-      if (currentSubmission?.status === 'DRAFT') {
+      const draftSubmission = currentSubmission?.status === 'DRAFT' ? currentSubmission : null;
+      const draftHasBothTypes = draftSubmission != null
+        && missingRequiredPodFileTypes(draftSubmission).length === 0;
+      if (draftHasBothTypes) {
         const idempotencyKey = buildIdempotencyKey(
           'driver', 'task', validFulfillmentId,
-          'pod-submit', currentSubmission.id, 'version', currentSubmission.version,
+          'pod-submit', draftSubmission.id, 'version', draftSubmission.version,
         );
         await driverClient.submitPod(
           validFulfillmentId,
-          currentSubmission.id,
-          { expectedVersion: currentSubmission.version },
+          draftSubmission.id,
+          { expectedVersion: draftSubmission.version },
           idempotencyKey,
         );
       }
@@ -443,14 +449,15 @@ function DriverTripDetailContent() {
   const accountingLock = trip.accountingLock ?? null;
   // Spec (Phần 4): the completion gate lives on the e-POD screen
   // (/my-trips/:id/pod) — this page also completes directly via the sticky
-  // CTA. SIL-697: both required file types gate that CTA (missingPodFilesMessage);
-  // the footer names the missing docs so the driver uploads them first.
+  // CTA. SIL-733 r2 (22/10 law, reaffirmed 07/11): photos are OPTIONAL on
+  // this CTA — completion never blocks on missing e-POD files. These flags
+  // only feed the Chứng từ card copy so the driver knows what is still
+  // missing; upload them on the e-POD screen any time.
   const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
 
   // Card 20260926_28 item 10: live completion state for the sticky bar (and
-  // the top progress strip). SIL-697: the missing docs are REQUIRED before
-  // completion — the strip names them so the driver uploads on the e-POD
-  // screen first.
+  // the top progress strip). SIL-733 r2: the strip NAMES the missing docs
+  // (informational) — it never disables completion.
   const podHave = (hasYardReceipt ? 1 : 0) + (hasSignedNote ? 1 : 0);
   const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
   const photoHave = ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].filter((type) => photoTypes.has(type as never)).length;

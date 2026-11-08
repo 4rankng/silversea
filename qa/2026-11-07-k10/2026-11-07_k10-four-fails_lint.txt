@@ -1,0 +1,3 @@
+Command: pnpm lint (repo root)
+Exit: 0
+Result: 0 errors, 6 warnings (pre-existing, none in diff files; last warning line: 204:6 react-hooks/exhaustive-deps 'riskOf')

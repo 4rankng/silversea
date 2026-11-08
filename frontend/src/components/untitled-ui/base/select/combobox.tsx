@@ -3,7 +3,7 @@ import type { FC, FocusEventHandler, MouseEventHandler, PointerEventHandler, Rea
 import { isValidElement, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { SearchLg, XClose } from "@untitledui/icons";
-import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps } from "react-aria-components";
+import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps, PopoverProps } from "react-aria-components";
 import { ComboBox as AriaComboBox, Group as AriaGroup, Input as AriaInput, ListBox as AriaListBox, ComboBoxStateContext } from "react-aria-components";
 import { HintText } from "@/components/untitled-ui/base/input/hint-text";
 import { Label } from "@/components/untitled-ui/base/input/label";
@@ -18,6 +18,10 @@ interface ComboBoxProps extends Omit<AriaComboBoxProps<SelectItemType>, "childre
     shortcut?: boolean;
     items?: SelectItemType[];
     popoverClassName?: string;
+    /** SIL-707 r2 — pin the options overlay ABOVE the trigger. react-aria still
+     *  flips when the chosen side cannot fit; the UUI Popover measures the same
+     *  side for its fit cap. */
+    popoverPlacement?: PopoverProps["placement"];
     shortcutClassName?: string;
     /** Leading icon component displayed before the input. */
     icon?: FC | ReactNode;
@@ -478,7 +482,7 @@ export const ComboBox = ({
                             onPointerEnter={onResize}
                         />
 
-                        <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName}>
+                        <Popover size={size} triggerRef={placeholderRef} style={{ width: popoverWidth }} className={otherProps.popoverClassName} placement={otherProps.popoverPlacement}>
                             <AriaListBox
                                 items={items}
                                 className="size-full outline-hidden"

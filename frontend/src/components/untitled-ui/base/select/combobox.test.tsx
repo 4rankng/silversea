@@ -57,8 +57,9 @@ describe('ComboBox', () => {
   // ~200px above the field over the row above — users concluded "no
   // suggestions". Overlaying the sibling while the menu is open is standard
   // dropdown behavior; `shouldFlip` still lifts the menu when the trigger is
-  // jammed against the viewport bottom. The `popoverPlacement` prop was
-  // removed with the 9 overrides — this test pins the house default.
+  // jammed against the viewport bottom. SIL-707 r2 reintroduced an OPT-IN
+  // `popoverPlacement` prop (allocation-row carrier picker pins "top");
+  // callers that omit it keep this house default — which this test pins.
   it('renders the suggestion popover with bottom placement (house default)', async () => {
     vi.stubGlobal('innerWidth', 1440);
     vi.stubGlobal('innerHeight', 900);

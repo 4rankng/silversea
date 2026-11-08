@@ -23,7 +23,7 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: 
 // The page's data owner is pinned; the grid still mounts the real
 // PairTripsDialog so the test exercises the wiring this audit found dead
 // (`onOpenPair` was never passed, so the "Ghép chuyến" button never rendered).
-const plan = vi.hoisted(() => ({ refresh: vi.fn(), items: [] as DispatchDetailPlanRow[] }));
+const plan = vi.hoisted(() => ({ refresh: vi.fn(), savePlan: vi.fn(), items: [] as DispatchDetailPlanRow[] }));
 
 vi.mock('../features/dispatch/detailed-plan/useDispatchDetailPlan', async (importOriginal) => {
   const actual = await importOriginal<typeof UseDispatchDetailPlanModule>();
@@ -46,7 +46,7 @@ vi.mock('../features/dispatch/detailed-plan/useDispatchDetailPlan', async (impor
       sortKey: null,
       sortDirection: 'asc' as const,
       toggleSort: vi.fn(),
-      savePlan: vi.fn(),
+      savePlan: plan.savePlan,
       issueOrder: vi.fn(),
       ensureFulfillment: vi.fn(),
       autoOpenFulfillmentId: null,
@@ -137,6 +137,7 @@ function renderPage() {
 
 beforeEach(() => {
   plan.refresh.mockReset();
+  plan.savePlan.mockReset();
   plan.items = [row(900), row(901)];
   useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900 }), isLoading: false });
   vi.mocked(tripClient.getTrip).mockReset();
@@ -278,6 +279,14 @@ describe('DispatchDetailPlanPage — external completion role gate (SIL-694)', (
 
     await waitFor(() => {
       expect(tripClient.cancelTrip).toHaveBeenCalledWith(900);
+      // SIL-708 r2 — the plan save must carry the NEUTRAL unassigned carrier:
+      // an EXTERNAL carrierType here shipped a payload without externalCarrierId
+      // and the backend answered 400 'Nhà xe ngoài là bắt buộc.' (QA 07/11,
+      // lô R3Q-680-B/ĐĂNG QUÂN) — the lot never returned to 'Chưa phân xe'.
+      expect(plan.savePlan).toHaveBeenCalledWith(
+        plan.items[0],
+        expect.objectContaining({ carrierType: 'OWN', clearVehicle: true }),
+      );
       expect(plan.refresh).toHaveBeenCalled();
     });
   });

@@ -36,6 +36,25 @@ export function fitBelowMaxHeight(
     return Math.max(floor, Math.min(cap, Math.floor(below)));
 }
 
+/**
+ * SIL-707 r2 (QA verdict 07/11): the TOP-placement twin — the largest usable
+ * max-height for a popover opening ABOVE its trigger. Mirrors
+ * `fitBelowMaxHeight` byte-for-byte so both sides obey the same
+ * floor/cap/padding law.
+ */
+export function fitAboveMaxHeight(
+    viewportHeight: number,
+    triggerTop: number,
+    cap: number,
+    containerPadding: number,
+    offset: number,
+    floor: number = FIT_FLOOR,
+): number | null {
+    const above = triggerTop - containerPadding - offset;
+    if (above < floor) return null;
+    return Math.max(floor, Math.min(cap, Math.floor(above)));
+}
+
 /** Consecutive identical rects before the overlay counts as settled. */
 const SETTLE_FRAMES = 2;
 /** Hard cap so a pathological mover can never lock the popover shut. */
@@ -113,6 +132,13 @@ function PopoverSettleGate() {
 
 export const Popover = (props: PopoverProps) => {
     const cap = SIZE_CAP[props.size] ?? DEFAULT_CAP;
+    // SIL-707 r2: the caller may pin the overlay ABOVE the trigger
+    // (`placement="top"`) — the allocation dialog's carrier picker does, so an
+    // open row-1 picker never covers the row below it and never escapes the
+    // dialog's bottom edge (QA 07/11). The fit must measure the side the
+    // overlay actually opens on, or the `!` max-height cap would trust the
+    // wrong side's leftover space.
+    const placement = props.placement ?? "bottom";
     // Fit-to-space: measure the trigger synchronously at popover mount (the
     // overlay is transient and remounts per open, so the first positioning
     // pass already sees the bounded height and stays below the trigger
@@ -122,10 +148,12 @@ export const Popover = (props: PopoverProps) => {
     // max-height inline AFTER the user style, so a plain inline max-height
     // loses — but it never touches custom properties or class importance.
     const triggerRect = props.triggerRef?.current?.getBoundingClientRect();
-    const belowSpace = triggerRect
-        ? fitBelowMaxHeight(window.innerHeight, triggerRect.bottom, cap, props.containerPadding ?? 16, props.offset ?? 4)
-        : null;
-    const resolvedFit = `${belowSpace ?? cap}px`;
+    const fitSpace = triggerRect == null
+        ? null
+        : placement === "top"
+            ? fitAboveMaxHeight(window.innerHeight, triggerRect.top, cap, props.containerPadding ?? 16, props.offset ?? 4)
+            : fitBelowMaxHeight(window.innerHeight, triggerRect.bottom, cap, props.containerPadding ?? 16, props.offset ?? 4);
+    const resolvedFit = `${fitSpace ?? cap}px`;
     const fitVarStyle = {
         maxHeight: resolvedFit,
         overflowY: "auto",
