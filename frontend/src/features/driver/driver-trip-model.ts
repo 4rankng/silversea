@@ -95,7 +95,7 @@ export function tagLabelFor(card?: Pick<DriverJourneyCard, 'pairKind' | 'classif
  * status gets a neutral not-yet label.
  */
 export function completeCtaLabel(status: DriverTaskDetail['status']): string {
-  if (status === 'IN_TRANSIT') return 'Hoàn tất lệnh vận chuyển';
+  if (status === 'IN_TRANSIT') return 'Hoàn tất';
   if (status === 'COMPLETED') return 'Đã hoàn thành chuyến';
   return 'Chưa thể hoàn thành chuyến';
 }

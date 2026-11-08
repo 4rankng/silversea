@@ -75,9 +75,9 @@ describe('driver expense workflow — TC-CP-LX', () => {
     setup();
     await screen.findByText('Chưa có chi phí phát sinh');
     // Collapsed: the field is not mounted, the ghost row is.
-    expect(screen.queryByLabelText('Ghi chú cho kế toán')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm ghi chú cho kế toán' }));
-    expect(screen.getByLabelText('Ghi chú cho kế toán')).toBeTruthy();
+    expect(screen.queryByLabelText('Ghi chú kế toán')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi chú kế toán' }));
+    expect(screen.getByLabelText('Ghi chú kế toán')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Lưu ghi chú' })).toBeTruthy();
   });
 
@@ -363,8 +363,8 @@ describe('driver expense workflow — TC-CP-LX', () => {
   it('does not autosave notes and explicitly stores the correct trip note once', async () => {
     setup(); await screen.findByText('Chưa có chi phí phát sinh');
     // Card _29: the note editor mounts only after expanding the collapsed row.
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm ghi chú cho kế toán' }));
-    fireEvent.change(screen.getByLabelText('Ghi chú cho kế toán'), { target: { value: 'Kiểm tra phí cầu đường' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi chú kế toán' }));
+    fireEvent.change(screen.getByLabelText('Ghi chú kế toán'), { target: { value: 'Kiểm tra phí cầu đường' } });
     expect(api.updateCostSubmissionNote).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Lưu ghi chú' }));
     await waitFor(() => expect(api.updateCostSubmissionNote).toHaveBeenCalledWith(42, 'Kiểm tra phí cầu đường'));
@@ -405,8 +405,8 @@ describe('driver expense workflow — TC-CP-LX', () => {
     await screen.findByText('Nâng container');
     expect(screen.queryByRole('button', { name: 'Thêm chi phí' })).toBeNull();
     // Card _29: expand the collapsed note row to reach the read-only field.
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm ghi chú cho kế toán' }));
-    expect(screen.getByLabelText('Ghi chú cho kế toán')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi chú kế toán' }));
+    expect(screen.getByLabelText('Ghi chú kế toán')).toBeDisabled();
   });
   it('card 163 → 141026230700: an invoiced lot-cost fee carries its catalog code, no typed invoice, photo mandatory', async () => {
     setup(); await open();

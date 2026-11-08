@@ -356,7 +356,7 @@ export function DriverInvoiceSection({ trip }: { trip: DriverTaskDetail }) {
       <section className={`driver-task-section${invoiceOpen ? '' : ' driver-task-section--collapsed'}`}>
         <CollapsibleSectionHead
           id="driver-task-invoice-grid"
-          label="Thông tin xuất hóa đơn"
+          label="Thông tin hóa đơn"
           open={invoiceOpen}
           onToggle={() => setInvoiceOpen((v) => !v)}
         />

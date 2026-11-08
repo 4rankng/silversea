@@ -275,7 +275,7 @@ function DriverTripDetailContent() {
       return;
     }
 
-    const confirmed = await confirm('Xác nhận hoàn tất lệnh vận chuyển?', {
+    const confirmed = await confirm('Xác nhận hoàn tất?', {
       variant: 'primary',
       confirmLabel: 'Hoàn tất',
     });
