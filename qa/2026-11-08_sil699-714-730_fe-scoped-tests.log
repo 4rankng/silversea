@@ -1,0 +1,6 @@
+2026-11-08 lane GLM (k12b-fix) — scoped FE suites (vitest run)
+- src/pages/ShipmentsPage.test.tsx: 132/132 pass (full file)
+- src/features/shipments/cus/CusShipmentRow.cus-cards.test.tsx: 34/34
+- src/features/shipments/cus/use-cus-quick-edit.test.ts + cusQuickEditModel.test.ts + CusLotView.sil714-plate.test.tsx + DetailedPlanGrid.row-menu.test.tsx: 48/48
+- DetailedPlanGrid.test.tsx + row-menu: 98/98
+NOTE: DetailedPlanFilters.test.tsx fails at HEAD (pre-existing, verified via stash roundtrip — 2 tests timeout; unrelated to this lane)

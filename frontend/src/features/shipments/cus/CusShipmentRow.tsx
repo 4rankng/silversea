@@ -18,6 +18,7 @@ import {
   aggregateContainerSummary,
   filterAppointmentGroupsByDate,
 } from './cargoDayFilter';
+import { quickEditAccessKeys } from './cusQuickEditModel';
 import {
   derivePrimaryShipmentSignal,
   directionLabel,
@@ -107,6 +108,63 @@ export function CusShipmentRow({
   // their day renders date-only — never a fabricated 00:00 time.
   const lclLegacyDay = item.cargoMode === 'LCL' && !lotScheduleValue ? item.transportDate : null;
 
+  // SIL-699 r2 (Spec I.4a, QA 08/11): the flat list never carries a dead cell.
+  // A cell the role may edit keeps its D2 quick-edit; a read-only cell answers
+  // the click with the lot DRAWER — the same surface the "Chi tiết" opener
+  // shows — so any data cell of any row opens the lot detail one way or
+  // another. The FCL identity cell always targets the drawer (its factory
+  // facts are per-container, owned by the drawer view).
+  const drawerTrigger = {
+    onClick: () => onOpenDetail(item.id),
+    title: 'Mở chi tiết lô hàng',
+    label: `Mở chi tiết lô hàng ${identity}`,
+    controls: `cus-detail-drawer-${item.id}`,
+  };
+
+  // The wire always carries the full fieldAccess map; test fixtures and older
+  // payloads may not. A MISSING key is never writable — the cell falls back
+  // to the drawer instead of promising an editor the gate would refuse.
+  const writable = (key: keyof ShipmentCusWorkspaceListItem['fieldAccess']) => (
+    item.fieldAccess[key]?.mode ?? 'READ_ONLY') !== 'READ_ONLY';
+  const editableCells = {
+    // The FCL identity cell always targets the drawer (factory facts live per
+    // container); every other cell mirrors quickEditAccessKeys' group-write
+    // law exactly — the same gate startQuickEdit enforces — so a cell can
+    // never advertise an editor it would refuse to open.
+    identity: writable('factoryName'),
+    documents: quickEditAccessKeys('documents').some(writable),
+    classification: quickEditAccessKeys('classification').some(writable),
+    cargo: quickEditAccessKeys('cargo').some(writable),
+    schedule: item.cargoMode === 'LCL' && quickEditAccessKeys('schedule').some(writable),
+    notes: quickEditAccessKeys('notes').some(writable),
+  };
+  /** Per-cell trigger wiring: quick-edit when permitted, the lot drawer otherwise. */
+  const cellAction = (field: ShipmentQuickEditDraft['field'], editLabel: string, editTitle?: string) => (
+    editableCells[field]
+      ? { onClick: () => onStartQuickEdit(item, field), title: editTitle, label: editLabel, controls: undefined }
+      : drawerTrigger
+  );
+  // The FCL identity cell routes through ShipmentsPage's drawer mapping
+  // (factory facts live per container), so it keeps its own label pair.
+  const identityAction = item.cargoMode === 'FCL'
+    ? {
+      onClick: () => onStartQuickEdit(item, 'identity'),
+      title: 'Mở chi tiết lô hàng — nhà máy theo từng container',
+      label: `Xem nhà máy theo từng container ${identity}`,
+      controls: `cus-detail-drawer-${item.id}`,
+    }
+    : cellAction('identity', `Sửa ô khách hàng và nhà máy ${identity}`, item.fieldAccess.factoryName.reason);
+  const documentsAction = cellAction('documents', `Sửa ô chứng từ ${identity}`, item.fieldAccess.blNumber.reason);
+  const classificationAction = cellAction('classification', `Sửa ô phân loại và hãng tàu ${identity}`, item.fieldAccess.tradeDirection.reason);
+  const cargoAction = cellAction('cargo', `Sửa ô tổng quan hàng hóa ${identity}`, item.fieldAccess.packageCount.reason);
+  const scheduleAction = cellAction('schedule', `Sửa ô lịch trình lô hàng ${identity}`);
+  const notesAction = {
+    ...cellAction('notes', `Sửa ô ghi chú lô hàng ${identity}`, item.fieldAccess.customerNotes.reason),
+    // Card 20260915_35 (lead ruling, fork a): the cell previews two lines but
+    // the FULL note rides `title` — keep that regardless of the cell's action.
+    title: [item.customerNotes, item.operationalNotes].filter(Boolean).join('\n') || undefined,
+  };
+
   // Law §1 (2026-09-22): a missing value is named once, not printed twice.
   // The cargo cell already says "Chưa có hàng hóa" for a lot that carries no
   // measurement at all, so the metric line underneath must not render a bare
@@ -175,9 +233,10 @@ export function CusShipmentRow({
         {/* SIL-699 (id 819, Spec I.4a): /shipments is a flat list + drawer —
             the FCL identity cell opens the lot's DRAWER (nhà máy theo từng
             container), never a separate page. The LCL cell keeps the
-            quick-edit dialog (an LCL lot has no per-container factory). The
+            quick-edit dialog while the role may edit it and falls back to the
+            drawer otherwise (SIL-699 r2: no dead cells). The
             FCL name never repeats the row's "Chi tiết" opener. */}
-        <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" data-cell-short="Khách hàng" disabled={(item.cargoMode !== 'FCL' && item.fieldAccess.factoryName.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.cargoMode === 'FCL' ? 'Mở chi tiết lô hàng — nhà máy theo từng container' : item.fieldAccess.factoryName.reason} onClick={() => onStartQuickEdit(item, 'identity')} aria-haspopup="dialog" aria-controls={item.cargoMode === 'FCL' ? `cus-detail-drawer-${item.id}` : undefined} aria-label={item.cargoMode === 'FCL' ? `Xem nhà máy theo từng container ${identity}` : `Sửa ô khách hàng và nhà máy ${identity}`}><span className="cus-multiline-cell">
+        <button id={`cus-inline-identity-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Khách hàng & nhà máy" data-cell-short="Khách hàng" disabled={quickEditOpen || savingQuickEdit} title={identityAction.title} onClick={identityAction.onClick} aria-haspopup="dialog" aria-controls={identityAction.controls} aria-label={identityAction.label}><span className="cus-multiline-cell">
           {/* Card 191026181942: names ride the shared NameCell — the wire
               already carries the operational (short) name; the cell keeps it
               unclipped with the accessible full-name layer. */}
@@ -196,7 +255,7 @@ export function CusShipmentRow({
         </span></button>
       </th>
       {!isHidden('documents') && (<td data-label="Chứng từ" className="cus-dashboard-cell--editable">
-        <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={item.fieldAccess.blNumber.mode === 'READ_ONLY' && item.fieldAccess.bookingRef.mode === 'READ_ONLY' && item.fieldAccess.declarationNumber.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.blNumber.reason} onClick={() => onStartQuickEdit(item, 'documents')} aria-haspopup="dialog" aria-label={`Sửa ô chứng từ ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--mono">
+        <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={quickEditOpen || savingQuickEdit} title={documentsAction.title} onClick={documentsAction.onClick} aria-haspopup="dialog" aria-controls={documentsAction.controls} aria-label={documentsAction.label}><span className="cus-multiline-cell cus-multiline-cell--mono">
           <strong className={item.billOrBookNumber ? undefined : 'cus-empty'}>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
           {/* SIL-532: TẤT CẢ số tờ khai của lô — mỗi số MỘT DÒNG riêng (grid
               row của .cus-multiline-cell), không phải một đoạn join(', ') chạy
@@ -209,7 +268,7 @@ export function CusShipmentRow({
         </span></button>
       </td>)}
       {!isHidden('classification') && (<td data-label="Phân loại & hãng tàu" className="cus-dashboard-cell--editable">
-        <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" data-cell-short="Phân loại" disabled={item.fieldAccess.tradeDirection.mode === 'READ_ONLY' && item.fieldAccess.shippingLineName.mode === 'READ_ONLY' || quickEditOpen || savingQuickEdit} title={item.fieldAccess.tradeDirection.reason} onClick={() => onStartQuickEdit(item, 'classification')} aria-haspopup="dialog" aria-label={`Sửa ô phân loại và hãng tàu ${identity}`}><span className="cus-multiline-cell cus-classification">
+        <button id={`cus-inline-classification-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Phân loại & hãng tàu" data-cell-short="Phân loại" disabled={quickEditOpen || savingQuickEdit} title={classificationAction.title} onClick={classificationAction.onClick} aria-haspopup="dialog" aria-controls={classificationAction.controls} aria-label={classificationAction.label}><span className="cus-multiline-cell cus-classification">
           <span className={item.shippingLineName ? 'cus-classification__shipping-line' : 'cus-classification__shipping-line cus-empty'}>{item.shippingLineName || 'Chưa có hãng tàu'}</span>
           {item.isCombined && <span className="cus-combined-tag">Đóng kết hợp</span>}
           {/* No direction yet means no badge at all: a filled pill holding a
@@ -225,7 +284,7 @@ export function CusShipmentRow({
         </span></button>
       </td>)}
       {!isHidden('cargo') && (<td data-label="Tổng quan hàng hóa" className="cus-dashboard-cell--editable">
-        <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" data-cell-short="Hàng hóa" disabled={['packageCount', 'packageType', 'cargoWeightKg', 'cargoVolumeCbm'].every((key) => item.fieldAccess[key as 'packageCount'].mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit} title={item.fieldAccess.packageCount.reason} onClick={() => onStartQuickEdit(item, 'cargo')} aria-haspopup="dialog" aria-label={`Sửa ô tổng quan hàng hóa ${identity}`}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
+        <button id={`cus-inline-cargo-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Tổng quan hàng hóa" data-cell-short="Hàng hóa" data-fcl-cargo={item.cargoMode === 'FCL' || undefined} disabled={quickEditOpen || savingQuickEdit} title={cargoAction.title} onClick={cargoAction.onClick} aria-haspopup="dialog" aria-controls={cargoAction.controls} aria-label={cargoAction.label}><span className="cus-multiline-cell cus-multiline-cell--numeric cus-cargo-summary">
           {(() => {
             // Customer feedback L2 — when a date filter is
             // active, show the per-day cont count instead of
@@ -292,20 +351,23 @@ export function CusShipmentRow({
           )}
         </span></button>
       </td>)}
-      {!isHidden('schedule') && (<td data-label="Lịch trình & điều xe" className={item.cargoMode === 'LCL' ? 'cus-dashboard-cell--editable' : 'cus-dashboard-cell--readonly'}>
-        {item.cargoMode === 'LCL' ? (
-          <button
-            id={`cus-inline-schedule-${item.id}`}
-            type="button"
-            className="cus-inline-trigger"
-            data-cell-label="Lịch trình & điều xe"
-            data-cell-short="Lịch trình"
-            disabled={!item.operational.transportDateEditable || quickEditOpen || savingQuickEdit}
-            aria-haspopup="dialog"
-            aria-label={`Sửa ô lịch trình lô hàng ${identity}`}
-            onClick={() => onStartQuickEdit(item, 'schedule')}
-          >{scheduleContent}</button>
-        ) : <div className="cus-inline-trigger cus-inline-trigger--readonly" data-cell-label="Lịch trình & điều xe" data-cell-short="Lịch trình">{scheduleContent}</div>}
+      {!isHidden('schedule') && (<td data-label="Lịch trình & điều xe" className="cus-dashboard-cell--editable">
+        {/* SIL-699 r2: the FCL schedule cell used to be a dead readonly div —
+            every schedule cell now answers a click (quick-edit for an editable
+            LCL lot, the lot drawer otherwise). */}
+        <button
+          id={`cus-inline-schedule-${item.id}`}
+          type="button"
+          className="cus-inline-trigger"
+          data-cell-label="Lịch trình & điều xe"
+          data-cell-short="Lịch trình"
+          disabled={quickEditOpen || savingQuickEdit}
+          aria-haspopup="dialog"
+          aria-controls={scheduleAction.controls}
+          aria-label={scheduleAction.label}
+          title={scheduleAction.title}
+          onClick={scheduleAction.onClick}
+        >{scheduleContent}</button>
       </td>)}
       {!isHidden('notes') && (<td data-label="Ghi chú" className={`cus-dashboard-cell--editable${hasNotes ? '' : ' cus-dashboard-cell--empty-notes'}`}>
         <button
@@ -313,11 +375,12 @@ export function CusShipmentRow({
           type="button"
           className="cus-inline-trigger cus-note-preview"
           data-cell-label="Ghi chú"
-          title={[item.customerNotes, item.operationalNotes].filter(Boolean).join('\n') || undefined}
-          disabled={((item.fieldAccess.customerNotes.mode === 'READ_ONLY' && item.fieldAccess.operationalNotes.mode === 'READ_ONLY') || quickEditOpen || savingQuickEdit)}
+          title={notesAction.title}
+          disabled={quickEditOpen || savingQuickEdit}
           aria-haspopup="dialog"
-          aria-label={`Sửa ô ghi chú lô hàng ${identity}`}
-          onClick={() => onStartQuickEdit(item, 'notes')}
+          aria-controls={notesAction.controls}
+          aria-label={notesAction.label}
+          onClick={notesAction.onClick}
         >
           {/* User-ruled defect: note lines joined with ' - '/space rendered
               typed breaks away. Pre-wrap + 2-line clamp keeps the breaks. */}

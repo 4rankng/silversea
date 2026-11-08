@@ -1,0 +1,20 @@
+
+=== run 2026-11-08T07:06:05.664Z ===
+2026-11-08T07:06:06.584Z login dungnv: OK
+2026-11-08T07:06:20.680Z row1 lot: LOG COM · Chưa có nhà máy · Chưa có tuyến đường
+2026-11-08T07:06:20.681Z cell Khách hàng & nhà máy: disabled=false aria="Xem nhà máy theo từng container SIL335-BK-002"
+2026-11-08T07:06:20.682Z cell Chứng từ: disabled=false aria="Mở chi tiết lô hàng SIL335-BK-002"
+2026-11-08T07:06:20.682Z cell Phân loại & hãng tàu: disabled=false aria="Mở chi tiết lô hàng SIL335-BK-002"
+2026-11-08T07:06:20.682Z cell Tổng quan hàng hóa: disabled=false aria="Mở chi tiết lô hàng SIL335-BK-002"
+2026-11-08T07:06:20.682Z cell Lịch trình & điều xe: disabled=false aria="Mở chi tiết lô hàng SIL335-BK-002"
+2026-11-08T07:06:21.262Z shot 01-before-row-click
+2026-11-08T07:06:25.585Z PASS URL stays on /shipments (got /shipments)
+2026-11-08T07:06:25.586Z PASS the flat list is still mounted (drawer ON the list)
+2026-11-08T07:06:25.586Z PASS drawer body shows the lot review (Nhận diện lô)
+2026-11-08T07:06:25.587Z drawer aria/title: LOG COM
+2026-11-08T07:06:25.836Z shot 02-after-row-click-drawer
+2026-11-08T07:06:31.842Z PASS classification cell click opens the drawer on the list
+2026-11-08T07:06:32.045Z shot 03-classification-cell-drawer
+2026-11-08T07:06:35.246Z PASS Chi tiết link still opens the drawer on /shipments
+2026-11-08T07:06:36.713Z PASS no /shipments-detail navigation during the whole drive
+2026-11-08T07:06:37.177Z DRIVER_EXIT:0 failures=0

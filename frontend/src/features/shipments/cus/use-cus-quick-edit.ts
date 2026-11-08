@@ -53,8 +53,10 @@ export function useCusQuickEdit(deps: UseCusQuickEditDeps) {
     }
     if (quickEditSaveRef.current || quickEditDraft) return;
     const accessKeys = quickEditAccessKeys(field);
-    if (!accessKeys.some((key) => item.fieldAccess[key].mode !== 'READ_ONLY')) {
-      setError(item.fieldAccess[accessKeys[0]].reason);
+    // A missing fieldAccess key (older payloads) is never writable — same
+    // conservative law as CusShipmentRow's cell trigger gate (SIL-699 r2).
+    if (!accessKeys.some((key) => (item.fieldAccess[key]?.mode ?? 'READ_ONLY') !== 'READ_ONLY')) {
+      setError(item.fieldAccess[accessKeys[0]]?.reason ?? 'Bạn không thể sửa ô này.');
       return;
     }
     setError(null);

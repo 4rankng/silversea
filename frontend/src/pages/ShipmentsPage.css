@@ -490,18 +490,7 @@
 .cus-dashboard-row .status-strip { top: 0; bottom: 0; left: 0; pointer-events: none; }
 
 .cus-dashboard-cell--editable { padding: 0 !important; }
-.cus-dashboard-cell--readonly { padding: 0 !important; }
-.cus-dashboard-cell--readonly > .cus-inline-trigger {
-  cursor: default;
-  /* FCL schedules are display-only here. The trigger-hover and td: hover rules
-     below would still paint a chip on this div (a div never matches :disabled),
-     so lock the resting transparent state to keep the cell from advertising
-     clicks it does not have. */
-  background: transparent !important;
-  border-color: transparent !important;
-}
-.cus-dashboard-cell--editable > .cus-inline-trigger,
-.cus-dashboard-cell--readonly > .cus-inline-trigger {
+.cus-dashboard-cell--editable > .cus-inline-trigger {
   height: 100%;
   min-height: 100%;
   padding: 6px 10px;
@@ -610,11 +599,10 @@
 
 /* Card 20260922_41: the FCL cargo summary block is the click target of the
    "Quản lý container" dialog (lot-level composition). Light hover affordance:
-   dashed underline on the summary lines. FCL rows are exactly the rows whose
-   "Lịch trình & điều xe" cell renders the read-only trigger (CusShipmentRow
-   contract) — reused as the row-mode marker so this sheet needs no change in
-   the shared row module. */
-.cus-dashboard-row:has(td[data-label='Lịch trình & điều xe'] .cus-inline-trigger--readonly) td[data-label='Tổng quan hàng hóa'] .cus-inline-trigger:not(:disabled):hover .cus-cargo-summary__containers {
+   dashed underline on the summary lines — keyed directly on the FCL cargo
+   trigger (SIL-699 r2 removed the readonly-schedule marker this rule used to
+   borrow as its row-mode signal). */
+.cus-dashboard-row td[data-label='Tổng quan hàng hóa'] .cus-inline-trigger[data-fcl-cargo]:not(:disabled):hover .cus-cargo-summary__containers {
   text-decoration: underline dashed;
   text-underline-offset: 3px;
 }
@@ -884,8 +872,7 @@
     overflow: visible;
   }
 
-  .cus-dashboard-table .cus-dashboard-cell--editable > .cus-inline-trigger,
-  .cus-dashboard-table .cus-dashboard-cell--readonly > .cus-inline-trigger {
+  .cus-dashboard-table .cus-dashboard-cell--editable > .cus-inline-trigger {
     min-height: 100%;
     height: auto;
     width: 100%;
