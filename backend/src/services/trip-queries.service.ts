@@ -50,8 +50,9 @@ const TRIP_RELATION_JOINS = <T extends WithLeftJoin>(query: T): T => (query as W
   .leftJoin(s.trailers, eq(s.tripsComposite.trailerId, s.trailers.id))
   .leftJoin(s.suppliers, eq(s.tripsComposite.fuelSupplierId, s.suppliers.id)) as unknown as T;
 
-/** Shape flat joined rows into nested relation objects. */
-function shapeTripRelations<T extends Record<string, unknown>>(item: T, extras?: {
+/** Shape flat joined rows into nested relation objects. Exported for the
+ *  SIL-752 unit test — the null-trailerType passthrough is a contract. */
+export function shapeTripRelations<T extends Record<string, unknown>>(item: T, extras?: {
   legs?: unknown[];
   photoUrls?: string[];
   pairing?: unknown;
@@ -62,11 +63,17 @@ function shapeTripRelations<T extends Record<string, unknown>>(item: T, extras?:
     driver: item.driverName ? { id: item.driverId, name: item.driverName } : null,
     truck: item.truckPlate ? { id: item.truckId, licensePlate: item.truckPlate, vehicleClass: item.truckClass ?? null } : null,
     route: item.routeName ? { id: item.routeId, name: item.routeName, distanceKm: item.routeDistance, isMountain: item.routeIsMountain, fixedFuelAllowance: item.routeFixedFuelAllowance } : null,
-    trailerType: item.trailerType || '40FT',
+    // SIL-752 (id 872) — the stored value passes through verbatim. A trip
+    // with no trailer has trailer_type NULL and must read NULL: the old
+    // `|| '40FT'` default fabricated a moóc that does not exist, so an
+    // external dispatch-issued trip under a 20'DC container displayed
+    // RƠ MOÓC = 40FT. Trip.trailerType / Trailer.type are nullable in the
+    // shared contract for exactly this; surfaces render '—' on null.
+    trailerType: item.trailerType,
     trailer: item.trailerId ? {
       id: item.trailerId,
       licensePlate: item.trailerLicensePlate ?? null,
-      type: item.trailerType || '40FT',
+      type: item.trailerType,
     } : undefined,
     fuelSupplier: item.fuelSupplierName ? { id: item.fuelSupplierId, name: item.fuelSupplierName } : null,
     ...extras,

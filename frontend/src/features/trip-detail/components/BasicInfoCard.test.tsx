@@ -79,6 +79,26 @@ describe('BasicInfoCard container summary', () => {
     expect(screen.queryByText('Lô hàng lẻ')).toBeNull();
   });
 
+  // SIL-752 (id 872): a trip with no trailer (external dispatch issue, plate
+  // 'Bổ sung sau') has trailer_type NULL — the Rơ moóc row must read the
+  // empty fact '—', never a fabricated size like the 40FT that shipped.
+  it('renders Rơ moóc as the empty fact when no trailer exists (SIL-752)', () => {
+    useQueryMock.mockReturnValue({ data: { items: [] }, isLoading: false });
+
+    const noTrailer = { ...baseTrip, trailer: undefined, trailerType: null } as unknown as TripDetail;
+    render(
+      <MemoryRouter>
+        <BasicInfoCard trip={noTrailer} />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Rơ moóc')).toBeTruthy();
+    expect(screen.queryByText('40FT')).toBeNull();
+    expect(screen.queryByText('20FT')).toBeNull();
+    // '—' is the card's empty-fact marker (also used by other empty rows).
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(1);
+  });
+
   it('renders a shipment details link when shipmentId is present', () => {
     useQueryMock.mockReturnValue({
       data: { items: [] },

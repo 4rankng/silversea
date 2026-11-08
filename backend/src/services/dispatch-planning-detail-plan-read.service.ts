@@ -630,8 +630,15 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             tripStatus: row.tripStatus,
             driverAccepted: row.tripId != null && row.driverAccepted === true,
             carrierType: row.plannedCarrierType,
+            // SIL-753 (id 873) — 'OWN' with no planned plate and no live trip
+            // is the stored shape of "chưa phân xe" (the Hủy phân xe flow
+            // writes exactly it), not an allocation to the internal fleet.
+            // Only a real allocation earns the SilverSea label; an unassigned
+            // row reads carrierName null so no surface invents a carrier.
             carrierName: row.plannedCarrierType === 'OWN'
-              ? INTERNAL_FLEET_CARRIER_NAME
+              ? ((row.plannedVehiclePlateNumber != null && row.plannedVehiclePlateNumber !== '') || row.tripId != null)
+                ? INTERNAL_FLEET_CARRIER_NAME
+                : null
               : row.plannedExternalCarrierId
                 ? carriersById.get(row.plannedExternalCarrierId)?.name ?? null
                 : null,

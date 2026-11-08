@@ -286,12 +286,22 @@ describe('QA-AUDIT-UI-92 complete assignment facts', () => {
 });
 
 describe('SIL-500 — carrier click-to-edit (KHĐ 26/10)', () => {
-  it('clicking the unassigned carrier "Chưa phân nhà xe" opens the assign dialog', async () => {
+  it('clicking the unassigned carrier "Chưa phân xe" opens the assign dialog (SIL-753 label)', async () => {
     mockFleetResources();
     const unassigned = row();
     unassigned.dispatch = { ...unassigned.dispatch, carrierName: null, assignedPlate: null };
     renderCell(unassigned, {}, { open: false });
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa điều phối · Chưa phân nhà xe · MSCU1234567' }));
+    // SIL-753: the unassigned OWN row reads 'Chưa phân xe' — the backend no
+    // longer labels it with the internal fleet's name, and the cell carries
+    // the state once (no duplicated plate-line filler, no 'Chưa phân nhà xe').
+    const carrierButton = screen.getByRole('button', { name: 'Sửa điều phối · Chưa phân xe · MSCU1234567' });
+    expect(carrierButton).toHaveTextContent('Chưa phân xe');
+    expect(carrierButton.className).toContain('is-placeholder');
+    expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
+    expect(screen.queryByText('SilverSea')).toBeNull();
+    const cell = carrierButton.closest('.dispatch-assignment-cell') as HTMLElement;
+    expect(within(cell).getAllByText('Chưa phân xe')).toHaveLength(1);
+    fireEvent.click(carrierButton);
     expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeInTheDocument();
   });
 
