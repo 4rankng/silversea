@@ -1,0 +1,38 @@
+
+=== run 2026-11-08T07:39:12.723Z ===
+2026-11-08T07:39:13.110Z login tiepvv: OK
+2026-11-08T07:39:13.301Z trip 54 pre-drive plate: null
+2026-11-08T07:39:26.490Z plate trigger: aria="null" cell="null"
+2026-11-08T07:39:26.491Z FAIL CUS drawer shows the Cập nhật biển số click-to-edit trigger on the awaiting-plate line
+2026-11-08T07:39:26.605Z shot 01-lot-panel-plate-trigger
+2026-11-08T07:39:41.611Z DRIVE ERROR: Waiting for selector `[role="dialog"][aria-label*="biển số"], [role="dialog"] input[aria-label*="iển số"], [role="dialog"] input` failed
+2026-11-08T07:39:41.808Z shot 99-error
+2026-11-08T07:39:42.004Z DRIVER_EXIT:1 failures=2
+
+=== run 2026-11-08T07:40:28.850Z ===
+2026-11-08T07:40:29.477Z login tiepvv: OK
+2026-11-08T07:40:29.736Z trip 54 pre-drive plate: null
+2026-11-08T07:40:46.443Z plate trigger: aria="null" cell="null"
+2026-11-08T07:40:46.444Z FAIL CUS drawer shows the Cập nhật biển số click-to-edit trigger on the awaiting-plate line
+2026-11-08T07:40:46.702Z shot 01-lot-panel-plate-trigger
+2026-11-08T07:41:01.709Z DRIVE ERROR: Waiting for selector `[role="dialog"][aria-label*="biển số"], [role="dialog"] input[aria-label*="iển số"], [role="dialog"] input` failed
+2026-11-08T07:41:01.806Z shot 99-error
+2026-11-08T07:41:02.192Z DRIVER_EXIT:1 failures=2
+
+=== run 2026-11-08T07:45:44.376Z ===
+2026-11-08T07:45:44.981Z login tiepvv: OK
+2026-11-08T07:45:45.213Z trip 779323 pre-drive plate: null
+2026-11-08T07:46:03.939Z plate trigger: aria="Cập nhật biển số xe ngoài cho SILU6760014" cell="ĐĂNG QUÂN"
+2026-11-08T07:46:03.941Z PASS CUS drawer shows the Cập nhật biển số click-to-edit trigger on the awaiting-plate line
+2026-11-08T07:46:04.132Z shot 01-lot-panel-plate-trigger
+2026-11-08T07:46:04.808Z API GET http://localhost:7189/api/shipments/trips/779323/external-plate → 200
+2026-11-08T07:46:06.243Z plate dialog: title="Cập nhật biển số xe ngoài" input=true
+2026-11-08T07:46:06.244Z PASS shared Cập nhật biển số dialog opens with an input
+2026-11-08T07:46:06.823Z shot 02-plate-dialog
+2026-11-08T07:46:07.374Z API PATCH http://localhost:7189/api/shipments/trips/779323/external-plate → 200
+2026-11-08T07:46:10.039Z PASS success notice Đã cập nhật biển số xe ngoài shown
+2026-11-08T07:46:10.039Z PASS Nhà xe / BKS cell now shows the saved plate 60H-714.55
+2026-11-08T07:46:11.275Z shot 03-after-save
+2026-11-08T07:46:11.655Z trip 779323 post-drive plate: 60H-714.55
+2026-11-08T07:46:11.656Z PASS DB proof trip_carrier_info.external_plate_number=60H-714.55 (got 60H-714.55)
+2026-11-08T07:46:12.621Z DRIVER_EXIT:0 failures=0
