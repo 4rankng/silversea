@@ -1,0 +1,8 @@
+PASS  login hoapt — status 200
+PASS  fixture trip-less fee money exists — 290000₫
+PASS  baseline: shared fees under the internal bucket (1 live trip) — internal 470000₫, fee 290000₫
+PASS  all-agree (2 live trips, same truck) → fees STAY under internal bucket — internal 470000₫ (was 470000₫), unknown 550000₫ (was 550000₫)
+PASS  mixed carrier → fees move to Chưa xác định (exactly the shared fee) — unknown 840000₫ (was 550000₫, fee 290000₫)
+PASS  mixed carrier removed the fee from the internal bucket (moved, not duplicated) — internal 180000₫ (was 470000₫)
+... cleanup: probe trip 779315 + fulfillment 2431 removed
+PROBE PASS — all-agree resolves shared-lot fees; mixed identity keeps Chưa xác định; money moves, never duplicates.

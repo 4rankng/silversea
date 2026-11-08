@@ -1325,11 +1325,19 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
  *  fallback resolves:
  *    · THU — the shipment's customer operationalName (FB-061: a soft-deleted
  *      master never prints; the money keeps reporting under 'Chưa xác định').
- *    · TRA — through the shipment's UNIQUE live trip (the exact candidate law
- *      `expenseTripCandidates` links sources by: deletedAt NULL, not
- *      CANCELED): 0 or ≥2 live trips stay 'Chưa xác định', never a guess.
- *  Returns the party plus, when a unique live trip exists, its id — the
- *  drill-down groups the resolved money under that real trip. */
+ *    · TRA (SIL-729 r2) — through EVERY live trip of the shipment (the exact
+ *      candidate law `expenseTripCandidates` links sources by: deletedAt NULL,
+ *      not CANCELED). Ops 'chi hộ' money rides the SHARED lot, so the lot's
+ *      carrier fact is whatever ALL its live trips agree on — the unique-trip
+ *      law left exactly those shared-lot fees (R3M-D2-A, R4B-3E-FCL1… QA
+ *      08/11) stranded in 'Chưa xác định'. All trips naming ONE carrier
+ *      identity resolves it; a mixed-carrier lot, a trip whose carrier does
+ *      not resolve, or a lot with no live trip stays 'Chưa xác định' (one
+ *      shared fee cannot be split across parties, and a trip-less lot has no
+ *      carrier fact at all).
+ *  Returns the party plus, when a UNIQUE live trip exists, its id — the
+ *  drill-down groups the resolved money under that real trip; a multi-trip
+ *  resolution groups under the synthetic shipment key. */
 async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: number[]): Promise<Map<number, { party: ReportPartyInfo; liveTripId: number | null }>> {
   const map = new Map<number, { party: ReportPartyInfo; liveTripId: number | null }>();
   const ids = [...new Set(shipmentIds.filter((id): id is number => id != null))];
@@ -1367,12 +1375,23 @@ async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: 
     list.push(row.tripId);
     liveByShipment.set(row.shipmentId, list);
   }
-  const uniqueTripIds = [...liveByShipment.values()].filter((trips) => trips.length === 1).map((trips) => trips[0]);
-  const tripParty = await resolveReportTripParties('TRA', uniqueTripIds);
+  // SIL-729 r2 — resolve through EVERY live trip, not just a unique one: an
+  // Ops 'chi hộ' fee rides the SHARED lot, so its carrier fact is whatever the
+  // lot's own trips agree on. Identity is the entity pair (kind+id) with the
+  // label as a tiebreaker — never compare display strings alone (card
+  // 201026095604b: two identical strings can be different entities).
+  const allTripIds = [...liveByShipment.values()].flat();
+  const tripParty = await resolveReportTripParties('TRA', allTripIds);
+  const identityOf = (party: ReportPartyInfo): string =>
+    `${party.partyKind ?? ''}:${party.partyId ?? ''}:${party.name ?? ''}`;
   for (const [shipmentId, trips] of liveByShipment) {
-    if (trips.length !== 1) continue;
-    const party = tripParty.get(trips[0]);
-    if (party) map.set(shipmentId, { party, liveTripId: trips[0] });
+    if (trips.length === 0) continue;
+    const parties = trips.map((tripId) => tripParty.get(tripId));
+    // One trip without a resolvable carrier never names the bucket.
+    if (parties.some((party) => party == null)) continue;
+    const first = parties[0]!;
+    if (!parties.every((party): party is ReportPartyInfo => party != null && identityOf(party) === identityOf(first))) continue;
+    map.set(shipmentId, { party: first, liveTripId: trips.length === 1 ? trips[0]! : null });
   }
   return map;
 }
