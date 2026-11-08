@@ -212,6 +212,16 @@ export function OpsSettlementSheet({ grouping, meta }: {
         TỔNG CỘNG: {formatMoney(grouping.totals.grand)}{' '}
         (Có HĐ: {formatMoney(grouping.totals.withInvoice)} · Không HĐ: {formatMoney(grouping.totals.withoutInvoice)})
       </p>
+      {/* SIL-751 — the totals follow card 20260928_197 (negative rows are
+          dropped, never netted). Without this line a reviewer adding the
+          printed rows gets rawGrand and reads the phiếu as 10.000₫ off
+          (OS-2611-0005) or 50.000₫ off (OS-2610-0001). The ?? 0 keeps a stale
+          cached detail (pre-SIL-751 payload) from rendering NaN. */}
+      {Number(grouping.totals.excludedNegative ?? 0) !== 0 && (
+        <p className="ops-settlement-sheet__excluded">
+          Dòng âm đã loại trừ: {formatMoney(grouping.totals.excludedNegative)} ₫ (tổng phiếu không cộng dòng âm) · Tổng nếu cộng cả dòng âm: {formatMoney(grouping.totals.rawGrand)} ₫
+        </p>
+      )}
       <div className="ops-settlement-sheet__signatures">
         <span>Người lập (Ops)<small>(Ký, ghi rõ họ tên)</small></span>
         <span>Người nhận đối chiếu<small>(Ký, ghi rõ họ tên)</small></span>

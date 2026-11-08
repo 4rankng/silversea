@@ -1,0 +1,29 @@
+✔ createOpsSettlement inserts DRAFT — the only status finalize/reopen accept (0.338625ms)
+✔ finalizeOpsSettlement: DRAFT|PENDING → RECORDED stays the single exit to RECORDED (0.06075ms)
+✔ reopenOpsSettlementDraft: DRAFT|PENDING → VOIDED releases the frozen expenses (0.051834ms)
+✔ ops-expenses: editing an expense frozen in a settlement refuses with 409 (0.049667ms)
+✔ OpsSettlementsPanel renders finalize/reopen for DRAFT — the stage create must produce (0.043625ms)
+✔ OPS export distinguishes recorded, draft and historical states without an approval workflow (898.810459ms)
+✔ OPS export prints the excluded-negative reconciliation for the OS-2610-0001 shape (333.211792ms)
+▶ groupOpsExpensesForSettlement (OpsVanHanh §5.4)
+  ✔ groups entries of multiple payers under one mã lô (micro-ledger) (2.602291ms)
+  ✔ splits the two invoice baskets per lot and totals each bucket (0.343416ms)
+  ✔ groups different lots separately, sorted by mã lô (24.634708ms)
+  ✔ returns zero totals for an empty pool (0.089084ms)
+  ✔ SIL-751 case OS-2611-0005 — header 1.080.000 vs dòng cộng 1.070.000 exposes the −10.000 exclusion (0.102709ms)
+  ✔ SIL-751 case OS-2610-0001 — header 320.000 vs dòng cộng 270.000 exposes the −50.000 exclusion (0.0805ms)
+✔ groupOpsExpensesForSettlement (OpsVanHanh §5.4) (78.239125ms)
+✔ rewind fires only for a DISPATCHED lot with no live and no completed trip (1.01675ms)
+✔ the trip status machine rewinds the shipment inside the canceled branch (201.210792ms)
+✔ the shipment machine legalizes DISPATCHED → READY_FOR_DISPATCH for the rewind (2.263167ms)
+✔ rewind skips instead of throwing when the lot cannot legally hold READY_FOR_DISPATCH (2.455542ms)
+✔ SIL-751 — reopen zeroed the ghost total of a released draft batch (1.601375ms)
+ℹ tests 18
+ℹ suites 1
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12397.078792
+EXIT=0

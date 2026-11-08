@@ -82,6 +82,20 @@ export async function exportOpsSettlementXlsx(
   grand.font = { bold: true, size: 12 };
   grand.getCell(3).numFmt = MONEY_FORMAT;
 
+  // SIL-751 — when the phiếu carries a negative row, the printed lines no
+  // longer add up to TỔNG CỘNG (the card 20260928_197 rule excludes it), so
+  // say so on the paper instead of leaving a silent 270.000 vs 320.000 gap.
+  if (Number(grouping.totals.excludedNegative ?? 0) !== 0) {
+    const excluded = sheet.addRow([
+      '',
+      'Dòng âm đã loại trừ (không cộng vào tổng)',
+      Number(grouping.totals.excludedNegative),
+      `Tổng nếu cộng cả dòng âm: ${formatVND(Number(grouping.totals.rawGrand))}`,
+    ]);
+    excluded.font = { italic: true, color: { argb: 'FF555555' } };
+    excluded.getCell(3).numFmt = MONEY_FORMAT;
+  }
+
   sheet.addRow([]);
   sheet.addRow([]);
   const signatures = sheet.addRow([

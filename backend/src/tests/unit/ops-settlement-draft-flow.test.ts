@@ -44,7 +44,9 @@ test('reopenOpsSettlementDraft: DRAFT|PENDING → VOIDED releases the frozen exp
   const reopen = service.slice(service.indexOf('export async function reopenOpsSettlementDraft'));
   assert.match(reopen, /!\['DRAFT', 'PENDING'\]\.includes\(settlement\.status\)/);
   assert.match(reopen, /set\(\{ opsSettlementId: null, updatedAt: new Date\(\) \}\)/);
-  assert.match(reopen, /set\(\{ status: 'VOIDED', updatedAt: new Date\(\) \}\)/);
+  // SIL-751 — the released entries leave the phiếu with zero lines, so the
+  // VOIDED header must read 0 (the audit payload keeps the original total).
+  assert.match(reopen, /set\(\{ status: 'VOIDED', totalAmount: '0', updatedAt: new Date\(\) \}\)/);
 });
 
 test('ops-expenses: editing an expense frozen in a settlement refuses with 409', () => {

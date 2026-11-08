@@ -1,0 +1,11 @@
+{
+  "code": "OS-2610-0001",
+  "totalAmount": "320000",
+  "totals": {
+    "withInvoice": "0",
+    "withoutInvoice": "320000",
+    "grand": "320000",
+    "rawGrand": "270000",
+    "excludedNegative": "-50000"
+  }
+}

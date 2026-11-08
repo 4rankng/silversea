@@ -808,7 +808,19 @@ export interface SettlementGroup {
 
 export interface SettlementGrouping {
   groups: SettlementGroup[];
-  totals: { withInvoice: string; withoutInvoice: string; grand: string };
+  totals: {
+    withInvoice: string;
+    withoutInvoice: string;
+    grand: string;
+    /** SIL-751 — sum of every displayed row INCLUDING the negative ones, so
+     *  a reviewer who adds the printed lines can reconcile: grand =
+     *  rawGrand − excludedNegative. */
+    rawGrand: string;
+    /** SIL-751 — signed sum of the strictly negative rows the card
+     *  20260928_197 rule keeps out of `grand` (≤ '0'; '0' when the phiếu has
+     *  no negative row and no clarification line is needed). */
+    excludedNegative: string;
+  };
 }
 
 /** BigInt money sum carrying the `sumExcludingNegative` rule (card
@@ -863,12 +875,24 @@ export function groupOpsExpensesForSettlement(
     (a.shipmentCode ?? '').localeCompare(b.shipmentCode ?? ''));
   const withInvoice = sumBig(groups.map((group) => group.withInvoice.total));
   const withoutInvoice = sumBig(groups.map((group) => group.withoutInvoice.total));
+  // SIL-751 — the sheet showed rows the totals quietly dropped: a reviewer
+  // adding the printed lines (negatives included) got a different number than
+  // TỔNG CỘNG (OS-2611-0005: 1.070.000 vs 1.080.000; OS-2610-0001: 270.000 vs
+  // 320.000). The card rule itself is untouched — these two expose what it
+  // excludes so the sheet and the export can say so.
+  const rawGrand = entries.reduce((acc, entry) => acc + BigInt(entry.amount || '0'), 0n);
+  const excludedNegative = entries.reduce((acc, entry) => {
+    const amount = BigInt(entry.amount || '0');
+    return amount < 0n ? acc + amount : acc;
+  }, 0n);
   return {
     groups,
     totals: {
       withInvoice: withInvoice.toString(),
       withoutInvoice: withoutInvoice.toString(),
       grand: (withInvoice + withoutInvoice).toString(),
+      rawGrand: rawGrand.toString(),
+      excludedNegative: excludedNegative.toString(),
     },
   };
 }

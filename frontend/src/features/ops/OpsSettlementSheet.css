@@ -45,6 +45,14 @@
   margin: 10px 0;
 }
 
+/* SIL-751 — reconciliation line under the grand total when the phiếu carries
+   negative rows: secondary tone, same scale as the meta line above. */
+.ops-settlement-sheet__excluded {
+  margin: 0 0 10px;
+  font-size: var(--text-data-size);
+  color: var(--fg-2);
+}
+
 .ops-settlement-sheet__signatures {
   display: flex;
   justify-content: space-between;

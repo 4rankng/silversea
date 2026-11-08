@@ -152,6 +152,44 @@ describe('direct settlement creation from actual funded advances', () => {
     }));
   });
 
+  it('SIL-751 — "Tiền hoàn lại" tự điền số dư (tạm ứng − chi phí) để phiếu cân đối ngay', async () => {
+    state.requests = [request(1, 'Ứng đã nhận', 1000000)];
+    state.expenses = [{
+      id: 31, buyAmount: 250000, completionStatus: 'COMPLETED', expenseType: 'TOLL',
+      tripId: 6, tripCode: 'T-QA-2', containerNumbers: 'CONT-QA-2',
+      departureDate: '2026-09-17', createdAt: '2026-09-17T00:00:00.000Z',
+    }];
+    const { container } = render(page());
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ứng đã nhận/ }));
+    const expenseBox = container.querySelector('label.fset-check-item--expense input[type="checkbox"]')!;
+    fireEvent.click(expenseBox);
+    const refund = screen.getByPlaceholderText('0') as HTMLInputElement;
+    // Auto-filled = 1.000.000 − 250.000; previously the box stayed 0 and the
+    // submit died on the backend 400 'Phiếu chưa cân đối'.
+    expect(refund).toHaveValue('750.000');
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledExactlyOnceWith({
+      totalExpenseAmount: 250000, refundAmount: 750000, note: undefined,
+      advanceRequestIds: [1], tripExpenseIds: [31],
+    }));
+  });
+
+  it('SIL-751 — số nhập tay ghi đè số tự điền (hoàn lại một phần vẫn cho phép, có cảnh báo chênh lệch)', async () => {
+    state.requests = [request(1, 'Ứng đã nhận', 1000000)];
+    render(page());
+    fireEvent.click(screen.getByRole('checkbox', { name: /Ứng đã nhận/ }));
+    const refund = screen.getByPlaceholderText('0') as HTMLInputElement;
+    expect(refund).toHaveValue('1.000.000');
+    fireEvent.change(refund, { target: { value: '500000' } });
+    expect(refund).toHaveValue('500.000');
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận phiếu thanh toán' }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ refundAmount: 500000, advanceRequestIds: [1] }),
+    ));
+  });
+
   it('only offers fully funded recorded advances and records them in one command', async () => {
     state.requests = [
       request(1, 'Đã nhận đủ tiền', 1000000),
@@ -172,7 +210,10 @@ describe('direct settlement creation from actual funded advances', () => {
     fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
     fireEvent.click(submit);
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledExactlyOnceWith({
-      totalExpenseAmount: 0, refundAmount: 0, note: undefined,
+      // SIL-751 — the refund box auto-fills the balance, so recording a
+      // 1.000.000 advance with no expenses balances the phiếu immediately
+      // (refundAmount 1.000.000, was the old stay-at-0 pin).
+      totalExpenseAmount: 0, refundAmount: 1000000, note: undefined,
       advanceRequestIds: [1], tripExpenseIds: undefined,
     }));
     expect(await screen.findByText('Phiếu đã tạo thành công!')).toBeVisible();
