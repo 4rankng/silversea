@@ -178,4 +178,19 @@ describe('CusLotView — SIL-498 tờ khai per-cont trong drawer', () => {
     expect(screen.getByText('TK-KHÁC')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Copy tờ khai/ })).not.toBeInTheDocument();
   });
+
+  it('SIL-754: ô input và text hiển thị title tooltip chứa full value tờ khai', () => {
+    const onSaveDeclaration = vi.fn().mockResolvedValue(undefined);
+    const onCopyDeclaration = vi.fn().mockResolvedValue(undefined);
+    // Editable mode: input has title with current draft value
+    const editableView = renderView(threeLines(), true, { onSaveDeclaration, onCopyDeclaration });
+    const input = screen.getByLabelText(/Số tờ khai — container 1/) as HTMLInputElement;
+    expect(input.title).toBe('TK-DẦU');
+    editableView.unmount();
+
+    // Readonly mode: span has title with persisted value
+    renderView(threeLines(), false);
+    const spans = document.querySelectorAll('.cus-lot-decl__value');
+    expect(spans[0]?.getAttribute('title')).toBe('TK-DẦU');
+  });
 });

@@ -86,12 +86,14 @@ describe('shipment container editor density', () => {
     expect(viewSource).toContain("line.fieldAccess[field]?.mode === 'DIRECT'");
     expect(css).toMatch(/\.cus-lot-line\s*\{[^}]*display:\s*flex;/);
     // SIL-498: the declaration cell keeps its opaque house control;
-    // SIL-508 narrows it to the 11-character mono box the column needs;
+    // SIL-508 narrows it to the 11-character mono box floor;
+    // SIL-754: expands to fill column (max-width: 136px) so declaration numbers
+    // like R8B472DECL01 do not get truncated mid-code;
     // SIL-552 (owner 28/10) gives it the sheet's 36px row height so the
     // SỐ TỜ KHAI control and the SỐ CONTAINER group's first row share one
     // baseline band.
     expect(css).toMatch(/\.cus-lot-decl\s*\{[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.cus-lot-decl__input\s*\{[^}]*width:\s*11ch;[^}]*height:\s*36px;[^}]*border:\s*1px solid var\(--control-border\);[^}]*border-radius:\s*var\(--radius-sm\);/);
+    expect(css).toMatch(/\.cus-lot-decl__input\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*11ch;[^}]*max-width:\s*136px;[^}]*height:\s*36px;[^}]*border:\s*1px solid var\(--control-border\);[^}]*border-radius:\s*var\(--radius-sm\);/);
     expect(css).toMatch(/\.cus-lot-decl__input\s*\{[^}]*font-family:\s*var\(--font-data\);/);
     // Anti-nesting: hairline horizontals only — no vertical borders.
     expect(css).toMatch(/\.cus-lot-table th,\s*\n\.cus-lot-table td\s*\{[^}]*border-bottom:\s*1px solid var\(--line\);/);
