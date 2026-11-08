@@ -17,6 +17,8 @@ function makeItem(overrides: {
   cargoMode?: 'FCL' | 'LCL';
   direction?: 'IMPORT' | 'EXPORT';
   containerSummary?: string | null;
+  packageCount?: number | null;
+  packageType?: string | null;
   weightKg?: string | null;
   volumeCbm?: string | null;
   vehicleReadiness?: string;
@@ -74,8 +76,8 @@ function makeItem(overrides: {
     containerSummary,
     weightKg,
     volumeCbm,
-    packageCount: 12,
-    packageType: 'Pallet',
+    packageCount: overrides.packageCount !== undefined ? overrides.packageCount : 12,
+    packageType: overrides.packageType !== undefined ? overrides.packageType : 'Pallet',
     customerNotes: null,
     operationalNotes: null,
     appointmentGroups: [],
@@ -153,6 +155,24 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
     const { container } = renderRow(makeItem({ cargoMode, direction }));
     const badge = container.querySelector('.cus-direction-badge')!;
     expect(badge.textContent).toBe(expected);
+  });
+
+  it('direction badge reads "Lẻ" for LCL lot without direction (SIL-731)', () => {
+    const { container } = renderRow(makeItem({ cargoMode: 'LCL', direction: null }));
+    const badge = container.querySelector('.cus-direction-badge')!;
+    expect(badge.textContent).toBe('Lẻ');
+  });
+
+  it('renders both packaging demand and measures for LCL lot (SIL-731)', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      packageCount: 10,
+      packageType: 'Pallet',
+      weightKg: '5000',
+      volumeCbm: '12',
+    }));
+    expect(container.querySelector('.cus-cargo-summary__containers')?.textContent).toBe('10 Pallet');
+    expect(container.querySelector('.cus-cargo-summary__weight')?.textContent).toBe('5 tấn · 12 CBM');
   });
 
   it('R3 names the LCL lot cargo object in the day-filter empty state (SIL-504: one-line label)', () => {

@@ -406,15 +406,16 @@ export async function getShipmentDebitSummary(query: {
     const revenue = revenueByLot.get(lot.id);
     const ps = psByLot.get(lot.id);
     const opsCharge = opsChargeByLot.get(lot.id);
-    // SIL-731 r2 — arming rides receivableDetermined: a known-but-zero PS or
-    // ops charge alone must not fabricate a DOANH THU 0 (lô 100GX19033).
+    // SIL-731 r2/r3 — arming rides receivableDetermined: a known-but-zero PS,
+    // ops charge, or zero revenue rows must not fabricate a DOANH THU 0.
     const hasAnyRevenue = receivableDetermined({
       hasRevenueRows: revenue != null,
       freightKnown: freightAuto != null,
       psKnownTotal: ps?.known ? ps.total : null,
       opsChargeKnownTotal: opsCharge?.known ? opsCharge.total : null,
+      revenueRowsTotal: revenue != null ? ((revenue.otherSell ?? 0) + (revenue.derived ?? 0)) : null,
     });
-    const receivableValue = lock != null
+    let receivableValue = lock != null
       ? frozenNumber(lock.snapshot, 'receivableTotal')
       : hasAnyRevenue
         ? (revenue?.otherSell ?? 0)
@@ -423,6 +424,13 @@ export async function getShipmentDebitSummary(query: {
           + (ps?.known ? ps.total : 0)
           + (opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : 0)
         : null;
+
+    // Rule 24/10: chỉ hiện 0 khi đã tính = 0 hoặc lô ghép.
+    // Lô chưa chốt cước (freightAuto == null) và không phải lô ghép (revGroupId == null)
+    // và chưa khóa (lock == null) thì nếu tổng = 0, doanh thu PHẢI để null (trống).
+    if (receivableValue === 0 && freightAuto == null && lot.revGroupId == null && lock == null) {
+      receivableValue = null;
+    }
     const carrier = carrierByLot.get(lot.id);
     const ops = opsByLot.get(lot.id);
     const externalFreight = carrier?.known ? carrier.total : null;

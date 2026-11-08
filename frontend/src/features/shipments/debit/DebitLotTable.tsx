@@ -516,11 +516,8 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
   // board lands).
   const isRevMergeMember = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1;
   const showRevMergeTag = isRevMergeMember && !ratesRefreshing;
-  // 24/10 owner law: the wire's null = chưa chốt → TRỐNG; a computed 0 (tính
-  // = 0, including a merge member's 0₫) renders '0'. The dummy-snapshot skip
-  // (SIL-731, BE revenue-override-read) keeps unpriced lots off the 0 lane,
-  // so a wire 0 is always a real zero — the FE never re-classifies it.
-  const receivableState = ratesRefreshing ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
+  const isZeroUncalculated = !isRevMergeMember && row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0 && row.lockStatus !== 'LOCKED';
+  const receivableState = ratesRefreshing || isZeroUncalculated ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
   return (
     <>
       <tr
@@ -632,8 +629,11 @@ function groupByCustomer(items: ShipmentDebitLotRow[]): LotGroup[] {
 }
 
 function GroupHeader({ group, collapsed, onCollapse, leadingColSpan }: { group: LotGroup; collapsed: boolean; onCollapse: () => void; leadingColSpan: number }) {
-  const displayName = titleCaseName(group.name) || group.name;  const sums = group.rows.map((row) => ({
-    receivable: moneyState(row.receivableTotal),
+  const displayName = titleCaseName(group.name) || group.name;
+  const isZeroUncalculated = (r: ShipmentDebitLotRow) =>
+    r.revGroupId == null && r.freightAuto == null && Number(r.receivableTotal) === 0 && r.lockStatus !== 'LOCKED';
+  const sums = group.rows.map((row) => ({
+    receivable: isZeroUncalculated(row) ? { kind: 'pending' as const } : moneyState(row.receivableTotal),
     carrier: moneyState(row.carrierCostTotal ?? null),
     domestic: moneyState(row.opsCostTotal ?? null),
     payable: moneyState(row.payableTotal),
@@ -708,8 +708,15 @@ export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, 
     return next;
   });
 
-  const totalOf = (pick: (row: ShipmentDebitLotRow) => number | string | null | undefined) =>
-    sumMoneyStates(items.map((row) => moneyState(pick(row))));
+  const isZeroUncalculated = (r: ShipmentDebitLotRow) =>
+    r.revGroupId == null && r.freightAuto == null && Number(r.receivableTotal) === 0 && r.lockStatus !== 'LOCKED';
+  const totalOf = (pick: (row: ShipmentDebitLotRow) => number | string | null | undefined, col?: string) =>
+    sumMoneyStates(items.map((row) => {
+      if (col === 'receivable' && isZeroUncalculated(row)) {
+        return { kind: 'pending' as const };
+      }
+      return moneyState(pick(row));
+    }));
 
   return (
     <div className="shipment-debit-pane">
@@ -759,7 +766,7 @@ export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, 
         <tfoot className="shipment-debit-totals" data-testid="shipment-debit-totals">
           <tr>
             <td colSpan={mergeMode ? 5 : 4} className="shipment-debit-totals__label">{`Tổng cộng (${items.length} lô)`}</td>
-            <TotalCell col="receivable" value={totalOf((row) => row.receivableTotal)} />
+            <TotalCell col="receivable" value={totalOf((row) => row.receivableTotal, 'receivable')} />
             <TotalCell col="carrier" value={totalOf((row) => row.carrierCostTotal ?? null)} />
             <TotalCell col="domestic" value={totalOf((row) => row.opsCostTotal ?? null)} />
             <TotalCell col="payable" value={totalOf((row) => row.payableTotal)} />

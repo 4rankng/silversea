@@ -37,6 +37,8 @@ import { useHiddenColumns } from '../hooks/useHiddenColumns';
 import { noteLines, safeError } from '../features/shipments/cus/cusUtils';
 import { completeDispatchExternalTrip } from '../api/dispatchPlanningClient';
 import { canCloseExternalTrips } from '../lib/role-access';
+import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
+import type { OpsOrderItem } from '../api/opsClient';
 import '../styles/operational-table-typography.css';
 import '../styles/table-sort.css';
 import './ShipmentsPage.css';
@@ -137,6 +139,8 @@ export default function ShipmentsPage() {
   const canCloseExternal = canCloseExternalTrips(user?.role);
   // SIL-706: Sửa lô metadata chỉ dành cho ADMIN, MANAGER, CUS (DISPATCHER bị rút quyền sửa metadata).
   const canEditLot = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS);
+  const isOps = user?.role === Role.OPS;
+  const [expenseOrder, setExpenseOrder] = useState<OpsOrderItem | null>(null);
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
   const pageSize = readCusPageSize(searchParams.get('limit'));
@@ -851,6 +855,26 @@ export default function ShipmentsPage() {
             locked={lotEditLocked}
             onEdit={() => navigate(routes.shipmentDetailEdit(drawerItem.id))}
             onOpenLedger={() => navigate(factoryDetailPath(drawerItem))}
+            onDeclareExpense={isOps ? () => {
+              const detail = ws.details[drawerItem.id];
+              const containers = detail?.containers ?? [];
+              const orderItem: OpsOrderItem = {
+                id: drawerItem.id,
+                shipmentCode: drawerItem.billOrBookNumber,
+                status: drawerItem.status,
+                tradeDirection: drawerItem.direction,
+                billRef: drawerItem.billOrBookNumber,
+                customerName: drawerItem.customerName,
+                routeName: drawerItem.routeName,
+                pinned: false,
+                pinnedAt: null,
+                containerCount: containers.length,
+                containerNumbers: containers.map((c) => c.containerNumber).filter((n): n is string => Boolean(n)),
+                containerIds: containers.map((c) => c.id),
+                cargoMode: drawerItem.cargoMode,
+              };
+              setExpenseOrder(orderItem);
+            } : undefined}
           />
         ) : undefined}
       >
@@ -882,6 +906,13 @@ export default function ShipmentsPage() {
       </Drawer>
 
       <ShipmentActionModal actions={actions} />
+
+      {expenseOrder && (
+        <OpsExpenseFormModal
+          order={expenseOrder}
+          onClose={() => setExpenseOrder(null)}
+        />
+      )}
     </div>
   );
 }

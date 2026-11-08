@@ -39,8 +39,9 @@ function freightFact(row: ShipmentDebitLotRow): ReactNode {
  *  spec's visible tag «Ghép thu cước cùng Lô 1» beneath (same stack the F-2
  *  freight fact uses). Lô 1 / ungrouped rows render the bare amount. */
 function receivableAmount(row: ShipmentDebitLotRow): ReactNode {
-  const value = money(row.receivableTotal);
   const isMember = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1;
+  const isZeroUncalculated = !isMember && row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0 && row.lockStatus !== 'LOCKED';
+  const value = isZeroUncalculated ? null : money(row.receivableTotal);
   if (!isMember) return value;
   return (
     <span className="record-cell-stack">

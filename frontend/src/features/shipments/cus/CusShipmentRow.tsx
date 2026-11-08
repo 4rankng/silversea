@@ -217,8 +217,10 @@ export function CusShipmentRow({
               cell — design law §1 (text-only cells, name the missing field).
               The Cont/Lẻ cargo label is XLSX-export-only (owner ruling): the
               board states the mode through its own content, never a pill. */}
-          {item.direction && (
-            <span className={`cus-direction-badge cus-direction-badge--${item.direction.toLowerCase()}`}>{directionLabel(item.direction, item.cargoMode)}</span>
+          {(item.direction || item.cargoMode === 'LCL') && (
+            <span className={`cus-direction-badge cus-direction-badge--${(item.direction ?? 'lcl').toLowerCase()}`}>
+              {item.direction ? directionLabel(item.direction, item.cargoMode) : 'Lẻ'}
+            </span>
           )}
         </span></button>
       </td>)}
@@ -243,15 +245,23 @@ export function CusShipmentRow({
               const countAndType = item.packageCount != null
                 ? `${formatNumber(item.packageCount)} ${item.packageType?.trim() || 'kiện'}`
                 : null;
-              const weightStr = item.weightKg != null ? formatWeight(item.weightKg) : null;
               const cleanSummary = item.containerSummary && !item.containerSummary.includes('cont') ? item.containerSummary : null;
-              const specLines = splitContainerSummaryLines(countAndType ?? cleanSummary);
-              if (specLines.length > 0) {
-                return specLines.map((specLine) => (
-                  <strong key={specLine} className="cus-cargo-summary__containers">{specLine}</strong>
-                ));
+              const primaryDemand = countAndType ?? cleanSummary;
+              const specLines = splitContainerSummaryLines(primaryDemand);
+              const weightStr = item.weightKg != null ? formatWeight(item.weightKg) : null;
+              const volumeStr = item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : null;
+              const measures = [weightStr, volumeStr].filter(Boolean).join(' · ');
+
+              if (specLines.length > 0 || measures) {
+                return (
+                  <>
+                    {specLines.map((specLine) => (
+                      <strong key={specLine} className="cus-cargo-summary__containers">{specLine}</strong>
+                    ))}
+                    {measures && <span className="cus-cargo-summary__weight">{measures}</span>}
+                  </>
+                );
               }
-              if (weightStr) return <strong className="cus-cargo-summary__containers">{weightStr}</strong>;
               return <span className="cus-cargo-summary__containers cus-empty">Chưa có hàng hóa</span>;
             }
             const lines = splitContainerSummaryLines(summary);
@@ -269,20 +279,14 @@ export function CusShipmentRow({
             }
             return <strong className="cus-cargo-summary__containers">{quantity}</strong>;
           })()}
-          {!cargoMetricsMissing && (
+          {!cargoMetricsMissing && item.cargoMode !== 'LCL' && (
             <span className="cus-cargo-summary__metrics">
               <span className="cus-cargo-summary__weight">
                 {/* Card 191026181942: suppress non-applicable — an LCL lot
                     without a volume prints no CBM segment at all; the "— CBM"
                     placeholder sat beside real weight as if the volume were
                     measured and zero. Weight reads tấn (CUS-08). */}
-                {item.cargoMode === 'LCL'
-                  ? (item.packageCount != null || (!item.containerSummary?.includes('cont') && item.containerSummary)
-                    ? (item.volumeCbm
-                      ? `${formatWeight(item.weightKg)} · ${formatQuantity(item.volumeCbm)} CBM`
-                      : formatWeight(item.weightKg))
-                    : (item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : null))
-                  : formatWeight(item.weightKg)}
+                {formatWeight(item.weightKg)}
               </span>
             </span>
           )}

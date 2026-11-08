@@ -17,13 +17,18 @@ export interface ReceivableArmingInput {
   psKnownTotal: number | null;
   /** Σ negotiated ops customer charge when any entry carries it, else null. */
   opsChargeKnownTotal: number | null;
+  /** Optional Σ revenue rows (otherSell + derived). */
+  revenueRowsTotal?: number | null;
 }
 
 /** The side checks are SUM-based: a side "arms" when its Σ ≠ 0. Mixed-sign
  *  rows summing to 0 are pathological data (intake rejects negatives on the
  *  cost sides) and read as not-armed — the Σ wording of the 24/10 law. */
 export function receivableDetermined(input: ReceivableArmingInput): boolean {
-  return input.hasRevenueRows
+  const revenueArmed = input.revenueRowsTotal !== undefined
+    ? (input.revenueRowsTotal != null && input.revenueRowsTotal !== 0)
+    : input.hasRevenueRows;
+  return revenueArmed
     || input.freightKnown
     || (input.psKnownTotal != null && input.psKnownTotal !== 0)
     || (input.opsChargeKnownTotal != null && input.opsChargeKnownTotal !== 0);

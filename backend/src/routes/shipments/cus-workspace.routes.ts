@@ -55,7 +55,7 @@ const cusWorkspaceRoutes = Router()
 
 cusWorkspaceRoutes.get(
   '/cus-workspace',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER, Role.OPS),
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = shipmentCusWorkspaceQuerySchema.safeParse(req.query);
     if (!parsed.success) throwValidation(parsed.error);
@@ -65,7 +65,7 @@ cusWorkspaceRoutes.get(
 
 cusWorkspaceRoutes.get(
   '/cus-workspace/containers',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER, Role.OPS),
   asyncHandler(async (req: Request, res: Response) => {
     // Detail-only strict contract: informationStatus is accepted here and
     // rejected by the overview schema, locking the two endpoints' surfaces.
@@ -77,7 +77,7 @@ cusWorkspaceRoutes.get(
 
 cusWorkspaceRoutes.get(
   '/cus-workspace/:id',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS, Role.DISPATCHER, Role.OPS),
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;

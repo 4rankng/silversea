@@ -15,9 +15,11 @@ export interface CusLotDrawerFooterProps {
   locked: boolean;
   onEdit: () => void;
   onOpenLedger: () => void;
+  /** Ops lot expense declaration entry (SIL-748). */
+  onDeclareExpense?: () => void;
 }
 
-export function CusLotDrawerFooter({ canEdit, locked, onEdit, onOpenLedger }: CusLotDrawerFooterProps) {
+export function CusLotDrawerFooter({ canEdit, locked, onEdit, onOpenLedger, onDeclareExpense }: CusLotDrawerFooterProps) {
   return (
     <div className="cus-drawer-editbar">
       {locked && canEdit && <span className="cus-drawer-editbar__reason">Lô đã khóa kế toán — dữ liệu chỉ đọc.</span>}
@@ -29,6 +31,16 @@ export function CusLotDrawerFooter({ canEdit, locked, onEdit, onOpenLedger }: Cu
       >
         Mở bảng chi tiết container
       </UUIButton>
+      {onDeclareExpense && (
+        <UUIButton
+          size="sm"
+          color="secondary"
+          className="cus-drawer-declare-expense"
+          onPress={onDeclareExpense}
+        >
+          Khai chi phí
+        </UUIButton>
+      )}
       {canEdit && (
         <UUIButton
           size="sm"

@@ -36,12 +36,32 @@ describe('receivableDetermined (SIL-731 r2 arming law)', () => {
     }), true);
   });
 
-  test('revenue rows exist (even all-zero sells) → determined', () => {
+  test('revenue rows exist (legacy caller without total) → determined', () => {
     assert.equal(receivableDetermined({
       hasRevenueRows: true,
       freightKnown: false,
       psKnownTotal: null,
       opsChargeKnownTotal: null,
+    }), true);
+  });
+
+  test('revenue rows with total 0 do not arm when freight is unpriced', () => {
+    assert.equal(receivableDetermined({
+      hasRevenueRows: true,
+      freightKnown: false,
+      psKnownTotal: null,
+      opsChargeKnownTotal: null,
+      revenueRowsTotal: 0,
+    }), false);
+  });
+
+  test('revenue rows with non-zero total arm even when freight is unpriced', () => {
+    assert.equal(receivableDetermined({
+      hasRevenueRows: true,
+      freightKnown: false,
+      psKnownTotal: null,
+      opsChargeKnownTotal: null,
+      revenueRowsTotal: 250_000,
     }), true);
   });
 
