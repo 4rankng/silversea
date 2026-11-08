@@ -238,7 +238,11 @@ export async function reopenOpsSettlementDraft(userId: number, settlementId: num
     .where(eq(s.opsExpenseEntries.opsSettlementId, settlementId)).for('update');
   await tx.update(s.opsExpenseEntries).set({ opsSettlementId: null, updatedAt: new Date() })
     .where(eq(s.opsExpenseEntries.opsSettlementId, settlementId));
-  const [result] = await tx.update(s.opsSettlements).set({ status: 'VOIDED', updatedAt: new Date() })
+  // SIL-751 — the released entries detach above, so the frozen batch total
+  // would ghost on: a VOIDED phiếu listing zero lines but still claiming its
+  // old total_amount breaks the "header = sum of its lines" invariant in the
+  // list. The audit payload below keeps the original total for history.
+  const [result] = await tx.update(s.opsSettlements).set({ status: 'VOIDED', totalAmount: '0', updatedAt: new Date() })
     .where(eq(s.opsSettlements.id, settlementId)).returning();
   await tx.insert(s.auditLogs).values({ userId, entityType: 'ops-settlements', entityId: settlementId,
     message: 'Mở khoản chi trong phiếu nháp để bổ sung', payload: { beforeStatus: settlement.status, status: 'VOIDED', releasedExpenseIds: entries.map(row => row.id), totalAmount: settlement.totalAmount } });

@@ -216,7 +216,16 @@ export interface OpsSettlementDetail {
       withoutInvoice: { items: OpsSettlementGroupItem[]; total: string };
       total: string;
     }>;
-    totals: { withInvoice: string; withoutInvoice: string; grand: string };
+    // SIL-751 — rawGrand/excludedNegative expose the card 20260928_197 rule
+    // (grand excludes negative rows) so the sheet can show the reconciliation
+    // line: grand = rawGrand − excludedNegative.
+    totals: {
+      withInvoice: string;
+      withoutInvoice: string;
+      grand: string;
+      rawGrand: string;
+      excludedNegative: string;
+    };
   };
 }
 

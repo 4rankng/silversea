@@ -59,5 +59,36 @@ describe('groupOpsExpensesForSettlement (OpsVanHanh §5.4)', () => {
     const grouping = groupOpsExpensesForSettlement([]);
     assert.equal(grouping.groups.length, 0);
     assert.equal(grouping.totals.grand, '0');
+    assert.equal(grouping.totals.rawGrand, '0');
+    assert.equal(grouping.totals.excludedNegative, '0');
+  });
+
+  // SIL-751 — the two staging phiếu QA reported: the printed rows no longer
+  // added up to the header because card 20260928_197 drops negative rows from
+  // every total. These pins keep the exposed reconciliation numbers exactly
+  // on the ticket's cases so the sheet/export can show the difference.
+  it('SIL-751 case OS-2611-0005 — header 1.080.000 vs dòng cộng 1.070.000 exposes the −10.000 exclusion', () => {
+    const grouping = groupOpsExpensesForSettlement([
+      entry({ amount: '1080000' }),
+      entry({ containerNumber: 'CONT-NEG', expenseTypeName: 'Điều chỉnh', amount: '-10000' }),
+    ]);
+    assert.equal(grouping.totals.grand, '1080000', 'header/law total keeps excluding the negative row');
+    assert.equal(grouping.totals.rawGrand, '1070000', 'sum of the displayed rows including the negative');
+    assert.equal(grouping.totals.excludedNegative, '-10000');
+    // grand excludes the negatives: grand + excludedNegative = rawGrand.
+    assert.equal(BigInt(grouping.totals.grand) + BigInt(grouping.totals.excludedNegative), BigInt(grouping.totals.rawGrand));
+  });
+
+  it('SIL-751 case OS-2610-0001 — header 320.000 vs dòng cộng 270.000 exposes the −50.000 exclusion', () => {
+    const grouping = groupOpsExpensesForSettlement([
+      entry({ amount: '-50000', expenseTypeName: 'Nhân công kho' }),
+      entry({ amount: '200000', expenseTypeName: 'Đổi cont' }),
+      entry({ amount: '120000', expenseTypeName: 'Nhân công kho' }),
+    ]);
+    assert.equal(grouping.totals.grand, '320000');
+    assert.equal(grouping.totals.rawGrand, '270000');
+    assert.equal(grouping.totals.excludedNegative, '-50000');
+    // grand excludes the negatives: grand + excludedNegative = rawGrand.
+    assert.equal(BigInt(grouping.totals.grand) + BigInt(grouping.totals.excludedNegative), BigInt(grouping.totals.rawGrand));
   });
 });

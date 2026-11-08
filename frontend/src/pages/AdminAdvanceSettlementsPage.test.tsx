@@ -235,7 +235,10 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', 
     fireEvent.click(screen.getByRole('button', { name: /Ghi nhận phiếu/ }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({
       forwarderId: 9,
-      refundAmount: 0,
+      // SIL-751 — the refund box auto-fills tạm ứng − chi phí (100.000 −
+      // 60.000), so the phiếu balances on the first submit; the old pin
+      // expected the stay-at-0 refund that hit the 400 'Phiếu chưa cân đối'.
+      refundAmount: 40000,
       note: undefined,
       advanceRequestIds: [8141],
       tripExpenseIds: [501],

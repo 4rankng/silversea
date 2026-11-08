@@ -23,6 +23,11 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose }: { 
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<number>>(new Set());
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<number>>(new Set());
   const [refundAmount, setRefundAmount] = useState('0');
+  // SIL-751 — the refund box used to stay 0 while the phiếu needed
+  // advance − expense to balance; saving with 0 hit the backend 400
+  // 'Phiếu chưa cân đối'. While the accountant has not typed an amount, the
+  // box shows the balance as the suggestion; a manual edit wins from then on.
+  const [refundEdited, setRefundEdited] = useState(false);
   const [note, setNote] = useState('');
   // FB-100 — the live submit's own mandatory tick; gates BOTH the footer
   // button and the handler (keyboard/programmatic submit must not bypass it).
@@ -44,7 +49,11 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose }: { 
   const totalExpense = expenses
     .filter(e => selectedExpenseIds.has(e.id))
     .reduce((sum, e) => sum + Number(e.buyAmount), 0);
-  const totalRefund = Number(refundAmount) || 0;
+  const suggestedRefund = totalAdvance - totalExpense;
+  // SIL-751 — untyped box tracks the balance (signed per FB-100); a typed
+  // amount always wins so the accountant can still record a partial refund
+  // with the explicit 'Chênh lệch' warning below.
+  const totalRefund = refundEdited ? (Number(refundAmount) || 0) : suggestedRefund;
   const balance = totalAdvance - totalExpense - totalRefund;
 
   function pickForwarder(id: number) {
@@ -55,6 +64,7 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose }: { 
     // SIL-487 review — refund/note typed for the previous staff must not ride
     // into another staff's phiếu; the balance warning alone is not a guard.
     setRefundAmount('0');
+    setRefundEdited(false);
     setNote('');
     setRefundConfirmed(false);
   }
@@ -84,6 +94,7 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose }: { 
     setSelectedRequestIds(new Set());
     setSelectedExpenseIds(new Set());
     setRefundAmount('0');
+    setRefundEdited(false);
     setNote('');
     setRefundConfirmed(false);
   }
@@ -240,8 +251,8 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose }: { 
                     grouped
                     signed
                     id="as-create-refund"
-                    value={refundAmount === '' ? '' : Number(refundAmount)}
-                    onChange={(n) => setRefundAmount(n === '' ? '' : String(n))}
+                    value={refundEdited ? (refundAmount === '' ? '' : Number(refundAmount)) : suggestedRefund}
+                    onChange={(n) => { setRefundEdited(true); setRefundAmount(n === '' ? '' : String(n)); }}
                     placeholder="0"
                   />
                 </div>

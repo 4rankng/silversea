@@ -26,6 +26,10 @@ export default function ForwarderSettlementCreatePage() {
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<number>>(new Set());
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<number>>(new Set());
   const [refundAmount, setRefundAmount] = useState('0');
+  // SIL-751 — same auto-fill law as the accountant dialog: the box tracks the
+  // balance until the filer types an amount; saving 0 previously hit the
+  // backend 400 'Phiếu chưa cân đối' instead of suggesting the number.
+  const [refundEdited, setRefundEdited] = useState(false);
   const [note, setNote] = useState('');
   // FB-100 (card 141026230770, F-W1-1 ruling Option B): the live submit's own
   // mandatory "Xác nhận hoàn ứng" tick — the phiếu applies at creation, so
@@ -74,7 +78,10 @@ export default function ForwarderSettlementCreatePage() {
       .reduce((sum, e) => sum + Number(e.buyAmount), 0);
   }, [unlinkedExpenses, selectedExpenseIds]);
 
-  const totalRefund = Number(refundAmount) || 0;
+  const suggestedRefund = totalAdvance - totalExpense;
+  // SIL-751 — untyped box tracks the balance (signed per FB-100); a typed
+  // amount always wins over the suggestion.
+  const totalRefund = refundEdited ? (Number(refundAmount) || 0) : suggestedRefund;
   const balance = totalAdvance - totalExpense - totalRefund;
 
   const expenseBreakdown = useMemo(() => {
@@ -426,8 +433,8 @@ export default function ForwarderSettlementCreatePage() {
             <NumberField
               grouped
               signed
-              value={refundAmount === '' ? '' : Number(refundAmount)}
-              onChange={(n) => setRefundAmount(n === '' ? '' : String(n))}
+              value={refundEdited ? (refundAmount === '' ? '' : Number(refundAmount)) : suggestedRefund}
+              onChange={(n) => { setRefundEdited(true); setRefundAmount(n === '' ? '' : String(n)); }}
               placeholder="0"
               // FB-100 (card 141026230770) — refundAmount CÓ DẤU (signedNumeric
               // của shared schema): chi phí vượt tạm ứng ⇒ tiền hoàn lại ÂM và

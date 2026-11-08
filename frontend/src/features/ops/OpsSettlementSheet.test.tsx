@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { OpsSettlementSheet } from './OpsSettlementsPanel';
 
-const grouping = (over: Record<string, unknown> = {}): Parameters<typeof OpsSettlementSheet>[0]['grouping'] => ({
+const grouping = (over: Record<string, unknown> = {}, totalsOver: Record<string, string> = {}): Parameters<typeof OpsSettlementSheet>[0]['grouping'] => ({
   groups: [{
     shipmentId: 123,
     shipmentCode: 'SHP-2609-00123',
@@ -14,7 +14,7 @@ const grouping = (over: Record<string, unknown> = {}): Parameters<typeof OpsSett
     total: '0',
     ...over,
   }],
-  totals: { withInvoice: '0', withoutInvoice: '0', grand: '0' },
+  totals: { withInvoice: '0', withoutInvoice: '0', grand: '0', rawGrand: '0', excludedNegative: '0', ...totalsOver },
 });
 
 const meta = {
@@ -140,5 +140,31 @@ describe('OpsSettlementSheet display keys (internal ids never render)', () => {
     expect(sheet.textContent).toContain('Chưa có số Bill/Booking');
     expect(sheet.textContent).not.toContain('123');
     expect(sheet.textContent).not.toContain('SHP-');
+  });
+
+  // SIL-751 — the totals drop negative rows (card 20260928_197), so a phiếu
+  // with one used to print rows that visibly do not add up to TỔNG CỘNG.
+  // The sheet must state the exclusion with both reconciliation numbers
+  // (OS-2610-0001: grand 320.000, rows 270.000, excluded −50.000).
+  it('SIL-751 — phiếu có dòng âm in rõ phần loại trừ để tổng kiểm chứng được', () => {
+    render(<OpsSettlementSheet
+      grouping={grouping({}, {
+        withInvoice: '0',
+        withoutInvoice: '320000',
+        grand: '320000',
+        rawGrand: '270000',
+        excludedNegative: '-50000',
+      })}
+      meta={meta}
+    />);
+    const note = screen.getByText(/Dòng âm đã loại trừ/);
+    expect(note).toHaveTextContent('-50.000');
+    expect(note).toHaveTextContent('270.000');
+    expect(note).toHaveTextContent('tổng phiếu không cộng dòng âm');
+  });
+
+  it('SIL-751 — phiếu không có dòng âm thì không in dòng giải thích', () => {
+    render(<OpsSettlementSheet grouping={grouping()} meta={meta} />);
+    expect(screen.queryByText(/Dòng âm đã loại trừ/)).toBeNull();
   });
 });

@@ -1,0 +1,15 @@
+login ok: hoangnh/OPS
+API identity: {"code":"OS-2610-0001","totalAmount":"320000","totals":{"withInvoice":"0","withoutInvoice":"320000","grand":"320000","rawGrand":"270000","excludedNegative":"-50000"}}
+list row ok (1 rows): OS-2610-0001 · Tổng 320.000 ₫
+grand: TỔNG CỘNG: 320.000 (Có HĐ: 0 · Không HĐ: 320.000)
+excluded line: Dòng âm đã loại trừ: -50.000 ₫ (tổng phiếu không cộng dòng âm) · Tổng nếu cộng cả dòng âm: 270.000 ₫
+PASS — grand shows 320.000
+PASS — excluded line rendered
+PASS — excluded shows -50.000
+PASS — raw line sum 270.000 shown
+PASS — explanation present
+PASS — negative row visible in table
+screenshot: qa/2026-11-08_sil751_ui-sheet.png
+390px — excluded box: {"x":20,"y":789.75,"height":36,"width":350} visible=true clipped=false
+768px — excluded box: {"x":82,"y":654.390625,"height":36,"width":604} visible=true clipped=false
+UI DRIVE OK

@@ -28,6 +28,7 @@ import { ArSnapshotService } from './trip-snapshots.service';
 import { SnapshotServices } from './snapshot-services';
 import { lockTripCloseAggregate } from './trip-close-readiness.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { rewindShipmentAfterLastLiveTripCancel } from './shipment-status-transitions.service';
 import { getDriverCompletionEvidenceStatus } from './trip-pod.service';
 import { syncTimesheetSymbolForTrip } from './timesheet-auto-symbol.service';
 
@@ -618,6 +619,26 @@ export async function transitionTripStatus(
       // chuyến: ô chấm công do hệ thống ghi cho ngày đó phải được làm mới
       // (xoá hẳn nếu không còn chuyến nào). Ô Điều vận gõ tay không bị đè.
       await syncTimesheetSymbolForTrip(tripId, userId, tx);
+
+      // SIL-751 — Hủy phân xe leaves the plan grid on "Chưa phân xe" while
+      // the stored lot status stayed DISPATCHED (the dispatch-order issuance
+      // flipped it and only the COMPLETED branch recomputed the shipment).
+      // When this cancel was the lot's last live trip, rewind it inside the
+      // same transaction so the API, the grid and the dispatch queue agree.
+      const rewindShipmentId = trip.shipmentId
+        ?? (trip.fulfillmentId != null
+          ? (await tx.select({ shipmentId: s.shipmentFulfillments.shipmentId })
+            .from(s.shipmentFulfillments)
+            .where(eq(s.shipmentFulfillments.id, trip.fulfillmentId))
+            .limit(1))[0]?.shipmentId ?? null
+          : null);
+      if (rewindShipmentId != null) {
+        await rewindShipmentAfterLastLiveTripCancel(
+          rewindShipmentId,
+          { changedBy: userId },
+          tx,
+        );
+      }
 
       // Cancel audit row is written by the middleware for POST /cancel
       // ("Quản lý <actor> hủy chuyến <tripCode>") — skip duplicate write.

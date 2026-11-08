@@ -3,7 +3,7 @@
 // Extracted from shipment-lifecycle.service.ts verbatim (pure code movement).
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { canonicalShipmentStatus, TripStatus, TripPodStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -42,7 +42,10 @@ const LEGAL_TRANSITIONS: Record<string, readonly string[]> = {
   NEW: ['READY_FOR_DISPATCH', 'CANCELED'],
   PENDING_DATE: ['READY_FOR_DISPATCH', 'CANCELED'],
   READY_FOR_DISPATCH: ['DISPATCHED', 'CANCELED'],
-  DISPATCHED: ['IN_TRANSIT', 'CANCELED'],
+  // SIL-751 — Hủy phân xe on the lot's last live trip rewinds the lot to
+  // ready so the API agrees with the grid's "Chưa phân xe"; every other
+  // backward move stays illegal (IN_TRANSIT keeps its own → DISPATCHED edge).
+  DISPATCHED: ['IN_TRANSIT', 'CANCELED', 'READY_FOR_DISPATCH'],
   IN_TRANSIT: ['DISPATCHED', 'COMPLETED', 'CANCELED'],
   COMPLETED: [],
   CANCELED: [],
@@ -165,6 +168,76 @@ export async function transitionShipmentStatus(
     }
 
     return updated;
+  };
+  return runInTx(transaction, execute);
+}
+
+/**
+ * SIL-751 — pure rewind decision for a canceled trip: only a DISPATCHED lot
+ * whose canceled trip was its last one (no live trip, no completed trip —
+ * lots with a completed leg stay on the completion recompute's authority)
+ * returns to READY_FOR_DISPATCH. Exported pure so the unit tests pin the
+ * boundary cases without a database.
+ */
+export function shouldRewindShipmentToReady(
+  currentStatus: string | null,
+  liveTripCount: number,
+  completedTripCount: number,
+): boolean {
+  return currentStatus === 'DISPATCHED' && liveTripCount === 0 && completedTripCount === 0;
+}
+
+/**
+ * SIL-751 — Hủy phân xe cancels the trip and clears the vehicle, but only
+ * the COMPLETED branch of the trip status machine recomputed the shipment,
+ * so the lot's stored status stayed DISPATCHED while the plan grid already
+ * read "Chưa phân xe". Called from the CANCELED branch inside the same
+ * transaction: when the canceled trip leaves the lot without any live or
+ * completed trip, rewind DISPATCHED → READY_FOR_DISPATCH (the dispatch
+ * handoff reset in transitionShipmentStatus puts the lot back into the
+ * dispatcher's queue). A lot missing all three dispatch dates cannot legally
+ * hold READY_FOR_DISPATCH, so the rewind is skipped rather than thrown —
+ * canceling the trip must not fail over a cosmetic status.
+ */
+export async function rewindShipmentAfterLastLiveTripCancel(
+  shipmentId: number,
+  options: { changedBy?: number | null } = {},
+  transaction?: Tx,
+) {
+  const execute = async (tx: Tx) => {
+    const [shipment] = await tx.select().from(s.shipments)
+      .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update')
+      .limit(1);
+    if (!shipment) return null;
+    const currentStatus = canonicalShipmentStatus(shipment.status);
+    const fulfillmentIds = (await tx.select({ id: s.shipmentFulfillments.id })
+      .from(s.shipmentFulfillments)
+      .where(eq(s.shipmentFulfillments.shipmentId, shipmentId)))
+      .map((row) => row.id);
+    // A trip links to the lot directly (trips.shipment_id) or through its
+    // fulfillment — same union the resource-availability scans read.
+    const tripRows = await tx.select({ status: s.trips.status })
+      .from(s.trips)
+      .where(and(
+        isNull(s.trips.deletedAt),
+        fulfillmentIds.length > 0
+          ? or(eq(s.trips.shipmentId, shipmentId), inArray(s.trips.fulfillmentId, fulfillmentIds))
+          : eq(s.trips.shipmentId, shipmentId),
+      ));
+    const liveTripCount = tripRows.filter((row) => row.status !== TripStatus.CANCELED && row.status !== TripStatus.COMPLETED).length;
+    const completedTripCount = tripRows.filter((row) => row.status === TripStatus.COMPLETED).length;
+    if (!shouldRewindShipmentToReady(currentStatus ?? null, liveTripCount, completedTripCount)) return null;
+    if (!hasDispatchDate(shipment)) return null;
+    return transitionShipmentStatus(
+      shipmentId,
+      'READY_FOR_DISPATCH',
+      {
+        reason: 'Hủy phân xe: chuyến bị hủy, lô không còn chuyến sống — trả về chờ điều xe.',
+        changedBy: options.changedBy ?? null,
+      },
+      tx,
+    );
   };
   return runInTx(transaction, execute);
 }

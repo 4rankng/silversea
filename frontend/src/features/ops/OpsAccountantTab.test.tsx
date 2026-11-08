@@ -85,7 +85,7 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
       id: 3, code: 'OS-2609-0001', status: 'RECORDED', totalAmount: '350000', note: null,
       createdAt: '2026-09-07T00:00:00.000Z', approvedAt: null, opsUserId: 7, opsUserName: 'Ops A',
     },
-    grouping: { groups: [], totals: { withInvoice: '0', withoutInvoice: '0', grand: '0' } },
+    grouping: { groups: [], totals: { withInvoice: '0', withoutInvoice: '0', grand: '0', rawGrand: '0', excludedNegative: '0' } },
   };
 
   it('ID04 keeps missing creator labels honest while preserving settlement money and exact detail identity', async () => {
