@@ -38,6 +38,21 @@ Số Booking). Chuỗi con bao hàm trường hợp đuôi cũ, nên không mấ
 4. 4 số không có trong dữ liệu ⇒ không ra lô nào.
 5. Lô đã xoá mềm không được gợi ý.
 
+### Round 2+3 (QA fail 07→08/11, builds be8db3a1 & 9f900f39) — chọn lô phải TỰ ĐIỀN Số Bill + Hãng tàu
+
+- Surface THẬT của QA: `/accounting/expenses?view=records` → tab 'Cược
+  container' → 'Thêm cược' — popup `ShipmentFinanceForm` (không phải
+  DepositRefundTrackerPage). Search 4 số cuối PASS nhưng CHỌN lô chỉ
+  `setLotChoice` — 'Số Bill *' và 'Hãng tàu *' trống, 0 API call (fill là FE
+  thuần, không cần call).
+- Luật sau: onChange 'Lô hàng' fill `bill = blNumber`, `shippingLine =
+  shippingLineName` từ row đã load trong `lots.data` (cùng convention với
+  nhánh invoice 'Chi phí nguồn'); đổi lô ⇒ re-fill từ row khác; ô là input
+  thường nên sửa tay vẫn được.
+- Pin: `frontend/src/features/shipment-finance/ShipmentFinanceForm.test.tsx`
+  describe 'SIL-735 — picking the looked-up lot pre-fills the deposit
+  identity' (fill đúng EGLV149607019409/EVER theo lot 2; đổi pick ⇒ re-fill).
+
 ### Regression evidence
 
 - Unit: `backend/src/tests/unit/deposit-bill-suggestions.test.ts` — 4/4 pass

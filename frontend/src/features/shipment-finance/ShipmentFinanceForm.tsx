@@ -81,7 +81,15 @@ export function ShipmentFinanceForm({ editor, shipmentId, principalLocked = fals
       {error && <p role="alert" className="shipment-finance__error">{error}</p>}
       {!shipmentId && !editor.record && <>
         <TextField controlSize="sm" label="Tìm lô hàng" value={lotSearch} onChange={(event) => setLotSearch(event.target.value)} placeholder="Mã lô, Bill hoặc khách hàng" disabled={busy} />
-        <UuiSelectField label="Lô hàng" disabled={busy} required value={lot} onChange={(event) => { setLotChoice(event.target.value); setSourceExpenseId(''); setTripId(''); }}
+        <UuiSelectField label="Lô hàng" disabled={busy} required value={lot} onChange={(event) => { setLotChoice(event.target.value); setSourceExpenseId(''); setTripId('');
+          // SIL-735 — picking the looked-up lot pre-fills the deposit identity
+          // straight from the loaded row (the same convention as the invoice
+          // branch's 'Chi phí nguồn' pick): Số Bill + Hãng tàu are exactly the
+          // fields the lookup exists for. Plain inputs stay editable, so a
+          // wrong master-data value remains a manual overwrite away.
+          const picked = (lots.data?.items ?? []).find((item) => String(item.id) === event.target.value);
+          if (picked) { setBill(picked.blNumber ?? ''); setShippingLine(picked.shippingLineName ?? ''); }
+        }}
           options={[{ value: '', label: 'Chọn lô hàng' }, ...(lots.data?.items ?? []).map((item) => ({ value: String(item.id), label: [item.blNumber, item.customerName].filter(Boolean).join(' · ') || '—' }))]} />
         {lots.isError && <p role="alert">Không tải được lô hàng. <button type="button" className="btn btn--ghost" onClick={() => void lots.refetch()}>Thử lại</button></p>}
       </>}

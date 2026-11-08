@@ -1,0 +1,45 @@
+# qa/2026-11-08 — SIL-735 UI DRIVEN driver log
+
+- Stack: local dev (BE :3002 dev build of fix/k11-be-money worktree, FE Vite :7175,
+  dev Postgres :5441). Account: hoapt (Phạm Thị Hòa · Kế toán) — login qua
+  /login form thật.
+- Path: /accounting/expenses?view=records → tab 'Hóa đơn / cược' → sub-tab
+  'Cược container' → [Thêm cược] → drawer 'Thêm cược container'.
+- Lookup data (dev DB): shipment id 2 / SHP-2609-00002 — bl_number
+  EGLV149607019409, shipping_line EVER (chính là bộ số liệu QA dùng trên
+  staging: '9409' → EGLV149607019409 · Long Minh).
+
+## Driver steps (Paseo browser, real clicks)
+
+1. Click 'Thêm cược' → drawer mở: 'Tìm lô hàng', 'Lô hàng*' (React Aria
+   select), 'Số Bill *', 'Hãng tàu *' … (DOM snapshot).
+2. Type '9409' vào 'Tìm lô hàng' → GET /api/shipments?limit=20&q=9409
+   (d425affd search path) → gợi ý 'EGLV149607019409 · LONG MINH'.
+3. Click combobox 'Lô hàng*' → listbox mở → CLICK option
+   'EGLV149607019409 · LONG MINH'.
+4. DOM assertion (document.querySelector('[role="dialog"]') inputs):
+   - 'Số Bill *'  = 'EGLV149607019409'   ← PASS (trước fix: rỗng)
+   - 'Hãng tàu *' = 'EVER'               ← PASS (trước fix: rỗng)
+5. No-call proof: monkey-patch window.fetch (counter trước/sau chu kỳ chọn
+   lot) — 0 call /api/* phát sinh trong lúc open-listbox + chọn option
+   (chỉ còn polling /api/health + /api/notifications/unread-count định kỳ,
+   và 1 lần search GET /api/shipments?limit=20&q=… do typing).
+   XMLHttpRequest.prototype.open cũng được patch (0 call). Fill thuần FE —
+   khớp quan sát của QA 'không có API call nào' và không cần call.
+6. Cycle 2 (sau reload): lặp lại steps 2–4 → cùng kết quả EGLV149607019409 /
+   EVER.
+
+## Screenshot
+
+- browser_screenshot BỊ TỪ CHỐI bởi host webview ('The tab has not painted
+  yet') ở mọi thời điểm, kể cả sau resize/reload/rAF — webview chạy nền
+  không compositor. Không tạo được artifact .png từ environment này.
+- Bù bằng chứng: DOM assertion text ở step 4/6 (giá trị input thật trong
+  dialog thật sau click thật) + network counter ở step 5. §9 coverage table
+  ghi rõ giới hạn này.
+
+## Driver limitation
+
+- Lần typing thứ 2 harness đúp chuỗi ('94099409') — reset bằng native input
+  event rồi typing lại bình thường; flow chốt (step 2–4) là typing + click
+  thật, giá trị tra cứu đúng '9409'.
