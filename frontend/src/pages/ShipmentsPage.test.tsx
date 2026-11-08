@@ -592,14 +592,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText(/52,5 CBM/)).toBeTruthy();
   });
 
-  it('keeps the approved Cont/Lẻ cargo label in the XLSX export only, not as a table pill', async () => {
+  it('renders inline Lẻ badge for LCL cargo summary (SIL-758) and exports Cont/Lẻ in XLSX', async () => {
     apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'FCL' }, { ...row, id: 2, cargoMode: 'LCL', containerSummary: '4 Pallet' }]));
     renderPage();
     const table = await screen.findByRole('table');
-    // The cargo overview cell states the mode through its own content
-    // (composition lines vs kiện/CBM metrics) — no redundant Cont/Lẻ pill.
+    // SIL-758 (id 879): FCL has no redundant Cont pill; LCL carries the inline
+    // Lẻ badge in the cargo overview cell.
     expect(within(table).queryByText('Cont')).toBeNull();
-    expect(within(table).queryByText('Lẻ')).toBeNull();
+    const lclBadge = within(table).getByText('Lẻ');
+    expect(lclBadge).toBeTruthy();
+    expect(lclBadge.className).toContain('cus-cargo-summary__lcl-badge');
 
     fireEvent.click(screen.getByRole('button', { name: 'Tải XLSX' }));
     await waitFor(() => expect(downloadCSV).toHaveBeenCalledTimes(1));

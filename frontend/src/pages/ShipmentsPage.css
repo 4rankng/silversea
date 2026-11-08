@@ -564,6 +564,13 @@
 /* Cargo is compact supporting data: show every container type, then keep its
    two measurements together on one quiet line instead of clipping either. */
 .cus-multiline-cell.cus-cargo-summary { gap: 2px; }
+.cus-multiline-cell .cus-cargo-summary__line {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs, 4px);
+  min-width: 0;
+  max-width: 100%;
+}
 .cus-multiline-cell .cus-cargo-summary__containers {
   overflow: visible;
   color: var(--ink-2);
@@ -573,6 +580,21 @@
   text-overflow: clip;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+.cus-multiline-cell .cus-cargo-summary__lcl-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 18px;
+  padding: 0 var(--space-xs, 5px);
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-caption-size, 11px);
+  font-weight: var(--fw-semibold, 600);
+  line-height: 16px;
+  background: var(--chip-neutral-bg, #f2f4f7);
+  color: var(--ink-2, #344054);
+  border: 1px solid var(--chip-neutral-border, #eaecf0);
+  white-space: nowrap;
 }
 .cus-multiline-cell .cus-cargo-summary__metrics {
   display: flex;
