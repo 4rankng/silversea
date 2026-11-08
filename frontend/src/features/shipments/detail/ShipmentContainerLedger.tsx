@@ -1521,14 +1521,14 @@ export function ShipmentContainerLedger({
                   <td data-label="Bill/Booking" className={cellClassName(documentsEditable, 'documents')}>
                     {editableCell(row, 'documents', documentsEditable,
                       <div className="shipment-container-ledger__multiline">
-                        <strong className="shipment-container-ledger__code">{fallback(row.billOrBookNumber, 'Chưa có Bill/Booking')}</strong>
+                        <strong className="shipment-container-ledger__code" title={row.billOrBookNumber || undefined}>{fallback(row.billOrBookNumber, 'Chưa có Bill/Booking')}</strong>
                       </div>,
                       { rendersEditor: false, triggerKey: 'bill', cellLabel: 'Bill/Booking' })}
                   </td>
                   <td data-label="Số tờ khai" className={cellClassName(documentsEditable, 'documents')}>
                     {editableCell(row, 'documents', documentsEditable,
                       <div className="shipment-container-ledger__multiline">
-                        <span className="shipment-container-ledger__code">{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
+                        <span className="shipment-container-ledger__code" title={row.declarationNumber || undefined}>{fallback(row.declarationNumber, 'Chưa có tờ khai')}</span>
                       </div>,
                       { cellLabel: 'Số tờ khai' })}
                   </td>

@@ -188,4 +188,14 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(stackRule).toContain('flex-direction: column');
     expect(stackRule).toContain('align-items: center');
   });
+
+  it('SIL-756: container number and declaration number do not wrap mid-string (white-space: nowrap + overflow-wrap: normal)', () => {
+    // Container serial numbers are single-token ISO identifiers (e.g. QACU2000507)
+    expect(css).toMatch(/\.detailed-plan-grid__cell--container \.ops-container-line\s*\{[^}]*white-space:\s*nowrap/);
+    expect(css).toMatch(/\.detailed-plan-grid__cell--container \.ops-container-line\s*\{[^}]*overflow-wrap:\s*normal/);
+
+    // Declaration numbers are also single-token codes (e.g. TK1108R002)
+    expect(css).toMatch(/\.detailed-plan-grid__decl-value\s*\{[^}]*white-space:\s*nowrap/);
+    expect(css).toMatch(/\.detailed-plan-grid__decl-value\s*\{[^}]*overflow-wrap:\s*normal/);
+  });
 });

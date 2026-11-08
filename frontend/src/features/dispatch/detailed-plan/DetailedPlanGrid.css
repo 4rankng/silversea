@@ -294,7 +294,9 @@
    and the inline editor is a single compact input with an Enter/Esc hint. */
 .detailed-plan-grid__decl-value {
   font-family: var(--font-data, inherit);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* SIL-631: the cell keeps its value (dimmed) while the editor floats outside
@@ -589,6 +591,16 @@
  * 211026180428). */
 .detailed-plan-grid__cell--container .detailed-plan-grid__line--strong {
   font-size: var(--text-caption-size);
+}
+
+/* SIL-756: Container numbers are unbreakable ISO codes (11 chars) —
+ * white-space: nowrap + overflow-wrap: normal on .ops-container-line
+ * prevents breaking mid-string (e.g. QACU200050 + 7), while the pair tag
+ * can wrap as a whole token to the next line. */
+.detailed-plan-grid__cell--container .ops-container-line {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .detailed-plan-grid__line--muted {

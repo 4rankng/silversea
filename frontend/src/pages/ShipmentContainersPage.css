@@ -304,9 +304,11 @@
 .shipment-container-ledger__missing-fields-item:disabled { opacity: .55; cursor: default; }
 .shipment-container-ledger__missing-fields-item--external { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.5; }
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
-/* Container numbers are 11-char ISO codes: one step below the cell's primary
-   size and single-line — the td's overflow-wrap:anywhere breaks them mid-number
-   at the column's 12% width. */
+/* SIL-756: Container numbers (11-char ISO codes), declaration numbers,
+   and Bill/Booking codes are single-token identifiers: single-line with
+   nowrap + overflow-wrap: normal so they never break mid-string (e.g. TK1108R + 002). */
+.shipment-container-ledger td[data-label="Số tờ khai"] .shipment-container-ledger__code,
+.shipment-container-ledger td[data-label="Bill/Booking"] .shipment-container-ledger__code,
 .shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code { font-size: var(--text-caption-size); white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 /* SIL-516 doctrine sweep (SIL-515 wrap-full): the lot row's spec PHRASE
    ("Lô hàng lẻ | Thu: Xe 10T | Trả: Xe 3.5T") rides the same __code class but
