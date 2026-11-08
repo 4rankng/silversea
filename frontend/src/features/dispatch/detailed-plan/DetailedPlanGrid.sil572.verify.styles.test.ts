@@ -14,9 +14,9 @@ describe('pinned Thao tác rail width reservation (SIL-572)', () => {
   it('declares the rail reserve and pays it at the Ghi chú cell edge', () => {
     // SIL-686 (06/11): the rail share grew to 5.7% (~87px at the 1520px
     // floor) so the one-line "THAO TÁC" header rides it; the reserve follows.
-    // SIL-713 (07/11): the actions column stacks VERTICALLY at 44–48px wide
-    // (Phát lệnh trên, menu ⋯ dưới) — the rail reserve drops 88px → 48px.
-    expect(css).toMatch(/--dpg-actions-reserve:\s*48px;/);
+    // SIL-713 (07/11): the actions column stacks VERTICALLY at 44–48px wide;
+    // SIL-755 (08/11): widened to 72px so "THAO TÁC" header and stacked buttons fit without cut.
+    expect(css).toMatch(/--dpg-actions-reserve:\s*72px;/);
     expect(css).toMatch(
       /\.detailed-plan-grid td\.detailed-plan-grid__cell--notes\s*\{[^}]*padding-inline-end:\s*calc\(var\(--space-sm\) \+ var\(--dpg-actions-reserve\)\);/,
     );
