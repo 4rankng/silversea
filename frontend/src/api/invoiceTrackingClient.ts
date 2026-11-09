@@ -26,8 +26,11 @@ export interface InvoiceTrackingListResponse {
   totals: InvoiceTrackingTotals;
 }
 
-export async function listInvoiceTracking(from: string, to: string): Promise<InvoiceTrackingListResponse> {
-  return api.get<InvoiceTrackingListResponse>(`/accounting/invoice-tracking?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+export async function listInvoiceTracking(from: string, to: string, opts: { includeHidden?: boolean } = {}): Promise<InvoiceTrackingListResponse> {
+  // SIL-762: `includeHidden` pulls the "Không lấy hóa đơn" (Lưu và Ẩn) rows
+  // back onto the board — the trace stays queryable, never lost.
+  const hidden = opts.includeHidden ? '&includeHidden=1' : '';
+  return api.get<InvoiceTrackingListResponse>(`/accounting/invoice-tracking?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${hidden}`);
 }
 
 export async function createInvoiceTracking(body: InvoiceTrackingCreateInput, idempotencyKey: string = crypto.randomUUID()): Promise<InvoiceTrackingRow> {

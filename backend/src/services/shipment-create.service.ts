@@ -14,6 +14,7 @@ import { ensureReadyShipmentHandoff } from './shipment-intake.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { recordDepositFromIntake } from './deposit-refund-tracker.service';
 import { assertContainerSetValid, reconcileShipmentContainersInTx } from './shipment-containers.service';
+import { syncCombinedInvoiceTrackingInTx } from './invoice-tracking.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import type { ShipmentContainerInput } from './shipment-types';
 import {
@@ -305,6 +306,9 @@ export async function createShipmentIdempotent(
         await reconcileShipmentContainersInTx(tx, shipment.id, input.createdBy ?? null, input.containers);
         await lockShipmentFreightRate(tx, { shipmentId: shipment.id });
       }
+      // SIL-762: a lot saved with [Kết hợp] lands its containers on the
+      // combined invoice board immediately — same tx, nothing to click.
+      await syncCombinedInvoiceTrackingInTx(tx, shipment.id, input.createdBy ?? actor?.userId ?? null);
       return shipment;
     },
     load: async (id, tx) => {

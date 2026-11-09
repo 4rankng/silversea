@@ -416,12 +416,22 @@ export const driverFeeNorms = pgTable('driver_fee_norms', {
 // Card 20260921_18 — THEO DÕI HÓA ĐƠN KẾT HỢP: one row per combined invoice
 // against a container trip. supplierPayment is mirrored into trip_expenses
 // (Chi phí khác / "Chi phí hóa đơn") and kept in sync via expense_id.
+//
+// SIL-762 (id 883): tích [Kết hợp] trên lô tự đồng bộ MỖI container của lô
+// thành một dòng ở trạng thái "Chưa lấy HĐ" (syncSource='AUTO_COMBINED',
+// tripId/invoiceNumber null cho đến khi kế toán ghi nhận hóa đơn). Nút
+// [Lưu và Ẩn] đặt noInvoice + hiddenAt/hiddenBy — dòng rời danh sách làm
+// việc nhưng còn vết lịch sử tra được.
 export const invoiceTracking = pgTable('invoice_tracking', {
   id: serial('id').primaryKey(),
   shipmentId: integer('shipment_id').notNull(),
-  tripId: integer('trip_id').notNull(),
+  // Nullable (SIL-762): auto-synced rows land before any trip exists; the
+  // manual modal path keeps supplying a real trip. Null trip rows never
+  // mirror a trip_expenses fee (no trip to hang it on).
+  tripId: integer('trip_id'),
   expenseId: integer('expense_id'),
-  invoiceNumber: varchar('invoice_number', { length: 50 }).notNull(),
+  // Nullable (SIL-762): "Chưa lấy HĐ" rows have no invoice number yet.
+  invoiceNumber: varchar('invoice_number', { length: 50 }),
   invoiceAmount: numeric('invoice_amount', { precision: 15, scale: 0 }).notNull(),
   supplierPayment: numeric('supplier_payment', { precision: 15, scale: 0 }).notNull(),
   taxCode: varchar('tax_code', { length: 20 }),
@@ -435,6 +445,18 @@ export const invoiceTracking = pgTable('invoice_tracking', {
   // from reconciling an invoice against its supplier payment.
   comAmount: numeric('com_amount', { precision: 15, scale: 0 }),
   comNote: varchar('com_note', { length: 200 }),
+  // SIL-762 — số container của dòng: auto rows store it at sync time; manual
+  // rows keep NULL and the wire falls back to the trip's first container.
+  containerNumber: varchar('container_number', { length: 50 }),
+  // SIL-762 — 'AUTO_COMBINED' marks machine-synced rows; the sync only ever
+  // touches rows carrying this marker, never accountant-created ones.
+  syncSource: varchar('sync_source', { length: 20 }),
+  // SIL-762 — "Không lấy hóa đơn": lô kết hợp không có nhu cầu lấy hóa đơn.
+  noInvoice: boolean('no_invoice').notNull().default(false),
+  // SIL-762 — [Lưu và Ẩn]: hidden rows leave the working list but stay
+  // queryable (history trail: who, when).
+  hiddenAt: timestamp('hidden_at', { withTimezone: true }),
+  hiddenBy: integer('hidden_by'),
   invoiceSentAt: date('invoice_sent_at'),
   note: text('note'),
   progress: varchar('progress', { length: 20 }).notNull().default('CHUA_GUI'),
@@ -450,4 +472,6 @@ export const invoiceTracking = pgTable('invoice_tracking', {
 }, (table) => [
   index('invoice_tracking_shipment_id_idx').on(table.shipmentId),
   index('invoice_tracking_trip_id_idx').on(table.tripId),
+  // SIL-762 — the sync's dedupe probe (shipment + container number).
+  index('invoice_tracking_shipment_container_idx').on(table.shipmentId, table.containerNumber),
 ]);

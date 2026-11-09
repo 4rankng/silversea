@@ -44,6 +44,9 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
   const [expenseDate, setExpenseDate] = useState(row?.expenseDate ?? today);
   const [progress, setProgress] = useState<InvoiceTrackingProgress>(row?.progress ?? 'CHUA_GUI');
   const [note, setNote] = useState(row?.note ?? '');
+  // SIL-762 — cột "Ngày gửi HĐ": fillable on the board's edit dialog; blank
+  // rides the patch/create schema as null (chưa gửi).
+  const [invoiceSentAt, setInvoiceSentAt] = useState(row?.invoiceSentAt ?? '');
   const [formError, setFormError] = useState<string | null>(null);
   // Lot picker (create only): the patch schema pins the lot/trip, so the edit
   // mode renders them read-only text instead of a picker.
@@ -132,7 +135,11 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
       return;
     }
     const problems: string[] = [];
-    if (!trimmedInvoiceNumber) problems.push('Số hóa đơn là bắt buộc.');
+    // SIL-762: a "Chưa lấy HĐ" auto row has no invoice number yet — the edit
+    // stays legal without one (the patch omits it). Every other path keeps
+    // the number mandatory.
+    const invoiceNumberOptional = mode === 'edit' && row != null && row.invoiceNumber == null;
+    if (!trimmedInvoiceNumber && !invoiceNumberOptional) problems.push('Số hóa đơn là bắt buộc.');
     if (!Number.isInteger(invoiceAmountValue) || invoiceAmountValue < 0) problems.push('Số tiền hóa đơn phải là số nguyên không âm.');
     if (!Number.isInteger(supplierPaymentValue) || supplierPaymentValue < 0) problems.push('Số tiền trả NCC phải là số nguyên không âm.');
     if (comAmountValue !== null && (!Number.isInteger(comAmountValue) || comAmountValue < 0)) problems.push('COM phải là số nguyên không âm.');
@@ -141,8 +148,7 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
       return;
     }
     setFormError(null);
-    const payload = {
-      invoiceNumber: trimmedInvoiceNumber,
+    const base = {
       invoiceAmount: invoiceAmountValue,
       supplierPayment: supplierPaymentValue,
       taxCode: taxCode.trim() || null,
@@ -152,18 +158,24 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
       expenseDate,
       progress,
       note: note.trim() || null,
+      invoiceSentAt: invoiceSentAt.trim() || null,
     };
     if (mode === 'create' && (pickedLot == null || tripId == null)) {
       setFormError('Chọn lô hàng và chuyến trước khi lưu.');
       return;
     }
+    // SIL-762: a "Chưa lấy HĐ" edit with no number yet patches WITHOUT the
+    // invoice field — a blank string would fail the schema's min(1).
+    const payload = trimmedInvoiceNumber ? { ...base, invoiceNumber: trimmedInvoiceNumber } : base;
     const fingerprint = JSON.stringify({ mode, id: row?.id, shipmentId: pickedLot?.id, tripId, ...payload });
     if (command.current?.payload !== fingerprint) command.current = { payload: fingerprint, key: crypto.randomUUID() };
     savingRef.current = true;
     setSaving(true);
     try {
       if (mode === 'create' && pickedLot != null && tripId != null) {
-        await createInvoiceTracking({ ...payload, shipmentId: pickedLot.id, tripId }, command.current.key);
+        // Create keeps the number mandatory (guard above), so the spread is
+        // always the full create shape here.
+        await createInvoiceTracking({ ...payload, invoiceNumber: trimmedInvoiceNumber, shipmentId: pickedLot.id, tripId }, command.current.key);
       } else if (row) {
         await updateInvoiceTracking(row.id, payload, command.current.key);
       }
@@ -239,6 +251,14 @@ export default function InvoiceTrackingFormModal({ mode, row, onClose, onSaved }
             label="Ngày"
             value={expenseDate}
             onChange={setExpenseDate}
+          />
+          {/* SIL-762 — cột "Ngày gửi HĐ" của bảng 21 cột. */}
+          <BufferedUuiDateInput
+            id="ivt-invoice-sent-at"
+            size="sm"
+            label="Ngày gửi HĐ"
+            value={invoiceSentAt}
+            onChange={setInvoiceSentAt}
           />
           <Input
             id="ivt-invoice-amount"

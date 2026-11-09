@@ -192,3 +192,56 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* ── SIL-762 — 21-cột kết hợp ────────────────────────────────────────────── */
+
+/* Column 1: the selection checkbox + the per-hidden-row Bỏ ẩn affordance.
+   One control pair, one line — a control pair cannot wrap. */
+.ivt-col--select {
+  white-space: nowrap;
+  width: 1%;
+}
+.ivt-col--select input[type='checkbox'] {
+  accent-color: var(--accent, #0376bc);
+  vertical-align: middle;
+}
+
+/* "Chưa lấy HĐ" — the auto-synced row has no invoice facts yet. Warning
+   tone: it is a work item, not an error. */
+.ivt-pending,
+.ivt-noinv {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--text-caption-size, 12px);
+  white-space: nowrap;
+}
+.ivt-pending {
+  background: color-mix(in srgb, var(--warn, #b45309) 12%, transparent);
+  color: var(--warn, #b45309);
+}
+/* "Không lấy hóa đơn" — a settled state, not a warning. */
+.ivt-noinv {
+  background: var(--surface-2, #f4f5f7);
+  color: var(--ink-2, #5c6270);
+}
+
+/* NCC cell: name + the (+) row-editor trigger stay on one line. */
+.ivt-supplier {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+.ivt-supplier__name {
+  overflow-wrap: anywhere;
+}
+
+/* A hidden row is out of the working list — dimmed, and its facts stay
+   readable (the trace must remain legible, not erased). */
+.invoice-tracking-page tr[data-hidden] td {
+  color: var(--ink-3, #8a8f9c);
+}
+.invoice-tracking-page tr[data-hidden] td.ivt-col--select {
+  color: var(--ink, #1c1f26);
+}

@@ -41,6 +41,17 @@ const row: InvoiceTrackingRow = {
   progress: 'CHUA_GUI',
   expenseDate: '2026-10-06',
   expenseId: 6,
+  // SIL-762 — the 21-column wire grew lot-fact + sync-flag fields.
+  transportDate: null,
+  bookingRef: null,
+  blNumber: null,
+  factoryName: null,
+  shippingLineName: null,
+  customerCode: null,
+  dnttNumbers: [],
+  isAutoSynced: false,
+  noInvoice: false,
+  hiddenAt: null,
 };
 
 function renderPage() {
@@ -57,10 +68,10 @@ function renderPage() {
 }
 
 describe('invoice tracking — amount cells render one text node (numeric law)', () => {
-  it('Số tiền trả and Chênh lệch hold the whole amount + unit in a single node', async () => {
+  it('Số tiền trả / Số tiền thu / Chênh lệch hold the whole amount + unit in a single node', async () => {
     renderPage();
-    await screen.findByText(/Số hóa đơn:/);
-    for (const [label, expected] of [['Số tiền trả', '8.000.000 ₫'], ['Chênh lệch', '4.000.000 ₫']] as const) {
+    await screen.findByText('INV-386-V2');
+    for (const [label, expected] of [['Số tiền trả', '8.000.000 ₫'], ['Số tiền thu', '12.000.000 ₫'], ['Chênh lệch', '4.000.000 ₫']] as const) {
       const td = document.querySelector(`td[data-label="${label}"]`) as HTMLElement;
       expect(td).toBeTruthy();
       expect(td.textContent).toBe(expected);
@@ -68,16 +79,5 @@ describe('invoice tracking — amount cells render one text node (numeric law)',
       expect(textNodes, `${label} must be one text node`).toHaveLength(1);
       expect(textNodes[0].textContent).toBe(expected);
     }
-  });
-
-  it('the stacked Hóa đơn money line is one nowrap node carrying the whole amount', async () => {
-    renderPage();
-    await screen.findByText(/Số hóa đơn:/);
-    const moneyLine = document.querySelector('td[data-label="Hóa đơn"] .ivt-stack__sub') as HTMLElement;
-    expect(moneyLine).toBeTruthy();
-    expect(moneyLine.textContent).toBe('Số tiền: 12.000.000 ₫');
-    const textNodes = [...moneyLine.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim());
-    expect(textNodes).toHaveLength(1);
-    expect(moneyLine.className).toBe('ivt-stack__sub');
   });
 });

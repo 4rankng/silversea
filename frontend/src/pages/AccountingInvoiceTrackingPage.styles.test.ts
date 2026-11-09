@@ -84,13 +84,14 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
       expect(cell, `${cell} must carry data-label`).toContain('data-label');
     }
     // The card band prints `attr(data-label)`; a header rename must follow.
-    for (const label of ['Lô hàng', 'Nhà cung cấp', 'Hóa đơn', 'Ngày gửi', 'Chênh lệch']) {
+    // SIL-762 renamed the board to the 21-column contract.
+    for (const label of ['Nhà máy', 'Nhà cung cấp HĐ (+)', 'Số hóa đơn', 'Ngày gửi HĐ', 'Chênh lệch']) {
       expect(tsx, `${label} cell label`).toContain(`data-label="${label}"`);
     }
   });
 
   it('marks the money and date cells with the shared numeric class', () => {
-    for (const label of ['Ngày', 'Số tiền trả', 'Chênh lệch', 'Ngày gửi']) {
+    for (const label of ['Ngày vận chuyển', 'Số tiền trả', 'Số tiền thu', 'Chênh lệch', 'Ngày gửi HĐ']) {
       expect(tsx, `${label} is numeric`).toMatch(new RegExp(`data-label="${label}"[^>]*className="num"`));
     }
   });
@@ -106,9 +107,15 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(shared).toContain('white-space: nowrap');
   });
 
-  it('keeps the action cell on one line — a control pair cannot wrap', () => {
-    expect(tsx).toContain('className="invoice-tracking-actions record-table__action"');
-    expect(rules).toMatch(/\.invoice-tracking-actions\s*\{[^}]*white-space:\s*nowrap/);
+  it('keeps the select column on one line — the SIL-762 board has no Thao tác column', () => {
+    // SIL-762 fixes the board at 21 columns; row actions live in the select
+    // cell (Bỏ ẩn), the NCC (+) trigger, the inline progress select and the
+    // selection toolbar — never a 22nd action column.
+    expect(tsx).not.toContain('invoice-tracking-actions');
+    expect(tsx).toContain('ivt-col--select');
+    expect(rules).toMatch(/\.ivt-col--select\s*\{[^}]*white-space:\s*nowrap/);
+    // The control pair (checkbox + Bỏ ẩn) cannot wrap.
+    expect(rules).toMatch(/\.ivt-col--select input\[type='checkbox'\]/);
   });
 
   it('keeps every header label on ONE line — FB-063 (card 181026021137)', () => {
@@ -155,8 +162,10 @@ describe('invoice-tracking command strip (card 20260929_ivt — shared primitive
   it('renders the Σ strip on the shared SummaryRail, not a page-local KPI block', () => {
     expect(tsx).toContain('<SummaryRail');
     expect(tsx).toContain('ariaLabel="Tổng cộng theo kỳ"');
-    expect(tsx).toContain("label: 'Hóa đơn'");
-    expect(tsx).toContain("label: 'Trả NCC'");
+    // SIL-762 renamed the strip to the board's own column vocabulary.
+    expect(tsx).toContain("label: 'Số tiền thu'");
+    expect(tsx).toContain("label: 'Số tiền trả'");
+    expect(tsx).toContain("label: 'Số tiền trả KH'");
     expect(tsx).toContain("label: 'Chênh lệch'");
     expect(rules).not.toMatch(/\.ivt-money|\.invoice-tracking-kpi/);
   });
@@ -188,8 +197,9 @@ describe('invoice-tracking command strip (card 20260929_ivt — shared primitive
     expect(tsx).toContain('Tháng này');
     expect(tsx).toContain('Tháng trước');
     expect(tsx).toContain('Quý này');
-    expect(tsx).toMatch(/Số HĐ, MST, Lô, Cont/);
+    expect(tsx).toMatch(/Số HĐ, MST, Bill, Lô, Cont/);
     expect(tsx).toContain('Chỉ xem dòng có lệch');
+    expect(tsx).toContain('Hiện cả dòng đã ẩn (Không lấy hóa đơn)');
     expect(tsx).toContain('Xóa lọc');
     expect(tsx).toContain('dialogLabel="Bộ lọc hóa đơn"');
   });

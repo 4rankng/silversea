@@ -465,8 +465,12 @@ export const qk = {
   invoiceTracking: {
     /** Broad prefix — matches every invoice-tracking query. */
     all: ['invoice-tracking'] as const,
-    /** Rows for one period. */
-    list: (from: string, to: string) => ['invoice-tracking', from, to] as const,
+    /** Rows for one period. `includeHidden` (SIL-762, Lưu và Ẩn trace) is
+     *  part of the key — flipping it must refetch, not serve the cache. */
+    list: (from: string, to: string, includeHidden = false) =>
+      includeHidden
+        ? ['invoice-tracking', from, to, 'with-hidden'] as const
+        : ['invoice-tracking', from, to] as const,
   },
 
   /* ── Penalties ──────────────────────────────────────────────────────── */
