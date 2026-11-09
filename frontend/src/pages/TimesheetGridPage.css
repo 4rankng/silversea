@@ -140,13 +140,16 @@
 /* SIL-774 — quy ước khách (Bảng 4): N = nghỉ tai nạn / nghỉ việc gia đình
  * có phép → ô nền đỏ, chữ trắng. P = nghỉ sửa xe / bảo dưỡng định kỳ →
  * nền trắng, chữ đen in hoa (uppercase khẳng định luật kể cả khi dữ liệu
- * vào là chữ thường). Đặt SAU rule Chủ nhật để màu ký hiệu thắng màu CN. */
-.ts-grid .ts-cell[data-symbol='N'] {
+ * vào là chữ thường). Đặt SAU rule Chủ nhật để màu ký hiệu thắng màu CN.
+ * Anchor #root như base.css: lưới KẾ TOÁN render ô readOnly và paint
+ * readonly của base.css có độ đặc hiệu ID (1,0,0) — không anchor thì màu
+ * ký hiệu thua paint đó trên lưới chỉ-đọc. */
+:is(#root, body) .ts-grid .ts-cell[data-symbol='N'] {
   background: var(--danger);
   color: #fff;
 }
 
-.ts-grid .ts-cell[data-symbol='P'] {
+:is(#root, body) .ts-grid .ts-cell[data-symbol='P'] {
   background: var(--surface);
   color: var(--ink);
   text-transform: uppercase;

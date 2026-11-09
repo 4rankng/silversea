@@ -79,19 +79,33 @@ export async function listAccountingDebitBoard(params: {
 }
 
 /** SIL-771 — lưu 'Chi phí ngoài' của một lô (null = xoá). Server chặn 409
- *  khi lô đã khóa chi phí / khóa sổ kế toán. */
+ *  khi lô đã khóa chi phí / khóa sổ kế toán. Material-write middleware đòi
+ *  Idempotency-Key: khóa xác định theo (lô, giá trị) — gõ lại cùng giá trị
+ *  replay cùng kết quả, không tạo hiệu ứng thứ hai. */
 export function setDebitExternalCost(input: {
   shipmentId: number;
   chiPhiNgoai: number | null;
 }): Promise<{ shipmentId: number; chiPhiNgoai: string | null }> {
-  return api.post('/accounting/debit-board/external-cost', input);
+  return api.post('/accounting/debit-board/external-cost', input, {
+    headers: { 'Idempotency-Key': `external-cost-${input.shipmentId}-${input.chiPhiNgoai ?? 'null'}` },
+  });
 }
 
 /** SIL-773 — nút 'Lưu - Phê duyệt từng dòng và ẩn' theo selection: server
  *  ghi dấu debit_hidden_at/by; dòng rời danh sách tác nghiệp, bật
- *  includeHidden vẫn tra lại được lịch sử. */
+ *  includeHidden vẫn tra lại được lịch sử. Key cùng công thức FNV-1a của
+ *  selection (createDebitNoteBatch precedent) — same selection replays same
+ *  mark, không nhân bản. */
 export function reconcileAndHideDebitLots(shipmentIds: number[]): Promise<{ hidden: number[] }> {
-  return api.post('/accounting/debit-board/reconcile-hide', { shipmentIds });
+  const run = [...shipmentIds].sort((x, y) => x - y).join(',');
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < run.length; i++) {
+    hash ^= run.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return api.post('/accounting/debit-board/reconcile-hide', { shipmentIds }, {
+    headers: { 'Idempotency-Key': `reconcile-hide-${shipmentIds.length}-${hash.toString(16)}` },
+  });
 }
 
 // Card 20260923_12 — Chọn Debit settlement rounds (đợt chốt). Query key lives
