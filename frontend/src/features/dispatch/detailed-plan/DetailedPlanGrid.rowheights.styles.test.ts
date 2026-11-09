@@ -22,11 +22,10 @@ function columnShare(name: string): number {
   return Number(match?.[1] ?? 0);
 }
 
-const TABLE_MIN_WIDTH = 1520;
-
-describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 23/10)', () => {
-  it('gives the table a min-width floor so every column keeps its one-line budget', () => {
-    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1520px;/);
+describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 23/10 / SIL-755)', () => {
+  it('gives the table a responsive layout that shrinks within its container at 1440px', () => {
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*width:\s*100%;/);
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*max-width:\s*100%;/);
     // Master-plan lane fix (same defect class, MP-RD-03 probe): the wrapper
     // is a BOUNDED PANE owning both scrolls — `overflow: auto` + the dvh
     // bound. The old `overflow-x: auto / overflow-y: clip` pair computed to
@@ -38,33 +37,16 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(css).toMatch(/\.detailed-plan-grid thead th \{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*0;/);
   });
 
-  it('keeps the owner floors at the table minimum: Khách hàng ≥180px, Điều phối ≥200px, Ghi chú ≥160px', () => {
+  it('keeps balanced column shares summing to 100% for 1440px viewport', () => {
     const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'classification', 'notes', 'actions'];
     const shares = names.map((name) => columnShare(name));
     // The ports class covers both port columns (two <col> elements share it).
     const total = shares.reduce((sum, share) => sum + share, 0) + columnShare('ports');
     expect(total).toBe(100);
-    const width = (name: string) => columnShare(name) * TABLE_MIN_WIDTH / 100;
-    expect(width('route')).toBeGreaterThanOrEqual(180);
-    expect(width('assignment')).toBeGreaterThanOrEqual(200);
-    expect(width('notes')).toBeGreaterThanOrEqual(160);
-    // Nâng/Trả each fit one short port name.
-    expect(width('ports')).toBeGreaterThanOrEqual(110);
-    // SIL-588 (owner 27/10, supersedes the SIL-519 ≥132px pill budget): the
-    // rail hosts at most TWO STACKED buttons — the 30px ⋯ trigger (or the
-    // 28px Phát lệnh icon) + 2×8px cell padding + 1px sticky border ≈ 47px —
-    // because "Hoàn thành" moved INTO the ⋯ menu. The rail stays a NARROW
-    // strip: never grows back into a pill-width budget. SIL-686 (06/11)
-    // raises the share to 5.7% (~87px) so the one-line "THAO TÁC" header
-    // (81px measured) rides it — still far under the retired 10.75% pill
-    // budget.
-    expect(width('actions')).toBeGreaterThanOrEqual(47);
-    expect(width('actions')).toBeLessThanOrEqual(6 * TABLE_MIN_WIDTH / 100);
-    // The formerly-fat columns came back to content budgets (owner spec
-    // addendum: "cột phình thu lại vừa nội dung"). SIL-686 (06/11, FB-063):
-    // one-line HEADERS raise schedule to 11.9% — the measured one-line
-    // "THỜI GIAN & LỊCH TRÌNH" label (174px) rides it; still below the old
-    // 17% defect and below route's own ceiling.
+    expect(columnShare('route')).toBeGreaterThanOrEqual(10);
+    expect(columnShare('assignment')).toBeGreaterThanOrEqual(14);
+    expect(columnShare('notes')).toBeGreaterThanOrEqual(10);
+    expect(columnShare('actions')).toBeGreaterThanOrEqual(6.5);
     expect(columnShare('schedule')).toBeLessThanOrEqual(12.5);
     expect(columnShare('route')).toBeLessThanOrEqual(14);
   });
@@ -178,11 +160,12 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(bodies.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('SIL-755 (supersedes SIL-713 44-48px): actions column fits THAO TÁC header and vertically stacked actions in 68-88px width', () => {
+  it('SIL-755 (round 2): actions column fits THAO TÁC header and vertically stacked actions in 74-88px width', () => {
     const actionCellRule = css.match(/\.detailed-plan-grid th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(actionCellRule).toContain('width: 72px');
-    expect(actionCellRule).toContain('min-width: 68px');
+    expect(actionCellRule).toContain('width: 78px');
+    expect(actionCellRule).toContain('min-width: 74px');
     expect(actionCellRule).toContain('max-width: 88px');
+    expect(actionCellRule).toContain('white-space: nowrap');
 
     const stackRule = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(stackRule).toContain('flex-direction: column');

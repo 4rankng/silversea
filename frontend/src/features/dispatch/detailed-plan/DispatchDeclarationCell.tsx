@@ -66,7 +66,7 @@ export function DispatchDeclarationCell({ row, onSaved }: {
         body: 'detailed-plan-grid__cell-body',
         value: 'detailed-plan-grid__line detailed-plan-grid__decl-value',
         missing: 'detailed-plan-grid__line detailed-plan-grid__line--missing',
-        trigger: 'detailed-plan-grid__decl-value--action',
+        trigger: 'detailed-plan-grid__decl-value detailed-plan-grid__decl-value--action',
         editor: 'detailed-plan-grid__cell-body detailed-plan-grid__decl-editor',
         input: 'detailed-plan-grid__decl-input',
         hint: 'detailed-plan-grid__decl-hint',

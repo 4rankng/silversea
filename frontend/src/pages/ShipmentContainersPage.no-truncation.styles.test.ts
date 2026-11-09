@@ -70,6 +70,8 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
       /^\.shipment-container-ledger thead tr$/,
       /^\.shipment-container-ledger thead th$/,
       /^\.shipment-container-ledger tbody > tr$/,
+      // SIL-756: single-token identifiers (serial, cont, declaration, bill) use nowrap + ellipsis + tooltip
+      /^\.shipment-container-ledger td\[data-label="(?:Số tờ khai|Bill\/Booking|Thông số container)"\] \.shipment-container-ledger__code$/,
     ];
     const offenders: string[] = [];
     for (const rule of allRules(css)) {
@@ -116,13 +118,14 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(width('direction')).toBeGreaterThanOrEqual(7);
     // The in-cell BKS editor stays inside its cell at the SIL-543 share.
     expect(width('vehicle')).toBeGreaterThanOrEqual(12);
-    // Container numbers, declaration numbers, and Bill/Booking wrap nowhere — whole-token nowrap, zero clip.
+    // SIL-756: Container numbers, declaration numbers, and Bill/Booking are single-token identifiers — nowrap + ellipsis + tooltip
     const codeRules = rulesFor(css, /td\[data-label="Thông số container"\] \.shipment-container-ledger__code$/);
     expect(codeRules.length).toBeGreaterThan(0);
     expect(codeRules[0]).toMatch(/white-space:\s*nowrap/);
+    expect(codeRules[0]).toMatch(/overflow:\s*hidden/);
+    expect(codeRules[0]).toMatch(/text-overflow:\s*ellipsis/);
     expect(codeRules[0]).toMatch(/overflow-wrap:\s*normal/);
     expect(codeRules[0]).toMatch(/word-break:\s*normal/);
-    expectNoClip(codeRules);
 
     // SIL-756: declaration numbers and Bill/Booking share the identifier nowrap law
     expect(css).toMatch(/td\[data-label="Số tờ khai"\] \.shipment-container-ledger__code/);
