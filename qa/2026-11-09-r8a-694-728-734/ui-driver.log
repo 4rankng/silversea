@@ -1,0 +1,38 @@
+Lane r8a UI driver log — SIL-694 + SIL-728 (hoapt, local :7176 → :3003 → mirror :5441)
+Driver: Paseo browser tab 448d0aa7 (Chromium). All times local 2026-11-09.
+
+SIL-694 (trips/754):
+  nav /login                          → form render
+  fill hoapt / Abc123 → click Đăng nhập → wait "Tổng quan" MATCHED (login OK)
+  nav /trips/754                      → TripHeader "Hoàn thành" present (canComplete ACCOUNTANT)
+  click Hoàn thành                    → dialog "Hoàn thành chuyến"
+  DOM: status = "Chưa thu hồi POD gốc (chứng từ mộc đỏ) — Kế toán/CUS đánh dấu
+       đã thu hồi trước khi hoàn thành chuyến." ; button "Đánh dấu đã thu hồi POD gốc" present
+  screenshot attempt ×4               → FAILED "tab has not painted yet" (tool limitation,
+                                        visibilityState=visible, readyState=complete)
+  click "Đánh dấu đã thu hồi POD gốc" → POST /api/trips/754/pod-recovered {expectedVersion} → 200
+  DOM: status = "POD gốc: đã thu hồi · 20:10:15 9/11/2026" ; mark button GONE
+  API GET /trips/754 → 200 {"status":"IN_TRANSIT","podRecoveredAt":"2026-11-09T13:10:15.419Z",
+       "podRecoveredBy":9,"version":5}
+  DB: SELECT id,status,pod_recovered_at,pod_recovered_by,version FROM trips WHERE id=754;
+      → 754 | IN_TRANSIT | 2026-11-09 13:10:15.419+00 | 9 | 5
+  fill lý do (native setter không update React state; browser_type OK, 118 ký tự)
+  click "Hoàn thành chuyến"           → modal đóng, banner: "Chưa có e-POD hợp lệ.
+       Không thể chốt tài chính chuyến đi." (cổng POD đã THÔNG; gate kế tiếp = e-POD,
+       trip 754 thiếu e-POD lái xe — ngoài scope SIL-694)
+
+SIL-728 (/accounting/hoan-ung):
+  nav /accounting/hoan-ung (đã login)
+  DOM rows: Nguyễn Văn Giao −15.950.000 ₫ note "ÂM — đề nghị thu lại tiền ứng"
+       buttons ["Lập phiếu hoàn ứng"]
+       q23-forwarder-… −500.000 ₫ note "Không còn chênh lệch"
+       buttons ["Lập phiếu hoàn ứng"]
+  click nút dòng 1                    → dialog "Lập phiếu hoàn ứng cho nhân viên"
+  DOM dialog: title "Lập phiếu hoàn ứng"; radio "Nguyễn Văn Giao — Còn tạm ứng
+       16.050.000 ₫" CHECKED=true (prefill initialForwarderId=staffId);
+       sections: Nhân viên được quyết toán / Tạm ứng chưa quyết toán / Khoản chi chưa gắn phiếu
+  click Hủy                           → dialog closed (không ghi phiếu)
+
+Exit statuses: mọi bước drive thành công (200/matched); duy nhất screenshot tool fail (4/4 lần).
+Staging read-only probe (trước fix): login hoapt 200; report rows outstandingSigned=0/0
+(nhân evidence ghost-âm); settlements PT-2611-0004 +5.000.000₫ / PT-2611-0005 +50.000₫.

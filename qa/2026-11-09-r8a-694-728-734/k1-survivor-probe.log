@@ -1,0 +1,11 @@
+PASS  A0 merge: Lô 1 giữ 100% cước thu nhóm 3.500.000₫ — revenue=3500000
+PASS  A0 merge: Lô 2 về 0₫ + capture thật 900.000₫ — revenue=0 pre=900000 captured=true
+PASS  A1 tách cả nhóm: Lô 2 trở về ĐÚNG 900.000₫ (capture) — revenue=900000
+PASS  A2 tách cả nhóm: Lô 1 trở về capture trước ghép (NULL = Chưa xác định, không 0₫ giả) — revenue=null
+PASS  A3 tách cả nhóm: không còn group note trên lô nào
+PASS  B1 tách cả nhóm không pre-merge: Lô 2 giữ 0₫ NHƯNG có citation nguyên văn (không 0₫ trần trừi) — revenue=0 reason=Tách khỏi nhóm ghép — chờ định giá lại
+PASS  C0 merge lại (trip-less): tổng cước thu nhóm 3.500.000₫ đứng trên snapshot Lô chính — total=3500000
+PASS  C1 xóa Lô chính: survivor kế vị nhận 100% cước thu 3.500.000₫ — không mất đồng nào — total=3500000
+PASS  C2 xóa Lô chính: nhóm giải tán trên survivor (1 thành viên không là nhóm) — revGroupId=null
+PASS  C3 xóa Lô chính: leaver chỉ soft-delete (ghost-guard), dòng live đọc duy nhất là survivor
+PROBE GREEN — mọi assertion PASS

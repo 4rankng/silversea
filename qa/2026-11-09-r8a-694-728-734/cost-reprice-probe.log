@@ -1,0 +1,13 @@
+PASS  D1 merge: Lô 1 nhận 2.400.000₫ từ bảng giá nhà xe (không nhập tay) — freight=2400000
+PASS  D1 merge: Lô 2 stamped 0₫ ("nhảy tiền" — mặt trước tách của QA) — freight=0
+PASS  D1 merge: planned_carrier_cost Lô 2 = 0₫ (SIL-492 stamp) — planned=0
+PASS  D2 tách cả nhóm: Lô 2 về ĐÚNG 2.400.000₫ (giá trước ghép, không 0₫) — freight=2400000
+PASS  D2 tách cả nhóm: planned_carrier_cost Lô 2 mirror 2.400.000₫ — planned=2400000
+PASS  D2 tách cả nhóm: response báo outcome repriced cho member — [{"shipmentId":779471,"outcome":"kept"},{"shipmentId":779472,"outcome":"repriced","price":2400000,"matched":"SUPPLIER"}]
+PASS  D3 merge không giá: member vẫn stamped 0₫ — freight=0
+PASS  D3 tách không giá: stamped 0₫ bị XÓA về null (Thiếu cước trả ĐV honest — không 0₫ trần trừi) — freight=null
+PASS  D3 tách không giá: planned_carrier_cost cũng clear về null — planned=null
+PASS  D3 response báo outcome cleared — [{"shipmentId":779473,"outcome":"kept"},{"shipmentId":779474,"outcome":"cleared"}]
+PASS  D4 tách 1 lô về riêng: leaver về ĐÚNG 2.400.000₫ (không kẹt 0₫) — freight=2400000
+PASS  D4 outcome leaver repriced — {"shipmentId":779476,"outcome":"repriced","price":2400000,"matched":"SUPPLIER"}
+PROBE GREEN — mọi assertion PASS
