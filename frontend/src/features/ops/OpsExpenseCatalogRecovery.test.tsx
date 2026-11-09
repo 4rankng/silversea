@@ -23,7 +23,11 @@ async function chooseFee() {
   fireEvent.click(await screen.findByRole('option', { name: 'Làm hàng' }));
 }
 
-describe('OPS expense catalog failure recovery', () => {
+// Long interaction chain through the real modal (catalog fail → retry →
+// fill → save): the tabs restructure pushed the create path past vitest's
+// 5s default, so this cluster carries the explicit deadline like the other
+// interaction-chain suites in this repo.
+describe('OPS expense catalog failure recovery', { timeout: 20_000 }, () => {
   beforeEach(() => {
     vi.resetAllMocks();
     api.getExpensePhotos.mockResolvedValue({ items: [] });
@@ -35,7 +39,9 @@ describe('OPS expense catalog failure recovery', () => {
     api.getExpenseTypes.mockRejectedValueOnce(new Error('Catalog unavailable')).mockResolvedValue(types);
     const { client, close } = show(edit);
     expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được danh mục loại phí');
-    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '125000' } });
+    // Create rows carry the SIL-760 spec label "Số tiền (VNĐ)"; the edit
+    // modal keeps its own "Thực chi (VND)" wording (not in ticket scope).
+    fireEvent.change(screen.getByLabelText(edit ? /Thực chi/ : /Số tiền \(VNĐ\)/), { target: { value: '125000' } });
     fireEvent.change(screen.getByLabelText('Ghi chú', { exact: true }), { target: { value: 'Giữ bản đang nhập' } });
     if (edit) fireEvent.change(screen.getByLabelText(/Lý do điều chỉnh/), { target: { value: 'Sửa số thực chi' } });
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
@@ -43,7 +49,7 @@ describe('OPS expense catalog failure recovery', () => {
     expect(api.updateExpense).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại loại phí' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-    expect(screen.getByLabelText(/Thực chi/)).toHaveValue('125.000');
+    expect(screen.getByLabelText(edit ? /Thực chi/ : /Số tiền \(VNĐ\)/)).toHaveValue('125.000');
     expect(screen.getByLabelText('Ghi chú', { exact: true })).toHaveValue('Giữ bản đang nhập');
     expect(close).not.toHaveBeenCalled();
     if (!edit) await chooseFee();

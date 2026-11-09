@@ -32,7 +32,9 @@ const order: OpsOrderItem = {
 const entry = { id: 7, shipmentId: 8, shipmentCode: order.shipmentCode, billRef: order.billRef, containerNumber: null, expenseTypeCode: 'SOI_CHIEU', expenseTypeName: 'Phí soi chiếu', requiresInvoice: true, amount: '450000', paidAt: '2026-09-23', note: null as string | null, approvalStatus: 'RECORDED', rejectionReason: null as string | null, opsSettlementId: null as number | null, hasPhoto: false, paidById: 12, paidByName: 'Ops', createdAt: '2026-09-23T00:00:00Z', version: 1 };
 
 /** The catalog gate (`typesReady`) disables the Loại phí triggers, so every
- *  driver waits for the blocks to render before touching the form. */
+ *  driver waits for the blocks to render before touching the form. SIL-760:
+ *  the group name now lives on the centered tab button, so the await reads
+ *  the tab, not a heading. */
 async function show() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   const close = vi.fn();
@@ -45,7 +47,7 @@ async function show() {
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  await screen.findByText('Phí không hóa đơn');
+  await screen.findByRole('tab', { name: 'PHÍ KHÔNG HÓA ĐƠN' });
   return { client, close };
 }
 
@@ -53,7 +55,14 @@ function block(name: string): HTMLElement {
   return screen.getByRole('region', { name });
 }
 
+/** SIL-760 — only the active tab's rows render; adding an invoice row means
+ *  switching to the [PHÍ CÓ HÓA ĐƠN] tab first. */
+async function openInvoiceTab() {
+  await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'PHÍ CÓ HÓA ĐƠN' })); });
+}
+
 async function addInvoiceRow() {
+  await openInvoiceTab();
   await act(async () => { fireEvent.click(within(block('Phí có hóa đơn')).getByRole('button', { name: '＋ Thêm chi phí' })); });
 }
 
@@ -69,7 +78,7 @@ async function chooseType(blockName: string, name: string) {
 }
 
 async function fillAmount(blockName: string, value: string) {
-  fireEvent.change(within(block(blockName)).getByLabelText(/Thực chi \(VND\)/), { target: { value } });
+  fireEvent.change(within(block(blockName)).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value } });
 }
 
 /** SIL-723 (KB Chương 6): the invoice block requires Số hóa đơn, so any
@@ -240,5 +249,48 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
     await fillNote('Phí không hóa đơn', 'Chi áp ván');
     expect(screen.getByRole('button', { name: 'Lưu' }).getAttribute('disabled')).toBeNull();
     expect(screen.queryByText(/Số hóa đơn/)).toBeNull();
+  });
+});
+
+// SIL-760 — the two groups live on centered tabs and ONE shared Lưu: drafts
+// typed on each tab survive every switch, and one submit gathers both tabs.
+describe('ops expense form — tabs + shared save (SIL-760)', { timeout: 20_000 }, () => {
+  it('C1: rows survive tab switches in both directions', async () => {
+    await show();
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '80000');
+    await fillNote('Phí không hóa đơn', 'Chi công nhân dỡ hàng');
+
+    await addInvoiceRow();
+    // The no-invoice region is unmounted with its tab — only invoice rows show.
+    expect(screen.queryByRole('region', { name: 'Phí không hóa đơn' })).toBeNull();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
+
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'PHÍ KHÔNG HÓA ĐƠN' })); });
+    expect(screen.getByLabelText(/Số tiền \(VNĐ\)/)).toHaveValue('80.000');
+    expect(screen.getByLabelText('Ghi chú')).toHaveValue('Chi công nhân dỡ hàng');
+    await openInvoiceTab();
+    expect(within(block('Phí có hóa đơn')).getByLabelText(/Số tiền \(VNĐ\)/)).toHaveValue('450.000');
+    expect(within(block('Phí có hóa đơn')).getByLabelText('Số hóa đơn')).toHaveValue('TD-20260923-001');
+  });
+
+  it('C2: one Lưu gathers rows from BOTH tabs in one submit', async () => {
+    await show();
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '80000');
+    await fillNote('Phí không hóa đơn', 'Chi công nhân dỡ hàng');
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
+
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN', amount: '80000' });
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU', amount: '450000', invoiceNumber: 'TD-20260923-001', invoiceDate: null });
   });
 });
