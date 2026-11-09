@@ -6,18 +6,54 @@
 import { db } from '../db';
 import * as s from '../db/schema';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { groupOpsExpensesForSettlement } from './ops-expenses.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+/** SIL-751 r4 (QA 09/11, staging e6db602f) — the phiếu header is the sum of
+ *  ITS LINES under the card-197 law, derived at read time; the stored
+ *  `ops_settlements.total_amount` column is write-time state that can go
+ *  stale (OS-2611-0005 printed a stored 1.080.000₫ over lines that sum
+ *  1.070.000₫ after an accountant amount edit). Every phiếu list reader
+ *  projects its header through this one SQL fragment — the query-level
+ *  `sumExcludingNegative` (strictly negative dropped, 0 kept, money never
+ *  leaves `numeric`) — so no surface can print the stored column again. */
+export const opsSettlementTotalFromLinesSql = (): SQL<string> =>
+  sql<string>`coalesce((select sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} >= 0)
+    from ${s.opsExpenseEntries}
+    where ${s.opsExpenseEntries.opsSettlementId} = ${s.opsSettlements.id}), '0')`;
+
+/** SIL-751 — the ONE writer-side recompute: any mutation of a phiếu's linked
+ *  entries (unlink on reject, accountant amount edit) re-derives the stored
+ *  header from its lines inside the caller's transaction. Moved here from
+ *  ops-expenses.service.ts — the settlement's stored total belongs to the
+ *  settlement's own service, and the accountant edit path
+ *  (expense-accounting-write) now calls it through this import without a
+ *  cycle. Same SQL law as `opsSettlementTotalFromLinesSql`. */
+export async function recomputeOpsSettlementTotal(
+  tx: Tx,
+  settlementId: number,
+): Promise<void> {
+  const [row] = await tx
+    .select({ total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} >= 0), 0)` })
+    .from(s.opsExpenseEntries)
+    .where(eq(s.opsExpenseEntries.opsSettlementId, settlementId));
+  await tx
+    .update(s.opsSettlements)
+    .set({ totalAmount: (row?.total ?? '0').toString(), updatedAt: new Date() })
+    .where(eq(s.opsSettlements.id, settlementId));
+}
+
 /** Card 20260928_197 — the frozen-batch total carries the `sumExcludingNegative`
  *  rule: a strictly negative entry is dropped from `totalAmount`, never netted
  *  against the positive entries. Integer VND, so the skip is expressed in
  *  BigInt (no float ever touches the money) with the same ">= 0" predicate the
- *  shared helper uses. Both call sites below share this one implementation. */
-function sumOpsAmounts(entries: ReadonlyArray<{ amount: string }>): bigint {
+ *  shared helper uses. Exported (SIL-751 r4): every phiếu reader derives the
+ *  header from its lines through this one implementation, so a stored header
+ *  can never disagree with the lines it froze. */
+export function sumOpsAmounts(entries: ReadonlyArray<{ amount: string }>): bigint {
   return entries.reduce((acc, entry) => {
     const amount = BigInt(entry.amount);
     return amount < 0n ? acc : acc + amount;
@@ -109,7 +145,11 @@ export async function listOpsSettlements(filters: {
       id: s.opsSettlements.id,
       code: s.opsSettlements.code,
       status: s.opsSettlements.status,
-      totalAmount: s.opsSettlements.totalAmount,
+      // SIL-751 r4 — the header IS the sum of the phiếu's lines (card-197
+      // law, derived at read). The stored column is write-time state that
+      // went stale under accountant edits (OS-2611-0005: 1.080.000 stored
+      // over 1.070.000 of lines) and is never printed again.
+      totalAmount: opsSettlementTotalFromLinesSql(),
       note: s.opsSettlements.note,
       createdAt: s.opsSettlements.createdAt,
       approvedAt: s.opsSettlements.approvedAt,
@@ -146,7 +186,8 @@ export async function getOpsSettlementDetail(
       id: s.opsSettlements.id,
       code: s.opsSettlements.code,
       status: s.opsSettlements.status,
-      totalAmount: s.opsSettlements.totalAmount,
+      // SIL-751 r4 — the stored column is NOT selected: the header returned
+      // below is derived from `entries` (sumOpsAmounts), never printed stale.
       note: s.opsSettlements.note,
       createdAt: s.opsSettlements.createdAt,
       approvedAt: s.opsSettlements.approvedAt,
@@ -190,6 +231,11 @@ export async function getOpsSettlementDetail(
   return {
     settlement: {
       ...settlement,
+      // SIL-751 r4 — the detail header derives from the SAME entries the
+      // sheet below prints (one BigInt sum, card-197 law), so the header,
+      // the sheet's TỔNG CỘNG and a reviewer's manual line-add can never
+      // disagree (OS-2611-0005: stored 1.080.000 vs lines 1.070.000).
+      totalAmount: sumOpsAmounts(entries).toString(),
       createdAt: settlement.createdAt.toISOString(),
       approvedAt: settlement.approvedAt ? settlement.approvedAt.toISOString() : null,
     },

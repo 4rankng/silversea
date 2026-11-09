@@ -620,6 +620,54 @@ export async function transitionTripStatus(
       // (xoá hẳn nếu không còn chuyến nào). Ô Điều vận gõ tay không bị đè.
       await syncTimesheetSymbolForTrip(tripId, userId, tx);
 
+      // SIL-753 r4 (product decision 09/11) — Hủy phân xe must return the lot
+      // to TRUE 'Chưa phân xe': the canceled trip releases its fulfillment's
+      // planned carrier assignment HERE, in the cancel's own transaction.
+      // Until r4 only the FE's follow-up plan save cleared the assignment,
+      // and once the SIL-751 rewind below started bumping the lot version
+      // inside this same cancel, that stale-version save 409'd and the
+      // carrier ('4GS / Chờ bổ sung biển', placeholder plate included) stayed
+      // stuck on the row forever (QA 09/11, lô QA1109-753B). Clearing here
+      // removes the second write entirely — every cancel surface (grid cell,
+      // ⋯ menu, trip workspace) lands the same unassigned shape the plan-read
+      // law renders as 'Chưa phân xe' (OWN, plate-less, external ids null).
+      if (trip.fulfillmentId != null) {
+        const [planLot] = await tx.select({
+          shipmentId: s.shipments.id,
+          costGroupId: s.shipments.costGroupId,
+          actualTruckNo: s.shipments.actualTruckNo,
+          version: s.shipments.version,
+        })
+          .from(s.shipmentFulfillments)
+          .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+          .where(eq(s.shipmentFulfillments.id, trip.fulfillmentId))
+          .limit(1);
+        await tx.update(s.shipmentFulfillments).set({
+          plannedCarrierType: 'OWN',
+          plannedExternalCarrierId: null,
+          plannedExternalCarrierVehicleId: null,
+          plannedVehiclePlateNumber: null,
+          version: sql`${s.shipmentFulfillments.version} + 1`,
+          updatedAt: new Date(),
+        }).where(eq(s.shipmentFulfillments.id, trip.fulfillmentId));
+        // SIL-494 parity — a save that leaves the row PLATE-LESS drops the
+        // lot's stale COST-group identity; the cancel now owns the same law
+        // (same condition as the plan save's lotIdentityReset). The version
+        // predicate mirrors the plan save's conditional write: a concurrent
+        // guarded editor 409s on this bump instead of racing a best-effort
+        // identity reset (both outcomes converge on actualTruckNo = null).
+        if (planLot && planLot.costGroupId == null && planLot.actualTruckNo != null) {
+          await tx.update(s.shipments).set({
+            actualTruckNo: null,
+            version: sql`${s.shipments.version} + 1`,
+            updatedAt: new Date(),
+          }).where(and(
+            eq(s.shipments.id, planLot.shipmentId),
+            eq(s.shipments.version, planLot.version),
+          ));
+        }
+      }
+
       // SIL-751 — Hủy phân xe leaves the plan grid on "Chưa phân xe" while
       // the stored lot status stayed DISPATCHED (the dispatch-order issuance
       // flipped it and only the COMPLETED branch recomputed the shipment).

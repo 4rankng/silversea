@@ -279,14 +279,13 @@ describe('DispatchDetailPlanPage — external completion role gate (SIL-694)', (
 
     await waitFor(() => {
       expect(tripClient.cancelTrip).toHaveBeenCalledWith(900);
-      // SIL-708 r2 — the plan save must carry the NEUTRAL unassigned carrier:
-      // an EXTERNAL carrierType here shipped a payload without externalCarrierId
-      // and the backend answered 400 'Nhà xe ngoài là bắt buộc.' (QA 07/11,
-      // lô R3Q-680-B/ĐĂNG QUÂN) — the lot never returned to 'Chưa phân xe'.
-      expect(plan.savePlan).toHaveBeenCalledWith(
-        plan.items[0],
-        expect.objectContaining({ carrierType: 'OWN', clearVehicle: true }),
-      );
+      // SIL-753 r4 — the cancel endpoint clears the fulfillment's carrier
+      // assignment in its own transaction (product decision 09/11: true
+      // 'Chưa phân xe', every shape). The FE follow-up savePlan is GONE: the
+      // SIL-751 status rewind bumps the lot version inside the same cancel,
+      // so the stale-version save answered 409 'Lô hàng đã thay đổi' and
+      // '4GS / Chờ bổ sung biển' stayed stuck (QA 09/11, lô QA1109-753B).
+      expect(plan.savePlan).not.toHaveBeenCalled();
       expect(plan.refresh).toHaveBeenCalled();
     });
   });
