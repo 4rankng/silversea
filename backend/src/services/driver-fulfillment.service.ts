@@ -14,6 +14,7 @@ import {
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
   NO_INVOICE_EVIDENCE_TYPE_LABELS,
   RECEIPT_EVIDENCE_EXPENSE_TYPE_CODES,
+  driverLotCostRequiresReceipt,
   DriverProgressEventType,
   DriverIncidentalCostType,
   Role,
@@ -415,25 +416,31 @@ export async function insertDriverIncidentalCostTx(
       eq(s.tripPhotos.storageKey, input.receiptStorageKey), eq(s.tripPhotos.tripId, tripId), eq(s.tripPhotos.uploadedBy, recordedBy)));
     if (!photo) throw new ApiError(400, 'Ảnh biên lai phải do bạn tải lên cho chuyến này.');
   }
-  // Card 141026230700 — "yêu cầu chụp biên lai nếu có phát sinh chi phí lô
-  // hàng": every lot-bucket row (DRIVER_SHIPMENT) carries its biên lai photo,
-  // Hóa đơn or Phiếu thu alike — the photo replaced the typed invoice pair as
-  // the driver's evidence. Road-bucket rows (tolls, norms) keep the optional
-  // photo contract. The bucket is the EFFECTIVE one: a fee norm pins its own
-  // costGroup (road), so a norm row without an explicit costGroup never falls
-  // into the lot bucket by the enum fallback. Enforced HERE so the form, the
-  // batch and the offline queue obey one rule; placed BEFORE the Phiếu-thu
-  // clause so every lot row answers with the same message whatever its kind.
+  // The bucket is the EFFECTIVE one: a fee norm pins its own costGroup (road),
+  // so a norm row without an explicit costGroup never falls into the lot
+  // bucket by the enum fallback.
   const effectiveGroup = normClass ? (feeNorm!.costGroup as typeof group) : group;
-  if (effectiveGroup === 'DRIVER_SHIPMENT' && !input.receiptStorageKey) {
-    throw new ApiError(400, 'Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
+  // SIL-769 (09/11, customer CR-006 2B; Frank: "khách hàng bảo thế nào thì
+  // làm thế") — the biên lai photo is MANDATORY for exactly THREE lot fees:
+  // Phí Nâng (LIFTING), Phí Hạ (LOWERING), Lưu vỏ (YARD_STORAGE) — the one
+  // shared set the driver form's gate reads, so form and server can never
+  // disagree. Every other lot row (vệ sinh, lưu kho, công nhân, hàn cont, đảo
+  // vỏ, "chi phí lô hàng khác"…) saves WITHOUT a photo; the refusal NAMES the
+  // fee so the driver knows which row is missing its paper. SUPERSEDES the
+  // CP700-03 group law ("MỌI dòng nhóm DRIVER_SHIPMENT phải có ảnh biên lai")
+  // — the customer's answer to the KB's own "chưa chốt: bắt buộc với ai".
+  // Norm rows keep their road bucket (below), so they never reach this clause.
+  if (driverLotCostRequiresReceipt(input.expenseTypeCode) && !input.receiptStorageKey) {
+    throw new ApiError(400, `${catalogType?.name ?? input.expenseTypeCode} phải kèm ảnh biên lai trước khi lưu.`);
   }
-  // Step 2 — "Phiếu thu" (cash receipt) IS the biên lai photo: a cash spend
-  // cannot exist without its paper. Placed right after the photo-ownership
+  // "Phiếu thu" (cash receipt) tick — SIL-769 scope: a LOT row now answers to
+  // the three-fee set above (the driver's default Phiếu-thu tick must never
+  // block a non-mandatory fee), so this clause guards only a ROAD-bucket row
+  // claiming a receipt kind: a cash road spend without its paper stays a
+  // refusal, whatever caller sent it. Placed right after the photo-ownership
   // lookup above so one rule covers every caller (form, batch, offline queue)
-  // without an extra query. Lot rows are already covered above; this clause
-  // now guards a road-bucket row that claims a receipt kind.
-  if (input.evidenceKind === 'RECEIPT' && !input.receiptStorageKey) {
+  // without an extra query.
+  if (input.evidenceKind === 'RECEIPT' && !input.receiptStorageKey && effectiveGroup === 'DRIVER_ROAD') {
     throw new ApiError(400, 'Chọn Phiếu thu thì phải chụp biên lai trước khi lưu.');
   }
   // Card 182300 — chiphispec §1: a fee-norm row's money is the SYSTEM figure.

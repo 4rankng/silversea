@@ -124,8 +124,9 @@ describe('driver expense workflow — TC-CP-LX', () => {
   it('submits the evidence kind with no typed invoice pair — the photo is the paper', async () => {
     setup(); await open();
     // Card 141026230700: Hóa đơn / Phiếu thu are 2 small ticks; the typed
-    // Số/Ngày hóa đơn pair no longer exists on the driver surface, and every
-    // lot cost needs its biên lai photo before the save opens.
+    // Số/Ngày hóa đơn pair no longer exists on the driver surface, and the
+    // default pick (Phí nâng) is one of SIL-769's three photo-mandatory fees,
+    // so the save opens only once the biên lai photo exists.
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     expect(screen.queryByLabelText('Ngày hóa đơn')).toBeNull();
     await chooseEvidence('Hóa đơn');
@@ -247,20 +248,34 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(api.createIncidentalCosts).not.toHaveBeenCalled();
   });
 
-  // CP700-03 — "MỌI dòng nhóm DRIVER_SHIPMENT phải có ảnh biên lai (FE chặn +
-  // BE từ chối)": the sign does not matter. A negative lot row is a refund
-  // adjustment AND a lot-bucket row; the server answers 'Chi phí lô hàng phải
-  // kèm ảnh biên lai trước khi lưu.' without the photo, so the form gates it
-  // up front instead of letting the whole batch roll back server-side.
-  it('CP700-03: a negative lot row still carries its biên lai — the server rejects it without', async () => {
+  // CP700-03 as amended by SIL-769: the negative still carries its biên lai
+  // because the DEFAULT pick (Phí nâng — LIFTING) is one of the three
+  // photo-mandatory fees; the refusal NAMES the fee. The sign itself no
+  // longer matters — a negative row of a non-mandatory fee saves freely
+  // (pinned by the Phí vệ sinh test below).
+  it('CP700-03/SIL-769: a negative Phí nâng row still carries its biên lai — the server names the fee', async () => {
     setup(); await open();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '-30000' } });
-    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
+    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Phí nâng phải kèm ảnh biên lai trước khi lưu.');
     expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
     await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: -30000, receiptStorageKey: 'receipt.png' });
+  });
+
+  // SIL-769 AC1 — Phí lưu bãi (Lưu vỏ) is the third photo-mandatory fee: the
+  // block NAMES it and stays closed until the photo lands.
+  it('SIL-769: a Phí lưu bãi row is blocked until its biên lai — the message names the fee', async () => {
+    setup(); await open();
+    await choose('Phí lưu bãi');
+    fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '200000' } });
+    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
+    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Phí lưu bãi phải kèm ảnh biên lai trước khi lưu.');
+    await uploadReceipt();
+    fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ expenseTypeCode: 'YARD_STORAGE', receiptStorageKey: 'receipt.png' });
   });
 
   // Card 20261005 — "Người chi" (Tôi chi / Công ty chi) gỡ khỏi chi phí lái xe:
@@ -279,7 +294,8 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
     await choose('Lưu ca');
     expect(screen.queryByRole('combobox', { name: 'Người chi' })).toBeNull();
-    // chiphispec §2 — money on the row ⇒ biên lai required.
+    // SIL-769 — the norm row is road-bucket: photo optional. Uploading one is
+    // still allowed; the row saves either way.
     await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
@@ -408,29 +424,27 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ghi chú kế toán' }));
     expect(screen.getByLabelText('Ghi chú kế toán')).toBeDisabled();
   });
-  it('card 163 → 141026230700: an invoiced lot-cost fee carries its catalog code, no typed invoice, photo mandatory', async () => {
+  it('card 163 → SIL-769: an invoiced lot-cost fee carries its catalog code, no typed invoice, photo OPTIONAL', async () => {
     setup(); await open();
     // The typed invoice pair is gone for EVERY lot cost whatever the catalog
     // says; the server keeps its invoiced-catalog classification (the
-    // charge-the-customer side) and now demands the biên lai photo instead.
+    // charge-the-customer side). SIL-769 — Phí vệ sinh (FEE_CLEANING) is NOT
+    // one of the three photo-mandatory fees: the row saves WITHOUT a photo.
     await choose('Phí vệ sinh');
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '50000' } });
-    // CP700-03 — every lot row needs the biên lai; the copy is the server's
-    // own line so the two gates can never disagree.
-    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
-    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
-    await uploadReceipt();
+    expect(screen.queryByTestId('shipment-cost-receipt-required')).toBeNull();
+    expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({
-      expenseTypeCode: 'FEE_CLEANING', evidenceKind: 'RECEIPT', receiptStorageKey: 'receipt.png', costGroup: 'DRIVER_SHIPMENT', feeName: 'Phí vệ sinh',
+      expenseTypeCode: 'FEE_CLEANING', evidenceKind: 'RECEIPT', costGroup: 'DRIVER_SHIPMENT', feeName: 'Phí vệ sinh',
     });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0].receiptStorageKey).toBeUndefined();
     expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceNumber).toBeUndefined();
   });
 
   it('card 20260928_164: a no-invoice lot-cost fee offers no Số hóa đơn and never sends one', async () => {
-    api.uploadReceiptPhoto.mockResolvedValue({ storageKey: 'receipt.png', url: 'blob:receipt' });
     setup(); await open();
     await choose('Đảo vỏ');
     // CONTAINER_SWAP is catalog-classified no-invoice and the row stays on the
@@ -439,13 +453,15 @@ describe('driver expense workflow — TC-CP-LX', () => {
     // what pushed these rows into phải thu khách hàng.
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '90000' } });
-    // "Phiếu thu" mandates the biên lai photo before the save opens (step 2).
-    fireEvent.change(screen.getByLabelText('Chọn ảnh biên lai'), { target: { files: [new File(['photo'], 'receipt.png', { type: 'image/png' })] } });
-    await screen.findByText('Ảnh sẽ gắn với khoản chi này');
+    // SIL-769 — CONTAINER_SWAP is not one of the three photo-mandatory fees:
+    // the default Phiếu-thu tick no longer demands the biên lai photo; the row
+    // saves with kind-only evidence.
+    expect(screen.queryByTestId('shipment-cost-receipt-required')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
     const body = api.createIncidentalCosts.mock.calls[0][1][0];
     expect(body).toMatchObject({ expenseTypeCode: 'CONTAINER_SWAP', costGroup: 'DRIVER_SHIPMENT', feeName: 'Đảo vỏ', evidenceKind: 'RECEIPT' });
+    expect(body.receiptStorageKey).toBeUndefined();
     expect(body.invoiceNumber).toBeUndefined();
     expect(body.invoiceDate).toBeUndefined();
   });

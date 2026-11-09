@@ -37,14 +37,15 @@ describe('driver cost draft table — evidence kind + all-or-nothing batch', () 
     setup(); await openForm();
     // Default is "Phiếu thu" (most lot costs are cash with no VAT invoice);
     // card 141026230700 removed the typed invoice pair entirely — the photo is
-    // the evidence for EVERY lot cost, whatever the tick says.
+    // the evidence for the default pick, and SIL-769 keeps that pick (Phí
+    // nâng — LIFTING) among the three photo-mandatory fees.
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Thực chi/), { target: { value: '500000' } });
 
     // The reminder is the requiresReceipt mechanism — one rule, one testid —
-    // carrying the server's CP700-03 wording for every lot-bucket row.
+    // carrying the server's SIL-769 wording naming the fee.
     expect(screen.getByRole('button', { name: 'Lưu tất cả (1 dòng)' })).toBeDisabled();
-    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
+    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Phí nâng phải kèm ảnh biên lai trước khi lưu.');
 
     const file = new File(['photo'], 'receipt.png', { type: 'image/png' });
     fireEvent.change(screen.getByLabelText('Chọn ảnh biên lai'), { target: { files: [file] } });

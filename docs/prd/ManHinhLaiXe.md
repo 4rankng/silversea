@@ -182,6 +182,8 @@ Giữ nguyên phụ cấp tiền đường và ca đã thỏa thuận. Phần c�
 
 Mỗi khoản có ngày chi, công việc, nhóm/tên phí, số tiền thực tế, người trả tiền, hóa đơn nếu có, ảnh/chứng từ và ghi chú. Lái xe chỉ khai báo trong công việc của mình; không được tự thay đổi số thu khách hoặc ghi đã thanh toán từ quỹ công ty. Kế toán được sửa số sai khi còn điều kiện, có lý do và lịch sử. Sau đối chiếu, kế toán ghi khoản thay thế có liên kết, giữ nguyên khoản gốc; vé cầu đường thay thế chỉ được tính một lần và không đổi phụ cấp đã thỏa thuận.
 
+Ảnh biên lai chỉ BẮT BUỘC với đúng 3 khoản phí lô hàng: **Phí Nâng, Phí Hạ, Lưu vỏ** (dòng "Phí lưu bãi" trên app) — SIL-769, 09/11, câu trả lời của khách cho điểm "Chưa chốt: bắt buộc với ai" (bỏ luật cũ CP700-03 "mọi dòng chi phí lô hàng phải kèm ảnh"). Các khoản khác — vệ sinh, lưu kho, công nhân tại kho, hàn container, đảo vỏ, chi phí lô hàng khác… — lưu được bình thường khi chưa có ảnh. Khi thiếu ảnh ở một trong 3 khoản bắt buộc, thông báo chặn lưu phải nêu rõ tên khoản đang thiếu ảnh; cả FE và BE đọc chung một bộ mã phí bắt buộc để hai cổng không lệch nhau.
+
 Mỗi khoản đã lưu có thao tác xem/bổ sung chứng từ ngay trong danh sách chi phí. Bổ sung ảnh không mở form nhập tiền mới, không tạo khoản chi hoặc bút toán mới; ảnh tải lỗi được giữ để thử lại thủ công. Khi công việc đã chuyển cho lái xe khác, yêu cầu bổ sung đang mở phải bị từ chối và giữ nội dung chưa gửi.
 
 ### 8.2 Mức tham chiếu và nhập thực tế

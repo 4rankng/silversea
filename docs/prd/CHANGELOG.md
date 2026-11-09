@@ -4,6 +4,18 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-11-09 — SIL-769: ảnh biên lai chỉ bắt buộc với Phí Nâng, Phí Hạ, Lưu vỏ
+
+Chi phí lô hàng trên app lái xe: ảnh biên lai bắt buộc với đúng 3 khoản — Phí
+Nâng (LIFTING), Phí Hạ (LOWERING), Lưu vỏ (YARD_STORAGE, dòng "Phí lưu bãi");
+mọi khoản khác lưu được khi chưa có ảnh (SUPERSEDES CP700-03 "mọi dòng
+DRIVER_SHIPMENT phải có ảnh"). Thông báo chặn lưu nêu rõ tên khoản thiếu ảnh;
+FE form + BE `insertDriverIncidentalCostTx` đọc chung bộ mã
+`DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES` trong shared. Luật tick "Phiếu thu
+phải có ảnh" thu về chỉ chặn dòng tiền đường. Đây là câu trả lời của khách
+CR-006 cho điểm KB "Chưa chốt: bắt buộc với ai" (PhanHeKeToan.md §chiphispec);
+Frank 09/11 chuyển yêu cầu. Chi tiết: ManHinhLaiXe.md §8.1.
+
 ## 2026-11-09 — SIL-768: gỡ khối Ảnh nhiên liệu khỏi chi tiết lệnh app lái xe
 
 Chi tiết lệnh app lái xe không còn khối "Ảnh nhiên liệu" (chụp màn hình bơm,

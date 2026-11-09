@@ -11,6 +11,7 @@ import { NumberField, DateField, TextField, UuiSelectField, Tabs, EmptyState } f
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { driverExpenseOption, requiredEvidenceTypeForExpenseCode, type DriverExpenseOption } from '../../features/driver/driver-expense-options';
+import { driverLotCostRequiresReceipt } from '@tingting/shared';
 import { useDriverExpenseEntry, type DriverExpenseDraft, type DriverEvidenceKind } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
 import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
@@ -30,26 +31,25 @@ export interface ShipmentCostEntryFormProps {
 /**
  * The ONE photo rule for a draft row, shared by the row's reminder/disable and
  * the form's submit gate — a mirror of the server's single rule set
- * (`insertDriverIncidentalCostTx`), never a wider or narrower local reading:
- * a required-evidence code needs its paper whatever the picker says, and every
- * lot-bucket row (DRIVER_SHIPMENT) carries its biên lai photo whatever the
- * sign — the server rejects a lot row without one ("Chi phí lô hàng phải kèm
- * ảnh biên lai trước khi lưu."), positive or negative alike (CP700-03: "MỌI
- * dòng nhóm DRIVER_SHIPMENT phải có ảnh biên lai — FE chặn + BE từ chối").
- * An ordinary road-bucket row (tolls, fee norms) keeps the optional-photo
- * contract — CP700-03 exempts it, and the old amount-gated rule here used to
- * block exactly those rows the server accepts.
+ * (`insertDriverIncidentalCostTx`), never a wider or narrower local reading.
+ * SIL-769 (09/11, customer CR-006 2B — "khách hàng bảo thế nào thì làm thế"):
+ * the biên lai photo is mandatory for EXACTLY the three shared lot fees
+ * (Phí Nâng / Phí Hạ / Lưu vỏ — DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES);
+ * every other lot row saves without a photo, superseding CP700-03's group law.
+ * A required-evidence code (Sửa chữa dọc đường's hand-written receipt) still
+ * needs its paper whatever the picker says, and ordinary road rows keep the
+ * optional-photo contract (CP700-03's original exemption).
  *
  * Two contract-bounded parity edges (kept, documented): fee-norm options are
  * pinned to the ROAD bucket here while the server reads the norm's own
  * `costGroup` (card 20260921_7: "định mức pins its own costGroup"); and the
- * server's `evidenceKind === 'RECEIPT'` photo clause has no FE mirror because
- * this form sends `evidenceKind` for lot rows only (EvidenceKindTicks is
- * lot-only) — a road row never claims a receipt kind from the driver surface.
+ * server's `evidenceKind === 'RECEIPT'` photo clause now guards ROAD rows
+ * only — lot rows answer to the SIL-769 fee set above, so the driver's
+ * default Phiếu-thu tick never blocks a non-mandatory lot fee.
  */
 function receiptStillNeeded(selected: DriverExpenseOption): boolean {
   if (requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode) != null) return true;
-  return selected.group === 'DRIVER_SHIPMENT';
+  return driverLotCostRequiresReceipt(selected.expenseTypeCode);
 }
 
 /** Saved-row caption: the paper the row carries. Legacy rows (`evidence_kind`
@@ -140,10 +140,13 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
   // are the driver's own spends and keep the editable actual-amount contract.
   const systemRecorded = selected.feeNormCode != null;
   const receiptMissing = receiptStillNeeded(selected) && !row.receiptStorageKey;
+  // SIL-769 — the three shared lot fees keep the "(bắt buộc)" affordance and
+  // name THE FEE in the blocking line; every other row shows the optional
+  // label and never blocks the save.
   const cameraLabel = uploading ? 'Đang tải…'
     : row.receiptStorageKey ? 'Thay ảnh chứng từ'
     : requiresReceipt ? `Chụp / chọn ${evidenceLabel} (bắt buộc)`
-    : lotCost ? 'Chụp / chọn biên lai (bắt buộc)'
+    : receiptMissing ? 'Chụp / chọn biên lai (bắt buộc)'
     : 'Chụp / chọn biên lai';
 
   return (
@@ -188,13 +191,10 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
       </label>
       {pendingFile && <div className="shipment-cost-entry__upload-retry" role="status"><span>{pendingFile.name} · Chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" disabled={disabled} onClick={() => onUpload(pendingFile)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={onDiscardPendingFile}>Bỏ ảnh chưa tải</button></div>}
       {row.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><PhotoImage src={receiptUrl} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
-      {/* Card 20260928_165 + chiphispec §2 / CP700-03 — the supporting paper
-          cannot exist without the entry: the form blocks the submit (never
-          silently) until it is attached, and the server refuses the row without
-          it. One rule, one message per bucket — the lot row answers with the
-          server's own line ('Chi phí lô hàng phải kèm ảnh biên lai trước khi
-          lưu.'); a mandated-evidence code names its paper. */}
-      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{requiresReceipt ? `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.` : 'Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.'}</p>}
+      {/* SIL-769 — the blocking line NAMES the fee that is missing its biên
+          lai (Phí nâng / Phí hạ / Phí lưu bãi), mirroring the server's own
+          refusal; a mandated-evidence code names its paper instead. */}
+      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{requiresReceipt ? `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.` : `${selected.label} phải kèm ảnh biên lai trước khi lưu.`}</p>}
     </section>
   );
 }
