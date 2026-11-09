@@ -30,6 +30,13 @@
  *      surface. The money invariant: every source lands in exactly one bucket
  *      and no source is dropped (loop `continue`s only for party mismatch or
  *      a truly-unresolved trip-less source).
+ *   5. r6 (owner ruling 09/11): lot-attached money NEVER reads 'Chưa xác
+ *      định'. The TRA resolver ends at the LOT's own code (SHP-… / `Lô #<id>`,
+ *      partyId null — not a ledger entity); a trip whose carrier does not
+ *      resolve falls to that lot party in both loops; money attached to a
+ *      SOFT-DELETED lot is excluded from the report wholesale. THU keeps
+ *      FB-061 (a soft-deleted customer master never prints; its money keeps
+ *      the unknown bucket).
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -153,5 +160,43 @@ describe('SIL-729 r4 — the fallback sees fulfillment-linked trips and the lot 
       'the trip-level all-agree resolution (r2 law) still wins first');
     assert.ok(fallback.includes('liveTripId: null'),
       'a fulfillment-resolved party groups under the synthetic shipment key (no live trip to book)');
+  });
+});
+
+describe('SIL-729 r6 — lot-attached money never reads the unknown bucket', () => {
+  const fallback = fnBody('resolveShipmentFallbackParties');
+  const report = fnBody('getPhoiPhieuReport');
+  const sources = fnBody('reportSources');
+
+  it('the TRA resolver ends at the lot label — the lot names itself (owner ruling 09/11)', () => {
+    assert.ok(fallback.includes('const unresolved = ids.filter((id) => !map.has(id))'),
+      'the lot tier fills exactly the shipments both carrier laws left unnamed');
+    assert.ok(fallback.includes('code: s.shipments.shipmentCode'),
+      'the label is the lot code the owner ruling prescribes');
+    assert.ok(fallback.includes('`Lô #${lot.id}`'),
+      'a code-less draft lot still prints an honest per-lot label');
+    assert.ok(fallback.includes('partyId: null, partyKind: null'),
+      'the lot label is not a ledger entity — the payables join can never bind it to a carrier id');
+    // The lot tier is TRA-only: it must sit after the THU early return.
+    assert.ok(fallback.indexOf('const unresolved = ids.filter') > fallback.indexOf("if (kind === 'THU')"),
+      'the THU branch keeps FB-061 untouched (a soft-deleted customer never prints)');
+  });
+
+  it('the summary loop falls back to the lot party when a trip names no carrier', () => {
+    const loop = report.match(/for \(const source of sources\) \{[\s\S]*?const party = partyInfo\?\.name \?\? 'Chưa xác định';/)?.[0] ?? '';
+    assert.notEqual(loop, '', 'the bucket loop must exist');
+    assert.ok(loop.includes('resolvedParty?.name != null ? resolvedParty'),
+      'a resolved trip party still wins first (r4 pin law unchanged)');
+    assert.ok(loop.includes('source.shipmentId != null ? shipmentFallback.get(source.shipmentId)?.party'),
+      'the null-name trip falls to the lot party before the unknown bucket');
+    assert.ok(report.includes('sources.map((source) => source.shipmentId)'),
+      'the fallback map covers every source lot (trip-attached ones included)');
+  });
+
+  it('reportSources drops money attached to a soft-deleted lot', () => {
+    assert.ok(sources.includes('isNull(s.shipments.deletedAt)'),
+      'deleted lot = no report row (owner ruling 09/11)');
+    assert.ok(sources.includes('eq(s.shipments.id, s.expenseAccountingSources.shipmentId)'),
+      "the exclusion reads the source's own lot id — the trip and paidAt windows alike");
   });
 });

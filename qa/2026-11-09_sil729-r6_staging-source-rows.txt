@@ -1,0 +1,12 @@
+ shipment_code  | src_id | trip_id | eas_status | oee_id | fee_name | amount |  paid_at   | approval_status | oee_deleted | shipment_container_id | shipment_id 
+----------------+--------+---------+------------+--------+----------+--------+------------+-----------------+-------------+-----------------------+-------------
+ SHP-2611-00315 |     11 |         | RECORDED   |     19 |          | 150000 | 2026-11-04 | RECORDED        | f           |                       |         809
+ SHP-2611-00322 |     20 |         | RECORDED   |     29 |          |  60000 | 2026-11-05 | RECORDED        | f           |                       |         816
+ SHP-2611-00392 |     30 |         | VOIDED     |     32 |          | 150000 | 2026-11-06 | VOIDED          | t           |                       |         889
+ SHP-2611-00392 |     31 |         | RECORDED   |     33 |          | 150000 | 2026-11-06 | RECORDED        | f           |                       |         889
+ SHP-2611-00589 |     56 |         | RECORDED   |     49 |          | 100000 | 2026-11-09 | RECORDED        | f           |                       |        1108
+ SHP-2611-00589 |     57 |         | RECORDED   |     50 |          | 200000 | 2026-11-09 | RECORDED        | f           |                       |        1108
+ SHP-2611-00589 |     58 |         | RECORDED   |     51 |          | 400000 | 2026-11-09 | RECORDED        | f           |                       |        1108
+ SHP-2611-00589 |     59 |         | RECORDED   |     52 |          | 500000 | 2026-11-09 | RECORDED        | f           |                       |        1108
+(8 rows)
+
