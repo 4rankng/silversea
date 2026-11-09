@@ -18,7 +18,7 @@ import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
-import { DriverTaskInfoSections, DriverInvoiceSection, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
+import { DriverTaskInfoSections, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
 import { EmptyState } from '../design-system';
 import { podRequiredFilesReady, missingRequiredPodFileTypes } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
@@ -732,7 +732,8 @@ function DriverTripDetailContent() {
           cước / VETC (1 lần trên chân mang phí) / lương / phụ phí Kẹp. */}
       <DriverCostBreakdownSection trip={trip} />
 
-      <DriverInvoiceSection trip={trip} />
+      {/* SIL-766: DriverInvoiceSection moved INTO DriverTaskInfoSections —
+          it renders right below the Gọi kho bar, before every other block. */}
 
       {showAcceptStickyBar && (
         <div ref={actionBarRef} className="driver-task-accept-sticky" data-testid="accept-sticky-bar">

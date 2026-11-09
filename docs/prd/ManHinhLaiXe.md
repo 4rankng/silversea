@@ -89,7 +89,7 @@ Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề tác vụ ưu ti
 
 Tên liên hệ và số điện thoại phải cùng nhóm với địa chỉ nhà máy, gọi được qua liên kết điện thoại. Không lặp lại cùng người/số trong các dòng kho bãi và liên hệ khác nhau. Nếu có người liên hệ khác với vai trò thật sự khác, giữ họ ở chi tiết kèm nhãn vai trò; không xóa thông tin hữu ích chỉ để rút ngắn màn hình.
 
-Tác vụ và ghi chú lái xe đặt ngay sau thông tin công việc, trước thông tin xuất hóa đơn, để hướng dẫn vận chuyển được đọc trước dữ liệu thanh toán. Hai dòng này vẫn hiển thị khi thu gọn thông tin lệnh hoặc hóa đơn. Không hiển thị thêm dòng đầu kéo và moóc trong khối chi tiết lệnh.
+Thông tin xuất hóa đơn đặt ngay dưới hàng **Địa chỉ giao hàng** và nút **Gọi kho**, trước các khối khác (SIL-766, 09/11 — quyết định Frank chuyển yêu cầu khách CR-006: "khách hàng bảo thế nào thì làm thế"). Khối chỉ hiển thị tham khảo, mở sẵn khi vào màn: tài xế vừa mở lệnh là đọc ngay tên công ty/mã số thuế/địa chỉ xuất hóa đơn cho bãi, cảng; không gắn thêm nút xác nhận hay gửi dữ liệu nào tại khối này. Ghi chú lái xe đặt sau khối hóa đơn; vẫn hiển thị khi thu gọn thông tin lệnh hoặc hóa đơn. Không hiển thị thêm dòng đầu kéo và moóc trong khối chi tiết lệnh. (Bỏ quy tắc cũ "hóa đơn cuối trang, thu gọn mặc định" — card 20260926_30 items 15+17.)
 
 Lịch kế hoạch trên thẻ và chi tiết phải thống nhất. Khi chưa có ngày giờ kế hoạch xác định, hiển thị **Chưa chốt lịch**; không suy ra giờ hẹn từ một ngày xuất phát không có giờ.
 

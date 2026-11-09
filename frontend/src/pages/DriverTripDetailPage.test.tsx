@@ -1003,31 +1003,33 @@ describe('DriverTripDetailPage', () => {
     expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Nhà máy Bình Dương');
   });
 
-  it('VID-DRV-02 places task and note instructions before invoice details and keeps them visible through disclosures', async () => {
+  it('VID-DRV-02 places the invoice block right after the Gọi kho bar, ahead of notes and every later block (SIL-766)', async () => {
     renderPage();
     await screen.findByText('Thông tin lệnh');
 
     const info = document.getElementById('driver-task-info-grid')!;
     const notes = screen.getByTestId('task-note-section');
     const invoice = document.getElementById('driver-task-invoice-grid')!;
-    expect(info.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(notes.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // SIL-766: invoice sits directly below the Địa chỉ giao hàng row (in the
+    // info grid) + the Gọi kho call bar, before the Tác vụ/Ghi chú section.
+    expect(info.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(invoice.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // Card _30 item 15: the section spine follows driver priority — Chứng từ
-    // giao hàng (checklist card) leads, back-office hóa đơn trails last.
-    const podCard = document.querySelector('.driver-task-footer');
+    // SIL-766: the invoice block leads everything that used to follow it —
+    // container card, cost form — and no longer trails at the page foot.
     const contCard = document.querySelector('.dcc-section');
     const costForm = screen.getByTestId('shipment-cost-entry-form');
-    expect(podCard!.compareDocumentPosition(info) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(invoice.compareDocumentPosition(contCard!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(contCard!.compareDocumentPosition(costForm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(costForm.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // Card _30 item 17: hóa đơn is back-office — default-collapsed.
-    expect(screen.getByTestId('task-section-toggle-driver-task-invoice-grid').getAttribute('aria-expanded')).toBe('false');
+    // SIL-766: invoice starts EXPANDED — the driver reads the billing party
+    // the moment the order opens; collapse stays available on demand.
+    expect(screen.getByTestId('task-section-toggle-driver-task-invoice-grid').getAttribute('aria-expanded')).toBe('true');
+    expect(invoice.hidden).toBe(false);
 
     fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-info-grid'));
-    // Invoice starts collapsed; one click expands it.
-    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
+    // The two disclosures stay independent: collapsing info never hides the
+    // invoice block or the notes.
     expect(info.hidden).toBe(true);
     expect(invoice.hidden).toBe(false);
     expect(notes).toBeVisible();
@@ -1400,14 +1402,13 @@ describe('DriverTripDetailPage', () => {
     const invoiceToggle = screen.getByTestId('task-section-toggle-driver-task-invoice-grid');
     const invoiceGrid = document.getElementById('driver-task-invoice-grid') as HTMLElement;
     const infoGrid = document.getElementById('driver-task-info-grid') as HTMLElement;
-    // Card _30 item 17: invoice starts collapsed (back-office off the
-    // critical path) and expands on demand — collapsing/expanding it never
-    // touches the info section.
-    expect(invoiceToggle.getAttribute('aria-expanded')).toBe('false');
-    expect(invoiceGrid.hidden).toBe(true);
-    fireEvent.click(invoiceToggle);
+    // SIL-766: invoice starts EXPANDED (the driver reads it on open);
+    // collapsing/expanding it never touches the info section.
     expect(invoiceToggle.getAttribute('aria-expanded')).toBe('true');
     expect(invoiceGrid.hidden).toBe(false);
+    fireEvent.click(invoiceToggle);
+    expect(invoiceToggle.getAttribute('aria-expanded')).toBe('false');
+    expect(invoiceGrid.hidden).toBe(true);
     expect(infoGrid.hidden).toBe(false);
   });
 

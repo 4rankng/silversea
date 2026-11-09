@@ -4,6 +4,14 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-11-09 — SIL-766: khối Thông tin xuất hóa đơn dời lên dưới Gọi kho
+
+Chi tiết lệnh app lái xe: khối Thông tin xuất hóa đơn rời chân trang (quy tắc cũ
+card 20260926_30 items 15+17 — cuối trang, thu gọn mặc định) lên ngay dưới hàng
+Địa chỉ giao hàng + nút Gọi kho, mở sẵn khi vào màn. Yêu cầu khách CR-006 (video
+08/11); Frank 09/11: "khách hàng bảo thế nào thì làm thế". Khối chỉ hiển thị,
+không gắn nút xác nhận/gửi dữ liệu. Chi tiết: ManHinhLaiXe.md §3.1.
+
 ## 2026-10-26 — SIL-506: filter ngày Chi tiết bỏ cont không có ngày
 
 Mức cont của ngày Chi tiết (cus-workspace) loại container chưa có ngày vận chuyển
