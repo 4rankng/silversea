@@ -304,10 +304,11 @@
 .shipment-container-ledger__missing-fields-item:disabled { opacity: .55; cursor: default; }
 .shipment-container-ledger__missing-fields-item--external { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.5; }
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
-/* SIL-756: Container numbers (11-char ISO codes), declaration numbers,
+/* SIL-756 (Round 3): Container numbers (11-char ISO codes), declaration numbers,
    and Bill/Booking codes are single-token identifiers: single-line with
-   nowrap + ellipsis + tooltip so they never break mid-string (e.g. 108590773650,
-   QACU200050, TK1108R002). */
+   nowrap + overflow-x: auto (scrollable cell, scrollbar when needed) + tooltip
+   so they never break mid-string and all characters/digits are fully readable in-cell
+   (e.g. 108590773650, QACU200050, TK1108R002). NO ellipsis truncation. */
 .shipment-container-ledger td[data-label="Số tờ khai"] .shipment-container-ledger__code,
 .shipment-container-ledger td[data-label="Bill/Booking"] .shipment-container-ledger__code,
 .shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code {
@@ -315,10 +316,23 @@
   max-width: 100%;
   font-size: var(--text-caption-size);
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  text-overflow: clip !important;
   overflow-wrap: normal !important;
   word-break: normal !important;
+  scrollbar-width: thin;
+}
+.shipment-container-ledger td[data-label="Số tờ khai"] .shipment-container-ledger__code::-webkit-scrollbar,
+.shipment-container-ledger td[data-label="Bill/Booking"] .shipment-container-ledger__code::-webkit-scrollbar,
+.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code::-webkit-scrollbar {
+  height: 4px;
+}
+.shipment-container-ledger td[data-label="Số tờ khai"] .shipment-container-ledger__code::-webkit-scrollbar-thumb,
+.shipment-container-ledger td[data-label="Bill/Booking"] .shipment-container-ledger__code::-webkit-scrollbar-thumb,
+.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code::-webkit-scrollbar-thumb {
+  background: var(--line-2, #cbd5e1);
+  border-radius: 2px;
 }
 /* SIL-516 doctrine sweep (SIL-515 wrap-full): the lot row's spec PHRASE
    ("Lô hàng lẻ | Thu: Xe 10T | Trả: Xe 3.5T") rides the same __code class but

@@ -100,35 +100,42 @@ function renderLedger(row: ShipmentCusContainerFlatRow) {
   );
 }
 
-describe('SIL-756: nowrap + ellipsis + tooltip for container serial & declaration numbers', () => {
-  it('renders exact test strings "108590773650" (all digits) and "QACU200050" with title tooltip', () => {
+describe('SIL-756: nowrap + overflow-x: auto (scrollable, NO ellipsis) + tooltip for container serial & declaration numbers', () => {
+  it('renders exact test strings "108590773650" (all 12 digits) and "QACU200050" with title tooltip and zero ellipsis truncation', () => {
     const row = makeRow('QACU200050', '108590773650');
     const { container } = renderLedger(row);
 
-    // 1. Container serial 'QACU200050'
+    // 1. Container serial 'QACU200050' — full string readable in cell
     const contCell = container.querySelector('td[data-label="Thông số container"] .shipment-container-ledger__code');
     expect(contCell).not.toBeNull();
-    expect(contCell?.textContent).toContain('QACU200050');
+    expect(contCell?.textContent).toBe('QACU200050');
+    expect(contCell?.textContent).not.toContain('…');
+    expect(contCell?.textContent).not.toContain('...');
     expect(contCell?.getAttribute('title')).toBe('QACU200050');
 
-    // 2. Pure digits declaration '108590773650'
+    // 2. Pure digits declaration '108590773650' — full 12 digits readable in cell without ellipsis truncation
     const declCell = container.querySelector('td[data-label="Số tờ khai"] .shipment-container-ledger__code');
     expect(declCell).not.toBeNull();
-    expect(declCell?.textContent).toContain('108590773650');
+    expect(declCell?.textContent).toBe('108590773650');
+    expect(declCell?.textContent).not.toContain('…');
+    expect(declCell?.textContent).not.toContain('...');
+    expect(declCell?.textContent?.length).toBe(12);
     expect(declCell?.getAttribute('title')).toBe('108590773650');
   });
 
-  it('renders alphanumeric declaration "TK1108R002" with title tooltip', () => {
+  it('renders alphanumeric declaration "TK1108R002" with title tooltip and zero ellipsis truncation', () => {
     const row = makeRow('QACU200050', 'TK1108R002');
     const { container } = renderLedger(row);
 
     const declCell = container.querySelector('td[data-label="Số tờ khai"] .shipment-container-ledger__code');
     expect(declCell).not.toBeNull();
-    expect(declCell?.textContent).toContain('TK1108R002');
+    expect(declCell?.textContent).toBe('TK1108R002');
+    expect(declCell?.textContent).not.toContain('…');
+    expect(declCell?.textContent).not.toContain('...');
     expect(declCell?.getAttribute('title')).toBe('TK1108R002');
   });
 
-  it('CSS rules enforce nowrap, ellipsis, and hidden overflow on identifier codes', () => {
+  it('CSS rules enforce nowrap, overflow-x: auto (scrollable cell), and NO ellipsis truncation on identifier codes', () => {
     const shipmentCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentContainersPage.css'), 'utf8');
     const dispatchCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
@@ -138,8 +145,8 @@ describe('SIL-756: nowrap + ellipsis + tooltip for container serial & declaratio
     )?.[1];
     expect(shipmentDeclRule).toBeDefined();
     expect(shipmentDeclRule).toMatch(/white-space:\s*nowrap\s*!important/);
-    expect(shipmentDeclRule).toMatch(/overflow:\s*hidden\s*!important/);
-    expect(shipmentDeclRule).toMatch(/text-overflow:\s*ellipsis\s*!important/);
+    expect(shipmentDeclRule).toMatch(/overflow-x:\s*auto\s*!important/);
+    expect(shipmentDeclRule).not.toMatch(/text-overflow:\s*ellipsis/);
     expect(shipmentDeclRule).toMatch(/word-break:\s*normal/);
 
     // Multiline span excludes .shipment-container-ledger__code so it never inherits break-word:
@@ -149,13 +156,13 @@ describe('SIL-756: nowrap + ellipsis + tooltip for container serial & declaratio
     const dispatchDeclRule = dispatchCss.match(/\.detailed-plan-grid__decl-value\s*\{([\s\S]*?)\}/)?.[1];
     expect(dispatchDeclRule).toBeDefined();
     expect(dispatchDeclRule).toMatch(/white-space:\s*nowrap/);
-    expect(dispatchDeclRule).toMatch(/text-overflow:\s*ellipsis/);
-    expect(dispatchDeclRule).toMatch(/overflow:\s*hidden/);
+    expect(dispatchDeclRule).toMatch(/overflow-x:\s*auto/);
+    expect(dispatchDeclRule).not.toMatch(/text-overflow:\s*ellipsis/);
 
     const dispatchContRule = dispatchCss.match(/\.detailed-plan-grid__cell--container \.ops-container-line\s*\{([\s\S]*?)\}/)?.[1];
     expect(dispatchContRule).toBeDefined();
     expect(dispatchContRule).toMatch(/white-space:\s*nowrap/);
-    expect(dispatchContRule).toMatch(/text-overflow:\s*ellipsis/);
-    expect(dispatchContRule).toMatch(/overflow:\s*hidden/);
+    expect(dispatchContRule).toMatch(/overflow-x:\s*auto/);
+    expect(dispatchContRule).not.toMatch(/text-overflow:\s*ellipsis/);
   });
 });
