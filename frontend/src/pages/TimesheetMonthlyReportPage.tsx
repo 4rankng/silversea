@@ -67,8 +67,11 @@ export default function TimesheetMonthlyReportPage() {
       for (const day of monthRow.days) {
         if (day.symbol === 'Đ') don += 1;
         if (day.symbol === 'K') kep += 1;
-        // "Q = quay đầu → tính 2 chuyến" (card 230790): cột đếm CHUYẾN.
-        if (day.symbol === 'Q') quayDau += 2;
+        // SIL-775 (khách chốt 09/11/2026): mỗi ngày Q tính 1 chuyến quay đầu
+        // trong công thức tổng — thay luật cũ 'Q = 2 chuyến' (card 230790).
+        // Ký hiệu Q trên lưới vẫn mang nghĩa 2 cuốc/ngày; chỉ cách ĐẾM ở cột
+        // tổng đổi thành 1 chuyến/ngày Q.
+        if (day.symbol === 'Q') quayDau += 1;
         // SIL-774 — cột 6 'Số ngày nghỉ được hưởng lương' đếm ngày P (nghỉ
         // sửa xe / bảo dưỡng định kỳ theo chế độ); cột 7 'Số ngày nghỉ phép'
         // đếm ngày N (nghỉ tai nạn / nghỉ việc gia đình có phép).
@@ -159,6 +162,9 @@ export default function TimesheetMonthlyReportPage() {
                     cột 7 đếm ngày N. */}
                 <th scope="col">Số ngày nghỉ được hưởng lương</th>
                 <th scope="col">Số ngày nghỉ phép</th>
+                {/* SIL-775 — cột 10: Tổng lệnh kẹp / Tổng số chuyến × 100%,
+                    với Tổng số chuyến = Đ + K + Q (mỗi ngày Q tính 1). */}
+                <th scope="col">Tỷ lệ kẹp ghép / ngày (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -181,27 +187,34 @@ export default function TimesheetMonthlyReportPage() {
                   <td className="num" data-label="Tổng lệnh đơn">{row.don}</td>
                   <td className="num" data-label="Tổng lệnh kẹp">{row.kep}</td>
                   <td className="num" data-label="Số chuyến quay đầu">{row.quayDau}</td>
-                  <td className="num" data-label="Tổng số chuyến">{row.monthRow.salary.trips}</td>
+                  {/* SIL-775 — Tổng số chuyến = Đ + K + Q (ngày), không còn
+                      dùng salary.trips (Q nặng 2 cho LƯƠNG, không cho cột này). */}
+                  <td className="num" data-label="Tổng số chuyến">{row.don + row.kep + row.quayDau}</td>
                   <td className="num" data-label="Số ngày công">{row.monthRow.salary.workdays}</td>
                   <td className="num" data-label="Số ngày nghỉ được hưởng lương">{row.nghiHuongLuong}</td>
                   <td className="num" data-label="Số ngày nghỉ phép">{row.nghiPhep}</td>
+                  <td className="num" data-label="Tỷ lệ kẹp ghép / ngày (%)">
+                    {row.don + row.kep + row.quayDau === 0
+                      ? '—'
+                      : `${Math.round((row.kep / (row.don + row.kep + row.quayDau)) * 1000) / 10}%`}
+                  </td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr>
-                <th scope="row" colSpan={7}>Tổng lệnh kẹp/ngày</th>
+                <th scope="row" colSpan={8}>Tổng lệnh kẹp/ngày</th>
                 {perDay.map(day => (
                   <td key={day.dayNumber} className="num ts-report__cell">{day.kep === 0 ? '' : day.kep}</td>
                 ))}
-                <td colSpan={7} />
+                <td colSpan={8} />
               </tr>
               <tr>
-                <th scope="row" colSpan={7}>Tỷ lệ %</th>
+                <th scope="row" colSpan={8}>Tỷ lệ %</th>
                 {perDay.map(day => (
                   <td key={day.dayNumber} className="num ts-report__cell">{day.pct === null ? '' : `${day.pct}%`}</td>
                 ))}
-                <td colSpan={7} />
+                <td colSpan={8} />
               </tr>
             </tfoot>
           </table>
