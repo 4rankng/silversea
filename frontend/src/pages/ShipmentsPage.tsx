@@ -145,7 +145,9 @@ export default function ShipmentsPage() {
   const canEditLot = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS);
   const userRole = getModernRole(user?.role || '').toUpperCase();
   const isOps = userRole === Role.OPS || userRole === 'FORWARDER';
-  const canDeclareOpsExpense = isOps || userRole === Role.ADMIN || userRole === Role.MANAGER;
+  // SIL-748 (owner product decision 09/11): CUS declares lot expenses from the
+  // drawer too — the [Khai chi phí] entry is no longer Ops/Admin/Manager-only.
+  const canDeclareOpsExpense = isOps || userRole === Role.ADMIN || userRole === Role.MANAGER || userRole === Role.CUS;
   const [expenseOrder, setExpenseOrder] = useState<OpsOrderItem | null>(null);
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);

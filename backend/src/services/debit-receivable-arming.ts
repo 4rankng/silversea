@@ -33,3 +33,24 @@ export function receivableDetermined(input: ReceivableArmingInput): boolean {
     || (input.psKnownTotal != null && input.psKnownTotal !== 0)
     || (input.opsChargeKnownTotal != null && input.opsChargeKnownTotal !== 0);
 }
+
+export interface ReceivableDisplayInput {
+  /** The pre-rule cell value: the frozen snapshot figure (locked lot) or the
+   *  live rollup. null = chưa xác định (missing snapshot key) — passes through. */
+  value: number | null;
+  /** The effective freight figure is traced (number, 0 included). */
+  freightKnown: boolean;
+  /** The lot rides an LCL revenue-merge group (revGroupId != null). */
+  merged: boolean;
+}
+
+/** SIL-731 r4 — the cell-level half of the 24/10 law. A '0' renders ONLY when
+ *  the rollup is actually determined (= 0 computed, D02) or the lot rides a
+ *  merge group. A COST-LOCKED lot is NOT an exemption: its snapshot froze '0'
+ *  while the freight was never traced, so the figure is still 'chưa chốt' and
+ *  the cell stays BLANK (QA verdict 08/11 build e6db602f: R3Q-680-B,
+ *  R4B-693-001 — both 'Đã khóa', freightAuto null, receivableTotal "0"). */
+export function receivableDisplayValue(input: ReceivableDisplayInput): number | null {
+  if (input.value === 0 && !input.freightKnown && !input.merged) return null;
+  return input.value;
+}

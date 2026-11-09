@@ -6,7 +6,7 @@
 // (D02, card 20261002_293) stays a zero only once it IS determined.
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { receivableDetermined } from '../../services/debit-receivable-arming';
+import { receivableDetermined, receivableDisplayValue } from '../../services/debit-receivable-arming';
 
 describe('receivableDetermined (SIL-731 r2 arming law)', () => {
   test('lô 100GX19033 repro — ops charge entered 0 + freight unpriced + no revenue rows → NOT determined (blank)', () => {
@@ -87,5 +87,31 @@ describe('receivableDetermined (SIL-731 r2 arming law)', () => {
       psKnownTotal: null,
       opsChargeKnownTotal: null,
     }), false);
+  });
+});
+
+describe('receivableDisplayValue (SIL-731 r4 cell law — no lock exemption)', () => {
+  test('QA repro R3Q-680-B / R4B-693-001 — cost-locked lot, snapshot froze 0, freight never traced → BLANK', () => {
+    assert.equal(receivableDisplayValue({ value: 0, freightKnown: false, merged: false }), null);
+  });
+
+  test('unlocked uncalculated 0 stays blank (r3 law unchanged)', () => {
+    assert.equal(receivableDisplayValue({ value: 0, freightKnown: false, merged: false }), null);
+  });
+
+  test('computed zero with freight traced stays a value (D02) — locked or not', () => {
+    assert.equal(receivableDisplayValue({ value: 0, freightKnown: true, merged: false }), 0);
+  });
+
+  test('merge-group member 0 renders (lô ghép exemption)', () => {
+    assert.equal(receivableDisplayValue({ value: 0, freightKnown: false, merged: true }), 0);
+  });
+
+  test('missing snapshot key (null) passes through as Chưa xác định', () => {
+    assert.equal(receivableDisplayValue({ value: null, freightKnown: false, merged: false }), null);
+  });
+
+  test('non-zero frozen figure passes through untouched', () => {
+    assert.equal(receivableDisplayValue({ value: 3_952_000, freightKnown: true, merged: false }), 3_952_000);
   });
 });

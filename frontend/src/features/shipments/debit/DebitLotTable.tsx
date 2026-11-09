@@ -516,7 +516,9 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
   // board lands).
   const isRevMergeMember = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1;
   const showRevMergeTag = isRevMergeMember && !ratesRefreshing;
-  const isZeroUncalculated = !isRevMergeMember && row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0 && row.lockStatus !== 'LOCKED';
+  // SIL-731 r4 — the 24/10 law has no lock exemption: a locked lot's frozen '0'
+  // with freightAuto null is still uncalculated → pending/blank, never '0'.
+  const isZeroUncalculated = !isRevMergeMember && row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0;
   const receivableState = ratesRefreshing || isZeroUncalculated ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
   return (
     <>
@@ -630,10 +632,12 @@ function groupByCustomer(items: ShipmentDebitLotRow[]): LotGroup[] {
 
 function GroupHeader({ group, collapsed, onCollapse, leadingColSpan }: { group: LotGroup; collapsed: boolean; onCollapse: () => void; leadingColSpan: number }) {
   const displayName = titleCaseName(group.name) || group.name;
-  const isZeroUncalculated = (r: ShipmentDebitLotRow) =>
-    r.revGroupId == null && r.freightAuto == null && Number(r.receivableTotal) === 0 && r.lockStatus !== 'LOCKED';
   const sums = group.rows.map((row) => ({
-    receivable: isZeroUncalculated(row) ? { kind: 'pending' as const } : moneyState(row.receivableTotal),
+    // SIL-731 r4 — the 24/10 law has no lock exemption: a locked lot's frozen
+    // '0' with freightAuto null is still uncalculated → pending, never '0'.
+    receivable: (row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0)
+      ? { kind: 'pending' as const }
+      : moneyState(row.receivableTotal),
     carrier: moneyState(row.carrierCostTotal ?? null),
     domestic: moneyState(row.opsCostTotal ?? null),
     payable: moneyState(row.payableTotal),
@@ -708,11 +712,11 @@ export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, 
     return next;
   });
 
-  const isZeroUncalculated = (r: ShipmentDebitLotRow) =>
-    r.revGroupId == null && r.freightAuto == null && Number(r.receivableTotal) === 0 && r.lockStatus !== 'LOCKED';
   const totalOf = (pick: (row: ShipmentDebitLotRow) => number | string | null | undefined, col?: string) =>
     sumMoneyStates(items.map((row) => {
-      if (col === 'receivable' && isZeroUncalculated(row)) {
+      // SIL-731 r4 — the 24/10 law has no lock exemption: a locked lot's frozen
+      // '0' with freightAuto null is still uncalculated → pending, never '0'.
+      if (col === 'receivable' && row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0) {
         return { kind: 'pending' as const };
       }
       return moneyState(pick(row));

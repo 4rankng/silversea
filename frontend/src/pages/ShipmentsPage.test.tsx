@@ -1824,6 +1824,22 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(expenseButtons.some((b) => b.className.includes('cus-drawer-declare-expense'))).toBe(true);
   });
 
+  it('SIL-748 (owner 09/11): renders [Khai chi phí] in the drawer for CUS role too', async () => {
+    authState.user.role = Role.CUS;
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(masterRowDetailButton());
+    await screen.findByRole('dialog');
+    const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
+    const expenseButtons = within(drawer).getAllByRole('button', { name: /Khai chi phí/ });
+    expect(expenseButtons.length).toBeGreaterThanOrEqual(2);
+    expect(expenseButtons.some((b) => b.className.includes('cus-lot-declare-expense'))).toBe(true);
+    expect(expenseButtons.some((b) => b.className.includes('cus-drawer-declare-expense'))).toBe(true);
+    // Clicking mounts the shared declaration form (same path Ops drives).
+    fireEvent.click(expenseButtons[0]);
+    expect(await screen.findByRole('dialog', { name: 'Khai báo chi phí' })).toBeTruthy();
+  });
+
 
   it('locked shipment cells answer with the lot DRAWER — no editor, no write (SIL-699 r2)', async () => {
     const lockedFieldAccess = Object.fromEntries(Object.entries(row.fieldAccess).map(([key, access]) => [
