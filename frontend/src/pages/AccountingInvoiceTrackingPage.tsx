@@ -1,17 +1,35 @@
 // Card 20260921_18 — THEO DÕI HÓA ĐƠN KẾT HỢP. Kế toán manages combined-invoice
 // tracking rows per lot trip; CUS reaches the same page read-only (server-enforced).
-// Header Tổng band recomputes over the filtered rows (worked example in the card plan).
+//
+// SIL-762 REV2 (ticket-v2.txt, Phần IV Epic 3 mục 1): the board renders the
+// LƯỚI 8 CỘT MULTI-LINE — the data fields and formulas are unchanged from the
+// old 20+-column sheet, but the presentation collapses into 8 grouped cells:
+//   1 [Checkbox] & STT        — bulk select for Lưu và Ẩn (ĐNTT lập theo lô là
+//                               giai đoạn sau; selection is ready for it)
+//   2 KHÁCH HÀNG & LÔ         — KH (Mã KH · MST auto từ Master Data) / Nhà máy ·
+//                               Ngày vận chuyển — read-only, auto-fill từ lô
+//   3 CONT & CHỨNG TỪ         — Số Cont · badge [loại · X/N] / Bill-tờ khai ·
+//                               Hãng tàu — read-only (auto-sync khi tích Kết hợp)
+//   4 ĐẦU VÀO (MUA HĐ)        — NCC (datalist) / Số hóa đơn · Ngày gửi HĐ —
+//                               inline-edit, commit on blur
+//   5 ĐỐI SOÁT SỐ TIỀN        — Thu KH / Trả NCC · Trả KH — inline-edit
+//   6 CHÊNH LỆCH              — auto = thu − trả − trả KH (lợi nhuận HĐ ngoài)
+//   7 GHI CHÚ & ĐNTT          — Ghi chú inline / badge Số ĐNTT (tự gắn)
+//   8 TIẾN ĐỘ XỬ LÝ           — select Chưa lấy HĐ | Đã có HĐ | Đã gửi HĐ |
+//                               Không lấy HĐ + nút nhanh [Lưu và Ẩn]
+// [Lưu và Ẩn] (per-row quick + bulk qua selection) ticks "Không lấy hóa đơn"
+// và ẩn khỏi danh sách chờ (noInvoice + hiddenAt/hiddenBy = vết lịch sử); bộ
+// lọc "Dòng đã ẩn" trả lại vết, Bỏ ẩn đưa dòng về làm việc.
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Download, Eye, EyeOff, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
-  INVOICE_TRACKING_PROGRESS,
-  INVOICE_TRACKING_PROGRESS_LABELS,
+  INVOICE_TRACKING_DIFF_FORMULA,
   TRADE_DIRECTION_LABELS,
   Role,
   round2dp,
-  type InvoiceTrackingProgress,
+  type InvoiceTrackingPatchInput,
   type InvoiceTrackingRow,
 } from '@tingting/shared';
 import { Btn, PageHeader, useConfirm } from '../components/UI';
@@ -28,7 +46,7 @@ import {
 import { qk } from '../api/keys';
 import { useAuth } from '../hooks/useAuth';
 import { getModernRole } from '../lib/role-helpers';
-import { businessDateISO, formatBusinessRef, formatISODate, formatMoney } from '../lib/format';
+import { businessDateISO, formatISODate, formatMoney } from '../lib/format';
 import InvoiceTrackingFormModal from '../features/accounting/InvoiceTrackingFormModal';
 import { EmptyState, FilterBar, SummaryRail } from '../design-system';
 import { SkeletonTable } from '../components/shared/Skeleton';
@@ -38,13 +56,28 @@ import './AccountingInvoiceTrackingPage.css';
 
 const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
 
-/** Σ hóa đơn / Σ trả NCC / chênh lệch over the rows currently on screen —
- *  the header band recomputes on every period filter change (card worked
- *  example: 12.000.000/8.000.000 + 5.500.000/6.000.000 → 17.500.000 / 14.000.000 / 3.500.000).
- *  Card 2026-10-05_384 adds Σ COM as a FOURTH, independent box: COM is a
- *  customer-side deduction, so it is deliberately NOT folded into `difference`,
- *  which stays `invoice − paid`. A row with no `comAmount` (every pre-card row)
- *  contributes 0, never `NaN`. */
+const CHUA_LAY_HD = 'Chưa lấy HĐ';
+const KHONG_LAY_HD = 'Không lấy HĐ';
+
+/** SIL-762 REV2 — the Cột 8 progress vocabulary. The write model keeps the
+ *  original enum + the noInvoice flag; the display derives from the row:
+ *   · noInvoice            → Không lấy HĐ (row is hidden from the working list)
+ *   · progress GUI_HD      → Đã gửi HĐ
+ *   · invoiceNumber set    → Đã có HĐ (legacy CO_HD rows and captured invoices;
+ *                            kept as a fourth display value so a captured
+ *                            invoice never reads as "chưa lấy") */
+function progressDisplayOf(row: InvoiceTrackingRow): string {
+  if (row.noInvoice) return KHONG_LAY_HD;
+  if (row.progress === 'GUI_HD') return 'Đã gửi HĐ';
+  if (row.invoiceNumber != null || row.progress === 'CO_HD') return 'Đã có HĐ';
+  return CHUA_LAY_HD;
+}
+
+/** Σ thu / Σ trả / Σ trả KH / chênh lệch over the rows currently on screen.
+ *  SIL-762 formula: Chênh lệch = thu − trả − trả KH (the profit of the
+ *  company's out-of-house invoice handling). Worked example (com 0):
+ *  12.000.000/8.000.000 + 5.500.000/6.000.000 → 17.500.000 / 14.000.000 /
+ *  3.500.000. A row with no `comAmount` contributes 0, never `NaN`. */
 export function computeTotals(rows: ReadonlyArray<{ invoiceAmount: string; supplierPayment: string; comAmount?: string | null }>): {
   invoice: number;
   paid: number;
@@ -59,7 +92,7 @@ export function computeTotals(rows: ReadonlyArray<{ invoiceAmount: string; suppl
     paid += Number(row.supplierPayment);
     com += row.comAmount == null ? 0 : Number(row.comAmount);
   }
-  return { invoice, paid, difference: invoice - paid, com: round2dp(com) };
+  return { invoice, paid, difference: invoice - paid - com, com: round2dp(com) };
 }
 
 /** First-of-month..today, Vietnam business timezone (house date helpers). */
@@ -94,22 +127,40 @@ export function buildPeriodPresets(today = businessDateISO()): DateRangePreset[]
   ];
 }
 
-/** Card 2026-10-05_384 — the COM cell carries the AMOUNT, and never hides the
- *  legacy note. A row created before the card has text in `comNote` and a null
- *  `comAmount`; a row created after it has the number and may still carry a
- *  note. So: amount first (the money is what the column is now for), note
- *  underneath whenever there is one, and the house `—` only when both are
- *  empty. Neither field is ever dropped because the other is present. */
-function comCellContent(row: { comAmount: string | null; comNote: string | null }): ReactNode {
-  const amount = row.comAmount == null ? null : `${formatMoney(Number(row.comAmount))} ₫`;
-  const note = formatBusinessRef(row.comNote);
-  if (amount == null && note === '—') return '—';
-  if (note === '—') return amount;
+/** Inline-editable cell input (Cột 4/5/7): commits on blur or Enter, never
+ *  per keystroke — one PATCH per finished edit. `numeric` keeps integers. */
+function InlineCellInput({ value, onCommit, numeric, listId, ariaLabel, placeholder }: {
+  value: string;
+  onCommit: (next: string) => void;
+  numeric?: boolean;
+  listId?: string;
+  ariaLabel: string;
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim();
+    const current = value.trim();
+    if (next === current) return;
+    if (numeric && next !== '' && !/^\d+$/.test(next)) { setDraft(value); return; }
+    onCommit(next);
+  };
   return (
-    <span className="ivt-stack">
-      <span className="ivt-stack__primary">{amount ?? '—'}</span>
-      <span className="ivt-stack__sub">{note}</span>
-    </span>
+    <input
+      className={`ivt-inline-input${numeric ? ' ivt-inline-input--num' : ''}`}
+      value={draft}
+      aria-label={ariaLabel}
+      placeholder={editing ? placeholder : (value || placeholder)}
+      list={listId}
+      inputMode={numeric ? 'numeric' : undefined}
+      onFocus={() => setEditing(true)}
+      onChange={(event) => setDraft(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.target as HTMLInputElement).blur(); } }}
+    />
   );
 }
 
@@ -123,15 +174,20 @@ export default function AccountingInvoiceTrackingPage() {
   const [search, setSearch] = useState('');
   const [supplier, setSupplier] = useState('');
   const [diffOnly, setDiffOnly] = useState(false);
+  // SIL-762 — the Lưu và Ẩn trace: default hides the "Không lấy hóa đơn" rows;
+  // flipping this refetches with includeHidden and marks them on screen.
+  const [includeHidden, setIncludeHidden] = useState(false);
+  const [selected, setSelected] = useState<ReadonlySet<number>>(new Set());
   const [actionError, setActionError] = useState<string | null>(null);
   const { from, to } = period;
-  const [modal, setModal] = useState<{ mode: 'create' } | { mode: 'edit'; row: InvoiceTrackingRow } | null>(null);
-  const { dialog } = useConfirm();
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const { confirm, dialog } = useConfirm();
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
+  const supplierListId = useRef(`ivt-suppliers-${Math.random().toString(36).slice(2, 8)}`).current;
 
   const query = useQuery({
-    queryKey: qk.invoiceTracking.list(from, to),
-    queryFn: () => listInvoiceTracking(from, to),
+    queryKey: qk.invoiceTracking.list(from, to, includeHidden),
+    queryFn: () => listInvoiceTracking(from, to, { includeHidden }),
   });
   const rows = useMemo(() => query.data?.rows ?? [], [query.data]);
   const supplierOptions = useMemo(
@@ -140,10 +196,12 @@ export default function AccountingInvoiceTrackingPage() {
   );
   const filtered = useMemo(() => rows.filter((r) => {
     if (supplier && r.supplierName?.trim() !== supplier) return false;
-    if (diffOnly && Number(r.invoiceAmount) === Number(r.supplierPayment)) return false;
+    // SIL-762 law — "có lệch" follows the SAME 3-term formula as the column:
+    // thu − trả − trả KH ≠ 0 (comAmount folds in, never NaN).
+    if (diffOnly && Number(r.invoiceAmount) - Number(r.supplierPayment) - (r.comAmount == null ? 0 : Number(r.comAmount)) === 0) return false;
     if (search.trim()) {
       const needle = search.trim().toLowerCase();
-      const haystack = [r.invoiceNumber, r.taxCode, r.shipmentCode, r.containerNumber].map(v => (v ?? '').toLowerCase());
+      const haystack = [r.invoiceNumber, r.taxCode, r.shipmentCode, r.containerNumber, r.bookingRef, r.blNumber, r.customerName].map(v => (v ?? '').toLowerCase());
       if (!haystack.some(v => v.includes(needle))) return false;
     }
     return true;
@@ -160,45 +218,45 @@ export default function AccountingInvoiceTrackingPage() {
     setSearch('');
     setSupplier('');
     setDiffOnly(false);
+    setIncludeHidden(false);
   };
-  const hasActiveFilters = Boolean(periodChanged || search.trim() || supplier || diffOnly);
+  const hasActiveFilters = Boolean(periodChanged || search.trim() || supplier || diffOnly || includeHidden);
 
-  // Card 20260927_152: the two criteria behind `Bộ lọc` — the count feeds the
-  // trigger badge, `Đặt lại` clears exactly those two and nothing else.
-  const secondaryCount = (supplier ? 1 : 0) + (diffOnly ? 1 : 0);
-  const resetSecondary = () => { setSupplier(''); setDiffOnly(false); };
+  const secondaryCount = (supplier ? 1 : 0) + (diffOnly ? 1 : 0) + (includeHidden ? 1 : 0);
+  const resetSecondary = () => { setSupplier(''); setDiffOnly(false); setIncludeHidden(false); };
   const presetNode = <DateRangePresets presets={periodPresets} value={period} onChange={setPeriod} ariaLabel="Kỳ theo dõi nhanh" />;
   const presetDialogNode = <DateRangePresetSelect presets={periodPresets} value={period} onChange={setPeriod} ariaLabel="Kỳ theo dõi nhanh" />;
 
   const exportExcel = () => {
-    // Card 20261005_383: "Loại cont" and "Xuất/Nhập" are derived beside the
-    // container number, so the sheet carries the same three facts as the cell.
-    // Card 2026-10-05_384: the pre-existing `COM` column is now the AMOUNT, and
-    // the legacy free text moves to its own `Ghi chú COM` column right beside
-    // it — so an old note is never lost and the amount is never a word.
-    const headers = ['STT', 'Ngày', 'Lô hàng', 'Khách hàng', 'Cont', 'Loại cont', 'Xuất/Nhập', 'MST', 'Nhà cung cấp', 'Số hóa đơn', 'Số tiền hóa đơn', 'Số tiền trả', 'COM', 'Ghi chú COM', 'Chênh lệch', 'Ngày gửi hđ', 'Ghi chú', 'Tiến độ'];
+    // The sheet carries the same data fields as the grid (SIL-762 rev2) —
+    // one row per container, totals ride the Σ strip on screen.
+    const headers = ['STT', 'Ngày vận chuyển', 'Khách hàng', 'Mã KH', 'MST', 'Nhà máy', 'Bill / Số tờ khai', 'Hãng tàu', 'Số Container', 'Loại cont', 'Xuất/Nhập', 'Nhà cung cấp HĐ', 'Số hóa đơn', 'Ngày gửi HĐ', 'Số tiền thu', 'Số tiền trả', 'Số tiền trả KH', 'Ghi chú trả KH', 'Chênh lệch', 'Ghi chú', 'Tiến độ', 'Số ĐNTT'];
     const body = filtered.map((row, index) => [
       index + 1,
-      formatISODate(row.expenseDate),
-      row.shipmentCode ?? '',
+      formatISODate(row.transportDate ?? row.expenseDate),
       row.customerName ?? '',
+      row.customerCode ?? '',
+      row.taxCode ?? '',
+      row.factoryName ?? '',
+      row.bookingRef ?? row.blNumber ?? '',
+      row.shippingLineName ?? '',
       row.containerNumber ?? '',
       row.containerType ?? '',
       row.tradeDirection ? TRADE_DIRECTION_LABELS[row.tradeDirection] : '',
-      row.taxCode ?? '',
       row.supplierName ?? '',
       row.invoiceNumber ?? '',
+      formatISODate(row.invoiceSentAt),
       Number(row.invoiceAmount),
       Number(row.supplierPayment),
       // A row with no COM amount exports the raw empty string — never a `0`,
-      // which would read as "no commission" instead of "not recorded".
+      // which would read as "no deduction" instead of "not recorded".
       row.comAmount == null ? '' : Number(row.comAmount),
       row.comNote ?? '',
-      // Card 2026-10-05_384: `Chênh lệch` is UNCHANGED — COM is not folded in.
-      Number(row.invoiceAmount) - Number(row.supplierPayment),
-      formatISODate(row.invoiceSentAt),
+      // SIL-762 law: thu − trả − trả KH.
+      Number(row.invoiceAmount) - Number(row.supplierPayment) - (row.comAmount == null ? 0 : Number(row.comAmount)),
       row.note ?? '',
-      INVOICE_TRACKING_PROGRESS_LABELS[row.progress],
+      progressDisplayOf(row),
+      row.dnttNumbers.join(', '),
     ]);
     void downloadCSV('theo-doi-hoa-don.xlsx', headers, body, {
       title: 'THEO DÕI HÓA ĐƠN KẾT HỢP',
@@ -208,9 +266,34 @@ export default function AccountingInvoiceTrackingPage() {
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: qk.invoiceTracking.all });
 
-  const progressMutation = useMutation({
-    mutationFn: ({ id, progress }: { id: number; progress: InvoiceTrackingProgress }) =>
-      updateInvoiceTracking(id, { progress }),
+  const patchMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: Partial<InvoiceTrackingPatchInput> }) =>
+      updateInvoiceTracking(id, patch),
+    onSuccess: () => {
+      setActionError(null);
+      invalidate();
+    },
+    onError: (error: Error) => setActionError(error.message),
+  });
+
+  // SIL-762 — [Lưu và Ẩn]: each row ticks "Không lấy hóa đơn" and leaves the
+  // working list; hiddenBy/hiddenAt keep the who/when trail.
+  const hideMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      for (const id of ids) {
+        await updateInvoiceTracking(id, { noInvoice: true, hidden: true });
+      }
+    },
+    onSuccess: () => {
+      setActionError(null);
+      setSelected(new Set());
+      invalidate();
+    },
+    onError: (error: Error) => setActionError(error.message),
+  });
+
+  const unhideMutation = useMutation({
+    mutationFn: (id: number) => updateInvoiceTracking(id, { hidden: false }),
     onSuccess: () => {
       setActionError(null);
       invalidate();
@@ -219,24 +302,94 @@ export default function AccountingInvoiceTrackingPage() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (input: { id: number; reason: string }) => deleteInvoiceTracking(input.id, input.reason),
+    mutationFn: (input: { ids: number[]; reason: string }) =>
+      Promise.all(input.ids.map((id) => deleteInvoiceTracking(id, input.reason))),
     onSuccess: () => {
       setActionError(null);
+      setSelected(new Set());
       invalidate();
     },
     onError: (error: Error) => setActionError(error.message),
   });
 
-  const handleDelete = async (row: InvoiceTrackingRow) => {
+  const handleSaveAndHide = async (ids: number[]) => {
+    if (ids.length === 0) return;
+    const ok = await confirm(`Đánh dấu ${ids.length} dòng "Không lấy hóa đơn" và ẩn khỏi danh sách làm việc? Lịch sử vẫn tra được qua bộ lọc "Dòng đã ẩn".`, { confirmLabel: 'Lưu và Ẩn' });
+    if (!ok) return;
+    hideMutation.mutate(ids);
+  };
+
+  const handleDeleteSelected = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
     // Q10 (card 20260922_78): the delete soft-voids the tracker AND its
     // mirrored lot-fee row — the prompt captures the mandatory free-text
     // reason; cancel aborts without any request.
     const reason = await prompt(
-      `Xóa theo dõi hóa đơn ${formatBusinessRef(row.invoiceNumber)}? Khoản "Chi phí hóa đơn" trên lô cũng sẽ được hủy kèm lý do (đối chiếu được).`,
+      `Xóa ${ids.length} dòng theo dõi đã chọn? Khoản "Chi phí hóa đơn" trên lô cũng sẽ được hủy kèm lý do (đối chiếu được).`,
       { confirmLabel: 'Xóa' },
     );
     if (reason == null) return;
-    deleteMutation.mutate({ id: row.id, reason });
+    deleteMutation.mutate({ ids, reason });
+  };
+
+  /** Cột 8 — the progress select writes the rev2 vocabulary onto the wire:
+   *  Chưa lấy HĐ resets the row to pending (and un-hides a hidden one),
+   *  Đã gửi HĐ stamps GUI_HD, Không lấy HĐ ticks noInvoice and auto-hides. */
+  const changeProgress = (row: InvoiceTrackingRow, label: string) => {
+    if (label === progressDisplayOf(row)) return;
+    if (label === KHONG_LAY_HD) {
+      hideMutation.mutate([row.id]);
+      return;
+    }
+    const patch: Partial<InvoiceTrackingPatchInput> = label === 'Đã gửi HĐ'
+      ? { progress: 'GUI_HD' }
+      : label === 'Đã có HĐ'
+        ? { progress: 'CO_HD' }
+        : { progress: 'CHUA_GUI' };
+    if (row.noInvoice) patch.noInvoice = false;
+    if (row.hiddenAt != null) patch.hidden = false;
+    patchMutation.mutate({ id: row.id, patch });
+  };
+
+  const toggleRow = (id: number, checked: boolean) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+
+  /** Cột 4 — Ngày gửi HĐ chấp nhận dd/mm/yyyy (nháp kiểu người dùng) hoặc
+   *  ISO; ngày sai không commit — draft giữ nguyên để kế toán sửa tiếp. */
+  const normalizeSentDate = (raw: string): string | null | undefined => {
+    const text = raw.trim();
+    if (text === '') return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    const dmy = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dmy) {
+      const iso = `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+      if (!Number.isNaN(Date.parse(`${iso}T00:00:00Z`))) return iso;
+    }
+    return undefined;
+  };
+
+  const commitCell = (row: InvoiceTrackingRow, field: 'supplierName' | 'invoiceNumber' | 'invoiceSentAt' | 'invoiceAmount' | 'supplierPayment' | 'comAmount' | 'note', raw: string) => {
+    // Số hóa đơn is min(1) on the wire — clearing it cannot PATCH null; the
+    // edit keeps its captured number (the modal omits the field identically).
+    if (field === 'invoiceNumber' && raw.trim() === '') return;
+    const patch: Partial<InvoiceTrackingPatchInput> =
+      field === 'invoiceAmount' || field === 'supplierPayment' || field === 'comAmount'
+        ? { [field]: raw === '' ? 0 : Number(raw) }
+        : { [field]: raw === '' ? null : raw };
+    // COM blank means "not recorded" (null) — never a written 0 (card 384).
+    if (field === 'comAmount' && raw === '') patch.comAmount = null;
+    if (field === 'invoiceSentAt') {
+      const iso = normalizeSentDate(raw);
+      if (iso === undefined) return;
+      patch.invoiceSentAt = iso;
+    }
+    patchMutation.mutate({ id: row.id, patch });
   };
 
   return (
@@ -244,15 +397,13 @@ export default function AccountingInvoiceTrackingPage() {
       {dialog}
       {reasonDialog}
 
-      {/* The screen's name is the sidebar label (page-heading law); the page
-          header is the shared primitive, not a page-local `<header>` band. */}
       <PageHeader
         title="Theo dõi hóa đơn"
         action={(
           <>
             <Btn variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportExcel}>Xuất Excel</Btn>
             {canWrite && (
-              <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setModal({ mode: 'create' })}>
+              <Btn variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setCreateModalOpen(true)}>
                 Thêm chi phí lô hàng
               </Btn>
             )}
@@ -260,21 +411,12 @@ export default function AccountingInvoiceTrackingPage() {
         )}
       />
 
-      {/* Σ hóa đơn / Σ trả NCC / chênh lệch over the filtered rows — the shared
-          workboard rail recomputes on every period filter change (card worked
-          example: 12.000.000/8.000.000 + 5.500.000/6.000.000 →
-          17.500.000 / 14.000.000 / 3.500.000). A non-zero difference is the
-          signal, so it takes the rail's warning tone. */}
       <SummaryRail
         ariaLabel="Tổng cộng theo kỳ"
         items={[
-          { label: 'Hóa đơn', value: `${formatMoney(totals.invoice)} ₫` },
-          { label: 'Trả NCC', value: `${formatMoney(totals.paid)} ₫` },
-          // Card 2026-10-05_384: the strip grew from 3 boxes to 4 with Σ COM.
-          // It sits between Trả NCC and Chênh lệch — the three pre-existing
-          // boxes keep their values and their relative order (Hóa đơn → Trả NCC
-          // → Chênh lệch) unchanged.
-          { label: 'Tổng COM', value: `${formatMoney(totals.com)} ₫` },
+          { label: 'Số tiền thu', value: `${formatMoney(totals.invoice)} ₫` },
+          { label: 'Số tiền trả', value: `${formatMoney(totals.paid)} ₫` },
+          { label: 'Số tiền trả KH', value: `${formatMoney(totals.com)} ₫` },
           {
             label: 'Chênh lệch',
             value: `${formatMoney(totals.difference)} ₫`,
@@ -283,21 +425,41 @@ export default function AccountingInvoiceTrackingPage() {
         ]}
       />
 
-      {/* Card 20260927_152: the shared bar owns the strip layout. Period
-          fields, quick ranges and reset are the primary controls;
-          `Nhà cung cấp` / `Chênh lệch` render INLINE while the strip still
-          fits two rows and only collapse into `Bộ lọc (N)` when the width
-          leaves no other choice. */}
       <FilterBar
         search={{
           value: search,
           onChange: setSearch,
-          placeholder: 'Số HĐ, MST, Lô, Cont...',
-          ariaLabel: 'Tìm theo số HĐ, MST, lô, cont',
+          placeholder: 'Khách, Số HĐ, MST, Bill, Lô, Cont...',
+          ariaLabel: 'Tìm theo khách, số HĐ, MST, Bill, lô, cont',
         }}
         presets={presetNode}
         actions={(
-          <Btn variant="ghost" size="sm" icon={<RotateCcw size={13} />} disabled={!hasActiveFilters} onClick={clearFilters}>Xóa lọc</Btn>
+          <>
+            {canWrite && (
+              <>
+                <Btn
+                  variant="primary"
+                  size="sm"
+                  icon={<EyeOff size={14} />}
+                  disabled={selected.size === 0 || hideMutation.isPending}
+                  title={selected.size === 0 ? 'Chọn dòng rồi ẩn ("Không lấy hóa đơn")' : `Không lấy hóa đơn — ẩn ${selected.size} dòng đã chọn`}
+                  onClick={() => void handleSaveAndHide([...selected])}
+                >
+                  Lưu và Ẩn{selected.size > 0 ? ` (${selected.size})` : ''}
+                </Btn>
+                <Btn
+                  variant="secondary"
+                  size="sm"
+                  icon={<Trash2 size={14} />}
+                  disabled={selected.size === 0 || deleteMutation.isPending}
+                  onClick={() => void handleDeleteSelected()}
+                >
+                  Xóa
+                </Btn>
+              </>
+            )}
+            <Btn variant="ghost" size="sm" icon={<RotateCcw size={13} />} disabled={!hasActiveFilters} onClick={clearFilters}>Xóa lọc</Btn>
+          </>
         )}
       >
         <DateRangeFields
@@ -323,20 +485,22 @@ export default function AccountingInvoiceTrackingPage() {
             onChange={(event) => setDiffOnly(event.target.value === 'diff')}
             options={[{ value: 'all', label: 'Tất cả' }, { value: 'diff', label: 'Chỉ xem dòng có lệch' }]}
           />
+          {/* SIL-762 — the Lưu và Ẩn trace: hidden rows stay queryable. */}
+          <UuiSelectField
+            label="Dòng đã ẩn"
+            hideLabel
+            value={includeHidden ? 'hidden' : 'working'}
+            onChange={(event) => setIncludeHidden(event.target.value === 'hidden')}
+            options={[
+              { value: 'working', label: 'Danh sách làm việc' },
+              { value: 'hidden', label: 'Hiện cả dòng đã ẩn (Không lấy hóa đơn)' },
+            ]}
+          />
         </FilterDropdown>
       </FilterBar>
 
       {actionError && <p className="invoice-tracking-alert" role="alert">{actionError}</p>}
 
-      {/* Shared record-table base (styles/record-table.css): sticky thead,
-          neutral gated hover, and the container-query record cards below
-          1100px of container width. The page declares no table skin, no column
-          floor, no breakpoint and no scroll wrapper — the base's own
-          `overflow-wrap: anywhere` on data cells keeps 14 columns inside the
-          desktop canvas instead of forcing a horizontal scroll, while the
-          header's one-line law (FB-063, card 181026021137 — nowrap + 8px
-          gutter in this page's thead rule) floors each column at its label
-          width so no header label wraps into multiple lines. */}
       {query.isPending && <SkeletonTable rows={8} cols={7} />}
 
       {!query.isPending && query.isError && (
@@ -365,106 +529,216 @@ export default function AccountingInvoiceTrackingPage() {
 
       {!query.isPending && !query.isError && filtered.length > 0 && (
         <div className="record-table-wrap">
+          <datalist id={supplierListId}>
+            {supplierOptions.map((name) => <option key={name} value={name} />)}
+          </datalist>
           <table className="record-table ops-table">
             <thead>
               <tr>
+                {/* Cột 1 — Checkbox & STT: bulk select cho Lưu và Ẩn (read-only
+                    CUS drops the column instead of rendering dead controls). */}
+                {canWrite && <th aria-label="Chọn dòng" title="Chọn dòng để Lưu và Ẩn / Xóa" className="ivt-col--select" />}
                 <th>STT</th>
-                <th>Ngày</th>
-                <th>Lô hàng</th>
-                <th>Cont</th>
-                <th>MST</th>
-                <th>Nhà cung cấp</th>
-                <th>Hóa đơn</th>
-                <th>Số tiền trả</th>
-                <th>COM</th>
-                <th title="Số tiền hóa đơn − Số tiền trả">Chênh lệch</th>
-                <th>Ngày gửi</th>
-                <th>Ghi chú</th>
-                <th>Tiến độ</th>
-                {canWrite && <th>Thao tác</th>}
+                <th>Khách hàng &amp; Lô</th>
+                <th>Cont &amp; Chứng từ</th>
+                <th>Đầu vào (Mua HĐ)</th>
+                <th>Đối soát số tiền</th>
+                <th title={INVOICE_TRACKING_DIFF_FORMULA}>Chênh lệch</th>
+                <th>Ghi chú &amp; ĐNTT</th>
+                <th>Tiến độ xử lý</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row, index) => (
-                <tr key={row.id}>
-                  <td data-label="STT">{index + 1}</td>
-                  <td data-label="Ngày" className="num">{formatISODate(row.expenseDate)}</td>
-                  <td data-label="Lô hàng">
-                    <span className="ivt-stack">
-                      <span className="ivt-stack__primary">{formatBusinessRef(row.shipmentCode)}</span>
-                      <span className="ivt-stack__sub">{formatBusinessRef(row.customerName)}</span>
-                    </span>
-                  </td>
-                  {/* Card 20261005_383: three derived facts, one column — số
-                      cont / loại cont / xuất–nhập. The stacked furniture is the
-                      same one the lot and invoice cells already use, and every
-                      missing part falls back to the house `—`. */}
-                  <td data-label="Cont">
-                    <span className="ivt-stack">
-                      <span className="ivt-stack__primary">{formatBusinessRef(row.containerNumber)}</span>
-                      <span className="ivt-stack__sub">{formatBusinessRef(row.containerType)}</span>
-                      <span className="ivt-stack__sub">{row.tradeDirection ? TRADE_DIRECTION_LABELS[row.tradeDirection] : '—'}</span>
-                    </span>
-                  </td>
-                  <td data-label="MST">{formatBusinessRef(row.taxCode)}</td>
-                  <td data-label="Nhà cung cấp">{formatBusinessRef(row.supplierName)}</td>
-                  <td data-label="Hóa đơn">
-                    <span className="ivt-stack">
-                      <span className="ivt-stack__primary">Số hóa đơn: {formatBusinessRef(row.invoiceNumber)}</span>
-                      {/* The money line is the shared law's business: one text
-                          node, one line — the sub class carries the nowrap. */}
-                      <span className="ivt-stack__sub">{`Số tiền: ${formatMoney(Number(row.invoiceAmount))} ₫`}</span>
-                    </span>
-                  </td>
-                  {/* The numeric law's rendering: the whole amount + unit is
-                      ONE template-literal text node — two adjacent JSX text
-                      children give the browser two text nodes, and the ₫ can
-                      break onto its own line under wrapping pressure (the
-                      staging defect's token-walker signature). */}
-                  <td data-label="Số tiền trả" className="num">{`${formatMoney(Number(row.supplierPayment))} ₫`}</td>
-                  <td data-label="COM" className="num">{comCellContent(row)}</td>
-                  <td data-label="Chênh lệch" className="num" title="Số tiền hóa đơn − Số tiền trả">
-                    {`${formatMoney(Number(row.invoiceAmount) - Number(row.supplierPayment))} ₫`}
-                  </td>
-                  <td data-label="Ngày gửi" className="num">{formatISODate(row.invoiceSentAt)}</td>
-                  <td data-label="Ghi chú">{formatBusinessRef(row.note)}</td>
-                  <td data-label="Tiến độ">
-                    {canWrite ? (
-                      <UuiSelectField
-                        wrapperClassName="invoice-tracking-progress"
-                        label="Tiến độ"
-                        hideLabel
-                        value={row.progress}
-                        disabled={progressMutation.isPending}
-                        onChange={(event) => progressMutation.mutate({ id: row.id, progress: event.target.value as InvoiceTrackingProgress })}
-                        options={INVOICE_TRACKING_PROGRESS.map((value) => ({ value, label: INVOICE_TRACKING_PROGRESS_LABELS[value] }))}
-                      />
-                    ) : (
-                      <span>{INVOICE_TRACKING_PROGRESS_LABELS[row.progress]}</span>
+              {filtered.map((row, index) => {
+                const transportDay = formatISODate(row.transportDate ?? row.expenseDate);
+                const direction = row.tradeDirection ? TRADE_DIRECTION_LABELS[row.tradeDirection] : null;
+                const typeLine = [row.containerType, direction].filter(Boolean).join(' · ') || null;
+                const refLine = [row.bookingRef, row.blNumber].filter(Boolean).join(' · ') || null;
+                return (
+                  <tr key={row.id} data-hidden={row.hiddenAt != null || undefined}>
+                    {canWrite && (
+                      <td data-label="Chọn dòng" className="ivt-col--select">
+                        <input
+                          type="checkbox"
+                          aria-label={`Chọn dòng ${row.containerNumber ?? row.invoiceNumber ?? index + 1}`}
+                          checked={selected.has(row.id)}
+                          onChange={(event) => toggleRow(row.id, event.target.checked)}
+                        />
+                        {row.hiddenAt != null && (
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--icon btn--sm"
+                            aria-label="Bỏ ẩn dòng"
+                            title="Bỏ ẩn — đưa dòng trở lại danh sách làm việc"
+                            disabled={unhideMutation.isPending}
+                            onClick={() => unhideMutation.mutate(row.id)}
+                          >
+                            <Eye size={14} />
+                          </button>
+                        )}
+                      </td>
                     )}
-                  </td>
-                  {canWrite && (
-                    <td data-label="Thao tác" className="invoice-tracking-actions record-table__action">
-                      <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label="Sửa" onClick={() => setModal({ mode: 'edit', row })}>
-                        <Pencil size={14} />
-                      </button>
-                      <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label="Xóa" onClick={() => void handleDelete(row)}>
-                        <Trash2 size={14} />
-                      </button>
+                    <td data-label="STT">{index + 1}</td>
+                    {/* Cột 2 — KHÁCH HÀNG & LÔ (read-only, auto từ lô + Master Data). */}
+                    <td data-label="Khách hàng & Lô">
+                      <span className="ivt-stack">
+                        <span className="ivt-stack__primary">{row.customerName ?? '—'}</span>
+                        <span className="ivt-stack__sub">{[row.customerCode, row.taxCode].filter(Boolean).join(' · ') || '—'}</span>
+                        <span className="ivt-stack__sub">{[row.factoryName, transportDay].filter(Boolean).join(' · ') || '—'}</span>
+                      </span>
                     </td>
-                  )}
-                </tr>
-              ))}
+                    {/* Cột 3 — CONT & CHỨNG TỪ (read-only, tự nhảy khi tích Kết hợp). */}
+                    <td data-label="Cont & Chứng từ">
+                      <span className="ivt-stack">
+                        <span className="ivt-stack__primary">
+                          <span className="record-table__reference">{row.containerNumber ?? '—'}</span>
+                          {typeLine && <span className="ivt-badge">{typeLine}</span>}
+                        </span>
+                        <span className="ivt-stack__sub">{[refLine, row.shippingLineName].filter(Boolean).join(' · ') || '—'}</span>
+                      </span>
+                    </td>
+                    {/* Cột 4 — ĐẦU VÀO (MUA HĐ): inline-edit, commit on blur. */}
+                    <td data-label="Đầu vào (Mua HĐ)">
+                      {canWrite ? (
+                        <span className="ivt-stack">
+                          <span className="ivt-stack__primary">
+                            <InlineCellInput
+                              value={row.supplierName ?? ''}
+                              ariaLabel={`Nhà cung cấp HĐ — ${row.containerNumber ?? index + 1}`}
+                              listId={supplierListId}
+                              placeholder="Nhà cung cấp HĐ"
+                              onCommit={(next) => commitCell(row, 'supplierName', next)}
+                            />
+                          </span>
+                          <span className="ivt-stack__sub ivt-inline-pair">
+                            <InlineCellInput
+                              value={row.invoiceNumber ?? ''}
+                              ariaLabel={`Số hóa đơn — ${row.containerNumber ?? index + 1}`}
+                              placeholder="Số hóa đơn"
+                              onCommit={(next) => commitCell(row, 'invoiceNumber', next)}
+                            />
+                            <InlineCellInput
+                              value={row.invoiceSentAt ?? ''}
+                              ariaLabel={`Ngày gửi HĐ — ${row.containerNumber ?? index + 1}`}
+                              placeholder="dd/mm/yyyy"
+                              onCommit={(next) => commitCell(row, 'invoiceSentAt', next)}
+                            />
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="ivt-stack">
+                          <span className="ivt-stack__primary">{row.supplierName ?? '—'}</span>
+                          <span className="ivt-stack__sub">{[row.invoiceNumber, row.invoiceSentAt && formatISODate(row.invoiceSentAt)].filter(Boolean).join(' · ') || '—'}</span>
+                        </span>
+                      )}
+                    </td>
+                    {/* Cột 5 — ĐỐI SOÁT SỐ TIỀN: 3 đầu tiền, inline-edit. */}
+                    <td data-label="Đối soát số tiền">
+                      {canWrite ? (
+                        <span className="ivt-stack">
+                          <span className="ivt-stack__primary ivt-inline-pair">
+                            <span className="ivt-money-label">Thu KH:</span>
+                            <InlineCellInput
+                              value={row.invoiceAmount}
+                              numeric
+                              ariaLabel={`Số tiền thu — ${row.containerNumber ?? index + 1}`}
+                              onCommit={(next) => commitCell(row, 'invoiceAmount', next)}
+                            />
+                          </span>
+                          <span className="ivt-stack__sub ivt-inline-pair">
+                            <span className="ivt-money-label">Trả NCC:</span>
+                            <InlineCellInput
+                              value={row.supplierPayment}
+                              numeric
+                              ariaLabel={`Số tiền trả — ${row.containerNumber ?? index + 1}`}
+                              onCommit={(next) => commitCell(row, 'supplierPayment', next)}
+                            />
+                            <span className="ivt-money-label">Trả KH:</span>
+                            <InlineCellInput
+                              value={row.comAmount ?? ''}
+                              numeric
+                              ariaLabel={`Số tiền trả KH — ${row.containerNumber ?? index + 1}`}
+                              onCommit={(next) => commitCell(row, 'comAmount', next)}
+                            />
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="ivt-stack">
+                          <span className="ivt-stack__primary">{`Thu KH: ${formatMoney(Number(row.invoiceAmount))} ₫`}</span>
+                          <span className="ivt-stack__sub">{`Trả NCC: ${formatMoney(Number(row.supplierPayment))} ₫ · Trả KH: ${row.comAmount == null ? '—' : `${formatMoney(Number(row.comAmount))} ₫`}${row.comNote ? ` (${row.comNote})` : ''}`}</span>
+                        </span>
+                      )}
+                    </td>
+                    {/* Cột 6 — CHÊNH LỆCH (auto = thu − trả − trả KH). */}
+                    <td data-label="Chênh lệch" className="ivt-diff" title={INVOICE_TRACKING_DIFF_FORMULA}>
+                      {`${formatMoney(Number(row.invoiceAmount) - Number(row.supplierPayment) - (row.comAmount == null ? 0 : Number(row.comAmount)))} ₫`}
+                    </td>
+                    {/* Cột 7 — GHI CHÚ & ĐNTT. */}
+                    <td data-label="Ghi chú & ĐNTT">
+                      <span className="ivt-stack">
+                        {canWrite ? (
+                          <span className="ivt-stack__primary">
+                            <InlineCellInput
+                              value={row.note ?? ''}
+                              ariaLabel={`Ghi chú — ${row.containerNumber ?? index + 1}`}
+                              placeholder="Ghi chú"
+                              onCommit={(next) => commitCell(row, 'note', next)}
+                            />
+                          </span>
+                        ) : (
+                          <span className="ivt-stack__primary">{row.note ?? '—'}</span>
+                        )}
+                        <span className="ivt-stack__sub">{row.dnttNumbers.length > 0 ? <span className="ivt-badge">ĐNTT: {row.dnttNumbers.join(', ')}</span> : '—'}</span>
+                      </span>
+                    </td>
+                    {/* Cột 8 — TIẾN ĐỘ XỬ LÝ: select + nút nhanh Lưu và Ẩn. */}
+                    <td data-label="Tiến độ xử lý" className="ivt-col--progress">
+                      <span className="ivt-stack">
+                        {canWrite ? (
+                          <>
+                            <UuiSelectField
+                              wrapperClassName="ivt-progress-select"
+                              label="Tiến độ"
+                              hideLabel
+                              value={progressDisplayOf(row)}
+                              disabled={patchMutation.isPending || hideMutation.isPending}
+                              onChange={(event) => changeProgress(row, event.target.value)}
+                              options={[
+                                { value: CHUA_LAY_HD, label: CHUA_LAY_HD },
+                                { value: 'Đã có HĐ', label: 'Đã có HĐ' },
+                                { value: 'Đã gửi HĐ', label: 'Đã gửi HĐ' },
+                                { value: KHONG_LAY_HD, label: KHONG_LAY_HD },
+                              ]}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--sm ivt-quick-hide"
+                              aria-label={`Lưu và Ẩn dòng ${row.containerNumber ?? index + 1}`}
+                              title="Không lấy hóa đơn — ẩn dòng này khỏi danh sách chờ"
+                              disabled={hideMutation.isPending}
+                              onClick={() => void handleSaveAndHide([row.id])}
+                            >
+                              <EyeOff size={13} /> Lưu và Ẩn
+                            </button>
+                          </>
+                        ) : (
+                          <span className="ivt-stack__primary">{progressDisplayOf(row)}</span>
+                        )}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      {modal && (
+      {createModalOpen && (
         <InvoiceTrackingFormModal
-          mode={modal.mode}
-          row={modal.mode === 'edit' ? modal.row : null}
-          onClose={() => setModal(null)}
+          mode="create"
+          row={null}
+          onClose={() => setCreateModalOpen(false)}
           onSaved={invalidate}
         />
       )}

@@ -1,0 +1,45 @@
+# SIL-762 / SIL-763 / SIL-764 — UI driver log (rung 3, UI DRIVEN)
+Date: 2026-11-09 · Environment: LOCAL DEV (worktree r7a-fix) · Vite :7177 → backend :3013 (worktree code) → Postgres :5441 (ss-prod-db/silversea, migrations 20261109100000 + 20261109110000 applied)
+Account: `cus` (Nhân viên CUS Demo,role CUS) cho thao tác tạo/lưu lô; `hoapt` (Phạm Thị Hòa, Kế toán) cho 3 bảng kế toán. Password Abc123 (testplan/testaccounts.txt).
+Driver: Paseo browser (Chromium webview 1440x900), thao tác thật qua DOM events; mỗi bước kèm assertion DOM + DB query psql.
+Lưu ý env: lúc đầu backend :3003 bị chiếm bởi worktree khác (r8a-fix) — phát hiện qua PATCH probe 400 "Unrecognized key: hidden"; đã chuyển sang :3013 và verify PATCH hidden:false → 200 (code mới).
+
+## SIL-762 — invoice-tracking
+1. [CUS] /shipments/new: chọn khách LONG MINH, Bill SIL762BOOK77, Xuất khẩu, tick "Đóng kết hợp", 2 container CSNU2510003 (20DC) + CSNU4520000 (40HC), cảng/nhà máy/tuyến/ngày đóng đầy đủ → "Tạo lô hàng" → redirect /shipments/779494.
+   - Screenshot: cuộc trò chuyện (inline) — form chi tiết lô hiển thị Đóng kết hợp checked.
+   - Lần đầu submit trúng backend chết (port nhầm) → không tạo lot nào; lần submit thành công xảy ra khi :3013 chạy code mới, NHƯNG hook sync qua /quick chưa chạy kịp xác nhận (0 rows) → dùng EDIT-RE-SAVE để kích hoạt lại hook.
+2. [CUS] /shipments/779494 → "Sửa" → form hiện "Đóng kết hợp"=checked → "Lưu thay đổi" → redirect về chi tiết.
+   - DB: `SELECT id, container_number, sync_source, no_invoice, expense_date FROM invoice_tracking WHERE shipment_id=779494` → 2 dòng id 3 (CSNU2510003) / 4 (CSNU4520000), sync_source='AUTO_COMBINED', expense_date=2026-11-05 (ngày vận chuyển lô), trip_id NULL, invoice_number NULL. ⇒ AUTO-SYNC VERIFIED (trigger = LƯU LÔ TỪ UI).
+3. [hoapt] /accounting/invoice-tracking: DOM assert 9 header (8 cột + checkbox); 2 dòng, 7 inline-input/dòng; Cột 2 = "CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH / KH-0001 · 2300540419 / 05/11/2026" (Mã KH + MST AUTO từ Master Data); progress trigger "Đã có HĐ" (dòng có HD-TEST-01); Chênh lệch "2.250.000 ₫".
+   - Screenshot: cuộc trò chuyện (inline) — lưới 8 cột + Σ strip (Thu 12.000.000 / Trả 8.000.000 / Trả KH 1.750.000).
+4. Inline edit: Số hóa đơn "HD-TEST-01" + thu 12.000.000 + trả 8.000.000 + trả KH 1.750.000 → blur → PATCH → Chênh lệch cell "2.250.000 ₫" (= thu − trả − trả KH). ⇒ CÔNG THỨC VERIFIED.
+5. Checkbox dòng 1 → nút "Lưu và Ẩn (1)" → confirm dialog → row count 2→1.
+   - DB: id 3 `no_invoice=t, hidden=t, hidden_by=9`. ⇒ LƯU VÀ ẨN VERIFIED.
+6. Bộ lọc "Dòng đã ẩn" → cả 2 dòng hiện (data-hidden + nút Bỏ ẩn) → "Bỏ ẩn dòng" → id 3 hidden=f.
+   - DB confirm. ⇒ TRACE + BỎ ẨN VERIFIED.
+7. REV2 progress select "Không lấy HĐ" → row auto-hide, rowCount 0 + empty state.
+   - DB: cả 2 dòng no_invoice=t hidden=t. ⇒ TỰ ĐỘNG ẨN VERIFIED. Sau đó Bỏ ẩn 1 dòng để lại state trộn (id 3 hidden=f, id 4 hidden=t).
+Ghi chú đặt tên: ảnh không lưu được file từ webview (tool trả ảnh inline trong hội thoại); bằng chứng thị giác = ảnh inline + DOM assert + DB query. Driver command log = chính file này.
+
+## SIL-763 — phoi-phieu
+1. [hoapt] /accounting/phoi-phieu: board 158 dòng; `querySelectorAll('.ppc-phoi-overdue')` = 115 cảnh báo (các chuyến cũ chưa nhận phơi) ⇒ luật firing rộng.
+2. Tìm "SIL631-1793422709765": dòng 04/11/2026 (5 ngày) → cột Ghi chú vận tải (class ppc-col--ghichu) chứa span.ppc-phoi-overdue "Phơi chưa được nhận".
+   - Screenshot: cuộc trò chuyện (inline) — 2 dòng SIL631 đều đỏ "Phơi chưa được nhận", Trạng thái "Phơi: Chưa nhận phơi".
+3. AC ≤3 ngày / đã nhận phơi: trip 2026-11-10 (tương lai) không warning; unit tests 8/8 (biên -4 warn, -3 không, có phoiTakenDate không).
+4. AC4 tick: "Chi tiết chi hộ" → điền Ngày lấy phơi 05/11/2026 → Lưu → KHÔNG reload: dòng ticked warning=false ("Phơi: Đã nhận phơi"), dòng sibling chưa tick vẫn warning=true. ⇒ VERIFIED.
+
+## SIL-764 — deposit-tracker
+1. [hoapt] /accounting/deposit-tracker → "Thêm cược": Số Bill QA-SIL764-REPAIR, LONG MINH, MSC, 2.500.000, Phân loại "Tạm thu sửa chữa" → Lưu dòng.
+   - Row hiển thị cột Phân loại "Tạm thu sửa chữa", số tiền 2.500.000 ₫.
+   - DB: `SELECT category FROM deposit_refund_trackers WHERE bill_number='QA-SIL764-REPAIR'` → TAM_THU_SUA_CHUA. ⇒ VERIFIED.
+2. Lọc Phân loại "Tạm thu sửa chữa" → đúng 1 dòng; lọc "Cược container" → 3 dòng (JH202609258, TOPL2609008, NOSTC26HF67962) tất cả nhãn Cược container, dòng sửa chữa KHÔNG xuất hiện. ⇒ FILTER VERIFIED. Dòng cũ mặc định Cược container không đổi nghĩa.
+
+## Kết luận rung theo bug
+| Claim | Rung | Evidence |
+|---|---|---|
+| SIL-762 auto-sync khi lưu lô [Kết hợp] | UI DRIVEN | bước 2 + DB rows 3/4 |
+| SIL-762 lưới 8 cột + inline edit + công thức | UI DRIVEN | bước 3-4 + ảnh inline |
+| SIL-762 Lưu và Ẩn/trace/Bỏ ẩn/Không lấy HĐ tự ẩn | UI DRIVEN | bước 5-7 + DB |
+| SIL-763 cảnh báo đỏ ≥4 ngày + biến mất khi tick | UI DRIVEN | bước 1-4 + ảnh inline |
+| SIL-764 phân loại + lọc | UI DRIVEN | bước 1-2 + DB |
+| SIL-762 auto-sync qua ĐÚNG luồng CREATE đầu tiên | UI DRIVEN (bị env cản: lần submit đầu trúng backend cũ sai port; đã verify qua edit-save cùng hook) | ghi chú bước 1-2 |

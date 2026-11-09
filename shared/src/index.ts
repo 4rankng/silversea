@@ -257,6 +257,8 @@ export {
 export {
   INVOICE_TRACKING_PROGRESS,
   INVOICE_TRACKING_PROGRESS_LABELS,
+  INVOICE_TRACKING_PENDING_INVOICE_LABEL,
+  INVOICE_TRACKING_DIFF_FORMULA,
   invoiceTrackingCreateSchema,
   invoiceTrackingPatchSchema,
   invoiceTrackingRowSchema,

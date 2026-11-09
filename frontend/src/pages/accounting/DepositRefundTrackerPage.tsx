@@ -17,10 +17,12 @@ import { DateRangeFields, EmptyState, FilterBar, NumberField, SummaryRail, UuiSe
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import {
   createDepositTracker,
+  DEPOSIT_CATEGORY_LABELS,
   listDepositTrackers,
   searchBillSuggestions,
   markDepositRefunded,
   updateDepositTrackerDates,
+  type DepositCategory,
   type DepositStatus,
   type DepositTrackerRow,
 } from '../../api/depositRefundClient';
@@ -81,6 +83,8 @@ export default function DepositRefundTrackerPage() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [status, setStatus] = useState<DepositStatus | ''>('');
+  // SIL-764 — Phân loại: all | Cược container | Tạm thu sửa chữa.
+  const [category, setCategory] = useState<DepositCategory | ''>('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [dateModal, setDateModal] = useState<DepositTrackerRow | null>(null);
   const [createModal, setCreateModal] = useState(false);
@@ -88,8 +92,8 @@ export default function DepositRefundTrackerPage() {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: qk.depositTracker.list(from, to, status),
-    queryFn: () => listDepositTrackers(from || undefined, to || undefined, status || undefined),
+    queryKey: qk.depositTracker.list(from, to, status, category),
+    queryFn: () => listDepositTrackers(from || undefined, to || undefined, status || undefined, category || undefined),
   });
   const rows = query.data?.items ?? [];
   const warnings = query.data?.warnings;
@@ -177,10 +181,10 @@ export default function DepositRefundTrackerPage() {
             onChange={({ from: nextFrom, to: nextTo }) => { setFrom(nextFrom); setTo(nextTo); }}
           />
           <FilterDropdown
-            count={status ? 1 : 0}
+            count={(status ? 1 : 0) + (category ? 1 : 0)}
             ariaLabel="Bộ lọc"
             dialogLabel="Bộ lọc hoàn cược"
-            onReset={() => setStatus('')}
+            onReset={() => { setStatus(''); setCategory(''); }}
           >
             <UuiSelectField
               label="Trạng thái"
@@ -191,6 +195,18 @@ export default function DepositRefundTrackerPage() {
                 { value: '', label: 'Tất cả' },
                 { value: 'CHUA_HOAN_CUOC', label: 'Chưa hoàn cược' },
                 { value: 'DA_HOAN_CUOC', label: 'Đã hoàn cược' },
+              ]}
+            />
+            {/* SIL-764 — lọc theo phân loại trên cùng bảng hoàn cược. */}
+            <UuiSelectField
+              label="Phân loại"
+              ariaLabel="Phân loại hoàn cược"
+              value={category}
+              onChange={(event) => setCategory(event.target.value as DepositCategory | '')}
+              options={[
+                { value: '', label: 'Tất cả' },
+                { value: 'CUOC_CONTAINER', label: DEPOSIT_CATEGORY_LABELS.CUOC_CONTAINER },
+                { value: 'TAM_THU_SUA_CHUA', label: DEPOSIT_CATEGORY_LABELS.TAM_THU_SUA_CHUA },
               ]}
             />
           </FilterDropdown>
@@ -244,7 +260,7 @@ export default function DepositRefundTrackerPage() {
           <table className="record-table ops-table">
             <thead>
               <tr>
-                <th>STT</th><th>Ngày</th><th>Khách hàng</th><th>Hãng tàu</th><th>Bill</th>
+                <th>STT</th><th>Ngày</th><th>Phân loại</th><th>Khách hàng</th><th>Hãng tàu</th><th>Bill</th>
                 <th className="num">Số tiền cược</th><th>Ngày nộp CV</th><th>Ngày dự kiến hoàn cược</th>
                 <th>Trạng thái</th><th>Ghi chú</th><th aria-label="Thao tác" />
               </tr>
@@ -254,6 +270,7 @@ export default function DepositRefundTrackerPage() {
                 <tr key={row.id}>
                   <td data-label="STT" className="deposit-col--token">{index + 1}</td>
                   <td data-label="Ngày" className="deposit-col--token">{formatDepositDate(row.createdAt)}</td>
+                  <td data-label="Phân loại">{DEPOSIT_CATEGORY_LABELS[row.category]}</td>
                   <td data-label="Khách hàng" className="record-table__text">{row.customerName}</td>
                   <td data-label="Hãng tàu">{row.carrierName}</td>
                   <td data-label="Bill"><span className="record-table__reference">{row.billNumber}</span></td>
@@ -322,12 +339,15 @@ function DateEditForm({ row, onSaved }: {
   const [expected, setExpected] = useState(row.expectedRefundDate ?? nextExpectedRefundDefault(row.cvSubmittedDate) ?? '');
   const [amount, setAmount] = useState<number | ''>(Number(row.depositAmount) > 0 ? Number(row.depositAmount) : '');
   const [note, setNote] = useState(row.note ?? '');
+  // SIL-764 — Phân loại edits with the rest of the row.
+  const [category, setCategory] = useState<DepositCategory>(row.category);
   const refundMutation = useMutation({
     mutationFn: () => updateDepositTrackerDates(row.id, {
       cvSubmittedDate: cvDate || null,
       expectedRefundDate: expected || null,
       ...(amount !== '' ? { depositAmount: parseDepositAmount(String(amount)) } : {}),
       note: note.trim() || null,
+      category,
     }),
     onSuccess: () => {
       onSaved();
@@ -335,6 +355,15 @@ function DateEditForm({ row, onSaved }: {
   });
   return (
     <form className="deposit-tracker-form" onSubmit={(event) => { event.preventDefault(); refundMutation.mutate(); }}>
+      <UuiSelectField
+        label="Phân loại"
+        value={category}
+        onChange={(event) => setCategory(event.target.value as DepositCategory)}
+        options={[
+          { value: 'CUOC_CONTAINER', label: DEPOSIT_CATEGORY_LABELS.CUOC_CONTAINER },
+          { value: 'TAM_THU_SUA_CHUA', label: DEPOSIT_CATEGORY_LABELS.TAM_THU_SUA_CHUA },
+        ]}
+      />
       <NumberField label="Số tiền cược (₫)" grouped value={amount} onChange={setAmount} />
       <BufferedUuiDateInput label="Ngày nộp CV" value={cvDate} onChange={(value) => {
         if (!expected || expected === nextExpectedRefundDefault(cvDate)) setExpected(nextExpectedRefundDefault(value) ?? '');
@@ -360,6 +389,8 @@ function CreateForm({ onSaved }: {
   const [cvDate, setCvDate] = useState('');
   const [expected, setExpected] = useState('');
   const [status, setStatus] = useState<DepositStatus>('CHUA_HOAN_CUOC');
+  // SIL-764 — Phân loại; default is the existing-row law (Cược container).
+  const [category, setCategory] = useState<DepositCategory>('CUOC_CONTAINER');
   const [note, setNote] = useState('');
   // Bill typeahead: only the LAST FOUR DIGITS are searched (the customer's
   // lookup habit from the paper Bill). Digits only, and never below four.
@@ -379,6 +410,7 @@ function CreateForm({ onSaved }: {
       note: note || null,
       depositDate: depositDate || null,
       status,
+      category,
     }),
     onSuccess: () => {
       onSaved();
@@ -444,6 +476,17 @@ function CreateForm({ onSaved }: {
         options={[
           { value: 'CHUA_HOAN_CUOC', label: 'Chưa hoàn cược' },
           { value: 'DA_HOAN_CUOC', label: 'Đã hoàn cược' },
+        ]}
+      />
+      {/* SIL-764 — một dòng tạm thu sửa chữa vỏ container vẫn nằm chung bảng,
+          lọc được theo Phân loại. */}
+      <UuiSelectField
+        label="Phân loại"
+        value={category}
+        onChange={(event) => setCategory(event.target.value as DepositCategory)}
+        options={[
+          { value: 'CUOC_CONTAINER', label: DEPOSIT_CATEGORY_LABELS.CUOC_CONTAINER },
+          { value: 'TAM_THU_SUA_CHUA', label: DEPOSIT_CATEGORY_LABELS.TAM_THU_SUA_CHUA },
         ]}
       />
       <FormGroup label="Ghi chú"><input className="input" value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} /></FormGroup>

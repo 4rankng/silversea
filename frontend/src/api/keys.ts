@@ -452,9 +452,9 @@ export const qk = {
   depositTracker: {
     /** Broad prefix — matches every deposit-tracker query. */
     all: ['deposit-refund'] as const,
-    /** Filtered list — from/to/status ride the key. */
-    list: (from: string, to: string, status: string) =>
-      ['deposit-refund', from, to, status] as const,
+    /** Filtered list — from/to/status/category ride the key. */
+    list: (from: string, to: string, status: string, category: string = '') =>
+      ['deposit-refund', from, to, status, category] as const,
     /** "Thêm cược" typeahead — keyed by the last four digits. */
     billSuggestions: (digits: string) =>
       ['deposit-refund', 'bill-suggestions', digits] as const,
@@ -465,8 +465,12 @@ export const qk = {
   invoiceTracking: {
     /** Broad prefix — matches every invoice-tracking query. */
     all: ['invoice-tracking'] as const,
-    /** Rows for one period. */
-    list: (from: string, to: string) => ['invoice-tracking', from, to] as const,
+    /** Rows for one period. `includeHidden` (SIL-762, Lưu và Ẩn trace) is
+     *  part of the key — flipping it must refetch, not serve the cache. */
+    list: (from: string, to: string, includeHidden = false) =>
+      includeHidden
+        ? ['invoice-tracking', from, to, 'with-hidden'] as const
+        : ['invoice-tracking', from, to] as const,
   },
 
   /* ── Penalties ──────────────────────────────────────────────────────── */

@@ -47,7 +47,14 @@ const OFFICE_ROLES = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 accountingRoutes.get('/invoice-tracking', asyncHandler(async (req: Request, res: Response) => {
   const from = parseRangeDate(req.query.from, businessDate());
   const to = parseRangeDate(req.query.to, businessDate());
-  const { rows, totals } = await listInvoiceTracking(from, to);
+  // SIL-762: `includeHidden=1` (Lưu và Ẩn trace) adds back the rows hidden
+  // behind "Không lấy hóa đơn". Office-staff only — the CUS read bridge must
+  // not surface the internal hide workflow, so non-office callers silently
+  // get the working list (never a 403 on a read path).
+  const requestedHidden = req.query.includeHidden === '1' || req.query.includeHidden === 'true';
+  const office = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT].includes(getUser(req).role as Role);
+  const includeHidden = requestedHidden && office;
+  const { rows, totals } = await listInvoiceTracking(from, to, { includeHidden });
   res.json({ rows, totals });
 }));
 

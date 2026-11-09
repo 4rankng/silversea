@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow, type ChiHoConfirmation } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { PhoiPhieuReportSection } from './PhoiPhieuControlPage.reports';
-import { formatNumber, formatCurrency, formatDate } from '../../lib/format';
+import { formatNumber, formatCurrency, formatDate, businessDateISO } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
 import { PageHeader } from '../../components/UI';
 import { Money } from '../../components/shared/Money';
@@ -55,6 +55,27 @@ function phoiStateOf(row: PhoiPhieuRow): string {
 function phoiStatusLine(row: PhoiPhieuRow): string {
   const status = row.phoiTakeStatus?.trim();
   return `Phơi: ${phoiStateOf(row)}${status ? ` · ${status}` : ''}`;
+}
+
+// SIL-763 (id 884) — Cảnh báo 4 ngày (KB Chương 6, bảng Kiểm soát phơi phiếu):
+// một chuyến đã vận chuyển từ 4 ngày trở lên mà kế toán chưa tích "Đã nhận
+// phơi" thì cột Ghi chú tự hiện chữ đỏ "Phơi chưa được nhận". Tích nhận phơi
+// (lưu ngày lấy phơi ở hộp thoại chi tiết) xóa cảnh báo ngay qua invalidate.
+export const PHOI_NOT_RECEIVED_AFTER_DAYS = 4;
+export const PHOI_NOT_RECEIVED_LABEL = 'Phơi chưa được nhận';
+
+/** VN calendar-day gap between the transport day and today, ≥ 4 days, and no
+ *  POD date ticked. `today` injectable so the boundary is testable; an
+ *  unparsable transport day never warns. */
+export function phoiNotReceivedWarning(
+  row: Pick<PhoiPhieuRow, 'transportDate' | 'phoiTakenDate'>,
+  today = businessDateISO(),
+): boolean {
+  if (!row.transportDate || row.phoiTakenDate) return false;
+  const transportMs = Date.parse(`${row.transportDate}T00:00:00Z`);
+  const todayMs = Date.parse(`${today}T00:00:00Z`);
+  if (Number.isNaN(transportMs) || Number.isNaN(todayMs)) return false;
+  return (todayMs - transportMs) / 86_400_000 >= PHOI_NOT_RECEIVED_AFTER_DAYS;
 }
 
 interface Filters {
@@ -260,7 +281,9 @@ export default function PhoiPhieuControlPage() {
           { key: 'truck', label: 'Biển số xe', value: row.plateNumber ?? '—' },
           { key: 'carrier', label: 'Nhà vận tải', value: row.carrierName ?? 'Chưa xác định nhà vận tải' },
           { key: 'driver', label: 'Lái xe', value: row.driverName ?? 'Chưa có lái xe' },
-          { key: 'cusNotes', label: 'Ghi chú vận tải', value: row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—' },
+          { key: 'cusNotes', label: 'Ghi chú vận tải', value: phoiNotReceivedWarning(row)
+            ? <><span className="ppc-phoi-overdue">{PHOI_NOT_RECEIVED_LABEL}</span>{row.cusDispatchNotes.length ? <div className="row-meta">{row.cusDispatchNotes.join('; ')}</div> : null}</>
+            : (row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—') },
           { key: 'opsNotes', label: 'Ghi chú chi phí OPS', value: row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—' },
           { key: 'driverNotes', label: 'Ghi chú lái xe', value: row.driverNote ?? '—' },
           { key: 'chiHoAction', label: 'Chi hộ', value: <button type="button" className="btn btn--secondary" aria-label={`Chi tiết chi hộ ${billBookingReference(row.billOrBooking)}`} onClick={() => { setTienDuongTripId(null); setChiHoTripId(row.tripId); }}>Chi tiết chi hộ</button> },
@@ -351,7 +374,12 @@ export default function PhoiPhieuControlPage() {
                     <small className="ppc-line">Nhận phơi: {formatDate(row.phoiTakenDate, { empty: '—' })}</small>
                   )}
                 </td>
-                <td className="ppc-col--ghichu">{row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}</td>
+                <td className="ppc-col--ghichu">
+                  {phoiNotReceivedWarning(row) && (
+                    <span className="ppc-phoi-overdue">{PHOI_NOT_RECEIVED_LABEL}</span>
+                  )}
+                  {row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}
+                </td>
                 <td className="ppc-col--ghichu-ops">{row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—'}</td>
                 <td className="ppc-col--ghichu">{row.driverNote ?? '—'}</td>
               </tr>

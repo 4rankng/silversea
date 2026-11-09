@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as SharedModule from '../../components/shared';
 const api = vi.hoisted(() => ({ listDepositTrackers: vi.fn(), createDepositTracker: vi.fn(), updateDepositTrackerDates: vi.fn(), markDepositRefunded: vi.fn(), searchBillSuggestions: vi.fn() }));
-vi.mock('../../api/depositRefundClient', () => api);
+vi.mock('../../api/depositRefundClient', () => ({ ...api, DEPOSIT_CATEGORY_LABELS: { CUOC_CONTAINER: 'Cược container', TAM_THU_SUA_CHUA: 'Tạm thu sửa chữa' } }));
 // Card 20260923_14 put useToast on this page; the render harness supplies no
 // ToastProvider, so mock it exactly as alerts.test.tsx does (test-only fix).
 vi.mock('../../components/shared', async (importOriginal) => ({
@@ -12,7 +12,7 @@ vi.mock('../../components/shared', async (importOriginal) => ({
 }));
 import DepositRefundTrackerPage from './DepositRefundTrackerPage';
 import { ApiError } from '../../lib/api';
-const row = { id: 1, billNumber: 'QA-BILL', customerName: 'QA customer', carrierName: 'QA carrier', depositAmount: '0', cvSubmittedDate: null, expectedRefundDate: null, status: 'CHUA_HOAN_CUOC', note: null, createdAt: '2026-08-01' };
+const row = { id: 1, billNumber: 'QA-BILL', customerName: 'QA customer', carrierName: 'QA carrier', depositAmount: '0', cvSubmittedDate: null, expectedRefundDate: null, status: 'CHUA_HOAN_CUOC', category: 'CUOC_CONTAINER', note: null, createdAt: '2026-08-01' };
 function page() { return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DepositRefundTrackerPage /></QueryClientProvider>); }
 beforeEach(() => { Object.values(api).forEach(fn => fn.mockReset()); api.listDepositTrackers.mockResolvedValue({ items: [row], total: 0, warnings: { cvOverdueCount: 1, unrefundedTotal: 0 } }); });
 describe('deposit tracker workflows', () => {
@@ -31,7 +31,7 @@ describe('deposit tracker workflows', () => {
     expect(screen.getByRole('button', { name: 'Lọc' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Thêm cược' })).toBeTruthy();
     // Blank range + blank status still queries all dates (behaviour preserved).
-    expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined);
+    expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined, undefined);
   });
 
   it('keeps the date action icon beside its complete label and closes its unsaved draft without writes (UI73)', async () => {
@@ -83,14 +83,14 @@ describe('deposit tracker workflows', () => {
   });
 
   it('loads all dates, shows an old outstanding row and permits accounting to fill its amount', async () => {
-    page(); await screen.findByText('QA-BILL'); expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined);
+    page(); await screen.findByText('QA-BILL'); expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined, undefined);
     fireEvent.click(screen.getByRole('button', { name: /Ngày CV \/ số tiền/ }));
     const form = within(await screen.findByRole('dialog'));
     fireEvent.change(form.getByLabelText('Số tiền cược (₫)'), { target: { value: '4.000.000' } });
     fireEvent.change(form.getByLabelText('Ghi chú'), { target: { value: 'Actual deposit' } });
     api.updateDepositTrackerDates.mockResolvedValue({ ...row, depositAmount: '4000000' });
     fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
-    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, expectedRefundDate: null }));
+    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, expectedRefundDate: null, category: 'CUOC_CONTAINER' }));
   });
   it('keeps save failures and user input inside the create form, and rejects negative amounts', async () => {
     page(); fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' })); const form = within(await screen.findByRole('dialog'));
@@ -157,6 +157,7 @@ describe('deposit tracker workflows', () => {
       depositAmount: 5000000, shipmentId: null,
       cvSubmittedDate: '2026-10-01', expectedRefundDate: '2026-10-15',
       note: null, depositDate: '2026-10-03', status: 'DA_HOAN_CUOC',
+      category: 'CUOC_CONTAINER',
     }));
   });
 
@@ -172,6 +173,7 @@ describe('deposit tracker workflows', () => {
       depositAmount: 5000000, shipmentId: null,
       cvSubmittedDate: null, expectedRefundDate: null, note: null, depositDate: null,
       status: 'CHUA_HOAN_CUOC',
+      category: 'CUOC_CONTAINER',
     }));
   });
   it('reports load failures and retries without claiming an empty successful result', async () => {
@@ -244,6 +246,59 @@ describe('deposit tracker workflows', () => {
       expect(form.getByLabelText('Số Bill')).toHaveValue('RARBOOK-1792226038601-9bzut2');
       expect(form.getByLabelText('Khách hàng')).toHaveValue('CÔNG TY LONG MINH');
       expect(form.getByLabelText('Hãng tàu')).toHaveValue('YML');
+    });
+  });
+
+  // ─── SIL-764 (id 885) — trường phân loại [Cược container] | [Tạm thu sửa chữa]
+  describe('phân loại Cược container | Tạm thu sửa chữa (SIL-764)', () => {
+    const categoryCell = (label: string) => screen.getAllByText(label)
+      .filter((el) => el.closest('td')?.getAttribute('data-label') === 'Phân loại');
+
+    it('renders each row’s Phân loại, defaulting existing rows to Cược container', async () => {
+      api.listDepositTrackers.mockResolvedValue({ items: [row, { ...row, id: 2, category: 'TAM_THU_SUA_CHUA' }], total: 0, warnings: { cvOverdueCount: 0, unrefundedTotal: 0 } });
+      page();
+      await screen.findAllByText('QA-BILL');
+      // The RAC accessibility fallback mirrors the options into a hidden
+      // native <select>, so the lookup must scope to the board's cells.
+      expect(categoryCell('Cược container')).toHaveLength(1);
+      expect(categoryCell('Tạm thu sửa chữa')).toHaveLength(1);
+    });
+
+    it('filters the board by Phân loại', async () => {
+      page();
+      await screen.findByText('QA-BILL');
+      fireEvent.click(screen.getByRole('button', { name: /Phân loại/ }));
+      fireEvent.click(await screen.findByRole('option', { name: 'Tạm thu sửa chữa' }));
+      await waitFor(() => expect(api.listDepositTrackers).toHaveBeenLastCalledWith(undefined, undefined, undefined, 'TAM_THU_SUA_CHUA'));
+    });
+
+    it('creates a Tạm thu sửa chữa row on the same board', async () => {
+      page(); await screen.findByText('QA-BILL');
+      fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' }));
+      const form = within(await screen.findByRole('dialog', { name: 'Thêm cược' }));
+      for (const [label, value] of [['Số Bill', 'QA-REPAIR'], ['Khách hàng', 'QA customer'], ['Hãng tàu', 'QA carrier'], ['Số tiền cược (₫)', '2500000']]) fireEvent.change(form.getByLabelText(label), { target: { value } });
+      // The RAC listbox portals to <body> — options never live inside the
+      // dialog element, so the option lookup runs at screen scope.
+      fireEvent.click(form.getByRole('button', { name: /Phân loại/ }));
+      fireEvent.click(await screen.findByRole('option', { name: 'Tạm thu sửa chữa' }));
+      api.createDepositTracker.mockResolvedValue({ ...row, id: 3, category: 'TAM_THU_SUA_CHUA' });
+      fireEvent.click(form.getByRole('button', { name: 'Lưu dòng' }));
+      await waitFor(() => expect(api.createDepositTracker).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        billNumber: 'QA-REPAIR',
+        depositAmount: 2500000,
+        category: 'TAM_THU_SUA_CHUA',
+      })));
+    });
+
+    it('edits an existing row’s Phân loại through the date dialog', async () => {
+      page(); await screen.findByText('QA-BILL');
+      api.updateDepositTrackerDates.mockResolvedValue({ ...row, category: 'TAM_THU_SUA_CHUA' });
+      fireEvent.click(screen.getByRole('button', { name: 'Ngày CV / số tiền' }));
+      const form = within(await screen.findByRole('dialog', { name: 'Cập nhật hoàn cược - Bill QA-BILL' }));
+      fireEvent.click(form.getByRole('button', { name: /Phân loại/ }));
+      fireEvent.click(await screen.findByRole('option', { name: 'Tạm thu sửa chữa' }));
+      fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
+      await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledExactlyOnceWith(1, expect.objectContaining({ category: 'TAM_THU_SUA_CHUA' })));
     });
   });
 });

@@ -24,6 +24,7 @@ import {
   normalizeContainerNumber,
 } from '@tingting/shared';
 import { assertContainerDeclarationNumberAvailable } from './shipment-lifecycle-shared.service';
+import { syncCombinedInvoiceTrackingInTx } from './invoice-tracking.service';
 import type { AuthUser } from '../middleware/auth';
 import {
   assertDispatcherCanMutateShipmentIntake,
@@ -643,6 +644,9 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
   }
 
   const result = await reconcileShipmentContainersInTx(tx, shipmentId, userId, containers);
+  // SIL-762: container edits on a [Kết hợp] lot keep the combined invoice
+  // board in lockstep — a container added later still lands as "Chưa lấy HĐ".
+  await syncCombinedInvoiceTrackingInTx(tx, shipmentId, userId);
   // Snapshot refresh happens at re-decompose: ensureShipmentFulfillmentsInTx
   // resolves per-container deliverySite overrides from current authority, so
   // the fulfillments canceled above are rebuilt (by the next decomposition)

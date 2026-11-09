@@ -283,3 +283,12 @@
     min-height: var(--control-touch-h, 44px);
   }
 }
+
+/* SIL-763 (id 884) — "Phơi chưa được nhận": chữ đỏ cảnh báo tự hiện tại cột
+   Ghi chú vận tải khi chuyến đã chạy quá 4 ngày mà chưa tích nhận phơi. */
+.ppc-phoi-overdue {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--danger);
+  font-weight: 600;
+}

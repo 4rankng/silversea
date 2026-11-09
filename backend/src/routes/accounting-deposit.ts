@@ -34,8 +34,10 @@ router.get('/', asyncHandler(async (req, res) => {
   const query = parse(z.object({
     from: z.string().max(10).optional(), to: z.string().max(10).optional(),
     status: z.enum(['CHUA_HOAN_CUOC', 'DA_HOAN_CUOC']).optional(),
+    // SIL-764 — lọc theo phân loại cược / tạm thu sửa chữa.
+    category: z.enum(['CUOC_CONTAINER', 'TAM_THU_SUA_CHUA']).optional(),
   }), req.query);
-  res.json(await listDepositTrackers(getUser(req), { from: query.from, to: query.to, status: query.status }));
+  res.json(await listDepositTrackers(getUser(req), { from: query.from, to: query.to, status: query.status, category: query.category }));
 }));
 
 // "Thêm cược" typeahead: the last four digits of a Bill/Booking surface the
@@ -66,6 +68,8 @@ router.post('/', declareMaterialWrite('accounting.deposit-tracker.create', { met
     cvSubmittedDate: dateInput.nullable().optional(),
     expectedRefundDate: dateInput.nullable().optional(),
     status: z.enum(['CHUA_HOAN_CUOC', 'DA_HOAN_CUOC']).optional(),
+    // SIL-764 — Phân loại: Cược container | Tạm thu sửa chữa.
+    category: z.enum(['CUOC_CONTAINER', 'TAM_THU_SUA_CHUA']).optional(),
     note: z.string().max(500).nullable().optional(),
   }).strict(), req.body);
   const outcome = await runIdempotent({
@@ -87,6 +91,8 @@ router.patch('/:id/dates', declareMaterialWrite('accounting.deposit-tracker.date
     expectedRefundDate: dateInput.nullable().optional(),
     note: z.string().max(500).nullable().optional(),
     depositAmount: z.union([z.number(), z.string()]).optional(),
+    // SIL-764 — Phân loại rides the same edit dialog.
+    category: z.enum(['CUOC_CONTAINER', 'TAM_THU_SUA_CHUA']).optional(),
   }).strict(), req.body);
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_DATES,

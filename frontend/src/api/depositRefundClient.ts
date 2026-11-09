@@ -6,6 +6,14 @@ import { api } from '../lib/api';
 
 export type DepositStatus = 'CHUA_HOAN_CUOC' | 'DA_HOAN_CUOC';
 
+/** SIL-764 (id 885) — Phân loại trên cùng bảng hoàn cược. */
+export type DepositCategory = 'CUOC_CONTAINER' | 'TAM_THU_SUA_CHUA';
+
+export const DEPOSIT_CATEGORY_LABELS: Record<DepositCategory, string> = {
+  CUOC_CONTAINER: 'Cược container',
+  TAM_THU_SUA_CHUA: 'Tạm thu sửa chữa',
+};
+
 export interface DepositTrackerRow {
   id: number;
   shipmentId: number | null;
@@ -16,6 +24,8 @@ export interface DepositTrackerRow {
   cvSubmittedDate: string | null;
   expectedRefundDate: string | null;
   status: DepositStatus;
+  /** SIL-764 — Phân loại (Cược container | Tạm thu sửa chữa). */
+  category: DepositCategory;
   refundPostedAt: string | null;
   note: string | null;
   createdAt: string;
@@ -32,11 +42,13 @@ export interface DepositTrackerListResponse {
   warnings: DepositTrackerWarnings;
 }
 
-export async function listDepositTrackers(from?: string, to?: string, status?: DepositStatus): Promise<DepositTrackerListResponse> {
+export async function listDepositTrackers(from?: string, to?: string, status?: DepositStatus, category?: DepositCategory): Promise<DepositTrackerListResponse> {
   const params = new URLSearchParams();
   if (from) params.set('from', from);
   if (to) params.set('to', to);
   if (status) params.set('status', status);
+  // SIL-764 — lọc theo phân loại.
+  if (category) params.set('category', category);
   const qs = params.toString();
   return api.get<DepositTrackerListResponse>(`/accounting/deposits${qs ? `?${qs}` : ''}`);
 }
@@ -63,12 +75,16 @@ export async function createDepositTracker(body: {
   shipmentId?: number | null;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null;
   depositDate?: string | null; status?: DepositStatus;
+  /** SIL-764 — Phân loại; omitted falls to the server default CUOC_CONTAINER. */
+  category?: DepositCategory;
 }): Promise<DepositTrackerRow> {
   return api.post<DepositTrackerRow>('/accounting/deposits', body);
 }
 
 export async function updateDepositTrackerDates(id: number, body: {
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
+  /** SIL-764 — Phân loại rides the same edit dialog. */
+  category?: DepositCategory;
 }): Promise<DepositTrackerRow> {
   return api.patch<DepositTrackerRow>(`/accounting/deposits/${id}/dates`, body);
 }

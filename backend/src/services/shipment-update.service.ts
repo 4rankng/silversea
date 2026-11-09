@@ -25,6 +25,7 @@ import {
   toNullableFixedDecimal,
   toNullableTimestamp,
 } from './shipment-shared.service';
+import { syncCombinedInvoiceTrackingInTx } from './invoice-tracking.service';
 import {
   type ShipmentUpdateResult,
   assertShipmentDocumentReferences,
@@ -255,6 +256,10 @@ export async function updateShipment(
         eq(s.shipmentFulfillments.cargoMode, 'FCL'),
       ));
     }
+    // SIL-762: ticking [Kết hợp] on any lot (CUS or Điều vận) pours its
+    // containers onto the combined invoice board in the same transaction.
+    // Idempotent — non-combined lots and unchanged lots no-op inside.
+    await syncCombinedInvoiceTrackingInTx(tx, id, input.updatedBy ?? actor?.userId ?? null);
 
     if (revertsToPendingDate) {
       await tx.insert(s.shipmentStatusHistory).values({

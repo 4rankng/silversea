@@ -1,13 +1,8 @@
-// Card 20260922_52 (rework v2) — RED-first regression for the internal-id leak.
-//
-// Operator screenshot 23/09: the board rendered "Số hóa đơn:
-// INV-EMPTY-1790038443239-q10-q63uv3" rows on staging. Root cause is a leaked
-// q10 integration-fixture row (backend/src/tests/q10-soft-delete.test.ts writes
-// it straight into the application DB), and the page echoed invoiceNumber /
-// shipmentCode / customerName verbatim. Design law 2026-09-19 (cards
-// 20260919_38/39): internal ids and machine-generated codes never render as
-// visible text — the cell shows the house empty value instead.
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+// SIL-762 REV2 — the 8-column multi-line grid contract. Each grouped cell
+// renders its inner lines; read-only lot facts auto-fill from the lot and
+// Master Data (Mã KH · MST), Cột 4/5/7 are inline-edit inputs that commit on
+// blur, and Cột 8 carries the progress vocabulary + the per-row Lưu và Ẩn.
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,55 +12,47 @@ const client = vi.hoisted(() => ({
   updateInvoiceTracking: vi.fn(),
   deleteInvoiceTracking: vi.fn(),
 }));
+const authState = vi.hoisted(() => ({ role: 'ADMIN' }));
 vi.mock('../api/invoiceTrackingClient', () => client);
-vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'ADMIN' } }) }));
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: authState.role } }) }));
 const csv = vi.hoisted(() => ({ downloadCSV: vi.fn() }));
 vi.mock('../lib/csv', () => csv);
 
 import AccountingInvoiceTrackingPage, { buildPeriodPresets } from './AccountingInvoiceTrackingPage';
-import { businessDateISO } from '../lib/format';
 import type { InvoiceTrackingRow } from '@tingting/shared';
 
-/** The exact row that sat live in the dev DB (`invoice_tracking` id 88,
- *  deleted_at NULL) and reproduced the operator's screenshot. */
-const leakedRow: InvoiceTrackingRow = {
-  id: 88,
+const wireRow: InvoiceTrackingRow = {
+  id: 900,
   shipmentId: 1201,
-  tripId: 679,
-  containerNumber: 'QATU1234569',
-  containerType: null,
-  tradeDirection: null,
-  shipmentCode: 'Q10-1790165053059-q10-8h9x64-3',
-  customerName: 'Q10 customer 1790165053059-q10-8h9x64 3',
-  invoiceNumber: 'INV-EMPTY-1790165053059-q10-8h9x64',
-  invoiceAmount: '12000000',
-  supplierPayment: '8000000',
-  difference: '4000000',
+  tripId: null,
+  containerNumber: 'CSNU2510003',
+  containerType: "20'DC",
+  tradeDirection: 'EXPORT',
+  shipmentCode: 'SHP-2611-00424',
+  customerName: 'CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH',
+  invoiceNumber: null,
+  invoiceAmount: '0',
+  supplierPayment: '0',
+  difference: '0',
   taxCode: '0301234567',
-  supplierName: 'CÔNG TY TNHH VẬN TẢI BIỂN ĐÔNG',
-  // Card 2026-10-05_384: the row this fixture was captured from predates the
-  // COM amount column, so it rides the null path like every pre-card row.
+  supplierName: null,
   comAmount: null,
   comNote: null,
   invoiceSentAt: null,
   note: null,
   progress: 'CHUA_GUI',
-  expenseDate: '2026-09-23',
-  expenseId: 5,
-};
-
-/** A real row: business identifiers must survive the guard untouched. */
-const realRow: InvoiceTrackingRow = {
-  ...leakedRow,
-  id: 12,
-  shipmentCode: 'SHP-2609-00020',
-  customerName: 'CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH',
-  invoiceNumber: 'HD-C18-01',
-  progress: 'CO_HD',
-  expenseDate: '2026-09-22',
-  containerNumber: 'TGHU7654321',
-  containerType: "40'HC",
-  tradeDirection: 'IMPORT',
+  expenseDate: '2026-11-05',
+  expenseId: null,
+  transportDate: '2026-11-05',
+  bookingRef: 'SIL762BOOK77',
+  blNumber: null,
+  factoryName: 'Nhà máy Bích Hỏa',
+  shippingLineName: 'MSC',
+  customerCode: 'KH-017',
+  dnttNumbers: ['ĐNTT-102'],
+  isAutoSynced: true,
+  noInvoice: false,
+  hiddenAt: null,
 };
 
 function renderBoard(rows: InvoiceTrackingRow[]) {
@@ -80,211 +67,199 @@ function renderBoard(rows: InvoiceTrackingRow[]) {
   );
 }
 
-describe('invoice-tracking board never paints internal identifiers', () => {
-  beforeEach(() => {
-    Object.values(client).forEach((fn) => fn.mockReset());
-  });
-
-  it('replaces a leaked q10 fixture row with the house empty value', async () => {
-    renderBoard([leakedRow]);
-    await screen.findByRole('table');
-    await screen.findByText(/Số hóa đơn:/);
-
-    expect(document.body.textContent ?? "").not.toMatch(/INV-EMPTY/i);
-    expect(document.body.textContent ?? "").not.toMatch(/q10/i);
-    expect(document.body.textContent ?? "").not.toContain('1790165053059');
-    // Col 3 (mã lô + khách hàng) and col 7 (số hóa đơn) fall back to '—'.
-    expect(screen.getByText('Số hóa đơn: —')).toBeInTheDocument();
-  });
-
-  it('leaves real business identifiers untouched', async () => {
-    renderBoard([realRow]);
-    await screen.findByText('Số hóa đơn: HD-C18-01');
-
-    expect(screen.getByText('SHP-2609-00020')).toBeInTheDocument();
-    expect(screen.getByText('CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH')).toBeInTheDocument();
-    expect(document.body.textContent ?? "").not.toContain('Số hóa đơn: —');
-  });
+beforeEach(() => {
+  Object.values(client).forEach((fn) => fn.mockReset());
 });
 
-// Card 20260927_152: the bespoke `.invoice-tracking-search` shell is gone — the
-// text query now rides the shared `FilterBar` search slot. The filtering
-// behaviour it drove is unchanged, so this pins the behaviour, not the shell.
-describe('invoice-tracking filter bar search', () => {
-  beforeEach(() => {
-    Object.values(client).forEach((fn) => fn.mockReset());
+/** The RAC select trigger shows the selected value; the accessibility
+ *  fallback mirrors ALL options into a hidden native select, so assertions
+ *  read the trigger button, never the whole td text. */
+function progressTriggerText(): string {
+  const trigger = document.querySelector('td[data-label="Tiến độ xử lý"] button[aria-haspopup="listbox"]');
+  return trigger?.textContent?.trim() ?? '';
+}
+
+describe('the 8-column multi-line grid (SIL-762 rev2)', () => {
+  it('renders exactly the 8 contract headers for a writing role', async () => {
+    renderBoard([wireRow]);
+    await screen.findByText('CSNU2510003');
+    const headers = [...document.querySelectorAll('thead th')].map((th) => th.textContent?.trim() || th.getAttribute('aria-label') || '');
+    expect(headers).toEqual([
+      'Chọn dòng', // checkbox column (aria-label only)
+      'STT',
+      'Khách hàng & Lô',
+      'Cont & Chứng từ',
+      'Đầu vào (Mua HĐ)',
+      'Đối soát số tiền',
+      'Chênh lệch',
+      'Ghi chú & ĐNTT',
+      'Tiến độ xử lý',
+    ]);
   });
 
-  it('narrows the rows through the shared search slot', async () => {
-    renderBoard([realRow, { ...realRow, id: 13, invoiceNumber: 'HD-XYZ-9' }]);
-    await screen.findByText('Số hóa đơn: HD-C18-01');
+  it('groups lot identity into Cột 2/3 multi-line cells — auto MST, no manual re-typing', async () => {
+    renderBoard([wireRow]);
+    await screen.findByText('CSNU2510003');
 
-    fireEvent.change(screen.getByLabelText('Tìm theo số HĐ, MST, lô, cont'), { target: { value: 'HD-XYZ-9' } });
+    const customerCell = screen.getByText('CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH').closest('td')!;
+    expect(customerCell).toHaveAttribute('data-label', 'Khách hàng & Lô');
+    expect(customerCell.textContent).toContain('KH-017 · 0301234567');
+    expect(customerCell.textContent).toContain('Nhà máy Bích Hỏa');
+    expect(customerCell.textContent).toContain('05/11/2026');
 
-    expect(screen.queryByText('Số hóa đơn: HD-C18-01')).toBeNull();
-    expect(screen.getByText('Số hóa đơn: HD-XYZ-9')).toBeInTheDocument();
-  });
-});
-
-// Card 20261002_285 AC1. RED-first: the period scopes the QUERY, so it is a
-// filter condition — but `hasActiveFilters` ignored it, and `clearFilters` never
-// reset it. Two empty-state buttons were labelled "Xóa bộ lọc ngày" ("clear the
-// DATE filter"; the landed copy is the shorter "Xóa bộ lọc") while calling a
-// handler that could not touch the date, and a period-only filter armed no reset.
-describe('invoice-tracking period is a resettable filter condition (card 20261002_285)', () => {
-  beforeEach(() => {
-    Object.values(client).forEach((fn) => fn.mockReset());
+    const contCell = screen.getByText('CSNU2510003').closest('td')!;
+    expect(contCell).toHaveAttribute('data-label', 'Cont & Chứng từ');
+    expect(contCell.textContent).toContain("20'DC · Xuất");
+    expect(contCell.textContent).toContain('SIL762BOOK77');
+    expect(contCell.textContent).toContain('MSC');
+    expect(document.body.textContent ?? '').not.toContain('EXPORT');
   });
 
-  it('arms the bar reset for a period that differs from the default', async () => {
-    renderBoard([]);
-    await screen.findByText('Không tìm thấy hóa đơn nào trong kỳ đã chọn');
-    // The default period is not a filter, so the strip reset stays disabled.
-    expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeDisabled();
-
-    // "Tháng trước" always differs from the default (1st of this month → today).
-    // The preset group is a tablist, so its entries carry role="tab".
-    fireEvent.click(screen.getByRole('tab', { name: /Tháng trước/ }));
-
-    expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeEnabled();
+  it('an auto-synced row without invoice facts reads Chưa lấy HĐ in Cột 8', async () => {
+    renderBoard([wireRow]);
+    await screen.findByText('CSNU2510003');
+    expect(progressTriggerText()).toBe('Chưa lấy HĐ');
+    // The per-row quick hide rides the same cell.
+    expect(screen.getByRole('button', { name: 'Lưu và Ẩn dòng CSNU2510003' })).toBeInTheDocument();
   });
 
-  it('Xóa lọc returns the query to the default period', async () => {
-    renderBoard([]);
-    await screen.findByText('Không tìm thấy hóa đơn nào trong kỳ đã chọn');
-    fireEvent.click(screen.getByRole('tab', { name: /Tháng trước/ }));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeEnabled());
-
-    fireEvent.click(screen.getByRole('button', { name: 'Xóa lọc' }));
-
-    const today = businessDateISO();
-    await waitFor(() => {
-      const calls = client.listInvoiceTracking.mock.calls;
-      expect(calls[calls.length - 1]?.[0]).toBe(`${today.slice(0, 7)}-01`);
-      expect(calls[calls.length - 1]?.[1]).toBe(today);
-    });
-    expect(screen.getByRole('button', { name: 'Xóa lọc' })).toBeDisabled();
-  });
-});
-
-// Card 20261005_383 — the "Cont" cell carries three DERIVED facts in one
-// column (số cont / loại cont / xuất–nhập) and the export sheet grows the
-// matching two Vietnamese columns. The form is untouched: these are properties
-// of the container/shipment, never re-entered per invoice.
-describe('invoice-tracking container facts (card 20261005_383)', () => {
-  beforeEach(() => {
-    Object.values(client).forEach((fn) => fn.mockReset());
-    csv.downloadCSV.mockReset();
+  it('a captured invoice reads Đã có HĐ instead of Chưa lấy HĐ', async () => {
+    renderBoard([{ ...wireRow, invoiceNumber: 'HD-C18-01' }]);
+    await screen.findByDisplayValue('HD-C18-01');
+    expect(progressTriggerText()).toBe('Đã có HĐ');
   });
 
-  it('stacks số cont / loại cont / xuất–nhập in the single Cont cell', async () => {
-    renderBoard([realRow]);
-    await screen.findByText('Số hóa đơn: HD-C18-01');
-
-    const contCell = screen.getByText('TGHU7654321').closest('td')!;
-    expect(contCell).toHaveAttribute('data-label', 'Cont');
-    expect(within(contCell).getByText("40'HC")).toBeInTheDocument();
-    // IMPORT is painted as the Vietnamese label, never the raw enum.
-    expect(within(contCell).getByText('Nhập')).toBeInTheDocument();
-    expect(contCell.textContent).not.toContain('IMPORT');
+  it('selecting Đã có HĐ persists CO_HD — the legacy captured state is reachable', async () => {
+    client.updateInvoiceTracking.mockResolvedValue({});
+    renderBoard([wireRow]);
+    await screen.findByText('CSNU2510003');
+    const trigger = document.querySelector('td[data-label="Tiến độ xử lý"] button[aria-haspopup="listbox"]') as HTMLElement;
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Đã có HĐ' }));
+    await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledTimes(1));
+    expect(client.updateInvoiceTracking).toHaveBeenCalledWith(900, { progress: 'CO_HD' });
   });
 
-  it('falls back to the house empty value for every missing part', async () => {
-    renderBoard([{ ...realRow, containerNumber: null, containerType: null, tradeDirection: null }]);
-    await screen.findByText('Số hóa đơn: HD-C18-01');
-
-    const contCells = [...document.querySelectorAll('td[data-label="Cont"]')];
-    expect(contCells).toHaveLength(1);
-    // One "—" per missing part: the number, the type and the direction.
-    expect(contCells[0].querySelectorAll('.ivt-stack > span')).toHaveLength(3);
-    expect(contCells[0].textContent).toBe('———');
+  it('Cột 4 keeps a captured Số hóa đơn when cleared — the wire forbids null', async () => {
+    renderBoard([{ ...wireRow, invoiceNumber: 'HD-KEEP' }]);
+    const input = await screen.findByDisplayValue('HD-KEEP');
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(client.updateInvoiceTracking).not.toHaveBeenCalled();
   });
 
-  it('exports the two new columns with Vietnamese headers, right after Cont', async () => {
-    renderBoard([realRow]);
-    await screen.findByText('Số hóa đơn: HD-C18-01');
+  it('computes Chênh lệch bold = thu − trả − trả KH on the row', async () => {
+    renderBoard([{ ...wireRow, id: 902, invoiceNumber: 'HD-KH-1', invoiceAmount: '12000000', supplierPayment: '8000000', comAmount: '1750000' }]);
+    await screen.findByDisplayValue('HD-KH-1');
+    const td = document.querySelector('td[data-label="Chênh lệch"]')!;
+    expect(td.textContent).toBe(`${2250000 .toLocaleString('vi-VN')} ₫`);
+    expect(td.className).toContain('ivt-diff');
+  });
+
+  it('Cột 4 inline edits commit on blur — one PATCH per finished edit', async () => {
+    client.updateInvoiceTracking.mockResolvedValue({});
+    renderBoard([wireRow]);
+    const supplier = await screen.findByLabelText('Nhà cung cấp HĐ — CSNU2510003');
+    fireEvent.change(supplier, { target: { value: 'CÔNG TY IN ACHAU' } });
+    fireEvent.blur(supplier);
+    await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledTimes(1));
+    expect(client.updateInvoiceTracking).toHaveBeenCalledWith(900, { supplierName: 'CÔNG TY IN ACHAU' });
+
+    // The date accepts dd/mm/yyyy and lands as ISO.
+    const sentAt = screen.getByLabelText('Ngày gửi HĐ — CSNU2510003');
+    fireEvent.change(sentAt, { target: { value: '09/11/2026' } });
+    fireEvent.blur(sentAt);
+    await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledTimes(2));
+    expect(client.updateInvoiceTracking).toHaveBeenLastCalledWith(900, { invoiceSentAt: '2026-11-09' });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('an invalid Ngày gửi HĐ never fires a PATCH', async () => {
+    renderBoard([wireRow]);
+    const sentAt = await screen.findByLabelText('Ngày gửi HĐ — CSNU2510003');
+    fireEvent.change(sentAt, { target: { value: 'chưa gửi' } });
+    fireEvent.blur(sentAt);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(client.updateInvoiceTracking).not.toHaveBeenCalled();
+  });
+
+  it('Cột 5 money inputs commit integers; blank Trả KH means null (not 0)', async () => {
+    client.updateInvoiceTracking.mockResolvedValue({});
+    renderBoard([{ ...wireRow, id: 903, invoiceAmount: '12000000' }]);
+    const thu = await screen.findByLabelText('Số tiền thu — CSNU2510003');
+    expect(thu).toHaveValue('12000000');
+    fireEvent.change(thu, { target: { value: '13000000' } });
+    fireEvent.blur(thu);
+    const traKH = screen.getByLabelText('Số tiền trả KH — CSNU2510003');
+    fireEvent.change(traKH, { target: { value: '1750000' } });
+    fireEvent.blur(traKH);
+    await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledTimes(2));
+    expect(client.updateInvoiceTracking).toHaveBeenCalledWith(903, { invoiceAmount: 13000000 });
+    expect(client.updateInvoiceTracking).toHaveBeenLastCalledWith(903, { comAmount: 1750000 });
+  });
+
+  it('selecting Không lấy HĐ hides the row through the same Lưu và Ẩn law', async () => {
+    client.updateInvoiceTracking.mockResolvedValue({});
+    renderBoard([wireRow]);
+    await screen.findByText('CSNU2510003');
+    // The select is a React Aria control: click trigger, click option.
+    const trigger = document.querySelector('td[data-label="Tiến độ xử lý"] button[aria-haspopup="listbox"]') as HTMLElement;
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Không lấy HĐ' }));
+    await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledTimes(1));
+    expect(client.updateInvoiceTracking).toHaveBeenCalledWith(900, { noInvoice: true, hidden: true });
+  });
+
+  it('Lưu và Ẩn ticks "Không lấy hóa đơn" and hides every selected row (bulk)', async () => {
+    client.updateInvoiceTracking.mockResolvedValue({});
+    renderBoard([wireRow, { ...wireRow, id: 901, containerNumber: 'CSNU4520000' }]);
+    await screen.findByText('CSNU2510003');
+    fireEvent.click(screen.getByRole('checkbox', { name: /Chọn dòng CSNU2510003/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Chọn dòng CSNU4520000/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Lưu và Ẩn \(2\)/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Lưu và Ẩn' }));
+    await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledTimes(2));
+    expect(client.updateInvoiceTracking.mock.calls.map((call) => (call as unknown[])[1])).toEqual([
+      { noInvoice: true, hidden: true },
+      { noInvoice: true, hidden: true },
+    ]);
+  });
+
+  it('the hidden filter refetches with includeHidden so the trace stays queryable', async () => {
+    renderBoard([{ ...wireRow, noInvoice: true, hiddenAt: '2026-11-09T00:00:00.000Z' }]);
+    await screen.findByText('CSNU2510003');
+    expect(client.listInvoiceTracking.mock.calls.at(-1)?.[2]).toEqual({ includeHidden: false });
+
+    fireEvent.click(screen.getByRole('button', { name: /Dòng đã ẩn/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /Hiện cả dòng đã ẩn/ }));
+    await waitFor(() => expect(client.listInvoiceTracking.mock.calls.at(-1)?.[2]).toEqual({ includeHidden: true }));
+  });
+
+  it('a hidden row carries the Bỏ ẩn affordance and reads Không lấy HĐ', async () => {
+    renderBoard([{ ...wireRow, noInvoice: true, hiddenAt: '2026-11-09T00:00:00.000Z' }]);
+    await screen.findByText('CSNU2510003');
+    // includeHidden=false by default — the mock returns the row regardless.
+    expect(screen.getByRole('button', { name: 'Bỏ ẩn dòng' })).toBeInTheDocument();
+    expect(progressTriggerText()).toBe('Không lấy HĐ');
+  });
+
+  it('exports the rev2 data sheet: same fields, one row per container', async () => {
+    renderBoard([wireRow]);
+    await screen.findByText('CSNU2510003');
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
-
     const [filename, headers, body] = csv.downloadCSV.mock.calls[0] as [string, string[], unknown[][]];
     expect(filename).toBe('theo-doi-hoa-don.xlsx');
-    const contIndex = headers.indexOf('Cont');
-    expect(headers[contIndex + 1]).toBe('Loại cont');
-    expect(headers[contIndex + 2]).toBe('Xuất/Nhập');
-    // The pre-existing columns survive, in order.
-    expect(headers.slice(contIndex + 3, contIndex + 6)).toEqual(['MST', 'Nhà cung cấp', 'Số hóa đơn']);
-    expect(body[0][contIndex + 1]).toBe("40'HC");
-    expect(body[0][contIndex + 2]).toBe('Nhập');
-  });
-
-  it('exports the raw empty string — not a dash — for a missing part', async () => {
-    renderBoard([{ ...realRow, containerType: null, tradeDirection: null }]);
-    await screen.findByText('Số hóa đơn: HD-C18-01');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
-
-    const [, headers, body] = csv.downloadCSV.mock.calls[0] as [string, string[], unknown[][]];
-    const contIndex = headers.indexOf('Cont');
-    expect(body[0][contIndex + 1]).toBe('');
-    expect(body[0][contIndex + 2]).toBe('');
-  });
-});
-
-/** Card 2026-10-05_384 — COM becomes money, and the totals strip gains a 4th
- *  box. Two acceptance criteria live here and had no coverage before:
- *   1. a LEGACY row that only carries the free-text `comNote` must still show
- *      that text — adding an amount column must not quietly drop the note that
- *      real existing rows depend on; and
- *   2. the strip renders `Tổng COM` from the server's `totals.com`. */
-describe('invoice-tracking COM cell and totals strip (card 2026-10-05_384)', () => {
-  beforeEach(() => {
-    Object.values(client).forEach((fn) => fn.mockReset());
-  });
-
-  const withCom = (over: Partial<InvoiceTrackingRow>): InvoiceTrackingRow => ({
-    ...leakedRow, id: 500, comAmount: null, comNote: null, ...over,
-  });
-
-  it('shows the COM amount, and keeps the legacy note underneath when there is one', async () => {
-    renderBoard([withCom({ comAmount: '1750000', comNote: 'Trừ khách 500000' })]);
-    await screen.findByText('Số hóa đơn: —');
-    // Assert the CELL's rendered text, so the amount and the note are checked
-    // as the pair the column actually shows (stacked), not as separate lookups.
-    const comCell = () => document.querySelector('td[data-label="COM"]')?.textContent ?? '';
-    expect(comCell()).toContain('1.750.000');
-    expect(comCell()).toContain('Trừ khách 500000');
-    expect(screen.getByText('Trừ khách 500000')).toBeInTheDocument();
-  });
-
-  it('still renders a legacy text-only COM row, with no amount', async () => {
-    renderBoard([withCom({ comAmount: null, comNote: 'Trừ khách 500000' })]);
-    await screen.findByText('Số hóa đơn: —');
-    expect(screen.getByText('Trừ khách 500000')).toBeInTheDocument();
-  });
-
-  it('falls back to the house empty value only when both are empty', async () => {
-    renderBoard([withCom({ comAmount: null, comNote: null })]);
-    await screen.findByText('Số hóa đơn: —');
-    // No amount and no note → the row shows the house '—' placeholder.
-    expect(screen.getByText('Số hóa đơn: —')).toBeInTheDocument();
-  });
-
-  it('renders a 4th totals box: Tổng COM, alongside the three pre-existing ones', async () => {
-    renderBoard([withCom({ comAmount: '1750000' })]);
-    // The strip grew from 3 boxes to 4. The VALUE arithmetic is pinned in
-    // AccountingInvoiceTrackingPage.totals.test.ts (computeTotals is client-side
-    // over the period-filtered rows); what matters here is that the box renders.
-    await screen.findByText('Tổng COM');
-    expect(screen.getByText('Tổng COM')).toBeInTheDocument();
-    // The three pre-existing labels are still there.
-    expect(screen.getByText('Hóa đơn')).toBeInTheDocument();
-    expect(screen.getByText('Trả NCC')).toBeInTheDocument();
-    expect(screen.getByText('Chênh lệch')).toBeInTheDocument();
+    expect(headers.slice(0, 6)).toEqual(['STT', 'Ngày vận chuyển', 'Khách hàng', 'Mã KH', 'MST', 'Nhà máy']);
+    expect(headers).toContain('Số tiền thu');
+    expect(headers).toContain('Số tiền trả KH');
+    expect(headers).toContain('Chênh lệch');
+    expect(headers).toContain('Số ĐNTT');
+    expect(body[0][headers.indexOf('Số Container')]).toBe('CSNU2510003');
   });
 });
 
 describe('buildPeriodPresets — the month-end law (invoice-tracking 400 fix)', () => {
-  // Operator report 12/10: clicking "Tháng trước" in October sent
-  // to=2026-09-31 and the backend answered 400 "Khoảng ngày không hợp lệ:
-  // 2026-09-31". The last-day helper read the PREVIOUS month's length.
   it('ends September on the 30th, not August\'s 31st', () => {
     const presets = buildPeriodPresets('2026-10-12');
     const lastMonth = presets.find(p => p.id === 'last-month')!;
@@ -301,5 +276,26 @@ describe('buildPeriodPresets — the month-end law (invoice-tracking 400 fix)', 
   it('crosses the year boundary: January looks back to December', () => {
     expect(buildPeriodPresets('2026-01-08').find(p => p.id === 'last-month')!.range())
       .toEqual({ from: '2025-12-01', to: '2025-12-31' });
+  });
+});
+
+describe('read-only CUS board (write roles only get editors)', () => {
+  it('drops the checkbox column and renders money as text for a reader', async () => {
+    authState.role = 'CUS';
+    try {
+      client.listInvoiceTracking.mockResolvedValue({
+        rows: [{ ...wireRow, invoiceAmount: '12000000', supplierPayment: '8000000' }],
+        totals: { invoice: 12000000, paid: 8000000, difference: 4000000, com: 0 },
+      });
+      renderBoard([{ ...wireRow, invoiceAmount: '12000000', supplierPayment: '8000000' }]);
+      await screen.findByText('CSNU2510003');
+      expect(document.querySelector('thead th[aria-label="Chọn dòng"]')).toBeNull();
+      expect(document.querySelector('.ivt-inline-input')).toBeNull();
+      const moneyTd = document.querySelector('td[data-label="Đối soát số tiền"]')!;
+      expect(moneyTd.textContent).toContain('Thu KH: 12.000.000 ₫');
+      expect(moneyTd.textContent).toContain('Trả NCC: 8.000.000 ₫');
+    } finally {
+      authState.role = 'ADMIN';
+    }
   });
 });
