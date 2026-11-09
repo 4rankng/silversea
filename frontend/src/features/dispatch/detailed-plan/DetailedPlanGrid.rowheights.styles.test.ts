@@ -22,8 +22,6 @@ function columnShare(name: string): number {
   return Number(match?.[1] ?? 0);
 }
 
-const TABLE_MIN_WIDTH = 1520;
-
 describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 23/10 / SIL-755)', () => {
   it('gives the table a responsive layout that shrinks within its container at 1440px', () => {
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*width:\s*100%;/);
