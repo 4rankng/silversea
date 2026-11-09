@@ -12,6 +12,18 @@ import type { Tx } from './trip-shared';
 export const DEPOSIT_STATUSES = ['CHUA_HOAN_CUOC', 'DA_HOAN_CUOC'] as const;
 export type DepositStatus = typeof DEPOSIT_STATUSES[number];
 
+// SIL-764 (id 885) — the one-board-two-kinds classification: tiền cược
+// container vs khoản tạm thu sửa chữa vỏ container. Board rows are filterable
+// by it; every pre-column row defaults to CUOC_CONTAINER.
+export const DEPOSIT_CATEGORIES = ['CUOC_CONTAINER', 'TAM_THU_SUA_CHUA'] as const;
+export type DepositCategory = typeof DEPOSIT_CATEGORIES[number];
+
+export function assertDepositCategory(category: string | undefined | null): asserts category is DepositCategory | undefined {
+  if (category != null && !DEPOSIT_CATEGORIES.includes(category as DepositCategory)) {
+    throw new ApiError(400, 'Phân loại phải là "Cược container" hoặc "Tạm thu sửa chữa".');
+  }
+}
+
 /** dd/mm/yy (the customer's typing pattern) or ISO accepted; returns ISO. */
 export function normalizeDepositDate(input: string): string {
   const trimmed = input.trim();
@@ -49,6 +61,8 @@ async function resolveCompanyAccount(tx: typeof db | Parameters<Parameters<typeo
 
 export interface DepositTrackerFilters {
   from?: string; to?: string; status?: DepositStatus;
+  /** SIL-764 — the [Cược container] | [Tạm thu sửa chữa] classification. */
+  category?: DepositCategory;
 }
 export interface DepositTrackerWarningState {
   cvOverdueCount: number;
@@ -103,6 +117,8 @@ export async function listDepositTrackers(actor: ExpenseActor, filters: DepositT
     filters.from ? gte(s.depositRefundTrackers.createdAt, new Date(`${filters.from}T00:00:00Z`)) : undefined,
     filters.to ? lte(s.depositRefundTrackers.createdAt, new Date(`${filters.to}T23:59:59Z`)) : undefined,
     filters.status ? eq(s.depositRefundTrackers.status, filters.status) : undefined,
+    // SIL-764 — lọc theo phân loại (Cược container / Tạm thu sửa chữa).
+    filters.category ? eq(s.depositRefundTrackers.category, filters.category) : undefined,
   ].filter(Boolean);
   const rows = await db.select().from(s.depositRefundTrackers)
     .where(baseConditions.length ? and(...baseConditions) : undefined)
@@ -228,8 +244,11 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
   /** Default CHUA_HOAN_CUOC. DA_HOAN_CUOC at create composes the ĐÃ-hoàn-cược
    *  tick below in the same tx — the treasury posting runs exactly once. */
   status?: DepositStatus;
+  /** SIL-764 — Phân loại; defaults to CUOC_CONTAINER (existing-row law). */
+  category?: DepositCategory;
 }, conn: typeof db | Tx = db): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
+  assertDepositCategory(input.category);
   const amount = Number(input.depositAmount);
   if (!expenseVndSchema.safeParse(amount).success || amount <= 0) throw new ApiError(400, 'Số tiền cược phải là số nguyên dương.');
   const cvDate = input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : null;
@@ -246,6 +265,8 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
       cvSubmittedDate: cvDate,
       expectedRefundDate: expectedDate,
       note: input.note?.trim() || null,
+      // SIL-764 — undefined falls to the column default CUOC_CONTAINER.
+      category: input.category,
     }).returning();
     // Trạng thái ĐÃ hoàn cược at create: the collection posts into the
     // company fund through the standing treasury engine — never a hand-rolled
@@ -263,11 +284,14 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
 }
 
 /** KT fills/edits the CV date; the expected refund date defaults to CV + 14
- *  days server-side and stays editable afterwards. */
+ *  days server-side and stays editable afterwards. SIL-764: the Phân loại
+ *  rides the same edit dialog. */
 export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: number, input: {
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
+  category?: DepositCategory;
 }, conn?: Tx): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
+  assertDepositCategory(input.category);
   const update = async (tx: Tx) => {
     const [row] = await tx.select().from(s.depositRefundTrackers)
       .where(eq(s.depositRefundTrackers.id, trackerId)).limit(1).for('update');
@@ -287,6 +311,7 @@ export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: 
       cvSubmittedDate: cvDate,
       expectedRefundDate: nextExpected,
       note: input.note !== undefined ? (input.note?.trim() || null) : row.note,
+      category: input.category ?? row.category,
       updatedAt: new Date(),
     }).where(eq(s.depositRefundTrackers.id, trackerId)).returning();
     return fresh!;

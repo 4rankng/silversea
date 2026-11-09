@@ -452,9 +452,9 @@ export const qk = {
   depositTracker: {
     /** Broad prefix — matches every deposit-tracker query. */
     all: ['deposit-refund'] as const,
-    /** Filtered list — from/to/status ride the key. */
-    list: (from: string, to: string, status: string) =>
-      ['deposit-refund', from, to, status] as const,
+    /** Filtered list — from/to/status/category ride the key. */
+    list: (from: string, to: string, status: string, category: string = '') =>
+      ['deposit-refund', from, to, status, category] as const,
     /** "Thêm cược" typeahead — keyed by the last four digits. */
     billSuggestions: (digits: string) =>
       ['deposit-refund', 'bill-suggestions', digits] as const,

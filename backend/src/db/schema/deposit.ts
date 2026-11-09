@@ -25,6 +25,10 @@ export const depositRefundTrackers = pgTable('deposit_refund_trackers', {
    *  carriers run longer). */
   expectedRefundDate: date('expected_refund_date'),
   status: applicationEnum(['CHUA_HOAN_CUOC', 'DA_HOAN_CUOC'])('status').default('CHUA_HOAN_CUOC').notNull(),
+  // SIL-764 (id 885) — Phân loại: tiền cược container hay khoản tạm thu sửa
+  // chữa vỏ container (tài xế/KT đã nộp tại cảng). Both kinds share this one
+  // table and its board; existing rows default to the deposit kind.
+  category: applicationEnum(['CUOC_CONTAINER', 'TAM_THU_SUA_CHUA'])('category').default('CUOC_CONTAINER').notNull(),
   /** The one treasury movement the tick posted — guards double-ticks. */
   refundPostedMovementId: integer('refund_posted_movement_id'),
   refundPostedAt: timestamp('refund_posted_at', { withTimezone: true }),
