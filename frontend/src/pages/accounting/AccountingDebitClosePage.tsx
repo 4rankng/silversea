@@ -7,6 +7,7 @@ import {
   withdrawRateAdjustments,
   listSettlementRounds,
   createSettlementRound,
+  setDebitExternalCost,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
 } from '../../api/accountingDebitClient';
 import { createDebitNoteBatch, exportDebitNoteFile, lockShipmentCost } from '../../api/shipmentDebit';
@@ -276,6 +277,13 @@ export default function AccountingDebitClosePage() {
     onSuccess: () => { setMessage({ kind: 'ok', text: 'Đã rút yêu cầu.' }); refresh(); },
     onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
   });
+  // SIL-771 — lưu 'Chi phí ngoài' (ô nhập trên dòng): board refetch để ô
+  // lợi nhuận tái tính theo công thức Tổng thu − Tổng trả − Chi phí ngoài.
+  const externalCostMutation = useMutation({
+    mutationFn: setDebitExternalCost,
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll }); },
+    onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
+  });
   const settlementMutation = useMutation({
     mutationFn: createSettlementRound,
     onSuccess: (round) => {
@@ -291,6 +299,8 @@ export default function AccountingDebitClosePage() {
     confirm: (requestIds) => confirmMutation.mutate(requestIds),
     withdraw: (requestIds) => withdrawMutation.mutate(requestIds),
     isBusy: confirmMutation.isPending || withdrawMutation.isPending,
+    saveExternalCost: (shipmentId, value) => externalCostMutation.mutate({ shipmentId, chiPhiNgoai: value }),
+    externalCostSaving: externalCostMutation.isPending,
     // FB-145 — the [Tách nhóm] skeleton flag for the money columns.
     ratesRefreshing: revGroupRefreshing,
     // Card 211026024348 — the shared "Tách nhóm" action landed: the board's

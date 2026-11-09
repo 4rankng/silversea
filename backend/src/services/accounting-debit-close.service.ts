@@ -13,11 +13,15 @@
 //         precedent) — null only when nothing is known.
 //   trả:  Cước trả ĐV = trip_carrier_info.external_freight_cost (known iff
 //         every active trip has one); Lạch huyện ĐV = ops ZONE_SURCHARGE cost
-//         amount; Phát sinh ĐV = other ops-expense cost; Tổng 1 = their sum —
-//         PHÍ RU EXCLUDED (own column after Tổng 1, per P1).
-//   Lợi nhuận = Tổng thu − Tổng 1 − Phí RU; null when any component null.
+//         amount; Phát sinh ĐV = other ops-expense cost; Tổng trả = their sum —
+//         PHÍ RU EXCLUDED (own column after Tổng trả, per P1).
+//   Lợi nhuận = Tổng thu − Tổng trả − Chi phí ngoài (SIL-771, khách chốt
+//         09/11/2026 — thay công thức P1 'Tổng thu − Tổng 1 − Phí RU'; Phí RU
+//         còn HIỂN THỊ nhưng không còn trừ riêng). Chi phí ngoài là input kế
+//         toán (shipments.debit_external_cost); null = chưa nhập → đóng góp 0,
+//         KHÔNG khiến lợi nhuận null. Null khi Tổng thu/Tổng trả chưa xác định.
 //   Phí RU = pricing_tables rate_key='RU' (DATA — Chưa xác định until the
-//   customer populates the rate; convention flagged CẦN THÔNG TIN).
+//         customer populates the rate; convention flagged CẦN THÔNG TIN).
 //
 // "Duyệt" per the card's 2026-09-21 user ruling = confirmation columns, not
 // an approval queue: confirm/withdraw NEVER change rates (đối soát only).
@@ -35,6 +39,8 @@ import type { Tx } from './trip-shared';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { carrierKeysForLot } from './debit-settlement-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
+import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
+import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -43,6 +49,25 @@ function toNumber(value: string | number | null | undefined): number {
 
 const money = (value: number | null): string | null =>
   value == null ? null : String(value);
+
+/**
+ * SIL-771 — Lợi nhuận = Tổng thu − Tổng trả − Chi phí ngoài (khách chốt
+ * 09/11/2026, thay công thức P1 'Tổng thu − Tổng 1 − Phí RU').
+ *
+ * Chi phí ngoài là INPUT kế toán: null = chưa nhập → đóng góp 0, không phải
+ * "chưa xác định" — hàng tự động còn thiếu (tổng thu/tổng trả) mới là lý do
+ * lợi nhuận chưa tính được. Kết quả string để đi dây đúng chuẩn tiền của bảng
+ * (money fields string|null — Chưa xác định, never a fabricated 0).
+ */
+export function computeDebitBoardProfit(
+  tongThu: string | null,
+  tongTra: string | null,
+  chiPhiNgoai: string | null,
+): string | null {
+  if (tongThu == null || tongTra == null) return null;
+  const external = chiPhiNgoai == null ? 0 : Number(chiPhiNgoai);
+  return money(Number(tongThu) - Number(tongTra) - external);
+}
 
 export interface AccountingDebitBoardRow {
   shipmentId: number;
@@ -85,6 +110,9 @@ export interface AccountingDebitBoardRow {
     tong1: string | null;
     phiRu: string | null;
   };
+  /** SIL-771 — 'Chi phí ngoài' kế toán nhập (shipments.debit_external_cost).
+   *  Null = chưa nhập; tham gia công thức lợi nhuận với trọng số 0. */
+  chiPhiNgoai: string | null;
   loiNhuan: string | null;
   ghiChu: string | null;
   adjustment: {
@@ -118,6 +146,8 @@ export async function getAccountingDebitBoard(query: {
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
     tradeDirection: s.shipments.tradeDirection,
+    // SIL-771 — 'Chi phí ngoài' the accountant types on the board.
+    debitExternalCost: s.shipments.debitExternalCost,
     // FB-094 LCL grouping facts for the container-params cell + plate badge.
     cargoMode: s.shipments.cargoMode,
     costGroupId: s.shipments.costGroupId,
@@ -563,8 +593,9 @@ export async function getAccountingDebitBoard(query: {
   // copy of the note is derived here. Same executor default (db) as this file.
   const opsNotesByShipment = await loadDispatchExpenseNotes(lots.map((lot) => lot.id), executor);
 
-  // Row assembly — P1 arithmetic: Tổng 1 EXCLUDES Phí RU; lợi nhuận =
-  // Tổng thu − Tổng 1 − Phí RU (null when any component null).
+  // Row assembly — SIL-771 arithmetic: Lợi nhuận = Tổng thu − Tổng trả − Chi
+  // phí ngoài (chi phí ngoài null = chưa nhập → 0). Phí RU hiển thị riêng,
+  // không còn trừ vào lợi nhuận (khách chốt 09/11/2026).
   const items: AccountingDebitBoardRow[] = lots.map((lot) => {
     // F-2 ruling (b): the override-channel value when the lot qualifies, the
     // snapshot value otherwise — ONE effective freight drives Cước thu and
@@ -603,12 +634,8 @@ export async function getAccountingDebitBoard(query: {
       ? money(traComponents.reduce((sum, c) => sum + c.value, 0))
       : null;
     const phiRu = ruByLot.has(lot.id) ? money(ruByLot.get(lot.id)!) : null;
-    const thuNum = tongThu == null ? null : Number(tongThu);
-    const traNum = tong1 == null ? null : Number(tong1);
-    const ruNum = phiRu == null ? null : Number(phiRu);
-    const loiNhuan = thuNum != null && traNum != null && ruNum != null
-      ? money(thuNum - traNum - ruNum)
-      : null;
+    const chiPhiNgoai = lot.debitExternalCost == null ? null : money(toNumber(lot.debitExternalCost));
+    const loiNhuan = computeDebitBoardProfit(tongThu, tong1, chiPhiNgoai);
     return {
       shipmentId: lot.id,
       code: lot.code,
@@ -651,6 +678,7 @@ export async function getAccountingDebitBoard(query: {
       } : null,
       thu: { cuocThu, lachHuyen: lachHuyenThu, phuPs, phatSinhCus, tongThu },
       tra: { cuocTraDv, lachHuyenDv, phatSinhDv, tong1, phiRu },
+      chiPhiNgoai,
       loiNhuan,
       ghiChu: opsNotesByShipment.get(lot.id)?.join(' · ') ?? null,
       adjustment: adj == null
@@ -773,4 +801,31 @@ export async function assertNoPendingRateAdjustment(shipmentIds: number[], execu
   if (pending.length > 0) {
     throw new ApiError(409, `Lô ${pending.map((p) => p.code ?? `#${p.shipmentId}`).join(', ')} đang chờ đối soát cước`);
   }
+}
+
+/**
+ * SIL-771 — ghi 'Chi phí ngoài' kế toán gõ trên bảng Kiểm soát lô hàng
+ * (shipments.debit_external_cost). null = xoá giá trị (chưa nhập). Lô đã
+ * khóa chi phí / khóa sổ kế toán được đóng băng như mọi con số khác trên
+ * bảng (same asserts the BKS edit runs) — sửa sau khóa sẽ lệch với giấy báo
+ * nợ đã xuất.
+ */
+export async function setShipmentDebitExternalCost(input: {
+  shipmentId: number;
+  chiPhiNgoai: number | null;
+}): Promise<{ shipmentId: number; chiPhiNgoai: string | null }> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select({ id: s.shipments.id })
+      .from(s.shipments)
+      .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update');
+    if (!row) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentCostUnlocked(tx, row.id);
+    await assertShipmentAccountingUnlocked(tx, row.id);
+    const next = input.chiPhiNgoai == null ? null : String(input.chiPhiNgoai);
+    await tx.update(s.shipments)
+      .set({ debitExternalCost: next })
+      .where(eq(s.shipments.id, row.id));
+    return { shipmentId: row.id, chiPhiNgoai: next };
+  });
 }

@@ -310,3 +310,35 @@ p.debit-note { margin: 0 0 8px; }
 .debit-billing-editor .shipment-container-ledger__edit-actions { display: flex; flex: 0 0 auto; gap: 6px; }
 
 .debit-billing-editor__error { color: var(--danger, #b42318); font-size: 12px; }
+
+/* SIL-771 — 'Chi phí ngoài': ô nhập trực tiếp trên dòng, canh phải như các
+ * cột tiền, cùng token house (không màu ngoài tokens). */
+.debit-ext-cost {
+  width: 100%;
+  min-width: 96px;
+  text-align: right;
+  font-family: var(--font-data);
+  font-weight: var(--fw-semibold);
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.debit-ext-cost:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+/* SIL-771 — cảnh báo khách giữ nguyên: Lợi nhuận âm → ô bôi nền đỏ đậm,
+ * chữ trắng (đậm = solid var(--danger), không phải viền). */
+.debit-loinhuan--negative {
+  display: inline-block;
+  background: var(--danger);
+  color: #fff;
+  font-weight: var(--fw-semibold);
+  padding: 1px 6px;
+  border-radius: var(--radius-field);
+}
+

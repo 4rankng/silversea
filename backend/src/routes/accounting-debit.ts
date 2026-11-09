@@ -17,6 +17,7 @@ import {
   createRateAdjustmentRequests,
   confirmRateAdjustmentRequests,
   withdrawRateAdjustmentRequests,
+  setShipmentDebitExternalCost,
 } from '../services/accounting-debit-close.service';
 import {
   createDebitSettlementRound,
@@ -41,6 +42,13 @@ const decisionSchema = z.object({
   requestIds: z.array(z.number().int().positive()).min(1).max(200),
 });
 
+// SIL-771 — 'Chi phí ngoài' kế toán nhập trên bảng Kiểm soát lô hàng. Tiền
+// VND nguyên (numeric(15,0)); null = xoá giá trị (chưa nhập).
+const externalCostSchema = z.object({
+  shipmentId: z.number().int().positive(),
+  chiPhiNgoai: z.number().int().min(0).max(999_999_999_999_999).nullable(),
+});
+
 // Card 20260923_12 — Chọn Debit settlement round: lần/tháng are the accountant's
 // free choices (PDF); vatRate is the 0/5/8/10 set; the carrier + customer sides
 // are DERIVED server-side from the selected lots' active trips.
@@ -60,6 +68,14 @@ accountingDebitRoutes.get('/debit-board', OFFICE_ROLES, asyncHandler(async (req:
   const parsed = boardQuerySchema.safeParse(req.query);
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
   res.json(await getAccountingDebitBoard(parsed.data));
+}));
+
+// SIL-771 — kế toán lưu 'Chi phí ngoài' của một lô (ô nhập trực tiếp trên
+// bảng). Lô đã khóa chi phí / khóa sổ kế toán bị chặn ở service (409).
+accountingDebitRoutes.post('/debit-board/external-cost', declareMaterialWrite('accounting.debit-board.external-cost.set', { method: 'POST', path: '/api/accounting/debit-board/external-cost' }), OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+  const parsed = externalCostSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  res.json(await setShipmentDebitExternalCost(parsed.data));
 }));
 
 accountingDebitRoutes.post('/debit-board/rate-adjustments', declareMaterialWrite('accounting.debit-board.rate-adjustment.request', { method: 'POST', path: '/api/accounting/debit-board/rate-adjustments' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {

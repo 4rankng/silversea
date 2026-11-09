@@ -48,6 +48,8 @@ export interface AccountingDebitBoardRow {
   } | null;
   thu: AccountingDebitBoardThu;
   tra: AccountingDebitBoardTra;
+  /** SIL-771 — 'Chi phí ngoài' kế toán nhập; null = chưa nhập (đóng góp 0). */
+  chiPhiNgoai: string | null;
   loiNhuan: string | null;
   ghiChu: string | null;
   adjustment: {
@@ -69,6 +71,15 @@ export async function listAccountingDebitBoard(params: {
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
   if (params.dateTo) query.set('dateTo', params.dateTo);
   return api.get(`/accounting/debit-board?${query.toString()}`);
+}
+
+/** SIL-771 — lưu 'Chi phí ngoài' của một lô (null = xoá). Server chặn 409
+ *  khi lô đã khóa chi phí / khóa sổ kế toán. */
+export function setDebitExternalCost(input: {
+  shipmentId: number;
+  chiPhiNgoai: number | null;
+}): Promise<{ shipmentId: number; chiPhiNgoai: string | null }> {
+  return api.post('/accounting/debit-board/external-cost', input);
 }
 
 // Card 20260923_12 — Chọn Debit settlement rounds (đợt chốt). Query key lives

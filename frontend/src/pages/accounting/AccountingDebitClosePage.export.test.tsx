@@ -36,7 +36,8 @@ vi.mock('../../api/accountingDebitClient', () => ({
   withdrawRateAdjustments: vi.fn(),
   listSettlementRounds: listRounds,
   createSettlementRound: vi.fn(),
-  DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
+    setDebitExternalCost: vi.fn(),
+DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
 }));
 vi.mock('../../api/shipmentDebit', () => ({
   createDebitNoteBatch,
@@ -69,6 +70,7 @@ const row = (shipmentId: number, bill: string, costLockedAt: string | null = '20
   phanXe: ['Nhà xe A'],
   thu: { cuocThu: '1000000', lachHuyen: '90000', phuPs: '200000', phatSinhCus: '500000', tongThu: '1790000' },
   tra: { cuocTraDv: '400000', lachHuyenDv: '50000', phatSinhDv: '30000', tong1: '480000', phiRu: '150000' },
+  chiPhiNgoai: null,
   loiNhuan: '1160000',
   ghiChu: null,
   adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },

@@ -36,6 +36,7 @@ const row = (over: Partial<AccountingDebitBoardRow> = {}): AccountingDebitBoardR
   lcl: null,
   thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null },
   tra: { cuocTraDv: null, lachHuyenDv: null, phatSinhDv: null, tong1: null, phiRu: null },
+  chiPhiNgoai: null,
   loiNhuan: null,
   ghiChu: null,
   adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
