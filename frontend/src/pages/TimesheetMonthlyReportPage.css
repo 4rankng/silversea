@@ -35,9 +35,20 @@
   font-weight: var(--fw-semibold);
 }
 
-.ts-report .ts-report__cell--off {
-  color: var(--danger-text);
+/* SIL-774 — quy ước màu khách (Bảng 4): N = nghỉ tai nạn / nghỉ việc gia
+ * đình có phép → ô nền đỏ, chữ trắng; P = nghỉ sửa xe / bảo dưỡng định kỳ
+ * → nền trắng, chữ đen in hoa. */
+.ts-report .ts-report__cell--n {
+  background: var(--danger);
+  color: #fff;
   font-weight: var(--fw-semibold);
+}
+
+.ts-report .ts-report__cell--p {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
 }
 
 .ts-report .ts-report__cell--sunday {

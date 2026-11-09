@@ -1,7 +1,9 @@
 // FB-104 (card 141026230810) — báo cáo Tổng hợp xếp lệnh tháng theo mẫu Excel:
 // cột STT/Loại xe/Biển kiểm soát/Hình thức lương/Lái xe, lưới ký hiệu theo ngày
-// có màu, dòng "Tổng lệnh kẹp/ngày" + tỷ lệ % theo ngày, cột tổng hợp; "Q =
-// quay đầu → tính 2 chuyến" nên cột "Số chuyến quay đầu" đếm 2 chuyến/ô Q.
+// có màu, dòng "Tổng lệnh kẹp/ngày" + tỷ lệ % theo ngày, cột tổng hợp.
+// SIL-774: N = nghỉ tai nạn / nghỉ việc gia đình có phép (nền đỏ chữ trắng),
+// P = nghỉ sửa xe / bảo dưỡng định kỳ (nền trắng chữ đen); cột 6 đếm P,
+// cột 7 đếm N.
 
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -41,7 +43,7 @@ const monthA: TimesheetMonth = {
   id: 1, driverId: 1, driverName: 'Tài xế A', year: 2026, month: 9,
   salaryMode: 'PER_TRIP', dailyBase: 200000, flatAmount: null,
   status: 'OPEN', reconciledBy: null, reconciledAt: null, reconcileNote: null, warnings: [],
-  days: [day(1, 'K'), day(2, 'Q', true), day(3, 'N')],
+  days: [day(1, 'K'), day(2, 'Q', true), day(3, 'N'), day(4, 'P')],
   salary: { ...salary(3, 2), symbolCounts: { K: 1, Q: 1, 'Đ': 0, L: 0, N: 1, P: 0 } },
 };
 
@@ -76,8 +78,8 @@ describe('Tổng hợp xếp lệnh tháng (FB-104)', () => {
     page();
     expect(await screen.findByText('TỔNG HỢP XẾP LỆNH THÁNG 09/2026')).toBeTruthy();
     await screen.findByText('29H-12345');
-    for (const header of ['STT', 'Loại xe', 'Biển kiểm soát', 'Hình thức lương', 'Lái xe', 'Tổng lệnh đơn', 'Tổng lệnh kẹp', 'Số chuyến quay đầu', 'Tổng số chuyến', 'Số ngày công']) {
-      expect(screen.getByRole('columnheader', { name: new RegExp(header) })).toBeTruthy();
+    for (const header of ['STT', 'Loại xe', 'Biển kiểm soát', 'Hình thức lương', 'Lái xe', 'Tổng lệnh đơn', 'Tổng lệnh kẹp', 'Số chuyến quay đầu', 'Tổng số chuyến', 'Số ngày công', 'Số ngày nghỉ được hưởng lương', 'Số ngày nghỉ phép']) {
+      expect(screen.getByRole('columnheader', { name: header })).toBeTruthy();
     }
     expect(screen.getByText('29H-12345')).toBeTruthy();
     expect(screen.getByText('30K-67890')).toBeTruthy();
@@ -85,7 +87,7 @@ describe('Tổng hợp xếp lệnh tháng (FB-104)', () => {
     expect(screen.getAllByText('Lương theo tháng (trốn vé)').length).toBeGreaterThan(0);
   });
 
-  it('tổng hợp theo dòng: đơn/kẹp/quay đầu (Q = 2 chuyến)/tổng chuyến/ngày công', async () => {
+  it('tổng hợp theo dòng: đơn/kẹp/quay đầu/tổng chuyến/ngày công', async () => {
     page();
     const rowA = (await screen.findByText('Tài xế A')).closest('tr') as HTMLElement;
     expect(rowA.querySelector('[data-label="Tổng lệnh đơn"]')?.textContent).toBe('0');
@@ -94,6 +96,9 @@ describe('Tổng hợp xếp lệnh tháng (FB-104)', () => {
     expect(rowA.querySelector('[data-label="Số chuyến quay đầu"]')?.textContent).toBe('2');
     expect(rowA.querySelector('[data-label="Tổng số chuyến"]')?.textContent).toBe('3');
     expect(rowA.querySelector('[data-label="Số ngày công"]')?.textContent).toBe('2');
+    // SIL-774 — cột 6 đếm ngày P, cột 7 đếm ngày N.
+    expect(rowA.querySelector('[data-label="Số ngày nghỉ được hưởng lương"]')?.textContent).toBe('1');
+    expect(rowA.querySelector('[data-label="Số ngày nghỉ phép"]')?.textContent).toBe('1');
   });
 
   it('dòng Tổng lệnh kẹp/ngày + Tỷ lệ % theo ngày', async () => {
@@ -111,8 +116,12 @@ describe('Tổng hợp xếp lệnh tháng (FB-104)', () => {
     const rowA = (await screen.findByText('Tài xế A')).closest('tr') as HTMLElement;
     expect(rowA.querySelector('[data-label="Ngày 1"]')?.className).toContain('ts-report__cell--trip');
     expect(rowA.querySelector('[data-label="Ngày 2"]')?.className).toContain('ts-report__cell--sunday');
-    // N ngày 3 là nghỉ — đỏ thắng cả ô Chủ nhật
-    expect(rowA.querySelector('[data-label="Ngày 3"]')?.className).toContain('ts-report__cell--off');
+    // SIL-774 — N ngày 3: nền đỏ chữ trắng; P ngày 4: nền trắng chữ đen.
+    expect(rowA.querySelector('[data-label="Ngày 3"]')?.className).toContain('ts-report__cell--n');
+    expect(rowA.querySelector('[data-label="Ngày 4"]')?.className).toContain('ts-report__cell--p');
+    // quy ước ký hiệu in đầu báo cáo mang đúng nghĩa mới
+    expect(screen.getByText(/Nghỉ tai nạn \/ nghỉ việc gia đình có phép/)).toBeTruthy();
+    expect(screen.getByText(/Nghỉ sửa xe \/ bảo dưỡng định kỳ/)).toBeTruthy();
     // quy ước ký hiệu in đầu báo cáo
     for (const symbol of ['K', 'Q', 'Đ', 'L', 'N', 'P']) {
       expect(screen.getAllByText(new RegExp(`^${symbol}`)).length).toBeGreaterThan(0);

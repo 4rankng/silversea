@@ -247,3 +247,16 @@ describe('day → symbol (SIL-737, chuyến hoàn thành tự ghi ký hiệu)', 
     assert.equal(timesheetSymbolForDay(['DON', 'DON', 'DON']), 'Q');
   });
 });
+describe('TIMESHEET_SYMBOL_RULES — SIL-774 (khách chốt 09/11/2026, Bảng 4)', () => {
+  it('N = nghỉ tai nạn / nghỉ việc gia đình có phép; P = nghỉ sửa xe / bảo dưỡng định kỳ', () => {
+    assert.equal(TIMESHEET_SYMBOL_RULES.N.label, 'Nghỉ tai nạn / nghỉ việc gia đình có phép');
+    assert.equal(TIMESHEET_SYMBOL_RULES.P.label, 'Nghỉ sửa xe / bảo dưỡng định kỳ');
+  });
+
+  it('trọng số tiền lương không đổi: N không phải ngày công, P vẫn tính ngày công', () => {
+    assert.equal(TIMESHEET_SYMBOL_RULES.N.trips, 0);
+    assert.equal(TIMESHEET_SYMBOL_RULES.N.workday, false);
+    assert.equal(TIMESHEET_SYMBOL_RULES.P.trips, 0);
+    assert.equal(TIMESHEET_SYMBOL_RULES.P.workday, true);
+  });
+});

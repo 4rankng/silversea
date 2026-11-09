@@ -273,8 +273,12 @@ export default function TimesheetReconciliationPage() {
                 <th scope="col">Kẹp</th>
                 <th scope="col">Quay đầu</th>
                 <th scope="col">Lưu ca</th>
-                <th scope="col">Nghỉ</th>
-                <th scope="col">Nghỉ phép</th>
+                {/* SIL-774 — cột tổng hợp dùng N/P đổi nghĩa theo Bảng 4 khách:
+                    N = nghỉ tai nạn / nghỉ việc gia đình có phép → 'Số ngày
+                    nghỉ phép'; P = nghỉ sửa xe / bảo dưỡng định kỳ → 'Số ngày
+                    nghỉ được hưởng lương'. Số liệu đếm ngày theo ký hiệu, không đổi. */}
+                <th scope="col">Số ngày nghỉ phép</th>
+                <th scope="col">Số ngày nghỉ được hưởng lương</th>
                 <th scope="col">Chuyến</th>
                 <th scope="col">Ngày công</th>
                 <th scope="col">Chuyến CN</th>
@@ -293,8 +297,8 @@ export default function TimesheetReconciliationPage() {
                   <td className="num" data-label="Kẹp">{row.kepCount}</td>
                   <td className="num" data-label="Quay đầu">{row.quayDauCount}</td>
                   <td className="num" data-label="Lưu ca">{row.luuCaCount}</td>
-                  <td className="num" data-label="Nghỉ">{row.nghiCount}</td>
-                  <td className="num" data-label="Nghỉ phép">{row.nghiPhepCount}</td>
+                  <td className="num" data-label="Số ngày nghỉ phép">{row.nghiCount}</td>
+                  <td className="num" data-label="Số ngày nghỉ được hưởng lương">{row.nghiPhepCount}</td>
                   <td className="num" data-label="Chuyến">{row.trips}</td>
                   <td className="num" data-label="Ngày công">{row.workdays}</td>
                   <td className="num" data-label="Chuyến CN">{row.sundayTrips}</td>

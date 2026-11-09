@@ -136,3 +136,18 @@
 .ts-grid .ts-cell[data-adjustment]:not([data-adjustment='0']) {
   border-color: var(--warning);
 }
+
+/* SIL-774 — quy ước khách (Bảng 4): N = nghỉ tai nạn / nghỉ việc gia đình
+ * có phép → ô nền đỏ, chữ trắng. P = nghỉ sửa xe / bảo dưỡng định kỳ →
+ * nền trắng, chữ đen in hoa (uppercase khẳng định luật kể cả khi dữ liệu
+ * vào là chữ thường). Đặt SAU rule Chủ nhật để màu ký hiệu thắng màu CN. */
+.ts-grid .ts-cell[data-symbol='N'] {
+  background: var(--danger);
+  color: #fff;
+}
+
+.ts-grid .ts-cell[data-symbol='P'] {
+  background: var(--surface);
+  color: var(--ink);
+  text-transform: uppercase;
+}
