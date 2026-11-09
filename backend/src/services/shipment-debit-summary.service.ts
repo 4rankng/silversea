@@ -20,7 +20,7 @@ import { effectiveLotContainerCount } from '@tingting/shared';
 import { loadFreightSnapshotChannelByLot, loadRevManualPriceByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
-import { receivableDetermined } from './debit-receivable-arming';
+import { receivableDetermined, receivableDisplayValue } from './debit-receivable-arming';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -425,12 +425,15 @@ export async function getShipmentDebitSummary(query: {
           + (opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : 0)
         : null;
 
-    // Rule 24/10: chỉ hiện 0 khi đã tính = 0 hoặc lô ghép.
-    // Lô chưa chốt cước (freightAuto == null) và không phải lô ghép (revGroupId == null)
-    // và chưa khóa (lock == null) thì nếu tổng = 0, doanh thu PHẢI để null (trống).
-    if (receivableValue === 0 && freightAuto == null && lot.revGroupId == null && lock == null) {
-      receivableValue = null;
-    }
+    // Rule 24/10 (SIL-731 r4): chỉ hiện 0 khi đã tính = 0 hoặc lô ghép —
+    // lô KHÓA CHI PHÍ không phải ngoại lệ. Snapshot đóng băng '0' khi cước
+    // chưa từng được tính (freightAuto == null, revGroupId == null) vẫn là
+    // 'chưa chốt' → ô TRỐNG (R3Q-680-B / R4B-693-001, QA 08/11 build e6db602f).
+    receivableValue = receivableDisplayValue({
+      value: receivableValue,
+      freightKnown: freightAuto != null,
+      merged: lot.revGroupId != null,
+    });
     const carrier = carrierByLot.get(lot.id);
     const ops = opsByLot.get(lot.id);
     const externalFreight = carrier?.known ? carrier.total : null;

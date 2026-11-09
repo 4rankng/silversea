@@ -40,7 +40,9 @@ function freightFact(row: ShipmentDebitLotRow): ReactNode {
  *  freight fact uses). Lô 1 / ungrouped rows render the bare amount. */
 function receivableAmount(row: ShipmentDebitLotRow): ReactNode {
   const isMember = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1;
-  const isZeroUncalculated = !isMember && row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0 && row.lockStatus !== 'LOCKED';
+  // SIL-731 r4 — the 24/10 law has no lock exemption: a locked lot's frozen
+  // '0' with freightAuto null is still uncalculated → BLANK, never '0'.
+  const isZeroUncalculated = !isMember && row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0;
   const value = isZeroUncalculated ? null : money(row.receivableTotal);
   if (!isMember) return value;
   return (

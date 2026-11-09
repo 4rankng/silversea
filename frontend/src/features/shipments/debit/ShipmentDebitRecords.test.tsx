@@ -177,6 +177,16 @@ describe('SIL-478 — the grouped row face', () => {
     renderOnPhone([factRow({ shipmentId: 206, billOrBookNumber: 'BL-ZERO-UNPRICED', receivableTotal: 0, freightAuto: null, revGroupId: null, lockStatus: undefined })]);
     const zeroUnpriced = await screen.findByRole('article', { name: 'BL-ZERO-UNPRICED' });
     expect(zeroUnpriced.querySelector('.ledger-glist__amount')?.textContent ?? '').toBe('');
+
+    // SIL-731 r4: a cost-LOCKED lot is no exemption (QA repro R3Q-680-B /
+    // R4B-693-001 — snapshot froze '0', freightAuto null → BLANK, never '0').
+    renderOnPhone([factRow({ shipmentId: 207, billOrBookNumber: 'BL-ZERO-LOCKED', receivableTotal: 0, freightAuto: null, revGroupId: null, lockStatus: 'LOCKED' })]);
+    const zeroLocked = await screen.findByRole('article', { name: 'BL-ZERO-LOCKED' });
+    expect(zeroLocked.querySelector('.ledger-glist__amount')?.textContent ?? '').toBe('');
+    // D02: a traced computed 0 on a locked lot stays a real '0'.
+    renderOnPhone([factRow({ shipmentId: 208, billOrBookNumber: 'BL-ZERO-TRACED-LOCKED', receivableTotal: 0, freightAuto: 0, revGroupId: null, lockStatus: 'LOCKED' })]);
+    const tracedLocked = await screen.findByRole('article', { name: 'BL-ZERO-TRACED-LOCKED' });
+    expect(tracedLocked.querySelector('.ledger-glist__amount')?.textContent).toBe('0');
   });
 
   it('the row tap opens the detail; a read-only tap shows facts, never the workspace', async () => {

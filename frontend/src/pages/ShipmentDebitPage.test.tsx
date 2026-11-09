@@ -241,6 +241,28 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     expect(lockedRow.getAttribute('data-selected')).not.toBeNull();
   });
 
+  it('SIL-731 r4: a cost-LOCKED lot with never-traced freight renders DOANH THU blank (QA repro R3Q-680-B / R4B-693-001)', async () => {
+    listSummary.mockResolvedValue({
+      items: [
+        // 'Đã khóa' is no exemption: the snapshot froze '0' while freightAuto
+        // stayed null — the figure is still 'chưa chốt', the cell stays blank.
+        row({ billOrBookNumber: 'R3Q-680-B', receivableTotal: 0, freightAuto: null, revGroupId: null, lockStatus: 'LOCKED', lockedAt: '2026-11-01T00:00:00.000Z' }),
+        // A traced computed 0 on a locked lot keeps its '0' (D02).
+        row({ billOrBookNumber: 'BL-CALC0', receivableTotal: 0, freightAuto: 0, revGroupId: null, lockStatus: 'LOCKED', lockedAt: '2026-11-01T00:00:00.000Z' }),
+      ],
+      total: 2,
+    });
+    renderPage('/shipments-debit?customer=1');
+    expect((await screen.findAllByText('R3Q-680-B'))[0]).toBeTruthy();
+    const reproRow = screen.getAllByText('R3Q-680-B')[0].closest('tr')!;
+    expect(reproRow.querySelector('td[data-col="receivable"]')?.textContent ?? '').toBe('');
+    // The zero tooltip exists only on the traced-zero row (and its group sum),
+    // never on the uncalculated locked row.
+    const zeroCells = screen.getAllByTitle('Phát sinh nhưng tổng bằng 0');
+    expect(zeroCells.length).toBeGreaterThan(0);
+    for (const cell of zeroCells) expect(cell.closest('tr')).not.toBe(reproRow);
+  });
+
   it('renders Tổng chi from the payableTotal wire field', async () => {
     listSummary.mockResolvedValue({ items: [row({ payableTotal: 7_500_000 })], total: 1 });
     renderPage('/shipments-debit?customer=1');
