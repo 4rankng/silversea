@@ -99,23 +99,14 @@ export default function DispatchDetailPlanPage() {
       if (cancelDispatchRow.dispatch.tripId != null) {
         await tripClient.cancelTrip(cancelDispatchRow.dispatch.tripId);
       }
-      const parseEstimate = (val: string | null | undefined): number | null => {
-        if (!val) return null;
-        const num = Number(val);
-        return Number.isFinite(num) ? num : null;
-      };
-      // SIL-708 — the cancel payload must be the NEUTRAL unassigned carrier
-      // ('OWN' + clearVehicle) for BOTH fleet types. Keeping the row's
-      // EXTERNAL carrierType here shipped a plan save without externalCarrierId
-      // → schema 400 'Nhà xe ngoài là bắt buộc.' and the lot never returned to
-      // 'Chưa phân xe' (QA 07/11, lô R3Q-680-B). 'OWN' with no vehicle is the
-      // stored shape of an unassigned row on every surface.
-      await detailPlan.savePlan(cancelDispatchRow, {
-        carrierType: 'OWN',
-        clearVehicle: true,
-        plannedRevenue: parseEstimate(cancelDispatchRow.estimates.plannedRevenue),
-        plannedCarrierCost: parseEstimate(cancelDispatchRow.estimates.plannedCarrierCost),
-      });
+      // SIL-753 r4 (product decision 09/11) — the cancel endpoint itself
+      // clears the fulfillment's carrier assignment in the same transaction
+      // (every shape: external carrier, vehicle, placeholder plate), so the
+      // lot returns to true 'Chưa phân xe'. The old follow-up plan save is
+      // GONE, not redundant: once the SIL-751 rewind landed, the cancel
+      // bumped the lot version and that stale-version save answered 409
+      // 'Lô hàng đã thay đổi' — '4GS / Chờ bổ sung biển' stayed stuck (QA
+      // 09/11, lô QA1109-753B). Refresh re-reads the cleared row.
       await detailPlan.refresh();
       toast({
         kind: 'success',
