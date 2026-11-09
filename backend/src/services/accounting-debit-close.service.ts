@@ -121,6 +121,10 @@ export interface AccountingDebitBoardRow {
     requestedAt: string | null;
     confirmedAt: null | string;
   };
+  /** SIL-773 — dòng đã 'Lưu - Phê duyệt từng dòng và ẩn' (ISO) hoặc null:
+   *  hidden rows leave the operations list but stay viewable with
+   *  includeHidden, so the history remains traceable. */
+  debitHiddenAt: string | null;
   /** FB-094 (card 201026112300) — ACTIVE cost-lock time (ISO) or null: the
    *  consolidated debit-note export only accepts locked lots, so the board
    *  row carries its export eligibility. */
@@ -130,8 +134,12 @@ export interface AccountingDebitBoardRow {
 export async function getAccountingDebitBoard(query: {
   dateFrom?: string;
   dateTo?: string;
+  /** SIL-773 — true = hiện cả các dòng đã 'Lưu - Phê duyệt từng dòng và ẩn'
+   *  (lịch sử); mặc định chỉ danh sách tác nghiệp (debit_hidden_at null). */
+  includeHidden?: boolean;
 }, executor: Executor = db): Promise<{ items: AccountingDebitBoardRow[]; total: number }> {
   const conditions = [isNull(s.shipments.deletedAt)];
+  if (!query.includeHidden) conditions.push(isNull(s.shipments.debitHiddenAt));
   if (query.dateFrom) conditions.push(gte(s.shipments.expectedDeliveryDate, query.dateFrom));
   if (query.dateTo) conditions.push(lte(s.shipments.expectedDeliveryDate, query.dateTo));
   const lots = await executor.select({
@@ -148,6 +156,8 @@ export async function getAccountingDebitBoard(query: {
     tradeDirection: s.shipments.tradeDirection,
     // SIL-771 — 'Chi phí ngoài' the accountant types on the board.
     debitExternalCost: s.shipments.debitExternalCost,
+    // SIL-773 — 'Lưu - Phê duyệt từng dòng và ẩn' marker for the history view.
+    debitHiddenAt: s.shipments.debitHiddenAt,
     // FB-094 LCL grouping facts for the container-params cell + plate badge.
     cargoMode: s.shipments.cargoMode,
     costGroupId: s.shipments.costGroupId,
@@ -680,6 +690,7 @@ export async function getAccountingDebitBoard(query: {
       tra: { cuocTraDv, lachHuyenDv, phatSinhDv, tong1, phiRu },
       chiPhiNgoai,
       loiNhuan,
+      debitHiddenAt: lot.debitHiddenAt?.toISOString() ?? null,
       ghiChu: opsNotesByShipment.get(lot.id)?.join(' · ') ?? null,
       adjustment: adj == null
         ? { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null }
@@ -828,4 +839,26 @@ export async function setShipmentDebitExternalCost(input: {
       .where(eq(s.shipments.id, row.id));
     return { shipmentId: row.id, chiPhiNgoai: next };
   });
+}
+
+/**
+ * SIL-773 — nút 'Lưu - Phê duyệt từng dòng và ẩn': các dòng kế toán chọn
+ * được lưu/đối soát từng dòng rồi ẩn khỏi danh sách tác nghiệp. Ẩn là ghi
+ * dấu (debit_hidden_at/by) — KHÔNG xoá dữ liệu, bật includeHidden vẫn tra
+ * lại được lịch sử. Không chặn lô đã khóa: thao tác chỉ đổi CHỖ HIỆN của
+ * dòng trên bảng, không đổi một con số nào.
+ */
+export async function reconcileAndHideDebitLots(input: {
+  shipmentIds: number[];
+  userId: number;
+}): Promise<{ hidden: number[] }> {
+  const updated = await db.update(s.shipments)
+    .set({ debitHiddenAt: new Date(), debitHiddenBy: input.userId })
+    .where(and(
+      inArray(s.shipments.id, input.shipmentIds),
+      isNull(s.shipments.deletedAt),
+      isNull(s.shipments.debitHiddenAt),
+    ))
+    .returning({ id: s.shipments.id });
+  return { hidden: updated.map((row) => row.id) };
 }

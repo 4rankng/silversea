@@ -366,10 +366,17 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
       // One status per lot, always as a StatusPill so the whole board reads as
       // one voice (never a bare word beside pills elsewhere). The pending case
       // keeps its two row actions beside the pill — layout only, no logic moved.
-      if (row.adjustment.status === 'NONE') return <StatusPill variant="neutral">Chưa gửi</StatusPill>;
-      if (row.adjustment.status === 'CONFIRMED') return <StatusPill variant="success">Đã đối soát</StatusPill>;
+      // SIL-773 — a row hidden by 'Lưu - Phê duyệt từng dòng và ẩn' carries
+      // its own marker so the history view (Hiện dòng đã ẩn) still tells the
+      // hidden set apart from live rows.
+      const hiddenMarker = row.debitHiddenAt != null
+        ? <StatusPill variant="neutral">Đã lưu - ẩn</StatusPill>
+        : null;
+      if (row.adjustment.status === 'NONE') return <span className="debit-pending">{hiddenMarker}<StatusPill variant="neutral">Chưa gửi</StatusPill></span>;
+      if (row.adjustment.status === 'CONFIRMED') return <span className="debit-pending">{hiddenMarker}<StatusPill variant="success">Đã đối soát</StatusPill></span>;
       return (
         <span className="debit-pending">
+          {hiddenMarker}
           <StatusPill variant="warn">Chờ xác nhận</StatusPill>
           <button type="button" className="btn btn--secondary btn--sm" disabled={isBusy || requestId == null} onClick={() => requestId != null && confirm([requestId])}>Xác nhận</button>
           <button type="button" className="btn btn--ghost btn--sm" disabled={isBusy || requestId == null} onClick={() => requestId != null && withdraw([requestId])}>Rút</button>

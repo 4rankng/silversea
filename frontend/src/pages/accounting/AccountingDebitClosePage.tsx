@@ -8,6 +8,7 @@ import {
   listSettlementRounds,
   createSettlementRound,
   setDebitExternalCost,
+  reconcileAndHideDebitLots,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
 } from '../../api/accountingDebitClient';
 import { createDebitNoteBatch, exportDebitNoteFile, lockShipmentCost } from '../../api/shipmentDebit';
@@ -67,6 +68,9 @@ export default function AccountingDebitClosePage() {
   // (accounting-debit-close.service) — một dòng chưa phân loại (null) ở lại
   // chế độ FCL để dữ liệu chốt debit cũ không bao giờ biến mất khỏi bảng.
   const [cargoView, setCargoView] = useState<'FCL' | 'LCL'>('FCL');
+  // SIL-773 — danh sách tác nghiệp mặc định ẩn các dòng đã 'Lưu - Phê duyệt
+  // từng dòng và ẩn'; bật công tắc này refetch với includeHidden để tra lịch sử.
+  const [showHidden, setShowHidden] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [settlementOpen, setSettlementOpen] = useState(false);
   // FB-094 (card 181026145620) — Xuất Debit Note over the selected rows.
@@ -92,8 +96,14 @@ export default function AccountingDebitClosePage() {
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
-    queryKey: qk.accounting.debitBoard(filters.dateFrom, filters.dateTo),
-    queryFn: () => listAccountingDebitBoard({ dateFrom: filters.dateFrom || undefined, dateTo: filters.dateTo || undefined }),
+    // SIL-773 — chế độ hiện tại của bảng (tác nghiệp vs có cả dòng ẩn) là
+    // một phần định danh của query, không chỉ tham số lọc.
+    queryKey: [...qk.accounting.debitBoard(filters.dateFrom, filters.dateTo), showHidden ? 'with-hidden' : 'operations'],
+    queryFn: () => listAccountingDebitBoard({
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+      includeHidden: showHidden || undefined,
+    }),
   });
   const roundsQuery = useQuery({
     queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY,
@@ -297,6 +307,16 @@ export default function AccountingDebitClosePage() {
   const externalCostMutation = useMutation({
     mutationFn: setDebitExternalCost,
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll }); },
+    onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
+  });
+  // SIL-773 — 'Lưu - Phê duyệt từng dòng và ẩn': các dòng đã chọn rời danh
+  // sách tác nghiệp → clear selection (chúng không còn trên mặt bảng).
+  const reconcileHideMutation = useMutation({
+    mutationFn: reconcileAndHideDebitLots,
+    onSuccess: (result) => {
+      setMessage({ kind: 'ok', text: `Đã lưu - phê duyệt và ẩn ${result.hidden.length} dòng khỏi danh sách tác nghiệp (vẫn tra được trong 'Hiện dòng đã ẩn').` });
+      refresh();
+    },
     onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
   });
   const settlementMutation = useMutation({
@@ -587,6 +607,18 @@ export default function AccountingDebitClosePage() {
                 Ghép cước thu khách
               </UUIButton>
             </DisabledActionTip>
+            {/* SIL-773 — nhãn khách yêu cầu nguyên văn (Frank 09/11/2026 giữ
+                chữ 'Phê duyệt' trong nhãn này): lưu các dòng đã chọn và ẩn
+                khỏi danh sách tác nghiệp; bật 'Hiện dòng đã ẩn' tra lại. */}
+            <button
+              type="button"
+              className="btn btn--secondary"
+              disabled={selectedCount === 0 || reconcileHideMutation.isPending}
+              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để lưu - phê duyệt và ẩn' : undefined}
+              onClick={() => reconcileHideMutation.mutate(selectedRows.map((row) => row.shipmentId))}
+            >
+              {reconcileHideMutation.isPending ? 'Đang lưu…' : 'Lưu - Phê duyệt từng dòng và ẩn'}
+            </button>
             <button
               type="button"
               className="btn btn--primary"
@@ -619,6 +651,16 @@ export default function AccountingDebitClosePage() {
           to={filters.dateTo}
           onChange={({ from, to }) => setFilters({ dateFrom: from, dateTo: to })}
         />
+        {/* SIL-773 — lịch sử: bật để hiện cả các dòng đã 'Lưu - Phê duyệt từng
+            dòng và ẩn'; tắt để quay về danh sách tác nghiệp. */}
+        <label className="debit-show-hidden">
+          <input
+            type="checkbox"
+            checked={showHidden}
+            onChange={(event) => setShowHidden(event.target.checked)}
+          />
+          Hiện dòng đã ẩn
+        </label>
         <FilterDropdown
           count={facetCount}
           ariaLabel="Bộ lọc"

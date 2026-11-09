@@ -379,3 +379,15 @@ p.debit-note { margin: 0 0 8px; }
   outline: 2px solid var(--brand);
   outline-offset: -2px;
 }
+
+/* SIL-773 — công tắc 'Hiện dòng đã ẩn' trên mặt lọc: checkbox + nhãn một
+ * dòng, cùng cỡ chữ mặt lọc. */
+.debit-show-hidden {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: var(--text-body-size, 14px);
+  white-space: nowrap;
+  cursor: pointer;
+}

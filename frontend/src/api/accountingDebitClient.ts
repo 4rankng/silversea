@@ -51,6 +51,8 @@ export interface AccountingDebitBoardRow {
   /** SIL-771 — 'Chi phí ngoài' kế toán nhập; null = chưa nhập (đóng góp 0). */
   chiPhiNgoai: string | null;
   loiNhuan: string | null;
+  /** SIL-773 — dòng đã 'Lưu - Phê duyệt từng dòng và ẩn' (ISO) hoặc null. */
+  debitHiddenAt: string | null;
   ghiChu: string | null;
   adjustment: {
     status: 'NONE' | 'PENDING' | 'CONFIRMED';
@@ -66,10 +68,13 @@ export interface AccountingDebitBoardRow {
 export async function listAccountingDebitBoard(params: {
   dateFrom?: string;
   dateTo?: string;
+  /** SIL-773 — true = hiện cả các dòng đã 'Lưu - Phê duyệt từng dòng và ẩn'. */
+  includeHidden?: boolean;
 }): Promise<{ items: AccountingDebitBoardRow[]; total: number }> {
   const query = new URLSearchParams();
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
   if (params.dateTo) query.set('dateTo', params.dateTo);
+  if (params.includeHidden) query.set('includeHidden', 'true');
   return api.get(`/accounting/debit-board?${query.toString()}`);
 }
 
@@ -80,6 +85,13 @@ export function setDebitExternalCost(input: {
   chiPhiNgoai: number | null;
 }): Promise<{ shipmentId: number; chiPhiNgoai: string | null }> {
   return api.post('/accounting/debit-board/external-cost', input);
+}
+
+/** SIL-773 — nút 'Lưu - Phê duyệt từng dòng và ẩn' theo selection: server
+ *  ghi dấu debit_hidden_at/by; dòng rời danh sách tác nghiệp, bật
+ *  includeHidden vẫn tra lại được lịch sử. */
+export function reconcileAndHideDebitLots(shipmentIds: number[]): Promise<{ hidden: number[] }> {
+  return api.post('/accounting/debit-board/reconcile-hide', { shipmentIds });
 }
 
 // Card 20260923_12 — Chọn Debit settlement rounds (đợt chốt). Query key lives

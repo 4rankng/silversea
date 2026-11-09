@@ -27,7 +27,8 @@ vi.mock('../../api/accountingDebitClient', () => ({
   listSettlementRounds: listRounds,
   createSettlementRound: vi.fn(),
     setDebitExternalCost: vi.fn(),
-DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
+  reconcileAndHideDebitLots: vi.fn(),
+  DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
 }));
 vi.mock('../../api/dispatchPlanningClient', () => ({
   updateLclTruck: vi.fn(),
@@ -84,6 +85,8 @@ const lclRow = (
     thu: { cuocThu: '3150000', lachHuyen: '90000', phuPs: '200000', phatSinhCus: '500000', tongThu: '3890000' },
     tra: { cuocTraDv: '400000', lachHuyenDv: '50000', phatSinhDv: '30000', tong1: '480000', phiRu: '150000' },
     chiPhiNgoai: null,
+    debitHiddenAt: null,
+  debitHiddenAt: null,
     loiNhuan: '3260000',
     ghiChu: null,
     adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
