@@ -1,0 +1,11 @@
+SIL-758 UI driver log — playwright (@playwright/test chromium), viewport 1440x900, dev stack :7175/:3002 (fresh vite after stale-HMR restart), DB ss-prod-db
+Auth: POST /api/auth/login {identifier: 'tiepvv'} (CUS; credentials per testplan/testaccounts.txt) → JWT injected via addInitScript localStorage 'token' (same key the SPA reads — lib/token.ts).
+Steps:
+1. goto /shipments (networkidle) → search 'SIL704-lcl_share-1793985157461'.
+2. Cell DOM read-back, row SIL704-lcl_share-1793985157461-L2 (10 Pallet / 5 tấn):
+   TARGET textContent = "10 Pallet / 5 tấn·Lẻ"  (strong '10 Pallet / 5 tấn' + sep '·' + chip 'Lẻ' — single line, chip LAST)
+   BADGE count 1, title = "Hàng lẻ (LCL)".
+   Measure-only rows: "6 tấn·Lẻ" (single line). No-cargo LCL rows: "Chưa có hàng hóa·Lẻ".
+3. Screenshot: qa/2026-11-09_SIL-758_ui-1440.png (1440x900, table visible: '10 Pallet / 5 tấn · Lẻ' on row -L2, '6 tấn · Lẻ' on sibling LCL rows).
+NOTE (environment): the first vite dev server instance served a STALE transform of CusShipmentRow.tsx (watcher hiccup — served module lacked 'lcl-sep' even after touch + cache-buster). Server restarted (kill + fresh `npx vite --port 7175`), then the fresh module served and the drive above reflects the committed code. Playwright script: throwaway (removed after run; logged here verbatim in transcript).
+Exit status: 0.

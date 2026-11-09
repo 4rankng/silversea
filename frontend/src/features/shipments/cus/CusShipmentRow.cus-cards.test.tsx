@@ -163,7 +163,7 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
     expect(badge.textContent).toBe('Lẻ');
   });
 
-  it('renders both packaging demand and measures for LCL lot (SIL-731)', () => {
+  it('renders both packaging demand and measures on ONE line for LCL lot (SIL-731 + SIL-758)', () => {
     const { container } = renderRow(makeItem({
       cargoMode: 'LCL',
       packageCount: 10,
@@ -171,11 +171,11 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
       weightKg: '5000',
       volumeCbm: '12',
     }));
-    expect(container.querySelector('.cus-cargo-summary__containers')?.textContent).toBe('10 Pallet');
-    expect(container.querySelector('.cus-cargo-summary__weight')?.textContent).toBe('5 tấn · 12 CBM');
+    expect(container.querySelector('.cus-cargo-summary__containers')?.textContent).toBe('10 Pallet / 5 tấn · 12 CBM');
+    expect(container.querySelector('.cus-cargo-summary__weight')).toBeNull();
   });
 
-  it('renders inline Lẻ badge beside packaging demand in cargo summary for LCL lot (SIL-758)', () => {
+  it('renders the Lẻ chip as the LAST inline suffix of the single quantity line (SIL-758)', () => {
     const { container } = renderRow(makeItem({
       cargoMode: 'LCL',
       packageCount: 10,
@@ -185,12 +185,35 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
     }));
     const line = container.querySelector('.cus-cargo-summary__line')!;
     expect(line).toBeTruthy();
-    expect(line.querySelector('.cus-cargo-summary__containers')?.textContent).toBe('10 Pallet');
+    expect(line.querySelector('.cus-cargo-summary__containers')?.textContent).toBe('10 Pallet / 5 tấn · 12 CBM');
     const badge = line.querySelector('.cus-cargo-summary__lcl-badge')!;
     expect(badge).toBeTruthy();
     expect(badge.textContent).toBe('Lẻ');
     expect(badge.getAttribute('title')).toBe('Hàng lẻ (LCL)');
-    expect(container.querySelector('.cus-cargo-summary__weight')?.textContent).toBe('5 tấn · 12 CBM');
+    // The chip trails the quantity text (suffix '· Lẻ'); the visual gap is
+    // the line's flex spacing, so the text nodes concatenate without one.
+    expect(line.textContent).toBe('10 Pallet / 5 tấn · 12 CBM·Lẻ');
+  });
+
+  it('keeps one line per type for a mixed multi-type LCL summary, chip trailing the last line', () => {
+    const { container } = renderRow(makeItem({
+      cargoMode: 'LCL',
+      packageCount: null,
+      packageType: null,
+      containerSummary: '1x40HC + 1x20DC',
+      weightKg: '25000',
+      volumeCbm: '52.5',
+    }));
+    const lines = [...container.querySelectorAll('.cus-cargo-summary__line')];
+    expect(lines.map((line) => line.textContent)).toEqual([
+      '1x40HC',
+      '1x20DC',
+      '25 tấn · 52,5 CBM·Lẻ',
+    ]);
+    const badge = container.querySelector('.cus-cargo-summary__lcl-badge')!;
+    expect(badge.textContent).toBe('Lẻ');
+    // The merged shape must never reappear (Kiến nghị L2 item 1.2).
+    expect(container.querySelector('.cus-cargo-summary')!.textContent).not.toContain('1x40HC + 1x20DC');
   });
 
   it('R3 names the LCL lot cargo object in the day-filter empty state (SIL-504: one-line label)', () => {
@@ -206,14 +229,14 @@ describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => 
 
   it('R4a suppresses the CBM segment when the lot carries no volume — no "— CBM"', () => {
     const { container } = renderRow(makeItem({ cargoMode: 'LCL', volumeCbm: null }));
-    const metrics = container.querySelector('.cus-cargo-summary__weight')!;
-    expect(metrics.textContent).toBe('1,2 tấn');
-    expect(metrics.textContent).not.toContain('CBM');
+    const line = container.querySelector('.cus-cargo-summary__line')!;
+    expect(line.textContent).toContain('1,2 tấn');
+    expect(line.textContent).not.toContain('CBM');
   });
 
   it('R4a keeps the CBM segment when a volume exists', () => {
     const { container } = renderRow(makeItem({ cargoMode: 'LCL', volumeCbm: '3.5' }));
-    expect(container.querySelector('.cus-cargo-summary__weight')!.textContent).toBe('1,2 tấn · 3,5 CBM');
+    expect(container.querySelector('.cus-cargo-summary__line')!.textContent).toContain('1,2 tấn · 3,5 CBM');
   });
 
   it('R4b renders the muted "Chưa phân xe" signal for an unallocated containerless lot', () => {
