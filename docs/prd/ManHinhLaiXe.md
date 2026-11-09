@@ -83,7 +83,7 @@ Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề tác vụ ưu ti
 | Lịch và địa điểm làm hàng | Lịch đóng/trả, tên ngắn và tên đầy đủ nhà máy khi có, **Địa chỉ nhà máy**, rồi tên người liên hệ cùng **Số điện thoại liên hệ** ngay dưới địa chỉ |
 | Hàng hóa | Số container gắn với loại tương ứng, số chì và thao tác của chính công việc; số lượng tổng chỉ bổ sung, không thay cặp số–loại |
 | Lộ trình | Cảng nâng, cảng hạ và điểm giao/điểm trả vỏ riêng khi có khác biệt nghiệp vụ |
-| Nhiệm vụ và ghi chú | Nhiệm vụ viết hoa ở dòng riêng; ghi chú lái xe và quy định tại điểm làm hàng giữ nguyên nội dung có nghĩa |
+| Nhiệm vụ và ghi chú | Ghi chú lái xe và quy định tại điểm làm hàng giữ nguyên nội dung có nghĩa; khối Tác vụ đã BỎ khỏi chi tiết lệnh (SIL-767) |
 | Thông tin xuất hóa đơn | Tiêu đề từng bên/nhóm thông tin đặt **trước** tên, địa chỉ, mã số thuế của bên đó |
 | Bằng chứng và hành động | Ảnh container/chì/biên bản; thao tác phù hợp giai đoạn và luồng e-POD |
 

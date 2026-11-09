@@ -62,7 +62,6 @@ function DriverTripDetailContent() {
   const journeyBoard = useDriverJourneyBoard();
   const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
   const [fuelScanning, setFuelScanning] = useState(false);
-  const [chipsExpanded, setChipsExpanded] = useState(false);
   const [fuelExpanded, setFuelExpanded] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -158,7 +157,8 @@ function DriverTripDetailContent() {
     trip?.fulfillment?.driverNotes ?? '',
     trip?.knownTagLabels ?? [],
   ), [trip?.fulfillment?.driverNotes, trip?.knownTagLabels]);
-  const operationTags = operationNote.selectedLabels;
+  // SIL-767 (09/11, customer CR-006): the Tác vụ chips block is gone from the
+  // detail screen — operationNote survives for its manualText (Ghi chú) only.
 
   async function handleMilestone(eventType: MilestoneType) {
     if (!trip || !validFulfillmentId || closed) return;
@@ -430,12 +430,6 @@ function DriverTripDetailContent() {
   const driverNotes = trip.fulfillment?.driverNotes != null
     ? (operationNote.manualText || null)
     : (trip.notes ?? null);
-  // TC-DA-001: N ≥ 6 collapses to the first ~4 chips behind a Mở rộng/Thu gọn
-  // toggle; N ≤ 5 renders fully expanded (no toggle needed).
-  const shouldCollapseChips = operationTags.length >= 6;
-  const visibleOperationTags = shouldCollapseChips && !chipsExpanded
-    ? operationTags.slice(0, 4)
-    : operationTags;
   const containerSealPhotos = fulfillment?.containerSealPhotos ?? [];
   const contPhotoKey = containerSealPhotos.find((p) => p.type === 'CONTAINER')?.storageKey ?? null;
   const sealPhotoKey = containerSealPhotos.find((p) => p.type === 'SEAL')?.storageKey ?? null;
@@ -538,36 +532,14 @@ function DriverTripDetailContent() {
 
       <DriverTaskInfoSections trip={trip}>
 
-      {/* Card _36 (paper-form spec): Tác vụ and Ghi chú are STRUCTURAL rows —
-          they always render, filled from the saved dispatch note
-          (driverTaskNote v2: tags segment → Tác vụ uppercase chips, manual
-          text → Ghi chú) and show an empty state when the part is absent.
-          N ≥ 6 chips collapse behind Mở rộng/Thu gọn. Same parseNote
-          codepath as the /my-trips board cards. */}
+      {/* Card _36 (paper-form spec), amended by SIL-767 (09/11, customer
+          CR-006 — "khách hàng bảo thế nào thì làm thế"): the Tác vụ block
+          (chips + its empty state) is REMOVED from the detail screen — the
+          11 dispatch tags were UI noise drivers never used. Ghi chú stays a
+          STRUCTURAL row filled from the saved dispatch note (driverTaskNote
+          v2 manual text) and shows its empty state when absent. Same
+          parseNote codepath as the /my-trips board cards. */}
       <section className="driver-task-section" data-testid="task-note-section">
-        <div className="driver-task-section__head">
-          <span>Tác vụ</span>
-        </div>
-        {operationTags.length > 0 ? (
-          <div className="driver-task-ops" data-testid="operation-chips">
-            {visibleOperationTags.map((tag) => (
-              <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag.toLocaleUpperCase('vi-VN')}</span>
-            ))}
-            {shouldCollapseChips && (
-              <button type="button" className="driver-task-ops-toggle" onClick={() => setChipsExpanded((v) => !v)}>
-                {chipsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                <span>{chipsExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <EmptyState
-            variant="compact"
-            context="driver-tasks"
-            title="Không có tác vụ"
-            description="Chưa có việc nào được giao cho chuyến này."
-          />
-        )}
         <div className="driver-task-section__head">
           <span>Ghi chú</span>
         </div>

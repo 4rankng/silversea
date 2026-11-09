@@ -4,6 +4,14 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-11-09 — SIL-767: bỏ khối Tác vụ khỏi chi tiết lệnh app lái xe
+
+Chi tiết lệnh app lái xe không còn khối Tác vụ (11 nhãn điều vận + empty state
+"Không có tác vụ") — khách CR-006 gọi là rác giao diện; Frank 09/11: "khách hàng
+bảo thế nào thì làm thế". Thẻ tổng quát và màn điều vận giữ nguyên nhãn tác vụ;
+ghi chú lái xe giữ nguyên nội dung có nghĩa ở vị trí sau khối hóa đơn. Chi tiết:
+ManHinhLaiXe.md §3.1.
+
 ## 2026-11-09 — SIL-766: khối Thông tin xuất hóa đơn dời lên dưới Gọi kho
 
 Chi tiết lệnh app lái xe: khối Thông tin xuất hóa đơn rời chân trang (quy tắc cũ
