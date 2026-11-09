@@ -223,7 +223,6 @@ export default function OpsReconciliationReportPage() {
                   actionLot={row.staffId === liveLot?.opsUserId ? liveLot : undefined}
                   onVoucher={(lot) => (lot.remainingDifference > 0 ? setChiLot(lot) : setThuLot(lot))}
                   onRecover={(target) => setRecovery(target)}
-                  canReview={canReview}
                   onCreateSettlement={canReview ? (row) => setCreateFor({ staffId: row.staffId, staffName: row.staffName }) : undefined}
                 />
               ))}
@@ -265,7 +264,7 @@ export default function OpsReconciliationReportPage() {
   );
 }
 
-function ReportRow({ row, index, actionLot, onVoucher, onRecover, canReview, onCreateSettlement }: {
+function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettlement }: {
   row: OpsReconciliationReportRow;
   index: number;
   /** The scoped đợt, only when its live difference is still open and belongs
@@ -274,11 +273,9 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover, canReview, onC
   onVoucher: (lot: ExpenseReconciliation) => void;
   /** SIL-728 — present for finance actors: opens the staff-level recovery. */
   onRecover: (target: AdvanceRecoveryTarget) => void;
-  /** SIL-487 law — ADMIN/ACCOUNTANT create settlement phiếu; MANAGER reads. */
-  canReview: boolean;
-  /** SIL-728 (QA fail 09/11) — present for ADMIN/ACCOUNTANT: opens the same
-   *  "Lập phiếu hoàn ứng" dialog as the /advances tab, prefilled with this
-   *  row's staff. */
+  /** SIL-728 (QA fail 09/11) — present for ADMIN/ACCOUNTANT (SIL-487 law,
+   *  the caller gates it): opens the same "Lập phiếu hoàn ứng" dialog as the
+   *  /advances tab, prefilled with this row's staff. */
   onCreateSettlement?: (row: OpsReconciliationReportRow) => void;
 }) {
   return (
