@@ -47,7 +47,7 @@ import { ToastProvider } from '../../components/shared/Toast';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 
 function renderPage() {
-  return render(
+  const view = render(
     <MemoryRouter initialEntries={['/accounting/chot-debit']}>
       <ToastProvider>
         <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -56,6 +56,10 @@ function renderPage() {
       </ToastProvider>
     </MemoryRouter>,
   );
+  // SIL-772 — bảng có 2 chế độ xem FCL/LCL, mặc định FCL; các test này dò
+  // hành vi HÀNG LẺ nên chuyển sang chế độ LCL ngay sau khi mở trang.
+  fireEvent.click(screen.getByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
+  return view;
 }
 
 type RowLcl = NonNullable<AccountingDebitBoardRow['lcl']>;
@@ -86,7 +90,6 @@ const lclRow = (
     tra: { cuocTraDv: '400000', lachHuyenDv: '50000', phatSinhDv: '30000', tong1: '480000', phiRu: '150000' },
     chiPhiNgoai: null,
     debitHiddenAt: null,
-  debitHiddenAt: null,
     loiNhuan: '3260000',
     ghiChu: null,
     adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },

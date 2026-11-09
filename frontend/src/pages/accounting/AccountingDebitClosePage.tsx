@@ -96,9 +96,7 @@ export default function AccountingDebitClosePage() {
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
-    // SIL-773 — chế độ hiện tại của bảng (tác nghiệp vs có cả dòng ẩn) là
-    // một phần định danh của query, không chỉ tham số lọc.
-    queryKey: [...qk.accounting.debitBoard(filters.dateFrom, filters.dateTo), showHidden ? 'with-hidden' : 'operations'],
+    queryKey: qk.accounting.debitBoardView(filters.dateFrom, filters.dateTo, showHidden),
     queryFn: () => listAccountingDebitBoard({
       dateFrom: filters.dateFrom || undefined,
       dateTo: filters.dateTo || undefined,
