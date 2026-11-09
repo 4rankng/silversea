@@ -1,0 +1,13 @@
+fixture C fee={"sourceId":5360,"amount":500000}
+TRA rows=[{"party":"QA-R6-1794224973843-A","sl":1,"tong":150000},{"party":"QA-R6-1794224973843-B","sl":1,"tong":60000},{"party":"QA-R6-1794225018137-A","sl":1,"tong":150000},{"party":"XE NHÀ — SILVER SEA","sl":1,"tong":500000}]
+THU rows=[{"party":"QA R6 KH A 1794224973843","sl":1,"tong":150000},{"party":"QA R6 KH A 1794225018137","sl":1,"tong":150000},{"party":"QA R6 KH B 1794224973843","sl":1,"tong":60000},{"party":"QA R6 KH C 1794225018137","sl":1,"tong":500000}]
+drill-down A items=1
+PROBE PASS
+ℹ tests 0
+ℹ suites 0
+ℹ pass 0
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30823.854125

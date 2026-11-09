@@ -115,3 +115,38 @@ hợp (display-only). Pin: `phoi-phieu-shipment-fallback.test.ts` (r2 pins).
 5. Nhà xe ngoài đã soft-delete ⇒ giữ 'Chưa xác định' (FB-061 class: master
    chết không in tên).
 6. Trip-level all-agree vẫn thắng trước (ưu tiên luật r2 nguyên vẹn).
+
+## Round 6 (09/11/2026 — build 7c7db25c, verdict round 5 FAIL a129994c)
+
+- **Mổ xẻ staging DB thật (read-only, qa/2026-11-09_sil729-r6_staging-*.txt):
+  bucket TRA còn lại = 7 nguồn trip-less / 1.560.000₫ trên ĐÚNG 4 lô, TẤT CẢ
+  đều KHÔNG có fact nhà xe nào theo luật hiện hành** — SHP-2611-00315 (ful
+  OWN không BKS = shape 'Chưa phân xe' SIL-753), SHP-2611-00322 (lô đã
+  soft-delete, ful duy nhất canceled 'Shipment deleted'), SHP-2611-00392 (2
+  ful chưa bao giờ được gán xe), SHP-2611-00589 (lô trộn 2 xe nhà + 1 ngoài).
+  3 lô đầu là data probe QA tái tạo (note 'R3Q-680-A ops expense',
+  'R3Q-679r2 gate probe', 'R4B-3E FB-033c' — bl/booking trùng đúng các lô
+  fixture ĐÃ purge, không mang token QA nên không bao giờ bị qapurge). Số
+  verdict round 5 (5/630.000₫ + 9/1.830.000₫) = ĐÚNG số của build trước-r4a
+  (e6db602f, comment 4720) + 2 dòng fixture (R3B-BILL01/02, K4KFP-M4) đã bị
+  purge lúc ~10:20Z — không reproduce được trên build live (API 10:26Z: 3/360k
+  + 7/1.56M). Không còn lỗ join — join đã đúng sau r1+r2+r4a.
+- **Luật mới (dev ruling 09/11, theo Spec KB 'Chưa xác định' = CHỈ chi rời
+  KHÔNG gắn lô; NGHIÊM CẤM gom chuyến có lô vào dòng này):**
+  1. TRA: lô gắn tiền mà 2 luật carrier không đặt được TÊN NÀO (chưa phân xe /
+     chưa ever-planned / trộn nhiều nhà xe / 0 live fulfillment) ⇒ phí in theo
+     TÊN LÔ (mã SHP-…; draft không code ⇒ `Lô #<id>`; partyId/partyKind null —
+     không phải ledger entity, không join sổ phải trả theo id). KHÔNG bịa tên
+     nhà xe. THU nguyên vẹn — FB-061 giữ tiền khách master chết ở bucket lạ.
+  2. Nguồn gắn lô ĐÃ SOFT-DELETE ⇒ LOẠI KHỎI BÁO CÁO toàn bộ (cả 2 chiều,
+     cả 2 cửa sổ kỳ) — reportSources join shipments.deleted_at IS NULL.
+  3. Data probe trên staging: soft-delete 4 lô (809/816/889/1108) — khôi phục
+     được qua deleted_at.
+- **Case pin (r6)** (unit pins: `phoi-phieu-shipment-fallback.test.ts` r6):
+  1. Lô sống chưa phân xe / trộn xe + phí chi hộ trip-less ⇒ dòng theo mã lô,
+     KHÔNG phải 'Chưa xác định' (trước đây bucket).
+  2. Phí gắn chuyến có carrier không resolve ⇒ cũng rót về party theo lô.
+  3. Phí gắn lô soft-deleted ⇒ không còn dòng nào trong báo cáo.
+  4. Lô có fact (all-agree trip / fulfillment planned) ⇒ vẫn ra đúng tên nhà
+     xe trước luật lô (thứ tự luật giữ nguyên).
+  5. THU + khách master chết ⇒ vẫn 'Chưa xác định' (FB-061 nguyên vẹn).
