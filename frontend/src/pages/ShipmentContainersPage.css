@@ -262,7 +262,7 @@
 .shipment-container-ledger__multiline { display: flex; width: 100%; min-width: 0; flex-direction: column; align-items: flex-start; gap: 4px; }
 .shipment-container-ledger__multiline > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .shipment-container-ledger__multiline > strong,
-.shipment-container-ledger__multiline:not(.shipment-container-ledger__notes) > span:not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__plate--missing):not(.shipment-container-ledger__schedule-gap):not(.shipment-container-ledger__row-warning),
+.shipment-container-ledger__multiline:not(.shipment-container-ledger__notes) > span:not(.shipment-container-ledger__code):not(.shipment-container-ledger__combined):not(.shipment-container-ledger__plate):not(.shipment-container-ledger__dispatch-badge):not(.shipment-container-ledger__plate--missing):not(.shipment-container-ledger__schedule-gap):not(.shipment-container-ledger__row-warning),
 .shipment-container-ledger__multiline > em,
 .shipment-container-ledger__multiline > small { display: block; width: 100%; white-space: normal; word-break: break-word; }
 .shipment-container-ledger__multiline > strong { font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); }
@@ -306,17 +306,34 @@
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
 /* SIL-756: Container numbers (11-char ISO codes), declaration numbers,
    and Bill/Booking codes are single-token identifiers: single-line with
-   nowrap + overflow-wrap: normal so they never break mid-string (e.g. TK1108R + 002). */
+   nowrap + ellipsis + tooltip so they never break mid-string (e.g. 108590773650,
+   QACU200050, TK1108R002). */
 .shipment-container-ledger td[data-label="Số tờ khai"] .shipment-container-ledger__code,
 .shipment-container-ledger td[data-label="Bill/Booking"] .shipment-container-ledger__code,
-.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code { font-size: var(--text-caption-size); white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code {
+  display: block;
+  max-width: 100%;
+  font-size: var(--text-caption-size);
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+}
 /* SIL-516 doctrine sweep (SIL-515 wrap-full): the lot row's spec PHRASE
    ("Lô hàng lẻ | Thu: Xe 10T | Trả: Xe 3.5T") rides the same __code class but
    is sentence-like copy, not an identifier — the nowrap above kept it one
    131px unbreakable line in an 84px cell (it spilled 47px over Nâng / hạ).
    Phrases wrap at spaces and pipes; container NUMBERS keep the whole-token
    nowrap law above (QA-090: identifiers stay whole). */
-.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code--phrase { white-space: normal; overflow-wrap: break-word; word-break: normal; }
+.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code--phrase {
+  display: block;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+}
 /* Direction is structural classification, not a status: neutral token chip
    (surface-3/ink-2) matching the frozen overview's treatment — accent fills
    stay reserved for state signals. FB-113 v2: the chip moved into its own

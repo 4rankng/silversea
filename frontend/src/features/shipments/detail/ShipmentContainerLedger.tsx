@@ -1556,7 +1556,10 @@ export function ShipmentContainerLedger({
                           phrase modifier wraps that sentence-like line; real
                           container numbers keep the whole-token nowrap law
                           (SIL-516 doctrine sweep). */}
-                      <strong className={row.isLotLevel ? 'shipment-container-ledger__code shipment-container-ledger__code--phrase' : 'shipment-container-ledger__code'}>{row.isLotLevel ? lotSpecLine(row, lotRevCode) : fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
+                      <strong
+                        className={row.isLotLevel ? 'shipment-container-ledger__code shipment-container-ledger__code--phrase' : 'shipment-container-ledger__code'}
+                        title={row.isLotLevel ? undefined : (row.containerNumber || undefined)}
+                      >{row.isLotLevel ? lotSpecLine(row, lotRevCode) : fallback(row.containerNumber, `Container số ${row.ordinal}`)}</strong>
                       {row.isLotLevel
                         ? (lotRevCode == null && row.costVehicleClassCode == null
                           && <span className="shipment-container-ledger__missing">Chưa chọn loại xe tính cước</span>)

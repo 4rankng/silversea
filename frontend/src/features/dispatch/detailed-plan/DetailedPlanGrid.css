@@ -291,7 +291,11 @@
    and the inline editor is a single compact input with an Enter/Esc hint. */
 .detailed-plan-grid__decl-value {
   font-family: var(--font-data, inherit);
+  display: inline-block;
+  max-width: 100%;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   overflow-wrap: normal;
   word-break: normal;
 }
@@ -308,6 +312,7 @@
      makes the 24px WCAG 2.5.8 floor real without leaving the text line. */
   display: inline-block;
   min-height: 24px;
+  max-width: 100%;
   box-sizing: border-box;
   vertical-align: top;
   padding: 0;
@@ -320,7 +325,11 @@
   background: none;
   border: 0;
   cursor: pointer;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .detailed-plan-grid__decl-value--action:hover {
@@ -594,11 +603,14 @@
 }
 
 /* SIL-756: Container numbers are unbreakable ISO codes (11 chars) —
- * white-space: nowrap + overflow-wrap: normal on .ops-container-line
- * prevents breaking mid-string (e.g. QACU200050 + 7), while the pair tag
- * can wrap as a whole token to the next line. */
+ * white-space: nowrap + ellipsis + overflow-wrap: normal on .ops-container-line
+ * prevents breaking mid-string (e.g. QACU200050), while maintaining tooltip. */
 .detailed-plan-grid__cell--container .ops-container-line {
+  display: inline-block;
+  max-width: 100%;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   overflow-wrap: normal;
   word-break: normal;
 }
