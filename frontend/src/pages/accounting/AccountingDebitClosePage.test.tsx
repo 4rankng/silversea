@@ -517,6 +517,8 @@ describe('BD-02 (161026204709) — merged 100%/0₫ Cước thu lane on the phon
       }),
     ]);
     renderPage();
+    // SIL-772 — mặc định FCL; cả hai dòng của test là hàng lẻ → chế độ LCL.
+    fireEvent.click(screen.getByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
 
     // Lô 1 = 100% lane price on the card face.
     const principal = await screen.findByRole('article', { name: 'BL-P' });
