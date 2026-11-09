@@ -514,8 +514,17 @@ export async function listOpsExpensePhotos(
 }
 
 /** Active expense-type catalog for the OPS declaration form (grouped by
- * requires_invoice on the client). Scoped copy of the config catalog so OPS
- * needs no config:read grant. */
+ *  requires_invoice on the client). Scoped copy of the config catalog so OPS
+ *  needs no config:read grant.
+ *
+ *  SIL-770 — the driver's own cost buckets (tiền dầu, sửa chữa dọc đường/vá
+ *  vỏ) leave the picker: "chi phí của ai người đó tự khai" — the driver app's
+ *  catalog is untouched, only this Ops/CUS declaration list filters them.
+ *  Pure tail so the unit test pins the rule without a database. */
+export function opsDeclarableExpenseTypes<Row extends { code: string }>(rows: ReadonlyArray<Row>): Row[] {
+  return rows.filter((row) => !DRIVER_EXPENSE_TYPE_CODES[row.code]);
+}
+
 export async function listActiveOpsExpenseTypes(): Promise<Array<{
   id: number;
   code: string;
@@ -523,7 +532,7 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
   requiresInvoice: boolean | null;
   category: string | null;
 }>> {
-  return db
+  const rows = await db
     .select({
       id: s.forwarderExpenseTypes.id,
       code: s.forwarderExpenseTypes.code,
@@ -537,6 +546,7 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
       isNull(s.forwarderExpenseTypes.deletedAt),
     ))
     .orderBy(s.forwarderExpenseTypes.name);
+  return opsDeclarableExpenseTypes(rows);
 }
 
 export interface OpsContainerClaimant {
