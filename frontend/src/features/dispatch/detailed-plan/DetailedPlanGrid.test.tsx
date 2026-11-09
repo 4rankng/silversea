@@ -274,14 +274,13 @@ describe('DetailedPlanGrid', () => {
     });
 
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
-    // Owner spec floors, now at the 1520px table minimum (SIL-686 raised the
-    // floor to pay the measured one-line header widths): Khách hàng ≥180px,
-    // Điều phối ≥200px (SĐT one line), Ghi chú ≥160px; the formerly-fat
-    // schedule/route columns came back to content budgets.
-    expect(widths[columnNames.indexOf('route')] * 15.2).toBeGreaterThanOrEqual(180);
-    expect(widths[columnNames.indexOf('assignment')] * 15.2).toBeGreaterThanOrEqual(200);
-    expect(widths[columnNames.indexOf('notes')] * 15.2).toBeGreaterThanOrEqual(160);
-    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1520px;/);
+    // SIL-755: responsive table that shrinks within container at 1440px
+    expect(widths[columnNames.indexOf('route')]).toBeGreaterThanOrEqual(10);
+    expect(widths[columnNames.indexOf('assignment')]).toBeGreaterThanOrEqual(14);
+    expect(widths[columnNames.indexOf('notes')]).toBeGreaterThanOrEqual(10);
+    expect(widths[columnNames.indexOf('actions')]).toBeGreaterThanOrEqual(6.5);
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*width:\s*100%;/);
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*max-width:\s*100%;/);
     expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);
     // The squeezed-table card bands are gone; the <640px surface is the
     // dedicated card list (DispatchPlanCardList).

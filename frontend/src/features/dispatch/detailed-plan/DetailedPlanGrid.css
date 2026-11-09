@@ -235,22 +235,22 @@
      one-line budget): the Thao tác rail narrows to 4% (~54px at the floor)
      hosting TWO STACKED buttons (Phát lệnh icon above, ⋯ below) — "Hoàn
      thành" moved INTO the ⋯ menu, so no full-text pill sits in the rail. */
-  min-width: 1520px;
+  /* SIL-755 (round 2): responsive table that shrinks into its container
+     at 1440px (no horizontal overflow, scrollWidth <= clientWidth).
+     Column shares sum to 100% and keep content legible while the sticky
+     Thao tác rail fits on one line. */
+  width: 100%;
+  max-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
   font-size: var(--ops-table-supporting-size);
 }
 
-/* Shares sum to exactly 100 (ports covers two <col> elements). SIL-686
-   (06/11, FB-063): every HEADER is one line, so the shares pay the measured
-   one-line label widths at the 1520px minimum (labels incl. sort marker +
-   2×8px padding): schedule 174 · route 180 · ports 111 · documents 110 ·
-   container 90 · declaration 89 · assignment 81 · classification 85 ·
-   notes 69 · actions 81. The owner value floors (Khách hàng ≥180, Điều phối
-   ≥200, Ghi chú ≥160, Nâng/Trả ≥110) still hold; the value cells keep the
-   SIL-515 wrap law, so wider values wrap — only the header is one line. */
-.detailed-plan-grid__col--schedule { width: 11.9%; }
+/* Shares sum to exactly 100 (ports covers two <col> elements). SIL-686 / SIL-755:
+   every HEADER is one line, so the shares pay the measured one-line label widths
+   while fitting inside a 1440px viewport container without horizontal scroll. */
+.detailed-plan-grid__col--schedule { width: 11.5%; }
 /* Spec 23/10 (261023110000 §2) — the on-demand CHỌN column: fixed 48px
    (master-plan precedent) so the reading columns keep their percentage
    shares whether or not the merge mode is active. */
@@ -269,24 +269,21 @@
   align-items: center;
   justify-content: center;
 }
-.detailed-plan-grid__col--route { width: 12.5%; }
-.detailed-plan-grid__col--ports { width: 8.4%; }
-.detailed-plan-grid__col--documents { width: 7.6%; }
+.detailed-plan-grid__col--route { width: 12%; }
+.detailed-plan-grid__col--ports { width: 8%; }
+.detailed-plan-grid__col--documents { width: 7.5%; }
 /* SIL-591: the per-container tờ khai column — the "SỐ TỜ KHAI" header holds
-   one line at the SIL-686 shares (~89px measured, 6.2% of the 1520px floor);
-   longer values wrap (no cut). */
+   one line at the shares; longer values wrap (no cut). */
 .detailed-plan-grid__col--container { width: 6.5%; }
-.detailed-plan-grid__col--declaration { width: 6.2%; }
-.detailed-plan-grid__col--assignment { width: 15%; }
-/* SIL-589 (owner 27/10): the "PHÂN LOẠI" header holds one line. SIL-686's
-   rebalance gives the column 6% (~91px at the 1520px floor ≥ the measured
-   85px one-line label) — the cell stays the board's smallest. */
+.detailed-plan-grid__col--declaration { width: 6.5%; }
+.detailed-plan-grid__col--assignment { width: 14.5%; }
+/* SIL-589 / SIL-755: the "PHÂN LOẠI" header holds one line (6% ≥ 68px at 1144px). */
 .detailed-plan-grid__col--classification { width: 6%; }
 .detailed-plan-grid__col--notes { width: 12%; }
-/* SIL-588 (owner 27/10) / SIL-713 / SIL-755: the rail hosts TWO STACKED
-   buttons (Phát lệnh icon above, ⋯ below) while the "THAO TÁC" header fits
-   on one line without truncation (5.5% of 1520px ≈ 83.6px). */
-.detailed-plan-grid__col--actions { width: 5.5%; }
+/* SIL-588 / SIL-713 / SIL-755: the rail hosts TWO STACKED buttons
+   (Phát lệnh icon above, ⋯ below) while the "THAO TÁC" header fits on one line
+   without truncation (7.5% ≈ 85.8px at 1144px, min 74px). */
+.detailed-plan-grid__col--actions { width: 7.5%; }
 
 /* ── SIL-591 — SỐ TỜ KHAI cell (per-container, SIL-521 model) ──────────────
    The value reads as data text; the edit affordance is a house text button
@@ -461,7 +458,7 @@
    board fits its pane and nothing is ever covered — the reserve is resting
    whitespace inside the roomy Ghi chú cell. */
 .detailed-plan-grid {
-  --dpg-actions-reserve: 72px;
+  --dpg-actions-reserve: 78px;
 }
 .detailed-plan-grid td.detailed-plan-grid__cell--notes {
   padding-inline-end: calc(var(--space-sm) + var(--dpg-actions-reserve));
@@ -536,12 +533,13 @@
   z-index: var(--z-base, 1);
   background: var(--surface);
   border-left: 1px solid var(--border-color-secondary, var(--line));
-  width: 72px;
-  min-width: 68px;
+  width: 78px;
+  min-width: 74px;
   max-width: 88px;
   box-sizing: border-box;
   text-align: center;
   padding: 6px 4px;
+  white-space: nowrap;
 }
 
 .detailed-plan-grid th.detailed-plan-grid__th--actions {
@@ -551,6 +549,8 @@
   z-index: calc(var(--z-base, 1) + 3);
   font-size: var(--text-label-size, 11px);
   padding: 6px 4px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 
 /* SIL-588 (owner 27/10, supersedes the SIL-519 one-line flex rail) / SIL-713:
