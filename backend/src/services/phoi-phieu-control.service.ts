@@ -1325,16 +1325,22 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
  *  fallback resolves:
  *    · THU — the shipment's customer operationalName (FB-061: a soft-deleted
  *      master never prints; the money keeps reporting under 'Chưa xác định').
- *    · TRA (SIL-729 r2) — through EVERY live trip of the shipment (the exact
- *      candidate law `expenseTripCandidates` links sources by: deletedAt NULL,
- *      not CANCELED). Ops 'chi hộ' money rides the SHARED lot, so the lot's
- *      carrier fact is whatever ALL its live trips agree on — the unique-trip
- *      law left exactly those shared-lot fees (R3M-D2-A, R4B-3E-FCL1… QA
- *      08/11) stranded in 'Chưa xác định'. All trips naming ONE carrier
- *      identity resolves it; a mixed-carrier lot, a trip whose carrier does
- *      not resolve, or a lot with no live trip stays 'Chưa xác định' (one
- *      shared fee cannot be split across parties, and a trip-less lot has no
- *      carrier fact at all).
+ *    · TRA (SIL-729 r2→r4) — first through EVERY live trip of the shipment
+ *      (the exact candidate law `expenseTripCandidates` links sources by:
+ *      deletedAt NULL, not CANCELED), read via the
+ *      coalesce(trips.shipmentId, fulfillment.shipmentId) union (r4 —
+ *      fulfillment-linked trips are no longer invisible). Ops 'chi hộ'
+ *      money rides the SHARED lot, so the lot's carrier fact is whatever
+ *      ALL its live trips agree on (entity identity, never the display
+ *      string). When the trips cannot name a carrier — 0 live trips (the
+ *      Hủy phân xe flow cancels the lot's last one, QA 08–09/11) or a trip
+ *      whose carrier does not resolve — r4 falls back to the lot's OWN
+ *      planned carrier assignment (live `shipment_fulfillments`, all-agree
+ *      over fulfillments): an EXTERNAL carrier master or the plated
+ *      internal fleet. A never-assigned lot ('Chưa phân xe'), a deleted
+ *      carrier master, or disagreeing assignments keep 'Chưa xác định'
+ *      (one shared fee cannot be split across parties, and no fact names
+ *      no one).
  *  Returns the party plus, when a UNIQUE live trip exists, its id — the
  *  drill-down groups the resolved money under that real trip; a multi-trip
  *  resolution groups under the synthetic shipment key. */
@@ -1365,9 +1371,32 @@ async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: 
     }
     return map;
   }
-  const liveTrips = await db.select({ shipmentId: s.trips.shipmentId, tripId: s.trips.id })
+  const liveFulfillments = await db.select({
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    fulfillmentId: s.shipmentFulfillments.id,
+    plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+    plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+    plate: s.shipmentFulfillments.plannedVehiclePlateNumber,
+  })
+    .from(s.shipmentFulfillments)
+    .where(and(inArray(s.shipmentFulfillments.shipmentId, ids), isNull(s.shipmentFulfillments.canceledAt)));
+  const fulfillmentIds = liveFulfillments.map((row) => row.fulfillmentId);
+  // SIL-729 r4 — a lot's trips may link through their FULFILLMENT only
+  // (`trips.shipment_id` is nullable; the same coalesce union every other
+  // phoi read uses, card 191026100030). Reading `trips.shipment_id` alone
+  // made exactly the re-dispatched / hàng-lẻ lots invisible to the r2
+  // all-agree law and stranded their shared fees in 'Chưa xác định'.
+  const liveTrips = await db.select({
+    shipmentId: sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`,
+    tripId: s.trips.id,
+  })
     .from(s.trips)
-    .where(and(inArray(s.trips.shipmentId, ids), isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')));
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .where(and(
+      fulfillmentIds.length > 0
+        ? or(inArray(s.trips.shipmentId, ids), inArray(s.trips.fulfillmentId, fulfillmentIds))
+        : inArray(s.trips.shipmentId, ids),
+      isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')));
   const liveByShipment = new Map<number, number[]>();
   for (const row of liveTrips) {
     if (row.shipmentId == null) continue;
@@ -1392,6 +1421,75 @@ async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: 
     const first = parties[0]!;
     if (!parties.every((party): party is ReportPartyInfo => party != null && identityOf(party) === identityOf(first))) continue;
     map.set(shipmentId, { party: first, liveTripId: trips.length === 1 ? trips[0]! : null });
+  }
+  // SIL-729 r4 — the lot's OWN carrier fact: whenever the trips cannot name
+  // ONE carrier — 0 live trips (the Hủy phân xe flow cancels the lot's last
+  // one, QA 08–09/11), a trip whose carrier does not resolve, or live trips
+  // that DISAGREE — the fee still rides a lot that holds its planned carrier
+  // assignment in `shipment_fulfillments` (the '4GS / Chờ bổ sung biển'
+  // shape survives its trip cancel — QA 09/11). The planned assignment is
+  // the lot's own booking fact and it wins over the unknown bucket: all live
+  // fulfillments naming ONE carrier identity resolve the party — EXTERNAL +
+  // planned carrier master (isCarrier, live — FB-061 class: a deleted master
+  // never prints) → the operational label, carrier party; OWN + planned
+  // plate → the internal fleet code. A fulfillment with no assignment
+  // ('Chưa phân xe': plate-less OWN or never planned) or assignments that
+  // disagree keep the bucket — a shared fee never invents or splits a
+  // party.
+  if (fulfillmentIds.length > 0) {
+    const externalIds = liveFulfillments
+      .map((row) => row.plannedExternalCarrierId)
+      .filter((id): id is number => id != null);
+    const externalNames = new Map<number, string>();
+    if (externalIds.length > 0) {
+      const masters = await db.select({
+        id: s.customers.id,
+        name: sql<string | null>`${operationalName(s.customers.shortName, s.customers.name)}`,
+      })
+        .from(s.customers)
+        .where(and(inArray(s.customers.id, externalIds), eq(s.customers.isCarrier, true), isNull(s.customers.deletedAt)));
+      for (const master of masters) {
+        if (master.name) externalNames.set(master.id, master.name);
+      }
+    }
+    const factByFulfillment = new Map<number, { identity: string; party: ReportPartyInfo }>();
+    for (const row of liveFulfillments) {
+      if (row.plannedExternalCarrierId != null) {
+        const name = externalNames.get(row.plannedExternalCarrierId);
+        if (name == null) continue;
+        factByFulfillment.set(row.fulfillmentId, {
+          identity: `carrier:${row.plannedExternalCarrierId}:${name}`,
+          party: { name, ghiChu: null, shortName: name, partyId: row.plannedExternalCarrierId, partyKind: 'carrier' },
+        });
+      } else if (row.plate != null && row.plate !== '') {
+        factByFulfillment.set(row.fulfillmentId, {
+          identity: `internal::${INTERNAL_CARRIER_CODE}`,
+          party: { name: INTERNAL_CARRIER_CODE, ghiChu: null, shortName: INTERNAL_CARRIER_CODE, partyId: null, partyKind: null },
+        });
+      }
+    }
+    const identitiesByShipment = new Map<number, string[]>();
+    const partyByShipment = new Map<number, ReportPartyInfo>();
+    for (const row of liveFulfillments) {
+      const fact = factByFulfillment.get(row.fulfillmentId);
+      const list = identitiesByShipment.get(row.shipmentId) ?? [];
+      if (fact) {
+        list.push(fact.identity);
+        partyByShipment.set(row.shipmentId, fact.party);
+      } else {
+        // An unassigned fulfillment poisons its lot: 'Chưa phân xe' names nobody.
+        list.push('');
+      }
+      identitiesByShipment.set(row.shipmentId, list);
+    }
+    for (const [shipmentId, identities] of identitiesByShipment) {
+      if (map.has(shipmentId)) continue;
+      const first = identities[0] ?? '';
+      if (first === '' || !identities.every((identity) => identity === first)) continue;
+      const party = partyByShipment.get(shipmentId);
+      if (!party) continue;
+      map.set(shipmentId, { party, liveTripId: null });
+    }
   }
   return map;
 }

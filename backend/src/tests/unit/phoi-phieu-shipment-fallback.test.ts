@@ -112,3 +112,46 @@ describe('SIL-729 — the drill-down shows resolved trip-less money', () => {
       'the sort never arithmetic on a null tripId');
   });
 });
+
+describe('SIL-729 r4 — the fallback sees fulfillment-linked trips and the lot carrier fact', () => {
+  const fallback = fnBody('resolveShipmentFallbackParties');
+
+  it('live trips are read through the fulfillment union, not trips.shipment_id alone', () => {
+    // trips.shipment_id is NULLABLE (schema/trips.ts): a trip can link its lot
+    // ONLY through fulfillment_id — the same coalesce union every other phoi
+    // read uses (card 191026100030). The r2 join missed exactly those lots.
+    assert.ok(fallback.includes('coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})'),
+      'live trips key to their lot via coalesce(trips.shipmentId, fulfillment.shipmentId)');
+    assert.ok(fallback.includes('inArray(s.trips.fulfillmentId, fulfillmentIds)'),
+      'fulfillment-linked live trips join the candidate set');
+    assert.ok(fallback.includes('isNull(s.shipmentFulfillments.canceledAt)'),
+      'only live (never-canceled) fulfillments feed both reads');
+  });
+
+  it('the lot planned assignment resolves the party when trips cannot', () => {
+    // The lot's OWN carrier fact (QA 09/11: '4GS / Chờ bổ sung biển' survives
+    // its trip cancel — 0 live trips left, r2 had nothing to all-agree on).
+    assert.ok(fallback.includes('plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId'),
+      'the external carrier master id comes from the fulfillment plan');
+    assert.ok(fallback.includes('plate: s.shipmentFulfillments.plannedVehiclePlateNumber'),
+      'the internal fleet fact comes from the planned plate');
+    assert.ok(fallback.includes('eq(s.customers.isCarrier, true), isNull(s.customers.deletedAt)'),
+      'the external master obeys the FB-061 live-carrier law');
+    assert.ok(fallback.includes("identity: `internal::${INTERNAL_CARRIER_CODE}`"),
+      'a plated OWN fulfillment names the internal fleet exactly like the trip case-expression');
+    assert.ok(fallback.includes('partyKind: \'carrier\''),
+      'a fulfillment-resolved external carrier keeps the ledger-side carrier identity');
+  });
+
+  it('an unassigned or disagreeing lot never invents a party', () => {
+    // 'Chưa phân xe' (plate-less OWN / never planned) poisons the lot.
+    assert.ok(fallback.includes("list.push('')"),
+      'a fulfillment with no carrier fact never names the bucket');
+    // All-agree over fulfillments, same law as the trip branch.
+    assert.ok(fallback.includes('!identities.every((identity) => identity === first)'), 'disagreeing assignments keep the bucket');
+    assert.ok(fallback.includes('if (map.has(shipmentId)) continue;'),
+      'the trip-level all-agree resolution (r2 law) still wins first');
+    assert.ok(fallback.includes('liveTripId: null'),
+      'a fulfillment-resolved party groups under the synthetic shipment key (no live trip to book)');
+  });
+});

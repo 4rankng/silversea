@@ -73,3 +73,45 @@ hợp (display-only). Pin: `phoi-phieu-shipment-fallback.test.ts` (r2 pins).
    nhà xe (trước đây rơi 'Chưa xác định').
 2. Shipment 2 live trip KHÁC nhà xe ⇒ giữ 'Chưa xác định'.
 3. Shipment có 1 live trip không resolve được carrier ⇒ giữ 'Chưa xác định'.
+
+## Round 4 (09/11/2026 — build e6db602f vẫn FAIL, QA comment 4702/4712)
+
+- **Số liệu:** 'Chưa xác định' PHẢI TRẢ đứng yên 5 chuyến / 630.000₫ qua r1
+  (3c2057aa) và r2 (75774f47) — bucket trả về không đổi trên staging.
+- **Root cause r4 (mổ xẻ code, đúng 5 chuyến không ăn):** r2 chỉ resolve TRA
+  qua live trip ĐỌC bằng `trips.shipment_id = shipment` — nhưng
+  `trips.shipment_id` NULLABLE: chuyến có thể nối lô CHỈ qua
+  `fulfillment_id` (đúng union `coalesce(trips.shipmentId,
+  shipmentFulfillments.shipmentId)` mọi chỗ đọc khác đã dùng, card
+  191026100030). Lô 0 live trip (mọi chuyến đã CANCELED — đúng shape Hủy phân
+  xe SIL-753 để lại) cũng không có gì để all-agree. Trong khi đó lô VẪN giữ
+  sự thật nhà xe ở `shipment_fulfillments` (plannedCarrierType /
+  plannedExternalCarrierId / plannedVehiclePlateNumber — '4GS / Chờ bổ sung
+  biển' kẹt lại sau hủy). ⇒ join cũ cụt ở 2 lỗ này, đúng các lô đã qua
+  re-dispatch/hủy chuyến.
+- **Fix r4 (luật owner giữ nguyên: CHỈ chi rời không gắn lô mới vào 'Chưa
+  xác định'):**
+  1. Live-trip read của fallback dùng union
+     `coalesce(trips.shipmentId, shipmentFulfillments.shipmentId)` — chuyến
+     nối qua fulfillment không còn vô hình.
+  2. Khi trip-level không resolve (0 live trip / không all-agree), fallback
+     đọc carrier fact của lô từ live fulfillments (canceledAt NULL) với cùng
+     luật all-agree: EXTERNAL + plannedExternalCarrierId → tên nhà xe
+     (operational label, isCarrier ACTIVE, soft-delete law); OWN + BKS →
+     'XE NHÀ — SILVER SEA'. Fulfillment chưa phân xe (OWN không BKS / null)
+     hoặc nhà xe ngoài đã xóa danh mục ⇒ không đoán ⇒ giữ 'Chưa xác định'.
+  3. liveTripId vẫn chỉ khi unique live trip (drill-down bookable);
+     fulfillment-resolve → key shipment tổng hợp.
+
+### Case pin (r4)
+
+1. Lô có live trip nối CHỈ qua fulfillmentId + phí chi hộ trip-less ⇒ bucket
+   đúng tên nhà xe (trước đây 'Chưa xác định').
+2. Lô 0 live trip (mọi chuyến CANCELED) nhưng fulfillment còn gán 4GS ⇒
+   bucket '4GS' (đúng fact lô; trước đây 'Chưa xác định').
+3. Lô chưa bao giờ phân xe (OWN không BKS, null type) ⇒ giữ 'Chưa xác định'
+   (không có fact để nói).
+4. Fulfillments của một lô KHÁC nhà xe nhau ⇒ giữ 'Chưa xác định'.
+5. Nhà xe ngoài đã soft-delete ⇒ giữ 'Chưa xác định' (FB-061 class: master
+   chết không in tên).
+6. Trip-level all-agree vẫn thắng trước (ưu tiên luật r2 nguyên vẹn).
