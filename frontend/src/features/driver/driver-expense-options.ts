@@ -64,10 +64,6 @@ export const DRIVER_EXPENSE_OPTIONS: DriverExpenseOption[] = [
   { code: 'other-road', label: 'Tiền đường khác', type: Type.OTHER, group: 'DRIVER_ROAD' },
 ];
 
-export function driverExpenseOptions(norms: Array<{ code: string; label: string; amount: string | number }>): DriverExpenseOption[] {
-  return [...DRIVER_EXPENSE_OPTIONS, ...norms.map(norm => ({ code: `norm:${norm.code}`, label: norm.label, amount: Number(norm.amount), feeNormCode: norm.code, type: Type.OTHER, group: 'DRIVER_ROAD' as const }))];
-}
-
 export function driverExpenseOption(code: string, options = DRIVER_EXPENSE_OPTIONS) {
   return options.find(option => option.code === code) ?? DRIVER_EXPENSE_OPTIONS[0];
 }

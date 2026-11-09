@@ -1,17 +1,17 @@
 import { PhotoImage } from '../shared/PhotoImage';
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Plus, ReceiptText, StickyNote } from 'lucide-react';
+import { Camera, Plus, ReceiptText, StickyNote, Trash2 } from 'lucide-react';
 import {
   DRIVER_INCIDENTAL_COST_LABELS,
   NO_INVOICE_EVIDENCE_TYPE_LABELS,
   DriverIncidentalCostType,
 } from '@tingting/shared';
 import { driverClient, type DriverIncidentalCostView } from '../../api/driverClient';
-import { NumberField, DateField, TextField, UuiSelectField, Tabs, EmptyState } from '../../design-system';
+import { NumberField, TextField, UuiSelectField, EmptyState } from '../../design-system';
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { driverExpenseOption, requiredEvidenceTypeForExpenseCode, type DriverExpenseOption } from '../../features/driver/driver-expense-options';
-import { useDriverExpenseEntry, type DriverExpenseDraft, type DriverEvidenceKind } from '../../features/driver/useDriverExpenseEntry';
+import { useDriverExpenseEntry, type DriverExpenseDraft } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
 import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
 import { DriverExpenseCorrection } from './DriverExpenseCorrection';
@@ -36,16 +36,14 @@ export interface ShipmentCostEntryFormProps {
  * sign — the server rejects a lot row without one ("Chi phí lô hàng phải kèm
  * ảnh biên lai trước khi lưu."), positive or negative alike (CP700-03: "MỌI
  * dòng nhóm DRIVER_SHIPMENT phải có ảnh biên lai — FE chặn + BE từ chối").
- * An ordinary road-bucket row (tolls, fee norms) keeps the optional-photo
- * contract — CP700-03 exempts it, and the old amount-gated rule here used to
- * block exactly those rows the server accepts.
  *
- * Two contract-bounded parity edges (kept, documented): fee-norm options are
- * pinned to the ROAD bucket here while the server reads the norm's own
- * `costGroup` (card 20260921_7: "định mức pins its own costGroup"); and the
- * server's `evidenceKind === 'RECEIPT'` photo clause has no FE mirror because
- * this form sends `evidenceKind` for lot rows only (EvidenceKindTicks is
- * lot-only) — a road row never claims a receipt kind from the driver surface.
+ * SIL-759 (spec_fix 09/11 Phần II Epic 1 mục 2): the [+ Thêm chi phí] form is
+ * LOT-ONLY, one horizontal row per draft — the Tiền đường bucket is system
+ * money (định mức tạm tính) the driver only views, with the "Ghi chú tiền
+ * đường" for discrepancies, so the road options/norms are no longer offered
+ * here. The evidence-kind ticks ride along: a catalog-classified lot fee's
+ * paper kind follows the catalog itself (INVOICED ⇒ INVOICE, else RECEIPT) —
+ * the same classification the server applies on the receivable side.
  */
 function receiptStillNeeded(selected: DriverExpenseOption): boolean {
   if (requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode) != null) return true;
@@ -76,33 +74,6 @@ function tableGroupOf(entry: DriverIncidentalCostView): 'DRIVER_SHIPMENT' | 'DRI
   ] as DriverIncidentalCostType[]).includes(entry.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT';
 }
 
-/** Card 141026230700 — "2 ô chọn nhỏ: Hóa đơn / Phiếu thu": a compact pair of
- *  house toggle buttons (btn sm, ≤40px) replacing the old "Loại chứng từ"
- *  dropdown. The choice is DATA for the phơi-phiếu pass, not a tab, so it is a
- *  pressed-button group — never a restyled Tabs primitive. */
-function EvidenceKindTicks({ value, onChange, disabled }: {
-  value: DriverEvidenceKind;
-  onChange: (kind: DriverEvidenceKind) => void;
-  disabled: boolean;
-}) {
-  return (
-    <div className="shipment-cost-entry__evidence-ticks" role="group" aria-label="Loại chứng từ">
-      {(['INVOICE', 'RECEIPT'] as const).map((kind) => (
-        <button
-          key={kind}
-          type="button"
-          className={`btn btn--sm ${value === kind ? 'btn--primary' : 'btn--secondary'}`}
-          aria-pressed={value === kind}
-          disabled={disabled}
-          onClick={() => onChange(kind)}
-        >
-          {kind === 'INVOICE' ? 'Hóa đơn' : 'Phiếu thu'}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 interface CostDraftRowProps {
   index: number;
   row: DriverExpenseDraft;
@@ -119,75 +90,56 @@ interface CostDraftRowProps {
   onDiscardPendingFile: () => void;
 }
 
-/** One draft row of the step-3 table — exactly the old single-row input block,
- *  plus its own remove button. Controlled by the parent's indexed draft API. */
+/** SIL-759 — one draft row = ONE horizontal line with exactly four parts:
+ *  Tên chi phí (dropdown, lot fees only) · Số tiền · camera icon · Xóa dòng.
+ *  The day is system-assigned at entry time (occurredAt defaults to today);
+ *  the only line below is the "Chi phí lô hàng khác" name field, the compact
+ *  upload states and the CP700-03 gate. */
 function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, onPatch, onChooseOption, onUpload, onRemove, onDiscardPendingFile }: CostDraftRowProps) {
-  const receiptUrl = useAuthedPhotoUrls([row.receiptStorageKey])[0] ?? '';
   const selected = driverExpenseOption(row.option, options);
-  // Card 141026230700 — the invoice pair (Số/Ngày hóa đơn) is gone from the
-  // driver surface: the biên lai photo is the evidence for every lot cost, kế
-  // toán reads numbers off the paper at phơi phiếu. The server still keeps the
-  // invoiced-catalog classification (charge-the-customer side) untouched.
   const catalogClassified = selected.expenseTypeCode != null;
   const requiredEvidence = requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode);
   const requiresReceipt = requiredEvidence != null;
   const evidenceLabel = requiredEvidence == null ? '' : NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidence];
-  const lotCost = selected.group === 'DRIVER_SHIPMENT';
-  // Card 182300 — chiphispec §1: a fee-norm row IS a system-recorded Tiền đường
-  // row (the server forces its costType from the norm) — lái xe chỉ XEM: the
-  // "Thực chi" field is locked showing the system norm value, and kế toán
-  // adjusts it at phơi phiếu. Non-norm options (Vé cầu đường, Tiền đường khác …)
-  // are the driver's own spends and keep the editable actual-amount contract.
-  const systemRecorded = selected.feeNormCode != null;
   const receiptMissing = receiptStillNeeded(selected) && !row.receiptStorageKey;
-  const cameraLabel = uploading ? 'Đang tải…'
-    : row.receiptStorageKey ? 'Thay ảnh chứng từ'
+  const cameraLabel = uploading ? 'Đang tải ảnh biên lai'
+    : row.receiptStorageKey ? 'Thay ảnh biên lai — đã đính kèm'
     : requiresReceipt ? `Chụp / chọn ${evidenceLabel} (bắt buộc)`
-    : lotCost ? 'Chụp / chọn biên lai (bắt buộc)'
-    : 'Chụp / chọn biên lai';
+    : 'Chụp / chọn biên lai (bắt buộc)';
 
   return (
     <section className="shipment-cost-entry__draft-row" aria-label={`Khoản chi ${index + 1}`}>
-      <div className="shipment-cost-entry__draft-row-head">
-        <strong>Khoản {index + 1}</strong>
-        <button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={onRemove}>Xóa dòng</button>
+      <div className="shipment-cost-entry__draft-line">
+        <UuiSelectField label="Tên chi phí" value={row.option} disabled={disabled} onChange={(event) => onChooseOption(event.target.value)}
+          options={options.filter(option => option.group === 'DRIVER_SHIPMENT').map(option => ({ value: option.code, label: option.label }))} />
+        <NumberField controlSize="sm" label="Số tiền" grouped signed value={row.amount} onChange={(amount) => onPatch({ amount })} min={-999_999_999_999_999} step={1} max={999_999_999_999_999} required disabled={disabled} />
+        <div className="shipment-cost-entry__row-actions">
+          {/* SIL-759 — the camera rides the money field as a small icon button
+              (action icon, aria-labelled — house law §4), replacing the old
+              full-width "Chụp / chọn biên lai" block. Attached state flips the
+              glyph to the receipt icon; the compact status line below is the
+              text confirmation. */}
+          <label className="btn btn--secondary btn--icon btn--sm shipment-cost-entry__camera-icon" title={cameraLabel}>
+            {row.receiptStorageKey ? <ReceiptText size={16} aria-hidden="true" /> : <Camera size={16} aria-hidden="true" />}
+            <input type="file" accept="image/*" className="sr-only" aria-label="Chọn ảnh biên lai" disabled={disabled} onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ''; if (file) onUpload(file); }} />
+          </label>
+          <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label={`Xóa dòng ${index + 1}`} title="Xóa dòng" disabled={disabled} onClick={onRemove}><Trash2 size={16} aria-hidden="true" /></button>
+        </div>
       </div>
-      <Tabs ariaLabel="Nhóm chi phí lái xe" value={selected.group} onChange={(group) => onChooseOption(options.find(option => option.group === group)!.code)}
-        tabs={[{ id: 'DRIVER_SHIPMENT', label: 'Chi phí lô hàng' }, { id: 'DRIVER_ROAD', label: 'Tiền đường' }]} />
-      <div className="shipment-cost-entry__fields">
-        <UuiSelectField label="Loại chi phí" value={row.option} disabled={disabled} onChange={(event) => onChooseOption(event.target.value)}
-          options={options.filter(option => option.group === selected.group).map(option => ({ value: option.code, label: option.label }))} />
-        {catalogClassified
-          ? <p className="shipment-cost-entry__empty" data-testid="shipment-cost-catalog-fee">{`Tên khoản chi: ${selected.label} (theo danh mục phí).`}</p>
-          : <TextField controlSize="sm" label="Tên khoản chi" value={row.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => onPatch({ feeName: event.target.value })} />}
-        <NumberField controlSize="sm" label="Thực chi (VND)" grouped signed value={row.amount} onChange={(amount) => onPatch({ amount })} min={-999_999_999_999_999} step={1} max={999_999_999_999_999} required disabled={disabled || systemRecorded}
-          helpText={systemRecorded && selected.amount
-            ? `Hệ thống tự ghi nhận theo định mức ${formatCurrency(selected.amount)} — kế toán điều chỉnh tại màn hình phơi phiếu.`
-            : selected.amount ? `Gợi ý ${formatCurrency(selected.amount)}; sửa theo khoản thực tế. Chưa lưu thì chưa phát sinh tiền.` : undefined} />
-        {/* Card 20260928_181, tiêu chí 5: a negative amount is a real entry (a
-            refund), and every total in the system EXCLUDES negative lines
-            (sumExcludingNegative). That is invisible from the field itself, so
-            the screen has to say it — and only while a negative is typed, or the
-            line becomes noise on every other entry. */}
-        {Number(row.amount) < 0 && (
-          <p className="shipment-cost-entry__empty" data-testid="shipment-cost-negative-note">
-            Số âm là khoản hoàn lại, không phải chi phí: dòng này được lưu nhưng KHÔNG cộng vào bất kỳ tổng nào.
-          </p>
-        )}
-        <DateField controlSize="sm" label="Ngày chi" value={row.occurredAt} onChange={(occurredAt) => onPatch({ occurredAt })} required disabled={disabled} />
-        {/* Card 141026230700 — 2 ô chọn nhỏ Hóa đơn / Phiếu thu thay cho select
-            "Loại chứng từ" + cặp Số/Ngày hóa đơn: chứng từ lái xe là ảnh biên
-            lai, số HĐ kế toán đọc trên giấy lúc phơi phiếu. */}
-        {lotCost && <EvidenceKindTicks value={row.evidenceKind} onChange={(evidenceKind) => onPatch({ evidenceKind })} disabled={disabled} />}
-      </div>
-      <TextField controlSize="sm" label="Ghi chú khoản chi" value={row.note} onChange={(event) => onPatch({ note: event.target.value })} maxLength={2000} disabled={disabled} />
-      {requiresReceipt && <p className="shipment-cost-entry__empty">Chứng từ: {evidenceLabel}.</p>}
-      <p className="shipment-cost-entry__empty">{selected.group === 'DRIVER_ROAD' ? 'Tiền đường không thu thêm khách hàng.' : 'Kế toán đối chiếu biên lai và số thu khách. Khoản không hóa đơn được theo dõi là chi phí xe.'}</p>
-      <label className="btn btn--secondary shipment-cost-entry__camera-btn"><Camera size={16} /> {cameraLabel}
-        <input type="file" accept="image/*" className="sr-only" aria-label="Chọn ảnh biên lai" disabled={disabled} onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ''; if (file) onUpload(file); }} />
-      </label>
+      {!catalogClassified && (
+        <TextField controlSize="sm" label="Tên khoản chi" value={row.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => onPatch({ feeName: event.target.value })} />
+      )}
+      {/* Card 20260928_181, tiêu chí 5: a negative amount is a real entry (a
+          refund), and every total in the system EXCLUDES negative lines
+          (sumExcludingNegative). That is invisible from the field itself, so
+          the screen has to say it — and only while a negative is typed. */}
+      {Number(row.amount) < 0 && (
+        <p className="shipment-cost-entry__empty" data-testid="shipment-cost-negative-note">
+          Số âm là khoản hoàn lại, không phải chi phí: dòng này được lưu nhưng KHÔNG cộng vào bất kỳ tổng nào.
+        </p>
+      )}
+      {row.receiptStorageKey && <p className="shipment-cost-entry__empty" role="status">Đã đính kèm biên lai.</p>}
       {pendingFile && <div className="shipment-cost-entry__upload-retry" role="status"><span>{pendingFile.name} · Chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" disabled={disabled} onClick={() => onUpload(pendingFile)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={onDiscardPendingFile}>Bỏ ảnh chưa tải</button></div>}
-      {row.receiptStorageKey && <div className="shipment-cost-entry__receipt-preview"><PhotoImage src={receiptUrl} alt="Biên lai đã chọn" /><span><ReceiptText size={14} /> Ảnh sẽ gắn với khoản chi này</span></div>}
       {/* Card 20260928_165 + chiphispec §2 / CP700-03 — the supporting paper
           cannot exist without the entry: the form blocks the submit (never
           silently) until it is attached, and the server refuses the row without
@@ -227,24 +179,45 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
   }
   // The submit gate reads the same per-row photo rule the rows display.
   const blockedRow = state.drafts.some(row => receiptStillNeeded(driverExpenseOption(row.option, state.options)) && !row.receiptStorageKey);
+  const hasRoadNorm = totalRoadAllowance != null && Number(totalRoadAllowance) > 0;
+
+  const noteEditor = (
+    <div className="shipment-cost-entry__section-note" data-testid="cost-note-row">
+      {/* Card 20260926_29 item 14, SIL-759 wording: ONE collapsed row inside
+          the Tiền đường table — "Ghi chú tiền đường" sits right under the
+          system's tạm tính so the driver records the actual money + reason for
+          kế toán đối soát. */}
+      {noteOpen ? (
+        <>
+          <TextField controlSize="sm" label="Ghi chú tiền đường" value={sectionNote} maxLength={2000} disabled={readOnly || noteSaving} onChange={(event) => setSectionNote(event.target.value)} />
+          {noteError && <p role="alert" className="shipment-cost-entry__banner--error">{noteError}</p>}
+          {!readOnly && <button type="button" className="btn btn--secondary btn--sm" disabled={disabled || noteSaving || sectionNote === savedNote} onClick={() => void saveNote()}>{noteSaving ? 'Đang lưu…' : 'Lưu ghi chú'}</button>}
+        </>
+        ) : savedNote ? (
+        <button type="button" className="shipment-cost-entry__note-collapsed" onClick={() => setNoteOpen(true)} title={savedNote}>
+          <StickyNote size={14} aria-hidden="true" />
+          <span className="shipment-cost-entry__note-text">{savedNote}</span>
+        </button>
+      ) : (
+        <button type="button" className="shipment-cost-entry__note-collapsed" onClick={() => setNoteOpen(true)}>
+          <Plus size={14} aria-hidden="true" />
+          <span>Ghi chú tiền đường</span>
+        </button>
+      )}
+    </div>
+  );
 
   return <section className="shipment-cost-entry" aria-label="Chi phí chuyến">
     <header className="shipment-cost-entry__head">
       <div><h2 className="shipment-cost-entry__title">Chi phí lô hàng & tiền đường</h2>
         <p className="shipment-cost-entry__subtitle">Ghi khoản thực tế bạn đã chi; kế toán đối chiếu và thanh toán riêng.</p></div>
-      {!state.open && !readOnly && <button type="button" className="btn btn--primary btn--sm" onClick={() => { state.setOpen(true); if (state.drafts.length === 0) state.addDraft(); }}><Plus size={15} /> Thêm chi phí</button>}
     </header>
     {state.loadError && <div role="alert" className="shipment-cost-entry__banner--error">{state.loadError} <button type="button" className="btn btn--secondary btn--sm" onClick={() => void state.refresh()}>Thử tải lại</button></div>}
-    <p className="shipment-cost-entry__empty" data-testid="shipment-cost-route-reference">
-      {totalRoadAllowance != null && Number(totalRoadAllowance) > 0
-        ? `Tiền tuyến tham chiếu: ${formatCurrency(totalRoadAllowance)}. Chỉ ghi khoản phát sinh thực tế, không cộng thêm nếu đã có trong danh sách.`
-        : 'Chưa có định mức tiền tuyến. Nhập số tiền thực tế; chưa có định mức không có nghĩa là 0đ.'}
-    </p>
     {/* Card 141026230700 — TWO tables, "Chi phí lô hàng" and "Tiền đường",
-        always both visible (the customer could not tell there were two cost
-        buckets behind one combined list). The section-level illustration stays
-        for the fully-empty case (card 20260926_29); each table carries its own
-        empty line so the split reads even when one bucket has nothing. */}
+        always both visible. SIL-759: the road table leads with the SYSTEM
+        tạm tính định mức (locked, read-only — no add control in this area)
+        and the "Ghi chú tiền đường" right below it; the [+ Thêm chi phí]
+        button lives in the LOT table head only. */}
     {state.loading ? <p role="status">Đang tải chi phí…</p> : !state.loadError && <>
       {state.entries.length === 0 && (
         <EmptyState
@@ -255,13 +228,24 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         />
       )}
       <div className="shipment-cost-entry__tables">
-        {([['lot', 'Chi phí lô hàng', 'DRIVER_SHIPMENT', 'Chưa có chi phí lô hàng phát sinh.'], ['road', 'Tiền đường', 'DRIVER_ROAD', 'Chưa có tiền đường phát sinh.']] as const).map(([, title, group, emptyText]) => {
+        {([['lot', 'Chi phí lô hàng', 'DRIVER_SHIPMENT', 'Chưa có chi phí lô hàng phát sinh.'], ['road', 'Tiền đường', 'DRIVER_ROAD', 'Chưa có tiền đường phát sinh.']] as const).map(([key, title, group, emptyText]) => {
           // receiptUrls is index-aligned with state.entries — pair each entry
           // with its URL BEFORE partitioning, or the split shifts the indices.
           const rows = state.entries.map((entry, index) => ({ entry, url: receiptUrls[index] })).filter(({ entry }) => tableGroupOf(entry) === group);
           return (
             <section key={group} className="shipment-cost-entry__table" aria-label={`Bảng ${title}`}>
-              <h3 className="shipment-cost-entry__table-title">{title}</h3>
+              <div className="shipment-cost-entry__table-head">
+                <h3 className="shipment-cost-entry__table-title">{title}</h3>
+                {key === 'lot' && !state.open && !readOnly && <button type="button" className="btn btn--primary btn--sm" onClick={() => { state.setOpen(true); if (state.drafts.length === 0) state.addDraft(); }}><Plus size={15} /> Thêm chi phí</button>}
+              </div>
+              {key === 'road' && (
+                <div className="shipment-cost-entry__road-norm" data-testid="shipment-cost-road-allowance">
+                  {hasRoadNorm
+                    ? <div className="shipment-cost-entry__road-norm-amount"><span>Tạm tính định mức</span><strong>{formatCurrency(totalRoadAllowance)}</strong></div>
+                    : <p className="shipment-cost-entry__empty">Chưa có định mức tiền tuyến.</p>}
+                  {noteEditor}
+                </div>
+              )}
               {rows.length === 0
                 ? <p className="shipment-cost-entry__empty">{emptyText}</p>
                 : <ul className="shipment-cost-entry__list">{rows.map(({ entry, url }) => <li key={entry.id} className="shipment-cost-entry__item">
@@ -309,8 +293,6 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
     {state.open && <form className="shipment-cost-entry__form" onSubmit={(event) => void state.save(event)}>
       {/* Step 3 — draft table: rows accumulate, then ONE all-or-nothing save. */}
       <button type="button" className="btn btn--secondary btn--sm shipment-cost-entry__draft-add" disabled={disabled} onClick={state.addDraft}><Plus size={15} /> Thêm dòng</button>
-      {state.norms.isError && <div role="alert" className="shipment-cost-entry__banner--error">Không tải được định mức tiền đường. Bạn vẫn có thể nhập khoản thực chi bằng các loại phí chung. <button type="button" className="btn btn--secondary btn--sm" onClick={() => void state.norms.refetch()}>Thử tải lại định mức</button></div>}
-      {state.norms.isPending && <p role="status">Đang tải định mức tiền đường…</p>}
       {state.error && <div className="shipment-cost-entry__banner--error" role="alert">{state.error}</div>}
       {state.drafts.map((row, index) => <CostDraftRow
         key={index}
@@ -328,29 +310,6 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
       />)}
       <div className="shipment-cost-entry__form-actions"><button type="button" className="btn btn--secondary" disabled={state.busy || state.uploading} onClick={state.cancel}>Hủy</button><button type="submit" className="btn btn--primary" disabled={disabled || state.drafts.length === 0 || blockedRow}>{state.busy ? 'Đang lưu…' : `Lưu tất cả (${state.drafts.length} dòng)`}</button></div>
     </form>}
-    <div className="shipment-cost-entry__section-note" data-testid="cost-note-row">
-      {/* Card 20260926_29 item 14: the accountant note is ONE collapsed row —
-          a ghost "+ Thêm ghi chú cho kế toán" when empty, a tappable one-line
-          preview when saved; it expands to the editor, with Lưu visible only
-          while editing. */}
-      {noteOpen ? (
-        <>
-          <TextField controlSize="sm" label="Ghi chú kế toán" value={sectionNote} maxLength={2000} disabled={readOnly || noteSaving} onChange={(event) => setSectionNote(event.target.value)} />
-          {noteError && <p role="alert" className="shipment-cost-entry__banner--error">{noteError}</p>}
-          {!readOnly && <button type="button" className="btn btn--secondary btn--sm" disabled={disabled || noteSaving || sectionNote === savedNote} onClick={() => void saveNote()}>{noteSaving ? 'Đang lưu…' : 'Lưu ghi chú'}</button>}
-        </>
-        ) : savedNote ? (
-        <button type="button" className="shipment-cost-entry__note-collapsed" onClick={() => setNoteOpen(true)} title={savedNote}>
-          <StickyNote size={14} aria-hidden="true" />
-          <span className="shipment-cost-entry__note-text">{savedNote}</span>
-        </button>
-      ) : (
-        <button type="button" className="shipment-cost-entry__note-collapsed" onClick={() => setNoteOpen(true)}>
-          <Plus size={14} aria-hidden="true" />
-          <span>Ghi chú kế toán</span>
-        </button>
-      )}
-    </div>
   </section>;
 }
 

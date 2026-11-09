@@ -72,14 +72,26 @@
   border: 1px solid var(--line);
   border-radius: 8px;
 }
-.shipment-cost-entry__draft-row-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--text-data-size);
-}
 .shipment-cost-entry__draft-add { justify-self: start; }
+/* SIL-759 — ONE horizontal line per draft row: Tên chi phí · Số tiền · camera
+   · Xóa dòng. Grid with an auto icon track GUARANTEES the single line at 390px
+   (flex-wrap kept dropping the icon pair to a second line). */
+.shipment-cost-entry__draft-line { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(96px, 1fr) auto; align-items: end; gap: 8px; }
+/* Conditional rows (tên khoản chi cho "Khác", negative note, upload states,
+   CP700-03 gate) span the whole grid so they never fight the three tracks. */
+.shipment-cost-entry__draft-row > .shipment-cost-entry__empty,
+.shipment-cost-entry__draft-row > .shipment-cost-entry__upload-retry,
+.shipment-cost-entry__draft-row > .ds-field { grid-column: 1 / -1; }
+.shipment-cost-entry__row-actions { display: flex; gap: 6px; }
+/* SIL-759 — the Tiền đường table leads with the system's locked tạm tính and
+   the driver's discrepancy note: text-only money (never a control), the note
+   rides the same collapsed/expanded pattern as before. */
+.shipment-cost-entry__road-norm { display: grid; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.shipment-cost-entry__road-norm-amount { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: var(--text-data-size); }
+.shipment-cost-entry__road-norm-amount strong { white-space: nowrap; }
+/* SIL-759 — the [+ Thêm chi phí] button lives in the LOT table's own head so
+   the road area has no add control at all. */
+.shipment-cost-entry__table-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 @media (max-width: 600px) {
   .shipment-cost-entry { padding: 10px 8px; }
   .shipment-cost-entry__head { flex-wrap: wrap; }
