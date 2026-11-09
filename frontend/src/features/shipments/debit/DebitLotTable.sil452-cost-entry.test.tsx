@@ -54,7 +54,6 @@ function renderTable(props: { canManage?: boolean; canDeleteLot?: boolean; canDe
           onSaved={onSaved}
           onUnmerged={onUnmerged}
           ratesRefreshing={false}
-          plateOptions={[]}
           onSelect={() => {}}
         />
       </ToastProvider>

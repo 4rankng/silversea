@@ -735,7 +735,8 @@ coreRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = shipmentDebitSummaryQuerySchema.safeParse(req.query);
     if (!parsed.success) throwValidation(parsed.error);
-    res.json(await getShipmentDebitSummary(parsed.data));
+    // SIL-776 REV2 — the CUS wire carries no giá vốn (cost fields stripped).
+    res.json(await getShipmentDebitSummary({ ...parsed.data, viewerRole: getUser(req).role }));
   }),
 );
 

@@ -192,6 +192,34 @@
   gap: 6px;
 }
 
+/* REV2 (ticket-v2 VI.2) — the Phí Không HĐ dual-input: Thực chi Ops
+   read-only beside the Thu Khách Hàng input, equal widths, labels above. */
+.csc-debit-otherfee__dual {
+  flex: 0 0 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.csc-debit-otherfee__dual .csc-debit-otherfee__label {
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+.csc-debit-otherfee__ro {
+  min-height: var(--control-default-h);
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .csc-debit-otherfee__field {
   display: grid;
   gap: 3px;

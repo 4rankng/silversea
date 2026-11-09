@@ -48,6 +48,11 @@ export interface ShipmentDebitLotRow {
   chiHoTotal: number | null;
   /** phải thu khách − phải trả. null = chưa xác định. */
   receivableTotal: number | null;
+  /** SIL-776 REV2 — the flat board's sell columns (Tổng Chi hộ Có HĐ /
+   *  Tổng Dịch vụ Không HĐ); with freightAuto they sum to receivableTotal.
+   *  Optional per the late-added wire convention. */
+  chiHoSellTotal?: string | null;
+  serviceSellTotal?: string | null;
   /** Redesign 23/10 — Cước trả hãng (Σ trip_carrier_info.external_freight_cost),
    *  the carrier leg of payableTotal. Optional: an older BE ships only the
    *  total and the split column renders blank. null = unknown cost. */
