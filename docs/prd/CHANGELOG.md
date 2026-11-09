@@ -4,6 +4,14 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-11-09 — SIL-768: gỡ khối Ảnh nhiên liệu khỏi chi tiết lệnh app lái xe
+
+Chi tiết lệnh app lái xe không còn khối "Ảnh nhiên liệu" (chụp màn hình bơm,
+OCR, GPS) — tạm gỡ theo khách CR-006 để chuyển sang phân hệ quản lý định mức
+nhiên liệu chuyên biệt của đội xe sau. Dữ liệu ảnh nhiên liệu đã ghi giữ nguyên;
+endpoint upload + màn xem duyệt của kế toán (fuel-evidence-reviews) hoạt động
+như cũ. Quyết định Frank 09/11. Chi tiết: ManHinhLaiXe.md §3.1.
+
 ## 2026-11-09 — SIL-767: bỏ khối Tác vụ khỏi chi tiết lệnh app lái xe
 
 Chi tiết lệnh app lái xe không còn khối Tác vụ (11 nhãn điều vận + empty state

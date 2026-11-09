@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverProgressEventType, TripPodStatus, TripStatus } from '@tingting/shared';
-import { setToken } from '../lib/token';
 import { api } from '../lib/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { qk } from '../api/keys';
@@ -314,32 +313,14 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
   });
 
-  // 27.8 spec: "ẢNH NHIÊN LIỆU (Chụp màn hình bơm gần nhất) : GIỮ NGUYÊN" —
-  // the fuel-evidence upload stays visible for the driver (collapsed by default behind toggle).
-  it('renders the fuel evidence upload section', async () => {
-    renderPage();
-
-    expect(await screen.findByText('Ảnh nhiên liệu')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('fuel-section-toggle'));
-    expect(screen.getByText('Chụp màn hình bơm gần nhất')).toBeTruthy();
-    expect(screen.getByText('Chưa có ảnh nhiên liệu nào cho chuyến này.')).toBeTruthy();
-    expect(screen.getByText('Chụp ảnh nhiên liệu')).toBeTruthy();
-  });
-
-  // DRV-DET-08 regression: evidence photos load through an authenticated blob
-  // fetch (`useAuthedPhotoUrls`). The JWT rides in the Authorization header —
-  // never in a `?token=` query string, where browser history, Referer headers
-  // and proxy logs can capture it. The <img> renders the object URL, so the raw
-  // protected path never reaches the DOM.
-  it('loads the fuel evidence photo through an authenticated blob fetch (no ?token= URL)', async () => {
-    setToken('jwt-for-img-test');
-    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['fuel'], { type: 'image/jpeg' }));
-    vi.stubGlobal('URL', Object.assign(URL, {
-      createObjectURL: vi.fn(() => 'blob:fuel-evidence'),
-      revokeObjectURL: vi.fn(),
-    }));
+  // SIL-768 (09/11, customer CR-006): the Ảnh nhiên liệu block is REMOVED
+  // from the detail screen — no section, no toggle, no fuel empty state.
+  // Recorded evidence rows stay in the database and the kế toán review page
+  // is untouched; only the driver surface loses the block.
+  it('SIL-768: renders no Ảnh nhiên liệu block — no section, no toggle', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
+        status: 'IN_TRANSIT',
         fuelEvidenceReviews: [{
           id: 7,
           tripId: 55,
@@ -359,24 +340,17 @@ describe('DriverTripDetailPage', () => {
           reviewNote: null,
         }],
       }),
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
+      isLoading: false, error: null, refetch: vi.fn(),
     });
     renderPage();
 
-    fireEvent.click(await screen.findByTestId('fuel-section-toggle'));
-    // The alt no longer carries the trip code: internal ids never render on
-    // a user surface (dc1b1cba), so the code-leading variant would fail here.
-    const img = await screen.findByAltText('Ảnh nhiên liệu');
-    await waitFor(() => expect(img.getAttribute('src')).toBe('blob:fuel-evidence'));
-    expect(getBlob).toHaveBeenCalledWith('/photos/fuel-evidence%2F55%2F3%2Fhash-rand.jpg');
-    expect(document.querySelector('img[src*="token="]')).toBeNull();
-    expect(screen.getByText(/OCR chưa xác minh/)).toBeTruthy();
-    expect(screen.queryByText(/Chờ kế toán xác nhận/)).toBeNull();
-
-    getBlob.mockRestore();
-    vi.unstubAllGlobals();
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.queryByText('Ảnh nhiên liệu')).toBeNull();
+    expect(screen.queryByTestId('fuel-section')).toBeNull();
+    expect(screen.queryByTestId('fuel-section-toggle')).toBeNull();
+    expect(screen.queryByText(/Chụp màn hình bơm gần nhất/)).toBeNull();
+    expect(screen.queryByText('Chụp ảnh nhiên liệu')).toBeNull();
+    expect(screen.queryByText('Không bắt buộc')).toBeNull();
   });
 
   it('renders the sticky accept bar and the Hoàn tất footer button (e-POD lives on its own page now)', async () => {
@@ -1089,31 +1063,6 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByTestId('complete-sticky-status')).toBeNull();
     const btn = within(screen.getByTestId('complete-sticky-bar')).getByRole('button', { name: 'Hoàn tất' });
     expect(btn).toBeEnabled();
-  });
-
-  it('SIL-733: collapses fuel section by default with toggle and summary', async () => {
-    useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({
-        status: 'IN_TRANSIT',
-        fuelEvidenceReviews: [],
-      }),
-      isLoading: false, error: null, refetch: vi.fn(),
-    });
-    renderPage();
-
-    await screen.findByText(/Ảnh nhiên liệu/);
-    expect(screen.queryByText(/Chụp màn hình bơm gần nhất/)).toBeNull();
-    const section = screen.getByTestId('fuel-section');
-    expect(section.className).toContain('driver-task-section--fuel-collapsed');
-    expect(screen.getByText('Không bắt buộc')).toBeTruthy();
-
-    const toggle = screen.getByTestId('fuel-section-toggle');
-    expect(toggle.textContent).toContain('Mở rộng');
-
-    fireEvent.click(toggle);
-    expect(screen.getByText(/Chụp màn hình bơm gần nhất/)).toBeTruthy();
-    expect(toggle.textContent).toContain('Thu gọn');
-    expect(section.className).not.toContain('driver-task-section--fuel-collapsed');
   });
 
   it('card _28: the sticky bar never stacks with the accept bar', async () => {
