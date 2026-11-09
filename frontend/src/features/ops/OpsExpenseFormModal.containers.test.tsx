@@ -14,6 +14,11 @@ import { OpsExpenseFormModal, opsContainerId } from './OpsExpenseFormModal';
 // "Chọn tất cả" picks every container at once.
 const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
+// SIL-761 — the popup reads the viewer's role; standalone renders have no
+// AuthProvider, so the mock defaults to null (= every pre-761 test keeps the
+// non-Ops view) and the Ops cases flip it per test.
+const authState = vi.hoisted(() => ({ role: null as string | null }));
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: authState.role == null ? null : { role: authState.role } }) }));
 
 const types = { items: [
   { id: 1, code: 'SOI_CHIEU', name: 'Phí soi chiếu', requiresInvoice: true },
@@ -102,6 +107,7 @@ async function pickContainers(...labels: string[]) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  authState.role = null;
   api.getExpenseTypes.mockResolvedValue(types);
   api.getExpensePhotos.mockResolvedValue({ items: [] });
   api.getContainerClaimants.mockResolvedValue([]);
@@ -223,11 +229,11 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
     expect(save).toBeDisabled();
     // The message shows twice: the row hint AND the footer notice beside Lưu
     // (the two surfaces SIL-723 requires; footer read via findAllByText).
-    expect((await screen.findAllByText('Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Dòng chi này không thu khách hàng — bắt buộc nhập trường "Ghi chú".')).length).toBeGreaterThan(0);
     // Filling the field the message names re-enables the save.
     await fillNote('Phí không hóa đơn', 'Không thu khách — phí nội bộ');
     expect(save).toBeEnabled();
-    expect(screen.queryAllByText('Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".')).toHaveLength(0);
+    expect(screen.queryAllByText('Dòng chi này không thu khách hàng — bắt buộc nhập trường "Ghi chú".')).toHaveLength(0);
   });
 
   it('B3: the invoice block requires "Số hóa đơn" and the footer names it', async () => {
@@ -292,5 +298,52 @@ describe('ops expense form — tabs + shared save (SIL-760)', { timeout: 20_000 
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
     expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN', amount: '80000' });
     expect(api.createExpense.mock.calls[1][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU', amount: '450000', invoiceNumber: 'TD-20260923-001', invoiceDate: null });
+  });
+});
+
+// SIL-761 — an OPS viewer (hoangnh, legacy FORWARDER folded by getModernRole)
+// never sees the thu-khách pair: no Thực thu cell, no Ghi-chú-thu-khách cell,
+// no hint naming Thực thu. Non-Ops viewers of the same popup keep them.
+describe('ops expense form — thu-khách visibility by role (SIL-761)', { timeout: 20_000 }, () => {
+  it('C3: Ops viewer sees neither field anywhere in the popup and still saves', async () => {
+    authState.role = 'OPS';
+    await show();
+    // Whole-popup scan for the forbidden strings (acceptance: tìm toàn bộ popup).
+    expect(screen.queryByText(/Thực thu/)).toBeNull();
+    expect(screen.queryByLabelText('Thực thu (thu khách)')).toBeNull();
+    expect(screen.queryByLabelText('Ghi chú thu khách')).toBeNull();
+    // The no-customer-charge hint no longer references the hidden field.
+    expect(screen.queryByText(/Thực thu để trống/)).toBeNull();
+
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '80000');
+    await fillNote('Phí không hóa đơn', 'Chi công nhân dỡ hàng');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    // The server derives charge 0 from the omitted override; no recovery note.
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({
+      expenseTypeCode: 'CONG_NHAN',
+      amount: '80000',
+      note: 'Chi công nhân dỡ hàng',
+      customerChargeAmount: undefined,
+      recoveryNote: null,
+    });
+  });
+
+  it('C4: a non-Ops viewer of the same popup keeps the thu-khách pair', async () => {
+    authState.role = 'CUS';
+    await show();
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    expect(screen.getByLabelText('Thực thu (thu khách)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Ghi chú thu khách')).toBeInTheDocument();
+  });
+
+  it('C5: a legacy FORWARDER account reads as Ops (fields hidden)', async () => {
+    authState.role = 'FORWARDER';
+    await show();
+    expect(screen.queryByLabelText('Thực thu (thu khách)')).toBeNull();
+    expect(screen.queryByLabelText('Ghi chú thu khách')).toBeNull();
   });
 });

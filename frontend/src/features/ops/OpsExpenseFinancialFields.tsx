@@ -62,11 +62,15 @@ export function opsFinancialPayload(draft: OpsExpenseFinancialDraft) {
   };
 }
 
-export function OpsExpenseFinancialFields({ value, onChange, amount, disabled = false }: {
+export function OpsExpenseFinancialFields({ value, onChange, amount, disabled = false, customerFields = true }: {
   value: OpsExpenseFinancialDraft;
   onChange: (value: OpsExpenseFinancialDraft) => void;
   amount: number;
   disabled?: boolean;
+  /** SIL-761 — false for an OPS viewer: the correction form hides the
+   *  Thực-thu / Ghi-chú-thu-khách pair. The draft keeps its seeded values so
+   *  the payload never clears what CUS/chứng từ recorded. */
+  customerFields?: boolean;
 }) {
   const invoiced = value.costGroup.startsWith('INVOICED_');
   const patch = (next: Partial<OpsExpenseFinancialDraft>) => onChange({ ...value, ...next });
@@ -85,7 +89,7 @@ export function OpsExpenseFinancialFields({ value, onChange, amount, disabled = 
         <DateField controlSize="sm" label="Ngày hóa đơn" value={value.invoiceDate} disabled={disabled}
           onChange={(invoiceDate) => patch({ invoiceDate })} />
       </>}
-      {!invoiced && <TextField controlSize="sm" label="Thực thu (thu khách)" value={value.customerChargeAmount} disabled={disabled}
+      {!invoiced && customerFields && <TextField controlSize="sm" label="Thực thu (thu khách)" value={value.customerChargeAmount} disabled={disabled}
         onChange={(event) => patch({ customerChargeAmount: event.target.value })} inputMode="decimal"
         placeholder="Để trống nếu chưa thu khách" />}
     </div>
@@ -95,8 +99,8 @@ export function OpsExpenseFinancialFields({ value, onChange, amount, disabled = 
         {`Thu khách dự kiến: ${formatCurrency(Number.isFinite(amount) ? amount : 0)}.`}
       </p>
     )}
-    <TextField controlSize="sm" label="Ghi chú thu khách" value={value.recoveryNote} disabled={disabled}
+    {customerFields && <TextField controlSize="sm" label="Ghi chú thu khách" value={value.recoveryNote} disabled={disabled}
       onChange={(event) => patch({ recoveryNote: event.target.value })} maxLength={1000}
-      placeholder="Đã gồm trong giá trọn gói / đề nghị thu thêm…" />
+      placeholder="Đã gồm trong giá trọn gói / đề nghị thu thêm…" />}
   </section>;
 }

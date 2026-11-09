@@ -19,6 +19,9 @@ import { SearchableMultiSelect } from '../../design-system/forms/SearchableMulti
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
 import { opsGroupForType } from './OpsExpenseFinancialFields';
+import { getModernRole } from '../../lib/role-helpers';
+import { useAuth } from '../../hooks/useAuth';
+import { Role } from '@tingting/shared';
 import type { ExpenseCostGroup } from '@tingting/shared';
 
 interface Props {
@@ -137,8 +140,11 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | 
   // Card 20260928_162 (server authority unchanged): a row that does not
   // charge the customer must say why. SIL-723: the message NAMES the field —
   // this form has two note inputs ("Ghi chú thu khách" vs "Ghi chú"), and the
-  // dead button never said which one was missing.
-  if (charge <= 0 && draft.note.trim() === '') return 'Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".';
+  // dead button never said which one was missing. SIL-761: Ops no longer
+  // sees the Thực-thu field at all, so the wording may not reference it —
+  // every Ops no-invoice row derives charge 0 server-side, and this gate is
+  // exactly the server's 400 in client clothing.
+  if (charge <= 0 && draft.note.trim() === '') return 'Dòng chi này không thu khách hàng — bắt buộc nhập trường "Ghi chú".';
   // KB Chương 6 — only the INVOICE group requires the invoice number; the
   // no-invoice block never asks for it (and receipt photos stay optional).
   if (block === 'invoice' && draft.invoiceNumber.trim() === '') return 'Nhập "Số hóa đơn" — khoản có hóa đơn bắt buộc có số hóa đơn.';
@@ -155,6 +161,10 @@ interface FeeRowHost {
   typesData: { items: Array<{ code: string; name: string; requiresInvoice: boolean | null; category?: string | null }> } | undefined;
   typesReady: boolean;
   busy: boolean;
+  /** SIL-761 — false for an OPS viewer: the row renders without the
+   *  Thực-thu / Ghi-chú-thu-khách pair (their payloads leave the charge
+   *  override unset, which the server derives as 0). */
+  customerFields: boolean;
   patch: (block: 'noInvoice' | 'invoice', key: number, patch: Partial<FeeDraft> | ((row: FeeDraft) => Partial<FeeDraft>)) => void;
   upload: (block: 'noInvoice' | 'invoice', rowKey: number, files: FileList | File[] | null) => void;
   remove: (block: 'noInvoice' | 'invoice', key: number) => void;
@@ -173,6 +183,13 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const typesData = typesQuery.data;
   const createExpense = useCreateOpsExpense();
   const { toast } = useToast();
+  // SIL-761 — the thu-khách pair belongs to CUS/chứng từ, not the Ops field
+  // declaration: an OPS account (getModernRole folds the legacy FORWARDER
+  // name into OPS) gets the row WITHOUT Thực thu / Ghi chú thu khách, while
+  // CUS/ADMIN/MANAGER — who open this same popup from the lot drawer
+  // (SIL-748) — keep the fields exactly as before.
+  const auth = useAuth();
+  const opsViewer = getModernRole(auth?.user?.role ?? '') === Role.OPS;
 
   // Số Cont: multi-select with chọn-all (mockup "Được chọn all số cont").
   // 'Phí chung lô' stays the default — a lot-wide fee is ONE row with no
@@ -447,7 +464,8 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
   const busy = createExpense.isPending || progress !== '';
   const feeRowHost: FeeRowHost = {
-    typesData, typesReady, busy, patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf,
+    typesData, typesReady, busy, customerFields: !opsViewer,
+    patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf,
   };
 
   return (
@@ -589,11 +607,18 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 /** One fee row's fields + its own optional photo set. Photos ride the row
  *  (they evidence THAT fee), stay optional, and are never required to save.
  *  Module scope so the component type stays STABLE across modal renders — a
- *  row defined inside the modal would remount on every keystroke. */
+ *  row defined inside the modal would remount on every keystroke.
+ *
+ *  SIL-760 — the row is ONE horizontal table line: Loại phí | Số tiền (VNĐ)*
+ *  | Số hóa đơn (invoice tab only) | Ghi chú | Ảnh chứng từ | Xóa. The
+ *  customer-charge pair (Thực thu / Ghi chú thu khách) keeps its cell on the
+ *  no-invoice line where the row renders it (SIL-761 role-gates it for Ops).
+ *  Growing columns flex; the icon columns stay fixed, so narrow widths wrap
+ *  whole cells instead of clipping one. */
 function FeeRowFields({ block, draft, ordinal, host }: {
 block: 'noInvoice' | 'invoice'; draft: FeeDraft; ordinal: number; host: FeeRowHost;
 }) {
-const { typesReady, busy, patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf } = host;
+const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf } = host;
   const invoiced = block === 'invoice';
   // The NumberField prints its own amount error inline — the row hint only
   // carries what the money field cannot say (type choice, the Ghi-chú rule,
@@ -635,25 +660,27 @@ const { typesReady, busy, patch: patchDraft, upload: uploadRowPhotos, remove: re
             />
           </label>
           : <>
-            <label className="ops-fee-row__field ops-fee-row__cell--charge">
-              Thực thu (thu khách)
-              <input
-                inputMode="numeric"
-                placeholder="—"
-                value={draft.charge}
-                disabled={busy}
-                onChange={(event) => patchDraft(block, draft.key, { charge: event.target.value })}
-              />
-            </label>
-            <label className="ops-fee-row__field ops-fee-row__cell--recovery">
-              Ghi chú thu khách
-              <input
-                value={draft.recoveryNote}
-                disabled={busy}
-                maxLength={1000}
-                onChange={(event) => patchDraft(block, draft.key, { recoveryNote: event.target.value })}
-              />
-            </label>
+            {customerFields && <>
+              <label className="ops-fee-row__field ops-fee-row__cell--charge">
+                Thực thu (thu khách)
+                <input
+                  inputMode="numeric"
+                  placeholder="—"
+                  value={draft.charge}
+                  disabled={busy}
+                  onChange={(event) => patchDraft(block, draft.key, { charge: event.target.value })}
+                />
+              </label>
+              <label className="ops-fee-row__field ops-fee-row__cell--recovery">
+                Ghi chú thu khách
+                <input
+                  value={draft.recoveryNote}
+                  disabled={busy}
+                  maxLength={1000}
+                  onChange={(event) => patchDraft(block, draft.key, { recoveryNote: event.target.value })}
+                />
+              </label>
+            </>}
           </>}
         <label className="ops-fee-row__field ops-fee-row__cell--note">
           Ghi chú
@@ -712,8 +739,10 @@ const { typesReady, busy, patch: patchDraft, upload: uploadRowPhotos, remove: re
           ))}
         </ul>
       )}
+      {/* SIL-761 — the hint no longer references the hidden Thực-thu field;
+          the rule itself (card 20260928_162, server-enforced) stays. */}
       {chargeOf(block, draft, amountValidOf(draft.amount)) <= 0 && !invoiced
-        && <p className="ops-modal-hint">Dòng chi này không thu khách hàng (Thực thu để trống) — ghi chú bắt buộc: nhập trường "Ghi chú", ghi rõ lý do để kế toán / CUS đọc được.</p>}
+        && <p className="ops-modal-hint">Dòng chi này không thu khách hàng — bắt buộc nhập trường "Ghi chú", ghi rõ lý do để kế toán / CUS đọc được.</p>}
       {/* A quiet hint, not role=alert: an untouched "+ row" must not keep a
           permanent alert alive over the whole form (the catalog-recovery
           contract clears its alert once the catalog reloads). */}

@@ -477,9 +477,11 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '123000' } });
     // Cân xe is a no-invoice line, so opsCustomerCharge (the client mirror of
     // the server's receivableForCost) charges nothing and the row cannot be
-    // saved without the reason — card 20260928_162. The gate is announced, so
-    // the operator is not left guessing why Lưu stays dark.
-    expect(screen.getByText(/ghi chú bắt buộc/i)).toBeInTheDocument();
+    // saved without the reason — card 20260928_162. The gate is announced on
+    // every surface that names the field (row hint, row error, footer
+    // notice) — the new wording shares its tail with the footer's message,
+    // so assert on the set, not a unique element.
+    expect(screen.getAllByText(/bắt buộc nhập trường "Ghi chú"/).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'cân xe tại cảng, khách tự thanh toán' } });
     const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });
     const form = dialog.querySelector('form')!;
