@@ -1,4 +1,4 @@
-// SIL-773 — nút 'Lưu - Phê duyệt từng dòng và ẩn' (nhãn khách yêu cầu nguyên
+// SIL-773 Rev2 — nút 'Lưu & Xác nhận đối soát' (nhãn khách yêu cầu nguyên
 // văn): lưu các dòng đã chọn rồi ẩn khỏi danh sách tác nghiệp; công tắc
 // 'Hiện dòng đã ẩn' refetch với includeHidden để tra lại lịch sử, dòng ẩn
 // mang marker 'Đã lưu - ẩn'.
@@ -83,11 +83,12 @@ beforeEach(() => {
   getBootstrap.mockResolvedValue({ trucks: [] });
 });
 
-describe('AccountingDebitClosePage — SIL-773 Lưu - Phê duyệt từng dòng và ẩn', () => {
-  it('nút hiện đúng nhãn khách ghi, tắt khi chưa chọn dòng', async () => {
+describe('AccountingDebitClosePage — SIL-773 Rev2 Lưu & Xác nhận đối soát', () => {
+  it('nút hiện đúng nhãn Rev2 (Lưu & Xác nhận đối soát) + nút Lưu, tắt khi chưa chọn dòng', async () => {
     renderPage();
-    const button = await screen.findByRole('button', { name: 'Lưu - Phê duyệt từng dòng và ẩn' });
+    const button = await screen.findByRole('button', { name: 'Lưu & Xác nhận đối soát' });
     expect(button).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
   });
 
   it('chọn dòng rồi bấm nút → gọi ẩn đúng shipmentId và báo số dòng đã ẩn', async () => {
@@ -95,7 +96,7 @@ describe('AccountingDebitClosePage — SIL-773 Lưu - Phê duyệt từng dòng 
     const { container } = renderPage();
     await screen.findByText('BL-1');
     fireEvent.click(within(container.querySelector('.debit-board tbody tr')!).getByRole('checkbox', { name: 'Chọn lô BL-1' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu - Phê duyệt từng dòng và ẩn' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu & Xác nhận đối soát' }));
     await waitFor(() => expect(reconcileHide.mock.calls[0]?.[0]).toEqual([1]));
     expect(await screen.findByText(/Đã lưu - phê duyệt và ẩn 1 dòng/)).toBeVisible();
   });

@@ -312,7 +312,7 @@ export default function AccountingDebitClosePage() {
   const reconcileHideMutation = useMutation({
     mutationFn: reconcileAndHideDebitLots,
     onSuccess: (result) => {
-      setMessage({ kind: 'ok', text: `Đã lưu - phê duyệt và ẩn ${result.hidden.length} dòng khỏi danh sách tác nghiệp (vẫn tra được trong 'Hiện dòng đã ẩn').` });
+      setMessage({ kind: 'ok', text: `Đã lưu & xác nhận đối soát, ẩn ${result.hidden.length} dòng khỏi danh sách tác nghiệp (vẫn tra được trong 'Hiện dòng đã ẩn').` });
       refresh();
     },
     onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
@@ -605,17 +605,38 @@ export default function AccountingDebitClosePage() {
                 Ghép cước thu khách
               </UUIButton>
             </DisabledActionTip>
-            {/* SIL-773 — nhãn khách yêu cầu nguyên văn (Frank 09/11/2026 giữ
-                chữ 'Phê duyệt' trong nhãn này): lưu các dòng đã chọn và ẩn
-                khỏi danh sách tác nghiệp; bật 'Hiện dòng đã ẩn' tra lại. */}
+            {/* SIL-773 Rev2 — nút 'Lưu' của bảng: kết thúc ô đang sửa để ô
+                Chi phí ngoài tự lưu (auto-save on blur); các ô khác đã lưu
+                khi rời ô. */}
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                const active = document.activeElement;
+                if (active instanceof HTMLInputElement && active.classList.contains('debit-ext-cost')) active.blur();
+                setMessage({ kind: 'ok', text: 'Đã lưu các thay đổi trên bảng.' });
+              }}
+            >
+              Lưu
+            </button>
+            {/* SIL-773 Rev2 — nhãn khách yêu cầu nguyên văn: đối soát các lô
+                đang chờ trong selection, rồi lưu + ẩn toàn bộ selection khỏi
+                danh sách tác nghiệp; bật 'Hiện dòng đã ẩn' tra lại. */}
             <button
               type="button"
               className="btn btn--secondary"
-              disabled={selectedCount === 0 || reconcileHideMutation.isPending}
-              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để lưu - phê duyệt và ẩn' : undefined}
-              onClick={() => reconcileHideMutation.mutate(selectedRows.map((row) => row.shipmentId))}
+              disabled={selectedCount === 0 || reconcileHideMutation.isPending || confirmMutation.isPending}
+              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để lưu và xác nhận đối soát' : undefined}
+              onClick={() => {
+                const ids = selectedRows.map((row) => row.shipmentId);
+                if (selectedRequestIds.length > 0) {
+                  confirmMutation.mutate(selectedRequestIds, {
+                    onSuccess: () => reconcileHideMutation.mutate(ids),
+                  });
+                } else reconcileHideMutation.mutate(ids);
+              }}
             >
-              {reconcileHideMutation.isPending ? 'Đang lưu…' : 'Lưu - Phê duyệt từng dòng và ẩn'}
+              {reconcileHideMutation.isPending || confirmMutation.isPending ? 'Đang lưu…' : 'Lưu & Xác nhận đối soát'}
             </button>
             <button
               type="button"
