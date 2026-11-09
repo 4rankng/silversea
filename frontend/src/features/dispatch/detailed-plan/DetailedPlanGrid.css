@@ -294,10 +294,20 @@
   display: inline-block;
   max-width: 100%;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-overflow: clip;
   overflow-wrap: normal;
   word-break: normal;
+  scrollbar-width: thin;
+}
+
+.detailed-plan-grid__decl-value::-webkit-scrollbar {
+  height: 4px;
+}
+.detailed-plan-grid__decl-value::-webkit-scrollbar-thumb {
+  background: var(--line-2, #cbd5e1);
+  border-radius: 2px;
 }
 
 /* SIL-631: the cell keeps its value (dimmed) while the editor floats outside
@@ -326,10 +336,20 @@
   border: 0;
   cursor: pointer;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-overflow: clip;
   overflow-wrap: normal;
   word-break: normal;
+  scrollbar-width: thin;
+}
+
+.detailed-plan-grid__decl-value--action::-webkit-scrollbar {
+  height: 4px;
+}
+.detailed-plan-grid__decl-value--action::-webkit-scrollbar-thumb {
+  background: var(--line-2, #cbd5e1);
+  border-radius: 2px;
 }
 
 .detailed-plan-grid__decl-value--action:hover {
@@ -602,17 +622,27 @@
   font-size: var(--text-caption-size);
 }
 
-/* SIL-756: Container numbers are unbreakable ISO codes (11 chars) —
- * white-space: nowrap + ellipsis + overflow-wrap: normal on .ops-container-line
- * prevents breaking mid-string (e.g. QACU200050), while maintaining tooltip. */
+/* SIL-756 (Round 3): Container numbers are unbreakable ISO codes (11 chars) —
+ * white-space: nowrap + overflow-x: auto on .ops-container-line
+ * prevents breaking mid-string (e.g. QACU200050), fully readable without ellipsis. */
 .detailed-plan-grid__cell--container .ops-container-line {
   display: inline-block;
   max-width: 100%;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-overflow: clip;
   overflow-wrap: normal;
   word-break: normal;
+  scrollbar-width: thin;
+}
+
+.detailed-plan-grid__cell--container .ops-container-line::-webkit-scrollbar {
+  height: 4px;
+}
+.detailed-plan-grid__cell--container .ops-container-line::-webkit-scrollbar-thumb {
+  background: var(--line-2, #cbd5e1);
+  border-radius: 2px;
 }
 
 .detailed-plan-grid__line--muted {
