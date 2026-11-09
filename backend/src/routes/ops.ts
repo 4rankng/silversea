@@ -49,6 +49,11 @@ import { declareNonMaterialWrite } from '../middleware/material-write';
 import { declareMaterialWrite } from '../middleware/material-write';
 
 const OPS_ONLY = requireRoles(Role.OPS);
+// SIL-748 (owner product decision 09/11): the drawer's [Khai chi phí] entry
+// admits CUS as well — the create flow (type catalog, duplicate claimants,
+// photo upload, create) is the same path Ops drives. Edit/delete of saved
+// rows stay OPS_ONLY (they live on Ops-only surfaces).
+const EXPENSE_DECLARERS = requireRoles(Role.OPS, Role.CUS);
 const OPS_APPROVERS = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 const ADMIN_ONLY = requireRoles(Role.ADMIN);
 
@@ -150,8 +155,8 @@ router.post('/wallet/advance-requests', declareMaterialWrite('ops.advance-reques
 // ── Khoản chi của Ops ───────────────────────────────────────────────────────
 
 // Active expense-type catalog for the declaration form (no config:read grant
-// needed for OPS).
-router.get('/expense-types', OPS_ONLY, asyncHandler(async (_req: Request, res: Response) => {
+// needed for OPS/CUS — SIL-748).
+router.get('/expense-types', EXPENSE_DECLARERS, asyncHandler(async (_req: Request, res: Response) => {
   res.json({ items: await listActiveOpsExpenseTypes() });
 }));
 
@@ -193,12 +198,12 @@ const expensePatchSchema = z.object({
 // Duplicate-cont heads-up (every Ops may declare on any lot, so two Ops can
 // legitimately land on the same cont): the dialog shows WHO already declared
 // there and lets the operator continue — a warning, never a block.
-router.get('/expenses/cont-claimants', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.get('/expenses/cont-claimants', EXPENSE_DECLARERS, asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(typeof req.query.shipmentId === 'string' ? req.query.shipmentId : undefined, 'Lô hàng');
   res.json(await listOpsExpenseContainerClaimants(shipmentId));
 }));
 
-router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
+router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  EXPENSE_DECLARERS, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = expenseCreateSchema.parse(req.body);
   const outcome = await runIdempotent({
@@ -254,7 +259,7 @@ const expensePhotoUpload = multer({ storage: multer.memoryStorage(), limits: { f
  * "lưu trước, bổ sung ảnh sau"). Storage key = content hash, so a retried
  * upload of the same photo converges on one object without idempotency state.
  */
-router.post('/expense-photos/upload', declareNonMaterialWrite('Content-hash storage-object upload; replaying the same photo converges on one object and creates no DB row until an explicit attach.'), OPS_ONLY, expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/expense-photos/upload', declareNonMaterialWrite('Content-hash storage-object upload; replaying the same photo converges on one object and creates no DB row until an explicit attach.'), EXPENSE_DECLARERS, expensePhotoUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const file = req.file;
   if (!file) throw new ApiError(400, 'Không có file tải lên.');
