@@ -313,4 +313,29 @@ describe('DispatchDeclarationCell — SIL-594 echo lifecycle', () => {
     })} />);
     expect(screen.getByRole('button', { name: /Sửa số tờ khai/ }).textContent).toContain('TK-EXT');
   });
+
+  it('SIL-756: renders exact test string "108590773650" (all 12 digits) without ellipsis truncation', () => {
+    authRole = 'CUS';
+    render(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'QACU200050', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: '108590773650' },
+    })} />);
+    const button = screen.getByRole('button', { name: /Sửa số tờ khai/ });
+    expect(button.textContent).toBe('108590773650');
+    expect(button.textContent?.length).toBe(12);
+    expect(button.textContent).not.toContain('…');
+    expect(button.textContent).not.toContain('...');
+    expect(button.getAttribute('title')).toBe('Sửa số tờ khai: 108590773650');
+  });
+
+  it('SIL-756: renders alphanumeric declaration "TK1108R002" without ellipsis truncation', () => {
+    authRole = 'CUS';
+    render(<DispatchDeclarationCell row={row({
+      container: { containerNumber: 'QACU200050', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: 'TK1108R002' },
+    })} />);
+    const button = screen.getByRole('button', { name: /Sửa số tờ khai/ });
+    expect(button.textContent).toBe('TK1108R002');
+    expect(button.textContent).not.toContain('…');
+    expect(button.textContent).not.toContain('...');
+    expect(button.getAttribute('title')).toBe('Sửa số tờ khai: TK1108R002');
+  });
 });

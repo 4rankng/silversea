@@ -19,12 +19,16 @@ Doctrine: shipmate:uiux + SIL-515 (CẤM truncate, whole-token readable in cell)
      Bỏ `overflow: hidden !important;` và `text-overflow: ellipsis !important;`.
      Cấu hình `white-space: nowrap !important; overflow-x: auto !important; overflow-y: hidden !important; text-overflow: clip !important; scrollbar-width: thin;` kèm webkit scrollbar 4px thanh mảnh.
 2. `frontend/src/features/dispatch/detailed-plan/DetailedPlanGrid.css`:
-   - `.detailed-plan-grid__decl-value`, `.detailed-plan-grid__decl-value--action`, `.detailed-plan-grid__cell--container .ops-container-line`:
+   - `.detailed-plan-grid__decl-value`, `.detailed-plan-grid__decl-value--action`, `.detailed-plan-grid__cell--container .ops-container-line`, `.detailed-plan-grid__cell--declaration .detailed-plan-grid__line`:
      Bỏ `overflow: hidden; text-overflow: ellipsis;`.
      Cấu hình `white-space: nowrap; overflow-x: auto; overflow-y: hidden; text-overflow: clip; scrollbar-width: thin;` kèm webkit scrollbar 4px thanh mảnh.
-3. `frontend/src/pages/ShipmentContainersPage.no-truncation.styles.test.ts`:
+3. `frontend/src/features/dispatch/detailed-plan/DispatchDeclarationCell.tsx`:
+   - LCL declaration line kế thừa `.detailed-plan-grid__decl-value` cuộn ngang khi danh sách số tờ khai dài.
+4. `frontend/src/features/shipments/create/ShipmentDeclarationInline.css`:
+   - `.csc-decl-inline__value`, `.csc-decl-inline__trigger` cấu hình `white-space: nowrap; overflow-x: auto; text-overflow: clip;` với thanh cuộn mỏng 4px.
+5. `frontend/src/pages/ShipmentContainersPage.no-truncation.styles.test.ts`:
    - Khôi phục `expectNoClip(codeRules)` theo đúng tôn chỉ SIL-515 không clip/không ellipsis, xác thực `overflow-x: auto`.
-4. `frontend/src/features/shipments/detail/ShipmentContainerLedger.sil756.test.tsx`:
+6. `frontend/src/features/shipments/detail/ShipmentContainerLedger.sil756.test.tsx` & `DispatchDeclarationCell.test.tsx`:
    - Khẳng định chuỗi `'108590773650'` (đủ 12 chữ số), `'QACU200050'`, và `'TK1108R002'` hiển thị đủ ký tự, không bị ellipsis cắt số, tooltip title đầy đủ.
 
 ## Verification duty (rendered & component tests)

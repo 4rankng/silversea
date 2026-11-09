@@ -44,6 +44,7 @@ Yêu cầu Round 3:
      - `.detailed-plan-grid__decl-value`
      - `.detailed-plan-grid__decl-value--action`
      - `.detailed-plan-grid__cell--container .ops-container-line`
+     - `.detailed-plan-grid__cell--declaration .detailed-plan-grid__line`
    - Cấu hình:
      - `white-space: nowrap;`
      - `overflow-x: auto;`
@@ -53,10 +54,14 @@ Yêu cầu Round 3:
      - `word-break: normal;`
      - `scrollbar-width: thin;`
      - Webkit scrollbar 4px thanh mảnh.
-3. `frontend/src/pages/ShipmentContainersPage.no-truncation.styles.test.ts`:
+3. `frontend/src/features/dispatch/detailed-plan/DispatchDeclarationCell.tsx`:
+   - Áp dụng `.detailed-plan-grid__decl-value` cho dòng tờ khai LCL khi có nhiều số tờ khai để cuộn ngang trong ô.
+4. `frontend/src/features/shipments/create/ShipmentDeclarationInline.css`:
+   - Cấu hình `.csc-decl-inline__value` và `.csc-decl-inline__trigger` với `white-space: nowrap; overflow-x: auto; text-overflow: clip;` kèm scrollbar 4px thanh mảnh.
+5. `frontend/src/pages/ShipmentContainersPage.no-truncation.styles.test.ts`:
    - Phục hồi `expectNoClip(codeRules)` theo đúng tôn chỉ SIL-515 (CẤM truncate, không clip).
    - Khẳng định `overflow-x: auto`, `nowrap`, và `not.toMatch(/text-overflow:\s*ellipsis/)`.
-4. `frontend/src/features/shipments/detail/ShipmentContainerLedger.sil756.test.tsx`:
+6. `frontend/src/features/shipments/detail/ShipmentContainerLedger.sil756.test.tsx` & `DispatchDeclarationCell.test.tsx`:
    - Khẳng định render đầy đủ chuỗi `'108590773650'` (đủ 12 chữ số, `textContent` chính xác 12 số, không chứa `…`), `'QACU200050'`, và `'TK1108R002'`.
    - Khẳng định CSS enforcing `overflow-x: auto` và KHÔNG ellipsis.
 

@@ -310,6 +310,23 @@
   border-radius: 2px;
 }
 
+.detailed-plan-grid__cell--declaration .detailed-plan-grid__line:not(.detailed-plan-grid__line--missing) {
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-overflow: clip;
+  overflow-wrap: normal;
+  word-break: normal;
+  scrollbar-width: thin;
+}
+.detailed-plan-grid__cell--declaration .detailed-plan-grid__line:not(.detailed-plan-grid__line--missing)::-webkit-scrollbar {
+  height: 4px;
+}
+.detailed-plan-grid__cell--declaration .detailed-plan-grid__line:not(.detailed-plan-grid__line--missing)::-webkit-scrollbar-thumb {
+  background: var(--line-2, #cbd5e1);
+  border-radius: 2px;
+}
+
 /* SIL-631: the cell keeps its value (dimmed) while the editor floats outside
  * the grid through a body portal — the row context survives the edit. */
 .detailed-plan-grid__line.is-editing,

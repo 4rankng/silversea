@@ -44,7 +44,7 @@ export function DispatchDeclarationCell({ row, onSaved }: {
     return (
       <div className="detailed-plan-grid__cell-body">
         <div
-          className={lotNumbers.length === 0 ? 'detailed-plan-grid__line detailed-plan-grid__line--missing' : 'detailed-plan-grid__line'}
+          className={lotNumbers.length === 0 ? 'detailed-plan-grid__line detailed-plan-grid__line--missing' : 'detailed-plan-grid__line detailed-plan-grid__decl-value'}
           title={lotNumbers.join(', ') || undefined}
         >
           {lotNumbers.length > 0 ? lotNumbers.join(', ') : 'Chưa có tờ khai'}

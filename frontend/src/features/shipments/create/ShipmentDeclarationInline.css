@@ -14,7 +14,15 @@
   display: flex; min-width: 0; align-items: center;
   min-height: var(--control-touch-h); padding: 0 10px;
   color: var(--fg-1); font-size: var(--text-data-size); line-height: 1.35;
-  white-space: normal; overflow-wrap: anywhere;
+  white-space: nowrap; overflow-x: auto; overflow-y: hidden; text-overflow: clip;
+  overflow-wrap: normal; word-break: normal; scrollbar-width: thin;
+}
+.csc-decl-inline__value::-webkit-scrollbar {
+  height: 4px;
+}
+.csc-decl-inline__value::-webkit-scrollbar-thumb {
+  background: var(--line-2, #cbd5e1);
+  border-radius: 2px;
 }
 
 .csc-decl-inline__value--empty { color: var(--fg-3); }
@@ -23,8 +31,17 @@
   display: flex; width: 100%; min-width: 0; align-items: center;
   min-height: var(--control-touch-h); padding: 0 10px;
   color: var(--fg-1); font-family: inherit; font-size: var(--text-data-size);
-  line-height: 1.35; text-align: left; white-space: normal;
-  overflow-wrap: anywhere; background: transparent; border: 0; cursor: pointer;
+  line-height: 1.35; text-align: left;
+  white-space: nowrap; overflow-x: auto; overflow-y: hidden; text-overflow: clip;
+  overflow-wrap: normal; word-break: normal; scrollbar-width: thin;
+  background: transparent; border: 0; cursor: pointer;
+}
+.csc-decl-inline__trigger::-webkit-scrollbar {
+  height: 4px;
+}
+.csc-decl-inline__trigger::-webkit-scrollbar-thumb {
+  background: var(--line-2, #cbd5e1);
+  border-radius: 2px;
 }
 
 .csc-decl-inline__trigger.is-empty { color: var(--fg-3); }
