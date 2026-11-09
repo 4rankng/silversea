@@ -395,11 +395,13 @@ describe('DriverTripDetailPage', () => {
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
     // Card _28 item 10: before acceptance the completion action has no sticky
-    // slot — the accept bar owns it; the Chứng từ card still lists the two
-    // e-POD photo gaps.
+    // slot — the accept bar owns it; the Chứng từ card lists the e-POD photo
+    // gaps (SIL-697 resolved: soft law wording + the per-type gaps).
     expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
-    // 27.8 "BỐN MỐC THỰC HIỆN: BỎ" — the Chứng từ card lists only the two
-    // e-POD photo gaps, not the evidence endpoint's milestone/label echo.
+    // 27.8 "BỐN MỐC THỰC HIỆN: BỐ" — the Chứng từ card lists the soft missing
+    // count plus the two e-POD photo gaps, not the evidence endpoint's
+    // milestone/label echo.
+    expect(screen.getByText('Thiếu 2 file e-POD — nên bổ sung.')).toBeTruthy();
     expect(screen.getByText('Thiếu Phiếu bãi / phiếu hạ')).toBeTruthy();
     expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
     expect(screen.queryByText(/có ký nhận/)).toBeNull();

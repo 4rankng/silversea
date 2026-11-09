@@ -41,11 +41,11 @@ describe('TripPodSubmission', () => {
 
     expect(screen.getAllByText(/Phiếu bãi \/ phiếu hạ/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Biên bản giao nhận có ký nhận/).length).toBeGreaterThan(0);
-    // SIL-697 (owner Frank, 06/11): the draft submit boundary requires BOTH
-    // file types — the foot names the missing ones as required ("đủ hai loại"),
-    // never as optional (supersedes card 261022213755a's submit-anything rule).
+    // SIL-697 resolved (09/11): e-POD files are OPTIONAL (22/10 law +
+    // shipped SIL-733 PASS win). The foot still names the missing files and
+    // the soft count warning — informational, never a block claim.
     expect(screen.getAllByText('Chưa có').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Còn thiếu .+ — cần bổ sung đủ hai loại trước khi hoàn thành chuyến\./)).toBeTruthy();
+    expect(screen.getByText(/Thiếu 2 file e-POD — nên bổ sung\./)).toBeTruthy();
     expect(screen.queryByText(/tùy chọn/)).toBeNull();
     expect(screen.getByText(/Tiến độ chứng từ/)).toBeTruthy();
     expect(screen.queryByText(/Điều kiện hoàn thành/)).toBeNull();

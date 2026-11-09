@@ -1,0 +1,21 @@
+SIL-697 UI driver log — Paseo browser tab 3f2113e1 (resized 390x844 mobile) + playwright capture, dev stack :7175/:3002 (fresh vite), DB ss-prod-db
+Auth: logout leftover tiepvv session → login bqhuong (DRIVER, credentials per testplan/testaccounts.txt) → landed /my-trips.
+Fixture: trip 779101 (Bill SIL704-kep_unpaired-1793984349668, SUNRISE+ SJ, Tân Vũ → Đình Vũ), IN_TRANSIT, ORDER_RECEIVED accepted, pod submission 69 DRAFT with 0 files.
+1. navigate /my-trips/779101/pod → DOM asserts (2s settle):
+   heading 'e-POD giao hàng' ✓
+   footer optional copy '...là tùy chọn — thiếu vẫn bấm HOÀN THÀNH CHUYẾN được; hệ thống chỉ nhắc bổ sung.' ✓
+   'Thiếu 2 file e-POD — nên bổ sung.' ✓
+   'Chưa có Phiếu bãi / phiếu hạ' + 'Chưa có Biên bản giao nhận có ký nhận' ✓
+   button HOÀN THÀNH CHUYẾN present+enabled ✓
+2. click HOÀN THÀNH CHUYẾN (0/2 files):
+   toast 'Thiếu 2 file e-POD — nên bổ sung.' (SOFT, non-blocking) ✓
+   network: POST /api/driver/me/fulfillments/2183/pod/69/submit → success (0-file DRAFT→SUBMITTED; the 06/11 409 gate no longer fires)
+   completion attempt → 409 'Ngày hoàn thành không thể trước ngày khởi hành.' — departure_date 2026-11-16 (future); milestone/date rule, out of ticket scope (kept), same rule QA hit on trip 110.
+3. departure_date → 2026-11-08 (direct DB test-data tweak, mirroring QA's own repro path).
+4. click HOÀN THÀNH CHUYẾN again → toast 'Hoàn tất chuyến hàng thành công!' + navigate /my-trips ✓
+5. DB proof (qa/2026-11-09_SIL-697_db-proof.txt): trip 779101 COMPLETED; submission 69 SUBMITTED with 0 files.
+6. Playwright captures: qa/2026-11-09_SIL-697_ui-6-completed-board.png (driver board post-success), qa/2026-11-09_SIL-697_ui-7-pod-submitted.png (completed-trip e-POD: 'Hoàn thành' pill, 'Đã gửi chứng từ', 'Tùy chọn' chips, 'Tiến độ chứng từ 0%', 'Thiếu 2 file e-POD — nên bổ sung.').
+NOTES:
+ - Paseo browser_screenshot intermittently failed earlier ('The tab has not painted yet.') on every tab; playwright (@playwright/test chromium) captured fine.
+ - Completion gate on missing e-POD: NONE anywhere (FE warn+proceed, BE submit accepts, BE complete milestone-only) — matches owner law 09/11 (22/10 card 261022213755a + SIL-733 PASS win).
+Exit status: 0.

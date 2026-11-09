@@ -1,0 +1,24 @@
+SIL-697 — DB side-effect proof (local main 6d7a3886 + branch fix/r8b-717-697-758 code, stack :3002/:7175, DB ss-prod-db/silversea)
+Role: DRIVER bqhuong (Bùi Quang Hường, plate 60C-45678). Trip: 779101 (Bill SIL704-kep_unpaired-1793984349668, SUNRISE+ SJ, Cảng Tân Vũ → Cảng Đình Vũ), pod submission 69.
+
+BEFORE (fixture setup):
+ trip 779101: IN_TRANSIT, ORDER_RECEIVED accepted, departure_date 2026-11-16 (future — the date rule blocks completion, same rule QA hit on trip 110)
+ pod submission 69: DRAFT, 0 files
+
+DRIVE (mobile viewport 390x844, /my-trips/779101/pod):
+ - Page copy asserts: footer "Ảnh chứng từ (Phiếu bãi / phiếu hạ, Biên bản giao nhận có ký nhận) là tùy chọn — thiếu vẫn bấm HOÀN THÀNH CHUYẾN được; hệ thống chỉ nhắc bổ sung." + "Thiếu 2 file e-POD — nên bổ sung." progress line + per-type issue items — all present.
+ - Bấm HOÀN THÀNH CHUYẾN (0/2 files):
+   * toast: "Thiếu 2 file e-POD — nên bổ sung." (SOFT warning, non-blocking)
+   * API: POST /api/driver/me/fulfillments/2183/pod/69/submit → OK (0-file DRAFT→SUBMITTED accepted; the 06/11 409 gate is gone)
+   * completion attempt 1 → 409 "Ngày hoàn thành không thể trước ngày khởi hành." — milestone/date rule, OUT of ticket scope (kept per ticket law)
+ - departure_date moved to 2026-11-08 (test-data tweak, mirroring QA's own repro on trip 110)
+ - Bấm HOÀN THÀNH CHUYẾN again → toast "Hoàn tất chuyến hàng thành công!" + navigate /my-trips.
+
+AFTER (DB):
+ SELECT id, status, departure_date FROM trips WHERE id = 779101;
+  779101 | COMPLETED | 2026-11-08
+ SELECT id, status, (SELECT count(*) FROM trip_pod_files f WHERE f.submission_id = p.id) FROM trip_pod_submissions p WHERE p.trip_id = 779101;
+  69 | SUBMITTED | 0
+
+VERDICT: completion NOT blocked by missing e-POD (0/2 files → COMPLETED), submit NOT blocked (0-file draft → SUBMITTED), soft warning shown before send. Screenshot: qa/2026-11-09_SIL-697_ui-6-completed-board.png (driver board after success toast).
+Exit status: 0.

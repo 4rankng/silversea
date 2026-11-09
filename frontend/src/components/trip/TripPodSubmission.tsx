@@ -419,8 +419,8 @@ export function TripPodSubmission({
             Tiến độ chứng từ
             <span className="trip-pod__progress-pct">{uploadProgressPercent}%</span>
           </strong>
-          {/* SIL-697: the progress bar tracks the two required file types —
-              "Hoàn thành chuyến" refuses while it is below 100%. */}
+          {/* SIL-697 resolved: the progress bar tracks the two evidence
+              file types — informational only, never a completion gate. */}
           <div
             className="trip-pod__progress"
             role="progressbar"
@@ -438,7 +438,11 @@ export function TripPodSubmission({
             <span>{isLocked ? 'Đã lưu đủ hai loại chứng từ.' : 'Đủ hai loại chứng từ.'}</span>
           ) : (
             <span>
-              Còn thiếu {missingRequired.map((fileType) => FILE_TYPE_LABELS[fileType]).join(', ')} — cần bổ sung đủ hai loại trước khi hoàn thành chuyến.
+              {/* Locked (nộp/duyệt rồi) forms can never accept the missing
+                  files — state the fact without the bổ-sung call to action. */}
+              {isLocked
+                ? `Thiếu ${missingRequired.length} file e-POD.`
+                : `Thiếu ${missingRequired.length} file e-POD — nên bổ sung.`}
             </span>
           )}
         </div>
