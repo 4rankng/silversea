@@ -80,6 +80,16 @@ function literalHeadings(source: string): Array<{ line: number; tag: string; val
 
 const ACRONYM_RE = new RegExp(`\\b(${Object.keys(ACRONYMS).join('|')})\\b`, 'g');
 
+/**
+ * SIL-772 (khách chốt 09/11/2026 — Frank: "khách hàng bảo thế nào thì làm
+ * thế") — bảng chốt Debit mang tên khách yêu cầu NGUYÊN VĂN, viết hoa:
+ * 'KIỂM SOÁT LÔ HÀNG'. Một nhãn do khách định danh không phải "shouting" —
+ * nó là tên riêng của bảng, và luật này cho nó one named exemption.
+ */
+const VERBATIM_CUSTOMER_TITLES: Record<string, true> = {
+  'KIỂM SOÁT LÔ HÀNG': true,
+};
+
 function scan() {
   const pageTitles: Array<{ where: string; value: string }> = [];
   const headings: Array<{ where: string; tag: string; value: string }> = [];
@@ -108,6 +118,7 @@ describe('page-heading law', () => {
       ...headings.map((item) => ({ kind: `<${item.tag}>`, ...item })),
     ];
     const offenders = written
+      .filter((item) => !VERBATIM_CUSTOMER_TITLES[item.value.trim()])
       .filter((item) => CAPS_RUN.test(item.value.replace(ACRONYM_RE, '')))
       .map((item) => `${item.kind} ${item.where} "${item.value}"`);
     expect(written.length, 'the scan must see the call sites, or this test is vacuous').toBeGreaterThan(100);

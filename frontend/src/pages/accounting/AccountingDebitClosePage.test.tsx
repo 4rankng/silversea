@@ -135,12 +135,15 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
   it('names the screen, not the document (page-heading law)', async () => {
     boardWith([row()]);
     renderPage();
-    expect(await screen.findByRole('heading', { level: 1, name: 'Kế toán chốt debit' })).toBeInTheDocument();
+    // SIL-772 — tên màn hình là nhãn khách yêu cầu nguyên văn, viết hoa.
+    expect(await screen.findByRole('heading', { level: 1, name: 'KIỂM SOÁT LÔ HÀNG' })).toBeInTheDocument();
     await screen.findByText('BL-1');
-    // The document's name is the BOARD's, and the page never shouts: no heading
-    // or visible caption carries an ALL-CAPS run.
+    // The document's name is the BOARD's, and the page never shouts — except
+    // the customer-verbatim H1 (SIL-772 exemption in page-heading-law.test):
+    // every OTHER heading still reads sentence case, no ALL-CAPS run.
     expect(screen.getByRole('heading', { level: 2, name: /Kế hoạch điều động tổng hợp/ })).toBeInTheDocument();
     for (const heading of screen.getAllByRole('heading')) {
+      if (heading.tagName === 'H1') continue;
       expect(heading.textContent ?? '').not.toMatch(/[A-ZĐÂÊÔƠƯ]{2,}\s+[A-ZĐÂÊÔƠƯ]{2,}/);
     }
     const caption = document.querySelector('.debit-board caption');

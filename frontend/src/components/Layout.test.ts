@@ -25,6 +25,7 @@ describe('getNavItems', () => {
       ['Phân chia lợi nhuận', '/profit'],
       ['Sổ quỹ / ngân hàng', '/finance/treasury'],
       ['Công nợ phải thu', '/debt'],
+      ['KIỂM SOÁT LÔ HÀNG', '/accounting/chot-debit'],
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & hoàn ứng', '/advances'],
@@ -32,7 +33,6 @@ describe('getNavItems', () => {
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
       ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
       ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
-      ['Kế toán chốt debit', '/accounting/chot-debit'],
       ['Lương & Chấm công', '/salary'],
       ['Chấm công lái xe', '/timesheet'],
       ['Tổng hợp xếp lệnh tháng', '/timesheet/bao-cao'],
@@ -84,9 +84,9 @@ describe('getNavItems', () => {
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
       ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
       ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
-      ['Kế toán chốt debit', '/accounting/chot-debit'],
       ['Sổ quỹ / ngân hàng', '/finance/treasury'],
       ['Công nợ phải thu', '/debt'],
+      ['KIỂM SOÁT LÔ HÀNG', '/accounting/chot-debit'],
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & hoàn ứng', '/advances'],
@@ -243,7 +243,7 @@ describe('getNavItems', () => {
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive.
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/accounting/chot-debit', '/finance/treasury', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet', '/timesheet/doi-chieu', '/timesheet/bao-cao', '/hr/roster',
+      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/finance/treasury', '/debt', '/accounting/chot-debit', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet', '/timesheet/doi-chieu', '/timesheet/bao-cao', '/hr/roster',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/audit-logs',
     ]);
@@ -309,10 +309,10 @@ describe('getNavItems', () => {
     }
   });
 
-  it('exposes the chot-debit board to ACCOUNTANT and ADMIN only (20260921_21)', () => {
+  it('exposes the KIỂM SOÁT LÔ HÀNG board to ACCOUNTANT and ADMIN only (20260921_21; SIL-772 moves it into Công nợ vận tải)', () => {
     for (const role of [Role.ADMIN, Role.ACCOUNTANT]) {
       expect(getNavItems(role).find((item) => item.key === 'chot-debit'), role)
-        .toEqual(expect.objectContaining({ label: 'Kế toán chốt debit', path: '/accounting/chot-debit' }));
+        .toEqual(expect.objectContaining({ label: 'KIỂM SOÁT LÔ HÀNG', path: '/accounting/chot-debit', section: 'accounting-cong-no' }));
     }
     for (const role of [Role.MANAGER, Role.DISPATCHER, Role.CUS, Role.OPS, Role.DRIVER, Role.CUSTOMER]) {
       expect(getNavItems(role).some((item) => item.key === 'chot-debit'), role).toBe(false);
@@ -394,9 +394,11 @@ describe('kế toán danh mục (spec 5.10)', () => {
 
   it('routes every spec screen to its spec danh mục', () => {
     expect(itemsFor(Role.ADMIN, PHƠI_PHIEU)).toEqual([
-      'expenses', 'advances', 'hoan-ung', 'invoice-tracking', 'deposit-tracker', 'phoi-phieu', 'chot-debit',
+      'expenses', 'advances', 'hoan-ung', 'invoice-tracking', 'deposit-tracker', 'phoi-phieu',
     ]);
-    expect(itemsFor(Role.ADMIN, CÔNG_NỢ)).toEqual(['debt', 'payables']);
+    // SIL-772 — bảng chốt Debit chuyển vào phân hệ CÔNG NỢ VẬN TẢI (sau
+    // phải thu, trước phải trả).
+    expect(itemsFor(Role.ADMIN, CÔNG_NỢ)).toEqual(['debt', 'chot-debit', 'payables']);
     expect(itemsFor(Role.ADMIN, QUỸ)).toEqual(['treasury']);
     // Owner ruling 2026-10-12 (QA2-008): the HR items moved to Nhân sự —
     // the Khác danh mục is empty for the sidebar and self-hides.
@@ -413,10 +415,10 @@ describe('kế toán danh mục (spec 5.10)', () => {
     expect(itemsFor(Role.ACCOUNTANT, 'hr')).toEqual(['salary', 'timesheet', 'timesheet-reconciliation', 'timesheet-report', 'hr-roster']);
 
     expect(itemsFor(Role.ACCOUNTANT, PHƠI_PHIEU)).toEqual([
-      'invoice-tracking', 'deposit-tracker', 'phoi-phieu', 'chot-debit',
+      'invoice-tracking', 'deposit-tracker', 'phoi-phieu',
       'expenses', 'advances', 'hoan-ung',
     ]);
-    expect(itemsFor(Role.ACCOUNTANT, CÔNG_NỢ)).toEqual(['debt', 'payables']);
+    expect(itemsFor(Role.ACCOUNTANT, CÔNG_NỢ)).toEqual(['debt', 'chot-debit', 'payables']);
     expect(itemsFor(Role.ACCOUNTANT, QUỸ)).toEqual(['treasury']);
   });
 

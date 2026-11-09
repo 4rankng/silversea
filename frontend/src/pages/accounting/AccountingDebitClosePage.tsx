@@ -62,6 +62,11 @@ export default function AccountingDebitClosePage() {
   const [search, setSearch] = useState('');
   const [customerFilter, setCustomerFilter] = useState<string[]>([]);
   const [truckFilter, setTruckFilter] = useState<string[]>([]);
+  // SIL-772 — 2 chế độ xem của bảng KIỂM SOÁT LÔ HÀNG: Vận tải Hàng Cont
+  // (FCL) / Vận tải Hàng Lẻ (LCL). Wire rule: lcl != null ⇔ cargoMode 'LCL'
+  // (accounting-debit-close.service) — một dòng chưa phân loại (null) ở lại
+  // chế độ FCL để dữ liệu chốt debit cũ không bao giờ biến mất khỏi bảng.
+  const [cargoView, setCargoView] = useState<'FCL' | 'LCL'>('FCL');
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [settlementOpen, setSettlementOpen] = useState(false);
   // FB-094 (card 181026145620) — Xuất Debit Note over the selected rows.
@@ -159,13 +164,23 @@ export default function AccountingDebitClosePage() {
   const visibleRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return rows.filter((row) => {
+      // SIL-772 — chế độ xem FCL/LCL áp trước mọi facet: mỗi chế độ hiện
+      // đúng dữ liệu của loại hàng đó (lcl != null ⇔ cargoMode 'LCL').
+      if (cargoView === 'FCL' ? row.lcl != null : row.lcl == null) return false;
       if (customerFilter.length > 0 && (row.customerName == null || !customerFilter.includes(row.customerName))) return false;
       if (truckFilter.length > 0 && !row.phanXe.some((truck) => truckFilter.includes(truck))) return false;
       if (needle === '') return true;
       return [row.code, row.billOrBooking, row.customerName, ...row.containers, ...row.phanXe]
         .some((value) => value != null && value.toLowerCase().includes(needle));
     });
-  }, [rows, customerFilter, truckFilter, search]);
+  }, [rows, customerFilter, truckFilter, search, cargoView]);
+
+  // SIL-772 — đếm theo loại hàng trên dữ liệu của kỳ (trước facet/search) để
+  // nút chuyển chế độ luôn nói đúng bảng có bao nhiêu dòng mỗi loại.
+  const cargoCounts = useMemo(() => ({
+    FCL: rows.filter((row) => row.lcl == null).length,
+    LCL: rows.filter((row) => row.lcl != null).length,
+  }), [rows]);
 
   // Pickable = no live adjustment (NONE) or a CONFIRMED one (a new adjustment
   // cycle may be requested until the lot's cost lock freezes it). A live PENDING
@@ -503,7 +518,30 @@ export default function AccountingDebitClosePage() {
 
   return (
     <div className="page-shell">
-      <PageHeader title="Kế toán chốt debit" />
+      {/* SIL-772 — nhãn khách yêu cầu nguyên văn, viết hoa đúng như khách ghi. */}
+      <PageHeader title="KIỂM SOÁT LÔ HÀNG" />
+
+      {/* SIL-772 — 2 chế độ xem chuyển đổi: Vận tải Hàng Cont FCL / Vận tải
+          Hàng Lẻ LCL. Buttons + aria-pressed (nhà bán key-neutral, không
+          panel mới); đếm trên dữ liệu của kỳ để mỗi chế độ tự nói mình có gì. */}
+      <div className="debit-cargo-view" role="group" aria-label="Chế độ xem loại hàng">
+        <button
+          type="button"
+          className={cargoView === 'FCL' ? 'debit-cargo-view__btn is-active' : 'debit-cargo-view__btn'}
+          aria-pressed={cargoView === 'FCL'}
+          onClick={() => setCargoView('FCL')}
+        >
+          Vận tải Hàng Cont (FCL) · {cargoCounts.FCL} lô
+        </button>
+        <button
+          type="button"
+          className={cargoView === 'LCL' ? 'debit-cargo-view__btn is-active' : 'debit-cargo-view__btn'}
+          aria-pressed={cargoView === 'LCL'}
+          onClick={() => setCargoView('LCL')}
+        >
+          Vận tải Hàng Lẻ (LCL) · {cargoCounts.LCL} lô
+        </button>
+      </div>
 
       <FilterBar
         search={{
