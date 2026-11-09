@@ -9,7 +9,7 @@ import * as s from '../db/schema';
 import { and, desc, eq, exists, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
-import { opsInvoicedCostGroupOf, type ExpenseCostGroup } from '@tingting/shared';
+import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, type ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
@@ -267,28 +267,12 @@ export async function createOpsExpense(
   // charges 0 rather than a negative receivable.
   const customerCharge = receivableForCost(entry.amount, costGroup, input.customerChargeAmount);
 
-  // Card 20260928_162: a row that does NOT charge the customer must carry a
-  // note saying why, and the SERVER enforces it.
-  //
-  // This was the criterion's whole point — "hệ thống chặn lưu khi thiếu (kiểm
-  // bằng test, không chỉ bằng UI disable)" — and it was not enforced anywhere.
-  // `note` was `z.string().max(1000).nullable().optional()` on the route, and
-  // the service stored `input.note?.trim() || null`. Only the FORWARDER path
-  // had the rule ("Lý do chi là bắt buộc khi không có hóa đơn"), which is a
-  // different flow. So an uncharged Ops cost could be saved with the reason
-  // blank, and kế toán / CUS then had nothing to read on the dispatch board.
-  //
-  // Placed AFTER customerCharge is computed, which is the only place the
-  // "does this charge the customer" answer exists — invoice groups always
-  // charge (charge = amount), so this bites only the no-invoice rows the PM
-  // meant. The insert above is inside the caller's executor, so throwing
-  // here rolls the row back rather than leaving an orphan.
-  if (customerCharge <= 0 && !input.note?.trim()) {
-    throw new ApiError(
-      400,
-      'Dòng chi không thu khách hàng thì bắt buộc nhập ghi chú — ghi rõ lý do để kế toán / CUS đọc được.',
-    );
-  }
+  // Card 20260928_162's note-required gate is REMOVED (SIL-777, owner decision
+  // 09/11/2026 "khách hàng bảo thế nào thì làm thế" — supersedes KB Ch.2
+  // §2.4.4 V16 and the SIL-723 acceptance): Ghi chú is optional in every
+  // case, including a row that does not charge the customer (Thực thu trống).
+  // Required fields are exactly Loại phí + Số tiền; the client form mirrors
+  // this in `draftErrors` (OpsExpenseFormModal).
 
   const source = await upsertExpenseAccountingSource(executor, { sourceKind: 'OPS', sourceId: entry.id,
     shipmentId: entry.shipmentId, shipmentContainerId: entry.shipmentContainerId, customerId: shipment.customerId,

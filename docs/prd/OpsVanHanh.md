@@ -56,11 +56,11 @@ Khi mở **Khai báo chi phí**, sản phẩm giữ ngữ cảnh lô và không 
 |---|---|
 | Lô và Bill/Booking | Tự điền đúng lô, đúng chiều nhập/xuất. |
 | Container hoặc phí chung | Chọn đúng container; có “Phí chung lô” khi phù hợp. Hàng lẻ không cần số container giả. |
-| Loại phí | Chọn loại đang sử dụng; phân biệt có/không yêu cầu hóa đơn theo danh mục. |
+| Loại phí | Chọn loại đang sử dụng; phân biệt có/không yêu cầu hóa đơn theo danh mục. Danh mục chọn của popup Ops LỌC bỏ các chi phí của lái xe (tiền dầu, sửa chữa dọc đường/vá vỏ — SIL-770, owner 09/11/2026): "chi phí của ai người đó tự khai" — app lái xe giữ nguyên danh mục đầy đủ của mình. |
 | Số tiền | Số nguyên dương bằng đồng Việt Nam. Số âm hoặc sai định dạng được giải thích, không tự biến thành giá trị khác. |
 | Ngày và người chi | Phản ánh thực tế. Khi được nhập thay, vẫn phân biệt người chi với người ghi thông tin. |
 | Biên lai | Cho chụp hoặc chọn ảnh; có thể ghi khoản đã thực chi rồi bổ sung ảnh sau. |
-| Ghi chú | Có thể thêm khi cần, **trừ khoản không thu khách hàng**: dòng chi mà khách không phải trả (thu khách 0đ) bắt buộc có ghi chú nêu lý do, hệ thống chặn lưu khi thiếu — lý do này để kế toán/CUS đọc được chứ không phải thủ tục hình thức. Sửa/hủy khoản ảnh hưởng tiền phải có lý do. |
+| Ghi chú | Tùy chọn trong mọi trường hợp (SIL-777, quyết định owner 09/11/2026 "khách hàng bảo thế nào thì làm thế" — đảo ngược luật cũ "khoản không thu khách bắt buộc ghi chú" của KB Ch.2 §2.4.4 V16 và nghiệm thu SIL-723): bắt buộc chỉ còn Loại phí + Số tiền (+ Số hóa đơn cho nhóm có hóa đơn). Nên nhập ghi chú cho khoản không thu khách để kế toán/CUS đọc được lý do. Sửa/hủy khoản ảnh hưởng tiền phải có lý do. |
 
 Lưu hợp lệ thì khoản chi được ghi nhận trực tiếp và phản ánh vào quỹ liên quan. Không chuyển sang chờ duyệt. Nội dung còn đang nhập chưa được tính là khoản đã ghi.
 

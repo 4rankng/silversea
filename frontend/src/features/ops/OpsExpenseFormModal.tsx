@@ -103,7 +103,8 @@ function amountValidOf(amount: number | ''): boolean {
 
 /** The customer charge the SERVER will derive for this draft (card 20260928_162
  *  client mirror): invoice rows charge the amount; no-invoice rows charge only
- *  their Thực-thu override. ≤ 0 makes the row's Ghi chú mandatory. */
+ *  their Thực-thu override. Kept for the "Thực thu không âm" field check —
+ *  it no longer gates Ghi chú (SIL-777: note is always optional). */
 function chargeOf(block: 'noInvoice' | 'invoice', draft: FeeDraft, valid: boolean): number {
   if (block === 'invoice') return valid ? Number(draft.amount) : 0;
   const text = draft.charge.trim();
@@ -134,11 +135,11 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | 
     : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
   const charge = chargeOf(block, draft, valid);
   if (Number.isNaN(charge) || charge < 0) return '"Thực thu (thu khách)" phải là số không âm.';
-  // Card 20260928_162 (server authority unchanged): a row that does not
-  // charge the customer must say why. SIL-723: the message NAMES the field —
-  // this form has two note inputs ("Ghi chú thu khách" vs "Ghi chú"), and the
-  // dead button never said which one was missing.
-  if (charge <= 0 && draft.note.trim() === '') return 'Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".';
+  // SIL-777 (owner decision 09/11/2026): Ghi chú is OPTIONAL in every case —
+  // the card 20260928_162 gate ("không thu khách → bắt buộc ghi chú",
+  // SIL-723) is reversed by the owner; required fields are exactly Loại phí
+  // + Số tiền. The server gate is removed with it
+  // (createOpsExpense in ops-expenses.service.ts).
   // KB Chương 6 — only the INVOICE group requires the invoice number; the
   // no-invoice block never asks for it (and receipt photos stay optional).
   if (block === 'invoice' && draft.invoiceNumber.trim() === '') return 'Nhập "Số hóa đơn" — khoản có hóa đơn bắt buộc có số hóa đơn.';
@@ -657,8 +658,8 @@ const { typesData, typesReady, busy, patch: patchDraft, upload: uploadRowPhotos,
           onChange={(event) => patchDraft(block, draft.key, { note: event.target.value })}
         />
       </label>
-      {chargeOf(block, draft, amountValidOf(draft.amount)) <= 0 && !invoiced
-        && <p className="ops-modal-hint">Dòng chi này không thu khách hàng (Thực thu để trống) — ghi chú bắt buộc: nhập trường "Ghi chú", ghi rõ lý do để kế toán / CUS đọc được.</p>}
+      {/* SIL-777 — the old "không thu khách → ghi chú bắt buộc" hint is gone
+          with the gate: Ghi chú stays optional in every case. */}
       {/* A quiet hint, not role=alert: an untouched "+ row" must not keep a
           permanent alert alive over the whole form (the catalog-recovery
           contract clears its alert once the catalog reloads). */}

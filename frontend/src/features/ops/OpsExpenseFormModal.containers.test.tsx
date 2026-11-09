@@ -206,19 +206,22 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
     });
   });
 
-  it('B2: a no-charge row without Ghi chú stays blocked and the footer names "Ghi chú"', async () => {
+  it('B2 (SIL-777): a no-charge row saves WITHOUT Ghi chú — the old note gate is gone', async () => {
     await show();
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '80000');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
-    expect(save).toBeDisabled();
-    // The message shows twice: the row hint AND the footer notice beside Lưu
-    // (the two surfaces SIL-723 requires; footer read via findAllByText).
-    expect((await screen.findAllByText('Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".')).length).toBeGreaterThan(0);
-    // Filling the field the message names re-enables the save.
-    await fillNote('Phí không hóa đơn', 'Không thu khách — phí nội bộ');
+    // SIL-777 (owner 09/11/2026) reverses SIL-723's "không thu khách → bắt
+    // buộc ghi chú": Loại phí + Số tiền alone open Lưu and no gate notice
+    // renders on the row hint or the footer.
     expect(save).toBeEnabled();
     expect(screen.queryAllByText('Dòng không thu khách (Thực thu để trống) — bắt buộc nhập trường "Ghi chú".')).toHaveLength(0);
+    // A row WITH a note still saves as before (the field stays functional).
+    await fillNote('Phí không hóa đơn', 'Không thu khách — phí nội bộ');
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ amount: '80000', note: 'Không thu khách — phí nội bộ' });
   });
 
   it('B3: the invoice block requires "Số hóa đơn" and the footer names it', async () => {
