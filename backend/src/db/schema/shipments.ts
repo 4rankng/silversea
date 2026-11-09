@@ -148,6 +148,32 @@ export const shipmentDocuments = pgTable('shipment_documents', {
 ]);
 
 
+// SIL-765 (spec 09/11 Phần VI Epic 5.2) — a lô hàng lẻ may lift at MORE than
+// one warehouse. The FIRST "Kho lấy hàng" stays on shipments.pickup_warehouse_site_id
+// (+ the direction-mapped free-text location column) so every existing
+// single-point consumer keeps its exact meaning; rows here are the ADDITIONAL
+// points (2..N) in display order. Same hybrid contract as the primary point:
+// a catalog site_id XOR a typed name — the DB enforces only "the row names a
+// point"; the XOR normalization belongs to the intake services (MasterDataNhaMay
+// §4.1 convention: raw_* never writes back into the master tables).
+// Plain integer shipment_id on purpose: cross-file links in this file are
+// service-enforced (see costVehicleClassId), no FK.
+export const shipmentPickupWarehouses = pgTable('shipment_pickup_warehouses', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  siteId: integer('site_id'),
+  name: varchar('name', { length: 255 }),
+  // 1-based display order among the ADDITIONAL points (not the shipment's
+  // primary warehouse, which keeps no row here).
+  position: integer('position').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('shipment_pickup_warehouses_shipment_id_idx').on(table.shipmentId),
+  check('shipment_pickup_warehouses_point_check', sql`(${table.siteId} is not null or ${table.name} is not null)`),
+  check('shipment_pickup_warehouses_position_check', sql`${table.position} >= 1`),
+]);
+
+
 // Customs declarations. Per M3.1 §3, one declaration may cover N containers
 // (SHARED) or be per-container (SINGLE). The link from a declaration to the
 // containers it covers is many-to-many in full; this Wave 0 slice captures

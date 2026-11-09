@@ -982,3 +982,87 @@ describe('SIL-660 — buildShipmentDeclarationPayload (LCL-only tờ khai cấp 
     expect(buildShipmentDeclarationPayload(form)).toBeNull();
   });
 });
+
+// SIL-765 (Phần VI Epic 5.2) — additional "Kho lấy hàng" points ride the LCL
+// root payload: a site row normalizes to name null ("id set → raw null"), a
+// typed row carries siteId null, an empty row never reaches the wire, and an
+// FCL save OMITS the key entirely so it can never touch the point rows.
+describe('buildShipmentRootPayload — SIL-765 additional pickup warehouses', () => {
+  const twoKhoForm: ShipmentCreateFormState = {
+    ...EMPTY_SHIPMENT_CREATE_FORM,
+    customerId: '25282',
+    cargoMode: 'LCL',
+    tradeDirection: 'IMPORT',
+    routeId: '1',
+    operationalSiteId: '3625',
+    pickupWarehouseSiteId: '442',
+    blNumber: 'BL-2KHO',
+    extraPickupWarehouses: [
+      { siteId: '443', name: '' },
+      { siteId: '', name: 'Kho gõ tay Q7' },
+      { siteId: '', name: '   ' },
+    ],
+  };
+
+  it('LCL: site rows send name null, typed rows send siteId null, empty rows drop', () => {
+    const payload = buildShipmentRootPayload(twoKhoForm, [], [
+      { id: 3625, name: 'Nhà máy Resolve', shortName: '' },
+      { id: 442, name: 'ICD Hà Nội', shortName: 'ICD Hà Nội' },
+      { id: 443, name: 'Kho Cát Lái', shortName: '' },
+    ]);
+    expect(payload.additionalPickupWarehouses).toEqual([
+      { siteId: 443, name: null },
+      { siteId: null, name: 'Kho gõ tay Q7' },
+    ]);
+    // The primary point stays exactly where it was.
+    expect(payload.pickupWarehouseSiteId).toBe(442);
+    expect(payload.pickupLocation).toBe('ICD Hà Nội');
+  });
+
+  it('LCL không kho thêm: payload không mang key rỗng vô nghĩa', () => {
+    const payload = buildShipmentRootPayload({
+      ...twoKhoForm,
+      extraPickupWarehouses: [],
+    }, [], []);
+    expect(payload.additionalPickupWarehouses).toEqual([]);
+  });
+
+  it('FCL: key bị bỏ hẳn (undefined) — save FCL không đụng điểm kho', () => {
+    const payload = buildShipmentRootPayload({ ...twoKhoForm, cargoMode: 'FCL' }, [], []);
+    expect(payload.additionalPickupWarehouses).toBeUndefined();
+  });
+});
+
+// SIL-765 — a STARTED extra "Kho lấy hàng" row must name a point (catalog
+// pick OR typed text); the row itself is optional (một kho vẫn chạy bình thường).
+describe('getShipmentCreateReadiness — SIL-765 extra pickup warehouses', () => {
+  const lclForm = {
+    ...EMPTY_SHIPMENT_CREATE_FORM,
+    customerId: '25282',
+    tradeDirection: 'IMPORT' as const,
+    cargoMode: 'LCL' as const,
+    routeId: '1',
+    operationalSiteId: '3625',
+    pickupWarehouseSiteId: '442',
+    blNumber: 'BL-X',
+    packageType: 'Pallet',
+    packageCount: '5',
+    cargoWeightKg: '300',
+    lclClosingAt: '2026-11-12T08:30',
+  };
+
+  it('chưa bắt đầu hàng nào → không có issue cho kho bổ sung', () => {
+    const readiness = getShipmentCreateReadiness(lclForm, []);
+    expect(readiness.issues.filter((i) => i.fieldId.startsWith('shipment-pickup-warehouse-extra'))).toEqual([]);
+  });
+
+  it('hàng đã bắt đầu nhưng trống → issue đúng fieldId của hàng đó', () => {
+    const readiness = getShipmentCreateReadiness({
+      ...lclForm,
+      extraPickupWarehouses: [{ siteId: '', name: '   ' }],
+    }, []);
+    const issue = readiness.issues.find((item) => item.fieldId === 'shipment-pickup-warehouse-extra-0');
+    expect(issue?.message).toBe('Chọn kho hoặc nhập tên kho lấy hàng.');
+    expect(issue?.sectionId).toBe('route');
+  });
+});

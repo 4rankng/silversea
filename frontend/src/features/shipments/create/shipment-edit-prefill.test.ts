@@ -27,6 +27,7 @@ function detailFixture(overrides: Partial<ShipmentEditDetail['shipment']>): Ship
       cargoMode: 'FCL',
       operationalSiteId: null,
       pickupWarehouseSiteId: null,
+      additionalPickupWarehouses: [],
       factoryName: null,
       shippingLineName: 'Maersk',
       customsCutoffAt: null,
@@ -281,5 +282,34 @@ describe('buildShipmentEditPrefill', () => {
 
     expect(prefill.form.declarationNumber).toBe('TK-A');
     expect(prefill.seed.declaration).toEqual({ rowId: 66, declarationNumber: 'TK-A' });
+  });
+});
+
+// SIL-765 — additional "Kho lấy hàng" points round-trip through the edit
+// form: a site row maps to its catalog id (picker resolves the label), a
+// typed row keeps its text, and an FCL lot carries none (mode-scoped state).
+describe('SIL-765 — extra pickup warehouses edit prefill', () => {
+  it('LCL: site rows map to id + empty text; typed rows keep their name', () => {
+    const detail = detailFixture({
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      pickupWarehouseSiteId: 42,
+      additionalPickupWarehouses: [
+        { id: 1, siteId: 44, siteName: 'Kho Cát Lái', name: null, position: 1 },
+        { id: 2, siteId: null, siteName: null, name: 'Kho gõ tay Q7', position: 2 },
+      ],
+    });
+    const prefill = buildShipmentEditPrefill(detail);
+    expect(prefill.form.extraPickupWarehouses).toEqual([
+      { siteId: '44', name: '' },
+      { siteId: '', name: 'Kho gõ tay Q7' },
+    ]);
+    // The primary point keeps its own slot untouched.
+    expect(prefill.form.pickupWarehouseSiteId).toBe('42');
+  });
+
+  it('FCL: extras luôn rỗng — trạng thái LCL-only không rò vào form FCL', () => {
+    const detail = detailFixture({ cargoMode: 'FCL' });
+    expect(buildShipmentEditPrefill(detail).form.extraPickupWarehouses).toEqual([]);
   });
 });

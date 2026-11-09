@@ -1748,6 +1748,20 @@ function validateShipmentDocumentReferences(
 // Create draft shipment. `customerId` is optional for ad-hoc orders (Lệnh
 // chạy ngoài — MasterDataNhaMay §4): a walk-in cuốc carries rawCustomerName
 // instead. Catalog orders behave exactly as before.
+/** SIL-765 (Phần VI Epic 5.2) — one ADDITIONAL "Kho lấy hàng" point of an LCL
+ *  lot. Same hybrid contract as the primary point (`pickupWarehouseSiteId` /
+ *  `pickupWarehouseName`): a catalog site OR a typed name, never both empty. */
+export const shipmentExtraPickupWarehouseSchema = z.object({
+  siteId: z.coerce.number().int().positive('Kho lấy hàng không hợp lệ').optional().nullable(),
+  name: z.string().trim().max(255).optional().nullable(),
+}).superRefine((data, ctx) => {
+  if (data.siteId == null && !(data.name ?? '').trim()) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Mỗi kho lấy hàng phải chọn trong danh mục hoặc nhập tên.', path: ['name'] });
+  }
+});
+
+export type ShipmentExtraPickupWarehouse = z.infer<typeof shipmentExtraPickupWarehouseSchema>;
+
 const createShipmentBaseSchema = z.object({
   customerId: z.coerce.number().int().positive('Khách hàng không hợp lệ').optional().nullable(),
   // ── Lệnh chạy ngoài (hybrid storage, Case 2) ───────────────────────────
@@ -1763,6 +1777,8 @@ const createShipmentBaseSchema = z.object({
   cargoMode: z.enum(['FCL', 'LCL']).optional().nullable(),
   operationalSiteId: z.coerce.number().int().positive().optional().nullable(),
   pickupWarehouseSiteId: z.coerce.number().int().positive().optional().nullable(),
+  // SIL-765 — kho lấy hàng bổ sung (điểm 2..N) của cùng lô; LCL intake only.
+  additionalPickupWarehouses: z.array(shipmentExtraPickupWarehouseSchema).max(10).optional(),
   factoryName: z.string().max(255).optional().nullable(),
   isCombined: z.boolean().optional().default(false),
   shippingLineName: z.string().max(255).optional().nullable(),
@@ -1808,7 +1824,20 @@ function validateShipmentAdHocIdentity(
 export const createShipmentSchema = createShipmentBaseSchema.superRefine((data, ctx) => {
   validateShipmentDocumentReferences(data, ctx);
   validateShipmentAdHocIdentity(data, ctx);
+  validateShipmentExtraPickupWarehouses(data, ctx);
 });
+
+/** SIL-765 — additional "Kho lấy hàng" points are an LCL-only concept. An FCL
+ *  payload carrying them is a client bug (the FE omits the key for FCL), so it
+ *  400s instead of silently persisting rows a later LCL switch resurfaces. */
+function validateShipmentExtraPickupWarehouses(
+  data: { cargoMode?: 'FCL' | 'LCL' | null; additionalPickupWarehouses?: ReadonlyArray<unknown> | null },
+  ctx: z.RefinementCtx,
+) {
+  if (data.cargoMode !== 'LCL' && (data.additionalPickupWarehouses?.length ?? 0) > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Kho lấy hàng bổ sung chỉ dùng cho hàng lẻ.', path: ['additionalPickupWarehouses'] });
+  }
+}
 
 /**
  * Keys `POST /api/shipments` accepts. The route rejects anything outside this
@@ -1887,6 +1916,7 @@ const quickCreateShipmentBaseSchema = createShipmentBaseSchema.extend({
 export const quickCreateShipmentSchema = quickCreateShipmentBaseSchema.superRefine((data, ctx) => {
   validateShipmentDocumentReferences(data, ctx);
   validateShipmentAdHocIdentity(data, ctx);
+  validateShipmentExtraPickupWarehouses(data, ctx);
 });
 
 /** Keys `POST /api/shipments/quick` accepts (base + the quick-only channels). */
@@ -1909,6 +1939,9 @@ export const updateShipmentSchema = z.object({
   cargoMode: z.enum(['FCL', 'LCL']).nullish(),
   operationalSiteId: z.coerce.number().int().positive().nullish(),
   pickupWarehouseSiteId: z.coerce.number().int().positive().nullish(),
+  // SIL-765 — `undefined` keeps the stored points; an array REPLACES them all
+  // (the edit form always sends the full list, empty array clears).
+  additionalPickupWarehouses: z.array(shipmentExtraPickupWarehouseSchema).max(10).optional(),
   factoryName: z.string().max(255).nullish(),
   isCombined: z.boolean().optional(),
   shippingLineName: z.string().max(255).nullish(),
@@ -1937,6 +1970,7 @@ export const updateShipmentSchema = z.object({
     });
   }
   validateShipmentDocumentReferences(data, ctx);
+  validateShipmentExtraPickupWarehouses(data, ctx);
 }).transform(({ expectedVersion, version, ...rest }) => ({
   ...rest,
   expectedVersion: expectedVersion ?? version ?? 0,
