@@ -89,27 +89,6 @@
   color: var(--danger);
 }
 
-/* Stacked cell furniture: the lot cell (mã lô over khách hàng) and the
-   invoice cell (số hóa đơn over số tiền) stack two facts in one cell.
-   Identity facts wrap with the shared base; the money line is atomic —
-   money never breaks mid-number, same law as the base's numeric cells. */
-.ivt-stack {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-.ivt-stack__primary {
-  font-weight: var(--fw-semibold, 600);
-}
-
-.ivt-stack__sub {
-  color: var(--ink-2);
-  font-size: var(--text-caption-size, 12px);
-  white-space: nowrap;
-  overflow-wrap: normal;
-}
-
 /* Sizes the shared progress select inside its cell; the control's own skin is
    the design system's (`ds-uui-select`). */
 .invoice-tracking-progress {
@@ -193,55 +172,119 @@
   gap: 8px;
 }
 
-/* ── SIL-762 — 21-cột kết hợp ────────────────────────────────────────────── */
+/* ── SIL-762 REV2 — lưới 8 cột multi-line ────────────────────────────────── */
 
-/* Column 1: the selection checkbox + the per-hidden-row Bỏ ẩn affordance.
+/* Cột 1: the selection checkbox + the per-hidden-row Bỏ ẩn affordance.
    One control pair, one line — a control pair cannot wrap. */
 .ivt-col--select {
   white-space: nowrap;
   width: 1%;
 }
 .ivt-col--select input[type='checkbox'] {
-  accent-color: var(--accent, #0376bc);
+  accent-color: var(--color-accent);
   vertical-align: middle;
 }
 
-/* "Chưa lấy HĐ" — the auto-synced row has no invoice facts yet. Warning
-   tone: it is a work item, not an error. */
-.ivt-pending,
-.ivt-noinv {
-  display: inline-block;
-  padding: 1px 8px;
-  border-radius: 999px;
+/* The multi-line stack every grouped cell rides (Cột 2/3/4/5/7/8). */
+.ivt-stack {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.ivt-stack__primary {
+  font-weight: 600;
+}
+.ivt-stack__sub {
+  display: block;
+  color: var(--ink-2);
   font-size: var(--text-caption-size, 12px);
   white-space: nowrap;
 }
-.ivt-pending {
-  background: color-mix(in srgb, var(--warn, #b45309) 12%, transparent);
-  color: var(--warn, #b45309);
+
+/* "Không lấy hóa đơn"/status vocabulary rides the house badge recipe. */
+.ivt-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: var(--text-caption-size, 12px);
+  font-weight: 600;
+  white-space: nowrap;
 }
-/* "Không lấy hóa đơn" — a settled state, not a warning. */
-.ivt-noinv {
-  background: var(--surface-2, #f4f5f7);
-  color: var(--ink-2, #5c6270);
+/* "Không lấy hóa đơn" settled state on a hidden row — neutral, not warning. */
+tr[data-hidden] .ivt-badge {
+  background: var(--surface-2);
+  color: var(--ink-2);
 }
 
-/* NCC cell: name + the (+) row-editor trigger stay on one line. */
-.ivt-supplier {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  max-width: 100%;
+/* Cột 4/5/7 — inline-edit inputs: quiet until focus, commit on blur. */
+.ivt-inline-input {
+  width: 100%;
+  min-width: 88px;
+  max-width: 220px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  padding: 2px 6px;
+  font: inherit;
+  color: inherit;
 }
-.ivt-supplier__name {
-  overflow-wrap: anywhere;
+.ivt-inline-input::placeholder {
+  color: var(--ink-2);
+  opacity: 0.75;
+}
+.ivt-inline-input:hover {
+  border-color: var(--border, #d7dcd9);
+}
+.ivt-inline-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -1px;
+  background: var(--surface);
+}
+.ivt-inline-input--num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ivt-inline-pair {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.ivt-inline-pair .ivt-inline-input {
+  width: 104px;
+  min-width: 72px;
+}
+.ivt-money-label {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 12px);
+}
+
+/* Cột 6 — the auto profit figure reads bold: it is the signal. */
+.ivt-diff {
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cột 8 — progress select + the per-row quick hide. */
+.ivt-col--progress .ivt-stack {
+  gap: 6px;
+}
+.ivt-progress-select {
+  min-width: 128px;
+}
+.ivt-quick-hide {
+  white-space: nowrap;
 }
 
 /* A hidden row is out of the working list — dimmed, and its facts stay
    readable (the trace must remain legible, not erased). */
 .invoice-tracking-page tr[data-hidden] td {
-  color: var(--ink-3, #8a8f9c);
+  color: var(--ink-2);
 }
 .invoice-tracking-page tr[data-hidden] td.ivt-col--select {
-  color: var(--ink, #1c1f26);
+  color: var(--ink);
 }

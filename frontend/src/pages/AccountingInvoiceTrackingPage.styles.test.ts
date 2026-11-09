@@ -1,17 +1,7 @@
-// Card 20260929_ivt (redesign) — the board rides the shared record-table base.
-//
-// This file used to pin the page's own anti-spill skin (table-layout: auto,
-// min-width: 1350px, 14 nth-child column floors, a token/token-nowrap split and
-// a private @container collapse). That skin was the page-local invention the
-// redesign retires: a 14-column board at the 1112px desktop canvas measured
-// 1953px wide, i.e. 841px of horizontal scroll, which the shell's
-// `overflow-x: hidden` app-body cannot even reach. The board now declares no
-// table shape at all — the base owns containment, wrapping and the card band.
-//
-// jsdom has no layout engine, so this file pins the CONTRACT; the measured
-// layout proof lives in qa/2026-09-23_c52-invoice-tracking/layout-harness.mjs
-// (per-cell scrollWidth ≤ clientWidth, no horizontal overflow) and was re-run
-// for the redesign at 1104/1112/1144/1624px of canvas.
+// Card 20260929_ivt (redesign) + SIL-762 REV2 — the board rides the shared
+// record-table base and the 8-column multi-line grid. This file pins the
+// CONTRACT in source (jsdom has no layout engine); the base owns containment,
+// wrapping and the card band, and the page declares no table shape of its own.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -37,7 +27,6 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
 
   it('keeps no scroll wrapper — the base is overflow: visible so the sticky thead pins to the app scrollport', () => {
     expect(tsx).not.toContain('table-scroll');
-    // The container that drives the base's card band is the wrap the base owns.
     expect(rules).not.toMatch(/container-type/);
   });
 
@@ -45,17 +34,9 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(rules).not.toMatch(/nth-child\(/);
     expect(rules).not.toMatch(/min-width:\s*1350px|min-width:\s*1180px/);
     expect(rules).not.toMatch(/@container/);
-    // The TWO sanctioned @media bands form a closed set (Wave 1 of audit
-    // 2026-10-16 widened it from one to two):
-    // (1) the card 20261009_3 phone tier (owner ruling 2026-10-09, commit
-    //     5245061d): the ≤640 shell owns the single trailing safe-area
-    //     clearance, so the page root's own trailing padding dies in the
-    //     phone band — a page-root padding rule, not a table breakpoint;
-    // (2) the add/edit modal form grid's pattern-B phone collapse — the
-    //     2-col field pairs fall to one column under 640 (audit 2026-10-16
-    //     Wave 1, matching AccountingWorkspacePage.css:185).
-    // Both are pinned byte-exact below and required to stay the ONLY two
-    // @media, so any private table/media shape still fails this contract.
+    // The TWO sanctioned @media bands form a closed set:
+    // (1) the ≤640 phone trailing safe-area clearance on the page root;
+    // (2) the add/edit modal form grid's pattern-B phone collapse.
     expect((rules.match(/@media/g) ?? []).length).toBe(2);
     expect(rules).toMatch(
       /@media \(max-width: 640px\) \{\s*\.invoice-tracking-page \{ padding-bottom: 0; \}\s*\}/,
@@ -67,8 +48,6 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
   });
 
   it('never clips or ellipsises a data cell — design law §4 no-truncation doctrine', () => {
-    // Only the page's table-cell rules are in scope: the modal's lot-picker list
-    // keeps `overflow: hidden` for its own rounded corners, off the board.
     const cellRules = [...rules.matchAll(/([^{}]+)\{([^}]*)\}/g)]
       .filter(([, selector]) => /\b(td|th)\b/.test(selector))
       .map(([, selector, body]) => `${selector.trim()} {${body.trim()}}`);
@@ -76,73 +55,50 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(cellRules.join('\n')).not.toContain('text-overflow: ellipsis');
   });
 
-  it('carries data-label on every data cell so the container-query cards stay labelled', () => {
+  it('carries data-label on every data cell so the card band stays labelled', () => {
     const body = tsx.slice(tsx.indexOf('<tbody>'));
     const cells = body.match(/<td[^>]*>/g) ?? [];
     expect(cells.length).toBeGreaterThan(0);
     for (const cell of cells) {
       expect(cell, `${cell} must carry data-label`).toContain('data-label');
     }
-    // The card band prints `attr(data-label)`; a header rename must follow.
-    // SIL-762 renamed the board to the 21-column contract.
-    for (const label of ['Nhà máy', 'Nhà cung cấp HĐ (+)', 'Số hóa đơn', 'Ngày gửi HĐ', 'Chênh lệch']) {
+    // SIL-762 rev2 — the 8 grouped columns.
+    for (const label of ['Khách hàng & Lô', 'Cont & Chứng từ', 'Đầu vào (Mua HĐ)', 'Đối soát số tiền', 'Chênh lệch', 'Ghi chú & ĐNTT', 'Tiến độ xử lý']) {
       expect(tsx, `${label} cell label`).toContain(`data-label="${label}"`);
     }
   });
 
-  it('marks the money and date cells with the shared numeric class', () => {
-    for (const label of ['Ngày vận chuyển', 'Số tiền trả', 'Số tiền thu', 'Chênh lệch', 'Ngày gửi HĐ']) {
-      expect(tsx, `${label} is numeric`).toMatch(new RegExp(`data-label="${label}"[^>]*className="num"`));
-    }
+  it('marks the auto Chênh lệch cell with the bold diff class — one house recipe', () => {
+    expect(tsx).toMatch(/data-label="Chênh lệch" className="ivt-diff"/);
+    expect(rules).toMatch(/\.ivt-diff\s*\{[^}]*font-weight:\s*700/);
+    expect(rules).toMatch(/\.ivt-diff\s*\{[^}]*white-space:\s*nowrap/);
   });
 
-  it('carries NO amount-cell rule — the shared numeric law owns those cells', () => {
-    // An earlier mitigation scoped `white-space: normal` + keep-all to the two
-    // amount cells; a page-scoped rule out-specifies the shared `.record-table
-    // .num` law (nowrap) and silently un-wraps the cells in the production
-    // bundle. The cells render one text node and inherit the shared nowrap.
-    expect(rules).not.toMatch(/data-label="Số tiền trả"\]/);
-    expect(rules).not.toMatch(/data-label="Chênh lệch"\]/);
-    const shared = read('src/styles/record-table.css').match(/\.record-table \.num\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(shared).toContain('white-space: nowrap');
-  });
-
-  it('keeps the select column on one line — the SIL-762 board has no Thao tác column', () => {
-    // SIL-762 fixes the board at 21 columns; row actions live in the select
-    // cell (Bỏ ẩn), the NCC (+) trigger, the inline progress select and the
-    // selection toolbar — never a 22nd action column.
+  it('keeps the select column on one line — actions live inline, never a Thao tác column', () => {
     expect(tsx).not.toContain('invoice-tracking-actions');
     expect(tsx).toContain('ivt-col--select');
     expect(rules).toMatch(/\.ivt-col--select\s*\{[^}]*white-space:\s*nowrap/);
-    // The control pair (checkbox + Bỏ ẩn) cannot wrap.
     expect(rules).toMatch(/\.ivt-col--select input\[type='checkbox'\]/);
   });
 
   it('keeps every header label on ONE line — FB-063 (card 181026021137)', () => {
-    // The defect: "NHÀ CUNG CẤP" measured 3 lines in a 61px column and five
-    // more labels stacked 2 lines each while data-driven columns ate the
-    // canvas (qa/2026-10-18_fb063_measure-before_ui-driver.log). nowrap is
-    // also the only policy-clean column floor — auto layout sizes each column
-    // at its label width (Law §4 "the column sizes to the label") — but the
-    // one-line floors at the base's 12px gutters push the board to 1250px
-    // (pre-fix: 1190px), cutting the "Thao tác" action pair off the window
-    // edge. The 8px head + 6px body gutters are the measured width trade
-    // (qa/2026-10-18_fb063_measure-budget-probe-after.log: 1183px — narrower
-    // than pre-fix at every table-mode width). Both halves are load-bearing:
-    // drop either and the board widens past the action column again.
     expect(rules).toMatch(/\.invoice-tracking-page \.record-table thead th\s*\{[^}]*white-space:\s*nowrap;/);
     expect(rules).toMatch(/\.invoice-tracking-page \.record-table thead th\s*\{[^}]*padding-inline:\s*8px;/);
     expect(rules).toMatch(/\.invoice-tracking-page \.record-table tbody td:not\(\.record-table__action\)\s*\{[^}]*padding-inline:\s*6px;/);
     expect(rules).not.toMatch(/\.invoice-tracking-page \.record-table thead th\s*\{[^}]*white-space:\s*normal;/);
   });
+
+  it('inline edit inputs ride the house quiet-cell recipe (focus ring + revert)', () => {
+    expect(rules).toMatch(/\.ivt-inline-input:focus\s*\{[^}]*outline:\s*2px solid var\(--color-accent\)/);
+    expect(rules).toMatch(/\.ivt-inline-input--num\s*\{[^}]*text-align:\s*right/);
+    // The status badge rides the house warning pair — never an invented tint.
+    expect(rules).toMatch(/\.ivt-badge\s*\{[^}]*background:\s*var\(--warning-soft\)/);
+    expect(rules).toMatch(/\.ivt-badge\s*\{[^}]*color:\s*var\(--warning-text\)/);
+  });
 });
 
-describe('invoice-tracking command strip (card 20260929_ivt — shared primitives)', () => {
+describe('invoice-tracking command strip (shared primitives)', () => {
   it('names the screen once, with the sidebar label, through the shared PageHeader', () => {
-    // qa2-008: the sidebar label no longer lives as a Layout.tsx literal —
-    // every role's nav derives it from the nav-config title (titleForPath).
-    // Agreement across the three role navs is asserted on the derived labels,
-    // which is the same authority the page's PageHeader must echo.
     const roles = [Role.ADMIN, Role.ACCOUNTANT, Role.CUS];
     const labels = new Set(roles.map((role) =>
       getNavItems(role).find((item) => item.path === '/accounting/invoice-tracking')?.label,
@@ -153,7 +109,6 @@ describe('invoice-tracking command strip (card 20260929_ivt — shared primitive
 
     expect(tsx).toContain('<PageHeader');
     expect(tsx).toContain(`title="${navLabel}"`);
-    // The hand-rolled <header> band and its KPI ribbon are retired.
     expect(tsx).not.toMatch(/invoice-tracking-header/);
     expect(tsx).not.toMatch(/invoice-tracking-kpi/);
     expect(tsx).not.toMatch(/<h1>/);
@@ -162,15 +117,14 @@ describe('invoice-tracking command strip (card 20260929_ivt — shared primitive
   it('renders the Σ strip on the shared SummaryRail, not a page-local KPI block', () => {
     expect(tsx).toContain('<SummaryRail');
     expect(tsx).toContain('ariaLabel="Tổng cộng theo kỳ"');
-    // SIL-762 renamed the strip to the board's own column vocabulary.
     expect(tsx).toContain("label: 'Số tiền thu'");
     expect(tsx).toContain("label: 'Số tiền trả'");
     expect(tsx).toContain("label: 'Số tiền trả KH'");
     expect(tsx).toContain("label: 'Chênh lệch'");
-    expect(rules).not.toMatch(/\.ivt-money|\.invoice-tracking-kpi/);
+    expect(rules).not.toMatch(/\.invoice-tracking-kpi/);
   });
 
-  it('header actions are the two shared buttons, not a page-local action row', () => {
+  it('header actions are the shared buttons, not a page-local action row', () => {
     expect(tsx).toContain('Xuất Excel');
     expect(tsx).toContain('downloadCSV');
     expect(tsx).toContain('Thêm chi phí lô hàng');
@@ -187,8 +141,6 @@ describe('invoice-tracking command strip (card 20260929_ivt — shared primitive
   });
 
   it('row 2: the shared bar owns the strip — period fields, quick ranges, search slot, Bộ lọc dialog', () => {
-    // Card 20260927_152: the page hands its criteria to the shared bar; the
-    // layout (row packing, every filter width) lives in FilterBar.css.
     expect(tsx).toContain('<FilterBar');
     expect(tsx).toContain('<DateRangeFields');
     expect(tsx).toContain('<DateRangePresets');
@@ -197,23 +149,15 @@ describe('invoice-tracking command strip (card 20260929_ivt — shared primitive
     expect(tsx).toContain('Tháng này');
     expect(tsx).toContain('Tháng trước');
     expect(tsx).toContain('Quý này');
-    expect(tsx).toMatch(/Số HĐ, MST, Bill, Lô, Cont/);
+    expect(tsx).toMatch(/Khách, Số HĐ, MST, Bill, Lô, Cont/);
     expect(tsx).toContain('Chỉ xem dòng có lệch');
     expect(tsx).toContain('Hiện cả dòng đã ẩn (Không lấy hóa đơn)');
     expect(tsx).toContain('Xóa lọc');
     expect(tsx).toContain('dialogLabel="Bộ lọc hóa đơn"');
   });
 
-  it('the page declares no rule of its own for a filter control — the bar owns every width', () => {
-    // Comments name the deleted rules on purpose; only the rule bodies count.
-    expect(rules).not.toMatch(/\.invoice-tracking-(filters|range|search|supplier|diff)\b/);
-  });
-
   it('empty state keeps the period copy and the clear-filters sub-link', () => {
     expect(tsx).toContain('Không tìm thấy hóa đơn nào trong kỳ đã chọn');
-    // Card 20261002_285's landing shortened the reset copy — the date-scoped
-    // label overpromised ("clear the DATE filter") for a handler that resets
-    // every condition.
     expect(tsx).toContain('Xóa bộ lọc');
   });
 

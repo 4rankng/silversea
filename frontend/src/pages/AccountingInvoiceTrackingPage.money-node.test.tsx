@@ -1,7 +1,9 @@
-// Card 386 rework v2 — the amount cells must render the WHOLE formatted
-// amount + unit as ONE text node. The staging defect's token-walker signature
-// was exactly this: `{formatMoney(x)} ₫` gives the browser two adjacent text
-// nodes, and the ₫ broke onto its own line inside a nowrap cell.
+// SIL-762 REV2 — Cột 6 (Chênh lệch) is the one read-only money cell: the
+// whole formatted amount + unit must render as ONE text node. The staging
+// defect's token-walker signature was `{formatMoney(x)} ₫` giving the browser
+// two adjacent text nodes, and the ₫ broke onto its own line. The editable
+// Cột 5 money inputs carry values through the DOM (input.value), so the law
+// now pins the auto cell.
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
@@ -41,7 +43,6 @@ const row: InvoiceTrackingRow = {
   progress: 'CHUA_GUI',
   expenseDate: '2026-10-06',
   expenseId: 6,
-  // SIL-762 — the 21-column wire grew lot-fact + sync-flag fields.
   transportDate: null,
   bookingRef: null,
   blNumber: null,
@@ -54,10 +55,10 @@ const row: InvoiceTrackingRow = {
   hiddenAt: null,
 };
 
-function renderPage() {
+function renderPage(rows: InvoiceTrackingRow[] = [row]) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   client.listInvoiceTracking.mockResolvedValue({
-    rows: [row],
+    rows,
     totals: { invoice: 12000000, paid: 8000000, difference: 4000000, com: 0 },
   });
   return render(
@@ -67,17 +68,25 @@ function renderPage() {
   );
 }
 
-describe('invoice tracking — amount cells render one text node (numeric law)', () => {
-  it('Số tiền trả / Số tiền thu / Chênh lệch hold the whole amount + unit in a single node', async () => {
+describe('invoice tracking — Chênh lệch renders one text node (numeric law)', () => {
+  it('Cột 6 holds the whole amount + unit in a single node', async () => {
     renderPage();
-    await screen.findByText('INV-386-V2');
-    for (const [label, expected] of [['Số tiền trả', '8.000.000 ₫'], ['Số tiền thu', '12.000.000 ₫'], ['Chênh lệch', '4.000.000 ₫']] as const) {
-      const td = document.querySelector(`td[data-label="${label}"]`) as HTMLElement;
-      expect(td).toBeTruthy();
-      expect(td.textContent).toBe(expected);
-      const textNodes = [...td.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim());
-      expect(textNodes, `${label} must be one text node`).toHaveLength(1);
-      expect(textNodes[0].textContent).toBe(expected);
-    }
+    await screen.findByDisplayValue('INV-386-V2');
+    const td = document.querySelector('td[data-label="Chênh lệch"]') as HTMLElement;
+    expect(td).toBeTruthy();
+    expect(td.textContent).toBe('4.000.000 ₫');
+    const textNodes = [...td.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && n.textContent?.trim());
+    expect(textNodes, 'Chênh lệch must be one text node').toHaveLength(1);
+    expect(textNodes[0].textContent).toBe('4.000.000 ₫');
+    // The three Cột 5 money inputs mirror the wire values (editable law).
+    expect((screen.getByLabelText('Số tiền thu — QATU0000001') as HTMLInputElement).value).toBe('12000000');
+    expect((screen.getByLabelText('Số tiền trả — QATU0000001') as HTMLInputElement).value).toBe('8000000');
+    expect((screen.getByLabelText('Số tiền trả KH — QATU0000001') as HTMLInputElement).value).toBe('');
+  });
+
+  it('the auto cell folds the customer deduction into the difference — SIL-762 law', async () => {
+    renderPage([{ ...row, comAmount: '1750000' }]);
+    await screen.findByDisplayValue('INV-386-V2');
+    expect(document.querySelector('td[data-label="Chênh lệch"]')?.textContent).toBe('2.250.000 ₫');
   });
 });
