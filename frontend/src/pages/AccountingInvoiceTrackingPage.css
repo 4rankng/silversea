@@ -245,7 +245,6 @@ tr[data-hidden] .ivt-badge {
 }
 .ivt-inline-input--num {
   text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 .ivt-inline-pair {
   display: flex;
@@ -266,7 +265,6 @@ tr[data-hidden] .ivt-badge {
 .ivt-diff {
   font-weight: 700;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
 /* Cột 8 — progress select + the per-row quick hide. */

@@ -55,8 +55,9 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
   });
 
   it('every cell carries the data-label the card band prints, money aligned', () => {
-    // 10 labelled facts + the action cell's empty label.
-    expect(tsx.match(/data-label=/g)?.length).toBe(11);
+    // 11 labelled facts (SIL-764 added Phân loại) + the action cell's empty label.
+    expect(tsx.match(/data-label=/g)?.length).toBe(12);
+    expect(tsx).toContain('<td data-label="Phân loại">');
     expect(tsx).toContain('<td data-label="Số tiền cược" className="num deposit-col--token">');
     expect(tsx).toContain('<td data-label="Ngày nộp CV" className="deposit-col--token">');
     expect(tsx).toContain('<td data-label="Ngày dự kiến hoàn cược" className="deposit-col--token">');
