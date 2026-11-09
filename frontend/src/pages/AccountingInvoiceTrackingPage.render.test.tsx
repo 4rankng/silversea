@@ -129,6 +129,26 @@ describe('the 8-column multi-line grid (SIL-762 rev2)', () => {
     expect(progressTriggerText()).toBe('Đã có HĐ');
   });
 
+  it('selecting Đã có HĐ persists CO_HD — the legacy captured state is reachable', async () => {
+    client.updateInvoiceTracking.mockResolvedValue({});
+    renderBoard([wireRow]);
+    await screen.findByText('CSNU2510003');
+    const trigger = document.querySelector('td[data-label="Tiến độ xử lý"] button[aria-haspopup="listbox"]') as HTMLElement;
+    fireEvent.click(trigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Đã có HĐ' }));
+    await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledTimes(1));
+    expect(client.updateInvoiceTracking).toHaveBeenCalledWith(900, { progress: 'CO_HD' });
+  });
+
+  it('Cột 4 keeps a captured Số hóa đơn when cleared — the wire forbids null', async () => {
+    renderBoard([{ ...wireRow, invoiceNumber: 'HD-KEEP' }]);
+    const input = await screen.findByDisplayValue('HD-KEEP');
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(client.updateInvoiceTracking).not.toHaveBeenCalled();
+  });
+
   it('computes Chênh lệch bold = thu − trả − trả KH on the row', async () => {
     renderBoard([{ ...wireRow, id: 902, invoiceNumber: 'HD-KH-1', invoiceAmount: '12000000', supplierPayment: '8000000', comAmount: '1750000' }]);
     await screen.findByDisplayValue('HD-KH-1');

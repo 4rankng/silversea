@@ -29,6 +29,7 @@ import {
   TRADE_DIRECTION_LABELS,
   Role,
   round2dp,
+  type InvoiceTrackingPatchInput,
   type InvoiceTrackingRow,
 } from '@tingting/shared';
 import { Btn, PageHeader, useConfirm } from '../components/UI';
@@ -195,7 +196,9 @@ export default function AccountingInvoiceTrackingPage() {
   );
   const filtered = useMemo(() => rows.filter((r) => {
     if (supplier && r.supplierName?.trim() !== supplier) return false;
-    if (diffOnly && Number(r.invoiceAmount) === Number(r.supplierPayment)) return false;
+    // SIL-762 law — "có lệch" follows the SAME 3-term formula as the column:
+    // thu − trả − trả KH ≠ 0 (comAmount folds in, never NaN).
+    if (diffOnly && Number(r.invoiceAmount) - Number(r.supplierPayment) - (r.comAmount == null ? 0 : Number(r.comAmount)) === 0) return false;
     if (search.trim()) {
       const needle = search.trim().toLowerCase();
       const haystack = [r.invoiceNumber, r.taxCode, r.shipmentCode, r.containerNumber, r.bookingRef, r.blNumber, r.customerName].map(v => (v ?? '').toLowerCase());
@@ -227,7 +230,7 @@ export default function AccountingInvoiceTrackingPage() {
   const exportExcel = () => {
     // The sheet carries the same data fields as the grid (SIL-762 rev2) —
     // one row per container, totals ride the Σ strip on screen.
-    const headers = ['STT', 'Ngày vận chuyển', 'Khách hàng', 'Mã KH', 'MST', 'Nhà máy', 'Bill / Số tờ khai', 'Hãng tàu', 'Cont', 'Loại cont', 'Xuất/Nhập', 'Số Container', 'Nhà cung cấp HĐ', 'Số hóa đơn', 'Ngày gửi HĐ', 'Số tiền thu', 'Số tiền trả', 'Số tiền trả KH', 'Ghi chú trả KH', 'Chênh lệch', 'Ghi chú', 'Tiến độ', 'Số ĐNTT'];
+    const headers = ['STT', 'Ngày vận chuyển', 'Khách hàng', 'Mã KH', 'MST', 'Nhà máy', 'Bill / Số tờ khai', 'Hãng tàu', 'Số Container', 'Loại cont', 'Xuất/Nhập', 'Nhà cung cấp HĐ', 'Số hóa đơn', 'Ngày gửi HĐ', 'Số tiền thu', 'Số tiền trả', 'Số tiền trả KH', 'Ghi chú trả KH', 'Chênh lệch', 'Ghi chú', 'Tiến độ', 'Số ĐNTT'];
     const body = filtered.map((row, index) => [
       index + 1,
       formatISODate(row.transportDate ?? row.expenseDate),
@@ -240,7 +243,6 @@ export default function AccountingInvoiceTrackingPage() {
       row.containerNumber ?? '',
       row.containerType ?? '',
       row.tradeDirection ? TRADE_DIRECTION_LABELS[row.tradeDirection] : '',
-      row.containerNumber ?? '',
       row.supplierName ?? '',
       row.invoiceNumber ?? '',
       formatISODate(row.invoiceSentAt),
@@ -265,8 +267,8 @@ export default function AccountingInvoiceTrackingPage() {
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: qk.invoiceTracking.all });
 
   const patchMutation = useMutation({
-    mutationFn: ({ id, patch }: { id: number; patch: Record<string, unknown> }) =>
-      updateInvoiceTracking(id, patch as never),
+    mutationFn: ({ id, patch }: { id: number; patch: Partial<InvoiceTrackingPatchInput> }) =>
+      updateInvoiceTracking(id, patch),
     onSuccess: () => {
       setActionError(null);
       invalidate();
@@ -340,9 +342,11 @@ export default function AccountingInvoiceTrackingPage() {
       hideMutation.mutate([row.id]);
       return;
     }
-    const patch: Record<string, unknown> = label === 'Đã gửi HĐ'
+    const patch: Partial<InvoiceTrackingPatchInput> = label === 'Đã gửi HĐ'
       ? { progress: 'GUI_HD' }
-      : { progress: 'CHUA_GUI' };
+      : label === 'Đã có HĐ'
+        ? { progress: 'CO_HD' }
+        : { progress: 'CHUA_GUI' };
     if (row.noInvoice) patch.noInvoice = false;
     if (row.hiddenAt != null) patch.hidden = false;
     patchMutation.mutate({ id: row.id, patch });
@@ -371,7 +375,10 @@ export default function AccountingInvoiceTrackingPage() {
   };
 
   const commitCell = (row: InvoiceTrackingRow, field: 'supplierName' | 'invoiceNumber' | 'invoiceSentAt' | 'invoiceAmount' | 'supplierPayment' | 'comAmount' | 'note', raw: string) => {
-    const patch: Record<string, unknown> =
+    // Số hóa đơn is min(1) on the wire — clearing it cannot PATCH null; the
+    // edit keeps its captured number (the modal omits the field identically).
+    if (field === 'invoiceNumber' && raw.trim() === '') return;
+    const patch: Partial<InvoiceTrackingPatchInput> =
       field === 'invoiceAmount' || field === 'supplierPayment' || field === 'comAmount'
         ? { [field]: raw === '' ? 0 : Number(raw) }
         : { [field]: raw === '' ? null : raw };

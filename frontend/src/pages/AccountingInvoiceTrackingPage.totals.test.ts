@@ -19,6 +19,14 @@ describe('computeTotals', () => {
     ])).toEqual({ invoice: 17500000, paid: 14000000, difference: 1750000, com: 1750000 });
   });
 
+  it('a row whose 3-term difference is 0 (thu − trả = trả KH) computes zero', () => {
+    // "Chỉ xem dòng có lệch" filters on this same 3-term law — a row like
+    // this must count as NOT lệch even though thu ≠ trả.
+    expect(computeTotals([
+      { invoiceAmount: '9000000', supplierPayment: '8000000', comAmount: '1000000' },
+    ])).toEqual({ invoice: 9000000, paid: 8000000, difference: 0, com: 1000000 });
+  });
+
   it('returns zeros for an empty period', () => {
     expect(computeTotals([])).toEqual({ invoice: 0, paid: 0, difference: 0, com: 0 });
   });

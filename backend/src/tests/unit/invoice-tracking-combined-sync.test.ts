@@ -1,6 +1,9 @@
-// SIL-762 (id 883) — the combined-invoice auto-sync PLANNER (pure logic only;
-// per the BE unit-only ruling the tx wrapper is exercised by the qa/scripts
-// integration probe and the UI drive, not here).
+// SIL-762 (id 883) — the combined-invoice auto-sync PLANNER (pure logic only,
+// per the BE unit-only ruling). The tx wrapper (syncCombinedInvoiceTrackingInTx)
+// has no BE unit coverage — it needs a live DB — and was verified at UI DRIVEN
+// rung 3 on 2026-11-09: the real edit-save of a [Kết hợp] lot inserted rows
+// 3/4 (sync_source='AUTO_COMBINED') on the dev DB, evidence in the qa/ driver
+// log and the ticket comment (SIL-762 board id 883).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { missingCombinedTrackingRows } from '../../services/invoice-tracking.service';

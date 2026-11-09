@@ -402,6 +402,15 @@ export function missingCombinedTrackingRows(
   return plan;
 }
 
+/** SIL-762 — the VN calendar day (Asia/Ho_Chi_Minh, fixed UTC+7 no DST), the
+ *  same law the accounting route's businessDate() applies; auto-synced rows
+ *  without a lot transport date stamp THIS day, never a UTC drift day. */
+function vnBusinessDate(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
 /** Sync one lot. Runs inside the caller's transaction (lot save + container
  *  reconcile + sync land atomically). `actorId` is the saving user — the
  *  trail of who pulled the lot onto the board. */
@@ -431,7 +440,10 @@ export async function syncCombinedInvoiceTrackingInTx(
     shipment,
     containers,
     existingAutoRows,
-    new Date().toISOString().slice(0, 10),
+    // The fallback expense day is the VN calendar day (Asia/Ho_Chi_Minh) —
+    // a UTC slice would land rows on the previous VN day after 17:00 local
+    // and push them outside the board's default 'Tháng này' period.
+    vnBusinessDate(),
   );
   if (plan.length === 0) return 0;
   await tx.insert(s.invoiceTracking).values(plan.map((entry) => ({
@@ -495,7 +507,6 @@ export async function updateInvoiceTracking(
         .set({ invoiceNumber: patch.invoiceNumber, updatedAt: new Date() })
         .where(eq(s.tripExpenses.id, existing.expenseId));
     }
-    void userId;
     return updated;
   };
   return runInTx(transaction, execute);
