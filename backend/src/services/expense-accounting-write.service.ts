@@ -14,6 +14,7 @@ import { lockTripFinancialAuthority } from './trip-financial-authority-lock.serv
 import { assertExpenseOwnerWriteScope } from './expense-owner-scope.service';
 import { assertExpenseEvidenceAttachments } from './expense-accounting-evidence.service';
 import { refreshExpenseTripCosts } from './expense-trip-cost.service';
+import { recomputeOpsSettlementTotal } from './ops-settlements.service';
 import { LedgerService } from './ledger.service';
 import { linkExpenseToRealTrip } from './expense-source-trip-link.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
@@ -142,8 +143,23 @@ export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
   if (input.driverCostType && kind !== 'DRIVER') throw new ApiError(400, 'Loại phí lái xe chỉ áp dụng cho khoản chi lái xe.');
   const expenseDate = input.expenseDate ?? before.expenseDate;
   const note = input.note === undefined ? before.note : input.note;
-  if (kind === 'OPS') await tx.update(s.opsExpenseEntries).set({ ...metadata, amount, paidAt: expenseDate, note,
-    ...(payerId ? { paidById: payerId } : {}), updatedAt: new Date() }).where(eq(s.opsExpenseEntries.id, nativeId));
+  if (kind === 'OPS') {
+    await tx.update(s.opsExpenseEntries).set({ ...metadata, amount, paidAt: expenseDate, note,
+      ...(payerId ? { paidById: payerId } : {}), updatedAt: new Date() }).where(eq(s.opsExpenseEntries.id, nativeId));
+    // SIL-751 r4 — the phiếu header is the sum of its lines: an accountant
+    // amount edit on a settlement-linked entry moves the stored frozen total
+    // in the SAME transaction. OS-2611-0005 printed a stored 1.080.000₫ over
+    // 1.070.000₫ of lines because exactly this edit path skipped the
+    // recompute; readers now also derive at read time (defense in depth).
+    const [linkedSettlement] = await tx
+      .select({ opsSettlementId: s.opsExpenseEntries.opsSettlementId })
+      .from(s.opsExpenseEntries)
+      .where(eq(s.opsExpenseEntries.id, nativeId))
+      .limit(1);
+    if (linkedSettlement?.opsSettlementId != null) {
+      await recomputeOpsSettlementTotal(tx, linkedSettlement.opsSettlementId);
+    }
+  }
   if (kind === 'OPS' && input.photoStorageKeys) {
     const photos = await tx.select().from(s.opsExpensePhotos).where(eq(s.opsExpensePhotos.opsExpenseId, nativeId));
     const removed = photos.filter(photo => !input.photoStorageKeys!.includes(photo.storageKey));

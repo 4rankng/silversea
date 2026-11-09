@@ -19,6 +19,7 @@ import {
   validateSettlementInputs,
 } from './settlement-validation';
 import { listUnlinkedTripExpenses } from './forwarder.service';
+import { opsSettlementTotalFromLinesSql, sumOpsAmounts } from './ops-settlements.service';
 import type { Tx } from './trip-shared';
 import { propagateRecordedExpenses } from './source-change.service';
 import {
@@ -322,7 +323,9 @@ async function listOpsSettlementsForForwarderPaginated(filters: {
       id: s.opsSettlements.id,
       code: s.opsSettlements.code,
       status: s.opsSettlements.status,
-      totalAmount: s.opsSettlements.totalAmount,
+      // SIL-751 r4 — header derived from the phiếu's lines (card-197 law,
+      // opsSettlementTotalFromLinesSql), never the stale stored column.
+      totalAmount: opsSettlementTotalFromLinesSql(),
       note: s.opsSettlements.note,
       createdAt: s.opsSettlements.createdAt,
       approvedAt: s.opsSettlements.approvedAt,
@@ -455,16 +458,15 @@ async function getAdvanceSettlementFromOps(
 ) {
   const [row] = await db
     .select({
-      id: s.opsSettlements.id,
-      code: s.opsSettlements.code,
-      status: s.opsSettlements.status,
-      totalAmount: s.opsSettlements.totalAmount,
-      note: s.opsSettlements.note,
-      createdAt: s.opsSettlements.createdAt,
-      approvedAt: s.opsSettlements.approvedAt,
-      opsUserId: s.opsSettlements.opsUserId,
-      opsUserName: s.users.fullName,
-    })
+    id: s.opsSettlements.id,
+    code: s.opsSettlements.code,
+    status: s.opsSettlements.status,
+    note: s.opsSettlements.note,
+    createdAt: s.opsSettlements.createdAt,
+    approvedAt: s.opsSettlements.approvedAt,
+    opsUserId: s.opsSettlements.opsUserId,
+    opsUserName: s.users.fullName,
+  })
     .from(s.opsSettlements)
     .leftJoin(s.users, eq(s.users.id, s.opsSettlements.opsUserId))
     .where(eq(s.opsSettlements.id, opsSettlementId))
@@ -526,7 +528,10 @@ async function getAdvanceSettlementFromOps(
     code: row.code,
     forwarderId: row.opsUserId,
     forwarderName: row.opsUserName,
-    totalExpenseAmount: String(row.totalAmount),
+    // SIL-751 r4 — header = the sum of THIS detail's own lines (card-197
+    // law, same helper the ops-settlement detail reader uses); the stored
+    // column can be stale under accountant edits (OS-2611-0005).
+    totalExpenseAmount: sumOpsAmounts(entries).toString(),
     refundAmount: '0',
     status: mapOpsStatusToSettlementStatus(row.status),
     checkedBy: null,

@@ -4,7 +4,7 @@
  * pure grouping used by settlements + exports.
  */
 import { listLegacyOpsExpenseHistory } from './ops-legacy-expense-history.service';
-import { db, type Executor, type Tx } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, exists, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
@@ -511,25 +511,6 @@ export async function listOpsExpensePhotos(
     url: `/api/photos/${encodeURIComponent(photo.storageKey)}`,
     uploadedAt: photo.uploadedAt.toISOString(),
   }));
-}
-
-/** Sum of the still-linked entries; used after rejects unlink entries.
- *  Card 20260928_197 — the aggregate is SQL, so it takes the query-level
- *  equivalent of `sumExcludingNegative`: `filter (where amount >= 0)`. Same
- *  rule (strictly negative rows are dropped, 0 is kept), same integer money —
- *  the sum never leaves `numeric`. */
-export async function recomputeOpsSettlementTotal(
-  tx: Tx,
-  settlementId: number,
-): Promise<void> {
-  const [row] = await tx
-    .select({ total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} >= 0), 0)` })
-    .from(s.opsExpenseEntries)
-    .where(eq(s.opsExpenseEntries.opsSettlementId, settlementId));
-  await tx
-    .update(s.opsSettlements)
-    .set({ totalAmount: (row?.total ?? '0').toString(), updatedAt: new Date() })
-    .where(eq(s.opsSettlements.id, settlementId));
 }
 
 /** Active expense-type catalog for the OPS declaration form (grouped by

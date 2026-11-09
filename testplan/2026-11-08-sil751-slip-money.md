@@ -25,3 +25,30 @@
 - **Reproduction:** Chọn tạm ứng + khoản chi, ô 'Tiền hoàn lại' stays 0 → Ghi nhận → BE 400 'Phiếu chưa cân đối: tạm ứng X, chi phí Y, hoàn lại 0'.
 - **Expected:** Ô tự điền = tạm ứng − chi phí (có dấu, FB-100) khi người dùng chưa tự sửa; nếu tự sửa thì giữ số nhập; cảnh báo 'Chênh lệch' hiện có vẫn là đường backup rõ ràng thay cho 400 im lặng.
 - **Pin:** `ForwarderSettlementCreatePage.test.tsx` + test admin dialog: chọn 1.000.000 ứng + 250.000 chi → ô tự hiện 750.000, submit payload `refundAmount: 750000`; nhập tay đè thì dùng số nhập.
+
+## Case SIL-751-4 (r4, 09/11/2026) — header phiếu vẫn lệch 10.000₫ (OS-2611-0005)
+
+- **Surface:** `/advances?view=ops-expenses` → 'Phiếu quyết toán Ops' (list +
+  Xem chi tiết) và `/advances?view=settlements`; BE readers
+  `listOpsSettlements` / `getOpsSettlementDetail`
+  (ops-settlements.service.ts) + `listOpsSettlementsForForwarderPaginated` /
+  `getAdvanceSettlementFromOps` (advance-settlement.service.ts).
+- **Reproduction (QA comment 4691/4703/4715, staging e6db602f):** OS-2611-0005
+  header 1.080.000₫ nhưng 5 dòng POSITIVE cộng đúng 1.070.000₫ (150k QBOBD39C
+  + 210k R3Q-680-B + 60k R3Q-679-D + 500k R4B-CC-001 + 150k R4B-3E-FCL1);
+  TỔNG CỘNG chi tiết 1.070.000₫. Không có dòng âm — gap 10.000₫ là STORED
+  header chết: `ops_settlements.total_amount` được ghi lúc lập phiếu rồi
+  KHÔNG BAO GIỜ được recompute khi kế toán sửa amount dòng qua
+  `updateAccountingExpense` (OPS branch), trong khi r3 chỉ đi disclosure dòng
+  âm (fixture r3 giả OS-2611-0005 có dòng −10.000₫ — SAI với dữ liệu thật).
+- **Expected (quyết định fix lần này):** header phiếu LUÔN bằng tổng dòng
+  theo luật sumExcludingNegative (card 20260928_197):
+  1. Mọi reader (list + detail + 2 advance reader) DERIVE header từ dòng tại
+     thời điểm load — stored column không bao giờ được in lại nữa.
+  2. Sửa amount dòng (kế toán, `updateAccountingExpense` kind OPS) trên dòng
+     đang nằm phiếu ⇒ recompute stored total trong cùng tx.
+- **Pin:** `ops-settlement-grouping.test.ts` fixture OS-2611-0005 SỬA theo số
+  thật (5 dòng dương, rawGrand = grand = 1.070.000, excludedNegative = 0) +
+  OS-2610-0001 giữ nguyên (320.000 = 200k + 120k, dòng âm −50.000 loại trừ,
+  raw 270.000); unit mới pin luật header=dòng + source-scan recompute tại
+  đúng cửa sửa kế toán.

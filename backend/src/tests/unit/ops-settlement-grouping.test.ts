@@ -63,20 +63,29 @@ describe('groupOpsExpensesForSettlement (OpsVanHanh §5.4)', () => {
     assert.equal(grouping.totals.excludedNegative, '0');
   });
 
-  // SIL-751 — the two staging phiếu QA reported: the printed rows no longer
-  // added up to the header because card 20260928_197 drops negative rows from
-  // every total. These pins keep the exposed reconciliation numbers exactly
-  // on the ticket's cases so the sheet/export can show the difference.
-  it('SIL-751 case OS-2611-0005 — header 1.080.000 vs dòng cộng 1.070.000 exposes the −10.000 exclusion', () => {
+  // SIL-751 — the two staging phiếu QA reported. r4 correction (QA 4691/
+  // 4703/4715, verified line by line on staging e6db602f): OS-2611-0005 has
+  // NO negative row — its 5 lines are all positive and sum 1.070.000₫ while
+  // the STORED header read 1.080.000₫ (an accountant amount edit moved a line
+  // and never recomputed the frozen total). The r3 fixture guessed a −10.000₫
+  // line; the real gap is a stale stored header, which r4 fixes by deriving
+  // every phiếu header from its lines (opsSettlementTotalFromLinesSql /
+  // sumOpsAmounts) and recomputing at the accountant edit. OS-2610-0001
+  // keeps its genuine −50.000₫ exclusion disclosure (header 320.000₫ =
+  // 200.000 + 120.000; raw lines 270.000₫).
+  it('SIL-751 case OS-2611-0005 (real shape) — 5 positive lines sum 1.070.000 with no exclusion to disclose', () => {
     const grouping = groupOpsExpensesForSettlement([
-      entry({ amount: '1080000' }),
-      entry({ containerNumber: 'CONT-NEG', expenseTypeName: 'Điều chỉnh', amount: '-10000' }),
+      entry({ amount: '150000', expenseTypeName: 'Phí nhiên liệu/dầu', requiresInvoice: false }), // QBOBD39C
+      entry({ amount: '210000', expenseTypeName: 'Cân lốp', requiresInvoice: false }), // R3Q-680-B
+      entry({ amount: '60000', expenseTypeName: 'Chi công nhân tại kho', requiresInvoice: false }), // R3Q-679-D
+      entry({ amount: '500000', expenseTypeName: 'Phí phục vụ kiểm hóa', requiresInvoice: false }), // R4B-CC-001
+      entry({ amount: '150000', expenseTypeName: 'Phí nhiên liệu/dầu', requiresInvoice: false }), // R4B-3E-FCL1
     ]);
-    assert.equal(grouping.totals.grand, '1080000', 'header/law total keeps excluding the negative row');
-    assert.equal(grouping.totals.rawGrand, '1070000', 'sum of the displayed rows including the negative');
-    assert.equal(grouping.totals.excludedNegative, '-10000');
-    // grand excludes the negatives: grand + excludedNegative = rawGrand.
-    assert.equal(BigInt(grouping.totals.grand) + BigInt(grouping.totals.excludedNegative), BigInt(grouping.totals.rawGrand));
+    // The sheet's law total and a reviewer's manual line-add AGREE — the
+    // 10.000₫ gap of the bug report was the stale stored header, not the law.
+    assert.equal(grouping.totals.grand, '1070000');
+    assert.equal(grouping.totals.rawGrand, '1070000', 'no negative row: the raw sum equals the law total');
+    assert.equal(grouping.totals.excludedNegative, '0', 'nothing to disclose — every printed line reaches the total');
   });
 
   it('SIL-751 case OS-2610-0001 — header 320.000 vs dòng cộng 270.000 exposes the −50.000 exclusion', () => {
