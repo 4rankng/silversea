@@ -1,4 +1,3 @@
-import { PhotoImage } from '../components/shared/PhotoImage';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
