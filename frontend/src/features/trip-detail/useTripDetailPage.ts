@@ -174,6 +174,13 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
       // now applies the accountant's close in-request. Without the button
       // the accountant could never reach the end of the close flow.
       canComplete: s === TripStatus.IN_TRANSIT && (isManagerOrAdmin || isAccountant),
+      // SIL-694 — the POD-gốc mark rides the backend's ACCOUNTANT/CUS
+      // allowlist (routes/trips/pod.ts) and only exists while the gate is
+      // still open (podRecoveredAt null); ADMIN/MANAGER closers see the
+      // readiness reason, not a button the server would 403.
+      canMarkPodRecovered: (user?.role === Role.ACCOUNTANT || user?.role === Role.CUS)
+        && s === TripStatus.IN_TRANSIT
+        && trip?.podRecoveredAt == null,
       // Adjustment/governed reopen available on a completed trip (manager/admin).
       canAdjust: s === TripStatus.COMPLETED && isManagerOrAdmin,
       canChangeDate: s !== TripStatus.CANCELED && isManagerOrAdmin,
@@ -227,6 +234,20 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     setAdjustRef('');
     setAdjustError('');
     setShowAdjust(true);
+  };
+
+  // SIL-694 — mark the paper POD (chứng từ mộc đỏ) recovered so the governed
+  // close can pass its completion gate. Optimistic-locked with the loaded
+  // trip's version; the modal stays open and refetches so the readiness row
+  // flips before the accountant submits the close.
+  const handleMarkPodRecovered = async () => {
+    if (!trip || trip.podRecoveredAt != null) return;
+    const expectedVersion = trip.version;
+    if (typeof expectedVersion !== 'number' || !Number.isSafeInteger(expectedVersion)) {
+      setActionError('Chưa tải được phiên bản chuyến đi. Tải lại dữ liệu rồi thử lại.');
+      return;
+    }
+    await handleAction('mark-pod-recovered', () => api.post(`/trips/${trip.id}/pod-recovered`, { expectedVersion }));
   };
 
   const handleAdjustSubmit = async () => {
@@ -294,6 +315,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     handleAction,
     handleChangeDepartureDate,
     openAdjust,
+    handleMarkPodRecovered,
     handleAdjustSubmit,
     cancelLoading,
     carrierCustomers: catalogData?.externalCarriers?.map(c => ({ id: c.id, label: c.name })) ?? [],
