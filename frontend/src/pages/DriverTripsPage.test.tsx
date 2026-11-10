@@ -639,3 +639,21 @@ describe('DriverTripsPage', () => {
     expect(refetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+// SIL-797 (KB Ch4 §4.2.2): nhiệm vụ viết hoa TRÊN DÒNG RIÊNG. QA 10/11 (build
+// dc930964): the ĐÓNG/TRẢ pill rode the container strip ("KFPQ3112046 [KẸP]
+// 20'RF 12 tấn [ĐÓNG]") — the task read as container data. It now owns the
+// line between the strip and the ports on every card shape.
+describe('SIL-797 — task pill owns its line', () => {
+  it('renders the task pill OUTSIDE the container strip', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 9, tradeDirection: 'EXPORT' }),
+    ]));
+    renderPage();
+
+    const pill = await screen.findByTestId('load-type');
+    expect(pill.textContent).toBe('ĐÓNG');
+    expect(pill.closest('p')!.className).toContain('driver-journey-card__task');
+    expect(pill.closest('.driver-journey-card__container')).toBeNull();
+  });
+});

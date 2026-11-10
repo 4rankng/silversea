@@ -158,11 +158,9 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         </p>
       ) : null}
 
-      {/* 3. Container + loại hình + 4. Ports — side-by-side block. The
-          ĐÓNG/TRẢ pill rides the cont row as its 3rd column (em-dash when the
-          shipment's trade direction is unknown) and stands alone when the card
-          has no container data. A known type keeps the strip rendered while
-          the number is still unassigned ("Chưa có số cont"). */}
+      {/* 3. Container + loại hình + 4. Ports — side-by-side block. A known
+          type keeps the strip rendered while the number is still unassigned
+          ("Chưa có số cont"). */}
       {(hasContainer || hasPorts || tradeLabel) ? (
         <div className="driver-journey-card__container-block">
           {hasContainer ? (
@@ -186,15 +184,21 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
               {isPresent(card.cargoWeightKg) ? (
                 <span className="driver-journey-card__cont-weight" data-testid="cont-weight">{formatWeight(card.cargoWeightKg)}</span>
               ) : null}
-              {/* 3rd column — trade-direction ĐÓNG/TRẢ, em-dash when unknown. */}
-              <span className="driver-journey-card__cont-type" data-testid="load-type">{tradeLabel ?? '—'}</span>
               {isPresent(card.sealNumber) ? (
                 <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
               ) : null}
             </p>
-          ) : tradeLabel ? (
-            <p className="driver-journey-card__container">
-              <span className="driver-journey-card__cont-type" data-testid="load-type">{tradeLabel}</span>
+          ) : null}
+          {/* SIL-797 (KB Ch4 §4.2.2) — nhiệm vụ viết hoa TRÊN DÒNG RIÊNG: the
+              ĐÓNG/TRẢ pill left the container strip (it rode that line as a
+              3rd column, reading as part of "CONT [KẸP] 20'RF 12 tấn"). The
+              task is the run's order, not container data, so it owns the line
+              between the cont strip and the ports. Em-dash fallback kept for
+              container cards (unknown direction still names the column); a
+              container-less card with no direction renders no bare-dash line. */}
+          {(hasContainer || tradeLabel) ? (
+            <p className="driver-journey-card__task">
+              <span className="driver-journey-card__task-pill" data-testid="load-type">{tradeLabel ?? '—'}</span>
             </p>
           ) : null}
           {hasPorts ? (
