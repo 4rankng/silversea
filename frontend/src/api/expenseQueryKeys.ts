@@ -9,6 +9,9 @@ export const expenseQueryKeys = {
     vouchers: ['expense-accounting', 'vouchers'] as const,
     reconciliations: ['expense-accounting', 'reconciliations'] as const,
     report: (filters: object) => ['expense-accounting', 'report', filters] as const,
+    // SIL-779 — bảng đối soát chi phí tập trung; the shared prefix keeps it
+    // inside the workspace's broad invalidation after confirm/reject/update.
+    costReview: (filters: object) => ['expense-accounting', 'cost-review', filters] as const,
     assignments: ['expense-accounting', 'assignments'] as const,
     // Card 20260928_168 — the sổ quỹ read (per source + period); the shared
     // 'expense-accounting' prefix keeps it inside the workspace's broad

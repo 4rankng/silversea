@@ -11,7 +11,7 @@ import { getUser } from '../middleware/auth';
 import { requireRoles } from '../middleware/casbin';
 import { Role } from '@tingting/shared';
 import { throwValidation } from '../lib/validation';
-import { assignTruckAccountant, assignTruckAccountantsBatch, confirmAccountingExpenses, updateAccountingExpense, requireExpenseFinance } from '../services/expense-accounting-write.service';
+import { assignTruckAccountant, assignTruckAccountantsBatch, confirmAccountingExpenses, rejectAccountingExpense, updateAccountingExpense, requireExpenseFinance } from '../services/expense-accounting-write.service';
 import { createAccountingExpense } from '../services/expense-accounting-create.service';
 import type { ExpenseAccountingSource } from '../services/expense-accounting-source.service';
 import { getExpenseAccountingCatalog, getExpenseAccountingEntry, getExpenseAccountingReport, listExpenseAccountingEntries, listTruckAccountantAssignments } from '../services/expense-accounting-reads.service';
@@ -281,6 +281,28 @@ router.post('/confirm', declareMaterialWrite('expense-accounting.confirm', { met
   const result = await runShipmentWrite(req, 'expense-accounting.confirm', input, async tx => {
     const rows = await confirmAccountingExpenses(tx, getUser(req), input.entries);
     return { body: { items: await Promise.all(rows.map(row => getExpenseAccountingEntry(getUser(req), row.sourceKind, row.sourceId, tx))) }, status: 200, auditEntityId: rows[0].id };
+  });
+  sendShipmentWrite(res, result.result);
+}));
+// SIL-779 — [Từ chối] on the centralized cost reconciliation table: refuse a
+// department-entered cost claim with a mandatory reason. History kept (source
+// VOIDED, native claim REJECTED); confirmed rows are refused — the sanctioned
+// fix path for an already-đối-chiếu amount is the correction flow.
+router.post('/entries/:kind/:id/reject', declareMaterialWrite('expense-accounting.entries.reject', { method: 'POST', path: '/api/expense-accounting/entries/:kind/:id/reject' }),  asyncHandler(async (req, res) => {
+  const kind = parse(sourceSchema, req.params.kind);
+  const id = parse(idSchema, req.params.id);
+  // Card 2026-10-05_373 precedent: a rejection without a reason is refused as
+  // a 400, and the message is Vietnamese because it surfaces in the confirm
+  // dialog verbatim.
+  const input = parse(z.object({
+    expectedVersion: z.number().int().positive(),
+    reason: z.string({ error: 'Lý do từ chối là bắt buộc.' })
+      .trim().min(1, 'Lý do từ chối không được để trống.').max(500, 'Lý do từ chối không được vượt quá 500 ký tự.'),
+  }).strict(), req.body);
+  requireShipmentIdempotencyKey(req, 'Cần mã thao tác để từ chối không bị trùng.');
+  const result = await runShipmentWrite(req, IDEMPOTENCY_ENDPOINTS.EXPENSE_ACCOUNTING_ENTRY_REJECT, { kind, id, ...input }, async tx => {
+    const outcome = await rejectAccountingExpense(tx, getUser(req), kind, id, input);
+    return { body: outcome, status: 200, auditEntityId: outcome.id };
   });
   sendShipmentWrite(res, result.result);
 }));

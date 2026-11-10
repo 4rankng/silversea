@@ -113,6 +113,18 @@
   overflow-wrap: anywhere;
 }
 
+/* SIL-778 — who processed the request: name on the first line, the approval
+   date as label-size subtext. All tokens; no raw values (design law §1). */
+.ops-wallet__approver {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ops-wallet__approver-time {
+  color: var(--ink-3);
+  font-size: var(--text-label-size);
+}
+
 .ops-doc-state {
   display: inline-flex;
   align-items: center;
