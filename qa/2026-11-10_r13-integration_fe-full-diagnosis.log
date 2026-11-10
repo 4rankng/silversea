@@ -8,3 +8,8 @@
 #   4 PhoiPhieuControlPage.styles: r11c width:100% violated card 20260923_8 group B no-% law → display:block;width:auto (feature kept)
 # isolated rerun of the 4 files: 52 passed / 0 failed
 # run4 (bg_27): final solo full after rebuild — see below
+# run4 (bg_27, solo, fresh dist): 6 failed / 6410 — all 6 files IDENTICAL to main f9e45077, isolated rerun 210/210 GREEN → load flakes (3 timeouts in set)
+# run5 (bg_28, --maxWorkers=4): 2 failed / 6414 — PhoiPhieuControlPage.selection mini-filter 5s timeouts; disjoint from every earlier set; isolated 17/17 GREEN
+# cross-evidence: branch author's own committed full run (qa/2026-11-10_r11a-729-772-780_fe-test.log) = 10 failed / 6352 on PRE-integration tree
+# verdict: full FE suite green modulo nondeterministic 5s-timeout load flakes on this machine; zero real failures remain; no test disabled
+# convergence of failing-set sizes across runs: 6 → 4 (all real, fixed) → 6 → 2, pairwise disjoint except the 4 fixed ones
