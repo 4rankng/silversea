@@ -89,6 +89,15 @@ export const shipments = pgTable('shipments', {
   // `effectiveBillingPlate` (LCL only — non-LCL keeps the GAP-3 law).
   actualTruckNo: varchar('actual_truck_no', { length: 20 }),
   billingTruckNo: varchar('billing_truck_no', { length: 20 }),
+  // SIL-771 — Bảng Kiểm soát lô hàng: 'Chi phí ngoài' kế toán nhập trực tiếp
+  // trên bảng (ngoài cước phải thu / phải trả — kẹt, hợp, phát sinh nâng/hạ
+  // cảng). Lợi nhuận = Tổng thu − Tổng trả − Chi phí ngoài; null = chưa nhập.
+  debitExternalCost: numeric('debit_external_cost', { precision: 15, scale: 0 }),
+  // SIL-773 — 'Lưu - Phê duyệt từng dòng và ẩn': dòng đã lưu/đối soát rời
+  // danh sách tác nghiệp (list mặc định loại debit_hidden_at NOT NULL) nhưng
+  // vẫn tra lại được qua includeHidden — ẩn, không xoá.
+  debitHiddenAt: timestamp('debit_hidden_at', { withTimezone: true }),
+  debitHiddenBy: integer('debit_hidden_by'),
   // Loại xe tính cước trả ĐV — link into the FB-090 vehicle_size_classes
   // catalog (trọng tải 1.25T…15T or CONT20/40). Plain integer on purpose:
   // cross-file link enforced by the grouping service, matching

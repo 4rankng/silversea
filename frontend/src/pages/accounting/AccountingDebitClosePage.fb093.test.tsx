@@ -42,6 +42,8 @@ vi.mock('../../api/accountingDebitClient', () => ({
   withdrawRateAdjustments: vi.fn(),
   listSettlementRounds: listRounds,
   createSettlementRound: vi.fn(),
+    setDebitExternalCost: vi.fn(),
+  reconcileAndHideDebitLots: vi.fn(),
   DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
 }));
 vi.mock('../../api/dispatchPlanningClient', () => ({
@@ -60,7 +62,7 @@ import { ToastProvider } from '../../components/shared/Toast';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 
 function renderPage() {
-  return render(
+  const view = render(
     <MemoryRouter initialEntries={['/accounting/chot-debit']}>
       <ToastProvider>
         <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -69,6 +71,10 @@ function renderPage() {
       </ToastProvider>
     </MemoryRouter>,
   );
+  // SIL-772 — bảng có 2 chế độ xem FCL/LCL, mặc định FCL; các test này dò
+  // hành vi HÀNG LẺ nên chuyển sang chế độ LCL ngay sau khi mở trang.
+  fireEvent.click(screen.getByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
+  return view;
 }
 
 const lclRow = (shipmentId: number, bill: string, ghépCùngRef: string | null = null): AccountingDebitBoardRow => ({
@@ -84,6 +90,8 @@ const lclRow = (shipmentId: number, bill: string, ghépCùngRef: string | null =
   lcl: { label: 'Lẻ · Thu: 5T · Trả: 10T', actualTruckNo: '29C-111.11', billingTruckNo: '30C-999.99', ghépCùngRef },
   thu: { cuocThu: '1000000', lachHuyen: '90000', phuPs: '200000', phatSinhCus: '500000', tongThu: '1790000' },
   tra: { cuocTraDv: '400000', lachHuyenDv: '50000', phatSinhDv: '30000', tong1: '480000', phiRu: '150000' },
+  chiPhiNgoai: null,
+  debitHiddenAt: null,
   loiNhuan: '1160000',
   ghiChu: null,
   adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },

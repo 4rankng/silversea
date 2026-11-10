@@ -310,3 +310,84 @@ p.debit-note { margin: 0 0 8px; }
 .debit-billing-editor .shipment-container-ledger__edit-actions { display: flex; flex: 0 0 auto; gap: 6px; }
 
 .debit-billing-editor__error { color: var(--danger, #b42318); font-size: 12px; }
+
+/* SIL-771 — 'Chi phí ngoài': ô nhập trực tiếp trên dòng, canh phải như các
+ * cột tiền, cùng token house (không màu ngoài tokens). */
+.debit-ext-cost {
+  width: 100%;
+  min-width: 96px;
+  text-align: right;
+  font-family: var(--font-data);
+  font-weight: var(--fw-semibold);
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.debit-ext-cost:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+/* SIL-771 — cảnh báo khách giữ nguyên: Lợi nhuận âm → ô bôi nền đỏ đậm,
+ * chữ trắng (đậm = solid var(--danger), không phải viền). */
+.debit-loinhuan--negative {
+  display: inline-block;
+  background: var(--danger);
+  color: #fff;
+  font-weight: var(--fw-semibold);
+  padding: 1px 6px;
+  border-radius: var(--radius-field);
+}
+
+/* SIL-772 — chuyển chế độ xem FCL/LCL của bảng KIỂM SOÁT LÔ HÀNG: segmented
+ * trên chính prisma button của nhà (không component mới), active = nền
+ * đậm. Nền trắng chữ đen khi không chọn, đảo khi chọn. */
+.debit-cargo-view {
+  display: inline-flex;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
+  overflow: hidden;
+  width: fit-content;
+  background: var(--surface);
+}
+
+.debit-cargo-view__btn {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding: 6px 14px;
+  font-size: var(--text-body-size, 14px);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.debit-cargo-view__btn + .debit-cargo-view__btn {
+  border-left: 1px solid var(--line);
+}
+
+.debit-cargo-view__btn.is-active {
+  background: var(--ink);
+  color: var(--surface);
+}
+
+.debit-cargo-view__btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+/* SIL-773 — công tắc 'Hiện dòng đã ẩn' trên mặt lọc: checkbox + nhãn một
+ * dòng, cùng cỡ chữ mặt lọc. */
+.debit-show-hidden {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: var(--text-body-size, 14px);
+  white-space: nowrap;
+  cursor: pointer;
+}

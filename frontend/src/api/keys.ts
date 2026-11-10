@@ -417,6 +417,10 @@ export const qk = {
     /** Debit-close board — one page per date range. */
     debitBoard: (from: string, to: string) =>
       ['accounting-debit-board', from, to] as const,
+    /** SIL-773 — the board's current view (operations vs including the rows
+     *  hidden by 'Lưu - Phê duyệt từng dòng và ẩn') is part of the identity. */
+    debitBoardView: (from: string, to: string, withHidden: boolean) =>
+      ['accounting-debit-board', from, to, withHidden ? 'with-hidden' : 'operations'] as const,
     /** Broad prefix — matches all accounting-debit-board queries. */
     debitBoardAll: ['accounting-debit-board'] as const,
   },

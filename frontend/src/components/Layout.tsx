@@ -122,6 +122,9 @@ function buildNavItems(
           { key: 'treasury', path: routes.treasury, icon: Landmark, section: 'accounting-quy' as SectionName },
         ] : []),
         { key: 'debt', path: routes.debt, icon: Receipt, section: 'accounting-cong-no' as SectionName },
+        // SIL-772 — bảng chốt Debit chuyển vào phân hệ CÔNG NỢ VẬN TẢI và đổi
+        // tên 'KIỂM SOÁT LÔ HÀNG' (viết hoa đúng như khách ghi, 09/11/2026).
+        { key: 'chot-debit', path: '/accounting/chot-debit', icon: Calculator, section: 'accounting-cong-no' as SectionName },
         { key: 'payables', path: routes.payables, icon: Receipt, section: 'accounting-cong-no' as SectionName },
         { key: 'expenses', path: routes.expenses, icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
         { key: 'advances', path: routes.advances, icon: Wallet, section: 'accounting-phoi-phieu' as SectionName },
@@ -134,7 +137,6 @@ function buildNavItems(
         // control page built by card 20260921_12; discoverability only, the
         // route and its financeReader gate already existed.
         { key: 'phoi-phieu', path: '/accounting/phoi-phieu', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
-        { key: 'chot-debit', path: '/accounting/chot-debit', icon: Calculator, section: 'accounting-phoi-phieu' as SectionName },
 
         // Nhân sự (HR) — owner ruling 2026-10-12 (QA2-008): ALL HR items
         // group here — Lương & Chấm công, Danh sách nhân sự and Kỷ luật.
@@ -248,13 +250,15 @@ function buildNavItems(
         { key: 'deposit-tracker', path: '/accounting/deposit-tracker', icon: Coins, section: 'accounting-phoi-phieu' as SectionName },
         // Kiểm soát phơi phiếu / tiền đường (card 20260922_5) — ADMIN+ACCOUNTANT only.
         { key: 'phoi-phieu', path: '/accounting/phoi-phieu', icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
-        { key: 'chot-debit', path: '/accounting/chot-debit', icon: Calculator, section: 'accounting-phoi-phieu' as SectionName },
 
         // Công nợ vận tải (AR/AP) + Quỹ per spec §5.10
         ...(hasCapability('treasury.read') ? [
           { key: 'treasury', path: routes.treasury, icon: Landmark, section: 'accounting-quy' as SectionName },
         ] : []),
         { key: 'debt', path: routes.debt, icon: Receipt, section: 'accounting-cong-no' as SectionName },
+        // SIL-772 — bảng chốt Debit chuyển vào phân hệ CÔNG NỢ VẬN TẢI và đổi
+        // tên 'KIỂM SOÁT LÔ HÀNG' (viết hoa đúng như khách ghi, 09/11/2026).
+        { key: 'chot-debit', path: '/accounting/chot-debit', icon: Calculator, section: 'accounting-cong-no' as SectionName },
         { key: 'payables', path: routes.payables, icon: Receipt, section: 'accounting-cong-no' as SectionName },
         { key: 'expenses', path: routes.expenses, icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
         { key: 'advances', path: routes.advances, icon: Wallet, section: 'accounting-phoi-phieu' as SectionName },

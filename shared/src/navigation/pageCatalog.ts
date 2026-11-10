@@ -127,7 +127,9 @@ export const PAGE_CATALOG = {
     section: 'financials',
   },
   accountingDebitClose: {
-    title: 'Kế toán chốt debit',
+    // SIL-772 — khách chốt 09/11/2026: đổi tên bảng chốt Debit thành
+    // 'KIỂM SOÁT LÔ HÀNG', viết hoa đúng như khách ghi.
+    title: 'KIỂM SOÁT LÔ HÀNG',
     path: '/accounting/chot-debit',
     section: 'financials',
   },

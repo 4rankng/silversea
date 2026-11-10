@@ -25,6 +25,15 @@
 export const TIMESHEET_SYMBOLS = ['K', 'Q', 'Đ', 'L', 'N', 'P'] as const;
 export type TimesheetSymbol = typeof TIMESHEET_SYMBOLS[number];
 
+/**
+ * SIL-774 (khách chốt 09/11/2026, Bảng 4 Quy ước Mã Ký Hiệu Chấm Công) —
+ * N/P đổi NGHĨA so với quy ước cũ (N = nghỉ không phép, P = nghỉ có phép
+ * chung):
+ *   N = nghỉ tai nạn / nghỉ việc gia đình có phép (ô nền đỏ, chữ trắng);
+ *   P = nghỉ sửa xe / bảo dưỡng định kỳ (nền trắng, chữ đen in hoa).
+ * Trọng số tiền lương KHÔNG đổi: N vẫn không phải ngày công, P vẫn tính
+ * ngày công theo chế độ — chỉ nhãn + màu + cách đếm ở các cột tổng hợp.
+ */
 export const TIMESHEET_SYMBOL_RULES: Record<
   TimesheetSymbol,
   { label: string; trips: number; workday: boolean }
@@ -33,8 +42,8 @@ export const TIMESHEET_SYMBOL_RULES: Record<
   Q: { label: 'Quay đầu', trips: 2, workday: true },
   'Đ': { label: 'Chạy đơn', trips: 1, workday: true },
   L: { label: 'Lưu ca', trips: 0, workday: true },
-  N: { label: 'Nghỉ', trips: 0, workday: false },
-  P: { label: 'Nghỉ phép (xe hư)', trips: 0, workday: true },
+  N: { label: 'Nghỉ tai nạn / nghỉ việc gia đình có phép', trips: 0, workday: false },
+  P: { label: 'Nghỉ sửa xe / bảo dưỡng định kỳ', trips: 0, workday: true },
 };
 
 /** "không trốn vé" — paid per trip. */

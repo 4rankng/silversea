@@ -357,6 +357,20 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     // audit_logs: entityType trip, message 'PHOI_PHEU_DEPOSIT_SET';
     // trips.version optimistic lock refuses a stale replay.
   }],
+  // SIL-771 — 'Chi phí ngoài' kế toán nhập: single-column write through the
+  // row-locked setter; cost/accounting locks 409 in the service (unlocked-lot
+  // precondition is its replay boundary — a replay lands the same end state).
+  ['accounting-debit.ts|POST|/debit-board/external-cost', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/accounting-debit-close.service.ts'),
+    marker: 'export async function setShipmentDebitExternalCost(',
+  }],
+  // SIL-773 — 'Lưu - Phê duyệt từng dòng và ẩn': marker write (debit_hidden_at
+  // /debit_hidden_by) guarded by isNull(debit_hidden_at) — a replay converges
+  // on the already-hidden set and returns the same ids.
+  ['accounting-debit.ts|POST|/debit-board/reconcile-hide', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/accounting-debit-close.service.ts'),
+    marker: 'export async function reconcileAndHideDebitLots(',
+  }],
   ['timesheet.ts|POST|/months', {
     serviceFile: path.resolve(process.cwd(), 'src/services/timesheet.service.ts'),
     marker: 'export async function createTimesheetMonth(',

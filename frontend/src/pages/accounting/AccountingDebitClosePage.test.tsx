@@ -19,6 +19,8 @@ vi.mock('../../api/accountingDebitClient', () => ({
   withdrawRateAdjustments: withdrawReq,
   listSettlementRounds: listRounds,
   createSettlementRound: createRound,
+    setDebitExternalCost: vi.fn(),
+  reconcileAndHideDebitLots: vi.fn(),
   DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
 }));
 
@@ -52,6 +54,8 @@ const row = (over: Partial<AccountingDebitBoardRow> = {}): AccountingDebitBoardR
   phanXe: ['Nhà xe A'],
   thu: { ...RATES },
   tra: { ...CARRIER_RATES },
+  chiPhiNgoai: null,
+  debitHiddenAt: null,
   loiNhuan: '1160000',
   ghiChu: null,
   adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
@@ -133,12 +137,15 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
   it('names the screen, not the document (page-heading law)', async () => {
     boardWith([row()]);
     renderPage();
-    expect(await screen.findByRole('heading', { level: 1, name: 'Kế toán chốt debit' })).toBeInTheDocument();
+    // SIL-772 — tên màn hình là nhãn khách yêu cầu nguyên văn, viết hoa.
+    expect(await screen.findByRole('heading', { level: 1, name: 'KIỂM SOÁT LÔ HÀNG' })).toBeInTheDocument();
     await screen.findByText('BL-1');
-    // The document's name is the BOARD's, and the page never shouts: no heading
-    // or visible caption carries an ALL-CAPS run.
+    // The document's name is the BOARD's, and the page never shouts — except
+    // the customer-verbatim H1 (SIL-772 exemption in page-heading-law.test):
+    // every OTHER heading still reads sentence case, no ALL-CAPS run.
     expect(screen.getByRole('heading', { level: 2, name: /Kế hoạch điều động tổng hợp/ })).toBeInTheDocument();
     for (const heading of screen.getAllByRole('heading')) {
+      if (heading.tagName === 'H1') continue;
       expect(heading.textContent ?? '').not.toMatch(/[A-ZĐÂÊÔƠƯ]{2,}\s+[A-ZĐÂÊÔƠƯ]{2,}/);
     }
     const caption = document.querySelector('.debit-board caption');
@@ -150,15 +157,12 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     renderPage();
     expect(await screen.findByText('Phải thu')).toBeInTheDocument();
     expect(screen.getByText('Phải trả')).toBeInTheDocument();
-    // Card 191026181942: the board opens on its essential set — Tổng thu and
-    // Tổng 1 (the two rollups) carry the worked money; the Lợi nhuận
-    // breakdown joins through the picker like every other breakdown.
+    // SIL-771 amends the SIL-727 matrix: Lợi nhuận (công thức khách chốt —
+    // Tổng thu − Tổng trả − Chi phí ngoài) joins the essential set, so the
+    // board opens on the rollups AND the profit, no toggle needed.
     expect(await screen.findByText('1.790.000 ₫')).toBeInTheDocument();
     expect(screen.getByText('480.000 ₫')).toBeInTheDocument();
-    expect(screen.queryByText('1.160.000 ₫')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Lợi nhuận' }));
-    expect(await screen.findByText('1.160.000 ₫')).toBeInTheDocument();
+    expect(screen.getByText('1.160.000 ₫')).toBeInTheDocument();
     // The board's axis is a business date, never the wire's ISO string.
     expect(screen.getByText('25/09/2026')).toBeInTheDocument();
   });
@@ -170,53 +174,59 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     })]);
     renderPage();
     expect(await screen.findByText('Thiếu tổng thu')).toBeInTheDocument();
-    // Lợi nhuận is a breakdown column now — enable it through the picker,
-    // then the §1 law reads exactly as before: the missing cell NAMES its
-    // field, never the generic placeholder.
-    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Lợi nhuận' }));
-    expect(await screen.findByText('Thiếu lợi nhuận')).toBeInTheDocument();
+    // Lợi nhuận opens essential since SIL-771 — the §1 law reads directly on
+    // the open board: the missing cell NAMES its field, never the generic
+    // placeholder.
+    expect(screen.getByText('Thiếu lợi nhuận')).toBeInTheDocument();
     // …and never the generic placeholder.
     expect(screen.queryByText('Chưa xác định')).not.toBeInTheDocument();
   });
 
-  it('SIL-727 — the money matrix opens essential, no stored choice can bury it, and the still-hideable choice persists (card 191026181942)', { timeout: 15000 }, async () => {
+  it('SIL-727 — the money matrix opens essential, no stored choice can bury it, and the still-hideable choice persists (card 191026181942; SIL-771 extends the set)', { timeout: 15000 }, async () => {
     // SIL-727 amends the KT4 default ON THIS BOARD: the ticket lists the full
     // PHẢI THU/PHẢI TRẢ matrix explicitly, so the breakdowns are essential —
-    // visible at open, locked in the picker, immune to a stale payload. The
-    // Lợi nhuận/Ghi chú breakdowns stay one toggle away, and a choice about
-    // them is still the per-workstation memory.
+    // visible at open, locked in the picker, immune to a stale payload.
+    // SIL-771 extends the same law to 'Chi phí ngoài' + 'Lợi nhuận' — the
+    // customer's profit formula (Tổng thu − Tổng trả − Chi phí ngoài) is the
+    // board's headline, so both open essential and lock in the picker.
     boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', thu: { ...RATES, cuocThu: null } })]);
     const { unmount } = renderPage();
     await screen.findByText('BL-1');
     expect(screen.getByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Tổng thu' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Phí RU (tự động)' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Chi phí ngoài' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Lợi nhuận' })).toBeInTheDocument();
     // The picker locks the matrix: the essential option reads disabled +
     // checked, offering nothing the toggle would refuse anyway.
     fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
     const cuocThuOption = within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Cước thu (tự động)' });
     expect(cuocThuOption).toBeChecked();
     expect(cuocThuOption).toBeDisabled();
+    const loiNhuanOption = within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Lợi nhuận' });
+    expect(loiNhuanOption).toBeChecked();
+    expect(loiNhuanOption).toBeDisabled();
     unmount();
 
     // FB-093 (lan 3): a choice written before the matrix joined the required
     // set cannot bury it — the payload is repaired on read.
-    localStorage.setItem('accounting-debit-hidden-cols', JSON.stringify(['cuocThu', 'tongThu']));
+    localStorage.setItem('accounting-debit-hidden-cols', JSON.stringify(['cuocThu', 'tongThu', 'loiNhuan', 'chiPhiNgoai']));
     const { unmount: unmountSecond } = renderPage();
     expect(await screen.findByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Lợi nhuận' })).toBeInTheDocument();
     unmountSecond();
 
-    // …while the still-hideable Lợi nhuận keeps its per-workstation memory.
+    // …while the still-hideable Phân xe keeps its per-workstation memory
+    // (the picker's hideable set shrank with SIL-771 but never went empty).
     const { unmount: unmountThird } = renderPage();
     await screen.findByText('BL-1');
     fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Lợi nhuận' }));
-    expect(screen.queryByRole('columnheader', { name: 'Lợi nhuận' })).toBeNull();
+    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Phân xe' }));
+    expect(screen.queryByRole('columnheader', { name: 'Phân xe' })).toBeNull();
     unmountThird();
     renderPage();
     await screen.findByText('BL-1');
-    expect(screen.queryByRole('columnheader', { name: 'Lợi nhuận' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Phân xe' })).toBeNull();
   });
 
   it('offers the column picker on the shared strip', async () => {
@@ -507,6 +517,8 @@ describe('BD-02 (161026204709) — merged 100%/0₫ Cước thu lane on the phon
       }),
     ]);
     renderPage();
+    // SIL-772 — mặc định FCL; cả hai dòng của test là hàng lẻ → chế độ LCL.
+    fireEvent.click(screen.getByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
 
     // Lô 1 = 100% lane price on the card face.
     const principal = await screen.findByRole('article', { name: 'BL-P' });
