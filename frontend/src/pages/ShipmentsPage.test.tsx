@@ -1238,7 +1238,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     })));
   });
 
-  it('shows every declaration number, one per line, in the Chứng từ cell (SIL-532)', async () => {
+  it('nối mọi số tờ khai bằng ", " trong một chuỗi ở ô Chứng từ (SIL-787, thay law SIL-532)', async () => {
     const multiDeclaration: ShipmentCusWorkspaceListItem = {
       ...row,
       declarationNumbers: ['TK-54321', 'TK-77777'],
@@ -1252,11 +1252,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('table');
 
     const cell = screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' });
-    expect(screen.getByText('TK-54321')).toBeTruthy();
-    expect(screen.getByText('TK-77777')).toBeTruthy();
-    // Two separate line elements — not one joined ', ' run.
-    const lines = [...cell.querySelectorAll('span')].filter((el) => /^TK-\d{5}$/.test(el.textContent ?? ''));
-    expect(lines).toHaveLength(2);
+    // One joined ', ' run — same string the XLSX CHỨNG TỪ column carries
+    // (KB Ch3 §3.4.4). Wraps whole, never truncated.
+    expect(screen.getByText('TK-54321, TK-77777')).toBeTruthy();
+    expect(cell).toBeTruthy();
   });
 
   it('documents cell với Bill/Booking READ_ONLY: mở DRAWER thay editor — hết đường ghi tờ khai cấp lô (SIL-521, SIL-699 r2)', async () => {
