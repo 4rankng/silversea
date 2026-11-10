@@ -418,12 +418,14 @@ describe('MasterPlanGrid', () => {
     expect(widthFor('allocation')).toBe(13);
     expect(widthFor('notes')).toBe(11.5);
     expect(widths.reduce((total, width) => total + width, 0)).toBe(96);
-    // The table owns a floor + the wrapper a BOUNDED PANE (both scrolls), so
-    // no column ever starves AND the thead keeps a working sticky reference
-    // (an unbounded rail is a scroll container that kills the header pin).
+    // The table owns a floor; the wrapper is the HORIZONTAL rail only — the
+    // document is the single vertical scroller and the header is NOT sticky
+    // (QA 10/11: the bounded pane produced two scrollbars side by side and a
+    // thead floating over the rows scrolled beneath it).
     expect(css).toMatch(/\.master-plan-grid \{[\s\S]*?min-width:\s*1200px;/);
-    expect(css).toMatch(/\.master-plan-grid__wrapper \{[\s\S]*?overflow:\s*auto;[\s\S]*?max-height:\s*calc\(100dvh/);
-    expect(css).toMatch(/\.master-plan-grid thead th \{[\s\S]*?position:\s*sticky;[\s\S]*?top:\s*0;/);
+    expect(css).toMatch(/\.master-plan-grid__wrapper \{[^}]*overflow-x:\s*auto;/);
+    expect(css).not.toMatch(/\.master-plan-grid__wrapper \{[^}]*max-height/);
+    expect(css).not.toMatch(/\.master-plan-grid thead th \{[^}]*position:\s*sticky/);
   });
 
   it('wraps a long header label at spaces up to TWO lines — never mid-word, never more (owner redesign 23/10)', () => {

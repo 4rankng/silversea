@@ -302,4 +302,21 @@ describe('MasterPlanGrid — the Lẻ flag is a chip (SIL-708)', () => {
     expect(rule).toContain('white-space: nowrap');
     expect(rule).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
   });
+
+  it('anchors the chip to the cargo cell lower-right, OUT of the flow (owner 10/11)', () => {
+    // QA 10/11: the top-left placement pushed the demand line ("50 Thùng gỗ")
+    // down a full chip-height. The flag must ride the td's lower-right corner
+    // absolutely — zero layout space.
+    const tsx = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.tsx'), 'utf8');
+    expect(tsx).toContain('master-plan-grid__cell--cargo');
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const anchor = css.match(/\.master-plan-grid__cell--cargo\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(anchor).toContain('position: relative');
+    const placed = css.match(/\.master-plan-grid__cell--cargo \.master-plan-grid__lcl-chip\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(placed).toContain('position: absolute');
+    expect(placed).toContain('right:');
+    expect(placed).toContain('bottom:');
+    // The phone card keeps its own inline Loại token — never anchored.
+    expect(css).not.toMatch(/\.mpcard__type[^{]*\{[^}]*position:\s*absolute/);
+  });
 });

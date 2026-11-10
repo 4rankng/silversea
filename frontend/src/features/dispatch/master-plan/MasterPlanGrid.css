@@ -92,23 +92,19 @@
   color: var(--fg-2);
 }
 
-/* ── Owner redesign 23/10 — the wrapper owns a BOUNDED PANE: the horizontal
-   rail (per-column floors via the table's min-width) AND the vertical scroll
-   of the board itself. A CSS rail is a scroll container, and a scroll
-   container is the sticky reference of everything inside it — an unbounded
-   `overflow-x: auto` wrapper therefore KILLS the app-body-sticky thead (the
-   thead pins to a rail that never scrolls vertically and rides off-screen
-   with the page; the latent defect the rail pattern shipped with on both
-   dispatch boards, caught by this lane's MP-RD-03 probe). Bounding the pane
-   and pinning the thead INSIDE it keeps the header reachable at every
-   width: the page carries the filter chrome, the pane carries the rows. */
+/* ── Owner directive 10/11 — ONE scrollbar, NO sticky header. The wrapper is
+   the HORIZONTAL rail only (per-column floors via the table's min-width);
+   the document is the single vertical scroller and the header scrolls away
+   with the table. The old bounded pane (overflow: auto + max-height) gave
+   the board its own vertical scrollbar NEXT to the document's (two bars)
+   and pinned the thead floating over the rows scrolled beneath it — both
+   rejected by QA 10/11. */
 .master-plan-grid__wrapper {
   /* 100% + both gutter tokens: negative margins alone shift the box left but
      a percentage width pins it, so the right edge would stop short — the
      calc widens the rail to the true canvas edges. */
   width: calc(100% + 2 * var(--app-body-pad-x, 24px));
-  overflow: auto;
-  max-height: calc(100dvh - var(--topbar-h, 56px) - 72px);
+  overflow-x: auto;
   border-top: 1px solid var(--line);
   /* Owner doctrine 30/10 (SIL-708 lane): the data TABLE renders edge-to-edge
      — full width to both screen edges, not squeezed into the shell's narrow
@@ -116,9 +112,7 @@
      (whatever --app-body-pad-x is per breakpoint — 24px desktop, smaller
      bands below; the shell also sets a 20px band); on devices the shell pads
      with max(token, env(safe-area-inset-*)), so only the token part collapses and
-     the notch-safe inset survives. The wrapper stays THE scroll container
-     (bounded pane, MP-RD-03): bleed widens it, it does not re-axis it —
-     the sticky thead keeps pinning inside. Deepseek consult 30/10: bleed the
+     the notch-safe inset survives. Deepseek consult 30/10: bleed the
      table rail only (filters/strip keep the reading spine inset), and cap
      the board on ultra-wide canvases (see .master-plan-grid). */
   margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
@@ -149,8 +143,8 @@
      rail. At ordinary widths the cap is inert (width: 100% < 1920px). */
   max-width: 1920px;
   margin-inline: auto;
-  /* separate (not collapse) keeps the sticky thead's border-bottom rendering
-     with the pinned cells instead of scrolling away beneath them. */
+  /* separate (not collapse) keeps the row's border-bottom painting per cell
+     edge; collapse would merge cell borders and shift the row rule. */
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -192,18 +186,14 @@
 .master-plan-grid__col--notes { width: 11.5%; }
 .master-plan-grid__col--allocation { width: 13%; }
 
-/* The pane owns the board's vertical scroll, so the header pins to the
-   pane's own top edge (the old --sticky-thead-top offset belonged to the
-   app-body scrollport this board no longer rides). Sticky rides on the TH
-   itself — and the two-line clamp must NEVER ride on the th: a
+/* Owner directive 10/11: the header is NOT sticky — it scrolls away with the
+   table (one page scrollbar, no bar floating over the rows beneath it; QA
+   rejected the pinned bar). The two-line clamp must NEVER ride on the th: a
    `display: -webkit-box` th leaves table-cell layout and the whole header
    row collapses into a vertical label stack (the live defect this lane
    found on the merged /dispatch-detail board; the clamp lives on the
    `.master-plan-grid__th-label` span inside the cell instead). */
 .master-plan-grid thead th {
-  position: sticky;
-  top: 0;
-  z-index: 3;
   text-align: left;
   /* Card 091026091550: 8px gutter — at the global 12px the eight compound
      labels consume ~99% of the 1144px canvas and nothing is left for the
@@ -411,6 +401,22 @@
   font-weight: 500;
   letter-spacing: 0.01em;
   white-space: nowrap;
+}
+
+/* Owner directive 10/11 — the chip moves OUT of the summary flow onto the
+   cargo cell's LOWER-RIGHT corner: absolutely positioned against the td, so
+   the demand/measure lines keep their two-line rhythm and the row never pays
+   24px + gap for the flag (the top-left placement pushed "50 Thùng gỗ" down
+   a full line). The base rule above stays the shared recipe — the phone
+   card's Loại token keeps riding it inline; only the grid cell anchors. */
+.master-plan-grid__cell--cargo {
+  position: relative;
+}
+
+.master-plan-grid__cell--cargo .master-plan-grid__lcl-chip {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
 }
 
 /* Appointment days read as a bullet-less list: the date is the list row and

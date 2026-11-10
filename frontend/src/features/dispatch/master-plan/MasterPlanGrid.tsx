@@ -416,7 +416,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     ))}
                   </div>
                 </td>
-                <td className="master-plan-grid__cell" data-label="Tổng quan hàng hóa" data-label-short="Hàng">
+                <td className="master-plan-grid__cell master-plan-grid__cell--cargo" data-label="Tổng quan hàng hóa" data-label-short="Hàng">
                   <div className="master-plan-grid__cell-body">
                   <div className="master-plan-grid__cargo-content">
                     <div className="master-plan-grid__cargo-summary">
