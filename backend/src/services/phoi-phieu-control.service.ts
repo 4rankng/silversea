@@ -44,6 +44,16 @@ function confirmationCondition(value?: ChiHoConfirmation): SQL | undefined {
     : value === 'UNCONFIRMED' ? isNull(s.expenseAccountingSources.confirmedAt) : undefined;
 }
 
+// SIL-729 r7 (KB Silversea Spec Ch.6 §6.7, owner instruction 10/11): a
+// lot-attached source whose join could not name the direction's party
+// reports under the label of WHAT is missing — never 0, never the generic
+// unknown. 'Chưa xác định' is reserved for money attached to NO trip and NO
+// lot (the law's chi-rời bucket). FB-061 keeps its two halves intact: a
+// soft-deleted master never prints, and the money never leaves the report.
+const MISSING_CARRIER_LABEL = 'Thiếu nhà xe';
+const MISSING_CUSTOMER_LABEL = 'Thiếu khách hàng';
+const UNATTACHED_LABEL = 'Chưa xác định';
+
 export interface PhoiPhieuRow {
   tripId: number;
   tripCode: string | null;
@@ -1270,8 +1280,9 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
     })
       .from(s.trips)
       // FB-061: the THU party must never print a soft-deleted customer's name;
-      // its money keeps reporting under the 'Chưa xác định' bucket (the same
-      // law the NULL-trip branch follows — money is never silently dropped).
+      // its money reports under the 'Thiếu khách hàng' label (SIL-729 r7,
+      // KB §6.7 — missing data names what is missing; money is never
+      // silently dropped).
       .leftJoin(s.customers, and(eq(s.customers.id, s.trips.customerId), isNull(s.customers.deletedAt)))
       // Card 191026100030 — same trip→lot fallback as the board reads: a
       // wave-model trip's lot lives on the fulfillment, and the customer note
@@ -1330,7 +1341,7 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
  *  the bucket step used to drop it into 'Chưa xác định' wholesale. The
  *  fallback resolves:
  *    · THU — the shipment's customer operationalName (FB-061: a soft-deleted
- *      master never prints; the money keeps reporting under 'Chưa xác định').
+ *      master never prints; its money reports under 'Thiếu khách hàng').
  *    · TRA (SIL-729 r2→r4) — first through EVERY live trip of the shipment
  *      (the exact candidate law `expenseTripCandidates` links sources by:
  *      deletedAt NULL, not CANCELED), read via the
@@ -1347,13 +1358,15 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
  *      carrier master, or disagreeing assignments keep no carrier party
  *      (one shared fee cannot be split across parties, and no fact names
  *      no one).
- *    · TRA (r6, owner ruling 09/11) — lot-attached money NEVER reads 'Chưa
- *      xác định': whatever the two laws above could not name still names
- *      ITSELF — the party is the LOT's own code (SHP-…; `Lô #<id>` for a
- *      code-less draft). partyId/partyKind stay null: the code is not a
- *      ledger entity and must never join the carrier ledger by id (card
- *      201026095604b). THU is untouched — FB-061 keeps a soft-deleted
- *      customer's money in the unknown bucket (money never drops).
+ *    · TRA (r7, KB §6.7 — owner instruction 10/11, superseding the r6
+ *      lot-code label) — lot-attached money NEVER reads 'Chưa xác định',
+ *      and missing data names WHAT is missing: whatever the two laws above
+ *      could not name is a lot whose carrier fact is missing, so the party
+ *      label is 'Thiếu nhà xe'. partyId/partyKind stay null: the label is
+ *      not a ledger entity and must never join the carrier ledger by id
+ *      (card 201026095604b). THU keeps FB-061 — a soft-deleted customer's
+ *      money moves to 'Thiếu khách hàng' (the name still never prints,
+ *      the money never drops).
  *  Returns the party plus, when a UNIQUE live trip exists, its id — the
  *  drill-down groups the resolved money under that real trip; a multi-trip
  *  resolution groups under the synthetic shipment key. */
@@ -1504,22 +1517,18 @@ async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: 
       map.set(shipmentId, { party, liveTripId: null });
     }
   }
-  // SIL-729 r6 — owner ruling 09/11: lot-attached money NEVER reads 'Chưa xác
-  // định'. Whatever the two laws above could not name still names ITSELF: the
-  // party is the LOT's own code (the same per-lot label the ruling prescribes
-  // — a 'Chưa phân xe' lot, a never-planned one, a mixed-carrier one each
-  // print under their SHP code instead of the unknown bucket). The label is
-  // not a ledger entity — partyId/partyKind stay null so the payables
-  // reconciliation can never join it to a carrier id (card 201026095604b).
-  const unresolved = ids.filter((id) => !map.has(id));
-  if (unresolved.length > 0) {
-    const lotLabels = await db.select({ id: s.shipments.id, code: s.shipments.shipmentCode })
-      .from(s.shipments)
-      .where(inArray(s.shipments.id, unresolved));
-    for (const lot of lotLabels) {
-      const label = lot.code != null && lot.code.trim() !== '' ? lot.code : `Lô #${lot.id}`;
-      map.set(lot.id, {
-        party: { name: label, ghiChu: null, shortName: label, partyId: null, partyKind: null },
+  // SIL-729 r7 (KB §6.7, owner instruction 10/11 — supersedes the r6 lot-code
+  // label): lot-attached money NEVER reads 'Chưa xác định', and missing data
+  // names WHAT is missing. Whatever the two carrier laws above could not name
+  // is a lot whose CARRIER fact is missing — a 'Chưa phân xe' lot, a
+  // never-planned one, a mixed-carrier one — so the party label is
+  // 'Thiếu nhà xe'. The label is not a ledger entity — partyId/partyKind stay
+  // null so the payables reconciliation can never join it to a carrier id
+  // (card 201026095604b).
+  for (const id of ids) {
+    if (!map.has(id)) {
+      map.set(id, {
+        party: { name: MISSING_CARRIER_LABEL, ghiChu: null, shortName: MISSING_CARRIER_LABEL, partyId: null, partyKind: null },
         liveTripId: null,
       });
     }
@@ -1551,11 +1560,15 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
     // under the unknown party.
     const resolvedParty = source.tripId != null ? tripParty.get(source.tripId)
       : source.shipmentId != null ? shipmentFallback.get(source.shipmentId)?.party : undefined;
-    // SIL-729 r6 — a trip whose carrier does not resolve is still lot-attached
-    // money: the lot party (its code) names it before the unknown bucket may.
+    // SIL-729 r7 (KB §6.7) — a trip whose carrier does not resolve is still
+    // lot-attached money: the lot party names it before the unknown bucket
+    // may, and a lot-attached party the joins could not name reads the
+    // missing-datum label ('Thiếu nhà xe' / 'Thiếu khách hàng'), never 0.
     const partyInfo = resolvedParty?.name != null ? resolvedParty
       : source.shipmentId != null ? shipmentFallback.get(source.shipmentId)?.party : undefined;
-    const party = partyInfo?.name ?? 'Chưa xác định';
+    const party = partyInfo?.name ?? (source.shipmentId != null
+      ? (query.kind === 'TRA' ? MISSING_CARRIER_LABEL : MISSING_CUSTOMER_LABEL)
+      : UNATTACHED_LABEL);
     const bucket = groups.get(party) ?? {
       tienNang: 0, tienHa: 0, psKhac: 0, da: 0, ghiChu: partyInfo?.ghiChu ?? null,
       soLuong: 0, phaiThu: 0, phaiTra: 0, movements: new Set<string>(),
@@ -1662,26 +1675,28 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
   for (const source of sources) {
     // The drill-down opens from a summary row, so the party label must match
     // it exactly — the same resolve (trip party, then the SIL-729 shipment
-    // fallback), the same 'Chưa xác định' fallback. A trip-less source that
-    // the fallback resolved joins the drawer under ITS party; truly
-    // unresolved money keeps no lot row (the summary bucket is the audit
-    // surface, FB-061).
+    // fallback) and the same effective label, INCLUDING the r7 missing-datum
+    // labels (KB §6.7): lot-attached money whose party is missing opens the
+    // 'Thiếu nhà xe' / 'Thiếu khách hàng' drawer (FB-061 money included —
+    // the deleted name still never prints). Only money attached to no trip
+    // AND no lot keeps no lot row (the summary bucket is the audit surface;
+    // defensive — `shipment_id` is NOT NULL, so this reports nothing today).
     const fallback = source.tripId == null && source.shipmentId != null
       ? shipmentFallback.get(source.shipmentId)
       : undefined;
     const resolvedParty = source.tripId != null ? tripParty.get(source.tripId) : fallback?.party;
-    // SIL-729 r6 — the same lot-party override the summary prints (the drawer
-    // opens from that row): a trip whose carrier does not resolve joins under
-    // its lot code.
     const partyInfo = resolvedParty?.name != null ? resolvedParty
       : source.shipmentId != null ? shipmentFallback.get(source.shipmentId)?.party : undefined;
-    if ((partyInfo?.name ?? 'Chưa xác định') !== wanted) continue;
+    const party = partyInfo?.name ?? (source.shipmentId != null
+      ? (query.kind === 'TRA' ? MISSING_CARRIER_LABEL : MISSING_CUSTOMER_LABEL)
+      : UNATTACHED_LABEL);
+    if (party !== wanted) continue;
     // Group under the source's own trip; a resolved trip-less source groups
     // under the shipment's unique live trip (a REAL trip lot — bookable), or
     // under a synthetic shipment key when no single trip exists (the shared
     // lot's fees — shown, not bookable: the voucher engine books trips).
     const lotKey = source.tripId ?? fallback?.liveTripId
-      ?? (fallback?.party.name != null ? -source.shipmentId! : null);
+      ?? (source.shipmentId != null ? -source.shipmentId! : null);
     if (lotKey == null) continue;
     const cash = cashBySourceId.get(source.id) ?? { IN: 0, OUT: 0 };
     const amount = sumExcludingNegative([source], (row) => row.amount ?? 0);

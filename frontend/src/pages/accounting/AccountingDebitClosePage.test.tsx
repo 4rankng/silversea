@@ -248,7 +248,10 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
     expect(checkbox).toHaveAttribute('type', 'checkbox');
     expect(checkbox.getAttribute('aria-checked')).toBe('false');
 
-    const xacNhanBtn = screen.getByRole('button', { name: /Xác nhận đối soát/ });
+    // Anchored: matches the confirm button in all its state labels
+    // ('Xác nhận đối soát', 'Xác nhận đối soát (N)') but never the SIL-773
+    // 'Lưu & Xác nhận đối soát' button, which also rode this board later.
+    const xacNhanBtn = screen.getByRole('button', { name: /^Xác nhận đối soát/ });
     const chonDebitBtn = screen.getByRole('button', { name: /Chọn Debit/ });
     const xuatDebitBtn = screen.getByRole('button', { name: /Xuất Debit Note/ });
     expect(xacNhanBtn).toBeDisabled();

@@ -1,0 +1,6 @@
+# merge-2 (r11a-729-772-780) gates
+# BE tsc --noEmit: exit 0
+# FE tsc --noEmit: exit 0 (after SIL-727 anchor fix)
+# BE unit phoi-phieu-shipment-fallback.test.ts: 11 pass / 0 fail (tsx --test)
+# FE vitest related (7 files): first run 1 fail (SIL-727 ambiguous /Xác nhận đối soát/ matches 2 buttons incl SIL-773 Lưu & …; pre-existing red on main) → fixed with anchored regex; green rerun: Test Files 7 passed, Tests 205 passed
+# Resolution: tsx/css = ours (main r9c superset of r11a 772); sil772.test.tsx = union (rerere, indent fix); BE 729 labels + nav/testplan auto-merged
