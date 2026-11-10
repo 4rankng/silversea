@@ -1,0 +1,10 @@
+# FE full suite history
+# run1 (bg_18, parallel w/ BE full): 5 files / 6 tests failed; no dist built yet
+# run2 (bg_22, parallel w/ BE full): polluted by contention — 31 files / 34 failed; DISCARDED
+# run3 (bg_24, solo, dist built): 4 files / 4 tests failed (all diagnosed):
+#   1 ShipmentContainersPage.styles: multiline:not chain pin stale vs evolved css (added code/schedule-gap/row-warning exclusions) → pin updated
+#   2 ShipmentsPage.density: literal onStartQuickEdit pins stale vs cellAction(field,..) refactor → wiring pins updated
+#   3 AccountingDebitClosePage.sil773: Rev2 (0bea3a24 10/11) changed success message, test kept Rev1 wording → test aligned to Rev2 law
+#   4 PhoiPhieuControlPage.styles: r11c width:100% violated card 20260923_8 group B no-% law → display:block;width:auto (feature kept)
+# isolated rerun of the 4 files: 52 passed / 0 failed
+# run4 (bg_27): final solo full after rebuild — see below
