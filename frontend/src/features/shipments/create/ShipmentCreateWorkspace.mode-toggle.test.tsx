@@ -84,7 +84,7 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     });
   // Segmented datetime fields raise this screen's DOM weight; keep the heavy
   // full-workspace render deterministic above the 5s default.
-  }, 10000);
+  }, 30000);
 
   it('pristine toggle applies silently without the confirm modal', async () => {
     renderWorkspace();
@@ -157,7 +157,7 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     expect(await screen.findByText('Chuyển loại hàng?')).toBeInTheDocument();
   // Segmented datetime fields raise this screen's DOM weight; keep the heavy
   // full-workspace render deterministic above the 5s default.
-  }, 10000);
+  }, 30000);
 
   it('guards an entered Ngày giờ đóng trả (SIL-587) even though no other LCL data exists', async () => {
     renderWorkspace();
@@ -221,7 +221,7 @@ describe('shipment create cargo-mode toggle data scope', { timeout: 20000 }, () 
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 1' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
     await waitFor(() => expect(document.querySelectorAll('.csc-container-row')).toHaveLength(1));
-  }, 10000);
+  }, 30000);
 
   it('deletes a pristine row directly without using another row’s pending time as its dirty state', async () => {
     renderWorkspace();

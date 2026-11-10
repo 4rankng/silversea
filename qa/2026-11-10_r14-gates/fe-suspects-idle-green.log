@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/r14b-fix/frontend
+
+
+ Test Files  14 passed (14)
+      Tests  278 passed (278)
+   Start at  21:57:09
+   Duration  70.75s (transform 13.91s, setup 9.04s, import 88.62s, tests 196.19s, environment 38.49s)
+
