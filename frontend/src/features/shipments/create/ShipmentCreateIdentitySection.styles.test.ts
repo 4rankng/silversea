@@ -7,7 +7,7 @@ const read = (rel: string) => readFileSync(resolve(root, rel), 'utf8');
 
 const css = read('src/pages/clerk/ClerkShipmentCreatePage.css');
 
-describe('SIL-641 / SIL-710 — Form tạo lô, section "Nhận diện lô": 2 input columns equal width (50/50)', () => {
+describe('SIL-641 / SIL-788 — Form tạo lô, section "Nhận diện lô": band map KB Ch3 §3.2.1, 2 cột 50/50', () => {
   it('defines equal 50/50 column tracks at desktop (repeat(12, minmax(0, 1fr)) with span 6 for each column)', () => {
     // 12-column track with 6/12 split per column = exactly 50% left, 50% right.
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
@@ -30,16 +30,17 @@ describe('SIL-641 / SIL-710 — Form tạo lô, section "Nhận diện lô": 2 i
     const tradeSpan = Number(tradeMatch![1]);
     const shippingSpan = Number(shippingMatch![1]);
 
-    // Customer spans full row (12)
-    expect(customerSpan).toBe(12);
+    // Band 1 (Khách hàng | Hình thức XNK): 50/50 (SIL-788 — customer no
+    // longer owns a full row; XNK rides BESIDE it)
+    expect(customerSpan).toBe(tradeSpan);
+    expect(customerSpan + tradeSpan).toBe(12);
 
-    // Row 1 (Booking | Tờ khai): 50/50 (span 6 each, total 12)
+    // Band 2 row 1 (Booking | Tờ khai LCL | Hãng tàu auto-flow): every cell
+    // spans 6, so FCL pairs Booking+Hãng tàu on one row and LCL pairs
+    // Booking+Tờ khai (tờ khai bên phải — luật 06/11) with Hãng tàu below.
     expect(bookingSpan).toBe(declSpan);
+    expect(bookingSpan).toBe(shippingSpan);
     expect(bookingSpan + declSpan).toBe(12);
-
-    // Row 2 (Nhập/Xuất | Hãng tàu): 50/50 (span 6 each, total 12)
-    expect(tradeSpan).toBe(shippingSpan);
-    expect(tradeSpan + shippingSpan).toBe(12);
   });
 
   it('keeps 2 equal columns (repeat(2, minmax(0, 1fr))) at tablet (<=820px, including 768px)', () => {

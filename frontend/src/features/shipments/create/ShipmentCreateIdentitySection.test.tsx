@@ -59,18 +59,19 @@ describe('QA1-001 — Bill/Booking placeholder before a trade direction is picke
   });
 });
 
-describe('SIL-710 — Nhận diện lô document group order (Booking → Tờ khai → Nhập/Xuất → Hãng tàu)', () => {
-  it('reads Khách hàng → Số Bill/Booking → Hình thức XNK → Hãng tàu → Tuỳ chọn in DOM order for FCL', () => {
+describe('SIL-788 — Nhận diện lô band map (Khách hàng·XNK → Bill·Hãng tàu; LCL tờ khai cạnh Bill)', () => {
+  it('reads Khách hàng → Hình thức XNK → Số Bill/Booking → Hãng tàu → Tuỳ chọn in DOM order for FCL', () => {
     renderSection({ tradeDirection: 'EXPORT', cargoMode: 'FCL' } as Partial<ShipmentCreateFormState>);
-    // SIL-710: thứ tự chứng từ: 1. Số Booking → 2. Số tờ khai (LCL) → 3. Nhập/Xuất → 4. Hãng tàu
+    // SIL-788 band map (KB Ch3 §3.2.1, 24/10 re-asserted): band 1 = Khách
+    // hàng · Hình thức XNK; band 2 = Số Bill/Booking · Hãng tàu; band 3 = Tuỳ chọn.
     const chain = [
       '[data-field-id="shipment-customer"]',
-      '[data-field-id="shipment-booking-ref"]',
       '[data-field-id="shipment-trade-direction"]',
+      '[data-field-id="shipment-booking-ref"]',
       '[data-field-id="shipment-shipping-line"]',
       '[data-field-id="shipment-deposit"]',
     ].map((selector) => document.querySelector(selector));
-    for (const node of chain) expect(node, `missing ${node}`).toBeTruthy();
+    for (const [i, node] of chain.entries()) expect(node, `missing ${chain[i]}`).toBeTruthy();
     for (let i = 0; i < chain.length - 1; i += 1) {
       expect(
         chain[i]!.compareDocumentPosition(chain[i + 1]!) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -79,18 +80,19 @@ describe('SIL-710 — Nhận diện lô document group order (Booking → Tờ k
     }
   });
 
-  it('reads Khách hàng → Số Bill/Booking → Số tờ khai → Hình thức XNK → Hãng tàu → Tuỳ chọn in DOM order for LCL', () => {
+  it('reads Khách hàng → Hình thức XNK → Số Bill/Booking → Số tờ khai (cạnh Bill, phải) → Hãng tàu → Tuỳ chọn in DOM order for LCL', () => {
     renderSection({ tradeDirection: 'EXPORT', cargoMode: 'LCL' } as Partial<ShipmentCreateFormState>);
-    // SIL-710: thứ tự chứng từ LCL: 1. Số Booking → 2. Số tờ khai → 3. Nhập/Xuất → 4. Hãng tàu
+    // SIL-788 band map + luật 06/11: band 2 giữ Số Bill/Booking · Số tờ khai
+    // cùng hàng (tờ khai bên phải); Hãng tàu dòng dưới trong cùng band.
     const chain = [
       '[data-field-id="shipment-customer"]',
+      '[data-field-id="shipment-trade-direction"]',
       '[data-field-id="shipment-booking-ref"]',
       '[data-field-id="shipment-lcl-declaration-number"]',
-      '[data-field-id="shipment-trade-direction"]',
       '[data-field-id="shipment-shipping-line"]',
       '[data-field-id="shipment-deposit"]',
     ].map((selector) => document.querySelector(selector));
-    for (const node of chain) expect(node, `missing ${node}`).toBeTruthy();
+    for (const [i, node] of chain.entries()) expect(node, `missing ${chain[i]}`).toBeTruthy();
     for (let i = 0; i < chain.length - 1; i += 1) {
       expect(
         chain[i]!.compareDocumentPosition(chain[i + 1]!) & Node.DOCUMENT_POSITION_FOLLOWING,

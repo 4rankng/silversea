@@ -97,11 +97,13 @@
  * `csc-select-field` / `csc-select-popover` names survive as test markers. */
 .csc-identity-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px 10px; min-width: 0; }
 .csc-identity-grid > * { min-width: 0; }
-/* SIL-710 (07/11): Thứ tự chứng từ: Booking → Tờ khai → Nhập/Xuất → Hãng tàu.
-   Khách hàng spans 12 (full row). Hàng chứng từ chia 2 cột 50/50 (span 6 mỗi ô):
-   Row 1: Số Bill/Booking 6 · Số tờ khai 6
-   Row 2: Hình thức XNK 6 · Hãng tàu 6 */
-.csc-identity-grid__customer { grid-column: span 12; }
+/* SIL-788 (10/11, KB Ch3 §3.2.1 — the 24/10 band map re-asserted, supersedes
+   SIL-710's one-day document-group interleave):
+   Band 1: Khách hàng 6 · Hình thức XNK 6
+   Band 2: Số Bill/Booking 6 · Hãng tàu 6 — hàng lẻ: Số Bill/Booking 6 ·
+           Số tờ khai 6 (tờ khai BÊN PHẢI, luật 06/11), Hãng tàu dòng dưới
+   Band 3: Tuỳ chọn full width (flags--solo). */
+.csc-identity-grid__customer { grid-column: span 6; }
 .csc-identity-grid__booking { grid-column: span 6; }
 .csc-identity-grid__declaration { grid-column: span 6; }
 .csc-identity-grid__trade-direction { grid-column: span 6; }
