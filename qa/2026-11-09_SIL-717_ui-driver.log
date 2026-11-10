@@ -1,0 +1,17 @@
+SIL-717 UI driver log — Paseo browser tab 3f2113e1 (1440x900), local :7175/:3002
+Login: logged out leftover KẾ TOÁN session (Phạm Thị Hòa) → login tiepvv (credentials per testplan/testaccounts.txt) → landed /shipments (CUS home).
+1. navigate /shipments/new — OK (CUS allowed per shipmentCreatorOnly).
+2. Fill create workspace: LONG MINH, Bill R8B717-FCL, Nhập khẩu, TSTU1712008, 20DC, weight 12000 (synthetic setVal), ASKEY-XƯỞNG 1, KCN QUẾ VÕ (auto), Cảng Green Port, Cảng Chùa Vẽ, 20/11 10:00 → "Tạo lô hàng" → /shipments/779460. NOTE: container-number validation caught TEST717A (bad format) then TSTU1712001 (bad ISO6346 check digit) before TSTU1712008 passed — client validation working.
+3. DB check: row 1 cargo_weight_kg NULL despite DOM input reading 12000 — synthetic setVal did not reach React state on this popover input (TOOLING ARTIFACT, not app bug: real-typed values persist — see step 4 and QA 07/11 PASS lot).
+4. Open drawer (search R8B717-FCL → Chi tiết) → weight trigger "Chỉnh sửa trọng lượng — dòng 1" → browser_type "12000" (real keystrokes) + Enter → toast "Đã lưu trọng lượng của dòng 1." → DB 2434 cargo_weight_kg = 12000.00 ✓
+5. Click "Thêm container" (drawer) → form[aria-label="Thêm container mới"] DOM assertions:
+   caption = "Copy từ container 1 · ASKEY-XƯỞNG 1 · KCN QUẾ VÕ, BẮC NINH · Cảng Green Port · Cảng Chùa Vẽ · 20/11 10:00"
+   input[id$="-container-weight"].value = "12000.00"  (COPIED)
+   input[id$="-container-number"].value = ""           (EMPTY by law)
+   select value = ""                                    (EMPTY by law)
+6. Fill number TSTU1712100 (native setter + input event) + select 20DC → submit via form button click → form closed (success), no error alert.
+7. DB: row 2435 TSTU1712100 | type 1 | 12000.00 | site 5 | route 6 | ports 5/18 | appointment 2026-11-20 03:00+00 — ALL copied fields match row 1; number+type are operator's own.
+8. Drawer DOM after add: "Chỉnh sửa trọng lượng — dòng 1" = "12 tấn", "Chỉnh sửa trọng lượng — dòng 2" = "12 tấn"; number cells TSTU1712008 / TSTU1712100.
+
+SCREENSHOT FAILURE (retained evidence): browser_screenshot failed on EVERY attempt (original tab, after resize 1440x900, after fresh navigation, and on a brand-new tab e7db293c) with "The tab has not painted yet." — the browser automation host is not compositing this session's tabs. Rung-3 evidence here = DOM/text assertions (step 5, 8) + DB side effect (qa/2026-11-09_SIL-717_db-proof.txt) + this driver log; the screenshot artifact could not be produced by the environment, NOT skipped by choice.
+Exit status: 0 (all steps executed; verdict NO-BUG-ON-MAIN + pinned).

@@ -1,0 +1,19 @@
+SIL-717 — DB side-effect proof (local main 6d7a3886, stack :3002/:7175, DB ss-prod-db/silversea)
+Role: CUS tiepvv. Lot: shipment_id 779460 (Bill R8B717-FCL, LONG MINH, Nhập khẩu).
+
+Step 1 — create lot row 1 (UI create workspace, weight typed 12000 in form):
+SELECT id, container_number, container_type_id, cargo_weight_kg, operational_site_id, route_id, pickup_port_id, dropoff_port_id, customer_appointment_at FROM shipment_containers WHERE shipment_id = 779460 ORDER BY id;
+ id  | container_number | container_type_id | cargo_weight_kg | operational_site_id | route_id | pickup_port_id | dropoff_port_id | customer_appointment_at
+(only row 1 at this point: TSTU1712008 weight NULL — driver's synthetic setVal did NOT reach React state; real inline editor save fixed it)
+
+Step 2 — inline weight editor (real keystrokes) row 1 = 12000:
+ 2434 | TSTU1712008 | 1 | 12000.00 | 5 | 6 | 5 | 18 | 2026-11-20 03:00:00+00
+
+Step 3 — Thêm container: form caption "Copy từ container 1 · ASKEY-XƯỞNG 1 · KCN QUẾ VÕ, BẮC NINH · Cảng Green Port · Cảng Chùa Vẽ · 20/11 10:00"; weight input seed read-back = "12000.00"; number + type empty (DOM assertion).
+Submit with number TSTU1712100 + type 20DC (operator's own entries):
+
+ id  | container_number | container_type_id | cargo_weight_kg | operational_site_id | route_id | pickup_port_id | dropoff_port_id | customer_appointment_at
+ 2434 | TSTU1712008     | 1                 | 12000.00        | 5                   | 6        | 5              | 18              | 2026-11-20 03:00:00+00
+ 2435 | TSTU1712100     | 1                 | 12000.00        | 5                   | 6        | 5              | 18              | 2026-11-20 03:00:00+00
+
+VERDICT: row 2 copies weight/route/site/ports/appointment from row 1; container_number + container_type_id are the operator's own entries (type 1 = 20DC picked explicitly). Copy law intact on origin/main.

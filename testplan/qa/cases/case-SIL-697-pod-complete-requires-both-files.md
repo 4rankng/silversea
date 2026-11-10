@@ -10,13 +10,20 @@ Card 261022213755a (22/10) cho nộp e-POD không cần đủ file và complete 
 ## Reproduction
 1. Chuyến IN_TRANSIT, e-POD DRAFT chỉ có Phiếu bãi / phiếu hạ (1/2 file).
 2. Bấm HOÀN THÀNH CHUYẾN.
-3. Trước fix: submit nháp thành công ("Đã lưu chứng từ giao hàng"), submission khóa, hoàn thành fail.
-4. Sau fix: chặn TRƯỚC khi nộp — toast liệt kê loại còn thiếu ("Biên bản giao nhận có ký nhận"), không có lệnh submit nào đi ra API; đủ 2 file → nộp + hoàn thành thành công.
+3. Trước fix 06/11: submit nháp thành công, submission khóa, hoàn thành fail.
+4. Fix 06/11 (đã SUPERSEDED — xem bên dưới): chặn trước khi nộp, toast liệt kê loại còn thiếu.
+5. **Luật hiện hành (09/11)**: thiếu file → toast mềm "Thiếu N file e-POD — nên bổ sung." → nộp/hoàn thành VẪN CHẠY; đủ file → như cũ, không toast.
 
-## Expected
+## Expected (luật 09/11 — SUPERSEDES mục "Expected" 06/11 bên dưới)
+- e-POD/ảnh là TÙY CHỌN trên MỌI đường (quyết định ràng buộc 22/10 card 261022213755a "0 ảnh vẫn hoàn thành chuyến" + SIL-733 ĐÃ PASS — luật mới nhất thắng theo KB).
+- KHÔNG chặn hoàn thành; KHÔNG chặn nộp e-POD. FE hiện CẢNH BÁO MỀM "Thiếu N file e-POD — nên bổ sung." trước khi gửi; BE `submitPod` không còn 409 thiếu file.
+- Thông báo thiếu file vẫn hiện trong chi tiết chuyến (footer Chứng từ: dòng đếm mềm + tên từng loại thiếu).
+- BE complete giữ gate milestone; TC9 unlock flow hoàn thành qua DRAFT vẫn giữ nguyên.
+
+<details><summary>Expected 06/11 (superseded 09/11)</summary>
 - Thiếu 1/2 loại → không nộp nháp, thông báo rõ tên loại còn thiếu (FE toast + BE submit 409 cùng luật).
 - Đủ 2 loại → nộp + hoàn thành thành công như cũ.
-- BE complete giữ gate milestone (ngoài scope ticket); TC9 unlock flow hoàn thành qua DRAFT ĐỦ file vẫn giữ nguyên.
+</details>
 
 ## Status
-FIXED on fix/sil-cost. Unit: `DriverTripPodPage.test.tsx`, `DriverTripDetailPage.test.tsx` pin luật mới.
+RE-RESOLVED 09/11 theo luật tùy chọn trên `fix/r8b-717-697-758` (base origin/main 6d7a3886): BE gate 409 gỡ (`trip-pod.service.ts submitPod`), FE warn+proceed (`DriverTripPodPage`, `podReadiness.ts`), copy tùy chọn (`TripPodSubmission`, footer `DriverTripDetailPage`). Pins: `DriverTripPodPage.test.tsx`, `TripPodSubmission.test.tsx`, `DriverTripDetailPage.test.tsx`. QA 09/11 staging c4cea6b6 đã quan sát completion 0/2 file thành công (trip 110) — đúng luật tùy chọn, không phải hồi quy.

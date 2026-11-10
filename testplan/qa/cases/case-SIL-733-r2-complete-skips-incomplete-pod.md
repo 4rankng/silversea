@@ -9,7 +9,7 @@
 3. Trước fix: FE tự ý `submitPod` DRAFT thiếu file → BE 409 (luật SIL-697: không nộp nháp thiếu file) → toast 'Chưa đủ chứng từ giao hàng…' → chuyến vẫn 'Đang chạy'.
 
 ## Expected (quyết định 22/10 card 261022213755a, nhắc lại 07/11 — ảnh TÙY CHỌN, 0 ảnh vẫn hoàn thành)
-- Hoàn tất KHÔNG bị chặn vì thiếu ảnh/ chứng từ: DRAFT thiếu file **không được nộp tự động** (giữ DRAFT mở, bổ sung file + nộp sau được — luật SIL-697 còn nguyên trên luồng nộp tường minh ở trang e-POD), `completeTrip` chạy ngay.
+- Hoàn tất KHÔNG bị chặn vì thiếu ảnh/ chứng từ: DRAFT thiếu file **không được nộp tự động** (giữ DRAFT mở, bổ sung file + nộp sau được — từ 09/11 SIL-697 resolved: nộp tường minh cũng KHÔNG chặn, chỉ cảnh báo mềm 'Thiếu N file e-POD — nên bổ sung'), `completeTrip` chạy ngay.
 - DRAFT đủ 2 loại → nộp + hoàn thành như cũ (TC9).
 
 ## Fix
