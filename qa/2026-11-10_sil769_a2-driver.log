@@ -1,0 +1,16 @@
+STEP login: status 200 | role DRIVER
+BE PROBE YARD_STORAGE no photo → {"code":"YARD_STORAGE","status":400,"body":"{\"error\":\"Lưu bãi (lúc hạ) phải kèm ảnh biên lai trước khi lưu.\"}"}
+BE PROBE FEE_CLEANING no photo → {"code":"FEE_CLEANING","status":201,"body":"{\"payerKind\":null,\"costGroup\":\"DRIVER_SHIPMENT\",\"feeName\":\"Phí vệ sinh\",\"customerChargeAmount\":\"1000\",\"invoiceNumber\":null,\"invoiceDate\":null,\"recoveryNote\":nul"}
+API POST incidental-costs → 200 {"items":[{"payerKind":null,"costGroup":"DRIVER_SHIPMENT","feeName":"Phí vệ sinh","customerChargeAmount":"1000","invoiceNumber":null,"invoiceDate":null,"recoveryNote":null,"photoStorageKeys":[],"evide
+API POST incidental-costs → 200 {"items":[{"payerKind":null,"costGroup":"DRIVER_SHIPMENT","feeName":"Phí vệ sinh","customerChargeAmount":"1000","invoiceNumber":null,"invoiceDate":null,"recoveryNote":null,"photoStorageKeys":[],"evide
+STEP open /my-trips/779100
+BEFORE: hygiene rows = 0
+STEP pick Phí vệ sinh
+STEP typed amount → display: 50.000
+ASSERT A2 (no photo): {"saveDisabled":false,"message":null}
+API POST incidental-costs → 201 {"items":[{"payerKind":null,"costGroup":"DRIVER_SHIPMENT","feeName":"Phí vệ sinh","customerChargeAmount":"50000","invoiceNumber":null,"invoiceDate":null,"recoveryNote":null,"photoStorageKeys":[],"evid
+API POST incidental-costs → 200 {"items":[{"payerKind":null,"costGroup":"DRIVER_SHIPMENT","feeName":"Phí vệ sinh","customerChargeAmount":"50000","invoiceNumber":null,"invoiceDate":null,"recoveryNote":null,"photoStorageKeys":[],"evid
+STEP batch closed (Thêm chi phí button back) — save persisted
+AFTER: hygiene rows = 0 | new row: null
+SHOT qa/2026-11-10_sil769_ve-sinh-saved-no-photo.png
+VERDICT SIL-769 A2: FAIL

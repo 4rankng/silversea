@@ -1,18 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { TripStatus } from '@tingting/shared';
-import { DriverTaskInfoSections, DriverInvoiceSection } from './DriverTaskInfoSections';
+import { DriverTaskInfoSections } from './DriverTaskInfoSections';
 import type { DriverTaskDetail } from '../../api/driverClient';
 
-/** Card _30 split: invoice is its own component — invoice-bearing tests
- *  render both so the grid queries still see the invoice grid. */
-function renderBoth(trip: DriverTaskDetail) {
-  return render(
-    <>
-      <DriverTaskInfoSections trip={trip} />
-      <DriverInvoiceSection trip={trip} />
-    </>,
-  );
+/** SIL-766: DriverInvoiceSection renders INSIDE DriverTaskInfoSections (right
+ *  below the Gọi kho bar) — one render call now mounts both grids. */
+function renderSections(trip: DriverTaskDetail) {
+  return render(<DriverTaskInfoSections trip={trip} />);
 }
 
 /**
@@ -391,7 +386,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('renders master rows and fee-invoice rows with name · address · MST segments in order', () => {
-    renderBoth(makeTrip({
+    renderSections(makeTrip({
       invoiceMaster: { taxCode: '3701234567', companyName: 'Công ty TNHH ABC', address: '45 Lê Lợi, Quận 1, Tp.HCM' },
       fulfillment: {
         invoiceInfo: {
@@ -421,20 +416,20 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('explains missing invoice configuration for the displayed factory instead of silently hiding it', () => {
-    renderBoth(makeTrip());
+    renderSections(makeTrip());
 
     expect(screen.getByText('Thông tin hóa đơn')).toBeTruthy();
     expect(screen.getByText('Nhà máy chưa cấu hình thông tin xuất hóa đơn.')).toBeTruthy();
   });
 
   it('identifies missing factory invoice fields without borrowing customer values', () => {
-    renderBoth(makeTrip({ invoiceFactory: { name: 'Factory Legal Name', address: null, taxCode: null }, invoiceMaster: { companyName: 'Customer', address: 'Customer billing address', taxCode: '123' } }));
+    renderSections(makeTrip({ invoiceFactory: { name: 'Factory Legal Name', address: null, taxCode: null }, invoiceMaster: { companyName: 'Customer', address: 'Customer billing address', taxCode: '123' } }));
     expect(screen.getByText('Nhà máy chưa cấu hình: địa chỉ xuất hóa đơn, mã số thuế.')).toBeTruthy();
     expect(screen.getByText('Customer billing address')).toBeTruthy();
   });
 
   it('DRV-R03 retains known invoice address and tax ID when the legal name is missing', () => {
-    renderBoth(makeTrip({
+    renderSections(makeTrip({
       invoiceFactory: { name: null, address: 'Địa chỉ pháp lý nhà máy', taxCode: '2301234567' },
       fulfillment: { invoiceInfo: {
         liftFeeInvoiceName: ' ', liftFeeInvoiceAddress: 'Địa chỉ pháp lý nhà máy', liftFeeTaxCode: '2301234567',
@@ -458,7 +453,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('labels the factory invoice profile under its own party heading — never the customer fallback', () => {
-    renderBoth(makeTrip({
+    renderSections(makeTrip({
       // SUNRISE-style positive fixture: factory profile rides the wire
       // (site fee-invoice fields), distinct from the customer master data.
       invoiceFactory: { name: 'CÔNG TY TNHH SUNRISE TECHNOLOGY (VIỆT NAM)', address: 'Một phần Lô CN-09, KCN Vân Trung, Bắc Ninh', taxCode: '2301123456' },
@@ -478,7 +473,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('renders the honest empty note for an unconfigured factory — customer data never stands in', () => {
-    renderBoth(makeTrip({
+    renderSections(makeTrip({
       invoiceMaster: { taxCode: '2300540419', companyName: 'Long Minh', address: '12 Nguyễn Trãi' },
     }));
 

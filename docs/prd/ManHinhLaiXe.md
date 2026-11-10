@@ -83,13 +83,13 @@ Mở thẻ vào màn hình chi tiết đầy đủ. Tiêu đề tác vụ ưu ti
 | Lịch và địa điểm làm hàng | Lịch đóng/trả, tên ngắn và tên đầy đủ nhà máy khi có, **Địa chỉ nhà máy**, rồi tên người liên hệ cùng **Số điện thoại liên hệ** ngay dưới địa chỉ |
 | Hàng hóa | Số container gắn với loại tương ứng, số chì và thao tác của chính công việc; số lượng tổng chỉ bổ sung, không thay cặp số–loại |
 | Lộ trình | Cảng nâng, cảng hạ và điểm giao/điểm trả vỏ riêng khi có khác biệt nghiệp vụ |
-| Nhiệm vụ và ghi chú | Nhiệm vụ viết hoa ở dòng riêng; ghi chú lái xe và quy định tại điểm làm hàng giữ nguyên nội dung có nghĩa |
+| Nhiệm vụ và ghi chú | Ghi chú lái xe và quy định tại điểm làm hàng giữ nguyên nội dung có nghĩa; khối Tác vụ đã BỎ khỏi chi tiết lệnh (SIL-767) |
 | Thông tin xuất hóa đơn | Tiêu đề từng bên/nhóm thông tin đặt **trước** tên, địa chỉ, mã số thuế của bên đó |
 | Bằng chứng và hành động | Ảnh container/chì/biên bản; thao tác phù hợp giai đoạn và luồng e-POD |
 
 Tên liên hệ và số điện thoại phải cùng nhóm với địa chỉ nhà máy, gọi được qua liên kết điện thoại. Không lặp lại cùng người/số trong các dòng kho bãi và liên hệ khác nhau. Nếu có người liên hệ khác với vai trò thật sự khác, giữ họ ở chi tiết kèm nhãn vai trò; không xóa thông tin hữu ích chỉ để rút ngắn màn hình.
 
-Tác vụ và ghi chú lái xe đặt ngay sau thông tin công việc, trước thông tin xuất hóa đơn, để hướng dẫn vận chuyển được đọc trước dữ liệu thanh toán. Hai dòng này vẫn hiển thị khi thu gọn thông tin lệnh hoặc hóa đơn. Không hiển thị thêm dòng đầu kéo và moóc trong khối chi tiết lệnh.
+Thông tin xuất hóa đơn đặt ngay dưới hàng **Địa chỉ giao hàng** và nút **Gọi kho**, trước các khối khác (SIL-766, 09/11 — quyết định Frank chuyển yêu cầu khách CR-006: "khách hàng bảo thế nào thì làm thế"). Khối chỉ hiển thị tham khảo, mở sẵn khi vào màn: tài xế vừa mở lệnh là đọc ngay tên công ty/mã số thuế/địa chỉ xuất hóa đơn cho bãi, cảng; không gắn thêm nút xác nhận hay gửi dữ liệu nào tại khối này. Ghi chú lái xe đặt sau khối hóa đơn; vẫn hiển thị khi thu gọn thông tin lệnh hoặc hóa đơn. Không hiển thị thêm dòng đầu kéo và moóc trong khối chi tiết lệnh. (Bỏ quy tắc cũ "hóa đơn cuối trang, thu gọn mặc định" — card 20260926_30 items 15+17.)
 
 Lịch kế hoạch trên thẻ và chi tiết phải thống nhất. Khi chưa có ngày giờ kế hoạch xác định, hiển thị **Chưa chốt lịch**; không suy ra giờ hẹn từ một ngày xuất phát không có giờ.
 
@@ -181,6 +181,8 @@ Giữ nguyên phụ cấp tiền đường và ca đã thỏa thuận. Phần c�
 | Tiền đường | Tiền tuyến, vé cầu đường, phụ cấp phát sinh và sửa chữa dọc đường | Không thu khách; theo dõi trong tiền đường để kế toán đối chiếu/thanh toán và tính chi phí xe |
 
 Mỗi khoản có ngày chi, công việc, nhóm/tên phí, số tiền thực tế, người trả tiền, hóa đơn nếu có, ảnh/chứng từ và ghi chú. Lái xe chỉ khai báo trong công việc của mình; không được tự thay đổi số thu khách hoặc ghi đã thanh toán từ quỹ công ty. Kế toán được sửa số sai khi còn điều kiện, có lý do và lịch sử. Sau đối chiếu, kế toán ghi khoản thay thế có liên kết, giữ nguyên khoản gốc; vé cầu đường thay thế chỉ được tính một lần và không đổi phụ cấp đã thỏa thuận.
+
+Ảnh biên lai chỉ BẮT BUỘC với đúng 3 khoản phí lô hàng: **Phí Nâng, Phí Hạ, Lưu vỏ** (dòng "Phí lưu bãi" trên app) — SIL-769, 09/11, câu trả lời của khách cho điểm "Chưa chốt: bắt buộc với ai" (bỏ luật cũ CP700-03 "mọi dòng chi phí lô hàng phải kèm ảnh"). Các khoản khác — vệ sinh, lưu kho, công nhân tại kho, hàn container, đảo vỏ, chi phí lô hàng khác… — lưu được bình thường khi chưa có ảnh. Khi thiếu ảnh ở một trong 3 khoản bắt buộc, thông báo chặn lưu phải nêu rõ tên khoản đang thiếu ảnh; cả FE và BE đọc chung một bộ mã phí bắt buộc để hai cổng không lệch nhau.
 
 Mỗi khoản đã lưu có thao tác xem/bổ sung chứng từ ngay trong danh sách chi phí. Bổ sung ảnh không mở form nhập tiền mới, không tạo khoản chi hoặc bút toán mới; ảnh tải lỗi được giữ để thử lại thủ công. Khi công việc đã chuyển cho lái xe khác, yêu cầu bổ sung đang mở phải bị từ chối và giữ nội dung chưa gửi.
 

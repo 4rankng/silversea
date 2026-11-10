@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverProgressEventType, TripPodStatus, TripStatus } from '@tingting/shared';
-import { setToken } from '../lib/token';
 import { api } from '../lib/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { qk } from '../api/keys';
@@ -314,32 +313,14 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByTestId('fuel-refill-report-form')).toBeNull();
   });
 
-  // 27.8 spec: "ẢNH NHIÊN LIỆU (Chụp màn hình bơm gần nhất) : GIỮ NGUYÊN" —
-  // the fuel-evidence upload stays visible for the driver (collapsed by default behind toggle).
-  it('renders the fuel evidence upload section', async () => {
-    renderPage();
-
-    expect(await screen.findByText('Ảnh nhiên liệu')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('fuel-section-toggle'));
-    expect(screen.getByText('Chụp màn hình bơm gần nhất')).toBeTruthy();
-    expect(screen.getByText('Chưa có ảnh nhiên liệu nào cho chuyến này.')).toBeTruthy();
-    expect(screen.getByText('Chụp ảnh nhiên liệu')).toBeTruthy();
-  });
-
-  // DRV-DET-08 regression: evidence photos load through an authenticated blob
-  // fetch (`useAuthedPhotoUrls`). The JWT rides in the Authorization header —
-  // never in a `?token=` query string, where browser history, Referer headers
-  // and proxy logs can capture it. The <img> renders the object URL, so the raw
-  // protected path never reaches the DOM.
-  it('loads the fuel evidence photo through an authenticated blob fetch (no ?token= URL)', async () => {
-    setToken('jwt-for-img-test');
-    const getBlob = vi.spyOn(api, 'getBlob').mockResolvedValue(new Blob(['fuel'], { type: 'image/jpeg' }));
-    vi.stubGlobal('URL', Object.assign(URL, {
-      createObjectURL: vi.fn(() => 'blob:fuel-evidence'),
-      revokeObjectURL: vi.fn(),
-    }));
+  // SIL-768 (09/11, customer CR-006): the Ảnh nhiên liệu block is REMOVED
+  // from the detail screen — no section, no toggle, no fuel empty state.
+  // Recorded evidence rows stay in the database and the kế toán review page
+  // is untouched; only the driver surface loses the block.
+  it('SIL-768: renders no Ảnh nhiên liệu block — no section, no toggle', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
+        status: 'IN_TRANSIT',
         fuelEvidenceReviews: [{
           id: 7,
           tripId: 55,
@@ -359,24 +340,17 @@ describe('DriverTripDetailPage', () => {
           reviewNote: null,
         }],
       }),
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
+      isLoading: false, error: null, refetch: vi.fn(),
     });
     renderPage();
 
-    fireEvent.click(await screen.findByTestId('fuel-section-toggle'));
-    // The alt no longer carries the trip code: internal ids never render on
-    // a user surface (dc1b1cba), so the code-leading variant would fail here.
-    const img = await screen.findByAltText('Ảnh nhiên liệu');
-    await waitFor(() => expect(img.getAttribute('src')).toBe('blob:fuel-evidence'));
-    expect(getBlob).toHaveBeenCalledWith('/photos/fuel-evidence%2F55%2F3%2Fhash-rand.jpg');
-    expect(document.querySelector('img[src*="token="]')).toBeNull();
-    expect(screen.getByText(/OCR chưa xác minh/)).toBeTruthy();
-    expect(screen.queryByText(/Chờ kế toán xác nhận/)).toBeNull();
-
-    getBlob.mockRestore();
-    vi.unstubAllGlobals();
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.queryByText('Ảnh nhiên liệu')).toBeNull();
+    expect(screen.queryByTestId('fuel-section')).toBeNull();
+    expect(screen.queryByTestId('fuel-section-toggle')).toBeNull();
+    expect(screen.queryByText(/Chụp màn hình bơm gần nhất/)).toBeNull();
+    expect(screen.queryByText('Chụp ảnh nhiên liệu')).toBeNull();
+    expect(screen.queryByText('Không bắt buộc')).toBeNull();
   });
 
   it('renders the sticky accept bar and the Hoàn tất footer button (e-POD lives on its own page now)', async () => {
@@ -1005,31 +979,33 @@ describe('DriverTripDetailPage', () => {
     expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Nhà máy Bình Dương');
   });
 
-  it('VID-DRV-02 places task and note instructions before invoice details and keeps them visible through disclosures', async () => {
+  it('VID-DRV-02 places the invoice block right after the Gọi kho bar, ahead of notes and every later block (SIL-766)', async () => {
     renderPage();
     await screen.findByText('Thông tin lệnh');
 
     const info = document.getElementById('driver-task-info-grid')!;
     const notes = screen.getByTestId('task-note-section');
     const invoice = document.getElementById('driver-task-invoice-grid')!;
-    expect(info.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(notes.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // SIL-766: invoice sits directly below the Địa chỉ giao hàng row (in the
+    // info grid) + the Gọi kho call bar, before the Tác vụ/Ghi chú section.
+    expect(info.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(invoice.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // Card _30 item 15: the section spine follows driver priority — Chứng từ
-    // giao hàng (checklist card) leads, back-office hóa đơn trails last.
-    const podCard = document.querySelector('.driver-task-footer');
+    // SIL-766: the invoice block leads everything that used to follow it —
+    // container card, cost form — and no longer trails at the page foot.
     const contCard = document.querySelector('.dcc-section');
     const costForm = screen.getByTestId('shipment-cost-entry-form');
-    expect(podCard!.compareDocumentPosition(info) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(invoice.compareDocumentPosition(contCard!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(contCard!.compareDocumentPosition(costForm) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(costForm.compareDocumentPosition(invoice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    // Card _30 item 17: hóa đơn is back-office — default-collapsed.
-    expect(screen.getByTestId('task-section-toggle-driver-task-invoice-grid').getAttribute('aria-expanded')).toBe('false');
+    // SIL-766: invoice starts EXPANDED — the driver reads the billing party
+    // the moment the order opens; collapse stays available on demand.
+    expect(screen.getByTestId('task-section-toggle-driver-task-invoice-grid').getAttribute('aria-expanded')).toBe('true');
+    expect(invoice.hidden).toBe(false);
 
     fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-info-grid'));
-    // Invoice starts collapsed; one click expands it.
-    fireEvent.click(screen.getByTestId('task-section-toggle-driver-task-invoice-grid'));
+    // The two disclosures stay independent: collapsing info never hides the
+    // invoice block or the notes.
     expect(info.hidden).toBe(true);
     expect(invoice.hidden).toBe(false);
     expect(notes).toBeVisible();
@@ -1089,31 +1065,6 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByTestId('complete-sticky-status')).toBeNull();
     const btn = within(screen.getByTestId('complete-sticky-bar')).getByRole('button', { name: 'Hoàn tất' });
     expect(btn).toBeEnabled();
-  });
-
-  it('SIL-733: collapses fuel section by default with toggle and summary', async () => {
-    useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({
-        status: 'IN_TRANSIT',
-        fuelEvidenceReviews: [],
-      }),
-      isLoading: false, error: null, refetch: vi.fn(),
-    });
-    renderPage();
-
-    await screen.findByText(/Ảnh nhiên liệu/);
-    expect(screen.queryByText(/Chụp màn hình bơm gần nhất/)).toBeNull();
-    const section = screen.getByTestId('fuel-section');
-    expect(section.className).toContain('driver-task-section--fuel-collapsed');
-    expect(screen.getByText('Không bắt buộc')).toBeTruthy();
-
-    const toggle = screen.getByTestId('fuel-section-toggle');
-    expect(toggle.textContent).toContain('Mở rộng');
-
-    fireEvent.click(toggle);
-    expect(screen.getByText(/Chụp màn hình bơm gần nhất/)).toBeTruthy();
-    expect(toggle.textContent).toContain('Thu gọn');
-    expect(section.className).not.toContain('driver-task-section--fuel-collapsed');
   });
 
   it('card _28: the sticky bar never stacks with the accept bar', async () => {
@@ -1402,14 +1353,13 @@ describe('DriverTripDetailPage', () => {
     const invoiceToggle = screen.getByTestId('task-section-toggle-driver-task-invoice-grid');
     const invoiceGrid = document.getElementById('driver-task-invoice-grid') as HTMLElement;
     const infoGrid = document.getElementById('driver-task-info-grid') as HTMLElement;
-    // Card _30 item 17: invoice starts collapsed (back-office off the
-    // critical path) and expands on demand — collapsing/expanding it never
-    // touches the info section.
-    expect(invoiceToggle.getAttribute('aria-expanded')).toBe('false');
-    expect(invoiceGrid.hidden).toBe(true);
-    fireEvent.click(invoiceToggle);
+    // SIL-766: invoice starts EXPANDED (the driver reads it on open);
+    // collapsing/expanding it never touches the info section.
     expect(invoiceToggle.getAttribute('aria-expanded')).toBe('true');
     expect(invoiceGrid.hidden).toBe(false);
+    fireEvent.click(invoiceToggle);
+    expect(invoiceToggle.getAttribute('aria-expanded')).toBe('false');
+    expect(invoiceGrid.hidden).toBe(true);
     expect(infoGrid.hidden).toBe(false);
   });
 
@@ -1451,16 +1401,19 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getAllByTestId('close-status-chip').map((chip) => chip.textContent)).toEqual(['Trả']);
   });
 
-  // TC-DA-001: chips resolve via parseNote against the wire tag pool; N ≥ 6
-  // collapses to the first 4 behind a Mở rộng/Thu gọn toggle.
-  it('TC-DA-001: collapses 6+ chips behind a Mở rộng/Thu gọn toggle', async () => {
+  // SIL-767 (09/11, customer CR-006): the Tác vụ chips block is REMOVED from
+  // the detail screen — no chips, no collapse toggle, no empty state, for
+  // trips with tags and trips without alike. The remaining blocks (Ghi chú,
+  // Thông tin lệnh, cost form) keep their positions, so the assertions that
+  // used to pin the chips now pin their absence.
+  it('SIL-767: renders no Tác vụ block — no chips, no toggle, no empty state', async () => {
     const tags = ['Kiểm đếm', 'Cân đầu', 'Chụp ảnh seal', 'Đóng hàng', 'Nâng cont', 'Hạ cont'];
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         knownTagLabels: tags,
         fulfillment: {
           ...makeTaskDetail().fulfillment!,
-          driverNotes: 'Kiểm đếm; Cân đầu; Chụp ảnh seal; Đóng hàng; Nâng cont; Hạ cont',
+          driverNotes: 'Kiểm đếm; Cân đầu; Chụp ảnh seal; Đóng hàng; Nâng cont; Hạ cont\nKiểm seal kỹ trước khi đóng',
         },
       }),
       isLoading: false,
@@ -1469,47 +1422,33 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    await screen.findByTestId('operation-chips');
-    let chips = screen.getAllByTestId('operation-chip');
-    expect(chips).toHaveLength(4);
-    // Scope to the chips region — page-wide role queries stay scoped to the
-    // surface under test even after the 20260926_20 header-toggle removal.
-    const chipsRegion = screen.getByTestId('operation-chips');
-    const toggle = within(chipsRegion).getByRole('button', { name: /Mở rộng/ });
-    fireEvent.click(toggle);
-    chips = screen.getAllByTestId('operation-chip');
-    expect(chips).toHaveLength(6);
-    expect(within(chipsRegion).getByRole('button', { name: /Thu gọn/ })).toBeTruthy();
-    fireEvent.click(within(chipsRegion).getByRole('button', { name: /Thu gọn/ }));
-    expect(screen.getAllByTestId('operation-chip')).toHaveLength(4);
+    await screen.findByTestId('driver-task-driver-notes');
+    expect(screen.queryByText('Tác vụ')).toBeNull();
+    expect(screen.queryByTestId('operation-chips')).toBeNull();
+    expect(screen.queryByTestId('operation-chip')).toBeNull();
+    expect(screen.queryByText('Không có tác vụ')).toBeNull();
   });
 
-  it('TC-DA-001: short lists render fully expanded without a toggle', async () => {
-    const tags = ['Kiểm đếm', 'Cân đầu', 'Chụp ảnh seal'];
+  it('SIL-767: a trip with no dispatch note shows the Ghi chú empty state and no Tác vụ block', async () => {
     useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({
-        knownTagLabels: tags,
-        fulfillment: {
-          ...makeTaskDetail().fulfillment!,
-          driverNotes: 'Kiểm đếm; Cân đầu; Chụp ảnh seal',
-        },
-      }),
+      data: makeTaskDetail({ knownTagLabels: [], fulfillment: { ...makeTaskDetail().fulfillment!, driverNotes: null } }),
       isLoading: false,
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
     });
     renderPage();
 
-    await screen.findByTestId('operation-chips');
-    expect(screen.getAllByTestId('operation-chip')).toHaveLength(3);
-    // No chips toggle for short lists — scoped to the chips region so the
-    // assertion reads only that surface.
-    expect(within(screen.getByTestId('operation-chips')).queryByRole('button', { name: /Mở rộng|Thu gọn/ })).toBeNull();
+    await screen.findByText('Ghi chú');
+    expect(screen.getByText('Không có ghi chú.')).toBeTruthy();
+    expect(screen.queryByText('Tác vụ')).toBeNull();
+    expect(screen.queryByText('Không có tác vụ')).toBeNull();
+    expect(screen.queryByTestId('operation-chips')).toBeNull();
   });
 
-  // 851e8f7d format v2: two-line note — line 1 feeds the chips, the free-text
-  // part renders in the note section WITHOUT the tag line duplicated.
-  it('851e8f7d: v2 two-line note renders chips + free text without duplication', async () => {
+  // 851e8f7d format v2: two-line note — line 1 (tags) is no longer rendered
+  // anywhere (SIL-767 removed the chips); the free-text part renders in the
+  // note section without the tag line duplicated.
+  it('851e8f7d: v2 two-line note renders free text only — the tag line is gone (SIL-767)', async () => {
     const tags = ['KIỂM HÓA', 'QUAY ĐẦU'];
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
@@ -1525,14 +1464,14 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    await screen.findByTestId('operation-chips');
-    expect(screen.getAllByTestId('operation-chip').map((chip) => chip.textContent)).toEqual(tags);
     const note = await screen.findByTestId('driver-task-driver-notes');
     expect(note.textContent).toContain('ghép cont với lô khác, cẩn thận seal');
     expect(note.textContent).not.toContain('KIỂM HÓA');
+    expect(screen.queryByTestId('operation-chip')).toBeNull();
+    expect(screen.queryByText('Tác vụ')).toBeNull();
   });
 
-  it('DRV-R01: uppercase tasks and original multiline notes render as separate labeled lines', async () => {
+  it('DRV-R01: multiline notes render verbatim while the uppercase tag line stays removed (SIL-767)', async () => {
     const tags = ['Kiểm hóa', 'Quay đầu'];
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
@@ -1548,11 +1487,12 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByText('Tác vụ')).toBeTruthy();
-    expect(screen.getByText('Ghi chú')).toBeTruthy();
+    expect(await screen.findByText('Ghi chú')).toBeTruthy();
     const note = screen.getByTestId('driver-task-driver-notes');
     expect(note.textContent).toContain('Gọi chị An trước khi đến\nKiểm tra seal tại kho');
-    expect(screen.getAllByTestId('operation-chip').map((chip) => chip.textContent)).toEqual(['KIỂM HÓA', 'QUAY ĐẦU']);
+    expect(note.textContent).toContain('Kiểm tra seal tại kho');
+    expect(screen.queryByTestId('operation-chip')).toBeNull();
+    expect(screen.queryByText('Tác vụ')).toBeNull();
   });
 
   // 20260926_20: the TÁC VỤ TÀI XẾ header ALWAYS shows fully — the collapse
@@ -1812,24 +1752,33 @@ describe('20260915_1: trip → fulfillmentId resolution', () => {
     expect(screen.queryByText(/TRP-23-ADHOC/)).toBeNull();
     expect(getDriverTripMock).toHaveBeenCalledWith(23);
   });
-
-  it('_36 rework: Tác vụ/Ghi chú rows are structural — they render even with no note data', async () => {
-    useDriverTaskDetailMock.mockReturnValue({
-      data: makeTaskDetail({ knownTagLabels: [], fulfillment: { ...makeTaskDetail().fulfillment!, driverNotes: null } }),
-      isLoading: false,
-      error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
-    });
-    renderPage();
-    expect(await screen.findByText('Tác vụ')).toBeTruthy();
-    expect(screen.getByText('Không có tác vụ')).toBeTruthy();
-    expect(screen.getByText('Ghi chú')).toBeTruthy();
-    expect(screen.getByText('Không có ghi chú.')).toBeTruthy();
-    expect(screen.queryByTestId('operation-chips')).toBeNull();
-  });
+  // _36 rework test retired with SIL-767: the Tác vụ row no longer exists;
+  // the Ghi chú-only structural behavior is pinned by "SIL-767: a trip with
+  // no dispatch note shows the Ghi chú empty state and no Tác vụ block".
 });
 
 describe('driver completed-trip footer height contract (card 071026103226 — FB-055 regression)', () => {
+  // This describe never had its own beforeEach and silently inherited the
+  // mock state of whichever test ran last: the (SIL-767-retired) _36 rework
+  // case left getDriverTripMock on a fulfillment-bearing trip, so the
+  // cache-seeded render's background refetch kept this screen a real detail.
+  // With that test gone, the inherited trip was the ad-hoc null-fulfillment
+  // fixture and the screen legitimately swapped to the ad-hoc branch mid-test.
+  // Pin the defaults so the closed-card contract is order-independent.
+  beforeEach(() => {
+    getDriverTripMock.mockReset();
+    getDriverTripMock.mockResolvedValue({
+      id: TRIP_ID, shipmentId: null, fulfillmentId: FULFILLMENT_ID, tripCode: 'TRP-88',
+      departureDate: null, plannedStartAt: null, status: 'COMPLETED',
+      routeName: null, truckPlate: null, customerName: null, notes: null,
+    });
+    useDriverTaskProgressMock.mockReset();
+    useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) });
+    useDriverTaskDetailMock.mockReset();
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail({ status: 'COMPLETED' }), isLoading: false, error: null, refetch: vi.fn() });
+    useDriverEvidenceStatusMock.mockReturnValue({ data: { ready: true, missingItems: [] }, isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined) });
+  });
+
   it('the closed card renders the summary and the button side by side with no hint line', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({ status: 'COMPLETED' }),

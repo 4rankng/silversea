@@ -1,13 +1,9 @@
-import { PhotoImage } from '../components/shared/PhotoImage';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
-  Camera,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
   FileCheck2,
   Loader2,
   ShieldAlert,
@@ -18,8 +14,7 @@ import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
-import { DriverTaskInfoSections, DriverInvoiceSection, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
-import { EmptyState } from '../design-system';
+import { DriverTaskInfoSections, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
 import { podRequiredFilesReady, missingRequiredPodFileTypes, missingPodFilesMessage } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
@@ -29,19 +24,15 @@ import { useDriverTaskDetail, useDriverTaskProgress, useDriverJourneyBoard } fro
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { qk } from '../api/keys';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
-import { useAuthedPhotoUrls } from '../lib/api/photo';
-import { compressImageFile } from '../lib/imageCompression';
-import { formatCurrency, formatDate } from '../lib/format';
-import { useGeolocation } from '../hooks/useGeolocation';
+import { formatDate } from '../lib/format';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
 import { useConfirm } from '../components/UI';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
-import { ContainerScanner, dataUrlToFile } from '../components/shared/ContainerScanner';
 import './DriverTripDetailPage.css';
 
-import { MILESTONES, FUEL_EVIDENCE_OUTCOME_LABELS, FUEL_EVIDENCE_REVIEW_LABELS, completeCtaLabel, fuelEvidenceUploadErrorMessage, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, formatDateTime, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
+import { MILESTONES, completeCtaLabel, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
 import { parseDriverTaskNote } from '@tingting/shared';
 
 export default function DriverTripDetailPage() {
@@ -58,12 +49,7 @@ function DriverTripDetailContent() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { confirm, dialog: confirmDialog } = useConfirm();
-  const geolocation = useGeolocation();
   const journeyBoard = useDriverJourneyBoard();
-  const [uploadingFuelEvidence, setUploadingFuelEvidence] = useState(false);
-  const [fuelScanning, setFuelScanning] = useState(false);
-  const [chipsExpanded, setChipsExpanded] = useState(false);
-  const [fuelExpanded, setFuelExpanded] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [completing, setCompleting] = useState(false);
   // KP-087: the parsed TRP code from the busy-trip 409 — banner PRESENCE
@@ -135,12 +121,10 @@ function DriverTripDetailContent() {
   const cancelled = trip?.status === TripStatus.CANCELED;
   const closed = completed || cancelled;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
-  const latestFuelEvidence = trip?.fuelEvidenceReviews?.[0] ?? null;
-  // DRV-DET-08: protected evidence loads through an Authorization-header blob
-  // fetch (`useAuthedPhotoUrls` → object URL, revoked on unmount). The JWT
-  // must never ride in the query string where history/Referer/proxy logs can
-  // capture it. Called before every early return so the hook order is stable.
-  const fuelEvidencePhotoUrl = useAuthedPhotoUrls([latestFuelEvidence?.photoUrl ?? null])[0] ?? '';
+  // SIL-768 (09/11, customer CR-006): the Ảnh nhiên liệu block is REMOVED from
+  // the detail screen — the feature moves to a dedicated fleet fuel-norm
+  // module later. Recorded fuel evidence rows are untouched (data stays);
+  // the upload endpoint and the kế toán review surface keep working.
 
   const latestCompletedIndex = useMemo(() => {
     let index = -1;
@@ -158,7 +142,8 @@ function DriverTripDetailContent() {
     trip?.fulfillment?.driverNotes ?? '',
     trip?.knownTagLabels ?? [],
   ), [trip?.fulfillment?.driverNotes, trip?.knownTagLabels]);
-  const operationTags = operationNote.selectedLabels;
+  // SIL-767 (09/11, customer CR-006): the Tác vụ chips block is gone from the
+  // detail screen — operationNote survives for its manualText (Ghi chú) only.
 
   async function handleMilestone(eventType: MilestoneType) {
     if (!trip || !validFulfillmentId || closed) return;
@@ -220,34 +205,6 @@ function DriverTripDetailContent() {
       }
     } finally {
       setAccepting(false);
-    }
-  }
-
-  async function handleUploadFuelEvidence(file: File, capturedAt?: Date) {
-    if (!trip || cancelled) return;
-    setUploadingFuelEvidence(true);
-    try {
-      const location = await geolocation.awaitAccurateSample();
-      const prepared = await compressImageFile(file, { timestamp: capturedAt });
-      await driverClient.uploadFuelEvidence({
-        tripId: trip.id,
-        file: prepared,
-        location: {
-          lat: location.lat,
-          lng: location.lng,
-          accuracy: location.accuracy,
-          timestamp: location.timestamp,
-          source: 'phone',
-        },
-      });
-      await refreshAll();
-      toast({ kind: 'success', message: 'Đã lưu ảnh nhiên liệu. Số liệu OCR chỉ dùng để tham khảo.' });
-    } catch (error) {
-      // Card 20261008_6: policy gates denial/abort first; `describe` keeps the
-      // GPS-aware mapping (fuelEvidenceUploadErrorMessage) verbatim.
-      toastActionError(toast, 'tải ảnh chứng từ', error, 'Không thể tải ảnh nhiên liệu. Vui lòng thử lại.', fuelEvidenceUploadErrorMessage);
-    } finally {
-      setUploadingFuelEvidence(false);
     }
   }
 
@@ -430,12 +387,6 @@ function DriverTripDetailContent() {
   const driverNotes = trip.fulfillment?.driverNotes != null
     ? (operationNote.manualText || null)
     : (trip.notes ?? null);
-  // TC-DA-001: N ≥ 6 collapses to the first ~4 chips behind a Mở rộng/Thu gọn
-  // toggle; N ≤ 5 renders fully expanded (no toggle needed).
-  const shouldCollapseChips = operationTags.length >= 6;
-  const visibleOperationTags = shouldCollapseChips && !chipsExpanded
-    ? operationTags.slice(0, 4)
-    : operationTags;
   const containerSealPhotos = fulfillment?.containerSealPhotos ?? [];
   const contPhotoKey = containerSealPhotos.find((p) => p.type === 'CONTAINER')?.storageKey ?? null;
   const sealPhotoKey = containerSealPhotos.find((p) => p.type === 'SEAL')?.storageKey ?? null;
@@ -541,36 +492,14 @@ function DriverTripDetailContent() {
 
       <DriverTaskInfoSections trip={trip}>
 
-      {/* Card _36 (paper-form spec): Tác vụ and Ghi chú are STRUCTURAL rows —
-          they always render, filled from the saved dispatch note
-          (driverTaskNote v2: tags segment → Tác vụ uppercase chips, manual
-          text → Ghi chú) and show an empty state when the part is absent.
-          N ≥ 6 chips collapse behind Mở rộng/Thu gọn. Same parseNote
-          codepath as the /my-trips board cards. */}
+      {/* Card _36 (paper-form spec), amended by SIL-767 (09/11, customer
+          CR-006 — "khách hàng bảo thế nào thì làm thế"): the Tác vụ block
+          (chips + its empty state) is REMOVED from the detail screen — the
+          11 dispatch tags were UI noise drivers never used. Ghi chú stays a
+          STRUCTURAL row filled from the saved dispatch note (driverTaskNote
+          v2 manual text) and shows its empty state when absent. Same
+          parseNote codepath as the /my-trips board cards. */}
       <section className="driver-task-section" data-testid="task-note-section">
-        <div className="driver-task-section__head">
-          <span>Tác vụ</span>
-        </div>
-        {operationTags.length > 0 ? (
-          <div className="driver-task-ops" data-testid="operation-chips">
-            {visibleOperationTags.map((tag) => (
-              <span key={tag} className="driver-task-ops-chip" data-testid="operation-chip">{tag.toLocaleUpperCase('vi-VN')}</span>
-            ))}
-            {shouldCollapseChips && (
-              <button type="button" className="driver-task-ops-toggle" onClick={() => setChipsExpanded((v) => !v)}>
-                {chipsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                <span>{chipsExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <EmptyState
-            variant="compact"
-            context="driver-tasks"
-            title="Không có tác vụ"
-            description="Chưa có việc nào được giao cho chuyến này."
-          />
-        )}
         <div className="driver-task-section__head">
           <span>Ghi chú</span>
         </div>
@@ -617,104 +546,14 @@ function DriverTripDetailContent() {
         )}
       </section>
 
-      {/* Phần 4 ticket 2026-08-28: e-POD moved to its own screen
-          (/my-trips/:id/pod) so the driver handles the delivery photos
-          (Phiếu bãi/hạ + Biên bản giao nhận — optional per card
-          261022213755a) in one place. The "Hoàn thành"
-          CTA at the bottom navigates there. The cost-entry form is hidden
-          here per the trial-readiness plan ("kế toán từ từ"). Backend
-          schema + endpoints for both are retained for the post-trial phase. */}
-      <section
-        className={`driver-task-section${!fuelExpanded ? ' driver-task-section--collapsed driver-task-section--fuel-collapsed' : ''}`}
-        data-testid="fuel-section"
-      >
-        <div className="driver-task-section__head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-            <span>Ảnh nhiên liệu</span>
-            {!fuelExpanded && (
-              <span className="driver-task-section__summary" style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)', fontWeight: 500 }}>
-                {latestFuelEvidence ? 'Đã có ảnh' : 'Không bắt buộc'}
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            className="driver-task-ops-toggle"
-            aria-expanded={fuelExpanded}
-            onClick={() => setFuelExpanded((v) => !v)}
-            data-testid="fuel-section-toggle"
-          >
-            {fuelExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            <span>{fuelExpanded ? 'Thu gọn' : 'Mở rộng'}</span>
-          </button>
-        </div>
-        {fuelExpanded && (
-          <div className="driver-task-fuel-section">
-            <div className="driver-task-fuel-card">
-              <div className="driver-task-fuel-header">
-                <div>
-                  <strong className="driver-task-fuel-title">Chụp màn hình bơm gần nhất</strong>
-                  <div className="driver-task-fuel-subtitle">
-                    {latestFuelEvidence
-                      ? `${FUEL_EVIDENCE_OUTCOME_LABELS[latestFuelEvidence.ocrOutcome]} · ${FUEL_EVIDENCE_REVIEW_LABELS[latestFuelEvidence.reviewStatus]}`
-                      : 'Chưa có ảnh nhiên liệu nào cho chuyến này.'}
-                  </div>
-                </div>
-                {!cancelled && <button
-                  type="button"
-                  className={`btn btn--secondary btn--sm driver-task-fuel-btn${uploadingFuelEvidence ? ' is-loading driver-task-fuel-loading' : ''}`}
-                  disabled={uploadingFuelEvidence}
-                  onClick={() => setFuelScanning(true)}
-                >
-                  <Camera size={16} />
-                  <span>{latestFuelEvidence ? 'Chụp lại ảnh mới' : 'Chụp ảnh nhiên liệu'}</span>
-                </button>}
-              </div>
-              {!latestFuelEvidence && !cancelled && (
-                <EmptyState
-                  variant="compact"
-                  context="driver-fuel"
-                  title="Chưa có ảnh nhiên liệu"
-                  description="Chụp màn hình bơm để làm bằng chứng nhiên liệu."
-                />
-              )}
-              {latestFuelEvidence && (
-                <div className="driver-task-fuel-details">
-                  <div className="driver-task-fuel-grid">
-                    <PhotoImage
-                      src={fuelEvidencePhotoUrl}
-                      alt="Ảnh nhiên liệu"
-                      className="driver-task-fuel-img"
-                    />
-                    <div className="driver-task-fuel-facts">
-                      <div><strong>Thời điểm chụp:</strong> {formatDateTime(latestFuelEvidence.capturedAt)}</div>
-                      <div><strong>Lít:</strong> {latestFuelEvidence.litres ?? '—'}</div>
-                      <div><strong>Đơn giá:</strong> {latestFuelEvidence.unitPrice != null ? formatCurrency(latestFuelEvidence.unitPrice) : '—'}</div>
-                      <div><strong>Thành tiền:</strong> {latestFuelEvidence.totalAmount != null ? formatCurrency(latestFuelEvidence.totalAmount) : '—'}</div>
-                      <div><strong>Tính lại:</strong> {latestFuelEvidence.computedTotal != null ? formatCurrency(latestFuelEvidence.computedTotal) : '—'}</div>
-                      <div>
-                        <strong>GPS:</strong>
-                        {latestFuelEvidence.latitude && latestFuelEvidence.longitude ? (
-                          <span className="driver-task-fuel-gps-ok">
-                            <CheckCircle2 size={13} /> Đã ghi nhận GPS
-                          </span>
-                        ) : 'Chưa có'}
-                      </div>
-                    </div>
-                  </div>
-                  {(latestFuelEvidence.anomalyReason || latestFuelEvidence.ocrError || latestFuelEvidence.reviewNote) && (
-                    <div className="driver-task-fuel-notes">
-                      {latestFuelEvidence.anomalyReason && <div><strong>Lưu ý OCR:</strong> {latestFuelEvidence.anomalyReason}</div>}
-                      {latestFuelEvidence.ocrError && <div><strong>Lỗi OCR:</strong> {latestFuelEvidence.ocrError}</div>}
-                      {latestFuelEvidence.reviewNote && <div><strong>Ghi chú kế toán:</strong> {latestFuelEvidence.reviewNote}</div>}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
+      {/* SIL-768 (09/11, customer CR-006 — "khách hàng bảo thế nào thì làm
+          thế"): the Ảnh nhiên liệu block (fuel-pump screenshot upload, OCR
+          facts, GPS) is REMOVED from the detail screen. The feature moves to
+          a dedicated fleet fuel-norm module later (out of scope here);
+          recorded fuel evidence rows, the upload endpoint and the kế toán
+          review surface (FuelEvidenceReviewPage) are untouched. The e-POD
+          comment that used to lead this section moved with the block — the
+          e-POD screen itself is unchanged (/my-trips/:id/pod). */}
 
       {trip.legs.length > 0 && (
         <section className="driver-task-section driver-task-section--legs">
@@ -735,7 +574,8 @@ function DriverTripDetailContent() {
           cước / VETC (1 lần trên chân mang phí) / lương / phụ phí Kẹp. */}
       <DriverCostBreakdownSection trip={trip} />
 
-      <DriverInvoiceSection trip={trip} />
+      {/* SIL-766: DriverInvoiceSection moved INTO DriverTaskInfoSections —
+          it renders right below the Gọi kho bar, before every other block. */}
 
       {showAcceptStickyBar && (
         <div ref={actionBarRef} className="driver-task-accept-sticky" data-testid="accept-sticky-bar">
@@ -807,16 +647,6 @@ function DriverTripDetailContent() {
       )}
 
       </fieldset>
-
-      {fuelScanning && (
-        <ContainerScanner
-          onCapture={(dataUrl, capturedAt) => {
-            setFuelScanning(false);
-            void handleUploadFuelEvidence(dataUrlToFile(dataUrl, 'fuel-pump.jpg'), capturedAt);
-          }}
-          onClose={() => setFuelScanning(false)}
-        />
-      )}
 
       {confirmDialog}
     </div>
