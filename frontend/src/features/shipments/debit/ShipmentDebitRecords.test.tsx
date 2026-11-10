@@ -194,13 +194,13 @@ describe('SIL-478 — the grouped row face', () => {
     const first = renderOnPhone([factRow({ shipmentId: 301, billOrBookNumber: 'BL-TAP' })], { onToggle });
     const record = await screen.findByRole('article', { name: 'BL-TAP' });
     expect(screen.queryByTestId('workspace')).toBeNull();
-    expect(within(record).queryByText('Tổng chi')).toBeNull();
+    expect(within(record).queryByText('Tổng chi hộ (Có HĐ)')).toBeNull();
     fireEvent.click(rowToggle(record));
     // The reader's expanded region is the remaining facts — no quyết toán lane.
-    expect(within(record).getByText('Tổng chi')).toBeTruthy();
+    expect(within(record).getByText('Tổng chi hộ (Có HĐ)')).toBeTruthy();
     expect(screen.queryByTestId('workspace')).toBeNull();
     fireEvent.click(rowToggle(record));
-    expect(within(record).queryByText('Tổng chi')).toBeNull();
+    expect(within(record).queryByText('Tổng chi hộ (Có HĐ)')).toBeNull();
     // Reader expansion is local — the manager lane stays untouched.
     expect(onToggle).not.toHaveBeenCalled();
     first.unmount();
@@ -308,19 +308,21 @@ describe('BD-01 (161026204709) — the merged 100%/0₫ lane stays on the expand
 
   // Owner redesign 23/10 (spec v2 (c)), amended 24/10 — the money facts carry
   // the board's states number | 0 | BLANK pending; 'Chưa xác định' stays gone.
+  // REV2: the face carries the revenue facts only (Tổng chi hộ - Có HĐ and
+  // Tổng dịch vụ - Không HĐ); the giá vốn facts are out of the record.
   it('redesign 23/10 (c) + 24/10: money facts render number | 0 | blank — never "Chưa xác định"', async () => {
     renderOnPhone([
-      factRow({ shipmentId: 204, billOrBookNumber: 'BL-N', code: 'SHP-26-0204', receivableTotal: 4200000, payableTotal: 0, profit: null }),
+      factRow({ shipmentId: 204, billOrBookNumber: 'BL-N', code: 'SHP-26-0204', receivableTotal: 4200000, chiHoSellTotal: '0', serviceSellTotal: null }),
     ]);
     const record = await screen.findByRole('article', { name: 'BL-N' });
     // Doanh thu = the row face amount.
     expect(record.querySelector('.ledger-glist__amount')?.textContent).toContain('4.200.000');
     fireEvent.click(rowToggle(record));
-    const payable = await factLine(record, 'Tổng chi');
-    expect(within(payable).getByText('0')).toBeTruthy();
-    expect(within(payable).getByText('0').getAttribute('title')).toBe('Phát sinh nhưng tổng bằng 0');
-    const profit = await factLine(record, 'Lợi nhuận');
-    expect(profit.querySelector('dd')?.textContent ?? '').toBe('');
+    const chiho = await factLine(record, 'Tổng chi hộ (Có HĐ)');
+    expect(within(chiho).getByText('0')).toBeTruthy();
+    expect(within(chiho).getByText('0').getAttribute('title')).toBe('Phát sinh nhưng tổng bằng 0');
+    const service = await factLine(record, 'Tổng dịch vụ (Không HĐ)');
+    expect(service.querySelector('dd')?.textContent ?? '').toBe('');
     expect(screen.queryByText('Chờ số liệu')).toBeNull();
     expect(screen.queryByText('Chưa xác định')).toBeNull();
   });

@@ -210,8 +210,8 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
   it('renders the money states — numbers, a real 0, and a BLANK pending cell (redesign 23/10 (c) + 24/10)', async () => {
     listSummary.mockResolvedValue({
       items: [
-        row({ lockStatus: 'LOCKED', carrierCostTotal: '1500000', opsCostTotal: '500000', payableTotal: 2000000 }),
-        row({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002', receivableTotal: 0, profit: null, carrierCostTotal: null, opsCostTotal: null }),
+        row({ lockStatus: 'LOCKED', chiHoSellTotal: '1500000', serviceSellTotal: '500000' }),
+        row({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002', receivableTotal: 0, chiHoSellTotal: null, serviceSellTotal: null }),
       ],
       total: 2,
     });
@@ -220,6 +220,8 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     // Numbers format exactly as the payload says — never a fabricated 0.
     // (Each value also rides its group subtotal and the totals foot, so the
     // row copy is ONE of several — assert presence, not uniqueness.)
+    // REV2 columns: freight (Auto) / Tổng chi hộ - Có HĐ / Tổng dịch vụ -
+    // Không HĐ / Tổng phải thu khách.
     expect(screen.getAllByText('9.000.000').length).toBeGreaterThan(0);
     expect(screen.getAllByText('1.500.000').length).toBeGreaterThan(0);
     expect(screen.getAllByText('500.000').length).toBeGreaterThan(0);
@@ -230,7 +232,8 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     // repeated ~5×/row and buried the figures. 'Chưa xác định' stays banned,
     // and only group/foot sums may answer '—'.
     const bl2Row = screen.getAllByText('BL-2')[0].closest('tr')!;
-    expect(bl2Row.querySelector('td[data-col="profit"]')?.textContent ?? '').toBe('');
+    expect(bl2Row.querySelector('td[data-col="chiho"]')?.textContent ?? '').toBe('');
+    expect(bl2Row.querySelector('td[data-col="service"]')?.textContent ?? '').toBe('');
     expect(screen.queryByText('Chờ số liệu')).toBeNull();
     expect(screen.queryByText('Chưa xác định')).toBeNull();
     // The locked row selects on click (row = selection alias, redesign 23/10).
@@ -255,7 +258,8 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('R3Q-680-B'))[0]).toBeTruthy();
     const reproRow = screen.getAllByText('R3Q-680-B')[0].closest('tr')!;
-    expect(reproRow.querySelector('td[data-col="receivable"]')?.textContent ?? '').toBe('');
+    // REV2 column naming: the Tổng phải thu khách cell is data-col="total".
+    expect(reproRow.querySelector('td[data-col="total"]')?.textContent ?? '').toBe('');
     // The zero tooltip exists only on the traced-zero row (and its group sum),
     // never on the uncalculated locked row.
     const zeroCells = screen.getAllByTitle('Phát sinh nhưng tổng bằng 0');
@@ -263,11 +267,11 @@ describe('Chi phí - Quyết toán — L1 lot list (20260918_17)', () => {
     for (const cell of zeroCells) expect(cell.closest('tr')).not.toBe(reproRow);
   });
 
-  it('renders Tổng chi from the payableTotal wire field', async () => {
-    listSummary.mockResolvedValue({ items: [row({ payableTotal: 7_500_000 })], total: 1 });
+  it('renders Tổng chi hộ - Có HĐ from the chiHoSellTotal wire field', async () => {
+    listSummary.mockResolvedValue({ items: [row({ chiHoSellTotal: '7500000' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: /Tổng chi/ })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: /Tổng chi hộ - Có HĐ/ })).toBeTruthy();
     expect(screen.getAllByText('7.500.000').length).toBeGreaterThan(0);
   });
 
@@ -323,6 +327,9 @@ describe('L2 open-state reload persistence (card _11)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     getDetail.mockResolvedValue({ shipmentId: 101, freightRows: [], chiHoRows: [], payables: { chiHoTotal: null }, thuKhachTotal: null });
     renderPage('/shipments-debit?customer=1');
+    // The drawer mounts with the list render (items → drawerLot) — wait for
+    // the row first so the drawer content is in the same commit.
+    await screen.findAllByText('BL-1');
     expect(await screen.findByText('Cước vận tải')).toBeTruthy();
     sessionStorage.removeItem('shipment-debit.expanded-lot');
   });
@@ -487,8 +494,8 @@ describe('Redesign 23/10 — group theo khách + sticky totals + chứng từ + 
   it('(b) groups rows under one sticky customer header with aligned subtotals and a collapse chevron', async () => {
     listSummary.mockResolvedValue({
       items: [
-        row({ customerId: 1, customerName: 'CÔNG TY LONG MINH', billOrBookNumber: 'BL-1', receivableTotal: 1_000_000, payableTotal: 400_000, profit: 100_000 }),
-        row({ shipmentId: 102, code: 'SHP-2', customerId: 1, customerName: 'CÔNG TY LONG MINH', billOrBookNumber: 'BL-2', receivableTotal: 2_000_000, payableTotal: 600_000, profit: 200_000 }),
+        row({ customerId: 1, customerName: 'CÔNG TY LONG MINH', billOrBookNumber: 'BL-1', receivableTotal: 1_000_000, chiHoSellTotal: '400000' }),
+        row({ shipmentId: 102, code: 'SHP-2', customerId: 1, customerName: 'CÔNG TY LONG MINH', billOrBookNumber: 'BL-2', receivableTotal: 2_000_000, chiHoSellTotal: '600000' }),
         row({ shipmentId: 103, code: 'SHP-3', customerId: 2, customerName: 'KH B', billOrBookNumber: 'BL-3' }),
       ],
       total: 3,
@@ -499,14 +506,16 @@ describe('Redesign 23/10 — group theo khách + sticky totals + chứng từ + 
     const header = screen.getByRole('button', { name: 'Đóng nhóm khách hàng Công Ty Long Minh' }).closest('tr')!;
     expect(within(header).getByText('Công Ty Long Minh')).toBeTruthy();
     expect(within(header).getByText('2 lô')).toBeTruthy();
-    // The group's subtotal aligns under the Doanh thu column and sums the
-    // KNOWN values only (BL-3's group has nothing known → '—').
-    // KH B's group (row 103) has nothing known → its subtotals read '—'
-    // with the pending tooltip; Long Minh's group sums its KNOWN values.
+    // The group's subtotals align under the REV2 money columns and sum the
+    // KNOWN values only — freight (Auto) 4.5M+4.5M, Tổng chi hộ 400K+600K,
+    // Tổng phải thu 1M+2M; Tổng dịch vụ has nothing known → '—' with the
+    // pending tooltip. KH B's group still carries pending chi-hộ/dịch vụ
+    // sums ('—' + tooltip) since none of its lots has those wire fields.
     const khbHeader = screen.getByRole('button', { name: /nhóm khách hàng Kh B/ }).closest('tr')!;
     expect(within(khbHeader).getAllByTitle('Chưa chốt — đang chờ số liệu đối soát').length).toBeGreaterThan(0);
-    expect(within(header).getAllByText('3.000.000').length).toBeGreaterThan(0);
+    expect(within(header).getAllByText('9.000.000').length).toBeGreaterThan(0);
     expect(within(header).getAllByText('1.000.000').length).toBeGreaterThan(0);
+    expect(within(header).getAllByText('3.000.000').length).toBeGreaterThan(0);
     // Collapse hides the group's rows (and only that group's).
     fireEvent.click(within(header).getByRole('button', { name: 'Đóng nhóm khách hàng Công Ty Long Minh' }));
     expect(await screen.findByRole('button', { name: 'Mở nhóm khách hàng Công Ty Long Minh' })).toBeTruthy();
@@ -522,9 +531,9 @@ describe('Redesign 23/10 — group theo khách + sticky totals + chứng từ + 
   it('(a) the sticky totals foot equals the sum of the rendered money cells', async () => {
     listSummary.mockResolvedValue({
       items: [
-        row({ receivableTotal: 1_111_111, payableTotal: 400_000, profit: 100_000, carrierCostTotal: '250000', opsCostTotal: '150000' }),
-        row({ shipmentId: 102, code: 'SHP-2', billOrBookNumber: 'BL-2', receivableTotal: 2_222_222, payableTotal: 0, profit: -50_000, carrierCostTotal: '0', opsCostTotal: null }),
-        row({ shipmentId: 103, code: 'SHP-3', billOrBookNumber: 'BL-3', receivableTotal: null, payableTotal: null, profit: null }),
+        row({ freightAuto: 1_111_111, chiHoSellTotal: '400000', serviceSellTotal: '100000', receivableTotal: 1_611_111 }),
+        row({ shipmentId: 102, code: 'SHP-2', billOrBookNumber: 'BL-2', freightAuto: 2_222_222, chiHoSellTotal: '0', serviceSellTotal: '-50000', receivableTotal: 2_172_222 }),
+        row({ shipmentId: 103, code: 'SHP-3', billOrBookNumber: 'BL-3', freightAuto: null, chiHoSellTotal: null, serviceSellTotal: null, receivableTotal: null }),
       ],
       total: 3,
     });
@@ -540,7 +549,7 @@ describe('Redesign 23/10 — group theo khách + sticky totals + chứng từ + 
       let sum = 0;
       for (const cell of cells) {
         const text = cell.textContent ?? '';
-        if (text === '' || text === 'Chờ số liệu') continue;
+        if (text === '' || text === 'Chưa chốt — đang chờ số liệu đối soát') continue;
         sum += Number(text.replace(/\./g, '').replace(/[^0-9-]/g, ''));
       }
       return sum;
@@ -552,11 +561,15 @@ describe('Redesign 23/10 — group theo khách + sticky totals + chứng từ + 
       expect(cell).not.toBeNull();
       return Number((cell!.textContent ?? '').replace(/\./g, ''));
     };
-    expect(footValue('receivable')).toBe(sumColumn('receivable'));
-    expect(footValue('payable')).toBe(sumColumn('payable'));
-    expect(footValue('profit')).toBe(sumColumn('profit'));
-    // A negative profit reads in the rose voice.
-    expect(container.querySelector('td[data-col="profit"][data-negative]')?.textContent).toBe('-50.000');
+    // REV2 revenue columns: freight (Auto) / Tổng chi hộ - Có HĐ / Tổng dịch
+    // vụ - Không HĐ / Tổng phải thu khách.
+    expect(footValue('freight')).toBe(sumColumn('freight'));
+    expect(footValue('chiho')).toBe(sumColumn('chiho'));
+    expect(footValue('service')).toBe(sumColumn('service'));
+    expect(footValue('total')).toBe(sumColumn('total'));
+    // A negative service figure reads verbatim in the row — no fabricated 0.
+    const bl2Row = screen.getAllByText('BL-2')[0].closest('tr')!;
+    expect(bl2Row.querySelector('td[data-col="service"]')?.textContent).toBe('-50.000');
   });
 
   it('(e) the CHỨNG TỪ badge warns on missing docs and the popover checklist names them', async () => {
@@ -641,14 +654,15 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
     expect(cssSource()).toMatch(/@media \(min-width: 641px\) and \(max-width: 1369px\)\s*\{[^}]*\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
   });
 
-  it('redesign 23/10 (a): fixed 11-column board, nowrap headers, 52px rows, sticky bands', () => {
-    // The honest sum of the eleven measured columns (44+130+160+144+130+130
-    // +120+130+130+140+112 = 1370) floors the table; below that width the
-    // pane scrolls sideways. The status column is 112px: the §1 text+dot
-    // status + the ⋯ kebab on ONE baseline (55+6+28) plus a merged row's
-    // [Ghép (i/N) ⋯] second line (66+6+28) inside its 104px usable width —
-    // the old 90px wrapped the pill above the kebab on every row.
-    expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/min-width:\s*1370px/);
+  it('redesign 23/10 (a): fixed REV2 board, nowrap headers, 52px rows, sticky bands', () => {
+    // REV2 (ticket-v2 Phần VI mục 2) — the board is seven columns now
+    // (CHỌN 44 + identity flex + freight 140 + chi hộ 140 + dịch vụ 140 +
+    // phải thu 170 + trạng thái 112, identity floored at 230 → 1076); below
+    // that width the pane scrolls sideways. The status column stays 112px:
+    // the §1 text+dot status + the ⋯ kebab on ONE baseline (55+6+28) plus a
+    // merged row's [Ghép (i/N) ⋯] second line (66+6+28) inside its 104px
+    // usable width.
+    expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/min-width:\s*1076px/);
     expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/table-layout:\s*fixed/);
     expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/font-variant-numeric:\s*tabular-nums/);
     // Headers: one nowrap uppercase line; money headers match the data edge.

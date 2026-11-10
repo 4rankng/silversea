@@ -600,6 +600,20 @@ export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMa
   FUEL:           { name: 'Phí nhiên liệu / dầu',        defaultMarkup: false, billingLabel: 'Phí nhiên liệu', category: ExpenseTypeCategory.KHAC },
 };
 
+/** SIL-770 (owner decision 09/11/2026, "khách hàng bảo thế nào thì làm thế") —
+ *  the catalog codes that belong to the DRIVER's own cost buckets (tiền dầu,
+ *  sửa chữa dọc đường/vá vỏ). "Chi phí của ai người đó tự khai": they stay
+ *  full on the driver side (its own expense endpoints are untouched) and are
+ *  filtered OUT of the Ops/CUS "Khai báo chi phí" picker
+ *  (`listActiveOpsExpenseTypes`) so Ops cannot mis-declare a driver cost.
+ *  Codes, not names: an admin rename must not resurrect the row in the Ops
+ *  list. Supersedes card 20261004_355's OPS-fuel intent on this picker only —
+ *  historical ops rows keep their codes. */
+export const DRIVER_EXPENSE_TYPE_CODES: Record<string, true> = {
+  FUEL: true,
+  ROAD_REPAIR: true,
+};
+
 export const NO_INVOICE_EVIDENCE_TYPES = [
   'RECEIPT',
   'BANK_TRANSFER',

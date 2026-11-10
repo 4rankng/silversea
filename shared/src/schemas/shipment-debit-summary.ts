@@ -57,6 +57,15 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // What SS pays on the customer's behalf (CVC + Ops fees, trip expenses).
   chiHoTotal: moneyString.nullable(),
   receivableTotal: moneyString.nullable(),
+  // ── SIL-776 REV2 (ticket-v2 Phần VI mục 2, 09/11/2026) — the flat board's
+  // two sell columns, conserved so chiHoSellTotal + serviceSellTotal +
+  // freightAuto sum to receivableTotal (knowns-sum; null = no data behind
+  // either component, never a 0). Stripped of every cost measure by design:
+  // cước trả vendor / tổng chi phí đầu vào / biên lợi nhuận NEVER ride this
+  // board's columns, and the cost fields below are wire-null for the CUS
+  // role (server-side strip in the producer).
+  chiHoSellTotal: moneyString.nullable().optional(),
+  serviceSellTotal: moneyString.nullable().optional(),
   // ── Redesign 23/10 (owner spec v2, "Chi hãng tàu" / "Chi nội địa") — the
   // two live components behind payableTotal, shipped separately so L1 can
   // render the cost split. Cước trả hãng = Σ trip_carrier_info

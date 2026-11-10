@@ -1,0 +1,15 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/r12-fix/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+
+ Test Files  9 passed (9)
+      Tests  99 passed (99)
+   Start at  09:00:38
+   Duration  49.09s (transform 11.94s, setup 8.16s, import 72.05s, tests 100.74s, environment 32.53s)
+
+EXIT=0

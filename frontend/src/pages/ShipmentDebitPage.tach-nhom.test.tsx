@@ -234,10 +234,11 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     listSummary.mockResolvedValueOnce(mergedPair()).mockResolvedValueOnce(unmergedPair());
     renderPage();
     await screen.findAllByText('BL-2');
-    // Pre-tách face: Lô 1 = 100% cước on the Doanh thu column, Lô 2 = 0₫ +
-    // the note marker (redesign 23/10: one glyph, full reason in the title).
-    expect(screen.getByTitle('Ghép cước cùng Bill BL-1')).toBeTruthy();
-    expect(screen.getByTitle('Phát sinh nhưng tổng bằng 0')).toBeTruthy();
+    // Pre-tách face: Lô 1 = 100% cước, Lô 2 = 0₫ + the tag (REV2: one merged
+    // tag on the freight cell, full reason in its title).
+    const bl2Pre = screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row') as HTMLElement;
+    expect(within(bl2Pre).getByTitle('Ghép cước cùng Bill BL-1')).toBeTruthy();
+    expect(within(bl2Pre).getAllByTitle('Phát sinh nhưng tổng bằng 0').length).toBeGreaterThan(0);
 
     const tach = await openTachNhom('BL-2');
     fireEvent.click(tach);
@@ -261,7 +262,9 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     await waitFor(() => expect(unmergeGroup).toHaveBeenCalledWith({ groupId: 'g-rev-1', dimension: 'REV' }));
     // The refetch (onUnmerged) re-reads the board: each lot's own cước is back.
     await waitFor(() => expect(listSummary.mock.calls.length).toBeGreaterThanOrEqual(2));
-    expect(await screen.findByText(formatMoney(700000))).toBeTruthy();
+    // REV2: the restored cước rides BOTH the freight cell and the Tổng phải
+    // thu cell — assert presence, not uniqueness.
+    expect((await screen.findAllByText(formatMoney(700000))).length).toBeGreaterThan(0);
     expect(screen.getAllByText(formatMoney(3150000)).length).toBeGreaterThan(0);
     // The "Ghép cước cùng Bill" marker is shed from the BL-2 row.
     const bl2Row = (await screen.findAllByText('BL-2'))[0]!.closest('.shipment-debit-row')!;
@@ -281,11 +284,15 @@ describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu k
     renderPage();
     await screen.findAllByText('BL-1');
 
-    // The per-lot exit lives on the expanded strip (FB-095 "Hủy ghép").
+    // The per-lot exit lives on the REV2 Chốt-giá-bán drawer (opened from the
+    // kebab) — its DebitLotLclFacts strip carries the Hủy ghép button.
     fireEvent.click(screen.getByRole('button', { name: 'Hành động lô BL-1' }));
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Mở chi tiết lô BL-1' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Hủy ghép' }));
-    expect(screen.getByRole('dialog')).toBeTruthy();
+    // REV2: the drawer (Chốt giá bán — BL-1) and the strip's shared confirm
+    // are both open — assert the CONFIRM by its own accessible name.
+    expect(screen.getByRole('dialog', { name: 'Chốt giá bán — BL-1' })).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Xác nhận thao tác' })).toBeTruthy();
 
     // Spec 23/10: inside a rev group Lô 1 holds 100% — the crown takes the
     // money with it (money conserved on the promoted lot).
@@ -334,17 +341,17 @@ describe('FB-145 — Tách nhóm: skeleton cell cước + toast [Hoàn tác] re-
 
     await waitFor(() => expect(unmergeGroup).toHaveBeenCalled());
     // FB-145 (redesign 23/10 face), 24/10 blank-pending law: while the
-    // refresh is in flight the money cell reads EMPTY — the pre-tách 0₫ must
-    // never repaint, and no pill stands in for data.
+    // refresh is in flight the REV2 freight cell reads EMPTY — the pre-tách
+    // 0₫ must never repaint, and no pill stands in for data.
     await waitFor(() => {
       const bl2Cell = (screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row')!)
-        .querySelector('td[data-col="receivable"]')!;
+        .querySelector('td[data-col="freight"]')!;
       expect(bl2Cell.textContent).toBe('');
     });
 
     // Release: the fresh board lands, the restored cước renders.
     releaseRefetch!(unmergedPair());
-    expect(await screen.findByText(formatMoney(700000))).toBeTruthy();
+    expect((await screen.findAllByText(formatMoney(700000))).length).toBeGreaterThan(0);
   });
 
   it('toast [Hoàn tác]: bấm trong cửa sổ 5–8s → re-merge đúng thứ tự + loại xe nhóm', async () => {

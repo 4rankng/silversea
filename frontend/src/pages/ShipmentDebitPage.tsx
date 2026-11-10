@@ -13,6 +13,7 @@ import { ApiError } from '../lib/api';
 import { qk } from '../api/keys';
 import { formatMoney, formatWeight, formatVolumeCbm } from '../lib/format';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
+import { Drawer } from '../components/UI';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { Button as UUIButton } from '../components/untitled-ui/base/buttons/button';
@@ -21,6 +22,8 @@ import { EmptyState } from '../design-system';
 import { ShipmentDebitRibbon } from '../features/shipments/ShipmentDebitRibbon';
 import { DebitLotTable } from '../features/shipments/debit/DebitLotTable';
 import { ShipmentDebitRecords } from '../features/shipments/debit/ShipmentDebitRecords';
+import { DebitLotLclFacts } from '../features/shipments/debit/DebitLotLclFacts';
+import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
 import { ExpenseCreateDrawer } from '../features/expense-accounting/ExpenseCreateDrawer';
 import { expenseAccountingClient } from '../api/expenseAccountingClient';
@@ -48,11 +51,13 @@ function overlappingLotCodesFrom(cause: unknown): string[] | null {
  *  phone summary strip (owner redesign 23/10: a settlement board MUST show
  *  its totals; gate asserts they equal the sum of the rendered cells). */
 function listTotals(items: ShipmentDebitLotRow[]) {
+  // REV2 — revenue-only totals (giá vốn ẩn khỏi bảng quyết toán CUS).
   return {
     count: items.length,
+    freight: sumMoneyStates(items.map((row) => moneyState(row.freightAuto))),
+    chihoSell: sumMoneyStates(items.map((row) => moneyState(row.chiHoSellTotal ?? null))),
+    serviceSell: sumMoneyStates(items.map((row) => moneyState(row.serviceSellTotal ?? null))),
     receivable: sumMoneyStates(items.map((row) => moneyState(row.receivableTotal))),
-    payable: sumMoneyStates(items.map((row) => moneyState(row.payableTotal))),
-    profit: sumMoneyStates(items.map((row) => moneyState(row.profit))),
   };
 }
 
@@ -450,9 +455,10 @@ export function ShipmentDebitPage() {
               <>
                 <p className="shipment-debit-totals shipment-debit-totals--phone" data-testid="shipment-debit-totals-mobile">
                   <span className="shipment-debit-totals__label">{`Tổng (${totals.count} lô)`}</span>
-                  <span>DT {totals.receivable == null ? '—' : formatMoney(totals.receivable)}</span>
-                  <span>TChi {totals.payable == null ? '—' : formatMoney(totals.payable)}</span>
-                  <span>LN {totals.profit == null ? '—' : formatMoney(totals.profit)}</span>
+                  <span>Cước {totals.freight == null ? '—' : formatMoney(totals.freight)}</span>
+                  <span>Chi hộ {totals.chihoSell == null ? '—' : formatMoney(totals.chihoSell)}</span>
+                  <span>Dịch vụ {totals.serviceSell == null ? '—' : formatMoney(totals.serviceSell)}</span>
+                  <span>Thu khách {totals.receivable == null ? '—' : formatMoney(totals.receivable)}</span>
                 </p>
                 <ShipmentDebitRecords key={JSON.stringify([customerId, deliveryFrom, deliveryTo, lockStatus])}
                   rows={items} canManage={canManage} mergeMode={mergeMode} selectedIds={selectedIds} expandedId={expandedId}
@@ -473,13 +479,43 @@ export function ShipmentDebitPage() {
                 selectedIds={selectedIds}
                 expandedId={expandedId}
                 onToggle={toggleExpandedLot}
-                onSaved={() => { void summary.refetch(); }}
                 onUnmerged={refreshRates}
                 ratesRefreshing={ratesRefreshing}
-                plateOptions={plateOptions}
                 onSelect={selectLot}
               />
             )}
+            {/* REV2 (ticket-v2 Phần VI mục 2) — clicking a lot opens the
+                Chốt giá bán SIDE DRAWER (flat list + drawer architecture;
+                the expandable 2-layer row is retired). It hosts the same
+                L2 workspace minus Bảng 2.3 payables — the CUS surface never
+                carries giá vốn; cost work lives on chot-debit. */}
+            {(() => {
+              // The open lot id survives a reload via sessionStorage (card _11);
+              // the L2 workspace stays manage-only (the read-only Alert law) —
+              // a reader's stale stored id must never mount the detail query.
+              const drawerLot = (canManage ? items.find((row) => row.shipmentId === expandedId) : undefined) ?? null;
+              if (drawerLot == null) return null;
+              return (
+                <Drawer
+                  isOpen
+                  onClose={() => toggleExpandedLot(drawerLot.shipmentId)}
+                  title={`Chốt giá bán — ${lotLabelOf(drawerLot) === '—' ? drawerLot.code : lotLabelOf(drawerLot)}`}
+                  className="shipment-debit-drawer"
+                  expandable
+                >
+                  {drawerLot.cargoMode === 'LCL' && (
+                    <DebitLotLclFacts row={drawerLot} plateOptions={plateOptions} onChanged={() => void summary.refetch()} />
+                  )}
+                  <ShipmentDebitWorkspace
+                    shipmentId={drawerLot.shipmentId}
+                    customerId={drawerLot.customerId}
+                    locked={drawerLot.lockStatus === 'LOCKED'}
+                    lotCode={drawerLot.code}
+                    onSaved={() => { void summary.refetch(); }}
+                  />
+                </Drawer>
+              );
+            })()}
             {/* Scroll cue (card 20260924_9): the table's 1348px floor scrolls
                 sideways below that width. At ≤640 the phone record cards
                 render instead, so no cue is needed there. */}

@@ -1,0 +1,28 @@
+▶ SIL-769 — biên lai photo mandatory for exactly Phí Nâng / Phí Hạ / Lưu vỏ
+  ✔ exactly three fees mandate the photo: LIFTING, LOWERING, YARD_STORAGE (18.178958ms)
+  ✔ the three codes are real catalog lot-cost rows — the mapping is not invented (0.197291ms)
+  ✔ sibling lot fees and absent refs stay optional (0.151792ms)
+  ✔ the BE write path keys the photo rule on the shared set and names the fee (0.459667ms)
+  ✔ the FE gate mirrors the same shared helper — no local re-declaration (35.589792ms)
+✔ SIL-769 — biên lai photo mandatory for exactly Phí Nâng / Phí Hạ / Lưu vỏ (76.3435ms)
+✔ SIL-748: the expense declaration create flow admits Role.CUS alongside Role.OPS (0.508042ms)
+✔ SIL-748: edit/delete of saved expenses stay OPS-only (0.110333ms)
+▶ parseOpsMoney — Ops chi phí nonneg money guard (card 211026213838)
+  ✔ accepts positive integer VND inside the ceiling, as number or digit string (29.586ms)
+  ✔ rejects a negative amount with the named message (0.64175ms)
+  ✔ still rejects 0 as an empty row (0.200958ms)
+  ✔ keeps the non-integer and ceiling refusals (0.19ms)
+  ✔ a custom field name rides the refusal messages (0.1735ms)
+✔ parseOpsMoney — Ops chi phí nonneg money guard (card 211026213838) (189.444042ms)
+✔ SIL-770: the Ops picker drops every driver-only cost code (119.898791ms)
+✔ SIL-770: Ops fees (Kiểm hóa/Luồng đỏ/Bốc xếp/Nâng/Hạ/CSHT/Lưu bãi) stay declarable (0.232792ms)
+✔ SIL-770: the catalog endpoint applies the filter (source pin) (3.365375ms)
+ℹ tests 15
+ℹ suites 2
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11046.074167
+EXIT=0

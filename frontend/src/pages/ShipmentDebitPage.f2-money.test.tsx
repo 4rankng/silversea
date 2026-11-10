@@ -118,15 +118,16 @@ describe('F-2 — Cước vận tải (Auto) đọc kênh ghi đè (ruling b)', 
     renderPage();
     await screen.findAllByText('BL-P');
 
-    // SIL-546 (spec 23/10 §4.2): the member's note graduated from the
-    // one-glyph icon to the VISIBLE merge tag «Ghép thu cước cùng Lô 1» on
-    // the Doanh thu cell; the tag's tooltip still carries the full F-2
-    // reason ("Ghép cước cùng Bill BL-P" — the trip-less member's live
-    // group-citation note).
+    // SIL-546 (spec 23/10 §4.2), REV2 placement: the member's note graduated
+    // to the VISIBLE merge tag «Ghép thu cước cùng Lô 1» and rides the
+    // Cước vận tải (Auto) cell — the freight column is where the merged
+    // 0₫ lane lives on the flat board. The tag's tooltip still carries the
+    // full F-2 reason ("Ghép cước cùng Bill BL-P" — the trip-less member's
+    // live group-citation note).
     const tag = screen.getByText('Ghép thu cước cùng Lô 1');
     expect(tag.getAttribute('title')).toBe('Ghép cước cùng Bill BL-P');
     const cell = tag.closest('td')!;
-    expect(cell.getAttribute('data-col')).toBe('receivable');
+    expect(cell.getAttribute('data-col')).toBe('freight');
     // The member's money reads the real computed 0 (đã tính, = 0).
     expect(cell.textContent).toContain('0');
 
