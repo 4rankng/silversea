@@ -1,10 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient, type DriverIncidentalCostItem, type DriverIncidentalCostView } from '../../api/driverClient';
-import { qk } from '../../api/keys';
 import { businessDateISO } from '../../lib/format';
-import { driverExpenseOption, driverExpenseOptions } from './driver-expense-options';
+import { DRIVER_EXPENSE_OPTIONS, driverExpenseOption, driverLotCostInvoiceClass } from './driver-expense-options';
 
 export type DriverEvidenceKind = 'INVOICE' | 'RECEIPT';
 
@@ -14,15 +12,19 @@ export interface DriverExpenseDraft {
   // Card 141026230700 — Số/Ngày hóa đơn rời màn lái xe: chứng từ là ảnh biên
   // lai (bắt buộc với mọi dòng lô hàng), kế toán đọc số trên ảnh ở màn phơi
   // phiếu. Draft không còn trường invoiceNumber/invoiceDate.
-  option: string; amount: number | ''; occurredAt: string; note: string;
-  feeName: string; evidenceKind: DriverEvidenceKind; receiptStorageKey: string | null;
+  // SIL-759 — lot-only draft row: no evidenceKind (derived from the catalog at
+  // save), no per-row note, no driver-picked date (occurredAt is system-set).
+  option: string; amount: number | ''; occurredAt: string;
+  feeName: string; receiptStorageKey: string | null;
 }
 
-const blankDraft = (): DriverExpenseDraft => ({ option: 'lift', amount: '', occurredAt: businessDateISO(), note: '', feeName: '', evidenceKind: 'RECEIPT', receiptStorageKey: null });
+const blankDraft = (): DriverExpenseDraft => ({ option: 'lift', amount: '', occurredAt: businessDateISO(), feeName: '', receiptStorageKey: null });
 
 export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
-  const norms = useQuery({ queryKey: qk.driverFeeNorms, queryFn: driverClient.getFeeNorms, staleTime: 60_000, refetchOnWindowFocus: false });
-  const options = driverExpenseOptions(norms.data?.items ?? []);
+  // SIL-759 — the driver add form is LOT-ONLY (Phí nâng, Phí hạ, Lưu kho/bãi,
+  // Khác…): the Tiền đường bucket is system money the driver only views, so
+  // the fee-norm catalog fetch that fed the old road dropdown is gone.
+  const options = DRIVER_EXPENSE_OPTIONS;
   const [entries, setEntries] = useState<DriverIncidentalCostView[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -107,21 +109,19 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
       if (row.amount === '' || !Number.isSafeInteger(row.amount) || row.amount === 0 || Math.abs(row.amount) > 999_999_999_999_999) {
         setError(`Dòng ${index + 1}: Nhập số tiền nguyên, tối đa 999.999.999.999.999đ (0 không dùng được).`); return;
       }
-      const option = options.find(item => item.code === row.option);
-      if (!option) { setError(`Dòng ${index + 1}: Định mức đã thay đổi. Chọn lại loại chi phí trước khi lưu.`); return; }
-      // One draft row → one batch item. Only LOT costs (`DRIVER_SHIPMENT`)
-      // carry the evidence classification (Hóa đơn / Phiếu thu) — the road
-      // bucket keeps its old contract (no evidence kind, never an invoice).
-      // Card 141026230700 — the typed invoice pair is GONE from the driver
-      // surface: the biên lai photo is the paper, accounting reads numbers off
-      // it at phơi phiếu, so the driver payload never carries them.
+      const option = DRIVER_EXPENSE_OPTIONS.find(item => item.code === row.option);
+      if (!option) { setError(`Dòng ${index + 1}: Loại chi phí không còn trong danh mục. Chọn lại trước khi lưu.`); return; }
+      // One draft row → one batch item. SIL-759 — the form offers lot rows
+      // only; the paper kind follows the CATALOG's own invoiced classification
+      // (INVOICED ⇒ INVOICE, else RECEIPT) instead of a driver-picked tick —
+      // the same classification the server applies on the receivable side.
       const lotCost = option.group === 'DRIVER_SHIPMENT';
       items.push({
         ...(option.expenseTypeCode ? { expenseTypeCode: option.expenseTypeCode } : {}),
         ...(option.feeNormCode ? { feeNormCode: option.feeNormCode } : {}),
         costType: option.type, costGroup: option.group, feeName: row.feeName.trim() || option.label,
-        amount: row.amount, occurredAt: row.occurredAt, note: row.note.trim() || undefined,
-        ...(lotCost ? { evidenceKind: row.evidenceKind } : {}),
+        amount: row.amount, occurredAt: row.occurredAt,
+        ...(lotCost ? { evidenceKind: (driverLotCostInvoiceClass(option.expenseTypeCode) === 'INVOICED' ? 'INVOICE' : 'RECEIPT') as DriverEvidenceKind } : {}),
         receiptStorageKey: row.receiptStorageKey ?? undefined });
     }
     // Idempotency discipline unchanged: the key is regenerated the moment the
@@ -141,7 +141,7 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
   const draft = drafts[drafts.length - 1] ?? blankDraft();
   const patch = (next: Partial<DriverExpenseDraft>) => patchDraft(drafts.length - 1, next);
   function chooseOption(code: string) { chooseOptionFor(drafts.length - 1, code); }
-  return { options, norms, entries, loading, loadError, refresh,
+  return { options, entries, loading, loadError, refresh,
     drafts, addDraft, removeDraft, patchDraft, chooseOptionFor,
     draft, patch, chooseOption, upload,
     open, setOpen, busy, uploading: uploadingIndex != null, uploadingIndex, pendingFile, discardPendingFile: () => setPendingFile(null), error, cancel, save };

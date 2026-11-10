@@ -82,6 +82,7 @@ const detail: ShipmentEditDetail = {
     cargoMode: 'FCL',
     operationalSiteId: null,
     pickupWarehouseSiteId: null,
+    additionalPickupWarehouses: [],
     factoryName: null,
     shippingLineName: 'Maersk',
     customsCutoffAt: null,

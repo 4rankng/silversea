@@ -1113,12 +1113,19 @@
   {
    "idx": 159,
    "version": "7",
+   "when": 1794214800000,
+   "tag": "20261109090000_shipment_pickup_warehouses",
+   "breakpoints": true
+  },
+  {
+   "idx": 160,
+   "version": "7",
    "when": 1794224400000,
    "tag": "20261109100000_invoice_tracking_combined_sync",
    "breakpoints": true
   },
   {
-   "idx": 160,
+   "idx": 161,
    "version": "7",
    "when": 1794228000000,
    "tag": "20261109110000_deposit_tracker_category",

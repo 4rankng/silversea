@@ -149,6 +149,15 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     operationalSiteId: isLcl ? idString(shipment.operationalSiteId) : '',
     pickupWarehouseSiteId: isLcl ? idString(shipment.pickupWarehouseSiteId) : '',
     pickupWarehouseName: isLcl && shipment.pickupWarehouseSiteId == null ? warehouseFreeText : '',
+    // SIL-765 — the additional "Kho lấy hàng" points round-trip through the
+    // edit form: a site row prefills its catalog id (the picker resolves the
+    // label), a typed row keeps its text. FCL lots carry none.
+    extraPickupWarehouses: isLcl
+      ? (shipment.additionalPickupWarehouses ?? []).map((row) => ({
+        siteId: row.siteId != null ? String(row.siteId) : '',
+        name: row.siteId != null ? '' : row.name ?? '',
+      }))
+      : [],
     customsCutoffAt: formatVietnamDateTimeInput(shipment.customsCutoffAt),
     closingAt: formatVietnamDateTimeInput(shipment.closingAt),
     plannedReturnAt: formatVietnamDateTimeInput(shipment.plannedReturnAt),

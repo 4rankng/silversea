@@ -30,6 +30,7 @@ import {
   assertShipmentMasterRefsExist,
   findShipmentReferenceConflict,
   throwShipmentReferenceConflict,
+  writeShipmentPickupWarehousesInTx,
 } from './shipment-lifecycle-shared.service';
 
 /**
@@ -182,6 +183,10 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     reason: 'Tạo lô hàng',
     changedBy: input.createdBy ?? null,
   });
+
+  // SIL-765 — additional "Kho lấy hàng" points (2..N) land in the SAME tx so
+  // a rolled-back create never strands orphan point rows.
+  await writeShipmentPickupWarehousesInTx(tx, shipment.id, input.additionalPickupWarehouses);
 
   // Card 20260922_6 / 051026231522 — container-deposit intake tick ("có cược"):
   // when the CUS ticked a deposit at intake, the hoàn-cược tracker row lands in

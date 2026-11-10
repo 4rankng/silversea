@@ -42,6 +42,14 @@ export interface ShipmentContainerInput {
   notes?: string | null;
 }
 
+/** SIL-765 (Phần VI Epic 5.2) — one ADDITIONAL "Kho lấy hàng" point (2..N) of
+ *  an LCL lot. Hybrid contract: catalog site XOR typed name (the XOR is
+ *  normalized at the write boundary — a site row keeps name null). */
+export interface ShipmentExtraPickupWarehouseInput {
+  siteId?: number | null;
+  name?: string | null;
+}
+
 export interface UpdateShipmentInput {
   expectedVersion?: number; // Required for optimistic-lock check
   version?: number;
@@ -55,6 +63,8 @@ export interface UpdateShipmentInput {
   cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
   operationalSiteId?: number | null;
   pickupWarehouseSiteId?: number | null;
+  /** SIL-765 — `undefined` keeps the stored points; a list REPLACES them all. */
+  additionalPickupWarehouses?: ShipmentExtraPickupWarehouseInput[];
   factoryName?: string | null;
   isCombined?: boolean;
   shippingLineName?: string | null;

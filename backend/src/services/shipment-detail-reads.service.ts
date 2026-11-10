@@ -165,6 +165,15 @@ export interface ShipmentDetail {
     // points instead of the dormant pickup_location/delivery_location columns.
     pickupWarehouseSiteName: string | null;
     pickupWarehouseSiteType: (typeof s.operationalSites.$inferSelect)['siteType'] | null;
+    /** SIL-765 — additional "Kho lấy hàng" points (2..N) in display order;
+     *  `siteName` is the catalog short name when the row picked a site. */
+    additionalPickupWarehouses: Array<{
+      id: number;
+      siteId: number | null;
+      siteName: string | null;
+      name: string | null;
+      position: number;
+    }>;
     // Route display label with the SAME authority the overview rows show
     // (list joins coalesce(container.routeId, shipment.routeId), then the
     // ad-hoc rawRouteName) — without it a container-less LCL lot displays its
@@ -364,6 +373,34 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     .leftJoin(s.cargoTypes, eq(s.cargoTypes.id, s.shipments.cargoTypeId))
     .leftJoin(detailPickupWarehouseSite, eq(s.shipments.pickupWarehouseSiteId, detailPickupWarehouseSite.id))
     .where(eq(s.shipments.id, id));
+  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, freightRate, hasLiveTrips, additionalPickupWarehouses] = await Promise.all([
+    listShipmentContainers(id),
+    listShipmentDocuments(id),
+    listShipmentDeclarations(id),
+    listShipmentStatusHistory(id),
+    listPendingShipmentChangeRequests(id),
+    listShipmentPodReviewItems(id),
+    listShipmentCarrierAssignments(id),
+    getShipmentAccountingLock(id),
+    getShipmentFreightRateView(id),
+    shipmentHasLiveTrips(id),
+    // SIL-765 — the lot's ADDITIONAL "Kho lấy hàng" points (2..N), short-name
+    // authority on the site like the primary point above.
+    db.select({
+      id: s.shipmentPickupWarehouses.id,
+      siteId: s.shipmentPickupWarehouses.siteId,
+      // Same short-name authority as the primary point (operationalName
+      // coalesce) — a kho with an empty short_name must not vanish from the
+      // detail join.
+      siteName: operationalName(s.operationalSites.shortName, s.operationalSites.name),
+      name: s.shipmentPickupWarehouses.name,
+      position: s.shipmentPickupWarehouses.position,
+    })
+      .from(s.shipmentPickupWarehouses)
+      .leftJoin(s.operationalSites, eq(s.operationalSites.id, s.shipmentPickupWarehouses.siteId))
+      .where(eq(s.shipmentPickupWarehouses.shipmentId, id))
+      .orderBy(asc(s.shipmentPickupWarehouses.position)),
+  ]);
   const shipmentWithCustomer = {
     ...shipment,
     // Hybrid display (MasterDataNhaMay §2.1 rule 4): the raw free-text name
@@ -376,19 +413,10 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     // stored free text and finally '—'.
     pickupWarehouseSiteName: joined?.pickupWarehouseSiteName ?? null,
     pickupWarehouseSiteType: joined?.pickupWarehouseSiteType ?? null,
+    // SIL-765 — kho lấy hàng bổ sung (điểm 2..N) của cùng lô; [] khi lô chỉ
+    // có một điểm bốc hàng như trước.
+    additionalPickupWarehouses,
   };
-  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, freightRate, hasLiveTrips] = await Promise.all([
-    listShipmentContainers(id),
-    listShipmentDocuments(id),
-    listShipmentDeclarations(id),
-    listShipmentStatusHistory(id),
-    listPendingShipmentChangeRequests(id),
-    listShipmentPodReviewItems(id),
-    listShipmentCarrierAssignments(id),
-    getShipmentAccountingLock(id),
-    getShipmentFreightRateView(id),
-    shipmentHasLiveTrips(id),
-  ]);
   const decoratedContainers = await decorateContainersWithPortNames(
     await decorateContainersWithPairKind(
       id,

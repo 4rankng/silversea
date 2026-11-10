@@ -78,4 +78,33 @@ describe('resolveLiftDropPoints', () => {
       dropFallback: 'Cảng hạ gõ tay',
     })).toEqual({ lift: 'Cảng A · Cảng B', drop: 'Cảng hạ gõ tay' });
   });
+
+  // SIL-765 — the LCL kho side renders EVERY pickup warehouse of the lot:
+  // primary first, then the additional points, same ' · ' join as the FCL side.
+  it('SIL-765: joins the extra kho names onto the warehouse side by direction', () => {
+    expect(resolveLiftDropPoints({
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      warehouseName: 'ICD Hà Nội',
+      extraWarehouseNames: ['Kho Cát Lái', 'Kho gõ tay Q7'],
+      factoryName: 'Nhà máy Resolve',
+    })).toEqual({ lift: 'ICD Hà Nội · Kho Cát Lái · Kho gõ tay Q7', drop: 'Nhà máy Resolve' });
+    expect(resolveLiftDropPoints({
+      cargoMode: 'LCL',
+      tradeDirection: 'EXPORT',
+      warehouseName: 'ICD Hà Nội',
+      extraWarehouseNames: ['Kho Cát Lái'],
+      factoryName: 'Nhà máy Resolve',
+    })).toEqual({ lift: 'Nhà máy Resolve', drop: 'ICD Hà Nội · Kho Cát Lái' });
+  });
+
+  it('SIL-765: no extras keeps the single warehouse point (and blanks collapse)', () => {
+    expect(resolveLiftDropPoints({
+      cargoMode: 'LCL',
+      tradeDirection: 'IMPORT',
+      warehouseName: 'ICD Hà Nội',
+      extraWarehouseNames: [null, '  '],
+      factoryName: 'Nhà máy Resolve',
+    })).toEqual({ lift: 'ICD Hà Nội', drop: 'Nhà máy Resolve' });
+  });
 });

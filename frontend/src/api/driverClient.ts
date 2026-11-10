@@ -686,8 +686,6 @@ export const driverClient = {
     );
   },
 
-  getFeeNorms: () => api.get<{ items: Array<{ code: string; label: string; amount: string | number }> }>('/driver/me/fee-norms'),
-
   createIncidentalCost: async (
     tripId: number,
     body: { feeNormCode?: string; expenseTypeCode?: string; costType: DriverIncidentalCostType; amount: number; occurredAt: string; note?: string; receiptStorageKey?: string; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD'; feeName?: string; invoiceNumber?: string; invoiceDate?: string },

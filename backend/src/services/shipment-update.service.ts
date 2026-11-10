@@ -34,6 +34,7 @@ import {
   assertShipmentMasterRefsExist,
   findShipmentReferenceConflict,
   throwShipmentReferenceConflict,
+  writeShipmentPickupWarehousesInTx,
 } from './shipment-lifecycle-shared.service';
 
 export async function updateShipment(
@@ -260,6 +261,11 @@ export async function updateShipment(
     // containers onto the combined invoice board in the same transaction.
     // Idempotent — non-combined lots and unchanged lots no-op inside.
     await syncCombinedInvoiceTrackingInTx(tx, id, input.updatedBy ?? actor?.userId ?? null);
+
+    // SIL-765 — `undefined` keeps the stored points; a sent list REPLACES all
+    // of them (the edit form always submits the full list, [] clears) in the
+    // same tx as the metadata save.
+    await writeShipmentPickupWarehousesInTx(tx, id, input.additionalPickupWarehouses);
 
     if (revertsToPendingDate) {
       await tx.insert(s.shipmentStatusHistory).values({
