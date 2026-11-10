@@ -1,0 +1,3 @@
+# merge-1 related vitest GREEN rerun (after 3 test fixes)
+# cmd: cd frontend && pnpm exec vitest run src/styles/table-no-truncation.styles.test.ts src/components/trip/ShipmentCostEntryDraft.test.tsx src/components/trip/ShipmentCostEntryForm.test.tsx
+# exit=0  Test Files 3 passed (3)  Tests 52 passed (52)

@@ -63,15 +63,20 @@ describe('driver cost draft table — derived evidence kind + all-or-nothing bat
     expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceDate).toBeUndefined();
   });
 
-  it('SIL-759: a no-invoice lot fee derives RECEIPT from the catalog, photo still mandatory', async () => {
+  it('SIL-759 + SIL-769: a no-invoice lot fee derives RECEIPT from the catalog and saves without a photo', async () => {
+    // SIL-759 keeps the catalog derivation (CONTAINER_WELD is catalog
+    // no-invoice ⇒ RECEIPT). SIL-769 (customer CR-006 2B) narrows the photo
+    // mandate to exactly LIFTING/LOWERING/YARD_STORAGE — 'Hàn container' is
+    // NOT one of the three photo-mandatory fees, so the row saves WITHOUT a
+    // biên lai and never blocks the batch.
     setup(); await openForm();
     await chooseRowOption(0, 'Hàn container');
     fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '500000' } });
-    expect(screen.getByRole('button', { name: 'Lưu tất cả (1 dòng)' })).toBeDisabled();
-    await attachReceipt(0, 'receipt.png');
+    expect(screen.getByRole('button', { name: 'Lưu tất cả (1 dòng)' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Lưu tất cả (1 dòng)' }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ evidenceKind: 'RECEIPT', expenseTypeCode: 'CONTAINER_WELD', amount: 500000, receiptStorageKey: 'receipt.png' });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ evidenceKind: 'RECEIPT', expenseTypeCode: 'CONTAINER_WELD', amount: 500000 });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0].receiptStorageKey).toBeUndefined();
     expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceNumber).toBeUndefined();
     expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceDate).toBeUndefined();
   });
