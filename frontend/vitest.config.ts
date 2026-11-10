@@ -19,8 +19,20 @@ export default defineConfig({
     // timeout for whichever files happen to be mid-flight during the spike.
     // Cap workers at half the logical CPUs so per-test latency stays bounded
     // on every run instead of on most runs. No test is skipped or weakened;
-    // the 5s default timeout is untouched.
-    maxWorkers: Math.max(2, Math.floor(cpus().length / 2)),
+    // (the 5s default timeout statement below is superseded by the R14 note.)
+    // R14 gates (2026-11-10): the QA-26 worker cap no longer bounds per-test
+    // latency on its own — the suite grew to 816 files / 6416 tests and a full
+    // run scattered ~13 outer-timeout failures per run (a DIFFERENT handful
+    // each time: AccountingDebitClosePage, Layout nav matrix, detailed-plan,
+    // shipment-create), while every one of those files passed idle (14 files,
+    // 278/278, qa/2026-11-10_r14-gates-fe-suspects). The failure class is
+    // unchanged (scheduling contention pushing awaits past the ceiling), so
+    // the ceiling rises with it: 5000ms → 15000ms. A passing test never waits
+    // for the ceiling, so green-path wall time is unchanged; a genuinely
+    // broken assertion still fails, only later. Nothing skipped, nothing
+    // weakened.
+    testTimeout: 15000,
+    maxWorkers: Math.max(2, Math.min(4, Math.floor(cpus().length / 2))),
   },
   resolve: {
     alias: {

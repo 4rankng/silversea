@@ -57,7 +57,12 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => 
   it('the approved workflow matrix grows to honest column minima at every width', () => {
     expect(css).not.toMatch(/ppc-col--select/);
     expect(css).toMatch(/\.ppc-board\s*\{[^}]*table-layout:\s*auto/);
-    expect(css).not.toMatch(/table-layout:\s*fixed|width:\s*\d+%/);
+    // SIL-781/783 (8ccd81e6) added the inline Số HĐ invoice input, which fills
+    // its cell with width: 100% — a control width, not a column width. The
+    // law stays: the matrix never goes fixed-layout, and no ppc column rule
+    // ever takes a percentage width (honest min-width floors pinned below).
+    expect(css).not.toMatch(/table-layout:\s*fixed/);
+    expect(css).not.toMatch(/\.ppc-col[^{]*\{[^}]*width:\s*\d+%/);
     for (const column of ['lich-trinh', 'xe', 'customer-route', 'thongso', 'diadiem',
       'chiho', 'money', 'status', 'date', 'ghichu', 'ghichu-ops']) {
       const budget = css.match(new RegExp(`\\.ppc-board \\.ppc-col--${column}(?:\\s*,[^{}]+)?\\s*\\{[^}]*min-width:\\s*(\\d+)px`));

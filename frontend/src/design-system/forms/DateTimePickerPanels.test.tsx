@@ -146,7 +146,10 @@ describe('DateTimePickerDialog (_43 P0 rework: split NGÀY/GIỜ, compact)', () 
     expect(screen.queryByRole('dialog', { name: 'Chọn giờ (24h) — Hẹn' })).toBeNull();
     expect(screen.getByRole('textbox', { name: 'Giờ — Hẹn' })).toHaveAttribute('aria-expanded', 'false');
     expect(onChange).not.toHaveBeenCalled();
-  });
+  // Full-suite runs (4 workers on a 4-performance-core host) pushed this
+  // multi-wait chain past the 15s ceiling while idle and retried runs stay
+  // green; the ceiling is headroom, not an assertion change.
+  }, 25_000);
 
   it('Alt+ArrowDown opens the field picker; Escape closes only the picker and never submits the parent', async () => {
     const submitted = vi.fn();

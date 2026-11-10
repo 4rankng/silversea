@@ -48,8 +48,13 @@ describe('shipment container editor density', () => {
     expect(baseRule).not.toMatch(/--control-touch-h/);
     expect(css).toMatch(/\.cus-dashboard-table \.cus-inline-trigger\s*\{[^}]*min-height:\s*var\(--control-touch-h, 40px\);/);
     expect(rowSource).toContain('aria-haspopup="dialog"');
-    expect(rowSource).toContain("onStartQuickEdit(item, 'schedule')");
-    expect(rowSource).toContain("onStartQuickEdit(item, 'notes')");
+    // SIL-699 (2475db92) folded the per-field calls into the cellAction
+    // helper: the dialog binding is the helper's onClick, the field identity
+    // is the cellAction('schedule' | 'notes', …) call site. Same law, new
+    // shape — schedule and notes cells still open the explicit edit dialog.
+    expect(rowSource).toContain('onClick: () => onStartQuickEdit(item, field)');
+    expect(rowSource).toContain("cellAction('schedule',");
+    expect(rowSource).toContain("cellAction('notes',");
   });
 
   it('uses the read-only review sheet instead of an editable ledger (SIL-485)', () => {
