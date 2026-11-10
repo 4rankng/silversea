@@ -1,0 +1,10 @@
+== shared build ==
+EXIT=0
+== backend tsc ==
+EXIT=0
+== frontend tsc -b ==
+EXIT=0
+== root lint ==
+EXIT=0
+== make build ==
+EXIT=0

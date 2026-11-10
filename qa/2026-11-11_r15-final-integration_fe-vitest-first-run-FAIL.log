@@ -1,0 +1,91 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/r15-fix/frontend
+
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/pages/ShipmentContainersPage.test.tsx (52 tests | 1 failed) 176377ms
+     × opens value-cell editors with click, Enter, and Space without pencil controls 15360ms
+ ❯ src/components/trip/ShipmentCostEntryForm.test.tsx (29 tests | 1 failed) 13004ms
+     × card 163 → SIL-769: an invoiced lot-cost fee carries its catalog code, no typed invoice, photo OPTIONAL 925ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+ ❯ src/styles/numeric-identity.styles.test.ts (6 tests | 2 failed) 49ms
+     × the production bundle holds the numeric law on the amount cells 4ms
+     × the production bundle holds the numeric law on the expense register cells 2ms
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+Not implemented: navigation to another Document
+calls=0
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the amount cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:31:13
+     29|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     30|     if (!existsSync(distAssets)) {
+     31|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     32|     }
+     33|     const sharedChunk = readdirSync(distAssets).find((f) => f.startsWi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/styles/numeric-identity.styles.test.ts > QA-AUDIT-UI-22 numeric identity values > the production bundle holds the numeric law on the expense register cells
+Error: dist/assets missing — run `pnpm --dir frontend build` first; this contract pins the production CSS, not the source.
+ ❯ src/styles/numeric-identity.styles.test.ts:66:13
+     64|     const distAssets = resolve(process.cwd(), 'dist/assets');
+     65|     if (!existsSync(distAssets)) {
+     66|       throw new Error('dist/assets missing — run `pnpm --dir frontend …
+       |             ^
+     67|     }
+     68|     // The Money component itself is the law's rendering: the built `.…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/pages/ShipmentContainersPage.test.tsx > ShipmentContainersPage — DOCX container workboard > opens value-cell editors with click, Enter, and Space without pencil controls
+Error: Test timed out in 15000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ src/pages/ShipmentContainersPage.test.tsx:443:3
+    441|   });
+    442|
+    443|   it('opens value-cell editors with click, Enter, and Space without pe…
+       |   ^
+    444|     // Endpoint-aware (not queued): each editor open re-fetches its sh…
+    445|     // detail, and the exact call count across the four phases is inci…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/components/trip/ShipmentCostEntryForm.test.tsx > driver expense workflow — TC-CP-LX > card 163 → SIL-769: an invoiced lot-cost fee carries its catalog code, no typed invoice, photo OPTIONAL
+AssertionError: expected { …(8) } to match object { …(4) }
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "costGroup": "DRIVER_SHIPMENT",
+-   "evidenceKind": "INVOICE",
++   "evidenceKind": "RECEIPT",
+    "expenseTypeCode": "FEE_CLEANING",
+    "feeName": "Phí vệ sinh",
+  }
+
+ ❯ src/components/trip/ShipmentCostEntryForm.test.tsx:408:59
+    406|     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }…
+    407|     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCa…
+    408|     expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObjec…
+       |                                                           ^
+    409|       expenseTypeCode: 'FEE_CLEANING', evidenceKind: 'INVOICE', costGr…
+    410|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  3 failed | 813 passed (816)
+      Tests  4 failed | 6413 passed (6417)
+   Start at  23:41:27
+   Duration  1675.53s (transform 50.43s, setup 366.88s, import 1859.60s, tests 2587.05s, environment 1617.30s)
+
