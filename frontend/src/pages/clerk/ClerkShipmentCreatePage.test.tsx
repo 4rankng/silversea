@@ -1515,7 +1515,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       fireEvent.click(input);
       fireEvent.click(await screen.findByRole('option', { name: '+ Thêm nhà máy...' }));
     } else {
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${action}`) }));
+      // SIL-765: '+ Thêm kho lấy hàng' (the lot's own repeater button) exists
+      // beside the catalog '+ Thêm kho' — exact name, never a prefix match.
+      fireEvent.click(screen.getByRole('button', { name: action }));
     }
     const dialog = await screen.findByRole('dialog', { name: new RegExp(`^${action}`) });
     if (siteType === 'WAREHOUSE' || siteType === 'FACTORY') {

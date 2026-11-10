@@ -519,6 +519,11 @@ export async function getTripById(id: number) {
     reconciledTollCost: s.tripsComposite.reconciledTollCost,
     tollDeduction: s.tripsComposite.tollDeduction,
     completedAt: s.tripsComposite.completedAt,
+    // SIL-694 — the POD-gốc gate state (trip-status machine 409s the close
+    // while this is null): the trip GET carries the fact so the close modal
+    // can show close readiness and the Kế toán/CUS mark affordance.
+    podRecoveredAt: s.tripsComposite.podRecoveredAt,
+    podRecoveredBy: s.tripsComposite.podRecoveredBy,
     roadAllowanceBaseApplied: s.tripsComposite.roadAllowanceBaseApplied,
     tollPerStationApplied: s.tripsComposite.tollPerStationApplied,
     returnCargoBonusApplied: s.tripsComposite.returnCargoBonusApplied,

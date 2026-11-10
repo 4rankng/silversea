@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { Eye, Plus } from 'lucide-react';
+import { Eye, Plus, Trash2 } from 'lucide-react';
 import type { OperationalSite } from '../../../api/shipmentClient';
 import {
   USearchableField as SearchableField,
@@ -269,6 +269,68 @@ export function ShipmentCreateLclRouteSection({
             style={{ alignSelf: 'start' }}
           >
             <Plus size={15} aria-hidden="true" />Thêm kho
+          </button>
+        </div>
+        {/* SIL-765 (Phần VI Epic 5.2) — additional "Kho lấy hàng" rows: one lô
+            lẻ may lift at MORE than one kho. Each row is the SAME hybrid pick
+            as the primary field (danh mục dùng chung hoặc gõ tay) with its own
+            delete button; [+ Thêm kho lấy hàng] appends a row and is a
+            DIFFERENT control from the "+ Thêm kho" quick-add above (which adds
+            a kho into the shared catalog and stays untouched). */}
+        {form.extraPickupWarehouses.map((row, index) => {
+          const fieldId = `shipment-pickup-warehouse-extra-${index}`;
+          return (
+            <div key={fieldId} data-field-id={fieldId} style={{ display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'stretch' }}>
+              <SearchableField
+                id={fieldId}
+                label={form.tradeDirection === 'EXPORT'
+                  ? 'Kho trả hàng (CFS/Cảng)'
+                  : form.tradeDirection === 'IMPORT'
+                    ? 'Kho lấy hàng (CFS/Cảng)'
+                    : 'Kho lấy hàng'}
+                value={row.siteId}
+                onChange={(value) => update('extraPickupWarehouses', form.extraPickupWarehouses.map((item, i) => (i === index ? { ...item, siteId: value, name: '' } : item)))}
+                options={warehouseSites.map((site) => ({
+                  value: String(site.id),
+                  label: site.shortName || site.name,
+                  searchText: `${site.code} ${site.name} ${site.address ?? ''}`,
+                }))}
+                placeholder={
+                  warehouseSitesLoading
+                    ? 'Đang tải…'
+                    : !form.customerId
+                      ? 'Chọn khách hàng trước'
+                      : 'Chọn hoặc nhập kho CFS lấy hàng...'
+                }
+                disabled={!form.customerId || sitesLoading || warehouseSitesLoading || saving}
+                error={issueByField.get(fieldId)}
+                allowsCustomValue
+                onCustomValue={(text) => update('extraPickupWarehouses', form.extraPickupWarehouses.map((item, i) => (i === index ? { ...item, siteId: '', name: text } : item)))}
+                searchable
+              />
+              <button
+                type="button"
+                onClick={() => update('extraPickupWarehouses', form.extraPickupWarehouses.filter((_, i) => i !== index))}
+                disabled={saving}
+                className="csc-utility-button"
+                style={{ alignSelf: 'start' }}
+                aria-label={`Xóa kho lấy hàng ${index + 2}`}
+                title="Xóa kho lấy hàng"
+              >
+                <Trash2 size={15} aria-hidden="true" />Xóa kho
+              </button>
+            </div>
+          );
+        })}
+        <div data-field-id="shipment-pickup-warehouse-extra-add">
+          <button
+            type="button"
+            onClick={() => update('extraPickupWarehouses', [...form.extraPickupWarehouses, { siteId: '', name: '' }])}
+            disabled={saving}
+            className="csc-utility-button csc-utility-button--dashed"
+            style={{ alignSelf: 'start' }}
+          >
+            <Plus size={15} aria-hidden="true" />Thêm kho lấy hàng
           </button>
         </div>
       </div>

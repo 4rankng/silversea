@@ -1,20 +1,16 @@
 // Pod readiness — the shared e-POD photo facts for the trip detail footer
-// and the e-POD screen. Law map after SIL-733 r2 (07/11):
-//   • Trip-detail sticky CTA (handleCompleteTrip): photos are OPTIONAL
-//     (card 261022213755a, 22/10 — "0 ảnh vẫn hoàn thành chuyến"). An
-//     incomplete DRAFT is NOT auto-submitted there; completeTrip runs.
-//   • Explicit e-POD submit path (DriverTripPodPage): SIL-697 (owner Frank
-//     06/11) stays enforced — both required file types must exist BEFORE the
-//     draft moves to SUBMITTED, with a message naming the missing type.
-// The required-file vocabulary comes from the shared constant the backend
-// review flow uses.
+// and the e-POD screen. Law map after SIL-697's resolution (09/11):
+//   • ALL paths are OPTIONAL (the newest binding decisions win: card
+//     261022213755a, 22/10 — "0 ảnh vẫn hoàn thành chuyến" — plus the
+//     shipped SIL-733 PASS). Nothing blocks completion, and nothing blocks
+//     the e-POD submit.
+//   • What remains of the 06/11 block ruling is its UTILITY half: the UI
+//     still says WHICH files are missing — as a soft warning before the
+//     driver sends ("Thiếu N file e-POD — nên bổ sung") and as the trip-
+//     detail notice. The DRAFT→SUBMITTED freeze is harmless now because
+//     completion never requires e-POD and files can ride any open state.
 import { TRIP_POD_REQUIRED_FILE_TYPES, TripPodFileType } from '@tingting/shared';
 import type { DriverTaskPodSubmission } from '../api/driverClient';
-
-export const POD_FILE_TYPE_LABELS: Record<string, string> = {
-  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Phiếu bãi / phiếu hạ',
-  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Biên bản giao nhận có ký nhận',
-};
 
 export function podRequiredFilesReady(submission: DriverTaskPodSubmission | null) {
   const missing = missingRequiredPodFileTypes(submission);
@@ -30,10 +26,12 @@ export function missingRequiredPodFileTypes(submission: DriverTaskPodSubmission 
   return TRIP_POD_REQUIRED_FILE_TYPES.filter((type) => !present.has(type));
 }
 
-/** The driver-facing refusal when the completion action would submit an
- *  incomplete e-POD. Null when both required file types are present. */
+/** The soft pre-send warning when the completion action or submit would go
+ *  out without both evidence types. Null when both required file types are
+ *  present. SIL-697 resolved 09/11: e-POD files are OPTIONAL — this warns,
+ *  it never blocks. */
 export function missingPodFilesMessage(submission: DriverTaskPodSubmission | null): string | null {
   const missing = missingRequiredPodFileTypes(submission);
   if (missing.length === 0) return null;
-  return `Chưa đủ chứng từ giao hàng. Còn thiếu: ${missing.map((type) => POD_FILE_TYPE_LABELS[type]).join(', ')}. Vui lòng bổ sung đủ hai loại trước khi hoàn thành chuyến.`;
+  return `Thiếu ${missing.length} file e-POD — nên bổ sung.`;
 }

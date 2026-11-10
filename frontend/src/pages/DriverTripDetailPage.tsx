@@ -20,7 +20,7 @@ import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
 import { DriverTaskInfoSections, DriverInvoiceSection, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
 import { EmptyState } from '../design-system';
-import { podRequiredFilesReady, missingRequiredPodFileTypes } from '../lib/podReadiness';
+import { podRequiredFilesReady, missingRequiredPodFileTypes, missingPodFilesMessage } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import { useFixedActionClearance } from '../hooks/useFixedActionClearance';
@@ -510,6 +510,9 @@ function DriverTripDetailContent() {
             <strong>{cancelled ? 'Chuyến đã hủy' : completed ? 'Chuyến đã hoàn thành' : 'Chứng từ giao hàng'}</strong>
             {!closed && (!hasYardReceipt || !hasSignedNote) ? (
               <p className="driver-task-footer__issues" role="list">
+                {/* SIL-697 resolved 09/11 — the trip-detail notice keeps the
+                    soft law wording (files optional, completion never blocks). */}
+                <span role="listitem">{missingPodFilesMessage(currentSubmission)}</span>
                 {!hasYardReceipt && <span role="listitem">Thiếu Phiếu bãi / phiếu hạ</span>}
                 {!hasSignedNote && <span role="listitem">Thiếu Biên bản giao nhận</span>}
               </p>

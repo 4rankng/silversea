@@ -34,6 +34,9 @@ interface PortalShipmentDetail {
     cargoMode: 'FCL' | 'LCL' | null;
     tradeDirection: 'IMPORT' | 'EXPORT' | null;
     pickupWarehouseSiteName: string | null;
+    /** SIL-765 — additional "Kho lấy hàng" points (2..N); siteName wins over
+     *  the typed name for display. */
+    additionalPickupWarehouses?: Array<{ siteId: number | null; siteName: string | null; name: string | null }>;
     effectiveFactoryName: string | null;
     factoryName: string | null;
   };
@@ -162,6 +165,8 @@ export default function PortalShipmentDetailPage() {
     cargoMode: shipment.cargoMode,
     tradeDirection: shipment.tradeDirection,
     warehouseName: shipment.pickupWarehouseSiteName,
+    // SIL-765 — every additional "Kho lấy hàng" of the lot joins the kho side.
+    extraWarehouseNames: (shipment.additionalPickupWarehouses ?? []).map((row) => row.siteName ?? row.name),
     factoryName: shipment.effectiveFactoryName ?? shipment.factoryName,
     containerLiftNames: data.containers.map((container) => container.pickupPortName),
     containerDropNames: data.containers.map((container) => container.dropoffPortName),

@@ -17,6 +17,8 @@ import {
   createRateAdjustmentRequests,
   confirmRateAdjustmentRequests,
   withdrawRateAdjustmentRequests,
+  setShipmentDebitExternalCost,
+  reconcileAndHideDebitLots,
 } from '../services/accounting-debit-close.service';
 import {
   createDebitSettlementRound,
@@ -30,6 +32,15 @@ const OFFICE_ROLES = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 const boardQuerySchema = z.object({
   dateFrom: z.string().date().optional(),
   dateTo: z.string().date().optional(),
+  // SIL-773 — 'true' = hiện cả các dòng đã 'Lưu - Phê duyệt từng dòng và ẩn'
+  // (lịch sử); mặc định chỉ danh sách tác nghiệp.
+  includeHidden: z.enum(['true', 'false']).optional(),
+});
+
+// SIL-773 — body của nút 'Lưu - Phê duyệt từng dòng và ẩn' (theo selection
+// của bảng, cùng trần 200 lô một lượt như chốt đợt/xuất Debit Note).
+const reconcileHideSchema = z.object({
+  shipmentIds: z.array(z.number().int().positive()).min(1, 'Vui lòng chọn ít nhất một lô.').max(200),
 });
 
 const adjustmentRequestSchema = z.object({
@@ -39,6 +50,13 @@ const adjustmentRequestSchema = z.object({
 
 const decisionSchema = z.object({
   requestIds: z.array(z.number().int().positive()).min(1).max(200),
+});
+
+// SIL-771 — 'Chi phí ngoài' kế toán nhập trên bảng Kiểm soát lô hàng. Tiền
+// VND nguyên (numeric(15,0)); null = xoá giá trị (chưa nhập).
+const externalCostSchema = z.object({
+  shipmentId: z.number().int().positive(),
+  chiPhiNgoai: z.number().int().min(0).max(999_999_999_999_999).nullable(),
 });
 
 // Card 20260923_12 — Chọn Debit settlement round: lần/tháng are the accountant's
@@ -59,7 +77,24 @@ const settlementRoundSchema = z.object({
 accountingDebitRoutes.get('/debit-board', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const parsed = boardQuerySchema.safeParse(req.query);
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
-  res.json(await getAccountingDebitBoard(parsed.data));
+  res.json(await getAccountingDebitBoard({ ...parsed.data, includeHidden: parsed.data.includeHidden === 'true' }));
+}));
+
+// SIL-773 — nút 'Lưu - Phê duyệt từng dòng và ẩn': lưu các dòng đã chọn rồi
+// ẩn khỏi danh sách tác nghiệp (vẫn tra được qua includeHidden=true).
+accountingDebitRoutes.post('/debit-board/reconcile-hide', declareMaterialWrite('accounting.debit-board.reconcile-hide', { method: 'POST', path: '/api/accounting/debit-board/reconcile-hide' }), OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const parsed = reconcileHideSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  res.json(await reconcileAndHideDebitLots({ shipmentIds: parsed.data.shipmentIds, userId: user.userId }));
+}));
+
+// SIL-771 — kế toán lưu 'Chi phí ngoài' của một lô (ô nhập trực tiếp trên
+// bảng). Lô đã khóa chi phí / khóa sổ kế toán bị chặn ở service (409).
+accountingDebitRoutes.post('/debit-board/external-cost', declareMaterialWrite('accounting.debit-board.external-cost.set', { method: 'POST', path: '/api/accounting/debit-board/external-cost' }), OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+  const parsed = externalCostSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  res.json(await setShipmentDebitExternalCost(parsed.data));
 }));
 
 accountingDebitRoutes.post('/debit-board/rate-adjustments', declareMaterialWrite('accounting.debit-board.rate-adjustment.request', { method: 'POST', path: '/api/accounting/debit-board/rate-adjustments' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {

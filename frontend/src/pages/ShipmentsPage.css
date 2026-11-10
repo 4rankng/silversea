@@ -581,6 +581,11 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+.cus-multiline-cell .cus-cargo-summary__lcl-sep {
+  flex-shrink: 0;
+  color: var(--ink-2, #344054);
+  font-size: var(--text-caption-size, 11px);
+}
 .cus-multiline-cell .cus-cargo-summary__lcl-badge {
   display: inline-flex;
   align-items: center;

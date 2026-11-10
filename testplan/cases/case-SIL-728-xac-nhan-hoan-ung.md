@@ -50,3 +50,35 @@ siêu âm (refundAmount âm, FB-100) chỉ ghi nhận ý định, KHÔNG di chuy
 
 - (điền sau) BE scoped tests (deficit math pin bằng pure helper) + FE scoped
   tests, qa/2026-11-07-lane-k1/.
+
+## Round 2 — QA fail 09/11 (staging build c4cea6b6, comment 4783) + fix r8a
+
+**Fail thật:** `/advances` dialog chạy được (5.000.000₫ thu hồi qua phiếu),
+nhưng `/accounting/hoan-ung` KHÔNG có nút trên dòng ÂM; bấm dòng không có gì
+xảy ra.
+
+**Root cause (staging data đã probe 09/11, hoapt):** cả 2 dòng QA có
+`outstandingSigned = 0` (Nguyễn Huy Hoàng −420.000₫, Vũ Đình Cường −4.300.000₫
+là `remainingSigned` — trục báo cáo, không phải trục ví). Nghiệp vụ đã tất toán
+qua phiếu legacy `advance_settlements` (PT-2611-0004 +5.000.000₫ cho VĐC,
+PT-2611-0005 và 5 phiếu nữa cho NHH) nên ví = 0, nhưng (a) báo cáo KHÔNG trừ
+consumption của phiếu legacy vào ĐÃ ỨNG → âm ma giữ nguyên mãi; (b) nút per-row
+điều kiện `outstandingSigned < 0` không bao giờ thỏa.
+
+**Fix round 2:**
+1. BE `ops-reconciliation-report.service`: ĐÃ ỨNG (nhánh không lọc đợt) trừ
+   thêm consumption của phiếu legacy (advanceSettlementRequests ×
+   advanceSettlements, loại VOIDED/REVERSED, floor ≥ 0) — báo cáo hội tụ về
+   đúng số sổ sau khi phiếu post (đúng luật card 20260928_168). Sau fix, 2
+   dòng QA đọc đúng trạng thái đã tất toán (không còn âm ma).
+2. FE dòng ÂM `remainingSigned < 0` với ví đã về 0 → nút "Lập phiếu hoàn ứng"
+   mở ĐÚNG dialog "Lập phiếu hoàn ứng" của tab /advances
+   (`AdminAdvanceSettlementCreateDialog`), preselect đúng nhân viên của dòng
+   (thêm prop `initialForwarderId`). Vai ADMIN/ACCOUNTANT (luật SIL-487);
+   MANAGER chỉ đọc.
+3. Dòng có deficit ví thật (`outstandingSigned < 0`) giữ nguyên đường drawer
+   advance-recovery (Idempotency-Key) của round 1 — ưu tiên khi ví còn nắm âm.
+
+**Pins:** BE `ops-reconciliation-report-netting.test.ts`; FE
+`OpsReconciliationReportPage.test.tsx` (4 pins SIL-728: drawer deficit, dialog
+âm-ví-0 prefill staff, dòng dương không nút, MANAGER không thấy nút).

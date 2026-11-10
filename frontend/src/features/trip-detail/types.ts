@@ -44,6 +44,10 @@ export interface TripPermissions {
   canCancel: boolean;
   canDispatch: boolean;
   canComplete: boolean;
+  /** SIL-694 — the POD-gốc mark is the backend's ACCOUNTANT/CUS act
+   *  (POST /trips/:id/pod-recovered allowlist); other closer roles read the
+   *  readiness state and the reason instead of a dead button. */
+  canMarkPodRecovered: boolean;
   canAdjust: boolean;
   canChangeDate: boolean;
   needsPhotos: boolean;
@@ -81,6 +85,8 @@ export interface TripDetailPageData {
   handleAction: (action: string, method: () => Promise<unknown>) => Promise<void>;
   handleChangeDepartureDate: (newDate: string) => Promise<void>;
   openAdjust: () => void;
+  /** SIL-694 — marks the paper POD recovered (Kế toán/CUS), then refetches. */
+  handleMarkPodRecovered: () => Promise<void>;
   handleAdjustSubmit: () => Promise<void>;
   setShowAdjust: (v: boolean) => void;
   setAdjustAmount: (v: string) => void;

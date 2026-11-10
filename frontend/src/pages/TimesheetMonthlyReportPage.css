@@ -7,8 +7,8 @@
  *   Đ  → chữ thường trên nền trắng         (không class)
  *   Q  → chữ XANH   = var(--info-text)     (ts-report__sym--q)
  *   L  → chữ CAM    = var(--warning-text)  (ts-report__sym--l)
- *   P  → nền XÁM NHẠT = var(--surface-2)   (ts-report__cell--p)
- *   N  → NỀN ĐỎ chữ trắng = var(--danger-text) làm nền (ts-report__cell--n)
+ *   P  → nền trắng, chữ đen in hoa — SIL-774 (Bảng 4, khách chốt 09/11/2026)
+ *   N  → NỀN ĐỎ chữ trắng = var(--danger) làm nền — SIL-774 (ts-report__cell--n)
  *   Nghỉ hẳn → cả chuỗi ngày nền đỏ đậm    (ts-report__cell--quit)
  *   Chủ nhật → nền VÀNG dọc cột: không có token vàng trong hệ màu nhà nên
  *   biến cục bộ --ts-sunday-bg là màu dữ-nghiệp-do-spec-quy-định duy nhất của
@@ -53,15 +53,20 @@
   font-weight: var(--fw-semibold);
 }
 
-.ts-report .ts-report__cell--p {
-  background: var(--surface-2);
+/* SIL-774 — quy ước màu khách (Bảng 4): N = nghỉ tai nạn / nghỉ việc gia
+ * đình có phép → ô nền đỏ, chữ trắng; P = nghỉ sửa xe / bảo dưỡng định kỳ
+ * → nền trắng, chữ đen in hoa. */
+.ts-report .ts-report__cell--n {
+  background: var(--danger);
+  color: #fff;
   font-weight: var(--fw-semibold);
 }
 
-.ts-report .ts-report__cell--n {
-  background: var(--danger-text);
-  color: #fff;
+.ts-report .ts-report__cell--p {
+  background: var(--surface);
+  color: var(--ink);
   font-weight: var(--fw-semibold);
+  text-transform: uppercase;
 }
 
 .ts-report .ts-report__cell--sunday {

@@ -395,6 +395,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
       customerId: value,
       pickupWarehouseSiteId: '',
       pickupWarehouseName: '',
+      // SIL-765 — the extra "Kho lấy hàng" rows belong to the previous
+      // intake draft exactly like the primary kho pick above.
+      extraPickupWarehouses: [],
       // FB-105: the typed Nhà máy name belongs to the previous customer's
       // factory just like the site id — reset both, or the stale text
       // satisfies the required check (and lands in delivery_location /
@@ -578,6 +581,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
       // free-text name must not survive into an FCL payload (the root
       // `factoryName` rides the payload for ad-hoc lots of either mode).
       pickupWarehouseName: next === 'FCL' ? '' : current.pickupWarehouseName,
+      // SIL-765: the extra pickup-warehouse rows are LCL-only intake state —
+      // wiped on the way to FCL, kept on the way back to LCL.
+      extraPickupWarehouses: next === 'FCL' ? [] : current.extraPickupWarehouses,
       factoryName: next === 'FCL' ? '' : current.factoryName,
       // SIL-587: the LCL schedule datetime never survives into an FCL payload
       // (FCL's schedule lives per container; the confirm gate above already

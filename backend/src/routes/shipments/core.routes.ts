@@ -664,6 +664,8 @@ coreRoutes.post(
         cargoMode: parsed.data.cargoMode,
         operationalSiteId: parsed.data.operationalSiteId,
         pickupWarehouseSiteId: parsed.data.pickupWarehouseSiteId,
+        // SIL-765 — additional "Kho lấy hàng" points of the same LCL lot.
+        additionalPickupWarehouses: parsed.data.additionalPickupWarehouses,
         factoryName: parsed.data.factoryName,
         isCombined: parsed.data.isCombined,
         shippingLineName: parsed.data.shippingLineName,
@@ -774,6 +776,8 @@ coreRoutes.put(
           cargoMode: parsed.data.cargoMode,
           operationalSiteId: parsed.data.operationalSiteId,
           pickupWarehouseSiteId: parsed.data.pickupWarehouseSiteId,
+          // SIL-765 — additional "Kho lấy hàng" points (undefined = unchanged).
+          additionalPickupWarehouses: parsed.data.additionalPickupWarehouses,
           factoryName: parsed.data.factoryName,
           shippingLineName: parsed.data.shippingLineName,
           expectedDeliveryDate: parsed.data.expectedDeliveryDate,

@@ -224,3 +224,64 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     });
   });
 });
+
+// SIL-765 (Phần VI Epic 5.2) — nhiều kho lấy hàng cho cùng 1 lô qua
+// [+ Thêm kho lấy hàng]; "+ Thêm kho" (danh mục dùng chung) giữ nguyên.
+describe('SIL-765 — nhiều kho lấy hàng cho cùng 1 lô', { timeout: 20000 }, () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
+    listSharedWarehouseSites.mockReset();
+    listSharedWarehouseSites.mockResolvedValue([
+      { id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' },
+      { id: 13, siteType: 'WAREHOUSE', name: 'Kho Bình Dương', shortName: 'KBD' },
+    ]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+    });
+  });
+
+  it('[+ Thêm kho lấy hàng] thêm được ô kho thứ 2, thứ 3; mỗi ô xóa riêng; danh mục dùng chung; "+ Thêm kho" danh mục giữ nguyên', async () => {
+    await enterLclWithCatalogCustomer();
+    // The catalog quick-add button is untouched and has a DIFFERENT name.
+    expect(screen.getByRole('button', { name: 'Thêm kho' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thêm kho lấy hàng' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm kho lấy hàng' }));
+    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse-extra-0"]')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm kho lấy hàng' }));
+    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse-extra-1"]')).toBeTruthy();
+
+    // Each added row reads the SAME shared catalog (điểm bốc hàng khác nhau
+    // chọn được từng kho) — the option-set assertion follows the house pattern
+    // (open the picker, assert the option; the picked-value contract is proven
+    // end-to-end by the SIL-765 browser drive).
+    fireEvent.click(within(document.querySelector('[data-field-id="shipment-pickup-warehouse-extra-0"]')!).getByRole('combobox'));
+    expect(await screen.findByRole('option', { name: 'Kho A' })).toBeTruthy();
+    expect(await screen.findByRole('option', { name: 'KBD' })).toBeTruthy();
+
+    // Each added row carries its own delete button (Xóa kho lấy hàng 2 = the
+    // second point of the lot, 1-based with the primary as the first). The
+    // picker menu above is still open and aria-hides the page (Radix rule),
+    // so the lookup is a DOM query, not an a11y role query.
+    const deleteBtn = document.querySelector<HTMLElement>('[data-field-id="shipment-pickup-warehouse-extra-0"] button[aria-label="Xóa kho lấy hàng 2"]');
+    if (!deleteBtn) throw new Error('nút xóa riêng của ô kho thêm không tồn tại');
+    // Close the still-open picker menu first — an outside press while it is
+    // open is consumed by the menu's outside-dismiss, never reaching the row.
+    fireEvent.keyDown(document.querySelector('[data-field-id="shipment-pickup-warehouse-extra-0"] input')!, { key: 'Escape' });
+    fireEvent.click(deleteBtn);
+    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse-extra-1"]')).toBeNull();
+    // The old row 2 shifts down into the extra-0 slot.
+    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse-extra-0"]')).toBeTruthy();
+  });
+
+  it('a started-but-empty extra row fails validation; removing it clears the error path', async () => {
+    await enterLclWithCatalogCustomer();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm kho lấy hàng' }));
+    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse-extra-0"]')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa kho lấy hàng 2' }));
+    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse-extra-0"]')).toBeNull();
+  });
+});

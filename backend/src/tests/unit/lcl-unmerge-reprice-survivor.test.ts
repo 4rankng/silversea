@@ -114,3 +114,49 @@ test('(c) Xóa Lô chính — the survivor engine follows the crown inside the d
   assert.ok(lifecycle.includes('promoteLclGroupsOnShipmentDelete(tx,') || lifecycle.includes('promoteLclGroupsOnShipmentDelete(tx,'),
     'the delete hook runs the promotion on the lifecycle tx');
 });
+
+// ─── SIL-734 QA fail 09/11 (staging c4cea6b6, lot 172 R40B1-LCL01) ──────────
+// Whole-group COST "Tách nhóm" left every member's merge-stamped 0₫
+// (trip_carrier_info.external_freight_cost = '0', the "nhảy tiền" law) in
+// place: the debit board then printed CƯỚC TRẢ ĐV 0₫ / TỔNG TRẢ 0₫ on the
+// ex-member while the crown showed honest "Thiếu". KB §8.4: sau tách phải về
+// giá gốc trước ghép — the lot re-prices from the carrier board, never keeps
+// the group's 0.
+test('(d) whole-group COST tách — the member walk re-prices the stamped 0₫ from the carrier board', () => {
+  const dissolve = slice('export async function unmergeLclGroup', 'async function restoreRevPreMergeMoney');
+  assert.ok(dissolve.includes('memberFreightOutcomes.push(await repriceCostLotAfterSplit(tx, {'),
+    'the COST arm walks every member through the split re-price');
+  assert.ok(dissolve.includes('vehicleClassId: member.costVehicleClassId,'),
+    'the lane key rides the IN-MEMORY class — captured before the dissolve patch cleared the column');
+  assert.ok(dissolve.includes('memberFreightOutcomes,'),
+    'the outcome rides the audit payload + the response (QA reads what happened to the money)');
+});
+
+test('(d) repriceCostLotAfterSplit keeps the money laws: own money kept, board hit priced, miss cleared to honest null', () => {
+  const freightService = read('../../services/lcl-cost-group-freight.service.ts');
+  const helper = freightService.slice(freightService.indexOf('export async function repriceCostLotAfterSplit'));
+  // The re-price owns ONLY the stamped 0₫.
+  assert.ok(helper.includes("trip.externalFreightCost == null || Number(trip.externalFreightCost) !== 0) return kept"),
+    'null is already honest, non-zero is the lot\'s own money — both kept');
+  assert.ok(helper.includes('if (vehicleClassId == null || row.routeId == null) return clearStamp();'),
+    'no lane key ⇒ no invented price — the stamp clears to the honest "Thiếu"');
+  assert.ok(helper.includes('if (price == null) return clearStamp();'),
+    'board miss ⇒ clear, never a fabricated number (the merge law\'s own face)');
+  assert.ok(helper.includes('upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(price.price) })'),
+    'a board hit writes the price the merge engine would have written');
+  assert.ok(helper.includes('clearPlannedCarrierCost(tx, row.id);'),
+    'the split also clears the merge-stamped 0₫ on the editor channel');
+  assert.ok(helper.includes("plannedCarrierType === 'EXTERNAL' && fulfillment.plannedExternalCarrierId != null"),
+    'the nhà xe identity rides the fulfillment channel the group assignment persisted');
+});
+
+test('(d) single-lot COST tách — the leaver re-prices in BOTH positions, order-1 on fresh post-promotion facts', () => {
+  const lot = slice('export async function unmergeLclLot', 'export async function promoteLclGroupsOnShipmentDelete');
+  assert.ok(lot.includes("if (input.dimension === 'COST') {"), 'the COST arm exists beside the REV one');
+  assert.ok(lot.includes('leaverFreightOutcome = await repriceCostLotAfterSplit(tx, {'),
+    'the leaver walks the same split re-price the whole-group path uses');
+  assert.ok(lot.includes('vehicleClassId: leaver.costVehicleClassId,'),
+    'the lane key rides the IN-MEMORY leaver class');
+  assert.ok(lot.includes('leaverFreightOutcome,'),
+    'the outcome is visible in the audit payload and the response');
+});

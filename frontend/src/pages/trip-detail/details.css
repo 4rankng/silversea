@@ -231,6 +231,28 @@ a.tdp-instructions-value:hover {
    marker `.ds-field__required` (design-system/forms/TextField.css; imported
    by the page). Audit 2026-10-16 Wave 1, pattern D. */
 
+/* ── SIL-694 — POD-gốc readiness row inside the governed close modal ── */
+.tdp-pod-gate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-data-size);
+}
+.tdp-pod-gate__ok {
+  color: var(--success);
+  font-weight: 600;
+}
+.tdp-pod-gate__missing {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 /* ── Instructions notes margin ── */
 .tdp-instructions-notes {
   margin-top: 8px;

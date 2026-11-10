@@ -13,8 +13,6 @@ export const pageQueryKeys = {
     union: ['external-fleet-union'] as const,
     carrierOptions: ['external-carrier-options'] as const,
   },
-  /** Driver portal: the phi-norms option source of the incidental-cost form. */
-  driverFeeNorms: ['driver', 'fee-norms'] as const,
   /** Ops portal: read-only drawer for a trip expense entered by accounting. */
   opsLegacyExpense: (sourceId: number | undefined) => ['ops-legacy-expense', sourceId] as const,
   /** Supplier directory: status pill counts over the whole dataset. */

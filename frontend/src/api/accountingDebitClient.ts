@@ -48,7 +48,11 @@ export interface AccountingDebitBoardRow {
   } | null;
   thu: AccountingDebitBoardThu;
   tra: AccountingDebitBoardTra;
+  /** SIL-771 — 'Chi phí ngoài' kế toán nhập; null = chưa nhập (đóng góp 0). */
+  chiPhiNgoai: string | null;
   loiNhuan: string | null;
+  /** SIL-773 — dòng đã 'Lưu - Phê duyệt từng dòng và ẩn' (ISO) hoặc null. */
+  debitHiddenAt: string | null;
   ghiChu: string | null;
   adjustment: {
     status: 'NONE' | 'PENDING' | 'CONFIRMED';
@@ -64,11 +68,44 @@ export interface AccountingDebitBoardRow {
 export async function listAccountingDebitBoard(params: {
   dateFrom?: string;
   dateTo?: string;
+  /** SIL-773 — true = hiện cả các dòng đã 'Lưu - Phê duyệt từng dòng và ẩn'. */
+  includeHidden?: boolean;
 }): Promise<{ items: AccountingDebitBoardRow[]; total: number }> {
   const query = new URLSearchParams();
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
   if (params.dateTo) query.set('dateTo', params.dateTo);
+  if (params.includeHidden) query.set('includeHidden', 'true');
   return api.get(`/accounting/debit-board?${query.toString()}`);
+}
+
+/** SIL-771 — lưu 'Chi phí ngoài' của một lô (null = xoá). Server chặn 409
+ *  khi lô đã khóa chi phí / khóa sổ kế toán. Material-write middleware đòi
+ *  Idempotency-Key: khóa xác định theo (lô, giá trị) — gõ lại cùng giá trị
+ *  replay cùng kết quả, không tạo hiệu ứng thứ hai. */
+export function setDebitExternalCost(input: {
+  shipmentId: number;
+  chiPhiNgoai: number | null;
+}): Promise<{ shipmentId: number; chiPhiNgoai: string | null }> {
+  return api.post('/accounting/debit-board/external-cost', input, {
+    headers: { 'Idempotency-Key': `external-cost-${input.shipmentId}-${input.chiPhiNgoai ?? 'null'}` },
+  });
+}
+
+/** SIL-773 — nút 'Lưu - Phê duyệt từng dòng và ẩn' theo selection: server
+ *  ghi dấu debit_hidden_at/by; dòng rời danh sách tác nghiệp, bật
+ *  includeHidden vẫn tra lại được lịch sử. Key cùng công thức FNV-1a của
+ *  selection (createDebitNoteBatch precedent) — same selection replays same
+ *  mark, không nhân bản. */
+export function reconcileAndHideDebitLots(shipmentIds: number[]): Promise<{ hidden: number[] }> {
+  const run = [...shipmentIds].sort((x, y) => x - y).join(',');
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < run.length; i++) {
+    hash ^= run.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return api.post('/accounting/debit-board/reconcile-hide', { shipmentIds }, {
+    headers: { 'Idempotency-Key': `reconcile-hide-${shipmentIds.length}-${hash.toString(16)}` },
+  });
 }
 
 // Card 20260923_12 — Chọn Debit settlement rounds (đợt chốt). Query key lives

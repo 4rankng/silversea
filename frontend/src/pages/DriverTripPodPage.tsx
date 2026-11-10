@@ -123,10 +123,9 @@ export function DriverTripPodPage() {
 
   const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
   const documentBusy = preparingPod || creatingDraft || uploadingPod;
-  // SIL-697 (owner decision Frank 06/11): both required file types gate the
-  // Hoàn thành action (missingPodFilesMessage above); these facts also drive
-  // the footer's required/ready copy. The backend completion gate itself
-  // stays milestone-only (outside this ticket).
+  // SIL-697 resolved: e-POD files no longer gate Hoàn thành (22/10 law +
+  // SIL-733 PASS — newest decisions win). These facts drive the footer's
+  // soft reminder copy; the backend completion gate stays milestone-only.
   const completionBlocked = !validFulfillmentId
     || Boolean(trip?.accountingLock)
     || trip?.status !== 'IN_TRANSIT'
@@ -232,12 +231,12 @@ export function DriverTripPodPage() {
 
   async function handleSubmitPod(submission: DriverTaskPodSubmission): Promise<boolean> {
     if (!trip || !validFulfillmentId) return false;
-    // SIL-697: nộp nháp thiếu file tạo submission bị khóa, không thể bổ sung
-    // thêm — chặn TRƯỚC với thông báo nêu rõ loại còn thiếu.
-    const podBlock = missingPodFilesMessage(submission);
-    if (podBlock) {
-      toast({ kind: 'warning', message: podBlock });
-      return false;
+    // SIL-697 resolved (owner 09/11 — the 22/10 optional law + the shipped
+    // SIL-733 PASS win as the newest decisions): missing files no longer
+    // block the submit. Warn softly, then send anyway.
+    const podWarning = missingPodFilesMessage(submission);
+    if (podWarning) {
+      toast({ kind: 'warning', message: podWarning });
     }
     setSubmitting(true);
     try {
@@ -269,14 +268,15 @@ export function DriverTripPodPage() {
       toast({ kind: 'warning', message: documentReadOnlyReason ?? 'Chưa thể hoàn thành chuyến lúc này. Vui lòng thử lại.' });
       return;
     }
-    // SIL-697 (owner decision Frank 06/11 — supersedes card 261022213755a's
-    // optional-photos completion): kiểm đủ CẢ 2 loại bằng chứng TRƯỚC khi nộp
-    // nháp — thiếu thì chặn ngay, không submit dở rồi fail ở bước hoàn thành
-    // (submission đã nộp bị khóa, không thể bổ sung file).
-    const podBlock = missingPodFilesMessage(currentSubmission);
-    if (podBlock) {
-      toast({ kind: 'warning', message: podBlock });
-      return;
+    // SIL-697 resolved (owner 09/11 — 22/10 card 261022213755a + SIL-733 PASS
+    // are the newest binding decisions): e-POD files are OPTIONAL. Missing
+    // files warn softly and the completion proceeds; the trip never blocks
+    // on evidence. Backfill stays possible only while a submission remains
+    // DRAFT (the trip-detail path leaves its DRAFT open); the submit here
+    // freezes this page's DRAFT.
+    const podWarning = missingPodFilesMessage(currentSubmission);
+    if (podWarning) {
+      toast({ kind: 'warning', message: podWarning });
     }
     setCompleting(true);
     try {
@@ -486,12 +486,13 @@ export function DriverTripPodPage() {
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
-            {/* SIL-697 (owner decision Frank 06/11 — supersedes card
-                261022213755a): both required file types gate Hoàn thành, so
-                the copy names them and the missing ones, never "tùy chọn". */}
+            {/* SIL-697 resolved (owner 09/11): photos are OPTIONAL (22/10 law
+                card 261022213755a + shipped SIL-733 PASS win as the newest
+                decisions) — the copy says so, and names what is missing as a
+                soft reminder instead of a block. */}
             <p>
-              Cần đủ cả Phiếu bãi / phiếu hạ và Biên bản giao nhận có ký nhận trước khi
-              bấm HOÀN THÀNH CHUYẾN — thiếu thì hệ thống sẽ chặn, không nộp nháp.
+              Ảnh chứng từ (Phiếu bãi / phiếu hạ, Biên bản giao nhận có ký nhận) là
+              tùy chọn — thiếu vẫn bấm HOÀN THÀNH CHUYẾN được; hệ thống chỉ nhắc bổ sung.
             </p>
             {!podReady && (
               <ul className="driver-task-footer__issues">

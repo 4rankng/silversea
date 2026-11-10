@@ -1,0 +1,20 @@
+Gates — fix/r8b-717-697-758 (SIL-717 + SIL-697 + SIL-758), base origin/main 6d7a3886, machine darwin/arm64 local
+Each gate: exact command + result + exit status.
+
+1. Root lint:        pnpm lint                          → 0 errors (6 pre-existing warnings), exit 0
+2. BE typecheck:     cd backend && npx tsc --noEmit     → 0 errors, exit 0
+3. BE tests:         cd backend && pnpm test            → 342/342 pass, fail 0, exit 0 (/tmp/be-tests.log summary; unit-only suite per AGENTS §2)
+4. FE typecheck:     cd frontend && npx tsc -b          → 0 errors, exit 0
+5. FE tests:         cd frontend && pnpm test           → 6220 passed / 128 failed of 6348, exit 1
+   CLASSIFICATION (evidence below): all 128 failures are the documented load-flake family of this machine —
+   • 118/128 are literal 'Test timed out' (5s testTimeout under the 50-minute run; durations 3-7s each).
+   • 0 failures in any file touched by this branch EXCEPT the two pre-existing flaky ShipmentsPage files (6 tests).
+   • CONTROL RUNS on CLEAN origin/main (git stash → run → pop):
+     - src/pages/ShipmentsPage.test.tsx + ShipmentsPage.density.test.ts on CLEAN main: 8 failed / 135 passed (23:37 run — MORE failures than the branch's 5 on the same two files; different subsets every run).
+     - earlier clean control: 2 failed (23:36 run). Failure SUBSETS differ run-to-run on identical code → timing flake, not a deterministic break.
+   • ISOLATED (quiet machine) reruns of every file TOUCHED by this branch: 143/143 + 74/74 + 69/69 pass (final post-review-fix state).
+   Fixing the suite's flakiness is out of scope for these three tickets (sweeps unrelated work); documented here + ticket comments as a concern.
+6. Build:            make build                          → exit 0 (vite ✓ built in 2m46s)
+7. Review:           independent code-reviewer pass      → verdict Approve; 6 findings (4 MINOR, 2 LOW) — all addressed in-tree (comment accuracy, locked-state copy variant, stale case cross-ref, shared-helper reuse, dead join); none blocking.
+
+Scoped evidence: /tmp/final-scoped.log, /tmp/postfix2.log, /tmp/postfix3.log, /tmp/ship-iso.log, /tmp/ship-clean2.log (clean-main control), /tmp/fe-tests2.log (full suite), /tmp/lint2.log, /tmp/build.log.

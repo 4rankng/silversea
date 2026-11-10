@@ -20,6 +20,17 @@ vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: e
 const drawerCapture = vi.hoisted(() => ({ last: null as null | Record<string, unknown> }));
 vi.mock('../../features/expense-accounting/ExpenseCashDrawer', () => ({ ExpenseCashDrawer: (props: Record<string, unknown>) => { drawerCapture.last = props; return <div data-testid={props.recovery ? 'recovery-drawer' : 'thu-drawer'} />; } }));
 vi.mock('../../features/expense-accounting/ExpenseVoucherDrawer', () => ({ ExpenseVoucherDrawer: () => <div data-testid="chi-drawer" /> }));
+// SIL-728 — the row's settlement-dialog branch is role-gated (SIL-487 law:
+// ADMIN/ACCOUNTANT create, MANAGER reads) and the dialog reads the advances
+// workspace through useForwarderQueries.
+const authState = vi.hoisted(() => ({ role: 'ACCOUNTANT' as string | null }));
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: authState.role ? { userId: 9, role: authState.role } : null }) }));
+const forwarderApi = vi.hoisted(() => ({ balances: vi.fn(), eligibility: vi.fn() }));
+vi.mock('../../hooks/useForwarderQueries', () => ({
+  useAdminAdvanceBalances: () => ({ data: forwarderApi.balances() }),
+  useAdminSettlementEligibility: (forwarderId: number | null) => forwarderApi.eligibility(forwarderId),
+  useCreateAdvanceSettlementForForwarder: () => ({ mutateAsync: vi.fn(), isPending: false, reset: vi.fn(), error: null }),
+}));
 
 import OpsReconciliationReportPage from './OpsReconciliationReportPage';
 import type { ExpenseReconciliation } from '@tingting/shared';
@@ -229,19 +240,35 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
 });
 
 // ── SIL-728 — "Xác nhận hoàn ứng" staff-level trên dòng ÂM ─────────────────
-// A negative WALLET balance (outstandingSigned < 0) had no collection path
-// outside the đợt filter; the row action now opens the shared drawer with the
-// deficit pre-filled. The report-side rule: only the wallet-deficit rows get
-// the button — a row that merely has ĐNTT > ĐÃ ỨNG while the staff still holds
-// granted money (outstandingSigned ≥ 0) must NOT offer it, because the
-// recovery endpoint refuses exactly that case (409 naming the deficit).
+// A negative WALLET balance (outstandingSigned < 0) rides the advance-recovery
+// drawer (bút toán Quỹ công ty + Idempotency-Key). A report-âm row whose
+// wallet is settled (outstandingSigned ≥ 0 — QA fail 09/11: Vũ Đình Cường
+// −4.300.000₫ hiển thị nhưng không có nút nào) opens the SAME "Lập phiếu hoàn
+// ứng" dialog the /advances tab uses, prefilled with the row's staff — the
+// legacy settlement phiếu family the advance requests settle through.
+// Role law mirrors /advances (SIL-487): ADMIN/ACCOUNTANT create, MANAGER reads.
 const rowDeficit: OpsReconciliationReportRow = {
   staffId: 12, staffName: 'Vũ Đình Cường', dntt: 0, advanced: 4300000, remaining: 0,
   remainingSigned: 0, outstandingSigned: -4300000, needsCollection: true,
   direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
 };
+const rowReportNegativeSettledWallet: OpsReconciliationReportRow = {
+  staffId: 8, staffName: 'Vũ Đình Cường', dntt: 700000, advanced: 5000000, remaining: 0,
+  remainingSigned: -4300000, outstandingSigned: 0, needsCollection: false,
+  direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
+};
 
 describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', () => {
+  beforeEach(() => {
+    authState.role = 'ACCOUNTANT';
+    forwarderApi.balances.mockReset().mockReturnValue({
+      items: [{ forwarderId: 8, name: 'Vũ Đình Cường', outstanding: '0' }],
+    });
+    forwarderApi.eligibility.mockReset().mockReturnValue({
+      data: { advances: [], expenses: [] }, isPending: false, isError: false, error: null,
+    });
+  });
+
   it('a wallet-deficit row offers the recovery action in ANY filter state and hands the drawer the deficit', async () => {
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowDeficit],
@@ -255,16 +282,48 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     expect(drawerCapture.last?.recovery).toMatchObject({ opsUserId: 12, staffName: 'Vũ Đình Cường', deficit: 4300000 });
   });
 
-  it('a row holding granted money (outstandingSigned ≥ 0) never offers the recovery the backend would refuse', async () => {
-    // rowCollection: needsCollection=true through the remainingSigned arm, but
-    // the staff wallet is POSITIVE (+500.000) — recovery would 409.
+  it('a report-âm row with a settled wallet opens the /advances settlement dialog prefilled with the row staff', async () => {
+    // The exact QA repro: −4.300.000₫ hiển thị, wallet đã tất toán qua phiếu
+    // legacy (outstandingSigned = 0) — recovery would 409, the row rides the
+    // settlement phiếu family instead.
     reportApi.report.mockResolvedValue({
-      from: TODAY, to: TODAY, rows: [rowCollection],
-      totals: { dntt: 300000, advanced: 500000, remaining: 500000, remainingSigned: -200000 },
+      from: TODAY, to: TODAY, rows: [rowReportNegativeSettledWallet],
+      totals: { dntt: 700000, advanced: 5000000, remaining: 0, remainingSigned: -4300000 },
+    });
+    page();
+    await screen.findByText('Vũ Đình Cường', { selector: 'td' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' });
+    expect(dialog).toBeTruthy();
+    expect(forwarderApi.eligibility).toHaveBeenCalledWith(8);
+    // The row's staff arrives PRESELECTED — one click from the phiếu.
+    expect(screen.getByRole('radio', { name: /Vũ Đình Cường/ })).toBeChecked();
+    // The drawer the backend would refuse is NOT opened.
+    expect(screen.queryByTestId('recovery-drawer')).not.toBeInTheDocument();
+  });
+
+  it('a row holding granted money (outstandingSigned ≥ 0, report dương) offers nothing', async () => {
+    // rowCollection: needsCollection=true through the remainingSigned arm, but
+    // the staff wallet is POSITIVE (+500.000) and the report row is Dương
+    // (+150.000 hiển thị ở bộ other) — neither collection path applies.
+    reportApi.report.mockResolvedValue({
+      from: TODAY, to: TODAY, rows: [{ ...rowCollection, remainingSigned: 150000 }],
+      totals: { dntt: 300000, advanced: 500000, remaining: 500000, remainingSigned: 150000 },
     });
     page();
     await screen.findByText('NV C', { selector: 'td' });
     expect(screen.queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
     expect(screen.getByText('ÂM — đề nghị thu lại tiền ứng')).toBeTruthy();
+  });
+
+  it('MANAGER reads the report but never sees the settlement affordance', async () => {
+    authState.role = 'MANAGER';
+    reportApi.report.mockResolvedValue({
+      from: TODAY, to: TODAY, rows: [rowReportNegativeSettledWallet],
+      totals: { dntt: 700000, advanced: 5000000, remaining: 0, remainingSigned: -4300000 },
+    });
+    page();
+    await screen.findByText('Vũ Đình Cường', { selector: 'td' });
+    expect(screen.queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
   });
 });

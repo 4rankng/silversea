@@ -1113,15 +1113,36 @@
   {
    "idx": 159,
    "version": "7",
-   "when": 1794224400000,
-   "tag": "20261109100000_invoice_tracking_combined_sync",
+   "when": 1794214800000,
+   "tag": "20261109090000_shipment_pickup_warehouses",
    "breakpoints": true
   },
   {
    "idx": 160,
    "version": "7",
+   "when": 1794224400000,
+   "tag": "20261109100000_invoice_tracking_combined_sync",
+   "breakpoints": true
+  },
+  {
+   "idx": 161,
+   "version": "7",
    "when": 1794228000000,
    "tag": "20261109110000_deposit_tracker_category",
+   "breakpoints": true
+  },
+  {
+   "idx": 162,
+   "version": "7",
+   "when": 1794218400000,
+   "tag": "20261109100000_shipment_debit_external_cost",
+   "breakpoints": true
+  },
+  {
+   "idx": 163,
+   "version": "7",
+   "when": 1794222000000,
+   "tag": "20261109110000_shipment_debit_hidden",
    "breakpoints": true
   }
  ]

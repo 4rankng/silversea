@@ -33,8 +33,10 @@ import {
 } from '../../api/opsReconciliationReportClient';
 import { qk } from '../../api/keys';
 import { formatDate, formatMoney } from '../../lib/format';
+import { useAuth } from '../../hooks/useAuth';
 import { ExpenseCashDrawer, type AdvanceRecoveryTarget } from '../../features/expense-accounting/ExpenseCashDrawer';
 import { ExpenseVoucherDrawer } from '../../features/expense-accounting/ExpenseVoucherDrawer';
+import AdminAdvanceSettlementCreateDialog from '../AdminAdvanceSettlementCreateDialog';
 // The record-table base + ops-table typography: the shared table pattern
 // (recipe at styles/record-table.css). Page CSS declares no table skin.
 import '../../styles/record-table.css';
@@ -78,6 +80,14 @@ export default function OpsReconciliationReportPage() {
   // SIL-728 — Xác nhận hoàn ứng staff-level: một dòng ÂM bất kỳ (không cần lọc
   // đợt) mở bút toán thu hồi về Quỹ công ty.
   const [recovery, setRecovery] = useState<AdvanceRecoveryTarget | null>(null);
+  // SIL-728 (QA fail 09/11) — a report-âm row whose balance rides the legacy
+  // settlement family opens the SAME "Lập phiếu hoàn ứng" dialog the /advances
+  // tab uses, preselecting the row's staff.
+  const [createFor, setCreateFor] = useState<{ staffId: number; staffName: string } | null>(null);
+  const { user } = useAuth();
+  // The create-settlement affordance mirrors the /advances tab's own law
+  // (SIL-487): ADMIN/ACCOUNTANT create; MANAGER reads.
+  const canReview = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
   const queryClient = useQueryClient();
   const validRange = !from || !to || from <= to;
 
@@ -213,6 +223,7 @@ export default function OpsReconciliationReportPage() {
                   actionLot={row.staffId === liveLot?.opsUserId ? liveLot : undefined}
                   onVoucher={(lot) => (lot.remainingDifference > 0 ? setChiLot(lot) : setThuLot(lot))}
                   onRecover={(target) => setRecovery(target)}
+                  onCreateSettlement={canReview ? (row) => setCreateFor({ staffId: row.staffId, staffName: row.staffName }) : undefined}
                 />
               ))}
             </tbody>
@@ -242,11 +253,18 @@ export default function OpsReconciliationReportPage() {
           onClose={() => { setRecovery(null); invalidate(); }}
         />
       )}
+      {createFor && (
+        <AdminAdvanceSettlementCreateDialog
+          open
+          initialForwarderId={createFor.staffId}
+          onClose={() => setCreateFor(null)}
+        />
+      )}
     </div>
   );
 }
 
-function ReportRow({ row, index, actionLot, onVoucher, onRecover }: {
+function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettlement }: {
   row: OpsReconciliationReportRow;
   index: number;
   /** The scoped đợt, only when its live difference is still open and belongs
@@ -255,6 +273,10 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover }: {
   onVoucher: (lot: ExpenseReconciliation) => void;
   /** SIL-728 — present for finance actors: opens the staff-level recovery. */
   onRecover: (target: AdvanceRecoveryTarget) => void;
+  /** SIL-728 (QA fail 09/11) — present for ADMIN/ACCOUNTANT (SIL-487 law,
+   *  the caller gates it): opens the same "Lập phiếu hoàn ứng" dialog as the
+   *  /advances tab, prefilled with this row's staff. */
+  onCreateSettlement?: (row: OpsReconciliationReportRow) => void;
 }) {
   return (
     <tr>
@@ -277,7 +299,11 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover }: {
       </td>
       <td data-label="" className="record-table__action">
         {/* SIL-728 — the staff-level "Lập phiếu hoàn ứng": every âm row, in
-            every filter state, no đợt needed. Nút tất toán số dư âm cho Kế toán. */}
+            every filter state, no đợt needed. Nút tất toán số dư âm cho Kế toán.
+            Priority: a true wallet deficit rides the advance-recovery drawer
+            (bút toán Quỹ công ty + Idempotency-Key); otherwise a report-âm row
+            opens the SAME settlement dialog the /advances tab uses — the
+            legacy phiếu family the advance requests settle through. */}
         {row.needsCollection && row.outstandingSigned < 0 && (
           <Btn
             variant="primary"
@@ -287,6 +313,15 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover }: {
               staffName: row.staffName,
               deficit: Math.abs(row.outstandingSigned),
             })}
+          >
+            Lập phiếu hoàn ứng
+          </Btn>
+        )}
+        {row.outstandingSigned >= 0 && row.remainingSigned < 0 && onCreateSettlement && (
+          <Btn
+            variant="primary"
+            size="sm"
+            onClick={() => onCreateSettlement(row)}
           >
             Lập phiếu hoàn ứng
           </Btn>

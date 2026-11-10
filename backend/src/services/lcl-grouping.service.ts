@@ -111,6 +111,9 @@ export interface LclGroupUnmergeResult {
   /** Surviving members after renumbering (empty ⇒ the group dissolved). */
   remaining: LclGroupMemberResult[];
   dissolved: boolean;
+  /** SIL-734 — the leaver's post-split cước-trả outcome (see
+   *  LclGroupDissolveResult.memberFreightOutcomes). */
+  leaverFreightOutcome: CostSplitRepriceOutcome | null;
 }
 
 /**
@@ -155,6 +158,9 @@ export interface LclGroupDissolveResult {
    * on the lots — FB-095 QA C-1) and for legacy class-less groups.
    */
   vehicleClassId: number | null;
+  /** SIL-734 — per-member post-split cước-trả outcome (repriced from the
+   *  carrier board / cleared group 0₫ stamp / kept own money). */
+  memberFreightOutcomes: CostSplitRepriceOutcome[];
 }
 
 export type ShipmentRow = typeof s.shipments.$inferSelect;
@@ -598,6 +604,8 @@ export async function unmergeLclGroup(
     const dissolvedVehicleClassId = input.dimension === 'REV'
       ? ordered[0]?.revVehicleClassId ?? null
       : null;
+    // SIL-734 — filled by the COST walk below (empty for REV).
+    const memberFreightOutcomes: CostSplitRepriceOutcome[] = [];
 
     for (const member of ordered) {
       await tx.update(s.shipments).set({
@@ -665,6 +673,19 @@ export async function unmergeLclGroup(
       if (kept != null) {
         await mirrorPlannedCarrierCost(tx, principal.id, kept);
       }
+      // SIL-734 (KB §8.4) — the members' stamped 0₫ ("nhảy tiền", merge law)
+      // must not survive the split as a naked price: each re-prices from the
+      // carrier board with the class captured from its IN-MEMORY row (the
+      // patch above already cleared the column) + its own lane key; a board
+      // miss clears the stamp to the honest "Thiếu cước trả ĐV". Own money
+      // (non-zero) never re-prices.
+      for (const member of ordered) {
+        memberFreightOutcomes.push(await repriceCostLotAfterSplit(tx, {
+          row: member,
+          trip: tripFacts.get(member.id) ?? null,
+          vehicleClassId: member.costVehicleClassId,
+        }));
+      }
     }
 
     await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_LCL_GROUP_UNMERGED, ordered[0]!, {
@@ -674,6 +695,7 @@ export async function unmergeLclGroup(
       dissolved: true,
       memberCount: ordered.length,
       members: ordered.map((row, idx) => ({ shipmentId: row.id, order: idx + 1, reference: lotReference(row) })),
+      memberFreightOutcomes,
     });
 
     return {
@@ -683,6 +705,7 @@ export async function unmergeLclGroup(
       members: ordered.map((row, idx) => ({ shipmentId: row.id, order: idx + 1, reference: lotReference(row) })),
       dissolved: true,
       vehicleClassId: dissolvedVehicleClassId,
+      memberFreightOutcomes,
     };
   });
 }
@@ -728,6 +751,8 @@ export async function unmergeLclLot(
     const { promoted, transferredAmount, transferredDriverMoney } = leaverOrder === 1
       ? await promotePrincipalOnRemoval(tx, input.dimension, groupId, leaver, ordered, tripFacts, actor)
       : { promoted: null, transferredAmount: null, transferredDriverMoney: null };
+    // SIL-734 — filled by the COST arm below (null for REV).
+    let leaverFreightOutcome: CostSplitRepriceOutcome | null = null;
 
     // QA C-2 — a member's exit must rewrite the survivors too: renumber the
     // rest under the same group, or dissolve it when one member remains.
@@ -770,6 +795,24 @@ export async function unmergeLclLot(
       }
     }
 
+    if (input.dimension === 'COST') {
+      // SIL-734 (KB §8.4) — the leaver must not carry the group's stamped
+      // 0₫ ("nhảy tiền") as a naked price: re-price from the carrier board
+      // with the class captured from the IN-MEMORY row before the patch
+      // above cleared it; a board miss clears the stamp to the honest
+      // "Thiếu cước trả ĐV". Order-1 reloads fresh facts — the pre-transfer
+      // snapshot still shows the crown's 100% (the same trap SIL-539 fixed
+      // on the REV side).
+      const leaverTrip = leaverOrder === 1
+        ? (await loadLiveTripFactsByShipment(tx, [leaver.id])).get(leaver.id) ?? null
+        : tripFacts.get(leaver.id) ?? null;
+      leaverFreightOutcome = await repriceCostLotAfterSplit(tx, {
+        row: leaver,
+        trip: leaverTrip,
+        vehicleClassId: leaver.costVehicleClassId,
+      });
+    }
+
     // A lone survivor is not a "remaining group": it was promoted and now
     // stands alone (the group dissolved), so it leaves the member list.
     const dissolved = survivors.length <= 1;
@@ -788,6 +831,7 @@ export async function unmergeLclLot(
       transferredDriverMoney,
       remaining,
       dissolved,
+      leaverFreightOutcome,
     });
 
     return {
@@ -799,6 +843,7 @@ export async function unmergeLclLot(
       transferredDriverMoney,
       remaining,
       dissolved,
+      leaverFreightOutcome,
     };
   });
 }
@@ -1348,7 +1393,8 @@ async function persistLclCostCarrier(
  * zeroing live in `lcl-cost-group-freight.service.ts` (the money seam shared
  * by group assignment and trip issuance).
  */
-import { applyPrincipalCostFreight, mirrorPlannedCarrierCost, zeroMemberDriverMoney } from './lcl-cost-group-freight.service';
+import { applyPrincipalCostFreight, mirrorPlannedCarrierCost, zeroMemberDriverMoney, repriceCostLotAfterSplit } from './lcl-cost-group-freight.service';
+import type { CostSplitRepriceOutcome } from './lcl-cost-group-freight.service';
 
 /**
  * FB-092 — dispatch "Gán xe nhóm" (COST dimension). Spec 23/10: the popup is

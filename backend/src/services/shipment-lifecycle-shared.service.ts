@@ -10,6 +10,7 @@ import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
 import { isFulfillmentRequired } from './shipment-fulfillment.service';
 import type { ShipmentAuthorityTripRow } from './shipment-shared.service';
+import type { ShipmentExtraPickupWarehouseInput } from './shipment-types';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 
 export function assertShipmentDocumentReferences(input: {
@@ -37,6 +38,62 @@ export function assertShipmentDocumentReferences(input: {
  * of a clean store-as-null. Collapse whitespace-only refs to null at the
  * write boundary.
  */
+/**
+ * SIL-765 — pure normalization for the ADDITIONAL "Kho lấy hàng" points:
+ * a catalog row carries NO typed name (raw_* convention), a typed row is
+ * trimmed, and the site ids dedupe for the active-warehouse probe. Exported
+ * for the no-DB unit lane (src/tests/unit). The DB writer below adds the
+ * WAREHOUSE/active guard and the replace-all write.
+ */
+export function normalizeExtraPickupWarehouses(
+  rows: ShipmentExtraPickupWarehouseInput[] | null | undefined,
+): { rows: Array<{ siteId: number | null; name: string | null }>; siteIds: number[] } {
+  const normalized = (rows ?? []).map((row) => ({
+    siteId: row.siteId ?? null,
+    name: row.siteId != null ? null : (row.name?.trim() || null),
+  }));
+  const siteIds = [...new Set(normalized.map((row) => row.siteId).filter((id): id is number => id != null))];
+  return { rows: normalized, siteIds };
+}
+
+/**
+ * SIL-765 (Phần VI Epic 5.2) — validate + persist the ADDITIONAL "Kho lấy
+ * hàng" points (2..N) of one LCL lot, replacing whatever points the lot had.
+ * Catalog sites mirror the PRIMARY point's guard exactly (card 261022093245:
+ * a kho is shared infrastructure — type/active/live only, never a customer
+ * equality) and answer with the same 409 line; a typed row keeps its trimmed
+ * name. Create calls this right after the root insert; update only when
+ * `additionalPickupWarehouses !== undefined`.
+ */
+export async function writeShipmentPickupWarehousesInTx(
+  tx: Tx,
+  shipmentId: number,
+  rows: ShipmentExtraPickupWarehouseInput[] | null | undefined,
+): Promise<void> {
+  if (rows == null) return;
+  const { rows: normalized, siteIds } = normalizeExtraPickupWarehouses(rows);
+  if (siteIds.length > 0) {
+    const warehouses = await tx.select({ id: s.operationalSites.id })
+      .from(s.operationalSites)
+      .where(and(
+        inArray(s.operationalSites.id, siteIds),
+        eq(s.operationalSites.siteType, 'WAREHOUSE'),
+        eq(s.operationalSites.isActive, true),
+        isNull(s.operationalSites.deletedAt),
+      ));
+    if (warehouses.length !== siteIds.length) {
+      throw new ApiError(409, 'Kho lấy hàng không còn hiệu lực.');
+    }
+  }
+  // Replace-all semantics: a rolled-back tx never leaves a half-swapped list.
+  await tx.delete(s.shipmentPickupWarehouses).where(eq(s.shipmentPickupWarehouses.shipmentId, shipmentId));
+  if (normalized.length > 0) {
+    await tx.insert(s.shipmentPickupWarehouses).values(
+      normalized.map((row, index) => ({ ...row, shipmentId, position: index + 1 })),
+    );
+  }
+}
+
 export function normalizeDocumentReference(value: string | null | undefined): string | null {
   return value?.trim() ? value.trim() : null;
 }
@@ -291,6 +348,9 @@ export interface CreateShipmentInput {
   cargoMode?: typeof s.shipmentCargoModeEnum.enumValues[number] | null;
   operationalSiteId?: number | null;
   pickupWarehouseSiteId?: number | null;
+  /** SIL-765 — additional "Kho lấy hàng" points (2..N) written atomically in
+   *  the same tx as the root row. */
+  additionalPickupWarehouses?: ShipmentExtraPickupWarehouseInput[];
   factoryName?: string | null;
   isCombined?: boolean;
   shippingLineName?: string | null;

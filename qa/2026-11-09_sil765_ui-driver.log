@@ -1,0 +1,90 @@
+
+=== run 2026-11-09T14:48:36.440Z ===
+2026-11-09T14:48:37.331Z login tiepvv: OK
+2026-11-09T14:49:20.303Z PASS chọn khách hàng LONG MINH
+2026-11-09T14:49:37.121Z DRIVE ERROR: No element found for selector: #shipment-booking-ref
+2026-11-09T14:49:38.157Z shot 99-error
+2026-11-09T14:49:39.264Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-09T14:54:19.492Z ===
+2026-11-09T14:54:22.775Z login tiepvv: OK
+2026-11-09T14:55:01.390Z DRIVE ERROR: Navigation timeout of 30000 ms exceeded
+2026-11-09T14:55:03.122Z shot 99-error
+2026-11-09T14:55:04.101Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-09T14:55:14.207Z ===
+2026-11-09T14:55:16.868Z login tiepvv: OK
+2026-11-09T14:56:10.109Z PASS chọn khách hàng LONG MINH
+2026-11-09T14:56:31.858Z PASS chọn hình thức Nhập khẩu
+2026-11-09T14:56:32.571Z DRIVE ERROR: No element found for selector: #shipment-booking-ref
+2026-11-09T14:56:33.563Z shot 99-error
+2026-11-09T14:56:34.606Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-09T14:59:16.886Z ===
+2026-11-09T14:59:17.830Z login tiepvv: OK
+2026-11-09T14:59:28.894Z DRIVE ERROR: No element found for selector: [data-field-id="shipment-customer"] input
+2026-11-09T14:59:29.046Z shot 99-error
+2026-11-09T14:59:29.488Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-09T15:01:57.234Z ===
+2026-11-09T15:01:58.911Z login tiepvv: OK
+2026-11-09T15:02:42.459Z PASS chọn khách hàng LONG MINH
+2026-11-09T15:02:52.390Z PASS chọn hình thức Nhập khẩu
+2026-11-09T15:03:21.021Z PASS chọn tuyến ASKEY
+2026-11-09T15:03:36.136Z PASS chọn nhà máy ASKEY-XƯỞNG 1
+2026-11-09T15:03:47.996Z PASS chọn kho 1 VICONSHIP
+2026-11-09T15:03:48.303Z PASS nút "+ Thêm kho" (danh mục dùng chung) vẫn còn
+2026-11-09T15:03:48.304Z PASS nút [+ Thêm kho lấy hàng] xuất hiện
+2026-11-09T15:03:49.743Z PASS ô kho lấy hàng thứ 2 xuất hiện
+2026-11-09T15:03:49.885Z shot 01-two-kho-fields-1440
+2026-11-09T15:03:55.138Z PASS chọn kho 2 GLC
+2026-11-09T15:03:56.099Z PASS ô kho thứ 3 xuất hiện
+2026-11-09T15:03:56.507Z FAIL xóa riêng ô kho thứ 3 được
+2026-11-09T15:03:56.509Z PASS phần Thông tin hàng hiện ra
+2026-11-09T15:03:56.511Z DRIVE ERROR: No element found for selector: #shipment-package-type
+2026-11-09T15:03:56.843Z shot 99-error
+2026-11-09T15:03:57.470Z DRIVER_EXIT:1 failures=2
+
+=== run 2026-11-09T15:05:44.961Z ===
+2026-11-09T15:05:45.980Z login tiepvv: OK
+2026-11-09T15:06:13.107Z PASS chọn khách hàng LONG MINH
+2026-11-09T15:06:18.891Z PASS chọn hình thức Nhập khẩu
+2026-11-09T15:06:39.988Z PASS chọn tuyến ASKEY
+2026-11-09T15:06:54.233Z PASS chọn nhà máy ASKEY-XƯỞNG 1
+2026-11-09T15:07:18.598Z PASS chọn kho 1 VICONSHIP
+2026-11-09T15:07:18.910Z PASS nút "+ Thêm kho" (danh mục dùng chung) vẫn còn
+2026-11-09T15:07:18.911Z PASS nút [+ Thêm kho lấy hàng] xuất hiện
+2026-11-09T15:07:21.673Z PASS ô kho lấy hàng thứ 2 xuất hiện
+2026-11-09T15:07:22.202Z shot 01-two-kho-fields-1440
+2026-11-09T15:07:34.229Z PASS chọn kho 2 GLC
+2026-11-09T15:07:36.734Z PASS ô kho thứ 3 xuất hiện
+2026-11-09T15:07:38.458Z PASS nút xóa riêng của ô thứ 3 có thể bấm
+2026-11-09T15:07:38.863Z PASS xóa riêng ô kho thứ 3 được
+2026-11-09T15:07:38.865Z PASS phần Thông tin hàng hiện ra
+2026-11-09T15:08:02.949Z PASS trường Ngày giờ đóng/trả hiện ra
+2026-11-09T15:08:29.967Z PASS điền ngày giờ đóng/trả
+2026-11-09T15:08:29.968Z closing filled 12/11/2026 08:30
+2026-11-09T15:08:30.523Z shot 02-form-filled-1440
+2026-11-09T15:08:38.958Z shot 03-after-save-1440
+2026-11-09T15:08:39.376Z PASS lô đã lưu (shipment_code=SHP-2611-00426)
+2026-11-09T15:08:46.294Z shot 04-detail-1440
+2026-11-09T15:08:46.298Z FAIL chi tiết hiện kho 1 VICONSHIP
+2026-11-09T15:08:46.299Z FAIL chi tiết hiện kho 2 GLC
+2026-11-09T15:08:46.299Z detail lift/drop lines: n/a
+2026-11-09T15:08:46.428Z PASS shipment_pickup_warehouses đúng 1 dòng bổ sung GLC (rows="1:12")
+2026-11-09T15:08:46.522Z db proof shipment: 779508|SHP-2611-00426|11|VICONSHIP|ASKEY-XƯỞNG 1
+2026-11-09T15:08:46.973Z DRIVER_EXIT:1 failures=2
+2026-11-09T15:09:45.897Z api additionalPickupWarehouses=[{"id":1,"siteId":12,"siteName":"GLC","name":null,"position":1}]
+2026-11-09T15:09:45.898Z PASS API chi tiết chiếu thêm điểm kho (GLC)
+2026-11-09T15:10:05.978Z page: url=http://localhost:7176/shipments hasVICONSHIP=false hasGLC=false
+2026-11-09T15:10:05.979Z FAIL chi tiết lô hiện đủ cả 2 kho lấy hàng
+2026-11-09T15:10:07.237Z shot 05-detail-points-1440
+2026-11-09T15:10:09.192Z shot 06-detail-points-768
+2026-11-09T15:10:09.644Z DETAIL_EXIT:1 failures=1
+2026-11-09T15:10:41.569Z api additionalPickupWarehouses=[{"id":1,"siteId":12,"siteName":"GLC","name":null,"position":1}]
+2026-11-09T15:10:41.570Z PASS API chi tiết chiếu thêm điểm kho (GLC)
+2026-11-09T15:11:08.908Z page: url=http://localhost:7176/shipments/779508 hasVICONSHIP=true hasGLC=true
+2026-11-09T15:11:08.911Z PASS chi tiết lô hiện đủ cả 2 kho lấy hàng
+2026-11-09T15:11:09.789Z shot 05-detail-points-1440
+2026-11-09T15:11:11.476Z shot 06-detail-points-768
+2026-11-09T15:11:11.915Z DETAIL_EXIT:0 failures=0

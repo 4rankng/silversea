@@ -1,0 +1,124 @@
+
+=== run 2026-11-09T14:41:25.290Z ===
+2026-11-09T14:41:25.948Z login bqhuong: OK
+2026-11-09T14:41:25.987Z trip picked: 779100 road=0
+2026-11-09T14:41:36.008Z PASS landed on trip detail (got http://localhost:7176/my-trips/779100)
+2026-11-09T14:41:36.013Z section: {"found":true,"title":"Chi phí lô hàng & tiền đường","bandText":"Chưa có định mức tiền tuyến.Ghi chú tiền đường","bandHasInput":false,"bandHasMoney":false,"roadEmptyText":true,"roadHasAdd":false,"lotHasAdd":true,"noteRow":true,"noteInRoad":true}
+2026-11-09T14:41:36.014Z PASS Chi phí chuyến section renders
+2026-11-09T14:41:36.014Z PASS khu Tiền đường KHÔNG có nút Thêm chi phí / Thêm dòng
+2026-11-09T14:41:36.014Z PASS nút Thêm chi phí nằm tại khu Chi phí lô hàng
+2026-11-09T14:41:36.014Z PASS ô Ghi chú tiền đường nằm trong khu Tiền đường
+2026-11-09T14:41:36.014Z PASS khu tiền đường hiện số tạm tính hoặc trạng thái chưa có định mức
+2026-11-09T14:41:36.184Z shot 01-section-768
+2026-11-09T14:41:36.960Z shot 02-section-390
+2026-11-09T14:41:37.827Z form: {"found":true,"hasTab":false,"hasTenChiPhi":true,"hasSoTien":true,"hasThucChi":false,"hasNgayChi":false,"cameraInput":true,"hasXoaDong":true,"soTienInput":true}
+2026-11-09T14:41:37.828Z PASS form thêm chi phí mở
+2026-11-09T14:41:37.828Z PASS không còn tab Nhóm chi phí (chỉ chi phí lô hàng)
+2026-11-09T14:41:37.828Z PASS dropdown Tên chi phí
+2026-11-09T14:41:37.828Z PASS nhãn Số tiền
+2026-11-09T14:41:37.828Z PASS không còn nhãn Thực chi
+2026-11-09T14:41:37.828Z PASS đã bỏ ô Ngày chi
+2026-11-09T14:41:37.828Z PASS icon camera (input ẩn) cạnh ô tiền
+2026-11-09T14:41:37.828Z PASS nút Xóa dòng
+2026-11-09T14:41:37.891Z shot 03-form-390
+2026-11-09T14:41:40.634Z shot 04-filled-390
+2026-11-09T14:41:43.329Z DRIVE ERROR: Command failed: docker exec ss-prod-db psql -U postgres -d silversea -t -A -c SELECT count(*) FROM trip_incidental_costs WHERE trip_id = 779100 AND amount = 500000 AND occurred_at = CURRENT_DATE;
+ERROR:  relation "trip_incidental_costs" does not exist
+LINE 1: SELECT count(*) FROM trip_incidental_costs WHERE trip_id = 7...
+                             ^
+
+2026-11-09T14:41:43.499Z shot 99-error
+2026-11-09T14:41:43.768Z DRIVER_EXIT:1 failures=1
+
+=== run 2026-11-09T14:44:06.189Z ===
+2026-11-09T14:44:07.291Z login bqhuong: OK
+2026-11-09T14:44:07.335Z trip picked: 779100 road=0
+2026-11-09T14:44:25.637Z PASS landed on trip detail (got http://localhost:7176/my-trips/779100)
+2026-11-09T14:44:25.642Z section: {"found":true,"title":"Chi phí lô hàng & tiền đường","bandText":"Chưa có định mức tiền tuyến.Ghi chú tiền đường","bandHasInput":false,"bandHasMoney":false,"roadEmptyText":true,"roadHasAdd":false,"lotHasAdd":true,"noteRow":true,"noteInRoad":true}
+2026-11-09T14:44:25.642Z PASS Chi phí chuyến section renders
+2026-11-09T14:44:25.642Z PASS khu Tiền đường KHÔNG có nút Thêm chi phí / Thêm dòng
+2026-11-09T14:44:25.643Z PASS nút Thêm chi phí nằm tại khu Chi phí lô hàng
+2026-11-09T14:44:25.643Z PASS ô Ghi chú tiền đường nằm trong khu Tiền đường
+2026-11-09T14:44:25.643Z PASS khu tiền đường hiện số tạm tính hoặc trạng thái chưa có định mức
+2026-11-09T14:44:25.950Z shot 01-section-768
+2026-11-09T14:44:26.636Z shot 02-section-390
+2026-11-09T14:44:27.901Z form: {"found":true,"hasTab":false,"hasTenChiPhi":true,"hasSoTien":true,"hasThucChi":false,"hasNgayChi":false,"cameraInput":true,"hasXoaDong":true,"soTienInput":true}
+2026-11-09T14:44:27.901Z PASS form thêm chi phí mở
+2026-11-09T14:44:27.902Z PASS không còn tab Nhóm chi phí (chỉ chi phí lô hàng)
+2026-11-09T14:44:27.902Z PASS dropdown Tên chi phí
+2026-11-09T14:44:27.902Z PASS nhãn Số tiền
+2026-11-09T14:44:27.902Z PASS không còn nhãn Thực chi
+2026-11-09T14:44:27.902Z PASS đã bỏ ô Ngày chi
+2026-11-09T14:44:27.902Z PASS icon camera (input ẩn) cạnh ô tiền
+2026-11-09T14:44:27.902Z PASS nút Xóa dòng
+2026-11-09T14:44:27.989Z shot 03-form-390
+2026-11-09T14:44:31.417Z shot 04-filled-390
+2026-11-09T14:44:34.246Z PASS dòng chi phí lưu với ngày hiện tại (DB rows=2)
+2026-11-09T14:44:34.353Z db proof: 21|Phí nâng container|500000|DRIVER_SHIPMENT|INVOICE|2026-11-09|t
+20|Phí nâng container|500000|DRIVER_SHIPMENT|INVOICE|2026-11-09|t
+2026-11-09T14:44:34.533Z shot 05-after-save-390
+2026-11-09T14:44:37.138Z PASS ghi chú tiền đường lưu (DB="Đi vòng cao tốc 120k không có vé")
+2026-11-09T14:44:37.248Z shot 06-note-saved-390
+2026-11-09T14:44:37.757Z DRIVER_EXIT:0 failures=0
+2026-11-09T14:45:52.314Z api totalRoadAllowance=0
+2026-11-09T14:46:06.754Z band: {"text":"Chưa có định mức tiền tuyến.Ghi chú tiền đườngLưu ghi chú","hasMoney":false,"hasInput":true,"roadButtons":["Lưu ghi chú"]}
+2026-11-09T14:46:06.755Z FAIL tạm tính 450.000 ₫ khóa cứng trong khu tiền đường, không nút thêm
+2026-11-09T14:46:07.003Z shot 07-road-norm-money-768
+2026-11-09T14:46:07.607Z shot 08-road-norm-money-390
+2026-11-09T14:46:07.607Z MONEY_EXIT:1
+2026-11-09T14:47:00.839Z api totalRoadAllowance=450000
+2026-11-09T14:47:15.034Z band: {"text":"Tạm tính định mức450.000 ₫Ghi chú tiền đườngLưu ghi chú","hasMoney":true,"hasInput":true,"roadButtons":["Lưu ghi chú"]}
+2026-11-09T14:47:15.035Z FAIL tạm tính 450.000 ₫ khóa cứng trong khu tiền đường, không nút thêm
+2026-11-09T14:47:15.259Z shot 07-road-norm-money-768
+2026-11-09T14:47:16.076Z shot 08-road-norm-money-390
+2026-11-09T14:47:16.076Z MONEY_EXIT:1
+2026-11-09T14:47:37.167Z api totalRoadAllowance=450000
+2026-11-09T14:47:50.635Z band: {"text":"Tạm tính định mức450.000 ₫Ghi chú tiền đườngLưu ghi chú","moneyRowText":"Tạm tính định mức450.000 ₫","moneyRowHasInput":false,"noteFollowsMoney":false,"roadButtons":["Lưu ghi chú"]}
+2026-11-09T14:47:50.635Z FAIL tạm tính 450.000 ₫ khóa cứng trong khu tiền đường, không nút thêm
+2026-11-09T14:47:50.903Z shot 07-road-norm-money-768
+2026-11-09T14:47:51.733Z shot 08-road-norm-money-390
+2026-11-09T14:47:51.733Z MONEY_EXIT:1
+2026-11-09T14:48:12.085Z api totalRoadAllowance=450000
+2026-11-09T14:48:26.811Z band: {"text":"Tạm tính định mức450.000 ₫Ghi chú tiền đườngLưu ghi chú","moneyRowText":"Tạm tính định mức450.000 ₫","moneyRowHasInput":false,"noteFollowsMoney":false,"roadButtons":["Lưu ghi chú"]}
+2026-11-09T14:48:26.812Z PASS tạm tính 450.000 ₫ khóa cứng trong khu tiền đường, không nút thêm
+2026-11-09T14:48:26.981Z shot 07-road-norm-money-768
+2026-11-09T14:48:27.702Z shot 08-road-norm-money-390
+2026-11-09T14:48:27.703Z MONEY_EXIT:0
+
+=== run 2026-11-09T15:11:29.365Z ===
+2026-11-09T15:11:30.260Z login bqhuong: OK
+2026-11-09T15:11:30.301Z trip picked: 779100 road=450000
+2026-11-09T15:11:43.582Z PASS landed on trip detail (got http://localhost:7176/my-trips/779100)
+2026-11-09T15:11:43.589Z section: {"found":true,"title":"Chi phí lô hàng & tiền đường","bandText":"Tạm tính định mức450.000 ₫Ghi chú tiền đườngLưu ghi chú","bandHasInput":true,"bandHasMoney":true,"roadEmptyText":false,"roadHasAdd":false,"lotHasAdd":true,"noteRow":true,"noteInRoad":true}
+2026-11-09T15:11:43.589Z PASS Chi phí chuyến section renders
+2026-11-09T15:11:43.589Z PASS khu Tiền đường KHÔNG có nút Thêm chi phí / Thêm dòng
+2026-11-09T15:11:43.589Z PASS nút Thêm chi phí nằm tại khu Chi phí lô hàng
+2026-11-09T15:11:43.590Z PASS ô Ghi chú tiền đường nằm trong khu Tiền đường
+2026-11-09T15:11:43.590Z PASS khu tiền đường hiện số tạm tính hoặc trạng thái chưa có định mức
+2026-11-09T15:11:43.590Z PASS tạm tính hiển thị
+2026-11-09T15:11:44.922Z shot 01-section-768
+2026-11-09T15:11:46.210Z shot 02-section-390
+2026-11-09T15:11:47.146Z form: {"found":true,"hasTab":false,"hasTenChiPhi":true,"hasSoTien":true,"hasThucChi":false,"hasNgayChi":false,"cameraInput":true,"hasXoaDong":true,"soTienInput":true}
+2026-11-09T15:11:47.146Z PASS form thêm chi phí mở
+2026-11-09T15:11:47.146Z PASS không còn tab Nhóm chi phí (chỉ chi phí lô hàng)
+2026-11-09T15:11:47.146Z PASS dropdown Tên chi phí
+2026-11-09T15:11:47.146Z PASS nhãn Số tiền
+2026-11-09T15:11:47.146Z PASS không còn nhãn Thực chi
+2026-11-09T15:11:47.146Z PASS đã bỏ ô Ngày chi
+2026-11-09T15:11:47.146Z PASS icon camera (input ẩn) cạnh ô tiền
+2026-11-09T15:11:47.147Z PASS nút Xóa dòng
+2026-11-09T15:11:47.656Z shot 03-form-390
+2026-11-09T15:11:51.245Z shot 04-filled-390
+2026-11-09T15:11:54.103Z PASS dòng chi phí lưu với ngày hiện tại (DB rows=3)
+2026-11-09T15:11:54.205Z db proof: 22|Phí nâng container|500000|DRIVER_SHIPMENT|INVOICE|2026-11-09|t
+21|Phí nâng container|500000|DRIVER_SHIPMENT|INVOICE|2026-11-09|t
+2026-11-09T15:11:54.831Z shot 05-after-save-390
+2026-11-09T15:11:57.247Z PASS ghi chú tiền đường lưu (DB="Đi vòng cao tốc 120k không có vé")
+2026-11-09T15:11:57.801Z shot 06-note-saved-390
+2026-11-09T15:11:58.340Z DRIVER_EXIT:0 failures=0
+2026-11-09T15:12:03.134Z api totalRoadAllowance=450000
+2026-11-09T15:12:12.125Z band: {"text":"Tạm tính định mức450.000 ₫Ghi chú tiền đườngLưu ghi chú","moneyRowText":"Tạm tính định mức450.000 ₫","moneyRowHasInput":false,"noteFollowsMoney":false,"roadButtons":["Lưu ghi chú"]}
+2026-11-09T15:12:12.126Z PASS tạm tính 450.000 ₫ khóa cứng trong khu tiền đường, không nút thêm
+2026-11-09T15:12:13.388Z shot 07-road-norm-money-768
+2026-11-09T15:12:14.700Z shot 08-road-norm-money-390
+2026-11-09T15:12:14.700Z MONEY_EXIT:0

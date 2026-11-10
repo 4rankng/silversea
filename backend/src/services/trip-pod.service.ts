@@ -859,21 +859,15 @@ export async function submitPod(args: {
         throw new ApiError(409, 'e-POD này không còn ở trạng thái nháp.');
       }
 
-      // SIL-697 (owner decision Frank 06/11, board id 809) — supersedes card
-      // 261022213755a's submit-anything rule: a draft missing either required
-      // evidence type must NOT move to SUBMITTED. A submitted submission is
-      // frozen, so an incomplete submit used to strand the trip: completion
-      // then failed and the driver could no longer add the missing file.
-      const presentTypes = new Set(
-        (await tx.select({ fileType: s.tripPodFiles.fileType })
-          .from(s.tripPodFiles)
-          .where(eq(s.tripPodFiles.submissionId, submission.id)))
-          .map((row) => row.fileType as TripPodFileType),
-      );
-      const missingTypes = TRIP_POD_REQUIRED_FILE_TYPES.filter((fileType) => !presentTypes.has(fileType));
-      if (missingTypes.length > 0) {
-        throw new ApiError(409, `Chưa đủ chứng từ giao hàng. Còn thiếu: ${missingTypes.map(fileTypeLabel).join(', ')}. Vui lòng bổ sung đủ hai loại trước khi nộp.`);
-      }
+      // SIL-697 resolved (owner 09/11): the 22/10 law (card 261022213755a —
+      // "0 ảnh vẫn hoàn thành chuyến", e-POD/ảnh TÙY CHỌN) plus the shipped
+      // SIL-733 PASS are the newest binding decisions, so they win over the
+      // 06/11 block ruling recorded earlier on this card. A draft missing
+      // either evidence type MAY move to SUBMITTED: the FE warns softly
+      // before sending ("Thiếu N file e-POD — nên bổ sung") and completion
+      // never blocks on e-POD, so an incomplete submit no longer strands the
+      // trip — files can still be attached later whenever the submission
+      // state allows.
 
       const [updated] = await tx.update(s.tripPodSubmissions).set({
         status: TripPodStatus.SUBMITTED,

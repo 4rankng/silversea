@@ -16,7 +16,7 @@ describe('titleForPath destination labels and route precedence', () => {
     '/trips/123/edit': 'Sửa chuyến đi',
     '/finance': 'Báo cáo lãi lỗ',
     '/accounting': 'Tổng Quan',
-    '/accounting/chot-debit': 'Kế toán chốt debit',
+    '/accounting/chot-debit': 'KIỂM SOÁT LÔ HÀNG',
     '/accounting/deposit-tracker': 'Theo dõi hoàn cược',
     '/accounting/hoan-ung': 'Báo cáo hoàn ứng',
     '/accounting/invoice-tracking': 'Theo dõi hóa đơn',

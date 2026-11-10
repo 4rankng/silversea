@@ -296,9 +296,11 @@ export function CusShipmentRow({
               return <span className="cus-cargo-summary__containers cus-empty">{emptyDayCargoLabel(item.cargoMode)}</span>;
             }
             if (item.cargoMode === 'LCL') {
-              // SIL-758 (id 879) — badge 'Lẻ' inline gọn cùng dòng (suffix nhỏ
-              // cạnh số lượng, không chiếm dòng riêng phía trên), đồng bộ với
-              // hệ thống badge hiện có (NHẬP LẺ/XUẤT LẺ ở cột PHÂN LOẠI).
+              // SIL-758 (id 879, owner 09/11): the LCL row mirrors the FCL line
+              // shape — ONE line '10 Pallet / 5 tấn · Lẻ' with the chip as the
+              // last inline suffix (never its own line, never above the
+              // quantity), styled with the shared neutral chip tokens so it
+              // reads with the NHẬP LẺ/XUẤT LẺ chips in PHÂN LOẠI.
               const countAndType = item.packageCount != null
                 ? `${formatNumber(item.packageCount)} ${item.packageType?.trim() || 'kiện'}`
                 : null;
@@ -308,36 +310,48 @@ export function CusShipmentRow({
               const weightStr = item.weightKg != null ? formatWeight(item.weightKg) : null;
               const volumeStr = item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : null;
               const measures = [weightStr, volumeStr].filter(Boolean).join(' · ');
+              const quantityText = [specLines[0] ?? '', measures].filter(Boolean).join(' / ');
 
               const lclBadge = (
                 <span className="cus-cargo-summary__lcl-badge" title="Hàng lẻ (LCL)">
                   Lẻ
                 </span>
               );
+              const lclSep = <span className="cus-cargo-summary__lcl-sep" aria-hidden="true">·</span>;
 
-              if (specLines.length > 0 || measures) {
+              // Mixed multi-type summaries keep the Kiến nghị L2 pin — one line
+              // PER type (never a merged 'A + B'), with the '· Lẻ' suffix on the
+              // LAST line so the chip still trails the cell's quantity block.
+              if (specLines.length > 1) {
+                const lines = measures ? [...specLines, measures] : specLines;
                 return (
                   <>
-                    {specLines.length > 0 ? (
-                      specLines.map((specLine, index) => (
-                        <span key={specLine} className="cus-cargo-summary__line">
-                          <strong className="cus-cargo-summary__containers">{specLine}</strong>
-                          {index === 0 && lclBadge}
+                    {lines.map((lineText, index) => {
+                      const isLast = index === lines.length - 1;
+                      return (
+                        <span key={lineText} className="cus-cargo-summary__line">
+                          <strong className="cus-cargo-summary__containers">{lineText}</strong>
+                          {isLast && lclSep}
+                          {isLast && lclBadge}
                         </span>
-                      ))
-                    ) : (
-                      <span className="cus-cargo-summary__line">
-                        <strong className="cus-cargo-summary__containers">{measures ? '' : 'Chưa có hàng hóa'}</strong>
-                        {lclBadge}
-                      </span>
-                    )}
-                    {measures && <span className="cus-cargo-summary__weight">{measures}</span>}
+                      );
+                    })}
                   </>
+                );
+              }
+              if (quantityText) {
+                return (
+                  <span className="cus-cargo-summary__line">
+                    <strong className="cus-cargo-summary__containers">{quantityText}</strong>
+                    {lclSep}
+                    {lclBadge}
+                  </span>
                 );
               }
               return (
                 <span className="cus-cargo-summary__line">
                   <span className="cus-cargo-summary__containers cus-empty">Chưa có hàng hóa</span>
+                  {lclSep}
                   {lclBadge}
                 </span>
               );

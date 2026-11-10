@@ -7,6 +7,8 @@ import {
   withdrawRateAdjustments,
   listSettlementRounds,
   createSettlementRound,
+  setDebitExternalCost,
+  reconcileAndHideDebitLots,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
 } from '../../api/accountingDebitClient';
 import { createDebitNoteBatch, exportDebitNoteFile, lockShipmentCost } from '../../api/shipmentDebit';
@@ -61,6 +63,14 @@ export default function AccountingDebitClosePage() {
   const [search, setSearch] = useState('');
   const [customerFilter, setCustomerFilter] = useState<string[]>([]);
   const [truckFilter, setTruckFilter] = useState<string[]>([]);
+  // SIL-772 — 2 chế độ xem của bảng KIỂM SOÁT LÔ HÀNG: Vận tải Hàng Cont
+  // (FCL) / Vận tải Hàng Lẻ (LCL). Wire rule: lcl != null ⇔ cargoMode 'LCL'
+  // (accounting-debit-close.service) — một dòng chưa phân loại (null) ở lại
+  // chế độ FCL để dữ liệu chốt debit cũ không bao giờ biến mất khỏi bảng.
+  const [cargoView, setCargoView] = useState<'FCL' | 'LCL'>('FCL');
+  // SIL-773 — danh sách tác nghiệp mặc định ẩn các dòng đã 'Lưu - Phê duyệt
+  // từng dòng và ẩn'; bật công tắc này refetch với includeHidden để tra lịch sử.
+  const [showHidden, setShowHidden] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [settlementOpen, setSettlementOpen] = useState(false);
   // FB-094 (card 181026145620) — Xuất Debit Note over the selected rows.
@@ -86,8 +96,12 @@ export default function AccountingDebitClosePage() {
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
-    queryKey: qk.accounting.debitBoard(filters.dateFrom, filters.dateTo),
-    queryFn: () => listAccountingDebitBoard({ dateFrom: filters.dateFrom || undefined, dateTo: filters.dateTo || undefined }),
+    queryKey: qk.accounting.debitBoardView(filters.dateFrom, filters.dateTo, showHidden),
+    queryFn: () => listAccountingDebitBoard({
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+      includeHidden: showHidden || undefined,
+    }),
   });
   const roundsQuery = useQuery({
     queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY,
@@ -158,13 +172,23 @@ export default function AccountingDebitClosePage() {
   const visibleRows = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return rows.filter((row) => {
+      // SIL-772 — chế độ xem FCL/LCL áp trước mọi facet: mỗi chế độ hiện
+      // đúng dữ liệu của loại hàng đó (lcl != null ⇔ cargoMode 'LCL').
+      if (cargoView === 'FCL' ? row.lcl != null : row.lcl == null) return false;
       if (customerFilter.length > 0 && (row.customerName == null || !customerFilter.includes(row.customerName))) return false;
       if (truckFilter.length > 0 && !row.phanXe.some((truck) => truckFilter.includes(truck))) return false;
       if (needle === '') return true;
       return [row.code, row.billOrBooking, row.customerName, ...row.containers, ...row.phanXe]
         .some((value) => value != null && value.toLowerCase().includes(needle));
     });
-  }, [rows, customerFilter, truckFilter, search]);
+  }, [rows, customerFilter, truckFilter, search, cargoView]);
+
+  // SIL-772 — đếm theo loại hàng trên dữ liệu của kỳ (trước facet/search) để
+  // nút chuyển chế độ luôn nói đúng bảng có bao nhiêu dòng mỗi loại.
+  const cargoCounts = useMemo(() => ({
+    FCL: rows.filter((row) => row.lcl == null).length,
+    LCL: rows.filter((row) => row.lcl != null).length,
+  }), [rows]);
 
   // Pickable = no live adjustment (NONE) or a CONFIRMED one (a new adjustment
   // cycle may be requested until the lot's cost lock freezes it). A live PENDING
@@ -276,6 +300,23 @@ export default function AccountingDebitClosePage() {
     onSuccess: () => { setMessage({ kind: 'ok', text: 'Đã rút yêu cầu.' }); refresh(); },
     onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
   });
+  // SIL-771 — lưu 'Chi phí ngoài' (ô nhập trên dòng): board refetch để ô
+  // lợi nhuận tái tính theo công thức Tổng thu − Tổng trả − Chi phí ngoài.
+  const externalCostMutation = useMutation({
+    mutationFn: setDebitExternalCost,
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll }); },
+    onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
+  });
+  // SIL-773 — 'Lưu - Phê duyệt từng dòng và ẩn': các dòng đã chọn rời danh
+  // sách tác nghiệp → clear selection (chúng không còn trên mặt bảng).
+  const reconcileHideMutation = useMutation({
+    mutationFn: reconcileAndHideDebitLots,
+    onSuccess: (result) => {
+      setMessage({ kind: 'ok', text: `Đã lưu & xác nhận đối soát, ẩn ${result.hidden.length} dòng khỏi danh sách tác nghiệp (vẫn tra được trong 'Hiện dòng đã ẩn').` });
+      refresh();
+    },
+    onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
+  });
   const settlementMutation = useMutation({
     mutationFn: createSettlementRound,
     onSuccess: (round) => {
@@ -291,6 +332,8 @@ export default function AccountingDebitClosePage() {
     confirm: (requestIds) => confirmMutation.mutate(requestIds),
     withdraw: (requestIds) => withdrawMutation.mutate(requestIds),
     isBusy: confirmMutation.isPending || withdrawMutation.isPending,
+    saveExternalCost: (shipmentId, value) => externalCostMutation.mutate({ shipmentId, chiPhiNgoai: value }),
+    externalCostSaving: externalCostMutation.isPending,
     // FB-145 — the [Tách nhóm] skeleton flag for the money columns.
     ratesRefreshing: revGroupRefreshing,
     // Card 211026024348 — the shared "Tách nhóm" action landed: the board's
@@ -493,7 +536,30 @@ export default function AccountingDebitClosePage() {
 
   return (
     <div className="page-shell">
-      <PageHeader title="Kế toán chốt debit" />
+      {/* SIL-772 — nhãn khách yêu cầu nguyên văn, viết hoa đúng như khách ghi. */}
+      <PageHeader title="KIỂM SOÁT LÔ HÀNG" />
+
+      {/* SIL-772 — 2 chế độ xem chuyển đổi: Vận tải Hàng Cont FCL / Vận tải
+          Hàng Lẻ LCL. Buttons + aria-pressed (nhà bán key-neutral, không
+          panel mới); đếm trên dữ liệu của kỳ để mỗi chế độ tự nói mình có gì. */}
+      <div className="debit-cargo-view" role="group" aria-label="Chế độ xem loại hàng">
+        <button
+          type="button"
+          className={cargoView === 'FCL' ? 'debit-cargo-view__btn is-active' : 'debit-cargo-view__btn'}
+          aria-pressed={cargoView === 'FCL'}
+          onClick={() => setCargoView('FCL')}
+        >
+          Vận tải Hàng Cont (FCL) · {cargoCounts.FCL} lô
+        </button>
+        <button
+          type="button"
+          className={cargoView === 'LCL' ? 'debit-cargo-view__btn is-active' : 'debit-cargo-view__btn'}
+          aria-pressed={cargoView === 'LCL'}
+          onClick={() => setCargoView('LCL')}
+        >
+          Vận tải Hàng Lẻ (LCL) · {cargoCounts.LCL} lô
+        </button>
+      </div>
 
       <FilterBar
         search={{
@@ -539,6 +605,39 @@ export default function AccountingDebitClosePage() {
                 Ghép cước thu khách
               </UUIButton>
             </DisabledActionTip>
+            {/* SIL-773 Rev2 — nút 'Lưu' của bảng: kết thúc ô đang sửa để ô
+                Chi phí ngoài tự lưu (auto-save on blur); các ô khác đã lưu
+                khi rời ô. */}
+            <button
+              type="button"
+              className="btn btn--ghost"
+              onClick={() => {
+                const active = document.activeElement;
+                if (active instanceof HTMLInputElement && active.classList.contains('debit-ext-cost')) active.blur();
+                setMessage({ kind: 'ok', text: 'Đã lưu các thay đổi trên bảng.' });
+              }}
+            >
+              Lưu
+            </button>
+            {/* SIL-773 Rev2 — nhãn khách yêu cầu nguyên văn: đối soát các lô
+                đang chờ trong selection, rồi lưu + ẩn toàn bộ selection khỏi
+                danh sách tác nghiệp; bật 'Hiện dòng đã ẩn' tra lại. */}
+            <button
+              type="button"
+              className="btn btn--secondary"
+              disabled={selectedCount === 0 || reconcileHideMutation.isPending || confirmMutation.isPending}
+              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để lưu và xác nhận đối soát' : undefined}
+              onClick={() => {
+                const ids = selectedRows.map((row) => row.shipmentId);
+                if (selectedRequestIds.length > 0) {
+                  confirmMutation.mutate(selectedRequestIds, {
+                    onSuccess: () => reconcileHideMutation.mutate(ids),
+                  });
+                } else reconcileHideMutation.mutate(ids);
+              }}
+            >
+              {reconcileHideMutation.isPending || confirmMutation.isPending ? 'Đang lưu…' : 'Lưu & Xác nhận đối soát'}
+            </button>
             <button
               type="button"
               className="btn btn--primary"
@@ -571,6 +670,16 @@ export default function AccountingDebitClosePage() {
           to={filters.dateTo}
           onChange={({ from, to }) => setFilters({ dateFrom: from, dateTo: to })}
         />
+        {/* SIL-773 — lịch sử: bật để hiện cả các dòng đã 'Lưu - Phê duyệt từng
+            dòng và ẩn'; tắt để quay về danh sách tác nghiệp. */}
+        <label className="debit-show-hidden">
+          <input
+            type="checkbox"
+            checked={showHidden}
+            onChange={(event) => setShowHidden(event.target.checked)}
+          />
+          Hiện dòng đã ẩn
+        </label>
         <FilterDropdown
           count={facetCount}
           ariaLabel="Bộ lọc"

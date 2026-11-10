@@ -89,6 +89,15 @@ export const shipments = pgTable('shipments', {
   // `effectiveBillingPlate` (LCL only — non-LCL keeps the GAP-3 law).
   actualTruckNo: varchar('actual_truck_no', { length: 20 }),
   billingTruckNo: varchar('billing_truck_no', { length: 20 }),
+  // SIL-771 — Bảng Kiểm soát lô hàng: 'Chi phí ngoài' kế toán nhập trực tiếp
+  // trên bảng (ngoài cước phải thu / phải trả — kẹt, hợp, phát sinh nâng/hạ
+  // cảng). Lợi nhuận = Tổng thu − Tổng trả − Chi phí ngoài; null = chưa nhập.
+  debitExternalCost: numeric('debit_external_cost', { precision: 15, scale: 0 }),
+  // SIL-773 — 'Lưu - Phê duyệt từng dòng và ẩn': dòng đã lưu/đối soát rời
+  // danh sách tác nghiệp (list mặc định loại debit_hidden_at NOT NULL) nhưng
+  // vẫn tra lại được qua includeHidden — ẩn, không xoá.
+  debitHiddenAt: timestamp('debit_hidden_at', { withTimezone: true }),
+  debitHiddenBy: integer('debit_hidden_by'),
   // Loại xe tính cước trả ĐV — link into the FB-090 vehicle_size_classes
   // catalog (trọng tải 1.25T…15T or CONT20/40). Plain integer on purpose:
   // cross-file link enforced by the grouping service, matching
@@ -145,6 +154,32 @@ export const shipmentDocuments = pgTable('shipment_documents', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index('shipment_documents_shipment_id_idx').on(table.shipmentId),
+]);
+
+
+// SIL-765 (spec 09/11 Phần VI Epic 5.2) — a lô hàng lẻ may lift at MORE than
+// one warehouse. The FIRST "Kho lấy hàng" stays on shipments.pickup_warehouse_site_id
+// (+ the direction-mapped free-text location column) so every existing
+// single-point consumer keeps its exact meaning; rows here are the ADDITIONAL
+// points (2..N) in display order. Same hybrid contract as the primary point:
+// a catalog site_id XOR a typed name — the DB enforces only "the row names a
+// point"; the XOR normalization belongs to the intake services (MasterDataNhaMay
+// §4.1 convention: raw_* never writes back into the master tables).
+// Plain integer shipment_id on purpose: cross-file links in this file are
+// service-enforced (see costVehicleClassId), no FK.
+export const shipmentPickupWarehouses = pgTable('shipment_pickup_warehouses', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  siteId: integer('site_id'),
+  name: varchar('name', { length: 255 }),
+  // 1-based display order among the ADDITIONAL points (not the shipment's
+  // primary warehouse, which keeps no row here).
+  position: integer('position').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('shipment_pickup_warehouses_shipment_id_idx').on(table.shipmentId),
+  check('shipment_pickup_warehouses_point_check', sql`(${table.siteId} is not null or ${table.name} is not null)`),
+  check('shipment_pickup_warehouses_position_check', sql`${table.position} >= 1`),
 ]);
 
 

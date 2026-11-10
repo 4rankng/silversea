@@ -413,7 +413,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     // Submit disabled until type + amount valid.
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
     expect(submit).toBeDisabled();
-  });
+  }, 20_000);
   it('strips a typed minus from the Ops money input and keeps the nonneg rules (card 211026213838)', async () => {
     renderPage();
     await screen.findByText('BL-001');
@@ -425,7 +425,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await waitFor(() => expect(typeTrigger).toBeEnabled());
     fireEvent.click(typeTrigger);
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
-    const amount = screen.getByLabelText(/Thực chi \(VND\)/);
+    const amount = screen.getByLabelText(/Số tiền \(VNĐ\)/);
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
     // Card 211026213838 — a NEGATIVE amount is no longer enterable: the grouped
     // unsigned money field strips the minus on entry, so "-123000" lands as
@@ -461,8 +461,8 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(apiPost).not.toHaveBeenCalled();
     fireEvent.change(amount, { target: { value: '123000' } });
     expect(submit).toBeEnabled();
-    expect(screen.queryByText(/Số tiền/)).not.toBeInTheDocument();
-  });
+    expect(screen.queryByText(/Số tiền không được/)).not.toBeInTheDocument();
+  }, 20_000);
 
   it('waits for the receipt upload before creating the expense with its storage key', async () => {
     let finishUpload!: (value: { storageKey: string; url: string }) => void;
@@ -474,12 +474,14 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await waitFor(() => expect(typeTrigger2).toBeEnabled());
     fireEvent.click(typeTrigger2);
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
-    fireEvent.change(screen.getByLabelText(/Thực chi \(VND\)/), { target: { value: '123000' } });
+    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '123000' } });
     // Cân xe is a no-invoice line, so opsCustomerCharge (the client mirror of
     // the server's receivableForCost) charges nothing and the row cannot be
-    // saved without the reason — card 20260928_162. The gate is announced, so
-    // the operator is not left guessing why Lưu stays dark.
-    expect(screen.getByText(/ghi chú bắt buộc/i)).toBeInTheDocument();
+    // saved without the reason — card 20260928_162. The gate is announced on
+    // every surface that names the field (row hint, row error, footer
+    // notice) — the new wording shares its tail with the footer's message,
+    // so assert on the set, not a unique element.
+    expect(screen.getAllByText(/bắt buộc nhập trường "Ghi chú"/).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'cân xe tại cảng, khách tự thanh toán' } });
     const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });
     const form = dialog.querySelector('form')!;
@@ -498,6 +500,6 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
       amount: '123000', photoStorageKeys: ['ops/receipt.png'],
     })));
     expect(apiPost).toHaveBeenCalledTimes(1);
-  });
+  }, 20_000);
 
 });

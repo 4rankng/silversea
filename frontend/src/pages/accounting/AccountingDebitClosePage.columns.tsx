@@ -6,6 +6,7 @@ import { NameCell } from '../../components/shared/NameCell';
 import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
 import { Skeleton } from '../../components/shared/Skeleton';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
+import { ExternalCostCell } from './AccountingDebitClosePage.external-cost';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
 /**
@@ -44,6 +45,12 @@ export interface CellContext {
    *  cell skeletons (h-4 w-16) instead of repainting the dissolved group's
    *  stale 0₫. */
   ratesRefreshing?: boolean;
+  /** SIL-771 — lưu 'Chi phí ngoài' của một lô (null = xoá); the page owns
+   *  the mutation, the column model stays page-state-free. */
+  saveExternalCost?: (shipmentId: number, value: number | null) => void;
+  /** SIL-771 — true while the external-cost save is in flight: the ô nhập
+   *  disables so a blur storm cannot double-send. */
+  externalCostSaving?: boolean;
   /** SIL-727 — the leading track's selection affordance, set per row by the
    *  board table ONLY for pickable rows (adjustment NONE|CONFIRMED): the
    *  checkbox drives the SAME one selection model the row click uses
@@ -319,8 +326,33 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     cell: (row) => money(row.tra.phiRu, 'Thiếu phí RU'),
   },
   {
-    key: 'loiNhuan', label: 'Lợi nhuận', className: 'debit-col--money',
-    cell: (row) => money(row.loiNhuan, 'Thiếu lợi nhuận'),
+    // SIL-771 — 'Chi phí ngoài' (nhóm Tổng kết & kiểm soát lãi/lỗ theo mẫu
+    // khách): kế toán gõ trực tiếp trên ô — các chi phí ngoài cước phải thu /
+    // phải trả (kẹt, hợp và phát sinh nâng/hạ cảng). Essential vì công thức
+    // lợi nhuận bên dưới đọc đúng trường này.
+    key: 'chiPhiNgoai', label: 'Chi phí ngoài', className: 'debit-col--money', essential: true,
+    cell: (row, context) => (
+      <ExternalCostCell
+        row={row}
+        onCommit={context?.saveExternalCost ?? (() => {})}
+        saving={context?.externalCostSaving ?? false}
+      />
+    ),
+  },
+  {
+    // SIL-771 — công thức khách chốt: Lợi nhuận = Tổng thu − Tổng trả − Chi
+    // phí ngoài (tính server-side, computeDebitBoardProfit). Quy tắc cảnh báo
+    // giữ nguyên: lợi nhuận âm → ô bôi nền đỏ đậm, chữ trắng.
+    key: 'loiNhuan', label: 'Lợi nhuận', className: 'debit-col--money', essential: true,
+    cell: (row) => {
+      if (row.loiNhuan == null) return money(null, 'Thiếu lợi nhuận');
+      const value = Number(row.loiNhuan);
+      return (
+        <span className={value < 0 ? 'debit-loinhuan debit-loinhuan--negative' : 'debit-loinhuan'}>
+          {formatCurrency(value)}
+        </span>
+      );
+    },
   },
   {
     key: 'ghiChu', label: 'Ghi chú', className: 'debit-col--note',
@@ -334,10 +366,17 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
       // One status per lot, always as a StatusPill so the whole board reads as
       // one voice (never a bare word beside pills elsewhere). The pending case
       // keeps its two row actions beside the pill — layout only, no logic moved.
-      if (row.adjustment.status === 'NONE') return <StatusPill variant="neutral">Chưa gửi</StatusPill>;
-      if (row.adjustment.status === 'CONFIRMED') return <StatusPill variant="success">Đã đối soát</StatusPill>;
+      // SIL-773 — a row hidden by 'Lưu - Phê duyệt từng dòng và ẩn' carries
+      // its own marker so the history view (Hiện dòng đã ẩn) still tells the
+      // hidden set apart from live rows.
+      const hiddenMarker = row.debitHiddenAt != null
+        ? <StatusPill variant="neutral">Đã lưu - ẩn</StatusPill>
+        : null;
+      if (row.adjustment.status === 'NONE') return <span className="debit-pending">{hiddenMarker}<StatusPill variant="neutral">Chưa gửi</StatusPill></span>;
+      if (row.adjustment.status === 'CONFIRMED') return <span className="debit-pending">{hiddenMarker}<StatusPill variant="success">Đã đối soát</StatusPill></span>;
       return (
         <span className="debit-pending">
+          {hiddenMarker}
           <StatusPill variant="warn">Chờ xác nhận</StatusPill>
           <button type="button" className="btn btn--secondary btn--sm" disabled={isBusy || requestId == null} onClick={() => requestId != null && confirm([requestId])}>Xác nhận</button>
           <button type="button" className="btn btn--ghost btn--sm" disabled={isBusy || requestId == null} onClick={() => requestId != null && withdraw([requestId])}>Rút</button>

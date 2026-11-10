@@ -1,14 +1,19 @@
 // FB-104 (card 141026230810) — Báo cáo "TỔNG HỢP XẾP LỆNH THÁNG" theo mẫu
 // Excel khách đang dùng: mỗi dòng một lái xe (STT · Loại xe · Biển kiểm soát ·
 // Hình thức lương · Lái xe) với lưới ký hiệu theo ngày, 2 dòng chỉ số toàn đội
-//xe ("Tổng lệnh kẹp/ngày" + "% Tỷ lệ kẹp ghép trong ngày") phía TRÊN dòng tiêu
+// xe ("Tổng lệnh kẹp/ngày" + "% Tỷ lệ kẹp ghép trong ngày") phía TRÊN dòng tiêu
 // đề ngày (SIL-781), và 10 cột tổng hợp ở cuối dòng.
 //
-// Quy ước màu theo spec REV 2 Phần V (SIL-781, id 904): K chữ đậm, Đ thường,
-// Q chữ xanh, L chữ cam, P nền xám nhạt, N NỀN ĐỎ chữ trắng, lái xe nghỉ việc
-// (INACTIVE) cả chuỗi ngày nền đỏ đậm, cột Chủ nhật nền vàng dọc cột. Màu lấy
-// từ token nhà (info/warning/danger/surface) thay vì màu thô của Excel — cùng
-// họ màu emerald mà owner đã chốt, đủ tương phản AA.
+// Quy ước màu theo spec REV 2 Phần V (SIL-781, id 904) + SIL-774 (Bảng 4,
+// khách chốt 09/11/2026): K chữ đậm, Đ thường, Q chữ xanh, L chữ cam,
+// P nền trắng chữ đen in hoa, N NỀN ĐỎ chữ trắng, lái xe nghỉ việc (INACTIVE)
+// cả chuỗi ngày nền đỏ đậm, cột Chủ nhật nền vàng dọc cột. Màu lấy từ token
+// nhà (info/warning/danger/surface) thay vì màu thô của Excel — cùng họ màu
+// emerald mà owner đã chốt, đủ tương phản AA.
+//
+// SIL-775 (khách chốt 09/11/2026): cột tổng đếm MỖI NGÀY Q = 1 chuyến quay
+// đầu (không còn Q = 2 của card 230790 ở cột này); Tổng số chuyến = Đ + K + Q
+// (ngày); Tỷ lệ kẹp ghép / ngày = Tổng lệnh kẹp / Tổng số chuyến × 100%.
 
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -67,11 +72,11 @@ export default function TimesheetMonthlyReportPage() {
     return (monthsQuery.data ?? []).map(monthRow => {
       const driver = drivers.find(item => item.id === monthRow.driverId) ?? null;
       const byDay = new Map(monthRow.days.map(day => [Number(day.workDate.slice(8, 10)), day]));
-      // SIL-781 — the 10 end-of-month columns. Đ/K/Q cells counted per CELL;
-      // "Số chuyến quay đầu" alone counts TRIPS (Q = 2 chuyến/ô, card 230790).
+      // SIL-781 — the 10 end-of-month columns. Đ/K/Q counted per CELL;
+      // SIL-775 — "Số chuyến quay đầu" đếm 1 chuyến cho mỗi ngày Q.
       let donCells = 0;
       let kepCells = 0;
-      let quayDauTrips = 0;
+      let quayDau = 0;
       let actualDays = 0;
       let paidLeaveDays = 0;
       let leaveDays = 0;
@@ -79,26 +84,31 @@ export default function TimesheetMonthlyReportPage() {
       for (const day of monthRow.days) {
         if (day.symbol === 'Đ') donCells += 1;
         if (day.symbol === 'K') kepCells += 1;
-        if (day.symbol === 'Q') quayDauTrips += 2;
+        if (day.symbol === 'Q') quayDau += 1;
         // Ngày công đi làm thực tế: có mặt (K/Q/Đ/L), Chủ nhật không tính
         // (house law: Chủ nhật không là ngày công) và nghỉ phép không tính.
         const present = day.symbol === 'K' || day.symbol === 'Q' || day.symbol === 'Đ' || day.symbol === 'L';
         if (present && !day.isSunday) actualDays += 1;
         if (present && day.isSunday) sundayDays += 1;
+        // SIL-774 — cột 6 'Số ngày nghỉ được hưởng lương' đếm ngày P (nghỉ
+        // sửa xe / bảo dưỡng định kỳ theo chế độ); cột 7 'Số ngày nghỉ phép'
+        // đếm ngày N (nghỉ tai nạn / nghỉ việc gia đình có phép).
         if (day.symbol === 'P') paidLeaveDays += 1;
         if (day.symbol === 'N') leaveDays += 1;
       }
-      // Tỷ lệ kẹp ghép/ngày của cả tháng: ô K / (K+Q+Đ) — cùng tỉ lệ các dòng
-      // chỉ số theo ngày, in "—" khi lái xe chưa chạy lệnh nào.
-      const commandCells = donCells + kepCells + (quayDauTrips / 2);
-      const kepPct = commandCells === 0 ? null : Math.round((kepCells / commandCells) * 1000) / 10;
+      // SIL-775 — Tổng số chuyến = Đ + K + Q (ngày); Tỷ lệ kẹp ghép / ngày =
+      // Tổng lệnh kẹp / Tổng số chuyến × 100, in "—" khi lái xe chưa chạy
+      // lệnh nào.
+      const totalTrips = donCells + kepCells + quayDau;
+      const kepPct = totalTrips === 0 ? null : Math.round((kepCells / totalTrips) * 1000) / 10;
       return {
         monthRow,
         driver,
         byDay,
         donCells,
         kepCells,
-        quayDauTrips,
+        quayDau,
+        totalTrips,
         actualDays,
         paidLeaveDays,
         leaveDays,
@@ -202,17 +212,18 @@ export default function TimesheetMonthlyReportPage() {
                     </th>
                   );
                 })}
-                {/* SIL-781 — 10 cột tổng hợp cuối bảng, đúng spec REV 2. */}
+                {/* SIL-781 — 10 cột tổng hợp cuối bảng; tên cột 6/7/10 theo
+                    mẫu 10 cột khách (SIL-774/775). */}
                 <th scope="col">Tổng lệnh đơn</th>
                 <th scope="col">Tổng lệnh kẹp</th>
                 <th scope="col">Số chuyến quay đầu</th>
                 <th scope="col">Tổng số chuyến</th>
                 <th scope="col">Ngày công thực tế</th>
-                <th scope="col">Nghỉ hưởng lương (P)</th>
-                <th scope="col">Nghỉ phép (N)</th>
+                <th scope="col">Số ngày nghỉ được hưởng lương</th>
+                <th scope="col">Số ngày nghỉ phép</th>
                 <th scope="col">Ngày làm CN</th>
                 <th scope="col">Tổng ngày công</th>
-                <th scope="col">Tỷ lệ kẹp ghép</th>
+                <th scope="col">Tỷ lệ kẹp ghép / ngày (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -239,14 +250,14 @@ export default function TimesheetMonthlyReportPage() {
                   })}
                   <td className="num" data-label="Tổng lệnh đơn">{row.donCells}</td>
                   <td className="num" data-label="Tổng lệnh kẹp">{row.kepCells}</td>
-                  <td className="num" data-label="Số chuyến quay đầu">{row.quayDauTrips}</td>
-                  <td className="num" data-label="Tổng số chuyến">{row.monthRow.salary.trips}</td>
+                  <td className="num" data-label="Số chuyến quay đầu">{row.quayDau}</td>
+                  <td className="num" data-label="Tổng số chuyến">{row.totalTrips}</td>
                   <td className="num" data-label="Ngày công thực tế">{row.actualDays}</td>
-                  <td className="num" data-label="Nghỉ hưởng lương (P)">{row.paidLeaveDays}</td>
-                  <td className="num" data-label="Nghỉ phép (N)">{row.leaveDays}</td>
+                  <td className="num" data-label="Số ngày nghỉ được hưởng lương">{row.paidLeaveDays}</td>
+                  <td className="num" data-label="Số ngày nghỉ phép">{row.leaveDays}</td>
                   <td className="num" data-label="Ngày làm CN">{row.sundayDays}</td>
                   <td className="num" data-label="Tổng ngày công">{row.monthRow.salary.workdays}</td>
-                  <td className="num" data-label="Tỷ lệ kẹp ghép">{row.kepPct === null ? '—' : `${row.kepPct}%`}</td>
+                  <td className="num" data-label="Tỷ lệ kẹp ghép / ngày (%)">{row.kepPct === null ? '—' : `${row.kepPct}%`}</td>
                 </tr>
               ))}
             </tbody>

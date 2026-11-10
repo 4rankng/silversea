@@ -22,6 +22,13 @@
   gap: 0;
 }
 
+/* SIL-760 — the expense declaration hosts table rows, so it takes the wide
+ * size variant of the shared shell (spec max-w-5xl). Sizing only — the shell
+ * shape stays the one .ops-modal skin. */
+.ops-modal--wide {
+  width: min(64rem, 100%);
+}
+
 .ops-modal__head {
   flex-shrink: 0;
   display: flex;
@@ -296,12 +303,10 @@
   padding: 10px 0 4px;
   border-top: 1px solid var(--border-soft, #e4e7ec);
 }
-.ops-fee-block h3 {
-  margin: 0 0 8px;
-  font-size: var(--text-caption-size);
-  color: var(--ink-2, #344054);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+/* SIL-760 — the two centered tab buttons carry the group names now. */
+.ops-modal__tabs {
+  display: flex;
+  justify-content: center;
 }
 .ops-fee-row {
   margin: 0 0 12px;
@@ -310,11 +315,22 @@
   border-radius: 10px;
   background: var(--surface, #fff);
 }
+/* SIL-760 — one horizontal table line per khoản: growing text columns flex
+ * and wrap whole cells on narrow widths (never crush or clip a field); the
+ * attach/remove cells stay icon-sized. */
 .ops-fee-row__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
 }
+.ops-fee-row__cell--type { flex: 3 0 190px; min-width: 0; }
+.ops-fee-row__cell--amount { flex: 2 0 140px; min-width: 0; }
+.ops-fee-row__cell--invoice-no { flex: 2 0 150px; min-width: 0; }
+.ops-fee-row__cell--charge { flex: 2 0 140px; min-width: 0; }
+.ops-fee-row__cell--recovery { flex: 2 0 150px; min-width: 0; }
+.ops-fee-row__cell--note { flex: 3 0 190px; min-width: 0; }
+.ops-fee-row__cell--attach { flex: 0 0 auto; }
 .ops-fee-row__field {
   display: flex;
   flex-direction: column;
@@ -329,9 +345,6 @@
   border-radius: 8px;
   font: inherit;
 }
-.ops-fee-row .ops-form-note {
-  margin: 8px 0 0;
-}
 .ops-fee-row__remove {
-  margin-top: 8px;
+  align-self: flex-end;
 }

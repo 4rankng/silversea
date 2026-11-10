@@ -3,6 +3,12 @@
  * surface that names a lot's two operating points: the create form (which
  * writes them), Kế hoạch Tổng quát, Kế hoạch Chi tiết Xe and the lot detail.
  *
+ * LCL multi-kho (SIL-765): `extraWarehouseNames` joins the warehouse side
+ * wherever a caller's payload carries the extra points (the lot DETAIL read
+ * projects them; list/board payloads do not yet — those surfaces keep the
+ * primary point until their payloads join the extras, see the SIL-765
+ * follow-up on the SIL board).
+ *
  * FCL — `shipment_containers.pickup_port_id` / `dropoff_port_id` already MEAN
  * Cảng nâng / Cảng hạ in entry, CUS and the master plan. Never reverse them for
  * an export lot; a lot split across several points joins with ' · '.
@@ -25,6 +31,9 @@ export interface LiftDropPointInput {
   tradeDirection?: LiftDropTradeDirection;
   /** LCL Kho (CFS/Cảng) point: catalog site display name or the typed text. */
   warehouseName?: string | null;
+  /** SIL-765 — the lot's ADDITIONAL "Kho lấy hàng" display names (2..N); an
+   *  LCL warehouse side renders the primary + these joined with ' · '. */
+  extraWarehouseNames?: ReadonlyArray<string | null | undefined> | null;
   /** LCL Nhà máy point: catalog site display name or the typed text. */
   factoryName?: string | null;
   /** FCL container pickup port names (already = Cảng nâng). */
@@ -62,9 +71,12 @@ export function resolveLiftDropPoints(input: LiftDropPointInput): LiftDropPoints
   const factory = clean(input.factoryName);
   if (input.cargoMode === 'LCL') {
     const exportLot = input.tradeDirection === 'EXPORT';
+    // SIL-765 — the kho side shows EVERY pickup warehouse of the lot (primary
+    // first, then the additional points), ' · '-joined like the FCL port join.
+    const warehouseSide = joinPoints([warehouse, ...(input.extraWarehouseNames ?? [])]);
     return {
-      lift: (exportLot ? factory : warehouse) ?? clean(input.liftFallback),
-      drop: (exportLot ? warehouse : factory) ?? clean(input.dropFallback),
+      lift: (exportLot ? factory : warehouseSide) ?? clean(input.liftFallback),
+      drop: (exportLot ? warehouseSide : factory) ?? clean(input.dropFallback),
     };
   }
   return {

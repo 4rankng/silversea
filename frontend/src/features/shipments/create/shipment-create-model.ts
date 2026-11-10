@@ -35,6 +35,10 @@ export interface ShipmentCreateFormState {
    *  lot's direction-correct lift/drop name (pickup_location /
    *  delivery_location); the catalog pick still rides `pickupWarehouseSiteId`. */
   pickupWarehouseName: string;
+  /** SIL-765 — additional "Kho lấy hàng" rows (điểm bốc hàng 2..N) of the same
+   *  lot. Each row is the SAME hybrid pick as the primary field (catalog site
+   *  id XOR typed text); an empty row never reaches the payload. */
+  extraPickupWarehouses: Array<{ siteId: string; name: string }>;
   customsCutoffAt: string;
   closingAt: string;
   plannedReturnAt: string;
@@ -157,6 +161,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   operationalSiteId: '',
   pickupWarehouseSiteId: '',
   pickupWarehouseName: '',
+  extraPickupWarehouses: [],
   customsCutoffAt: '',
   closingAt: '',
   plannedReturnAt: '',
@@ -311,6 +316,14 @@ export function getShipmentCreateReadiness(
     if (!adHoc && !form.pickupWarehouseSiteId && !form.pickupWarehouseName.trim()) {
       issues.push(issue('shipment-pickup-warehouse', 'Chọn kho lấy hàng.', 'route'));
     }
+    // SIL-765 — an extra pickup-warehouse row is OPTIONAL (AC: một kho vẫn
+    // chạy bình thường), but a STARTED row must name a point — catalog pick
+    // or typed text, never a blank second line.
+    form.extraPickupWarehouses.forEach((row, index) => {
+      if (!row.siteId && !row.name.trim()) {
+        issues.push(issue(`shipment-pickup-warehouse-extra-${index}`, 'Chọn kho hoặc nhập tên kho lấy hàng.', 'route'));
+      }
+    });
     if (!form.packageType) issues.push(issue('shipment-package-type', 'Nhập quy cách đóng gói.', 'cargo'));
     if (!form.packageCount || Number(form.packageCount) < 1) issues.push(issue('shipment-package-count', 'Nhập số lượng kiện lớn hơn 0.', 'cargo'));
     if (!form.cargoWeightKg || Number(form.cargoWeightKg) <= 0) issues.push(issue('shipment-cargo-weight', 'Nhập trọng lượng lớn hơn 0.', 'cargo'));
@@ -455,6 +468,14 @@ export function buildShipmentRootPayload(
     depositAmount: form.hasDeposit ? Number(form.depositAmount.replace(/\D/g, '')) || null : null,
     operationalSiteId: form.cargoMode === 'LCL' && form.operationalSiteId ? Number(form.operationalSiteId) : null,
     pickupWarehouseSiteId: form.cargoMode === 'LCL' && form.pickupWarehouseSiteId ? Number(form.pickupWarehouseSiteId) : null,
+    // SIL-765 — additional pickup warehouses ride LCL only; FCL omits the key
+    // entirely (JSON.stringify drops undefined) so an FCL save can never touch
+    // the point rows. Site rows normalize to name null ("id set → raw null").
+    additionalPickupWarehouses: form.cargoMode === 'LCL'
+      ? form.extraPickupWarehouses
+        .map((row) => ({ siteId: row.siteId ? Number(row.siteId) : null, name: row.siteId ? null : row.name.trim() || null }))
+        .filter((row) => row.siteId != null || row.name != null)
+      : undefined,
     factoryName: (() => {
       if (form.isAdHoc) return form.factoryName.trim() || null;
       if (!isLcl) return null;

@@ -137,6 +137,8 @@ export interface QuickCreateShipmentRequest {
   cargoMode?: 'FCL' | 'LCL' | null;
   operationalSiteId?: number | null;
   pickupWarehouseSiteId?: number | null;
+  /** SIL-765 — additional "Kho lấy hàng" points (2..N) of the same LCL lot. */
+  additionalPickupWarehouses?: Array<{ siteId?: number | null; name?: string | null }>;
   factoryName?: string | null;
   shippingLineName?: string | null;
   customsCutoffAt?: string | null;
@@ -277,6 +279,15 @@ export interface ShipmentDetail {
      *  when the lot never picked one. */
     pickupWarehouseSiteName: string | null;
     pickupWarehouseSiteType: 'FACTORY' | 'WAREHOUSE' | null;
+    /** SIL-765 — additional "Kho lấy hàng" points (2..N) in display order;
+     *  `siteName` is the catalog short name when the row picked a site. */
+    additionalPickupWarehouses: Array<{
+      id: number;
+      siteId: number | null;
+      siteName: string | null;
+      name: string | null;
+      position: number;
+    }>;
     /** Route display label with the overview's authority (container route →
      *  lot route → ad-hoc rawRouteName) so both views name the same route
      *  (card 101026163040 / FB-074). */
