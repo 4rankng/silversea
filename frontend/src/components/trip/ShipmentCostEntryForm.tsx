@@ -11,6 +11,7 @@ import { NumberField, TextField, UuiSelectField, EmptyState } from '../../design
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { driverExpenseOption, requiredEvidenceTypeForExpenseCode, type DriverExpenseOption } from '../../features/driver/driver-expense-options';
+import { driverLotCostRequiresReceipt } from '@tingting/shared';
 import { useDriverExpenseEntry, type DriverExpenseDraft } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
 import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
@@ -30,12 +31,13 @@ export interface ShipmentCostEntryFormProps {
 /**
  * The ONE photo rule for a draft row, shared by the row's reminder/disable and
  * the form's submit gate — a mirror of the server's single rule set
- * (`insertDriverIncidentalCostTx`), never a wider or narrower local reading:
- * a required-evidence code needs its paper whatever the picker says, and every
- * lot-bucket row (DRIVER_SHIPMENT) carries its biên lai photo whatever the
- * sign — the server rejects a lot row without one ("Chi phí lô hàng phải kèm
- * ảnh biên lai trước khi lưu."), positive or negative alike (CP700-03: "MỌI
- * dòng nhóm DRIVER_SHIPMENT phải có ảnh biên lai — FE chặn + BE từ chối").
+ * (`insertDriverIncidentalCostTx`), never a wider or narrower local reading.
+ * SIL-769 (09/11, customer CR-006 2B — "khách hàng bảo thế nào thì làm thế"):
+ * the biên lai photo is mandatory for EXACTLY the three shared lot fees
+ * (Phí Nâng / Phí Hạ / Lưu vỏ — DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES);
+ * every other lot row saves without a photo, superseding CP700-03's group law.
+ * A required-evidence code (Sửa chữa dọc đường's hand-written receipt) still
+ * needs its paper whatever the picker says.
  *
  * SIL-759 (spec_fix 09/11 Phần II Epic 1 mục 2): the [+ Thêm chi phí] form is
  * LOT-ONLY, one horizontal row per draft — the Tiền đường bucket is system
@@ -43,11 +45,13 @@ export interface ShipmentCostEntryFormProps {
  * đường" for discrepancies, so the road options/norms are no longer offered
  * here. The evidence-kind ticks ride along: a catalog-classified lot fee's
  * paper kind follows the catalog itself (INVOICED ⇒ INVOICE, else RECEIPT) —
- * the same classification the server applies on the receivable side.
+ * the same classification the server applies on the receivable side, whose
+ * `evidenceKind === 'RECEIPT'` photo clause now guards ROAD rows only — lot
+ * rows answer to the SIL-769 fee set above.
  */
 function receiptStillNeeded(selected: DriverExpenseOption): boolean {
   if (requiredEvidenceTypeForExpenseCode(selected.expenseTypeCode) != null) return true;
-  return selected.group === 'DRIVER_SHIPMENT';
+  return driverLotCostRequiresReceipt(selected.expenseTypeCode);
 }
 
 /** Saved-row caption: the paper the row carries. Legacy rows (`evidence_kind`
@@ -102,10 +106,14 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
   const requiresReceipt = requiredEvidence != null;
   const evidenceLabel = requiredEvidence == null ? '' : NO_INVOICE_EVIDENCE_TYPE_LABELS[requiredEvidence];
   const receiptMissing = receiptStillNeeded(selected) && !row.receiptStorageKey;
+  // SIL-769 — the three shared lot fees keep the "(bắt buộc)" affordance and
+  // name THE FEE in the blocking line; every other row shows the optional
+  // label and never blocks the save.
   const cameraLabel = uploading ? 'Đang tải ảnh biên lai'
     : row.receiptStorageKey ? 'Thay ảnh biên lai — đã đính kèm'
     : requiresReceipt ? `Chụp / chọn ${evidenceLabel} (bắt buộc)`
-    : 'Chụp / chọn biên lai (bắt buộc)';
+    : receiptMissing ? 'Chụp / chọn biên lai (bắt buộc)'
+    : 'Chụp / chọn biên lai';
 
   return (
     <section className="shipment-cost-entry__draft-row" aria-label={`Khoản chi ${index + 1}`}>
@@ -140,13 +148,12 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
       )}
       {row.receiptStorageKey && <p className="shipment-cost-entry__empty" role="status">Đã đính kèm biên lai.</p>}
       {pendingFile && <div className="shipment-cost-entry__upload-retry" role="status"><span>{pendingFile.name} · Chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" disabled={disabled} onClick={() => onUpload(pendingFile)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" disabled={disabled} onClick={onDiscardPendingFile}>Bỏ ảnh chưa tải</button></div>}
-      {/* Card 20260928_165 + chiphispec §2 / CP700-03 — the supporting paper
-          cannot exist without the entry: the form blocks the submit (never
-          silently) until it is attached, and the server refuses the row without
-          it. One rule, one message per bucket — the lot row answers with the
-          server's own line ('Chi phí lô hàng phải kèm ảnh biên lai trước khi
-          lưu.'); a mandated-evidence code names its paper. */}
-      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{requiresReceipt ? `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.` : 'Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.'}</p>}
+      {/* SIL-769 — the blocking line NAMES the fee that is missing its biên
+          lai (Phí nâng / Phí hạ / Phí lưu bãi), mirroring the server's own
+          refusal; a mandated-evidence code names its paper instead. The form
+          blocks the submit (never silently) until the paper is attached, and
+          the server refuses the row without it. */}
+      {receiptMissing && <p className="shipment-cost-entry__empty" role="status" data-testid="shipment-cost-receipt-required">{requiresReceipt ? `${selected.label} phải kèm ${evidenceLabel} — kế toán phơi phiếu đối chiếu chứng từ giấy này.` : `${selected.label} phải kèm ảnh biên lai trước khi lưu.`}</p>}
     </section>
   );
 }

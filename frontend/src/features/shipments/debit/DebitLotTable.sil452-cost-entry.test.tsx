@@ -3,11 +3,10 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentDebit';
 
-const { onDeclareCost, onDeleted, onToggle, onSaved, onUnmerged } = vi.hoisted(() => ({
+const { onDeclareCost, onDeleted, onToggle, onUnmerged } = vi.hoisted(() => ({
   onDeclareCost: vi.fn(),
   onDeleted: vi.fn(),
   onToggle: vi.fn(),
-  onSaved: vi.fn(),
   onUnmerged: vi.fn(),
 }));
 
@@ -51,10 +50,8 @@ function renderTable(props: { canManage?: boolean; canDeleteLot?: boolean; canDe
           selectedIds={new Set()}
           expandedId={null}
           onToggle={onToggle}
-          onSaved={onSaved}
           onUnmerged={onUnmerged}
           ratesRefreshing={false}
-          plateOptions={[]}
           onSelect={() => {}}
         />
       </ToastProvider>
@@ -75,7 +72,6 @@ describe('DebitLotTable — the row menu Khai chi phí entry (SIL-452)', () => {
     onDeclareCost.mockReset();
     onDeleted.mockReset();
     onToggle.mockReset();
-    onSaved.mockReset();
     onUnmerged.mockReset();
   });
 

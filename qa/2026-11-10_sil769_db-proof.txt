@@ -1,0 +1,15 @@
+23|Lưu bãi (lúc hạ)|250000|YARD_STORAGE|trips/779100/other-f07cf9954297bab2a2311b6798f06dc7.png|RECEIPT|2026-11-09 16:23:31.676871+00
+24|Phí vệ sinh|1000|FEE_CLEANING|NULL||2026-11-09 16:29:36.482519+00
+25|Phí vệ sinh|50000|FEE_CLEANING|NULL|RECEIPT|2026-11-09 16:29:49.400746+00
+26|Lưu bãi (lúc hạ)|250000|YARD_STORAGE|trips/779100/other-3b6a368aa4cac9a7151282d1bbe51771.png|RECEIPT|2026-11-09 16:30:40.881059+00
+27|Phí vệ sinh|50000|FEE_CLEANING|NULL|RECEIPT|2026-11-09 16:30:45.195378+00
+ id |      fee_name      | amount |   cost_group    | expense_type_code |                         receipt                         | evidence_kind |          created_utc          
+----+--------------------+--------+-----------------+-------------------+---------------------------------------------------------+---------------+-------------------------------
+ 27 | Phí vệ sinh        |  50000 | DRIVER_SHIPMENT | FEE_CLEANING      | NULL                                                    | RECEIPT       | 2026-11-09 16:30:45.195378+00
+ 26 | Lưu bãi (lúc hạ)   | 250000 | DRIVER_SHIPMENT | YARD_STORAGE      | trips/779100/other-3b6a368aa4cac9a7151282d1bbe51771.png | RECEIPT       | 2026-11-09 16:30:40.881059+00
+ 25 | Phí vệ sinh        |  50000 | DRIVER_SHIPMENT | FEE_CLEANING      | NULL                                                    | RECEIPT       | 2026-11-09 16:29:49.400746+00
+ 24 | Phí vệ sinh        |   1000 | DRIVER_SHIPMENT | FEE_CLEANING      | NULL                                                    |               | 2026-11-09 16:29:36.482519+00
+ 23 | Lưu bãi (lúc hạ)   | 250000 | DRIVER_SHIPMENT | YARD_STORAGE      | trips/779100/other-f07cf9954297bab2a2311b6798f06dc7.png | RECEIPT       | 2026-11-09 16:23:31.676871+00
+ 22 | Phí nâng container | 500000 | DRIVER_SHIPMENT | LIFTING           | trips/779100/other-c3d4cef1547810002f09c454f189fbd6.png | INVOICE       | 2026-11-09 15:11:51.279566+00
+(6 rows)
+

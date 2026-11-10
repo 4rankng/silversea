@@ -383,15 +383,18 @@ await withPage(browser, ops.token, { width: 390, height: 844 }, async (page) => 
     amount.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await sleep(400);
-  const blocked = await page.evaluate(() => {
+  // SIL-777 (owner 09/11/2026) reverses SIL-723's law: Ghi chú is OPTIONAL in
+  // every case — Loại phí + Số tiền alone open Lưu, and no gate notice
+  // renders. This probe now pins the reversed contract.
+  const saveState = await page.evaluate(() => {
     const form = document.querySelector('form.ops-modal');
     const save = [...form.querySelectorAll('button[type="submit"]')].find(b => b.textContent.includes('Lưu'));
     const foot = form.querySelector('.ops-modal__foot');
-    return { disabled: save.disabled, notice: (foot?.innerText.match(/Dòng không thu khách.*/)?.[0] ?? '').trim() };
+    return { disabled: save.disabled, notice: (foot?.innerText.match(/bắt buộc.*/)?.[0] ?? '').trim() };
   });
-  check('@390 Lưu disabled without Ghi chú', blocked.disabled === true);
-  check('@390 footer notice names "Ghi chú"', blocked.notice.includes('bắt buộc nhập trường "Ghi chú"'), blocked.notice);
-  await page.screenshot({ path: `${OUT}/sil-723_ui-4-missing-note-notice-390.png` });
+  check('@390 Lưu enabled without Ghi chú (SIL-777)', saveState.disabled === false);
+  check('@390 no note-gate notice renders', !saveState.notice.includes('bắt buộc nhập trường "Ghi chú"'), saveState.notice);
+  await page.screenshot({ path: `${OUT}/sil-777_ui-4-note-optional-save-390.png` });
 });
 
 await browser.close();

@@ -188,16 +188,17 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     // The Ops amounts render as read-only spans, never inputs.
     const amount = screen.getByText('180.000');
     expect(amount.tagName).toBe('SPAN');
-    expect(screen.queryByLabelText(/Thu khách/)).toBeNull();
     expect(screen.queryByLabelText(/Ghi chú PS thực tế/)).toBeNull();
-    // The Phí khác OTHER rows stay the CUS-editable cells, and the wire's
-    // sell side renders as a read-only number beside the chi-hộ input.
-    expect(screen.getByLabelText(/Số tiền chi hộ phí khác/)).toBeTruthy();
-    expect(screen.getByText('Thu khách: 250.000')).toBeTruthy();
+    // REV2 dual-input (ticket-v2 VI.2): the Phí khác row renders the Thực
+    // chi Ops side as a read-only span beside the CUS-managed Thu khách
+    // hàng input, seeded with the wire's sell figure.
+    const opsSide = screen.getByLabelText('Thực chi Ops phí khác Phí đăng kiểm CONT-001');
+    expect(opsSide.tagName).toBe('SPAN');
+    expect(opsSide.textContent).toBe('200.000');
+    const sell = screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Phí đăng kiểm CONT-001' }) as HTMLInputElement;
+    expect(sell.value).toBe('250000');
     // No save bar before any edit exists.
     expect(screen.queryByRole('button', { name: 'Lưu điều chỉnh' })).toBeNull();
-    const payables = screen.getByText('Phí Phải trả').closest('table')!;
-    expect(payables.querySelector('input, textarea, select')).toBeNull();
   });
 
   it('arms the orange warning on detention or repair amounts above zero', async () => {
@@ -208,33 +209,24 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     expect(screen.getByText('[ 350.000 đ ]')).toBeTruthy();
   });
 
-  it('renders the zone column heading verbatim from the config label with the lot amount', async () => {
-    getDetail.mockResolvedValue(detail({ zoneSurcharge: { label: 'Phí vùng Cánh Dương', amount: 950000, source: 'CONFIG' } }));
-    renderWorkspace();
-    const payables = (await screen.findByText('Phí Phải trả')).closest('table')!;
-    expect(payables.querySelector('thead th:nth-child(3)')?.textContent).toBe('Phí vùng Cánh Dương');
-    expect(payables.textContent).toContain('950.000');
-  });
-
-  it('keeps the interim dash column when no zone is configured', async () => {
-    getDetail.mockResolvedValue(detail());
-    renderWorkspace();
-    const payables = (await screen.findByText('Phí Phải trả')).closest('table')!;
-    expect(payables.querySelector('thead th:nth-child(3)')?.textContent).toBe('—');
-  });
+  // REV2 (ticket-v2 VI.2): the zone-surcharge column lived on Bảng 2.3's
+  // PayablesTable, which is deleted — no zone pin survives the removed
+  // surface (Bảng 2.1 keeps its interim '—' column, pinned above).
 
   it('sends the strict delta and validates it against the shared schema', async () => {
     getDetail.mockResolvedValue(detail());
     const { onSaved } = renderWorkspace();
     await screen.findByText('Cước vận tải');
-    fireEvent.change(screen.getByLabelText(/Số tiền chi hộ phí khác Phí đăng kiểm CONT-001/), { target: { value: '250000' } });
+    // The editable cell seeds the wire's sell; typing a NEW figure arms the
+    // save with a sellAmount delta — REV2's Thực chi Ops side never travels.
+    fireEvent.change(screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Phí đăng kiểm CONT-001' }), { target: { value: '300000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
     await waitFor(() => expect(saveEdits).toHaveBeenCalled());
     const body = saveEdits.mock.calls[0][1];
     // The wire format is the shared delta schema — never a re-declared twin.
     expect(() => shipmentDebitEditPayloadSchema.parse(body)).not.toThrow();
     expect(body).toEqual({
-      edits: [{ expenseId: 9002, buyAmount: 250000 }],
+      edits: [{ expenseId: 9002, sellAmount: 300000 }],
       addOtherFees: [],
       removeExpenseIds: [],
       freightEdits: [],
@@ -249,13 +241,13 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Thêm chi phí' }));
     fireEvent.change(screen.getByLabelText('Tên phí mới CONT-001'), { target: { value: 'Phí rửa container' } });
     fireEvent.change(screen.getByLabelText('Số tiền phí mới CONT-001'), { target: { value: '150000' } });
-    fireEvent.change(screen.getByLabelText('Số tiền chi hộ phí khác Phí đăng kiểm CONT-001'), { target: { value: '250000' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Phí đăng kiểm CONT-001' }), { target: { value: '300000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
     await waitFor(() => expect(saveEdits).toHaveBeenCalled());
     const body = saveEdits.mock.calls[0][1];
     expect(() => shipmentDebitEditPayloadSchema.parse(body)).not.toThrow();
     expect(body).toMatchObject({
-      edits: [{ expenseId: 9002, buyAmount: 250000 }],
+      edits: [{ expenseId: 9002, sellAmount: 300000 }],
       addOtherFees: [{ tripId: 601, name: 'Phí rửa container', amount: 150000 }],
     });
     // A removed fee travels as an id, never as an amount edit — and Q10
@@ -289,11 +281,11 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     const { onSaved } = renderWorkspace();
     await screen.findByText('Cước vận tải');
     expect(screen.queryByRole('button', { name: 'Lưu điều chỉnh' })).toBeNull();
-    fireEvent.change(screen.getByLabelText(/Số tiền chi hộ phí khác Phí đăng kiểm CONT-001/), { target: { value: '250000' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Phí đăng kiểm CONT-001' }), { target: { value: '300000' } });
     expect(await screen.findByRole('button', { name: 'Lưu điều chỉnh' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
     await waitFor(() => expect(saveEdits).toHaveBeenCalledTimes(1));
-    expect(saveEdits.mock.calls[0][1]).toMatchObject({ edits: [{ expenseId: 9002, buyAmount: 250000 }] });
+    expect(saveEdits.mock.calls[0][1]).toMatchObject({ edits: [{ expenseId: 9002, sellAmount: 300000 }] });
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
   });
 });
@@ -419,7 +411,9 @@ describe('Bảng 2.1 wire contract (card _7)', () => {
     await screen.findByText('Cước vận tải');
     expect(screen.getByText('4.500.000')).toBeTruthy();
     expect(screen.getByText('300.000')).toBeTruthy();
-    expect(screen.getAllByText('Chưa xác định').length).toBeGreaterThanOrEqual(1);
+    // REV2: 'Chưa xác định' lived on Bảng 2.3's honest-null cells — that
+    // surface is deleted; Bảng 2.1 renders absent data as '—' / '(auto)'.
+    expect(screen.queryByText('Chưa xác định')).toBeNull();
     expect(screen.getByText('4.800.000')).toBeTruthy();
   });
 

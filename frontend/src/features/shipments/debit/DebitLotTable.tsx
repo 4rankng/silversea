@@ -9,12 +9,11 @@ import { useToast } from '../../../components/shared/Toast';
 // text + house color-dot — never a pill bubble. The desktop board's own
 // 999px pill was the last straggler of that ruling on this page.
 import { StatusText } from '../../../components/shared/StatusText';
-import { DebitLotLclFacts } from './DebitLotLclFacts';
-import { ShipmentDebitWorkspace } from './ShipmentDebitWorkspace';
 import { UnmergeRevGroupAction } from './UnmergeRevGroupAction';
 import { DeleteLotAction } from './DeleteLotAction';
 import {
   EMPTY_SUM_TOOLTIP, PENDING_TOOLTIP, ZERO_TOOLTIP,
+  type MoneyState,
   formatKnownMoney, lotDocuments, lotLabelOf, moneyState, sumMoneyStates, titleCaseName,
 } from './debitMoney';
 
@@ -32,11 +31,14 @@ import {
 
 /** Sticky header height — the group header pins directly under it (CSS). */
 
-type MoneyVariant = 'receivable' | 'carrier' | 'domestic' | 'payable' | 'profit';
+/** REV2 flat board — revenue-only money columns (giá vốn ẩn): freight auto,
+ * the two sell buckets, the receivable total. No carrier/domestic/payable/
+ * profit variant exists anymore. */
+type MoneyVariant = 'freight' | 'chiho' | 'service' | 'total';
 
-function MoneyCell({ state, variant, note, tag, tagTitle }: { state: ReturnType<typeof moneyState>; variant: MoneyVariant; note?: string | null; tag?: string | null; tagTitle?: string | null }) {
+function MoneyCell({ state, variant, note, tag, tagTitle }: { state: MoneyState; variant: MoneyVariant; note?: string | null; tag?: string | null; tagTitle?: string | null }) {
   // SIL-546 — the REV-group member's visible merge tag («Ghép thu cước cùng
-  // Lô 1») rides the receivable figure on its own truncating line (same
+  // Lô 1») rides the freight figure on its own truncating line (same
   // ellipsis + tooltip doctrine as every cell here). It replaces the icon
   // note on member rows: the tag's own title carries the full reason, and
   // one concept renders once per cell (design law §1).
@@ -68,7 +70,6 @@ function MoneyCell({ state, variant, note, tag, tagTitle }: { state: ReturnType<
     <td
       className={cls}
       data-col={variant}
-      data-negative={variant === 'profit' && state.value < 0 ? '' : undefined}
     >
       {formatKnownMoney(state.value)}
       {note && <span className="shipment-debit-money__note" title={note} role="img" aria-label={`Ghi chú cước: ${note}`}><Layers size={12} aria-hidden="true" /></span>}
@@ -78,7 +79,7 @@ function MoneyCell({ state, variant, note, tag, tagTitle }: { state: ReturnType<
 }
 
 /** Sticky group subtotal cell — same three-state law, muted weight. */
-function GroupSumCell({ state, col }: { state: ReturnType<typeof moneyState>; col: MoneyVariant }) {
+function GroupSumCell({ state, col }: { state: MoneyState; col: MoneyVariant }) {
   if (state.kind === 'pending') return <td className="shipment-debit-group__sum" data-col={col} title={PENDING_TOOLTIP}>—</td>;
   if (state.kind === 'zero') return <td className="shipment-debit-group__sum" data-col={col} title={ZERO_TOOLTIP}>0</td>;
   return <td className="shipment-debit-group__sum" data-col={col}>{formatKnownMoney(state.value)}</td>;
@@ -175,10 +176,11 @@ function DocsBadge({ row }: { row: ShipmentDebitLotRow }) {
   );
 }
 
-/** ── Tờ khai copy: one click lands the number in the OS clipboard. */
-function CustomsCell({ row }: { row: ShipmentDebitLotRow }) {
+/** ── Tờ khai copy: one click lands the number in the OS clipboard. REV2 —
+ *  an INLINE line of the multi-line identity cell (no column of its own). */
+function CustomsCopy({ row }: { row: ShipmentDebitLotRow }) {
   const { toast } = useToast();
-  if (!row.customsNumber) return <td className="shipment-debit-cell--customs"><span className="shipment-debit-cell__empty">—</span></td>;
+  if (!row.customsNumber) return <span className="shipment-debit-cell__empty">—</span>;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(row.customsNumber!);
@@ -188,19 +190,17 @@ function CustomsCell({ row }: { row: ShipmentDebitLotRow }) {
     }
   };
   return (
-    <td className="shipment-debit-cell--customs">
-      <span className="shipment-debit-cell--customs__wrap" title={row.customsNumber}>
-        <span className="shipment-debit-cell--customs__value">{row.customsNumber}</span>
-      </span>
+    <span className="shipment-debit-identity__customs" title={row.customsNumber}>
+      <span>{row.customsNumber}</span>
       <button
         type="button"
         className="shipment-debit-copy"
         aria-label={`Copy số tờ khai ${row.customsNumber}`}
         onClick={(event) => { event.stopPropagation(); void copy(); }}
       >
-        <Copy size={14} aria-hidden="true" />
+        <Copy size={12} aria-hidden="true" />
       </button>
-    </td>
+    </span>
   );
 }
 
@@ -480,7 +480,7 @@ function DebitRowMenu({ row, canManage, canDeleteLot, canDeclareCost, onDeclareC
 }
 
 /** ── One lot row: single baseline, 52px, eleven fixed columns. */
-function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCost, onDeleted, mergeMode, expanded, onToggle, onSaved, onUnmerged, ratesRefreshing, selected, onSelect, plateOptions }: {
+function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCost, onDeleted, mergeMode, expanded, onToggle, onUnmerged, ratesRefreshing, selected, onSelect }: {
   row: ShipmentDebitLotRow;
   canManage: boolean;
   /** SIL-688: CUS/ADMIN gate for the row menu's Xóa lô entry. */
@@ -494,19 +494,15 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
   mergeMode: boolean;
   expanded: boolean;
   onToggle: () => void;
-  onSaved: () => void;
   onUnmerged: () => void;
   ratesRefreshing: boolean;
   selected: boolean;
   onSelect: (id: number, next: boolean) => void;
-  /** FB-093: BKS combobox suggestions for the PHÂN XE quick edit. */
-  plateOptions: Array<{ value: string; label: string; searchText?: string }>;
 }) {
   const label = lotLabelOf(row);
   const laneText = row.factoryName || row.factoryAddress || '';
-  const profitState = moneyState(row.profit);
   // SIL-546 — a REV-group member (Lô 2..N: cước thu 0₫ vì nằm cùng Lô 1)
-  // carries the spec's visible tag on its receivable cell; Lô 1 and ungrouped
+  // carries the spec's visible tag on its freight cell; Lô 1 and ungrouped
   // rows never do. Same law the BE stamps on the dispatch summary
   // (revGroupOrder > 1 ⇒ LCL_REV_MERGE_TAG); tách nhóm clears the group ids
   // so the tag disappears with the group. The tag's tooltip keeps the full
@@ -519,20 +515,23 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
   // SIL-731 r4 — the 24/10 law has no lock exemption: a locked lot's frozen '0'
   // with freightAuto null is still uncalculated → pending/blank, never '0'.
   const isZeroUncalculated = !isRevMergeMember && row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0;
-  const receivableState = ratesRefreshing || isZeroUncalculated ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
+  const totalState = ratesRefreshing || isZeroUncalculated ? { kind: 'pending' as const } : moneyState(row.receivableTotal);
+  const freightPending = ratesRefreshing || (row.freightAuto == null && !isRevMergeMember) ? { kind: 'pending' as const } : moneyState(row.freightAuto);
   return (
     <>
       <tr
         className="shipment-debit-row"
         data-locked={row.lockStatus === 'LOCKED' ? '' : undefined}
         data-selected={selected || undefined}
-        // SIL-537/538: the row itself is a select-alias ONLY in [📦 Gộp hàng]
-        // mode — outside the mode a row click must never mutate an invisible
-        // selection (the ticks are hidden there by design).
-        // SIL-549 (spec 23/10 §2 "UX hỗ trợ"): AND only for LCL rows — a FCL
-        // row is never pickable, so its click (like its checkbox) is inert.
-        onClick={() => { if (canManage && mergeMode && row.cargoMode === 'LCL') onSelect(row.shipmentId, !selected); }}
-        title={canManage && mergeMode && row.cargoMode === 'LCL' ? 'Chọn lô (gộp xe thu khách / xuất Debit Note)' : undefined}
+        // SIL-537/538: in [📦 Gộp hàng] mode the LCL row itself is a
+        // select-alias. REV2 — OUTSIDE the mode a row click opens the
+        // Chốt-giá-bán drawer ("Khi CUS click vào 1 lô hàng, mở Drawer bên
+        // phải"); clicks on the row's own controls never leak into it.
+        onClick={(event) => {
+          if (canManage && mergeMode && row.cargoMode === 'LCL') { onSelect(row.shipmentId, !selected); return; }
+          if (canManage && !mergeMode && !(event.target instanceof HTMLElement && event.target.closest('button, a, input, [role="menuitem"]'))) onToggle();
+        }}
+        title={canManage && mergeMode && row.cargoMode === 'LCL' ? 'Chọn lô (gộp xe thu khách / xuất Debit Note)' : canManage && !mergeMode ? 'Mở Chốt giá bán' : undefined}
       >
         {mergeMode && (
           <td className="shipment-debit-cell--select">
@@ -554,27 +553,31 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
             ) : <span className="shipment-debit-cell__empty" aria-label="Chỉ xem tổng hợp">—</span>}
           </td>
         )}
-        <td className="shipment-debit-cell--booking">
-          <span className="shipment-debit-booking" title={label}>{label}</span>
+        <td className="shipment-debit-cell--identity">
+          {/* REV2 — the multi-line identity cell: Bill/Booking + chứng từ
+              badge, tờ khai (copy), nhà máy/tuyến. The customer itself is the
+              group header above (the board groups by the row's customer). */}
+          <div className="shipment-debit-identity">
+            <div className="shipment-debit-identity__line">
+              <span className="shipment-debit-booking" title={label}>{label}</span>
+              <DocsBadge row={row} />
+            </div>
+            <div className="shipment-debit-identity__line">
+              <CustomsCopy row={row} />
+              <span className="shipment-debit-identity__lane">{laneText || '—'}</span>
+            </div>
+          </div>
         </td>
-        <CustomsCell row={row} />
-        <td className="shipment-debit-cell--lane">
-          {laneText
-            ? <span className="shipment-debit-lane" title={[row.factoryName, row.factoryAddress].filter(Boolean).join(' — ')}>{laneText}</span>
-            : <span className="shipment-debit-cell__empty">—</span>}
-        </td>
-        <td className="shipment-debit-cell--docs"><DocsBadge row={row} /></td>
         <MoneyCell
-          state={receivableState}
-          variant="receivable"
+          state={freightPending}
+          variant="freight"
           note={isRevMergeMember ? null : row.freightOverrideReason}
           tag={showRevMergeTag ? LCL_REV_MERGE_TAG : null}
           tagTitle={row.freightOverrideReason ?? LCL_REV_MERGE_TAG}
         />
-        <MoneyCell state={moneyState(row.carrierCostTotal ?? null)} variant="carrier" />
-        <MoneyCell state={moneyState(row.opsCostTotal ?? null)} variant="domestic" />
-        <MoneyCell state={moneyState(row.payableTotal)} variant="payable" />
-        <MoneyCell state={profitState} variant="profit" />
+        <MoneyCell state={moneyState(row.chiHoSellTotal ?? null)} variant="chiho" />
+        <MoneyCell state={moneyState(row.serviceSellTotal ?? null)} variant="service" />
+        <MoneyCell state={totalState} variant="total" />
         <td className="shipment-debit-cell--status">
           {/* §1 text+dot, no pill. Tones mirror the phone card's own mapping
               (ShipmentDebitRecords: open = a state hue, LOCKED = neutral) —
@@ -585,23 +588,13 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
           {/* SIL-538 — the merged row's merge tag IS the direct surface: click
               opens a small popover hosting [Tách nhóm] (rev/cost) so CUS never
               has to dig the action out of the ⋯ kebab (PRD 261023110000 §4.2).
-              The expanded drawer keeps its per-dimension Hủy ghép buttons. */}
+              The Chốt-giá-bán drawer keeps its per-dimension Hủy ghép buttons. */}
           {canManage && (row.revGroupId != null || row.costGroupId != null) && (
             <MergedGroupTag row={row} onUnmerged={onUnmerged} />
           )}
           <DebitRowMenu row={row} canManage={canManage} canDeleteLot={canDeleteLot} onDeleted={onDeleted} canDeclareCost={canDeclareCost} onDeclareCost={onDeclareCost ? () => onDeclareCost(row) : undefined} expanded={expanded} onToggle={onToggle} onUnmerged={onUnmerged} />
         </td>
       </tr>
-      {canManage && expanded && (
-        <tr className="shipment-debit-expand">
-          <td colSpan={mergeMode ? 11 : 10}>
-            {row.cargoMode === 'LCL' && (
-              <DebitLotLclFacts row={row} plateOptions={plateOptions} onChanged={onSaved} />
-            )}
-            <ShipmentDebitWorkspace shipmentId={row.shipmentId} customerId={row.customerId} locked={row.lockStatus === 'LOCKED'} onSaved={onSaved} />
-          </td>
-        </tr>
-      )}
     </>
   );
 }
@@ -635,13 +628,14 @@ function GroupHeader({ group, collapsed, onCollapse, leadingColSpan }: { group: 
   const sums = group.rows.map((row) => ({
     // SIL-731 r4 — the 24/10 law has no lock exemption: a locked lot's frozen
     // '0' with freightAuto null is still uncalculated → pending, never '0'.
-    receivable: (row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0)
+    freight: (row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0)
+      ? { kind: 'pending' as const }
+      : moneyState(row.freightAuto),
+    chiho: moneyState(row.chiHoSellTotal ?? null),
+    service: moneyState(row.serviceSellTotal ?? null),
+    total: (row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0)
       ? { kind: 'pending' as const }
       : moneyState(row.receivableTotal),
-    carrier: moneyState(row.carrierCostTotal ?? null),
-    domestic: moneyState(row.opsCostTotal ?? null),
-    payable: moneyState(row.payableTotal),
-    profit: moneyState(row.profit),
   }));
   return (
     <tr className="shipment-debit-group">
@@ -659,23 +653,22 @@ function GroupHeader({ group, collapsed, onCollapse, leadingColSpan }: { group: 
         <span className="shipment-debit-group__name">{displayName}</span>
         <span className="shipment-debit-group__count">{`${group.rows.length} lô`}</span>
       </td>
-      <GroupSumCell col="receivable" state={sumsToState(sums.map((s) => s.receivable))} />
-      <GroupSumCell col="carrier" state={sumsToState(sums.map((s) => s.carrier))} />
-      <GroupSumCell col="domestic" state={sumsToState(sums.map((s) => s.domestic))} />
-      <GroupSumCell col="payable" state={sumsToState(sums.map((s) => s.payable))} />
-      <GroupSumCell col="profit" state={sumsToState(sums.map((s) => s.profit))} />
+      <GroupSumCell col="freight" state={sumsToState(sums.map((s) => s.freight))} />
+      <GroupSumCell col="chiho" state={sumsToState(sums.map((s) => s.chiho))} />
+      <GroupSumCell col="service" state={sumsToState(sums.map((s) => s.service))} />
+      <GroupSumCell col="total" state={sumsToState(sums.map((s) => s.total))} />
       <td className="shipment-debit-group__tail" aria-hidden="true" />
     </tr>
   );
 }
 
 /** A pile of money states → one sum state (known values only). */
-function sumsToState(states: Array<ReturnType<typeof moneyState>>): ReturnType<typeof moneyState> {
+function sumsToState(states: Array<MoneyState>): MoneyState {
   const sum = sumMoneyStates(states);
   return sum == null ? { kind: 'pending' } : sum === 0 ? { kind: 'zero' } : { kind: 'known', value: sum };
 }
 
-export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, onDeclareCost, onDeleted, mergeMode, selectedIds, expandedId, onToggle, onSaved, onUnmerged, ratesRefreshing, plateOptions, onSelect }: {
+export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, onDeclareCost, onDeleted, mergeMode, selectedIds, expandedId, onToggle, onUnmerged, ratesRefreshing, onSelect }: {
   items: ShipmentDebitLotRow[];
   canManage: boolean;
   /** SIL-688 (id 800 — QA 06/11): the row menu's "Xóa lô" entry renders for
@@ -697,10 +690,8 @@ export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, 
   selectedIds: Set<number>;
   expandedId: number | null;
   onToggle: (id: number) => void;
-  onSaved: () => void;
   onUnmerged: () => void;
   ratesRefreshing: boolean;
-  plateOptions: Array<{ value: string; label: string; searchText?: string }>;
   onSelect: (id: number, next: boolean) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -728,22 +719,18 @@ export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, 
         <thead>
           <tr>
             {mergeMode && <th scope="col" className="shipment-debit-col--select"><span className="sr-only">{canManage ? 'Chọn lô' : 'Chỉ xem'}</span></th>}
-            <th scope="col" className="shipment-debit-col--booking">Mã lô / Booking</th>
-            <th scope="col" className="shipment-debit-col--customs">Tờ khai</th>
-            <th scope="col" className="shipment-debit-col--lane">Nhà máy / Tuyến</th>
-            <th scope="col" className="shipment-debit-col--docs">Chứng từ</th>
-            <th scope="col" className="shipment-debit-col--money shipment-debit-col--receivable">Doanh thu (₫)</th>
-            <th scope="col" className="shipment-debit-col--money shipment-debit-col--carrier" title="Cước trả hãng vận chuyển">Cước trả (₫)</th>
-            <th scope="col" className="shipment-debit-col--money shipment-debit-col--domestic">Chi nội địa (₫)</th>
-            <th scope="col" className="shipment-debit-col--money shipment-debit-col--payable">Tổng chi (₫)</th>
-            <th scope="col" className="shipment-debit-col--money shipment-debit-col--profit" title="Lợi nhuận gộp">LN gộp (₫)</th>
+            <th scope="col" className="shipment-debit-col--identity">Thông tin lô &amp; khách</th>
+            <th scope="col" className="shipment-debit-col--money shipment-debit-col--freight" title="Cước vận tải tự tra theo tuyến/loại xe (F-2)">Cước vận tải (Auto) (₫)</th>
+            <th scope="col" className="shipment-debit-col--money shipment-debit-col--chiho" title="Chi hộ có hóa đơn thu khách (tự tính lại theo chi)">Tổng chi hộ - Có HĐ (₫)</th>
+            <th scope="col" className="shipment-debit-col--money shipment-debit-col--service" title="Phí khác + phát sinh thu khách (không hóa đơn)">Tổng dịch vụ - Không HĐ (₫)</th>
+            <th scope="col" className="shipment-debit-col--money shipment-debit-col--total">Tổng phải thu khách (₫)</th>
             <th scope="col" className="shipment-debit-col--status"><span className="sr-only">Trạng thái và hành động</span></th>
           </tr>
         </thead>
         <tbody>
           {groups.map((group) => (
             <Fragment key={group.key}>
-              <GroupHeader group={group} collapsed={collapsed.has(group.key)} onCollapse={() => toggleCollapse(group.key)} leadingColSpan={mergeMode ? 5 : 4} />
+              <GroupHeader group={group} collapsed={collapsed.has(group.key)} onCollapse={() => toggleCollapse(group.key)} leadingColSpan={mergeMode ? 2 : 1} />
               {!collapsed.has(group.key) && group.rows.map((row) => (
                 <DebitLotRow
                   key={row.shipmentId}
@@ -756,12 +743,10 @@ export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, 
                   mergeMode={mergeMode}
                   expanded={canManage && expandedId === row.shipmentId}
                   onToggle={() => onToggle(row.shipmentId)}
-                  onSaved={onSaved}
                   onUnmerged={onUnmerged}
                   ratesRefreshing={ratesRefreshing}
                   selected={selectedIds.has(row.shipmentId)}
                   onSelect={onSelect}
-                  plateOptions={plateOptions}
                 />
               ))}
             </Fragment>
@@ -769,12 +754,11 @@ export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, 
         </tbody>
         <tfoot className="shipment-debit-totals" data-testid="shipment-debit-totals">
           <tr>
-            <td colSpan={mergeMode ? 5 : 4} className="shipment-debit-totals__label">{`Tổng cộng (${items.length} lô)`}</td>
-            <TotalCell col="receivable" value={totalOf((row) => row.receivableTotal, 'receivable')} />
-            <TotalCell col="carrier" value={totalOf((row) => row.carrierCostTotal ?? null)} />
-            <TotalCell col="domestic" value={totalOf((row) => row.opsCostTotal ?? null)} />
-            <TotalCell col="payable" value={totalOf((row) => row.payableTotal)} />
-            <TotalCell col="profit" value={totalOf((row) => row.profit)} />
+            <td colSpan={mergeMode ? 2 : 1} className="shipment-debit-totals__label">{`Tổng cộng (${items.length} lô)`}</td>
+            <TotalCell col="freight" value={totalOf((row) => row.freightAuto, 'freight')} />
+            <TotalCell col="chiho" value={totalOf((row) => row.chiHoSellTotal ?? null)} />
+            <TotalCell col="service" value={totalOf((row) => row.serviceSellTotal ?? null)} />
+            <TotalCell col="total" value={totalOf((row) => row.receivableTotal, 'total')} />
             <td className="shipment-debit-totals__tail" aria-hidden="true" />
           </tr>
         </tfoot>

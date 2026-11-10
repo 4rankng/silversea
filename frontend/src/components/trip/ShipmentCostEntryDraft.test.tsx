@@ -39,14 +39,18 @@ describe('driver cost draft table — derived evidence kind + all-or-nothing bat
 
   it('SIL-759: the invoiced default fee (Phí nâng) derives INVOICE from the catalog — no tick exists', async () => {
     setup(); await openForm();
+    // Default is "Phiếu thu" (most lot costs are cash with no VAT invoice);
+    // card 141026230700 removed the typed invoice pair entirely — the photo is
+    // the evidence for the default pick, and SIL-769 keeps that pick (Phí
+    // nâng — LIFTING) among the three photo-mandatory fees.
     expect(screen.queryByRole('group', { name: 'Loại chứng từ' })).toBeNull();
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '500000' } });
 
     // The reminder is the requiresReceipt mechanism — one rule, one testid —
-    // carrying the server's CP700-03 wording for every lot-bucket row.
+    // carrying the server's SIL-769 wording naming the fee.
     expect(screen.getByRole('button', { name: 'Lưu tất cả (1 dòng)' })).toBeDisabled();
-    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Chi phí lô hàng phải kèm ảnh biên lai trước khi lưu.');
+    expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Phí nâng phải kèm ảnh biên lai trước khi lưu.');
 
     await attachReceipt(0, 'receipt.png');
     expect(screen.getByRole('button', { name: 'Lưu tất cả (1 dòng)' })).not.toBeDisabled();

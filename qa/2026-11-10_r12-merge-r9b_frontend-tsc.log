@@ -1,0 +1,1 @@
+FE_TSC3_EXIT=0 (after sil452 onSaved dead-prop removal; DebitLotTable SIL-782 dropped the table-level onSaved prop, page-level DebitLotLclFacts wiring keeps refetch callbacks)

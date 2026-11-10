@@ -283,6 +283,14 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
         <OperationalSiteContactsList contacts={callContacts} callable />
       </Modal>
 
+      {/* SIL-766 (09/11, Frank relay of customer CR-006 — "khách hàng bảo thế
+          nào thì làm thế"): the invoice block moves UP from the page foot to
+          sit right below the Địa chỉ giao hàng row and the Gọi kho button, so
+          the driver reads the billing party to the yard/port the moment the
+          order opens. Display-only — no confirm/send affordance is added
+          here; the MST copy buttons stay the only affordances. */}
+      <DriverInvoiceSection trip={trip} />
+
       {/* Operational instructions precede billing details and remain outside
           both independently collapsible sections. */}
       {children}
@@ -332,14 +340,15 @@ export function DriverCostBreakdownSection({ trip }: { trip: DriverTaskDetail })
 }
 
 /**
- * Card 20260926_30 items 15+17: the invoice block is back-office material —
- * it leaves the driver's critical path by rendering LAST on the screen and
- * starting collapsed; the driver expands it on demand.
+ * SIL-766 (09/11, customer CR-006): the invoice block sits right below the
+ * Địa chỉ giao hàng row and the Gọi kho button and starts EXPANDED — the
+ * driver reads the billing party the moment the order opens (the whole point
+ * of the relocation). Supersedes card 20260926_30 items 15+17 (foot-of-page,
+ * default-collapsed back-office placement). Display-only: rows and the MST
+ * copy buttons, never a confirm/send affordance.
  */
 export function DriverInvoiceSection({ trip }: { trip: DriverTaskDetail }) {
-  // Card 20260926_30 item 17: default-collapsed — the section head is the
-  // toggle; the driver expands on demand.
-  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(true);
   const fulfillment = trip.fulfillment ?? null;
   const invoiceInfo = fulfillment?.invoiceInfo ?? null;
   const missingFactoryInvoiceFields = trip.invoiceFactory ? [

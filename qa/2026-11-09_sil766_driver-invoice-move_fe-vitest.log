@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/r9a-glm/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  120 passed (120)
+   Start at  21:34:49
+   Duration  69.74s (transform 10.94s, setup 2.14s, import 26.37s, tests 57.65s, environment 9.42s)
+

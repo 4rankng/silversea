@@ -16,7 +16,7 @@ import { useReasonPrompt } from '../../../components/reason-prompt';
 import { useToast } from '../../../components/shared/Toast';
 import { qk } from '../../../api/keys';
 import { Role } from '@tingting/shared';
-import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, PayablesTable, buildDelta, buildDraft, deltaIsEmpty, type DraftState } from './ShipmentDebitTables';
+import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, buildDelta, buildDraft, deltaIsEmpty, type DraftState } from './ShipmentDebitTables';
 import { UnattachedTripsTable } from './ShipmentDebitTables.unattached';
 import './ShipmentDebitWorkspace.css';
 
@@ -55,14 +55,15 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
       return { ...current, freight: { ...current.freight, [containerNumber]: { psActual: patch.psActual ?? prev.psActual, note: patch.note ?? prev.note } } };
     });
   };
-  const setFeeAmount = (feeId: number, value: string) => {
-    setDraft((current) => ({ ...current, feeAmounts: { ...current.feeAmounts, [feeId]: value } }));
+  /** REV2 — the dual-input's editable side: Thu Khách Hàng per Phí khác row. */
+  const setFeeSell = (feeId: number, value: string) => {
+    setDraft((current) => ({ ...current, feeSells: { ...current.feeSells, [feeId]: value } }));
   };
   const addFee = (tripId: number) => {
     setDraft((current) => ({ ...current, addedFees: [...current.addedFees, { key: `new-${crypto.randomUUID()}`, tripId, name: '', amount: '' }] }));
   };
   const removeFee = (feeId: number) => {
-    setDraft((current) => ({ ...current, removedFeeIds: [...current.removedFeeIds, feeId], feeAmounts: Object.fromEntries(Object.entries(current.feeAmounts).filter(([id]) => Number(id) !== feeId)) }));
+    setDraft((current) => ({ ...current, removedFeeIds: [...current.removedFeeIds, feeId], feeSells: Object.fromEntries(Object.entries(current.feeSells).filter(([id]) => Number(id) !== feeId)) }));
   };
   const setAddedFee = (key: string, patch: Partial<{ name: string; amount: string }>) => {
     setDraft((current) => ({ ...current, addedFees: current.addedFees.map((fee) => (fee.key === key ? { ...fee, ...patch } : fee)) }));
@@ -196,8 +197,10 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
   return (
     <div className="csc-debit-workspace" data-locked={locked ? '' : undefined}>
       <FreightTable detail={detail.data} draft={draft} frozen={frozen} setFreight={setFreight} />
-      <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} feeCatalog={feeCatalog} setFeeAmount={setFeeAmount} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
-      <PayablesTable detail={detail.data} />
+      <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} feeCatalog={feeCatalog} setFeeSell={setFeeSell} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
+      {/* REV2 (ticket-v2 Phần VI mục 2) — Bảng 2.3 payables is OUT of the
+          Chốt-giá-bán drawer: the CUS surface carries no giá vốn; cost work
+          lives on Bảng Kiểm soát lô hàng (chot-debit). */}
       {/* Card 20260924_3 — display-only section for unattached fulfillment
           work; renders nothing when the lot has none (never zero-render). */}
       <UnattachedTripsTable trips={detail.data.unattachedTrips ?? []} />

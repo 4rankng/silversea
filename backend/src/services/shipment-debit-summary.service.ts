@@ -33,6 +33,11 @@ export async function getShipmentDebitSummary(query: {
   deliveryDateFrom?: string;
   deliveryDateTo?: string;
   lockStatus: 'ALL' | 'OPEN' | 'LOCKED';
+  /** SIL-776 REV2 (ticket-v2 Phần VI mục 2, 09/11/2026): the CUS settlement
+   *  surface carries NO giá vốn — the cost columns (cước trả vendor, tổng chi
+   *  phí đầu vào, biên lợi nhuận) are stripped from the wire for the CUS
+   *  role; accountant surfaces keep them. */
+  viewerRole?: string;
 }): Promise<ShipmentDebitSummaryResponse> {
   const conditions = [isNull(s.shipments.deletedAt)];
   if (query.customerId != null) conditions.push(eq(s.shipments.customerId, query.customerId));
@@ -446,6 +451,29 @@ export async function getShipmentDebitSummary(query: {
     const profit = receivableValue != null && freightAuto != null && chiHo != null
       ? receivableValue - freightAuto - chiHo
       : null;
+    // SIL-776 REV2 — the flat board's two sell columns, conserved so the
+    // three money columns always sum to receivableTotal (knowns-sum law,
+    // debit-summary precedent): Chi hộ (Có HĐ) = the pass-through recharge +
+    // the negotiated HQGS customer charge; Dịch vụ (Không HĐ) = the typed
+    // Phí khác sell + the entered PS thực tế. null = no data behind either
+    // component — never a fabricated 0.
+    const knownSum = (...values: Array<number | null | undefined>): number | null => {
+      let known = false;
+      let sum = 0;
+      for (const value of values) {
+        if (value != null && Number.isFinite(value)) { known = true; sum += value; }
+      }
+      return known ? sum : null;
+    };
+    const chiHoSellTotal = knownSum(
+      revenue != null ? revenue.derived : null,
+      opsCharge?.known ? opsCharge.total : null,
+    );
+    const serviceSellTotal = knownSum(
+      revenue != null ? revenue.otherSell : null,
+      ps?.known ? ps.total : null,
+    );
+    const hideCost = query.viewerRole === 'CUS';
     return {
       // The row's OWN customer: the list can span customers, so the L2
       // workspace's fee catalog keys off this, never off the caller's filter.
@@ -478,12 +506,16 @@ export async function getShipmentDebitSummary(query: {
       revFreightManual: revManual == null ? null : String(revManual),
       chiHoTotal: hasTrips || chiHo != null ? String(chiHo ?? 0) : null,
       receivableTotal: receivableValue == null ? null : String(receivableValue),
+      // SIL-776 REV2 — the flat board's sell columns (see knownSum above).
+      chiHoSellTotal: chiHoSellTotal == null ? null : String(chiHoSellTotal),
+      serviceSellTotal: serviceSellTotal == null ? null : String(serviceSellTotal),
       // Redesign 23/10 — the payableTotal split, live values (a locked lot's
       // frozen payable rides its snapshot; the split columns stay live).
-      carrierCostTotal: externalFreight == null ? null : String(externalFreight),
-      opsCostTotal: opsTotal == null ? null : String(opsTotal),
-      payableTotal,
-      profit: profit == null ? null : String(profit),
+      // REV2: stripped from the CUS wire — giá vốn ẩn 100%.
+      carrierCostTotal: hideCost || externalFreight == null ? null : String(externalFreight),
+      opsCostTotal: hideCost || opsTotal == null ? null : String(opsTotal),
+      payableTotal: hideCost ? null : payableTotal,
+      profit: hideCost ? null : (profit == null ? null : String(profit)),
       lockStatus: (lock != null ? 'LOCKED' : 'OPEN') as 'LOCKED' | 'OPEN',
       lockedAt: lock?.lockedAt.toISOString() ?? null,
       // FB-092/093 LCL grouping facts.
