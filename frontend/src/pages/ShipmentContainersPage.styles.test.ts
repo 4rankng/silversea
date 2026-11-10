@@ -275,7 +275,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/shipment-container-ledger__plate--missing/);
     expect(ledgerSource).not.toContain('shipment-container-ledger__vehicle-guidance');
     expect(css).toContain(':not(.shipment-container-ledger__row-warning)');
-    expect(css).toMatch(/shipment-container-ledger__multiline:not\(\.shipment-container-ledger__notes\) > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__plate--missing\)/);
+    expect(css).toMatch(/shipment-container-ledger__multiline:not\(\.shipment-container-ledger__notes\) > span:not\(\.shipment-container-ledger__code\):not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__plate--missing/);
     // Status chips are UUI badges: the component owns fill, ring, and geometry;
     // page CSS only tunes type so a chip can never read as a button.
     expect(css).toMatch(/\.shipment-container-ledger__plate--missing\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*var\(--text-caption-size\);/);

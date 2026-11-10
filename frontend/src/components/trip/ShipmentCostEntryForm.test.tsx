@@ -406,7 +406,7 @@ describe('driver expense workflow — TC-CP-LX', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
     expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({
-      expenseTypeCode: 'FEE_CLEANING', evidenceKind: 'RECEIPT', costGroup: 'DRIVER_SHIPMENT', feeName: 'Phí vệ sinh',
+      expenseTypeCode: 'FEE_CLEANING', evidenceKind: 'INVOICE', costGroup: 'DRIVER_SHIPMENT', feeName: 'Phí vệ sinh',
     });
     expect(api.createIncidentalCosts.mock.calls[0][1][0].receiptStorageKey).toBeUndefined();
     expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceNumber).toBeUndefined();

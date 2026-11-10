@@ -64,6 +64,11 @@ describe('driver cost draft table — derived evidence kind + all-or-nothing bat
   });
 
   it('SIL-769 REV2: hàn cont derives RECEIPT from the catalog and saves WITHOUT a photo', async () => {
+    // SIL-759 keeps the catalog derivation (CONTAINER_WELD is catalog
+    // no-invoice ⇒ RECEIPT). SIL-769 (customer CR-006 2B) narrows the photo
+    // mandate to exactly LIFTING/LOWERING/YARD_STORAGE — 'Hàn container' is
+    // NOT one of the three photo-mandatory fees, so the row saves WITHOUT a
+    // biên lai and never blocks the batch.
     setup(); await openForm();
     await chooseRowOption(0, 'Hàn container');
     fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '500000' } });

@@ -198,15 +198,17 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expectNoClip(rules(css, /\.detailed-plan-grid__sort\s*\{/));
     expect(rules(css, /\.detailed-plan-grid__sort\s*\{/)[0]).not.toMatch(/white-space:\s*nowrap/);
     // …and the table-surface one-line pins are gone (rule-local: the phone
-    // dpcard surface in the same file keeps its own owner laws).
+    // dpcard surface in the same file keeps its own owner laws). The loop
+    // patterns must NOT end in `\s*\{`: rules() closes each match at the
+    // rule's OWN opening brace, and a trailing `\{` made the capture swallow
+    // the NEXT rule — falsely failing on the SIL-756 Round-3
+    // `.ops-container-line` identifier carve-out, which keeps its own
+    // owner-acked nowrap law (ISO container codes never break mid-string).
     for (const tableRule of [
-      // No trailing \{ here: the styles-rule helper captures the selector's
-      // OWN block only, so a later rule in the same file (SIL-756's deliberate
-      // .ops-container-line horizontal scroll) cannot leak into this ban.
       /\.detailed-plan-grid__cell--container \.detailed-plan-grid__line--strong/,
-      /\.detailed-plan-grid__combined-note\s*\{/,
-      /\.detailed-plan-grid__lcl-group-tag\s*\{/,
-      /\.detailed-plan-grid__note-preview\s*\{/,
+      /\.detailed-plan-grid__combined-note/,
+      /\.detailed-plan-grid__lcl-group-tag/,
+      /\.detailed-plan-grid__note-preview/,
     ]) {
       expectNoClip(rules(css, tableRule));
       for (const rule of rules(css, tableRule)) expect(rule).not.toMatch(/white-space:\s*nowrap/);

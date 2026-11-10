@@ -1,0 +1,5 @@
+# merge-4 (r11c-781-783) gates — clean ort merge (auto-merge phoi-phieu-control.service: 729 labels × 783 inline edit, no conflict)
+# BE tsc --noEmit: exit 0
+# FE tsc --noEmit: exit 0
+# FE vitest related (5 files): Test Files 5 passed, Tests 46 passed
+# BE unit phoi-phieu-shipment-fallback.test.ts: 11 pass / 0 fail

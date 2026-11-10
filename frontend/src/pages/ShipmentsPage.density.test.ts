@@ -48,8 +48,11 @@ describe('shipment container editor density', () => {
     expect(baseRule).not.toMatch(/--control-touch-h/);
     expect(css).toMatch(/\.cus-dashboard-table \.cus-inline-trigger\s*\{[^}]*min-height:\s*var\(--control-touch-h, 40px\);/);
     expect(rowSource).toContain('aria-haspopup="dialog"');
-    expect(rowSource).toContain("onStartQuickEdit(item, 'schedule')");
-    expect(rowSource).toContain("onStartQuickEdit(item, 'notes')");
+    // The per-cell trigger wiring lives in cellAction(field, …): each of these
+    // pins proves the named cell still opens the quick-edit dialog (behavior
+    // law), independently of the handler's internal binding shape.
+    expect(rowSource).toContain("cellAction('schedule'");
+    expect(rowSource).toContain("cellAction('notes'");
   });
 
   it('uses the read-only review sheet instead of an editable ledger (SIL-485)', () => {

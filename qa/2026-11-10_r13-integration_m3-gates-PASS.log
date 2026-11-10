@@ -1,0 +1,6 @@
+# merge-3 (r11b-778-779) gates — clean ort merge, no conflicts
+# BE tsc --noEmit: exit 0
+# FE tsc --noEmit: exit 0
+# FE vitest related (6 files): Test Files 6 passed, Tests 188 passed
+# BE unit cost-review-reconciliation.test.ts: 7 pass / 0 fail (after building shared dist — fresh worktree had no shared build; env fix, not code)
+# BE unit phoi-phieu-shipment-fallback.test.ts re-verified: 11 pass / 0 fail
