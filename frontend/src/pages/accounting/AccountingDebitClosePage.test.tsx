@@ -248,7 +248,7 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
     expect(checkbox).toHaveAttribute('type', 'checkbox');
     expect(checkbox.getAttribute('aria-checked')).toBe('false');
 
-    const xacNhanBtn = screen.getByRole('button', { name: /Xác nhận đối soát/ });
+    const xacNhanBtn = screen.getByRole('button', { name: /^Xác nhận đối soát/ });
     const chonDebitBtn = screen.getByRole('button', { name: /Chọn Debit/ });
     const xuatDebitBtn = screen.getByRole('button', { name: /Xuất Debit Note/ });
     expect(xacNhanBtn).toBeDisabled();

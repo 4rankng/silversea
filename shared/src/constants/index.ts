@@ -250,7 +250,7 @@ export const CHI_PHI_KHAC_SUBOPTIONS: Array<{
 export const DRIVER_LOT_COST_EXPENSE_TYPES: ReadonlyArray<{ code: string; invoiced: boolean }> = [
   { code: 'LIFTING', invoiced: true },
   { code: 'LOWERING', invoiced: true },
-  { code: 'FEE_CLEANING', invoiced: true },
+  { code: 'FEE_CLEANING', invoiced: false },
   { code: 'YARD_STORAGE', invoiced: true },
   { code: 'FEE_WAREHOUSE', invoiced: true },
   { code: 'WAREHOUSE_LABOR', invoiced: false },

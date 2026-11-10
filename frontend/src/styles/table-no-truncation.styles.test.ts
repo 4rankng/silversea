@@ -200,7 +200,10 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     // …and the table-surface one-line pins are gone (rule-local: the phone
     // dpcard surface in the same file keeps its own owner laws).
     for (const tableRule of [
-      /\.detailed-plan-grid__cell--container \.detailed-plan-grid__line--strong\s*\{/,
+      // No trailing \{ here: the styles-rule helper captures the selector's
+      // OWN block only, so a later rule in the same file (SIL-756's deliberate
+      // .ops-container-line horizontal scroll) cannot leak into this ban.
+      /\.detailed-plan-grid__cell--container \.detailed-plan-grid__line--strong/,
       /\.detailed-plan-grid__combined-note\s*\{/,
       /\.detailed-plan-grid__lcl-group-tag\s*\{/,
       /\.detailed-plan-grid__note-preview\s*\{/,
