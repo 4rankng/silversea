@@ -142,6 +142,31 @@ export interface ExpenseWorkList {
   items: ExpenseWorkRow[]; total: number; page: number; limit: number;
   totals: { receivable: number | null; payable: number | null; road: number | null };
 }
+/** SIL-779 — bảng đối soát chi phí tập trung (/accounting/hoan-ung). The
+ *  progress vocabulary and confirmRef contract are the ops-review law (card
+ *  20260921_10): the tick action rides the EXISTING batch confirm, never a
+ *  forked confirmation path. */
+export const EXPENSE_REVIEW_PROGRESS = ['CHUA_XAC_NHAN', 'DA_XAC_NHAN', 'DA_LAP_PHIEU'] as const;
+export type ExpenseReviewProgress = typeof EXPENSE_REVIEW_PROGRESS[number];
+export interface CostReviewRow extends ExpenseAccountingEntry {
+  progress: ExpenseReviewProgress;
+  confirmRef: ExpenseSourceRef;
+  /** Số dòng trong cửa sổ bảng đang mở trùng cụm (cùng lô + tên phí + số
+   *  tiền). > 1 = dấu hiệu trùng lặp cho kế toán rà soát. */
+  duplicateCount: number;
+}
+export interface CostReviewTotals {
+  unconfirmedAmount: number; confirmedAmount: number;
+  unconfirmedCount: number; duplicateRows: number;
+}
+export interface CostReviewList {
+  items: CostReviewRow[];
+  /** The loader's FULL filtered-set total — it still counts the INVOICE rows
+   *  the service drops from `items`. Pagination may not assume total equals
+   *  the review table's row universe. */
+  total: number; page: number; limit: number;
+  totals: CostReviewTotals;
+}
 export const expenseAccountingCreateSchema = z.object({
   // Card 20261005 — a shipment-level expense needs NO trip: lô hàng chưa có
   // chuyến vận chuyển vẫn phải khai được chi phí. `shipmentId` is the anchor;

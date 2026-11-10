@@ -2,6 +2,7 @@ import type {
   ExpenseAccountingEntry, ExpenseAccountingList, ExpenseAccountingUpdate,
   ExpenseListQuery, ExpenseSourceRef, ExpenseVoucherInput, ExpenseVoucher,
   ExpenseReconciliationInput, ExpenseReconciliation, ExpenseWorkList, ExpenseAccountingCreate, ExpenseAccountingCreateBatch, TruckAccountantAssignment,
+  CostReviewList, ExpenseReviewProgress,
 } from '@tingting/shared';
 import { api, fileCommandFingerprint } from '../lib/api';
 
@@ -63,6 +64,15 @@ export const expenseAccountingClient = {
   update: (entry: ExpenseSourceRef, body: ExpenseAccountingUpdate) => api.post<ExpenseAccountingEntry>(`${BASE}/entries/${entry.sourceKind}/${entry.sourceId}/update`, body),
   correct: (entry: ExpenseSourceRef, body: ExpenseAccountingUpdate) => api.post<ExpenseAccountingEntry>(`${BASE}/entries/${entry.sourceKind}/${entry.sourceId}/correct`, body),
   confirm: (entries: ExpenseSourceRef[]) => api.post<{ items: ExpenseAccountingEntry[] }>(`${BASE}/confirm`, { entries }),
+  // SIL-779 — [Từ chối] trên bảng đối soát tập trung: lý do bắt buộc, nguồn
+  // gốc để lịch sử (VOIDED/REJECTED), auto Idempotency-Key như các mutation
+  // còn lại (mutation-identity).
+  reject: (entry: ExpenseSourceRef, reason: string) => api.post<{ ok: true }>(
+    `${BASE}/entries/${entry.sourceKind}/${entry.sourceId}/reject`,
+    { expectedVersion: entry.expectedVersion, reason },
+  ),
+  costReview: (params: { from?: string; to?: string; payerId?: number; shipmentId?: number; search?: string; progress?: ExpenseReviewProgress; page?: number; limit?: number }) =>
+    api.get<CostReviewList>(`${BASE}/cost-review?${query(params)}`),
   vouchers: () => api.get<{ items: ExpenseVoucher[] }>(`${BASE}/vouchers`),
   createVoucher: (body: ExpenseVoucherInput, key: string) => api.post<ExpenseVoucher>(`${BASE}/vouchers`, body, { headers: { 'Idempotency-Key': key } }),
   reconciliations: () => api.get<{ items: ExpenseReconciliation[] }>(`${BASE}/reconciliations`),

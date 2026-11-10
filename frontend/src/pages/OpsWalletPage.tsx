@@ -32,9 +32,11 @@ function advanceStatusColor(row: { status: string; fundedAmount?: number | null 
 }
 
 // Requests are recorded directly; cash receipt is shown independently of status.
+// SIL-778: PENDING is the accountant's inbox, not a recording state — the row
+// stays out of the wallet money (nothing credited yet) and the label says so.
 const ADVANCE_STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Chưa ghi sổ', RECORDED: 'Đã ghi nhận', VOIDED: 'Đã hủy',
-  PENDING: 'Đang ghi nhận',
+  PENDING: 'Chờ kế toán giải ngân',
   APPROVED: 'Đã ghi nhận',
   REJECTED: 'Từ chối',
 };
@@ -97,6 +99,10 @@ export default function OpsWalletPage() {
                   <th>Số tiền</th>
                   <th>Lý do</th>
                   <th>Trạng thái</th>
+                  {/* SIL-778: the Ops screen names the accountant who processed
+                      the request (approve = giải ngân; từ chối keeps the row
+                      without money). Blank until an accountant acts. */}
+                  <th>Kế toán xử lý</th>
                 </tr>
               </thead>
               <tbody>
@@ -110,6 +116,14 @@ export default function OpsWalletPage() {
                         {['RECORDED', 'APPROVED'].includes(row.status) ? Number(row.fundedAmount ?? 0) > 0 ? `Đã nhận ${formatMoney(row.fundedAmount!)} ₫` : 'Chưa giao tiền' : ADVANCE_STATUS_LABELS[row.status] ?? row.status}
                       </span>
                       <AdvanceDraftActions request={row} />
+                    </td>
+                    <td className="ops-wallet__approver" data-label="Kế toán xử lý">
+                      {row.approverName ? (
+                        <>
+                          <span>{row.approverName}</span>
+                          {row.approvedAt && <span className="ops-wallet__approver-time">{formatDate(row.approvedAt)}</span>}
+                        </>
+                      ) : '—'}
                     </td>
                   </tr>
                 ))}

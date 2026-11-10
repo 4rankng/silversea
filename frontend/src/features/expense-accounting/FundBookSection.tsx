@@ -111,7 +111,10 @@ export function FundBookSection() {
             <td data-label="Nhân viên">{item.staffName ?? 'Chưa có tên'}</td>
             <td data-label="Tạm ứng còn giữ" className="num">{expenseMoney(item.outstanding)}</td>
             <td data-label="Thao tác">
-              <Link className="btn btn--secondary btn--sm" to={`/accounting/hoan-ung?opsUserId=${item.staffId}&from=${from}&to=${to}`}>Lập phiếu</Link>
+              {/* SIL-779 — the per-staff Báo cáo hoàn ứng (the phiếu actions)
+                  lives in the Tạm ứng & hoàn ứng workspace's report tab now;
+                  the /accounting/hoan-ung route is the cost table. */}
+              <Link className="btn btn--secondary btn--sm" to={`/advances?view=report&opsUserId=${item.staffId}&from=${from}&to=${to}`}>Lập phiếu</Link>
             </td>
           </tr>)}
         </tbody>

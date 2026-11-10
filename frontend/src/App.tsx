@@ -217,7 +217,10 @@ const PhoiPhieuControlPage = lazy(() => import('./pages/accounting/PhoiPhieuCont
 const AccountingDebitClosePage = lazy(() => import('./pages/accounting/AccountingDebitClosePage'));
 const AccountingInvoiceTrackingPage = lazy(() => import('./pages/AccountingInvoiceTrackingPage'));
 const DepositRefundTrackerPage = lazy(() => import('./pages/accounting/DepositRefundTrackerPage'));
-const OpsReconciliationReportPage = lazy(() => import('./pages/accounting/OpsReconciliationReportPage'));
+// SIL-779 — /accounting/hoan-ung becomes the centralized cost reconciliation
+// table; the per-staff report itself moved into the /advances workspace tab
+// (AdvanceWorkspacePage imports OpsReconciliationReportPage directly).
+const CostReconciliationPage = lazy(() => import('./pages/accounting/CostReconciliationPage'));
 const TirePositionsConfigPage = lazy(() => import('./pages/config/TirePositionsConfigPage'));
 const DebitNoteTemplatesConfigPage = lazy(() => import('./pages/config/DebitNoteTemplatesConfigPage'));
 const DebitNoteTemplateEditorPage = lazy(() => import('./pages/config/DebitNoteTemplateEditorPage'));
@@ -473,10 +476,10 @@ export function AppRoutes() {
             path="/accounting/deposit-tracker"
             element={isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? page(<DepositRefundTrackerPage />) : <DeniedRedirect to={homeRedirect} />}
           />
-          {/* Card 20260928_169 — Báo cáo tổng hợp hoàn ứng (per staff / per
-              đợt). Same finance-only gate as the expense-accounting surface it
-              reports on (requireExpenseFinance on the API). */}
-          <Route path="/accounting/hoan-ung" element={financeReaderOnly(page(<OpsReconciliationReportPage />))} />
+          {/* SIL-779 — Bảng đối soát chi phí tập trung & Quỹ cá nhân (spec
+              REV2 IV.3.3.3). Same finance-only gate as the expense-accounting
+              surface it reviews (requireExpenseFinance on the API). */}
+          <Route path="/accounting/hoan-ung" element={financeReaderOnly(page(<CostReconciliationPage />))} />
           <Route path="/finance/treasury" element={capabilityOnly('treasury.read', financeReaderOnly(page(<TreasuryPositionPage />)))} />
           <Route path="/recoverable-costs" element={capabilityOnly('recoverable_costs.read', recoverableCostOnly(page(<RecoverableCostsPage />)))} />
           <Route path="/profit" element={financeReaderOnly(page(<ProfitPage />))} />

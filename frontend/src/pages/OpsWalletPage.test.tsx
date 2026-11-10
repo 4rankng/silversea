@@ -93,6 +93,24 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     expect(screen.getAllByText('Đã trả lại').length).toBeGreaterThan(0);
   });
 
+  // SIL-778 — PENDING is the accountant's inbox ("Chờ kế toán giải ngân"),
+  // and every processed row names the accountant who acted on it.
+  it('SIL-778: labels PENDING as awaiting disbursement and shows the processing accountant', async () => {
+    const original = apiGet.getMockImplementation()!;
+    apiGet.mockImplementation((url: string) => url.startsWith('/ops/wallet/advance-requests')
+      ? Promise.resolve({ items: [
+        { id: 20, amount: '700000', reason: 'ứng nâng hạ', status: 'PENDING', createdAt: '2026-11-10', approverName: null, approvedAt: null },
+        { id: 21, amount: '300000', reason: 'ứng cân xe', status: 'RECORDED', createdAt: '2026-11-09', approverName: 'Nguyễn Thị Kế', approvedAt: '2026-11-10T02:30:00.000Z' },
+      ] }) : original(url));
+    renderPage();
+    expect(await screen.findByText('Chờ kế toán giải ngân')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Kế toán xử lý' })).toBeInTheDocument();
+    expect(screen.getByText('Nguyễn Thị Kế')).toBeInTheDocument();
+    // The unprocessed row carries an explicit empty cell, not a fake name.
+    const pendingRow = screen.getByText('Chờ kế toán giải ngân').closest('tr')!;
+    expect(pendingRow.querySelector('td[data-label="Kế toán xử lý"]')?.textContent).toBe('—');
+  });
+
   it('card 20260922_27: a recorded request with no cash delivered is amber, not success-green', async () => {
     const original = apiGet.getMockImplementation()!;
     apiGet.mockImplementation((url: string) => url.startsWith('/ops/wallet/advance-requests')

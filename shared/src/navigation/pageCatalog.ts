@@ -139,7 +139,9 @@ export const PAGE_CATALOG = {
     section: 'financials',
   },
   accountingReconciliation: {
-    title: 'Báo cáo hoàn ứng',
+    // SIL-779 — the route is now the centralized cost reconciliation table;
+    // the per-staff Báo cáo hoàn ứng lives in the /advances workspace tab.
+    title: 'Đối soát chi phí',
     path: '/accounting/hoan-ung',
     section: 'financials',
   },

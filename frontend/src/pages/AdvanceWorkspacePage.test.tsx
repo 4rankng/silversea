@@ -19,6 +19,14 @@ vi.mock('./AdminAdvanceSettlementsPage', () => ({
   ),
 }));
 
+// SIL-779 — the Báo cáo hoàn ứng merges into this workspace as its fourth
+// view; the report's own contract is pinned by its dedicated suite.
+vi.mock('./accounting/OpsReconciliationReportPage', () => ({
+  default: ({ embedded }: { embedded?: boolean }) => (
+    <div>Reconciliation report panel · {embedded ? 'embedded' : 'standalone'}</div>
+  ),
+}));
+
 function renderWorkspace(url: string) {
   return render(
     <MemoryRouter initialEntries={[url]}>
@@ -55,5 +63,12 @@ describe('AdvanceWorkspacePage', () => {
     renderWorkspace('/advances?view=settlements');
     expect(screen.getByText('Advance settlements panel · embedded')).toBeTruthy();
     expect(screen.getByRole('tab', { name: /Phiếu hoàn ứng/ }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('SIL-779: renders the merged Báo cáo hoàn ứng as an embedded workspace view', () => {
+    renderWorkspace('/advances?view=report');
+    expect(screen.getByText('Reconciliation report panel · embedded')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Báo cáo hoàn ứng/ }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('heading', { name: 'Báo cáo hoàn ứng' })).toBeTruthy();
   });
 });
