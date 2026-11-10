@@ -434,11 +434,9 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(amount).toHaveValue('123.000');
     expect(amount).toHaveAttribute('aria-invalid', 'false');
     expect(screen.queryByText(/Số tiền không được âm/)).not.toBeInTheDocument();
-    // Cân xe is a no-invoice line, so opsCustomerCharge — the client mirror of
-    // the server's receivableForCost — charges nothing and the row carries its
-    // own mandatory reason (card 20260928_162). Satisfy that orthogonal gate
-    // once, so every submit-button assertion below is the AMOUNT's doing.
-    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'cân xe đầu lô, xem chứng từ gốc' } });
+    // Cân xe is a no-invoice line charging nothing (Thực thu trống) — since
+    // SIL-777 Ghi chú is NOT required: type + amount alone open Lưu, so every
+    // submit-button assertion below is the AMOUNT's doing.
     expect(submit).toBeEnabled();
     // 0 is an empty row, not an amount.
     fireEvent.change(amount, { target: { value: '0' } });
@@ -475,17 +473,15 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     fireEvent.click(typeTrigger2);
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
     fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '123000' } });
-    // Cân xe is a no-invoice line, so opsCustomerCharge (the client mirror of
-    // the server's receivableForCost) charges nothing and the row cannot be
-    // saved without the reason — card 20260928_162. The gate is announced on
-    // every surface that names the field (row hint, row error, footer
-    // notice) — the new wording shares its tail with the footer's message,
-    // so assert on the set, not a unique element.
-    expect(screen.getAllByText(/bắt buộc nhập trường "Ghi chú"/).length).toBeGreaterThan(0);
-    fireEvent.change(screen.getByLabelText('Ghi chú'), { target: { value: 'cân xe tại cảng, khách tự thanh toán' } });
+    // SIL-777 — no note gate: with type + amount filled and Ghi chú/Thực thu
+    // both empty, Lưu OPENS (the acceptance) and the save waits ONLY for the
+    // receipt upload; the old "ghi chú bắt buộc" notice is gone (SIL-723's
+    // law reversed by the owner).
+    expect(screen.queryByText(/ghi chú bắt buộc/i)).not.toBeInTheDocument();
     const dialog = screen.getByRole('dialog', { name: 'Khai báo chi phí' });
     const form = dialog.querySelector('form')!;
     const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(submit).toBeEnabled();
     fireEvent.change(form.querySelector('input[type="file"]')!, {
       target: { files: [new File(['receipt'], 'receipt.png', { type: 'image/png' })] },
     });

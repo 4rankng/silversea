@@ -111,8 +111,10 @@ export function ShipmentDebitRecords({ rows, canManage, mergeMode, selectedIds, 
     const detail = (
       <>
         <FactList facts={[
-          { key: 'payable', label: 'Tổng chi', value: money(row.payableTotal) },
-          { key: 'profit', label: 'Lợi nhuận', value: money(row.profit) },
+          // REV2 — revenue facts only: Tổng chi / Lợi nhuận (giá vốn) are out
+          // of the settlement record face.
+          { key: 'chiho', label: 'Tổng chi hộ (Có HĐ)', value: money(row.chiHoSellTotal ?? null) },
+          { key: 'service', label: 'Tổng dịch vụ (Không HĐ)', value: money(row.serviceSellTotal ?? null) },
           // 161026204709: the F-2 lane value (per-lot cước thu per boss 21/10)
           // and its reason note render on the expanded face, never nested in
           // a collapsed disclosure.

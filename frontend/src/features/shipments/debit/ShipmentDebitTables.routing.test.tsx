@@ -5,7 +5,7 @@ import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { ShipmentDebitDetail } from '../../../api/shipmentDebit';
 import type { QuotationFeeRow } from '../../../api/quotationClient';
-import { ChiHoTable, PayablesTable, DRAFT_EMPTY } from './ShipmentDebitTables';
+import { ChiHoTable, DRAFT_EMPTY } from './ShipmentDebitTables';
 import { dedicatedColumns, matchDedicatedColumn, buildDebitNote } from './ShipmentDebitTables.routing';
 
 const catalog: QuotationFeeRow[] = [
@@ -41,10 +41,7 @@ const detail = (): ShipmentDebitDetail => ({
 
 function renderTables(catalogRows: QuotationFeeRow[] = catalog) {
   return render(
-    <>
-      <ChiHoTable detail={detail()} draft={DRAFT_EMPTY} frozen={false} feeCatalog={catalogRows} setFeeAmount={() => {}} addFee={() => {}} removeFee={() => {}} setAddedFee={() => {}} />
-      <PayablesTable detail={detail()} />
-    </>,
+    <ChiHoTable detail={detail()} draft={DRAFT_EMPTY} frozen={false} feeCatalog={catalogRows} setFeeSell={() => {}} addFee={() => {}} removeFee={() => {}} setAddedFee={() => {}} />,
   );
 }
 
@@ -78,28 +75,10 @@ describe('Bảng 2.2 dedicated routing columns (card _64 Phase B)', () => {
     expect(within(otherCell).getByText('Nâng/Hạ Lạch Huyện')).toBeTruthy();
   });
 
-  it('aggregates other-costs fee names into the bảng kê note in stored order (đồng-law verbatim)', () => {
-    renderTables();
-    const payablesTable = document.querySelector('.csc-debit-table--payables') as HTMLElement;
-    const payablesRow = within(payablesTable).getByRole('row', { name: /QATU1234569/ });
-    const noteCell = within(payablesRow).getAllByRole('cell')[5];
-    expect(noteCell.textContent).toBe('Phí khác: Phí mở tờ khai, Kẹp chì hải quan');
-  });
-
-  it('keeps the user note authoritative and prefixes the fee-name segment', () => {
-    const d = detail();
-    d.freightRows[0].psActualNote = 'Chưa có hóa đơn';
-    render(
-      <>
-        <ChiHoTable detail={d} draft={DRAFT_EMPTY} frozen={false} feeCatalog={catalog} setFeeAmount={() => {}} addFee={() => {}} removeFee={() => {}} setAddedFee={() => {}} />
-        <PayablesTable detail={d} />
-      </>,
-    );
-    const payablesTable = document.querySelector('.csc-debit-table--payables') as HTMLElement;
-    const payablesRow = within(payablesTable).getByRole('row', { name: /QATU1234569/ });
-    const noteCell = within(payablesRow).getAllByRole('cell')[5];
-    expect(noteCell.textContent).toBe('Chưa có hóa đơn · Phí khác: Phí mở tờ khai, Kẹp chì hải quan');
-  });
+  // REV2 (ticket-v2 VI.2): the bảng kê note cell lived on Bảng 2.3's
+  // PayablesTable, which is deleted — the note surface is gone with it, so
+  // the two note-rendering pins were removed with their surface. The
+  // buildDebitNote join itself stays pinned below on the surviving helper.
 
   it('matches names: exact beats containment beats routing fallback, else null', () => {
     const cols = dedicatedColumns(catalog);

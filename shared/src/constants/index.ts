@@ -272,6 +272,30 @@ export function driverLotCostIsInvoiced(code: string | null | undefined): boolea
   return DRIVER_LOT_COST_EXPENSE_TYPES.some((type) => type.code === code && type.invoiced);
 }
 
+/** SIL-769 (09/11, customer CR-006 2B; REV2 /tmp/ticket-v2.txt Task 2B; Frank:
+ *  "khách hàng bảo thế nào thì làm thế") — the biên lai photo is MANDATORY for
+ *  exactly THREE driver lot fees: Phí Nâng (LIFTING), Phí Hạ (LOWERING),
+ *  Lưu vỏ/Lưu cont (YARD_STORAGE — the picker's "Phí lưu bãi" row, the app's
+ *  container-yard-storage fee; the customer names it both "Lưu vỏ" in the
+ *  brief and "Phí lưu cont" in REV2 — same fee). Every OTHER lot row — vệ
+ *  sinh, lưu kho, công nhân, hàn cont, đảo vỏ, phí lô hàng khác… — saves
+ *  WITHOUT a photo. Supersedes the CP700-03 group law ("MỌI dòng nhóm
+ *  DRIVER_SHIPMENT phải có ảnh biên lai — FE chặn + BE từ chối"). Both gates
+ *  (the driver form's submit block and `insertDriverIncidentalCostTx`) read
+ *  this one shared set so the two can never disagree; the BE names the fee in
+ *  its refusal message. A lot row with NO catalog ref (the free
+ *  "Chi phí lô hàng khác") is optional. */
+export const DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES: readonly string[] = [
+  'LIFTING',
+  'LOWERING',
+  'YARD_STORAGE',
+];
+
+/** True when `code` is one of SIL-769's photo-mandatory lot fees. */
+export function driverLotCostRequiresReceipt(code: string | null | undefined): boolean {
+  return code != null && DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES.includes(code);
+}
+
 /** Card 20260919_3 — explicit settlement-screen categories on the expense
  *  type catalog (forwarder_expense_types.category). Buckets for the per-lot
  *  payables split (Bảng 2.1 HQGS, Bảng 2.2/2.3 fee columns). Values are
@@ -574,6 +598,20 @@ export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMa
   // the refill-report flow, and OPS fuel claims ride receipts; the admin
   // surface can reclassify if the owner wants the invoice gate instead.
   FUEL:           { name: 'Phí nhiên liệu / dầu',        defaultMarkup: false, billingLabel: 'Phí nhiên liệu', category: ExpenseTypeCategory.KHAC },
+};
+
+/** SIL-770 (owner decision 09/11/2026, "khách hàng bảo thế nào thì làm thế") —
+ *  the catalog codes that belong to the DRIVER's own cost buckets (tiền dầu,
+ *  sửa chữa dọc đường/vá vỏ). "Chi phí của ai người đó tự khai": they stay
+ *  full on the driver side (its own expense endpoints are untouched) and are
+ *  filtered OUT of the Ops/CUS "Khai báo chi phí" picker
+ *  (`listActiveOpsExpenseTypes`) so Ops cannot mis-declare a driver cost.
+ *  Codes, not names: an admin rename must not resurrect the row in the Ops
+ *  list. Supersedes card 20261004_355's OPS-fuel intent on this picker only —
+ *  historical ops rows keep their codes. */
+export const DRIVER_EXPENSE_TYPE_CODES: Record<string, true> = {
+  FUEL: true,
+  ROAD_REPAIR: true,
 };
 
 export const NO_INVOICE_EVIDENCE_TYPES = [

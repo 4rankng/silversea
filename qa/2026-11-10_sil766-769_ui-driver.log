@@ -1,0 +1,56 @@
+STEP login: status 200 | role DRIVER | token len 315
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-c3d4cef1547810002f09c454f189fbd6.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-f07cf9954297bab2a2311b6798f06dc7.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-121110ef5c838ae6801d035cc51b6ae4.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-3682de97f89c0cf87be5cdb038ac4f19.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+STEP open /my-trips/779100: driver-task-screen rendered
+ASSERT SIL-766: {"infoGridFound":true,"orderInfoBeforeInvoice":true,"orderCallBarBeforeInvoice":"n/a-no-kho-phone","orderInvoiceBeforeContCard":true,"orderInvoiceBeforeCostSection":true,"expanded":"true","gridHidden":false,"longMinhVisible":true,"mstVisible":true,"buttonsInBlock":["Thông tin hóa đơn","Copy MST khách hàng"]}
+VERDICT SIL-766: PASS
+SHOT qa/2026-11-10_sil766-768_driver-detail-top.png (768px, top of page)
+SHOT qa/2026-11-10_sil766_invoice-block-focus.png
+ASSERT SIL-767/768: {"tacVuHead":0,"khongCoTacVu":0,"operationChips":0,"operationChip":0,"ghiChuHead":1,"fuelSection":0,"fuelToggle":0,"anhNhienLieu":0,"chupManHinhBom":0,"khac":1,"soContSeal":1,"epodFooter":1}
+VERDICT SIL-767: PASS | VERDICT SIL-768: PASS | VERDICT Task1.1.5 (khối chuẩn giữ nguyên): PASS
+SHOT qa/2026-11-10_sil766-768_driver-detail-390.png | horizontal overflow px: 0
+STEP open cost form (Thêm chi phí)
+STEP pick Phí lưu bãi
+STEP typed amount → display: 250.000
+ASSERT SIL-769 blocked (Phí lưu bãi, chưa có ảnh): {"saveDisabled":true,"message":"Phí lưu bãi phải kèm ảnh biên lai trước khi lưu.","cameraLabel":"Chụp / chọn biên lai (bắt buộc)"}
+VERDICT SIL-769 A1: PASS
+SHOT qa/2026-11-10_sil769_luu-bai-blocked-no-photo.png
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-3b6a368aa4cac9a7151282d1bbe51771.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+STEP upload bien lai (1x1 PNG) — preview rendered
+ASSERT SIL-769 after upload: {"saveDisabled":false,"saveLabel":"Lưu tất cả (1 dòng)"}
+STEP saved Phí lưu bãi + photo (batch closed)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-3b6a368aa4cac9a7151282d1bbe51771.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-3682de97f89c0cf87be5cdb038ac4f19.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-f07cf9954297bab2a2311b6798f06dc7.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-121110ef5c838ae6801d035cc51b6ae4.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-c3d4cef1547810002f09c454f189fbd6.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+SHOT qa/2026-11-10_sil769_luu-bai-saved-with-photo.png
+STEP typed amount → display: 50.000
+ASSERT SIL-769 A2 (Phí vệ sinh, chưa có ảnh): {"saveDisabled":false,"saveLabel":"Lưu tất cả (1 dòng)","messagePresent":null}
+VERDICT SIL-769 A2: PASS
+SHOT qa/2026-11-10_sil769_ve-sinh-optional-save-open.png
+STEP saved Phí vệ sinh WITHOUT photo (batch closed)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-3b6a368aa4cac9a7151282d1bbe51771.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-f07cf9954297bab2a2311b6798f06dc7.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-c3d4cef1547810002f09c454f189fbd6.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-3682de97f89c0cf87be5cdb038ac4f19.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+HTTP 404 http://localhost:7185/api/photos/trips%2F779100%2Fother-121110ef5c838ae6801d035cc51b6ae4.png
+CONSOLE_ERR: Failed to load resource: the server responded with a status of 404 (Not Found)
+SHOT qa/2026-11-10_sil769_ve-sinh-saved-no-photo.png
+DONE

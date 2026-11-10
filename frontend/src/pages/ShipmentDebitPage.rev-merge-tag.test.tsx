@@ -109,7 +109,7 @@ beforeEach(() => {
 });
 
 describe('SIL-546 — tag "Ghép thu cước cùng Lô 1" trên lô thành viên', () => {
-  it('Lô 2..N (rev member) hiện 0₫ + tag HIỂN THỊ đúng trên cell Doanh thu (desktop)', async () => {
+  it('Lô 2..N (rev member) hiện 0₫ + tag HIỂN THỊ đúng trên cell Cước vận tải (Auto) (desktop)', async () => {
     listSummary.mockResolvedValue({
       items: [lclRow({
         receivableTotal: 0,
@@ -125,15 +125,16 @@ describe('SIL-546 — tag "Ghép thu cước cùng Lô 1" trên lô thành viên
     renderPage();
     await screen.findAllByText('BL-1');
 
-    // The tag is VISIBLE TEXT on the row's receivable cell (not just a
-    // hover tooltip) — the spec 23/10 §4.2 ask.
+    // The tag is VISIBLE TEXT on the row's freight cell (REV2 placement —
+    // not just a hover tooltip), the spec 23/10 §4.2 ask.
     const row = screen.getAllByText('BL-1')[0].closest('tr')!;
-    const tag = within(row).getByText('Ghép thu cước cùng Lô 1');
+    const freightCell = row.querySelector('td[data-col="freight"]')!;
+    const tag = within(freightCell as HTMLElement).getByText('Ghép thu cước cùng Lô 1');
     expect(tag.classList.contains('shipment-debit-money__mergetag')).toBe(true);
     // The full F-2 reason rides the tooltip.
     expect(tag.getAttribute('title')).toBe('Ghép thu cước cùng Lô 1');
     // The 0₫ figure sits on the same cell (zero state).
-    expect(within(row).getByText('0')).toBeTruthy();
+    expect((freightCell as HTMLElement).textContent).toContain('0');
   });
 
   it('Lô 1 (order 1) và lô chưa ghép KHÔNG có tag', async () => {

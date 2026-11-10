@@ -1,0 +1,85 @@
+  PASS login hoangnh (OPS) — OPS
+  PASS login hoapt (ACCOUNTANT) — ACCOUNTANT
+  PASS login thanhdc (CUS) — CUS
+driver laixe login: DRIVER
+
+P1 — SIL-770 catalog filter (API)
+  PASS GET /ops/expense-types 200
+  PASS no driver cost code in the Ops picker — []
+  PASS ops fee stays: INSPECTION
+  PASS ops fee stays: FEE_STEVEDORING
+  PASS ops fee stays: LIFTING
+  PASS ops fee stays: LOWERING
+  PASS ops fee stays: INFRASTRUCTURE
+  PASS ops fee stays: YARD_STORAGE_LIFT
+  PASS driver fee-norms endpoint healthy (200) — HTTP 200
+  PASS driver options module untouched (TOLL + ROAD_REPAIR still listed)
+
+P2 — SIL-782 summary wire + role strip (API)
+  setup row already present — reused
+  PASS ACCOUNTANT summary has the sell columns — {"chi":"0","svc":"460000"}
+  PASS ACCOUNTANT keeps the cost fields (not stripped)
+  PASS sell columns conserve the receivable sum — 8364000 vs 8364000
+  PASS CUS summary still delivers the sell columns
+  PASS CUS wire strips giá vốn (payable/profit/carrier/ops all null) — {"p":null,"ln":null,"c":null,"o":null}
+  PASS CUS chốt giá bán saves (200) — {"id":1138}
+  PASS OPS refused on /debit-summary (403) — HTTP 403
+  PASS OPS refused on /debit-edits (403) — HTTP 403
+
+U1/U2 — SIL-770 + SIL-777 popup (hoangnh @1440, /my-orders — the Ops home)
+  PASS ops lot list renders with Khai chi phí entries
+  PASS drawer Khai chi phí opens the popup
+  PASS popup renders with catalog loaded
+  PASS Loại phí combobox found and clicked
+  PASS dropdown renders options — — Chọn loại phí — | Cân lốp | Chi công nhân tại kho | Đảo hàng | Đảo vỏ | Đóng/trả 2 điểm | Hàn cont | Phí chi hộ khác | Phí nâng/hạ theo vùng | Phí phục vụ kiể
+  PASS dropdown lists ops fees — — Chọn loại phí — | Cân lốp | Chi công nhân tại kho | Đảo hàng | Đảo vỏ | Đóng/trả 2 điểm | Hàn cont | Phí chi hộ khác | Phí nâng/hạ theo vùng | Phí phục vụ kiểm hóa | Phí xe nâng hạ đăng khoa
+  PASS dropdown has NO Phí nhiên liệu / dầu
+  PASS dropdown has NO Phí sửa chữa dọc đường
+  PASS amount input targeted and filled
+  PASS SIL-777: Lưu ENABLED with empty Thực thu + Ghi chú — Tổng: 50.000 ₫
+Đóng
+Lưu
+  PASS SIL-777: no "ghi chú bắt buộc" notice
+  PASS SIL-777: save succeeds without note (success toast)
+
+U3 — SIL-782 flat board + drawer (hoapt @1440)
+  PASS Cước vận tải (Auto) column renders — THÔNG TIN LÔ & KHÁCH | CƯỚC VẬN TẢI (AUTO) (₫) | TỔNG CHI HỘ - CÓ HĐ (₫) | TỔNG DỊCH VỤ - KHÔNG HĐ (₫) | TỔNG PHẢI THU KHÁCH (₫) | TRẠNG THÁI VÀ HÀNH ĐỘNG
+  PASS Tổng Chi hộ (Có HĐ) column renders
+  PASS Tổng Dịch vụ (Không HĐ) column renders
+  PASS TỔNG PHẢI THU KHÁCH column renders
+  PASS NO giá-vốn column renders — THÔNG TIN LÔ & KHÁCH | CƯỚC VẬN TẢI (AUTO) (₫) | TỔNG CHI HỘ - CÓ HĐ (₫) | TỔNG DỊCH VỤ - KHÔNG HĐ (₫) | TỔNG PHẢI THU KHÁCH (₫) | TRẠNG THÁI VÀ HÀNH ĐỘNG
+  PASS row click opens the Chốt giá bán drawer
+  PASS drawer carries the Phí Không HĐ dual-input — Chốt giá bán — SIL668-MW0CCWZH-BL
+Cước vận tải
+SỐ CONTAINER	CƯỚC THU	PHỤ PHÍ XĂNG DẦU	—	PHÍ HẢI QUAN	PHÁT SINH	TỔNG	GHI CHÚ
+
+SILU4028766
+20'DC
+	3.952.000	0	—	—	
+  PASS drawer has NO payables board
+  PASS drawer keeps Điều chỉnh cước + Khóa lô
+  PASS Thu khách hàng input editable
+  PASS dual-input save persists (wire thuKhach 160000)
+
+U4 — SIL-782 CUS face (thanhdc @1440)
+  PASS CUS sees the revenue board
+  PASS CUS sees NO giá-vốn figure (payable/profit cells absent)
+
+DB trip_expenses QA-R9B rows:
+44|QA-R9B phí khác chốt|50000|150000
+45|QA-R9B phí khác chốt|50000|0
+46|QA-R9B phí khác chốt|50000|150000
+47|QA-R9B phí khác chốt|50000|160000
+48|QA-R9B phí khác chốt|50000|0
+49|QA-R9B phí khác chốt|50000|0
+50|QA-R9B phí khác chốt|50000|0
+51|QA-R9B phí khác chốt|50000|0
+52|QA-R9B phí khác chốt|50000|0
+DB ops_expense_entries QA-R9B-777 rows (note must be NULL for SIL-777):
+1075|OTHER|50000|<NULL>
+1066|OTHER|50000|<NULL>
+1065|OTHER|50000|<NULL>
+  PASS SIL-777 DB: ops row saved with note NULL
+  PASS SIL-782 DB: chốt sell_amount persisted 160000 (UI save)
+
+checks 48, fails 0

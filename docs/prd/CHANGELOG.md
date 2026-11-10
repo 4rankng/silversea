@@ -4,6 +4,42 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-11-09 — SIL-769: ảnh biên lai chỉ bắt buộc với Phí Nâng, Phí Hạ, Lưu vỏ
+
+Chi phí lô hàng trên app lái xe: ảnh biên lai bắt buộc với đúng 3 khoản — Phí
+Nâng (LIFTING), Phí Hạ (LOWERING), Lưu vỏ (YARD_STORAGE, dòng "Phí lưu bãi");
+mọi khoản khác lưu được khi chưa có ảnh (SUPERSEDES CP700-03 "mọi dòng
+DRIVER_SHIPMENT phải có ảnh"). Thông báo chặn lưu nêu rõ tên khoản thiếu ảnh;
+FE form + BE `insertDriverIncidentalCostTx` đọc chung bộ mã
+`DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES` trong shared. Luật tick "Phiếu thu
+phải có ảnh" thu về chỉ chặn dòng tiền đường. Đây là câu trả lời của khách
+CR-006 cho điểm KB "Chưa chốt: bắt buộc với ai" (PhanHeKeToan.md §chiphispec);
+Frank 09/11 chuyển yêu cầu. Chi tiết: ManHinhLaiXe.md §8.1.
+
+## 2026-11-09 — SIL-768: gỡ khối Ảnh nhiên liệu khỏi chi tiết lệnh app lái xe
+
+Chi tiết lệnh app lái xe không còn khối "Ảnh nhiên liệu" (chụp màn hình bơm,
+OCR, GPS) — tạm gỡ theo khách CR-006 để chuyển sang phân hệ quản lý định mức
+nhiên liệu chuyên biệt của đội xe sau. Dữ liệu ảnh nhiên liệu đã ghi giữ nguyên;
+endpoint upload + màn xem duyệt của kế toán (fuel-evidence-reviews) hoạt động
+như cũ. Quyết định Frank 09/11. Chi tiết: ManHinhLaiXe.md §3.1.
+
+## 2026-11-09 — SIL-767: bỏ khối Tác vụ khỏi chi tiết lệnh app lái xe
+
+Chi tiết lệnh app lái xe không còn khối Tác vụ (11 nhãn điều vận + empty state
+"Không có tác vụ") — khách CR-006 gọi là rác giao diện; Frank 09/11: "khách hàng
+bảo thế nào thì làm thế". Thẻ tổng quát và màn điều vận giữ nguyên nhãn tác vụ;
+ghi chú lái xe giữ nguyên nội dung có nghĩa ở vị trí sau khối hóa đơn. Chi tiết:
+ManHinhLaiXe.md §3.1.
+
+## 2026-11-09 — SIL-766: khối Thông tin xuất hóa đơn dời lên dưới Gọi kho
+
+Chi tiết lệnh app lái xe: khối Thông tin xuất hóa đơn rời chân trang (quy tắc cũ
+card 20260926_30 items 15+17 — cuối trang, thu gọn mặc định) lên ngay dưới hàng
+Địa chỉ giao hàng + nút Gọi kho, mở sẵn khi vào màn. Yêu cầu khách CR-006 (video
+08/11); Frank 09/11: "khách hàng bảo thế nào thì làm thế". Khối chỉ hiển thị,
+không gắn nút xác nhận/gửi dữ liệu. Chi tiết: ManHinhLaiXe.md §3.1.
+
 ## 2026-10-26 — SIL-506: filter ngày Chi tiết bỏ cont không có ngày
 
 Mức cont của ngày Chi tiết (cus-workspace) loại container chưa có ngày vận chuyển

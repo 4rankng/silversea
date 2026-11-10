@@ -3,20 +3,22 @@
 // builder, and the empty-delta predicate that gates the contextual save bar.
 import type { ShipmentDebitDetail, ShipmentDebitEditsBody } from '../../../api/shipmentDebit';
 
-/** CUS draft: per-expense sell/note edits, other-fee amount edits, and the
- * Phí khác add/remove lists. Pure delta — untouched cells never travel. */
+/** CUS draft: per-expense sell/note edits, other-fee SELL edits (REV2: the
+ * Thực chi Ops side renders read-only — CUS types only Thu Khách Hàng), and
+ * the Phí khác add/remove lists. Pure delta — untouched cells never travel. */
 export interface DraftState {
   freight: Record<string, { psActual: string; note: string }>;
-  feeAmounts: Record<number, string>;
+  /** REV2 dual-input — the Thu Khách Hàng cell of each Phí khác row. */
+  feeSells: Record<number, string>;
   addedFees: Array<{ key: string; tripId: number; name: string; amount: string }>;
   removedFeeIds: number[];
 }
 
-export const DRAFT_EMPTY: DraftState = { freight: {}, feeAmounts: {}, addedFees: [], removedFeeIds: [] };
+export const DRAFT_EMPTY: DraftState = { freight: {}, feeSells: {}, addedFees: [], removedFeeIds: [] };
 
 export const buildDraft = (detail: ShipmentDebitDetail): DraftState => ({
   freight: Object.fromEntries(detail.freightRows.map((row) => [row.containerNumber, { psActual: row.psActual == null ? '' : String(row.psActual), note: row.psActualNote ?? '' }])),
-  feeAmounts: Object.fromEntries(detail.chiHoRows.flatMap((row) => row.otherFees.map((fee) => [fee.id, fee.amount == null ? '' : String(fee.amount)]))),
+  feeSells: Object.fromEntries(detail.chiHoRows.flatMap((row) => row.otherFees.map((fee) => [fee.id, fee.thuKhach == null ? '' : String(fee.thuKhach)]))),
   addedFees: [],
   removedFeeIds: [],
 });
@@ -41,10 +43,12 @@ export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): Ship
     for (const item of row.items) if (item.readOnly) readOnlyIds.add(item.id);
     for (const fee of row.otherFees) {
       if (fee.readOnly) { readOnlyIds.add(fee.id); continue; }
-      const raw = draft.feeAmounts[fee.id];
+      // REV2 — the dual-input's editable cell is THU KHÁCH HÀNG (sellAmount);
+      // the Thực chi Ops side renders read-only and never travels.
+      const raw = draft.feeSells[fee.id];
       if (raw == null) continue;
-      const amount = num(raw);
-      if (amount !== (fee.amount ?? 0)) edits.push({ expenseId: fee.id, buyAmount: amount });
+      const sell = num(raw);
+      if (sell !== (fee.thuKhach ?? 0)) edits.push({ expenseId: fee.id, sellAmount: sell });
     }
   }
   const freightEdits: NonNullable<ShipmentDebitEditsBody['freightEdits']> = [];

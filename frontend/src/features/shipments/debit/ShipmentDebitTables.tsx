@@ -12,10 +12,9 @@ import { LedgerMatrix } from '../../../components/shared/LedgerMatrix';
 // no place-named identifiers, config-sourced heading pending its producer);
 // Customer charges and actual OPS costs remain separate on their own wires.
 import { AlertTriangle } from 'lucide-react';
-import { defaultFeeRouting } from '@tingting/shared';
 import type { ShipmentDebitDetail } from '../../../api/shipmentDebit';
 import type { QuotationFeeRow } from '../../../api/quotationClient';
-import { dedicatedColumns, matchDedicatedColumn, buildDebitNote } from './ShipmentDebitTables.routing';
+import { dedicatedColumns, matchDedicatedColumn } from './ShipmentDebitTables.routing';
 import { num, type DraftState } from './ShipmentDebitTables.draft';
 import { formatMoney, formatDateTimeVN } from '../../../lib/format';
 
@@ -108,14 +107,16 @@ export function FreightTable({ detail, draft, frozen, setFreight }: {
  * read-only; the Phí khác cell keeps unmapped non-OTHER lines visible
  * read-only beside the CUS-managed OTHER rows; hold amounts render in the
  * bracketed format, armed orange above zero. */
-export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmount, addFee, removeFee, setAddedFee }: {
+export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeSell, addFee, removeFee, setAddedFee }: {
   /** Card _64: the customer's active-frame Chi-phí-khác catalog — drives the
    *  dedicated routing columns (headers = the customer's own fee names). */
   feeCatalog?: QuotationFeeRow[];
   detail: ShipmentDebitDetail;
   draft: DraftState;
   frozen: boolean;
-  setFeeAmount: (feeId: number, value: string) => void;
+  /** REV2 — the Thu Khách Hàng cell of each Phí khác row (the dual-input's
+   *  editable side; Thực chi Ops renders read-only). */
+  setFeeSell: (feeId: number, value: string) => void;
   addFee: (tripId: number) => void;
   removeFee: (feeId: number) => void;
   setAddedFee: (key: string, patch: Partial<{ name: string; amount: string }>) => void;
@@ -166,20 +167,29 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
                 <>{lowerItems.length === 0 ? <span>—</span> : lowerItems.map(roItem)}</>,
                 <>{cshtItems.length === 0 ? <span>—</span> : cshtItems.map(roItem)}</>,
                 ...columns.map((col) => (
-                <>{managedOf(col.key).map((fee) => (
+                  <>{managedOf(col.key).map((fee) => (
                     <div className="csc-debit-otherfee" key={fee.id}>
                       <span className="csc-debit-item__name">{fee.name}</span>
-                      <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
-                      <div className="csc-debit-otherfee__control">
-                        <input
-                          className="csc-debit-input csc-debit-input--amount"
-                          aria-label={`Số tiền chi hộ phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
-                          value={draft.feeAmounts[fee.id] ?? ''}
-                          disabled={frozen || fee.readOnly === true}
-                          onChange={(event) => setFeeAmount(fee.id, event.target.value)}
-                        />
-                        <button type="button" className="csc-debit-otherfee__remove" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
+                      {/* REV2 (ticket-v2 VI.2) — the Phí Không HĐ dual-input:
+                          Thực chi Ops renders READ-ONLY; CUS types only the
+                          Thu Khách Hàng sell (edits[].sellAmount). */}
+                      <div className="csc-debit-otherfee__dual">
+                        <label className="csc-debit-otherfee__field">
+                          <span className="csc-debit-otherfee__label">Thực chi Ops</span>
+                          <span className="csc-debit-otherfee__ro" aria-label={`Thực chi Ops phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}>{fee.amount == null ? '—' : formatMoney(fee.amount)}</span>
+                        </label>
+                        <label className="csc-debit-otherfee__field">
+                          <span className="csc-debit-otherfee__label">Thu khách hàng</span>
+                          <input
+                            className="csc-debit-input csc-debit-input--amount"
+                            aria-label={`Thu khách hàng phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
+                            value={draft.feeSells[fee.id] ?? ''}
+                            disabled={frozen || fee.readOnly === true}
+                            onChange={(event) => setFeeSell(fee.id, event.target.value)}
+                          />
+                        </label>
                       </div>
+                      <button type="button" className="csc-debit-otherfee__remove" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
                       {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
                     </div>
                   ))}{draftsOf(col.key).map((fee) => (
@@ -202,17 +212,24 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeAmoun
                 <>{otherItems.map(roItem)}{otherManaged.map((fee) => (
                     <div className="csc-debit-otherfee" key={fee.id}>
                       <span className="csc-debit-item__name">{fee.name}</span>
-                      <span className="csc-debit-otherfee__sell">Thu khách: {fee.thuKhach == null ? '—' : formatMoney(fee.thuKhach)}</span>
-                      <div className="csc-debit-otherfee__control">
-                        <input
-                          className="csc-debit-input csc-debit-input--amount"
-                          aria-label={`Số tiền chi hộ phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
-                          value={draft.feeAmounts[fee.id] ?? ''}
-                          disabled={frozen || fee.readOnly === true}
-                          onChange={(event) => setFeeAmount(fee.id, event.target.value)}
-                        />
-                        <button type="button" className="csc-debit-otherfee__remove" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
+                      {/* REV2 — the same dual-input as the dedicated columns. */}
+                      <div className="csc-debit-otherfee__dual">
+                        <label className="csc-debit-otherfee__field">
+                          <span className="csc-debit-otherfee__label">Thực chi Ops</span>
+                          <span className="csc-debit-otherfee__ro" aria-label={`Thực chi Ops phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}>{fee.amount == null ? '—' : formatMoney(fee.amount)}</span>
+                        </label>
+                        <label className="csc-debit-otherfee__field">
+                          <span className="csc-debit-otherfee__label">Thu khách hàng</span>
+                          <input
+                            className="csc-debit-input csc-debit-input--amount"
+                            aria-label={`Thu khách hàng phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
+                            value={draft.feeSells[fee.id] ?? ''}
+                            disabled={frozen || fee.readOnly === true}
+                            onChange={(event) => setFeeSell(fee.id, event.target.value)}
+                          />
+                        </label>
                       </div>
+                      <button type="button" className="csc-debit-otherfee__remove" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
                       {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
                     </div>
                   ))}{otherDrafts.map((fee) => (
@@ -283,44 +300,4 @@ export function AdjustPanel({ detail, reason, setReason, pending, error, history
       </button>
     </div>
   );
-}
-
-/** Bảng 2.3 — per-container payables, read-only for the CUS. Money columns
- * read the wire's per-container fields (card _62): null stays "Chưa xác
- * định", never 0; the note column renders the container's freight note. */
-export function PayablesTable({ detail }: { detail: ShipmentDebitDetail }) {
-  // Card _64 AC4 — the bảng kê note carries the container's other-costs fee
-  // names (deterministic stored order) appended to the user's note.
-  const otherFeeNamesByContainer = new Map(detail.chiHoRows.map((row) => [
-    row.containerNumber ?? `trip-${row.tripId}`,
-    row.otherFees.filter((fee) => defaultFeeRouting(fee.name) === 'OTHER_COSTS').map((fee) => fee.name),
-  ]));
-  const common = payablesCommonRow(detail.payables);
-  return <LedgerMatrix className="csc-debit-table csc-debit-table--payables"
-    caption={<>Phí Phải trả</>}
-    columns={[
-      { key: 'c0', label: <>Số Container</> },
-      { key: 'c1', label: <>Cước trả</>, primary: true },
-      { key: 'c2', label: <>{detail.zoneSurcharge?.label ?? '—'}</> },
-      { key: 'c3', label: <>Phí HQGS</>, primary: true },
-      { key: 'c4', label: <>Phí Phát sinh</>, primary: true },
-      { key: 'c5', label: <>Ghi chú</> }
-    ]}
-    rows={[...detail.freightRows.map((row) => ({ key: row.containerNumber ?? `trip-${row.tripId}`, title: row.containerNumber ?? 'Chưa có số container', cells: [
-                <><div className="record-cell-stack">{row.containerNumber ?? '—'}<small>{row.containerTypeLabel ?? ''}</small></div></>,
-                <>{money(row.payableFreight)}</>,
-                <>{detail.zoneSurcharge?.amount == null ? '—' : formatMoney(detail.zoneSurcharge.amount)}</>,
-                <>{money(row.customsFee)}</>,
-                <>{money(row.phatSinhFee)}</>,
-                <>{buildDebitNote(row.psActualNote, otherFeeNamesByContainer.get(row.containerNumber ?? `trip-${row.tripId}`) ?? [])}</>,
-              ] })), ...(common ? [common] : [])]}
-  />;
-}
-
-/** Card _62 — the "Phí chung lô" row: container-NULL ops fees bucketed the
- *  same way as the container rows, so the sheet conserves. Hidden when the
- *  lot has no chung-lô rows (both sums null). */
-function payablesCommonRow(payables: ShipmentDebitDetail['payables']) {
-  if (payables.hqgsCommonFee == null && payables.phatSinhCommonFee == null) return null;
-  return { key: 'common', title: 'Phí chung lô', className: 'csc-debit-table__common-row', cells: [<>Phí chung lô</>, <>—</>, <>—</>, <>{money(payables.hqgsCommonFee)}</>, <>{money(payables.phatSinhCommonFee)}</>, <>—</>] };
 }

@@ -4,6 +4,10 @@
  * board can render the cost columns without deriving them. Static source pin
  * (the backend tests are unit-only by the 2026-10-19 owner ruling — no DB/app
  * fixtures here; the E2E identity check lives in qa/scripts/).
+ *
+ * SIL-782 REV2 (ticket-v2 Phần VI mục 2, 09/11/2026): the split survives, but
+ * the CUS wire strips it (`hideCost`) — giá vốn ẩn 100% khỏi bảng quyết toán
+ * CUS (see shipment-debit-summary-sil782.test.ts).
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -16,14 +20,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(here, '../../services/shipment-debit-summary.service.ts'), 'utf8');
 
 test('ships carrierCostTotal from the carrier (externalFreight) leg, null when unknown', () => {
-  assert.match(source, /carrierCostTotal:\s*externalFreight == null \? null : String\(externalFreight\)/);
+  // REV2 — the emitted line carries the CUS strip prefix (`hideCost ||`).
+  assert.match(source, /carrierCostTotal:\s*hideCost \|\| externalFreight == null \? null : String\(externalFreight\)/);
   // The carrier leg is unknown while any active trip lacks its cost — the
   // same `known` gate the payableTotal composition uses.
   assert.match(source, /const externalFreight = carrier\?\.known \? carrier\.total : null/);
 });
 
 test('ships opsCostTotal from the live ops leg, null when unknown', () => {
-  assert.match(source, /opsCostTotal:\s*opsTotal == null \? null : String\(opsTotal\)/);
+  assert.match(source, /opsCostTotal:\s*hideCost \|\| opsTotal == null \? null : String\(opsTotal\)/);
   assert.match(source, /const opsTotal = ops\?\.known \? ops\.total : null/);
 });
 

@@ -1,0 +1,16 @@
+▶ SIL-769 — biên lai photo mandatory for exactly Phí Nâng / Phí Hạ / Lưu vỏ
+  ✔ exactly three fees mandate the photo: LIFTING, LOWERING, YARD_STORAGE (37.0285ms)
+  ✔ the three codes are real catalog lot-cost rows — the mapping is not invented (0.281792ms)
+  ✔ sibling lot fees and absent refs stay optional (6.961208ms)
+  ✔ the BE write path keys the photo rule on the shared set and names the fee (0.539792ms)
+  ✔ the FE gate mirrors the same shared helper — no local re-declaration (0.574417ms)
+✔ SIL-769 — biên lai photo mandatory for exactly Phí Nâng / Phí Hạ / Lưu vỏ (60.029834ms)
+ℹ tests 5
+ℹ suites 1
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 903.811417
+EXIT=0
