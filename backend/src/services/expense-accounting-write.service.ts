@@ -306,6 +306,65 @@ export async function confirmAccountingExpenses(tx: Tx, actor: ExpenseActor, ent
   return result;
 }
 
+/** SIL-779 — the REJECT-side twin of `confirmAccountingExpenses` and the
+ *  lot-agnostic sibling of phoi-phieu's `voidPhoiPhieuRow`: the accountant
+ *  refuses a department-entered cost claim from the centralized đối soát
+ *  table. The source leaves the book (`status='VOIDED'`, history kept — the
+ *  accounting rule) and the native claim is flagged REJECTED, not VOIDED:
+ *  "Từ chối" is the accountant's verdict on the department's claim, distinct
+ *  from the accountant removing their own row (phoi-phieu xóa khoản). The ops
+ *  wallet buckets both flags into its REJECTED money math, so the balances
+ *  are unaffected either way. CONFIRMED rows stay refused with a pointer to
+ *  `correctAccountingExpense`, exactly like the void twin. */
+export async function rejectAccountingExpense(tx: Tx, actor: ExpenseActor, kind: ExpenseSourceKind, id: number, input: { expectedVersion: number; reason: string }) {
+  requireExpenseFinance(actor);
+  if (kind === 'INVOICE') throw new ApiError(409, 'Hóa đơn kết hợp xử lý tại bảng theo dõi hóa đơn; từ chối chỉ áp dụng chi phí bộ phận khai báo.');
+  // SIL-682 id-space law: normalize before the identity guard compares ids.
+  const nativeId = await resolveExpenseCommandId(tx, kind, id);
+  const before = await getExpenseForCommand(tx, actor, { sourceKind: kind, sourceId: nativeId, expectedVersion: input.expectedVersion });
+  if (before.sourceKind !== kind || before.sourceId !== nativeId) throw new ApiError(409, 'Từ chối từ nguồn chi phí gốc; không xử lý bản liên kết chuyến.');
+  await assertShipmentAccountingUnlocked(tx, before.shipmentId);
+  // SIL-679 r2: the rejection is a lot-cost write — the row's amount leaves
+  // the lot's cost totals — so an ACTIVE cost lock 409s here like everywhere.
+  await assertShipmentCostUnlocked(tx, before.shipmentId);
+  if (before.paymentHistoryUnattributed) throw new ApiError(409, 'Lịch sử thu/chi chưa được phân bổ cho khoản chi cũ; không thể từ chối.');
+  if (before.confirmedAt) throw new ApiError(409, `Khoản ${kind}-${nativeId} đã đối chiếu — dùng điều chỉnh thay vì từ chối.`);
+  if (before.reconciliationId) throw new ApiError(409, 'Khoản đã thuộc đợt hoàn ứng; mở đợt trước khi từ chối.');
+  // Card 2026-10-05_373: rejecting a driver-entered cost is an xe-nhà action
+  // only; on xe ngoài the driver never enters the cost.
+  if (before.sourceKind === 'DRIVER') await assertDriverCostOnOwnCarrier(tx, before.tripId, 'từ chối');
+  // FB-033 (card 211026014819) — a chi-hộ TRIP claim books a live advance
+  // settlement shadow at create time. Confirm releases it before opposing the
+  // row; reject must too, or the rejected claim keeps consuming the
+  // forwarder's advance. A MANUAL phiếu hoàn ứng keeps the refusal.
+  if (before.sourceKind === 'TRIP' && before.payableEntityType === 'FORWARDER') {
+    const { manualLink } = await releaseAutoOffsetAndFindActiveManualLink(tx, nativeId, input.reason);
+    if (manualLink) throw new ApiError(409, 'Khoản chi đã ghi nhận trong phiếu hoàn ứng hiện hành; không từ chối được.');
+  }
+  await tx.update(s.expenseAccountingSources).set({ status: 'VOIDED', updatedAt: new Date() })
+    .where(eq(s.expenseAccountingSources.id, before.id));
+  if (before.sourceKind === 'OPS') {
+    await tx.update(s.opsExpenseEntries).set({ approvalStatus: 'REJECTED', updatedAt: new Date() })
+      .where(eq(s.opsExpenseEntries.id, nativeId));
+  }
+  if (before.sourceKind === 'TRIP') {
+    await tx.update(s.tripExpenses).set({ approvalStatus: 'REJECTED', updatedAt: new Date() })
+      .where(eq(s.tripExpenses.id, nativeId));
+  }
+  if (before.linkedTripExpenseId) {
+    await tx.update(s.tripExpenses).set({ approvalStatus: 'REJECTED', updatedAt: new Date() })
+      .where(eq(s.tripExpenses.id, before.linkedTripExpenseId));
+    await propagateRecordedExpense(tx, { expenseId: before.linkedTripExpenseId });
+  }
+  if (before.sourceKind === 'TRIP') await propagateRecordedExpense(tx, { expenseId: nativeId });
+  if (before.sourceKind === 'DRIVER' && before.tripId) await refreshExpenseTripCosts(tx, before.tripId);
+  await tx.insert(s.auditLogs).values({
+    userId: actor.userId, message: 'EXPENSE_ACCOUNTING_REJECTED', entityType: 'expense_accounting_source', entityId: before.id,
+    payload: { reason: input.reason.trim(), sourceKind: kind, sourceId: nativeId, shipmentId: before.shipmentId },
+  });
+  return { ok: true, id: before.id };
+}
+
 export async function assignTruckAccountant(tx: Tx, actor: ExpenseActor, truckId: number, accountantId: number | null, expectedVersion: number) {
   requireExpenseFinance(actor);
   await lockApplicationOwnedUniqueness(tx, 'truck-accountant-assignment', [truckId]);

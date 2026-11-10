@@ -55,7 +55,7 @@ function directionVariant(remaining: number): 'warning' | 'info' | 'neutral' {
   return remaining > 0 ? 'warning' : remaining < 0 ? 'info' : 'neutral';
 }
 
-export default function OpsReconciliationReportPage() {
+export default function OpsReconciliationReportPage({ embedded = false }: { embedded?: boolean }) {
   // Card 20260928_168 AC4: the Sổ quỹ's TÀI KHOẢN OPS row links here carrying
   // the same period and staff ("cùng một bộ lọc"), so the accountant lands
   // straight on this person's rows and the direction-correct Lập phiếu
@@ -120,7 +120,9 @@ export default function OpsReconciliationReportPage() {
 
   return (
     <div className="ops-reconciliation-report-page">
-      <PageHeader title="Báo cáo tổng hợp hoàn ứng" description="Tiền ĐNTT đã xác nhận trừ tạm ứng phân bổ, theo nhân viên hoặc theo từng đợt đối soát. Chọn một đợt để lập phiếu thu/chi phần chênh lệch." />
+      {/* SIL-779 — embedded in the Tạm ứng & hoàn ứng workspace the tab already
+          names the view, so the page header would repeat it twice. */}
+      {!embedded && <PageHeader title="Báo cáo tổng hợp hoàn ứng" description="Tiền ĐNTT đã xác nhận trừ tạm ứng phân bổ, theo nhân viên hoặc theo từng đợt đối soát. Chọn một đợt để lập phiếu thu/chi phần chênh lệch." />}
       <section aria-label="Bộ lọc">
         <FilterBar
           actions={(

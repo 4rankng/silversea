@@ -152,6 +152,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   PHOI_PHIEU_VOUCHER: 'expense-accounting.phoi-phieu.voucher',
   EXPENSE_ACCOUNTING_ENTRY_BATCH: 'expense-accounting.entries.batch',
   PHOI_PHIEU_ROW_VOID: 'expense-accounting.phoi-phieu.row-void',
+  EXPENSE_ACCOUNTING_ENTRY_REJECT: 'expense-accounting.entries.reject',
   PHOI_PHIEU_PHOI_META: 'expense-accounting.phoi-phieu.phoi-meta',
   PHOI_PHIEU_TRUCK_ASSIGN: 'expense-accounting.phoi-phieu.truck-assign',
   ADVANCE_DRAFT_RECORD: 'advance-requests.draft.record',

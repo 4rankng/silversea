@@ -5,13 +5,14 @@ import { Tabs } from '../design-system';
 import type { TabItem } from '../design-system';
 import AdminAdvancesPage from './AdminAdvancesPage';
 import AdminAdvanceSettlementsPage from './AdminAdvanceSettlementsPage';
+import OpsReconciliationReportPage from './accounting/OpsReconciliationReportPage';
 import { OpsAccountantTab } from '../features/ops/OpsAccountantTab';
 import './AdvanceWorkspacePage.css';
 
-export type AdvanceWorkspaceView = 'requests' | 'settlements' | 'ops-expenses';
+export type AdvanceWorkspaceView = 'requests' | 'settlements' | 'ops-expenses' | 'report';
 
 export function resolveAdvanceWorkspaceView(value: string | null): AdvanceWorkspaceView {
-  return value === 'settlements' || value === 'ops-expenses' ? value : 'requests';
+  return value === 'settlements' || value === 'ops-expenses' || value === 'report' ? value : 'requests';
 }
 
 export function buildAdvanceWorkspaceSearch(
@@ -35,6 +36,9 @@ export default function AdvanceWorkspacePage() {
     { id: 'settlements', label: 'Phiếu hoàn ứng' },
     // OpsVanHanh §5.4: accounting reviews Ops cash expenses + payment batches.
     { id: 'ops-expenses', label: 'Chi phí Ops' },
+    // SIL-779 — Báo cáo hoàn ứng merges into this workspace (spec IV.3.3.3);
+    // /accounting/hoan-ung becomes the centralized cost reconciliation table.
+    { id: 'report', label: 'Báo cáo hoàn ứng' },
   ];
 
   const handleTabChange = (id: string) => {
@@ -76,14 +80,17 @@ export default function AdvanceWorkspacePage() {
           <h2 id={`advance-workspace-${activeView}-heading`}>
             {activeView === 'requests'
               ? 'Yêu cầu tạm ứng'
-              : activeView === 'settlements' ? 'Phiếu hoàn ứng' : 'Chi phí Ops'}
+              : activeView === 'settlements' ? 'Phiếu hoàn ứng'
+                : activeView === 'ops-expenses' ? 'Chi phí Ops' : 'Báo cáo hoàn ứng'}
           </h2>
           <p>
             {activeView === 'requests'
               ? 'Theo dõi khoản tạm ứng đã ghi sổ và xử lý bản nháp còn thiếu thông tin.'
               : activeView === 'settlements'
                 ? 'Đối chiếu chi phí, số tiền hoàn lại và xử lý phiếu theo thẩm quyền.'
-                : 'Đối chiếu khoản chi hiện trường của Ops và lập phiếu thanh toán.'}
+                : activeView === 'ops-expenses'
+                  ? 'Đối chiếu khoản chi hiện trường của Ops và lập phiếu thanh toán.'
+                  : 'Tổng hợp ĐNTT đã xác nhận trừ tạm ứng phân bổ, theo nhân viên hoặc theo đợt đối soát.'}
           </p>
         </div>
 
@@ -91,7 +98,9 @@ export default function AdvanceWorkspacePage() {
           ? <AdminAdvancesPage embedded />
           : activeView === 'settlements'
             ? <AdminAdvanceSettlementsPage embedded />
-            : <OpsAccountantTab />}
+            : activeView === 'ops-expenses'
+              ? <OpsAccountantTab />
+              : <OpsReconciliationReportPage embedded />}
       </section>
     </div>
   );

@@ -5,7 +5,7 @@ import { replayCashAction } from '../services/cash-command-replay.service';
 import { prepareExpenseCashCommand } from '../services/expense-cash-command.service';
 import type { GovernanceActionRow } from '../services/governance-action-core.service';
 import { z } from 'zod';
-import { expenseDateSchema, expenseReconciliationSchema, expenseVndSchema, expenseVoucherSchema } from '@tingting/shared';
+import { expenseDateSchema, expenseReconciliationSchema, expenseVndSchema, expenseVoucherSchema, EXPENSE_REVIEW_PROGRESS } from '@tingting/shared';
 import { getUser } from '../middleware/auth';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { throwValidation } from '../lib/validation';
@@ -18,6 +18,7 @@ import { IDEMPOTENCY_ENDPOINTS, resolveIdempotencyKey, runIdempotent } from '../
 import { normalizeTreasuryPhysicalReference } from '../services/treasury.service';
 import { listFundBook } from '../services/treasury-fund-book.service';
 import { listOpsCostReview } from '../services/ops-cost-review.service';
+import { listCostReconciliation } from '../services/cost-review.service';
 import { listMonthlyReconciliationReport } from '../services/ops-reconciliation-report.service';
 import { declareMaterialWrite } from '../middleware/material-write';
 
@@ -69,6 +70,22 @@ router.get('/ops-review', asyncHandler(async (req, res) => {
     page: z.coerce.number().int().min(1).optional(), limit: z.coerce.number().int().min(1).max(100).optional(),
   }), req.query);
   res.json(await listOpsCostReview(getUser(req), query));
+}));
+// SIL-779 — the centralized cost reconciliation table (finance-only): every
+// department-entered cost by lot with the chống-trùng-lặp duplicate flag and
+// confirmRef for the existing batch /confirm. Sits beside /ops-review, its
+// OPS-only sibling (card 20260921_10).
+router.get('/cost-review', asyncHandler(async (req, res) => {
+  requireExpenseFinance(getUser(req));
+  const query = parse(z.object({
+    from: expenseDateSchema.optional(), to: expenseDateSchema.optional(),
+    payerId: z.coerce.number().int().positive().optional(),
+    shipmentId: z.coerce.number().int().positive().optional(),
+    search: z.string().max(200).optional(),
+    progress: z.enum(EXPENSE_REVIEW_PROGRESS).optional(),
+    page: z.coerce.number().int().min(1).optional(), limit: z.coerce.number().int().min(1).max(100).optional(),
+  }), req.query);
+  res.json(await listCostReconciliation(getUser(req), query));
 }));
 // Card 20260921_11 — the monthly reconciliation summary (finance-only):
 // per-staff ĐNTT vs held advances with labeled sign semantics; vouchers ride

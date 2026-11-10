@@ -18,7 +18,7 @@ describe('titleForPath destination labels and route precedence', () => {
     '/accounting': 'Tổng Quan',
     '/accounting/chot-debit': 'Kế toán chốt debit',
     '/accounting/deposit-tracker': 'Theo dõi hoàn cược',
-    '/accounting/hoan-ung': 'Báo cáo hoàn ứng',
+    '/accounting/hoan-ung': 'Đối soát chi phí',
     '/accounting/invoice-tracking': 'Theo dõi hóa đơn',
     '/accounting/phoi-phieu': 'Kiểm soát phơi phiếu',
     '/accounting/expenses': 'Chi phí phát sinh',

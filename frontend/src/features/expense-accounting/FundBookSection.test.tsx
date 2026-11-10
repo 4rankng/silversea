@@ -68,7 +68,7 @@ describe('FundBookSection — sổ quỹ theo kỳ (card 20260928_168)', () => {
     section();
     await screen.findByText('NV A');
     const link = screen.getByRole('link', { name: 'Lập phiếu' }) as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toBe('/accounting/hoan-ung?opsUserId=5&from=2026-09-01&to=2026-09-30');
+    expect(link.getAttribute('href')).toBe('/advances?view=report&opsUserId=5&from=2026-09-01&to=2026-09-30');
   });
 
   it('switching the source refetches the other book', async () => {

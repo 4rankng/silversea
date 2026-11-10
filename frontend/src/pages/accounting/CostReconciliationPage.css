@@ -1,0 +1,36 @@
+/* SIL-779 — layout-only page rules for the centralized cost reconciliation
+ * table. The table skin itself is the shared record-table + ops-table
+ * typography band; this file adds no table CSS (design law: one pattern, one
+ * shared implementation, tokens only). */
+
+.cost-reconciliation-page__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-block-end: var(--space-4);
+}
+
+.cost-reconciliation-page__invoice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  min-width: 0;
+}
+
+.cost-reconciliation-page__invoice input {
+  min-width: 0;
+  width: 12ch;
+}
+
+.cost-reconciliation-page__funds {
+  padding-block-start: var(--space-4);
+}
+
+.cost-reconciliation-page__funds h2 {
+  font-size: var(--text-section-size);
+  margin: 0;
+}
+
+.cost-reconciliation-page__fund-note {
+  color: var(--ink-3);
+  font-size: var(--text-label-size);
+}
