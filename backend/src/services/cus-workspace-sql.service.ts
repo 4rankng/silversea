@@ -102,7 +102,13 @@ export function workboardRowDaySql() {
  *  and returns the moment the range is cleared (the call site pushes this
  *  condition only when a bound is set, so the no-filter path keeps the full
  *  set with its undated rows). Tổng quan, Chi tiết and the master-plan now
- *  agree row-for-row: the filter returns only lots whose day is in range. */
+ *  agree row-for-row: the filter returns only lots whose day is in range.
+ *
+ *  SIL-791 (id 917, QA 10/11, KB Ch3 §3.1.5) carves the LOT-level exception
+ *  back out at the /shipments call site: the list composes this condition
+ *  with {@link undatedShipmentLaneSql} via `or(...)`, so an undated lot
+ *  stays visible while a range is held. This function ALONE (the dispatch
+ *  master-plan delivery-date filter) keeps the SIL-588 drop unchanged. */
 export function shipmentTransportDateCondition(dateFrom: string, dateTo: string): SQL {
   return or(
     sql`exists (
@@ -117,6 +123,31 @@ export function shipmentTransportDateCondition(dateFrom: string, dateTo: string)
       )`,
       sql`${s.shipments.expectedDeliveryDate} between ${dateFrom} and ${dateTo}`,
     ),
+  )!;
+}
+
+/** SIL-791 (id 917, QA 10/11, KB Ch3 §3.1.5) — the undated lane RETURNS at
+ *  LOT level: a lot with no day evidence at all (expectedDeliveryDate null
+ *  AND no container carrying an appointment — intake skeletons, staging
+ *  lots like 982/R7B-C3-702L) stays visible while a date range is held.
+ *  Hiding it loses rows from the operator's board; KB: "lô không ngày vẫn
+ *  hiện ở mức lô — chỉ container không ngày bị loại ở mức dòng container".
+ *  The /shipments list call site composes this with
+ *  {@link shipmentTransportDateCondition} via `or(...)`, so dated lots keep
+ *  the exact SIL-588 range law (in-range shows, out-range drops) and the
+ *  Chi tiết container triage (SIL-506) still drops undated containers at
+ *  row level. `not exists (appointment)` is the exact complement of
+ *  containerTransportDateSql's dated arm — a lot with ANY appointment is a
+ *  dated lot and is judged by the range alone. The dispatch master-plan
+ *  call site is NOT touched (keeps the SIL-588 law until its own ticket). */
+export function undatedShipmentLaneSql(): SQL {
+  return and(
+    sql`${s.shipments.expectedDeliveryDate} is null`,
+    sql`not exists (
+      select 1 from ${s.shipmentContainers}
+      where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
+        and ${s.shipmentContainers.customerAppointmentAt} is not null
+    )`,
   )!;
 }
 
