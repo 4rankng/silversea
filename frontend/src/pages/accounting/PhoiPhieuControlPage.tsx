@@ -338,7 +338,7 @@ export default function PhoiPhieuControlPage() {
           { key: 'roadAction', label: 'Tiền đường', value: <button type="button" className="btn btn--secondary" onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}>Xem chi tiết</button> },
           // SIL-783 (id 906) — khai chi phí phát sinh ngay từ bảng, không cần
           // mở chi tiết chi hộ.
-          { key: 'addExpenseAction', label: 'Thêm chi phí', value: <button type="button" className="btn btn--secondary" onClick={() => { setChiHoTripId(null); setTienDuongTripId(null); setAddExpenseTripId(row.tripId); }}>+ Chi phí</button> },
+          { key: 'addExpenseAction', label: 'Thêm chi phí', value: <button type="button" className="btn btn--secondary" aria-label={`Thêm chi phí phát sinh ${billBookingReference(row.billOrBooking)}`} onClick={() => { setChiHoTripId(null); setTienDuongTripId(null); setAddExpenseTripId(row.tripId); }}>+ Chi phí</button> },
         ],
       }))} />
       <div className="ppc-board-wrap ledger-desktop" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
@@ -426,6 +426,7 @@ export default function PhoiPhieuControlPage() {
                   <button
                     type="button"
                     className="btn btn--secondary btn--sm"
+                    aria-label={`Thêm chi phí phát sinh ${billBookingReference(row.billOrBooking)}`}
                     onClick={() => { setChiHoTripId(null); setTienDuongTripId(null); setAddExpenseTripId(row.tripId); }}
                   >
                     + Chi phí
@@ -500,7 +501,8 @@ export default function PhoiPhieuControlPage() {
         <ExpenseCreateDrawer
           work={{ tripId: addExpenseRow.tripId, shipmentId: addExpenseRow.shipmentId, shipmentCode: billBookingReference(addExpenseRow.billOrBooking), containerNumber: null }}
           catalog={catalogQuery.data}
-          initialGroup="OPS_INCIDENTAL"
+          /* Card 191026160000: manual entry carries ONLY the two DRIVER tabs —
+             the drawer rejects any other initialGroup, so none is passed here. */
           entryScope="OPS"
           carrier={carrierOf(addExpenseRow.tripId)}
           onClose={() => setAddExpenseTripId(null)}

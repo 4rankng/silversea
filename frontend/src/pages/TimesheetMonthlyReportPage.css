@@ -16,6 +16,10 @@
 .ts-report,
 .ts-legend {
   --ts-sunday-bg: #FBEFC7;
+  /* SIL-781 — nền đỏ đậm của chuỗi ngày nghỉ việc: hằng nghiệp vụ theo spec
+     (đậm hơn --danger), cùng chính sách biến cục bộ có chú thích nguồn gốc
+     như --ts-sunday-bg. */
+  --ts-quit-bg: #6B2429;
 }
 
 .ts-report__title {
@@ -79,7 +83,7 @@
  * in thêm nhãn chữ "Đã nghỉ việc" cạnh tên (uiux trigger màu-đơn-thuần). */
 .ts-report .ts-report__cell--quit,
 .ts-report td.ts-report__cell--quit.ts-report__cell--sunday {
-  background: #6B2429;
+  background: var(--ts-quit-bg);
   color: #fff;
   font-weight: var(--fw-semibold);
 }

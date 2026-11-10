@@ -201,7 +201,7 @@ describe('PhoiPhieuControlPage — inline Số HĐ trên bảng (SIL-783)', () =
 describe('PhoiPhieuControlPage — "+ Chi phí" ngay trên bảng (SIL-783)', () => {
   it('mở form khai chi phí phát sinh cho đúng chuyến', async () => {
     renderWithRows([phoiRow()]);
-    fireEvent.click(await screen.findByRole('button', { name: '+ Chi phí' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Thêm chi phí phát sinh BILL-783' }));
     const drawer = await screen.findByTestId('expense-drawer');
     expect(drawer.getAttribute('data-trip')).toBe('41');
   });
@@ -209,6 +209,6 @@ describe('PhoiPhieuControlPage — "+ Chi phí" ngay trên bảng (SIL-783)', ()
   it('dòng không có khoản chi hộ vẫn hiện "—" và nút + Chi phí', async () => {
     renderWithRows([phoiRow({ chiHoRows: [] })]);
     await screen.findByText('BILL-783');
-    expect(screen.getByRole('button', { name: '+ Chi phí' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thêm chi phí phát sinh BILL-783' })).toBeTruthy();
   });
 });
