@@ -12,31 +12,35 @@
  *      bucket claims a trip-less source; a source with a tripId keeps the
  *      legacy trip-party law untouched.
  *   2. THU fallback: shipment → customer with the FB-061 soft-delete law
- *      (isNull(deletedAt) — a deleted master never prints, its money stays in
- *      the 'Chưa xác định' audit bucket).
+ *      (isNull(deletedAt) — a deleted master never prints; since r7 its
+ *      money reports under 'Thiếu khách hàng', not the unknown bucket).
  *   3. TRA fallback (r2, QA 08/11): through EVERY live trip of the shipment —
  *      the exact candidate law `expenseTripCandidates` links sources by
  *      (deletedAt NULL, status ≠ CANCELED). Ops 'chi hộ' money rides the
  *      SHARED lot, so the carrier fact is whatever ALL live trips agree on
- *      (entity identity, never the display string); a mixed-carrier lot, a
- *      trip whose carrier does not resolve, or a no-live-trip lot stays
- *      'Chưa xác định'. The unique live trip still carries its id for the
- *      drill-down's bookable grouping; a multi-trip resolution groups under
- *      the synthetic shipment key.
+ *      (entity identity, never the display string); since r7 a mixed-carrier
+ *      lot, a trip whose carrier does not resolve, or a no-live-trip lot
+ *      reads 'Thiếu nhà xe' (r6's per-lot code label is superseded). The
+ *      unique live trip still carries its id for the drill-down's bookable
+ *      grouping; a multi-trip resolution groups under the synthetic shipment
+ *      key.
  *   4. The drill-down drops the unconditional trip-less skip: a RESOLVED
  *      trip-less source joins under its party (booking through the unique
  *      live trip when one exists, a display-only shipment row otherwise);
- *      unresolved money keeps no lot row — the summary bucket stays the audit
- *      surface. The money invariant: every source lands in exactly one bucket
- *      and no source is dropped (loop `continue`s only for party mismatch or
- *      a truly-unresolved trip-less source).
- *   5. r6 (owner ruling 09/11): lot-attached money NEVER reads 'Chưa xác
- *      định'. The TRA resolver ends at the LOT's own code (SHP-… / `Lô #<id>`,
- *      partyId null — not a ledger entity); a trip whose carrier does not
- *      resolve falls to that lot party in both loops; money attached to a
- *      SOFT-DELETED lot is excluded from the report wholesale. THU keeps
- *      FB-061 (a soft-deleted customer master never prints; its money keeps
- *      the unknown bucket).
+ *      since r7 missing-party money ALSO joins the drawer under the
+ *      synthetic shipment key — the only continue left is a label mismatch
+ *      (the null-lot-key continue is defensive: `shipment_id` is NOT NULL
+ *      and reportSources inner-joins live shipments). The money invariant:
+ *      every source lands in exactly one bucket and no source is dropped.
+ *   5. r7 (KB Silversea Spec Ch.6 §6.7, owner instruction 10/11 — supersedes
+ *      the r6 lot-code label): lot-attached money NEVER reads 'Chưa xác
+ *      định', and missing data names WHAT is missing — 'Thiếu nhà xe'
+ *      (TRA) / 'Thiếu khách hàng' (THU; FB-061 keeps: a soft-deleted
+ *      customer master never prints). partyId null — not a ledger entity; a
+ *      trip whose carrier does not resolve falls to that party in both
+ *      loops; money attached to a SOFT-DELETED lot is excluded from the
+ *      report wholesale; only money attached to no trip AND no lot keeps
+ *      the generic unknown bucket.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -61,7 +65,7 @@ describe('SIL-729 — the summary bucket resolves through the shipment fallback'
 
   it('the fallback resolver feeds the bucket step for trip-less sources', () => {
     assert.ok(report.includes('resolveShipmentFallbackParties(query.kind'), 'summary must build the fallback map');
-    const loop = report.match(/for \(const source of sources\) \{[\s\S]*?const party = partyInfo\?\.name \?\? 'Chưa xác định';/)?.[0] ?? '';
+    const loop = report.match(/for \(const source of sources\) \{[\s\S]*?const party = partyInfo\?\.name \?\? \(source\.shipmentId != null/)?.[0] ?? '';
     assert.notEqual(loop, '', 'the bucket loop must exist');
     assert.ok(loop.includes('source.tripId != null ? tripParty.get(source.tripId)'), 'trip sources keep the legacy law');
     assert.ok(loop.includes('shipmentFallback.get(source.shipmentId)?.party'), 'trip-less sources consult the fallback before the unknown bucket');
@@ -103,11 +107,11 @@ describe('SIL-729 — the drill-down shows resolved trip-less money', () => {
     assert.notEqual(loop, '', 'the drill-down loop must exist');
     assert.ok(!loop.includes('if (source.tripId == null) continue;'), 'the old unconditional skip is gone');
     assert.ok(loop.includes('shipmentFallback.get(source.shipmentId)'), 'the loop consults the fallback');
-    assert.ok(loop.includes(`'Chưa xác định'`) === false || loop.includes("(partyInfo?.name ?? 'Chưa xác định') !== wanted"),
-      'the party label must match the summary exactly');
-    // Unresolved money still keeps no lot row — the summary bucket stays the
-    // audit surface (FB-061); the only continues are the label mismatch and
-    // the null lot key.
+    assert.ok(loop.includes('query.kind === \'TRA\' ? MISSING_CARRIER_LABEL : MISSING_CUSTOMER_LABEL'),
+      'the party label must match the summary exactly — the r7 missing-datum labels included (KB §6.7)');
+    // The null-lot-key continue is defensive only (`shipment_id` is NOT NULL
+    // and reportSources inner-joins live shipments); since r7 missing-party
+    // money joins the drawer under the synthetic shipment key (KB §6.7).
     assert.ok(loop.includes('if (lotKey == null) continue;'), 'unresolved trip-less money keeps no lot row');
     assert.ok(loop.includes('tripId: lotKey > 0 ? lotKey : null'), 'a shared shipment fee lot is display-only (tripId null)');
   });
@@ -163,32 +167,34 @@ describe('SIL-729 r4 — the fallback sees fulfillment-linked trips and the lot 
   });
 });
 
-describe('SIL-729 r6 — lot-attached money never reads the unknown bucket', () => {
+describe('SIL-729 r7 — lot-attached money never reads the unknown bucket (KB §6.7 labels)', () => {
   const fallback = fnBody('resolveShipmentFallbackParties');
   const report = fnBody('getPhoiPhieuReport');
   const sources = fnBody('reportSources');
 
-  it('the TRA resolver ends at the lot label — the lot names itself (owner ruling 09/11)', () => {
-    assert.ok(fallback.includes('const unresolved = ids.filter((id) => !map.has(id))'),
-      'the lot tier fills exactly the shipments both carrier laws left unnamed');
-    assert.ok(fallback.includes('code: s.shipments.shipmentCode'),
-      'the label is the lot code the owner ruling prescribes');
-    assert.ok(fallback.includes('`Lô #${lot.id}`'),
-      'a code-less draft lot still prints an honest per-lot label');
+  it('the TRA resolver ends at the missing-carrier label — missing data names what is missing', () => {
+    assert.ok(fallback.includes('MISSING_CARRIER_LABEL'),
+      "the lot tier's label is the KB §6.7 missing-datum label 'Thiếu nhà xe'");
     assert.ok(fallback.includes('partyId: null, partyKind: null'),
-      'the lot label is not a ledger entity — the payables join can never bind it to a carrier id');
+      'the missing-carrier label is not a ledger entity — the payables join can never bind it to a carrier id');
+    assert.ok(!fallback.includes('`Lô #${lot.id}`') && !fallback.includes('s.shipments.shipmentCode'),
+      'the r6 per-lot code label is superseded — the KB §6.7 label replaces it');
     // The lot tier is TRA-only: it must sit after the THU early return.
-    assert.ok(fallback.indexOf('const unresolved = ids.filter') > fallback.indexOf("if (kind === 'THU')"),
+    assert.ok(fallback.indexOf('MISSING_CARRIER_LABEL') > fallback.indexOf("if (kind === 'THU')"),
       'the THU branch keeps FB-061 untouched (a soft-deleted customer never prints)');
   });
 
   it('the summary loop falls back to the lot party when a trip names no carrier', () => {
-    const loop = report.match(/for \(const source of sources\) \{[\s\S]*?const party = partyInfo\?\.name \?\? 'Chưa xác định';/)?.[0] ?? '';
+    const loop = report.match(/for \(const source of sources\) \{[\s\S]*?const party = partyInfo\?\.name \?\? \(source\.shipmentId != null/)?.[0] ?? '';
     assert.notEqual(loop, '', 'the bucket loop must exist');
     assert.ok(loop.includes('resolvedParty?.name != null ? resolvedParty'),
       'a resolved trip party still wins first (r4 pin law unchanged)');
     assert.ok(loop.includes('source.shipmentId != null ? shipmentFallback.get(source.shipmentId)?.party'),
-      'the null-name trip falls to the lot party before the unknown bucket');
+      'the null-name trip falls to the lot party before the missing-datum label');
+    assert.ok(report.includes("(query.kind === 'TRA' ? MISSING_CARRIER_LABEL : MISSING_CUSTOMER_LABEL)"),
+      "a lot-attached party the joins could not name reads 'Thiếu nhà xe'/'Thiếu khách hàng', never 0");
+    assert.ok(report.includes(': UNATTACHED_LABEL'),
+      "only money attached to no trip AND no lot keeps 'Chưa xác định'");
     assert.ok(report.includes('sources.map((source) => source.shipmentId)'),
       'the fallback map covers every source lot (trip-attached ones included)');
   });

@@ -150,3 +150,43 @@ hợp (display-only). Pin: `phoi-phieu-shipment-fallback.test.ts` (r2 pins).
   4. Lô có fact (all-agree trip / fulfillment planned) ⇒ vẫn ra đúng tên nhà
      xe trước luật lô (thứ tự luật giữ nguyên).
   5. THU + khách master chết ⇒ vẫn 'Chưa xác định' (FB-061 nguyên vẹn).
+
+## Round 7 (10/11/2026 — QA fail 09/11 build c4cea6b6 pre-r6-deploy, comment 4784; owner instruction citing KB §6.7 nguyên văn)
+
+- **Số liệu fail:** 'Chưa xác định' PHẢI TRẢ 9 chuyến / 960.000₫ trên
+  /accounting/phoi-phieu và 6 chuyến / 640.000₫ trên tổng hợp tháng 11
+  /debt — build c4cea6b6 CHƯA gồm r6 (r6 merge vào trunk sau verdict này);
+  việc deploy build mới là điều kiện để bucket TRA về 0.
+- **Luật KB §6.7 nguyên văn (owner 10/11):** dòng gộp 'Chưa xác định' CHỈ
+  chứa chi rời KHÔNG gắn lô; NGHIÊM CẤM gom tiền có lô/chuyến vào đó; join
+  Khoản chi phí/Phơi phiếu → Lô → Chuyến để lấy Tên KH (phải thu) / Tên Nhà
+  xe (phải trả); thiếu dữ liệu ⇒ nhãn 'Thiếu…', KHÔNG gán 0; lô chưa phân xe
+  ⇒ 'Thiếu nhà xe' (không phải 'Chưa xác định').
+- **Điều chỉnh so với r6 (r7):**
+  1. Nhãn r6 theo MÃ LÔ (SHP-… / `Lô #<id>`) ⇒ thay bằng nhãn thiếu-dữ-liệu
+     đúng luật: TRA ⇒ 'Thiếu nhà xe' (partyId/partyKind vẫn null — không phải
+     ledger entity, không join sổ phải trả theo id; card 201026095604b).
+  2. THU: tiền gắn lô/chuyến mà tên khách không resolve (FB-061 master chết,
+     hoặc shipment không có khách) ⇒ 'Thiếu khách hàng' thay vì 'Chưa xác
+     định'. FB-061 nguyên vẹn: TÊN master chết vẫn KHÔNG BAO GIỜ in; tiền
+     vẫn không rơi khỏi báo cáo.
+  3. 'Chưa xác định' CHỈ còn cho nguồn KHÔNG gắn chuyến VÀ KHÔNG gắn lô
+     (tripId null + shipmentId null).
+  4. Drill-down 'Thiếu nhà xe' / 'Thiếu khách hàng': mở drawer như party
+     thường — dòng theo chuyến thật hoặc key shipment tổng hợp (không
+     bookable).
+  5. Các luật r1→r6 giữ nguyên: all-agree trip thắng trước, planned-carrier
+     fact lô thắng thứ hai, lô soft-delete loại khỏi báo cáo toàn bộ, THU
+     không bịa tên.
+- **Case pin (r7)** (unit pins: `phoi-phieu-shipment-fallback.test.ts` r7):
+  1. Lô sống chưa phân xe / trộn xe + phí chi hộ trip-less ⇒ dòng 'Thiếu nhà
+     xe', KHÔNG phải mã lô, KHÔNG phải 'Chưa xác định'.
+  2. Phí gắn chuyến có carrier không resolve ⇒ cũng rót về 'Thiếu nhà xe'.
+  3. THU + khách master chết (trip-less hoặc trip-attached) ⇒ 'Thiếu khách
+     hàng'; tên chết không in.
+  4. Nguồn không gắn chuyến và không gắn lô ⇒ 'Chưa xác định' (duy nhất).
+  5. Lô có fact (all-agree trip / fulfillment planned) ⇒ vẫn ra đúng tên nhà
+     xe trước nhãn thiếu (thứ tự luật giữ nguyên).
+  6. Lô soft-deleted ⇒ không còn dòng nào trong báo cáo.
+  7. Drawer 'Thiếu khách hàng' phải liệt kê tiền gắn lô (key shipment tổng
+     hợp) — không drawer rỗng.

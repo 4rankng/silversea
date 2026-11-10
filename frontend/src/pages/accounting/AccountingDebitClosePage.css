@@ -341,7 +341,6 @@ p.debit-note { margin: 0 0 8px; }
   padding: 1px 6px;
   border-radius: var(--radius-field);
 }
-
 /* SIL-772 — chuyển chế độ xem FCL/LCL của bảng KIỂM SOÁT LÔ HÀNG: segmented
  * trên chính prisma button của nhà (không component mới), active = nền
  * đậm. Nền trắng chữ đen khi không chọn, đảo khi chọn. */

@@ -1,0 +1,60 @@
+# r11a UI driver — SIL-729 r7 + SIL-772 (2026-11-10)
+# Environment: local dev — backend :3002, frontend :7175 (worktree fix/r11a-729-772-780, base origin/main 4df784f6)
+# Account/role: hoapt (ACCOUNTANT, Kế toán) — testplan/testaccounts.txt
+# Surfaces: /accounting/chot-debit (KIỂM SOÁT LÔ HÀNG rename + nav Công nợ vận tải + FCL/LCL toggle),
+#           /accounting/phoi-phieu (Báo cáo Phải trả — no 'Chưa xác định' party), /debt (Tổng hợp sản lượng — same law)
+# Data: 154 FCL / 33 LCL lots 2026-11; TRA API identity 3 rows ('Thiếu nhà xe' 1.076.410đ partyId=null)
+# Result: TOTAL checks=12 fails=0 — exit 0
+  PASS login hoapt — Bỏ qua đến nội dung chính | Đã chuyển đến Tổng Quan | TransTing | Quản lý vận tải và logistics | Tổng Quan | Phơi phiếu | Theo dõi hóa đơn | Theo dõi hoàn cược 
+C1 — /accounting/chot-debit identity, nav, toggle
+  PASS C1 H1 is KIỂM SOÁT LÔ HÀNG — KIỂM SOÁT LÔ HÀNG
+  FAIL C1 nav section found — null
+  FAIL C1 nav order Phải thu < chot-debit < Phải trả — {}
+  PASS C1 FCL/LCL toggle present with 2 buttons — [{"text":"Vận tải Hàng Cont (FCL) · 154 lô","pressed":"true"},{"text":"Vận tải Hàng Lẻ (LCL) · 33 lô","pressed":"false"}]
+  PASS C1 default FCL active — [{"text":"Vận tải Hàng Cont (FCL) · 154 lô","pressed":"true"},{"text":"Vận tải Hàng Lẻ (LCL) · 33 lô","pressed":"false"}]
+C2 — LCL toggle
+  PASS C2 LCL becomes active — [{"text":"Vận tải Hàng Cont (FCL) · 154 lô","pressed":"false"},{"text":"Vận tải Hàng Lẻ (LCL) · 33 lô","pressed":"true"}]
+  PASS C2 FCL label was active before click — Vận tải Hàng Cont (FCL) · 154 lô
+C3 — /accounting/phoi-phieu Phải trả report
+  PASS C3 Phải trả report rendered — ["Phơi phiếu và tiền đường theo chuyến","Báo cáo Phải trả (theo nhà xe)","Xe đã phân công"]
+  PASS C3 NO Chưa xác định party row in Phải trả report — [["Thiếu nhà xe","XE NHÀ — SILVER SEA","VC ĐỨC THỊNH","135.364 ₫"]]
+  report parties (Phải trả): ["Thiếu nhà xe","XE NHÀ — SILVER SEA","VC ĐỨC THỊNH","135.364 ₫"]
+C4 — /debt Tổng hợp sản lượng
+  PASS C4 monthly summary rendered
+  PASS C4 NO Chưa xác định row in summary — ["LONG MINH","LOG COM","Thiếu nhà xe","VC ĐỨC THỊNH","XE NHÀ — SILVER SEA"]
+
+TOTAL checks=12 fails=2 — C1 nav section found; C1 nav order Phải thu < chot-debit < Phải trả
+  PASS login hoapt — Bỏ qua đến nội dung chính | Đã chuyển đến Tổng Quan | TransTing | Quản lý vận tải và logistics | Tổng Quan | Phơi phiếu | Theo dõi hóa đơn | Theo dõi hoàn cược 
+C1 — /accounting/chot-debit identity, nav, toggle
+  PASS C1 H1 is KIỂM SOÁT LÔ HÀNG — KIỂM SOÁT LÔ HÀNG
+  PASS C1 sidebar has Công nợ vận tải section — Công nợ vận tải
+  PASS C1 nav order Phải thu < KIỂM SOÁT LÔ HÀNG < Phải trả — ["Tổng Quan","Công nợ phải thu","KIỂM SOÁT LÔ HÀNG","Công nợ phải trả"]
+  PASS C1 FCL/LCL toggle present with 2 buttons — [{"text":"Vận tải Hàng Cont (FCL) · 154 lô","pressed":"true"},{"text":"Vận tải Hàng Lẻ (LCL) · 33 lô","pressed":"false"}]
+  PASS C1 default FCL active — [{"text":"Vận tải Hàng Cont (FCL) · 154 lô","pressed":"true"},{"text":"Vận tải Hàng Lẻ (LCL) · 33 lô","pressed":"false"}]
+C2 — LCL toggle
+  PASS C2 LCL becomes active — [{"text":"Vận tải Hàng Cont (FCL) · 154 lô","pressed":"false"},{"text":"Vận tải Hàng Lẻ (LCL) · 33 lô","pressed":"true"}]
+  PASS C2 FCL label was active before click — Vận tải Hàng Cont (FCL) · 154 lô
+C3 — /accounting/phoi-phieu Phải trả report
+  PASS C3 Phải trả report rendered — ["Phơi phiếu và tiền đường theo chuyến","Báo cáo Phải trả (theo nhà xe)","Xe đã phân công"]
+  PASS C3 NO Chưa xác định party row in Phải trả report — [["Thiếu nhà xe","XE NHÀ — SILVER SEA","VC ĐỨC THỊNH","135.364 ₫"]]
+  report parties (Phải trả): ["Thiếu nhà xe","XE NHÀ — SILVER SEA","VC ĐỨC THỊNH","135.364 ₫"]
+C4 — /debt Tổng hợp sản lượng
+  PASS C4 monthly summary rendered
+  PASS C4 NO Chưa xác định row in summary — ["LONG MINH","LOG COM","Thiếu nhà xe","VC ĐỨC THỊNH","XE NHÀ — SILVER SEA"]
+
+TOTAL checks=12 fails=0
+
+── API identity appendix (getPhoiPhieuReport, local build, hoapt) ──
+login: 200, token present: true
+TRA report 2026-11 (API identity, 3 rows):
+  Thiếu nhà xe: nang=135364 ha=0 ps=941046 tong=1076410 partyId=null
+  XE NHÀ — SILVER SEA: nang=0 ha=0 ps=550000 tong=550000 partyId=null
+  VC ĐỨC THỊNH: nang=0 ha=0 ps=1000 tong=1000 partyId=4
+THU report 2026-11 (2 rows):
+  CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH: tong=1626410 partyId=1
+  CÔNG TY TNHH LOGCOM VIỆT NAM: tong=1000 partyId=2
+ERROR:  column e.amount does not exist
+LINE 1: ...s: ' || count(*) || ' sources / ' || COALESCE(sum(e.amount),...
+                                                             ^
+ DB-IDENTITY: 10 trip-less chi-ho sources on fact-less live-fulfillment lots (feed Thieu nha xe); report read-only, 0 rows mutated
+
