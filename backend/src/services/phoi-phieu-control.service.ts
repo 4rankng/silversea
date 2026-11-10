@@ -105,6 +105,19 @@ export interface PhoiPhieuRow {
   driverNote: string | null;
   confirmable: boolean;
   openSources: Array<{ sourceId: number; expectedVersion: number; remaining: number }>;
+  /** SIL-783 (id 906) — the trip's OPS chi-hộ rows in edit-ready shape so the
+   *  accountant edits the invoice number (Số HĐ) straight on the board, phoi
+   *  received or not. `version` is the optimistic-concurrency token the
+   *  update/correct route requires; `confirmed` picks correct over update,
+   *  the same split the chi-hộ detail dialog applies. */
+  chiHoRows: Array<{
+    entryId: number;
+    sourceId: number;
+    version: number;
+    feeName: string | null;
+    invoiceNumber: string | null;
+    confirmed: boolean;
+  }>;
 }
 
 function billOrBookingOf(direction: string | null, bl: string | null, booking: string | null): string | null {
@@ -332,6 +345,10 @@ export async function listPhoiPhieuRows(query: {
     allocatedAdvanceAmount: s.expenseAccountingSources.allocatedAdvanceAmount,
     amount: s.opsExpenseEntries.amount,
     customerChargeAmount: s.opsExpenseEntries.customerChargeAmount,
+    // SIL-783 (id 906) — the invoice-number line the board edits inline.
+    entryId: s.opsExpenseEntries.id,
+    feeName: s.opsExpenseEntries.feeName,
+    invoiceNumber: s.opsExpenseEntries.invoiceNumber,
   })
     .from(s.expenseAccountingSources)
     .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
@@ -424,6 +441,15 @@ export async function listPhoiPhieuRows(query: {
     bucket.push(source);
     byShipment.set(source.shipmentId, bucket);
   }
+  // SIL-783 (id 906) — the board's inline Số-HĐ editors read ONLY OPS rows,
+  // grouped from opsSources so the shape carries entryId/feeName/invoiceNumber
+  // (the combined `sources` union loses that narrowing).
+  const opsByShipment = new Map<number, typeof opsSources>();
+  for (const source of opsSources) {
+    const bucket = opsByShipment.get(source.shipmentId) ?? [];
+    bucket.push(source);
+    opsByShipment.set(source.shipmentId, bucket);
+  }
   const noteByTrip = new Map<number, string>();
   for (const event of driverNotes) {
     if (!noteByTrip.has(event.tripId) && event.note) noteByTrip.set(event.tripId, event.note);
@@ -506,6 +532,17 @@ export async function listPhoiPhieuRows(query: {
       driverNote: noteByTrip.get(row.tripId) ?? row.tripNotes ?? null,
       confirmable: openSources.length > 0,
       openSources,
+      // SIL-783 (id 906) — OPS rows only: TRIP-kind rows stay read-only on the
+      // board (their correction surface is the expense-accounting workspace),
+      // the same split the chi-hộ detail dialog renders.
+      chiHoRows: (opsByShipment.get(row.shipmentId) ?? []).map((source) => ({
+        entryId: source.entryId,
+        sourceId: source.id,
+        version: source.version,
+        feeName: source.feeName,
+        invoiceNumber: source.invoiceNumber,
+        confirmed: source.confirmedAt != null,
+      })),
     });
   }
   return out;

@@ -1,9 +1,23 @@
 @import './TimesheetGridPage.css';
 
 /* FB-104 — báo cáo Tổng hợp xếp lệnh tháng (mẫu Excel của khách).
- * Màu ô = ý nghĩa nghiệp vụ theo mô tả khách: xanh = ô tạo chuyến tính lương
- * chuyến, vàng = Chủ nhật/lưu ca (không tạo chuyến), đỏ = nghỉ. Chủ nhật dùng
- * đúng cách đánh dấu của lưới chấm công (tint nhạt, không pill — design §1). */
+ * SIL-781 (id 904) — quy ước màu spec REV 2 Phần V, map sang token nhà để giữ
+ * đúng họ màu emerald owner đã chốt và tương phản AA:
+ *   K  → chữ đậm trên nền trắng            (ts-report__sym--k)
+ *   Đ  → chữ thường trên nền trắng         (không class)
+ *   Q  → chữ XANH   = var(--info-text)     (ts-report__sym--q)
+ *   L  → chữ CAM    = var(--warning-text)  (ts-report__sym--l)
+ *   P  → nền XÁM NHẠT = var(--surface-2)   (ts-report__cell--p)
+ *   N  → NỀN ĐỎ chữ trắng = var(--danger-text) làm nền (ts-report__cell--n)
+ *   Nghỉ hẳn → cả chuỗi ngày nền đỏ đậm    (ts-report__cell--quit)
+ *   Chủ nhật → nền VÀNG dọc cột: không có token vàng trong hệ màu nhà nên
+ *   biến cục bộ --ts-sunday-bg là màu dữ-nghiệp-do-spec-quy-định duy nhất của
+ *   trang (chữ ink đậm trên vàng nhạt, tương phản cao). */
+.ts-report,
+.ts-legend {
+  --ts-sunday-bg: #FBEFC7;
+}
+
 .ts-report__title {
   margin: 12px 0 8px;
   font-size: var(--text-body-size);
@@ -25,24 +39,49 @@
   min-width: 30px;
 }
 
-.ts-report .ts-report__cell--trip {
-  color: var(--success-text);
+.ts-report .ts-report__sym--k {
+  font-weight: var(--fw-bold, 700);
+}
+
+.ts-report .ts-report__sym--q {
+  color: var(--info-text);
   font-weight: var(--fw-semibold);
 }
 
-.ts-report .ts-report__cell--standby {
+.ts-report .ts-report__sym--l {
   color: var(--warning-text);
   font-weight: var(--fw-semibold);
 }
 
-.ts-report .ts-report__cell--off {
-  color: var(--danger-text);
+.ts-report .ts-report__cell--p {
+  background: var(--surface-2);
+  font-weight: var(--fw-semibold);
+}
+
+.ts-report .ts-report__cell--n {
+  background: var(--danger-text);
+  color: #fff;
   font-weight: var(--fw-semibold);
 }
 
 .ts-report .ts-report__cell--sunday {
-  background: var(--surface-2);
-  color: var(--ink-2);
+  background: var(--ts-sunday-bg);
+  color: var(--ink);
+}
+
+/* Lái xe INACTIVE (nghỉ hẳn): chuỗi ngày 1..31 nền đỏ đậm — đè cả tint Chủ
+ * nhật và mọi ký hiệu còn sót trên dòng. Nghĩa vụ không chỉ bằng màu: dòng
+ * in thêm nhãn chữ "Đã nghỉ việc" cạnh tên (uiux trigger màu-đơn-thuần). */
+.ts-report .ts-report__cell--quit,
+.ts-report td.ts-report__cell--quit.ts-report__cell--sunday {
+  background: #6B2429;
+  color: #fff;
+  font-weight: var(--fw-semibold);
+}
+
+.ts-report .ts-report__quit-note {
+  color: var(--danger-text);
+  font-weight: var(--fw-semibold);
 }
 
 /* FB-063 — header bảng gói trong một dòng. record-table.css cố ý giữ

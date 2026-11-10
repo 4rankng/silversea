@@ -14,7 +14,12 @@ vi.mock('../../api/phoiPhieuClient', () => ({
   getPhoiPhieuPartyLots: vi.fn(),
 }));
 
-import PhoiPhieuControlPage, { PHOI_NOT_RECEIVED_LABEL, phoiNotReceivedWarning } from './PhoiPhieuControlPage';
+import PhoiPhieuControlPage, {
+  PHOI_NOT_RECEIVED_LABEL,
+  phoiNotReceivedMessage,
+  phoiNotReceivedOverdueDays,
+  phoiNotReceivedWarning,
+} from './PhoiPhieuControlPage';
 import { businessDateISO, businessDateOffsetISO } from '../../lib/format';
 import * as client from '../../api/phoiPhieuClient';
 
@@ -122,10 +127,32 @@ describe('phoiNotReceivedWarning — the 4-day law (SIL-763)', () => {
   });
 });
 
-describe('PhoiPhieuControlPage — the red Phơi chưa được nhận note (SIL-763)', () => {
-  it('paints the overdue trip’s transport-notes cell red with the warning', async () => {
+// SIL-783 (id 906) — the warning carries the overdue AGE: "Quá hạn X ngày"
+// with X = transport day → today in calendar days.
+describe('phoiNotReceivedOverdueDays / phoiNotReceivedMessage — the day count (SIL-783)', () => {
+  it('returns the calendar-day gap from the 4th day onward', () => {
+    expect(phoiNotReceivedOverdueDays({ transportDate: businessDateOffsetISO(-4), phoiTakenDate: null }, today)).toBe(4);
+    expect(phoiNotReceivedOverdueDays({ transportDate: businessDateOffsetISO(-10), phoiTakenDate: null }, today)).toBe(10);
+  });
+
+  it('is null inside the 3-day window, with a POD tick, or without a parsable day', () => {
+    expect(phoiNotReceivedOverdueDays({ transportDate: businessDateOffsetISO(-3), phoiTakenDate: null }, today)).toBeNull();
+    expect(phoiNotReceivedOverdueDays({ transportDate: businessDateOffsetISO(-9), phoiTakenDate: businessDateOffsetISO(-2) }, today)).toBeNull();
+    expect(phoiNotReceivedOverdueDays({ transportDate: null, phoiTakenDate: null }, today)).toBeNull();
+    expect(phoiNotReceivedOverdueDays({ transportDate: 'not-a-date', phoiTakenDate: null }, today)).toBeNull();
+  });
+
+  it('builds the spec Task 3.3.1 message with the real gap', () => {
+    expect(phoiNotReceivedMessage({ transportDate: businessDateOffsetISO(-5), phoiTakenDate: null }, today))
+      .toBe(`⚠️ ${PHOI_NOT_RECEIVED_LABEL} (Quá hạn 5 ngày)`);
+    expect(phoiNotReceivedMessage({ transportDate: businessDateOffsetISO(-2), phoiTakenDate: null }, today)).toBeNull();
+  });
+});
+
+describe('PhoiPhieuControlPage — the red Phơi chưa được nhận note (SIL-763 + SIL-783)', () => {
+  it('paints the overdue trip’s transport-notes cell red with the day-count warning', async () => {
     renderWithRow(phoiRow({ transportDate: businessDateOffsetISO(-5) }));
-    const warning = await screen.findByText(PHOI_NOT_RECEIVED_LABEL);
+    const warning = await screen.findByText(`⚠️ ${PHOI_NOT_RECEIVED_LABEL} (Quá hạn 5 ngày)`);
     const cell = warning.closest('td');
     expect(cell?.className).toContain('ppc-col--ghichu');
     expect(warning).toHaveClass('ppc-phoi-overdue');
@@ -135,7 +162,7 @@ describe('PhoiPhieuControlPage — the red Phơi chưa được nhận note (SIL
 
   it('keeps the transport notes visible under the warning line', async () => {
     renderWithRow(phoiRow({ transportDate: businessDateOffsetISO(-6), cusDispatchNotes: ['Giao giờ hành chính'] }));
-    await screen.findByText(PHOI_NOT_RECEIVED_LABEL);
+    await screen.findByText(`⚠️ ${PHOI_NOT_RECEIVED_LABEL} (Quá hạn 6 ngày)`);
     expect(screen.getByText('Giao giờ hành chính')).toBeInTheDocument();
   });
 

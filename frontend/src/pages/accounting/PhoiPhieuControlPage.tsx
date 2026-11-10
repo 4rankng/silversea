@@ -13,6 +13,9 @@ import { Money } from '../../components/shared/Money';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { ColumnMiniFilter, DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
+import { PhoiPhieuInvoiceCell } from '../../features/accounting/PhoiPhieuInvoiceCell';
+import { ExpenseCreateDrawer } from '../../features/expense-accounting/ExpenseCreateDrawer';
+import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { OpsExpenseNoteLines } from '../../features/dispatch/components/OpsExpenseNoteLines';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
@@ -64,6 +67,22 @@ function phoiStatusLine(row: PhoiPhieuRow): string {
 export const PHOI_NOT_RECEIVED_AFTER_DAYS = 4;
 export const PHOI_NOT_RECEIVED_LABEL = 'Phơi chưa được nhận';
 
+/** SIL-783 (id 906) — the overdue AGE in calendar days (transport day →
+ *  today), or null when the trip must not warn: POD ticked, unparsable day,
+ *  or inside the 3-day window. The warning text prints this number, so
+ *  "(Quá hạn 6 ngày)" always names the real gap. */
+export function phoiNotReceivedOverdueDays(
+  row: Pick<PhoiPhieuRow, 'transportDate' | 'phoiTakenDate'>,
+  today = businessDateISO(),
+): number | null {
+  if (!row.transportDate || row.phoiTakenDate) return null;
+  const transportMs = Date.parse(`${row.transportDate}T00:00:00Z`);
+  const todayMs = Date.parse(`${today}T00:00:00Z`);
+  if (Number.isNaN(transportMs) || Number.isNaN(todayMs)) return null;
+  const days = Math.floor((todayMs - transportMs) / 86_400_000);
+  return days >= PHOI_NOT_RECEIVED_AFTER_DAYS ? days : null;
+}
+
 /** VN calendar-day gap between the transport day and today, ≥ 4 days, and no
  *  POD date ticked. `today` injectable so the boundary is testable; an
  *  unparsable transport day never warns. */
@@ -71,11 +90,17 @@ export function phoiNotReceivedWarning(
   row: Pick<PhoiPhieuRow, 'transportDate' | 'phoiTakenDate'>,
   today = businessDateISO(),
 ): boolean {
-  if (!row.transportDate || row.phoiTakenDate) return false;
-  const transportMs = Date.parse(`${row.transportDate}T00:00:00Z`);
-  const todayMs = Date.parse(`${today}T00:00:00Z`);
-  if (Number.isNaN(transportMs) || Number.isNaN(todayMs)) return false;
-  return (todayMs - transportMs) / 86_400_000 >= PHOI_NOT_RECEIVED_AFTER_DAYS;
+  return phoiNotReceivedOverdueDays(row, today) !== null;
+}
+
+/** SIL-783 (id 906) — spec Task 3.3.1 text: "⚠️ Phơi chưa được nhận (Quá hạn
+ *  X ngày)" with X = the overdue age; null when the trip must not warn. */
+export function phoiNotReceivedMessage(
+  row: Pick<PhoiPhieuRow, 'transportDate' | 'phoiTakenDate'>,
+  today = businessDateISO(),
+): string | null {
+  const days = phoiNotReceivedOverdueDays(row, today);
+  return days === null ? null : `⚠️ ${PHOI_NOT_RECEIVED_LABEL} (Quá hạn ${days} ngày)`;
 }
 
 interface Filters {
@@ -94,7 +119,18 @@ export default function PhoiPhieuControlPage() {
   // Card 20260923_11: the board owns two detail surfaces — exactly one may be
   // open at a time, so each trigger clears the other's state.
   const [tienDuongTripId, setTienDuongTripId] = useState<number | null>(null);
+  // SIL-783 (id 906) — "+ Chi phí" straight on the board: the trip whose
+  // expense drawer is open. Kế toán khai chi phí phát sinh mà không cần mở
+  // chi tiết chi hộ, kể cả khi chưa nhận phơi.
+  const [addExpenseTripId, setAddExpenseTripId] = useState<number | null>(null);
   const queryClient = useQueryClient();
+  // Same lazy catalog the chi-hộ dialog's ＋Thêm dòng panel loads — the
+  // drawer only mounts once the catalog has arrived.
+  const catalogQuery = useQuery({
+    queryKey: qk.expenseAccounting.catalog,
+    queryFn: expenseAccountingClient.catalog,
+    enabled: addExpenseTripId !== null,
+  });
 
   const rowsQuery = useQuery({
     queryKey: qk.phoiPhieu.rows(filters),
@@ -108,6 +144,11 @@ export default function PhoiPhieuControlPage() {
     const row = rows.find((item) => item.tripId === tripId);
     return row ? { supplierId: row.carrierSupplierId ?? null, name: row.carrierName ?? null } : undefined;
   };
+  // SIL-783 (id 906) — the board row the "+ Chi phí" drawer targets; null
+  // once the rows window no longer lists it (filters narrowed mid-open).
+  const addExpenseRow = addExpenseTripId !== null
+    ? rows.find((row) => row.tripId === addExpenseTripId) ?? null
+    : null;
   // The column mini-filters narrow the ALREADY-grouped server window here in
   // the page — the fetch, its window and the grouped order stay the server's;
   // this is a plain match over each column's own text, so a filter can never
@@ -275,19 +316,29 @@ export default function PhoiPhieuControlPage() {
             ? <>{money(row.chiHoTra)}<div className="row-meta">Công ty: {money(row.chiHoTripTra)} / thu {money(row.chiHoTripThu)}</div></>
             : money(row.chiHoTra), primary: true },
           { key: 'road', label: 'Tiền đường', value: money(row.tienDuong), primary: true },
+          // SIL-783 (id 906) — the same invoice lines the desktop board edits,
+          // read-only here; the edit surface is the desktop table input.
+          { key: 'invoices', label: 'Chi phí / Số HĐ', value: (row.chiHoRows ?? []).length
+            ? (row.chiHoRows ?? []).map((chiHoRow) => (
+              <div key={chiHoRow.entryId} className="row-meta">{`${chiHoRow.feeName ?? 'Chi phí'}: ${chiHoRow.invoiceNumber ?? '—'}`}</div>
+            ))
+            : '—' },
           { key: 'capacity', label: 'Trọng tải container', value: row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + ' kg' : '—' },
           { key: 'weight', label: 'Trọng lượng hàng', value: row.cargoWeightKg != null ? formatNumber(row.cargoWeightKg) + ' kg' : 'Chưa có' },
           { key: 'sites', label: 'Địa điểm nâng / hạ', value: <>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</> },
           { key: 'truck', label: 'Biển số xe', value: row.plateNumber ?? '—' },
           { key: 'carrier', label: 'Nhà vận tải', value: row.carrierName ?? 'Chưa xác định nhà vận tải' },
           { key: 'driver', label: 'Lái xe', value: row.driverName ?? 'Chưa có lái xe' },
-          { key: 'cusNotes', label: 'Ghi chú vận tải', value: phoiNotReceivedWarning(row)
-            ? <><span className="ppc-phoi-overdue">{PHOI_NOT_RECEIVED_LABEL}</span>{row.cusDispatchNotes.length ? <div className="row-meta">{row.cusDispatchNotes.join('; ')}</div> : null}</>
+          { key: 'cusNotes', label: 'Ghi chú vận tải', value: phoiNotReceivedMessage(row)
+            ? <><span className="ppc-phoi-overdue">{phoiNotReceivedMessage(row)}</span>{row.cusDispatchNotes.length ? <div className="row-meta">{row.cusDispatchNotes.join('; ')}</div> : null}</>
             : (row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—') },
           { key: 'opsNotes', label: 'Ghi chú chi phí OPS', value: row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—' },
           { key: 'driverNotes', label: 'Ghi chú lái xe', value: row.driverNote ?? '—' },
           { key: 'chiHoAction', label: 'Chi hộ', value: <button type="button" className="btn btn--secondary" aria-label={`Chi tiết chi hộ ${billBookingReference(row.billOrBooking)}`} onClick={() => { setTienDuongTripId(null); setChiHoTripId(row.tripId); }}>Chi tiết chi hộ</button> },
           { key: 'roadAction', label: 'Tiền đường', value: <button type="button" className="btn btn--secondary" onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}>Xem chi tiết</button> },
+          // SIL-783 (id 906) — khai chi phí phát sinh ngay từ bảng, không cần
+          // mở chi tiết chi hộ.
+          { key: 'addExpenseAction', label: 'Thêm chi phí', value: <button type="button" className="btn btn--secondary" onClick={() => { setChiHoTripId(null); setTienDuongTripId(null); setAddExpenseTripId(row.tripId); }}>+ Chi phí</button> },
         ],
       }))} />
       <div className="ppc-board-wrap ledger-desktop" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
@@ -316,6 +367,8 @@ export default function PhoiPhieuControlPage() {
               />
             </th>
             <th scope="col" className="ppc-col--chiho" title="Chi hộ: phải thu và phải trả của lô hàng">Chi hộ (thu / trả)</th>
+            {/* SIL-783 (id 906) — inline Số-HĐ editing + thêm chi phí phát sinh ngay trên bảng, kể cả khi chưa nhận phơi. */}
+            <th scope="col" className="ppc-col--hoadon" title="Số hóa đơn từng khoản chi hộ — sửa trực tiếp, và nút thêm chi phí phát sinh">Chi phí phát sinh / Số HĐ</th>
             <th scope="col" className="ppc-col--money">Tiền đường</th>
             <th scope="col" className="ppc-col--status">Trạng thái</th>
             <th scope="col" className="ppc-col--date">Ngày hẹn</th>
@@ -360,6 +413,24 @@ export default function PhoiPhieuControlPage() {
                     <button type="button" className="btn btn--secondary btn--icon" aria-label={`Chi tiết chi hộ ${billBookingReference(row.billOrBooking)}`} title="Chi tiết chi hộ" onClick={() => { setTienDuongTripId(null); setChiHoTripId(row.tripId); }}><ReceiptText size={14} aria-hidden="true" /></button>
                   </span>
                 </td>
+                <td className="ppc-col--hoadon">
+                  {(row.chiHoRows ?? []).length === 0 && <span className="ppc-line">—</span>}
+                  {(row.chiHoRows ?? []).map((chiHoRow) => (
+                    <PhoiPhieuInvoiceCell
+                      key={chiHoRow.entryId}
+                      tripId={row.tripId}
+                      chiHoRow={chiHoRow}
+                      ariaLabel={`Số hóa đơn ${chiHoRow.feeName ?? 'chi phí'} ${billBookingReference(row.billOrBooking)}`}
+                    />
+                  ))}
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => { setChiHoTripId(null); setTienDuongTripId(null); setAddExpenseTripId(row.tripId); }}
+                  >
+                    + Chi phí
+                  </button>
+                </td>
                 <td className="ppc-col--money">
                   <span className="ppc-line"><span className="ppc-value">{money(row.tienDuong)}</span></span>
                   <button type="button" className="btn btn--secondary" onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}>Xem chi tiết</button>
@@ -375,8 +446,8 @@ export default function PhoiPhieuControlPage() {
                   )}
                 </td>
                 <td className="ppc-col--ghichu">
-                  {phoiNotReceivedWarning(row) && (
-                    <span className="ppc-phoi-overdue">{PHOI_NOT_RECEIVED_LABEL}</span>
+                  {phoiNotReceivedMessage(row) && (
+                    <span className="ppc-phoi-overdue">{phoiNotReceivedMessage(row)}</span>
                   )}
                   {row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}
                 </td>
@@ -410,6 +481,30 @@ export default function PhoiPhieuControlPage() {
           confirmation={filters.confirmation || undefined}
           onClose={() => setChiHoTripId(null)}
           onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })}
+        />
+      )}
+      {/* SIL-783 (id 906) — the same ExpenseCreateDrawer the chi-hộ dialog's
+          ＋Thêm dòng panel mounts, opened straight from the board row. The
+          drawer only renders once the catalog query has its data, and a saved
+          expense invalidates the whole rows family so the new khoản lands in
+          the board's chi-hộ totals and its Số-HĐ editor list. */}
+      {addExpenseTripId != null && catalogQuery.isPending && <p role="status">Đang tải loại phí và nhân viên…</p>}
+      {addExpenseTripId != null && catalogQuery.isError && (
+        <p role="alert">
+          {catalogQuery.error.message}{' '}
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => void catalogQuery.refetch()}>Thử lại</button>{' '}
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => setAddExpenseTripId(null)}>Hủy</button>
+        </p>
+      )}
+      {addExpenseTripId != null && catalogQuery.data && addExpenseRow && (
+        <ExpenseCreateDrawer
+          work={{ tripId: addExpenseRow.tripId, shipmentId: addExpenseRow.shipmentId, shipmentCode: billBookingReference(addExpenseRow.billOrBooking), containerNumber: null }}
+          catalog={catalogQuery.data}
+          initialGroup="OPS_INCIDENTAL"
+          entryScope="OPS"
+          carrier={carrierOf(addExpenseRow.tripId)}
+          onClose={() => setAddExpenseTripId(null)}
+          onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll }); }}
         />
       )}
     </div>

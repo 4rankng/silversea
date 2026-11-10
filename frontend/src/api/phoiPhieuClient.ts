@@ -58,6 +58,16 @@ export interface PhoiPhieuRow {
   driverNote: string | null;
   confirmable: boolean;
   openSources: Array<{ sourceId: number; expectedVersion: number; remaining: number }>;
+  /** SIL-783 (id 906) — the trip's OPS chi-hộ rows for the board's inline
+   *  Số-HĐ editing. Optional so an older in-flight backend payload renders. */
+  chiHoRows?: Array<{
+    entryId: number;
+    sourceId: number;
+    version: number;
+    feeName: string | null;
+    invoiceNumber: string | null;
+    confirmed: boolean;
+  }>;
 }
 
 export async function listPhoiPhieuRows(params: {
@@ -166,6 +176,9 @@ export async function getPhoiPhieuDeposit(tripId: number): Promise<PhoiPhieuDepo
 export async function updatePhoiPhieuRowAmounts(tripId: number, sourceId: number, body: {
   expectedVersion: number; reason: string; amount?: number; customerChargeAmount?: number;
   payerUserId?: number | null;
+  /** SIL-783 (id 906) — the Số HĐ edit from the board; null clears it. The
+   *  update schema already accepts it (expenseInputFields). */
+  invoiceNumber?: string | null;
 }, idempotencyKey?: string): Promise<unknown> {
   return api.post(`/expense-accounting/entries/OPS/${sourceId}/update`, body, {
     idempotencyKey,
