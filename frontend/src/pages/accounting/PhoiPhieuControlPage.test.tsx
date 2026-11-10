@@ -8,6 +8,8 @@ vi.mock('../../api/phoiPhieuClient', () => ({
   listPhoiPhieuTruckAssignments: vi.fn(),
   getPhoiPhieuReport: vi.fn(),
   getPhoiPhieuPartyLots: vi.fn(),
+  correctPhoiPhieuRow: vi.fn(),
+  updatePhoiPhieuRowAmounts: vi.fn(),
 }));
 
 import PhoiPhieuControlPage from './PhoiPhieuControlPage';

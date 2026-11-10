@@ -21,6 +21,27 @@
 .ppc-board .ppc-col--thongso { min-width: 164px; }
 .ppc-board .ppc-col--diadiem { min-width: 164px; }
 .ppc-board .ppc-col--chiho { min-width: 188px; }
+/* SIL-783 (id 906) — inline Số-HĐ editing + "+ Chi phí": the fee line and
+   the input sit in one narrow stack per chi-hộ row. */
+.ppc-board .ppc-col--hoadon { min-width: 176px; }
+.ppc-invoice-line { margin-bottom: 4px; }
+.ppc-invoice-line:last-of-type { margin-bottom: 0; }
+.ppc-invoice-fee { display: block; }
+.ppc-invoice-fee small { display: block; color: var(--ink-3); font-size: var(--text-caption-size); }
+.ppc-invoice-input {
+  width: 100%;
+  margin-top: 2px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-caption-size);
+}
+.ppc-invoice-input:focus { border-color: var(--accent); }
+/* Triggers the product-wide :focus-visible outline (base.css) — never suppressed. */
+.ppc-invoice-input:disabled { opacity: 0.6; }
+.ppc-invoice-error { display: block; color: var(--err); font-size: var(--text-caption-size); margin-top: 2px; }
 .ppc-board .ppc-col--money { min-width: 144px; }
 .ppc-board .ppc-col--status { min-width: 132px; }
 .ppc-board .ppc-col--date { min-width: 104px; }
