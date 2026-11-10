@@ -104,6 +104,12 @@ export const tripClient = {
 
   getTrip: (id: number) => api.get<TripDetail>(TRIPS.DETAIL(id)),
 
+  /** SIL-694 — mark the paper POD (chứng từ mộc đỏ) recovered: the backend
+   *  allows ACCOUNTANT/CUS and the completion gate refuses the close while
+   *  the mark is missing. Optimistic-locked via the trip's version. */
+  markPodRecovered: (id: number, expectedVersion?: number) =>
+    api.post<TripDetail>(`${TRIPS.DETAIL(id)}/pod-recovered`, expectedVersion != null ? { expectedVersion } : {}),
+
   getAdjustments: (id: number) => api.get<{ items: Record<string, unknown>[] }>(TRIPS.ADJUSTMENTS(id)),
 
   createTrip: (data: CreateTripRequest) => api.post<Trip>(TRIPS.CREATE, data),

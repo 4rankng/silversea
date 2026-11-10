@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, FilePen } from 'lucide-react';
+import { Loader2, FilePen, FileCheck } from 'lucide-react';
 import { api } from '../lib/api';
 import { Modal, Drawer } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -162,6 +162,32 @@ export default function TripDetailPage() {
             autoFocus
           />
         </label>
+        {governanceIntent === 'complete' && (
+          <div className="tdp-pod-gate" role="status">
+            {trip.podRecoveredAt != null ? (
+              <span className="tdp-pod-gate__ok">
+                POD gốc: đã thu hồi · {new Date(trip.podRecoveredAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+              </span>
+            ) : (
+              <>
+                <span className="tdp-pod-gate__missing">
+                  Chưa thu hồi POD gốc (chứng từ mộc đỏ) — Kế toán/CUS đánh dấu đã thu hồi trước khi hoàn thành chuyến.
+                </span>
+                {effectivePermissions.canMarkPodRecovered && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    disabled={ui.actionLoading}
+                    onClick={() => void page.handleMarkPodRecovered()}
+                  >
+                    {ui.actionLoading ? <Loader2 size={14} className="spin" /> : <FileCheck size={14} />}
+                    Đánh dấu đã thu hồi POD gốc
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </Modal>
 
       {displayError && (

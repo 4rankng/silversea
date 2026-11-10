@@ -39,3 +39,33 @@ read-side) đã fix 26/10. Cần kiểm chứng full chain + tiền không mất
 - (điền sau) BE unit tests mới (re-price decision pure + source pins) +
   FE test COST row button + probe thật trên local DB (qa driver) nếu stack
   chạy, qa/2026-11-07-lane-k1/.
+
+## Round 2 — QA fail 09/11 (staging build c4cea6b6, comment 4786) + fix r8a
+
+**Fail thật:** Tách nhóm chạy được (POST 200, cả 2 lô rời nhóm) nhưng lot 172
+(R40B1-LCL01, ex-order-2) đọc CƯỚC TRẢ ĐV 0₫ / TỔNG TRẢ 0₫ trên chot-debit
+trong khi lô chính 173 + control legs 184/185 đọc 'Thiếu' — 0₫ do merge COST
+stamped, không phải bảng giá.
+
+**Root cause (đã probe staging 09/11):** merge COST ("Gán xe nhóm") zero
+`trip_carrier_info.external_freight_cost = '0'` cho member 2..N ("nhảy tiền").
+Tách nhóm COST (cả nhóm lẫn 1 lô) KHÔNG chạm member/leaver trips → 0₫ stamped
+đứng yên; board chot-debit đọc Σ external_freight_cost per lot → 0₫ "sống".
+Số liệu thật: trip 61 (shipment 172) externalFreightCost="0", revGroup null.
+
+**Fix round 2 (chiều COST — mirror luật REV của K1):**
+1. `lcl-cost-group-freight.service` thêm `repriceCostLotAfterSplit`: chỉ owns
+   stamped 0₫ (null = đã honest, non-zero = tiền own — giữ nguyên); tra
+   `resolveCarrierVehicleClassPrice` (tuyến × loại xe capture từ row
+   in-memory TRƯỚC khi patch xóa cột + supplier từ fulfillment channel nhà xe
+   của nhóm + ngày giao/ departure); trúng → ghi giá + mirror planned;
+   trượt → XÓA stamp 0₫ về null ('Thiếu cước trả ĐV' honest) cả trip lẫn
+   plannedCarrierCost (`clearPlannedCarrierCost` mới) — không tự chế số.
+2. Wire vào `unmergeLclGroup` (COST: walk mọi member) + `unmergeLclLot`
+   (COST: leaver cả 2 vị trí; order-1 reload fresh facts sau promote — cùng
+   bẫy SIL-539 REV đã fix) + outcome trả về response + audit payload.
+3. Delete-hook (xóa lô chính) không re-price (leaver đang bị xóa; promotee
+   nhận 100% theo luật cũ — giữ nguyên).
+
+**Pins:** `lcl-unmerge-reprice-survivor.test.ts` 3 pins (d) mới + SIL-493
+mirror-seam pin cập nhật 4→5 seam; BE unit full 342 files pass; tsc BE 0.

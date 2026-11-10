@@ -1266,6 +1266,11 @@ export interface TripInstruction {
 
 export interface TripDetail extends Trip {
   legs: TripLeg[];
+  /** SIL-694 — POD gốc (chứng từ mộc đỏ) recovery state: the completion gate
+   *  refuses the close while `podRecoveredAt` is null. Optional for older
+   *  payloads / other producers. */
+  podRecoveredAt?: string | null;
+  podRecoveredBy?: number | null;
   driver?: Driver;
   truck?: Truck;
   trailer?: Trailer;

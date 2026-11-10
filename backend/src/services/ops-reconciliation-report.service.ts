@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, isNotNull, lte, notInArray, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import type { ExpenseActor } from './expense-accounting-write.service';
@@ -137,6 +137,22 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   }).from(s.advanceRequests)
     .where(eq(s.advanceRequests.status, 'RECORDED'))
     .groupBy(s.advanceRequests.requesterId);
+  // SIL-728 (QA fail 09/11, staging c4cea6b6) — the legacy settlement phiếu
+  // (advance_settlements — the /advances "Phiếu hoàn ứng" family) consumes the
+  // staff's advance REQUESTS outside the đợt system, but ĐÃ ỨNG netted only
+  // đợt allocations: a fully-settled staff kept a ghost âm "Còn phải hoàn ứng"
+  // forever (Vũ Đình Cường −4.300.000₫ with the wallet authority already at 0).
+  // Net the SAME consumption the signed-wallet authority reads so the report
+  // converges once the phiếu posts (card 20260928_168: "sau khi phiếu post,
+  // sổ quỹ và báo cáo hội tụ về một số").
+  const legacySettledRows = await db.select({
+    staffId: s.advanceRequests.requesterId,
+    settled: sql<number>`coalesce(sum(${s.advanceSettlementRequests.allocatedAmount}), 0)::int`,
+  }).from(s.advanceSettlementRequests)
+    .innerJoin(s.advanceSettlements, eq(s.advanceSettlements.id, s.advanceSettlementRequests.settlementId))
+    .innerJoin(s.advanceRequests, eq(s.advanceRequests.id, s.advanceSettlementRequests.advanceRequestId))
+    .where(notInArray(s.advanceSettlements.status, ['VOIDED', 'REVERSED']))
+    .groupBy(s.advanceRequests.requesterId);
   const consumedRows = await db.select({
     staffId: s.expenseReconciliations.opsUserId,
     consumed: sql<number>`coalesce(sum(${s.expenseReconciliationAdvances.amount}), 0)::int`,
@@ -157,9 +173,18 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     if (row) heldByStaff.set(String(batchStaffId), Number(row.allocated));
   } else {
     for (const row of heldRows) heldByStaff.set(String(row.staffId), Number(row.held));
+    for (const row of legacySettledRows) {
+      const key = String(row.staffId);
+      heldByStaff.set(key, Math.max(0, (heldByStaff.get(key) ?? 0) - Number(row.settled)));
+    }
     for (const row of consumedRows) {
       const key = String(row.staffId);
       heldByStaff.set(key, (heldByStaff.get(key) ?? 0) - Number(row.consumed));
+    }
+    // ĐÃ ỨNG is money the staff actually holds for the period — a phiếu chain
+    // that over-consumed the net grant never makes it negative.
+    for (const [key, held] of heldByStaff) {
+      if (held < 0) heldByStaff.set(key, 0);
     }
   }
   const staffKeys = new Set<string>([

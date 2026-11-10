@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Check, Info, Wallet, Receipt, FileText, User } from 'lucide-react';
 import { formatCurrency, formatDate } from '../lib/format';
 import { Money } from '../components/shared/Money';
@@ -18,7 +18,7 @@ import { expenseLabel } from '../features/forwarder/forwarder-settlement-model';
  * contract as the Ops self-service form: the tick of the SUBMITTER (here the
  * accountant) is the "xác nhận hoàn ứng" stamp (FB-100 Option B).
  */
-export default function AdminAdvanceSettlementCreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function AdminAdvanceSettlementCreateDialog({ open, onClose, initialForwarderId }: { open: boolean; onClose: () => void; /** SIL-728 — preselect the staff the report row named (Báo cáo hoàn ứng entry). */ initialForwarderId?: number }) {
   const [forwarderId, setForwarderId] = useState<number | null>(null);
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<number>>(new Set());
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<number>>(new Set());
@@ -39,6 +39,14 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose }: { 
   const createSettlement = useCreateAdvanceSettlementForForwarder();
 
   const balances = balancesData?.items ?? [];
+
+  // SIL-728 — the Báo cáo hoàn ứng entry names its staff: preselect them on
+  // open so kế toán lands one click away from the phiếu, same dialog as the
+  // /advances tab. A manual staff change still resets the drafted inputs
+  // (pickForwarder's own law).
+  useEffect(() => {
+    if (open && initialForwarderId != null) setForwarderId(initialForwarderId);
+  }, [open, initialForwarderId]);
   const advances = eligibility.data?.advances ?? [];
   const expenses = eligibility.data?.expenses ?? [];
   const expenseTypeOptions = useMemo(() => catalogs?.forwarderExpenseTypes ?? [], [catalogs]);

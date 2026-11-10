@@ -222,3 +222,107 @@ export async function zeroMemberDriverMoney(tx: Tx, tripId: number): Promise<voi
     roadAllowanceOverride: '0',
   });
 }
+
+/**
+ * SIL-734 — removes the group's stamped 0₫ from the money holder's plan
+ * estimate after a split: `mirrorPlannedCarrierCost` deliberately refuses
+ * zero/null amounts ("no amount ⇒ no write"), so a dissolved member's
+ * fulfillment would keep the merge's 0₫ forever. The clear is the honest
+ * "chưa có giá" state — an absent price, never a fabricated number.
+ */
+export async function clearPlannedCarrierCost(tx: Tx, shipmentId: number): Promise<void> {
+  const fulfillments = await tx.select({
+    id: s.shipmentFulfillments.id,
+    version: s.shipmentFulfillments.version,
+  }).from(s.shipmentFulfillments)
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .orderBy(asc(s.shipmentFulfillments.id));
+  for (const fulfillment of fulfillments) {
+    await tx.update(s.shipmentFulfillments).set({
+      plannedCarrierCost: null,
+      version: fulfillment.version + 1,
+      updatedAt: new Date(),
+    }).where(eq(s.shipmentFulfillments.id, fulfillment.id));
+  }
+}
+
+export interface CostSplitRepriceOutcome {
+  shipmentId: number;
+  /** 'kept' = own money (non-zero) or no live trip — nothing touched;
+   *  'repriced' = the carrier board priced the lane; 'cleared' = the group's
+   *  stamped 0₫ removed (board miss or no lane key) — honest "Thiếu". */
+  outcome: 'repriced' | 'cleared' | 'kept';
+  price?: number;
+  matched?: 'SUPPLIER' | 'GENERIC';
+}
+
+/**
+ * SIL-734 (KB §8.4) — a lot leaving a COST group ("Tách nhóm", cả nhóm hay
+ * 1 lô) must not read the group's stamped 0₫ ("nhảy tiền", merge law) as a
+ * price: it re-prices from the SAME carrier price board the merge used
+ * (tuyến × loại xe, the nhà xe's own row first) with the class captured from
+ * its in-memory row BEFORE the split cleared the column, at the lot's own
+ * delivery day. Own money (non-zero) never re-prices; a board miss clears
+ * the stamp to null — the boards' honest "Thiếu cước trả ĐV", never an
+ * invented number. Mirrors the REV re-price law (SIL-734b / SIL-539).
+ */
+export async function repriceCostLotAfterSplit(
+  tx: Tx,
+  args: {
+    row: ShipmentRow;
+    trip: Pick<LiveTripFacts, 'tripId' | 'departureDate' | 'externalFreightCost'> | null;
+    /** The class captured from the IN-MEMORY row before the split patch. */
+    vehicleClassId: number | null;
+  },
+): Promise<CostSplitRepriceOutcome> {
+  const { row, trip, vehicleClassId } = args;
+  const kept: CostSplitRepriceOutcome = { shipmentId: row.id, outcome: 'kept' };
+  if (trip == null) return kept;
+  // The stamped 0₫ is the ONLY state this re-price owns: a non-zero amount is
+  // the lot's own money (kept), null is already the honest missing state.
+  if (trip.externalFreightCost == null || Number(trip.externalFreightCost) !== 0) return kept;
+
+  const clearStamp = async (): Promise<CostSplitRepriceOutcome> => {
+    await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: null });
+    await clearPlannedCarrierCost(tx, row.id);
+    return { shipmentId: row.id, outcome: 'cleared' };
+  };
+  if (vehicleClassId == null || row.routeId == null) return clearStamp();
+  const date = row.expectedDeliveryDate ?? trip.departureDate;
+  if (date == null) return clearStamp();
+
+  // The group's nhà xe keys the "giá riêng" lane — the identity the group
+  // assignment persisted on the lot's "phân bổ xe" fulfillment channel
+  // (survives the split; the same source the issuance hook reads).
+  let supplierId: number | null = null;
+  const [fulfillment] = await tx.select({
+    plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
+    plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+  }).from(s.shipmentFulfillments)
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, row.id),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ))
+    .orderBy(asc(s.shipmentFulfillments.id))
+    .limit(1);
+  if (fulfillment?.plannedCarrierType === 'EXTERNAL' && fulfillment.plannedExternalCarrierId != null) {
+    const [carrier] = await tx.select({ linkedSupplierId: s.customers.linkedSupplierId })
+      .from(s.customers)
+      .where(eq(s.customers.id, fulfillment.plannedExternalCarrierId))
+      .limit(1);
+    supplierId = carrier?.linkedSupplierId ?? null;
+  }
+  const price = await resolveCarrierVehicleClassPrice({
+    routeId: row.routeId,
+    vehicleSizeClassId: vehicleClassId,
+    supplierId,
+    date,
+  });
+  if (price == null) return clearStamp();
+  await upsertTripCarrierInfo(tx, trip.tripId, { externalFreightCost: String(price.price) });
+  await mirrorPlannedCarrierCost(tx, row.id, String(price.price));
+  return { shipmentId: row.id, outcome: 'repriced', price: price.price, matched: price.matched };
+}

@@ -172,13 +172,14 @@ test('default per-lot (ruling 21/10) giữ nguyên ngoài nhóm gộp', () => {
 
 // ─── SIL-493 — tiền COST đổ lên lô nào thì "Cước trả dự kiến" của lô đó thấy─
 
-test('SIL-493: mirror planned_carrier_cost ở CẢ 4 seam tiền COST đổ bộ (tách/promote/gán/phát lệnh)', () => {
+test('SIL-493: mirror planned_carrier_cost ở CẢ 5 seam tiền COST đổ bộ (tách/promote/gán/phát lệnh/tách-nhóm-re-price)', () => {
   // ONE shared helper — the money holder's plan estimate stays board truth.
   assert.match(freight, /export async function mirrorPlannedCarrierCost/);
   // No amount ⇒ no write (an absent price is never a fabricated 0₫).
   assert.match(freight, /if \(amount == null \|\| Number\(amount\) === 0\) return;/);
-  // applyPrincipalCostFreight (manual + board) + issuance hook (manual + board).
-  assert.equal((freight.match(/await mirrorPlannedCarrierCost\(/g) ?? []).length, 4);
+  // applyPrincipalCostFreight (manual + board) + issuance hook (manual + board)
+  // + SIL-734 repriceCostLotAfterSplit (the board hit after a split).
+  assert.equal((freight.match(/await mirrorPlannedCarrierCost\(/g) ?? []).length, 5);
   // Whole-group COST tách (Lô 1 keeps) + COST promote (promotee inherits).
   assert.equal((svc.match(/await mirrorPlannedCarrierCost\(/g) ?? []).length, 2);
 });
