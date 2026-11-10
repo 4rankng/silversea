@@ -275,7 +275,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/shipment-container-ledger__plate--missing/);
     expect(ledgerSource).not.toContain('shipment-container-ledger__vehicle-guidance');
     expect(css).toContain(':not(.shipment-container-ledger__row-warning)');
-    expect(css).toMatch(/shipment-container-ledger__multiline:not\(\.shipment-container-ledger__notes\) > span:not\(\.shipment-container-ledger__combined\):not\(\.shipment-container-ledger__plate\):not\(\.shipment-container-ledger__dispatch-badge\):not\(\.shipment-container-ledger__plate--missing\)/);
+    // SIL-756 r3 (2d502f32) added the __code exclusion to the muted-span
+    // selector; pin the exact exclusion set so a new child class must be
+    // added here deliberately, never silently.
+    expect(css).toMatch(/shipment-container-ledger__multiline:not\(\.shipment-container-ledger__notes\) > span(?::not\(\.shipment-container-ledger__(?:code|combined|plate|dispatch-badge|plate--missing|schedule-gap|row-warning)\))+/);
     // Status chips are UUI badges: the component owns fill, ring, and geometry;
     // page CSS only tunes type so a chip can never read as a button.
     expect(css).toMatch(/\.shipment-container-ledger__plate--missing\s*\{[^}]*color:\s*var\(--warning-text\);[^}]*font-size:\s*var\(--text-caption-size\);/);

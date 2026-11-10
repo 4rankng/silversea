@@ -98,7 +98,7 @@ describe('AccountingDebitClosePage — SIL-773 Rev2 Lưu & Xác nhận đối so
     fireEvent.click(within(container.querySelector('.debit-board tbody tr')!).getByRole('checkbox', { name: 'Chọn lô BL-1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu & Xác nhận đối soát' }));
     await waitFor(() => expect(reconcileHide.mock.calls[0]?.[0]).toEqual([1]));
-    expect(await screen.findByText(/Đã lưu - phê duyệt và ẩn 1 dòng/)).toBeVisible();
+    expect(await screen.findByText(/Đã lưu & xác nhận đối soát, ẩn 1 dòng/)).toBeVisible();
   });
 
   it('công tắc Hiện dòng đã ẩn refetch với includeHidden=true', async () => {

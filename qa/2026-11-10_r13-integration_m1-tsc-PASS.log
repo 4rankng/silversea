@@ -1,0 +1,2 @@
+# merge-1 BE tsc: pnpm exec tsc --noEmit → exit 0 (72s)
+# merge-1 FE tsc pre-test-fix: pnpm exec tsc --noEmit → exit 0 (121s)

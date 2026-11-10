@@ -9,11 +9,22 @@
  */
 
 import { afterEach, beforeEach, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 // Register @testing-library/jest-dom matchers (toBeInTheDocument,
 // toContainElement, toHaveAccessibleName, …) so component tests can use the
 // recommended DOM-aware assertions instead of writing manual DOM plumbing.
 import '@testing-library/jest-dom/vitest';
+
+// R14 gates (2026-11-10): RTL's default asyncUtilTimeout is 1000ms. Under a
+// full-suite run (4 workers on this 4-performance-core host) a heavy page's
+// FIRST render in a worker can take longer than that to paint its mocked
+// data, and findBy* gives up with "Unable to find" while the identical test
+// passes idle and on immediate retry (qa/2026-11-10_r14-gates-fe-suspects:
+// AccountingDebitClosePage.sil771 test 1 failed at 1902–7084ms in full runs,
+// passed filtered and idle; 14 suspect files 278/278 idle). 4000ms keeps the
+// window inside the 15s vitest ceiling while leaving genuine absences to
+// fail only a few seconds slower. Assertions unchanged.
+configure({ asyncUtilTimeout: 4000 });
 
 type Store = Map<string, string>;
 

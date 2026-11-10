@@ -49,6 +49,18 @@ const DOCUMENTED_INDEX_GAPS: Record<number, string> = {
   127: '19a77628 (2026-09-24): the never-committed 20260924021509_high_valkyrie was regenerated as 20260924035509_seed_name_suffix_strip and committed at idx 128, leaving 127 empty. No .sql for it ever existed, so nothing was ever applied for it.',
 };
 
+/**
+ * Backward-tag-timestamp scars that exist in shipped history and must NOT be
+ * "repaired" by reordering. Key = entry idx whose `tag` timestamp precedes its
+ * predecessor's. The migrator applies entries in idx order (`when` is a label,
+ * not an ordering authority), so these are mechanical no-ops — but the
+ * append-only law (scripts/guard-journal-append-only.mjs) forbids reordering
+ * an existing entry, so the scar is recorded instead of fixed.
+ */
+const DOCUMENTED_TS_SCARS: Record<number, string> = {
+  162: "f9e45077 (2026-11-09): the fix/r9c journal union appended lane entries 162-163 (tags 20261109100000_shipment_debit_external_cost, 20261109110000_shipment_debit_hidden) after fix/r7b's union had already landed entry 161 (20261109110000_deposit_tracker_category). Lane r9c generated from an earlier wall clock, so its label precedes 161's. Migrator applies by idx; reordering is illegal.",
+};
+
 export interface JournalEntry {
   idx: number;
   version: string;
@@ -90,8 +102,8 @@ export async function assertJournalInvariants(journal: Journal, minCount: number
         `entry ${i} (${entry.tag}) has idx ${entry.idx} after ${prev.tag} (idx ${prev.idx}) — indices must strictly increase; an interior delete, renumber or reorder is illegal (see scripts/guard-journal-append-only.mjs)`,
       );
       assert.ok(
-        prev.when <= entry.when,
-        `entry ${i} (${entry.tag}) has a timestamp before entry ${i - 1} (${prev.tag}) — history may have been regenerated`,
+        prev.when <= entry.when || DOCUMENTED_TS_SCARS[entry.idx] !== undefined,
+        `entry ${i} (${entry.tag}) has a timestamp before entry ${i - 1} (${prev.tag}) — history may have been regenerated. If this is a documented union scar, record the idx in DOCUMENTED_TS_SCARS.`,
       );
       for (let gap = prev.idx + 1; gap < entry.idx; gap += 1) {
         assert.ok(

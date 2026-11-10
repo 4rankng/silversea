@@ -29,7 +29,10 @@
 .ppc-invoice-fee { display: block; }
 .ppc-invoice-fee small { display: block; color: var(--ink-3); font-size: var(--text-caption-size); }
 .ppc-invoice-input {
-  width: 100%;
+  /* card 20260923_8 group B bans width:% in this board — display:block fills
+     the 176px stack cell without a percentage width. */
+  display: block;
+  width: auto;
   margin-top: 2px;
   padding: 2px 6px;
   border: 1px solid var(--line);

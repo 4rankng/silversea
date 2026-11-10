@@ -102,7 +102,7 @@ describe('SupplierListPage server-side sort headers', () => {
       expect(lastGetUrl()).toContain('sortDir=desc');
       expect(lastGetUrl()).toContain('page=1');
     });
-  }, 20_000);
+  }, 30_000);
 
   it('exposes each data column\'s backend sort key through its header button', async () => {
     renderPage();
@@ -121,7 +121,7 @@ describe('SupplierListPage server-side sort headers', () => {
     }
     // The last-clicked column announces direction via its header cell.
     expect(screen.getByRole('button', { name: 'Công nợ' }).closest('th')?.getAttribute('aria-sort')).toBe('ascending');
-  }, 20_000);
+  }, 30_000);
 
   it('omits sort params entirely on a plain load until a header is pressed', async () => {
     renderPage();
