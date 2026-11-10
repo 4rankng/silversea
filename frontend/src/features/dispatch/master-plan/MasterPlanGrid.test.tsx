@@ -425,7 +425,9 @@ describe('MasterPlanGrid', () => {
     expect(css).toMatch(/\.master-plan-grid \{[\s\S]*?min-width:\s*1200px;/);
     expect(css).toMatch(/\.master-plan-grid__wrapper \{[^}]*overflow-x:\s*auto;/);
     expect(css).not.toMatch(/\.master-plan-grid__wrapper \{[^}]*max-height/);
-    expect(css).not.toMatch(/\.master-plan-grid thead th \{[^}]*position:\s*sticky/);
+    // The global table base (Table.css bare `thead th`) pins every board
+    // sticky — this grid must defeat it explicitly, not merely omit sticky.
+    expect(css).toMatch(/\.master-plan-grid thead th \{[^}]*position:\s*static;/);
   });
 
   it('wraps a long header label at spaces up to TWO lines — never mid-word, never more (owner redesign 23/10)', () => {

@@ -188,12 +188,18 @@
 
 /* Owner directive 10/11: the header is NOT sticky — it scrolls away with the
    table (one page scrollbar, no bar floating over the rows beneath it; QA
-   rejected the pinned bar). The two-line clamp must NEVER ride on the th: a
-   `display: -webkit-box` th leaves table-cell layout and the whole header
-   row collapses into a vertical label stack (the live defect this lane
+   rejected the pinned bar). Declared EXPLICITLY because the shared table base
+   (components/Table.css, bare `thead th`) pins EVERY board sticky by default —
+   dropping the old sticky re-declaration would let that global rule win the
+   cascade and re-pin this header. The two-line clamp must NEVER ride on the
+   th: a `display: -webkit-box` th leaves table-cell layout and the whole
+   header row collapses into a vertical label stack (the live defect this lane
    found on the merged /dispatch-detail board; the clamp lives on the
    `.master-plan-grid__th-label` span inside the cell instead). */
 .master-plan-grid thead th {
+  position: static;
+  top: auto;
+  z-index: auto;
   text-align: left;
   /* Card 091026091550: 8px gutter — at the global 12px the eight compound
      labels consume ~99% of the 1144px canvas and nothing is left for the
