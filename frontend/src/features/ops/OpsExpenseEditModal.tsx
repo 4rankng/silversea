@@ -11,6 +11,9 @@ import { toastActionError } from '../../lib/api/action-error';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { DateInput } from '../../design-system/forms/DateInput';
 import { NumberField } from '../../design-system/forms/NumberField';
+import { getModernRole } from '../../lib/role-helpers';
+import { useAuth } from '../../hooks/useAuth';
+import { Role } from '@tingting/shared';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
@@ -24,6 +27,11 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const typesData = typesQuery.data;
   const updateExpense = useUpdateOpsExpense();
   const { toast } = useToast();
+  // SIL-761 — same visibility ruling as the create popup: an OPS account
+  // (legacy FORWARDER folded by getModernRole) corrects its own cost lines
+  // without seeing the thu-khách pair; CUS/ADMIN/MANAGER keep it.
+  const auth = useAuth();
+  const opsViewer = getModernRole(auth?.user?.role ?? '') === Role.OPS;
 
   const attachPhoto = useAttachOpsExpensePhoto();
   const deletePhoto = useDeleteOpsExpensePhoto();
@@ -185,7 +193,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
               <DateInput value={paidAt} onChange={setPaidAt} required />
             </label>
           </div>
-          <OpsExpenseFinancialFields value={financial} onChange={setFinancial} amount={amountValid ? Number(amount) : 0} disabled={updateExpense.isPending || uploadingPhoto} />
+          <OpsExpenseFinancialFields value={financial} onChange={setFinancial} amount={amountValid ? Number(amount) : 0} disabled={updateExpense.isPending || uploadingPhoto} customerFields={!opsViewer} />
           <label className="ops-form-note">
             Ghi chú
             <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2} />
