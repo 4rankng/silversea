@@ -66,9 +66,14 @@ function MoneyCell({ state, variant, note, tag, tagTitle }: { state: MoneyState;
       </td>
     );
   }
+  // SIL-801 (id 927, QA 10/11, KB Ch1 §1.5.8 + Ch10 §10.8.3): an uncollected
+  // receivable reads warning amber. Only the TỔNG PHẢI THU KHÁCH figure —
+  // known and non-zero — wears the tone; the muted zero and the blank
+  // pending cell keep their states, and green stays reserved for completion
+  // / money actually received (design law §2).
   return (
     <td
-      className={cls}
+      className={variant === 'total' ? `${cls} shipment-debit-money--warn` : cls}
       data-col={variant}
     >
       {formatKnownMoney(state.value)}
@@ -82,13 +87,16 @@ function MoneyCell({ state, variant, note, tag, tagTitle }: { state: MoneyState;
 function GroupSumCell({ state, col }: { state: MoneyState; col: MoneyVariant }) {
   if (state.kind === 'pending') return <td className="shipment-debit-group__sum" data-col={col} title={PENDING_TOOLTIP}>—</td>;
   if (state.kind === 'zero') return <td className="shipment-debit-group__sum" data-col={col} title={ZERO_TOOLTIP}>0</td>;
-  return <td className="shipment-debit-group__sum" data-col={col}>{formatKnownMoney(state.value)}</td>;
+  // SIL-801 — a non-zero group receivable subtotal is uncollected money too.
+  return <td className={col === 'total' ? 'shipment-debit-group__sum shipment-debit-group__sum--warn' : 'shipment-debit-group__sum'} data-col={col}>{formatKnownMoney(state.value)}</td>;
 }
 
 /** Foot total — bold tabular; nothing known yet reads '—' with its tooltip. */
 function TotalCell({ value, col }: { value: number | null; col: MoneyVariant }) {
   if (value == null) return <td className="shipment-debit-totals__sum" data-col={col} title={EMPTY_SUM_TOOLTIP}>—</td>;
-  return <td className="shipment-debit-totals__sum" data-col={col}>{formatKnownMoney(value)}</td>;
+  // SIL-801 — the board's grand receivable stays amber until collected; a
+  // settled-out 0 keeps its neutral ink.
+  return <td className={col === 'total' && value !== 0 ? 'shipment-debit-totals__sum shipment-debit-totals__sum--warn' : 'shipment-debit-totals__sum'} data-col={col}>{formatKnownMoney(value)}</td>;
 }
 
 /** ── CHỨNG TỪ: one count badge; hover (300ms) or click opens the checklist. */

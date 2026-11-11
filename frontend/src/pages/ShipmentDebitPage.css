@@ -432,6 +432,16 @@
 .shipment-debit-money--service { color: var(--ink-3); }
 .shipment-debit-money--total { color: var(--ink); font-weight: 600; }
 
+/* SIL-801 (id 927, QA 10/11, KB Ch1 §1.5.8 + Ch10 §10.8.3): uncollected
+   receivables read warning amber — the TỔNG PHẢI THU KHÁCH figures on this
+   board (row cell, group subtotal, page foot) carry the tone while known
+   and non-zero. Token-only ink (--warning-text, contrast-tuned ≥4.5:1 at
+   the token layer); zero keeps its muted ink, pending keeps its blank cell,
+   and green stays reserved for completion / money actually received. */
+.shipment-debit-money--warn,
+.shipment-debit-group__sum--warn,
+.shipment-debit-totals__sum--warn { color: var(--warning-text); }
+
 .shipment-debit-money__zero {
   color: var(--ink-3);
 }
