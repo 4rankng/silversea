@@ -348,6 +348,13 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       costVehicleClassCode: s.vehicleSizeClasses.code,
       costVehicleClassName: s.vehicleSizeClasses.name,
       customerId: s.customers.id,
+      // SIL-796 — the pricing key's route half, the SAME effective-route
+      // coalesce the routes join below uses (container → lot fallback), so
+      // the dialog's signed-price lookup resolves the route whose NAME the
+      // row already prints.
+      routeId: sql<number | null>`case when ${s.shipments.cargoMode} = 'FCL'
+        then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
+        else ${s.shipments.routeId} end`,
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,
       operationalSiteId: s.shipments.operationalSiteId,
@@ -572,6 +579,16 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             factoryName: deliverySite.name,
             deliveryPoint: deliverySite.address,
             routeName: row.routeName,
+          },
+          // SIL-796 — the signed-price lookup key for this row: the editor
+          // dialog seeds "Cước thu/trả dự kiến" from the pricing engine
+          // (customer × effective route × container class × transport date)
+          // when the stored estimate is absent/0. A signed price is USED —
+          // the dialog never presents a fabricated 0 (owner law 04/11).
+          pricing: {
+            customerId: row.customerId,
+            routeId: row.routeId,
+            containerTypeCode: row.containerTypeCode,
           },
           docs: {
             billNumber: row.blNumber || row.bookingRef,

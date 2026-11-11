@@ -46,6 +46,12 @@ vi.mock('./useDispatchTaskTags', () => ({
 }));
 
 const listResourcesMock = vi.mocked(listDispatchFleetResources);
+// SIL-796 — the signed-price preview is a query collaborator: each test
+// seeds the engine answer it wants (undefined = no answer yet).
+const freightPreviewMock = vi.fn<(input: unknown) => { data?: { source: 'AUTO' | 'MANUAL'; total: number; formula: string } }>(() => ({ data: undefined }));
+vi.mock('../../../hooks/usePricingQueries', () => ({
+  useFreightPreview: (input: unknown) => freightPreviewMock(input),
+}));
 // Card 191026100010 (DV-B1-04) — the grouped-row save law: updateLclTruck
 // rides BEFORE the atomic save and its failure aborts it.
 const updateLclTruckMock = vi.mocked(updateLclTruck);
@@ -349,6 +355,37 @@ describe('DispatchPlanEditorCell — assignment dialog validation', () => {
     const costInput = screen.getByLabelText('Cước trả dự kiến');
     expect(revenueInput.closest('.ds-field')).toHaveClass('ds-field--sm');
     expect(costInput.closest('.ds-field')).toHaveClass('ds-field--sm');
+  });
+
+  // SIL-796 (owner law 04/11): a stored 0 estimate is "chưa định giá", so the
+  // dialog seeds BOTH fields from the SIGNED engine total for an own-fleet
+  // run — never a fabricated 0. The preview key is the row's pricing triple.
+  it('seeds the fee fields from the signed price when the stored estimate is 0', async () => {
+    freightPreviewMock.mockReturnValue({ data: { source: 'AUTO', total: 4_000_000, formula: 'I·H' } });
+    renderCell(row({
+      plannedEndAt: null,
+      estimates: { plannedRevenue: '0', plannedCarrierCost: '0' },
+      pricing: { customerId: 5, routeId: 6, containerTypeCode: '20DC' },
+    }), {});
+    await openDialog();
+    await waitFor(() => {
+      expect((screen.getByLabelText('Cước thu dự kiến') as HTMLInputElement).value).toContain('4.000.000');
+      expect((screen.getByLabelText('Cước trả dự kiến') as HTMLInputElement).value).toContain('4.000.000');
+    });
+    // And the preview was asked with the row's signed-price key.
+    expect(freightPreviewMock).toHaveBeenCalledWith(expect.objectContaining({ customerId: 5, routeId: 6, vehicleSizeClassCode: 'CONT20', transportDate: '2026-08-20' }));
+  });
+
+  it('names the missing signed price instead of showing 0 when the engine answers MANUAL', async () => {
+    freightPreviewMock.mockReturnValue({ data: { source: 'MANUAL', total: 0, formula: 'Chưa có bảng giá tuyến này' } });
+    renderCell(row({
+      plannedEndAt: null,
+      estimates: { plannedRevenue: '0', plannedCarrierCost: '0' },
+      pricing: { customerId: 5, routeId: 6, containerTypeCode: '40DC' },
+    }), {});
+    await openDialog();
+    await waitFor(() => expect(screen.getByText(/Chưa có bảng giá tuyến này/)).toBeTruthy());
+    expect((screen.getByLabelText('Cước thu dự kiến') as HTMLInputElement).value).not.toContain('0');
   });
 });
 

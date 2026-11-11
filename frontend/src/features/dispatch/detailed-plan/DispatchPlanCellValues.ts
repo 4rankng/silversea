@@ -187,6 +187,59 @@ export function detailedScheduleLine(row: Pick<DispatchDetailPlanRow, 'plannedEn
     : '—';
 }
 
+/* SIL-793 — the schedule column's container-demand line ("1 x 20DC"), the
+ * fact /dispatch's LỊCH TRÌNH prints under every appointment block
+ * (appointment group containerSummary). A detailed row IS one container
+ * (fulfillment-per-container wire), so the demand is the row's own type at
+ * count 1 — never a lot-level aggregation the row does not own. An LCL lot
+ * owns no container: null (its cargo prints in the CONTAINER column, and on
+ * the phone card the type rides cargoLine), so no surface invents a count. */
+export function detailedDemandLine(row: Pick<DispatchDetailPlanRow, 'cargoMode' | 'container'>): string | null {
+  if (row.cargoMode !== 'FCL') return null;
+  const label = row.container.containerTypeLabel?.trim();
+  return label ? `1 x ${label}` : null;
+}
+
+/* SIL-796 — the pure signed-price seed law of the dispatch editor's two
+ * "dự kiến" fee fields. A stored ''/0 is "chưa định giá", never a price: the
+ * seed resolves through the pricing engine preview and puts the SIGNED total
+ * in the field. The engine answering MANUAL (no signed row for the key) or
+ * resolving to nothing seeds NOTHING — the field stays empty and the dialog
+ * names the gap; a fabricated 0 is banned (owner law 04/11). An OWN-fleet
+ * run has no external rate table of its own, so the owner ruling seeds BOTH
+ * fields from the signed customer price; an external carrier's "trả" price
+ * lives outside the engine and stays as stored. Returns null when the draft
+ * is already fully priced (no state change). */
+export function seededFeesFromPreview(
+  draft: { plannedRevenue: number | ''; plannedCarrierCost: number | ''; carrierValue: string },
+  preview: { source: 'AUTO' | 'MANUAL'; total: number } | null | undefined,
+): { plannedRevenue: number | ''; plannedCarrierCost: number | '' } | null {
+  if (!preview) return null;
+  const ownFleet = draft.carrierValue === OWN_CARRIER_VALUE;
+  if (preview.source === 'AUTO' && preview.total > 0) {
+    const needsRevenueSeed = draft.plannedRevenue === '' || draft.plannedRevenue === 0;
+    const needsCostSeed = ownFleet && (draft.plannedCarrierCost === '' || draft.plannedCarrierCost === 0);
+    if (!needsRevenueSeed && !needsCostSeed) return null;
+    return {
+      plannedRevenue: needsRevenueSeed ? preview.total : draft.plannedRevenue,
+      plannedCarrierCost: needsCostSeed ? preview.total : draft.plannedCarrierCost,
+    };
+  }
+  if (preview.source === 'MANUAL') {
+    // The engine confirms no signed price: a stored 0 was never a price —
+    // clear it to empty (the dialog's help text names the gap); real stored
+    // values stay untouched.
+    const revenueFake = draft.plannedRevenue === 0;
+    const costFake = draft.plannedCarrierCost === 0;
+    if (!revenueFake && !costFake) return null;
+    return {
+      plannedRevenue: revenueFake ? '' : draft.plannedRevenue,
+      plannedCarrierCost: costFake ? '' : draft.plannedCarrierCost,
+    };
+  }
+  return null;
+}
+
 /* ── Owner redesign 23/10 — LCL cargo lines, shared by table + card ────────
  * Moved verbatim from DetailedPlanGrid.tsx (FB-092) so the mobile card list
  * reads the SAME cargo/measure derivation; the grid re-exports them to keep

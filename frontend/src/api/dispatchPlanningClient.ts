@@ -384,6 +384,12 @@ export interface DispatchDetailPlanRow {
     pairKind?: 'KEP' | 'KET_HOP' | null;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
+  /** SIL-796 — the signed-price lookup key (customer × effective route ×
+   *  container type code) the dispatch editor seeds "Cước thu/trả dự kiến"
+   *  from: a stored absent/0 estimate resolves through the pricing engine
+   *  instead of presenting a fabricated 0 (owner law 04/11). Absent on
+   *  older fixtures. */
+  pricing?: { customerId: number | null; routeId: number | null; containerTypeCode: string | null };
   /** Giờ trả hàng — staged pre-issuance on the fulfillment; null until set. */
   plannedEndAt: string | null;
   // NOT NULL DEFAULT 'SINGLE' (mig 0028): every row carries a value — fresh
