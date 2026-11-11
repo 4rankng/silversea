@@ -697,20 +697,38 @@
   cursor: pointer;
 }
 
-/* Owner redesign 23/10: the allocation chips ride ONE ellipsized line (the
-   full roster in the container's title) so a many-carrier lot can no longer
-   wrap its chips into a second line and inflate the row; the mobile CARD
-   prints the same roster on its own one-line run. */
+/* SIL-792 (owner 10/11) — one THẺ per carrier, every one READABLE. The
+   23/10 one-ellipsized-line recipe cut the second carrier off entirely
+   ("SilverSea: 2x20'ĐĂNG QU…") — exactly the KB Ch4 §4.1.2 defect: a split
+   allocation must show each carrier as its own card, complete. The row may
+   grow a second line; the rail carries width, the row carries truth. Chips
+   ride the sanctioned open-tone recipe (the SIL-708 LCL chip: tinted pill,
+   informational — allocation facts, not status), and each chip stays
+   nowrap so one carrier's own "Tên: 2x20' · 1x40'" never breaks mid-token;
+   BETWEEN chips is where the line wraps. The container title keeps the
+   full roster (belt and suspenders — the text is already fully visible). */
 .master-plan-grid__chips {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
 }
 
 .master-plan-grid__chip {
-  display: inline;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 var(--space-sm);
+  border-radius: 999px;
+  border: 1px solid var(--chip-open-border);
+  background: var(--chip-open-bg);
+  color: var(--chip-open-text);
+  font-size: var(--text-body-size);
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 /* Keep the semantic Untitled UI button behavior while presenting the existing

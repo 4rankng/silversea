@@ -58,8 +58,18 @@ describe('master-plan grid dense cell actions (card 20261004_321)', () => {
     expect(trigger).toContain('align-items: flex-start');
 
     const chips = css.match(/\.master-plan-grid__chips \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(chips).toContain('white-space: nowrap');
-    expect(chips).toContain('overflow: hidden');
-    expect(chips).toContain('text-overflow: ellipsis');
+    // SIL-792 (owner 10/11): one THẺ per carrier, all readable — the
+    // one-ellipsized-line recipe cut the second carrier off entirely. The
+    // container wraps BETWEEN chips and never clips; each chip itself stays
+    // one unbroken run (the pill rule pins that), and the cell title still
+    // carries the full roster.
+    expect(chips).toContain('display: flex');
+    expect(chips).toContain('flex-wrap: wrap');
+    expect(chips).not.toContain('white-space: nowrap');
+    expect(chips).not.toContain('overflow: hidden');
+    expect(chips).not.toContain('text-overflow');
+    const chip = css.match(/\.master-plan-grid__chip \{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(chip).toContain('white-space: nowrap');
+    expect(chip).toContain('var(--chip-open-border)');
   });
 });

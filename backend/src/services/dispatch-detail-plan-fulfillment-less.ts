@@ -193,6 +193,12 @@ export async function listFulfillmentLessReadyRows(
       customerId: s.customers.id,
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,
+      // SIL-796 — the pricing key's route half, the SAME effective-route
+      // coalesce the routes join below uses, so a pre-decompose branch row
+      // prices against the route its "Tuyến" column names.
+      routeId: sql<number | null>`case when ${s.shipments.cargoMode} = 'FCL'
+        then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
+        else ${s.shipments.routeId} end`,
       operationalSiteId: s.shipments.operationalSiteId,
       // FB-105 §3 — the LCL Nâng/Trả free-text fallback must exist on BOTH row
       // families (this branch has no fulfillment snapshot), or the shared row

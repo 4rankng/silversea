@@ -794,7 +794,7 @@ describe('MasterPlanGrid', () => {
     ]);
   });
 
-  it('keeps the allocation roster on ONE ellipsized line with the full roster in title (owner redesign 23/10)', () => {
+  it('renders the allocation roster as one READABLE chip per carrier, full roster in title (SIL-792)', () => {
     render(
       <MasterPlanGrid
         items={[item({
@@ -814,17 +814,22 @@ describe('MasterPlanGrid', () => {
     );
 
     expect(screen.getByText("Công ty Cổ phần Giao nhận Vận tải Container Quốc tế Đại Dương Xanh Miền Bắc: 1x40'")).toBeTruthy();
-    // The roster container carries the complete allocation in its tooltip —
-    // the row can no longer wrap a second line for a many-carrier lot.
+    // SIL-792 (owner 10/11): each carrier renders its OWN chip and the
+    // roster container still carries the complete allocation in its title —
+    // no carrier is ever cut off, no matter how many share the lot.
     const chips = document.querySelector('.master-plan-grid__chips');
     expect(chips?.getAttribute('title')).toBe("Công ty Cổ phần Giao nhận Vận tải Container Quốc tế Đại Dương Xanh Miền Bắc: 1x40'");
+    expect(document.querySelectorAll('.master-plan-grid__chip')).toHaveLength(1);
 
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const chipsRule = css.match(/\.master-plan-grid__chips \{([\s\S]*?)\n\}/)?.[1] ?? '';
-
-    expect(chipsRule).toContain('white-space: nowrap');
-    expect(chipsRule).toContain('overflow: hidden');
-    expect(chipsRule).toContain('text-overflow: ellipsis');
+    // The one-ellipsized-line recipe (23/10) hid the second carrier — the
+    // wrap contract below is the SIL-792 law: wrap BETWEEN pills, clip
+    // nothing, and each pill is one unbroken carrier line.
+    expect(chipsRule).toContain('flex-wrap: wrap');
+    expect(chipsRule).toContain('white-space: normal');
+    expect(chipsRule).not.toContain('text-overflow');
+    expect(chipsRule).not.toContain('overflow: hidden');
   });
 
   it('keeps the table surface stable while scrolling and the phone card list on one semantic scale', () => {

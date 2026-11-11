@@ -201,12 +201,18 @@ export async function transitionTripStatus(
         id: s.trips.id, tripCode: s.trips.tripCode,
         driverId: s.trips.driverId,
         departureDate: s.trips.departureDate,
+        // SIL-798 — the blocking reference the 409 must name: the trip's
+        // business identifier (Số Bill / Số Booking, the §8 display law) so
+        // the driver banner can link the actual blocking work without a
+        // client-side board roundtrip or regex parsing.
+        blockingLabel: sql<string | null>`nullif(coalesce(nullif(${s.shipments.blNumber}, ''), nullif(${s.shipments.bookingRef}, '')), '')`,
         // SIL-634: the busy row's fulfillment classification — the declared
         // clamp proof needs both legs' "Phân loại" to be Kẹp (DOUBLE).
         fulfillmentClassification: s.shipmentFulfillments.dispatchClassification,
       })
         .from(s.trips)
         .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+        .leftJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
         .where(and(
           eq(s.trips.truckId, trip.truckId!),
           eq(s.trips.status, TripStatus.IN_TRANSIT),
@@ -329,7 +335,7 @@ export async function transitionTripStatus(
           }
         }
       }
-      const blockingTrips: Array<{ id: number; tripCode: string | null }> = [];
+      const blockingTrips: Array<{ id: number; tripCode: string | null; driverId: number | null; blockingLabel: string | null }> = [];
       for (const candidate of busyTrips) {
         // SIL-602/SIL-631: the exemption is the ACTIVE KEP pair membership +
         // shared driver — the whole pair contract (see isActiveKepPairPartner).
@@ -351,12 +357,27 @@ export async function transitionTripStatus(
       }
       const busyTruck = blockingTrips[0];
       if (busyTruck) {
-        // Never leak the numeric id — show the trip code or fall back to a
-        // generic phrase rather than "#17" which reads like a debug log.
+        // Never leak the numeric id in the MESSAGE — the trip code (or a
+        // generic phrase) stays the human text; the numeric trip id rides
+        // the STRUCTURED payload, and only when the blocking trip belongs
+        // to the same driver (ownership-guarded deep link — SIL-798: the
+        // banner must NAME the blocking trip and LINK it, not just say
+        // "retry later").
         const busyLabel = busyTruck.tripCode || 'một chuyến khác';
+        const busyDisplayLabel = busyTruck.blockingLabel;
+        const busyDriverOwned = busyTruck.driverId != null && busyTruck.driverId === trip.driverId;
         throw new ApiError(
           409,
           `Xe đang chạy chuyến ${busyLabel}. Vui lòng hoàn thành chuyến đó trước.`,
+          undefined,
+          {
+            code: 'DRIVER_TRIP_BLOCKED',
+            blockingTripId: busyDriverOwned ? busyTruck.id : null,
+            // §8 display law: Số Bill/Booking names the trip; the internal
+            // TRP code stays out of the banner copy.
+            blockingTripLabel: busyDisplayLabel,
+            driverOwned: busyDriverOwned,
+          },
         );
       }
     } else if (targetStatus === TripStatus.COMPLETED) {

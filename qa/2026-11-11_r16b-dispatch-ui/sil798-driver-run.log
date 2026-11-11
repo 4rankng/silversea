@@ -1,0 +1,11 @@
+driver cards: []
+board probe: {"url":"/my-trips","head":" Bỏ qua đến nội dung chínhĐã chuyển đến Hành trìnhTransTingQuản lý vận tải và logisticsCông việc của tôiHành trìnhThông báoThu nhậpKỷ luậtPhạm Văn HùngLái xePhạm Văn Hùng60C-12345Tháng 11/2026·01/11 – 30/1140Hành trình của tôiLệnh mới2Đã nhận2Lịch sử15R8B717-FCLGiờ chạy:20/11/2026 10:00 ASKEY-XƯỞNG ","rows":["driver-journey :: Hành trình của tôiLệnh mới2Đã nhận2Lịch sử15R8B717","ds-tabs ds-tabs--bordered d-tabs-border driver-journey__tabs :: Lệnh mới2Đã nhận2Lịch sử15","driver-journey__tab-count :: 2","driver-journey__tab-count :: 2","driver-journey__tab-count :: 15","driver-journey__panel :: R8B717-FCLGiờ chạy:20/11/2026 10:00 ASKEY-XƯỞNG 1 "]}
+panel probe: {"tabFound":true,"panelHtml":"<div class=\"driver-journey__list\"><div class=\"driver-journey-group\"><article class=\"driver-journey-card\"><div class=\"driver-journey-card__header\"><span class=\"driver-journey-card__bill\">R8B717-FCL</span><span class=\"driver-journey-card__time\"><span class=\"driver-journey-card__time-label\">Giờ chạy:</span>20/11/2026 10:00</span></div><p class=\"driver-journey-card__factory driver-journey-card__factor"}
+cards visible: 2
+card anatomy: {"tag":"ARTICLE","tabIndex":null,"buttons":["Xem chi tiết & Nhận "],"cls":"driver-journey-card"}
+post-click url: http://localhost:7175/my-trips/779693
+IDLE FACE {"bg":"rgb(16, 21, 19)","label":"Nhận lệnh vận chuyển","hasSuccessCheck":false}
+BANNER {"text":"Xe đang chạy chuyến SIL704-lcl_share-1793986803502-L1 — hoàn thành chuyến đó trước khi nhận lệnh mới.Mở chuyến đang chạy","links":[{"href":"/my-trips/779142","label":"Mở chuyến đang chạy"}],"leaksInternalCode":false}
+API409 ["409 http://localhost:7175/api/driver/me/fulfillments/1433/progress :: {\"error\":\"Xe đang chạy chuyến TRP-202610-0076. Vui lòng hoàn thành chuyến đó trước.\",\"code\":\"DRIVER_TRIP_BLOCKED\",\"blockingTripId\":779142,\"blockingTripLabel\":\"SIL704-lcl_share-1793986803502-L1\",\"driverOwned\":true}"]
+banner link lands on: http://localhost:7175/my-trips/779142
+exit=0
