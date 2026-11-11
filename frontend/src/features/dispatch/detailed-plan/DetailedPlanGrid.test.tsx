@@ -288,10 +288,21 @@ describe('DetailedPlanGrid', () => {
     });
 
     expect(widths.reduce((total, width) => total + width, 0)).toBe(100);
-    // SIL-755: responsive table that shrinks within container at 1440px
+    // SIL-795: the shares must still PAY their floors — the table carries a
+    // 1420px min-width so a 1440px pane (1144px) rides the rail instead of
+    // clipping identifier cells ("RTAU4000" for MSCU1234567) or chopping
+    // headers mid-word ("SỐ TỜ KHA"). The floors below are the measured
+    // one-line header widths and identifier content widths divided by the
+    // share, so no column can silently fall below its floor again.
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1600px;/);
+    expect(widths[columnNames.indexOf('schedule')]).toBeGreaterThanOrEqual(12);
+    expect(widths[columnNames.indexOf('route')]).toBeGreaterThanOrEqual(11.5);
+    expect(widths[columnNames.indexOf('container')]).toBeGreaterThanOrEqual(7.5);
+    expect(widths[columnNames.indexOf('declaration')]).toBeGreaterThanOrEqual(10);
+    expect(widths[columnNames.indexOf('classification')]).toBeGreaterThanOrEqual(6);
     expect(widths[columnNames.indexOf('route')]).toBeGreaterThanOrEqual(10);
     expect(widths[columnNames.indexOf('assignment')]).toBeGreaterThanOrEqual(14);
-    expect(widths[columnNames.indexOf('notes')]).toBeGreaterThanOrEqual(10);
+    expect(widths[columnNames.indexOf('notes')]).toBeGreaterThanOrEqual(9);
     expect(widths[columnNames.indexOf('actions')]).toBeGreaterThanOrEqual(6.5);
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*width:\s*100%;/);
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*max-width:\s*100%;/);

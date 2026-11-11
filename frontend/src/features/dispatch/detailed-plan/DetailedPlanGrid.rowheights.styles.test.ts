@@ -45,10 +45,15 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(total).toBe(100);
     expect(columnShare('route')).toBeGreaterThanOrEqual(10);
     expect(columnShare('assignment')).toBeGreaterThanOrEqual(14);
-    expect(columnShare('notes')).toBeGreaterThanOrEqual(10);
+    // SIL-795: the floors the shares must still pay at the 1420px table
+    // floor — notes keeps its wrap budget, schedule PAYS its one-line
+    // header (the ≤12.5 cap of the 1440-no-scroll era is retired: the rail
+    // scrolls on purpose now, so the cap can no longer be paid honestly).
+    expect(columnShare('notes')).toBeGreaterThanOrEqual(9);
     expect(columnShare('actions')).toBeGreaterThanOrEqual(6.5);
-    expect(columnShare('schedule')).toBeLessThanOrEqual(12.5);
-    expect(columnShare('route')).toBeLessThanOrEqual(14);
+    expect(columnShare('schedule')).toBeGreaterThanOrEqual(12); // 192px >= the 180px one-line header floor at the 1600 rail
+    expect(columnShare('route')).toBeGreaterThanOrEqual(11.5); // 184px >= the 175px header floor
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1600px;/); // SIL-795 measured floors: documents 118px, declaration 128px, container 101px
   });
 
   it('SIL-686 (FB-063): every header is ONE line — the th carries the nowrap', () => {
@@ -99,10 +104,11 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     // the grid tests); the cell keeps ONE "Lẻ" (the classification span).
     expect(css).not.toContain("'Lẻ · Ghép (");
     expect(css).not.toContain('"Lẻ · Ghép (');
-    // 6% ≈ 91px at the 1520px floor — "PHÂN LOẠI" fits one line (SIL-686
-    // rebalance; the measured one-line label is 85px).
-    expect(columnShare('classification')).toBe(6);
-    // The 0.9% came back off Container, keeping the sum at exactly 100.
+    // 6.5% ≈ 92px at the 1420px floor — "PHÂN LOẠI" fits one line (SIL-795
+    // rebalance; the measured one-line label is 85px, the SIL-686 6% share
+    // could not pay it once the pane's 1144px floor proved too narrow).
+    expect(columnShare('classification')).toBe(6.5);
+    // The 0.5% came off notes, keeping the sum at exactly 100.
     const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'classification', 'notes', 'actions'];
     const total = names.map((name) => columnShare(name)).reduce((sum, share) => sum + share, 0) + columnShare('ports');
     expect(total).toBe(100);

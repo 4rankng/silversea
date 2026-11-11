@@ -240,6 +240,18 @@
      Column shares sum to 100% and keep content legible while the sticky
      Thao tác rail fits on one line. */
   width: 100%;
+  /* SIL-795 — the floor that pays the law: at a 1440px screen the pane is
+     ~1144px and the old 11-column % shares gave the identifier columns
+     ~74px, so `nowrap + overflow-x:auto + text-overflow:clip` painted
+     "RTAU4000" for MSCU1234567 and chopped "SỐ TỜ KHAI" mid-word. The
+     shares below are re-derived from the measured one-line header widths
+     (11px uppercase + tracking) and the identifier content floors
+     (11-char container ≈ 96px, "TGHU1000044-TK" ≈ 117px); the table's
+     min-width makes every share pay its floor at ANY pane width and the
+     wrapper's rail (overflow: auto, MP-RD-03 precedent) carries the
+     remainder — the sanctioned "scrolls on purpose" contract for token
+     boards, with the THAO TÁC rail staying sticky-right. */
+  min-width: 1600px;
   max-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -247,10 +259,13 @@
   font-size: var(--ops-table-supporting-size);
 }
 
-/* Shares sum to exactly 100 (ports covers two <col> elements). SIL-686 / SIL-755:
-   every HEADER is one line, so the shares pay the measured one-line label widths
-   while fitting inside a 1440px viewport container without horizontal scroll. */
-.detailed-plan-grid__col--schedule { width: 11.5%; }
+/* Shares sum to exactly 100 (ports covers two <col> elements). SIL-686 / SIL-755
+   pinned the 1440 no-scroll shares; SIL-795 (10/11) rebalances them — the
+   owner evidence showed those shares could NOT pay the one-line header law
+   they were written for, and the clipped identifiers violate §4. The new
+   shares hold every one-line header and the identifier content at the
+   1600px floor. */
+.detailed-plan-grid__col--schedule { width: 12%; }
 /* Spec 23/10 (261023110000 §2) — the on-demand CHỌN column: fixed 48px
    (master-plan precedent) so the reading columns keep their percentage
    shares whether or not the merge mode is active. */
@@ -269,21 +284,21 @@
   align-items: center;
   justify-content: center;
 }
-.detailed-plan-grid__col--route { width: 12%; }
-.detailed-plan-grid__col--ports { width: 8%; }
-.detailed-plan-grid__col--documents { width: 7.5%; }
+.detailed-plan-grid__col--route { width: 11.5%; }
+.detailed-plan-grid__col--ports { width: 6.5%; }
+.detailed-plan-grid__col--documents { width: 8.5%; }
 /* SIL-591: the per-container tờ khai column — the "SỐ TỜ KHAI" header holds
    one line at the shares; longer values wrap (no cut). */
-.detailed-plan-grid__col--container { width: 6.5%; }
-.detailed-plan-grid__col--declaration { width: 6.5%; }
+.detailed-plan-grid__col--container { width: 7.5%; }
+.detailed-plan-grid__col--declaration { width: 10%; }
 .detailed-plan-grid__col--assignment { width: 14.5%; }
 /* SIL-589 / SIL-755: the "PHÂN LOẠI" header holds one line (6% ≥ 68px at 1144px). */
-.detailed-plan-grid__col--classification { width: 6%; }
-.detailed-plan-grid__col--notes { width: 12%; }
+.detailed-plan-grid__col--classification { width: 6.5%; }
+.detailed-plan-grid__col--notes { width: 10%; }
 /* SIL-588 / SIL-713 / SIL-755: the rail hosts TWO STACKED buttons
    (Phát lệnh icon above, ⋯ below) while the "THAO TÁC" header fits on one line
    without truncation (7.5% ≈ 85.8px at 1144px, min 74px). */
-.detailed-plan-grid__col--actions { width: 7.5%; }
+.detailed-plan-grid__col--actions { width: 6.5%; }
 
 /* ── SIL-591 — SỐ TỜ KHAI cell (per-container, SIL-521 model) ──────────────
    The value reads as data text; the edit affordance is a house text button
