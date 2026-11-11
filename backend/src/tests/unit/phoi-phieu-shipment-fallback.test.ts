@@ -206,3 +206,30 @@ describe('SIL-729 r7 — lot-attached money never reads the unknown bucket (KB �
       "the exclusion reads the source's own lot id — the trip and paidAt windows alike");
   });
 });
+
+describe('SIL-729 r8 — the board chi-hộ cell is a verified zero, never unknown (KB §6.7)', () => {
+  // fnBody anchors on the first `\n}`, which for this function is the closing
+  // brace of its own multi-line parameter object — cut the aggregation lines
+  // out of the file instead; `shipmentSources.length ? … : …` is the only
+  // construction site of these two fields.
+  const traLine = source.match(/const chiHoTra = shipmentSources\.length .*;/)?.[0] ?? '';
+  const thuBlock = source.match(/const chiHoThu = shipmentSources\.length[\s\S]*?: 0;/)?.[0] ?? '';
+
+  it('a lot with no OPS/TRIP chi-hộ rows reads 0, not null', () => {
+    assert.ok(source.indexOf('const chiHoTra = shipmentSources') > source.indexOf('export async function listPhoiPhieuRows'),
+      'the pin reads the board builder listPhoiPhieuRows, not another function');
+    assert.ok(traLine.includes(': 0;') && !traLine.includes(': null'),
+      'the empty-payable branch is the known 0 the chi-hộ dialog prints (QA verdict 11/11: R3B-BILL01/02, K4KFP-M4) — null rendered Chưa xác định on a lot-attached row');
+    assert.ok(thuBlock !== '' && thuBlock.includes(': 0;') && !thuBlock.includes(': null'),
+      'the empty-receivable branch is the same verified zero — KB §6.7 reserves Chưa xác định for money attached to no trip AND no lot');
+  });
+
+  it('the row contract no longer models board chi-hộ money as unknown', () => {
+    assert.ok(!/chiHoTra: number \| null/.test(source),
+      'PhoiPhieuRow.chiHoTra is a number — the unknown shape is banned on a lot-attached row');
+    assert.ok(!/chiHoThu: number \| null/.test(source),
+      'PhoiPhieuRow.chiHoThu is a number — the unknown shape is banned on a lot-attached row');
+    assert.ok(/chiHoTripTra: number \| null/.test(source) && /chiHoTripThu: number \| null/.test(source),
+      'the TRIP-kind slice stays nullable — no COMPANY-paid rows is a different, unchanged law (Card 20261002_292)');
+  });
+});

@@ -37,8 +37,11 @@ export interface PhoiPhieuRow {
   /** The accountant's free-text take status, ride-along detail under the
    *  binary phoi state. */
   phoiTakeStatus?: string | null;
-  chiHoThu: number | null;
-  chiHoTra: number | null;
+  /** 0 when the lot holds no OPS/TRIP chi-hộ rows — a verified zero, never
+   *  null (SIL-729 r8, KB §6.7: a lot-attached cell never reads 'Chưa xác
+   *  định'; the chi-hộ dialog prints the same 0). */
+  chiHoThu: number;
+  chiHoTra: number;
   /** Card 20261002_292: the COMPANY-paid (TRIP-kind) slice of the chi-hộ
    *  totals, labeled separately in the cell. Optional so an older in-flight
    *  backend payload still renders. */
