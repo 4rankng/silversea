@@ -127,8 +127,10 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: null, customerName: 'KH B' })]);
     renderPage();
     const reference = await screen.findByText('BL-1');
-    expect(reference.parentElement).toHaveClass('record-cell-stack');
-    expect(reference.parentElement?.querySelector('small')).toHaveTextContent('KH A');
+    // SIL-772 — the code + customer live in the multi-line Lô cell's stack.
+    const stack = reference.closest('.record-cell-stack');
+    expect(stack).not.toBeNull();
+    expect(stack?.querySelector('small')).toHaveTextContent('KH A');
     expect(screen.getByText('Chưa có số Bill/Booking')).toBeInTheDocument();
     expect(screen.queryByText('SHP-26-0001')).not.toBeInTheDocument();
     expect(screen.queryByText('SHP-26-0002')).not.toBeInTheDocument();
@@ -152,14 +154,14 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(caption?.className).toContain('sr-only');
   });
 
-  it('renders the grouped head with worked money and a dd/mm/yyyy date', async () => {
+  it('renders the nine Rev2 group head with worked money and a dd/mm/yyyy date (SIL-772)', async () => {
     boardWith([row()]);
     renderPage();
-    expect(await screen.findByText('Phải thu')).toBeInTheDocument();
-    expect(screen.getByText('Phải trả')).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: 'Cước phải thu' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Cước phải trả' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Tổng trả & Chi phí ngoài' })).toBeInTheDocument();
     // SIL-771 amends the SIL-727 matrix: Lợi nhuận (công thức khách chốt —
-    // Tổng thu − Tổng trả − Chi phí ngoài) joins the essential set, so the
-    // board opens on the rollups AND the profit, no toggle needed.
+    // Tổng thu − Tổng trả − Chi phí ngoài) stays on the open board.
     expect(await screen.findByText('1.790.000 ₫')).toBeInTheDocument();
     expect(screen.getByText('480.000 ₫')).toBeInTheDocument();
     expect(screen.getByText('1.160.000 ₫')).toBeInTheDocument();
@@ -182,58 +184,31 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(screen.queryByText('Chưa xác định')).not.toBeInTheDocument();
   });
 
-  it('SIL-727 — the money matrix opens essential, no stored choice can bury it, and the still-hideable choice persists (card 191026181942; SIL-771 extends the set)', { timeout: 15000 }, async () => {
-    // SIL-727 amends the KT4 default ON THIS BOARD: the ticket lists the full
-    // PHẢI THU/PHẢI TRẢ matrix explicitly, so the breakdowns are essential —
-    // visible at open, locked in the picker, immune to a stale payload.
-    // SIL-771 extends the same law to 'Chi phí ngoài' + 'Lợi nhuận' — the
-    // customer's profit formula (Tổng thu − Tổng trả − Chi phí ngoài) is the
-    // board's headline, so both open essential and lock in the picker.
+  it('SIL-772 — the board opens on ALL NINE Rev2 groups; no picker, no stored choice can bury one', { timeout: 15000 }, async () => {
+    // Rev2 Phần IV.2 (QA FAIL 1ae5afcb comment 5047): the old matrix hid
+    // 'Phân xe' + 'Ghi chú' behind the picker's default (7/9 groups) and
+    // scrolled sideways. The nine groups are now the board — every one
+    // pinned, the visibility picker gone, and the old per-workstation
+    // `accounting-debit-hidden-cols` payload simply stops being read.
     boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', thu: { ...RATES, cuocThu: null } })]);
     const { unmount } = renderPage();
     await screen.findByText('BL-1');
-    expect(screen.getByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Tổng thu' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Phí RU (tự động)' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Chi phí ngoài' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Lợi nhuận' })).toBeInTheDocument();
-    // The picker locks the matrix: the essential option reads disabled +
-    // checked, offering nothing the toggle would refuse anyway.
-    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
-    const cuocThuOption = within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Cước thu (tự động)' });
-    expect(cuocThuOption).toBeChecked();
-    expect(cuocThuOption).toBeDisabled();
-    const loiNhuanOption = within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Lợi nhuận' });
-    expect(loiNhuanOption).toBeChecked();
-    expect(loiNhuanOption).toBeDisabled();
+    for (const name of ['Lô', 'Hàng hóa & Cont', 'Phương tiện', 'Cước phải thu', 'Tổng thu', 'Cước phải trả', 'Tổng trả & Chi phí ngoài', 'Lợi nhuận', 'Ghi chú & Đối soát']) {
+      expect(screen.getAllByRole('columnheader', { name }).length).toBeGreaterThan(0);
+    }
+    expect(screen.queryByRole('button', { name: /Cột hiển thị/ })).toBeNull();
     unmount();
 
-    // FB-093 (lan 3): a choice written before the matrix joined the required
-    // set cannot bury it — the payload is repaired on read.
-    localStorage.setItem('accounting-debit-hidden-cols', JSON.stringify(['cuocThu', 'tongThu', 'loiNhuan', 'chiPhiNgoai']));
-    const { unmount: unmountSecond } = renderPage();
-    expect(await screen.findByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Lợi nhuận' })).toBeInTheDocument();
-    unmountSecond();
-
-    // …while the still-hideable Phân xe keeps its per-workstation memory
-    // (the picker's hideable set shrank with SIL-771 but never went empty).
-    const { unmount: unmountThird } = renderPage();
-    await screen.findByText('BL-1');
-    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
-    fireEvent.click(within(screen.getByRole('dialog', { name: /Cột hiển thị/ })).getByRole('checkbox', { name: 'Phân xe' }));
-    expect(screen.queryByRole('columnheader', { name: 'Phân xe' })).toBeNull();
-    unmountThird();
+    // A stale pre-772 payload cannot bury a group: the stored key is no
+    // longer read (the pre-772 regression this replaces pinned repair-on-read
+    // for the essential matrix; the nine-group board makes the whole class
+    // unreachable by not consulting the choice at all).
+    localStorage.setItem('accounting-debit-hidden-cols', JSON.stringify(['cuocThu', 'tongThu', 'loiNhuan', 'chiPhiNgoai', 'phanXe', 'ghiChu']));
     renderPage();
     await screen.findByText('BL-1');
-    expect(screen.queryByRole('columnheader', { name: 'Phân xe' })).toBeNull();
-  });
-
-  it('offers the column picker on the shared strip', async () => {
-    boardWith([row()]);
-    renderPage();
-    await screen.findByText('BL-1');
-    expect(screen.getByRole('button', { name: /Cột hiển thị/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('columnheader', { name: 'Cước phải thu' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('columnheader', { name: 'Phương tiện' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('columnheader', { name: 'Ghi chú & Đối soát' }).length).toBeGreaterThan(0);
   });
 });
 
@@ -523,21 +498,22 @@ describe('BD-02 (161026204709) — merged 100%/0₫ Cước thu lane on the phon
     // SIL-772 — mặc định FCL; cả hai dòng của test là hàng lẻ → chế độ LCL.
     fireEvent.click(screen.getByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
 
-    // Lô 1 = 100% lane price on the card face.
+    // Lô 1 = 100% lane price on the card face (the lane rides the collected
+    // 'Cước phải thu' fact since SIL-772's nine-group rekey).
     const principal = await screen.findByRole('article', { name: 'BL-P' });
-    const principalLane = within(principal).getByText('Cước thu (tự động)').closest<HTMLElement>('.ledger-record__fact')!;
+    const principalLane = within(principal).getByText('Cước phải thu').closest<HTMLElement>('.ledger-record__fact')!;
     expect(principalLane.closest('details')).toBeNull();
     expect(principalLane.textContent).toContain('3.150.000');
 
     // Member = 0₫ on the card face, its reason visible beside it.
     const member = await screen.findByRole('article', { name: 'BL-M' });
-    const memberLane = within(member).getByText('Cước thu (tự động)').closest<HTMLElement>('.ledger-record__fact')!;
+    const memberLane = within(member).getByText('Cước phải thu').closest<HTMLElement>('.ledger-record__fact')!;
     expect(memberLane.closest('details')).toBeNull();
     expect(memberLane.textContent).toContain('0 ₫');
     expect(within(member).getByText(/Ghép cùng Bill BL-P/).closest('details')).toBeNull();
 
-    // The disclosure still holds the sibling columns — never the lane.
+    // The disclosure still holds the sibling facts — never the collected lane.
     const details = within(member).getByText('Chi tiết').closest('details')!;
-    expect(within(details).queryByText('Cước thu (tự động)')).toBeNull();
+    expect(within(details).queryByText('Cước phải thu')).toBeNull();
   });
 });

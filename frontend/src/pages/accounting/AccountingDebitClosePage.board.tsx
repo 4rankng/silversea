@@ -1,46 +1,33 @@
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { RowSelection } from '../../hooks/useTableRowSelection';
-import { GROUP_LABELS, type CellContext, type DebitColumn } from './AccountingDebitClosePage.columns';
+import type { CellContext, DebitColumn } from './AccountingDebitClosePage.columns';
 
 /**
- * FB-099 (card 141026230760) — the debit money matrix, rendered once per zone:
- * the "Chờ xác nhận" queue and the "Kế hoạch điều động tổng hợp" board share
- * this table so the two zones cannot drift on columns, grouping or cell law.
+ * FB-099 (card 141026230760) — the KIỂM SOÁT LÔ HÀNG money board, rendered
+ * once per zone: the "Chờ xác nhận" queue and the board share this table so
+ * the two zones cannot drift on columns, grouping or cell law.
+ *
+ * SIL-772 (Rev2 Phần IV.2, QA FAIL 1ae5afcb) — the board renders the NINE
+ * Rev2 groups as one fixed, multi-line grid: a single header row (the tier-1
+ * PHẢI THU/PHẢI TRÀ spanning band retired with the 17-track matrix), a fixed
+ * track budget per group (stylesheet), and no horizontal scroll at the 1920px
+ * operating width — TỔNG TRẢ can no longer sit past the right edge.
  */
 export function DebitBoardTable({ rows, columns, context, selection, ariaLabel, caption }: {
   rows: AccountingDebitBoardRow[];
-  columns: DebitColumn[];
+  columns: readonly DebitColumn[];
   context: CellContext;
   selection: RowSelection<number>;
   ariaLabel: string;
   caption: string;
 }) {
-  const groupedHead = columns.filter((column) => column.group != null);
   return (
     <div className="debit-board__wrap ledger-desktop" role="region" aria-label={ariaLabel} tabIndex={0}>
       <table className="debit-board">
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
-            {columns.map((column, index) => {
-              if (column.group == null) {
-                return (
-                  <th key={column.key} scope="col" rowSpan={2} className={column.className}>
-                    {column.srOnlyHeader ? <span className="sr-only">{column.label}</span> : column.label}
-                  </th>
-                );
-              }
-              // One spanning header over the contiguous run of the group's
-              // VISIBLE members: the run is measured, so a column hidden
-              // through the picker can never leave the group header
-              // covering the wrong cells.
-              if (columns[index - 1]?.group === column.group) return null;
-              const run = columns.filter((candidate) => candidate.group === column.group).length;
-              return <th key={column.group} scope="colgroup" colSpan={run}>{GROUP_LABELS[column.group]}</th>;
-            })}
-          </tr>
-          <tr>
-            {groupedHead.map((column) => (
+            {columns.map((column) => (
               <th key={column.key} scope="col" className={column.className}>{column.label}</th>
             ))}
           </tr>
@@ -59,18 +46,11 @@ export function DebitBoardTable({ rows, columns, context, selection, ariaLabel, 
                 {...selection.rowProps(row.shipmentId, { selectable: pickable })}
               >
                 {columns.map((column) => (
-                  <td
-                    key={column.key}
-                    className={`${column.className}${column.className === 'debit-col--money' ? ' num' : ''}`}
-                  >
-                    {/* §2c: the Ngày cell carries the row's selection tick —
-                        the count strip says HOW MANY, this says WHICH row. */}
-                    {column.key === 'ngay' && (
-                      <span className="debit-row-tick" aria-hidden="true">{isRowSelected ? '✓' : ''}</span>
-                    )}
+                  <td key={column.key} className={column.className}>
                     {/* SIL-727 — only the pickable row's leading track gets
                         the checkbox affordance; the toggle IS the shared
-                        selection state the row click drives. */}
+                        selection state the row click drives. The ✓ tick rides
+                        inside the Lô cell (columns.tsx). */}
                     {column.cell(row, {
                       ...context,
                       rowSelect: pickable

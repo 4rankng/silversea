@@ -6,10 +6,17 @@
 //   padding = 109.5px of content in a 96px track → 4px of overflow, the last
 //   digit clipped at the column edge.
 //
-// WHAT THIS PINS: the MEASURED track (one custom property, shared with the
-// sticky lot column), the tabular digits, and the wrapping of the missing
-// money label. It does NOT re-measure the font — the driver does that on the
-// running board at 390/768/1440 (qa/2026-11-07-lane-r4/).
+// SIL-772 rebuilt the board as the nine fixed Rev2 tracks: the date is the
+// second LINE of the Lô cell (columns.tsx), the 13% Lô track ≈195px at the
+// 1480px fixed-layout floor, and the board NEVER grows past the canvas —
+// which is also what keeps the 1920px operating width free of the horizontal
+// scrollbar the QA FAIL measured.
+//
+// WHAT THIS PINS: the no-clip law at its new home — the date line never
+// wraps (one value, one line), rides tabular digits, and the fixed-layout
+// floor stands so the tracks cannot be crushed below the measured content.
+// It does NOT re-measure the font — the driver does that on the running
+// board at 390/768/1440 (qa/2026-11-07-lane-r4/).
 
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -41,40 +48,52 @@ function ruleWith(selector: string, declaration: RegExp): string {
   return found!;
 }
 
-describe('SIL-701 — chốt debit: cột NGÀY hiển thị đủ DD/MM/YYYY', () => {
-  it('the date track is ONE property, sized by the measured floor and the font', () => {
-    const track = ruleWith('.debit-board', /--debit-date-track/);
-    expect(track).toMatch(/--debit-date-track:\s*max\(116px,\s*12ch\)/);
+describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên lưới 9 nhóm', () => {
+  it('the board is a fixed nine-track grid that never grows past the canvas', () => {
+    const body = ruleWith('.debit-board', /table-layout:\s*fixed/);
+    expect(body).toMatch(/table-layout:\s*fixed/);
+    expect(body).toMatch(/width:\s*100%/);
+    // The floor keeps the money tracks from being crushed below the measured
+    // content; the 1920px canvas (measured ≈1438px) clears it, so no
+    // horizontal scrollbar there — the AC the QA FAIL measured.
+    expect(body).toMatch(/min-width:\s*1380px/);
+  });
 
-    const body = ruleWith('.debit-board td.debit-col--date', /width:\s*var\(--debit-date-track\)/);
-    expect(body).toMatch(/width:\s*var\(--debit-date-track\)/);
-    expect(body).toMatch(/min-width:\s*var\(--debit-date-track\)/);
-    // The date never wraps — it is ONE value on ONE line.
+  it('the date line never wraps and rides tabular digits', () => {
+    const body = ruleWith('.debit-lot-date', /white-space:\s*nowrap/);
     expect(body).toMatch(/white-space:\s*nowrap/);
-    // Tabular digits: the date is a numeric column, so every row's date is
-    // the same width whatever the loaded font is.
     expect(body).toMatch(/font-variant-numeric:\s*tabular-nums/);
-    // No `max-width`: the track may grow, never clip.
-    expect(body).not.toMatch(/max-width/);
   });
 
-  it('the sticky identity pair follows the date track instead of a second number', () => {
-    expect(ruleWith('.debit-board td.debit-col--lot', /left:\s*calc/))
-      .toMatch(/left:\s*calc\(34px \+ var\(--debit-date-track\)\)/);
-  });
-
-  it('a missing money label WRAPS instead of being cut', () => {
-    expect(ruleWith('.debit-board td.debit-col--money .debit-missing', /white-space:\s*normal/))
+  it('a money VALUE never wraps; a missing money label WRAPS instead of being cut', () => {
+    expect(ruleWith('.debit-line__value', /white-space:\s*nowrap/)).toMatch(/white-space:\s*nowrap/);
+    expect(ruleWith('.debit-line__value .debit-missing', /white-space:\s*normal/))
       .toMatch(/white-space:\s*normal/);
-    // The money NUMBER still never wraps — a broken number is unreadable.
     expect(ruleWith('.debit-board td.debit-col--money', /white-space:\s*nowrap/))
       .toMatch(/white-space:\s*nowrap/);
+    expect(ruleWith('.debit-board td.debit-col--money .debit-missing', /white-space:\s*normal/))
+      .toMatch(/white-space:\s*normal/);
   });
 
-  it('SIL-701 — cột tổng phía Phải trả có nhãn "Tổng trả" (không phải "Tổng 1")', () => {
-    const tong1Col = BOARD_COLUMNS.find((col) => col.key === 'tong1');
-    expect(tong1Col).toBeDefined();
-    expect(tong1Col?.label).toBe('Tổng trả');
-    expect(tong1Col?.group).toBe('tra');
+  it('SIL-772 — cột tổng phía Phải trả có nhãn "Tổng trả" (không phải "Tổng 1")', () => {
+    const col = BOARD_COLUMNS.find((candidate) => candidate.key === 'tongTraChiPhiNgoai');
+    expect(col).toBeDefined();
+    expect(col?.label).toBe('Tổng trả & Chi phí ngoài');
+    // The rollup line label stays the customer's word ("Tổng trả"), rendered
+    // by the cell — not the generic "Tổng 1".
+    expect(col?.cell.toString()).toContain('Tổng trả');
+  });
+
+  it('SIL-772 — the nth-child track shares map onto the CURRENT column order', () => {
+    // The fixed grid keys its nine widths on header position (same-class
+    // columns carry different shares), so a silent BOARD_COLUMNS reorder
+    // would migrate widths to the wrong groups. Pin the mapping itself:
+    // position i must still be the key this width was measured for.
+    const expectedOrder = ['lo', 'hangHoaCont', 'phuongTien', 'cucPhaiThu', 'tongThu', 'cucPhaiTra', 'tongTraChiPhiNgoai', 'loiNhuan', 'ghiChuDoiSoat'];
+    expect(BOARD_COLUMNS.map((candidate) => candidate.key)).toEqual(expectedOrder);
+    const expectedShares = [13, 11, 11, 12, 8, 12, 11, 8, 14];
+    expectedOrder.forEach((key, index) => {
+      expect(css).toContain(`.debit-board thead th:nth-child(${index + 1}) { width: ${expectedShares[index]}%; }`);
+    });
   });
 });

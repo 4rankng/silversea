@@ -438,9 +438,7 @@
    and non-zero. Token-only ink (--warning-text, contrast-tuned ≥4.5:1 at
    the token layer); zero keeps its muted ink, pending keeps its blank cell,
    and green stays reserved for completion / money actually received. */
-.shipment-debit-money--warn,
-.shipment-debit-group__sum--warn,
-.shipment-debit-totals__sum--warn { color: var(--warning-text); }
+.shipment-debit-money--warn { color: var(--warning-text); }
 
 .shipment-debit-money__zero {
   color: var(--ink-3);
@@ -718,6 +716,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* SIL-801 — non-zero group subtotal of TỔNG PHẢI THU KHÁCH wears the amber.
+ * This rule must stay AFTER .shipment-debit-group__sum: same specificity, so
+ * the later color wins — the QA FAIL on build 1ae5afcb was exactly this rule
+ * living BEFORE the base one (the base grey repainted the amber). */
+.shipment-debit-group__sum--warn { color: var(--warning-text); }
+
 .shipment-debit-group__tail { border-left: 0; }
 
 /* ── TOTALS (owner spec v2 (a)): sticky foot, bold tabular sums ─────────── */
@@ -747,6 +751,11 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* SIL-801 — the TỔNG CỘNG receivable total wears the amber while non-zero.
+ * Must stay AFTER .shipment-debit-totals__sum for the same cascade reason as
+ * the group rule above (same specificity, later wins). */
+.shipment-debit-totals__sum--warn { color: var(--warning-text); }
 
 .shipment-debit-totals__tail { border-left: 0; }
 

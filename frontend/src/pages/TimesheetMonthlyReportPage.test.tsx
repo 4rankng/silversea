@@ -198,3 +198,16 @@ describe('Tổng hợp xếp lệnh tháng (FB-104 + SIL-781)', () => {
     expect(rowA.querySelector('[data-label="Ngày 1"]')?.className).not.toContain('ts-report__cell--quit');
   });
 });
+
+// SIL-802 review (Major 1) — legend của CHÍNH trang báo cáo đứng NGOÀI bảng
+// .ts-report, nên class ts-report__sym--q trên span không bao giờ khớp rule
+// (descendant-scoped): chữ Q của legend rơi mực mặc định, đúng lớp lỗi (b)
+// của ticket. Chữ Q phải mang class ts-legend-sym--q (rule trong
+// TimesheetGridPage.css, được @import ở đây).
+describe('SIL-802 — legend Q của báo cáo đội xe đọc xanh dương', () => {
+  it('chữ Q của legend mang class xanh trên chữ, không chỉ trên span', async () => {
+    page();
+    const legendQ = await screen.findByText('Q', { selector: 'b.ts-legend-sym--q' });
+    expect(legendQ.textContent).toBe('Q');
+  });
+});

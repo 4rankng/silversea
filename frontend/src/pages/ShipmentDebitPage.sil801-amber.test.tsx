@@ -162,9 +162,29 @@ describe('SIL-801 — uncollected receivables wear the warning amber tone', () =
   });
 
   it('pins the amber ink on the --warning-text token in the stylesheet', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8')
+      // Comments carry the cascade-order rationale, not selectors.
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toMatch(/\.shipment-debit-money--warn\s*\{ color: var\(--warning-text\); \}/);
+    expect(css).toMatch(/\.shipment-debit-group__sum--warn\s*\{ color: var\(--warning-text\); \}/);
+    expect(css).toMatch(/\.shipment-debit-totals__sum--warn\s*\{ color: var\(--warning-text\); \}/);
+  });
+
+  // QA FAIL 1ae5afcb (comment 5048): the amber rule originally lived BEFORE
+  // the base .shipment-debit-group__sum / .shipment-debit-totals__sum rules —
+  // same specificity, so the later grey/black `color` won and the group total
+  // (Long Minh 326.435.500) and foot TỔNG CỘNG rendered without any amber tint
+  // while the row cells did. Each --warn rule must appear AFTER its base rule
+  // in the stylesheet, or the tone silently dies again.
+  it('keeps every group/foot amber rule AFTER its base rule in the cascade', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
-    expect(css).toMatch(
-      /\.shipment-debit-money--warn,\n\.shipment-debit-group__sum--warn,\n\.shipment-debit-totals__sum--warn \{ color: var\(--warning-text\); \}/,
-    );
+    // Non-vacuous: first assert each rule EXISTS (indexOf !== -1), then the
+    // order — a deleted base rule must fail this pin, not pass it.
+    expect(css.indexOf('.shipment-debit-group__sum {')).toBeGreaterThan(-1);
+    expect(css.indexOf('.shipment-debit-totals__sum {')).toBeGreaterThan(-1);
+    expect(css.indexOf('.shipment-debit-group__sum--warn')).toBeGreaterThan(-1);
+    expect(css.indexOf('.shipment-debit-totals__sum--warn')).toBeGreaterThan(-1);
+    expect(css.indexOf('.shipment-debit-group__sum {')).toBeLessThan(css.indexOf('.shipment-debit-group__sum--warn'));
+    expect(css.indexOf('.shipment-debit-totals__sum {')).toBeLessThan(css.indexOf('.shipment-debit-totals__sum--warn'));
   });
 });

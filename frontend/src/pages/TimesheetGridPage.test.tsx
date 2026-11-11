@@ -248,4 +248,28 @@ describe('SIL-802 — Q cell reads blue', () => {
     const qRule = gridCss.match(/\.ts-cell\[data-symbol='Q'\]\s*\{[^}]*\}/)?.[0] ?? '';
     expect(qRule).not.toContain('--info-text');
   });
+
+  // QA FAIL 1ae5afcb (5049): the LEGEND Q on /timesheet measured rgb(96,103,105)
+  // — the legend spans carried no symbol rule at all, so the letter fell back
+  // to default ink. The legend letter reads the same blue as the cells.
+  it('the legend Q letter carries the blue rule on both DOM and stylesheet', async () => {
+    page();
+    const legendQ = await screen.findByText('Q', { selector: 'b.ts-legend-sym--q' });
+    expect(legendQ.textContent).toBe('Q');
+    expect(gridCss).toMatch(
+      /\.ts-legend \.ts-legend-sym--q\s*\{[^}]*color:\s*var\(--chip-open-text\);/,
+    );
+  });
+
+  // QA FAIL 1ae5afcb (5049): the FLEET grid (/timesheet/bao-cao) painted Q with
+  // var(--info-text) — the teal the ticket rejected — via ts-report__sym--q in
+  // TimesheetMonthlyReportPage.css. That stylesheet is a separate surface from
+  // the one pinned above, so it gets its own never-regress pin.
+  it('the fleet report symbol rule uses the blue token, never the teal', () => {
+    const reportCss = readFileSync(resolve(process.cwd(), 'src/pages/TimesheetMonthlyReportPage.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const qRule = reportCss.match(/\.ts-report \.ts-report__sym--q\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(qRule).toContain('var(--chip-open-text)');
+    expect(qRule).not.toContain('--info-text');
+  });
 });

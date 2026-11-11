@@ -5,7 +5,10 @@
  * đúng họ màu emerald owner đã chốt và tương phản AA:
  *   K  → chữ đậm trên nền trắng            (ts-report__sym--k)
  *   Đ  → chữ thường trên nền trắng         (không class)
- *   Q  → chữ XANH   = var(--info-text)     (ts-report__sym--q)
+ *   Q  → chữ XANH DƯƠNG = var(--chip-open-text) #175CD3 — SIL-802 (QA pixel
+ *        đo trên build 1ae5afcb: --info-text là TEAL #25574F, đúng màu lỗi bị
+ *        từ chối; xanh của spec là token xanh dương nhà, cùng token ô Q trên
+ *        lưới /timesheet).
  *   L  → chữ CAM    = var(--warning-text)  (ts-report__sym--l)
  *   P  → nền trắng, chữ đen in hoa — SIL-774 (Bảng 4, khách chốt 09/11/2026)
  *   N  → NỀN ĐỎ chữ trắng = var(--danger) làm nền — SIL-774 (ts-report__cell--n)
@@ -48,7 +51,7 @@
 }
 
 .ts-report .ts-report__sym--q {
-  color: var(--info-text);
+  color: var(--chip-open-text);
   font-weight: var(--fw-semibold);
 }
 
