@@ -110,7 +110,7 @@ it('renders the dual-input fee editor: Thực chi Ops read-only + Thu khách hà
     items: [], otherFees: [{ id: 31, name: 'Phí kiểm thử giao diện', amount: 1000, thuKhach: 2000 }],
     carrierDetention: null, repairAdvance: null, opsDocsStatus: 'PENDING' as const,
   }];
-  const draft = { ...buildDraft(value), addedFees: [{ key: 'new-1', tripId: 601, name: '', amount: '' }] };
+  const draft = { ...buildDraft(value), addedFees: [{ key: 'new-1', tripId: 601, name: '', amount: '', sell: '450000' }] };
   render(<ChiHoTable detail={value} draft={draft} frozen={false} setFeeSell={vi.fn()} removeFee={vi.fn()} addFee={() => {}} setAddedFee={vi.fn()} />);
 
   // The dual block holds exactly two label-over-control fields.
@@ -137,6 +137,18 @@ it('renders the dual-input fee editor: Thực chi Ops read-only + Thu khách hà
   expect(draftFields.map((field) => field.querySelector('.csc-debit-otherfee__label')?.textContent)).toEqual(['Tên phí', 'Số tiền']);
   expect(draftFields[0]!.querySelector('input[aria-label^="Tên phí mới"]')).not.toBeNull();
   expect(draftFields[1]!.querySelector('input[aria-label^="Số tiền phí mới"]')).not.toBeNull();
+
+  // SIL-790 — the DRAFT row pairs the same dual-input as saved rows: Thực chi
+  // Ops reads '—' (nguồn chi phí kế toán fills it), Thu khách hàng is the
+  // seeded sell input riding the create.
+  const draftDual = draftFields[1]!.closest('.csc-debit-otherfee')!.querySelector('.csc-debit-otherfee__dual');
+  expect(draftDual).not.toBeNull();
+  const dualFields = [...draftDual!.querySelectorAll('label.csc-debit-otherfee__field')];
+  expect(dualFields.map((field) => field.querySelector('.csc-debit-otherfee__label')?.textContent)).toEqual(['Thực chi Ops', 'Thu khách hàng']);
+  expect(dualFields[0]!.querySelector('.csc-debit-otherfee__ro')?.textContent).toBe('—');
+  const sellInput = dualFields[1]!.querySelector('input[aria-label^="Thu khách hàng phí mới"]') as HTMLInputElement | null;
+  expect(sellInput).not.toBeNull();
+  expect(sellInput!.value).toBe('450000');
 });
 
 const originalMedia = window.matchMedia;
@@ -171,4 +183,19 @@ it('QA-AUDIT-UI-39 phone ledgers keep all amounts and mount editable controls on
   expect(screen.getByText('Manual fee')).toBeTruthy();
   expect(screen.getByText('Manual fee').closest('.ledger-record__fact')).toHaveAttribute('data-layout', 'full-width');
   expect(screen.getByText('4.650.000').closest('.ledger-record__fact')).not.toHaveAttribute('data-layout');
+});
+
+
+// SIL-790 — the seeded row's Thu khách hàng rides addOtherFees.sellAmount in
+// ONE save; a bare seed (no amount, no sell) never travels.
+it('SIL-790: seed sell rides addOtherFees.sellAmount; bare seed is a no-op', () => {
+  const value = detail();
+  value.chiHoRows = [{ tripId: 601, containerNumber: 'QATU1234569', containerTypeLabel: null,
+    items: [], otherFees: [], carrierDetention: null, repairAdvance: null, opsDocsStatus: 'PENDING' }];
+  const seeded = { ...buildDraft(value), addedFees: [{ key: 'seed', tripId: 601, name: 'Phí không hóa đơn', amount: '', sell: '450000' }] };
+  const delta = buildDelta(value, seeded);
+  expect(delta.addOtherFees).toEqual([{ tripId: 601, name: 'Phí không hóa đơn', amount: 0, sellAmount: 450000 }]);
+
+  const bare = { ...buildDraft(value), addedFees: [{ key: 'seed', tripId: 601, name: 'Phí không hóa đơn', amount: '', sell: '' }] };
+  expect(buildDelta(value, bare).addOtherFees).toEqual([]);
 });

@@ -119,7 +119,7 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeSell,
   setFeeSell: (feeId: number, value: string) => void;
   addFee: (tripId: number) => void;
   removeFee: (feeId: number) => void;
-  setAddedFee: (key: string, patch: Partial<{ name: string; amount: string }>) => void;
+  setAddedFee: (key: string, patch: Partial<{ name: string; amount: string; sell: string }>) => void;
 }) {
   const columns = dedicatedColumns(feeCatalog);
   const roItem = (item: ShipmentDebitDetail['chiHoRows'][number]['items'][number]) => (
@@ -206,6 +206,21 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeSell,
                             onChange={(event) => setAddedFee(fee.key, { amount: event.target.value })} />
                         </label>
                       </div>
+                      {/* SIL-790 — the draft row pairs the same [Thực chi Ops |
+                          Thu khách hàng] as saved rows: Ops amount is '—'
+                          (nguồn chi phí kế toán fills it later); CUS types the
+                          sell straight here and Lưu creates the fee with it. */}
+                      <div className="csc-debit-otherfee__dual">
+                        <label className="csc-debit-otherfee__field">
+                          <span className="csc-debit-otherfee__label">Thực chi Ops</span>
+                          <span className="csc-debit-otherfee__ro" aria-label={`Thực chi Ops phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}>—</span>
+                        </label>
+                        <label className="csc-debit-otherfee__field">
+                          <span className="csc-debit-otherfee__label">Thu khách hàng</span>
+                          <input className="csc-debit-input csc-debit-input--amount" aria-label={`Thu khách hàng phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.sell} disabled={frozen}
+                            onChange={(event) => setAddedFee(fee.key, { sell: event.target.value })} />
+                        </label>
+                      </div>
                     </div>
                   ))}</>
               )),
@@ -244,6 +259,17 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeSell,
                           <span className="csc-debit-otherfee__label">Số tiền</span>
                           <input className="csc-debit-input csc-debit-input--amount" aria-label={`Số tiền phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.amount} disabled={frozen}
                             onChange={(event) => setAddedFee(fee.key, { amount: event.target.value })} />
+                        </label>
+                      </div>
+                      <div className="csc-debit-otherfee__dual">
+                        <label className="csc-debit-otherfee__field">
+                          <span className="csc-debit-otherfee__label">Thực chi Ops</span>
+                          <span className="csc-debit-otherfee__ro" aria-label={`Thực chi Ops phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}>—</span>
+                        </label>
+                        <label className="csc-debit-otherfee__field">
+                          <span className="csc-debit-otherfee__label">Thu khách hàng</span>
+                          <input className="csc-debit-input csc-debit-input--amount" aria-label={`Thu khách hàng phí mới ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`} value={fee.sell} disabled={frozen}
+                            onChange={(event) => setAddedFee(fee.key, { sell: event.target.value })} />
                         </label>
                       </div>
                     </div>

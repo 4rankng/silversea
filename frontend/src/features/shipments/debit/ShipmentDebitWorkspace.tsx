@@ -43,6 +43,28 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
   useEffect(() => {
     if (detail.data) setDraft(buildDraft(detail.data));
   }, [detail.data]);
+  // SIL-790 (REV2 ticket-v2 VI.2) — a lot with NO Phí khác row anywhere used
+  // to render the Chốt-giá-bán drawer without the [Thực chi Ops | Thu khách
+  // hàng] pair at all (QA 10/11, C18): the pair is per-fee, and the lot had
+  // no fee to pair. Seed ONE draft row in that case so the pair is on screen
+  // the moment the drawer opens — CUS types Thu khách hàng directly; Lưu
+  // creates the fee with that sell in ONE call (create now carries
+  // sellAmount). A bare seed stays a no-op save (buildDelta skips it).
+  const seededForLot = useRef<number | null>(null);
+  useEffect(() => {
+    const data = detail.data;
+    if (!data || locked) return;
+    if (seededForLot.current === shipmentId) return;
+    const hasAnyFee = data.chiHoRows.some((row) => row.otherFees.length > 0);
+    if (hasAnyFee) { seededForLot.current = shipmentId; return; }
+    const tripId = data.chiHoRows[0]?.tripId;
+    if (tripId == null) return;
+    seededForLot.current = shipmentId;
+    setDraft((current) => current.addedFees.length > 0 ? current : {
+      ...current,
+      addedFees: [{ key: 'seed-sil790', tripId, name: 'Phí không hóa đơn', amount: '', sell: '' }],
+    });
+  }, [detail.data, locked, shipmentId]);
   const [justLocked, setJustLocked] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [adjustReason, setAdjustReason] = useState('');
@@ -60,12 +82,12 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
     setDraft((current) => ({ ...current, feeSells: { ...current.feeSells, [feeId]: value } }));
   };
   const addFee = (tripId: number) => {
-    setDraft((current) => ({ ...current, addedFees: [...current.addedFees, { key: `new-${crypto.randomUUID()}`, tripId, name: '', amount: '' }] }));
+    setDraft((current) => ({ ...current, addedFees: [...current.addedFees, { key: `new-${crypto.randomUUID()}`, tripId, name: '', amount: '', sell: '' }] }));
   };
   const removeFee = (feeId: number) => {
     setDraft((current) => ({ ...current, removedFeeIds: [...current.removedFeeIds, feeId], feeSells: Object.fromEntries(Object.entries(current.feeSells).filter(([id]) => Number(id) !== feeId)) }));
   };
-  const setAddedFee = (key: string, patch: Partial<{ name: string; amount: string }>) => {
+  const setAddedFee = (key: string, patch: Partial<{ name: string; amount: string; sell: string }>) => {
     setDraft((current) => ({ ...current, addedFees: current.addedFees.map((fee) => (fee.key === key ? { ...fee, ...patch } : fee)) }));
   };
 
@@ -197,6 +219,17 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
   return (
     <div className="csc-debit-workspace" data-locked={locked ? '' : undefined}>
       <FreightTable detail={detail.data} draft={draft} frozen={frozen} setFreight={setFreight} />
+      {/* SIL-790 — an intake lot (no container rows yet) can never carry a
+          per-fee pair: state it instead of rendering an empty frame (law §6 —
+          the empty state names what fills it). Lots WITH rows but no fees get
+          the seeded dual-input below; saved fees always pair directly. */}
+      {detail.data.chiHoRows.length === 0 && (
+        <div className="csc-debit-otherfee--empty" data-testid="debit-no-fee-block">
+          <strong>Phí Không HĐ</strong>
+          <span>Thực chi Ops: 0 ₫ (chỉ xem)</span>
+          <span>Thu khách hàng: chưa có phí không hóa đơn trên lô — khi Ops khai phí phát sinh, cặp ô Thực chi Ops / Thu khách hàng hiện tại đây.</span>
+        </div>
+      )}
       <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} feeCatalog={feeCatalog} setFeeSell={setFeeSell} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
       {/* REV2 (ticket-v2 Phần VI mục 2) — Bảng 2.3 payables is OUT of the
           Chốt-giá-bán drawer: the CUS surface carries no giá vốn; cost work

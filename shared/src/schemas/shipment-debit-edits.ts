@@ -18,6 +18,9 @@ export const shipmentDebitEditPayloadSchema = z.strictObject({
     tripId: z.number().int(),
     name: z.string().min(1),
     amount: z.number(),
+    // SIL-790 (REV2 VI.2) — the CUS can type Thu khách hàng straight onto a
+    // NEW Phí khác row: the seed pair's sell rides the create in one save.
+    sellAmount: z.number().min(0).optional(),
   })).optional(),
   removeExpenseIds: z.array(z.number().int()).optional(),
   /** Q10 (card 20260922_78): mandatory whenever removeExpenseIds is non-empty

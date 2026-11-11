@@ -485,7 +485,7 @@ function payablesFromSnapshot(snapshot: unknown): LotPayablesBreakdown {
 
 export interface DebitEditPayload {
   edits?: Array<{ expenseId: number; buyAmount?: number; sellAmount?: number; note?: string }>;
-  addOtherFees?: Array<{ tripId: number; name: string; amount: number }>;
+  addOtherFees?: Array<{ tripId: number; name: string; amount: number; /** SIL-790 — the seed row's Thu khách hàng rides the create. */ sellAmount?: number }>;
   removeExpenseIds?: number[];
   /** Q10 (card 20260922_78): mandatory whenever removeExpenseIds is non-empty. */
   removalReason?: string;
@@ -514,12 +514,15 @@ export function debitEditSchemaGuard(payload: Record<string, unknown>): DebitEdi
   const addOtherFees = Array.isArray(payload.addOtherFees) ? payload.addOtherFees : [];
   for (const fee of addOtherFees as Array<Record<string, unknown>>) {
     for (const key of Object.keys(fee)) {
-      if (!['tripId', 'name', 'amount'].includes(key)) {
+      if (!['tripId', 'name', 'amount', 'sellAmount'].includes(key)) {
         throw new ApiError(400, `Trường "${key}" trong addOtherFees không hợp lệ.`);
       }
     }
     if (typeof fee.tripId !== 'number' || typeof fee.name !== 'string' || !fee.name.trim()) {
       throw new ApiError(400, 'addOtherFees cần tripId và tên phí có nội dung.');
+    }
+    if (fee.sellAmount !== undefined && (typeof fee.sellAmount !== 'number' || fee.sellAmount < 0)) {
+      throw new ApiError(400, 'addOtherFees.sellAmount phải là số không âm.');
     }
   }
   const removeExpenseIds = Array.isArray(payload.removeExpenseIds) ? payload.removeExpenseIds : [];
@@ -599,7 +602,8 @@ export async function saveDebitEdits(input: {
           expenseType: 'OTHER',
           feeName: fee.name.trim(),
           buyAmount: String(fee.amount),
-          sellAmount: '0',
+          // SIL-790 — the seed row's Thu khách hàng rides the create (0 default).
+          sellAmount: typeof fee.sellAmount === 'number' ? String(fee.sellAmount) : '0',
         });
       }
       for (const freightEdit of payload.freightEdits ?? []) {
