@@ -437,6 +437,12 @@ export default function ShipmentsPage() {
   // container-line writer opened to Điều vận (SIL-551); this workboard's
   // per-cont editor deliberately keeps riding the lot-level gate.
   const drawerDetail = drawerId != null ? ws.details[drawerId] : undefined;
+  // SIL-789 — when an accounting lock holds (finance-confirmation lock OR the
+  // Chốt-giá-bán cost lock), the static tờ khai cell captions the wire's own
+  // reason instead of silently dying beside an editor that went missing.
+  const drawerDeclarationLockReason = drawerItem?.activeLock != null || drawerDetail?.summary.costLocked === true
+    ? drawerDetail?.summary.fieldAccess.declarationNumber.reason ?? 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.'
+    : null;
   const drawerDeclarationEditable = Boolean(
     canEditLot
     && !lotEditLocked
@@ -923,6 +929,7 @@ export default function ShipmentsPage() {
                 error={ws.detailErrors[drawerItem.id]}
                 onRetry={() => void loadDetail(drawerItem.id, true)}
                 canEditDeclaration={drawerDeclarationEditable}
+                declarationLockReason={drawerDeclarationLockReason}
                 declarationActions={drawerDeclarationActions}
                 canEditCargoLines={drawerCargoEditable}
                 containerLineActions={drawerContainerLineActions}

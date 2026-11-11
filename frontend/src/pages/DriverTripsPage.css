@@ -292,6 +292,27 @@
   color: var(--ink-3);
 }
 
+/* SIL-797 (KB Ch4 §4.2.2) — the nhiệm vụ line: ĐÓNG/TRẢ owns a line between
+   the container strip and the ports (it rode the strip as a 3rd column and
+   read as container data). The pill keeps the house chip shape, uppercase
+   data-voice like every code on this card. */
+.driver-journey-card__task {
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.driver-journey-card__task-pill {
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  color: var(--ink-2);
+  text-transform: uppercase;
+}
+
 /* Ports row — lift and drop port side-by-side below the container strip. */
 .driver-journey-card__ports {
   display: grid;

@@ -1,0 +1,18 @@
+PASS SIL-786 row click opens the CUS drawer — {"clicked":"clicked","drawer":{"open":true,"khaiChiPhi":true}}
+PASS SIL-786 drawer carries [Khai chi phí] for CUS
+PASS SIL-788 band1 = Khách hàng · Hình thức XNK same row — {"customer":{"top":213,"left":270},"trade":{"top":213,"left":842},"booking":{"top":275,"left":270},"shipping":{"top":275,"left":842}}
+PASS SIL-788 band2 = Số Bill/Booking · Hãng tàu same row
+PASS SIL-788 band2 below band1
+locked lot probe: HTTP 200 → id=225 bill=R42B-BKS02
+PASS SIL-789 wire: locked lot publishes costLocked=true — summary.costLocked=true
+PASS SIL-789 wire: declarationNumber READ_ONLY with KB reason — {"mode":"READ_ONLY","reason":"Lô hàng đã khóa kế toán; không thể sửa tờ khai."}
+PASS SIL-789 source: locked lot refuses declaration save (409 + KB copy) — HTTP 409 {"error":"Lô hàng đã khóa kế toán; không thể sửa tờ khai."}
+PASS SIL-789 UI: locked drawer declaration cell static with the KB reason line — {"hasInput":false,"reason":"Lô hàng đã khóa kế toán; không thể sửa tờ khai."}
+PASS SIL-790 drawer probe ran — {"drawerOpen":true,"thucChiOps":false,"thuKhachHang":false,"intakeStrip":true,"seedName":null}
+PASS SIL-790 dual-input pair present (fee rows or the named intake strip) — {"drawerOpen":true,"thucChiOps":false,"thuKhachHang":false,"intakeStrip":true,"seedName":null}
+PASS SIL-797 task pill on its own line, outside the container strip — {"text":"TRẢ","lineClass":"driver-journey-card__task","insideContainerStrip":false}
+PASS SIL-799 earnings tab names the period state — {"text":"Tạm tính — kỳ đang mở","state":"LIVE"}
+Q seed on month 6: HTTP 200
+PASS SIL-802 Q cell paints BLUE (#175CD3), not teal — {"color":"rgb(23, 92, 211)"}
+
+ALL GREEN

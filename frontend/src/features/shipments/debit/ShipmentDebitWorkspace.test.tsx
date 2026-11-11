@@ -80,6 +80,54 @@ function renderWorkspace(props: Partial<{ shipmentId: number; customerId: number
   return { onSaved };
 }
 
+// SIL-790 (REV2 ticket-v2 VI.2, QA 10/11 C18): a lot with NO Phí khác row
+// rendered the Chốt-giá-bán drawer without the [Thực chi Ops | Thu khách
+// hàng] pair anywhere — the pair is per-fee and the lot had no fee. The
+// drawer now seeds ONE draft row so the pair is on screen at open; CUS types
+// Thu khách hàng and Lưu creates the fee with that sell in one call.
+describe('SIL-790 — fee-less lot seeds the dual-input row', () => {
+  it('seeds one draft fee with the pair when the lot has no Phí khác', async () => {
+    const feeless = detail();
+    feeless.chiHoRows = [{ tripId: 601, containerNumber: 'CONT-001', containerTypeLabel: '20DC', items: [], otherFees: [], carrierDetention: 0, repairAdvance: null, opsDocsStatus: 'READY' as const }];
+    getDetail.mockResolvedValue(feeless);
+    renderWorkspace();
+
+    const nameInput = await screen.findByLabelText('Tên phí mới CONT-001');
+    expect((nameInput as HTMLInputElement).value).toBe('Phí không hóa đơn');
+    expect(screen.getByLabelText('Thực chi Ops phí mới CONT-001')).toHaveTextContent('—');
+    expect((screen.getByLabelText('Thu khách hàng phí mới CONT-001') as HTMLInputElement).value).toBe('');
+
+    // Typing the sell arms the save with addOtherFees.sellAmount — one call
+    // creates the fee AND its thu khách figure.
+    fireEvent.change(screen.getByLabelText('Thu khách hàng phí mới CONT-001'), { target: { value: '450000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));
+    await waitFor(() => expect(saveEdits).toHaveBeenCalledTimes(1));
+    const body = saveEdits.mock.calls[0][1];
+    expect(() => shipmentDebitEditPayloadSchema.parse(body)).not.toThrow();
+    expect(body.addOtherFees).toEqual([{ tripId: 601, name: 'Phí không hóa đơn', amount: 0, sellAmount: 450000 }]);
+  });
+
+  it('renders the intake empty-state block (no container rows = no per-fee pair)', async () => {
+    const intake = detail();
+    intake.chiHoRows = [];
+    intake.freightRows = [];
+    getDetail.mockResolvedValue(intake);
+    renderWorkspace();
+
+    const block = await screen.findByTestId('debit-no-fee-block');
+    expect(block.textContent).toContain('Thực chi Ops');
+    expect(block.textContent).toContain('Thu khách hàng');
+    expect(screen.queryByLabelText('Tên phí mới CONT-001')).toBeNull();
+  });
+
+  it('does not double-seed when the lot already carries Phí khác rows', async () => {
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace();
+    await screen.findByLabelText('Thu khách hàng phí khác Phí đăng kiểm CONT-001');
+    expect(screen.queryByLabelText('Tên phí mới CONT-001')).toBeNull();
+  });
+});
+
 beforeEach(() => {
   getDetail.mockReset();
   saveEdits.mockReset();

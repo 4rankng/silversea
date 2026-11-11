@@ -373,6 +373,12 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   documentCustody: shipmentCusWorkspaceDocumentCustodySchema,
   accountingConfirmation: shipmentCusWorkspaceAccountingConfirmationSchema,
   activeLock: shipmentCusWorkspaceActiveLockSchema.nullable(),
+  // SIL-789 (KB Ch3 §3.4.3 + Ch2 §2.6.2): the Chốt-giá-bán accounting lock
+  // (shipment_cost_locks, Chốt giá bán drawer's [Khóa Lô]) also freezes
+  // tờ khai. Surfaced so both workspace surfaces (CUS drawer cell + dispatch
+  // container-detail editor) can disable the tờ khai affordance with the
+  // lock reason instead of promising an edit the command would refuse.
+  costLocked: z.boolean().default(false),
   action: shipmentCusWorkspaceActionSchema,
 }).strict();
 

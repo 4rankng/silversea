@@ -416,3 +416,13 @@
   .dispatch-container-detail__head { align-items: flex-start; flex-direction: column; gap: 4px; }
   .dispatch-container-detail__head p { text-align: left; }
 }
+
+/* SIL-789 — the cost-lock reason under the Số tờ khai column: the editor is
+   disabled server-side; the caption names the lock so a dead affordance never
+   reads as a bug (guideline "empty/blocked states name their reason"). */
+.dispatch-container-detail__lock-note {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}

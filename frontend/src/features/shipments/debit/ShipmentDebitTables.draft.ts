@@ -10,7 +10,7 @@ export interface DraftState {
   freight: Record<string, { psActual: string; note: string }>;
   /** REV2 dual-input — the Thu Khách Hàng cell of each Phí khác row. */
   feeSells: Record<number, string>;
-  addedFees: Array<{ key: string; tripId: number; name: string; amount: string }>;
+  addedFees: Array<{ key: string; tripId: number; name: string; amount: string; sell: string }>;
   removedFeeIds: number[];
 }
 
@@ -69,7 +69,12 @@ export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): Ship
   }
   return {
     edits,
-    addOtherFees: draft.addedFees.filter((fee) => fee.name.trim() !== '').map((fee) => ({ tripId: fee.tripId, name: fee.name.trim(), amount: num(fee.amount) })),
+    // SIL-790 — a seeded row carries the Thu khách hàng sell; it only
+    // travels when the operator actually typed money into it (a bare seed
+    // stays a no-op save, never a phantom 0-amount fee).
+    addOtherFees: draft.addedFees
+      .filter((fee) => fee.name.trim() !== '' && (num(fee.amount) !== 0 || num(fee.sell) !== 0))
+      .map((fee) => ({ tripId: fee.tripId, name: fee.name.trim(), amount: num(fee.amount), ...(num(fee.sell) !== 0 ? { sellAmount: num(fee.sell) } : {}) })),
     removeExpenseIds: draft.removedFeeIds.filter(id => !readOnlyIds.has(id)),
     freightEdits,
   };

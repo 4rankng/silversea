@@ -154,3 +154,11 @@
   color: var(--ink);
   text-transform: uppercase;
 }
+
+/* SIL-802 (KB Rev2 Epic 4, SIL-781 AC): Q (Quay đầu) hiển thị CHỮ XANH —
+ * the customer's paper-grid convention. Same house blue as the chip-open
+ * text token (5.2:1 on white, ≥4.5 law §2); raw hex stays in tokens.css,
+ * consumers reference var() only (design-drift ratchet). */
+:is(#root, body) .ts-grid .ts-cell[data-symbol='Q'] {
+  color: var(--chip-open-text);
+}

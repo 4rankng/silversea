@@ -3,7 +3,7 @@
 // Thin-cast fixture precedent: cusQuickEditModel.test.ts.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import type { ShipmentCusWorkspaceListItem } from '@tingting/shared';
@@ -564,5 +564,68 @@ describe('CusShipmentRow — SIL-610 (lô lẻ cũ có giờ từ dữ liệu ch
     expect(css).toMatch(/\.cus-dashboard-table \.cus-row-actions\s*\{[\s\S]*?flex-direction:\s*column;/);
     expect(css).toMatch(/\.cus-dashboard-table \.cus-row-actions__buttons\s*\{[\s\S]*?justify-content:\s*flex-end;/);
     expect(css).toMatch(/\.cus-dashboard-table \.cus-row-actions__buttons\s*\{[\s\S]*?margin-top:\s*auto;/);
+  });
+});
+
+// SIL-786 (owner ticket 10/11, KB Ch10 §10.1.1): the ROW answers its click
+// with the lot DRAWER — QA 10/11 (build dc930964) filed "bấm vào dòng lô → hộp
+// thoại sửa ô" because only the labelled cell editors and the Chi tiết opener
+// answered; bare row surface was dead. The row click now routes to
+// onOpenDetail, while every labelled cell editor stops the propagation so it
+// never double-fires the drawer beneath itself.
+describe('SIL-786 — row click opens the lot drawer, cell editors keep their click', () => {
+  function renderRowWithSpies(item: ShipmentCusWorkspaceListItem) {
+    const onOpenDetail = vi.fn();
+    const onStartQuickEdit = vi.fn();
+    const view = render(
+      <MemoryRouter>
+        <table>
+          <tbody>
+            <CusShipmentRow
+              item={item}
+              dateFrom=""
+              dateTo=""
+              editing={false}
+              quickEditOpen={false}
+              savingQuickEdit={false}
+              onStartQuickEdit={onStartQuickEdit}
+              onOpenDetail={onOpenDetail}
+            />
+          </tbody>
+        </table>
+      </MemoryRouter>,
+    );
+    return { container: view.container, onOpenDetail, onStartQuickEdit };
+  }
+
+  it('clicking the bare row surface calls onOpenDetail once', async () => {
+    const { container, onOpenDetail } = renderRowWithSpies(makeItem({ cargoMode: 'FCL' }));
+    const row = container.querySelector('.cus-dashboard-row')!;
+    fireEvent.click(row);
+    expect(onOpenDetail).toHaveBeenCalledTimes(1);
+    expect(onOpenDetail).toHaveBeenCalledWith(7);
+  });
+
+  it('a labelled cell editor does NOT double-fire the drawer beneath it', async () => {
+    // notes cell is EDITABLE on this fixture → its trigger opens the quick
+    // editor; the guard must keep the row-level route out of the same click.
+    const { onOpenDetail, onStartQuickEdit } = renderRowWithSpies(makeItem({ cargoMode: 'LCL' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng LONG MINH' }));
+    expect(onStartQuickEdit).toHaveBeenCalledTimes(1);
+    expect(onOpenDetail).not.toHaveBeenCalled();
+  });
+
+  it('a read-only cell answers with the drawer exactly once (guard prevents the row double-fire)', async () => {
+    const item = makeItem({ cargoMode: 'FCL' });
+    const readOnly = { mode: 'READ_ONLY' as const, reason: 'reason:READ_ONLY' };
+    item.fieldAccess = { ...item.fieldAccess, customerNotes: readOnly, operationalNotes: readOnly };
+    const { onOpenDetail } = renderRowWithSpies(item);
+    // Read-only cells (schedule, notes, …) → each trigger IS a drawer opener;
+    // the guard must keep the bubbling row handler from firing the drawer a
+    // second time per click — N clicks, exactly N opens.
+    const openers = screen.getAllByRole('button', { name: 'Mở chi tiết lô hàng LONG MINH' });
+    expect(openers.length).toBeGreaterThanOrEqual(2);
+    for (const opener of openers) fireEvent.click(opener);
+    expect(onOpenDetail).toHaveBeenCalledTimes(openers.length);
   });
 });

@@ -139,9 +139,10 @@
 
 .earnings-equation-card__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 4px 12px;
   margin-bottom: 12px;
   color: var(--ink-3);
   font-size: var(--text-body-size);
@@ -151,6 +152,17 @@
   color: var(--ink-2);
   font-family: var(--font-data);
 
+}
+
+/* SIL-799 (KB Ch4 §4.2.9) — the period's money state rides the summary head:
+   tạm tính / đã chốt / chưa có bản lương chốt are separate facts from the
+   đã-trả line below. Neutral muted ink — a chốt is NOT a payment, so never
+   the success green (color law §2). */
+.earnings-equation-card__state {
+  order: 3;
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--ink-3);
 }
 
 .earnings-equation {

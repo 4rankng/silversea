@@ -165,6 +165,23 @@ export default function DriverEarningsPage() {
       <div className="earnings-equation-card fade-up-2" aria-label="Tóm tắt thu nhập">
         <div className="earnings-equation-card__head">
           <span>Tóm tắt kỳ này</span>
+          {/* SIL-799 (KB Ch4 §4.2.9): the tab must NAME the period's money
+              state — tạm tính / đã chốt / đã trả live as separate facts and a
+              chốt is never read as a payment. LIVE/UNAVAILABLE read as
+              estimates; CONFIRMED is an accounting state only — neutral ink,
+              never the success green (color law §2). The đã-trả fact stays on
+              the "Đã tạm ứng/đã thanh toán" line below. */}
+          <span
+            className="earnings-equation-card__state"
+            data-testid="period-state"
+            data-state={earnings.salarySnapshotState ?? 'LIVE'}
+          >
+            {earnings.salarySnapshotState === 'CONFIRMED'
+              ? 'Đã chốt kế toán — chưa đồng nghĩa đã thanh toán'
+              : earnings.salarySnapshotState === 'UNAVAILABLE'
+                ? 'Chưa có bản lương chốt — số liệu tham khảo'
+                : 'Tạm tính — kỳ đang mở'}
+          </span>
           <strong>{month.toString().padStart(2, '0')}/{year}</strong>
         </div>
         <div className="earnings-equation">

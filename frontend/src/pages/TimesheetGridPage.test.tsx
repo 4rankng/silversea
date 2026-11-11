@@ -2,6 +2,8 @@
 // xem được cho ACCOUNTANT nhưng ô read-only và KHÔNG có nút "Lưu lưới" (backend
 // chặn ghi lưới ngoài dispatcherOrAbove); Điều vận vẫn nhập bình thường.
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -223,5 +225,27 @@ describe('SIL-737 — marker nguồn ô lưới', () => {
     // Điều vận gõ tay vào ô tự ghi → ô đó thuộc của người, không còn là ô tự ghi.
     fireEvent.keyDown(cells[0], { key: 'q' });
     await waitFor(() => expect(screen.getAllByRole('textbox')[0]).toHaveAttribute('data-source', 'MANUAL'));
+  });
+});
+
+// SIL-802 (KB Rev2 Epic 4 / SIL-781 AC): Q (Quay đầu) renders BLUE text — the
+// customer's paper-grid convention. The teal `--info-text` (#25574F) QA measured
+// on staging was the 2026-11-10 defect; this pin holds the blue at the source.
+describe('SIL-802 — Q cell reads blue', () => {
+  const gridCss = readFileSync(resolve(process.cwd(), 'src/pages/TimesheetGridPage.css'), 'utf8');
+  const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+
+  it('paints [data-symbol=Q] text with the house blue token', () => {
+    expect(gridCss).toMatch(
+      /:is\(#root, body\) \.ts-grid \.ts-cell\[data-symbol='Q'\]\s*\{[^}]*color:\s*var\(--chip-open-text\);/,
+    );
+    // The token the rule references exists at the token layer (drift ratchet:
+    // raw hex lives in tokens.css, consumers reference var() only).
+    expect(tokens).toMatch(/--chip-open-text:\s*#175CD3;/);
+  });
+
+  it('never paints Q with the teal info-text the ticket rejected', () => {
+    const qRule = gridCss.match(/\.ts-cell\[data-symbol='Q'\]\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(qRule).not.toContain('--info-text');
   });
 });

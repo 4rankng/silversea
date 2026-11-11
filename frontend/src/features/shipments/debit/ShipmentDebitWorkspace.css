@@ -426,3 +426,15 @@
 .csc-debit-lock-history { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-1); }
 .csc-debit-lock-history__title { margin: 0 0 6px; font-weight: 600; color: var(--ink-2); font-size: var(--text-caption-size); }
 .csc-debit-lock-history__note { margin: 0 0 6px; font-size: var(--text-caption-size); color: var(--fg-3); }
+
+/* SIL-790 — intake lots (no container rows) render this state instead of a
+   silent fee hole: the pair is per-fee, so the strip names what fills it. */
+.csc-debit-otherfee--empty {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px dashed var(--line);
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+.csc-debit-otherfee--empty strong { color: var(--ink-2); font-size: var(--text-body-size); }
