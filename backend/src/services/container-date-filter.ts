@@ -10,12 +10,12 @@
  * the row filters and the "Lịch cont sớm nhất" label use, so scoped counts can
  * never contradict the rows they summarize. A container that resolves to no
  * day at all (no appointment, no fallback) has no day the range names and
- * DROPS under an active range: SIL-588 (id 688, khách 29/10) supersedes card
- * 231026000252's "undated = luôn hiện" lane everywhere the lot date filter
- * reaches — the row law `shipmentTransportDateCondition` already drops undated
- * lots (mirroring SIL-506's Chi tiết day triage) — so the scoped counts agree
- * row-for-row with the rows they summarize. When no range is active the full
- * set passes through unchanged, undated rows included.
+ * DROPS under an active range — the CONTAINER-level law (SIL-506, owner
+ * ruling 2026-10-26; the two-level date law of SIL-791 keeps the lot row
+ * itself visible via `undatedShipmentLaneSql` on /shipments, but its undated
+ * containers still vanish from these counts and the Chi tiết board). When no
+ * range is active the full set passes through unchanged, undated rows
+ * included.
  */
 
 import { localDateInBusinessZone } from '@tingting/shared';

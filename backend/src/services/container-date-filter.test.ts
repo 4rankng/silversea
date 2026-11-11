@@ -18,11 +18,13 @@ describe('filterContainersByDateRange', () => {
     makeContainer('2026-08-22T01:00:00.000Z'), // → 2026-08-22 local
     makeContainer(null),                         // no appointment
   ];
-  // Range-active counts below EXCLUDE the last (undated) row: SIL-588 (id 688,
-  // khách 29/10) supersedes card 231026000252's "undated = luôn hiện" lane —
-  // an undated row has no day the range names, so the scoped counts drop it
-  // exactly like the row law `shipmentTransportDateCondition` drops its lot,
-  // and it returns the moment the range is cleared.
+  // Range-active counts below EXCLUDE the last (undated) row — the
+  // CONTAINER-level law (SIL-506, owner ruling 26/10; ticket SIL-506):
+  // an undated container has no day the range names, so the scoped counts
+  // drop it exactly like the Chi tiết container triage does, and it returns
+  // the moment the range is cleared. The lot ROW itself stays visible under
+  // a range since SIL-791 (undatedShipmentLaneSql on /shipments) — the
+  // two-level date law: lots never vanish, undated containers do.
 
   it('returns all containers when no date range is active', () => {
     const result = filterContainersByDateRange(containers, undefined, undefined);
@@ -58,9 +60,9 @@ describe('filterContainersByDateRange', () => {
   });
 
   it('SIL-588 pin: drops containers with no appointment and no fallback when a range is active', () => {
-    // Such a row has no day the range could match — the same law the row
-    // filter `shipmentTransportDateCondition` applies to its lot (previously
-    // kept by card 231026000252's "undated = luôn hiện" lane).
+    // Such a row has no day the range could match — the CONTAINER-level
+    // triage law (SIL-506): undated containers drop while a range is held
+    // even though the undated LOT row itself stays visible (SIL-791).
     const onlyNull = [makeContainer(null)];
     const result = filterContainersByDateRange(onlyNull, '2026-08-20', '2026-08-20');
     assert.equal(result.length, 0);

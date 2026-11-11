@@ -23,7 +23,7 @@ import {
 } from './shipment-accounting-lock.service';
 
 
-import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, workboardRowDaySql, containerDayTriageCondition, shipmentTransportDateCondition, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
+import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, workboardRowDaySql, containerDayTriageCondition, shipmentTransportDateCondition, undatedShipmentLaneSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
 import { billOrBookNumberFor, deriveLegacyScheduleInstant, trimOrNull } from './cus-workspace-mapping.service';
 
 export * from './cus-workspace-sql.service';
@@ -840,14 +840,22 @@ async function buildShipmentPageConditions(
     // its containers' coalesce(appointment VN date, EDD) days; the lot's own
     // expectedDeliveryDate counts only for a container-less lot. The previous
     // unconditional EDD arm surfaced reappointed lots under their OLD day and
-    // contradicted the Chi tiết day triage. SIL-588 (khách 29/10): an active
-    // range now narrows to DATED IN-RANGE rows only — undated lots drop while
-    // the range is held and return when it is cleared. See
-    // shipmentTransportDateCondition (single-sourced with the dispatch
-    // master-plan delivery-date filter).
+    // contradicted the Chi tiết day triage — SIL-588 (khách 29/10) gated that
+    // fallback behind "the lot owns no container".
+    //
+    // SIL-791 (id 917, QA 10/11, KB Ch3 §3.1.5 — supersedes SIL-588 at the
+    // LOT level only): a lot with NO day evidence at all (EDD null and no
+    // container appointment anywhere) must stay VISIBLE while a range is
+    // held — hiding it loses intake-skeleton rows from the operator's board.
+    // Dated containers keep the row law (in-range shows, out-range drops),
+    // and the Chi tiết container triage (SIL-506) still drops undated
+    // containers at row level. See undatedShipmentLaneSql +
+    // shipmentTransportDateCondition (the latter stays single-sourced with
+    // the dispatch master-plan delivery-date filter, which keeps the
+    // SIL-588 law until its own ticket).
     const dateFrom = query.transportDateFrom ?? '0001-01-01';
     const dateTo = query.transportDateTo ?? '9999-12-31';
-    conditions.push(shipmentTransportDateCondition(dateFrom, dateTo));
+    conditions.push(or(shipmentTransportDateCondition(dateFrom, dateTo), undatedShipmentLaneSql())!);
   }
   if (query.customerId) {
     conditions.push(eq(s.shipments.customerId, query.customerId));

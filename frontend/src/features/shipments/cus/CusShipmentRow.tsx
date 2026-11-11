@@ -257,13 +257,13 @@ export function CusShipmentRow({
       {!isHidden('documents') && (<td data-label="Chứng từ" className="cus-dashboard-cell--editable">
         <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={quickEditOpen || savingQuickEdit} title={documentsAction.title} onClick={documentsAction.onClick} aria-haspopup="dialog" aria-controls={documentsAction.controls} aria-label={documentsAction.label}><span className="cus-multiline-cell cus-multiline-cell--mono">
           <strong className={item.billOrBookNumber ? undefined : 'cus-empty'}>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
-          {/* SIL-532: TẤT CẢ số tờ khai của lô — mỗi số MỘT DÒNG riêng (grid
-              row của .cus-multiline-cell), không phải một đoạn join(', ') chạy
-              dài có thể bị ngắt giữa số khi cột hẹp. Không truncate: số dài
-              hơn cột vẫn wrap nguyên vẹn (overflow-wrap), chỉ không bao giờ
-              gãy giữa hai số. */}
+          {/* SIL-787 (KB Ch3 §3.4.4; thay law SIL-532 — QA 10/11): TẤT CẢ số
+              tờ khai của lô nối bằng ', ' — MỘT chuỗi, cùng nội dung với cột
+              CHỨNG TỪ trong sheet XLSX (cusExport card 262 AC3). Không
+              truncate: chuỗi wrap nguyên vẹn theo overflow-wrap khi cột hẹp,
+              không bao giờ bị cắt. */}
           {declarationNumbers.length > 0
-            ? declarationNumbers.map((number) => <span key={number}>{number}</span>)
+            ? <span>{declarationNumbers.join(', ')}</span>
             : <span className="cus-empty">Chưa có tờ khai</span>}
         </span></button>
       </td>)}

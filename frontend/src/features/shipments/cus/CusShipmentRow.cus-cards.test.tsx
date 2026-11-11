@@ -379,19 +379,15 @@ describe('CusShipmentRow — Chứng từ cell (SIL-502 regression)', () => {
   const documentsCell = (container: HTMLElement): HTMLElement =>
     container.querySelector('td[data-label="Chứng từ"]')!;
 
-  it('renders every declaration number as its own line (SIL-532)', () => {
+  it('joins every declaration number with ", " in one run (SIL-787, thay law SIL-532)', () => {
     const { container } = renderRow(makeItem({
       declarationNumber: '502UI-1',
       declarationNumbers: ['502UI-1', '502UI-2', '502UI-3'],
     }));
-    // Each number is a separate element (its own grid row) — never one
-    // joined run that a narrow column could break mid-number.
-    expect(screen.getByText('502UI-1')).toBeTruthy();
-    expect(screen.getByText('502UI-2')).toBeTruthy();
-    expect(screen.getByText('502UI-3')).toBeTruthy();
     const cell = documentsCell(container);
-    const numberLines = [...cell.querySelectorAll('span')].filter((el) => /^502UI-\d$/.test(el.textContent ?? ''));
-    expect(numberLines).toHaveLength(3);
+    // One joined run exactly like the XLSX CHỨNG TỪ column (cusExport
+    // card 262 AC3) — KB Ch3 §3.4.4. No truncate: the run wraps whole.
+    expect(screen.getByText('502UI-1, 502UI-2, 502UI-3')).toBeTruthy();
     expect(cell.textContent).not.toContain('Chưa có tờ khai');
   });
 
