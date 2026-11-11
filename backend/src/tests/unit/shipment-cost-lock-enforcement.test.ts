@@ -122,3 +122,23 @@ test('SIL-679 r2: accounting-origin money edits gate on the cost lock (QA commen
   const del = slice(opsExpenses, 'export async function deleteOpsExpense', '/**\n * The same uploaded object');
   assert.match(del, /await assertShipmentCostUnlocked\(executor, source\.shipmentId\);/);
 });
+
+test('SIL-803: expense CREATE gates the cost lock on both lanes (phoi-phieu write path)', () => {
+  const create = read('../../services/expense-accounting-create.service.ts');
+  // Lot lane — the phoi-phieu "+ Chi phí" drawer POSTs here: the single
+  // /entries and the /entries/batch routes both funnel through
+  // createAccountingExpense, so this seam closes the write the ticket
+  // repro'd (lot 812 accepted entries while costLockedAt stood). The gate
+  // sits right beside the accounting assert, ops-expenses create lane.
+  const lot = slice(create, 'async function createShipmentLevelAccountingExpense', '/**\n * The trip-scoped tail');
+  assert.match(lot, /await assertShipmentAccountingUnlocked\(tx, input\.shipmentId\);\s*\/\/ SIL-803 \(id 929\)[\s\S]*?await assertShipmentCostUnlocked\(tx, input\.shipmentId\);/);
+  // Trip lane — a trip-scoped create on a locked lot refuses with the same
+  // law (the mirror of its accounting assert).
+  const trip = slice(create, 'await lockTripFinancialAuthority', 'const [trip] = await tx.select');
+  assert.match(trip, /await assertTripShipmentAccountingUnlocked\(tx, input\.tripId\);\s*\/\/ SIL-803 \(id 929\)[\s\S]*?await assertTripShipmentCostUnlocked\(tx, input\.tripId\);/);
+  // The batch route needs no separate gate — one seam, every lane covered.
+  const routes = read('../../routes/expense-accounting.ts');
+  const batch = slice(routes, "'/entries/batch'", 'router.post');
+  assert.match(batch, /createAccountingExpense\(tx, getUser\(req\), item\)/);
+  assert.doesNotMatch(batch, /assertShipmentCostUnlocked/);
+});

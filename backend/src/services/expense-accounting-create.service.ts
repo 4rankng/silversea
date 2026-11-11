@@ -4,6 +4,7 @@ import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { ApiError } from '../errors';
 import { assertShipmentAccountingUnlocked, assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertShipmentCostUnlocked, assertTripShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { assertActiveExpensePayer, ensureTripExpenseAccountingSource, resolveTripShipmentId, upsertExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 import { requireExpenseFinance, syncExpenseBillingSource, type ExpenseActor } from './expense-accounting-write.service';
@@ -25,6 +26,10 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
   if (input.tripId == null) return createShipmentLevelAccountingExpense(tx, actor, input);
   await lockTripFinancialAuthority(tx, [input.tripId]);
   await assertTripShipmentAccountingUnlocked(tx, input.tripId);
+  // SIL-803 (id 929) — the cost lock rides every lot money write; the trip
+  // lane is no exception (the mirror of the accounting assert above, same
+  // lane ops-expenses create already carries).
+  await assertTripShipmentCostUnlocked(tx, input.tripId);
   const [trip] = await tx.select().from(s.trips).where(eq(s.trips.id, input.tripId)).for('update');
   const shipmentId = trip && !trip.deletedAt && trip.status !== 'CANCELED' ? await resolveTripShipmentId(tx, trip) : null;
   // Wave-model trips link the lot through fulfillmentId only; resolve before
@@ -105,6 +110,12 @@ async function createShipmentLevelAccountingExpense(tx: Tx, actor: ExpenseActor,
   const [shipment] = await tx.select().from(s.shipments).where(eq(s.shipments.id, input.shipmentId));
   if (!shipment || shipment.deletedAt || shipment.customerId == null) throw new ApiError(404, 'Không tìm thấy lô hàng.');
   await assertShipmentAccountingUnlocked(tx, input.shipmentId);
+  // SIL-803 (id 929) — the phoi-phieu '+ Chi phí' drawer POSTs here (the
+  // single /entries and the /entries/batch routes both funnel through
+  // createAccountingExpense), so this is the one seam that closes the locked
+  // lot write the ticket repro'd (lot 812 accepted entries 67/68 while
+  // costLockedAt stood). An active lock 409s with the shared lock message.
+  await assertShipmentCostUnlocked(tx, input.shipmentId);
   // Same money invariant as the trip path: a road allowance is never charged back to the customer.
   if (input.costGroup === 'DRIVER_ROAD' && input.customerChargeAmount !== 0) throw new ApiError(400, 'Tiền đường không thu khách.');
   const paidUserId = input.payerKind === 'USER' ? input.payerUserId ?? null : null;
