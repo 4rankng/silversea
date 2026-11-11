@@ -200,44 +200,59 @@ export function detailedDemandLine(row: Pick<DispatchDetailPlanRow, 'cargoMode' 
   return label ? `1 x ${label}` : null;
 }
 
-/* SIL-796 — the pure signed-price seed law of the dispatch editor's two
- * "dự kiến" fee fields. A stored ''/0 is "chưa định giá", never a price: the
- * seed resolves through the pricing engine preview and puts the SIGNED total
- * in the field. The engine answering MANUAL (no signed row for the key) or
- * resolving to nothing seeds NOTHING — the field stays empty and the dialog
- * names the gap; a fabricated 0 is banned (owner law 04/11). An OWN-fleet
- * run has no external rate table of its own, so the owner ruling seeds BOTH
- * fields from the signed customer price; an external carrier's "trả" price
- * lives outside the engine and stays as stored. Returns null when the draft
- * is already fully priced (no state change). */
-export function seededFeesFromPreview(
-  draft: { plannedRevenue: number | ''; plannedCarrierCost: number | ''; carrierValue: string },
-  preview: { source: 'AUTO' | 'MANUAL'; total: number } | null | undefined,
-): { plannedRevenue: number | ''; plannedCarrierCost: number | '' } | null {
-  if (!preview) return null;
-  const ownFleet = draft.carrierValue === OWN_CARRIER_VALUE;
-  if (preview.source === 'AUTO' && preview.total > 0) {
+/* SIL-796 (r2) — the pure signed-price seed law of the dispatch editor's two
+ * "dự kiến" fee fields. A stored ''/0 is "chưa định giá", never a price; the
+ * seed fills the SIGNED answer per side and never writes a fabricated 0
+ * (owner law 04/11: "giá đã ký phải dùng đúng theo loại xe/cont, không trả
+ * 0"). The two sides read DIFFERENT signed tables:
+ *   - Cước thu (revenue) ← the customer pricing engine preview. AUTO total > 0
+ *     seeds an absent/0 field; MANUAL (no signed row for the key) clears a
+ *     stored fake 0 and names the gap.
+ *   - Cước trả (cost) ← the nhà-xe price board cascade (route × loại xe ×
+ *     [supplier], giá riêng → giá chung) — NOT the customer freight: QA r2
+ *     proved the board price (3.937.500₫) differs from the thu total. A
+ *     matched price > 0 seeds an absent/0 field for ANY carrier (OWN reads
+ *     the giá-chung row; an external carrier rides its supplierId); a board
+ *     miss clears a stored fake 0.
+ * Operator-entered values are never rewritten, and `null` returns mean no
+ * state change. The cost seed ignores an idle/no-ask board query (null input)
+ * — an LCL row or weightless container has no class to ask with, and the
+ * Phát-lệnh save blocks loudly on missing weight on its own. */
+export interface FreightSeedPreview {
+  source: 'AUTO' | 'MANUAL';
+  total: number;
+}
+
+export interface CarrierSeedPrice {
+  price: number;
+  matched: 'SUPPLIER' | 'GENERIC' | null;
+}
+
+export function seededFees(
+  draft: { plannedRevenue: number | ''; plannedCarrierCost: number | '' },
+  freightPreview: FreightSeedPreview | null | undefined,
+  carrierPrice: CarrierSeedPrice | null | undefined,
+): { plannedRevenue?: number | ''; plannedCarrierCost?: number | '' } | null {
+  const seeded: { plannedRevenue?: number | ''; plannedCarrierCost?: number | '' } = {};
+  if (freightPreview) {
     const needsRevenueSeed = draft.plannedRevenue === '' || draft.plannedRevenue === 0;
-    const needsCostSeed = ownFleet && (draft.plannedCarrierCost === '' || draft.plannedCarrierCost === 0);
-    if (!needsRevenueSeed && !needsCostSeed) return null;
-    return {
-      plannedRevenue: needsRevenueSeed ? preview.total : draft.plannedRevenue,
-      plannedCarrierCost: needsCostSeed ? preview.total : draft.plannedCarrierCost,
-    };
+    if (freightPreview.source === 'AUTO' && freightPreview.total > 0 && needsRevenueSeed) {
+      seeded.plannedRevenue = freightPreview.total;
+    } else if (freightPreview.source === 'MANUAL' && draft.plannedRevenue === 0) {
+      seeded.plannedRevenue = '';
+    }
   }
-  if (preview.source === 'MANUAL') {
-    // The engine confirms no signed price: a stored 0 was never a price —
-    // clear it to empty (the dialog's help text names the gap); real stored
-    // values stay untouched.
-    const revenueFake = draft.plannedRevenue === 0;
-    const costFake = draft.plannedCarrierCost === 0;
-    if (!revenueFake && !costFake) return null;
-    return {
-      plannedRevenue: revenueFake ? '' : draft.plannedRevenue,
-      plannedCarrierCost: costFake ? '' : draft.plannedCarrierCost,
-    };
+  if (carrierPrice) {
+    const needsCostSeed = draft.plannedCarrierCost === '' || draft.plannedCarrierCost === 0;
+    if (carrierPrice.matched != null && carrierPrice.price > 0 && needsCostSeed) {
+      seeded.plannedCarrierCost = carrierPrice.price;
+    } else if ((carrierPrice.matched == null || carrierPrice.price <= 0) && draft.plannedCarrierCost === 0) {
+      // Board miss: a stored 0 was never a price — the help text names the
+      // gap; the dispatcher types one or leaves the field empty.
+      seeded.plannedCarrierCost = '';
+    }
   }
-  return null;
+  return seeded.plannedRevenue !== undefined || seeded.plannedCarrierCost !== undefined ? seeded : null;
 }
 
 /* ── Owner redesign 23/10 — LCL cargo lines, shared by table + card ────────

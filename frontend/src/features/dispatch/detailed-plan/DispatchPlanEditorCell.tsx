@@ -11,7 +11,7 @@ import {
   type DispatchTruck,
 } from '../../../api/dispatchPlanningClient';
 import { api } from '../../../lib/api';
-import { useFreightPreview } from '../../../hooks/usePricingQueries';
+import { useCarrierPricePreview, useFreightPreview } from '../../../hooks/usePricingQueries';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal, useConfirm } from '../../../components/UI';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
@@ -31,7 +31,7 @@ import {
   normalizePlate,
   parseCarrier,
   plateCompareKey,
-  seededFeesFromPreview,
+  seededFees,
   vehiclePlateKey,
   vehicleValueForRow,
 } from './DispatchPlanCellValues';
@@ -41,6 +41,8 @@ import { DispatchClassificationField } from './DispatchClassificationField';
 import { IssueOrderFields } from './IssueOrderFields';
 import { useIssueOrder } from './useIssueOrder';
 import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
+import { resolveContainerPriceClass } from '@tingting/shared';
+import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, vehicleWarningSuffix, type VehicleFit } from './trailerFit';
 import './DispatchPlanEditorCell.css';
 
@@ -257,13 +259,19 @@ function vehicleBody(value: string): VehicleBody | null {
 export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, openRequest, onOpenRequestConsumed, disabled = false }: DispatchPlanEditorCellProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlanEditorDraft>(() => draftForRow(row));
-  // SIL-796 — the dialog consults the signed pricing engine BEFORE showing a
-  // fee. A stored estimate of ''/0 is "chưa định giá", not a price: the seed
-  // resolves the SIGNED table (customer × effective route × container class
-  // × transport date — the same key the Phát lệnh freeze uses) and puts the
-  // real number in the field. The engine answering MANUAL (missing signed
-  // row) surfaces its reason under the field — NEVER a fabricated 0 (owner
-  // law 04/11: "giá đã ký phải dùng đúng, không trả 0").
+  // SIL-796 — the dialog consults the SIGNED price tables BEFORE showing a
+  // fee. A stored estimate of ''/0 is "chưa định giá", not a price, and the
+  // two sides read DIFFERENT tables (owner law 04/11: "giá đã ký phải dùng
+  // đúng theo loại xe/cont, không trả 0"):
+  //   - Cước thu ← the pricing engine (customer × effective route × container
+  //     class × transport date — the same key the Phát lệnh freeze uses). An
+  //     engine MANUAL answer surfaces its reason under the field.
+  //   - Cước trả ← the nhà-xe board cascade (route × loại xe LIGHT/HEAVY by
+  //     the container's own cargo weight × [supplier]) — QA r2 proved the
+  //     board price is NOT the customer total. The lookup re-runs on the
+  //     carrier pick (OWN reads giá chung; an external carrier rides its id),
+  //     so a carrier chosen after the preview lands still seeds — the r1
+  //     shape left exactly that case staring at a 0.
   const previewSizeClass = useMemo(() => {
     const code = row.pricing?.containerTypeCode?.trim();
     if (!code) return null;
@@ -273,6 +281,19 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
       : (code.startsWith('40') || code.startsWith('45')) ? 'CONT40'
       : null;
   }, [row.pricing?.containerTypeCode]);
+  const { data: vehicleClasses } = useVehicleSizeClasses();
+  // The board keys container lanes by the LIGHT/HEAVY split (card _58: < 20t
+  // light, ≥ 20t heavy, missing weight blocks) — the SAME law resolveContainerPriceClass
+  // applies at Phát lệnh, so the dialog asks the row the save will freeze.
+  const carrierClassId = useMemo(() => {
+    if (!previewSizeClass || !vehicleClasses) return null;
+    const weight = typeof draft.cargoWeight === 'number' && Number.isFinite(draft.cargoWeight) && draft.cargoWeight > 0
+      ? draft.cargoWeight / 1000
+      : null;
+    const resolution = resolveContainerPriceClass(previewSizeClass, weight);
+    if (!resolution.ok) return null;
+    return vehicleClasses.find((entry) => entry.code === resolution.code)?.id ?? null;
+  }, [previewSizeClass, draft.cargoWeight, vehicleClasses]);
   const freightPreviewInput = useMemo(() => {
     const pricing = row.pricing;
     if (!open || !pricing?.customerId || !pricing.routeId || !previewSizeClass) return null;
@@ -281,18 +302,32 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
       ? { customerId: pricing.customerId, routeId: pricing.routeId, vehicleSizeClassCode: previewSizeClass, transportDate }
       : null;
   }, [open, row.pricing, row.time.deliveryDate, previewSizeClass]);
+  const carrierPriceInput = useMemo(() => {
+    const pricing = row.pricing;
+    if (!open || !pricing?.routeId || !carrierClassId) return null;
+    const transportDate = row.time.deliveryDate;
+    if (!transportDate) return null;
+    const carrier = parseCarrier(draft.carrierValue);
+    return {
+      routeId: pricing.routeId,
+      vehicleSizeClassId: carrierClassId,
+      supplierId: carrier?.carrierType === 'EXTERNAL' && carrier.externalCarrierId != null ? carrier.externalCarrierId : null,
+      transportDate,
+    };
+  }, [open, row.pricing, row.time.deliveryDate, carrierClassId, draft.carrierValue]);
   const freightPreview = useFreightPreview(freightPreviewInput);
+  const carrierPrice = useCarrierPricePreview(carrierPriceInput);
   useEffect(() => {
-    // Deps include `open`: the dialog's reset-on-mount effect runs LATER in
-    // declaration order and clobbers a mount-time seed with the stored 0 —
-    // the seed must re-apply on the open flip (and when the preview lands
-    // while the dialog is already open). Clearing a field by hand never
-    // retriggers this: only `open` and the preview payload change it.
+    // Deps include `open` and the carrier ask: the dialog's reset-on-mount
+    // effect runs LATER in declaration order and clobbers a mount-time seed
+    // with the stored 0 — the seed must re-apply on the open flip, when a
+    // preview/board answer lands, and when the carrier pick changes the
+    // board ask. Clearing a field by hand never retriggers this.
     setDraft((current) => {
-      const seeded = seededFeesFromPreview(current, freightPreview.data);
+      const seeded = seededFees(current, freightPreview.data, carrierPrice.data);
       return seeded ? { ...current, ...seeded } : current;
     });
-  }, [freightPreview.data, open]);
+  }, [freightPreview.data, carrierPrice.data, open]);
   // Live completeness of the Giờ điều vận segments ('complete' | 'empty' |
   // 'incomplete') — 'incomplete' must BLOCK the save; '' from the field alone
   // can't distinguish an intentional clear from a half-typed edit.
@@ -1278,9 +1313,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
               value={draft.plannedCarrierCost}
               onChange={(n) => { setDraft((current) => ({ ...current, plannedCarrierCost: n })); setError(null); }}
               disabled={saving}
-              helpText={freightPreview.data?.source === 'MANUAL'
-                ? 'Chưa có giá ký — nhập tay hoặc để trống, không ghi 0.'
-                : undefined}
+              helpText={carrierPrice.data?.matched === 'SUPPLIER'
+                ? 'Theo bảng giá nhà xe (giá riêng của nhà xe).'
+                : carrierPrice.data?.matched === 'GENERIC'
+                  ? 'Theo bảng giá nhà xe (giá chung).'
+                  : 'Chưa có giá ký nhà xe — nhập tay hoặc để trống, không ghi 0.'}
             />
             {/* SIL-644 (id 749) — Trọng lượng (kg) of this row's container: the
                 exact input the Phát lệnh price computation demands. FCL rows

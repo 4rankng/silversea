@@ -699,10 +699,27 @@ export type DriverPayoutInput = z.infer<typeof driverPayoutSchema>;
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
-export const loginSchema = z.object({
-  identifier: z.string().min(1),
-  password: z.string().min(1),
-});
+export const loginSchema = z.preprocess(
+  // Legacy-client alias (owner order 2026-11-11): pre-identifier builds still
+  // cached on operators' browsers and older scripts POST { username, password
+  // } — fold the legacy key onto identifier instead of failing them with
+  // 'Invalid input'. The current FE (useAuth.login) sends identifier; an
+  // explicit identifier always wins and unknown keys still strip.
+  (raw) => {
+    if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
+      const body = raw as Record<string, unknown>;
+      if (body.identifier == null && typeof body.username === 'string') {
+        const { username, ...rest } = body;
+        return { ...rest, identifier: username };
+      }
+    }
+    return raw;
+  },
+  z.object({
+    identifier: z.string().min(1),
+    password: z.string().min(1),
+  }),
+);
 
 export const baseCreateUserSchema = z.object({
   username: z.string().min(2).optional(),

@@ -1,0 +1,15 @@
+login admin → 200 role=ADMIN
+token injected
+board screenshot saved (date-scoped 2026-09-08)
+row host text: 08/09/2026 08:001 x 20'DCtrả hàngLOG COM—Bill: BLEHPH260900002Cảng VipGreenPort—KCN ĐỒNG VĂN, HÀ NAMNhậpEGHU396306020'DC2,942 tấn108594123850Chưa phân nhà xeĐơn
+dialog trigger: Sửa điều phối · Chưa phân nhà xe · EGHU3963060
+seed asks: [{"url":"pricing/freight-preview?customerId=2&routeId=9&vehicleSizeClassCode=CONT20&transportDate=2026-09-08","status":200},{"url":"carrier-pricing?routeId=9&vehicleSizeClassId=1&date=2026-09-08","status":200}]
+dialog: {"title":"Chỉnh sửa điều phối · EGHU3963060Nhà xeChọn nhà xeXe / biển sốChọn biển số xePhâ","cost":"1.800.000","revenue":"","costHelp":"Theo bảng giá nhà xe (giá chung).","revenueHelp":"Chưa có giá ký — Không tìm thấy điều khoản cước cho khách hàng #2, tuyến #9 — cần nhập tay giá cước"}
+cost field html: <div class="ds-field ds-field--sm ds-field--money dispatch-assignment-dialog__money dispatch-assignment-dialog__cost"><label for="dispatch-cost-30" class="ds-field__label">Cước trả dự kiến</label><div class="ds-field__input-group"><input placeholder="0" inputmode="numeric" id="dispatch-cost-30" class="ds-field__input" aria-invalid="false" type="text" value="1.800.000"><span class="ds-field__affix"
+ASSERT PASS: dialog opened for the target row — expected "EGHU3963060" in "Chỉnh sửa điều phối · EGHU3963060Nhà xeChọn nhà xeXe / biển sốChọn biển số xePhâ"
+ASSERT PASS: cước trả seeded from nhà-xe board (giá chung 1.800.000) — expected "1.800.000" in "1.800.000"
+ASSERT PASS: cước thu NOT fabricated (stored 0 cleared) — expected "true" in "true"
+ASSERT PASS: cost helpText names the nhà-xe board answer — expected "Theo bảng giá nhà xe" in "Theo bảng giá nhà xe (giá chung)."
+ASSERT PASS: revenue helpText names the missing terms — expected "Không tìm thấy điều khoản cước" in "Chưa có giá ký — Không tìm thấy điều khoản cước cho khách hàng #2, tuyến #9 — cần nhập tay giá cước"
+ASSERT PASS: the seed asks fired on the wire — expected "carrier-pricing?routeId=9&vehicleSizeClassId=1" in "[{"url":"pricing/freight-preview?customerId=2&routeId=9&vehicleSizeClassCode=CONT20&transportDate=2026-09-08","status":2"
+RESULTS: 6/6 assertions pass

@@ -268,7 +268,7 @@ export async function resolveFreightRate(
     : null;
 
   let basePriceRow = exactBuckets.rateKey[0] ?? null;
-  let basePriceSource: 'EXACT' | 'INHERITED' | 'GENERAL' | 'LANE_HEAD' = 'EXACT';
+  let basePriceSource: 'EXACT' | 'INHERITED' | 'GENERAL' = 'EXACT';
   // Card 20260922_58 (PM đợt-2 doctrine): a customer whose catalog predates
   // the 4-class split (or whose weight-class row is blank) inherits the BASE
   // class row instead of dropping to MANUAL — the formula records the
@@ -277,17 +277,19 @@ export async function resolveFreightRate(
     basePriceRow = baseBuckets.rateKey[0];
     basePriceSource = 'INHERITED';
   }
-  // SIL-676 round 2: keyed misses keep resolving the lane through the
-  // selector-less law — general row, else giá đầu bảng — instead of pricing
-  // the leg 0/null.
+  // A selector-free (áp dụng chung) row prices the whole lane by operator
+  // intent — same case, not another class's price.
   if (!basePriceRow && exactBuckets.general[0]) {
     basePriceRow = exactBuckets.general[0];
     basePriceSource = 'GENERAL';
   }
-  if (!basePriceRow && exactBuckets.laneHeadOrder[0]) {
-    basePriceRow = exactBuckets.laneHeadOrder[0];
-    basePriceSource = 'LANE_HEAD';
-  }
+  // SIL-796 r2 (owner law 04/11: "giá đã ký phải dùng đúng theo loại xe/
+  // cont"): a KEYED ask stops here — the old giá-đầu-bảng (LANE_HEAD) stop
+  // priced the leg with ANOTHER class's signed row (a CONT40 leg autofilled
+  // with the lane's CONT20 price). No keyed row of this class and no
+  // lane-wide row = no signed price → MANUAL names the gap (never a
+  // cross-class number, never 0). The selector-LESS caller keeps the
+  // giá-đầu-bảng law inside pricing-table-selection (S676-R1).
 
   // No base price ⇒ MANUAL mode (e.g. 15T with no data)
   if (!basePriceRow || Number(basePriceRow.price) === 0) {
@@ -546,9 +548,7 @@ export async function resolveFreightRate(
     ? (priceClassCode !== vehicleSizeClassCode ? `[giá theo hạng ${priceClassCode}] ` : '')
     : basePriceSource === 'INHERITED'
       ? `[${priceClassCode} kế thừa giá gốc của ${vehicleSizeClassCode} — giá tạm] `
-      : basePriceSource === 'GENERAL'
-        ? `[${priceClassCode} dùng dòng giá chung của bảng giá — giá tạm] `
-        : `[${priceClassCode} dùng giá đầu bảng — giá tạm] `;
+      : `[${priceClassCode} dùng dòng giá chung của bảng giá — giá tạm] `;
 
   const formula = priceClassNote + [
     `${basePriceRow.price} × (1 + ${terms.sharePct}%) = ${result.freight}`,

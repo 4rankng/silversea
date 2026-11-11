@@ -1,0 +1,42 @@
+{
+  "results": [
+    {
+      "label": "dialog opened for the target row",
+      "expected": "EGHU3963060",
+      "actual": "Chỉnh sửa điều phối · EGHU3963060Nhà xeChọn nhà xeXe / biển sốChọn biển số xePhâ",
+      "pass": true
+    },
+    {
+      "label": "cước trả seeded from nhà-xe board (giá chung 1.800.000)",
+      "expected": "1.800.000",
+      "actual": "1.800.000",
+      "pass": true
+    },
+    {
+      "label": "cước thu NOT fabricated (stored 0 cleared)",
+      "expected": true,
+      "actual": "true",
+      "pass": true
+    },
+    {
+      "label": "cost helpText names the nhà-xe board answer",
+      "expected": "Theo bảng giá nhà xe",
+      "actual": "Theo bảng giá nhà xe (giá chung).",
+      "pass": true
+    },
+    {
+      "label": "revenue helpText names the missing terms",
+      "expected": "Không tìm thấy điều khoản cước",
+      "actual": "Chưa có giá ký — Không tìm thấy điều khoản cước cho khách hàng #2, tuyến #9 — cần nhập tay giá cước",
+      "pass": true
+    },
+    {
+      "label": "the seed asks fired on the wire",
+      "expected": "carrier-pricing?routeId=9&vehicleSizeClassId=1",
+      "actual": "[{\"url\":\"pricing/freight-preview?customerId=2&routeId=9&vehicleSizeClassCode=CONT20&transportDate=2026-09-08\",\"status\":200},{\"url\":\"carrier-pricing?routeId=9&vehicleSizeClassId=1&date=2026-09-08\",\"sta",
+      "pass": true
+    }
+  ],
+  "consoleErrors": [],
+  "allPass": true
+}

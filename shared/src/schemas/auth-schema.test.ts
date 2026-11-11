@@ -20,6 +20,18 @@ test('Z4-AUTH-1: loginSchema accepts a real credential pair and rejects an empty
   assert.equal(loginSchema.safeParse({ identifier: 'thanhdc' }).success, false);
 });
 
+test('LEGACY-AUTH: loginSchema folds the legacy username key onto identifier (owner order 2026-11-11)', () => {
+  // Old cached FE builds and scripts POST { username, password } — the alias
+  // must keep them working, with the parse OUTPUT identical to the
+  // identifier form (backend destructures only `identifier`).
+  assert.deepEqual(loginSchema.parse({ username: 'thanhdc', password: 'matkhau1' }), { identifier: 'thanhdc', password: 'matkhau1' });
+  // An explicit identifier wins; the legacy key never overrides it.
+  assert.deepEqual(loginSchema.parse({ identifier: 'thanhdc', username: 'khac', password: 'matkhau1' }), { identifier: 'thanhdc', password: 'matkhau1' });
+  // The alias still enforces the same guards: empty legacy key fails, missing password fails.
+  assert.equal(loginSchema.safeParse({ username: '', password: 'matkhau1' }).success, false);
+  assert.equal(loginSchema.safeParse({ username: 'thanhdc' }).success, false);
+});
+
 test('Z4-AUTH-2: createUserSchema accepts a real admin payload and applies create-time defaults unchanged', () => {
   const parsed = createUserSchema.parse({
     username: 'thanhdc',

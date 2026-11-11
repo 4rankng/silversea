@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   pricingClient,
   type FreightPreviewInput,
+  type CarrierPriceInput,
   type DebitNoteOverrideRow,
 } from '../api/pricingClient';
 import { qk } from '../api/keys';
@@ -39,6 +40,28 @@ export function useFreightPreview(input: FreightPreviewInput | null) {
       input?.transportDate,
     ] as const,
     queryFn: () => pricingClient.previewFreight(input as FreightPreviewInput),
+    enabled: input !== null,
+    staleTime: 0,
+    retry: false,
+  });
+}
+
+/**
+ * SIL-796 r2 — live cước-trả nhà xe for the dispatch dialog's cost seed.
+ * `input` null = no carrier board ask possible yet (no route/class/date or
+ * weightless container) — the query stays idle. Misses answer
+ * `{ matched: null }` server-side (never an error).
+ */
+export function useCarrierPricePreview(input: CarrierPriceInput | null) {
+  return useQuery({
+    queryKey: [
+      'carrier-price',
+      input?.routeId,
+      input?.vehicleSizeClassId,
+      input?.supplierId ?? null,
+      input?.transportDate,
+    ] as const,
+    queryFn: () => pricingClient.getCarrierPrice(input as CarrierPriceInput),
     enabled: input !== null,
     staleTime: 0,
     retry: false,

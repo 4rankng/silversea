@@ -61,10 +61,15 @@ describe('SIL-676 wiring — engine trace ids stay truthful', () => {
     // general row → giá đầu bảng.
     assert.match(engine, /partitionTablePricingLane\(laneRows, null, priceClassCode\)/);
     assert.match(engine, /partitionTablePricingLane\(laneRows, null, vehicleSizeClassCode\)/);
-    const chain = engine.match(/let basePriceRow = exactBuckets\.rateKey\[0\][\s\S]*?laneHeadOrder\[0\]/)![0];
+    const chain = engine.match(/let basePriceRow = exactBuckets\.rateKey\[0\][\s\S]*?No base price/)![0];
     assert.match(chain, /baseBuckets\?\.rateKey\[0\]/);
     assert.match(chain, /exactBuckets\.general\[0\]/);
-    assert.match(chain, /exactBuckets\.laneHeadOrder\[0\]/);
+    // SIL-796 r2 (owner law 04/11): a KEYED ask never falls through to the
+    // lane-head row — pricing a leg with ANOTHER class's signed row is the
+    // exact wrong-case autofill the law bans. The stop must be present and
+    // the lane-head stop must be gone.
+    assert.match(chain, /SIL-796 r2/);
+    assert.doesNotMatch(chain, /laneHeadOrder\[0\]/);
     // The base-price MANUAL still carries the resolved terms id and whatever
     // row id the chain reached (read side rebuilds the hint from trace ids).
     // The chain's stop law: a found row with price 0 is an operator statement

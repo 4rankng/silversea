@@ -19,6 +19,21 @@ vi.mock('../../../api/configClient', () => ({
   configClient: { getTrailers: (...args: Array<unknown>) => getTrailersMock(...args) },
 }));
 
+// SIL-796 r2 — the dialog's cước-trả seed folds the container class code +
+// weight onto the board's LIGHT/HEAVY class ids; the hook is mocked (this
+// file renders without a QueryClientProvider) with the seeded catalog ids.
+const { sizeClassesFixture } = vi.hoisted(() => ({
+  sizeClassesFixture: [
+    { id: 1, code: 'CONT20.LIGHT', name: 'Cont 20 - Trọng tải < 20 tấn' },
+    { id: 2, code: 'CONT20.HEAVY', name: 'Cont 20 - Trọng tải > 20 tấn' },
+    { id: 3, code: 'CONT40.LIGHT', name: 'Cont 40 nhẹ - Trọng tải < 20 tấn' },
+    { id: 4, code: 'CONT40.HEAVY', name: 'Cont 40 nặng - Trọng tải > 20 tấn' },
+  ],
+}));
+vi.mock('../../../hooks/useCatalogQueries', () => ({
+  useVehicleSizeClasses: () => ({ data: sizeClassesFixture }),
+}));
+
 import { createCarrierFleetVehicle, createInternalTruck, listDispatchFleetResources, updateLclTruck } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPlanEditorCell';
@@ -49,8 +64,12 @@ const listResourcesMock = vi.mocked(listDispatchFleetResources);
 // SIL-796 — the signed-price preview is a query collaborator: each test
 // seeds the engine answer it wants (undefined = no answer yet).
 const freightPreviewMock = vi.fn<(input: unknown) => { data?: { source: 'AUTO' | 'MANUAL'; total: number; formula: string } }>(() => ({ data: undefined }));
+// SIL-796 r2 — the cước-trả seed reads the nhà-xe board cascade (matched
+// null = unpriced lane).
+const carrierPriceMock = vi.fn<(input: unknown) => { data?: { price: number; matched: 'SUPPLIER' | 'GENERIC' | null } }>(() => ({ data: undefined }));
 vi.mock('../../../hooks/usePricingQueries', () => ({
   useFreightPreview: (input: unknown) => freightPreviewMock(input),
+  useCarrierPricePreview: (input: unknown) => carrierPriceMock(input),
 }));
 // Card 191026100010 (DV-B1-04) — the grouped-row save law: updateLclTruck
 // rides BEFORE the atomic save and its failure aborts it.
@@ -357,23 +376,87 @@ describe('DispatchPlanEditorCell — assignment dialog validation', () => {
     expect(costInput.closest('.ds-field')).toHaveClass('ds-field--sm');
   });
 
-  // SIL-796 (owner law 04/11): a stored 0 estimate is "chưa định giá", so the
-  // dialog seeds BOTH fields from the SIGNED engine total for an own-fleet
-  // run — never a fabricated 0. The preview key is the row's pricing triple.
-  it('seeds the fee fields from the signed price when the stored estimate is 0', async () => {
-    freightPreviewMock.mockReturnValue({ data: { source: 'AUTO', total: 4_000_000, formula: 'I·H' } });
+  // SIL-796 r2 (owner law 04/11): the two fee fields read DIFFERENT signed
+  // tables — cước thu seeds from the customer pricing engine, cước trả from
+  // the nhà-xe board cascade. A stored 0 estimate is "chưa định giá"; the
+  // dialog never presents a fabricated 0.
+  it('seeds cước thu from the engine and cước trả from the nhà-xe board when the stored estimates are 0', async () => {
+    freightPreviewMock.mockReturnValue({ data: { source: 'AUTO', total: 4_202_500, formula: 'I·H' } });
+    carrierPriceMock.mockReturnValue({ data: { price: 3_937_500, matched: 'GENERIC' } });
     renderCell(row({
       plannedEndAt: null,
       estimates: { plannedRevenue: '0', plannedCarrierCost: '0' },
       pricing: { customerId: 5, routeId: 6, containerTypeCode: '20DC' },
+      // 21.5t ≥ 20t → CONT20.HEAVY (id 2) is the board row the save freezes.
+      container: { containerNumber: 'MSCU1234567', containerTypeLabel: '20DC', cargoWeightKg: '21500.00', cargoWeightKgRaw: '21500.00' },
     }), {});
     await openDialog();
     await waitFor(() => {
-      expect((screen.getByLabelText('Cước thu dự kiến') as HTMLInputElement).value).toContain('4.000.000');
-      expect((screen.getByLabelText('Cước trả dự kiến') as HTMLInputElement).value).toContain('4.000.000');
+      expect((screen.getByLabelText('Cước thu dự kiến') as HTMLInputElement).value).toContain('4.202.500');
+      expect((screen.getByLabelText('Cước trả dự kiến') as HTMLInputElement).value).toContain('3.937.500');
     });
-    // And the preview was asked with the row's signed-price key.
+    // Each seed asked its own table with the row's signed-price key.
     expect(freightPreviewMock).toHaveBeenCalledWith(expect.objectContaining({ customerId: 5, routeId: 6, vehicleSizeClassCode: 'CONT20', transportDate: '2026-08-20' }));
+    expect(carrierPriceMock).toHaveBeenCalledWith(expect.objectContaining({ routeId: 6, vehicleSizeClassId: 2, supplierId: null, transportDate: '2026-08-20' }));
+  });
+
+  it('asks the nhà-xe board with the external carrier supplier id when the row is dispatched to one', async () => {
+    carrierPriceMock.mockReturnValue({ data: { price: 3_937_500, matched: 'SUPPLIER' } });
+    renderCell(row({
+      plannedEndAt: null,
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'ĐĂNG QUÂN', externalCarrierId: 11, externalCarrierVehicleId: null, assignedPlate: '15H-104.03' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: '0' },
+      pricing: { customerId: 5, routeId: 6, containerTypeCode: '40DC' },
+      container: { containerNumber: 'MSKU1234565', containerTypeLabel: "40'DC", cargoWeightKg: '15000.00', cargoWeightKgRaw: '15000.00' },
+    }), {});
+    await openDialog();
+    await waitFor(() => expect((screen.getByLabelText('Cước trả dự kiến') as HTMLInputElement).value).toContain('3.937.500'));
+    // 15t < 20t → CONT40.LIGHT (id 3), supplier 11 rides the ask.
+    expect(carrierPriceMock).toHaveBeenCalledWith(expect.objectContaining({ routeId: 6, vehicleSizeClassId: 3, supplierId: 11, transportDate: '2026-08-20' }));
+  });
+
+  it('re-asks the board and seeds cước trả when the carrier is picked AFTER the preview landed (QA r2: trả stayed 0)', async () => {
+    freightPreviewMock.mockReturnValue({ data: { source: 'AUTO', total: 4_202_500, formula: 'I·H' } });
+    // The board answers only once the ask carries the picked supplier.
+    carrierPriceMock.mockImplementation((input: unknown) => {
+      const supplierId = input != null && typeof input === 'object' && 'supplierId' in input
+        ? input.supplierId
+        : null;
+      return supplierId === 9
+        ? { data: { price: 3_937_500, matched: 'SUPPLIER' as const } }
+        : { data: { price: 0, matched: null } };
+    });
+    const carrierLess = row({
+      plannedEndAt: null,
+      dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: null, plannedCarrierCost: '0' },
+      pricing: { customerId: 5, routeId: 6, containerTypeCode: '40DC' },
+      container: { containerNumber: 'MSKU1234565', containerTypeLabel: "40'DC", cargoWeightKg: '15000.00', cargoWeightKgRaw: '15000.00' },
+    });
+    renderCell(carrierLess, {});
+    await openDialog();
+    // Open the Nhà xe combobox and pick the mocked external carrier (EXT:9).
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Chọn nhà xe'))!);
+    const carrierOption = await screen.findAllByText('Carrier QA');
+    fireEvent.click(carrierOption[carrierOption.length - 1]);
+    // The carrier pick re-keyed the board ask → the real signed cost lands,
+    // never the stored 0.
+    await waitFor(() => expect((screen.getByLabelText('Cước trả dự kiến') as HTMLInputElement).value).toContain('3.937.500'));
+  });
+
+  it('a nhà-xe board miss clears the stored fake 0 and names the gap — never shows 0', async () => {
+    freightPreviewMock.mockReturnValue({ data: { source: 'AUTO', total: 4_202_500, formula: 'I·H' } });
+    carrierPriceMock.mockReturnValue({ data: { price: 0, matched: null } });
+    renderCell(row({
+      plannedEndAt: null,
+      estimates: { plannedRevenue: null, plannedCarrierCost: '0' },
+      pricing: { customerId: 5, routeId: 6, containerTypeCode: '40DC' },
+      container: { containerNumber: 'MSKU1234565', containerTypeLabel: "40'DC", cargoWeightKg: '15000.00', cargoWeightKgRaw: '15000.00' },
+    }), {});
+    await openDialog();
+    await waitFor(() => expect(screen.getByText(/Chưa có giá ký nhà xe — nhập tay hoặc để trống, không ghi 0\./)).toBeTruthy());
+    const cost = screen.getByLabelText('Cước trả dự kiến') as HTMLInputElement;
+    expect(cost.value).toBe('');
   });
 
   it('names the missing signed price instead of showing 0 when the engine answers MANUAL', async () => {

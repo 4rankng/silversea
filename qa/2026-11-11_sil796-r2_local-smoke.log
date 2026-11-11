@@ -1,0 +1,9 @@
+login admin → 200
+login legacy {username} → 200 (alias works)
+pricing_tables page1: 49 rows (total 49)
+probe lane: customer 1 × route 9, keyed classes: CONT20, CONT40, 1.25T, 2.5T, 3.5T, 5T, 8T, 10T
+ask CONT20 (keyed lane) → 200 source=AUTO pricingTableId=25 total=3978000
+  formula: 3900000 × (1 + 2.00%) = 3978000 — phụ phí dầu chờ xác nhận (ngưỡng biến động giá dầu chưa được khách chốt; độ trễ giá dầu chưa được xác nhận)
+ask 15T (no keyed row) → 200 source=MANUAL pricingTableId=0
+  formula: Thiếu giá gốc cho 15T — cần nhập tay
+KEYED-MISS LAW HOLDS: MANUAL names the gap, total 0, no cross-class price

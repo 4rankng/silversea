@@ -61,6 +61,23 @@ export interface FreightPreviewResult {
   formula: string;
 }
 
+export interface CarrierPriceInput {
+  routeId: number;
+  vehicleSizeClassId: number;
+  /** The nhà xe being dispatched; absent = giá chung cascade only. */
+  supplierId?: number | null;
+  transportDate: string;
+}
+
+export interface CarrierPriceResult {
+  /** Cước trả nhà xe for the lane — integer VND; 0 = unpriced lane. */
+  price: number;
+  /** 'SUPPLIER' = the nhà xe's own row; 'GENERIC' = giá chung; null = miss. */
+  matched: 'SUPPLIER' | 'GENERIC' | null;
+  carrierRoutePricingId: number | null;
+  effectiveDate: string | null;
+}
+
 export interface DebitNoteOverrideRow {
   id: number;
   snapshotId: number;
@@ -115,6 +132,19 @@ export const pricingClient = {
         routeId: input.routeId,
         vehicleSizeClassCode: input.vehicleSizeClassCode,
         transportDate: input.transportDate,
+      })}`,
+    ),
+
+  // SIL-796 r2 — cước trả nhà xe cascade lookup (route × vehicle class ×
+  // [supplier]): the dispatch dialog's cost seed reads the SIGNED board, not
+  // the customer freight. An unpriced lane answers { price: 0, matched: null }.
+  getCarrierPrice: (input: CarrierPriceInput) =>
+    api.get<CarrierPriceResult>(
+      `${CONFIG.CARRIER_PRICING_LOOKUP}${toQuery({
+        routeId: input.routeId,
+        vehicleSizeClassId: input.vehicleSizeClassId,
+        ...(input.supplierId != null ? { supplierId: input.supplierId } : {}),
+        date: input.transportDate,
       })}`,
     ),
 

@@ -93,6 +93,10 @@ export const CONFIG = {
   // FB-090 LCL: Danh mục Loại xe + bảng giá cước trả nhà xe.
   VEHICLE_SIZE_CLASSES: '/vehicle-size-classes',
   CARRIER_ROUTE_PRICING: '/carrier-route-pricing',
+  // SIL-796 r2 — the dispatch dialog's cước-trả seed reads the board cascade
+  // (route × vehicle class × [supplier], giá riêng → giá chung) without the
+  // CRUD list: one lane lookup answer.
+  CARRIER_PRICING_LOOKUP: '/carrier-pricing',
   ROAD_ALLOWANCES: '/road-allowances',
   ROAD_ALLOWANCE: (id: number) => `/road-allowances/${id}`,
   PENALTY_REASONS: '/penalty-reasons',

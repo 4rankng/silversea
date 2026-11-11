@@ -65,6 +65,22 @@ const updateLclTruckMock = vi.mocked(updateLclTruck);
 // answer keeps the cell's behavior identical to pre-SIL-796.
 vi.mock('../../../hooks/usePricingQueries', () => ({
   useFreightPreview: () => ({ data: undefined }),
+  useCarrierPricePreview: () => ({ data: undefined }),
+}));
+
+// SIL-796 r2 — the dialog's cước-trả seed folds the container class onto the
+// board's LIGHT/HEAVY ids; mocked (no QueryClientProvider here) with the
+// seeded catalog ids.
+const { sizeClassesFixture } = vi.hoisted(() => ({
+  sizeClassesFixture: [
+    { id: 1, code: 'CONT20.LIGHT', name: 'Cont 20 - Trọng tải < 20 tấn' },
+    { id: 2, code: 'CONT20.HEAVY', name: 'Cont 20 - Trọng tải > 20 tấn' },
+    { id: 3, code: 'CONT40.LIGHT', name: 'Cont 40 nhẹ - Trọng tải < 20 tấn' },
+    { id: 4, code: 'CONT40.HEAVY', name: 'Cont 40 nặng - Trọng tải > 20 tấn' },
+  ],
+}));
+vi.mock('../../../hooks/useCatalogQueries', () => ({
+  useVehicleSizeClasses: () => ({ data: sizeClassesFixture }),
 }));
 getTrailersMock.mockResolvedValue([]);
 
