@@ -748,3 +748,23 @@ export async function createConsolidatedDebitNote(
   }
   return result;
 }
+
+/** SIL-789 (KB Ch3 §3.4.3 + Ch2 §2.6.2): the accounting lock taken from the
+ *  Chốt giá bán drawer freezes tờ khai too — the declaration number is
+ *  revenue-side source-of-truth data, so once the lock is active every
+ *  container-line declaration write refuses with the KB's own reason line.
+ *  Scope note (owner ticket 10/11): the freeze targets the tờ khai field
+ *  only; container number/type/weight stay operational facts governed by
+ *  their own guards. */
+export const SHIPMENT_COST_LOCKED_DECLARATION_MESSAGE = 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.';
+
+export async function assertShipmentDeclarationEditableByCostLock(executor: Executor, shipmentId: number): Promise<void> {
+  const [lock] = await executor.select({ id: s.shipmentCostLocks.id })
+    .from(s.shipmentCostLocks)
+    .where(and(
+      eq(s.shipmentCostLocks.shipmentId, shipmentId),
+      isNull(s.shipmentCostLocks.unlockedAt),
+    ))
+    .limit(1);
+  if (lock) throw new ApiError(409, SHIPMENT_COST_LOCKED_DECLARATION_MESSAGE);
+}

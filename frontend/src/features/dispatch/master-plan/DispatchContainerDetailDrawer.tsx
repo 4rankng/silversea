@@ -487,10 +487,13 @@ function removeTargetName(line: ShipmentCusWorkspaceContainerLine): string {
   return line.containerNumber?.trim() || String(line.ordinal);
 }
 
-function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, canRemoveContainer, removingLineId, onPortChange, onTextFieldSave, onAppointmentSave, onRemove }: {
+function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, declarationCostLocked, canRemoveContainer, removingLineId, onPortChange, onTextFieldSave, onAppointmentSave, onRemove }: {
   detail: ShipmentCusWorkspaceDetail;
   savingLineId: number | null;
   canEditDeclarations: boolean;
+  /** SIL-789 — true when the Chốt-giá-bán accounting lock holds: the tờ khai
+   *  cell captions the lock reason under every line (the editor is gone). */
+  declarationCostLocked: boolean;
   /** SIL-555 — the per-row Xóa container gate (role + lock law, see the
    *  drawer's `canRemoveContainer`): when false the Thao tác column is gone,
    *  exactly like the Chi tiết lô table stays button-free (SIL-334). */
@@ -562,6 +565,11 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, canRe
                   canEdit={canEditDeclarations}
                   onSave={onTextFieldSave}
                 />
+                {declarationCostLocked && (
+                  <small className="dispatch-container-detail__lock-note" role="note">
+                    Lô hàng đã khóa kế toán; không thể sửa tờ khai.
+                  </small>
+                )}
               </td>
               <td data-label="Điều vận">
                 <span className={`dispatch-container-detail__status dispatch-container-detail__status--${line.dispatchStatus.toLowerCase()}`}>
@@ -678,6 +686,10 @@ export function DispatchContainerDetailDrawer({
   // would 403). The LOT-level declarationNumber law is untouched.
   const canEditDeclarations = user != null
     && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS || user.role === Role.DISPATCHER);
+  // SIL-789 — the Chốt-giá-bán accounting lock freezes tờ khai at the SOURCE
+  // (POST containers/:id 409s); the cell stops advertising the editor the
+  // command would refuse, and the reason line names the lock.
+  const declarationCostLocked = detail?.summary?.costLocked === true;
 
   useEffect(() => {
     if (!shipment) return;
@@ -913,7 +925,8 @@ export function DispatchContainerDetailDrawer({
             <ContainerDetailTable
               detail={detail}
               savingLineId={savingPortLineId}
-              canEditDeclarations={canEditDeclarations}
+              canEditDeclarations={canEditDeclarations && !declarationCostLocked}
+              declarationCostLocked={declarationCostLocked}
               canRemoveContainer={canRemoveContainer}
               removingLineId={removingLineId}
               onPortChange={savePort}

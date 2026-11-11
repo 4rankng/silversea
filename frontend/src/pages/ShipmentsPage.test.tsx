@@ -141,6 +141,7 @@ const row: ShipmentCusWorkspaceListItem = {
     confirmedByName: 'Kế toán',
   },
   activeLock: null,
+  costLocked: false,
   action: {
     kind: 'LOCK' as const,
     label: 'Khóa lô',
@@ -2180,6 +2181,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       ...row,
       bucket: ShipmentCusBucket.LOCKED,
       bucketLabel: 'Đã khóa',
+      costLocked: true,
       activeLock: {
         id: 91,
         billingDocumentId: 44,

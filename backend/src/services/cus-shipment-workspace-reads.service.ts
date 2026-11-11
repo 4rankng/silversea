@@ -225,6 +225,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       declarationByShipment: new Map<number, DeclarationRow>(),
       declarationsByShipment: new Map<number, DeclarationRow[]>(),
       locksByShipment: new Map<number, LockRow>(),
+      costLockedByShipment: new Set<number>(),
       debitNotesByShipment: new Map<number, DebitNoteRow>(),
       custodyByShipment: new Map<number, CustodyRow>(),
       tripsByShipment: new Map<number, TripRow[]>(),
@@ -243,6 +244,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     shipmentSiteRows,
     declarationRows,
     lockRows,
+    costLockRows,
     debitNoteRows,
     custodyRows,
     tripRows,
@@ -307,6 +309,13 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       .where(and(
         inArray(s.shipmentAccountingLocks.shipmentId, shipmentIds),
         isNull(s.shipmentAccountingLocks.releasedAt),
+      )),
+    // SIL-789 — active Chốt-giá-bán locks for the page's lots (tờ khai freeze).
+    executor.select({ shipmentId: s.shipmentCostLocks.shipmentId })
+      .from(s.shipmentCostLocks)
+      .where(and(
+        inArray(s.shipmentCostLocks.shipmentId, shipmentIds),
+        isNull(s.shipmentCostLocks.unlockedAt),
       )),
     executor.select({
       shipmentId: s.shipments.id,
@@ -495,6 +504,10 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
   const locksByShipment = new Map<number, LockRow>();
   for (const row of lockRows) locksByShipment.set(row.shipmentId, row);
 
+  // SIL-789 — which of the page's lots carry an active Chốt-giá-bán lock.
+  const costLockedByShipment = new Set<number>();
+  for (const row of costLockRows) costLockedByShipment.add(row.shipmentId);
+
   const debitNotesByShipment = new Map<number, DebitNoteRow>();
   for (const row of debitNoteRows) {
     if (!debitNotesByShipment.has(row.shipmentId)) debitNotesByShipment.set(row.shipmentId, row);
@@ -614,6 +627,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     declarationByShipment,
     declarationsByShipment,
     locksByShipment,
+    costLockedByShipment,
     debitNotesByShipment,
     custodyByShipment,
     tripsByShipment,
@@ -1205,7 +1219,7 @@ function buildLotFlatRow(
       liftSiteId: readOnly,
       dropoffSiteId: readOnly,
     },
-    shipmentFieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, false),
+    shipmentFieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, false, support.costLockedByShipment.has(row.shipment.id)),
     // The MISSING triage is FCL-container scoped ("LCL lots are explicitly
     // excluded" — buildShipmentPageConditions), so a lot row can never enter
     // that filter; projecting COMPLETE keeps filter and projection in sync.
@@ -1418,6 +1432,7 @@ export async function listCusShipmentContainers(
         actor,
         support.locksByShipment.get(row.shipment.id) != null,
         containers.length > 0,
+        support.costLockedByShipment.has(row.shipment.id),
       ),
       informationStatus: missingFields.length > 0 ? 'MISSING' : 'COMPLETE',
       missingFields,

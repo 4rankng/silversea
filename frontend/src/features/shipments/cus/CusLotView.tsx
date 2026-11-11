@@ -163,12 +163,14 @@ function DeclarationCell({
   isFirst,
   emptySiblingCount,
   editable,
+  lockReason = null,
   actions,
 }: {
   line: ShipmentCusWorkspaceContainerLine;
   isFirst: boolean;
   emptySiblingCount: number;
   editable: boolean;
+  lockReason?: string | null;
   actions?: CusLotDeclarationActions;
 }) {
   const persisted = (line.declarationNumber ?? '').trim();
@@ -191,9 +193,14 @@ function DeclarationCell({
   };
 
   if (!editable || !actions) {
-    return persisted
-      ? <span className="cus-lot-decl__value" title={persisted}>{persisted}</span>
-      : <span className="cus-lot-quiet">Chưa có tờ khai</span>;
+    return (
+      <span className="cus-lot-decl cus-lot-decl--static">
+        {persisted
+          ? <span className="cus-lot-decl__value" title={persisted}>{persisted}</span>
+          : <span className="cus-lot-quiet">Chưa có tờ khai</span>}
+        {lockReason && <small className="cus-lot-decl__lock" role="note">{lockReason}</small>}
+      </span>
+    );
   }
 
   const copyReady = isFirst && persisted !== '' && emptySiblingCount > 0 && !dirty;
@@ -715,6 +722,7 @@ export function CusLotView({
   error,
   onRetry,
   canEditDeclaration = false,
+  declarationLockReason = null,
   declarationActions,
   canEditCargoLines = false,
   containerLineActions,
@@ -733,6 +741,9 @@ export function CusLotView({
    *  intake-mutation role and no accounting lock — before passing true. */
   canEditDeclaration?: boolean;
   declarationActions?: CusLotDeclarationActions;
+  /** SIL-789 — when the accounting locks hold, the cell captions WHY it is
+      static (the wire's own fieldAccess reason) instead of silently dying. */
+  declarationLockReason?: string | null;
   /** SIL-508: the same intake gate for the container group's inline lines —
    *  each line still answers to its own fieldAccess mode. */
   canEditCargoLines?: boolean;
@@ -891,6 +902,7 @@ export function CusLotView({
                               isFirst={index === 0}
                               emptySiblingCount={index === 0 ? emptyDeclarationSiblingCount : 0}
                               editable={canEditDeclaration}
+                              lockReason={declarationLockReason}
                               actions={declarationActions}
                             />
                           </td>

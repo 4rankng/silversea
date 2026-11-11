@@ -517,7 +517,16 @@ function buildListItem(
         note: trimOrNull(item.note),
       })),
     },
-    fieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, containers.length > 0),
+    // SIL-789 — the cost lock rides the summary so both workspace surfaces
+    // can disable tờ khai with the lock reason (see shipmentFieldAccess).
+    costLocked: support.costLockedByShipment.has(row.shipment.id),
+    fieldAccess: shipmentFieldAccess(
+      row.shipment,
+      actor,
+      activeLock != null,
+      containers.length > 0,
+      support.costLockedByShipment.has(row.shipment.id),
+    ),
     operational,
     finance: {
       customerInvoiceTotal,
@@ -818,6 +827,9 @@ function shipmentFieldAccess(
   actor: AuthUser,
   hasActiveLock: boolean,
   hasContainers: boolean,
+  // SIL-789 — the Chốt-giá-bán accounting lock freezes tờ khai alongside the
+  // finance-confirmation lock; every other field keeps its own law.
+  costLocked = false,
 ): ShipmentCusWorkspaceListItem['fieldAccess'] {
   const access = {} as ShipmentCusWorkspaceListItem['fieldAccess'];
   const canWriteShipment = actor.role === Role.CUS || actor.role === Role.ADMIN || actor.role === Role.MANAGER;
@@ -825,7 +837,7 @@ function shipmentFieldAccess(
     if (field === 'declarationNumber') {
       access[field] = !canWriteShipment
         ? readOnly('Chỉ CUS, Quản trị hoặc Quản lý được cập nhật tờ khai.')
-        : hasActiveLock
+        : hasActiveLock || costLocked
           ? readOnly('Lô hàng đã khóa kế toán; không thể sửa tờ khai.')
           : { mode: 'DIRECT', reason: 'Cập nhật tờ khai trực tiếp theo lô hàng.' };
       continue;

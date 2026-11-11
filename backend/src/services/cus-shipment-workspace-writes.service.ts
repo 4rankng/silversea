@@ -40,6 +40,7 @@ import { ensureReadyShipmentHandoff } from './shipment-intake.service';
 import { listShipmentDeclarations, syncDeclarationOntoEmptyContainers } from './shipment-documents.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertShipmentDeclarationEditableByCostLock } from './shipment-cost-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { CUSTOMER_OPERATIONAL_NAME, buildWorkspaceDetail, deriveTransportDateFromContainerAppointments, formatPlate, loadShipmentRow, normalizeCarrierName, normalizePlate, trimOrNull, type ShipmentFulfillmentRow } from './cus-shipment-workspace-reads.service';
 import { assertContainerDeclarationNumberAvailable } from './shipment-lifecycle-shared.service';
@@ -553,6 +554,10 @@ export async function updateCusShipmentContainerLine(args: {
     let declarationSyncedContainerIds: number[] | null = null;
     if (args.input.declarationNumber !== undefined) {
       requireContainerDeclarationWriter(args.actor);
+      // SIL-789 (KB Ch3 §3.4.3): the Chốt-giá-bán accounting lock freezes
+      // tờ khai — the QA 10/11 repro (lot locked, save 200, DECL written)
+      // rode exactly this gap. Blocked AT THE SOURCE, never UI-only.
+      await assertShipmentDeclarationEditableByCostLock(tx, args.shipmentId);
       const nextDeclarationNumber = trimOrNull(args.input.declarationNumber);
       if (nextDeclarationNumber !== container.declarationNumber) {
         if (nextDeclarationNumber != null) {
@@ -1331,6 +1336,9 @@ export async function copyCusShipmentContainerDeclaration(args: {
   requireContainerDeclarationWriter(args.actor);
   const execute = async (tx: Tx) => {
     const shipment = await lockShipmentForContainerSetWrite(tx, args.shipmentId, args.input.expectedShipmentVersion);
+    // SIL-789 — copy fans a tờ khai number across containers: the same
+    // accounting-lock freeze applies to the whole fan-out.
+    await assertShipmentDeclarationEditableByCostLock(tx, args.shipmentId);
 
     const [source] = await tx.select({
       id: s.shipmentContainers.id,

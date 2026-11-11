@@ -88,6 +88,7 @@ function renderView(
     onSaveDeclaration: (line: ShipmentCusWorkspaceContainerLine, value: string) => Promise<void>;
     onCopyDeclaration: (line: ShipmentCusWorkspaceContainerLine) => Promise<void>;
   },
+  declarationLockReason?: string | null,
 ) {
   return render(
     <CusLotView
@@ -97,6 +98,7 @@ function renderView(
       error={undefined}
       onRetry={() => {}}
       canEditDeclaration={editable}
+      declarationLockReason={declarationLockReason}
       declarationActions={actions}
     />,
   );
@@ -192,5 +194,23 @@ describe('CusLotView — SIL-498 tờ khai per-cont trong drawer', () => {
     renderView(threeLines(), false);
     const spans = document.querySelectorAll('.cus-lot-decl__value');
     expect(spans[0]?.getAttribute('title')).toBe('TK-DẦU');
+  });
+});
+
+// SIL-789 (KB Ch3 §3.4.3): khi lô đang khóa kế toán (khóa xác nhận kế toán
+// hoặc khóa Chốt giá bán), ô tờ khai chuyển tĩnh kèm DÒNG LÝ DO lấy từ
+// fieldAccess trên wire — một ô chết không bao giờ đọc như lỗi.
+describe('SIL-789 — ô tờ khai tĩnh khi khóa kế toán có dòng lý do', () => {
+  const REASON = 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.';
+  const line = makeLine({ id: 1, ordinal: 1, declarationNumber: 'DECL1' });
+
+  it('renders the wire reason beside the static value when locked', () => {
+    renderView([line], false, undefined, REASON);
+    expect(screen.getByRole('note')).toHaveTextContent(REASON);
+  });
+
+  it('renders no reason line on a plain read-only lot (role gate, not a lock)', () => {
+    renderView([line], false);
+    expect(screen.queryByRole('note')).toBeNull();
   });
 });
