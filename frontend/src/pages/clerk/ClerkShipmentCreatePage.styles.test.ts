@@ -193,10 +193,12 @@ describe('shipment create responsive layout', () => {
 
   it('equalises the 2 identity columns (50/50) and reflows cleanly by viewport (SIL-641)', () => {
     expect(css).toMatch(/\.csc-identity-grid\s*\{[^}]*grid-template-columns:\s*repeat\(12,\s*minmax\(0,\s*1fr\)\);/);
-    // Card 261023093200 column map, RESTATED by SIL-710 (07/11): the customer
-    // spans 12 (full row) and the document band reads Booking 6 · Tờ khai 6 /
-    // Hình thức XNK 6 · Hãng tàu 6 — two equal 50/50 rows.
-    expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 12;/);
+    // SIL-788 (10/11, KB Ch3 §3.2.1 — the 24/10 band map re-asserted,
+    // supersedes SIL-710's one-day document-group interleave): EVERY identity
+    // field spans 6, so the grid stays 50/50 while the bands reorder to
+    // Khách hàng 6 · Hình thức XNK 6 / Số Bill 6 · Hãng tàu 6 (hàng lẻ:
+    // Số Bill 6 · Tờ khai 6, Hãng tàu dòng dưới).
+    expect(css).toMatch(/\.csc-identity-grid__customer\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__trade-direction\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__booking\s*\{[^}]*grid-column:\s*span 6;/);
     expect(css).toMatch(/\.csc-identity-grid__declaration\s*\{[^}]*grid-column:\s*span 6;/);

@@ -60,6 +60,12 @@ vi.mock('./useDispatchTaskTags', () => ({
 
 const listResourcesMock = vi.mocked(listDispatchFleetResources);
 const updateLclTruckMock = vi.mocked(updateLclTruck);
+// SIL-796 added the signed-price preview query to the editor cell; this suite
+// pins the cargoMode field-set, not pricing — the neutral "chưa định giá"
+// answer keeps the cell's behavior identical to pre-SIL-796.
+vi.mock('../../../hooks/usePricingQueries', () => ({
+  useFreightPreview: () => ({ data: undefined }),
+}));
 getTrailersMock.mockResolvedValue([]);
 
 /** 20FT-moóc tractors: on a cont row demanding a 40' moóc these MUST carry the
