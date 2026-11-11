@@ -712,6 +712,22 @@
   display: inline-flex;
 }
 
+/* SIL-800 — the Bill/Booking number is an identifier: it NEVER breaks
+   mid-token (overflow-wrap:anywhere on the shared value-line rule chopped
+   EGLV260100019409 into "…1940"/"9"). The line rides the owner-prescribed
+   nowrap + ellipsis + tooltip trio: the number stays one unbroken run, the
+   cut is an honest "…" instead of a mid-glyph clip, and the JSX title
+   attribute already carries the whole value (the sanctioned way back — a
+   truncated value always keeps a path to the full text). The shared
+   `.detailed-plan-grid__line` wrap law keeps governing every PROSE line. */
+.detailed-plan-grid__route-bill {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 .detailed-plan-grid__combined-note {
   grid-area: combined;
   align-self: end;
