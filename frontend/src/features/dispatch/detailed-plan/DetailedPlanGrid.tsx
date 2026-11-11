@@ -27,7 +27,7 @@ import { formatISODate } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { DispatchDriverNote } from './DispatchDriverNote';
-import { detailRowKey, detailedScheduleLine, lclCargoLine, lclMeasureLine, classificationOptionsForRow } from './DispatchPlanCellValues';
+import { detailRowKey, detailedScheduleLine, detailedDemandLine, lclCargoLine, lclMeasureLine, classificationOptionsForRow } from './DispatchPlanCellValues';
 import { ENSURE_FULFILLMENT_FAILED_MESSAGE } from './ensureFulfillment';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { useDispatchTaskTags } from './useDispatchTaskTags';
@@ -761,6 +761,10 @@ export function DetailedPlanGrid({
                 // 20261003_318) — one shared derivation for table + card
                 // (DispatchPlanCellValues.detailedScheduleLine).
                 const scheduleValue = detailedScheduleLine(row);
+                // SIL-793 — the schedule column prints the row's container
+                // demand ("1 x 20DC") exactly like /dispatch's LỊCH TRÌNH
+                // sub line; an LCL lot renders nothing (no container owned).
+                const demandLine = detailedDemandLine(row);
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
@@ -801,6 +805,14 @@ export function DetailedPlanGrid({
                     <div className="detailed-plan-grid__cell-body">
                       <div className="ops-schedule">
                         <strong className="ops-schedule__datetime" title={scheduleValue}>{scheduleValue}</strong>
+                        {demandLine && (
+                          <span
+                            className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__demand-line"
+                            title={demandLine}
+                          >
+                            {demandLine}
+                          </span>
+                        )}
                         <span className="detailed-plan-grid__line detailed-plan-grid__line--muted" data-empty={!row.docs.tradeDirection ? 'true' : undefined} title={row.docs.tradeDirection || differentTransportDate ? `${row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : ''}${differentTransportDate ? ` · Ngày vận chuyển: ${differentTransportDate}` : ''}` : undefined}>
                           {row.docs.tradeDirection === 'IMPORT' ? 'trả hàng' : row.docs.tradeDirection === 'EXPORT' ? 'đóng hàng' : '—'}
                           {differentTransportDate && ` · Ngày vận chuyển: ${differentTransportDate}`}

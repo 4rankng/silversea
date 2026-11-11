@@ -178,6 +178,20 @@ describe('DetailedPlanGrid', () => {
     expect(container.textContent).not.toContain('Chưa có cont');
   });
 
+  // SIL-793 — the LỊCH TRÌNH column prints the row's container demand
+  // ("1 x 20DC") like /dispatch's schedule sub line; an LCL lot renders none.
+  it('prints the container demand line in the schedule cell for an FCL row and none for an LCL lot', () => {
+    const { container } = renderGrid([row({ container: { containerNumber: 'MSCU1234567', containerTypeLabel: '20DC', cargoWeightKg: null } })]);
+    // CSS attribute selectors with non-ASCII values are unreliable in the
+    // test DOM engine — select the one schedule cell by its ASCII class.
+    const scheduleCell = container.querySelector('.detailed-plan-grid__cell--schedule') as HTMLElement;
+    expect(scheduleCell?.textContent).toContain('1 x 20DC');
+
+    const lclOnly = renderGrid([lclRow('IMPORT')]);
+    const lclSchedule = lclOnly.container.querySelector('.detailed-plan-grid__cell--schedule') as HTMLElement;
+    expect(lclSchedule?.textContent).not.toMatch(/1 x /);
+  });
+
   it('renders the 10 operational columns with multi-line typography (SIL-591: + Số tờ khai)', () => {
     const { container } = renderGrid([row()]);
 
