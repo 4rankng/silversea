@@ -5,7 +5,7 @@
 // "Thiếu …" labels (§1); the row is never flooded red (selection state owns
 // that channel). The dot track stays pinned, and the ticket's money matrix
 // opens essential-locked (card KT4 as amended by SIL-727).
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -146,27 +146,16 @@ describe('the leading cost-state track on the board', () => {
     expect(screen.queryByRole('img', { name: 'Thiếu chi phí' })).toBeNull();
   });
 
-  it('the pinned track stays out of the picker, and the SIL-727 money matrix opens essential-locked', async () => {
+  it('SIL-772 — all nine Rev2 groups open on the board and the picker is gone', async () => {
     listBoard.mockResolvedValue({ items: [row()], total: 1 });
     renderPage();
     await screen.findByText('BL-1');
-    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
-    const dialog = screen.getByRole('dialog', { name: 'Cột hiển thị' });
-    // Pinned columns (track, Ngày, lô, Đối soát) are not offered at all…
-    for (const label of ['Chi phí', 'Ngày', 'Thông tin lô hàng', 'Đối soát']) {
-      expect(within(dialog).queryByRole('checkbox', { name: label })).toBeNull();
+    // The visibility picker died with the old matrix — no 'Cột hiển thị'.
+    expect(screen.queryByRole('button', { name: /Cột hiển thị/ })).toBeNull();
+    // …and the board opens on the NINE Rev2 groups, nothing hidden.
+    for (const label of ['Lô', 'Hàng hóa & Cont', 'Phương tiện', 'Cước phải thu', 'Tổng thu', 'Cước phải trả', 'Tổng trả & Chi phí ngoài', 'Lợi nhuận', 'Ghi chú & Đối soát']) {
+      expect(screen.getByRole('columnheader', { name: label })).toBeInTheDocument();
     }
-    // …and the ticket's matrix is on the board: every PHẢI THU/PHẢI TRẢ
-    // column reads locked in the picker (disabled + checked — a stored choice
-    // cannot hide it, FB-093 lan 3)…
-    for (const label of ['Cước thu (tự động)', 'Lạch Huyện (tự động)', 'Phụ ps (tự động)', 'Phát sinh (cus)', 'Tổng thu', 'Cước trả ĐV', 'Lạch Huyện ĐV', 'Phát sinh ĐV', 'Tổng trả', 'Phí RU (tự động)']) {
-      const option = within(dialog).getByRole('checkbox', { name: label });
-      expect(option).toBeChecked();
-      expect(option).toBeDisabled();
-    }
-    // …and renders on the board.
-    expect(screen.getByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Phí RU (tự động)' })).toBeInTheDocument();
   });
 
   it('phone records never render the dot track as a fact', async () => {

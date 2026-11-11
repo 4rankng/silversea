@@ -66,7 +66,7 @@ const lcl = (
 
 describe('FB-094 — board LCL cells', () => {
   it('container params read the LCL label + the group note, not container lines', () => {
-    const view = cellFor('container', row({
+    const view = cellFor('hangHoaCont', row({
       lcl: {
         label: 'Lẻ · Thu: 5T · Trả: 10T',
         actualTruckNo: '29C-1', billingTruckNo: '30C-2',
@@ -81,14 +81,14 @@ describe('FB-094 — board LCL cells', () => {
   // plate — "Nhà xe Gaya · Thực: 29C-1". An own-fleet lot names its own-fleet
   // identity exactly as the FCL cell does: the own plate (phanXe label).
   it('PHÂN XE line 1 names the real carrier and labels the actual plate', () => {
-    const subcontract = textOf('phanXe', row({
+    const subcontract = textOf('phuongTien', row({
       phanXe: ['Nhà xe Gaya'],
       lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '29C-1' }),
     }));
     expect(subcontract.textContent).toContain('Nhà xe Gaya · Thực: 29C-1');
     expect(subcontract.querySelector('.debit-billing-badge')).toBeNull();
 
-    const ownFleet = textOf('phanXe', row({
+    const ownFleet = textOf('phuongTien', row({
       phanXe: ['29C-123.45'],
       lcl: lcl({ actualTruckNo: '29C-123.45', billingTruckNo: '29C-123.45' }),
     }));
@@ -96,7 +96,7 @@ describe('FB-094 — board LCL cells', () => {
   });
 
   it('PHÂN XE shows both plates and the orange badge only when they differ', () => {
-    const differing = textOf('phanXe', row({
+    const differing = textOf('phuongTien', row({
       phanXe: ['Nhà xe Gaya'],
       lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '30C-2' }),
     }));
@@ -104,7 +104,7 @@ describe('FB-094 — board LCL cells', () => {
     expect(differing.textContent).toContain('BKS ảo: 30C-2');
     expect(differing.querySelector('.debit-billing-badge')).toBeTruthy();
 
-    const matching = textOf('phanXe', row({
+    const matching = textOf('phuongTien', row({
       phanXe: ['Nhà xe Gaya'],
       lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '29C-1' }),
     }));
@@ -113,24 +113,24 @@ describe('FB-094 — board LCL cells', () => {
   });
 
   it('PHÂN XE degrades missing carrier/plate to —, never "" or undefined', () => {
-    const bare = textOf('phanXe', row({ lcl: lcl() }));
+    const bare = textOf('phuongTien', row({ lcl: lcl() }));
     expect(bare.textContent).toBe('—');
     expect(bare.textContent).not.toContain('undefined');
 
-    const noCarrier = textOf('phanXe', row({
+    const noCarrier = textOf('phuongTien', row({
       lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '29C-1' }),
     }));
     expect(noCarrier.textContent).toContain('— · Thực: 29C-1');
     expect(noCarrier.textContent).not.toContain('undefined');
 
-    const noPlate = textOf('phanXe', row({
+    const noPlate = textOf('phuongTien', row({
       phanXe: ['Nhà xe Gaya'],
       lcl: lcl(),
     }));
     expect(noPlate.textContent).toContain('Nhà xe Gaya · Thực: —');
 
     // Whitespace-only plates are absence, not data.
-    const blank = textOf('phanXe', row({
+    const blank = textOf('phuongTien', row({
       phanXe: ['Nhà xe Gaya'],
       lcl: lcl({ actualTruckNo: '  ', billingTruckNo: '' }),
     }));
@@ -139,12 +139,12 @@ describe('FB-094 — board LCL cells', () => {
   });
 
   it('FCL rows keep the container list and the phanXe join', () => {
-    const fclContainer = textOf('container', row({ containers: ['MSCU1 · 40HC'] }));
+    const fclContainer = textOf('hangHoaCont', row({ containers: ['MSCU1 · 40HC'] }));
     expect(fclContainer.textContent).toContain('MSCU1 · 40HC');
-    const fcl = textOf('phanXe', row({ phanXe: ['Xe nhà · 30A-111'] }));
+    const fcl = textOf('phuongTien', row({ phanXe: ['Xe nhà · 30A-111'] }));
     expect(fcl.textContent).toBe('Xe nhà · 30A-111');
     expect(fcl.textContent).not.toContain('Thực:');
-    expect(textOf('phanXe', row()).textContent).toBe('—');
+    expect(textOf('phuongTien', row()).textContent).toBe('—');
   });
 });
 
@@ -162,14 +162,14 @@ describe('card 191026202000 — board names ride the shared NameCell', () => {
   });
 
   it('Phân xe labels render per-label through NameCell, not a joined bare string', () => {
-    const fcl = textOf('phanXe', row({ phanXe: ['Nhà xe Gaya', 'Duyên Hải'] }));
+    const fcl = textOf('phuongTien', row({ phanXe: ['Nhà xe Gaya', 'Duyên Hải'] }));
     const names = fcl.querySelectorAll('.name-cell');
     expect(names).toHaveLength(2);
     expect(names[0].getAttribute('title')).toBe('Nhà xe Gaya');
     expect(names[1].getAttribute('title')).toBe('Duyên Hải');
     expect(fcl.textContent).toBe('Nhà xe Gaya, Duyên Hải');
 
-    const lclCarrier = textOf('phanXe', row({
+    const lclCarrier = textOf('phuongTien', row({
       phanXe: ['Nhà xe Gaya'],
       lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '29C-1' }),
     }));
@@ -191,7 +191,7 @@ describe('FB-093 — the "Báo khách (Ảo)" badge opens the BKS editor', () =>
       phanXe: ['Nhà xe Gaya'],
       lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '30C-2' }),
     });
-    const column = BOARD_COLUMNS.find((entry) => entry.key === 'phanXe')!;
+    const column = BOARD_COLUMNS.find((entry) => entry.key === 'phuongTien')!;
     const { container } = render(<>{column.cell(target, { ...noContext, editBillingPlate: (id) => opened.push(id) })}</>);
     const badge = container.querySelector('.debit-billing-badge') as HTMLButtonElement;
     expect(badge.tagName).toBe('BUTTON');
@@ -204,7 +204,7 @@ describe('FB-093 — the "Báo khách (Ảo)" badge opens the BKS editor', () =>
     const badgeFor = (editingId: number | null) => {
       const target = row({ shipmentId: 77, phanXe: [], lcl: lcl({ actualTruckNo: '29C-1', billingTruckNo: '30C-2' }) });
       const { container } = render(
-        <>{BOARD_COLUMNS.find((entry) => entry.key === 'phanXe')!.cell(target, { ...noContext, editingBillingShipmentId: editingId })}</>,
+        <>{BOARD_COLUMNS.find((entry) => entry.key === 'phuongTien')!.cell(target, { ...noContext, editingBillingShipmentId: editingId })}</>,
       );
       return container.querySelector('.debit-billing-badge')?.getAttribute('aria-expanded');
     };

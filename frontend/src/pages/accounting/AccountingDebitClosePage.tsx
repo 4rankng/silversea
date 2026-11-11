@@ -20,8 +20,6 @@ import { qk } from '../../api/keys';
 import { Btn, Modal, PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, EmptyState, FilterBar, SearchableMultiSelect, SummaryRail } from '../../design-system';
-import { useHiddenColumns } from '../../hooks/useHiddenColumns';
-import { resolveHiddenColumns } from '../../lib/column-visibility';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
@@ -116,50 +114,10 @@ export default function AccountingDebitClosePage() {
   });
   const rows = useMemo(() => boardQuery.data?.items ?? [], [boardQuery.data]);
 
-  // The picker offers every column except the ones a row cannot lose: its
-  // identity (Ngày, lô) and the only column carrying its action (Đối soát). A
-  // column that is still "Thiếu …" on every rendered row carries NO value, so
-  // it hides itself until it does (column-visibility law).
-  //
-  // Card 191026181942 (KT4), amended by SIL-727 (owner ticket 07/11): the
-  // board opens on its essential set — now the FULL money matrix (dot chi phí,
-  // Ngày, lô, container, phân xe, 5× PHẢI THU, 5× PHẢI TRẢ, Đối soát; Lợi
-  // nhuận + Ghi chú stay one toggle away). With the breakdowns hidden the
-  // board read as "TỔNG THU 0₫ + TỔNG 1" only and QA filed it as missing
-  // columns; the ticket's AC lists the matrix explicitly. A stored choice
-  // (per workstation, same key as before) still wins wholesale — minus the
-  // required columns (pinned, essential, essentialWhenHasData), which no
-  // stored choice can hide: FB-093 (lan 3) repairs a pre-essential payload on
-  // load, so an old workstation's `accounting-debit-hidden-cols` can no
-  // longer bury the "Tách nhóm" column or the money matrix.
-  const columns = useHiddenColumns({
-    storageKey: 'accounting-debit-hidden-cols',
-    columns: BOARD_COLUMNS,
-    defaultVisible: 'essential',
-    hasData: (column) => {
-      const definition = BOARD_COLUMNS.find((candidate) => candidate.key === column.key);
-      if (definition?.raw == null) return true;
-      return rows.some((row) => definition.raw!(row) != null);
-    },
-  });
-  const shown = BOARD_COLUMNS.filter((column) => !columns.isHidden(column.key));
-  // Card 191026181942 (KT4): the ESSENTIAL default is the DESKTOP board's —
-  // its money matrix is the surface that could not be read with every
-  // breakdown open. The phone records stack vertically, so they keep the
-  // auto default (a column with data shows) and never lose the BD-02 lane
-  // price on the card face. The operator's explicit picker choice still
-  // governs BOTH views (one stored key) — only the never-chose default
-  // differs per view.
-  const shownForRecords = BOARD_COLUMNS.filter((column) => !resolveHiddenColumns({
-    columns: BOARD_COLUMNS,
-    choice: columns.choice,
-    hasData: (column) => {
-      const definition = BOARD_COLUMNS.find((candidate) => candidate.key === column.key);
-      if (definition?.raw == null) return true;
-      return rows.some((row) => definition.raw!(row) != null);
-    },
-  }).includes(column.key));
-
+  // SIL-772 (Rev2 Phần IV.2) — the board renders ALL NINE Rev2 groups, every
+  // one `pinned`: no visibility picker, no stored `accounting-debit-hidden-cols`
+  // choice, no 7/9 default (the QA FAIL). A stored choice from the old matrix
+  // simply stops being read — the nine groups are the board.
   const customerValues = useMemo(
     () => [...new Set(rows.map((row) => row.customerName).filter((v): v is string => v != null))].sort(),
     [rows],
@@ -568,13 +526,6 @@ export default function AccountingDebitClosePage() {
           placeholder: 'Mã lô, bill/booking, khách hàng, container',
           ariaLabel: 'Tìm lô hàng',
         }}
-        columns={{
-          items: BOARD_COLUMNS,
-          hidden: columns.hidden,
-          customized: columns.customized,
-          onToggle: columns.toggle,
-          onReset: columns.reset,
-        }}
         actions={(
           <>
             {/* SIL-727 — 4 toolbar buttons enabled when rows are selected */}
@@ -830,10 +781,10 @@ export default function AccountingDebitClosePage() {
           {pendingRows.length > 0 && (
             <>
               <h2 className="debit-board__title">Chờ xác nhận</h2>
-              <AccountingDebitRecords rows={pendingRows} columns={shownForRecords} context={cellContext} selection={selection} />
+              <AccountingDebitRecords rows={pendingRows} columns={BOARD_COLUMNS} context={cellContext} selection={selection} />
               <DebitBoardTable
                 rows={pendingRows}
-                columns={shown}
+                columns={BOARD_COLUMNS}
                 context={cellContext}
                 selection={selection}
                 ariaLabel="Bảng chờ xác nhận điều chỉnh cước"
@@ -847,16 +798,17 @@ export default function AccountingDebitClosePage() {
                 {BOARD_CAPTION}
                 {period !== '' && <span className="debit-note"> · kỳ {period}</span>}
               </h2>
-              <AccountingDebitRecords rows={settledRows} columns={shownForRecords} context={cellContext} selection={selection} />
+              <AccountingDebitRecords rows={settledRows} columns={BOARD_COLUMNS} context={cellContext} selection={selection} />
               <DebitBoardTable
                 rows={settledRows}
-                columns={shown}
+                columns={BOARD_COLUMNS}
                 context={cellContext}
                 selection={selection}
                 ariaLabel="Bảng kế hoạch điều động tổng hợp"
                 caption={`${BOARD_CAPTION} — thu/trả theo lô`}
               />
-              <p className="debit-board__hint ledger-desktop">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
+              {/* SIL-772 — the "cuộn ngang" cue died with the scroll design:
+                  the nine fixed tracks fit the 1920px operating width. */}
             </>
           )}
         </>

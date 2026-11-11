@@ -102,7 +102,6 @@ const lclRow = (
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
-  localStorage.setItem('accounting-debit-hidden-cols', '[]');
   listRounds.mockResolvedValue({ items: [] });
   getBootstrap.mockResolvedValue({ trucks: [{ licensePlate: '51G-888.88' }] });
   listVehicleSizeClasses.mockReturnValue([]);
@@ -110,10 +109,10 @@ beforeEach(() => {
 });
 
 describe('card 211026024348 — "Tách nhóm" trên /accounting/chot-debit', () => {
-  it('máy trạm MỚI (chưa có choice trong localStorage): cột Thông số container tự hiện khi có dữ liệu lcl → nút "Tách nhóm" vẫn thấy (FB-093 re-verify)', async () => {
-    // Simulate a FRESH workstation: no stored column choice — the KT4
-    // essential default applies. The container column carries the required
-    // action, so it must show itself once lcl data exists (essentialWhenHasData).
+  it('máy trạm mới: lưới 9 nhóm hiện đủ → nút "Tách nhóm" vẫn thấy (SIL-772)', async () => {
+    // The board consults NO stored column choice since SIL-772 — the nine
+    // groups always render, so the action-bearing Hàng hóa & Cont cell is
+    // reachable on a fresh workstation without any repair mechanism.
     localStorage.removeItem('accounting-debit-hidden-cols');
     listBoard.mockResolvedValue({
       items: [lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } })],
@@ -123,20 +122,18 @@ describe('card 211026024348 — "Tách nhóm" trên /accounting/chot-debit', () 
     await screen.findAllByText('BL-1');
 
     expect(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' })).toBeTruthy();
-    // SIL-727 amends the KT4 default: the money matrix is essential, so the
-    // breakdown column is on the board (locked in the picker) — while the
-    // action-bearing container column keeps showing itself once it has data.
-    expect(screen.getByRole('columnheader', { name: 'Cước thu (tự động)' })).toBeTruthy();
-    expect(screen.getByRole('columnheader', { name: 'Thông số container' })).toBeTruthy();
+    // SIL-772 amends the KT4 default: the nine Rev2 groups always render —
+    // the collected lane and the action-bearing cell need no picker lock.
+    expect(screen.getByRole('columnheader', { name: 'Cước phải thu' })).toBeTruthy();
+    expect(screen.getByRole('columnheader', { name: 'Hàng hóa & Cont' })).toBeTruthy();
   });
 
-  it('máy trạm CŨ (localStorage cũ chứa cột action): load tự sanitize → nút "Tách nhóm" vẫn thấy, cột thường vẫn theo saved (FB-093 lan 3)', async () => {
-    // The reported defect: the workstation's `accounting-debit-hidden-cols`
-    // was written BEFORE the container column became essentialWhenHasData, so
-    // build 6110af65 still buried the "Tách nhóm" button (the fresh-machine
-    // fix above never got a say — a stored choice won wholesale). The read now
-    // repairs the payload: required keys drop, ordinary choices still govern,
-    // and the sanitized list is written back to storage.
+  it('máy trạm CŨ (localStorage cũ chứa choice của ma trận cũ): lưới 9 nhóm vẫn đủ — payload cũ không còn được đọc (SIL-772)', async () => {
+    // FB-093 lan 3 used to repair the stored `accounting-debit-hidden-cols`
+    // on read so it could not bury the "Tách nhóm" column. SIL-772 retired
+    // the mechanism with the old matrix: the board consults NO stored choice,
+    // so a stale payload from the 17-track era cannot hide anything — the
+    // defect class is unreachable, not repaired.
     localStorage.setItem('accounting-debit-hidden-cols', JSON.stringify(['container', 'phanXe']));
     listBoard.mockResolvedValue({
       items: [lclRow({ lcl: { ghépCùngRef: 'BL-1', revGroupId: 'g-rev-1' } })],
@@ -145,14 +142,14 @@ describe('card 211026024348 — "Tách nhóm" trên /accounting/chot-debit', () 
     renderPage();
     await screen.findAllByText('BL-1');
 
-    // the action column is visible again — the button is reachable
+    // the action stays visible — the button is reachable
     expect(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' })).toBeTruthy();
-    // the ordinary saved choice is still honored — Phân xe stays hidden
+    // the board renders ALL NINE Rev2 groups (old names retired with the matrix)
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent ?? '');
-    expect(headers).toContain('Thông số container');
+    expect(headers).toContain('Hàng hóa & Cont');
+    expect(headers).toContain('Phương tiện');
+    expect(headers).not.toContain('Thông số container');
     expect(headers).not.toContain('Phân xe');
-    // and the stored payload is sanitized on disk, not just in memory
-    expect(JSON.parse(localStorage.getItem('accounting-debit-hidden-cols') ?? '[]')).toEqual(['phanXe']);
   });
 
   it('dòng nhóm ghép mang <button> thật "Tách nhóm" (aria nêu lô); dòng chưa ghép thì không', async () => {

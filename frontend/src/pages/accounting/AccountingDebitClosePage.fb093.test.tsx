@@ -101,11 +101,8 @@ const lclRow = (shipmentId: number, bill: string, ghépCùngRef: string | null =
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
-  // The board opens on its ESSENTIAL column set (card 191026181942), which
-  // omits "Phân xe" — the column the BKS badge lives in. An explicit stored
-  // choice of "nothing hidden" is the operator's real way to see it, so the
-  // tests read the surface the same way an accountant would.
-  localStorage.setItem('accounting-debit-hidden-cols', '[]');
+  // SIL-772 — the board consults no stored column choice: the nine Rev2
+  // groups (Phương tiện among them, hosting the BKS badge) always render.
   listRounds.mockResolvedValue({ items: [] });
   getBootstrap.mockResolvedValue({ trucks: [{ licensePlate: '51G-888.88' }] });
   listVehicleSizeClasses.mockReturnValue([]);

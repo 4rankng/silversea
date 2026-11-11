@@ -1,23 +1,24 @@
 /* ==========================================================================
- * Kế toán chốt debit — the board's own geometry (2026-09-29 redesign).
+ * KIỂM SOÁT LÔ HÀNG — the board's own geometry.
  *
- * The board IS a money matrix: ten money columns beside the lot's identity,
- * under `Phải thu` / `Phải trả` tier-1 groups. It cannot fit a ~1150px
- * operational canvas, so — like the sibling /shipments-debit board (card
- * 20260924_9) — it gets an explicit scroll box, an honest minimum for every
- * column, a sideways-scroll cue on touch widths, and a STICKY identity pair so
- * a scrolled row never loses which lot it belongs to.
+ * SIL-772 (Rev2 Phần IV.2, QA FAIL build 1ae5afcb) — the board IS the
+ * customer's LƯỚI 9 CỘT multi-line: nine fixed tracks (each a Rev2 group whose
+ * cell stacks labeled lines), a single header band, and NO horizontal scroll
+ * at the 1920px operating width — the old 17-track matrix scrolled sideways
+ * and cut TỔNG TRẢ at the right edge. `table-layout: fixed` with percentage
+ * tracks is what holds that promise: the grid never grows past the canvas, a
+ * value wraps onto its own line instead of pushing the board wide.
  *
- * This replaces card 20260922's 2640px `table-layout: fixed` wall: its
- * explicit colgroup shares were the only thing holding that layout together,
- * the grouped headers collided at every desktop width, and half the board
- * lived off screen. With `min-width` per column the header wraps inside its
- * own cell, the table grows to what the data needs, and the board says out
- * loud that it scrolls.
+ * Below the operating width (or on a phone, where `ledger-desktop` hands the
+ * rows to the record cards) the wrap keeps `overflow-x: auto` as graceful
+ * degradation — the AC is the 1920px desktop, and the fixed budget satisfies
+ * it with ~180px of slack.
  *
  * Geometry only. `thead th` case/tracking belong to the global authority
- * (components/Table.css); numeric cells ride the global `.num`; the selection
- * treatment is the neutral-ink edge of styles/selection-state-contract.
+ * (components/Table.css); numeric cells declare their own tabular face
+ * (td.debit-col--money, .debit-line__value, .debit-lot-date — the board no
+ * longer rides the global `.num` cell class); the selection treatment is the
+ * neutral-ink edge of styles/selection-state-contract.
  * ========================================================================== */
 
 /* The board's identity — the DOCUMENT's name, under the page that names the
@@ -28,16 +29,6 @@
   font-weight: var(--fw-semibold, 600);
   color: var(--ink);
 }
-
-/* ── Header alignment (§2b) ──────────────────────────────────────────────────
- * Two-tier head: the leaf labels live in the SECOND row, but a rowSpan=2
- * header renders its text at the TOP of the doubled band, so Ngày/Thông tin
- * lô… floated a full row above Phải thu's leaves — the ragged header QA read
- * as "cột không thẳng hàng". Pin the spanning cells to the band's BOTTOM edge
- * (UUI table pattern: every leaf label shares one baseline), and center the
- * tier-1 group headers over their run. Leaf-vs-body drift is measured 0px. */
-.debit-board thead th[rowspan] { vertical-align: bottom; }
-.debit-board thead th[colspan] { text-align: center; }
 
 /* Supporting line: counts, period, "đã chọn N lô". One treatment, so the bar's
    status slot, the selection strip and the notice all read as one voice. */
@@ -53,16 +44,19 @@ p.debit-note { margin: 0 0 8px; }
   border-radius: 8px;
 }
 
-/* SIL-701 (id 821): the NGÀY track — one property, so the sticky lot column
-   always sits at the date's real edge. 116px is the MEASURED floor (tick +
-   "DD/MM/YYYY" + padding at 12px); 12ch grows it when the loaded font is
-   wider, so the date can never be cut again. */
+/* ── The nine-track budget (SIL-772) ────────────────────────────────────────
+ * Fixed layout + percentage shares: the board fills the canvas exactly and
+ * NEVER overflows it at the 1920px operating width — measured canvas there is
+ * ≈1438px (shell + sidebar), so the 1380px floor clears it with slack and no
+ * scrollbar (the QA FAIL scrolled at 1480/1438 with the old matrix). Below
+ * that floor the wrap scrolls instead of crushing the money cells. The shares
+ * sum to 100%. */
 .debit-board {
-  --debit-date-track: max(116px, 12ch);
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1380px;
 }
 
-/* The global `tbody td` emergency break fractures codes and container numbers
-   mid-token (law §4) — this board holds whole tokens, so it withdraws it. */
 .debit-board th,
 .debit-board td {
   padding: 6px 10px;
@@ -72,129 +66,98 @@ p.debit-note { margin: 0 0 8px; }
   white-space: normal;
 }
 
-/* ── Column budget ─────────────────────────────────────────────────────────
-/* `min-width` (not `width`) is what sizes a track under auto layout: the table
- * stretches to fill the canvas when the data is short, and grows past it — into
- * the scroll box — when it is not. The AMOUNT never wraps (a broken number is
- * unreadable), while its header does — a nowrap header would set the track's
- * width from the longest label and starve the data columns. */
-.debit-board th.debit-col--money,
-.debit-board td.debit-col--money {
-  min-width: 104px;
-  text-align: right;
-}
-/* Money rides the global `.num` cell class; pin its face to the tabular
-   variant so the digits stack down the column (a proportional face would let
-   111 and 888 read as ragged edges in a money matrix). */
-.debit-board .num,
-.debit-board td.debit-col--money { font-variant-numeric: tabular-nums; }
-.debit-board td.debit-col--money { white-space: nowrap; }
-/* SIL-701 (id 821): the money CELL numbers never wrap (a broken number is
-   unreadable), but the PROSE label of a missing value ("Thiếu tổng thu")
-   wraps instead of being cut — the no-truncate doctrine reaches the label
-   too, so a narrow track shows the whole phrase. */
-.debit-board td.debit-col--money .debit-missing { white-space: normal; }
-.debit-board th.debit-col--lot,
-.debit-board td.debit-col--lot { min-width: 188px; }
-.debit-board th.debit-col--container,
-.debit-board td.debit-col--container { min-width: 148px; }
-.debit-board th.debit-col--truck,
-.debit-board td.debit-col--truck { min-width: 118px; }
-.debit-board th.debit-col--status,
-.debit-board td.debit-col--status { min-width: 132px; }
-.debit-board th.debit-col--note,
-.debit-board td.debit-col--note { min-width: 132px; }
-.debit-board td.debit-col--note { overflow-wrap: anywhere; }
+/* Track shares (Rev2 groups, in order): Lô 13 · Hàng hóa & Cont 11 ·
+ * Phương tiện 11 · Cước phải thu 12 · Tổng thu 8 · Cước phải trả 12 ·
+ * Tổng trả & Chi phí ngoài 11 · Lợi nhuận 8 · Ghi chú & Đối soát 14.
+ * The nine-group ORDER is the Rev2 contract, so the shares key on the
+ * header's child position (same-class columns carry different widths). */
+.debit-board thead th:nth-child(1) { width: 13%; }  /* Lô */
+.debit-board thead th:nth-child(2) { width: 11%; }  /* Hàng hóa & Cont */
+.debit-board thead th:nth-child(3) { width: 11%; }  /* Phương tiện */
+.debit-board thead th:nth-child(4) { width: 12%; }  /* Cước phải thu */
+.debit-board thead th:nth-child(5) { width: 8%; }   /* Tổng thu */
+.debit-board thead th:nth-child(6) { width: 12%; }  /* Cước phải trả */
+.debit-board thead th:nth-child(7) { width: 11%; }  /* Tổng trả & Chi phí ngoài */
+.debit-board thead th:nth-child(8) { width: 8%; }   /* Lợi nhuận */
+.debit-board thead th:nth-child(9) { width: 14%; }  /* Ghi chú & Đối soát */
 
-/* ── Leading cost-state track (card 191026181942 KT8) ──────────────────────
- * One slim sticky track before Ngày: the red "Thiếu chi phí" dot. Slim on
- * purpose — the dot is a pre-attentive scan aid, not a data column, so it
- * takes the minimum a pointer target needs and nothing else. */
-.debit-board th.debit-col--cost-state,
-.debit-board td.debit-col--cost-state {
-  position: sticky;
-  left: 0;
-  width: 34px;
-  min-width: 34px;
-  max-width: 34px;
-  padding: 6px 2px;
-  text-align: center;
+/* Single-value money cells (Tổng thu, Lợi nhuận) right-align like the old
+ * matrix; the multi-line groups align per LINE (label left, value right). */
+.debit-board td.debit-col--money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.debit-board td.debit-col--cost-state {
-  z-index: var(--z-base);
-  background: var(--surface);
+/* SIL-701 (id 821): a missing value's PROSE label ("Thiếu tổng thu") wraps
+ * instead of being cut — the no-truncate doctrine reaches the label too. */
+.debit-board td.debit-col--money .debit-missing { white-space: normal; }
+
+/* ── Multi-line money cell (Rev2: label muted, value tabular right) ─────── */
+.debit-money-group { display: grid; gap: 3px; }
+.debit-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.debit-line__label {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+}
+.debit-line__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.debit-line__value .debit-missing { white-space: normal; }
+/* The editable Chi phí ngoài line stacks (label above the input, input full
+ * width) — an inline flex pair would starve the input. */
+.debit-line--stacked { display: grid; gap: 2px; }
+.debit-line--stacked .debit-ext-cost { width: 100%; }
+
+/* Rev2 cột 5 — the Tổng thu rollup reads bold (the QA-passed face). */
+.debit-tong-thu { font-weight: var(--fw-bold, 700); color: var(--ink); }
+
+/* ── Lô cell (Rev2 cột 1) ────────────────────────────────────────────────── */
+.debit-lot-ref { display: flex; align-items: center; gap: 4px; }
+/* SIL-701 (id 821): the date is ONE value on ONE line — measured 109.5px of
+ * content at 12px Inter Digits; the 13% Lô track (≈195px at the 1480px floor)
+ * holds it whole, and tabular digits keep every row's date the same width
+ * whatever the loaded font is. */
+.debit-lot-date {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .debit-cost-dot {
+  flex: 0 0 auto;
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--danger);
-  vertical-align: middle;
 }
 
-/* SIL-727 — the leading track hosts the row-selection checkbox for pickable
+/* SIL-727 — the leading line hosts the row-selection checkbox for pickable
  * rows: native input[type=checkbox] with brand accent-color so it renders
  * reliably in DOM, has non-zero input[type=checkbox] count, and is always visible. */
 .debit-board input[type="checkbox"].debit-row-checkbox {
+  flex: 0 0 auto;
   width: 18px;
   height: 18px;
-  margin: 0 auto;
   accent-color: var(--brand, #1570ef);
   cursor: pointer;
-  display: block;
-}
-
-/* ── Sticky identity pair ──────────────────────────────────────────────────
- * The date is the board's axis and follows the dot track, so one fixed width
- * each lets the lot column offset against them deterministically. `z-index:
- * var(--z-base)` keeps all three BELOW the sticky header band
- * (components/Table.css pins it at 2) while still painting above the columns
- * that scroll under them. */
-.debit-board th.debit-col--date,
-.debit-board td.debit-col--date,
-.debit-board th.debit-col--lot,
-.debit-board td.debit-col--lot { position: sticky; }
-.debit-board th.debit-col--date,
-.debit-board td.debit-col--date {
-  left: 34px;
-  /* SIL-701 (id 821): the track must hold the WHOLE DD/MM/YYYY plus the
-   * row's selection tick — measured on the running board at 12px Inter
-   * Digits: the tick 13.2px + 2px gap + "04/11/2026" 74.3px + the cell's
-   * 20px padding = 109.5px, so the old 96px cut the last digit ("01/11/202").
-   * The track reads ONE custom property so the sticky lot column always
-   * sits at the date's real edge, and `12ch` grows the track when the loaded
-   * font is wider than the measured one (the date is 10 characters). No
-   * `max-width`: the track may grow, never clip. */
-  width: var(--debit-date-track);
-  min-width: var(--debit-date-track);
-  white-space: nowrap;
-  /* The date is a numeric column: tabular digits keep every row's date the
-   * same width, so the track never depends on the loaded font. */
-  font-variant-numeric: tabular-nums;
-}
-.debit-board th.debit-col--lot,
-.debit-board td.debit-col--lot { left: calc(34px + var(--debit-date-track)); }
-.debit-board td.debit-col--date,
-.debit-board td.debit-col--lot {
-  z-index: var(--z-base);
-  background: var(--surface);
 }
 
 /* ── Selection ─────────────────────────────────────────────────────────────
- * Card 191026160000 (§2c): QA read the old neutral-ink edge (plain surface +
- * a 3px inset) as "no highlight at all" — the count strip said how many but
- * no row said WHICH. The selected row now paints the house accent-soft band
- * with the emerald edge, and its Ngày cell carries the ✓ tick (board.tsx).
- * The sticky cells carry it too: their opaque background would otherwise
- * paint over the row's own band. */
+ * Card 191026160000 (§2c): the selected row paints the house accent-soft band
+ * and its Lô cell carries the ✓ tick (columns.tsx) — the count strip says how
+ * many, the tick says which. The 1.1em tick slot is always reserved so the
+ * lot's code never shifts when a row is picked. */
 .debit-board tbody tr[data-selected] td { background: var(--accent-soft, #E8F8EE); }
-.debit-board tbody tr[data-selected] td.debit-col--date { box-shadow: inset 3px 0 0 var(--accent, #4A9E7D); }
+.debit-board tbody tr[data-selected] td.debit-col--lot { box-shadow: inset 3px 0 0 var(--accent, #4A9E7D); }
 .debit-row-tick {
   display: inline-block;
   width: 1.1em;
-  margin-right: 2px;
   color: var(--accent-ink, #00361B);
   font-weight: 700;
   text-align: center;
@@ -206,37 +169,24 @@ p.debit-note { margin: 0 0 8px; }
 }
 .debit-board tbody tr.debit-row--locked { color: var(--ink-3); }
 
-/* A missing value is a fact about the row, not a number: it keeps the cell's
-   right edge but drops the numeric face — mono is for data, never for prose
-   (§10), and the cell still names the field that is missing (§1). */
+/* A missing value is a fact about the row, not a number: it drops the numeric
+   face — mono is for data, never for prose (§10) — and still names the field
+   that is missing (§1). */
 .debit-board .debit-missing {
   font-family: var(--font-body);
   color: var(--ink-3);
 }
 
-/* The live-adjustment cell is the row's action slot: state line, then the two
-   controls the operator may exercise on it. */
-.debit-pending { display: block; }
-.debit-pending .btn { margin: 4px 4px 0 0; }
-
-/* Scroll cue — silent on a fine pointer, where a wheel/trackpad scrolls the box
-   without being told (the /shipments-debit pattern, card 20260924_9). */
-.debit-board__hint {
-  display: none;
-  margin: 4px 0 0;
-  color: var(--ink-2);
-  font-size: var(--text-caption-size);
-}
-
-@media (max-width: 640px), (hover: none) and (pointer: coarse) {
-  .debit-board__hint { display: block; }
-}
+/* The live-adjustment line is the row's action slot: state line, then the two
+   controls the operator may exercise on it. Ghi chú prose wraps (it is prose). */
+.debit-pending { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.debit-ghi-chu { overflow-wrap: anywhere; }
 
 /* Selection strip: "chọn tất cả" and the bulk actions belong to the selection,
    so the strip states it once instead of two rows of dead "(0 dòng)" buttons.
-   Card 20261005 — the strip now sits DIRECTLY under the filter bar and stays
-   pinned while the money matrix scrolls beneath it, so the selected count and
-   the two primary actions (Đối soát / Hoàn tác) are always in reach. */
+   Card 20261005 — the strip sits DIRECTLY under the filter bar and stays
+   pinned while the board scrolls VERTICALLY, so the selected count and the
+   two primary actions (Đối soát / Hoàn tác) are always in reach. */
 .debit-selection {
   position: sticky;
   top: 0;
@@ -281,11 +231,10 @@ p.debit-note { margin: 0 0 8px; }
   outline-offset: 1px;
 }
 
-/* FB-093 — the badge opens a panel directly under the filter bar (the badge
-   lives INSIDE the scrolling matrix, so an in-cell popover would be clipped by
-   the scroll box). Layout mirrors the CUS ledger's inline editor; the
-   EditActions class is shared, so its row rule is restated here — the ledger's
-   own stylesheet is not on this page. */
+/* FB-093 — the badge opens a panel directly under the filter bar. Layout
+   mirrors the CUS ledger's inline editor; the EditActions class is shared, so
+   its row rule is restated here — the ledger's own stylesheet is not on this
+   page. */
 .debit-billing-editor {
   margin: 10px 0;
   padding: 10px 12px;

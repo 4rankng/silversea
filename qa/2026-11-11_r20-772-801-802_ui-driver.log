@@ -1,0 +1,27 @@
+LOGIN OK ketoan (ACCOUNTANT) — http://localhost:7177
+PERSISTED BEFORE: debit-board rows 893, timesheet 11/2026 rows 1
+SIL-772 FCL: H1=KIỂM SOÁT LÔ HÀNG rows=149
+  PASS 772 H1 KIỂM SOÁT LÔ HÀNG
+  PASS 772 exactly NINE Rev2 group headers — ["Lô","Hàng hóa & Cont","Phương tiện","Cước phải thu","Tổng thu","Cước phải trả","Tổng trả & Chi phí ngoài","Lợi nhuận","Ghi chú & Đối soát"]
+  PASS 772 no horizontal scroll in board wrap @1920 — 1438/1438
+  PASS 772 no page horizontal scroll @1920 — 1920/1920
+  PASS 772 TỔNG TRẢ (Tổng trả & Chi phí ngoài) fully inside viewport — right=1479
+  PASS 772 column picker gone (9/9 default, nothing hideable)
+  PASS 772 LCL view: no horizontal scroll @1920 — 1438/1438
+  PASS 772 LCL view: no page horizontal scroll @1920 — 1920/1920
+  PASS 772 LCL view: TỔNG TRẢ inside viewport — right=1479
+SIL-772 LCL: rows=33 lclFlavored=true
+SIL-801: tokenRgb=rgb(111, 60, 16) groupWarnCells=2
+  PASS 801 amber token present — rgb(111, 60, 16)
+  PASS 801 group subtotal warn cell EXISTS and is amber — {"text":"14.268.577","color":"rgb(111, 60, 16)"}
+  PASS 801 foot TỔNG CỘNG warn cell EXISTS and is amber — {"text":"1.319.549.269","color":"rgb(111, 60, 16)"}
+  PASS 801 row cells still amber (no regression) — rgb(111, 60, 16)
+  PASS 802 legend Q letter carries the blue — {"text":"Q","color":"rgb(23, 92, 211)"}
+SIL-802 fleet: Q cells=1 qColor=rgb(23, 92, 211) đColor=null
+  PASS 802 fleet grid has Q cells
+  PASS 802 fleet grid Q reads BLUE rgb(23,92,211) — rgb(23, 92, 211)
+  SKIP 802 Đ control — seeded month carries no Đ cell
+  PASS persisted identity: debit-board row count unchanged — 893 → 893
+  PASS persisted identity: timesheet 11/2026 rows unchanged — 1 → 1
+CHECKS 18/18 PASS
+EXIT=0
