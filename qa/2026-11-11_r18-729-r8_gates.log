@@ -1,0 +1,18 @@
+BE_TSC_EXIT=0
+✔ SIL-729 — the summary bucket resolves through the shipment fallback (1.917709ms)
+✔ SIL-729 — the drill-down shows resolved trip-less money (0.454041ms)
+✔ SIL-729 r4 — the fallback sees fulfillment-linked trips and the lot carrier fact (0.544042ms)
+✔ SIL-729 r7 — lot-attached money never reads the unknown bucket (KB §6.7 labels) (0.473708ms)
+✔ SIL-729 r8 — the board chi-hộ cell is a verified zero, never unknown (KB §6.7) (0.361042ms)
+ℹ tests 13
+ℹ pass 13
+ℹ fail 0
+BE_PINS_EXIT=0
+FE_TSC_EXIT=0
+
+ Test Files  5 passed (5)
+      Tests  62 passed (62)
+   Start at  20:23:02
+   Duration  17.75s (transform 7.76s, setup 1.51s, import 21.02s, tests 29.72s, environment 4.73s)
+
+FE_VITEST_EXIT=0

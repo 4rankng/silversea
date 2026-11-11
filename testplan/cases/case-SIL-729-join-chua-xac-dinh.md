@@ -190,3 +190,37 @@ hợp (display-only). Pin: `phoi-phieu-shipment-fallback.test.ts` (r2 pins).
   6. Lô soft-deleted ⇒ không còn dòng nào trong báo cáo.
   7. Drawer 'Thiếu khách hàng' phải liệt kê tiền gắn lô (key shipment tổng
      hợp) — không drawer rỗng.
+
+## Round 8 (11/11/2026 — QA fail 10/11 build dc930964, comment 4975: Surface 2 còn sót)
+
+- **Số liệu fail:** Surface 1 (/debt Tổng hợp sản lượng) ĐÃ FIXED trên build
+  dc930964 (r7 đã merge e4ddd019 — kỳ 01–08 không còn 'Chưa xác định'; cả
+  tháng tiền lô chưa phân xe đọc 'Thiếu nhà xe' đúng luật). Còn
+  /accounting/phoi-phieu: 3 dòng bill R3B-BILL02, R3B-BILL01, K4KFP-M4 vẫn
+  'Phải thu: Chưa xác định / Phải trả: Chưa xác định' ở cột CHI HỘ, trong khi
+  drill-down 'Chi tiết chi hộ' của R3B-BILL02/R3B-BILL01 in 'Chưa có khoản
+  chi hộ', Tổng thu 0₫ / Tổng trả 0₫ ⇒ cell phải đọc '0 ₫' như R4B-CC-001.
+- **Root cause (staging DB thật, read-only 11/11):** KHÔNG phải lỗi join.
+  R3B-BILL01 (SHP-2611-00167, shipment 655): 0 nguồn chi hộ mọi kind.
+  R3B-BILL02 (SHP-2611-00184, shipment 677) + K4KFP-M4 (SHP-2610-00246,
+  shipment 339): chỉ có nguồn DRIVER (tiền đường — spine tien-duong, không
+  phải chi hộ OPS/TRIP). Aggregation chi hộ của board (chỉ OPS+TRIP) rỗng ⇒
+  `listPhoiPhieuRows` trả `null` (shape Card 20260928_197: 'chưa có dòng' ≠
+  0) ⇒ FE `money(null)` in 'Chưa xác định' trên cột CHI HỘ.
+- **Luật áp dụng (KB §6.7 + verdict QA):** dòng board LUÔN gắn lô ⇒ cột chi hộ
+  không bao giờ đọc 'Chưa xác định' (nhãn đó chỉ dành cho chi rời không gắn
+  chuyến + không gắn lô). Không có khoản chi hộ OPS/TRIP = zero ĐÃ KIỂM
+  CHỨNG (dialog chi hộ in cùng số 0 đó), không phải dữ liệu thiếu ⇒ '0 ₫',
+  không phải nhãn thiếu.
+- **Điều chỉnh (r8):** `listPhoiPhieuRows` nhánh rỗng trả `0` thay `null`
+  (chiHoTra + chiHoThu); `PhoiPhieuRow.chiHoTra/chiHoThu: number` (BE + FE
+  mirror); mọi luật khác nguyên vẹn (DRIVER vẫn spine tien-duong;
+  chiHoTrip*/tiền đường vẫn nullable theo luật riêng).
+- **Case pin (r8)** (unit pins: `phoi-phieu-shipment-fallback.test.ts` r8):
+  1. Lô không có nguồn OPS/TRIP chi hộ ⇒ cell 0, không phải null/'Chưa xác
+     định'.
+  2. Contract dòng không còn mô hình hoá tiền chi hộ board là 'không rõ'
+     (number, không number|null); slice TRIP-kind vẫn nullable (Card
+     20261002_292 nguyên vẹn).
+- **Kỳ vọng QA retest:** 3 dòng bill trên đọc 'Phải thu: 0 ₫ / Phải trả:
+  0 ₫'; không còn 'Chưa xác định' nào trên cả 2 surface.

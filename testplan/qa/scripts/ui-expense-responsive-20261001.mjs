@@ -32,7 +32,10 @@ for (const role of ['ADMIN', 'ACCOUNTANT']) {
     const populated = board.body.items.find(row => row.tripId === 196);
     assert.ok(populated, 'existing populated Bill required');
     let empty;
-    for (const row of board.body.items.filter(row => row.chiHoThu == null && row.tienDuong == null).slice(0, 20)) {
+    // SIL-729 r8: the board's chi-hộ totals are a verified 0 for an empty lot
+    // (never null), so the candidate filter accepts both shapes; the detail
+    // snapshots below stay the actual emptiness proof.
+    for (const row of board.body.items.filter(row => (row.chiHoThu == null || row.chiHoThu === 0) && row.tienDuong == null).slice(0, 20)) {
       const snapshots = await Promise.all(details.map(detail => ctx.apiGet(`/expense-accounting/phoi-phieu/${row.tripId}/${detail.suffix}`)));
       if (snapshots.every(snapshot => snapshot.status === 200 && snapshot.body.rows.length === 0)) { empty = row; break; }
     }

@@ -1,0 +1,7 @@
+PASS  login hoapt — status 200
+PASS  board rows fetched — 160 rows
+PASS  no null chi-hộ cell on the board (null rendered Chưa xác định)
+PASS  every chi-hộ cell is a number
+PASS  empty-lot lots read exactly 0/0 (staging R3B-BILL01/02 + K4KFP-M4 shape) — 157 empty lots on the local board
+PASS  populated lots keep their sums — 3 lots compared with SQL
+ALL PASS

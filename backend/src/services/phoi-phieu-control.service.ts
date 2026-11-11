@@ -90,10 +90,13 @@ export interface PhoiPhieuRow {
   /** The accountant's free-text take status ("Trạng thái lấy"); ride-along
    *  detail under the binary phoi state, never a second state machine. */
   phoiTakeStatus: string | null;
-  /** Chi hộ Phải trả = what SS pays the field (Σ source amount). */
-  chiHoTra: number | null;
-  /** Chi hộ Phải thu = what is collected from the customer (Σ charges). */
-  chiHoThu: number | null;
+  /** Chi hộ Phải trả = what SS pays the field (Σ source amount). 0 when the
+   *  lot holds no OPS/TRIP chi-hộ rows — a verified zero, never null
+   *  (SIL-729 r8, KB §6.7: a lot-attached cell never reads 'Chưa xác định'). */
+  chiHoTra: number;
+  /** Chi hộ Phải thu = what is collected from the customer (Σ charges). Same
+   *  verified-zero law as chiHoTra. */
+  chiHoThu: number;
   /** Card 20261002_292: per-kind composition of the totals — the COMPANY-paid
    *  (TRIP-kind) slice labeled separately so the widening is visible to the
    *  operator instead of silently blending kinds. Null when no TRIP slice. */
@@ -469,13 +472,18 @@ export async function listPhoiPhieuRows(query: {
   for (const row of displayRows) {
     const shipmentSources = byShipment.get(row.shipmentId) ?? [];
     // Card 20260928_197 — `amount` is signed; a negative row leaves the chi-hộ
-    // total exactly as if it did not exist (`sumExcludingNegative`). A lot whose
-    // rows are ALL negative still has rows, so the cell stays a known 0 —
-    // "we looked and there is no money" stays distinct from "chưa xác định".
-    const chiHoTra = shipmentSources.length ? sumExcludingNegative(shipmentSources, (source) => source.amount ?? 0) : null;
+    // total exactly as if it did not exist (`sumExcludingNegative`).
+    // SIL-729 r8 (KB §6.7) — a board row is ALWAYS lot-attached, so its chi-hộ
+    // cell never reads 'Chưa xác định': that label is reserved for money
+    // attached to no trip AND no lot. No OPS/TRIP chi-hộ rows — including a
+    // DRIVER-only lot, whose signed rows are road money on the tien-duong
+    // spine — is a VERIFIED zero: the chi-hộ dialog prints the same 0. So the
+    // empty branch is 0, never null (null rendered 'Chưa xác định' — staging
+    // verdict 11/11: R3B-BILL01/02, K4KFP-M4).
+    const chiHoTra = shipmentSources.length ? sumExcludingNegative(shipmentSources, (source) => source.amount ?? 0) : 0;
     const chiHoThu = shipmentSources.length
       ? shipmentSources.reduce((sum, source) => sum + Number(source.customerChargeAmount ?? 0), 0)
-      : null;
+      : 0;
     // Card 20261002_292 guardrail 1: the COMPANY-paid (TRIP-kind) slice is
     // labeled separately — the widening must be visible, never a silent blend.
     const tripSlice = shipmentSources.filter((source) => source.sourceKind === 'TRIP');
