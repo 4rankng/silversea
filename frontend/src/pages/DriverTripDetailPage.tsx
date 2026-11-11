@@ -8,6 +8,7 @@ import {
   Loader2,
   ShieldAlert,
   StickyNote,
+  Truck,
 } from 'lucide-react';
 import { DriverProgressEventType, TripStatus } from '@tingting/shared';
 import TripLegsPanel from '../components/trip/TripLegsPanel';
@@ -28,12 +29,37 @@ import { formatDate } from '../lib/format';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
+import { ApiError } from '../lib/api/errors';
 import { useConfirm } from '../components/UI';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import './DriverTripDetailPage.css';
 
 import { MILESTONES, completeCtaLabel, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
 import { parseDriverTaskNote } from '@tingting/shared';
+
+/**
+ * SIL-798 — narrow the busy-trip 409's structured payload out of an api
+ * ApiError's raw body. The wire (trip-status-machine.service.ts) sends
+ * `{ code: 'DRIVER_TRIP_BLOCKED', blockingTripId, blockingTripLabel,
+ * driverOwned }`; every field is network data, so each one is narrowed
+ * before use. `tripId` resolves ONLY when the payload vouches for ownership
+ * (driverOwned) AND carries a positive integer — the deep link can never
+ * point at another driver's trip.
+ */
+function driverTripBlockedPayload(error: unknown): { tripId: number | null; label: string | null } | null {
+  if (!(error instanceof ApiError)) return null;
+  if (typeof error.raw !== 'object' || error.raw === null) return null;
+  const body = error.raw as { code?: unknown; blockingTripId?: unknown; blockingTripLabel?: unknown; driverOwned?: unknown };
+  if (body.code !== 'DRIVER_TRIP_BLOCKED') return null;
+  const label = typeof body.blockingTripLabel === 'string' && body.blockingTripLabel.trim() !== ''
+    ? body.blockingTripLabel.trim()
+    : null;
+  const driverOwned = body.driverOwned === true;
+  const tripId = driverOwned && typeof body.blockingTripId === 'number' && Number.isInteger(body.blockingTripId) && body.blockingTripId > 0
+    ? body.blockingTripId
+    : null;
+  return { tripId, label };
+}
 
 export default function DriverTripDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -168,36 +194,26 @@ function DriverTripDetailContent() {
       toast({ kind: 'success', message: 'Đã ghi nhận mốc tiến độ.' });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Không thể gửi lệnh. Vui lòng thử lại.';
-      // KP-087: detect the blocking-trip rejection. The code parsed here is a
-      // LOOKUP KEY ONLY — FB-019 (card 211026005621): the internal TRP code
-      // must never render (internal-ids law, CHIEF 26/09), so both surfaces
-      // name the blocking trip by its Số Bill/Booking or stay generic.
-      const blockingMatch = msg.match(/Xe đang chạy chuyến\s+(.+?)\. Vui lòng/);
+      // SIL-798 — the 409 carries the structured blocking reference
+      // (DRIVER_TRIP_BLOCKED: label = Số Bill/Booking, numeric trip id when
+      // the blocking trip is this driver's own). KP-087's banner then NAMES
+      // the blocking trip and LINKS it — no regex on prose, no board
+      // roundtrip that silently failed whenever the board could not vouch
+      // (the exact defect: a banner with no name and no link). The code is
+      // the banner PRESENCE key only and never renders (FB-019 / §8).
+      const blocked = driverTripBlockedPayload(error);
       setBlockingTripId(null);
-      if (blockingMatch) {
-        const code = blockingMatch[1];
-        setBlockingTripCode(code);
-        setBlockingTripLabel(null);
-        let busyLabel: string | null = null;
-        // Only the authenticated driver's board may supply a navigable ID.
-        // A busy truck can belong to someone else's order; never guess a URL
-        // from a trip code or expose an unrestricted trip lookup.
-        try {
-          const board = await driverClient.getJourneyBoard();
-          const owned = board.items.find(item => item.tripCode === code && item.bucket !== 'HISTORY');
-          if (owned) {
-            busyLabel = owned.blNumber || owned.bookingRef || null;
-            setBlockingTripLabel(busyLabel);
-            setBlockingTripId(owned.tripId);
-          }
-        } catch {
-          // Generic copy stays; never fall back to the internal code.
-        }
-        // Card 20260916_8 keeps the reason on BOTH surfaces (toast + banner);
-        // FB-019 strips the internal code from both.
-        toast({ kind: 'error', message: busyLabel
-          ? `Xe đang chạy chuyến ${busyLabel}. Vui lòng hoàn thành chuyến đó trước.`
-          : 'Xe đang có chuyến chưa hoàn thành. Vui lòng hoàn thành chuyến đó trước.' });
+      if (blocked != null) {
+        setBlockingTripCode('DRIVER_TRIP_BLOCKED');
+        setBlockingTripLabel(blocked.label);
+        setBlockingTripId(blocked.tripId);
+        // Card 20260916_8 keeps the reason on BOTH surfaces (toast + banner).
+        // No label (ad-hoc/branch trip with no shipment) → generic copy — the
+        // translated 409 message embeds the internal TRP code, which §8/FB-019
+        // forbid rendering.
+        toast({ kind: 'error', message: blocked.label != null
+          ? `Xe đang chạy chuyến ${blocked.label}. Vui lòng hoàn thành chuyến đó trước.`
+          : 'Xe đang có chuyến chưa hoàn thành — hoàn thành chuyến đó trước khi nhận lệnh mới.' });
       } else {
         setBlockingTripCode(null);
         setBlockingTripLabel(null);
@@ -594,7 +610,14 @@ function DriverTripDetailContent() {
                 disabled={!acceptClickable}
                 onClick={() => { setBlockingTripCode(null); setBlockingTripLabel(null); void handleMilestone(DriverProgressEventType.ORDER_RECEIVED); }}
               >
-                {accepting ? <Loader2 size={18} className="spin" /> : <CheckCircle2 size={18} />}
+                {/* SIL-798 — the idle face is an ACTION, not a verdict: the
+                    green "✓" (success = completed per §2) rode every idle
+                    frame, so a REJECTED accept (409) still showed a green
+                    checkmark and read as "đã nhận". Neutral ink + Truck —
+                    the button earns a success face only when the system
+                    confirms the order, and that state leaves this bar
+                    entirely (acceptState 'done' hides it). */}
+                {accepting ? <Loader2 size={18} className="spin" /> : <Truck size={18} />}
                 <span>{acceptButtonLabel}</span>
               </button>
             )}

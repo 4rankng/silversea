@@ -858,14 +858,20 @@
   width: 100%;
   min-height: var(--control-h);
   padding: 0 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-field);
   border: 1px solid transparent;
-  background: var(--accent);
+  /* SIL-798 — neutral ink, the house driver primary (the sibling
+     Hoàn thành button's recipe): an idle "Nhận lệnh" is an ACTION, not a
+     success state. The old accent-green + ✓ face read as "đã nhận" while
+     idle AND after a rejected (409) attempt — success green is reserved
+     for completion (§2), and this button's success state is the bar
+     disappearing once the order is confirmed. Flat by contract: the old
+     floating box-shadow is gone. */
+  background: var(--ink);
   color: var(--fg-inverse);
   font-size: var(--text-body-size);
-  font-weight: 700;
+  font-weight: var(--fw-semibold);
   cursor: pointer;
-  box-shadow: 0 14px 32px color-mix(in srgb, var(--ink) 12%, transparent);
 }
 
 .driver-task-accept-sticky__btn:disabled {
