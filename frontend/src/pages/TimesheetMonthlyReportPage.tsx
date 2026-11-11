@@ -152,8 +152,12 @@ export default function TimesheetMonthlyReportPage() {
 
       <p className="ts-legend">
         {(['K', 'Q', 'Đ', 'L', 'N', 'P'] as TimesheetSymbol[]).map(symbol => (
+          // SIL-802 — chữ Q của legend PHẢI xanh dương ở CẢ hai trang:
+          // ts-report__sym--q chỉ scoped bên trong .ts-report (bảng), còn
+          // .ts-legend đứng NGOÀI bảng nên span không bao giờ nhận màu — chữ
+          // Q của legend rơi mực mặc định, đúng lớp lỗi (b) của ticket.
           <span key={symbol} className={symbolCellClass(symbol)}>
-            <b>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].trips} chuyến)
+            <b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].trips} chuyến)
           </span>
         ))}
         <span className="ts-report__cell--sunday">Chủ nhật — nền vàng, ghi chuyến, không tính ngày công</span>
