@@ -43,6 +43,12 @@ import { DispatchPlanEditorCell, type AtomicPlanSaveResult } from './DispatchPla
 import { detailRowKey } from './DispatchPlanCellValues';
 
 const listResourcesMock = vi.mocked(listDispatchFleetResources);
+// SIL-796 added the signed-price preview query to the editor cell; this suite
+// pins disabled reasons, not pricing — the neutral "chưa định giá" answer
+// keeps the cell's behavior identical to pre-SIL-796.
+vi.mock('../../../hooks/usePricingQueries', () => ({
+  useFreightPreview: () => ({ data: undefined }),
+}));
 getTrailersMock.mockResolvedValue([]);
 
 const PAIRED_TRUCK = {

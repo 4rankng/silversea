@@ -37,6 +37,13 @@ vi.mock('./useDispatchTaskTags', () => ({
   }),
 }));
 
+// SIL-796 added the signed-price preview query to the editor cell; this suite
+// pins the Giờ điều vận field, not pricing — the neutral "chưa định giá"
+// answer keeps the cell's behavior identical to pre-SIL-796.
+vi.mock('../../../hooks/usePricingQueries', () => ({
+  useFreightPreview: () => ({ data: undefined }),
+}));
+
 getTrailersMock.mockResolvedValue([]);
 
 const PAIRED_TRUCK = {

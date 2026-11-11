@@ -193,7 +193,6 @@ function DriverTripDetailContent() {
       setBlockingTripId(null);
       toast({ kind: 'success', message: 'Đã ghi nhận mốc tiến độ.' });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Không thể gửi lệnh. Vui lòng thử lại.';
       // SIL-798 — the 409 carries the structured blocking reference
       // (DRIVER_TRIP_BLOCKED: label = Số Bill/Booking, numeric trip id when
       // the blocking trip is this driver's own). KP-087's banner then NAMES

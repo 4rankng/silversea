@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { DispatchPlanCardList, formatPhoneGroups } from './DispatchPlanCardList';
@@ -48,17 +49,25 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
   ...overrides,
 } as DispatchDetailPlanRow);
 
-const renderCards = (items: DispatchDetailPlanRow[], overrides: Record<string, unknown> = {}) => render(
-  <DispatchPlanCardList
-    items={items}
-    onEditPlan={vi.fn()}
-    onChangeGroupTruckInline={vi.fn()}
-    onExpandNote={vi.fn()}
-    onDeleteLot={vi.fn()}
-    {...editorProps}
-    {...overrides}
-  />,
-);
+const renderCards = (items: DispatchDetailPlanRow[], overrides: Record<string, unknown> = {}) => {
+  // SIL-796 moved the signed-price preview (useQuery) into the editor cell the
+  // card mounts, so the harness needs the same provider the grid test wraps —
+  // the C3L contracts below are unchanged.
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <DispatchPlanCardList
+        items={items}
+        onEditPlan={vi.fn()}
+        onChangeGroupTruckInline={vi.fn()}
+        onExpandNote={vi.fn()}
+        onDeleteLot={vi.fn()}
+        {...editorProps}
+        {...overrides}
+      />
+    </QueryClientProvider>,
+  );
+};
 
 describe('formatPhoneGroups — SĐT nhóm 3-4 số (spec A dòng 2)', () => {
   it('groups VN mobile numbers 4-3-3 and leaves short runs as-is', () => {

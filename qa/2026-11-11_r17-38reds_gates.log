@@ -1,0 +1,60 @@
+# r17-38-reds gate evidence (2026-11-11, worktree fix/r17-38-reds @ 0caad0c9 + this patch)
+
+## Gate 1 — Frontend vitest (full)
+Command: `cd frontend && pnpm exec vitest run`
+
+First full run after patch, under concurrent CPU load (lint + build running):
+```
+ Test Files  3 failed | 817 passed (820)
+      Tests  5 failed | 6445 passed (6450)
+```
+Those 5 failures disappeared on the clean rerun (no concurrent jobs) — consistent
+with the repo's documented FE full-suite flake-under-load history (commit 6eae1423).
+Clean rerun (the gate result):
+```
+ Test Files  820 passed (820)
+      Tests  6450 passed (6450)
+Start at ~19:22, Duration 1006.56s
+```
+Exit status: 0.
+
+Pre-patch baseline (before this lane's fixes): 27 failed | 6423 passed —
+DispatchPlanCardList 11, DispatchPlanEditorCell.{cargo-mode,disabled-reason,gio-dieu-van,sil644-weight} 25, numeric-identity 2 (dist missing).
+Plus the 3 groups fixed earlier in the same lane (card list 11 + typography 1 + SIL-641 1+)
+= the ~38 reds the lane was dispatched against.
+
+## Gate 2 — Frontend typecheck
+Command: `cd frontend && npx tsc -b`
+Output: (empty) — `tsc-exit:0`
+
+## Gate 3 — Root lint
+Command: `pnpm lint`
+```
+✖ 6 problems (0 errors, 6 warnings)
+lint-exit:0
+```
+Warnings are pre-existing on main (CustomersConfigPage exhaustive-deps ×, ref-cleanup
+×, etc.). The 1 pre-existing error (`msg` unused, DriverTripDetailPage.tsx:196, left
+by SIL-798 ad1206b3) is fixed in this patch by deleting the dead assignment.
+
+## Gate 4 — Build
+Command: `make build`
+```
+✓ built in 46.67s
+```
+Exit status: 0. Also required by numeric-identity.styles.test.ts (dist/assets bundle
+contract) — 6/6 pass after build.
+
+## Scope of fixes (SIL-804)
+1. DispatchPlanCardList.test.tsx — harness wraps render in QueryClientProvider
+   (SIL-796 added useQuery to the editor cell the card mounts). C3L-01/C3L-02
+   assertions untouched.
+2. DispatchPlanEditorCell.{cargo-mode,disabled-reason,gio-dieu-van,sil644-weight}.test.tsx —
+   mock usePricingQueries → { data: undefined } (neutral "chưa định giá", identical to
+   pre-SIL-796 behavior), same shape as DispatchPlanEditorCell.test.tsx.
+3. DriverEarningsPage.css — SIL-799 state line `font-size: 11px` →
+   `var(--text-caption-size)` (same 11px, shared role; TYPO-ROLE-01).
+4. ClerkShipmentCreatePage.styles.test.ts — ONLY pin change, per owner spec:
+   customer span 12→6 follows the SIL-788 band map (KB Ch3 §3.2.1, 24/10 map
+   re-asserted 10/11, supersedes SIL-710 interleave). 50/50 equality kept.
+5. DriverTripDetailPage.tsx — delete dead `msg` assignment left by SIL-798.
