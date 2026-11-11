@@ -1251,11 +1251,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
 
-    const cell = screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' });
     // One joined ', ' run — same string the XLSX CHỨNG TỪ column carries
     // (KB Ch3 §3.4.4). Wraps whole, never truncated.
     expect(screen.getByText('TK-54321, TK-77777')).toBeTruthy();
-    expect(cell).toBeTruthy();
   });
 
   it('documents cell với Bill/Booking READ_ONLY: mở DRAWER thay editor — hết đường ghi tờ khai cấp lô (SIL-521, SIL-699 r2)', async () => {

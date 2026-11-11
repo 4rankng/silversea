@@ -244,8 +244,6 @@
   outline: none;
 }
 
-}
-
 .cus-dashboard-viewport:focus-visible {
   box-shadow: inset 0 0 0 3px var(--brand-subtle);
 }
@@ -354,7 +352,6 @@
   .cus-dashboard-table col.cus-dashboard-col--schedule { width: 15.167%; }
   .cus-dashboard-table col.cus-dashboard-col--notes { width: 11.272%; }
   .cus-dashboard-table col.cus-dashboard-col--status { width: 10.045%; }
-}
 }
 
 .cus-dashboard-table thead th {
