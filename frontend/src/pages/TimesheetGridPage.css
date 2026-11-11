@@ -92,6 +92,10 @@
   gap: 4px 16px;
 }
 
+/* SIL-802 — legend Q đọc cùng màu xanh dương với ô Q trên lưới
+ * (--chip-open-text #175CD3, hex tại tokens.css theo drift ratchet). */
+.ts-legend .ts-legend-sym--q { color: var(--chip-open-text); }
+
 .ts-hint {
   margin: 0;
   color: var(--ink-2);
