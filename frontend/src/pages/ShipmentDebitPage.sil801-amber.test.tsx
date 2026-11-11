@@ -178,6 +178,12 @@ describe('SIL-801 — uncollected receivables wear the warning amber tone', () =
   // in the stylesheet, or the tone silently dies again.
   it('keeps every group/foot amber rule AFTER its base rule in the cascade', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
+    // Non-vacuous: first assert each rule EXISTS (indexOf !== -1), then the
+    // order — a deleted base rule must fail this pin, not pass it.
+    expect(css.indexOf('.shipment-debit-group__sum {')).toBeGreaterThan(-1);
+    expect(css.indexOf('.shipment-debit-totals__sum {')).toBeGreaterThan(-1);
+    expect(css.indexOf('.shipment-debit-group__sum--warn')).toBeGreaterThan(-1);
+    expect(css.indexOf('.shipment-debit-totals__sum--warn')).toBeGreaterThan(-1);
     expect(css.indexOf('.shipment-debit-group__sum {')).toBeLessThan(css.indexOf('.shipment-debit-group__sum--warn'));
     expect(css.indexOf('.shipment-debit-totals__sum {')).toBeLessThan(css.indexOf('.shipment-debit-totals__sum--warn'));
   });
