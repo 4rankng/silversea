@@ -244,21 +244,6 @@
   outline: none;
 }
 
-/* SIL-571/SIL-578 (2026-10-29, rework): the floored table outgrows the canvas
-   nowhere above ~1189px of AREA — but "area" is not a window width (measured
-   canvases: 936 @1024, 1192 @1280, 1270 @1366, 1144 @1440 — the pinned
-   sidebar eats ~296px at ≥1440), so a media query cannot express "the table
-   no longer fits". The worksheet is the inline-size container (rule below);
-   the container query scrolls the board exactly when the container is
-   narrower than the floored table, and the viewport stays a non-scroll
-   container everywhere else so the pinned thead keeps binding to the
-   app-body scrollport (card 20260926_49). Where the board does scroll, the
-   thead pins to the pane instead — the same accepted compromise the ≤1158px
-   media band made for @1024. */
-@container (max-width: 1188.5px) {
-  .cus-dashboard-viewport {
-    overflow-x: auto;
-  }
 }
 
 .cus-dashboard-viewport:focus-visible {
@@ -349,31 +334,19 @@
 .cus-dashboard-table col.cus-dashboard-col--notes { width: 10%; }
 .cus-dashboard-table col.cus-dashboard-col--status { width: 13%; }
 
-/* SIL-571/SIL-578 (2026-10-29 rework): the per-column floor is enforced by the
-   TABLE's min-width plus floor-proportional percentage shares — NOT by
-   `min-width` on the <col> elements. The previous revision pinned col
-   min-widths (200/110/192/190/182/120), but column boxes only honor `width`
-   in the table layout algorithms: QA's engine ignored the col min-widths
-   entirely (measured columns = exact % shares of a 1038px canvas: "Tổng quan
-   hàng hóa" 165px in a 125px track, buttons painting into the neighbour at
-   1024/1280/1440), and even Chromium only partially honored them (measured
-   th 183px against a 192px floor). Floor-proportional percentages are
-   honored by every engine and every visible-column subset: with the table
-   never narrower than the floors' sum (1189px), each column resolves to
-   ≥ its exact floor (floor_i / Σ × W ≥ floor_i ⟺ W ≥ Σ).
-   Floors = one-line header button + the th's 24px inline padding, measured
-   live at 11px/0.88 letter-spacing (customer 199.5, documents 175.4 — the
-   16-char mono Bill/Booking code is the column's data floor, 151.4 + 24;
-   classification 191.3, cargo 188.8, schedule 180.3, notes 134 — "Thêm ghi
-   chú" data floor, status 119.4; Σ = 1188.7 → table floor 1189). This is the
-   2026-09-29 board law: the table grows and scrolls instead of columns
-   collapsing, and width follows the value a column actually holds. The band
-   has no upper bound: the shares hold at every canvas ≥ 1189px, including
-   1920. */
+/* SIL-794 (id 920, QA 10/11, KB Ch10 10.8.1) - the table ALWAYS fits its
+   canvas: the SIL-571/578 min-width floor (1189px) is retired. At the 1440
+   viewport the worksheet canvas is ~1144px, so the floor overflowed 45px
+   under the viewport's overflow-x: clip and clipped the rightmost column
+   (TRANG THAI) beyond reach. The floor-proportional percentage shares stay
+   (they sum to 100% at every width): with table-layout: fixed + min-width: 0
+   each column resolves to its exact share of the REAL canvas, headers and
+   cells wrap fully (the overflow-wrap law), nothing truncates, and the board
+   needs no horizontal scroll at 1440 or below. One-line headers survive down
+   to ~1189px canvases by construction; below that a header wraps to two
+   lines - the accepted cost of never clipping data (no container-query
+   scroll lane either: with no floor the viewport can never overflow). */
 @media (min-width: 1024px) {
-  .cus-dashboard-table {
-    min-width: 1189px;
-  }
   .cus-dashboard-table col.cus-dashboard-col--customer { width: 16.785%; }
   .cus-dashboard-table col.cus-dashboard-col--documents { width: 14.755%; }
   .cus-dashboard-table col.cus-dashboard-col--classification { width: 16.093%; }
@@ -381,6 +354,7 @@
   .cus-dashboard-table col.cus-dashboard-col--schedule { width: 15.167%; }
   .cus-dashboard-table col.cus-dashboard-col--notes { width: 11.272%; }
   .cus-dashboard-table col.cus-dashboard-col--status { width: 10.045%; }
+}
 }
 
 .cus-dashboard-table thead th {

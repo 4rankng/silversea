@@ -33,25 +33,28 @@ describe('shared sort-header button styling', () => {
   });
 });
 
-// SIL-571/SIL-578 (2026-10-29 rework): /shipments sortable headers own their
-// one-line width through the TABLE's min-width plus floor-proportional
-// percentage column shares — `min-width` on <col> is not part of the table
-// layout algorithms (QA's engine ignored it entirely; Chromium honored it
-// only partially), so the floors must live on properties every engine
-// resolves. The viewport scrolls horizontally ONLY where the worksheet
-// container is narrower than the floored table (a container query, not a
-// media query: the real canvas is not a function of window width — the
-// pinned sidebar eats ~296px at ≥1440), so the pinned-thead law
-// (card 20260926_49) keeps binding the app-body scrollport everywhere the
-// table fits.
-describe('/shipments sort-header column floors (SIL-571/SIL-578)', () => {
+// SIL-794 (id 920, QA 10/11, KB Ch10 10.8.1) retires the SIL-571/578 floor:
+// the 1189px table min-width overflowed the real 1440-viewport canvas
+// (~1144px after the pinned sidebar) under the viewport's overflow-x: clip
+// and cut TRANG THAI off screen. The table is now exactly its canvas: the
+// floor-proportional percentage shares remain (every engine resolves them;
+// min-width on <col> stays banned - column boxes only honor `width`), fixed
+// layout keeps each column at its exact share, cells and headers wrap fully,
+// and the container-query scroll lane died with the floor (nothing overflows
+// any more). The pinned-thead law (card 20260926_49) keeps binding the
+// app-body scrollport on every canvas.
+describe('/shipments sort-header column shares (SIL-794 retires the SIL-571/578 floor)', () => {
   const shipments = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 
-  it('floors the table at the one-line header sum and shares columns proportionally to those floors', () => {
-    const band = shipments.match(/@media \(min-width: 1024px\) \{[\s\S]*?\.cus-dashboard-table col\.cus-dashboard-col--status[^}]*\}\n\}/)?.[0] ?? '';
+  it('drops the table min-width floor so the board always fits its canvas (SIL-794)', () => {
+    const band = shipments.match(/@media \(min-width: 1024px\) \{[\s\S]*?col--status \{ width: 10\.045%; \}\n\}/)?.[0] ?? '';
     expect(band, 'band exists').not.toBe('');
-    // The col min-width approach is banned: column boxes only honor `width`.
-    expect(band).toMatch(/\.cus-dashboard-table\s*\{[^}]*min-width:\s*1189px;/);
+    // The floor overflowed the 1144px canvas at a 1440 viewport under the
+    // viewport's overflow-x: clip - the rightmost column (TRANG THAI) was
+    // cut off screen. The band carries ONLY the col share rules (no bare
+    // .cus-dashboard-table rule, no floor declaration anywhere).
+    expect(band).not.toMatch(/\.cus-dashboard-table\s*\{/);
+    expect(shipments).not.toMatch(/min-width:\s*1189/);
     expect(band).toMatch(/col--customer \{ width: 16\.785%; \}/);
     expect(band).toMatch(/col--documents \{ width: 14\.755%; \}/);
     expect(band).toMatch(/col--classification \{ width: 16\.093%; \}/);
@@ -59,8 +62,8 @@ describe('/shipments sort-header column floors (SIL-571/SIL-578)', () => {
     expect(band).toMatch(/col--schedule \{ width: 15\.167%; \}/);
     expect(band).toMatch(/col--notes \{ width: 11\.272%; \}/);
     expect(band).toMatch(/col--status \{ width: 10\.045%; \}/);
-    // Shares must sum to 100% and each must resolve ≥ its exact floor at the
-    // 1189px table floor (floor/1188.7 of the used width).
+    // Shares still sum to 100% so every column resolves to its exact share
+    // of the real canvas.
     const shares = [...band.matchAll(/width: ([\d.]+)%/g)].map((m) => Number(m[1]));
     expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 2);
   });
@@ -69,10 +72,11 @@ describe('/shipments sort-header column floors (SIL-571/SIL-578)', () => {
     expect(shipments).not.toMatch(/cus-dashboard-col--\w+ \{ min-width:/);
   });
 
-  it('scopes the horizontal scroll to canvases narrower than the floored table', () => {
-    const scrollBand = shipments.match(/@container \(max-width: 1188\.5px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
-    expect(scrollBand).toMatch(/\.cus-dashboard-viewport\s*\{[^}]*overflow-x:\s*auto;/);
-    // The resting viewport must stay a non-scroll container (sticky-thead law).
+  it('keeps the viewport a non-scroll container at every width - no floor, no overflow lane', () => {
+    // The container-query scroll band died with the floor: without
+    // min-width the fixed-layout table equals the canvas and cannot
+    // overflow, so nothing may re-introduce a horizontal scroll lane.
+    expect(shipments).not.toMatch(/@container \(max-width: 1188\.5px\)/);
     expect(shipments).toMatch(/\.cus-dashboard-viewport\s*\{[^}]*overflow-x:\s*clip;/);
   });
 });
