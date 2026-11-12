@@ -459,6 +459,34 @@ describe('DispatchPlanEditorCell — assignment dialog validation', () => {
     expect(cost.value).toBe('');
   });
 
+  // SIL-796 FAIL 5079 (r21) — the stored fake 0 never RENDERS either: when
+  // the board ask cannot fire at all (no pricing wire / no weight class) the
+  // seed law never runs, and the dialog used to sit on a bold stored 0 in
+  // every state (QA lot 835: thu seeded, trả '0' across 3 states).
+  it('renders the stored fake 0 as an empty Cước trả field even when the board ask cannot fire', async () => {
+    freightPreviewMock.mockReturnValue({ data: undefined });
+    carrierPriceMock.mockReturnValue({ data: undefined });
+    const first = renderCell(row({
+      plannedEndAt: null,
+      dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+      estimates: { plannedRevenue: '0', plannedCarrierCost: '0' },
+    }), {});
+    await openDialog();
+    const cost = screen.getByLabelText('Cước trả dự kiến') as HTMLInputElement;
+    expect(cost.value).toBe('');
+    expect(screen.getByText('Chưa có giá ký nhà xe — nhập tay hoặc để trống, không ghi 0.')).toBeTruthy();
+    first.unmount();
+    // A REAL stored price still renders — only the fake 0 is suppressed.
+    freightPreviewMock.mockReturnValue({ data: undefined });
+    carrierPriceMock.mockReturnValue({ data: undefined });
+    renderCell(row({
+      plannedEndAt: null,
+      estimates: { plannedRevenue: null, plannedCarrierCost: '1800000' },
+    }), {});
+    await openDialog();
+    expect((screen.getByLabelText('Cước trả dự kiến') as HTMLInputElement).value).toContain('1.800.000');
+  });
+
   it('names the missing signed price instead of showing 0 when the engine answers MANUAL', async () => {
     freightPreviewMock.mockReturnValue({ data: { source: 'MANUAL', total: 0, formula: 'Chưa có bảng giá tuyến này' } });
     renderCell(row({
