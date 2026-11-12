@@ -81,6 +81,15 @@
   color: var(--ink);
 }
 
+/* SIL-802 FAIL 5078 (r21) — Q × Chủ nhật: symbol class và tint CN cùng nằm
+ * trên MỘT td (.ts-report__sym--q + .ts-report__cell--sunday, cùng specificity
+ * 0,2,0) và rule CN đứng sau trong sheet, nên chữ Q trên cột vàng rơi mực ink
+ * đậm (QA đo rgb(16,24,16)). Định màu Q ở tầng td đúng cho tổ hợp đó; dòng
+ * nghỉ việc (.ts-report__cell--quit) vẫn đè trên cùng nhờ :not. */
+.ts-report td.ts-report__sym--q.ts-report__cell--sunday:not(.ts-report__cell--quit) {
+  color: var(--chip-open-text);
+}
+
 /* Lái xe INACTIVE (nghỉ hẳn): chuỗi ngày 1..31 nền đỏ đậm — đè cả tint Chủ
  * nhật và mọi ký hiệu còn sót trên dòng. Nghĩa vụ không chỉ bằng màu: dòng
  * in thêm nhãn chữ "Đã nghỉ việc" cạnh tên (uiux trigger màu-đơn-thuần). */
