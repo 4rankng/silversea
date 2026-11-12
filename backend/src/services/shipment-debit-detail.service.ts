@@ -580,7 +580,14 @@ export async function saveDebitEdits(input: {
         if (!expense || !tripIds.has(expense.tripId)) {
           throw new ApiError(404, 'Không tìm thấy dòng chi hộ trên lô hàng này.');
         }
-        await assertDebitExpenseEditable(tx, expense.id);
+        // SIL-782 (r21): the Thu khách hàng sell is CUS-typed on EVERY Phí
+        // khác row — accounting-projected copies included (REV2 dual-input:
+        // Thực chi Ops chỉ xem, sell editable). The projection guard keeps
+        // protecting the projected BUY side and note; the 2026-09-19 law
+        // below still limits the sell itself to OTHER rows.
+        if (edit.buyAmount !== undefined || edit.note !== undefined) {
+          await assertDebitExpenseEditable(tx, expense.id);
+        }
         // Ruling 2026-09-19: the customer figure is CUS-typed only on Phí
         // khác rows — invoiced/pass-through rows recharge from the expense-
         // type rule (cost pass-through today) and stay read-only here.
@@ -627,7 +634,10 @@ export async function saveDebitEdits(input: {
         if (!expense || !tripIds.has(expense.tripId)) {
           throw new ApiError(404, 'Không tìm thấy dòng chi hộ trên lô hàng này.');
         }
-        await assertDebitExpenseEditable(tx, expense.id);
+        // SIL-782 (r21): the × delete works on every Phí khác row the drawer
+        // renders — accounting-projected copies included (QA FAIL 5080).
+        // The Q10 soft-void below keeps the governed trail; the accounting
+        // truth stays in its own source tables, which never read this copy.
         // Q10 (card 20260922_78): the removal soft-voids the row — it stays
         // with its reason, actor and timestamp for the governed trail.
         await tx.update(s.tripExpenses).set({

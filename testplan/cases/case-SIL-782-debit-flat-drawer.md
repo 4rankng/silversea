@@ -45,3 +45,26 @@
   hành vi còn lại) — DebitTestSweep agent.
 - UI DRIVEN hoangnh/hoapt (qa/2026-11-09_r9b-ops-debit/, drive
   `qa/scripts/r9b-ops-debit-drive.mjs`).
+
+## Round r21 — mở khóa dual-input trên dòng Phí khác ĐÃ CÓ SẴN (QA FAIL 5080, build 2674caf1)
+
+- BUG: ô 'Thu khách hàng' + nút × của MỌI dòng Phí Không HĐ đã có sẵn bị
+  disabled với CUS trên lô Đang mở — flag `readOnly` trên wire (bản sao chi
+  phí được chiếu từ nguồn kế toán OPS/DRIVER/INVOICE) vô hiệu hóa cả ô bán,
+  đúng trên mọi dòng thật (SEGB2610044, R4B-CC-682). Chỉ ô trong form
+  [+ Thêm chi phí] (dòng mới) sửa được.
+- EXPECTED (REV2 dual-input, mọi dòng): Thực chi Ops giữ read-only span;
+  Thu khách hàng CUS nhập được; × xóa được — chỉ lô Đã khóa (frozen) giữ
+  disabled. Ghi chú dòng readOnly nói đúng phạm vi: 'Thực chi Ops do nguồn
+  chi phí kế toán quản lý — chỉ xem.'
+- FIX: FE `ShipmentDebitTables.tsx` disabled={frozen} trên cặp ô + ×;
+  `ShipmentDebitTables.draft.ts` — sell delta và removal của dòng readOnly
+  đều đi lên wire (items Có-HĐ vẫn bị lọc removal); BE
+  `saveDebitEdits` — guard MANAGED_PROJECTION chỉ chặn buyAmount/note
+  (phía chiếu), sell-only edit qua được (vẫn giữ luật 2026-09-19: chỉ dòng
+  OTHER được nhập sell), removal của bản chiếu được phép — soft-void Q10
+  giữ vết lý do/người/timestamp; bảng kế toán đọc truth từ bảng nguồn
+  (ops_expense_entries/driver_incidental_costs/shipment_invoice_records),
+  không đọc bản sao.
+- Pins: `ShipmentDebitTables.test.tsx` — canonical copy sell-enabled + ×
+  enabled + delta travels; frozen vẫn khóa; BE luật chôn trong guard split.

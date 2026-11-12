@@ -42,7 +42,11 @@ export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): Ship
   for (const row of detail.chiHoRows) {
     for (const item of row.items) if (item.readOnly) readOnlyIds.add(item.id);
     for (const fee of row.otherFees) {
-      if (fee.readOnly) { readOnlyIds.add(fee.id); continue; }
+      // SIL-782 (r21) — the Thu khách hàng sell travels for EVERY Phí khác
+      // row, accounting-projected copies included (REV2 dual-input: Thực chi
+      // Ops stays read-only, the sell is CUS-owned data). Removals travel
+      // too — the backend soft-voids with the Q10 reason trail; only the
+      // Có-HĐ items above stay filtered out of removals.
       // REV2 — the dual-input's editable cell is THU KHÁCH HÀNG (sellAmount);
       // the Thực chi Ops side renders read-only and never travels.
       const raw = draft.feeSells[fee.id];

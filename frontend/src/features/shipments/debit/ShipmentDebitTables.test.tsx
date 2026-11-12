@@ -45,33 +45,51 @@ describe('FreightTable customer HQGS charge is independent of payable cost', () 
   });
 });
 
-// REV2 dual-input (ticket-v2 VI.2): each Phí khác row renders the Thực chi
-// Ops amount READ-ONLY beside the CUS-managed Thu khách hàng input; canonical
-// fee copies stay locked and stale draft changes never travel.
-it('keeps canonical fee copies read-only and drops their stale draft changes, preserving manual fees', () => {
+// REV2 dual-input (ticket-v2 VI.2) + SIL-782 FAIL 5080 (r21): every Phí khác
+// row — accounting-projected copies (readOnly wire flag) included — keeps the
+// Thực chi Ops amount READ-ONLY but a CUS-editable Thu khách hàng input and a
+// live × delete; only a locked (frozen) lot disables them.
+it('canonical fee copies keep read-only Thực chi Ops but an editable Thu khách hàng and a live × (SIL-782 FAIL 5080)', () => {
   const value = detail();
   value.chiHoRows = [{ tripId: 601, containerNumber: 'QATU1234569', containerTypeLabel: null, items: [],
     otherFees: [{ id: 1, name: 'Canonical fee', amount: 100, thuKhach: 120, readOnly: true }, { id: 2, name: 'Manual fee', amount: 200 }],
     carrierDetention: null, repairAdvance: null, opsDocsStatus: 'PENDING' }];
   const draft = buildDraft(value), change = vi.fn(), remove = vi.fn();
   render(<ChiHoTable detail={value} draft={draft} frozen={false} setFeeSell={change} removeFee={remove} addFee={() => {}} setAddedFee={() => {}} />);
-  // The canonical copy's Thực chi Ops reads the wire as a read-only span and
-  // its Thu khách hàng cell stays disabled.
+  // The projected copy's Thực chi Ops still reads the wire as a read-only
+  // span (accounting-managed buy) with its source note.
   const opsAmount = screen.getByLabelText('Thực chi Ops phí khác Canonical fee QATU1234569');
   expect(opsAmount.tagName).toBe('SPAN');
   expect(opsAmount.textContent).toBe('100');
-  const lockedSell = screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Canonical fee QATU1234569' }) as HTMLInputElement;
-  expect(lockedSell).toBeDisabled();
-  expect(lockedSell.value).toBe('120');
+  expect(screen.getByText(/Thực chi Ops do nguồn chi phí kế toán quản lý/)).toBeInTheDocument();
+  // The CUS-owned sell cell is editable on the projected copy.
+  const sell = screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Canonical fee QATU1234569' }) as HTMLInputElement;
+  expect(sell).toBeEnabled();
+  expect(sell.value).toBe('120');
+  fireEvent.change(sell, { target: { value: '300' } });
+  expect(change).toHaveBeenCalledWith(1, '300');
+  // Its × deletes too (the wire soft-voids with the Q10 reason trail).
   const button = screen.getByRole('button', { name: 'Xóa phí khác Canonical fee' });
-  expect(button).toBeDisabled(); fireEvent.click(button); expect(remove).not.toHaveBeenCalled();
-  expect(screen.getByText(/Điều chỉnh tại nguồn chi phí kế toán/)).toBeInTheDocument();
+  expect(button).toBeEnabled(); fireEvent.click(button); expect(remove).toHaveBeenCalledWith(1);
   // The manual fee's Thu khách hàng cell stays the CUS-managed input.
   const manual = screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Manual fee QATU1234569' });
   expect(manual).toBeEnabled(); fireEvent.change(manual, { target: { value: '300' } }); expect(change).toHaveBeenCalledWith(2, '300');
   draft.feeSells = { 1: '999', 2: '300' }; draft.removedFeeIds = [1, 2];
-  // REV2: the delta travels the SELL side only — never a buyAmount.
-  expect(buildDelta(value, draft)).toMatchObject({ edits: [{ expenseId: 2, sellAmount: 300 }], removeExpenseIds: [2] });
+  // REV2: the delta travels the SELL side only — never a buyAmount — and the
+  // projected copy's edit and removal both travel.
+  expect(buildDelta(value, draft)).toMatchObject({ edits: [{ expenseId: 1, sellAmount: 999 }, { expenseId: 2, sellAmount: 300 }], removeExpenseIds: [1, 2] });
+});
+
+// SIL-782 (r21): a locked (Đã khóa) lot is the ONLY state that keeps the
+// canonical row's cells disabled.
+it('a frozen lot still locks the canonical row cells', () => {
+  const value = detail();
+  value.chiHoRows = [{ tripId: 601, containerNumber: 'QATU1234569', containerTypeLabel: null, items: [],
+    otherFees: [{ id: 1, name: 'Canonical fee', amount: 100, thuKhach: 120, readOnly: true }],
+    carrierDetention: null, repairAdvance: null, opsDocsStatus: 'PENDING' }];
+  render(<ChiHoTable detail={value} draft={buildDraft(value)} frozen setFeeSell={vi.fn()} removeFee={vi.fn()} addFee={() => {}} setAddedFee={() => {}} />);
+  expect(screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Canonical fee QATU1234569' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Xóa phí khác Canonical fee' })).toBeDisabled();
 });
 
 it('names the CSHT column in full in Bảng 2.2 (card 20260924_1, image6)', () => {
