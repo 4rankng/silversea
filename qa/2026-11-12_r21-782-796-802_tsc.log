@@ -1,0 +1,5 @@
+# r21 tsc gates — 2026-11-12T05:26:22Z
+## BE tsc --noEmit
+BE exit: 0
+## FE tsc -b
+FE exit: 0

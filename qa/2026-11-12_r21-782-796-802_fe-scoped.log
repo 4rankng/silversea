@@ -1,0 +1,22 @@
+# r21 FE scoped gates — 2026-11-12T05:24:14Z
+
+## debit suite
+ Test Files  8 passed (8)
+      Tests  99 passed (99)
+   Start at  13:24:15
+   Duration  12.92s (transform 6.16s, setup 2.68s, import 22.53s, tests 12.17s, environment 10.07s)
+
+
+## editor suite
+ Test Files  1 passed (1)
+      Tests  93 passed (93)
+   Start at  13:24:30
+   Duration  24.06s (transform 4.38s, setup 202ms, import 6.34s, tests 16.45s, environment 846ms)
+
+
+## timesheet suites
+ Test Files  2 passed (2)
+      Tests  22 passed (22)
+   Start at  13:24:56
+   Duration  8.40s (transform 7.04s, setup 591ms, import 10.38s, tests 2.61s, environment 1.91s)
+
