@@ -1310,7 +1310,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
               grouped
               controlSize="sm"
               suffix="đ"
-              value={draft.plannedCarrierCost}
+              /* SIL-796 FAIL 5079 (r21) — a stored 0 is "chưa định giá",
+                 never a price (house law 04/11). The seed law clears it when
+                 the nhà-xe board ask ANSWERS a miss, but when the ask cannot
+                 fire at all (missing weight / size-class) the fake 0 sat in
+                 the field. Render empty — the help text names the gap. */
+              value={draft.plannedCarrierCost === 0 ? '' : draft.plannedCarrierCost}
               onChange={(n) => { setDraft((current) => ({ ...current, plannedCarrierCost: n })); setError(null); }}
               disabled={saving}
               helpText={carrierPrice.data?.matched === 'SUPPLIER'

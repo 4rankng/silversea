@@ -184,13 +184,13 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeSell,
                             className="csc-debit-input csc-debit-input--amount"
                             aria-label={`Thu khách hàng phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
                             value={draft.feeSells[fee.id] ?? ''}
-                            disabled={frozen || fee.readOnly === true}
+                            disabled={frozen}
                             onChange={(event) => setFeeSell(fee.id, event.target.value)}
                           />
                         </label>
                       </div>
-                      <button type="button" className="csc-debit-otherfee__remove" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
-                      {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
+                      <button type="button" className="csc-debit-otherfee__remove" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen} onClick={() => removeFee(fee.id)}>×</button>
+                      {fee.readOnly && <small className="csc-debit-otherfee__source">Thực chi Ops do nguồn chi phí kế toán quản lý — chỉ xem.</small>}
                     </div>
                   ))}{draftsOf(col.key).map((fee) => (
                     <div className="csc-debit-otherfee" key={fee.key}>
@@ -239,13 +239,13 @@ export function ChiHoTable({ detail, draft, frozen, feeCatalog = [], setFeeSell,
                             className="csc-debit-input csc-debit-input--amount"
                             aria-label={`Thu khách hàng phí khác ${fee.name} ${row.containerNumber ?? `hàng ${chiIdx + 1}`}`}
                             value={draft.feeSells[fee.id] ?? ''}
-                            disabled={frozen || fee.readOnly === true}
+                            disabled={frozen}
                             onChange={(event) => setFeeSell(fee.id, event.target.value)}
                           />
                         </label>
                       </div>
-                      <button type="button" className="csc-debit-otherfee__remove" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen || fee.readOnly === true} onClick={() => removeFee(fee.id)}>×</button>
-                      {fee.readOnly && <small className="csc-debit-otherfee__source">Điều chỉnh tại nguồn chi phí kế toán.</small>}
+                      <button type="button" className="csc-debit-otherfee__remove" aria-label={`Xóa phí khác ${fee.name}`} disabled={frozen} onClick={() => removeFee(fee.id)}>×</button>
+                      {fee.readOnly && <small className="csc-debit-otherfee__source">Thực chi Ops do nguồn chi phí kế toán quản lý — chỉ xem.</small>}
                     </div>
                   ))}{otherDrafts.map((fee) => (
                     <div className="csc-debit-otherfee" key={fee.key}>

@@ -1,0 +1,10 @@
+# r21 lint gate — root `pnpm lint` — 2026-11-12 ~13:22 SGT
+# exit 0
+
+/Users/dev/.paseo/worktrees/1njkloyy/r21-fix/frontend/src/pages/config/CustomersConfigPage.tsx
+  204:6  warning  React Hook useMemo has a missing dependency: 'riskOf'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 6 problems (0 errors, 6 warnings)
+
+# Ghi chú: 6 warnings là mặt bằng sẵn có trên origin/main (không thuộc các
+# file r21 chạm tới: shipments/debit, dispatch/detailed-plan, pages/Timesheet*).

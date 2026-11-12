@@ -11,6 +11,8 @@
 // dòng, màu K đậm / Chủ nhật vàng, lái xe INACTIVE có cả chuỗi ngày nền đỏ đậm.
 
 import { render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TimesheetDayCell, TimesheetDriverRow, TimesheetMonth } from '../api/timesheetClient';
@@ -209,5 +211,27 @@ describe('SIL-802 — legend Q của báo cáo đội xe đọc xanh dương', (
     page();
     const legendQ = await screen.findByText('Q', { selector: 'b.ts-legend-sym--q' });
     expect(legendQ.textContent).toBe('Q');
+  });
+});
+
+// SIL-802 FAIL 5078 (r21) — ô Q rơi CỘT Chủ nhật trên lưới đội xe vẫn chữ
+// tối (QA đo rgb(16,24,16)): symbol class và tint CN cùng nằm trên MỘT td,
+// rule CN đứng sau cùng specificity nên đè màu xanh. Rule td-level mới đặt
+// lại màu xanh cho đúng tổ hợp, không đụng chuỗi đỏ nghỉ việc.
+describe('SIL-802 — Q trên cột Chủ nhật của lưới báo cáo vẫn xanh', () => {
+  const reportCss = readFileSync(resolve(process.cwd(), 'src/pages/TimesheetMonthlyReportPage.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+
+  it('rule td-level tô xanh cho tổ hợp sym--q × cell--sunday, loại trừ chuỗi nghỉ việc', () => {
+    const sundayQ = reportCss.match(/\.ts-report td\.ts-report__sym--q\.ts-report__cell--sunday:not\(\.ts-report__cell--quit\)\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(sundayQ).toContain('color: var(--chip-open-text)');
+    expect(sundayQ).not.toContain('--info-text');
+  });
+
+  it('ô Q ngày Chủ nhật mang CẢ hai class trên cùng td (DOM law của rule mới)', async () => {
+    page();
+    const sundayQ = await screen.findByText('Q', { selector: 'td.ts-report__sym--q.ts-report__cell--sunday' });
+    expect(sundayQ.className).toContain('ts-report__sym--q');
+    expect(sundayQ.className).toContain('ts-report__cell--sunday');
   });
 });

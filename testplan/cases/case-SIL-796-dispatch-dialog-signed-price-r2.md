@@ -52,3 +52,20 @@ Long Minh × KCN Vân Trung (route 10), ngày 2026-11-07:
   vẫn seed; board miss không ghi 0.
 - Engine test: keyed miss → MANUAL (không giá đầu bảng khác loại).
 - Schema test: login nhận cả `identifier` và `username` (alias legacy, owner order 11/11).
+
+## Round r21 — luật render: số 0 giả đã lưu KHÔNG BAO GIỜ hiển thị (QA FAIL 5079, build 2674caf1)
+
+- BUG: lô 835 (chưa phân xe, bảng giá nhà xe route 10 trống dữ liệu) —
+  'Cước trả dự kiến' hiện **0 đậm** ở cả 3 trạng thái (trước/chọn nhà xe/
+  đổi qua Dùng biển số), tự mâu thuẫn với helpText '…không ghi 0.'. Seed
+  law chỉ xóa 0 khi ask bảng giá nhà xe TRẢ LỜI miss; khi ask không thể
+  chạy (thiếu pricing wire / trọng lượng / lớp xe) số 0 đã lưu nằm nguyên
+  trong ô.
+- EXPECTED: ô để trống thật + helpText nêu thiếu giá — đúng dev-request
+  trong FAIL (component không render 0 cho trạng thái trống).
+- FIX: `DispatchPlanEditorCell.tsx` — value cost render `0 → ''` (giá thật
+  vẫn render như cũ; seed law và cascade chọn-nhà-xe giữ nguyên).
+- Pins: editor test mới — stored '0' + không ask → ô trống kèm helpText;
+  stored giá thật vẫn render. Lô 835 trả về trạng thái đúng khi owner nhập
+  dòng bảng giá nhà xe (route 10 × CONT40 × nhà xe) — data gap đã ghi ở
+  round 2, chờ chủ trì.
