@@ -149,8 +149,16 @@ export async function loadFreightSnapshotChannelByLot(
     // a freeze row counts 0 (Number(null) is finite 0), never a skipped leg.
     const rawAmount = Number(row.totalAmount);
     const amount = Number.isFinite(rawAmount) ? rawAmount : 0;
-    // SIL-731: an unpriced dummy snapshot (table 0, terms 0, total 0) is not a priced snapshot
-    if (row.pricingTableId === 0 && row.rateTermsId === 0 && amount === 0) {
+    // SIL-731 + SIL-814: an unpriced dummy snapshot (total 0, table 0) is not
+    // a priced snapshot. Table id 0 is the engine's dummy base-row marker and
+    // BOTH MANUAL fallbacks carry it: the dispatch-miss MANUAL_ZERO_RESULT
+    // (terms 0 too) and the SIL-676 in-engine MANUAL zero, which keeps the
+    // RESOLVED rate-terms id (the QA 12/11 FCL freeze rows R3N-KR1/KR2 ·
+    // R3N-J1 · R3M-J1/KR1/KR2: rate_terms_id 1, formulaText NULL) — the old
+    // terms==0 conjunct let those through as a live 0₫ leg, printing fake 0
+    // on CƯỚC VẬN TẢI (AUTO) + TỔNG PHẢI THU. A genuinely-priced 0 keeps a
+    // real pricing-table row id (D02) and still counts.
+    if (row.pricingTableId === 0 && amount === 0) {
       continue;
     }
     if (row.tripId != null) {
