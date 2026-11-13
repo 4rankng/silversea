@@ -135,11 +135,12 @@ describe('HrRosterPage', () => {
     await screen.findByText('Lái xe A');
 
     // Bộ phận column: only the ACTIVE unit name; the inactive-only driver
-    // shows the placeholder.
+    // falls back to the role name 'Lái xe' — since SIL-812 the column never
+    // reads '—' for a driver.
     const mixedRow = screen.getByText('Lái xe A').closest('tr')!;
     expect(within(mixedRow).getAllByRole('cell')[2]).toHaveTextContent(/^Đội xe$/);
     const inactiveRow = screen.getByText('Lái xe C').closest('tr')!;
-    expect(within(inactiveRow).getAllByRole('cell')[2]).toHaveTextContent(/^—$/);
+    expect(within(inactiveRow).getAllByRole('cell')[2]).toHaveTextContent(/^Lái xe$/);
 
     // "Lọc theo bộ phận" dropdown: only ACTIVE units linked to roster rows.
     const [trigger] = screen.getAllByRole('button').filter((b) => b.getAttribute('aria-haspopup') === 'listbox');
@@ -156,5 +157,26 @@ describe('HrRosterPage', () => {
     fireEvent.click(within(listbox).getByRole('option', { name: 'Đội xe' }));
     expect(screen.getByText('Lái xe A')).toBeInTheDocument();
     expect(screen.queryByText('Lái xe C')).not.toBeInTheDocument();
+  });
+
+  // SIL-812 — a driver account carries its identity on the drivers profile,
+  // not on users: the projected Mã NV / Điện thoại must render, Bộ phận
+  // falls back to the role name when no ACTIVE unit is linked, and Email
+  // stays the honest '—' (drivers has no email source).
+  it('renders driver identity columns from the projection — never an all-— row (SIL-812)', async () => {
+    getHrRosterMock.mockResolvedValue({
+      items: [
+        userRow({ id: 9, role: 'DRIVER', fullName: 'Nguyễn Văn Tèo', employeeCode: 'TX010', email: null, phone: '0909', businessUnitIds: [] }),
+      ],
+      total: 1,
+      businessUnits: BUSINESS_UNITS,
+    });
+    renderPage();
+    const row = (await screen.findByText('Nguyễn Văn Tèo')).closest('tr')!;
+    const cells = within(row).getAllByRole('cell');
+    expect(cells[0]).toHaveTextContent('TX010');
+    expect(within(cells[2]).getByText('Lái xe')).toBeInTheDocument();
+    expect(cells[3]).toHaveTextContent('—');
+    expect(cells[4]).toHaveTextContent('0909');
   });
 });

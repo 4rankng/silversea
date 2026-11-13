@@ -589,15 +589,26 @@ export async function listUsers(requesterRole?: string, params: ListUsersParams 
  * column and the "Lọc theo bộ phận" dropdown, while the /users management
  * surfaces keep listing INACTIVE units unchanged. */
 export async function listHrRoster() {
+  // SIL-812 — hồ sơ lái xe sống ở bảng `drivers` (code, phone), không phải
+  // users: tài khoản lái xe chỉ tạo với username + họ tên nên users.employee_
+  // code/email/phone gần như rỗng (dev: 0/45 mã NV, 5/45 SĐT) và cả 4 cột
+  // Mã NV / Email / Điện thoại rơi '—'. COALESCE theo thứ tự ưu tiên
+  // Users → Drivers; drivers không có cột email nên Email chỉ từ users.
   const rows = await db.select({
     id: users.id,
-    employeeCode: users.employeeCode,
+    employeeCode: sql<string | null>`coalesce(${users.employeeCode}, ${drivers.code})`,
     fullName: users.fullName,
     email: users.email,
-    phone: users.phone,
+    phone: sql<string | null>`coalesce(${users.phone}, ${drivers.phone})`,
     status: users.status,
     role: users.role,
   }).from(users)
+    // SIL-812 — deletedAt guard: drivers rows are soft-deleted (a user can
+    // have a retired profile plus a re-created one under the same userId;
+    // the partial unique index only constrains live rows). Without the guard
+    // the join duplicates the roster row or leaks the retired profile's
+    // code/phone.
+    .leftJoin(drivers, and(eq(drivers.userId, users.id), isNull(drivers.deletedAt)))
     .where(and(isNull(users.deletedAt), eq(users.role, Role.DRIVER)))
     .orderBy(asc(users.id));
 
