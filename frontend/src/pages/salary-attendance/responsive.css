@@ -44,30 +44,21 @@
     height: 36px;
   }
 
-  /* --- Driver selector: wrap instead of requiring a horizontal swipe --- */
+  /* --- Driver selector: the full-width payroll table (paginates itself,
+         so the old 280px card-strip scroll is dead weight) --- */
   .driver-select-row {
     margin-bottom: 12px;
   }
 
   .salary-page .driver-select-row__list {
-    /* Bounded roster: 39 permanent cards must not push the selected
-       driver's detail below the viewport — scroll inside the strip. */
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-height: 280px;
-    overflow-y: auto;
+    /* SIL-809 — a block wrapper lets the roster table span the tablet
+       canvas; the old 2-col card grid squeezed it into half width. */
+    display: block;
     padding: 2px 0 6px;
-    gap: 8px;
-    align-content: start;
   }
 
   .salary-page .driver-select-card {
     min-width: 0;
-  }
-
-  .salary-page .driver-select-row__list {
-    scrollbar-width: thin;
-    scrollbar-gutter: stable;
   }
 
   .salary-page .driver-select-card {

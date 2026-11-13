@@ -157,7 +157,9 @@ export default function TimesheetMonthlyReportPage() {
           // .ts-legend đứng NGOÀI bảng nên span không bao giờ nhận màu — chữ
           // Q của legend rơi mực mặc định, đúng lớp lỗi (b) của ticket.
           <span key={symbol} className={symbolCellClass(symbol)}>
-            <b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].trips} chuyến)
+            {/* SIL-810 — chú thích đếm theo CỘT TỔNG (summaryTrips): mỗi ngày
+                Q = 1 chuyến (SIL-775). Trọng số lương (trips, Q = 2) không đổi. */}
+            <b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].summaryTrips} chuyến)
           </span>
         ))}
         <span className="ts-report__cell--sunday">Chủ nhật — nền vàng, ghi chuyến, không tính ngày công</span>
@@ -172,7 +174,7 @@ export default function TimesheetMonthlyReportPage() {
           description="Kế toán mở bảng chấm công cho lái xe rồi quay lại xem báo cáo."
         />
       ) : (
-        <div className="record-table-wrap">
+        <div className="record-table-wrap ts-report-wrap">
           <table className="record-table ops-table ts-report">
             <caption className="sr-only">{`Tổng hợp xếp lệnh tháng ${String(month).padStart(2, '0')}/${year}`}</caption>
             <thead>

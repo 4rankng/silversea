@@ -113,3 +113,70 @@
 table.ts-report thead th {
   white-space: nowrap;
 }
+
+/* SIL-810 (AC 2) — bảng Tổng Hợp Xếp Lệnh tháng cuộn được ĐỦ 31 ngày + 10 cột
+ * tổng hợp: wrap tự làm cổng cuộn ngang (cũ: overflow visible để thead ghim
+ * vào scrollport app-body → bảng 46 cột bị shell cắt ở ngày ~19). Cổng cuộn
+ * là wrap nên thead ghim top:0 trong wrap, và 5 cột thông tin xe/lái xe ghim
+ * cứng bên trái (sticky-left đầu tiên của nhà — giữ toàn bộ trong sheet này).
+ * Chú ý scope: hai dòng chỉ số nằm trong thead với ô ngày là THEAD TD — mọi
+ * rule cột trái chỉ nhắm `thead th` (hàng tiêu đề) hoặc `tbody td` (dòng lái
+ * xe), không bao giờ chạm ô ngày của dòng chỉ số. */
+.record-table-wrap.ts-report-wrap {
+  /* (0,2,0) thắng bản duplicate `.record-table-wrap { overflow: visible }`
+     của record-table.css import hai lần Sau sheet này — cùng lớp lỗi FB-063. */
+  container-type: normal;
+  overflow: auto;
+  max-height: calc(100vh - 230px);
+  overscroll-behavior: contain;
+}
+
+.record-table-wrap.ts-report-wrap .ts-report thead th {
+  top: 0;
+}
+
+/* Ô ngày co trong dải 28–32px (mặc định record-table padding 10/12 làm ô
+ * ngày ~40px — cả tháng trôi quá xa trước cột tổng). */
+.ts-report .ts-report__day,
+.ts-report .ts-report__cell {
+  width: 30px;
+  min-width: 28px;
+  max-width: 32px;
+  padding-inline: 2px;
+}
+
+/* Bề rộng tường minh cho 5 cột trái (min=max: auto layout không được phình/
+ * nhỏ track, để chuỗi left khớp pixel). Ô th[colSpan=5] (nhãn hai dòng chỉ
+ * số) đứng con thứ 1 nhưng khỏi width — chỉ nhận left. */
+.ts-report tbody td:nth-child(1) { width: 44px;  min-width: 44px;  max-width: 44px;  left: 0;     }
+.ts-report tbody td:nth-child(2) { width: 76px;  min-width: 76px;  max-width: 76px;  left: 44px;  }
+.ts-report tbody td:nth-child(3) { width: 104px; min-width: 104px; max-width: 104px; left: 120px; }
+.ts-report tbody td:nth-child(4) { width: 110px; min-width: 110px; max-width: 110px; left: 224px; }
+.ts-report tbody td:nth-child(5) { width: 160px; min-width: 160px; max-width: 160px; left: 334px; }
+
+.ts-report thead th:nth-child(1):not([colspan]) { width: 44px;  min-width: 44px;  max-width: 44px;  left: 0;     }
+.ts-report thead th:nth-child(2):not([colspan]) { width: 76px;  min-width: 76px;  max-width: 76px;  left: 44px;  }
+.ts-report thead th:nth-child(3):not([colspan]) { width: 104px; min-width: 104px; max-width: 104px; left: 120px; }
+.ts-report thead th:nth-child(4):not([colspan]) { width: 110px; min-width: 110px; max-width: 110px; left: 224px; }
+.ts-report thead th:nth-child(5):not([colspan]) { width: 160px; min-width: 160px; max-width: 160px; left: 334px; }
+.ts-report thead th[colspan='5'] { left: 0; }
+
+/* Dòng lái xe: 5 ô trái ghim ngang, nền đặc + hairline bóng trong (viền
+ * border-collapse không đi theo ô sticky khi cuộn; ô cuối tách mạnh hơn). */
+.ts-report tbody td:nth-child(-n + 5) {
+  position: sticky;
+  z-index: 2;
+  background: var(--surface);
+  box-shadow: inset -1px 0 0 var(--line);
+}
+
+.ts-report tbody td:nth-child(5) {
+  box-shadow: inset -1px 0 0 var(--line-strong);
+}
+
+/* Hàng tiêu đề: base record-table đã position:sticky (top) — thêm left cho
+ * 5 cột trái + z 4 đè lên ô ngày/ô chỉ số (z 3/2). Ô th[colSpan=5] của hai
+ * dòng chỉ số là con thứ 1 của hàng nó → nhận left:0 + z 4 từ rule dưới. */
+.ts-report thead th:nth-child(-n + 5) {
+  z-index: 4;
+}

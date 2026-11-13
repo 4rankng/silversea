@@ -224,7 +224,7 @@ export default function TimesheetGridPage() {
               // SIL-802 — chữ Q của legend mặc màu xanh dương như ô Q trên
               // lưới (trước giờ span legend không có rule ký hiệu nào nên Q
               // rơi vào mực mặc định — QA đo rgb(96,103,105)).
-              <span key={symbol}><b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].trips} chuyến)</span>
+              <span key={symbol}><b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].summaryTrips} chuyến)</span>
             ))}
           </p>
 

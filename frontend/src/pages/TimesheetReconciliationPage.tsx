@@ -104,8 +104,10 @@ export default function TimesheetReconciliationPage() {
   });
 
   const rows = rollupQuery.data ?? [];
+  // SIL-810 — tổng đội xe đọc cột Tổng số chuyến (Đ + K + Q, Q = 1 chuyến);
+  // money vẫn nhân trên trọng số lương từng lái xe (Q = 2, SIL-774).
   const totals = rows.reduce((sum, row) => ({
-    trips: sum.trips + row.trips,
+    trips: sum.trips + row.totalTrips,
     workdays: sum.workdays + row.workdays,
     salary: sum.salary + row.salary,
     revenue: sum.revenue + (row.revenue ?? 0),
@@ -299,7 +301,10 @@ export default function TimesheetReconciliationPage() {
                   <td className="num" data-label="Lưu ca">{row.luuCaCount}</td>
                   <td className="num" data-label="Số ngày nghỉ phép">{row.nghiCount}</td>
                   <td className="num" data-label="Số ngày nghỉ được hưởng lương">{row.nghiPhepCount}</td>
-                  <td className="num" data-label="Chuyến">{row.trips}</td>
+                  {/* SIL-810 — cột 'Chuyến' là TỔNG SỐ CHUYẾN của bảng tổng hợp
+                      tháng: Đ + K + Q (mỗi ngày Q = 1 chuyến, SIL-775). Trọng số
+                      lương Q = 2 vẫn nằm trong panel lương bên trên. */}
+                  <td className="num" data-label="Chuyến">{row.totalTrips}</td>
                   <td className="num" data-label="Ngày công">{row.workdays}</td>
                   <td className="num" data-label="Chuyến CN">{row.sundayTrips}</td>
                   <td className="num" data-label="Doanh thu">{row.revenue === null ? '—' : <Money value={row.revenue} />}</td>

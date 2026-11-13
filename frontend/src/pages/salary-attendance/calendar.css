@@ -4,12 +4,15 @@
   grid-template-columns: 1fr;
   gap: 20px;
   align-items: start;
-  max-width: 1180px; /* 840px calendar + 20px gap + 320px sidebar */
 }
 
 @media (min-width: 1025px) {
+  /* SIL-809 — the app shell already bounds the canvas (≈1112px at 1440), so
+     the old hard cap (max-width: 1180px) overflowed it left-anchored and the
+     minmax(auto, 840px) track refused to shrink. The calendar now fills the
+     canvas remaining beside the 320px sidebar — no dead right whitespace. */
   .salary-page-layout.has-selected {
-    grid-template-columns: minmax(auto, 840px) 320px;
+    grid-template-columns: minmax(0, 1fr) 320px;
   }
   /* Sidebar is first in DOM for mobile proximity to driver picker;
      reorder main (calendar) to appear first on the left column. */

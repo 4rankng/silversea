@@ -68,6 +68,8 @@ export interface TimesheetRollupRow {
   luuCaCount: number;
   nghiCount: number;
   nghiPhepCount: number;
+  /** SIL-775/810 — Tổng số chuyến = Đ + K + Q (mỗi ngày Q = 1 chuyến). */
+  totalTrips: number;
   trips: number;
   workdays: number;
   bonusTrips: number;
