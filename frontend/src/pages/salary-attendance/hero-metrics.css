@@ -106,15 +106,17 @@
   border-radius: 24px;
 }
 
-/* ── Driver selector grid ───────────────────────────────────────────── */
+/* ── Driver selector wrapper ────────────────────────────────────────── */
 .salary-page .driver-select-row {
   padding: 10px 0;
   border-block: 1px solid var(--line);
 }
+/* SIL-809 — the roster is the full-width sortable DriverPayrollTable now;
+   the card-wall track grid that used to live here dropped that single table
+   child into one ~140px auto-fill column (narrow left strip + dead right
+   whitespace, calendar pushed below the stretched roster). */
 .salary-page .driver-select-row__list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
+  display: block;
 }
 
 /* ── Responsive: hero + metrics ─────────────────────────────────────── */
@@ -126,10 +128,8 @@
   .salary-page .hero { padding: 0; }
   .salary-page .hero-top { flex-direction: column; gap: 14px; }
   .salary-page .driver-select-row__list {
-    flex-wrap: wrap;
+    display: block;
     overflow: visible;
-    display: flex;
-    gap: 8px;
     padding: 2px 0 6px;
   }
 }
@@ -168,10 +168,8 @@
     margin-bottom: 10px;
   }
   .salary-page .driver-select-row__list {
-    display: flex;
-    flex-wrap: wrap;
+    display: block;
     overflow: visible;
-    gap: 8px;
   }
 }
 @media (max-width: 420px) {
