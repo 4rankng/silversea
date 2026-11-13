@@ -63,6 +63,41 @@ describe('groupOpsExpensesForSettlement (OpsVanHanh §5.4)', () => {
     assert.equal(grouping.totals.excludedNegative, '0');
   });
 
+  // SIL-811 — the per-lot identity title (KH viết tắt · Bill/Booking + tờ
+  // khai · Số cont) and the row container cell: merged roll-call for a
+  // lot-wide line, bare number for a per-cont line. Never 'Không rõ container'.
+  it('SIL-811 — lot-wide lines head the group with the merged cont roll-call', () => {
+    const grouping = groupOpsExpensesForSettlement([
+      entry({
+        tradeDirection: 'IMPORT',
+        declarationNumber: '10859073650',
+        lotContainerNumbers: ['MSKU1234570', 'MSKU1234565'],
+        lotDeclarationNumbers: ['10859073650'],
+        amount: '150000',
+        requiresInvoice: false,
+      }),
+    ]);
+    const group = grouping.groups[0];
+    assert.equal(group.identityTitle, 'KH A · Bill: BL-1 · TK: 10859073650 · 2 cont: MSKU1234570, MSKU1234565');
+    assert.equal(group.withoutInvoice.items[0].containerLabel, '2 cont: MSKU1234570, MSKU1234565');
+    assert.ok(!group.identityTitle.includes('Không rõ container'));
+  });
+
+  it('SIL-811 — a line assigned one cont shows that cont and its tờ khai', () => {
+    const grouping = groupOpsExpensesForSettlement([
+      entry({
+        containerNumber: 'MSKU1234570',
+        declarationNumber: '10859073650',
+        lotContainerNumbers: ['MSKU1234570', 'MSKU1234565'],
+        lotDeclarationNumbers: ['10859073650', '10859073651'],
+        amount: '150000',
+      }),
+    ]);
+    const group = grouping.groups[0];
+    assert.equal(group.identityTitle, 'KH A · Bill: BL-1 · TK: 10859073650 · MSKU1234570');
+    assert.equal(group.withInvoice.items[0].containerLabel, 'MSKU1234570');
+  });
+
   // SIL-751 — the two staging phiếu QA reported. r4 correction (QA 4691/
   // 4703/4715, verified line by line on staging e6db602f): OS-2611-0005 has
   // NO negative row — its 5 lines are all positive and sum 1.070.000₫ while

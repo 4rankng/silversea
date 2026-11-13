@@ -20,6 +20,7 @@ import {
 } from './settlement-validation';
 import { listUnlinkedTripExpenses } from './forwarder.service';
 import { opsSettlementTotalFromLinesSql, sumOpsAmounts } from './ops-settlements.service';
+import { loadLotContainerIdentities, withLotIdentity } from './settlement-lot-identity.service';
 import type { Tx } from './trip-shared';
 import { propagateRecordedExpenses } from './source-change.service';
 import {
@@ -240,6 +241,10 @@ export async function listAdvanceSettlements(filters?: { forwarderId?: number; s
         tripContainerCount: s.trips.containerCount,
         shipmentId: s.trips.shipmentId,
         cargoMode: s.shipments.cargoMode,
+        // SIL-811 — the lot identity behind the slip's group titles.
+        billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
+          then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
+        tradeDirection: s.shipments.tradeDirection,
         expenseTypeName: s.forwarderExpenseTypes.name,
         truckPlate: s.trucks.licensePlate,
       }).from(s.tripExpenses)
@@ -254,14 +259,18 @@ export async function listAdvanceSettlements(filters?: { forwarderId?: number; s
         .leftJoin(s.forwarderExpenseTypes, eq(s.tripExpenses.expenseType, s.forwarderExpenseTypes.code))
         .where(inArray(s.tripExpenses.id, expenseIds));
       const expenseById = new Map(expenses.map(e => [e.id, e]));
+      // SIL-811 — lot identity (roll-call + per-cont tờ khai) for the slip
+      // titles, attached AFTER the settlement snapshot so the display matches
+      // the snapshot's container scope.
+      const identities = await loadLotContainerIdentities(db, expenses.map(e => e.shipmentId));
       const bySettlement = new Map<number, typeof expenses>();
       for (const l of expenseLinks) {
         const rawExpense = expenseById.get(l.tripExpenseId);
         if (!rawExpense) continue;
         const snapshot = (l.adjustedSnapshot ?? {}) as Record<string, unknown>;
-        const exp = Object.assign({}, rawExpense, snapshot, {
+        const exp = withLotIdentity(Object.assign({}, rawExpense, snapshot, {
           buyAmount: String(snapshot.buyAmount ?? l.adjustedBuyAmount ?? rawExpense.buyAmount),
-        });
+        }), rawExpense.shipmentId == null ? undefined : identities.get(rawExpense.shipmentId));
         const arr = bySettlement.get(l.settlementId);
         if (arr) arr.push(exp); else bySettlement.set(l.settlementId, [exp]);
       }
@@ -290,6 +299,38 @@ export interface PaginatedAdvanceSettlements {
   statusAmounts: Record<string, number>;
   /** Full-set totals for the page's KPI strip. */
   totals: { totalExpenseAmount: number; pendingCount?: number };
+}
+
+/**
+ * The ops-settlement paths' `linkedExpenses` wire rows (SIL-811): an ops
+ * expense entry has no trip row, so the wire carries this projection — customer
+ * shorthand, Bill/Booking + tờ khai, and the lot container roll-call behind the
+ * slip's identity titles — never the full TripExpense DB shape.
+ */
+interface OpsLinkedExpenseWire {
+  id: number;
+  tripId: number;
+  shipmentId: number;
+  forwarderId: number;
+  expenseType: string;
+  expenseTypeName: string | null;
+  buyAmount: string;
+  sellAmount: string;
+  containerNumber: string | null;
+  customerName: string | null;
+  billRef: string | null;
+  tradeDirection: string | null;
+  tripCode: string | null;
+  departureDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  invoiceNumber: string | null;
+  note: string | null;
+  settlementMethod: string;
+  approvalStatus: string;
+  declarationNumber: string | null;
+  lotContainerNumbers: string[];
+  lotDeclarationNumbers: string[];
 }
 
 /** Offset added to ops_settlements IDs when presented on the unified advance-settlement surface */
@@ -372,6 +413,7 @@ async function listOpsSettlementsForForwarderPaginated(filters: {
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
       containerNumber: s.shipmentContainers.containerNumber,
+      tradeDirection: s.shipments.tradeDirection,
       expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
       expenseTypeName: s.forwarderExpenseTypes.name,
       amount: s.opsExpenseEntries.amount,
@@ -392,13 +434,16 @@ async function listOpsSettlementsForForwarderPaginated(filters: {
     .where(inArray(s.opsExpenseEntries.opsSettlementId, pageSettlementIds))
     .orderBy(s.opsExpenseEntries.id) : [];
 
-  const entriesBySettlementId = new Map<number, NonNullable<AdvanceSettlementWithRefs['linkedExpenses']>>();
+  const entriesBySettlementId = new Map<number, OpsLinkedExpenseWire[]>();
+  // SIL-811 — lot identity (roll-call + per-cont tờ khai) for the slip titles.
+  const identities = await loadLotContainerIdentities(db, entries.map((entry) => entry.shipmentId));
   for (const entry of entries) {
     if (entry.opsSettlementId == null) continue;
     const arr = entriesBySettlementId.get(entry.opsSettlementId) ?? [];
-    arr.push({
+    arr.push(withLotIdentity({
       id: entry.id,
       tripId: entry.shipmentId ?? 0,
+      shipmentId: entry.shipmentId ?? 0,
       forwarderId,
       expenseType: entry.expenseTypeCode,
       expenseTypeName: entry.expenseTypeName ?? entry.expenseTypeCode,
@@ -406,6 +451,8 @@ async function listOpsSettlementsForForwarderPaginated(filters: {
       sellAmount: '0',
       containerNumber: entry.containerNumber ?? null,
       customerName: entry.customerName ?? null,
+      billRef: entry.billRef ?? null,
+      tradeDirection: entry.tradeDirection ?? null,
       tripCode: entry.billRef ?? null,
       departureDate: entry.createdAt ? entry.createdAt.toISOString().slice(0, 10) : null,
       createdAt: entry.createdAt ? entry.createdAt.toISOString() : new Date().toISOString(),
@@ -414,7 +461,7 @@ async function listOpsSettlementsForForwarderPaginated(filters: {
       note: null,
       settlementMethod: 'DIRECT',
       approvalStatus: entry.approvalStatus ?? 'RECORDED',
-    } as any);
+    }, identities.get(entry.shipmentId)));
     entriesBySettlementId.set(entry.opsSettlementId, arr);
   }
 
@@ -482,6 +529,7 @@ async function getAdvanceSettlementFromOps(
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
       containerNumber: s.shipmentContainers.containerNumber,
+      tradeDirection: s.shipments.tradeDirection,
       expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
       expenseTypeName: s.forwarderExpenseTypes.name,
       amount: s.opsExpenseEntries.amount,
@@ -502,9 +550,12 @@ async function getAdvanceSettlementFromOps(
     .where(eq(s.opsExpenseEntries.opsSettlementId, opsSettlementId))
     .orderBy(s.opsExpenseEntries.id);
 
-  const linkedExpenses: NonNullable<AdvanceSettlementWithRefs['linkedExpenses']> = entries.map((entry) => ({
+  // SIL-811 — lot identity (roll-call + per-cont tờ khai) for the slip titles.
+  const identities = await loadLotContainerIdentities(db, entries.map((entry) => entry.shipmentId));
+  const linkedExpenses: OpsLinkedExpenseWire[] = entries.map((entry) => withLotIdentity({
     id: entry.id,
     tripId: entry.shipmentId ?? 0,
+    shipmentId: entry.shipmentId ?? 0,
     forwarderId: row.opsUserId,
     expenseType: entry.expenseTypeCode,
     expenseTypeName: entry.expenseTypeName ?? entry.expenseTypeCode,
@@ -512,6 +563,8 @@ async function getAdvanceSettlementFromOps(
     sellAmount: '0',
     containerNumber: entry.containerNumber ?? null,
     customerName: entry.customerName ?? null,
+    billRef: entry.billRef ?? null,
+    tradeDirection: entry.tradeDirection ?? null,
     tripCode: entry.billRef ?? null,
     departureDate: entry.createdAt ? entry.createdAt.toISOString().slice(0, 10) : null,
     createdAt: entry.createdAt ? entry.createdAt.toISOString() : new Date().toISOString(),
@@ -520,7 +573,7 @@ async function getAdvanceSettlementFromOps(
     note: null,
     settlementMethod: 'DIRECT',
     approvalStatus: entry.approvalStatus ?? 'RECORDED',
-  } as any));
+  }, identities.get(entry.shipmentId)));
 
   return {
     id: displayId,

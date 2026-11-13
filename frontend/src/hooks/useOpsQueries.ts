@@ -77,6 +77,16 @@ export function useOpsExpenseTypes() {
   });
 }
 
+/** SIL-813 — the creatable catalog: saving a typed new fee type refreshes the
+ *  dropdown so the current row and every later dialog see it immediately. */
+export function useCreateOpsExpenseType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; requiresInvoice: boolean }) => opsClient.createExpenseType(input),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: opsKeys.expenseTypes() }),
+  });
+}
+
 /** Duplicate-cont warning source (plan step 5): fetched when the declaration
  *  dialog opens; a failure degrades to "no warning", never to a blocked form. */
 export function useOpsContainerClaimants(shipmentId: number) {

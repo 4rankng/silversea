@@ -127,6 +127,25 @@ describe('settlement read-only exports', () => {
     expect(cells[5]).toHaveTextContent('INV-LONG-1234');
   });
 
+  // SIL-811 — each per-lot block heads its rows with the identity title
+  // (KH viết tắt · Bill/Booking + tờ khai · Số cont); a lot-wide row shows the
+  // merged roll-call instead of the dead 'Không rõ container'.
+  it('SIL-811 — nhóm theo lô hiện dòng tiêu đề định danh, cont chung lô hiện cộng gộp', () => {
+    state.linkedExpenses = [{
+      id: 5, tripId: 10, expenseType: 'OTHER', buyAmount: '1000',
+      departureDate: '2026-09-17', customerName: 'LONGMINH',
+      containerNumber: null, invoiceNumber: null, note: null, tripCode: 'QA-TRIP-10',
+      billRef: 'R8B-472', tradeDirection: 'IMPORT',
+      lotContainerNumbers: ['MSKU1234570', 'MSKU1234565'],
+      lotDeclarationNumbers: ['10859073650'],
+    }];
+    const { container } = page();
+    expect(screen.getByText('LONGMINH · Bill: R8B-472 · TK: 10859073650 · 2 cont: MSKU1234570, MSKU1234565')).toBeVisible();
+    expect(screen.queryByText('Không rõ container')).toBeNull();
+    const contCell = container.querySelector('.settlement-expense-grid__row [data-label="Số cont"]');
+    expect(contCell).toHaveTextContent('2 cont: MSKU1234570, MSKU1234565');
+  });
+
   it.each([
     ['ACCOUNTANT', '/advance-settlements/11/export?format=html'],
     ['OPS', '/forwarder/me/advance-settlements/11/export?format=html'],

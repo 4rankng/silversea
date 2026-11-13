@@ -1,5 +1,6 @@
 import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getAdvanceConsumedAmounts } from './advance-consumption.service';
+import { loadLotContainerIdentities, withLotIdentity } from './settlement-lot-identity.service';
 /**
  * Advance domain shared helpers — version guard, expense snapshots, name
  * enrichment, and the O2C auto-offset. Used by BOTH the request and settlement
@@ -147,9 +148,15 @@ export async function enrichSettlementWithRequests<T extends typeof s.advanceSet
     tripCode: string | null;
     departureDate: string | null;
     customerName: string | null;
+    /** SIL-811 — lot identity behind the slip's group titles. */
+    billRef: string | null;
+    tradeDirection: string | null;
+    declarationNumber: string | null;
+    lotContainerNumbers: string[];
+    lotDeclarationNumbers: string[];
   }[] = [];
   if (expenseIds.length > 0) {
-    linkedExpenses = await executor.select({
+    const rows = await executor.select({
       id: s.tripExpenses.id,
       tripId: s.tripExpenses.tripId,
       expenseType: s.tripExpenses.expenseType,
@@ -162,23 +169,31 @@ export async function enrichSettlementWithRequests<T extends typeof s.advanceSet
       tripCode: s.trips.tripCode,
       departureDate: s.trips.departureDate,
       customerName: s.customers.name,
+      shipmentId: s.trips.shipmentId,
+      billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
+        then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
+      tradeDirection: s.shipments.tradeDirection,
     }).from(s.tripExpenses)
       .leftJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
       .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
       .leftJoin(s.tripContainers, eq(s.tripExpenses.tripContainerId, s.tripContainers.id))
+      .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
       .where(inArray(s.tripExpenses.id, expenseIds));
     const linkByExpense = new Map(expenseLinks.map(link => [link.tripExpenseId, link]));
-    linkedExpenses = linkedExpenses.map(expense => {
-      const link = linkByExpense.get(expense.id);
+    // SIL-811 — lot identity (roll-call + per-cont tờ khai) attached AFTER the
+    // settlement snapshot so the display matches the snapshot's container scope.
+    const identities = await loadLotContainerIdentities(executor, rows.map(row => row.shipmentId));
+    linkedExpenses = rows.map((row) => {
+      const link = linkByExpense.get(row.id);
       const snapshot = (link?.adjustedSnapshot ?? {}) as Record<string, unknown>;
-      return Object.assign(expense, snapshot, {
-        buyAmount: String(snapshot.buyAmount ?? link?.adjustedBuyAmount ?? expense.buyAmount),
-        sellAmount: String(snapshot.sellAmount ?? expense.sellAmount),
+      return withLotIdentity(Object.assign({}, row, snapshot, {
+        buyAmount: String(snapshot.buyAmount ?? link?.adjustedBuyAmount ?? row.buyAmount),
+        sellAmount: String(snapshot.sellAmount ?? row.sellAmount),
         submittedBuyAmount: link?.originalBuyAmount ?? null,
         submittedSellAmount: link?.submittedSellAmount ?? null,
         adjustmentReason: link?.adjustmentReason ?? null,
         adjustedAt: link?.adjustedAt ?? null,
-      });
+      }), row.shipmentId == null ? undefined : identities.get(row.shipmentId));
     });
   }
 

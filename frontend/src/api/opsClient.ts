@@ -195,6 +195,9 @@ export interface OpsSettlementGroupItem {
   customerName: string | null;
   billRef: string | null;
   containerNumber: string | null;
+  /** SIL-811 — the row's container cell: assigned cont, else the lot's merged
+   *  roll-call ('2 cont: …'), else 'Phí chung lô'. */
+  containerLabel?: string | null;
   expenseTypeName: string | null;
   requiresInvoice: boolean | null;
   amount: string;
@@ -212,6 +215,9 @@ export interface OpsSettlementDetail {
       shipmentCode: string | null;
       customerName: string | null;
       billRef: string | null;
+      /** SIL-811 — 'KH · Bill: … · TK: … · 2 cont: …', built server-side so the
+       *  sheet and the Excel export print one identical title. */
+      identityTitle: string;
       withInvoice: { items: OpsSettlementGroupItem[]; total: string };
       withoutInvoice: { items: OpsSettlementGroupItem[]; total: string };
       total: string;
@@ -306,6 +312,12 @@ export const opsClient = {
   // ── Khoản chi ──
   getExpenseTypes: () =>
     api.get<{ items: OpsExpenseTypeOption[] }>('/ops/expense-types'),
+  // SIL-813 — the creatable catalog: a typed fee name the list lacks is
+  // persisted into the matching group (requiresInvoice follows the TAB) and
+  // comes back as a full option for the next dialogs. created=false means the
+  // name already existed and the live row returned.
+  createExpenseType: (body: { name: string; requiresInvoice: boolean }) =>
+    api.post<{ item: OpsExpenseTypeOption; created: boolean }>('/ops/expense-types', body),
   // Duplicate-cont heads-up: who already declared against each cont of the
   // lot. Warning-only — never a write verdict (plan step 5 removed the grant).
   getContainerClaimants: (shipmentId: number) =>

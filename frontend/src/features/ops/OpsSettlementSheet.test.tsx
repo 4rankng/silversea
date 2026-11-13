@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { settlementLotIdentityTitle } from '@tingting/shared';
 import { OpsSettlementSheet } from './OpsSettlementsPanel';
 
-const grouping = (over: Record<string, unknown> = {}, totalsOver: Record<string, string> = {}): Parameters<typeof OpsSettlementSheet>[0]['grouping'] => ({
-  groups: [{
+const grouping = (over: Record<string, unknown> = {}, totalsOver: Record<string, string> = {}): Parameters<typeof OpsSettlementSheet>[0]['grouping'] => {
+  const group = {
     shipmentId: 123,
     shipmentCode: 'SHP-2609-00123',
     customerName: 'Khách QA',
@@ -13,9 +14,23 @@ const grouping = (over: Record<string, unknown> = {}, totalsOver: Record<string,
     withoutInvoice: { items: [], total: '0' },
     total: '0',
     ...over,
-  }],
-  totals: { withInvoice: '0', withoutInvoice: '0', grand: '0', rawGrand: '0', excludedNegative: '0', ...totalsOver },
-});
+  };
+  return {
+    groups: [{
+      ...group,
+      // SIL-811 — the fixture title comes from the SAME shared formatter the
+      // server uses, so tests see the real identity line.
+      identityTitle: typeof over.identityTitle === 'string'
+        ? over.identityTitle
+        : settlementLotIdentityTitle({
+            customerName: typeof group.customerName === 'string' ? group.customerName : null,
+            billRef: typeof group.billRef === 'string' ? group.billRef : null,
+            tradeDirection: 'IMPORT',
+          }),
+    }],
+    totals: { withInvoice: '0', withoutInvoice: '0', grand: '0', rawGrand: '0', excludedNegative: '0', ...totalsOver },
+  };
+};
 
 const meta = {
   code: 'OS-TEST-0001',
@@ -140,6 +155,33 @@ describe('OpsSettlementSheet display keys (internal ids never render)', () => {
     expect(sheet.textContent).toContain('Chưa có số Bill/Booking');
     expect(sheet.textContent).not.toContain('123');
     expect(sheet.textContent).not.toContain('SHP-');
+  });
+
+  // SIL-811 — the per-lot identity title (KH viết tắt · Bill/Booking + tờ
+  // khai · Số cont) heads the group, and a lot-wide row shows the merged
+  // roll-call instead of the dead 'Không rõ container' / bare 'Phí chung lô'.
+  it('SIL-811 — dòng tiêu đề định danh carries đủ 3 thông tin, cont chung lô hiện cộng gộp', () => {
+    viewport(1440);
+    render(<OpsSettlementSheet grouping={grouping({
+      customerName: 'LONGMINH',
+      billRef: 'R8B-472',
+      identityTitle: 'LONGMINH · Bill: R8B-472 · TK: 10859073650 · 2 cont: MSKU1234570, MSKU1234565',
+      withoutInvoice: {
+        items: [{
+          containerNumber: null,
+          containerLabel: '2 cont: MSKU1234570, MSKU1234565',
+          expenseTypeName: 'Cân lốp',
+          amount: '20000',
+        }],
+        total: '20000',
+      },
+    })} meta={meta} />);
+    expect(screen.getByRole('heading', {
+      name: 'LONGMINH · Bill: R8B-472 · TK: 10859073650 · 2 cont: MSKU1234570, MSKU1234565',
+    })).toBeVisible();
+    expect(screen.getAllByText('2 cont: MSKU1234570, MSKU1234565').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Không rõ container')).toBeNull();
+    expect(screen.queryByText('Phí chung lô')).toBeNull();
   });
 
   // SIL-751 — the totals drop negative rows (card 20260928_197), so a phiếu

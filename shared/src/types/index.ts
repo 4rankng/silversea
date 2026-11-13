@@ -1062,6 +1062,11 @@ export interface AdvanceSettlementWithRefs extends AdvanceSettlement {
     adjustmentReason?: string | null;
     adjustedAt?: string | null;
     adjustedByName?: string | null;
+    /** SIL-811 — lot identity behind the slip's group titles. */
+    billRef?: string | null;
+    tradeDirection?: string | null;
+    lotContainerNumbers?: string[];
+    lotDeclarationNumbers?: string[];
   }>;
 }
 

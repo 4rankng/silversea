@@ -516,6 +516,7 @@ export type {
   PenaltyListSortKey,
 } from './schemas/penalty-list';
 export * from './expense-accounting';
+export * from './settlement-identity';
 export type { DriverIncidentalCostInput } from './schemas';
 
 export * from './schemas/treasury';

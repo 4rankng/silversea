@@ -40,10 +40,9 @@ export async function exportOpsSettlementXlsx(
   sheet.addRow([]);
 
   for (const group of grouping.groups) {
-    const header = sheet.addRow([
-      `Lô ${group.billRef?.trim() || 'Chưa có số Bill/Booking'}`,
-      group.customerName ?? '',
-    ]);
+    // SIL-811 — the per-lot identity title (KH viết tắt · Bill/Booking + tờ
+    // khai · Số cont), identical to the on-screen sheet.
+    const header = sheet.addRow([group.identityTitle]);
     header.font = { bold: true };
 
     for (const [label, basket] of [
@@ -55,7 +54,7 @@ export async function exportOpsSettlementXlsx(
       basketHeader.font = { bold: true, color: { argb: 'FF555555' } };
       for (const item of basket.items) {
         const row = sheet.addRow([
-          item.containerNumber ?? 'Phí chung lô',
+          item.containerLabel,
           item.expenseTypeName ?? '',
           Number(item.amount),
           EXPENSE_STATUS_LABELS[item.approvalStatus] ?? item.approvalStatus,

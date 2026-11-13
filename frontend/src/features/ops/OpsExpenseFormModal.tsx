@@ -1,7 +1,7 @@
 import { PhotoImage } from '../../components/shared/PhotoImage';
 import { useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2, X } from 'lucide-react';
-import { useOpsExpenseTypes, useOpsContainerClaimants, useCreateOpsExpense } from '../../hooks/useOpsQueries';
+import { useOpsExpenseTypes, useOpsContainerClaimants, useCreateOpsExpense, useCreateOpsExpenseType } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsOrderItem, type OpsExpenseDuplicateHit } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
@@ -167,6 +167,11 @@ interface FeeRowHost {
   upload: (block: 'noInvoice' | 'invoice', rowKey: number, files: FileList | File[] | null) => void;
   remove: (block: 'noInvoice' | 'invoice', key: number) => void;
   typeOptionsOf: (block: 'noInvoice' | 'invoice') => Array<{ value: string; label: string; disabled?: boolean }>;
+  /** SIL-813 — persist a typed fee name into the block's catalog and select
+   *  it on this row; the toast names the outcome (new vs already existed). */
+  addType: (block: 'noInvoice' | 'invoice', rowKey: number, rawName: string) => Promise<void>;
+  /** True while the catalog create is in flight — the inline editor disables. */
+  typeCreating: boolean;
 }
 
 /**
@@ -180,6 +185,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const typesQuery = useOpsExpenseTypes();
   const typesData = typesQuery.data;
   const createExpense = useCreateOpsExpense();
+  const createType = useCreateOpsExpenseType();
   const { toast } = useToast();
   // SIL-761 — the thu-khách pair belongs to CUS/chứng từ, not the Ops field
   // declaration: an OPS account (getModernRole folds the legacy FORWARDER
@@ -460,10 +466,29 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     await saveFrom(tasks, resume.index);
   }
 
+  /** SIL-813 — the creatable catalog: persist the typed name into the block's
+   *  group ('Phí có hóa đơn' → requiresInvoice true, else false), then select
+   *  the returned option on the row. An existing name (server dedupe) still
+   *  selects — with an "already in the catalog" toast instead of an error. */
+  async function addNewType(block: 'noInvoice' | 'invoice', rowKey: number, rawName: string) {
+    const name = rawName.trim();
+    if (!name) return;
+    try {
+      const result = await createType.mutateAsync({ name, requiresInvoice: block === 'invoice' });
+      patchDraft(block, rowKey, { typeCode: result.item.code });
+      toast({ kind: 'success', message: result.created
+        ? `Đã thêm loại phí "${result.item.name}" vào danh mục ${block === 'invoice' ? '"Phí có hóa đơn"' : '"Phí không hóa đơn"'}.`
+        : `Loại phí "${result.item.name}" đã có trong danh mục — đã chọn cho dòng này.` });
+    } catch (error) {
+      toastActionError(toast, 'thêm loại phí mới', error, 'Không thêm được loại phí mới.');
+    }
+  }
+
   const busy = createExpense.isPending || progress !== '';
   const feeRowHost: FeeRowHost = {
     typesData, typesReady, busy, customerFields: !opsViewer,
     patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf,
+    addType: addNewType, typeCreating: createType.isPending,
   };
 
   return (
@@ -616,8 +641,18 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 function FeeRowFields({ block, draft, ordinal, host }: {
 block: 'noInvoice' | 'invoice'; draft: FeeDraft; ordinal: number; host: FeeRowHost;
 }) {
-const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf } = host;
+const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf, addType, typeCreating } = host;
   const invoiced = block === 'invoice';
+  // SIL-813 — the inline "new fee type" editor for this row's catalog cell.
+  const [addingType, setAddingType] = useState(false);
+  const [newTypeName, setNewTypeName] = useState('');
+  const commitNewType = () => {
+    const name = newTypeName.trim();
+    if (!name) return;
+    void addType(block, draft.key, name);
+    setAddingType(false);
+    setNewTypeName('');
+  };
   // The NumberField prints its own amount error inline — the row hint only
   // carries what the money field cannot say (type choice, the Ghi-chú rule,
   // unfinished uploads).
@@ -637,6 +672,31 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
             onChange={(event) => patchDraft(block, draft.key, { typeCode: event.target.value })}
             options={typeOptionsOf(block)}
           />
+          {/* SIL-813 — the catalog lacks a fee name Ops needs: typing it here
+              persists it into THIS tab's group and selects it on the row. */}
+          {addingType ? (
+            <div className="ops-fee-row__newtype">
+              <input
+                aria-label="Tên loại phí mới"
+                placeholder="Ví dụ: Phí rút cont"
+                value={newTypeName}
+                autoFocus
+                maxLength={100}
+                disabled={busy || typeCreating}
+                onChange={(event) => setNewTypeName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') { event.preventDefault(); commitNewType(); }
+                  if (event.key === 'Escape') { setAddingType(false); setNewTypeName(''); }
+                }}
+              />
+              <button type="button" className="btn btn--primary btn--sm" disabled={!newTypeName.trim() || busy || typeCreating} onClick={commitNewType}>
+                {typeCreating ? <Loader2 size={12} className="spin" /> : null} Thêm
+              </button>
+              <button type="button" className="btn btn--ghost btn--sm" disabled={typeCreating} onClick={() => { setAddingType(false); setNewTypeName(''); }}>Hủy</button>
+            </div>
+          ) : (
+            <button type="button" className="btn btn--ghost btn--sm ops-fee-row__add-type" disabled={busy} onClick={() => setAddingType(true)}>+ Thêm loại phí mới</button>
+          )}
         </div>
         <div className="ops-fee-row__field ops-fee-row__cell--amount">
           <NumberField controlSize="sm" label="Số tiền (VNĐ)" grouped value={draft.amount}

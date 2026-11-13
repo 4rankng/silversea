@@ -290,6 +290,17 @@ export interface LinkedExpense {
   tripCode: string | null;
   departureDate: string | null;
   customerName: string | null;
+  /** SIL-811 — lot identity behind the slip's group titles. */
+  shipmentId?: number | null;
+  /** Bill of lading (IMPORT) / booking reference (EXPORT). */
+  billRef?: string | null;
+  tradeDirection?: string | null;
+  /** Tờ khai of THIS row's container (null on lot-wide rows). */
+  declarationNumber?: string | null;
+  /** Every named container of the lot (id-asc). */
+  lotContainerNumbers?: string[];
+  /** Every non-empty tờ khai of the lot's containers (id-asc, deduped). */
+  lotDeclarationNumbers?: string[];
 }
 
 /** Paginated envelope of GET /forwarder/me/advance-requests (list page). */
