@@ -96,6 +96,35 @@ describe('DriverTripsPage', () => {
     expect(weight.textContent).toBe('15 tấn');
   });
 
+  // SIL-815 (id 943, UAT 12/11) — the card strip is the trip's OWN container
+  // list (the exact list the Chi tiết lệnh screen renders). Driver 15H-104.03:
+  // card R3P-677-R showed 1 cont while the trip (and the detail) carried 2.
+  it('renders every trip container on the strip — a 2-cont trip matches its detail 100%', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({
+        blNumber: 'R3P-677-R',
+        containers: [
+          { containerNumber: 'RTAU4011047', containerTypeName: '20DC', sealNumber: null, cargoWeightKg: null },
+          { containerNumber: 'RTAU4011052', containerTypeName: null, sealNumber: null, cargoWeightKg: null },
+        ],
+      }),
+    ]));
+    renderPage();
+    expect(screen.getByText('RTAU4011047')).toBeTruthy();
+    expect(screen.getByText('RTAU4011052')).toBeTruthy();
+    // ĐƠN trips carry exactly one tag — it rides the FIRST strip only.
+    expect(screen.getAllByText('ĐƠN').length).toBe(1);
+  });
+
+  it('a board wire without the containers field renders the singular strip unchanged (skew-safe)', () => {
+    const legacy = card({ containerNumber: 'MSCU1234561' }) as DriverJourneyCard & { containers?: unknown };
+    delete legacy.containers;
+    useDriverJourneyBoardMock.mockReturnValue(board([legacy]));
+    renderPage();
+    expect(screen.getByText('MSCU1234561')).toBeTruthy();
+    expect(screen.queryByText('Chưa có số cont')).toBeNull();
+  });
+
   it('journey card omits the weight segment when the container is unweighted (card 356)', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ cargoWeightKg: null }),

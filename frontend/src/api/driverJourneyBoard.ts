@@ -9,6 +9,14 @@
 
 export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
 
+export interface DriverJourneyCardContainer {
+  containerNumber: string | null;
+  containerTypeName: string | null;
+  sealNumber: string | null;
+  /** Display-ready payload ("15000"), null when unentered. */
+  cargoWeightKg: string | null;
+}
+
 /** Raw fulfillment-owned classification (ĐƠN/KẸP/KẾT HỢP/LẺ/LẤY LẺ labels). */
 export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | 'LCL_PICKUP';
 
@@ -55,6 +63,14 @@ export interface DriverJourneyCard {
   /** shipments_containers.cargo_weight_kg, display-ready ("15000") — the
    *  card renders "· 15.000 kg" (card 20261004_356); null when unweighted. */
   cargoWeightKg: string | null;
+  /**
+   * SIL-815 — the trip's OWN containers (trip_containers), the exact list the
+   * Chi tiết lệnh screen renders; the card must match it 100%. First entry
+   * mirrors containerNumber/containerTypeName/sealNumber/cargoWeightKg.
+   * Optional for wire skew: an older cached board (no field) renders the
+   * singular strip alone.
+   */
+  containers?: DriverJourneyCardContainer[];
   /** 3a0bd5af: last-leg ĐÓNG/TRẢ (loại hình pill on the card). */
   loadingType: string | null;
   /** shipments.trade_direction — drives the container-row 3rd column
