@@ -6,7 +6,7 @@
 // (D02, card 20261002_293) stays a zero only once it IS determined.
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { receivableDetermined, receivableDisplayValue } from '../../services/debit-receivable-arming';
+import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue } from '../../services/debit-receivable-arming';
 
 describe('receivableDetermined (SIL-731 r2 arming law)', () => {
   test('lô 100GX19033 repro — ops charge entered 0 + freight unpriced + no revenue rows → NOT determined (blank)', () => {
@@ -113,5 +113,32 @@ describe('receivableDisplayValue (SIL-731 r4 cell law — no lock exemption)', (
 
   test('non-zero frozen figure passes through untouched', () => {
     assert.equal(receivableDisplayValue({ value: 3_952_000, freightKnown: true, merged: false }), 3_952_000);
+  });
+});
+
+describe('receivableCellFreightKnown (SIL-814 — a locked cell trusts the freeze-time freight)', () => {
+  test('QA repro R3M-KR1 (id 772) — locked 06/11 froze 0/0 from snapshot 703, live channel now 3.952.000 → freight NOT trusted → cell BLANK', () => {
+    assert.equal(receivableCellFreightKnown({ locked: true, frozenFreight: 0, liveFreight: 3_952_000 }), false);
+    // through the display gate: the frozen 0 then reads chưa chốt, never a bare 0
+    assert.equal(receivableDisplayValue({ value: 0, freightKnown: false, merged: false }), null);
+  });
+
+  test('frozen freight missing (pre-SIL-693 lock) → not known even when the live channel later prices the lot', () => {
+    assert.equal(receivableCellFreightKnown({ locked: true, frozenFreight: null, liveFreight: 3_952_000 }), false);
+  });
+
+  test('frozen freight agrees with live channel → a computed zero (D02) keeps rendering', () => {
+    assert.equal(receivableCellFreightKnown({ locked: true, frozenFreight: 0, liveFreight: 0 }), true);
+    assert.equal(receivableDisplayValue({ value: 0, freightKnown: true, merged: false }), 0);
+  });
+
+  test('R3P-KR1 law — non-zero frozen receivable never reaches the zero branch (freeze untouched)', () => {
+    assert.equal(receivableCellFreightKnown({ locked: true, frozenFreight: 3_952_000, liveFreight: 3_952_000 }), true);
+    assert.equal(receivableDisplayValue({ value: 3_952_000, freightKnown: true, merged: false }), 3_952_000);
+  });
+
+  test('unlocked rows keep judging by the live channel (SIL-731 r4 unchanged)', () => {
+    assert.equal(receivableCellFreightKnown({ locked: false, frozenFreight: null, liveFreight: 0 }), true);
+    assert.equal(receivableCellFreightKnown({ locked: false, frozenFreight: 0, liveFreight: null }), false);
   });
 });

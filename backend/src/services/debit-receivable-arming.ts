@@ -54,3 +54,28 @@ export function receivableDisplayValue(input: ReceivableDisplayInput): number | 
   if (input.value === 0 && !input.freightKnown && !input.merged) return null;
   return input.value;
 }
+
+/** SIL-814 (id 942) — which freight knowledge a receivable cell may trust.
+ *  Unlocked rows judge by the live channel (SIL-731 r4 law, unchanged). A
+ *  LOCKED row's frozen figure was computed with the freeze-time freight, so
+ *  its zero cell stays only while the frozen freight is present and still
+ *  agrees with the live channel:
+ *    - frozen freight missing (pre-SIL-693 locks) → the freeze never priced
+ *      the lot → the frozen 0 was never computed → not known;
+ *    - frozen freight ≠ live freight (R3M-KR1 id 772: the 06/11 freeze baked
+ *      freightAuto 0 / receivableTotal 0 from snapshot 703 while the channel
+ *      now reads snapshots 839/840 = 3.952.000) → the frozen zero predates
+ *      pricing → not known, ô TRỐNG per the 24/10 law;
+ *    - frozen freight = live freight → a legitimately computed zero (D02)
+ *      keeps rendering 0.
+ *  Non-zero frozen figures never reach this gate's zero branch and pass
+ *  through untouched (freeze law, card _19). Merged lots are exempt at the
+ *  display gate regardless (lô ghép renders 0 by design). */
+export function receivableCellFreightKnown(input: {
+  locked: boolean;
+  frozenFreight: number | null;
+  liveFreight: number | null;
+}): boolean {
+  if (!input.locked) return input.liveFreight != null;
+  return input.frozenFreight != null && input.frozenFreight === input.liveFreight;
+}
