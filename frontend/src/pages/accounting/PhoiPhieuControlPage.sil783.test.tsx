@@ -132,7 +132,7 @@ describe('PhoiPhieuControlPage — inline Số HĐ trên bảng (SIL-783)', () =
         expectedVersion: 3,
         reason: PHOI_INVOICE_EDIT_REASON,
         invoiceNumber: 'HD-999',
-      });
+      }, { kind: 'OPS' });
     });
     expect(correctPhoiPhieuRow).not.toHaveBeenCalled();
   });
@@ -149,7 +149,7 @@ describe('PhoiPhieuControlPage — inline Số HĐ trên bảng (SIL-783)', () =
         expectedVersion: 7,
         reason: PHOI_INVOICE_EDIT_REASON,
         invoiceNumber: 'HD-NEW',
-      });
+      }, { kind: 'OPS' });
     });
     expect(updatePhoiPhieuRowAmounts).not.toHaveBeenCalled();
   });
@@ -164,7 +164,7 @@ describe('PhoiPhieuControlPage — inline Số HĐ trên bảng (SIL-783)', () =
         expectedVersion: 3,
         reason: PHOI_INVOICE_EDIT_REASON,
         invoiceNumber: null,
-      });
+      }, { kind: 'OPS' });
     });
   });
 
