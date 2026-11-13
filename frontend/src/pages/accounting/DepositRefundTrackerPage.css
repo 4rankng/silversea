@@ -38,6 +38,19 @@
    emergency break would otherwise split "28/09/26" after the slash in a narrow
    column, which is how the board read before this rule. */
 .deposit-col--token { white-space: nowrap; }
+
+/* SIL-819 (2026-11-13, QA 1440px) — the Phân loại + Hãng tàu label columns
+   wrap at WORD boundaries: the shared base's overflow-wrap:anywhere lets a
+   starved auto column shatter 'Cược container' → 'Cược conta/iner' and
+   'Maersk' → 'Maers/k'. Dropping the emergency break for these two label
+   columns restores the §4 law — the column's min-content becomes its
+   longest word, so the wrap lands between words; an over-wide single token
+   rides the shared --scroll boundary instead of shattering. */
+.deposit-tracker-page .record-table td[data-label='Phân loại'],
+.deposit-tracker-page .record-table td[data-label='Hãng tàu'] {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
 .deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--fg-3); }
 
 /* "Thêm cược" Bill typeahead — a plain result list under the lookup field, no
