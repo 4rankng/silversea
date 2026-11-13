@@ -614,3 +614,99 @@ export async function loadTripStatusVersion(
   }).from(s.tripsComposite).where(eq(s.tripsComposite.id, tripId)).limit(1);
   return current ?? null;
 }
+
+// ─── SIL-817 (id 946) — stuck running trips report ──────────────────────────
+// PROD 13/11: trip 13 TRP-202609-0011 sat IN_TRANSIT from 21/09 because its
+// dispatch handoff (#38, UNSEEN, handler NULL) never found an owner and the
+// driver app gave no reachable Hoàn tất for the strand. This report gives
+// điều vận the same visibility over every future strand: running trips
+// (IN_TRANSIT — this schema has no separate STARTED status; CREATED is the
+// not-yet-started state) whose clock ran past `days` days, with the active
+// dispatch handoff and its handler inline so "handler NULL" strands are
+// visible at a glance.
+
+export interface StuckRunningTripRow {
+  tripId: number;
+  tripCode: string | null;
+  status: string;
+  driverId: number | null;
+  driverName: string | null;
+  truckPlate: string | null;
+  shipmentId: number | null;
+  shipmentCode: string | null;
+  fulfillmentId: number | null;
+  plannedStartAt: string | null;
+  /** coalesce(planned_start_at, updated_at) — when the running clock started. */
+  stuckSince: string | null;
+  daysStuck: number;
+  activeHandoff: { id: number; status: string; handlerId: number | null } | null;
+}
+
+export async function listStuckRunningTrips(days: number): Promise<StuckRunningTripRow[]> {
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const rows = await db.select({
+    tripId: s.tripsComposite.id,
+    tripCode: s.tripsComposite.tripCode,
+    status: s.tripsComposite.status,
+    driverId: s.tripsComposite.driverId,
+    driverName: s.drivers.name,
+    truckPlate: s.trucks.licensePlate,
+    shipmentId: s.tripsComposite.shipmentId,
+    shipmentCode: s.shipments.shipmentCode,
+    fulfillmentId: s.tripsComposite.fulfillmentId,
+    plannedStartAt: s.tripsComposite.plannedStartAt,
+    updatedAt: s.tripsComposite.updatedAt,
+  }).from(s.tripsComposite)
+    .leftJoin(s.drivers, eq(s.tripsComposite.driverId, s.drivers.id))
+    .leftJoin(s.trucks, eq(s.tripsComposite.truckId, s.trucks.id))
+    .leftJoin(s.shipments, eq(s.tripsComposite.shipmentId, s.shipments.id))
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.tripsComposite.fulfillmentId))
+    .where(and(
+      eq(s.tripsComposite.status, TripStatus.IN_TRANSIT),
+      isNull(s.tripsComposite.deletedAt),
+      // A canceled fulfillment means the lot no longer wants this leg; the
+      // trip will be (or was) handled through cancellation instead.
+      isNull(s.shipmentFulfillments.canceledAt),
+      sql`coalesce(${s.tripsComposite.plannedStartAt}, ${s.tripsComposite.updatedAt}) < ${cutoff.toISOString()}`,
+    ))
+    .orderBy(sql`coalesce(${s.tripsComposite.plannedStartAt}, ${s.tripsComposite.updatedAt}) asc`)
+    .limit(200);
+
+  if (rows.length === 0) return [];
+  // One active handoff per shipment (UNSEEN/SEEN, application-owned guard).
+  const shipmentIds = [...new Set(rows.map((row) => row.shipmentId).filter((id): id is number => id != null))];
+  const handoffs = shipmentIds.length
+    ? await db.select({
+      shipmentId: s.dispatchHandoffs.shipmentId,
+      id: s.dispatchHandoffs.id,
+      status: s.dispatchHandoffs.status,
+      handlerId: s.dispatchHandoffs.handlerId,
+    }).from(s.dispatchHandoffs)
+      .where(and(
+        inArray(s.dispatchHandoffs.shipmentId, shipmentIds),
+        sql`${s.dispatchHandoffs.status} IN ('UNSEEN', 'SEEN')`,
+      ))
+    : [];
+  const handoffByShipment = new Map(handoffs.map((handoff) => [handoff.shipmentId, handoff]));
+
+  const now = Date.now();
+  return rows.map((row) => {
+    const stuckSinceMs = (row.plannedStartAt ?? row.updatedAt)?.getTime() ?? now;
+    const handoff = row.shipmentId != null ? handoffByShipment.get(row.shipmentId) : undefined;
+    return {
+      tripId: row.tripId,
+      tripCode: row.tripCode,
+      status: row.status ?? TripStatus.IN_TRANSIT,
+      driverId: row.driverId,
+      driverName: row.driverName,
+      truckPlate: row.truckPlate,
+      shipmentId: row.shipmentId,
+      shipmentCode: row.shipmentCode,
+      fulfillmentId: row.fulfillmentId,
+      plannedStartAt: row.plannedStartAt?.toISOString() ?? null,
+      stuckSince: (row.plannedStartAt ?? row.updatedAt)?.toISOString() ?? null,
+      daysStuck: Math.max(0, Math.floor((now - stuckSinceMs) / (24 * 60 * 60 * 1000))),
+      activeHandoff: handoff ? { id: handoff.id, status: handoff.status, handlerId: handoff.handlerId } : null,
+    };
+  });
+}

@@ -7,6 +7,7 @@ import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispa
 import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclGroupTruckEditDialog';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
+import { StuckTripsBanner } from '../features/dispatch/StuckTripsBanner';
 import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { deleteCusShipment } from '../api/shipmentClient';
 import { tripClient } from '../api/tripClient';
@@ -319,6 +320,8 @@ export default function DispatchDetailPlanPage() {
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
       <section className="dispatch-plan-page__workspace">
+        {/* SIL-817 — điều vận's strand watchlist above the plan grid. */}
+        <StuckTripsBanner />
         <DetailedPlanGrid
           filters={detailPlan.filters}
           onFilterChange={detailPlan.updateFilters}

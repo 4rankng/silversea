@@ -299,7 +299,10 @@ describe('DriverTripDetailPage', () => {
   it('restores shipment cost entry while keeping the separate fuel form hidden', async () => {
     renderPage();
 
-    await screen.findByTestId('accept-sticky-bar');
+    // SIL-817: the default IN_TRANSIT fixture carries no ORDER_RECEIVED
+    // milestone, and the completion CTA now renders by trip status — so the
+    // sticky slot shows Hoàn tất, not Nhận lệnh vận chuyển.
+    await screen.findByTestId('complete-sticky-bar');
     expect(screen.queryByText(/Bốn mốc thực hiện/)).toBeNull();
     expect(screen.queryByText('Đã lấy vỏ / Lấy hàng')).toBeNull();
     expect(screen.queryByText('Đang đóng / Trả hàng')).toBeNull();
@@ -354,11 +357,47 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('Không bắt buộc')).toBeNull();
   });
 
-  it('renders the sticky accept bar and the Hoàn tất footer button (e-POD lives on its own page now)', async () => {
+  it('SIL-817: an unaccepted IN_TRANSIT trip offers Hoàn tất directly — no accept-bar trap', async () => {
+    renderPage();
+
+    // PROD 13/11 (trip 13 TRP-202609-0011): a running trip whose ORDER_RECEIVED
+    // milestone never got recorded (ops started it, handoff UNSEEN/handler NULL)
+    // used to strand the driver behind the accept bar. The completion CTA now
+    // renders by TRIP STATUS — the backend infers the acceptance on completion.
+    const completeStickyBar = await screen.findByTestId('complete-sticky-bar');
+    expect(within(completeStickyBar).getByRole('button', { name: 'Hoàn tất' })).toBeTruthy();
+    expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
+  });
+
+  it('SIL-817: completing an unaccepted IN_TRANSIT trip from the sticky CTA reaches completeTrip', async () => {
+    const completeSpy = vi.spyOn(driverClient, 'completeTrip').mockResolvedValue({} as never);
+    const submitPodSpy = vi.spyOn(driverClient, 'submitPod').mockResolvedValue({} as never);
+
+    renderPageWithBoard();
+
+    const stickyBar = await screen.findByTestId('complete-sticky-bar');
+    fireEvent.click(within(stickyBar).getByRole('button', { name: 'Hoàn tất' }));
+
+    const confirmBtn = await within(screen.getByRole('dialog')).findByRole('button', { name: 'Hoàn tất' });
+    fireEvent.click(confirmBtn);
+
+    // No ORDER_RECEIVED anywhere in the progress feed — completion still goes
+    // out; the backend infers the acceptance (driver-fulfillment.service).
+    await waitFor(() => expect(completeSpy).toHaveBeenCalledWith(FULFILLMENT_ID, { expectedVersion: 3 }, expect.any(String)));
+    expect(submitPodSpy).not.toHaveBeenCalled();
+    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
+  });
+
+  it('SIL-817: a CREATED trip keeps the accept bar — completion stays unreachable before acceptance', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: TripStatus.CREATED }), isLoading: false, error: null, refetch: vi.fn(),
+    });
     renderPage();
 
     const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
     expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
+    expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
   });
 
   // Offline queue and conflict recovery have been removed — the accept bar
@@ -367,12 +406,11 @@ describe('DriverTripDetailPage', () => {
   it('renders the e-POD footer CTA enabled and names the two missing photos (informational only)', async () => {
     renderPage();
 
-    const acceptStickyBar = await screen.findByTestId('accept-sticky-bar');
-    expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeTruthy();
-    // Card _28 item 10: before acceptance the completion action has no sticky
-    // slot — the accept bar owns it; the Chứng từ card lists the e-POD photo
+    // SIL-817: the unaccepted IN_TRANSIT fixture owns the complete sticky bar
+    // (render by trip status); the Chứng từ card still names the e-POD photo
     // gaps (SIL-697 resolved: soft law wording + the per-type gaps).
-    expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
+    const completeStickyBar = await screen.findByTestId('complete-sticky-bar');
+    expect(within(completeStickyBar).getByRole('button', { name: 'Hoàn tất' })).toBeEnabled();
     // 27.8 "BỐN MỐC THỰC HIỆN: BỐ" — the Chứng từ card lists the soft missing
     // count plus the two e-POD photo gaps, not the evidence endpoint's
     // milestone/label echo.
@@ -854,10 +892,13 @@ describe('DriverTripDetailPage', () => {
       expect(tag.textContent).toBe('[KẸP]');
       // SIL-636: internal IDs never render
       expect(screen.queryByText(/TRIP-61|TRP-61/)).toBeNull();
-      // Order-free: Kẹp pair is never locked on either card
+      // Order-free: Kẹp pair is never locked on either card — SIL-817: the
+      // unaccepted IN_TRANSIT fixture shows the complete CTA (no DOC lock,
+      // no accept bar).
       expect(screen.queryByTestId('pair-locked-message')).toBeNull();
-      const acceptStickyBar = screen.getByTestId('accept-sticky-bar');
-      expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ })).toBeEnabled();
+      const completeStickyBar = screen.getByTestId('complete-sticky-bar');
+      expect(within(completeStickyBar).getByRole('button', { name: 'Hoàn tất' })).toBeEnabled();
+      expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
     });
   });
 
@@ -911,8 +952,11 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     expect(await screen.findByText(/Đã khóa kế toán · Debit Note —/)).toBeTruthy();
-    const acceptStickyBar = screen.getByTestId('accept-sticky-bar');
-    expect(within(acceptStickyBar).getByRole('button', { name: /Nhận lệnh vận chuyển/ }).matches(':disabled')).toBe(true);
+    // SIL-817: the locked IN_TRANSIT trip renders the complete CTA but the
+    // accounting lock disables it — a click could only ever answer with the
+    // "Đã khóa kế toán" warning, which is a blocked affordance.
+    const completeStickyBar = screen.getByTestId('complete-sticky-bar');
+    expect(within(completeStickyBar).getByRole('button', { name: 'Hoàn tất' }).matches(':disabled')).toBe(true);
     // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn tất lệnh vận chuyển" CTA is
     // a navigation link, not a destructive action. The accounting lock
     // gates the *completion* (now on the pod page), so the trip-detail CTA
@@ -1661,7 +1705,7 @@ describe('busy-trip recovery', () => {
     );
 
   it('names the blocking trip by its Số Bill and links it when the driver owns it', async () => {
-    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail({ status: TripStatus.CREATED }), isLoading: false, error: null, refetch: vi.fn() });
     useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
     const rejection = blockedRejection({ blockingTripId: 61, blockingTripLabel: 'BL-2026-001', driverOwned: true });
     renderPage();
@@ -1675,7 +1719,7 @@ describe('busy-trip recovery', () => {
   });
 
   it('keeps the link off for a blocking trip the payload does not vouch for', async () => {
-    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail({ status: TripStatus.CREATED }), isLoading: false, error: null, refetch: vi.fn() });
     useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
     const rejection = blockedRejection({ blockingTripId: null, blockingTripLabel: 'BL-2026-001', driverOwned: false });
     renderPage();
@@ -1688,7 +1732,7 @@ describe('busy-trip recovery', () => {
   });
 
   it('falls back to the generic banner voice when the payload carries no label (no code leak)', async () => {
-    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail({ status: TripStatus.CREATED }), isLoading: false, error: null, refetch: vi.fn() });
     useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
     const rejection = blockedRejection({ blockingTripId: null, blockingTripLabel: null, driverOwned: false });
     renderPage();
@@ -1700,7 +1744,7 @@ describe('busy-trip recovery', () => {
   });
 
   it('clears the banner once the blocked order is accepted', async () => {
-    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail(), isLoading: false, error: null, refetch: vi.fn() });
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail({ status: TripStatus.CREATED }), isLoading: false, error: null, refetch: vi.fn() });
     useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
     const progress = vi.spyOn(driverClient, 'recordProgress')
       .mockRejectedValueOnce(new ApiError(409, { code: 'DRIVER_TRIP_BLOCKED', blockingTripId: 61, blockingTripLabel: 'BL-2026-001', driverOwned: true }, 'blocked'))

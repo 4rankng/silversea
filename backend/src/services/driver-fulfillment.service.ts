@@ -564,6 +564,20 @@ export async function listIncidentalCosts(tripId: number, driverId: number): Pro
   }) as DriverIncidentalCost[];
 }
 
+/**
+ * SIL-817 (id 946) — the acceptance-inference law: completing an ALREADY
+ * RUNNING trip (IN_TRANSIT — ops "Điều phối" start, or a strand whose
+ * ORDER_RECEIVED milestone was never recorded) infers the driver's
+ * acceptance on completion. A CREATED trip is NOT running: its completion
+ * still requires the explicit sticky-bar accept, so the evidence check
+ * refuses it with "Còn thiếu: Nhận lệnh…" instead of completing an order
+ * the driver never took. Wire consumer: the FE complete sticky bar renders
+ * by trip status for the same reason (DriverTripDetailPage SIL-817 block).
+ */
+export function completionInfersAcceptance(tripStatus: typeof s.trips.$inferSelect.status): boolean {
+  return tripStatus === TripStatus.IN_TRANSIT;
+}
+
 export interface DriverFulfillmentCompletionResult {
   tripId: number;
   fulfillmentId: number;
@@ -637,17 +651,23 @@ export async function completeOwnedFulfillmentTrip(args: {
       if (ownedTrip.tripVersion !== args.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
       }
-      // Spec (Man_hình Phần 3 Bước 2 + 27.8 A5 "BỐN MỐC THỰC HIỆN: BỎ"): the
-      // driver UI no longer has intermediate milestone controls — "Hoàn thành
-      // chuyến" is the single trip-progress action left. Completing the trip
-      // means the cargo reached the drop point, so any missing post-accept
-      // milestones are recorded here, in order, on the driver's behalf.
-      // ORDER_RECEIVED is never auto-recorded: accepting the order stays an
-      // explicit driver action (sticky bar), and a never-accepted trip fails
-      // the evidence check below with a clear message.
+      // Completing the trip means the cargo reached the drop point, so any
+      // missing post-accept milestones are recorded here, in order, on the
+      // driver's behalf. An ALREADY RUNNING trip (ops "Điều phối" pushed it
+      // IN_TRANSIT, or the SIL-817 strand — PROD trip 13 TRP-202609-0011,
+      // stranded 21/09→13/11) may carry no ORDER_RECEIVED while the driver is
+      // physically on the road: completion of a running trip IS the
+      // acceptance, so a handler-less UNSEEN dispatch handoff or a 409ing
+      // accept path can never strand the completion.
+      // SIL-817 law — pinned as completionInfersAcceptance (unit
+      // sil817-completion-inference.test.ts): completion of a RUNNING trip
+      // infers the acceptance; a CREATED trip still requires the explicit
+      // driver accept, so the evidence check below refuses it with a clear
+      // message instead of silently completing an unaccepted order.
+      const inferOrderReceived = completionInfersAcceptance(ownedTrip.tripStatus);
       let autoRecorded = await listOrderedMilestoneTypesTx(tx, ownedTrip.tripId);
       let nextMilestone = nextDriverFulfillmentMilestone(autoRecorded);
-      while (nextMilestone != null && nextMilestone !== DriverProgressEventType.ORDER_RECEIVED) {
+      while (nextMilestone != null && (nextMilestone !== DriverProgressEventType.ORDER_RECEIVED || inferOrderReceived)) {
         await recordMilestoneEventTx(
           tx,
           ownedTrip,

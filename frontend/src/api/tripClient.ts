@@ -66,9 +66,30 @@ type ListTripsParams = {
   sortDir?: TableSortDir;
 };
 
+/** SIL-817 — one row of the dispatch stuck-trips watchlist (GET /api/trips/stuck). */
+export interface StuckRunningTrip {
+  tripId: number;
+  tripCode: string | null;
+  status: string;
+  driverId: number | null;
+  driverName: string | null;
+  truckPlate: string | null;
+  shipmentId: number | null;
+  shipmentCode: string | null;
+  fulfillmentId: number | null;
+  plannedStartAt: string | null;
+  stuckSince: string | null;
+  daysStuck: number;
+  activeHandoff: { id: number; status: string; handlerId: number | null } | null;
+}
+
 export const tripClient = {
   listTrips: (params?: ListTripsParams) =>
     api.get<PaginatedResponse<TripDetail>>(`${TRIPS.LIST}${toQuery(params)}`),
+
+  /** SIL-817 — running trips stuck >`days` days, with the active dispatch handoff inline. */
+  listStuckTrips: (days = 7) =>
+    api.get<{ days: number; items: StuckRunningTrip[] }>(`${TRIPS.LIST}/stuck?days=${days}`),
 
   /** Fetch all pages of trips for a given filter set. */
   fetchAllTrips: async (
