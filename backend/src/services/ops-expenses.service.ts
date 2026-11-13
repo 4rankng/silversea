@@ -9,7 +9,7 @@ import * as s from '../db/schema';
 import { and, desc, eq, exists, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
-import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, type ExpenseCostGroup } from '@tingting/shared';
+import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, coveredSettlementIdentity, mergedContainerLabel, settlementLotIdentityTitle, type ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
@@ -533,6 +533,94 @@ export async function listActiveOpsExpenseTypes(): Promise<Array<{
   return opsDeclarableExpenseTypes(rows);
 }
 
+/** SIL-813 — a new fee type's code derives from its name: Vietnamese
+ *  diacritics fold to ASCII, non-alphanumerics collapse to '_', uppercase
+ *  snake, capped at the column's 50 chars. Symbol-only names fall back to
+ *  LOAI_PHI. Pure so the unit test pins the fold without a database. */
+export function expenseTypeCodeFromName(name: string): string {
+  const base = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/gi, 'd')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '_')
+    .replace(/^_+/, '')
+    .slice(0, 50)
+    .replace(/_+$/, '');
+  return base.length > 0 ? base : 'LOAI_PHI';
+}
+
+export interface OpsExpenseTypeCreated {
+  item: {
+    id: number;
+    code: string;
+    name: string;
+    requiresInvoice: boolean | null;
+    category: string | null;
+  };
+  /** false = the name already existed — the live row came back, nothing new. */
+  created: boolean;
+}
+
+/** SIL-813 — Ops typed a fee name the catalog lacks; saving the row persists
+ *  the NEW type into the matching group's catalog (requires_invoice follows
+ *  the TAB the row lives on: 'Phí có hóa đơn' → true, 'Phí không hóa đơn' →
+ *  false) so the next dialog opens with it in the dropdown. A name that
+ *  already exists (case- and whitespace-insensitive) returns the live row
+ *  instead of duplicating it — a replay of the same POST converges. The
+ *  generated code never collides with an existing code (unique column) nor
+ *  with a DRIVER bucket code (those would vanish from the declarable list,
+ *  opsDeclarableExpenseTypes). */
+export async function createOpsExpenseType(input: { name: string; requiresInvoice: boolean }): Promise<OpsExpenseTypeCreated> {
+  const name = input.name.trim().replace(/\s+/g, ' ');
+  if (name.length === 0 || name.length > 100) {
+    throw new ApiError(400, 'Tên loại phí phải từ 1 đến 100 ký tự.');
+  }
+
+  const existing = await db.select({
+    id: s.forwarderExpenseTypes.id,
+    code: s.forwarderExpenseTypes.code,
+    name: s.forwarderExpenseTypes.name,
+    requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
+    category: s.forwarderExpenseTypes.category,
+  }).from(s.forwarderExpenseTypes)
+    .where(and(
+      eq(s.forwarderExpenseTypes.status, 'ACTIVE'),
+      isNull(s.forwarderExpenseTypes.deletedAt),
+      sql`lower(${s.forwarderExpenseTypes.name}) = ${name.toLowerCase()}`,
+    ))
+    .limit(1);
+  const found = opsDeclarableExpenseTypes(existing)[0];
+  if (found) return { item: found, created: false };
+
+  const taken = new Set(
+    (await db.select({ code: s.forwarderExpenseTypes.code }).from(s.forwarderExpenseTypes))
+      .map((row) => row.code),
+  );
+  const base = expenseTypeCodeFromName(name);
+  let code = DRIVER_EXPENSE_TYPE_CODES[base] ? `OPS_${base}`.slice(0, 50) : base;
+  let suffix = 2;
+  while (taken.has(code) || DRIVER_EXPENSE_TYPE_CODES[code]) {
+    code = `${base}_${suffix}`.slice(0, 50);
+    suffix += 1;
+    if (suffix > 100) throw new ApiError(409, 'Không sinh được mã loại phí mới — thử tên khác.');
+  }
+
+  const [row] = await db.insert(s.forwarderExpenseTypes).values({
+    code,
+    name,
+    status: 'ACTIVE',
+    requiresInvoice: input.requiresInvoice,
+  }).returning({
+    id: s.forwarderExpenseTypes.id,
+    code: s.forwarderExpenseTypes.code,
+    name: s.forwarderExpenseTypes.name,
+    requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
+    category: s.forwarderExpenseTypes.category,
+  });
+  return { item: row, created: true };
+}
+
 export interface OpsContainerClaimant {
   containerId: number;
   containerNumber: string | null;
@@ -764,11 +852,26 @@ export interface SettlementExpenseInput {
   shipmentCode: string | null;
   customerName: string | null;
   billRef: string | null;
+  /** SIL-811 — EXPORT lots read 'Booking:', everything else 'Bill:'. */
+  tradeDirection?: string | null;
   containerNumber: string | null;
+  /** SIL-811 — tờ khai of THIS row's container (null on lot-wide rows). */
+  declarationNumber?: string | null;
+  /** SIL-811 — every named container of the lot (id-asc). */
+  lotContainerNumbers?: readonly string[] | null;
+  /** SIL-811 — every non-empty tờ khai of the lot's containers (id-asc). */
+  lotDeclarationNumbers?: readonly string[] | null;
   expenseTypeName: string | null;
   requiresInvoice: boolean | null;
   amount: string;
   approvalStatus: string;
+}
+
+/** A grouped line as the slip prints it — the input plus its container cell. */
+export interface SettlementGroupItem extends SettlementExpenseInput {
+  /** SIL-811 — assigned cont, else the lot's merged roll-call ('2 cont: …'),
+   *  else the honest lot-wide scope label. Never 'Không rõ container'. */
+  containerLabel: string;
 }
 
 export interface SettlementGroup {
@@ -776,8 +879,12 @@ export interface SettlementGroup {
   shipmentCode: string | null;
   customerName: string | null;
   billRef: string | null;
-  withInvoice: { items: SettlementExpenseInput[]; total: string };
-  withoutInvoice: { items: SettlementExpenseInput[]; total: string };
+  /** SIL-811 — 'KH · Bill: … · TK: … · 2 cont: …', built here so the on-screen
+   *  sheet and the Excel export print one identical title. */
+  identityTitle: string;
+  tradeDirection: string | null;
+  withInvoice: { items: SettlementGroupItem[]; total: string };
+  withoutInvoice: { items: SettlementGroupItem[]; total: string };
   total: string;
 }
 
@@ -828,6 +935,8 @@ export function groupOpsExpensesForSettlement(
         shipmentCode: entry.shipmentCode,
         customerName: entry.customerName,
         billRef: entry.billRef,
+        identityTitle: '',
+        tradeDirection: entry.tradeDirection ?? null,
         withInvoice: { items: [], total: '0' },
         withoutInvoice: { items: [], total: '0' },
         total: '0',
@@ -835,7 +944,12 @@ export function groupOpsExpensesForSettlement(
       byShipment.set(entry.shipmentId, group);
     }
     const basket = entry.requiresInvoice ? group.withInvoice : group.withoutInvoice;
-    basket.items.push(entry);
+    basket.items.push({
+      ...entry,
+      containerLabel: entry.containerNumber?.trim()
+        || mergedContainerLabel(entry.lotContainerNumbers ?? [])
+        || 'Phí chung lô',
+    });
     // Card 20260928_197 — a negative entry stays in `items` (the row is real
     // and the reviewer must see it) but never reaches a total: the basket and
     // the group add only the same ">= 0" money `sumExcludingNegative` keeps.
@@ -844,6 +958,20 @@ export function groupOpsExpensesForSettlement(
       basket.total = (BigInt(basket.total) + entryAmount).toString();
       group.total = (BigInt(group.total) + entryAmount).toString();
     }
+  }
+
+  // SIL-811 — every per-lot group prints its identity title (customer
+  // shorthand · Bill/Booking + tờ khai · Số cont), from the container scope its
+  // lines cover (per-cont rows cover their cont, lot-wide rows cover them all).
+  for (const group of byShipment.values()) {
+    const covered = coveredSettlementIdentity([...group.withInvoice.items, ...group.withoutInvoice.items]);
+    group.identityTitle = settlementLotIdentityTitle({
+      customerName: group.customerName,
+      billRef: group.billRef,
+      tradeDirection: group.tradeDirection,
+      declarationNumbers: covered.declarationNumbers,
+      containerNumbers: covered.containerNumbers,
+    });
   }
 
   const groups = [...byShipment.values()].sort((a, b) =>

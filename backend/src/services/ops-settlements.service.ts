@@ -9,6 +9,7 @@ import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { and, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { groupOpsExpensesForSettlement } from './ops-expenses.service';
+import { loadLotContainerIdentities, withLotIdentity } from './settlement-lot-identity.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -209,6 +210,7 @@ export async function getOpsSettlementDetail(
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
       containerNumber: s.shipmentContainers.containerNumber,
+      tradeDirection: s.shipments.tradeDirection,
       expenseTypeName: s.forwarderExpenseTypes.name,
       requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
       amount: s.opsExpenseEntries.amount,
@@ -228,6 +230,10 @@ export async function getOpsSettlementDetail(
     .where(eq(s.opsExpenseEntries.opsSettlementId, settlementId))
     .orderBy(s.opsExpenseEntries.id);
 
+  // SIL-811 — the lot container identity (roll-call + per-cont tờ khai) behind
+  // the sheet's identity titles, batched in one query.
+  const identities = await loadLotContainerIdentities(db, entries.map((entry) => entry.shipmentId));
+
   return {
     settlement: {
       ...settlement,
@@ -239,7 +245,9 @@ export async function getOpsSettlementDetail(
       createdAt: settlement.createdAt.toISOString(),
       approvedAt: settlement.approvedAt ? settlement.approvedAt.toISOString() : null,
     },
-    grouping: groupOpsExpensesForSettlement(entries),
+    grouping: groupOpsExpensesForSettlement(
+      entries.map((entry) => withLotIdentity(entry, identities.get(entry.shipmentId))),
+    ),
   };
 }
 

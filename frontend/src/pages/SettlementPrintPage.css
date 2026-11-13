@@ -147,6 +147,15 @@
   display: contents;
 }
 
+/* SIL-811 — the per-lot identity title line, full width across the grid. */
+.settlement-expense-grid__group {
+  grid-column: 1 / -1;
+  padding: 12px 6px 6px;
+  border-bottom: 1px solid var(--line-2);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
 .settlement-expense-grid__row > span {
   padding: 10px 6px;
   border-bottom: 1px solid var(--line);

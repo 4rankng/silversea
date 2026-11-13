@@ -331,6 +331,14 @@
 .ops-fee-row__cell--recovery { flex: 2 0 150px; min-width: 0; }
 .ops-fee-row__cell--note { flex: 3 0 190px; min-width: 0; }
 .ops-fee-row__cell--attach { flex: 0 0 auto; }
+/* SIL-813 — the creatable catalog affordance under the Loại phí select. */
+.ops-fee-row__add-type { align-self: flex-start; padding-inline: 6px; }
+.ops-fee-row__newtype {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ops-fee-row__newtype input { flex: 1 1 auto; min-width: 0; }
 .ops-fee-row__field {
   display: flex;
   flex-direction: column;

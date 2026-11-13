@@ -28,6 +28,7 @@ import {
   createOpsExpense,
   deleteOpsExpense,
   deleteOpsExpensePhoto,
+  createOpsExpenseType,
   listActiveOpsExpenseTypes,
   listOpsExpenseContainerClaimants,
   listOpsExpensePhotos,
@@ -158,6 +159,19 @@ router.post('/wallet/advance-requests', declareMaterialWrite('ops.advance-reques
 // needed for OPS/CUS — SIL-748).
 router.get('/expense-types', EXPENSE_DECLARERS, asyncHandler(async (_req: Request, res: Response) => {
   res.json({ items: await listActiveOpsExpenseTypes() });
+}));
+
+const expenseTypeCreateSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  requiresInvoice: z.boolean(),
+});
+
+// SIL-813 — the declaration form's creatable catalog: Ops/CUS may add a fee
+// type the catalog lacks; requires_invoice follows the TAB the row lives on.
+// Replays converge on the name dedupe inside createOpsExpenseType.
+router.post('/expense-types', declareMaterialWrite('ops.expense-types.create', { method: 'POST', path: '/api/ops/expense-types' }), EXPENSE_DECLARERS, asyncHandler(async (req: Request, res: Response) => {
+  const parsed = expenseTypeCreateSchema.parse(req.body);
+  res.status(201).json(await createOpsExpenseType(parsed));
 }));
 
 const expenseCreateSchema = z.object({

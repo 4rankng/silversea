@@ -1,8 +1,9 @@
 import { forwarderClient, type LinkedExpense, type LinkedRequest } from '../api/forwarderClient';
-import { useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Fragment, useState, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Printer, Loader2, FileSpreadsheet, X, Pencil, Save, CheckCircle2, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '../lib/format';
+import { groupExpensesForSettlementSlip, rowContainerLabel } from '../lib/expense-breakdown';
 import { ADVANCE_SETTLEMENT_STATUS_LABELS, type AdvanceSettlementStatus } from '@tingting/shared';
 import {
   useForwarderSettlementDetail,
@@ -112,55 +113,35 @@ export function settlementBalanceSummary(
   };
 }
 
-// ─── Build table rows grouped by date → container ───
-function buildPrintRows(expenses: LinkedExpense[]) {
-  const grouped = new Map<string, Map<string, LinkedExpense[]>>();
-
-  for (const exp of expenses) {
-    const dateKey = exp.departureDate || 'unknown';
-    const containerKey = exp.containerNumber || '-';
-    if (!grouped.has(dateKey)) grouped.set(dateKey, new Map());
-    const containerMap = grouped.get(dateKey)!;
-    if (!containerMap.has(containerKey)) containerMap.set(containerKey, []);
-    containerMap.get(containerKey)!.push(exp);
-  }
-
-  const rows: Array<{
-    date: string;
-    container: string;
-    customer: string;
-    expenseType: string;
-    amount: string;
-    invoice: string;
-    tripCode: string;
-  }> = [];
-
-  // Date keys (ISO 'YYYY-MM-DD') sort chronologically as strings; push the
-  // 'unknown' bucket last so rows are ordered by transport date ascending (B6).
-  const sortedDateKeys = [...grouped.keys()].sort((a, b) => {
-    if (a === 'unknown') return 1;
-    if (b === 'unknown') return -1;
-    return a < b ? -1 : a > b ? 1 : 0;
-  });
-  for (const dateKey of sortedDateKeys) {
-    const containerMap = grouped.get(dateKey)!;
-    for (const [containerKey, exps] of containerMap) {
-      const sorted = [...exps].sort((a, b) => a.expenseType.localeCompare(b.expenseType));
-      for (const exp of sorted) {
-        rows.push({
-          date: dateKey !== 'unknown' ? formatDate(dateKey) : '—',
-          container: containerKey !== '-' ? containerKey : '—',
-          customer: exp.customerName || '—',
-          expenseType: EXPENSE_TYPE_LABELS[exp.expenseType] || exp.expenseType,
-          amount: exp.buyAmount,
-          invoice: exp.invoiceNumber || '',
-          tripCode: exp.tripCode || '',
-        });
-      }
-    }
-  }
-
-  return rows;
+// ─── Build table blocks: per-lot identity groups (SIL-811) ───
+// Each block heads its rows with the identity title (KH viết tắt ·
+// Bill/Booking + tờ khai · Số cont) and keeps the chronological row order
+// inside (B6). The cont cell of a lot-wide row shows the lot's merged
+// roll-call, never 'Không rõ container'.
+function buildPrintGroups(expenses: LinkedExpense[]) {
+  return groupExpensesForSettlementSlip(expenses, []).map((block) => ({
+    key: block.key,
+    identityTitle: block.identityTitle,
+    rows: [...block.expenses]
+      .sort((a, b) => {
+        const aDate = a.departureDate ?? '';
+        const bDate = b.departureDate ?? '';
+        if (aDate !== bDate) {
+          if (!aDate) return 1;
+          if (!bDate) return -1;
+          return aDate < bDate ? -1 : 1;
+        }
+        return a.expenseType.localeCompare(b.expenseType);
+      })
+      .map((exp) => ({
+        date: exp.departureDate ? formatDate(exp.departureDate) : '—',
+        container: rowContainerLabel(exp),
+        customer: exp.customerName || '—',
+        expenseType: EXPENSE_TYPE_LABELS[exp.expenseType] || exp.expenseType,
+        amount: exp.buyAmount,
+        invoice: exp.invoiceNumber || '',
+      })),
+  }));
 }
 
 // ─── Component ───
@@ -253,8 +234,8 @@ export default function SettlementPrintPage() {
   const refund = Number(s.refundAmount || 0);
   const { balance, label: balanceLabel, notice: settlementNotice } = settlementBalanceSummary(totalAdvance, totalExpense, refund);
 
-  const rows = buildPrintRows(expenses);
-  const totalFromRows = rows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const expenseGroups = buildPrintGroups(expenses);
+  const totalFromRows = expenseGroups.reduce((sum, group) => sum + group.rows.reduce((groupSum, r) => groupSum + Number(r.amount || 0), 0), 0);
   const {
     canCorrectRecorded,
   } = settlementActionPermissions({
@@ -400,15 +381,21 @@ export default function SettlementPrintPage() {
               <span className="u-right">Thành tiền</span>
               <span>Hóa đơn</span>
             </div>
-            {rows.map((row, idx) => (
-              <div key={idx} className="settlement-expense-grid__row">
-                <span data-label="Ngày" className="u-muted">{row.date}</span>
-                <span data-label="Nội dung">{row.expenseType}</span>
-                <span data-label="Khách hàng" className="u-wrap">{row.customer}</span>
-                <span data-label="Số cont" className="u-mono">{row.container}</span>
-                <span data-label="Thành tiền" className="u-right u-num">{formatCurrency(Number(row.amount))}</span>
-                <span data-label="Hóa đơn">{row.invoice || "—"}</span>
-              </div>
+            {expenseGroups.map(group => (
+              <Fragment key={group.key}>
+                {/* SIL-811 — the block's identity title line. */}
+                <div className="settlement-expense-grid__group">{group.identityTitle}</div>
+                {group.rows.map((row, idx) => (
+                  <div key={idx} className="settlement-expense-grid__row">
+                    <span data-label="Ngày" className="u-muted">{row.date}</span>
+                    <span data-label="Nội dung">{row.expenseType}</span>
+                    <span data-label="Khách hàng" className="u-wrap">{row.customer}</span>
+                    <span data-label="Số cont" className="u-mono">{row.container}</span>
+                    <span data-label="Thành tiền" className="u-right u-num">{formatCurrency(Number(row.amount))}</span>
+                    <span data-label="Hóa đơn">{row.invoice || "—"}</span>
+                  </div>
+                ))}
+              </Fragment>
             ))}
             <div className="settlement-expense-grid__total">
               <span className="u-bold" style={{ gridColumn: '1 / 5' }}>Tổng cộng</span>

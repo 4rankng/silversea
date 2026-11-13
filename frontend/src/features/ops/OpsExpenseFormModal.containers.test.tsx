@@ -12,7 +12,7 @@ import { OpsExpenseFormModal, opsContainerId } from './OpsExpenseFormModal';
 // survives type/tab edits, a lot-wide submit serializes container null (never
 // Number("") = 0), picking containers declares the fee PER container, and
 // "Chọn tất cả" picks every container at once.
-const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
+const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), createExpenseType: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 // SIL-761 — the popup reads the viewer's role; standalone renders have no
 // AuthProvider, so the mock defaults to null (= every pre-761 test keeps the
@@ -112,6 +112,7 @@ beforeEach(() => {
   api.getExpensePhotos.mockResolvedValue({ items: [] });
   api.getContainerClaimants.mockResolvedValue([]);
   api.createExpense.mockResolvedValue(entry);
+  api.createExpenseType.mockResolvedValue({ item: types.items[0], created: true });
 });
 
 // Every case here drives a long interaction chain (open catalog menu, choose a
@@ -348,5 +349,63 @@ describe('ops expense form — thu-khách visibility by role (SIL-761)', { timeo
     await show();
     expect(screen.queryByLabelText('Thực thu (thu khách)')).toBeNull();
     expect(screen.queryByLabelText('Ghi chú thu khách')).toBeNull();
+  });
+});
+
+// SIL-813 — the creatable catalog: Ops gõ tên loại phí MỚI chưa có trong
+// danh mục; Lưu ghi loại phí mới vào danh mục của nhóm tương ứng (Phí có hóa
+// đơn / Phí không hóa đơn) để các lần sau có sẵn trong dropdown.
+/** The Loại phí control flips shape with catalog size (≤4 options render the
+ *  button trigger, ≥5 the type-to-search combobox) — read the selected label
+ *  off whichever shape is live. The row's own '+ Thêm loại phí mới' button
+ *  also matches /Loại phí/, so it is excluded by its text. */
+function selectedTypeLabel(row: HTMLElement): string {
+  const trigger = within(row).queryAllByRole('button', { name: /Loại phí/ })
+    .find((candidate) => !candidate.textContent?.includes('Thêm loại phí mới'));
+  if (trigger) return trigger.textContent ?? '';
+  const combo = within(row).getByRole('combobox', { name: /Loại phí/ });
+  return (combo as HTMLInputElement).value || combo.textContent || '';
+}
+
+describe('ops expense form — creatable loại phí (SIL-813)', { timeout: 20_000 }, () => {
+  it('D1: a typed new fee name persists into the no-invoice group and selects itself', async () => {
+    const created = { item: { id: 6, code: 'RUT_CONT', name: 'Phí rút cont', requiresInvoice: false, category: null }, created: true };
+    api.createExpenseType.mockResolvedValue(created);
+    api.getExpenseTypes.mockImplementation(async () => ({ items: [...types.items, created.item] }));
+    await show();
+    const row = block('Phí không hóa đơn');
+    await act(async () => { fireEvent.click(within(row).getByRole('button', { name: '+ Thêm loại phí mới' })); });
+    fireEvent.change(await screen.findByLabelText('Tên loại phí mới'), { target: { value: 'Phí rút cont' } });
+    await act(async () => { fireEvent.click(within(row).getByRole('button', { name: 'Thêm' })); });
+    await waitFor(() => expect(api.createExpenseType).toHaveBeenCalledWith({ name: 'Phí rút cont', requiresInvoice: false }));
+    // After the catalog refetch the row's select reads the new type.
+    await waitFor(() => expect(selectedTypeLabel(row)).toContain('Phí rút cont'));
+    expect(screen.queryByLabelText('Tên loại phí mới')).toBeNull();
+  });
+
+  it('D2: the invoice tab files the new type under Phí có hóa đơn', async () => {
+    const created = { item: { id: 7, code: 'PHI_KIEM_HOA_DP', name: 'Phí kiểm hóa hạ', requiresInvoice: true, category: 'DROP' }, created: true };
+    api.createExpenseType.mockResolvedValue(created);
+    api.getExpenseTypes.mockImplementation(async () => ({ items: [...types.items, created.item] }));
+    await show();
+    await addInvoiceRow();
+    const row = block('Phí có hóa đơn');
+    await act(async () => { fireEvent.click(within(row).getByRole('button', { name: '+ Thêm loại phí mới' })); });
+    fireEvent.change(await screen.findByLabelText('Tên loại phí mới'), { target: { value: 'Phí kiểm hóa hạ' } });
+    await act(async () => { fireEvent.click(within(row).getByRole('button', { name: 'Thêm' })); });
+    await waitFor(() => expect(api.createExpenseType).toHaveBeenCalledWith({ name: 'Phí kiểm hóa hạ', requiresInvoice: true }));
+    await waitFor(() => expect(selectedTypeLabel(row)).toContain('Phí kiểm hóa hạ'));
+  });
+
+  it('D3: a name the catalog already has selects it with the honest toast, no duplicate', async () => {
+    api.createExpenseType.mockResolvedValue({ item: types.items[3], created: false });
+    await show();
+    const row = block('Phí không hóa đơn');
+    await act(async () => { fireEvent.click(within(row).getByRole('button', { name: '+ Thêm loại phí mới' })); });
+    fireEvent.change(await screen.findByLabelText('Tên loại phí mới'), { target: { value: 'chi công nhân' } });
+    await act(async () => { fireEvent.click(within(row).getByRole('button', { name: 'Thêm' })); });
+    await waitFor(() => expect(api.createExpenseType).toHaveBeenCalledWith({ name: 'chi công nhân', requiresInvoice: false }));
+    await screen.findByText(/đã có trong danh mục/);
+    await waitFor(() => expect(selectedTypeLabel(row)).toContain('Chi công nhân'));
   });
 });

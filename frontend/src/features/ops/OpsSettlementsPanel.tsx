@@ -1,4 +1,3 @@
-import { opsBillReference } from './opsStatus';
 import { useState } from 'react';
 import { Download, FileText, Loader2, Printer, X } from 'lucide-react';
 import {
@@ -152,7 +151,9 @@ export function OpsSettlementSheet({ grouping, meta }: {
       {meta.note && <p>Ghi chú: {meta.note}</p>}
       {grouping.groups.map((group) => (
         <section key={group.shipmentId}>
-          <h4>Lô {opsBillReference(group.billRef)} — {group.customerName ?? ''}</h4>
+          {/* SIL-811 — the per-lot identity title: KH viết tắt · Bill/Booking +
+              tờ khai · Số cont (merged roll-call when lot-wide). */}
+          <h4>{group.identityTitle}</h4>
           {(['withInvoice', 'withoutInvoice'] as const).map((basketKey) => {
             const basket = group[basketKey];
             if (basket.items.length === 0) return null;
@@ -160,7 +161,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
             const subtotalLabel = basketKey === 'withInvoice' ? 'Tổng có hóa đơn' : 'Tổng không hóa đơn';
             const rows = basket.items.map((item, index) => ({
               key: index,
-              container: item.containerNumber ?? 'Phí chung lô',
+              container: item.containerLabel ?? item.containerNumber ?? 'Phí chung lô',
               expenseType: item.expenseTypeName ?? '',
               amount: `${formatMoney(item.amount)} ₫`,
             }));
