@@ -20,7 +20,7 @@ import { effectiveLotContainerCount } from '@tingting/shared';
 import { loadFreightSnapshotChannelByLot, loadRevManualPriceByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
-import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue } from './debit-receivable-arming';
+import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue, sellSplitDisplayValue } from './debit-receivable-arming';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -475,14 +475,23 @@ export async function getShipmentDebitSummary(query: {
       }
       return known ? sum : null;
     };
-    const chiHoSellTotal = knownSum(
+    const chiHoSellRaw = knownSum(
       revenue != null ? revenue.derived : null,
       opsCharge?.known ? opsCharge.total : null,
     );
-    const serviceSellTotal = knownSum(
+    const serviceSellRaw = knownSum(
       revenue != null ? revenue.otherSell : null,
       ps?.known ? ps.total : null,
     );
+    // SIL-820 (id 949) — the 24/10 law is VALUE-based and screen-wide: a 0
+    // in the sell split renders only as a computed component of a determined
+    // total. `receivableValue` already passed the SIL-814 frozen-vs-live
+    // gate above, so a locked lot's legit D02 zero keeps its split zeros and
+    // a stale frozen zero goes TRỐNG together with its total (R4B-693-001);
+    // an OPEN undetermined lot's split 0s (R3Q-680-B / QBOBD39C /
+    // 100GX19033 / 339IVN0130626) are fabricated → ô TRỐNG.
+    const chiHoSellTotal = sellSplitDisplayValue({ value: chiHoSellRaw, totalDetermined: receivableValue != null });
+    const serviceSellTotal = sellSplitDisplayValue({ value: serviceSellRaw, totalDetermined: receivableValue != null });
     const hideCost = query.viewerRole === 'CUS';
     return {
       // The row's OWN customer: the list can span customers, so the L2
