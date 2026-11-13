@@ -14,6 +14,9 @@ export interface OpsReconciliationReportRow {
   dntt: number;
   /** ĐÃ ỨNG — held advances; scoped to a đợt, what that lot allocated. */
   advanced: number;
+  /** SIL-806 — ĐÃ ỨNG (đã ghi nhận): tổng phiếu tạm ứng đã giải ngân trong
+   *  kỳ, không net. Bảng Quỹ cá nhân (/accounting/hoan-ung) đọc số này. */
+  advancedRecorded: number;
   /** Còn phải hoàn ứng = sổ quỹ closing number (lệnh PM 2026-09-29), ≥ 0. */
   remaining: number;
   /** Chênh lệch CÓ DẤU theo chữ spec "ĐNTT − ĐÃ ỨNG": âm = tiền ứng vượt chi phí. */

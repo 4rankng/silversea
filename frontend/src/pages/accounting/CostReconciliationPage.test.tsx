@@ -43,7 +43,7 @@ const costPayload: CostReviewList = {
 
 function fundRow(overrides: Partial<OpsReconciliationReportRow> = {}): OpsReconciliationReportRow {
   return {
-    staffId: 5, staffName: 'NV A', dntt: 300000, advanced: 500000, remaining: 200000,
+    staffId: 5, staffName: 'NV A', dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 200000,
     remainingSigned: -200000, outstandingSigned: 200000, needsCollection: false,
     direction: 'CTY_YEU_CAU_HOAN_TRA', note: 'Công ty yêu cầu nhân viên hoàn trả tạm ứng',
     ...overrides,
@@ -104,6 +104,22 @@ describe('CostReconciliationPage (SIL-779)', () => {
     ));
   });
 
+  it('SIL-806: blank Ops feeName falls back to the expense-type catalog label on line 1', async () => {
+    // UAT 12/11 — các dòng Ops khai (lô 100GX19033, 339IVN0130626, MATS8322408000)
+    // thiếu tên loại phí: feeName trống → đọc nhãn danh mục theo expenseTypeCode.
+    expenseApi.catalog.mockResolvedValue({
+      staff: [], accountants: [], suppliers: [],
+      expenseTypes: [{ code: 'LIFTING', name: 'Phí nâng container' }],
+      advances: [], pendingAdvances: [],
+      opsUsers: [{ id: 5, name: 'Ops A' }], accounts: [],
+    });
+    expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row({ feeName: '', expenseTypeCode: 'LIFTING' })] });
+    page();
+    expect(await screen.findByText('Phí nâng container')).toBeInTheDocument();
+    // The invoice input's aria-label names the same resolved fee, never blank.
+    expect(screen.getByLabelText('Số hóa đơn Phí nâng container')).toBeInTheDocument();
+  });
+
   it('confirms through the existing batch confirm contract', async () => {
     expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row()] });
     page();
@@ -147,20 +163,41 @@ describe('CostReconciliationPage (SIL-779)', () => {
       from: null, to: null,
       rows: [
         fundRow(),
-        fundRow({ staffId: 6, staffName: 'NV B', dntt: 800000, advanced: 500000, remaining: 0, remainingSigned: 300000, outstandingSigned: 0 }),
-        fundRow({ staffId: 7, staffName: 'NV C', dntt: 100000, advanced: 100000, remaining: 0, remainingSigned: 0, outstandingSigned: 0 }),
+        fundRow({ staffId: 6, staffName: 'NV B', dntt: 800000, advancedRecorded: 500000, remaining: 0, remainingSigned: 300000, outstandingSigned: 0 }),
+        fundRow({ staffId: 7, staffName: 'NV C', dntt: 100000, advancedRecorded: 100000, remaining: 0, remainingSigned: 0, outstandingSigned: 0 }),
       ],
       totals: { dntt: 1200000, advanced: 1100000, remaining: 200000, remainingSigned: 100000 },
     });
     page();
     const section = await screen.findByRole('region', { name: 'Quỹ cá nhân từng nhân sự' });
-    // ĐÃ ỨNG 500.000 − ĐNTT 300.000 = +200.000 → nhân viên nộp trả lại.
+    // ĐÃ ỨNG 500.000 − ĐNTT 300.000 = +200.000 → cá nhân hoàn trả về công ty.
     expect(await within(section).findByText('(+) 200.000 ₫', {}, { timeout: 5000 })).toBeInTheDocument();
-    expect(within(section).getByText('Nhân viên phải nộp trả lại tiền thừa')).toBeInTheDocument();
+    expect(within(section).getByText('Cá nhân còn giữ tiền phải hoàn trả về công ty')).toBeInTheDocument();
     // ĐÃ ỨNG 500.000 − ĐNTT 800.000 = −300.000 → công ty hoàn trả thêm.
     expect(within(section).getByText('(−) 300.000 ₫')).toBeInTheDocument();
-    expect(within(section).getByText('Công ty phải chi hoàn trả thêm')).toBeInTheDocument();
+    expect(within(section).getByText('Công ty phải hoàn trả thêm cho nhân viên')).toBeInTheDocument();
     expect(within(section).getByText('Không còn chênh lệch')).toBeInTheDocument();
+    // SIL-806 — the explanation line matches the row signs 100%: (−) = công ty
+    // hoàn trả thêm, (+) = cá nhân trả về.
+    expect(within(section).getByText(/Số dư quỹ = ĐÃ ỨNG \(tổng phiếu tạm ứng đã ghi nhận trong kỳ\) − chi phí ĐNTT đã xác nhận/)).toBeInTheDocument();
+    expect(within(section).getByText(/\(−\) công ty phải hoàn trả thêm cho nhân viên; \(\+\) cá nhân còn giữ tiền phải hoàn trả về công ty\./)).toBeInTheDocument();
+  });
+
+  it('SIL-806: ĐÃ ỨNG reads the GROSS recorded phiếu sum, not the netted held remainder', async () => {
+    // UAT 12/11 — Nguyễn Huy Hoàng: 5 phiếu 520.000₫ recorded nhưng đã net về
+    // 0₫ held → bảng phải hiện 520.000₫ và số dư +475.000₫ (520.000 − 45.000).
+    reportApi.report.mockResolvedValue({
+      from: null, to: null,
+      rows: [fundRow({ staffName: 'Nguyễn Huy Hoàng', dntt: 45000, advanced: 0, advancedRecorded: 520000, remaining: 0, remainingSigned: -475000, outstandingSigned: 0 })],
+      totals: { dntt: 45000, advanced: 0, remaining: 0, remainingSigned: -475000 },
+    });
+    page();
+    const section = await screen.findByRole('region', { name: 'Quỹ cá nhân từng nhân sự' });
+    const spent = (await within(section).findByText('Nguyễn Huy Hoàng')).closest('tr');
+    expect(spent).not.toBeNull();
+    expect(within(spent as HTMLElement).getByText('520.000 ₫')).toBeInTheDocument();
+    expect(within(spent as HTMLElement).getByText('(+) 475.000 ₫')).toBeInTheDocument();
+    expect(within(spent as HTMLElement).getByText('Cá nhân còn giữ tiền phải hoàn trả về công ty')).toBeInTheDocument();
   });
 });
 

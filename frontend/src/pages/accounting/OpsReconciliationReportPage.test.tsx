@@ -40,19 +40,19 @@ const TODAY = '2026-09-29';
 // closing formula (granted − consumed, floored per request), so it is ≥ 0 —
 // > 0 the staff still holds unspent advance, 0 nothing left to settle.
 const rowPositive: OpsReconciliationReportRow = {
-  staffId: 5, staffName: 'NV A', dntt: 250000, advanced: 100000, remaining: 150000,
+  staffId: 5, staffName: 'NV A', dntt: 250000, advanced: 100000, advancedRecorded: 100000, remaining: 150000,
   remainingSigned: 150000, outstandingSigned: 150000, needsCollection: false,
   direction: 'CTY_YEU_CAU_HOAN_TRA', note: 'Công ty yêu cầu nhân viên hoàn trả tạm ứng',
 };
 const rowSettled: OpsReconciliationReportRow = {
-  staffId: 6, staffName: 'NV B', dntt: 120000, advanced: 120000, remaining: 0,
+  staffId: 6, staffName: 'NV B', dntt: 120000, advanced: 120000, advancedRecorded: 120000, remaining: 0,
   remainingSigned: 0, outstandingSigned: 0, needsCollection: false,
   direction: 'KHONG_CON_GI', note: 'Không còn chênh lệch',
 };
 // Số âm: ĐNTT − ĐÃ ỨNG = 300.000 − 500.000 — tiền ứng vượt chi phí và nhân
 // viên vẫn còn nắm tiền đã cấp, nên đề nghị thu tiền ứng.
 const rowCollection: OpsReconciliationReportRow = {
-  staffId: 9, staffName: 'NV C', dntt: 300000, advanced: 500000, remaining: 500000,
+  staffId: 9, staffName: 'NV C', dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 500000,
   remainingSigned: -200000, outstandingSigned: 500000, needsCollection: true,
   direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
 };
@@ -248,12 +248,12 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
 // legacy settlement phiếu family the advance requests settle through.
 // Role law mirrors /advances (SIL-487): ADMIN/ACCOUNTANT create, MANAGER reads.
 const rowDeficit: OpsReconciliationReportRow = {
-  staffId: 12, staffName: 'Vũ Đình Cường', dntt: 0, advanced: 4300000, remaining: 0,
+  staffId: 12, staffName: 'Vũ Đình Cường', dntt: 0, advanced: 4300000, advancedRecorded: 4300000, remaining: 0,
   remainingSigned: 0, outstandingSigned: -4300000, needsCollection: true,
   direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
 };
 const rowReportNegativeSettledWallet: OpsReconciliationReportRow = {
-  staffId: 8, staffName: 'Vũ Đình Cường', dntt: 700000, advanced: 5000000, remaining: 0,
+  staffId: 8, staffName: 'Vũ Đình Cường', dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 0,
   remainingSigned: -4300000, outstandingSigned: 0, needsCollection: false,
   direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
 };
