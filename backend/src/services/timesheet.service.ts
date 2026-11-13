@@ -86,6 +86,9 @@ export interface TimesheetRollupRow {
   luuCaCount: number;
   nghiCount: number;
   nghiPhepCount: number;
+  /** SIL-775/810 — Tổng số chuyến = Đ + K + Q (mỗi ngày Q = 1 chuyến);
+   *  `trips` bên dưới vẫn là trọng số lương (Q = 2). */
+  totalTrips: number;
   trips: number;
   workdays: number;
   bonusTrips: number;
@@ -639,6 +642,9 @@ export async function getTimesheetRollup(year: number, month: number): Promise<T
       luuCaCount: cells.L,
       nghiCount: cells.N,
       nghiPhepCount: cells.P,
+      // SIL-775/810 — Tổng số chuyến = Đ + K + Q (mỗi ngày Q = 1 chuyến quay
+      // đầu); `trips` (salary.trips) giữ trọng số lương Q = 2 (SIL-774).
+      totalTrips: cells['Đ'] + cells.K + cells.Q,
       trips: salary.trips,
       workdays: salary.workdays,
       bonusTrips: salary.bonusTrips,

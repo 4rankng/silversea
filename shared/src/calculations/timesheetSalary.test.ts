@@ -260,3 +260,17 @@ describe('TIMESHEET_SYMBOL_RULES — SIL-774 (khách chốt 09/11/2026, Bảng 4
     assert.equal(TIMESHEET_SYMBOL_RULES.P.workday, true);
   });
 });
+describe('TIMESHEET_SYMBOL_RULES — SIL-775/SIL-810 đếm cột tổng (summaryTrips)', () => {
+  it('Q = 1 chuyến trong Tổng số chuyến nhưng trọng số LƯƠNG vẫn 2', () => {
+    assert.equal(TIMESHEET_SYMBOL_RULES.Q.trips, 2, 'lương theo chuyến giữ Q = 2 (SIL-774)');
+    assert.equal(TIMESHEET_SYMBOL_RULES.Q.summaryTrips, 1, 'cột tổng: mỗi ngày Q = 1 chuyến');
+  });
+
+  it('Tổng số chuyến = Đ + K + Q: summaryTrips của K/Đ là 1, L/N/P là 0', () => {
+    assert.equal(TIMESHEET_SYMBOL_RULES.K.summaryTrips, 1);
+    assert.equal(TIMESHEET_SYMBOL_RULES['Đ'].summaryTrips, 1);
+    assert.equal(TIMESHEET_SYMBOL_RULES.L.summaryTrips, 0);
+    assert.equal(TIMESHEET_SYMBOL_RULES.N.summaryTrips, 0);
+    assert.equal(TIMESHEET_SYMBOL_RULES.P.summaryTrips, 0);
+  });
+});

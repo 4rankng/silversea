@@ -129,4 +129,24 @@ describe('TimesheetReconciliationPage', () => {
       salaryMode: 'FLAT_MONTHLY', dailyBase: null, flatAmount: 10000000,
     }));
   });
+
+  it('SIL-810 — cột Chuyến của Tổng hợp tháng đọc Tổng số chuyến (Đ+K+Q), không phải trọng số lương', async () => {
+    // 2 Đ + 1 K + 1 Q → Tổng số chuyến = 4 (SIL-775 AC); trọng số lương của
+    // cùng tháng vẫn 5 (Q = 2) và CHỈ hiện ở panel lương trên đầu trang.
+    vi.mocked(getTimesheetRollup).mockResolvedValue([{
+      driverId: 9, driverName: 'Lái xe kiểm thử',
+      donCount: 2, kepCount: 1, quayDauCount: 1, luuCaCount: 0, nghiCount: 0, nghiPhepCount: 0,
+      totalTrips: 4, trips: 5, workdays: 4, bonusTrips: 0,
+      salaryMode: 'PER_TRIP', salary: 1_500_000, perTripPay: 1_300_000, extraTripBonus: 0,
+      dailyBasePay: 200_000, status: 'OPEN', sundayTrips: 0,
+      revenue: null, cost: null, salaryRatio: null, tripsCompleted: 4,
+    }]);
+    renderBoard();
+    const tourCell = await screen.findByText('4', { selector: 'td[data-label="Chuyến"]' });
+    // 4 = Đ(2) + K(1) + Q(1); 5 (trọng số lương) không được rơi vào cột này.
+    expect(screen.getByText('Tổng hợp tháng')).toBeTruthy();
+    expect(tourCell).toBeTruthy();
+    expect(screen.queryByText('5', { selector: 'td[data-label="Chuyến"]' })).toBeNull();
+    expect(screen.getByText('Tổng 4 chuyến · 4 ngày công ·')).toBeTruthy();
+  });
 });
