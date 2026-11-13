@@ -91,6 +91,28 @@ export function setDebitExternalCost(input: {
   });
 }
 
+/** SIL-805 — tên wire của 8 ô giá/chi phí kế toán sửa trực tiếp trên dòng. */
+export type DebitRateField =
+  | 'cuocThu' | 'lachHuyen' | 'phuPs' | 'phatSinhCus'
+  | 'cuocTraDv' | 'lachHuyenDv' | 'phatSinhDv' | 'phiRu';
+
+/** SIL-805 — lưu các ô giá/chi phí sửa trực tiếp trên dòng: mỗi key trong
+ *  `rates` là MỘT ô được lưu (number nguyên VND). Server chặn 409 khi lô đã
+ *  khóa chi phí / khóa sổ kế toán; cùng khóa (lô, bộ giá trị) replay cùng
+ *  kết quả — key xác định theo (lô, các cặp field=giá trị đã sort). */
+export function setDebitRateOverrides(input: {
+  shipmentId: number;
+  rates: Partial<Record<DebitRateField, number | null>>;
+}): Promise<{ shipmentId: number; rates: Record<DebitRateField, number | null> }> {
+  const pairs = Object.entries(input.rates)
+    .filter(([, value]) => value !== undefined)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([field, value]) => `${field}=${value}`);
+  return api.post('/accounting/debit-board/rates', input, {
+    headers: { 'Idempotency-Key': `rate-override-${input.shipmentId}-${pairs.join('|')}` },
+  });
+}
+
 /** SIL-773 — nút 'Lưu - Phê duyệt từng dòng và ẩn' theo selection: server
  *  ghi dấu debit_hidden_at/by; dòng rời danh sách tác nghiệp, bật
  *  includeHidden vẫn tra lại được lịch sử. Key cùng công thức FNV-1a của

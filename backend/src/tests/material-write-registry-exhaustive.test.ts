@@ -364,6 +364,15 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/accounting-debit-close.service.ts'),
     marker: 'export async function setShipmentDebitExternalCost(',
   }],
+  // SIL-805 — 'rates' kế toán sửa trực tiếp ô giá/chi phí trên dòng: same
+  // plain-command shape as external-cost (row-locked upsert into
+  // shipment_debit_rate_overrides + audit_logs DEBIT_RATE_OVERRIDE_SET
+  // inside one transaction; unchanged replay is a no-op returning the same
+  // end state).
+  ['accounting-debit.ts|POST|/debit-board/rates', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/accounting-debit-close.service.ts'),
+    marker: 'export async function setShipmentDebitRateOverrides(',
+  }],
   // SIL-773 — 'Lưu - Phê duyệt từng dòng và ẩn': marker write (debit_hidden_at
   // /debit_hidden_by) guarded by isNull(debit_hidden_at) — a replay converges
   // on the already-hidden set and returns the same ids.

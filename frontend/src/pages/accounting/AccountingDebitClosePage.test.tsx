@@ -20,6 +20,7 @@ vi.mock('../../api/accountingDebitClient', () => ({
   listSettlementRounds: listRounds,
   createSettlementRound: createRound,
     setDebitExternalCost: vi.fn(),
+  setDebitRateOverrides: vi.fn(),
   reconcileAndHideDebitLots: vi.fn(),
   DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
 }));

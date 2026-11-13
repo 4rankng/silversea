@@ -18,6 +18,7 @@ import {
   confirmRateAdjustmentRequests,
   withdrawRateAdjustmentRequests,
   setShipmentDebitExternalCost,
+  setShipmentDebitRateOverrides,
   reconcileAndHideDebitLots,
 } from '../services/accounting-debit-close.service';
 import {
@@ -59,6 +60,25 @@ const externalCostSchema = z.object({
   chiPhiNgoai: z.number().int().min(0).max(999_999_999_999_999).nullable(),
 });
 
+// SIL-805 — kế toán sửa trực tiếp ô giá/chi phí trên dòng: mỗi key trong
+// `rates` là MỘT ô được lưu (number nguyên VND, null = xoá override quay về
+// giá trị tự động, omitted = không đụng). Ít nhất MỘT ô mỗi lượt gọi.
+const rateOverrideSchema = z.object({
+  shipmentId: z.number().int().positive(),
+  rates: z.object({
+    cuocThu: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),
+    lachHuyen: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),
+    phuPs: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),
+    phatSinhCus: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),
+    cuocTraDv: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),
+    lachHuyenDv: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),
+    phatSinhDv: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),
+    phiRu: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),
+  }).strict().refine((rates) => Object.keys(rates).length > 0, {
+    message: 'Vui lòng nhập ít nhất một ô giá/chi phí.',
+  }),
+});
+
 // Card 20260923_12 — Chọn Debit settlement round: lần/tháng are the accountant's
 // free choices (PDF); vatRate is the 0/5/8/10 set; the carrier + customer sides
 // are DERIVED server-side from the selected lots' active trips.
@@ -95,6 +115,15 @@ accountingDebitRoutes.post('/debit-board/external-cost', declareMaterialWrite('a
   const parsed = externalCostSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
   res.json(await setShipmentDebitExternalCost(parsed.data));
+}));
+
+// SIL-805 — kế toán lưu các ô giá/chi phí sửa trực tiếp trên dòng (lô chưa
+// khóa chi phí / khóa sổ; service chặn 409). Mỗi key trong `rates` là một ô.
+accountingDebitRoutes.post('/debit-board/rates', declareMaterialWrite('accounting.debit-board.rates.set', { method: 'POST', path: '/api/accounting/debit-board/rates' }), OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const parsed = rateOverrideSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  res.json(await setShipmentDebitRateOverrides({ ...parsed.data, userId: user.userId }));
 }));
 
 accountingDebitRoutes.post('/debit-board/rate-adjustments', declareMaterialWrite('accounting.debit-board.rate-adjustment.request', { method: 'POST', path: '/api/accounting/debit-board/rate-adjustments' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
