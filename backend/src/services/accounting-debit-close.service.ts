@@ -324,6 +324,12 @@ export async function getAccountingDebitBoard(query: {
     tripId: s.freightRateSnapshots.tripId,
     freightAmount: s.freightRateSnapshots.freightAmount,
     surchargeAmount: s.freightRateSnapshots.surchargeAmount,
+    // SIL-814 — the unpriced-freeze guard below needs the engine's trace ids
+    // (the same `isManual` predicate the snapshot lifecycle view uses).
+    rateTermsId: s.freightRateSnapshots.rateTermsId,
+    pricingTableId: s.freightRateSnapshots.pricingTableId,
+    fuelNormId: s.freightRateSnapshots.fuelNormId,
+    fuelPricePeriodId: s.freightRateSnapshots.fuelPricePeriodId,
     // FB-145 — the intake row's formula note decides live price vs group
     // artifact (member-zero tail / "chờ định giá lại") for ungrouped lots.
     formulaText: s.freightRateSnapshots.formulaText,
@@ -344,10 +350,21 @@ export async function getAccountingDebitBoard(query: {
   for (const row of grainRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
+    // SIL-814 (the shipment-debit-summary guard, byte-for-byte law): an
+    // UNPRICED freeze (any zeroed trace id — the engine's MANUAL fallbacks)
+    // carrying zero money is never a live price: dropping the row keeps the
+    // 24/10 rule (a not-yet-priced lot reads TRỐNG, never a fabricated 0₫
+    // on CƯỚC THU (TỰ ĐỘNG) / Phụ ps / TỔNG). A genuinely-priced 0 (D02)
+    // freezes a full trace and still counts.
     const leg = {
       freight: toNumber(row.freightAmount),
       surcharge: toNumber(row.surchargeAmount),
     };
+    if (leg.freight === 0 && leg.surcharge === 0
+      && (row.rateTermsId === 0 || row.pricingTableId === 0
+        || row.fuelNormId === 0 || row.fuelPricePeriodId === 0)) {
+      continue;
+    }
     if (row.tripId != null) {
       const acc = tripLegs.get(lot) ?? { freight: 0, surcharge: 0 };
       acc.freight += leg.freight;

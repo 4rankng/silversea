@@ -11,12 +11,18 @@
 // too, so the row passed as a LIVE 0₫ leg: CƯỚC VẬN TẢI (AUTO) = 0 and
 // TỔNG PHẢI THU = 0 on every one of them.
 //
-// The law here: pricing_table_id 0 + total 0 = unpriced dummy on EITHER
-// channel shape (the read rule runs before the trip-leg/intake branch, so a
-// dummy leg drops out, a real leg still sums, and a lot left with no real row
-// falls back to its priced intake row — "tự động trả lại đơn giá gốc từ Bảng
-// giá" — or to no channel at all = blank). A genuinely-priced 0 keeps a real
-// table id and stays a value (D02).
+// The law here: an UNPRICED freeze — any zeroed engine trace id
+// (rate_terms_id / pricing_table_id / fuel_norm_id / fuel_price_period_id,
+// the snapshot lifecycle view's own `isManual` predicate) with zero money —
+// is not a priced snapshot on EITHER channel shape (the read rule runs
+// before the trip-leg/intake branch, so an unpriced leg drops out, a real
+// leg still sums, and a lot left with no real row falls back to its priced
+// intake row — "tự động trả lại đơn giá gốc từ Bảng giá" — or to no channel
+// at all = blank). QA retest 13/11 (R3N-J2 / R3M-J2 pairs): the
+// missing-norm / missing-fuel-period fallbacks KEEP the trace ids resolved
+// so far (real rate-terms AND pricing-table id) and only zero the later id —
+// the table==0 guard alone let those through as live 0₫. A genuinely-priced
+// 0 freezes a FULL trace (every id real) and stays a value (D02).
 //
 // Db-free unit tree: the loader runs against a scripted executor (same style
 // as expense-source-id-resolution.test.ts).
@@ -31,6 +37,8 @@ interface GrainRow {
   totalAmount: number;
   pricingTableId: number;
   rateTermsId: number;
+  fuelNormId: number;
+  fuelPricePeriodId: number;
   formulaText: string | null;
 }
 
@@ -52,6 +60,8 @@ const dummyTripLeg = (shipmentId: number): GrainRow => ({
   totalAmount: 0,
   pricingTableId: 0,
   rateTermsId: 1,
+  fuelNormId: 0,
+  fuelPricePeriodId: 0,
   formulaText: null,
 });
 
@@ -61,6 +71,8 @@ const pricedIntake = (shipmentId: number): GrainRow => ({
   totalAmount: 3_952_000,
   pricingTableId: 33,
   rateTermsId: 1,
+  fuelNormId: 4,
+  fuelPricePeriodId: 9,
   formulaText: '3800000 × (1 + 4.00%) = 3952000 — phụ phí dầu chờ xác nhận',
 });
 
@@ -88,19 +100,37 @@ describe('loadFreightSnapshotChannelByLot — unpriced dummy freezes never read 
     assert.equal(channel.has(1), false);
   });
 
-  it('a genuinely-priced 0 (real table id) still counts as the live price (D02)', async () => {
+  it('a genuinely-priced 0 (FULL trace: every id real) still counts as the live price (D02)', async () => {
     const channel = await loadFreightSnapshotChannelByLot(
-      scriptedExecutor([{ ...dummyTripLeg(2), pricingTableId: 33 }]),
+      scriptedExecutor([{ ...dummyTripLeg(2), pricingTableId: 33, fuelNormId: 4, fuelPricePeriodId: 9 }]),
       [2],
     );
     assert.deepEqual(channel.get(2), { total: 0, formulaNote: null });
   });
 
-  it('a dummy leg beside a real leg does not zero the additive trip sum', async () => {
+  it('QA retest 13/11 — missing-norm zero (real table id, fuel_norm_id 0) → NO channel (blank), not 0', async () => {
+    // The SIL-676 missing-norm MANUAL fallback keeps rate-terms + base-price
+    // ids and zeros only the norm/period ids (R3N-J2 / R3M-J2 shape).
+    const channel = await loadFreightSnapshotChannelByLot(
+      scriptedExecutor([{ ...dummyTripLeg(776), pricingTableId: 33, rateTermsId: 1 }]),
+      [776],
+    );
+    assert.equal(channel.has(776), false, 'the unpriced missing-norm freeze must not read as a live 0₫');
+  });
+
+  it('QA retest 13/11 — missing-fuel-period zero (real table + norm, fuel_price_period_id 0) → NO channel (blank)', async () => {
+    const channel = await loadFreightSnapshotChannelByLot(
+      scriptedExecutor([{ ...dummyTripLeg(777), pricingTableId: 33, rateTermsId: 1, fuelNormId: 4 }]),
+      [777],
+    );
+    assert.equal(channel.has(777), false, 'the unpriced missing-fuel-period freeze must not read as a live 0₫');
+  });
+
+  it('an unpriced leg beside a real leg does not zero the additive trip sum', async () => {
     const channel = await loadFreightSnapshotChannelByLot(
       scriptedExecutor([
         dummyTripLeg(3),
-        { ...dummyTripLeg(3), tripId: 293, totalAmount: 1_500_000, pricingTableId: 21 },
+        { ...dummyTripLeg(3), tripId: 293, totalAmount: 1_500_000, pricingTableId: 21, fuelNormId: 4, fuelPricePeriodId: 9 },
       ]),
       [3],
     );

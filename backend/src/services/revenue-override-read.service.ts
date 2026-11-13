@@ -122,6 +122,8 @@ export async function loadFreightSnapshotChannelByLot(
     totalAmount: s.freightRateSnapshots.totalAmount,
     pricingTableId: s.freightRateSnapshots.pricingTableId,
     rateTermsId: s.freightRateSnapshots.rateTermsId,
+    fuelNormId: s.freightRateSnapshots.fuelNormId,
+    fuelPricePeriodId: s.freightRateSnapshots.fuelPricePeriodId,
     // FB-145 (card 231026163927) — the intake row's formula note decides
     // whether its amount is a live price or a group artifact (merge member
     // zero / "chờ định giá lại" citation) on an UNGROUPED lot.
@@ -149,16 +151,21 @@ export async function loadFreightSnapshotChannelByLot(
     // a freeze row counts 0 (Number(null) is finite 0), never a skipped leg.
     const rawAmount = Number(row.totalAmount);
     const amount = Number.isFinite(rawAmount) ? rawAmount : 0;
-    // SIL-731 + SIL-814: an unpriced dummy snapshot (total 0, table 0) is not
-    // a priced snapshot. Table id 0 is the engine's dummy base-row marker and
-    // BOTH MANUAL fallbacks carry it: the dispatch-miss MANUAL_ZERO_RESULT
-    // (terms 0 too) and the SIL-676 in-engine MANUAL zero, which keeps the
-    // RESOLVED rate-terms id (the QA 12/11 FCL freeze rows R3N-KR1/KR2 ·
-    // R3N-J1 · R3M-J1/KR1/KR2: rate_terms_id 1, formulaText NULL) — the old
-    // terms==0 conjunct let those through as a live 0₫ leg, printing fake 0
-    // on CƯỚC VẬN TẢI (AUTO) + TỔNG PHẢI THU. A genuinely-priced 0 keeps a
-    // real pricing-table row id (D02) and still counts.
-    if (row.pricingTableId === 0 && amount === 0) {
+    // SIL-731 + SIL-814: an UNPRICED freeze is not a priced snapshot. The
+    // engine's MANUAL fallbacks mark themselves by a ZEROED trace id — the
+    // same `isManual` predicate the snapshot lifecycle view classifies by
+    // (rateTermsId / pricingTableId / fuelNormId / fuelPricePeriodId): the
+    // dispatch-miss MANUAL_ZERO_RESULT (all zeroed), the SIL-676 in-engine
+    // missing-base-price zero (table 0, or a real table id when the row's
+    // price itself is 0), and — QA retest 13/11, R3N-J2 / R3M-J2 — the
+    // missing-norm / missing-fuel-period zeros which KEEP the trace ids
+    // resolved so far (real rate-terms AND pricing-table id, formulaText
+    // NULL). Those passed the table==0 guard as live 0₫ legs, printing fake
+    // 0 on CƯỚC VẬN TẢI (AUTO) + TỔNG PHẢI THU. A genuinely-priced 0 (D02)
+    // freezes a FULL trace (every id real) and still counts.
+    if (amount === 0
+      && (row.rateTermsId === 0 || row.pricingTableId === 0
+        || row.fuelNormId === 0 || row.fuelPricePeriodId === 0)) {
       continue;
     }
     if (row.tripId != null) {
