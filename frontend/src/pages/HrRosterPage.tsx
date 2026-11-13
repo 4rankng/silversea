@@ -183,9 +183,12 @@ export default function HrRosterPage() {
                     </td>
                     <td data-label="Họ tên">{u.fullName || '—'}</td>
                     <td data-label="Bộ phận">
+                      {/* SIL-812 — roster chỉ có lái xe (owner ruling
+                          2026-10-09): không unit thì Bộ phận = vai trò
+                          'Lái xe', không bao giờ '—'. */}
                       {unitNames
                         ? <span style={{ fontSize: 'var(--text-data-size)' }}>{unitNames}</span>
-                        : <span style={{ color: 'var(--ink-4)' }}>—</span>}
+                        : <span style={{ fontSize: 'var(--text-data-size)' }}>Lái xe</span>}
                     </td>
                     <td data-label="Email">
                       {u.email
