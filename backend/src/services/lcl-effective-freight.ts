@@ -87,6 +87,17 @@ export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLcl
   if (facts.override?.reason === REV_LOT_AWAITING_REPRICE_REASON) {
     return { value: null, reason: REV_LOT_AWAITING_REPRICE_REASON };
   }
+  // SIL-814 — rule 1's twin on the override channel: a cited ZERO behind an
+  // UNGROUPED lot is a group artifact whatever channel carries it (the
+  // dissolved-group survivor's member-zero tail / moved-out tail, the
+  // manual-clear citation) — "Chưa xác định", never a stale 0₫ (the 24/10
+  // law: 0 renders only for a merge member or a computed 0). A cited
+  // NON-ZERO still reads (SIL-489/SIL-490), and a typed negotiated 0 keeps
+  // its manual note and counts (D02).
+  if (facts.override?.total === 0 && facts.revGroupId == null
+    && (isRevGroupNote(facts.override.reason) || isRevManualClearNote(facts.override.reason))) {
+    return { value: null, reason: null };
+  }
   const memberNote = (facts.revGroupOrder ?? 1) > 1
     ? `Ghép cước cùng Bill ${facts.revPrincipalRef ?? ''}`.trim()
     : null;
