@@ -98,7 +98,16 @@
   min-width: 48px;
 }
 
-.pm-summary__table td.num {
+/* SIL-816 UI-04 (measured at the 1440 workboard, 2026-11-13): the money
+   matrix is an auto-layout wide board — every numeric cell paid the base's
+   24px inline gutters and the LẬP PHIẾU run hung past the viewport edge
+   (/debt 89px, /payables 39px). The ten numeric columns tighten to 6px
+   inline gutters (10 × 12px pays the fit on both boards); money tokens stay
+   atomic (.num nowrap) and every value still wraps or reads whole. The
+   ≤1100px card-band restore below (SIL-476) outranks this rule on purpose —
+   its real-table geometry keeps the full 12px gutters. */
+.pm-summary__table :is(td, th).num {
+  padding-inline: 6px;
 }
 
 .pm-summary__conno {
