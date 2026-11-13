@@ -118,15 +118,22 @@ export interface PhoiPhieuRow {
   driverNote: string | null;
   confirmable: boolean;
   openSources: Array<{ sourceId: number; expectedVersion: number; remaining: number }>;
-  /** SIL-783 (id 906) — the trip's OPS chi-hộ rows in edit-ready shape so the
+  /** SIL-783 (id 906) — the trip's chi-hộ rows in edit-ready shape so the
    *  accountant edits the invoice number (Số HĐ) straight on the board, phoi
    *  received or not. `version` is the optimistic-concurrency token the
    *  update/correct route requires; `confirmed` picks correct over update,
-   *  the same split the chi-hộ detail dialog applies. */
+   *  the same split the chi-hộ detail dialog applies.
+   *  SIL-807 (UAT 12/11) — the board shows EVERY expense row of the lot, not
+   *  just OPS: DRIVER (lái xe khai) rides the trip's registry rows, TRIP
+   *  (chi phí chuyến) rides the shipment's. `sourceKind` picks the mutation
+   *  route's id space (entries/:kind/:id); DRIVER rows carry `costType` for
+   *  the fee-label fallback when their custom feeName is blank. */
   chiHoRows: Array<{
     entryId: number;
     sourceId: number;
     version: number;
+    sourceKind: 'OPS' | 'DRIVER' | 'TRIP';
+    costType?: string | null;
     feeName: string | null;
     invoiceNumber: string | null;
     confirmed: boolean;
@@ -378,12 +385,44 @@ export async function listPhoiPhieuRows(query: {
     allocatedAdvanceAmount: s.expenseAccountingSources.allocatedAdvanceAmount,
     amount: s.tripExpenses.buyAmount,
     customerChargeAmount: s.tripExpenses.sellAmount,
+    // SIL-807 — the board's inline Số-HĐ editors now cover TRIP rows too.
+    entryId: s.tripExpenses.id,
+    feeName: s.tripExpenses.feeName,
+    invoiceNumber: s.tripExpenses.invoiceNumber,
   })
     .from(s.expenseAccountingSources)
     .innerJoin(s.tripExpenses, eq(s.tripExpenses.id, s.expenseAccountingSources.sourceId))
     .where(and(inArray(s.expenseAccountingSources.shipmentId, shipmentIds),
       eq(s.expenseAccountingSources.status, 'RECORDED'), eq(s.expenseAccountingSources.sourceKind, 'TRIP'),
       confirmationCondition(query.confirmation)));
+
+  // SIL-807 — lái xe khai rides the board's Số-HĐ editors too: DRIVER
+  // registry rows of these trips, hydrated with the incidental-cost's native
+  // id (the entries/:kind mutation id space) + invoice fields. Keyed by
+  // tripId — a DRIVER row belongs to its trip the way the tien-duong spine
+  // reads it.
+  const driverSources = await db.select({
+    id: s.expenseAccountingSources.id,
+    tripId: s.expenseAccountingSources.tripId,
+    version: s.expenseAccountingSources.version,
+    confirmedAt: s.expenseAccountingSources.confirmedAt,
+    entryId: s.driverIncidentalCosts.id,
+    feeName: s.driverIncidentalCosts.feeName,
+    costType: s.driverIncidentalCosts.costType,
+    invoiceNumber: s.driverIncidentalCosts.invoiceNumber,
+  })
+    .from(s.expenseAccountingSources)
+    .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
+    .where(and(inArray(s.expenseAccountingSources.tripId, tripIds),
+      eq(s.expenseAccountingSources.status, 'RECORDED'), eq(s.expenseAccountingSources.sourceKind, 'DRIVER'),
+      confirmationCondition(query.confirmation)));
+  const driverByTrip = new Map<number, typeof driverSources>();
+  for (const source of driverSources) {
+    if (source.tripId == null) continue;
+    const bucket = driverByTrip.get(source.tripId) ?? [];
+    bucket.push(source);
+    driverByTrip.set(source.tripId, bucket);
+  }
 
   const sources = [...opsSources, ...tripSources];
   // Card 20260921_14 rework: the parent Tien-duong cell sums CONFIRMED
@@ -462,6 +501,14 @@ export async function listPhoiPhieuRows(query: {
     const bucket = opsByShipment.get(source.shipmentId) ?? [];
     bucket.push(source);
     opsByShipment.set(source.shipmentId, bucket);
+  }
+  // SIL-807 — TRIP rows group by shipment like OPS so one lot's chi phí
+  // chuyến land in the same board cell.
+  const tripByShipment = new Map<number, typeof tripSources>();
+  for (const source of tripSources) {
+    const bucket = tripByShipment.get(source.shipmentId) ?? [];
+    bucket.push(source);
+    tripByShipment.set(source.shipmentId, bucket);
   }
   const noteByTrip = new Map<number, string>();
   for (const event of driverNotes) {
@@ -550,17 +597,40 @@ export async function listPhoiPhieuRows(query: {
       driverNote: noteByTrip.get(row.tripId) ?? row.tripNotes ?? null,
       confirmable: openSources.length > 0,
       openSources,
-      // SIL-783 (id 906) — OPS rows only: TRIP-kind rows stay read-only on the
-      // board (their correction surface is the expense-accounting workspace),
-      // the same split the chi-hộ detail dialog renders.
-      chiHoRows: (opsByShipment.get(row.shipmentId) ?? []).map((source) => ({
-        entryId: source.entryId,
-        sourceId: source.id,
-        version: source.version,
-        feeName: source.feeName,
-        invoiceNumber: source.invoiceNumber,
-        confirmed: source.confirmedAt != null,
-      })),
+      // SIL-783 (id 906) — inline Số-HĐ editors. SIL-807 (UAT 12/11) — every
+      // expense row of the lot shows with its editor, not just OPS: DRIVER
+      // (lái xe khai) + TRIP (chi phí chuyến) join the same cell, each keyed
+      // to its own entries/:kind mutation route.
+      chiHoRows: [
+        ...(opsByShipment.get(row.shipmentId) ?? []).map((source) => ({
+          entryId: source.entryId,
+          sourceId: source.id,
+          version: source.version,
+          sourceKind: 'OPS' as const,
+          feeName: source.feeName,
+          invoiceNumber: source.invoiceNumber,
+          confirmed: source.confirmedAt != null,
+        })),
+        ...(driverByTrip.get(row.tripId) ?? []).map((source) => ({
+          entryId: source.entryId,
+          sourceId: source.id,
+          version: source.version,
+          sourceKind: 'DRIVER' as const,
+          costType: source.costType,
+          feeName: source.feeName,
+          invoiceNumber: source.invoiceNumber,
+          confirmed: source.confirmedAt != null,
+        })),
+        ...(tripByShipment.get(row.shipmentId) ?? []).map((source) => ({
+          entryId: source.entryId,
+          sourceId: source.id,
+          version: source.version,
+          sourceKind: 'TRIP' as const,
+          feeName: source.feeName,
+          invoiceNumber: source.invoiceNumber,
+          confirmed: source.confirmedAt != null,
+        })),
+      ],
     });
   }
   return out;

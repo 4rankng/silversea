@@ -15,6 +15,11 @@ export interface OpsReconciliationReportRow {
   staffName: string;
   dntt: number;
   advanced: number;
+  /** SIL-806 — ĐÃ ỨNG cho bảng Quỹ cá nhân: TỔNG phiếu tạm ứng đã giải ngân
+   *  (RECORDED) trong kỳ, không trừ gì cả. Scoped to a đợt, the lot's own
+   *  allocations. Khác `advanced` (tiền CÒN NẮM sau netting) — cột ĐÃ ỨNG của
+   *  bảng đối soát chi phí đọc số GỘC theo UAT 12/11. */
+  advancedRecorded: number;
   remaining: number;
   /** Chênh lệch CÓ DẤU theo đúng chữ của spec — "ĐNTT − ĐÃ ỨNG" (card 377:
    *  800.000 − 200.000 = 600.000). Số âm = tiền ứng vượt chi phí thực tế. */
@@ -137,6 +142,24 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   }).from(s.advanceRequests)
     .where(eq(s.advanceRequests.status, 'RECORDED'))
     .groupBy(s.advanceRequests.requesterId);
+  // SIL-806 (UAT 12/11) — cột ĐÃ ỨNG của bảng Quỹ cá nhân đọc số GỐC: tổng
+  // phiếu tạm ứng ĐÃ GIẢI NGÂN (RECORDED) trong kỳ, không net settlement/đợt
+  // và không kẹp 0 (Nguyễn Huy Hoàng 5 phiếu 520.000₫ phải hiện 520.000₫ chứ
+  // không 0₫ sau netting). Ngày trong kỳ = ngày giải ngân (approvedAt) — phiếu
+  // ghi thẳng RECORDED không qua duyệt dùng createdAt. Chỉ tính trên nhánh
+  // unscoped: báo cáo đợt phân bổ qua expense_reconciliation_advances và đọc
+  // `allocated` bên dưới.
+  const recordedRows = await db.select({
+    staffId: s.advanceRequests.requesterId,
+    recorded: sql<number>`coalesce(sum(${s.advanceRequests.amount}), 0)::int`,
+  }).from(s.advanceRequests)
+    .where(and(
+      eq(s.advanceRequests.status, 'RECORDED'),
+      sql`coalesce(${s.advanceRequests.approvedAt}, ${s.advanceRequests.createdAt})::date >= ${costFrom}::date`,
+      sql`coalesce(${s.advanceRequests.approvedAt}, ${s.advanceRequests.createdAt})::date <= ${costTo}::date`,
+    ))
+    .groupBy(s.advanceRequests.requesterId);
+  const recordedByStaff: Record<string, number> = Object.fromEntries(recordedRows.map((row) => [String(row.staffId), Number(row.recorded)] as const));
   // SIL-728 (QA fail 09/11, staging c4cea6b6) — the legacy settlement phiếu
   // (advance_settlements — the /advances "Phiếu hoàn ứng" family) consumes the
   // staff's advance REQUESTS outside the đợt system, but ĐÃ ỨNG netted only
@@ -170,7 +193,10 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
       allocated: sql<number>`coalesce(sum(${s.expenseReconciliationAdvances.amount}), 0)::int`,
     }).from(s.expenseReconciliationAdvances)
       .where(eq(s.expenseReconciliationAdvances.reconciliationId, batchInfo.id));
-    if (row) heldByStaff.set(String(batchStaffId), Number(row.allocated));
+    if (row) {
+      heldByStaff.set(String(batchStaffId), Number(row.allocated));
+      recordedByStaff[String(batchStaffId)] = Number(row.allocated);
+    }
   } else {
     for (const row of heldRows) heldByStaff.set(String(row.staffId), Number(row.held));
     for (const row of legacySettledRows) {
@@ -190,6 +216,10 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   const staffKeys = new Set<string>([
     ...[...costByStaff.keys()].map((id) => String(id)),
     ...[...heldByStaff.keys()],
+    // SIL-806 — a staff whose only footprint in the kỳ is a RECORDED advance
+    // phiếu (held netted to 0, no confirmed cost yet) still belongs in the
+    // Quỹ cá nhân table with their gross ĐÃ ỨNG.
+    ...Object.keys(recordedByStaff),
   ]);
   // Card 168 PM ruling (2026-09-29, board "RULING PM" câu 1): Còn phải hoàn
   // ứng is the Sổ quỹ closing formula — min(đã ứng, đã cấp) − đã tiêu — read
@@ -223,7 +253,8 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     const advanced = heldByStaff.get(key) ?? 0;
     const remaining = outstandingMap.get(key) ?? 0;
     const outstandingSigned = outstandingSignedMap.get(key) ?? 0;
-    if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0) continue;
+    const advancedRecorded = recordedByStaff[String(staffId)] ?? 0;
+    if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0 && advancedRecorded === 0) continue;
     // Số âm: chênh lệch có dấu theo đúng chữ spec "ĐNTT − ĐÃ ỨNG", giữ nguyên
     // `remaining` là số sổ quỹ (lệnh PM 2026-09-29) nên tổng và ví không đổi.
     const remainingSigned = dntt - advanced;
@@ -240,7 +271,7 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     rows.push({
       staffId,
       staffName: nameByStaff.get(staffId) ?? `NV #${staffId}`,
-      dntt, advanced, remaining, remainingSigned, outstandingSigned, needsCollection, direction, note,
+      dntt, advanced, advancedRecorded, remaining, remainingSigned, outstandingSigned, needsCollection, direction, note,
     });
   }
   // Card 20260928_169 — the employee axis: unscoped, a single staff filter

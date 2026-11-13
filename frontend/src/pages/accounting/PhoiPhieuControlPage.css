@@ -22,8 +22,10 @@
 .ppc-board .ppc-col--diadiem { min-width: 164px; }
 .ppc-board .ppc-col--chiho { min-width: 188px; }
 /* SIL-783 (id 906) — inline Số-HĐ editing + "+ Chi phí": the fee line and
-   the input sit in one narrow stack per chi-hộ row. */
-.ppc-board .ppc-col--hoadon { min-width: 176px; }
+   the input sit in one narrow stack per chi-hộ row. SIL-807 — widened: the
+   invoice column must hold a full mã hóa đơn (14+ chars, e.g. 339IVN0130626)
+   without the input clipping it. */
+.ppc-board .ppc-col--hoadon { min-width: 224px; }
 .ppc-invoice-line { margin-bottom: 4px; }
 .ppc-invoice-line:last-of-type { margin-bottom: 0; }
 .ppc-invoice-fee { display: block; }

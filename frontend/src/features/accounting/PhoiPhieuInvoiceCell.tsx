@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { DRIVER_INCIDENTAL_COST_LABELS } from '@tingting/shared';
 
 import {
   correctPhoiPhieuRow,
@@ -13,6 +14,18 @@ export type PhoiPhieuChiHoEditRow = NonNullable<PhoiPhieuRow['chiHoRows']>[numbe
 /** SIL-783 (id 906) — the audit reason every board invoice edit carries, the
  *  same requirement the chi-hộ detail dialog's amount edits satisfy. */
 export const PHOI_INVOICE_EDIT_REASON = 'Kế toán sửa số hóa đơn trên bảng phơi phiếu';
+
+/** Card 071026141580 — blank feeName is the sentinel: the cell falls back to
+ *  the driver-cost type label (lái xe khai, SIL-807) before the generic
+ *  'Chi phí'. Shared by the fee line and the board's aria labels so a screen
+ *  reader hears the same fee name the cell prints. */
+export function phoiChiHoFeeLabel(row: Pick<PhoiPhieuChiHoEditRow, 'feeName' | 'sourceKind' | 'costType'>): string {
+  return row.feeName?.trim()
+    || (row.sourceKind === 'DRIVER' && row.costType
+      ? DRIVER_INCIDENTAL_COST_LABELS[row.costType as keyof typeof DRIVER_INCIDENTAL_COST_LABELS] ?? row.costType
+      : null)
+    || 'Chi phí';
+}
 
 interface Props {
   tripId: number;
@@ -54,8 +67,9 @@ export function PhoiPhieuInvoiceCell({ tripId, chiHoRow, ariaLabel }: Props) {
         reason: PHOI_INVOICE_EDIT_REASON,
         invoiceNumber: next === '' ? null : next,
       };
-      if (chiHoRow.confirmed) await correctPhoiPhieuRow(chiHoRow.entryId, payload);
-      else await updatePhoiPhieuRowAmounts(tripId, chiHoRow.entryId, payload);
+      const kind = chiHoRow.sourceKind ?? 'OPS';
+      if (chiHoRow.confirmed) await correctPhoiPhieuRow(chiHoRow.entryId, payload, { kind });
+      else await updatePhoiPhieuRowAmounts(tripId, chiHoRow.entryId, payload, { kind });
       await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll });
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Không lưu được số hóa đơn.');
@@ -67,7 +81,7 @@ export function PhoiPhieuInvoiceCell({ tripId, chiHoRow, ariaLabel }: Props) {
   return (
     <div className="ppc-invoice-line">
       <label className="ppc-invoice-fee">
-        <small>{chiHoRow.feeName ?? 'Chi phí'}</small>
+        <small>{phoiChiHoFeeLabel(chiHoRow)}</small>
         <input
           className="ppc-invoice-input"
           value={draft}

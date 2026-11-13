@@ -61,12 +61,17 @@ export interface PhoiPhieuRow {
   driverNote: string | null;
   confirmable: boolean;
   openSources: Array<{ sourceId: number; expectedVersion: number; remaining: number }>;
-  /** SIL-783 (id 906) — the trip's OPS chi-hộ rows for the board's inline
-   *  Số-HĐ editing. Optional so an older in-flight backend payload renders. */
+  /** SIL-783 (id 906) — the trip's chi-hộ rows for the board's inline
+   *  Số-HĐ editing. Optional so an older in-flight backend payload renders.
+   *  SIL-807 — every expense row of the lot shows (OPS/DRIVER/TRIP);
+   *  `sourceKind` picks the entries/:kind mutation route, DRIVER rows carry
+   *  `costType` for the fee-label fallback. */
   chiHoRows?: Array<{
     entryId: number;
     sourceId: number;
     version: number;
+    sourceKind?: 'OPS' | 'DRIVER' | 'TRIP';
+    costType?: string | null;
     feeName: string | null;
     invoiceNumber: string | null;
     confirmed: boolean;
@@ -182,9 +187,9 @@ export async function updatePhoiPhieuRowAmounts(tripId: number, sourceId: number
   /** SIL-783 (id 906) — the Số HĐ edit from the board; null clears it. The
    *  update schema already accepts it (expenseInputFields). */
   invoiceNumber?: string | null;
-}, idempotencyKey?: string): Promise<unknown> {
-  return api.post(`/expense-accounting/entries/OPS/${sourceId}/update`, body, {
-    idempotencyKey,
+}, opts: { kind?: 'OPS' | 'DRIVER' | 'TRIP'; idempotencyKey?: string } = {}): Promise<unknown> {
+  return api.post(`/expense-accounting/entries/${opts.kind ?? 'OPS'}/${sourceId}/update`, body, {
+    idempotencyKey: opts.idempotencyKey,
   });
 }
 
@@ -335,8 +340,8 @@ export async function assignPhoiPhieuTruckAccountantsBatch(body: {
   return api.post('/expense-accounting/assignments/batch', body, { idempotencyKey });
 }
 
-export async function correctPhoiPhieuRow(sourceId: number, body: Record<string, unknown>, idempotencyKey?: string): Promise<unknown> {
-  return api.post(`/expense-accounting/entries/OPS/${sourceId}/correct`, body, {
-    idempotencyKey,
+export async function correctPhoiPhieuRow(sourceId: number, body: Record<string, unknown>, opts: { kind?: 'OPS' | 'DRIVER' | 'TRIP'; idempotencyKey?: string } = {}): Promise<unknown> {
+  return api.post(`/expense-accounting/entries/${opts.kind ?? 'OPS'}/${sourceId}/correct`, body, {
+    idempotencyKey: opts.idempotencyKey,
   });
 }

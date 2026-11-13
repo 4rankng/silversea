@@ -62,13 +62,12 @@ function progressVariant(progress: ExpenseReviewProgress): 'warning' | 'success'
   return progress === 'CHUA_XAC_NHAN' ? 'warning' : progress === 'DA_XAC_NHAN' ? 'success' : 'info';
 }
 
-/** The spec's signed fund balance: ĐÃ ỨNG − ĐNTT. Positive = advance outran
- *  confirmed spend → staff returns the excess; negative = spend outran the
- *  advance → company reimburses more. It is the negative of the report's
- *  shipped "Còn phải hoàn ứng" (ĐNTT − ĐÃ ỨNG) — both ride card
- *  141026230770's signed formula, displayed in the spec's own orientation. */
-function fundBalance(row: { advanced: number; dntt: number }): number {
-  return row.advanced - row.dntt;
+/** Card 071026141580 — blank feeName is the house sentinel: consumers fall
+ *  back to the expense-type catalog label. SIL-806 AC3 — every Ops khai row
+ *  shows its loại phí on line 1 of the CHI PHI cell; the label is shared by
+ *  the row display, the reject prompt and the invoice aria-label. */
+function costFeeLabel(row: Pick<CostReviewRow, 'feeName' | 'expenseTypeCode'>, typeNameByCode: Record<string, string>): string {
+  return row.feeName?.trim() || typeNameByCode[row.expenseTypeCode] || '—';
 }
 
 export default function CostReconciliationPage() {
@@ -108,6 +107,7 @@ export default function CostReconciliationPage() {
   const rows = costs.data?.items ?? [];
   const totals = costs.data?.totals ?? { unconfirmedAmount: 0, confirmedAmount: 0, unconfirmedCount: 0, duplicateRows: 0 };
   const fundRows = funds.data?.rows ?? [];
+  const expenseTypeNameByCode: Record<string, string> = Object.fromEntries((catalog.data?.expenseTypes ?? []).map((type) => [type.code, type.name]));
   const unconfirmedRows = rows.filter((row) => row.progress === 'CHUA_XAC_NHAN');
   const selectedRefs = unconfirmedRows.filter((row) => selected.has(rowKey(row))).map((row) => row.confirmRef);
 
@@ -130,7 +130,7 @@ export default function CostReconciliationPage() {
 
   const rejectRow = async (row: CostReviewRow) => {
     const reason = await prompt(
-      `Từ chối khoản chi ${row.feeName} (${formatMoney(row.amount)} ₫) của ${SOURCE_KIND_LABELS[row.sourceKind] ?? row.sourceKind} — lô ${row.shipmentCode}. Khoản sẽ rời khỏi sổ chi phí, lịch sử giữ nguyên.`,
+      `Từ chối khoản chi ${costFeeLabel(row, expenseTypeNameByCode)} (${formatMoney(row.amount)} ₫) của ${SOURCE_KIND_LABELS[row.sourceKind] ?? row.sourceKind} — lô ${row.shipmentCode}. Khoản sẽ rời khỏi sổ chi phí, lịch sử giữ nguyên.`,
       { reasonLabel: 'Lý do từ chối (bắt buộc)', confirmLabel: 'Từ chối' },
     );
     if (!reason) return;
@@ -274,6 +274,7 @@ export default function CostReconciliationPage() {
                 <CostRow
                   key={rowKey(row)}
                   row={row}
+                  typeNameByCode={expenseTypeNameByCode}
                   selected={row.progress === 'CHUA_XAC_NHAN' && selected.has(rowKey(row))}
                   onToggle={() => toggleRow(row)}
                   onConfirm={() => confirmMutation.mutate([row.confirmRef])}
@@ -303,7 +304,7 @@ export default function CostReconciliationPage() {
       <section aria-label="Quỹ cá nhân từng nhân sự" className="cost-reconciliation-page__funds">
         <h2>Quỹ cá nhân từng nhân sự</h2>
         <p className="cost-reconciliation-page__fund-note">
-          Số dư quỹ = ĐÃ ỨNG − chi phí ĐNTT đã xác nhận trong kỳ. (+) nhân viên còn giữ tiền phải nộp trả lại; (−) công ty phải chi hoàn trả thêm.
+          Số dư quỹ = ĐÃ ỨNG (tổng phiếu tạm ứng đã ghi nhận trong kỳ) − chi phí ĐNTT đã xác nhận. (−) công ty phải hoàn trả thêm cho nhân viên; (+) cá nhân còn giữ tiền phải hoàn trả về công ty.
         </p>
         {funds.isPending && <SkeletonTable rows={3} cols={4} />}
         {funds.isError && <p role="alert">{funds.error.message} <Btn variant="secondary" size="sm" onClick={() => void funds.refetch()}>Thử lại</Btn></p>}
@@ -324,11 +325,14 @@ export default function CostReconciliationPage() {
               </thead>
               <tbody>
                 {fundRows.map((row) => {
-                  const balance = fundBalance(row);
+                  // SIL-806 — signed balance: ĐÃ ỨNG (đã ghi nhận) − chi ĐNTT
+                  // đã xác nhận; the row's warning text must read the SAME
+                  // sign (AC "khớp 100%").
+                  const balance = row.advancedRecorded - row.dntt;
                   return (
                     <tr key={row.staffId}>
                       <td data-label="Nhân sự">{row.staffName}</td>
-                      <td data-label="Đã ứng" className="num"><Money value={row.advanced} /></td>
+                      <td data-label="Đã ứng" className="num"><Money value={row.advancedRecorded} /></td>
                       <td data-label="Chi ĐNTT đã xác nhận" className="num"><Money value={row.dntt} /></td>
                       <td data-label="Số dư quỹ" className="num" style={balance < 0 ? { color: 'var(--danger)' } : undefined}>
                         <Money value={Math.abs(balance)} sign={balance > 0 ? '+' : balance < 0 ? '−' : undefined} />
@@ -341,12 +345,12 @@ export default function CostReconciliationPage() {
                         {balance > 0
                           ? (<div className="record-cell-stack">
                             <StatusText variant="warning" dot={false}>{`(+) ${formatMoney(balance)} ₫`}</StatusText>
-                            <small>Nhân viên phải nộp trả lại tiền thừa</small>
+                            <small>Cá nhân còn giữ tiền phải hoàn trả về công ty</small>
                           </div>)
                           : balance < 0
                             ? (<div className="record-cell-stack">
                               <StatusText variant="danger" dot={false}>{`(−) ${formatMoney(Math.abs(balance))} ₫`}</StatusText>
-                              <small>Công ty phải chi hoàn trả thêm</small>
+                              <small>Công ty phải hoàn trả thêm cho nhân viên</small>
                             </div>)
                             : <StatusText variant="neutral">Không còn chênh lệch</StatusText>}
                       </td>
@@ -364,8 +368,9 @@ export default function CostReconciliationPage() {
   );
 }
 
-function CostRow({ row, selected, onToggle, onConfirm, onReject, onInvoice, confirming }: {
+function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject, onInvoice, confirming }: {
   row: CostReviewRow;
+  typeNameByCode: Record<string, string>;
   selected: boolean;
   onToggle: () => void;
   onConfirm: () => void;
@@ -380,7 +385,7 @@ function CostRow({ row, selected, onToggle, onConfirm, onReject, onInvoice, conf
     <tr>
       <td data-label="Chọn">
         {row.progress === 'CHUA_XAC_NHAN' && (
-          <input type="checkbox" aria-label={`Chọn ${row.feeName}`} checked={selected} onChange={onToggle} />
+          <input type="checkbox" aria-label={`Chọn ${costFeeLabel(row, typeNameByCode)}`} checked={selected} onChange={onToggle} />
         )}
       </td>
       <td data-label="Lô hàng">
@@ -391,7 +396,7 @@ function CostRow({ row, selected, onToggle, onConfirm, onReject, onInvoice, conf
       </td>
       <td data-label="Chi phí">
         <div className="record-cell-stack">
-          <span>{row.feeName}</span>
+          <span>{costFeeLabel(row, typeNameByCode)}</span>
           <small>
             {SOURCE_KIND_LABELS[row.sourceKind] ?? row.sourceKind}{row.payerName ? ` · ${row.payerName}` : ''}
           </small>
@@ -415,7 +420,7 @@ function CostRow({ row, selected, onToggle, onConfirm, onReject, onInvoice, conf
           <span className="cost-reconciliation-page__invoice">
             <input
               type="text"
-              aria-label={`Số hóa đơn ${row.feeName}`}
+              aria-label={`Số hóa đơn ${costFeeLabel(row, typeNameByCode)}`}
               value={invoiceValue}
               maxLength={100}
               onChange={(event) => setInvoiceDraft(event.target.value)}

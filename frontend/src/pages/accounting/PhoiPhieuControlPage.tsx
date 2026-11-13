@@ -13,7 +13,7 @@ import { Money } from '../../components/shared/Money';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { ColumnMiniFilter, DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
-import { PhoiPhieuInvoiceCell } from '../../features/accounting/PhoiPhieuInvoiceCell';
+import { PhoiPhieuInvoiceCell, phoiChiHoFeeLabel } from '../../features/accounting/PhoiPhieuInvoiceCell';
 import { ExpenseCreateDrawer } from '../../features/expense-accounting/ExpenseCreateDrawer';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { OpsExpenseNoteLines } from '../../features/dispatch/components/OpsExpenseNoteLines';
@@ -320,7 +320,7 @@ export default function PhoiPhieuControlPage() {
           // read-only here; the edit surface is the desktop table input.
           { key: 'invoices', label: 'Chi phí / Số HĐ', value: (row.chiHoRows ?? []).length
             ? (row.chiHoRows ?? []).map((chiHoRow) => (
-              <div key={chiHoRow.entryId} className="row-meta">{`${chiHoRow.feeName ?? 'Chi phí'}: ${chiHoRow.invoiceNumber ?? '—'}`}</div>
+              <div key={chiHoRow.entryId} className="row-meta">{`${phoiChiHoFeeLabel(chiHoRow)}: ${chiHoRow.invoiceNumber ?? '—'}`}</div>
             ))
             : '—' },
           { key: 'capacity', label: 'Trọng tải container', value: row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + ' kg' : '—' },
@@ -420,7 +420,7 @@ export default function PhoiPhieuControlPage() {
                       key={chiHoRow.entryId}
                       tripId={row.tripId}
                       chiHoRow={chiHoRow}
-                      ariaLabel={`Số hóa đơn ${chiHoRow.feeName ?? 'chi phí'} ${billBookingReference(row.billOrBooking)}`}
+                      ariaLabel={`Số hóa đơn ${phoiChiHoFeeLabel(chiHoRow)} ${billBookingReference(row.billOrBooking)}`}
                     />
                   ))}
                   <button
