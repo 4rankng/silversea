@@ -17,7 +17,7 @@ import type { DriverTaskDetail } from '../../api/driverClient';
  * the bottom nav already states, and the ports in the info grid carry the
  * route, so route text no longer earns a line of its own.
  */
-export function DriverTripHeader({ trip, onBack }: { trip: DriverTaskDetail; onBack: () => void }) {
+export function DriverTripHeader({ trip, classificationTag, onBack }: { trip: DriverTaskDetail; classificationTag?: string | null; onBack: () => void }) {
   const fulfillment = trip.fulfillment ?? null;
   // Route text only — the factory site address never rides this line.
   const routeLine = fulfillment?.routeSummary ?? trip.routeName ?? null;
@@ -45,6 +45,12 @@ export function DriverTripHeader({ trip, onBack }: { trip: DriverTaskDetail; onB
           {locationShown && (
             <span className="driver-task-header__location">{location}</span>
           )}
+          {/* SIL-815 — the trip-classification label (ĐƠN/KẸP/KẾT HỢP/LẺ/
+              LẤY LẺ), resolved exactly like the journey card's tag so the
+              card and its detail match 100%. */}
+          {classificationTag ? (
+            <span className="driver-task-classification" data-testid="classification-tag">{classificationTag}</span>
+          ) : null}
           <StatusPill variant={tripStatusVariant(trip.status)}>
             {TRIP_STATUS_LABELS[trip.status] || trip.status}
           </StatusPill>

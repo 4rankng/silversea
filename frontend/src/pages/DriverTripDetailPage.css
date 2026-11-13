@@ -1249,6 +1249,24 @@
   white-space: nowrap;
 }
 
+/* SIL-815 — the trip-classification label (ĐƠN/KẸP/KẾT HỢP/LẺ/LẤY LẺ) in
+   the header meta row: the card's own tag pill (driver-journey-card__tag,
+   caption size + 700) with this screen's chip geometry (8px radius, same
+   border/surface family as the Đóng/Trả chip beside it) so the label reads
+   identically to the card it must match. */
+.driver-task-classification {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--text-caption-size);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 @media (pointer: coarse) {
   .driver-task-ops-toggle {
     min-height: var(--control-touch-h);
