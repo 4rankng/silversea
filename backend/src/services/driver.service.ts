@@ -507,6 +507,50 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     }
   }
 
+  // SIL-818 (id 947) — a trip container row typed with its NUMBER only (the
+  // type left unentered, e.g. R3P-677-R's RTAU4011052) still DISPLAYS the
+  // lot's declared type/weight: the shipment container matched by
+  // container_number is the same physical box and the value is already
+  // stored. Fill-blanks only — a typed trip-local value is never
+  // overwritten here (contrast the single-cont declared-payload law above,
+  // which wins). The journey-board card applies the identical fill in its
+  // tripContainerList SQL, so the card and this detail match 100%.
+  if (trip.shipmentId != null) {
+    const needsDeclaredFill = containers.some((container) =>
+      (container.containerTypeId == null && (container.containerTypeName == null || container.containerTypeCode == null))
+      || container.cargoWeightKg == null);
+    if (needsDeclaredFill) {
+      const declaredRows = await db
+        .select({
+          containerNumber: s.shipmentContainers.containerNumber,
+          containerTypeName: s.containerTypes.name,
+          containerTypeCode: s.containerTypes.code,
+          cargoWeightKg: s.shipmentContainers.cargoWeightKg,
+        })
+        .from(s.shipmentContainers)
+        .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
+        .where(eq(s.shipmentContainers.shipmentId, trip.shipmentId));
+      const declaredByNumber = new Map(
+        declaredRows
+          .filter((row) => row.containerNumber != null && row.containerNumber !== '')
+          .map((row) => [row.containerNumber!, row]),
+      );
+      containers = containers.map((container) => {
+        const hit = container.containerNumber?.trim()
+          ? declaredByNumber.get(container.containerNumber.trim())
+          : undefined;
+        if (!hit) return container;
+        return {
+          ...container,
+          containerTypeName: container.containerTypeName ?? hit.containerTypeName ?? null,
+          containerTypeCode: container.containerTypeCode ?? hit.containerTypeCode ?? null,
+          cargoWeightKg: container.cargoWeightKg
+            ?? (hit.cargoWeightKg != null && hit.cargoWeightKg !== '' ? String(hit.cargoWeightKg) : null),
+        };
+      });
+    }
+  }
+
   // Latest uploaded photo per type for this trip — shown as thumbnails on the
   // driver detail page once a container has been saved. Also fetch the full
   // list (newest first) so the driver UI can surface every captured photo,

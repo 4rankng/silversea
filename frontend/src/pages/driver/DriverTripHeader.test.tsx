@@ -45,6 +45,21 @@ describe('DriverTripHeader — Đóng/Trả chip', () => {
   });
 });
 
+// SIL-815 — the classification label (ĐƠN/KẸP/KẾT HỢP/LẺ/LẤY LẺ) rides the
+// detail header, resolved exactly like the journey card's tag so the card
+// and its detail match 100%.
+describe('DriverTripHeader — SIL-815 classification chip', () => {
+  it('renders the classification label beside the status pill', () => {
+    render(<DriverTripHeader trip={trip('IMPORT')} classificationTag="ĐƠN" onBack={() => {}} />);
+    expect(screen.getByTestId('classification-tag').textContent).toBe('ĐƠN');
+  });
+
+  it('renders no classification chip when the label is absent', () => {
+    render(<DriverTripHeader trip={trip('EXPORT')} classificationTag={null} onBack={() => {}} />);
+    expect(screen.queryByTestId('classification-tag')).toBeNull();
+  });
+});
+
 /* Card 20260926_26 item 4: compressed two-line title block — line 1 = back
  * + mã (Số Bill / Booking, the display key), line 2 = location + status
  * pill. The eyebrow and the standalone route line are gone. */

@@ -49,3 +49,27 @@ test('declared-payload mirror (card 091026164520) applies to a single-cont trip,
 test('multi-cont trips keep the trip-local weights — list and detail match 100%', () => {
   assert.match(boardSlice, /cargoWeightKg: entry\.cargoWeightKg == null \|\| entry\.cargoWeightKg === ''/);
 });
+
+// SIL-818 (id 947) — a trip container typed with its NUMBER only still shows
+// the lot's declared type/weight: the shipment container matched by
+// container_number fills the blanks on BOTH surfaces (this SQL coalesce +
+// getDriverTripDetail's fill), so the card and the detail match 100% and a
+// typed trip-local value is never overwritten.
+const detail = readFileSync(join(here, '../../services/driver.service.ts'), 'utf8');
+
+test('SIL-818 — the board SQL coalesces the declared type/weight by container number', () => {
+  assert.match(boardSlice, /left join \$\{s\.shipmentContainers\} scd on scd\.shipment_id = \$\{s\.shipments\.id\} and scd\.container_number = tc\.container_number/);
+  assert.match(boardSlice, /left join \$\{s\.containerTypes\} ctd on ctd\.id = scd\.container_type_id/);
+  assert.match(boardSlice, /'containerTypeName', coalesce\(ct\.name, ctd\.name\)/);
+  assert.match(boardSlice, /'cargoWeightKg', coalesce\(tc\.cargo_weight_kg, scd\.cargo_weight_kg\)/);
+});
+
+test('SIL-818 — the detail fills blank type/weight from the declared container, blanks only', () => {
+  assert.match(detail, /const declaredByNumber = new Map\(/);
+  // Matched by the trip container's own number, scoped to the lot.
+  assert.match(detail, /declaredByNumber\.get\(container\.containerNumber\.trim\(\)\)/);
+  assert.match(detail, /\.where\(eq\(s\.shipmentContainers\.shipmentId, trip\.shipmentId\)\)/);
+  // Fill-blanks: nullish coalescing only, a typed trip-local value wins.
+  assert.match(detail, /containerTypeName: container\.containerTypeName \?\? hit\.containerTypeName \?\? null/);
+  assert.match(detail, /containerTypeCode: container\.containerTypeCode \?\? hit\.containerTypeCode \?\? null/);
+});

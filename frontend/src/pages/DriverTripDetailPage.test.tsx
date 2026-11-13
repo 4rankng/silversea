@@ -751,6 +751,9 @@ describe('DriverTripDetailPage', () => {
 
       await screen.findByText(/Số cont & seal/);
       expect(screen.getByTestId('driver-pair-tag').textContent).toBe('[KẾT HỢP]');
+      // SIL-815 — the header carries the same classification label as the
+      // journey card (plain, no brackets).
+      expect(screen.getByTestId('classification-tag').textContent).toBe('KẾT HỢP');
     });
 
     it('renders no pair tag when the trip has no ACTIVE pair row', async () => {
@@ -812,6 +815,9 @@ describe('DriverTripDetailPage', () => {
 
       await screen.findByText(/Số cont & seal/);
       expect(screen.getByTestId('driver-pair-tag').textContent).toBe('[KẾT HỢP]');
+      // SIL-815 — the header carries the same classification label as the
+      // journey card (plain, no brackets).
+      expect(screen.getByTestId('classification-tag').textContent).toBe('KẾT HỢP');
     });
 
     it('QA round-3b: isCombined linked fallback (SINGLE classification, linked sibling) renders [KẸP]', async () => {
@@ -838,7 +844,7 @@ describe('DriverTripDetailPage', () => {
       expect(screen.getByTestId('driver-pair-tag').textContent).toBe('[KẸP]');
     });
 
-    it('QA round-3b: unpaired ĐƠN card (SINGLE, unlinked) keeps detail tag-free', async () => {
+    it('SIL-815: unpaired ĐƠN card (SINGLE, unlinked) shows the plain ĐƠN header label and keeps the hero tag-free', async () => {
       boardItems = [
         {
           tripId: TRIP_ID,
@@ -859,6 +865,10 @@ describe('DriverTripDetailPage', () => {
       renderPage();
 
       await screen.findByText(/Số cont & seal/);
+      // SIL-815 — the classification label rides the detail header (the card
+      // shows ĐƠN; the detail must match 100%).
+      expect(screen.getByTestId('classification-tag').textContent).toBe('ĐƠN');
+      // The bracketed hero variant stays pair-only (SIL-636 ruling).
       expect(screen.queryByTestId('driver-pair-tag')).toBeNull();
     });
 

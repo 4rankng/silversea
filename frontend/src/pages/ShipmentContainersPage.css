@@ -116,7 +116,11 @@
    share wide enough for the label ("Bill/Booking" 9%, "Nhập/Xuất" 9%,
    container codes 9%); the sort button also flex-wraps its icon to a second
    line rather than letting it be painted over by the next th. */
-.shipment-container-ledger__col--customer { width: 7%; }
+/* SIL-819 (2026-11-13, QA 1440px): customer gives 2% to route so the
+   Nâng/hạ place token fits a full line (see col--route) — names are prose
+   that wraps at spaces, this sheet's own historical funding source.
+   Shares still sum to 100%. */
+.shipment-container-ledger__col--customer { width: 5%; }
 .shipment-container-ledger__col--billbook { width: 9%; }
 /* SIL-816 UI-06 (measured at the 1440 workboard, 2026-11-13 drive): the SỐ
    TỜ KHAI share kept its wrap-era 6% budget while SIL-756 made the code rail
@@ -147,8 +151,11 @@
    token and the cell clips the trailing characters — place names wrap.
    FB-113 v2 re-ladder: the header reads "Nâng / hạ" (the full phrase could
    not share the width the four document headers need; the cells' own
-   NÂNG/HẠ labels carry the semantics). */
-.shipment-container-ledger__col--route { width: 6%; } /* SIL-543: funds direction; place names are prose that wraps at spaces (5% broke tokens mid-word — the share stays). */
+   NÂNG/HẠ labels carry the semantics). SIL-819 (2026-11-13, QA 1440px):
+   "Cảng VipGreenPort" shattered as 'Cảng VipGree/nPort' — the whole-token
+   word needs a full-line box, so route takes 8% (plus a 6px inline padding
+   floor below) funded by KHÁCH HÀNG (5%); shares still sum to 100%. */
+.shipment-container-ledger__col--route { width: 8%; }
 /* SIL-516 doctrine sweep (SIL-515 wrap-full): 9% holds the unbreakable date
    token "30/10/2026" (74px at the data scale) whole at every hidden-column
    set — at 8% the 94% set left the token a 72px box and it spilled 2px into
@@ -402,8 +409,18 @@
 /* The place name is this cell's headline value (same role as the customer
    name / doc number / container number in their columns), so it takes the
    shared primary tier instead of the smaller note-weight text it had drifted
-   to — every column's headline now reads at one consistent size/weight. */
-.shipment-container-ledger__route > span { display: grid; min-width: 0; gap: 2px; overflow-wrap: anywhere; font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); word-break: break-word; }
+   to — every column's headline now reads at one consistent size/weight.
+   SIL-819 (2026-11-13, QA 1440px): overflow-wrap:anywhere broke 'Cảng
+   VipGreenPort' mid-word ('Cảng VipGree/nPort') — anywhere breaks greedily
+   at the end of the REMAINING space, not when the word exceeds a full line.
+   break-word + word-break:normal (the SIL-516 __code--phrase precedent)
+   wraps at word boundaries first and keeps the emergency break for a token
+   wider than the whole line only. */
+.shipment-container-ledger__route > span { display: grid; min-width: 0; gap: 2px; overflow-wrap: break-word; font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); word-break: normal; }
+/* SIL-819 — the re-laddered 8% share spends less on inline padding: at the
+   1440 workboard the 12px data tier measures 'VipGreenPort' (~74px) against
+   a ~80px line box, so the whole-token place name fits its line. */
+.shipment-container-ledger td[data-label='Nâng / hạ'] { padding-inline: 6px; }
 .shipment-container-ledger__route small { color: var(--ink-3); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); text-transform: uppercase; }
 .shipment-container-ledger__route i { justify-self: start; color: var(--ink-4); font-style: normal; transform: rotate(90deg); }
 .shipment-container-ledger__schedule { font-family: var(--font-data); }

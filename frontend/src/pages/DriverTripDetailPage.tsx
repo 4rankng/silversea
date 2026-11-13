@@ -135,14 +135,21 @@ function DriverTripDetailContent() {
   // card's classification/linked fallbacks decide — so a card tagged KẸP/
   // KẾT HỢP on the list keeps its tag here (QA round-3b: DOUBLE-classified
   // cards showed no tag on detail). Never a Trip_ID: the ruling keeps internal
-  // ids off the driver UI; partnerTripId stays a wire-only key. Single trips
-  // (ĐƠN) carry no tag on the detail screen.
-  const pairTagLabel = useMemo(() => {
-    if (trip?.pairKind === 'KEP') return '[KẸP]';
-    if (trip?.pairKind === 'KET_HOP') return '[KẾT HỢP]';
-    const label = tagLabelFor(journeyCard);
-    return label === 'KẸP' || label === 'KẾT HỢP' ? `[${label}]` : null;
+  // ids off the driver UI; partnerTripId stays a wire-only key.
+  // SIL-815 — the classification LABEL itself (ĐƠN/KẸP/KẾT HỢP/LẺ/LẤY LẺ)
+  // now rides the detail header too: the AC says the label on the card and
+  // its detail must match 100%, and the QA fail of 13/11 (R3P-677-R) showed
+  // ĐƠN living only on the card. One resolution, two renderings: the plain
+  // label in the header (classificationTag below), the bracketed variant
+  // beside the container number (pair kinds only — SIL-636 ruling intact).
+  const classificationTag = useMemo(() => {
+    if (trip?.pairKind === 'KEP') return 'KẸP';
+    if (trip?.pairKind === 'KET_HOP') return 'KẾT HỢP';
+    return tagLabelFor(journeyCard);
   }, [trip?.pairKind, journeyCard]);
+  const pairTagLabel = classificationTag === 'KẸP' || classificationTag === 'KẾT HỢP'
+    ? `[${classificationTag}]`
+    : null;
   const completed = trip?.status === TripStatus.COMPLETED;
   const cancelled = trip?.status === TripStatus.CANCELED;
   const closed = completed || cancelled;
@@ -452,7 +459,7 @@ function DriverTripDetailContent() {
 
   return (
     <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}${showCompleteStickyBar ? ' driver-task-screen--has-complete-bar' : ''}`}>
-      <DriverTripHeader trip={trip} onBack={handleBack} />
+      <DriverTripHeader trip={trip} classificationTag={classificationTag} onBack={handleBack} />
 
       {/* Card 20260926_30 item 16: compact progress strip at the top — the
           driver sees what is missing without scrolling. Counts: POD docs

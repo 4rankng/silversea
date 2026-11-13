@@ -79,3 +79,23 @@ export function receivableCellFreightKnown(input: {
   if (!input.locked) return input.liveFreight != null;
   return input.frozenFreight != null && input.frozenFreight === input.liveFreight;
 }
+
+/** SIL-820 (id 949) — the value-based half of the 24/10 law for the sell
+ *  split columns (TỔNG CHI HỘ - CÓ HĐ / TỔNG DỊCH VỤ - KHÔNG HĐ, the
+ *  CUS settlement board). A 0 renders only as a COMPUTED COMPONENT of a
+ *  determined total: the caller passes `totalDetermined` = the displayed
+ *  receivableTotal is non-null (locked rows already passed the SIL-814
+ *  frozen-vs-live gate upstream, so a legit D02 zero keeps its split zeros
+ *  and a stale frozen zero goes TRỐNG together with its total). An
+ *  undetermined lot's split zeros are fabricated (R3Q-680-B / QBOBD39C /
+ *  100GX19033 / 339IVN0130626 — open lots, AUTO + TỔNG blank) → ô TRỐNG.
+ *  Non-zero components are real entered money and always pass, and a 0
+ *  inside a determined total stays (MATS8322408000's DỊCH VỤ 0 within
+ *  5.682.000; EHPH26114592's CHI HỘ 0 within 3.978.000). */
+export function sellSplitDisplayValue(input: {
+  value: number | null;
+  totalDetermined: boolean;
+}): number | null {
+  if (input.value === 0 && !input.totalDetermined) return null;
+  return input.value;
+}
