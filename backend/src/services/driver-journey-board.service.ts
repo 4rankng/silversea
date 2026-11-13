@@ -20,6 +20,14 @@ export type DriverJourneyBucket = 'NEW' | 'RUNNING' | 'HISTORY';
 // signal (kẹp/kết-hợp cards stick together), derived below from the shipment.
 export type DriverJourneyClassification = 'SINGLE' | 'DOUBLE' | 'COMBINED' | 'LCL' | 'LCL_PICKUP';
 
+export interface DriverJourneyCardContainer {
+  containerNumber: string | null;
+  containerTypeName: string | null;
+  sealNumber: string | null;
+  /** Display-ready payload ("15000"), null when unentered. */
+  cargoWeightKg: string | null;
+}
+
 export interface DriverJourneyCard {
   fulfillmentId: number;
   tripId: number;
@@ -60,6 +68,16 @@ export interface DriverJourneyCard {
   /** Container payload (shipments_containers.cargo_weight_kg) — the driver
    *  card and detail render it as "· 15.000 kg" (card 20261004_356). */
   cargoWeightKg: string | null;
+  /**
+   * SIL-815 (id 943, UAT 12/11) — the trip's OWN containers (trip_containers,
+   * id order), the exact grain the Chi tiết lệnh screen renders. The
+   * fulfillment-bound singular fields above were the only container source and
+   * showed 1 cont on R3P-677-R while the trip (and the detail) carried 2 —
+   * list and detail must match 100%. First entry mirrors the singular fields;
+   * a trip with no trip_containers rows falls back to the fulfillment-bound
+   * declared container so a not-yet-typed card keeps its strip.
+   */
+  containers: DriverJourneyCardContainer[];
   // 3a0bd5af: loại hình cell — the trip's LAST leg ĐÓNG/TRẢ (destination
   // semantics, same rule the billing draft applies); null when no legs.
   loadingType: string | null;
@@ -157,6 +175,26 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     containerTypeName: s.containerTypes.name,
     sealNumber: s.shipmentContainers.sealNumber,
     cargoWeightKg: s.shipmentContainers.cargoWeightKg,
+    // SIL-815 — the trip's own containers (trip_containers, id order), the
+    // ONE grain the Chi tiết lệnh screen renders (listTripContainers). The
+    // fulfillment-bound columns above stay as the not-yet-typed fallback +
+    // the declared-payload mirror for single-cont trips.
+    tripContainerList: sql<Array<{
+      containerNumber: string | null;
+      containerTypeName: string | null;
+      sealNumber: string | null;
+      cargoWeightKg: string | number | null;
+    }>>`coalesce((
+      select json_agg(json_build_object(
+        'containerNumber', tc.container_number,
+        'containerTypeName', ct.name,
+        'sealNumber', tc.seal_number,
+        'cargoWeightKg', tc.cargo_weight_kg
+      ) order by tc.id)
+      from ${s.tripContainers} tc
+      left join ${s.containerTypes} ct on ct.id = tc.container_type_id
+      where tc.trip_id = ${s.trips.id}
+    ), '[]'::json)`,
     // 3a0bd5af: HÀNG ĐÓNG/TRẢ badge source — the trip's last leg loadingType.
     // Scalar subquery keeps one row per fulfillment (a trip_legs join would
     // fan out multi-leg trips into duplicate cards).
@@ -272,6 +310,35 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
         row.containerDropoffPortName,
         row.tradeDirection,
       );
+      // SIL-815 — the card's container strip = the trip's own containers, the
+      // exact list the Chi tiết lệnh screen renders (listTripContainers grain:
+      // id order, trip-local seal + weight + type). A trip with no typed
+      // trip_containers rows falls back to the fulfillment-bound declared
+      // container (the pre-OCR card's only source). Card 091026164520's
+      // declared-payload law mirrors getDriverTripDetail: a single-cont trip
+      // displays the declared weight; multi-cont trips show the trip-local
+      // weights on BOTH surfaces, so list and detail match 100%.
+      const tripContainers = (row.tripContainerList ?? []).map((entry) => ({
+        containerNumber: entry.containerNumber,
+        containerTypeName: entry.containerTypeName,
+        sealNumber: entry.sealNumber,
+        cargoWeightKg: entry.cargoWeightKg == null || entry.cargoWeightKg === ''
+          ? null
+          : String(Number(entry.cargoWeightKg)),
+      }));
+      const cardContainers: DriverJourneyCardContainer[] = tripContainers.length > 0
+        ? tripContainers
+        : [{
+          containerNumber: row.containerNumber,
+          containerTypeName: row.containerTypeName,
+          sealNumber: row.sealNumber,
+          cargoWeightKg: row.cargoWeightKg == null || row.cargoWeightKg === '' ? null : String(Number(row.cargoWeightKg)),
+        }];
+      const declaredPayload = row.cargoWeightKg == null || row.cargoWeightKg === '' ? null : String(Number(row.cargoWeightKg));
+      if (cardContainers.length === 1 && declaredPayload != null) {
+        cardContainers[0] = { ...cardContainers[0], cargoWeightKg: declaredPayload };
+      }
+      const leadContainer = cardContainers[0]!;
       return {
       fulfillmentId: row.fulfillmentId,
       tripId: row.tripId,
@@ -315,12 +382,13 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       // a second row naming the same place is the redundancy the user
       // already rejected.
       returnDepotName: deliveryStage.returnDepotName,
-      containerNumber: row.containerNumber,
-      containerTypeName: row.containerTypeName,
-      sealNumber: row.sealNumber,
+      containerNumber: leadContainer.containerNumber,
+      containerTypeName: leadContainer.containerTypeName,
+      sealNumber: leadContainer.sealNumber,
       // PG numeric arrives "15000.00" — display-ready form (Number → "15000");
       // null/blank passthrough stays null so the FE segment omits cleanly.
-      cargoWeightKg: row.cargoWeightKg == null || row.cargoWeightKg === '' ? null : String(Number(row.cargoWeightKg)),
+      cargoWeightKg: leadContainer.cargoWeightKg,
+      containers: cardContainers,
       loadingType: row.loadingType,
       tradeDirection: row.tradeDirection,
       contactName: row.contactName,

@@ -4,7 +4,7 @@ import { ArrowRight, Building2, Loader2, Package2, Route } from 'lucide-react';
 import { useDriverJourneyBoard } from '../hooks/useDriverQueries';
 import { useMonth } from '../hooks/useMonth';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
-import type { DriverJourneyCard } from '../api/driverJourneyBoard';
+import type { DriverJourneyCard, DriverJourneyCardContainer } from '../api/driverJourneyBoard';
 import { parseDriverTaskNote } from '@tingting/shared';
 import { formatDateTimeShort, formatWeight } from '../lib/format';
 import { PageHeader } from '../components/UI';
@@ -83,7 +83,21 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
   const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
   const isNew = card.bucket === 'NEW';
   const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
-  const hasContainer = isPresent(card.containerNumber) || isPresent(card.sealNumber) || isPresent(card.containerTypeName);
+  // SIL-815 — the strip list is the trip's own containers (the exact list the
+  // Chi tiết lệnh screen renders): one strip per container so a multi-cont
+  // trip shows every number its detail shows. The singular fields mirror the
+  // first entry (older cached boards without `containers` render identically).
+  const containerStrips: DriverJourneyCardContainer[] = card.containers?.length
+    ? card.containers
+    : [{
+      containerNumber: card.containerNumber,
+      containerTypeName: card.containerTypeName,
+      sealNumber: card.sealNumber,
+      cargoWeightKg: card.cargoWeightKg,
+    }];
+  const renderedStrips = containerStrips.filter((cont) =>
+    isPresent(cont.containerNumber) || isPresent(cont.sealNumber) || isPresent(cont.containerTypeName));
+  const hasContainer = renderedStrips.length > 0;
   const locations = driverLocationLabels(card.tradeDirection, card.dropPortName, card.returnDepotName);
   /* Card 121026141020 (FB-082 retest): no "Giao hàng" chip here. The delivery
      destination is the factory, and the card's headline row already names it;
@@ -163,32 +177,35 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
           ("Chưa có số cont"). */}
       {(hasContainer || hasPorts || tradeLabel) ? (
         <div className="driver-journey-card__container-block">
-          {hasContainer ? (
-            <p className="driver-journey-card__container">
+          {hasContainer ? renderedStrips.map((cont, index) => (
+            <p className="driver-journey-card__container" key={`cont-${index}`}>
               <Package2 size={13} aria-hidden="true" />
-              {isPresent(card.containerNumber) ? (
-                <span className="driver-journey-card__cont-no">{card.containerNumber}</span>
+              {isPresent(cont.containerNumber) ? (
+                <span className="driver-journey-card__cont-no">{cont.containerNumber}</span>
               ) : (
                 <span className="driver-journey-card__cont-pending">Chưa có số cont</span>
               )}
               {/* SIL-636 — pair tag rides the container number (ruling:
                   "tag [KẸP] cạnh số container, trên cả 2 thẻ của cặp").
-                  The flex strip wraps cleanly at 390px. */}
-              <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
-                {tag}
-              </span>
-              {isPresent(card.containerTypeName) ? (
-                <span className="driver-journey-card__cont-type">{card.containerTypeName}</span>
+                  The flex strip wraps cleanly at 390px. One tag per card —
+                  it rides the FIRST strip (SIL-815). */}
+              {index === 0 && (
+                <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
+                  {tag}
+                </span>
+              )}
+              {isPresent(cont.containerTypeName) ? (
+                <span className="driver-journey-card__cont-type">{cont.containerTypeName}</span>
               ) : null}
               {/* SIL-733 (standard CUS-08) — payload formatted in tons (e.g. "12 tấn") */}
-              {isPresent(card.cargoWeightKg) ? (
-                <span className="driver-journey-card__cont-weight" data-testid="cont-weight">{formatWeight(card.cargoWeightKg)}</span>
+              {isPresent(cont.cargoWeightKg) ? (
+                <span className="driver-journey-card__cont-weight" data-testid="cont-weight">{formatWeight(cont.cargoWeightKg)}</span>
               ) : null}
-              {isPresent(card.sealNumber) ? (
-                <span className="driver-journey-card__seal">Seal {card.sealNumber}</span>
+              {isPresent(cont.sealNumber) ? (
+                <span className="driver-journey-card__seal">Seal {cont.sealNumber}</span>
               ) : null}
             </p>
-          ) : null}
+          )) : null}
           {/* SIL-797 (KB Ch4 §4.2.2) — nhiệm vụ viết hoa TRÊN DÒNG RIÊNG: the
               ĐÓNG/TRẢ pill left the container strip (it rode that line as a
               3rd column, reading as part of "CONT [KẸP] 20'RF 12 tấn"). The
