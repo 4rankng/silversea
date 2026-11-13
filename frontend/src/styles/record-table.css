@@ -99,9 +99,14 @@
 }
 
 /* Semantic opt-ins: human text keeps a readable intrinsic column, while a
-   long business reference wraps completely instead of starving its neighbors. */
+   long business reference wraps completely instead of starving its neighbors.
+   SIL-816 UI-03 (measured at the 1440 workboard, 2026-11-13): the twelve-column
+   deposit board paid 18ch each for KHÁCH HÀNG + GHI CHÚ and its action run
+   ("Ngày CV / số tiền" + "Đã hoàn cược") hung past the viewport edge — the
+   floor drops to 12ch so both buttons sit on screen; names and notes still
+   wrap full (the wrap law owns the long tail). */
 .record-table tbody td.record-table__text {
-  min-width: 18ch;
+  min-width: 12ch;
 }
 
 .record-table__reference {

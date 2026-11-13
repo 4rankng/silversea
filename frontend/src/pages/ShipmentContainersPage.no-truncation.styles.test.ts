@@ -114,6 +114,12 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(width('container')).toBeGreaterThanOrEqual(9);
     expect(width('billbook')).toBeGreaterThanOrEqual(9);
     expect(width('direction')).toBeGreaterThanOrEqual(7);
+    // SIL-816 UI-06: the SỐ TỜ KHAI share pays the twelve-char token floor —
+    // measured 78px for "123456789012" (caption scale) behind ~21px of
+    // cell-trigger chrome ≈ a 99px cell; 9% of the 1144px workboard canvas
+    // ≈ 103px at the full thirteen-column set (more at every hidden-column
+    // set). A smaller share cuts the digits again exactly as SIL-816 filed.
+    expect(width('declaration')).toBeGreaterThanOrEqual(9);
     // The in-cell BKS editor stays inside its cell at the SIL-543 share.
     expect(width('vehicle')).toBeGreaterThanOrEqual(12);
     // SIL-756 (Round 3): Container numbers, declaration numbers, and Bill/Booking are single-token identifiers — nowrap + overflow-x: auto + tooltip (no ellipsis)

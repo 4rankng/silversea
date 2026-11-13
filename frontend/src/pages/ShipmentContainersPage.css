@@ -116,11 +116,22 @@
    share wide enough for the label ("Bill/Booking" 9%, "Nhập/Xuất" 9%,
    container codes 9%); the sort button also flex-wraps its icon to a second
    line rather than letting it be painted over by the next th. */
-.shipment-container-ledger__col--customer { width: 9%; }
+.shipment-container-ledger__col--customer { width: 7%; }
 .shipment-container-ledger__col--billbook { width: 9%; }
-.shipment-container-ledger__col--declaration { width: 6%; }
+/* SIL-816 UI-06 (measured at the 1440 workboard, 2026-11-13 drive): the SỐ
+   TỜ KHAI share kept its wrap-era 6% budget while SIL-756 made the code rail
+   an atomic twelve-char token (nowrap + in-cell scroll) — the rail measured
+   61px against the 78px twelve-digit token ("Chưa có tờ khai" itself read
+   cut at 1440). The share re-ladder buys the token its floor: 9% of the
+   1144px canvas ≈ a 103px cell ≈ an 82px rail at the full thirteen-column
+   set — more at every hidden-column set (dormant shares scale up). Funded by
+   the two prose columns — KHÁCH HÀNG (names wrap at spaces, this sheet's own
+   historical funding source) and HÃNG TÀU (whole-token names fall to the
+   house emergency break; the wrap-not-truncate law carries the tail). The
+   1101-1365 / 761-1100 band ladders keep their own budgets (untouched). */
+.shipment-container-ledger__col--declaration { width: 9%; }
 .shipment-container-ledger__col--direction { width: 7%; }
-.shipment-container-ledger__col--shippingline { width: 9%; }
+.shipment-container-ledger__col--shippingline { width: 8%; }
 .shipment-container-ledger__col--container { width: 9%; }
 /* SIL-547 (spec 23/10 §2): the on-demand CHỌN column owns a real 3% share so
    the thirteen shares still sum to 100% under table-layout: fixed. Funded by

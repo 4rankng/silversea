@@ -67,6 +67,16 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
     expect(tsx).toContain('<td data-label="" className="record-table__action">');
   });
 
+  it('the shared wide-text floor leaves the two-button action run on screen (SIL-816 UI-03)', () => {
+    // Measured at the 1440 workboard (2026-11-13 drive): the action run
+    // ("Ngày CV / số tiền" 150px + "Đã hoàn cược" 109px) hung past the
+    // viewport edge while KHÁCH HÀNG + GHI CHÚ each carried the shared 18ch
+    // human-text floor. The page sheet owns no table skin, so the fit budget
+    // lives in the shared floor — a re-widening silently re-breaks the run.
+    const shared = readFileSync(resolve(process.cwd(), 'src/styles/record-table.css'), 'utf8');
+    expect(shared).toMatch(/\.record-table tbody td\.record-table__text\s*\{\s*min-width:\s*12ch;/);
+  });
+
   it('loading and empty are the shared primitives, never bespoke rows', () => {
     expect(tsx).toContain('<SkeletonTable');
     expect(tsx).toContain('<EmptyState');

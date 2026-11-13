@@ -7,6 +7,8 @@
  * (money + VAT gap) and the calendar-month period default.
  */
 import { render, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -242,6 +244,19 @@ describe('PartyMonthlyProductionSummary', () => {
     const { container } = renderSummary();
     await waitFor(() => expect(getPhoiPhieuReport).not.toHaveBeenCalled());
     expect(container.querySelector('.pm-summary')).toBeNull();
+  });
+});
+
+// SIL-816 UI-04 — the LẬP PHIẾU fit budget lives in the numeric gutters
+// (measured at the 1440 workboard, 2026-11-13 drive): the wide matrix
+// overran its scroll edge by 89px on /debt and 39px on /payables while every
+// numeric cell paid the base's 24px inline gutters — the button hung past
+// the viewport edge ("[Lap…]"). A re-widening silently re-breaks it.
+describe('pm-summary numeric gutter budget (SIL-816 UI-04)', () => {
+  it('numeric columns carry the compact inline gutters that pay the Lập Phiếu fit', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/PartyMonthlyProductionSummary.css'), 'utf8');
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(rules).toMatch(/\.pm-summary__table :is\(td, th\)\.num\s*\{\s*padding-inline:\s*6px;/);
   });
 });
 
