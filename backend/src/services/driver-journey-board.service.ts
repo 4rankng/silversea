@@ -183,6 +183,13 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     // ONE grain the Chi tiết lệnh screen renders (listTripContainers). The
     // fulfillment-bound columns above stay as the not-yet-typed fallback +
     // the declared-payload mirror for single-cont trips.
+    // SIL-818 — a trip container row typed with its NUMBER only (type left
+    // unentered) still displays the lot's declared type/weight: the
+    // shipment container matched by container_number is the same physical
+    // box, the data is already stored, and coalesce keeps every typed
+    // trip-local value authoritative. The detail screen (driver.service.ts,
+    // getDriverTripDetail) applies the identical fill, so the card and the
+    // detail match 100%.
     tripContainerList: sql<Array<{
       containerNumber: string | null;
       containerTypeName: string | null;
@@ -191,12 +198,14 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     }>>`coalesce((
       select json_agg(json_build_object(
         'containerNumber', tc.container_number,
-        'containerTypeName', ct.name,
+        'containerTypeName', coalesce(ct.name, ctd.name),
         'sealNumber', tc.seal_number,
-        'cargoWeightKg', tc.cargo_weight_kg
+        'cargoWeightKg', coalesce(tc.cargo_weight_kg, scd.cargo_weight_kg)
       ) order by tc.id)
       from ${s.tripContainers} tc
       left join ${s.containerTypes} ct on ct.id = tc.container_type_id
+      left join ${s.shipmentContainers} scd on scd.shipment_id = ${s.shipments.id} and scd.container_number = tc.container_number
+      left join ${s.containerTypes} ctd on ctd.id = scd.container_type_id
       where tc.trip_id = ${s.trips.id}
     ), '[]'::json)`,
     // 3a0bd5af: HÀNG ĐÓNG/TRẢ badge source — the trip's last leg loadingType.
