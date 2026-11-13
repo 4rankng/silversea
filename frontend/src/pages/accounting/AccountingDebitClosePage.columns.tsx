@@ -5,8 +5,9 @@ import { StatusPill } from '../../components/UI';
 import { NameCell } from '../../components/shared/NameCell';
 import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
 import { Skeleton } from '../../components/shared/Skeleton';
-import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
+import type { AccountingDebitBoardRow, DebitRateField } from '../../api/accountingDebitClient';
 import { ExternalCostCell } from './AccountingDebitClosePage.external-cost';
+import { RateCell } from './AccountingDebitClosePage.rate-cell';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
 /**
@@ -35,6 +36,10 @@ export interface CellContext {
   /** SIL-771 — save the row's editable 'Chi phí ngoài'. */
   saveExternalCost?: (shipmentId: number, value: number | null) => void;
   externalCostSaving?: boolean;
+  /** SIL-805 — save one inline-editable rate/cost cell of the row. */
+  saveRate?: (shipmentId: number, field: DebitRateField, value: number) => void;
+  /** SIL-805 — the ONE cell whose save is in flight (others stay editable). */
+  rateSaving?: { shipmentId: number; field: DebitRateField } | null;
   /** FB-145 — true while a [Tách nhóm] refresh skeletons the cước-thu line. */
   ratesRefreshing?: boolean;
   /** Card 211026024348 — after an unmerge the board refetches. */
@@ -78,11 +83,34 @@ function money(value: string | null, missingLabel: string): ReactNode {
     : formatCurrency(Number(value));
 }
 
-/** One labeled line of a multi-line money cell (Rev2: label muted, value
- *  tabular right; the label may wrap, the NUMBER never does). */
-function MoneyLine({ label, children }: { label: string; children: ReactNode }) {
+/**
+ * SIL-805 — the editable face of one of the 8 rate/cost cells: an inline
+ * input while the lot is unlocked (chưa khóa sổ — AC2) and `saveRate` is
+ * wired; the formatted text once the cost lock froze the row (sau khóa số
+ * đọc thôi) or the cell renders outside the page (records view without a
+ * saver). The missing-money label stays the locked/unknown face's law (§1).
+ */
+function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null, missingLabel: string): ReactNode {
+  if (row.costLockedAt != null || context?.saveRate == null) return money(value, missingLabel);
   return (
-    <span className="debit-line">
+    <RateCell
+      row={row}
+      field={field}
+      label={label}
+      value={value}
+      onCommit={context.saveRate}
+      saving={context.rateSaving?.shipmentId === row.shipmentId && context.rateSaving.field === field}
+    />
+  );
+}
+
+/** One labeled line of a multi-line money cell (Rev2: label muted, value
+ *  tabular right; the label may wrap, the NUMBER never does). `rate` marks
+ *  a SIL-805 inline-editable line: the value track flexes so the input
+ *  fills the space left of the (wrapping) label inside the fixed track. */
+function MoneyLine({ label, rate, children }: { label: string; rate?: boolean; children: ReactNode }) {
+  return (
+    <span className={rate ? 'debit-line debit-line--rate' : 'debit-line'}>
       <span className="debit-line__label">{label}</span>
       <span className="debit-line__value">{children}</span>
     </span>
@@ -217,14 +245,14 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     key: 'cucPhaiThu', label: 'Cước phải thu', className: 'debit-col--money-group', pinned: true,
     cell: (row, context) => (
       <div className="debit-money-group">
-        <MoneyLine label="Cước thu">
+        <MoneyLine label="Cước thu" rate>
           {context?.ratesRefreshing
             ? <Skeleton width={64} height={16} />
-            : money(row.thu.cuocThu, 'Thiếu cước thu')}
+            : editableRate(row, context, 'cuocThu', 'Cước thu', row.thu.cuocThu, 'Thiếu cước thu')}
         </MoneyLine>
-        <MoneyLine label="Lạch Huyện">{money(row.thu.lachHuyen, 'Thiếu lạch huyền')}</MoneyLine>
-        <MoneyLine label="Phụ PS">{money(row.thu.phuPs, 'Thiếu phụ PS')}</MoneyLine>
-        <MoneyLine label="Phát sinh (CUS)">{money(row.thu.phatSinhCus, 'Thiếu phát sinh (cus)')}</MoneyLine>
+        <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', row.thu.lachHuyen, 'Thiếu lạch huyền')}</MoneyLine>
+        <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', row.thu.phuPs, 'Thiếu phụ PS')}</MoneyLine>
+        <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', row.thu.phatSinhCus, 'Thiếu phát sinh (cus)')}</MoneyLine>
       </div>
     ),
   },
@@ -241,12 +269,12 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // (not inside) Tổng trả by the service — it folds here as its labeled line
     // so the fee stays on the board without a 10th track.
     key: 'cucPhaiTra', label: 'Cước phải trả', className: 'debit-col--money-group', pinned: true,
-    cell: (row) => (
+    cell: (row, context) => (
       <div className="debit-money-group">
-        <MoneyLine label="Cước trả ĐV">{money(row.tra.cuocTraDv, 'Thiếu cước trả ĐV')}</MoneyLine>
-        <MoneyLine label="Lạch Huyện ĐV">{money(row.tra.lachHuyenDv, 'Thiếu lạch huyền ĐV')}</MoneyLine>
-        <MoneyLine label="Phát sinh ĐV">{money(row.tra.phatSinhDv, 'Thiếu phát sinh ĐV')}</MoneyLine>
-        <MoneyLine label="Phí RU">{money(row.tra.phiRu, 'Thiếu phí RU')}</MoneyLine>
+        <MoneyLine label="Cước trả ĐV" rate>{editableRate(row, context, 'cuocTraDv', 'Cước trả ĐV', row.tra.cuocTraDv, 'Thiếu cước trả ĐV')}</MoneyLine>
+        <MoneyLine label="Lạch Huyện ĐV" rate>{editableRate(row, context, 'lachHuyenDv', 'Lạch Huyện ĐV', row.tra.lachHuyenDv, 'Thiếu lạch huyền ĐV')}</MoneyLine>
+        <MoneyLine label="Phát sinh ĐV" rate>{editableRate(row, context, 'phatSinhDv', 'Phát sinh ĐV', row.tra.phatSinhDv, 'Thiếu phát sinh ĐV')}</MoneyLine>
+        <MoneyLine label="Phí RU" rate>{editableRate(row, context, 'phiRu', 'Phí RU', row.tra.phiRu, 'Thiếu phí RU')}</MoneyLine>
       </div>
     ),
   },

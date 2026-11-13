@@ -8,8 +8,10 @@ import {
   listSettlementRounds,
   createSettlementRound,
   setDebitExternalCost,
+  setDebitRateOverrides,
   reconcileAndHideDebitLots,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
+  type DebitRateField,
 } from '../../api/accountingDebitClient';
 import { createDebitNoteBatch, exportDebitNoteFile, lockShipmentCost } from '../../api/shipmentDebit';
 import { updateLclTruck } from '../../api/dispatchPlanningClient';
@@ -265,6 +267,14 @@ export default function AccountingDebitClosePage() {
     onSuccess: () => { void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll }); },
     onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
   });
+  // SIL-805 — lưu ô giá/chi phí sửa trực tiếp trên dòng: cùng luật refetch
+  // sau lưu — Lợi nhuận (server tính lại từ các ô đã ghi đè) cập nhật NGAY
+  // sau lưu, không cần tải lại trang.
+  const ratesMutation = useMutation({
+    mutationFn: setDebitRateOverrides,
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll }); },
+    onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
+  });
   // SIL-773 — 'Lưu - Phê duyệt từng dòng và ẩn': các dòng đã chọn rời danh
   // sách tác nghiệp → clear selection (chúng không còn trên mặt bảng).
   const reconcileHideMutation = useMutation({
@@ -292,6 +302,14 @@ export default function AccountingDebitClosePage() {
     isBusy: confirmMutation.isPending || withdrawMutation.isPending,
     saveExternalCost: (shipmentId, value) => externalCostMutation.mutate({ shipmentId, chiPhiNgoai: value }),
     externalCostSaving: externalCostMutation.isPending,
+    // SIL-805 — one cell saves at a time; its input disables while in flight.
+    saveRate: (shipmentId, field, value) => ratesMutation.mutate({ shipmentId, rates: { [field]: value } }),
+    rateSaving: ratesMutation.isPending && ratesMutation.variables != null
+      ? {
+          shipmentId: ratesMutation.variables.shipmentId,
+          field: (Object.keys(ratesMutation.variables.rates) as DebitRateField[])[0],
+        }
+      : null,
     // FB-145 — the [Tách nhóm] skeleton flag for the money columns.
     ratesRefreshing: revGroupRefreshing,
     // Card 211026024348 — the shared "Tách nhóm" action landed: the board's

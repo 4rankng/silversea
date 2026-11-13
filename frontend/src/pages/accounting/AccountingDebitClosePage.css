@@ -115,6 +115,18 @@ p.debit-note { margin: 0 0 8px; }
 .debit-line--stacked { display: grid; gap: 2px; }
 .debit-line--stacked .debit-ext-cost { width: 100%; }
 
+/* SIL-805 — the 8 inline-editable rate/cost lines keep the labeled-line face:
+ * the value track flexes (min-width 0) so the input fills the space left of
+ * the wrapping label inside the fixed nine-track budget; the input inherits
+ * the Chi phí ngoài face (same class → the toolbar [Lưu] blur covers it). */
+.debit-line--rate .debit-line__value { flex: 1 1 auto; min-width: 0; }
+.debit-line--rate .debit-ext-cost {
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+}
+.debit-line--rate .debit-ext-cost::placeholder { color: var(--ink-3); }
+
 /* Rev2 cột 5 — the Tổng thu rollup reads bold (the QA-passed face). */
 .debit-tong-thu { font-weight: var(--fw-bold, 700); color: var(--ink); }
 

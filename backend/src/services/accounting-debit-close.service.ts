@@ -69,6 +69,92 @@ export function computeDebitBoardProfit(
   return money(Number(tongThu) - Number(tongTra) - external);
 }
 
+// ─── SIL-805 — kế toán sửa trực tiếp ô giá/chi phí trên dòng ───────────────
+
+/** The WIRE names of the 8 accountant-editable money cells (route + FE). */
+export type DebitRateOverrideField =
+  | 'cuocThu' | 'lachHuyen' | 'phuPs' | 'phatSinhCus'
+  | 'cuocTraDv' | 'lachHuyenDv' | 'phatSinhDv' | 'phiRu';
+
+export type DebitRateOverrideInput = Partial<Record<DebitRateOverrideField, number | null>>;
+
+/** One lot's stored overrides (shipments_debit_rate_overrides row, string|null). */
+export interface ShipmentDebitRateOverrides {
+  cuocThu: string | null;
+  lachHuyenThu: string | null;
+  phuPs: string | null;
+  phatSinhCus: string | null;
+  cuocTraDv: string | null;
+  lachHuyenDv: string | null;
+  phatSinhDv: string | null;
+  phiRu: string | null;
+}
+
+/** The derived cell values + their per-channel KNOWN flags (§ known law). */
+export interface DebitBoardDerivedCells {
+  cuocThu: string | null; cuocThuKnown: boolean;
+  lachHuyen: string | null; lachHuyenKnown: boolean;
+  phuPs: string | null; phuPsKnown: boolean;
+  phatSinhCus: string | null; phatSinhCusKnown: boolean;
+  cuocTraDv: string | null; cuocTraDvKnown: boolean;
+  lachHuyenDv: string | null; lachHuyenDvKnown: boolean;
+  phatSinhDv: string | null; phatSinhDvKnown: boolean;
+  phiRu: string | null;
+}
+
+/**
+ * SIL-805 — merge the accountant's overrides into the derived money cells.
+ * An override replaces the derived value of ITS cell and counts as KNOWN
+ * even when 0 (a computed financial zero is a value, card 20261002_293);
+ * every other cell keeps its derived channel. Tổng thu/Tổng trả roll from
+ * the merged cells (Phí RU stays display-only), so Lợi nhuận
+ * (= Tổng thu − Tổng trả − Chi phí ngoài) reads the override too.
+ */
+export function applyDebitRateOverridesToCells(
+  derived: DebitBoardDerivedCells,
+  overrides: ShipmentDebitRateOverrides | undefined,
+): { thu: AccountingDebitBoardRow['thu']; tra: AccountingDebitBoardRow['tra'] } {
+  const merge = (
+    override: string | null | undefined,
+    value: string | null,
+    known: boolean,
+  ): { value: string | null; known: boolean } =>
+    override != null
+      ? { value: money(toNumber(override)), known: true }
+      : { value, known };
+  const thuCells = [
+    merge(overrides?.cuocThu, derived.cuocThu, derived.cuocThuKnown),
+    merge(overrides?.lachHuyenThu, derived.lachHuyen, derived.lachHuyenKnown),
+    merge(overrides?.phuPs, derived.phuPs, derived.phuPsKnown),
+    merge(overrides?.phatSinhCus, derived.phatSinhCus, derived.phatSinhCusKnown),
+  ];
+  const traCells = [
+    merge(overrides?.cuocTraDv, derived.cuocTraDv, derived.cuocTraDvKnown),
+    merge(overrides?.lachHuyenDv, derived.lachHuyenDv, derived.lachHuyenDvKnown),
+    merge(overrides?.phatSinhDv, derived.phatSinhDv, derived.phatSinhDvKnown),
+  ];
+  const sumKnown = (cells: Array<{ value: string | null; known: boolean }>): string | null =>
+    cells.some((cell) => cell.known)
+      ? money(cells.reduce((sum, cell) => sum + (cell.known ? Number(cell.value) : 0), 0))
+      : null;
+  return {
+    thu: {
+      cuocThu: thuCells[0].value,
+      lachHuyen: thuCells[1].value,
+      phuPs: thuCells[2].value,
+      phatSinhCus: thuCells[3].value,
+      tongThu: sumKnown(thuCells),
+    },
+    tra: {
+      cuocTraDv: traCells[0].value,
+      lachHuyenDv: traCells[1].value,
+      phatSinhDv: traCells[2].value,
+      tong1: sumKnown(traCells),
+      phiRu: merge(overrides?.phiRu, derived.phiRu, true).value,
+    },
+  };
+}
+
 export interface AccountingDebitBoardRow {
   shipmentId: number;
   code: string | null;
@@ -551,6 +637,13 @@ export async function getAccountingDebitBoard(query: {
     ));
   const activeLockByLot = new Map(activeLockRows.map((row) => [row.shipmentId, row.lockedAt] as const));
 
+  // SIL-805 — the accountant's per-lot overrides (one row max per lot; absent
+  // row = every cell keeps its derived channel).
+  const rateOverrideRows = await executor.select()
+    .from(s.shipmentDebitRateOverrides)
+    .where(inArray(s.shipmentDebitRateOverrides.shipmentId, lotIds));
+  const rateOverrideByLot = new Map(rateOverrideRows.map((row) => [row.shipmentId, row] as const));
+
   // Resolve external-carrier names in ONE customers query, then assemble
   // Phân xe labels per lot: OWN plate and/or carrier name (+ external plate
   // fallback when the carrier has no name row).
@@ -612,40 +705,32 @@ export async function getAccountingDebitBoard(query: {
     // Tổng thu so the merged 100%/0₫ law cannot desync between them.
     const freight = effectiveFreightByLot.get(lot.id) ?? null;
     const psAuto = psAutoByLot.get(lot.id);
-    const zoneCharge = zoneChargeByLot.get(lot.id);
     const otherSell = otherSellByLot.get(lot.id);
     const otherSellKnownFlag = otherSellKnown.has(lot.id);
     const zoneCost = zoneCostByLot.get(lot.id);
     const otherOps = otherOpsByLot.get(lot.id);
     const carrier = carrierByLot.get(lot.id);
     const adj = adjByLot.get(lot.id);
-    const cuocThu = freight != null ? money(freight) : null;
-    const lachHuyenThu = zoneChargeByLot.has(lot.id) ? money(zoneChargeByLot.get(lot.id)!) : null;
-    const phuPs = psAuto != null ? money(psAuto) : null;
-    const phatSinhCus = otherSellKnownFlag ? money(otherSell ?? 0) : null;
-    const thuComponents = [
-      { known: freight != null, value: freight ?? 0 },
-      { known: zoneChargeByLot.has(lot.id), value: zoneCharge ?? 0 },
-      { known: psAuto != null, value: psAuto ?? 0 },
-      { known: otherSellKnownFlag, value: otherSell ?? 0 },
-    ];
-    const tongThu = thuComponents.some((c) => c.known)
-      ? money(thuComponents.reduce((sum, c) => sum + c.value, 0))
-      : null;
-    const cuocTraDv = carrier?.known ? money(carrier.total) : null;
-    const lachHuyenDv = zoneCostByLot.has(lot.id) ? money(zoneCost ?? 0) : null;
-    const phatSinhDv = otherOpsByLot.has(lot.id) ? money(otherOps ?? 0) : null;
-    const traComponents = [
-      { known: carrier?.known ?? false, value: carrier?.known ? (carrier.total ?? 0) : 0 },
-      { known: zoneCostByLot.has(lot.id), value: zoneCost ?? 0 },
-      { known: otherOpsByLot.has(lot.id), value: otherOps ?? 0 },
-    ];
-    const tong1 = traComponents.some((c) => c.known)
-      ? money(traComponents.reduce((sum, c) => sum + c.value, 0))
-      : null;
-    const phiRu = ruByLot.has(lot.id) ? money(ruByLot.get(lot.id)!) : null;
+    // SIL-805 — the accountant's overrides replace the derived cells BEFORE
+    // the rollups, so Tổng thu/Tổng trả/Lợi nhuận always read what the board
+    // shows. No override row → the assembly is byte-identical to the old
+    // derived channels (unit-pinned in debit-board-rate-overrides.test.ts).
+    const cells = applyDebitRateOverridesToCells({
+      cuocThu: freight != null ? money(freight) : null, cuocThuKnown: freight != null,
+      lachHuyen: zoneChargeByLot.has(lot.id) ? money(zoneChargeByLot.get(lot.id)!) : null,
+      lachHuyenKnown: zoneChargeByLot.has(lot.id),
+      phuPs: psAuto != null ? money(psAuto) : null, phuPsKnown: psAuto != null,
+      phatSinhCus: otherSellKnownFlag ? money(otherSell ?? 0) : null,
+      phatSinhCusKnown: otherSellKnownFlag,
+      cuocTraDv: carrier?.known ? money(carrier.total) : null, cuocTraDvKnown: carrier?.known ?? false,
+      lachHuyenDv: zoneCostByLot.has(lot.id) ? money(zoneCost ?? 0) : null,
+      lachHuyenDvKnown: zoneCostByLot.has(lot.id),
+      phatSinhDv: otherOpsByLot.has(lot.id) ? money(otherOps ?? 0) : null,
+      phatSinhDvKnown: otherOpsByLot.has(lot.id),
+      phiRu: ruByLot.has(lot.id) ? money(ruByLot.get(lot.id)!) : null,
+    }, rateOverrideByLot.get(lot.id));
     const chiPhiNgoai = lot.debitExternalCost == null ? null : money(toNumber(lot.debitExternalCost));
-    const loiNhuan = computeDebitBoardProfit(tongThu, tong1, chiPhiNgoai);
+    const loiNhuan = computeDebitBoardProfit(cells.thu.tongThu, cells.tra.tong1, chiPhiNgoai);
     return {
       shipmentId: lot.id,
       code: lot.code,
@@ -686,8 +771,8 @@ export async function getAccountingDebitBoard(query: {
             ? lclPrincipalRefs.get(lot.costGroupId) ?? null
             : null),
       } : null,
-      thu: { cuocThu, lachHuyen: lachHuyenThu, phuPs, phatSinhCus, tongThu },
-      tra: { cuocTraDv, lachHuyenDv, phatSinhDv, tong1, phiRu },
+      thu: cells.thu,
+      tra: cells.tra,
       chiPhiNgoai,
       loiNhuan,
       debitHiddenAt: lot.debitHiddenAt?.toISOString() ?? null,
@@ -839,6 +924,98 @@ export async function setShipmentDebitExternalCost(input: {
       .where(eq(s.shipments.id, row.id));
     return { shipmentId: row.id, chiPhiNgoai: next };
   });
+}
+
+/**
+ * SIL-805 — kế toán sửa trực tiếp ô giá/chi phí trên bảng Kiểm soát lô hàng
+ * (shipments_debit_rate_overrides, một dòng mỗi lô). Mỗi key trong `rates`
+ * là MỘT ô được lưu: number nguyên VND = ghi đè giá trị tự động của ô đó;
+ * null = xoá override (ô quay về đọc giá trị tự động). Lô đã khóa chi phí /
+ * khóa sổ kế toán bị chặn như mọi con số khác trên bảng (same asserts the
+ * external-cost setter runs) — sửa sau khóa sẽ lệch với giấy báo nợ đã xuất.
+ * Mỗi lần lưu ghi audit_logs before/after (DEBIT_RATE_OVERRIDE_SET); lưu lại
+ * đúng giá trị máy đang giữ là no-op — không write, không audit noise.
+ */
+const RATE_WIRE_TO_COLUMN = {
+  cuocThu: 'cuocThu',
+  lachHuyen: 'lachHuyenThu',
+  phuPs: 'phuPs',
+  phatSinhCus: 'phatSinhCus',
+  cuocTraDv: 'cuocTraDv',
+  lachHuyenDv: 'lachHuyenDv',
+  phatSinhDv: 'phatSinhDv',
+  phiRu: 'phiRu',
+} as const satisfies Record<DebitRateOverrideField, keyof ShipmentDebitRateOverrides>;
+
+const RATE_COLUMN_TO_WIRE = Object.fromEntries(
+  Object.entries(RATE_WIRE_TO_COLUMN).map(([wire, column]) => [column, wire]),
+) as Record<keyof ShipmentDebitRateOverrides, DebitRateOverrideField>;
+
+export async function setShipmentDebitRateOverrides(input: {
+  shipmentId: number;
+  rates: DebitRateOverrideInput;
+  userId: number;
+}): Promise<{ shipmentId: number; rates: DebitRateOverrideInput }> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select({ id: s.shipments.id })
+      .from(s.shipments)
+      .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update');
+    if (!row) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    await assertShipmentCostUnlocked(tx, row.id);
+    await assertShipmentAccountingUnlocked(tx, row.id);
+    const [existing] = await tx.select()
+      .from(s.shipmentDebitRateOverrides)
+      .where(eq(s.shipmentDebitRateOverrides.shipmentId, row.id))
+      .for('update');
+    const before: ShipmentDebitRateOverrides = {
+      cuocThu: existing?.cuocThu ?? null,
+      lachHuyenThu: existing?.lachHuyenThu ?? null,
+      phuPs: existing?.phuPs ?? null,
+      phatSinhCus: existing?.phatSinhCus ?? null,
+      cuocTraDv: existing?.cuocTraDv ?? null,
+      lachHuyenDv: existing?.lachHuyenDv ?? null,
+      phatSinhDv: existing?.phatSinhDv ?? null,
+      phiRu: existing?.phiRu ?? null,
+    };
+    const after: ShipmentDebitRateOverrides = { ...before };
+    const changedFields: DebitRateOverrideField[] = [];
+    for (const [wire, value] of Object.entries(input.rates) as Array<[DebitRateOverrideField, number | null | undefined]>) {
+      if (value === undefined) continue;
+      const column = RATE_WIRE_TO_COLUMN[wire];
+      const next = value == null ? null : String(value);
+      if (after[column] === next) continue;
+      after[column] = next;
+      changedFields.push(wire);
+    }
+    if (changedFields.length === 0) {
+      // Saving what the server already holds is not an edit: no write, no
+      // version bump, no audit noise (saveBillingPlate precedent).
+      return { shipmentId: row.id, rates: toWireRates(after) };
+    }
+    await tx.insert(s.shipmentDebitRateOverrides)
+      .values({ shipmentId: row.id, ...after, updatedBy: input.userId })
+      .onConflictDoUpdate({
+        target: s.shipmentDebitRateOverrides.shipmentId,
+        set: { ...after, updatedBy: input.userId, updatedAt: new Date() },
+      });
+    await tx.insert(s.auditLogs).values({
+      userId: input.userId,
+      entityType: 'shipment',
+      entityId: row.id,
+      message: 'DEBIT_RATE_OVERRIDE_SET',
+      payload: { before, after, changedFields },
+    });
+    return { shipmentId: row.id, rates: toWireRates(after) };
+  });
+}
+
+/** Stored columns → wire names (lachHuyenThu column rides wire `lachHuyen`). */
+function toWireRates(overrides: ShipmentDebitRateOverrides): DebitRateOverrideInput {
+  return Object.fromEntries(
+    (Object.keys(RATE_COLUMN_TO_WIRE) as Array<keyof ShipmentDebitRateOverrides>)
+      .map((column) => [RATE_COLUMN_TO_WIRE[column], overrides[column] == null ? null : Number(overrides[column])]),
+  ) as DebitRateOverrideInput;
 }
 
 /**

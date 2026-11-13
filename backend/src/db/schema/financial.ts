@@ -830,6 +830,28 @@ export const shipmentRateAdjustmentRequests = pgTable('shipment_rate_adjustment_
   index('shipment_rate_adjustment_requests_shipment_idx').on(table.shipmentId),
 ]);
 
+// ─── SIL-805 — KIỂM SOÁT LÔ HÀNG: kế toán sửa trực tiếp ô giá/chi phí ──────
+// The board's 8 money cells are DERIVED server-side (freight-rate snapshots,
+// ZONE_SURCHARGE rows, trip expenses, carrier costs, pricing RU). Kế toán gõ
+// một số trên dòng → override thay giá trị tự động của ĐÚNG ô đó trên bảng
+// (Tổng thu/Tổng trả/Lợi nhuận đọc cùng override); null cột = không override
+// (vẫn đọc giá trị tự động). Một dòng mỗi lô. Setter chặn lô đã khóa chi phí
+// / khóa sổ kế toán như mọi lượt ghi khác trên bảng và ghi audit_logs
+// before/after mỗi lần lưu — sửa sau khóa sẽ lệch giấy báo nợ đã xuất.
+export const shipmentDebitRateOverrides = pgTable('shipment_debit_rate_overrides', {
+  shipmentId: integer('shipment_id').primaryKey(),
+  cuocThu: numeric('cuoc_thu', { precision: 15, scale: 0 }),
+  lachHuyenThu: numeric('lach_huyen_thu', { precision: 15, scale: 0 }),
+  phuPs: numeric('phu_ps', { precision: 15, scale: 0 }),
+  phatSinhCus: numeric('phat_sinh_cus', { precision: 15, scale: 0 }),
+  cuocTraDv: numeric('cuoc_tra_dv', { precision: 15, scale: 0 }),
+  lachHuyenDv: numeric('lach_huyen_dv', { precision: 15, scale: 0 }),
+  phatSinhDv: numeric('phat_sinh_dv', { precision: 15, scale: 0 }),
+  phiRu: numeric('phi_ru', { precision: 15, scale: 0 }),
+  updatedBy: integer('updated_by').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ─── Card 20260923_12 — Chọn Debit: settlement rounds (đợt chốt debit) ──────
 // Kế toán ticks rows on the chot-debit board and opens "Chọn Debit": one
 // settlement act persists one đợt per (customer, lần, tháng, chiều) with the

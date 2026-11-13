@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-13 — fix(accounting): SIL-805 (id 933) — Kiểm soát lô hàng: kế toán sửa trực tiếp 8 ô giá/chi phí trên dòng, Lợi nhuận cập nhật ngay sau Lưu
+
+Lane u1 trên `fix/u1-805-chot` (base `08e11d7b`). Trước fix, các ô tiền của
+bảng `/accounting/chot-debit` chỉ đọc (trừ ô "Chi phí ngoài" từ SIL-771) và
+Lợi nhuận chỉ đổi sau khi tải lại trang.
+
+- **8 ô giá/chi phí nhập trực tiếp trên dòng** (cả tab FCL + LCL): cước thu,
+  Lạch Huyện, phụ PS, phát sinh (CUS), cước trả ĐV, Lạch Huyện ĐV, phát sinh
+  ĐV, phí RU — bảng `shipment_debit_rate_overrides` (một dòng mỗi lô,
+  numeric(15,0)) lưu giá trị kế toán gõ; ô ghi đè thay giá trị tự động của
+  ĐÚNG ô đó TRƯỚC khi roll Tổng thu/Tổng trả, nên Lợi nhuận
+  (= Tổng thu − Tổng trả − Chi phí ngoài) luôn đọc đúng số trên bảng; ô ghi
+  đè = 0 vẫn là KNOWN (một con số 0 tài chính là một giá trị, card
+  20261002_293). Lô đã khóa chi phí / khóa sổ: server chặn 409 (same asserts
+  external-cost) và hàng render text — không còn ô nhập sau khóa.
+- **Lợi nhuận cập nhật ngay sau Lưu** (không tải lại trang): mỗi lần lưu một
+  ô, board refetch (cùng luật SIL-771 của ô Chi phí ngoài).
+- **Audit Log**: mỗi lần lưu ghi `audit_logs` `DEBIT_RATE_OVERRIDE_SET`
+  (before/after + changedFields); lưu lại đúng giá trị máy đang giữ là
+  no-op — không write, không audit noise. Gõ lại đúng giá trị đang áp dụng
+  trên ô cũng không gửi (không tạo hiệu ứng thứ hai).
+- BE unit mới `debit-board-rate-overrides.test.ts` (7 case) + FE
+  `AccountingDebitClosePage.sil805.test.tsx` (7 case, trong đó pin luật khóa
+  và lợi-nhuận-refresh-ngay); UI drive rung-3:
+  `qa/2026-11-13_sil805_ui-driver.log` + 3 screenshot (lot BL-SIL765-2KHO).
+
 ## 2026-11-07 — fix(dispatch/shipments): SIL-702 + SIL-719 + SIL-720 (id 822/839/840) — lô hàng lẻ chọn được "Lấy Lẻ", CBM = 0 là giá trị hợp lệ, sửa số tờ khai inline ngay trên trang lô
 
 Lane F3 trên `fix/f3-small` (base `95e2bd13`), 5 ticket (SIL-390 + SIL-703 xác nhận,
