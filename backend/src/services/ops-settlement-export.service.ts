@@ -41,8 +41,12 @@ export async function exportOpsSettlementXlsx(
 
   for (const group of grouping.groups) {
     // SIL-811 — the per-lot identity title (KH viết tắt · Bill/Booking + tờ
-    // khai · Số cont), identical to the on-screen sheet.
-    const header = sheet.addRow([group.identityTitle]);
+    // khai · Số cont), identical to the on-screen sheet. Display-key contract:
+    // when no composed identity title exists the header falls back to the lot
+    // business key (Số Bill/Booking) or an explicit missing-key label — an
+    // internal DB id (shipment code, group id) never renders.
+    const lotKey = group.billRef?.trim() || 'Chưa có số Bill/Booking';
+    const header = sheet.addRow([group.identityTitle ?? `Lô ${lotKey}`]);
     header.font = { bold: true };
 
     for (const [label, basket] of [

@@ -171,7 +171,17 @@ const expenseTypeCreateSchema = z.object({
 // Replays converge on the name dedupe inside createOpsExpenseType.
 router.post('/expense-types', declareMaterialWrite('ops.expense-types.create', { method: 'POST', path: '/api/ops/expense-types' }), EXPENSE_DECLARERS, asyncHandler(async (req: Request, res: Response) => {
   const parsed = expenseTypeCreateSchema.parse(req.body);
-  res.status(201).json(await createOpsExpenseType(parsed));
+  // Durable command boundary: the name-dedupe inside createOpsExpenseType is
+  // the convergence point — a replay of the same POST returns the live row.
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_TYPE_CREATE,
+    idempotencyKey: requireOpsIdempotencyKey(req),
+    payload: parsed,
+    createdBy: getUser(req).userId,
+    responseStatusCode: 201,
+    create: () => createOpsExpenseType(parsed),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 const expenseCreateSchema = z.object({
