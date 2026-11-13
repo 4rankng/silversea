@@ -42,6 +42,10 @@ const sharedMoneyTabularSources = [
   // the money primitives own (inert until the typeface carries tnum).
   join(sourceRoot, 'design-system/Tabs.css'),
   join(sourceRoot, 'styles/operational-table-typography.css'),
+  // SIL-817 (2026-11-13) — the stuck-trips watchlist banner's day count is the
+  // same count numeral as the Tabs badge above: a numeric readout that declares
+  // the shared tabular grid (inert until the typeface carries tnum).
+  join(sourceRoot, 'features/dispatch/StuckTripsBanner.css'),
 ];
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 
