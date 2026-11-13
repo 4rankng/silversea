@@ -20,7 +20,7 @@ import { effectiveLotContainerCount } from '@tingting/shared';
 import { loadFreightSnapshotChannelByLot, loadRevManualPriceByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
-import { receivableDetermined, receivableDisplayValue } from './debit-receivable-arming';
+import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue } from './debit-receivable-arming';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -434,9 +434,19 @@ export async function getShipmentDebitSummary(query: {
     // lô KHÓA CHI PHÍ không phải ngoại lệ. Snapshot đóng băng '0' khi cước
     // chưa từng được tính (freightAuto == null, revGroupId == null) vẫn là
     // 'chưa chốt' → ô TRỐNG (R3Q-680-B / R4B-693-001, QA 08/11 build e6db602f).
+    // SIL-814 (id 942) — locked rows judge the freeze's OWN freight knowledge,
+    // not today's channel: a freeze that baked 0/0 before pricing (frozen
+    // freightAuto missing) or before the channel re-priced (R3M-KR1: freeze
+    // 06/11 froze 0/0 from snapshot 703, live channel now reads 839/840 =
+    // 3.952.000 — QA verdict 13/11) renders a stale fabricated '0'. The cell
+    // goes TRỐNG; the frozen figure itself is never mutated (freeze, card _19).
     receivableValue = receivableDisplayValue({
       value: receivableValue,
-      freightKnown: freightAuto != null,
+      freightKnown: receivableCellFreightKnown({
+        locked: lock != null,
+        frozenFreight: lock != null ? frozenNumber(lock.snapshot, 'freightAuto') : null,
+        liveFreight: freightAuto,
+      }),
       merged: lot.revGroupId != null,
     });
     const carrier = carrierByLot.get(lot.id);
