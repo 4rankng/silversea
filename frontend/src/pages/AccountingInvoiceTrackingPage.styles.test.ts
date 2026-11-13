@@ -95,6 +95,18 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(rules).toMatch(/\.ivt-badge\s*\{[^}]*background:\s*var\(--warning-soft\)/);
     expect(rules).toMatch(/\.ivt-badge\s*\{[^}]*color:\s*var\(--warning-text\)/);
   });
+
+  it('keeps the Cột 4/5 pair inputs on the compact budget that pays the 8-column fit (SIL-816 UI-02)', () => {
+    // Measured at the 1440 workboard (1144px canvas, 2026-11-13 drive): the
+    // five paired inputs at the old 104px budget drove the board to 1252px —
+    // TIẾN ĐỘ XỬ LÝ hung 80px past the viewport edge. 72px (56px floor) pays
+    // the fit with the labels and cells untouched; a wider pair re-breaks the
+    // right edge exactly as the ticket filed it.
+    expect(rules).toMatch(/\.ivt-inline-pair \.ivt-inline-input\s*\{[^}]*width:\s*72px;[^}]*min-width:\s*56px;/);
+    // The plain note input (Cột 7) keeps the quiet-cell budget — only the
+    // pairs shrink.
+    expect(rules).toMatch(/\.ivt-inline-input\s*\{[^}]*min-width:\s*88px;/);
+  });
 });
 
 describe('invoice-tracking command strip (shared primitives)', () => {

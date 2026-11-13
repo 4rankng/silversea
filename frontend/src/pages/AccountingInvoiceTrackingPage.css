@@ -252,9 +252,17 @@ tr[data-hidden] .ivt-badge {
   gap: 6px;
   white-space: nowrap;
 }
+/* SIL-816 UI-02 (measured at the 1440 workboard, 1144px canvas): the five
+   paired inline inputs (Cột 4 Số hóa đơn + Ngày gửi HĐ; Cột 5 Thu KH / Trả
+   NCC / Trả KH) were the 8-column board's width engine — the board measured
+   1252px and TIẾN ĐỘ XỬ LÝ hung 80px past the viewport edge. The 104px pair
+   budget is what pays the fit: 5 × 32px back inside the canvas. Values stay
+   single-line and scroll inside the input while editing (numeric input law);
+   Cột 7's plain note input keeps the full quiet-cell budget above. */
 .ivt-inline-pair .ivt-inline-input {
-  width: 104px;
-  min-width: 72px;
+  width: 72px;
+  min-width: 56px;
+  padding-inline: 4px;
 }
 .ivt-money-label {
   color: var(--ink-2);
