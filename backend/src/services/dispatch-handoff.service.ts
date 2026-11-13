@@ -20,7 +20,7 @@ import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { NotificationType } from '@tingting/shared';
+import { NotificationType, Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { emitNotification } from './notification.service';
 import type { AuthUser } from '../middleware/auth';
@@ -49,6 +49,28 @@ export interface HandoffVersionCheck {
 }
 
 /**
+ * SIL-817 systemic guard: a named handler must be a real, ACTIVE staff user
+ * with a dispatch-capable role (the roles the resolve route admits). A
+ * handler-less handoff is still allowed — clerk intake broadcasts to the
+ * whole dispatch queue by design — but a WRONG handler must never be
+ * written, or the 403 "Lệnh điều vận được giao cho nhân viên khác" wall
+ * from markSeen/resolveHandoff locks every dispatcher out of the handoff.
+ */
+const HANDOFF_HANDLER_ROLES: readonly string[] = [Role.DISPATCHER, Role.ADMIN, Role.MANAGER];
+
+async function assertHandoffHandlerEligible(handlerId: number, tx: Tx): Promise<void> {
+  const [handler] = await tx.select({ id: s.users.id, role: s.users.role, status: s.users.status })
+    .from(s.users)
+    .where(eq(s.users.id, handlerId))
+    .limit(1);
+  if (!handler
+      || !HANDOFF_HANDLER_ROLES.includes(handler.role as string)
+      || handler.status !== 'ACTIVE') {
+    throw new ApiError(400, 'Lệnh phát phải gắn người điều vận phụ trách: handler phải là nhân viên điều vận đang hoạt động.');
+  }
+}
+
+/**
  * Create a new dispatch handoff for a shipment. The shipment must not
  * already have an active (UNSEEN/SEEN) handoff — enforced by an
  * application-owned lock and canonical lookup.
@@ -57,6 +79,9 @@ export async function createHandoff(input: CreateHandoffInput) {
   const execute = async (tx: Tx) => {
     if (input.actor) {
       await assertActorCanAccessShipment(tx, input.shipmentId, input.actor, { write: true });
+    }
+    if (input.handlerId != null) {
+      await assertHandoffHandlerEligible(input.handlerId, tx);
     }
     await assertShipmentAccountingUnlocked(tx, input.shipmentId);
     await lockApplicationOwnedUniqueness(

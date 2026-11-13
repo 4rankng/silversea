@@ -434,12 +434,24 @@ function DriverTripDetailContent() {
 
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
-  const showAcceptStickyBar = !closed && acceptState !== 'done';
+  // SIL-817 (id 946, PROD 13/11): the completion command renders by TRIP
+  // STATUS, never by whether the dispatch handoff found a handler. An
+  // IN_TRANSIT trip is physically running — its Hoàn tất CTA must be
+  // reachable even when ORDER_RECEIVED was never recorded (ops started the
+  // trip via "Điều phối", handoff UNSEEN/handler NULL; the backend infers
+  // the acceptance on completion). The one exception keeps TC8 law: an
+  // unaccepted Lệnh 2 of an ACTIVE KẾT HỢP pair stays locked behind its
+  // DOC-message accept bar until Lệnh 1 finishes.
+  const runningUnaccepted = !closed && trip.status === 'IN_TRANSIT' && acceptState !== 'done';
+  const showCompleteStickyBar = !closed
+    && (trip.status === 'IN_TRANSIT' || acceptState === 'done')
+    && !(runningUnaccepted && pairLocked);
+  const showAcceptStickyBar = !closed && acceptState !== 'done' && !showCompleteStickyBar;
   const acceptClickable = acceptState === 'available' && !accepting && !pairLocked;
   const acceptButtonLabel = accepting ? 'Đang gửi…' : 'Nhận lệnh vận chuyển';
 
   return (
-    <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}${!closed && !showAcceptStickyBar ? ' driver-task-screen--has-complete-bar' : ''}`}>
+    <div ref={rootRef} className={`driver-task-screen${showAcceptStickyBar ? ' driver-task-screen--has-accept-bar' : ''}${showCompleteStickyBar ? ' driver-task-screen--has-complete-bar' : ''}`}>
       <DriverTripHeader trip={trip} onBack={handleBack} />
 
       {/* Card 20260926_30 item 16: compact progress strip at the top — the
@@ -629,13 +641,16 @@ function DriverTripDetailContent() {
           bar above the tab nav with LIVE state — "Còn thiếu N chứng từ" —
           instead of a gray disabled card at the end of the scroll. Hidden
           while the accept bar is up so the two never stack. */}
-      {!closed && !showAcceptStickyBar && (
+      {showCompleteStickyBar && (
         <div ref={actionBarRef} className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
           <div className="driver-task-complete-sticky__inner">
             <button
               type="button"
               className="driver-task-complete-sticky__btn"
-              disabled={trip.status !== 'IN_TRANSIT' || completing}
+              // SIL-817: an accounting-locked lot must not offer a click that
+              // can only answer with the "Đã khóa kế toán" warning (a control
+              // that always errors is a blocked affordance).
+              disabled={trip.status !== 'IN_TRANSIT' || completing || Boolean(trip.accountingLock)}
               onClick={() => void handleCompleteTrip()}
             >
               {completing ? <Loader2 size={16} className="spin" /> : <FileCheck2 size={16} />}

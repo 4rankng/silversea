@@ -205,6 +205,8 @@ export const qk = {
     suggestedPrice: (customerId: number, routeId: number, date?: string) =>
       ['suggested-price', customerId, routeId, date] as const,
     tripDetail: (id: number) => ['trip-detail', String(id)] as const,
+    /** SIL-817 — dispatch stuck-trips watchlist (GET /api/trips/stuck). */
+    stuck: (days: number) => ['trips', 'stuck', days] as const,
   },
 
   /* ── Dispatch task tags (note-composer pool) ────────────────────────── */

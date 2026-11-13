@@ -10,7 +10,7 @@ import {
 import { ApiError } from '../../errors';
 import { copyTripWriteCommand, createTripWriteCommand } from '../../services/trip-command.service';
 import { autoApplyGovernanceAction, requestTripFinancialChange } from '../../services/adjustment-governance.service';
-import { loadTripStatusVersion } from '../../services/trip-queries.service';
+import { loadTripStatusVersion, listStuckRunningTrips } from '../../services/trip-queries.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
@@ -137,6 +137,16 @@ router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
     avgPer100: summary.avgPer100,
     missingFuel: summary.missingFuel,
   });
+}));
+
+// SIL-817 (id 946) — stuck running trips (>N days IN_TRANSIT) with the active
+// dispatch handoff inline. Điều vận's strand watchlist: trip 13 TRP-202609-0011
+// sat IN_TRANSIT 21/09→13/11 behind a handler-less UNSEEN handoff with nobody
+// looking. Must be declared BEFORE /:id so 'stuck' is not parsed as an id.
+router.get('/stuck', requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER), asyncHandler(async (req: Request, res: Response) => {
+  const rawDays = typeof req.query.days === 'string' ? Number(req.query.days) : NaN;
+  const days = Number.isInteger(rawDays) && rawDays >= 1 && rawDays <= 365 ? rawDays : 7;
+  res.json({ days, items: await listStuckRunningTrips(days) });
 }));
 
 router.post('/bulk-figures', declareMaterialWrite('trips.bulk-figures', { method: 'POST', path: '/api/trips/bulk-figures' }),  asyncHandler(async (req: Request, res: Response) => {

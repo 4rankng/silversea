@@ -1,0 +1,91 @@
+/* SIL-817 — dispatch stuck-trips watchlist banner (sits above the detail-plan
+ * grid; amber so it reads as attention without the red of an error state). */
+.stuck-trips-banner {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--warning, #d97706);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--warning, #d97706) 8%, transparent);
+  font-size: var(--text-data-size, 13px);
+}
+
+.stuck-trips-banner__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--warning, #d97706);
+}
+
+.stuck-trips-banner__hint {
+  color: var(--ink-3, #6b7280);
+  font-weight: 400;
+  min-width: 0;
+}
+
+.stuck-trips-banner__btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.stuck-trips-banner__btn + .stuck-trips-banner__btn {
+  margin-left: 0;
+}
+
+.stuck-trips-banner__btn:hover {
+  background: color-mix(in srgb, var(--warning, #d97706) 14%, transparent);
+}
+
+.stuck-trips-banner__spin {
+  animation: stuck-trips-banner-spin 0.8s linear infinite;
+}
+
+@keyframes stuck-trips-banner-spin {
+  to { transform: rotate(360deg); }
+}
+
+.stuck-trips-banner__list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stuck-trips-banner__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  color: var(--ink-2, #374151);
+}
+
+.stuck-trips-banner__row--more {
+  color: var(--ink-3, #6b7280);
+}
+
+.stuck-trips-banner__days {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.stuck-trips-banner__chip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-3, #6b7280) 12%, transparent);
+  color: var(--ink-2, #374151);
+  white-space: nowrap;
+}
+
+.stuck-trips-banner__chip--unhandled {
+  background: color-mix(in srgb, var(--warning, #d97706) 18%, transparent);
+  color: var(--warning, #b45309);
+  font-weight: 600;
+}
