@@ -101,7 +101,7 @@ export interface DriverJourneyCard {
  * reached. Finance readiness is independent from the driver's evidence
  * workflow and never moves the card either.
  */
-function bucketForStatus(
+export function bucketForStatus(
   status: typeof s.trips.$inferSelect.status,
   acknowledged: boolean,
 ): DriverJourneyBucket {
@@ -110,12 +110,16 @@ function bucketForStatus(
   // and a user saw a cancelled order under "Lệnh mới".
   if (status === 'COMPLETED' || status === 'CANCELED') return 'HISTORY';
   if (status === 'IN_TRANSIT') {
-    // Docx4 BUG2: ops "Phát lệnh" can flip a trip to IN_TRANSIT before the
-    // driver acknowledges (the same premise as the reassignment relaxation).
-    // Status alone must not mark the order "Đã nhận" — without the driver's
-    // ORDER_RECEIVED milestone the card belongs in Lệnh mới so the accept
-    // bar stays reachable.
-    return acknowledged ? 'RUNNING' : 'NEW';
+    // SIL-822: IN_TRANSIT is PHYSICALLY RUNNING — its truck is
+    // busy-blocked and the completion flow must stay reachable. The old
+    // `acknowledged ? RUNNING : NEW` (Docx4 BUG2) hid ops-started trips
+    // (no ORDER_RECEIVED milestone) under "Lệnh mới", where a stale one
+    // stranded the driver: truck busy, nothing completable, nothing
+    // obviously running (nhvuong / 15E-019.80, stranded from 21 Sep
+    // 2026). The missing acknowledgment stays display nuance on the
+    // RUNNING card (accept bar remains reachable there); it must never
+    // demote a running trip to NEW.
+    return 'RUNNING';
   }
   return 'NEW';
 }
