@@ -51,6 +51,16 @@
   overflow-wrap: normal;
   word-break: keep-all;
 }
+
+/* SIL-832 (2026-11-14, QA 1440px) — dense-board gutters (the
+   AccountingInvoiceTrackingPage SIL-816 UI-02 idiom): once SIL-819
+   re-widened the two label columns' min-content, the 12-column run
+   (~1169px) overtook the 1144px canvas and the 259px action run's
+   "Ngày CV / số tiền" clipped at x=1441. Trading cell padding (12px →
+   8px/6px, action cell excluded) recovers ~130px without touching the
+   buttons, the 12ch floors, or the SIL-819 wrap law. */
+.deposit-tracker-page .record-table thead th { padding-inline: 8px; }
+.deposit-tracker-page .record-table tbody td:not(.record-table__action) { padding-inline: 6px; }
 .deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--fg-3); }
 
 /* "Thêm cược" Bill typeahead — a plain result list under the lookup field, no
