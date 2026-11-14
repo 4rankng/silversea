@@ -14,7 +14,6 @@ import { requireShipmentIdempotencyKey } from './shipments/shipment-shared';
 import { declareMaterialWrite } from '../middleware/material-write';
 import {
   getAccountingDebitBoard,
-  createRateAdjustmentRequests,
   confirmRateAdjustmentRequests,
   withdrawRateAdjustmentRequests,
   setShipmentDebitExternalCost,
@@ -42,11 +41,6 @@ const boardQuerySchema = z.object({
 // của bảng, cùng trần 200 lô một lượt như chốt đợt/xuất Debit Note).
 const reconcileHideSchema = z.object({
   shipmentIds: z.array(z.number().int().positive()).min(1, 'Vui lòng chọn ít nhất một lô.').max(200),
-});
-
-const adjustmentRequestSchema = z.object({
-  shipmentIds: z.array(z.number().int().positive()).min(1, 'Vui lòng chọn ít nhất một lô.').max(200),
-  ghiChu: z.string().trim().max(500).optional(),
 });
 
 const decisionSchema = z.object({
@@ -124,26 +118,6 @@ accountingDebitRoutes.post('/debit-board/rates', declareMaterialWrite('accountin
   const parsed = rateOverrideSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
   res.json(await setShipmentDebitRateOverrides({ ...parsed.data, userId: user.userId }));
-}));
-
-accountingDebitRoutes.post('/debit-board/rate-adjustments', declareMaterialWrite('accounting.debit-board.rate-adjustment.request', { method: 'POST', path: '/api/accounting/debit-board/rate-adjustments' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
-  const user = getUser(req);
-  const parsed = adjustmentRequestSchema.safeParse(req.body ?? {});
-  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
-  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
-  const outcome = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST,
-    idempotencyKey: getRequestIdempotencyKey(req),
-    payload: { ...parsed.data, userId: user.userId },
-    createdBy: user.userId,
-    responseStatusCode: 201,
-    create: (tx) => createRateAdjustmentRequests({
-      shipmentIds: parsed.data.shipmentIds,
-      ghiChu: parsed.data.ghiChu,
-      userId: user.userId,
-    }, tx),
-  });
-  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 accountingDebitRoutes.post('/debit-board/rate-adjustments/confirm', declareMaterialWrite('accounting.debit-board.rate-adjustment.confirm', { method: 'POST', path: '/api/accounting/debit-board/rate-adjustments/confirm' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {

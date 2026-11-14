@@ -31,7 +31,6 @@ const { listBoard, listRounds, createDebitNoteBatch, exportDebitNoteFile, lockSh
 
 vi.mock('../../api/accountingDebitClient', () => ({
   listAccountingDebitBoard: listBoard,
-  sendRateAdjustmentRequests: vi.fn(),
   confirmRateAdjustments: vi.fn(),
   withdrawRateAdjustments: vi.fn(),
   listSettlementRounds: listRounds,

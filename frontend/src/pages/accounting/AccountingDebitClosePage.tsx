@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listAccountingDebitBoard,
-  sendRateAdjustmentRequests,
   confirmRateAdjustments,
   withdrawRateAdjustments,
   listSettlementRounds,
@@ -237,19 +236,6 @@ export default function AccountingDebitClosePage() {
     void queryClient.invalidateQueries({ queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY });
   };
 
-  const sendMutation = useMutation({
-    mutationFn: sendRateAdjustmentRequests,
-    onSuccess: (result) => {
-      const parts = [
-        result.requested.length > 0 ? `đã gửi ${result.requested.length} lô` : null,
-        result.alreadyPending.length > 0 ? `${result.alreadyPending.length} lô đã có yêu cầu chờ` : null,
-        result.locked.length > 0 ? `${result.locked.length} lô đã khóa, không gửi được` : null,
-      ].filter(Boolean);
-      setMessage({ kind: 'ok', text: `Yêu cầu điều chỉnh cước: ${parts.join(', ')}.` });
-      refresh();
-    },
-    onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
-  });
   const confirmMutation = useMutation({
     mutationFn: confirmRateAdjustments,
     onSuccess: () => { setMessage({ kind: 'ok', text: 'Đã xác nhận đối soát.' }); refresh(); },
@@ -424,14 +410,6 @@ export default function AccountingDebitClosePage() {
       // the freeze this card fixes. Refuse with the action that fixes it.
       setMessage({ kind: 'err', text: `Kỳ đang có ${selectableIds.length} lô — thu hẹp khoảng ngày trước khi chọn tất cả.` });
     } else selection.selectAll(selectableIds);
-  }
-
-  function sendRequest() {
-    if (selectedCount === 0) {
-      setMessage({ kind: 'err', text: 'Chọn ít nhất một dòng lô hàng.' });
-      return;
-    }
-    sendMutation.mutate({ shipmentIds: selectedRows.map((row) => row.shipmentId) });
   }
 
   // FB-094 — Xuất Debit Note (theo dòng đang chọn): ONE issue call carries the
@@ -733,14 +711,6 @@ export default function AccountingDebitClosePage() {
         </button>
         {selectedCount > 0 && (
           <>
-            <button
-              type="button"
-              className="btn btn--secondary btn--sm"
-              disabled={sendMutation.isPending}
-              onClick={sendRequest}
-            >
-              {sendMutation.isPending ? 'Đang gửi…' : 'Gửi yêu cầu điều chỉnh cước'}
-            </button>
             {/* FB-093 (SIL-191 QA R42): the toolbar twin of the per-row action —
                 exposed when the selection IS a multi-select of merged lots
                 (≥2 merged rows, per the FB-093 expectation); armed only when

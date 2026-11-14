@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../lib/api';
 import { assignPhoiPhieuTruckAccountant, confirmPhoiPhieuTienDuong, createPhoiPhieuVoucher, updatePhoiPhieuMeta, voidPhoiPhieuRow } from './phoiPhieuClient';
-import { confirmRateAdjustments, sendRateAdjustmentRequests, withdrawRateAdjustments } from './accountingDebitClient';
+import { confirmRateAdjustments, withdrawRateAdjustments } from './accountingDebitClient';
 import { createDepositTracker, updateDepositTrackerDates, markDepositRefunded } from './depositRefundClient';
 const fetcher = vi.fn();
 const commands = [
@@ -10,7 +10,6 @@ const commands = [
   ['metadata', () => updatePhoiPhieuMeta(7, { trangThaiLay: 'Received' })],
   ['void', () => voidPhoiPhieuRow(7, 15, 'Entered by mistake')],
   ['driver confirmation', () => confirmPhoiPhieuTienDuong(7, 1, 3)],
-  ['rate request', () => sendRateAdjustmentRequests({ shipmentIds: [10] })],
   ['rate confirm', () => confirmRateAdjustments([12])],
   ['rate withdraw', () => withdrawRateAdjustments([13])],
   ['deposit create', () => createDepositTracker({ billNumber: 'QA', customerName: 'QA', carrierName: 'QA', depositAmount: 5000000 })],

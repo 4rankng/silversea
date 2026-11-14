@@ -36,7 +36,6 @@ import { operationalName } from '../db/master-data-name';
 import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
 import type { Tx } from './trip-shared';
-import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { carrierKeysForLot } from './debit-settlement-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
@@ -810,63 +809,6 @@ export async function getAccountingDebitBoard(query: {
 // ─── Rate-adjustment requests (đối soát only — NEVER changes rates) ────────
 // P3: confirm/withdraw NEVER touch any money field; corrections live in the
 // existing editing surfaces. Roles enforced at the route level (office set).
-
-/** P2: a lot with an ACTIVE cost lock is frozen — no new requests. */
-
-export async function createRateAdjustmentRequests(input: {
-  shipmentIds: number[];
-  ghiChu?: string;
-  userId: number;
-}, transaction?: Tx): Promise<{ requested: number[]; alreadyPending: number[]; locked: number[]; requestIds: number[] }> {
-  const execute = async (tx: Tx) => {
-    const shipmentIds = [...new Set(input.shipmentIds)].sort((a, b) => a - b);
-    await lockApplicationOwnedUniquenessSet(tx, shipmentIds.map((id) => ({ scope: 'shipment-rate-adjustment', parts: [id] })));
-    const requested: number[] = [];
-    const alreadyPending: number[] = [];
-    const locked: number[] = [];
-    if (shipmentIds.length === 0) return { requested, alreadyPending, locked, requestIds: [] };
-
-    // Three set reads instead of three reads per shipment; per-item outcomes
-    // are resolved in memory in the same sorted order as before.
-    const existingShipments = await tx.select({ id: s.shipments.id }).from(s.shipments)
-      .where(and(inArray(s.shipments.id, shipmentIds), isNull(s.shipments.deletedAt)));
-    const existingIds = new Set(existingShipments.map((r) => r.id));
-    const missingId = shipmentIds.find((id) => !existingIds.has(id));
-    if (missingId !== undefined) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
-
-    const activeLockRows = await tx.select({ shipmentId: s.shipmentCostLocks.shipmentId })
-      .from(s.shipmentCostLocks)
-      .where(and(inArray(s.shipmentCostLocks.shipmentId, shipmentIds), isNull(s.shipmentCostLocks.unlockedAt)));
-    const lockedIds = new Set(activeLockRows.map((r) => r.shipmentId));
-
-    const pendingRows = await tx.select({ shipmentId: s.shipmentRateAdjustmentRequests.shipmentId })
-      .from(s.shipmentRateAdjustmentRequests)
-      .where(and(inArray(s.shipmentRateAdjustmentRequests.shipmentId, shipmentIds),
-        eq(s.shipmentRateAdjustmentRequests.status, 'PENDING'), isNull(s.shipmentRateAdjustmentRequests.withdrawnAt)));
-    const pendingIds = new Set(pendingRows.map((r) => r.shipmentId));
-
-    const insertValues: Array<{ shipmentId: number; ghiChu: string | null; requestedBy: number }> = [];
-    for (const shipmentId of shipmentIds) {
-      if (lockedIds.has(shipmentId)) { locked.push(shipmentId); continue; }
-      if (pendingIds.has(shipmentId)) { alreadyPending.push(shipmentId); continue; }
-      insertValues.push({ shipmentId, ghiChu: input.ghiChu ?? null, requestedBy: input.userId });
-      requested.push(shipmentId);
-    }
-    // QA 2026-11-04: `requested` carries SHIPMENT ids while confirm/withdraw
-    // take REQUEST ids — callers that echoed create's arrays into those
-    // endpoints silently no-opped. requestIds closes that trap: the created
-    // rows' ids in the same order as `requested`.
-    const inserted = insertValues.length > 0
-      ? await tx.insert(s.shipmentRateAdjustmentRequests).values(insertValues)
-        .returning({ id: s.shipmentRateAdjustmentRequests.id, shipmentId: s.shipmentRateAdjustmentRequests.shipmentId })
-      : [];
-    const idByShipment = new Map(inserted.map((row) => [row.shipmentId, row.id]));
-    const requestIds = requested.map((shipmentId) => idByShipment.get(shipmentId))
-      .filter((id): id is number => id != null);
-    return { requested, alreadyPending, locked, requestIds };
-  };
-  return transaction ? execute(transaction) : db.transaction(execute);
-}
 
 export async function confirmRateAdjustmentRequests(input: {
   requestIds: number[];

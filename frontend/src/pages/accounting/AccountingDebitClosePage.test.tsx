@@ -3,9 +3,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listBoard, sendRequests, confirmReq, withdrawReq, listRounds, createRound } = vi.hoisted(() => ({
+const { listBoard, confirmReq, withdrawReq, listRounds, createRound } = vi.hoisted(() => ({
   listBoard: vi.fn(),
-  sendRequests: vi.fn(),
   confirmReq: vi.fn(),
   withdrawReq: vi.fn(),
   listRounds: vi.fn(),
@@ -14,7 +13,6 @@ const { listBoard, sendRequests, confirmReq, withdrawReq, listRounds, createRoun
 
 vi.mock('../../api/accountingDebitClient', () => ({
   listAccountingDebitBoard: listBoard,
-  sendRateAdjustmentRequests: sendRequests,
   confirmRateAdjustments: confirmReq,
   withdrawRateAdjustments: withdrawReq,
   listSettlementRounds: listRounds,
@@ -99,7 +97,7 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     fireEvent.click(within(record).getByRole('button', { name: 'Rút' }));
     await waitFor(() => expect(withdrawReq.mock.calls[0]?.[0]).toEqual([55]));
     expect(withdrawReq).toHaveBeenCalledTimes(1);
-    expect(sendRequests).not.toHaveBeenCalled(); expect(createRound).not.toHaveBeenCalled();
+    expect(createRound).not.toHaveBeenCalled();
   });
   it('offers phone facts and independent selection without writing a cancelled debit', async () => {
     window.matchMedia = (media): MediaQueryList => ({
@@ -120,7 +118,6 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Chọn Debit — chốt đợt đối soát' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
     expect(createRound).not.toHaveBeenCalled();
-    expect(sendRequests).not.toHaveBeenCalled();
     expect(confirmReq).not.toHaveBeenCalled();
     expect(within(record).getByRole('checkbox')).toBeChecked();
   });
@@ -299,17 +296,6 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
     fireEvent.click(await screen.findByRole('button', { name: /Chọn tất cả 2 lô đủ điều kiện/ }));
     expect(await screen.findByText('Đã chọn 2 lô')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Chọn Debit (2 dòng)' })).toBeInTheDocument();
-  });
-
-  it('sends the adjustment request for the picked rows and clears the selection', async () => {
-    boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2' })]);
-    sendRequests.mockResolvedValue({ requested: [1], alreadyPending: [], locked: [] });
-    const { container } = renderPage();
-    await screen.findByText('BL-1');
-    fireEvent.click(dataRows(container)[0]);
-    fireEvent.click(await screen.findByRole('button', { name: /Gửi yêu cầu điều chỉnh cước/ }));
-    await waitFor(() => expect(sendRequests.mock.calls[0][0]).toEqual({ shipmentIds: [1] }));
-    expect(await screen.findByText(/Yêu cầu điều chỉnh cước: đã gửi 1 lô/)).toBeInTheDocument();
   });
 
   it('confirms every pending row the filter is showing, in one pass', async () => {

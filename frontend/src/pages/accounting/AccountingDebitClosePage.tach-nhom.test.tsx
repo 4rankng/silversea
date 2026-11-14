@@ -21,7 +21,6 @@ const { listBoard, listRounds, getBootstrap, mergeLclRevGroup, unmergeLclGroup, 
 
 vi.mock('../../api/accountingDebitClient', () => ({
   listAccountingDebitBoard: listBoard,
-  sendRateAdjustmentRequests: vi.fn(),
   confirmRateAdjustments: vi.fn(),
   withdrawRateAdjustments: vi.fn(),
   listSettlementRounds: listRounds,

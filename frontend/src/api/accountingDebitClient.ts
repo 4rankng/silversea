@@ -174,13 +174,6 @@ export async function createSettlementRound(body: CreateSettlementRoundBody): Pr
   return api.post('/accounting/debit-board/settlement-rounds', body);
 }
 
-export async function sendRateAdjustmentRequests(body: {
-  shipmentIds: number[];
-  ghiChu?: string;
-}): Promise<{ requested: number[]; alreadyPending: number[]; locked: number[]; requestIds: number[] }> {
-  return api.post('/accounting/debit-board/rate-adjustments', body);
-}
-
 export async function confirmRateAdjustments(requestIds: number[]): Promise<{ confirmed: number }> {
   return api.post('/accounting/debit-board/rate-adjustments/confirm', { requestIds });
 }

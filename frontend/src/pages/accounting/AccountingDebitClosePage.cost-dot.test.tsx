@@ -10,9 +10,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listBoard, sendRequests, confirmReq, withdrawReq, listRounds, createRound } = vi.hoisted(() => ({
+const { listBoard, confirmReq, withdrawReq, listRounds, createRound } = vi.hoisted(() => ({
   listBoard: vi.fn(),
-  sendRequests: vi.fn(),
   confirmReq: vi.fn(),
   withdrawReq: vi.fn(),
   listRounds: vi.fn(),
@@ -21,7 +20,6 @@ const { listBoard, sendRequests, confirmReq, withdrawReq, listRounds, createRoun
 
 vi.mock('../../api/accountingDebitClient', () => ({
   listAccountingDebitBoard: listBoard,
-  sendRateAdjustmentRequests: sendRequests,
   confirmRateAdjustments: confirmReq,
   withdrawRateAdjustments: withdrawReq,
   listSettlementRounds: listRounds,

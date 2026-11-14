@@ -142,7 +142,6 @@ export const IDEMPOTENCY_ENDPOINTS = {
   DEBT_OFFSET_CANCEL: 'debt-offsets.cancel',
   // Card 20260921_21/19/8+13 governance rider: every financial-write route
   // reaches the durable idempotency boundary — double-submit protection.
-  DEBIT_BOARD_RATE_ADJUSTMENT_REQUEST: 'accounting.debit-board.rate-adjustment.request',
   DEBIT_BOARD_RATE_ADJUSTMENT_CONFIRM: 'accounting.debit-board.rate-adjustment.confirm',
   DEBIT_BOARD_RATE_ADJUSTMENT_WITHDRAW: 'accounting.debit-board.rate-adjustment.withdraw',
   DEBIT_BOARD_SETTLEMENT_ROUND_CREATE: 'accounting.debit-board.settlement-round.create',
