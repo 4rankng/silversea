@@ -1394,7 +1394,10 @@ export function ShipmentContainerLedger({
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
             <SortHeader label="Bill/Booking" sortKey="billOrBookNumber" sort={sort} onSortChange={onSortChange} />
             <th scope="col">Số tờ khai</th>
-            <th scope="col">Nhập/Xuất</th>
+            {/* SIL-824: the 76px direction floor can't hold "Nhập/Xuất" as one
+                93px header token — the slash break wraps it to an even 2-line
+                header (card 20260925_47) without changing the accessible name. */}
+            <th scope="col">Nhập/<wbr />Xuất</th>
             <th scope="col">Hãng tàu</th>
             <SortHeader label="Thông số container" sortKey="containerNumber" sort={sort} onSortChange={onSortChange} />
             {!isHidden('route') && <SortHeader label="Nâng / hạ" sortKey="liftSite" sort={sort} onSortChange={onSortChange} />}
@@ -1542,7 +1545,11 @@ export function ShipmentContainerLedger({
                   <td data-label="Hãng tàu" className={cellClassName(documentsEditable, 'documents')}>
                     {editableCell(row, 'documents', documentsEditable,
                       <div className="shipment-container-ledger__multiline">
-                        <span>{fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span>
+                        {/* SIL-824: at the 96px floor a rare over-line name
+                            ("HK/HPG202610017:"-class) takes the house emergency
+                            break — the title keeps the full value reachable
+                            (wrap-not-truncate doctrine). */}
+                        <span title={row.shippingLineName || undefined}>{fallback(row.shippingLineName, 'Chưa có hãng tàu')}</span>
                       </div>,
                       { rendersEditor: false, triggerKey: 'shipping-line', cellLabel: 'Hãng tàu' })}
                   </td>

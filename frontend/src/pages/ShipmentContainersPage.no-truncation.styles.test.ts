@@ -97,31 +97,23 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(shared).toMatch(/\.table-sort-button \{[^}]*white-space:\s*nowrap/);
   });
 
-  it('EXPAND tokens keep whole identifiers and a share that fits them (QA-090)', () => {
-    // Measured floors at the 1440 workboard (data/caption scale): the date
-    // token "30/10/2026" is 74px, container codes ≤72px, "Bill/Booking" 75px —
-    // each plus the 24px cell padding. SIL-543 (2026-10-28, owner capture
-    // "PHÂN XE quá rộng … NHẬP/XUẤT không cần rộng, HÃNG TÀU quá hẹp")
-    // re-measured the remaining two pins: "Nhập/Xuất" is a 61px unbreakable
-    // header token (+24px = an 85px floor → 7%), sized to its 50-66px pills
-    // rather than the old 9%; the PHÂN XE plate pill (nowrap, ~70px + 24px =
-    // a 94px floor → 12%, uniform across all three bands) funds KHÁCH HÀNG &
-    // LỘ TRÌNH 11% and HÃNG TÀU 9% (whole-token floor 113px for
-    // "R42CUS-LINE"-class names). The in-cell BKS editor keeps the SIL-516
-    // invariant — its tray is width:100% of the cell, nothing spills.
-    const width = (cls: string) => Number(css.match(new RegExp(`\\.shipment-container-ledger__col--${cls}\\s*\\{[^}]*?width:\\s*([\\d.]+)%`))?.[1] ?? 0);
-    expect(width('schedule')).toBeGreaterThanOrEqual(9);
-    expect(width('container')).toBeGreaterThanOrEqual(9);
-    expect(width('billbook')).toBeGreaterThanOrEqual(9);
-    expect(width('direction')).toBeGreaterThanOrEqual(7);
-    // SIL-816 UI-06: the SỐ TỜ KHAI share pays the twelve-char token floor —
-    // measured 78px for "123456789012" (caption scale) behind ~21px of
-    // cell-trigger chrome ≈ a 99px cell; 9% of the 1144px workboard canvas
-    // ≈ 103px at the full thirteen-column set (more at every hidden-column
-    // set). A smaller share cuts the digits again exactly as SIL-816 filed.
-    expect(width('declaration')).toBeGreaterThanOrEqual(9);
-    // The in-cell BKS editor stays inside its cell at the SIL-543 share.
-    expect(width('vehicle')).toBeGreaterThanOrEqual(12);
+  it('EXPAND tokens keep whole identifiers and a floor that fits them (QA-090, SIL-824 px)', () => {
+    // Measured token widths at the shipped scale (11px Inter Digits codes,
+    // 12px cells, +24px cell padding): 12-digit tờ khai "309132985730" = 87px,
+    // 11-char ISO "MSNU3128119" = 86px, Bill/Booking "EBKG19248801" = 83px,
+    // the date token "30/10/2026" = 72px, the plate pill "29C-123.45" ≈ 85px
+    // with chrome. SIL-824 pins these as fixed px floors (Cam Truncate Spec
+    // v4 §8.1.5): the identifier pair sits exactly at its 12/11-digit widths,
+    // never wider; the schedule and vehicle floors hold their tokens whole.
+    // The in-cell BKS editor keeps the SIL-516 invariant — its tray is
+    // width:100% of the cell, nothing spills.
+    const floor = (name: string) => Number(css.match(new RegExp(`--led-w-${name}:\\s*(\\d+)px`))?.[1] ?? 0);
+    expect(floor('schedule')).toBeGreaterThanOrEqual(96);
+    expect(floor('container')).toBe(116);
+    expect(floor('billbook')).toBe(112);
+    expect(floor('direction')).toBe(76);
+    expect(floor('declaration')).toBe(116);
+    expect(floor('vehicle')).toBe(128);
     // SIL-756 (Round 3): Container numbers, declaration numbers, and Bill/Booking are single-token identifiers — nowrap + overflow-x: auto + tooltip (no ellipsis)
     const codeRules = rulesFor(css, /td\[data-label="Thông số container"\] \.shipment-container-ledger__code$/);
     expect(codeRules.length).toBeGreaterThan(0);

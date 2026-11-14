@@ -97,9 +97,12 @@ describe('shipment detail workboard styling', () => {
   });
 
   it('fits desktop columns to the workspace and lets headings wrap instead of forcing horizontal scroll', () => {
-    expect(css).toMatch(/\.shipment-container-ledger table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*table-layout:\s*fixed;/);
+    // SIL-824: the fixed px col model pins the table's floor width at
+    // fixed-sum + the 136px KHÁCH HÀNG floor, so table-layout: fixed is never
+    // over-constrained (the card collapse owns anything narrower). No bare
+    // min-width — the calc must name the ledger vars.
+    expect(css).toMatch(/\.shipment-container-ledger table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*calc\(var\(--led-fixed-sum\) \+ var\(--led-w-customer-floor\)\);[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*white-space:\s*normal;/);
-    expect(css).not.toMatch(/\.shipment-container-ledger table\s*\{[^}]*min-width:\s*980px;/);
     // 20260922_37 no-truncation doctrine: data cells wrap, never clip — the
     // old `overflow: hidden` cut trailing characters of long place names.
     expect(css).not.toMatch(/\.shipment-container-ledger tbody > tr > td\s*\{[^}]*overflow:\s*hidden/);
@@ -116,18 +119,13 @@ describe('shipment detail workboard styling', () => {
 
   it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
-    // The multiline status cell keeps a narrow share; notes keeps its own
-    // narrow share. FB-086 (2026-10-14) restores the Thao tác column card
-    // 20260922_41 removed ("không tìm thấy chỗ thêm cont vào lô cũ") — its 7%
-    // share is back (cards 20260922_3/_21 tap-target law). FB-113 v2
-    // (2026-10-18) splits the documents group into four headed columns, so
-    // the twelve shares must still sum to 100% (pinned in the FB-086 test
-    // below); the narrow-column law holds: notes 6%, status 7% (SIL-822
-    // 2026-11-14 re-pointed status 8→7 to fund KHÁCH HÀNG & LỘ TRÌNH — every
-    // status badge word still fits its 55px line box whole).
-    expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*6%;/);
-    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*7%;/);
-    expect(css).toMatch(/\.shipment-container-ledger__col--actions\s*\{[^}]*width:\s*7%;/);
+    // SIL-824: the narrow columns own measured px floors, not shares — notes
+    // 120px (the owner's reading floor, never a grow column), status 92px and
+    // actions 92px (badge-word and button floors). FB-113 v2 (2026-10-18)
+    // keeps the documents group as four headed columns.
+    expect(css).toMatch(/--led-w-notes:\s*120px;/);
+    expect(css).toMatch(/--led-w-status:\s*92px;/);
+    expect(css).toMatch(/--led-w-actions:\s*92px;/);
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*var\(--text-caption-size\);[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
 
@@ -140,22 +138,18 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__route > span\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
   });
 
-  it('SIL-822: KHÁCH HÀNG & LỘ TRÌNH holds its own tokens — 6% + 6px padding floor + word-boundary wrap', () => {
-    // QA 1440px re-test of SIL-819: the SIL-819-era 5% share starved this
-    // column's own tokens ('ASKEY' → 'ASKE/Y', 'XUỐNG' → 'XUỐN/G'). The fix
-    // mirrors the route cell's pair of levers: a 6px inline padding floor on
-    // the row-header cell (the 12px default would leave the 6% share a
-    // ~47px box — under the measured 'XUỐNG' ≈ 46-50px token) and the same
-    // word-boundary law on the NameCell runs — the shared NameCell
-    // overflow-wrap:anywhere breaks greedily at the end of the REMAINING
-    // space, not when a token exceeds a whole line.
-    expect(css).toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:\s*6%;/);
+  it('SIL-822 + SIL-824: KHÁCH HÀNG & LỘ TRÌNH is the grow column with the 6px padding floor + word-boundary wrap', () => {
+    // SIL-824 (owner 14/11): the column has NO width rule — it is the table's
+    // only auto column under table-layout: fixed and absorbs all surplus
+    // ("flex-grow, an het phan du thua, it nhat gap doi hien tai"), guarded by
+    // the table min-width's 136px customer floor. SIL-822's levers stay: the
+    // 6px inline padding floor on the row-header cell and word-boundary wrap
+    // on the NameCell runs (overflow-wrap:anywhere breaks greedily at the end
+    // of the REMAINING space, never mid-word when a token exceeds the line).
+    expect(css).not.toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:/);
     expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\]\s*\{[^}]*padding-inline:\s*6px;/);
     expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\] \.name-cell\s*\{[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
-    // The +1 comes from TRẠNG THÁI (8→7): badge words (≤38px at the caption
-    // tier) fit the ~55px line box; the missing-fields chip is flex-wrap by
-    // design. The thirteen shares still sum to 100 (FB-086 test).
-    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*7%;/);
+    expect(css).toMatch(/--led-w-customer-floor:\s*136px;/);
   });
 
   it('places pagination in the container ledger scroll region', () => {
@@ -180,19 +174,19 @@ describe('shipment detail workboard styling', () => {
   });
 
   it('uses a dense intermediate ledger grid without empty half-width bands', () => {
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;[^}]*padding:\s*8px 10px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;[^}]*padding:\s*8px 10px;/);
     // Card-collapse modes must reset the desktop 72px floor (workboard pattern:
     // auto + 76px floor) — grid-display cells treat a definite height as a cap.
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?th\.shipment-container-ledger__editable-cell,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?th\.shipment-container-ledger__editable-cell::before,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell::before\s*\{[^}]*display:\s*none;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?\.shipment-container-ledger__cell-trigger > :not\(\.shipment-container-ledger__edit-purpose\)\s*\{[^}]*grid-column:\s*2;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*?th\.shipment-container-ledger__editable-cell,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*?th\.shipment-container-ledger__editable-cell::before,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell::before\s*\{[^}]*display:\s*none;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*?\.shipment-container-ledger__cell-trigger > :not\(\.shipment-container-ledger__edit-purpose\)\s*\{[^}]*grid-column:\s*2;/);
     // FB-113 v2: documents cells pass a per-column label override; the
     // shared mode label stays the fallback, so every trigger keeps a
     // data-cell-label for the card-mode label rail.
     expect(ledgerSource).toContain('data-cell-label={cellLabel ?? modeLabelForTrigger(mode)}');
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*?tbody > tr > td\.shipment-container-ledger__cell--status\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*?tbody > tr > td\.shipment-container-ledger__cell--status\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).not.toContain('tbody > tr > :nth-child(4),');
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*780px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*780px\)[\s\S]*?tbody > tr > :nth-child\(even\)\s*\{[^}]*border-right:\s*0;/);
@@ -240,7 +234,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__cell-trigger:not\(\.shipment-container-ledger__cell-trigger--read-only\):not\(\[disabled\]\):hover/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-trigger:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--accent\);/);
     expect(css).not.toContain('.shipment-container-ledger__edit-button');
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).not.toContain('.shipment-container-ledger__editor-row');
     expect(css).toMatch(/\.shipment-container-ledger__editing-cell\s*\{[^}]*overflow:\s*visible !important;/);
     expect(css).toMatch(/\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*1px;[^}]*padding:\s*0 !important;/);
@@ -255,7 +249,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\[data-mode="notes"\] > \.shipment-container-ledger__inline-editor\s*\{[^}]*right:\s*-4px;[^}]*left:\s*auto;/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\[data-mode="schedule"\] > \.shipment-container-ledger__inline-editor\s*\{[^}]*right:\s*-4px;[^}]*left:\s*auto;/);
     expect(css).not.toContain('data-mode="appointment"');
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*static;[^}]*width:\s*100%;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*static;[^}]*width:\s*100%;/);
     expect(css).toMatch(/@media \(pointer:\s*coarse\)[\s\S]*?\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*var\(--control-touch-h\);[^}]*min-height:\s*var\(--control-touch-h\);/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     // The appointment-popover redesign (7ad16f89) pairs the ngày/giờ fields
@@ -278,9 +272,9 @@ describe('shipment detail workboard styling', () => {
     expect(css).toContain('.shipment-container-ledger__edit-action:disabled [data-icon] { color: inherit; }');
     // Disabled Save keeps legible muted text and an icon with the same color.
     expect(css).toMatch(/\.shipment-container-ledger__edit-action:disabled\s*\{[^}]*background:\s*var\(--surface-2\);[^}]*color:\s*var\(--ink-3\);[^}]*opacity:\s*1;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*40px;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*min-width:\s*40px;[^}]*height:\s*40px;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1000px\)[\s\S]*tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*40px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*min-width:\s*40px;[^}]*height:\s*40px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)[\s\S]*tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
   });
 
   it('uses a distinct, non-destructive pending state when today still needs vehicle allocation', () => {
@@ -339,50 +333,37 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-pending\s*\{[^}]*var\(--danger\)/);
   });
 
-  it('FB-086: the twelve columns share exactly 100% (Thao tác column restored, FB-113 v2 documents split)', () => {
-    const width = (cls: string) => {
-      const m = css.match(new RegExp(`\\.shipment-container-ledger__col--${cls}\\s*\\{[^}]*?width:\\s*([\\d.]+)%`));
-      expect(m, `missing width for col--${cls}`).toBeTruthy();
+  it('SIL-824: the twelve columns pin the fixed px ladder and the sums close exactly (FB-086/FB-113 v2 lineage)', () => {
+    // SIL-824 (owner 14/11, "khong de browser tu phan phoi chieu rong")
+    // supersedes the FB-086 percentage-sum law with fixed px floors: every
+    // narrow column reads its floor from a --led-w-* var, KHÁCH HÀNG & LỘ
+    // TRÌNH stays widthless (the grow column), and --led-fixed-sum must equal
+    // the twelve floors exactly — the table min-width spends it plus the
+    // 136px customer floor, so the model can never over-constrain.
+    const floor = (name: string) => {
+      const m = css.match(new RegExp(`--led-w-${name}:\\s*(\\d+)px;`));
+      expect(m, `missing --led-w-${name}`).toBeTruthy();
       return Number(m![1]);
     };
-    // FB-086 (2026-10-14, helpdesk "không tìm thấy chỗ thêm cont vào lô cũ")
-    // supersedes card 20260922_41: the ＋Thêm/Xóa row actions return to the
-    // workboard. Cards 20260922_3/_21's tap-target law returns with them —
-    // the actions column owns a real share (7% base, 9% in the two narrow
-    // desktop bands re-pointed from notes) so "＋ Thêm" never wraps.
-    // FB-113 v2 (2026-10-18, QA "header thiếu trường Số tờ khai"): the
-    // documents group is four headed columns — billbook/declaration/
-    // direction/shippingline — sharing the pinned `documents` key.
-    // SIL-547 (2026-10-28, spec 23/10 §2): the on-demand CHỌN column joins the
-    // ladder with its own 3% share (dormant off [Gộp hàng] mode) — funded by
-    // customer/billbook/declaration, so the THIRTEEN shares still sum to 100%.
-    const base = ['select', 'customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map(width);
-    expect(base.reduce((a, b) => a + b, 0)).toBe(100);
-    // SIL-516 funded the in-cell BKS quick editor with an 18% PHÂN XE share;
-    // SIL-543 (2026-10-28, owner capture "PHÂN XE quá rộng") re-balanced the
-    // ladder on measured content: 12% still holds the nowrap plate pill
-    // (~94px floor) and keeps the editor tray inside the cell — the freed
-    // share funds KHÁCH HÀNG & LỘ TRÌNH (11%) and HÃNG TÀU (9%, the 113px
-    // whole-token floor for "R42CUS-LINE"-class names), while NHẬP/XUẤT (7%)
-    // is sized to its pills above the 85px header-token floor. Every band is
-    // restated to sum to 100%.
-    expect(width('vehicle')).toBe(12);
-    const band = (block: string) => {
-      const shares = ['select', 'customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'].map((cls) => {
-        const m = block.match(new RegExp(`col--${cls}\\s*\\{\\s*width:\\s*([\\d.]+)%`));
-        expect(m, `band missing col--${cls}`).toBeTruthy();
-        return Number(m![1]);
-      });
-      return shares.reduce((a, b) => a + b, 0);
-    };
-    const midBand = css.match(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
-    const lowBand = css.match(/@media \(min-width: 761px\) and \(max-width: 1100px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
-    expect(band(midBand), '1101-1365 band sums to 100').toBe(100);
-    expect(band(lowBand), '761-1100 band sums to 100').toBe(100);
-    expect(midBand).toMatch(/col--vehicle\s*\{\s*width:\s*12%;/);
-    expect(lowBand).toMatch(/col--vehicle\s*\{\s*width:\s*12%;/);
-    expect(css).toMatch(/@media \(min-width: 1101px\) and \(max-width: 1365px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);
-    expect(css).toMatch(/@media \(min-width: 761px\) and \(max-width: 1100px\)\s*\{[\s\S]*?col--actions\s*\{\s*width:\s*9%;/);
+    const names = ['select', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status', 'actions'];
+    const sum = names.reduce((acc, name) => acc + floor(name), 0);
+    const declared = Number(css.match(/--led-fixed-sum:\s*(\d+)px;/)?.[1] ?? NaN);
+    expect(declared).toBe(sum);
+    // Ticket floors (owner's numbers, measured content): the identifier pair
+    // sits exactly at the Cam Truncate Spec v4 §8.1.5 12/11-digit widths.
+    expect(floor('direction')).toBe(76);
+    expect(floor('shippingline')).toBe(96);
+    expect(floor('billbook')).toBe(112);
+    expect(floor('declaration')).toBe(116);
+    expect(floor('container')).toBe(116);
+    expect(floor('notes')).toBe(120);
+    // The customer column NEVER regains a width rule (grow law) and the
+    // band ladders are gone — one px ladder, no @media share restatements.
+    expect(css).not.toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:/);
+    expect(css).not.toMatch(/@media \(min-width: 1101px\)[\s\S]*?col--/);
+    expect(css).not.toMatch(/@media \(min-width: 761px\)[\s\S]*?col--/);
+    // The card collapse guards the whole below-floor band (≥ the min-width).
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1318px\)\s*\{[\s\S]*?\.shipment-container-ledger table\s*\{\s*min-width:\s*0;/);
   });
 
   it('SIL-516: the in-cell plate editor fits its cell and headers never overflow the table', () => {
@@ -494,11 +475,13 @@ describe('shipment detail mobile viewport fill + bottom sheet (card 20261009_3)'
   });
 
   it('SIL-578 retires the duplicated card-mode header instead of clipping it', () => {
-    // The ≤1000px card band must remove the thead outright — the sr-only
+    // The ≤1330px card band must remove the thead outright — the sr-only
     // clip kept its sort buttons alive as invisible, tabbable, clickable
     // controls stacked at one origin. /shipments' card band already answers
-    // this with display:none (.cus-dashboard-table thead).
-    const band = css.match(/@container shipments-detail \(max-width: 1000px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    // this with display:none (.cus-dashboard-table thead). Since SIL-824 the
+    // band owns the whole below-floor range, so the header layer stays
+    // retired across it.
+    const band = css.match(/@container shipments-detail \(max-width: 1318px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
     expect(band, 'card band exists').not.toBe('');
     expect(band).toMatch(/\.shipment-container-ledger thead\s*\{\s*display:\s*none;\s*\}/);
     expect(band).not.toMatch(/thead[^{}]*clip:\s*rect\(0/);
