@@ -46,15 +46,19 @@ p.debit-note { margin: 0 0 8px; }
 
 /* ── The nine-track budget (SIL-772) ────────────────────────────────────────
  * Fixed layout + percentage shares: the board fills the canvas exactly and
- * NEVER overflows it at the 1920px operating width — measured canvas there is
- * ≈1438px (shell + sidebar), so the 1380px floor clears it with slack and no
- * scrollbar (the QA FAIL scrolled at 1480/1438 with the old matrix). Below
- * that floor the wrap scrolls instead of crushing the money cells. The shares
- * sum to 100%. */
+ * NEVER overflows it down to the 1440px window — owner QA 14/11 (SIL-835)
+ * measured the 1440px canvas at ≈1142px (shell + sidebar) and failed the old
+ * 1380px floor for scrolling sideways there. The floor now sits BELOW that
+ * canvas (1136px), so at 1440 the percentage tracks fill it with no
+ * scrollbar, and only narrower canvases (1366 laptops and below) degrade to
+ * the wrap's horizontal scroll instead of crushing the money cells. The
+ * shares sum to 100% and give every money track ≥10% (≥114px at the 1440
+ * canvas — a 12px tabular money value ≈103px incl. cell padding fits whole,
+ * and the 10% Lô track holds the measured tick+date 109.5px). */
 .debit-board {
   table-layout: fixed;
   width: 100%;
-  min-width: 1380px;
+  min-width: 1136px;
 }
 
 .debit-board th,
@@ -66,20 +70,21 @@ p.debit-note { margin: 0 0 8px; }
   white-space: normal;
 }
 
-/* Track shares (Rev2 groups, in order): Lô 13 · Hàng hóa & Cont 11 ·
- * Phương tiện 11 · Cước phải thu 12 · Tổng thu 8 · Cước phải trả 12 ·
- * Tổng trả & Chi phí ngoài 11 · Lợi nhuận 8 · Ghi chú & Đối soát 14.
+/* Track shares (Rev2 groups, in order; SIL-835 rebalance): Lô 10 ·
+ * Hàng hóa & Cont 10 · Phương tiện 10 · Cước phải thu 14 · Tổng thu 10 ·
+ * Cước phải trả 14 · Tổng trả & Chi phí ngoài 11 · Lợi nhuận 10 ·
+ * Ghi chú & Đối soát 11.
  * The nine-group ORDER is the Rev2 contract, so the shares key on the
  * header's child position (same-class columns carry different widths). */
-.debit-board thead th:nth-child(1) { width: 13%; }  /* Lô */
-.debit-board thead th:nth-child(2) { width: 11%; }  /* Hàng hóa & Cont */
-.debit-board thead th:nth-child(3) { width: 11%; }  /* Phương tiện */
-.debit-board thead th:nth-child(4) { width: 12%; }  /* Cước phải thu */
-.debit-board thead th:nth-child(5) { width: 8%; }   /* Tổng thu */
-.debit-board thead th:nth-child(6) { width: 12%; }  /* Cước phải trả */
+.debit-board thead th:nth-child(1) { width: 10%; }  /* Lô */
+.debit-board thead th:nth-child(2) { width: 10%; }  /* Hàng hóa & Cont */
+.debit-board thead th:nth-child(3) { width: 10%; }  /* Phương tiện */
+.debit-board thead th:nth-child(4) { width: 14%; }  /* Cước phải thu */
+.debit-board thead th:nth-child(5) { width: 10%; }  /* Tổng thu */
+.debit-board thead th:nth-child(6) { width: 14%; }  /* Cước phải trả */
 .debit-board thead th:nth-child(7) { width: 11%; }  /* Tổng trả & Chi phí ngoài */
-.debit-board thead th:nth-child(8) { width: 8%; }   /* Lợi nhuận */
-.debit-board thead th:nth-child(9) { width: 14%; }  /* Ghi chú & Đối soát */
+.debit-board thead th:nth-child(8) { width: 10%; }  /* Lợi nhuận */
+.debit-board thead th:nth-child(9) { width: 11%; }  /* Ghi chú & Đối soát */
 
 /* Single-value money cells (Tổng thu, Lợi nhuận) right-align like the old
  * matrix; the multi-line groups align per LINE (label left, value right). */
