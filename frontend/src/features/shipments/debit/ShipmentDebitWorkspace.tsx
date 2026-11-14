@@ -11,24 +11,17 @@ import {
 } from '../../../api/shipmentClient';
 import { formatDateTimeVN } from '../../../lib/format';
 import { useAuth } from '../../../hooks/useAuth';
-import { useActiveQuotationFees } from '../../../hooks/useQuotationQueries';
 import { useReasonPrompt } from '../../../components/reason-prompt';
 import { useToast } from '../../../components/shared/Toast';
 import { qk } from '../../../api/keys';
 import { Role } from '@tingting/shared';
-import { AdjustPanel, ChiHoTable, DRAFT_EMPTY, FreightTable, buildDelta, buildDraft, deltaIsEmpty, type DraftState } from './ShipmentDebitTables';
+import { AdjustPanel, DebitCoHdBlock, DebitKhongHdBlock, DRAFT_EMPTY, buildDelta, buildDraft, deltaIsEmpty, type DraftState } from './ShipmentDebitTables';
 import { UnattachedTripsTable } from './ShipmentDebitTables.unattached';
 import './ShipmentDebitWorkspace.css';
 
 
-export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode, onSaved }: {
+export function ShipmentDebitWorkspace({ shipmentId, locked, lotCode, onSaved }: {
   shipmentId: number;
-  /** Card _202: the ROW's own customer — keys the active-frame fee catalog
-   *  (dedicated routing columns + the ghi chú aggregation). `shipments.
-   *  customer_id` is nullable, so a lot can arrive without one: the fee
-   *  catalog is then simply not fetched (the hook is disabled on null) rather
-   *  than asked for a customer `0` that does not exist. */
-  customerId: number | null;
   locked: boolean;
   /** The lot's display code for the unlock toast; falls back to #id. */
   lotCode?: string | null;
@@ -128,19 +121,6 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
 
   const auth = useAuth();
   const role = auth?.user?.role;
-  // `/api/quotations/fees/active` sits behind `casbinAuthz('config')`
-  // (backend/src/index.ts:229, policy.csv: `config, read` = DISPATCHER,
-  // MANAGER, ACCOUNTANT + ADMIN). CUS has no config policy row, so asking for
-  // the active fee catalog from it produced a 403 and a console error on every
-  // CUS visit of this screen.
-  //
-  // Card 20261002_220 — PM ruled 2026-10-03 that CUS DOES read this catalog, so
-  // the backend grants it route-scoped to that one GET
-  // (authz-grants.ts). The FE role gate is therefore removed: it existed only
-  // to suppress a call the policy now permits, and leaving it would keep the
-  // dedicated cost columns missing for the very role the ruling covers. The
-  // remaining config catalogs are untouched — no `config:read` for CUS.
-  const feeCatalog = useActiveQuotationFees(customerId).data ?? [];
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const canLock = role === Role.ADMIN || role === Role.ACCOUNTANT || role === Role.CUS;
   const canAdjust = role === Role.ADMIN || role === Role.ACCOUNTANT;
@@ -218,19 +198,19 @@ export function ShipmentDebitWorkspace({ shipmentId, customerId, locked, lotCode
   const delta = detail.data ? buildDelta(detail.data, draft) : null;
   return (
     <div className="csc-debit-workspace" data-locked={locked ? '' : undefined}>
-      <FreightTable detail={detail.data} draft={draft} frozen={frozen} setFreight={setFreight} />
-      {/* SIL-790 — an intake lot (no container rows yet) can never carry a
-          per-fee pair: state it instead of rendering an empty frame (law §6 —
-          the empty state names what fills it). Lots WITH rows but no fees get
-          the seeded dual-input below; saved fees always pair directly. */}
-      {detail.data.chiHoRows.length === 0 && (
-        <div className="csc-debit-otherfee--empty" data-testid="debit-no-fee-block">
-          <strong>Phí Không HĐ</strong>
-          <span>Thực chi Ops: 0 ₫ (chỉ xem)</span>
-          <span>Thu khách hàng: chưa có phí không hóa đơn trên lô — khi Ops khai phí phát sinh, cặp ô Thực chi Ops / Thu khách hàng hiện tại đây.</span>
-        </div>
-      )}
-      <ChiHoTable detail={detail.data} draft={draft} frozen={frozen} feeCatalog={feeCatalog} setFeeSell={setFeeSell} addFee={addFee} removeFee={removeFee} setAddedFee={setAddedFee} />
+      {/* SIL-837 (REV2) — the drawer reads as two named blocks: "Phí Có HĐ"
+          (chỉ đọc) and "Phí Không HĐ" (nhập được) — not the old matrices. */}
+      <DebitCoHdBlock detail={detail.data} />
+      <DebitKhongHdBlock
+        detail={detail.data}
+        draft={draft}
+        frozen={frozen}
+        setFreight={setFreight}
+        setFeeSell={setFeeSell}
+        addFee={addFee}
+        removeFee={removeFee}
+        setAddedFee={setAddedFee}
+      />
       {/* REV2 (ticket-v2 Phần VI mục 2) — Bảng 2.3 payables is OUT of the
           Chốt-giá-bán drawer: the CUS surface carries no giá vốn; cost work
           lives on Bảng Kiểm soát lô hàng (chot-debit). */}

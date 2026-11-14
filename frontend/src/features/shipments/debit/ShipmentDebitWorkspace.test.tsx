@@ -70,11 +70,11 @@ const detail = (over: Partial<ShipmentDebitDetail> = {}): ShipmentDebitDetail =>
   ...over,
 });
 
-function renderWorkspace(props: Partial<{ shipmentId: number; customerId: number; locked: boolean; lotCode: string; onSaved: () => void }> = {}) {
+function renderWorkspace(props: Partial<{ shipmentId: number; locked: boolean; lotCode: string; onSaved: () => void }> = {}) {
   const onSaved = vi.fn();
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}>
-      <ShipmentDebitWorkspace shipmentId={101} customerId={7} locked={false} onSaved={onSaved} {...props} />
+      <ShipmentDebitWorkspace shipmentId={101} locked={false} onSaved={onSaved} {...props} />
     </QueryClientProvider>,
   );
   return { onSaved };
@@ -151,7 +151,7 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
       if (saveEdits.mock.calls.length === 1) throw new Error('Response lost after commit');
     });
     const { onSaved } = renderWorkspace();
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     fireEvent.click(screen.getByRole('button', { name: '+ Thêm chi phí' }));
     fireEvent.change(screen.getByLabelText('Tên phí mới CONT-001'), { target: { value: 'Phí rửa container' } });
     fireEvent.change(screen.getByLabelText('Số tiền phí mới CONT-001'), { target: { value: '150000' } });
@@ -201,25 +201,20 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
     await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
   });
 
-  it('renders Bảng 2.1 with the drawing column contract keyed by container', async () => {
+  it('renders the block rows keyed by container, never a synthetic trip ordinal (SIL-837)', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace();
-    expect(await screen.findByText('Cước vận tải')).toBeTruthy();
-    const head = screen.getByText('Cước vận tải').closest('table')!.querySelector('thead tr')!;
-    for (const label of ['Số Container', 'Cước thu', 'Phụ phí xăng dầu', '—', 'Phí Hải Quan', 'Phát sinh', 'Tổng', 'Ghi chú']) {
-      expect(Array.from(head.querySelectorAll('th')).some((th) => th.textContent === label)).toBe(true);
-    }
+    await screen.findByText('Phí Có HĐ');
     // Rows label by container + type, never a synthetic trip ordinal.
     expect(screen.getAllByText('CONT-001').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('20DC').length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/^Chuyến #/)).toBeNull();
-    expect(screen.getByText('4.500.000')).toBeTruthy();
+    expect(screen.getByText('Cước thu: 4.500.000')).toBeTruthy();
   });
 
   it('leaves an unlocked lot with trips fully editable', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace();
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     const ps = screen.getByLabelText('PS thực tế CONT-001') as HTMLInputElement;
     expect(ps.disabled).toBe(false);
     expect((screen.getByLabelText('Ghi chú PS CONT-001') as HTMLInputElement).disabled).toBe(false);
@@ -232,7 +227,7 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
   it('keeps Ops amounts read-only and the CUS cells editable', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace();
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     // The Ops amounts render as read-only spans, never inputs.
     const amount = screen.getByText('180.000');
     expect(amount.tagName).toBe('SPAN');
@@ -252,8 +247,8 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
   it('arms the orange warning on detention or repair amounts above zero', async () => {
     getDetail.mockResolvedValue(detail({ chiHoRows: [{ ...detail().chiHoRows[0]!, carrierDetention: 350000 }] }));
     renderWorkspace();
-    await screen.findByText('Cước vận tải');
-    expect(document.querySelector('td.csc-debit-warn-cell--armed')).toBeTruthy();
+    await screen.findByText('Phí Có HĐ');
+    expect(document.querySelector('.csc-debit-block__bracket--armed')).toBeTruthy();
     expect(screen.getByText('[ 350.000 đ ]')).toBeTruthy();
   });
 
@@ -264,7 +259,7 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
   it('sends the strict delta and validates it against the shared schema', async () => {
     getDetail.mockResolvedValue(detail());
     const { onSaved } = renderWorkspace();
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     // The editable cell seeds the wire's sell; typing a NEW figure arms the
     // save with a sellAmount delta — REV2's Thực chi Ops side never travels.
     fireEvent.change(screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Phí đăng kiểm CONT-001' }), { target: { value: '300000' } });
@@ -285,7 +280,7 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
   it('carries Phí khác adds and removals in the delta', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace();
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     fireEvent.click(screen.getByRole('button', { name: '+ Thêm chi phí' }));
     fireEvent.change(screen.getByLabelText('Tên phí mới CONT-001'), { target: { value: 'Phí rửa container' } });
     fireEvent.change(screen.getByLabelText('Số tiền phí mới CONT-001'), { target: { value: '150000' } });
@@ -316,7 +311,7 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
   it('freezes every input when the lot is already locked', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true });
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('.csc-debit-workspace input'));
     expect(inputs.length).toBeGreaterThan(0);
     for (const input of inputs) expect(input.disabled).toBe(true);
@@ -327,7 +322,7 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
   it('arms the contextual save bar only once the draft carries a real delta', async () => {
     getDetail.mockResolvedValue(detail());
     const { onSaved } = renderWorkspace();
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     expect(screen.queryByRole('button', { name: 'Lưu điều chỉnh' })).toBeNull();
     fireEvent.change(screen.getByRole('textbox', { name: 'Thu khách hàng phí khác Phí đăng kiểm CONT-001' }), { target: { value: '300000' } });
     expect(await screen.findByRole('button', { name: 'Lưu điều chỉnh' })).toBeTruthy();
@@ -343,7 +338,7 @@ describe('MỞ KHÓA lô (audit 2026-11-04 §2.1; SIL-721 owner 07/11)', () => {
     useAuthMock.mockReturnValue({ user: { userId: 4, role } });
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true });
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     expect(screen.getByRole('button', { name: 'Mở khóa lô hàng' })).toBeTruthy();
     // The trail section reads under the same clearance as the unlock route.
     expect(screen.getByLabelText('Lịch sử khóa')).toBeTruthy();
@@ -353,7 +348,7 @@ describe('MỞ KHÓA lô (audit 2026-11-04 §2.1; SIL-721 owner 07/11)', () => {
     useAuthMock.mockReturnValue({ user: { userId: 4, role } });
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true });
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     expect(screen.queryByRole('button', { name: 'Mở khóa lô hàng' })).toBeNull();
     expect(screen.queryByLabelText('Lịch sử khóa')).toBeNull();
   });
@@ -417,7 +412,7 @@ describe('Lịch sử khóa (SIL-679 r2 — QA comment 3834 §1b)', () => {
     useAuthMock.mockReturnValue({ user: { userId: 3, role: Role.CUS } });
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: false });
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     expect(screen.queryByRole('region', { name: 'Lịch sử khóa' })).toBeNull();
     expect(listLockHistory).not.toHaveBeenCalled();
 
@@ -453,32 +448,32 @@ describe('Bảng 2.1 wire contract (card _7)', () => {
     thuKhachTotal: null,
   };
 
-  it('renders the Bảng 2.1 revenue columns from the wire fields', async () => {
+  it('renders the Phí Có HĐ block figures from the wire fields (SIL-837 block shape)', async () => {
     getDetail.mockResolvedValue(wireDetail);
     renderWorkspace();
-    await screen.findByText('Cước vận tải');
-    expect(screen.getByText('4.500.000')).toBeTruthy();
-    expect(screen.getByText('300.000')).toBeTruthy();
+    await screen.findByText('Phí Có HĐ');
+    expect(screen.getByText('Cước thu: 4.500.000')).toBeTruthy();
+    expect(screen.getByText('Phụ phí xăng dầu: 300.000')).toBeTruthy();
     // REV2: 'Chưa xác định' lived on Bảng 2.3's honest-null cells — that
-    // surface is deleted; Bảng 2.1 renders absent data as '—' / '(auto)'.
+    // surface is deleted; the block renders absent data as '—' / '(auto)'.
     expect(screen.queryByText('Chưa xác định')).toBeNull();
-    expect(screen.getByText('4.800.000')).toBeTruthy();
+    expect(screen.getByText('Phí hải quan: —')).toBeTruthy();
   });
 
-  it('renders the lock-frozen port labels under the container (card _35)', async () => {
+  it('renders the lock-frozen port labels beside the container (card _35)', async () => {
     getDetail.mockResolvedValue({
       ...wireDetail,
       freightRows: wireDetail.freightRows.map((row) => ({ ...row, liftSiteLabel: 'PORT-A cũ', dropSiteLabel: 'PORT-B cũ' })),
     });
     renderWorkspace();
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     expect(screen.getByText('Nâng: PORT-A cũ · Hạ: PORT-B cũ')).toBeTruthy();
   });
 
   it('hides the port label line when the lock predates _35 (card _35)', async () => {
     getDetail.mockResolvedValue({ ...wireDetail, freightRows: wireDetail.freightRows.map((row) => ({ ...row, liftSiteLabel: null, dropSiteLabel: null })) });
     renderWorkspace();
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     expect(screen.queryByText(/Nâng: /)).toBeNull();
   });
 
@@ -496,7 +491,7 @@ describe('PS thực tế round trip (20260918 final rework)', () => {
   it('carries typed PS in the freightEdits delta and validates against the shared schema', async () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace();
-    await screen.findByText('Cước vận tải');
+    await screen.findByText('Phí Có HĐ');
     fireEvent.change(screen.getByLabelText('PS thực tế CONT-001'), { target: { value: '180000' } });
     fireEvent.change(screen.getByLabelText('Ghi chú PS CONT-001'), { target: { value: 'thỏa thuận giảm phí' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu điều chỉnh' }));

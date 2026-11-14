@@ -16,7 +16,6 @@ const { listBoard, listRounds, setExternalCost, getBootstrap } = vi.hoisted(() =
 
 vi.mock('../../api/accountingDebitClient', () => ({
   listAccountingDebitBoard: listBoard,
-  sendRateAdjustmentRequests: vi.fn(),
   confirmRateAdjustments: vi.fn(),
   withdrawRateAdjustments: vi.fn(),
   listSettlementRounds: listRounds,

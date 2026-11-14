@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { Check, ChevronDown, ChevronRight, Copy, Layers, MoreHorizontal, X } from 'lucide-react';
+import { Check, Copy, Layers, MoreHorizontal, X } from 'lucide-react';
 import { LCL_REV_MERGE_TAG } from '@tingting/shared';
 import type { ShipmentDebitLotRow } from '../../../api/shipmentClient';
 import { useToast } from '../../../components/shared/Toast';
@@ -12,7 +12,7 @@ import { StatusText } from '../../../components/shared/StatusText';
 import { UnmergeRevGroupAction } from './UnmergeRevGroupAction';
 import { DeleteLotAction } from './DeleteLotAction';
 import {
-  EMPTY_SUM_TOOLTIP, PENDING_TOOLTIP, ZERO_TOOLTIP,
+  EMPTY_SUM_TOOLTIP, ZERO_TOOLTIP,
   type MoneyState,
   formatKnownMoney, lotDocuments, lotLabelOf, moneyState, sumMoneyStates, titleCaseName,
 } from './debitMoney';
@@ -81,14 +81,6 @@ function MoneyCell({ state, variant, note, tag, tagTitle }: { state: MoneyState;
       {tagNode}
     </td>
   );
-}
-
-/** Sticky group subtotal cell — same three-state law, muted weight. */
-function GroupSumCell({ state, col }: { state: MoneyState; col: MoneyVariant }) {
-  if (state.kind === 'pending') return <td className="shipment-debit-group__sum" data-col={col} title={PENDING_TOOLTIP}>—</td>;
-  if (state.kind === 'zero') return <td className="shipment-debit-group__sum" data-col={col} title={ZERO_TOOLTIP}>0</td>;
-  // SIL-801 — a non-zero group receivable subtotal is uncollected money too.
-  return <td className={col === 'total' ? 'shipment-debit-group__sum shipment-debit-group__sum--warn' : 'shipment-debit-group__sum'} data-col={col}>{formatKnownMoney(state.value)}</td>;
 }
 
 /** Foot total — bold tabular; nothing known yet reads '—' with its tooltip. */
@@ -562,10 +554,14 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
           </td>
         )}
         <td className="shipment-debit-cell--identity">
-          {/* REV2 — the multi-line identity cell: Bill/Booking + chứng từ
-              badge, tờ khai (copy), nhà máy/tuyến. The customer itself is the
-              group header above (the board groups by the row's customer). */}
+          {/* REV2 — the multi-line identity cell: customer (Title Case — the
+              SIL-837 flat list moved the name from the retired group header
+              onto the row), Bill/Booking + chứng từ badge, tờ khai (copy),
+              nhà máy/tuyến. */}
           <div className="shipment-debit-identity">
+            <div className="shipment-debit-identity__line">
+              <span className="shipment-debit-identity__customer">{titleCaseName(row.customerName ?? '') || 'Khách chưa xác định'}</span>
+            </div>
             <div className="shipment-debit-identity__line">
               <span className="shipment-debit-booking" title={label}>{label}</span>
               <DocsBadge row={row} />
@@ -609,74 +605,6 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
   );
 }
 
-interface LotGroup {
-  key: string;
-  customerId: number | null;
-  name: string;
-  rows: ShipmentDebitLotRow[];
-}
-
-/** Group by the row's OWN customer, in first-appearance order. */
-function groupByCustomer(items: ShipmentDebitLotRow[]): LotGroup[] {
-  const groups: LotGroup[] = [];
-  const byKey = new Map<string, LotGroup>();
-  for (const row of items) {
-    const key = row.customerId == null ? 'none' : String(row.customerId);
-    let group = byKey.get(key);
-    if (!group) {
-      group = { key, customerId: row.customerId, name: row.customerName ?? 'Khách chưa xác định', rows: [] };
-      byKey.set(key, group);
-      groups.push(group);
-    }
-    group.rows.push(row);
-  }
-  return groups;
-}
-
-function GroupHeader({ group, collapsed, onCollapse, leadingColSpan }: { group: LotGroup; collapsed: boolean; onCollapse: () => void; leadingColSpan: number }) {
-  const displayName = titleCaseName(group.name) || group.name;
-  const sums = group.rows.map((row) => ({
-    // SIL-731 r4 — the 24/10 law has no lock exemption: a locked lot's frozen
-    // '0' with freightAuto null is still uncalculated → pending, never '0'.
-    freight: (row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0)
-      ? { kind: 'pending' as const }
-      : moneyState(row.freightAuto),
-    chiho: moneyState(row.chiHoSellTotal ?? null),
-    service: moneyState(row.serviceSellTotal ?? null),
-    total: (row.revGroupId == null && row.freightAuto == null && Number(row.receivableTotal) === 0)
-      ? { kind: 'pending' as const }
-      : moneyState(row.receivableTotal),
-  }));
-  return (
-    <tr className="shipment-debit-group">
-      <td colSpan={leadingColSpan} className="shipment-debit-group__label">
-        <button
-          type="button"
-          className="shipment-debit-group__chevron"
-          aria-expanded={!collapsed}
-          aria-label={`${collapsed ? 'Mở' : 'Đóng'} nhóm khách hàng ${displayName}`}
-          onClick={onCollapse}
-        >
-          {collapsed ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
-        </button>
-        <span className="shipment-debit-group__name">{displayName}</span>
-        <span className="shipment-debit-group__count">{`${group.rows.length} lô`}</span>
-      </td>
-      <GroupSumCell col="freight" state={sumsToState(sums.map((s) => s.freight))} />
-      <GroupSumCell col="chiho" state={sumsToState(sums.map((s) => s.chiho))} />
-      <GroupSumCell col="service" state={sumsToState(sums.map((s) => s.service))} />
-      <GroupSumCell col="total" state={sumsToState(sums.map((s) => s.total))} />
-      <td className="shipment-debit-group__tail" aria-hidden="true" />
-    </tr>
-  );
-}
-
-/** A pile of money states → one sum state (known values only). */
-function sumsToState(states: Array<MoneyState>): MoneyState {
-  const sum = sumMoneyStates(states);
-  return sum == null ? { kind: 'pending' } : sum === 0 ? { kind: 'zero' } : { kind: 'known', value: sum };
-}
-
 export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, onDeclareCost, onDeleted, mergeMode, selectedIds, expandedId, onToggle, onUnmerged, ratesRefreshing, onSelect }: {
   items: ShipmentDebitLotRow[];
   canManage: boolean;
@@ -703,15 +631,6 @@ export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, 
   ratesRefreshing: boolean;
   onSelect: (id: number, next: boolean) => void;
 }) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const groups = groupByCustomer(items);
-  const toggleCollapse = (key: string) => setCollapsed((current) => {
-    const next = new Set(current);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    return next;
-  });
-
   const totalOf = (pick: (row: ShipmentDebitLotRow) => number | string | null | undefined, col?: string) =>
     sumMoneyStates(items.map((row) => {
       // SIL-731 r4 — the 24/10 law has no lock exemption: a locked lot's frozen
@@ -737,28 +656,26 @@ export function DebitLotTable({ items, canManage, canDeleteLot, canDeclareCost, 
           </tr>
         </thead>
         <tbody>
-          {groups.map((group) => (
-            <Fragment key={group.key}>
-              <GroupHeader group={group} collapsed={collapsed.has(group.key)} onCollapse={() => toggleCollapse(group.key)} leadingColSpan={mergeMode ? 2 : 1} />
-              {!collapsed.has(group.key) && group.rows.map((row) => (
-                <DebitLotRow
-                  key={row.shipmentId}
-                  row={row}
-                  canManage={canManage}
-                  canDeleteLot={canDeleteLot}
-                  onDeleted={onDeleted}
-                  canDeclareCost={canDeclareCost}
-                  onDeclareCost={onDeclareCost}
-                  mergeMode={mergeMode}
-                  expanded={canManage && expandedId === row.shipmentId}
-                  onToggle={() => onToggle(row.shipmentId)}
-                  onUnmerged={onUnmerged}
-                  ratesRefreshing={ratesRefreshing}
-                  selected={selectedIds.has(row.shipmentId)}
-                  onSelect={onSelect}
-                />
-              ))}
-            </Fragment>
+          {/* SIL-837 (REV2 danh sách phẳng) — ONE flat lot list; the per-customer
+              group header rows (sticky band + collapse + subtotal) are retired
+              with the 2-layer structure they carried. */}
+          {items.map((row) => (
+            <DebitLotRow
+              key={row.shipmentId}
+              row={row}
+              canManage={canManage}
+              canDeleteLot={canDeleteLot}
+              onDeleted={onDeleted}
+              canDeclareCost={canDeclareCost}
+              onDeclareCost={onDeclareCost}
+              mergeMode={mergeMode}
+              expanded={canManage && expandedId === row.shipmentId}
+              onToggle={() => onToggle(row.shipmentId)}
+              onUnmerged={onUnmerged}
+              ratesRefreshing={ratesRefreshing}
+              selected={selectedIds.has(row.shipmentId)}
+              onSelect={onSelect}
+            />
           ))}
         </tbody>
         <tfoot className="shipment-debit-totals" data-testid="shipment-debit-totals">

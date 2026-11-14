@@ -99,7 +99,7 @@ beforeEach(() => {
 });
 
 describe('SIL-801 — uncollected receivables wear the warning amber tone', () => {
-  it('marks a known non-zero receivable amber on the row, group subtotal and foot', async () => {
+  it('marks a known non-zero receivable amber on the row and the foot', async () => {
     listSummary.mockResolvedValue({
       items: [amberRow({ freightAuto: 10000000, receivableTotal: 306619500 })],
       total: 1,
@@ -113,8 +113,9 @@ describe('SIL-801 — uncollected receivables wear the warning amber tone', () =
     expect(warnCells[0].getAttribute('data-col')).toBe('total');
     expect(warnCells[0].textContent).toContain('306.619.500');
 
-    // Group subtotal + page foot carry the tone.
-    expect(document.querySelector('td.shipment-debit-group__sum--warn')).toBeTruthy();
+    // SIL-837 — the per-customer group subtotal band is retired (flat list);
+    // the page foot still carries the tone.
+    expect(document.querySelector('td.shipment-debit-group__sum--warn')).toBeNull();
     const foot = document.querySelector('td.shipment-debit-totals__sum--warn');
     expect(foot).toBeTruthy();
     expect(foot?.textContent).toContain('306.619.500');
@@ -156,7 +157,8 @@ describe('SIL-801 — uncollected receivables wear the warning amber tone', () =
     expect(totalCell.classList.contains('shipment-debit-money--warn')).toBe(false);
     // Owner 24/10 law: the pending money cell renders empty, never '0 ₫'.
     expect(totalCell.textContent).toBe('');
-    // No warn anywhere on the group subtotal or the foot either.
+    // No warn on the foot either — and no group subtotal surface survives
+    // the SIL-837 flat list to carry one.
     expect(document.querySelector('td.shipment-debit-group__sum--warn')).toBeNull();
     expect(document.querySelector('td.shipment-debit-totals__sum--warn')).toBeNull();
   });
@@ -166,25 +168,21 @@ describe('SIL-801 — uncollected receivables wear the warning amber tone', () =
       // Comments carry the cascade-order rationale, not selectors.
       .replace(/\/\*[\s\S]*?\*\//g, '');
     expect(css).toMatch(/\.shipment-debit-money--warn\s*\{ color: var\(--warning-text\); \}/);
-    expect(css).toMatch(/\.shipment-debit-group__sum--warn\s*\{ color: var\(--warning-text\); \}/);
     expect(css).toMatch(/\.shipment-debit-totals__sum--warn\s*\{ color: var\(--warning-text\); \}/);
   });
 
   // QA FAIL 1ae5afcb (comment 5048): the amber rule originally lived BEFORE
-  // the base .shipment-debit-group__sum / .shipment-debit-totals__sum rules —
-  // same specificity, so the later grey/black `color` won and the group total
-  // (Long Minh 326.435.500) and foot TỔNG CỘNG rendered without any amber tint
-  // while the row cells did. Each --warn rule must appear AFTER its base rule
-  // in the stylesheet, or the tone silently dies again.
-  it('keeps every group/foot amber rule AFTER its base rule in the cascade', () => {
+  // the base .shipment-debit-totals__sum rule — same specificity, so the
+  // later grey/black `color` won and the foot TỔNG CỘNG rendered without any
+  // amber tint while the row cells did. The --warn rule must appear AFTER
+  // its base rule in the stylesheet, or the tone silently dies again.
+  // (SIL-837: the group subtotal rules are gone with the flat list.)
+  it('keeps the foot amber rule AFTER its base rule in the cascade', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
     // Non-vacuous: first assert each rule EXISTS (indexOf !== -1), then the
     // order — a deleted base rule must fail this pin, not pass it.
-    expect(css.indexOf('.shipment-debit-group__sum {')).toBeGreaterThan(-1);
     expect(css.indexOf('.shipment-debit-totals__sum {')).toBeGreaterThan(-1);
-    expect(css.indexOf('.shipment-debit-group__sum--warn')).toBeGreaterThan(-1);
     expect(css.indexOf('.shipment-debit-totals__sum--warn')).toBeGreaterThan(-1);
-    expect(css.indexOf('.shipment-debit-group__sum {')).toBeLessThan(css.indexOf('.shipment-debit-group__sum--warn'));
     expect(css.indexOf('.shipment-debit-totals__sum {')).toBeLessThan(css.indexOf('.shipment-debit-totals__sum--warn'));
   });
 });

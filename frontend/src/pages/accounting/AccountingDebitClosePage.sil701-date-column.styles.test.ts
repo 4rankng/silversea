@@ -7,10 +7,11 @@
 //   digit clipped at the column edge.
 //
 // SIL-772 rebuilt the board as the nine fixed Rev2 tracks: the date is the
-// second LINE of the Lô cell (columns.tsx), the 13% Lô track ≈195px at the
-// 1480px fixed-layout floor, and the board NEVER grows past the canvas —
-// which is also what keeps the 1920px operating width free of the horizontal
-// scrollbar the QA FAIL measured.
+// second LINE of the Lô cell (columns.tsx), the 10% Lô track ≈114px at the
+// 1440px canvas (SIL-835 floor 1136px sits below that measured canvas), and
+// the board NEVER grows past the canvas — which is also what keeps the 1440px
+// window (and the 1920px operating width) free of the horizontal scrollbar
+// the QA FAILs measured.
 //
 // WHAT THIS PINS: the no-clip law at its new home — the date line never
 // wraps (one value, one line), rides tabular digits, and the fixed-layout
@@ -53,10 +54,11 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     const body = ruleWith('.debit-board', /table-layout:\s*fixed/);
     expect(body).toMatch(/table-layout:\s*fixed/);
     expect(body).toMatch(/width:\s*100%/);
-    // The floor keeps the money tracks from being crushed below the measured
-    // content; the 1920px canvas (measured ≈1438px) clears it, so no
-    // horizontal scrollbar there — the AC the QA FAIL measured.
-    expect(body).toMatch(/min-width:\s*1380px/);
+    // The floor keeps the money tracks from being crushed; since SIL-835
+    // (owner QA 14/11) it sits BELOW the measured 1440px canvas (≈1142px) so
+    // the board fills that window with NO horizontal scrollbar, and only
+    // narrower canvases degrade to the wrap's scroll.
+    expect(body).toMatch(/min-width:\s*1136px/);
   });
 
   it('the date line never wraps and rides tabular digits', () => {
@@ -91,7 +93,7 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     // position i must still be the key this width was measured for.
     const expectedOrder = ['lo', 'hangHoaCont', 'phuongTien', 'cucPhaiThu', 'tongThu', 'cucPhaiTra', 'tongTraChiPhiNgoai', 'loiNhuan', 'ghiChuDoiSoat'];
     expect(BOARD_COLUMNS.map((candidate) => candidate.key)).toEqual(expectedOrder);
-    const expectedShares = [13, 11, 11, 12, 8, 12, 11, 8, 14];
+    const expectedShares = [10, 10, 10, 14, 10, 14, 11, 10, 11];
     expectedOrder.forEach((key, index) => {
       expect(css).toContain(`.debit-board thead th:nth-child(${index + 1}) { width: ${expectedShares[index]}%; }`);
     });

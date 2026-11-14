@@ -310,14 +310,14 @@ describe('Chi phí - Quyết toán — L2 expansion (20260918_18; kebab since 23
     });
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
-    expect(screen.queryByText('Cước vận tải')).toBeNull();
+    expect(screen.queryByText('Phí Có HĐ')).toBeNull();
     // Redesign 23/10: expansion lives in the ⋯ menu.
     openRowMenu('BL-1');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Mở chi tiết lô BL-1' }));
-    expect(await screen.findByText('Cước vận tải')).toBeTruthy();
+    expect(await screen.findByText('Phí Có HĐ')).toBeTruthy();
     openRowMenu('BL-1');
     fireEvent.click(screen.getByRole('menuitem', { name: 'Đóng chi tiết lô BL-1' }));
-    await waitFor(() => expect(screen.queryByText('Cước vận tải')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Phí Có HĐ')).toBeNull());
   });
 });
 
@@ -330,7 +330,7 @@ describe('L2 open-state reload persistence (card _11)', () => {
     // The drawer mounts with the list render (items → drawerLot) — wait for
     // the row first so the drawer content is in the same commit.
     await screen.findAllByText('BL-1');
-    expect(await screen.findByText('Cước vận tải')).toBeTruthy();
+    expect(await screen.findByText('Phí Có HĐ')).toBeTruthy();
     sessionStorage.removeItem('shipment-debit.expanded-lot');
   });
 
@@ -339,7 +339,7 @@ describe('L2 open-state reload persistence (card _11)', () => {
     listSummary.mockResolvedValue({ items: [row({ lockStatus: 'LOCKED' })], total: 1 });
     renderPage('/shipments-debit?customer=1');
     await screen.findAllByText('BL-1');
-    expect(screen.queryByText('Cước vận tải')).toBeNull();
+    expect(screen.queryByText('Phí Có HĐ')).toBeNull();
   });
 });
 
@@ -491,7 +491,7 @@ describe('Xuất Debit Note — batched issue (ruling: one POST per selection)',
 });
 
 describe('Redesign 23/10 — group theo khách + sticky totals + chứng từ + copy', () => {
-  it('(b) groups rows under one sticky customer header with aligned subtotals and a collapse chevron', async () => {
+  it('(b) SIL-837: renders ONE flat lot list — no customer group rows, no collapse', async () => {
     listSummary.mockResolvedValue({
       items: [
         row({ customerId: 1, customerName: 'CÔNG TY LONG MINH', billOrBookNumber: 'BL-1', receivableTotal: 1_000_000, chiHoSellTotal: '400000' }),
@@ -502,29 +502,19 @@ describe('Redesign 23/10 — group theo khách + sticky totals + chứng từ + 
     });
     const { container } = renderPage();
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
-    // One Title-Case group header per customer with the lot count.
-    const header = screen.getByRole('button', { name: 'Đóng nhóm khách hàng Công Ty Long Minh' }).closest('tr')!;
-    expect(within(header).getByText('Công Ty Long Minh')).toBeTruthy();
-    expect(within(header).getByText('2 lô')).toBeTruthy();
-    // The group's subtotals align under the REV2 money columns and sum the
-    // KNOWN values only — freight (Auto) 4.5M+4.5M, Tổng chi hộ 400K+600K,
-    // Tổng phải thu 1M+2M; Tổng dịch vụ has nothing known → '—' with the
-    // pending tooltip. KH B's group still carries pending chi-hộ/dịch vụ
-    // sums ('—' + tooltip) since none of its lots has those wire fields.
-    const khbHeader = screen.getByRole('button', { name: /nhóm khách hàng Kh B/ }).closest('tr')!;
-    expect(within(khbHeader).getAllByTitle('Chưa chốt — đang chờ số liệu đối soát').length).toBeGreaterThan(0);
-    expect(within(header).getAllByText('9.000.000').length).toBeGreaterThan(0);
-    expect(within(header).getAllByText('1.000.000').length).toBeGreaterThan(0);
-    expect(within(header).getAllByText('3.000.000').length).toBeGreaterThan(0);
-    // Collapse hides the group's rows (and only that group's).
-    fireEvent.click(within(header).getByRole('button', { name: 'Đóng nhóm khách hàng Công Ty Long Minh' }));
-    expect(await screen.findByRole('button', { name: 'Mở nhóm khách hàng Công Ty Long Minh' })).toBeTruthy();
-    expect(screen.queryByText('BL-1')).toBeNull();
-    expect(screen.queryByText('BL-2')).toBeNull();
+    // The 2-layer structure Rev2 forbids is gone: no customer header row,
+    // no chevron, no subtotal band — every lot renders as a direct row.
+    expect(screen.queryByRole('button', { name: /nhóm khách hàng/ })).toBeNull();
+    expect(container.querySelector('.shipment-debit-group')).toBeNull();
+    // The customer name still reads — it moved ONTO the row identity (both
+    // Long Minh rows carry it).
+    expect(screen.getAllByText('Công Ty Long Minh').length).toBe(2);
+    expect(screen.getByText('Kh B')).toBeTruthy();
+    // All three lots sit in the flat list at once.
+    expect(screen.getByText('BL-1')).toBeTruthy();
+    expect(screen.getByText('BL-2')).toBeTruthy();
     expect(screen.getByText('BL-3')).toBeTruthy();
-    // RECORDED LAW (review follow-up): the totals foot is the GRAND TOTAL of
-    // the filtered list — collapsing a group is a view fold, never a scope
-    // change — so 'Tổng cộng (N lô)' keeps counting every filtered lot.
+    // The grand totals foot keeps counting every filtered lot.
     expect(within(container.querySelector('[data-testid="shipment-debit-totals"]')!).getByText('Tổng cộng (3 lô)')).toBeTruthy();
   });
 
@@ -687,10 +677,10 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
     // Owner 14/11: the pane hugs its content — no reserved dead height
     // below short boards (§5 space-waste reads unfinished).
     expect(pane).not.toMatch(/min-height/);
-    // The group header pins under the 40px header; the totals foot pins to
-    // the pane's bottom with the upward shadow.
-    expect(rule(/\.shipment-debit-group td\s*\{([^}]*)\}/)).toMatch(/position:\s*sticky/);
-    expect(rule(/\.shipment-debit-group td\s*\{([^}]*)\}/)).toMatch(/top:\s*40px/);
+    // SIL-837 — the per-customer group band is retired (flat list): only the
+    // totals foot pins to the pane's bottom with the upward shadow, and the
+    // group CSS must not survive as dead rules.
+    expect(cssSource()).not.toMatch(/shipment-debit-group/);
     const foot = rule(/\.shipment-debit-totals td\s*\{([^}]*)\}/);
     expect(foot).toMatch(/position:\s*sticky/);
     expect(foot).toMatch(/bottom:\s*0/);
@@ -699,18 +689,17 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
     expect(rule(/\.shipment-debit-money\s*\{([^}]*)\}/)).toMatch(/text-align:\s*right/);
   });
 
-  it('u14 dense: money columns fit their labels, group chips are plain text, the rail bleeds edge-to-edge', () => {
+  it('u14 dense: money columns fit their labels, the rail bleeds edge-to-edge (SIL-837: no group chips)', () => {
     // Owner 14/11 screenshots: money headers ellipsized inside 140px, group
     // counts wore 999px pill fills + a decorative Layers icon (§1), and the
     // pane reserved dead height. Law: §4 headers never chop; §1 no pill
     // fills / no decorative icons; §5 no dead space; 2026-10-30 edge-to-edge
-    // rail (master-plan pattern, card pad 12px + shell gutter bled).
+    // rail (master-plan pattern, card pad 12px + shell gutter bled). The
+    // group chip surface itself is retired with the flat list.
     for (const col of ['freight', 'chiho', 'service', 'total']) {
       expect(rule(new RegExp(`\\.shipment-debit-table th\\.shipment-debit-col--${col}\\s*\\{([^}]*)\\}`))).toMatch(/width:\s*220px/);
     }
-    const count = rule(/\.shipment-debit-group__count\s*\{([^}]*)\}/);
-    expect(count).not.toMatch(/999px|background|border/);
-    expect(cssSource()).not.toMatch(/shipment-debit-group__icon/);
+    expect(cssSource()).not.toMatch(/shipment-debit-group/);
     const pane = rule(/\.shipment-debit-pane\s*\{([^}]*)\}/);
     expect(pane).toMatch(/margin-inline:\s*calc\(-12px - var\(--app-body-pad-x/);
     expect(pane).toMatch(/width:\s*calc\(100% \+ 24px \+ 2 \* var\(--app-body-pad-x/);
@@ -726,7 +715,9 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
     renderPage('/shipments-debit?customer=1');
     expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
     const identity = screen.getAllByText('BL-1')[0].closest('tr')!.querySelector('.shipment-debit-cell--identity')!;
-    expect(identity.querySelectorAll('.shipment-debit-identity__line').length).toBe(1);
+    // SIL-837 — customer line + booking line; no placeholder noise (the
+    // retired '—' second line stays retired).
+    expect(identity.querySelectorAll('.shipment-debit-identity__line').length).toBe(2);
     expect(identity.textContent).not.toContain('—');
   });
 

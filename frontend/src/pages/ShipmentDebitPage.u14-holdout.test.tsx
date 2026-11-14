@@ -21,7 +21,8 @@
  *       2 * var(--app-body-pad-x, 24px)) (edge-to-edge rail).
  * AC-6  the page renders with two rows (one LOCKED); the row's menu opens;
  *       the amber/warn classes exist in CSS (shipment-debit-money--warn /
- *       --totals__sum--warn / group__sum--warn).
+ *       --totals__sum--warn). SIL-837: the group subtotal band is retired
+ *       with the flat list — no group__sum rules survive.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -203,6 +204,7 @@ describe('u14 holdout — requirement-only (density & legibility redesign)', () 
     const css = cssSource();
     expect(css).toMatch(/\.shipment-debit-money--warn/);
     expect(css).toMatch(/\.shipment-debit-totals__sum--warn/);
-    expect(css).toMatch(/\.shipment-debit-group__sum--warn/);
+    // SIL-837 — the flat list retires the per-customer group subtotal band.
+    expect(css).not.toMatch(/shipment-debit-group/);
   });
 });
