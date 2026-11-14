@@ -12,7 +12,7 @@ import { issueClaimWindowEnd } from './trip-pair-rules.service';
 import { db } from '../db';
 import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { ApiError } from '../errors';
-import { resolveHandoff } from './dispatch-handoff.service';
+import { claimHandlerlessDispatchHandoffInTx, resolveHandoff } from './dispatch-handoff.service';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { getActiveAssignment } from './truck-driver-assignment.service';
 import { persistNotificationInTx, sendNotificationPush } from './notification.service';
@@ -941,6 +941,18 @@ export async function issueOrderCreateOrUpdate(
       tx,
     );
   }
+
+  // SIL-817 AC3b (id 946, QA 14/11) — issuing the order claims the lot's
+  // handler-less dispatch handoff for the issuing dispatcher. Staging repro:
+  // Phát lệnh on R3M-D2-A → 201 with no handler field; the intake handoff
+  // stayed UNSEEN/handlerId NULL (#668) — the strand the stuck-trips
+  // watchlist kept flagging. The claim rides THIS transaction (same tx that
+  // created/updated the trip) so the handoff can never strand behind an
+  // issued order; sibling lots of the ghép-trả-ĐV cascade each claim their
+  // own through the recursive issueOrderCreateOrUpdate call below. Owned or
+  // resolved handoffs are untouched — see
+  // claimHandlerlessDispatchHandoffInTx for the row law.
+  await claimHandlerlessDispatchHandoffInTx(tx, shipment.id, input.actor.userId);
 
   const departedDriverChanged = input.allowUnacknowledgedDeparture
     && liveTrip != null
