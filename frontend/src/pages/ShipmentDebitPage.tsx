@@ -508,7 +508,6 @@ export function ShipmentDebitPage() {
                   )}
                   <ShipmentDebitWorkspace
                     shipmentId={drawerLot.shipmentId}
-                    customerId={drawerLot.customerId}
                     locked={drawerLot.lockStatus === 'LOCKED'}
                     lotCode={drawerLot.code}
                     onSaved={() => { void summary.refetch(); }}

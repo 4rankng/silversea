@@ -163,7 +163,7 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     // factors: coarse pointer at any width, or ≤768px at any pointer (the
     // AC's 390/768 sweep widths).
     const debit = read('src/pages/ShipmentDebitPage.css');
-    for (const cls of ['shipment-debit-menu__trigger', 'shipment-debit-group__chevron', 'shipment-debit-copy']) {
+    for (const cls of ['shipment-debit-menu__trigger', 'shipment-debit-copy']) {
       const rule = debit.match(new RegExp(`@media \\(max-width: 768px\\), \\(hover: none\\) and \\(pointer: coarse\\) \\{[\\s\\S]*?\\.${cls} \\{([^}]*)\\}`))?.[1] ?? '';
       expect(rule, `${cls} grows to the real touch floor`).toMatch(/width:\s*var\(--control-touch-h\);/);
       expect(rule, `${cls} grows to the real touch floor`).toMatch(/height:\s*var\(--control-touch-h\);/);

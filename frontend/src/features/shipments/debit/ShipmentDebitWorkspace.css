@@ -68,17 +68,6 @@
   min-width: 120px;
 }
 
-/* Fee columns keep sensible min-widths to prevent 1-2 character crushing */
-.csc-debit-table--chiho th,
-.csc-debit-table--chiho td {
-  min-width: 90px;
-}
-
-.csc-debit-table--chiho th:nth-child(4),
-.csc-debit-table--chiho td:nth-child(4) {
-  min-width: 115px; /* Phí cơ sở hạ tầng */
-}
-
 /* Two-line container cells: number on top, type label beneath. */
 .csc-debit-table td > small {
   display: block;
@@ -298,6 +287,94 @@
   color: var(--warning-text);
   margin-right: 4px;
   vertical-align: -2px;
+}
+
+/* ── SIL-837 (REV2) — the two named drawer blocks ──────────────────────────
+   "Phí Có HĐ" (read-only) and "Phí Không HĐ" (editable) replace the
+   per-container matrices: block cards with a title row (tag states the
+   editability), a hint naming the data owner, and one row per container. */
+.csc-debit-block {
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  background: var(--surface);
+}
+
+.csc-debit-block--ro {
+  background: var(--surface-2);
+}
+
+.csc-debit-block__title {
+  margin: 0;
+  font-size: var(--text-dialog-title-size);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.csc-debit-block__tag {
+  font-size: var(--text-caption-size);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.csc-debit-block__hint {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+
+.csc-debit-block__empty {
+  margin: 0;
+  font-size: var(--text-data-size);
+  color: var(--ink-2);
+}
+
+.csc-debit-block__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+
+.csc-debit-block__row:first-of-type {
+  border-top: 0;
+}
+
+.csc-debit-block__container {
+  font-family: var(--font-data);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
+.csc-debit-block__figure {
+  font-size: var(--text-data-size);
+}
+
+.csc-debit-block__channel {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+}
+
+.csc-debit-block__bracket {
+  white-space: nowrap;
+}
+
+.csc-debit-block__bracket--armed {
+  color: var(--warning-text);
+}
+
+.csc-debit-block__bracket--armed svg {
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+
+.csc-debit-block__row--edit .csc-debit-otherfee__field {
+  flex: 0 1 auto;
 }
 
 .csc-debit-docs {

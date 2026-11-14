@@ -474,6 +474,17 @@
   min-width: 0;
 }
 
+/* SIL-837 — the customer name lives ON the row now (the group header band
+   is retired): muted caption ink, one line, ellipsized inside the cell. */
+.shipment-debit-identity__customer {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+}
+
 .shipment-debit-identity__customs {
   display: inline-flex;
   align-items: baseline;
@@ -661,68 +672,6 @@
   color: var(--danger);
 }
 
-/* ── Group header (owner spec v2 (b)): 34px, sticky under the 40px header ── */
-.shipment-debit-group td {
-  position: sticky;
-  top: 40px;
-  height: 34px;
-  padding: 0 10px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-2);
-}
-
-.shipment-debit-group__label {
-  text-align: left;
-  white-space: nowrap;
-}
-
-.shipment-debit-group__chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin-right: 6px;
-  padding: 0;
-  border: 0;
-  border-radius: 6px;
-  background: none;
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.shipment-debit-group__chevron:hover { background: var(--surface-3); }
-.shipment-debit-group__chevron:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
-
-.shipment-debit-group__name {
-  color: var(--ink);
-  font-size: var(--text-data-size);
-  font-weight: 600;
-}
-
-/* §1 — the count is plain muted text, never a pill fill. */
-.shipment-debit-group__count {
-  margin-left: 8px;
-  color: var(--ink-3);
-  font-size: var(--text-caption-size);
-}
-
-.shipment-debit-group__sum {
-  text-align: right;
-  color: var(--ink-2);
-  font-size: var(--text-data-size);
-  font-variant-numeric: tabular-nums;
-}
-
-/* SIL-801 — non-zero group subtotal of TỔNG PHẢI THU KHÁCH wears the amber.
- * This rule must stay AFTER .shipment-debit-group__sum: same specificity, so
- * the later color wins — the QA FAIL on build 1ae5afcb was exactly this rule
- * living BEFORE the base one (the base grey repainted the amber). */
-.shipment-debit-group__sum--warn { color: var(--warning-text); }
-
-.shipment-debit-group__tail { border-left: 0; }
-
 /* ── TOTALS (owner spec v2 (a)): sticky foot, bold tabular sums ─────────── */
 .shipment-debit-totals td {
   position: sticky;
@@ -866,24 +815,17 @@
   }
 }
 
-/* Touch floor (SIL-583 r2): the kebab, the group chevron and the tờ khai
-   copy/badge pair hold the shared 44px touch floor on touch form factors —
-   the QA round-4 verdict names all of them among the clusters that must
-   REALLY measure ≥44px (the round-3 engine finding rules out pseudo
-   extensions, so the elements themselves grow). The ≤768px leg covers the
-   AC's 390/768 sweep widths where a windowed browser reports
-   `pointer: fine`; `(hover: none) and (pointer: coarse)` covers real touch
-   devices at any width. The copy glyph and the badge sit side by side in a
-   wrapping flex cell, so growing them reflows instead of overlapping. */
+/* Touch floor (SIL-583 r2): the kebab and the tờ khai copy/badge pair hold
+   the shared 44px touch floor on touch form factors — the QA round-4
+   verdict names them among the clusters that must REALLY measure ≥44px (the
+   round-3 engine finding rules out pseudo extensions, so the elements
+   themselves grow). The ≤768px leg covers the AC's 390/768 sweep widths
+   where a windowed browser reports `pointer: fine`; `(hover: none) and
+   (pointer: coarse)` covers real touch devices at any width. The copy glyph
+   and the badge sit side by side in a wrapping flex cell, so growing them
+   reflows instead of overlapping. */
 @media (max-width: 768px), (hover: none) and (pointer: coarse) {
   .shipment-debit-menu__trigger {
-    width: var(--control-touch-h);
-    height: var(--control-touch-h);
-    min-width: var(--control-touch-h);
-    min-height: var(--control-touch-h);
-  }
-
-  .shipment-debit-group__chevron {
     width: var(--control-touch-h);
     height: var(--control-touch-h);
     min-width: var(--control-touch-h);
