@@ -5,6 +5,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { and, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
@@ -206,7 +207,7 @@ export async function getOpsSettlementDetail(
       id: s.opsExpenseEntries.id,
       shipmentId: s.opsExpenseEntries.shipmentId,
       shipmentCode: s.shipments.shipmentCode,
-      customerName: s.customers.name,
+      customerName: operationalName(s.customers.shortName, s.customers.name),
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
       containerNumber: s.shipmentContainers.containerNumber,

@@ -4,6 +4,7 @@ import { getCompanyInfo } from './company-info.service';
 import { stampCompanyHeaderXlsx, companyHeaderHtml, loadLogoDataUrl } from './lib/export-company';
 import { db } from '../db';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { sumExcludingNegative } from '@tingting/shared';
 import type { Tx } from './trip-shared';
@@ -654,7 +655,7 @@ async function buildPreviewSettlementData(input: {
       note: s.tripExpenses.note,
       createdAt: s.tripExpenses.createdAt,
       departureDate: s.trips.departureDate,
-      customerName: s.customers.name,
+      customerName: operationalName(s.customers.shortName, s.customers.name),
     }).from(s.tripExpenses)
       .leftJoin(s.trips, eq(s.tripExpenses.tripId, s.trips.id))
       .leftJoin(s.customers, eq(s.trips.customerId, s.customers.id))
