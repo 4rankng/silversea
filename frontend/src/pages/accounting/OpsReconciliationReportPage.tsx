@@ -17,6 +17,7 @@
 
 import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { expenseDateSchema, type ExpenseAccountingEntry, type ExpenseReconciliation } from '@tingting/shared';
 
@@ -84,6 +85,10 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
   // settlement family opens the SAME "Lập phiếu hoàn ứng" dialog the /advances
   // tab uses, preselecting the row's staff.
   const [createFor, setCreateFor] = useState<{ staffId: number; staffName: string } | null>(null);
+  // SIL-827 — the Báo cáo tab carries the same header [Lập phiếu hoàn ứng] the
+  // Phiếu hoàn ứng tab has (SIL-487 placement: same row as the filters); it
+  // opens the SAME dialog, no preselected staff.
+  const [createOpen, setCreateOpen] = useState(false);
   const { user } = useAuth();
   // The create-settlement affordance mirrors the /advances tab's own law
   // (SIL-487): ADMIN/ACCOUNTANT create; MANAGER reads.
@@ -136,7 +141,22 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
       <section aria-label="Bộ lọc">
         <FilterBar
           actions={(
-            <Btn variant="secondary" size="sm" onClick={() => void report.refetch()}>Lọc</Btn>
+            <>
+              <Btn variant="secondary" size="sm" onClick={() => void report.refetch()}>Lọc</Btn>
+              {/* SIL-827 — SIL-728 AC1: the button lives on BOTH surfaces
+                  (Phiếu hoàn ứng tab AND this Báo cáo tab). Same role law as
+                  the /advances tab (SIL-487): ADMIN/ACCOUNTANT create,
+                  MANAGER reads. */}
+              {canReview && (
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus size={14} aria-hidden="true" /> Lập phiếu hoàn ứng
+                </button>
+              )}
+            </>
           )}
         >
           <DateRangeFields
@@ -261,6 +281,9 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
           initialForwarderId={createFor.staffId}
           onClose={() => setCreateFor(null)}
         />
+      )}
+      {createOpen && canReview && (
+        <AdminAdvanceSettlementCreateDialog open onClose={() => setCreateOpen(false)} />
       )}
     </div>
   );
