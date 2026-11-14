@@ -51,6 +51,7 @@ vi.mock('../../api/expenseAccountingClient', () => ({
 
 import PhoiPhieuControlPage from './PhoiPhieuControlPage';
 import { PHOI_INVOICE_EDIT_REASON } from '../../features/accounting/PhoiPhieuInvoiceCell';
+import { ApiError } from '../../lib/api';
 import { businessDateISO } from '../../lib/format';
 
 function phoiRow(overrides: Partial<PhoiPhieuRow> = {}): PhoiPhieuRow {
@@ -107,6 +108,13 @@ function renderWithRows(rows: PhoiPhieuRow[]) {
       <PhoiPhieuControlPage />
     </QueryClientProvider>,
   );
+}
+
+/** SIL-826 — fill an EMPTY Số HĐ cell and commit on blur. */
+async function renderScreenAndCommit(value: string) {
+  const input = await screen.findByRole('textbox', { name: /Số hóa đơn Phí nâng BILL-783/ });
+  fireEvent.change(input, { target: { value } });
+  fireEvent.blur(input);
 }
 
 beforeEach(() => {
@@ -195,6 +203,46 @@ describe('PhoiPhieuControlPage — inline Số HĐ trên bảng (SIL-783)', () =
       expect((screen.getByRole('textbox', { name: /Số hóa đơn Phí nâng BILL-783/ }) as HTMLInputElement).value).toBe('HD-KEEP');
     });
     expect(updatePhoiPhieuRowAmounts).toHaveBeenCalledTimes(1);
+  });
+
+  // SIL-826 — ô Số HĐ TRỐNG trên khoản mà server hiện KHÔNG đối chiếu (stale
+  // board snapshot still says confirmed) 409'd im lặng và mất số nhập. The
+  // server's refusal names the OTHER route; the cell retries through it once.
+  it('ô trống mà correct 409 "chưa đối chiếu" → fallback route update lưu được', async () => {
+    renderWithRows([phoiRow({
+      chiHoRows: [{ entryId: 24, sourceId: 44, version: 9, feeName: 'Phí nâng', invoiceNumber: null, confirmed: true }],
+    })]);
+    correctPhoiPhieuRow.mockRejectedValue(new ApiError(409, { error: 'Khoản chưa đối chiếu có thể sửa trực tiếp.' }, 'Khoản chưa đối chiếu có thể sửa trực tiếp.'));
+    renderScreenAndCommit('HD-QA1114-B');
+    await waitFor(() => {
+      expect(correctPhoiPhieuRow).toHaveBeenCalledWith(24, {
+        expectedVersion: 9,
+        reason: PHOI_INVOICE_EDIT_REASON,
+        invoiceNumber: 'HD-QA1114-B',
+      }, { kind: 'OPS' });
+    });
+    await waitFor(() => {
+      expect(updatePhoiPhieuRowAmounts).toHaveBeenCalledWith(41, 24, {
+        expectedVersion: 9,
+        reason: PHOI_INVOICE_EDIT_REASON,
+        invoiceNumber: 'HD-QA1114-B',
+      }, { kind: 'OPS' });
+    });
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  // SIL-826 — a REAL refusal (financial binding) must never die silently: the
+  // server reason surfaces on the cell and the typed number stays for retry.
+  it('lỗi bị từ chối thật sự hiện rõ lý do, số nhập không biến mất', async () => {
+    renderWithRows([phoiRow({
+      chiHoRows: [{ entryId: 24, sourceId: 44, version: 9, feeName: 'Phí nâng', invoiceNumber: null, confirmed: true }],
+    })]);
+    correctPhoiPhieuRow.mockRejectedValue(new ApiError(409, { error: 'Đối chiếu lịch sử thanh toán cũ trước khi điều chỉnh.' }, 'Đối chiếu lịch sử thanh toán cũ trước khi điều chỉnh.'));
+    renderScreenAndCommit('HD-QA1114-D');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Đối chiếu lịch sử thanh toán cũ trước khi điều chỉnh.');
+    expect(updatePhoiPhieuRowAmounts).not.toHaveBeenCalled();
+    expect(screen.getByRole('textbox', { name: /Số hóa đơn Phí nâng BILL-783/ })).toHaveValue('HD-QA1114-D');
   });
 });
 

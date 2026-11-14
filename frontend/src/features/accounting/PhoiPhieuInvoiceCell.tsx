@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { DRIVER_INCIDENTAL_COST_LABELS } from '@tingting/shared';
 
+import { ApiError } from '../../lib/api';
 import {
   correctPhoiPhieuRow,
   updatePhoiPhieuRowAmounts,
@@ -61,18 +62,34 @@ export function PhoiPhieuInvoiceCell({ tripId, chiHoRow, ariaLabel }: Props) {
     if (next === (chiHoRow.invoiceNumber ?? '')) return;
     setSaving(true);
     setError(null);
+    const payload = {
+      expectedVersion: chiHoRow.version,
+      reason: PHOI_INVOICE_EDIT_REASON,
+      invoiceNumber: next === '' ? null : next,
+    };
+    const kind = chiHoRow.sourceKind ?? 'OPS';
     try {
-      const payload = {
-        expectedVersion: chiHoRow.version,
-        reason: PHOI_INVOICE_EDIT_REASON,
-        invoiceNumber: next === '' ? null : next,
-      };
-      const kind = chiHoRow.sourceKind ?? 'OPS';
-      if (chiHoRow.confirmed) await correctPhoiPhieuRow(chiHoRow.entryId, payload, { kind });
-      else await updatePhoiPhieuRowAmounts(tripId, chiHoRow.entryId, payload, { kind });
+      // SIL-826 — the `confirmed` flag riding the board snapshot can disagree
+      // with the server's CURRENT state; its 409 "Khoản chưa đối chiếu có thể
+      // sửa trực tiếp." names the OTHER route. One fallback attempt on that
+      // exact refusal keeps filling an empty Số HĐ working through the stale
+      // snapshot; every other refusal (version drift, financial binding)
+      // surfaces verbatim below instead of dying silently (SIL-826).
+      try {
+        if (chiHoRow.confirmed) await correctPhoiPhieuRow(chiHoRow.entryId, payload, { kind });
+        else await updatePhoiPhieuRowAmounts(tripId, chiHoRow.entryId, payload, { kind });
+      } catch (routeError) {
+        const wrongRoute = routeError instanceof ApiError && routeError.status === 409
+          && routeError.message.includes('chưa đối chiếu có thể sửa trực tiếp');
+        if (!wrongRoute) throw routeError;
+        if (chiHoRow.confirmed) await updatePhoiPhieuRowAmounts(tripId, chiHoRow.entryId, payload, { kind });
+        else await correctPhoiPhieuRow(chiHoRow.entryId, payload, { kind });
+      }
       await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll });
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Không lưu được số hóa đơn.');
+      setError(saveError instanceof Error && saveError.message
+        ? saveError.message
+        : 'Không lưu được số hóa đơn.');
     } finally {
       setSaving(false);
     }
