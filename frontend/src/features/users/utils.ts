@@ -53,7 +53,9 @@ export interface EditData {
   fullName: string;
   username: string;
   email: string;
-  phone: string;
+  // No `phone`: the /users edit form renders no phone field (SIL-823). A stale
+  // echo here silently cleared drivers.phone on save — update is partial, only
+  // displayed fields are sent.
   employeeCode?: string;
   role: Role;
   status: string;

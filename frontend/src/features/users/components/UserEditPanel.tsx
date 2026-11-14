@@ -42,7 +42,8 @@ export function EditPanel({
   const [pwMsg, setPwMsg] = useState<string | null>(null);
   const emailInputRef = useRef<HTMLInputElement | null>(null);
   const pwInputRef = useRef<HTMLInputElement | null>(null);
-  const [phone, setPhone]       = useState(user.phone ?? '');
+  // No phone state (SIL-823): the form renders no phone field, so there is
+  // nothing to hold — drivers.phone stays untouched on save.
   const [employeeCode, setEmployeeCode] = useState(user.employeeCode ?? '');
   const [role, setRole]         = useState<Role>(user.role);
   const [status, setStatus]     = useState(user.status);
@@ -62,7 +63,6 @@ export function EditPanel({
       setFullName(user.fullName ?? '');
       setUsername(user.username ?? '');
       setEmail(user.email ?? '');
-      setPhone(user.phone ?? '');
       setEmployeeCode(user.employeeCode ?? '');
       setRole(user.role);
       setStatus(user.status);
@@ -126,7 +126,10 @@ export function EditPanel({
     if (nextPwMsg != null) { pwInputRef.current?.focus(); return; }
     if (customerScopeInvalid) return;
     if (forwarderScopeInvalid) return;
-    const payload: EditData = { fullName, username, email: email.trim(), phone, employeeCode, role, status, password };
+    // Partial update (SIL-823): only fields the form displays. The form has no
+    // phone field, so `phone` must never ride the payload — a `''` echo cleared
+    // the driver's phone in the drivers table (Bùi Tiến Dũng, 2026-11-14).
+    const payload: EditData = { fullName, username, email: email.trim(), employeeCode, role, status, password };
     if (role === Role.DRIVER) {
       if (canManageClerkScope) payload.businessUnitIds = businessUnitIds;
     }
