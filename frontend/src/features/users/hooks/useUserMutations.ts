@@ -76,7 +76,8 @@ export function useUserMutations(refetch: () => void) {
         username: data.username || undefined,
         fullName: data.fullName,
         email:    data.email,
-        phone:    data.phone,
+        // No phone (SIL-823): the edit form displays no phone field; absence
+        // keeps users.phone and the bound drivers.phone untouched.
         ...driverPayload(data),
         ...customerScopePayload(data),
         ...shipmentScopePayload(data),

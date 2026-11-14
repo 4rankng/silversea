@@ -51,7 +51,6 @@ function makeEditData(overrides: Partial<EditData> = {}): EditData {
   return {
     username: 'scope.user',
     email: 'scope@example.com',
-    phone: '0900000000',
     fullName: 'Scope User',
     role: Role.OPS,
     status: 'ACTIVE',
