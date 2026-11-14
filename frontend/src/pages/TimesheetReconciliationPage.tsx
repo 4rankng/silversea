@@ -208,7 +208,11 @@ export default function TimesheetReconciliationPage() {
                     <td data-label="Ký hiệu">
                       {day.symbol ? `${day.symbol} — ${TIMESHEET_SYMBOL_RULES[day.symbol].label}` : '—'}
                     </td>
-                    <td className="num" data-label="Chuyến">{day.trips}</td>
+                    {/* SIL-829 — cột Chuyến là SỐ ĐẾM hiển thị (summaryTrips,
+                        Q = 1 chuyến — SIL-775/SIL-810), không phải trọng số
+                        lương (trips, Q = 2 — SIL-774) mà payload cầm sẵn.
+                        Chỉnh lệch vẫn cộng vào cả hai phía trong engine lương. */}
+                    <td className="num" data-label="Chuyến">{(day.symbol ? TIMESHEET_SYMBOL_RULES[day.symbol].summaryTrips : 0) + day.tripAdjustment}</td>
                     <td data-label="Chỉnh lệch">
                       <input
                         className="ts-adjust"
