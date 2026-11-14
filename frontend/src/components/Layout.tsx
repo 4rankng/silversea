@@ -341,6 +341,10 @@ function buildNavItems(
         // Chấm công lái xe (2026-10-14): Điều vận fills the symbol grid. It sits
         // with dispatch planning — the roster board IS a dispatch job.
         { key: 'timesheet', path: routes.timesheet, icon: CalendarDays, section: 'dispatch-planning' as SectionName },
+        // SIL-836 — the monthly "Tổng hợp xếp lệnh tháng" report serves Điều
+        // vận alongside Kế toán (spec 12/11 Task 2.2 + Rev2 Epic 4); the route
+        // guard rides timesheetStaffOnly with it.
+        { key: 'timesheet-report', path: routes.timesheetReport, icon: FileSpreadsheet, section: 'dispatch-planning' as SectionName },
       ];
     }
 
