@@ -44,39 +44,6 @@
     height: 36px;
   }
 
-  /* --- Driver selector: the full-width payroll table (paginates itself,
-         so the old 280px card-strip scroll is dead weight) --- */
-  .driver-select-row {
-    margin-bottom: 12px;
-  }
-
-  .salary-page .driver-select-row__list {
-    /* SIL-809 — a block wrapper lets the roster table span the tablet
-       canvas; the old 2-col card grid squeezed it into half width. */
-    display: block;
-    padding: 2px 0 6px;
-  }
-
-  .salary-page .driver-select-card {
-    min-width: 0;
-  }
-
-  .salary-page .driver-select-card {
-    flex: 1 1 150px;
-    min-width: auto;
-    padding: 8px 14px;
-    border-radius: 10px;
-  }
-
-  .driver-select-card__name {
-    font-size: var(--fs-xs);
-    max-width: 100px;
-  }
-
-  .driver-select-card__salary {
-    font-size: var(--fs-2xs);
-  }
-
   /* --- Day list wrapper --- */
   .mobile-day-list {
     display: flex;
@@ -335,16 +302,6 @@
   .mobile-day-row__status-label {
     font-size: var(--fs-xs);
   }
-
-
-  .salary-page .driver-select-card {
-    padding: 6px 10px;
-  }
-
-  .driver-select-card__name {
-    font-size: var(--fs-2xs);
-    max-width: 72px;
-  }
 }
 
 .period-config-form__actions {
@@ -384,10 +341,4 @@
   .salary-summary-dark__mini { font-size: var(--fs-2xs); }
   .salary-summary-dark__row { font-size: var(--fs-xs); }
   .salary-summary-dark__row-val { font-size: var(--fs-xs); }
-  .salary-page .driver-select-card {
-    min-width: 88px;
-    padding: 6px 10px;
-  }
-  .driver-select-card__name { font-size: var(--fs-xs); max-width: 120px; }
-  .driver-select-card__salary { font-size: var(--fs-2xs); }
 } /* end 640px */

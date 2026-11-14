@@ -139,15 +139,15 @@ describe('selection-state contract', () => {
     expect(read('src/styles/tokens.css')).toMatch(
       /@media \(max-width: 640px\)\s*\{[\s\S]*?--filter-control-h:\s*var\(--control-compact-h\);/,
     );
-    // The roster moved into DriverPayrollTable (5f719c88 refactor) — the
-    // labelled select control follows the component (same accessible name;
-    // the map variable is `row` now, and the salary still rides the label
-    // while visible). The refactor left selection on a mouse-only <tr>; the
-    // owner law "retain all labels, values and keyboard access" pins the
-    // control back explicitly as a real <button> with a visible focus ring.
-    const roster = read('src/features/salary-attendance/DriverPayrollTable.tsx');
-    expect(roster).toContain('aria-label={`Xem bảng công của ${row.name}${salaryLabel}`}');
-    expect(roster).toMatch(/<button[\s\S]{0,300}Xem bảng công/);
-    expect(read('src/features/salary-attendance/DriverPayrollTable.css')).toContain('.dpt__name:focus-visible');
+    // SIL-828 — selection moved into the master driver list (240px left
+    // column): a real <button> per driver, the labelled accessible name
+    // ("Xem bảng công của …"), aria-current on the selected item, and a
+    // visible focus ring (owner law: retain all labels, values and keyboard
+    // access — the control never degrades to a mouse-only row).
+    const masterList = read('src/pages/SalaryAttendancePage.tsx');
+    expect(masterList).toContain('aria-label={`Xem bảng công của ${driver.name}`}');
+    expect(masterList).toMatch(/<button[\s\S]{0,300}Xem bảng công/);
+    expect(masterList).toContain("aria-current={isSelected ? 'true' : undefined}");
+    expect(read('src/pages/salary-attendance/calendar.css')).toContain('.salary-master-list__item:focus-visible');
   });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -276,8 +276,10 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
-    // No đợt filter is set — the action is still on the row.
-    fireEvent.click(screen.getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
+    // No đợt filter is set — the action is still on the row. (SIL-827: the
+    // header carries its own same-named button now — this click is row-scoped.)
+    const deficitRow = screen.getByText('Vũ Đình Cường', { selector: 'td' }).closest('tr')!;
+    fireEvent.click(within(deficitRow).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
     expect(await screen.findByTestId('recovery-drawer')).toBeTruthy();
     expect(drawerCapture.last?.recovery).toMatchObject({ opsUserId: 12, staffName: 'Vũ Đình Cường', deficit: 4300000 });
   });
@@ -292,7 +294,8 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
-    fireEvent.click(screen.getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
+    const negativeRow = screen.getByText('Vũ Đình Cường', { selector: 'td' }).closest('tr')!;
+    fireEvent.click(within(negativeRow).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
     const dialog = await screen.findByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' });
     expect(dialog).toBeTruthy();
     expect(forwarderApi.eligibility).toHaveBeenCalledWith(8);
@@ -312,7 +315,10 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     });
     page();
     await screen.findByText('NV C', { selector: 'td' });
-    expect(screen.queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
+    const heldRow = screen.getByText('NV C', { selector: 'td' }).closest('tr')!;
+    // Row-scoped (SIL-827): the header button legitimately exists for
+    // ACCOUNTANT — the row itself must still offer nothing.
+    expect(within(heldRow).queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
     expect(screen.getByText('ÂM — đề nghị thu lại tiền ứng')).toBeTruthy();
   });
 
@@ -324,6 +330,44 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
+    expect(screen.queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
+  });
+});
+
+// ── SIL-827 — nút [Lập phiếu hoàn ứng] trên CHÍNH tab Báo cáo ───────────────
+// SIL-728 AC1: the button lives on BOTH surfaces — the Phiếu hoàn ứng tab has
+// had the header button since SIL-487, this tab only had row actions. Same
+// role law (ADMIN/ACCOUNTANT create; MANAGER reads), same dialog, opened with
+// NO preselected staff (the accountant picks the nhân viên themselves).
+describe('OpsReconciliationReportPage — nút Lập phiếu hoàn ứng trên tab Báo cáo (SIL-827)', () => {
+  beforeEach(() => {
+    authState.role = 'ACCOUNTANT';
+    forwarderApi.balances.mockReset().mockReturnValue({
+      items: [{ forwarderId: 5, name: 'NV A', outstanding: '150000' }],
+    });
+    forwarderApi.eligibility.mockReset().mockReturnValue({
+      data: { advances: [], expenses: [] }, isPending: false, isError: false, error: null,
+    });
+  });
+
+  it('ACCOUNTANT sees the header button beside the filters and it opens the settlement dialog with no staff preselected', async () => {
+    page();
+    await screen.findByText('NV A', { selector: 'td' });
+    const headerButton = screen.getByRole('button', { name: 'Lập phiếu hoàn ứng' });
+    expect(headerButton.className).toContain('btn--primary');
+    fireEvent.click(headerButton);
+    const dialog = await screen.findByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' });
+    expect(dialog).toBeTruthy();
+    // No row was clicked: eligibility runs against null (no preselected
+    // staff) — the accountant picks the nhân viên inside the dialog.
+    expect(forwarderApi.eligibility).toHaveBeenCalledWith(null);
+    expect(forwarderApi.eligibility).not.toHaveBeenCalledWith(expect.any(Number));
+  });
+
+  it('MANAGER never sees the header button (SIL-487 read-only law)', async () => {
+    authState.role = 'MANAGER';
+    page();
+    await screen.findByText('NV A', { selector: 'td' });
     expect(screen.queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
   });
 });

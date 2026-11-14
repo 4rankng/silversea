@@ -71,11 +71,5 @@
     width: 36px;
     height: 36px;
   }
-  /* Driver cards use horizontal scroll — no wrapping */
-  .driver-select-card {
-    padding: 7px 12px;
-    border-radius: 8px;
-    min-width: auto;
-  }
 }
 

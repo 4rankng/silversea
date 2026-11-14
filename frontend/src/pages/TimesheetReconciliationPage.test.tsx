@@ -149,4 +149,26 @@ describe('TimesheetReconciliationPage', () => {
     expect(screen.queryByText('5', { selector: 'td[data-label="Chuyến"]' })).toBeNull();
     expect(screen.getByText('Tổng 4 chuyến · 4 ngày công ·')).toBeTruthy();
   });
+
+  it('SIL-829 — ngày Q trên lưới Đối chiếu đếm CHUYẾN = 1, không phải trọng số lương 2', async () => {
+    // Fixture 05/10: symbol Q, payload trips = 2 (trọng số lương SIL-774 mà
+    // backend cầm sẵn trong cell). Cột Chuyến của lưới là SỐ ĐẾM hiển thị
+    // (SIL-775: mỗi ngày Q = 1 chuyến) — khớp với /timesheet/bao-cao.
+    renderBoard();
+    const qRow = (await screen.findByText('2026-10-05')).closest('tr')!;
+    expect(qRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('1');
+    const donRow = screen.getByText('2026-10-11').closest('tr')!;
+    expect(donRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('1');
+  });
+
+  it('SIL-829 — chỉnh lệch vẫn cộng vào số đếm hiển thị của ngày Q', async () => {
+    vi.mocked(listTimesheetMonths).mockResolvedValue([{
+      ...month,
+      days: month.days.map(day => day.symbol === 'Q' ? { ...day, tripAdjustment: -1 } : day),
+    }]);
+    renderBoard();
+    const qRow = (await screen.findByText('2026-10-05')).closest('tr')!;
+    // 1 (summaryTrips) + (−1) = 0 — chỉnh lệch không biến mất khỏi cột hiển thị.
+    expect(qRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('0');
+  });
 });

@@ -423,9 +423,11 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     departureDate: s.tripsComposite.departureDate,
     plannedStartAt: s.tripsComposite.plannedStartAt,
     status: s.tripsComposite.status,
+    routeId: s.tripsComposite.routeId,
     fuelLiters: s.tripsComposite.fuelLiters,
     fuelMode: s.tripsComposite.fuelMode,
     totalRoadAllowance: s.tripsComposite.totalRoadAllowance,
+    roadAllowanceOverride: s.tripsComposite.roadAllowanceOverride,
     driverSalary: s.tripsComposite.driverSalary,
     // Wave 7 economics: fields the cost breakdown (freight/tolls/salary/
     // phụ phí/fuel/allowance/totalCost) reads — 0 stays honest on the surface.
@@ -469,6 +471,34 @@ export async function getDriverTripDetail(driverId: number, tripId: number) {
     .limit(1);
 
   if (!trip) return null;
+
+  // SIL-833 — mục Tiền đường chỉ-đọc phải tự tính theo TUYẾN + LOẠI RƠ-MOÓC
+  // (Rev2 Epic 1 Task A): các chuyến tạo TRƯỚC khi dòng road_allowances tồn tại
+  // đã đóng băng totalRoadAllowance '0' lúc tạo (trip-create snapshot) và không
+  // bao giờ hiện định mức, ở mọi trạng thái. Re-resolve CHỈ-HIỂN-THỊ trên
+  // surface lái xe khi snapshot = 0 (sách cái giữ nguyên snapshot; đường
+  // figures-update đã tự hội tụ số lưu ở lần lưu kế tiếp). Thứ tự quyền:
+  // override tay của kế toán luôn thắng (kể cả 0); OWN + có loại rơ-moóc mới
+  // tra định mức; dòng đã xoá mềm không tính.
+  if (
+    trip.carrierType === 'OWN'
+    && trip.roadAllowanceOverride == null
+    && Number(trip.totalRoadAllowance ?? 0) <= 0
+    && trip.trailerType != null
+  ) {
+    const [liveAllowance] = await db
+      .select({ baseAmount: s.roadAllowances.baseAmount })
+      .from(s.roadAllowances)
+      .where(and(
+        eq(s.roadAllowances.routeId, trip.routeId),
+        eq(s.roadAllowances.trailerType, trip.trailerType),
+        isNull(s.roadAllowances.deletedAt),
+      ))
+      .limit(1);
+    if (liveAllowance && Number(liveAllowance.baseAmount) > 0) {
+      trip.totalRoadAllowance = String(Number(liveAllowance.baseAmount));
+    }
+  }
 
   const legs = await db.select().from(s.tripLegs)
     .where(eq(s.tripLegs.tripId, tripId))
