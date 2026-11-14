@@ -10,6 +10,7 @@ import { loadLotContainerIdentities, withLotIdentity } from './settlement-lot-id
 import { db } from '../db';
 import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { eq, and, desc, inArray, notInArray, sql } from 'drizzle-orm';
 import { TxnType, round2dp } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
@@ -168,7 +169,7 @@ export async function enrichSettlementWithRequests<T extends typeof s.advanceSet
       createdAt: s.tripExpenses.createdAt,
       tripCode: s.trips.tripCode,
       departureDate: s.trips.departureDate,
-      customerName: s.customers.name,
+      customerName: operationalName(s.customers.shortName, s.customers.name),
       shipmentId: s.trips.shipmentId,
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,

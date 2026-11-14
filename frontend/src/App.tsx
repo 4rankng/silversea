@@ -588,8 +588,11 @@ export function AppRoutes() {
               cả kế toán (chỉ xem), mục không còn bị ẩn với vai trò này. */}
           <Route path="/timesheet" element={timesheetStaffOnly(page(<TimesheetGridPage />))} />
           <Route path="/timesheet/doi-chieu" element={accountantOnly(page(<TimesheetReconciliationPage />))} />
-          {/* FB-104 — báo cáo Tổng hợp xếp lệnh tháng (mẫu Excel của khách). */}
-          <Route path="/timesheet/bao-cao" element={officeStaffOnly(page(<TimesheetMonthlyReportPage />))} />
+          {/* FB-104 — báo cáo Tổng hợp xếp lệnh tháng (mẫu Excel của khách).
+              SIL-836 — spec 12/11 Task 2.2 + Rev2 Epic 4: the grid serves BOTH
+              Kế toán and Điều vận, so it rides timesheetStaffOnly (the FB-101
+              /timesheet set) instead of the office-staff guard. */}
+          <Route path="/timesheet/bao-cao" element={timesheetStaffOnly(page(<TimesheetMonthlyReportPage />))} />
           <Route path="/users" element={userAdminOnly(page(<UsersPage />))} />
           <Route path="/hr/roster" element={officeStaffOnly(page(<HrRosterPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />

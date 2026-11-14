@@ -143,9 +143,10 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | 
   // SIL-723) is reversed by the owner; required fields are exactly Loại phí
   // + Số tiền. The server gate is removed with it
   // (createOpsExpense in ops-expenses.service.ts).
-  // KB Chương 6 — only the INVOICE group requires the invoice number; the
-  // no-invoice block never asks for it (and receipt photos stay optional).
-  if (block === 'invoice' && draft.invoiceNumber.trim() === '') return 'Nhập "Số hóa đơn" — khoản có hóa đơn bắt buộc có số hóa đơn.';
+  // SIL-834 (spec Rev2 Task 2.1.3 — "Input Số HĐ (Tùy chọn)"): the invoice
+  // number is optional on the invoice block — an empty one saves and the
+  // label carries "(Tùy chọn)". Receipt photos stay optional; the required
+  // set stays exactly Loại phí + Số tiền (+ the non-negative charge rule).
   if (draft.pendingFiles.length > 0) return 'Ảnh biên lai chưa tải xong — bấm "Thử tải lại ảnh" hoặc "Bỏ ảnh chưa tải".';
   return null;
 }
@@ -709,7 +710,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
         </div>
         {invoiced
           ? <label className="ops-fee-row__field ops-fee-row__cell--invoice-no">
-            Số hóa đơn
+            Số hóa đơn (Tùy chọn)
             <input
               value={draft.invoiceNumber}
               disabled={busy}

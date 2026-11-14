@@ -86,11 +86,10 @@ async function fillAmount(blockName: string, value: string) {
   fireEvent.change(within(block(blockName)).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value } });
 }
 
-/** SIL-723 (KB Chương 6): the invoice block requires Số hóa đơn, so any
- *  submit-driving case fills it — the container focus of A2/A3/A5 stays on
- *  the Số Cont payload, never on the invoice law. */
+/** SIL-834: Số hóa đơn is Tùy chọn — submit-driving cases fill it only to
+ *  prove the payload, never to unblock Lưu. */
 async function fillInvoiceNumber(blockName: string, value: string) {
-  fireEvent.change(within(block(blockName)).getByLabelText('Số hóa đơn'), { target: { value } });
+  fireEvent.change(within(block(blockName)).getByLabelText(/^Số hóa đơn/), { target: { value } });
 }
 
 async function fillNote(blockName: string, value: string) {
@@ -240,16 +239,20 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
     expect(api.createExpense.mock.calls[0][0]).toMatchObject({ amount: '80000', note: 'Không thu khách — phí nội bộ' });
   });
 
-  it('B3: the invoice block requires "Số hóa đơn" and the footer names it', async () => {
+  it('B3 (SIL-834): the invoice block treats "Số hóa đơn" as Tùy chọn — an empty number saves', async () => {
     await show();
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
-    expect(save).toBeDisabled();
-    expect((await screen.findAllByText('Nhập "Số hóa đơn" — khoản có hóa đơn bắt buộc có số hóa đơn.')).length).toBeGreaterThan(0);
-    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
+    // Spec Rev2 Task 2.1.3 ("Input Số HĐ (Tùy chọn)"): no gate, no disabled
+    // Lưu, and the label itself says "(Tùy chọn)".
+    expect(within(block('Phí có hóa đơn')).getByLabelText(/^Số hóa đơn \(Tùy chọn\)/)).toBeInTheDocument();
     expect(save).toBeEnabled();
+    expect(screen.queryByText(/bắt buộc có số hóa đơn/)).toBeNull();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ amount: '450000', invoiceNumber: null });
   });
 
   it('B4: the no-invoice block never demands Số hóa đơn (KB: chỉ nhóm có hóa đơn)', async () => {
@@ -283,7 +286,7 @@ describe('ops expense form — tabs + shared save (SIL-760)', { timeout: 20_000 
     expect(screen.getByLabelText('Ghi chú')).toHaveValue('Chi công nhân dỡ hàng');
     await openInvoiceTab();
     expect(within(block('Phí có hóa đơn')).getByLabelText(/Số tiền \(VNĐ\)/)).toHaveValue('450.000');
-    expect(within(block('Phí có hóa đơn')).getByLabelText('Số hóa đơn')).toHaveValue('TD-20260923-001');
+    expect(within(block('Phí có hóa đơn')).getByLabelText(/^Số hóa đơn/)).toHaveValue('TD-20260923-001');
   });
 
   it('C2: one Lưu gathers rows from BOTH tabs in one submit', async () => {

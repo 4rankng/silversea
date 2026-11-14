@@ -77,6 +77,17 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
     expect(shared).toMatch(/\.record-table tbody td\.record-table__text\s*\{\s*min-width:\s*12ch;/);
   });
 
+  it('SIL-832: dense-board gutters hold the action run inside the 1440px canvas', () => {
+    // Regression (14/11 build 237af351): the SIL-819 wrap law re-widened the
+    // Phân loại/Hãng tàu min-content and the 12-column run (~1169px) overtook
+    // the 1144px canvas — "Ngày CV / số tiền" clipped at x=1441 on every row.
+    // The SIL-816 UI-02 gutter trade (thead 8px / td 6px, action cell
+    // excluded) recovers ~130px without touching the buttons, the 12ch
+    // floors, or the SIL-819 wrap law.
+    expect(decls).toMatch(/\.deposit-tracker-page \.record-table thead th\s*\{\s*padding-inline:\s*8px\s*;?\s*\}/);
+    expect(decls).toMatch(/\.deposit-tracker-page \.record-table tbody td:not\(\.record-table__action\)\s*\{\s*padding-inline:\s*6px\s*;?\s*\}/);
+  });
+
   it('loading and empty are the shared primitives, never bespoke rows', () => {
     expect(tsx).toContain('<SkeletonTable');
     expect(tsx).toContain('<EmptyState');

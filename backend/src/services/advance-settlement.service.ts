@@ -7,6 +7,7 @@ import { db } from '../db';
 import { acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 'drizzle-orm';
 import { NotificationType, TxnType, round2dp, sumExcludingNegative, AdvanceSettlementStatus, type AdvanceSettlementWithRefs } from '@tingting/shared';
 import { ApiError } from '../errors';
@@ -236,7 +237,7 @@ export async function listAdvanceSettlements(filters?: { forwarderId?: number; s
         createdAt: s.tripExpenses.createdAt,
         tripCode: s.trips.tripCode,
         departureDate: s.trips.departureDate,
-        customerName: s.customers.name,
+        customerName: operationalName(s.customers.shortName, s.customers.name),
         routeName: s.routes.name,
         tripContainerCount: s.trips.containerCount,
         shipmentId: s.trips.shipmentId,
@@ -409,7 +410,7 @@ async function listOpsSettlementsForForwarderPaginated(filters: {
       id: s.opsExpenseEntries.id,
       opsSettlementId: s.opsExpenseEntries.opsSettlementId,
       shipmentId: s.opsExpenseEntries.shipmentId,
-      customerName: s.customers.name,
+      customerName: operationalName(s.customers.shortName, s.customers.name),
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
       containerNumber: s.shipmentContainers.containerNumber,
@@ -525,7 +526,7 @@ async function getAdvanceSettlementFromOps(
     .select({
       id: s.opsExpenseEntries.id,
       shipmentId: s.opsExpenseEntries.shipmentId,
-      customerName: s.customers.name,
+      customerName: operationalName(s.customers.shortName, s.customers.name),
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
       containerNumber: s.shipmentContainers.containerNumber,

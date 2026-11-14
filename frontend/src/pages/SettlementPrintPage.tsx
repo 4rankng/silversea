@@ -390,7 +390,7 @@ export default function SettlementPrintPage() {
                     <span data-label="Ngày" className="u-muted">{row.date}</span>
                     <span data-label="Nội dung">{row.expenseType}</span>
                     <span data-label="Khách hàng" className="u-wrap">{row.customer}</span>
-                    <span data-label="Số cont" className="u-mono">{row.container}</span>
+                    <span data-label="Số cont" className="u-mono u-wrap">{row.container}</span>
                     <span data-label="Thành tiền" className="u-right u-num">{formatCurrency(Number(row.amount))}</span>
                     <span data-label="Hóa đơn">{row.invoice || "—"}</span>
                   </div>

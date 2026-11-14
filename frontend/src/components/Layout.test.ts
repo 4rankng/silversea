@@ -147,6 +147,8 @@ describe('getNavItems', () => {
       ['Tuyến đường', '/config/routes'],
       ['Nhà máy / Kho', '/config/factories'],
       ['Chấm công lái xe', '/timesheet'],
+      // SIL-836: the monthly report opens to Điều vận with Kế toán.
+      ['Tổng hợp xếp lệnh tháng', '/timesheet/bao-cao'],
     ]],
     [Role.CUSTOMER, [
       ['Lô hàng của tôi', '/portal/shipments'],
