@@ -355,7 +355,7 @@ describe('SalaryAttendancePage — office group removed (card 20261006_390)', ()
     expect(await screen.findByText('Nguyen Van A')).toBeInTheDocument();
     expect(screen.getByLabelText('Tìm lái xe trong bảng lương')).toBeInTheDocument();
     // The driver picker list itself still renders the driver's selectable row.
-    const driverRow = screen.getAllByText('Nguyen Van A').find((el) => el.closest('.driver-select-row__list'));
+    const driverRow = screen.getAllByText('Nguyen Van A').find((el) => el.closest('.salary-master-list'));
     expect(driverRow).toBeTruthy();
   });
 });

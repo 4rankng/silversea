@@ -2,49 +2,52 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const read = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
-
-/* SIL-809 (id 937, UAT 12/11) — màn Lương & Chấm công (Kế toán):
- * the roster wrapper still carried the dead card-wall track grid, dropping
- * the single DriverPayrollTable child into one ~140px auto-fill column —
- * narrow left strip + dead whitespace right, calendar pushed below the
- * stretched roster.
+/* SIL-828 (id 957, UAT 14/11) — màn Lương & Chấm công (Kế toán) phải là bố
+ * cục master-detail 2 cột: trái ~240px là DANH SÁCH lái xe, phải là lưới
+ * chấm công + "Tổng kết lương tháng". Bảng lái xe toàn chiều rộng (SIL-809)
+ * không phải bố cục mà khách yêu cầu.
  *
  * @media behavior isn't reliably testable through jsdom, so this asserts on
  * the raw CSS text — same pattern as driver-density.styles.test.ts.
  */
-describe('SIL-809 — salary attendance roster/layout contract', () => {
-  const hero = read('src/pages/salary-attendance/hero-metrics.css');
-  const responsive = read('src/pages/salary-attendance/responsive.css');
-  const calendar = read('src/pages/salary-attendance/calendar.css');
+describe('SIL-828 — salary attendance master-detail layout contract', () => {
+  const calendar = readFileSync(resolve(process.cwd(), 'src/pages/salary-attendance/calendar.css'), 'utf8');
 
-  it('desktop roster wrapper is a block, not the card-wall track grid', () => {
-    const base = hero.slice(
-      hero.indexOf('.salary-page .driver-select-row__list'),
-      hero.indexOf('/* ── Responsive: hero + metrics'),
-    );
-    expect(base).toMatch(/display:\s*block/);
-    expect(base).not.toMatch(/grid-template-columns/);
-    expect(base).not.toMatch(/display:\s*grid/);
-    expect(base).not.toMatch(/display:\s*flex/);
+  it('desktop grid: 240px master column + fluid detail; sidebar becomes the 3rd column when selected', () => {
+    const desktop = calendar.slice(calendar.indexOf('@media (min-width: 1025px)'));
+    expect(desktop).toMatch(/\.salary-page-layout\s*\{[^}]*grid-template-columns:\s*240px\s+minmax\(0,\s*1fr\);/s);
+    expect(desktop).toMatch(/\.salary-page-layout\.has-selected\s*\{[^}]*grid-template-columns:\s*240px\s+minmax\(0,\s*1fr\)\s+320px;/s);
+    // Master list owns column 1; calendar (main) column 2; sidebar column 3.
+    expect(desktop).toMatch(/\.salary-page-layout > \.salary-master-list\s*\{[^}]*grid-column:\s*1;/s);
+    expect(desktop).toMatch(/\.salary-page-layout > \.salary-page-layout__main\s*\{[^}]*grid-column:\s*2;/s);
+    expect(desktop).toMatch(/\.salary-page-layout\.has-selected > \.salary-page-layout__sidebar\s*\{[^}]*grid-column:\s*3;/s);
   });
 
-  it('tablet roster wrapper is a full-width block, no bounded 280px card strip', () => {
-    const tabletBlock = responsive.slice(
-      responsive.indexOf('.salary-page .driver-select-row__list'),
-    );
-    expect(tabletBlock).toMatch(/display:\s*block/);
-    expect(tabletBlock).not.toMatch(/max-height:\s*280px/);
-    expect(tabletBlock).not.toMatch(/grid-template-columns:\s*repeat\(2/);
-    expect(tabletBlock).not.toMatch(/overflow-y:\s*auto/);
-  });
-
-  it('layout columns are fluid inside the shell canvas, no hard 1180px cap', () => {
-    expect(calendar).toMatch(/\.salary-page-layout\.has-selected\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*320px/s);
+  it('layout columns are fluid inside the shell canvas, no hard cap', () => {
     const baseBlock = calendar.slice(
       calendar.indexOf('.salary-page-layout {'),
       calendar.indexOf('@media (min-width: 1025px)'),
     );
     expect(baseBlock).not.toMatch(/max-width/);
+  });
+
+  it('master list is a vertical list, never a card-wall track grid', () => {
+    const listBlock = calendar.slice(
+      calendar.indexOf('.salary-master-list__items'),
+      calendar.indexOf('.salary-master-list__item {'),
+    );
+    expect(listBlock).toMatch(/flex-direction:\s*column/);
+    expect(listBlock).not.toMatch(/grid-template-columns/);
+  });
+
+  it('the dead full-width roster selectors are gone from every salary sheet', () => {
+    for (const sheet of [
+      'src/pages/salary-attendance/calendar.css',
+      'src/pages/salary-attendance/hero-metrics.css',
+      'src/pages/salary-attendance/month-nav.css',
+      'src/pages/salary-attendance/responsive.css',
+    ]) {
+      expect(readFileSync(resolve(process.cwd(), sheet), 'utf8'), sheet).not.toMatch(/driver-select-row|driver-select-card/);
+    }
   });
 });

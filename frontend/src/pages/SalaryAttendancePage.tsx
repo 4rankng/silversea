@@ -18,7 +18,6 @@ import {
 import { DOW_LABELS, STATUS_CONFIG } from '../features/salary-attendance/salary-attendance-constants';
 import './SalaryAttendancePage.css';
 import { useSalaryAttendancePage } from '../features/salary-attendance/useSalaryAttendancePage';
-import { DriverPayrollTable } from '../features/salary-attendance/DriverPayrollTable';
 import { BaseSalaryEditModal } from '../features/salary-attendance/base-salary-edit-modal';
 import { toastActionError } from '../lib/api/action-error';
 
@@ -102,33 +101,58 @@ export default function SalaryAttendancePage() {
         )}
       />
 
-      {/* ── Driver roster — sortable, paginated table.
-            The card wall this replaces was the compact option at 43 drivers
-            but inverted at 100+: a 22-row wall of near-identical cards cannot
-            be scanned or sorted. The list wrapper keeps the class the roster
-            contract asserts. ── */}
-      <div className="driver-select-row">
-        <div className="driver-select-row__list">
-          <DriverPayrollTable
-            drivers={filteredDrivers}
-            selectedDriverId={selectedDriverId}
-            onSelect={(driverId) => {
-              setSelectedDriverId(driverId);
-              // Phone/tablet: bring the selected driver's detail next to
-              // the pick instead of leaving it below the roster.
-              if (window.matchMedia('(max-width: 1023px)').matches) {
-                requestAnimationFrame(() => {
-                  document.querySelector('.salary-page-layout__sidebar')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-                });
-              }
-            }}
-            loading={listLoading}
-          />
-        </div>
-      </div>
-
-
+      {/* SIL-828 — master-detail layout: master = driver list (left ~240px),
+          detail = calendar + Tổng kết lương tháng (right). */}
       <div className={`salary-page-layout ${selectedDriverId ? 'has-selected' : ''}`}>
+        {/* ── SIL-828 — master-detail: the ~240px driver list IS the master
+              column (đặc tả khách hàng 12/11 Task 2.1). Search lives in the
+              filter bar above; the list owns selection. ── */}
+        <aside className="salary-master-list" aria-label="Danh sách lái xe">
+          <h2 className="salary-master-list__title">
+            Lái xe <span className="salary-master-list__count">({filteredDrivers.length})</span>
+          </h2>
+          {listLoading ? (
+            <div className="salary-master-list__state">
+              <Loader2 size={14} className="spin" />
+              <span>Đang tải danh sách lái xe…</span>
+            </div>
+          ) : filteredDrivers.length === 0 ? (
+            <div className="salary-master-list__state">Không tìm thấy lái xe</div>
+          ) : (
+            <ul className="salary-master-list__items">
+              {filteredDrivers.map((driver) => {
+                const isSelected = driver.id === selectedDriverId;
+                const confirmed = driver.salary?.confirmationStatus === 'CONFIRMED';
+                return (
+                  <li key={driver.id}>
+                    <button
+                      type="button"
+                      className={`salary-master-list__item${isSelected ? ' is-active' : ''}`}
+                      aria-label={`Xem bảng công của ${driver.name}`}
+                      aria-current={isSelected ? 'true' : undefined}
+                      onClick={() => {
+                        setSelectedDriverId(driver.id);
+                        // Phone/tablet: bring the selected driver's detail next to
+                        // the pick instead of leaving it below the roster.
+                        if (window.matchMedia('(max-width: 1023px)').matches) {
+                          requestAnimationFrame(() => {
+                            document.querySelector('.salary-page-layout__sidebar')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+                          });
+                        }
+                      }}
+                    >
+                      <span className="salary-master-list__name">{driver.name}</span>
+                      <span className={`salary-master-list__badge${confirmed ? ' is-confirmed' : ''}`}>
+                        {confirmed ? 'Đã xác nhận' : 'Chưa xác nhận'}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </aside>
+
         {/* ── Sidebar: Payroll details — first on mobile (near driver picker),
               reordered to right column on desktop via CSS grid. ── */}
         {selectedDriverId && (
