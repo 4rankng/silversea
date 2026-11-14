@@ -188,7 +188,7 @@ function DocsBadge({ row }: { row: ShipmentDebitLotRow }) {
  *  an INLINE line of the multi-line identity cell (no column of its own). */
 function CustomsCopy({ row }: { row: ShipmentDebitLotRow }) {
   const { toast } = useToast();
-  if (!row.customsNumber) return <span className="shipment-debit-cell__empty">—</span>;
+  if (!row.customsNumber) return null;
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(row.customsNumber!);
@@ -570,10 +570,12 @@ function DebitLotRow({ row, canManage, canDeleteLot, canDeclareCost, onDeclareCo
               <span className="shipment-debit-booking" title={label}>{label}</span>
               <DocsBadge row={row} />
             </div>
-            <div className="shipment-debit-identity__line">
-              <CustomsCopy row={row} />
-              <span className="shipment-debit-identity__lane">{laneText || '—'}</span>
-            </div>
+            {(row.customsNumber || laneText) && (
+              <div className="shipment-debit-identity__line">
+                <CustomsCopy row={row} />
+                {laneText && <span className="shipment-debit-identity__lane">{laneText}</span>}
+              </div>
+            )}
           </div>
         </td>
         <MoneyCell
@@ -657,7 +659,6 @@ function GroupHeader({ group, collapsed, onCollapse, leadingColSpan }: { group: 
         >
           {collapsed ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
         </button>
-        <span className="shipment-debit-group__icon" aria-hidden="true"><Layers size={14} /></span>
         <span className="shipment-debit-group__name">{displayName}</span>
         <span className="shipment-debit-group__count">{`${group.rows.length} lô`}</span>
       </td>

@@ -147,8 +147,9 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     // title tooltip (pinned by the page tests: booking/lane/customs cells).
     // SIL-582: the booking number IS the display key — the identity column
     // flexes to its content; the fixed-width floors moved to the REV2 money
-    // columns (freight/chiho/service 140px, total 170px).
-    expect(css).toMatch(/th\.shipment-debit-col--total\s*\{[^}]*width:\s*170px/);
+    // columns (freight/chiho/service/total 220px — owner 14/11: every
+    // header label fits its column whole, §4).
+    expect(css).toMatch(/th\.shipment-debit-col--total\s*\{[^}]*width:\s*220px/);
   });
 
   it('fuel-period note truncates on ONE baseline with a tooltip (SIL-466 owner review 24/10 supersedes the wrap doctrine here)', () => {

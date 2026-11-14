@@ -651,18 +651,20 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
     const cue = screen.getByText('Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.');
     expect(cue.className).not.toMatch(/ledger-desktop/);
     expect(rule(/\.shipment-debit-scroll-hint\s*\{([^}]*)\}/)).toMatch(/display:\s*none/);
-    expect(cssSource()).toMatch(/@media \(min-width: 641px\) and \(max-width: 1369px\)\s*\{[^}]*\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
+    expect(cssSource()).toMatch(/@media \(min-width: 641px\) and \(max-width: 1399px\)\s*\{[^}]*\.shipment-debit-scroll-hint\s*\{[^}]*display:\s*block/);
   });
 
   it('redesign 23/10 (a): fixed REV2 board, nowrap headers, 52px rows, sticky bands', () => {
     // REV2 (ticket-v2 Phần VI mục 2) — the board is seven columns now
-    // (CHỌN 44 + identity flex + freight 140 + chi hộ 140 + dịch vụ 140 +
-    // phải thu 170 + trạng thái 112, identity floored at 230 → 1076); below
-    // that width the pane scrolls sideways. The status column stays 112px:
+    // (CHỌN 44 + identity flex + four money columns 220 + trạng thái 112,
+    // identity floored at 300 → 1336); below that width the pane scrolls
+    // sideways (cue band 641–1399). Owner 14/11 data-dense directive: the
+    // money columns fit their header labels whole (§4 — a header label is
+    // never chopped). The status column stays 112px:
     // the §1 text+dot status + the ⋯ kebab on ONE baseline (55+6+28) plus a
     // merged row's [Ghép (i/N) ⋯] second line (66+6+28) inside its 104px
     // usable width.
-    expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/min-width:\s*1076px/);
+    expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/min-width:\s*1336px/);
     expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/table-layout:\s*fixed/);
     expect(rule(/\.shipment-debit-table\s*\{([^}]*)\}/)).toMatch(/font-variant-numeric:\s*tabular-nums/);
     // Headers: one nowrap uppercase line; money headers match the data edge.
@@ -671,15 +673,20 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
     expect(th).toMatch(/position:\s*sticky/);
     expect(th).toMatch(/height:\s*40px/);
     expect(rule(/\.shipment-debit-table th\.shipment-debit-col--money\s*\{([^}]*)\}/)).toMatch(/text-align:\s*right/);
-    // Rows: 52px, one baseline, no vertical cell borders.
+    // Rows: 44px (owner 14/11 data-dense directive supersedes the 23/10
+    // 52px floor — one-baseline-per-cell law untouched), vertical middle,
+    // no vertical cell borders.
     const td = rule(/\.shipment-debit-table td\s*\{([^}]*)\}/);
-    expect(td).toMatch(/height:\s*52px/);
+    expect(td).toMatch(/height:\s*44px/);
     expect(td).toMatch(/vertical-align:\s*middle/);
     // The pane is bounded on both axes — the sticky contract rests on the
     // max-height (the dispatch grids' 23/10 lesson).
     const pane = rule(/\.shipment-debit-pane\s*\{([^}]*)\}/);
     expect(pane).toMatch(/overflow:\s*auto/);
     expect(pane).toMatch(/max-height:/);
+    // Owner 14/11: the pane hugs its content — no reserved dead height
+    // below short boards (§5 space-waste reads unfinished).
+    expect(pane).not.toMatch(/min-height/);
     // The group header pins under the 40px header; the totals foot pins to
     // the pane's bottom with the upward shadow.
     expect(rule(/\.shipment-debit-group td\s*\{([^}]*)\}/)).toMatch(/position:\s*sticky/);
@@ -690,6 +697,37 @@ describe('L1 mobile-390 presentation (card 20260924_9 + redesign 23/10)', () => 
     expect(foot).toMatch(/box-shadow:/);
     // Money cells: right-aligned tabular; the pending pill is a pill.
     expect(rule(/\.shipment-debit-money\s*\{([^}]*)\}/)).toMatch(/text-align:\s*right/);
+  });
+
+  it('u14 dense: money columns fit their labels, group chips are plain text, the rail bleeds edge-to-edge', () => {
+    // Owner 14/11 screenshots: money headers ellipsized inside 140px, group
+    // counts wore 999px pill fills + a decorative Layers icon (§1), and the
+    // pane reserved dead height. Law: §4 headers never chop; §1 no pill
+    // fills / no decorative icons; §5 no dead space; 2026-10-30 edge-to-edge
+    // rail (master-plan pattern, card pad 12px + shell gutter bled).
+    for (const col of ['freight', 'chiho', 'service', 'total']) {
+      expect(rule(new RegExp(`\\.shipment-debit-table th\\.shipment-debit-col--${col}\\s*\\{([^}]*)\\}`))).toMatch(/width:\s*220px/);
+    }
+    const count = rule(/\.shipment-debit-group__count\s*\{([^}]*)\}/);
+    expect(count).not.toMatch(/999px|background|border/);
+    expect(cssSource()).not.toMatch(/shipment-debit-group__icon/);
+    const pane = rule(/\.shipment-debit-pane\s*\{([^}]*)\}/);
+    expect(pane).toMatch(/margin-inline:\s*calc\(-12px - var\(--app-body-pad-x/);
+    expect(pane).toMatch(/width:\s*calc\(100% \+ 24px \+ 2 \* var\(--app-body-pad-x/);
+  });
+
+  it('u14 dense: an identity cell with no customs number and no lane collapses its placeholder lines', async () => {
+    // Owner 14/11 screenshot: every row printed a lone `—` second line when
+    // tờ khai and nhà máy/tuyến were both absent (§5 — placeholder noise).
+    listSummary.mockResolvedValue({
+      items: [row({ customsNumber: null, factoryName: null, factoryAddress: null })],
+      total: 1,
+    });
+    renderPage('/shipments-debit?customer=1');
+    expect((await screen.findAllByText('BL-1'))[0]).toBeTruthy();
+    const identity = screen.getAllByText('BL-1')[0].closest('tr')!.querySelector('.shipment-debit-cell--identity')!;
+    expect(identity.querySelectorAll('.shipment-debit-identity__line').length).toBe(1);
+    expect(identity.textContent).not.toContain('—');
   });
 
   it('marks a picked row with the house surface + ink bar, never a lone accent hex (card 161026232359)', () => {

@@ -149,16 +149,24 @@
 .shipment-debit-pane {
   overflow: auto;
   max-height: calc(100dvh - var(--topbar-h, 56px) - 212px);
-  min-height: 320px;
   border: 1px solid var(--border-1);
   border-radius: 8px;
   overscroll-behavior: contain;
+  /* 2026-10-30 edge-to-edge rail (master-plan pattern): the data rail runs
+     to both screen edges — bleed the workspace card's 12px pad + the shell
+     gutter token. Controls keep the reading spine inside the card. The pane
+     hugs its content (owner 14/11: no reserved dead height below short
+     boards); the sticky contract still rests on max-height alone. */
+  width: calc(100% + 24px + 2 * var(--app-body-pad-x, 24px));
+  margin-inline: calc(-12px - var(--app-body-pad-x, 24px));
 }
 
 @media print {
   .shipment-debit-pane {
     max-height: none;
     overflow: visible;
+    width: 100%;
+    margin-inline: 0;
   }
 }
 
@@ -177,9 +185,10 @@
   table-layout: fixed;
   border-collapse: collapse;
   /* The honest sum of the seven REV2 columns (44 select + 300 identity +
-   * 140×3 money + 170 total + 112 status); below this width the pane scrolls
-   * sideways (cue below). */
-  min-width: 1076px;
+   * 220×4 money + 112 status = 1336); below this width the pane scrolls
+   * sideways (cue below). Owner 14/11: 220px fits every money header label
+   * whole — a header label is never chopped (§4). */
+  min-width: 1336px;
   font-size: var(--text-body-size);
   line-height: 20px;
   font-variant-numeric: tabular-nums;
@@ -214,16 +223,17 @@
 /* REV2 — the flat board: one multi-line identity column + four money
    columns; the old booking/customs/lane/docs widths retire with them. */
 .shipment-debit-table th.shipment-debit-col--identity { width: auto; }
-.shipment-debit-table th.shipment-debit-col--freight { width: 140px; }
-.shipment-debit-table th.shipment-debit-col--chiho { width: 140px; }
-.shipment-debit-table th.shipment-debit-col--service { width: 140px; }
-.shipment-debit-table th.shipment-debit-col--total { width: 170px; }
+.shipment-debit-table th.shipment-debit-col--freight { width: 220px; }
+.shipment-debit-table th.shipment-debit-col--chiho { width: 220px; }
+.shipment-debit-table th.shipment-debit-col--service { width: 220px; }
+.shipment-debit-table th.shipment-debit-col--total { width: 220px; }
 .shipment-debit-table th.shipment-debit-col--status { width: 112px; padding-inline: 6px; }
 
-/* Rows: 52px, vertical-middle, ONE baseline per cell (owner spec v2 (e)) —
- * no vertical cell borders, hairline bottom rules only, quiet hover. */
+/* Rows: 44px, vertical-middle, ONE baseline per cell (owner spec v2 (e);
+ * 44px = the owner's 14/11 data-dense directive superseding the 23/10
+ * 52px floor) — no vertical cell borders, hairline bottom rules only. */
 .shipment-debit-table td {
-  height: 52px;
+  height: 44px;
   padding: 0 10px;
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
@@ -651,11 +661,11 @@
   color: var(--danger);
 }
 
-/* ── Group header (owner spec v2 (b)): 38px, sticky under the 40px header ── */
+/* ── Group header (owner spec v2 (b)): 34px, sticky under the 40px header ── */
 .shipment-debit-group td {
   position: sticky;
   top: 40px;
-  height: 38px;
+  height: 34px;
   padding: 0 10px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
@@ -685,27 +695,16 @@
 .shipment-debit-group__chevron:hover { background: var(--surface-3); }
 .shipment-debit-group__chevron:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 
-.shipment-debit-group__icon {
-  display: inline-flex;
-  margin-right: 6px;
-  color: var(--ink-3);
-}
-
 .shipment-debit-group__name {
   color: var(--ink);
   font-size: var(--text-data-size);
   font-weight: 600;
 }
 
+/* §1 — the count is plain muted text, never a pill fill. */
 .shipment-debit-group__count {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
   margin-left: 8px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: var(--surface-3);
-  color: var(--ink-2);
+  color: var(--ink-3);
   font-size: var(--text-caption-size);
 }
 
@@ -850,8 +849,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Scroll cue: the table's 1370px floor cannot fit below that width — the cue
-   is honest exactly there. At ≤640 the phone record cards render instead. */
+/* Scroll cue: the table's 1336px floor (+ shell gutter + scrollbar) cannot
+   fit below ~1399px — the cue is honest exactly there. At ≤640 the phone
+   record cards render instead. */
 .shipment-debit-scroll-hint {
   display: none;
   margin: 0;
@@ -860,7 +860,7 @@
   font-size: var(--text-caption-size);
 }
 
-@media (min-width: 641px) and (max-width: 1369px) {
+@media (min-width: 641px) and (max-width: 1399px) {
   .shipment-debit-scroll-hint {
     display: block;
   }
