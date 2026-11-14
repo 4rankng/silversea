@@ -19,7 +19,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { NotificationType, Role } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { emitNotification } from './notification.service';
@@ -68,6 +68,52 @@ async function assertHandoffHandlerEligible(handlerId: number, tx: Tx): Promise<
       || handler.status !== 'ACTIVE') {
     throw new ApiError(400, 'Lệnh phát phải gắn người điều vận phụ trách: handler phải là nhân viên điều vận đang hoạt động.');
   }
+}
+
+/**
+ * SIL-817 AC3b (id 946, QA fail 14/11 on build c230df97): Phát lệnh issued
+ * the order (staging lô R3M-D2-A → handoff #668) while the lot's intake
+ * handoff stayed UNSEEN with handler_id NULL — the exact strand the
+ * stuck-trips watchlist flags as "UNSEEN — chưa có người phụ trách", and the
+ * root of the PROD trip-13 wall this ticket opened with. The clerk intake
+ * broadcast stays handler-less BY DESIGN (see the guard above); the moment a
+ * dispatcher issues the order is the ownership moment, so the issue
+ * transaction claims the ACTIVE (UNSEEN/SEEN) handoff for the issuing
+ * dispatcher instead of asking for a dialog field nobody had.
+ *
+ * Row law (markSeen convention): only a handler-NULL row is claimed, under
+ * FOR UPDATE, with the version bump + updatedAt — an owned handoff keeps its
+ * owner (and a queue client holding a stale expectedVersion gets the normal
+ * 409 "đã được cập nhật", never a silent re-own); ACCEPTED/REJECTED rows are
+ * history and out of reach of the active filter. Caller passes
+ * input.actor.userId — issueFulfillmentDispatchOrder's assertDispatchActor
+ * already pins the actor to DISPATCHER/ADMIN/MANAGER, the same set
+ * HANDOFF_HANDLER_ROLES admits, so no second eligibility lookup is needed.
+ */
+export async function claimHandlerlessDispatchHandoffInTx(
+  tx: Tx,
+  shipmentId: number,
+  handlerId: number,
+): Promise<boolean> {
+  const [active] = await tx.select({ id: s.dispatchHandoffs.id })
+    .from(s.dispatchHandoffs)
+    .where(and(
+      eq(s.dispatchHandoffs.shipmentId, shipmentId),
+      sql`${s.dispatchHandoffs.status} IN ('UNSEEN', 'SEEN')`,
+      isNull(s.dispatchHandoffs.handlerId),
+    ))
+    .limit(1)
+    .for('update');
+  if (!active) return false;
+  const [claimed] = await tx.update(s.dispatchHandoffs)
+    .set({
+      handlerId,
+      version: sql`${s.dispatchHandoffs.version} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(s.dispatchHandoffs.id, active.id), isNull(s.dispatchHandoffs.handlerId)))
+    .returning({ id: s.dispatchHandoffs.id });
+  return claimed != null;
 }
 
 /**
