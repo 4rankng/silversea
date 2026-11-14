@@ -124,7 +124,10 @@
 /* ─── Expense Grid (replaces table) ─── */
 .settlement-expense-grid {
   display: grid;
-  grid-template-columns: 70px 100px 1fr 130px 120px 100px;
+  /* SIL-831 — columns never bleed into each other: tracks size to their
+   * content (floor → max-content) with KHÁCH HÀNG absorbing surplus/shrink;
+   * at tight widths the floor holds and cells wrap in place. */
+  grid-template-columns: 70px minmax(100px, max-content) minmax(0, 1fr) minmax(130px, max-content) 120px 100px;
   gap: 0;
   font-size: var(--fs-sm);
 }
@@ -161,6 +164,11 @@
   border-bottom: 1px solid var(--line);
   color: var(--ink);
   line-height: 1.5;
+  /* SIL-831 — long tokens (fee codes, invoice numbers) wrap in-cell instead
+   * of spilling over the neighbouring column. */
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .settlement-expense-grid__row:hover > span {
@@ -183,7 +191,7 @@
 .settlement-expense-grid .u-num { white-space: nowrap; }
 .settlement-expense-grid .u-mono { font-family: var(--font-data); font-size: var(--fs-xs); white-space: nowrap; }
 .settlement-expense-grid .u-muted { color: var(--ink-2); white-space: nowrap; }
-.settlement-expense-grid .u-wrap { word-break: break-word; overflow-wrap: break-word; }
+.settlement-expense-grid .u-wrap { white-space: normal; word-break: break-word; overflow-wrap: break-word; }
 .settlement-expense-grid .u-bold { font-weight: 700; }
 
 /* ─── Summary ─── */
