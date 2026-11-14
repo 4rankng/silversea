@@ -116,11 +116,18 @@
    share wide enough for the label ("Bill/Booking" 9%, "Nhập/Xuất" 9%,
    container codes 9%); the sort button also flex-wraps its icon to a second
    line rather than letting it be painted over by the next th. */
-/* SIL-819 (2026-11-13, QA 1440px): customer gives 2% to route so the
-   Nâng/hạ place token fits a full line (see col--route) — names are prose
-   that wraps at spaces, this sheet's own historical funding source.
-   Shares still sum to 100%. */
-.shipment-container-ledger__col--customer { width: 5%; }
+/* SIL-819 (2026-11-13, QA 1440px): customer gave 2% to route so the
+   Nâng/hạ place token fits a full line (see col--route).
+   SIL-822 (2026-11-14, QA 1440px re-test): the same 5% starved THIS column's
+   own tokens — 'ASKEY' shattered as 'ASKE/Y' and a route word 'XUỐNG' as
+   'XUỐN/G' inside the KHÁCH HÀNG & LỘ TRÌNH cell. Measured at the 1129px
+   workboard: 'ASKEY' ≈ 41px and 'XUỐNG' ≈ 46px at the 12px/600 primary tier,
+   so the cell needs a ≥59px line box — 6% (≈71px) minus the 6px inline
+   padding floor below. SAMSUNG-class 7-char brands (≈68px with the Be
+   Vietnam Pro variance) ride the emergency break; a wider measured floor is
+   a new ticket. Status funds the +1 (7%, its badges wrap at spaces; the
+   missing-fields chip is built flex-wrap). Shares still sum to 100%. */
+.shipment-container-ledger__col--customer { width: 6%; }
 .shipment-container-ledger__col--billbook { width: 9%; }
 /* SIL-816 UI-06 (measured at the 1440 workboard, 2026-11-13 drive): the SỐ
    TỜ KHAI share kept its wrap-era 6% budget while SIL-756 made the code rail
@@ -154,7 +161,9 @@
    NÂNG/HẠ labels carry the semantics). SIL-819 (2026-11-13, QA 1440px):
    "Cảng VipGreenPort" shattered as 'Cảng VipGree/nPort' — the whole-token
    word needs a full-line box, so route takes 8% (plus a 6px inline padding
-   floor below) funded by KHÁCH HÀNG (5%); shares still sum to 100%. */
+   floor below), funded by KHÁCH HÀNG (5% at the time). SIL-822 (2026-11-14)
+   returned 1% to KHÁCH HÀNG (6%) and re-funded it from TRẠNG THÁI (7%);
+   shares still sum to 100%. */
 .shipment-container-ledger__col--route { width: 8%; }
 /* SIL-516 doctrine sweep (SIL-515 wrap-full): 9% holds the unbreakable date
    token "30/10/2026" (74px at the data scale) whole at every hidden-column
@@ -165,8 +174,14 @@
 .shipment-container-ledger__col--notes { width: 6%; }
 /* Carries the dispatch label plus the missing-fields warning (moved here
    from the customer cell so "needs attention" reads next to the status it
-   blocks) — sized so the one-line sort header fits (R17/FB-063). */
-.shipment-container-ledger__col--status { width: 8%; }
+   blocks) — sized so the one-line sort header fits (R17/FB-063).
+   SIL-822 (2026-11-14, QA 1440px): funds KHÁCH HÀNG & LỘ TRÌNH's +1 (its
+   own tokens shattered at the SIL-819-era 5%). 7% ≈ a 55px line box: every
+   badge word ('Chờ phân xe', 'Đã tạo chuyến' — longest word 'chuyến' ≈
+   38px at the caption tier) still fits whole and the labels wrap at spaces
+   exactly as before (they already wrapped at 8% — 'Đã tạo chuyến' ≈ 78px);
+   the missing-fields chip is built flex-wrap and wraps by design. */
+.shipment-container-ledger__col--status { width: 7%; }
 /* FB-086 restore (supersedes card 20260922_41, keeps cards 20260922_3 and
    20260922_21's tap-target law): the actions column had no col rule while
    the other columns summed to 100%, so table-layout: fixed collapsed it to
@@ -421,6 +436,18 @@
    1440 workboard the 12px data tier measures 'VipGreenPort' (~74px) against
    a ~80px line box, so the whole-token place name fits its line. */
 .shipment-container-ledger td[data-label='Nâng / hạ'] { padding-inline: 6px; }
+/* SIL-822 (2026-11-14, QA 1440px) — the KHÁCH HÀNG & LỘ TRÌNH cell rides the
+   same pair of levers as the route cell above: the 6px inline padding floor
+   turns the 6% share into a ~59px line box (the 12px default padding would
+   leave ~47px — under the measured 'XUỐNG' token), and the name runs drop
+   the shared NameCell/base `overflow-wrap: anywhere`, which breaks greedily
+   at the end of the REMAINING space ('ASKEY' → 'ASKE/Y') instead of when a
+   token exceeds a whole line. break-word + word-break:normal — the SIL-819
+   `__route > span` precedent — wraps at word boundaries first and keeps the
+   emergency break for a token wider than the whole line only. Scoped to
+   this cell: the NameCell anywhere-law stays the house default elsewhere. */
+.shipment-container-ledger th[data-label='Khách hàng & lộ trình'] { padding-inline: 6px; }
+.shipment-container-ledger th[data-label='Khách hàng & lộ trình'] .name-cell { overflow-wrap: break-word; word-break: normal; }
 .shipment-container-ledger__route small { color: var(--ink-3); font-size: var(--text-caption-size); font-weight: var(--fw-semibold); text-transform: uppercase; }
 .shipment-container-ledger__route i { justify-self: start; color: var(--ink-4); font-style: normal; transform: rotate(90deg); }
 .shipment-container-ledger__schedule { font-family: var(--font-data); }

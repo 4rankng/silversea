@@ -122,9 +122,11 @@ describe('shipment detail workboard styling', () => {
     // share is back (cards 20260922_3/_21 tap-target law). FB-113 v2
     // (2026-10-18) splits the documents group into four headed columns, so
     // the twelve shares must still sum to 100% (pinned in the FB-086 test
-    // below); the narrow-column law holds: notes 6%, status 8%.
+    // below); the narrow-column law holds: notes 6%, status 7% (SIL-822
+    // 2026-11-14 re-pointed status 8→7 to fund KHÁCH HÀNG & LỘ TRÌNH — every
+    // status badge word still fits its 55px line box whole).
     expect(css).toMatch(/\.shipment-container-ledger__col--notes\s*\{[^}]*width:\s*6%;/);
-    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*8%;/);
+    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*7%;/);
     expect(css).toMatch(/\.shipment-container-ledger__col--actions\s*\{[^}]*width:\s*7%;/);
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*var\(--text-caption-size\);[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
@@ -136,6 +138,24 @@ describe('shipment detail workboard styling', () => {
     // overflow-wrap:anywhere shattered 'Cảng VipGreenPort' mid-word; the
     // emergency break only fires for a token wider than the whole line.
     expect(css).toMatch(/\.shipment-container-ledger__route > span\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
+  });
+
+  it('SIL-822: KHÁCH HÀNG & LỘ TRÌNH holds its own tokens — 6% + 6px padding floor + word-boundary wrap', () => {
+    // QA 1440px re-test of SIL-819: the SIL-819-era 5% share starved this
+    // column's own tokens ('ASKEY' → 'ASKE/Y', 'XUỐNG' → 'XUỐN/G'). The fix
+    // mirrors the route cell's pair of levers: a 6px inline padding floor on
+    // the row-header cell (the 12px default would leave the 6% share a
+    // ~47px box — under the measured 'XUỐNG' ≈ 46-50px token) and the same
+    // word-boundary law on the NameCell runs — the shared NameCell
+    // overflow-wrap:anywhere breaks greedily at the end of the REMAINING
+    // space, not when a token exceeds a whole line.
+    expect(css).toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:\s*6%;/);
+    expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\]\s*\{[^}]*padding-inline:\s*6px;/);
+    expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\] \.name-cell\s*\{[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
+    // The +1 comes from TRẠNG THÁI (8→7): badge words (≤38px at the caption
+    // tier) fit the ~55px line box; the missing-fields chip is flex-wrap by
+    // design. The thirteen shares still sum to 100 (FB-086 test).
+    expect(css).toMatch(/\.shipment-container-ledger__col--status\s*\{[^}]*width:\s*7%;/);
   });
 
   it('places pagination in the container ledger scroll region', () => {
