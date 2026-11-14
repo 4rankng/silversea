@@ -83,167 +83,91 @@
    the app frame's bottom strip is banned by the card. The pagination stays
    static, in flow at the table's end, at every width; a future sticky must
    bind to the true scrollport or live outside the table flow. */
-.shipment-container-ledger table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+/* SIL-824 (id 953, owner 14/11 — "khong de browser tu phan phoi chieu rong"):
+   the ledger abandons percentage shares for a FIXED px column model. Every
+   narrow column pins its measured content width; KHÁCH HÀNG & LỘ TRÌNH is the
+   table's ONLY auto column and absorbs all surplus (owner: "flex-grow, an het
+   phan du thua — it nhat gap doi hien tai"). Floors are measured at the
+   shipped type scale (11px Inter Digits headers/codes, 12px cells):
+   - Bill/Booking code "EBKG19248801" = 83px → cell 112px
+   - 12-digit tờ khai "309132985730" = 87px → 116px (Cam Truncate Spec v4
+     §8.1.5: exactly the 12-digit floor, never wider)
+   - 11-char ISO "MSNU3128119" = 86px → 116px (number + wrapped loại/don line)
+   - direction chip ≈ 40px → 76px; the "Nhập/Xuất" header breaks at the slash
+     (<wbr> in the th) so the header wraps to an even 2 lines (card 20260925_47)
+   - hãng tàu "MSC"/"SITC" ≈ 33px → 96px; a rare over-line token takes the
+     house emergency break + the span's title tooltip (never clipped)
+   - route token 'VipGreenPort' = 74px + the 6px padding floor → 88px (SIL-819)
+   - schedule date token "30/10/2026" = 72px → 100px (time wraps to line 2)
+   - plate pill "29C-123.45" ≈ 85px with chrome → 128px (SIL-516 floor)
+   - notes min 120px and never grows past it; status 92 / actions 92 are the
+     measured badge/button floors
+   The table's min-width pins fixed-sum + the 136px customer floor (2× the
+   owner-flagged 6% gap), so table-layout: fixed is never over-constrained and
+   the customer column can never shatter again (SIL-822's defect class). */
+.shipment-container-ledger {
+  --led-w-select: 44px;
+  --led-w-billbook: 112px;
+  --led-w-declaration: 116px;
+  --led-w-direction: 76px;
+  --led-w-shippingline: 96px;
+  --led-w-container: 116px;
+  --led-w-route: 88px;
+  --led-w-schedule: 100px;
+  --led-w-vehicle: 128px;
+  --led-w-notes: 120px;
+  --led-w-status: 92px;
+  --led-w-actions: 92px;
+  --led-w-customer-floor: 136px;
+  --led-fixed-sum: 1180px; /* the twelve fixed floors above, incl. CHỌN */
+}
+.shipment-container-ledger table { width: 100%; min-width: calc(var(--led-fixed-sum) + var(--led-w-customer-floor)); border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
-/* All twelve columns pin an explicit share (sums to 100%) instead of mixing
-   in `width: auto`: table-layout: fixed only measures auto columns from the
-   first row, so a later row's longer content (e.g. a full container number)
-   silently wraps mid-token instead of claiming its fair share. Shares below
-   are sized to each column's real content, not split evenly. FB-113 v2
-   (2026-10-18, QA "header thiếu trường Số tờ khai, thứ tự không đúng") splits
-   the single Chứng từ & hãng tàu column into four headed columns in the QA
-   order — Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu — sharing the
-   pinned `documents` visibility key. SIL-516 (2026-10-26) then re-laddered
-   the shares to fund the PHÂN XE editor (18%): headers no longer forced onto
-   one line — a label that needs a second line wraps at spaces to an even
-   pair (card 20260925_47 + SIL-515 wrap-full doctrine), never mid-token.
-   Customer/container keep their wrap-by-content treatment (long names and
-   codes wrap whole per the no-truncation doctrine). FB-086 (2026-10-14)
-   restored the Thao tác column card 20260922_41 removed. */
-/* SIL-516 (QA card 2026-10-26): the PHÂN XE share was 8% — the in-cell BKS
-   quick editor squeezed its combobox to ~37px ("Chọn h…" placeholder), the
-   helper wrapped one character per line, and the Lưu button spilled past the
-   cell. The editor must fit INSIDE the cell (owner: "nằm gọn trong cell"), so
-   vehicle takes an 18% share — at the 1440 workboard (1129px table, twelve
-   columns) that is a ~203px cell ≈ a 137px combobox input, enough for the
-   full "Chọn hoặc nhập BKS" placeholder. Funded by the content-light columns
-   (customer/billbook/declaration/direction/container/route/schedule), whose
-   copy wraps per the no-truncation doctrine; FB-086's actions 7% tap-target
-   law and the narrow-column law (notes 6%, status 8%) are untouched.
-   Headers that no longer fit on one line now wrap to an even second line
-   (card 20260925_47 + SIL-515 wrap-full doctrine) instead of overflowing
-   into the neighbouring sticky th. Unbreakable header tokens keep their
-   share wide enough for the label ("Bill/Booking" 9%, "Nhập/Xuất" 9%,
-   container codes 9%); the sort button also flex-wraps its icon to a second
-   line rather than letting it be painted over by the next th. */
-/* SIL-819 (2026-11-13, QA 1440px): customer gave 2% to route so the
-   Nâng/hạ place token fits a full line (see col--route).
-   SIL-822 (2026-11-14, QA 1440px re-test): the same 5% starved THIS column's
-   own tokens — 'ASKEY' shattered as 'ASKE/Y' and a route word 'XUỐNG' as
-   'XUỐN/G' inside the KHÁCH HÀNG & LỘ TRÌNH cell. Measured at the 1129px
-   workboard: 'ASKEY' ≈ 41px and 'XUỐNG' ≈ 46px at the 12px/600 primary tier,
-   so the cell needs a ≥59px line box — 6% (≈71px) minus the 6px inline
-   padding floor below. SAMSUNG-class 7-char brands (≈68px with the Be
-   Vietnam Pro variance) ride the emergency break; a wider measured floor is
-   a new ticket. Status funds the +1 (7%, its badges wrap at spaces; the
-   missing-fields chip is built flex-wrap). Shares still sum to 100%. */
-.shipment-container-ledger__col--customer { width: 6%; }
-.shipment-container-ledger__col--billbook { width: 9%; }
-/* SIL-816 UI-06 (measured at the 1440 workboard, 2026-11-13 drive): the SỐ
-   TỜ KHAI share kept its wrap-era 6% budget while SIL-756 made the code rail
-   an atomic twelve-char token (nowrap + in-cell scroll) — the rail measured
-   61px against the 78px twelve-digit token ("Chưa có tờ khai" itself read
-   cut at 1440). The share re-ladder buys the token its floor: 9% of the
-   1144px canvas ≈ a 103px cell ≈ an 82px rail at the full thirteen-column
-   set — more at every hidden-column set (dormant shares scale up). Funded by
-   the two prose columns — KHÁCH HÀNG (names wrap at spaces, this sheet's own
-   historical funding source) and HÃNG TÀU (whole-token names fall to the
-   house emergency break; the wrap-not-truncate law carries the tail). The
-   1101-1365 / 761-1100 band ladders keep their own budgets (untouched). */
-.shipment-container-ledger__col--declaration { width: 9%; }
-.shipment-container-ledger__col--direction { width: 7%; }
-.shipment-container-ledger__col--shippingline { width: 8%; }
-.shipment-container-ledger__col--container { width: 9%; }
-/* SIL-547 (spec 23/10 §2): the on-demand CHỌN column owns a real 3% share so
-   the thirteen shares still sum to 100% under table-layout: fixed. Funded by
-   the prose columns — customer (names wrap at spaces; 9% keeps every token
-   whole) and declaration (numbers wrap anywhere). The measured identifier
-   floors (billbook/container/schedule ≥9, direction ≥7, vehicle ≥12) and
-   route's token-safe 6% are untouched. The col only RENDERS in [Gộp hàng]
-   mode; the share is dormant off mode. */
-.shipment-container-ledger__col--select { width: 3%; }
-/* The route cell holds "NÂNG: <long name>" + "HẠ: <long name>" stacked
-   (e.g. "Cảng Tân Cảng 128 Hải Phòng" / "Cảng Nam Hải Đình Vũ"). With
-   table-layout: fixed, the column shrinks below the longest unbreakable
-   token and the cell clips the trailing characters — place names wrap.
-   FB-113 v2 re-ladder: the header reads "Nâng / hạ" (the full phrase could
-   not share the width the four document headers need; the cells' own
-   NÂNG/HẠ labels carry the semantics). SIL-819 (2026-11-13, QA 1440px):
-   "Cảng VipGreenPort" shattered as 'Cảng VipGree/nPort' — the whole-token
-   word needs a full-line box, so route takes 8% (plus a 6px inline padding
-   floor below), funded by KHÁCH HÀNG (5% at the time). SIL-822 (2026-11-14)
-   returned 1% to KHÁCH HÀNG (6%) and re-funded it from TRẠNG THÁI (7%);
-   shares still sum to 100%. */
-.shipment-container-ledger__col--route { width: 8%; }
-/* SIL-516 doctrine sweep (SIL-515 wrap-full): 9% holds the unbreakable date
-   token "30/10/2026" (74px at the data scale) whole at every hidden-column
-   set — at 8% the 94% set left the token a 72px box and it spilled 2px into
-   the neighbouring cell. Funded by declaration (its copy wraps). */
-.shipment-container-ledger__col--schedule { width: 9%; }
-.shipment-container-ledger__col--vehicle { width: 12%; }
-.shipment-container-ledger__col--notes { width: 6%; }
-/* Carries the dispatch label plus the missing-fields warning (moved here
-   from the customer cell so "needs attention" reads next to the status it
-   blocks) — sized so the one-line sort header fits (R17/FB-063).
-   SIL-822 (2026-11-14, QA 1440px): funds KHÁCH HÀNG & LỘ TRÌNH's +1 (its
-   own tokens shattered at the SIL-819-era 5%). 7% ≈ a 55px line box: every
-   badge word ('Chờ phân xe', 'Đã tạo chuyến' — longest word 'chuyến' ≈
-   38px at the caption tier) still fits whole and the labels wrap at spaces
-   exactly as before (they already wrapped at 8% — 'Đã tạo chuyến' ≈ 78px);
-   the missing-fields chip is built flex-wrap and wraps by design. */
-.shipment-container-ledger__col--status { width: 7%; }
-/* FB-086 restore (supersedes card 20260922_41, keeps cards 20260922_3 and
-   20260922_21's tap-target law): the actions column had no col rule while
-   the other columns summed to 100%, so table-layout: fixed collapsed it to
-   0px from ~1366px up — Thao tác buttons painted clipped and real taps never
-   landed. 7% keeps every button inside the tap target at 1440/1680. */
-.shipment-container-ledger__col--actions { width: 7%; }
+/* FB-113 v2 (2026-10-18) keeps the documents group as four headed columns —
+   Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu — sharing the pinned
+   `documents` visibility key; FB-086 (2026-10-14) keeps the Thao tác column.
+   Headers that cannot fit one line wrap at spaces to an even second line
+   (card 20260925_47 + SIL-515 wrap-full doctrine), never mid-token. */
+/* KHÁCH HÀNG & LỘ TRÌNH (col--customer) has NO width rule by design — the
+   table's only auto column, it absorbs every surplus px (SIL-824 grow law).
+   Its 6px padding floor + word-boundary wrap levers stay (SIL-822). */
+.shipment-container-ledger__col--billbook { width: var(--led-w-billbook); }
+.shipment-container-ledger__col--declaration { width: var(--led-w-declaration); }
+.shipment-container-ledger__col--direction { width: var(--led-w-direction); }
+.shipment-container-ledger__col--shippingline { width: var(--led-w-shippingline); }
+.shipment-container-ledger__col--container { width: var(--led-w-container); }
+/* SIL-547 (spec 23/10 §2): the CHỌN column renders only in [Gộp hàng] mode;
+   off mode the floor is dormant and KHÁCH HÀNG absorbs its 44px. */
+.shipment-container-ledger__col--select { width: var(--led-w-select); }
+/* Route keeps the SIL-819 whole-token floor: 'Cảng VipGreenPort' must hold
+   'VipGreenPort' (74px) on one line inside the 6px padding floor. */
+.shipment-container-ledger__col--route { width: var(--led-w-route); }
+/* The unbreakable date token "30/10/2026" (72px) holds one line; the time
+   rides a second line (SIL-515 wrap-full). */
+.shipment-container-ledger__col--schedule { width: var(--led-w-schedule); }
+/* PHÂN XE holds the plate pill floor (SIL-516: the pill, the BKS-Ảo pill and
+   the "Nhập BKS thực" toggle fit the cell; the rare "Cập nhật biển số" ghost
+   wraps to two lines instead of inflating the column). */
+.shipment-container-ledger__col--vehicle { width: var(--led-w-vehicle); }
+/* GHI CHÚ: the owner's 120px reading floor — a floor, never a grow column. */
+.shipment-container-ledger__col--notes { width: var(--led-w-notes); }
+/* TRẠNG THÁI: badge words wrap at spaces (longest word 'chuyển' ≈ 42px); the
+   missing-fields chip is flex-wrap by design. 'Hoàn thành' (SIL-620 pure text
+   button, ≈58px) fits its 68px line box whole. */
+.shipment-container-ledger__col--status { width: var(--led-w-status); }
+/* FB-086 restore + tap-target law: '＋ Thêm' (≈64px with padding) and the
+   wrapping 'Copy giờ hẹn' fit the 68px box. */
+.shipment-container-ledger__col--actions { width: var(--led-w-actions); }
 /* SIL-547 — the CHỌN cell: one 16px checkbox, centered, same law as the
    settlement board's .shipment-debit-row__select (16px + var(--brand)); the
    non-pickable (container) rows carry the muted dash. */
 .shipment-container-ledger td.shipment-container-ledger__cell--select { padding-inline: 6px; text-align: center; vertical-align: middle; }
 .shipment-container-ledger__lot-select { width: 16px; height: 16px; margin: 0; accent-color: var(--brand); cursor: pointer; }
 .shipment-container-ledger__select-empty { color: var(--ink-4); }
-/* Between 1101px (where `table-layout: fixed` starts) and ~1365px the
-   actions column fell to 71–89px and its labels wrapped into a
-   three-line vertical stack. In that band the actions column takes 9% and
-   notes 8% — funded by customer/container/route, so the shares still sum to
-   100%. The base ladder above is untouched for ≥1366px. */
-/* SIL-516: this band restates EVERY share (the base ladder changed) so the
-   twelve still sum to 100%. SIL-543 (2026-10-28) applies the same pair
-   balance here — customer 4% → 11%, Hãng tàu 4% → 9% (whole-token floor),
-   Nhập/Xuất 9% → 7% (header-token floor), vehicle 22% → 12% (plate-pill
-   floor: at the 1280 gate the 12/83 share ≈ a 170px cell, pill + in-cell
-   editor still inside); actions keeps FB-086's 9% band share and notes 8%. */
-@media (min-width: 1101px) and (max-width: 1365px) {
-  /* SIL-547: the CHỌN share funds from prose columns here too (customer,
-     billbook, notes — all wrap; sums stay 100 across the 13 shares). */
-  .shipment-container-ledger__col--customer { width: 10%; }
-  .shipment-container-ledger__col--billbook { width: 9%; }
-  .shipment-container-ledger__col--declaration { width: 4%; }
-  .shipment-container-ledger__col--direction { width: 7%; }
-  .shipment-container-ledger__col--shippingline { width: 9%; }
-  .shipment-container-ledger__col--container { width: 10%; }
-  .shipment-container-ledger__col--route { width: 4%; }
-  .shipment-container-ledger__col--schedule { width: 8%; }
-  .shipment-container-ledger__col--vehicle { width: 12%; }
-  .shipment-container-ledger__col--notes { width: 7%; }
-  .shipment-container-ledger__col--status { width: 8%; }
-  .shipment-container-ledger__col--actions { width: 9%; }
-  .shipment-container-ledger__col--select { width: 3%; }
-}
-/* 761-1100px is desktop layout on auto sizing (card mode starts at 760px), so
-   the 7% share still squeezed the actions cell to 71px there. The percentage
-   keeps the rhythm and an explicit min-width — honoured under auto layout —
-   guarantees the buttons their room. */
-@media (min-width: 761px) and (max-width: 1100px) {
-  /* SIL-547: CHỌN funded from customer/declaration/notes (prose wraps). */
-  .shipment-container-ledger__col--customer { width: 9%; }
-  .shipment-container-ledger__col--billbook { width: 8%; }
-  .shipment-container-ledger__col--declaration { width: 6%; }
-  .shipment-container-ledger__col--direction { width: 6%; }
-  .shipment-container-ledger__col--shippingline { width: 8%; }
-  .shipment-container-ledger__col--container { width: 10%; }
-  .shipment-container-ledger__col--route { width: 7%; }
-  .shipment-container-ledger__col--schedule { width: 7%; }
-  .shipment-container-ledger__col--vehicle { width: 12%; }
-  .shipment-container-ledger__col--notes { width: 7%; }
-  .shipment-container-ledger__col--status { width: 8%; }
-  .shipment-container-ledger__col--actions { width: 9%; }
-  .shipment-container-ledger__col--select { width: 3%; }
-  .shipment-container-ledger tbody > tr > *:last-child { min-width: 88px; }
-  .shipment-container-ledger thead th:last-child { min-width: 88px; }
-}
+/* The SIL-516/SIL-543/SIL-547 percentage band ladders (@media 1101-1365 and
+   761-1100) are gone with the SIL-824 px model: those viewports now resolve
+   through the container-query card collapse below (their container width is
+   under the px model's 1316px floor), so the bands were dead CSS. */
 /* Card 111026111200 — copy giờ hẹn xuống các container của CÙNG lô chưa có
    lịch. `.shipment-container-ledger__copy` is the name base.css has reserved
    for this affordance since 20260918_3 (the global hover reset exempts it).
@@ -389,10 +313,17 @@
    caption scale — 12px (--text-data-size, the neighboring Bill/Tờ khai/
    Hãng tàu cells) at line-height 1.5 + the 2px block padding lands the
    pill at ~22px, inside the owner's 20-22px band. */
-.shipment-container-ledger__direction { display: inline-flex; width: fit-content; max-width: 100%; padding: 2px 7px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-data-size); line-height: 1.5; font-weight: var(--fw-semibold); letter-spacing: .04em; text-transform: uppercase; white-space: normal; }
+/* SIL-824 owner addendum (14/11, "stop using supersize oversize font"): the
+   direction chip reads AT the table's content tier — same 12px as the
+   neighbouring cell text, normal tracking, NO uppercase inflation, weight
+   600. The chip must never read louder than the content around it
+   ('Yang Ming'/'SITC' stay the visual baseline). */
+.shipment-container-ledger__direction { display: inline-flex; width: fit-content; max-width: 100%; padding: 2px 7px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-data-size); line-height: 1.5; font-weight: var(--fw-semibold); letter-spacing: normal; white-space: normal; }
 .shipment-container-ledger__direction--unknown { color: var(--ink-3); }
 .shipment-container-ledger__container-classification { color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-medium); }
-.shipment-container-ledger__combined { display: inline-flex; width: fit-content; padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-bold); }
+/* SIL-824 pill sweep (owner addendum): ĐƠN/KẸP drops 700 → 600 — a state
+   chip reads semibold, never bolder than the data around it. */
+.shipment-container-ledger__combined { display: inline-flex; width: fit-content; padding: 2px 6px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-semibold); }
 /* Trạng thái is plain colored text, not a pill: the four dispatch states
    already read as a status signal via hue alone (matched to the exact tones
    the retired Badge/BadgeWithDot component used, so the palette didn't
@@ -459,8 +390,10 @@
 .shipment-container-ledger__plate { display: inline-flex; width: fit-content; padding: 2px 5px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--surface-2); color: var(--ink) !important; font-family: var(--font-data); font-weight: var(--fw-bold); letter-spacing: .03em; white-space: nowrap; }
 .shipment-container-ledger__vehicle { gap: 4px; }
 /* SIL-714 — the Cập nhật biển số affordance sits under the "CUS sẽ bổ sung"
-   badge in the same multiline stack; width: fit-content keeps it compact. */
-.shipment-container-ledger__plate-update { width: fit-content; }
+   badge in the same multiline stack; width: fit-content keeps it compact.
+   SIL-824: at the 128px vehicle floor its ~117px box would bleed into the
+   neighbouring cell, so the ghost label wraps to a second line instead. */
+.shipment-container-ledger__plate-update { width: fit-content; white-space: normal; }
 .shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 52%, var(--surface)) !important; }
 .shipment-container-ledger tbody > tr:hover > .shipment-container-ledger__vehicle-pending { background: color-mix(in srgb, var(--warning-soft) 74%, var(--surface)) !important; }
 /* Status chips below are UUI badges (Badge/BadgeWithDot warning): the badge
@@ -697,7 +630,20 @@
 .shipments-detail-workspace .ds-pagination__btn { background: var(--surface); box-shadow: none; }
 .shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }
 
-@container shipments-detail (max-width: 1000px) {
+/* SIL-824: the px floor set needs a 1316px canvas (fixed sum 1180 + the
+   136px customer floor). Below it table-layout: fixed would over-constrain
+   and shatter tokens again (the SIL-822 defect class), so the card collapse
+   moves up from 1000px: any canvas under 1318px — a 1280 laptop (~1177px
+   container), or a 1440 laptop with the sidebar open (~1129px) — reads the
+   card grid; the fixed table renders only when KHÁCH HÀNG is guaranteed its
+   136px floor (container ≥ 1319px, e.g. a 1440 desktop with the sidebar
+   collapsed = 1329px measured). 1318 keeps a 2px guard over the min-width
+   so a scrollbar-variance canvas can only ever fall to the graceful card
+   grid, never an over-constrained table. */
+@container shipments-detail (max-width: 1318px) {
+  /* The px model's table min-width is a TABLE-MODE law; the card grid sizes
+     itself to the container and must not inherit the 1316px floor. */
+  .shipment-container-ledger table { min-width: 0; }
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }
   /* SIL-578: the card mode reads its column names from the cells' own
