@@ -135,7 +135,11 @@ describe('shipment detail workboard styling', () => {
     // SIL-819 (QA 1440px): the route place name wraps at WORD boundaries —
     // overflow-wrap:anywhere shattered 'Cảng VipGreenPort' mid-word; the
     // emergency break only fires for a token wider than the whole line.
-    expect(css).toMatch(/\.shipment-container-ledger__route > span\s*\{[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
+    // SIL-824 (QA build 4db1a331): the span's own grid needs the minmax(0,1fr)
+    // track — an implicit auto track floors at min-content, which break-word
+    // does not lower, so 'VipGreenPort' painted 2px past the cell and the
+    // next cell's background clipped the final 't'.
+    expect(css).toMatch(/\.shipment-container-ledger__route > span\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
   });
 
   it('SIL-822 + SIL-824: KHÁCH HÀNG & LỘ TRÌNH is the grow column with the 6px padding floor + word-boundary wrap', () => {

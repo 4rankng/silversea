@@ -1624,7 +1624,7 @@ export function ShipmentContainerLedger({
                           <span><small>Trả</small>{fallback(row.dropoffSite, '—')}</span>
                         </div>
                       )
-                      : <div className="shipment-container-ledger__route"><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
+                      : <div className="shipment-container-ledger__route" title={[row.liftSite && `Nâng: ${row.liftSite}`, row.dropoffSite && `Hạ: ${row.dropoffSite}`].filter(Boolean).join(' — ') || undefined}><span><small>Nâng</small>{fallback(row.liftSite, 'Chưa cập nhật')}</span><span><small>Hạ</small>{fallback(row.dropoffSite, 'Chưa cập nhật')}</span></div>)}
                     {editError?.rowId === row.id && <span className="shipment-container-ledger__edit-error" role="alert">{editError.message}</span>}
                   </td>)}
 {!isHidden('schedule') && (<td data-label="Lịch trình" className={cellClassName(row.customerAppointmentEditable, 'schedule')}>

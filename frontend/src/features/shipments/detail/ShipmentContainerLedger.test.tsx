@@ -531,6 +531,22 @@ describe('documents column split + cell click-to-edit (FB-109/113 v2, SIL-477)',
     expect(lotExport.view.container.querySelectorAll('.shipment-container-ledger__direction')[0].textContent).toBe('Xuất lẻ');
   });
 
+  // SIL-824 (id 953, QA build 4db1a331): the 88px NÂNG/HẠ floor wraps long
+  // site tokens, so the cell must keep a tooltip carrying the FULL site
+  // names — the QA repro lost the final 't' of 'Cảng VipGreenPort' with no
+  // way to read the whole value.
+  it('SIL-824 carries the full Nâng/Hạ site names in the container route cell tooltip', () => {
+    renderIdleLedger([baseRow({ liftSite: 'Cảng VipGreenPort', dropoffSite: 'KCN Đồng Văn, Hà Nam' })]);
+    const route = document.querySelector('.shipment-container-ledger__route:not(.shipment-container-ledger__route--lot)');
+    expect(route?.getAttribute('title')).toBe('Nâng: Cảng VipGreenPort — Hạ: KCN Đồng Văn, Hà Nam');
+  });
+
+  it('SIL-824 omits the container route tooltip when neither site is set', () => {
+    renderIdleLedger([baseRow({ liftSite: null, dropoffSite: null })]);
+    const route = document.querySelector('.shipment-container-ledger__route:not(.shipment-container-ledger__route--lot)');
+    expect(route?.hasAttribute('title')).toBe(false);
+  });
+
   it('FB-113 heads the table with the four document columns in the QA order', () => {
     renderIdleLedger([baseRow()]);
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);

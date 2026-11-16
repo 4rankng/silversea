@@ -365,8 +365,19 @@
    at the end of the REMAINING space, not when the word exceeds a full line.
    break-word + word-break:normal (the SIL-516 __code--phrase precedent)
    wraps at word boundaries first and keeps the emergency break for a token
-   wider than the whole line only. */
-.shipment-container-ledger__route > span { display: grid; min-width: 0; gap: 2px; overflow-wrap: break-word; font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); word-break: normal; }
+   wider than the whole line only.
+   SIL-824 (2026-11-16, QA build 4db1a331): break-word alone still let
+   'VipGreenPort' (77px at 12px/600) paint 2px past the span's right edge —
+   the span is itself a grid, and its implicit auto track floors at the
+   text's min-content, which break-word does NOT lower (only `anywhere`
+   does, and it shatters greedily). The overflowing sliver vanished under
+   the next cell's background: 'Cảng VipGreenPort' read as 'VipGreenPor'.
+   minmax(0, 1fr) lets the track shrink below min-content so break-word
+   actually fires inside the item's block context: word-boundary wrap
+   first, emergency break only for the over-wide token ('VipGreenPor'/'t'
+   — every glyph visible), and the cell keeps its 88px floor at the 1440
+   collapsed-sidebar canvas (min-width budget untouched). */
+.shipment-container-ledger__route > span { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 2px; overflow-wrap: break-word; font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); word-break: normal; }
 /* SIL-819 — the re-laddered 8% share spends less on inline padding: at the
    1440 workboard the 12px data tier measures 'VipGreenPort' (~74px) against
    a ~80px line box, so the whole-token place name fits its line. */
