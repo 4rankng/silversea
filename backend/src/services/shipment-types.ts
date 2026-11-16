@@ -76,6 +76,8 @@ export interface UpdateShipmentInput {
   cargoVolumeCbm?: string | number | null;
   packageCount?: number | null;
   packageType?: string | null;
+  /** SIL-846 — `undefined` keeps the stored class; null clears it. */
+  revVehicleClassId?: number | null;
   operationalNotes?: string | null;
   customerNotes?: string | null;
   pickupLocation?: string | null;

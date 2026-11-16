@@ -51,7 +51,7 @@ describe('SIL-830 — settlement surfaces read the operational (short) customer 
       '/** Clamp shared by both advance list paginators. */',
     );
     assert.ok(detailReader.includes(SHORT_NAME_PROJECTION),
-      'linkedExpenses.customerName feeds identityTitle + KHÁCH HÀNG — it must read operationalName');
+      'linkedExpenses.customerName feeds the flat phiếu row cells + KHÁCH HÀNG — it must read operationalName');
   });
 
   it('every advance-settlement reader projects the short name — list snapshot, ops list, ops detail', () => {
@@ -87,7 +87,7 @@ describe('SIL-830 — settlement surfaces read the operational (short) customer 
       'async function assertOpsSettlementEvidence',
     );
     assert.ok(detailReader.includes(SHORT_NAME_PROJECTION),
-      'groupOpsExpensesForSettlement builds identityTitle from these entries');
+      'groupOpsExpensesForSettlement builds the flat row cells from these entries');
   });
 
   it('the print/preview export carries the same short-name label as the screen', () => {

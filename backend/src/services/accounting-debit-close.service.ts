@@ -26,6 +26,7 @@
 // "Duyệt" per the card's 2026-09-21 user ruling = confirmation columns, not
 // an approval queue: confirm/withdraw NEVER change rates (đối soát only).
 import { and, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import * as s from '../db/schema';
 import { db, type Executor } from '../db';
 import { sumExcludingNegative } from '@tingting/shared';
@@ -33,6 +34,7 @@ import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { operationalName } from '../db/master-data-name';
+import { ROUTE_DISPLAY_NAME } from './cus-workspace-sql.service';
 import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
 import type { Tx } from './trip-shared';
@@ -164,6 +166,17 @@ export interface AccountingDebitBoardRow {
   billOrBooking: string | null;
   containers: string[];
   phanXe: string[];
+  /** SIL-838 điểm 1 — nhà máy/kho hàng của lô dưới tên KH: coalesce (site
+   *  catalog Nhà máy → factoryName gõ tay → site Kho lấy hàng). Null khi
+   *  lô không mang bất kỳ nguồn nào. */
+  factoryName: string | null;
+  /** SIL-838 điểm 1 — tuyến dưới tên KH: routes short/full name, fallback
+   *  rawRouteName của lệnh chạy ngoài (ROUTE_DISPLAY_NAME của CUS workspace). */
+  routeName: string | null;
+  /** SIL-838 điểm 2 — BKS thực của lô từ trip (own fleet + external plate),
+   *  đã lọc bỏ biển mà nhãn phân xe đã hiện (dòng đội nội bộ tự gọi bằng
+   *  biển). Rỗng khi chưa có xe nào gán — FE rồi lật tới actualTruckNo. */
+  truckPlates: string[];
   /** FB-094 — LCL grouping facts: the container-params label cites the thu/tra
    *  vehicle classes, and the two plates drive the orange "Báo khách (Ảo)"
    *  badge when billing differs from the actual. Null on FCL/ungrouped rows. */
@@ -216,6 +229,12 @@ export interface AccountingDebitBoardRow {
   costLockedAt: string | null;
 }
 
+// SIL-838 điểm 1 — site catalog aliases for the nhà máy/kho coalesce under
+// the Lô cell's customer name (the shipment may point at either, or neither,
+// and carry only the typed factoryName).
+const debitBoardFactorySite = alias(s.operationalSites, 'debit_board_factory_site');
+const debitBoardWarehouseSite = alias(s.operationalSites, 'debit_board_warehouse_site');
+
 export async function getAccountingDebitBoard(query: {
   dateFrom?: string;
   dateTo?: string;
@@ -234,6 +253,20 @@ export async function getAccountingDebitBoard(query: {
     // Card 191026202000: the board names ride the master-data short name —
     // same coalesce law every other grid projection reads (fallback full name).
     customerName: operationalName(s.customers.shortName, s.customers.name),
+    // SIL-838 điểm 1 — nhà máy/kho hàng + tuyến dưới tên KH. Catalog site
+    // names ride the same operational short-name law as customerName; the
+    // typed factoryName (nhập tay) bridges lots without a catalog link.
+    factoryName: sql<string | null>`coalesce(
+      ${operationalName(debitBoardFactorySite.shortName, debitBoardFactorySite.name)},
+      nullif(btrim(${s.shipments.factoryName}), ''),
+      ${operationalName(debitBoardWarehouseSite.shortName, debitBoardWarehouseSite.name)}
+    )`,
+    // ROUTE_DISPLAY_NAME = routes short/full name → rawRouteName (lệnh chạy
+    // ngoài) — the exact projection the CUS workspace's tuyến column reads.
+    routeName: ROUTE_DISPLAY_NAME,
+    // SIL-838 điểm 4 — ghi chú CUS (customer-facing) + Điều vận (internal).
+    customerNotes: s.shipments.customerNotes,
+    operationalNotes: s.shipments.operationalNotes,
     routeId: s.shipments.routeId,
     ngay: s.shipments.expectedDeliveryDate,
     blNumber: s.shipments.blNumber,
@@ -256,6 +289,9 @@ export async function getAccountingDebitBoard(query: {
   })
     .from(s.shipments)
     .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
+    .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
+    .leftJoin(debitBoardFactorySite, eq(debitBoardFactorySite.id, s.shipments.operationalSiteId))
+    .leftJoin(debitBoardWarehouseSite, eq(debitBoardWarehouseSite.id, s.shipments.pickupWarehouseSiteId))
     .where(and(...conditions))
     .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
   if (lots.length === 0) return { items: [], total: 0 };
@@ -704,6 +740,69 @@ export async function getAccountingDebitBoard(query: {
     if (labels.length > 0) phanXeByLot.set(lot.id, [...new Set(labels)]);
   }
 
+  // SIL-838 điểm 2 — BKS thực per lot: the plates the lot's trips actually
+  // run (own-fleet truck plate + external plate). A plate already shown by
+  // the phân xe label (own-fleet rows label themselves BY plate) is dropped,
+  // so the cell never prints the same plate twice.
+  const platesByLot = new Map<number, string[]>();
+  for (const [lotId, entries] of phanXeRaw) {
+    const labels = phanXeByLot.get(lotId) ?? [];
+    const plates = new Set<string>();
+    for (const entry of entries) {
+      for (const plate of [entry.plate, entry.externalPlate]) {
+        const trimmed = plate?.trim();
+        if (!trimmed || labels.includes(trimmed)) continue;
+        plates.add(trimmed);
+      }
+    }
+    if (plates.size > 0) platesByLot.set(lotId, [...plates]);
+  }
+
+  // SIL-838 điểm 2 — same-bill conts share one consignment's vehicle
+  // identity (the KH repro: bill K5K5346365 ×2 cont, the second row lost
+  // VĂN LAN because only the first cont's trip carried the carrier). A cont
+  // whose OWN projection found no vehicle facts at all (no trip, no planned
+  // fulfillment) borrows its same-bill siblings' labels + plates. Own data
+  // always wins — the borrow never overwrites a row that found its own
+  // truck, and a bill-less lot has nothing to borrow against.
+  const refByLot = new Map(lots.map((lot) => [
+    lot.id,
+    billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef) ?? '',
+  ] as const));
+  const labelsByRef = new Map<string, string[]>();
+  const platesByRef = new Map<string, string[]>();
+  const lotIdsWithOwnVehicle = new Set<number>();
+  for (const lot of lots) {
+    const hasOwn = (phanXeByLot.get(lot.id)?.length ?? 0) > 0
+      || (platesByLot.get(lot.id)?.length ?? 0) > 0
+      || (lot.actualTruckNo?.trim() ? true : false);
+    if (!hasOwn) continue;
+    lotIdsWithOwnVehicle.add(lot.id);
+    const ref = refByLot.get(lot.id);
+    if (!ref) continue;
+    const labels = phanXeByLot.get(lot.id) ?? [];
+    const plates = [...(platesByLot.get(lot.id) ?? [])];
+    if (labels.length > 0) {
+      const pooled = labelsByRef.get(ref) ?? [];
+      for (const label of labels) if (!pooled.includes(label)) pooled.push(label);
+      labelsByRef.set(ref, pooled);
+    }
+    if (plates.length > 0) {
+      const pooled = platesByRef.get(ref) ?? [];
+      for (const plate of plates) if (!pooled.includes(plate)) pooled.push(plate);
+      platesByRef.set(ref, pooled);
+    }
+  }
+  for (const lot of lots) {
+    if (lotIdsWithOwnVehicle.has(lot.id)) continue;
+    const ref = refByLot.get(lot.id);
+    if (!ref) continue;
+    const borrowedLabels = labelsByRef.get(ref);
+    if (borrowedLabels?.length) phanXeByLot.set(lot.id, [...borrowedLabels]);
+    const borrowedPlates = platesByRef.get(ref);
+    if (borrowedPlates?.length) platesByLot.set(lot.id, [...borrowedPlates]);
+  }
+
   // Card 20260928_162 criterion 3 (lead ruling (b)). This board carries a
   // "Ghi chú" column that was hardcoded null, so the reason an uncharged Ops
   // cost is REQUIRED to carry never reached the page whose title matches the
@@ -756,6 +855,9 @@ export async function getAccountingDebitBoard(query: {
       ngay: lot.ngay,
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       containers: containersByLot.get(lot.id) ?? [],
+      factoryName: lot.factoryName,
+      routeName: lot.routeName,
+      truckPlates: platesByLot.get(lot.id) ?? [],
       // FB-094 (card 201026112300): ACTIVE lock time — the row's eligibility
       // for the consolidated debit-note export.
       costLockedAt: activeLockByLot.get(lot.id)?.toISOString() ?? null,
@@ -792,7 +894,15 @@ export async function getAccountingDebitBoard(query: {
       chiPhiNgoai,
       loiNhuan,
       debitHiddenAt: lot.debitHiddenAt?.toISOString() ?? null,
-      ghiChu: opsNotesByShipment.get(lot.id)?.join(' · ') ?? null,
+      // SIL-838 điểm 4 — GHI CHÚ & ĐỐI SOÁT tự mang ghi chú CUS
+      // (customer_notes) + Điều vận (operational_notes) của lô, rồi các note
+      // phục hồi/đ-cost phát sinh ops (tiền lệ card 20260928_162). Rỗng khi
+      // lô không có ghi chú nào.
+      ghiChu: [
+        lot.customerNotes?.trim(),
+        lot.operationalNotes?.trim(),
+        ...(opsNotesByShipment.get(lot.id) ?? []),
+      ].filter((note): note is string => note != null && note !== '').join(' · ') || null,
       adjustment: adj == null
         ? { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null }
         : {

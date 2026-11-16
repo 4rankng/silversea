@@ -40,7 +40,6 @@ type RequiredForm = Pick<
   | 'pickupWarehouseSiteId'
   | 'factoryName'
   | 'pickupWarehouseName'
-  | 'packageType'
   | 'packageCount'
   | 'cargoWeightKg'
   | 'expectedDeliveryDate'
@@ -125,7 +124,10 @@ export function requiredSlots(
       done: Boolean(form.pickupWarehouseSiteId) || Boolean(form.pickupWarehouseName.trim()),
     });
   }
-  slots.push({ fieldId: 'shipment-package-type', done: Boolean(form.packageType) });
+  // SIL-846: quy cách đóng gói is deliberately absent — it is a SUGGESTION
+  // now (no gate, no *), so it must never raise the denominator. The SIL-846
+  // 'Trọng tải (Loại xe tính cước)' pick is optional too (Bảng giá basis,
+  // settled later if blank).
   slots.push({
     fieldId: 'shipment-package-count',
     done: Boolean(form.packageCount) && Number(form.packageCount) >= 1,

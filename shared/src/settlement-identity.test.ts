@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { mergedContainerLabel, settlementLotIdentityTitle } from './settlement-identity';
+import { mergedContainerLabel, settlementLotIdentityTitle, settlementRowDeclarationCell } from './settlement-identity';
 
 describe('mergedContainerLabel (SIL-811 Số cont)', () => {
   test('one assigned container shows the bare number', () => {
@@ -68,5 +68,27 @@ describe('settlementLotIdentityTitle (SIL-811 dòng tiêu đề định danh)', 
   test("the dead 'Không rõ container' phrase never reaches a title", () => {
     const title = settlementLotIdentityTitle({ customerName: 'LONGMINH', billRef: 'R8B-472' });
     assert.ok(!title.includes('Không rõ container'));
+  });
+});
+
+describe('settlementRowDeclarationCell (SIL-845 Số tờ khai of ONE flat row)', () => {
+  test('a per-cont row shows its own container tờ khai', () => {
+    assert.equal(settlementRowDeclarationCell({
+      containerNumber: 'MSKU1234570',
+      declarationNumber: '10859073650',
+      lotDeclarationNumbers: ['10859073650', '10859073651'],
+    }), '10859073650');
+  });
+
+  test('a lot-wide row shows the lot deduped tờ khai set, house comma join', () => {
+    assert.equal(settlementRowDeclarationCell({
+      containerNumber: null,
+      declarationNumber: null,
+      lotDeclarationNumbers: ['10859073651', '10859073650', '10859073651', '  '],
+    }), '10859073651, 10859073650');
+  });
+
+  test('no tờ khai anywhere → empty cell, never an invented number', () => {
+    assert.equal(settlementRowDeclarationCell({ containerNumber: null }), '');
   });
 });

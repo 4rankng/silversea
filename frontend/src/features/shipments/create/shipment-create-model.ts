@@ -75,6 +75,14 @@ export interface ShipmentCreateFormState {
   cargoVolumeCbm: string;
   packageCount: string;
   packageType: string;
+  /**
+   * SIL-846 (id 975, KH 15/11): 'Trọng tải (Loại xe tính cước)' — the LCL
+   * lot's vehicle-size-class pick (vehicle_size_classes catalog). The value
+   * is the basis the hệ thống tra Bảng giá cước thu khách on. Optional: an
+   * empty pick creates the lot and leaves the pricing class for the CUS
+   * debit workspace / LCL allocation to settle.
+   */
+  revVehicleClassId: string;
   operationalNotes: string;
 }
 
@@ -173,6 +181,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   cargoVolumeCbm: '',
   packageCount: '',
   packageType: '',
+  revVehicleClassId: '',
   operationalNotes: '',
 };
 
@@ -324,7 +333,10 @@ export function getShipmentCreateReadiness(
         issues.push(issue(`shipment-pickup-warehouse-extra-${index}`, 'Chọn kho hoặc nhập tên kho lấy hàng.', 'route'));
       }
     });
-    if (!form.packageType) issues.push(issue('shipment-package-type', 'Nhập quy cách đóng gói.', 'cargo'));
+    // SIL-846 (KH 15/11): Quy cách đóng gói is a SUGGESTION, not a gate —
+    // the combobox keeps its curated options and free text, but a blank
+    // value no longer blocks Tạo lô hàng (no issue, no *). Số lượng +
+    // trọng lượng stay enforced below.
     if (!form.packageCount || Number(form.packageCount) < 1) issues.push(issue('shipment-package-count', 'Nhập số lượng kiện lớn hơn 0.', 'cargo'));
     if (!form.cargoWeightKg || Number(form.cargoWeightKg) <= 0) issues.push(issue('shipment-cargo-weight', 'Nhập trọng lượng lớn hơn 0.', 'cargo'));
     // SIL-719 (id 839): CBM is optional for LCL (SIL-328 dropped `required`)
@@ -511,6 +523,9 @@ export function buildShipmentRootPayload(
     cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm.trim() || null : null,
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,
     packageType: form.cargoMode === 'LCL' ? form.packageType || null : null,
+    // SIL-846 — trọng tải tính cước rides LCL only (FCL classes come from the
+    // container type at dispatch); null when left blank.
+    revVehicleClassId: form.cargoMode === 'LCL' && form.revVehicleClassId ? Number(form.revVehicleClassId) : null,
     driverNotes: [
       form.cargoMode === 'LCL' && form.extraDeliveryDates.length > 0
         ? `Ngày giao bổ sung: ${form.extraDeliveryDates.filter(Boolean).join(', ')}`

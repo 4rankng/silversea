@@ -362,6 +362,9 @@ export interface CreateShipmentInput {
   cargoVolumeCbm?: string | number | null;
   packageCount?: number | null;
   packageType?: string | null;
+  /** SIL-846 — LCL trọng tải tính cước (vehicle_size_classes.id), the Bảng
+   *  giá cước thu khách lookup basis for the lot. */
+  revVehicleClassId?: number | null;
   operationalNotes?: string | null;
   customerNotes?: string | null;
   pickupLocation?: string | null;
@@ -477,7 +480,7 @@ export async function assertShipmentFactorySiteValid(
  */
 export async function assertShipmentMasterRefsExist(
   tx: Tx,
-  refs: { customerId?: number | null; routeId?: number | null; cargoTypeId?: number | null },
+  refs: { customerId?: number | null; routeId?: number | null; cargoTypeId?: number | null; revVehicleClassId?: number | null },
 ): Promise<void> {
   if (refs.customerId != null) {
     const [customer] = await tx.select({ id: s.customers.id })
@@ -499,5 +502,15 @@ export async function assertShipmentMasterRefsExist(
       .where(eq(s.cargoTypes.id, refs.cargoTypeId))
       .limit(1);
     if (!cargoType) throw new ApiError(400, 'Loại hàng không tồn tại.');
+  }
+  // SIL-846 — Trọng tải (Loại xe tính cước): same no-FK master-data law.
+  if (refs.revVehicleClassId != null) {
+    const [vehicleClass] = await tx.select({ id: s.vehicleSizeClasses.id })
+      .from(s.vehicleSizeClasses)
+      .where(and(
+        eq(s.vehicleSizeClasses.id, refs.revVehicleClassId),
+        isNull(s.vehicleSizeClasses.deletedAt),
+      )).limit(1);
+    if (!vehicleClass) throw new ApiError(400, 'Loại xe tính cước không tồn tại.');
   }
 }

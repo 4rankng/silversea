@@ -63,10 +63,10 @@ describe('groupOpsExpensesForSettlement (OpsVanHanh §5.4)', () => {
     assert.equal(grouping.totals.excludedNegative, '0');
   });
 
-  // SIL-811 — the per-lot identity title (KH viết tắt · Bill/Booking + tờ
-  // khai · Số cont) and the row container cell: merged roll-call for a
-  // lot-wide line, bare number for a per-cont line. Never 'Không rõ container'.
-  it('SIL-811 — lot-wide lines head the group with the merged cont roll-call', () => {
+  // SIL-811 — the row container cell: merged roll-call for a lot-wide line,
+  // bare number for a per-cont line. Never 'Không rõ container'. (SIL-845
+  // retired the per-lot identity TITLE — the phiếu is one flat bảng now.)
+  it('SIL-811 — lot-wide lines keep the merged cont roll-call in the Số cont cell', () => {
     const grouping = groupOpsExpensesForSettlement([
       entry({
         tradeDirection: 'IMPORT',
@@ -78,12 +78,10 @@ describe('groupOpsExpensesForSettlement (OpsVanHanh §5.4)', () => {
       }),
     ]);
     const group = grouping.groups[0];
-    assert.equal(group.identityTitle, 'KH A · Bill: BL-1 · TK: 10859073650 · 2 cont: MSKU1234570, MSKU1234565');
     assert.equal(group.withoutInvoice.items[0].containerLabel, '2 cont: MSKU1234570, MSKU1234565');
-    assert.ok(!group.identityTitle.includes('Không rõ container'));
   });
 
-  it('SIL-811 — a line assigned one cont shows that cont and its tờ khai', () => {
+  it('SIL-811 — a line assigned one cont shows that cont in the Số cont cell', () => {
     const grouping = groupOpsExpensesForSettlement([
       entry({
         containerNumber: 'MSKU1234570',
@@ -94,7 +92,6 @@ describe('groupOpsExpensesForSettlement (OpsVanHanh §5.4)', () => {
       }),
     ]);
     const group = grouping.groups[0];
-    assert.equal(group.identityTitle, 'KH A · Bill: BL-1 · TK: 10859073650 · MSKU1234570');
     assert.equal(group.withInvoice.items[0].containerLabel, 'MSKU1234570');
   });
 

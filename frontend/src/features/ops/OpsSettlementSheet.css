@@ -11,9 +11,21 @@
   color: var(--fg-2);
 }
 
-.ops-settlement-sheet h4 {
-  margin: 12px 0 6px;
+/* SIL-845 — the A/B basket marker row INSIDE the one flat table. */
+.ops-settlement-sheet__section th {
+  font-weight: 700;
   font-size: var(--text-data-size);
+}
+
+/* SIL-845 — the three closing total rows. */
+.ops-settlement-sheet__total th {
+  font-weight: 600;
+}
+
+.ops-settlement-sheet__grand-row th,
+.ops-settlement-sheet__grand-row td {
+  font-weight: 700;
+  font-size: var(--text-body-size);
 }
 
 .ops-settlement-sheet__table {
@@ -27,22 +39,6 @@
   padding: 6px 8px;
   font-size: var(--text-caption-size);
   text-align: left;
-}
-
-.ops-settlement-sheet__subtotal td {
-  font-weight: 600;
-}
-
-.ops-settlement-sheet__group-total {
-  font-weight: 600;
-  font-size: var(--text-data-size);
-  margin: 4px 0 8px;
-}
-
-.ops-settlement-sheet__grand {
-  font-weight: 700;
-  font-size: var(--text-body-size);
-  margin: 10px 0;
 }
 
 /* SIL-751 — reconciliation line under the grand total when the phiếu carries

@@ -198,6 +198,12 @@ export interface OpsSettlementGroupItem {
   /** SIL-811 — the row's container cell: assigned cont, else the lot's merged
    *  roll-call ('2 cont: …'), else 'Phí chung lô'. */
   containerLabel?: string | null;
+  /** SIL-811/SIL-845 — this row's cont tờ khai (null on lot-wide rows) plus
+   *  the lot's cont/tờ khai roll-calls, feeding the flat phiếu's Số tờ khai
+   *  cell via settlementRowDeclarationCell. */
+  declarationNumber?: string | null;
+  lotContainerNumbers?: string[] | null;
+  lotDeclarationNumbers?: string[] | null;
   expenseTypeName: string | null;
   requiresInvoice: boolean | null;
   amount: string;
@@ -215,9 +221,6 @@ export interface OpsSettlementDetail {
       shipmentCode: string | null;
       customerName: string | null;
       billRef: string | null;
-      /** SIL-811 — 'KH · Bill: … · TK: … · 2 cont: …', built server-side so the
-       *  sheet and the Excel export print one identical title. */
-      identityTitle: string;
       withInvoice: { items: OpsSettlementGroupItem[]; total: string };
       withoutInvoice: { items: OpsSettlementGroupItem[]; total: string };
       total: string;

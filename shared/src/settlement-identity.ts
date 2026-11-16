@@ -92,3 +92,16 @@ export function settlementLotIdentityTitle(input: SettlementLotIdentityInput): s
   if (containers) segments.push(containers);
   return segments.join(' · ');
 }
+
+/**
+ * SIL-845 — the Số tờ khai cell of ONE expense row on the flat phiếu quyết
+ * toán: a per-cont row prints its own cont's tờ khai; a lot-wide row prints
+ * the lot's tờ khai set (deduped, house comma join); '' when none exists —
+ * the cell never invents a number. Shared by the FE sheet and the BE Excel
+ * export so both print one identical cell.
+ */
+export function settlementRowDeclarationCell(row: SettlementIdentityRow): string {
+  const own = row.declarationNumber?.trim();
+  if (own) return own;
+  return [...new Set((row.lotDeclarationNumbers ?? []).map((value) => value.trim()).filter(Boolean))].join(', ');
+}
