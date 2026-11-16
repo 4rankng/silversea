@@ -110,12 +110,18 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     const floor = (name: string) => Number(css.match(new RegExp(`--led-w-${name}:\\s*(\\d+)px`))?.[1] ?? 0);
     expect(floor('schedule')).toBeGreaterThanOrEqual(96);
     expect(floor('container')).toBe(116);
+    // SIL-824 QA FAIL 16/11 re-audit: billbook keeps its 112px floor — the
+    // live 12-char token 'EBKG19248801' renders 87px and the TRUE cell chrome
+    // (cell-trigger 10px × 2 + 1px border = 21px) leaves only a 91px box, a
+    // 4px margin that cannot fund the route fix. Route is funded by its own
+    // floor (88→96) + the route cell trigger's inline padding (10px→6px, the
+    // SIL-819 lever) instead.
     expect(floor('billbook')).toBe(112);
     expect(floor('direction')).toBe(76);
     // SIL-848 (QA 15/11 "cắt dưới 12 chữ số"): 116px was the exact 12-digit
     // floor with zero metric margin; the 124px floor pays the run at wide
     // font metrics (+8px rides the ladder's slack budget, --led-fixed-sum
-    // 1180→1188).
+    // 1180→1188→1196, guard 1326→1334).
     expect(floor('declaration')).toBe(124);
     expect(floor('vehicle')).toBe(128);
     // SIL-756 (Round 3): Container numbers, declaration numbers, and Bill/Booking are single-token identifiers — nowrap + overflow-x: auto + tooltip (no ellipsis)

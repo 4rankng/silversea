@@ -107,23 +107,39 @@
    the customer column can never shatter again (SIL-822's defect class). */
 .shipment-container-ledger {
   --led-w-select: 44px;
+  /* SIL-824 QA FAIL 16/11 (build 4db1a331): the ladder was re-audited against
+     REAL rendered widths (webfont 'Inter Digits', live DOM): every floor was
+     already at or near zero margin under the TRUE cell chrome — 21px, not the
+     24px the model assumed (editable cells route content through the
+     .shipment-container-ledger__cell-trigger, whose own padding is 10px × 2 +
+     the 1px cell border; the 12px td padding never reaches the content).
+     billbook 87px ('EBKG19248801'), declaration 87px, container 95px,
+     schedule 79px, shippingline ~71px ('Evergreen'), direction 55px,
+     status 68px — each sits at its floor's exact line box. The ONLY funded
+     change is the route column: 88→96 with the route cell's trigger padding
+     paid down 10px→6px (the SIL-819 6px lever, applied to the layer that
+     actually owns the padding) — line box 75→83px holds the widest real port
+     token 'VipGreenPort' (79.3-80.1px measured) whole. Fixed-sum 1188→1196:
+     min-width 1332 and the 1334px collapse guard track it (the 1440
+     sidebar-closed canvas measures 1344px on this shell, 10px over the
+     guard). */
   --led-w-billbook: 112px;
   /* SIL-848 (id 977, QA 15/11 "cắt dưới 12 chữ số"): 116px was the EXACT
      12-digit floor with zero metric margin — 124px pays the 12-digit run at
      wide font metrics too. +8px rides the ladder's own slack budget: the
-     collapse guard below tracks the new min-width (1324+2). */
+     collapse guard below tracks the min-width (now 1332+2). */
   --led-w-declaration: 124px;
   --led-w-direction: 76px;
   --led-w-shippingline: 96px;
   --led-w-container: 116px;
-  --led-w-route: 88px;
+  --led-w-route: 96px;
   --led-w-schedule: 100px;
   --led-w-vehicle: 128px;
   --led-w-notes: 120px;
   --led-w-status: 92px;
   --led-w-actions: 92px;
   --led-w-customer-floor: 136px;
-  --led-fixed-sum: 1188px; /* the twelve fixed floors above, incl. CHỌN */
+  --led-fixed-sum: 1196px; /* the twelve fixed floors above, incl. CHỌN */
 }
 .shipment-container-ledger table { width: 100%; min-width: calc(var(--led-fixed-sum) + var(--led-w-customer-floor)); border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
@@ -143,8 +159,14 @@
 /* SIL-547 (spec 23/10 §2): the CHỌN column renders only in [Gộp hàng] mode;
    off mode the floor is dormant and KHÁCH HÀNG absorbs its 44px. */
 .shipment-container-ledger__col--select { width: var(--led-w-select); }
-/* Route keeps the SIL-819 whole-token floor: 'Cảng VipGreenPort' must hold
-   'VipGreenPort' (74px) on one line inside the 6px padding floor. */
+/* Route keeps the whole-token floor: 'VipGreenPort' (79.3-80.1px at the
+   shipped 12px/600 webfont, SIL-824 QA FAIL 16/11) holds one line in the
+   96px floor's 83px line box — the floor alone was not enough (the old 88px
+   left a 75px box after the trigger's chrome, and 74px was a stale
+   smaller-tier measure), so the route cell's trigger pays the SIL-819 6px
+   inline lever below. Longer names wrap at spaces; a pathological over-line
+   token takes the visible emergency break (anywhere on the span) + the cell
+   tooltip, never an invisible clip. */
 .shipment-container-ledger__col--route { width: var(--led-w-route); }
 /* The unbreakable date token "30/10/2026" (72px) holds one line; the time
    rides a second line (SIL-515 wrap-full). */
@@ -171,7 +193,7 @@
 /* The SIL-516/SIL-543/SIL-547 percentage band ladders (@media 1101-1365 and
    761-1100) are gone with the SIL-824 px model: those viewports now resolve
    through the container-query card collapse below (their container width is
-   under the px model's 1316px floor), so the bands were dead CSS. */
+   under the px model's 1332px floor), so the bands were dead CSS. */
 /* Card 111026111200 — copy giờ hẹn xuống các container của CÙNG lô chưa có
    lịch. `.shipment-container-ledger__copy` is the name base.css has reserved
    for this affordance since 20260918_3 (the global hover reset exempts it).
@@ -360,28 +382,29 @@
    name / doc number / container number in their columns), so it takes the
    shared primary tier instead of the smaller note-weight text it had drifted
    to — every column's headline now reads at one consistent size/weight.
-   SIL-819 (2026-11-13, QA 1440px): overflow-wrap:anywhere broke 'Cảng
-   VipGreenPort' mid-word ('Cảng VipGree/nPort') — anywhere breaks greedily
-   at the end of the REMAINING space, not when the word exceeds a full line.
-   break-word + word-break:normal (the SIL-516 __code--phrase precedent)
-   wraps at word boundaries first and keeps the emergency break for a token
-   wider than the whole line only.
-   SIL-824 (2026-11-16, QA build 4db1a331): break-word alone still let
-   'VipGreenPort' (77px at 12px/600) paint 2px past the span's right edge —
-   the span is itself a grid, and its implicit auto track floors at the
-   text's min-content, which break-word does NOT lower (only `anywhere`
-   does, and it shatters greedily). The overflowing sliver vanished under
-   the next cell's background: 'Cảng VipGreenPort' read as 'VipGreenPor'.
-   minmax(0, 1fr) lets the track shrink below min-content so break-word
-   actually fires inside the item's block context: word-boundary wrap
-   first, emergency break only for the over-wide token ('VipGreenPor'/'t'
-   — every glyph visible), and the cell keeps its 88px floor at the 1440
-   collapsed-sidebar canvas (min-width budget untouched). */
-.shipment-container-ledger__route > span { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 2px; overflow-wrap: break-word; font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); word-break: normal; }
-/* SIL-819 — the re-laddered 8% share spends less on inline padding: at the
-   1440 workboard the 12px data tier measures 'VipGreenPort' (~74px) against
-   a ~80px line box, so the whole-token place name fits its line. */
+   SIL-819 (2026-11-13, QA 1440px): wrap first at word boundaries; the
+   emergency break only fires for a token wider than the whole line.
+   SIL-824 (2026-11-16, QA builds 1a0ea1c5 + 4db1a331, row 'Cảng
+   VipGreenPort'): two stacked defects cut the token to 'VipGreenPor'.
+   (1) The span's own `overflow-wrap: break-word` overrode the td's working
+   `anywhere` law, and in this grid-in-fixed-table context Chrome never
+   fires break-word — the over-line token painted past the cell edge and
+   the neighbouring cell's background painted over it (the 'vệt mờ').
+   The span reads `anywhere` again (real tokens fit whole since the route
+   floor grew; a pathological token breaks VISIBLY, never clips) and its
+   track is the explicit minmax(0, 1fr) so the text item can never floor
+   at min-content.
+   (2) The 88px floor was computed from a stale 74px smaller-tier measure;
+   the shipped 12px/600 webfont renders 'VipGreenPort' at 79.3-80.1px, so
+   the token could never fit its line box at any canvas. The floor is 96px
+   now and the route cell's trigger pays the SIL-819 6px inline lever (its
+   10px padding — not the td's, which is `0 !important` under
+   __editable-cell — owns the real line box): 96 − 1px border − 12px
+   trigger padding = an 83px box that holds the token whole; multi-word
+   names still wrap at spaces; the cell tooltip carries the full value. */
+.shipment-container-ledger__route > span { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 2px; overflow-wrap: anywhere; font-size: var(--ops-table-primary-size); font-weight: var(--ops-table-primary-weight); line-height: var(--ops-table-primary-line-height); word-break: normal; }
 .shipment-container-ledger td[data-label='Nâng / hạ'] { padding-inline: 6px; }
+.shipment-container-ledger td[data-label='Nâng / hạ'] .shipment-container-ledger__cell-trigger { padding-left: 6px; padding-right: 6px; }
 /* SIL-822 (2026-11-14, QA 1440px) — the KHÁCH HÀNG & LỘ TRÌNH cell rides the
    same pair of levers as the route cell above: the 6px inline padding floor
    turns the 6% share into a ~59px line box (the 12px default padding would
@@ -645,19 +668,24 @@
 .shipments-detail-workspace .ds-pagination__btn { background: var(--surface); box-shadow: none; }
 .shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }
 
-/* SIL-824: the px floor set needs a 1316px canvas (fixed sum 1180 + the
+/* SIL-824: the px floor set needs a 1332px canvas (fixed sum 1196 + the
    136px customer floor). Below it table-layout: fixed would over-constrain
    and shatter tokens again (the SIL-822 defect class), so the card collapse
-   moves up from 1000px: any canvas under 1318px — a 1280 laptop (~1177px
-   container), or a 1440 laptop with the sidebar open (~1129px) — reads the
+   owns the band: any canvas under the guard — a 1280 laptop (~992px
+   container), or a 1440 laptop with the sidebar open (~1144px) — reads the
    card grid; the fixed table renders only when KHÁCH HÀNG is guaranteed its
-   136px floor (container ≥ 1327px, e.g. a 1440 desktop with the sidebar
-   collapsed = 1329px measured). 1326 keeps a 2px guard over the 1324px
-   min-width (SIL-848 declaration floor) so a scrollbar-variance canvas can
-   only ever fall to the graceful card grid, never an over-constrained table. */
-@container shipments-detail (max-width: 1326px) {
+   136px floor (a 1440 desktop with the sidebar collapsed = 1344px measured
+   on this shell). SIL-824 QA FAIL 16/11: the route floor grew 88→96 (the
+   real 'VipGreenPort' token is 79.3-80.1px at the shipped webfont tier; the
+   88px floor was computed from a stale 74px smaller-tier measure and clipped
+   the token at every canvas), so the fixed sum is 1188→1196, the min-width
+   1324→1332, and the guard moves with it. 1334 keeps a 2px guard over the
+   1332px min-width (SIL-848 declaration floor included) so a
+   scrollbar-variance canvas can only ever fall to the graceful card grid,
+   never an over-constrained table. */
+@container shipments-detail (max-width: 1334px) {
   /* The px model's table min-width is a TABLE-MODE law; the card grid sizes
-     itself to the container and must not inherit the 1324px floor. */
+     itself to the container and must not inherit the 1332px floor. */
   .shipment-container-ledger table { min-width: 0; }
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }

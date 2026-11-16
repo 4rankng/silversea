@@ -133,13 +133,19 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(max-width:\s*520px\)[\s\S]*?\.shipment-container-ledger__route\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);[^}]*align-items:\s*start;/);
     expect(css).not.toMatch(/\.shipment-container-ledger__route\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto minmax\(0, 1fr\);/);
     // SIL-819 (QA 1440px): the route place name wraps at WORD boundaries —
-    // overflow-wrap:anywhere shattered 'Cảng VipGreenPort' mid-word; the
-    // emergency break only fires for a token wider than the whole line.
-    // SIL-824 (QA build 4db1a331): the span's own grid needs the minmax(0,1fr)
-    // track — an implicit auto track floors at min-content, which break-word
-    // does not lower, so 'VipGreenPort' painted 2px past the cell and the
-    // next cell's background clipped the final 't'.
-    expect(css).toMatch(/\.shipment-container-ledger__route > span\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
+    // multi-word names never break mid-word while a word boundary offers a
+    // break point. SIL-824 (QA FAIL 16/11, builds 1a0ea1c5 + 4db1a331): the
+    // span's own `break-word` override silently disabled the td's working
+    // `anywhere` law in this grid-in-fixed-table context (Chrome never fires
+    // break-word there), so over-line tokens clipped invisibly at the cell
+    // edge; the span reads `anywhere` again — with the 96px floor + the route
+    // trigger's 6px inline lever now holding the widest real port token
+    // ('VipGreenPort' 79.3-80.1px measured) whole in an 83px box, the
+    // emergency break only ever fires for a token wider than the whole line,
+    // and it fires VISIBLY. The span's grid keeps the explicit minmax(0, 1fr)
+    // track — an implicit auto track floors at min-content, which anywhere
+    // must be able to shrink below.
+    expect(css).toMatch(/\.shipment-container-ledger__route > span\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*normal;/);
   });
 
   it('SIL-822 + SIL-824: KHÁCH HÀNG & LỘ TRÌNH is the grow column with the 6px padding floor + word-boundary wrap', () => {
@@ -178,19 +184,19 @@ describe('shipment detail workboard styling', () => {
   });
 
   it('uses a dense intermediate ledger grid without empty half-width bands', () => {
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;[^}]*padding:\s*8px 10px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;[^}]*padding:\s*8px 10px;/);
     // Card-collapse modes must reset the desktop 72px floor (workboard pattern:
     // auto + 76px floor) — grid-display cells treat a definite height as a cap.
     expect(css).toMatch(/@media \(max-width:\s*760px\)[\s\S]*?tbody > tr > td\s*\{[^}]*height:\s*auto;[^}]*min-height:\s*76px;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*?th\.shipment-container-ledger__editable-cell,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*?th\.shipment-container-ledger__editable-cell::before,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell::before\s*\{[^}]*display:\s*none;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*?\.shipment-container-ledger__cell-trigger > :not\(\.shipment-container-ledger__edit-purpose\)\s*\{[^}]*grid-column:\s*2;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*?th\.shipment-container-ledger__editable-cell,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*?th\.shipment-container-ledger__editable-cell::before,\s*\.shipment-container-ledger tbody > tr > td\.shipment-container-ledger__editable-cell::before\s*\{[^}]*display:\s*none;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*?\.shipment-container-ledger__cell-trigger > :not\(\.shipment-container-ledger__edit-purpose\)\s*\{[^}]*grid-column:\s*2;/);
     // FB-113 v2: documents cells pass a per-column label override; the
     // shared mode label stays the fallback, so every trigger keeps a
     // data-cell-label for the card-mode label rail.
     expect(ledgerSource).toContain('data-cell-label={cellLabel ?? modeLabelForTrigger(mode)}');
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*?tbody > tr > td\.shipment-container-ledger__cell--status\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*?tbody > tr > td\.shipment-container-ledger__cell--status\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).not.toContain('tbody > tr > :nth-child(4),');
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*780px\)[\s\S]*?\.shipment-container-ledger tbody > tr\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*780px\)[\s\S]*?tbody > tr > :nth-child\(even\)\s*\{[^}]*border-right:\s*0;/);
@@ -238,7 +244,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__cell-trigger:not\(\.shipment-container-ledger__cell-trigger--read-only\):not\(\[disabled\]\):hover/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-trigger:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--accent\);/);
     expect(css).not.toContain('.shipment-container-ledger__edit-button');
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*\.shipment-container-ledger__editing-cell\s*\{[^}]*grid-column:\s*1 \/ -1;/);
     expect(css).not.toContain('.shipment-container-ledger__editor-row');
     expect(css).toMatch(/\.shipment-container-ledger__editing-cell\s*\{[^}]*overflow:\s*visible !important;/);
     expect(css).toMatch(/\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*1px;[^}]*padding:\s*0 !important;/);
@@ -253,7 +259,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\[data-mode="notes"\] > \.shipment-container-ledger__inline-editor\s*\{[^}]*right:\s*-4px;[^}]*left:\s*auto;/);
     expect(css).toMatch(/\.shipment-container-ledger__cell-editor\[data-mode="schedule"\] > \.shipment-container-ledger__inline-editor\s*\{[^}]*right:\s*-4px;[^}]*left:\s*auto;/);
     expect(css).not.toContain('data-mode="appointment"');
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*static;[^}]*width:\s*100%;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*\.shipment-container-ledger__cell-editor > \.shipment-container-ledger__inline-editor\s*\{[^}]*position:\s*static;[^}]*width:\s*100%;/);
     expect(css).toMatch(/@media \(pointer:\s*coarse\)[\s\S]*?\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*var\(--control-touch-h\);[^}]*min-height:\s*var\(--control-touch-h\);/);
     expect(css).toMatch(/\.shipment-container-ledger__editor-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/);
     // The appointment-popover redesign (7ad16f89) pairs the ngày/giờ fields
@@ -276,9 +282,9 @@ describe('shipment detail workboard styling', () => {
     expect(css).toContain('.shipment-container-ledger__edit-action:disabled [data-icon] { color: inherit; }');
     // Disabled Save keeps legible muted text and an icon with the same color.
     expect(css).toMatch(/\.shipment-container-ledger__edit-action:disabled\s*\{[^}]*background:\s*var\(--surface-2\);[^}]*color:\s*var\(--ink-3\);[^}]*opacity:\s*1;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*40px;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*min-width:\s*40px;[^}]*height:\s*40px;/);
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)[\s\S]*tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*\.shipment-container-ledger__cell-trigger,[\s\S]*?\.shipment-container-ledger__edit-action\s*\{[^}]*min-height:\s*40px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*\.shipment-container-ledger__edit-action\s*\{[^}]*min-width:\s*40px;[^}]*height:\s*40px;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)[\s\S]*tbody > tr > td\.shipment-container-ledger__editable-cell\s*\{[^}]*height:\s*auto;/);
   });
 
   it('uses a distinct, non-destructive pending state when today still needs vehicle allocation', () => {
@@ -356,8 +362,18 @@ describe('shipment detail workboard styling', () => {
     // Ticket floors (owner's numbers, measured content): the identifier pair
     // sits exactly at the Cam Truncate Spec v4 §8.1.5 12/11-digit widths.
     expect(floor('direction')).toBe(76);
+    // SIL-824 QA FAIL 16/11: the route floor re-measured against the REAL
+    // rendered ladder — every other floor already sits at its exact line box
+    // (billbook 87px, declaration 87px, container 95px, schedule 79px,
+    // shippingline ~71px, direction 55px, status 68px inside 21px true cell
+    // chrome), so nothing can fund it. Route 96px + the route cell's trigger
+    // paying the SIL-819 6px inline lever (10px→6px) yields an 83px line box
+    // for the 79.3-80.1px 'VipGreenPort' token; fixed-sum 1188→1196 and the
+    // collapse guard 1326→1334 track the new min-width (1332).
     expect(floor('shippingline')).toBe(96);
     expect(floor('billbook')).toBe(112);
+    expect(floor('route')).toBe(96);
+    expect(css).toMatch(/\.shipment-container-ledger td\[data-label='Nâng \/ hạ'\] \.shipment-container-ledger__cell-trigger\s*\{[^}]*padding-left:\s*6px;[^}]*padding-right:\s*6px;/);
     expect(floor('declaration')).toBe(124); // SIL-848: 116px was the exact 12-digit floor (zero margin) — 124 pays it at wide metrics too
     expect(floor('container')).toBe(116);
     expect(floor('notes')).toBe(120);
@@ -367,7 +383,7 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/@media \(min-width: 1101px\)[\s\S]*?col--/);
     expect(css).not.toMatch(/@media \(min-width: 761px\)[\s\S]*?col--/);
     // The card collapse guards the whole below-floor band (≥ the min-width).
-    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1326px\)\s*\{[\s\S]*?\.shipment-container-ledger table\s*\{\s*min-width:\s*0;/);
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1334px\)\s*\{[\s\S]*?\.shipment-container-ledger table\s*\{\s*min-width:\s*0;/);
   });
 
   it('SIL-516: the in-cell plate editor fits its cell and headers never overflow the table', () => {
@@ -485,7 +501,7 @@ describe('shipment detail mobile viewport fill + bottom sheet (card 20261009_3)'
     // this with display:none (.cus-dashboard-table thead). Since SIL-824 the
     // band owns the whole below-floor range, so the header layer stays
     // retired across it.
-    const band = css.match(/@container shipments-detail \(max-width: 1326px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    const band = css.match(/@container shipments-detail \(max-width: 1334px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
     expect(band, 'card band exists').not.toBe('');
     expect(band).toMatch(/\.shipment-container-ledger thead\s*\{\s*display:\s*none;\s*\}/);
     expect(band).not.toMatch(/thead[^{}]*clip:\s*rect\(0/);
