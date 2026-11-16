@@ -93,9 +93,23 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     // position i must still be the key this width was measured for.
     const expectedOrder = ['lo', 'hangHoaCont', 'phuongTien', 'cucPhaiThu', 'tongThu', 'cucPhaiTra', 'tongTraChiPhiNgoai', 'loiNhuan', 'ghiChuDoiSoat'];
     expect(BOARD_COLUMNS.map((candidate) => candidate.key)).toEqual(expectedOrder);
-    const expectedShares = [10, 10, 10, 14, 10, 14, 11, 10, 11];
+    // SIL-835 r2 (QA 00:02 SGT 17/11, build 0fcc040b): the Lô track takes 14%
+    // — measured to hold the tick/checkbox slot + a 16-char lot code
+    // (EGLV149607865113 = 114.9px live) with gap ≥ +13px at the 1142px
+    // open-sidebar canvas — funded −1% each from the two 14% money tracks
+    // and the two 11% tracks (every money track stays ≥10% ≈114px, the
+    // r1 floor). Same assertion, new measured numbers.
+    const expectedShares = [14, 10, 10, 13, 10, 13, 10, 10, 10];
     expectedOrder.forEach((key, index) => {
       expect(css).toContain(`.debit-board thead th:nth-child(${index + 1}) { width: ${expectedShares[index]}%; }`);
     });
+  });
+
+  it('SIL-835 r2 — the Lô lead slot collapses when the row renders its checkbox', () => {
+    // The 1.1em tick reservation double-charges the Lô line ~17px once the
+    // checkbox owns that slot (selectable rows) — exactly the budget that
+    // made 16-char codes bleed. The checkbox REPLACES the tick slot; the
+    // code position stays stable across every selectable row.
+    expect(css).toMatch(/\.debit-lot-ref:has\(\.debit-row-checkbox\) \.debit-row-tick\s*\{\s*display:\s*none;\s*\}/);
   });
 });
