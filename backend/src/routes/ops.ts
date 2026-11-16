@@ -18,7 +18,7 @@ import { ApiError } from '../errors';
 import { parseId as sharedParseId } from './utils/parse-id';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
-import { formatLocalDate, sniffImageType } from '../lib/format';
+import { sniffImageType } from '../lib/format';
 import { storageService } from '../services/storage.service';
 import { createAdvanceRequest, listAdvanceRequestsPaginated } from '../services/advance-request.service';
 import { listOpsOrders, setShipmentPin } from '../services/ops-orders.service';
@@ -83,7 +83,12 @@ function requireOpsIdempotencyKey(req: Request): string {
 
 router.get('/orders', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
-  const date = dateQuerySchema.parse(req.query.date ?? formatLocalDate());
+  // SIL-843 (KH 15/11) — ngày không còn mặc định hôm nay: bỏ param ⇒ trả TOÀN
+  // BỘ lô đang hoạt động (xuyên ngày). Có param thì vẫn validate YYYY-MM-DD.
+  // Từ khóa q luôn tra cứu xuyên ngày — listOpsOrders bỏ điều kiện ngày khi
+  // có q, nên ngày chỉ thu hẹp kết quả khi ô tìm kiếm đang trống.
+  const rawDate = typeof req.query.date === 'string' && req.query.date !== '' ? req.query.date : undefined;
+  const date = rawDate ? dateQuerySchema.parse(rawDate) : null;
   const search = typeof req.query.q === 'string' ? req.query.q : undefined;
   res.json({ date, items: await listOpsOrders(user.userId, date, search) });
 }));

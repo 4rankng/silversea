@@ -52,7 +52,7 @@ export function useInvalidateOps() {
 // ── Kế hoạch làm hàng ────────────────────────────────────────────────────────
 
 export function useOpsOrders(date: string, q?: string) {
-  return useQuery<{ date: string; items: OpsOrderItem[] }>({
+  return useQuery<{ date: string | null; items: OpsOrderItem[] }>({
     queryKey: opsKeys.orders(date, q),
     queryFn: () => opsClient.getOrders(date, q),
   });

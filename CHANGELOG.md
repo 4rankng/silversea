@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-11-16 — fix(ops): SIL-843 (id 972) — /ops/orders hiện TẤT CẢ lô đang hoạt động mặc định, tìm kiếm xuyên ngày
+
+KH 15/11: "Cho phép hiển thị tất cả các lô hàng, tìm bằng kính lúp sẽ hiển thị
+ra luôn lô hàng mà không cần chọn ngày giao hàng dự kiến." Trước fix, ô
+"Ngày giao dự kiến" mặc định hôm nay ⇒ trang trống khi hôm nay không có lô,
+và gõ tìm kiếm vẫn bị lọc kẹt theo ngày đang chọn.
+
+- **Mặc định xuyên ngày**: FE khởi tạo ô ngày RỖNG (không còn tự điền hôm nay),
+  request không gửi `date`; BE `GET /api/ops/orders` bỏ fallback
+  `formatLocalDate()` — thiếu param ⇒ trả mọi lô đang hoạt động (loại lô xoá
+  mềm + lô CANCELED như cũ). Có param thì vẫn validate YYYY-MM-DD (sai shape
+  vẫn 400). Chọn ngày vẫn thu hẹp đúng 1 ngày khi ô tìm kiếm trống.
+- **Kính lúp tra cứu xuyên ngày** (AC 2): luật nằm ở service
+  (`ops-orders.service.ts`) — có từ khóa (q) thì bỏ hẳn điều kiện
+  `expectedDeliveryDate`, bất kể ngày để trống hay đã chọn ngày khác; mọi
+  client gọi API đều được semantics này. `response.date` = `null` khi danh
+  sách là phạm vi xuyên ngày.
+- **Meta + empty state nói rõ phạm vi**: "N lô · tất cả các ngày" / "N lô ·
+  ngày DD/MM/YYYY" / "N lô · tìm "…" — tra cứu tất cả các ngày"; thông báo
+  trống của tìm kiếm bỏ chữ "trong ngày đã chọn" (không còn gắn ngày).
+  `/ops/overview` giữ riêng scope "kế hoạch hôm nay" (pin date=today cố ý).
+- BE unit mới `ops-orders-cross-date.test.ts` (4 case, source-scan đúng mẫu
+  house) + FE `OpsOrdersPage.test.tsx` 21 case (pin wire không-date mặc định,
+  tìm-kiếm-xuyên-ngày, chọn-ngày-chỉ-thu-hẹp-khi-hết-từ-khóa, empty state).
+
+## 2026-11-16 — fix(timesheet): SIL-842 (id 971) — /timesheet mở cho Điều vận, lưới tháng tự khởi tạo khi mở trang
+
+CR-008 Task 2.2 (P0). Điều vận (dungnv) mở /timesheet dính
+"Bạn không có quyền truy cập trang này." + "Chưa có bảng chấm công — Kế toán
+mở bảng trước" (luật cũ FB-102). Code land qua commit `db51be93` (wip snapshot
+lanes V3/V6, đã push main).
+
+- **Route + backend mở cho Điều vận**: guard `timesheetStaffOnly`
+  (ADMIN/MANAGER/DISPATCHER/ACCOUNTANT) thay office-staff; BE `POST
+  /api/timesheet/months` đổi `accountantOnly` → `boardOpeners` (+DISPATCHER).
+  PATCH …/mode và đối chiếu vẫn là việc riêng của Kế toán.
+- **Tự khởi tạo lưới tháng**: effect auto-init gọi `createTimesheetMonth`
+  (không gửi `salaryMode` — service chốt theo chế độ mặc định của lái xe,
+  FB-103) khi tháng chưa có bảng; dialog "Mở bảng chấm công" giữ làm đường mở
+  tay cho mọi vai trò thao tác. Kế toán vẫn xem lưới read-only.
+- FE `App.timesheet-route.test.tsx` + `TimesheetGridPage.test.tsx` (19 case);
+  BE `timesheet-auto-symbol.test.ts` 6 case; tsc sạch cả hai gói.
+
 ## 2026-11-13 — fix(accounting): SIL-805 (id 933) — Kiểm soát lô hàng: kế toán sửa trực tiếp 8 ô giá/chi phí trên dòng, Lợi nhuận cập nhật ngay sau Lưu
 
 Lane u1 trên `fix/u1-805-chot` (base `08e11d7b`). Trước fix, các ô tiền của

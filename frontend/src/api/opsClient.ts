@@ -289,8 +289,10 @@ function qs(params: Record<string, string | number | undefined>): string {
 
 export const opsClient = {
   // ── Kế hoạch làm hàng ──
+  // SIL-843 — date param tùy chọn; response date là ngày đã lọc hoặc null
+  // (null = danh sách xuyên ngày: mặc định không chọn ngày, hoặc đang tìm kiếm).
   getOrders: (date: string, q?: string) =>
-    api.get<{ date: string; items: OpsOrderItem[] }>(`/ops/orders${qs({ date, q })}`),
+    api.get<{ date: string | null; items: OpsOrderItem[] }>(`/ops/orders${qs({ date, q })}`),
   /**
 /** PUT set-semantics: a replayed request converges instead of toggling. */
   setPin: (shipmentId: number, pinned: boolean) =>

@@ -5,7 +5,7 @@ import { useOpsOrders, useToggleShipmentPin, opsKeys } from '../hooks/useOpsQuer
 import type { OpsOrderItem } from '../api/opsClient';
 import { StatusText } from '../components/shared/StatusText';
 import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
-import { localDateInputValue, shipmentStatusText, opsBillReference } from '../features/ops/opsStatus';
+import { shipmentStatusText, opsBillReference } from '../features/ops/opsStatus';
 import './OpsOrdersPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 import { BufferedUuiDateInput, FilterBar } from '../design-system';
@@ -15,11 +15,13 @@ import { toastActionError } from '../lib/api/action-error';
 import { restoreFocusTo } from '../lib/focusRestore';
 
 /**
- * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty theo ngày giao
- * dự kiến, ghim cá nhân nổi trên đầu, khai chi phí ngay trong ngữ cảnh lô.
+ * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty — mặc định xuyên
+ * ngày (SIL-843, KH 15/11); chọn "Ngày giao dự kiến" để thu hẹp một ngày,
+ * từ khóa tìm kiếm luôn tra cứu xuyên ngày. Ghim cá nhân nổi trên đầu, khai
+ * chi phí ngay trong ngữ cảnh lô.
  */
 export default function OpsOrdersPage() {
-  const [date, setDate] = useState(localDateInputValue);
+  const [date, setDate] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [expenseFor, setExpenseFor] = useState<OpsOrderItem | null>(null);
@@ -41,6 +43,8 @@ export default function OpsOrdersPage() {
   const pinFocusOrderIdRef = useRef<number | null>(null);
 
   const items = useMemo(() => data?.items ?? [], [data]);
+  // SIL-843 — debounce đã trim; có từ khóa ⇒ danh sách là kết quả xuyên ngày.
+  const searching = search.length > 0;
 
   // SIL-575: the optimistic re-sort moves the toggled button's DOM node and
   // drops keyboard focus to <body> (the old `disabled` pass blurred it
@@ -121,8 +125,15 @@ export default function OpsOrdersPage() {
       </FilterBar>
 
       <p className="ops-orders__meta">
-        {isLoading ? 'Đang tải…' : `${items.length} lô · ngày ${formatDate(date)}`}
-
+        {isLoading
+          ? 'Đang tải…'
+          // SIL-843 — meta nói rõ phạm vi: mặc định xuyên ngày; đang tìm kiếm
+          // thì tra cứu xuyên ngày bất kể ô ngày đang trống hay đã chọn.
+          : `${items.length} lô · ${searching
+            ? `tìm "${search}" — tra cứu tất cả các ngày`
+            : date
+              ? `ngày ${formatDate(date)}`
+              : 'tất cả các ngày'}`}
       </p>
 
       <div className="ops-orders__scroll">
@@ -194,7 +205,12 @@ export default function OpsOrdersPage() {
             })}
             {!isLoading && !isError && items.length === 0 && (
               <tr><td colSpan={7} className="ops-orders__empty">
-                {search ? <><p>Không có lô hàng phù hợp với từ khóa trong ngày đã chọn.</p><button type="button" className="btn btn--secondary btn--sm" onClick={() => { setSearchInput(''); setSearch(''); }}>Xóa tìm kiếm</button></> : 'Không có lô hàng trong ngày này.'}
+                {/* SIL-843 — tìm kiếm xuyên ngày: thông báo không còn gắn
+                    "trong ngày đã chọn"; khi không tìm kiếm, thông báo theo
+                    phạm vi đang xem (một ngày hay tất cả các ngày). */}
+                {search
+                  ? <><p>Không có lô hàng phù hợp với từ khóa.</p><button type="button" className="btn btn--secondary btn--sm" onClick={() => { setSearchInput(''); setSearch(''); }}>Xóa tìm kiếm</button></>
+                  : date ? 'Không có lô hàng trong ngày này.' : 'Chưa có lô hàng nào.'}
               </td></tr>
             )}
           </tbody>

@@ -1,6 +1,8 @@
 /**
  * Ops "Kế hoạch làm hàng" (docs/prd/OpsVanHanh.docx §3): company-wide shipment
- * list by expected delivery date with per-user pins.
+ * list with per-user pins. SIL-843 (KH 15/11): "Ngày giao dự kiến" là bộ lọc
+ * tùy chọn — date=null trả mọi lô đang hoạt động xuyên ngày; từ khóa tìm kiếm
+ * luôn tra cứu xuyên ngày (bỏ điều kiện ngày khi có q).
  */
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -25,13 +27,17 @@ export interface OpsOrderItem {
 
 export async function listOpsOrders(
   userId: number,
-  date: string,
+  date: string | null,
   search?: string,
 ): Promise<OpsOrderItem[]> {
+  // SIL-843 — kính lúp tra cứu XUYÊN NGÀY (AC 15/11: tìm ra lô ngay, bất kể
+  // ngày để trống hay đã chọn ngày khác): có từ khóa thì bỏ hẳn điều kiện
+  // Ngày giao dự kiến. Không từ khóa: date=null ⇒ mọi lô đang hoạt động.
+  const effectiveDate = search && search.trim() ? null : date;
   const conditions = [
-    eq(s.shipments.expectedDeliveryDate, date),
     isNull(s.shipments.deletedAt),
     ne(s.shipments.status, 'CANCELED'),
+    ...(effectiveDate ? [eq(s.shipments.expectedDeliveryDate, effectiveDate)] : []),
   ];
 
   if (search && search.trim()) {

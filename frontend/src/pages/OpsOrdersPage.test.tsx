@@ -246,22 +246,33 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(rules).not.toMatch(/width:\s*220px/);
   });
 
-  it('preserves debounced search and selected-date filtering', async () => {
+  it('SIL-843 — mặc định tất cả các ngày; tìm kiếm xuyên ngày; chọn ngày chỉ thu hẹp khi hết từ khóa', async () => {
     renderPage();
+    // Mặc định: KHÔNG có param date — danh sách xuyên ngày (meta xác nhận sau
+    // khi load xong; lúc đầu đang tải).
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/ops/orders'));
     await screen.findByText('BL-001');
+    expect(screen.getByText(/tất cả các ngày/)).toBeInTheDocument();
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '  TSTU1111111  ' } });
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith(`/ops/orders?date=${dateStr}&q=TSTU1111111`));
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/ops/orders?q=TSTU1111111'));
+    expect(await screen.findByText(/tìm "TSTU1111111" — tra cứu tất cả các ngày/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '20/09/2026' } });
-    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/ops/orders?date=2026-09-20&q=TSTU1111111'));
+    // Đang có từ khóa: tra cứu vẫn xuyên ngày (backend bỏ điều kiện ngày khi có q).
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/ops/orders?date=2026-09-20&q=TSTU1111111'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '' } });
+    await waitFor(() => expect(apiGet).toHaveBeenLastCalledWith('/ops/orders?date=2026-09-20'));
+    expect(await screen.findByText(/ngày 20\/09\/2026/)).toBeInTheDocument();
   });
 
-  it('distinguishes an empty search from an empty day and clears only the query', async () => {
-    apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('q=missing') ? { date: dateStr, items: [] } : makeItems()));
+  it('SIL-843 — phân biệt trống tìm kiếm với trống ngày; xóa tìm kiếm giữ nguyên ngày đã chọn', async () => {
+    apiGet.mockImplementation((url: string) => Promise.resolve(url.includes('q=missing') ? { date: null, items: [] } : makeItems()));
     renderPage();
     await screen.findByText('BL-001');
     fireEvent.change(screen.getByLabelText('Ngày giao dự kiến'), { target: { value: '20/09/2026' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: 'missing' } });
-    expect(await screen.findByText('Không có lô hàng phù hợp với từ khóa trong ngày đã chọn.')).toBeInTheDocument();
+    // Tìm kiếm xuyên ngày: thông báo không còn gắn "trong ngày đã chọn".
+    expect(await screen.findByText('Không có lô hàng phù hợp với từ khóa.')).toBeInTheDocument();
+    expect(screen.queryByText('Không có lô hàng phù hợp với từ khóa trong ngày đã chọn.')).not.toBeInTheDocument();
     expect(screen.queryByText('Không có lô hàng trong ngày này.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Xóa tìm kiếm' }));
     expect(await screen.findByText('BL-001')).toBeInTheDocument();
@@ -270,6 +281,15 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     // DD/MM/YYYY (the field shows a draft, so the value lives per segment).
     expect(Array.from(document.querySelectorAll<HTMLInputElement>('[data-seg]')).map((node) => node.value).join('/')).toBe('20/09/2026');
     expect(apiGet).toHaveBeenLastCalledWith('/ops/orders?date=2026-09-20');
+    expect(screen.getByText(/ngày 20\/09\/2026/)).toBeInTheDocument();
+  });
+
+  it('SIL-843 — ngày để trống và không có lô nào: thông báo phạm vi tất cả các ngày', async () => {
+    apiGet.mockImplementation((url: string) => Promise.resolve({ date: null, items: [] }));
+    renderPage();
+    expect(await screen.findByText('Chưa có lô hàng nào.')).toBeInTheDocument();
+    expect(apiGet).toHaveBeenCalledWith('/ops/orders');
+    expect(screen.getByText(/tất cả các ngày/)).toBeInTheDocument();
   });
 
   it('optimistically pins a row to the top and puts the new state', async () => {

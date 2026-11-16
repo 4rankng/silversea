@@ -215,7 +215,9 @@ describe('OpsOverviewPage — metric cards from the existing Ops endpoints', () 
     // Số dư from /ops/wallet/summary; chờ duyệt = statusCounts.DRAFT ("chưa ghi sổ").
     await waitFor(() => expect(kpiValue(WALLET_LABEL)).toBe(`${formatMoney('1560000')}₫`));
     expect(kpiMeta(WALLET_LABEL)).toBe('3 yêu cầu chờ duyệt (chưa ghi sổ)');
-    // The plan metric reads the same date default the /ops/orders screen uses.
+    // The plan metric is today's plan: it pins date=today explicitly
+    // (SIL-843 made /ops/orders' own date optional — the overview metric keeps
+    // its today scope on purpose).
     expect(apiGet).toHaveBeenCalledWith(`/ops/orders?date=${localDateInputValue()}`);
   });
 
