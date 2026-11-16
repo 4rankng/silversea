@@ -480,6 +480,25 @@ export async function getTripsSummary(dateFrom?: string, dateTo?: string): Promi
   };
 }
 
+/** SIL-817 — the lot's ONE active lệnh phát (UNSEEN/SEEN; the application-owned
+ *  one-active guard, same law listStuckRunningTrips reads) in the same
+ *  {id, status, handlerId} shape, so GET /api/trips/:id can answer the handoff
+ *  without waiting for the 1-day stuck delay. */
+export async function getTripActiveHandoff(shipmentId: number | null | undefined) {
+  if (shipmentId == null) return null;
+  const [handoff] = await db.select({
+    id: s.dispatchHandoffs.id,
+    status: s.dispatchHandoffs.status,
+    handlerId: s.dispatchHandoffs.handlerId,
+  }).from(s.dispatchHandoffs)
+    .where(and(
+      eq(s.dispatchHandoffs.shipmentId, shipmentId),
+      sql`${s.dispatchHandoffs.status} IN ('UNSEEN', 'SEEN')`,
+    ))
+    .limit(1);
+  return handoff ?? null;
+}
+
 export async function getTripById(id: number) {
   let [trip] = await TRIP_RELATION_JOINS(db.select({
     id: s.tripsComposite.id, tripCode: s.tripsComposite.tripCode, version: s.tripsComposite.version,

@@ -157,6 +157,19 @@ export async function recordDriverFulfillmentProgress(args: {
     throw new ApiError(400, 'Mốc thực hiện không hợp lệ.');
   }
 
+  // SIL-817 (QA trip 539, 409 ×2 'Khóa giao dịch này thuộc về người thực hiện
+  // khác' on key driver:task:702:milestone:order_received:version:2): the
+  // milestone key is DETERMINISTIC per fulfillment+milestone+version and
+  // shared by every actor, and runIdempotent's actor-mismatch guard fires
+  // before any ownership check — a press from a driver who does not own the
+  // fulfillment surfaced the idempotency 409 instead of the ownership error.
+  // Cheap pre-check outside the idempotent tx: a non-owner never reaches the
+  // key layer (and cannot poison a replay for the real owner). The in-tx
+  // forUpdate re-check below stays the authoritative gate.
+  await loadOwnedFulfillmentTrip(db, args.fulfillmentId, args.driverId, {
+    canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.',
+  });
+
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS,
     idempotencyKey: args.idempotencyKey,

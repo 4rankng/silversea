@@ -10,7 +10,7 @@ import {
 import { ApiError } from '../../errors';
 import { copyTripWriteCommand, createTripWriteCommand } from '../../services/trip-command.service';
 import { autoApplyGovernanceAction, requestTripFinancialChange } from '../../services/adjustment-governance.service';
-import { loadTripStatusVersion, listStuckRunningTrips } from '../../services/trip-queries.service';
+import { loadTripStatusVersion, listStuckRunningTrips, getTripActiveHandoff } from '../../services/trip-queries.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
@@ -250,7 +250,11 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   // completed leg answers "chi phí nào" without re-deriving the laws. 0 is an
   // honest computed value (no toll stations, unconfigured phụ phí), never a gap.
   const { breakdown } = await buildTripBreakdown(trip);
-  res.json({ ...trip, factorySite, costBreakdown: breakdown });
+  // SIL-817 AC3b — the lot's active lệnh phát ({id, status, handlerId} | null,
+  // same lookup law listStuckRunningTrips exposes) so the app/QA can see WHO
+  // the lệnh phát belongs to without the 1-day stuck delay.
+  const activeHandoff = await getTripActiveHandoff(trip.shipmentId);
+  res.json({ ...trip, factorySite, costBreakdown: breakdown, activeHandoff });
 }));
 
 // Soft-delete trip — only ADMIN/MANAGER, only CREATED status (flow 01 §2.6)
