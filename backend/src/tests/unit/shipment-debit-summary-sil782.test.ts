@@ -25,13 +25,18 @@ const routesSource = readFileSync(join(here, '../../routes/shipments/core.routes
 
 test('SIL-782: the summary emits the two sell columns from the revenue composition', () => {
   // Chi hộ (Có HĐ) = derived recharge + HQGS negotiated charge.
-  assert.match(source, /chiHoSellTotal = knownSum\(/);
+  // SIL-820 re-pin: knownSum composition is unchanged; the SIL-820 value-based
+  // zero law now mediates the emitted value via sellSplitDisplayValue.
+  assert.match(source, /chiHoSellRaw = knownSum\(/);
   assert.match(source, /revenue != null \? revenue\.derived : null,/);
   assert.match(source, /opsCharge\?\.known \? opsCharge\.total : null,/);
   // Dịch vụ (Không HĐ) = typed Phí khác sell + entered PS thực tế.
-  assert.match(source, /serviceSellTotal = knownSum\(/);
+  assert.match(source, /serviceSellRaw = knownSum\(/);
   assert.match(source, /revenue != null \? revenue\.otherSell : null,/);
   assert.match(source, /ps\?\.known \? ps\.total : null,/);
+  // Zero law wiring: raw composition → display value, keyed on total determination.
+  assert.match(source, /chiHoSellTotal = sellSplitDisplayValue\(\{ value: chiHoSellRaw, totalDetermined: receivableValue != null \}\);/);
+  assert.match(source, /serviceSellTotal = sellSplitDisplayValue\(\{ value: serviceSellRaw, totalDetermined: receivableValue != null \}\);/);
   // Emitted on the row, string-encoded like every money field.
   assert.match(source, /chiHoSellTotal: chiHoSellTotal == null \? null : String\(chiHoSellTotal\)/);
   assert.match(source, /serviceSellTotal: serviceSellTotal == null \? null : String\(serviceSellTotal\)/);
