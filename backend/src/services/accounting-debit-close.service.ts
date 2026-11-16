@@ -243,6 +243,22 @@ const debitBoardContainerRouteLabel = sql<string | null>`coalesce(
   ${operationalName(debitBoardContainerRoute.shortName, debitBoardContainerRoute.name)},
   nullif(btrim(${s.shipmentContainers.rawRouteName}), '')
 )`;
+// SIL-838 QA (68646e82) — tiers 1+2 still resolve NULL on prod: containers
+// ride the XOR convention (route_id XOR raw text) so both arms are empty, and
+// the lot-level chain is empty there too. The surviving authority is the
+// lot's own trips — trips.route_id is NOT NULL and frozen at dispatch (same
+// active-trip scope as the money queries); the label renders canonical
+// pickup → delivery when both sides exist, else the trip's route catalog
+// name (expense-accounting precedent reads the trip route first). Last tier:
+// the factory site's canonical FCL route (operational_sites.route_id) on the
+// already-joined site alias — QA confirms the site name renders, so the link
+// exists on prod rows.
+const debitBoardTripRoute = alias(s.routes, 'debit_board_trip_route');
+const debitBoardTripRouteLabel = sql<string | null>`coalesce(
+  nullif(btrim(${s.trips.canonicalOrigin}), '') || ' → ' || nullif(btrim(${s.trips.canonicalDestination}), ''),
+  ${operationalName(debitBoardTripRoute.shortName, debitBoardTripRoute.name)}
+)`;
+const debitBoardFactoryRoute = alias(s.routes, 'debit_board_factory_route');
 
 /** The fixed phân-xe label an OWN-fleet trip/truck renders (SIL-838 điểm 2:
  *  the cell names the fleet; the plate rides the "Thực:" line instead). */
@@ -274,19 +290,30 @@ export async function getAccountingDebitBoard(query: {
       nullif(btrim(${s.shipments.factoryName}), ''),
       ${operationalName(debitBoardWarehouseSite.shortName, debitBoardWarehouseSite.name)}
     )`,
-    // ROUTE_DISPLAY_NAME = routes short/full name → rawRouteName (lệnh chạy
-    // ngoài) — the exact projection the CUS workspace's tuyến column reads.
-    // SIL-838 QA (fd0f7f14): the lot-level chain rendered nothing on prod —
-    // route truth for FCL lives PER CONTAINER (shipment_containers, the
-    // detail header's authority FB-074). Container routes aggregate distinct
-    // ' · ' inside a scalar subquery — no join fan-out on the lot select
-    // (ops-orders precedent) — then fall through the lot-level chain.
+    // Route chain (first non-null tier wins): per-container route (FB-074
+    // authority, scalar subquery — no join fan-out, ops-orders precedent) →
+    // per-trip route frozen at dispatch (canonical pickup → delivery, else
+    // the trip's route catalog name; active-trip scope only, aggregated
+    // distinct ' · ') → lot-level ROUTE_DISPLAY_NAME (routes short/full name
+    // → rawRouteName lệnh chạy ngoài, the exact projection the CUS
+    // workspace's tuyến column reads) → the factory site's canonical FCL
+    // route. SIL-838 QA (fd0f7f14 + 68646e82): prod containers + lot chain
+    // are both route-less, so the trip/site tiers are what prod resolves.
     routeName: sql<string | null>`coalesce(
       (select string_agg(distinct ${debitBoardContainerRouteLabel}, ' · ')
          from ${s.shipmentContainers}
          left join ${s.routes} debit_board_container_route on debit_board_container_route.id = ${s.shipmentContainers.routeId}
         where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}),
-      ${ROUTE_DISPLAY_NAME}
+      (select string_agg(distinct ${debitBoardTripRouteLabel}, ' · ')
+         from ${s.trips}
+         left join ${s.routes} debit_board_trip_route on debit_board_trip_route.id = ${s.trips.routeId}
+        where ${s.trips.shipmentId} = ${s.shipments.id}
+          and ${s.trips.deletedAt} is null
+          and ${s.trips.status} <> 'CANCELED'),
+      ${ROUTE_DISPLAY_NAME},
+      (select ${operationalName(debitBoardFactoryRoute.shortName, debitBoardFactoryRoute.name)}
+         from ${s.routes} debit_board_factory_route
+        where debit_board_factory_route.id = ${debitBoardFactorySite.routeId})
     )`,
     // SIL-838 điểm 4 — ghi chú CUS (customer-facing) + Điều vận (internal).
     customerNotes: s.shipments.customerNotes,
