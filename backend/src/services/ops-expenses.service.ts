@@ -9,7 +9,7 @@ import * as s from '../db/schema';
 import { and, desc, eq, exists, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
-import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, coveredSettlementIdentity, mergedContainerLabel, settlementLotIdentityTitle, type ExpenseCostGroup } from '@tingting/shared';
+import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel, type ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
@@ -879,9 +879,6 @@ export interface SettlementGroup {
   shipmentCode: string | null;
   customerName: string | null;
   billRef: string | null;
-  /** SIL-811 — 'KH · Bill: … · TK: … · 2 cont: …', built here so the on-screen
-   *  sheet and the Excel export print one identical title. */
-  identityTitle: string;
   tradeDirection: string | null;
   withInvoice: { items: SettlementGroupItem[]; total: string };
   withoutInvoice: { items: SettlementGroupItem[]; total: string };
@@ -935,7 +932,6 @@ export function groupOpsExpensesForSettlement(
         shipmentCode: entry.shipmentCode,
         customerName: entry.customerName,
         billRef: entry.billRef,
-        identityTitle: '',
         tradeDirection: entry.tradeDirection ?? null,
         withInvoice: { items: [], total: '0' },
         withoutInvoice: { items: [], total: '0' },
@@ -960,19 +956,9 @@ export function groupOpsExpensesForSettlement(
     }
   }
 
-  // SIL-811 — every per-lot group prints its identity title (customer
-  // shorthand · Bill/Booking + tờ khai · Số cont), from the container scope its
-  // lines cover (per-cont rows cover their cont, lot-wide rows cover them all).
-  for (const group of byShipment.values()) {
-    const covered = coveredSettlementIdentity([...group.withInvoice.items, ...group.withoutInvoice.items]);
-    group.identityTitle = settlementLotIdentityTitle({
-      customerName: group.customerName,
-      billRef: group.billRef,
-      tradeDirection: group.tradeDirection,
-      declarationNumbers: covered.declarationNumbers,
-      containerNumbers: covered.containerNumbers,
-    });
-  }
+  // SIL-845 — the phiếu prints ONE flat 6-column bảng (no per-lot frames), so
+  // the per-lot identity title is gone; each row now carries its own
+  // customer/bill/tờ khai/cont cells (settlementRowDeclarationCell).
 
   const groups = [...byShipment.values()].sort((a, b) =>
     (a.shipmentCode ?? '').localeCompare(b.shipmentCode ?? ''));

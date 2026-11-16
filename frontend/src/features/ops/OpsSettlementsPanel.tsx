@@ -8,6 +8,8 @@ import {
   useReopenOpsSettlementDraft,
 } from '../../hooks/useOpsQueries';
 import { opsClient } from '../../api/opsClient';
+import type { OpsSettlementDetail } from '../../api/opsClient';
+import { settlementRowDeclarationCell } from '@tingting/shared';
 import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
 import { formatMoney } from '../../lib/format';
@@ -139,80 +141,122 @@ export function OpsSettlementsPanel() {
   );
 }
 
-/** The printable bảng kê (screen + @media print A4 sheet). */
+/** SIL-845 — the phiếu's two invoice baskets as flat sections of ONE bảng;
+ *  a basket with no rows is skipped ("tối đa 2 mục A/B"). */
+const SHEET_SECTIONS = [
+  { basketKey: 'withInvoice', marker: 'A — Chi phí có hóa đơn', totalLabel: 'Tổng có hóa đơn' },
+  { basketKey: 'withoutInvoice', marker: 'B — Chi phí không hóa đơn', totalLabel: 'Tổng không hóa đơn' },
+] as const;
+
+type SheetGrouping = OpsSettlementDetail['grouping'];
+type SheetItem = SheetGrouping['groups'][number]['withInvoice']['items'][number];
+
+/** The six LIỀN MẠCH cells of one flat row — display keys only, never an
+ *  internal id (SHP-…, DB ids); a missing business key names itself. */
+function sheetRowCells(item: SheetItem) {
+  return {
+    company: item.customerName?.trim() || '—',
+    bill: item.billRef?.trim() || 'Chưa có số Bill/Booking',
+    declaration: settlementRowDeclarationCell(item),
+    container: item.containerLabel ?? item.containerNumber ?? 'Phí chung lô',
+    expenseType: item.expenseTypeName ?? '',
+    money: `${formatMoney(item.amount)} ₫`,
+  };
+}
+
+/** The printable bảng kê (screen + @media print A4 sheet): ONE flat 6-column
+ *  bảng (SIL-845, không tách khung theo khách/lô) with the two A/B basket
+ *  markers inside it and the three closing total rows. */
 export function OpsSettlementSheet({ grouping, meta }: {
-  grouping: NonNullable<ReturnType<typeof useOpsSettlement>['data']>['grouping'];
+  grouping: SheetGrouping;
   meta: { code: string; createdAt: string; opsName: string | null; note: string | null };
 }) {
+  const sectionRows = (basketKey: 'withInvoice' | 'withoutInvoice') =>
+    grouping.groups.flatMap((group) => group[basketKey].items.map((item) => ({ item })));
   return (
     <div className="ops-settlement-sheet">
       <h3>PHIẾU QUYẾT TOÁN {meta.code}</h3>
       <p>Người lập: {meta.opsName ?? '—'} · Ngày: {formatDate(meta.createdAt)}</p>
       {meta.note && <p>Ghi chú: {meta.note}</p>}
-      {grouping.groups.map((group) => (
-        <section key={group.shipmentId}>
-          {/* SIL-811 — the per-lot identity title: KH viết tắt · Bill/Booking +
-              tờ khai · Số cont (merged roll-call when lot-wide). */}
-          <h4>{group.identityTitle}</h4>
-          {(['withInvoice', 'withoutInvoice'] as const).map((basketKey) => {
-            const basket = group[basketKey];
-            if (basket.items.length === 0) return null;
-            const basketLabel = basketKey === 'withInvoice' ? 'Có hóa đơn' : 'Không hóa đơn';
-            const subtotalLabel = basketKey === 'withInvoice' ? 'Tổng có hóa đơn' : 'Tổng không hóa đơn';
-            const rows = basket.items.map((item, index) => ({
+      {SHEET_SECTIONS.map(({ basketKey, marker }) => {
+        const rows = sectionRows(basketKey);
+        if (rows.length === 0) return null;
+        return (
+          <LedgerRecordList key={basketKey} rows={rows.map(({ item }, index) => {
+            const cells = sheetRowCells(item);
+            return {
               key: index,
-              container: item.containerLabel ?? item.containerNumber ?? 'Phí chung lô',
-              expenseType: item.expenseTypeName ?? '',
-              amount: `${formatMoney(item.amount)} ₫`,
-            }));
-            return (
-              <div key={basketKey}>
-                <LedgerRecordList rows={rows.map((row) => ({
-                    key: row.key,
-                    title: row.container,
-                    subtitle: basketLabel,
-                    facts: [
-                      { key: 'type', label: 'Loại phí', value: row.expenseType, primary: true },
-                      { key: 'amount', label: 'Số tiền', value: <span className="data-token">{row.amount}</span>, primary: true, align: 'end' as const },
-                    ],
-                  }))} />
-                <LedgerRecordList rows={[
-                  { key: 'subtotal', title: subtotalLabel, facts: [{ key: 'amount', label: 'Số tiền', value: <span className="data-token">{`${formatMoney(basket.total)} ₫`}</span>, primary: true, align: 'end' }] },
-                ]} />
-                <div className="ledger-desktop ds-table-scroll">
-                <table className="tt-table ops-settlement-sheet__table">
-                  <thead>
-                    <tr>
-                      <th>{basketLabel} — Cont</th>
-                      <th>Loại phí</th>
-                      <th>Số tiền</th>
+              title: cells.container,
+              subtitle: `${cells.company} · ${cells.bill}`,
+              facts: [
+                { key: 'declaration', label: 'Số tờ khai', value: cells.declaration || '—', primary: true },
+                { key: 'type', label: 'Loại phí', value: cells.expenseType, primary: true },
+                { key: 'amount', label: 'Số tiền', value: <span className="data-token">{cells.money}</span>, primary: true, align: 'end' as const },
+              ],
+            };
+          })} />
+        );
+      })}
+      <div className="ledger-desktop ds-table-scroll">
+        <table className="tt-table ops-settlement-sheet__table">
+          <thead>
+            <tr>
+              <th>Tên công ty</th>
+              <th>Số Bill/Book</th>
+              <th>Số tờ khai</th>
+              <th>Số cont</th>
+              <th>Tên chi phí</th>
+              <th>Số tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SHEET_SECTIONS.map(({ basketKey, marker }) => {
+              const rows = sectionRows(basketKey);
+              if (rows.length === 0) return null;
+              return [
+                <tr key={`${basketKey}-marker`} className="ops-settlement-sheet__section">
+                  <th colSpan={6} scope="colgroup">{marker}</th>
+                </tr>,
+                ...rows.map(({ item }, index) => {
+                  const cells = sheetRowCells(item);
+                  return (
+                    <tr key={`${basketKey}-${index}`}>
+                      <td>{cells.company}</td>
+                      <td>{cells.bill}</td>
+                      <td>{cells.declaration || '—'}</td>
+                      <td>{cells.container}</td>
+                      <td>{cells.expenseType}</td>
+                      <td className="ops-money">{cells.money}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr key={row.key}>
-                        <td>{row.container}</td>
-                        <td>{row.expenseType}</td>
-                        <td className="ops-money">{row.amount}</td>
-                      </tr>
-                    ))}
-                    <tr className="ops-settlement-sheet__subtotal">
-                      <td colSpan={2}>{subtotalLabel}</td>
-                      <td className="ops-money">{`${formatMoney(basket.total)} ₫`}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                </div>
-              </div>
-            );
-          })}
-          <p className="ops-settlement-sheet__group-total">Tổng lô: {formatMoney(group.total)}</p>
-        </section>
-      ))}
-      <p className="ops-settlement-sheet__grand">
-        TỔNG CỘNG: {formatMoney(grouping.totals.grand)}{' '}
-        (Có HĐ: {formatMoney(grouping.totals.withInvoice)} · Không HĐ: {formatMoney(grouping.totals.withoutInvoice)})
-      </p>
+                  );
+                }),
+              ];
+            })}
+            {SHEET_SECTIONS.map(({ basketKey, totalLabel }) => (
+              <tr key={`${basketKey}-total`} className="ops-settlement-sheet__total">
+                <th colSpan={5} scope="row">{totalLabel}</th>
+                <td className="ops-money">{`${formatMoney(grouping.totals[basketKey])} ₫`}</td>
+              </tr>
+            ))}
+            <tr className="ops-settlement-sheet__grand-row">
+              <th colSpan={5} scope="row">TỔNG CỘNG QUYẾT TOÁN</th>
+              <td className="ops-money">{`${formatMoney(grouping.totals.grand)} ₫`}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <LedgerRecordList rows={[
+        ...SHEET_SECTIONS.map(({ basketKey, totalLabel }) => ({
+          key: basketKey,
+          title: totalLabel,
+          facts: [{ key: 'amount', label: 'Số tiền', value: <span className="data-token">{`${formatMoney(grouping.totals[basketKey])} ₫`}</span>, primary: true, align: 'end' as const }],
+        })),
+        {
+          key: 'grand',
+          title: 'TỔNG CỘNG QUYẾT TOÁN',
+          facts: [{ key: 'amount', label: 'Số tiền', value: <span className="data-token">{`${formatMoney(grouping.totals.grand)} ₫`}</span>, primary: true, align: 'end' as const }],
+        },
+      ]} />
       {/* SIL-751 — the totals follow card 20260928_197 (negative rows are
           dropped, never netted). Without this line a reviewer adding the
           printed rows gets rawGrand and reads the phiếu as 10.000₫ off

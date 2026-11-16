@@ -4,7 +4,10 @@ import ExcelJS from 'exceljs';
 import { exportOpsSettlementXlsx } from '../../services/ops-settlement-export.service';
 import { groupOpsExpensesForSettlement } from '../../services/ops-expenses.service';
 
-test('OPS export distinguishes recorded, draft and historical states without an approval workflow', async () => {
+// SIL-845 — the phiếu prints exactly 6 columns; approval status is NOT one of
+// them. Every recorded/draft/historical row prints its money line; the
+// approval workflow never leaks into the export vocabulary.
+test('OPS export prints every state row as a flat money line without approval-workflow vocabulary', async () => {
   const statuses = ['RECORDED', 'APPROVED', 'DRAFT', 'VOIDED', 'PENDING', 'REJECTED'];
   const grouping = groupOpsExpensesForSettlement(statuses.map((approvalStatus, index) => ({
     shipmentId: 1, shipmentCode: 'QA-EXPORT', customerName: 'Khách', billRef: 'BILL',
@@ -19,24 +22,27 @@ test('OPS export distinguishes recorded, draft and historical states without an 
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(Uint8Array.from(buffer).buffer);
   const sheet = workbook.worksheets[0];
-  const labels: string[] = [];
   const text: string[] = [];
+  let moneyRows = 0;
   sheet.eachRow(row => {
     row.eachCell(cell => text.push(String(cell.value ?? '')));
-    if (String(row.getCell(1).value).startsWith('CONT-')) {
-      labels.push(String(row.getCell(4).value));
-      assert.equal(row.getCell(3).value, 1000);
+    if (String(row.getCell(4).value).startsWith('CONT-')) {
+      moneyRows += 1;
+      assert.equal(row.getCell(6).value, 1000, 'Số tiền sits in column 6');
     }
   });
-  assert.deepEqual(labels, ['Đã ghi nhận', 'Đã ghi nhận', 'Nháp', 'Đã hủy',
-    'Chưa ghi nhận (dữ liệu cũ)', 'Đã từ chối (dữ liệu cũ)']);
+  assert.equal(moneyRows, 6, 'all six state rows print');
+  for (const vocab of ['Đã ghi nhận', 'Nháp', 'Đã hủy', 'Chưa ghi nhận', 'Đã từ chối']) {
+    assert.ok(!text.includes(vocab), `status vocab "${vocab}" left the 6-column contract`);
+  }
   assert.ok(text.includes('Kế toán'));
   assert.equal(text.some(value => /duyệt/i.test(value)), false);
-  assert.ok(text.includes('6000'), 'source total remains unchanged');
+  assert.ok(text.includes('6000'), 'TỔNG CỘNG QUYẾT TOÁN row carries the source total');
 });
 
 // SIL-751 — a phiếu with a negative row prints lines that do not add up to
-// TỔNG CỘNG (card 20260928_197 excludes negatives); the export must say so.
+// TỔNG CỘNG QUYẾT TOÁN (card 20260928_197 excludes negatives); the export
+// must say so.
 test('OPS export prints the excluded-negative reconciliation for the OS-2610-0001 shape', async () => {
   const grouping = groupOpsExpensesForSettlement([
     { shipmentId: 1, shipmentCode: 'SS-1', customerName: 'Khách', billRef: 'BL-1',
@@ -60,5 +66,6 @@ test('OPS export prints the excluded-negative reconciliation for the OS-2610-000
   workbook.worksheets[0].eachRow(row => row.eachCell(cell => text.push(String(cell.value ?? ''))));
   assert.ok(text.some(value => value.includes('Dòng âm đã loại trừ')), 'exclusion label present');
   assert.ok(text.includes('-50000'), 'excluded amount printed');
-  assert.ok(text.some(value => value.includes('Tổng nếu cộng cả dòng âm: 270.000')), 'raw line sum printed');
+  assert.ok(text.some(value => value.includes('Tổng nếu cộng cả dòng âm')), 'raw line sum labelled');
+  assert.ok(text.includes('270000'), 'raw line sum printed');
 });
