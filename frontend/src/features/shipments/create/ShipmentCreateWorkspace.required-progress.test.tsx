@@ -100,9 +100,9 @@ describe('shipment create required progress (chip; banner retired by SIL-627)', 
     await waitFor(() => expect(chipText()).toBe('Bắt buộc: 0/5'));
 
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    // LCL ad-hoc: route + warehouse stay waived, its four cargo/schedule
-    // fields replace the container row.
-    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 0/7'));
+    // LCL ad-hoc: route + warehouse stay waived, and SIL-846 made quy cách
+    // optional — three enforced cargo/schedule fields replace the row.
+    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 0/6'));
     expect(screen.queryByText('Chuyển loại hàng?')).toBeNull();
   });
 });

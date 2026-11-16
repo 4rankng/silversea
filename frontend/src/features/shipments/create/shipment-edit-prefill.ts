@@ -26,6 +26,9 @@ export type ShipmentEditDetail = ShipmentDetail & {
     customerNotes?: string | null;
     rawCustomerName?: string | null;
     rawRouteName?: string | null;
+    /** SIL-846 — LCL trọng tải tính cước (Bảng giá basis); the full row
+     *  select already carries it, the client type just never named it. */
+    revVehicleClassId?: number | null;
   };
   containers: Array<ShipmentDetail['containers'][number] & {
     routeId?: number | null;
@@ -180,6 +183,8 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     cargoVolumeCbm: shipment.cargoVolumeCbm ?? '',
     packageCount: shipment.packageCount != null ? String(shipment.packageCount) : '',
     packageType: shipment.packageType ?? '',
+    // SIL-846 — the trọng tải pick round-trips on LCL (FCL has no lot class).
+    revVehicleClassId: isLcl ? idString(shipment.revVehicleClassId) : '',
     operationalNotes: shipment.operationalNotes ?? '',
   };
 

@@ -1,15 +1,16 @@
 /**
- * LCL intake cargo gate — helpdesk 2026-10-13 (ops Tiếp Vu)
+ * LCL intake cargo gate — helpdesk 2026-10-13 + SIL-846 (KH 15/11)
  *
- * "hàng lẻ: phần thể tích (cbm) k bắt buộc cần nhập": CBM is optional on the
- * LCL create path end to end. This pins the no-DB half of the intake gate
+ * "hàng lẻ: phần thể tích (cbm) k bắt buộc cần nhập" (ops Tiếp Vu) and
+ * SIL-846 "Vẫn để quy cách đóng gói, tuy nhiên không bắt buộc phải chọn mới
+ * lưu được": CBM and quy cách đóng gói are both optional on the LCL create
+ * path end to end. This pins the no-DB half of the intake gate
  * (assertLclIntakeCargoReady, extracted from assertIntakeReady so the unit
- * lane can reach it): a blank/omitted CBM must NOT block submit-for-dispatch,
- * while quy cách, số lượng and trọng lượng stay enforced with the exact 409
- * copy. CBM itself is deliberately unchecked here — the create-form gate
- * owns entered-value positivity, and the nullable numeric column plus the
- * non-negative shared schemas own storage ('0.000' may exist from API
- * clients and must not wedge dispatch).
+ * lane can reach it): a blank quy cách or CBM must NOT block submit-for-
+ * dispatch, while số lượng and trọng lượng stay enforced with the exact 409
+ * copy. Optional strings/numerics are deliberately unchecked beyond the
+ * gate — the create-form gate owns entered-value positivity, and the
+ * nullable columns plus the non-negative shared schemas own storage.
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,7 +37,7 @@ function expectApiError(fn: () => void, statusCode: number, message: string) {
   assert.fail(`expected ApiError(${statusCode}, ${message}), got no throw`);
 }
 
-describe('assertLclIntakeCargoReady (LCL CBM optional, helpdesk 2026-10-13)', () => {
+describe('assertLclIntakeCargoReady (LCL CBM optional, quy cách optional since SIL-846)', () => {
   test('accepts a complete LCL row regardless of CBM — blank, omitted, or zero-decimal', () => {
     // CBM is not part of the gate's input contract: null/blank never reaches
     // a check, and a stored '0.000' (API-created) must not wedge dispatch.
@@ -54,11 +55,14 @@ describe('assertLclIntakeCargoReady (LCL CBM optional, helpdesk 2026-10-13)', ()
     );
   });
 
-  test('still enforces quy cách, số lượng and trọng lượng with the CBM-free message', () => {
-    const CARGO_MESSAGE = 'Hàng lẻ cần đủ quy cách, số lượng và trọng lượng.';
-    expectApiError(() => assertLclIntakeCargoReady({ ...COMPLETE_LCL, packageType: '' }), 409, CARGO_MESSAGE);
-    expectApiError(() => assertLclIntakeCargoReady({ ...COMPLETE_LCL, packageType: '   ' }), 409, CARGO_MESSAGE);
-    expectApiError(() => assertLclIntakeCargoReady({ ...COMPLETE_LCL, packageType: null }), 409, CARGO_MESSAGE);
+  test('SIL-846 — quy cách đóng gói is optional: blank/whitespace/null passes', () => {
+    assert.doesNotThrow(() => assertLclIntakeCargoReady({ ...COMPLETE_LCL, packageType: '' }));
+    assert.doesNotThrow(() => assertLclIntakeCargoReady({ ...COMPLETE_LCL, packageType: '   ' }));
+    assert.doesNotThrow(() => assertLclIntakeCargoReady({ ...COMPLETE_LCL, packageType: null }));
+  });
+
+  test('still enforces số lượng and trọng lượng with the SIL-846 message', () => {
+    const CARGO_MESSAGE = 'Hàng lẻ cần đủ số lượng và trọng lượng.';
     expectApiError(() => assertLclIntakeCargoReady({ ...COMPLETE_LCL, packageCount: null }), 409, CARGO_MESSAGE);
     expectApiError(() => assertLclIntakeCargoReady({ ...COMPLETE_LCL, packageCount: 0 }), 409, CARGO_MESSAGE);
     expectApiError(() => assertLclIntakeCargoReady({ ...COMPLETE_LCL, cargoWeightKg: null }), 409, CARGO_MESSAGE);

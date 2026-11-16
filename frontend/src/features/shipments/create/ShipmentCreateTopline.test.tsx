@@ -82,14 +82,15 @@ describe('required completion — the whole form, live', () => {
 
   it('counts LCL against its own fields, not the FCL container row', () => {
     // FB-105 (spec §2) made hàng lẻ carry its own operating points: route +
-    // Nhà máy + Kho (CFS/Cảng) alongside 3 cargo fields and the delivery date,
-    // so one-row FCL (9) and LCL (10) differ while a second FCL row diverges
-    // by six more.
+    // Nhà máy + Kho (CFS/Cảng) alongside the cargo fields and the delivery
+    // date, so one-row FCL (9) and LCL (9) differ from a second FCL row (15).
+    // SIL-846: quy cách đóng gói left the denominator — LCL catalog dropped
+    // 10 → 9.
     const lcl = { ...IDENTITY_FILLED, cargoMode: 'LCL' as const };
-    expect(completion(lcl, [createEmptyContainer()])).toEqual({ done: 3, total: 10 });
+    expect(completion(lcl, [createEmptyContainer()])).toEqual({ done: 3, total: 9 });
     const fclTwoRows = [createEmptyContainer(), createEmptyContainer()];
     expect(completion(IDENTITY_FILLED, fclTwoRows)).toEqual({ done: 3, total: 15 });
-    expect(completion(lcl, fclTwoRows)).toEqual({ done: 3, total: 10 });
+    expect(completion(lcl, fclTwoRows)).toEqual({ done: 3, total: 9 });
   });
 
   it('lowers the denominator exactly like the ad-hoc waivers (no impossible counts)', () => {
@@ -104,7 +105,8 @@ describe('required completion — the whole form, live', () => {
     };
     expect(completion(adHocFclFilled, [createEmptyContainer()])).toEqual({ done: 3, total: 5 });
 
-    // LCL ad-hoc also waives route + warehouse: 3 identity + 4 cargo/schedule.
+    // LCL ad-hoc also waives route + warehouse: 3 identity + 3 cargo/schedule
+    // (SIL-846 dropped the quy cách slot).
     const adHocLcl = {
       ...IDENTITY_FILLED,
       isAdHoc: true,
@@ -112,23 +114,25 @@ describe('required completion — the whole form, live', () => {
       rawCustomerName: 'Khách vãng lai 8888',
       cargoMode: 'LCL' as const,
     };
-    expect(completion(adHocLcl, [])).toEqual({ done: 3, total: 7 });
+    expect(completion(adHocLcl, [])).toEqual({ done: 3, total: 6 });
   });
 
   it('reaches N/N only when nothing blocks', () => {
     expect(completion(IDENTITY_FILLED, [FULL_FCL_ROW])).toEqual({ done: 9, total: 9 });
-    expect(completion(FULL_LCL_FORM, [])).toEqual({ done: 10, total: 10 });
+    // SIL-846: quy cách đóng gói left the required set — the all-filled LCL
+    // form reads 9/9, not 10/10.
+    expect(completion(FULL_LCL_FORM, [])).toEqual({ done: 9, total: 9 });
   });
 
   it('counts an entered-invalid optional CBM in the denominator instead of claiming done', () => {
     // SIL-719 (id 839): 0 is a LEGAL volume ("không có thể tích"), so the
     // optional field is no longer a blocker at 0 — only a negative one is.
     const zeroCbm = { ...FULL_LCL_FORM, cargoVolumeCbm: '0' };
-    expect(completion(zeroCbm, [])).toEqual({ done: 10, total: 10 });
+    expect(completion(zeroCbm, [])).toEqual({ done: 9, total: 9 });
 
     // A negative volume still blocks — and it is counted, not silently dropped.
     const negativeCbm = { ...FULL_LCL_FORM, cargoVolumeCbm: '-1' };
-    expect(completion(negativeCbm, [])).toEqual({ done: 10, total: 11 });
+    expect(completion(negativeCbm, [])).toEqual({ done: 9, total: 10 });
   });
 
   it('accepts typed text for the LCL operating points (FB-105)', () => {
@@ -140,7 +144,7 @@ describe('required completion — the whole form, live', () => {
       factoryName: 'Nhà máy gõ tay',
       pickupWarehouseName: 'Kho gõ tay',
     };
-    expect(completion(typed, [])).toEqual({ done: 10, total: 10 });
+    expect(completion(typed, [])).toEqual({ done: 9, total: 9 });
   });
 
   it('renders the shared denominator in the chip', () => {

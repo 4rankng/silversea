@@ -72,6 +72,7 @@ export async function updateShipment(
       customerId: input.customerId !== undefined && input.customerId !== existing.customerId ? input.customerId : undefined,
       routeId: input.routeId !== undefined && input.routeId !== existing.routeId ? input.routeId : undefined,
       cargoTypeId: input.cargoTypeId !== undefined && input.cargoTypeId !== existing.cargoTypeId ? input.cargoTypeId : undefined,
+      revVehicleClassId: input.revVehicleClassId !== undefined && input.revVehicleClassId !== existing.revVehicleClassId ? input.revVehicleClassId : undefined,
     });
     // Shipment-level factory mirror (SILVER L1 P2): same customer-scope +
     // FACTORY-type validation the container choke point enforces. The
@@ -233,6 +234,7 @@ export async function updateShipment(
       ...(input.cargoVolumeCbm !== undefined ? { cargoVolumeCbm: toNullableFixedDecimal(input.cargoVolumeCbm, 7, 3, 'Thể tích') } : {}),
       ...(input.packageCount !== undefined ? { packageCount: input.packageCount } : {}),
       ...(input.packageType !== undefined ? { packageType: input.packageType } : {}),
+      ...(input.revVehicleClassId !== undefined ? { revVehicleClassId: input.revVehicleClassId } : {}),
       ...(input.operationalNotes !== undefined ? { operationalNotes: input.operationalNotes } : {}),
       ...(input.customerNotes !== undefined ? { customerNotes: input.customerNotes } : {}),
       ...(input.pickupLocation !== undefined

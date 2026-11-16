@@ -313,3 +313,17 @@ describe('SIL-765 — extra pickup warehouses edit prefill', () => {
     expect(buildShipmentEditPrefill(detail).form.extraPickupWarehouses).toEqual([]);
   });
 });
+
+describe('SIL-846 — Trọng tải (Loại xe tính cước) edit prefill', () => {
+  it('LCL round-trips the stored revVehicleClassId onto the form', () => {
+    const detail = detailFixture({ cargoMode: 'LCL', tradeDirection: 'IMPORT', blNumber: 'BL-846', revVehicleClassId: 14 });
+    expect(buildShipmentEditPrefill(detail).form.revVehicleClassId).toBe('14');
+  });
+
+  it('a lot without a class prefills empty; FCL never carries one', () => {
+    const lclBlank = detailFixture({ cargoMode: 'LCL', tradeDirection: 'IMPORT', blNumber: 'BL-846-B' });
+    expect(buildShipmentEditPrefill(lclBlank).form.revVehicleClassId).toBe('');
+    const fcl = detailFixture({ cargoMode: 'FCL', revVehicleClassId: 14 });
+    expect(buildShipmentEditPrefill(fcl).form.revVehicleClassId).toBe('');
+  });
+});
