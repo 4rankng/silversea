@@ -279,6 +279,7 @@ export default function TimesheetGridPage() {
             items={[
               { label: 'Chuyến', value: timesheet.salary.trips },
               { label: 'Ngày công', value: timesheet.salary.workdays },
+              { label: 'Ngày công lương', value: timesheet.salary.paidSalaryDays },
               ...(['K', 'Q', 'Đ', 'L', 'N', 'P'] as TimesheetSymbol[])
                 .map(symbol => ({ label: TIMESHEET_SYMBOL_RULES[symbol].label, value: totals.counts[symbol] })),
             ]}

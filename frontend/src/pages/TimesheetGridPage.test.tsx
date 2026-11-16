@@ -52,7 +52,8 @@ const month: TimesheetMonth = {
   status: 'OPEN', reconciledBy: null, reconciledAt: null, reconcileNote: null,
   days: [day('2026-10-05'), day('2026-10-06', { symbol: 'K', trips: 1 })],
   salary: {
-    trips: 1, workdays: 1, symbolCounts: { K: 1, Q: 0, 'Đ': 0, L: 0, N: 0, P: 0 },
+    trips: 1, workdays: 1, standardDays: 2, paidSalaryDays: 2,
+    symbolCounts: { K: 1, Q: 0, 'Đ': 0, L: 0, N: 0, P: 0 },
     symbolDays: { K: 1, Q: 0, 'Đ': 0, L: 0, N: 0, P: 0 },
     bonusTrips: 0, perTripPay: 300000, extraTripBonus: 0, dailyBasePay: 0,
     salaryTotal: 300000, mode: 'PER_TRIP',

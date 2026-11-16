@@ -208,10 +208,10 @@ export default function TimesheetReconciliationPage() {
                     <td data-label="Ký hiệu">
                       {day.symbol ? `${day.symbol} — ${TIMESHEET_SYMBOL_RULES[day.symbol].label}` : '—'}
                     </td>
-                    {/* SIL-829 — cột Chuyến là SỐ ĐẾM hiển thị (summaryTrips,
-                        Q = 1 chuyến — SIL-775/SIL-810), không phải trọng số
-                        lương (trips, Q = 2 — SIL-774) mà payload cầm sẵn.
-                        Chỉnh lệch vẫn cộng vào cả hai phía trong engine lương. */}
+                    {/* SIL-829 — cột Chuyến là SỐ ĐẾM hiển thị (summaryTrips),
+                        không phải chỉnh lệch riêng. SIL-841 (15/11): Q = 2
+                        chuyến/ngày — trùng trọng số lương. Chỉnh lệch vẫn cộng
+                        vào cả hai phía trong engine lương. */}
                     <td className="num" data-label="Chuyến">{(day.symbol ? TIMESHEET_SYMBOL_RULES[day.symbol].summaryTrips : 0) + day.tripAdjustment}</td>
                     <td data-label="Chỉnh lệch">
                       <input
@@ -257,10 +257,14 @@ export default function TimesheetReconciliationPage() {
             items={[
               { label: 'Chuyến', value: active.salary.trips },
               { label: 'Ngày công', value: active.salary.workdays },
+              { label: 'Ngày công lương', value: active.salary.paidSalaryDays },
               { label: 'Chuyến thưởng', value: active.salary.bonusTrips },
+              // SIL-841 (15/11) — bảng lương "trốn vé/không trốn vé": lương
+              // cứng theo ngày công; không trốn vé cộng 100.000đ/chuyến +
+              // KPI vượt chuyến.
+              { label: 'Lương cứng (theo ngày công)', value: active.salary.dailyBasePay },
               { label: 'Tiền chuyến', value: active.salary.perTripPay },
-              { label: 'Thưởng chuyến', value: active.salary.extraTripBonus },
-              { label: 'Lương ngày', value: active.salary.dailyBasePay },
+              { label: 'KPI vượt chuyến', value: active.salary.extraTripBonus },
               { label: 'Tổng lương', value: active.salary.salaryTotal },
             ]}
           />
@@ -287,6 +291,9 @@ export default function TimesheetReconciliationPage() {
                 <th scope="col">Số ngày nghỉ được hưởng lương</th>
                 <th scope="col">Chuyến</th>
                 <th scope="col">Ngày công</th>
+                {/* SIL-841 (15/11) — ngày công lương: ngày chuẩn T2–T7 −
+                    max(0, N − 1); cơ sở trả lương cứng cả 2 hình thức. */}
+                <th scope="col">Ngày công lương</th>
                 <th scope="col">Chuyến CN</th>
                 <th scope="col">Doanh thu</th>
                 <th scope="col">Chi phí</th>
@@ -305,11 +312,11 @@ export default function TimesheetReconciliationPage() {
                   <td className="num" data-label="Lưu ca">{row.luuCaCount}</td>
                   <td className="num" data-label="Số ngày nghỉ phép">{row.nghiCount}</td>
                   <td className="num" data-label="Số ngày nghỉ được hưởng lương">{row.nghiPhepCount}</td>
-                  {/* SIL-810 — cột 'Chuyến' là TỔNG SỐ CHUYẾN của bảng tổng hợp
-                      tháng: Đ + K + Q (mỗi ngày Q = 1 chuyến, SIL-775). Trọng số
-                      lương Q = 2 vẫn nằm trong panel lương bên trên. */}
+                  {/* SIL-841 — cột 'Chuyến' là TỔNG SỐ CHUYẾN của bảng tổng hợp
+                      tháng: Đ + K + 2·Q (mỗi ngày Q = 2 chuyến, thay SIL-810). */}
                   <td className="num" data-label="Chuyến">{row.totalTrips}</td>
                   <td className="num" data-label="Ngày công">{row.workdays}</td>
+                  <td className="num" data-label="Ngày công lương">{row.paidSalaryDays}</td>
                   <td className="num" data-label="Chuyến CN">{row.sundayTrips}</td>
                   <td className="num" data-label="Doanh thu">{row.revenue === null ? '—' : <Money value={row.revenue} />}</td>
                   <td className="num" data-label="Chi phí">{row.cost === null ? '—' : <Money value={row.cost} />}</td>

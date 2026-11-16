@@ -74,13 +74,21 @@ export async function computeAttendanceSummary(
   let standbyDays = 0;
   let personalLeaveDays = 0;
   let weeklyOffDays = 0;
+  // SIL-841 (khách chốt 15/11) — miễn trừ 1 ngày phép có lương/tháng: ngày
+  // PERSONAL_LEAVE T2–T7 đầu tiên vẫn được trả lương, các ngày sau trừ công
+  // (chấm công ký hiệu: ngày công lương = ngày chuẩn − max(0, N − 1)).
+  let personalLeaveDaysOnWorkday = 0;
 
   for (const dateStr of dates) {
     const status = workDayMap.get(dateStr);
     if (status) {
       if (status === 'TRIP_DAY') tripDays++;
       else if (status === 'STANDBY') standbyDays++;
-      else if (status === 'PERSONAL_LEAVE') personalLeaveDays++;
+      else if (status === 'PERSONAL_LEAVE') {
+        personalLeaveDays++;
+        const [y, m, d] = dateStr.split('-').map(Number);
+        if (new Date(y, m - 1, d).getDay() !== 0) personalLeaveDaysOnWorkday++;
+      }
       else if (status === 'WEEKLY_OFF') weeklyOffDays++;
     } else {
       // Default: Sunday is WEEKLY_OFF, non-Sunday is STANDBY
@@ -108,7 +116,9 @@ export async function computeAttendanceSummary(
     standbyDays,
     personalLeaveDays,
     weeklyOffDays,
-    paidDays: tripDays + standbyDays,
+    // SIL-841 — ngày N (PERSONAL_LEAVE) T2–T7 đầu tiên của tháng miễn trừ:
+    // trả tối đa 1 ngày phép trong paidDays.
+    paidDays: tripDays + standbyDays + Math.min(1, personalLeaveDaysOnWorkday),
     workDays, // raw day records
   };
 }
