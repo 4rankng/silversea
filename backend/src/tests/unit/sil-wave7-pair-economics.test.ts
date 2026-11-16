@@ -276,7 +276,9 @@ describe('Wave 7 — wiring pins (source scans; unit tests never boot db/app)', 
   });
 
   test('costBreakdown rides both economics surfaces', () => {
-    assert.match(tripsCrud, /costBreakdown: breakdown \}/);
+    // SIL-817 (id 946): GET /api/trips/:id now also exposes activeHandoff —
+    // costBreakdown still rides the same response, now ahead of activeHandoff.
+    assert.match(tripsCrud, /costBreakdown: breakdown, activeHandoff \}/);
     assert.match(driverService, /costBreakdown: breakdown,/);
   });
 
