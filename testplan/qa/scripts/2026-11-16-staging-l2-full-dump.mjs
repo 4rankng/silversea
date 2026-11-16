@@ -1,6 +1,6 @@
 // Full L2 debit-detail dump for R3N-KR1 (775) + R3M-KR1 (772) — every money field.
 import { writeFileSync } from 'node:fs';
-const API = 'https://vantai.tingting.vip/api';
+const API = process.env.API ?? 'https://vantai.tingting.vip/api';
 const out = [];
 const log = (...a) => { const s = a.map(x => typeof x === 'string' ? x : JSON.stringify(x, null, 1)).join(' '); out.push(s); };
 async function login(identifier) {

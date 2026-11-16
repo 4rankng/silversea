@@ -1,6 +1,6 @@
 // L2 per-lot debit detail for the named pairs — fake-zero check (Bảng 2.1).
 import { writeFileSync } from 'node:fs';
-const API = 'https://vantai.tingting.vip/api';
+const API = process.env.API ?? 'https://vantai.tingting.vip/api';
 const out = [];
 const log = (...a) => { const s = a.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' '); out.push(s); };
 async function login(identifier) {

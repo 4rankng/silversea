@@ -1,6 +1,6 @@
 // Account probe on staging (read-only login POSTs only).
 import { writeFileSync } from 'node:fs';
-const API = 'https://vantai.tingting.vip/api';
+const API = process.env.API ?? 'https://vantai.tingting.vip/api';
 const out = [];
 const log = (...a) => { const s = a.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' '); out.push(s); };
 const tries = [['admin', 'Abc123'], ['ketoan', 'Abc123'], ['laixe', 'Abc123'], ['giamdoc', 'Abc123'], ['khachhang', 'Abc123'], ['thanhdc', 'Abc123'], ['dungnv', 'Abc123'], ['dvthuc', 'Abc123'], ['hoangnh', 'Abc123'], ['cus', 'Abc123'], ['giaonhan', 'Abc123']];
