@@ -114,7 +114,7 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
   const lots = useQuery({ queryKey: qk.expenseAccounting.reconciliations, queryFn: expenseAccountingClient.reconciliations });
 
   const rows = report.data?.rows ?? [];
-  const totals = report.data?.totals ?? { dntt: 0, advanced: 0, remaining: 0, remainingSigned: 0 };
+  const totals = report.data?.totals ?? { dntt: 0, advanced: 0, advancedRecorded: 0, remaining: 0, remainingSigned: 0 };
   const scopedLot = lotId ? lots.data?.items.find((lot) => lot.id === Number(lotId)) : undefined;
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: opsReconciliationReportKeys.all });
@@ -204,7 +204,11 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
         ariaLabel="Tổng theo bộ lọc"
         items={[
           { label: 'Tổng số tiền ĐNTT', value: `${formatMoney(totals.dntt)} ₫` },
-          { label: 'Tổng số tiền đã ứng', value: `${formatMoney(totals.advanced)} ₫` },
+          // SIL-839 — the rail reads the recorded (Đã ghi nhận) gross total: the
+          // SAME shared backend number the Quỹ cá nhân table renders. The old
+          // netted `advanced` read 0₫ for fully-settled staff while Quỹ cá nhân
+          // showed the disbursements (Hoàng 320.000₫, Cường 25.000.000₫).
+          { label: 'Tổng số tiền đã ứng', value: `${formatMoney(totals.advancedRecorded)} ₫` },
           // Card 141026230770 — the rail total is the SIGNED spec formula
           // (ĐNTT − ĐÃ ỨNG): âm hiện rõ dấu thay vì ép về 0.
           { label: 'Tổng còn phải hoàn ứng', value: remainingText(totals.remainingSigned) },
@@ -308,7 +312,10 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettle
       <td data-label="STT">{index + 1}</td>
       <td data-label="Nhân viên ĐNTT">{row.staffName}</td>
       <td data-label="Số tiền ĐNTT" className="num"><Money value={row.dntt} /></td>
-      <td data-label="Số tiền đã ứng" className="num"><Money value={row.advanced} /></td>
+      {/* SIL-839 — the column reads advancedRecorded: the SAME gross
+          (Đã ghi nhận) disbursement number the Quỹ cá nhân's Đã ứng column
+          reads, so the two surfaces khớp 100% by construction. */}
+      <td data-label="Số tiền đã ứng" className="num"><Money value={row.advancedRecorded} /></td>
       {/* Card 141026230770 — "Còn phải hoàn ứng" shows the SIGNED difference
           (ĐNTT − ĐÃ ỨNG, spec verbatim): it CAN be negative when Ops
           over-advanced, and the sign is always labeled beside the amount. */}

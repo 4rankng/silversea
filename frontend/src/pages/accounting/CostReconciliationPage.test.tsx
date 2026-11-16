@@ -69,7 +69,7 @@ beforeEach(() => {
   expenseApi.update.mockReset().mockResolvedValue({});
   expenseApi.confirm.mockReset().mockResolvedValue({ items: [] });
   expenseApi.reject.mockReset().mockResolvedValue({ ok: true });
-  reportApi.report.mockReset().mockResolvedValue({ from: null, to: null, rows: [], totals: { dntt: 0, advanced: 0, remaining: 0, remainingSigned: 0 } });
+  reportApi.report.mockReset().mockResolvedValue({ from: null, to: null, rows: [], totals: { dntt: 0, advanced: 0, advancedRecorded: 0, remaining: 0, remainingSigned: 0 } });
 });
 
 describe('CostReconciliationPage (SIL-779)', () => {
@@ -166,7 +166,7 @@ describe('CostReconciliationPage (SIL-779)', () => {
         fundRow({ staffId: 6, staffName: 'NV B', dntt: 800000, advancedRecorded: 500000, remaining: 0, remainingSigned: 300000, outstandingSigned: 0 }),
         fundRow({ staffId: 7, staffName: 'NV C', dntt: 100000, advancedRecorded: 100000, remaining: 0, remainingSigned: 0, outstandingSigned: 0 }),
       ],
-      totals: { dntt: 1200000, advanced: 1100000, remaining: 200000, remainingSigned: 100000 },
+      totals: { dntt: 1200000, advanced: 1100000, advancedRecorded: 1100000, remaining: 200000, remainingSigned: 100000 },
     });
     page();
     const section = await screen.findByRole('region', { name: 'Quỹ cá nhân từng nhân sự' });
@@ -189,7 +189,7 @@ describe('CostReconciliationPage (SIL-779)', () => {
     reportApi.report.mockResolvedValue({
       from: null, to: null,
       rows: [fundRow({ staffName: 'Nguyễn Huy Hoàng', dntt: 45000, advanced: 0, advancedRecorded: 520000, remaining: 0, remainingSigned: -475000, outstandingSigned: 0 })],
-      totals: { dntt: 45000, advanced: 0, remaining: 0, remainingSigned: -475000 },
+      totals: { dntt: 45000, advanced: 0, advancedRecorded: 520000, remaining: 0, remainingSigned: -475000 },
     });
     page();
     const section = await screen.findByRole('region', { name: 'Quỹ cá nhân từng nhân sự' });

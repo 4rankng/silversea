@@ -47,3 +47,10 @@ test('the scoped (đợt) branch keeps allocation semantics and its netted held 
   assert.match(source, /recordedByStaff\[String\(batchStaffId\)\] = Number\(row\.allocated\)/,
     'scoped recorded ĐÃ ỨNG mirrors the same allocation — one number per lot');
 });
+
+// SIL-839 — the Báo cáo hoàn ứng rail totals the SAME gross query the Quỹ cá
+// nhân table reads: one shared recorded-advance number, two surfaces, khớp 100%.
+test('totals carry advancedRecorded so the rail reads the shared gross number', () => {
+  assert.match(source, /advancedRecorded: visibleRows\.reduce\(\(sum, row\) => sum \+ row\.advancedRecorded, 0\)/,
+    'the totals object sums the same advancedRecorded the rows serialize');
+});
