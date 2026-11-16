@@ -223,16 +223,25 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     };
   }, [typesData]);
 
+  // SIL-844 (id 973) — picker lists EVERY container row of the lot (số đính
+  // kèm sau vẫn là cont: hạch toán theo cont đi bằng id, không cần số đã
+  // cập nhật). Lô chưa có dòng cont nào (LCL, FCL pre-container) thì picker
+  // không có gì để chọn — phạm vi chung lô là scope đúng duy nhất, kèm hint.
+  const pickerContainers = useMemo(
+    () => order.containers
+      ?? order.containerIds.map((id, index) => ({ id, number: order.containerNumbers[index] ?? null })),
+    [order],
+  );
   const containerOptions = useMemo(() => ([
     { value: LOT_CHOICE, label: 'Phí chung lô' },
-    ...order.containerNumbers.map((containerNumber, index) => (
-      { value: String(order.containerIds[index]), label: containerNumber }
+    ...pickerContainers.map((container, index) => (
+      { value: String(container.id), label: container.number ?? `Cont ${index + 1} (chưa có số)` }
     )),
-  ]), [order.containerNumbers, order.containerIds]);
+  ]), [pickerContainers]);
 
   const allContainerValues = useMemo(
-    () => order.containerIds.map(String),
-    [order.containerIds],
+    () => pickerContainers.map((container) => String(container.id)),
+    [pickerContainers],
   );
   const allContainersPicked = allContainerValues.length > 0
     && allContainerValues.every((value) => containerValues.includes(value));
@@ -274,7 +283,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   );
   const claimantLabel = (containerId: number) => (
     claimantsQuery.data?.find((row) => row.containerId === containerId)?.containerNumber
-      ?? order.containerNumbers[order.containerIds.indexOf(containerId)]
+      ?? pickerContainers.find((container) => container.id === containerId)?.number
       ?? String(containerId)
   );
 
@@ -528,7 +537,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
                   type="checkbox"
                   aria-label="Chọn tất cả số cont"
                   checked={allContainersPicked}
-                  disabled={order.containerIds.length === 0 || busy}
+                  disabled={pickerContainers.length === 0 || busy}
                   onChange={chooseAllContainers}
                 />
                 Chọn tất cả
@@ -542,9 +551,12 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               selectionLabel="số cont"
               clearAllLabel="Bỏ chọn tất cả"
               placeholder="Phí chung lô"
-              disabled={busy || order.containerIds.length === 0}
+              disabled={busy || pickerContainers.length === 0}
             />
           </div>
+          {pickerContainers.length === 0 && (
+            <p className="ops-modal-hint">Lô chưa có dòng cont để gắn chi phí — khoản ghi theo phạm vi chung lô.</p>
+          )}
 
           {claimants.map((claimant) => (
             <p key={claimant.containerId} className="ops-modal__warning" role="alert">

@@ -412,3 +412,39 @@ describe('ops expense form — creatable loại phí (SIL-813)', { timeout: 20_0
     await waitFor(() => expect(selectedTypeLabel(row)).toContain('Chi công nhân'));
   });
 });
+
+// SIL-844 (id 973, KH 15/11) — "đợt trước chọn được, đợt này không ấn được":
+// the picker gated on the NUMBERED-only projection, so any lot whose container
+// rows carry no số yet (the common dispatch-stage state — staging probe
+// 16/11: 52/138 lots) rendered the whole picker disabled. The picker now
+// reads the FULL `containers` row list: hạch toán theo cont đi bằng id, số
+// đính kèm sau vẫn chọn được; lô CHƯA có dòng cont nào thì chung lô là scope
+// đúng duy nhất và popup phải nói rõ thay vì khóa câm.
+describe('ops expense form — mở khóa picker theo cont (SIL-844)', { timeout: 20_000 }, () => {
+  beforeEach(() => { delete order.containers; });
+
+  it('S1: cont chưa cập nhật số vẫn chọn được; chọn-tất-cả gán đúng khoản chi theo từng cont', async () => {
+    order.containers = [{ id: 879, number: null }, { id: 880, number: 'TSTU4444444' }];
+    await show();
+    expect(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' })).toBeEnabled();
+    await pickContainers('Cont 1 (chưa có số)', 'TSTU4444444');
+    expect(screen.getByRole('button', { name: 'Đã chọn 2 số cont' }).getAttribute('title'))
+      .toContain('Cont 1 (chưa có số), TSTU4444444');
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '123000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ shipmentContainerId: 879 });
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ shipmentContainerId: 880 });
+  });
+
+  it('S2: lô chưa có dòng cont nào — picker khóa kèm giải thích, không còn khóa câm', async () => {
+    order.containers = [];
+    await show();
+    expect(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Đã chọn 1 số cont' })).toBeDisabled();
+    expect(screen.getByText('Lô chưa có dòng cont để gắn chi phí — khoản ghi theo phạm vi chung lô.')).toBeInTheDocument();
+  });
+});

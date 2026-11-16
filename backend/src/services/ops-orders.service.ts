@@ -23,6 +23,9 @@ export interface OpsOrderItem {
   containerCount: number;
   containerNumbers: string[];
   containerIds: number[];
+  /** SIL-844 — EVERY container row of the lot (số đính kèm sau vẫn là cont):
+   *  the expense picker hạch toán theo cont bằng id, không cần số đã cập nhật. */
+  containers: Array<{ id: number; number: string | null }>;
 }
 
 export async function listOpsOrders(
@@ -109,6 +112,9 @@ export async function listOpsOrders(
       containerNumber: s.shipmentContainers.containerNumber,
     })
     .from(s.shipmentContainers)
+    // Deterministic order: the picker's "Cont 1 (chưa có số)" ordinals and the
+    // id↔number zip both read this list.
+    .orderBy(asc(s.shipmentContainers.id))
     .where(inArray(
       s.shipmentContainers.shipmentId,
       rows.map((row) => row.id),
@@ -142,6 +148,12 @@ export async function listOpsOrders(
       containerCount: row.cargoMode === 'LCL' ? 1 : numbered.length,
       containerNumbers: numbered.map((pair) => pair.number),
       containerIds: numbered.map((pair) => pair.id),
+      // SIL-844 (id 973) — picker data: EVERY container row, số hay chưa. The
+      // old projection (containerIds/containerNumbers) stays numbered-only so
+      // the "Cont" table cell keeps its SIL-601 display law.
+      containers: (byShipment.get(row.id) ?? []).map(
+        (pair) => ({ id: pair.id, number: pair.number }),
+      ),
       cargoMode: row.cargoMode,
     };
   });

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-11-16 — fix(ops): SIL-844 (id 973) — Popup Khai chi phí: mở khóa chọn Số Cont + [Chọn tất cả], hạch toán theo cont kể cả cont chưa có số
+
+KH 15/11: "đợt trước em chọn được, đợt này không ấn được — bắt buộc vì chi phí
+sẽ tính theo số cont" (cả 2 tab Phí không HĐ + Phí có HĐ). Probe staging
+16/11 (`qa/2026-11-16_sil844-picker-probe.log`): **52/138 lô (38%)** có picker
+disabled — mọi lô có dòng cont nhưng số chưa cập nhật (FCL ở giai đoạn điều
+phối) đều bị khóa vì `/ops/orders` chỉ project containerIds từ cont CÓ số.
+
+- **BE** `ops-orders.service.ts`: payload thêm `containers` = ĐỦ mọi dòng cont
+  của lô (id + number nullable, order by id xác định). Cặp
+  containerIds/containerNumbers giữ nguyên luật SIL-601 (chỉ vỏ có số) — cột
+  "Cont" trên bảng không đổi.
+- **FE** `OpsExpenseFormModal`: picker đọc `containers` (payload cũ fallback
+  zip ids/numbers) — cont chưa có số hiển thị "Cont N (chưa có số)" vẫn chọn
+  được; [Chọn tất cả] + checkbox từng dòng bật với mọi lô có dòng cont. Lô
+  CHƯA có dòng cont nào (LCL, FCL pre-container) thì không có id để hạch toán
+  — picker khóa CÓ GIẢI THÍCH ("Lô chưa có dòng cont để gắn chi phí — khoản
+  ghi theo phạm vi chung lô"), hết khóa câm. Lưu gắn `shipmentContainerId`
+  đúng từng cont đã chọn (per-cont task giữ nguyên từ A3).
+- ShipmentsPage drawer (SIL-748) mapping cũng gửi `containers` đầy đủ.
+- BE unit mới `ops-orders-expense-containers.test.ts` (3 case source-scan);
+  FE `OpsExpenseFormModal.containers.test.tsx` 19/19 (thêm S1: cont-chưa-số
+  chọn được + chọn-tất-cả gán đúng 879/880; S2: lô không cont → khóa kèm
+  hint); OpsOrdersPage 21/21; tsc sạch cả hai gói.
+
 ## 2026-11-16 — fix(ops): SIL-843 (id 972) — /ops/orders hiện TẤT CẢ lô đang hoạt động mặc định, tìm kiếm xuyên ngày
 
 KH 15/11: "Cho phép hiển thị tất cả các lô hàng, tìm bằng kính lúp sẽ hiển thị

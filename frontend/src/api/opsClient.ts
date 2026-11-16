@@ -19,6 +19,10 @@ export interface OpsOrderItem {
   containerCount: number;
   containerNumbers: string[];
   containerIds: number[];
+  /** SIL-844 (id 973): EVERY container row (số hay chưa) — the expense
+   *  picker's data. Optional: older payloads fall back to the
+   *  containerIds/containerNumbers zip. */
+  containers?: Array<{ id: number; number: string | null }>;
   /** SIL-601 (id 702): owning lot's mode — an LCL lot counts as 1 cont. */
   cargoMode?: 'FCL' | 'LCL' | null;
 }

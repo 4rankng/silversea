@@ -340,6 +340,9 @@ export default function ShipmentsPage() {
       containerCount: containers.length,
       containerNumbers: containers.map((c) => c.containerNumber).filter((n): n is string => Boolean(n)),
       containerIds: containers.map((c) => c.id),
+      // SIL-844 — the picker reads the FULL row list (số hay chưa), not the
+      // numbered-only zip.
+      containers: containers.map((c) => ({ id: c.id, number: c.containerNumber ?? null })),
       cargoMode: item.cargoMode,
     };
     setExpenseOrder(orderItem);
