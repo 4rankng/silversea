@@ -3,6 +3,13 @@ import * as s from '../db/schema';
 import { eq, and, gte, lte, sql, isNull, ne } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { computeAttendanceSummary, type ConfirmationMap } from './attendance-summary.service';
+import {
+  computeTimesheetSalary,
+  daysOfMonth,
+  isSundayUtc,
+  type TimesheetSalaryMode,
+  type TimesheetSymbol,
+} from '@tingting/shared';
 
 type DbLike = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
@@ -20,6 +27,7 @@ export async function computeLiveSalary(
   const [driver] = await executor.select({
     baseSalary: s.drivers.baseSalary,
     socialInsurance: s.drivers.socialInsurance,
+    salaryMode: s.drivers.salaryMode,
   }).from(s.drivers)
     .where(eq(s.drivers.id, driverId)).limit(1);
 
@@ -46,6 +54,50 @@ export async function computeLiveSalary(
   // Adjustment: (paidDays - standardWorkDays) * dailyRate
   const adjustment = (paidDays - standardWorkDays) * dailyRate;
 
+  // SIL-841 (QA fail fd0f7f14) — 'không trốn vé' (PER_TRIP) drivers also earn
+  // the month's trip money. Source of truth = the chấm công board
+  // (driver_timesheet_months/days) through the SAME shared
+  // computeTimesheetSalary the Đối chiếu screen pays from, so /salary and
+  // Đối chiếu cannot disagree (QA: Bùi Ngọc Long 0 ₫ here vs 100.000 ₫
+  // there). A month never opened by Điều vận has no board → no trip money.
+  // The board's per-month mode wins (it is what Đối chiếu pays); the driver's
+  // catalog mode is the fallback for a mode chosen without opening the board.
+  const [board] = await executor.select({
+    id: s.driverTimesheetMonths.id,
+    salaryMode: s.driverTimesheetMonths.salaryMode,
+    dailyBase: s.driverTimesheetMonths.dailyBase,
+    flatAmount: s.driverTimesheetMonths.flatAmount,
+  }).from(s.driverTimesheetMonths)
+    .where(and(
+      eq(s.driverTimesheetMonths.driverId, driverId),
+      eq(s.driverTimesheetMonths.year, year),
+      eq(s.driverTimesheetMonths.month, month),
+    )).limit(1);
+  const boardDays = board
+    ? await executor.select({
+      symbol: s.driverTimesheetDays.symbol,
+      workDate: s.driverTimesheetDays.workDate,
+      tripAdjustment: s.driverTimesheetDays.tripAdjustment,
+    }).from(s.driverTimesheetDays)
+      .where(eq(s.driverTimesheetDays.monthId, board.id))
+    : [];
+  const effectiveSalaryMode = (board?.salaryMode ?? driver.salaryMode ?? 'PER_TRIP') as TimesheetSalaryMode;
+  const timesheet = computeTimesheetSalary({
+    mode: effectiveSalaryMode,
+    dailyBase: board?.dailyBase != null ? Number(board.dailyBase) : null,
+    flatAmount: board?.flatAmount != null ? Number(board.flatAmount) : null,
+    // Raw board day rows are sparse — the ngày chuẩn must come from the
+    // calendar (timesheet.service rollup precedent).
+    standardDays: daysOfMonth(year, month).filter((date) => !isSundayUtc(date)).length,
+    days: boardDays.map((row) => ({
+      symbol: row.symbol as TimesheetSymbol,
+      workDate: row.workDate,
+      tripAdjustment: row.tripAdjustment,
+    })),
+  });
+  const perTripPay = effectiveSalaryMode === 'PER_TRIP' ? timesheet.perTripPay : 0;
+  const extraTripBonus = effectiveSalaryMode === 'PER_TRIP' ? timesheet.extraTripBonus : 0;
+
   // Penalties in period
   const [penaltyRow] = await executor.select({
     total: sql<string>`coalesce(sum(${s.penalties.amount}::numeric), 0)`,
@@ -60,8 +112,10 @@ export async function computeLiveSalary(
 
   const totalPenalties = parseFloat(penaltyRow?.total || '0');
 
-  // Net salary is just base salary + adjustment - penalties
-  const netSalary = baseSalary + adjustment - totalPenalties;
+  // Net salary: lương cứng + điều chỉnh công − phạt, cộng TIỀN CHUYẾN + KPI
+  // vượt chuyến for 'không trốn vé' (SIL-841); 'trốn vé' keeps the
+  // lương-cứng-theo-ngày-công math untouched.
+  const netSalary = baseSalary + adjustment - totalPenalties + perTripPay + extraTripBonus;
 
   // Get salary confirmation status — use pre-fetched map if available
   let confirmationRow: { status: string | null; confirmedBy: number | null; confirmedAt: Date | null } | undefined;
@@ -90,6 +144,12 @@ export async function computeLiveSalary(
     supplementPay,
     leaveDeduction,
     totalPenalties,
+    // SIL-841 (15/11) — the trip-money lines /salary renders beside lương
+    // cứng; `timesheetTrips` names the count they were computed from.
+    perTripPay,
+    extraTripBonus,
+    timesheetTrips: timesheet.trips,
+    timesheetSalaryMode: effectiveSalaryMode,
     netSalary,
     confirmationStatus: confirmationRow?.status ?? 'DRAFT',
     confirmedBy: confirmationRow?.confirmedBy ?? null,

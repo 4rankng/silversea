@@ -117,15 +117,52 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName, salary
         </div>
 
         {/* FB-103 (ticket 171026215600) — hình thức lương hiện trên card để
-            kế toán thấy chỗ đổi (nút bút chì mở dialog có select chế độ). */}
+            kế toán thấy chỗ đổi (nút bút chì mở dialog có select chế độ).
+            SIL-841 (QA fd0f7f14): bút chì nằm NGAY trên dòng chế độ — "bảng
+            lương từng lái xe" phải cho đổi Trốn vé / Không trốn vé tại chỗ. */}
         <div className="salary-summary-dark__row">
           <span className="salary-summary-dark__row-lbl">
             <DollarSign size={12} /> Hình thức lương
           </span>
-          <span className="salary-summary-dark__row-val">
+          <span className="salary-summary-dark__row-val" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {salaryModeLabel(salaryMode)}
+            {onEditBaseSalary && <button
+              type="button"
+              className="salary-edit-link"
+              title="Sửa hình thức lương"
+              onClick={() => onEditBaseSalary?.()}
+              aria-label={`Sửa hình thức lương ${driverName ?? ''}`}
+            >
+              <Edit size={10} />
+            </button>}
           </span>
         </div>
+
+        {/* SIL-841 (QA fail fd0f7f14) — tiền chuyến + KPI vượt chuyến của luật
+            15/11 cộng thẳng vào lương thực nhận; số chuyến đọc từ bảng chấm
+            công (đúng nguồn Đối chiếu, hai màn không thể lệch nhau). Kỳ đã
+            chốt TRƯỚC 15/11 (snapshot cũ không mang fact này) giữ nguyên luật
+            cũ của nó — dòng ẩn khi không có số liệu. */}
+        {salary.perTripPay != null && (
+          <div className="salary-summary-dark__row">
+            <span className="salary-summary-dark__row-lbl">
+              <Truck size={12} />{` Tiền chuyến${salary.timesheetTrips != null ? ` (${salary.timesheetTrips} chuyến)` : ''}`}
+            </span>
+            <span className="salary-summary-dark__row-val">
+              <Money value={salary.perTripPay} />
+            </span>
+          </div>
+        )}
+        {(salary.extraTripBonus ?? 0) > 0 && (
+          <div className="salary-summary-dark__row">
+            <span className="salary-summary-dark__row-lbl">
+              <Clock3 size={12} /> KPI vượt chuyến
+            </span>
+            <span className="salary-summary-dark__row-val">
+              <Money value={salary.extraTripBonus!} />
+            </span>
+          </div>
+        )}
 
         <div className="salary-summary-dark__row">
           <span className="salary-summary-dark__row-lbl">

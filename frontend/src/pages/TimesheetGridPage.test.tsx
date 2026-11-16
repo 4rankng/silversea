@@ -316,3 +316,16 @@ describe('SIL-802 — Q cell reads blue', () => {
     expect(qRule).not.toContain('--info-text');
   });
 });
+
+// SIL-841 (QA fail fd0f7f14) — legend mang chú thích NGÀY CÔNG: L/P '+ngày
+// công' dù 0 chuyến, N '−1 ngày phép (sau ngày đầu)' (miễn trừ max(0, N−1)).
+describe('SIL-841 — legend workday annotations', () => {
+  it('L/P ghi +ngày công và N ghi −1 ngày phép trên chú thích', async () => {
+    page();
+    await screen.findAllByRole('textbox');
+    expect(screen.getAllByText(/· \+ngày công/).length).toBe(2);
+    expect(screen.getAllByText(/· −1 ngày phép \(sau ngày đầu\)/).length).toBe(1);
+    // K/Q/Đ không mang chú thích ngày công (chuyến tự nói lên ngày công).
+    expect(screen.queryByText(/Kẹp 2 cont .*ngày công/)).toBeNull();
+  });
+});

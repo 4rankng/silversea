@@ -160,8 +160,10 @@ export default function TimesheetMonthlyReportPage() {
           // Q của legend rơi mực mặc định, đúng lớp lỗi (b) của ticket.
           <span key={symbol} className={symbolCellClass(symbol)}>
             {/* SIL-841 (15/11, thay SIL-810) — chú thích đếm theo CỘT TỔNG
-                (summaryTrips): mỗi ngày Q = 2 chuyến — trùng trọng số lương. */}
-            <b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].summaryTrips} chuyến)
+                (summaryTrips): mỗi ngày Q = 2 chuyến — trùng trọng số lương.
+                SIL-841 (QA fd0f7f14) — chú thích ngày công: L/P '+ngày công',
+                N '−1 ngày phép (sau ngày đầu)'. */}
+            <b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].summaryTrips} chuyến{TIMESHEET_SYMBOL_RULES[symbol].workdayNote ? ` · ${TIMESHEET_SYMBOL_RULES[symbol].workdayNote}` : ''})
           </span>
         ))}
         <span className="ts-report__cell--sunday">Chủ nhật — nền vàng, ghi chuyến, không tính ngày công</span>

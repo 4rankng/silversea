@@ -43,19 +43,22 @@ export type TimesheetSymbol = typeof TIMESHEET_SYMBOLS[number];
  */
 export const TIMESHEET_SYMBOL_RULES: Record<
   TimesheetSymbol,
-  { label: string; trips: number; summaryTrips: number; workday: boolean }
+  { label: string; trips: number; summaryTrips: number; workday: boolean; workdayNote: string | null }
 > = {
   // `trips` = trọng số LƯƠNG theo chuyến (SIL-774: Q = 2 cuốc trong 1 ngày).
   // `summaryTrips` = số chuyến một ngày ký hiệu đóng góp vào CỘT TỔNG của
   // Bảng Tổng Hợp Xếp Lệnh tháng (SIL-841, khách chốt 15/11: Q = 2 chuyến ở
   // CẢ hai trọng số — thay SIL-810's mỗi ngày Q = 1; Tổng số chuyến =
   // Đ + K + 2·Q; chú thích lưới đọc "Q Quay đầu (2 chuyến)").
-  K: { label: 'Kẹp 2 cont', trips: 1, summaryTrips: 1, workday: true },
-  Q: { label: 'Quay đầu', trips: 2, summaryTrips: 2, workday: true },
-  'Đ': { label: 'Chạy đơn', trips: 1, summaryTrips: 1, workday: true },
-  L: { label: 'Lưu ca', trips: 0, summaryTrips: 0, workday: true },
-  N: { label: 'Nghỉ tai nạn / nghỉ việc gia đình có phép', trips: 0, summaryTrips: 0, workday: false },
-  P: { label: 'Nghỉ sửa xe / bảo dưỡng định kỳ', trips: 0, summaryTrips: 0, workday: true },
+  // `workdayNote` = chú thích NGÀY CÔNG trên legend (SIL-841 QA fd0f7f14 —
+  // vẫn thiếu trên build): L/P kể 1 ngày công dù 0 chuyến; N không ngày công
+  // và trừ ngày phép từ ngày thứ 2 (miễn trừ ngày đầu — max(0, N−1)).
+  K: { label: 'Kẹp 2 cont', trips: 1, summaryTrips: 1, workday: true, workdayNote: null },
+  Q: { label: 'Quay đầu', trips: 2, summaryTrips: 2, workday: true, workdayNote: null },
+  'Đ': { label: 'Chạy đơn', trips: 1, summaryTrips: 1, workday: true, workdayNote: null },
+  L: { label: 'Lưu ca', trips: 0, summaryTrips: 0, workday: true, workdayNote: '+ngày công' },
+  N: { label: 'Nghỉ tai nạn / nghỉ việc gia đình có phép', trips: 0, summaryTrips: 0, workday: false, workdayNote: '−1 ngày phép (sau ngày đầu)' },
+  P: { label: 'Nghỉ sửa xe / bảo dưỡng định kỳ', trips: 0, summaryTrips: 0, workday: true, workdayNote: '+ngày công' },
 };
 
 /** SIL-841 (15/11) — "không trốn vé": mỗi chuyến của tháng trả 100.000đ

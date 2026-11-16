@@ -237,3 +237,14 @@ describe('SIL-802 — Q trên cột Chủ nhật của lưới báo cáo vẫn x
     expect(sundayQ.className).toContain('ts-report__cell--sunday');
   });
 });
+
+// SIL-841 (QA fail fd0f7f14) — legend của báo cáo đội xe mang chú thích ngày
+// công: L/P '+ngày công', N '−1 ngày phép (sau ngày đầu)'.
+describe('SIL-841 — legend workday annotations trên báo cáo đội xe', () => {
+  it('L/P ghi +ngày công và N ghi −1 ngày phép', async () => {
+    page();
+    await screen.findByText('Tài xế A');
+    expect(screen.getAllByText(/· \+ngày công/).length).toBe(2);
+    expect(screen.getAllByText(/· −1 ngày phép \(sau ngày đầu\)/).length).toBe(1);
+  });
+});

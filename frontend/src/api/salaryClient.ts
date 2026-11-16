@@ -35,6 +35,12 @@ export interface AttendanceSalary {
   leaveDeduction: number;
   adjustment: number;
   totalPenalties: number;
+  /** SIL-841 (15/11) — tiền chuyến + KPI vượt chuyến của lái xe 'không trốn
+   *  vé', đọc từ bảng chấm công; undefined trên snapshot kỳ chốt cũ (giữ luật
+   *  cũ của kỳ đó). `timesheetTrips` = số chuyến của bảng chấm công. */
+  perTripPay?: number;
+  extraTripBonus?: number;
+  timesheetTrips?: number;
   netSalary: number;
   postCloseAdjustment?: number;
   workDays?: WorkDayRecord[];
