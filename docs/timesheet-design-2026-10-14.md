@@ -94,10 +94,18 @@ trong router `accounting-deposit.ts` nên không cần dòng policy mới.
 
 ### 2.3 Chế độ lương (per driver, chọn được)
 
-| Chế độ | Công thức |
+> **LUẬT MỚI SIL-841 (khách chốt 15/11/2026)** — thay công thức trước 15/11
+> (ghi dấu cũ ở dưới để đối chiếu).
+
+| Chế độ | Công thức (15/11) |
 |---|---|
-| `PER_TRIP` — "không trốn vé" | `300_000 × trips` + `dailyBase × workdays` + thưởng chuyến vượt bậc |
-| `FLAT_MONTHLY` — lương tháng cố định | `flatAmount` ( ví dụ 10.000.000đ nếu đủ công) |
+| `PER_TRIP` — "không trốn vé" | `100_000 × trips` + `dailyBase × paidSalaryDays` + KPI vượt chuyến (`100_000 × bonusTrips`, từ chuyến 21) |
+| `FLAT_MONTHLY` — "trốn vé" | `round(flatAmount / standardDays) × paidSalaryDays` — lương cứng theo ngày công |
+
+Với `standardDays` = số ngày T2–T7 của tháng, `paidSalaryDays` = ngày công lương
+`= standardDays − max(0, N − 1)` (miễn trừ 1 ngày phép có lương/tháng; ngày
+N đầu tiên vẫn được trả). Ngày công đi làm thực tế (`workdays`: K/Q/Đ/L/P,
+không Chủ nhật, không N) vẫn hiển thị song song trên các màn.
 
 Nơi chọn/cập nhật (sau verify-fail FB-103, ticket 171026215600):
 - **Mức lái xe (mặc định):** cột `drivers.salary_mode` (backfill từ `salary_type`
@@ -107,15 +115,14 @@ Nơi chọn/cập nhật (sau verify-fail FB-103, ticket 171026215600):
 - **Mức phiên tháng (override):** chọn khi mở bảng (modal "Mở bảng chấm công"
   khởi tạo sẵn từ chế độ của lái xe) và đổi ở panel "Chế độ lương" bàn đối chiếu.
 
-Chi tiết chế độ PER_TRIP (định nghĩa gốc):
-- `300.000đ/chuyến` cho mọi chuyến.
-- `dailyBase` (lương ngày) theo **ngày công** (workdays), **không** theo Chủ nhật.
-- **Trips 21+ trong tháng: mỗi chuyến từ thứ 21 trở đi cộng thêm `100.000đ`.**
-  Nghĩa là `bonusTrips = max(0, trips − 20)`, `salary = 300_000×trips + 100_000×bonusTrips + dailyBase×workdays`.
-  Đọc "21+ pay +100.000đ/trip extra" theo nghĩa chuyến thứ 21 trở đi được thêm 100k
-  (giải thích được, kiểm toán được, không nhân với cả khối lượng chuyến).
+Chi tiết chế độ PER_TRIP (**cũ — trước 15/11, SIL-841 thay**):
+- `300.000đ/chuyến` cho mọi chuyến → **15/11: `100.000đ/chuyến`.**
+- `dailyBase` (lương ngày) theo **ngày công lương** (`paidSalaryDays`), **không**
+  theo Chủ nhật (trước 15/11: theo workdays đi làm thực tế).
+- **Trips 21+ trong tháng: mỗi chuyến từ thứ 21 trở đi cộng thêm `100.000đ`** —
+  giữ nguyên, giờ là "KPI vượt chuyến".
 
-Hằng số: `PER_TRIP_RATE = 300_000`, `EXTRA_TRIP_THRESHOLD = 21`, `EXTRA_TRIP_RATE = 100_000`.
+Hằng số (15/11): `PER_TRIP_RATE = 100_000`, `EXTRA_TRIP_THRESHOLD = 21`, `EXTRA_TRIP_RATE = 100_000`.
 
 ### 2.4 Người nhập / người đối chiếu (audit trail)
 - **Điều vận (`DISPATCHER`)** điền lưới.

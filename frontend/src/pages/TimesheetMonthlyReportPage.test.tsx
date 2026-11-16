@@ -43,7 +43,8 @@ const salary = (trips: number, workdays: number) => ({
   mode: 'PER_TRIP' as const,
   symbolCounts: { K: 0, Q: 0, 'Đ': 0, L: 0, N: 0, P: 0 },
   symbolDays: { K: 0, Q: 0, 'Đ': 0, L: 0, N: 0, P: 0 },
-  trips, workdays, bonusTrips: 0, perTripPay: 0, extraTripBonus: 0, dailyBasePay: 0, salaryTotal: 0,
+  trips, workdays, standardDays: 0, paidSalaryDays: 0,
+  bonusTrips: 0, perTripPay: 0, extraTripBonus: 0, dailyBasePay: 0, salaryTotal: 0,
 });
 
 const monthA: TimesheetMonth = {
@@ -62,8 +63,9 @@ const monthB: TimesheetMonth = {
   salary: { ...salary(2, 1), mode: 'FLAT_MONTHLY', symbolCounts: { K: 0, Q: 0, 'Đ': 2, L: 0, N: 0, P: 0 } },
 };
 
-// SIL-775 — ví dụ chấp nhận của khách: 2 ngày Đ, 1 ngày K, 1 ngày Q →
-// Số chuyến quay đầu = 1, Tổng số chuyến = 4, Tỷ lệ kẹp ghép = 25%.
+// SIL-841 (15/11, thay SIL-775/SIL-810) — ví dụ chấp nhận của khách: 2 ngày Đ,
+// 1 ngày K, 1 ngày Q → Số chuyến quay đầu = 2, Tổng số chuyến = 5,
+// Tỷ lệ kẹp ghép = 20%.
 const monthAc: TimesheetMonth = {
   id: 3, driverId: 3, driverName: 'Tài xế C', year: 2026, month: 9,
   salaryMode: 'PER_TRIP', dailyBase: 200000, flatAmount: null,
@@ -122,15 +124,15 @@ describe('Tổng hợp xếp lệnh tháng (FB-104 + SIL-781)', () => {
     expect(screen.getAllByText('Lương theo tháng (trốn vé)').length).toBeGreaterThan(0);
   });
 
-  it('tổng hợp 10 cột theo dòng (SIL-775: mỗi ngày Q = 1; SIL-774: cột 6 đếm P, cột 7 đếm N)', async () => {
+  it('tổng hợp 10 cột theo dòng (SIL-841: mỗi ngày Q = 2 chuyến; SIL-774: cột 6 đếm P, cột 7 đếm N)', async () => {
     page();
     const rowA = (await screen.findByText('Tài xế A')).closest('tr') as HTMLElement;
     expect(rowA.querySelector('[data-label="Tổng lệnh đơn"]')?.textContent).toBe('0');
     expect(rowA.querySelector('[data-label="Tổng lệnh kẹp"]')?.textContent).toBe('1');
-    // SIL-775 — mỗi ngày Q tính 1 chuyến quay đầu (thay luật cũ Q = 2).
-    expect(rowA.querySelector('[data-label="Số chuyến quay đầu"]')?.textContent).toBe('1');
-    // Tổng số chuyến = Đ + K + Q (ngày) = 0 + 1 + 1.
-    expect(rowA.querySelector('[data-label="Tổng số chuyến"]')?.textContent).toBe('2');
+    // SIL-841 — mỗi ngày Q = 2 CHUYẾN quay đầu (thay SIL-810's 1 chuyến/ngày).
+    expect(rowA.querySelector('[data-label="Số chuyến quay đầu"]')?.textContent).toBe('2');
+    // Tổng số chuyến = Đ + K + 2·Q (ngày) = 0 + 1 + 2.
+    expect(rowA.querySelector('[data-label="Tổng số chuyến"]')?.textContent).toBe('3');
     // K ngày 1 (không CN) — Q ngày 2 rơi vào Chủ nhật nên không tính ngày công.
     expect(rowA.querySelector('[data-label="Ngày công thực tế"]')?.textContent).toBe('1');
     expect(rowA.querySelector('[data-label="Số ngày nghỉ được hưởng lương"]')?.textContent).toBe('1');
@@ -138,15 +140,15 @@ describe('Tổng hợp xếp lệnh tháng (FB-104 + SIL-781)', () => {
     // Q chạy ngày Chủ nhật → đếm vào "Ngày làm CN".
     expect(rowA.querySelector('[data-label="Ngày làm CN"]')?.textContent).toBe('1');
     expect(rowA.querySelector('[data-label="Tổng ngày công"]')?.textContent).toBe('2');
-    // 1 ô K / 2 tổng (K+Q) = 50%.
-    expect(rowA.querySelector('[data-label="Tỷ lệ kẹp ghép / ngày (%)"]')?.textContent).toBe('50%');
+    // 1 ô K / 3 tổng (K + 2·Q) = 33,3%.
+    expect(rowA.querySelector('[data-label="Tỷ lệ kẹp ghép / ngày (%)"]')?.textContent).toBe('33.3%');
 
-    // SIL-775 — ví dụ chấp nhận của khách: 2 Đ + 1 K + 1 Q → tổng 4, kẹp 1/4 = 25%.
+    // SIL-841 — ví dụ chấp nhận của khách: 2 Đ + 1 K + 1 Q → quay đầu 2, tổng 5, kẹp 1/5 = 20%.
     const rowAc = (await screen.findByText('Tài xế C')).closest('tr') as HTMLElement;
-    expect(rowAc.querySelector('[data-label="Số chuyến quay đầu"]')?.textContent).toBe('1');
-    expect(rowAc.querySelector('[data-label="Tổng số chuyến"]')?.textContent).toBe('4');
+    expect(rowAc.querySelector('[data-label="Số chuyến quay đầu"]')?.textContent).toBe('2');
+    expect(rowAc.querySelector('[data-label="Tổng số chuyến"]')?.textContent).toBe('5');
     expect(rowAc.querySelector('[data-label="Ngày công thực tế"]')?.textContent).toBe('4');
-    expect(rowAc.querySelector('[data-label="Tỷ lệ kẹp ghép / ngày (%)"]')?.textContent).toBe('25%');
+    expect(rowAc.querySelector('[data-label="Tỷ lệ kẹp ghép / ngày (%)"]')?.textContent).toBe('20%');
   });
 
   it('2 dòng chỉ số toàn đội xe nằm TRÊN dòng tiêu đề ngày', async () => {

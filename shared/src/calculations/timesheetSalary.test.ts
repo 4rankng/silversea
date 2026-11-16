@@ -81,22 +81,22 @@ describe('symbol → attended days', () => {
   });
 });
 
-describe('per-trip salary — 300.000đ/trip and the +100.000đ from trip 21', () => {
+describe('per-trip salary — SIL-841 (15/11): 100.000đ/chuyến + KPI vượt chuyến', () => {
   const perTrip = (days: TimesheetDayInput[], dailyBase = 0) =>
     computeTimesheetSalary({ days, mode: 'PER_TRIP', dailyBase });
 
-  it('pays 300.000đ per trip below the threshold', () => {
-    // 20 single trips: 20 × 300.000
+  it('pays 100.000đ per trip below the threshold', () => {
+    // 20 single trips: 20 × 100.000
     const days = Array.from({ length: 20 }, (_, i) => day('Đ', `2026-10-${String(i + 1).padStart(2, '0')}`));
     const result = perTrip(days);
     assert.equal(result.trips, 20);
     assert.equal(result.bonusTrips, 0);
     assert.equal(result.perTripPay, 20 * PER_TRIP_RATE);
     assert.equal(result.extraTripBonus, 0);
-    assert.equal(result.salaryTotal, 6_000_000);
+    assert.equal(result.salaryTotal, 2_000_000);
   });
 
-  it('pays exactly one extra trip at the 21st trip (boundary)', () => {
+  it('pays exactly one KPI trip at the 21st trip (boundary)', () => {
     const days = Array.from({ length: 21 }, (_, i) => day('Đ', `2026-10-${String(i + 1).padStart(2, '0')}`));
     const result = perTrip(days);
     assert.equal(result.trips, 21);
@@ -104,10 +104,10 @@ describe('per-trip salary — 300.000đ/trip and the +100.000đ from trip 21', (
     assert.equal(EXTRA_TRIP_THRESHOLD, 21);
     assert.equal(result.extraTripBonus, EXTRA_TRIP_RATE);
     assert.equal(result.salaryTotal, 21 * PER_TRIP_RATE + EXTRA_TRIP_RATE);
-    assert.equal(result.salaryTotal, 6_400_000);
+    assert.equal(result.salaryTotal, 2_200_000);
   });
 
-  it('pays the extra on every trip past the threshold', () => {
+  it('pays the KPI on every trip past the threshold', () => {
     const days = Array.from({ length: 25 }, (_, i) => day('Đ', `2026-10-${String(i + 1).padStart(2, '0')}`));
     const result = perTrip(days);
     assert.equal(result.trips, 25);
@@ -126,34 +126,66 @@ describe('per-trip salary — 300.000đ/trip and the +100.000đ from trip 21', (
     assert.equal(perTrip(above).bonusTrips, 2);
   });
 
-  it('adds the daily base per attended day and never for a Sunday', () => {
-    const result = perTrip(
-      [day('Đ', MONDAY), day('Đ', SUNDAY), day('L', '2026-10-13')],
-      200_000,
-    );
-    assert.equal(result.trips, 2);
-    assert.equal(result.workdays, 2, 'Monday + lưu ca; the Sunday is not an attended day');
-    assert.equal(result.dailyBasePay, 400_000);
-    assert.equal(result.salaryTotal, 2 * PER_TRIP_RATE + 400_000);
+  it('lương cứng trả theo NGÀY CÔNG LƯƠNG (ngày chuẩn − max(0, N−1)), không phải ngày đi làm', () => {
+    // Đ T2 + N T4 + N T5 + L T6: đi làm thực tế 2 ngày nhưng ngày công lương
+    // là 3 — ngày N đầu tiên của tháng được miễn trừ.
+    const days = [day('Đ', MONDAY), day('N', '2026-10-13'), day('N', '2026-10-14'), day('L', '2026-10-15')];
+    const result = perTrip(days, 200_000);
+    assert.equal(result.workdays, 2, 'attended days: Đ + L; N is not an attended day');
+    assert.equal(result.standardDays, 4, 'ngày chuẩn T2–T7 of the passed days');
+    assert.equal(result.paidSalaryDays, 3);
+    assert.equal(result.dailyBasePay, 600_000);
+    assert.equal(result.salaryTotal, PER_TRIP_RATE + 600_000);
   });
 });
 
-describe('flat monthly salary', () => {
-  it('pays the flat figure and ignores trips and workdays', () => {
-    const result = computeTimesheetSalary({
-      mode: 'FLAT_MONTHLY',
-      flatAmount: 10_000_000,
-      days: Array.from({ length: 20 }, (_, i) => day('Đ', `2026-10-${String(i + 1).padStart(2, '0')}`)),
-    });
-    assert.equal(result.salaryTotal, 10_000_000);
+describe('flat monthly salary — SIL-841 (15/11): lương cứng theo ngày công', () => {
+  /** Full October 2026 grid (31 days; Sundays 4/11/18/25 → 27 ngày chuẩn). */
+  const fullMonth = (symbolAt: (date: string) => TimesheetDayInput['symbol']) =>
+    daysOfMonth(2026, 10).map(date => day(symbolAt(date), date));
+
+  it('trốn vé: lương cứng = mức tháng / ngày chuẩn × ngày công lương', () => {
+    // 10.800.000đ / 27 ngày chuẩn = 400.000đ/ngày; 2 ngày N → 26 ngày công lương.
+    const days = fullMonth(date => (date === '2026-10-13' || date === '2026-10-14' ? 'N' : 'Đ'));
+    const result = computeTimesheetSalary({ mode: 'FLAT_MONTHLY', flatAmount: 10_800_000, days });
+    assert.equal(result.standardDays, 27);
+    assert.equal(result.paidSalaryDays, 26);
+    assert.equal(result.dailyBasePay, 10_400_000);
+    assert.equal(result.salaryTotal, 10_400_000);
     assert.equal(result.perTripPay, 0);
     assert.equal(result.extraTripBonus, 0);
-    assert.equal(result.dailyBasePay, 0);
-    assert.equal(result.trips, 20, 'trips are still reported for the efficiency metrics');
+    assert.equal(result.trips, 29, 'trips are still reported for the efficiency metrics');
+  });
+
+  it('miễn trừ 1 ngày phép: N = 1 vẫn trả đủ ngày chuẩn', () => {
+    const days = fullMonth(date => (date === '2026-10-13' ? 'N' : 'Đ'));
+    const result = computeTimesheetSalary({ mode: 'FLAT_MONTHLY', flatAmount: 10_800_000, days });
+    assert.equal(result.paidSalaryDays, 27);
+    assert.equal(result.salaryTotal, 10_800_000);
+  });
+
+  it('ngày chuẩn truyền tường minh khi lưới thưa (rollup chỉ có dòng đã ghi)', () => {
+    const result = computeTimesheetSalary({
+      mode: 'FLAT_MONTHLY',
+      flatAmount: 10_800_000,
+      standardDays: 27,
+      days: [day('N', '2026-10-13'), day('N', '2026-10-14')],
+    });
+    assert.equal(result.standardDays, 27);
+    assert.equal(result.workdays, 0);
+    assert.equal(result.paidSalaryDays, 26, '27 ngày chuẩn − max(0, 2−1)');
+    assert.equal(result.salaryTotal, 400_000 * 26);
+  });
+
+  it('rounds the daily rate, then multiplies the salary days', () => {
+    // 10.000.000 / 27 = 370.370,37 → 370.370đ/ngày × 26 ngày.
+    const days = fullMonth(date => (date === '2026-10-13' || date === '2026-10-14' ? 'N' : 'Đ'));
+    const result = computeTimesheetSalary({ mode: 'FLAT_MONTHLY', flatAmount: 10_000_000, days });
+    assert.equal(result.dailyBasePay, 9_629_620);
   });
 
   it('pays zero when the flat amount is not configured', () => {
-    assert.equal(computeTimesheetSalary({ mode: 'FLAT_MONTHLY', flatAmount: null, days: [] }).salaryTotal, 0);
+    assert.equal(computeTimesheetSalary({ mode: 'FLAT_MONTHLY', flatAmount: null, days: fullMonth(() => 'Đ') }).salaryTotal, 0);
   });
 });
 
@@ -201,6 +233,8 @@ describe('symbol counts and the month helper', () => {
     assert.equal(result.symbolCounts.Q, 4, 'two Q cells = four trips');
     assert.equal(result.trips, 5);
     assert.equal(result.workdays, 3, 'N is not an attended day');
+    assert.equal(result.standardDays, 4, 'K/Q/Q/N all fall T2–T6 in Oct 2026');
+    assert.equal(result.paidSalaryDays, 4, 'the single N day is the exempt one');
   });
 
   it('exposes one rule per grid symbol', () => {
@@ -260,13 +294,13 @@ describe('TIMESHEET_SYMBOL_RULES — SIL-774 (khách chốt 09/11/2026, Bảng 4
     assert.equal(TIMESHEET_SYMBOL_RULES.P.workday, true);
   });
 });
-describe('TIMESHEET_SYMBOL_RULES — SIL-775/SIL-810 đếm cột tổng (summaryTrips)', () => {
-  it('Q = 1 chuyến trong Tổng số chuyến nhưng trọng số LƯƠNG vẫn 2', () => {
-    assert.equal(TIMESHEET_SYMBOL_RULES.Q.trips, 2, 'lương theo chuyến giữ Q = 2 (SIL-774)');
-    assert.equal(TIMESHEET_SYMBOL_RULES.Q.summaryTrips, 1, 'cột tổng: mỗi ngày Q = 1 chuyến');
+describe('TIMESHEET_SYMBOL_RULES — SIL-841 đếm cột tổng (summaryTrips, 15/11)', () => {
+  it('Q = 2 chuyến ở CẢ trọng số lương và cột tổng (thay SIL-810)', () => {
+    assert.equal(TIMESHEET_SYMBOL_RULES.Q.trips, 2, 'lương theo chuyến giữ Q = 2');
+    assert.equal(TIMESHEET_SYMBOL_RULES.Q.summaryTrips, 2, 'cột tổng: mỗi ngày Q = 2 chuyến');
   });
 
-  it('Tổng số chuyến = Đ + K + Q: summaryTrips của K/Đ là 1, L/N/P là 0', () => {
+  it('Tổng số chuyến = Đ + K + 2·Q: summaryTrips của K/Đ là 1, L/N/P là 0', () => {
     assert.equal(TIMESHEET_SYMBOL_RULES.K.summaryTrips, 1);
     assert.equal(TIMESHEET_SYMBOL_RULES['Đ'].summaryTrips, 1);
     assert.equal(TIMESHEET_SYMBOL_RULES.L.summaryTrips, 0);

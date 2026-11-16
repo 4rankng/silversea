@@ -15,10 +15,17 @@
  * trips a driver ran on a Sunday are still recorded. So every Sunday counts
  * 0 attended days regardless of its symbol.
  *
- * Salary modes per driver:
- *   PER_TRIP       — 300.000đ per trip + daily base, and from trip 21 onward
- *                    each trip adds another 100.000đ.
- *   FLAT_MONTHLY   — one monthly figure (e.g. 10.000.000đ).
+ * Salary modes per driver (SIL-841, khách chốt 15/11/2026 — thay luật trước
+ * 15/11):
+ *   PER_TRIP       — "không trốn vé": lương cứng theo ngày công + 100.000đ
+ *                    mỗi chuyến của tháng, cộng KPI vượt chuyến (từ chuyến 21
+ *                    trở đi mỗi chuyến +100.000đ).
+ *   FLAT_MONTHLY   — "trốn vé": lương cứng theo ngày công (mức tháng chia
+ *                    ngày chuẩn T2–T7 × ngày công lương).
+ *
+ * Ngày công chỉ tính T2–T7; Chủ nhật chỉ tính CHUYẾN, không tính ngày công.
+ * Miễn trừ 1 ngày phép có lương/tháng: ngày công lương = ngày chuẩn T2–T7 −
+ * max(0, N − 1).
  */
 
 /** The five grid symbols plus the single-container symbol, in display order. */
@@ -40,19 +47,21 @@ export const TIMESHEET_SYMBOL_RULES: Record<
 > = {
   // `trips` = trọng số LƯƠNG theo chuyến (SIL-774: Q = 2 cuốc trong 1 ngày).
   // `summaryTrips` = số chuyến một ngày ký hiệu đóng góp vào CỘT TỔNG của
-  // Bảng Tổng Hợp Xếp Lệnh tháng (SIL-775 + SIL-810: mỗi ngày Q = 1 chuyến;
-  // Tổng số chuyến = Đ + K + Q; cột 'Số chuyến quay đầu' vẫn đếm ngày Q).
+  // Bảng Tổng Hợp Xếp Lệnh tháng (SIL-841, khách chốt 15/11: Q = 2 chuyến ở
+  // CẢ hai trọng số — thay SIL-810's mỗi ngày Q = 1; Tổng số chuyến =
+  // Đ + K + 2·Q; chú thích lưới đọc "Q Quay đầu (2 chuyến)").
   K: { label: 'Kẹp 2 cont', trips: 1, summaryTrips: 1, workday: true },
-  Q: { label: 'Quay đầu', trips: 2, summaryTrips: 1, workday: true },
+  Q: { label: 'Quay đầu', trips: 2, summaryTrips: 2, workday: true },
   'Đ': { label: 'Chạy đơn', trips: 1, summaryTrips: 1, workday: true },
   L: { label: 'Lưu ca', trips: 0, summaryTrips: 0, workday: true },
   N: { label: 'Nghỉ tai nạn / nghỉ việc gia đình có phép', trips: 0, summaryTrips: 0, workday: false },
   P: { label: 'Nghỉ sửa xe / bảo dưỡng định kỳ', trips: 0, summaryTrips: 0, workday: true },
 };
 
-/** "không trốn vé" — paid per trip. */
-export const PER_TRIP_RATE = 300_000;
-/** From the 21st trip of the month onward each trip carries this extra amount. */
+/** SIL-841 (15/11) — "không trốn vé": mỗi chuyến của tháng trả 100.000đ
+ *  (thay mốc 300.000đ/chuyến trước 15/11). */
+export const PER_TRIP_RATE = 100_000;
+/** KPI vượt chuyến — from the 21st trip of the month onward each trip carries this extra amount. */
 export const EXTRA_TRIP_THRESHOLD = 21;
 export const EXTRA_TRIP_RATE = 100_000;
 
@@ -78,6 +87,10 @@ export interface TimesheetSalaryInput {
   dailyBase?: number | null;
   /** Monthly flat figure — FLAT_MONTHLY only. */
   flatAmount?: number | null;
+  /** Ngày chuẩn T2–T7 của tháng. Mặc định: đếm các ngày không-Chủ nhật trong
+   *  `days` — chính xác khi caller truyền đủ cả tháng (buildMonthView). The
+   *  rollup passes it explicitly because its raw day rows can be sparse. */
+  standardDays?: number | null;
 }
 
 export interface TimesheetSalaryResult {
@@ -88,6 +101,11 @@ export interface TimesheetSalaryResult {
   trips: number;
   /** Attended days: L/N/P plus K/Q/Đ, Sundays excluded. */
   workdays: number;
+  /** Ngày chuẩn của tháng (số ngày T2–T7). */
+  standardDays: number;
+  /** SIL-841 (15/11) — ngày công lương = ngày chuẩn T2–T7 − max(0, N − 1):
+   *  miễn trừ 1 ngày phép có lương mỗi tháng, các ngày N sau đó trừ công. */
+  paidSalaryDays: number;
   /** Trips at or above the threshold, i.e. max(0, trips − 20). */
   bonusTrips: number;
   perTripPay: number;
@@ -132,7 +150,9 @@ export function countDayWorkday(day: TimesheetDayInput): number {
   return 1;
 }
 
-/** Sum the grid into per-symbol counts, trips, workdays and the salary. */
+/** Sum the grid into per-symbol counts, trips, workdays, ngày công lương and
+ *  the salary (SIL-841 law: trốn vé → lương cứng theo ngày công; không trốn
+ *  vé → lương cứng + 100.000đ/chuyến + KPI vượt chuyến). */
 export function computeTimesheetSalary(input: TimesheetSalaryInput): TimesheetSalaryResult {
   const symbolCounts = emptyCounts();
   const symbolDays = emptyCounts();
@@ -151,24 +171,44 @@ export function computeTimesheetSalary(input: TimesheetSalaryInput): TimesheetSa
 
   const bonusTrips = Math.max(0, trips - (EXTRA_TRIP_THRESHOLD - 1));
 
+  // SIL-841 (15/11) — ngày công lương: ngày chuẩn T2–T7 trừ các ngày nghỉ N
+  // vượt phần miễn trừ (ngày N đầu tiên của tháng vẫn được trả lương).
+  const standardDays = typeof input.standardDays === 'number'
+    && Number.isFinite(input.standardDays) && input.standardDays > 0
+    ? Math.round(input.standardDays)
+    : input.days.filter(day => !isSundayUtc(day.workDate)).length;
+  const paidSalaryDays = Math.max(0, standardDays - Math.max(0, symbolDays.N - 1));
+
   if (input.mode === 'FLAT_MONTHLY') {
+    // "Trốn vé": lương cứng THEO NGÀY CÔNG — mức tháng chia đều ngày chuẩn
+    // T2–T7 rồi nhân ngày công lương (trước 15/11 trả trọn flatAmount bất
+    // chấp ngày công).
+    const flatDaily = standardDays > 0
+      ? Math.round(nonNegative(input.flatAmount) / standardDays)
+      : 0;
+    const hardPay = flatDaily * paidSalaryDays;
     return {
       mode: 'FLAT_MONTHLY',
       symbolCounts,
       symbolDays,
       trips,
       workdays,
+      standardDays,
+      paidSalaryDays,
       bonusTrips,
       perTripPay: 0,
       extraTripBonus: 0,
-      dailyBasePay: 0,
-      salaryTotal: nonNegative(input.flatAmount),
+      dailyBasePay: hardPay,
+      salaryTotal: hardPay,
     };
   }
 
   const perTripPay = Math.max(0, trips) * PER_TRIP_RATE;
   const extraTripBonus = bonusTrips * EXTRA_TRIP_RATE;
-  const dailyBasePay = workdays * nonNegative(input.dailyBase);
+  // "Không trốn vé": lương cứng vẫn trả theo NGÀY CÔNG LƯƠNG (lương ngày ×
+  // ngày công lương — SIL-841), cộng tiền chuyến 100.000đ/chuyến + KPI vượt
+  // chuyến từ chuyến 21.
+  const dailyBasePay = paidSalaryDays * nonNegative(input.dailyBase);
 
   return {
     mode: 'PER_TRIP',
@@ -176,6 +216,8 @@ export function computeTimesheetSalary(input: TimesheetSalaryInput): TimesheetSa
     symbolDays,
     trips,
     workdays,
+    standardDays,
+    paidSalaryDays,
     bonusTrips,
     perTripPay,
     extraTripBonus,

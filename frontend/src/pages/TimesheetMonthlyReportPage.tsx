@@ -11,8 +11,9 @@
 // nhà (info/warning/danger/surface) thay vì màu thô của Excel — cùng họ màu
 // emerald mà owner đã chốt, đủ tương phản AA.
 //
-// SIL-775 (khách chốt 09/11/2026): cột tổng đếm MỖI NGÀY Q = 1 chuyến quay
-// đầu (không còn Q = 2 của card 230790 ở cột này); Tổng số chuyến = Đ + K + Q
+// SIL-775 (khách chốt 09/11/2026): cột tổng đếm chuyến theo ký hiệu; LUẬT MỚI
+// SIL-841 (khách chốt 15/11/2026, thay SIL-810): mỗi ngày Q = 2 chuyến quay
+// đầu (chú thích lưới "Q Quay đầu (2 chuyến)"); Tổng số chuyến = Đ + K + 2·Q
 // (ngày); Tỷ lệ kẹp ghép / ngày = Tổng lệnh kẹp / Tổng số chuyến × 100%.
 
 import { useMemo } from 'react';
@@ -72,8 +73,9 @@ export default function TimesheetMonthlyReportPage() {
     return (monthsQuery.data ?? []).map(monthRow => {
       const driver = drivers.find(item => item.id === monthRow.driverId) ?? null;
       const byDay = new Map(monthRow.days.map(day => [Number(day.workDate.slice(8, 10)), day]));
-      // SIL-781 — the 10 end-of-month columns. Đ/K/Q counted per CELL;
-      // SIL-775 — "Số chuyến quay đầu" đếm 1 chuyến cho mỗi ngày Q.
+      // SIL-781 — the 10 end-of-month columns. Đ/K counted per CELL;
+      // SIL-841 (15/11, thay SIL-810) — mỗi ngày Q = 2 CHUYẾN quay đầu
+      // (trọng số tổng trùng trọng số lương).
       let donCells = 0;
       let kepCells = 0;
       let quayDau = 0;
@@ -84,7 +86,7 @@ export default function TimesheetMonthlyReportPage() {
       for (const day of monthRow.days) {
         if (day.symbol === 'Đ') donCells += 1;
         if (day.symbol === 'K') kepCells += 1;
-        if (day.symbol === 'Q') quayDau += 1;
+        if (day.symbol === 'Q') quayDau += TIMESHEET_SYMBOL_RULES.Q.summaryTrips;
         // Ngày công đi làm thực tế: có mặt (K/Q/Đ/L), Chủ nhật không tính
         // (house law: Chủ nhật không là ngày công) và nghỉ phép không tính.
         const present = day.symbol === 'K' || day.symbol === 'Q' || day.symbol === 'Đ' || day.symbol === 'L';
@@ -96,9 +98,9 @@ export default function TimesheetMonthlyReportPage() {
         if (day.symbol === 'P') paidLeaveDays += 1;
         if (day.symbol === 'N') leaveDays += 1;
       }
-      // SIL-775 — Tổng số chuyến = Đ + K + Q (ngày); Tỷ lệ kẹp ghép / ngày =
-      // Tổng lệnh kẹp / Tổng số chuyến × 100, in "—" khi lái xe chưa chạy
-      // lệnh nào.
+      // SIL-841 (15/11) — Tổng số chuyến = Đ + K + 2·Q (ngày quay đầu giờ là
+      // CHUYẾN, ×2/ngày); Tỷ lệ kẹp ghép / ngày = Tổng lệnh kẹp / Tổng số
+      // chuyến × 100, in "—" khi lái xe chưa chạy lệnh nào.
       const totalTrips = donCells + kepCells + quayDau;
       const kepPct = totalTrips === 0 ? null : Math.round((kepCells / totalTrips) * 1000) / 10;
       return {

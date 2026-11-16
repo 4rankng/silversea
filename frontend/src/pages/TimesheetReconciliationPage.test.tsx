@@ -56,8 +56,9 @@ const month: TimesheetMonth = {
   salary: {
     mode: 'PER_TRIP', symbolCounts: { K: 0, Q: 2, 'Đ': 1, L: 0, N: 0, P: 0 },
     symbolDays: { K: 0, Q: 1, 'Đ': 1, L: 0, N: 0, P: 0 },
-    trips: 3, workdays: 1, bonusTrips: 0, perTripPay: 900_000, extraTripBonus: 0,
-    dailyBasePay: 200_000, salaryTotal: 1_100_000,
+    trips: 3, workdays: 1, standardDays: 2, paidSalaryDays: 2,
+    bonusTrips: 0, perTripPay: 300_000, extraTripBonus: 0,
+    dailyBasePay: 400_000, salaryTotal: 700_000,
   },
 };
 
@@ -104,7 +105,7 @@ describe('TimesheetReconciliationPage', () => {
     renderBoard();
     expect(await screen.findByText('Tổng lương')).toBeTruthy();
     // The rail localises the number; the API figure is what lands here.
-    expect(screen.getByText('1.100.000')).toBeTruthy();
+    expect(screen.getByText('700.000')).toBeTruthy();
   });
 
   it('marks the Sunday row so the separate Sunday pay is visible', async () => {
@@ -130,45 +131,43 @@ describe('TimesheetReconciliationPage', () => {
     }));
   });
 
-  it('SIL-810 — cột Chuyến của Tổng hợp tháng đọc Tổng số chuyến (Đ+K+Q), không phải trọng số lương', async () => {
-    // 2 Đ + 1 K + 1 Q → Tổng số chuyến = 4 (SIL-775 AC); trọng số lương của
-    // cùng tháng vẫn 5 (Q = 2) và CHỈ hiện ở panel lương trên đầu trang.
+  it('SIL-841 — cột Chuyến của Tổng hợp tháng đọc Tổng số chuyến (Đ+K+2·Q) từ rollup', async () => {
+    // 2 Đ + 1 K + 1 Q → Tổng số chuyến = 5 = 2+1+2·1 (SIL-841, 15/11); từ
+    // 15/11 trọng số tổng TRÙNG trọng số lương (Q = 2 ở cả hai).
     vi.mocked(getTimesheetRollup).mockResolvedValue([{
       driverId: 9, driverName: 'Lái xe kiểm thử',
       donCount: 2, kepCount: 1, quayDauCount: 1, luuCaCount: 0, nghiCount: 0, nghiPhepCount: 0,
-      totalTrips: 4, trips: 5, workdays: 4, bonusTrips: 0,
-      salaryMode: 'PER_TRIP', salary: 1_500_000, perTripPay: 1_300_000, extraTripBonus: 0,
-      dailyBasePay: 200_000, status: 'OPEN', sundayTrips: 0,
+      totalTrips: 5, trips: 5, workdays: 4, standardDays: 25, paidSalaryDays: 24, bonusTrips: 0,
+      salaryMode: 'PER_TRIP', salary: 1_500_000, perTripPay: 500_000, extraTripBonus: 0,
+      dailyBasePay: 1_000_000, status: 'OPEN', sundayTrips: 0,
       revenue: null, cost: null, salaryRatio: null, tripsCompleted: 4,
     }]);
     renderBoard();
-    const tourCell = await screen.findByText('4', { selector: 'td[data-label="Chuyến"]' });
-    // 4 = Đ(2) + K(1) + Q(1); 5 (trọng số lương) không được rơi vào cột này.
+    const tourCell = await screen.findByText('5', { selector: 'td[data-label="Chuyến"]' });
     expect(screen.getByText('Tổng hợp tháng')).toBeTruthy();
     expect(tourCell).toBeTruthy();
-    expect(screen.queryByText('5', { selector: 'td[data-label="Chuyến"]' })).toBeNull();
-    expect(screen.getByText('Tổng 4 chuyến · 4 ngày công ·')).toBeTruthy();
+    expect(screen.getByText('24', { selector: 'td[data-label="Ngày công lương"]' })).toBeTruthy();
+    expect(screen.getByText('Tổng 5 chuyến · 4 ngày công ·')).toBeTruthy();
   });
 
-  it('SIL-829 — ngày Q trên lưới Đối chiếu đếm CHUYẾN = 1, không phải trọng số lương 2', async () => {
-    // Fixture 05/10: symbol Q, payload trips = 2 (trọng số lương SIL-774 mà
-    // backend cầm sẵn trong cell). Cột Chuyến của lưới là SỐ ĐẾM hiển thị
-    // (SIL-775: mỗi ngày Q = 1 chuyến) — khớp với /timesheet/bao-cao.
+  it('SIL-841 — ngày Q trên lưới Đối chiếu đếm CHUYẾN = 2 (luật 15/11)', async () => {
+    // Fixture 05/10: symbol Q, payload trips = 2. Cột Chuyến của lưới là số
+    // đếm hiển thị theo summaryTrips — SIL-841: mỗi ngày Q = 2 chuyến.
     renderBoard();
     const qRow = (await screen.findByText('2026-10-05')).closest('tr')!;
-    expect(qRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('1');
+    expect(qRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('2');
     const donRow = screen.getByText('2026-10-11').closest('tr')!;
     expect(donRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('1');
   });
 
-  it('SIL-829 — chỉnh lệch vẫn cộng vào số đếm hiển thị của ngày Q', async () => {
+  it('SIL-841 — chỉnh lệch vẫn cộng vào số đếm hiển thị của ngày Q', async () => {
     vi.mocked(listTimesheetMonths).mockResolvedValue([{
       ...month,
       days: month.days.map(day => day.symbol === 'Q' ? { ...day, tripAdjustment: -1 } : day),
     }]);
     renderBoard();
     const qRow = (await screen.findByText('2026-10-05')).closest('tr')!;
-    // 1 (summaryTrips) + (−1) = 0 — chỉnh lệch không biến mất khỏi cột hiển thị.
-    expect(qRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('0');
+    // 2 (summaryTrips) + (−1) = 1 — chỉnh lệch không biến mất khỏi cột hiển thị.
+    expect(qRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('1');
   });
 });

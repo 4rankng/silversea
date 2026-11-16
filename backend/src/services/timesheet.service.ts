@@ -86,11 +86,16 @@ export interface TimesheetRollupRow {
   luuCaCount: number;
   nghiCount: number;
   nghiPhepCount: number;
-  /** SIL-775/810 — Tổng số chuyến = Đ + K + Q (mỗi ngày Q = 1 chuyến);
-   *  `trips` bên dưới vẫn là trọng số lương (Q = 2). */
+  /** SIL-841 (15/11) — Tổng số chuyến = Đ + K + 2·Q (mỗi ngày Q = 2 chuyến;
+   *  bằng `trips` từ 15/11 — cả hai trọng số Q đều là 2). */
   totalTrips: number;
   trips: number;
   workdays: number;
+  /** Ngày chuẩn của tháng (T2–T7). */
+  standardDays: number;
+  /** Ngày công lương = ngày chuẩn − max(0, N − 1) (SIL-841 miễn trừ 1 ngày
+   *  phép có lương/tháng) — cơ sở trả lương cứng. */
+  paidSalaryDays: number;
   bonusTrips: number;
   salaryMode: TimesheetSalaryMode | null;
   salary: number;
@@ -237,6 +242,9 @@ async function buildMonthView(monthRow: typeof s.driverTimesheetMonths.$inferSel
     mode: monthRow.salaryMode as TimesheetSalaryMode,
     dailyBase: numeric(monthRow.dailyBase),
     flatAmount: numeric(monthRow.flatAmount),
+    // `days` is the full calendar month, so the derived ngày chuẩn is exact;
+    // passed explicitly to keep the salary basis independent of day rows.
+    standardDays: days.filter(day => !isSundayUtc(day.workDate)).length,
     days: days.map(day => ({ symbol: day.symbol, workDate: day.workDate, tripAdjustment: day.tripAdjustment })),
   });
 
@@ -245,7 +253,7 @@ async function buildMonthView(monthRow: typeof s.driverTimesheetMonths.$inferSel
     warnings.push('Chưa nhập mức lương tháng cố định — lương đang tính bằng 0.');
   }
   if (monthRow.salaryMode === 'PER_TRIP' && numeric(monthRow.dailyBase) === null) {
-    warnings.push('Chưa nhập lương ngày — thưởng chuyến vẫn tính, lương ngày bằng 0.');
+    warnings.push('Chưa nhập lương ngày — tiền chuyến + KPI vẫn tính, lương cứng bằng 0.');
   }
 
   return {
@@ -614,6 +622,9 @@ export async function getTimesheetRollup(year: number, month: number): Promise<T
       mode: monthRow.salaryMode as TimesheetSalaryMode,
       dailyBase: numeric(monthRow.dailyBase),
       flatAmount: numeric(monthRow.flatAmount),
+      // Raw day rows only exist where someone wrote a cell, so the ngày chuẩn
+      // must come from the calendar, not from the rows.
+      standardDays: daysOfMonth(year, month).filter(date => !isSundayUtc(date)).length,
       days: days.map(row => ({
         symbol: row.symbol as TimesheetSymbol,
         workDate: row.workDate,
@@ -642,11 +653,13 @@ export async function getTimesheetRollup(year: number, month: number): Promise<T
       luuCaCount: cells.L,
       nghiCount: cells.N,
       nghiPhepCount: cells.P,
-      // SIL-775/810 — Tổng số chuyến = Đ + K + Q (mỗi ngày Q = 1 chuyến quay
-      // đầu); `trips` (salary.trips) giữ trọng số lương Q = 2 (SIL-774).
-      totalTrips: cells['Đ'] + cells.K + cells.Q,
+      // SIL-841 (15/11) — Tổng số chuyến = Đ + K + 2·Q; từ 15/11 trọng số
+      // tổng trùng trọng số lương (Q = 2 ở cả hai).
+      totalTrips: cells['Đ'] + cells.K + cells.Q * 2,
       trips: salary.trips,
       workdays: salary.workdays,
+      standardDays: salary.standardDays,
+      paidSalaryDays: salary.paidSalaryDays,
       bonusTrips: salary.bonusTrips,
       salaryMode: monthRow.salaryMode as TimesheetSalaryMode,
       salary: salary.salaryTotal,

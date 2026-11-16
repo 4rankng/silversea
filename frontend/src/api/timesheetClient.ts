@@ -68,10 +68,15 @@ export interface TimesheetRollupRow {
   luuCaCount: number;
   nghiCount: number;
   nghiPhepCount: number;
-  /** SIL-775/810 — Tổng số chuyến = Đ + K + Q (mỗi ngày Q = 1 chuyến). */
+  /** SIL-841 (15/11) — Tổng số chuyến = Đ + K + 2·Q (mỗi ngày Q = 2 chuyến). */
   totalTrips: number;
   trips: number;
   workdays: number;
+  /** Ngày chuẩn của tháng (T2–T7). */
+  standardDays: number;
+  /** Ngày công lương = ngày chuẩn − max(0, N − 1) (SIL-841 miễn trừ 1 ngày
+   *  phép có lương/tháng) — cơ sở trả lương cứng. */
+  paidSalaryDays: number;
   bonusTrips: number;
   salaryMode: TimesheetSalaryMode | null;
   salary: number;
