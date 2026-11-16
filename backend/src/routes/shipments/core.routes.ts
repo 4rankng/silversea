@@ -677,6 +677,11 @@ coreRoutes.post(
         cargoVolumeCbm: parsed.data.cargoVolumeCbm,
         packageCount: parsed.data.packageCount,
         packageType: parsed.data.packageType,
+        // SIL-846 — trọng tải tính cước rides the quick create too (the
+        // create-workspace save posts /quick): without this forward the
+        // schema parses the field and the route silently drops it — the
+        // QA 'display-only' defect.
+        revVehicleClassId: parsed.data.revVehicleClassId,
         operationalNotes: resolveDriverNotes(parsed.data),
         customerNotes: parsed.data.customerNotes,
         pickupLocation: parsed.data.pickupLocation,
@@ -789,6 +794,10 @@ coreRoutes.put(
           cargoVolumeCbm: parsed.data.cargoVolumeCbm,
           packageCount: parsed.data.packageCount,
           packageType: parsed.data.packageType,
+          // SIL-846 — forward the LCL trọng tải class on edit; omitted from
+          // this whitelist once and the PUT silently dropped the field
+          // (version bumped, value unchanged — the QA repro).
+          revVehicleClassId: parsed.data.revVehicleClassId,
           // SIL-171 (FB-147): the edit form resubmits the flag band; the
           // schema and updateShipment service already carry isCombined (it
           // also reclassifies live fulfillments) — the route forwarding was

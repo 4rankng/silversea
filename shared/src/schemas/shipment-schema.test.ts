@@ -206,3 +206,28 @@ test('SIL-638 TC5: containers[].classification (Đơn/Kẹp/Kết hợp) rides t
   assert.equal(shipmentContainerItemSchema.safeParse({ containerTypeId: 31, classification: 'LCL' }).success, false);
   assert.equal(shipmentContainerItemSchema.safeParse({ containerTypeId: 31, classification: 'KEP' }).success, false);
 });
+
+test('SIL-846: trọng tải tính cước (revVehicleClassId) rides BOTH write contracts', () => {
+  // QA FAIL 16/11 (builds fd0f7f14 + 68646e82): the edit form selected
+  // 'Cont 40 nặng' and the lot saved with the field empty — the quick-create
+  // and update contracts each carried the field while the ROUTE forwards
+  // dropped it. This pin keeps the zod layer honest (the route forwards are
+  // proven by the API repro in testplan/qa/2026-11-16_sil846-*.md): a
+  // non-integer class id is rejected, a valid id survives the parse, and a
+  // blank stays a legal null.
+  const pick = (input: Record<string, unknown>) => {
+    const quick = quickCreateShipmentSchema.safeParse(input);
+    assert.equal(quick.success, true);
+    const update = updateShipmentSchema.safeParse({ expectedVersion: 1, ...input });
+    assert.equal(update.success, true);
+    return {
+      quick: quick.success ? quick.data.revVehicleClassId : undefined,
+      update: update.success ? update.data.revVehicleClassId : undefined,
+    };
+  };
+
+  assert.deepEqual(pick({ customerId: 1, bookingRef: 'W3846REPRO', revVehicleClassId: 4 }), { quick: 4, update: 4 });
+  assert.deepEqual(pick({ customerId: 1, bookingRef: 'W3846REPRO' }), { quick: undefined, update: undefined });
+  assert.equal(quickCreateShipmentSchema.safeParse({ customerId: 1, revVehicleClassId: 'Cont 40' }).success, false);
+  assert.equal(updateShipmentSchema.safeParse({ expectedVersion: 1, revVehicleClassId: 0 }).success, false);
+});
