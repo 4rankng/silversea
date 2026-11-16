@@ -523,7 +523,29 @@ export function getPageTitle(pathname: string, role?: Role | string): string {
   return titleForPath(pathname, role ? getModernRole(role) : undefined);
 }
 
-// ─── Layout component ─────────────────────────────────────────────────────
+/**
+ * The fit-collapse decision: when the expanded rail is taller than the nav
+ * viewport, every section but the role's preferred one collapses so the menu
+ * "fits" without scrolling.
+ *
+ * SIL-840 (P0, kế toán ngocntm 16/11): the ACCOUNTANT rail is exempt — the
+ * collapse-all-but-preferred heuristic hid Quỹ / Nhân sự / Giá & cước /
+ * Báo cáo at load and QA read that as "đang ẩn / không mở được màn con". The
+ * nav scrolls (overflow-y: auto), so a too-tall rail never justifies hiding
+ * whole groups for this role; every other role keeps the fit-collapse.
+ */
+export function autoCollapseKeys(
+  role: Role | string | undefined,
+  contentOverflows: boolean,
+  sectionKeys: readonly string[],
+  preferredKey: string | undefined,
+): string[] {
+  if (!contentOverflows) return [];
+  if (role !== undefined && getModernRole(role) === Role.ACCOUNTANT) return [];
+  return sectionKeys.filter(key => key !== preferredKey);
+}
+
+/** Layout component ──────────────────────────────────────────────────────── */
 
 /**
  * Wide-desktop threshold aligned with `--content-max-w` (tokens.css): below it
@@ -805,18 +827,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       return count > 0 ? acc + LABEL_H + count * ITEM_H : acc;
     }, NAV_PAD + ungroupedCount * ITEM_H);
 
-    if (totalH > navClientHeight) {
-      setCollapsed(prev => {
-        const next = new Set<string>(
-          navSections.map(section => section.key).filter(key => key !== preferredOpenSection)
-        );
-        if (next.size === prev.size && [...next].every(k => prev.has(k))) return prev;
-        return next;
-      });
-    } else {
-      setCollapsed(prev => (prev.size === 0 ? prev : new Set<string>()));
-    }
-  }, [navClientHeight, sidebarOpen, navItems, navSections, preferredOpenSection]);
+    // SIL-840 — the accountant rail never fit-collapses: an early-out (not an
+    // empty-keys pass) keeps the accountant's own manual section collapses
+    // intact when badge counts or viewport changes re-run this effect.
+    if (user?.role != null && getModernRole(user.role) === Role.ACCOUNTANT) return;
+    const overflowKeys = autoCollapseKeys(
+      user?.role,
+      totalH > navClientHeight,
+      navSections.map(section => section.key),
+      preferredOpenSection,
+    );
+    setCollapsed(prev => {
+      const next = new Set<string>(overflowKeys);
+      if (next.size === prev.size && [...next].every(k => prev.has(k))) return prev;
+      return next;
+    });
+  }, [navClientHeight, sidebarOpen, navItems, navSections, preferredOpenSection, user?.role]);
 
   const toggleSection = useCallback((key: string) => {
     if (!sidebarOpen) return;
