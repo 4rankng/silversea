@@ -36,6 +36,86 @@ export interface RevenueOverrideFacts {
   stamped: boolean;
 }
 
+/**
+ * SIL-731 + SIL-814 (quy tắc 24/10): an UNPRICED freeze is not a priced
+ * snapshot. The engine's MANUAL fallbacks mark themselves by a ZEROED trace
+ * id — the same `isManual` predicate the snapshot lifecycle view classifies
+ * by (rateTermsId / pricingTableId / fuelNormId / fuelPricePeriodId): the
+ * dispatch-miss MANUAL_ZERO_RESULT (all zeroed), the SIL-676 in-engine
+ * missing-base-price zero (table 0, or a real table id when the row's price
+ * itself is 0), and — QA retest 13/11, R3N-J2 / R3M-J2 — the missing-norm /
+ * missing-fuel-period zeros which KEEP the trace ids resolved so far (real
+ * rate-terms AND pricing-table id, formulaText NULL). Those passed the
+ * table==0 guard as live 0₫ legs, printing fake 0 on CƯỚC VẬN TẢI (AUTO) +
+ * TỔNG PHẢI THU. A genuinely-priced 0 (D02) freezes a FULL trace (every id
+ * real) and still counts. A NULL totalAmount counts 0 — the debit summary's
+ * own coercion, byte-for-byte. SIL-847: ONE predicate for every reader —
+ * the L1 channel below and the L2 per-lot detail
+ * (pickLatestFreightSnapshotByTrip) can never disagree about which freeze
+ * rows are fake zeros.
+ */
+export function isUnpricedFreezeSnapshot(row: {
+  totalAmount: unknown;
+  rateTermsId: number;
+  pricingTableId: number;
+  fuelNormId: number;
+  fuelPricePeriodId: number;
+}): boolean {
+  const rawAmount = Number(row.totalAmount);
+  const amount = Number.isFinite(rawAmount) ? rawAmount : 0;
+  return amount === 0
+    && (row.rateTermsId === 0 || row.pricingTableId === 0
+      || row.fuelNormId === 0 || row.fuelPricePeriodId === 0);
+}
+
+/** The per-trip snapshot facts every money board renders. */
+export interface FreightSnapshotLeg {
+  freight: string | null;
+  surcharge: string | null;
+  total: string | null;
+  rateKey: string | null;
+}
+
+/**
+ * SIL-847 (id 976) — the L2 per-lot detail's snapshot pick, the same
+ * "latest row per (shipment, trip) grain, then the unpriced-freeze guard"
+ * discipline loadFreightSnapshotChannelByLot runs on L1: the max-id row wins
+ * per trip, and when THAT row is an unpriced freeze the trip keeps no entry
+ * at all — no fallback to an earlier priced row (L1's grain query + guard
+ * read one row per grain). Order-independent over `rows`; trip-NULL intake
+ * rows never enter the per-trip map (L2 renders per-trip legs only).
+ */
+export function pickLatestFreightSnapshotByTrip(rows: Array<{
+  id: number;
+  tripId: number | null;
+  freightAmount: string | null;
+  surchargeAmount: string | null;
+  totalAmount: unknown;
+  rateKey: string | null;
+  rateTermsId: number;
+  pricingTableId: number;
+  fuelNormId: number;
+  fuelPricePeriodId: number;
+}>): Map<number, FreightSnapshotLeg> {
+  const latest = new Map<number, (typeof rows)[number]>();
+  for (const row of rows) {
+    if (row.tripId == null) continue;
+    const prev = latest.get(row.tripId);
+    if (prev == null || row.id >= prev.id) latest.set(row.tripId, row);
+  }
+  const byTrip = new Map<number, FreightSnapshotLeg>();
+  for (const [tripId, row] of latest) {
+    if (isUnpricedFreezeSnapshot(row)) continue;
+    byTrip.set(tripId, {
+      freight: row.freightAmount,
+      surcharge: row.surchargeAmount,
+      total: row.totalAmount == null ? null : String(row.totalAmount),
+      rateKey: row.rateKey,
+    });
+  }
+  return byTrip;
+}
+
 function toNumber(value: string | null): number | null {
   if (value == null) return null;
   const amount = Number(value);
@@ -151,21 +231,10 @@ export async function loadFreightSnapshotChannelByLot(
     // a freeze row counts 0 (Number(null) is finite 0), never a skipped leg.
     const rawAmount = Number(row.totalAmount);
     const amount = Number.isFinite(rawAmount) ? rawAmount : 0;
-    // SIL-731 + SIL-814: an UNPRICED freeze is not a priced snapshot. The
-    // engine's MANUAL fallbacks mark themselves by a ZEROED trace id — the
-    // same `isManual` predicate the snapshot lifecycle view classifies by
-    // (rateTermsId / pricingTableId / fuelNormId / fuelPricePeriodId): the
-    // dispatch-miss MANUAL_ZERO_RESULT (all zeroed), the SIL-676 in-engine
-    // missing-base-price zero (table 0, or a real table id when the row's
-    // price itself is 0), and — QA retest 13/11, R3N-J2 / R3M-J2 — the
-    // missing-norm / missing-fuel-period zeros which KEEP the trace ids
-    // resolved so far (real rate-terms AND pricing-table id, formulaText
-    // NULL). Those passed the table==0 guard as live 0₫ legs, printing fake
-    // 0 on CƯỚC VẬN TẢI (AUTO) + TỔNG PHẢI THU. A genuinely-priced 0 (D02)
-    // freezes a FULL trace (every id real) and still counts.
-    if (amount === 0
-      && (row.rateTermsId === 0 || row.pricingTableId === 0
-        || row.fuelNormId === 0 || row.fuelPricePeriodId === 0)) {
+    // SIL-731 + SIL-814 (quy tắc 24/10) — the unpriced-freeze law lives on
+    // isUnpricedFreezeSnapshot (one predicate with the L2 detail reader,
+    // SIL-847): a dummy 0₫ leg is not a priced snapshot and drops out here.
+    if (isUnpricedFreezeSnapshot(row)) {
       continue;
     }
     if (row.tripId != null) {

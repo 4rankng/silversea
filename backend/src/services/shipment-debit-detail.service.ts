@@ -18,6 +18,7 @@ import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { runIdempotent } from './idempotency.service';
 import { assertShipmentCostUnlocked, SHIPMENT_COST_LOCKED_MESSAGE } from './shipment-cost-lock.service';
 import { activeTripConditions } from './active-trip-scope';
+import { pickLatestFreightSnapshotByTrip, type FreightSnapshotLeg } from './revenue-override-read.service';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
 import { ExpenseTypeCategory, sumExcludingNegative, type DebitDetailChiHoRow, type DebitDetailFreightRow, type ShipmentDebitDetail } from '@tingting/shared';
@@ -143,25 +144,31 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
   const linkedTripIds = new Set(tripByContainerId.values());
   const orphanTrips = lotTrips.filter((trip) => !linkedTripIds.has(trip.id));
 
-  const freightByTrip = new Map<number, { freight: string | null; surcharge: string | null; total: string | null; rateKey: string | null }>();
+  let freightByTrip: Map<number, FreightSnapshotLeg> = new Map();
   if (tripIds.length > 0) {
     const snapshots = await db.select({
+      id: s.freightRateSnapshots.id,
       tripId: s.freightRateSnapshots.tripId,
       rateKey: s.pricingTables.rateKey,
-      freight: s.freightRateSnapshots.freightAmount,
-      surcharge: s.freightRateSnapshots.surchargeAmount,
-      total: s.freightRateSnapshots.totalAmount,
+      freightAmount: s.freightRateSnapshots.freightAmount,
+      surchargeAmount: s.freightRateSnapshots.surchargeAmount,
+      totalAmount: s.freightRateSnapshots.totalAmount,
+      rateTermsId: s.freightRateSnapshots.rateTermsId,
+      pricingTableId: s.freightRateSnapshots.pricingTableId,
+      fuelNormId: s.freightRateSnapshots.fuelNormId,
+      fuelPricePeriodId: s.freightRateSnapshots.fuelPricePeriodId,
     })
       .from(s.freightRateSnapshots)
       .leftJoin(s.pricingTables, eq(s.pricingTables.id, s.freightRateSnapshots.pricingTableId))
       .where(eq(s.freightRateSnapshots.shipmentId, shipmentId))
       .orderBy(s.freightRateSnapshots.id);
-    // Last write wins per trip grain: ascending id order makes the surviving
-    // map entry the max-id row — the same "latest snapshot" the summary's L1
-    // sums, so Lớp 1 and Lớp 2 cannot disagree by row order.
-    for (const snapshot of snapshots) {
-      if (snapshot.tripId != null) freightByTrip.set(snapshot.tripId, snapshot);
-    }
+    // SIL-847 (id 976, quy tắc 24/10): the same "latest snapshot per trip
+    // grain, then the unpriced-freeze guard" the summary's L1 channel runs
+    // (pickLatestFreightSnapshotByTrip — one law, two readers). Before this
+    // guard an unpriced dummy freeze (total 0, zeroed trace id — the R3N/R3M
+    // repro pairs) rendered as a fake 0 on the lot's Cước thu / Cước hợp
+    // đồng / Phụ phí xăng dầu cells instead of "Chưa xác định".
+    freightByTrip = pickLatestFreightSnapshotByTrip(snapshots);
   }
 
   const expenses = tripIds.length === 0 ? [] : await db.select({
