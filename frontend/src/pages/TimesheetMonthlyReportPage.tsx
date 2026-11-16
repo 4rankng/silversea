@@ -159,8 +159,8 @@ export default function TimesheetMonthlyReportPage() {
           // .ts-legend đứng NGOÀI bảng nên span không bao giờ nhận màu — chữ
           // Q của legend rơi mực mặc định, đúng lớp lỗi (b) của ticket.
           <span key={symbol} className={symbolCellClass(symbol)}>
-            {/* SIL-810 — chú thích đếm theo CỘT TỔNG (summaryTrips): mỗi ngày
-                Q = 1 chuyến (SIL-775). Trọng số lương (trips, Q = 2) không đổi. */}
+            {/* SIL-841 (15/11, thay SIL-810) — chú thích đếm theo CỘT TỔNG
+                (summaryTrips): mỗi ngày Q = 2 chuyến — trùng trọng số lương. */}
             <b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].summaryTrips} chuyến)
           </span>
         ))}
