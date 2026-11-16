@@ -284,7 +284,7 @@
   align-items: center;
   justify-content: center;
 }
-.detailed-plan-grid__col--route { width: 10.5%; }
+.detailed-plan-grid__col--route { width: 11.5%; }
 .detailed-plan-grid__col--ports { width: 6.5%; }
 .detailed-plan-grid__col--documents { width: 8.5%; }
 /* SIL-591: the per-container tờ khai column — the "SỐ TỜ KHAI" header holds
@@ -292,14 +292,15 @@
    fix spec "min-width CONTAINER ~115px"): container 7.5%→8.5% so the 11-char
    number rail keeps its full run at wide font metrics too (the QA 15/11 clip
    'RTAU4000…' is the rail's text-overflow: clip meeting a too-narrow box);
-   funded from TUYẾN ĐƯỜNG (11.5%→10.5%, still ≫ its measured 118px floor).
-   SỐ TỜ KHAI stays 10% (160px ≥ the 115px spec floor + 12-digit runs). */
+   funded from GHI CHÚ (10%→9%, exactly its pinned wrap budget) — TUYẾN
+   ĐƯỜNG keeps 11.5% for its 175px one-line header floor. SỐ TỜ KHAI stays
+   10% (160px ≥ the 115px spec floor + 12-digit runs). */
 .detailed-plan-grid__col--container { width: 8.5%; }
 .detailed-plan-grid__col--declaration { width: 10%; }
 .detailed-plan-grid__col--assignment { width: 14.5%; }
 /* SIL-589 / SIL-755: the "PHÂN LOẠI" header holds one line (6% ≥ 68px at 1144px). */
 .detailed-plan-grid__col--classification { width: 6.5%; }
-.detailed-plan-grid__col--notes { width: 10%; }
+.detailed-plan-grid__col--notes { width: 9%; }
 /* SIL-588 / SIL-713 / SIL-755: the rail hosts TWO STACKED buttons
    (Phát lệnh icon above, ⋯ below) while the "THAO TÁC" header fits on one line
    without truncation (7.5% ≈ 85.8px at 1144px, min 74px). */

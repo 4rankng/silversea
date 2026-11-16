@@ -354,7 +354,7 @@ describe('shipment detail workboard styling', () => {
     expect(floor('direction')).toBe(76);
     expect(floor('shippingline')).toBe(96);
     expect(floor('billbook')).toBe(112);
-    expect(floor('declaration')).toBe(116);
+    expect(floor('declaration')).toBe(124); // SIL-848: 116px was the exact 12-digit floor (zero margin) — 124 pays it at wide metrics too
     expect(floor('container')).toBe(116);
     expect(floor('notes')).toBe(120);
     // The customer column NEVER regains a width rule (grow law) and the
