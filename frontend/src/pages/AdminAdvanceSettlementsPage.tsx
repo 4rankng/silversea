@@ -186,6 +186,11 @@ export function SettlementGridRow({
 }) {
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
   const rows = plans.length > 0 ? plans : [null];
+  // SIL-839 (QA fd0f7f14) — a phiếu settling advance REQUESTS (no trip
+  // expenses) shows THOSE links: the staff name, the request chips, '—' where
+  // a route fact simply doesn't exist. Never the three 'Chưa có …' prose.
+  const requests = s.linkedRequests ?? [];
+  const hasRequests = plans.length === 0 && requests.length > 0;
   const ktChecked = ktCheckedByAccountant(s);
 
   return (
@@ -218,8 +223,8 @@ export function SettlementGridRow({
           <StatusStrip color={STATUS_COLORS[s.status]} />
 
           <div className="as-date-customer">
-            <span className="as-date">{plan?.departureDate ? formatDate(plan.departureDate) : formatDate(s.createdAt)}</span>
-            <strong>{plan?.customerName || 'Chưa có khách hàng'}</strong>
+            <span className="as-date">{plan?.departureDate ? formatDate(plan.departureDate) : formatDate(hasRequests ? requests[0]!.createdAt : s.createdAt)}</span>
+            <strong>{plan?.customerName || (hasRequests ? (s.forwarderName || requests[0]!.requesterNameSnapshot) : null) || 'Chưa có khách hàng'}</strong>
           </div>
 
           <div className="as-record">
@@ -236,13 +241,18 @@ export function SettlementGridRow({
           </div>
 
           <div className="as-container-count">{plan?.containerCount ?? 0}</div>
-          <div className="as-route">{plan?.routeName || 'Chưa có tuyến đường'}</div>
+          <div className="as-route">{plan?.routeName || (hasRequests ? '—' : 'Chưa có tuyến đường')}</div>
 
           <div className="as-expense-breakdown">
             {plan && plan.expenseBreakdown.length > 0 ? plan.expenseBreakdown.map(item => (
               <span className="as-expense-chip" key={item.code}>
                 <span>{item.label}</span>
                 <strong><Money value={item.amount} /></strong>
+              </span>
+            )) : hasRequests ? requests.map((request) => (
+              <span className="as-expense-chip" key={`req-${request.id}`}>
+                <span>Tạm ứng {formatDate(request.createdAt)}{request.reason ? ` · ${request.reason}` : ''}</span>
+                <strong><Money value={Number(request.allocatedAmount ?? request.amount)} /></strong>
               </span>
             )) : <span className="as-expense-empty">Chưa có khoản chi liên kết</span>}
           </div>
@@ -399,6 +409,23 @@ export function SettlementMobileCard({
                   <span key={item.code}>{item.label}: <Money value={item.amount} /></span>
                 ))}
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* SIL-839 (QA fd0f7f14) — phiếu chỉ-quyết-toán-tạm ứng: the settled
+          advance requests ARE the linked list, phones included. */}
+      {plans.length === 0 && (s.linkedRequests?.length ?? 0) > 0 && (
+        <div className="as-mcard__plans">
+          <span className="as-mcard__plans-title">Tạm ứng đã quyết toán</span>
+          {s.linkedRequests!.map(request => (
+            <div className="as-mcard__plan" key={`req-${request.id}`}>
+              <div className="as-mcard__plan-head">
+                <strong>Tạm ứng {formatDate(request.createdAt)}</strong>
+                <span><Money value={Number(request.allocatedAmount ?? request.amount)} /></span>
+              </div>
+              <div className="as-mcard__plan-meta">{request.reason}</div>
             </div>
           ))}
         </div>

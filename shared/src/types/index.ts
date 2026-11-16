@@ -1045,7 +1045,10 @@ export interface AdvanceSettlementWithRefs extends AdvanceSettlement {
       }>;
     }>;
   };
-  linkedRequests?: AdvanceRequest[];
+  /** SIL-839 (QA fd0f7f14) — the advance requests the phiếu settles, with the
+   *  allocated slice (link.allocatedAmount ?? request.amount). Request-only
+   *  vouchers (no trip expenses) render THIS list — never the empty prose. */
+  linkedRequests?: Array<AdvanceRequest & { allocatedAmount?: string | null }>;
   linkedExpenses?: Array<TripExpense & {
     tripCode?: string | null;
     departureDate?: string | null;

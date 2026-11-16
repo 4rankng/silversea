@@ -313,3 +313,48 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-728)', 
     expect(within(region).queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
   });
 });
+
+// ── SIL-839 (QA fail fd0f7f14) — phiếu chỉ-quyết-toán-tạm ứng không hiện trống ──
+// The 9 legacy vouchers (PT-2611-0007…) settle advance REQUESTS without trip
+// expenses; the row must show those links (staff name + request chips), never
+// the three 'Chưa có …' placeholders.
+describe('AdminAdvanceSettlementsPage — phiếu tạm ứng shows linked requests (SIL-839)', () => {
+  const requestOnly = settlementRow({
+    code: 'PT-2611-0007',
+    linkedRequests: [
+      { id: 8141, version: 1, requesterId: 9, requesterNameSnapshot: 'Vũ Đình Cường', amount: '20000000', reason: 'Ứng chi hộ chi phí vận chuyển', status: 'RECORDED', approvedBy: 2, approvedAt: '2026-11-12T01:00:00.000Z', createdAt: '2026-11-12T01:00:00.000Z', allocatedAmount: '20000000' },
+      { id: 8155, version: 1, requesterId: 9, requesterNameSnapshot: 'Vũ Đình Cường', amount: '5000000', reason: 'Ứng chi phí bốc xếp', status: 'RECORDED', approvedBy: 2, approvedAt: '2026-11-13T01:00:00.000Z', createdAt: '2026-11-13T01:00:00.000Z', allocatedAmount: '5000000' },
+    ],
+  });
+
+  it('a request-only phiếu renders the staff name + the request chips — no empty prose', () => {
+    settlementsQuery.mockReturnValue({
+      data: { ...response, items: [requestOnly], totalPages: 1, statusCounts: { RECORDED: 1 }, statusAmounts: {} },
+      isLoading: false,
+    });
+    const { container } = renderPage();
+    const region = screen.getByRole('region', { name: 'Danh sách phiếu hoàn ứng' });
+    // The staff the phiếu settles rides the customer line (nhân sự attached).
+    expect(within(region).getAllByText('Nguyễn Văn Giao').length).toBeGreaterThan(0);
+    // Each settled request renders a chip with its allocated amount.
+    expect(within(region).getAllByText(/Tạm ứng 12\/11\/2026 · Ứng chi hộ chi phí vận chuyển/).length).toBeGreaterThan(0);
+    expect(within(region).getAllByText(/Ứng chi phí bốc xếp/).length).toBeGreaterThan(0);
+    expect(container.textContent).toContain('20.000.000');
+    expect(container.textContent).toContain('5.000.000');
+    // The absence prose never fires when request links exist.
+    expect(within(region).queryAllByText('Chưa có khoản chi liên kết')).toHaveLength(0);
+    expect(container).not.toHaveTextContent('Chưa có khách hàng');
+  });
+
+  it('a phiếu with neither requests nor expenses keeps the absence prose', () => {
+    settlementsQuery.mockReturnValue({
+      data: { ...response, items: [settlementRow()], totalPages: 1, statusCounts: { RECORDED: 1 }, statusAmounts: {} },
+      isLoading: false,
+    });
+    renderPage();
+    const region = screen.getByRole('region', { name: 'Danh sách phiếu hoàn ứng' });
+    expect(within(region).getAllByText('Chưa có khách hàng').length).toBeGreaterThan(0);
+    expect(within(region).getAllByText('Chưa có tuyến đường').length).toBeGreaterThan(0);
+    expect(within(region).getAllByText('Chưa có khoản chi liên kết').length).toBeGreaterThan(0);
+  });
+});
