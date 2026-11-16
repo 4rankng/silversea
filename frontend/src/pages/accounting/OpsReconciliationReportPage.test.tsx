@@ -58,12 +58,12 @@ const rowCollection: OpsReconciliationReportRow = {
 };
 const unscopedReport = {
   from: TODAY, to: TODAY, rows: [rowPositive, rowSettled],
-  totals: { dntt: 370000, advanced: 220000, remaining: 150000, remainingSigned: 150000 },
+  totals: { dntt: 370000, advanced: 220000, advancedRecorded: 220000, remaining: 150000, remainingSigned: 150000 },
 };
 function scopedReport(row: OpsReconciliationReportRow, code: string) {
   return {
     from: TODAY, to: TODAY, reconciliation: { id: 7, code, from: '2026-09-28', to: TODAY },
-    rows: [row], totals: { dntt: row.dntt, advanced: row.advanced, remaining: row.remaining, remainingSigned: row.remainingSigned },
+    rows: [row], totals: { dntt: row.dntt, advanced: row.advanced, advancedRecorded: row.advancedRecorded, remaining: row.remaining, remainingSigned: row.remainingSigned },
   };
 }
 function mkLot(row: OpsReconciliationReportRow, remainingDifference: number): ExpenseReconciliation {
@@ -100,7 +100,7 @@ beforeEach(() => {
     // the mock mirrors that contract (card 20260928_168 seeds opsUserId from
     // the Sổ quỹ row link).
     const rows = params?.opsUserId ? unscopedReport.rows.filter(row => row.staffId === params.opsUserId) : unscopedReport.rows;
-    return Promise.resolve({ ...unscopedReport, rows, totals: rows.length ? unscopedReport.totals : { dntt: 0, advanced: 0, remaining: 0 } });
+    return Promise.resolve({ ...unscopedReport, rows, totals: rows.length ? unscopedReport.totals : { dntt: 0, advanced: 0, advancedRecorded: 0, remaining: 0, remainingSigned: 0 } });
   });
   expenseApi.catalog.mockReset().mockResolvedValue({
     staff: [], accountants: [], suppliers: [], expenseTypes: [], advances: [], pendingAdvances: [],
@@ -156,7 +156,7 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
   it('a row with a negative difference shows the signed amount and the collection warning', async () => {
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowCollection],
-      totals: { dntt: 300000, advanced: 500000, remaining: 500000, remainingSigned: -200000 },
+      totals: { dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 500000, remainingSigned: -200000 },
     });
     page();
     await screen.findByText('NV C', { selector: 'td' });
@@ -272,7 +272,7 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
   it('a wallet-deficit row offers the recovery action in ANY filter state and hands the drawer the deficit', async () => {
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowDeficit],
-      totals: { dntt: 0, advanced: 4300000, remaining: 0, remainingSigned: 0 },
+      totals: { dntt: 0, advanced: 4300000, advancedRecorded: 4300000, remaining: 0, remainingSigned: 0 },
     });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
@@ -290,7 +290,7 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     // settlement phiếu family instead.
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowReportNegativeSettledWallet],
-      totals: { dntt: 700000, advanced: 5000000, remaining: 0, remainingSigned: -4300000 },
+      totals: { dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 0, remainingSigned: -4300000 },
     });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
@@ -311,7 +311,7 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     // (+150.000 hiển thị ở bộ other) — neither collection path applies.
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [{ ...rowCollection, remainingSigned: 150000 }],
-      totals: { dntt: 300000, advanced: 500000, remaining: 500000, remainingSigned: 150000 },
+      totals: { dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 500000, remainingSigned: 150000 },
     });
     page();
     await screen.findByText('NV C', { selector: 'td' });
@@ -326,7 +326,7 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     authState.role = 'MANAGER';
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowReportNegativeSettledWallet],
-      totals: { dntt: 700000, advanced: 5000000, remaining: 0, remainingSigned: -4300000 },
+      totals: { dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 0, remainingSigned: -4300000 },
     });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
@@ -369,5 +369,32 @@ describe('OpsReconciliationReportPage — nút Lập phiếu hoàn ứng trên t
     page();
     await screen.findByText('NV A', { selector: 'td' });
     expect(screen.queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
+  });
+});
+
+// ── SIL-839 — SỐ TIỀN ĐÃ ỨNG khớp 100% giữa /advances và Quỹ cá nhân ────────
+// The exact QA repro (CR-008 Task 1.2): the staff's held advances net to 0
+// through the legacy settlement phiếu, but the gross (Đã ghi nhận)
+// disbursements exist — Quỹ cá nhân (/accounting/hoan-ung) shows 320.000₫
+// while this tab's rail + column read the netted field and showed 0₫. Both
+// surfaces now read ONE shared backend number: advancedRecorded.
+describe('OpsReconciliationReportPage — ĐÃ ỨNG đọc số GỐC đã ghi nhận (SIL-839)', () => {
+  it('the rail total and the row column show the recorded disbursements, not the netted held', async () => {
+    // advanced = 0 (fully netted by legacy settlements) — the old display
+    // read this field and rendered 0₫ everywhere.
+    reportApi.report.mockResolvedValue({
+      from: TODAY, to: TODAY,
+      rows: [{ ...rowPositive, advanced: 0, advancedRecorded: 320000, dntt: 250000, remainingSigned: 250000 }],
+      totals: { dntt: 250000, advanced: 0, advancedRecorded: 320000, remaining: 0, remainingSigned: 250000 },
+    });
+    page();
+    await screen.findByText('NV A', { selector: 'td' });
+    // Rail: 'Tổng số tiền đã ứng' = the recorded gross — the SAME number the
+    // Quỹ cá nhân table renders for this staff (khớp 100%).
+    const rail = screen.getByText('Tổng số tiền đã ứng').closest('div,li,section') ?? document.body;
+    expect(rail.textContent).toContain('320.000 ₫');
+    // Row column 'Số tiền đã ứng' = the same shared field.
+    const row = screen.getByText('NV A', { selector: 'td' }).closest('tr')!;
+    expect(row.querySelector('td[data-label="Số tiền đã ứng"] .money')?.textContent).toBe('320.000 ₫');
   });
 });

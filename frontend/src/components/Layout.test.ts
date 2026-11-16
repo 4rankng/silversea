@@ -9,6 +9,7 @@ import {
   resolveInitialSidebarOpen,
   COMPACT_DESKTOP_MEDIA_QUERY,
   getPageTitle,
+  autoCollapseKeys,
 } from './Layout';
 import { titleForPath } from '../lib/routes';
 import { expenseAccountingViewsFor } from '../features/expense-accounting/ExpenseAccountingWorkspace';
@@ -568,5 +569,36 @@ describe('resolveInitialSidebarOpen / COMPACT_DESKTOP_MEDIA_QUERY', () => {
 
   it('scopes the compact-desktop range to 1024–1439px so mobile (≤1023px) stays untouched', () => {
     expect(COMPACT_DESKTOP_MEDIA_QUERY).toBe('(min-width: 1024px) and (max-width: 1439px)');
+  });
+});
+
+// ── SIL-840 — rail Kế toán giữ mở mọi nhóm (miễn fit-collapse) ──────────────
+// P0 16/11 (ngocntm): fit-collapse thu về đúng 1 nhóm mở tại load, Quỹ /
+// Nhân sự / Giá & cước / Báo cáo rơi vào trạng thái đóng — QA đọc đó là
+// "đang ẩn / không mở được màn con". Vai trò KẾ TOÁN không bao giờ fit-collapse.
+describe('autoCollapseKeys — SIL-840 exemption', () => {
+  const accountantSections = [
+    'accounting-phoi-phieu', 'accounting-cong-no', 'accounting-quy', 'accounting-khac',
+    'hr', 'master-data', 'reports', 'operations', 'system',
+  ] as const;
+
+  it('the accountant rail collapses nothing even when the content overflows the nav', () => {
+    expect(autoCollapseKeys(Role.ACCOUNTANT, true, accountantSections, 'accounting-phoi-phieu')).toEqual([]);
+    expect(autoCollapseKeys('ACCOUNTANT', true, accountantSections, undefined)).toEqual([]);
+  });
+
+  it('every other role keeps the fit-collapse — all sections but the preferred one', () => {
+    expect(autoCollapseKeys(Role.ADMIN, true, accountantSections, 'accounting-phoi-phieu'))
+      .toEqual(['accounting-cong-no', 'accounting-quy', 'accounting-khac', 'hr', 'master-data', 'reports', 'operations', 'system']);
+    expect(autoCollapseKeys(Role.MANAGER, true, ['operations', 'reports', 'system'], 'operations'))
+      .toEqual(['reports', 'system']);
+    expect(autoCollapseKeys(Role.DRIVER, true, ['my-work'], 'my-work')).toEqual([]);
+  });
+
+  it('content that fits collapses nothing for any role', () => {
+    expect(autoCollapseKeys(Role.ADMIN, false, accountantSections, 'operations')).toEqual([]);
+    expect(autoCollapseKeys(Role.ACCOUNTANT, false, accountantSections, 'accounting-phoi-phieu')).toEqual([]);
+    expect(autoCollapseKeys(undefined, true, accountantSections, 'operations'))
+      .toEqual(['accounting-phoi-phieu', 'accounting-cong-no', 'accounting-quy', 'accounting-khac', 'hr', 'master-data', 'reports', 'system']);
   });
 });

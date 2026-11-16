@@ -38,7 +38,10 @@ export interface OpsReconciliationReport {
   /** Card 20260928_169 — set when the caller scoped the report to one đợt. */
   reconciliation?: { id: number; code: string; from: string; to: string };
   rows: OpsReconciliationReportRow[];
-  totals: { dntt: number; advanced: number; remaining: number; remainingSigned: number };
+  // SIL-839 — `advancedRecorded` rides the totals so the Báo cáo hoàn ứng rail
+  // reads the SAME gross disbursement query the Quỹ cá nhân table reads
+  // (recordedByStaff) — the two surfaces cannot fork on ĐÃ ỨNG.
+  totals: { dntt: number; advanced: number; advancedRecorded: number; remaining: number; remainingSigned: number };
 }
 
 /** Card 20260921_11 — the monthly reconciliation summary (báo cáo tổng hợp
@@ -286,6 +289,9 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     totals: {
       dntt: visibleRows.reduce((sum, row) => sum + row.dntt, 0),
       advanced: visibleRows.reduce((sum, row) => sum + row.advanced, 0),
+      // SIL-839 — the rail's 'Tổng số tiền đã ứng' totals the same GỐC
+      // (Đã ghi nhận) number the Quỹ cá nhân reads: khớp 100% giữa 2 màn.
+      advancedRecorded: visibleRows.reduce((sum, row) => sum + row.advancedRecorded, 0),
       remaining: visibleRows.reduce((sum, row) => sum + row.remaining, 0),
       remainingSigned: visibleRows.reduce((sum, row) => sum + row.remainingSigned, 0),
     },

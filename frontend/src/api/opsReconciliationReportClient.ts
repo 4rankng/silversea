@@ -15,7 +15,9 @@ export interface OpsReconciliationReportRow {
   /** ĐÃ ỨNG — held advances; scoped to a đợt, what that lot allocated. */
   advanced: number;
   /** SIL-806 — ĐÃ ỨNG (đã ghi nhận): tổng phiếu tạm ứng đã giải ngân trong
-   *  kỳ, không net. Bảng Quỹ cá nhân (/accounting/hoan-ung) đọc số này. */
+   *  kỳ, không net. SIL-839 — the Báo cáo hoàn ứng column + rail read THIS
+   *  number too, so both screens share one query (khớp 100% với Quỹ cá nhân
+   *  tại /accounting/hoan-ung). */
   advancedRecorded: number;
   /** Còn phải hoàn ứng = sổ quỹ closing number (lệnh PM 2026-09-29), ≥ 0. */
   remaining: number;
@@ -36,7 +38,7 @@ export interface OpsReconciliationReport {
   /** Set when the caller scoped the report to one đợt (reconciliation lot). */
   reconciliation?: { id: number; code: string; from: string; to: string };
   rows: OpsReconciliationReportRow[];
-  totals: { dntt: number; advanced: number; remaining: number; remainingSigned: number };
+  totals: { dntt: number; advanced: number; advancedRecorded: number; remaining: number; remainingSigned: number };
 }
 
 export interface OpsReconciliationReportQuery {
