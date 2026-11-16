@@ -260,6 +260,10 @@ export default function TimesheetGridPage() {
               // L/P '+ngày công', N '−1 ngày phép (sau ngày đầu)'.
               <span key={symbol}><b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].summaryTrips} chuyến{TIMESHEET_SYMBOL_RULES[symbol].workdayNote ? ` · ${TIMESHEET_SYMBOL_RULES[symbol].workdayNote}` : ''})</span>
             ))}
+            {/* SIL-841 round (QA 16/11 23:12, build dd198999) — the Chủ nhật
+                rule lived only in the cell tooltip; QA expects it as a legend
+                line like the monthly report's. */}
+            <span>Chủ nhật — nền vàng, ghi chuyến, không tính ngày công</span>
           </p>
 
           <p className="ts-hint">

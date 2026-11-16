@@ -328,4 +328,13 @@ describe('SIL-841 — legend workday annotations', () => {
     // K/Q/Đ không mang chú thích ngày công (chuyến tự nói lên ngày công).
     expect(screen.queryByText(/Kẹp 2 cont .*ngày công/)).toBeNull();
   });
+
+  // SIL-841 round (QA FAIL 16/11 23:12, build dd198999) — the Chủ nhật rule
+  // was tooltip-only on /timesheet; QA expects it as a legend LINE like the
+  // monthly report's ('Chủ nhật — nền vàng, ghi chuyến, không tính ngày công').
+  it('the legend carries the Chủ nhật rule as its own line', async () => {
+    page();
+    await screen.findAllByRole('textbox');
+    expect(screen.getByText('Chủ nhật — nền vàng, ghi chuyến, không tính ngày công')).toBeTruthy();
+  });
 });

@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { TIMESHEET_SYMBOL_RULES, type TimesheetSalaryMode } from '@tingting/shared';
+import { TIMESHEET_SYMBOL_RULES, type TimesheetSalaryMode, type TimesheetSymbol } from '@tingting/shared';
 import { CheckCircle2, ChevronLeft, ChevronRight, Lock, Save, Unlock } from 'lucide-react';
 
 import { Btn, PageHeader, Panel } from '../components/UI';
@@ -272,6 +272,18 @@ export default function TimesheetReconciliationPage() {
       )}
 
       <Panel title="Tổng hợp tháng">
+        {/* SIL-841 round (QA 16/11 23:12, build dd198999) — the Đối chiếu grid
+            had NO symbol legend at all. Same legend contract as the monthly
+            report and the grid page (both read TIMESHEET_SYMBOL_RULES): the
+            six symbols with their summary-trip weights + workday notes, plus
+            the Sunday rule line. .ts-legend rides TimesheetGridPage.css which
+            this page already imports. */}
+        <p className="ts-legend">
+          {(['K', 'Q', 'Đ', 'L', 'N', 'P'] as TimesheetSymbol[]).map(symbol => (
+            <span key={symbol}><b className={symbol === 'Q' ? 'ts-legend-sym--q' : undefined}>{symbol}</b> {TIMESHEET_SYMBOL_RULES[symbol].label} ({TIMESHEET_SYMBOL_RULES[symbol].summaryTrips} chuyến{TIMESHEET_SYMBOL_RULES[symbol].workdayNote ? ` · ${TIMESHEET_SYMBOL_RULES[symbol].workdayNote}` : ''})</span>
+          ))}
+          <span>Chủ nhật — nền vàng, ghi chuyến, không tính ngày công</span>
+        </p>
         <div className="record-table-wrap">
           <table className="record-table ops-table">
             <caption className="sr-only">Tổng hợp chấm công và hiệu quả theo lái xe</caption>
@@ -294,7 +306,12 @@ export default function TimesheetReconciliationPage() {
                 {/* SIL-841 (15/11) — ngày công lương: ngày chuẩn T2–T7 −
                     max(0, N − 1); cơ sở trả lương cứng cả 2 hình thức. */}
                 <th scope="col">Ngày công lương</th>
-                <th scope="col">Chuyến CN</th>
+                {/* SIL-841 round (QA 16/11 23:12, per 5442's PASS on
+                    68646e82) — the Đối chiếu column label is 'Ngày làm CN'
+                    (uppercase CSS transform rendered it 'CHUYẾN CN' after a
+                    later rename drifted it back); the value stays the lot's
+                    Sunday trip count (row.sundayTrips), unchanged binding. */}
+                <th scope="col">Ngày làm CN</th>
                 <th scope="col">Doanh thu</th>
                 <th scope="col">Chi phí</th>
                 <th scope="col">Lương</th>
@@ -317,7 +334,7 @@ export default function TimesheetReconciliationPage() {
                   <td className="num" data-label="Chuyến">{row.totalTrips}</td>
                   <td className="num" data-label="Ngày công">{row.workdays}</td>
                   <td className="num" data-label="Ngày công lương">{row.paidSalaryDays}</td>
-                  <td className="num" data-label="Chuyến CN">{row.sundayTrips}</td>
+                  <td className="num" data-label="Ngày làm CN">{row.sundayTrips}</td>
                   <td className="num" data-label="Doanh thu">{row.revenue === null ? '—' : <Money value={row.revenue} />}</td>
                   <td className="num" data-label="Chi phí">{row.cost === null ? '—' : <Money value={row.cost} />}</td>
                   <td className="num" data-label="Lương"><Money value={row.salary} /></td>

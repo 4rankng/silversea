@@ -170,4 +170,27 @@ describe('TimesheetReconciliationPage', () => {
     // 2 (summaryTrips) + (−1) = 1 — chỉnh lệch không biến mất khỏi cột hiển thị.
     expect(qRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('1');
   });
+
+  // SIL-841 round (QA FAIL 16/11 23:12, build dd198999): the Đối chiếu grid
+  // had NO symbol legend and its Sunday column had drifted back to the
+  // 'CHUYẾN CN' label. Pins keep the per-screen contract: the legend reads
+  // the shared TIMESHEET_SYMBOL_RULES (Q = 2 chuyến, L/P +ngày công, N −1
+  // ngày phép) + the Sunday rule line, and the Sunday column is 'Ngày làm CN'.
+  it('SIL-841 round — Đối chiếu renders the symbol legend (Q/L/N/P workday notes + Chủ nhật)', async () => {
+    renderBoard();
+    expect(await screen.findByText('Tổng hợp tháng')).toBeTruthy();
+    expect(screen.getByText(/Quay đầu \(2 chuyến\)/)).toBeTruthy();
+    expect(screen.getByText(/Lưu ca \(0 chuyến · \+ngày công\)/)).toBeTruthy();
+    expect(screen.getByText(/Nghỉ tai nạn \/ nghỉ việc gia đình có phép \(0 chuyến · −1 ngày phép \(sau ngày đầu\)\)/)).toBeTruthy();
+    expect(screen.getByText(/Nghỉ sửa xe \/ bảo dưỡng định kỳ \(0 chuyến · \+ngày công\)/)).toBeTruthy();
+    expect(screen.getByText('Chủ nhật — nền vàng, ghi chuyến, không tính ngày công')).toBeTruthy();
+  });
+
+  it('SIL-841 round — the Sunday aggregate column is labeled Ngày làm CN', async () => {
+    renderBoard();
+    expect(await screen.findByText('Tổng hợp tháng')).toBeTruthy();
+    expect(screen.getByText('Ngày làm CN', { selector: 'th' })).toBeTruthy();
+    // The Sunday day rows keep their marker (same law as the Sunday-pay pin).
+    expect((await screen.findAllByText('Chủ nhật')).length).toBeGreaterThan(0);
+  });
 });
