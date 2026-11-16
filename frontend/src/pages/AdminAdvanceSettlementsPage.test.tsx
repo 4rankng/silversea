@@ -346,15 +346,36 @@ describe('AdminAdvanceSettlementsPage — phiếu tạm ứng shows linked reque
     expect(container).not.toHaveTextContent('Chưa có khách hàng');
   });
 
-  it('a phiếu with neither requests nor expenses keeps the absence prose', () => {
+  it('a legacy balance-only phiếu (no request links) still shows its staff + refund — no empty prose (SIL-839 QA 68646e82: PT-2611-0005/-0006, PT-2610-0002)', () => {
     settlementsQuery.mockReturnValue({
-      data: { ...response, items: [settlementRow()], totalPages: 1, statusCounts: { RECORDED: 1 }, statusAmounts: {} },
+      data: { ...response, items: [settlementRow({ code: 'PT-2611-0006', totalExpenseAmount: '0', refundAmount: '100000' })], totalPages: 1, statusCounts: { RECORDED: 1 }, statusAmounts: {} },
+      isLoading: false,
+    });
+    const { container } = renderPage();
+    const region = screen.getByRole('region', { name: 'Danh sách phiếu hoàn ứng' });
+    // The staff the phiếu settles rides the customer line even without links.
+    expect(within(region).getAllByText('Nguyễn Văn Giao').length).toBeGreaterThan(0);
+    // No trip facts on a balance-only phiếu — route cell shows the '—' face.
+    expect(within(region).getAllByText('—').length).toBeGreaterThan(0);
+    // The settled refund is the phiếu's real content in the breakdown cell.
+    expect(within(region).getAllByText('Hoàn lại tạm ứng').length).toBeGreaterThan(0);
+    expect(container.textContent).toContain('100.000');
+    // The absence prose never fires on a named phiếu.
+    expect(container).not.toHaveTextContent('Chưa có khách hàng');
+    expect(within(region).queryAllByText('Chưa có tuyến đường')).toHaveLength(0);
+    expect(within(region).queryAllByText('Chưa có khoản chi liên kết')).toHaveLength(0);
+  });
+
+  it('a phiếu with no staff, no requests and no expenses keeps the absence prose', () => {
+    settlementsQuery.mockReturnValue({
+      data: { ...response, items: [settlementRow({ forwarderName: null })], totalPages: 1, statusCounts: { RECORDED: 1 }, statusAmounts: {} },
       isLoading: false,
     });
     renderPage();
     const region = screen.getByRole('region', { name: 'Danh sách phiếu hoàn ứng' });
     expect(within(region).getAllByText('Chưa có khách hàng').length).toBeGreaterThan(0);
-    expect(within(region).getAllByText('Chưa có tuyến đường').length).toBeGreaterThan(0);
+    // No plan/request facts → the route cell keeps the '—' face (never a fake route).
+    expect(within(region).getAllByText('—').length).toBeGreaterThan(0);
     expect(within(region).getAllByText('Chưa có khoản chi liên kết').length).toBeGreaterThan(0);
   });
 });

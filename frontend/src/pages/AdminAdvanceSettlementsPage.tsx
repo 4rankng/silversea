@@ -191,6 +191,12 @@ export function SettlementGridRow({
   // a route fact simply doesn't exist. Never the three 'Chưa có …' prose.
   const requests = s.linkedRequests ?? [];
   const hasRequests = plans.length === 0 && requests.length > 0;
+  // SIL-839 (QA 68646e82) — legacy balance-only phiếu (created before the
+  // create law made advanceRequestIds mandatory, e.g. PT-2611-0005/-0006,
+  // PT-2610-0002) carry NO request links at all. The staff the phiếu settles
+  // and the refund it paid are still real facts of the row: they render, and
+  // the three 'Chưa có …' prose never fires on a named phiếu.
+  const balanceOnly = plans.length === 0 && requests.length === 0 && Boolean(s.forwarderName);
   const ktChecked = ktCheckedByAccountant(s);
 
   return (
@@ -223,8 +229,8 @@ export function SettlementGridRow({
           <StatusStrip color={STATUS_COLORS[s.status]} />
 
           <div className="as-date-customer">
-            <span className="as-date">{plan?.departureDate ? formatDate(plan.departureDate) : formatDate(hasRequests ? requests[0]!.createdAt : s.createdAt)}</span>
-            <strong>{plan?.customerName || (hasRequests ? (s.forwarderName || requests[0]!.requesterNameSnapshot) : null) || 'Chưa có khách hàng'}</strong>
+            <span className="as-date">{plan?.departureDate ? formatDate(plan.departureDate) : formatDate(requests[0]?.createdAt ?? s.createdAt)}</span>
+            <strong>{plan?.customerName || (plans.length === 0 ? (s.forwarderName || requests[0]?.requesterNameSnapshot) : null) || 'Chưa có khách hàng'}</strong>
           </div>
 
           <div className="as-record">
@@ -241,7 +247,7 @@ export function SettlementGridRow({
           </div>
 
           <div className="as-container-count">{plan?.containerCount ?? 0}</div>
-          <div className="as-route">{plan?.routeName || (hasRequests ? '—' : 'Chưa có tuyến đường')}</div>
+          <div className="as-route">{plan?.routeName || (plans.length === 0 ? '—' : 'Chưa có tuyến đường')}</div>
 
           <div className="as-expense-breakdown">
             {plan && plan.expenseBreakdown.length > 0 ? plan.expenseBreakdown.map(item => (
@@ -254,7 +260,12 @@ export function SettlementGridRow({
                 <span>Tạm ứng {formatDate(request.createdAt)}{request.reason ? ` · ${request.reason}` : ''}</span>
                 <strong><Money value={Number(request.allocatedAmount ?? request.amount)} /></strong>
               </span>
-            )) : <span className="as-expense-empty">Chưa có khoản chi liên kết</span>}
+            )) : balanceOnly && Number(s.refundAmount) !== 0 ? (
+              <span className="as-expense-chip">
+                <span>Hoàn lại tạm ứng</span>
+                <strong><Money value={Number(s.refundAmount)} /></strong>
+              </span>
+            ) : <span className="as-expense-empty">Chưa có khoản chi liên kết</span>}
           </div>
 
           <div className="as-amount">
