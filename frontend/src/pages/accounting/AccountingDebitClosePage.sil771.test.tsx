@@ -137,13 +137,14 @@ describe('AccountingDebitClosePage — SIL-771 Chi phí ngoài + Lợi nhuận',
     expect(container.querySelector('.debit-loinhuan:not(.debit-loinhuan--negative)')).toBeNull();
   });
 
-  it('chưa đủ Tổng thu/Tổng trả → vẫn "Thiếu lợi nhuận" (chi phí ngoài null không đủ điều kiện tính)', async () => {
+  it('chưa đủ Tổng thu/Tổng trả → Lợi nhuận để trống (SIL-838: hết nhãn "Thiếu lợi nhuận"; chi phí ngoài null không đủ điều kiện tính)', async () => {
     listBoard.mockResolvedValue({
       items: [row({ thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null }, loiNhuan: null })],
       total: 1,
     });
     renderPage();
     await screen.findByRole('textbox', { name: 'Chi phí ngoài lô BL-1' });
-    expect(await screen.findByText('Thiếu lợi nhuận')).toBeVisible();
+    // SIL-838 điểm 3 — the missing rollup renders an EMPTY cell.
+    expect(screen.queryByText(/Thiếu/)).toBeNull();
   });
 });

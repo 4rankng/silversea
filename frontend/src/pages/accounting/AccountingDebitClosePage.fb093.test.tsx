@@ -210,48 +210,8 @@ describe('FB-093 — BKS báo khách (Ảo) quick edit on /accounting/chot-debit
   });
 });
 
-describe('FB-093 — "Ghép cước thu khách" on /accounting/chot-debit', () => {
-  it('explains why it is unavailable until two ungrouped lô lẻ are selected, then opens the merge', async () => {
-    listBoard.mockResolvedValue({ items: [lclRow(1, 'BL-1'), lclRow(2, 'BL-2')], total: 2 });
-    renderPage();
-
-    const mergeButton = await screen.findByRole('button', { name: 'Ghép cước thu khách' });
-    expect(mergeButton.getAttribute('aria-disabled')).toBe('true');
-    // The reason is announced twice on purpose (sr-only + hover bubble), so
-    // assert it is present rather than unique.
-    expect(screen.getAllByText('Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.').length).toBeGreaterThan(0);
-    fireEvent.click(mergeButton);
-    expect(screen.queryByText('Ghép cước thu khách cho 2 lô', { exact: false })).toBeNull();
-
-    const rows = [...(await screen.findByText('BL-1')).closest('table')!.querySelectorAll('tbody tr')];
-    expect(rows).toHaveLength(2);
-    fireEvent.click(rows[0]);
-    fireEvent.click(rows[1]);
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Ghép cước thu khách' }).getAttribute('aria-disabled')).toBeNull();
-    });
-    expect(screen.queryByText('Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Ghép cước thu khách' }));
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('Lô 1 · BL-1');
-    expect(dialog.textContent).toContain('Lô 2 · BL-2');
-    expect(dialog.textContent).toContain('LONG MINH');
-  });
-
-  it('counts an already-grouped lot out of the merge set', async () => {
-    listBoard.mockResolvedValue({
-      items: [lclRow(1, 'BL-1'), lclRow(2, 'BL-2', 'BL-1')],
-      total: 2,
-    });
-    renderPage();
-
-    const rows = [...(await screen.findByText('BL-1')).closest('table')!.querySelectorAll('tbody tr')];
-    fireEvent.click(rows[0]);
-    fireEvent.click(rows[1]);
-    // One ungrouped lot is not a merge: the button keeps its explanation
-    // rather than opening a dialog the server would refuse.
-    expect(screen.getByRole('button', { name: 'Ghép cước thu khách' }).getAttribute('aria-disabled')).toBe('true');
-  });
-});
+// SIL-838 điểm 5 (KH 15/11) — nút 'Ghép cước thu khách' RỜI thanh công cụ
+// kế toán (tác nghiệp CUS, không thuộc luồng chốt debit). The old FB-093
+// merge-flow block (open-on-2-selection, grouped-lot exclusion) is gone with
+// the button; the merge act still lives on the CUS surface
+// (ShipmentDebitPage.lcl-merge.test.tsx owns it).

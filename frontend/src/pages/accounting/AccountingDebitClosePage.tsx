@@ -25,10 +25,7 @@ import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 import { BillingPlateEditor } from './AccountingDebitClosePage.billing-plate';
-import { MergeRevGroupDialog } from '../../features/shipments/debit/MergeRevGroupDialog';
 import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
-import { DisabledActionTip } from '../../components/shared/DisabledActionTip';
-import { Button as UUIButton } from '../../components/untitled-ui/base/buttons/button';
 import { BOARD_CAPTION, BOARD_COLUMNS, type CellContext } from './AccountingDebitClosePage.columns';
 import { DebitBoardTable } from './AccountingDebitClosePage.board';
 import { DebitRoundBoard } from './AccountingDebitClosePage.rounds';
@@ -85,10 +82,6 @@ export default function AccountingDebitClosePage() {
   const [billingDraft, setBillingDraft] = useState('');
   const [billingSaving, setBillingSaving] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
-  // FB-093 (card 191026100833-a) — the "Ghép cước thu khách" dialog over the
-  // board selection. Same dialog the Chi phí - Quyết toán page runs
-  // (`MergeRevGroupDialog`); no second implementation.
-  const [mergeOpen, setMergeOpen] = useState(false);
   // FB-145 — true while the [Tách nhóm] refresh is in flight: the cước thu
   // column skeletons instead of painting the dissolved group's stale 0₫.
   const [revGroupRefreshing, setRevGroupRefreshing] = useState(false);
@@ -379,28 +372,10 @@ export default function AccountingDebitClosePage() {
     return [...plates].map((plate) => ({ value: plate, label: plate, searchText: plate }));
   }, [bootstrapQuery.data, rows]);
 
-  // FB-093 (card 191026100833-a) — the merge acts on the SELECTION. Only
-  // UNGROUPED lô lẻ may join a new group: `lcl != null` ⇔ cargoMode LCL (the
-  // board's own projection, accounting-debit-close.service.ts) and a
-  // `ghépCùngRef` means the lot already sits in one. The same-customer gate
-  // runs inside the dialog and again on the server — no client-side pre-filter.
-  const mergeableRows = useMemo(
-    () => selectedRows
-      .filter((row) => row.lcl != null && row.lcl.ghépCùngRef == null)
-      .map((row) => ({
-        shipmentId: row.shipmentId,
-        customerId: row.customerId,
-        customerName: row.customerName ?? '',
-        code: row.code ?? '',
-        billOrBookNumber: row.billOrBooking ?? '',
-        cargoMode: 'LCL' as const,
-        revGroupId: null,
-      })),
-    [selectedRows],
-  );
-  const mergeDisabledReason = mergeableRows.length < 2
-    ? 'Chọn ít nhất 2 lô lẻ chưa ghép cước để ghép.'
-    : null;
+  // SIL-838 điểm 5 (KH 15/11) — nút 'Ghép cước thu khách' rời thanh công cụ
+  // kế toán: ghép là tác nghiệp của man CUS (đã sống ở đó), không thuộc
+  // luồng chốt debit. Tách nhóm vẫn ở đây (dòng ghép do CUS tạo vẫn cần
+  // đường lùi trên bảng kế toán).
 
   function toggleAll() {
     if (allSelected) selection.clear();
@@ -540,18 +515,8 @@ export default function AccountingDebitClosePage() {
             >
               {confirmMutation.isPending ? 'Đang xác nhận…' : (selectedCount > 0 ? (selectedRequestIds.length > 0 ? `Xác nhận đối soát (${selectedRequestIds.length})` : 'Xác nhận đối soát') : `Xác nhận đối soát (${pendingIds.length})`)}
             </button>
-            {/* FB-093 (card 191026100833-a) — "Ghép cước thu khách" over the
-                board selection. SIL-727: bật khi có selection. */}
-            <DisabledActionTip id="accounting-debit-merge-rev" reason={mergeDisabledReason}>
-              <UUIButton
-                size="sm"
-                color="secondary"
-                aria-disabled={mergeDisabledReason != null || undefined}
-                onPress={() => { if (mergeDisabledReason != null) return; setMergeOpen(true); }}
-              >
-                Ghép cước thu khách
-              </UUIButton>
-            </DisabledActionTip>
+            {/* SIL-838 — 'Ghép cước thu khách' đã gỡ: tác nghiệp CUS, không
+                thuộc luồng KT (description SIL-838 điểm 5). */}
             {/* SIL-773 Rev2 — nút 'Lưu' của bảng: kết thúc ô đang sửa để ô
                 Chi phí ngoài tự lưu (auto-save on blur); các ô khác đã lưu
                 khi rời ô. */}
@@ -801,18 +766,6 @@ export default function AccountingDebitClosePage() {
           )}
         </>
       ))}
-
-      {mergeOpen && (
-        <MergeRevGroupDialog
-          rows={mergeableRows}
-          plateOptions={billingPlateOptions}
-          onClose={() => setMergeOpen(false)}
-          onMerged={() => {
-            selection.clear();
-            void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
-          }}
-        />
-      )}
 
       <DebitSettlementRoundDialog
         isOpen={settlementOpen}

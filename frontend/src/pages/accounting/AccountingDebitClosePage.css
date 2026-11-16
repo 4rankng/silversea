@@ -93,9 +93,8 @@ p.debit-note { margin: 0 0 8px; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-/* SIL-701 (id 821): a missing value's PROSE label ("Thiếu tổng thu") wraps
- * instead of being cut — the no-truncate doctrine reaches the label too. */
-.debit-board td.debit-col--money .debit-missing { white-space: normal; }
+/* SIL-701 (id 821) prose-wrap rule retired with the 'Thiếu …' labels
+ * (SIL-838 điểm 3: a missing value renders an EMPTY cell, never prose). */
 
 /* ── Multi-line money cell (Rev2: label muted, value tabular right) ─────── */
 .debit-money-group { display: grid; gap: 3px; }
@@ -109,12 +108,7 @@ p.debit-note { margin: 0 0 8px; }
   color: var(--ink-3);
   font-size: var(--text-caption-size);
 }
-.debit-line__value {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.debit-line__value .debit-missing { white-space: normal; }
+.debit-line__value { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The editable Chi phí ngoài line stacks (label above the input, input full
  * width) — an inline flex pair would starve the input. */
 .debit-line--stacked { display: grid; gap: 2px; }
@@ -186,18 +180,20 @@ p.debit-note { margin: 0 0 8px; }
 }
 .debit-board tbody tr.debit-row--locked { color: var(--ink-3); }
 
-/* A missing value is a fact about the row, not a number: it drops the numeric
-   face — mono is for data, never for prose (§10) — and still names the field
-   that is missing (§1). */
-.debit-board .debit-missing {
-  font-family: var(--font-body);
-  color: var(--ink-3);
-}
-
 /* The live-adjustment line is the row's action slot: state line, then the two
    controls the operator may exercise on it. Ghi chú prose wraps (it is prose). */
 .debit-pending { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .debit-ghi-chu { overflow-wrap: anywhere; }
+
+/* SIL-838 điểm 1 — nhà máy/kho + tuyến dưới tên KH: muted small lines of the
+   Lô cell, each its own row of the cell stack (nothing renders when the lot
+   carries neither fact). */
+.debit-lot-site,
+.debit-lot-route {
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  overflow-wrap: anywhere;
+}
 
 /* Selection strip: "chọn tất cả" and the bulk actions belong to the selection,
    so the strip states it once instead of two rows of dead "(0 dòng)" buttons.

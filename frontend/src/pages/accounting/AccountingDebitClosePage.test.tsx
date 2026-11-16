@@ -167,18 +167,17 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(screen.getByText('25/09/2026')).toBeInTheDocument();
   });
 
-  it('names the missing field on a cell with no value (§1)', async () => {
+  it('SIL-838 — a cell with no value renders EMPTY (never prose, never a generic placeholder)', async () => {
     boardWith([row({
       thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null },
       loiNhuan: null,
     })]);
     renderPage();
-    expect(await screen.findByText('Thiếu tổng thu')).toBeInTheDocument();
-    // Lợi nhuận opens essential since SIL-771 — the §1 law reads directly on
-    // the open board: the missing cell NAMES its field, never the generic
-    // placeholder.
-    expect(screen.getByText('Thiếu lợi nhuận')).toBeInTheDocument();
-    // …and never the generic placeholder.
+    expect(await screen.findByText('BL-1')).toBeInTheDocument();
+    // SIL-838 điểm 3 (KH 15/11) — the 'Thiếu …' prose is retired: the missing
+    // cell is BLANK (the unlocked face is a direct input), and the generic
+    // placeholder never returns.
+    expect(screen.queryByText(/Thiếu/)).not.toBeInTheDocument();
     expect(screen.queryByText('Chưa xác định')).not.toBeInTheDocument();
   });
 

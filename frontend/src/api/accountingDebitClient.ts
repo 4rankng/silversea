@@ -29,6 +29,13 @@ export interface AccountingDebitBoardRow {
   billOrBooking: string | null;
   containers: string[];
   phanXe: string[];
+  /** SIL-838 — nhà máy/kho hàng + tuyến dưới tên KH. Optional so a rolling
+   *  deployment can lag the board wire without breaking the cell. */
+  factoryName?: string | null;
+  routeName?: string | null;
+  /** SIL-838 — BKS thực từ trip (đã lọc biển trùng nhãn phân xe). FE lật
+   *  tới `lcl.actualTruckNo` trước, plates là fallback + nguồn cho FCL. */
+  truckPlates?: string[];
   /** FB-094 — LCL grouping facts (null on FCL/ungrouped rows). */
   lcl?: {
     label: string;
