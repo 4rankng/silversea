@@ -10,7 +10,8 @@ import { throwValidation } from '../../lib/validation';
 import { parseId } from '../utils/parse-id';
 import { createAdvanceRequest, listAdvanceRequests, getAdvanceRequestCounts, listAdvanceRequestsPaginated, createAdvanceSettlement, listAdvanceSettlementsPaginated, getAdvanceSettlement, getOutstandingAdvanceBalance, OPS_SETTLEMENT_ID_OFFSET } from '../../services/advance.service';
 import { runIdempotent } from '../../services/idempotency.service';
-import { exportOpsSettlementXlsx } from '../../services/ops-settlement-export.service';
+import { exportOpsSettlementXlsx, renderOpsSettlementSheetHtml } from '../../services/ops-settlement-export.service';
+import { getOpsSettlementDetail } from '../../services/ops-settlements.service';
 
 import {
   exportSettlementXlsx, exportSettlementHtml, previewSettlementHtml, previewSettlementXlsx,
@@ -112,8 +113,11 @@ router.get('/advance-settlements/:id/export', asyncHandler(async (req: Request, 
   if (settlement.code.startsWith('OS-')) {
     const opsSettlementId = id >= OPS_SETTLEMENT_ID_OFFSET ? id - OPS_SETTLEMENT_ID_OFFSET : id;
     if (format === 'pdf' || format === 'html') {
-      const html = await exportSettlementHtml(id);
-      if (!html) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
+      // SIL-845 — the OS- phiếu prints the SAME flat 6-column sheet the
+      // /ops/wallet dialog and the /my-settlements page render: one grouping
+      // builder, one format on xem/in/Excel.
+      const detail = await getOpsSettlementDetail(opsSettlementId);
+      const html = await renderOpsSettlementSheetHtml(detail.settlement, detail.grouping);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.send(html);
       return;

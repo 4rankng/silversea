@@ -12,6 +12,7 @@ import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 
 import { NotificationType, TxnType, round2dp, sumExcludingNegative, AdvanceSettlementStatus, type AdvanceSettlementWithRefs } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
+import { groupOpsExpensesForSettlement } from './ops-expenses.service';
 import { filterWholeSettlementAdvances } from './advance-consumption.service';
 import { emitNotification } from './notification.service';
 import {
@@ -526,6 +527,7 @@ async function getAdvanceSettlementFromOps(
     .select({
       id: s.opsExpenseEntries.id,
       shipmentId: s.opsExpenseEntries.shipmentId,
+      shipmentCode: s.shipments.shipmentCode,
       customerName: operationalName(s.customers.shortName, s.customers.name),
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
@@ -533,6 +535,7 @@ async function getAdvanceSettlementFromOps(
       tradeDirection: s.shipments.tradeDirection,
       expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
       expenseTypeName: s.forwarderExpenseTypes.name,
+      requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
       amount: s.opsExpenseEntries.amount,
       createdAt: s.opsExpenseEntries.createdAt,
       approvalStatus: s.opsExpenseEntries.approvalStatus,
@@ -576,6 +579,24 @@ async function getAdvanceSettlementFromOps(
     approvalStatus: entry.approvalStatus ?? 'RECORDED',
   }, identities.get(entry.shipmentId)));
 
+  // SIL-845 — the /my-settlements page renders the SAME flat 6-column phiếu
+  // the /ops/wallet dialog prints: the grouping rides the proxy response so
+  // both surfaces read one builder (groupOpsExpensesForSettlement).
+  const grouping = groupOpsExpensesForSettlement(
+    entries.map((entry) => withLotIdentity({
+      shipmentId: entry.shipmentId ?? 0,
+      shipmentCode: entry.shipmentCode ?? null,
+      customerName: entry.customerName ?? null,
+      billRef: entry.billRef ?? null,
+      tradeDirection: entry.tradeDirection ?? null,
+      containerNumber: entry.containerNumber ?? null,
+      expenseTypeName: entry.expenseTypeName ?? entry.expenseTypeCode,
+      requiresInvoice: entry.requiresInvoice,
+      amount: String(entry.amount),
+      approvalStatus: entry.approvalStatus ?? 'RECORDED',
+    }, identities.get(entry.shipmentId))),
+  );
+
   return {
     id: displayId,
     version: 1,
@@ -595,6 +616,7 @@ async function getAdvanceSettlementFromOps(
     note: row.note,
     createdAt: row.createdAt.toISOString(),
     linkedExpenses,
+    grouping,
     linkedRequests: [],
     eligibleAdvanceRequests: [],
     eligibleExpenses: [],

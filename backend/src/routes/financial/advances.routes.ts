@@ -14,8 +14,10 @@ import { requireRoles } from '../../middleware/casbin';
 import { ApiError } from '../../errors';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
-import { getAdvanceSettlement } from '../../services/advance.service';
+import { getAdvanceSettlement, OPS_SETTLEMENT_ID_OFFSET } from '../../services/advance.service';
 import { exportSettlementXlsx, exportSettlementHtml } from '../../services/settlement-export.service';
+import { renderOpsSettlementSheetHtml, exportOpsSettlementXlsx } from '../../services/ops-settlement-export.service';
+import { getOpsSettlementDetail } from '../../services/ops-settlements.service';
 import {
   createAdvanceSettlement,
   listAdvanceRequestsPaginated,
@@ -336,6 +338,16 @@ router.get('/advance-settlements/:id/export', requireRoles(Role.ADMIN, Role.MANA
   const dateStr = formatLocalDate();
 
   if (format === 'pdf' || format === 'html') {
+    // SIL-845 — an OS- phiếu (ops settlement viewed through the forwarder
+    // proxy) prints the SAME flat 6-column sheet as /ops/wallet and the
+    // /my-settlements page — never the advance-phiếu layout.
+    if (id >= OPS_SETTLEMENT_ID_OFFSET) {
+      const detail = await getOpsSettlementDetail(id - OPS_SETTLEMENT_ID_OFFSET);
+      const opsHtml = await renderOpsSettlementSheetHtml(detail.settlement, detail.grouping);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(opsHtml);
+      return;
+    }
     const html = await exportSettlementHtml(id);
     if (!html) throw new ApiError(404, 'Không tìm thấy phiếu thanh toán');
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -344,6 +356,15 @@ router.get('/advance-settlements/:id/export', requireRoles(Role.ADMIN, Role.MANA
   }
 
   // Default: xlsx
+  if (id >= OPS_SETTLEMENT_ID_OFFSET) {
+    // SIL-845 — OS- phiếu exports the flat 6-column bảng kê (same as the
+    // forwarder SELF scope), never the advance-phiếu layout.
+    const { buffer, filename } = await exportOpsSettlementXlsx(id - OPS_SETTLEMENT_ID_OFFSET);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(buffer);
+    return;
+  }
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', `attachment; filename=phieu-thanh-toan-${id}-${dateStr}.xlsx`);
   const ok = await exportSettlementXlsx(id, res);

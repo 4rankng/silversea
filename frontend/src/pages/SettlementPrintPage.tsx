@@ -17,6 +17,8 @@ import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
 import './SettlementPrintPage.css';
 import { NumberField } from '../design-system';
+import { OpsSettlementSheet } from '../features/ops/OpsSettlementsPanel';
+import type { OpsSettlementDetail } from '../api/opsClient';
 
 // ─── Expense type Vietnamese labels ───
 const EXPENSE_TYPE_LABELS: Record<string, string> = {
@@ -48,6 +50,11 @@ interface SettlementData {
   code: string;
   forwarderId: number;
   forwarderName?: string;
+  /** SIL-845 — present ONLY on OS- phiếu (ops settlements viewed through the
+   *  forwarder proxy): the flat 6-column sheet grouping, so the page renders
+   *  the same phiếu the /ops/wallet dialog prints. Advance phiếu (PL-/PT-)
+   *  keep the chronological layout below. */
+  grouping?: OpsSettlementDetail['grouping'];
   totalExpenseAmount: string;
   refundAmount: string;
   status: AdvanceSettlementStatus;
@@ -280,7 +287,7 @@ export default function SettlementPrintPage() {
       {/* ── Page Header (hidden in print) ── */}
       <div className="no-print">
         <PageHeader
-          title={`Phiếu thanh toán ${s.code}`}
+          title={s.grouping ? `PHIẾU QUYẾT TOÁN ${s.code}` : `Phiếu thanh toán ${s.code}`}
           iconName="settlement"
           description={s.forwarderName || ''}
           action={
@@ -328,7 +335,7 @@ export default function SettlementPrintPage() {
         </div>
 
         {/* ── Advances ── */}
-        {requests.length > 0 && (
+        {!s.grouping && requests.length > 0 && (
           <div className="settlement-detail__section">
             <h2 className="settlement-detail__section-title">Tạm ứng đã sử dụng</h2>
             <div className="settlement-detail__advances">
@@ -372,6 +379,13 @@ export default function SettlementPrintPage() {
               </div>
             </div>
           )}
+          {s.grouping ? (
+            /* SIL-845 — the OS- phiếu renders the SAME flat 6-column sheet
+               the /ops/wallet dialog prints (one grouping builder, one
+               format on xem/in/Excel); the advance-phiếu grid below stays
+               for PL-/PT-. */
+            <OpsSettlementSheet grouping={s.grouping} meta={{ code: s.code, createdAt: s.createdAt, opsName: s.forwarderName ?? null, note: s.note ?? null }} />
+          ) : (
           <div className="settlement-expense-grid">
             <div className="settlement-expense-grid__header">
               <span>Ngày</span>
@@ -403,6 +417,7 @@ export default function SettlementPrintPage() {
               <span></span>
             </div>
           </div>
+          )}
           {canCorrectRecorded && (
             <div className="settlement-expense-actions no-print">
               <p className="settlement-editor-hint">
@@ -440,7 +455,9 @@ export default function SettlementPrintPage() {
           )}
         </div>
 
-        {/* ── Summary ── */}
+        {/* ── Summary (advance-phiếu concepts; an OS- quyết toán phiếu shows
+            its own three closing totals inside the sheet) ── */}
+        {!s.grouping && (
         <div className="settlement-detail__summary">
           <div className="settlement-detail__summary-card">
             <div className="settlement-detail__summary-label">Tổng tạm ứng đã sử dụng</div>
@@ -463,13 +480,14 @@ export default function SettlementPrintPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Card 2026-10-05_1544 (spec 5.10): the settlement instruction — who
             owes whom — stated in words, not left for the reader to infer from a
             signed number. Reuses this page's existing note block so the design
             vocabulary stays unchanged; role=status announces it without stealing
             focus. */}
-        {settlementNotice && (
+        {!s.grouping && settlementNotice && (
           <div className="settlement-detail__note" role="status">
             <strong>Quyết toán tạm ứng:</strong> {settlementNotice}.
           </div>
