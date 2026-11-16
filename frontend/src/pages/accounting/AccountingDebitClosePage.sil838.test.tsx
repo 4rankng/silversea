@@ -135,15 +135,14 @@ describe('SIL-838 điểm 2 — Phương tiện shows full nhà xe + BKS thực 
     expect(truckCell.textContent).toContain('Thực: 51C-059.58');
   });
 
-  it('FCL own-fleet: the plate labels itself — no duplicated "Thực:" echo', async () => {
+  it('FCL own-fleet: the fleet label rides with the plate under "Thực:" (SIL-838 QA fd0f7f14 — BE labels own trips Đội xe nội bộ SilverSea, never by plate)', async () => {
     listBoard.mockResolvedValue({
-      items: [row({ phanXe: ['51C-059.58'], truckPlates: [] })],
+      items: [row({ phanXe: ['Đội xe nội bộ SilverSea'], truckPlates: ['51C-059.58'] })],
       total: 1,
     });
     renderPage();
-    await screen.findByText('BL-1');
-    expect(screen.getByText('51C-059.58')).toBeTruthy();
-    expect(screen.queryByText('Thực: 51C-059.58')).toBeNull();
+    const truckCell = (await screen.findByText('Đội xe nội bộ SilverSea')).closest('td')!;
+    expect(truckCell.textContent).toContain('Thực: 51C-059.58');
   });
 
   it('LCL: actualTruckNo wins; trip plates fill a lot without one', async () => {

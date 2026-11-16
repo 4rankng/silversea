@@ -200,10 +200,11 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // states BOTH facts — line 1 is the lot's real carrier identity next to
     // the plate that actually ran the lane, line 2 is the orange "xe ảo"
     // badge that fires only when the billing plate differs. SIL-838 điểm 2
-    // (KH 15/11): MỌI dòng/cont phải đủ Tên nhà xe + BKS thực — nhãn phân xe
-    // giờ kèm các biển trip chưa có tên (`truckPlates`, đã lọc biển trùng
-    // nhãn), và cont nào projection riêng rỗng thì BE mượn danh tính anh em
-    // cùng Bill (vd K5K5346365 ×2 cont — dòng 2 mất VĂN LAN).
+    // (KH 15/11): MỌI dòng/cont phải đủ Tên nhà xe + BKS thực — `truckPlates`
+    // mang các biển trip chưa có tên; cont nào projection riêng rỗng thì BE
+    // mượn danh tính anh em cùng Bill (vd K5K5346365 ×2 cont — dòng 2 mất
+    // VĂN LAN). Own-fleet trip: BE tự đặt tên 'Đội xe nội bộ SilverSea',
+    // biển chạy dưới "Thực:" (QA fd0f7f14 — hàng chỉ-in-biển là FAIL).
     key: 'phuongTien', label: 'Phương tiện', className: 'debit-col--truck', pinned: true,
     cell: (row, { editBillingPlate, editingBillingShipmentId }) => {
       const phanXeNames = (labels: string[]) => labels.map((label, index) => (

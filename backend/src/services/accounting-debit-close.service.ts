@@ -234,6 +234,19 @@ export interface AccountingDebitBoardRow {
 // and carry only the typed factoryName).
 const debitBoardFactorySite = alias(s.operationalSites, 'debit_board_factory_site');
 const debitBoardWarehouseSite = alias(s.operationalSites, 'debit_board_warehouse_site');
+// SIL-838 QA (fd0f7f14) — tuyến authority rides the container grain first
+// (FB-074): FCL truth lives on shipment_containers.route_id / raw_route_name,
+// the lot-level chain is empty on prod data. Catalog name via this alias so
+// the subquery's routes join never collides with the outer lot-level one.
+const debitBoardContainerRoute = alias(s.routes, 'debit_board_container_route');
+const debitBoardContainerRouteLabel = sql<string | null>`coalesce(
+  ${operationalName(debitBoardContainerRoute.shortName, debitBoardContainerRoute.name)},
+  nullif(btrim(${s.shipmentContainers.rawRouteName}), '')
+)`;
+
+/** The fixed phân-xe label an OWN-fleet trip/truck renders (SIL-838 điểm 2:
+ *  the cell names the fleet; the plate rides the "Thực:" line instead). */
+const OWN_FLEET_CARRIER_LABEL = 'Đội xe nội bộ SilverSea';
 
 export async function getAccountingDebitBoard(query: {
   dateFrom?: string;
@@ -263,7 +276,18 @@ export async function getAccountingDebitBoard(query: {
     )`,
     // ROUTE_DISPLAY_NAME = routes short/full name → rawRouteName (lệnh chạy
     // ngoài) — the exact projection the CUS workspace's tuyến column reads.
-    routeName: ROUTE_DISPLAY_NAME,
+    // SIL-838 QA (fd0f7f14): the lot-level chain rendered nothing on prod —
+    // route truth for FCL lives PER CONTAINER (shipment_containers, the
+    // detail header's authority FB-074). Container routes aggregate distinct
+    // ' · ' inside a scalar subquery — no join fan-out on the lot select
+    // (ops-orders precedent) — then fall through the lot-level chain.
+    routeName: sql<string | null>`coalesce(
+      (select string_agg(distinct ${debitBoardContainerRouteLabel}, ' · ')
+         from ${s.shipmentContainers}
+         left join ${s.routes} debit_board_container_route on debit_board_container_route.id = ${s.shipmentContainers.routeId}
+        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}),
+      ${ROUTE_DISPLAY_NAME}
+    )`,
     // SIL-838 điểm 4 — ghi chú CUS (customer-facing) + Điều vận (internal).
     customerNotes: s.shipments.customerNotes,
     operationalNotes: s.shipments.operationalNotes,
@@ -544,7 +568,8 @@ export async function getAccountingDebitBoard(query: {
   }]));
 
   // Phân xe labels: a trip's truck shows the OWNING carrier customer's name
-  // when subcontracted (trucks.carrierId), otherwise the own-fleet plate;
+  // when subcontracted (trucks.carrierId); an own-fleet trip names the fixed
+  // internal-fleet label (SIL-838 QA fd0f7f14 — the plate rides "Thực:");
   // external-carrier trips show the customer-as-carrier name
   // (accounting-transport-register precedent).
   const tripRows = await executor.select({
@@ -712,7 +737,11 @@ export async function getAccountingDebitBoard(query: {
     for (const entry of entries) {
       const carrierName = entry.carrierId != null ? externalNames.get(entry.carrierId) : null;
       if (carrierName) labels.push(carrierName);
-      else if (entry.plate) labels.push(entry.plate);
+      // SIL-838 QA (fd0f7f14): an own-fleet trip must NAME the fleet, not
+      // label the cell by plate — the plate rides `truckPlates` ("Thực:")
+      // instead, so every row shows nhà xe + BKS thực. Same fixed label the
+      // trip-less LCL fallback below has always used.
+      else if (entry.plate) labels.push(OWN_FLEET_CARRIER_LABEL);
       if (entry.externalId != null) {
         const name = externalNames.get(entry.externalId);
         if (name) labels.push(name);
@@ -729,7 +758,7 @@ export async function getAccountingDebitBoard(query: {
     if (planned == null) continue;
     const labels: string[] = [];
     if (planned.carrierType === 'OWN') {
-      labels.push('Đội xe nội bộ SilverSea');
+      labels.push(OWN_FLEET_CARRIER_LABEL);
     } else if (planned.externalId != null) {
       const name = externalNames.get(planned.externalId);
       if (name) labels.push(name);
@@ -742,8 +771,9 @@ export async function getAccountingDebitBoard(query: {
 
   // SIL-838 điểm 2 — BKS thực per lot: the plates the lot's trips actually
   // run (own-fleet truck plate + external plate). A plate already shown by
-  // the phân xe label (own-fleet rows label themselves BY plate) is dropped,
-  // so the cell never prints the same plate twice.
+  // the phân xe label is dropped, so the cell never prints the same plate
+  // twice (subcontracted carriers still label by carrier name; the plate
+  // stays visible here).
   const platesByLot = new Map<number, string[]>();
   for (const [lotId, entries] of phanXeRaw) {
     const labels = phanXeByLot.get(lotId) ?? [];
