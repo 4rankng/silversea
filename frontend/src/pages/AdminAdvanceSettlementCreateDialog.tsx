@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Check, Info, Wallet, Receipt, FileText, User } from 'lucide-react';
 import { formatCurrency, formatDate } from '../lib/format';
 import { Money } from '../components/shared/Money';
@@ -47,28 +47,6 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
   useEffect(() => {
     if (open && initialForwarderId != null) setForwarderId(initialForwarderId);
   }, [open, initialForwarderId]);
-
-  // SIL-839 — auto-attach (PT-2611-0007): as soon as the picked staff's
-  // eligibility lands, preselect ALL their eligible advances + COMPLETED
-  // unlinked expenses so the phiếu carries the links by construction — the
-  // phiếu card then renders khách hàng / tuyến / đợt lô + khoản chi chips
-  // instead of 'Chưa có khách hàng · Chưa có tuyến đường · Chưa có khoản chi
-  // liên kết'. One fill per picked staff: a manual untick afterwards wins and
-  // is never clobbered by a refetch. The refund suggestion (SIL-751) re-derives
-  // from the attachment because the box stays untyped.
-  const autoFilledFor = useRef<number | null>(null);
-  useEffect(() => {
-    if (forwarderId == null || eligibility.isPending || eligibility.isError) return;
-    if (autoFilledFor.current === forwarderId) return;
-    autoFilledFor.current = forwarderId;
-    setSelectedRequestIds(new Set((eligibility.data?.advances ?? []).map((request) => request.id)));
-    setSelectedExpenseIds(new Set(
-      (eligibility.data?.expenses ?? [])
-        .filter((expense) => expense.completionStatus === ExpenseEntryStatus.COMPLETED)
-        .map((expense) => expense.id),
-    ));
-    setRefundEdited(false);
-  }, [forwarderId, eligibility.isPending, eligibility.isError, eligibility.data]);
   const advances = eligibility.data?.advances ?? [];
   const expenses = eligibility.data?.expenses ?? [];
   const expenseTypeOptions = useMemo(() => catalogs?.forwarderExpenseTypes ?? [], [catalogs]);
@@ -127,9 +105,6 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
     setRefundEdited(false);
     setNote('');
     setRefundConfirmed(false);
-    // SIL-839 — the next open/re-pick of the SAME staff must auto-attach again
-    // (the selections were just cleared), so the per-staff guard resets too.
-    autoFilledFor.current = null;
   }
 
   function handleClose() {

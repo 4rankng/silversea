@@ -197,24 +197,18 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', 
     expect(eligibilityQuery).toHaveBeenLastCalledWith(9);
   });
 
-  it('R4: eligibility auto-attaches the advance + COMPLETED expense (SIL-839) but submit stays blocked until the confirm tick is on', () => {
+  it('R4: submit stays blocked until an advance is picked AND the confirm tick is on', () => {
     balancesQuery.mockReturnValue(staffBalances);
     eligibilityQuery.mockReturnValue({ data: eligibleData, isPending: false, isError: false, error: null });
     renderPage();
     openCreateDialog();
     const submit = screen.getByRole('button', { name: /Ghi nhận phiếu/ });
+    expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
-    // SIL-839 auto-attach: the eligible advance + the COMPLETED expense arrive
-    // PRESELECTED so the phiếu carries its links by construction.
-    expect(screen.getByRole('checkbox', { name: /100\.000 ₫/ })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: /60\.000 ₫/ })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: /40\.000 ₫/ })).not.toBeChecked();
+    fireEvent.click(screen.getByRole('checkbox', { name: /100\.000 ₫/ }));
     expect(submit).toBeDisabled(); // tick still missing (FB-100)
     fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
     expect(submit).toBeEnabled();
-    // The accountant can still narrow the attachment: no advance → blocked again.
-    fireEvent.click(screen.getByRole('checkbox', { name: /100\.000 ₫/ }));
-    expect(submit).toBeDisabled();
   });
 
   it('R3: an expense Ops has not signed off cannot be picked', () => {
@@ -227,7 +221,7 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', 
     expect(incomplete).toBeDisabled();
   });
 
-  it('R6: ghi nhận posts the payload with the auto-attached advance and COMPLETED expense (SIL-839), then closes', async () => {
+  it('R6: ghi nhận posts the payload for the picked staff, advance and COMPLETED expense, then closes', async () => {
     balancesQuery.mockReturnValue(staffBalances);
     eligibilityQuery.mockReturnValue({ data: eligibleData, isPending: false, isError: false, error: null });
     const mutateAsync = vi.fn().mockResolvedValue({ id: 77, code: 'PC-26-0077' });
@@ -235,9 +229,8 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', 
     renderPage();
     openCreateDialog();
     fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
-    // No checkbox clicks: the attachment is automatic (SIL-839) — the phiếu
-    // carries the advance + the COMPLETED lô expense, so its card renders
-    // khách hàng/tuyến/khoản chi instead of the empty placeholders.
+    fireEvent.click(screen.getByRole('checkbox', { name: /100\.000 ₫/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /60\.000 ₫/ }));
     fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
     fireEvent.click(screen.getByRole('button', { name: /Ghi nhận phiếu/ }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({

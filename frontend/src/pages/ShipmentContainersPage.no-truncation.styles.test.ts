@@ -112,7 +112,11 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(floor('container')).toBe(116);
     expect(floor('billbook')).toBe(112);
     expect(floor('direction')).toBe(76);
-    expect(floor('declaration')).toBe(116);
+    // SIL-848 (QA 15/11 "cắt dưới 12 chữ số"): 116px was the exact 12-digit
+    // floor with zero metric margin; the 124px floor pays the run at wide
+    // font metrics (+8px rides the ladder's slack budget, --led-fixed-sum
+    // 1180→1188).
+    expect(floor('declaration')).toBe(124);
     expect(floor('vehicle')).toBe(128);
     // SIL-756 (Round 3): Container numbers, declaration numbers, and Bill/Booking are single-token identifiers — nowrap + overflow-x: auto + tooltip (no ellipsis)
     const codeRules = rulesFor(css, /td\[data-label="Thông số container"\] \.shipment-container-ledger__code$/);

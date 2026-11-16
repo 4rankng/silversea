@@ -43,11 +43,15 @@ describe('shared sort-header button styling', () => {
 // and the container-query scroll lane died with the floor (nothing overflows
 // any more). The pinned-thead law (card 20260926_49) keeps binding the
 // app-body scrollport on every canvas.
+// SIL-848 (id 977, QA 15/11) then re-weighted the shares without touching the
+// law: TRẠNG THÁI reclaims ~25px at the clip edge (status 10.045%→12.245%,
+// re-funded from PHÂN LOẠI & HÀNG TẢI 16.093%→13.893%, whose tokens wrap at
+// spaces) — the band still carries only the col shares and still sums to 100%.
 describe('/shipments sort-header column shares (SIL-794 retires the SIL-571/578 floor)', () => {
   const shipments = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 
   it('drops the table min-width floor so the board always fits its canvas (SIL-794)', () => {
-    const band = shipments.match(/@media \(min-width: 1024px\) \{[\s\S]*?col--status \{ width: 10\.045%; \}\n\}/)?.[0] ?? '';
+    const band = shipments.match(/@media \(min-width: 1024px\) \{[\s\S]*?col--status \{ width: 12\.245%; \}\n\}/)?.[0] ?? '';
     expect(band, 'band exists').not.toBe('');
     // The floor overflowed the 1144px canvas at a 1440 viewport under the
     // viewport's overflow-x: clip - the rightmost column (TRANG THAI) was
@@ -57,11 +61,11 @@ describe('/shipments sort-header column shares (SIL-794 retires the SIL-571/578 
     expect(shipments).not.toMatch(/min-width:\s*1189/);
     expect(band).toMatch(/col--customer \{ width: 16\.785%; \}/);
     expect(band).toMatch(/col--documents \{ width: 14\.755%; \}/);
-    expect(band).toMatch(/col--classification \{ width: 16\.093%; \}/);
+    expect(band).toMatch(/col--classification \{ width: 13\.893%; \}/);
     expect(band).toMatch(/col--cargo \{ width: 15\.883%; \}/);
     expect(band).toMatch(/col--schedule \{ width: 15\.167%; \}/);
     expect(band).toMatch(/col--notes \{ width: 11\.272%; \}/);
-    expect(band).toMatch(/col--status \{ width: 10\.045%; \}/);
+    expect(band).toMatch(/col--status \{ width: 12\.245%; \}/);
     // Shares still sum to 100% so every column resolves to its exact share
     // of the real canvas.
     const shares = [...band.matchAll(/width: ([\d.]+)%/g)].map((m) => Number(m[1]));
