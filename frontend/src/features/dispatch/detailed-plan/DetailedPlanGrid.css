@@ -284,12 +284,17 @@
   align-items: center;
   justify-content: center;
 }
-.detailed-plan-grid__col--route { width: 11.5%; }
+.detailed-plan-grid__col--route { width: 10.5%; }
 .detailed-plan-grid__col--ports { width: 6.5%; }
 .detailed-plan-grid__col--documents { width: 8.5%; }
 /* SIL-591: the per-container tờ khai column — the "SỐ TỜ KHAI" header holds
-   one line at the shares; longer values wrap (no cut). */
-.detailed-plan-grid__col--container { width: 7.5%; }
+   one line at the shares; longer values wrap (no cut). SIL-848 (id 977, owner
+   fix spec "min-width CONTAINER ~115px"): container 7.5%→8.5% so the 11-char
+   number rail keeps its full run at wide font metrics too (the QA 15/11 clip
+   'RTAU4000…' is the rail's text-overflow: clip meeting a too-narrow box);
+   funded from TUYẾN ĐƯỜNG (11.5%→10.5%, still ≫ its measured 118px floor).
+   SỐ TỜ KHAI stays 10% (160px ≥ the 115px spec floor + 12-digit runs). */
+.detailed-plan-grid__col--container { width: 8.5%; }
 .detailed-plan-grid__col--declaration { width: 10%; }
 .detailed-plan-grid__col--assignment { width: 14.5%; }
 /* SIL-589 / SIL-755: the "PHÂN LOẠI" header holds one line (6% ≥ 68px at 1144px). */
@@ -453,6 +458,19 @@
      The value cells keep the SIL-515 wrap law untouched. An oversized
      single word overflows visibly instead of chopping mid-token. */
   white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/* SIL-848 (id 977, owner fix spec "wrap tiêu đề 2 dòng") — the two identifier
+   headers wrap at spaces to an even second line ('SỐ TỜ / KHAI') instead of
+   counting on their one-line width at every pane/font: the 16/11 spec
+   supersedes the FB-063 / SIL-686 one-line law FOR THESE TWO LABELS. A
+   single word ('CONTAINER') never chops mid-token (overflow-wrap stays
+   normal) — its width is paid by the col share above. */
+.detailed-plan-grid th.detailed-plan-grid__th--container,
+.detailed-plan-grid th.detailed-plan-grid__th--declaration {
+  white-space: normal;
   overflow-wrap: normal;
   word-break: normal;
 }

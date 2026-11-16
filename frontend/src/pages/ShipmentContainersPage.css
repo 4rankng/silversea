@@ -108,7 +108,11 @@
 .shipment-container-ledger {
   --led-w-select: 44px;
   --led-w-billbook: 112px;
-  --led-w-declaration: 116px;
+  /* SIL-848 (id 977, QA 15/11 "cắt dưới 12 chữ số"): 116px was the EXACT
+     12-digit floor with zero metric margin — 124px pays the 12-digit run at
+     wide font metrics too. +8px rides the ladder's own slack budget: the
+     collapse guard below tracks the new min-width (1324+2). */
+  --led-w-declaration: 124px;
   --led-w-direction: 76px;
   --led-w-shippingline: 96px;
   --led-w-container: 116px;
@@ -119,7 +123,7 @@
   --led-w-status: 92px;
   --led-w-actions: 92px;
   --led-w-customer-floor: 136px;
-  --led-fixed-sum: 1180px; /* the twelve fixed floors above, incl. CHỌN */
+  --led-fixed-sum: 1188px; /* the twelve fixed floors above, incl. CHỌN */
 }
 .shipment-container-ledger table { width: 100%; min-width: calc(var(--led-fixed-sum) + var(--led-w-customer-floor)); border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
@@ -636,13 +640,13 @@
    moves up from 1000px: any canvas under 1318px — a 1280 laptop (~1177px
    container), or a 1440 laptop with the sidebar open (~1129px) — reads the
    card grid; the fixed table renders only when KHÁCH HÀNG is guaranteed its
-   136px floor (container ≥ 1319px, e.g. a 1440 desktop with the sidebar
-   collapsed = 1329px measured). 1318 keeps a 2px guard over the min-width
-   so a scrollbar-variance canvas can only ever fall to the graceful card
-   grid, never an over-constrained table. */
-@container shipments-detail (max-width: 1318px) {
+   136px floor (container ≥ 1327px, e.g. a 1440 desktop with the sidebar
+   collapsed = 1329px measured). 1326 keeps a 2px guard over the 1324px
+   min-width (SIL-848 declaration floor) so a scrollbar-variance canvas can
+   only ever fall to the graceful card grid, never an over-constrained table. */
+@container shipments-detail (max-width: 1326px) {
   /* The px model's table min-width is a TABLE-MODE law; the card grid sizes
-     itself to the container and must not inherit the 1316px floor. */
+     itself to the container and must not inherit the 1324px floor. */
   .shipment-container-ledger table { min-width: 0; }
   .shipment-container-ledger tbody { display: block; width: 100%; min-width: 0; }
   .shipment-container-ledger colgroup { display: none; }

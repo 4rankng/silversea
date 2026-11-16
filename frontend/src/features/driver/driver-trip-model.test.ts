@@ -6,6 +6,7 @@ import {
   isTripPairLocked,
   milestoneActionState,
   podCompleteCtaLabel,
+  tagLabelFor,
   valueOrDash,
 } from './driver-trip-model';
 
@@ -72,6 +73,42 @@ describe('driver-trip-model', () => {
       expect(valueOrDash('   ')).toBe('—');
       expect(valueOrDash(null)).toBe('—');
       expect(valueOrDash(undefined)).toBe('—');
+    });
+  });
+
+  describe('tagLabelFor — SIL-847 kẹp-shape law (badge ĐƠN→KẸP on 2-cont trips)', () => {
+    const cont = (n: string) => ({ containerNumber: n, containerTypeName: "20'DC", sealNumber: null, cargoWeightKg: null });
+
+    it('a SINGLE trip carrying 2 own containers reads KẸP (the R3P-677-R repro)', () => {
+      expect(tagLabelFor({
+        pairKind: null, classification: 'SINGLE', linked: false,
+        containers: [cont('RTAU4011047'), cont('RTAU4011052')],
+      })).toBe('KẸP');
+    });
+
+    it('an unlinked SINGLE with one container stays ĐƠN', () => {
+      expect(tagLabelFor({
+        pairKind: null, classification: 'SINGLE', linked: false,
+        containers: [cont('MSCU1234561')],
+      })).toBe('ĐƠN');
+    });
+
+    it('the legacy wire without the containers field keeps the linked/ĐƠN fallbacks', () => {
+      expect(tagLabelFor({ pairKind: null, classification: 'SINGLE', linked: true })).toBe('KẸP');
+      expect(tagLabelFor({ pairKind: null, classification: 'SINGLE', linked: false })).toBe('ĐƠN');
+      expect(tagLabelFor(undefined)).toBe('ĐƠN');
+    });
+
+    it('explicit pairKind and classification stay authoritative over the 2-cont shape', () => {
+      const two = [cont('A'), cont('B')];
+      expect(tagLabelFor({ pairKind: 'KET_HOP', classification: 'SINGLE', linked: false, containers: two })).toBe('KẾT HỢP');
+      expect(tagLabelFor({ pairKind: null, classification: 'COMBINED', linked: false, containers: two })).toBe('KẾT HỢP');
+    });
+
+    it('LCL rows are never kẹp members — 2 conts still read LẺ / LẤY LẺ', () => {
+      const two = [cont('A'), cont('B')];
+      expect(tagLabelFor({ pairKind: null, classification: 'LCL', linked: false, containers: two })).toBe('LẺ');
+      expect(tagLabelFor({ pairKind: null, classification: 'LCL_PICKUP', linked: true, containers: two })).toBe('LẤY LẺ');
     });
   });
 });

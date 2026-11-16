@@ -728,8 +728,8 @@ export function DetailedPlanGrid({
                   </button>
                 </th>
                 <th scope="col">Tuyến đường</th>
-                <th scope="col">Container</th>
-                <th scope="col">Số tờ khai</th>
+                <th scope="col" className="detailed-plan-grid__th--container">Container</th>
+                <th scope="col" className="detailed-plan-grid__th--declaration">Số tờ khai</th>
                 <th scope="col">Điều phối</th>
                 <th scope="col">Phân loại</th>
                 <th scope="col">Ghi chú</th>

@@ -46,6 +46,11 @@ const salaryModeSchema = z.enum(TIMESHEET_SALARY_MODES);
 // Kế toán owns the mode and the reconciliation; Điều vận fills the grid.
 const accountantOnly = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
 const dispatcherOrAbove = requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER);
+// SIL-842 (CR-008 Task 2.2) — mở bảng chấm công KHÔNG còn là việc riêng của Kế
+// toán: Điều vận tự khởi tạo lưới tháng khi mở trang (POST /months theo chế độ
+// mặc định của lái xe). Đổi chế độ lương (PATCH …/mode) và đối chiếu vẫn là
+// việc của Kế toán (accountantOnly).
+const boardOpeners = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.DISPATCHER);
 
 router.get('/drivers', asyncHandler(async (req, res) => {
   const query = parse(periodQuery, req.query);
@@ -66,7 +71,7 @@ router.get('/rollup', asyncHandler(async (req, res) => {
   res.json({ items: await getTimesheetRollup(query.year, query.month) });
 }));
 
-router.post('/months', accountantOnly, declareMaterialWrite('timesheet.month.create', { method: 'POST', path: '/api/timesheet/months' }), asyncHandler(async (req, res) => {
+router.post('/months', boardOpeners, declareMaterialWrite('timesheet.month.create', { method: 'POST', path: '/api/timesheet/months' }), asyncHandler(async (req, res) => {
   const input = parse(z.object({
     driverId: z.number().int().positive(),
     year: z.number().int().min(2020).max(2100),

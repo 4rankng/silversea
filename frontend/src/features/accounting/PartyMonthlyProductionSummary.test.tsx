@@ -252,11 +252,14 @@ describe('PartyMonthlyProductionSummary', () => {
 // overran its scroll edge by 89px on /debt and 39px on /payables while every
 // numeric cell paid the base's 24px inline gutters — the button hung past
 // the viewport edge ("[Lap…]"). A re-widening silently re-breaks it.
-describe('pm-summary numeric gutter budget (SIL-816 UI-04)', () => {
+// SIL-848 (id 977): the 6px budget STILL left 15px overhang + the pill cut
+// on the 15/11 drive — the budget tightens to 4px (the pin follows the
+// budget; widening past 4px re-breaks the LẬP PHIẾU fit).
+describe('pm-summary numeric gutter budget (SIL-816 UI-04 / SIL-848)', () => {
   it('numeric columns carry the compact inline gutters that pay the Lập Phiếu fit', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/PartyMonthlyProductionSummary.css'), 'utf8');
     const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
-    expect(rules).toMatch(/\.pm-summary__table :is\(td, th\)\.num\s*\{\s*padding-inline:\s*6px;/);
+    expect(rules).toMatch(/\.pm-summary__table :is\(td, th\)\.num\s*\{\s*padding-inline:\s*4px;/);
   });
 });
 

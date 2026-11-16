@@ -64,7 +64,8 @@ export function isTripPairLocked(card?: { pairLocked?: boolean } | null): boolea
  * Spec tag taxonomy: ĐƠN/KẸP/KẾT HỢP (+ LCL's LẺ). DOUBLE and COMBINED carry
  * their own label; a SINGLE-classified fulfillment riding a linked sibling
  * pair (the isCombined "kẹp" case — see driver-journey-board.service.ts)
- * reads as KẸP; an unlinked SINGLE is ĐƠN.
+ * reads as KẸP; a trip carrying 2 own containers (the 2×20' ghép-kẹp clamp —
+ * SIL-847, R3P-677-R) reads as KẸP too; an unlinked SINGLE is ĐƠN.
  *
  * Shared by the journey LIST (DriverTripsPage) and the trip DETAIL screen
  * (DriverTripDetailPage, SIL-636 QA round-3b): both surfaces must resolve the
@@ -72,7 +73,7 @@ export function isTripPairLocked(card?: { pairLocked?: boolean } | null): boolea
  * dispatch classification only as the fallback — so a card tagged KẸP/KẾT HỢP
  * on the list never loses its tag when the driver opens the detail.
  */
-export function tagLabelFor(card?: Pick<DriverJourneyCard, 'pairKind' | 'classification' | 'linked'> | null): string {
+export function tagLabelFor(card?: Pick<DriverJourneyCard, 'pairKind' | 'classification' | 'linked' | 'containers'> | null): string {
   // An ACTIVE trip pair is the authoritative source for the tag (PRD §3.2:
   // tags are derived from the pair, not entered by hand); the shipment
   // classification only fills in when no pair stands.
@@ -84,6 +85,13 @@ export function tagLabelFor(card?: Pick<DriverJourneyCard, 'pairKind' | 'classif
   // Lấy Lẻ must beat the `linked` fallback below: an LCL row is never a kẹp
   // member, so without its own branch it would read as KẸP on the driver app.
   if (card?.classification === 'LCL_PICKUP') return 'LẤY LẺ';
+  // SIL-847 (QA 15/11, R3P-677-R): a trip carrying 2 own containers is the
+  // 2×20' ghép-kẹp clamp — one truck, two boxes, the only 2-cont rig in the
+  // domain — and its badge reads KẸP even when the fulfillment label is still
+  // 'SINGLE' and no ACTIVE pair row exists. Resolved HERE, in the one shared
+  // classification-label resolution the card badge and the trip-detail header
+  // both read (SIL-815 100%-match law), so the two can never diverge.
+  if ((card?.containers?.length ?? 0) >= 2) return 'KẸP';
   return card?.linked ? 'KẸP' : 'ĐƠN';
 }
 

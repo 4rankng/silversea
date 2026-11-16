@@ -44,8 +44,11 @@ export default function TimesheetGridPage() {
   // "Lưu lưới" chỉ hiện cho vai trò ghi được.
   const { user } = useAuth();
   const canEditGrid = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER;
-  // FB-102 — mở bảng chấm công là việc của kế toán (POST /months accountantOnly).
-  const canOpenBoard = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
+  // SIL-842 (CR-008 Task 2.2) — mở bảng chấm công KHÔNG còn là việc riêng của
+  // kế toán (FB-102 superseded): mọi vai trò thao tác lưới mở được, Điều vận
+  // mở trang là lưới tháng tự khởi tạo (POST /months boardOpeners). Dialog vẫn
+  // cho phép chủ động chọn hình thức lương khi mở bằng tay.
+  const canOpenBoard = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || user?.role === Role.DISPATCHER;
   const cellRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const [driverId, setDriverId] = useState<number | null>(null);
@@ -72,6 +75,29 @@ export default function TimesheetGridPage() {
       rows.find(row => row.id === activeDriver?.monthId) ?? null),
     enabled: activeDriverId !== null,
   });
+
+  // SIL-842 (CR-008 Task 2.2) — tự khởi tạo lưới chấm công của tháng đang xem
+  // khi mở trang: Điều vận không phải đợi kế toán mở bảng nữa. Không gửi
+  // salaryMode — service chốt theo chế độ mặc định của chính lái xe (FB-103).
+  // Dialog "Mở bảng chấm công" vẫn là đường mở bằng tay (kế toán chủ động chọn
+  // hình thức lương, hoặc tự khởi tạo lỗi thì vai trò thao tác tự mở lại).
+  const autoInitAttempted = useRef(new Set<string>());
+  const autoInitMutation = useMutation({
+    mutationFn: (input: { driverId: number; year: number; month: number }) => createTimesheetMonth(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.timesheet.all });
+    },
+    onError: (error) => toastActionError(toast, 'Khởi tạo bảng chấm công', error, 'Không khởi tạo được bảng chấm công.'),
+  });
+  useEffect(() => {
+    if (!canEditGrid) return;
+    if (activeDriverId === null || !driversQuery.isSuccess || !monthQuery.isSuccess) return;
+    if (activeDriver?.monthId != null) return;
+    const key = `${year}-${month}:${activeDriverId}`;
+    if (autoInitAttempted.current.has(key)) return;
+    autoInitAttempted.current.add(key);
+    autoInitMutation.mutate({ driverId: activeDriverId, year, month });
+  }, [canEditGrid, activeDriverId, activeDriver?.monthId, driversQuery.isSuccess, monthQuery.isSuccess, year, month, autoInitMutation.mutate]);
 
   // Local edits layer over the saved month so typing never waits on the network.
   const timesheet: TimesheetMonth | null = monthQuery.data ?? null;
@@ -106,8 +132,9 @@ export default function TimesheetGridPage() {
 
   const dirty = Object.keys(pending).length > 0;
 
-  // FB-102 (card 141026230790) — tháng mới chưa có bảng thì không nhập ký hiệu
-  // được; kế toán mở bảng ngay tại đây (POST /months), sau đó điền lưới.
+  // SIL-842 — tháng chưa có bảng thì vai trò thao tác mở bảng ngay tại đây
+  // (POST /months boardOpeners; auto-init ở trên đã mở sẵn cho đa số trường
+  // hợp — đây là đường mở bằng tay khi tự khởi tạo lỗi hoặc kế toán chủ động).
   // FB-103 (card 141026230800) — mở bảng = chọn hình thức lương của lái xe.
   const [boardFormOpen, setBoardFormOpen] = useState(false);
   const [boardMode, setBoardMode] = useState<TimesheetSalaryMode>('PER_TRIP');
@@ -197,9 +224,14 @@ export default function TimesheetGridPage() {
           <EmptyState
             context="salary"
             title={`Chưa có bảng chấm công tháng ${String(month).padStart(2, '0')}/${year}`}
-            description="Kế toán mở bảng trước, sau đó Điều vận điền lưới."
+            // SIL-842 — bỏ luật "Kế toán mở bảng trước" (FB-102 superseded): Điều
+            // vận tự khởi tạo khi mở trang, nút mở bằng tay sẵn cho mọi vai trò
+            // thao tác lưới. Đang tự khởi tạo thì không mời bấm nữa.
+            description={autoInitMutation.isPending
+              ? 'Đang khởi tạo bảng chấm công…'
+              : 'Mở bảng chấm công để khởi tạo lưới cho lái xe trong tháng này.'}
             action={
-              canOpenBoard && activeDriverId !== null ? (
+              canOpenBoard && activeDriverId !== null && !autoInitMutation.isPending ? (
                 <Btn
                   onClick={() => {
                     // FB-103 (ticket 171026215600) — mở dialog với chế độ mặc định

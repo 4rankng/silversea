@@ -105,9 +105,12 @@
    inline gutters (10 × 12px pays the fit on both boards); money tokens stay
    atomic (.num nowrap) and every value still wraps or reads whole. The
    ≤1100px card-band restore below (SIL-476) outranks this rule on purpose —
-   its real-table geometry keeps the full 12px gutters. */
+   its real-table geometry keeps the full 12px gutters.
+   SIL-848 (id 977, QA 15/11 retest): 6px still left the matrix 15px over the
+   1440 workboard edge with the '[Lập phiếu]' pill cut — 4px inline gutters
+   recover ~40px more so the LẬP PHIẾU run and its button stay whole. */
 .pm-summary__table :is(td, th).num {
-  padding-inline: 6px;
+  padding-inline: 4px;
 }
 
 .pm-summary__conno {

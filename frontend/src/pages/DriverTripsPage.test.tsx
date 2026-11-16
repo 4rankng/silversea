@@ -112,8 +112,11 @@ describe('DriverTripsPage', () => {
     renderPage();
     expect(screen.getByText('RTAU4011047')).toBeTruthy();
     expect(screen.getByText('RTAU4011052')).toBeTruthy();
-    // ĐƠN trips carry exactly one tag — it rides the FIRST strip only.
-    expect(screen.getAllByText('ĐƠN').length).toBe(1);
+    // SIL-847: a trip carrying 2 cont is the ghép-kẹp clamp — the badge reads
+    // KẸP (was ĐƠN on R3P-677-R despite both strips). One tag per card — it
+    // rides the FIRST strip only.
+    expect(screen.getAllByText('KẸP').length).toBe(1);
+    expect(screen.queryByText('ĐƠN')).toBeNull();
   });
 
   it('a board wire without the containers field renders the singular strip unchanged (skew-safe)', () => {

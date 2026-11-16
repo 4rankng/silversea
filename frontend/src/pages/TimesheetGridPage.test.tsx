@@ -140,12 +140,53 @@ describe('mở bảng chấm công (FB-102/FB-103 — card 141026230790/230800)'
       driverId: 1, year: 2026, month: 10, salaryMode: 'FLAT_MONTHLY', flatAmount: 9000000,
     }));
   });
+});
 
-  it('Điều vận không thấy nút mở bảng — việc đó của kế toán', async () => {
+// SIL-842 (CR-008 Task 2.2, KH 15/11) — Điều vận (dungnv) mở /timesheet bị kẹt
+// ở "Kế toán mở bảng trước": tháng chưa có bảng thì vai trò thao tác lưới TỰ
+// khởi tạo khi mở trang (POST /months không gửi salaryMode — service lấy chế độ
+// mặc định của lái xe). Kế toán giữ nguyên đường mở chủ động qua dialog.
+describe('SIL-842 — tự khởi tạo lưới chấm công cho vai trò thao tác', () => {
+  it('Điều vận mở trang là bảng tháng tự mở — không đợi Kế toán, không dialog', async () => {
+    listDrivers.mockReset().mockResolvedValue([{ ...driver, monthId: null }]);
     listMonths.mockReset().mockResolvedValue([]);
     page();
-    await screen.findByText(/chưa có bảng chấm công/i);
-    expect(screen.queryByRole('button', { name: /Mở bảng chấm công/ })).toBeNull();
+    await waitFor(() => expect(createMonth).toHaveBeenCalledWith({ driverId: 1, year: 2026, month: 10 }));
+    // Không gửi salaryMode — service chốt theo chế độ mặc định của lái xe.
+    expect(createMonth.mock.calls[0][0]).not.toHaveProperty('salaryMode');
+    expect(createMonth).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('MANAGER (vai trò thao tác lưới) cũng được tự khởi tạo', async () => {
+    currentUser.role = Role.MANAGER;
+    listDrivers.mockReset().mockResolvedValue([{ ...driver, monthId: null }]);
+    listMonths.mockReset().mockResolvedValue([]);
+    page();
+    await waitFor(() => expect(createMonth).toHaveBeenCalledWith({ driverId: 1, year: 2026, month: 10 }));
+  });
+
+  it('Kế toán không bị tự mở — vẫn chủ động mở bảng qua dialog (FB-102/FB-103 giữ nguyên)', async () => {
+    currentUser.role = Role.ACCOUNTANT;
+    listDrivers.mockReset().mockResolvedValue([{ ...driver, monthId: null }]);
+    listMonths.mockReset().mockResolvedValue([]);
+    page();
+    fireEvent.click(await screen.findByRole('button', { name: /Mở bảng chấm công/ }));
+    await screen.findByRole('dialog');
+    expect(createMonth).not.toHaveBeenCalled();
+  });
+
+  it('tự khởi tạo lỗi thì Điều vận vẫn mở bảng được bằng tay — không chết màn hình', async () => {
+    listDrivers.mockReset().mockResolvedValue([{ ...driver, monthId: null }]);
+    listMonths.mockReset().mockResolvedValue([]);
+    createMonth.mockReset().mockRejectedValueOnce(new Error('boom')).mockResolvedValue(month);
+    page();
+    await waitFor(() => expect(createMonth).toHaveBeenCalledTimes(1));
+    const openBtn = await screen.findByRole('button', { name: /Mở bảng chấm công/ });
+    fireEvent.click(openBtn);
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Mở bảng$/ }));
+    await waitFor(() => expect(createMonth).toHaveBeenCalledTimes(2));
   });
 });
 
@@ -159,9 +200,10 @@ describe('SIL-649 — Driver timesheet empty-state redesign & stray stripe exter
     const title = await screen.findByRole('heading', { level: 3, name: 'Chưa có bảng chấm công tháng 10/2026' });
     expect(title).toBeVisible();
 
-    // 2. Guidance text preserving intent without dead button
-    expect(screen.getByText('Kế toán mở bảng trước, sau đó Điều vận điền lưới.')).toBeVisible();
-    expect(screen.queryByRole('button', { name: /Mở bảng chấm công/ })).toBeNull();
+    // 2. SIL-842 — guidance bỏ luật "Kế toán mở bảng trước"; nút mở bảng là
+    // hành động thật của mọi vai trò thao tác lưới (không còn dead button).
+    expect(screen.getByText('Mở bảng chấm công để khởi tạo lưới cho lái xe trong tháng này.')).toBeVisible();
+    expect(await screen.findByRole('button', { name: /Mở bảng chấm công/ })).toBeVisible();
 
     // 3. Centered empty card container
     const emptyCard = container.querySelector('.ts-empty-card');

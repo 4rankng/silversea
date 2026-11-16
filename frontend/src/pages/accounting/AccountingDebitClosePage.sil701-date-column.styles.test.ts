@@ -67,14 +67,14 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     expect(body).toMatch(/font-variant-numeric:\s*tabular-nums/);
   });
 
-  it('a money VALUE never wraps; a missing money label WRAPS instead of being cut', () => {
+  it('a money VALUE never wraps (SIL-838: no missing label exists to wrap)', () => {
     expect(ruleWith('.debit-line__value', /white-space:\s*nowrap/)).toMatch(/white-space:\s*nowrap/);
-    expect(ruleWith('.debit-line__value .debit-missing', /white-space:\s*normal/))
-      .toMatch(/white-space:\s*normal/);
     expect(ruleWith('.debit-board td.debit-col--money', /white-space:\s*nowrap/))
       .toMatch(/white-space:\s*nowrap/);
-    expect(ruleWith('.debit-board td.debit-col--money .debit-missing', /white-space:\s*normal/))
-      .toMatch(/white-space:\s*normal/);
+    // SIL-838 điểm 3 — the 'Thiếu …' prose and its wrap carve-outs are gone:
+    // a missing value renders an EMPTY cell, so no `.debit-missing` selector
+    // survives in the stylesheet.
+    expect(css).not.toMatch(/debit-missing/);
   });
 
   it('SIL-772 — cột tổng phía Phải trả có nhãn "Tổng trả" (không phải "Tổng 1")', () => {

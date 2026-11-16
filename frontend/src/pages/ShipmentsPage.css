@@ -344,14 +344,20 @@
    to ~1189px canvases by construction; below that a header wraps to two
    lines - the accepted cost of never clipping data (no container-query
    scroll lane either: with no floor the viewport can never overflow). */
+/* SIL-848 (id 977, QA 15/11): TRẠNG THÁI reclaims ~25px at the workboard —
+   its signal stack ('Chờ chốt lịch' / 'Chưa phân xe' / Thiếu nhà xe … + the
+   Chi tiết button) sat within 1-10px of the clip edge and the QA build cut
+   the last characters ('Chờ chốt lịc'). The ≥1024 band moves status
+   10.045%→12.245% and re-funds it from PHÂN LOẠI & HÀNG TẢI (16.093%→13.893%,
+   its tokens wrap at spaces) — shares stay exactly 100% (SIL-794 law). */
 @media (min-width: 1024px) {
   .cus-dashboard-table col.cus-dashboard-col--customer { width: 16.785%; }
   .cus-dashboard-table col.cus-dashboard-col--documents { width: 14.755%; }
-  .cus-dashboard-table col.cus-dashboard-col--classification { width: 16.093%; }
+  .cus-dashboard-table col.cus-dashboard-col--classification { width: 13.893%; }
   .cus-dashboard-table col.cus-dashboard-col--cargo { width: 15.883%; }
   .cus-dashboard-table col.cus-dashboard-col--schedule { width: 15.167%; }
   .cus-dashboard-table col.cus-dashboard-col--notes { width: 11.272%; }
-  .cus-dashboard-table col.cus-dashboard-col--status { width: 10.045%; }
+  .cus-dashboard-table col.cus-dashboard-col--status { width: 12.245%; }
 }
 
 .cus-dashboard-table thead th {

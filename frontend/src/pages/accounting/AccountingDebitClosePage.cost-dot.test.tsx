@@ -1,10 +1,12 @@
 // Card 191026181942 (KT8) — the leading cost-state track. SIL-727 amends the
 // track's law on this board: a PICKABLE row hosts the selection checkbox (the
 // same `useTableRowSelection` state the row click drives), a LOCKED row keeps
-// the red dot naming the missing cost. The money cells keep their muted
-// "Thiếu …" labels (§1); the row is never flooded red (selection state owns
-// that channel). The dot track stays pinned, and the ticket's money matrix
-// opens essential-locked (card KT4 as amended by SIL-727).
+// the red dot naming the missing cost. SIL-838 điểm 3 (KH 15/11) retires the
+// money cells' "Thiếu …" prose — a missing value renders an EMPTY cell (the
+// unlocked face is a direct input); the dot alone names the lack. The row is
+// never flooded red (selection state owns that channel). The dot track stays
+// pinned, and the ticket's money matrix opens essential-locked (card KT4 as
+// amended by SIL-727).
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -106,8 +108,8 @@ describe('the leading cost-state track on the board', () => {
       items: [
         // Pickable + complete → the checkbox affordance, no dot.
         row(),
-        // Pickable + a missing breakdown → still the checkbox; the muted
-        // "Thiếu …" money label names the lack instead of the track.
+        // Pickable + a missing breakdown → still the checkbox; the money
+        // cell renders EMPTY (SIL-838 — the dot alone names the lack).
         row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: 'BL-2', tra: { ...CARRIER_RATES, cuocTraDv: null } }),
         // Locked (PENDING) + a missing breakdown → the dot names the lack.
         row({ shipmentId: 3, code: 'SHP-26-0003', billOrBooking: 'BL-3', tra: { ...CARRIER_RATES, cuocTraDv: null }, adjustment: { status: 'PENDING', requestId: 55, requestedAt: null, confirmedAt: null } }),
@@ -123,7 +125,8 @@ describe('the leading cost-state track on the board', () => {
     const checkbox2 = boardRegion.getByRole('checkbox', { name: 'Chọn lô BL-2' });
     expect(checkbox2).toBeTruthy();
     expect(boardRegion.queryByRole('img', { name: 'Thiếu chi phí' })).toBeNull();
-    expect(boardRegion.getByText('Thiếu cước trả ĐV')).toHaveClass('debit-missing');
+    // SIL-838 — the missing money renders an EMPTY cell, never prose.
+    expect(boardRegion.queryByText(/Thiếu/)).toBeNull();
 
     // The locked row keeps the dot in ITS leading cell (the pending zone),
     // with the tooltip naming the lack.
@@ -134,13 +137,15 @@ describe('the leading cost-state track on the board', () => {
     expect(dots[0].closest('tr')?.textContent).toContain('BL-3');
   });
 
-  it('the money cell stays muted prose (§1) — the track never floods red', async () => {
+  it('SIL-838 — the missing money cell renders EMPTY (no prose names the lack)', async () => {
     listBoard.mockResolvedValue({ items: [row({ tra: { ...CARRIER_RATES, tong1: null } })], total: 1 });
     renderPage();
-    // Tổng 1 is essential — visible by default, its missing label still names
-    // the field in the muted face; the pickable row's track hosts the
-    // checkbox, and no red dot floods beside it.
-    expect(await screen.findByText('Thiếu tổng trả')).toHaveClass('debit-missing');
+    // Tổng 1 is essential — visible by default; its missing value leaves the
+    // cell BLANK (the 'Thiếu …' prose is retired), the pickable row's track
+    // still hosts the checkbox, and no red dot floods beside it.
+    expect(await screen.findByText('BL-1')).toBeTruthy();
+    expect(screen.queryByText('Thiếu tổng trả')).toBeNull();
+    expect(screen.queryByText(/Thiếu/)).toBeNull();
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeTruthy();
     expect(screen.queryByRole('img', { name: 'Thiếu chi phí' })).toBeNull();
   });
@@ -166,7 +171,7 @@ describe('the leading cost-state track on the board', () => {
     renderPage();
     const record = await screen.findByRole('article', { name: 'BL-1' });
     expect(within(record).queryByRole('img', { name: 'Thiếu chi phí' })).toBeNull();
-    // The per-field muted labels still carry the fact on the card face.
-    expect(within(record).getByText('Thiếu tổng trả')).toBeTruthy();
+    // SIL-838 — the card face carries no 'Thiếu …' prose either.
+    expect(within(record).queryByText(/Thiếu/)).toBeNull();
   });
 });

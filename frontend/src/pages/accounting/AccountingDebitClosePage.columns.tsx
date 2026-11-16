@@ -75,12 +75,11 @@ export interface DebitColumn extends LedgerColumn {
   cell: (row: AccountingDebitBoardRow, context: CellContext) => ReactNode;
 }
 
-/** A missing money value names the FIELD it is missing from (§1) — never the
- *  generic "Chưa xác định", which names nothing. */
-function money(value: string | null, missingLabel: string): ReactNode {
-  return value == null
-    ? <span className="debit-missing">{missingLabel}</span>
-    : formatCurrency(Number(value));
+/** SIL-838 điểm 3 (KH 15/11) — bỏ toàn bộ nhãn chữ 'Thiếu …': một giá trị
+ *  chưa có hiện Ô TRỐNG (ô chưa khóa đã là ô nhập số trực tiếp; mặt
+ *  khóa-sổ/records để trống — không còn prose tràn ô). */
+function money(value: string | null): ReactNode {
+  return value == null ? null : formatCurrency(Number(value));
 }
 
 /**
@@ -88,10 +87,10 @@ function money(value: string | null, missingLabel: string): ReactNode {
  * input while the lot is unlocked (chưa khóa sổ — AC2) and `saveRate` is
  * wired; the formatted text once the cost lock froze the row (sau khóa số
  * đọc thôi) or the cell renders outside the page (records view without a
- * saver). The missing-money label stays the locked/unknown face's law (§1).
+ * saver). The blank missing face is the locked/unknown face's law (SIL-838 §3).
  */
-function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null, missingLabel: string): ReactNode {
-  if (row.costLockedAt != null || context?.saveRate == null) return money(value, missingLabel);
+function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null): ReactNode {
+  if (row.costLockedAt != null || context?.saveRate == null) return money(value);
   return (
     <RateCell
       row={row}
@@ -156,6 +155,11 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
         {/* Card 191026202000: the customer name rides the shared NameCell like
             every other grid — short name on the face, full name in the tooltip. */}
         <NameCell as="small" name={row.customerName} />
+        {/* SIL-838 điểm 1 (KH 15/11) — nhà máy/kho hàng + tuyến dưới tên KH,
+            cả FCL lẫn LCL; mỗi fact một dòng, lô không mang fact nào thì
+            không có dòng nào (không placeholder). */}
+        {row.factoryName != null && <span className="debit-lot-site">{row.factoryName}</span>}
+        {row.routeName != null && <span className="debit-lot-route">{row.routeName}</span>}
       </div>
     ),
   },
@@ -193,10 +197,13 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   },
   {
     // Rev2 cột 3 — Phương tiện. Card 161026232419 (§II.4) + FB-094: an LCL row
-    // states BOTH facts — line 1 is the lot's real carrier identity next to the
-    // plate that actually ran the lane, line 2 is the orange "xe ảo" badge that
-    // fires only when the billing plate differs. The carrier half reuses
-    // `row.phanXe` (the service batches that lookup once for the whole board).
+    // states BOTH facts — line 1 is the lot's real carrier identity next to
+    // the plate that actually ran the lane, line 2 is the orange "xe ảo"
+    // badge that fires only when the billing plate differs. SIL-838 điểm 2
+    // (KH 15/11): MỌI dòng/cont phải đủ Tên nhà xe + BKS thực — nhãn phân xe
+    // giờ kèm các biển trip chưa có tên (`truckPlates`, đã lọc biển trùng
+    // nhãn), và cont nào projection riêng rỗng thì BE mượn danh tính anh em
+    // cùng Bill (vd K5K5346365 ×2 cont — dòng 2 mất VĂN LAN).
     key: 'phuongTien', label: 'Phương tiện', className: 'debit-col--truck', pinned: true,
     cell: (row, { editBillingPlate, editingBillingShipmentId }) => {
       const phanXeNames = (labels: string[]) => labels.map((label, index) => (
@@ -205,18 +212,23 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
           <NameCell name={label} />
         </Fragment>
       ));
+      const plates = (row.truckPlates ?? []).filter((plate) => plate.trim() !== '');
+      const platesLine = plates.length > 0 ? plates.join(', ') : null;
       if (row.lcl) {
         const carrierLabels = row.phanXe.filter((label) => label.trim() !== '');
         const carrier = carrierLabels.length > 0 ? phanXeNames(carrierLabels) : null;
         const actual = row.lcl.actualTruckNo?.trim() || null;
+        // SIL-838 — BKS thực: Gán-xe-nhóm ghi đè (`actualTruckNo`) trước,
+        // biển trip làm fallback — ô không bao giờ trống khi lô có xe.
+        const thuc = actual ?? platesLine;
         const billing = row.lcl.billingTruckNo?.trim() || null;
         const xeoAo = billing != null && billing !== actual ? billing : null;
         // Absence is not data: an LCL row carrying neither identity renders
         // the ONE em-dash, never an empty string or a bare "Thực: undefined".
-        if (carrier == null && actual == null && xeoAo == null) return <span>—</span>;
+        if (carrier == null && thuc == null && xeoAo == null) return <span>—</span>;
         return (
           <div className="record-cell-stack">
-            <span>{carrier ?? '—'} · Thực: {actual ?? '—'}</span>
+            <span>{carrier ?? '—'} · Thực: {thuc ?? '—'}</span>
             {/* FB-093 (card 191026100833): the badge IS the editor trigger —
                 not `disabled`: the plate stays readable as text. */}
             {xeoAo != null && (
@@ -234,7 +246,13 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
           </div>
         );
       }
-      return row.phanXe.length > 0 ? phanXeNames(row.phanXe) : '—';
+      if (row.phanXe.length === 0 && platesLine == null) return '—';
+      return (
+        <div className="record-cell-stack">
+          {row.phanXe.length > 0 && <span>{phanXeNames(row.phanXe)}</span>}
+          {platesLine != null && <span>Thực: {platesLine}</span>}
+        </div>
+      );
     },
   },
   {
@@ -248,11 +266,11 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
         <MoneyLine label="Cước thu" rate>
           {context?.ratesRefreshing
             ? <Skeleton width={64} height={16} />
-            : editableRate(row, context, 'cuocThu', 'Cước thu', row.thu.cuocThu, 'Thiếu cước thu')}
+            : editableRate(row, context, 'cuocThu', 'Cước thu', row.thu.cuocThu)}
         </MoneyLine>
-        <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', row.thu.lachHuyen, 'Thiếu lạch huyền')}</MoneyLine>
-        <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', row.thu.phuPs, 'Thiếu phụ PS')}</MoneyLine>
-        <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', row.thu.phatSinhCus, 'Thiếu phát sinh (cus)')}</MoneyLine>
+        <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', row.thu.lachHuyen)}</MoneyLine>
+        <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', row.thu.phuPs)}</MoneyLine>
+        <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', row.thu.phatSinhCus)}</MoneyLine>
       </div>
     ),
   },
@@ -261,7 +279,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // reads bold (the QA-passed rendering; Rev2's navy is the customer's Excel
     // face — no navy token exists in the house palette, so bold ink it is).
     key: 'tongThu', label: 'Tổng thu', className: 'debit-col--money', pinned: true,
-    cell: (row) => <strong className="debit-tong-thu">{money(row.thu.tongThu, 'Thiếu tổng thu')}</strong>,
+    cell: (row) => <strong className="debit-tong-thu">{money(row.thu.tongThu)}</strong>,
   },
   {
     // Rev2 cột 6 — Cước phải trả: cước trả ĐV, Lạch Huyện ĐV, phát sinh ĐV and
@@ -271,10 +289,10 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     key: 'cucPhaiTra', label: 'Cước phải trả', className: 'debit-col--money-group', pinned: true,
     cell: (row, context) => (
       <div className="debit-money-group">
-        <MoneyLine label="Cước trả ĐV" rate>{editableRate(row, context, 'cuocTraDv', 'Cước trả ĐV', row.tra.cuocTraDv, 'Thiếu cước trả ĐV')}</MoneyLine>
-        <MoneyLine label="Lạch Huyện ĐV" rate>{editableRate(row, context, 'lachHuyenDv', 'Lạch Huyện ĐV', row.tra.lachHuyenDv, 'Thiếu lạch huyền ĐV')}</MoneyLine>
-        <MoneyLine label="Phát sinh ĐV" rate>{editableRate(row, context, 'phatSinhDv', 'Phát sinh ĐV', row.tra.phatSinhDv, 'Thiếu phát sinh ĐV')}</MoneyLine>
-        <MoneyLine label="Phí RU" rate>{editableRate(row, context, 'phiRu', 'Phí RU', row.tra.phiRu, 'Thiếu phí RU')}</MoneyLine>
+        <MoneyLine label="Cước trả ĐV" rate>{editableRate(row, context, 'cuocTraDv', 'Cước trả ĐV', row.tra.cuocTraDv)}</MoneyLine>
+        <MoneyLine label="Lạch Huyện ĐV" rate>{editableRate(row, context, 'lachHuyenDv', 'Lạch Huyện ĐV', row.tra.lachHuyenDv)}</MoneyLine>
+        <MoneyLine label="Phát sinh ĐV" rate>{editableRate(row, context, 'phatSinhDv', 'Phát sinh ĐV', row.tra.phatSinhDv)}</MoneyLine>
+        <MoneyLine label="Phí RU" rate>{editableRate(row, context, 'phiRu', 'Phí RU', row.tra.phiRu)}</MoneyLine>
       </div>
     ),
   },
@@ -284,7 +302,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     key: 'tongTraChiPhiNgoai', label: 'Tổng trả & Chi phí ngoài', className: 'debit-col--money-group', pinned: true,
     cell: (row, context) => (
       <div className="debit-money-group">
-        <MoneyLine label="Tổng trả">{money(row.tra.tong1, 'Thiếu tổng trả')}</MoneyLine>
+        <MoneyLine label="Tổng trả">{money(row.tra.tong1)}</MoneyLine>
         <span className="debit-line debit-line--stacked">
           <span className="debit-line__label">Chi phí ngoài</span>
           <ExternalCostCell
@@ -301,7 +319,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // computeDebitBoardProfit). Lợi nhuận âm → ô bôi nền đỏ đậm, chữ trắng.
     key: 'loiNhuan', label: 'Lợi nhuận', className: 'debit-col--money', pinned: true,
     cell: (row) => {
-      if (row.loiNhuan == null) return money(null, 'Thiếu lợi nhuận');
+      if (row.loiNhuan == null) return money(null);
       const value = Number(row.loiNhuan);
       return (
         <span className={value < 0 ? 'debit-loinhuan debit-loinhuan--negative' : 'debit-loinhuan'}>
