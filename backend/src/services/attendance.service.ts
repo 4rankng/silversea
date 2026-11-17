@@ -6,7 +6,6 @@ import { ApiError } from '../errors';
 import { computeLiveSalary } from './salary-calculation.service';
 import { restoreSalarySnapshot, attendanceFingerprint } from './salary-confirmed-snapshot';
 import { lockApplicationOwnedUniqueness, lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
-import { billBookingTitle } from '../lib/business-keys';
 import { getWorkDays, type ConfirmationMap } from './attendance-summary.service';
 
 
@@ -35,25 +34,6 @@ function parseIsoDate(date: string): Date {
     throw new ApiError(400, `Ngày không hợp lệ: ${date}`);
   }
   return parsed;
-}
-
-/**
- * Business reference + route for TRIP_DAY enrichment; retain the legacy alias.
- */
-export async function getTripLabelsForWorkDays(tripIds: number[]): Promise<
-  Array<{ id: number; tripCode: string | null; routeName: string | null }>
-> {
-  if (tripIds.length === 0) return [];
-  const rows = await db.select({
-    id: s.trips.id,
-    blNumber: s.shipments.blNumber,
-    bookingRef: s.shipments.bookingRef,
-    routeName: s.routes.name,
-  }).from(s.trips)
-    .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
-    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
-    .where(inArray(s.trips.id, tripIds));
-  return rows.map(row => ({ id: row.id, tripCode: billBookingTitle(row.blNumber, row.bookingRef), routeName: row.routeName }));
 }
 
 /**

@@ -4,10 +4,20 @@
  * without importing attendance.service (which in turn imports
  * salary-calculation's computeLiveSalary — that pair closed a runtime cycle).
  */
-import { and, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { resolveSalaryPeriodDateRange } from './salary-period.service';
+import {
+  boardTripDayMapFromRows,
+  monthBucketsInRange,
+  type CompletedTripLabel,
+} from './salary-board-trip-days.service';
+import { billBookingTitle } from '../lib/business-keys';
+import {
+  tripCompletionBusinessDateSql,
+  tripCompletionBusinessDateTextSql,
+} from './completion-business-date-sql.service';
 
 /** How many Sundays are in a given month/year */
 function countSundays(year: number, month: number): number {
@@ -41,6 +51,87 @@ export async function getWorkDays(
       lte(s.driverWorkDays.date, endDate),
     ))
     .orderBy(s.driverWorkDays.date);
+}
+
+/**
+ * SIL-849 — the driver's trip-carrying chấm công board days within a salary
+ * period: date → trips, same `countDayTrips` weighting /timesheet and Đối
+ * chiếu pay from. A (possibly custom) period crossing calendar months reads
+ * every board it touches.
+ */
+export async function getBoardTripDays(
+  driverId: number,
+  startDate: string,
+  endDate: string,
+  executor: Executor = db,
+): Promise<Map<string, number>> {
+  const buckets = monthBucketsInRange(startDate, endDate);
+  if (buckets.length === 0) return new Map();
+  const monthRows = await executor.select({ id: s.driverTimesheetMonths.id })
+    .from(s.driverTimesheetMonths)
+    .where(and(
+      eq(s.driverTimesheetMonths.driverId, driverId),
+      or(...buckets.map(bucket => and(
+        eq(s.driverTimesheetMonths.year, bucket.year),
+        eq(s.driverTimesheetMonths.month, bucket.month),
+      ))),
+    ));
+  if (monthRows.length === 0) return new Map();
+  const rows = await executor.select({
+    symbol: s.driverTimesheetDays.symbol,
+    workDate: s.driverTimesheetDays.workDate,
+    tripAdjustment: s.driverTimesheetDays.tripAdjustment,
+  }).from(s.driverTimesheetDays)
+    .where(and(
+      inArray(s.driverTimesheetDays.monthId, monthRows.map(row => row.id)),
+      gte(s.driverTimesheetDays.workDate, startDate),
+      lte(s.driverTimesheetDays.workDate, endDate),
+    ));
+  return boardTripDayMapFromRows(rows);
+}
+
+/**
+ * SIL-849 — the trip labelling each board trip day: the driver's COMPLETED
+ * internal-fleet trips whose SIL-683 business completion date is that day —
+ * the same day-rule the board's auto symbols use (SIL-737). First completion
+ * of the day wins the label.
+ */
+export async function getCompletedTripLabelByDay(
+  driverId: number,
+  dates: string[],
+  executor: Executor = db,
+): Promise<Map<string, CompletedTripLabel>> {
+  const map = new Map<string, CompletedTripLabel>();
+  if (dates.length === 0) return map;
+  const rows = await executor.select({
+    id: s.trips.id,
+    completionDay: tripCompletionBusinessDateTextSql,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+    routeName: s.routes.name,
+  }).from(s.trips)
+    .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+    .leftJoin(s.routes, eq(s.trips.routeId, s.routes.id))
+    .where(and(
+      eq(s.trips.driverId, driverId),
+      eq(s.trips.status, 'COMPLETED'),
+      isNull(s.trips.deletedAt),
+      // Xe nội bộ: xe SilverSea, không thuộc nhà xe ngoài (SIL-737 rule).
+      isNull(s.trucks.carrierId),
+      isNull(s.trucks.deletedAt),
+      or(...dates.map(date => sql`${tripCompletionBusinessDateSql()} = ${date}`)),
+    ))
+    .orderBy(asc(s.trips.completedAt));
+  for (const row of rows) {
+    if (!row.completionDay || map.has(row.completionDay)) continue;
+    map.set(row.completionDay, {
+      tripId: row.id,
+      tripCode: billBookingTitle(row.blNumber, row.bookingRef),
+      routeName: row.routeName,
+    });
+  }
+  return map;
 }
 
 /**

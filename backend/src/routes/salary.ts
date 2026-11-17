@@ -7,10 +7,10 @@ import { Role } from '@tingting/shared';
 import {
   computeSalary,
   batchUpsertWorkDays,
-  getTripLabelsForWorkDays,
   computeAllDriverSalaries,
 } from '../services/attendance.service';
-import { getWorkDays } from '../services/attendance-summary.service';
+import { getWorkDays, getBoardTripDays, getCompletedTripLabelByDay } from '../services/attendance-summary.service';
+import { mergeBoardTripDaysIntoWorkDays } from '../services/salary-board-trip-days.service';
 import {
   applySalaryPeriodCloseAction,
   applySalaryPeriodReopenAction,
@@ -515,21 +515,30 @@ router.get('/:driverId/:year/:month/workdays', requireRoles(Role.MANAGER, Role.A
   const driverId = parseInt(String(req.params.driverId), 10);
   const year = parseInt(String(req.params.year), 10);
   const month = parseInt(String(req.params.month), 10);
+  if (!driverId || !year || !month || month < 1 || month > 12) {
+    throw new ApiError(400, 'Tham số không hợp lệ');
+  }
   const period = await resolveSalaryPeriodDateRange(month, year);
   const workDays = await getWorkDays(driverId, period.start, period.end);
 
-  // Also get linked trip names for TRIP_DAY records
-  const tripIds = workDays
-    .filter(w => w.status === 'TRIP_DAY' && w.tripId)
-    .map(w => w.tripId!);
-  const trips = await getTripLabelsForWorkDays(tripIds);
+  // SIL-849 — the calendar's trip days are the chấm công board's (the same
+  // source /timesheet + Đối chiếu pay from), not the legacy departure→arrival
+  // sync rows: those drifted (15-day runs, Sunday trips missing, reassigned
+  // trips bleeding across drivers) and flipped between loads. Manual
+  // attendance rows stay; unconfirmed legacy TRIP_DAY rows demote.
+  const boardTripDays = await getBoardTripDays(driverId, period.start, period.end);
+  const labelByDay = await getCompletedTripLabelByDay(driverId, [...boardTripDays.keys()]);
+  const merged = mergeBoardTripDaysIntoWorkDays(workDays, boardTripDays, labelByDay, driverId);
 
-  const tripMap = Object.fromEntries(trips.map(t => [t.id, t]));
-
-  const enriched = workDays.map(w => ({
-    ...w,
-    trip: w.tripId ? tripMap[w.tripId] ?? null : null,
-  }));
+  const enriched = merged.map(w => {
+    const label = w.tripId ? labelByDay.get(w.date) : undefined;
+    return {
+      ...w,
+      trip: label
+        ? { id: label.tripId, tripCode: label.tripCode, routeName: label.routeName }
+        : null,
+    };
+  });
 
   res.json({ period, workDays: enriched });
 }));

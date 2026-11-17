@@ -2,7 +2,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, gte, lte, sql, isNull, ne } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { computeAttendanceSummary, type ConfirmationMap } from './attendance-summary.service';
+import { computeAttendanceSummary, getBoardTripDays, type ConfirmationMap } from './attendance-summary.service';
 import {
   computeTimesheetSalary,
   daysOfMonth,
@@ -42,11 +42,22 @@ export async function computeLiveSalary(
   // This is a cost-allocation rate to distribute monthly salary across trips, NOT actual pay.
   const dailyRate = Math.round(baseSalary / standardWorkDays);
 
+  // SIL-849 — the trip-day split and the /salary calendar now read the chấm
+  // công board (the SAME source /timesheet + Đối chiếu pay from) instead of
+  // the legacy departure→arrival driver_work_days rows, so 'Lương chuyến
+  // (N ngày)', the green cells and the money can never disagree again. The
+  // paid-days basis below stays on the attendance rows — pay figures are
+  // untouched; the board only re-splits the INTERNAL cost allocation between
+  // chuyến and chờ việc (the two rows still sum to paidDays × dailyRate).
+  const boardTripDays = (await getBoardTripDays(driverId, start, end, executor)).size;
+  const leaveCap = paidDays - tripDays - standbyDays;
+  const splitStandbyDays = Math.max(0, paidDays - boardTripDays - leaveCap);
+
   // Cost allocation: trip salary = trip days × daily rate
-  const totalTripSalary = tripDays * dailyRate;
+  const totalTripSalary = boardTripDays * dailyRate;
 
   // Standby cost: standby days × daily rate (idle days → allocated cost)
-  const supplementPay = standbyDays * dailyRate;
+  const supplementPay = splitStandbyDays * dailyRate;
 
   // Leave deduction: Removed because adjustment handles it natively.
   const leaveDeduction = 0;
@@ -136,6 +147,10 @@ export async function computeLiveSalary(
 
   return {
     ...attendance,
+    // SIL-849 — board-based trip-day split (see above); paidDays stay on the
+    // attendance basis so every pay figure is unchanged.
+    tripDays: boardTripDays,
+    standbyDays: splitStandbyDays,
     baseSalary,
     socialInsurance,
     dailyRate,
