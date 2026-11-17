@@ -1,0 +1,3 @@
+# SIL-849 scoped backend typecheck
+$ npx tsc --noEmit  (cwd: backend)
+EXIT:0

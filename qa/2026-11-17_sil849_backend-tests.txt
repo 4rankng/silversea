@@ -1,0 +1,29 @@
+# SIL-849 scoped backend unit tests
+$ npx tsx --test src/tests/salary-board-trip-days.service.test.ts  (cwd: backend)
+▶ SIL-849 board trip days — monthBucketsInRange
+  ✔ calendar month is one bucket (13.174959ms)
+  ✔ a custom period crossing months reads every month it touches (0.171625ms)
+  ✔ year boundary rolls over (0.119958ms)
+✔ SIL-849 board trip days — monthBucketsInRange (14.87825ms)
+▶ SIL-849 board trip days — boardTripDayMapFromRows
+  ✔ Đ/K count one trip day, Q counts one cell with two trips (39.989375ms)
+  ✔ L/N/P and empty cells carry no trip day (0.209917ms)
+  ✔ the accountant's signed adjustment applies like the salary math (0.114708ms)
+✔ SIL-849 board trip days — boardTripDayMapFromRows (40.534917ms)
+▶ SIL-849 board trip days — mergeBoardTripDaysIntoWorkDays
+  ✔ board trip day is TRIP_DAY with the completed trip label (0.278959ms)
+  ✔ Sunday board trip day stays a trip day (Long: Đ on 1/11) (0.453292ms)
+  ✔ board wins over a manual row; id and note survive (0.192333ms)
+  ✔ unconfirmed legacy TRIP_DAY demotes: weekday → STANDBY, Sunday → WEEKLY_OFF, trip link cleared (7.87475ms)
+  ✔ manual PERSONAL_LEAVE on a board trip day is overridden by the board (0.137042ms)
+  ✔ board day without a completed trip is still a trip day, label-less (0.10875ms)
+✔ SIL-849 board trip days — mergeBoardTripDaysIntoWorkDays (9.629042ms)
+ℹ tests 12
+ℹ suites 3
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 959.054125
+EXIT:0
