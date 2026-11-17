@@ -3,6 +3,7 @@ import * as s from '../db/schema';
 import { eq, and, gte, lte, sql, isNull, ne } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { computeAttendanceSummary, getBoardTripDays, type ConfirmationMap } from './attendance-summary.service';
+import { countBoardMergedDayStatuses, mergeBoardTripDaysIntoWorkDays } from './salary-board-trip-days.service';
 import {
   computeTimesheetSalary,
   daysOfMonth,
@@ -49,7 +50,19 @@ export async function computeLiveSalary(
   // paid-days basis below stays on the attendance rows — pay figures are
   // untouched; the board only re-splits the INTERNAL cost allocation between
   // chuyến and chờ việc (the two rows still sum to paidDays × dailyRate).
-  const boardTripDays = (await getBoardTripDays(driverId, start, end, executor)).size;
+  const boardTripDaysMap = await getBoardTripDays(driverId, start, end, executor);
+  const boardTripDays = boardTripDaysMap.size;
+  // SIL-849 round 2 — the DAY-COUNT fields ('Lương chờ việc (N ngày)',
+  // weeklyOffDays) count the same merged calendar the /salary calendar
+  // renders (round-1 merge rules: a board trip day wins; an unconfirmed
+  // legacy TRIP_DAY demotes to its attendance default) — not the legacy
+  // weeklyOffDays snapshot taken before board trip days merged. Labels only
+  // decorate calendar cells; the counts need statuses only.
+  const boardDayCounts = countBoardMergedDayStatuses(
+    start,
+    end,
+    mergeBoardTripDaysIntoWorkDays(attendance.workDays, boardTripDaysMap, new Map(), driverId),
+  );
   const leaveCap = paidDays - tripDays - standbyDays;
   const splitStandbyDays = Math.max(0, paidDays - boardTripDays - leaveCap);
 
@@ -150,7 +163,12 @@ export async function computeLiveSalary(
     // SIL-849 — board-based trip-day split (see above); paidDays stay on the
     // attendance basis so every pay figure is unchanged.
     tripDays: boardTripDays,
-    standbyDays: splitStandbyDays,
+    // SIL-849 round 2 — standby/weeklyOff counts follow the merged calendar
+    // (QA 11/2026: Long 24 chờ việc / 5 nghỉ tuần, Hiếu 25 / 4) so the split
+    // line and the summary API match the painted cells; supplementPay stays
+    // on the paidDays basis (splitStandbyDays above) so no pay figure moves.
+    standbyDays: boardDayCounts.standbyDays,
+    weeklyOffDays: boardDayCounts.weeklyOffDays,
     baseSalary,
     socialInsurance,
     dailyRate,

@@ -155,3 +155,41 @@ export function mergeBoardTripDaysIntoWorkDays(
   merged.sort((a, b) => a.date.localeCompare(b.date));
   return merged;
 }
+
+/** SIL-849 round 2 — day counts read straight off the merged calendar. */
+export interface BoardMergedDayCounts {
+  tripDays: number;
+  standbyDays: number;
+  weeklyOffDays: number;
+}
+
+/**
+ * SIL-849 round 2 — the /salary day-count fields count the SAME merged
+ * calendar the month calendar renders: every period date takes its merged row
+ * status, a date with no row takes the attendance default (Sunday
+ * WEEKLY_OFF / weekday STANDBY) exactly like the calendar's default-filled
+ * cells. PERSONAL_LEAVE stays on the legacy attendance basis (pay math), so
+ * it is not counted here. Pure — same merge rules as round 1.
+ */
+export function countBoardMergedDayStatuses(
+  periodStart: string,
+  periodEnd: string,
+  merged: MergedWorkDay[],
+): BoardMergedDayCounts {
+  const counts: BoardMergedDayCounts = { tripDays: 0, standbyDays: 0, weeklyOffDays: 0 };
+  const statusByDate = new Map(merged.map(row => [row.date, row.status]));
+  const [startYear, startMonth, startDay] = periodStart.split('-').map(Number);
+  const [endYear, endMonth, endDay] = periodEnd.split('-').map(Number);
+  if (!startYear || !startMonth || !startDay || !endYear || !endMonth || !endDay) return counts;
+  const cur = new Date(Date.UTC(startYear, startMonth - 1, startDay));
+  const stop = new Date(Date.UTC(endYear, endMonth - 1, endDay));
+  while (cur <= stop) {
+    const date = cur.toISOString().split('T')[0];
+    const status = statusByDate.get(date) ?? (isSundayUtc(date) ? 'WEEKLY_OFF' : 'STANDBY');
+    if (status === 'TRIP_DAY') counts.tripDays++;
+    else if (status === 'STANDBY') counts.standbyDays++;
+    else if (status === 'WEEKLY_OFF') counts.weeklyOffDays++;
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return counts;
+}

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   boardTripDayMapFromRows,
+  countBoardMergedDayStatuses,
   mergeBoardTripDaysIntoWorkDays,
   monthBucketsInRange,
   type CompletedTripLabel,
@@ -156,5 +157,55 @@ describe('SIL-849 board trip days — mergeBoardTripDaysIntoWorkDays', () => {
     assert.deepEqual(merged, [{
       id: 0, driverId: 7, date: '2026-11-01', status: 'TRIP_DAY', tripId: null, note: null,
     }]);
+  });
+});
+
+describe('SIL-849 round 2 — countBoardMergedDayStatuses (standby/weeklyOff recompute)', () => {
+  // Nov 2026: 30 days, Sundays = 1, 8, 15, 22, 29.
+
+  test('Long: board Sunday trip overrides the WEEKLY_OFF row; defaults fill the rest (24/5)', () => {
+    // Legacy rows before the board merged: 1/11 was painted 'Nghỉ tuần'
+    // (weeklyOffDays snapshot 6 = 1 + manual 4/11 + Sunday defaults), the
+    // board now confirms Đ on 1/11 so the record must recount from the merge.
+    const workDays = [
+      workDay({ id: 1, driverId: 40, date: '2026-11-01', status: 'WEEKLY_OFF' }),
+      workDay({ id: 2, driverId: 40, date: '2026-11-04', status: 'WEEKLY_OFF' }),
+    ];
+    const board = new Map([['2026-11-01', 1]]);
+    const counts = countBoardMergedDayStatuses(
+      '2026-11-01',
+      '2026-11-30',
+      mergeBoardTripDaysIntoWorkDays(workDays, board, new Map(), 40),
+    );
+    assert.deepEqual(counts, { tripDays: 1, standbyDays: 24, weeklyOffDays: 5 });
+  });
+
+  test('Hiếu: orphan legacy TRIP_DAY rows demote to Sunday defaults; Q cell = one trip day (25/4)', () => {
+    // Legacy rows: departure→arrival sync painted 1, 8, 15 TRIP_DAY
+    // (weeklyOffDays snapshot 2 = 22 + 29 only); the board confirms only the
+    // 15/11 Q cell (2 trips on one day), so 1/11 + 8/11 demote to their
+    // Sunday default and the record must recount 4 weekly-off days.
+    const workDays = [
+      workDay({ id: 1, driverId: 15, date: '2026-11-01', status: 'TRIP_DAY', tripId: 5 }),
+      workDay({ id: 2, driverId: 15, date: '2026-11-08', status: 'TRIP_DAY', tripId: 5 }),
+      workDay({ id: 3, driverId: 15, date: '2026-11-15', status: 'TRIP_DAY', tripId: 8 }),
+      workDay({ id: 4, driverId: 15, date: '2026-11-22', status: 'WEEKLY_OFF' }),
+      workDay({ id: 5, driverId: 15, date: '2026-11-29', status: 'WEEKLY_OFF' }),
+    ];
+    const board = boardTripDayMapFromRows([boardRow({ symbol: 'Q', workDate: '2026-11-15' })]);
+    assert.equal(board.get('2026-11-15'), 2); // Q weights 2 trips, still 1 trip DAY
+    const counts = countBoardMergedDayStatuses(
+      '2026-11-01',
+      '2026-11-30',
+      mergeBoardTripDaysIntoWorkDays(workDays, board, new Map(), 15),
+    );
+    assert.deepEqual(counts, { tripDays: 1, standbyDays: 25, weeklyOffDays: 4 });
+  });
+
+  test('no board and no rows: the whole period takes its attendance defaults', () => {
+    assert.deepEqual(
+      countBoardMergedDayStatuses('2026-11-01', '2026-11-30', []),
+      { tripDays: 0, standbyDays: 25, weeklyOffDays: 5 },
+    );
   });
 });
