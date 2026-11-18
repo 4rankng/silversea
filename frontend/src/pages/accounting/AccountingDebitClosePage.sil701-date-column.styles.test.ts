@@ -22,7 +22,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BOARD_COLUMNS } from './AccountingDebitClosePage.columns';
+import { BOARD_COLUMNS, LotCodeSpan } from './AccountingDebitClosePage.columns';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/accounting/AccountingDebitClosePage.css'), 'utf8')
   // The comments carry the measurement that justifies each track; they are
@@ -93,13 +93,14 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     // position i must still be the key this width was measured for.
     const expectedOrder = ['lo', 'hangHoaCont', 'phuongTien', 'cucPhaiThu', 'tongThu', 'cucPhaiTra', 'tongTraChiPhiNgoai', 'loiNhuan', 'ghiChuDoiSoat'];
     expect(BOARD_COLUMNS.map((candidate) => candidate.key)).toEqual(expectedOrder);
-    // SIL-835 r2 (QA 00:02 SGT 17/11, build 0fcc040b): the Lô track takes 14%
-    // — measured to hold the tick/checkbox slot + a 16-char lot code
-    // (EGLV149607865113 = 114.9px live) with gap ≥ +13px at the 1142px
-    // open-sidebar canvas — funded −1% each from the two 14% money tracks
-    // and the two 11% tracks (every money track stays ≥10% ≈114px, the
-    // r1 floor). Same assertion, new measured numbers.
-    const expectedShares = [14, 10, 10, 13, 10, 13, 10, 10, 10];
+    // SIL-964 (QA FAIL 18/11, build 6bae7153): an 18-char lot code
+    // (R4B-A14-EMPTY-8F29) still overflowed the 14% track by 14px at the
+    // 1142px open-sidebar canvas — r2 measured 16-char codes only. The Lô
+    // track now takes 16% (≈183px — holds the checkbox + an 18-char code
+    // one font step down with gap ≥ 0) funded −1% each from the two 13%
+    // money tracks (every money track stays ≥10% ≈114px, the r1 floor).
+    // Same assertion, new measured numbers.
+    const expectedShares = [16, 10, 10, 12, 10, 12, 10, 10, 10];
     expectedOrder.forEach((key, index) => {
       expect(css).toContain(`.debit-board thead th:nth-child(${index + 1}) { width: ${expectedShares[index]}%; }`);
     });
@@ -111,5 +112,20 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     // made 16-char codes bleed. The checkbox REPLACES the tick slot; the
     // code position stays stable across every selectable row.
     expect(css).toMatch(/\.debit-lot-ref:has\(\.debit-row-checkbox\) \.debit-row-tick\s*\{\s*display:\s*none;\s*\}/);
+  });
+
+  it('SIL-964 — a 17+ char lot code renders one font step down inside the Lô track', () => {
+    // QA FAIL 18/11 (build 6bae7153): the 18-char staging code
+    // R4B-A14-EMPTY-8F29 overflowed the 14% track by 14px at the 1142px
+    // canvas. The long face is part of the r3 fix alongside the 16% share:
+    // the CSS rule must exist, and the Lô cell must apply it by rendered
+    // length (17+), so ANY 18-char code gets the shrunk face wherever it
+    // appears — without ellipsis/clip and without another share shift.
+    expect(ruleWith('.debit-lot-code--long', /font-size:\s*11px/)).toMatch(/font-size:\s*11px/);
+    const lot = BOARD_COLUMNS.find((candidate) => candidate.key === 'lo');
+    expect(lot).toBeDefined();
+    expect(lot?.cell.toString()).toContain('LotCodeSpan');
+    expect(LotCodeSpan.toString()).toContain('debit-lot-code--long');
+    expect(LotCodeSpan.toString()).toContain('length >= 17');
   });
 });

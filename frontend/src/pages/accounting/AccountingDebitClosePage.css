@@ -70,26 +70,31 @@ p.debit-note { margin: 0 0 8px; }
   white-space: normal;
 }
 
-/* Track shares (Rev2 groups, in order; SIL-835 rebalance r2): Lô 14 ·
- * Hàng hóa & Cont 10 · Phương tiện 10 · Cước phải thu 13 · Tổng thu 10 ·
- * Cước phải trả 13 · Tổng trả & Chi phí ngoài 10 · Lợi nhuận 10 ·
- * Ghi chú & Đối soát 10.
+/* Track shares (Rev2 groups, in order; SIL-835 rebalance r2, SIL-964 r3):
+ * Lô 16 · Hàng hóa & Cont 10 · Phương tiện 10 · Cước phải thu 12 ·
+ * Tổng thu 10 · Cước phải trả 12 · Tổng trả & Chi phí ngoài 10 ·
+ * Lợi nhuận 10 · Ghi chú & Đối soát 10.
  * SIL-835 r2 (QA 00:02 SGT 17/11, build 0fcc040b): the 10% Lô track (≈114px
  * at the 1142px open-sidebar canvas — 94px of content after padding) could
  * not hold the reserved tick slot + checkbox + a real lot code (16-char
  * codes like EGLV149607865113 measure 114.9px ALONE): QA measured 70/110
  * rows bleeding into the Hàng hóa cell, worst −22px (15-char code). The Lô
- * track now takes 14% (≈160px — measured to hold checkbox + 16-char code
- * with gap ≥ 0) funded −1% each from the two 14% money tracks and the two
+ * track took 14% funded −1% each from the two 14% money tracks and the two
  * 11% tracks (every money track stays ≥10% ≈114px, the SIL-835 r1 floor).
+ * SIL-964 (QA FAIL 18/11, build 6bae7153): an 18-char code
+ * (R4B-A14-EMPTY-8F29) still overflowed the 14% track by 14px at the 1142px
+ * canvas — r2 measured 16-char codes only. The Lô track now takes 16%
+ * (≈183px: checkbox + an 18-char code one font step down fits with gap ≥ 0)
+ * funded −1% each from the two 13% money tracks — every money track stays
+ * ≥10% ≈114px, and codes ≥17 chars shrink one face (see .debit-lot-code--long).
  * The nine-group ORDER is the Rev2 contract, so the shares key on the
  * header's child position (same-class columns carry different widths). */
-.debit-board thead th:nth-child(1) { width: 14%; }  /* Lô */
+.debit-board thead th:nth-child(1) { width: 16%; }  /* Lô */
 .debit-board thead th:nth-child(2) { width: 10%; }  /* Hàng hóa & Cont */
 .debit-board thead th:nth-child(3) { width: 10%; }  /* Phương tiện */
-.debit-board thead th:nth-child(4) { width: 13%; }  /* Cước phải thu */
+.debit-board thead th:nth-child(4) { width: 12%; }  /* Cước phải thu */
 .debit-board thead th:nth-child(5) { width: 10%; }  /* Tổng thu */
-.debit-board thead th:nth-child(6) { width: 13%; }  /* Cước phải trả */
+.debit-board thead th:nth-child(6) { width: 12%; }  /* Cước phải trả */
 .debit-board thead th:nth-child(7) { width: 10%; }  /* Tổng trả & Chi phí ngoài */
 .debit-board thead th:nth-child(8) { width: 10%; }  /* Lợi nhuận */
 .debit-board thead th:nth-child(9) { width: 10%; }  /* Ghi chú & Đối soát */
@@ -100,6 +105,13 @@ p.debit-note { margin: 0 0 8px; }
  * collapses (the checkbox IS the pick marker); the code position stays
  * stable across every selectable row. */
 .debit-lot-ref:has(.debit-row-checkbox) .debit-row-tick { display: none; }
+
+/* SIL-964 — codes of 17+ chars (staging worst R4B-A14-EMPTY-8F29, 18 chars)
+ * render one font step down: at the 12px inherited face an 18-char code
+ * alone is ~134px — wider than anything the fixed track can spare beside
+ * the checkbox; ~118px at 11px keeps the longest references whole with
+ * gap ≥ 0 without stealing further budget from the money tracks. */
+.debit-lot-code--long { font-size: 11px; }
 
 /* Single-value money cells (Tổng thu, Lợi nhuận) right-align like the old
  * matrix; the multi-line groups align per LINE (label left, value right). */

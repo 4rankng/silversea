@@ -116,6 +116,14 @@ function MoneyLine({ label, rate, children }: { label: string; rate?: boolean; c
   );
 }
 
+/** SIL-964 — the lot's code span. A code of 17+ chars (staging worst
+ * R4B-A14-EMPTY-8F29, 18) rides the smaller `.debit-lot-code--long` face so
+ * the longest references stay whole inside the fixed 16% Lô track
+ * (AccountingDebitClosePage.css, same ticket). */
+export function LotCodeSpan({ code }: { code: string }) {
+  return <span className={code.length >= 17 ? 'debit-lot-code--long' : undefined}>{code}</span>;
+}
+
 export const BOARD_COLUMNS: readonly DebitColumn[] = [
   {
     // Rev2 cột 1 — [Checkbox] & Lô: ngày đóng/trả, khách hàng (nhà máy /
@@ -149,7 +157,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
             : hasMissingCost(row)
               ? <span className="debit-cost-dot" role="img" aria-label="Thiếu chi phí" title="Thiếu chi phí" />
               : null}
-          <span>{billBookingReference(row.billOrBooking) || '—'}</span>
+          <LotCodeSpan code={billBookingReference(row.billOrBooking) || '—'} />
         </span>
         <span className="debit-lot-date">{row.ngay == null ? '—' : formatDate(row.ngay)}</span>
         {/* Card 191026202000: the customer name rides the shared NameCell like
