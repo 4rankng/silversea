@@ -104,9 +104,17 @@ function renderUsersPage() {
   );
 }
 
+// UsersPage shares userClient.getUsers with sibling catalog fetchers mounted
+// on the same page (CusGroupsManager candidates: { role:'CUS', limit:500 },
+// no page param). The page's own server-driven table query always carries
+// `page` — pick the last such call so the pin reads the PAGE's query.
 function lastCallParams() {
   const calls = getUsers.mock.calls;
-  return calls[calls.length - 1]?.[0] as Record<string, unknown> | undefined;
+  for (let i = calls.length - 1; i >= 0; i--) {
+    const params = calls[i]?.[0] as Record<string, unknown> | undefined;
+    if (params && 'page' in params) return params;
+  }
+  return undefined;
 }
 
 beforeEach(() => {
