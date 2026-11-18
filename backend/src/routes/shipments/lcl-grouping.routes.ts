@@ -37,6 +37,7 @@ import {
 } from '@tingting/shared';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
+import { assertCusLotVisible, assertCusLclGroupMembersVisible } from '../../services/cus-visibility.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { declareMaterialWrite } from '../../middleware/material-write';
 import { registerAuditEvent } from '../../services/audit-registry';
@@ -99,6 +100,10 @@ lclGroupingRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const input = mergeLclRevGroupSchema.parse(req.body);
     const actor = getUser(req);
+    // Nhóm CUS: gộp cước thu chỉ trên các lô trong phạm vi thấy được.
+    for (const shipmentId of input.shipmentIds) {
+      await assertCusLotVisible(shipmentId, actor);
+    }
     const result = await mergeLclRevGroup(input, {
       userId: actor.userId,
       role: actor.role,
@@ -116,6 +121,8 @@ lclGroupingRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const input = setLclLotRevClassSchema.parse(req.body);
     const actor = getUser(req);
+    // Nhóm CUS: chỉ trên lô trong phạm vi thấy được.
+    await assertCusLotVisible(input.shipmentId, actor);
     const result = await setLclLotRevClass(input, {
       userId: actor.userId,
       role: actor.role,
@@ -132,6 +139,8 @@ lclGroupingRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const input = unmergeLclLotSchema.parse(req.body);
     const actor = getUser(req);
+    // Nhóm CUS: chỉ tách lô trong phạm vi thấy được.
+    await assertCusLotVisible(input.shipmentId, actor);
     const result = await unmergeLclLot(input, {
       userId: actor.userId,
       role: actor.role,
@@ -148,6 +157,8 @@ lclGroupingRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const input = unmergeLclGroupSchema.parse(req.body);
     const actor = getUser(req);
+    // Nhóm CUS: tách cả nhóm chỉ khi mọi lô thành viên đều trong phạm vi.
+    await assertCusLclGroupMembersVisible(input.groupId, input.dimension, actor);
     const result = await unmergeLclGroup(input, {
       userId: actor.userId,
       role: actor.role,
@@ -164,6 +175,8 @@ lclGroupingRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const input = updateLclTruckSchema.parse(req.body);
     const actor = getUser(req);
+    // Nhóm CUS: BKS báo khách chỉ trên lô trong phạm vi thấy được.
+    await assertCusLotVisible(input.shipmentId, actor);
     const result = await updateLclGroupTruck(input, {
       userId: actor.userId,
       role: actor.role,

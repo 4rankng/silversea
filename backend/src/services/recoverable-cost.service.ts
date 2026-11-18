@@ -1,11 +1,12 @@
 import { and, asc, count, desc, eq, isNull, sql, type SQL } from 'drizzle-orm';
-import { OPS_EXPENSE_TYPE_DEFAULTS, recoverableCostListQuerySchema } from '@tingting/shared';
+import { OPS_EXPENSE_TYPE_DEFAULTS, recoverableCostListQuerySchema, Role } from '@tingting/shared';
 import type { z } from 'zod';
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import { billBookingTitle } from '../lib/business-keys';
+import { assertCusLotVisible, cusVisibilityCondition } from './cus-visibility.service';
 
 /** Sort keys accepted by the list endpoint (mirrors RECOVERABLE_COST_SORT_KEYS
  * in the shared query schema — keep the two lists in sync). */
@@ -363,6 +364,8 @@ async function recoverableConditions(
   ];
   if (filters.approvalStatus) conditions.push(eq(s.tripExpenses.approvalStatus, filters.approvalStatus));
   if (filters.customerId) conditions.push(eq(s.trips.customerId, filters.customerId));
+  // Nhóm CUS (18/11): chi phí thu hộ hiển thị theo đúng phạm vi lô của vai CUS.
+  if (actor.role === Role.CUS) conditions.push(...await cusVisibilityCondition(db, actor));
   return conditions;
 }
 
@@ -433,5 +436,7 @@ export async function getRecoverableCost(
     .limit(1);
   if (!row) throw new ApiError(404, 'Không tìm thấy chi phí thu hộ');
   if (row.shipmentId == null) throw new ApiError(404, 'Không tìm thấy chi phí thu hộ');
+  // Nhóm CUS: một dòng chi phí của lô ngoài phạm vi = 404 (không tiết lộ).
+  await assertCusLotVisible(row.shipmentId, actor, executor);
   return toRecoverableCost(row);
 }

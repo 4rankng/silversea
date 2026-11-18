@@ -49,6 +49,7 @@ import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { cacheInvalidate } from '../../lib/redis';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { runShipmentWrite, sendShipmentWrite } from './shipment-shared';
+import { assertCusTripVisible, assertCusFulfillmentVisible } from '../../services/cus-visibility.service';
 import { decomposeFulfillmentLessContainer } from '../../services/dispatch-detail-plan-fulfillment-less';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
@@ -516,6 +517,8 @@ dispatchPlanningRoutes.post(
       throw new ApiError(400, 'fulfillmentId không hợp lệ.');
     }
     const user = getUser(req);
+    // Nhóm CUS: phát lệnh ngoài chỉ trên lô trong phạm vi thấy được.
+    await assertCusFulfillmentVisible(fulfillmentId, user);
     const expectedTripVersion = req.body?.expectedTripVersion !== undefined
       ? Number(req.body.expectedTripVersion)
       : undefined;
@@ -544,6 +547,8 @@ dispatchPlanningRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const tripId = Number(req.params.tripId);
     if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'tripId không hợp lệ.');
+    // Nhóm CUS: biển số ngoài chỉ trên lô trong phạm vi thấy được.
+    await assertCusTripVisible(tripId, getUser(req));
     res.json(await getExternalTripPlateContext(tripId));
   }),
 );
@@ -554,6 +559,8 @@ dispatchPlanningRoutes.patch(
   asyncHandler(async (req: Request, res: Response) => {
     const tripId = Number(req.params.tripId);
     if (!Number.isInteger(tripId) || tripId <= 0) throw new ApiError(400, 'tripId không hợp lệ.');
+    // Nhóm CUS: biển số ngoài chỉ trên lô trong phạm vi thấy được.
+    await assertCusTripVisible(tripId, getUser(req));
     const parsed = externalTripPlateSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const { result } = await runShipmentWrite(

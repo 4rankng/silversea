@@ -29,6 +29,7 @@ import {
 } from '../../services/shipment-lifecycle-shared.service';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
+import { assertCusLotVisible } from '../../services/cus-visibility.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { throwValidation } from '../../lib/validation';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
@@ -65,6 +66,8 @@ documentsRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;
+    // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(id, getUser(req));
     const parsed = attachShipmentDocumentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
@@ -97,6 +100,8 @@ documentsRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const documentId = parseInt(req.params.documentId as string, 10);
     if (!Number.isInteger(documentId) || documentId <= 0) {
       res.status(400).json({ error: 'ID tài liệu không hợp lệ' });
@@ -135,6 +140,8 @@ documentsRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = shipmentDeclarationSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
@@ -182,6 +189,8 @@ documentsRoutes.put(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const declarationId = parseInt(req.params.declarationId as string, 10);
     if (!Number.isInteger(declarationId) || declarationId <= 0) {
       res.status(400).json({ error: 'ID tờ khai không hợp lệ' });
@@ -234,6 +243,8 @@ documentsRoutes.delete(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const declarationId = parseInt(req.params.declarationId as string, 10);
     if (!Number.isInteger(declarationId) || declarationId <= 0) {
       res.status(400).json({ error: 'ID tờ khai không hợp lệ' });
@@ -263,6 +274,8 @@ documentsRoutes.delete(
 documentsRoutes.get('/:id/containers', asyncHandler(async (req: Request, res: Response) => {
   const id = parseId(req, res);
   if (id === null) return;
+  // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+  await assertCusLotVisible(id, getUser(req));
   // 404 if the shipment itself is missing, rather than returning an empty
   // list that would mask the missing parent.
   const detail = await getShipmentDetail(id, getUser(req));
@@ -276,6 +289,8 @@ documentsRoutes.put(
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;
+    // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(id, getUser(req));
     const parsed = shipmentContainerBatchSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);

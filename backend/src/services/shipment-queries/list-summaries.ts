@@ -27,6 +27,7 @@ import type { DispatchSummary } from '@tingting/shared';
 import { AllocationStatus, INTERNAL_FLEET_CARRIER_NAME, CUSTOMER_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME } from './shared';
 import { operationalName } from '../../db/master-data-name';
 import { buildShipmentSearchPredicate, buildDispatchPortFacetPredicate, buildDispatchCarrierFacetPredicate, buildDispatchCargoScopePredicate, loadShipmentDispatchAggregates, computeDispatchSummaryForSet } from './dispatch-aggregates';
+import { cusVisibilityCondition } from '../cus-visibility.service';
 import type { ShipmentContainerPortGroup } from './container-aggregates';
 import { loadShipmentListContainerPortGroups } from './container-aggregates';
 
@@ -789,6 +790,15 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   if (carrierFacet) conditions.push(carrierFacet);
   const cargoScope = buildDispatchCargoScopePredicate(options.cargoMode);
   if (cargoScope) conditions.push(cargoScope);
+
+  // Nhóm CUS (team-based visibility, 18/11): vai CUS chỉ thấy lô của mình,
+  // của người cùng nhóm ACTIVE, và fallback vận hành (created_by NULL hoặc
+  // do vai không phải CUS tạo). Staff roles (ADMIN/MANAGER/ACCOUNTANT/
+  // DISPATCHER) không bao giờ bị scope. Cùng mảng `conditions` nuôi page
+  // rows + total + dispatch summary nên count không bao giờ lệch bảng.
+  if (options.actor?.role === Role.CUS) {
+    conditions.push(...await cusVisibilityCondition(db, options.actor));
+  }
 
   // allocationStatus is derived from container/fulfillment aggregates and
   // cannot live in the WHERE clause. When filtering on it, resolve the full

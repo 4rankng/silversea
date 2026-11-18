@@ -32,6 +32,7 @@ import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parseId } from './shipment-shared';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
+import { assertCusLotVisible } from '../../services/cus-visibility.service';
 
 const customerVisibleEventSchema = z.object({
   eventKey: z.string().trim().min(1).max(120),
@@ -60,6 +61,8 @@ const coordinationRoutes = Router()
 coordinationRoutes.get('/:id/customer-events', asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(req, res);
   if (shipmentId === null) return;
+  // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+  await assertCusLotVisible(shipmentId, getUser(req));
   res.json({ items: await listCustomerVisibleEvents({ shipmentId, actor: getUser(req) }) });
 }));
 
@@ -69,6 +72,8 @@ coordinationRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = customerVisibleEventSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const actor = getUser(req);
@@ -85,6 +90,8 @@ coordinationRoutes.post(
 coordinationRoutes.get('/:id/dispatch-handoff', asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(req, res);
   if (shipmentId === null) return;
+  // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+  await assertCusLotVisible(shipmentId, getUser(req));
   await getShipmentDetail(shipmentId, getUser(req));
   res.json(await getLatestHandoffForShipment(shipmentId));
 }));
@@ -95,6 +102,8 @@ coordinationRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = createHandoffSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const actor = getUser(req);

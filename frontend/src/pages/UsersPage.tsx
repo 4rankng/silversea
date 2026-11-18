@@ -13,6 +13,7 @@ import { UserTable } from '../features/users/components/UserTable';
 import { AddPanel, EditPanel } from '../features/users/components/UserForm';
 import type { UserRow, FilterKey } from '../features/users/utils';
 import { BusinessUnitsManager } from '../features/users/components/BusinessUnitsManager';
+import { CusGroupsManager } from '../features/users/components/CusGroupsManager';
 import { usePageAnimations } from '../hooks/animations';
 import '../features/users/users.css';
 
@@ -196,6 +197,8 @@ export default function UsersPage() {
       {canManageBusinessUnits && (
         <BusinessUnitsManager businessUnits={businessUnits} onRefresh={refetchUsers} />
       )}
+
+      {canManageBusinessUnits && <CusGroupsManager />}
 
       {confirmDialog}
     </div>

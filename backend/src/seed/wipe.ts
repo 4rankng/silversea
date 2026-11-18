@@ -85,6 +85,7 @@ export const WIPE_TABLES = {
   // 6. Customers / partners / link tables (re-created by seed)
   customersPartners: [
     'customer_email_logs', 'user_customer_links', 'user_business_unit_links',
+    'cus_group_members', 'cus_groups',
     'business_calendar_days', 'business_units', 'customers', 'partners',
   ],
   // 7. Routes / pricing

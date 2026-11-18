@@ -10,6 +10,8 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { billBookingTitle } from '../lib/business-keys';
 import { billDigitsNeedle } from './bill-digit-match';
+import { cusVisibilityCondition } from './cus-visibility.service';
+import type { AuthUser } from '../middleware/auth';
 
 /** Display default for a lot with neither number: mirrored from the frontend
  *  `billBookingReference` helper (that module is frontend-only, so the
@@ -29,10 +31,13 @@ export interface BillBookMatch {
  * string returns [] WITHOUT querying, so a cleared field never triggers a
  * table scan.
  */
-export async function searchBillBook(digits: string): Promise<BillBookMatch[]> {
+export async function searchBillBook(digits: string, actor?: AuthUser): Promise<BillBookMatch[]> {
   const needle = digits.trim();
   if (needle.length === 0) return [];
   const like = `%${needle}%`;
+  // Nhóm CUS (18/11): gợi ý BL/Book phải theo đúng phạm vi lô của vai CUS
+  // (mình + nhóm ACTIVE + fallback); staff roles không bị scope.
+  const visibility = actor ? await cusVisibilityCondition(db, actor) : [];
   const rows = await db
     .select({
       id: s.shipments.id,
@@ -49,6 +54,7 @@ export async function searchBillBook(digits: string): Promise<BillBookMatch[]> {
         ilike(s.shipments.blNumber, like),
         ilike(s.shipments.bookingRef, like),
       ) as SQL,
+      ...visibility,
     ))
     .limit(10);
 

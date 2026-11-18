@@ -32,6 +32,7 @@ import { parseId, parseOptionalId } from '../utils/parse-id';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { sendDebitNoteForCustomerConfirmation } from '../../services/debit-note-lifecycle.service';
 import { listAccountingTransportRows } from '../../services/accounting-transport-register.service';
+import { assertCusBillingDocumentVisible } from '../../services/cus-visibility.service';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
 
@@ -92,7 +93,11 @@ router.get('/finance/billing-documents/transport-register', requireRoles(...ROLE
 // ADV-6: the CUS who works the lot reads the debit note it issued — read
 // only; writes stay ACCOUNTANT/MANAGER/ADMIN.
 router.get('/finance/billing-documents/:id', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS), asyncHandler(async (req: Request, res: Response) => {
-  res.json(await billingService.getDocument(parseId(req.params.id, 'ID hóa đơn')));
+  const id = parseId(req.params.id, 'ID hóa đơn');
+  // Nhóm CUS: chứng từ gộp chỉ mở khi còn ít nhất một lô gốc thấy được
+  // (chứng từ không còn lô liên kết vẫn mở — nhất quán fallback).
+  await assertCusBillingDocumentVisible(id, getUser(req));
+  res.json(await billingService.getDocument(id));
 }));
 
 // PUT /api/finance/billing-documents/:id — edit in place (always-editable)
@@ -231,6 +236,8 @@ router.delete('/finance/billing-documents/:id', declareMaterialWrite('billing-do
 router.get('/finance/billing-documents/:id/export', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS), asyncHandler(async (req: Request, res: Response) => {
   const format = String(req.query.format ?? 'xlsx').toLowerCase();
   const id = parseId(req.params.id, 'ID hóa đơn');
+  // Nhóm CUS: export cùng luật với GET chi tiết (ít nhất một lô gốc thấy được).
+  await assertCusBillingDocumentVisible(id, getUser(req));
   const overrideRaw = req.query.templateId;
   const templateIdOverride = parseOptionalId(overrideRaw, 'ID mẫu');
 

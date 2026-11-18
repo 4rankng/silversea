@@ -10,6 +10,7 @@ import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { markTripPodRecovered } from '../../services/trip-mutations.service';
 import { getExpectedVersion } from './trips-shared';
+import { assertCusTripVisible } from '../../services/cus-visibility.service';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
@@ -18,6 +19,8 @@ router.post('/:id/pod-recovered', declareNonMaterialWrite('O2C POD-recovery flag
   const id = parseInt(req.params.id as string);
   const expectedVersion = getExpectedVersion(req.body);
   const user = getUser(req);
+  // Nhóm CUS: mốc POD chỉ trên chuyến thuộc lô trong phạm vi thấy được.
+  await assertCusTripVisible(id, user);
   const updated = await markTripPodRecovered(id, user.userId, expectedVersion);
   res.json(updated);
 }));

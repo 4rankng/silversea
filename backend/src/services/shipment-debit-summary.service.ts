@@ -16,11 +16,13 @@ import * as s from '../db/schema';
 import { db } from '../db';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
 import type { ShipmentDebitSummaryItem, ShipmentDebitSummaryResponse } from '@tingting/shared';
-import { effectiveLotContainerCount } from '@tingting/shared';
+import { effectiveLotContainerCount, Role } from '@tingting/shared';
 import { loadFreightSnapshotChannelByLot, loadRevManualPriceByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
 import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue, sellSplitDisplayValue } from './debit-receivable-arming';
+import { cusVisibilityCondition } from './cus-visibility.service';
+import type { AuthUser } from '../middleware/auth';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -38,11 +40,19 @@ export async function getShipmentDebitSummary(query: {
    *  phí đầu vào, biên lợi nhuận) are stripped from the wire for the CUS
    *  role; accountant surfaces keep them. */
   viewerRole?: string;
+  /** Team-based visibility (18/11): vai CUS chỉ quyết toán lô của mình +
+   * nhóm ACTIVE + fallback; staff roles không bao giờ bị scope. */
+  actor?: AuthUser;
 }): Promise<ShipmentDebitSummaryResponse> {
   const conditions = [isNull(s.shipments.deletedAt)];
   if (query.customerId != null) conditions.push(eq(s.shipments.customerId, query.customerId));
   if (query.deliveryDateFrom) conditions.push(gte(s.shipments.expectedDeliveryDate, query.deliveryDateFrom));
   if (query.deliveryDateTo) conditions.push(lte(s.shipments.expectedDeliveryDate, query.deliveryDateTo));
+  // Nhóm CUS: cùng luật một nơi (cus-visibility.service). Lớp 2/3 aggregate
+  // theo lotIds của trang Lớp 1 này nên tự nhất quán với trang.
+  if (query.actor?.role === Role.CUS) {
+    conditions.push(...await cusVisibilityCondition(db, query.actor));
+  }
   const lots = await db.select({
     id: s.shipments.id,
     code: s.shipments.shipmentCode,

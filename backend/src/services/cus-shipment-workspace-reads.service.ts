@@ -32,6 +32,7 @@ export * from './cus-workspace-mapping.service';
 import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite, indexAssignmentRows } from './cus-workspace-builders.service';
 import type { ShipmentCusWorkspaceContainerLine } from '@tingting/shared';
 import { loadCusShipmentStatusCounts } from './cus-shipment-status-census.service';
+import { cusVisibilityCondition } from './cus-visibility.service';
 import { loadRevManualPriceByLot } from './revenue-override-read.service';
 
 // Executor comes from ../db (the one Executor seam).
@@ -186,24 +187,30 @@ export function normalizePlate(value: string): string {
 /**
  * Row-visibility conditions for the CUS workspace lists.
  *
- * Staff roles are never customer/shipment-scoped — every CUS user sees the
- * full lot list, so anything listed here is actionable. The customer-link
+ * ADMIN/MANAGER/ACCOUNTANT/DISPATCHER are never scoped — every lot is
+ * actionable for them. Vai CUS reads the team-visibility law
+ * (cus-visibility.service): lô của mình + của người cùng nhóm ACTIVE +
+ * fallback (created_by NULL / creator không phải CUS). The customer-link
  * fallbacks below remain for any actor whose token still carries customer
  * links (portal-compat paths only).
  */
+function portalCustomerScopeConditions(actor: AuthUser): SQL[] {
+  if (actor.customerIds?.length) return [inArray(s.shipments.customerId, actor.customerIds)];
+  if (actor.customerId != null) return [eq(s.shipments.customerId, actor.customerId)];
+  return [];
+}
+
 async function buildScopeConditions(actor: AuthUser): Promise<SQL[]> {
   if (
     actor.role === Role.ADMIN
     || actor.role === Role.MANAGER
     || actor.role === Role.ACCOUNTANT
     || actor.role === Role.DISPATCHER
-    || actor.role === Role.CUS
   ) {
     return [];
   }
-  if (actor.customerIds?.length) return [inArray(s.shipments.customerId, actor.customerIds)];
-  if (actor.customerId != null) return [eq(s.shipments.customerId, actor.customerId)];
-  return [];
+  if (actor.role === Role.CUS) return cusVisibilityCondition(db, actor);
+  return portalCustomerScopeConditions(actor);
 }
 
 
@@ -994,11 +1001,15 @@ async function loadShipmentPage(query: ShipmentCusWorkspaceQuery, conditions: SQ
 }
 
 async function loadActorScopedCustomerOptions(actor: AuthUser, executor: Executor = db) {
+  // GIỮ NGUYÊN hành vi CUS (mọi khách có lô) — picker này nuôi Tạo lô /
+  // bộ lọc bảng container; scoping theo nhóm chỉ áp cho DỮ LIỆU lô, không
+  // áp cho danh mục khách (cùng tinh thần /config/customers đã đủ khách).
+  // Portal actors giữ customer-link scope qua helper riêng.
   const conditions = [
     isNull(s.shipments.deletedAt),
     ne(s.shipments.status, ShipmentStatus.CANCELED),
     isNull(s.customers.deletedAt),
-    ...(await buildScopeConditions(actor)),
+    ...portalCustomerScopeConditions(actor),
   ];
   return executor.selectDistinct({
     id: s.customers.id,

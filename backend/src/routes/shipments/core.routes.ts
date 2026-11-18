@@ -62,6 +62,7 @@ import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { getShipmentDebitDetail, saveDebitEdits } from '../../services/shipment-debit-detail.service';
 import { searchBillBook } from '../../services/bill-book-search.service';
+import { assertCusLotVisible } from '../../services/cus-visibility.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
@@ -366,7 +367,7 @@ coreRoutes.get('/bill-book-search', requireRoles(Role.ADMIN, Role.MANAGER, Role.
   if (parsed.data.digits.length > 0 && !/^[0-9]+$/.test(parsed.data.digits)) {
     throw new ApiError(400, 'Ô cược chỉ nhận ký tự số.');
   }
-  res.json({ items: await searchBillBook(parsed.data.digits) });
+  res.json({ items: await searchBillBook(parsed.data.digits, getUser(req)) });
 }));
 
 // ─── GET /duplicate-check — pre-flight Bill/Booking/declaration guard ──────
@@ -405,6 +406,8 @@ coreRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: chỉ gửi điều xe lô trong phạm vi thấy được.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = submitShipmentForDispatchSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const idempotencyKey = getRequestIdempotencyKey(req);
@@ -428,6 +431,8 @@ coreRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: chỉ phân xe lô trong phạm vi thấy được.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = assignShipmentCarriersSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     // Dispatch master-plan popover saves partial allocations (docx allows
@@ -727,6 +732,10 @@ coreRoutes.post(
       shipmentIds: z.array(z.number().int().positive()).min(1, 'Vui lòng chọn ít nhất một lô đã khóa.').max(200),
     }).safeParse(req.body ?? {});
     if (!parsed.success) throwValidation(parsed.error);
+    // Nhóm CUS: từng lô trong đợt xuất gộp phải nằm trong phạm vi thấy được.
+    for (const shipmentId of parsed.data.shipmentIds) {
+      await assertCusLotVisible(shipmentId, getUser(req));
+    }
     // Card 20260921_21: a lot with a live PENDING rate-adjustment request
     // cannot be exported to debit — 409 naming the lot (business language).
     await assertNoPendingRateAdjustment(parsed.data.shipmentIds);
@@ -743,13 +752,17 @@ coreRoutes.get(
     const parsed = shipmentDebitSummaryQuerySchema.safeParse(req.query);
     if (!parsed.success) throwValidation(parsed.error);
     // SIL-776 REV2 — the CUS wire carries no giá vốn (cost fields stripped).
-    res.json(await getShipmentDebitSummary({ ...parsed.data, viewerRole: getUser(req).role }));
+    // Nhóm CUS: actor feeds the team-visibility scope (một luật ở
+    // cus-visibility.service) — staff roles pass through unscoped.
+    res.json(await getShipmentDebitSummary({ ...parsed.data, viewerRole: getUser(req).role, actor: getUser(req) }));
   }),
 );
 
 coreRoutes.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = parseId(req, res);
   if (id === null) return;
+  // Nhóm CUS: lô ngoài phạm vi trả 404 như lô không tồn tại.
+  await assertCusLotVisible(id, getUser(req));
   res.json(await getShipmentDetail(id, getUser(req)));
 }));
 
@@ -762,6 +775,8 @@ coreRoutes.put(
   asyncHandler(async (req: Request, res: Response) => {
     const id = parseId(req, res);
     if (id === null) return;
+    // Nhóm CUS: hết sửa được lô ngoài nhóm/phạm vi (404 trước khi vào tx).
+    await assertCusLotVisible(id, getUser(req));
     const parsed = updateShipmentSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const user = getUser(req);
@@ -1004,6 +1019,8 @@ coreRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: chỉ khóa lô trong phạm vi thấy được.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi khóa lô.');
     const parsed = z.object({
       expectedShipmentVersion: z.number().int().positive().optional(),
@@ -1109,6 +1126,7 @@ coreRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    await assertCusLotVisible(shipmentId, getUser(req));
     res.json(await getShipmentDebitDetail(shipmentId));
   }),
 );
@@ -1122,6 +1140,7 @@ coreRoutes.put(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    await assertCusLotVisible(shipmentId, getUser(req));
     const idempotencyKey = getRequestIdempotencyKey(req);
     if (!idempotencyKey) throw new ApiError(400, 'Idempotency-Key là bắt buộc cho thao tác ghi dữ liệu này.');
     const result = await saveDebitEdits({
@@ -1144,6 +1163,7 @@ coreRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    await assertCusLotVisible(shipmentId, getUser(req));
     const documentId = Number(req.query.documentId);
     if (!Number.isInteger(documentId) || documentId < 1) {
       throw new ApiError(400, 'documentId là bắt buộc để tải Debit Note.');
@@ -1167,6 +1187,7 @@ coreRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    await assertCusLotVisible(shipmentId, getUser(req));
     const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi xuất Debit Note.');
     // Card 20260921_21: a lot with a live PENDING rate-adjustment request
     // cannot be exported to debit — 409 naming the lot (business language).

@@ -75,6 +75,33 @@ export const userBusinessUnitLinks = pgTable('user_business_unit_links', {
   index('user_business_unit_links_business_unit_idx').on(table.businessUnitId),
 ]);
 
+// ─── CUS teams (nhóm CUS) ───────────────────────────────────────────────────
+// Team-based visibility for the CUS role: members of the same ACTIVE group
+// see each other's lots (shipments.created_by) in lists + debit + per-lot
+// reads. One law in services/cus-visibility.service.ts. Deliberately NOT
+// business_units / user_business_unit_links — those stay payroll/driver
+// domain and must never gain CUS-sharing semantics.
+export const cusGroups = pgTable('cus_groups', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 120 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('ACTIVE'), // ACTIVE | INACTIVE
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('cus_groups_name_uniq_idx').on(table.name),
+  index('cus_groups_status_idx').on(table.status),
+]);
+
+export const cusGroupMembers = pgTable('cus_group_members', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').notNull(),
+  userId: integer('user_id').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  uniqueIndex('cus_group_members_group_user_uniq_idx').on(table.groupId, table.userId),
+  index('cus_group_members_user_idx').on(table.userId),
+]);
+
 // ─── Audit ───────────────────────────────────────────────────────────────────
 export const auditLogs = pgTable('audit_logs', {
   id: serial('id').primaryKey(),

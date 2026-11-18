@@ -11,6 +11,7 @@ import { getUser } from '../../middleware/auth';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { requireRoles } from '../../middleware/casbin';
 import { parseId } from './shipment-shared';
+import { assertCusLotVisible } from '../../services/cus-visibility.service';
 
 const podRoutes = Router();
 
@@ -20,6 +21,8 @@ podRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: e-POD chỉ của lô trong phạm vi thấy được.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const fileId = parseInt(req.params.fileId as string, 10);
     if (!Number.isInteger(fileId) || fileId <= 0) {
       res.status(400).json({ error: 'ID tệp e-POD không hợp lệ' });

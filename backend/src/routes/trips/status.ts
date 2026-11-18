@@ -8,6 +8,7 @@ import { TripStatus, NotificationType, Role } from '@tingting/shared';
 import { ApiError } from '../../errors';
 import { requireRoles } from '../../middleware/casbin';
 import { completeExternalCarrierTrip } from '../../services/trip-external-close.service';
+import { assertCusTripVisible } from '../../services/cus-visibility.service';
 import { dispatchTripWriteCommand, transitionTripWriteCommand } from '../../services/trip-command.service';
 import { autoApplyGovernanceAction, requestCompletedTripCancellation, requestTripFinancialClose } from '../../services/adjustment-governance.service';
 
@@ -102,6 +103,8 @@ router.post('/:id/complete-external', declareMaterialWrite('dispatch.external-fu
     throw new ApiError(400, 'ID chuyến đi không hợp lệ');
   }
   const user = getUser(req);
+  // Nhóm CUS: hoàn thành chuyến ngoài chỉ trên lô trong phạm vi thấy được.
+  await assertCusTripVisible(id, user);
   const { trip, replayed } = await completeExternalCarrierTrip({
     tripId: id,
     actorUserId: user.userId,

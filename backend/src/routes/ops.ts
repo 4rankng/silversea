@@ -18,6 +18,7 @@ import { ApiError } from '../errors';
 import { parseId as sharedParseId } from './utils/parse-id';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../services/idempotency.service';
 import { getRequestIdempotencyKey } from './utils/idempotency';
+import { assertCusLotVisible } from '../services/cus-visibility.service';
 import { sniffImageType } from '../lib/format';
 import { storageService } from '../services/storage.service';
 import { createAdvanceRequest, listAdvanceRequestsPaginated } from '../services/advance-request.service';
@@ -229,12 +230,16 @@ const expensePatchSchema = z.object({
 // there and lets the operator continue — a warning, never a block.
 router.get('/expenses/cont-claimants', EXPENSE_DECLARERS, asyncHandler(async (req: Request, res: Response) => {
   const shipmentId = parseId(typeof req.query.shipmentId === 'string' ? req.query.shipmentId : undefined, 'Lô hàng');
+  // Nhóm CUS: khai chi phí/chọn cont chỉ trên lô trong phạm vi thấy được.
+  if (shipmentId != null) await assertCusLotVisible(shipmentId, getUser(req));
   res.json(await listOpsExpenseContainerClaimants(shipmentId));
 }));
 
 router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  EXPENSE_DECLARERS, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = expenseCreateSchema.parse(req.body);
+  // Nhóm CUS: khai chi phí chỉ trên lô trong phạm vi thấy được.
+  await assertCusLotVisible(parsed.shipmentId, user);
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.OPS_EXPENSE_CREATE,
     idempotencyKey: requireOpsIdempotencyKey(req),

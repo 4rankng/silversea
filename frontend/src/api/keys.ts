@@ -68,6 +68,10 @@ export const qk = {
     customersStatusCounts: ['customers', 'status-counts'],
     allCustomers: ['all-customers'],
     users: ['users'],
+    /** Admin-only nhóm CUS editor on /users (team-based visibility). */
+    cusGroups: ['users', 'cus-groups'] as const,
+    /** Active CUS roster for the group member editor (same card). */
+    cusGroupCandidates: ['users', 'cus-group-candidates'] as const,
     /** Admin-only drawer option list: shipments eligible for clerk-scope assignment. */
     userScopeShipments: ['users', 'user-scope-shipments'] as const,
     ports: ['ports'],

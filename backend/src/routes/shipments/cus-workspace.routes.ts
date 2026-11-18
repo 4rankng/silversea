@@ -44,6 +44,7 @@ import {
 } from '../../services/shipment-governance.service';
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
+import { assertCusLotVisible } from '../../services/cus-visibility.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
@@ -81,6 +82,9 @@ cusWorkspaceRoutes.get(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     res.json(await getCusShipmentWorkspaceDetail(shipmentId, getUser(req)));
   }),
 );
@@ -91,6 +95,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const containerId = Number.parseInt(req.params.containerId as string, 10);
     if (!Number.isInteger(containerId) || containerId <= 0) {
       throw new ApiError(400, 'ID container không hợp lệ');
@@ -127,6 +134,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = shipmentCusContainerAddSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const { result } = await runShipmentWrite(
@@ -158,6 +168,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const containerId = Number.parseInt(req.params.containerId as string, 10);
     if (!Number.isInteger(containerId) || containerId <= 0) {
       throw new ApiError(400, 'ID container không hợp lệ');
@@ -194,6 +207,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const containerId = Number.parseInt(req.params.containerId as string, 10);
     if (!Number.isInteger(containerId) || containerId <= 0) {
       throw new ApiError(400, 'ID container không hợp lệ');
@@ -230,6 +246,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const containerId = Number.parseInt(req.params.containerId as string, 10);
     if (!Number.isInteger(containerId) || containerId <= 0) {
       throw new ApiError(400, 'ID container không hợp lệ');
@@ -266,6 +285,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = shipmentCusFinanceConfirmationCreateSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const { result } = await runShipmentWrite(
@@ -297,6 +319,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = shipmentChargeProposalReviewSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const { result } = await runShipmentWrite(
@@ -328,6 +353,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = shipmentCusDocumentCustodyUpdateSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const { result } = await runShipmentWrite(
@@ -359,6 +387,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = shipmentCusLockSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const { result } = await runShipmentWrite(
@@ -390,6 +421,9 @@ cusWorkspaceRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const parsed = shipmentCusReopenRequestSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
     const { result } = await runShipmentWrite(
@@ -421,6 +455,9 @@ cusWorkspaceRoutes.delete(
   asyncHandler(async (req: Request, res: Response) => {
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
+    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
+    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
+    await assertCusLotVisible(shipmentId, getUser(req));
     const { version, reason } = req.body ?? {};
     if (!Number.isInteger(version) || version < 0) {
       throw new ApiError(400, 'version là bắt buộc');
