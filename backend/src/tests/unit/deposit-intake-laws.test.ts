@@ -70,7 +70,7 @@ describe('recordDepositFromIntake — SIL-859 intake laws', () => {
       await assert.rejects(
         recordDepositFromIntake({ ...BASE_INPUT, expectedAmount: bad }, poison),
         (error: { status?: number; message?: string }) => {
-          assert.equal(error.status, 400);
+          assert.equal(error.statusCode, 400);
           assert.match(error.message ?? '', /Tiền cược dự kiến không hợp lệ/);
           return true;
         },

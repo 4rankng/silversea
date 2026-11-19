@@ -31,7 +31,7 @@ describe('assertRoundAttachableToDebitNote — SIL-855 attach law', () => {
     assert.throws(
       () => assertRoundAttachableToDebitNote(TRA_ROUND, 11),
       (error: { status?: number; message?: string }) => {
-        assert.equal(error.status, 400);
+        assert.equal(error.statusCode, 400);
         assert.match(error.message ?? '', /chiều TRA/);
         assert.match(error.message ?? '', /không phát sinh công nợ phải thu/);
         return true;
@@ -43,7 +43,7 @@ describe('assertRoundAttachableToDebitNote — SIL-855 attach law', () => {
     assert.throws(
       () => assertRoundAttachableToDebitNote(THU_ROUND, 22),
       (error: { status?: number; message?: string }) => {
-        assert.equal(error.status, 409);
+        assert.equal(error.statusCode, 409);
         assert.match(error.message ?? '', /không cùng khách hàng/);
         return true;
       },
