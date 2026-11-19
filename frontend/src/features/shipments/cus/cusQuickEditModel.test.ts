@@ -257,6 +257,23 @@ describe('buildQuickEditPayload', () => {
     expect(buildQuickEditPayload(draftFrom(item, 'documents'), item)).toEqual({ expectedVersion: 3 });
   });
 
+  // SIL-851 — staging lot MSCU7712000111: a legacy row with trade_direction
+  // NULL. The wire derives direction='IMPORT' from the bill and the modal
+  // renders the Số Bill input from that same fallback; the payload used to
+  // gate on raw.tradeDirection alone and silently degrade to
+  // {expectedVersion} — save toast, version bump, value unchanged.
+  it('documents on a legacy row with NULL tradeDirection falls back to the row-derived direction', () => {
+    const item = makeItem({ direction: 'IMPORT', raw: { tradeDirection: null, blNumber: 'MSCU7712000111', bookingRef: null } });
+    expect(buildQuickEditPayload(draftFrom(item, 'documents', { blNumber: 'MSCU-PROBE-0035' }), item))
+      .toEqual({ expectedVersion: 3, blNumber: 'MSCU-PROBE-0035', bookingRef: null });
+  });
+
+  it('documents EXPORT twin: NULL tradeDirection with only a booking derives EXPORT', () => {
+    const item = makeItem({ direction: 'EXPORT', raw: { tradeDirection: null, blNumber: null, bookingRef: 'BK7712000111' } });
+    expect(buildQuickEditPayload(draftFrom(item, 'documents', { bookingRef: 'BK-PROBE-0035' }), item))
+      .toEqual({ expectedVersion: 3, bookingRef: 'BK-PROBE-0035', blNumber: null });
+  });
+
   it('cargo: numeric conversion + read-only metrics omitted', () => {
     const item = makeItem();
     expect(buildQuickEditPayload(draftFrom(item, 'cargo'), item)).toEqual({

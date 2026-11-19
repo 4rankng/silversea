@@ -112,8 +112,16 @@ export function quickEditSaveIdentity(draft: ShipmentQuickEditDraft, item: Shipm
  * Build the shipment PATCH body for the draft's mode. Direction and
  * field-access gate which keys ship; empty strings become null so the API can
  * distinguish "cleared" from "unchanged".
+ *
+ * The documents fields resolve the effective direction the same way the
+ * editor renders them (`CusQuickEdit`: draft.tradeDirection || item.direction)
+ * — a legacy row with a NULL trade_direction column still shows an editable
+ * Số Bill/Booking input derived from the row, so gating the payload on the
+ * raw column alone silently degraded the save to a version-only PATCH
+ * (SIL-851: 200 + version bump, value unchanged, staging-verified twice).
  */
 export function buildQuickEditPayload(draft: ShipmentQuickEditDraft, item: ShipmentCusWorkspaceListItem): QuickEditShipmentPayload {
+  const documentDirection = draft.tradeDirection || item.direction || '';
   const scheduleValue = draft.date && draft.time
     ? localDateTimeToIso(`${draft.date}T${draft.time}`)
     : null;
@@ -122,10 +130,10 @@ export function buildQuickEditPayload(draft: ShipmentQuickEditDraft, item: Shipm
     ...(item.cargoMode !== 'FCL' ? { factoryName: draft.factoryName.trim() || null } : {}),
   } : draft.field === 'documents' ? {
     expectedVersion: item.version,
-    ...(draft.tradeDirection === 'IMPORT' && item.fieldAccess.blNumber.mode !== 'READ_ONLY' ? {
+    ...(documentDirection === 'IMPORT' && item.fieldAccess.blNumber.mode !== 'READ_ONLY' ? {
       blNumber: draft.blNumber.trim() || null,
       bookingRef: null,
-    } : draft.tradeDirection === 'EXPORT' && item.fieldAccess.bookingRef.mode !== 'READ_ONLY' ? {
+    } : documentDirection === 'EXPORT' && item.fieldAccess.bookingRef.mode !== 'READ_ONLY' ? {
       bookingRef: draft.bookingRef.trim() || null,
       blNumber: null,
     } : {}),

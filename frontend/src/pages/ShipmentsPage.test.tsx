@@ -1188,6 +1188,44 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await screen.findByText('Đã lưu ô dữ liệu lô hàng.')).toBeTruthy();
   });
 
+  // SIL-851 — staging repro (lot MSCU7712000111, teammate team-open): a legacy
+  // row whose trade_direction column is NULL still shows an editable Số Bill
+  // (the editor falls back to the row-derived IMPORT direction), so the save
+  // must ship the edited bill — not degrade to a version-only PATCH that
+  // 200s, bumps the version and leaves the value unchanged.
+  it('documents quick-edit on a legacy NULL-tradeDirection row ships the edited Số Bill (SIL-851)', async () => {
+    const legacyRow: ShipmentCusWorkspaceListItem = {
+      ...row,
+      id: 999,
+      version: 4,
+      billOrBookNumber: 'MSCU7712000111',
+      direction: 'IMPORT' as const,
+      raw: { ...row.raw, blNumber: 'MSCU7712000111', bookingRef: null, tradeDirection: null },
+    };
+    apiGet.mockImplementation((url: string) => (
+      url === '/shipments/cus-workspace/999'
+        ? Promise.resolve(detail)
+        : Promise.resolve(listResponse([legacyRow]))
+    ));
+    renderPage();
+    await screen.findByRole('table');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ MSCU7712000111' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
+    const bill = within(dialog).getByLabelText('Số Bill') as HTMLInputElement;
+    expect(bill.value).toBe('MSCU7712000111');
+
+    fireEvent.change(bill, { target: { value: 'MSCU-PROBE-0035' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/999', expect.objectContaining({
+      expectedVersion: 4,
+      blNumber: 'MSCU-PROBE-0035',
+      bookingRef: null,
+    })));
+    expect(await screen.findByText('Đã lưu ô dữ liệu lô hàng.')).toBeTruthy();
+  });
+
   // FB-002 (round-17 sweep): the quick-edit modal's save button lives in the
   // modal FOOTER — outside the <form> — so browser implicit submission never
   // fired for multi-field modes and Enter went dead. The form answers Enter
