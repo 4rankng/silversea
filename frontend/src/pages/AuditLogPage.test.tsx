@@ -100,3 +100,55 @@ describe('AuditLogPage filter strip (card 20260927_152)', () => {
     await waitFor(() => expect(lastUrl()).toBe('/audit-logs?page=1&limit=10&search=An'));
   });
 });
+
+// SIL-851 round 4, defect A: the write side records changes old→new and the
+// query side returns them, but the page never rendered the diff — the QA
+// repro opened 'Chi tiết hoạt động' and saw only actor/action/description/
+// time. Both surfaces (list-row expansion and the modal) must show the
+// changed field with its old → new values; rows the API redacted (finance
+// payload stripped) render no diff block at all.
+describe('AuditLogPage field-level old→new diff (SIL-851 r4)', () => {
+  const diffEntry = {
+    ...entry(3, 'Tiệp'),
+    action: 'SHIPMENT_UPDATED',
+    category: 'trip',
+    message: 'Chứng từ Vũ Văn Tiệp đã cập nhật thông tin lô hàng SHP-2611-00312',
+    payload: { changes: [{ field: 'blNumber', before: 'R3P-677-R', after: 'R3P-677-R-QA3' }] },
+  };
+
+  beforeEach(() => {
+    // jsdom has no <dialog> runtime: the page drives showModal()/close().
+    if (!HTMLDialogElement.prototype.showModal) {
+      HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.open = true; };
+      HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) { this.open = false; };
+    }
+    apiGetMock.mockReset().mockResolvedValue({ items: [diffEntry, entry(1, 'An')], total: 2 });
+  });
+
+  it('renders blNumber old→new on the row and inside the detail modal', async () => {
+    renderAuditPage();
+    const rowDiff = await screen.findByTestId('audit-row-changes-3');
+    expect(within(rowDiff).getByText('blNumber')).toBeTruthy();
+    expect(within(rowDiff).getByText('R3P-677-R')).toBeTruthy();
+    expect(within(rowDiff).getByText('R3P-677-R-QA3')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('row', { name: /Xem chi tiết hoạt động của Tiệp/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết hoạt động' });
+    const modalDiff = within(dialog).getByTestId('audit-detail-changes-3');
+    expect(within(modalDiff).getByText('Dữ liệu thay đổi')).toBeTruthy();
+    expect(within(modalDiff).getByText('blNumber')).toBeTruthy();
+    expect(within(modalDiff).getByText('R3P-677-R')).toBeTruthy();
+    expect(within(modalDiff).getByText('R3P-677-R-QA3')).toBeTruthy();
+  });
+
+  it('renders no diff block for rows the API redacted (finance strip)', async () => {
+    renderAuditPage();
+    await screen.findByTestId('audit-row-changes-3');
+    expect(screen.queryByTestId('audit-row-changes-1')).toBeNull();
+
+    fireEvent.click(screen.getByRole('row', { name: /Xem chi tiết hoạt động của An/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết hoạt động' });
+    expect(within(dialog).queryByTestId('audit-detail-changes-1')).toBeNull();
+    expect(within(dialog).queryByText('Dữ liệu thay đổi')).toBeNull();
+  });
+});

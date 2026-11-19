@@ -20,10 +20,18 @@ import { formatNumber } from '../lib/format';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
+/** One field-level old→new pair from the write-side audit diff (`payload.changes`). */
+interface AuditFieldChangeView {
+  field: string;
+  before: unknown;
+  after: unknown;
+}
+
 type NormalizedEntry = AuditEntry & {
   userName: string;
   userEmail: string;
   category: NonNullable<AuditEntry['category']>;
+  changes: AuditFieldChangeView[];
 };
 
 // Raw audit entries may arrive with camelCase or snake_case actor fields
@@ -35,6 +43,30 @@ type RawAuditEntry = AuditEntry & {
   actorEmail?: string;
 };
 
+/** Read `payload.changes` ({field, before, after}[]) defensively — accountant
+ * redaction strips it on non-lot rows, and a malformed array must not break
+ * the page. Empty for every row the write side did not diff. */
+function extractFieldChanges(payload: Record<string, unknown> | undefined): AuditFieldChangeView[] {
+  const raw = payload?.['changes'];
+  if (!Array.isArray(raw)) return [];
+  const changes: AuditFieldChangeView[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || typeof (item as Record<string, unknown>).field !== 'string') continue;
+    const change = item as Record<string, unknown>;
+    changes.push({ field: change.field as string, before: change.before, after: change.after });
+  }
+  return changes;
+}
+
+/** Render one audit diff value: blank/null collapse to '—', scalars print raw,
+ * objects/arrays print as JSON — the diff stores JSON-safe values. */
+function formatAuditValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'string') return value.trim() === '' ? '—' : value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return JSON.stringify(value);
+}
+
 // Map raw API entry → canonical shape
 function normalizeEntry(e: RawAuditEntry): NormalizedEntry {
   const name = e.userName || e.actorName || e.actor_name || e.username || e.userEmail || 'Người dùng';
@@ -45,6 +77,7 @@ function normalizeEntry(e: RawAuditEntry): NormalizedEntry {
     userName: name,
     userEmail: email,
     category: e.category || resolveCategory(action, { path: e.path }),
+    changes: extractFieldChanges(e.payload),
   };
 }
 
@@ -222,6 +255,24 @@ export default function AuditLogPage() {
             </div>
           )}
         </div>
+
+        {/* SIL-851 r4 (defect A): field-level old→new — the whole point of the
+            lot-edit audit rows. Rendered for every viewer the API already
+            redacts per role (accountant sees lot-domain diffs, finance rows
+            arrive stripped and simply render nothing here). */}
+        {entry.changes.length > 0 && (
+          <div className="audit-log__changes audit-detail__changes" data-testid={`audit-detail-changes-${entry.id}`}>
+            <div className="audit-detail__changes-title">Dữ liệu thay đổi</div>
+            {entry.changes.map((change) => (
+              <div key={change.field} className="audit-change">
+                <span className="audit-change__field">{change.field}</span>
+                <span className="audit-change__old">{formatAuditValue(change.before)}</span>
+                <span className="audit-change__arrow" aria-hidden="true">→</span>
+                <span className="audit-change__new">{formatAuditValue(change.after)}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {isAdmin && (
           entry.payload && Object.keys(entry.payload).length > 0 ? (
@@ -474,6 +525,18 @@ fontSize: 'var(--text-data-size)',
                               <div className="audit-log__msg">
                                 {entry.message}
                               </div>
+                              {entry.changes.length > 0 && (
+                                <div className="audit-log__changes" data-testid={`audit-row-changes-${entry.id}`}>
+                                  {entry.changes.map((change) => (
+                                    <div key={change.field} className="audit-change">
+                                      <span className="audit-change__field">{change.field}</span>
+                                      <span className="audit-change__old">{formatAuditValue(change.before)}</span>
+                                      <span className="audit-change__arrow" aria-hidden="true">→</span>
+                                      <span className="audit-change__new">{formatAuditValue(change.after)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                             <div className="audit-row-content__preview" aria-hidden="true">
                               <Eye size={15} />

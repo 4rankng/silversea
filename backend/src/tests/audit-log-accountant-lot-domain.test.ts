@@ -197,11 +197,14 @@ describe('audit-logs ACCOUNTANT sees the lot domain (SIL-851)', () => {
     assert.ok(!rows.some((m) => m.includes('out-of-domain-trip')), 'hidden domains stay out of search results');
   });
 
-  test('the returned category of a lot row stays config (finance filter unaffected)', async () => {
+  test('the returned category of a lot row is trip — tabs stay a partition (QA round 4 saw 0 in both tabs)', async () => {
     const page = await queryAuditLogs({ page: 1, limit: 50, viewer: accountantViewer, search: 'SHP-2611-00312' });
-    assert.equal(page.items[0]?.category, 'config');
+    assert.equal(page.items[0]?.category, 'trip');
+    const tripPage = await queryAuditLogs({ page: 1, limit: 50, viewer: accountantViewer, category: 'trip' });
+    assert.ok(tripPage.items.some((i) => i.message.includes('SHP-2611-00312')), "'Chuyến đi' tab surfaces the lot edit row");
     const financePage = await queryAuditLogs({ page: 1, limit: 50, viewer: accountantViewer, category: 'finance' });
     assert.ok(financePage.items.some((i) => i.message.includes('PT-2611-0007')), 'finance tab keeps its rows');
+    assert.ok(!financePage.items.some((i) => i.message.includes('SHP-2611-00312')), 'lot rows do not leak into the finance tab');
   });
 
   // The AC names the changed field + old→new — the accountant response must

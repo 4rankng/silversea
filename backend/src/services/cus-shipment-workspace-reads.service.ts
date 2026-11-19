@@ -200,7 +200,13 @@ function portalCustomerScopeConditions(actor: AuthUser): SQL[] {
   return [];
 }
 
-async function buildScopeConditions(actor: AuthUser, opts?: { includeTeam?: boolean }): Promise<SQL[]> {
+async function buildScopeConditions(
+  actor: AuthUser,
+  opts?: { includeTeam?: boolean },
+  // Executor-seam convention (optional-last): tests drive the per-lot scope
+  // with a fake so the drill-down law stays unit-testable without a database.
+  executor: Executor = db,
+): Promise<SQL[]> {
   if (
     actor.role === Role.ADMIN
     || actor.role === Role.MANAGER
@@ -209,7 +215,7 @@ async function buildScopeConditions(actor: AuthUser, opts?: { includeTeam?: bool
   ) {
     return [];
   }
-  if (actor.role === Role.CUS) return cusVisibilityCondition(db, actor, opts);
+  if (actor.role === Role.CUS) return cusVisibilityCondition(executor, actor, opts);
   return portalCustomerScopeConditions(actor);
 }
 
@@ -784,7 +790,13 @@ export async function loadShipmentRow(
       eq(s.shipments.id, shipmentId),
       isNull(s.shipments.deletedAt),
       ne(s.shipments.status, ShipmentStatus.CANCELED),
-      ...(await buildScopeConditions(actor)),
+      // SIL-851 r4: per-lot detail reads stay team-open in BOTH toggle modes
+      // (drill-down law, same as assertCusLotVisible) — the workspace drawer
+      // opens from a team-widened list row, so the teammate lot must resolve
+      // here too; without arm 2 the row-level guard passes and this select
+      // 404s 'Không tìm thấy lô hàng CUS.' Cross-team isolation is unchanged
+      // (arms 1/3/4 identical). Same executor as the row select (one seam).
+      ...(await buildScopeConditions(actor, { includeTeam: true }, executor)),
     ))
     .limit(1);
   if (!row) throw new ApiError(404, 'Không tìm thấy lô hàng CUS.');

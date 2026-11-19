@@ -7,6 +7,7 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import type { SQL } from 'drizzle-orm';
 
 import { Role } from '@tingting/shared';
+import type { AuthUser } from '../../middleware/auth';
 import {
   cusVisibilityArms,
   cusVisibilityCondition,
@@ -14,6 +15,7 @@ import {
   assertCusLotVisible,
   CUS_LOT_NOT_FOUND_MESSAGE,
 } from '../../services/cus-visibility.service';
+import { loadShipmentRow } from '../../services/cus-shipment-workspace-reads.service';
 import { ApiError } from '../../errors';
 
 const dialect = new PgDialect();
@@ -208,5 +210,43 @@ describe('cusVisibilityCondition — team toggle (ticket 18/11 Task 1.2)', () =>
       assertCusLotVisible(1, actor(Role.CUS), sequentialExecutor([{ createdBy: 99 }], [{ role: 'CUS' }])),
       (err: unknown) => err instanceof ApiError && err.statusCode === 404,
     );
+  });
+});
+
+// SIL-851 r4 (defect B, detail 404): the workspace drawer/detail row select
+// must obey the SAME drill-down law as assertCusLotVisible. On build
+// 8916df10 it re-scoped own-only, so a teammate lot reachable from the
+// team-widened list 404'd 'Không tìm thấy lô hàng CUS.' at the service level
+// after the route guard had passed. Pinned via the rendered WHERE chunk.
+describe('loadShipmentRow — per-lot drill-down scope (SIL-851 r4)', () => {
+  function detailExecutor(members: Array<{ userId: number }>, onWhere: (chunk: SQL) => void) {
+    const chain = {
+      leftJoin: () => chain,
+      innerJoin: () => chain,
+      where(chunk: SQL) { onWhere(chunk); return chain; },
+      limit: async () => [{ shipment: { id: 1 }, customerName: 'Khách hàng', routeName: 'Tuyến' }],
+      then: (resolve: (rows: unknown) => unknown, reject: (err: unknown) => unknown) =>
+        Promise.resolve(members).then(resolve, reject),
+    };
+    return { select: () => ({ from: () => chain }) } as never;
+  }
+
+  it('row select giữ arm 2 co-members (team-open) bất kể toggle list', async () => {
+    const chunks: SQL[] = [];
+    await loadShipmentRow(1, actor(Role.CUS) as AuthUser, detailExecutor([{ userId: 11 }, { userId: 12 }], (chunk) => chunks.push(chunk)));
+    // chunks[0] = members join, chunks[1] = the row select (resolved after).
+    const { sql, params } = render(chunks[chunks.length - 1]!);
+    // Nhánh lô-của-người-cùng-nhóm ACTIVE nằm trong WHERE của row select —
+    // giá trị trong mệnh đề (không phải subquery arm 4: `not in (select`).
+    assert.match(sql, /"shipments"\."created_by" in \(\$/);
+    assert.ok(params.includes(11) && params.includes(12), 'co-member ids phải là tham số scope');
+  });
+
+  it('không thuộc nhóm nào: scope own-only, cross-team vẫn 404 như cũ', async () => {
+    const chunks: SQL[] = [];
+    await loadShipmentRow(1, actor(Role.CUS) as AuthUser, detailExecutor([], (chunk) => chunks.push(chunk)));
+    const { sql } = render(chunks[chunks.length - 1]!);
+    assert.doesNotMatch(sql, /"shipments"\."created_by" in \(\$/);
+    assert.match(sql, /"shipments"\."created_by" = \$/);
   });
 });

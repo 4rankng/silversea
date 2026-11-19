@@ -57,11 +57,22 @@ const FINANCE_PATH_PREFIXES = [
   '/api/reports/supplier-statement',
 ] as const;
 
+const SHIPMENT_PATH_PREFIXES = ['/api/shipments/', '/api/cus-workspace/'] as const;
+// readonly string[] — resolveCategory receives arbitrary API action strings,
+// so the tuple-literal `as const` type rejects .includes(action).
+const PENALTY_ACTIONS: readonly string[] = ['PENALTY_CREATED', 'PENALTY_CANCELED'];
+const AUTH_ACTIONS: readonly string[] = ['USER_LOGIN', 'USER_LOGOUT', 'LOGIN_FAILED', 'ACCESS_DENIED', 'MUTATION_REJECTED', 'MUTATION_CONFLICT'];
+
 export function resolveCategory(action: string, context?: { path?: string | null }): AuditCategory {
   if (['PAYMENT_RECEIVED', 'ADJUSTMENT_CREATED', 'PROFIT_DISTRIBUTED', 'DRIVER_SALARY_RECORDED', 'TRIP_EXPENSE_APPROVED', 'TRIP_EXPENSE_REJECTED'].includes(action)) return 'finance';
   if (action.startsWith('TRIP_')) return 'trip';
-  if (action === 'PENALTY_CREATED' || action === 'PENALTY_CANCELED') return 'penalty';
-  if (['USER_LOGIN', 'USER_LOGOUT', 'LOGIN_FAILED', 'ACCESS_DENIED', 'MUTATION_REJECTED', 'MUTATION_CONFLICT'].includes(action)) return 'auth';
+  // Mirror of the backend classifyAuditCategory()/matchesKnownCategory(): the
+  // shipment lot domain (SHIPMENT_* events, /api/shipments + /api/cus-workspace
+  // writes) groups under 'Chuyến đi', never 'config' (SIL-851 QA round 5).
+  if (action.startsWith('SHIPMENT_')) return 'trip';
+  if (PENALTY_ACTIONS.includes(action)) return 'penalty';
+  if (AUTH_ACTIONS.includes(action)) return 'auth';
+  if (SHIPMENT_PATH_PREFIXES.some((prefix) => (context?.path ?? '').startsWith(prefix))) return 'trip';
   if (FINANCE_PATH_PREFIXES.some((prefix) => (context?.path ?? '').startsWith(prefix))) return 'finance';
   return 'config';
 }

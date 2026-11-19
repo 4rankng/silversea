@@ -126,6 +126,57 @@
   transform: translateX(0);
 }
 
+/* Field-level old→new diff (SIL-851 r4 defect A): one line per changed
+   field, shared by the list-row expansion and the detail modal. Data values
+   wrap, never clip (design-guidelines §4 no-truncation law). */
+.audit-log__changes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.audit-detail__changes {
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.audit-detail__changes-title {
+  font-size: var(--text-caption-size);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.audit-change {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--font-data);
+  font-size: var(--text-data-size);
+  line-height: 1.5;
+}
+.audit-change__field {
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.audit-change__old {
+  color: var(--ink-2);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--ink-3) 60%, transparent);
+  overflow-wrap: anywhere;
+}
+.audit-change__arrow {
+  color: var(--ink-3);
+  flex-shrink: 0;
+}
+.audit-change__new {
+  color: var(--ink);
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+}
+
 .audit-detail-modal {
   background: transparent;
 }

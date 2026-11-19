@@ -99,8 +99,10 @@ const FINANCE_PATH_PREFIXES = [
 // SIL-851 — lot-domain audit rows (shipments + the CUS workspace writes on a
 // lot: chứng từ, container lines, custody, khóa lô) are accounting-visible
 // domain: kế toán owns the lot money state and must see WHO changed WHAT on a
-// teammate's edit (old→new). Kept separate from financeDomainCondition so the
-// 'config' category filter (ENTITY_* AND NOT finance) still shows these rows.
+// teammate's edit (old→new). The lot domain groups under the 'trip' category
+// ('Chuyến đi' — the operational freight tab); matchesKnownCategory('config')
+// excludes it so the category tabs stay a partition (QA round 5: both tabs
+// showed 0 because SHIPMENT_UPDATED matched no category arm at all).
 const SHIPMENT_AUDIT_ENTITY_TYPES = ['shipments', 'shipment'];
 
 const SHIPMENT_AUDIT_PATH_PREFIXES = [
@@ -290,7 +292,10 @@ function accountantAssignmentCondition(userId: number): SQL {
 
 function matchesKnownCategory(category: string): SQL {
   if (category === 'trip') {
-    return sql`(${s.auditLogs.payload}->>'event' LIKE 'TRIP_%' OR ${s.auditLogs.payload}->>'event' = 'STATUS_CHANGED')`;
+    // Lot-domain rows (SHIPMENT_UPDATED on a lot, CUS-workspace writes) group
+    // under 'Chuyến đi' — the operational freight tab — not 'config'; the JS
+    // mapper classifyAuditCategory() must keep mirroring this split.
+    return sql`(${s.auditLogs.payload}->>'event' LIKE 'TRIP_%' OR ${s.auditLogs.payload}->>'event' = 'STATUS_CHANGED' OR ${shipmentDomainCondition()})`;
   }
   if (category === 'finance') {
     return financeDomainCondition();
@@ -302,7 +307,7 @@ function matchesKnownCategory(category: string): SQL {
     return sql`${s.auditLogs.payload}->>'event' IN ('USER_LOGIN', 'USER_LOGOUT', 'LOGIN_FAILED', 'ACCESS_DENIED')`;
   }
   if (category === 'config') {
-    return sql`(${s.auditLogs.payload}->>'event' IN ('ENTITY_CREATED', 'ENTITY_UPDATED', 'ENTITY_DELETED') AND NOT ${financeDomainCondition()})`;
+    return sql`(${s.auditLogs.payload}->>'event' IN ('ENTITY_CREATED', 'ENTITY_UPDATED', 'ENTITY_DELETED') AND NOT ${financeDomainCondition()} AND NOT ${shipmentDomainCondition()})`;
   }
   return sql`FALSE`;
 }
@@ -343,6 +348,10 @@ function classifyAuditCategory(row: {
   if (PENALTY_EVENTS.includes(row.action)) return 'penalty';
   if (AUTH_EVENTS.includes(row.action)) return 'auth';
   if (row.action.startsWith('TRIP_') || row.action === 'STATUS_CHANGED') return 'trip';
+  // Mirror of matchesKnownCategory('trip'): the lot domain groups under
+  // 'Chuyến đi'. Must stay ahead of the finance entityType/path check so the
+  // tab filters and the row badges can never disagree (SIL-851 QA round 5).
+  if (isShipmentLotDomainRow(row.entityType, row.path)) return 'trip';
   if ((row.entityType && FINANCE_ENTITY_TYPES.includes(row.entityType)) || FINANCE_PATH_PREFIXES.some((prefix) => row.path.startsWith(prefix))) {
     return 'finance';
   }
