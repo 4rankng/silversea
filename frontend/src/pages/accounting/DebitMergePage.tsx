@@ -72,7 +72,8 @@ export function DebitMergePage() {
   // ShipmentDebitWorkspace's canLock law (ADMIN | ACCOUNTANT | CUS) — the
   // same gating the workspace's KHÓA LÔ HÀNG button preserves.
   const canLock = user?.role === Role.ADMIN || user?.role === Role.ACCOUNTANT || user?.role === Role.CUS;
-  // createSettlementRound is OFFICE_ROLES-gated server-side.
+  // createSettlementRound is gated server-side to the office trio + CUS
+  // (ticket 2.3 — CUS runs Chọn Debit on its own fee-complete lots).
   const canChooseDebit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
   const settlementDialogRows = useRef<AccountingDebitBoardRow[]>([]);
 

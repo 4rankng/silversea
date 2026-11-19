@@ -116,8 +116,9 @@ export function ShipmentDebitPage() {
 
   // Khóa lô: ShipmentDebitWorkspace's canLock law, preserved verbatim.
   const canLock = user?.role === Role.ADMIN || user?.role === Role.ACCOUNTANT || user?.role === Role.CUS;
-  // Chọn Debit runs the OFFICE_ROLES-gated settlement-round channel.
-  const canChooseDebit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
+  // Ticket 2.3 (18/11) — CUS runs Chọn Debit like accounting once its picks
+  // are fee-complete; the completeness + lock law lives in the grid.
+  const canChooseDebit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || user?.role === Role.CUS;
 
   const queryClient = useQueryClient();
   // Task 1.2 — the team flag rides the summary call AND its cache identity

@@ -291,11 +291,28 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
           </div>
         );
       }
-      if (carrierLabels.length === 0 && platesLine == null) return index === 0 ? '—' : null;
+      const billing = row.billingTruckNo?.trim() || null;
+      // Ticket 18/11 Task 2.2 — BKS báo khách rides EVERY container row on
+      // FCL too; the badge is the FB-093 editor (same affordance as the LCL
+      // head row) and hides only when it equals an actually-run plate.
+      const xeoAo = billing != null && !plates.includes(billing) ? billing : null;
+      if (carrierLabels.length === 0 && platesLine == null && xeoAo == null) return index === 0 ? '—' : null;
       return (
         <div className="record-cell-stack">
           {carrierLabels.length > 0 && <span>{phanXeNames(carrierLabels)}</span>}
           {platesLine != null && <span>Thực: {platesLine}</span>}
+          {xeoAo != null && (
+            <button
+              type="button"
+              className="debit-billing-badge"
+              title="Sửa BKS ảo"
+              aria-label={`Sửa BKS ảo: ${xeoAo}`}
+              aria-expanded={editingBillingShipmentId === row.shipmentId}
+              onClick={() => editBillingPlate(row.shipmentId)}
+            >
+              BKS ảo: {xeoAo}
+            </button>
+          )}
         </div>
       );
     },
