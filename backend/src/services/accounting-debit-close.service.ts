@@ -104,11 +104,16 @@ export interface DebitBoardDerivedCells {
 
 /**
  * SIL-805 — merge the accountant's overrides into the derived money cells.
- * An override replaces the derived value of ITS cell and counts as KNOWN
- * even when 0 (a computed financial zero is a value, card 20261002_293);
+ * An override replaces the derived value of ITS cell and counts as KNOWN;
  * every other cell keeps its derived channel. Tổng thu/Tổng trả roll from
  * the merged cells (Phí RU stays display-only), so Lợi nhuận
  * (= Tổng thu − Tổng trả − Chi phí ngoài) reads the override too.
+ *
+ * Luật 24/10 cho ô override = 0 (QA 19/11, lô R3K-J1): 0 chỉ là GIÁ TRỊ khi
+ * kênh tự động của ô đó ĐÃ BIẾT (computed financial zero, card
+ * 20261002_293). Gõ 0 vào ô CHƯA XÁC ĐỊNH không định giá lô — ô giữ kênh
+ * tự động (trống) thay vì bịa '0' giả trên lô mở chưa có giá; lô ghép hiển
+ * 0 theo miễn trừ riêng của mình. Override ≠ 0 luôn định giá ô.
  */
 export function applyDebitRateOverridesToCells(
   derived: DebitBoardDerivedCells,
@@ -119,7 +124,7 @@ export function applyDebitRateOverridesToCells(
     value: string | null,
     known: boolean,
   ): { value: string | null; known: boolean } =>
-    override != null
+    override != null && (toNumber(override) !== 0 || value != null)
       ? { value: money(toNumber(override)), known: true }
       : { value, known };
   const thuCells = [

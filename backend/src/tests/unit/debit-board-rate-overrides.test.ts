@@ -52,7 +52,19 @@ describe('applyDebitRateOverridesToCells (SIL-805)', () => {
     assert.equal(cells.tra.tong1, '430000'); // 350000 + 50000 + 30000
   });
 
-  it('override 0 là KNOWN — tổng tính 0, không rơi về null (card 20261002_293)', () => {
+  it('override 0 trên ô ĐÃ BIẾT là computed zero — tổng tính 0 (card 20261002_293)', () => {
+    const pricedOnce: DebitBoardDerivedCells = {
+      ...derived, cuocThu: '1000000', cuocThuKnown: true,
+    };
+    const cells = applyDebitRateOverridesToCells(pricedOnce, {
+      cuocThu: '0', lachHuyenThu: null, phuPs: null, phatSinhCus: null,
+      cuocTraDv: null, lachHuyenDv: null, phatSinhDv: null, phiRu: null,
+    });
+    assert.equal(cells.thu.cuocThu, '0');
+    assert.equal(cells.thu.tongThu, '790000'); // 0 + 90000 + 200000 + 500000
+  });
+
+  it('override 0 trên ô CHƯA XÁC ĐỊNH không định giá — ô giữ trống, không bịa 0 (luật 24/10, lô R3K-J1)', () => {
     const emptyDerived: DebitBoardDerivedCells = {
       cuocThu: null, cuocThuKnown: false,
       lachHuyen: null, lachHuyenKnown: false,
@@ -67,8 +79,8 @@ describe('applyDebitRateOverridesToCells (SIL-805)', () => {
       cuocThu: '0', lachHuyenThu: null, phuPs: null, phatSinhCus: null,
       cuocTraDv: null, lachHuyenDv: null, phatSinhDv: null, phiRu: null,
     });
-    assert.equal(cells.thu.cuocThu, '0');
-    assert.equal(cells.thu.tongThu, '0'); // known 0, never null
+    assert.equal(cells.thu.cuocThu, null);
+    assert.equal(cells.thu.tongThu, null); // undetermined — ô TRỐNG, không '0' giả
     assert.equal(cells.tra.tong1, null); // tra side still fully unknown
   });
 
