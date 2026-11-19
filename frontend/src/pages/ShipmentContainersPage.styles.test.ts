@@ -98,11 +98,11 @@ describe('shipment detail workboard styling', () => {
 
   it('fits desktop columns to the workspace and lets headings wrap instead of forcing horizontal scroll', () => {
     // SIL-824: the fixed px col model pins the table's floor width at
-    // fixed-sum + the KHÁCH HÀNG width — ticket 18/11 supersedes the 136px
-    // floor with the column's own 185px width — so table-layout: fixed is
-    // never over-constrained (the card collapse owns anything narrower). No
-    // bare min-width — the calc must name the ledger vars.
-    expect(css).toMatch(/\.shipment-container-ledger table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*calc\(var\(--led-fixed-sum\) \+ var\(--led-w-customer\)\);[^}]*table-layout:\s*fixed;/);
+    // fixed-sum + the 136px KHÁCH HÀNG floor, so table-layout: fixed is
+    // never over-constrained (the card collapse owns anything narrower) and
+    // fits within the 1440px sidebar-collapsed canvas (1344px) with no
+    // horizontal scroll. No bare min-width — the calc must name the ledger vars.
+    expect(css).toMatch(/\.shipment-container-ledger table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*calc\(var\(--led-fixed-sum\) \+ var\(--led-w-customer-floor\)\);[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*white-space:\s*normal;/);
     // 20260922_37 no-truncation doctrine: data cells wrap, never clip — the
     // old `overflow: hidden` cut trailing characters of long place names.
@@ -121,12 +121,11 @@ describe('shipment detail workboard styling', () => {
   it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
     // SIL-824: the narrow columns own measured px floors, not shares — notes
-    // 120px (the owner's reading floor, never a grow column) and actions
-    // 92px (button floor). ticket 18/11 supersedes the 92px status floor
-    // with 145px. FB-113 v2 (2026-10-18) keeps the documents group as four
-    // headed columns.
+    // 120px (the owner's reading floor, never a grow column), status 92px, and
+    // actions 92px (button floor). FB-113 v2 (2026-10-18) keeps the documents
+    // group as four headed columns.
     expect(css).toMatch(/--led-w-notes:\s*120px;/);
-    expect(css).toMatch(/--led-w-status:\s*145px;/);
+    expect(css).toMatch(/--led-w-status:\s*92px;/);
     expect(css).toMatch(/--led-w-actions:\s*92px;/);
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*var\(--text-caption-size\);[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
@@ -150,19 +149,15 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__route > span\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*normal;/);
   });
 
-  it('ticket 18/11: KHÁCH HÀNG & LỘ TRÌNH holds width 185px / max-width 200px with the SIL-822 wrap levers', () => {
-    // ticket 18/11 (Web PC 1440) supersedes the SIL-824 grow law — the
-    // widthless auto column that absorbed all surplus ("flex-grow, an het
-    // phan du thua, it nhat gap doi hien tai") — with a fixed 185px width
-    // (max-width 200px per ticket), so surplus above the ladder flows to the
-    // ticket-widened columns instead. SIL-822's levers stay: the 6px inline
-    // padding floor on the row-header cell and word-boundary wrap on the
-    // NameCell runs (overflow-wrap:anywhere breaks greedily at the end
-    // of the REMAINING space, never mid-word when a token exceeds the line).
-    expect(css).toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:\s*var\(--led-w-customer\);[^}]*max-width:\s*200px;/);
+  it('SIL-824: KHÁCH HÀNG & LỘ TRÌNH stays widthless (flex-grow) with the SIL-822 wrap levers', () => {
+    // SIL-824 grow law: KHÁCH HÀNG & LỘ TRÌNH stays the table's ONLY widthless
+    // auto column (absorbing all surplus px at 1440px) with a 136px floor in
+    // table min-width. SIL-822's levers stay: the 6px inline padding floor on
+    // the row-header cell and word-boundary wrap on the NameCell runs.
+    expect(css).not.toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:/);
     expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\]\s*\{[^}]*padding-inline:\s*6px;/);
     expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\] \.name-cell\s*\{[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
-    expect(css).toMatch(/--led-w-customer:\s*185px;/);
+    expect(css).toMatch(/--led-w-customer-floor:\s*136px;/);
   });
 
   it('places pagination in the container ledger scroll region', () => {
@@ -349,12 +344,11 @@ describe('shipment detail workboard styling', () => {
   it('SIL-824: the twelve columns pin the fixed px ladder and the sums close exactly (FB-086/FB-113 v2 lineage)', () => {
     // SIL-824 (owner 14/11, "khong de browser tu phan phoi chieu rong")
     // supersedes the FB-086 percentage-sum law with fixed px floors: every
-    // narrow column reads its floor from a --led-w-* var, and --led-fixed-sum
-    // must equal the twelve floors exactly — the table min-width spends it
-    // plus the KHÁCH HÀNG width, so the model can never over-constrain.
-    // ticket 18/11 (Web PC 1440) supersedes the SIL-824 measures: KHÁCH HÀNG
-    // & LỘ TRÌNH holds a fixed 185px width (max-width 200px) instead of the
-    // widthless grow law, and billbook/route/schedule/status re-widen.
+    // narrow column reads its floor from a --led-w-* var, KHÁCH HÀNG & LỘ
+    // TRÌNH stays widthless (the grow column), and --led-fixed-sum must equal
+    // the twelve floors exactly — the table min-width spends it plus the
+    // 136px customer floor (1332px <= 1344px canvas at 1440x900), so the model
+    // never over-constrains or overflows 1440px.
     const floor = (name: string) => {
       const m = css.match(new RegExp(`--led-w-${name}:\\s*(\\d+)px;`));
       expect(m, `missing --led-w-${name}`).toBeTruthy();
@@ -364,28 +358,28 @@ describe('shipment detail workboard styling', () => {
     const sum = names.reduce((acc, name) => acc + floor(name), 0);
     const declared = Number(css.match(/--led-fixed-sum:\s*(\d+)px;/)?.[1] ?? NaN);
     expect(declared).toBe(sum);
-    // Ticket floors: ticket 18/11 (Web PC 1440) supersedes the SIL-824
-    // measures below — billbook 112→115, ĐIỂM NÂNG HẠ (route) 96→155,
-    // LỊCH TRÌNH (schedule) 100→160, TRẠNG THÁI (status) 92→145. Direction
-    // keeps the re-measured 76px floor (the ticket's 72 is a minimum).
+    expect(declared + floor('customer-floor')).toBeLessThanOrEqual(1344);
     expect(floor('direction')).toBe(76);
-    // SIL-824 QA FAIL 16/11 re-audited the ladder against REAL rendered
-    // widths (billbook 87px, declaration 87px, container 95px, schedule 79px,
+    // SIL-824 QA FAIL 16/11: the route floor re-measured against the REAL
+    // rendered ladder — every other floor already sits at its exact line box
+    // (billbook 87px, declaration 87px, container 95px, schedule 79px,
     // shippingline ~71px, direction 55px, status 68px inside 21px true cell
-    // chrome) — ticket 18/11 re-widens the reading columns on top of it.
+    // chrome), so nothing can fund it. Route 96px + the route cell's trigger
+    // paying the SIL-819 6px inline lever (10px→6px) yields an 83px line box
+    // for the 79.3-80.1px 'VipGreenPort' token; fixed-sum 1188→1196 and the
+    // collapse guard 1326→1334 track the new min-width (1332).
     expect(floor('shippingline')).toBe(96);
-    expect(floor('billbook')).toBe(115);
-    expect(floor('route')).toBe(155);
-    expect(floor('schedule')).toBe(160);
-    expect(floor('status')).toBe(145);
+    expect(floor('billbook')).toBe(112);
+    expect(floor('route')).toBe(96);
+    expect(floor('schedule')).toBe(100);
+    expect(floor('status')).toBe(92);
     expect(css).toMatch(/\.shipment-container-ledger td\[data-label='Nâng \/ hạ'\] \.shipment-container-ledger__cell-trigger\s*\{[^}]*padding-left:\s*6px;[^}]*padding-right:\s*6px;/);
     expect(floor('declaration')).toBe(124); // SIL-848: 116px was the exact 12-digit floor (zero margin) — 124 pays it at wide metrics too
     expect(floor('container')).toBe(116);
     expect(floor('notes')).toBe(120);
-    // ticket 18/11 supersedes the grow law: the customer column holds the
-    // ticket width (185px, max-width 200px) — never widthless again — and
-    // the band ladders stay gone (one px ladder, no @media share restatements).
-    expect(css).toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:\s*var\(--led-w-customer\);[^}]*max-width:\s*200px;/);
+    // The customer column NEVER regains a width rule (grow law) and the
+    // band ladders are gone — one px ladder, no @media share restatements.
+    expect(css).not.toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:/);
     expect(css).not.toMatch(/@media \(min-width: 1101px\)[\s\S]*?col--/);
     expect(css).not.toMatch(/@media \(min-width: 761px\)[\s\S]*?col--/);
     // The card collapse guards the whole below-floor band (≥ the min-width).
