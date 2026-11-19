@@ -1,0 +1,14 @@
+# SIL-861 — frontend vitest, scoped modal file (incl. new G6/G7 pins)
+# Command: cd frontend && pnpm exec vitest run src/features/ops/OpsExpenseFormModal.containers.test.tsx
+# G6 (SIL-861): same Số hóa đơn 'QAHĐ-001' twice on PHÍ CÓ HÓA ĐƠN → inline
+# 'Trùng số hóa đơn trên lô này — không lưu dòng trùng.' ×2 + footer
+# 'Trùng số hóa đơn "QAHĐ-001" — không lưu dòng trùng.' + Lưu disabled +
+# submit calls createExpense 0×; distinct 'QAHĐ-002' clears, both rows save whole.
+# G7 (SIL-861): empty Số HĐ (Tùy chọn) ×2 rows never trips the gate.
+# Pre-existing G1–G5 (no-invoice container gate, duplicate type, same-type
+# invoice rows allowed, 409 hard error, lot scope) stay green.
+# EXIT: 0
+ Test Files  1 passed (1)
+      Tests  26 passed (26)
+   Start at  14:12:51
+   Duration  9.27s

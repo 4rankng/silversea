@@ -1,0 +1,7 @@
+# SIL-855 + SIL-861 lane — root lint gate (after fix)
+# Command: pnpm lint   (root eslint .)
+# First run (pre-fix): 1 error — DebitNotePreviewDialog.tsx:61 bare query key
+#   (@tingting/no-bare-query-key). Fixed via qk.accounting.debitNoteRoundPreview
+#   factory (frontend/src/api/keys.ts) + import in the dialog.
+# Final run EXIT: 0 — 0 errors, 7 warnings (pre-existing, unrelated files).
+✖ 7 problems (0 errors, 7 warnings)

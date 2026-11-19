@@ -1,0 +1,14 @@
+# SIL-855 + SIL-861 lane — frontend vitest FULL suite (final clean run)
+# Command: cd frontend && pnpm test
+# EXIT: 0
+# Runs history (worktree):
+#   run1 14:14 — 2 failed / 6549 pass: both 'dist/assets missing' — pristine
+#     worktree had no dist yet (pins need `make build` first).
+#   run2 14:23 — 96 failed / 15 files: mid-run race — the suite started before
+#     the keys.ts qk-factory fix landed (stale module graph → qk…is not a
+#     function cascades) + the same dist pins. Diagnosis artifact only.
+#   run3 14:44 solo — 1 failed / 6550: FuelConfigPage full-suite-order flake;
+#     passes standalone 4/4 immediately after (unrelated module, untouched).
+#   run4 14:52 solo — GREEN:
+ Test Files  829 passed (829)
+      Tests  6551 passed (6551)

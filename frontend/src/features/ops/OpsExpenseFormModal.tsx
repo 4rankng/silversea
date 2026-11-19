@@ -176,6 +176,10 @@ interface FeeRowHost {
   /** Ticket 18/11 Task 4.1 — typeCodes declared twice on the no-invoice tab;
    *  those rows carry the same-type-per-container block error. */
   noInvoiceDuplicateTypes: ReadonlySet<string>;
+  /** SIL-861 — Số hóa đơn values declared twice on the invoice tab; those
+   *  rows carry the duplicate-invoice block error (pre-save, like the
+   *  no-invoice duplicate-type gate). */
+  invoiceDuplicateNumbers: ReadonlySet<string>;
 }
 
 /**
@@ -342,15 +346,32 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     }
     return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([code]) => code));
   }, [noInvoiceRows]);
+  // SIL-861 — PHÍ CÓ HÓA ĐƠN hard-gates a duplicated Số hóa đơn BEFORE Lưu:
+  // the write path only bounces the duplicate after its siblings saved (the
+  // QA partial save), so the same-lot duplicate must die in the draft stage
+  // like the no-invoice duplicate type does. Many rows of one FEE TYPE stay
+  // allowed here — only the invoice NUMBER is unique per lot. An empty Số
+  // hóa đơn stays optional (SIL-834) and never duplicates.
+  const invoiceDuplicateNumbers = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const draft of invoiceRows) {
+      const invoiceNo = draft.invoiceNumber.trim();
+      if (isEmptyDraft(draft) || invoiceNo === '') continue;
+      counts.set(invoiceNo, (counts.get(invoiceNo) ?? 0) + 1);
+    }
+    return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([no]) => no));
+  }, [invoiceRows]);
   // Per-row validity is block-dependent, so recompute with the right block.
   const invalidKeys = useMemo(() => {
     const keys = new Set<number>();
     for (const draft of noInvoiceRows) {
       if (draftErrors('noInvoice', draft) || noInvoiceDuplicateTypes.has(draft.typeCode)) keys.add(draft.key);
     }
-    for (const draft of invoiceRows) if (draftErrors('invoice', draft)) keys.add(draft.key);
+    for (const draft of invoiceRows) {
+      if (draftErrors('invoice', draft) || invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())) keys.add(draft.key);
+    }
     return keys;
-  }, [noInvoiceRows, invoiceRows, noInvoiceDuplicateTypes]);
+  }, [noInvoiceRows, invoiceRows, noInvoiceDuplicateTypes, invoiceDuplicateNumbers]);
   const total = drafts.reduce((sum, draft) => sum + (amountValidOf(draft.amount) ? Number(draft.amount) : 0), 0);
   const anyPendingFiles = drafts.some((draft) => draft.pendingFiles.length > 0);
   // The catalog must be loaded AND every rendered row complete before the
@@ -378,6 +399,10 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       const name = typesData?.items.find((type) => type.code === code)?.name ?? code;
       return `Trùng loại phí "${name}" trên cùng số cont — không lưu dòng trùng.`;
     }
+    // SIL-861 — the invoice tab's own hard gate speaks in the same voice.
+    if (invoiceDuplicateNumbers.size > 0) {
+      return `Trùng số hóa đơn "${[...invoiceDuplicateNumbers][0]}" — không lưu dòng trùng.`;
+    }
     for (const draft of noInvoiceRows) {
       const message = draftErrors('noInvoice', draft);
       if (message && !message.startsWith('Số tiền')) return message;
@@ -387,7 +412,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       if (message && !message.startsWith('Số tiền')) return message;
     }
     return null;
-  }, [typesReady, hasAnyRow, noInvoiceScopeBlocked, noInvoiceDuplicateTypes, typesData, noInvoiceRows, invoiceRows]);
+  }, [typesReady, hasAnyRow, noInvoiceScopeBlocked, noInvoiceDuplicateTypes, invoiceDuplicateNumbers, typesData, noInvoiceRows, invoiceRows]);
 
   const pendingResume = useRef<{ tasks: SaveTask[]; index: number } | null>(null);
 
@@ -539,6 +564,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf,
     addType: addNewType, typeCreating: createType.isPending,
     noInvoiceDuplicateTypes,
+    invoiceDuplicateNumbers,
   };
 
   return (
@@ -694,7 +720,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 function FeeRowFields({ block, draft, ordinal, host }: {
 block: 'noInvoice' | 'invoice'; draft: FeeDraft; ordinal: number; host: FeeRowHost;
 }) {
-const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf, addType, typeCreating, noInvoiceDuplicateTypes } = host;
+const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf, addType, typeCreating, noInvoiceDuplicateTypes, invoiceDuplicateNumbers } = host;
   const invoiced = block === 'invoice';
   // SIL-813 — the inline "new fee type" editor for this row's catalog cell.
   const [addingType, setAddingType] = useState(false);
@@ -714,6 +740,9 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
   const error = rawError?.startsWith('Số tiền') ? null : rawError;
   const duplicateTypeError = block === 'noInvoice' && noInvoiceDuplicateTypes.has(draft.typeCode)
     ? 'Trùng loại phí trên cùng số cont — không lưu dòng trùng.'
+    : null;
+  const duplicateInvoiceError = block === 'invoice' && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())
+    ? 'Trùng số hóa đơn trên lô này — không lưu dòng trùng.'
     : null;
   const photoUrls = useAuthedPhotoUrls(draft.photos.map((photo) => photo.storageKey));
   const fileRef = useRef<HTMLInputElement>(null);
@@ -860,7 +889,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
       {/* A quiet hint, not role=alert: an untouched "+ row" must not keep a
           permanent alert alive over the whole form (the catalog-recovery
           contract clears its alert once the catalog reloads). */}
-      {(error ?? duplicateTypeError) && <p className="ops-modal-hint">{error ?? duplicateTypeError}</p>}
+      {(error ?? duplicateTypeError ?? duplicateInvoiceError) && <p className="ops-modal-hint">{error ?? duplicateTypeError ?? duplicateInvoiceError}</p>}
     </section>
   );
 }

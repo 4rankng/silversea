@@ -464,8 +464,11 @@ describe('ops expense form — mở khóa picker theo cont (SIL-844)', { timeout
 // Ticket 18/11 Task 4.1 — the PHÍ KHÔNG HÓA ĐƠN tab is HARD-GATED: an
 // explicit Số container is required and the same cost TYPE may not repeat on
 // the same cont (the write path hard-409s the family with no confirm
-// bypass). The PHÍ CÓ HÓA ĐƠN tab keeps its warn-then-confirm law, and a
-// duplicate Số hóa đơn arrives as a hard 409 the popup cannot override.
+// bypass). The PHÍ CÓ HÓA ĐƠN tab keeps its warn-then-confirm law for TYPE
+// repeats, hard-gates a duplicated Số hóa đơn in the DRAFT stage (SIL-861 —
+// the write path's post-save bounce alone produced a partial save), and a
+// duplicate already persisted on the lot still arrives as a hard 409 the
+// popup cannot override.
 describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 20_000 }, () => {
   beforeEach(() => { delete order.containers; });
 
@@ -558,6 +561,59 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     expect(screen.queryByText(/NHẬP TRƯỚC ĐÓ/)).toBeNull();
     expect(screen.queryByRole('button', { name: 'Tiếp tục lưu' })).toBeNull();
     expect(api.createExpense).toHaveBeenCalledTimes(1);
+  });
+
+  // SIL-861 (QA build 09069560) — two invoice rows sharing one Số hóa đơn
+  // used to save every sibling and bounce the duplicate only AFTER the write
+  // ('Đã lưu 3 dòng. 1 dòng chưa lưu: …'), a partial save. The draft gate
+  // kills it BEFORE Lưu in the same voice as the no-invoice duplicate type.
+  it('G6 (SIL-861): the same Số hóa đơn twice on the invoice tab blocks BEFORE Lưu — inline + footer, Lưu disabled', async () => {
+    await show();
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'QAHĐ-001');
+    await addInvoiceRow();
+    const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
+    await chooseRowType(secondRow, 'Phí soi chiếu'); // same fee type stays allowed — only the NUMBER is unique
+    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '100000' } });
+    fireEvent.change(within(secondRow).getByLabelText(/^Số hóa đơn/), { target: { value: 'QAHĐ-001' } });
+
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    expect(screen.getByText('Trùng số hóa đơn "QAHĐ-001" — không lưu dòng trùng.')).toBeInTheDocument();
+    expect(screen.getAllByText('Trùng số hóa đơn trên lô này — không lưu dòng trùng.')).toHaveLength(2);
+    fireEvent.submit(save.form!);
+    expect(api.createExpense).not.toHaveBeenCalled();
+
+    // A distinct Số hóa đơn clears the gate; both rows save whole.
+    fireEvent.change(within(secondRow).getByLabelText(/^Số hóa đơn/), { target: { value: 'QAHĐ-002' } });
+    expect(save).toBeEnabled();
+    api.createExpense.mockResolvedValue(entry);
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ invoiceNumber: 'QAHĐ-001' });
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ invoiceNumber: 'QAHĐ-002' });
+  });
+
+  it('G7 (SIL-861): distinct Số hóa đơn rows and empty (Tùy chọn) numbers never trip the gate', async () => {
+    api.createExpense.mockResolvedValue(entry);
+    await show();
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    await addInvoiceRow();
+    const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
+    await chooseRowType(secondRow, 'Phí soi chiếu');
+    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '100000' } });
+    // Both Số hóa đơn left EMPTY — optional (SIL-834), never a duplicate.
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    expect(screen.queryByText(/Trùng số hóa đơn/)).toBeNull();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ invoiceNumber: null });
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ invoiceNumber: null });
   });
 
   it('G5: a lot with NO container rows keeps the lot scope for no-invoice fees', async () => {
