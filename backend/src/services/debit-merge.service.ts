@@ -43,7 +43,7 @@ import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { applyDebitRateOverridesToCells } from './accounting-debit-close.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { activeTripConditions } from './active-trip-scope';
-import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
+import { liveDebitOpsExpense } from './live-debit-expense-scope';
 import { cusVisibilityCondition } from './cus-visibility.service';
 import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue } from './debit-receivable-arming';
 import { operationalName } from '../db/master-data-name';
@@ -299,8 +299,12 @@ export async function getDebitMergeBoard(query: {
   }
 
   // ── Lạch Huyện charge side + Group 4 + Group 5 + the receivable's
-  // ops-charge side: ONE ops-rows read (live scope, voided rows out) feeding
-  // everything.
+  // ops-charge side: ONE ops-rows read feeding everything. Scope = the
+  // chot-debit BOARD's law (ALL ops rows, voided OPS-projected rows included
+  // — board reads no live-filter here), so group 3 cannot disagree with the
+  // board on the same lot (review 18/11: the two surfaces must show one
+  // auto value; the board-vs-summary divergence is pre-existing, out of
+  // scope here).
   const opsRows = await db.select({
     shipmentId: s.opsExpenseEntries.shipmentId,
     expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
@@ -312,7 +316,7 @@ export async function getDebitMergeBoard(query: {
     invoiceNumber: s.opsExpenseEntries.invoiceNumber,
   }).from(s.opsExpenseEntries)
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
-    .where(and(inArray(s.opsExpenseEntries.shipmentId, lotIds), liveDebitOpsExpense()));
+    .where(inArray(s.opsExpenseEntries.shipmentId, lotIds));
 
   const chiHoRawByLot = new Map<number, RawChiHoFeeRow[]>();
   const noInvoiceRawByLot = new Map<number, Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null }>>();
@@ -367,10 +371,8 @@ export async function getDebitMergeBoard(query: {
   }).from(s.tripExpenses)
     .innerJoin(s.trips, and(
       eq(s.trips.id, s.tripExpenses.tripId),
-      // Summary's stricter live scope: voided rows out, OPS-projected rows
-      // stay on their native rows (never a second receivable).
-      liveDebitTripExpense(),
-      standaloneDebitTripRevenue(),
+      // Board's trip-revenue law: voided BILLING rows out; no live-scope
+      // filter (review 18/11 — board parity on Phát sinh/Tổng thu).
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
