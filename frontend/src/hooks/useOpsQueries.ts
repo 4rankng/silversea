@@ -35,8 +35,8 @@ export const opsKeys = {
   fleet: () => ['ops', 'fleet'] as const,
   settlements: (status?: string) => ['ops', 'settlements', status ?? 'all'] as const,
   settlement: (id: number) => ['ops', 'settlement', id] as const,
-  adminExpenses: (status?: OpsExpenseStatus, opsUserId?: number) =>
-    ['ops', 'admin-expenses', status ?? 'all', opsUserId ?? 0] as const,
+  adminExpenses: (status?: OpsExpenseStatus, opsUserId?: number, from?: string, to?: string) =>
+    ['ops', 'admin-expenses', status ?? 'all', opsUserId ?? 0, from ?? '', to ?? ''] as const,
   adminSettlements: (status?: string) => ['ops', 'admin-settlements', status ?? 'all'] as const,
   /** Single settlement detail for accounting reconciliation. */
   adminSettlement: (id: number) => ['ops', 'admin-settlement', id] as const,
@@ -247,10 +247,10 @@ export function useCreateOpsSettlement() {
 
 // ── Đối chiếu (kế toán / quản lý) ────────────────────────────────────────────────
 
-export function useAdminOpsExpenses(status?: OpsExpenseStatus, opsUserId?: number) {
+export function useAdminOpsExpenses(status?: OpsExpenseStatus, opsUserId?: number, from?: string, to?: string) {
   return useQuery<{ items: OpsExpenseRow[] }>({
-    queryKey: opsKeys.adminExpenses(status, opsUserId),
-    queryFn: () => opsClient.getAdminExpenses({ status, opsUserId }),
+    queryKey: opsKeys.adminExpenses(status, opsUserId, from, to),
+    queryFn: () => opsClient.getAdminExpenses({ status, opsUserId, from, to }),
   });
 }
 

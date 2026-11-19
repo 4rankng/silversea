@@ -493,8 +493,14 @@ router.get('/admin/expenses', OPS_APPROVERS, asyncHandler(async (req: Request, r
   const opsUserId = req.query.opsUserId != null && req.query.opsUserId !== ''
     ? parseId(String(req.query.opsUserId), 'Mã Ops')
     : undefined;
+  // SIL-858 — accountant tab's Kỳ chi filters (paid_at range), same shape the
+  // Báo cáo hoàn ứng tab uses.
+  const paidRange = z.object({
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  }).parse(req.query);
   const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? '100'), 10) || 100, 1), 200);
-  const items = await listOpsExpenses({ status, paidById: opsUserId, limit });
+  const items = await listOpsExpenses({ status, paidById: opsUserId, paidFrom: paidRange.from, paidTo: paidRange.to, limit });
   // Micro-ledger view (PRD §5.3): same-lot expenses cluster under ONE mã lô on
   // the accountant screen regardless of who paid — never split by payer. Lots
   // keep their first-appearance (newest) rank; within a lot the recent-first

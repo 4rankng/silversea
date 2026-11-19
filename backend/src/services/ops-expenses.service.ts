@@ -6,7 +6,7 @@
 import { listLegacyOpsExpenseHistory } from './ops-legacy-expense-history.service';
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, exists, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, exists, gte, inArray, isNotNull, isNull, lte, ne, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
 import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel, type ExpenseCostGroup } from '@tingting/shared';
@@ -827,6 +827,13 @@ export interface OpsExpenseListRow {
   shipmentId: number;
   shipmentCode: string | null;
   billRef: string | null;
+  /** SIL-858 — accountant tab's Khách hàng / Nhà máy column. */
+  customerName: string | null;
+  factoryName: string | null;
+  /** SIL-858 — the row's own container tờ khai (null on lot-wide rows). */
+  declarationNumber: string | null;
+  /** SIL-858 — the settlement voucher code when the row is already settled. */
+  opsSettlementCode: string | null;
   containerNumber: string | null;
   expenseTypeCode: string;
   expenseTypeName: string | null;
@@ -849,6 +856,9 @@ export async function listOpsExpenses(filters: {
   paidById?: number;
   status?: 'DRAFT' | 'RECORDED' | 'VOIDED' | 'PENDING' | 'APPROVED' | 'REJECTED';
   settlementId?: number;
+  /** SIL-858 — Kỳ chi (paid_at) range on the accountant tab; inclusive both ends. */
+  paidFrom?: string;
+  paidTo?: string;
   limit?: number;
   offset?: number;
 }): Promise<OpsExpenseListRow[]> {
@@ -860,6 +870,8 @@ export async function listOpsExpenses(filters: {
   if (filters.settlementId != null) {
     conditions.push(eq(s.opsExpenseEntries.opsSettlementId, filters.settlementId));
   }
+  if (filters.paidFrom) conditions.push(gte(s.opsExpenseEntries.paidAt, filters.paidFrom));
+  if (filters.paidTo) conditions.push(lte(s.opsExpenseEntries.paidAt, filters.paidTo));
 
   const rows = await db
     .select({
@@ -877,6 +889,12 @@ export async function listOpsExpenses(filters: {
       blNumber: s.shipments.blNumber,
       bookingRef: s.shipments.bookingRef,
       tradeDirection: s.shipments.tradeDirection,
+      // SIL-858 — the accountant tab's 3 new columns: customer/factory of the
+      // lot, the row's own container tờ khai, the settlement voucher code.
+      customerName: s.customers.name,
+      factoryName: s.shipments.factoryName,
+      declarationNumber: s.shipmentContainers.declarationNumber,
+      opsSettlementCode: s.opsSettlements.code,
       containerNumber: s.shipmentContainers.containerNumber,
       expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
       expenseTypeName: s.forwarderExpenseTypes.name,
@@ -898,6 +916,7 @@ export async function listOpsExpenses(filters: {
     .from(s.opsExpenseEntries)
     .leftJoin(s.expenseAccountingSources, and(eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id)))
     .leftJoin(s.shipments, eq(s.shipments.id, s.opsExpenseEntries.shipmentId))
+    .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
     .leftJoin(
       s.shipmentContainers,
       eq(s.shipmentContainers.id, s.opsExpenseEntries.shipmentContainerId),
@@ -907,6 +926,7 @@ export async function listOpsExpenses(filters: {
       eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode),
     )
     .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
+    .leftJoin(s.opsSettlements, eq(s.opsSettlements.id, s.opsExpenseEntries.opsSettlementId))
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(desc(s.opsExpenseEntries.paidAt), desc(s.opsExpenseEntries.id))
     .limit((filters.limit ?? 100) + (filters.offset ?? 0));

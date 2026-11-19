@@ -113,12 +113,17 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
   it('shows the sheet modal loading for a settlement still in flight', async () => {
     apiGet.mockImplementation((url: string) => {
       if (url === '/ops/admin/settlements/3') return new Promise(() => {});
-      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ opsSettlementId: 3 })] });
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ opsSettlementId: 3, opsSettlementCode: 'OS-2609-0001' })] });
+      if (url.startsWith('/ops/admin/settlements')) {
+        return Promise.resolve({ items: [{ id: 3, code: 'OS-2609-0001', status: 'RECORDED', totalAmount: '350000', note: null, createdAt: '2026-09-07T00:00:00.000Z', approvedAt: null, opsUserId: 7, opsUserName: 'Ops A' }] });
+      }
       return Promise.resolve({ items: [] });
     });
     renderTab();
     await screen.findByText('BL-9');
-    fireEvent.click(screen.getByRole('button', { name: 'Xem phiếu' }));
+    // SIL-858 — the row's [Xem phiếu] button is gone; the sheet opens from
+    // the Phiếu quyết toán Ops table below.
+    fireEvent.click(screen.getByRole('button', { name: 'Xem' }));
     expect(await screen.findByText('Đang tải phiếu quyết toán…')).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Phiếu quyết toán Ops' })).toBeInTheDocument();
   });
@@ -129,17 +134,21 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
       if (url === '/ops/admin/settlements/3') {
         return failDetail ? Promise.reject(new Error('Mất kết nối')) : Promise.resolve(settlementDetail);
       }
-      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ opsSettlementId: 3 })] });
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ opsSettlementId: 3, opsSettlementCode: 'OS-2609-0001' })] });
+      if (url.startsWith('/ops/admin/settlements')) {
+        return Promise.resolve({ items: [{ id: 3, code: 'OS-2609-0001', status: 'RECORDED', totalAmount: '350000', note: null, createdAt: '2026-09-07T00:00:00.000Z', approvedAt: null, opsUserId: 7, opsUserName: 'Ops A' }] });
+      }
       return Promise.resolve({ items: [] });
     });
     renderTab();
     await screen.findByText('BL-9');
-    fireEvent.click(screen.getByRole('button', { name: 'Xem phiếu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xem' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được phiếu quyết toán');
     failDetail = false;
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-    expect(await screen.findByText('OS-2609-0001')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Phiếu quyết toán Ops' });
+    await waitFor(() => expect(within(dialog).getByText('OS-2609-0001')).toBeInTheDocument());
     expect(apiPost).not.toHaveBeenCalled();
   });
 
@@ -220,5 +229,91 @@ describe('OpsAccountantTab — KT-duyệt axis (card 191026160000 §3c)', () => 
     await screen.findByText('BL-9');
     fireEvent.click(screen.getByRole('button', { name: /^Duyệt$/ }));
     expect(await screen.findByText(/Bổ sung số và ngày hóa đơn trước khi đối chiếu/)).toBeInTheDocument();
+  });
+});
+
+// SIL-858 — the Chi phí Ops tab rework: Kỳ chi + Người-lập-lệnh-chi filters,
+// the 3 lot-identity columns (Khách hàng/Nhà máy, Số tờ khai, Số HĐ with the
+// no-invoice 'X'), 'Đã hủy / lịch sử' rows fully hidden, Trạng thái showing
+// the settlement voucher code, and Ghi chú as the last column (the row-level
+// [Xem phiếu] button is gone — the sheet opens from the phiếu table).
+describe('OpsAccountantTab — SIL-858 accountant board rework', () => {
+  const mockBoard = (items: Array<Record<string, unknown>>) => {
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items });
+      if (url.startsWith('/ops/admin/settlements')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+  };
+
+  it('ẩn hoàn toàn dòng Đã hủy / lịch sử khỏi bảng', async () => {
+    mockBoard([
+      expense({ version: 1 }),
+      expense({ id: 6, approvalStatus: 'VOIDED', note: 'đã hủy rồi' }),
+      expense({ id: 7, approvalStatus: 'REJECTED', note: 'bị từ chối' }),
+    ]);
+    renderTab();
+    expect(await screen.findByText('BL-9')).toBeInTheDocument();
+    expect(screen.queryByText('Đã hủy / lịch sử')).toBeNull();
+    expect(screen.queryByText('đã hủy rồi')).toBeNull();
+    expect(screen.queryByText('bị từ chối')).toBeNull();
+  });
+
+  it('đủ 3 cột mới: Khách hàng/Nhà máy, Số tờ khai, Số HĐ (phí không hóa đơn hiện X)', async () => {
+    mockBoard([
+      expense({
+        version: 1, requiresInvoice: false, invoiceNumber: null,
+        customerName: 'Long Minh', factoryName: 'Nhà máy Long Minh',
+        declarationNumber: null, note: 'đài phụ chứng chi phícont',
+      }),
+    ]);
+    renderTab();
+    expect(await screen.findByText('BL-9')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Khách hàng / Nhà máy' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Số tờ khai' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Số HĐ' })).toBeInTheDocument();
+    expect(screen.getByText('Long Minh')).toBeInTheDocument();
+    expect(screen.getByText('Nhà máy Long Minh')).toBeInTheDocument();
+    expect(screen.getByText('X')).toBeInTheDocument(); // phí không hóa đơn → 'X'
+    expect(screen.getByText('—')).toBeInTheDocument(); // lô-chung → tờ khai trống
+    expect(screen.getByText('đài phụ chứng chi phícont')).toBeInTheDocument();
+  });
+
+  it('Trạng thái hiện SỐ PHIẾU quyết toán; chưa tất toán giữ Chưa quyết toán', async () => {
+    mockBoard([
+      expense({ id: 5, version: 1, opsSettlementId: 3, opsSettlementCode: 'OS-2611-0009' }),
+      expense({ id: 6, version: 1, opsSettlementId: null, opsSettlementCode: null }),
+    ]);
+    renderTab();
+    expect(await screen.findByText('OS-2611-0009')).toBeInTheDocument();
+    expect(screen.getByText('Chưa quyết toán')).toBeInTheDocument();
+    expect(screen.queryByText('Đã lập phiếu')).toBeNull();
+    // The row-level sheet button is gone; the phiếu table's Xem stays.
+    expect(screen.queryByRole('button', { name: 'Xem phiếu' })).toBeNull();
+    expect(screen.getByRole('columnheader', { name: 'Ghi chú' })).toBeInTheDocument();
+  });
+
+  it('bộ lọc Kỳ chi + Người lập lệnh chi đẩy from/to/opsUserId vào truy vấn', async () => {
+    mockBoard([expense({ version: 1 })]);
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ version: 1 })] });
+      if (url.startsWith('/ops/admin/settlements')) return Promise.resolve({ items: [] });
+      if (url.startsWith('/expense-accounting/catalog')) {
+        return Promise.resolve({ opsUsers: [{ id: 7, name: 'Ops A' }], expenseTypes: [], accounts: [] });
+      }
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    await screen.findByText('BL-9');
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/11/2026' } });
+    fireEvent.blur(screen.getByLabelText('Từ ngày'));
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '30/11/2026' } });
+    fireEvent.blur(screen.getByLabelText('Đến ngày'));
+    fireEvent.click(screen.getByRole('button', { name: 'Người lập lệnh chi' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Ops A' }));
+    await waitFor(() => expect(apiGet.mock.calls.some(([url]) => String(url).includes('opsUserId=7'))).toBe(true));
+    const urls = apiGet.mock.calls.map(([url]) => String(url));
+    expect(urls.some((url) => url.includes('from=2026-11-01'))).toBe(true);
+    expect(urls.some((url) => url.includes('to=2026-11-30'))).toBe(true);
   });
 });

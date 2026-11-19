@@ -111,6 +111,13 @@ export interface OpsExpenseRow {
   shipmentId: number;
   shipmentCode: string | null;
   billRef: string | null;
+  /** SIL-858 — Khách hàng / Nhà máy column data. */
+  customerName?: string | null;
+  factoryName?: string | null;
+  /** SIL-858 — the row's own container tờ khai (null on lot-wide rows). */
+  declarationNumber?: string | null;
+  /** SIL-858 — settlement voucher code when already settled. */
+  opsSettlementCode?: string | null;
   containerNumber: string | null;
   expenseTypeCode: string;
   expenseTypeName: string | null;
@@ -401,7 +408,7 @@ export const opsClient = {
     api.put<{ opsUserId: number | null }>(`/ops/trucks/${truckId}/ops-assignment`, { opsUserId }),
 
   // ── Sổ khoản chi (kế toán/quản lý) ──
-  getAdminExpenses: (filters: { status?: OpsExpenseStatus; opsUserId?: number } = {}) =>
+  getAdminExpenses: (filters: { status?: OpsExpenseStatus; opsUserId?: number; from?: string; to?: string } = {}) =>
     api.get<{ items: OpsExpenseRow[] }>(`/ops/admin/expenses${qs(filters)}`),
   getAdminSettlements: (status?: string) =>
     api.get<{ items: OpsSettlementListItem[] }>(`/ops/admin/settlements${qs({ status })}`),

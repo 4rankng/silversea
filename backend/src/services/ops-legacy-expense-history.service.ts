@@ -26,6 +26,9 @@ export async function listLegacyOpsExpenseHistory(userId: number, status?: strin
     invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate,
     customerChargeAmount: row.customerChargeAmount == null ? null : String(row.customerChargeAmount), recoveryNote: row.recoveryNote,
     shipmentId: row.shipmentId, shipmentCode: row.shipmentCode, billRef: row.billRef, containerNumber: row.containerNumber,
+    // SIL-858 — legacy TRIP-sourced rows carry no lot customer/factory/tờ khai
+    // cells and are never in an Ops settlement phiếu; the columns stay empty.
+    customerName: null, factoryName: null, declarationNumber: null, opsSettlementCode: null,
     expenseTypeCode: row.expenseTypeCode, expenseTypeName: pickExpenseDisplayName(row.feeName, row.expenseTypeCode, typeNames.get(row.expenseTypeCode)),
     requiresInvoice: row.costGroup?.startsWith('INVOICED_') ?? null, amount: String(row.amount), paidAt: row.expenseDate,
     note: row.note, approvalStatus: 'RECORDED', rejectionReason: null, opsSettlementId: null,

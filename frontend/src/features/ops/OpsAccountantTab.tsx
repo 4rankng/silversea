@@ -1,5 +1,6 @@
 import { opsBillReference } from './opsStatus';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Image as ImageIcon, Loader2, X } from 'lucide-react';
 import {
   useAdminOpsExpenses,
@@ -9,6 +10,7 @@ import {
 } from '../../hooks/useOpsQueries';
 import { opsClient } from '../../api/opsClient';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { qk } from '../../api/keys';
 import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
@@ -16,6 +18,8 @@ import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsSettlementSheet } from './OpsSettlementsPanel';
 import { formatMoney } from '../../lib/format';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
+import { DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
+import { FilterDropdown } from '../../components/FilterDropdown';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
@@ -33,8 +37,12 @@ import { formatDate } from '../../lib/format';
  * confirmation path.
  */
 export function OpsAccountantTab() {
-  const { data, isLoading } = useAdminOpsExpenses();
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [creatorId, setCreatorId] = useState('');
+  const { data, isLoading } = useAdminOpsExpenses(undefined, creatorId ? Number(creatorId) : undefined, from || undefined, to || undefined);
   const { data: settlements } = useAdminOpsSettlements();
+  const { data: catalog } = useQuery({ queryKey: qk.expenseAccounting.catalog, queryFn: expenseAccountingClient.catalog });
   const { toast } = useToast();
   const { user } = useAuth();
   const canConfirm = user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'ACCOUNTANT';
@@ -45,6 +53,9 @@ export function OpsAccountantTab() {
   const sheet = useAdminOpsSettlement(sheetFor);
 
   const items = data?.items ?? [];
+  // SIL-858 — 'Đã hủy / lịch sử' rows never render on the accountant board;
+  // history stays reachable through its own surfaces.
+  const visibleItems = items.filter((row) => row.approvalStatus !== 'VOIDED' && row.approvalStatus !== 'REJECTED');
   // The settlement detail is what the "Xem phiếu" modal renders; held as a
   // local so the pending/error branches below can share one narrowing.
   const detail = sheet.data;
@@ -73,6 +84,34 @@ export function OpsAccountantTab() {
 
         </header>
 
+        {/* SIL-858 — Kỳ chi (Từ ngày/Đến ngày) + Người lập lệnh chi filters.
+            Empty = all time / everyone (the board's previous behavior). */}
+        <FilterBar>
+          <DateRangeFields
+            id="ops-acc-date-range"
+            ariaLabel="Kỳ chi"
+            fromLabel="Từ ngày"
+            toLabel="Đến ngày"
+            from={from}
+            to={to}
+            onChange={({ from: nextFrom, to: nextTo }) => { setFrom(nextFrom); setTo(nextTo); }}
+          />
+          <FilterDropdown
+            count={creatorId ? 1 : 0}
+            ariaLabel="Bộ lọc"
+            dialogLabel="Bộ lọc chi phí Ops"
+            onReset={() => setCreatorId('')}
+          >
+            <UuiSelectField
+              label="Người lập lệnh chi"
+              ariaLabel="Người lập lệnh chi"
+              value={creatorId}
+              onChange={(event) => setCreatorId(event.target.value)}
+              options={[{ value: '', label: 'Tất cả' }, ...(catalog?.opsUsers ?? []).map((person) => ({ value: String(person.id), label: person.name }))]}
+            />
+          </FilterDropdown>
+        </FilterBar>
+
         <div className="ops-wallet__scroll">
           <table className="tt-table ops-wallet__table">
             <thead>
@@ -80,6 +119,10 @@ export function OpsAccountantTab() {
                 <th>Ngày</th>
                 <th>Bill / Booking</th>
                 <th>Cont</th>
+                {/* SIL-858 — 3 cột nhận diện lô mới. */}
+                <th>Khách hàng / Nhà máy</th>
+                <th>Số tờ khai</th>
+                <th>Số HĐ</th>
                 <th>Loại phí</th>
                 <th>Số tiền</th>
                 <th>Người chi</th>
@@ -89,15 +132,30 @@ export function OpsAccountantTab() {
                     tạm ứng (ĐNTT) after this tick, so the state and the act
                     live on the same screen kế toán already reads. */}
                 <th>Duyệt KT</th>
-                <th aria-label="Thao tác" />
+                {/* SIL-858 — cột cuối là Ghi chú; nút [Xem phiếu] dư đã bỏ
+                    (số phiếu quyết toán hiện ngay ở Trạng thái, phiếu đọc
+                    được ở bảng Phiếu quyết toán Ops bên dưới). */}
+                <th>Ghi chú</th>
               </tr>
             </thead>
             <tbody>
-              {items.map((row) => (
+              {visibleItems.map((row) => (
                 <tr key={row.id}>
                   <td>{formatDate(row.paidAt)}</td>
                   <td>{opsBillReference(row.billRef)}</td>
                   <td>{row.containerNumber ?? 'Chung lô'}</td>
+                  <td>
+                    {row.customerName || row.factoryName
+                      ? <span>
+                          <span>{row.customerName ?? '—'}</span>
+                          {row.factoryName && (
+                            <span style={{ display: 'block', color: 'var(--text-muted, #6b7280)', fontSize: 12 }}>{row.factoryName}</span>
+                          )}
+                        </span>
+                      : '—'}
+                  </td>
+                  <td>{row.declarationNumber?.trim() || '—'}</td>
+                  <td>{row.invoiceNumber?.trim() || 'X'}</td>
                   <td>{row.expenseTypeName ?? row.expenseTypeCode}</td>
                   <td className="ops-money">{`${formatMoney(row.amount)} ₫`}</td>
                   <td>{row.paidByName ?? 'Chưa rõ người chi'}</td>
@@ -112,7 +170,9 @@ export function OpsAccountantTab() {
                       {row.hasPhoto ? 'Ảnh' : 'Không có ảnh'}
                     </button>
                   </td>
-                  <td>{row.approvalStatus === 'DRAFT' ? 'Cần bổ sung' : row.approvalStatus === 'VOIDED' || row.approvalStatus === 'REJECTED' ? 'Đã hủy / lịch sử' : row.opsSettlementId == null ? 'Chưa quyết toán' : 'Đã lập phiếu'}</td>
+                  {/* SIL-858 — Trạng thái hiển thị SỐ PHIẾU quyết toán khi
+                      đã tất toán (thay vì chỉ 'Đã lập phiếu'). */}
+                  <td>{row.approvalStatus === 'DRAFT' ? 'Cần bổ sung' : row.opsSettlementCode ?? 'Chưa quyết toán'}</td>
                   <td>
                     {row.version == null ? '—'
                       : row.confirmedAt != null ? `Đã duyệt ${formatDate(row.confirmedAt)}`
@@ -130,11 +190,11 @@ export function OpsAccountantTab() {
                           </button>
                         ) : 'Chưa duyệt'}
                   </td>
-                  <td>{row.opsSettlementId != null && <button type="button" className="btn btn--secondary" onClick={() => setSheetFor(row.opsSettlementId)}>Xem phiếu</button>}</td>
+                  <td>{row.note?.trim() || '—'}</td>
                 </tr>
               ))}
-              {!isLoading && items.length === 0 && (
-                <tr><td colSpan={10} className="ops-wallet__empty">Không có khoản chi nào.</td></tr>
+              {!isLoading && visibleItems.length === 0 && (
+                <tr><td colSpan={13} className="ops-wallet__empty">Không có khoản chi nào.</td></tr>
               )}
             </tbody>
           </table>
