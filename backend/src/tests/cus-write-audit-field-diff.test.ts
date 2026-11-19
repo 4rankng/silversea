@@ -38,12 +38,26 @@ interface SeedUser { id: number; fullName: string; username: string }
 let owner: SeedUser;
 let teammate: SeedUser;
 let shipmentId: number;
+/** Second lot: a fresh slate for the inline lot-cell edit cases (SIL-851). */
+let inlineLotId: number;
+let declarationId: number;
 /** Which seeded user the stub auth layer hands to the stack for the next request. */
 let actingUser: SeedUser;
 
 async function post(pathname: string, body: Record<string, unknown>, idempotencyKey: string): Promise<Response> {
   return fetch(baseUrl + pathname, {
     method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+async function put(pathname: string, body: Record<string, unknown>, idempotencyKey: string): Promise<Response> {
+  return fetch(baseUrl + pathname, {
+    method: 'PUT',
     headers: {
       'content-type': 'application/json',
       'Idempotency-Key': idempotencyKey,
@@ -107,11 +121,25 @@ before(async () => {
     values (${customer.id}, 'FCL', 'AUDIT-DIFF-1', 'PENDING_DATE', ${owner.id})
     returning id`;
   shipmentId = shipment.id;
+  // SIL-851 — a second fresh lot carrying one tờ khai, so the inline-cell
+  // cases diff against known old values without depending on the custody/lock
+  // flows above.
+  const [inlineLot] = await sql`
+    insert into shipments (customer_id, cargo_mode, shipment_code, status, created_by)
+    values (${customer.id}, 'FCL', 'AUDIT-DIFF-2', 'PENDING_DATE', ${owner.id})
+    returning id`;
+  inlineLotId = inlineLot.id;
+  const [declaration] = await sql`
+    insert into shipment_declarations (shipment_id, declaration_number, scope, created_by)
+    values (${inlineLot.id}, 'TK-CU-001', 'SINGLE', ${owner.id})
+    returning id`;
+  declarationId = declaration.id;
 
   // ── Real route stack: stub auth → audit middleware → shipments routers ──
   const { auditLogMiddleware } = await import('../middleware/audit');
   const { cusWorkspaceRoutes } = await import('../routes/shipments/cus-workspace.routes');
   const { coreRoutes } = await import('../routes/shipments/core.routes');
+  const { documentsRoutes } = await import('../routes/shipments/documents.routes');
 
   app = express();
   app.use(express.json());
@@ -129,6 +157,7 @@ before(async () => {
   app.use(auditLogMiddleware);
   app.use('/api/shipments', cusWorkspaceRoutes);
   app.use('/api/shipments', coreRoutes);
+  app.use('/api/shipments', documentsRoutes);
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const statusCode = err instanceof ApiError ? err.statusCode : 500;
     res.status(statusCode).json({ error: err instanceof Error ? err.message : 'Lỗi máy chủ' });
@@ -213,6 +242,49 @@ describe('CUS-on-behalf audit field diff (ticket 18/11 Task 1.2)', () => {
     assert.equal(auditRow.payload.actorId, teammate.id);
     assert.deepEqual(auditRow.payload.changes, [
       { field: 'costLock', before: false, after: true },
+    ]);
+  });
+
+  // SIL-851 — the inline lot-cell editors that ride PUT /:id (ghi chú,
+  // chứng từ, identity LCL, lịch trình) must leave the same field-level
+  // old→new audit trail as the workspace writes, when a TEAMMATE acts.
+  test('teammate inline lot-cell edit via PUT /:id records field-level old→new + actor id', async () => {
+    actingUser = teammate;
+    const response = await put(`/api/shipments/${inlineLotId}`, {
+      expectedVersion: 1,
+      customerNotes: 'Ghi chú hộ chủ lô từ teammate',
+      blNumber: 'BL-TEAM-001',
+    }, 'audit-diff-inline-put-1');
+    assert.equal(response.status, 200, `inline PUT should succeed: ${await response.text()}`);
+
+    const [auditRow] = await shipmentAuditRows('%/api/shipments/' + inlineLotId);
+    assert.ok(auditRow, 'inline cell edit must persist an audit row');
+    // WHO acted on the teammate's behalf-write.
+    assert.equal(auditRow.user_id, teammate.id);
+    assert.equal(auditRow.payload.actorId, teammate.id);
+    assert.equal(auditRow.payload.actorRole, Role.CUS);
+    assert.equal(auditRow.payload.actorName, teammate.fullName);
+    // WHAT changed: both edits were null on the fresh lot — old→new per field.
+    assert.deepEqual(auditRow.payload.changes, [
+      { field: 'blNumber', before: null, after: 'BL-TEAM-001' },
+      { field: 'customerNotes', before: null, after: 'Ghi chú hộ chủ lô từ teammate' },
+    ]);
+  });
+
+  test('teammate tờ khai edit records declaration old→new + actor id', async () => {
+    actingUser = teammate;
+    const response = await put(`/api/shipments/${inlineLotId}/declarations/${declarationId}`, {
+      declarationNumber: 'TK-MOI-002',
+      scope: 'SINGLE',
+    }, 'audit-diff-declaration-put-1');
+    assert.equal(response.status, 200, `declaration PUT should succeed: ${await response.text()}`);
+
+    const [auditRow] = await shipmentAuditRows('%/api/shipments/' + inlineLotId + '/declarations/' + declarationId);
+    assert.ok(auditRow, 'declaration edit must persist an audit row');
+    assert.equal(auditRow.user_id, teammate.id);
+    assert.equal(auditRow.payload.actorId, teammate.id);
+    assert.deepEqual(auditRow.payload.changes, [
+      { field: `declaration.${declarationId}.declarationNumber`, before: 'TK-CU-001', after: 'TK-MOI-002' },
     ]);
   });
 });

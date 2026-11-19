@@ -30,6 +30,7 @@ import {
 import { requireRoles } from '../../middleware/casbin';
 import { getUser } from '../../middleware/auth';
 import { assertCusLotVisible } from '../../services/cus-visibility.service';
+import { SHIPMENT_AUDIT_SCOPES, withShipmentAuditDiff } from '../../services/shipment-audit-diff.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { throwValidation } from '../../lib/validation';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
@@ -149,35 +150,39 @@ documentsRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_CREATE,
       { shipmentId, data: parsed.data },
-      async (tx) => {
-        const shipment = await getShipment(shipmentId, tx);
-        // Customer feedback 2026-09-07: block creating a declaration whose
-        // `declarationNumber` already belongs to another active shipment.
-        const incomingDeclaration = parsed.data.declarationNumber?.trim();
-        if (incomingDeclaration) {
-          const conflict = await findDeclarationReferenceConflict(
-            tx,
-            incomingDeclaration,
-            shipmentId,
-          );
-          if (conflict) {
-            throwShipmentReferenceConflict(conflict, 'declaration');
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.declarations },
+        async () => {
+          const shipment = await getShipment(shipmentId, tx);
+          // Customer feedback 2026-09-07: block creating a declaration whose
+          // `declarationNumber` already belongs to another active shipment.
+          const incomingDeclaration = parsed.data.declarationNumber?.trim();
+          if (incomingDeclaration) {
+            const conflict = await findDeclarationReferenceConflict(
+              tx,
+              incomingDeclaration,
+              shipmentId,
+            );
+            if (conflict) {
+              throwShipmentReferenceConflict(conflict, 'declaration');
+            }
           }
-        }
-        const declaration = await upsertShipmentDeclaration(shipmentId, {
-          declarationNumber: parsed.data.declarationNumber ?? null,
-          issuedAt: parsed.data.issuedAt ?? null,
-          scope: parsed.data.scope,
-          note: parsed.data.note ?? null,
-          updatedBy: user.userId,
-        }, user, tx);
-        return {
-          body: declaration,
-          status: 201,
-          auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
-        };
-      },
+          const declaration = await upsertShipmentDeclaration(shipmentId, {
+            declarationNumber: parsed.data.declarationNumber ?? null,
+            issuedAt: parsed.data.issuedAt ?? null,
+            scope: parsed.data.scope,
+            note: parsed.data.note ?? null,
+            updatedBy: user.userId,
+          }, user, tx);
+          return {
+            body: declaration,
+            status: 201,
+            auditEntityId: shipment.id,
+            auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -203,34 +208,38 @@ documentsRoutes.put(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_DECLARATION_UPDATE,
       { shipmentId, declarationId, data: parsed.data },
-      async (tx) => {
-        const shipment = await getShipment(shipmentId, tx);
-        const incomingDeclaration = parsed.data.declarationNumber?.trim();
-        if (incomingDeclaration) {
-          const conflict = await findDeclarationReferenceConflict(
-            tx,
-            incomingDeclaration,
-            shipmentId,
-          );
-          if (conflict) {
-            throwShipmentReferenceConflict(conflict, 'declaration');
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.declarations },
+        async () => {
+          const shipment = await getShipment(shipmentId, tx);
+          const incomingDeclaration = parsed.data.declarationNumber?.trim();
+          if (incomingDeclaration) {
+            const conflict = await findDeclarationReferenceConflict(
+              tx,
+              incomingDeclaration,
+              shipmentId,
+            );
+            if (conflict) {
+              throwShipmentReferenceConflict(conflict, 'declaration');
+            }
           }
-        }
-        const declaration = await upsertShipmentDeclaration(shipmentId, {
-          id: declarationId,
-          declarationNumber: parsed.data.declarationNumber ?? null,
-          issuedAt: parsed.data.issuedAt ?? null,
-          scope: parsed.data.scope,
-          note: parsed.data.note ?? null,
-          updatedBy: user.userId,
-        }, user, tx);
-        return {
-          body: declaration,
-          status: 200,
-          auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
-        };
-      },
+          const declaration = await upsertShipmentDeclaration(shipmentId, {
+            id: declarationId,
+            declarationNumber: parsed.data.declarationNumber ?? null,
+            issuedAt: parsed.data.issuedAt ?? null,
+            scope: parsed.data.scope,
+            note: parsed.data.note ?? null,
+            updatedBy: user.userId,
+          }, user, tx);
+          return {
+            body: declaration,
+            status: 200,
+            auditEntityId: shipment.id,
+            auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),

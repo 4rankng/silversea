@@ -23,6 +23,7 @@ export interface AuditSnapshotScope {
   documentCustody?: boolean;
   containers?: boolean;
   fulfillments?: boolean;
+  declarations?: boolean;
 }
 
 /** Per-route scopes: only the columns each CUS-workspace/cost-lock write can touch. */
@@ -35,15 +36,54 @@ export const SHIPMENT_AUDIT_SCOPES = {
   },
   /** Lot-level field writes (finance confirm, delete request): status/schedule only. */
   shipmentFields: { shipmentFields: true },
+  /** Tờ khai create/update (lot-level documents editor): the declaration rows. */
+  declarations: { declarations: true },
   custody: { documentCustody: true },
   accountingLock: { accountingLock: true },
   costLock: { costLock: true },
 } as const satisfies Record<string, AuditSnapshotScope>;
 
+// Every shipments-table column a CUS-team write through PUT /api/shipments/:id
+// can change — the inline lot-cell editors (notes, chứng từ, identity LCL,
+// lịch trình) ride that route, so the snapshot must cover the whole whitelist,
+// not just the schedule/status trio, or the teammate's old→new lands empty.
 const SHIPMENT_TRACKED_COLUMNS = {
   status: s.shipments.status,
+  customerId: s.shipments.customerId,
+  routeId: s.shipments.routeId,
+  cargoTypeId: s.shipments.cargoTypeId,
+  responsibleUnitId: s.shipments.responsibleUnitId,
   cargoMode: s.shipments.cargoMode,
+  bookingRef: s.shipments.bookingRef,
+  blNumber: s.shipments.blNumber,
+  tradeDirection: s.shipments.tradeDirection,
+  operationalSiteId: s.shipments.operationalSiteId,
+  pickupWarehouseSiteId: s.shipments.pickupWarehouseSiteId,
+  factoryName: s.shipments.factoryName,
+  isCombined: s.shipments.isCombined,
+  shippingLineName: s.shipments.shippingLineName,
   expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+  customsCutoffAt: s.shipments.customsCutoffAt,
+  closingAt: s.shipments.closingAt,
+  plannedReturnAt: s.shipments.plannedReturnAt,
+  cargoWeightKg: s.shipments.cargoWeightKg,
+  cargoVolumeCbm: s.shipments.cargoVolumeCbm,
+  packageCount: s.shipments.packageCount,
+  packageType: s.shipments.packageType,
+  revVehicleClassId: s.shipments.revVehicleClassId,
+  contactName: s.shipments.contactName,
+  contactPhone: s.shipments.contactPhone,
+  customerNotes: s.shipments.customerNotes,
+  operationalNotes: s.shipments.operationalNotes,
+  pickupLocation: s.shipments.pickupLocation,
+  deliveryLocation: s.shipments.deliveryLocation,
+} as const;
+
+const DECLARATION_TRACKED_COLUMNS = {
+  declarationNumber: s.shipmentDeclarations.declarationNumber,
+  issuedAt: s.shipmentDeclarations.issuedAt,
+  scope: s.shipmentDeclarations.scope,
+  note: s.shipmentDeclarations.note,
 } as const;
 
 const CONTAINER_TRACKED_COLUMNS = {
@@ -77,6 +117,7 @@ export interface ShipmentAuditSnapshot {
   documentCustodyNote: string | null;
   containers: Record<string, Record<string, unknown>>;
   fulfillments: Record<string, Record<string, unknown>>;
+  declarations: Record<string, Record<string, unknown>>;
 }
 
 /** Dates → ISO strings, everything else JSON-safe as the driver returned it. */
@@ -160,6 +201,18 @@ export async function captureShipmentWriteAuditSnapshot(
     }
   }
 
+  const declarations: Record<string, Record<string, unknown>> = {};
+  if (scope.declarations) {
+    const rows = await executor.select({ id: s.shipmentDeclarations.id, ...DECLARATION_TRACKED_COLUMNS })
+      .from(s.shipmentDeclarations)
+      .where(eq(s.shipmentDeclarations.shipmentId, shipmentId))
+      .orderBy(asc(s.shipmentDeclarations.id));
+    for (const row of rows) {
+      const { id, ...fields } = row;
+      declarations[String(id)] = normalizeRow(fields);
+    }
+  }
+
   return {
     shipment,
     costLockActive,
@@ -168,6 +221,7 @@ export async function captureShipmentWriteAuditSnapshot(
     documentCustodyNote,
     containers,
     fulfillments,
+    declarations,
   };
 }
 
@@ -251,6 +305,31 @@ export function diffShipmentAuditSnapshots(
       const afterRow = after.fulfillments[id];
       if (!beforeRow || !afterRow) continue; // fulfillment lifecycle rows are audited by their own commands
       changes.push(...collectScalarChanges(beforeRow, afterRow, `fulfillment.${id}.`));
+    }
+  }
+  if (scope.declarations) {
+    const ids = [...new Set([...Object.keys(before.declarations), ...Object.keys(after.declarations)])]
+      .sort((a, b) => Number(a) - Number(b));
+    for (const id of ids) {
+      const beforeRow = before.declarations[id];
+      const afterRow = after.declarations[id];
+      if (!afterRow) {
+        changes.push({
+          field: `declaration.${id}`,
+          before: beforeRow.declarationNumber ?? `#${id}`,
+          after: null,
+        });
+        continue;
+      }
+      if (!beforeRow) {
+        changes.push({
+          field: `declaration.${id}`,
+          before: null,
+          after: afterRow.declarationNumber ?? `#${id}`,
+        });
+        continue;
+      }
+      changes.push(...collectScalarChanges(beforeRow, afterRow, `declaration.${id}.`));
     }
   }
   return changes;

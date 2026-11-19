@@ -63,6 +63,7 @@ import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { getShipmentDebitDetail, saveDebitEdits } from '../../services/shipment-debit-detail.service';
 import { searchBillBook } from '../../services/bill-book-search.service';
 import { assertCusLotVisible } from '../../services/cus-visibility.service';
+import { SHIPMENT_AUDIT_SCOPES, withShipmentAuditDiff } from '../../services/shipment-audit-diff.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
 import { declareMaterialWrite } from '../../middleware/material-write';
@@ -792,55 +793,59 @@ coreRoutes.put(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_UPDATE,
       { shipmentId: id, data: parsed.data },
-      async (tx) => {
-        const shipment = await updateShipment(id, {
-          expectedVersion: parsed.data.expectedVersion,
-          customerId: parsed.data.customerId,
-          routeId: parsed.data.routeId,
-          cargoTypeId: parsed.data.cargoTypeId,
-          responsibleUnitId: parsed.data.responsibleUnitId,
-          bookingRef: parsed.data.bookingRef,
-          blNumber: parsed.data.blNumber,
-          tradeDirection: parsed.data.tradeDirection,
-          cargoMode: parsed.data.cargoMode,
-          operationalSiteId: parsed.data.operationalSiteId,
-          pickupWarehouseSiteId: parsed.data.pickupWarehouseSiteId,
-          // SIL-765 — additional "Kho lấy hàng" points (undefined = unchanged).
-          additionalPickupWarehouses: parsed.data.additionalPickupWarehouses,
-          factoryName: parsed.data.factoryName,
-          shippingLineName: parsed.data.shippingLineName,
-          expectedDeliveryDate: parsed.data.expectedDeliveryDate,
-          customsCutoffAt: parsed.data.customsCutoffAt,
-          closingAt: parsed.data.closingAt,
-          plannedReturnAt: parsed.data.plannedReturnAt,
-          cargoWeightKg: parsed.data.cargoWeightKg,
-          cargoVolumeCbm: parsed.data.cargoVolumeCbm,
-          packageCount: parsed.data.packageCount,
-          packageType: parsed.data.packageType,
-          // SIL-846 — forward the LCL trọng tải class on edit; omitted from
-          // this whitelist once and the PUT silently dropped the field
-          // (version bumped, value unchanged — the QA repro).
-          revVehicleClassId: parsed.data.revVehicleClassId,
-          // SIL-171 (FB-147): the edit form resubmits the flag band; the
-          // schema and updateShipment service already carry isCombined (it
-          // also reclassifies live fulfillments) — the route forwarding was
-          // the only missing link, making the checkbox a silent no-op.
-          isCombined: parsed.data.isCombined,
-          operationalNotes: resolveDriverNotes(parsed.data),
-          customerNotes: parsed.data.customerNotes,
-          pickupLocation: parsed.data.pickupLocation,
-          deliveryLocation: parsed.data.deliveryLocation,
-          contactName: parsed.data.contactName,
-          contactPhone: parsed.data.contactPhone,
-          updatedBy: user.userId,
-        }, user, tx);
-        return {
-          body: shipment,
-          status: 200,
-          auditEntityId: shipment.id,
-          auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId: id, scope: SHIPMENT_AUDIT_SCOPES.shipmentFields },
+        async () => {
+          const shipment = await updateShipment(id, {
+            expectedVersion: parsed.data.expectedVersion,
+            customerId: parsed.data.customerId,
+            routeId: parsed.data.routeId,
+            cargoTypeId: parsed.data.cargoTypeId,
+            responsibleUnitId: parsed.data.responsibleUnitId,
+            bookingRef: parsed.data.bookingRef,
+            blNumber: parsed.data.blNumber,
+            tradeDirection: parsed.data.tradeDirection,
+            cargoMode: parsed.data.cargoMode,
+            operationalSiteId: parsed.data.operationalSiteId,
+            pickupWarehouseSiteId: parsed.data.pickupWarehouseSiteId,
+            // SIL-765 — additional "Kho lấy hàng" points (undefined = unchanged).
+            additionalPickupWarehouses: parsed.data.additionalPickupWarehouses,
+            factoryName: parsed.data.factoryName,
+            shippingLineName: parsed.data.shippingLineName,
+            expectedDeliveryDate: parsed.data.expectedDeliveryDate,
+            customsCutoffAt: parsed.data.customsCutoffAt,
+            closingAt: parsed.data.closingAt,
+            plannedReturnAt: parsed.data.plannedReturnAt,
+            cargoWeightKg: parsed.data.cargoWeightKg,
+            cargoVolumeCbm: parsed.data.cargoVolumeCbm,
+            packageCount: parsed.data.packageCount,
+            packageType: parsed.data.packageType,
+            // SIL-846 — forward the LCL trọng tải class on edit; omitted from
+            // this whitelist once and the PUT silently dropped the field
+            // (version bumped, value unchanged — the QA repro).
+            revVehicleClassId: parsed.data.revVehicleClassId,
+            // SIL-171 (FB-147): the edit form resubmits the flag band; the
+            // schema and updateShipment service already carry isCombined (it
+            // also reclassifies live fulfillments) — the route forwarding was
+            // the only missing link, making the checkbox a silent no-op.
+            isCombined: parsed.data.isCombined,
+            operationalNotes: resolveDriverNotes(parsed.data),
+            customerNotes: parsed.data.customerNotes,
+            pickupLocation: parsed.data.pickupLocation,
+            deliveryLocation: parsed.data.deliveryLocation,
+            contactName: parsed.data.contactName,
+            contactPhone: parsed.data.contactPhone,
+            updatedBy: user.userId,
+          }, user, tx);
+          return {
+            body: shipment,
+            status: 200,
+            auditEntityId: shipment.id,
+            auditEntityKey: shipment.shipmentCode ?? "Lô hàng chưa có mã",
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
