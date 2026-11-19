@@ -138,6 +138,14 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(emptyBillCell).toHaveTextContent('Chưa có số Bill/Booking');
   });
 
+  it('SIL-835 — renders an 18-char Số Bill/Book ref inside the wrapping .debit-bill-book span', async () => {
+    boardWith([row({ shipmentId: 9, code: 'SHP-26-0009', billOrBooking: 'R4B-A14-EMPTY-8F29' })]);
+    renderPage();
+    const longRef = await screen.findByText('R4B-A14-EMPTY-8F29');
+    expect(longRef.className).toContain('debit-bill-book');
+    expect(longRef.closest('td')?.className).toContain('debit-col--billbook');
+  });
+
   it('renders one row per container for a multi-container FCL lot (ticket 18/11 Task 2.2a)', async () => {
     boardWith([row({
       containers: ['ABCZ1234567 · 40HC', 'ABCZ7654321 · 20DC'],
