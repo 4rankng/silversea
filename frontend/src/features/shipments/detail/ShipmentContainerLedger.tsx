@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Button as AriaButton } from 'react-aria-components';
 import { CalendarOff, ChevronDown } from 'lucide-react';
@@ -910,9 +910,32 @@ export const LEDGER_COLUMNS: readonly LedgerColumn[] = [
   { key: 'route', label: 'Nâng / hạ' },
   { key: 'schedule', label: 'Lịch trình' },
   { key: 'vehicle', label: 'Phân xe' },
-  { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
+  { key: 'notes', label: 'Ghi chú', defaultHidden: true },
   { key: 'status', label: 'Trạng thái' },
 ];
+
+/**
+ * SIL-863 Bảng 2 — the spec column widths (px), the single TSX mirror of the
+ * `--led-w-*` floors in ShipmentContainersPage.css (both sides pinned by
+ * ShipmentContainersPage.styles.test.ts — change them together). The table's
+ * min-width is computed from the RENDERED colgroup so hiding a column or
+ * toggling Gộp hàng/Ghi chú relaxes the floor instead of over-constraining
+ * `table-layout: fixed` into compressing tokens (the SIL-822 shatter class).
+ */
+const LEDGER_COL_WIDTHS: Readonly<Record<string, number>> = {
+  select: 44,
+  customer: 185,
+  billbook: 115,
+  declaration: 124,
+  direction: 76,
+  shippingline: 96,
+  container: 116,
+  route: 155,
+  schedule: 160,
+  vehicle: 128,
+  notes: 120,
+  status: 145,
+};
 
 interface ShipmentContainerLedgerProps {
   rows: ShipmentCusContainerFlatRow[];
@@ -1044,10 +1067,29 @@ export function ShipmentContainerLedger({
   const canCopyFrom = (row: ShipmentCusContainerFlatRow) => (
     row.customerAppointmentAt != null && (emptyByLot.get(row.shipmentId) ?? 0) > 0
   );
-  // Card 171026182554: thêm/xóa container rời khỏi màn Chi tiết (chỉ còn ở
-  // drawer Tổng quan), nên cột Thao tác chỉ còn lý do tồn tại khi có dòng
-  // đủ điều Copy giờ hẹn.
-  const hasRowActions = onCopyAppointment != null && activeEdit == null && rows.some(canCopyFrom);
+  // Card 171026182554 + SIL-863 (Bảng 2 spec ten-column table): the Thao tác
+  // column is retired — its only affordance (bulk Copy giờ hẹn, thêm/xóa
+  // container having moved to the drawer Tổng quan) renders inside the
+  // Trạng thái cell on the rows that can source a copy, so the default table
+  // is exactly the spec's ten columns and never overflows the 1344px canvas.
+  // The table's min-width tracks the RENDERED colgroup (LEDGER_COL_WIDTHS):
+  // the default spec ten sum to 1300px; Gộp hàng adds CHỌN 44, an unhidden
+  // GHI CHÚ adds 120.
+  const renderedColKeys = [
+    mergeMode ? 'select' : '',
+    'customer',
+    'billbook',
+    'declaration',
+    'direction',
+    'shippingline',
+    'container',
+    isHidden('route') ? '' : 'route',
+    isHidden('schedule') ? '' : 'schedule',
+    isHidden('vehicle') ? '' : 'vehicle',
+    isHidden('notes') ? '' : 'notes',
+    isHidden('status') ? '' : 'status',
+  ].filter(Boolean);
+  const tableMinWidth = renderedColKeys.reduce((sum, key) => sum + (LEDGER_COL_WIDTHS[key] ?? 0), 0);
 
   // ── Card 161026232339 + SIL-503 — the lot rows' plate quick edits. ────────
   // A lot-level row owns no container line, so no edit mode can carry these
@@ -1374,7 +1416,7 @@ export function ShipmentContainerLedger({
         ]}
       />
       <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
-        <table>
+        <table style={{ '--led-min': `${tableMinWidth}px` } as CSSProperties}>
           <caption>Chi tiết container theo tám nhóm thông tin nghiệp vụ</caption>
           <colgroup>
             {/* SIL-547 (spec 23/10 §2) — the CHỌN column leads the table ONLY
@@ -1394,12 +1436,14 @@ export function ShipmentContainerLedger({
             {!isHidden('vehicle') && <col className="shipment-container-ledger__col--vehicle" />}
             {!isHidden('notes') && <col className="shipment-container-ledger__col--notes" />}
             {!isHidden('status') && <col className="shipment-container-ledger__col--status" />}
-            {hasRowActions && <col className="shipment-container-ledger__col--actions" />}
           </colgroup>
           <thead><tr>
             {mergeMode && <th scope="col" className="shipment-container-ledger__col--select"><span className="sr-only">Chọn lô hàng lẻ để gộp</span></th>}
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
-            <SortHeader label="Bill/Booking" sortKey="billOrBookNumber" sort={sort} onSortChange={onSortChange} />
+            {/* SIL-863 Bảng 2 cột 2: the class feeds the nowrap header law in
+                ShipmentContainersPage.css (the col element alone cannot carry
+                it — the th renders its own class). */}
+            <SortHeader label="Bill/Booking" sortKey="billOrBookNumber" sort={sort} onSortChange={onSortChange} className="shipment-container-ledger__col--billbook" />
             <th scope="col">Số tờ khai</th>
             {/* SIL-824: the 76px direction floor can't hold "Nhập/Xuất" as one
                 93px header token — the slash break wraps it to an even 2-line
@@ -1412,7 +1456,6 @@ export function ShipmentContainerLedger({
             {!isHidden('vehicle') && <SortHeader label="Phân xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />}
             {!isHidden('notes') && <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />}
             {!isHidden('status') && <SortHeader label="Trạng thái" sortKey="dispatchStatus" sort={sort} onSortChange={onSortChange} />}
-            {hasRowActions && <th scope="col">Thao tác</th>}
           </tr></thead>
           <tbody>
             {rows.map((row) => {
@@ -1659,7 +1702,8 @@ export function ShipmentContainerLedger({
                         ? (row.direction === 'IMPORT' ? 'trả hàng' : 'đóng hàng')
                         : hasLotSchedule
                           ? 'Ngày vận chuyển'
-                          : row.isLotLevel ? 'Chốt trên Tổng quan lô hàng' : 'Cập nhật theo từng container'}</span></div>)}
+                          : row.isLotLevel ? 'Chốt trên Tổng quan lô hàng' : 'Cập nhật theo từng container'}</span>
+                    </div>)}
                   </td>)}
 {!isHidden('vehicle') && (<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', [
                   missingVehicleToday ? 'shipment-container-ledger__vehicle-pending' : '',
@@ -1833,6 +1877,26 @@ export function ShipmentContainerLedger({
                           onComplete={() => onCompleteExternalTrip(row)}
                         />
                       )}
+                      {/* SIL-863 — the Copy giờ hẹn affordance lives in the
+                          Trạng thái cell now (the Thao tác column is retired
+                          with the Bảng 2 ten-column table): this row's giờ
+                          hẹn lands on every row of ITS OWN lot that is still
+                          without one, in one server call. The status cell —
+                          like the missing-fields toggles above — is a plain
+                          cell, never an editable trigger, so the control
+                          stays at rest, one real button (never nested in the
+                          Lịch trình cell's editor trigger). Only rows that
+                          can actually source a copy carry it. */}
+                      {canCopyFrom(row) && onCopyAppointment != null && (
+                        <button
+                          type="button"
+                          className="btn btn--secondary btn--sm shipment-container-ledger__copy"
+                          aria-label={`Copy giờ hẹn của container ${row.containerNumber || row.ordinal} sang các container chưa có lịch`}
+                          title="Copy giờ hẹn của dòng này sang mọi container trong lô chưa có lịch"
+                          disabled={copyingRowId != null || activeEdit != null}
+                          onClick={() => void submitCopyAppointment(row)}
+                        >Copy giờ hẹn</button>
+                      )}
                       {row.informationStatus === 'MISSING' && (
                         <ShipmentMissingFieldsSummary
                           row={row}
@@ -1850,27 +1914,6 @@ export function ShipmentContainerLedger({
                       )}
                     </div>
                   </td>)}
-                  {hasRowActions && (
-                    <td data-label="Thao tác" className="shipment-container-ledger__cell--actions">
-                      {/* Bulk appointment copy: this row's giờ hẹn lands on
-                          every row of ITS OWN lot that is still without one,
-                          in one server call. Only the rows that can actually
-                          source a copy carry it, so the affordance never
-                          appears where it would do nothing. */}
-                      {canCopyFrom(row) && (
-                        <div className="shipment-container-ledger__multiline">
-                          <button
-                            type="button"
-                            className="btn btn--secondary btn--sm shipment-container-ledger__copy"
-                            aria-label={`Copy giờ hẹn của container ${row.containerNumber || row.ordinal} sang các container chưa có lịch`}
-                            title="Copy giờ hẹn của dòng này sang mọi container trong lô chưa có lịch"
-                            disabled={copyingRowId != null || activeEdit != null}
-                            onClick={() => void submitCopyAppointment(row)}
-                          >Copy giờ hẹn</button>
-                        </div>
-                      )}
-                    </td>
-                  )}
                 </tr>
               );
             })}

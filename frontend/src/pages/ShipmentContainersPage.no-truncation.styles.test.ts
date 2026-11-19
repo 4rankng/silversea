@@ -108,14 +108,14 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     // The in-cell BKS editor keeps the SIL-516 invariant — its tray is
     // width:100% of the cell, nothing spills.
     const floor = (name: string) => Number(css.match(new RegExp(`--led-w-${name}:\\s*(\\d+)px`))?.[1] ?? 0);
-    expect(floor('schedule')).toBe(100);
-    expect(floor('route')).toBe(96);
-    expect(floor('status')).toBe(92);
+    expect(floor('schedule')).toBe(160);
+    expect(floor('route')).toBe(155);
+    expect(floor('status')).toBe(145);
     expect(floor('container')).toBe(116);
     // The live 12-char token 'EBKG19248801' renders 87px and the TRUE cell
     // chrome (cell-trigger 10px × 2 + 1px border = 21px) fits with margin at
-    // 112px.
-    expect(floor('billbook')).toBe(112);
+    // the SIL-863 Bảng 2 115px floor.
+    expect(floor('billbook')).toBe(115);
     expect(floor('direction')).toBe(76);
     // SIL-848 (QA 15/11 "cắt dưới 12 chữ số"): 116px was the exact 12-digit
     // floor with zero metric margin; the 124px floor pays the run at wide

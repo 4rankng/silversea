@@ -529,6 +529,11 @@ export default function ShipmentContainersPage() {
                 the width leaves no other choice. Filter semantics identical:
                 same params, same handlers, same ranges. */}
             <FilterBar
+              /* SIL-863 Bảng 2 (ticket 18/11, owner ruling): the Filter Bar
+                 packs to 1–2 hàng ngang — the desktop budget drops from the
+                 shared 3-row default to 2, so the criteria fold into
+                 `Bộ lọc` whenever a third row would appear. */
+              desktopMaxRows={2}
               search={{
                 value: searchInput,
                 onChange: updateSearch,

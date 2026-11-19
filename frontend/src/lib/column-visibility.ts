@@ -35,6 +35,14 @@ export interface LedgerColumn {
    */
   autoHideWhenEmpty?: boolean;
   /**
+   * Hidden by DEFAULT regardless of data — a spec-pinned column set (SIL-863
+   * Bảng 2: the /shipments-detail table opens on its ten spec columns; GHI
+   * CHÚ rides one Cột-picker toggle away, so absence is still one click from
+   * the value, never a clip). Unlike `autoHideWhenEmpty` this does not
+   * resurrect when data arrives; an explicit user choice always wins.
+   */
+  defaultHidden?: boolean;
+  /**
    * Card 191026181942 (chốt debit) — this column belongs to the surface's
    * ESSENTIAL set: on a surface whose default is `defaultVisible:
    * 'essential'`, only essential columns (pinned ones are always essential)
@@ -132,7 +140,8 @@ export function hiddenByDefault(
       .map((column) => column.key);
   }
   return columns
-    .filter((column) => !column.pinned && column.autoHideWhenEmpty && !hasData(column))
+    .filter((column) => !column.pinned
+      && (column.defaultHidden || (column.autoHideWhenEmpty && !hasData(column))))
     .map((column) => column.key);
 }
 

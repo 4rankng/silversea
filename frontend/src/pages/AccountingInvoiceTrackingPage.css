@@ -73,14 +73,16 @@
   padding-inline: 6px;
 }
 
-/* ticket 18/11 (Web PC 1440): cột 2 KHÁCH HÀNG & LÔ gains a 280px floor so
-   the longest live customer name ('CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH',
-   ≈275px at the board's supporting size) holds one line instead of
-   orphan-wrapping its last word. The hook is the cell's own data-label
-   attribute — no nth-child floor, no overflow rules; the board's
-   prohibitions (this file's test contract) stay true. */
+/* ticket 18/11 (Web PC 1440) + SIL-863 QA FAIL 19/11: cột 2 KHÁCH HÀNG & LÔ
+   floor 320px — the 280px floor still orphan-wrapped the last word of the
+   longest live customer name ('CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH',
+   measured ≈290px at the board's supporting size + this cell's 12px padding,
+   dropping a lone 'MINH' onto a 32px second line). 320px holds the name on
+   one line. The hook is the cell's own data-label attribute — no nth-child
+   floor, no overflow rules; the board's prohibitions (this file's test
+   contract) stay true. */
 .invoice-tracking-page .record-table td[data-label='Khách hàng & Lô'] {
-  min-width: 280px;
+  min-width: 320px;
 }
 
 /* Amount cells belong to the shared numeric law (styles/record-table.css

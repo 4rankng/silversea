@@ -123,6 +123,7 @@ const detail = {
 } as unknown as ShipmentCusWorkspaceDetail;
 
 beforeEach(() => {
+  window.localStorage.clear();
   apiGet.mockReset();
   apiPost.mockReset();
   apiPut.mockReset();
@@ -130,6 +131,10 @@ beforeEach(() => {
 
 describe('ShipmentContainersPage — DOCX container workboard', () => {
   it('loads today by default and renders the seven multi-line groups with warning semantics', async () => {
+    // SIL-863: the explicit empty stored choice restores the FULL column set
+    // (Ghi chú included) — this test reads the notes cell; the spec-TEN
+    // default has its own test below.
+    window.localStorage.setItem('cus-containers-hidden-cols', '[]');
     apiGet.mockResolvedValueOnce(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
@@ -245,6 +250,32 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(document.querySelector('.shipment-container-ledger__route i')).toBeNull();
     expect(screen.queryByText(/Tìm theo 4–5 ký tự cuối|Tự động lọc khi nhập đủ 4–5 ký tự cuối/)).toBeNull();
     expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
+  });
+
+  // SIL-863 Bảng 2 (ticket 18/11): the table opens on the spec's TEN columns
+  // — Ghi chú is a Cột-picker opt-in (defaultHidden) and the FB-086 Thao tác
+  // column is retired — so the 1300px ladder fits the 1344px canvas at
+  // 1440px with no horizontal scroll and TRẠNG THÁI stays on-screen.
+  it('opens the ledger on the spec ten columns (Ghi chú rides the Cột picker)', async () => {
+    apiGet.mockResolvedValueOnce(response);
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+    expect(await screen.findByText('CONT-001')).toBeTruthy();
+    const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
+    expect(headers).toEqual([
+      'Khách hàng & lộ trình',
+      'Bill/Booking',
+      'Số tờ khai',
+      'Nhập/Xuất',
+      'Hãng tàu',
+      'Thông số container',
+      'Nâng / hạ',
+      'Lịch trình',
+      'Phân xe',
+      'Trạng thái',
+    ]);
+    expect(screen.queryByRole('columnheader', { name: 'Ghi chú' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Thao tác' })).toBeNull();
   });
 
   // Office request 2026-09-18: rows per page is choosable up to 200, and the
@@ -493,6 +524,9 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
   });
 
   it('marks every editable detail cell as a full-cell editor target', async () => {
+    // SIL-863: Ghi chú is default-hidden (spec ten-column table); an explicit
+    // empty stored choice restores the pre-spec full column set for this test.
+    window.localStorage.setItem('cus-containers-hidden-cols', '[]');
     apiGet.mockResolvedValueOnce(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
@@ -561,6 +595,8 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
   });
 
   it('labels shipment notes by recipient and sends driverNotes on save', async () => {
+    // SIL-863: Ghi chú is default-hidden; the explicit empty choice shows it.
+    window.localStorage.setItem('cus-containers-hidden-cols', '[]');
     apiGet.mockResolvedValueOnce(response).mockResolvedValueOnce(detail).mockResolvedValueOnce(response);
     apiPut.mockResolvedValueOnce({ id: 2, version: 8 });
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
@@ -1083,6 +1119,8 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
         : item),
     };
     apiGet.mockResolvedValueOnce(partialNotesResponse);
+    // SIL-863: Ghi chú is default-hidden; the explicit empty choice shows it.
+    window.localStorage.setItem('cus-containers-hidden-cols', '[]');
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     await screen.findByText('CONT-001');

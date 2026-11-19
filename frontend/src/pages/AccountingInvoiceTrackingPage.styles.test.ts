@@ -47,12 +47,13 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(rules).not.toMatch(/table-layout/);
   });
 
-  it('ticket 18/11: KHÁCH HÀNG & LÔ holds a 280px floor via its data-label hook — no nth-child, no overflow', () => {
+  it('ticket 18/11 + SIL-863: KHÁCH HÀNG & LÔ holds a 320px floor via its data-label hook — no nth-child, no overflow', () => {
     // The longest live customer name ('CÔNG TY TNHH MỘT THÀNH VIÊN LONG
-    // MINH') orphan-wrapped its last word at 1440; the floor holds it whole.
-    // The hook is the td's data-label attribute — the no-nth-child and
-    // no-td-overflow prohibitions above stay true.
-    expect(rules).toMatch(/\.invoice-tracking-page \.record-table td\[data-label='Khách hàng & Lô'\]\s*\{[^}]*min-width:\s*280px;/);
+    // MINH') orphan-wrapped its last word at 1440 even on the 280px floor
+    // (name ≈290px + 12px padding); 320px holds it whole. The hook is the
+    // td's data-label attribute — the no-nth-child and no-td-overflow
+    // prohibitions above stay true.
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table td\[data-label='Khách hàng & Lô'\]\s*\{[^}]*min-width:\s*320px;/);
     expect(rules).not.toMatch(/data-label='Khách hàng & Lô'\]\s*\{[^}]*overflow/);
   });
 

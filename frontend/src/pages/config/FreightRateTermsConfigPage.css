@@ -46,19 +46,21 @@
   }
 }
 
-/* ticket 18/11 (Web PC 1440): NGƯỠNG holds a 95px floor and TUYẾN a 120px
-   floor with word-boundary wrapping, so 'Chưa chốt' and route names like
-   'Bắc Ninh' never break mid-word (the shared record-table base breaks
-   anywhere at need). Both rules are page-scoped to this catalogue's
-   .cfg-page--freight-rate-terms wrapper — the shared CrudTable /
-   record-table law is untouched for the other catalogues, and genuine width
-   excess still rides the shared .record-table-wrap--scroll boundary. */
+/* ticket 18/11 (Web PC 1440) + SIL-863 QA FAIL 19/11: NGƯỠNG holds a 95px
+   floor; TUYẾN holds a 120px floor and NEVER wraps — the 120px wrap attempt
+   still dropped a lone 'Ninh' onto a 26px second line, so the column now
+   sizes to its value on one line and spends the whitespace to the right of
+   the table (the ticket's own ask). Genuine width excess still rides the
+   shared .record-table-wrap--scroll boundary. Both rules are page-scoped to
+   this catalogue's .cfg-page--freight-rate-terms wrapper — the shared
+   CrudTable / record-table law is untouched for the other catalogues. */
 .cfg-page--freight-rate-terms .record-table td[data-label='Ngưỡng'] {
   min-width: 95px;
 }
 
 .cfg-page--freight-rate-terms .record-table td[data-label='Tuyến'] {
   min-width: 120px;
+  white-space: nowrap;
   overflow-wrap: normal;
   word-break: keep-all;
 }
