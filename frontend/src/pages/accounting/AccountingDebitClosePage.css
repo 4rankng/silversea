@@ -103,11 +103,19 @@ p.debit-note { margin: 0 0 8px; }
 .debit-board thead th:nth-child(9) { width: 10%; }  /* Lợi nhuận */
 .debit-board thead th:nth-child(10) { width: 9%; }  /* Ghi chú & Đối soát */
 
-/* Ticket 18/11 Task 2.2b — the standalone bill/book ref: no wrap games, the
- * ref stays one line like the money values (nowrap is the cell's law; long
- * refs overflow-hidden is BANNED by the no-truncation doctrine — the track
- * is sized for the longest seeded refs). */
-.debit-board td.debit-col--billbook .debit-bill-book { white-space: nowrap; }
+/* SIL-835 (19/11 QA FAIL on ad4f0597/4db2d62f): at the 1142px open-sidebar
+ * 1440px canvas, the 9% Số Bill/Book track (~99-103px) cannot hold an 18-char
+ * code like R4B-A14-EMPTY-8F29 (~152px) on one nowrap line without spilling
+ * over Hàng hóa & Cont. Wrap cleanly inside the cell (normal wrap at
+ * hyphens/spaces first, anywhere fallback for unbroken tokens) without
+ * widening the 1142px grid or clipping any character. */
+.debit-board td.debit-col--billbook .debit-bill-book {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
 
 /* Ticket 18/11 Task 2.2a — continuation rows of a multi-container lot: no
  * top border between the lot's own rows (they read as ONE lot), the head
