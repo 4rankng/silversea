@@ -458,7 +458,7 @@ export default function AccountingDebitClosePage() {
         `Tổng Debit Note phát hành (#${documentId}) lệch bảng xem trước đợt ${payload.roundLabel}`
         + ` — phát hành ${formatCurrency(totalNet)}/${formatCurrency(totalTax)}/${formatCurrency(totalGross)}`
         + ` so với xem trước ${formatCurrency(payload.totals.net)}/${formatCurrency(payload.totals.tax)}/${formatCurrency(payload.totals.gross)}.`
-        + ' Số liệu đã đẩy Công nợ cần rà soát — không tự động tải file.',
+        + ' Số liệu đã đẩy sang Công nợ. Không tự động tải file.',
       );
     }
     void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
