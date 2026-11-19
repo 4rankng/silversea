@@ -352,16 +352,17 @@ export function AppRoutes() {
   );
   // Office staff read the operational + finance workspaces (fleet, trips,
   // accounting, salary, penalties) — casbin grants ACCOUNTANT those resources.
-  // User management is NOT one of them; see userAdminOnly below.
+  // User management has its own guard — see usersPageOnly below.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <DeniedRedirect to={homeRedirect} />);
-  // User management mirrors the casbin policy exactly (card QA2-001): the
-  // `users` resource is granted to MANAGER (policy.csv) and ADMIN holds the
-  // `p, ADMIN, *, *` wildcard. ACCOUNTANT holds `hr_roster read` instead — a
-  // different surface — so /users must refuse it rather than render the admin
-  // shell behind an API that answers 403. If a future ruling grants `users` to
-  // another role, add it here AND to policy.csv in the same change, or the two
-  // drift apart again.
-  const userAdminOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER ? el : <DeniedRedirect to={homeRedirect} />);
+  // User management surface — /users hosts the users table AND the Nhóm CUS
+  // manager. Mirrors the casbin `users` grants (card QA2-001 law: the guard
+  // and policy.csv move in the same change): MANAGER holds users read/write,
+  // ADMIN the wildcard, and user ruling 2026-11-19 adds ACCOUNTANT —
+  // `p, ACCOUNTANT, users, read` plus the /cus-groups write bridge in
+  // authz-grants.ts — so kế toán can manage nhóm CUS. The role holds no
+  // manage_users capability, so UsersPage renders the table read-only and
+  // only the Nhóm CUS card is operable.
+  const usersPageOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <DeniedRedirect to={homeRedirect} />);
   // Freight pricing engine config (Phương án tính cước tự động §5-1): fuel-price
   // period entry names Kế toán/CUS as entrants (backend casbin carries the
   // route-scoped CUS write bypass); DISPATCHER stays out — the page's write
@@ -593,7 +594,7 @@ export function AppRoutes() {
               Kế toán and Điều vận, so it rides timesheetStaffOnly (the FB-101
               /timesheet set) instead of the office-staff guard. */}
           <Route path="/timesheet/bao-cao" element={timesheetStaffOnly(page(<TimesheetMonthlyReportPage />))} />
-          <Route path="/users" element={userAdminOnly(page(<UsersPage />))} />
+          <Route path="/users" element={usersPageOnly(page(<UsersPage />))} />
           <Route path="/hr/roster" element={officeStaffOnly(page(<HrRosterPage />))} />
           <Route path="/audit-logs" element={officeStaffOnly(page(<AuditLogPage />))} />
           <Route path="/audit-log" element={<Navigate to="/audit-logs" replace />} />

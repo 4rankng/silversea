@@ -71,15 +71,17 @@ describe('AppRoutes accountant authoritative workspaces', () => {
     expect(screen.queryByText('Expense authority')).toBeNull();
   });
 
-  // Card 121026084633 (QA2-001): casbin grants the `users` resource to MANAGER
-  // only (policy.csv) — ACCOUNTANT gets `hr_roster read`, a different surface.
-  // The route guard used to admit ACCOUNTANT anyway, so a deep link rendered the
-  // admin shell plus the role taxonomy for a role the API answers 403 to.
-  it('denies ACCOUNTANT the admin-only /users route and lands them on /accounting', async () => {
+  // Card 121026084633 (QA2-001) made /users refuse ACCOUNTANT because casbin
+  // granted the role no `users` access. User ruling 2026-11-19 supersedes
+  // that for this surface: casbin now carries `p, ACCOUNTANT, users, read`
+  // plus the /cus-groups write bridge (authz-grants.ts), so the guard admits
+  // ACCOUNTANT — the users table renders read-only and the Nhóm CUS card is
+  // operable. Guard and policy.csv moved in the same change per QA2-001 law.
+  it('admits ACCOUNTANT to /users for the Nhóm CUS manager', async () => {
     authState.role = Role.ACCOUNTANT;
     renderRoute('/users');
-    expect(await screen.findByText('Accounting authority')).toBeTruthy();
-    expect(screen.queryByText('User management authority')).toBeNull();
+    expect(await screen.findByText('User management authority')).toBeTruthy();
+    expect(screen.getByTestId('layout-shell')).toBeTruthy();
   });
 
   it.each([Role.MANAGER, Role.ADMIN])('still admits %s to /users', async (role) => {

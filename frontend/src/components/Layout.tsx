@@ -302,7 +302,10 @@ function buildNavItems(
         { key: 'penalties', path: routes.penalties, icon: AlertTriangle, section: 'operations' as SectionName },
         { key: 'shipments', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
 
-        // Hệ thống (System) per spec — accountant has ONLY audit-logs in this section
+        // Hệ thống (System) — audit-logs plus /users since user ruling
+        // 2026-11-19: kế toán manages nhóm CUS there (read-only users table +
+        // the Nhóm CUS manager; casbin users read + /cus-groups write bridge).
+        { key: 'users', path: routes.users, icon: Users, section: 'system' as SectionName },
         { key: 'audit-logs', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
       ].sort((a, b) => {
         if (a.key === 'accounting') return -1;

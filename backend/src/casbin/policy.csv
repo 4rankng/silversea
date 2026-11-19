@@ -37,6 +37,13 @@ p, ACCOUNTANT, audit_logs, read
 p, ACCOUNTANT, maps, read
 p, ACCOUNTANT, upload, write
 p, ACCOUNTANT, photos, read
+// Nhóm CUS manager widening — user ruling 2026-11-19: GIAMDOC/MANAGER and
+// KETOAN/ACCOUNTANT manage nhóm CUS on /users too. Read-only users grant: the
+// users table loads with the scoped projection listUsers builds for non-admin
+// requesters — ADMIN rows and assignment metadata excluded. Users WRITES stay
+// casbin-denied; the /cus-groups write surface is bridged route-scoped in
+// middleware/authz-grants.ts, and the route's own requireRoles names the set.
+p, ACCOUNTANT, users, read
 p, DRIVER, driver_portal, read
 p, DRIVER, maps, read
 p, DRIVER, photos, read

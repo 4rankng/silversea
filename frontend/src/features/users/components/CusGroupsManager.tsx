@@ -8,9 +8,10 @@ import { useToast } from '../../../components/shared/Toast';
 
 /**
  * Nhóm CUS — tạo nhóm + thêm thành viên (team-based visibility cho vai CUS,
- * 18/11). Render trên /users cạnh Đơn vị phụ trách, chỉ ADMIN. Thành viên
- * cùng nhóm ACTIVE thấy lô hàng + debit của nhau ngay ở request kế (scope
- * tính từ DB mỗi request — không cần đăng nhập lại).
+ * 18/11). Render trên /users cạnh Đơn vị phụ trách cho ADMIN/MANAGER/
+ * ACCOUNTANT (user ruling 19/11 — giamdoc và ketoan quản nhóm CUS cùng
+ * admin). Thành viên cùng nhóm ACTIVE thấy lô hàng + debit của nhau ngay ở
+ * request kế (scope tính từ DB mỗi request — không cần đăng nhập lại).
  *
  * Pattern copy từ BusinessUnitsManager: draft form + error banner + toast,
  * membership là replace-all (multi-select checkbox → PUT /:id/members).

@@ -56,8 +56,13 @@ export default function UsersPage() {
     : me?.role === Role.ADMIN || me?.role === Role.MANAGER;
   const canManageClerkScope = me?.role === Role.ADMIN;
   const canManageBusinessUnits = me?.role === Role.ADMIN;
+  // Nhóm CUS manager — user ruling 2026-11-19: ADMIN + MANAGER + ACCOUNTANT
+  // (giamdoc và ketoan quản nhóm CUS cùng admin; backend mirrors: route
+  // requireCusGroupManager + casbin users read + /cus-groups write bridge).
+  const canManageCusGroups = me?.role === Role.ADMIN || me?.role === Role.MANAGER || me?.role === Role.ACCOUNTANT;
   const canDelete = me?.role === Role.ADMIN;
-  // Accountants get scoped /users access: read-only except DRIVER rows (salary/truck/contact).
+  // Accountants get scoped /users access: read-only table (no manage_users
+  // capability — edit/add affordances hidden) plus the Nhóm CUS card.
 
   const usersTable = useTableQueryState<UserRow, UsersTableFilters, UsersResponse>({
     endpoint: (params) => userClient.getUsers(params),
@@ -198,7 +203,7 @@ export default function UsersPage() {
         <BusinessUnitsManager businessUnits={businessUnits} onRefresh={refetchUsers} />
       )}
 
-      {canManageBusinessUnits && <CusGroupsManager />}
+      {canManageCusGroups && <CusGroupsManager />}
 
       {confirmDialog}
     </div>

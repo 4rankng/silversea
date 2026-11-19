@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-19 — feat(auth,cus): nhóm CUS — giamdoc + ketoan quản cùng admin
+
+User ruling 19/11/2026: thẻ "Nhóm CUS" trên /users không còn ADMIN-only —
+QUẢN LÝ (MANAGER) và KẾ TOÁN (ACCOUNTANT) tạo nhóm + sửa thành viên cùng
+ADMIN. Hiệu lực nhóm không đổi: thành viên cùng nhóm ACTIVE thấy lô hàng +
+debit của nhau (một luật ở cus-visibility.service.ts).
+
+- **BE** `routes/auth.ts`: 4 route `/cus-groups*` đổi `requireAdmin` →
+  `requireCusGroupManager` (ADMIN + MANAGER + ACCOUNTANT), message 403 cập
+  nhật theo bộ vai mới.
+- **BE casbin** `policy.csv`: thêm `p, ACCOUNTANT, users, read` — kế toán mở
+  được /users (bảng người dùng ở chế độ đọc-scoped: listUsers ẩn dòng ADMIN +
+  assignment metadata) và roster CUS cho member editor. users WRITE vẫn
+  casbin-denied (tạo/sửa/xóa người dùng vẫn 403 cho kế toán).
+- **BE grants** `middleware/authz-grants.ts`: bypass mới — POST/PUT
+  `/cus-groups(/:id(/members))?` cho ACCOUNTANT, bridge đúng bề mặt nhóm CUS
+  (MANAGER đi qua users read/write sẵn có; ADMIN qua wildcard).
+- **FE**: guard `/users` nhận thêm ACCOUNTANT (`userAdminOnly` →
+  `usersPageOnly`, guard + policy.csv đổi cùng nhau theo luật QA2-001); nav
+  kế toán thêm mục "Người dùng" (Hệ thống); `UsersPage` tách gate
+  `canManageCusGroups` — bảng người dùng read-only cho kế toán, card nhóm CUS
+  operable; Đơn vị phụ trách vẫn ADMIN-only.
+- Tests: `App.accounting-routes` deny→admit kế toán; `Layout.test` matrix nav
+  kế toán +"/users"; `authz-grant-registry` count pin 20/18/2 + describe
+  bridge mới (scope chặt: users write khác, role khác, pattern lệch đều
+  undefined); nav-sweep — mục /users mở được cho kế toán qua route table thật.
+  RBAC proof qua enforcer thật (141 policies): ACCOUNTANT users read=true,
+  write=false + bridge khớp; MANAGER nguyên trạng; DISPATCHER vẫn denied.
+- tsc sạch backend + frontend; eslint sạch các file đổi.
+
 ## 2026-11-16 — fix(ops): SIL-844 (id 973) — Popup Khai chi phí: mở khóa chọn Số Cont + [Chọn tất cả], hạch toán theo cont kể cả cont chưa có số
 
 KH 15/11: "đợt trước em chọn được, đợt này không ấn được — bắt buộc vì chi phí

@@ -68,7 +68,7 @@ export const qk = {
     customersStatusCounts: ['customers', 'status-counts'],
     allCustomers: ['all-customers'],
     users: ['users'],
-    /** Admin-only nhóm CUS editor on /users (team-based visibility). */
+    /** Nhóm CUS editor on /users — ADMIN/MANAGER/ACCOUNTANT (ruling 19/11). */
     cusGroups: ['users', 'cus-groups'] as const,
     /** Active CUS roster for the group member editor (same card). */
     cusGroupCandidates: ['users', 'cus-group-candidates'] as const,

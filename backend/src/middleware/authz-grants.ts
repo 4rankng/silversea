@@ -242,6 +242,25 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     source: 'no ruling citation in pre-refactor code',
   },
   {
+    // Nhóm CUS manager widening (user ruling 2026-11-19: GIAMDOC/MANAGER and
+    // KETOAN/ACCOUNTANT manage nhóm CUS on /users too). ACCOUNTANT now holds
+    // `p, ACCOUNTANT, users, read` in policy.csv so the /users shell + the CUS
+    // roster read load, but users WRITE stays deliberately ungranted — this
+    // bypass admits exactly the /cus-groups create/update/members paths so the
+    // manager card works; every other users write (create/edit/delete a USER)
+    // stays casbin-denied. The route's own requireCusGroupManager names the
+    // role set; MANAGER passes via its users read/write policy rows and needs
+    // no bridge.
+    resource: 'users',
+    methods: ['POST', 'PUT'],
+    pathPattern: /^\/cus-groups(\/\d+(\/members)?)?$/,
+    roles: [Role.ACCOUNTANT],
+    effect: 'bypass',
+    reason:
+      'Kế toán manages nhóm CUS on /users (ruling 2026-11-19): route-scoped bridge for the cus-groups write surface only, since users:write must stay closed for the role.',
+    source: 'user ruling 2026-11-19 (giamdoc + ketoan manage nhóm CUS)',
+  },
+  {
     resource: 'trips',
     methods: ['POST'],
     pathPattern: /^\/\d+\/complete-external\/?$/,

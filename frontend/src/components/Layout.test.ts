@@ -105,6 +105,8 @@ describe('getNavItems', () => {
       ['Đội xe', '/fleet'],
       ['Kỷ luật', '/penalties'],
       ['Tổng quan lô hàng', '/shipments'],
+      // User ruling 2026-11-19 — kế toán manages nhóm CUS on /users.
+      ['Người dùng', '/users'],
       ['Nhật ký người dùng', '/audit-logs'],
     ]],
     [Role.DRIVER, [
@@ -244,11 +246,12 @@ describe('getNavItems', () => {
       expect(items.some((item) => item.key === key), key).toBe(false);
     }
     // Every remaining accountant destination must stay reachable: only
-    // financeReader/officeStaff/shipmentReader-guarded paths survive.
+    // financeReader/officeStaff/shipmentReader/usersPage-guarded paths
+    // survive (/users joined on ruling 2026-11-19 — kế toán manages nhóm CUS).
     expect(items.map((item) => item.path)).toEqual([
       '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/finance/treasury', '/debt', '/accounting/chot-debit', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet', '/timesheet/doi-chieu', '/timesheet/bao-cao', '/hr/roster',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
-      '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/audit-logs',
+      '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/users', '/audit-logs',
     ]);
   });
 
