@@ -13,7 +13,8 @@
  *  - Khóa lô rides ShipmentDebitWorkspace's canLock law (ADMIN|ACCOUNTANT|CUS)
  *    through the existing cost-lock channel;
  *  - Chọn Debit arms only when every picked lot's costs are complete (the
- *    ACTIVE cost-lock signal) and only for the office trio;
+ *    ACTIVE cost-lock signal); CUS runs the same channel as accounting
+ *    (ticket 2.3) alongside the office trio;
  *  - SIL-776 REV2: the surface carries NO giá vốn — no cost column exists
  *    on the grid, and the summary response still renders its revenue cells
  *    with the null-is-blank law;
@@ -186,7 +187,7 @@ describe('Khóa lô — the canLock law over the grid selection', () => {
     await waitFor(() => expect(lockCost).toHaveBeenCalledWith(101, expect.any(String)));
   });
 
-  it('Chọn Debit stays disabled for CUS (office-only channel) even with a locked pick', async () => {
+  it('Chọn Debit arms for CUS on a locked pick — same channel as accounting (ticket 2.3)', async () => {
     listMerge.mockResolvedValue({
       items: [mergeRow({ shipmentId: 101, control: { tongTc: '100', lockStatus: 'LOCKED', lockedAt: '2026-11-18T00:00:00.000Z' } })],
       total: 1,
@@ -195,8 +196,10 @@ describe('Khóa lô — the canLock law over the grid selection', () => {
     await screen.findByText('Thông tin Lô hàng');
     fireEvent.click(await screen.findByLabelText('Chọn lô BL-1'));
     const choose = document.querySelector('button.debit-merge__action--primary') as HTMLButtonElement;
-    expect(choose.getAttribute('aria-disabled')).toBe('true');
-    expect(document.getElementById('debit-merge-choose-disabled-reason')?.textContent)
-      .toContain('Tài khoản không có quyền chọn Debit.');
+    expect(choose.getAttribute('aria-disabled')).not.toBe('true');
+    expect(document.getElementById('debit-merge-choose-disabled-reason')).toBeNull();
+    fireEvent.click(choose);
+    expect(await screen.findByRole('dialog', { name: 'Chọn Debit — chốt đợt đối soát' })).toBeTruthy();
+    expect(createRound).not.toHaveBeenCalled();
   });
 });

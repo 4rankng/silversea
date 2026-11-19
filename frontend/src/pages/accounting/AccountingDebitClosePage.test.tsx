@@ -138,6 +138,33 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(emptyBillCell).toHaveTextContent('Chưa có số Bill/Booking');
   });
 
+  it('renders one row per container for a multi-container FCL lot (ticket 18/11 Task 2.2a)', async () => {
+    boardWith([row({
+      containers: ['ABCZ1234567 · 40HC', 'ABCZ7654321 · 20DC'],
+      containersDetail: [
+        { container: 'ABCZ1234567', carriers: ['Nhà xe A'], plates: ['30K-123.45'] },
+        { container: 'ABCZ7654321', carriers: ['Nhà xe A'], plates: ['30K-678.89'] },
+      ],
+      billingTruckNo: '51X-999.99',
+    })]);
+    renderPage();
+    await screen.findByText('SHP-26-0001');
+    const trs = [...(document.querySelector('.debit-board tbody') as HTMLElement).querySelectorAll('tr')] as HTMLElement[];
+    expect(trs).toHaveLength(2);
+    // Container 1 — per-container cargo + vehicle facts, billing badge.
+    expect(within(trs[0]).getByText('ABCZ1234567 · 40HC')).toBeTruthy();
+    expect(within(trs[0]).getByText('Thực: 30K-123.45')).toBeTruthy();
+    expect(within(trs[0]).getByText('BKS ảo: 51X-999.99')).toBeTruthy();
+    // Container 2 — the continuation row carries ONLY its own facts.
+    expect(trs[1].className).toContain('debit-row--cont');
+    expect(within(trs[1]).getByText('ABCZ7654321 · 20DC')).toBeTruthy();
+    expect(within(trs[1]).getByText('Thực: 30K-678.89')).toBeTruthy();
+    // The empty-continuation law: lot-level columns read EMPTY so money
+    // cannot be double-counted across container rows.
+    expect(trs[1].querySelector('td.debit-col--lot')?.textContent ?? '').toBe('');
+    expect(trs[1].querySelector('td.debit-col--billbook')?.textContent ?? '').toBe('');
+  });
+
   it('names the screen, not the document (page-heading law)', async () => {
     boardWith([row()]);
     renderPage();

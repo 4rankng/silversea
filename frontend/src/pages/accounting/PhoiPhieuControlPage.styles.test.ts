@@ -187,3 +187,27 @@ describe('phôi phiếu filter strip contract (card 20260927_152)', () => {
     );
   });
 });
+
+// Ticket 18/11 Task 3.2 — the 'Lô chưa thanh toán' party drill-down drawer
+// claims 2/3 of the screen so Tiền nâng / Tiền hạ / PS khác stay readable
+// beside the Ghi chú column; a later drawer refactor must not silently
+// shrink it back to the shared 580px ladder.
+describe('lô chưa thanh toán drawer width (ticket 18/11 Task 3.2)', () => {
+  it('the party lots drawer claims 2/3 of the screen — 66vw, capped at 1200px', () => {
+    const block = css.match(/\.drawer\.ppc-lots-drawer:not\(\.drawer--expanded\)\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(block).toContain('width: 66vw');
+    expect(block).toContain('max-width: 1200px');
+  });
+
+  it('phones keep the shared full-width band', () => {
+    expect(css).toMatch(
+      /@media \(max-width: 640px\) \{\s*\.drawer\.ppc-lots-drawer:not\(\.drawer--expanded\) \{ width: 100%; max-width: none; \}/,
+    );
+  });
+
+  it('the party drawer still binds the ppc-lots-drawer class', () => {
+    const drawerSource = readFileSync(
+      resolve(process.cwd(), 'src/pages/accounting/PhoiPhieuPartyLotsDrawer.tsx'), 'utf8');
+    expect(drawerSource).toContain('ppc-lots-drawer');
+  });
+});

@@ -155,7 +155,12 @@ accountingDebitRoutes.post('/debit-board/rate-adjustments/withdraw', declareMate
   res.status(outcome.statusCode).json(outcome.result);
 }));
 
-accountingDebitRoutes.get('/debit-board/settlement-rounds', OFFICE_ROLES, asyncHandler(async (_req: Request, res: Response) => {
+// Task 2.3 (18/11) — CUS runs Chọn Debit like accounting on its own
+// fee-complete lots, so the settlement-round read/write rides the same
+// guard set as GET /debit-merge (office trio + CUS), not OFFICE_ROLES.
+const SETTLEMENT_ROUND_ROLES = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS);
+
+accountingDebitRoutes.get('/debit-board/settlement-rounds', SETTLEMENT_ROUND_ROLES, asyncHandler(async (_req: Request, res: Response) => {
   res.json(await listDebitSettlementRounds());
 }));
 

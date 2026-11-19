@@ -20,33 +20,44 @@ export function AccountingDebitRecords({ rows, columns, context, selection }: {
   context: CellContext;
   selection: RowSelection<number>;
 }) {
-  return <LedgerRecordList rows={rows.map(row => ({
-    key: row.shipmentId,
-    title: billBookingReference(row.billOrBooking),
-    subtitle: row.customerName ?? undefined,
-    // SIL-772 review (Major 2): the date used to be its own column on the
-    // card face; the nine-group model folds it into 'lo' which the card
-    // collapses into title/subtitle — so the card emits the Ngày fact
-    // directly or the row date disappears from the phone surface.
-    facts: [
-      {
-        key: 'ngay',
-        label: 'Ngày',
-        value: row.ngay == null ? '—' : formatDate(row.ngay),
-        primary: true,
-      },
-      ...columns.filter(column => column.key !== 'lo').map(column => ({
-        key: column.key,
-        label: column.label,
-        value: column.cell(row, context),
-        primary: PRIMARY_FACTS[column.key] === true,
-        layout: column.key === 'ghiChuDoiSoat' && row.adjustment.status === 'PENDING' ? 'full-width' as const : undefined,
-      })),
-    ],
-    selected: selection.isSelected(row.shipmentId),
-    selectable: row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED',
-    onSelect: selected => {
-      if (selected !== selection.isSelected(row.shipmentId)) selection.toggle(row.shipmentId);
-    },
-  }))} />;
+  // Ticket 18/11 Task 2.2 — a multi-container FCL lot fans out into one card
+  // per container, mirroring the desktop board's sub-row law: the head card
+  // keeps the full fact set, continuation cards carry ONLY the spansSubrows
+  // columns (their own container + vehicle facts), so money never reads as
+  // duplicated across cards. LCL and single-container lots stay one card.
+  return <LedgerRecordList rows={rows.flatMap((row) => {
+    const subRowCount = row.lcl || row.containers.length <= 1 ? 1 : row.containers.length;
+    return Array.from({ length: subRowCount }, (_, containerIndex) => {
+      const isHead = containerIndex === 0;
+      const billRef = billBookingReference(row.billOrBooking);
+      const factColumns = isHead
+        ? columns.filter(column => column.key !== 'lo')
+        : columns.filter(column => column.spansSubrows === true);
+      return {
+        key: isHead ? row.shipmentId : `${row.shipmentId}#${containerIndex}`,
+        title: isHead ? billRef : `${billRef} · cont ${containerIndex + 1}`,
+        subtitle: row.customerName ?? undefined,
+        facts: [
+          ...(isHead ? [{
+            key: 'ngay',
+            label: 'Ngày',
+            value: row.ngay == null ? '—' : formatDate(row.ngay),
+            primary: true,
+          }] : []),
+          ...factColumns.map(column => ({
+            key: column.key,
+            label: column.label,
+            value: column.cell(row, isHead ? context : { ...context, containerIndex }),
+            primary: PRIMARY_FACTS[column.key] === true,
+            layout: column.key === 'ghiChuDoiSoat' && row.adjustment.status === 'PENDING' ? 'full-width' as const : undefined,
+          })),
+        ],
+        selected: selection.isSelected(row.shipmentId),
+        selectable: row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED',
+        onSelect: selected => {
+          if (selected !== selection.isSelected(row.shipmentId)) selection.toggle(row.shipmentId);
+        },
+      };
+    });
+  })} />;
 }
