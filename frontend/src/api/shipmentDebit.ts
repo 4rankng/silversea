@@ -301,14 +301,22 @@ function selectionKeyOf(shipmentIds: number[]): string {
   return `debit-note-${shipmentIds.length}-${hash.toString(16)}`;
 }
 
-/** One POST carries every selected locked lot id; per-lot line grouping is
- *  preserved inside the union document. The idempotency key is derived here
- *  from the selection, so re-clicking the same selection replays the same
- *  document instead of issuing a duplicate. */
-export async function createDebitNoteBatch(shipmentIds: number[]): Promise<{ id: number }> {
-  return api.post<{ id: number }>('/shipments/debit-notes', { shipmentIds }, {
-    headers: { 'Idempotency-Key': selectionKeyOf(shipmentIds) },
-  });
+/** One POST carries every selected locked lot id + the đợt chốt (Lần · Tháng
+ *  · Năm) the preview attached (SIL-855 — only [Lưu] posts to Công nợ, and it
+ *  names its đợt). Per-lot line grouping is preserved inside the union
+ *  document. The idempotency key is derived here from the selection, so
+ *  re-clicking the same selection replays the same document instead of
+ *  issuing a duplicate. The response carries the ISSUED totals so the caller
+ *  can reconcile the preview against Công nợ (undefined on old replays). */
+export async function createDebitNoteBatch(
+  shipmentIds: number[],
+  settlementRoundId?: number,
+): Promise<{ id: number; totalNet?: number; totalTax?: number; totalGross?: number }> {
+  return api.post<{ id: number; totalNet?: number; totalTax?: number; totalGross?: number }>(
+    '/shipments/debit-notes',
+    { shipmentIds, ...(settlementRoundId != null ? { settlementRoundId } : {}) },
+    { headers: { 'Idempotency-Key': selectionKeyOf(shipmentIds) } },
+  );
 }
 
 /** Downloads the issued union document (xlsx) through the per-lot export

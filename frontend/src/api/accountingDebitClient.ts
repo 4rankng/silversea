@@ -191,6 +191,35 @@ export async function createSettlementRound(body: CreateSettlementRoundBody): Pr
   return api.post('/accounting/debit-board/settlement-rounds', body);
 }
 
+// Ticket 18/11 Task 2.4 (SIL-855) — bảng xem trước Xuất Debit Note của MỘT
+// đợt: server computes the rows + 4 closing totals on the SAME frozen-lock
+// basis the [Lưu] issuance uses, so preview ≡ Công nợ by construction.
+export interface DebitNoteRoundPreviewItem {
+  shipmentId: number;
+  code: string | null;
+  customerName: string | null;
+  billingTruckNo: string | null;
+  net: number;
+  costLockedAt: string | null;
+}
+
+export interface DebitNoteRoundPreview {
+  round: {
+    id: number;
+    roundNo: number;
+    periodKey: string;
+    direction: 'THU' | 'TRA';
+    vatRate: number;
+    customerName: string | null;
+  };
+  items: DebitNoteRoundPreviewItem[];
+  totals: { net: number; tax: number; gross: number };
+}
+
+export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNoteRoundPreview> {
+  return api.get(`/accounting/debit-board/settlement-rounds/${roundId}/debit-note-preview`);
+}
+
 export async function confirmRateAdjustments(requestIds: number[]): Promise<{ confirmed: number }> {
   return api.post('/accounting/debit-board/rate-adjustments/confirm', { requestIds });
 }

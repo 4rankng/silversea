@@ -137,6 +137,22 @@ describe('CostReconciliationPage (SIL-779)', () => {
     expect(screen.queryByLabelText('Người thực chi')).toBeNull();
   });
 
+  // SIL-858 AC1 — the missing half of the filter plane: the date range feeds
+  // the same query (from/to → costReview), so the tab filters the money by
+  // the chosen period, not just by payer.
+  it('ticket 18/11 3.3: date range feeds Từ ngày/Đến ngày into the cost query', async () => {
+    expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row()] });
+    page();
+    const range = screen.getByRole('group', { name: 'Kỳ đối soát' });
+    const from = within(range).getByLabelText('Từ ngày');
+    const to = within(range).getByLabelText('Đến ngày');
+    fireEvent.change(from, { target: { value: '01/11/2026' } });
+    fireEvent.change(to, { target: { value: '15/11/2026' } });
+    await waitFor(() => expect(expenseApi.costReview).toHaveBeenLastCalledWith(
+      expect.objectContaining({ from: '2026-11-01', to: '2026-11-15' }),
+    ));
+  });
+
   it('ticket 18/11 3.3: customer/factory split into their own column beside the lot', async () => {
     expenseApi.costReview.mockResolvedValue({
       ...costPayload,
