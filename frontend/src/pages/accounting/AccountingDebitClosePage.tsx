@@ -165,9 +165,16 @@ export default function AccountingDebitClosePage() {
   const pendingRows = useMemo(() => visibleRows.filter((row) => row.adjustment.status === 'PENDING'), [visibleRows]);
   const settledRows = useMemo(() => visibleRows.filter((row) => row.adjustment.status !== 'PENDING'), [visibleRows]);
   // Ticket 18/11 Task 2.1 — one page (20–50 rows) of the settled board.
+  // SIL-852 — the open page CLAMPS to the current page count: the
+  // DebitMergeGrid safePage law, applied here too. A filter (search, tab
+  // FCL/LCL, khách/phân xe) that shrinks the board under the open page shows
+  // the last page that still exists — never an empty table beside matching
+  // rows (the trắng vùng dữ liệu symptom).
+  const boardTotalPages = Math.max(1, Math.ceil(settledRows.length / boardPageSize));
+  const boardSafePage = Math.min(boardPage, boardTotalPages);
   const pagedSettledRows = useMemo(
-    () => settledRows.slice((boardPage - 1) * boardPageSize, boardPage * boardPageSize),
-    [settledRows, boardPage, boardPageSize],
+    () => settledRows.slice((boardSafePage - 1) * boardPageSize, boardSafePage * boardPageSize),
+    [settledRows, boardSafePage, boardPageSize],
   );
   const pendingIds = useMemo(
     () => pendingRows.map((row) => row.adjustment.requestId).filter((id): id is number => id != null),
@@ -808,8 +815,8 @@ export default function AccountingDebitClosePage() {
               {/* Ticket 18/11 Task 2.1 — the page navigator rides the board:
                   20–50 dòng/trang keeps the month window inside one viewport. */}
               <Pagination
-                page={boardPage}
-                totalPages={Math.max(1, Math.ceil(settledRows.length / boardPageSize))}
+                page={boardSafePage}
+                totalPages={boardTotalPages}
                 totalItems={settledRows.length}
                 pageSize={boardPageSize}
                 onChange={setBoardPage}
