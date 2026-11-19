@@ -173,3 +173,8 @@ p, MANAGER, timesheet, read
 p, MANAGER, timesheet, write
 p, ADMIN, timesheet, read
 p, ADMIN, timesheet, write
+// SIL-862: the repro seat is the Vận hành/Điều vận account hoangnh (role OPS) —
+// OPS fills the grid and auto-inits the month like DISPATCHER. The
+// Kế toán-only surfaces stay route-locked (accountantOnly) regardless.
+p, OPS, timesheet, read
+p, OPS, timesheet, write

@@ -98,6 +98,8 @@ export const qk = {
       [...qk.catalogs.quotations, id, 'versions', from, to] as const,
     debitNoteOverride: (snapshotId: number | string | null | undefined) =>
       ['debit-note-override', snapshotId] as const,
+    debitNoteRoundPreview: (roundId: number | null | undefined) =>
+      ['debit-note-round-preview', roundId] as const,
     allSuppliers: ['all-suppliers'],
     allExpenseCategories: ['all-expense-categories'],
     capTable: ['cap-table'],

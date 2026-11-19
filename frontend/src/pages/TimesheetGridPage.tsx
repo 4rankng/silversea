@@ -16,6 +16,7 @@ import { formatMoney } from '../lib/format';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { useMonthRoute } from '../design-system/hooks/useMonthRoute';
 import { useAuth } from '../hooks/useAuth';
+import { getModernRole } from '../lib/role-helpers';
 import { TimesheetGridCell, type TimesheetMove } from '../features/timesheet/TimesheetGrid';
 import { SALARY_MODE_LABELS, SALARY_MODE_OPTIONS } from '../features/timesheet/salary-modes';
 import { qk } from '../api/keys';
@@ -40,15 +41,18 @@ export default function TimesheetGridPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   // FB-101 — kế toán xem được lưới (mục không còn bị ẩn) nhưng KHÔNG ghi ký
-  // hiệu: backend chặn ghi lưới ngoài dispatcherOrAbove. Ô để read-only, nút
-  // "Lưu lưới" chỉ hiện cho vai trò ghi được.
+  // hiệu: backend chặn ghi lưới ngoài nhóm ghi lưới (gridEditors). Ô để
+  // read-only, nút "Lưu lưới" chỉ hiện cho vai trò ghi được.
   const { user } = useAuth();
-  const canEditGrid = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.DISPATCHER;
+  // SIL-862 — ghế thao tác lưới gồm cả Vận hành (OPS, tài khoản repro hoangnh
+  // NV003); getModernRole để seat legacy FORWARDER cũng đúng ghế OPS.
+  const seat = getModernRole(user?.role ?? '');
+  const canEditGrid = seat === Role.ADMIN || seat === Role.MANAGER || seat === Role.DISPATCHER || seat === Role.OPS;
   // SIL-842 (CR-008 Task 2.2) — mở bảng chấm công KHÔNG còn là việc riêng của
-  // kế toán (FB-102 superseded): mọi vai trò thao tác lưới mở được, Điều vận
-  // mở trang là lưới tháng tự khởi tạo (POST /months boardOpeners). Dialog vẫn
-  // cho phép chủ động chọn hình thức lương khi mở bằng tay.
-  const canOpenBoard = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || user?.role === Role.DISPATCHER;
+  // kế toán (FB-102 superseded): mọi vai trò thao tác lưới mở được, người
+  // thao tác mở trang là lưới tháng tự khởi tạo (POST /months boardOpeners).
+  // Dialog vẫn cho phép chủ động chọn hình thức lương khi mở bằng tay.
+  const canOpenBoard = seat === Role.ADMIN || seat === Role.MANAGER || seat === Role.ACCOUNTANT || seat === Role.DISPATCHER || seat === Role.OPS;
   const cellRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const [driverId, setDriverId] = useState<number | null>(null);

@@ -246,6 +246,12 @@ Mount: `app.use('/api/timesheet', authMiddleware, casbinAuthz('timesheet'), time
 Policy mới (chỉ dòng mới, không sửa dòng cũ):
 `DISPATCHER read/write`, `ACCOUNTANT read/write`, `MANAGER read`, `ADMIN read/write`.
 
+> **Amendment SIL-862 (19/11/2026):** thêm `OPS read/write` — ghế thao tác lưới
+> theo ticket 18/11 là tài khoản "Vận hành / Điều vận" (hoangnh, role OPS);
+> `POST /months` (tự khởi tạo khi mở trang) và `PUT /months/:id/days` mở cho
+> OPS như DISPATCHER. Các route Kế toán-only (mode/adjustment/reconcile/reopen)
+> giữ nguyên.
+
 | Method | Path | Role | Việc |
 |---|---|---|---|
 | GET | `/months?year&month` | đọc | lưới tháng: driver × ngày + symbol |
@@ -273,6 +279,14 @@ Route/entry mới:
 - `/timesheet` — **Điều vận** (điền lưới) — `dispatchOnly`.
 - `/timesheet/doi-chieu` — **Kế toán** (đối chiếu) — `accountantOnly`.
 - "Thêm cược" — trong `DepositRefundTrackerPage` (trang có sẵn).
+
+> **Amendment SIL-862 (19/11/2026):** guard `/timesheet` là `timesheetStaffOnly`
+> (ADMIN/MANAGER/DISPATCHER/ACCOUNTANT/**OPS**) — OPS được thêm cho đúng tài
+> khoản repro của ticket; page-level `canEditGrid`/`canOpenBoard`
+> (TimesheetGridPage) mở theo. Hàng `/dispatch` cùng lớp sửa: `/dispatch` +
+> `/dispatch-detail` mở cho OPS + ACCOUNTANT (xem bảng điều vận — premise
+> SIL-694); data đọc của 2 bảng đi qua `DISPATCH_BOARD_READERS`
+> (dispatch-planning.routes.ts, thêm OPS), write sets giữ nguyên.
 
 Nav: `shared/src/navigation/pageCatalog.ts` + `frontend/src/lib/routes.ts` +
 `App.tsx` route + title map. Mục nav mới dưới section `operations`.

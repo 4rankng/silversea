@@ -93,6 +93,22 @@ describe('TimesheetGridPage role surface (FB-101)', () => {
     expect(screen.queryByRole('button', { name: /Lưu lưới/ })).toBeNull();
     for (const cell of screen.getAllByRole('textbox')) expect(cell).toHaveAttribute('readonly');
   });
+
+  it('Vận hành (OPS — hoangnh, SIL-862) nhập được lưới và có nút Lưu lưới', async () => {
+    currentUser.role = Role.OPS;
+    page();
+    expect(await screen.findByRole('button', { name: /Lưu lưới/ })).toBeVisible();
+    const cells = await screen.findAllByRole('textbox');
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) expect(cell).not.toHaveAttribute('readonly');
+  });
+
+  it('seat legacy FORWARDER vẫn là ghế OPS (SIL-862): nhập được lưới', async () => {
+    currentUser.role = 'FORWARDER';
+    page();
+    expect(await screen.findByRole('button', { name: /Lưu lưới/ })).toBeVisible();
+    for (const cell of await screen.findAllByRole('textbox')) expect(cell).not.toHaveAttribute('readonly');
+  });
 });
 
 describe('mở bảng chấm công (FB-102/FB-103 — card 141026230790/230800)', () => {
@@ -121,6 +137,14 @@ describe('mở bảng chấm công (FB-102/FB-103 — card 141026230790/230800)'
     await waitFor(() => expect(createMonth).toHaveBeenCalledWith({
       driverId: 1, year: 2026, month: 10, salaryMode: 'FLAT_MONTHLY', flatAmount: 10000000,
     }));
+  });
+
+  it('OPS (SIL-862) mở bảng chấm công được khi tháng chưa có bảng', async () => {
+    currentUser.role = Role.OPS;
+    listMonths.mockReset().mockResolvedValue([]);
+    page();
+    fireEvent.click(await screen.findByRole('button', { name: /Mở bảng chấm công/ }));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
   });
 
   // FB-103 (ticket 171026215600) — modal mở với chế độ mặc định CỦA LÁI XE
