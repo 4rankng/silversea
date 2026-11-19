@@ -701,6 +701,9 @@ export interface ListShipmentsOptions {
   limit?: number;
   offset?: number;
   actor?: AuthUser;
+  /** Ticket 18/11 Task 1.2 — CUS team toggle: 'true' widens the CUS scope
+   *  to the ACTIVE nhóm's lots (nút Hiện thông tin lô hàng team). */
+  includeTeam?: boolean;
 }
 
 /**
@@ -797,7 +800,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
   // DISPATCHER) không bao giờ bị scope. Cùng mảng `conditions` nuôi page
   // rows + total + dispatch summary nên count không bao giờ lệch bảng.
   if (options.actor?.role === Role.CUS) {
-    conditions.push(...await cusVisibilityCondition(db, options.actor));
+    conditions.push(...await cusVisibilityCondition(db, options.actor, { includeTeam: options.includeTeam === true }));
   }
 
   // allocationStatus is derived from container/fulfillment aggregates and

@@ -522,18 +522,12 @@
   text-transform: uppercase;
 }
 
-/* Identity-cell factory/route lines clamp at two lines with an ellipsis;
-   the span's title carries the full value — free wrap can't stretch a row
-   visibly taller than its neighbors and make the grid read ragged. */
-.cus-dashboard-cell--identity .cus-multiline-cell span {
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
+/* ticket 18/11 (spec Chương 4 §4.1.3 — cấm cắt chữ) supersedes card
+   191026181942's 2-line clamp: the identity cell's factory/route lines wrap
+   fully on the base `.cus-multiline-cell strong, .cus-multiline-cell span`
+   law (white-space: normal + overflow-wrap: anywhere + overflow: visible) —
+   'Chưa có tuyến đường' / 'Chưa có tờ khai' and long names never clamp.
+   NameCell keeps the full value accessible (title + aria-label + reveal). */
 .cus-multiline-cell--mono { font-family: var(--font-data); }
 .cus-multiline-cell--mono strong { font-size: var(--ops-table-primary-size); letter-spacing: .01em; }
 .cus-multiline-cell--numeric strong { }

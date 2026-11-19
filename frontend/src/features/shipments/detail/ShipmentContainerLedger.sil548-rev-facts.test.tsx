@@ -55,6 +55,9 @@ const lotRow = (overrides: Partial<ShipmentCusContainerFlatRow> = {}): ShipmentC
   customerId: 1,
   isAdHoc: false,
   customerName: 'LOG COM',
+  // Ticket 18/11 Task 1.2 — creator rides the wire; this fixture owns none.
+  creatorName: null,
+  creatorCode: null,
   factoryName: null,
   routeName: null,
   billOrBookNumber: 'R42CUS-LCL1',

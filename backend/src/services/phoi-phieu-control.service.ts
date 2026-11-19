@@ -54,6 +54,65 @@ const MISSING_CARRIER_LABEL = 'Thiếu nhà xe';
 const MISSING_CUSTOMER_LABEL = 'Thiếu khách hàng';
 const UNATTACHED_LABEL = 'Chưa xác định';
 
+/**
+ * Ticket 18/11 Task 3.1 — trục nguồn của lô trên bảng Kiểm soát phơi phiếu:
+ * vai trò của tài khoản ĐÃ TẠO lô (`shipments.created_by → users.role`).
+ *  - DISPATCHER — 'điều vận nhập lên hệ thống' (sản lượng vận tải ngoài):
+ *    chi phí nâng/hạ Ops khai VẪN hiện trên bảng này.
+ *  - mọi vai trò khác (khách Silver Sea ký trực tiếp) — chi phí nâng/hạ Ops
+ *    khai thuộc luồng Ghép bộ Debit và RỜI bảng này.
+ * Lô không còn tác giả (created_by NULL — seed/legacy) đọc như khách ký
+ * trực tiếp. Đọc theo lô, không theo chuyến.
+ */
+export function isDispatchIntakeLot(creatorRole: string | null | undefined): boolean {
+  return creatorRole === 'DISPATCHER';
+}
+
+/** The excluded OPS family by the expense TYPE's structural category — nâng
+ *  (LIFT) and hạ (DROP). PS khác stays on the board (bucketByCategory law). */
+function isOpsNangHaCategory(category: string | null | undefined): boolean {
+  return category === 'LIFT' || category === 'DROP';
+}
+
+/** The source rule as one predicate over an OPS board source: a direct-signed
+ *  lot's Ops-declared nâng/hạ row leaves the board and its phiếu. The three
+ *  admitted sources the rule never touches: accountant manual entries,
+ *  own-fleet trucking costs (TRIP/tiền đường), DRIVER-declared rows. */
+function isExcludedOpsNangHaSource(
+  source: { category?: string | null; shipmentId: number },
+  intakeRoleByShipment: Map<number, string | null>,
+): boolean {
+  return isOpsNangHaCategory(source.category)
+    && !isDispatchIntakeLot(intakeRoleByShipment.get(source.shipmentId));
+}
+
+/** Batched creator-role read for the source rule (ticket 18/11 Task 3.1): ONE
+ *  shipments⋈users read per shipment set — never a per-row lookup. Executor
+ *  injected so the consolidated phiếu transaction shares the same rule read. */
+async function phoiLotIntakeRoles(exec: Executor, shipmentIds: number[]): Promise<Map<number, string | null>> {
+  const map = new Map<number, string | null>();
+  const distinct = [...new Set(shipmentIds)];
+  if (distinct.length === 0) return map;
+  const rows = await exec.select({ shipmentId: s.shipments.id, role: s.users.role })
+    .from(s.shipments)
+    .leftJoin(s.users, eq(s.users.id, s.shipments.createdBy))
+    .where(inArray(s.shipments.id, distinct));
+  for (const row of rows) map.set(row.shipmentId, row.role ?? null);
+  return map;
+}
+
+/** Ticket 18/11 Task 3.1/3.2 — ghi chú composed: CUS customerNotes trước, điều
+ *  vận operationalNotes sau (kiểu copy 'Ghi chú & Đối soát'), nối bằng '; '.
+ *  Null — never an empty string — so the cell prints the house dash. */
+function phoiComposedNote(
+  customerNotes: string | null | undefined,
+  operationalNotes: string | null | undefined,
+): string | null {
+  const parts = [customerNotes, operationalNotes]
+    .filter((value): value is string => Boolean(value && value.trim()));
+  return parts.length > 0 ? parts.join('; ') : null;
+}
+
 export interface PhoiPhieuRow {
   tripId: number;
   tripCode: string | null;
@@ -116,6 +175,13 @@ export interface PhoiPhieuRow {
    *  ruled surfaces cannot drift apart. */
   opsRecoveryNotes: string[];
   driverNote: string | null;
+  /**
+   * Ticket 18/11 Task 3.1 — cột GHI CHÚ đứng ngay sau TRẠNG THÁI: ghi chú
+   * composed của lô (`phoiComposedNote` — CUS customerNotes trước, điều vận
+   * operationalNotes sau). The three separate note columns keep printing
+   * their own cells; this is the composed cell the ticket adds.
+   */
+  ghiChu: string | null;
   confirmable: boolean;
   openSources: Array<{ sourceId: number; expectedVersion: number; remaining: number }>;
   /** SIL-783 (id 906) — the trip's chi-hộ rows in edit-ready shape so the
@@ -355,8 +421,14 @@ export async function listPhoiPhieuRows(query: {
   const shipmentIds = [...new Set(rows.map((row) => row.shipmentId))];
   const tripIds = rows.map((row) => row.tripId);
 
+  // Ticket 18/11 Task 3.1 — the lot intake axis for the source rule, batched
+  // once for the whole listed window (one shipments⋈users read).
+  const intakeRoleByShipment = await phoiLotIntakeRoles(db, shipmentIds);
+
   // Chi hộ sums + open sources per shipment: the SAME rows the voucher reads.
-  const opsSources = await db.select({
+  // The category rides the expense TYPE (the structural LIFT/DROP split the
+  // report surfaces already use) so the source rule never matches by fee name.
+  const opsSourceRows = await db.select({
     id: s.expenseAccountingSources.id,
     sourceKind: s.expenseAccountingSources.sourceKind,
     shipmentId: s.expenseAccountingSources.shipmentId,
@@ -369,12 +441,19 @@ export async function listPhoiPhieuRows(query: {
     entryId: s.opsExpenseEntries.id,
     feeName: s.opsExpenseEntries.feeName,
     invoiceNumber: s.opsExpenseEntries.invoiceNumber,
+    category: s.forwarderExpenseTypes.category,
   })
     .from(s.expenseAccountingSources)
     .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
+    .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
     .where(and(inArray(s.expenseAccountingSources.shipmentId, shipmentIds),
       eq(s.expenseAccountingSources.status, 'RECORDED'), eq(s.expenseAccountingSources.sourceKind, 'OPS'),
       confirmationCondition(query.confirmation)));
+  // Ticket 18/11 Task 3.1 — nguồn rule: a direct-signed lot's Ops-declared
+  // nâng/hạ rows leave the board (they belong to the Ghép bộ Debit flow);
+  // a dispatch-intake lot keeps them. The SAME predicate filters the phiếu
+  // below, so the board cell and the phiếu never drift apart.
+  const opsSources = opsSourceRows.filter((source) => !isExcludedOpsNangHaSource(source, intakeRoleByShipment));
 
   const tripSources = await db.select({
     id: s.expenseAccountingSources.id,
@@ -593,6 +672,8 @@ export async function listPhoiPhieuRows(query: {
         ? confirmedRoadByTrip.get(row.tripId) ?? 0
         : row.tienDuong == null ? null : Number(row.tienDuong),
       cusDispatchNotes,
+      // Ticket 18/11 Task 3.1 — the composed Ghi chú cell (CUS trước, điều vận sau).
+      ghiChu: phoiComposedNote(row.customerNote, row.operationalNotes),
       opsRecoveryNotes: opsExpenseNotes.get(row.shipmentId) ?? [],
       driverNote: noteByTrip.get(row.tripId) ?? row.tripNotes ?? null,
       confirmable: openSources.length > 0,
@@ -688,27 +769,36 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
       .where(and(inArray(s.trips.id, args.tripIds), isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')));
     if (tripRows.length !== args.tripIds.length) throw new ApiError(404, 'Có chuyến không còn hợp lệ.');
     const shipmentIds = tripRows.map((row) => row.shipmentId).filter((id): id is number => id != null);
+    // Ticket 18/11 Task 3.1 — the phiếu reads the SAME filtered set the board
+    // cell shows: a direct-signed lot's Ops-declared nâng/hạ rows left the
+    // board (Ghép bộ Debit flow), so they leave the phiếu too. Batched rule
+    // read inside the caller's transaction.
+    const intakeRoleByShipment = await phoiLotIntakeRoles(tx, shipmentIds);
 
-    const sources = await tx.select({
+    const sources = (await tx.select({
       id: s.expenseAccountingSources.id,
       // Native OPS entry id — the id space the cash-voucher engine resolves
-      // (source-row ids are a DIFFERENT sequence; passing them 404s or hits
-      // a wrong-entry lookalike when the sequences diverge).
+      // (source-row ids are a DIFFERENT sequence; passing them 404s or hits a
+      // wrong-entry lookalike when the sequences diverge).
       nativeId: s.expenseAccountingSources.sourceId,
       shipmentId: s.expenseAccountingSources.shipmentId,
       version: s.expenseAccountingSources.version,
       allocatedAdvanceAmount: s.expenseAccountingSources.allocatedAdvanceAmount,
       entryAmount: s.opsExpenseEntries.amount,
       entryCharge: s.opsExpenseEntries.customerChargeAmount,
+      category: s.forwarderExpenseTypes.category,
     })
       .from(s.expenseAccountingSources)
       .innerJoin(s.opsExpenseEntries, eq(s.opsExpenseEntries.id, s.expenseAccountingSources.sourceId))
+      .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
       .where(and(inArray(s.expenseAccountingSources.shipmentId, shipmentIds),
         eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED'),
         // Case QA-2026-09-24-01: only APPROVED (confirmedAt) chi-hộ sources
         // enter the consolidated phiếu — the contract wording is verbatim
         // ("Chỉ những khoản ĐÃ DUYỆT mới đủ điều kiện được đưa vào phiếu chi").
-        isNotNull(s.expenseAccountingSources.confirmedAt)));
+        isNotNull(s.expenseAccountingSources.confirmedAt))))
+      // Ticket 18/11 Task 3.1 — the board/phiếu lockstep predicate.
+      .filter((source) => !isExcludedOpsNangHaSource(source, intakeRoleByShipment));
     // The voucher engine is one-counterparty-per-phiếu: group the selection by
     // customer and issue one consolidated voucher per group.
     const customerIdByShipment = new Map<number, number>();
@@ -1769,6 +1859,9 @@ export interface PhoiPhieuPartyLot {
   daThuTra: number;
   /** `total - daThuTra` — only lots with a positive remainder are returned. */
   conLai: number;
+  /** Ticket 18/11 Task 3.2 — the main board's composed Ghi chú carried down
+   *  to the drill-down lot (`phoiComposedNote`: CUS trước, điều vận sau). */
+  ghiChu: string | null;
   entries: Array<{ sourceId: number; expectedVersion: number; amount: number; bucket: 'nang' | 'ha' | 'khac' }>;
 }
 
@@ -1823,7 +1916,7 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
     if (!lot) {
       lot = {
         tripId: lotKey > 0 ? lotKey : null, shipmentId: source.shipmentId, billOrBooking: null, containerNumber: null,
-        departureDate: null, tienNang: 0, tienHa: 0, psKhac: 0, total: 0, daThuTra: 0, conLai: 0, entries: [],
+        departureDate: null, tienNang: 0, tienHa: 0, psKhac: 0, total: 0, daThuTra: 0, conLai: 0, ghiChu: null, entries: [],
       };
       lots.set(lotKey, lot);
     }
@@ -1847,6 +1940,7 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
       shipmentId: sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`,
       blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef,
       containerNumber: s.shipmentContainers.containerNumber,
+      customerNotes: s.shipments.customerNotes, operationalNotes: s.shipments.operationalNotes,
     })
       .from(s.trips)
       .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
@@ -1863,6 +1957,9 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
       lot.containerNumber = identity.containerNumber ?? null;
       lot.departureDate = identity.departureDate ?? null;
       lot.shipmentId = identity.shipmentId ?? lot.shipmentId;
+      // Ticket 18/11 Task 3.2 — the main board's composed Ghi chú rides the
+      // same identity read; the drawer never re-derives it.
+      lot.ghiChu = phoiComposedNote(identity.customerNotes, identity.operationalNotes);
     }
   }
   const sharedLotKeys = [...lots.keys()].filter((key) => key < 0);
@@ -1871,11 +1968,14 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
     const identities = await db.select({
       shipmentId: s.shipments.id,
       blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef,
+      customerNotes: s.shipments.customerNotes, operationalNotes: s.shipments.operationalNotes,
     }).from(s.shipments).where(inArray(s.shipments.id, sharedIds));
     for (const identity of identities) {
       const lot = lots.get(-identity.shipmentId);
       if (!lot) continue;
       lot.billOrBooking = billOrBookingOf(null, identity.blNumber, identity.bookingRef);
+      // Ticket 18/11 Task 3.2 — shared-lot rows carry the composed Ghi chú too.
+      lot.ghiChu = phoiComposedNote(identity.customerNotes, identity.operationalNotes);
     }
   }
   const items = [...lots.values()]

@@ -54,6 +54,9 @@ const row: ShipmentCusWorkspaceListItem = {
   bucket: ShipmentCusBucket.PENDING_LOCK,
   bucketLabel: 'Chờ khóa',
   customerName: 'Công ty Silver Sea',
+  // Ticket 18/11 Task 1.2 — creator rides the wire; fixture owns none.
+  creatorName: null,
+  creatorCode: null,
   factoryName: 'Nhà máy Hải Phòng',
   billOrBookNumber: 'BILL-12345',
   declarationNumber: 'TK-54321',
@@ -2606,14 +2609,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-multiline-cell strong\s*\{[^}]*font-size:\s*var\(--ops-table-primary-size\);/);
   });
 
-  it('clamps identity factory/route lines at two lines with the full name accessible (card 191026181942)', () => {
-    // Clamped at 2 lines so free wrap cannot stretch rows raggedly taller
-    // than neighbors; the sanctioned §4 fallback keeps the full value
-    // reachable — now through the shared NameCell (title + aria-label +
-    // focusable reveal), not a bare title attribute.
-    expect(css).toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*-webkit-line-clamp:\s*2;/);
-    expect(css).toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*overflow:\s*hidden;/);
+  it('wraps identity factory/route lines fully — no line clamp (ticket 18/11)', () => {
+    // ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes card
+    // 191026181942's 2-line clamp: 'Chưa có tuyến đường' / 'Chưa có tờ khai'
+    // and long factory/route lines wrap fully on the base __multiline-cell
+    // span law; NameCell keeps the full value accessible (title + aria-label
+    // + focusable reveal).
+    expect(css).not.toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*-webkit-line-clamp/);
+    expect(css).not.toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*overflow:\s*hidden/);
     const row = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusShipmentRow.tsx'), 'utf8');
+    expect(row).toContain('Chưa có tuyến đường');
+    expect(row).toContain('Chưa có tờ khai');
     expect(row).toMatch(/<NameCell name=\{item\.factoryName\} \/>/);
     expect(row).toMatch(/<NameCell name=\{item\.routeName \|\| item\.deliveryLocation\} \/>/);
   });

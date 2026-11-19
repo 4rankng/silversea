@@ -4,6 +4,7 @@ import { FilterDropdown } from '../components/FilterDropdown';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { useAuth } from '../hooks/useAuth';
 import {
+  Role,
   SHIPMENT_CUS_CONTAINER_SORT_KEYS,
   SHIPMENT_CUS_PAGE_SIZES,
   type ShipmentCusContainerFlatRow,
@@ -25,6 +26,7 @@ import {
 } from '../features/shipments/detail/ShipmentContainerLedger';
 import { MergeRevGroupDialog } from '../features/shipments/debit/MergeRevGroupDialog';
 import { LclMergeModeToggle } from '../components/shared/LclMergeModeToggle';
+import { CusTeamVisibilityToggle } from '../components/shared/CusTeamVisibilityToggle';
 import { useHiddenColumns } from '../hooks/useHiddenColumns';
 import { useVietnamToday } from '../hooks/useVietnamToday';
 import { formatVietnamDateInput } from '../lib/shipment-operations';
@@ -133,6 +135,12 @@ export default function ShipmentContainersPage() {
     : null;
   const sort = sortKey ? readTableSort(sortKey, searchParams.get('sortDir')) : null;
   const sortDir = sort?.dir;
+  // Ticket 18/11 Task 1.2 — the team-visibility switch is a CUS-only
+  // affordance: other roles were never scoped by the backend law.
+  const isCus = auth?.user?.role === Role.CUS;
+  // Default OFF per mount (no URL state): reopening the board always starts
+  // scoped to the account's own lots.
+  const [team, setTeam] = useState(false);
   const [searchInput, setSearchInput] = useState(suffixParam);
   // Remount key for the from/to group: a reset must clear a local INVALID
   // draft even when the URL value did not change (the controlled value alone
@@ -217,7 +225,7 @@ export default function ShipmentContainersPage() {
 
   const detail = useCusDetail({
     page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
-    customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir,
+    customerId, direction, dispatchStatus, informationStatus, team, sortKey, sortDir,
   });
 
   /**
@@ -542,6 +550,9 @@ export default function ShipmentContainersPage() {
                     board's ribbon: it owns the CHỌN column's visibility and
                     the floating bar. */
                 <>
+                  {/* Ticket 18/11 Task 1.2 — CUS-only team switch, the twin
+                      of /shipments'. */}
+                  {isCus && <CusTeamVisibilityToggle checked={team} onChange={setTeam} />}
                   {canManageMerge && (
                     <LclMergeModeToggle
                       active={mergeMode}
@@ -603,7 +614,7 @@ export default function ShipmentContainersPage() {
         {detail.loading ? <ShipmentContainerLedgerSkeleton /> : detail.error ? null : items.length === 0 ? (
           <EmptyState illustration="/assets/illustrations/empty-container-search-v1.png" title={hasFilters ? 'Không có container phù hợp' : 'Chưa có container'} description={hasFilters ? 'Đổi hoặc xóa bộ lọc để xem lại công việc.' : 'Container của các lô hàng sẽ xuất hiện tại đây.'} action={hasFilters ? <UUIButton size="sm" color="secondary" onPress={resetFilters} iconLeading={<RotateCcw aria-hidden="true" />}>Xóa bộ lọc</UUIButton> : undefined} />
         ) : <>
-          <ShipmentContainerLedger rows={items} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} mergeMode={canManageMerge && mergeMode} selectedLotIds={selectedLotIds} onSelectLot={selectLot} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} onUpdateExternalPlate={canUpdatePlate ? updateExternalPlate : undefined} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} onCopyDeclaration={copyDeclaration} onCompleteExternalTrip={canCloseExternal ? completeExternalTrip : undefined} />
+          <ShipmentContainerLedger rows={items} showOwner={isCus && team} hiddenColumns={ledgerColumns.hidden} totalContainers={totalContainers} today={today} sort={sort} onSortChange={applySort} mergeMode={canManageMerge && mergeMode} selectedLotIds={selectedLotIds} onSelectLot={selectLot} footer={<Pagination page={page} totalPages={totalPages} pageSize={pageSize} pageSizeOptions={SHIPMENT_CUS_PAGE_SIZES} onPageSizeChange={(nextSize) => updateParam('limit', String(nextSize))} summary={<span className="ds-pagination__summary">Trang này có <b>{formatNumber(items.length)}</b> / <b>{formatNumber(totalContainers)}</b> container phù hợp</span>} onChange={(nextPage) => updateParam('page', String(nextPage))} />} onUpdateExternalPlate={canUpdatePlate ? updateExternalPlate : undefined} activeEdit={detail.activeEdit} editLoadingRowId={detail.editLoadingRowId} editError={detail.editError} onStartEdit={(row, mode, triggerId) => void detail.startEdit(row, mode, triggerId)} onCancelEdit={detail.cancelEdit} onSaveIdentity={detail.saveIdentity} onSaveDocuments={saveDocuments} onSaveContainer={detail.saveContainer} onSaveRoute={detail.saveRoute} onSaveVehicle={detail.saveVehicle} onSaveSchedule={detail.saveSchedule} onSaveNotes={detail.saveNotes} onCopyAppointment={copyAppointment} onCopyDeclaration={copyDeclaration} onCompleteExternalTrip={canCloseExternal ? completeExternalTrip : undefined} />
           {/* Spec 23/10 §2 — the Bottom Floating Bar (shared lcl-merge.css
               look): «Đang chọn N lô: Tổng X tấn | Y CBM — Lô 1 giữ 100% tiền
               thu khách…» + [Bỏ chọn] + [Gộp hàng] (opens the §4.2 popup).

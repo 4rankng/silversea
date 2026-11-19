@@ -56,12 +56,17 @@ export interface CusWorkspaceListParams {
   bucket: '' | ShipmentCusBucket;
   /** 20260917_12: 'true' = chỉ lệnh chạy ngoài, 'false' = chỉ luồng danh mục. */
   adHoc: '' | 'true' | 'false';
+  /**
+   * Ticket 18/11 Task 1.2 — nhóm CUS team visibility. Absent/false = mặc
+   * định chỉ lô của chính tài khoản CUS; true gửi `team=true` lên wire.
+   */
+  team?: boolean;
   sortKey: ShipmentCusWorkspaceSortKey | null;
   sortDir: 'asc' | 'desc';
 }
 
 export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetailId: number | null = null) {
-  const { page, pageSize, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, adHoc = '', sortKey, sortDir } = params;
+  const { page, pageSize, searchSuffix, transportDateFrom, transportDateTo, direction, bucket, adHoc = '', team = false, sortKey, sortDir } = params;
   const [notice, setNotice] = useState<string | null>(null);
   // Non-list errors (mutations, guards) still write imperatively; list-load
   // errors come from the query. Old code cleared the shared error state at
@@ -74,6 +79,10 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
   const idempotencyKeysRef = useRef<Record<string, string>>({});
 
   const listQuery = useQuery({
+    // keys.ts is another ticket's file (18/11 team work), so the team flag
+    // rides as an EXTRA key segment instead of joining the factory's filter
+    // object — identity stays distinct (team ON/OFF are two result sets) and
+    // qk.shipmentsCus.all prefix invalidation still matches.
     queryKey: qk.shipmentsCus.list({
       page,
       pageSize,
@@ -85,6 +94,7 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
       isAdHoc: adHoc === '' ? undefined : adHoc === 'true',
       sortBy: sortKey ?? undefined,
       sortDir: sortKey ? sortDir : undefined,
+      team,
     }),
     queryFn: () => listCusShipmentWorkspace({
       page,
@@ -95,6 +105,7 @@ export function useCusWorkspaceState(params: CusWorkspaceListParams, activeDetai
       direction: direction || undefined,
       bucket: bucket || undefined,
       isAdHoc: adHoc === '' ? undefined : adHoc === 'true',
+      team: team ? 'true' : undefined,
       sortBy: sortKey ?? undefined,
       sortDir: sortKey ? sortDir : undefined,
     }),

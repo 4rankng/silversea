@@ -521,6 +521,7 @@ export type { DriverIncidentalCostInput } from './schemas';
 
 export * from './schemas/treasury';
 export * from './schemas/shipment-debit-summary';
+export * from './schemas/debit-merge';
 export * from './schemas/shipment-debit-edits';
 export * from './schemas/shipment-debit-detail';
 

@@ -201,8 +201,8 @@ export default function CostReconciliationPage() {
               options={[{ value: '', label: 'Tất cả' }, ...EXPENSE_REVIEW_PROGRESS.map((value) => ({ value, label: PROGRESS_LABELS[value] }))]}
             />
             <UuiSelectField
-              label="Người thực chi"
-              ariaLabel="Người thực chi"
+              label="Người lập lệnh chi"
+              ariaLabel="Người lập lệnh chi"
               value={payerId}
               onChange={(event) => { setPayerId(event.target.value); setPage(1); setSelected(new Set()); }}
               options={[{ value: '', label: 'Tất cả' }, ...(catalog.data?.opsUsers ?? []).map((person) => ({ value: String(person.id), label: person.name }))]}
@@ -237,7 +237,7 @@ export default function CostReconciliationPage() {
         </div>
       )}
 
-      {costs.isPending && <SkeletonTable rows={5} cols={6} />}
+      {costs.isPending && <SkeletonTable rows={5} cols={10} />}
       {isEmptyResult && (
         <EmptyState
           variant="compact"
@@ -261,12 +261,14 @@ export default function CostReconciliationPage() {
                   />
                 </th>
                 <th>Lô hàng</th>
+                <th>Khách hàng / Nhà máy</th>
                 <th>Chi phí</th>
                 <th className="num">Số tiền</th>
                 <th>Chứng từ</th>
+                <th>Số tờ khai</th>
                 <th>Số HĐ</th>
                 <th>Trạng thái</th>
-                <th aria-label="Thao tác" />
+                <th>Ghi chú</th>
               </tr>
             </thead>
             <tbody>
@@ -388,10 +390,11 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
           <input type="checkbox" aria-label={`Chọn ${costFeeLabel(row, typeNameByCode)}`} checked={selected} onChange={onToggle} />
         )}
       </td>
-      <td data-label="Lô hàng">
+      <td data-label="Lô hàng">{row.shipmentCode}</td>
+      <td data-label="Khách hàng / Nhà máy">
         <div className="record-cell-stack">
-          <span>{row.shipmentCode}</span>
-          <small>{row.customerName}</small>
+          <span>{row.customerName}</span>
+          {row.factoryName && <small>{row.factoryName}</small>}
         </div>
       </td>
       <td data-label="Chi phí">
@@ -415,6 +418,7 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
           ? <StatusText variant="neutral">Chưa có ảnh</StatusText>
           : <StatusText variant="neutral">Đã có ảnh</StatusText>}
       </td>
+      <td data-label="Số tờ khai">{row.declarationNumber ?? '—'}</td>
       <td data-label="Số HĐ">
         {editable ? (
           <span className="cost-reconciliation-page__invoice">
@@ -429,22 +433,27 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
               <Btn variant="secondary" size="sm" disabled={confirming} onClick={() => onInvoice(invoiceDraft.trim())}>Lưu</Btn>
             )}
           </span>
-        ) : (row.invoiceNumber ?? '—')}
+        ) : (row.invoiceNumber ?? (row.noInvoice ? 'X' : '—'))}
       </td>
+      {/* 18/11 ticket 3.3 — the phiếu quyết toán number replaces the progress
+          word once the row is settled into a phiếu; until then the progress
+          label stays. Duyệt/Từ chối live in this cell so Ghi chú can be the
+          last column while the tick actions stay reachable. */}
       <td data-label="Trạng thái">
         <div className="record-cell-stack">
-          <StatusText variant={progressVariant(row.progress)}>{PROGRESS_LABELS[row.progress]}</StatusText>
+          {row.reconciliationCode
+            ? <StatusText variant="info">Số phiếu quyết toán: {row.reconciliationCode}</StatusText>
+            : <StatusText variant={progressVariant(row.progress)}>{PROGRESS_LABELS[row.progress]}</StatusText>}
           {row.confirmedAt && <small>{row.confirmedByName ?? '—'} · {formatDate(row.confirmedAt)}</small>}
+          {editable && (
+            <>
+              <Btn variant="primary" size="sm" disabled={confirming} onClick={onConfirm}>Xác nhận</Btn>
+              <Btn variant="secondary" size="sm" disabled={confirming} onClick={onReject}>Từ chối</Btn>
+            </>
+          )}
         </div>
       </td>
-      <td data-label="" className="record-table__action">
-        {editable ? (
-          <>
-            <Btn variant="primary" size="sm" disabled={confirming} onClick={onConfirm}>Xác nhận</Btn>
-            <Btn variant="secondary" size="sm" disabled={confirming} onClick={onReject}>Từ chối</Btn>
-          </>
-        ) : '—'}
-      </td>
+      <td data-label="Ghi chú">{row.note?.trim() || '—'}</td>
     </tr>
   );
 }

@@ -1,39 +1,52 @@
 /**
- * SIL-801 (id 927, QA 10/11, KB Ch1 §1.5.8 + Ch10 §10.8.3) — uncollected
- * receivables read warning amber on the Chi phí - Quyết toán board. The
- * TỔNG PHẢI THU KHÁCH figures (row cell, group subtotal, page foot) carry
- * `--warning-text` while known and non-zero; a settled 0 keeps its muted
- * ink, a pending figure keeps its blank cell, and the component money
- * columns never take the tone.
+ * SIL-801 — uncollected receivables wear the warning amber tone, on the
+ * REBUILT /shipments-debit grid (Task 2.3). The receivable column is now
+ * KIỂM SOÁT's 'Tổng TC' cell; the foot (totals row) carries the tone the
+ * same way. Laws pinned:
+ *  - a known non-zero receivable is amber on the row cell AND the foot;
+ *  - a settled 0 stays muted (never amber);
+ *  - a pending receivable is the BLANK cell — no tone, no fabricated 0;
+ *  - the amber ink is var(--warning-text) and the --warn rule sits AFTER the
+ *    base rule in the cascade (QA FAIL 1ae5afcb).
+ * The per-customer group subtotal band stays retired (SIL-837 flat law —
+ * carried into the grid: no group band exists at all).
  */
 import { render, screen } from '@testing-library/react';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBootstrap, listSummary } = vi.hoisted(() => ({
-  getBootstrap: vi.fn(), listSummary: vi.fn(),
+const { getBootstrap, listMerge, listSummary } = vi.hoisted(() => ({
+  getBootstrap: vi.fn(), listMerge: vi.fn(), listSummary: vi.fn(),
 }));
 const { authRole } = vi.hoisted(() => ({ authRole: { value: 'CUS' } }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: authRole.value } }) }));
 vi.mock('../api/tripClient', () => ({ tripClient: { getBootstrap } }));
-vi.mock('../api/shipmentClient', async (importOriginal) => ({
-  ...(await importOriginal()),
-  listShipmentDebitSummary: listSummary,
-  getShipmentDebitDetail: vi.fn(),
-  createDebitNoteBatch: vi.fn(),
-  exportDebitNoteFile: vi.fn(),
-}));
 vi.mock('../api/shipmentDebit', () => ({
-  createDebitNoteBatch: vi.fn(),
-  exportDebitNoteFile: vi.fn(),
+  listShipmentDebitSummary: listSummary,
+  listDebitMergeBoard: listMerge,
+  lockShipmentCost: vi.fn(),
+  debitMergeKeys: {
+    all: ['accounting-debit-merge'] as const,
+    board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
+  },
 }));
-vi.mock('../api/dispatchPlanningClient', async (importOriginal) => ({
-  ...(await importOriginal()),
+vi.mock('../api/shipmentClient', () => ({
+  getShipmentDebitDetail: vi.fn().mockResolvedValue({}),
+  lockShipmentCost: vi.fn(),
+  unlockShipmentCost: vi.fn(),
+  adjustShipmentCost: vi.fn(),
+  listShipmentCostAdjustments: vi.fn().mockResolvedValue([]),
+  listShipmentCostLockHistory: vi.fn().mockResolvedValue([]),
+  saveShipmentDebitEdits: vi.fn(),
+}));
+vi.mock('../api/accountingDebitClient', () => ({ createSettlementRound: vi.fn() }));
+vi.mock('../api/dispatchPlanningClient', () => ({
   mergeLclRevGroup: vi.fn(),
   unmergeLclLot: vi.fn(),
+  unmergeLclGroup: vi.fn(),
   updateLclTruck: vi.fn(),
   assignLclCostGroup: vi.fn(),
 }));
@@ -44,11 +57,11 @@ vi.mock('../hooks/useCatalogQueries', () => ({
 
 import { ToastProvider } from '../components/shared/Toast';
 import { ShipmentDebitPage } from './ShipmentDebitPage';
-import type { ShipmentDebitLotRow } from '../api/shipmentClient';
+import type { DebitMergeItem } from '../api/shipmentDebit';
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/shipments-debit?customer=1']} initialIndex={0}>
+    <MemoryRouter initialEntries={['/shipments-debit']} initialIndex={0}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <ToastProvider>
           <ShipmentDebitPage />
@@ -58,131 +71,113 @@ function renderPage() {
   );
 }
 
-const amberRow = (over: Partial<ShipmentDebitLotRow> = {}, shipmentId = 101): ShipmentDebitLotRow => ({
+const amberRow = (over: Partial<DebitMergeItem>, shipmentId = 101): DebitMergeItem => ({
   shipmentId,
   code: `SHP-26-0${shipmentId}`,
+  customerId: 1,
   customerName: 'KH A',
   factoryName: null,
-  factoryAddress: null,
+  routeName: null,
+  deliveryDate: null,
   billOrBookNumber: `BL-${shipmentId}`,
-  customsNumber: null,
-  documentsSummary: null,
-  freightAuto: null,
-  chiHoTotal: null,
-  receivableTotal: null,
-  payableTotal: null,
-  profit: null,
-  lockStatus: 'OPEN',
-  lockedAt: null,
-  cargoMode: 'LCL',
-  costGroupId: null,
-  costGroupOrder: null,
-  revGroupId: null,
-  revGroupMemberCount: null,
-  costGroupMemberCount: null,
-  revGroupPrincipalRef: null,
-  costGroupPrincipalRef: null,
-  actualTruckNo: null,
-  billingTruckNo: null,
-  costVehicleClassCode: null,
-  revVehicleClassCode: null,
-  revGroupOrder: null,
+  creatorName: null,
+  creatorCode: null,
+  containers: [],
+  revenue: { cuoc: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
+  chiHo: { csht: [], lift: [], drop: [], other: [] },
+  noInvoice: { gnOps: null, psOps: null, fees: [] },
+  control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null },
   ...over,
-  customerId: over.customerId ?? 1,
 });
+
+const cssSource = () =>
+  readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
 
 beforeEach(() => {
   authRole.value = 'CUS';
   sessionStorage.clear();
-  getBootstrap.mockReset();
-  getBootstrap.mockResolvedValue({ customers: [{ id: 1, name: 'KH A' }], trucks: [] });
+  localStorage.clear();
+  getBootstrap.mockReset().mockResolvedValue({ customers: [], trucks: [] });
+  listMerge.mockReset().mockResolvedValue({ items: [], total: 0 });
+  listSummary.mockReset().mockResolvedValue({ items: [], total: 0, excludedCount: 0, excludedSum: '0' });
 });
 
-describe('SIL-801 — uncollected receivables wear the warning amber tone', () => {
-  it('marks a known non-zero receivable amber on the row and the foot', async () => {
-    listSummary.mockResolvedValue({
-      items: [amberRow({ freightAuto: 10000000, receivableTotal: 306619500 })],
+describe('SIL-801 — Tổng TC chưa thu wears the warning amber tone', () => {
+  it('marks a known non-zero receivable amber on the row cell AND the foot', async () => {
+    listMerge.mockResolvedValue({
+      items: [amberRow({ revenue: { cuoc: '10000000', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '10000000' }, control: { tongTc: '306619500', lockStatus: 'OPEN', lockedAt: null } })],
       total: 1,
     });
     renderPage();
-    await screen.findAllByText('BL-101');
+    await screen.findByText('BL-101');
 
-    // Row cell: amber, and only the total column.
-    const warnCells = document.querySelectorAll('td.shipment-debit-money--warn');
+    const warnCells = document.querySelectorAll('td[data-col="tongTc"] .debit-merge-money__warn');
     expect(warnCells).toHaveLength(1);
-    expect(warnCells[0].getAttribute('data-col')).toBe('total');
     expect(warnCells[0].textContent).toContain('306.619.500');
-
-    // SIL-837 — the per-customer group subtotal band is retired (flat list);
-    // the page foot still carries the tone.
-    expect(document.querySelector('td.shipment-debit-group__sum--warn')).toBeNull();
-    const foot = document.querySelector('td.shipment-debit-totals__sum--warn');
-    expect(foot).toBeTruthy();
+    // The foot carries the tone on the same column.
+    const foot = document.querySelector('tfoot td[data-col="tongTc"]');
+    expect(foot?.classList.contains('debit-merge__totals-cell--warn')).toBe(true);
     expect(foot?.textContent).toContain('306.619.500');
+    // SIL-837 — no group subtotal surface survives anywhere.
+    expect(document.querySelector('[class*="group__sum"]')).toBeNull();
   });
 
   it('keeps a settled 0 receivable muted and the component columns neutral', async () => {
-    listSummary.mockResolvedValue({
+    listMerge.mockResolvedValue({
       items: [
-        amberRow({ freightAuto: 0, receivableTotal: 0 }),
-        amberRow({ freightAuto: 250000, receivableTotal: 250000 }, 102),
+        amberRow({ revenue: { cuoc: '0', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '0' }, control: { tongTc: '0', lockStatus: 'OPEN', lockedAt: null } }),
+        amberRow({ revenue: { cuoc: '250000', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '250000' }, control: { tongTc: '250000', lockStatus: 'OPEN', lockedAt: null } }, 102),
       ],
       total: 2,
     });
     renderPage();
-    await screen.findAllByText('BL-102');
+    await screen.findByText('BL-102');
 
-    // The zero row: its total cell has no warn class; the muted zero span.
-    const zeroRow = screen.getByText('BL-101').closest('tr')!;
-    const zeroTotal = zeroRow.querySelector('td[data-col="total"]')!;
-    expect(zeroTotal.classList.contains('shipment-debit-money--warn')).toBe(false);
-    expect(zeroTotal.querySelector('.shipment-debit-money__zero')).toBeTruthy();
-    // Freight column (250.000) never takes the tone — amber owns only the
-    // receivable total; exactly one warn cell on the board (row 102's total).
-    const freightCells = [...document.querySelectorAll('td.shipment-debit-money--warn')];
-    expect(freightCells).toHaveLength(1);
-    expect(freightCells[0].getAttribute('data-col')).toBe('total');
+    const zeroRow = document.querySelector('tr[data-shipment-id="101"]')!;
+    const zeroTotal = zeroRow.querySelector('td[data-col="tongTc"]')!;
+    expect(zeroTotal.querySelector('.debit-merge-money__warn')).toBeNull();
+    expect(zeroTotal.querySelector('.debit-merge-money__zero')).toBeTruthy();
+    // Amber owns only the receivable column — the Cước cell never takes it.
+    const allWarn = document.querySelectorAll('.debit-merge-money__warn');
+    expect(allWarn).toHaveLength(1);
+    expect(allWarn[0].closest('td')?.getAttribute('data-col')).toBe('tongTc');
   });
 
-  it('leaves a pending receivable as the blank cell - no tone, no fabricated 0', async () => {
-    listSummary.mockResolvedValue({
-      items: [amberRow({ freightAuto: null, receivableTotal: null })],
+  it('leaves a pending receivable as the blank cell — no tone, no fabricated 0', async () => {
+    listMerge.mockResolvedValue({
+      items: [amberRow({ control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null } })],
       total: 1,
     });
     renderPage();
-    await screen.findAllByText('BL-101');
+    await screen.findByText('BL-101');
 
-    const row = screen.getByText('BL-101').closest('tr')!;
-    const totalCell = row.querySelector('td[data-col="total"]')!;
-    expect(totalCell.classList.contains('shipment-debit-money--warn')).toBe(false);
+    const row = document.querySelector('tr[data-shipment-id="101"]')!;
+    const totalCell = row.querySelector('td[data-col="tongTc"]')!;
+    expect(totalCell.classList.contains('debit-merge-money__warn')).toBe(false);
     // Owner 24/10 law: the pending money cell renders empty, never '0 ₫'.
     expect(totalCell.textContent).toBe('');
-    // No warn on the foot either — and no group subtotal surface survives
-    // the SIL-837 flat list to carry one.
-    expect(document.querySelector('td.shipment-debit-group__sum--warn')).toBeNull();
-    expect(document.querySelector('td.shipment-debit-totals__sum--warn')).toBeNull();
+    expect(document.querySelector('tfoot td[data-col="tongTc"]')?.classList.contains('debit-merge__totals-cell--warn')).toBe(false);
+    expect(document.querySelector('tfoot td[data-col="tongTc"]')?.textContent).toBe('—');
   });
 
-  it('pins the amber ink on the --warning-text token in the stylesheet', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8')
-      // Comments carry the cascade-order rationale, not selectors.
-      .replace(/\/\*[\s\S]*?\*\//g, '');
-    expect(css).toMatch(/\.shipment-debit-money--warn\s*\{ color: var\(--warning-text\); \}/);
-    expect(css).toMatch(/\.shipment-debit-totals__sum--warn\s*\{ color: var\(--warning-text\); \}/);
+  it('pins the amber ink on the --warning-text token in the stylesheet (grid CSS)', () => {
+    const css = cssSource();
+    expect(css).toMatch(/\.debit-merge-money__warn\s*\{\s*color: var\(--warning-text\);/);
+    expect(css).toMatch(/\.debit-merge__totals-row td\.debit-merge__totals-cell--warn\s*\{\s*color: var\(--warning-text\);/);
   });
 
-  // QA FAIL 1ae5afcb (comment 5048): the amber rule originally lived BEFORE
-  // the base .shipment-debit-totals__sum rule — same specificity, so the
-  // later grey/black `color` won and the foot TỔNG CỘNG rendered without any
-  // amber tint while the row cells did. The --warn rule must appear AFTER
-  // its base rule in the stylesheet, or the tone silently dies again.
-  // (SIL-837: the group subtotal rules are gone with the flat list.)
-  it('keeps the foot amber rule AFTER its base rule in the cascade', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentDebitPage.css'), 'utf8');
-    // Non-vacuous: first assert each rule EXISTS (indexOf !== -1), then the
-    // order — a deleted base rule must fail this pin, not pass it.
-    expect(css.indexOf('.shipment-debit-totals__sum {')).toBeGreaterThan(-1);
-    expect(css.indexOf('.shipment-debit-totals__sum--warn')).toBeGreaterThan(-1);
-    expect(css.indexOf('.shipment-debit-totals__sum {')).toBeLessThan(css.indexOf('.shipment-debit-totals__sum--warn'));
+  // QA FAIL 1ae5afcb (comment 5048): the amber rule must appear AFTER its
+  // base rule in the stylesheet — same specificity, so the later rule wins;
+  // a reorder silently kills the tone.
+  it('keeps the amber rules AFTER their base rules in the cascade', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8');
+    expect(css.indexOf('.debit-merge-money__value')).toBeGreaterThan(-1);
+    expect(css.indexOf('.debit-merge-money__warn')).toBeGreaterThan(-1);
+    expect(css.indexOf('.debit-merge-money__value')).toBeLessThan(css.indexOf('.debit-merge-money__warn'));
+    expect(css.indexOf('.debit-merge__totals-row td.debit-merge__totals-cell {')).toBeGreaterThan(-1);
+    expect(css.indexOf('.debit-merge__totals-cell--warn')).toBeGreaterThan(-1);
+    expect(css.indexOf('.debit-merge__totals-row td.debit-merge__totals-cell {'))
+      .toBeLessThan(css.indexOf('.debit-merge__totals-cell--warn'));
   });
 });

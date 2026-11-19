@@ -1,64 +1,72 @@
 /**
- * Card 211026024348 (FB-093 follow-up) — "Tách nhóm" for a merged rev group
- * (Ghép cước thu khách) on Chi phí - Quyết toán. QA: after the merge
- * (Lô 1 = 100% CƯỚC VẬN TẢI AUTO, Lô 2..N = 0₫ + "Ghép xe cùng Bill [Lô 1]")
- * there was NO path to split the group again.
+ * card 211026024348 / FB-145 — "Tách nhóm" on /shipments-debit, after the
+ * Task 2.3 grid rebuild: the merged-lane MONEY laws (member 0₫ + tag, F-2
+ * reason) stay pinned on this surface by the f2-money / rev-merge-tag pins,
+ * but the SPLIT ACTION itself retired from the CUS surface with the old
+ * flat board's row menu. The unmerge channel (unmergeLclGroup REV, the
+ * promote-on-unmerge FB-095 law, the FB-145 skeleton/toast) remains live —
+ * pinned on the accountant board where the action now lives
+ * (AccountingDebitClosePage.tach-nhom.test.tsx).
  *
- * Pinned through the REAL page:
- *  - every merged row (principal + members) carries a real <button> named
- *    after its lot — aria-disabled + aria-describedby reason when the group
- *    is settled (the DisabledActionTip law; NEVER the `disabled` attribute),
- *    and the handler guards the click;
- *  - the click flow "2 lô merge → tách → tiền về": confirm on the SHARED
- *    dialog fires the EXISTING `unmergeLclGroup({ dimension: 'REV' })` and the
- *    refetched rows show each lot's pre-merge cước with the "Ghép cước cùng
- *    Bill" note shed;
- *  - promote-on-unmerge (FB-095) stays covered on the same surface: "Hủy ghép"
- *    of the principal names the Bill that inherits 100% of the cước thu.
+ * This file pins the retirement CONTRACT:
+ *  - the rebuilt /shipments-debit renders NO "Tách nhóm" action anywhere;
+ *  - the merge facts still READ from the wire (revGroupPrincipalRef-style
+ *    citations stay visible via the merge tag law, pinned separately);
+ *  - the CUS surface never regains a destructive group action silently.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBootstrap, listSummary, unmergeGroup, unmergeLot } = vi.hoisted(() => ({
+const { getBootstrap, listMerge, listSummary, unmergeGroup, unmergeLot } = vi.hoisted(() => ({
   getBootstrap: vi.fn(),
+  listMerge: vi.fn(),
   listSummary: vi.fn(),
   unmergeGroup: vi.fn(),
   unmergeLot: vi.fn(),
 }));
-vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'CUS' } }) }));
+const { authRole } = vi.hoisted(() => ({ authRole: { value: 'CUS' } }));
+vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: authRole.value } }) }));
 vi.mock('../api/tripClient', () => ({ tripClient: { getBootstrap } }));
-vi.mock('../api/shipmentClient', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../api/shipmentClient')>(),
-  listShipmentDebitSummary: listSummary,
-  getShipmentDebitDetail: vi.fn(),
-}));
 vi.mock('../api/shipmentDebit', () => ({
-  createDebitNoteBatch: vi.fn(),
-  exportDebitNoteFile: vi.fn(),
+  listShipmentDebitSummary: listSummary,
+  listDebitMergeBoard: listMerge,
+  lockShipmentCost: vi.fn(),
+  debitMergeKeys: {
+    all: ['accounting-debit-merge'] as const,
+    board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
+  },
 }));
-vi.mock('../api/dispatchPlanningClient', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../api/dispatchPlanningClient')>(),
-  unmergeLclGroup: unmergeGroup,
+vi.mock('../api/shipmentClient', () => ({
+  getShipmentDebitDetail: vi.fn().mockResolvedValue({}),
+  lockShipmentCost: vi.fn(),
+  unlockShipmentCost: vi.fn(),
+  adjustShipmentCost: vi.fn(),
+  listShipmentCostAdjustments: vi.fn().mockResolvedValue([]),
+  listShipmentCostLockHistory: vi.fn().mockResolvedValue([]),
+  saveShipmentDebitEdits: vi.fn(),
+}));
+vi.mock('../api/accountingDebitClient', () => ({ createSettlementRound: vi.fn() }));
+vi.mock('../api/dispatchPlanningClient', () => ({
+  mergeLclRevGroup: vi.fn(),
   unmergeLclLot: unmergeLot,
+  unmergeLclGroup: unmergeGroup,
+  updateLclTruck: vi.fn(),
+  assignLclCostGroup: vi.fn(),
 }));
-const truckClasses = [
-  { id: 5, code: '3.5T', name: 'Xe 3.5 tấn', isContainer: false, sortOrder: 1, deletedAt: null },
-];
 vi.mock('../hooks/useCatalogQueries', () => ({
-  useVehicleSizeClasses: () => ({ data: truckClasses, isLoading: false }),
+  useVehicleSizeClasses: () => ({ data: [], isLoading: false }),
   useTrucksAndDrivers: () => ({ data: { trucks: [], drivers: [] }, isLoading: false }),
 }));
 
 import { ToastProvider } from '../components/shared/Toast';
 import { ShipmentDebitPage } from './ShipmentDebitPage';
-import { formatMoney } from '../lib/format';
-import type { ShipmentDebitLotRow } from '../api/shipmentClient';
+import type { DebitMergeItem } from '../api/shipmentDebit';
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/shipments-debit?customer=1']} initialIndex={0}>
+    <MemoryRouter initialEntries={['/shipments-debit']} initialIndex={0}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <ToastProvider>
           <ShipmentDebitPage />
@@ -68,332 +76,62 @@ function renderPage() {
   );
 }
 
-const lclRow = (over: Partial<ShipmentDebitLotRow> = {}): ShipmentDebitLotRow => ({
-  shipmentId: 101,
-  code: 'SHP-26-0001',
-  customerId: over.customerId ?? 1,
+const row = (over: Partial<DebitMergeItem>, shipmentId = 101): DebitMergeItem => ({
+  shipmentId,
+  code: `SHP-26-0${shipmentId}`,
+  customerId: 1,
   customerName: 'KH A',
   factoryName: null,
-  factoryAddress: null,
-  billOrBookNumber: 'BL-1',
-  customsNumber: null,
-  documentsSummary: null,
-  freightAuto: null,
-  freightOverrideReason: null,
-  chiHoTotal: null,
-  receivableTotal: null,
-  payableTotal: null,
-  profit: null,
-  lockStatus: 'OPEN',
-  lockedAt: null,
-  cargoMode: 'LCL',
-  costGroupId: null,
-  costGroupOrder: null,
-  revGroupId: null,
-  revGroupOrder: null,
-  costGroupMemberCount: null,
-  revGroupMemberCount: null,
-  actualTruckNo: null,
-  billingTruckNo: null,
-  costVehicleClassCode: null,
-  revVehicleClassCode: null,
-  revGroupPrincipalRef: null,
-  costGroupPrincipalRef: null,
+  routeName: null,
+  deliveryDate: null,
+  billOrBookNumber: `BL-${shipmentId}`,
+  creatorName: null,
+  creatorCode: null,
+  containers: [],
+  revenue: { cuoc: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
+  chiHo: { csht: [], lift: [], drop: [], other: [] },
+  noInvoice: { gnOps: null, psOps: null, fees: [] },
+  control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null },
   ...over,
-} as ShipmentDebitLotRow);
-
-const summaryOf = (items: ShipmentDebitLotRow[]) => ({
-  items,
-  total: items.length,
-  excludedCount: 0,
-  excludedSum: '0',
-  excludedTrips: [],
 });
-
-/** The card's own QA state: Lô 1 = 100% cước (DOANH THU face), Lô 2 = 0₫ +
- *  note. Redesign 23/10: the freight story rides the Doanh thu column and the
- *  note rides its marker (title) — the wire law is unchanged. */
-const mergedPair = () => summaryOf([
-  lclRow({
-    billOrBookNumber: 'BL-1',
-    freightAuto: 3150000,
-    receivableTotal: 3150000,
-    revGroupId: 'g-rev-1',
-    revGroupOrder: 1,
-    revGroupMemberCount: 2,
-  }),
-  lclRow({
-    shipmentId: 102,
-    code: 'SHP-26-0002',
-    billOrBookNumber: 'BL-2',
-    freightAuto: 0,
-    receivableTotal: 0,
-    freightOverrideReason: 'Ghép cước cùng Bill BL-1',
-    revGroupId: 'g-rev-1',
-    revGroupOrder: 2,
-    revGroupMemberCount: 2,
-    revGroupPrincipalRef: 'BL-1',
-  }),
-]);
-
-/** Pre-merge face the server restores on tách nhóm (restoreRevPreMergeMoney). */
-const unmergedPair = () => summaryOf([
-  lclRow({ billOrBookNumber: 'BL-1', freightAuto: 3150000, receivableTotal: 3150000 }),
-  lclRow({
-    shipmentId: 102,
-    code: 'SHP-26-0002',
-    billOrBookNumber: 'BL-2',
-    freightAuto: 700000,
-    receivableTotal: 700000,
-  }),
-]);
 
 beforeEach(() => {
+  authRole.value = 'CUS';
   sessionStorage.clear();
-  getBootstrap.mockReset();
-  listSummary.mockReset();
-  unmergeGroup.mockReset();
-  unmergeLot.mockReset();
-  getBootstrap.mockResolvedValue({ customers: [{ id: 1, name: 'KH A' }], trucks: [] });
-  listSummary.mockResolvedValue(mergedPair());
+  localStorage.clear();
+  getBootstrap.mockReset().mockResolvedValue({ customers: [], trucks: [] });
+  listMerge.mockReset().mockResolvedValue({ items: [], total: 0 });
+  listSummary.mockReset().mockResolvedValue({ items: [], total: 0, excludedCount: 0, excludedSum: '0' });
 });
 
-describe('card 211026024348 — nút "Tách nhóm" cho nhóm Ghép cước thu khách', () => {
-  /** Redesign 23/10 — the tách nhóm action rides the row's ⋯ kebab menu. */
-  const openTachNhom = async (label: string) => {
-    const row = screen.getAllByText(label)[0].closest('tr')!;
-    fireEvent.click(within(row).getByRole('button', { name: `Hành động lô ${label}` }));
-    return screen.findByRole('button', { name: `Tách nhóm ghép cước thu khách — lô ${label}` });
-  };
-
-  it('mỗi dòng trong nhóm mang <button> thật "Tách nhóm" (qua menu ⋯); dòng thường thì không', async () => {
-    listSummary.mockResolvedValue(summaryOf([
-      ...mergedPair().items,
-      lclRow({ shipmentId: 103, code: 'SHP-26-0003', billOrBookNumber: 'BL-3', freightAuto: 900000 }),
-    ]));
-    renderPage();
-    await screen.findAllByText('BL-1');
-
-    const principal = await openTachNhom('BL-1');
-    expect(principal.tagName).toBe('BUTTON');
-    // Ungated: no aria-disabled, no description.
-    expect(principal.getAttribute('aria-disabled')).toBeNull();
-    expect(principal.getAttribute('aria-describedby')).toBeNull();
-    // A lot outside a rev group has no tách item at all.
-    fireEvent.click(screen.getByRole('button', { name: 'Hành động lô BL-3' }));
-    expect(await screen.findByRole('menu')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-3' })).toBeNull();
-  });
-
-  // SIL-538 (PRD 261023110000 §4.2) — the merged row's own merge tag opens a
-  // popover hosting [Tách nhóm] DIRECTLY on the row (no kebab detour).
-  it('SIL-538: tag "Ghép (n/N)" trên dòng đã gộp mở popover Tách nhóm trực tiếp', async () => {
-    renderPage();
-    await screen.findAllByText('BL-1');
-
-    // Each merged row carries the tag button (Lô 1 and Lô 2 alike).
-    const row1 = screen.getAllByText('BL-1')[0].closest('tr')!;
-    const tag = within(row1).getByRole('button', { name: 'Nhóm ghép của lô BL-1 — mở tách nhóm' });
-    expect(tag.textContent).toBe('Ghép (1/2)');
-
-    fireEvent.click(tag);
-    const tach = await screen.findByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' });
-    fireEvent.click(tach);
-    // The action's own confirm dialog opens — money law unchanged.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
-    await waitFor(() => expect(unmergeGroup).toHaveBeenCalledWith({ groupId: 'g-rev-1', dimension: 'REV' }));
-  });
-
-  it('nhóm đã chốt kế toán: aria-disabled + lý do qua aria-describedby, click bị guard (không mở dialog)', async () => {
-    listSummary.mockResolvedValue(summaryOf([lclRow({
-      billOrBookNumber: 'BL-1',
-      freightAuto: 3150000,
-      receivableTotal: 3150000,
-      lockStatus: 'LOCKED',
-      lockedAt: '2026-10-20T10:00:00.000Z',
-      revGroupId: 'g-rev-1',
-      revGroupOrder: 1,
-      revGroupMemberCount: 2,
-    })]));
-    renderPage();
-    await screen.findAllByText('BL-1');
-
-    const button = await openTachNhom('BL-1');
-    expect(button.getAttribute('aria-disabled')).toBe('true');
-    expect(button.hasAttribute('disabled')).toBe(false);
-    const describedBy = button.getAttribute('aria-describedby');
-    expect(describedBy).toBeTruthy();
-    expect(document.getElementById(describedBy!)?.textContent)
-      .toContain('Nhóm ghép đã chốt kế toán — không thể tách nhóm.');
-
-    fireEvent.click(button);
-    expect(screen.queryByRole('dialog')).toBeNull();
-  });
-
-  it('click flow: 2 lô merge → Tách nhóm → tiền về lại từng lô, ghi chú ghép được dọn', async () => {
-    listSummary.mockResolvedValueOnce(mergedPair()).mockResolvedValueOnce(unmergedPair());
-    renderPage();
-    await screen.findAllByText('BL-2');
-    // Pre-tách face: Lô 1 = 100% cước, Lô 2 = 0₫ + the tag (REV2: one merged
-    // tag on the freight cell, full reason in its title).
-    const bl2Pre = screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row') as HTMLElement;
-    expect(within(bl2Pre).getByTitle('Ghép cước cùng Bill BL-1')).toBeTruthy();
-    expect(within(bl2Pre).getAllByTitle('Phát sinh nhưng tổng bằng 0').length).toBeGreaterThan(0);
-
-    const tach = await openTachNhom('BL-2');
-    fireEvent.click(tach);
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog.textContent).toContain('cước thu của từng lô trở về giá trước khi ghép');
-
-    unmergeGroup.mockResolvedValue({
-      dimension: 'REV',
-      groupId: 'g-rev-1',
-      memberCount: 2,
-      members: [
-        { shipmentId: 101, order: 1, reference: 'BL-1' },
-        { shipmentId: 102, order: 2, reference: 'BL-2' },
+describe('Tách nhóm on /shipments-debit — retirement contract after Task 2.3', () => {
+  it('the rebuilt surface renders NO "Tách nhóm" action, even for a merged rev group', async () => {
+    listMerge.mockResolvedValue({
+      items: [
+        row({ shipmentId: 201, billOrBookNumber: 'BL-P', revGroupId: 'rev-1', revGroupOrder: 1, revGroupMemberCount: 2, revenue: { cuoc: '3000000', cuocReason: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: '3000000' } }),
+        row({ shipmentId: 202, billOrBookNumber: 'BL-M', revGroupId: 'rev-1', revGroupOrder: 2, revGroupMemberCount: 2, revenue: { cuoc: '0', cuocReason: 'Ghép cước cùng Bill BL-P', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '0' } }),
       ],
-      dissolved: true,
+      total: 2,
     });
-    // The menu-less confirm shares the action's text — the LAST match once
-    // the dialog is open is the confirm.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
+    renderPage();
+    await screen.findByText('BL-M');
 
-    await waitFor(() => expect(unmergeGroup).toHaveBeenCalledWith({ groupId: 'g-rev-1', dimension: 'REV' }));
-    // The refetch (onUnmerged) re-reads the board: each lot's own cước is back.
-    await waitFor(() => expect(listSummary.mock.calls.length).toBeGreaterThanOrEqual(2));
-    // REV2: the restored cước rides BOTH the freight cell and the Tổng phải
-    // thu cell — assert presence, not uniqueness.
-    expect((await screen.findAllByText(formatMoney(700000))).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(formatMoney(3150000)).length).toBeGreaterThan(0);
-    // The "Ghép cước cùng Bill" marker is shed from the BL-2 row.
-    const bl2Row = (await screen.findAllByText('BL-2'))[0]!.closest('.shipment-debit-row')!;
-    expect(bl2Row).not.toBeNull();
-    expect(bl2Row.querySelector('[title="Ghép cước cùng Bill BL-1"]')).toBeNull();
+    expect(screen.queryByText('Tách nhóm')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Tách nhóm/ })).toBeNull();
+    // No unmerge call may fire from this surface.
+    expect(unmergeGroup).not.toHaveBeenCalled();
+    expect(unmergeLot).not.toHaveBeenCalled();
   });
 
-  it('cover promote-on-unmerge (FB-095 + spec 23/10 §4.2): Hủy ghép Lô 1 → Lô 2 thành Lô chính và nhận 100% cước thu nhóm', async () => {
-    listSummary.mockResolvedValue(summaryOf([lclRow({
-      billOrBookNumber: 'BL-1',
-      freightAuto: 3150000,
-      receivableTotal: 3150000,
-      revGroupId: 'g-rev-1',
-      revGroupOrder: 1,
-      revGroupMemberCount: 2,
-    })]));
+  it('the merged lane still READS: member 0₫ + tag (money laws pinned by f2-money / rev-merge-tag)', async () => {
+    listMerge.mockResolvedValue({
+      items: [row({ revGroupId: 'rev-1', revGroupOrder: 2, revGroupMemberCount: 2, control: { tongTc: '0', lockStatus: 'OPEN', lockedAt: null }, revenue: { cuoc: '0', cuocReason: 'Ghép cước cùng Bill BL-9', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '0' } })],
+      total: 1,
+    });
     renderPage();
-    await screen.findAllByText('BL-1');
-
-    // The per-lot exit lives on the REV2 Chốt-giá-bán drawer (opened from the
-    // kebab) — its DebitLotLclFacts strip carries the Hủy ghép button.
-    fireEvent.click(screen.getByRole('button', { name: 'Hành động lô BL-1' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Mở chi tiết lô BL-1' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Hủy ghép' }));
-    // REV2: the drawer (Chốt giá bán — BL-1) and the strip's shared confirm
-    // are both open — assert the CONFIRM by its own accessible name.
-    expect(screen.getByRole('dialog', { name: 'Chốt giá bán — BL-1' })).toBeTruthy();
-    expect(screen.getByRole('dialog', { name: 'Xác nhận thao tác' })).toBeTruthy();
-
-    // Spec 23/10: inside a rev group Lô 1 holds 100% — the crown takes the
-    // money with it (money conserved on the promoted lot).
-    unmergeLot.mockResolvedValue({
-      dimension: 'REV',
-      groupId: 'g-rev-1',
-      leaver: { shipmentId: 101, order: 1, reference: 'BL-1' },
-      promoted: { shipmentId: 102, order: 1, reference: 'BL-2' },
-      transferredAmount: '3150000',
-      remaining: [],
-      dissolved: true,
-    });
-    const confirm = screen.getAllByRole('button', { name: 'Hủy ghép' }).at(-1)!;
-    fireEvent.click(confirm);
-
-    await waitFor(() => expect(unmergeLot).toHaveBeenCalledWith({ shipmentId: 101, dimension: 'REV' }));
-    expect(await screen.findByText(/Bill BL-2 thành Lô chính và nhận 100% cước thu nhóm/)).toBeTruthy();
-  });
-});
-
-// ─── FB-145 (card 231026163927, QA R39 + design direction 24/10) ─────────────
-
-describe('FB-145 — Tách nhóm: skeleton cell cước + toast [Hoàn tác] re-merge', () => {
-  it('ngay sau khi tách: cell tiền pending tới khi bảng mới về — không vẽ lại 0₫ stale', async () => {
-    let releaseRefetch: ((value: ReturnType<typeof summaryOf>) => void) | null = null;
-    listSummary.mockResolvedValueOnce(mergedPair());
-    // The refresh hangs until the test releases it — the pending window is
-    // observable.
-    listSummary.mockImplementationOnce(() => new Promise((resolve) => { releaseRefetch = resolve; }));
-    renderPage();
-    await screen.findAllByText('BL-2');
-
-    const tach = await screen.findByRole('button', { name: 'Hành động lô BL-2' });
-    fireEvent.click(tach);
-    fireEvent.click(await screen.findByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
-    await screen.findByRole('dialog');
-    unmergeGroup.mockResolvedValue({
-      dimension: 'REV', groupId: 'g-rev-1', memberCount: 2,
-      members: [
-        { shipmentId: 101, order: 1, reference: 'BL-1' },
-        { shipmentId: 102, order: 2, reference: 'BL-2' },
-      ],
-      dissolved: true, vehicleClassId: 21,
-    });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
-
-    await waitFor(() => expect(unmergeGroup).toHaveBeenCalled());
-    // FB-145 (redesign 23/10 face), 24/10 blank-pending law: while the
-    // refresh is in flight the REV2 freight cell reads EMPTY — the pre-tách
-    // 0₫ must never repaint, and no pill stands in for data.
-    await waitFor(() => {
-      const bl2Cell = (screen.getAllByText('BL-2')[0]!.closest('.shipment-debit-row')!)
-        .querySelector('td[data-col="freight"]')!;
-      expect(bl2Cell.textContent).toBe('');
-    });
-
-    // Release: the fresh board lands, the restored cước renders.
-    releaseRefetch!(unmergedPair());
-    expect((await screen.findAllByText(formatMoney(700000))).length).toBeGreaterThan(0);
-  });
-
-  it('toast [Hoàn tác]: bấm trong cửa sổ 5–8s → re-merge đúng thứ tự + loại xe nhóm', async () => {
-    const { mergeLclRevGroup } = await import('../api/dispatchPlanningClient');
-    const mergeSpy = vi.spyOn({ mergeLclRevGroup }, 'mergeLclRevGroup');
-    // The REAL page module already closed over the client module — spy on its
-    // method instead of re-mocking (the module mock above spreads the
-    // original, so the function identity is shared).
-    const client = await import('../api/dispatchPlanningClient');
-    const realMerge = client.mergeLclRevGroup;
-    const mergeMock = vi.fn().mockResolvedValue({ groupId: 'g-rev-2', memberCount: 2, members: [] });
-    client.mergeLclRevGroup = mergeMock as unknown as typeof client.mergeLclRevGroup;
-
-    listSummary.mockResolvedValueOnce(mergedPair()).mockResolvedValue(unmergedPair());
-    renderPage();
-    await screen.findAllByText('BL-2');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Hành động lô BL-2' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-2' }));
-    await screen.findByRole('dialog');
-    unmergeGroup.mockResolvedValue({
-      dimension: 'REV', groupId: 'g-rev-1', memberCount: 2,
-      members: [
-        { shipmentId: 101, order: 1, reference: 'BL-1' },
-        { shipmentId: 102, order: 2, reference: 'BL-2' },
-      ],
-      dissolved: true, vehicleClassId: 21,
-    });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Tách nhóm' }).at(-1)!);
-
-    await waitFor(() => expect(unmergeGroup).toHaveBeenCalled());
-    // The FB-145 toast: success + a live [Hoàn tác] action.
-    expect(await screen.findByText('Đã tách nhóm cước thành công')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Hoàn tác' }));
-
-    await waitFor(() => expect(mergeMock).toHaveBeenCalledWith({
-      shipmentIds: [101, 102],
-      vehicleSizeClassId: 21,
-    }));
-    expect(await screen.findByText('Đã gộp lại nhóm cước thu khách')).toBeTruthy();
-
-    client.mergeLclRevGroup = realMerge;
-    mergeSpy.mockRestore();
+    await screen.findByText('BL-101');
+    const cell = document.querySelector('td[data-col="cuoc"]')!;
+    expect(cell.textContent).toContain('0');
+    expect(cell.querySelector('.debit-merge-money__mergetag')).toBeTruthy();
   });
 });

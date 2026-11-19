@@ -8,6 +8,8 @@ import { resolveAuditEvent } from './audit-registry';
 import { AuditEvent } from './audit-types';
 import type { AuditPayload } from './audit-types';
 import type { AuditEventType } from './audit-types';
+import type { AuditFieldChange } from './audit-types';
+import { readShipmentAuditFieldChanges } from './shipment-audit-diff.service';
 import type { Request, Response } from 'express';
 
 export interface AuditEntry extends AuditPayload {
@@ -176,6 +178,8 @@ export function buildAuditMetadata(args: {
   body?: Record<string, unknown> | null;
   materialWriteEndpoint?: string | null;
   idempotencyKeyPresent?: boolean;
+  /** Field-level old→new diff captured inside the write transaction (shipment-audit-diff). */
+  changes?: AuditFieldChange[] | null;
 }) {
   return {
     method: args.req.method,
@@ -186,6 +190,13 @@ export function buildAuditMetadata(args: {
     materialWriteEndpoint: args.materialWriteEndpoint ?? undefined,
     body: sanitizeAuditBody((args.req.body as Record<string, unknown>) ?? {}),
     error: typeof args.body?.error === 'string' ? args.body.error : undefined,
+    // Actor transparency (ticket 18/11 AC): a teammate-on-behalf write must be
+    // indistinguishable in SHAPE from an owner write — same fields, and the
+    // role/name riding the payload prove WHO acted regardless of who owns the lot.
+    actorId: args.req.user?.userId,
+    actorRole: args.req.user?.role,
+    actorName: args.req.user?.fullName ?? args.req.user?.username ?? undefined,
+    ...(args.changes && args.changes.length > 0 ? { changes: args.changes } : {}),
   };
 }
 
@@ -280,6 +291,7 @@ export async function persistMaterialWriteSuccessAuditInTransaction(args: {
       body: args.responseBody,
       materialWriteEndpoint: context.resolvedMaterialWriteEndpoint ?? context.declaredMaterialWriteEndpoint,
       idempotencyKeyPresent: true,
+      changes: readShipmentAuditFieldChanges(context.res.locals),
     }),
   } as const;
 

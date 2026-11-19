@@ -13,15 +13,15 @@ const tsx = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-pl
  * body (--mpg-row-h: 96px + overflow hidden). That fixed-height tower is what
  * the owner rejected on 23/10 as "row cao trống rỗng": every ordinary lot
  * rendered a 96px tower regardless of its content. The superseding law:
- * rows size to their CLAMPED content (70-93px) — every value line is ONE
- * nowrap ellipsized line (title carries the full value), and the body clamps
- * at the 93px row budget so a pathological lot (5+ schedule blocks) clips
- * instead of inflating the row. The <640px surface is the phone card list,
+ * rows size to their content — every value line reads WHOLE: ticket 18/11
+ * (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes the 23/10 one-line ellipsis
+ * law and the 77px body clamp (data lines WRAP; row height grows with
+ * wrapped content — intended). The <640px surface is the phone card list,
  * not a td-grid band.
  *
  * These pins guard the contract, not the numbers: a future edit that drops
- * the body wrapper, removes the clamp, or reintroduces a fixed-height
- * tower restores the defect class.
+ * the body wrapper, reintroduces a clamp/ellipsis on a data line, or
+ * restores a fixed-height tower restores the defect class.
  */
 describe('MasterPlanGrid content-sized row contract (owner redesign 23/10; supersedes the FB-043 fixed tower)', () => {
   it('every table cell wraps its content in the shared row body', () => {
@@ -33,16 +33,20 @@ describe('MasterPlanGrid content-sized row contract (owner redesign 23/10; super
     expect(bodies.length).toBe(cells.length);
   });
 
-  it('sizes each body to its content and clamps at the 93px row budget — no fixed-height tower', () => {
+  it('sizes each body to its content with no reading clamp — no fixed-height tower', () => {
     // Anchored at line start so the select-cell's `--select .master-plan-grid__cell-body`
     // override (flex centering) cannot shadow the base rule.
     const body = css.match(/(^|\n)\.master-plan-grid__cell-body \{([\s\S]*?)\n\}/)?.[2] ?? '';
     expect(body, 'the base cell-body rule must exist').toBeTruthy();
     // Content-sized grid stack (detailed-plan pattern), never a fixed height.
+    // ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes the 77px
+    // reading clamp: wrapped NHÀ MÁY / TUYẾN / CẢNG NÂNG-HẠ / GHI CHÚ content
+    // must show, so the body carries NO max-height and NO overflow — the row
+    // grows with its wrapped content (intended).
     expect(body).toMatch(/display:\s*grid/);
     expect(body).toMatch(/align-content:\s*start/);
-    expect(body).toMatch(/max-height:\s*77px/);
-    expect(body).toMatch(/overflow:\s*hidden/);
+    expect(body).not.toMatch(/max-height/);
+    expect(body).not.toMatch(/overflow:\s*hidden/);
     // The FB-043 fixed tower is dead: no row-height variable anywhere.
     expect(css).not.toMatch(/--mpg-row-h/);
     // No desktop/card container bands remain — the phone surface is the
@@ -51,12 +55,19 @@ describe('MasterPlanGrid content-sized row contract (owner redesign 23/10; super
     expect(css).not.toContain('@container (max-width: 900px)');
   });
 
-  it('holds value lines to one ellipsized line; the action triggers never give ground', () => {
+  it('lets value lines wrap fully — data cells never ellipsise (ticket 18/11); the action triggers never give ground', () => {
     const line = css.match(/\.master-plan-grid__line \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    // Column starvation can no longer re-wrap a value into a taller row —
-    // one nowrap ellipsized line per fact, the full value in title.
-    expect(line).toMatch(/white-space:\s*nowrap/);
-    expect(line).toMatch(/text-overflow:\s*ellipsis/);
+    // ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes the 23/10
+    // one-line ellipsis law (and this suite's former nowrap/ellipsis pin at
+    // the same rule): NHÀ MÁY ('ASKEY-XUON'), TUYẾN ('KCN VÂN TRUNG, BẮC
+    // GI'), CẢNG NÂNG/HẠ ('Cảng Lạch Hu') and GHI CHÚ ('OPS: làm hàng luồ')
+    // wrap fully — no ellipsis, no clip, on any data line. The line's title
+    // (set in the component) stays as a bonus, never the carrier. The
+    // HEADER law is untouched: the ≥1440 band keeps th nowrap (SIL-698).
+    expect(line).toMatch(/white-space:\s*normal/);
+    expect(line).not.toMatch(/white-space:\s*nowrap/);
+    expect(line).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(css).toMatch(/@media \(min-width: 1440px\)[\s\S]*?\.master-plan-grid thead th\s*\{[^}]*white-space:\s*nowrap/);
     // The "Chi tiết" / "Xem thêm" affordances keep their own line.
     expect(css).toMatch(/\.master-plan-grid__container-detail-trigger,\s*\n\.master-plan-grid__note-detail-trigger \{[\s\S]*?flex:\s*0 0 auto/);
   });
@@ -82,16 +93,17 @@ describe('MasterPlanGrid content-sized row contract (owner redesign 23/10; super
     expect(css).toMatch(/\.mpcard-list\s*\{/);
   });
 
-  it('SIL-581 the warning line wraps and its cell lifts the clamp — a warning never ellipsises', () => {
+  it('SIL-581 the warning line wraps — and with the clamp gone (ticket 18/11) no lift is needed', () => {
     // The 101px schedule slot at 768 ellipsised "Cảnh báo: Còn 1/1 cont chưa
-    // chốt ngày đóng trả" to "Cảnh báo: Còn…". A warning's meaning must be
-    // readable (§4 no-truncation doctrine on a status line), so the line
-    // wraps and the 77px body clamp lifts for warning cells — the same
-    // escape the transient notes editor already takes.
+    // chốt ngày đóng trả" to "Cảnh báo: Còn…". ticket 18/11 (spec Chương 4
+    // §4.1.3 cấm cắt chữ) supersedes the one-line law on ALL data lines, so
+    // every line wraps and the 77px body clamp is gone — the SIL-581
+    // warning-only :has clamp lift is retired with the clamp it lifted.
+    // A warning's meaning must stay readable (§4 doctrine on a status line).
     const warn = css.match(/\.master-plan-grid__line--warning\s*\{[^}]*\}/)?.[0] ?? '';
     expect(warn, 'warning rule exists').not.toBe('');
     expect(warn).toMatch(/white-space:\s*normal;/);
     expect(warn).not.toMatch(/text-overflow:\s*ellipsis/);
-    expect(css).toMatch(/\.master-plan-grid__cell-body:has\(> \.master-plan-grid__line--warning\)\s*\{[^}]*max-height:\s*none;[^}]*overflow:\s*visible;/);
+    expect(css).not.toMatch(/\.master-plan-grid__cell-body:has\(> \.master-plan-grid__line--warning\)/);
   });
 });

@@ -71,6 +71,12 @@ vi.mock('../../api/phoiPhieuClient', () => ({
       liftSite: 'Đình Vũ', dropSite: 'Quảng Ninh', plateNumber: '29K-678.90', driverName: 'Thắng',
       departureDate: '2026-09-22T00:00:00.000Z', transportDate: '2026-09-22', tripStatus: 'COMPLETED',
       chiHoThu: 1_350_000, chiHoTra: 1_350_000, tienDuong: 2_000_000,
+      // Ticket 18/11 Task 3.1d — the Số-HĐ cell is the board's chi-hộ carrier:
+      // two fee lines so the atomic-line law has a real surface to pin.
+      chiHoRows: [
+        { entryId: 9001, feeName: 'Phí nâng hạ', invoiceNumber: '339IVN0130626' },
+        { entryId: 9002, feeName: 'Phí hạ cont', invoiceNumber: null },
+      ],
       eligibleIn: 1, eligibleOut: 0,
       cusDispatchNotes: [], driverNote: null, confirmable: true,
     },
@@ -198,13 +204,29 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     expect(chiHo.textContent.trim()).toBe('');
   });
 
-  it('renders chi hộ phải thu / phải trả as atomic lines (no ragged mid-token wrap)', async () => {
+  it('renders chi hộ entries as atomic lines in the Số-HĐ cell (ticket 18/11 Task 3.1d moved the values here — same atomic-line law)', async () => {
     renderBoard();
-    const row = await findRow('BILL-001');
-    const lines = within(row).getAllByText((content, element) => element?.classList.contains('ppc-line') ?? false);
-    expect(lines.length).toBeGreaterThanOrEqual(2);
-    expect(within(row).getByText(/Phải thu:/)).toBeTruthy();
-    expect(within(row).getByText(/Phải trả:/)).toBeTruthy();
+    const row = await findRow('BILL-002');
+    // The duplicate 'Chi hộ (thu / trả)' cell is gone; its atomic-line law
+    // (one block per chi-hộ entry, never a ragged mid-token wrap) rides the
+    // Số-HĐ cell's .ppc-invoice-line stack now, and the row-detail summary
+    // keeps 'Chi hộ phải thu' / 'Chi hộ phải trả' as whole-value facts.
+    const cell = row.querySelector('td.ppc-col--hoadon') as HTMLElement;
+    expect(cell).toBeTruthy();
+    const lines = cell.querySelectorAll('.ppc-invoice-line');
+    expect(lines.length).toBe(2);
+    for (const line of lines) {
+      // One atomic line per entry: the fee label and the Số-HĐ input sit in
+      // the line's own block, never merged into a ragged run.
+      expect(line.querySelector('.ppc-invoice-fee')).toBeTruthy();
+      expect(line.querySelector('.ppc-invoice-input')).toBeTruthy();
+    }
+    expect(within(cell).getByText('Phí nâng hạ')).toBeTruthy();
+    expect(within(cell).getByText('Phí hạ cont')).toBeTruthy();
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/accounting/PhoiPhieuControlPage.css'), 'utf8');
+    expect(css).toMatch(/\.ppc-invoice-line \{ margin-bottom: 4px; \}/);
+    expect(css).toMatch(/\.ppc-invoice-fee \{ display: block; \}/);
+    expect(css).toMatch(/\.ppc-board \.ppc-line \{ display: block; \}/);
   });
 
   it('date cells carry the atomic nowrap column class (no mid-number fracture like 22/09/202 6)', async () => {

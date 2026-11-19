@@ -86,21 +86,18 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     expect(col?.cell.toString()).toContain('Tổng trả');
   });
 
-  it('SIL-772 — the nth-child track shares map onto the CURRENT column order', () => {
-    // The fixed grid keys its nine widths on header position (same-class
+  it('SIL-772 + ticket 18/11 Task 2.2b — the nth-child track shares map onto the CURRENT column order', () => {
+    // The fixed grid keys its ten widths on header position (same-class
     // columns carry different shares), so a silent BOARD_COLUMNS reorder
     // would migrate widths to the wrong groups. Pin the mapping itself:
     // position i must still be the key this width was measured for.
-    const expectedOrder = ['lo', 'hangHoaCont', 'phuongTien', 'cucPhaiThu', 'tongThu', 'cucPhaiTra', 'tongTraChiPhiNgoai', 'loiNhuan', 'ghiChuDoiSoat'];
+    const expectedOrder = ['lo', 'soBillBook', 'hangHoaCont', 'phuongTien', 'cucPhaiThu', 'tongThu', 'cucPhaiTra', 'tongTraChiPhiNgoai', 'loiNhuan', 'ghiChuDoiSoat'];
     expect(BOARD_COLUMNS.map((candidate) => candidate.key)).toEqual(expectedOrder);
-    // SIL-964 (QA FAIL 18/11, build 6bae7153): an 18-char lot code
-    // (R4B-A14-EMPTY-8F29) still overflowed the 14% track by 14px at the
-    // 1142px open-sidebar canvas — r2 measured 16-char codes only. The Lô
-    // track now takes 16% (≈183px — holds the checkbox + an 18-char code
-    // one font step down with gap ≥ 0) funded −1% each from the two 13%
-    // money tracks (every money track stays ≥10% ≈114px, the r1 floor).
-    // Same assertion, new measured numbers.
-    const expectedShares = [16, 10, 10, 12, 10, 12, 10, 10, 10];
+    // Ticket 18/11 Task 2.2b: 'Số Bill/Book' becomes its own track after Lô.
+    // Budget rebalance: Lô 14% (≈159px at the 1142px canvas — the SIL-964
+    // 18-char long face keeps its gap), money tracks keep the SIL-835 floor
+    // (≥10% ≈114px), and Bill/Cont/PT/Ghi chú take 9% each to fund it.
+    const expectedShares = [14, 9, 9, 9, 12, 10, 12, 10, 10, 9];
     expectedOrder.forEach((key, index) => {
       expect(css).toContain(`.debit-board thead th:nth-child(${index + 1}) { width: ${expectedShares[index]}%; }`);
     });

@@ -296,41 +296,42 @@
   cursor: auto;
 }
 
+/* ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes the cell-level
+   clip: NHÀ MÁY, TUYẾN, CẢNG NÂNG/HẠ and GHI CHÚ wrap fully, so the td no
+   longer hides overflow. Headers keep their own law (SIL-698 thead rules). */
 .master-plan-grid__cell {
   padding: 8px 12px;
   vertical-align: top;
   border-bottom: 1px solid var(--line);
   color: var(--fg-2);
   min-width: 0;
-  overflow: hidden;
 }
 
 /* ── Owner redesign 23/10 — the compact content-sized row (detailed-plan
    pattern). The FB-043 fixed-height body (the 96px row budget + overflow
    hidden) is what made the "row cao trống rỗng" tower the owner rejected:
-   it is GONE. Rows now size to their clamped content (~70-93px): every value
-   line is ONE nowrap ellipsized line (title carries the full value — the
-   sanctioned tooltip fallback), and the body clamps at the 93px row budget
-   (93 − 16px cell padding) so a pathological lot (5+ schedule blocks) clips
-   instead of inflating the row; the cell title keeps the clipped facts one
-   hover away. */
+   it is GONE. Rows size to their content. ticket 18/11 (spec Chương 4
+   §4.1.3 cấm cắt chữ) supersedes the 23/10 77px reading clamp: NHÀ MÁY
+   ('ASKEY-XUON'), TUYẾN ('KCN VÂN TRUNG, BẮC GI'), CẢNG NÂNG/HẠ ('Cảng Lạch
+   Hu') and GHI CHÚ ('OPS: làm hàng luồ') wrap fully, so the body carries no
+   max-height and no overflow — the row grows with its wrapped content
+   (intended). */
 .master-plan-grid__cell-body {
   display: grid;
   align-content: start;
   gap: 2px;
   min-width: 0;
-  max-height: 77px;
-  overflow: hidden;
 }
 
-/* One line per value: an ellipsized tail instead of a wrapped second line —
-   wrapping was the inflation mechanism of every row-height regression
-   (FB-043 / R22 / the 23/10 screenshots). The line's title (set in the
-   component) carries the complete value. */
+/* ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes the 23/10
+   one-line-per-value ellipsis law on DATA cells: every value line wraps at
+   spaces and shows whole (the line's title, still set in the component,
+   stays as a bonus — never the carrier of the value). Headers keep the
+   one-line law (SIL-698 / thead rules). */
 /* SIL-631: the notes editor itself floats out of the cell (body portal) — its
    height/error row can no longer collide with the reading-row clamp, so the
-   old `:has(> __notes-editor)` clamp lift (review H1) is gone with it. The
-   cell keeps a single dimmed line while editing. */
+   old `:has` clamp lift (review H1) is gone with it. The cell keeps a single
+   dimmed line while editing. */
 .master-plan-grid__line--notes.is-editing {
   opacity: 0.45;
 }
@@ -338,9 +339,8 @@
 .master-plan-grid__line {
   line-height: var(--ops-table-supporting-line-height);
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
   max-width: none;
 }
 
@@ -431,12 +431,6 @@
   padding-left: 10px;
 }
 
-.master-plan-grid__schedule-block .master-plan-grid__line {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-}
-
 .master-plan-grid__schedule-block + .master-plan-grid__schedule-block {
   margin-top: 4px;
 }
@@ -479,17 +473,10 @@
   overflow-wrap: normal;
 }
 
-/* SIL-581: the one-line-per-value row budget (77px clamp) must not re-clip
-   what the wrap just made readable — a warning row lifts the clamp the same
-   way the transient notes editor does. Only lots carrying the warning pay
-   the taller row. */
-.master-plan-grid__cell-body:has(> .master-plan-grid__line--warning) {
-  max-height: none;
-  overflow: visible;
-}
-
 .master-plan-grid__line--notes {
-  white-space: nowrap;
+  /* ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes the note
+     line's nowrap: GHI CHÚ ('OPS: làm hàng luồ') wraps fully. */
+  white-space: normal;
   color: var(--fg-2);
   font-size: var(--ops-table-note-size);
   font-weight: var(--ops-table-note-weight);
@@ -510,12 +497,12 @@
   font: inherit;
   line-height: inherit;
   text-align: left;
-  /* Owner redesign 23/10: the preview is ONE ellipsized line; the full note
-     rides the button's own title (already set by the component) and the
-     "Xem thêm" dialog. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes the 23/10
+     one-line preview: the note wraps fully inside the cell — GHI CHÚ never
+     clips; the "Xem thêm" dialog and the button title stay as navigation,
+     never the carrier of the value. */
+  white-space: normal;
+  overflow: visible;
   cursor: pointer;
   border-radius: var(--radius-xs, 4px);
   transition: background-color 100ms var(--ease);

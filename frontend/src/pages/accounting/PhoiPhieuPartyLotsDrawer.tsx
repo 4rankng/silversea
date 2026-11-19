@@ -148,6 +148,9 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
             <Table.Head id="total">{kind === 'THU' ? 'Phải thu' : 'Phải trả'}</Table.Head>
             <Table.Head id="paid">{kind === 'THU' ? 'Đã thu' : 'Đã trả'}</Table.Head>
             <Table.Head id="remain">Còn lại</Table.Head>
+            {/* Ticket 18/11 Task 3.2 — the main board's composed Ghi chú carried
+                down to each lot (CUS trước, điều vận sau — server-composed). */}
+            <Table.Head id="ghichu">Ghi chú</Table.Head>
           </Table.Header>
           <Table.Body items={tripLots}>
             {(lot) => (
@@ -164,6 +167,7 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                 <Table.Cell><strong>{formatMoney(lot.total)}</strong></Table.Cell>
                 <Table.Cell>{formatMoney(lot.daThuTra)}</Table.Cell>
                 <Table.Cell>{formatMoney(lot.conLai)}</Table.Cell>
+                <Table.Cell>{lot.ghiChu ?? '—'}</Table.Cell>
               </Table.Row>
             )}
           </Table.Body>

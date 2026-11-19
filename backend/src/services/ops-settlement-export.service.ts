@@ -68,19 +68,20 @@ export async function exportOpsSettlementXlsx(
     }
   }
 
-  // SIL-845 — the three closing total rows of the phiếu.
+  // SIL-845 — the three closing total rows of the phiếu. Ticket 18/11
+  // Task 4.2b pins the exact literals (aligned with OpsSettlementsPanel).
   for (const [label, total] of [
-    ['Tổng có hóa đơn', grouping.totals.withInvoice],
-    ['Tổng không hóa đơn', grouping.totals.withoutInvoice],
-    ['TỔNG CỘNG QUYẾT TOÁN', grouping.totals.grand],
+    ['Tổng chi phí có hóa đơn', grouping.totals.withInvoice],
+    ['Tổng chi phí không hóa đơn', grouping.totals.withoutInvoice],
+    ['Tổng cộng', grouping.totals.grand],
   ] as const) {
     const row = sheet.addRow(['', '', '', '', label, Number(total)]);
-    row.font = label === 'TỔNG CỘNG QUYẾT TOÁN' ? { bold: true, size: 12 } : { bold: true };
+    row.font = label === 'Tổng cộng' ? { bold: true, size: 12 } : { bold: true };
     row.getCell(6).numFmt = MONEY_FORMAT;
   }
 
   // SIL-751 — when the phiếu carries a negative row, the printed lines no
-  // longer add up to TỔNG CỘNG QUYẾT TOÁN (the card 20260928_197 rule
+  // longer add up to Tổng cộng (the card 20260928_197 rule
   // excludes it), so say so on the paper instead of leaving a silent
   // 270.000 vs 320.000 gap.
   if (Number(grouping.totals.excludedNegative ?? 0) !== 0) {
@@ -180,9 +181,9 @@ ${settlement.note ? `<div class="meta">Ghi chú: ${escapeHtml(settlement.note)}<
   </tr></thead>
   <tbody>
     ${sectionRows}
-    <tr><td colspan="5">Tổng có hóa đơn</td><td class="num">${formatVND(Number(grouping.totals.withInvoice))}</td></tr>
-    <tr><td colspan="5">Tổng không hóa đơn</td><td class="num">${formatVND(Number(grouping.totals.withoutInvoice))}</td></tr>
-    <tr class="grand"><td colspan="5">TỔNG CỘNG QUYẾT TOÁN</td><td class="num">${formatVND(Number(grouping.totals.grand))}</td></tr>
+    <tr><td colspan="5">Tổng chi phí có hóa đơn</td><td class="num">${formatVND(Number(grouping.totals.withInvoice))}</td></tr>
+    <tr><td colspan="5">Tổng chi phí không hóa đơn</td><td class="num">${formatVND(Number(grouping.totals.withoutInvoice))}</td></tr>
+    <tr class="grand"><td colspan="5">Tổng cộng</td><td class="num">${formatVND(Number(grouping.totals.grand))}</td></tr>
     ${excludedBlock}
   </tbody>
 </table>

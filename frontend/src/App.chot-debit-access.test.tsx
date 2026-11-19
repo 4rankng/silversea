@@ -36,7 +36,7 @@ import { AppRoutes } from './App';
 import { ToastProvider } from './components/shared/Toast';
 
 const DENIAL_TEXT = 'Bạn không có quyền truy cập trang này.';
-const CHOT_DEBIT_TITLE = 'KIỂM SOÁT LÔ HÀNG';
+const CHOT_DEBIT_TITLE = 'Kiểm soát lô hàng';
 
 function renderAs(role: Role, path: string) {
   useAuthMock.mockReturnValue({

@@ -215,6 +215,7 @@ const ExpenseCategoriesConfigPage = lazy(() => import('./pages/config/ExpenseCat
 const ForwarderExpenseTypesConfigPage = lazy(() => import('./pages/config/ForwarderExpenseTypesConfigPage'));
 const PhoiPhieuControlPage = lazy(() => import('./pages/accounting/PhoiPhieuControlPage'));
 const AccountingDebitClosePage = lazy(() => import('./pages/accounting/AccountingDebitClosePage'));
+const DebitMergePage = lazy(() => import('./pages/accounting/DebitMergePage'));
 const AccountingInvoiceTrackingPage = lazy(() => import('./pages/AccountingInvoiceTrackingPage'));
 const DepositRefundTrackerPage = lazy(() => import('./pages/accounting/DepositRefundTrackerPage'));
 // SIL-779 — /accounting/hoan-ung becomes the centralized cost reconciliation
@@ -462,6 +463,10 @@ export function AppRoutes() {
           <Route path="/accounting/expenses" element={financeReaderOnly(page(<ExpenseAccountingPage />))} />
           <Route path="/accounting/phoi-phieu" element={financeReaderOnly(page(<PhoiPhieuControlPage />))} />
           <Route path="/accounting/chot-debit" element={officeStaffOnly(page(<AccountingDebitClosePage />))} />
+          {/* Ticket 18/11 Task 2.3 — 'Ghép bộ Debit'. SAME guard style as
+              /accounting/chot-debit (officeStaffOnly); the CUS half of the
+              shared grid lives on /shipments-debit, not here. */}
+          <Route path="/accounting/ghep-bo-debit" element={officeStaffOnly(page(<DebitMergePage />))} />
           <Route path="/accounting/fuel-evidence" element={accountantOnly(page(<FuelEvidenceReviewPage />))} />
           {/* Invoice tracking (card 20260921_18): kế toán full CRUD, CUS reaches
               the page read-only — the page-internal canWrite mirrors the server's

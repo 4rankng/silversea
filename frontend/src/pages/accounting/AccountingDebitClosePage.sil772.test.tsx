@@ -98,10 +98,10 @@ beforeEach(() => {
   getBootstrap.mockResolvedValue({ trucks: [] });
 });
 
-describe('AccountingDebitClosePage — SIL-772 KIỂM SOÁT LÔ HÀNG + 2 chế độ xem', () => {
-  it('H1 là nhãn khách yêu cầu nguyên văn (viết hoa)', async () => {
+describe('AccountingDebitClosePage — SIL-772 2 chế độ xem + ticket 18/11 sentence-case tên', () => {
+  it('H1 đọc sentence case theo menu (ticket 18/11 Task 2.1)', async () => {
     renderPage();
-    expect(await screen.findByRole('heading', { level: 1, name: 'KIỂM SOÁT LÔ HÀNG' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Kiểm soát lô hàng' })).toBeInTheDocument();
   });
 
   it('mở mặc định chế độ FCL: chỉ hàng cont, nút LCL đếm đúng 1 lô lẻ', async () => {

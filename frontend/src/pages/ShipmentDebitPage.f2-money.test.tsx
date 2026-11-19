@@ -1,35 +1,50 @@
 /**
  * F-2 (card 161026113900, owner ruling b) — the money column reflects the
- * override channel: a member's CƯỚC VẬN TẢI (AUTO) cell reads 0₫ with the
- * override reason as the spec §3.2 "chú thích nhỏ bên dưới"; a lot whose
- * freight came from the snapshot channel carries no note.
+ * override channel on the REBUILT /shipments-debit grid (Task 2.3): a rev
+ * member's CƯỚC cell reads its computed 0₫ with the override reason as the
+ * spec §3.2 note (rendered as the visible merge tag's tooltip — SIL-546
+ * placement, the tag lives on the same cell); a lot whose freight came from
+ * the snapshot channel carries no note.
+ *
+ * The BD-01/BD-03 phone-row lane retired with the old flat board (the grid
+ * is a horizontal-scroll table at every width); the phone surface's
+ * "Cước vận tải (Auto)" note law is superseded by the same cell contract
+ * asserted here on the desktop grid.
  */
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBootstrap, listSummary } = vi.hoisted(() => ({
-  getBootstrap: vi.fn(), listSummary: vi.fn(),
+const { getBootstrap, listMerge, listSummary } = vi.hoisted(() => ({
+  getBootstrap: vi.fn(), listMerge: vi.fn(), listSummary: vi.fn(),
 }));
 const { authRole } = vi.hoisted(() => ({ authRole: { value: 'CUS' } }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: authRole.value } }) }));
 vi.mock('../api/tripClient', () => ({ tripClient: { getBootstrap } }));
-vi.mock('../api/shipmentClient', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../api/shipmentClient')>(),
-  listShipmentDebitSummary: listSummary,
-  getShipmentDebitDetail: vi.fn(),
-  createDebitNoteBatch: vi.fn(),
-  exportDebitNoteFile: vi.fn(),
-}));
 vi.mock('../api/shipmentDebit', () => ({
-  createDebitNoteBatch: vi.fn(),
-  exportDebitNoteFile: vi.fn(),
+  listShipmentDebitSummary: listSummary,
+  listDebitMergeBoard: listMerge,
+  lockShipmentCost: vi.fn(),
+  debitMergeKeys: {
+    all: ['accounting-debit-merge'] as const,
+    board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
+  },
 }));
-vi.mock('../api/dispatchPlanningClient', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../api/dispatchPlanningClient')>(),
+vi.mock('../api/shipmentClient', () => ({
+  getShipmentDebitDetail: vi.fn().mockResolvedValue({}),
+  lockShipmentCost: vi.fn(),
+  unlockShipmentCost: vi.fn(),
+  adjustShipmentCost: vi.fn(),
+  listShipmentCostAdjustments: vi.fn().mockResolvedValue([]),
+  listShipmentCostLockHistory: vi.fn().mockResolvedValue([]),
+  saveShipmentDebitEdits: vi.fn(),
+}));
+vi.mock('../api/accountingDebitClient', () => ({ createSettlementRound: vi.fn() }));
+vi.mock('../api/dispatchPlanningClient', () => ({
   mergeLclRevGroup: vi.fn(),
   unmergeLclLot: vi.fn(),
+  unmergeLclGroup: vi.fn(),
   updateLclTruck: vi.fn(),
   assignLclCostGroup: vi.fn(),
 }));
@@ -40,7 +55,7 @@ vi.mock('../hooks/useCatalogQueries', () => ({
 
 import { ToastProvider } from '../components/shared/Toast';
 import { ShipmentDebitPage } from './ShipmentDebitPage';
-import type { ShipmentDebitLotRow } from '../api/shipmentClient';
+import type { DebitMergeItem } from '../api/shipmentDebit';
 
 function renderPage() {
   return render(
@@ -54,165 +69,79 @@ function renderPage() {
   );
 }
 
-const lclRow = (over: Partial<ShipmentDebitLotRow> = {}): ShipmentDebitLotRow => ({
+const row = (over: Partial<DebitMergeItem> = {}): DebitMergeItem => ({
   shipmentId: 101,
   code: 'SHP-26-0001',
+  customerId: 1,
   customerName: 'KH A',
   factoryName: null,
-  factoryAddress: null,
+  routeName: null,
+  deliveryDate: null,
   billOrBookNumber: 'BL-1',
-  customsNumber: null,
-  documentsSummary: null,
-  freightAuto: null,
-  chiHoTotal: null,
-  receivableTotal: null,
-  payableTotal: null,
-  profit: null,
-  lockStatus: 'OPEN',
-  lockedAt: null,
-  cargoMode: 'LCL',
-  costGroupId: null,
-  costGroupOrder: null,
-  revGroupId: null,
-  revGroupOrder: null,
-  costGroupMemberCount: null,
-  revGroupMemberCount: null,
-  actualTruckNo: null,
-  billingTruckNo: null,
-  costVehicleClassCode: null,
-  revVehicleClassCode: null,
-  revGroupPrincipalRef: null,
-  costGroupPrincipalRef: null,
+  creatorName: null,
+  creatorCode: null,
+  containers: [],
+  revenue: { cuoc: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
+  chiHo: { csht: [], lift: [], drop: [], other: [] },
+  noInvoice: { gnOps: null, psOps: null, fees: [] },
+  control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null },
   ...over,
-  customerId: over.customerId ?? 1,
 });
 
 beforeEach(() => {
   authRole.value = 'CUS';
   sessionStorage.clear();
-  getBootstrap.mockReset();
-  listSummary.mockReset();
-  getBootstrap.mockResolvedValue({ customers: [{ id: 1, name: 'KH A' }], trucks: [] });
-  listSummary.mockResolvedValue({ items: [], total: 0 });
+  localStorage.clear();
+  getBootstrap.mockReset().mockResolvedValue({ customers: [{ id: 1, name: 'KH A' }], trucks: [] });
+  listMerge.mockReset().mockResolvedValue({ items: [], total: 0 });
+  listSummary.mockReset().mockResolvedValue({ items: [], total: 0, excludedCount: 0, excludedSum: '0' });
 });
 
-describe('F-2 — Cước vận tải (Auto) đọc kênh ghi đè (ruling b)', () => {
-  it('renders the member 0₫ with the "Ghép cước cùng Bill" marker on the money cell', async () => {
-    listSummary.mockResolvedValue({
+describe('F-2 — Cước cell reads the override channel (ruling b) on the merge grid', () => {
+  it('renders the member 0₫ with the "Ghép cước cùng Bill" marker on the Cước cell', async () => {
+    listMerge.mockResolvedValue({
       items: [
-        lclRow({
+        row({
           shipmentId: 201, billOrBookNumber: 'BL-P', code: 'SHP-26-0201',
-          freightAuto: 3150000, receivableTotal: 3150000,
           revGroupId: 'rev-1', revGroupOrder: 1, revGroupMemberCount: 2,
+          revenue: { cuoc: '3150000', cuocReason: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: '3150000' },
         }),
-        lclRow({
+        row({
           shipmentId: 202, billOrBookNumber: 'BL-M', code: 'SHP-26-0202',
-          freightAuto: 0, receivableTotal: 0,
           revGroupId: 'rev-1', revGroupOrder: 2, revGroupMemberCount: 2,
-          revGroupPrincipalRef: 'BL-P',
-          freightOverrideReason: 'Ghép cước cùng Bill BL-P',
+          revenue: { cuoc: '0', cuocReason: 'Ghép cước cùng Bill BL-P', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '0' },
         }),
       ],
       total: 2,
     });
     renderPage();
-    await screen.findAllByText('BL-P');
+    await screen.findByText('BL-M');
 
-    // SIL-546 (spec 23/10 §4.2), REV2 placement: the member's note graduated
-    // to the VISIBLE merge tag «Ghép thu cước cùng Lô 1» and rides the
-    // Cước vận tải (Auto) cell — the freight column is where the merged
-    // 0₫ lane lives on the flat board. The tag's tooltip still carries the
-    // full F-2 reason ("Ghép cước cùng Bill BL-P" — the trip-less member's
-    // live group-citation note).
-    const tag = screen.getByText('Ghép thu cước cùng Lô 1');
+    // The member's note rides the Cước cell (the merged 0₫ lane's home on
+    // the flat board stays the Cước cell on the grid), tooltip = full reason.
+    const memberCell = document.querySelector('tr[data-shipment-id="202"] td[data-col="cuoc"]')!;
+    const tag = memberCell.querySelector('.debit-merge-money__mergetag')!;
+    expect(tag.textContent).toBe('Ghép thu cước cùng Lô 1');
     expect(tag.getAttribute('title')).toBe('Ghép cước cùng Bill BL-P');
-    const cell = tag.closest('td')!;
-    expect(cell.getAttribute('data-col')).toBe('freight');
-    // The member's money reads the real computed 0 (đã tính, = 0).
-    expect(cell.textContent).toContain('0');
+    expect(memberCell.textContent).toContain('0');
 
-    // The principal carries 100% and NO marker (the snapshot-look of the cell
-    // is unchanged when the override channel set no stamp).
-    const principalRow = screen.getAllByText('BL-P')[0]!.closest('tr')!;
-    expect(principalRow.querySelector('.shipment-debit-money__note')).toBeNull();
+    // The principal carries 100% and NO marker.
+    const principalRow = document.querySelector('tr[data-shipment-id="201"]')!;
+    expect(principalRow.querySelector('.debit-merge-money__mergetag')).toBeNull();
     expect(principalRow.textContent).toContain('3.150.000');
   });
 
   it('renders no marker when the snapshot channel produced the freight', async () => {
-    listSummary.mockResolvedValue({
-      items: [lclRow({ shipmentId: 203, billOrBookNumber: 'BL-S', code: 'SHP-26-0203', freightAuto: 1234000, receivableTotal: 1234000 })],
+    listMerge.mockResolvedValue({
+      items: [row({
+        shipmentId: 203, billOrBookNumber: 'BL-S', code: 'SHP-26-0203',
+        revenue: { cuoc: '1234000', cuocReason: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: '1234000' },
+      })],
       total: 1,
     });
     renderPage();
-    await screen.findAllByText('BL-S');
+    await screen.findByText('BL-S');
     expect(screen.getAllByText('1.234.000').length).toBeGreaterThan(0);
-    expect(document.querySelector('.shipment-debit-money__note')).toBeNull();
-  });
-});
-
-// BD-01/BD-03 (card 161026204709): the phone row renderer is a separate
-// surface — SIL-478's grouped rows fold the remaining facts into the row's
-// tap-expanded region — so the lane law must hold there too.
-const originalMedia = window.matchMedia;
-/** jsdom has no viewport media engine; this is the browser API polyfill. */
-function viewport(width: number) {
-  window.matchMedia = (query: string): MediaQueryList => ({
-    matches: width <= Number(query.match(/max-width:\s*(\d+)/)?.[1] ?? 0),
-    media: query, onchange: null, addListener() {}, removeListener() {},
-    addEventListener() {}, removeEventListener() {}, dispatchEvent() { return true; },
-  });
-}
-afterEach(() => { window.matchMedia = originalMedia; });
-
-describe('BD-01 (161026204709) — phone row keeps the merged 100%/0₫ lane visible', () => {
-  it('renders principal lane price + member 0₫ and reason on the expanded face, never nested in a disclosure', async () => {
-    viewport(390);
-    listSummary.mockResolvedValue({
-      items: [
-        lclRow({
-          shipmentId: 201, billOrBookNumber: 'BL-P', code: 'SHP-26-0201',
-          freightAuto: 3150000, receivableTotal: 3150000,
-          revGroupId: 'rev-1', revGroupOrder: 1, revGroupMemberCount: 2,
-        }),
-        lclRow({
-          shipmentId: 202, billOrBookNumber: 'BL-M', code: 'SHP-26-0202',
-          freightAuto: 0, receivableTotal: 0,
-          revGroupId: 'rev-1', revGroupOrder: 2, revGroupMemberCount: 2,
-          revGroupPrincipalRef: 'BL-P',
-          freightOverrideReason: 'Ghép cước cùng Bill BL-P',
-        }),
-        lclRow({ shipmentId: 203, billOrBookNumber: 'BL-S', code: 'SHP-26-0203', freightAuto: 1234000 }),
-      ],
-      total: 3,
-    });
-    renderPage();
-
-    // Lô 1 = 100% lane price on the expanded face, no note.
-    const principal = await screen.findByRole('article', { name: 'BL-P' });
-    fireEvent.click(within(principal).getByRole('button', { name: 'Chi tiết BL-P' }));
-    const principalLane = within(principal).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-glist__fact')!;
-    expect(principalLane.closest('details')).toBeNull();
-    expect(principalLane.textContent).toContain('3.150.000');
-
-    // Member = 0₫ + the note under it — both on the expanded face.
-    const member = await screen.findByRole('article', { name: 'BL-M' });
-    fireEvent.click(within(member).getByRole('button', { name: 'Chi tiết BL-M' }));
-    const memberLane = within(member).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-glist__fact')!;
-    expect(memberLane.closest('details')).toBeNull();
-    expect(memberLane.textContent).toContain('0');
-    const note = within(memberLane).getByText('Ghép cước cùng Bill BL-P');
-    expect(note.tagName).toBe('SMALL');
-
-    // The rebuild removed the nested disclosure — the lane can never hide in
-    // one, and the sibling facts live flat on the same face.
-    expect(within(member).queryByText('Chi tiết')).toBeNull();
-
-    // BD-03 control: a snapshot-channel row shows the money, no note.
-    const snap = await screen.findByRole('article', { name: 'BL-S' });
-    fireEvent.click(within(snap).getByRole('button', { name: 'Chi tiết BL-S' }));
-    const snapLane = within(snap).getByText('Cước vận tải (Auto)').closest<HTMLElement>('.ledger-glist__fact')!;
-    expect(snapLane.closest('details')).toBeNull();
-    expect(snapLane.textContent).toContain('1.234.000');
-    expect(within(snap).queryByText(/Ghép cước/)).toBeNull();
+    expect(document.querySelector('.debit-merge-money__mergetag')).toBeNull();
   });
 });

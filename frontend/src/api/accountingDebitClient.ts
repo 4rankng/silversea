@@ -28,6 +28,11 @@ export interface AccountingDebitBoardRow {
   ngay: string | null;
   billOrBooking: string | null;
   containers: string[];
+  /** Ticket 18/11 Task 2.2 — per-container vehicle facts aligned with
+   *  `containers` (same labels, stable id order). Optional so a rolling
+   *  deployment can lag the wire: absent → the cells fall back to the
+   *  lot-level phanXe/truckPlates arrays. */
+  containersDetail?: Array<{ container: string; carriers: string[]; plates: string[] }>;
   phanXe: string[];
   /** SIL-838 — nhà máy/kho hàng + tuyến dưới tên KH. Optional so a rolling
    *  deployment can lag the board wire without breaking the cell. */
@@ -36,6 +41,11 @@ export interface AccountingDebitBoardRow {
   /** SIL-838 — BKS thực từ trip (đã lọc biển trùng nhãn phân xe). FE lật
    *  tới `lcl.actualTruckNo` trước, plates là fallback + nguồn cho FCL. */
   truckPlates?: string[];
+  /** Ticket 18/11 Task 2.4 — BKS báo khách (xe ảo) at TOP level: the BE
+   *  board projection already carries `lot.billingTruckNo`; the Debit Note
+   *  preview prints it per row (100% BKS báo khách). Optional so a rolling
+   *  deployment can lag the wire. */
+  billingTruckNo?: string | null;
   /** FB-094 — LCL grouping facts (null on FCL/ungrouped rows). */
   lcl?: {
     label: string;

@@ -154,6 +154,15 @@ export interface CostReviewRow extends ExpenseAccountingEntry {
   /** Số dòng trong cửa sổ bảng đang mở trùng cụm (cùng lô + tên phí + số
    *  tiền). > 1 = dấu hiệu trùng lặp cho kế toán rà soát. */
   duplicateCount: number;
+  /** 18/11 ticket 3.3 — cột hiển thị do cost-review service bổ sung (không
+   *  nằm trong phép chiếu sổ sách): nhà máy của lô, số tờ khai (thuộc tính
+   *  per-container — card 261013200312), số phiếu quyết toán
+   *  (expense_reconciliations.code) khi dòng đã lập phiếu, và cờ phí không
+   *  hóa đơn theo danh mục loại phí (requires_invoice = false). */
+  factoryName: string | null;
+  declarationNumber: string | null;
+  reconciliationCode: string | null;
+  noInvoice: boolean;
 }
 export interface CostReviewTotals {
   unconfirmedAmount: number; confirmedAmount: number;

@@ -106,12 +106,17 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
   });
   it('PHOI06 renders factory separately from the customer and route, with honest missing copy', async () => {
     const { container } = renderBoard([row({ factoryName: 'Nhà máy A' }), row({ tripId: 2, factoryName: null })]);
-    await screen.findByText('Nhà máy: Nhà máy A', undefined, { timeout: 10_000 });
+    // Ticket 18/11 Task 3.1c — cột 2 in the three VALUES only, no prefixes.
+    // Row 1 alone carries the factory; 'KH A' renders in both rows, so the
+    // readiness signal is the unique factory value.
+    await screen.findByText('Nhà máy A', undefined, { timeout: 10_000 });
     expect(screen.getByRole('columnheader', { name: 'Khách hàng / Nhà máy / Tuyến' })).toBeInTheDocument();
-    const cells = bodyRows(container).map(row => within(row).getByText('Khách hàng: KH A').closest('td')!);
-    expect(cells[0]).toHaveTextContent('Nhà máy: Nhà máy A');
-    expect(cells[0]).toHaveTextContent('Tuyến: Tuyến A');
-    expect(cells[1]).toHaveTextContent('Nhà máy: Chưa có nhà máy');
+    const cells = bodyRows(container).map(row => within(row).getByText('KH A').closest('td')!);
+    expect(cells[0]).toHaveTextContent('Nhà máy A');
+    expect(cells[0]).toHaveTextContent('Tuyến A');
+    expect(cells[0]).not.toHaveTextContent('Khách hàng:');
+    expect(cells[0]).not.toHaveTextContent('Nhà máy:');
+    expect(cells[1]).toHaveTextContent('Chưa có nhà máy');
   });
 
   it('PHOI05 confirmation-scope change clears payment selection and sends the exact read filter', async () => {

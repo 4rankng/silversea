@@ -121,24 +121,28 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(confirmReq).not.toHaveBeenCalled();
     expect(within(record).getByRole('checkbox')).toBeChecked();
   });
-  it('keeps Bill/Booking and customer separate and never falls back to internal shipment codes', async () => {
+  it('splits Số Bill/Book into its own column beside the Lô stack (ticket 18/11 Task 2.2b)', async () => {
     boardWith([row(), row({ shipmentId: 2, code: 'SHP-26-0002', billOrBooking: null, customerName: 'KH B' })]);
     renderPage();
     const reference = await screen.findByText('BL-1');
-    // SIL-772 — the code + customer live in the multi-line Lô cell's stack.
-    const stack = reference.closest('.record-cell-stack');
-    expect(stack).not.toBeNull();
-    expect(stack?.querySelector('small')).toHaveTextContent('KH A');
-    expect(screen.getByText('Chưa có số Bill/Booking')).toBeInTheDocument();
-    expect(screen.queryByText('SHP-26-0001')).not.toBeInTheDocument();
-    expect(screen.queryByText('SHP-26-0002')).not.toBeInTheDocument();
+    // Ticket 18/11 Task 2.2b — the bill ref lives in its OWN column cell, no
+    // longer folded into the Lô stack; the Lô stack shows the lot code.
+    expect(reference.closest('td')?.className).toContain('debit-col--billbook');
+    const lotStack = screen.getByText('SHP-26-0001').closest('.record-cell-stack');
+    expect(lotStack).not.toBeNull();
+    expect(lotStack?.querySelector('small')).toHaveTextContent('KH A');
+    // A lot without a bill/booking renders the established placeholder face
+    // in that column (the board's empty-value law for this field).
+    const emptyBillCell = screen.getByText('SHP-26-0002').closest('tr')
+      ?.querySelector('td.debit-col--billbook');
+    expect(emptyBillCell).toHaveTextContent('Chưa có số Bill/Booking');
   });
 
   it('names the screen, not the document (page-heading law)', async () => {
     boardWith([row()]);
     renderPage();
     // SIL-772 — tên màn hình là nhãn khách yêu cầu nguyên văn, viết hoa.
-    expect(await screen.findByRole('heading', { level: 1, name: 'KIỂM SOÁT LÔ HÀNG' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Kiểm soát lô hàng' })).toBeInTheDocument();
     await screen.findByText('BL-1');
     // The document's name is the BOARD's, and the page never shouts — except
     // the customer-verbatim H1 (SIL-772 exemption in page-heading-law.test):

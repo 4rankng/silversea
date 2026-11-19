@@ -5,6 +5,7 @@ import {
   costReviewDuplicateKey,
   costReviewProgressOf,
   costReviewTotals,
+  costRowIsLive,
 } from '../../services/cost-review.service';
 import type { CostReviewRow } from '@tingting/shared';
 
@@ -82,6 +83,30 @@ describe('cost-review reconciliation helpers (SIL-779)', () => {
       assert.equal(totals.confirmedAmount, 250_000);
       assert.equal(totals.unconfirmedCount, 2);
       assert.equal(totals.duplicateRows, 1);
+    });
+  });
+
+  describe('costRowIsLive (ticket 18/11 3.3)', () => {
+    const row = (over: { status?: 'RECORDED' | 'VOIDED'; approvalStatus?: string } = {}) => ({
+      id: 1, sourceKind: 'OPS' as const, sourceId: 1, status: 'RECORDED' as const, ...over,
+    });
+    it('a VOIDED registry link is canceled/history and never surfaces', () => {
+      assert.equal(costRowIsLive(row({ status: 'VOIDED' })), false);
+    });
+    it('RECORDED rows without a native approvalStatus pass on the registry status', () => {
+      assert.equal(costRowIsLive(row()), true);
+    });
+    it('a live registry link with a canceled native status is still hidden', () => {
+      // Hydration spreads the native ops row: VOIDED/REJECTED must not leak
+      // through even if the registry link ever drifted back to RECORDED.
+      assert.equal(costRowIsLive(row({ approvalStatus: 'VOIDED' })), false);
+      assert.equal(costRowIsLive(row({ approvalStatus: 'REJECTED' })), false);
+    });
+    it('the live native statuses are exactly the loader fallback set {RECORDED, APPROVED}', () => {
+      assert.equal(costRowIsLive(row({ approvalStatus: 'RECORDED' })), true);
+      assert.equal(costRowIsLive(row({ approvalStatus: 'APPROVED' })), true);
+      assert.equal(costRowIsLive(row({ approvalStatus: 'PENDING' })), false);
+      assert.equal(costRowIsLive(row({ approvalStatus: 'DRAFT' })), false);
     });
   });
 });

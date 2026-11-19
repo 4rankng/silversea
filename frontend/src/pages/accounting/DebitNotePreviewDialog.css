@@ -1,0 +1,43 @@
+/* Ticket 18/11 Task 2.4 — Debit Note preview table: compact scroll region,
+ * tabular money, the four closing totals read as footer rows. */
+.debit-note-preview__wrap {
+  max-height: 55vh;
+  overflow: auto;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+}
+
+.debit-note-preview {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-caption-size, 13px);
+}
+
+.debit-note-preview th,
+.debit-note-preview td {
+  padding: 5px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border, #e5e5e5);
+}
+
+.debit-note-preview thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface, #fff);
+  font-weight: var(--fw-semibold, 600);
+}
+
+.debit-note-preview__money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.debit-note-preview tfoot td {
+  font-weight: var(--fw-semibold, 600);
+  border-top: 1px solid var(--border, #cfcfcf);
+}
+
+.debit-note-preview tfoot tr:last-child td {
+  font-weight: var(--fw-bold, 700);
+}

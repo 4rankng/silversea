@@ -3,7 +3,7 @@
 // service này chỉ quản lý nhóm + thành viên. Mount: routes/auth.ts, ADMIN
 // only — cùng gate với business-units (canManageBusinessUnits).
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
-import { db, type Tx } from '../db';
+import { db, type Executor, type Tx } from '../db';
 import * as s from '../db/schema';
 import { Role } from '@tingting/shared';
 import { ApiError } from '../errors';
@@ -44,6 +44,28 @@ async function assertCusGroupId(executor: Tx | typeof db, id: number) {
   return group;
 }
 
+/**
+ * The ACTIVE nhóm CUS a user belongs to — the /auth/me session letter (AC1,
+ * ticket 18/11): FE reads it to know team visibility may widen the
+ * workboard. Same ACTIVE-group join law as cusGroupMemberIds
+ * (cus-visibility.service.ts), projected to the bare {id, name} pair.
+ */
+export async function listActiveCusGroupsForUser(
+  userId: number,
+  executor: Executor = db,
+): Promise<{ id: number; name: string }[]> {
+  return executor.select({
+    id: s.cusGroups.id,
+    name: s.cusGroups.name,
+  }).from(s.cusGroupMembers)
+    .innerJoin(s.cusGroups, eq(s.cusGroups.id, s.cusGroupMembers.groupId))
+    .where(and(
+      eq(s.cusGroupMembers.userId, userId),
+      eq(s.cusGroups.status, 'ACTIVE'),
+    ))
+    .orderBy(asc(s.cusGroups.name), asc(s.cusGroups.id));
+}
+
 export async function listCusGroups(): Promise<CusGroupView[]> {
   const groups = await db.select()
     .from(s.cusGroups)
@@ -75,9 +97,9 @@ export async function listCusGroups(): Promise<CusGroupView[]> {
   }));
 }
 
-export async function createCusGroup(input: { name: string }): Promise<CusGroupView> {
+export async function createCusGroup(input: { name: string }, executor: Executor = db): Promise<CusGroupView> {
   const name = input.name.trim();
-  return db.transaction(async (tx) => {
+  return executor.transaction(async (tx) => {
     await assertGroupNameAvailable(tx, name);
     const [created] = await tx.insert(s.cusGroups).values({ name }).returning();
     return { ...created, members: [] };
@@ -87,8 +109,9 @@ export async function createCusGroup(input: { name: string }): Promise<CusGroupV
 export async function updateCusGroup(
   id: number,
   input: { name?: string; status?: 'ACTIVE' | 'INACTIVE' },
+  executor: Executor = db,
 ): Promise<CusGroupView> {
-  return db.transaction(async (tx) => {
+  return executor.transaction(async (tx) => {
     const existing = await assertCusGroupId(tx, id);
     const nextName = input.name !== undefined ? input.name.trim() : existing.name;
     if (nextName !== existing.name) await assertGroupNameAvailable(tx, nextName, id);
@@ -124,9 +147,9 @@ async function loadMemberViews(executor: Tx, groupId: number): Promise<CusGroupM
  * Membership links of deactivated users are KEPT once saved: the group still
  * sees a departed member's historical lots (visibility law, not this editor).
  */
-export async function setCusGroupMembers(groupId: number, userIds: number[]): Promise<CusGroupView> {
+export async function setCusGroupMembers(groupId: number, userIds: number[], executor: Executor = db): Promise<CusGroupView> {
   const requested = [...new Set(userIds)];
-  return db.transaction(async (tx) => {
+  return executor.transaction(async (tx) => {
     await assertCusGroupId(tx, groupId);
     if (requested.length > 0) {
       const rows = await tx.select({ id: s.users.id, role: s.users.role, status: s.users.status })

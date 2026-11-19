@@ -35,6 +35,9 @@ export async function getShipmentDebitSummary(query: {
   deliveryDateFrom?: string;
   deliveryDateTo?: string;
   lockStatus: 'ALL' | 'OPEN' | 'LOCKED';
+  /** Ticket 18/11 Task 1.2 — 'true' khi nút [Hiện thông tin lô hàng team]
+   *  đang bật: mở rộng truy vấn theo nhóm ACTIVE của user CUS. */
+  team?: 'true' | 'false';
   /** SIL-776 REV2 (ticket-v2 Phần VI mục 2, 09/11/2026): the CUS settlement
    *  surface carries NO giá vốn — the cost columns (cước trả vendor, tổng chi
    *  phí đầu vào, biên lợi nhuận) are stripped from the wire for the CUS
@@ -49,9 +52,11 @@ export async function getShipmentDebitSummary(query: {
   if (query.deliveryDateFrom) conditions.push(gte(s.shipments.expectedDeliveryDate, query.deliveryDateFrom));
   if (query.deliveryDateTo) conditions.push(lte(s.shipments.expectedDeliveryDate, query.deliveryDateTo));
   // Nhóm CUS: cùng luật một nơi (cus-visibility.service). Lớp 2/3 aggregate
-  // theo lotIds của trang Lớp 1 này nên tự nhất quán với trang.
+  // theo lotIds của trang Lớp 1 này nên tự nhất quán với trang. Ticket 18/11
+  // Task 1.2: `team: 'true'` (nút Hiện thông tin lô hàng team) mới mở rộng
+  // theo nhóm ACTIVE — mặc định chỉ lô của chính tài khoản.
   if (query.actor?.role === Role.CUS) {
-    conditions.push(...await cusVisibilityCondition(db, query.actor));
+    conditions.push(...await cusVisibilityCondition(db, query.actor, { includeTeam: query.team === 'true' }));
   }
   const lots = await db.select({
     id: s.shipments.id,
@@ -81,10 +86,16 @@ export async function getShipmentDebitSummary(query: {
     billingTruckNo: s.shipments.billingTruckNo,
     costVehicleClassId: s.shipments.costVehicleClassId,
     revVehicleClassId: s.shipments.revVehicleClassId,
+    // 18/11 Task 1.2 — NV phụ trách (creator identity chain).
+    creatorName: s.users.fullName,
+    creatorCode: s.users.employeeCode,
   })
   .from(s.shipments)
   .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
   .leftJoin(s.operationalSites, eq(s.operationalSites.id, s.shipments.operationalSiteId))
+  // 18/11 Task 1.2 — NV phụ trách: the creator's human name + employee code
+  // ride every row so the CUS grid can show who owns a team lot.
+  .leftJoin(s.users, eq(s.users.id, s.shipments.createdBy))
     .where(and(...conditions))
     .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
   if (lots.length === 0) return { items: [], total: 0, excludedCount: 0, excludedSum: '0', excludedTrips: [] };
@@ -570,6 +581,9 @@ export async function getShipmentDebitSummary(query: {
       revGroupPrincipalRef: lot.revGroupId != null && (lot.revGroupOrder ?? 1) > 1
         ? revPrincipalRefs.get(lot.revGroupId) ?? null
         : null,
+      // 18/11 Task 1.2 — NV phụ trách (NULL creator row → null, never '—').
+      creatorName: lot.creatorName ?? null,
+      creatorCode: lot.creatorCode ?? null,
     };
   });
   const visible = query.lockStatus === 'ALL'

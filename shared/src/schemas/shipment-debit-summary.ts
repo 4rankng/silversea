@@ -23,6 +23,9 @@ export const shipmentDebitSummaryQuerySchema = z.object({
   deliveryDateFrom: z.string().date().optional(),
   deliveryDateTo: z.string().date().optional(),
   lockStatus: z.enum(['ALL', 'OPEN', 'LOCKED']).optional().default('ALL'),
+  // Nhóm CUS team visibility (ticket 18/11 Task 1.2): absent/'false' = mặc
+  // định chỉ lô của chính tài khoản CUS; 'true' mở rộng theo nhóm ACTIVE.
+  team: z.enum(['true', 'false']).optional(),
 });
 
 export const shipmentDebitSummaryItemSchema = z.object({
@@ -121,6 +124,11 @@ export const shipmentDebitSummaryItemSchema = z.object({
   // meta segment instead of failing.
   deliveryDate: z.string().nullable().optional(),
   containerCount: z.number().int().nonnegative().nullable().optional(),
+  // 18/11 Task 1.2 — NV phụ trách: the lot's creator (users join on
+  // shipments.createdBy). The CUS grid renders the name in team mode.
+  // Optional/nullable like every late-added wire field.
+  creatorName: z.string().nullable().optional(),
+  creatorCode: z.string().nullable().optional(),
 });
 
 // Case 2026-10-17 — the L1 shadow line must NAME what it excludes: one entry

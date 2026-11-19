@@ -108,15 +108,17 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     // The in-cell BKS editor keeps the SIL-516 invariant — its tray is
     // width:100% of the cell, nothing spills.
     const floor = (name: string) => Number(css.match(new RegExp(`--led-w-${name}:\\s*(\\d+)px`))?.[1] ?? 0);
-    expect(floor('schedule')).toBeGreaterThanOrEqual(96);
+    // ticket 18/11 (Web PC 1440) supersedes the old schedule measure: the
+    // LỊCH TRÌNH floor is 160px (the date token stays one line, the time
+    // rides a second line), ĐIỂM NÂNG HẠ 155px and TRẠNG THÁI 145px.
+    expect(floor('schedule')).toBe(160);
+    expect(floor('route')).toBe(155);
+    expect(floor('status')).toBe(145);
     expect(floor('container')).toBe(116);
-    // SIL-824 QA FAIL 16/11 re-audit: billbook keeps its 112px floor — the
-    // live 12-char token 'EBKG19248801' renders 87px and the TRUE cell chrome
-    // (cell-trigger 10px × 2 + 1px border = 21px) leaves only a 91px box, a
-    // 4px margin that cannot fund the route fix. Route is funded by its own
-    // floor (88→96) + the route cell trigger's inline padding (10px→6px, the
-    // SIL-819 lever) instead.
-    expect(floor('billbook')).toBe(112);
+    // ticket 18/11 supersedes the 112px measure: billbook holds a 115px
+    // floor — the live 12-char token 'EBKG19248801' renders 87px and the
+    // TRUE cell chrome (cell-trigger 10px × 2 + 1px border = 21px) fits with
+    // margin at 115px.
     expect(floor('direction')).toBe(76);
     // SIL-848 (QA 15/11 "cắt dưới 12 chữ số"): 116px was the exact 12-digit
     // floor with zero metric margin; the 124px floor pays the run at wide

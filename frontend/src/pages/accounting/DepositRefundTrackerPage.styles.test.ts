@@ -113,7 +113,10 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
   });
 
   it('the verbatim alert line renders plain text — no decorative icons (§1)', () => {
-    expect(tsx).toMatch(/kiểm tra check cược số lượng: <strong>/);
+    // ticket 18/11 Task 3.4 supersedes the §1 alert lead literal
+    // ("Kiểm tra check cược số lượng" → "Cảnh báo quá hạn nộp công văn hoàn
+    // cược"); the §1 law itself stands — plain text + <strong>, no icon.
+    expect(tsx).toMatch(/Cảnh báo quá hạn nộp công văn hoàn cược: <strong>/);
     expect(tsx).not.toMatch(/deposit-tracker-warnings__item"><CalendarClock/);
   });
 

@@ -105,17 +105,17 @@ describe('OpsSettlementSheet — SIL-845 flat 6-column bảng', () => {
     expect(rows[3]).toEqual(['Khách QA', 'Chưa có số Bill/Booking', '10859073650, 10859073651', 'Phí chung lô', 'Bốc xếp', '70.000 ₫']);
   });
 
-  it('closes with the 3 total rows: Tổng có HĐ X · Tổng không HĐ Y · TỔNG CỘNG QUYẾT TOÁN (X+Y)', () => {
+  it('closes with the 3 total rows: Tổng chi phí có hóa đơn X · Tổng chi phí không hóa đơn Y · Tổng cộng (X+Y)', () => {
     viewport(1440);
     render(<OpsSettlementSheet grouping={grouping({
       withInvoice: basket([item()]),
     }, { withInvoice: '20000', withoutInvoice: '70000', grand: '90000' })} meta={meta} />);
     const grandRow = Array.from(document.querySelectorAll('.ops-settlement-sheet__grand-row th, .ops-settlement-sheet__grand-row td')).map((cell) => cell.textContent);
-    expect(grandRow).toEqual(['TỔNG CỘNG QUYẾT TOÁN', '90.000 ₫']);
+    expect(grandRow).toEqual(['Tổng cộng', '90.000 ₫']);
     const totalRow = Array.from(document.querySelectorAll('.ops-settlement-sheet__total')).map((row) => Array.from(row.querySelectorAll('th,td')).map((cell) => cell.textContent));
     expect(totalRow).toEqual([
-      ['Tổng có hóa đơn', '20.000 ₫'],
-      ['Tổng không hóa đơn', '70.000 ₫'],
+      ['Tổng chi phí có hóa đơn', '20.000 ₫'],
+      ['Tổng chi phí không hóa đơn', '70.000 ₫'],
     ]);
     // No per-basket subtotal rows and no per-lot total line remain.
     expect(document.querySelectorAll('.ops-settlement-sheet__subtotal')).toHaveLength(0);
@@ -168,7 +168,7 @@ describe('OpsSettlementSheet — SIL-845 flat 6-column bảng', () => {
       expect(within(record).getByText('-20.000 ₫')).toBeVisible();
       expect(within(record).queryByText('Chi tiết')).toBeNull();
     }
-    for (const name of ['Tổng có hóa đơn', 'Tổng không hóa đơn', 'TỔNG CỘNG QUYẾT TOÁN']) {
+    for (const name of ['Tổng chi phí có hóa đơn', 'Tổng chi phí không hóa đơn', 'Tổng cộng']) {
       expect(within(screen.getByRole('article', { name })).getByText('0 ₫')).toBeVisible();
     }
     expect(container.querySelectorAll('.ledger-desktop.ds-table-scroll > table')).toHaveLength(1);
@@ -183,14 +183,14 @@ describe('OpsSettlementSheet — SIL-845 flat 6-column bảng', () => {
     const rows = basket(Array.from({ length: 21 }, () => item()));
     render(<OpsSettlementSheet grouping={grouping({ withInvoice: rows })} meta={meta} />);
     expect(screen.getAllByRole('article', { name: 'MSCU456789' })).toHaveLength(20);
-    expect(within(screen.getByRole('article', { name: 'Tổng có hóa đơn' })).getByText('0 ₫')).toBeVisible();
+    expect(within(screen.getByRole('article', { name: 'Tổng chi phí có hóa đơn' })).getByText('0 ₫')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
     expect(screen.getAllByRole('article', { name: 'MSCU456789' })).toHaveLength(1);
     expect(within(screen.getByRole('article', { name: 'MSCU456789' })).getByText('20.000 ₫')).toBeVisible();
-    expect(within(screen.getByRole('article', { name: 'Tổng có hóa đơn' })).getByText('0 ₫')).toBeVisible();
+    expect(within(screen.getByRole('article', { name: 'Tổng chi phí có hóa đơn' })).getByText('0 ₫')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Trang trước' }));
     expect(screen.getAllByRole('article', { name: 'MSCU456789' })).toHaveLength(20);
-    expect(screen.getByRole('article', { name: 'Tổng có hóa đơn' })).toBeVisible();
+    expect(screen.getByRole('article', { name: 'Tổng chi phí có hóa đơn' })).toBeVisible();
   });
 
   // SIL-751 — the totals drop negative rows (card 20260928_197), so a phiếu

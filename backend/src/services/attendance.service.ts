@@ -340,6 +340,10 @@ export async function computeSalary(
 
 /**
  * Compute salary summaries for ALL active drivers in a given month/year.
+ * Active means the live driver profile (deletedAt null) that is also
+ * status='ACTIVE' — a retired (INACTIVE) driver leaves the Lương & Chấm công
+ * roster, its "Tổng lái xe" KPI and its "Lái xe (N)" list count together
+ * (ticket 18/11 Task 3.5b: one roster, one count law).
  */
 export async function computeAllDriverSalaries(year: number, month: number) {
   const drivers = await db.select({
@@ -351,7 +355,7 @@ export async function computeAllDriverSalaries(year: number, month: number) {
     // tổng kết lương và khởi tạo dialog "Sửa lương cứng".
     salaryMode: s.drivers.salaryMode,
   }).from(s.drivers)
-    .where(isNull(s.drivers.deletedAt))
+    .where(and(isNull(s.drivers.deletedAt), eq(s.drivers.status, 'ACTIVE')))
     .orderBy(s.drivers.name);
 
   // Batch-fetch all confirmations for this month (eliminates N+1)

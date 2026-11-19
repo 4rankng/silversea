@@ -9,6 +9,7 @@ import type { SQL } from 'drizzle-orm';
 import { Role } from '@tingting/shared';
 import {
   cusVisibilityArms,
+  cusVisibilityCondition,
   cusLotVisibleFor,
   assertCusLotVisible,
   CUS_LOT_NOT_FOUND_MESSAGE,
@@ -151,5 +152,61 @@ describe('assertCusLotVisible — fake executor', () => {
       select: () => { throw new Error('must not query for non-CUS'); },
     } as never;
     await assert.doesNotReject(assertCusLotVisible(1, actor(Role.ACCOUNTANT), neverExecutor));
+  });
+});
+
+describe('cusVisibilityCondition — team toggle (ticket 18/11 Task 1.2)', () => {
+  it('includeTeam:false bỏ nhánh arm 2 — KHÔNG đụng DB tra nhóm', async () => {
+    const neverExecutor = {
+      select: () => { throw new Error('includeTeam:false must not resolve group membership'); },
+    } as never;
+    const conditions = await cusVisibilityCondition(neverExecutor, actor(Role.CUS), { includeTeam: false });
+    assert.equal(conditions.length, 1);
+    const { sql } = render(conditions[0]!);
+    // Mặc định chỉ thấy lô của mình: không có nhánh co-members.
+    assert.match(sql, /"shipments"\."created_by" = \$1/);
+    assert.doesNotMatch(sql, /= any\(/);
+    assert.doesNotMatch(sql, /in \(\$2/);
+    // Fallback arms vẫn giữ ở CẢ HAI chế độ (fallback dữ liệu, không phải mở rộng team).
+    assert.match(sql, /"shipments"\."created_by" is null/);
+    assert.match(sql, /not in \(select id from users where role = 'CUS'\)/);
+  });
+
+  it('includeTeam:true giữ arm 2 co-members từ nhóm ACTIVE', async () => {
+    const executor = sequentialExecutor([], [], [{ userId: 11 }, { userId: 12 }]);
+    const conditions = await cusVisibilityCondition(executor, actor(Role.CUS), { includeTeam: true });
+    const { sql, params } = render(conditions[0]!);
+    assert.match(sql, /"shipments"\."created_by" in \(\$2, \$3\)/);
+    assert.deepEqual(params, [7, 11, 12]);
+  });
+
+  it('includeTeam:true với người không thuộc nhóm nào → cùng 3 nhánh mặc định', async () => {
+    const executor = sequentialExecutor([], [], []);
+    const conditions = await cusVisibilityCondition(executor, actor(Role.CUS), { includeTeam: true });
+    const { sql } = render(conditions[0]!);
+    assert.doesNotMatch(sql, /in \(\$2/);
+    assert.match(sql, /"shipments"\."created_by" = \$1/);
+  });
+
+  it('vai không phải CUS: team toggle không scope gì cả', async () => {
+    const neverExecutor = {
+      select: () => { throw new Error('must not query for non-CUS'); },
+    } as never;
+    assert.deepEqual(await cusVisibilityCondition(neverExecutor, actor(Role.ADMIN), { includeTeam: true }), []);
+  });
+
+  // Ticket 18/11 — drill-down law: per-lot asserts stay team-open in BOTH
+  // toggle modes (list OFF vẫn mở được lô của người cùng nhóm từ link/debit).
+  it('assertCusLotVisible luôn mở theo nhóm, bất kể list toggle', async () => {
+    // Creator là người cùng nhóm ACTIVE → pass (cơ chế assert không nhận
+    // toggle — luật drill-down cố ý, không theo state của list).
+    await assert.doesNotReject(
+      assertCusLotVisible(1, actor(Role.CUS), sequentialExecutor([{ createdBy: 11 }], [{ role: 'CUS' }], [{ userId: 11 }])),
+    );
+    // Creator CUS ngoài nhóm vẫn 404 ở cả hai chế độ.
+    await assert.rejects(
+      assertCusLotVisible(1, actor(Role.CUS), sequentialExecutor([{ createdBy: 99 }], [{ role: 'CUS' }])),
+      (err: unknown) => err instanceof ApiError && err.statusCode === 404,
+    );
   });
 });

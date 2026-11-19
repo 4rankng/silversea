@@ -315,7 +315,6 @@
 @media (max-width: 640px) {
   /* ── SalaryAttendancePage: calendar cell breathing room, action buttons ── */
   .cal-cell {
-    aspect-ratio: auto;
     min-height: 42px;
     padding: 4px 2px !important;
     border-radius: 6px !important;

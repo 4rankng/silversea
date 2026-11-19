@@ -47,6 +47,9 @@ function minimalListItem(overrides: Record<string, unknown> = {}) {
     bucket: ShipmentCusBucket.NEW,
     bucketLabel: 'Mới tạo',
     customerName: 'Công ty A',
+    // Ticket 18/11 Task 1.2 — creator rides the wire; fixture owns none.
+    creatorName: null,
+    creatorCode: null,
     factoryName: null,
     effectiveFactoryNames: [],
     billOrBookNumber: 'BL12345',

@@ -1,7 +1,11 @@
-// SIL-807 (UAT KH 12/11) — bảng phơi phiếu: cột Chi phí phát sinh / Số HĐ
-// phải hiện TOÀN BỘ khoản chi của lô (kể cả Lái xe khai / chi phí chuyến),
-// mỗi khoản một ô sửa Số HĐ auto-save (blur/Enter) theo đúng mutation route
-// của kind đó — trước đây chỉ OPS hiện, các lô khác in '—'.
+// Ticket 18/11 Task 3.1 (supersedes the SIL-807 UAT 12/11 pin "mọi khoản chi
+// của lô đều hiện") — bảng phơi phiếu renders EXACTLY the set the server's
+// nguồn rule leaves in `chiHoRows`: RULE enforcement lives in
+// phoi-phieu-control.service.ts (isDispatchIntakeLot — a direct-signed lot's
+// Ops-declared nâng/hạ rows leave the board; a dispatch-intake lot keeps
+// them). The board never re-adds an excluded kind, and each RENDERED khoản
+// keeps its own Số-HĐ editor committing on the right mutation route
+// (DRIVER → entries/:kind via update, TRIP/OPS → correct/update per state).
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -83,6 +87,7 @@ function phoiRow(overrides: Partial<PhoiPhieuRow> = {}): PhoiPhieuRow {
     cusDispatchNotes: [],
     opsRecoveryNotes: [],
     driverNote: null,
+    ghiChu: null,
     confirmable: true,
     openSources: [],
     chiHoRows: [],
@@ -108,7 +113,7 @@ beforeEach(() => {
   updatePhoiPhieuRowAmounts.mockReset().mockResolvedValue({});
 });
 
-describe('PhoiPhieuControlPage — Số HĐ mọi khoản chi của lô (SIL-807)', () => {
+describe('PhoiPhieuControlPage — nguồn rule renders the server-filtered chi phí set (ticket 18/11 Task 3.1)', () => {
   it('hiện ô Số HĐ cho khoản LÁI XE khai với nhãn loại phí khi feeName trống, commit đúng route DRIVER', async () => {
     renderWithRows([phoiRow({
       chiHoRows: [
@@ -148,7 +153,9 @@ describe('PhoiPhieuControlPage — Số HĐ mọi khoản chi của lô (SIL-807
     );
   });
 
-  it('một lô nhiều kind (OPS + DRIVER + TRIP) hiện đủ 3 ô Số HĐ trong cùng ô cột', async () => {
+  it('lô ĐIỀU VẬN nhập (sản lượng vận tải ngoài) giữ khoản Ops nâng/hạ: chiHoRows còn Phí nâng → ô Số HĐ hiện', async () => {
+    // The server kept the OPS nâng row because the lot's creator is a
+    // DISPATCHER (isDispatchIntakeLot) — the board renders it like any kind.
     renderWithRows([phoiRow({
       chiHoRows: [
         { entryId: 11, sourceId: 21, version: 3, sourceKind: 'OPS', feeName: 'Phí nâng', invoiceNumber: null, confirmed: false },
@@ -159,5 +166,31 @@ describe('PhoiPhieuControlPage — Số HĐ mọi khoản chi của lô (SIL-807
     expect(await screen.findByLabelText('Số hóa đơn Phí nâng YMJAI226573788')).toBeInTheDocument();
     expect(screen.getByLabelText('Số hóa đơn Phí cầu đường YMJAI226573788')).toBeInTheDocument();
     expect(screen.getByLabelText('Số hóa đơn Phí vệ sinh YMJAI226573788')).toBeInTheDocument();
+  });
+
+  it('lô khách Silver Sea ký trực tiếp: nâng/hạ đã bị nguồn rule loại ở server — bảng KHÔNG tự sinh lại ô Phí nâng', async () => {
+    // The payload is what the rule leaves for a direct-signed lot: DRIVER +
+    // TRIP only. The board must render that set verbatim — no Ops nâng/hạ
+    // editor may reappear client-side, while the kept kinds stay editable.
+    // The composed Ghi chú column sits right after Trạng thái (Task 3.1e) —
+    // and with a note on the lot it prints that note (auto-hide only while empty).
+    const { container } = renderWithRows([phoiRow({
+      ghiChu: 'CUS: giao giờ hành chính; ĐV: trả cont tại Bãi Cát Lái',
+      chiHoRows: [
+        { entryId: 71, sourceId: 91, version: 2, sourceKind: 'DRIVER', costType: 'TOLL', feeName: null, invoiceNumber: null, confirmed: false },
+        { entryId: 81, sourceId: 92, version: 5, sourceKind: 'TRIP', feeName: 'Phí vệ sinh', invoiceNumber: null, confirmed: false },
+      ],
+    })]);
+    await screen.findByLabelText('Số hóa đơn Phí cầu đường YMJAI226573788');
+    expect(screen.getByLabelText('Số hóa đơn Phí vệ sinh YMJAI226573788')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Số hóa đơn Phí nâng YMJAI226573788')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Số hóa đơn Phí hạ YMJAI226573788')).not.toBeInTheDocument();
+    // The duplicate Chi hộ column is gone (Task 3.1d); the Chi-tiết-chi-hộ
+    // affordance now rides the Số-HĐ cell.
+    expect(screen.queryByRole('columnheader', { name: 'Chi hộ (thu / trả)' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Chi tiết chi hộ YMJAI226573788' })).toBeInTheDocument();
+    const headers = [...container.querySelectorAll('.ppc-board thead th')].map((th) => th.textContent);
+    expect(headers.indexOf('Ghi chú')).toBe(headers.indexOf('Trạng thái') + 1);
+    expect(screen.getByText('CUS: giao giờ hành chính; ĐV: trả cont tại Bãi Cát Lái')).toBeInTheDocument();
   });
 });

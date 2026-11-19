@@ -125,14 +125,13 @@ describe('mobile touch floor (design-guidelines §5)', () => {
   });
 
   it('SIL-583 floors the audited inline triggers at 24px (WCAG 2.5.8, all pointers)', () => {
-    // copy button: 20×20 → 24×24
-    const debit = read('src/pages/ShipmentDebitPage.css');
-    const copy = debit.match(/\.shipment-debit-copy\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(copy).toMatch(/width:\s*24px;/);
-    expect(copy).toMatch(/height:\s*24px;/);
-    // docs badge: 20px tall → min-height 24
-    const badge = debit.match(/\.shipment-debit-docs__badge\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(badge).toMatch(/min-height:\s*24px;/);
+    // ticket 18/11: the flat /shipments-debit board retired — its copy button
+    // and docs badge died with the board. The shared merge grid is the CUS
+    // debit surface now; its inline triggers carry the same 24px floor.
+    const grid = read('src/features/accounting/DebitMergeGrid.css');
+    const toggle = grid.match(/\.debit-merge__cont-toggle\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(toggle).toMatch(/min-height:\s*24px;/);
+    expect(toggle).toMatch(/display:\s*inline-flex;/);
     // master-plan notes trigger + detailed-plan note: 17px line → 24px floor
     const mpg = read('src/features/dispatch/master-plan/MasterPlanGrid.css');
     expect(mpg.match(/\.master-plan-grid__notes-trigger\s*\{[^}]*\}/)?.[0] ?? '').toMatch(/min-height:\s*24px;/);
@@ -161,15 +160,16 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     expect(read('src/styles/tokens.css')).toMatch(/--control-touch-h:\s*44px;/);
     // Named QA clusters grow the ELEMENT (real border box) on touch form
     // factors: coarse pointer at any width, or ≤768px at any pointer (the
-    // AC's 390/768 sweep widths).
-    const debit = read('src/pages/ShipmentDebitPage.css');
-    for (const cls of ['shipment-debit-menu__trigger', 'shipment-debit-copy']) {
-      const rule = debit.match(new RegExp(`@media \\(max-width: 768px\\), \\(hover: none\\) and \\(pointer: coarse\\) \\{[\\s\\S]*?\\.${cls} \\{([^}]*)\\}`))?.[1] ?? '';
-      expect(rule, `${cls} grows to the real touch floor`).toMatch(/width:\s*var\(--control-touch-h\);/);
-      expect(rule, `${cls} grows to the real touch floor`).toMatch(/height:\s*var\(--control-touch-h\);/);
+    // AC's 390/768 sweep widths). ticket 18/11: the flat board's kebab
+    // trigger and copy button retired with it — the merge grid's container
+    // toggle and lot link are the row triggers now, same real-box law
+    // (min- forms: the text triggers keep their content whole).
+    const grid = read('src/features/accounting/DebitMergeGrid.css');
+    for (const cls of ['debit-merge__cont-toggle', 'debit-merge__lot-link']) {
+      const rule = grid.match(new RegExp(`@media \\(max-width: 768px\\), \\(hover: none\\) and \\(pointer: coarse\\) \\{[\\s\\S]*?\\.${cls} \\{([^}]*)\\}`))?.[1] ?? '';
+      expect(rule, `${cls} grows to the real touch floor`).toMatch(/min-width:\s*var\(--control-touch-h\);/);
+      expect(rule, `${cls} grows to the real touch floor`).toMatch(/min-height:\s*var\(--control-touch-h\);/);
     }
-    const badge = debit.match(/@media \(max-width: 768px\), \(hover: none\) and \(pointer: coarse\) \{[\s\S]*?\.shipment-debit-docs__badge \{([^}]*)\}/)?.[1] ?? '';
-    expect(badge, 'docs badge rides the touch floor').toMatch(/min-height:\s*var\(--control-touch-h\);/);
     const rowMenu = read('src/features/dispatch/dispatch-row-menu.css');
     expect(rowMenu).toMatch(
       /@media \(pointer: coarse\), \(max-width: 768px\) \{\s*:is\(#root, body\) \.dispatch-row-menu__trigger \{[^}]*width:\s*var\(--control-touch-h\);/,
@@ -192,9 +192,10 @@ describe('mobile touch floor (design-guidelines §5)', () => {
   });
 
   it('SIL-583 round 3 floors the QA-failed clusters at 24px (mergetag trigger + ledger field links)', () => {
-    // "Ghép (n/2)" trigger: 66×20 → min-height 24 (DebitLotTable status cell)
-    const debit = read('src/pages/ShipmentDebitPage.css');
-    const mergetag = debit.match(/\.shipment-debit-mergetag__trigger\s*\{[^}]*\}/)?.[0] ?? '';
+    // "Ghép (n/2)" trigger: 66×20 → min-height 24. ticket 18/11: the flat
+    // board retired; the merge grid's mergetag span carries the trigger now.
+    const grid = read('src/features/accounting/DebitMergeGrid.css');
+    const mergetag = grid.match(/\.debit-merge-money__mergetag\s*\{[^}]*\}/)?.[0] ?? '';
     expect(mergetag, 'mergetag trigger floor exists').not.toBe('');
     expect(mergetag).toMatch(/min-height:\s*24px;/);
     expect(mergetag).toMatch(/display:\s*inline-flex;/);

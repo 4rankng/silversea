@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { sortTreasuryPositions, type TreasuryPosition } from '../services/treasury.service';
+import { projectTreasuryFundBreakdown, sortTreasuryPositions, type TreasuryPosition } from '../services/treasury.service';
 
 // Pure comparator coverage — the local database has no seeded treasury
 // accounts, so the endpoint-level sort is proven on the computed position
@@ -89,5 +89,48 @@ describe('treasury position sort', () => {
     const original = [...rows];
     sortTreasuryPositions(rows, 'bookBalance', 'desc');
     assert.deepEqual(rows, original);
+  });
+});
+
+// Sổ quỹ đối soát (ticket 18/11 Task 3.5a) — the fund-axis projection the
+// position route appends as `fundBreakdown`.
+describe('projectTreasuryFundBreakdown', () => {
+  test('sums opening/in/out per fund and recomputes the fund book balance', () => {
+    const breakdown = projectTreasuryFundBreakdown([
+      position({ accountId: 1, name: 'Tiền mặt quỹ', type: 'CASH', openingBalance: 100, totalIn: 700, totalOut: 200, bookBalance: 600 }),
+      position({ accountId: 2, name: 'TM phụ', type: 'CASH', openingBalance: 50, totalIn: 100, totalOut: 0, bookBalance: 150 }),
+      position({ accountId: 3, name: 'VCB chính', type: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 }),
+    ]);
+
+    assert.deepEqual(breakdown.funds, [
+      { fund: 'CASH', openingBalance: 150, totalIn: 800, totalOut: 200, bookBalance: 750 },
+      { fund: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 },
+    ]);
+    assert.equal(breakdown.inDelta, 400);      // 800 − 400
+    assert.equal(breakdown.outDelta, -700);    // 200 − 900
+    assert.equal(breakdown.balanceDelta, 250); // 750 − 500
+  });
+
+  test('a fund with no accounts projects as all zeros and deltas reflect the present fund', () => {
+    const breakdown = projectTreasuryFundBreakdown([
+      position({ accountId: 1, name: 'VCB chính', type: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 }),
+    ]);
+
+    assert.deepEqual(breakdown.funds[0], { fund: 'CASH', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 });
+    assert.equal(breakdown.inDelta, -400);
+    assert.equal(breakdown.outDelta, -900);
+    assert.equal(breakdown.balanceDelta, -500);
+  });
+
+  test('empty ledger projects a zeroed two-fund breakdown', () => {
+    assert.deepEqual(projectTreasuryFundBreakdown([]), {
+      funds: [
+        { fund: 'CASH', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+        { fund: 'BANK', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+      ],
+      inDelta: 0,
+      outDelta: 0,
+      balanceDelta: 0,
+    });
   });
 });

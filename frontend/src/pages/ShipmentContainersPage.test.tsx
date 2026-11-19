@@ -52,7 +52,10 @@ const response: ShipmentCusContainerFlatResponse = {
   items: [
     {
       id: 11, shipmentId: 1, shipmentVersion: 4, ordinal: 1, customerId: 7, isAdHoc: false,
-      customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hải Phòng', routeName: 'Đình Vũ → Hải Phòng',
+      customerName: 'Công ty Silver Sea',
+      // Ticket 18/11 Task 1.2 — creator rides the wire; fixture owns none.
+      creatorName: null, creatorCode: null,
+      factoryName: 'Nhà máy Hải Phòng', routeName: 'Đình Vũ → Hải Phòng',
       billOrBookNumber: 'BILL-12345', declarationNumber: 'TK-001', shippingLineName: 'MSC', isCombined: true, classification: 'COMBINED', direction: 'IMPORT',
       containerNumber: 'CONT-001', containerTypeLabel: '40HC', dispatchStatus: 'AWAITING_VEHICLE', carrierName: 'SilverSea', carrierType: null, plateNumber: '30H-123.45',
       tripId: null, tripStatus: null, tripDepartureDate: null,
@@ -66,7 +69,8 @@ const response: ShipmentCusContainerFlatResponse = {
     },
     {
       id: 12, shipmentId: 2, shipmentVersion: 7, ordinal: 1, customerId: 7, isAdHoc: false,
-      customerName: 'Công ty Silver Sea', factoryName: 'Nhà máy Hưng Yên', routeName: 'Cảng → Hưng Yên',
+      customerName: 'Công ty Silver Sea', creatorName: null, creatorCode: null,
+      factoryName: 'Nhà máy Hưng Yên', routeName: 'Cảng → Hưng Yên',
       billOrBookNumber: 'BOOK-67890', declarationNumber: null, shippingLineName: 'CMA CGM', isCombined: false, classification: 'DOUBLE', direction: 'EXPORT',
       containerNumber: 'CONT-002', containerTypeLabel: '20DC', dispatchStatus: 'AWAITING_VEHICLE', carrierName: null, carrierType: null, plateNumber: null,
       tripId: null, tripStatus: null, tripDepartureDate: null,

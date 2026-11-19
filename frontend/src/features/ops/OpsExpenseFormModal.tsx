@@ -173,6 +173,9 @@ interface FeeRowHost {
   addType: (block: 'noInvoice' | 'invoice', rowKey: number, rawName: string) => Promise<void>;
   /** True while the catalog create is in flight — the inline editor disables. */
   typeCreating: boolean;
+  /** Ticket 18/11 Task 4.1 — typeCodes declared twice on the no-invoice tab;
+   *  those rows carry the same-type-per-container block error. */
+  noInvoiceDuplicateTypes: ReadonlySet<string>;
 }
 
 /**
@@ -314,13 +317,40 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   }
 
   const drafts = [...noInvoiceRows, ...invoiceRows];
+
+  // Ticket 18/11 Task 4.1 — PHÍ KHÔNG HÓA ĐƠN is HARD-GATED, and the form
+  // refuses BEFORE Lưu instead of bouncing at the write path.
+  // (a) A no-invoice fee must carry an explicit Số container: the default
+  // 'Phí chung lô' scope (or an empty pick) blocks with 'Bắt buộc chọn Số
+  // container' — a lot-wide no-invoice row is exactly the double-charge
+  // shape the duplicate gate refuses downstream. A lot with NO container
+  // rows at all keeps the lot scope (the picker hint above names it).
+  const noInvoiceHasRows = noInvoiceRows.some((draft) => !isEmptyDraft(draft));
+  const noInvoiceScopeBlocked = noInvoiceHasRows
+    && pickerContainers.length > 0
+    && pickedContainerIds.length === 0;
+  // (b) The same cost TYPE twice for the SAME container is refused up front:
+  // the container scope is shared by every row, so two non-blank no-invoice
+  // rows with one typeCode would write that type twice per picked container
+  // (the write path hard-409s the family). The INVOICE tab is untouched —
+  // multiple rows of one type stay allowed there (warn-then-confirm).
+  const noInvoiceDuplicateTypes = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const draft of noInvoiceRows) {
+      if (isEmptyDraft(draft) || !draft.typeCode) continue;
+      counts.set(draft.typeCode, (counts.get(draft.typeCode) ?? 0) + 1);
+    }
+    return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([code]) => code));
+  }, [noInvoiceRows]);
   // Per-row validity is block-dependent, so recompute with the right block.
   const invalidKeys = useMemo(() => {
     const keys = new Set<number>();
-    for (const draft of noInvoiceRows) if (draftErrors('noInvoice', draft)) keys.add(draft.key);
+    for (const draft of noInvoiceRows) {
+      if (draftErrors('noInvoice', draft) || noInvoiceDuplicateTypes.has(draft.typeCode)) keys.add(draft.key);
+    }
     for (const draft of invoiceRows) if (draftErrors('invoice', draft)) keys.add(draft.key);
     return keys;
-  }, [noInvoiceRows, invoiceRows]);
+  }, [noInvoiceRows, invoiceRows, noInvoiceDuplicateTypes]);
   const total = drafts.reduce((sum, draft) => sum + (amountValidOf(draft.amount) ? Number(draft.amount) : 0), 0);
   const anyPendingFiles = drafts.some((draft) => draft.pendingFiles.length > 0);
   // The catalog must be loaded AND every rendered row complete before the
@@ -328,7 +358,8 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const typesReady = typesQuery.isSuccess && Boolean(typesData?.items.length);
   // A form of untouched "+ rows" has nothing to save.
   const hasAnyRow = drafts.some((draft) => !isEmptyDraft(draft));
-  const canSubmit = typesReady && hasAnyRow && invalidKeys.size === 0 && !createExpense.isPending && !anyPendingFiles;
+  const canSubmit = typesReady && hasAnyRow && invalidKeys.size === 0
+    && !noInvoiceScopeBlocked && !createExpense.isPending && !anyPendingFiles;
   // SIL-723 — Lưu must never be disabled in silence: when a non-blank draft
   // blocks the save, the footer repeats the row's message (which NAMES the
   // missing field) right beside the button, so the dead state always says
@@ -339,6 +370,14 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const saveBlockedReason = useMemo(() => {
     if (!typesReady) return null;
     if (!hasAnyRow) return 'Chưa điền khoản chi nào — "Loại phí" và "Số tiền" là bắt buộc.';
+    // Ticket 18/11 Task 4.1 — the no-invoice hard gates speak first: their
+    // messages are the ones the disabled Lưu must name.
+    if (noInvoiceScopeBlocked) return 'Bắt buộc chọn Số container';
+    if (noInvoiceDuplicateTypes.size > 0) {
+      const code = [...noInvoiceDuplicateTypes][0];
+      const name = typesData?.items.find((type) => type.code === code)?.name ?? code;
+      return `Trùng loại phí "${name}" trên cùng số cont — không lưu dòng trùng.`;
+    }
     for (const draft of noInvoiceRows) {
       const message = draftErrors('noInvoice', draft);
       if (message && !message.startsWith('Số tiền')) return message;
@@ -348,7 +387,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       if (message && !message.startsWith('Số tiền')) return message;
     }
     return null;
-  }, [typesReady, hasAnyRow, noInvoiceRows, invoiceRows]);
+  }, [typesReady, hasAnyRow, noInvoiceScopeBlocked, noInvoiceDuplicateTypes, typesData, noInvoiceRows, invoiceRows]);
 
   const pendingResume = useRef<{ tasks: SaveTask[]; index: number } | null>(null);
 
@@ -499,6 +538,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     typesData, typesReady, busy, customerFields: !opsViewer,
     patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf,
     addType: addNewType, typeCreating: createType.isPending,
+    noInvoiceDuplicateTypes,
   };
 
   return (
@@ -654,7 +694,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 function FeeRowFields({ block, draft, ordinal, host }: {
 block: 'noInvoice' | 'invoice'; draft: FeeDraft; ordinal: number; host: FeeRowHost;
 }) {
-const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf, addType, typeCreating } = host;
+const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPhotos, remove: removeDraft, typeOptionsOf, addType, typeCreating, noInvoiceDuplicateTypes } = host;
   const invoiced = block === 'invoice';
   // SIL-813 — the inline "new fee type" editor for this row's catalog cell.
   const [addingType, setAddingType] = useState(false);
@@ -668,9 +708,13 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
   };
   // The NumberField prints its own amount error inline — the row hint only
   // carries what the money field cannot say (type choice, the Ghi-chú rule,
-  // unfinished uploads).
+  // unfinished uploads). Ticket 18/11 Task 4.1 — a no-invoice row whose type
+  // is declared twice on the tab carries the same-type hard block too.
   const rawError = draftErrors(block, draft);
   const error = rawError?.startsWith('Số tiền') ? null : rawError;
+  const duplicateTypeError = block === 'noInvoice' && noInvoiceDuplicateTypes.has(draft.typeCode)
+    ? 'Trùng loại phí trên cùng số cont — không lưu dòng trùng.'
+    : null;
   const photoUrls = useAuthedPhotoUrls(draft.photos.map((photo) => photo.storageKey));
   const fileRef = useRef<HTMLInputElement>(null);
   return (
@@ -816,7 +860,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
       {/* A quiet hint, not role=alert: an untouched "+ row" must not keep a
           permanent alert alive over the whole form (the catalog-recovery
           contract clears its alert once the catalog reloads). */}
-      {error && <p className="ops-modal-hint">{error}</p>}
+      {(error ?? duplicateTypeError) && <p className="ops-modal-hint">{error ?? duplicateTypeError}</p>}
     </section>
   );
 }

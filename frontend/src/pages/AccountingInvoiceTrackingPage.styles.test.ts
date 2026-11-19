@@ -47,6 +47,15 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(rules).not.toMatch(/table-layout/);
   });
 
+  it('ticket 18/11: KHÁCH HÀNG & LÔ holds a 280px floor via its data-label hook — no nth-child, no overflow', () => {
+    // The longest live customer name ('CÔNG TY TNHH MỘT THÀNH VIÊN LONG
+    // MINH') orphan-wrapped its last word at 1440; the floor holds it whole.
+    // The hook is the td's data-label attribute — the no-nth-child and
+    // no-td-overflow prohibitions above stay true.
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table td\[data-label='Khách hàng & Lô'\]\s*\{[^}]*min-width:\s*280px;/);
+    expect(rules).not.toMatch(/data-label='Khách hàng & Lô'\]\s*\{[^}]*overflow/);
+  });
+
   it('never clips or ellipsises a data cell — design law §4 no-truncation doctrine', () => {
     const cellRules = [...rules.matchAll(/([^{}]+)\{([^}]*)\}/g)]
       .filter(([, selector]) => /\b(td|th)\b/.test(selector))

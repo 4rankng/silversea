@@ -20,7 +20,8 @@
 .ppc-board .ppc-col--customer-route { min-width: 188px; }
 .ppc-board .ppc-col--thongso { min-width: 164px; }
 .ppc-board .ppc-col--diadiem { min-width: 164px; }
-.ppc-board .ppc-col--chiho { min-width: 188px; }
+/* Ticket 18/11 Task 3.1d — 'Chi hộ (thu / trả)' is gone from the board; its
+   188px floor left with the column. */
 /* SIL-783 (id 906) — inline Số-HĐ editing + "+ Chi phí": the fee line and
    the input sit in one narrow stack per chi-hộ row. SIL-807 — widened: the
    invoice column must hold a full mã hóa đơn (14+ chars, e.g. 339IVN0130626)
@@ -263,6 +264,19 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+/* Ticket 18/11 Task 3.2 — 'Lô chưa thanh toán' opens at TWO THIRDS of the
+   screen (ticket: 2/3 màn hình) so Tiền nâng / Tiền hạ / PS khác / Ghi chú all
+   read at once; the shared Drawer ladder's 580px cap stays for every other
+   drawer. Two class selectors so the override wins the cascade regardless of
+   sheet order; :not() keeps the shared full-screen expanded state (SIL-483)
+   above this rule; phones keep the shared full-width band. */
+.drawer.ppc-lots-drawer:not(.drawer--expanded) {
+  width: 66vw;
+  max-width: 1200px;
+}
+@media (max-width: 640px) {
+  .drawer.ppc-lots-drawer:not(.drawer--expanded) { width: 100%; max-width: none; }
 }
 .ppc-lots-ordinal {
   color: var(--ink-3);

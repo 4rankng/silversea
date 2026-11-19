@@ -36,31 +36,48 @@ export function DebitBoardTable({ rows, columns, context, selection, ariaLabel, 
           {rows.map((row) => {
             const pickable = row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED';
             const isRowSelected = selection.isSelected(row.shipmentId);
-            return (
-              <tr
-                key={row.shipmentId}
-                className={pickable ? 'debit-row--pickable' : 'debit-row--locked'}
-                data-selected={isRowSelected || undefined}
-                aria-selected={pickable ? isRowSelected : undefined}
-                tabIndex={pickable ? 0 : undefined}
-                {...selection.rowProps(row.shipmentId, { selectable: pickable })}
-              >
-                {columns.map((column) => (
-                  <td key={column.key} className={column.className}>
-                    {/* SIL-727 — only the pickable row's leading track gets
-                        the checkbox affordance; the toggle IS the shared
-                        selection state the row click drives. The ✓ tick rides
-                        inside the Lô cell (columns.tsx). */}
-                    {column.cell(row, {
-                      ...context,
-                      rowSelect: pickable
-                        ? { selected: isRowSelected, toggle: () => selection.toggle(row.shipmentId) }
-                        : null,
-                    })}
-                  </td>
-                ))}
-              </tr>
-            );
+            // Ticket 18/11 Task 2.2a — mỗi container một dòng độc lập: an FCL
+            // lot with N containers renders N rows (head + N−1 continuation).
+            // Lot-level money/edition facts live on the head row; a
+            // continuation row renders ONLY the spansSubrows columns (its own
+            // container + vehicle facts), so nothing can read as duplicated
+            // money. LCL/container-less lots stay one row.
+            const subRowCount = row.lcl || row.containers.length <= 1
+              ? 1
+              : row.containers.length;
+            return Array.from({ length: subRowCount }, (_, containerIndex) => {
+              const isHead = containerIndex === 0;
+              return (
+                <tr
+                  key={`${row.shipmentId}-${containerIndex}`}
+                  className={[
+                    pickable ? 'debit-row--pickable' : 'debit-row--locked',
+                    isHead ? undefined : 'debit-row--cont',
+                  ].filter(Boolean).join(' ')}
+                  data-selected={isRowSelected || undefined}
+                  aria-selected={pickable ? isRowSelected : undefined}
+                  tabIndex={pickable && isHead ? 0 : undefined}
+                  {...selection.rowProps(row.shipmentId, { selectable: pickable })}
+                >
+                  {columns.map((column) => (
+                    <td key={column.key} className={column.className}>
+                      {/* SIL-727 — only the pickable HEAD row's leading track
+                          gets the checkbox affordance (the whole lot is one
+                          selection unit). */}
+                      {(!isHead && !column.spansSubrows)
+                        ? null
+                        : column.cell(row, {
+                          ...context,
+                          containerIndex,
+                          rowSelect: isHead && pickable
+                            ? { selected: isRowSelected, toggle: () => selection.toggle(row.shipmentId) }
+                            : null,
+                        })}
+                    </td>
+                  ))}
+                </tr>
+              );
+            });
           })}
         </tbody>
       </table>

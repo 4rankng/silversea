@@ -39,6 +39,9 @@ export const AUTH_COMMANDS = {
   BUSINESS_UNITS_CREATE: 'auth.business-units.create',
   BUSINESS_UNITS_UPDATE: 'auth.business-units.update',
   BUSINESS_UNITS_DEACTIVATE: 'auth.business-units.deactivate',
+  CUS_GROUPS_CREATE: 'auth.cus-groups.create',
+  CUS_GROUPS_UPDATE: 'auth.cus-groups.update',
+  CUS_GROUPS_MEMBERS_SET: 'auth.cus-groups.members-set',
 } as const;
 
 function requireAdmin(req: Request, message: string): void {
@@ -177,7 +180,16 @@ router.get('/me', authMiddleware, asyncHandler(async (req: Request, res: Respons
     throw new ApiError(401, 'Vai trò đã thay đổi, vui lòng đăng nhập lại');
   }
   const capabilities = await userService.getCapabilities(profile.role);
-  res.json({ ...profile, capabilities });
+  res.json({
+    ...profile,
+    capabilities,
+    // AC1 (ticket 18/11): the session letter carries the ACTIVE nhóm CUS so
+    // the FE knows team visibility may widen the workboard. Additive — the
+    // login response is untouched.
+    cusGroups: profile.role === Role.CUS
+      ? await cusGroupService.listActiveCusGroupsForUser(getUser(req).userId)
+      : [],
+  });
 }));
 
 router.post('/logout', declareNonMaterialWrite('Authentication session revocation; independently token-bound and replay-safe.'), authMiddleware, asyncHandler(async (req: Request, res: Response) => {
@@ -455,7 +467,16 @@ router.get('/cus-groups', authMiddleware, casbinAuthz('users'), asyncHandler(asy
 router.post('/cus-groups', declareMaterialWrite('auth.cus-groups.create', { method: 'POST', path: '/api/auth/cus-groups' }), authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
   requireCusGroupManager(req, 'Chỉ quản trị, quản lý hoặc kế toán mới có thể tạo nhóm CUS');
   const data = z.object({ name: z.string().trim().min(1, 'Tên nhóm là bắt buộc').max(120) }).parse(req.body);
-  res.status(201).json(await cusGroupService.createCusGroup(data));
+  const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi tạo nhóm CUS.');
+  const { result, replayed } = await runIdempotent({
+    endpoint: AUTH_COMMANDS.CUS_GROUPS_CREATE,
+    idempotencyKey,
+    payload: { name: data.name },
+    createdBy: getUser(req).userId,
+    entityType: 'cus-groups',
+    create: async (tx) => cusGroupService.createCusGroup(data, tx),
+  });
+  res.status(201).json({ ...result, replayed });
 }));
 
 router.put('/cus-groups/:id', declareMaterialWrite('auth.cus-groups.update', { method: 'PUT', path: '/api/auth/cus-groups/:id' }), authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
@@ -466,7 +487,16 @@ router.put('/cus-groups/:id', declareMaterialWrite('auth.cus-groups.update', { m
     name: z.string().trim().min(1, 'Tên nhóm là bắt buộc').max(120).optional(),
     status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
   }).parse(req.body);
-  res.json(await cusGroupService.updateCusGroup(id, data));
+  const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi cập nhật nhóm CUS.');
+  const { result, replayed } = await runIdempotent({
+    endpoint: AUTH_COMMANDS.CUS_GROUPS_UPDATE,
+    idempotencyKey,
+    payload: { id, body: data },
+    createdBy: getUser(req).userId,
+    entityType: 'cus-groups',
+    create: async (tx) => cusGroupService.updateCusGroup(id, data, tx),
+  });
+  res.json({ ...result, replayed });
 }));
 
 router.put('/cus-groups/:id/members', declareMaterialWrite('auth.cus-groups.members-set', { method: 'PUT', path: '/api/auth/cus-groups/:id/members' }), authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
@@ -474,7 +504,16 @@ router.put('/cus-groups/:id/members', declareMaterialWrite('auth.cus-groups.memb
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) throw new ApiError(400, 'ID không hợp lệ');
   const data = z.object({ userIds: z.array(z.number().int().positive()).max(200) }).parse(req.body);
-  res.json(await cusGroupService.setCusGroupMembers(id, data.userIds));
+  const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi sửa thành viên nhóm CUS.');
+  const { result, replayed } = await runIdempotent({
+    endpoint: AUTH_COMMANDS.CUS_GROUPS_MEMBERS_SET,
+    idempotencyKey,
+    payload: { id, userIds: data.userIds },
+    createdBy: getUser(req).userId,
+    entityType: 'cus-groups',
+    create: async (tx) => cusGroupService.setCusGroupMembers(id, data.userIds, tx),
+  });
+  res.json({ ...result, replayed });
 }));
 
 router.delete('/users/:id', declareMaterialWrite('auth.users.delete', { method: 'DELETE', path: '/api/auth/users/:id' }),  authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {

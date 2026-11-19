@@ -443,6 +443,51 @@ export async function getTreasuryPositions(accountIds: number[], transaction?: T
   return runInTx(transaction, execute);
 }
 
+/**
+ * Fund-axis read projection for the Sổ quỹ đối soát section: the per-fund
+ * (account.type) totals the page renders side-by-side for the cash pocket and
+ * the bank pocket, plus the đối soát deltas between the two funds
+ * (CASH − BANK, so a positive number means the cash fund moved more).
+ *
+ * Inter-fund transfers intentionally do not exist here: every treasury
+ * movement must bind exactly one external money source (a payment receipt OR
+ * a ledger entry — insertTreasuryMovement), and no column pairs an OUT row on
+ * one account with an IN row on another. The reconciliation is therefore the
+ * thu/chi delta between funds, nothing more.
+ */
+export interface TreasuryFundRow {
+  fund: 'CASH' | 'BANK';
+  openingBalance: number;
+  totalIn: number;
+  totalOut: number;
+  bookBalance: number;
+}
+
+export interface TreasuryFundBreakdown {
+  funds: TreasuryFundRow[];
+  inDelta: number;
+  outDelta: number;
+  balanceDelta: number;
+}
+
+export function projectTreasuryFundBreakdown(positions: TreasuryPosition[]): TreasuryFundBreakdown {
+  const fundRow = (fund: 'CASH' | 'BANK'): TreasuryFundRow => {
+    const rows = positions.filter(position => position.type === fund);
+    const openingBalance = rows.reduce((sum, row) => sum + row.openingBalance, 0);
+    const totalIn = rows.reduce((sum, row) => sum + row.totalIn, 0);
+    const totalOut = rows.reduce((sum, row) => sum + row.totalOut, 0);
+    return { fund, openingBalance, totalIn, totalOut, bookBalance: openingBalance + totalIn - totalOut };
+  };
+  const cash = fundRow('CASH');
+  const bank = fundRow('BANK');
+  return {
+    funds: [cash, bank],
+    inDelta: cash.totalIn - bank.totalIn,
+    outDelta: cash.totalOut - bank.totalOut,
+    balanceDelta: cash.bookBalance - bank.bookBalance,
+  };
+}
+
 function requiredText(value: unknown, label: string, max: number): string {
   const normalized = typeof value === 'string' ? value.trim() : '';
   if (!normalized || normalized.length > max) {

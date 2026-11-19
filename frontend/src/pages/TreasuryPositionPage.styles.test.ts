@@ -59,3 +59,37 @@ describe('treasury position page density contract', () => {
     expect(sharedCss).not.toContain('workflow-choice');
   });
 });
+
+/**
+ * Sổ quỹ đối soát (ticket 18/11 Task 3.5a) — the fund reconciliation strip:
+ * Quỹ tiền mặt (CASH) vs Quỹ tài khoản ngân hàng (BANK) side-by-side, closed
+ * by the đối soát line. It rides the same record-table base as the account
+ * sheet — the same density contract, no private card or font scale.
+ */
+describe('treasury fund reconciliation strip contract (ticket 18/11 Task 3.5a)', () => {
+  const pageCss = read('src/pages/TreasuryPositionPage.css');
+  const pageTsx = read('src/pages/TreasuryPositionPage.tsx');
+
+  it('renders the strip through the shared record-table base, not a private card', () => {
+    expect(pageTsx).toContain('aria-label="Đối soát quỹ"');
+    const strip = pageTsx.slice(pageTsx.indexOf('Đối soát quỹ'), pageTsx.indexOf('Danh sách tài khoản ghi sổ'));
+    expect(strip).toContain('record-table ops-table treasury-table');
+    expect(strip).not.toMatch(/treasury-recon__card|treasury-recon-grid/);
+  });
+
+  it('keeps the strip type on the operational tokens', () => {
+    expect(pageCss).toMatch(/\.treasury-recon__title\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\)/s);
+    expect(pageCss).toMatch(/\.treasury-table__recon-note\s*\{[^}]*font-size:\s*var\(--ops-table-meta-size\)/s);
+    expect(pageCss).not.toMatch(/treasury-recon[^}]*(font-size:\s*var\(--fs-|font-size:\s*\d+px)/s);
+  });
+
+  it('labels the funds and the CASH−BANK đối soát line per the ticket', () => {
+    expect(pageTsx).toContain("'Quỹ tiền mặt'");
+    expect(pageTsx).toContain("'Quỹ tài khoản ngân hàng'");
+    expect(pageTsx).toContain('Đối soát (Tiền mặt − Ngân hàng)');
+    // The deltas render from the read projection, never recomputed client-side.
+    expect(pageTsx).toContain('data.fundBreakdown.inDelta');
+    expect(pageTsx).toContain('data.fundBreakdown.outDelta');
+    expect(pageTsx).toContain('data.fundBreakdown.balanceDelta');
+  });
+});

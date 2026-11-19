@@ -40,3 +40,32 @@ describe('salary calendar trip chip contract', () => {
     expect(span!).not.toMatch(/slice|substring|truncate|ellipsis/i);
   });
 });
+
+/**
+ * Ticket 18/11 Task 3.5c — the day cell itself must grow with a wrapped trip
+ * code: the fixed square (aspect-ratio: 1) plus overflow: hidden clipped the
+ * wrapped codes card 20261004_338 requires to display in full. The cell now
+ * rests on a min-height and its grid row stretches to the tallest cell.
+ */
+describe('salary calendar day-cell growth contract (ticket 18/11 Task 3.5c)', () => {
+  const responsive = readFileSync(resolve(process.cwd(), 'src/pages/salary-attendance/responsive.css'), 'utf8');
+
+  it('the day cell rests on min-height; no fixed square, no clipping', () => {
+    // `rule` above is scoped to the chip describe — extract the block here.
+    const body = css.match(/\.cal-cell\s*\{([^}]*)\}/)?.[1];
+    expect(body, '.cal-cell rule exists').toBeTruthy();
+    expect(body).toMatch(/min-height:/);
+    expect(body).not.toMatch(/aspect-ratio/);
+    expect(body).not.toMatch(/overflow:\s*hidden/);
+  });
+
+  it('no responsive override reintroduces the square or a clip on day cells', () => {
+    const blocks = responsive.match(/\.cal-cell\s*\{[^}]*\}/g) ?? [];
+    expect(blocks.length, 'the responsive sheet still tightens .cal-cell').toBeGreaterThan(0);
+    for (const block of blocks) {
+      expect(block).not.toMatch(/aspect-ratio/);
+      expect(block).not.toMatch(/overflow:\s*hidden/);
+      expect(block).toMatch(/min-height:/);
+    }
+  });
+});

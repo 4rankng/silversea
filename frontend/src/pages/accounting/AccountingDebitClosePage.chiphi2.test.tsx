@@ -178,12 +178,16 @@ describe('AccountingDebitClosePage — card 191026160000 chốt-debit fixes', ()
     await waitFor(() => expect(createRound).toHaveBeenCalledTimes(1));
 
     // The selection SURVIVES the chốt: the export button stays enabled and
-    // exports the same lot (the FB-094 flow, un-broken by the clear()).
+    // the preview opens over the same lot (the FB-094 flow, un-broken by the
+    // clear()). Ticket 18/11 Task 2.4 — the issue runs on [Lưu và tải file
+    // XLSX] inside the preview.
     const exportButton = screen.getByRole('button', { name: 'Xuất Debit Note' });
     await waitFor(() => expect(exportButton).toBeEnabled());
     fireEvent.click(exportButton);
+    const preview = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(preview).getByRole('button', { name: 'Lưu và tải file XLSX' }));
     await waitFor(() => expect(createNote).toHaveBeenCalledWith([151190]));
     await waitFor(() => expect(exportNote).toHaveBeenCalledWith(151190, 60));
-    expect(await screen.findByRole('status')).toHaveTextContent('Đã xuất Debit Note (1 lô).');
+    expect(await screen.findByRole('status')).toHaveTextContent('Đã lưu Debit Note (1 lô) — số liệu đã đẩy sang Công nợ. File XLSX đã tải.');
   }, 20000);
 });

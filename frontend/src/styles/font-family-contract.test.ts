@@ -46,6 +46,15 @@ const sharedMoneyTabularSources = [
   // same count numeral as the Tabs badge above: a numeric readout that declares
   // the shared tabular grid (inert until the typeface carries tnum).
   join(sourceRoot, 'features/dispatch/StuckTripsBanner.css'),
+  // ticket 18/11 (supersedes the shared-primitives-only reading for its own
+  // money surfaces): Task 2.3's Bảng Ghép bộ Debit grid and Task 2.4's debit
+  // note preview are settlement matrices in the ShipmentDebitPage/
+  // AccountingDebitClosePage tier — their money columns/foot totals carry the
+  // same tabular digit edge (the shared :where(table tbody td) rule covers
+  // the body cells; these own the tfoot/footer halves the shared rule
+  // doesn't reach).
+  join(sourceRoot, 'features/accounting/DebitMergeGrid.css'),
+  join(sourceRoot, 'pages/accounting/DebitNotePreviewDialog.css'),
 ];
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 

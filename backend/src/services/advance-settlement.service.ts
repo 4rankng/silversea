@@ -9,7 +9,7 @@ import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
 import { eq, and, desc, inArray, isNull, notInArray, ne, sql, count, sum } from 'drizzle-orm';
-import { NotificationType, TxnType, round2dp, sumExcludingNegative, AdvanceSettlementStatus, type AdvanceSettlementWithRefs } from '@tingting/shared';
+import { NotificationType, TxnType, round2dp, sumExcludingNegative, AdvanceSettlementStatus } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
 import { groupOpsExpensesForSettlement } from './ops-expenses.service';

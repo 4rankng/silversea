@@ -27,6 +27,17 @@ describe('shipment container editor density', () => {
     expect(css).toMatch(/\.cus-multiline-cell span\s*\{[^}]*font-size:\s*var\(--ops-table-meta-size\);/);
   });
 
+  it('identity factory/route lines wrap fully — ticket 18/11 removes the 2-line clamp', () => {
+    // ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes card
+    // 191026181942: the identity cell's spans ride the base wrap law
+    // (white-space: normal, overflow: visible, no ellipsis) — 'Chưa có tuyến
+    // đường' / 'Chưa có tờ khai' and long names never clamp or clip.
+    expect(css).not.toMatch(/\.cus-dashboard-cell--identity \.cus-multiline-cell span\s*\{[^}]*-webkit-line-clamp/);
+    expect(css).toMatch(/\.cus-multiline-cell strong,\s*\n\.cus-multiline-cell span\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
+    expect(rowSource).toContain('Chưa có tuyến đường');
+    expect(rowSource).toContain('Chưa có tờ khai');
+  });
+
   it('binds touch-friendly cell triggers to an explicit edit dialog', () => {
     // The floor is the shared ORDINARY ceiling token, not a private 44px: the
     // operator ruling of 2026-09-27 caps every component at 40px

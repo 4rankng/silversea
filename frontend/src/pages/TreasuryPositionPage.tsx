@@ -24,11 +24,37 @@ function sanitizeAccountDisplayName(name: string): string {
   return name.replace(/\s*\((?:COMPANY|TM|NULL,\s*pre-merge)\)/gi, '').trim();
 }
 
+/* Sổ quỹ đối soát (ticket 18/11 Task 3.5a) — the fund-axis read projection the
+   position endpoint appends as `fundBreakdown`. The shared client file types
+   the base response shape and is owned outside this page, so the extension is
+   typed here at its only consumer. */
+interface TreasuryFundRow {
+  fund: 'CASH' | 'BANK';
+  openingBalance: number;
+  totalIn: number;
+  totalOut: number;
+  bookBalance: number;
+}
+
+interface TreasuryFundBreakdown {
+  funds: TreasuryFundRow[];
+  inDelta: number;
+  outDelta: number;
+  balanceDelta: number;
+}
+
+type TreasuryPositionResponse = TreasuryPosition & { fundBreakdown: TreasuryFundBreakdown };
+
+const FUND_LABELS: Record<TreasuryFundRow['fund'], string> = {
+  CASH: 'Quỹ tiền mặt',
+  BANK: 'Quỹ tài khoản ngân hàng',
+};
+
 export default function TreasuryPositionPage() {
   const { user } = useAuth();
   const canConfigure = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
   const [editing, setEditing] = useState<TreasuryPosition['accounts'][number] | 'new' | null>(null);
-  const [data, setData] = useState<TreasuryPosition | null>(null);
+  const [data, setData] = useState<TreasuryPositionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Server-side column sort; primitives ride the load callback so changing the
@@ -40,7 +66,7 @@ export default function TreasuryPositionPage() {
     setLoading(true);
     setError(null);
     try {
-      setData(await customerServiceFinanceClient.getTreasuryPosition(sortBy ? { sortBy, sortDir } : undefined));
+      setData((await customerServiceFinanceClient.getTreasuryPosition(sortBy ? { sortBy, sortDir } : undefined)) as TreasuryPositionResponse);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể tải số dư ghi sổ.');
     } finally {
@@ -153,7 +179,54 @@ export default function TreasuryPositionPage() {
           description="Số dư sẽ xuất hiện sau khi tài khoản được thiết lập và chuyển đổi."
         />
       ) : data ? (
-        <section aria-label="Danh sách tài khoản ghi sổ">
+        <>
+          {/* Sổ quỹ đối soát (ticket 18/11 Task 3.5a) — side-by-side per-fund
+              book totals: Quỹ tiền mặt (CASH) vs Quỹ tài khoản ngân hàng
+              (BANK) over the account ledger's Đầu kỳ | Thu | Chi | Số dư cuối,
+              closed by the đối soát line (CASH − BANK deltas). The ledger has
+              no inter-fund transfer law — every treasury movement binds
+              exactly one external money source — so the note says the delta
+              is the whole reconciliation. */}
+          <section aria-label="Đối soát quỹ" className="treasury-recon mb-5">
+            <h2 className="treasury-recon__title">Đối soát quỹ</h2>
+            <div className="record-table-wrap">
+              <table className="record-table ops-table treasury-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Quỹ</th>
+                    <th scope="col" className="num">Đầu kỳ</th>
+                    <th scope="col" className="num">Thu</th>
+                    <th scope="col" className="num">Chi</th>
+                    <th scope="col" className="num">Số dư cuối</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.fundBreakdown.funds.map((fund) => (
+                    <tr key={fund.fund}>
+                      <td data-label="Quỹ"><strong>{FUND_LABELS[fund.fund]}</strong></td>
+                      <td data-label="Đầu kỳ" className="num"><span className="data-token">{formatCurrency(fund.openingBalance)}</span></td>
+                      <td data-label="Thu" className="num"><span className="data-token">{formatCurrency(fund.totalIn)}</span></td>
+                      <td data-label="Chi" className="num"><span className="data-token">{formatCurrency(fund.totalOut)}</span></td>
+                      <td data-label="Số dư cuối" className="num"><strong><span className="data-token">{formatCurrency(fund.bookBalance)}</span></strong></td>
+                    </tr>
+                  ))}
+                  <tr className="treasury-table__recon-row">
+                    <td data-label="Đối soát"><strong>Đối soát (Tiền mặt − Ngân hàng)</strong></td>
+                    <td data-label="Đầu kỳ" className="num">—</td>
+                    <td data-label="Thu" className="num"><span className="data-token">{formatCurrency(data.fundBreakdown.inDelta)}</span></td>
+                    <td data-label="Chi" className="num"><span className="data-token">{formatCurrency(data.fundBreakdown.outDelta)}</span></td>
+                    <td data-label="Số dư cuối" className="num"><strong><span className="data-token">{formatCurrency(data.fundBreakdown.balanceDelta)}</span></strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="treasury-table__recon-note">
+              Chênh lệch thu/chi giữa hai quỹ, dấu dương nghi về quỹ tiền mặt. Sổ kho quỹ không ghi
+              chuyển tiền giữa hai quỹ — mỗi dòng kho quỹ gắn đúng một nguồn tiền ngoài (phiếu thu
+              hoặc chứng từ chi) — nên đây là toàn bộ đối soát giữa hai quỹ.
+            </p>
+          </section>
+          <section aria-label="Danh sách tài khoản ghi sổ">
           <div className="record-table-wrap">
             <table className="record-table ops-table treasury-table">
               <thead>
@@ -225,7 +298,8 @@ export default function TreasuryPositionPage() {
               </tbody>
             </table>
           </div>
-        </section>
+          </section>
+        </>
       ) : null}
 
       {editing && (

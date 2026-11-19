@@ -48,6 +48,9 @@ export interface CellContext {
   editBillingPlate: (shipmentId: number) => void;
   editingBillingShipmentId: number | null;
   rowSelect?: { selected: boolean; toggle: () => void } | null;
+  /** Ticket 18/11 Task 2.2 — 0-based container line within the lot's
+   *  per-container rows (0 = the head row). Absent = single-row lot. */
+  containerIndex?: number;
 }
 
 /**
@@ -68,6 +71,11 @@ export function hasMissingCost(row: AccountingDebitBoardRow): boolean {
 export interface DebitColumn extends LedgerColumn {
   /** The column's track class (see the stylesheet). */
   className: string;
+  /** Ticket 18/11 Task 2.2 — when a lot splits into one row per container,
+   *  a `spansSubrows` column keeps rendering on the continuation rows (the
+   *  per-container facts); every other column renders EMPTY there so the
+   *  lot-level money cannot read as duplicated per container. */
+  spansSubrows?: boolean;
   /** The wire value behind an auto-hide decision (unused while all 9 groups
    *  are pinned; kept for the LedgerColumn contract and the records view). */
   raw?: (row: AccountingDebitBoardRow) => string | null;
@@ -157,7 +165,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
             : hasMissingCost(row)
               ? <span className="debit-cost-dot" role="img" aria-label="Thiếu chi phí" title="Thiếu chi phí" />
               : null}
-          <LotCodeSpan code={billBookingReference(row.billOrBooking) || '—'} />
+          <LotCodeSpan code={row.code ?? billBookingReference(row.billOrBooking) ?? '—'} />
         </span>
         <span className="debit-lot-date">{row.ngay == null ? '—' : formatDate(row.ngay)}</span>
         {/* Card 191026202000: the customer name rides the shared NameCell like
@@ -172,35 +180,54 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     ),
   },
   {
-    // Rev2 cột 2 — Hàng hóa & Cont. FB-093 re-verify (card 211026024348): the
+    // Ticket 18/11 Task 2.2b — 'Số Bill / Book' is its OWN standalone column,
+    // immediately after Lô (the ref used to fold into the Lô line 1). Same
+    // display formatter the Lô cell used, so the ref reads identically.
+    key: 'soBillBook', label: 'Số Bill/Book', className: 'debit-col--billbook', pinned: true,
+    cell: (row) => {
+      const ref = billBookingReference(row.billOrBooking);
+      return ref ? <span className="debit-bill-book">{ref}</span> : '—';
+    },
+  },
+  {
+    // Rev2 cột 3 — Hàng hóa & Cont. FB-093 re-verify (card 211026024348): the
     // cell also hosts the "Tách nhóm" action and the "Ghép cùng Bill X" note.
-    key: 'hangHoaCont', label: 'Hàng hóa & Cont', className: 'debit-col--container', pinned: true,
+    // Ticket 18/11 Task 2.2a — ONE container per row: continuation rows carry
+    // their own container label; the lot-level LCL facts + Tách nhóm action
+    // stay on the head row.
+    key: 'hangHoaCont', label: 'Hàng hóa & Cont', className: 'debit-col--container', pinned: true, spansSubrows: true,
     cell: (row, context) => {
-      // SIL-734(a) — a COST-merged row (revGroupId null, costGroupId set)
-      // rides the SAME shared action with dimension='COST'. A cost-locked row
-      // stays blocked with the exact reason.
-      const mergedGroupId = row.lcl?.revGroupId ?? row.lcl?.costGroupId ?? null;
-      const mergedDimension = row.lcl?.revGroupId != null ? 'REV' as const : 'COST' as const;
-      return row.lcl ? (
-        <div className="record-cell-stack">
-          <span>
-            {row.lcl.label}
-            {row.lcl.ghépCùngRef ? ` (Ghép cùng Bill ${row.lcl.ghépCùngRef})` : ''}
-          </span>
-          {mergedGroupId != null && (
-            <UnmergeRevGroupAction
-              id={`accounting-debit-tach-nhom-${row.shipmentId}`}
-              groupId={mergedGroupId}
-              dimension={mergedDimension}
-              lotRef={billBookingReference(row.billOrBooking) || '—'}
-              disabledReason={row.costLockedAt != null
-                ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
-                : null}
-              onUnmerged={context.onRevGroupUnmerged}
-            />
-          )}
-        </div>
-      ) : (row.containers.length > 0 ? row.containers.join(' · ') : '—');
+      const index = context?.containerIndex ?? 0;
+      if (row.lcl && index === 0) {
+        // SIL-734(a) — a COST-merged row (revGroupId null, costGroupId set)
+        // rides the SAME shared action with dimension='COST'. A cost-locked row
+        // stays blocked with the exact reason.
+        const mergedGroupId = row.lcl.revGroupId ?? row.lcl.costGroupId ?? null;
+        const mergedDimension = row.lcl.revGroupId != null ? 'REV' as const : 'COST' as const;
+        return (
+          <div className="record-cell-stack">
+            <span>
+              {row.lcl.label}
+              {row.lcl.ghépCùngRef ? ` (Ghép cùng Bill ${row.lcl.ghépCùngRef})` : ''}
+            </span>
+            {mergedGroupId != null && (
+              <UnmergeRevGroupAction
+                id={`accounting-debit-tach-nhom-${row.shipmentId}`}
+                groupId={mergedGroupId}
+                dimension={mergedDimension}
+                lotRef={billBookingReference(row.billOrBooking) || '—'}
+                disabledReason={row.costLockedAt != null
+                  ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
+                  : null}
+                onUnmerged={context?.onRevGroupUnmerged}
+              />
+            )}
+          </div>
+        );
+      }
+      const label = row.containers[index];
+      if (label != null) return <span className="debit-cont-line">{label}</span>;
+      return index === 0 && row.containers.length === 0 ? '—' : null;
     },
   },
   {
@@ -213,17 +240,26 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // mượn danh tính anh em cùng Bill (vd K5K5346365 ×2 cont — dòng 2 mất
     // VĂN LAN). Own-fleet trip: BE tự đặt tên 'Đội xe nội bộ SilverSea',
     // biển chạy dưới "Thực:" (QA fd0f7f14 — hàng chỉ-in-biển là FAIL).
-    key: 'phuongTien', label: 'Phương tiện', className: 'debit-col--truck', pinned: true,
-    cell: (row, { editBillingPlate, editingBillingShipmentId }) => {
+    key: 'phuongTien', label: 'Phương tiện', className: 'debit-col--truck', pinned: true, spansSubrows: true,
+    cell: (row, context) => {
+      const { editBillingPlate, editingBillingShipmentId } = context ?? { editBillingPlate: () => {}, editingBillingShipmentId: null };
+      const index = context?.containerIndex ?? 0;
       const phanXeNames = (labels: string[]) => labels.map((label, index) => (
         <Fragment key={`${label}-${index}`}>
           {index > 0 && ', '}
           <NameCell name={label} />
         </Fragment>
       ));
-      const plates = (row.truckPlates ?? []).filter((plate) => plate.trim() !== '');
+      // Ticket 18/11 Task 2.2 — per-container facts lead (containersDetail
+      // aligned with `containers`); the lot-level arrays stay as the
+      // rolling-deploy fallback so no line reads emptier than before.
+      const detail = row.containersDetail?.[index];
+      const carrierLabels = (detail?.carriers?.length ? detail.carriers : row.phanXe)
+        .filter((label) => label.trim() !== '');
+      const plates = (detail?.plates?.length ? detail.plates : (row.truckPlates ?? []))
+        .filter((plate) => plate.trim() !== '');
       const platesLine = plates.length > 0 ? plates.join(', ') : null;
-      if (row.lcl) {
+      if (row.lcl && index === 0) {
         const carrierLabels = row.phanXe.filter((label) => label.trim() !== '');
         const carrier = carrierLabels.length > 0 ? phanXeNames(carrierLabels) : null;
         const actual = row.lcl.actualTruckNo?.trim() || null;
@@ -255,10 +291,10 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
           </div>
         );
       }
-      if (row.phanXe.length === 0 && platesLine == null) return '—';
+      if (carrierLabels.length === 0 && platesLine == null) return index === 0 ? '—' : null;
       return (
         <div className="record-cell-stack">
-          {row.phanXe.length > 0 && <span>{phanXeNames(row.phanXe)}</span>}
+          {carrierLabels.length > 0 && <span>{phanXeNames(carrierLabels)}</span>}
           {platesLine != null && <span>Thực: {platesLine}</span>}
         </div>
       );

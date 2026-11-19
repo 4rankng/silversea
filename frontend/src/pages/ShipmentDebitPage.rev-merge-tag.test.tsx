@@ -1,57 +1,56 @@
-// SIL-546 (id 613) — the REV-group member's visible tag «Ghép thu cước cùng
-// Lô 1» beside its 0₫ cước thu, and its lifecycle: it rides rev_group state
-// (member Lô 2..N only), so it disappears when the lot leaves the group
-// (tách nhóm) and never shows on Lô 1 or ungrouped rows.
-//
-// AC3 (the CHỌN column auto-hides once the merge completes) is pinned in
-// ShipmentDebitPage.lcl-merge.test.tsx ("Finishing the merge hid the CHỌN
-// column again") — not duplicated here.
-//
-// Mirrors ShipmentDebitPage.lcl-merge.test.tsx's mock plane.
-import { render, screen, within } from '@testing-library/react';
+/**
+ * SIL-546 — tag "Ghép thu cước cùng Lô 1" trên lô thành viên, on the REBUILT
+ * /shipments-debit grid (Task 2.3). The tag is VISIBLE TEXT on the member's
+ * Cước cell (not just a hover tooltip), the full F-2 reason rides the
+ * tooltip; Lô 1 and ungrouped lots never carry it; a lot whose group is gone
+ * (tách nhóm — revGroupId null) loses the tag even when a citation note
+ * survives on the wire.
+ */
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBootstrap, listSummary } = vi.hoisted(() => ({
-  getBootstrap: vi.fn(), listSummary: vi.fn(),
+const { getBootstrap, listMerge, listSummary } = vi.hoisted(() => ({
+  getBootstrap: vi.fn(), listMerge: vi.fn(), listSummary: vi.fn(),
 }));
-const { authRole, phoneFlag } = vi.hoisted(() => ({
-  authRole: { value: 'CUS' },
-  phoneFlag: { value: false },
-}));
+const { authRole } = vi.hoisted(() => ({ authRole: { value: 'CUS' } }));
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: authRole.value } }) }));
-vi.mock('../hooks/useMediaQuery', () => ({
-  useMediaQuery: (query: string) => query === '(max-width: 640px)' && phoneFlag.value,
-}));
 vi.mock('../api/tripClient', () => ({ tripClient: { getBootstrap } }));
-vi.mock('../api/shipmentClient', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../api/shipmentClient')>(),
-  listShipmentDebitSummary: listSummary,
-  getShipmentDebitDetail: vi.fn(),
-}));
 vi.mock('../api/shipmentDebit', () => ({
-  createDebitNoteBatch: vi.fn(),
-  exportDebitNoteFile: vi.fn(),
+  listShipmentDebitSummary: listSummary,
+  listDebitMergeBoard: listMerge,
+  lockShipmentCost: vi.fn(),
+  debitMergeKeys: {
+    all: ['accounting-debit-merge'] as const,
+    board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
+  },
 }));
-vi.mock('../api/dispatchPlanningClient', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../api/dispatchPlanningClient')>(),
+vi.mock('../api/shipmentClient', () => ({
+  getShipmentDebitDetail: vi.fn().mockResolvedValue({}),
+  lockShipmentCost: vi.fn(),
+  unlockShipmentCost: vi.fn(),
+  adjustShipmentCost: vi.fn(),
+  listShipmentCostAdjustments: vi.fn().mockResolvedValue([]),
+  listShipmentCostLockHistory: vi.fn().mockResolvedValue([]),
+  saveShipmentDebitEdits: vi.fn(),
+}));
+vi.mock('../api/accountingDebitClient', () => ({ createSettlementRound: vi.fn() }));
+vi.mock('../api/dispatchPlanningClient', () => ({
   mergeLclRevGroup: vi.fn(),
   unmergeLclLot: vi.fn(),
+  unmergeLclGroup: vi.fn(),
   updateLclTruck: vi.fn(),
   assignLclCostGroup: vi.fn(),
 }));
-const truckClasses = [
-  { id: 7, code: '3.5T', name: 'Xe 3.5 tấn', isContainer: false, sortOrder: 2, deletedAt: null },
-];
 vi.mock('../hooks/useCatalogQueries', () => ({
-  useVehicleSizeClasses: () => ({ data: truckClasses, isLoading: false }),
+  useVehicleSizeClasses: () => ({ data: [], isLoading: false }),
   useTrucksAndDrivers: () => ({ data: { trucks: [], drivers: [] }, isLoading: false }),
 }));
 
 import { ToastProvider } from '../components/shared/Toast';
 import { ShipmentDebitPage } from './ShipmentDebitPage';
-import type { ShipmentDebitLotRow } from '../api/shipmentClient';
+import type { DebitMergeItem } from '../api/shipmentDebit';
 
 function renderPage(initialEntry = '/shipments-debit') {
   return render(
@@ -65,144 +64,98 @@ function renderPage(initialEntry = '/shipments-debit') {
   );
 }
 
-const lclRow = (over: Partial<ShipmentDebitLotRow> = {}): ShipmentDebitLotRow => ({
+const row = (over: Partial<DebitMergeItem> = {}): DebitMergeItem => ({
   shipmentId: 101,
   code: 'SHP-26-0001',
+  customerId: 1,
   customerName: 'KH A',
   factoryName: null,
-  factoryAddress: null,
+  routeName: null,
+  deliveryDate: null,
   billOrBookNumber: 'BL-1',
-  customsNumber: null,
-  documentsSummary: null,
-  freightAuto: null,
-  chiHoTotal: null,
-  receivableTotal: null,
-  payableTotal: null,
-  profit: null,
-  lockStatus: 'OPEN',
-  lockedAt: null,
-  cargoMode: 'LCL',
-  costGroupId: null,
-  costGroupOrder: null,
-  revGroupId: null,
-  revGroupOrder: null,
-  costGroupMemberCount: null,
-  revGroupMemberCount: null,
-  actualTruckNo: null,
-  billingTruckNo: null,
-  costVehicleClassCode: null,
-  revVehicleClassCode: null,
-  revGroupPrincipalRef: null,
-  costGroupPrincipalRef: null,
+  creatorName: null,
+  creatorCode: null,
+  containers: [],
+  revenue: { cuoc: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
+  chiHo: { csht: [], lift: [], drop: [], other: [] },
+  noInvoice: { gnOps: null, psOps: null, fees: [] },
+  control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null },
   ...over,
-  ...(over.customerId !== undefined ? { customerId: over.customerId } : { customerId: 1 }),
 });
 
 beforeEach(() => {
   authRole.value = 'CUS';
-  phoneFlag.value = false;
   sessionStorage.clear();
-  getBootstrap.mockReset();
-  listSummary.mockReset();
-  getBootstrap.mockResolvedValue({ customers: [], trucks: [] });
-  listSummary.mockResolvedValue({ items: [], total: 0 });
+  localStorage.clear();
+  getBootstrap.mockReset().mockResolvedValue({ customers: [], trucks: [] });
+  listMerge.mockReset().mockResolvedValue({ items: [], total: 0 });
+  listSummary.mockReset().mockResolvedValue({ items: [], total: 0, excludedCount: 0, excludedSum: '0' });
 });
 
-describe('SIL-546 — tag "Ghép thu cước cùng Lô 1" trên lô thành viên', () => {
-  it('Lô 2..N (rev member) hiện 0₫ + tag HIỂN THỊ đúng trên cell Cước vận tải (Auto) (desktop)', async () => {
-    listSummary.mockResolvedValue({
-      items: [lclRow({
-        receivableTotal: 0,
-        freightAuto: 0,
+describe('SIL-546 — tag "Ghép thu cước cùng Lô 1" trên cell Cước của grid mới', () => {
+  it('Lô 2..N (rev member) hiện 0₫ + tag HIỂN THỊ đúng trên cell Cước (desktop)', async () => {
+    listMerge.mockResolvedValue({
+      items: [row({
+        control: { tongTc: '0', lockStatus: 'OPEN', lockedAt: null },
         revGroupId: 'rev-1',
         revGroupOrder: 2,
         revGroupMemberCount: 2,
-        revGroupPrincipalRef: 'BL-9',
-        freightOverrideReason: 'Ghép thu cước cùng Lô 1',
+        revenue: { cuoc: '0', cuocReason: 'Ghép thu cước cùng Lô 1', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '0' },
       })],
       total: 1,
     });
     renderPage();
-    await screen.findAllByText('BL-1');
+    await screen.findByText('BL-1');
 
-    // The tag is VISIBLE TEXT on the row's freight cell (REV2 placement —
-    // not just a hover tooltip), the spec 23/10 §4.2 ask.
-    const row = screen.getAllByText('BL-1')[0].closest('tr')!;
-    const freightCell = row.querySelector('td[data-col="freight"]')!;
-    const tag = within(freightCell as HTMLElement).getByText('Ghép thu cước cùng Lô 1');
-    expect(tag.classList.contains('shipment-debit-money__mergetag')).toBe(true);
-    // The full F-2 reason rides the tooltip.
+    const cell = document.querySelector('td[data-col="cuoc"]')!;
+    const tag = cell.querySelector('.debit-merge-money__mergetag')!;
+    expect(tag.textContent).toBe('Ghép thu cước cùng Lô 1');
     expect(tag.getAttribute('title')).toBe('Ghép thu cước cùng Lô 1');
-    // The 0₫ figure sits on the same cell (zero state).
-    expect((freightCell as HTMLElement).textContent).toContain('0');
+    expect(cell.textContent).toContain('0');
   });
 
   it('Lô 1 (order 1) và lô chưa ghép KHÔNG có tag', async () => {
-    listSummary.mockResolvedValue({
+    listMerge.mockResolvedValue({
       items: [
-        lclRow({ billOrBookNumber: 'BL-1', revGroupId: 'rev-1', revGroupOrder: 1, revGroupMemberCount: 2, receivableTotal: 3000000, freightOverrideReason: 'Ghép cước thu khách — Lô 1 giữ 100% cước thu nhóm (3.5T)' }),
-        lclRow({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002', receivableTotal: 1200000 }),
+        row({ revGroupId: 'rev-1', revGroupOrder: 1, revGroupMemberCount: 2, control: { tongTc: '3000000', lockStatus: 'OPEN', lockedAt: null }, revenue: { cuoc: '3000000', cuocReason: 'Ghép cước thu khách — Lô 1 giữ 100% cước thu nhóm (3.5T)', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '3000000' } }),
+        row({ shipmentId: 102, billOrBookNumber: 'BL-2', code: 'SHP-26-0002', control: { tongTc: '1200000', lockStatus: 'OPEN', lockedAt: null }, revenue: { cuoc: '1200000', cuocReason: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: '1200000' } }),
       ],
       total: 2,
     });
     renderPage();
-    await screen.findAllByText('BL-1');
-
+    await screen.findByText('BL-2');
     expect(screen.queryByText('Ghép thu cước cùng Lô 1')).toBeNull();
+    expect(document.querySelector('.debit-merge-money__mergetag')).toBeNull();
   });
 
   it('AC2 — tách nhóm (rev_group_id về null) → tag biến mất', async () => {
-    listSummary.mockResolvedValue({
-      items: [lclRow({
-        receivableTotal: null,
+    listMerge.mockResolvedValue({
+      items: [row({
         revGroupId: null,
         revGroupOrder: null,
-        freightOverrideReason: 'Tách khỏi nhóm ghép — chờ định giá lại',
+        revenue: { cuoc: null, cuocReason: 'Tách khỏi nhóm ghép — chờ định giá lại', lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
       })],
       total: 1,
     });
     renderPage();
-    await screen.findAllByText('BL-1');
-
+    await screen.findByText('BL-1');
     expect(screen.queryByText('Ghép thu cước cùng Lô 1')).toBeNull();
   });
 
-  it('bản ghi điện thoại: member hiện 0₫ + tag ngay trên thẻ thu gọn', async () => {
-    phoneFlag.value = true;
-    listSummary.mockResolvedValue({
-      items: [lclRow({
-        receivableTotal: 0,
-        revGroupId: 'rev-1',
-        revGroupOrder: 2,
-        revGroupMemberCount: 2,
-        freightOverrideReason: 'Ghép thu cước cùng Lô 1',
-      })],
-      total: 1,
-    });
-    renderPage();
-    await screen.findAllByText('BL-1');
-
-    expect(screen.getByTestId('shipment-debit-totals-mobile')).toBeTruthy();
-    const tag = screen.getByText('Ghép thu cước cùng Lô 1');
-    expect(tag.classList.contains('shipment-debit-row__freight-note')).toBe(true);
-  });
-
   it('tag render kèm tooltip full-reason khi BE stamp lý do dài (trip-less member note)', async () => {
-    listSummary.mockResolvedValue({
-      items: [lclRow({
-        receivableTotal: 0,
+    listMerge.mockResolvedValue({
+      items: [row({
+        control: { tongTc: '0', lockStatus: 'OPEN', lockedAt: null },
         revGroupId: 'rev-1',
         revGroupOrder: 3,
         revGroupMemberCount: 3,
-        freightOverrideReason: 'Ghép cước cùng Bill BL-7',
+        revenue: { cuoc: '0', cuocReason: 'Ghép cước cùng Bill BL-7', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '0' },
       })],
       total: 1,
     });
     renderPage();
-    await screen.findAllByText('BL-1');
-
-    const row = screen.getAllByText('BL-1')[0].closest('tr')!;
-    const tag = within(row).getByText('Ghép thu cước cùng Lô 1');
+    await screen.findByText('BL-1');
+    const tag = document.querySelector('.debit-merge-money__mergetag')!;
     expect(tag.getAttribute('title')).toBe('Ghép cước cùng Bill BL-7');
   });
 });

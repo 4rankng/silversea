@@ -121,10 +121,12 @@ function buildNavItems(
         ...(hasCapability('treasury.read') ? [
           { key: 'treasury', path: routes.treasury, icon: Landmark, section: 'accounting-quy' as SectionName },
         ] : []),
-        { key: 'debt', path: routes.debt, icon: Receipt, section: 'accounting-cong-no' as SectionName },
-        // SIL-772 — bảng chốt Debit chuyển vào phân hệ CÔNG NỢ VẬN TẢI và đổi
-        // tên 'KIỂM SOÁT LÔ HÀNG' (viết hoa đúng như khách ghi, 09/11/2026).
+        // Ticket 18/11 Task 2.1 — 'Kiểm soát lô hàng' đứng TRÊN 'Công nợ phải
+        // thu' (supersedes SIL-772 ordering), sentence-case title.
         { key: 'chot-debit', path: '/accounting/chot-debit', icon: Calculator, section: 'accounting-cong-no' as SectionName },
+        // Ticket 18/11 Task 2.3 — 'Ghép bộ Debit' ngay dưới 'Kiểm soát lô hàng'.
+        { key: 'ghep-bo-debit', path: '/accounting/ghep-bo-debit', icon: Container, section: 'accounting-cong-no' as SectionName },
+        { key: 'debt', path: routes.debt, icon: Receipt, section: 'accounting-cong-no' as SectionName },
         { key: 'payables', path: routes.payables, icon: Receipt, section: 'accounting-cong-no' as SectionName },
         { key: 'expenses', path: routes.expenses, icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
         { key: 'advances', path: routes.advances, icon: Wallet, section: 'accounting-phoi-phieu' as SectionName },
@@ -255,10 +257,12 @@ function buildNavItems(
         ...(hasCapability('treasury.read') ? [
           { key: 'treasury', path: routes.treasury, icon: Landmark, section: 'accounting-quy' as SectionName },
         ] : []),
-        { key: 'debt', path: routes.debt, icon: Receipt, section: 'accounting-cong-no' as SectionName },
-        // SIL-772 — bảng chốt Debit chuyển vào phân hệ CÔNG NỢ VẬN TẢI và đổi
-        // tên 'KIỂM SOÁT LÔ HÀNG' (viết hoa đúng như khách ghi, 09/11/2026).
+        // Ticket 18/11 Task 2.1 — 'Kiểm soát lô hàng' đứng TRÊN 'Công nợ phải
+        // thu' (supersedes SIL-772 ordering), sentence-case title.
         { key: 'chot-debit', path: '/accounting/chot-debit', icon: Calculator, section: 'accounting-cong-no' as SectionName },
+        // Ticket 18/11 Task 2.3 — 'Ghép bộ Debit' ngay dưới 'Kiểm soát lô hàng'.
+        { key: 'ghep-bo-debit', path: '/accounting/ghep-bo-debit', icon: Container, section: 'accounting-cong-no' as SectionName },
+        { key: 'debt', path: routes.debt, icon: Receipt, section: 'accounting-cong-no' as SectionName },
         { key: 'payables', path: routes.payables, icon: Receipt, section: 'accounting-cong-no' as SectionName },
         { key: 'expenses', path: routes.expenses, icon: FileText, section: 'accounting-phoi-phieu' as SectionName },
         { key: 'advances', path: routes.advances, icon: Wallet, section: 'accounting-phoi-phieu' as SectionName },

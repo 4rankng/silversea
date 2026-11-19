@@ -67,6 +67,29 @@
   justify-self: end;
 }
 
+/* Sổ quỹ đối soát (ticket 18/11 Task 3.5a) — the fund reconciliation strip
+   rides the same record-table base as the account sheet; only the title, the
+   delta row and the ledger note carry treasury-specific rules. */
+.treasury-recon__title {
+  margin: 0 0 8px;
+  font-size: var(--ops-table-supporting-size);
+  line-height: var(--ops-table-supporting-line-height);
+  font-weight: 700;
+  color: var(--fg-2);
+}
+
+.treasury-table__recon-row td {
+  border-top: 2px solid var(--border-2);
+  background: var(--surface-2);
+}
+
+.treasury-table__recon-note {
+  margin: 8px 0 0;
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  color: var(--fg-3);
+}
+
 /* Treasury account drawer (features/treasury) — field pairs ride one row and
    fold to a single column on phones. */
 .treasury-account-form { display: grid; gap: 12px; min-width: 0; }

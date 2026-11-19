@@ -1,0 +1,20 @@
+/* Ticket 18/11 Task 1.2 — the [Hiện thông tin lô hàng team] switch rides the
+   filter strip's action slot on both CUS workboards (same look on /shipments
+   and /shipments-detail). Text wraps, never truncates — repo no-truncation
+   law. */
+.cus-team-visibility-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+  cursor: pointer;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  user-select: none;
+}
+
+.cus-team-visibility-toggle input {
+  margin: 0;
+  cursor: pointer;
+}

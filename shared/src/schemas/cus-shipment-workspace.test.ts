@@ -107,6 +107,9 @@ test('CUS workspace list item supports explicit unavailable custody state', () =
     bucket: ShipmentCusBucket.PENDING_LOCK,
     bucketLabel: 'Chờ khóa',
     customerName: 'Công ty A',
+    // Ticket 18/11 Task 1.2 — creator rides the wire; fixture owns none.
+    creatorName: null,
+    creatorCode: null,
     factoryName: 'Nhà máy A',
     effectiveFactoryNames: ['Nhà máy A'],
     billOrBookNumber: 'BL12345',
@@ -198,6 +201,9 @@ test('CUS accounting confirmation response includes the Debit Note identity', ()
     bucket: ShipmentCusBucket.PENDING_LOCK,
     bucketLabel: 'Chờ khóa',
     customerName: null,
+    // Ticket 18/11 Task 1.2 — creator rides the wire; fixture owns none.
+    creatorName: null,
+    creatorCode: null,
     factoryName: null,
     effectiveFactoryNames: [],
     billOrBookNumber: null,
@@ -400,6 +406,9 @@ test('container flat row carries the SIL-592 staff-close gating fields', () => {
     customerId: 1,
     isAdHoc: false,
     customerName: 'Long Minh',
+    // Ticket 18/11 Task 1.2 — creator rides the wire; fixture owns none.
+    creatorName: null,
+    creatorCode: null,
     factoryName: null,
     routeName: 'KCN Quế Võ',
     billOrBookNumber: 'EGLV149607019409',

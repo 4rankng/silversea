@@ -83,10 +83,12 @@ describe('ops settlement XLSX export display keys', () => {
     assert.doesNotMatch(joined, /Lô \d/);
     assert.doesNotMatch(joined, /77\b/, 'the preparer id must never print');
     assert.match(joined, /Người lập: —/);
-    assert.match(joined, /TỔNG CỘNG QUYẾT TOÁN/);
+    assert.match(joined, /Tổng cộng/);
 
-    // The three totals close the sheet, in order, in the money column.
-    const totalLabels = ['Tổng có hóa đơn', 'Tổng không hóa đơn', 'TỔNG CỘNG QUYẾT TOÁN'];
+    // The three totals close the sheet, in order, in the money column
+    // (ticket 18/11 Task 4.2b literals — same labels OpsSettlementsPanel
+    // renders).
+    const totalLabels = ['Tổng chi phí có hóa đơn', 'Tổng chi phí không hóa đơn', 'Tổng cộng'];
     const totalCells: Array<[string, string]> = [];
     sheet.eachRow((row) => {
       const label = String(row.getCell(5).value ?? '');

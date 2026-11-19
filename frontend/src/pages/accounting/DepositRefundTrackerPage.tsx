@@ -115,7 +115,7 @@ export default function DepositRefundTrackerPage() {
   useEffect(() => {
     if (showCvAlert && !cvAlertToastedRef.current) {
       cvAlertToastedRef.current = true;
-      toast({ kind: 'warning', message: `kiểm tra check cược số lượng: ${formatOverdueCount(cvOverdueCount)} lô hàng` });
+      toast({ kind: 'warning', message: `Cảnh báo quá hạn nộp công văn hoàn cược: ${formatOverdueCount(cvOverdueCount)} lô hàng` });
     }
   }, [showCvAlert, cvOverdueCount, toast]);
 
@@ -217,7 +217,7 @@ export default function DepositRefundTrackerPage() {
         <section className="deposit-tracker-warnings" role="alert">
           {showCvAlert && (
             <p className="deposit-tracker-warnings__item deposit-tracker-warnings__item--danger">
-              kiểm tra check cược số lượng: <strong>{formatOverdueCount(cvOverdueCount)} lô hàng</strong>
+              Cảnh báo quá hạn nộp công văn hoàn cược: <strong>{formatOverdueCount(cvOverdueCount)} lô hàng</strong>
             </p>
           )}
           {unrefundedTotal > 0 && (

@@ -29,6 +29,7 @@ import { copyCusShipmentContainerDeclaration, getCusShipmentWorkspaceDetail, upd
 import { useCusDrawerContainerAdd } from '../features/shipments/cus/use-cus-drawer-container-add';
 import { CusLotDrawerFooter } from '../features/shipments/cus/CusLotDrawerFooter';
 import { CusShipmentRow, CUS_ROW_COLUMNS } from '../features/shipments/cus/CusShipmentRow';
+import { CusTeamVisibilityToggle } from '../components/shared/CusTeamVisibilityToggle';
 import { SHIPMENT_CUS_PAGE_SIZES, readCusPageSize, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
 import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
 import { factoryDetailPath } from '../features/shipments/cus/cusQuickEditModel';
@@ -148,6 +149,13 @@ export default function ShipmentsPage() {
   // SIL-748 (owner product decision 09/11): CUS declares lot expenses from the
   // drawer too — the [Khai chi phí] entry is no longer Ops/Admin/Manager-only.
   const canDeclareOpsExpense = isOps || userRole === Role.ADMIN || userRole === Role.MANAGER || userRole === Role.CUS;
+  // Ticket 18/11 Task 1.2 — the team-visibility switch is a CUS-only
+  // affordance: other roles were never scoped by the backend law, so the
+  // toggle would only lie to them.
+  const isCus = user?.role === Role.CUS;
+  // Default OFF per mount (no URL state): reopening the board always starts
+  // scoped to the account's own lots.
+  const [team, setTeam] = useState(false);
   const [expenseOrder, setExpenseOrder] = useState<OpsOrderItem | null>(null);
   const [searchParams, setSearchParams, latestSearchParams] = useQueuedSearchParams();
   const page = Math.max(1, Number(searchParams.get('page') || 1) || 1);
@@ -201,7 +209,7 @@ export default function ShipmentsPage() {
 
   const ws = useCusWorkspaceState({
     page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
-    direction, bucket: selectedBuckets.length === 1 ? (selectedBuckets[0] as ShipmentCusBucket) : '', adHoc, sortKey, sortDir,
+    direction, bucket: selectedBuckets.length === 1 ? (selectedBuckets[0] as ShipmentCusBucket) : '', adHoc, team, sortKey, sortDir,
   }, drawerId);
   const qe = useCusQuickEdit({
     setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList, invalidateDetail: ws.invalidateDetail,
@@ -720,15 +728,22 @@ export default function ShipmentsPage() {
             onToggle: rowColumns.toggle,
             onReset: rowColumns.reset,
           }}
-          actions={hasFilters ? (
-            <UUIButton
-              type="button" size="sm" color="tertiary"
-              className="shipment-uui-button shipment-uui-button--tertiary shipments-control__reset"
-              onPress={clearFiltersUrl} iconLeading={<RotateCcw size={15} aria-hidden="true" />}
-            >
-              Xóa lọc
-            </UUIButton>
-          ) : undefined}
+          actions={(
+            <>
+              {/* Ticket 18/11 Task 1.2 — CUS-only team switch leads the
+                  action slot (the merge toggle's slot on Chi tiết lô hàng). */}
+              {isCus && <CusTeamVisibilityToggle checked={team} onChange={setTeam} />}
+              {hasFilters && (
+                <UUIButton
+                  type="button" size="sm" color="tertiary"
+                  className="shipment-uui-button shipment-uui-button--tertiary shipments-control__reset"
+                  onPress={clearFiltersUrl} iconLeading={<RotateCcw size={15} aria-hidden="true" />}
+                >
+                  Xóa lọc
+                </UUIButton>
+              )}
+            </>
+          )}
         >
           <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc lô hàng" presets={presetDialogNode} onReset={resetSecondary}>
             {dateRangeNode}
@@ -816,6 +831,9 @@ export default function ShipmentsPage() {
                       item={item}
                       dateFrom={dateFrom}
                       dateTo={dateTo}
+                      // Ticket 18/11 Task 1.2 — team mode prints the NV phụ
+                      // trách line; OFF (and null creators) never render it.
+                      showOwner={team}
                       editing={quickEditDraft?.shipmentId === item.id}
                       quickEditOpen={Boolean(quickEditDraft)}
                       savingQuickEdit={savingQuickEdit}

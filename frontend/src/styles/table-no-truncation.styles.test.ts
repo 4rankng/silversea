@@ -118,38 +118,37 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expectNoClip(rules(css, /\.ops-bill-mobile-list__identity strong/));
   });
 
-  it('debit board values truncate on ONE baseline with a tooltip (owner redesign 23/10 supersedes the wrap doctrine here)', () => {    // Owner spec v2 23/10 ("Tờ khai truncate 1 dòng + tooltip", "Mọi cell 1
-    // baseline ngang — hết vỡ dòng") supersedes law book §4's wrap doctrine
-    // FOR THIS BOARD: single-line cells, ellipsis + title tooltip, and the
-    // row stays 52px. The identity cell the old case pinned no longer exists
-    // (customer names moved to the group header, one Title-Case line).
-    const css = read('src/pages/ShipmentDebitPage.css');
-    const cell = rules(css, /\.shipment-debit-table td\s*\{/)[0];
+  it('debit board values hold ONE baseline and never clip (ticket 18/11 supersedes the 23/10 ellipsis law on the rebuilt grid)', () => {    // The flat /shipments-debit board retired with ticket 18/11 (Task 2.2):
+    // the page renders the shared DebitMergeGrid now, and the ticket spec
+    // (Chương 4 §4.1.3 cấm cắt chữ) supersedes the 23/10 one-line-ellipsis +
+    // tooltip treatment on its data cells: values keep ONE baseline (nowrap)
+    // but the grid NEVER clips a value — no ellipsis or overflow-hidden rule
+    // may return on its cells; the pane scrolls horizontally instead, and
+    // the money columns keep a content floor (110px) instead of the old
+    // fixed 220px caps.
+    const css = read('src/features/accounting/DebitMergeGrid.css');
+    const cell = rules(css, /\.debit-merge__table th,\s*\.debit-merge__table td/)[0];
     expect(cell).toMatch(/white-space:\s*nowrap/);
-    expect(cell).toMatch(/text-overflow:\s*ellipsis/);
+    expect(cell).not.toMatch(CLIP);
+    expect(cell).not.toMatch(CLIP_HIDDEN);
     for (const oneLine of [
-      /\.shipment-debit-booking/,
-      // REV2 (SIL-782, ticket-v2 VI.2 09/11): the identity cell is the
-      // multi-line "Thông tin lô & khách" — booking + tờ khai (copy) +
-      // nhà máy/tuyến each on its own one-line; lane/customs columns
-      // retired with their old line classes.
-      /\.shipment-debit-identity__lane/,
-      /\.shipment-debit-identity__customs span:first-child/,
+      // Fee/expense lines and the status cell: one baseline each, whole.
+      /\.debit-merge-cell__line small,\s*\.debit-merge-cell__line/,
+      /\.debit-merge-cell--status/,
     ]) {
       const found = rules(css, oneLine);
       expect(found.length).toBeGreaterThan(0);
       for (const rule of found) {
-        expect(rule).toMatch(/white-space:\s*nowrap|overflow:\s*hidden/);
-        expect(rule).toMatch(/text-overflow:\s*ellipsis|overflow:\s*hidden/);
+        expect(rule).toMatch(/white-space:\s*nowrap/);
+        expect(rule).not.toMatch(CLIP);
+        expect(rule).not.toMatch(CLIP_HIDDEN);
       }
     }
-    // The full value stays reachable: every truncating cell's markup rides a
-    // title tooltip (pinned by the page tests: booking/lane/customs cells).
-    // SIL-582: the booking number IS the display key — the identity column
-    // flexes to its content; the fixed-width floors moved to the REV2 money
-    // columns (freight/chiho/service/total 220px — owner 14/11: every
-    // header label fits its column whole, §4).
-    expect(css).toMatch(/th\.shipment-debit-col--total\s*\{[^}]*width:\s*220px/);
+    // Every money column keeps its content floor (the ticket's replacement
+    // for the old REV2 fixed widths) with right-aligned figures.
+    const moneyTh = rules(css, /\.debit-merge__table th\.debit-merge-col--cuoc/)[0];
+    expect(moneyTh).toMatch(/min-width:\s*110px/);
+    expect(moneyTh).toMatch(/text-align:\s*right/);
   });
 
   it('fuel-period note truncates on ONE baseline with a tooltip (SIL-466 owner review 24/10 supersedes the wrap doctrine here)', () => {

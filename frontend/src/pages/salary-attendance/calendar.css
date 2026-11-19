@@ -226,7 +226,12 @@
 /* ─── Calendar Day Cell ─── */
 .cal-cell {
   position: relative;
-  aspect-ratio: 1;
+  /* Ticket 18/11 Task 3.5c: the fixed 1:1 square clipped a wrapped trip code —
+     card 20261004_338 already ruled the code displays in full ("wrap hoặc
+     column giãn"). min-height keeps the cell's resting size while the cell row
+     grows to fit wrapped content; the 7-column grid rows stretch, so the grid
+     stays aligned. */
+  min-height: 84px;
   border-radius: 10px;
   border: 1px solid var(--border-1);
   background: linear-gradient(180deg, var(--surface), rgba(248, 250, 249, 0.86));
@@ -245,7 +250,8 @@
   line-height: inherit;
   text-align: inherit;
   user-select: none;
-  overflow: hidden;
+  /* No clipping — a data cell must grow with its wrapped trip code, never cut
+     it off (the note dot stays inside the cell bounds anyway). */
 }
 
 .cal-cell.is-empty {

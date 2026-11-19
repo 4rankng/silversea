@@ -92,7 +92,9 @@ describe('SIL-838 điểm 1 — Lô carries nhà máy/kho + tuyến under the KH
       total: 1,
     });
     renderPage();
-    const lotCell = (await screen.findByText('BL-1')).closest('td')!;
+    // Ticket 18/11 Task 2.2b — the bill ref moved to its own column; the Lô
+    // stack is located by the LOT CODE now.
+    const lotCell = (await screen.findByText('SHP-26-0001')).closest('td')!;
     expect(lotCell.textContent).toContain('ASKEY');
     expect(lotCell.textContent).toContain('Bình Dương – Cát Lái');
     expect(lotCell.querySelector('.debit-lot-site')?.textContent).toBe('ASKEY');
@@ -113,7 +115,7 @@ describe('SIL-838 điểm 1 — Lô carries nhà máy/kho + tuyến under the KH
     });
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
-    const lotCell = (await screen.findByText('BL-1')).closest('td')!;
+    const lotCell = (await screen.findByText('SHP-26-0001')).closest('td')!;
     expect(lotCell.textContent).toContain('Kho NEWEB');
     expect(lotCell.textContent).toContain('Bắc Tân Uyên – Cát Lái');
   });

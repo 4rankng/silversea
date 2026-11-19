@@ -24,6 +24,8 @@ import {
   createDebitSettlementRound,
   listDebitSettlementRounds,
 } from '../services/debit-settlement-rounds.service';
+import { getDebitMergeBoard } from '../services/debit-merge.service';
+import { debitMergeQuerySchema } from '@tingting/shared';
 
 const accountingDebitRoutes = Router()
 
@@ -173,3 +175,18 @@ accountingDebitRoutes.post('/debit-board/settlement-rounds', declareMaterialWrit
 }));
 
 export default accountingDebitRoutes;
+
+// Task 2.3 (18/11) — Bảng Ghép bộ Debit: ONE per-lot 6-group rollup read by
+// BOTH surfaces (staff /accounting/ghep-bo-debit và CUS /shipments-debit).
+// Guard = the debit-summary set (office trio + CUS): the endpoint IS the CUS
+// settlement list too, and the CUS half of the scope resolves inside the
+// service through cusVisibilityCondition (own-only; `team: 'true'` widens to
+// the ACTIVE groups). Staff roles pass unscoped. Read-only — no
+// declareMaterialWrite/idempotency needed.
+const DEBIT_MERGE_ROLES = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS);
+
+accountingDebitRoutes.get('/debit-merge', DEBIT_MERGE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+  const parsed = debitMergeQuerySchema.safeParse(req.query);
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  res.json(await getDebitMergeBoard({ ...parsed.data, actor: getUser(req) }));
+}));

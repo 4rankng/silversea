@@ -1122,6 +1122,12 @@ export interface ShipmentCusWorkspaceFilters {
   bucket?: 'NEW' | 'RUNNING' | 'PENDING_LOCK' | 'LOCKED';
   /** 20260917_12 tri-state: true = chỉ lệnh chạy ngoài, false = chỉ luồng danh mục. */
   isAdHoc?: boolean;
+  /**
+   * Ticket 18/11 Task 1.2 — nhóm CUS team visibility. Absent/undefined =
+   * mặc định chỉ lô của chính tài khoản CUS; 'true' mở rộng theo nhóm
+   * ACTIVE (backend schema z.enum(['true','false'])). Non-CUS roles ignore it.
+   */
+  team?: 'true' | 'false';
   sortBy?: ShipmentCusWorkspaceSortKey;
   sortDir?: 'asc' | 'desc';
 }
@@ -1151,6 +1157,7 @@ export async function listCusShipmentWorkspace(
   // 20260917_12 tri-state: 'true' = chỉ lệnh chạy ngoài, 'false' = chỉ luồng
   // danh mục, absent = không lọc.
   if (filters.isAdHoc !== undefined) query.set('isAdHoc', String(filters.isAdHoc));
+  if (filters.team) query.set('team', filters.team);
   if (filters.sortBy) query.set('sortBy', filters.sortBy);
   if (filters.sortDir) query.set('sortDir', filters.sortDir);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';
@@ -1171,6 +1178,7 @@ export async function listCusShipmentContainers(
   if (filters.bucket) query.set('bucket', filters.bucket);
   if (filters.informationStatus) query.set('informationStatus', filters.informationStatus);
   if (filters.dispatchStatus) query.set('dispatchStatus', filters.dispatchStatus);
+  if (filters.team) query.set('team', filters.team);
   if (filters.sortBy) query.set('sortBy', filters.sortBy);
   if (filters.sortDir) query.set('sortDir', filters.sortDir);
   const suffix = query.size > 0 ? `?${query.toString()}` : '';

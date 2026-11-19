@@ -46,6 +46,10 @@ const shipmentCusWorkspaceQueryShape = {
   // 20260917_12: tri-state ad-hoc list filter — 'true' returns only lệnh
   // chạy ngoài rows, 'false' only catalog-flow rows, absent = no filter.
   isAdHoc: z.enum(['true', 'false']).optional(),
+  // Nhóm CUS team visibility (ticket 18/11 Task 1.2): absent/'false' = mặc
+  // định chỉ lô của chính tài khoản CUS; 'true' mở rộng truy vấn theo nhóm
+  // ACTIVE (cùng nhóm thấy lô + debit của nhau). Non-CUS roles ignore it.
+  team: z.enum(['true', 'false']).optional(),
   transportDateFrom: z.string().date().optional(),
   transportDateTo: z.string().date().optional(),
   customerId: z.coerce.number().int().positive().optional(),
@@ -271,6 +275,11 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   bucket: z.nativeEnum(ShipmentCusBucket),
   bucketLabel: z.string(),
   customerName: z.string().nullable(),
+  // Ticket 18/11 Task 1.2 — team mode shows WHO owns each lot: the creator's
+  // display name (fullName) and account code (username). Null when the lot
+  // has no creator or the creator row is gone.
+  creatorName: z.string().nullable(),
+  creatorCode: z.string().nullable(),
   factoryName: z.string().nullable(),
   // Effective per-container factory labels (SILVER L1): distinct resolved
   // factories across containers — a multi-factory lot shows every name,
@@ -825,6 +834,10 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   customerId: z.number().int().positive().nullable(),
   isAdHoc: z.boolean(),
   customerName: z.string().nullable(),
+  // Ticket 18/11 Task 1.2 — the lot's creator rides the flat row so team
+  // mode prints the owner on every ledger row (twin of the overview item).
+  creatorName: z.string().nullable(),
+  creatorCode: z.string().nullable(),
   factoryName: z.string().nullable(),
   routeName: z.string().nullable(),
   billOrBookNumber: z.string().nullable(),

@@ -73,6 +73,16 @@
   padding-inline: 6px;
 }
 
+/* ticket 18/11 (Web PC 1440): cột 2 KHÁCH HÀNG & LÔ gains a 280px floor so
+   the longest live customer name ('CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH',
+   ≈275px at the board's supporting size) holds one line instead of
+   orphan-wrapping its last word. The hook is the cell's own data-label
+   attribute — no nth-child floor, no overflow rules; the board's
+   prohibitions (this file's test contract) stay true. */
+.invoice-tracking-page .record-table td[data-label='Khách hàng & Lô'] {
+  min-width: 280px;
+}
+
 /* Amount cells belong to the shared numeric law (styles/record-table.css
    `.record-table .num`): a formatted VND amount is atomic — one line, never
    broken between the digits and the ₫. This file once re-allowed breaking at

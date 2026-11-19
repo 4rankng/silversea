@@ -54,6 +54,7 @@ import { ApiError } from '../../errors';
 import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   getTreasuryPosition,
+  projectTreasuryFundBreakdown,
   requestTreasuryAccountSetup,
   updateTreasuryAccountFund,
   requestTreasuryCutover,
@@ -474,6 +475,9 @@ router.get('/finance/treasury/position', requireRoles(Role.ADMIN, Role.MANAGER, 
       ? 'UNAVAILABLE'
       : positions.some(position => position.completeness === 'PARTIAL') ? 'PARTIAL' : 'COMPLETE',
     accounts: sortTreasuryPositions(positions, parsedSort.data.sortBy, parsedSort.data.sortDir),
+    // Sổ quỹ đối soát (ticket 18/11 Task 3.5a): the per-fund read projection —
+    // sums are order-independent, so it projects the positions before sorting.
+    fundBreakdown: projectTreasuryFundBreakdown(positions),
     opsAdvance: { totalOutstanding },
   });
 }));

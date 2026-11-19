@@ -127,10 +127,16 @@ export const PAGE_CATALOG = {
     section: 'financials',
   },
   accountingDebitClose: {
-    // SIL-772 — khách chốt 09/11/2026: đổi tên bảng chốt Debit thành
-    // 'KIỂM SOÁT LÔ HÀNG', viết hoa đúng như khách ghi.
-    title: 'KIỂM SOÁT LÔ HÀNG',
+    // Ticket 18/11 Task 2.1 — chữ thường 'Kiểm soát lô hàng' cho đồng nhất
+    // form chữ (supersedes SIL-772's ALL-CAPS pin of 09/11/2026).
+    title: 'Kiểm soát lô hàng',
     path: '/accounting/chot-debit',
+    section: 'financials',
+  },
+  accountingDebitMerge: {
+    // Ticket 18/11 Task 2.3 — Bảng Ghép bộ Debit (shared by staff + CUS).
+    title: 'Ghép bộ Debit',
+    path: '/accounting/ghep-bo-debit',
     section: 'financials',
   },
   accountingDepositTracker: {

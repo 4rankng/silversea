@@ -450,18 +450,20 @@ describe('MasterPlanGrid', () => {
     expect(labelRule).toContain('-webkit-line-clamp: 2');
   });
 
-  it('holds every value line to ONE ellipsized line with the full value in title (owner redesign 23/10)', () => {
+  it('wraps every value line whole — no ellipsis, no clip (ticket 18/11 supersedes the 23/10 one-line ellipsis law here)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const lineRule = css.match(/\.master-plan-grid__line \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    // Supersedes the wrap-in-place law for this board (the same supersession
-    // the detailed-plan grid took in 8a28c094): wrapping was the inflation
-    // mechanism of every row-height regression; one nowrap ellipsized line +
-    // the component's title tooltip is the sanctioned pair.
-    expect(lineRule).toContain('white-space: nowrap');
-    expect(lineRule).toContain('overflow: hidden');
-    expect(lineRule).toContain('text-overflow: ellipsis');
-    expect(lineRule).not.toContain('overflow-wrap: anywhere');
+    // ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes the 23/10
+    // one-line-per-value ellipsis law on this board's DATA cells: wrapping
+    // was the 23/10 answer to row-height inflation, but the ticket bans the
+    // cut — every value line wraps at spaces and shows whole; the line's
+    // title (still set in the component) stays as a bonus, never the carrier.
+    expect(lineRule).toContain('white-space: normal');
+    expect(lineRule).toContain('overflow: visible');
+    expect(lineRule).not.toContain('white-space: nowrap');
+    expect(lineRule).not.toContain('text-overflow');
+    expect(lineRule).not.toContain('overflow: hidden');
   });
 
   it('normalizes older container-summary separators onto the one joined demand line', () => {
@@ -883,14 +885,20 @@ describe('MasterPlanGrid', () => {
     expect(css).not.toContain('@container (max-width: 900px)');
   });
 
-  // The note preview is one ellipsized line everywhere now; the full text
-  // rides the trigger's title + the shared modal.
-  it('grounds the notes-trigger to one ellipsized preview line with the full note in title', () => {
+  // The note preview wraps fully inside its cell now (ticket 18/11, spec
+  // Chương 4 §4.1.3 cấm cắt chữ — supersedes the 23/10 one-line preview);
+  // the "Xem thêm" dialog and the button title stay as navigation, never
+  // the carrier of the value.
+  it('grounds the notes-trigger to the fully wrapped note with the "Xem thêm" dialog as navigation (ticket 18/11)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const triggerRule = css.match(/\.master-plan-grid__notes-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
-    expect(triggerRule).toContain('white-space: nowrap');
-    expect(triggerRule).toContain('text-overflow: ellipsis');
+    expect(triggerRule).toContain('white-space: normal');
+    expect(triggerRule).toContain('overflow: visible');
+    expect(triggerRule).not.toContain('text-overflow');
+    expect(triggerRule).not.toContain('white-space: nowrap');
+    // SIL-583: the trigger is a BUTTON — the 24px floor stays.
+    expect(triggerRule).toContain('min-height: 24px');
     expect(triggerRule).toContain('cursor: pointer');
   });
 });

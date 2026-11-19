@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
@@ -70,6 +72,17 @@ const SAVE = 'Thêm';
 const EDIT_SAVE = 'Cập nhật';
 
 afterEach(() => { vi.useRealTimers(); });
+
+describe('freight-rate-terms column floors (ticket 18/11, Web PC 1440)', () => {
+  it('NGƯỠNG 95px + TUYẾN 120px floors stay page-scoped to cfg-page--freight-rate-terms', () => {
+    // 'Chưa chốt' (Ngưỡng) and route names like 'Bắc Ninh' (Tuyến) never
+    // break mid-word; the shared CrudTable/record-table css is untouched.
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/config/FreightRateTermsConfigPage.css'), 'utf8');
+    expect(css).toMatch(/\.cfg-page--freight-rate-terms \.record-table td\[data-label='Ngưỡng'\]\s*\{[^}]*min-width:\s*95px;/);
+    expect(css).toMatch(/\.cfg-page--freight-rate-terms \.record-table td\[data-label='Tuyến'\]\s*\{[^}]*min-width:\s*120px;[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*keep-all;/);
+    expect(css).not.toContain('.record-table--config');
+  });
+});
 
 describe('FreightRateTermsConfigPage — TC-CUOC-003/004 rate terms', () => {
   it('renders the CrudTable surface with desc sort by effectiveDate', () => {

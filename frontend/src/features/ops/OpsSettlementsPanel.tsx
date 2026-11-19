@@ -144,8 +144,8 @@ export function OpsSettlementsPanel() {
 /** SIL-845 — the phiếu's two invoice baskets as flat sections of ONE bảng;
  *  a basket with no rows is skipped ("tối đa 2 mục A/B"). */
 const SHEET_SECTIONS = [
-  { basketKey: 'withInvoice', marker: 'A — Chi phí có hóa đơn', totalLabel: 'Tổng có hóa đơn' },
-  { basketKey: 'withoutInvoice', marker: 'B — Chi phí không hóa đơn', totalLabel: 'Tổng không hóa đơn' },
+  { basketKey: 'withInvoice', marker: 'A — Chi phí có hóa đơn', totalLabel: 'Tổng chi phí có hóa đơn' },
+  { basketKey: 'withoutInvoice', marker: 'B — Chi phí không hóa đơn', totalLabel: 'Tổng chi phí không hóa đơn' },
 ] as const;
 
 type SheetGrouping = OpsSettlementDetail['grouping'];
@@ -178,7 +178,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
       <h3>PHIẾU QUYẾT TOÁN {meta.code}</h3>
       <p>Người lập: {meta.opsName ?? '—'} · Ngày: {formatDate(meta.createdAt)}</p>
       {meta.note && <p>Ghi chú: {meta.note}</p>}
-      {SHEET_SECTIONS.map(({ basketKey, marker }) => {
+      {SHEET_SECTIONS.map(({ basketKey, marker: _marker }) => {
         const rows = sectionRows(basketKey);
         if (rows.length === 0) return null;
         return (
@@ -239,7 +239,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
               </tr>
             ))}
             <tr className="ops-settlement-sheet__grand-row">
-              <th colSpan={5} scope="row">TỔNG CỘNG QUYẾT TOÁN</th>
+              <th colSpan={5} scope="row">Tổng cộng</th>
               <td className="ops-money">{`${formatMoney(grouping.totals.grand)} ₫`}</td>
             </tr>
           </tbody>
@@ -253,7 +253,7 @@ export function OpsSettlementSheet({ grouping, meta }: {
         })),
         {
           key: 'grand',
-          title: 'TỔNG CỘNG QUYẾT TOÁN',
+          title: 'Tổng cộng',
           facts: [{ key: 'amount', label: 'Số tiền', value: <span className="data-token">{`${formatMoney(grouping.totals.grand)} ₫`}</span>, primary: true, align: 'end' as const }],
         },
       ]} />

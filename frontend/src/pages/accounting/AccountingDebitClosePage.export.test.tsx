@@ -15,7 +15,7 @@
  *   before issuing — cancel locks nothing; a lock/issue refusal surfaces
  *   verbatim in the page's message banner and no file is downloaded.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -100,7 +100,7 @@ beforeEach(() => {
 
 // Row selection is the row itself (card 20260929_207) on the settled board.
 describe('AccountingDebitClosePage — Xuất Debit Note (FB-094)', () => {
-  it('toolbar button downloads the issued note for the selected rows (FB094-UI-01/02)', async () => {
+  it('opens the preview; [Lưu và tải file XLSX] saves then downloads (FB094-UI-01/02 + ticket 18/11 Task 2.4)', async () => {
     listBoard.mockResolvedValue({ items: [row(1, 'BL-1'), row(2, 'BL-2')], total: 2 });
     createDebitNoteBatch.mockResolvedValue({ id: 30 });
     exportDebitNoteFile.mockResolvedValue(new Blob(['xlsx'], {
@@ -120,7 +120,26 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094)', () => {
     fireEvent.click(rows[1]!);
     expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).toBeEnabled();
 
+    // Ticket 18/11 Task 2.4 — the button opens the PREVIEW first: the two
+    // lots, 100% BKS báo khách column, and the four closing totals; no issue
+    // call has run yet.
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    const preview = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    expect(createDebitNoteBatch).not.toHaveBeenCalled();
+    expect(preview).toHaveTextContent('BKS báo khách');
+    expect(preview).toHaveTextContent('Tổng tiền trước thuế');
+    expect(preview).toHaveTextContent('Giảm giá');
+    expect(preview).toHaveTextContent('VAT');
+    expect(preview).toHaveTextContent('Tổng tiền sau thuế');
+    // The round picker rides the shared UuiSelectField adapter: below its
+    // SEARCH_THRESHOLD (5 options) it renders the plain listbox trigger
+    // (button role), above it the type-to-search combobox — pin the control,
+    // not one variant's role. (ticket 18/11 Task 2.4 supersedes the old
+    // issue-immediately flow this test used to describe.)
+    expect(within(preview).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ })).toBeTruthy();
+
+    // [Lưu và tải file XLSX] = the SAVE (push to Công nợ) + the download.
+    fireEvent.click(within(preview).getByRole('button', { name: 'Lưu và tải file XLSX' }));
 
     // ONE issue call carries the whole selection; the key is derived inside
     // the client (stable per selection) so a re-click replays instead of
@@ -135,7 +154,26 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094)', () => {
     expect(window.URL.createObjectURL).toHaveBeenCalled();
     // Object-URL revoke is deferred (10s, house flow) so the browser can start
     // the download first — timing itself is not load-bearing here.
-    expect(await screen.findByRole('status')).toHaveTextContent('Đã xuất Debit Note (2 lô).');
+    expect(await screen.findByRole('status')).toHaveTextContent('Đã lưu Debit Note (2 lô) — số liệu đã đẩy sang Công nợ. File XLSX đã tải.');
+  });
+
+  it('[Lưu] alone issues and pushes to Công nợ but downloads nothing (ticket 18/11 Task 2.4)', async () => {
+    listBoard.mockResolvedValue({ items: [row(1, 'BL-1'), row(2, 'BL-2')], total: 2 });
+    createDebitNoteBatch.mockResolvedValue({ id: 32 });
+    renderPage();
+
+    await screen.findByText('BL-1');
+    const rows = [...document.querySelectorAll('.debit-board tbody tr')] as HTMLElement[];
+    fireEvent.click(rows[0]!);
+    fireEvent.click(rows[1]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    const preview = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(preview).getByRole('button', { name: 'Lưu' }));
+
+    await waitFor(() => expect(createDebitNoteBatch).toHaveBeenCalledWith([1, 2]));
+    expect(exportDebitNoteFile).not.toHaveBeenCalled();
+    expect(anchorClick).not.toHaveBeenCalled();
+    expect(await screen.findByRole('status')).toHaveTextContent('Đã lưu Debit Note (2 lô) — số liệu đã đẩy sang Công nợ.');
   });
 
   it('a server refusal surfaces verbatim and downloads nothing (FB094-UI-03)', async () => {
@@ -148,6 +186,8 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094)', () => {
     await screen.findByText('BL-1');
     fireEvent.click((document.querySelectorAll('.debit-board tbody tr')[0] as HTMLElement));
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    const preview = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(preview).getByRole('button', { name: 'Lưu và tải file XLSX' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Các lô đã chọn đã nằm trong Debit Note đã xuất: BL-1');
     expect(exportDebitNoteFile).not.toHaveBeenCalled();
@@ -181,7 +221,14 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094)', () => {
     expect(dialog).toHaveTextContent('1 lô trong lựa chọn chưa khóa chi phí');
     expect(dialog).toHaveTextContent('BL-1');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Khóa & Xuất' }));
+    // Ticket 18/11 Task 2.4 — consent now leads to the PREVIEW, not an
+    // immediate issue; the locks run inside the save act.
+    fireEvent.click(screen.getByRole('button', { name: 'Khóa & xem trước' }));
+    const preview = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    expect(lockShipmentCost).not.toHaveBeenCalled();
+    expect(createDebitNoteBatch).not.toHaveBeenCalled();
+
+    fireEvent.click(within(preview).getByRole('button', { name: 'Lưu và tải file XLSX' }));
 
     // ONLY the unlocked lot is locked (BL-2 already carries an active lock),
     // then ONE issue call carries the whole selection and the file downloads.
@@ -190,7 +237,7 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094)', () => {
     await waitFor(() => expect(createDebitNoteBatch).toHaveBeenCalledWith([1, 2]));
     await waitFor(() => expect(exportDebitNoteFile).toHaveBeenCalledWith(1, 31));
     expect(anchorClick).toHaveBeenCalledTimes(1);
-    expect(await screen.findByRole('status')).toHaveTextContent('Đã xuất Debit Note (2 lô, đã khóa chi phí 1 lô).');
+    expect(await screen.findByRole('status')).toHaveTextContent('Đã lưu Debit Note (2 lô, đã khóa chi phí 1 lô) — số liệu đã đẩy sang Công nợ. File XLSX đã tải.');
   });
 
   it('cancel in the lock dialog locks nothing and issues nothing', async () => {
@@ -218,7 +265,9 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094)', () => {
     await screen.findByText('BL-1');
     fireEvent.click((document.querySelectorAll('.debit-board tbody tr')[0] as HTMLElement));
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Khóa & Xuất' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Khóa & xem trước' }));
+    const preview = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(preview).getByRole('button', { name: 'Lưu và tải file XLSX' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Lô hàng đã thay đổi. Vui lòng tải lại.');
     expect(createDebitNoteBatch).not.toHaveBeenCalled();

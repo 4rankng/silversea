@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'ACCOUNTANT' } }) }));
@@ -33,6 +33,18 @@ function account(accountId: number, name: string, bookBalance: number) {
   };
 }
 
+/* The fund-axis projection the position route appends (ticket 18/11 Task
+   3.5a) — balanced CASH/BANK rows for the shared mock, deltas 0. */
+const fundBreakdown = {
+  funds: [
+    { fund: 'CASH' as const, openingBalance: 1000, totalIn: 2000, totalOut: 500, bookBalance: 2500 },
+    { fund: 'BANK' as const, openingBalance: 1000, totalIn: 2000, totalOut: 500, bookBalance: 2500 },
+  ],
+  inDelta: 0,
+  outDelta: 0,
+  balanceDelta: 0,
+};
+
 beforeEach(() => {
   getTreasuryPositionMock.mockReset().mockResolvedValue({
     asOf: '2026-08-23T08:00:00.000Z',
@@ -40,6 +52,7 @@ beforeEach(() => {
     coverage: 'COMPLETE',
     opsAdvance: { totalOutstanding: 0 },
     accounts: [account(1, 'Tiền mặt quỹ', 900), account(2, 'VCB chính', 500)],
+    fundBreakdown,
   });
 });
 
@@ -59,11 +72,11 @@ describe('TreasuryPositionPage server-side column sort', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Thu' }));
     await waitFor(() => expect(getTreasuryPositionMock).toHaveBeenLastCalledWith({ sortBy: 'totalIn', sortDir: 'asc' }));
-    expect(screen.getByRole('columnheader', { name: 'Thu' }).getAttribute('aria-sort')).toBe('ascending');
+    expect(within(screen.getByRole('region', { name: 'Danh sách tài khoản ghi sổ' })).getByRole('columnheader', { name: 'Thu' }).getAttribute('aria-sort')).toBe('ascending');
 
     fireEvent.click(screen.getByRole('button', { name: 'Thu' }));
     await waitFor(() => expect(getTreasuryPositionMock).toHaveBeenLastCalledWith({ sortBy: 'totalIn', sortDir: 'desc' }));
-    expect(screen.getByRole('columnheader', { name: 'Thu' }).getAttribute('aria-sort')).toBe('descending');
+    expect(within(screen.getByRole('region', { name: 'Danh sách tài khoản ghi sổ' })).getByRole('columnheader', { name: 'Thu' }).getAttribute('aria-sort')).toBe('descending');
   });
 });
 
@@ -78,6 +91,7 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
         { ...account(1, 'Tiền mặt quỹ', 900), type: 'CASH', bankName: null, bankAccountNumber: null },
         { ...account(2, 'VCB chính', 500), type: 'BANK', bankName: 'Vietcombank', bankAccountNumber: '0221000123456' },
       ],
+      fundBreakdown,
     });
     render(<TreasuryPositionPage />);
 
@@ -115,6 +129,7 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
         account(1, 'Tiền mặt quỹ', 900),
         { ...account(2, 'VCB chính', 500), cutoverAt: '2026-10-01T03:00:00.000Z' },
       ],
+      fundBreakdown,
     });
     render(<TreasuryPositionPage />);
 
@@ -134,6 +149,7 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
       coverage: 'COMPLETE',
       opsAdvance: { totalOutstanding: 0 },
       accounts: [{ ...account(1, 'VCB chính', 500), type: 'BANK', bankName: 'Vietcombank', bankAccountNumber: '0221000999' }],
+      fundBreakdown,
     });
     render(<TreasuryPositionPage />);
     const row = await screen.findByText('VCB chính');
@@ -144,5 +160,74 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
     // The fifth rail metric renders from the read's canonical outstanding.
     const rail = document.querySelector('[aria-label="Tóm tắt số dư ghi sổ"]')!;
     expect(rail.textContent).toContain('Tạm ứng OPS còn tồn');
+  });
+});
+
+describe('TreasuryPositionPage sổ quỹ đối soát (ticket 18/11 Task 3.5a)', () => {
+  it('renders the per-fund book totals side-by-side and closes with the CASH−BANK delta row', async () => {
+    getTreasuryPositionMock.mockReset().mockResolvedValue({
+      asOf: '2026-11-01T08:00:00.000Z',
+      currency: 'VND',
+      coverage: 'COMPLETE',
+      opsAdvance: { totalOutstanding: 0 },
+      accounts: [
+        { ...account(1, 'Tiền mặt quỹ', 600), type: 'CASH', openingBalance: 100, totalIn: 700, totalOut: 200 },
+        { ...account(2, 'VCB chính', 500), type: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900 },
+      ],
+      fundBreakdown: {
+        funds: [
+          { fund: 'CASH', openingBalance: 100, totalIn: 700, totalOut: 200, bookBalance: 600 },
+          { fund: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 },
+        ],
+        inDelta: 300,
+        outDelta: -700,
+        balanceDelta: 100,
+      },
+    });
+    render(<TreasuryPositionPage />);
+
+    const recon = await screen.findByRole('region', { name: 'Đối soát quỹ' });
+    const text = recon.textContent;
+    // Side-by-side funds over Đầu kỳ | Thu | Chi | Số dư cuối.
+    expect(text).toContain('Quỹ tiền mặt');
+    expect(text).toContain('Quỹ tài khoản ngân hàng');
+    expect(text).toContain('Đầu kỳ');
+    expect(text).toContain('Thu');
+    expect(text).toContain('Chi');
+    expect(text).toContain('Số dư cuối');
+    expect(text).toContain('600');   // CASH book balance
+    expect(text).toContain('500');   // BANK book balance
+    // The đối soát line: CASH − BANK deltas as projected by the read.
+    expect(text).toContain('Đối soát (Tiền mặt − Ngân hàng)');
+    expect(text).toContain('300');   // in delta
+    expect(text).toContain('-700');  // out delta
+    expect(text).toContain('100');   // balance delta
+  });
+
+  it('states the no-inter-fund-transfer ledger law in the recon note', async () => {
+    render(<TreasuryPositionPage />);
+    const recon = await screen.findByRole('region', { name: 'Đối soát quỹ' });
+    expect(recon.textContent).toContain('không ghi chuyển tiền giữa hai quỹ');
+  });
+
+  it('hides the recon strip with the rest of the read when the ledger is empty', () => {
+    getTreasuryPositionMock.mockReset().mockResolvedValue({
+      asOf: '2026-11-01T08:00:00.000Z',
+      currency: 'VND',
+      coverage: 'UNAVAILABLE',
+      opsAdvance: { totalOutstanding: 0 },
+      accounts: [],
+      fundBreakdown: {
+        funds: [
+          { fund: 'CASH', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+          { fund: 'BANK', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+        ],
+        inDelta: 0,
+        outDelta: 0,
+        balanceDelta: 0,
+      },
+    });
+    render(<TreasuryPositionPage />);
+    return waitFor(() => expect(screen.queryByRole('region', { name: 'Đối soát quỹ' })).toBeNull());
   });
 });

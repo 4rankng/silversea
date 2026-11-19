@@ -63,8 +63,10 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => 
     // ever takes a percentage width (honest min-width floors pinned below).
     expect(css).not.toMatch(/table-layout:\s*fixed/);
     expect(css).not.toMatch(/\.ppc-col[^{]*\{[^}]*width:\s*\d+%/);
+    // Ticket 18/11 Task 3.1d — 'chiho' left the list with its column: the
+    // duplicate Chi hộ cell is gone from the board (and its 188px floor with it).
     for (const column of ['lich-trinh', 'xe', 'customer-route', 'thongso', 'diadiem',
-      'chiho', 'money', 'status', 'date', 'ghichu', 'ghichu-ops']) {
+      'money', 'status', 'date', 'ghichu', 'ghichu-ops']) {
       const budget = css.match(new RegExp(`\\.ppc-board \\.ppc-col--${column}(?:\\s*,[^{}]+)?\\s*\\{[^}]*min-width:\\s*(\\d+)px`));
       expect(budget, `${column} has a real content floor`).not.toBeNull();
       expect(Number(budget?.[1])).toBeGreaterThanOrEqual(104);

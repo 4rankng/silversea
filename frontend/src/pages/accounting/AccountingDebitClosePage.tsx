@@ -20,10 +20,11 @@ import { billBookingReference } from '../../lib/business-reference';
 import { qk } from '../../api/keys';
 import { Btn, Modal, PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { DateRangeFields, EmptyState, FilterBar, SearchableMultiSelect, SummaryRail } from '../../design-system';
+import { DateRangeFields, EmptyState, FilterBar, Pagination, SearchableMultiSelect, SummaryRail } from '../../design-system';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
+import { DebitNotePreviewDialog } from './DebitNotePreviewDialog';
 import { BillingPlateEditor } from './AccountingDebitClosePage.billing-plate';
 import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
 import { BOARD_CAPTION, BOARD_COLUMNS, type CellContext } from './AccountingDebitClosePage.columns';
@@ -67,10 +68,19 @@ export default function AccountingDebitClosePage() {
   // SIL-773 — danh sách tác nghiệp mặc định ẩn các dòng đã 'Lưu - Phê duyệt
   // từng dòng và ẩn'; bật công tắc này refetch với includeHidden để tra lịch sử.
   const [showHidden, setShowHidden] = useState(false);
+  // Ticket 18/11 Task 2.1 — phân trang chuẩn 20–50 dòng/trang trên bảng tổng
+  // hợp: the month window still loads whole, the BOARD renders one page so a
+  // full month can never stretch the page to thousands of px.
+  const [boardPage, setBoardPage] = useState(1);
+  const [boardPageSize, setBoardPageSize] = useState(20);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [settlementOpen, setSettlementOpen] = useState(false);
   // FB-094 (card 181026145620) — Xuất Debit Note over the selected rows.
   const [exportingNote, setExportingNote] = useState(false);
+  // Ticket 18/11 Task 2.4 — [Xuất Debit Note] opens the PREVIEW first; the
+  // two explicit save acts ([Lưu] / [Lưu và tải file XLSX]) are what push the
+  // numbers to Công nợ. Nothing is issued by opening the preview.
+  const [exportPreviewOpen, setExportPreviewOpen] = useState(false);
   // FB-094 (card 201026112300): the confirm step before locking unlocked
   // lots for the export — the chốt-debit flow's rows are reconciled but not
   // cost-locked, and locking is an explicit accountant act (card 20260918_19).
@@ -154,6 +164,11 @@ export default function AccountingDebitClosePage() {
   const { isSelected, countAmong, allOfSelected } = selection;
   const pendingRows = useMemo(() => visibleRows.filter((row) => row.adjustment.status === 'PENDING'), [visibleRows]);
   const settledRows = useMemo(() => visibleRows.filter((row) => row.adjustment.status !== 'PENDING'), [visibleRows]);
+  // Ticket 18/11 Task 2.1 — one page (20–50 rows) of the settled board.
+  const pagedSettledRows = useMemo(
+    () => settledRows.slice((boardPage - 1) * boardPageSize, boardPage * boardPageSize),
+    [settledRows, boardPage, boardPageSize],
+  );
   const pendingIds = useMemo(
     () => pendingRows.map((row) => row.adjustment.requestId).filter((id): id is number => id != null),
     [pendingRows],
@@ -416,34 +431,51 @@ export default function AccountingDebitClosePage() {
   function requestExportDebitNote() {
     if (selectedCount === 0 || exportingNote) return;
     if (unlockedSelectedRows.length > 0) setLockConfirmOpen(true);
-    else void exportDebitNote();
+    else setExportPreviewOpen(true);
   }
   async function lockSelectedForExport() {
     for (const row of unlockedSelectedRows) {
       await lockShipmentCost(row.shipmentId, crypto.randomUUID());
     }
   }
-  async function exportDebitNote() {
+  /** Ticket 18/11 Task 2.4 — the SAVE half: locks still-unlocked selected
+   *  lots (the FB-094 consent law, run after the confirm modal or from the
+   *  preview's save buttons over an already-confirmed selection), issues the
+   *  consolidated note, and pushes the numbers to Công nợ. Returns the
+   *  document id; the DOWNLOAD is the caller's choice ([Lưu] vs [Lưu và tải
+   *  file XLSX]). */
+  async function saveDebitNote(): Promise<{ documentId: number; anchorShipmentId: number; fileNameBase: string }> {
     const ids = selectedRows.map((row) => row.shipmentId);
-    if (ids.length === 0 || exportingNote) return;
+    if (ids.length === 0) throw new Error('Không có lô nào được chọn.');
+    if (unlockedSelectedRows.length > 0) await lockSelectedForExport();
+    const { id: documentId } = await createDebitNoteBatch(ids);
+    void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
+    return {
+      documentId,
+      anchorShipmentId: ids[0],
+      fileNameBase: selectedRows[0]?.billOrBooking || 'chua-xac-dinh',
+    };
+  }
+  async function saveDebitNoteAndExit(download: boolean) {
+    if (selectedCount === 0 || exportingNote) return;
     setExportingNote(true);
     try {
-      if (unlockedSelectedRows.length > 0) await lockSelectedForExport();
-      const { id: documentId } = await createDebitNoteBatch(ids);
-      const blob = await exportDebitNoteFile(ids[0], documentId);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `giay-bao-no-${selectedRows[0]?.billOrBooking || 'chua-xac-dinh'}.xlsx`;
-      anchor.click();
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-      setMessage({ kind: 'ok', text: `Đã xuất Debit Note (${ids.length} lô${unlockedSelectedRows.length > 0 ? `, đã khóa chi phí ${unlockedSelectedRows.length} lô` : ''}).` });
-      // The lock facts the board shows just changed for the locked rows.
-      void queryClient.invalidateQueries({ queryKey: qk.accounting.debitBoardAll });
+      const { documentId, anchorShipmentId, fileNameBase } = await saveDebitNote();
+      if (download) {
+        const blob = await exportDebitNoteFile(anchorShipmentId, documentId);
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `giay-bao-no-${fileNameBase}.xlsx`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 10000);
+      }
+      setExportPreviewOpen(false);
+      setMessage({ kind: 'ok', text: `Đã lưu Debit Note (${selectedCount} lô${unlockedSelectedRows.length > 0 ? `, đã khóa chi phí ${unlockedSelectedRows.length} lô` : ''}) — số liệu đã đẩy sang Công nợ.${download ? ' File XLSX đã tải.' : ''}` });
     } catch (error) {
       setMessage({
         kind: 'err',
-        text: error instanceof Error && error.message ? error.message : 'Không xuất được Debit Note. Vui lòng thử lại.',
+        text: error instanceof Error && error.message ? error.message : 'Không lưu được Debit Note. Vui lòng thử lại.',
       });
     } finally {
       setExportingNote(false);
@@ -465,8 +497,9 @@ export default function AccountingDebitClosePage() {
 
   return (
     <div className="page-shell">
-      {/* SIL-772 — nhãn khách yêu cầu nguyên văn, viết hoa đúng như khách ghi. */}
-      <PageHeader title="KIỂM SOÁT LÔ HÀNG" />
+      {/* Ticket 18/11 Task 2.1 — sentence case cho đồng nhất form chữ với
+          menu (supersedes SIL-772's customer-verbatim ALL-CAPS H1). */}
+      <PageHeader title="Kiểm soát lô hàng" />
 
       {/* SIL-772 — 2 chế độ xem chuyển đổi: Vận tải Hàng Cont FCL / Vận tải
           Hàng Lẻ LCL. Buttons + aria-pressed (nhà bán key-neutral, không
@@ -751,14 +784,25 @@ export default function AccountingDebitClosePage() {
                 {BOARD_CAPTION}
                 {period !== '' && <span className="debit-note"> · kỳ {period}</span>}
               </h2>
-              <AccountingDebitRecords rows={settledRows} columns={BOARD_COLUMNS} context={cellContext} selection={selection} />
+              <AccountingDebitRecords rows={pagedSettledRows} columns={BOARD_COLUMNS} context={cellContext} selection={selection} />
               <DebitBoardTable
-                rows={settledRows}
+                rows={pagedSettledRows}
                 columns={BOARD_COLUMNS}
                 context={cellContext}
                 selection={selection}
                 ariaLabel="Bảng kế hoạch điều động tổng hợp"
                 caption={`${BOARD_CAPTION} — thu/trả theo lô`}
+              />
+              {/* Ticket 18/11 Task 2.1 — the page navigator rides the board:
+                  20–50 dòng/trang keeps the month window inside one viewport. */}
+              <Pagination
+                page={boardPage}
+                totalPages={Math.max(1, Math.ceil(settledRows.length / boardPageSize))}
+                totalItems={settledRows.length}
+                pageSize={boardPageSize}
+                onChange={setBoardPage}
+                pageSizeOptions={[20, 50]}
+                onPageSizeChange={(size) => { setBoardPageSize(size); setBoardPage(1); }}
               />
               {/* SIL-772 — the "cuộn ngang" cue died with the scroll design:
                   the nine fixed tracks fit the 1920px operating width. */}
@@ -804,13 +848,29 @@ export default function AccountingDebitClosePage() {
             disabled={exportingNote}
             onClick={() => {
               setLockConfirmOpen(false);
-              void exportDebitNote();
+              // Ticket 18/11 Task 2.4 — locking consents to freezing the
+              // figures; the ISSUE still waits for the preview's [Lưu].
+              setExportPreviewOpen(true);
             }}
           >
-            {exportingNote ? 'Đang xuất…' : 'Khóa & Xuất'}
+            Khóa & xem trước
           </Btn>
         </div>
       </Modal>
+
+      {/* Ticket 18/11 Task 2.4 — the preview between [Xuất Debit Note] and
+          the issue: gom theo đợt Lần/Tháng/Năm, 100% BKS báo khách, 4 dòng
+          tổng; [Lưu] / [Lưu và tải file XLSX] are the ONLY acts that push
+          the đợt to Công nợ phải thu/trả. */}
+      <DebitNotePreviewDialog
+        open={exportPreviewOpen}
+        rows={selectedRows}
+        rounds={roundItems}
+        busy={exportingNote}
+        onSaveOnly={() => void saveDebitNoteAndExit(false)}
+        onSaveAndDownload={() => void saveDebitNoteAndExit(true)}
+        onClose={() => setExportPreviewOpen(false)}
+      />
 
       <DebitRoundBoard rounds={roundItems} />
     </div>

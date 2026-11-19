@@ -285,7 +285,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
   });
 
   it('SIL-843 — ngày để trống và không có lô nào: thông báo phạm vi tất cả các ngày', async () => {
-    apiGet.mockImplementation((url: string) => Promise.resolve({ date: null, items: [] }));
+    apiGet.mockImplementation(() => Promise.resolve({ date: null, items: [] }));
     renderPage();
     expect(await screen.findByText('Chưa có lô hàng nào.')).toBeInTheDocument();
     expect(apiGet).toHaveBeenCalledWith('/ops/orders');
@@ -438,6 +438,14 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     renderPage();
     await screen.findByText('BL-001');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
+    // Ticket 18/11 Task 4.1 — a no-invoice row needs an explicit Số container:
+    // pick one so the Lưu assertions below stay about the AMOUNT rules.
+    const contTrigger = await within(screen.getByRole('dialog', { name: 'Khai báo chi phí' })).findByRole('button', { name: 'Đã chọn 1 số cont' });
+    fireEvent.click(contTrigger);
+    const contListbox = await screen.findByRole('listbox');
+    fireEvent.click(within(contListbox).getByRole('option', { name: 'TSTU1111111' }));
+    fireEvent.keyDown(contListbox, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
     // Card 191026160000 — per-block catalogs are short, so the house select
     // renders the plain click-to-open list (button trigger, no combobox
     // input). The trigger stays disabled while the catalog loads — wait for it.
@@ -455,8 +463,9 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(amount).toHaveAttribute('aria-invalid', 'false');
     expect(screen.queryByText(/Số tiền không được âm/)).not.toBeInTheDocument();
     // Cân xe is a no-invoice line charging nothing (Thực thu trống) — since
-    // SIL-777 Ghi chú is NOT required: type + amount alone open Lưu, so every
-    // submit-button assertion below is the AMOUNT's doing.
+    // SIL-777 Ghi chú is NOT required, the explicit cont pick (above) is the
+    // only other precondition: every submit-button assertion below is the
+    // AMOUNT's doing.
     expect(submit).toBeEnabled();
     // 0 is an empty row, not an amount.
     fireEvent.change(amount, { target: { value: '0' } });
@@ -488,6 +497,14 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     renderPage();
     await screen.findByText('BL-001');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
+    // Ticket 18/11 Task 4.1 — a no-invoice row needs an explicit Số container
+    // before Lưu opens.
+    const contTrigger2 = await within(screen.getByRole('dialog', { name: 'Khai báo chi phí' })).findByRole('button', { name: 'Đã chọn 1 số cont' });
+    fireEvent.click(contTrigger2);
+    const contListbox2 = await screen.findByRole('listbox');
+    fireEvent.click(within(contListbox2).getByRole('option', { name: 'TSTU1111111' }));
+    fireEvent.keyDown(contListbox2, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
     const typeTrigger2 = await screen.findByRole('button', { name: /Loại phí/ });
     await waitFor(() => expect(typeTrigger2).toBeEnabled());
     fireEvent.click(typeTrigger2);

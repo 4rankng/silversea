@@ -50,6 +50,7 @@ import { throwValidation } from '../../lib/validation';
 import { ApiError } from '../../errors';
 import { IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { parseId, runShipmentWrite, sendShipmentWrite } from './shipment-shared';
+import { SHIPMENT_AUDIT_SCOPES, withShipmentAuditDiff } from '../../services/shipment-audit-diff.service';
 import { declareMaterialWrite } from '../../middleware/material-write';
 
 const cusWorkspaceRoutes = Router()
@@ -108,21 +109,25 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_LINE_UPDATE,
       { shipmentId, containerId, data: parsed.data },
-      async (tx) => {
-        const outcome = await updateCusShipmentContainerLine({
-          shipmentId,
-          containerId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: 200,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.containerSet },
+        async () => {
+          const outcome = await updateCusShipmentContainerLine({
+            shipmentId,
+            containerId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: 200,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -143,20 +148,24 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_ADD,
       { shipmentId, data: parsed.data },
-      async (tx) => {
-        const outcome = await addCusShipmentContainer({
-          shipmentId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: 201,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.containerSet },
+        async () => {
+          const outcome = await addCusShipmentContainer({
+            shipmentId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: 201,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -181,21 +190,25 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_APPOINTMENT_COPY,
       { shipmentId, containerId, data: parsed.data },
-      async (tx) => {
-        const outcome = await copyCusShipmentContainerAppointment({
-          shipmentId,
-          containerId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: 200,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.containerSet },
+        async () => {
+          const outcome = await copyCusShipmentContainerAppointment({
+            shipmentId,
+            containerId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: 200,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -220,21 +233,25 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_DECLARATION_COPY,
       { shipmentId, containerId, data: parsed.data },
-      async (tx) => {
-        const outcome = await copyCusShipmentContainerDeclaration({
-          shipmentId,
-          containerId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: 200,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.containerSet },
+        async () => {
+          const outcome = await copyCusShipmentContainerDeclaration({
+            shipmentId,
+            containerId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: 200,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -259,21 +276,25 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_CONTAINER_REMOVE,
       { shipmentId, containerId, data: parsed.data },
-      async (tx) => {
-        const outcome = await removeCusShipmentContainer({
-          shipmentId,
-          containerId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: 200,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.containerSet },
+        async () => {
+          const outcome = await removeCusShipmentContainer({
+            shipmentId,
+            containerId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: 200,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -294,20 +315,24 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_FINANCE_CONFIRM,
       { shipmentId, data: parsed.data },
-      async (tx) => {
-        const outcome = await confirmShipmentFinance({
-          shipmentId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: outcome.replayed ? 200 : 201,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.shipmentFields },
+        async () => {
+          const outcome = await confirmShipmentFinance({
+            shipmentId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: outcome.replayed ? 200 : 201,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -328,20 +353,24 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_PROPOSAL_BILLING_REVIEW,
       { shipmentId, data: parsed.data },
-      async (tx) => {
-        const outcome = await reviewShipmentChargeProposal({
-          shipmentId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: outcome.replayed ? 200 : 201,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.shipmentFields },
+        async () => {
+          const outcome = await reviewShipmentChargeProposal({
+            shipmentId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: outcome.replayed ? 200 : 201,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -362,20 +391,24 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_DOCUMENT_CUSTODY_UPDATE,
       { shipmentId, data: parsed.data },
-      async (tx) => {
-        const outcome = await updateShipmentDocumentCustody({
-          shipmentId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: 201,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.custody },
+        async () => {
+          const outcome = await updateShipmentDocumentCustody({
+            shipmentId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: 201,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -396,20 +429,24 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_LOCK,
       { shipmentId, data: parsed.data },
-      async (tx) => {
-        const outcome = await activateShipmentAccountingLock({
-          shipmentId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: outcome.replayed ? 200 : 201,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.accountingLock },
+        async () => {
+          const outcome = await activateShipmentAccountingLock({
+            shipmentId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: outcome.replayed ? 200 : 201,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -430,20 +467,24 @@ cusWorkspaceRoutes.post(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_REOPEN_REQUEST,
       { shipmentId, data: parsed.data },
-      async (tx) => {
-        const outcome = await requestShipmentReopen({
-          shipmentId,
-          input: parsed.data,
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status:  200,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.accountingLock },
+        async () => {
+          const outcome = await requestShipmentReopen({
+            shipmentId,
+            input: parsed.data,
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status:  200,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),
@@ -469,21 +510,25 @@ cusWorkspaceRoutes.delete(
       req,
       IDEMPOTENCY_ENDPOINTS.SHIPMENT_DELETE_REQUEST,
       { shipmentId, version, reason: reason.trim() },
-      async (tx) => {
-        const outcome = await requestShipmentDelete({
-          shipmentId,
-          version,
-          reason: reason.trim(),
-          actor: getUser(req),
-          transaction: tx,
-        });
-        return {
-          body: outcome,
-          status: 200,
-          auditEntityId: shipmentId,
-          auditEntityKey: `shipment-${shipmentId}`,
-        };
-      },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.shipmentFields },
+        async () => {
+          const outcome = await requestShipmentDelete({
+            shipmentId,
+            version,
+            reason: reason.trim(),
+            actor: getUser(req),
+            transaction: tx,
+          });
+          return {
+            body: outcome,
+            status: 200,
+            auditEntityId: shipmentId,
+            auditEntityKey: `shipment-${shipmentId}`,
+          };
+        },
+      ),
     );
     sendShipmentWrite(res, result);
   }),

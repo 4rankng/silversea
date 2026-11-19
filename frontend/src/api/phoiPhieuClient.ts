@@ -42,6 +42,10 @@ export interface PhoiPhieuRow {
    *  định'; the chi-hộ dialog prints the same 0). */
   chiHoThu: number;
   chiHoTra: number;
+  /** Ticket 18/11 Task 3.1 — cột GHI CHÚ đứng ngay sau TRẠNG THÁI: ghi chú
+   *  composed của lô (CUS customerNotes trước, điều vận operationalNotes
+   *  sau, nối '; '). Optional so an older in-flight payload renders '—'. */
+  ghiChu?: string | null;
   /** Card 20261002_292: the COMPANY-paid (TRIP-kind) slice of the chi-hộ
    *  totals, labeled separately in the cell. Optional so an older in-flight
    *  backend payload still renders. */
@@ -288,6 +292,9 @@ export interface PhoiPhieuPartyLot {
   total: number;
   daThuTra: number;
   conLai: number;
+  /** Ticket 18/11 Task 3.2 — the main board's composed Ghi chú of the lot.
+   *  Optional so an older in-flight payload renders '—'. */
+  ghiChu?: string | null;
   entries: Array<{ sourceId: number; expectedVersion: number; amount: number; bucket: 'nang' | 'ha' | 'khac' }>;
 }
 

@@ -29,6 +29,7 @@ function row(overrides: Partial<CostReviewRow> = {}): CostReviewRow {
     outstandingPayable: null, payableEntityType: 'FORWARDER', payableEntityId: 5, linkedTripExpenseId: null,
     accountantId: null, status: 'RECORDED', evidenceMissing: true, locked: false, reconciliationId: null,
     driverName: null, routeName: null, carrierName: null, carrierCode: null,
+    factoryName: null, declarationNumber: null, reconciliationCode: null, noInvoice: false,
     progress: 'CHUA_XAC_NHAN',
     confirmRef: { sourceKind: 'OPS', sourceId: 1, expectedVersion: 1 },
     duplicateCount: 1,
@@ -127,6 +128,78 @@ describe('CostReconciliationPage (SIL-779)', () => {
     await waitFor(() => expect(expenseApi.confirm).toHaveBeenCalledWith([
       { sourceKind: 'OPS', sourceId: 1, expectedVersion: 1 },
     ]));
+  });
+
+  it('ticket 18/11 3.3: payer filter reads Người lập lệnh chi', async () => {
+    expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row()] });
+    page();
+    expect(await screen.findByLabelText('Người lập lệnh chi')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Người thực chi')).toBeNull();
+  });
+
+  it('ticket 18/11 3.3: customer/factory split into their own column beside the lot', async () => {
+    expenseApi.costReview.mockResolvedValue({
+      ...costPayload,
+      items: [row({ customerName: 'Công ty KH A', factoryName: 'Nhà máy Bình Dương' })],
+    });
+    page();
+    const lotCell = (await screen.findByText('SS-100')).closest('td');
+    expect(lotCell).not.toBeNull();
+    // The lot cell carries only the shipment code — the customer moved out.
+    expect(lotCell!.textContent).toBe('SS-100');
+    const customerCell = screen.getByText('Công ty KH A').closest('td');
+    expect(customerCell!.getAttribute('data-label')).toBe('Khách hàng / Nhà máy');
+    expect(within(customerCell!).getByText('Nhà máy Bình Dương')).toBeInTheDocument();
+  });
+
+  it('ticket 18/11 3.3: shows the declaration number, else the empty dash', async () => {
+    expenseApi.costReview.mockResolvedValue({
+      ...costPayload,
+      items: [row({ declarationNumber: '10230987123/HD' }), row({ id: 2, sourceId: 2, feeName: 'Phí hạ', amount: 400000 })],
+    });
+    page();
+    expect(await screen.findByText('10230987123/HD')).toBeInTheDocument();
+    const emptyRow = screen.getByText('Phí hạ').closest('tr');
+    expect(within(emptyRow!).getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('ticket 18/11 3.3: a no-invoice fee renders literal X in Số HĐ when no invoice exists', async () => {
+    expenseApi.costReview.mockResolvedValue({
+      ...costPayload,
+      items: [
+        row({ confirmedAt: '2026-11-10T00:00:00.000Z', progress: 'DA_XAC_NHAN', noInvoice: true }),
+        row({ id: 2, sourceId: 2, feeName: 'Phí hạ', amount: 400000, confirmedAt: '2026-11-10T00:00:00.000Z', progress: 'DA_XAC_NHAN', noInvoice: false }),
+      ],
+    });
+    page();
+    const noInvoiceRow = (await screen.findByText('Phí nâng')).closest('tr');
+    expect(within(noInvoiceRow!).getByText('X')).toBeInTheDocument();
+    // Invoiced-fee class keeps the plain empty marker.
+    const invoicedFeeRow = screen.getByText('Phí hạ').closest('tr');
+    expect(within(invoicedFeeRow!).queryByText('X')).toBeNull();
+  });
+
+  it('ticket 18/11 3.3: Trạng thái shows the phiếu quyết toán number when issued', async () => {
+    expenseApi.costReview.mockResolvedValue({
+      ...costPayload,
+      items: [row({ confirmedAt: '2026-11-10T00:00:00.000Z', confirmedByName: 'Kế Toán', progress: 'DA_LAP_PHIEU', reconciliationId: 7, reconciliationCode: 'PQT-2026-007' })],
+    });
+    page();
+    expect(await screen.findByText('Số phiếu quyết toán: PQT-2026-007')).toBeInTheDocument();
+  });
+
+  it('ticket 18/11 3.3: Ghi chú is the last column and Duyệt stays reachable on the row', async () => {
+    expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row({ note: 'Chờ đối chiếu biên lai bãi' })] });
+    page();
+    const ghiChuHeader = await screen.findByText('Ghi chú');
+    expect(ghiChuHeader.closest('th')).toBeTruthy();
+    // Ghi chú is the LAST header column of the table.
+    const headers = Array.from(ghiChuHeader.closest('tr')!.children);
+    expect(headers[headers.length - 1]!.textContent).toBe('Ghi chú');
+    expect(screen.getByText('Chờ đối chiếu biên lai bãi')).toBeInTheDocument();
+    // The tick action is still on the row (no [Xem phiếu]-style affordance).
+    expect(screen.getByRole('button', { name: 'Xác nhận' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Xem phiếu' })).toBeNull();
   });
 
   it('tick-all posts one batch confirm over the selected unconfirmed rows', async () => {

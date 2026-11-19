@@ -204,6 +204,10 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
 describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20_000 }, () => {
   it('B1: Loại + Số tiền + Ghi chú on a no-invoice row saves — no invoice number, no photo required', async () => {
     await show();
+    // Ticket 18/11 Task 4.1 — a no-invoice row requires an explicit Số
+    // container, so the payload pin rides cont 33 (lot-scope serialization
+    // stays pinned on the invoice tab in A2).
+    await pickContainers('TGHU1234567');
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '80000');
     await fillNote('Phí không hóa đơn', 'Chi tiền mặt cho 2 công nhân dỡ hàng');
@@ -215,7 +219,7 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
       expenseTypeCode: 'CONG_NHAN',
       amount: '80000',
       note: 'Chi tiền mặt cho 2 công nhân dỡ hàng',
-      shipmentContainerId: null,
+      shipmentContainerId: 33,
       invoiceNumber: null,
       photoStorageKeys: [],
     });
@@ -223,6 +227,7 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
 
   it('B2 (SIL-777): a no-charge row saves WITHOUT Ghi chú — the old note gate is gone', async () => {
     await show();
+    await pickContainers('TGHU1234567'); // Ticket 18/11 Task 4.1 — no-invoice rows need an explicit cont.
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '80000');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
@@ -260,6 +265,11 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '50000');
     await fillNote('Phí không hóa đơn', 'Chi áp ván');
+    // Ticket 18/11 Task 4.1 — the Số-container gate blocks lot-scope first:
+    // Lưu stays dead with the footer naming the missing scope.
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
+    expect(screen.getByText('Bắt buộc chọn Số container')).toBeInTheDocument();
+    await pickContainers('TGHU1234567');
     expect(screen.getByRole('button', { name: 'Lưu' }).getAttribute('disabled')).toBeNull();
     expect(screen.queryByText(/Số hóa đơn/)).toBeNull();
   });
@@ -291,6 +301,7 @@ describe('ops expense form — tabs + shared save (SIL-760)', { timeout: 20_000 
 
   it('C2: one Lưu gathers rows from BOTH tabs in one submit', async () => {
     await show();
+    await pickContainers('TGHU1234567'); // Ticket 18/11 Task 4.1 — the no-invoice row rides cont 33.
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '80000');
     await fillNote('Phí không hóa đơn', 'Chi công nhân dỡ hàng');
@@ -322,6 +333,7 @@ describe('ops expense form — thu-khách visibility by role (SIL-761)', { timeo
     // The no-customer-charge hint no longer references the hidden field.
     expect(screen.queryByText(/Thực thu để trống/)).toBeNull();
 
+    await pickContainers('TGHU1234567'); // Ticket 18/11 Task 4.1 — no-invoice rows need an explicit cont.
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '80000');
     await fillNote('Phí không hóa đơn', 'Chi công nhân dỡ hàng');
@@ -446,5 +458,118 @@ describe('ops expense form — mở khóa picker theo cont (SIL-844)', { timeout
     expect(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Đã chọn 1 số cont' })).toBeDisabled();
     expect(screen.getByText('Lô chưa có dòng cont để gắn chi phí — khoản ghi theo phạm vi chung lô.')).toBeInTheDocument();
+  });
+});
+
+// Ticket 18/11 Task 4.1 — the PHÍ KHÔNG HÓA ĐƠN tab is HARD-GATED: an
+// explicit Số container is required and the same cost TYPE may not repeat on
+// the same cont (the write path hard-409s the family with no confirm
+// bypass). The PHÍ CÓ HÓA ĐƠN tab keeps its warn-then-confirm law, and a
+// duplicate Số hóa đơn arrives as a hard 409 the popup cannot override.
+describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 20_000 }, () => {
+  beforeEach(() => { delete order.containers; });
+
+  /** A row-scoped type fill for the multi-row cases — the block-level helper
+   *  matches every row's type trigger and would click the wrong one. */
+  async function chooseRowType(row: HTMLElement, name: string) {
+    const trigger = within(row).getByRole('button', { name: /Loại phí/ });
+    await waitFor(() => expect(trigger).toBeEnabled());
+    await act(async () => { fireEvent.click(trigger); });
+    fireEvent.click(await screen.findByRole('option', { name }));
+  }
+
+  it('G1: saving a no-invoice row without an explicit Số container is blocked with the named error', async () => {
+    await show();
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '80000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    expect(screen.getByText('Bắt buộc chọn Số container')).toBeInTheDocument();
+    fireEvent.submit(save.form!);
+    expect(api.createExpense).not.toHaveBeenCalled();
+    await pickContainers('TGHU1234567');
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN', shipmentContainerId: 33 });
+  });
+
+  it('G2: the same TYPE twice on the no-invoice tab is blocked until one row changes', async () => {
+    await show();
+    await pickContainers('TGHU1234567');
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '80000');
+    await act(async () => { fireEvent.click(within(block('Phí không hóa đơn')).getByRole('button', { name: '＋ Thêm chi phí' })); });
+    const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
+    await chooseRowType(secondRow, 'Chi công nhân');
+    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '50000' } });
+
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    expect(screen.getByText('Trùng loại phí "Chi công nhân" trên cùng số cont — không lưu dòng trùng.')).toBeInTheDocument();
+    expect(screen.getAllByText('Trùng loại phí trên cùng số cont — không lưu dòng trùng.')).toHaveLength(2);
+    fireEvent.submit(save.form!);
+    expect(api.createExpense).not.toHaveBeenCalled();
+
+    await chooseRowType(secondRow, 'Sửa tờ khai');
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN', shipmentContainerId: 33 });
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ expenseTypeCode: 'SUA_TO_KHAI', shipmentContainerId: 33 });
+  });
+
+  it('G3: PHÍ CÓ HÓA ĐƠN keeps multiple same-type rows saveable (warn-then-confirm unchanged)', async () => {
+    api.createExpense.mockResolvedValue(entry);
+    await show();
+    await pickContainers('TGHU1234567');
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
+    await addInvoiceRow();
+    const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
+    await chooseRowType(secondRow, 'Phí soi chiếu'); // same type again — the invoice tab allows it
+    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '500000' } });
+    fireEvent.change(within(secondRow).getByLabelText(/^Số hóa đơn/), { target: { value: 'TD-20260923-002' } });
+
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU', shipmentContainerId: 33, invoiceNumber: 'TD-20260923-001' });
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU', shipmentContainerId: 33, invoiceNumber: 'TD-20260923-002' });
+    expect(api.createExpense.mock.calls[0][0].duplicateConfirmed).toBeUndefined();
+    expect(api.createExpense.mock.calls[1][0].duplicateConfirmed).toBeUndefined();
+  });
+
+  it('G4: a duplicate Số hóa đơn 409 surfaces as a hard error — no confirm bypass', async () => {
+    api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_INVOICE_DUPLICATE' }, 'Số hóa đơn TD-20260923-001 đã tồn tại trên lô này.'));
+    await show();
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    // The invoice tab is NOT container-gated: a lot-scope invoice row saves.
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+    expect(await screen.findByText('Số hóa đơn TD-20260923-001 đã tồn tại trên lô này.')).toBeInTheDocument();
+    expect(screen.queryByText(/NHẬP TRƯỚC ĐÓ/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tiếp tục lưu' })).toBeNull();
+    expect(api.createExpense).toHaveBeenCalledTimes(1);
+  });
+
+  it('G5: a lot with NO container rows keeps the lot scope for no-invoice fees', async () => {
+    order.containers = [];
+    await show();
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '80000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    expect(screen.getByText('Lô chưa có dòng cont để gắn chi phí — khoản ghi theo phạm vi chung lô.')).toBeInTheDocument();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN', shipmentContainerId: null });
   });
 });

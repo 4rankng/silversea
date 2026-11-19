@@ -428,6 +428,11 @@ function buildListItem(
     bucket,
     bucketLabel: SHIPMENT_CUS_BUCKET_LABELS[bucket],
     customerName: row.customerName,
+    // Ticket 18/11 Task 1.2 — the lot's creator (NV phụ trách) rides the
+    // summary so team mode can print the owner per row. Null when the
+    // creator row is gone.
+    creatorName: support.creatorByShipment.get(row.shipment.id)?.fullName ?? null,
+    creatorCode: support.creatorByShipment.get(row.shipment.id)?.username ?? null,
     factoryName: trimOrNull(row.shipment.factoryName),
     effectiveFactoryNames,
     billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),

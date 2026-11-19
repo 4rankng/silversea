@@ -27,6 +27,11 @@ export interface AuthUser {
   businessUnitIds?: number[];
   /** Clerk scope: explicit shipment assignments. */
   shipmentIds?: number[];
+  /**
+   * AC1 (ticket 18/11) — the ACTIVE nhóm CUS the session belongs to, from
+   * GET /auth/me. CUS accounts only (other roles receive []).
+   */
+  cusGroups?: { id: number; name: string }[];
   capabilities?: string[];
 }
 

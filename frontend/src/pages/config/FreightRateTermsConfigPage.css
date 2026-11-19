@@ -45,3 +45,20 @@
     min-height: var(--control-touch-h);
   }
 }
+
+/* ticket 18/11 (Web PC 1440): NGƯỠNG holds a 95px floor and TUYẾN a 120px
+   floor with word-boundary wrapping, so 'Chưa chốt' and route names like
+   'Bắc Ninh' never break mid-word (the shared record-table base breaks
+   anywhere at need). Both rules are page-scoped to this catalogue's
+   .cfg-page--freight-rate-terms wrapper — the shared CrudTable /
+   record-table law is untouched for the other catalogues, and genuine width
+   excess still rides the shared .record-table-wrap--scroll boundary. */
+.cfg-page--freight-rate-terms .record-table td[data-label='Ngưỡng'] {
+  min-width: 95px;
+}
+
+.cfg-page--freight-rate-terms .record-table td[data-label='Tuyến'] {
+  min-width: 120px;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}

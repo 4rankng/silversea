@@ -52,9 +52,9 @@ describe('deposit-tracker overdue alerts (card 20260923_14)', () => {
     renderPage();
     await waitFor(() => expect(document.querySelector('.deposit-tracker-warnings__item--danger')).toBeTruthy());
     expect(document.querySelector('.deposit-tracker-warnings__item--danger')!.textContent)
-      .toBe('kiểm tra check cược số lượng: 01 lô hàng');
+      .toBe('Cảnh báo quá hạn nộp công văn hoàn cược: 01 lô hàng');
     await waitFor(() => expect(toastMock).toHaveBeenCalledTimes(1));
-    expect(toastMock).toHaveBeenCalledWith({ kind: 'warning', message: 'kiểm tra check cược số lượng: 01 lô hàng' });
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'warning', message: 'Cảnh báo quá hạn nộp công văn hoàn cược: 01 lô hàng' });
   });
 
   it('no alert line/toast at count 0; the money line still runs', async () => {

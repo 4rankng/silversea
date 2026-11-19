@@ -103,7 +103,7 @@ export interface DriverJourneyCard {
  */
 export function bucketForStatus(
   status: typeof s.trips.$inferSelect.status,
-  acknowledged: boolean,
+  _acknowledged: boolean,
 ): DriverJourneyBucket {
   // DRV-LIST-02 (card 347): Lịch sử means completed OR cancelled. The
   // cancelled half was missing — CANCELED fell through to the 'NEW' default

@@ -12,6 +12,7 @@ import {
 import { AuditEvent } from '../services/audit-types';
 import type { AuditEventType } from '../services/audit-types';
 import { resolveAuditEvent } from '../services/audit-registry';
+import { readShipmentAuditFieldChanges } from '../services/shipment-audit-diff.service';
 import { ApiError } from '../errors';
 import {
   getMaterialWriteContext,
@@ -142,6 +143,7 @@ export function auditLogMiddleware(req: Request, res: Response, next: NextFuncti
             body: capturedBody,
             materialWriteEndpoint,
             idempotencyKeyPresent,
+            changes: readShipmentAuditFieldChanges(res.locals),
           }),
         } as const;
         if (

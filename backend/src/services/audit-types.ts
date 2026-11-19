@@ -56,6 +56,13 @@ export const AuditEvent = {
 
 export type AuditEventType = (typeof AuditEvent)[keyof typeof AuditEvent];
 
+/** One audited field change of a governed write (old value → new value). */
+export interface AuditFieldChange {
+  field: string;
+  before: unknown;
+  after: unknown;
+}
+
 export interface AuditPayload {
   event: AuditEventType;
   entityType: string;

@@ -57,13 +57,18 @@ export interface CusDetailListParams {
   dispatchStatus: '' | DispatchStatusFilter;
   /** 'MISSING' = chỉ các dòng thiếu trường bắt buộc (Trạng thái dữ liệu). */
   informationStatus: '' | 'MISSING';
+  /**
+   * Ticket 18/11 Task 1.2 — nhóm CUS team visibility. Absent/false = mặc
+   * định chỉ lô của chính tài khoản CUS; true gửi `team=true` lên wire.
+   */
+  team?: boolean;
   sortKey: ShipmentCusContainerSortKey | null;
   sortDir: 'asc' | 'desc' | undefined;
 }
 
 export function useCusDetail(params: CusDetailListParams) {
   const carrierToast = useToastOptional()?.toast;
-  const { page, pageSize, searchSuffix, transportDateFrom, transportDateTo, customerId, direction, dispatchStatus, informationStatus, sortKey, sortDir } = params;
+  const { page, pageSize, searchSuffix, transportDateFrom, transportDateTo, customerId, direction, dispatchStatus, informationStatus, team = false, sortKey, sortDir } = params;
   const [data, setData] = useState<ShipmentCusContainerFlatResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +89,7 @@ export function useCusDetail(params: CusDetailListParams) {
     setEditLoadingRowId(null);
     setEditError(null);
     setEditNotice(null);
-  }, [customerId, direction, dispatchStatus, informationStatus, page, sortDir, sortKey, searchSuffix, transportDateFrom, transportDateTo]);
+  }, [customerId, direction, dispatchStatus, informationStatus, page, sortDir, sortKey, searchSuffix, team, transportDateFrom, transportDateTo]);
 
   const loadRows = useCallback(async () => {
     const requestId = ++requestSequence.current;
@@ -102,6 +107,7 @@ export function useCusDetail(params: CusDetailListParams) {
         direction: direction || undefined,
         dispatchStatus: dispatchStatus || undefined,
         informationStatus: informationStatus || undefined,
+        team: team ? 'true' : undefined,
         sortBy: sortKey ?? undefined,
         sortDir,
       });
@@ -111,7 +117,7 @@ export function useCusDetail(params: CusDetailListParams) {
     } finally {
       if (requestId === requestSequence.current) setLoading(false);
     }
-  }, [customerId, direction, dispatchStatus, informationStatus, page, pageSize, searchSuffix, sortDir, sortKey, transportDateFrom, transportDateTo]);
+  }, [customerId, direction, dispatchStatus, informationStatus, page, pageSize, searchSuffix, sortDir, sortKey, team, transportDateFrom, transportDateTo]);
 
   useEffect(() => { void loadRows(); }, [loadRows]);
 

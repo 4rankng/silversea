@@ -81,14 +81,12 @@ function literalHeadings(source: string): Array<{ line: number; tag: string; val
 const ACRONYM_RE = new RegExp(`\\b(${Object.keys(ACRONYMS).join('|')})\\b`, 'g');
 
 /**
- * SIL-772 (khách chốt 09/11/2026 — Frank: "khách hàng bảo thế nào thì làm
- * thế") — bảng chốt Debit mang tên khách yêu cầu NGUYÊN VĂN, viết hoa:
- * 'KIỂM SOÁT LÔ HÀNG'. Một nhãn do khách định danh không phải "shouting" —
- * nó là tên riêng của bảng, và luật này cho nó one named exemption.
+ * SIL-772 (khách chốt 09/11/2026) once gave the chot-debit board a
+ * customer-verbatim ALL-CAPS named exemption. Ticket 18/11 Task 2.1 renames
+ * it sentence-case ('Kiểm soát lô hàng') for form-chữ đồng nhất — the
+ * exemption list is empty again; no page H1 may shout.
  */
-const VERBATIM_CUSTOMER_TITLES: Record<string, true> = {
-  'KIỂM SOÁT LÔ HÀNG': true,
-};
+const VERBATIM_CUSTOMER_TITLES: Record<string, true> = {};
 
 function scan() {
   const pageTitles: Array<{ where: string; value: string }> = [];

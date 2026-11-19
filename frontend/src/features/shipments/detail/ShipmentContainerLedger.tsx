@@ -916,6 +916,12 @@ export const LEDGER_COLUMNS: readonly LedgerColumn[] = [
 
 interface ShipmentContainerLedgerProps {
   rows: ShipmentCusContainerFlatRow[];
+  /**
+   * Ticket 18/11 Task 1.2 — team mode ON prints each row's owner (NV phụ
+   * trách) in the identity cell. OFF — or a null creator — renders nothing
+   * extra. Text wraps, never truncates.
+   */
+  showOwner?: boolean;
   totalContainers: number;
   today: string;
   footer?: ReactNode;
@@ -979,6 +985,7 @@ interface ShipmentContainerLedgerProps {
 
 export function ShipmentContainerLedger({
   rows,
+  showOwner = false,
   totalContainers,
   today,
   footer,
@@ -1500,6 +1507,14 @@ export function ShipmentContainerLedger({
                       {row.customerName ? <NameCell as="strong" name={row.customerName} /> : fallback(null, 'Chưa có khách hàng')}
                       {row.factoryName ? <NameCell name={row.factoryName} /> : fallback(null, 'Chưa có nhà máy')}
                       {row.routeName ? <NameCell as="em" name={row.routeName} /> : fallback(null, 'Chưa có tuyến đường')}
+                      {/* Ticket 18/11 Task 1.2 — team mode: who owns this lot.
+                          A null creator renders nothing; a present name never
+                          truncates. */}
+                      {showOwner && row.creatorName != null && (
+                        <span className="shipment-container-ledger__owner" data-owner-line>
+                          {`NV phụ trách: ${row.creatorName}${row.creatorCode ? ` (${row.creatorCode})` : ''}`}
+                        </span>
+                      )}
                     </div>)}
                     {/* SIL-149 phase 2 (consultation tie-breaker 24/10): a
                         SIBLING of the cell trigger, never nested inside it —

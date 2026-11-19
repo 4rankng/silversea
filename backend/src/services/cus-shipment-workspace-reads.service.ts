@@ -200,7 +200,7 @@ function portalCustomerScopeConditions(actor: AuthUser): SQL[] {
   return [];
 }
 
-async function buildScopeConditions(actor: AuthUser): Promise<SQL[]> {
+async function buildScopeConditions(actor: AuthUser, opts?: { includeTeam?: boolean }): Promise<SQL[]> {
   if (
     actor.role === Role.ADMIN
     || actor.role === Role.MANAGER
@@ -209,7 +209,7 @@ async function buildScopeConditions(actor: AuthUser): Promise<SQL[]> {
   ) {
     return [];
   }
-  if (actor.role === Role.CUS) return cusVisibilityCondition(db, actor);
+  if (actor.role === Role.CUS) return cusVisibilityCondition(db, actor, opts);
   return portalCustomerScopeConditions(actor);
 }
 
@@ -243,6 +243,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       factoryNameBySiteId: new Map<number, { shortName: string; fullName: string }>(),
       portsById: new Map<number, { id: number; code: string | null; name: string }>(),
       vehicleClassCodeById: new Map<number, string>(),
+      creatorByShipment: new Map<number, { fullName: string | null; username: string | null }>(),
     };
   }
 
@@ -286,6 +287,10 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     // Card 261022093846: pickupWarehouseSiteId rides too — the LCL lot row's
     // Điểm đóng/trả resolve the kho site name from the same site map below.
     executor.select({
+      // Ticket 18/11 Task 1.2: id + createdBy ride the batch so the page's
+      // creator lookup (NV phụ trách) resolves from ONE extra users query.
+      id: s.shipments.id,
+      createdBy: s.shipments.createdBy,
       operationalSiteId: s.shipments.operationalSiteId,
       pickupWarehouseSiteId: s.shipments.pickupWarehouseSiteId,
       costVehicleClassId: s.shipments.costVehicleClassId,
@@ -629,6 +634,32 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     }
   }
 
+  // Ticket 18/11 Task 1.2 — team mode shows WHO owns each lot: one users
+  // lookup over the page's creators (inArray batch), keyed by shipment.
+  // fullName = creatorName, username = creatorCode; a missing users row
+  // (deleted account) leaves the lot's entry absent → the wire reads null.
+  const creatorByShipment = new Map<number, { fullName: string | null; username: string | null }>();
+  {
+    const creatorIds = new Set<number>();
+    for (const shipment of shipmentSiteRows) {
+      if (shipment.createdBy != null) creatorIds.add(shipment.createdBy);
+    }
+    if (creatorIds.size > 0) {
+      const creatorRows = await executor.select({
+        id: s.users.id,
+        fullName: s.users.fullName,
+        username: s.users.username,
+      }).from(s.users)
+        .where(inArray(s.users.id, [...creatorIds]));
+      const creatorById = new Map(creatorRows.map((row) => [row.id, row]));
+      for (const shipment of shipmentSiteRows) {
+        if (shipment.createdBy == null) continue;
+        const creator = creatorById.get(shipment.createdBy);
+        if (creator) creatorByShipment.set(shipment.id, { fullName: creator.fullName, username: creator.username });
+      }
+    }
+  }
+
   return {
     containersByShipment,
     declarationByShipment,
@@ -645,6 +676,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     factoryNameBySiteId,
     portsById,
     vehicleClassCodeById,
+    creatorByShipment,
   };
 }
 
@@ -829,7 +861,10 @@ async function buildShipmentPageConditions(
   const conditions = [
     isNull(s.shipments.deletedAt),
     ne(s.shipments.status, ShipmentStatus.CANCELED),
-    ...(await buildScopeConditions(actor)),
+    // Ticket 18/11 Task 1.2 — default OWN-ONLY for CUS; `team=1` (nút Hiện
+    // thông tin lô hàng team) widens to the ACTIVE group. Single-lot loads
+    // (loadShipmentRow) stay team-open so drill-down from a team list works.
+    ...(await buildScopeConditions(actor, { includeTeam: query.team === 'true' })),
   ];
   const transportDate = searchMode === 'container'
     // SIL-434: per-row-source day — container rows filter on the appointment
@@ -1153,6 +1188,10 @@ function buildLotFlatRow(
     customerId: row.shipment.customerId,
     isAdHoc: row.shipment.isAdHoc,
     customerName: row.customerName,
+    // Ticket 18/11 Task 1.2 — the lot's creator rides the flat row like the
+    // overview summary (team mode prints the owner per lot row).
+    creatorName: support.creatorByShipment.get(row.shipment.id)?.fullName ?? null,
+    creatorCode: support.creatorByShipment.get(row.shipment.id)?.username ?? null,
     factoryName: shipmentFactoryName ?? trimOrNull(row.shipment.factoryName),
     routeName: row.routeName,
     billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
@@ -1385,6 +1424,10 @@ export async function listCusShipmentContainers(
       customerId: row.shipment.customerId,
       isAdHoc: row.shipment.isAdHoc,
       customerName: row.customerName,
+      // Ticket 18/11 Task 1.2 — the lot's creator rides container rows too,
+      // so team mode prints the owner on every ledger row.
+      creatorName: support.creatorByShipment.get(row.shipment.id)?.fullName ?? null,
+      creatorCode: support.creatorByShipment.get(row.shipment.id)?.username ?? null,
       factoryName: containerFactoryName ?? shipmentFactoryName ?? trimOrNull(row.shipment.factoryName),
       routeName: line.routeName,
       billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),

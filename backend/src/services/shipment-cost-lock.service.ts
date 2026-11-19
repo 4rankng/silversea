@@ -16,6 +16,7 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-rea
 import { getShipmentDebitSummary } from './shipment-debit-summary.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
+import { SHIPMENT_AUDIT_SCOPES, withShipmentAuditDiff, type ShipmentAuditChangeStash } from './shipment-audit-diff.service';
 import { computeLotPayablesBreakdown } from './lot-payables.service';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { documentVatTotals, VAT_TREATMENT_VERSION } from './billing-document-shared.service';
@@ -217,6 +218,12 @@ export interface LockShipmentCostInput {
   lockNote?: string | null;
   actor: AuthUser;
   idempotencyKey: string;
+  /**
+   * Express `res.locals` of the driving request — the audit-diff stash. The
+   * capture runs inside this command's transaction so the audit row carries
+   * the field-level old→new diff (ticket 18/11 AC).
+   */
+  auditStash?: ShipmentAuditChangeStash;
 }
 
 export interface ShipmentCostLockAuditResult {
@@ -234,44 +241,48 @@ export async function lockShipmentCost(input: LockShipmentCostInput): Promise<Sh
     payload: { shipmentId: input.shipmentId, expectedShipmentVersion: input.expectedShipmentVersion ?? null, lockNote: input.lockNote ?? null },
     createdBy: input.actor.userId,
     entityType: 'shipment',
-    create: async (tx) => {
-      const [shipment] = await tx.select({ id: s.shipments.id, version: s.shipments.version, deletedAt: s.shipments.deletedAt })
-        .from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
-      if (!shipment || shipment.deletedAt) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
-      if (input.expectedShipmentVersion != null && shipment.version !== input.expectedShipmentVersion) {
-        throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
-      }
-      const [active] = await tx.select({ id: s.shipmentCostLocks.id })
-        .from(s.shipmentCostLocks)
-        .where(and(
-          eq(s.shipmentCostLocks.shipmentId, input.shipmentId),
-          isNull(s.shipmentCostLocks.unlockedAt),
-        ))
-        .limit(1);
-      if (active) throw new ApiError(409, SHIPMENT_COST_LOCKED_MESSAGE);
-      const snapshot = await buildCostSnapshot(input.shipmentId, tx);
-      const [row] = await tx.insert(s.shipmentCostLocks).values({
-        shipmentId: input.shipmentId,
-        shipmentVersionAtLock: shipment.version,
-        costSnapshot: snapshot,
-        lockedBy: input.actor.userId,
-        lockNote: input.lockNote?.trim() || null,
-      }).returning({
-        id: s.shipmentCostLocks.id,
-        lockedBy: s.shipmentCostLocks.lockedBy,
-        lockedAt: s.shipmentCostLocks.lockedAt,
-        lockNote: s.shipmentCostLocks.lockNote,
-      });
-      // Audit 2026-11-04 r2 (QA comment 3834): the write responses carry the
-      // audit fields themselves — never id-only.
-      return {
-        id: row.id,
-        lockedBy: row.lockedBy,
-        lockedByName: input.actor.fullName ?? input.actor.username ?? null,
-        lockedAt: row.lockedAt.toISOString(),
-        lockNote: row.lockNote,
-      };
-    },
+    create: async (tx) => withShipmentAuditDiff(
+      input.auditStash ?? {},
+      { executor: tx, shipmentId: input.shipmentId, scope: SHIPMENT_AUDIT_SCOPES.costLock },
+      async () => {
+        const [shipment] = await tx.select({ id: s.shipments.id, version: s.shipments.version, deletedAt: s.shipments.deletedAt })
+          .from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
+        if (!shipment || shipment.deletedAt) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
+        if (input.expectedShipmentVersion != null && shipment.version !== input.expectedShipmentVersion) {
+          throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
+        }
+        const [active] = await tx.select({ id: s.shipmentCostLocks.id })
+          .from(s.shipmentCostLocks)
+          .where(and(
+            eq(s.shipmentCostLocks.shipmentId, input.shipmentId),
+            isNull(s.shipmentCostLocks.unlockedAt),
+          ))
+          .limit(1);
+        if (active) throw new ApiError(409, SHIPMENT_COST_LOCKED_MESSAGE);
+        const snapshot = await buildCostSnapshot(input.shipmentId, tx);
+        const [row] = await tx.insert(s.shipmentCostLocks).values({
+          shipmentId: input.shipmentId,
+          shipmentVersionAtLock: shipment.version,
+          costSnapshot: snapshot,
+          lockedBy: input.actor.userId,
+          lockNote: input.lockNote?.trim() || null,
+        }).returning({
+          id: s.shipmentCostLocks.id,
+          lockedBy: s.shipmentCostLocks.lockedBy,
+          lockedAt: s.shipmentCostLocks.lockedAt,
+          lockNote: s.shipmentCostLocks.lockNote,
+        });
+        // Audit 2026-11-04 r2 (QA comment 3834): the write responses carry the
+        // audit fields themselves — never id-only.
+        return {
+          id: row.id,
+          lockedBy: row.lockedBy,
+          lockedByName: input.actor.fullName ?? input.actor.username ?? null,
+          lockedAt: row.lockedAt.toISOString(),
+          lockNote: row.lockNote,
+        };
+      },
+    ),
   });
   return result;
 }

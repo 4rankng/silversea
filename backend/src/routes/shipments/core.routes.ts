@@ -1033,6 +1033,8 @@ coreRoutes.post(
       lockNote: parsed.data.lockNote ?? null,
       actor: getUser(req),
       idempotencyKey,
+      // Ticket 18/11 AC: the lock-on-behalf audit row carries the old→new diff.
+      auditStash: res.locals,
     });
     // Audit 2026-11-04 r2 (QA comment 3834): audit fields ride the response.
     res.status(201).json(lock);

@@ -71,10 +71,25 @@ export async function cusGroupMemberIds(executor: Executor, userId: number): Pro
  * WHERE conditions for CUS row visibility on any `shipments`-rooted query.
  * Resolves group membership from the DB each call, so membership edits apply
  * on the next request without re-login.
+ *
+ * Team toggle (ticket 18/11 Task 1.2): the list endpoints default to
+ * OWN-ONLY (mặc định CUS chỉ thấy lô của mình) — pass
+ * `{ includeTeam: true }` when the FE toggle [Hiện thông tin lô hàng team]
+ * is ON to widen arm 2 (same-ACTIVE-group creators). The fallback arms
+ * (NULL creator / non-CUS creator) stay in BOTH modes: they are data-quality
+ * fallbacks, not team widening. Per-lot asserts (assertCusLotVisible…)
+ * intentionally stay team-open so drill-down from a team-widened list keeps
+ * working; cross-team isolation is unchanged.
  */
-export async function cusVisibilityCondition(executor: Executor, actor: VisibilityActor): Promise<SQL[]> {
+export async function cusVisibilityCondition(
+  executor: Executor,
+  actor: VisibilityActor,
+  opts?: { includeTeam?: boolean },
+): Promise<SQL[]> {
   if (actor.role !== Role.CUS) return [];
-  const memberIds = await cusGroupMemberIds(executor, actor.userId);
+  const memberIds = opts?.includeTeam
+    ? await cusGroupMemberIds(executor, actor.userId)
+    : [];
   return cusVisibilityArms(actor, memberIds);
 }
 

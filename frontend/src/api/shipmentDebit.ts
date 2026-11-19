@@ -84,6 +84,11 @@ export interface ShipmentDebitLotRow {
   /** The principal lot's Bill/Booking for "Ghép cước cùng Bill X" notes. */
   revGroupPrincipalRef?: string | null;
   costGroupPrincipalRef?: string | null;
+  // 18/11 Task 1.2 — NV phụ trách: the lot's creator (users join on
+  // shipments.createdBy). The grid renders the name in team mode. Optional
+  // per the late-added wire convention — an older response drops the pair.
+  creatorName?: string | null;
+  creatorCode?: string | null;
 }
 
 export interface ShipmentDebitExcludedTrip {
@@ -113,19 +118,55 @@ export interface ShipmentDebitSummary {
 
 /** Settlement rollup per lot. Delivery date = shipments.expectedDeliveryDate.
  *  Card _202: an absent `customerId` means every customer — that is the state
- *  the screen opens in, not an empty result. */
+ *  the screen opens in, not an empty result. `team` = the 18/11 Task 1.2
+ *  toggle (default OFF = own-only; true widens to the ACTIVE groups). */
 export async function listShipmentDebitSummary(params: {
   customerId?: number | null;
   deliveryDateFrom?: string | null;
   deliveryDateTo?: string | null;
   lockStatus?: 'ALL' | 'OPEN' | 'LOCKED';
+  team?: boolean;
 }): Promise<ShipmentDebitSummary> {
   const query = new URLSearchParams();
   if (params.customerId) query.set('customerId', String(params.customerId));
   if (params.deliveryDateFrom) query.set('deliveryDateFrom', params.deliveryDateFrom);
   if (params.deliveryDateTo) query.set('deliveryDateTo', params.deliveryDateTo);
   if (params.lockStatus && params.lockStatus !== 'ALL') query.set('lockStatus', params.lockStatus);
+  if (params.team) query.set('team', 'true');
   return api.get<ShipmentDebitSummary>(`/shipments/debit-summary?${query.toString()}`);
+}
+
+// ── Task 2.3 (18/11) — Bảng Ghép bộ Debit: ONE 6-group reconciliation grid
+// shared by Kế toán (/accounting/ghep-bo-debit) and this screen. Types come
+// from the shared zod contract; query keys live HERE (keys.ts is another
+// lane's frozen surface — DEBIT_SETTLEMENT_ROUNDS_KEY precedent).
+
+/** Local query-key factory for the debit-merge surface. */
+export const debitMergeKeys = {
+  all: ['accounting-debit-merge'] as const,
+  board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
+};
+
+/** Read-only re-exports of the shared contract (never re-declared here). */
+import type {
+  DebitMergeResponse,
+} from '@tingting/shared';
+export type {
+  DebitMergeChiHo,
+  DebitMergeContainer,
+  DebitMergeControl,
+  DebitMergeInvoiceFee,
+  DebitMergeItem,
+  DebitMergeNoInvoice,
+  DebitMergeResponse,
+} from '@tingting/shared';
+
+/** Staff call: no team param (unscoped). CUS call: team toggles the scope. */
+export async function listDebitMergeBoard(params: { customerId?: number | null; team?: boolean } = {}): Promise<DebitMergeResponse> {
+  const query = new URLSearchParams();
+  if (params.customerId) query.set('customerId', String(params.customerId));
+  if (params.team) query.set('team', 'true');
+  return api.get<DebitMergeResponse>(`/accounting/debit-merge?${query.toString()}`);
 }
 
 // ── Chi phí - Quyết toán L2: per-lot detail workspace ──────────────────────

@@ -1,0 +1,306 @@
+/* Task 2.3 (18/11) — Bảng Ghép bộ Debit grid styles.
+   Money-cell law (24/10): a pending cell is EMPTY — no pill, no fabricated
+   0; a known 0 renders muted. The amber tone (SIL-801) is var(--warning-text)
+   and its --warn rule MUST appear AFTER the base value rule (same
+   specificity — cascade order is the only thing that keeps the tone). */
+
+.debit-merge {
+  display: grid;
+  gap: 10px;
+}
+
+.debit-merge__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.debit-merge__filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 32px;
+}
+
+.debit-merge__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.debit-merge__action {
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 6px 12px;
+  font-size: var(--text-caption-size, 13px);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.debit-merge__action[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.debit-merge__action--primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--fg-on-brand);
+}
+
+.debit-merge__pane {
+  max-height: calc(100dvh - 260px);
+  overflow: auto;
+  border: 1px solid var(--border-1);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.debit-merge__table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: var(--text-caption-size, 13px);
+}
+
+.debit-merge__table th,
+.debit-merge__table td {
+  border-bottom: 1px solid var(--border-1);
+  border-right: 1px solid var(--border-1);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.debit-merge__table thead th {
+  position: sticky;
+  background: var(--surface-2, #f8fafc);
+  font-weight: 600;
+}
+
+.debit-merge__groups-row th {
+  top: 0;
+  z-index: 3;
+  text-align: center;
+  color: var(--ink-1);
+}
+
+.debit-merge__subs-row th {
+  top: 31px;
+  z-index: 2;
+}
+
+.debit-merge__table thead tr:last-child th {
+  top: 60px;
+  z-index: 1;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.debit-merge__group {
+  border-bottom: 2px solid var(--border-2, #cbd5e1);
+}
+
+.debit-merge__sub {
+  font-weight: 600;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.debit-merge__sub--blank {
+  border-bottom-color: transparent;
+}
+
+.debit-merge__table th.debit-merge-col--cuoc,
+.debit-merge__table th.debit-merge-col--lachHuyen,
+.debit-merge__table th.debit-merge-col--phuPhi,
+.debit-merge__table th.debit-merge-col--phatSinh,
+.debit-merge__table th.debit-merge-col--tong,
+.debit-merge__table th.debit-merge-col--cshtTien,
+.debit-merge__table th.debit-merge-col--liftTien,
+.debit-merge__table th.debit-merge-col--liftThucChi,
+.debit-merge__table th.debit-merge-col--dropTien,
+.debit-merge__table th.debit-merge-col--dropThucChi,
+.debit-merge__table th.debit-merge-col--khacSoTien,
+.debit-merge__table th.debit-merge-col--gnOps,
+.debit-merge__table th.debit-merge-col--psOps,
+.debit-merge__table th.debit-merge-col--tongTc {
+  text-align: right;
+  min-width: 110px;
+}
+
+.debit-merge__table td[data-col='cuoc'],
+.debit-merge__table td[data-col='lachHuyen'],
+.debit-merge__table td[data-col='phuPhi'],
+.debit-merge__table td[data-col='phatSinh'],
+.debit-merge__table td[data-col='tong'],
+.debit-merge__table td[data-col='cshtTien'],
+.debit-merge__table td[data-col='liftTien'],
+.debit-merge__table td[data-col='liftThucChi'],
+.debit-merge__table td[data-col='dropTien'],
+.debit-merge__table td[data-col='dropThucChi'],
+.debit-merge__table td[data-col='khacSoTien'],
+.debit-merge__table td[data-col='gnOps'],
+.debit-merge__table td[data-col='psOps'],
+.debit-merge__table td[data-col='tongTc'] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.debit-merge-money {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-height: 1em;
+}
+
+/* Base value rule FIRST — the amber --warn override must stay AFTER it. */
+.debit-merge-money__value {
+  font-variant-numeric: tabular-nums;
+}
+
+.debit-merge-money__zero {
+  color: var(--ink-3);
+}
+
+/* SIL-801 — uncollected receivables wear the warning amber tone. Declared
+   AFTER .debit-merge-money__value on purpose (QA FAIL 1ae5afcb cascade law). */
+.debit-merge-money__warn {
+  color: var(--warning-text);
+}
+
+.debit-merge-money__mergetag {
+  /* SIL-583 r3: the "Ghép (n/2)" tag is the merge trigger — its 11px text
+     box sat under the 24px WCAG 2.5.8 floor, and plain `inline` ignores
+     min-height. inline-flex carries the floor. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: help;
+}
+
+.debit-merge-cell {
+  display: inline-block;
+  min-height: 1em;
+}
+
+.debit-merge-cell--stack {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.debit-merge-cell__line small,
+.debit-merge-cell__line {
+  white-space: nowrap;
+}
+
+.debit-merge-cell--lot .debit-merge__lot-code {
+  display: block;
+  color: var(--ink-3);
+  font-size: 11px;
+}
+
+.debit-merge__lot-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink-1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.debit-merge__cont {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.debit-merge__cont-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--border-1);
+  border-radius: 6px;
+  background: var(--surface-2, #f8fafc);
+  padding: 1px 5px;
+  /* SIL-583: the expand toggle is a BUTTON trigger — its ~19px box sat under
+     the 24px WCAG 2.5.8 floor. */
+  min-height: 24px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.debit-merge__child-row td.debit-merge__child-cell {
+  color: var(--ink-2);
+  background: var(--surface-2, #f8fafc);
+}
+
+.debit-merge-cell--status {
+  white-space: nowrap;
+}
+
+.debit-merge__pick {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+}
+
+.debit-merge__lock-state {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.debit-merge__lock-state--locked {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+
+.debit-merge__empty {
+  text-align: center;
+  color: var(--ink-3);
+  padding: 24px 8px;
+}
+
+/* Totals foot — the sums EQUAL the rendered page's money cells; a column
+   with no known value reads '—', never a fabricated 0 (owner redesign 23/10
+   law: a settlement board MUST show its totals). The warn tone follows its
+   base rule (cascade law — see the money __warn comment above). */
+.debit-merge__totals-row td.debit-merge__totals-cell {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-2, #f8fafc);
+  border-top: 2px solid var(--border-2, #cbd5e1);
+}
+
+.debit-merge__totals-row td.debit-merge__totals-cell--warn {
+  color: var(--warning-text);
+}
+
+/* SIL-583 r2 (touch law, ticket 18/11 carriers): the board's per-row triggers
+   grow to the REAL 44px touch floor on touch form factors — the element's own
+   border box grows (no pseudo hit-extension layer; that technique is inert on
+   this engine). min-width/min-height keep the text triggers' content whole
+   while the box reaches the floor. */
+@media (max-width: 768px), (hover: none) and (pointer: coarse) {
+  .debit-merge__cont-toggle {
+    min-width: var(--control-touch-h);
+    min-height: var(--control-touch-h);
+  }
+
+  .debit-merge__lot-link {
+    min-width: var(--control-touch-h);
+    min-height: var(--control-touch-h);
+  }
+}

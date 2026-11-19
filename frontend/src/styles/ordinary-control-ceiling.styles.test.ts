@@ -125,11 +125,14 @@ const ordinaryOwners: Record<string, string[]> = {
     ".payables-page .page-actions .btn",
     ".commission-form .input"
   ],
-  "src/pages/ShipmentDebitPage.css": [
-    // Owner redesign 23/10: the ⋯ kebab trigger (28px, 40px at coarse) and
-    // the tờ khai copy glyph replaced the old expand button.
-    ".shipment-debit-menu__trigger",
-    ".shipment-debit-copy"
+  // ticket 18/11: the flat /shipments-debit board retired — its kebab trigger
+  // (28px, 40px at coarse) and tờ khai copy glyph died with the board. The
+  // shared merge grid carries the ordinary controls now (toolbar action,
+  // container expand toggle, lot link): same ≤40px ceiling, new carriers.
+  "src/features/accounting/DebitMergeGrid.css": [
+    ".debit-merge__action",
+    ".debit-merge__cont-toggle",
+    ".debit-merge__lot-link"
   ],
   "src/design-system/forms/UnifiedDateRangePicker.css": [
     ".udrp__trigger",

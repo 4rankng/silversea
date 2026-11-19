@@ -52,7 +52,7 @@ const readOnlyShipmentAccess = Object.fromEntries([
 /** A container-less LCL lot row (the tickable kind) on this workboard. */
 const lotRow = (over: Partial<ShipmentCusContainerFlatRow>): ShipmentCusContainerFlatRow => ({
   id: -(over.shipmentId ?? 1), shipmentId: over.shipmentId ?? 1, shipmentVersion: 3, ordinal: 1,
-  customerId: 7, isAdHoc: false, customerName: 'Công ty Silver Sea', factoryName: null, routeName: null,
+  customerId: 7, isAdHoc: false, customerName: 'Công ty Silver Sea', creatorName: null, creatorCode: null, factoryName: null, routeName: null,
   billOrBookNumber: 'BILL-LCL', declarationNumber: null, shippingLineName: null, isCombined: false,
   classification: 'LCL', direction: 'IMPORT', containerNumber: null, containerTypeLabel: null,
   dispatchStatus: 'AWAITING_VEHICLE', carrierName: null, carrierType: null, plateNumber: null,
@@ -117,7 +117,11 @@ describe('SIL-547 — [Gộp hàng] mode on Chi tiết lô hàng', () => {
     // and the ledger carries NO leading CHỌN column and no checkbox.
     const toggle = screen.getByRole('button', { name: 'Gộp hàng', pressed: false });
     expect(toggle).toBeTruthy();
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    // Supersession, ticket 18/11 Task 1.2: the page now also carries the
+    // CUS-only [Hiện thông tin lô hàng team] checkbox in the action slot —
+    // this pin guards the merge mode's CHỌN column, so it matches by the
+    // column's accessible name instead of "any checkbox".
+    expect(screen.queryByRole('checkbox', { name: /Chọn lô/ })).toBeNull();
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
     expect(headers[0]).not.toBe('');
   });

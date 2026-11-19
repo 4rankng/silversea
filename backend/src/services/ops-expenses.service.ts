@@ -34,7 +34,9 @@ export interface CreateOpsExpenseInput {
   customerChargeAmount?: string | number | null;
   /** Card 141026230720 — the operator explicitly confirmed the duplicate
    *  warning (e.g. a legitimate split payment) and wants the save to
-   *  proceed despite an existing live row of the same type + scope. */
+   *  proceed despite an existing live row of the same type + scope.
+   *  Ticket 18/11 Task 4.1 — honored ONLY on the invoice family; the
+   *  no-invoice family hard-409s whatever this flag says. */
   duplicateConfirmed?: boolean;
 }
 type OpsExpenseWriteResult = typeof s.opsExpenseEntries.$inferSelect & {
@@ -204,14 +206,34 @@ export async function createOpsExpense(
     await assertContainerInShipment(input.shipmentId, input.shipmentContainerId);
   }
 
+  // Ticket 18/11 Task 4.1 — the invoice tab's Số hóa đơn is a HARD identity
+  // key: one paper invoice may be declared only once per lô, with NO confirm
+  // bypass (unlike the same-type warning below). Compare case/space-
+  // insensitively — ' TD-001 ' and 'td-001' are the same document.
+  if (input.invoiceNumber != null && input.invoiceNumber.trim() !== '') {
+    const invoiceHit = await findLiveDuplicateOpsInvoiceNumber(input.shipmentId, input.invoiceNumber, executor);
+    if (invoiceHit) {
+      throw new ApiError(
+        409,
+        duplicateOpsInvoiceMessage(input.invoiceNumber.trim()),
+        undefined,
+        { code: 'OPS_EXPENSE_INVOICE_DUPLICATE', invoiceNumber: invoiceHit.invoiceNumber },
+      );
+    }
+  }
+
   // Card 141026230720 — duplicate-entry warning at the write itself (not
   // only the dialog's cont-level heads-up): saving the SAME cost type on the
   // SAME scope twice is usually a mistake, so the unconfirmed save bounces
-  // with a 409 naming who entered what. Never a silent block: the operator
-  // can explicitly confirm (split payments, part-paid stages are legitimate)
-  // and the resend carries duplicateConfirmed to proceed. Checked inside the
-  // caller's executor so the refused save rolls back atomically.
-  if (!input.duplicateConfirmed) {
+  // with a 409 naming who entered what. Ticket 18/11 Task 4.1 splits the
+  // families: the NO-INVOICE family is a HARD block (`duplicateConfirmed`
+  // cannot override — the entry form refuses it before Lưu and a cross-user
+  // race lands here), while the INVOICE family keeps the explicit-confirm
+  // override (split payments, part-paid stages are legitimate there).
+  // Checked inside the caller's executor so the refused save rolls back
+  // atomically.
+  const duplicateGate = opsExpenseDuplicateGate(expenseType.requiresInvoice, input.duplicateConfirmed);
+  if (duplicateGate !== 'PASS') {
     const duplicates = await findLiveDuplicateOpsExpenses(input.shipmentId, input.expenseTypeCode, input.shipmentContainerId, executor);
     if (duplicates.length > 0) {
       const scopeLabel = input.shipmentContainerId != null
@@ -221,6 +243,14 @@ export async function createOpsExpense(
       // id when the account carries no full name.
       const first = duplicates[0];
       const who = first.paidByName ?? (first.paidById != null ? `OPS #${first.paidById}` : 'người khác');
+      if (duplicateGate === 'HARD') {
+        throw new ApiError(
+          409,
+          `Loại phí này đã có ${who} nhập trước trên ${scopeLabel} — phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi.`,
+          undefined,
+          { code: 'OPS_EXPENSE_TYPE_CONFLICT', duplicates },
+        );
+      }
       throw new ApiError(
         409,
         `Loại phí này đã có ${who} nhập trước trên ${scopeLabel} — kiểm tra lại để tránh nhập trùng; vẫn tiếp tục lưu nếu đây là lần chi hợp lệ.`,
@@ -627,6 +657,37 @@ export interface OpsContainerClaimant {
   paidByName: string | null;
 }
 
+/** Ticket 18/11 Task 4.1 — how the write path treats a live same-type
+ *  duplicate hit. The NO-INVOICE family is HARD: the same fee type on the
+ *  same scope is refused outright and `duplicateConfirmed` is ignored (the
+ *  entry form blocks it locally; a cross-user race lands here). The INVOICE
+ *  family keeps card 141026230720's warn-then-confirm — split payments on a
+ *  container are legitimate there. `requiresInvoice` null counts as
+ *  no-invoice, matching the client's groupedTypes split. Pure so the unit
+ *  test pins the decision. */
+export type OpsExpenseDuplicateGate = 'HARD' | 'WARN' | 'PASS';
+
+export function opsExpenseDuplicateGate(
+  requiresInvoice: boolean | null | undefined,
+  duplicateConfirmed?: boolean,
+): OpsExpenseDuplicateGate {
+  if (requiresInvoice !== true) return 'HARD';
+  return duplicateConfirmed ? 'PASS' : 'WARN';
+}
+
+/** Số hóa đơn identity for the hard invoice-number block: case- and
+ *  whitespace-insensitive — ' TD-001 ' and 'td-001' are the same paper
+ *  document. Pure so the unit test pins the fold; the SQL check folds the
+ *  stored column the same way. */
+export function normalizeOpsInvoiceNumber(value: string): string {
+  return value.replace(/\s+/g, '').toLowerCase();
+}
+
+/** Ticket 18/11 Task 4.1 — the 409 message names the invoice number. */
+export function duplicateOpsInvoiceMessage(invoiceNumber: string): string {
+  return `Số hóa đơn ${invoiceNumber} đã tồn tại trên lô này.`;
+}
+
 export interface OpsExpenseDuplicateHit {
   id: number;
   expenseTypeName: string | null;
@@ -687,6 +748,32 @@ export async function findLiveDuplicateOpsExpenses(
     amount: row.amount,
     paidAt: row.paidAt,
   }));
+}
+
+/** Ticket 18/11 Task 4.1 — one Số hóa đơn may exist only once per lô: the
+ *  first live (non-VOIDED) entry that already carries it, compared case- and
+ *  whitespace-insensitively through `normalizeOpsInvoiceNumber`'s fold. The
+ *  caller hard-409s on a hit — there is no confirm bypass for this one. */
+export async function findLiveDuplicateOpsInvoiceNumber(
+  shipmentId: number,
+  invoiceNumber: string,
+  executor: Executor = db,
+): Promise<{ id: number; invoiceNumber: string | null } | null> {
+  const normalized = normalizeOpsInvoiceNumber(invoiceNumber);
+  if (normalized === '') return null;
+  const [row] = await executor
+    .select({ id: s.opsExpenseEntries.id, invoiceNumber: s.opsExpenseEntries.invoiceNumber })
+    .from(s.opsExpenseEntries)
+    .where(and(
+      eq(s.opsExpenseEntries.shipmentId, shipmentId),
+      isNotNull(s.opsExpenseEntries.invoiceNumber),
+      ne(s.opsExpenseEntries.approvalStatus, 'VOIDED'),
+      // Same fold on the stored side: strip all whitespace, lowercase.
+      sql`regexp_replace(lower(${s.opsExpenseEntries.invoiceNumber}), '[[:space:]]+', '', 'g') = ${normalized}`,
+    ))
+    .orderBy(s.opsExpenseEntries.id)
+    .limit(1);
+  return row ?? null;
 }
 
 /** Who already declared a cost against each container of a lot — the data

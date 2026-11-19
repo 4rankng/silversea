@@ -25,8 +25,9 @@ describe('getNavItems', () => {
       ['Báo cáo lãi lỗ', '/finance'],
       ['Phân chia lợi nhuận', '/profit'],
       ['Sổ quỹ / ngân hàng', '/finance/treasury'],
+      ['Kiểm soát lô hàng', '/accounting/chot-debit'],
+      ['Ghép bộ Debit', '/accounting/ghep-bo-debit'],
       ['Công nợ phải thu', '/debt'],
-      ['KIỂM SOÁT LÔ HÀNG', '/accounting/chot-debit'],
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & hoàn ứng', '/advances'],
@@ -86,8 +87,9 @@ describe('getNavItems', () => {
       ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
       ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
       ['Sổ quỹ / ngân hàng', '/finance/treasury'],
+      ['Kiểm soát lô hàng', '/accounting/chot-debit'],
+      ['Ghép bộ Debit', '/accounting/ghep-bo-debit'],
       ['Công nợ phải thu', '/debt'],
-      ['KIỂM SOÁT LÔ HÀNG', '/accounting/chot-debit'],
       ['Công nợ phải trả', '/payables'],
       ['Chi phí phát sinh', '/expenses'],
       ['Tạm ứng & hoàn ứng', '/advances'],
@@ -249,7 +251,7 @@ describe('getNavItems', () => {
     // financeReader/officeStaff/shipmentReader/usersPage-guarded paths
     // survive (/users joined on ruling 2026-11-19 — kế toán manages nhóm CUS).
     expect(items.map((item) => item.path)).toEqual([
-      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/finance/treasury', '/debt', '/accounting/chot-debit', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet', '/timesheet/doi-chieu', '/timesheet/bao-cao', '/hr/roster',
+      '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/finance/treasury', '/accounting/chot-debit', '/accounting/ghep-bo-debit', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet', '/timesheet/doi-chieu', '/timesheet/bao-cao', '/hr/roster',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
       '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/users', '/audit-logs',
     ]);
@@ -315,13 +317,26 @@ describe('getNavItems', () => {
     }
   });
 
-  it('exposes the KIỂM SOÁT LÔ HÀNG board to ACCOUNTANT and ADMIN only (20260921_21; SIL-772 moves it into Công nợ vận tải)', () => {
+  it('exposes the Kiểm soát lô hàng board to ACCOUNTANT and ADMIN only (20260921_21; ticket 18/11 renames it sentence-case and puts it ABOVE Công nợ phải thu)', () => {
     for (const role of [Role.ADMIN, Role.ACCOUNTANT]) {
       expect(getNavItems(role).find((item) => item.key === 'chot-debit'), role)
-        .toEqual(expect.objectContaining({ label: 'KIỂM SOÁT LÔ HÀNG', path: '/accounting/chot-debit', section: 'accounting-cong-no' }));
+        .toEqual(expect.objectContaining({ label: 'Kiểm soát lô hàng', path: '/accounting/chot-debit', section: 'accounting-cong-no' }));
     }
     for (const role of [Role.MANAGER, Role.DISPATCHER, Role.CUS, Role.OPS, Role.DRIVER, Role.CUSTOMER]) {
       expect(getNavItems(role).some((item) => item.key === 'chot-debit'), role).toBe(false);
+    }
+  });
+
+  it('exposes Ghép bộ Debit immediately BELOW Kiểm soát lô hàng for ADMIN and ACCOUNTANT (ticket 18/11 Task 2.3)', () => {
+    for (const role of [Role.ADMIN, Role.ACCOUNTANT]) {
+      const items = getNavItems(role);
+      const merge = items.find((item) => item.key === 'ghep-bo-debit');
+      expect(merge, role).toEqual(expect.objectContaining({ label: 'Ghép bộ Debit', path: '/accounting/ghep-bo-debit', section: 'accounting-cong-no' }));
+      expect(items.findIndex((item) => item.key === 'ghep-bo-debit'), role)
+        .toBe(items.findIndex((item) => item.key === 'chot-debit') + 1);
+    }
+    for (const role of [Role.MANAGER, Role.DISPATCHER, Role.CUS, Role.OPS, Role.DRIVER, Role.CUSTOMER]) {
+      expect(getNavItems(role).some((item) => item.key === 'ghep-bo-debit'), role).toBe(false);
     }
   });
 
@@ -402,9 +417,10 @@ describe('kế toán danh mục (spec 5.10)', () => {
     expect(itemsFor(Role.ADMIN, PHƠI_PHIEU)).toEqual([
       'expenses', 'advances', 'hoan-ung', 'invoice-tracking', 'deposit-tracker', 'phoi-phieu',
     ]);
-    // SIL-772 — bảng chốt Debit chuyển vào phân hệ CÔNG NỢ VẬN TẢI (sau
-    // phải thu, trước phải trả).
-    expect(itemsFor(Role.ADMIN, CÔNG_NỢ)).toEqual(['debt', 'chot-debit', 'payables']);
+    // Ticket 18/11 Task 2.1 — 'Kiểm soát lô hàng' TRÊN 'Công nợ phải thu'
+    // (supersedes SIL-772's after-receivables order); Task 2.3 — 'Ghép bộ
+    // Debit' ngay dưới nó.
+    expect(itemsFor(Role.ADMIN, CÔNG_NỢ)).toEqual(['chot-debit', 'ghep-bo-debit', 'debt', 'payables']);
     expect(itemsFor(Role.ADMIN, QUỸ)).toEqual(['treasury']);
     // Owner ruling 2026-10-12 (QA2-008): the HR items moved to Nhân sự —
     // the Khác danh mục is empty for the sidebar and self-hides.
@@ -424,7 +440,7 @@ describe('kế toán danh mục (spec 5.10)', () => {
       'invoice-tracking', 'deposit-tracker', 'phoi-phieu',
       'expenses', 'advances', 'hoan-ung',
     ]);
-    expect(itemsFor(Role.ACCOUNTANT, CÔNG_NỢ)).toEqual(['debt', 'chot-debit', 'payables']);
+    expect(itemsFor(Role.ACCOUNTANT, CÔNG_NỢ)).toEqual(['chot-debit', 'ghep-bo-debit', 'debt', 'payables']);
     expect(itemsFor(Role.ACCOUNTANT, QUỸ)).toEqual(['treasury']);
   });
 
@@ -435,14 +451,14 @@ describe('kế toán danh mục (spec 5.10)', () => {
     const expected: Record<string, string[]> = {
       [Role.ADMIN]: [
         'phoi-phieu', 'expenses', 'invoice-tracking', 'deposit-tracker', 'advances',
-        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury',
+        'hoan-ung', 'chot-debit', 'ghep-bo-debit', 'debt', 'payables', 'treasury',
       ],
       [Role.MANAGER]: [
         'expenses', 'advances', 'hoan-ung', 'debt', 'payables', 'treasury',
       ],
       [Role.ACCOUNTANT]: [
         'phoi-phieu', 'expenses', 'invoice-tracking', 'deposit-tracker', 'advances',
-        'hoan-ung', 'chot-debit', 'debt', 'payables', 'treasury',
+        'hoan-ung', 'chot-debit', 'ghep-bo-debit', 'debt', 'payables', 'treasury',
       ],
     };
     for (const [role, expectedKeys] of Object.entries(expected)) {

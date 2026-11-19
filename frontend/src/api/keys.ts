@@ -178,6 +178,10 @@ export const qk = {
       isAdHoc?: boolean;
       sortBy?: string;
       sortDir?: string;
+      /** Ticket 18/11 Task 1.2 — the CUS team toggle is part of the result
+       *  identity (team ON/OFF are two result sets); prefix invalidation
+       *  still matches both. */
+      team?: boolean;
     }) => ['shipments-cus', 'list', filters] as const,
   },
 

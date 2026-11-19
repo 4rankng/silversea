@@ -19,6 +19,8 @@ import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { OpsExpenseNoteLines } from '../../features/dispatch/components/OpsExpenseNoteLines';
 import { PhoiPhieuTienDuongDialog } from '../../features/accounting/PhoiPhieuTienDuongDialog';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
+import { useHiddenColumns } from '../../hooks/useHiddenColumns';
+import type { LedgerColumn } from '../../lib/column-visibility';
 import { PhoiPhieuTruckAssignments } from '../../features/accounting/PhoiPhieuTruckAssignments';
 import './PhoiPhieuControlPage.css';
 
@@ -103,6 +105,29 @@ export function phoiNotReceivedMessage(
   return days === null ? null : `⚠️ ${PHOI_NOT_RECEIVED_LABEL} (Quá hạn ${days} ngày)`;
 }
 
+/** Ticket 18/11 Task 3.1 — bộ lọc Ẩn/Hiện cột (card 20260928_193): the board's
+ *  columns in table order; the picker offers exactly this list. The TWO identity
+ *  columns (Bill/Booking + Khách hàng/Nhà máy/Tuyến) are pinned — a row outside
+ *  its own context is unreadable. The composed Ghi chú carries the card's
+ *  auto-hide rule (hidden by default only while every rendered cell is empty);
+ *  the three separate note columns never auto-hide, so the red Phơi-chưa-được-
+ *  nhận warning and the not-charged reason always have their slots. */
+const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
+  { key: 'lich-trinh', label: 'Số Bill / Booking', pinned: true },
+  { key: 'customer-route', label: 'Khách hàng / Nhà máy / Tuyến', pinned: true },
+  { key: 'thongso', label: 'Thông số container' },
+  { key: 'diadiem', label: 'Địa điểm nâng / hạ' },
+  { key: 'xe', label: 'Thông tin xe' },
+  { key: 'hoadon', label: 'Chi phí phát sinh / Số HĐ' },
+  { key: 'money', label: 'Tiền đường' },
+  { key: 'status', label: 'Trạng thái' },
+  { key: 'ghichu', label: 'Ghi chú', autoHideWhenEmpty: true },
+  { key: 'date', label: 'Ngày hẹn' },
+  { key: 'ghichu-vantai', label: 'Ghi chú vận tải' },
+  { key: 'ghichu-ops', label: 'Ghi chú chi phí OPS' },
+  { key: 'ghichu-lai-xe', label: 'Ghi chú lái xe' },
+];
+
 interface Filters {
   dateFrom: string; dateTo: string; status: string; search: string; sortBy: 'grouped' | 'date';
   confirmation: ChiHoConfirmation | '';
@@ -165,6 +190,16 @@ export default function PhoiPhieuControlPage() {
         && (!vehicleNeedle || vehicleHaystack.includes(vehicleNeedle));
     });
   }, [rows, columnFilters]);
+  // Ticket 18/11 Task 3.1 — Ẩn/Hiện cột tùy ý (card 20260928_193): the shared
+  // mechanism, storage-keyed per workstation; an explicit choice always wins
+  // over the auto-hide default. The composed Ghi chú only ever auto-hides
+  // while no rendered row carries one.
+  const boardColumns = useHiddenColumns({
+    storageKey: 'phoi-phieu-hidden-cols',
+    columns: PHOI_BOARD_COLUMNS,
+    hasData: (column) => column.key !== 'ghichu'
+      || visibleRows.some((row) => Boolean((row.ghiChu ?? '').trim())),
+  });
   const canSelect = (row: PhoiPhieuRow) => row.confirmable;
   // Card 20260929_207: the checkbox column is gone app-wide — a row is picked by
   // clicking it (keyboard: focus the row, press Space). `selectable` still
@@ -237,6 +272,13 @@ export default function PhoiPhieuControlPage() {
           into `Bộ lọc (N)` only when the width leaves no other choice. The page
           declares no filter layout — that is the bar's job (filter-bar law). */}
       <FilterBar
+        columns={{
+          items: PHOI_BOARD_COLUMNS,
+          hidden: boardColumns.hidden,
+          customized: boardColumns.customized,
+          onToggle: boardColumns.toggle,
+          onReset: boardColumns.reset,
+        }}
         search={{
           value: filters.search,
           onChange: (search) => setFilters((current) => ({ ...current, search })),
@@ -306,7 +348,7 @@ export default function PhoiPhieuControlPage() {
         facts: [
           { key: 'factory', label: 'Nhà máy', value: row.factoryName ?? 'Chưa có nhà máy', primary: true },
           { key: 'route', label: 'Tuyến', value: row.routeName ?? 'Chưa có tuyến', primary: true },
-          { key: 'container', label: 'Container', value: <>{row.containerNumber ?? '—'} · {row.containerTypeLabel ?? '—'}</>, primary: true },
+          { key: 'container', label: 'Container', value: <>{row.containerNumber ?? '—'} · {row.containerTypeLabel ?? '—'}{row.containerPayloadKg != null ? <> · {formatNumber(row.containerPayloadKg)}kg</> : null}</>, primary: true },
           { key: 'date', label: 'Ngày hẹn', value: formatDate(row.transportDate ?? null, { empty: 'Chưa có ngày hẹn' }), primary: true },
           { key: 'phoiDate', label: 'Ngày nhận phơi', value: row.phoiTakenDate ? formatDate(row.phoiTakenDate, { empty: '—' }) : '—' },
           { key: 'status', label: 'Trạng thái', value: row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—', primary: true },
@@ -323,12 +365,16 @@ export default function PhoiPhieuControlPage() {
               <div key={chiHoRow.entryId} className="row-meta">{`${phoiChiHoFeeLabel(chiHoRow)}: ${chiHoRow.invoiceNumber ?? '—'}`}</div>
             ))
             : '—' },
-          { key: 'capacity', label: 'Trọng tải container', value: row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + ' kg' : '—' },
+          // Ticket 18/11 Task 3.1 — trọng tải merged into the container fact;
+          // the 'Trọng tải container' prefixed fact is gone with it.
           { key: 'weight', label: 'Trọng lượng hàng', value: row.cargoWeightKg != null ? formatNumber(row.cargoWeightKg) + ' kg' : 'Chưa có' },
           { key: 'sites', label: 'Địa điểm nâng / hạ', value: <>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</> },
           { key: 'truck', label: 'Biển số xe', value: row.plateNumber ?? '—' },
           { key: 'carrier', label: 'Nhà vận tải', value: row.carrierName ?? 'Chưa xác định nhà vận tải' },
           { key: 'driver', label: 'Lái xe', value: row.driverName ?? 'Chưa có lái xe' },
+          // Ticket 18/11 Task 3.1 — the composed Ghi chú fact mirrors the new
+          // desktop column (CUS trước, điều vận sau).
+          { key: 'ghiChu', label: 'Ghi chú', value: row.ghiChu ?? '—' },
           { key: 'cusNotes', label: 'Ghi chú vận tải', value: phoiNotReceivedMessage(row)
             ? <><span className="ppc-phoi-overdue">{phoiNotReceivedMessage(row)}</span>{row.cusDispatchNotes.length ? <div className="row-meta">{row.cusDispatchNotes.join('; ')}</div> : null}</>
             : (row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—') },
@@ -355,8 +401,8 @@ export default function PhoiPhieuControlPage() {
                 onClear={() => setColumnFilters((current) => ({ ...current, customer: '' }))}
               />
             </th>
-            <th scope="col" className="ppc-col--thongso">Thông số container</th>
-            <th scope="col" className="ppc-col--diadiem">Địa điểm nâng / hạ</th>
+            {!boardColumns.isHidden('thongso') && <th scope="col" className="ppc-col--thongso">Thông số container</th>}
+            {!boardColumns.isHidden('diadiem') && <th scope="col" className="ppc-col--diadiem">Địa điểm nâng / hạ</th>}
             <th scope="col" className="ppc-col--xe">
               <ColumnMiniFilter
                 label="Thông tin xe"
@@ -366,18 +412,23 @@ export default function PhoiPhieuControlPage() {
                 onClear={() => setColumnFilters((current) => ({ ...current, vehicle: '' }))}
               />
             </th>
-            <th scope="col" className="ppc-col--chiho" title="Chi hộ: phải thu và phải trả của lô hàng">Chi hộ (thu / trả)</th>
-            {/* SIL-783 (id 906) — inline Số-HĐ editing + thêm chi phí phát sinh ngay trên bảng, kể cả khi chưa nhận phơi. */}
-            <th scope="col" className="ppc-col--hoadon" title="Số hóa đơn từng khoản chi hộ — sửa trực tiếp, và nút thêm chi phí phát sinh">Chi phí phát sinh / Số HĐ</th>
-            <th scope="col" className="ppc-col--money">Tiền đường</th>
-            <th scope="col" className="ppc-col--status">Trạng thái</th>
-            <th scope="col" className="ppc-col--date">Ngày hẹn</th>
-            <th scope="col" className="ppc-col--ghichu" title="Ghi chú vận tải của CUS và điều vận">Ghi chú vận tải</th>
+            {/* SIL-783 (id 906) — inline Số-HĐ editing + thêm chi phí phát sinh ngay trên bảng, kể cả khi chưa nhận phơi.
+                Ticket 18/11 Task 3.1d — the duplicate 'Chi hộ (thu / trả)' column is gone; its Chi-tiết-chi-hộ
+                affordance moved into this cell beside '+ Chi phí'. */}
+            {!boardColumns.isHidden('hoadon') && <th scope="col" className="ppc-col--hoadon" title="Số hóa đơn từng khoản chi hộ — sửa trực tiếp, và nút thêm chi phí phát sinh">Chi phí phát sinh / Số HĐ</th>}
+            {!boardColumns.isHidden('money') && <th scope="col" className="ppc-col--money">Tiền đường</th>}
+            {!boardColumns.isHidden('status') && <th scope="col" className="ppc-col--status">Trạng thái</th>}
+            {/* Ticket 18/11 Task 3.1e — cột GHI CHÚ đứng ngay sau TRẠNG THÁI: the composed
+                note (CUS customerNotes trước, điều vận operationalNotes sau). The three
+                separate note columns keep their own cells at the end of the row. */}
+            {!boardColumns.isHidden('ghichu') && <th scope="col" className="ppc-col--ghichu" title="Ghi chú composed của lô — CUS và điều vận">Ghi chú</th>}
+            {!boardColumns.isHidden('date') && <th scope="col" className="ppc-col--date">Ngày hẹn</th>}
+            {!boardColumns.isHidden('ghichu-vantai') && <th scope="col" className="ppc-col--ghichu" title="Ghi chú vận tải của CUS và điều vận">Ghi chú vận tải</th>}
             {/* Card 20260928_162 — the second ruled surface for the not-charged
                 reason. Same content as the dispatch plan grids, through the same
                 shared component; reason text only, never an amount. */}
-            <th scope="col" className="ppc-col--ghichu-ops" title="Lý do khoản không thu khách và ghi chú thu khách của lô — chỉ nội dung lý do, không kèm số tiền">Ghi chú chi phí OPS</th>
-            <th scope="col" className="ppc-col--ghichu">Ghi chú lái xe</th>
+            {!boardColumns.isHidden('ghichu-ops') && <th scope="col" className="ppc-col--ghichu-ops" title="Lý do khoản không thu khách và ghi chú thu khách của lô — chỉ nội dung lý do, không kèm số tiền">Ghi chú chi phí OPS</th>}
+            {!boardColumns.isHidden('ghichu-lai-xe') && <th scope="col" className="ppc-col--ghichu">Ghi chú lái xe</th>}
           </tr></thead>
           <tbody>
             {visibleRows.map((row) => {
@@ -393,26 +444,26 @@ export default function PhoiPhieuControlPage() {
                 {...selection.rowProps(row.tripId, { selectable: pickable })}
               >
                 <td className="ppc-col--lich-trinh"><span className="ppc-identity">{billBookingReference(row.billOrBooking)}</span></td>
-                <td className="ppc-col--customer-route">Khách hàng: {row.customerName ?? 'Chưa có khách hàng'}<br /><small>Nhà máy: {row.factoryName ?? 'Chưa có nhà máy'}</small><br /><small>Tuyến: {row.routeName ?? 'Chưa có tuyến'}</small></td>
+                {/* Ticket 18/11 Task 3.1c — col 2 prints the three VALUES only
+                    (Long Minh / Askey / KCN Quế Võ, Bắc Ninh); the long
+                    'Khách hàng:' / 'Nhà máy:' / 'Tuyến:' prefixes are gone. */}
+                <td className="ppc-col--customer-route">{row.customerName ?? 'Chưa có khách hàng'}<br /><small>{row.factoryName ?? 'Chưa có nhà máy'}</small><br /><small>{row.routeName ?? 'Chưa có tuyến'}</small></td>
+                {!boardColumns.isHidden('thongso') && (
                 <td className="ppc-col--thongso">
+                  {/* Ticket 18/11 Task 3.1c — col 3 is THREE lines: Số cont /
+                      loại cont / trọng tải kg (CSNU1122338 / 20'DC / 20.000kg);
+                      the 'Trọng tải container:' prefix line and the cargo-weight
+                      line leave the cell (cargo weight stays a mobile fact). */}
                   <span className="ppc-identity">{row.containerNumber ?? '—'}</span>
-                  <br /><small>{row.containerTypeLabel ?? ''}</small>
-                  {/* Card 20260928_172: the PM asked for TRỌNG TẢI CONTAINER, and
-                      the line that used to read "Trọng tải" was the CARGO weight —
-                      a different number that reads the same. Now both are named. A
-                      type with no ISO rating prints "—" rather than a guess. */}
-                  <br /><small>Trọng tải container: {row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + ' kg' : '—'}</small>
-                  <br /><small>Trọng lượng hàng: {row.cargoWeightKg != null ? formatNumber(row.cargoWeightKg) + ' kg' : 'Chưa có'}</small>
+                  <br /><small>{row.containerTypeLabel ?? '—'}</small>
+                  <br /><small>{row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + 'kg' : '—'}</small>
                 </td>
-                <td className="ppc-col--diadiem">{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>
+                )}
+                {!boardColumns.isHidden('diadiem') && <td className="ppc-col--diadiem">{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>}
                 <td className="ppc-col--xe"><span className="ppc-identity">{row.plateNumber ?? '—'}</span><br /><small>Nhà vận tải: {row.carrierName ?? 'Chưa xác định nhà vận tải'}</small><br /><small>Lái xe: {row.driverName ?? 'Chưa có lái xe'}</small></td>
-                <td className="ppc-col--chiho">
-                  <span className="ppc-line">Phải thu: <span className="ppc-value">{money(row.chiHoThu)}</span></span>
-                  <span className="ppc-line">Phải trả: <span className="ppc-value">{money(row.chiHoTra)}</span></span>
-                  <span className="ppc-cell-actions">
-                    <button type="button" className="btn btn--secondary btn--icon" aria-label={`Chi tiết chi hộ ${billBookingReference(row.billOrBooking)}`} title="Chi tiết chi hộ" onClick={() => { setTienDuongTripId(null); setChiHoTripId(row.tripId); }}><ReceiptText size={14} aria-hidden="true" /></button>
-                  </span>
-                </td>
+                {/* Ticket 18/11 Task 3.1d — the duplicate 'Chi hộ (thu / trả)' cell is gone;
+                    its Chi-tiết-chi-hộ affordance lives in the Số-HĐ cell beside '+ Chi phí'. */}
+                {!boardColumns.isHidden('hoadon') && (
                 <td className="ppc-col--hoadon">
                   {(row.chiHoRows ?? []).length === 0 && <span className="ppc-line">—</span>}
                   {(row.chiHoRows ?? []).map((chiHoRow) => (
@@ -423,37 +474,52 @@ export default function PhoiPhieuControlPage() {
                       ariaLabel={`Số hóa đơn ${phoiChiHoFeeLabel(chiHoRow)} ${billBookingReference(row.billOrBooking)}`}
                     />
                   ))}
-                  <button
-                    type="button"
-                    className="btn btn--secondary btn--sm"
-                    aria-label={`Thêm chi phí phát sinh ${billBookingReference(row.billOrBooking)}`}
-                    onClick={() => { setChiHoTripId(null); setTienDuongTripId(null); setAddExpenseTripId(row.tripId); }}
-                  >
-                    + Chi phí
-                  </button>
+                  <span className="ppc-cell-actions">
+                    <button type="button" className="btn btn--secondary btn--icon" aria-label={`Chi tiết chi hộ ${billBookingReference(row.billOrBooking)}`} title="Chi tiết chi hộ" onClick={() => { setTienDuongTripId(null); setChiHoTripId(row.tripId); }}><ReceiptText size={14} aria-hidden="true" /></button>
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      aria-label={`Thêm chi phí phát sinh ${billBookingReference(row.billOrBooking)}`}
+                      onClick={() => { setChiHoTripId(null); setTienDuongTripId(null); setAddExpenseTripId(row.tripId); }}
+                    >
+                      + Chi phí
+                    </button>
+                  </span>
                 </td>
+                )}
+                {!boardColumns.isHidden('money') && (
                 <td className="ppc-col--money">
                   <span className="ppc-line"><span className="ppc-value">{money(row.tienDuong)}</span></span>
                   <button type="button" className="btn btn--secondary" onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}>Xem chi tiết</button>
                 </td>
+                )}
+                {!boardColumns.isHidden('status') && (
                 <td className="ppc-col--status">
                   <span className="ppc-line">{row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—'}</span>
                   <small className="ppc-line">{phoiStatusLine(row)}</small>
                 </td>
+                )}
+                {/* Ticket 18/11 Task 3.1e — GHI CHÚ ngay sau TRẠNG THÁI: the composed
+                    note of the lot (CUS trước, điều vận sau) — '—' when the lot has none. */}
+                {!boardColumns.isHidden('ghichu') && <td className="ppc-col--ghichu">{row.ghiChu ?? '—'}</td>}
+                {!boardColumns.isHidden('date') && (
                 <td className="ppc-col--date">
                   <span className="ppc-line">{formatDate(row.transportDate ?? null, { empty: 'Chưa có ngày hẹn' })}</span>
                   {row.phoiTakenDate && (
                     <small className="ppc-line">Nhận phơi: {formatDate(row.phoiTakenDate, { empty: '—' })}</small>
                   )}
                 </td>
+                )}
+                {!boardColumns.isHidden('ghichu-vantai') && (
                 <td className="ppc-col--ghichu">
                   {phoiNotReceivedMessage(row) && (
                     <span className="ppc-phoi-overdue">{phoiNotReceivedMessage(row)}</span>
                   )}
                   {row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}
                 </td>
-                <td className="ppc-col--ghichu-ops">{row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—'}</td>
-                <td className="ppc-col--ghichu">{row.driverNote ?? '—'}</td>
+                )}
+                {!boardColumns.isHidden('ghichu-ops') && <td className="ppc-col--ghichu-ops">{row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—'}</td>}
+                {!boardColumns.isHidden('ghichu-lai-xe') && <td className="ppc-col--ghichu">{row.driverNote ?? '—'}</td>}
               </tr>
               );
             })}

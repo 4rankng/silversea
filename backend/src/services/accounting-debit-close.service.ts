@@ -25,7 +25,7 @@
 //
 // "Duyệt" per the card's 2026-09-21 user ruling = confirmation columns, not
 // an approval queue: confirm/withdraw NEVER change rates (đối soát only).
-import { and, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import * as s from '../db/schema';
 import { db, type Executor } from '../db';
@@ -37,7 +37,6 @@ import { operationalName } from '../db/master-data-name';
 import { ROUTE_DISPLAY_NAME } from './cus-workspace-sql.service';
 import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
-import type { Tx } from './trip-shared';
 import { carrierKeysForLot } from './debit-settlement-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
@@ -628,15 +627,20 @@ export async function getAccountingDebitBoard(query: {
     externalEntityId: s.tripCarrierInfo.externalEntityId,
     externalEntityType: s.tripCarrierInfo.externalEntityType,
     externalPlate: s.tripCarrierInfo.externalPlateNumber,
+    // Ticket 18/11 Task 2.2 — per-container vehicle facts: the fulfillment
+    // pins a dispatched trip to one shipment container (null = lot-level /
+    // legacy trip the per-container rows cannot claim).
+    fulfillmentContainerId: s.shipmentFulfillments.shipmentContainerId,
   }).from(s.trips)
     .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
     .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
     .where(and(
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
     ));
-  const phanXeRaw = new Map<number, Array<{ plate: string | null; carrierId: number | null; externalId: number | null; externalPlate: string | null }>>();
+  const phanXeRaw = new Map<number, Array<{ plate: string | null; carrierId: number | null; externalId: number | null; externalPlate: string | null; containerId: number | null }>>();
   const carrierNameIds = new Set<number>();
   for (const row of tripRows) {
     if (row.shipmentId == null) continue;
@@ -648,6 +652,7 @@ export async function getAccountingDebitBoard(query: {
         ? row.externalEntityId
         : null,
       externalPlate: row.externalPlate,
+      containerId: row.fulfillmentContainerId ?? null,
     });
     phanXeRaw.set(row.shipmentId, list);
     if (row.truckCarrierId != null) carrierNameIds.add(row.truckCarrierId);
@@ -680,13 +685,17 @@ export async function getAccountingDebitBoard(query: {
     if (row.externalCarrierId != null) carrierNameIds.add(row.externalCarrierId);
   }
 
-  // Thông số container labels per lot (shipment_containers).
+  // Thông số container labels per lot (shipment_containers). Id + stable id
+  // order so the per-container detail rows align with the labels the board
+  // splits into per-container lines (ticket 18/11 Task 2.2).
   const containerRows = await executor.select({
+    id: s.shipmentContainers.id,
     shipmentId: s.shipmentContainers.shipmentId,
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeId: s.shipmentContainers.containerTypeId,
   }).from(s.shipmentContainers)
-    .where(inArray(s.shipmentContainers.shipmentId, lotIds));
+    .where(inArray(s.shipmentContainers.shipmentId, lotIds))
+    .orderBy(asc(s.shipmentContainers.id));
   const containerTypeRows = await executor.select({ id: s.containerTypes.id, name: s.containerTypes.name })
     .from(s.containerTypes);
   const containerTypeLabels = new Map(containerTypeRows.map((r) => [r.id, r.name]));
@@ -882,6 +891,55 @@ export async function getAccountingDebitBoard(query: {
     if (borrowedPlates?.length) platesByLot.set(lot.id, [...borrowedPlates]);
   }
 
+  // Ticket 18/11 Task 2.2 — per-container vehicle facts for the board's
+  // per-container rows. Same label law as phanXeByLot (carrier name → own
+  // fleet label; external name → plate fallback), grouped by the trip's
+  // fulfillment container. Fallback chain per container mirrors the
+  // same-bill borrow: own trip facts → the lot's arrays → the same-bill
+  // pooled facts, so a container line never renders emptier than the lot
+  // actually knows.
+  const vehicleDetailByContainer = new Map<number, { carriers: string[]; plates: string[] }>();
+  for (const [, entries] of phanXeRaw) {
+    for (const entry of entries) {
+      if (entry.containerId == null) continue;
+      const carriers: string[] = [];
+      const carrierName = entry.carrierId != null ? externalNames.get(entry.carrierId) : null;
+      if (carrierName) carriers.push(carrierName);
+      else if (entry.plate) carriers.push(OWN_FLEET_CARRIER_LABEL);
+      if (entry.externalId != null) {
+        const name = externalNames.get(entry.externalId);
+        if (name) carriers.push(name);
+        else if (entry.externalPlate) carriers.push(entry.externalPlate);
+      }
+      const bucket = vehicleDetailByContainer.get(entry.containerId) ?? { carriers: [], plates: [] };
+      for (const carrier of carriers) if (!bucket.carriers.includes(carrier)) bucket.carriers.push(carrier);
+      for (const plate of [entry.plate, entry.externalPlate]) {
+        const trimmed = plate?.trim();
+        if (trimmed && !bucket.carriers.includes(trimmed) && !bucket.plates.includes(trimmed)) bucket.plates.push(trimmed);
+      }
+      vehicleDetailByContainer.set(entry.containerId, bucket);
+    }
+  }
+  const containersDetailByLot = new Map<number, Array<{ container: string; carriers: string[]; plates: string[] }>>();
+  for (const row of containerRows) {
+    const lot = row.shipmentId;
+    if (lot == null) continue;
+    const typeLabel = row.containerTypeId == null ? '' : containerTypeLabels.get(row.containerTypeId) ?? '';
+    const label = [row.containerNumber ?? '', typeLabel].filter(Boolean).join(' · ');
+    if (!label) continue;
+    const own = vehicleDetailByContainer.get(row.id);
+    const lotLabels = phanXeByLot.get(lot) ?? [];
+    const lotPlates = platesByLot.get(lot) ?? [];
+    const ref = refByLot.get(lot);
+    const pooledLabels = ref ? labelsByRef.get(ref) ?? [] : [];
+    const pooledPlates = ref ? platesByRef.get(ref) ?? [] : [];
+    const carriers = own?.carriers.length ? own.carriers : (lotLabels.length ? lotLabels : pooledLabels);
+    const plates = own?.plates.length ? own.plates : (lotPlates.length ? lotPlates : pooledPlates);
+    const list = containersDetailByLot.get(lot) ?? [];
+    list.push({ container: label, carriers, plates });
+    containersDetailByLot.set(lot, list);
+  }
+
   // Card 20260928_162 criterion 3 (lead ruling (b)). This board carries a
   // "Ghi chú" column that was hardcoded null, so the reason an uncharged Ops
   // cost is REQUIRED to carry never reached the page whose title matches the
@@ -934,6 +992,10 @@ export async function getAccountingDebitBoard(query: {
       ngay: lot.ngay,
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       containers: containersByLot.get(lot.id) ?? [],
+      // Ticket 18/11 Task 2.2 — per-container vehicle facts aligned with
+      // `containers` (same labels, stable id order); the board splits one
+      // lot into one row per container and renders PHƯƠNG TIỆN per line.
+      containersDetail: containersDetailByLot.get(lot.id) ?? [],
       factoryName: lot.factoryName,
       routeName: lot.routeName,
       truckPlates: platesByLot.get(lot.id) ?? [],

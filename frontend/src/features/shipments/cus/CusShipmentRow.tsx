@@ -63,6 +63,12 @@ export interface CusShipmentRowProps {
   item: ShipmentCusWorkspaceListItem;
   dateFrom: string;
   dateTo: string;
+  /**
+   * Ticket 18/11 Task 1.2 — team mode ON prints the lot's owner
+   * (NV phụ trách) under the identity lines. OFF — or a null creator —
+   * renders nothing extra. Text wraps, never truncates.
+   */
+  showOwner?: boolean;
   /** A draft is open for this row's inline editor. */
   editing: boolean;
   /** Any draft is open — every other row's triggers disable while editing. */
@@ -75,7 +81,7 @@ export interface CusShipmentRowProps {
 }
 
 export function CusShipmentRow({
-  item, dateFrom, dateTo, editing, quickEditOpen, savingQuickEdit, hiddenColumns = [],
+  item, dateFrom, dateTo, showOwner = false, editing, quickEditOpen, savingQuickEdit, hiddenColumns = [],
   onStartQuickEdit, onOpenDetail,
 }: CusShipmentRowProps) {
   const isHidden = (key: string) => hiddenColumns.includes(key);
@@ -271,6 +277,13 @@ export function CusShipmentRow({
           {item.routeName || item.deliveryLocation
             ? <NameCell name={item.routeName || item.deliveryLocation} />
             : <span title="Chưa có tuyến đường" className="cus-empty">Chưa có tuyến đường</span>}
+          {/* Ticket 18/11 Task 1.2 — team mode: who owns this lot. A null
+              creator renders nothing; a present name never truncates. */}
+          {showOwner && item.creatorName != null && (
+            <span className="cus-owner-line" data-owner-line>
+              {`NV phụ trách: ${item.creatorName}${item.creatorCode ? ` (${item.creatorCode})` : ''}`}
+            </span>
+          )}
         </span></button>
       </th>
       {!isHidden('documents') && (<td data-label="Chứng từ" className="cus-dashboard-cell--editable">
