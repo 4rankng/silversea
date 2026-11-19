@@ -1,0 +1,111 @@
+▶ debitMergeTongTcUnlocked — Tổng TC cho lô chưa khóa (SIL-814)
+  ✖ REGRESSION: cước đã biết + KHÔNG dòng doanh thu chuyến → tổng = cước, KHÔNG ném TypeError (2.085959ms)
+  ✖ REGRESSION: chỉ phí ops đã biết (không doanh thu chuyến) → tổng = phí ops (0.274542ms)
+  ✖ REGRESSION: chỉ PS đã biết (không doanh thu chuyến) → tổng = PS (0.156625ms)
+  ✔ đủ các phía: doanh thu chuyến + cước + PS + phí ops cộng đúng (0.152042ms)
+  ✔ chỉ có doanh thu chuyến (cước/PS/ops chưa biết) → tổng = doanh thu (0.08575ms)
+  ✔ không phía nào xác định → null (không bịa 0 — luật unknown) (0.087209ms)
+  ✔ mỗi phía đã biết nhưng = 0 vẫn không bịa doanh thu khi không có gì xác định tổng khác (0.134084ms)
+✖ debitMergeTongTcUnlocked — Tổng TC cho lô chưa khóa (SIL-814) (4.072ms)
+ℹ tests 7
+ℹ suites 1
+ℹ pass 4
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1284.25425
+
+✖ failing tests:
+
+test at src/tests/unit/debit-merge-receivable-total.test.ts:1:247
+✖ REGRESSION: cước đã biết + KHÔNG dòng doanh thu chuyến → tổng = cước, KHÔNG ném TypeError (2.085959ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+  Actual message: "Cannot read properties of undefined (reading 'otherSell')"
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/tests/unit/debit-merge-receivable-total.test.ts:17:26)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.start (node:internal/test_runner/test:1262:17)
+      at node:internal/test_runner/test:1903:71
+      at node:internal/per_context/primordials:505:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:479:3)
+      at node:internal/per_context/primordials:505:9
+      at Array.map (<anonymous>) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: Cannot read properties of undefined (reading 'otherSell')
+        at debitMergeTongTcUnlocked (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/services/debit-merge.service.ts:181:19)
+        at <anonymous> (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/tests/unit/debit-merge-receivable-total.test.ts:17:45)
+        at getActual (node:assert:580:5)
+        at strict.doesNotThrow (node:assert:748:32)
+        at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/tests/unit/debit-merge-receivable-total.test.ts:17:26)
+        at Test.runInAsyncScope (node:async_hooks:226:14)
+        at Test.run (node:internal/test_runner/test:1402:25)
+        at Test.start (node:internal/test_runner/test:1262:17)
+        at node:internal/test_runner/test:1903:71
+        at node:internal/per_context/primordials:505:82,
+    expected: undefined,
+    operator: 'doesNotThrow',
+    diff: 'simple'
+  }
+
+test at src/tests/unit/debit-merge-receivable-total.test.ts:1:578
+✖ REGRESSION: chỉ phí ops đã biết (không doanh thu chuyến) → tổng = phí ops (0.274542ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+  Actual message: "Cannot read properties of undefined (reading 'otherSell')"
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/tests/unit/debit-merge-receivable-total.test.ts:27:26)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1905:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: Cannot read properties of undefined (reading 'otherSell')
+        at debitMergeTongTcUnlocked (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/services/debit-merge.service.ts:181:19)
+        at <anonymous> (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/tests/unit/debit-merge-receivable-total.test.ts:27:45)
+        at getActual (node:assert:580:5)
+        at strict.doesNotThrow (node:assert:748:32)
+        at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/tests/unit/debit-merge-receivable-total.test.ts:27:26)
+        at Test.runInAsyncScope (node:async_hooks:226:14)
+        at Test.run (node:internal/test_runner/test:1402:25)
+        at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+        at Test.postRun (node:internal/test_runner/test:1542:19)
+        at Test.run (node:internal/test_runner/test:1467:12),
+    expected: undefined,
+    operator: 'doesNotThrow',
+    diff: 'simple'
+  }
+
+test at src/tests/unit/debit-merge-receivable-total.test.ts:1:869
+✖ REGRESSION: chỉ PS đã biết (không doanh thu chuyến) → tổng = PS (0.156625ms)
+  AssertionError [ERR_ASSERTION]: Got unwanted exception.
+  Actual message: "Cannot read properties of undefined (reading 'otherSell')"
+      at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/tests/unit/debit-merge-receivable-total.test.ts:37:26)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: Cannot read properties of undefined (reading 'otherSell')
+        at debitMergeTongTcUnlocked (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/services/debit-merge.service.ts:181:19)
+        at <anonymous> (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/tests/unit/debit-merge-receivable-total.test.ts:37:45)
+        at getActual (node:assert:580:5)
+        at strict.doesNotThrow (node:assert:748:32)
+        at TestContext.<anonymous> (/Users/dev/.paseo/worktrees/wt-sil814/backend/src/tests/unit/debit-merge-receivable-total.test.ts:37:26)
+        at Test.runInAsyncScope (node:async_hooks:226:14)
+        at Test.run (node:internal/test_runner/test:1402:25)
+        at Suite.processPendingSubtests (node:internal/test_runner/test:974:18)
+        at Test.postRun (node:internal/test_runner/test:1542:19)
+        at Test.run (node:internal/test_runner/test:1467:12),
+    expected: undefined,
+    operator: 'doesNotThrow',
+    diff: 'simple'
+  }

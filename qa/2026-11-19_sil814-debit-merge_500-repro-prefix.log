@@ -1,0 +1,39 @@
+SIL-814 — PRE-FIX repro (executed before any code change)
+=========================================================
+Environment: worktree wt-sil814 @ 6c50028a (code superset of staging build 09069560;
+`git diff --stat 09069560..6c50028a` touches only ops-reconciliation-report + docs,
+not the debit-merge path). Backend: this worktree, NODE_ENV=development, port 3005.
+Database: READ-ONLY staging dump —
+  ssh root@vantai.tingting.vip: docker exec <stg-pg> pg_dump -U vantai -Fc vantai
+  → restored locally into scratch DB silversea_stg814 (ss-prod-db :5441).
+  Staging counts confirmed live over ssh before dump: ops_expense_entries=59,
+  active shipment_cost_locks=30, non-deleted shipments=555, freight snapshots=1178,
+  trip_expenses=41. Local dev DB (silversea) has 0 ops rows / 0 locks / 0
+  trip_expenses and no freight-armed lots → could NOT reproduce there (200/200).
+
+Command: POST /api/auth/login (hoapt|tiepvv / Abc123) → GET /api/accounting/debit-merge
+
+=== hoapt (role ACCOUNTANT) HTTP 500
+error=Lỗi máy chủ
+details=Cannot read properties of undefined (reading 'otherSell')
+stack:
+TypeError: Cannot read properties of undefined (reading 'otherSell')
+    at <anonymous> (backend/src/services/debit-merge.service.ts:461:20)
+    at Array.map (<anonymous>)
+    at getDebitMergeBoard (backend/src/services/debit-merge.service.ts:428:40)
+    at async <anonymous> (backend/src/routes/accounting-debit.ts:207:12)
+
+=== tiepvv (role CUS) HTTP 500
+error=Lỗi máy chủ
+details=Cannot read properties of undefined (reading 'otherSell')
+stack: same frame — debit-merge.service.ts:461
+
+Root cause (line numbers at 6c50028a): the unlocked-lot Tổng TC branch
+  ? revenue!.otherSell + revenue!.derived + ...
+`receivableDetermined` (backend/src/services/debit-receivable-arming.ts:27) arms on
+freightKnown OR ps≠0 OR opsCharge≠0 alone, so any lot priced by freight snapshots
+but without qualifying trip_expense rows reaches the rollup with revenue ===
+undefined → TypeError → whole board 500 for every role. Introduced in ab50b4c9
+(the commit that created the service — verified `git show ab50b4c9:...` line 460).
+The reference law in shipment-debit-summary.service.ts uses
+`(revenue?.otherSell ?? 0) + (revenue?.derived ?? 0)`.
