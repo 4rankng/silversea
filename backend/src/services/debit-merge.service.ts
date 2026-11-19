@@ -43,7 +43,6 @@ import { loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { applyDebitRateOverridesToCells } from './accounting-debit-close.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { activeTripConditions } from './active-trip-scope';
-import { liveDebitOpsExpense } from './live-debit-expense-scope';
 import { cusVisibilityCondition } from './cus-visibility.service';
 import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue } from './debit-receivable-arming';
 import { operationalName } from '../db/master-data-name';

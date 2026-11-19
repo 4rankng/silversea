@@ -41,11 +41,16 @@ export function DebitNotePreviewDialog({ open, rows, rounds, busy, onSaveOnly, o
     () => rows.reduce((sum, row) => sum + Number(row.thu.tongThu ?? 0), 0),
     [rows],
   );
-  // Giảm giá has no source in the data model yet (no discount field on the
-  // billing path) — the line renders the honest empty sum, never a fabricated
-  // number. VAT rides the chosen round's rate (0 when no round is chosen).
+  // Ticket 18/11 Task 2.4 — the four closing rows. VAT follows the ISSUED
+  // DOCUMENT's law (review 18/11 HIGH: every frozen debit line books EXEMPT
+  // at 0% — `calculateVatSnapshot(amount, 0, 'EXEMPT')`), so the preview's
+  // VAT is 0 and Tổng tiền sau thuế matches exactly what lands in Công nợ.
+  // Giảm giá has no source in the data model yet — the line renders the
+  // honest empty sum. A chosen round with vatRate > 0 is surfaced as a
+  // divergence note, never silently applied.
+  const documentVatRate = 0;
   const discountTotal = 0;
-  const vatTotal = selectedRound != null ? Math.round(baseTotal * selectedRound.vatRate / 100) : 0;
+  const vatTotal = Math.round(baseTotal * documentVatRate / 100);
   const afterTaxTotal = baseTotal - discountTotal + vatTotal;
 
   const roundLabel = (round: DebitSettlementRoundRow) => `Lần ${round.roundNo} · ${round.periodKey}`;
@@ -90,7 +95,7 @@ export function DebitNotePreviewDialog({ open, rows, rounds, busy, onSaveOnly, o
           <tfoot>
             <tr><td colSpan={3}>Tổng tiền trước thuế</td><td className="debit-note-preview__money">{formatCurrency(baseTotal)}</td></tr>
             <tr><td colSpan={3}>Giảm giá</td><td className="debit-note-preview__money">{formatCurrency(discountTotal)}</td></tr>
-            <tr><td colSpan={3}>VAT{selectedRound != null ? ` (${selectedRound.vatRate}%)` : ''}</td><td className="debit-note-preview__money">{formatCurrency(vatTotal)}</td></tr>
+            <tr><td colSpan={3}>VAT (miễn thuế 0%)</td><td className="debit-note-preview__money">{formatCurrency(vatTotal)}</td></tr>
             <tr><td colSpan={3}>Tổng tiền sau thuế</td><td className="debit-note-preview__money">{formatCurrency(afterTaxTotal)}</td></tr>
           </tfoot>
         </table>
@@ -98,6 +103,11 @@ export function DebitNotePreviewDialog({ open, rows, rounds, busy, onSaveOnly, o
       {candidateRounds.length === 0 && (
         <p className="debit-note" style={{ margin: '8px 0 0' }}>
           Chưa có đợt chốt (Lần/Tháng/Năm) cho khách của lựa chọn — tạo đợt ở [Chọn Debit] để gán trước khi lưu.
+        </p>
+      )}
+      {selectedRound != null && selectedRound.vatRate > 0 && (
+        <p className="debit-note" role="note" style={{ margin: '8px 0 0' }}>
+          Đợt chốt đặt VAT {selectedRound.vatRate}% — Debit Note hiện xuất miễn thuế (0%) theo quy tắc hóa đơn; VAT của đợt CHƯA được áp dụng vào Công nợ.
         </p>
       )}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
