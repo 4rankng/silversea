@@ -30,7 +30,7 @@ describe('assertRoundAttachableToDebitNote — SIL-855 attach law', () => {
   test('TRA round refuses with the phải-trả reason (never posts công nợ phải thu)', () => {
     assert.throws(
       () => assertRoundAttachableToDebitNote(TRA_ROUND, 11),
-      (error: { status?: number; message?: string }) => {
+      (error: { statusCode?: number; message?: string }) => {
         assert.equal(error.statusCode, 400);
         assert.match(error.message ?? '', /chiều TRA/);
         assert.match(error.message ?? '', /không phát sinh công nợ phải thu/);
@@ -42,7 +42,7 @@ describe('assertRoundAttachableToDebitNote — SIL-855 attach law', () => {
   test("another customer's round refuses (409)", () => {
     assert.throws(
       () => assertRoundAttachableToDebitNote(THU_ROUND, 22),
-      (error: { status?: number; message?: string }) => {
+      (error: { statusCode?: number; message?: string }) => {
         assert.equal(error.statusCode, 409);
         assert.match(error.message ?? '', /không cùng khách hàng/);
         return true;

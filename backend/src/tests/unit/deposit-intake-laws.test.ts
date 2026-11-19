@@ -8,6 +8,7 @@
 //   VN calendar day, and never flags rows with a CV date or already settled.
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { db } from '../../db';
 import {
   CV_OVERDUE_DAYS,
   isCvOverdue,
@@ -69,7 +70,7 @@ describe('recordDepositFromIntake — SIL-859 intake laws', () => {
     for (const bad of [-1, 1000.5, Number.NaN]) {
       await assert.rejects(
         recordDepositFromIntake({ ...BASE_INPUT, expectedAmount: bad }, poison),
-        (error: { status?: number; message?: string }) => {
+        (error: { statusCode?: number; message?: string }) => {
           assert.equal(error.statusCode, 400);
           assert.match(error.message ?? '', /Tiền cược dự kiến không hợp lệ/);
           return true;

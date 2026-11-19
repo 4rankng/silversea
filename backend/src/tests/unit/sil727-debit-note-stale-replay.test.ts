@@ -43,7 +43,7 @@ describe('SIL-727 — a replayed debit note id must be a LIVE document', () => {
   for (const name of ['createDebitNoteFromCostLock', 'createConsolidatedDebitNote'] as const) {
     it(`${name} extracts issueInTx and repairs stale replays by re-issuing`, () => {
       const body = creator(name);
-      assert.match(body, /const issueInTx = async \(tx: Tx\): Promise<\{ id: number \}> => \{/,
+      assert.match(body, /const issueInTx = async \(tx: Tx\): Promise<\{ id: number[^}]*\}> => \{/,
         'the authoritative create path must be an extractable closure');
       assert.match(body, /create: issueInTx,/, 'runIdempotent must run the same closure');
       assert.match(
