@@ -96,6 +96,18 @@ const FINANCE_PATH_PREFIXES = [
   '/api/reports/supplier-statement',
 ];
 
+// SIL-851 — lot-domain audit rows (shipments + the CUS workspace writes on a
+// lot: chứng từ, container lines, custody, khóa lô) are accounting-visible
+// domain: kế toán owns the lot money state and must see WHO changed WHAT on a
+// teammate's edit (old→new). Kept separate from financeDomainCondition so the
+// 'config' category filter (ENTITY_* AND NOT finance) still shows these rows.
+const SHIPMENT_AUDIT_ENTITY_TYPES = ['shipments', 'shipment'];
+
+const SHIPMENT_AUDIT_PATH_PREFIXES = [
+  '/api/shipments/',
+  '/api/cus-workspace/',
+];
+
 function eventSql(event: string): SQL {
   return sql`${s.auditLogs.payload}->>'event' = ${event}`;
 }
@@ -118,6 +130,20 @@ function financeDomainCondition(): SQL {
   for (const entityType of FINANCE_ENTITY_TYPES) predicates.push(entityTypeSql(entityType));
   for (const prefix of FINANCE_PATH_PREFIXES) predicates.push(pathPrefixSql(prefix));
   return buildOrCondition(predicates);
+}
+
+function shipmentDomainCondition(): SQL {
+  const predicates: SQL[] = [];
+  for (const entityType of SHIPMENT_AUDIT_ENTITY_TYPES) predicates.push(entityTypeSql(entityType));
+  for (const prefix of SHIPMENT_AUDIT_PATH_PREFIXES) predicates.push(pathPrefixSql(prefix));
+  return buildOrCondition(predicates);
+}
+
+/** JS mirror of shipmentDomainCondition() for the response mapper: the same
+ * row split decides accountant redaction, so both must never drift (SIL-851). */
+function isShipmentLotDomainRow(entityType: string | null, path: string): boolean {
+  if (entityType !== null && SHIPMENT_AUDIT_ENTITY_TYPES.includes(entityType)) return true;
+  return SHIPMENT_AUDIT_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
 function accountantAssignmentCondition(userId: number): SQL {
@@ -342,13 +368,19 @@ export async function queryAuditLogs(params: AuditQueryParams) {
   }
 
   if (viewer.role === Role.ACCOUNTANT) {
-    conditions.push(financeDomainCondition());
-    conditions.push(accountantAssignmentCondition(viewer.userId));
+    // SIL-851 — the accountant sees the finance domain AND the lot domain:
+    // a teammate's lot edit (SHIPMENT_UPDATED with field old→new) was being
+    // filtered out before search ever ran, so /audit-logs searches returned 0.
+    // Lot-domain rows pass UNCONDITIONALLY — the accountant's lot surfaces
+    // (chot-debit board) are not customer-link scoped, and a PUT body often
+    // carries customerId that would otherwise trip the finance assignment
+    // check; finance rows keep their assignment scoping untouched.
+    conditions.push(sql`(${shipmentDomainCondition()} OR (${financeDomainCondition()} AND ${accountantAssignmentCondition(viewer.userId)}))`);
   }
 
   if (search && search.trim()) {
     const searchPattern = `%${search.trim()}%`;
-    conditions.push(sql`(${s.users.fullName} ILIKE ${searchPattern} OR ${s.users.username} ILIKE ${searchPattern} OR ${s.auditLogs.message} ILIKE ${searchPattern} OR ${s.auditLogs.payload}->>'event' ILIKE ${searchPattern})`);
+    conditions.push(sql`(${s.users.fullName} ILIKE ${searchPattern} OR ${s.users.username} ILIKE ${searchPattern} OR ${s.auditLogs.message} ILIKE ${searchPattern} OR ${s.auditLogs.payload}->>'event' ILIKE ${searchPattern} OR coalesce((${s.auditLogs.payload}->'changes')::text, '') ILIKE ${searchPattern})`);
   }
 
   const items = await db.select({
@@ -391,6 +423,11 @@ export async function queryAuditLogs(params: AuditQueryParams) {
       const action = (typeof i.payload?.event === 'string' ? i.payload.event : '') || '';
       const path = (typeof i.payload?.path === 'string' ? i.payload.path : '') || '';
       const accountantView = viewer.role === Role.ACCOUNTANT;
+      // SIL-851 — the AC names the changed field + old→new, which live in the
+      // payload (`changes`, actor fields) the accountant redaction strips.
+      // Lot-domain rows keep their full payload + path; finance rows keep the
+      // redaction; ipAddress stays accountant-hidden in both cases.
+      const accountantLotDomain = accountantView && isShipmentLotDomainRow(i.entityType, path);
       const category = classifyAuditCategory({
         action,
         entityType: i.entityType,
@@ -402,11 +439,11 @@ export async function queryAuditLogs(params: AuditQueryParams) {
         userName: displayName,
         action,
         category,
-        method: accountantView ? '' : (typeof i.payload?.method === 'string' ? i.payload.method : '') || '',
-        path: accountantView ? '' : path,
+        method: accountantLotDomain ? (typeof i.payload?.method === 'string' ? i.payload.method : '') || '' : accountantView ? '' : (typeof i.payload?.method === 'string' ? i.payload.method : '') || '',
+        path: accountantLotDomain ? path : accountantView ? '' : path,
         message: i.message,
         timestamp: i.timestamp,
-        payload: accountantView ? redactPayloadForAccountant(i.payload) : i.payload,
+        payload: accountantLotDomain ? i.payload : accountantView ? redactPayloadForAccountant(i.payload) : i.payload,
         ipAddress: accountantView ? null : i.ipAddress,
       };
     }),
