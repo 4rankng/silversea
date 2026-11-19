@@ -98,6 +98,8 @@ export const qk = {
       [...qk.catalogs.quotations, id, 'versions', from, to] as const,
     debitNoteOverride: (snapshotId: number | string | null | undefined) =>
       ['debit-note-override', snapshotId] as const,
+    debitNoteRoundPreview: (roundId: number | null | undefined) =>
+      ['debit-note-round-preview', roundId] as const,
     allSuppliers: ['all-suppliers'],
     allExpenseCategories: ['all-expense-categories'],
     capTable: ['cap-table'],
@@ -433,10 +435,6 @@ export const qk = {
       ['accounting-debit-board', from, to, withHidden ? 'with-hidden' : 'operations'] as const,
     /** Broad prefix — matches all accounting-debit-board queries. */
     debitBoardAll: ['accounting-debit-board'] as const,
-    /** SIL-855 — the Xuất Debit Note preview of one đợt chốt; one cache
-     *  entry per round id so re-opening the dialog refetches fresh numbers. */
-    debitNoteRoundPreview: (roundId: number | null) =>
-      ['debit-note-round-preview', roundId] as const,
   },
 
   /* ── Phơi phiếu (accounting control page + vehicle assignments) ─────── */

@@ -15,10 +15,9 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildFrozenShipmentDebitLines,
-  type BillingDocumentLine,
   type FrozenDebitLotRenderInfo,
 } from '../../services/shipment-cost-lock-lines';
-import { vatForAmount } from '@tingting/shared';
+import { vatForAmount, type BillingDocumentLine } from '@tingting/shared';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const roundsSource = readFileSync(join(here, '../../services/debit-settlement-rounds.service.ts'), 'utf8');

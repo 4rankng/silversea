@@ -123,52 +123,34 @@
      min-width 1332 and the 1334px collapse guard track it (the 1440
      sidebar-closed canvas measures 1344px on this shell, 10px over the
      guard). */
-  /* ticket 18/11 (Web PC 1440) supersedes the SIL-824 112px measure:
-     Bill/Booking floor 115px. */
-  --led-w-billbook: 115px;
+  --led-w-billbook: 112px;
   /* SIL-848 (id 977, QA 15/11 "cắt dưới 12 chữ số"): 116px was the EXACT
      12-digit floor with zero metric margin — 124px pays the 12-digit run at
      wide font metrics too. +8px rides the ladder's own slack budget: the
      collapse guard below tracks the min-width (now 1332+2). */
   --led-w-declaration: 124px;
-  /* ticket 18/11 says width 72; the SIL-824 re-measured 76px floor stays —
-     the ticket value is a minimum and 76 is the re-measured no-truncation
-     floor (never shrink below it). */
   --led-w-direction: 76px;
   --led-w-shippingline: 96px;
   --led-w-container: 116px;
-  /* ticket 18/11 (Web PC 1440) supersedes the SIL-824 96px route measure:
-     ĐIỂM NÂNG HẠ min-width 155px (port names like 'Cảng Lạch Hu'). */
-  --led-w-route: 155px;
-  /* ticket 18/11 supersedes the 100px schedule floor: LỊCH TRÌNH 160px. */
-  --led-w-schedule: 160px;
+  --led-w-route: 96px;
+  --led-w-schedule: 100px;
   --led-w-vehicle: 128px;
   --led-w-notes: 120px;
-  /* ticket 18/11 supersedes the 92px status floor: TRẠNG THÁI 145px. */
-  --led-w-status: 145px;
+  --led-w-status: 92px;
   --led-w-actions: 92px;
-  /* ticket 18/11 (Web PC 1440) supersedes the SIL-824 grow law (the 136px
-     floor under a widthless auto column): KHÁCH HÀNG & LỘ TRÌNH is width
-     185px, max-width 200px. All thirteen columns now hold widths, so surplus
-     above the ladder flows to the ticket-widened columns via fixed-layout
-     proportional distribution (max-width is the ticket's declaration; it is
-     inert on <col> sizing). */
-  --led-w-customer: 185px;
-  --led-fixed-sum: 1371px; /* the twelve fixed floors above, incl. CHỌN */
+  --led-w-customer-floor: 136px;
+  --led-fixed-sum: 1196px; /* the twelve fixed floors above, incl. CHỌN */
 }
-.shipment-container-ledger table { width: 100%; min-width: calc(var(--led-fixed-sum) + var(--led-w-customer)); border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.shipment-container-ledger table { width: 100%; min-width: calc(var(--led-fixed-sum) + var(--led-w-customer-floor)); border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
 /* FB-113 v2 (2026-10-18) keeps the documents group as four headed columns —
    Bill/Booking → Số tờ khai → Nhập/Xuất → Hãng tàu — sharing the pinned
    `documents` visibility key; FB-086 (2026-10-14) keeps the Thao tác column.
    Headers that cannot fit one line wrap at spaces to an even second line
    (card 20260925_47 + SIL-515 wrap-full doctrine), never mid-token. */
-/* KHÁCH HÀNG & LỘ TRÌNH (col--customer): ticket 18/11 (Web PC 1440)
-   supersedes the SIL-824 grow law — the column is no longer the table's only
-   widthless auto column; it holds width 185px, max-width 200px. The SIL-822
-   levers stay: the 6px padding floor on the row-header cell and
-   word-boundary wrap on the NameCell runs. */
-.shipment-container-ledger__col--customer { width: var(--led-w-customer); max-width: 200px; }
+/* KHÁCH HÀNG & LỘ TRÌNH (col--customer) has NO width rule by design — the
+   table's only auto column, it absorbs every surplus px (SIL-824 grow law).
+   Its 6px padding floor + word-boundary wrap levers stay (SIL-822). */
 .shipment-container-ledger__col--billbook { width: var(--led-w-billbook); }
 .shipment-container-ledger__col--declaration { width: var(--led-w-declaration); }
 .shipment-container-ledger__col--direction { width: var(--led-w-direction); }
@@ -694,15 +676,8 @@
    and shatter tokens again (the SIL-822 defect class), so the card collapse
    owns the band: any canvas under the guard — a 1280 laptop (~992px
    container), or a 1440 laptop with the sidebar open (~1144px) — reads the
-   card grid; the fixed table renders only when the ladder fits the canvas.
-   ticket 18/11 (Web PC 1440) re-widens billbook/route/schedule/status and
-   fixes KHÁCH HÀNG at 185px: fixed sum 1196→1371, table min-width
-   1332→1556 — wider than the 1344px sidebar-collapsed 1440 canvas, so that
-   canvas now reads the ladder through the region's own horizontal scroll
-   (Table.css overflow rail) while THIS guard stays at 1334: raising it to
-   track 1556 would collapse the ticket's target viewport to the card grid
-   and hide the very columns the ticket widens. Below 1334 nothing changed:
-   a scrollbar-variance canvas still falls to the graceful card grid. */
+   card grid; the fixed table renders only when the ladder fits the canvas
+   and KHÁCH HÀNG & LỘ TRÌNH flex-grows within 1440px (≤ 1344px canvas). */
 @container shipments-detail (max-width: 1334px) {
   /* The px model's table min-width is a TABLE-MODE law; the card grid sizes
      itself to the container and must not inherit the 1332px floor. */

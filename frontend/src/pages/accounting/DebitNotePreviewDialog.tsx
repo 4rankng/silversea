@@ -59,7 +59,7 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, onSave
 
   const previewQuery = useQuery({
     enabled: open && roundId != null,
-    queryKey: qk.accounting.debitNoteRoundPreview(roundId),
+    queryKey: qk.catalogs.debitNoteRoundPreview(roundId),
     queryFn: () => getDebitNoteRoundPreview(roundId!),
   });
   const preview = previewQuery.data ?? null;

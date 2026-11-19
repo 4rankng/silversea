@@ -3,6 +3,9 @@
 // rides timesheetStaffOnly (the FB-101 set: ADMIN/MANAGER/DISPATCHER/
 // ACCOUNTANT). This pin keeps the denial toast off the path for both operating
 // roles: Điều vận fills the grid, Kế toán views it.
+// SIL-862 — thêm seat OPS: repro hoangnh (role OPS 'Vận hành', NV003) là tài
+// khoản QA dùng cho /timesheet; matrix mở rộng ADMIN/MANAGER/DISPATCHER/
+// ACCOUNTANT/OPS, vai thật sự sai quyền vẫn bị chặn có thông báo.
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -34,6 +37,7 @@ vi.mock('./components/Layout', () => ({
 }));
 
 vi.mock('./pages/TimesheetGridPage', () => ({ default: () => <div data-testid="timesheet-grid">Chấm công lái xe</div> }));
+vi.mock('./pages/ShipmentsPage', () => ({ default: () => <div data-testid="shipments-page">Tổng quan lô hàng</div> }));
 
 import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
@@ -63,5 +67,20 @@ describe('SIL-842 — /timesheet mở cho vai trò thao tác, không denial toas
     renderAt('/timesheet');
     expect(await screen.findByTestId('timesheet-grid')).toBeTruthy();
     expect(screen.queryByText(DENIAL_TEXT)).toBeNull();
+  });
+
+  it('Vận hành (OPS — hoangnh, tài khoản repro SIL-862) mở /timesheet không dính denial', async () => {
+    authState.role = 'OPS';
+    renderAt('/timesheet');
+    expect(await screen.findByTestId('timesheet-grid')).toBeTruthy();
+    expect(screen.queryByText(DENIAL_TEXT)).toBeNull();
+  });
+
+  it('vai thật sự sai quyền (CUS) vẫn bị chặn CÓ thông báo — toast chỉ hiện khi sai quyền thật', async () => {
+    authState.role = 'CUS';
+    renderAt('/timesheet');
+    expect(await screen.findByText(DENIAL_TEXT)).toBeTruthy();
+    expect(screen.queryByTestId('timesheet-grid')).toBeNull();
+    expect(await screen.findByTestId('shipments-page')).toBeTruthy();
   });
 });

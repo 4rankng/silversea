@@ -9,7 +9,7 @@ import Layout from './components/Layout';
 import CustomerPortalLayout from './pages/portal/CustomerPortalLayout';
 import PairedOrdersRedirect from './pages/driver/PairedOrdersRedirect';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
-import { ToastProvider, useToast } from './components/shared/Toast';
+import { ToastProvider, useToast, useToastOptional } from './components/shared/Toast';
 import { StaleBuildBanner } from './components/shared/StaleBuildBanner';
 import { onSessionIdentityChanged } from './lib/api/session';
 import { watchPwaStandalone } from './lib/pwa-standalone';
@@ -249,6 +249,12 @@ function PageLoader() {
  *  a genuinely separate denial seconds later still announces itself. */
 const DENIAL_TOAST_BURST_MS = 1200;
 let lastDenialToast = { path: '', at: 0 };
+/** SIL-862 — the denial toast must not follow the user across navigation (QA
+ *  found it still sitting on the login page after sign-out). Each announced
+ *  denial registers here; DenialToastReset lets the toast survive its OWN
+ *  redirect — the announcement lands on the role's home — then dismisses it on
+ *  the NEXT pathname change, navigation or sign-out alike. */
+const denialToasts = new Map<string, { survivedOwnRedirect: boolean }>();
 function DeniedRedirect({ to }: { to: string }) {
   const { toast } = useToast();
   const location = useLocation();
@@ -262,12 +268,39 @@ function DeniedRedirect({ to }: { to: string }) {
     // denial and still announces itself.
     if (location.pathname === lastDenialToast.path && now - lastDenialToast.at < DENIAL_TOAST_BURST_MS) return;
     lastDenialToast = { path: location.pathname, at: now };
-    toast({ kind: 'error', message: 'Bạn không có quyền truy cập trang này.' });
+    const id = toast({ kind: 'error', message: 'Bạn không có quyền truy cập trang này.' });
+    // addToast dedupes identical messages and answers with the ON-SCREEN
+    // toast's id — a second denial must not reset a registered toast's
+    // redirect-survival state and stretch its life across one more navigation.
+    if (!denialToasts.has(id)) denialToasts.set(id, { survivedOwnRedirect: false });
   }, [toast, location.pathname]);
   return <Navigate to={to} replace />;
 }
 
-export function AppRoutes() {
+/** Mounted for every auth state inside AppRoutes. The first pathname change
+ *  after a denial is its own `replace` redirect (same navigation — keep the
+ *  announcement); the change after that is a real navigation and dismisses
+ *  it. The mount pass is a no-op (prevPath starts equal to the pathname). */
+function DenialToastReset() {
+  const location = useLocation();
+  const toast = useToastOptional();
+  const prevPath = useRef(location.pathname);
+  useEffect(() => {
+    if (location.pathname === prevPath.current) return;
+    prevPath.current = location.pathname;
+    for (const [id, entry] of denialToasts) {
+      if (entry.survivedOwnRedirect) {
+        denialToasts.delete(id);
+        toast?.dismiss(id);
+      } else {
+        entry.survivedOwnRedirect = true;
+      }
+    }
+  }, [location.pathname, toast]);
+  return null;
+}
+
+function AppRoutesInner() {
   const { isAuthenticated, user, loading } = useAuth();
   const location = useLocation();
   // The phoi-phieu board is a lazy route. A click navigates inside a React
@@ -323,18 +356,33 @@ export function AppRoutes() {
   const driverOnly = (el: ReactElement) => (isDriver ? el : <DeniedRedirect to={homeRedirect} />);
   const opsOnly = (el: ReactElement) => (isOps ? el : <DeniedRedirect to={homeRedirect} />); // formerly forwarderOnly
   const customerOnly = (el: ReactElement) => (isCustomer ? el : <DeniedRedirect to={homeRedirect} />);
-  // Accountant cannot access dispatch pages (PRD NP-07: no /dispatch,
-  // no /dispatch-detail for ACCOUNTANT)
+  // Dispatcher resource catalogs (/fleet/vehicles, /fleet/external,
+  // /fleet/drivers, nhà xe lookup) stay the dispatcher's staffing lookups.
   const dispatchOnly = (el: ReactElement) => (
     isAdmin || currentRole === Role.MANAGER || isDispatcher
       ? el
       : <DeniedRedirect to={homeRedirect} />
   );
+  // SIL-862 (ticket 18/11, QA rounds 19/11) — the dispatch BOARDS open for the
+  // ticket's "Vận hành / Điều vận" seat (hoangnh, role OPS) and for Kế toán
+  // (hoapt): supersedes the NP-07 accountant exclusion for /dispatch and
+  // /dispatch-detail only. Backend authority for these seats is the board READ
+  // set `DISPATCH_BOARD_READERS` (dispatch-planning.routes.ts — queue, handoffs,
+  // fleet, detail rows, facets) plus casbin `shipments read` at the mount;
+  // writes keep their own dispatcher/office sets. SIL-694's row-menu gate keeps
+  // hiding 'Hoàn thành' for these seats.
+  const dispatchBoardOnly = (el: ReactElement) => (
+    isAdmin || currentRole === Role.MANAGER || isDispatcher || isOps || currentRole === Role.ACCOUNTANT
+      ? el
+      : <DeniedRedirect to={homeRedirect} />
+  );
   // FB-101 (card 141026230780) — chấm công KHÔNG bị ẩn với kế toán: lưới xem
-  // được cho cả ACCOUNTANT (ghi lưới vẫn là việc của Điều vận — backend
-  // dispatcherOrAbove); đối chiếu ở /timesheet/doi-chieu.
+  // được cho cả ACCOUNTANT (đối chiếu ở /timesheet/doi-chieu). SIL-862 — thêm
+  // OPS: tài khoản repro hoangnh (role OPS 'Vận hành', NV003) là ghế thao tác
+  // lưới chấm công theo ticket; backend mở `timesheet read|write` cho OPS như
+  // DISPATCHER (ghi lưới), Kế toán giữ phần mode/đối chiếu.
   const timesheetStaffOnly = (el: ReactElement) => (
-    isAdmin || currentRole === Role.MANAGER || isDispatcher || currentRole === Role.ACCOUNTANT
+    isAdmin || currentRole === Role.MANAGER || isDispatcher || currentRole === Role.ACCOUNTANT || isOps
       ? el
       : <DeniedRedirect to={homeRedirect} />
   );
@@ -443,8 +491,8 @@ export function AppRoutes() {
           {/* Dispatch planning: /dispatch = Kế hoạch Tổng quát (shipment-level
               carrier allocation), /dispatch-detail = Kế hoạch Chi tiết
               (auto-split container grid with plate assignment). */}
-          <Route path="/dispatch" element={dispatchOnly(page(<MasterPlanPage />))} />
-          <Route path="/dispatch-detail" element={dispatchOnly(page(<DispatchDetailPlanPage />))} />
+          <Route path="/dispatch" element={dispatchBoardOnly(page(<MasterPlanPage />))} />
+          <Route path="/dispatch-detail" element={dispatchBoardOnly(page(<DispatchDetailPlanPage />))} />
           {/* Dispatcher resource catalogs — read-only lookups for staffing
               dispatch plans. ADMIN/MANAGER keep their full /fleet workspace. */}
           <Route path="/fleet/vehicles" element={dispatchOnly(page(<FleetVehiclesPage />))} />
@@ -642,6 +690,15 @@ export function AppRoutes() {
           <Route path="*" element={page(<NotFoundPage />)} />
         </Routes>
       </Shell>
+  );
+}
+
+export function AppRoutes() {
+  return (
+    <>
+      <DenialToastReset />
+      <AppRoutesInner />
+    </>
   );
 }
 

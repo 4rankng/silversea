@@ -4,8 +4,8 @@
 // own per-mount ref). The burst window must collapse them; a second, separate
 // denial after the window still announces itself.
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Role } from '@tingting/shared';
@@ -26,6 +26,12 @@ import { AppRoutes } from './App';
 import { ToastProvider } from './components/shared/Toast';
 
 const DENIAL_TEXT = 'Bạn không có quyền truy cập trang này.';
+
+function sleep(ms: number) {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  setTimeout(resolve, ms);
+  return promise;
+}
 
 function renderAs(role: Role, path: string) {
   useAuthMock.mockReturnValue({
@@ -53,7 +59,7 @@ describe('denied route → one toast per burst (QA2-003)', () => {
     renderAs(Role.CUS, '/users');
     await waitFor(() => expect(screen.getAllByText(DENIAL_TEXT).length).toBeGreaterThanOrEqual(1));
     // Give any duplicate mounts the chance to land, then insist on one.
-    await new Promise((r) => setTimeout(r, 50));
+    await sleep(50);
     expect(screen.getAllByText(DENIAL_TEXT).length).toBe(1);
   });
 
@@ -63,8 +69,56 @@ describe('denied route → one toast per burst (QA2-003)', () => {
     // this runs right after the previous denial, the burst window may
     // suppress it entirely — also correct.)
     renderAs(Role.CUS, '/audit-logs');
-    await new Promise((r) => setTimeout(r, 100));
+    await sleep(100);
     const copies = screen.queryAllByText(DENIAL_TEXT).length;
     expect(copies).toBeLessThanOrEqual(1);
+  });
+});
+
+// SIL-862 — the denial toast must not follow the user across navigation (QA
+// found it still on the login page after sign-out). It survives its OWN
+// redirect — the announcement lands on the role's home — and the next
+// pathname change, navigation or sign-out, dismisses it.
+function NavProbe({ to }: { to: string }) {
+  const navigate = useNavigate();
+  return <button onClick={() => navigate(to)}>điều hướng</button>;
+}
+
+function renderAsWithProbe(role: Role, path: string) {
+  useAuthMock.mockReturnValue({
+    user: { userId: 1, username: 'probe', email: null, phone: null, role, fullName: 'Probe' },
+    logout: vi.fn(), login: vi.fn(), updateUser: vi.fn(),
+    isAuthenticated: true, loading: false, sessionExpired: false,
+  });
+  return render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <ToastProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <NavProbe to="/login" />
+          <AppRoutes />
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>,
+  );
+}
+
+describe('denial toast resets on navigation (SIL-862)', () => {
+  it('survives its own redirect so the landing page still announces the denial', async () => {
+    renderAsWithProbe(Role.CUS, '/users');
+    await waitFor(() => expect(screen.getAllByText(DENIAL_TEXT).length).toBeGreaterThanOrEqual(1));
+    // The `replace` redirect to the CUS home already settled: still announced.
+    await sleep(50);
+    expect(screen.getAllByText(DENIAL_TEXT).length).toBe(1);
+  });
+
+  it('the next navigation dismisses it — sign-out lands on /login without the toast', async () => {
+    // A different denied path than the previous test: the burst window
+    // suppresses a repeat denial of the SAME path within 1200ms (by design).
+    renderAsWithProbe(Role.CUS, '/audit-logs');
+    await waitFor(() => expect(screen.getAllByText(DENIAL_TEXT).length).toBeGreaterThanOrEqual(1));
+    // Let its own redirect settle first (that navigation keeps the toast).
+    await sleep(50);
+    fireEvent.click(screen.getByRole('button', { name: 'điều hướng' }));
+    await waitFor(() => expect(screen.queryByText(DENIAL_TEXT)).toBeNull());
   });
 });

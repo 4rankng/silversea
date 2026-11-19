@@ -125,4 +125,20 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     expect(LotCodeSpan.toString()).toContain('debit-lot-code--long');
     expect(LotCodeSpan.toString()).toContain('length >= 17');
   });
+
+  it('SIL-835 — Số Bill/Book wraps cleanly inside its 9% track instead of bleeding onto Hàng hóa & Cont', () => {
+    // QA FAIL 19/11 (builds ad4f0597 + 4db2d62f): white-space: nowrap on
+    // .debit-bill-book inside the 9% (~99px) track pushed 18-char codes like
+    // R4B-A14-EMPTY-8F29 (152px) over the neighboring Hàng hóa & Cont cell.
+    // The cell now wraps cleanly with no clip/ellipsis while preserving the
+    // 1136px grid floor and 10-column shares.
+    const rule = ruleWith('.debit-board td.debit-col--billbook .debit-bill-book', /white-space:\s*normal/);
+    expect(rule).toMatch(/display:\s*block/);
+    expect(rule).toMatch(/max-width:\s*100%/);
+    expect(rule).toMatch(/overflow-wrap:\s*anywhere/);
+    expect(rule).toMatch(/word-break:\s*normal/);
+    expect(rule).not.toMatch(/white-space:\s*nowrap/);
+    expect(rule).not.toMatch(/text-overflow:\s*ellipsis/);
+    expect(rule).not.toMatch(/overflow:\s*hidden/);
+  });
 });

@@ -62,11 +62,19 @@ const updateCarrierFleetVehicleSchema = partialUpdateSchema(
     message: 'Cần có ít nhất một nội dung thay đổi.',
   });
 
+/** SIL-862 — the dispatch BOARDS' read set: /dispatch (Kế hoạch Tổng quát) and
+ *  /dispatch-detail (Kế hoạch Chi tiết) load every GET below (queue, handoffs,
+ *  fleet presence, detail rows, filter facets, zone presence) with these seats.
+ *  Điều vận thao tác; Kế toán và ghế Vận hành (OPS — repro hoangnh) đọc bảng
+ *  (premise SIL-694: "ACCOUNTANT and OPS read the dispatch board"). Writes keep
+ *  their own dispatcher/office/CUS sets — this is the READ seats only. */
+export const DISPATCH_BOARD_READERS: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT, Role.OPS];
+
 const dispatchPlanningRoutes = Router()
 
 dispatchPlanningRoutes.get(
   '/dispatch-handoffs',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  requireRoles(...DISPATCH_BOARD_READERS),
   asyncHandler(async (req: Request, res: Response) => {
     const status = typeof req.query.status === 'string'
       ? req.query.status.split(',').map((value) => value.trim()).filter(Boolean)
@@ -86,7 +94,7 @@ dispatchPlanningRoutes.get(
 
 dispatchPlanningRoutes.get(
   '/dispatch-queue',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  requireRoles(...DISPATCH_BOARD_READERS),
   asyncHandler(async (req: Request, res: Response) => {
     const status = typeof req.query.status === 'string'
       ? req.query.status.split(',').map((value) => value.trim()).filter(Boolean)
@@ -106,7 +114,7 @@ dispatchPlanningRoutes.get(
 
 dispatchPlanningRoutes.get(
   '/dispatch-fleet',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  requireRoles(...DISPATCH_BOARD_READERS),
   asyncHandler(async (req: Request, res: Response) => {
     const resource = typeof req.query.resource === 'string' ? req.query.resource.trim() : '';
     if (resource !== 'TRUCK' && resource !== 'DRIVER' && resource !== 'EXTERNAL_CARRIER' && resource !== 'EXTERNAL_VEHICLE') {
@@ -166,7 +174,7 @@ dispatchPlanningRoutes.patch(
 
 dispatchPlanningRoutes.get(
   '/dispatch-detail-plan-rows',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  requireRoles(...DISPATCH_BOARD_READERS),
   asyncHandler(async (req: Request, res: Response) => {
     const directionRaw = typeof req.query.direction === 'string' ? req.query.direction.trim().toUpperCase() : '';
     if (directionRaw && directionRaw !== 'IMPORT' && directionRaw !== 'EXPORT') {
@@ -293,7 +301,7 @@ dispatchPlanningRoutes.get(
 
 dispatchPlanningRoutes.get(
   '/dispatch-delivery-point-facets',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  requireRoles(...DISPATCH_BOARD_READERS),
   asyncHandler(async (req: Request, res: Response) => {
     res.json(await listDispatchDeliveryPointFacets({
       actor: getUser(req),
@@ -304,7 +312,7 @@ dispatchPlanningRoutes.get(
 
 dispatchPlanningRoutes.get(
   '/dispatch-pickup-port-facets',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  requireRoles(...DISPATCH_BOARD_READERS),
   asyncHandler(async (req: Request, res: Response) => {
     res.json(await listDispatchPortFacets(
       { actor: getUser(req), q: typeof req.query.q === 'string' ? req.query.q : undefined },
@@ -315,7 +323,7 @@ dispatchPlanningRoutes.get(
 
 dispatchPlanningRoutes.get(
   '/dispatch-dropoff-port-facets',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  requireRoles(...DISPATCH_BOARD_READERS),
   asyncHandler(async (req: Request, res: Response) => {
     res.json(await listDispatchPortFacets(
       { actor: getUser(req), q: typeof req.query.q === 'string' ? req.query.q : undefined },
@@ -328,7 +336,7 @@ dispatchPlanningRoutes.get(
 // matching ?zone= referenced by active dispatch-eligible work.
 dispatchPlanningRoutes.get(
   '/dispatch-zone-port-facets',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  requireRoles(...DISPATCH_BOARD_READERS),
   asyncHandler(async (req: Request, res: Response) => {
     const zone = String(req.query.zone ?? '').trim();
     if (!zone) throw new ApiError(400, 'Thiếu khu vực điều phối (zone).');
@@ -345,7 +353,7 @@ dispatchPlanningRoutes.get(
 // ?zone= around the viewing date — advisory input for pairing zone orders.
 dispatchPlanningRoutes.get(
   '/dispatch-zone-truck-presence',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.ACCOUNTANT),
+  requireRoles(...DISPATCH_BOARD_READERS),
   asyncHandler(async (req: Request, res: Response) => {
     const zone = String(req.query.zone ?? '').trim();
     if (!zone) throw new ApiError(400, 'Thiếu khu vực điều phối (zone).');

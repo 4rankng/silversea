@@ -43,14 +43,19 @@ const periodQuery = z.object({
 const symbolSchema = z.enum(TIMESHEET_SYMBOLS);
 const salaryModeSchema = z.enum(TIMESHEET_SALARY_MODES);
 
-// Kế toán owns the mode and the reconciliation; Điều vận fills the grid.
-const accountantOnly = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
-const dispatcherOrAbove = requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER);
+// Kế toán owns the mode and the reconciliation; the grid seats fill the grid.
 // SIL-842 (CR-008 Task 2.2) — mở bảng chấm công KHÔNG còn là việc riêng của Kế
-// toán: Điều vận tự khởi tạo lưới tháng khi mở trang (POST /months theo chế độ
-// mặc định của lái xe). Đổi chế độ lương (PATCH …/mode) và đối chiếu vẫn là
-// việc của Kế toán (accountantOnly).
-const boardOpeners = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.DISPATCHER);
+// toán: người thao tác lưới tự khởi tạo lưới tháng khi mở trang (POST /months
+// theo chế độ mặc định của lái xe). Đổi chế độ lương (PATCH …/mode) và đối
+// chiếu vẫn là việc của Kế toán (accountantOnly).
+// SIL-862 — ghế thao tác lưới gồm cả Vận hành (OPS): tài khoản repro hoangnh
+// (role OPS, NV003) mở /timesheet, tự khởi tạo tháng và ghi lưới y như
+// DISPATCHER; các route Kế toán-only bên dưới giữ nguyên.
+export const TIMESHEET_MONTH_OPENERS: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.DISPATCHER, Role.OPS];
+export const TIMESHEET_GRID_EDITORS: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.DISPATCHER, Role.OPS];
+const accountantOnly = requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT);
+const gridEditors = requireRoles(...TIMESHEET_GRID_EDITORS);
+const boardOpeners = requireRoles(...TIMESHEET_MONTH_OPENERS);
 
 router.get('/drivers', asyncHandler(async (req, res) => {
   const query = parse(periodQuery, req.query);
@@ -94,7 +99,7 @@ router.patch('/months/:id/mode', accountantOnly, declareMaterialWrite('timesheet
 }));
 
 // Symbols only: the server owns the trips a symbol implies.
-router.put('/months/:id/days', dispatcherOrAbove, declareMaterialWrite('timesheet.month.grid', { method: 'PUT', path: '/api/timesheet/months/:id/days' }), asyncHandler(async (req, res) => {
+router.put('/months/:id/days', gridEditors, declareMaterialWrite('timesheet.month.grid', { method: 'PUT', path: '/api/timesheet/months/:id/days' }), asyncHandler(async (req, res) => {
   const monthId = parseId(req.params.id as string, 'ID tháng chấm công');
   const input = parse(z.object({
     // `.strict()` on the CELL too: a smuggled `trips` must be rejected, not
