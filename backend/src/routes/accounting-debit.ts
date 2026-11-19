@@ -23,6 +23,7 @@ import {
 import {
   createDebitSettlementRound,
   listDebitSettlementRounds,
+  getDebitNoteRoundPreview,
 } from '../services/debit-settlement-rounds.service';
 import { getDebitMergeBoard } from '../services/debit-merge.service';
 import { debitMergeQuerySchema } from '@tingting/shared';
@@ -156,6 +157,16 @@ accountingDebitRoutes.post('/debit-board/rate-adjustments/withdraw', declareMate
 
 accountingDebitRoutes.get('/debit-board/settlement-rounds', OFFICE_ROLES, asyncHandler(async (_req: Request, res: Response) => {
   res.json(await listDebitSettlementRounds());
+}));
+
+// Ticket 18/11 Task 2.4 (SIL-855) — bảng xem trước Xuất Debit Note của MỘT
+// đợt (Lần · Tháng · Năm): các lô của đợt + 4 dòng tổng tính trên CÙNG nền
+// khóa lô đông lạnh mà [Lưu] phát hành, nên số xem trước ≡ số Công nợ nhận.
+// Read-only; service chặn 404/409 bằng thông điệp nghiệp vụ.
+accountingDebitRoutes.get('/debit-board/settlement-rounds/:roundId/debit-note-preview', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+  const parsed = z.object({ roundId: z.coerce.number().int().positive() }).safeParse(req.params);
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  res.json(await getDebitNoteRoundPreview(parsed.data.roundId));
 }));
 
 accountingDebitRoutes.post('/debit-board/settlement-rounds', declareMaterialWrite('accounting.debit-board.settlement-round.create', { method: 'POST', path: '/api/accounting/debit-board/settlement-rounds' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {

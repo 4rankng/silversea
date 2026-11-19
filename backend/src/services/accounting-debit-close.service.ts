@@ -999,6 +999,10 @@ export async function getAccountingDebitBoard(query: {
       factoryName: lot.factoryName,
       routeName: lot.routeName,
       truckPlates: platesByLot.get(lot.id) ?? [],
+      // Ticket 18/11 Task 2.4 (SIL-855) — BKS báo khách at TOP level: the FE
+      // type documents this wire for the Debit Note preview family; the LCL
+      // bucket below keeps the grouped-cell copy.
+      billingTruckNo: lot.billingTruckNo,
       // FB-094 (card 201026112300): ACTIVE lock time — the row's eligibility
       // for the consolidated debit-note export.
       costLockedAt: activeLockByLot.get(lot.id)?.toISOString() ?? null,

@@ -149,6 +149,10 @@ export const billingDocuments = pgTable('billing_documents', {
   totalNet: numeric('total_net', { precision: 15, scale: 0 }).notNull().default('0'),
   totalTax: numeric('total_tax', { precision: 15, scale: 0 }).notNull().default('0'),
   totalGross: numeric('total_gross', { precision: 15, scale: 0 }).notNull().default('0'),
+  // Ticket 18/11 Task 2.4 (SIL-855) — the đợt chốt (Lần · Tháng · Năm) the
+  // Debit Note preview's [Lưu] attached the issued document to. Null on
+  // documents issued before the round flow existed; never backfilled.
+  settlementRoundId: integer('settlement_round_id').references(() => debitSettlementRounds.id),
   vatTreatmentVersion: varchar('vat_treatment_version', { length: 30 }).notNull().default('VAT-V1'),
   // Wave 2 M3.6: debit-note lifecycle status. Defaults to DRAFT (existing
   // documents are treated as DRAFT until explicitly transitioned). Nullable

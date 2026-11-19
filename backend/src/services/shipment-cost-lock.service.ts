@@ -21,6 +21,7 @@ import { computeLotPayablesBreakdown } from './lot-payables.service';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { documentVatTotals, VAT_TREATMENT_VERSION } from './billing-document-shared.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
+import { assertRoundAttachableToDebitNote } from './debit-settlement-shared';
 import { deriveLotPricingGrounds } from './freight-rate-snapshot-lifecycle.service';
 import { classifyLotPricingBasis } from './freight-lot-basis';
 
@@ -634,6 +635,11 @@ export async function createDebitNoteFromCostLock(
 export interface CreateConsolidatedDebitNoteInput {
   shipmentIds: number[];
   actor: AuthUser;
+  /** Ticket 18/11 Task 2.4 (SIL-855) — the đợt chốt (Lần · Tháng · Năm) the
+   *  preview's [Lưu] attaches the issued document to. Optional on the wire so
+   *  pre-round replays keep their idempotency records working; when present it
+   *  must be a THU round of the selection's customer. */
+  settlementRoundId?: number | null;
 }
 
 /** GỘP THEO KỲ (ruling 2026-09-19): one debit note per customer per period —
@@ -641,10 +647,12 @@ export interface CreateConsolidatedDebitNoteInput {
  *  SINGLE document whose lines are the union of those lots' frozen snapshot
  *  lines, grouped per lot. Idempotent by selection: the key is derived
  *  server-side from the sorted lot ids, so the same selection replayed
- *  returns the same document regardless of client keys. */
+ *  returns the same document regardless of client keys. Returns the issued
+ *  totals so the caller can reconcile the preview against what actually
+ *  landed in Công nợ. */
 export async function createConsolidatedDebitNote(
-  input: { shipmentIds: number[]; actor: AuthUser },
-): Promise<{ id: number }> {
+  input: { shipmentIds: number[]; actor: AuthUser; settlementRoundId?: number | null },
+): Promise<{ id: number; totalNet: number; totalTax: number; totalGross: number }> {
   const shipmentIds = [...new Set(input.shipmentIds)].sort((a, b) => a - b);
   if (shipmentIds.length === 0) {
     throw new ApiError(400, 'Vui lòng chọn ít nhất một lô đã khóa để xuất Debit Note.');
@@ -679,6 +687,22 @@ export async function createConsolidatedDebitNote(
     throw new ApiError(409, 'Xuất Debit Note chỉ áp dụng cho lô đã khóa chi phí.');
   }
   const customerId = lots[0]!.customerId ?? 0;
+  // Ticket 18/11 Task 2.4 (SIL-855) — the đợt the preview attached must be a
+  // THU round of this same customer; a TRA round never posts công nợ phải thu.
+  let settlementRoundId: number | null = null;
+  if (input.settlementRoundId != null) {
+    const [round] = await db.select({
+      id: s.debitSettlementRounds.id,
+      customerId: s.debitSettlementRounds.customerId,
+      direction: s.debitSettlementRounds.direction,
+      roundNo: s.debitSettlementRounds.roundNo,
+      periodKey: s.debitSettlementRounds.periodKey,
+    }).from(s.debitSettlementRounds)
+      .where(eq(s.debitSettlementRounds.id, input.settlementRoundId)).limit(1);
+    if (!round) throw new ApiError(404, 'Không tìm thấy đợt chốt (Lần/Tháng/Năm).');
+    assertRoundAttachableToDebitNote(round, customerId);
+    settlementRoundId = round.id;
+  }
   // SIL-693 r2: the derived key ignores client headers, so a selection ANY
   // user once exported replays THEIR idempotency record — runIdempotent then
   // 409s with the actor-collision line before `create` (and the overlap
@@ -688,7 +712,7 @@ export async function createConsolidatedDebitNote(
   // in-transaction guard below stays authoritative for the create path.
   await assertLotsNotInIssuedDebitNote(db, shipmentIds);
   const idempotencyKey = `consolidated:${customerId}:${createHash('sha256').update(shipmentIds.join(',')).digest('hex').slice(0, 40)}`;
-  const issueInTx = async (tx: Tx): Promise<{ id: number }> => {
+  const issueInTx = async (tx: Tx): Promise<{ id: number; totalNet: number; totalTax: number; totalGross: number }> => {
       await assertLotsNotInIssuedDebitNote(tx, shipmentIds);
       const { rangeFrom, rangeTo } = deriveRangeFromSelection(lots);
       const lineRows = lots.flatMap((lot) => {
@@ -715,6 +739,8 @@ export async function createConsolidatedDebitNote(
         debitNoteStatus: 'SENT',
         totalInclVat: String(totals.gross), totalNet: String(totals.net),
         totalTax: String(totals.tax), totalGross: String(totals.gross),
+        // Ticket 18/11 Task 2.4 (SIL-855) — the [Lưu] act names its đợt.
+        settlementRoundId,
         vatTreatmentVersion: VAT_TREATMENT_VERSION, createdBy: input.actor.userId,
       }).returning({ id: s.billingDocuments.id });
       if (lineRows.length > 0) {
@@ -739,12 +765,14 @@ export async function createConsolidatedDebitNote(
         shipmentId: lotId,
         createdBy: input.actor.userId,
       })));
-      return { id: doc.id };
+      // Totals ride the replay payload too — the caller reconciles the preview
+      // against what actually issued (SIL-855 AC3: đối chiếu tổng).
+      return { id: doc.id, totalNet: totals.net, totalTax: totals.tax, totalGross: totals.gross };
   };
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_DEBIT_NOTE_CONSOLIDATED,
     idempotencyKey,
-    payload: { shipmentIds },
+    payload: { shipmentIds, settlementRoundId },
     createdBy: input.actor.userId,
     entityType: 'billing_document',
     create: issueInTx,

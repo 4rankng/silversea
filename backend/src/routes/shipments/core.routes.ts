@@ -730,6 +730,10 @@ coreRoutes.post(
   asyncHandler(async (req: Request, res: Response) => {
     const parsed = z.object({
       shipmentIds: z.array(z.number().int().positive()).min(1, 'Vui lòng chọn ít nhất một lô đã khóa.').max(200),
+      // Ticket 18/11 Task 2.4 (SIL-855) — the đợt chốt (Lần · Tháng · Năm)
+      // the preview's [Lưu] attaches; validated against the selection's
+      // customer + THU direction inside the service.
+      settlementRoundId: z.number().int().positive().nullish(),
     }).safeParse(req.body ?? {});
     if (!parsed.success) throwValidation(parsed.error);
     // Nhóm CUS: từng lô trong đợt xuất gộp phải nằm trong phạm vi thấy được.
@@ -739,8 +743,12 @@ coreRoutes.post(
     // Card 20260921_21: a lot with a live PENDING rate-adjustment request
     // cannot be exported to debit — 409 naming the lot (business language).
     await assertNoPendingRateAdjustment(parsed.data.shipmentIds);
-    const doc = await createConsolidatedDebitNote({ shipmentIds: parsed.data.shipmentIds, actor: getUser(req) });
-    res.status(201).json({ id: doc.id });
+    const doc = await createConsolidatedDebitNote({
+      shipmentIds: parsed.data.shipmentIds,
+      actor: getUser(req),
+      settlementRoundId: parsed.data.settlementRoundId ?? null,
+    });
+    res.status(201).json(doc);
   }),
 );
 

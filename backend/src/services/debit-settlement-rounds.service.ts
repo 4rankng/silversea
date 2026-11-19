@@ -12,7 +12,7 @@
 // → 400 (lot-overlap guard); pending rate adjustment → 409 (the same guard
 // the debit-issuance routes run).
 import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
-import { vatForAmount } from '@tingting/shared';
+import { effectiveBillingPlate, vatForAmount, type BillingDocumentLine } from '@tingting/shared';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { operationalName } from '../db/master-data-name';
@@ -20,6 +20,8 @@ import { ApiError } from '../errors';
 import { getAccountingDebitBoard, assertNoPendingRateAdjustment } from './accounting-debit-close.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { carrierKeysForLot, type CarrierDerivationEntry } from './debit-settlement-shared';
+import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
+import { documentVatTotals } from './billing-document-shared.service';
 import type { Tx } from './trip-shared';
 
 export interface CreatedDebitSettlementRound {
@@ -279,3 +281,109 @@ function carrierKeyLabel(carrierKey: string, names: Map<number, string>): string
 // vatForAmount lives in @tingting/shared (single implementation — the FE
 // period summary composes the same math); behavior byte-identical to the
 // former local copy: round(base × rate)/100, base is pre-VAT.
+
+// ─── Ticket 18/11 Task 2.4 (SIL-855) — Debit Note ↔ đợt chốt ───────────────
+
+export interface DebitNoteRoundPreviewItem {
+  shipmentId: number;
+  code: string | null;
+  customerName: string | null;
+  billingTruckNo: string | null;
+  net: number;
+  costLockedAt: string | null;
+}
+
+export interface DebitNoteRoundPreview {
+  round: {
+    id: number;
+    roundNo: number;
+    periodKey: string;
+    direction: 'THU' | 'TRA';
+    vatRate: number;
+    customerName: string | null;
+  };
+  items: DebitNoteRoundPreviewItem[];
+  totals: { net: number; tax: number; gross: number };
+}
+
+/** Bảng xem trước Xuất Debit Note for ONE đợt (Lần · Tháng · Năm) — the rows
+ *  and the four closing totals are computed from the SAME frozen-lock basis
+ *  the [Lưu] issuance uses (buildFrozenShipmentDebitLines + documentVatTotals),
+ *  so what the accountant previews is byte-equal to what lands in Công nợ.
+ *  BKS báo khách rides effectiveBillingPlate — the same plate the issued lines
+ *  stamp. Unlocked lots refuse with the codes named (khóa trước, xuất sau). */
+export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNoteRoundPreview> {
+  const [round] = await db.select().from(s.debitSettlementRounds).where(eq(s.debitSettlementRounds.id, roundId)).limit(1);
+  if (!round) throw new ApiError(404, 'Không tìm thấy đợt chốt (Lần/Tháng/Năm).');
+  const lotRows = await db.select({ shipmentId: s.debitSettlementRoundLots.shipmentId })
+    .from(s.debitSettlementRoundLots).where(eq(s.debitSettlementRoundLots.roundId, roundId));
+  const shipmentIds = lotRows.map((row) => row.shipmentId).sort((a, b) => a - b);
+  const [nameRow] = await db.select({ name: operationalName(s.customers.shortName, s.customers.name) })
+    .from(s.customers).where(eq(s.customers.id, round.customerId)).limit(1);
+  const roundHeader: DebitNoteRoundPreview['round'] = {
+    id: round.id,
+    roundNo: round.roundNo,
+    periodKey: round.periodKey,
+    direction: round.direction as 'THU' | 'TRA',
+    vatRate: round.vatRate,
+    customerName: nameRow?.name ?? null,
+  };
+  if (shipmentIds.length === 0) return { round: roundHeader, items: [], totals: { net: 0, tax: 0, gross: 0 } };
+
+  const lots = await db.select({
+    id: s.shipments.id,
+    customerId: s.shipments.customerId,
+    rawCustomerName: s.shipments.rawCustomerName,
+    shipmentCode: s.shipments.shipmentCode,
+    billingTruckNo: s.shipments.billingTruckNo,
+    actualTruckNo: s.shipments.actualTruckNo,
+    cargoMode: s.shipments.cargoMode,
+    revVehicleClassName: s.vehicleSizeClasses.name,
+    revVehicleClassCode: s.vehicleSizeClasses.code,
+  }).from(s.shipments)
+    .leftJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.shipments.revVehicleClassId))
+    .where(inArray(s.shipments.id, shipmentIds));
+  if (lots.length !== shipmentIds.length) throw new ApiError(404, 'Có lô hàng trong đợt không tồn tại hoặc đã bị xóa.');
+
+  const lockRows = await db.select({
+    shipmentId: s.shipmentCostLocks.shipmentId,
+    lockedAt: s.shipmentCostLocks.lockedAt,
+    snapshot: s.shipmentCostLocks.costSnapshot,
+  }).from(s.shipmentCostLocks)
+    .where(and(
+      inArray(s.shipmentCostLocks.shipmentId, shipmentIds),
+      isNull(s.shipmentCostLocks.unlockedAt),
+    ));
+  const lockedById = new Map(lockRows.map((row) => [row.shipmentId, row]));
+  const unlocked = lots.filter((lot) => !lockedById.has(lot.id));
+  if (unlocked.length > 0) {
+    throw new ApiError(409,
+      `Đợt còn ${unlocked.length} lô chưa khóa chi phí: ${unlocked.map((lot) => lot.shipmentCode ?? `#${lot.id}`).join(', ')}`
+      + ' — hãy khóa chi phí các lô (Khóa lô / Khóa & xem trước) rồi xem lại bảng xem trước.');
+  }
+
+  const items: DebitNoteRoundPreviewItem[] = [];
+  const allLines: BillingDocumentLine[] = [];
+  for (const lot of lots) {
+    const lockRow = lockedById.get(lot.id)!;
+    const lines = buildFrozenShipmentDebitLines(
+      (lockRow.snapshot ?? {}) as Record<string, unknown>,
+      lot.shipmentCode ?? String(lot.id),
+      {
+        billingTruckNo: effectiveBillingPlate(lot),
+        vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
+      },
+    );
+    const lotTotals = documentVatTotals(lines);
+    allLines.push(...lines);
+    items.push({
+      shipmentId: lot.id,
+      code: lot.shipmentCode,
+      customerName: lot.rawCustomerName?.trim() || null,
+      billingTruckNo: effectiveBillingPlate(lot),
+      net: lotTotals.net,
+      costLockedAt: lockRow.lockedAt?.toISOString() ?? null,
+    });
+  }
+  return { round: roundHeader, items, totals: documentVatTotals(allLines) };
+}
