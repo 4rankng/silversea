@@ -1,0 +1,3 @@
+PASS ACCOUNTANT hoapt: HTTP 200, lots=555, with-tongTc=93
+PASS CUS tiepvv: HTTP 200, lots=457, with-tongTc=91
+PASS CUS scope (457) <= staff scope (555): true

@@ -154,6 +154,37 @@ export async function debitMergeScopeConditions(
   return cusVisibilityCondition(executor, actor, { includeTeam: debitMergeIncludeTeam(team) });
 }
 
+/** Tổng TC for an UNLOCKED lot — the shipment-debit-summary receivable law
+ *  (determination over the four revenue sides, then the rollup). Split out
+ *  pure so the SIL-814 regression test can pin the no-trip-revenue shape:
+ *  `receivableDetermined` arms on freight/PS/ops-charge alone, so a lot
+ *  priced by freight snapshots but without any trip_expense rows reaches the
+ *  rollup with `revenue` undefined — its revenue sides contribute 0, never a
+ *  TypeError (ab50b4c9 dereferenced `revenue!.otherSell` and 500'd the whole
+ *  board for one such lot; mirrors shipment-debit-summary.service.ts's
+ *  `(revenue?.otherSell ?? 0) + (revenue?.derived ?? 0)`). */
+export function debitMergeTongTcUnlocked(input: {
+  revenue: { otherSell: number; derived: number } | undefined;
+  freightAuto: number | null;
+  psKnownTotal: number | null;
+  opsChargeKnownTotal: number | null;
+}): number | null {
+  const revenue = input.revenue;
+  const hasAnyRevenue = receivableDetermined({
+    hasRevenueRows: revenue != null,
+    freightKnown: input.freightAuto != null,
+    psKnownTotal: input.psKnownTotal,
+    opsChargeKnownTotal: input.opsChargeKnownTotal,
+    revenueRowsTotal: revenue != null ? revenue.otherSell + revenue.derived : null,
+  });
+  if (!hasAnyRevenue) return null;
+  return (revenue?.otherSell ?? 0)
+    + (revenue?.derived ?? 0)
+    + (input.freightAuto ?? 0)
+    + (input.psKnownTotal ?? 0)
+    + (input.opsChargeKnownTotal ?? 0);
+}
+
 export async function getDebitMergeBoard(query: {
   customerId?: number;
   team?: 'true' | 'false';
@@ -448,22 +479,14 @@ export async function getDebitMergeBoard(query: {
 
     // Tổng TC — the summary's receivable law (determination → freeze gate →
     // display gate). Locked lots read their own frozen snapshot.
-    const hasAnyRevenue = receivableDetermined({
-      hasRevenueRows: revenue != null,
-      freightKnown: freightAuto != null,
-      psKnownTotal: ps?.known ? ps.total : null,
-      opsChargeKnownTotal: opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : null,
-      revenueRowsTotal: revenue != null ? revenue.otherSell + revenue.derived : null,
-    });
     let tongTc = lock != null
       ? frozenNumber(lock.snapshot, 'receivableTotal')
-      : hasAnyRevenue
-        ? revenue!.otherSell
-          + revenue!.derived
-          + (freightAuto ?? 0)
-          + (ps?.known ? ps.total : 0)
-          + (opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : 0)
-        : null;
+      : debitMergeTongTcUnlocked({
+        revenue,
+        freightAuto,
+        psKnownTotal: ps?.known ? ps.total : null,
+        opsChargeKnownTotal: opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : null,
+      });
     tongTc = receivableDisplayValue({
       value: tongTc,
       freightKnown: receivableCellFreightKnown({
