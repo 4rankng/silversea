@@ -1,0 +1,7 @@
+# SIL-855 + SIL-861 lane — build gate
+# Command: make build   (= pnpm --dir shared build && pnpm --dir backend build && pnpm --dir frontend build)
+# EXIT: 0
+# tail:
+dist/assets/index-Bt4T0aMr.js                            846.46 kB │ gzip: 246.41 kB
+dist/assets/exceljs.min-Df18-CjY.js                      940.20 kB │ gzip: 271.34 kB
+✓ built in 29.67s

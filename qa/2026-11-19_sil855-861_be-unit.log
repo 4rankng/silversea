@@ -1,0 +1,13 @@
+# SIL-855 + SIL-861 lane — backend unit gate, FULL suite
+# Command: cd backend && pnpm test:unit
+# Includes the new debit-note-round-vat.test.ts (8 tests) + all pre-existing pins
+# (debit-note-round-attach, debit-note-live-bks, sil814, cost-lock guidance, …).
+# EXIT: 0
+ℹ tests 1311
+ℹ suites 209
+ℹ pass 1311
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 48018.782208

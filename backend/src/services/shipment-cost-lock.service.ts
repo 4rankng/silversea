@@ -690,6 +690,10 @@ export async function createConsolidatedDebitNote(
   // Ticket 18/11 Task 2.4 (SIL-855) — the đợt the preview attached must be a
   // THU round of this same customer; a TRA round never posts công nợ phải thu.
   let settlementRoundId: number | null = null;
+  // SIL-855 — the đợt's VAT is the document's VAT: the [Lưu] issuance stamps
+  // the same round.vatRate the preview stamped, so the FE reconcile (preview
+  // totals vs issued totals) holds and Công nợ receives the đợt's VAT.
+  let roundVatRatePercent: number | null = null;
   if (input.settlementRoundId != null) {
     const [round] = await db.select({
       id: s.debitSettlementRounds.id,
@@ -697,11 +701,13 @@ export async function createConsolidatedDebitNote(
       direction: s.debitSettlementRounds.direction,
       roundNo: s.debitSettlementRounds.roundNo,
       periodKey: s.debitSettlementRounds.periodKey,
+      vatRate: s.debitSettlementRounds.vatRate,
     }).from(s.debitSettlementRounds)
       .where(eq(s.debitSettlementRounds.id, input.settlementRoundId)).limit(1);
     if (!round) throw new ApiError(404, 'Không tìm thấy đợt chốt (Lần/Tháng/Năm).');
     assertRoundAttachableToDebitNote(round, customerId);
     settlementRoundId = round.id;
+    roundVatRatePercent = round.vatRate;
   }
   // SIL-693 r2: the derived key ignores client headers, so a selection ANY
   // user once exported replays THEIR idempotency record — runIdempotent then
@@ -724,6 +730,9 @@ export async function createConsolidatedDebitNote(
             // Spec 23/10 — same reported-plate law as the single-lot export.
             billingTruckNo: effectiveBillingPlate(lot),
             vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
+            // SIL-855 — the attached đợt's VAT rides the issued lines so the
+            // document totals equal the preview's (null when round-less).
+            vatRatePercent: roundVatRatePercent,
           },
         );
       });

@@ -1,6 +1,6 @@
-import type { BillingDocumentLine, BillingLineRenderData } from '@tingting/shared';
+import { vatForAmount, type BillingDocumentLine, type BillingLineRenderData, type BillingVatRate } from '@tingting/shared';
 import { ApiError } from '../errors';
-import { calculateVatSnapshot } from './billing-vat-math';
+import { calculateVatSnapshot, VAT_TREATMENT_VERSION } from './billing-vat-math';
 
 /** FB-094 (card 161026232429): what the customer-facing Debit Note must print
  *  per lot — the BKS báo khách ("xe ảo") and the THU billing class. Resolved by
@@ -9,7 +9,40 @@ import { calculateVatSnapshot } from './billing-vat-math';
 export type FrozenDebitLotRenderInfo = {
   billingTruckNo?: string | null;
   vehicleType?: string | null;
+  /** SIL-855 — the đợt chốt's VAT percent (0/5/8/10, chosen at Chọn Debit).
+   *  Only the đợt-scoped acts pass it (round preview + its [Lưu] issuance) so
+   *  the issued totals equal the preview's; every other caller omits it and
+   *  keeps the standing EXEMPT/0 policy byte-identically. */
+  vatRatePercent?: number | null;
 };
+
+/** The chốt policy rates (percent → the fraction billing_document_lines
+ *  stores and every later reader re-validates). 0 stays on the EXEMPT law. */
+const ROUND_VAT_FRACTION: Record<number, BillingVatRate> = { 5: 0.05, 8: 0.08, 10: 0.1 };
+
+/** SIL-855 — one frozen line's VAT spread under the đợt's rate: tax by the
+ *  shared vatForAmount (the single implementation the chốt popup and the
+ *  period summary already compose), net untouched, gross = net + tax. */
+function roundVatSpread(amount: number, vatRatePercent: number | null | undefined) {
+  if (vatRatePercent == null || vatRatePercent === 0) return null;
+  const fraction = ROUND_VAT_FRACTION[vatRatePercent];
+  if (fraction == null) {
+    throw new ApiError(409, `Thuế suất VAT ${vatRatePercent}% không thuộc chính sách đang hiệu lực.`);
+  }
+  const net = Math.round(Number(amount));
+  if (!Number.isFinite(net) || net < 0) {
+    throw new ApiError(409, 'Giá trị gồm VAT không hợp lệ.');
+  }
+  const tax = vatForAmount(net, vatRatePercent);
+  return {
+    vatTreatment: 'STANDARD' as const,
+    vatRate: fraction,
+    vatTreatmentVersion: VAT_TREATMENT_VERSION,
+    netAmount: net,
+    taxAmount: tax,
+    grossAmount: net + tax,
+  };
+}
 
 /** Read only frozen amounts. A null customer total is unknown, not zero. */
 function frozenMoney(snapshot: Record<string, unknown>, key: string): number | null {
@@ -87,8 +120,11 @@ export function buildFrozenShipmentDebitLines(
   const add = (lineType: 'FREIGHT' | 'SERVICE_FEE', typeLabel: string, amount: number) => {
     if (amount === 0) return;
     // The existing lot export has no frozen tax classification. Preserve its
-    // EXEMPT/0 policy while using the shared whole-VND billing calculation.
-    const vat = calculateVatSnapshot(amount, 0, 'EXEMPT');
+    // EXEMPT/0 policy while using the shared whole-VND billing calculation —
+    // except when the act names a đợt chốt (SIL-855): the round's VAT rides
+    // the same frozen lines so the preview and the issued document share the
+    // per-line spread byte-for-byte (roundVatSpread above).
+    const vat = roundVatSpread(amount, lot.vatRatePercent) ?? calculateVatSnapshot(amount, 0, 'EXEMPT');
     lines.push({
       sourceType: 'ADHOC', sourceId: null, lineType, typeLabel, unit: 'lần',
       description: `${typeLabel} — lô ${lotCode} (chốt từ snapshot khóa lô)`,

@@ -1,0 +1,17 @@
+# SIL-855 — backend unit gate, scoped new pin file
+# Command: cd backend && pnpm exec tsx --test src/tests/unit/debit-note-round-vat.test.ts
+# File: backend/src/tests/unit/debit-note-round-vat.test.ts (new, SIL-855)
+# Pins: buildFrozenShipmentDebitLines vatRatePercent spread (8% → 316.160 ₫/lô,
+#       Σ 2 lô = 632.320 ₫ = vatForAmount(7.904.000, 8)); 5%/10% fractions;
+#       EXEMPT/0 preserved without đợt; foreign rate 7% → 409; wiring source-scans
+#       (preview stamps round.vatRate, issuance selects+stamps it, BKS trip-plate
+#       fallback with own-fleet law mirroring the board).
+# EXIT: 0
+ℹ tests 8
+ℹ suites 2
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 530.332

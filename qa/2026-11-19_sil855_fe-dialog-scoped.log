@@ -1,0 +1,10 @@
+# SIL-855 — frontend vitest, scoped dialog file (incl. new QA-regression pin)
+# Command: cd frontend && pnpm exec vitest run src/pages/accounting/DebitNotePreviewDialog.test.tsx
+# New describe 'DebitNotePreviewDialog QA regression — đợt VAT totals + real BKS':
+# footer = QA repro numbers (7.904.000 / 632.320 / 8.536.320 ₫), both lots render
+# 15H-104.03 (no '—'), saves carry totals {net 7904000, tax 632320, gross 8536320}.
+# EXIT: 0
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  14:10:54
+   Duration  3.03s

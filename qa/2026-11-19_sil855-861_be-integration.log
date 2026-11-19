@@ -1,0 +1,12 @@
+# SIL-855 + SIL-861 lane — backend integration gate, FULL suite
+# Command: cd backend && pnpm test:integration
+# Ran against the local dev stack (Postgres :5441, Redis :6391, already up).
+# EXIT: 0
+ℹ tests 368
+ℹ suites 88
+ℹ pass 368
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 284562.992375

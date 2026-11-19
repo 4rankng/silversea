@@ -308,10 +308,12 @@ export interface DebitNoteRoundPreview {
 
 /** Bảng xem trước Xuất Debit Note for ONE đợt (Lần · Tháng · Năm) — the rows
  *  and the four closing totals are computed from the SAME frozen-lock basis
- *  the [Lưu] issuance uses (buildFrozenShipmentDebitLines + documentVatTotals),
- *  so what the accountant previews is byte-equal to what lands in Công nợ.
- *  BKS báo khách rides effectiveBillingPlate — the same plate the issued lines
- *  stamp. Unlocked lots refuse with the codes named (khóa trước, xuất sau). */
+ *  the [Lưu] issuance uses (buildFrozenShipmentDebitLines + documentVatTotals,
+ *  both under the đợt's recorded vatRate), so what the accountant previews is
+ *  byte-equal to what lands in Công nợ. BKS báo khách rides
+ *  effectiveBillingPlate, falling back to the lot's ĐV-assigned trip plates so
+ *  the column never renders a fabricated '—'. Unlocked lots refuse with the
+ *  codes named (khóa trước, xuất sau). */
 export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNoteRoundPreview> {
   const [round] = await db.select().from(s.debitSettlementRounds).where(eq(s.debitSettlementRounds.id, roundId)).limit(1);
   if (!round) throw new ApiError(404, 'Không tìm thấy đợt chốt (Lần/Tháng/Năm).');
@@ -362,6 +364,42 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
       + ' — hãy khóa chi phí các lô (Khóa lô / Khóa & xem trước) rồi xem lại bảng xem trước.');
   }
 
+  // SIL-855 QA — BKS BÁO KHÁCH must name the plate the customer was actually
+  // told. effectiveBillingPlate covers the CUS "xe ảo" text (and LCL's lot-row
+  // BKS thực); when the lot row itself is blank, the ĐV-assigned trip plates —
+  // the same non-canceled-trip projection the board's Phân xe / BKS thực
+  // columns read — are the honest fallback, never a fabricated '—'. Issued
+  // lines keep their own plate law (renderData stays effectiveBillingPlate);
+  // this column is the preview's display truth.
+  const tripPlateRows = await db.select({
+    shipmentId: s.trips.shipmentId,
+    ownPlate: s.trucks.licensePlate,
+    truckCarrierId: s.trucks.carrierId,
+    externalPlate: s.tripCarrierInfo.externalPlateNumber,
+  }).from(s.trips)
+    .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .where(and(
+      inArray(s.trips.shipmentId, shipmentIds),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+    ))
+    .orderBy(s.trips.id);
+  const previewPlateOf = (lot: { id: number; billingTruckNo: string | null; actualTruckNo: string | null; cargoMode: string | null }): string | null => {
+    const direct = effectiveBillingPlate(lot);
+    if (direct) return direct;
+    const plates: string[] = [];
+    for (const row of tripPlateRows) {
+      if (row.shipmentId !== lot.id) continue;
+      // Mirror the board: an own-fleet truck prints its plate; a
+      // subcontracted truck labels by carrier and shows the external plate.
+      const plate = (row.truckCarrierId == null ? row.ownPlate : null) ?? row.externalPlate;
+      const trimmed = plate?.trim();
+      if (trimmed && !plates.includes(trimmed)) plates.push(trimmed);
+    }
+    return plates.length > 0 ? plates.join(', ') : null;
+  };
+
   const items: DebitNoteRoundPreviewItem[] = [];
   const allLines: BillingDocumentLine[] = [];
   for (const lot of lots) {
@@ -372,6 +410,10 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
       {
         billingTruckNo: effectiveBillingPlate(lot),
         vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
+        // SIL-855 — the đợt's VAT rides the SAME frozen lines the [Lưu]
+        // issuance stamps (both under round.vatRate), so the four preview
+        // totals are byte-equal to what lands in Công nợ.
+        vatRatePercent: round.vatRate,
       },
     );
     const lotTotals = documentVatTotals(lines);
@@ -380,7 +422,7 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
       shipmentId: lot.id,
       code: lot.shipmentCode,
       customerName: lot.rawCustomerName?.trim() || null,
-      billingTruckNo: effectiveBillingPlate(lot),
+      billingTruckNo: previewPlateOf(lot),
       net: lotTotals.net,
       costLockedAt: lockRow.lockedAt?.toISOString() ?? null,
     });

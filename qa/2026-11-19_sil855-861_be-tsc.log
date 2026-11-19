@@ -1,0 +1,8 @@
+# SIL-855 + SIL-861 lane — backend typecheck gate
+# Command: cd backend && npx tsc --noEmit
+# After: pnpm install --frozen-lockfile (workspace root) + pnpm --filter @tingting/shared build
+# Scope: debit-settlement-rounds.service.ts (preview VAT + BKS trip-plate fallback),
+#        shipment-cost-lock-lines.ts (vatRatePercent stamping),
+#        shipment-cost-lock.service.ts (issuance round VAT), + FE changes irrelevant here.
+# EXIT: 0 (no output = 0 errors)
+EXIT:0

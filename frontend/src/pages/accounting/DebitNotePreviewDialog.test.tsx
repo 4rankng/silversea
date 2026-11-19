@@ -132,3 +132,57 @@ describe('DebitNotePreviewDialog (SIL-855)', () => {
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
   });
 });
+
+// SIL-855 QA fail (build 09069560): the preview footer ignored the đợt's
+// recorded VAT (showed 0 ₫ / 7.904.000 ₫ while the đợt row said VAT 8% =
+// 632.320 ₫ / 8.536.320 ₫) and rendered '—' BKS for lots whose plate rides
+// the ĐV-assigned trip (15H-104.03). The dialog renders the server preview —
+// these pins hold the footer to the QA repro's exact four numbers and the
+// plate column to 100% coverage, so a regression surfaces in vitest.
+describe('DebitNotePreviewDialog QA regression — đợt VAT totals + real BKS', () => {
+  const VAT_ROUND: DebitSettlementRoundRow = {
+    ...ROUND,
+    id: 91,
+    periodKey: '2026-11',
+    amount: '7904000',
+    vatRate: 8,
+    vatAmount: 632320,
+    totalAmount: 8536320,
+  };
+  const VAT_PREVIEW = {
+    round: { id: 91, roundNo: 1, periodKey: '2026-11', direction: 'THU' as const, vatRate: 8, customerName: 'KH A' },
+    items: [
+      { shipmentId: 301, code: 'SHP-2611-00308', customerName: 'Long Minh', billingTruckNo: '15H-104.03', net: 3952000, costLockedAt: '2026-11-18T00:00:00.000Z' },
+      { shipmentId: 310, code: 'SHP-2611-00310', customerName: 'Long Minh', billingTruckNo: '15H-104.03', net: 3952000, costLockedAt: '2026-11-18T00:00:00.000Z' },
+    ],
+    totals: { net: 7904000, tax: 632320, gross: 8536320 },
+  };
+
+  it('the footer carries the đợt VAT (QA numbers) and every row shows its BKS báo khách', async () => {
+    roundPreview.mockResolvedValue(VAT_PREVIEW);
+    const saves = renderDialog(true, [VAT_ROUND]);
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-11' }));
+
+    const table = await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
+    // Both đợt lots render the ĐV-assigned plate — no fabricated '—'.
+    expect(table).toHaveTextContent('SHP-2611-00308');
+    expect(table).toHaveTextContent('SHP-2611-00310');
+    expect(within(table).getAllByText('15H-104.03')).toHaveLength(2);
+    expect(table).not.toHaveTextContent('—');
+    // The four closing totals = the đợt row's recorded VAT math (8%).
+    expect(table).toHaveTextContent('7.904.000 ₫');
+    expect(table).toHaveTextContent('632.320 ₫');
+    expect(table).toHaveTextContent('8.536.320 ₫');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(saves).toHaveLength(1));
+    expect(saves[0]).toEqual({
+      roundId: 91,
+      roundLabel: 'Lần 1 · 2026-11',
+      lotIds: [301, 310],
+      totals: { net: 7904000, tax: 632320, gross: 8536320 },
+    });
+  });
+});

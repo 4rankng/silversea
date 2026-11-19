@@ -1,0 +1,6 @@
+# SIL-855 + SIL-861 lane — frontend typecheck gate
+# Command: cd frontend && npx tsc -b
+# Scope: DebitNotePreviewDialog.test.tsx (+ qk factory use), OpsExpenseFormModal.tsx,
+#        OpsExpenseFormModal.containers.test.tsx, api/keys.ts
+# EXIT: 0 (no output = 0 errors)
+EXIT:0
