@@ -3,8 +3,9 @@
 // the received advances — PRD OpsVanHanh §9.2). Columns: ĐNTT (confirmed costs
 // of the period/đợt), ĐÃ ỨNG (recorded gross advances — SIL-839) and
 // "Còn phải hoàn ứng" CÓ DẤU theo BỔ SUNG CTO 19/11: (+) cá nhân hoàn lại,
-// (−) công ty trả thêm — unscoped đọc đúng số dư ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT
-// TOÁN (outstandingSigned), scoped đợt đọc ĐÃ ỨNG phân bổ − ĐNTT đợt.
+// (−) công ty trả thêm — = ĐÃ ỨNG (GỐC) − ĐNTT (khớp 100% cột Số dư quỹ của
+// Quỹ cá nhân), scoped đợt đọc ĐÃ ỨNG phân bổ − ĐNTT đợt. Số dư ví có dấu
+// (`outstandingSigned`) vẫn đi riêng trên row cho bút toán thu hồi.
 // `remaining` vẫn là số SỔ QUỸ (min(đã ứng, đã cấp) − đã tiêu, ≥ 0 — lệnh PM
 // 2026-09-29, card 168 "RULING PM" câu 1) giữ parity với sổ quỹ (card 377).
 // The row action "Lập phiếu" follows the ĐỢT's own difference (the
@@ -201,9 +202,9 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
           // showed the disbursements (Hoàng 320.000₫, Cường 25.000.000₫).
           { label: 'Tổng số tiền đã ứng', value: `${formatMoney(totals.advancedRecorded)} ₫` },
           // BỔ SUNG CTO 19/11 — tổng cột CÓ DẤU theo luật dấu mới: (+) cá
-          // nhân hoàn lại, (−) công ty trả thêm; unscoped khớp 100% số dư ví
-          // (outstandingSigned). Âm hiện rõ dấu thay vì ép về 0. The sign is
-          // always visible beside the amount — never a bare number (PRD §9.2).
+          // nhân hoàn lại, (−) công ty trả thêm; unscoped = Σ(ĐÃ ỨNG − ĐNTT)
+          // khớp 100% bảng Quỹ cá nhân. Âm hiện rõ dấu thay vì ép về 0. The
+          // sign is always visible beside the amount — never a bare number (PRD §9.2).
           { label: 'Tổng còn phải hoàn ứng', value: `${totals.remainingSigned > 0 ? '+' : totals.remainingSigned < 0 ? '−' : ''}${formatMoney(Math.abs(totals.remainingSigned))} ₫` },
         ]}
       />
@@ -311,8 +312,8 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettle
       <td data-label="Số tiền đã ứng" className="num"><Money value={row.advancedRecorded} /></td>
       {/* BỔ SUNG CTO 19/11 — "Còn phải hoàn ứng" CÓ DẤU: (+) cá nhân hoàn
           lại, (−) công ty trả thêm (âm vẫn tô đỏ — nghĩa vụ chưa tất toán);
-          số dư khớp 100% ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT TOÁN (unscoped =
-          outstandingSigned; scoped = phân bổ − ĐNTT đợt). */}
+          số dư = ĐÃ ỨNG (GỐC) − ĐNTT, khớp 100% cột Số dư quỹ của Quỹ cá
+          nhân (scoped đợt = phân bổ − ĐNTT đợt). */}
       <td data-label="Còn phải hoàn ứng" className="num" style={row.remainingSigned < 0 ? { color: 'var(--danger)' } : undefined}>
         <Money value={Math.abs(row.remainingSigned)} sign={row.remainingSigned > 0 ? '+' : row.remainingSigned < 0 ? '−' : undefined} />
       </td>

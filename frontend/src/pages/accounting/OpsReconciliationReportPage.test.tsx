@@ -37,9 +37,9 @@ import type { ExpenseReconciliation } from '@tingting/shared';
 
 const TODAY = '2026-09-29';
 // BỔ SUNG CTO 19/11 — luật dấu 'Còn phải hoàn ứng': (+) cá nhân hoàn lại,
-// (−) công ty trả thêm. Unscoped remainingSigned = outstandingSigned (số dư
-// ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT TOÁN — khớp 100% ví/sổ quỹ); scoped đợt =
-// ĐÃ ỨNG phân bổ − ĐNTT đợt.
+// (−) công ty trả thêm. Unscoped remainingSigned = ĐÃ ỨNG (GỐC) − ĐNTT
+// (khớp 100% cột Số dư quỹ của Quỹ cá nhân); scoped đợt = ĐÃ ỨNG phân bổ
+// − ĐNTT đợt.
 const rowPositive: OpsReconciliationReportRow = {
   staffId: 5, staffName: 'NV A', dntt: 250000, advanced: 100000, advancedRecorded: 100000, remaining: 150000,
   remainingSigned: 150000, outstandingSigned: 150000, needsCollection: true,

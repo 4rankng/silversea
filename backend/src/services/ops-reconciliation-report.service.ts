@@ -22,9 +22,10 @@ export interface OpsReconciliationReportRow {
   advancedRecorded: number;
   remaining: number;
   /** BỔ SUNG CTO 19/11 — Còn phải hoàn ứng CÓ DẤU: (+) cá nhân hoàn lại,
-   *  (−) công ty trả thêm. Unscoped = số dư ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT TOÁN
-   *  (đúng authority `outstandingSigned` — khớp 100% ví/sổ quỹ); scoped đợt =
-   *  ĐÃ ỨNG phân bổ − ĐNTT đợt. Supersedes spec chữ cũ "ĐNTT − ĐÃ ỨNG". */
+   *  (−) công ty trả thêm. = ĐÃ ỨNG (advancedRecorded, GỐC đã ghi nhận) −
+   *  ĐNTT (chi đã xác nhận = ĐÃ DUYỆT + ĐÃ TẤT TOÁN) — khớp 100% cột Số dư
+   *  quỹ của bảng Quỹ cá nhân; scoped đợt = ĐÃ ỨNG phân bổ − ĐNTT đợt. Số
+   *  dư ví có dấu vẫn ở `outstandingSigned`. */
   remainingSigned: number;
   /** Số dư tạm ứng CÓ DẤU (card 141026230770): min(đã cấp, đã giải ngân) − đã
    *  tiêu − đã trả, không kẹp về 0. Âm = nhân viên nắm/đã tiêu vượt số được
@@ -261,20 +262,22 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     const outstandingSigned = outstandingSignedMap.get(key) ?? 0;
     const advancedRecorded = recordedByStaff[String(staffId)] ?? 0;
     if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0 && advancedRecorded === 0) continue;
-    // BỔ SUNG CTO 19/11 (ticket id 994/996) — luật dấu 'Còn phải hoàn ứng':
-    // (+) cá nhân hoàn lại, (−) công ty trả thêm. Unscoped: ĐÃ ỨNG − ĐÃ
-    // DUYỆT (chi đã xác nhận, trừ vào ứng qua auto-offset) − ĐÃ TẤT TOÁN
-    // (phiếu hoàn ứng/đợt đã phân bổ + tiền đã nộp lại) = số dư ví CÓ DẤU —
-    // đúng authority `outstandingSigned`, nên khớp 100% với ví và sổ quỹ.
-    // Scoped đợt: ĐÃ ỨNG phân bổ − ĐNTT đợt (chênh lệch ban đầu của đợt,
-    // đúng dấu CTO); phần ĐÃ TẤT TOÁN của đợt hiện qua live
-    // remainingDifference mà nút phiếu thu/chi đọc. (Supersedes spec chữ
-    // cũ 'ĐNTT − ĐÃ ỨNG' — dấu ngược luật CTO.)
-    const remainingSigned = batchInfo ? advanced - dntt : outstandingSigned;
-    // 'Đề nghị thu tiền ứng' chỉ khi báo cáo DƯƠNG (cá nhân còn nắm tiền đã
-    // ứng) và sổ quỹ còn số cần thu. Âm (công ty trả thêm) không bao giờ là
-    // 'thu tiền ứng'.
-    const needsCollection = remainingSigned > 0 && remaining > 0;
+    // Luật dấu 'Còn phải hoàn ứng' (BỔ SUNG CTO 19/11 + QA 19/11): (+) cá
+    // nhân hoàn lại, (−) công ty trả thêm. Cột = ĐÃ ỨNG (GỐC đã ghi nhận)
+    // − ĐNTT (chi đã xác nhận = ĐÃ DUYỆT + ĐÃ TẤT TOÁN) — đúng hiệu của 2
+    // cột kề bên nên khớp 100% bảng Quỹ cá nhân (cùng công thức
+    // advancedRecorded − dntt) theo construction. Số dư ví có dấu vẫn đi
+    // riêng trong `outstandingSigned` cho bút toán thu hồi. Scoped đợt:
+    // ĐÃ ỨNG phân bổ − ĐNTT đợt (chênh lệch ban đầu của đợt, đúng dấu
+    // CTO); phần đã tất toán của đợt hiện qua live remainingDifference mà
+    // nút phiếu thu/chi đọc. (QA 19/11: unscoped đọc `outstandingSigned`
+    // thì hiện 0₫ cho nhân sự đã tất toán hết phiếu — lệch Quỹ cá nhân
+    // +275.000₫; cột phải là hiệu 2 cột hiển thị.)
+    const remainingSigned = batchInfo ? advanced - dntt : advancedRecorded - dntt;
+    // 'Đề nghị thu tiền ứng' theo đúng DẤU của cột: DƯƠNG = cá nhân còn
+    // nắm tiền phải hoàn trả về công ty. Âm (công ty trả thêm) không bao
+    // giờ là 'thu tiền ứng'.
+    const needsCollection = remainingSigned > 0;
     const direction: OpsReconciliationDirection = needsCollection ? 'CTY_YEU_CAU_THU_TIEN_UNG' : remainingSigned < 0 ? 'CTY_THANH_TOAN_HOAN_UNG' : 'KHONG_CON_GI';
     const note = direction === 'CTY_YEU_CAU_THU_TIEN_UNG' ? 'Đề nghị thu tiền ứng'
       : direction === 'CTY_THANH_TOAN_HOAN_UNG' ? 'Công ty trả thêm phần chi vượt ứng' : 'Không còn chênh lệch';
