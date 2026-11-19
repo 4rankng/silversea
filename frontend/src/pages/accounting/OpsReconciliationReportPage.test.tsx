@@ -36,36 +36,38 @@ import OpsReconciliationReportPage from './OpsReconciliationReportPage';
 import type { ExpenseReconciliation } from '@tingting/shared';
 
 const TODAY = '2026-09-29';
-// Remaining mocks follow the 2026-09-29 ruling: the number is the sổ quỹ
-// closing formula (granted − consumed, floored per request), so it is ≥ 0 —
-// > 0 the staff still holds unspent advance, 0 nothing left to settle.
+// BỔ SUNG CTO 19/11 — luật dấu 'Còn phải hoàn ứng': (+) cá nhân hoàn lại,
+// (−) công ty trả thêm. Unscoped remainingSigned = outstandingSigned (số dư
+// ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT TOÁN — khớp 100% ví/sổ quỹ); scoped đợt =
+// ĐÃ ỨNG phân bổ − ĐNTT đợt.
 const rowPositive: OpsReconciliationReportRow = {
   staffId: 5, staffName: 'NV A', dntt: 250000, advanced: 100000, advancedRecorded: 100000, remaining: 150000,
-  remainingSigned: 150000, outstandingSigned: 150000, needsCollection: false,
-  direction: 'CTY_YEU_CAU_HOAN_TRA', note: 'Công ty yêu cầu nhân viên hoàn trả tạm ứng',
+  remainingSigned: 150000, outstandingSigned: 150000, needsCollection: true,
+  direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
 };
 const rowSettled: OpsReconciliationReportRow = {
   staffId: 6, staffName: 'NV B', dntt: 120000, advanced: 120000, advancedRecorded: 120000, remaining: 0,
   remainingSigned: 0, outstandingSigned: 0, needsCollection: false,
   direction: 'KHONG_CON_GI', note: 'Không còn chênh lệch',
 };
-// Số âm: ĐNTT − ĐÃ ỨNG = 300.000 − 500.000 — tiền ứng vượt chi phí và nhân
-// viên vẫn còn nắm tiền đã cấp, nên đề nghị thu tiền ứng.
+// Số ÂM: chi đã duyệt vượt tiền đã ứng → CÔNG TY TRẢ THÊM (−200.000 ₫),
+// không bao giờ là 'thu tiền ứng'.
 const rowCollection: OpsReconciliationReportRow = {
-  staffId: 9, staffName: 'NV C', dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 500000,
-  remainingSigned: -200000, outstandingSigned: 500000, needsCollection: true,
-  direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
+  staffId: 9, staffName: 'NV C', dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 0,
+  remainingSigned: -200000, outstandingSigned: -200000, needsCollection: false,
+  direction: 'CTY_THANH_TOAN_HOAN_UNG', note: 'Công ty trả thêm phần chi vượt ứng',
+};
+// Scoped đợt công ty nợ (remainingDifference +150.000): cột = ĐÃ ỨNG phân bổ
+// − ĐNTT đợt = 100.000 − 250.000 = −150.000 ₫ (công ty trả thêm).
+const rowLotCompanyOwes: OpsReconciliationReportRow = {
+  staffId: 5, staffName: 'NV A', dntt: 250000, advanced: 100000, advancedRecorded: 100000, remaining: 150000,
+  remainingSigned: -150000, outstandingSigned: 150000, needsCollection: false,
+  direction: 'CTY_THANH_TOAN_HOAN_UNG', note: 'Công ty trả thêm phần chi vượt ứng',
 };
 const unscopedReport = {
   from: TODAY, to: TODAY, rows: [rowPositive, rowSettled],
   totals: { dntt: 370000, advanced: 220000, advancedRecorded: 220000, remaining: 150000, remainingSigned: 150000 },
 };
-function scopedReport(row: OpsReconciliationReportRow, code: string) {
-  return {
-    from: TODAY, to: TODAY, reconciliation: { id: 7, code, from: '2026-09-28', to: TODAY },
-    rows: [row], totals: { dntt: row.dntt, advanced: row.advanced, advancedRecorded: row.advancedRecorded, remaining: row.remaining, remainingSigned: row.remainingSigned },
-  };
-}
 function mkLot(row: OpsReconciliationReportRow, remainingDifference: number): ExpenseReconciliation {
   return {
     id: 7, code: 'HU-QA-169', opsUserId: row.staffId, from: '2026-09-28', to: TODAY,
@@ -94,7 +96,11 @@ beforeEach(() => {
   reportApi.report.mockReset();
   reportApi.report.mockImplementation((params: { reconciliationId?: number; opsUserId?: number } | undefined) => {
     if (params?.reconciliationId) {
-      return Promise.resolve(scopedReport(currentLot.opsUserId === 6 ? rowSettled : rowPositive, scopedCode));
+      const scopedRow = currentLot.opsUserId === 6 ? rowSettled : rowLotCompanyOwes;
+      return Promise.resolve({
+        from: TODAY, to: TODAY, reconciliation: { id: 7, code: scopedCode, from: '2026-09-28', to: TODAY },
+        rows: [scopedRow], totals: { dntt: scopedRow.dntt, advanced: scopedRow.advanced, advancedRecorded: scopedRow.advancedRecorded, remaining: scopedRow.remaining, remainingSigned: scopedRow.remainingSigned },
+      });
     }
     // The service narrows the monthly view to the staff filter server-side —
     // the mock mirrors that contract (card 20260928_168 seeds opsUserId from
@@ -140,7 +146,7 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
     expect(remaining.querySelector('.money')?.textContent).toBe('+150.000 ₫');
     const settledRow = screen.getByText('NV B', { selector: 'td' }).closest('tr')!;
     expect(settledRow.querySelector('td[data-label="Còn phải hoàn ứng"] .money')?.textContent).toBe('0 ₫');
-    expect(screen.getByText('Công ty yêu cầu nhân viên hoàn trả tạm ứng')).toBeTruthy();
+    expect(screen.getByText('Đề nghị thu tiền ứng')).toBeTruthy();
     expect(screen.getByText('Không còn chênh lệch')).toBeTruthy();
     expect(screen.getByText('Tổng còn phải hoàn ứng')).toBeTruthy();
     expect(reportApi.report).toHaveBeenCalledWith(expect.objectContaining({ from: undefined, to: undefined, reconciliationId: undefined, opsUserId: undefined }));
@@ -153,18 +159,19 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
     expect(screen.queryByRole('button', { name: 'Lập phiếu thu' })).not.toBeInTheDocument();
   });
 
-  it('a row with a negative difference shows the signed amount and the collection warning', async () => {
+  it('a row with a negative difference shows the signed amount and the company-pays warning', async () => {
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowCollection],
-      totals: { dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 500000, remainingSigned: -200000 },
+      totals: { dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 0, remainingSigned: -200000 },
     });
     page();
     await screen.findByText('NV C', { selector: 'td' });
     const row = screen.getByText('NV C', { selector: 'td' }).closest('tr')!;
-    // Card 141026230770 — "Còn phải hoàn ứng" CHÍNH LÀ cột có dấu: âm hiện
-    // −200.000 ₫ (không ép về 0 và không cột trùng nào khác).
+    // BỔ SUNG CTO 19/11 — "Còn phải hoàn ứng" CHÍNH LÀ cột có dấu: âm hiện
+    // −200.000 ₫ = CÔNG TY TRẢ THÊM (chi đã duyệt vượt tiền đã ứng), không
+    // ép về 0 và không bao giờ là 'thu tiền ứng'.
     expect(row.querySelector('td[data-label="Còn phải hoàn ứng"] .money')?.textContent).toBe('−200.000 ₫');
-    expect(screen.getByText('ÂM — đề nghị thu lại tiền ứng')).toBeTruthy();
+    expect(screen.getByText('Công ty trả thêm phần chi vượt ứng')).toBeTruthy();
   });
 
   it('a đợt the company owes offers ONLY the phiếu chi action (AC3)', async () => {
@@ -173,7 +180,9 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
     await pickLot();
     // The scope caption proves the report refetched scoped to the lot.
     await screen.findByText(/Đợt HU-QA-169/);
-    await screen.findAllByText('+150.000 ₫');
+    // Scoped: cột = ĐÃ ỨNG phân bổ − ĐNTT đợt = 100.000 − 250.000 =
+    // −150.000 ₫ (âm = công ty trả thêm, luật dấu CTO 19/11).
+    await screen.findAllByText('−150.000 ₫');
     expect(screen.getByRole('button', { name: 'Lập phiếu chi' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Lập phiếu thu' })).not.toBeInTheDocument();
     await waitFor(() => expect(reportApi.report).toHaveBeenCalledWith(expect.objectContaining({ reconciliationId: 7 })));
@@ -239,22 +248,23 @@ describe('card 20260928_169 — báo cáo tổng hợp hoàn ứng', () => {
   });
 });
 
-// ── SIL-728 — "Xác nhận hoàn ứng" staff-level trên dòng ÂM ─────────────────
+// ── SIL-728 — "Xác nhận hoàn ứng" staff-level trên dòng ────────────────────
 // A negative WALLET balance (outstandingSigned < 0) rides the advance-recovery
-// drawer (bút toán Quỹ công ty + Idempotency-Key). A report-âm row whose
-// wallet is settled (outstandingSigned ≥ 0 — QA fail 09/11: Vũ Đình Cường
-// −4.300.000₫ hiển thị nhưng không có nút nào) opens the SAME "Lập phiếu hoàn
-// ứng" dialog the /advances tab uses, prefilled with the row's staff — the
-// legacy settlement phiếu family the advance requests settle through.
+// drawer (bút toán Quỹ công ty + Idempotency-Key). A DƯƠNG row (cá nhân còn
+// nắm tiền đã ứng — luật dấu CTO 19/11; dưới luật cũ đây là row âm) opens the
+// SAME "Lập phiếu hoàn ứng" dialog the /advances tab uses, prefilled with the
+// row's staff — the legacy settlement phiếu family the advance requests settle
+// through. Under the CTO law the column IS the wallet authority, so the old
+// 'report-âm + wallet settled' mismatch cannot fork anymore (khớp 100%).
 // Role law mirrors /advances (SIL-487): ADMIN/ACCOUNTANT create, MANAGER reads.
 const rowDeficit: OpsReconciliationReportRow = {
   staffId: 12, staffName: 'Vũ Đình Cường', dntt: 0, advanced: 4300000, advancedRecorded: 4300000, remaining: 0,
-  remainingSigned: 0, outstandingSigned: -4300000, needsCollection: true,
-  direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
+  remainingSigned: -4300000, outstandingSigned: -4300000, needsCollection: false,
+  direction: 'CTY_THANH_TOAN_HOAN_UNG', note: 'Công ty trả thêm phần chi vượt ứng',
 };
-const rowReportNegativeSettledWallet: OpsReconciliationReportRow = {
-  staffId: 8, staffName: 'Vũ Đình Cường', dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 0,
-  remainingSigned: -4300000, outstandingSigned: 0, needsCollection: false,
+const rowHoldsMoney: OpsReconciliationReportRow = {
+  staffId: 8, staffName: 'Vũ Đình Cường', dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 4300000,
+  remainingSigned: 4300000, outstandingSigned: 4300000, needsCollection: true,
   direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
 };
 
@@ -272,7 +282,7 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
   it('a wallet-deficit row offers the recovery action in ANY filter state and hands the drawer the deficit', async () => {
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowDeficit],
-      totals: { dntt: 0, advanced: 4300000, advancedRecorded: 4300000, remaining: 0, remainingSigned: 0 },
+      totals: { dntt: 0, advanced: 4300000, advancedRecorded: 4300000, remaining: 0, remainingSigned: -4300000 },
     });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
@@ -284,18 +294,18 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     expect(drawerCapture.last?.recovery).toMatchObject({ opsUserId: 12, staffName: 'Vũ Đình Cường', deficit: 4300000 });
   });
 
-  it('a report-âm row with a settled wallet opens the /advances settlement dialog prefilled with the row staff', async () => {
-    // The exact QA repro: −4.300.000₫ hiển thị, wallet đã tất toán qua phiếu
-    // legacy (outstandingSigned = 0) — recovery would 409, the row rides the
-    // settlement phiếu family instead.
+  it('a DƯƠNG row (cá nhân còn nắm tiền) opens the /advances settlement dialog prefilled with the row staff', async () => {
+    // Luật dấu CTO 19/11: cột = số dư ví (outstandingSigned), DƯƠNG = cá
+    // nhân hoàn lại — recovery không hợp (ví không âm), row đi qua settlement
+    // phiếu family: staff trả lại tiền công ty đã ứng.
     reportApi.report.mockResolvedValue({
-      from: TODAY, to: TODAY, rows: [rowReportNegativeSettledWallet],
-      totals: { dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 0, remainingSigned: -4300000 },
+      from: TODAY, to: TODAY, rows: [rowHoldsMoney],
+      totals: { dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 4300000, remainingSigned: 4300000 },
     });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
-    const negativeRow = screen.getByText('Vũ Đình Cường', { selector: 'td' }).closest('tr')!;
-    fireEvent.click(within(negativeRow).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
+    const heldRow = screen.getByText('Vũ Đình Cường', { selector: 'td' }).closest('tr')!;
+    fireEvent.click(within(heldRow).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
     const dialog = await screen.findByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' });
     expect(dialog).toBeTruthy();
     expect(forwarderApi.eligibility).toHaveBeenCalledWith(8);
@@ -305,28 +315,25 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     expect(screen.queryByTestId('recovery-drawer')).not.toBeInTheDocument();
   });
 
-  it('a row holding granted money (outstandingSigned ≥ 0, report dương) offers nothing', async () => {
-    // rowCollection: needsCollection=true through the remainingSigned arm, but
-    // the staff wallet is POSITIVE (+500.000) and the report row is Dương
-    // (+150.000 hiển thị ở bộ other) — neither collection path applies.
+  it('a zero row offers no row action and reads neutral', async () => {
     reportApi.report.mockResolvedValue({
-      from: TODAY, to: TODAY, rows: [{ ...rowCollection, remainingSigned: 150000 }],
-      totals: { dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 500000, remainingSigned: 150000 },
+      from: TODAY, to: TODAY, rows: [rowSettled],
+      totals: { dntt: 120000, advanced: 120000, advancedRecorded: 120000, remaining: 0, remainingSigned: 0 },
     });
     page();
-    await screen.findByText('NV C', { selector: 'td' });
-    const heldRow = screen.getByText('NV C', { selector: 'td' }).closest('tr')!;
+    await screen.findByText('NV B', { selector: 'td' });
+    const settledRow = screen.getByText('NV B', { selector: 'td' }).closest('tr')!;
     // Row-scoped (SIL-827): the header button legitimately exists for
-    // ACCOUNTANT — the row itself must still offer nothing.
-    expect(within(heldRow).queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
-    expect(screen.getByText('ÂM — đề nghị thu lại tiền ứng')).toBeTruthy();
+    // ACCOUNTANT — the zero row itself offers nothing.
+    expect(within(settledRow).queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
+    expect(screen.getByText('Không còn chênh lệch')).toBeTruthy();
   });
 
   it('MANAGER reads the report but never sees the settlement affordance', async () => {
     authState.role = 'MANAGER';
     reportApi.report.mockResolvedValue({
-      from: TODAY, to: TODAY, rows: [rowReportNegativeSettledWallet],
-      totals: { dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 0, remainingSigned: -4300000 },
+      from: TODAY, to: TODAY, rows: [rowHoldsMoney],
+      totals: { dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 4300000, remainingSigned: 4300000 },
     });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
@@ -351,9 +358,12 @@ describe('OpsReconciliationReportPage — nút Lập phiếu hoàn ứng trên t
   });
 
   it('ACCOUNTANT sees the header button beside the filters and it opens the settlement dialog with no staff preselected', async () => {
-    page();
+    const { container } = page();
     await screen.findByText('NV A', { selector: 'td' });
-    const headerButton = screen.getByRole('button', { name: 'Lập phiếu hoàn ứng' });
+    // Luật dấu CTO 19/11: row DƯƠNG giờ cũng có nút row-level cùng tên —
+    // bấm nút HEADER phải scope vào filter bar, không getByRole toàn trang.
+    const bar = container.querySelector('.list-filter-bar') as HTMLElement;
+    const headerButton = within(bar).getByRole('button', { name: 'Lập phiếu hoàn ứng' });
     expect(headerButton.className).toContain('btn--primary');
     fireEvent.click(headerButton);
     const dialog = await screen.findByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' });
@@ -384,7 +394,7 @@ describe('OpsReconciliationReportPage — ĐÃ ỨNG đọc số GỐC đã ghi 
     // read this field and rendered 0₫ everywhere.
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY,
-      rows: [{ ...rowPositive, advanced: 0, advancedRecorded: 320000, dntt: 250000, remainingSigned: 250000 }],
+      rows: [{ ...rowPositive, advanced: 0, advancedRecorded: 320000, dntt: 250000, remainingSigned: 250000, outstandingSigned: 250000 }],
       totals: { dntt: 250000, advanced: 0, advancedRecorded: 320000, remaining: 0, remainingSigned: 250000 },
     });
     page();

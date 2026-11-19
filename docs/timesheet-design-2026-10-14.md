@@ -124,6 +124,25 @@ Chi tiết chế độ PER_TRIP (**cũ — trước 15/11, SIL-841 thay**):
 
 Hằng số (15/11): `PER_TRIP_RATE = 100_000`, `EXTRA_TRIP_THRESHOLD = 21`, `EXTRA_TRIP_RATE = 100_000`.
 
+#### BỔ SUNG CTO 19/11 — đồng bộ 3 quy tắc lương lái xe vào master Spec (§2.2.5 & §6.4)
+
+Ticket 18/11 (id 994/996, comment "BỔ SUNG THEO CTO 19/11"): khi release bản
+mới, master Spec của CTO (nguồn `2026.11.18.Ticket.docx`) cần đồng bộ đủ 3 quy
+tắc sau vào **§2.2.5** và **§6.4**. Ba quy tắc NÀY đã sống trong repo — nguồn
+chỉnh duy nhất để copy sang Spec là `shared/src/calculations/timesheetSalary.ts`
+(+ `timesheetSalary.test.ts`) và các mục §2.2 / §2.3 / §4 của tài liệu này:
+
+1. **Đi làm Chủ Nhật chỉ tính vào Tổng số chuyến, không cộng vào Ngày công** —
+   §2.2 (Quy tắc Chủ nhật): ô CN vẫn ghi ký hiệu/trips, không cộng workdays.
+2. **Miễn trừ 1 ngày nghỉ phép có lương/tháng**: `N > 0` → số ngày trừ công =
+   `N − 1`; `Ngày công lương = Công chuẩn T2–T7 − max(0, N − 1)` — §2.3
+   (`paidSalaryDays`), triển khai `timesheetSalary.ts:28,55`.
+3. **2 chế độ lương sau chấm công** — §2.3 (bảng 15/11): 'Trốn vé' =
+   `FLAT_MONTHLY` (lương cứng theo ngày công);
+   'Không trốn vé' = `PER_TRIP` = `Lương cứng (dailyBase × paidSalaryDays) +
+   Số chuyến × 100.000đ + KPI vượt chuyến (mỗi chuyến từ thứ 21 trở đi +
+   100.000đ, tức chạy > 20 chuyến/tháng)`.
+
 ### 2.4 Người nhập / người đối chiếu (audit trail)
 - **Điều vận (`DISPATCHER`)** điền lưới.
 - **Kế toán (`ACCOUNTANT`)** đối chiếu lần cuối, được **sửa số âm** ở ô chỉnh lệch

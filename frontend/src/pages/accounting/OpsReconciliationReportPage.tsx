@@ -1,13 +1,12 @@
 // Card 20260928_169 — BÁO CÁO TỔNG HỢP HOÀN ỨNG. Per staff (monthly view) and
 // per đợt (an expense_reconciliations lot, which owns its costs and allocates
 // the received advances — PRD OpsVanHanh §9.2). Columns: ĐNTT (confirmed costs
-// of the period/đợt), ĐÃ ỨNG (held advances; scoped to a đợt, what the lot
-// allocated) and "Còn phải hoàn ứng" = ĐNTT − ĐÃ ỨNG SIGNED (card
-// 141026230770: it CAN be negative when Ops over-advanced → warning 'ÂM — đề
-// nghị thu lại tiền ứng'). The backend additionally carries `remaining`, the
-// SỔ QUỸ closing number — min(đã ứng, đã cấp) − đã tiêu per the 2026-09-29 PM
-// ruling (card 168 board "RULING PM" câu 1) — kept in parity with the fund
-// book by construction (card 377) and surfaced through Sổ quỹ.
+// of the period/đợt), ĐÃ ỨNG (recorded gross advances — SIL-839) and
+// "Còn phải hoàn ứng" CÓ DẤU theo BỔ SUNG CTO 19/11: (+) cá nhân hoàn lại,
+// (−) công ty trả thêm — unscoped đọc đúng số dư ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT
+// TOÁN (outstandingSigned), scoped đợt đọc ĐÃ ỨNG phân bổ − ĐNTT đợt.
+// `remaining` vẫn là số SỔ QUỸ (min(đã ứng, đã cấp) − đã tiêu, ≥ 0 — lệnh PM
+// 2026-09-29, card 168 "RULING PM" câu 1) giữ parity với sổ quỹ (card 377).
 // The row action "Lập phiếu" follows the ĐỢT's own difference (the
 // reconciliation engine's number): > 0 the company pays (phiếu CHI through the
 // existing voucher engine), < 0 the staff pays back (phiếu THU through the
@@ -42,14 +41,6 @@ import AdminAdvanceSettlementCreateDialog from '../AdminAdvanceSettlementCreateD
 // (recipe at styles/record-table.css). Page CSS declares no table skin.
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
-
-/** The sign is always visible and always labeled beside the amount — never a
- *  bare number (PRD §9.2). '+' the staff still holds granted, unconsumed
- *  advance money; 0 nothing is left to settle. */
-function remainingText(remaining: number): string {
-  const sign = remaining > 0 ? '+' : remaining < 0 ? '−' : '';
-  return `${sign}${formatMoney(Math.abs(remaining))} ₫`;
-}
 
 function directionVariant(remaining: number): 'warning' | 'info' | 'neutral' {
   // Color law §2: green is money actually received — a pending obligation is
@@ -209,9 +200,11 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
           // netted `advanced` read 0₫ for fully-settled staff while Quỹ cá nhân
           // showed the disbursements (Hoàng 320.000₫, Cường 25.000.000₫).
           { label: 'Tổng số tiền đã ứng', value: `${formatMoney(totals.advancedRecorded)} ₫` },
-          // Card 141026230770 — the rail total is the SIGNED spec formula
-          // (ĐNTT − ĐÃ ỨNG): âm hiện rõ dấu thay vì ép về 0.
-          { label: 'Tổng còn phải hoàn ứng', value: remainingText(totals.remainingSigned) },
+          // BỔ SUNG CTO 19/11 — tổng cột CÓ DẤU theo luật dấu mới: (+) cá
+          // nhân hoàn lại, (−) công ty trả thêm; unscoped khớp 100% số dư ví
+          // (outstandingSigned). Âm hiện rõ dấu thay vì ép về 0. The sign is
+          // always visible beside the amount — never a bare number (PRD §9.2).
+          { label: 'Tổng còn phải hoàn ứng', value: `${totals.remainingSigned > 0 ? '+' : totals.remainingSigned < 0 ? '−' : ''}${formatMoney(Math.abs(totals.remainingSigned))} ₫` },
         ]}
       />
 
@@ -316,27 +309,33 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettle
           (Đã ghi nhận) disbursement number the Quỹ cá nhân's Đã ứng column
           reads, so the two surfaces khớp 100% by construction. */}
       <td data-label="Số tiền đã ứng" className="num"><Money value={row.advancedRecorded} /></td>
-      {/* Card 141026230770 — "Còn phải hoàn ứng" shows the SIGNED difference
-          (ĐNTT − ĐÃ ỨNG, spec verbatim): it CAN be negative when Ops
-          over-advanced, and the sign is always labeled beside the amount. */}
+      {/* BỔ SUNG CTO 19/11 — "Còn phải hoàn ứng" CÓ DẤU: (+) cá nhân hoàn
+          lại, (−) công ty trả thêm (âm vẫn tô đỏ — nghĩa vụ chưa tất toán);
+          số dư khớp 100% ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT TOÁN (unscoped =
+          outstandingSigned; scoped = phân bổ − ĐNTT đợt). */}
       <td data-label="Còn phải hoàn ứng" className="num" style={row.remainingSigned < 0 ? { color: 'var(--danger)' } : undefined}>
         <Money value={Math.abs(row.remainingSigned)} sign={row.remainingSigned > 0 ? '+' : row.remainingSigned < 0 ? '−' : undefined} />
       </td>
       <td data-label="Ghi chú">
+        {/* BỔ SUNG CTO 19/11 — luật dấu: DƯƠNG cần thu = 'Đề nghị thu tiền
+            ứng' (danger — tiền phải thu về); ÂM = công ty trả thêm (warning,
+            nghĩa vụ chưa tất toán — color law §2 không bao giờ success-toned);
+            0 → neutral theo số sổ quỹ. */}
         {row.needsCollection
-          ? <StatusText variant="danger">ÂM — đề nghị thu lại tiền ứng</StatusText>
+          ? <StatusText variant="danger">{row.note}</StatusText>
           : (row.remainingSigned < 0 || row.outstandingSigned < 0)
             ? <StatusText variant="warning">{row.note}</StatusText>
             : <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>}
       </td>
       <td data-label="" className="record-table__action">
-        {/* SIL-728 — the staff-level "Lập phiếu hoàn ứng": every âm row, in
-            every filter state, no đợt needed. Nút tất toán số dư âm cho Kế toán.
-            Priority: a true wallet deficit rides the advance-recovery drawer
-            (bút toán Quỹ công ty + Idempotency-Key); otherwise a report-âm row
-            opens the SAME settlement dialog the /advances tab uses — the
-            legacy phiếu family the advance requests settle through. */}
-        {row.needsCollection && row.outstandingSigned < 0 && (
+        {/* SIL-728 — the staff-level "Lập phiếu hoàn ứng" cho Kế toán.
+            Priority: a true wallet deficit (outstandingSigned < 0) rides the
+            advance-recovery drawer (bút toán Quỹ công ty + Idempotency-Key);
+            otherwise a DƯƠNG row (cá nhân còn nắm tiền đã ứng — luật dấu CTO
+            19/11; dưới luật cũ đây là row âm) opens the SAME settlement
+            dialog the /advances tab uses — the legacy phiếu family the
+            advance requests settle through. */}
+        {row.outstandingSigned < 0 && (
           <Btn
             variant="primary"
             size="sm"
@@ -349,7 +348,7 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettle
             Lập phiếu hoàn ứng
           </Btn>
         )}
-        {row.outstandingSigned >= 0 && row.remainingSigned < 0 && onCreateSettlement && (
+        {row.outstandingSigned >= 0 && row.remainingSigned > 0 && onCreateSettlement && (
           <Btn
             variant="primary"
             size="sm"

@@ -21,14 +21,17 @@ export interface OpsReconciliationReportRow {
    *  bảng đối soát chi phí đọc số GỘC theo UAT 12/11. */
   advancedRecorded: number;
   remaining: number;
-  /** Chênh lệch CÓ DẤU theo đúng chữ của spec — "ĐNTT − ĐÃ ỨNG" (card 377:
-   *  800.000 − 200.000 = 600.000). Số âm = tiền ứng vượt chi phí thực tế. */
+  /** BỔ SUNG CTO 19/11 — Còn phải hoàn ứng CÓ DẤU: (+) cá nhân hoàn lại,
+   *  (−) công ty trả thêm. Unscoped = số dư ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT TOÁN
+   *  (đúng authority `outstandingSigned` — khớp 100% ví/sổ quỹ); scoped đợt =
+   *  ĐÃ ỨNG phân bổ − ĐNTT đợt. Supersedes spec chữ cũ "ĐNTT − ĐÃ ỨNG". */
   remainingSigned: number;
   /** Số dư tạm ứng CÓ DẤU (card 141026230770): min(đã cấp, đã giải ngân) − đã
    *  tiêu − đã trả, không kẹp về 0. Âm = nhân viên nắm/đã tiêu vượt số được
    *  cấp; số dư sổ quỹ (`remaining`) vẫn giữ nguyên ≥ 0 cho số khớp card 377. */
   outstandingSigned: number;
-  /** Âm và nhân viên còn nắm tiền ĐÃ CẤP để thu về. */
+  /** Báo cáo DƯƠNG và sổ quỹ còn số cần thu — đề nghị nhân viên hoàn lại
+   *  tiền ứng. Âm (công ty trả thêm) không bao giờ bật cờ này. */
   needsCollection: boolean;
   direction: OpsReconciliationDirection;
   note: string;
@@ -258,19 +261,23 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     const outstandingSigned = outstandingSignedMap.get(key) ?? 0;
     const advancedRecorded = recordedByStaff[String(staffId)] ?? 0;
     if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0 && advancedRecorded === 0) continue;
-    // Số âm: chênh lệch có dấu theo đúng chữ spec "ĐNTT − ĐÃ ỨNG", giữ nguyên
-    // `remaining` là số sổ quỹ (lệnh PM 2026-09-29) nên tổng và ví không đổi.
-    const remainingSigned = dntt - advanced;
-    // "Đề nghị thu tiền ứng" chỉ dựng khi nhân viên thật sự còn tiền ĐÃ CẤP để
-    // thu (remaining > 0): một yêu cầu chưa giải ngân không phải tiền — đúng
-    // luật "request without money is not an advance" mà card11 đã chốt. Âm do
-    // tiêu/trả VƯỢT số được cấp (outstandingSigned < 0) cũng là tiền phải thu
-    // — company thu lại phần vượt dù sổ quỹ đã về 0.
-    const needsCollection = outstandingSigned < 0
-      || (remainingSigned < 0 && remaining > 0);
-    const direction: OpsReconciliationDirection = needsCollection ? 'CTY_YEU_CAU_THU_TIEN_UNG' : remaining > 0 ? 'CTY_YEU_CAU_HOAN_TRA' : 'KHONG_CON_GI';
+    // BỔ SUNG CTO 19/11 (ticket id 994/996) — luật dấu 'Còn phải hoàn ứng':
+    // (+) cá nhân hoàn lại, (−) công ty trả thêm. Unscoped: ĐÃ ỨNG − ĐÃ
+    // DUYỆT (chi đã xác nhận, trừ vào ứng qua auto-offset) − ĐÃ TẤT TOÁN
+    // (phiếu hoàn ứng/đợt đã phân bổ + tiền đã nộp lại) = số dư ví CÓ DẤU —
+    // đúng authority `outstandingSigned`, nên khớp 100% với ví và sổ quỹ.
+    // Scoped đợt: ĐÃ ỨNG phân bổ − ĐNTT đợt (chênh lệch ban đầu của đợt,
+    // đúng dấu CTO); phần ĐÃ TẤT TOÁN của đợt hiện qua live
+    // remainingDifference mà nút phiếu thu/chi đọc. (Supersedes spec chữ
+    // cũ 'ĐNTT − ĐÃ ỨNG' — dấu ngược luật CTO.)
+    const remainingSigned = batchInfo ? advanced - dntt : outstandingSigned;
+    // 'Đề nghị thu tiền ứng' chỉ khi báo cáo DƯƠNG (cá nhân còn nắm tiền đã
+    // ứng) và sổ quỹ còn số cần thu. Âm (công ty trả thêm) không bao giờ là
+    // 'thu tiền ứng'.
+    const needsCollection = remainingSigned > 0 && remaining > 0;
+    const direction: OpsReconciliationDirection = needsCollection ? 'CTY_YEU_CAU_THU_TIEN_UNG' : remainingSigned < 0 ? 'CTY_THANH_TOAN_HOAN_UNG' : 'KHONG_CON_GI';
     const note = direction === 'CTY_YEU_CAU_THU_TIEN_UNG' ? 'Đề nghị thu tiền ứng'
-      : direction === 'CTY_YEU_CAU_HOAN_TRA' ? 'Công ty yêu cầu nhân viên hoàn trả tạm ứng' : 'Không còn chênh lệch';
+      : direction === 'CTY_THANH_TOAN_HOAN_UNG' ? 'Công ty trả thêm phần chi vượt ứng' : 'Không còn chênh lệch';
     rows.push({
       staffId,
       staffName: nameByStaff.get(staffId) ?? `NV #${staffId}`,

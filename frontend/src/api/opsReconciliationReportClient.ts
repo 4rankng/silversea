@@ -21,7 +21,10 @@ export interface OpsReconciliationReportRow {
   advancedRecorded: number;
   /** Còn phải hoàn ứng = sổ quỹ closing number (lệnh PM 2026-09-29), ≥ 0. */
   remaining: number;
-  /** Chênh lệch CÓ DẤU theo chữ spec "ĐNTT − ĐÃ ỨNG": âm = tiền ứng vượt chi phí. */
+  /** BỔ SUNG CTO 19/11 — Còn phải hoàn ứng CÓ DẤU: (+) cá nhân hoàn lại,
+   *  (−) công ty trả thêm. Unscoped = số dư ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT TOÁN
+   *  (đúng `outstandingSigned` — khớp 100% ví/sổ quỹ); scoped đợt = ĐÃ ỨNG
+   *  phân bổ − ĐNTT đợt. Supersedes spec chữ cũ "ĐNTT − ĐÃ ỨNG". */
   remainingSigned: number;
   /** Số dư tạm ứng CÓ DẤU (card 141026230770): min(đã cấp, đã giải ngân) − đã
    *  tiêu − đã trả, không kẹp về 0. Âm = nhân viên đã tiêu/trả vượt số được cấp. */
