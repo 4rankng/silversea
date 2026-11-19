@@ -20,12 +20,18 @@ import type { AccountingDebitBoardRow, DebitRateField } from '../../api/accounti
  * chưa có affordance XOÁ override (quay về kênh tự động) — wire/server
  * hỗ trợ sẵn (`rates.<field>: null` trên POST /api/accounting/debit-board/
  * rates), bypass UI là đường duy nhất cho tới khi khách cần (follow-up).
+ *
+ * SIL-814 (luật 24/10, Spec v4 §8.1.3): ô CHƯA XÁC ĐỊNH (`value == null`)
+ * phải là Ô TRỐNG toàn phần — SIL-838 §3 already renders the locked face
+ * empty, so the editable face may not park a '0' placeholder there either:
+ * an unpriced lot (R3K-J1) must never look zero-filled. Only a cell with a
+ * real effective value (auto hoặc override) keeps the formatted placeholder.
  */
 export function RateCell({ row, field, label, value, onCommit, saving }: {
   row: AccountingDebitBoardRow;
   field: DebitRateField;
   label: string;
-  /** Effective cell value (string money) — null = Chưa xác định (placeholder 0). */
+  /** Effective cell value (string money) — null = Chưa xác định (ô TRỐNG, placeholder rỗng — SIL-814). */
   value: string | null;
   onCommit: (shipmentId: number, field: DebitRateField, value: number) => void;
   saving: boolean;
@@ -50,7 +56,7 @@ export function RateCell({ row, field, label, value, onCommit, saving }: {
       type="text"
       inputMode="numeric"
       aria-label={`${label} lô ${billBookingReference(row.billOrBooking) || row.code}`}
-      placeholder={value == null ? '0' : formatCurrency(Number(value))}
+      placeholder={value == null ? '' : formatCurrency(Number(value))}
       title={`${label} — sửa trực tiếp trên dòng (ghi đè giá trị tự động)`}
       value={draft}
       disabled={saving}
