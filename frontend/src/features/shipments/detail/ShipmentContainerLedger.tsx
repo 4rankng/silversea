@@ -927,7 +927,7 @@ const LEDGER_COL_WIDTHS: Readonly<Record<string, number>> = {
   customer: 185,
   billbook: 115,
   declaration: 124,
-  direction: 76,
+  direction: 72,
   shippingline: 96,
   container: 116,
   route: 155,
@@ -1073,7 +1073,7 @@ export function ShipmentContainerLedger({
   // Trạng thái cell on the rows that can source a copy, so the default table
   // is exactly the spec's ten columns and never overflows the 1344px canvas.
   // The table's min-width tracks the RENDERED colgroup (LEDGER_COL_WIDTHS):
-  // the default spec ten sum to 1300px; Gộp hàng adds CHỌN 44, an unhidden
+  // the default spec ten sum to 1296px; Gộp hàng adds CHỌN 44, an unhidden
   // GHI CHÚ adds 120.
   const renderedColKeys = [
     mergeMode ? 'select' : '',
@@ -1445,9 +1445,11 @@ export function ShipmentContainerLedger({
                 it — the th renders its own class). */}
             <SortHeader label="Bill/Booking" sortKey="billOrBookNumber" sort={sort} onSortChange={onSortChange} className="shipment-container-ledger__col--billbook" />
             <th scope="col">Số tờ khai</th>
-            {/* SIL-824: the 76px direction floor can't hold "Nhập/Xuất" as one
-                93px header token — the slash break wraps it to an even 2-line
-                header (card 20260925_47) without changing the accessible name. */}
+            {/* SIL-824 + SIL-863: the spec's 72px direction floor (QA FAIL
+                01:51 UTC 20/11, build 25c9ffb8 — widest pill 'Nhập lẻ' = 55px)
+                can't hold "Nhập/Xuất" as one 93px header token — the slash
+                break wraps it to an even 2-line header (card 20260925_47)
+                without changing the accessible name. */}
             <th scope="col">Nhập/<wbr />Xuất</th>
             <th scope="col">Hãng tàu</th>
             <SortHeader label="Thông số container" sortKey="containerNumber" sort={sort} onSortChange={onSortChange} />

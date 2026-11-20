@@ -116,7 +116,9 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     // chrome (cell-trigger 10px × 2 + 1px border = 21px) fits with margin at
     // the SIL-863 Bảng 2 115px floor.
     expect(floor('billbook')).toBe(115);
-    expect(floor('direction')).toBe(76);
+    // SIL-863 Bảng 2 cột 4 (QA FAIL 2026-11-20, build 25c9ffb8): the spec
+    // 72px — the widest pill ('Nhập lẻ') measures 55px, so it never truncates.
+    expect(floor('direction')).toBe(72);
     // SIL-848 (QA 15/11 "cắt dưới 12 chữ số"): 116px was the exact 12-digit
     // floor with zero metric margin; the 124px floor pays the run at wide
     // font metrics (+8px rides the ladder's slack budget, --led-fixed-sum

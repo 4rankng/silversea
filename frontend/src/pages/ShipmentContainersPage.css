@@ -86,22 +86,24 @@
 /* SIL-824 (id 953) + SIL-863 Bảng 2 (ticket 18/11, Web PC 1440px) — the
    ledger's FIXED px column model, reconciled to the spec's ten-column table:
 
-   KHÁCH HÀNG & LỘ TRÌNH 185 · BILL/BOOKING 115 (nowrap header) · SỐ TỜ KHAI
-   124 · NHẬP/XUẤT 76 · HÃNG TÀU 96 · THÔNG SỐ CONTAINER 116 · NÂNG/HẠ 155 ·
-   LỊCH TRÌNH 160 · PHÂN XE 128 · TRẠNG THÁI 145 = --led-fixed-sum 1300px.
+   KHÁCH HÀNG & LỘ TRÌNH 185 (max 200) · BILL/BOOKING 115 (nowrap header) ·
+   SỐ TỜ KHAI 124 · NHẬP/XUẤT 72 · HÃNG TÀU 96 · THÔNG SỐ CONTAINER 116 ·
+   NÂNG/HẠ 155 · LỊCH TRÌNH 160 · PHÂN XE 128 · TRẠNG THÁI 145 =
+   --led-fixed-sum 1296px.
 
    Spec deltas and why they hold:
-   - NHẬP/XUẤT keeps 76, not the ticket's 72: 72px was the ticket's minimum
-     wording and 76px is the measured no-truncation floor for the 4-char pill
-     (SIL-824 ladder) — going lower re-wraps the pill the tickets forbid.
+   - NHẬP/XUẤT is the spec's 72px (Bảng 2 cột 4): the QA FAIL 2026-11-20
+     01:51 UTC (build 25c9ffb8) retired the earlier 76px no-truncation
+     reading — the widest pill ('Nhập lẻ') measures 55px and the 93px header
+     token takes its even 2-line form, so 72px holds both.
    - SỐ TỜ KHAI keeps 124 (SIL-848's 13-digit margin) over the 12-digit
      116px Cam Truncate floor: the QA-verified live datum '3232423432432'
      needs the +8px.
    - The THAO TÁC column is retired (its only affordance, Copy giờ hẹn,
      moved into the Lịch trình cell), so the default table is exactly the
-     spec's ten columns — 1300px, inside the 1344px sidebar-closed canvas at
-     1440px with 44px of slack. The slack distributes across the fixed
-     columns proportionally, so KHÁCH HÀNG grows ≤ ~191px, inside its spec
+     spec's ten columns — 1296px, inside the 1344px sidebar-closed canvas at
+     1440px with 48px of slack. The slack distributes across the fixed
+     columns proportionally, so KHÁCH HÀNG grows ≤ ~192px, inside its spec
      185/200px band.
    - GHI CHÚ (120px) is a Cột-picker opt-in now (defaultHidden): the spec's
      ten-column table excludes it. Turning it on adds its own 120px to the
@@ -119,6 +121,7 @@
 .shipment-container-ledger {
   --led-w-select: 44px;
   --led-w-customer: 185px;
+  --led-w-customer-max: 200px;
   /* SIL-824 QA FAIL 16/11 (build 4db1a331) ladder, re-measured at the TRUE
      21px cell chrome (editable cells route content through the
      .shipment-container-ledger__cell-trigger: 10px × 2 padding + 1px border;
@@ -132,7 +135,7 @@
      12-digit floor with zero metric margin — 124px pays the 12-digit run at
      wide font metrics too (the QA-passed live datum '3232423432432'). */
   --led-w-declaration: 124px;
-  --led-w-direction: 76px;
+  --led-w-direction: 72px;
   --led-w-shippingline: 96px;
   --led-w-container: 116px;
   --led-w-route: 155px;
@@ -140,7 +143,7 @@
   --led-w-vehicle: 128px;
   --led-w-notes: 120px;
   --led-w-status: 145px;
-  --led-fixed-sum: 1300px; /* the spec's ten columns, excl. CHỌN/GHI CHÚ */
+  --led-fixed-sum: 1296px; /* the spec's ten columns, excl. CHỌN/GHI CHÚ */
 }
 .shipment-container-ledger table { width: 100%; max-width: 1344px; min-width: var(--led-min, var(--led-fixed-sum)); border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
@@ -150,12 +153,12 @@
    SIL-863 Bảng 2 ten-column table (Copy giờ hẹn lives in the Lịch trình
    cell). Headers that cannot fit one line wrap at spaces to an even second
    line (card 20260925_47 + SIL-515 wrap-full doctrine), never mid-token. */
-/* KHÁCH HÀNG & LỘ TRÌNH pins the spec's 185px (SIL-863 Bảng 2 cột 1); the
-   spec's 200px cap holds through the table's own 1344px cap — at 1440px
-   sidebar-closed the 44px slack spreads across all ten columns, growing this
-   one to ≈191px and never past 200. Its 6px padding floor + word-boundary
-   wrap levers stay (SIL-822). */
-.shipment-container-ledger__col--customer { width: var(--led-w-customer); }
+/* KHÁCH HÀNG & LỘ TRÌNH pins the spec's 185px (SIL-863 Bảng 2 cột 1) with
+   the spec's explicit 200px cap (QA FAIL 01:51 UTC 20/11: the computed CSS
+   lacked max-width:200px); the table's own 1344px cap keeps the column at
+   ≈192px (48px slack spread proportionally), so the cap never binds at
+   1440px. Its 6px padding floor + word-boundary wrap levers stay (SIL-822). */
+.shipment-container-ledger__col--customer { width: var(--led-w-customer); max-width: var(--led-w-customer-max); }
 /* SIL-863 Bảng 2 cột 2: the BILL/BOOKING header never drops a lone second
    line ('BILL/' + 'BOOKING') — one nowrap line inside the 115px floor. The
    th carries the col class itself (SortHeader className), the col element
@@ -679,7 +682,7 @@
 .shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }
 
 /* SIL-824 + SIL-863: band map for the fixed-px table. The spec ten columns
-   need 1300px (--led-fixed-sum), so below 1301px the fixed layout would
+   need 1296px (--led-fixed-sum), so below 1297px the fixed layout would
    over-constrain and shatter tokens (the SIL-822 defect class). Bands:
    ≤1118px = card grid (phones/tablets; a 1280 laptop's ~992px container
    stays here); 1119–1300px = the fixed TABLE with an in-container
@@ -759,7 +762,7 @@
   .shipment-container-ledger__edit-action { min-width: 40px; height: 40px; }
 }
 
-/* SIL-863 — the table band whose canvas cannot hold the 1300px spec ladder:
+/* SIL-863 — the table band whose canvas cannot hold the 1296px spec ladder:
    the ledger region becomes the horizontal scroller (the house
    .record-table-wrap--scroll law — genuine desktop width excess scrolls
    in-container, never the page). The region is a keyboard-focusable

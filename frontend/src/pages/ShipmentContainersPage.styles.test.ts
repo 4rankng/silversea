@@ -98,7 +98,7 @@ describe('shipment detail workboard styling', () => {
 
   it('fits desktop columns to the workspace and lets headings wrap instead of forcing horizontal scroll', () => {
     // SIL-824 + SIL-863: the table pins min-width at the TSX-fed --led-min
-    // (default --led-fixed-sum, the spec ten columns = 1300px) so
+    // (default --led-fixed-sum, the spec ten columns = 1296px) so
     // table-layout: fixed is never over-constrained, and caps at 1344px —
     // the 1440px sidebar-collapsed canvas — so the model neither overflows
     // 1440px nor balloons KHÁCH HÀNG past its spec 200px cap on wider screens.
@@ -151,13 +151,15 @@ describe('shipment detail workboard styling', () => {
   });
 
   it('SIL-863: KHÁCH HÀNG & LỘ TRÌNH pins the spec 185px inside the capped table with the SIL-822 wrap levers', () => {
-    // SIL-863 Bảng 2 cột 1: width 185px (spec cap 200px holds through the
-    // table's own 1344px cap — at 1440px sidebar-closed the 44px slack
-    // spreads proportionally, growing the column to ≈191px, never past 200).
-    // SIL-822's levers stay: the 6px inline padding floor on the row-header
-    // cell and word-boundary wrap on the NameCell runs.
-    expect(css).toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:\s*var\(--led-w-customer\);/);
+    // SIL-863 Bảng 2 cột 1: width 185px with the spec's explicit max-width
+    // 200px (QA FAIL 01:51 UTC 20/11 caught the cap missing from computed
+    // CSS). The table's own 1344px cap holds the column at ≈192px — the 48px
+    // slack spreads proportionally, never past 200. SIL-822's levers stay:
+    // the 6px inline padding floor on the row-header cell and word-boundary
+    // wrap on the NameCell runs.
+    expect(css).toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:\s*var\(--led-w-customer\);\s*max-width:\s*var\(--led-w-customer-max\);/);
     expect(css).toMatch(/--led-w-customer:\s*185px;/);
+    expect(css).toMatch(/--led-w-customer-max:\s*200px;/);
     expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\]\s*\{[^}]*padding-inline:\s*6px;/);
     expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\] \.name-cell\s*\{[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
   });
@@ -346,7 +348,7 @@ describe('shipment detail workboard styling', () => {
   it('SIL-863: the spec ten columns pin the fixed px ladder and the sums close exactly (Bảng 2 + SIL-824 lineage)', () => {
     // SIL-863 Bảng 2 (ticket 18/11) + SIL-824 ("khong de browser tu phan
     // phoi chieu rong"): every column reads its floor from a --led-w-* var,
-    // --led-fixed-sum equals the spec ten exactly (1300px <= the 1344px
+    // --led-fixed-sum equals the spec ten exactly (1296px <= the 1344px
     // canvas at 1440x900), CHỌN/GHI CHÚ ride the TSX --led-min only while
     // rendered, and the retired FB-086 actions column leaves no floor.
     const floor = (name: string) => {
@@ -359,12 +361,12 @@ describe('shipment detail workboard styling', () => {
     const declared = Number(css.match(/--led-fixed-sum:\s*(\d+)px;/)?.[1] ?? NaN);
     // --led-fixed-sum counts the SPEC TEN (KHÁCH HÀNG included, CHỌN/GHI CHÚ
     // excluded — they ride the TSX --led-min while rendered).
-    expect(declared).toBe(1300);
+    expect(declared).toBe(1296);
     expect(sum - floor('select') - floor('notes')).toBe(declared);
     expect(declared).toBeLessThanOrEqual(1344);
-    expect(floor('customer')).toBe(185); // Bảng 2 cột 1 (spec cap 200 via the table cap)
+    expect(floor('customer')).toBe(185); // Bảng 2 cột 1 (spec cap 200 pinned as --led-w-customer-max)
     expect(floor('billbook')).toBe(115); // Bảng 2 cột 2
-    expect(floor('direction')).toBe(76); // >= the ticket's 72px minimum: the measured pill floor
+    expect(floor('direction')).toBe(72); // Bảng 2 cột 4: QA FAIL 2026-11-20 (build 25c9ffb8) set the spec 72px — widest pill 'Nhập lẻ' measures 55px
     expect(floor('route')).toBe(155); // Bảng 2 cột 7
     expect(floor('schedule')).toBe(160); // Bảng 2 cột 8
     expect(floor('status')).toBe(145); // Bảng 2 cột 10

@@ -254,7 +254,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
 
   // SIL-863 Bảng 2 (ticket 18/11): the table opens on the spec's TEN columns
   // — Ghi chú is a Cột-picker opt-in (defaultHidden) and the FB-086 Thao tác
-  // column is retired — so the 1300px ladder fits the 1344px canvas at
+  // column is retired — so the 1296px ladder fits the 1344px canvas at
   // 1440px with no horizontal scroll and TRẠNG THÁI stays on-screen.
   it('opens the ledger on the spec ten columns (Ghi chú rides the Cột picker)', async () => {
     apiGet.mockResolvedValueOnce(response);
