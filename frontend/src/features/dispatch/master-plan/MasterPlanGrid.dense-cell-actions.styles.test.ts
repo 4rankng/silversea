@@ -25,13 +25,6 @@ describe('master-plan grid dense cell actions (card 20261004_321)', () => {
     expect(summary).not.toMatch(/flex-grow:\s*1|flex:\s*1\b|flex-basis:\s*\d|min-height/);
   });
 
-  it('keeps the note line content-height — no stale grow can drift the note action', () => {
-    const first = css.match(/\.master-plan-grid__line--notes:has\(> \.master-plan-grid__note-detail-trigger\) > :first-child \{([\s\S]*?)\n\}/)?.[1] ?? '';
-    expect(first, 'note-line first-child rule must exist').toBeTruthy();
-    expect(first).toMatch(/flex:\s*0 0 auto/);
-    expect(first).not.toMatch(/flex-grow:\s*1|flex:\s*1\b/);
-  });
-
   it('pins nothing to the cell floor', () => {
     // The reported defect: the action glued to the cell bottom with dead space
     // above it. No auto-margin or height-stretch may reintroduce that.

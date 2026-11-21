@@ -602,22 +602,12 @@
   min-width: 0;
 }
 
-.master-plan-grid__line--notes:has(> .master-plan-grid__note-detail-trigger) {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
-}
-
-.master-plan-grid__line--notes:has(> .master-plan-grid__note-detail-trigger) > :first-child {
-  flex: 0 0 auto;
-  min-width: 0;
-}
-
 /* Secondary details use the kit's link appearance. Their touch target stays
-   large without adding a separate framed action row under every value. */
-.master-plan-grid__container-detail-trigger,
-.master-plan-grid__note-detail-trigger {
+   large without adding a separate framed action row under every value.
+   SIL-877 — the GHI CHÚ "Xem thêm" reveal is gone from the board (the note
+   wraps whole and its own button opens the full dialog), so only the
+   container "Chi tiết" trigger remains. */
+.master-plan-grid__container-detail-trigger {
   flex: 0 0 auto;
   min-width: 44px;
   /* SIL-583 (29/10): these link-color triggers carry NO data-uui-control, so
@@ -642,14 +632,12 @@
   box-shadow: none;
 }
 
-.master-plan-grid__container-detail-trigger:hover,
-.master-plan-grid__note-detail-trigger:hover {
+.master-plan-grid__container-detail-trigger:hover {
   background: transparent;
   color: color-mix(in srgb, var(--accent) 90%, var(--fg-1));
 }
 
-.master-plan-grid__container-detail-trigger:focus-visible,
-.master-plan-grid__note-detail-trigger:focus-visible {
+.master-plan-grid__container-detail-trigger:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

@@ -230,7 +230,7 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     // the whole max() drops and min-height silently falls to `auto` — exactly
     // how the "Xem thêm" link measured 55×13 despite the floor.
     const mpg = read('src/features/dispatch/master-plan/MasterPlanGrid.css');
-    const rule = mpg.match(/\.master-plan-grid__container-detail-trigger,\s*\n\.master-plan-grid__note-detail-trigger\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    const rule = mpg.match(/\.master-plan-grid__container-detail-trigger\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
     expect(rule, 'the shared trigger rule exists').not.toBe('');
     expect(rule).toMatch(/min-height:\s*max\(28px,\s*var\(--uui-control-h,\s*28px\)\)/);
     expect(rule, 'no bare var() in a min-height — it silently voids the floor').not.toMatch(/min-height:[^;]*var\(--uui-control-h\)/g);

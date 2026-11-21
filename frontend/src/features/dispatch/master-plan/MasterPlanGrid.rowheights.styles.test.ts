@@ -68,8 +68,9 @@ describe('MasterPlanGrid content-sized row contract (owner redesign 23/10; super
     expect(line).not.toMatch(/white-space:\s*nowrap/);
     expect(line).not.toMatch(/text-overflow:\s*ellipsis/);
     expect(css).toMatch(/@media \(min-width: 1440px\)[\s\S]*?\.master-plan-grid thead th\s*\{[^}]*white-space:\s*nowrap/);
-    // The "Chi tiết" / "Xem thêm" affordances keep their own line.
-    expect(css).toMatch(/\.master-plan-grid__container-detail-trigger,\s*\n\.master-plan-grid__note-detail-trigger \{[\s\S]*?flex:\s*0 0 auto/);
+    // The "Chi tiết" affordance keeps its own line (SIL-877 — the GHI CHÚ
+    // "Xem thêm" reveal is gone; the note button itself opens the dialog).
+    expect(css).toMatch(/\.master-plan-grid__container-detail-trigger \{[\s\S]*?flex:\s*0 0 auto/);
   });
 
   it('keeps the reading-row clamp while editing — the editor is a body-portal overlay (SIL-631)', () => {

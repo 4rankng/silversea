@@ -48,18 +48,21 @@ describe('MasterPlanGrid', () => {
     { bill: null, booking: null, expected: 'Chưa có số Bill/Booking' },
     { bill: ' ', booking: ' ', expected: 'Chưa có số Bill/Booking' },
   ])('UI52-B note dialog uses $expected without leaking the internal shipment code', ({ bill, booking, expected }) => {
-    const original = item({ blNumber: bill, bookingRef: booking, operationalNotes: 'Điều vận liên hệ thủ kho trước giờ giao hàng để kiểm tra kế hoạch bốc dỡ và chuẩn bị chứng từ.' });
+    const original = item({ blNumber: bill, bookingRef: booking, factoryNotes: 'Điều vận liên hệ thủ kho trước giờ giao hàng để kiểm tra kế hoạch bốc dỡ và chuẩn bị chứng từ.' });
     const onUpdateNotes = vi.fn();
     render(<MasterPlanGrid items={[original]} onAllocate={vi.fn()} onUpdateNotes={onUpdateNotes} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
+    // SIL-877 — the GHI CHÚ note button itself is the modal entry (the "Xem
+    // thêm" reveal is gone from the board); the factory note dialog carries
+    // the same bill/booking ref contract.
+    fireEvent.click(screen.getByRole('button', { name: /NM: Điều vận liên hệ thủ kho/ }));
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveTextContent(expected);
     expect(dialog).not.toHaveTextContent(original.shipmentCode!);
-    expect(dialog).toHaveTextContent(original.operationalNotes!);
+    expect(dialog).toHaveTextContent(original.factoryNotes!);
     fireEvent.click(within(dialog).getAllByRole('button', { name: 'Đóng' })[0]);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(onUpdateNotes).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /NM: Điều vận liên hệ thủ kho/ })).toBeInTheDocument();
   });
 
   it('shows OPS recovery instructions separately from driver notes', () => {
@@ -120,8 +123,13 @@ describe('MasterPlanGrid', () => {
   });
 
   it('hides the note modal "Sửa ghi chú" affordance on a locked DISPATCHER row', () => {
+    // SIL-877 removed the board's "Xem thêm" reveal, so the operational-note
+    // modal no longer opens from the table — the card list (phone mode) is
+    // that modal's remaining entry, and the intake-window edit gate stays
+    // pinned by 'locks the note trigger for a DISPATCHER outside the intake
+    // window only' above.
     const longNote = 'Lái xe chú ý liên hệ thủ kho trước 30 phút để chuẩn bị bốc xếp hàng hóa cẩn thận, không làm rách bao bì.';
-    const locked = render(
+    render(
       <MasterPlanGrid
         items={[item({ status: ShipmentStatus.DISPATCHED, operationalNotes: longNote })]}
         onAllocate={vi.fn()}
@@ -129,23 +137,11 @@ describe('MasterPlanGrid', () => {
         notesIntakeOnly
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
-    // SIL-877: the note reads whole in the CELL too now — scope the modal
-    // assertion to the dialog so the two copies can't collide.
-    const lockedDialog = screen.getByRole('dialog');
-    expect(within(lockedDialog).getByText(longNote)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Sửa ghi chú' })).toBeNull();
-    locked.unmount();
-
-    render(
-      <MasterPlanGrid
-        items={[item({ status: ShipmentStatus.DISPATCHED, operationalNotes: longNote })]}
-        onAllocate={vi.fn()}
-        onUpdateNotes={vi.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
-    expect(screen.getByRole('button', { name: 'Sửa ghi chú' })).toBeTruthy();
+    // Locked row: the note still reads whole in the cell, with no edit
+    // affordance and no reveal.
+    expect(screen.getByText(longNote)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeNull();
   });
 
   it('renders lift and drop locations from each container group instead of the legacy lot fields', () => {
@@ -591,7 +587,7 @@ describe('MasterPlanGrid', () => {
     expect(notesCell!.textContent).not.toContain('—');
   });
 
-  it('shows long factory notes whole in the cell, with a "Chi tiết" trigger opening the full note modal (SIL-877 — no truncation)', () => {
+  it('shows long factory notes whole in the cell, the note button opening the full note modal (SIL-877 — no truncation, no reveal)', () => {
     const longNote = '3. Lưu ý cần chú ý khi đóng/ trả hàng tại nhà máy - Lái xe đăng ký bảo vệ vào đóng/ trả cho công ty Long Minh- Trước khi vào đóng/ trả hàng lái xe gọi đúng SĐT';
     render(
       <MasterPlanGrid
@@ -601,17 +597,12 @@ describe('MasterPlanGrid', () => {
     );
 
     // SIL-877 (CR-009.1): the FULL note rides the cell — the old
-    // truncateNote 60-char "…" cut is retired; the cell wraps it (§4.1.3
-    // cấm cắt chữ) and the trigger opens the modal as navigation.
+    // truncateNote 60-char "…" cut is retired (§4.1.3 cấm cắt chữ) and no
+    // "Xem thêm" reveal exists; the NM note button itself opens the modal.
+    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' })).toBeNull();
     const cellTrigger = screen.getByRole('button', { name: /NM: 3\. Lưu ý cần chú ý/ });
     expect(cellTrigger).toHaveTextContent(longNote);
-    // The "Xem chi tiết" button is visible
-    const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
-    expect(detailBtn).toBeTruthy();
-    expect(detailBtn).toHaveTextContent('Xem thêm');
-
-    // Click "Chi tiết" to open the modal
-    fireEvent.click(detailBtn);
+    fireEvent.click(cellTrigger);
 
     // Modal dialog opens
     expect(screen.getByRole('dialog')).toBeTruthy();
@@ -673,8 +664,7 @@ describe('MasterPlanGrid', () => {
       />,
     );
 
-    const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
-    fireEvent.click(detailBtn);
+    fireEvent.click(screen.getByRole('button', { name: /NM: Nghiêm cấm hút thuốc/ }));
 
     const copyBtn = screen.getByRole('button', { name: 'Sao chép' });
     await act(async () => {
@@ -684,7 +674,7 @@ describe('MasterPlanGrid', () => {
     expect(writeTextMock).toHaveBeenCalledWith(longNote);
   });
 
-  it('shows long operational notes whole in the cell, with Chi tiết button and edit switch from the modal (SIL-877 — no truncation)', () => {
+  it('shows long operational notes whole in the cell and editable in place (SIL-877 — no truncation, no reveal)', () => {
     const longOpNote = 'Lái xe chú ý liên hệ thủ kho trước 30 phút để chuẩn bị bốc xếp hàng hóa cẩn thận, không làm rách bao bì.';
     const onUpdateNotes = vi.fn();
     render(
@@ -695,19 +685,13 @@ describe('MasterPlanGrid', () => {
       />,
     );
 
-    // SIL-877 (CR-009.1): the FULL note rides the edit trigger — no "…" cut.
+    // SIL-877 (CR-009.1): the FULL note rides the edit trigger — no "…" cut
+    // and no "Xem chi tiết ghi chú điều hành" reveal on the board.
     expect(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toHaveTextContent(longOpNote);
-    const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' });
-    expect(detailBtn).toBeTruthy();
-    fireEvent.click(detailBtn);
+    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeNull();
 
-    // In modal, "Sửa ghi chú" button appears
-    expect(screen.getByRole('heading', { name: 'Ghi chú điều hành' })).toBeTruthy();
-    const editBtn = screen.getByRole('button', { name: 'Sửa ghi chú' });
-    fireEvent.click(editBtn);
-
-    // Modal is closed and textarea editor appears
-    expect(screen.queryByRole('dialog')).toBeNull();
+    // The note button itself opens the in-place editor with the whole value.
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' }));
     const textarea = screen.getByLabelText('Ghi chú điều phối') as HTMLTextAreaElement;
     expect(textarea).toBeTruthy();
     expect(textarea.value).toBe(longOpNote);
@@ -893,11 +877,11 @@ describe('MasterPlanGrid', () => {
     expect(css).not.toContain('@container (max-width: 900px)');
   });
 
-  // The note preview wraps fully inside its cell now (ticket 18/11, spec
-  // Chương 4 §4.1.3 cấm cắt chữ — supersedes the 23/10 one-line preview);
-  // the "Xem thêm" dialog and the button title stay as navigation, never
-  // the carrier of the value.
-  it('grounds the notes-trigger to the fully wrapped note with the "Xem thêm" dialog as navigation (ticket 18/11)', () => {
+  // The note wraps fully inside its cell (ticket 18/11, spec Chương 4
+  // §4.1.3 cấm cắt chữ — supersedes the 23/10 one-line preview); SIL-877
+  // retired the "Xem thêm" reveal, so the note button itself is the only
+  // GHI CHÚ affordance and the title stays a bonus.
+  it('grounds the notes-trigger to the fully wrapped note (ticket 18/11; SIL-877)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const triggerRule = css.match(/\.master-plan-grid__notes-trigger \{([\s\S]*?)\n\}/)?.[1] ?? '';
 
@@ -1004,7 +988,7 @@ describe('MasterPlanFilters', () => {
     expect(css).toContain('.app-main:not(.driver-mode) .app-body > .dispatch-plan-page--wide');
   });
 
-  it('card 20261004_321: gates container detail on containerTotal > 0 and uses Xem thêm for notes without duplicate Chi tiết', () => {
+  it('card 20261004_321: gates container detail on containerTotal > 0; notes carry no separate reveal (SIL-877)', () => {
     const { rerender } = render(
       <MasterPlanGrid
         items={[item({ containerTotal: 0, containerCount20: 0, containerCount40: 0, containerTypeSummary: 'Chưa có cont', factoryNotes: 'Short' })]}
@@ -1025,8 +1009,10 @@ describe('MasterPlanFilters', () => {
     const containerBtn = screen.getByRole('button', { name: /Xem chi tiết container/ });
     expect(containerBtn).toHaveTextContent('Chi tiết');
 
-    const noteBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
-    expect(noteBtn).toHaveTextContent('Xem thêm');
+    // SIL-877: the note rides whole on the NM button; no "Xem thêm" reveal,
+    // so "Chi tiết" stays the row's only action label.
+    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' })).toBeNull();
+    expect(screen.getByRole('button', { name: /NM: 1234567890/ })).toHaveTextContent(longNote);
 
     // Exactly one "Chi tiết" button in the entire row
     const chiTietButtons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === 'Chi tiết');

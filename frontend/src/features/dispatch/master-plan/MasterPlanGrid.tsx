@@ -13,7 +13,6 @@ import {
 import { formatDateTimeShort } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
 import {
-  isNoteLong,
   MasterPlanNoteModal,
   type ActiveNoteDetail,
 } from './MasterPlanNoteModal';
@@ -625,36 +624,17 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                               {/* SIL-877 (CR-009.1 EPIC 4.2): the note rides
                                   WHOLE — the old 60-char "…" preview cut is
                                   retired (spec Chương 4 §4.1.3 cấm cắt
-                                  chữ); the column floor + wrapping carry the
-                                  layout and "Xem thêm"/title stay as
-                                  navigation, never the carrier of the value. */}
+                                  chữ) and the separate reveal button is
+                                  gone with it (QA fail build 32e22c12):
+                                  wrapping carries the layout, the title is
+                                  a bonus, and this button opens the full
+                                  'Ghi chú điều hành' dialog. */}
                               {item.operationalNotes
                                 ? displayNote(item.operationalNotes)
                                 : 'Thêm ghi chú'}
                             </button>
                           ) : (
                             <div title={item.operationalNotes ?? undefined}>{displayNote(item.operationalNotes)}</div>
-                          )}
-                          {item.operationalNotes && isNoteLong(item.operationalNotes) && (
-                                <UUIButton
-                                  size="xs"
-                                  color="link-color"
-                                  className="master-plan-grid__note-detail-trigger"
-                                  aria-label="Xem chi tiết ghi chú điều hành"
-                                  onPress={() => {
-                                    setActiveNoteModal({
-                                      title: 'Ghi chú điều hành',
-                                      note: item.operationalNotes!,
-                                      customerName: item.customerName,
-                                      blNumber: item.blNumber,
-                                      shipmentCode: item.shipmentCode,
-                                      isOperational: true,
-                                      shipment: item,
-                                    });
-                                  }}
-                                >
-                                  Xem thêm
-                                </UUIButton>
                           )}
                         </div>
                       )}
@@ -706,30 +686,12 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                               });
                             }}
                           >
-                            {/* SIL-877 (CR-009.1): whole note — no preview cut. */}
+                            {/* SIL-877 (CR-009.1): whole note — no preview
+                                cut, no separate reveal on the board; the
+                                note button itself opens the full 'Ghi chú
+                                nhà máy' dialog. */}
                             {`NM: ${item.factoryNotes}`}
                           </button>
-                          {isNoteLong(item.factoryNotes) && (
-                            <UUIButton
-                              size="xs"
-                              color="link-color"
-                              className="master-plan-grid__note-detail-trigger"
-                              aria-label="Xem chi tiết ghi chú nhà máy"
-                              onPress={() => {
-                                setActiveNoteModal({
-                                  title: 'Ghi chú nhà máy',
-                                  note: item.factoryNotes!,
-                                  customerName: item.customerName,
-                                  blNumber: item.blNumber,
-                                  shipmentCode: item.shipmentCode,
-                                  isOperational: false,
-                                  shipment: item,
-                                });
-                              }}
-                            >
-                              Xem thêm
-                            </UUIButton>
-                          )}
                         </div>
                       )}
                     </>

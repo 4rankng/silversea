@@ -19,7 +19,7 @@ const ordinaryOwners: Record<string, string[]> = {
     ".dispatch-allocation-popover__actions > *"
   ],
   "src/features/dispatch/master-plan/MasterPlanGrid.css": [
-    ".master-plan-grid__container-detail-trigger,\n  .master-plan-grid__note-detail-trigger",
+    ".master-plan-grid__container-detail-trigger",
     ".master-plan-grid__allocation-trigger",
     ".master-plan-grid__notes-trigger"
   ],

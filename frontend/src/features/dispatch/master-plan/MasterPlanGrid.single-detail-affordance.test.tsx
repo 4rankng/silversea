@@ -38,14 +38,15 @@ const visibleLabels = (root: ParentNode): string[] =>
  * One "Chi tiết" identity per row — card 20261004_321 (requirement 2, AC2).
  * The pre-fix row showed two same-labelled "Chi tiết" footnotes (the container
  * detail under Tổng quan hàng hóa + a note detail under Ghi chú) which read as
- * duplicates and appeared on some rows but not others. The landed semantics
- * (commit ddea3030, landed mid-investigation and pinned here): the container
- * detail keeps the "Chi tiết" identity (only where there are containers to
- * open), note reveals read "Xem thêm", and the rule is direction-blind — the
- * Xuất and Nhập rows render the same affordances in the same places.
+ * duplicates and appeared on some rows but not others. SIL-877 (QA fail build
+ * 32e22c12) retires the note reveal entirely: the GHI CHÚ note wraps whole and
+ * its own button opens the full dialog, so the container detail keeps the
+ * "Chi tiết" identity (only where there are containers to open) and no note
+ * affordance duplicates it. The rule is direction-blind — the Xuất and Nhập
+ * rows render the same affordances in the same places.
  */
 describe('master-plan grid one detail identity per row (card 20261004_321)', () => {
-  it('renders exactly one visible "Chi tiết" per container-bearing row; note reveals read "Xem thêm"', () => {
+  it('renders exactly one visible "Chi tiết" per container-bearing row; notes carry no separate reveal', () => {
     render(
       <MasterPlanGrid
         items={[item({ operationalNotes: longNote, factoryNotes: longFactoryNote })]}
@@ -57,14 +58,13 @@ describe('master-plan grid one detail identity per row (card 20261004_321)', () 
     expect(chiTiet).toHaveLength(1);
     expect(chiTiet[0].className).toContain('master-plan-grid__container-detail-trigger');
 
-    // The note details keep their distinct identity — never a second "Chi tiết".
-    const noteReveals = [...document.querySelectorAll('.master-plan-grid__note-detail-trigger')];
-    expect(noteReveals).toHaveLength(2);
-    for (const reveal of noteReveals) {
-      expect(reveal.textContent?.trim()).toBe('Xem thêm');
-    }
-    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' })).toBeTruthy();
+    // SIL-877 — no "Xem thêm" reveal anywhere on the board: the note rides
+    // whole in the cell (locked default here, so it renders as its div).
+    expect(document.querySelectorAll('.master-plan-grid__note-detail-trigger')).toHaveLength(0);
+    expect([...document.querySelectorAll('button')].filter((button) => button.textContent?.trim() === 'Xem thêm')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' })).toBeNull();
+    expect(screen.getByText(longNote)).toBeTruthy();
   });
 
   it('places and behaves identically on Xuất and Nhập rows', () => {
@@ -86,7 +86,7 @@ describe('master-plan grid one detail identity per row (card 20261004_321)', () 
     expect(structures[0]).toEqual(structures[1]);
     for (const labels of structures) {
       expect(labels.filter((label) => label === 'Chi tiết')).toHaveLength(1);
-      expect(labels.filter((label) => label === 'Xem thêm')).toHaveLength(2);
+      expect(labels.filter((label) => label === 'Xem thêm')).toHaveLength(0);
     }
 
     const classes = rows.map((row) => [...row.querySelectorAll('button')].map((button) => button.className));
@@ -102,8 +102,9 @@ describe('master-plan grid one detail identity per row (card 20261004_321)', () 
     );
 
     expect([...document.querySelectorAll('button')].filter((button) => button.textContent?.trim() === 'Chi tiết')).toHaveLength(0);
-    // The note reveal survives with its own identity.
-    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeTruthy();
+    // The note itself stays the single GHI CHÚ affordance (SIL-877 — no reveal).
+    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeNull();
+    expect(screen.getByText(longNote)).toBeTruthy();
   });
 
   it('keeps the allocated cell glyph-free and fully inside its column (AC3 clip class)', () => {

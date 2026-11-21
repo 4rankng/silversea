@@ -36,15 +36,8 @@ describe('master-plan grid cell-action placement (card 20261002_302)', () => {
     expect(block).not.toContain('justify-content: space-between;');
   });
 
-  it('stacks a note line holding a detail trigger, instead of the old side-by-side row', () => {
-    const block = css.match(/\.master-plan-grid__line--notes:has\(> \.master-plan-grid__note-detail-trigger\)\s*\{[^}]*\}/)?.[0];
-    expect(block).toBeTruthy();
-    expect(block).toContain('flex-direction: column;');
-    expect(block).not.toContain('align-items: flex-start;');
-  });
-
   it('right-aligns the cell actions inside their column parents', () => {
-    const block = css.match(/\.master-plan-grid__container-detail-trigger,\n\.master-plan-grid__note-detail-trigger\s*\{[^}]*\}/)?.[0];
+    const block = css.match(/\.master-plan-grid__container-detail-trigger\s*\{[^}]*\}/)?.[0];
     expect(block).toBeTruthy();
     expect(block).toContain('align-self: flex-end;');
   });
