@@ -4,12 +4,12 @@
 // two standing warnings always run. Display keys are BILL + names — never a
 // bare internal id.
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { expenseVndSchema } from '@tingting/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { CalendarClock, Plus, X } from 'lucide-react';
-import { SkeletonTable, StatusText, useToast } from '../../components/shared';
+import { SkeletonTable, StatusText } from '../../components/shared';
 import { Money } from '../../components/shared/Money';
 import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
@@ -57,9 +57,11 @@ export function formatOverdueCount(count: number): string {
   return String(count).padStart(2, '0');
 }
 
-// Per-session dismissal (PM ruling via lead): hides the overdue ALERT line and
-// its toast until the session ends. The unrefunded-total line stays visible —
-// work order line 2 runs continuously per status.
+// Per-session dismissal (PM ruling via lead): hides the overdue ALERT line
+// until the session ends. The unrefunded-total line stays visible — work
+// order line 2 runs continuously per status. SIL-877 (CR-009.1 3.3): the red
+// banner at the top of the table is the ONE overdue surface — the duplicate
+// bottom toast is gone.
 const CV_ALERT_DISMISS_KEY = 'deposit-cv-overdue-alert-dismissed';
 
 const STATUS_LABELS: Record<DepositStatus, string> = {
@@ -101,23 +103,12 @@ export default function DepositRefundTrackerPage() {
 
   // Card 20260923_14: the overdue-CV alert is dismissible per session; the
   // unrefunded-total line runs continuously (work order c12 _14 line 2).
-  const { toast } = useToast();
   const [cvAlertDismissed, setCvAlertDismissed] = useState(() => {
     try { return sessionStorage.getItem(CV_ALERT_DISMISS_KEY) === '1'; } catch { return false; }
   });
   const cvOverdueCount = warnings?.cvOverdueCount ?? 0;
   const unrefundedTotal = warnings?.unrefundedTotal ?? 0;
   const showCvAlert = cvOverdueCount > 0 && !cvAlertDismissed;
-
-  // Toast once per page load when the alert is live; suppressed once the
-  // alert is dismissed for this session.
-  const cvAlertToastedRef = useRef(false);
-  useEffect(() => {
-    if (showCvAlert && !cvAlertToastedRef.current) {
-      cvAlertToastedRef.current = true;
-      toast({ kind: 'warning', message: `Cảnh báo quá hạn nộp công văn hoàn cược: ${formatOverdueCount(cvOverdueCount)} lô hàng` });
-    }
-  }, [showCvAlert, cvOverdueCount, toast]);
 
   const dismissCvAlert = () => {
     try { sessionStorage.setItem(CV_ALERT_DISMISS_KEY, '1'); } catch { /* private mode */ }
