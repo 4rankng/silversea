@@ -138,19 +138,22 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
           onSelectionChange={setSelected}
         >
           <Table.Header>
-            <Table.Head isRowHeader>STT</Table.Head>
-            <Table.Head id="bill">Số Bill / Booking</Table.Head>
-            <Table.Head id="container">Container</Table.Head>
-            <Table.Head id="date">Ngày</Table.Head>
-            <Table.Head id="nang">Tiền nâng</Table.Head>
-            <Table.Head id="ha">Tiền hạ</Table.Head>
-            <Table.Head id="khac">PS khác</Table.Head>
-            <Table.Head id="total">{kind === 'THU' ? 'Phải thu' : 'Phải trả'}</Table.Head>
-            <Table.Head id="paid">{kind === 'THU' ? 'Đã thu' : 'Đã trả'}</Table.Head>
-            <Table.Head id="remain">Còn lại</Table.Head>
+            {/* SIL-874 — each head carries its chốt-ladder class; the page CSS
+                pins the % share + px floor on it (table-layout: fixed sizes
+                every column from this header row). */}
+            <Table.Head isRowHeader className="ppc-lots-col--stt">STT</Table.Head>
+            <Table.Head id="bill" className="ppc-lots-col--bill">Số Bill / Booking</Table.Head>
+            <Table.Head id="container" className="ppc-lots-col--container">Container</Table.Head>
+            <Table.Head id="date" className="ppc-lots-col--date">Ngày</Table.Head>
+            <Table.Head id="nang" className="ppc-lots-col--nang">Tiền nâng</Table.Head>
+            <Table.Head id="ha" className="ppc-lots-col--ha">Tiền hạ</Table.Head>
+            <Table.Head id="khac" className="ppc-lots-col--khac">PS khác</Table.Head>
+            <Table.Head id="total" className="ppc-lots-col--total">{kind === 'THU' ? 'Phải thu' : 'Phải trả'}</Table.Head>
+            <Table.Head id="paid" className="ppc-lots-col--paid">{kind === 'THU' ? 'Đã thu' : 'Đã trả'}</Table.Head>
+            <Table.Head id="remain" className="ppc-lots-col--remain">Còn lại</Table.Head>
             {/* Ticket 18/11 Task 3.2 — the main board's composed Ghi chú carried
                 down to each lot (CUS trước, điều vận sau — server-composed). */}
-            <Table.Head id="ghichu">Ghi chú</Table.Head>
+            <Table.Head id="ghichu" className="ppc-lots-col--ghichu">Ghi chú</Table.Head>
           </Table.Header>
           <Table.Body items={tripLots}>
             {(lot) => (
@@ -167,7 +170,7 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                 <Table.Cell><strong>{formatMoney(lot.total)}</strong></Table.Cell>
                 <Table.Cell>{formatMoney(lot.daThuTra)}</Table.Cell>
                 <Table.Cell>{formatMoney(lot.conLai)}</Table.Cell>
-                <Table.Cell>{lot.ghiChu ?? '—'}</Table.Cell>
+                <Table.Cell className="ppc-lots-note">{lot.ghiChu ?? '—'}</Table.Cell>
               </Table.Row>
             )}
           </Table.Body>

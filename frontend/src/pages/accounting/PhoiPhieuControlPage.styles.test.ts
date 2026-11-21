@@ -58,10 +58,11 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => 
     expect(css).not.toMatch(/ppc-col--select/);
     expect(css).toMatch(/\.ppc-board\s*\{[^}]*table-layout:\s*auto/);
     // SIL-781/783 (8ccd81e6) added the inline Số HĐ invoice input, which fills
-    // its cell with width: 100% — a control width, not a column width. The
-    // law stays: the matrix never goes fixed-layout, and no ppc column rule
+    // its cell with width: 100% — a control width, not a column width. The law stays: the matrix never goes fixed-layout, and no ppc column rule
     // ever takes a percentage width (honest min-width floors pinned below).
-    expect(css).not.toMatch(/table-layout:\s*fixed/);
+    // SIL-874 scoped the ban to THIS board: the drawer's Untitled UI table now
+    // runs the chốt ladder (table-layout: fixed, its own describe below).
+    expect(css).not.toMatch(/\.ppc-board\s*\{[^}]*table-layout:\s*fixed/);
     expect(css).not.toMatch(/\.ppc-col[^{]*\{[^}]*width:\s*\d+%/);
     // Ticket 18/11 Task 3.1d — 'chiho' left the list with its column: the
     // duplicate Chi hộ cell is gone from the board (and its 188px floor with it).
@@ -209,5 +210,60 @@ describe('lô chưa thanh toán drawer width (ticket 18/11 Task 3.2)', () => {
     const drawerSource = readFileSync(
       resolve(process.cwd(), 'src/pages/accounting/PhoiPhieuPartyLotsDrawer.tsx'), 'utf8');
     expect(drawerSource).toContain('ppc-lots-drawer');
+  });
+});
+
+// SIL-874 (CR-009.1 follow-up 21/11) — the drawer's Untitled UI table runs the
+// chốt ladder. The QA defect: table-layout auto grew the columns to their
+// nowrap content (961px measured), spilling the table 28px past the 1440px
+// viewport and clipping Ghi chú mid-word ('GHI', 'ĐẶC C…'). The ladder — % shares
+// + measured px floors under table-layout: fixed — fits the drawer's 902px
+// content box at 1440×900 so the last column reads whole inside the drawer.
+describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
+  const ladder = (col: string) =>
+    css.match(new RegExp(`\\.ppc-lots-drawer th\\.ppc-lots-col--${col}(?:\\s*,[^{}]*)?\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+
+  it('the drawer table is fixed-layout with an 896px floor — the wrapper scrolls only below it', () => {
+    const block = css.match(/\.ppc-lots-drawer table\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(block).toContain('table-layout: fixed');
+    expect(block).toContain('min-width: 896px');
+  });
+
+  it('the vendored 12px gutters trim to the 6px dense-family gutter inside this drawer', () => {
+    expect(css).toMatch(
+      /\.ppc-lots-drawer table th,\s*\.ppc-lots-drawer table td\s*\{[^}]*padding-inline:\s*6px;/,
+    );
+  });
+
+  it('every data column carries its % share + px floor; shares sum 95.1% so the select column owns the rest', () => {
+    const cols: Array<[string, string, number]> = [
+      ['stt', '3.8%', 36], ['bill', '10.9%', 104], ['container', '9.2%', 90],
+      ['date', '7.8%', 76], ['nang', '8.3%', 80], ['ha', '8.3%', 80],
+      ['khac', '7.7%', 80], ['total', '8.7%', 80], ['paid', '8.3%', 80],
+      ['remain', '8.3%', 80], ['ghichu', '13.8%', 66],
+    ];
+    let shareSum = 0;
+    for (const [col, share, floor] of cols) {
+      const block = ladder(col);
+      expect(block, `${col} keeps its % share`).toContain(`width: ${share}`);
+      expect(block, `${col} keeps its px floor`).toContain(`min-width: ${floor}px`);
+      shareSum += Number(share.slice(0, -1));
+    }
+    // 95.1% of declared width + the vendored select column's w-11 (~4.9% at
+    // the 1440 drawer content box) — declared widths must never exceed 100%:
+    // over 100% the fixed layout widens the table past its container and
+    // phantom-scrolls at every canvas (the SIL-872 doctrine).
+    expect(shareSum).toBeCloseTo(95.1, 5);
+  });
+
+  it('Ghi chú renders whole — wraps at spaces, never mid-token, no ellipsis, widest share', () => {
+    const note = css.match(/\.ppc-lots-drawer td\.ppc-lots-note\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(note).toContain('white-space: normal');
+    expect(note).toContain('word-break: keep-all');
+    expect(note).not.toMatch(/text-overflow|nowrap/);
+    const drawerSource = readFileSync(
+      resolve(process.cwd(), 'src/pages/accounting/PhoiPhieuPartyLotsDrawer.tsx'), 'utf8');
+    expect(drawerSource).toContain('className="ppc-lots-note"');
+    expect(drawerSource.match(/ppc-lots-col--/g)?.length).toBeGreaterThanOrEqual(11);
   });
 });
