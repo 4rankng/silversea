@@ -30,6 +30,52 @@
   padding-bottom: 40px;
 }
 
+/* ── SIL-873 (CR-009.2 21/11) — the chốt ladder ────────────────────────────
+   The board was lock-width at 1440px (the shell's readability cap
+   --content-max-w centered the page as a 1440px strip: QA measured
+   x=356–1795 at 1920 with ~124px white to the right) and, once the cap was
+   lifted, the AUTO table still overflowed its wrapper at 1440×900 (measured
+   1292px min-content vs the 1129px canvas — Tiến độ xử lý clipped past the
+   app-body edge). The family answer (law 2bbf1664 / e6f00827 / 41902fb1):
+   table-layout fixed makes the % shares BIND; every col carries its share
+   (= floor ÷ the 1220px nine-column base) plus that px floor, measured off
+   the real tokens (select pair 25px, STT 41px, the KH&Lô law floor 320px,
+   'Cont & Chứng từ' 137px, the SIL-816 pair budgets 155/183px, Chênh lệch
+   98px, note input + header 121px, progress select 140px). The TSX derives
+   --itv-min (rendered floor sum = the wrapper's horizontal-scroll floor —
+   genuine desktop width excess scrolls via record-table-wrap--scroll) and
+   --itv-scale (share re-base) from the RENDERED set, so the CUS read-only
+   board (no Chọn-dòng column) keeps its shares summing to ~100%; over 100%
+   = phantom scroll at every width. Sub-lines wrap under the shared
+   break-anywhere law (see .ivt-stack__sub); header labels stay ONE line
+   (FB-063) and every floor is a control or header floor, never a data
+   width. The ≤1100px record-card band resets the floor — cards own that
+   band. Change a floor here AND its entry in IVT_COL_FLOORS together
+   (pinned by AccountingInvoiceTrackingPage.styles.test.ts). */
+.invoice-tracking-page .record-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: var(--itv-min, 1220px);
+}
+
+@container (max-width: 1100px) {
+  .invoice-tracking-page .record-table {
+    min-width: 0;
+  }
+}
+
+/* Shares = floor ÷ the 9-column base (1220px), pinned to 2dp; the TSX
+   --itv-scale re-normalizes ANY rendered subset to ~100%. */
+.invoice-tracking-page .record-table col.ivt-col--select { width: calc(2.05% * var(--itv-scale, 1)); min-width: 25px; }
+.invoice-tracking-page .record-table col.ivt-col--stt { width: calc(3.36% * var(--itv-scale, 1)); min-width: 41px; }
+.invoice-tracking-page .record-table col.ivt-col--customer { width: calc(26.23% * var(--itv-scale, 1)); min-width: 320px; }
+.invoice-tracking-page .record-table col.ivt-col--cont { width: calc(11.23% * var(--itv-scale, 1)); min-width: 137px; }
+.invoice-tracking-page .record-table col.ivt-col--dauvao { width: calc(12.70% * var(--itv-scale, 1)); min-width: 155px; }
+.invoice-tracking-page .record-table col.ivt-col--doisoat { width: calc(15.00% * var(--itv-scale, 1)); min-width: 183px; }
+.invoice-tracking-page .record-table col.ivt-col--chenh { width: calc(8.03% * var(--itv-scale, 1)); min-width: 98px; }
+.invoice-tracking-page .record-table col.ivt-col--ghichu { width: calc(9.92% * var(--itv-scale, 1)); min-width: 121px; }
+.invoice-tracking-page .record-table col.ivt-col--tiendo { width: calc(11.48% * var(--itv-scale, 1)); min-width: 140px; }
+
 /* Rework 2026-10-09 (card 20261009_3 class sweep): page trailing padding dies
    in the ≤640 phone band — the shell clearance
    max(16px, env(safe-area-inset-bottom)) is counted once. */
@@ -227,7 +273,13 @@
   display: block;
   color: var(--ink-2);
   font-size: var(--text-caption-size, 12px);
-  white-space: nowrap;
+  /* SIL-873 (CR-009.2): sub facts wrap like every other data line — the
+     base td law is overflow-wrap: anywhere, and the nowrap here was the
+     board's min-content engine ('LOGCOM · 2300975219' alone measured the
+     KH&Lô cell at 357px), which pushed the auto board past its wrapper at
+     1440 and clipped Tiến độ xử lý. The ladder now owns the widths; the
+     data obeys the shared break-anywhere law. */
+  white-space: normal;
 }
 
 /* "Không lấy hóa đơn"/status vocabulary rides the house badge recipe. */

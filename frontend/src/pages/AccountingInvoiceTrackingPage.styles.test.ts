@@ -25,16 +25,49 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(rules).not.toMatch(/\.invoice-tracking-table/);
   });
 
-  it('keeps no scroll wrapper — the base is overflow: visible so the sticky thead pins to the app scrollport', () => {
+  it('SIL-873: the horizontal-scroll escape is the SHARED --scroll modifier, never a private wrapper — sticky thead stays base-owned', () => {
     expect(tsx).not.toContain('table-scroll');
+    expect(tsx).toContain('record-table-wrap record-table-wrap--scroll');
+    // The containment comes from the shared base; the page declares no
+    // container-type of its own.
     expect(rules).not.toMatch(/container-type/);
   });
 
-  it('declares no column floor, no private breakpoint and no private card collapse', () => {
+  it('SIL-873: the chốt ladder owns the width — fixed layout, per-col floors + % shares, rendered-set vars', () => {
+    // The shell's readability cap centered the board as a 1440px strip at
+    // 1920+ (QA: x=356–1795, ~124px white) and the auto table overflowed its
+    // 1129px wrapper at 1440×900 (measured 1292px, Tiến độ xử lý clipped).
+    // The family law (2bbf1664 / e6f00827 / 41902fb1) replaces both: fixed
+    // layout binds the % shares; every col carries its share + px floor;
+    // the TSX derives --itv-min / --itv-scale from the RENDERED set.
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table\s*\{[^}]*table-layout:\s*fixed;[^}]*min-width:\s*var\(--itv-min, 1220px\);/s);
+    expect(tsx).toContain("'--itv-min'");
+    expect(tsx).toContain("'--itv-scale'");
+    expect(tsx).toContain('invoice-tracking-page data-workspace');
+    // Shares are floor ÷ the 1220px nine-column base and MUST re-sum to 100%
+    // with the CUS scale — an off-by-one share phantom-scrolls every width.
+    const shares = [...rules.matchAll(/col\.ivt-col--([a-z]+)\s*\{\s*width:\s*calc\(([\d.]+)%\s*\*\s*var\(--itv-scale, 1\)\);\s*min-width:\s*(\d+)px;/g)];
+    expect(shares).toHaveLength(9);
+    const floorsTsx = read('src/pages/AccountingInvoiceTrackingPage.tsx');
+    const sum = shares.reduce((total, [, , , floor]) => total + Number(floor), 0);
+    expect(sum).toBe(1220);
+    for (const [, key, share, floor] of shares) {
+      // TSX floors and CSS floors must agree (the two can never drift).
+      expect(floorsTsx).toContain(`${key}: ${floor},`);
+      // share ≈ floor ÷ base, pinned to 2dp.
+      expect(Number(share)).toBeCloseTo((Number(floor) / 1220) * 100, 1);
+    }
+    // The TSX rendered set drops exactly the Chọn-dòng column for read-only roles.
+    expect(floorsTsx).toMatch(/key !== 'select' \|\| canWrite/);
+    // Sub-lines obey the shared break-anywhere law (the ladder's floors are
+    // control/header floors, never data widths).
+    expect(rules).toMatch(/\.ivt-stack__sub\s*\{[^}]*white-space:\s*normal;/);
+    // The ≤1100px record-card band resets the floor — cards own that band.
+    expect(rules).toMatch(/@container \(max-width: 1100px\)\s*\{\s*\.invoice-tracking-page \.record-table\s*\{\s*min-width:\s*0;\s*\}\s*\}/);
+    // Laws that survive the ladder unchanged:
     expect(rules).not.toMatch(/nth-child\(/);
     expect(rules).not.toMatch(/min-width:\s*1350px|min-width:\s*1180px/);
-    expect(rules).not.toMatch(/@container/);
-    // The TWO sanctioned @media bands form a closed set:
+    // The TWO sanctioned @media bands still form a closed set:
     // (1) the ≤640 phone trailing safe-area clearance on the page root;
     // (2) the add/edit modal form grid's pattern-B phone collapse.
     expect((rules.match(/@media/g) ?? []).length).toBe(2);
@@ -44,7 +77,6 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(rules).toMatch(
       /@media \(max-width: 640px\) \{\s*\.invoice-tracking-form__grid \{\s*grid-template-columns: minmax\(0, 1fr\);\s*\}\s*\}/,
     );
-    expect(rules).not.toMatch(/table-layout/);
   });
 
   it('ticket 18/11 + SIL-863: KHÁCH HÀNG & LÔ holds a 320px floor via its data-label hook — no nth-child, no overflow', () => {

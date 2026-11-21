@@ -21,7 +21,7 @@
 // và ẩn khỏi danh sách chờ (noInvoice + hiddenAt/hiddenBy = vết lịch sử); bộ
 // lọc "Dòng đã ẩn" trả lại vết, Bỏ ẩn đưa dòng về làm việc.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Eye, EyeOff, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import {
@@ -55,6 +55,36 @@ import '../styles/operational-table-typography.css';
 import './AccountingInvoiceTrackingPage.css';
 
 const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
+
+/* SIL-873 (CR-009.2 21/11) — the board's ladder floors, in table order. The
+ * CSS col rules carry the matching % shares (share = floor ÷ the 9-column
+ * base 1220) and these px floors; the table's inline style derives BOTH from
+ * the RENDERED column set so the CUS read-only board (no Chọn-dòng column)
+ * re-normalizes the shares to ~100% (--itv-scale) instead of leaving a 2%
+ * right-edge gap, and --itv-min is the wrapper's horizontal-scroll floor.
+ * Measured on the live board (2026-11-21 local drive, seeds + real tokens,
+ * sub-lines wrapping): select pair 25px, 'STT' + padding 41px, the KH&Lô
+ * law floor 320px (ticket 18/11 + SIL-863), 'Cont & Chứng từ' header 137px,
+ * the SIL-816 pair budget 155px (Cột 4) / 183px (Cột 5 — 'Trả NCC' + 'Trả
+ * KH' share one line), Chênh lệch token 98px, note input + header 121px,
+ * the progress select 140px. The floors are CONTROL and header floors, not
+ * data widths — data lines wrap under the shared break-anywhere law (the
+ * SIL-762 sub-line nowrap is retired with this ladder). Change a floor here
+ * AND its share in AccountingInvoiceTrackingPage.css together (pinned by
+ * AccountingInvoiceTrackingPage.styles.test.ts). */
+const IVT_COL_FLOORS: Readonly<Record<string, number>> = {
+  select: 25,
+  stt: 41,
+  customer: 320,
+  cont: 137,
+  dauvao: 155,
+  doisoat: 183,
+  chenh: 98,
+  ghichu: 121,
+  tiendo: 140,
+};
+const IVT_SPEC_BASE_SUM = Object.values(IVT_COL_FLOORS).reduce((sum, floor) => sum + floor, 0);
+const IVT_COL_ORDER = ['select', 'stt', 'customer', 'cont', 'dauvao', 'doisoat', 'chenh', 'ghichu', 'tiendo'] as const;
 
 const CHUA_LAY_HD = 'Chưa lấy HĐ';
 const KHONG_LAY_HD = 'Không lấy HĐ';
@@ -167,6 +197,13 @@ function InlineCellInput({ value, onCommit, numeric, listId, ariaLabel, placehol
 export default function AccountingInvoiceTrackingPage() {
   const { user } = useAuth();
   const canWrite = WRITE_ROLES.includes(getModernRole(user?.role ?? '') as Role);
+  // SIL-873 (CR-009.2) — the ladder rides the RENDERED set: the CUS read-only
+  // board drops the Chọn-dòng column, so --itv-min relaxes the horizontal
+  // scroll floor and --itv-scale re-bases the % shares onto the rendered set
+  // (they must sum to ~100%: over 100% = phantom scroll at every width).
+  const renderedColKeys = IVT_COL_ORDER.filter((key) => key !== 'select' || canWrite);
+  const ivtMinWidth = renderedColKeys.reduce((sum, key) => sum + IVT_COL_FLOORS[key], 0);
+  const ivtShareScale = (IVT_SPEC_BASE_SUM / ivtMinWidth).toFixed(5);
   const queryClient = useQueryClient();
   const initialPeriod = useMemo(defaultPeriod, []);
   const periodPresets = useMemo(buildPeriodPresets, []);
@@ -393,7 +430,12 @@ export default function AccountingInvoiceTrackingPage() {
   };
 
   return (
-    <div className="invoice-tracking-page">
+    // SIL-873 (CR-009.2) — data-workspace: the shell's readability cap
+    // (--content-max-w 1440px, centered) is a default for forms and prose,
+    // not a data board; carrying the shared opt-out class lets the board
+    // fill the canvas at 1920px+ exactly like /dispatch, instead of
+    // floating in a capped 1440px strip with page void on both sides.
+    <div className="invoice-tracking-page data-workspace">
       {dialog}
       {reasonDialog}
 
@@ -528,11 +570,20 @@ export default function AccountingInvoiceTrackingPage() {
       )}
 
       {!query.isPending && !query.isError && filtered.length > 0 && (
-        <div className="record-table-wrap">
+        <div className="record-table-wrap record-table-wrap--scroll">
           <datalist id={supplierListId}>
             {supplierOptions.map((name) => <option key={name} value={name} />)}
           </datalist>
-          <table className="record-table ops-table">
+          {/* SIL-873 (CR-009.2) — the ladder lives on the wrapper's horizontal
+              scroll floor (--itv-min: genuine desktop width excess scrolls,
+              the shared --scroll idiom) and the colgroup carries each
+              column's % share + px floor (Chromium honors min-width on <col>
+              in table-layout: fixed, probe-verified SIL-872). The th/td
+              classes keep their styling hooks. */}
+          <table className="record-table ops-table" style={{ '--itv-min': `${ivtMinWidth}px`, '--itv-scale': ivtShareScale } as CSSProperties}>
+            <colgroup>
+              {renderedColKeys.map((key) => <col key={key} className={`ivt-col--${key}`} />)}
+            </colgroup>
             <thead>
               <tr>
                 {/* Cột 1 — Checkbox & STT: bulk select cho Lưu và Ẩn (read-only
