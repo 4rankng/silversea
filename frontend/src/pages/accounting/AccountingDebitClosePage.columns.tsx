@@ -163,19 +163,24 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
               (1) ngày vận chuyển (2) tên rút gọn khách hàng (3) nhà máy
               (4) tuyến đường. The internal SHP-* code is GONE from the
               column — the Số Bill/Book track next door is the visible
-              identity; a lot with no nhà máy/tuyến fact renders no line
-              (never a cảng name). */}
+              identity; a lot with no nhà máy/tuyến fact renders its own
+              '—' line (SIL-876, Ch.10 §10.7.4) — never a cảng name. */}
           <span className="debit-lot-date">{row.ngay == null ? '—' : formatDate(row.ngay)}</span>
         </span>
         {/* Card 191026202000: the customer name rides the shared NameCell like
-            every other grid — short name on the face, full name in the tooltip. */}
-        <NameCell as="small" name={row.customerName} />
+            every other grid — short name on the face, full name in the tooltip.
+            SIL-876 — a lot with no customer fact still owns its '—' line. */}
+        {row.customerName
+          ? <NameCell as="small" name={row.customerName} />
+          : <small>—</small>}
         {/* SIL-838 điểm 1 (KH 15/11) — nhà máy + tuyến dưới tên KH, cả FCL
             lẫn LCL; SIL-865 — the wire serves ONLY catalog/typed nhà máy and
-            route-catalog tuyến names (the cảng-pair tiers were removed), so
-            a lot without the facts simply renders no line. */}
-        {row.factoryName != null && <span className="debit-lot-site">{row.factoryName}</span>}
-        {row.routeName != null && <span className="debit-lot-route">{row.routeName}</span>}
+            route-catalog tuyến names (the cảng-pair tiers were removed).
+            SIL-876 (Ch.10 §10.7.4) — the Lô cell ALWAYS renders the four
+            lines; a missing fact renders its own '—' and never collapses
+            the stack. */}
+        <span className="debit-lot-site">{row.factoryName ?? '—'}</span>
+        <span className="debit-lot-route">{row.routeName ?? '—'}</span>
       </div>
     ),
   },

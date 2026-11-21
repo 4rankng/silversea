@@ -119,14 +119,6 @@ describe('SIL-838 điểm 1 — Lô carries nhà máy/kho + tuyến under the KH
     expect(lotCell.textContent).toContain('Kho NEWEB');
     expect(lotCell.textContent).toContain('Bắc Tân Uyên – Cát Lái');
   });
-
-  it('a lot with neither fact renders no placeholder line', async () => {
-    listBoard.mockResolvedValue({ items: [row()], total: 1 });
-    renderPage();
-    await screen.findByText('BL-1');
-    expect(document.querySelector('.debit-lot-site')).toBeNull();
-    expect(document.querySelector('.debit-lot-route')).toBeNull();
-  });
 });
 
 describe('SIL-838 điểm 2 — Phương tiện shows full nhà xe + BKS thực per row', () => {
