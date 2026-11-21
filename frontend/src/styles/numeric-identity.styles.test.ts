@@ -13,9 +13,15 @@ describe('QA-AUDIT-UI-22 numeric identity values', () => {
     expect(rule).toMatch(/overflow-wrap:\s*normal/);
     expect(rule).not.toMatch(/ellipsis|overflow:\s*hidden|max-width/);
     const page = read('pages/AccountingInvoiceTrackingPage.css');
+    // SIL-873 (CR-009.2): .ivt-stack__sub is the sub-fact lines rendered
+    // under an amount cell, not the value itself. Its nowrap was the board's
+    // min-content engine ('LOGCOM · 2300975219' alone measured the KH&Lô cell
+    // at 357px), pushing the auto board past its wrapper at 1440 and clipping
+    // Tiến độ xử lý — sub facts wrap like every other data line now, while the
+    // numeric value itself stays pinned by the .num law above. Still never clipped.
     const stack = page.match(/\.ivt-stack__sub\s*\{([^}]*)\}/)?.[1];
     expect(stack).toBeDefined();
-    expect(stack).toMatch(/white-space:\s*nowrap/);
+    expect(stack).not.toMatch(/white-space:\s*nowrap/);
     expect(stack).not.toMatch(/ellipsis|overflow:\s*hidden|max-width/);
   });
 
