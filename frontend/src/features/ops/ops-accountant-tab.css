@@ -1,0 +1,20 @@
+/* SIL-877 (CR-009.1 3.2) — Chi phí Ops board (/advances → Tab Chi phí Ops).
+   The board reuses the `.ops-wallet__table` classes, but OpsWalletPage.css is
+   /ops/wallet-only — on /advances only the global `.tt-table` base applies
+   (components/Table.css): `table-layout: fixed` with equal shares. Thirteen
+   equal columns leave ≈62px of header text at the 1440px sidebar-open canvas,
+   so the two long identity labels overflowed their th and painted over the
+   neighbour — "Khách hàng / Nhà máy" + "Số tờ khai" read as one stuck line
+   ("…NH SỐ TỜ KHAI").
+
+   The identity columns take a wider share; headers wrap at word boundaries
+   only (never the mid-token break the data cells' `overflow-wrap: anywhere`
+   law needs). All other columns keep the equal share. */
+
+.ops-acc .ops-wallet__col--customer { width: 11%; }
+.ops-acc .ops-wallet__col--declaration { width: 8.5%; }
+
+.ops-acc .ops-wallet__table thead th {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}

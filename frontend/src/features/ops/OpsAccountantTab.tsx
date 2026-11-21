@@ -22,6 +22,7 @@ import { DateRangeFields, FilterBar, UuiSelectField } from '../../design-system'
 import { FilterDropdown } from '../../components/FilterDropdown';
 
 import './ops-modal.css';
+import './ops-accountant-tab.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
 import { formatDate } from '../../lib/format';
 /**
@@ -119,15 +120,20 @@ export function OpsAccountantTab() {
                 <th>Ngày</th>
                 <th>Bill / Booking</th>
                 <th>Cont</th>
-                {/* SIL-858 — 3 cột nhận diện lô mới. */}
-                <th>Khách hàng / Nhà máy</th>
-                <th>Số tờ khai</th>
+                {/* SIL-858 — 3 cột nhận diện lô mới. SIL-877 (CR-009.1 3.2):
+                    cột KH/Nhà máy + Số tờ khai lấy share rộng hơn mức chia
+                    đều — header chữ dài bị nhét dưới 87px và tràn đè header
+                    kế cạnh (ops-accountant-tab.css). */}
+                <th className="ops-wallet__col--customer">Khách hàng / Nhà máy</th>
+                <th className="ops-wallet__col--declaration">Số tờ khai</th>
                 <th>Số HĐ</th>
                 <th>Loại phí</th>
                 <th>Số tiền</th>
                 <th>Người chi</th>
                 <th>Chứng từ</th>
-                <th>Trạng thái</th>
+                {/* SIL-877 (CR-009.1 3.2) — TRẠNG THÁI → SỐ PHIẾU: cột này
+                    đọc mã phiếu quyết toán, không phải trạng thái duyệt. */}
+                <th>Số phiếu</th>
                 {/* §3c — kế toán's duyệt axis: an Ops chi only reaches hoàn
                     tạm ứng (ĐNTT) after this tick, so the state and the act
                     live on the same screen kế toán already reads. */}
@@ -170,7 +176,7 @@ export function OpsAccountantTab() {
                       {row.hasPhoto ? 'Ảnh' : 'Không có ảnh'}
                     </button>
                   </td>
-                  {/* SIL-858 — Trạng thái hiển thị SỐ PHIẾU quyết toán khi
+                  {/* SIL-858 — cột Số phiếu hiển thị mã phiếu quyết toán khi
                       đã tất toán (thay vì chỉ 'Đã lập phiếu'). */}
                   <td>{row.approvalStatus === 'DRAFT' ? 'Cần bổ sung' : row.opsSettlementCode ?? 'Chưa quyết toán'}</td>
                   <td>

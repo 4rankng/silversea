@@ -234,9 +234,9 @@ describe('OpsAccountantTab — KT-duyệt axis (card 191026160000 §3c)', () => 
 
 // SIL-858 — the Chi phí Ops tab rework: Kỳ chi + Người-lập-lệnh-chi filters,
 // the 3 lot-identity columns (Khách hàng/Nhà máy, Số tờ khai, Số HĐ with the
-// no-invoice 'X'), 'Đã hủy / lịch sử' rows fully hidden, Trạng thái showing
-// the settlement voucher code, and Ghi chú as the last column (the row-level
-// [Xem phiếu] button is gone — the sheet opens from the phiếu table).
+// no-invoice 'X'), 'Đã hủy / lịch sử' rows fully hidden, the Số phiếu column
+// showing the settlement voucher code, and Ghi chú as the last column (the
+// row-level [Xem phiếu] button is gone — the sheet opens from the phiếu table).
 describe('OpsAccountantTab — SIL-858 accountant board rework', () => {
   const mockBoard = (items: Array<Record<string, unknown>>) => {
     apiGet.mockImplementation((url: string) => {
@@ -266,26 +266,35 @@ describe('OpsAccountantTab — SIL-858 accountant board rework', () => {
         customerName: 'Long Minh', factoryName: 'Nhà máy Long Minh',
         declarationNumber: null, note: 'đài phụ chứng chi phícont',
       }),
+      // SIL-877 (CR-009.1 3.2) — dữ liệu cũ: hóa đơn rỗng/toàn khoảng trắng
+      // (pre-validation rows) vẫn phải hiện 'X', không phải chuỗi trống.
+      expense({
+        id: 6, version: 1, requiresInvoice: false, invoiceNumber: '   ',
+        customerName: 'Long Minh 2', factoryName: null,
+        declarationNumber: null, note: null,
+      }),
     ]);
     renderTab();
-    expect(await screen.findByText('BL-9')).toBeInTheDocument();
+    expect((await screen.findAllByText('BL-9')).length).toBe(2);
     expect(screen.getByRole('columnheader', { name: 'Khách hàng / Nhà máy' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Số tờ khai' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Số HĐ' })).toBeInTheDocument();
     expect(screen.getByText('Long Minh')).toBeInTheDocument();
     expect(screen.getByText('Nhà máy Long Minh')).toBeInTheDocument();
-    expect(screen.getByText('X')).toBeInTheDocument(); // phí không hóa đơn → 'X'
-    expect(screen.getByText('—')).toBeInTheDocument(); // lô-chung → tờ khai trống
+    expect(screen.getAllByText('X')).toHaveLength(2); // không hóa đơn (null + rỗng) → 'X'
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0); // lô-chung → tờ khai trống
     expect(screen.getByText('đài phụ chứng chi phícont')).toBeInTheDocument();
   });
 
-  it('Trạng thái hiện SỐ PHIẾU quyết toán; chưa tất toán giữ Chưa quyết toán', async () => {
+  it('Cột Số phiếu hiện mã phiếu quyết toán; chưa tất toán giữ Chưa quyết toán', async () => {
     mockBoard([
       expense({ id: 5, version: 1, opsSettlementId: 3, opsSettlementCode: 'OS-2611-0009' }),
       expense({ id: 6, version: 1, opsSettlementId: null, opsSettlementCode: null }),
     ]);
     renderTab();
     expect(await screen.findByText('OS-2611-0009')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Số phiếu' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Trạng thái' })).toBeNull();
     expect(screen.getByText('Chưa quyết toán')).toBeInTheDocument();
     expect(screen.queryByText('Đã lập phiếu')).toBeNull();
     // The row-level sheet button is gone; the phiếu table's Xem stays.
