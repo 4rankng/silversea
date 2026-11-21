@@ -171,11 +171,13 @@ export interface AccountingDebitBoardRow {
   containers: string[];
   phanXe: string[];
   /** SIL-838 điểm 1 — nhà máy/kho hàng của lô dưới tên KH: coalesce (site
-   *  catalog Nhà máy → factoryName gõ tay → site Kho lấy hàng). Null khi
-   *  lô không mang bất kỳ nguồn nào. */
+   *  catalog Nhà máy → factoryName gõ tay). SIL-865 — the warehouse-site
+   *  fallback was removed (port-named warehouse sites leaked into the
+   *  column); null khi lô không mang nguồn nào. */
   factoryName: string | null;
-  /** SIL-838 điểm 1 — tuyến dưới tên KH: routes short/full name, fallback
-   *  rawRouteName của lệnh chạy ngoài (ROUTE_DISPLAY_NAME của CUS workspace). */
+  /** SIL-838 điểm 1 — tuyến dưới tên KH: route catalog names (trip chain →
+   *  container chain → lot-level ROUTE_DISPLAY_NAME → factory site route).
+   *  SIL-865 — port-pair tiers removed; null khi lô không có tuyến catalog. */
   routeName: string | null;
   /** SIL-838 điểm 2 — BKS thực của lô từ trip (own fleet + external plate),
    *  đã lọc bỏ biển mà nhãn phân xe đã hiện (dòng đội nội bộ tự gọi bằng
@@ -233,39 +235,24 @@ export interface AccountingDebitBoardRow {
   costLockedAt: string | null;
 }
 
-// SIL-838 điểm 1 — site catalog aliases for the nhà máy/kho coalesce under
-// the Lô cell's customer name (the shipment may point at either, or neither,
-// and carry only the typed factoryName).
+// SIL-838 điểm 1 — site catalog alias for the nhà máy coalesce under the
+// Lô cell's customer name (the shipment may point at it, carry only the
+// typed factoryName, or neither — SIL-865: a lot with neither renders NO
+// factory line, never a port/warehouse site name).
 const debitBoardFactorySite = alias(s.operationalSites, 'debit_board_factory_site');
-const debitBoardWarehouseSite = alias(s.operationalSites, 'debit_board_warehouse_site');
 // SIL-838 QA (fd0f7f14) — tuyến authority rides the container grain first
 // (FB-074): FCL truth lives on shipment_containers.route_id / raw_route_name,
 // the lot-level chain is empty on prod data. Catalog name via this alias so
 // the subquery's routes join never collides with the outer lot-level one.
+// SIL-865 (hotfix CR-009.1) — the customer REMOVED the cảng nâng/hạ pair
+// tiers from this column ('Cảng Đình Vũ → Cảng Đình Vũ' read as port names
+// where a TUYẾN ĐƯỜNG belongs): the label serves route CATALOG names only,
+// and a route-less lot stays null (the FE renders no line / '—').
 const debitBoardContainerRoute = alias(s.routes, 'debit_board_container_route');
-const debitBoardPickupPort = alias(s.ports, 'debit_board_pickup_port');
-const debitBoardDropPort = alias(s.ports, 'debit_board_drop_port');
-// SIL-838 round-3 (QA 16/11 19:51 SGT, build dd198999): the ticket asks for
-// the '→' pickup → delivery PAIR, but the QA-named FCL lots resolved tier-1
-// to the route CATALOG NAME ('KCN QUẾ VÕ, BẮC NINH' — no arrow; QA counted
-// it as factory text and read the line as missing) while their containers
-// carry the real operating pair — FCL intake REQUIRES cảng nâng + cảng hạ,
-// so the pair is never absent on an in-scope container. The label now leads
-// with that pair and only falls back to the route catalog / raw text for
-// port-less legacy rows (same content as round-2, later in the chain).
-const debitBoardContainerRouteLabel = sql<string | null>`coalesce(
-  nullif(btrim(${debitBoardPickupPort.name}), '') || ' → ' || nullif(btrim(${debitBoardDropPort.name}), ''),
-  ${operationalName(debitBoardContainerRoute.shortName, debitBoardContainerRoute.name)},
-  nullif(btrim(${s.shipmentContainers.rawRouteName}), '')
-)`;
-// SIL-838 QA (68646e82) — prod containers + lot chain can both be route-less;
-// the surviving authority is the lot's own trips, frozen at dispatch (same
-// active-trip scope as the money queries). Round-3 splits the old combined
-// label: the CANONICAL PAIR keeps its own arrow tier above the LCL operating
-// points; the route catalog name degrades to a later no-arrow tier so it can
-// never mask a pair again.
+const debitBoardContainerRouteCatalogLabel = sql<string | null>`${operationalName(debitBoardContainerRoute.shortName, debitBoardContainerRoute.name)}`;
+// SIL-865 — the trip tier keeps its non-canceled scope but reads the route
+// CATALOG name (the canonicalOrigin/destination pairs are port names too).
 const debitBoardTripRoute = alias(s.routes, 'debit_board_trip_route');
-const debitBoardTripRouteLabel = sql<string | null>`nullif(btrim(${s.trips.canonicalOrigin}), '') || ' → ' || nullif(btrim(${s.trips.canonicalDestination}), '')`;
 const debitBoardTripRouteCatalogLabel = sql<string | null>`${operationalName(debitBoardTripRoute.shortName, debitBoardTripRoute.name)}`;
 const debitBoardFactoryRoute = alias(s.routes, 'debit_board_factory_route');
 
@@ -294,48 +281,33 @@ export async function getAccountingDebitBoard(query: {
     // SIL-838 điểm 1 — nhà máy/kho hàng + tuyến dưới tên KH. Catalog site
     // names ride the same operational short-name law as customerName; the
     // typed factoryName (nhập tay) bridges lots without a catalog link.
+    // SIL-865 — the warehouse-site fallback is GONE: pickup warehouse sites
+    // on prod are port-named ('Cảng Mipec'), and an un-factory lot must
+    // render no line, not a port.
     factoryName: sql<string | null>`coalesce(
       ${operationalName(debitBoardFactorySite.shortName, debitBoardFactorySite.name)},
-      nullif(btrim(${s.shipments.factoryName}), ''),
-      ${operationalName(debitBoardWarehouseSite.shortName, debitBoardWarehouseSite.name)}
+      nullif(btrim(${s.shipments.factoryName}), '')
     )`,
-    // Route chain (first non-null tier wins; round-3 order keeps every pair
-    // ABOVE every catalog name): per-container operating pair (cảng nâng →
-    // cảng hạ — intake-required on FCL; scalar subquery, no join fan-out)
-    // → per-trip canonical pair frozen at dispatch (active-trip scope only,
-    // aggregated distinct ' · ') → the LCL lot's operating points (FB-105
-    // pickupLocation/deliveryLocation) → per-trip route catalog name (the
-    // round-2 no-arrow fallback, demoted) → container route catalog/raw
-    // → lot-level ROUTE_DISPLAY_NAME → the factory site's canonical FCL
-    // route. SIL-838 round-2 smoke (27/27 lô tháng 11 có tuyến) holds: every
-    // lot that resolved before still resolves, now with the arrow form.
+    // SIL-865 (hotfix CR-009.1) — the TUYẾN ĐƯỜNG line names the ROUTE, in
+    // catalog-name form ('KCN Đồng Văn, Hà Nam'), never a cảng pair: the
+    // port-pair tiers of SIL-838 round-3 (container cảng nâng→hạ, trip
+    // canonicalOrigin→destination, LCL pickup/delivery points) printed port
+    // names under the customer name and the customer struck them from the
+    // column. Chain: trip route catalog → container route catalog →
+    // lot-level ROUTE_DISPLAY_NAME (catalog name, typed raw text fallback)
+    // → the factory site's canonical route. A route-less lot stays null —
+    // the FE renders no line (or '—'), never a port name.
     routeName: sql<string | null>`coalesce(
-      (select string_agg(distinct ${debitBoardContainerRouteLabel}, ' · ')
-         from ${s.shipmentContainers}
-         left join ${s.routes} debit_board_container_route on debit_board_container_route.id = ${s.shipmentContainers.routeId}
-         left join ${s.ports} debit_board_pickup_port on debit_board_pickup_port.id = ${s.shipmentContainers.pickupPortId}
-         left join ${s.ports} debit_board_drop_port on debit_board_drop_port.id = ${s.shipmentContainers.dropoffPortId}
-        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}),
-      (select string_agg(distinct ${debitBoardTripRouteLabel}, ' · ')
-         from ${s.trips}
-        where ${s.trips.shipmentId} = ${s.shipments.id}
-          and ${s.trips.deletedAt} is null
-          and ${s.trips.status} <> 'CANCELED'),
-      nullif(btrim(${s.shipments.pickupLocation}), '') || ' → ' || nullif(btrim(${s.shipments.deliveryLocation}), ''),
       (select string_agg(distinct ${debitBoardTripRouteCatalogLabel}, ' · ')
          from ${s.trips}
          left join ${s.routes} debit_board_trip_route on debit_board_trip_route.id = ${s.trips.routeId}
         where ${s.trips.shipmentId} = ${s.shipments.id}
           and ${s.trips.deletedAt} is null
           and ${s.trips.status} <> 'CANCELED'),
-      (select string_agg(distinct ${debitBoardContainerRouteLabel}, ' · ')
+      (select string_agg(distinct ${debitBoardContainerRouteCatalogLabel}, ' · ')
          from ${s.shipmentContainers}
          left join ${s.routes} debit_board_container_route on debit_board_container_route.id = ${s.shipmentContainers.routeId}
-         left join ${s.ports} debit_board_pickup_port on debit_board_pickup_port.id = ${s.shipmentContainers.pickupPortId}
-         left join ${s.ports} debit_board_drop_port on debit_board_drop_port.id = ${s.shipmentContainers.dropoffPortId}
-        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-          and ${s.shipmentContainers.pickupPortId} is null
-          and ${s.shipmentContainers.dropoffPortId} is null),
+        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}),
       ${ROUTE_DISPLAY_NAME},
       (select ${operationalName(debitBoardFactoryRoute.shortName, debitBoardFactoryRoute.name)}
          from ${s.routes} debit_board_factory_route
@@ -368,7 +340,6 @@ export async function getAccountingDebitBoard(query: {
     .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
     .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
     .leftJoin(debitBoardFactorySite, eq(debitBoardFactorySite.id, s.shipments.operationalSiteId))
-    .leftJoin(debitBoardWarehouseSite, eq(debitBoardWarehouseSite.id, s.shipments.pickupWarehouseSiteId))
     .where(and(...conditions))
     .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
   if (lots.length === 0) return { items: [], total: 0 };

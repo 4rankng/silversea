@@ -22,7 +22,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BOARD_COLUMNS, LotCodeSpan } from './AccountingDebitClosePage.columns';
+import { BOARD_COLUMNS } from './AccountingDebitClosePage.columns';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/accounting/AccountingDebitClosePage.css'), 'utf8')
   // The comments carry the measurement that justifies each track; they are
@@ -111,19 +111,15 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     expect(css).toMatch(/\.debit-lot-ref:has\(\.debit-row-checkbox\) \.debit-row-tick\s*\{\s*display:\s*none;\s*\}/);
   });
 
-  it('SIL-964 — a 17+ char lot code renders one font step down inside the Lô track', () => {
-    // QA FAIL 18/11 (build 6bae7153): the 18-char staging code
-    // R4B-A14-EMPTY-8F29 overflowed the 14% track by 14px at the 1142px
-    // canvas. The long face is part of the r3 fix alongside the 16% share:
-    // the CSS rule must exist, and the Lô cell must apply it by rendered
-    // length (17+), so ANY 18-char code gets the shrunk face wherever it
-    // appears — without ellipsis/clip and without another share shift.
-    expect(ruleWith('.debit-lot-code--long', /font-size:\s*11px/)).toMatch(/font-size:\s*11px/);
+  it('SIL-865 — the Lô column renders no internal SHP-* code anywhere', () => {
+    // Hotfix CR-009.1 (21/11): the customer removed the internal code from
+    // the board's Lô column — the four-line contract is ngày / khách hàng /
+    // nhà máy / tuyến. The long-face span and its CSS are gone with it.
     const lot = BOARD_COLUMNS.find((candidate) => candidate.key === 'lo');
     expect(lot).toBeDefined();
-    expect(lot?.cell.toString()).toContain('LotCodeSpan');
-    expect(LotCodeSpan.toString()).toContain('debit-lot-code--long');
-    expect(LotCodeSpan.toString()).toContain('length >= 17');
+    expect(lot?.cell.toString()).not.toContain('LotCodeSpan');
+    expect(lot?.cell.toString()).toContain('debit-lot-date');
+    expect(css).not.toMatch(/debit-lot-code/);
   });
 
   it('SIL-835 — Số Bill/Book wraps cleanly inside its 9% track instead of bleeding onto Hàng hóa & Cont', () => {

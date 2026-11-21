@@ -86,7 +86,7 @@ p.debit-note { margin: 0 0 8px; }
  * canvas — r2 measured 16-char codes only. The Lô track now takes 16%
  * (≈183px: checkbox + an 18-char code one font step down fits with gap ≥ 0)
  * funded −1% each from the two 13% money tracks — every money track stays
- * ≥10% ≈114px, and codes ≥17 chars shrink one face (see .debit-lot-code--long).
+ * ≥10% ≈114px.
  * The ten-group ORDER is the Rev2 contract + ticket 18/11 Task 2.2b (Số
  * Bill/Book becomes its own track right after Lô), so the shares key on the
  * header's child position (same-class columns carry different widths). Money
@@ -129,13 +129,6 @@ p.debit-note { margin: 0 0 8px; }
  * collapses (the checkbox IS the pick marker); the code position stays
  * stable across every selectable row. */
 .debit-lot-ref:has(.debit-row-checkbox) .debit-row-tick { display: none; }
-
-/* SIL-964 — codes of 17+ chars (staging worst R4B-A14-EMPTY-8F29, 18 chars)
- * render one font step down: at the 12px inherited face an 18-char code
- * alone is ~134px — wider than anything the fixed track can spare beside
- * the checkbox; ~118px at 11px keeps the longest references whole with
- * gap ≥ 0 without stealing further budget from the money tracks. */
-.debit-lot-code--long { font-size: 11px; }
 
 /* Single-value money cells (Tổng thu, Lợi nhuận) right-align like the old
  * matrix; the multi-line groups align per LINE (label left, value right). */

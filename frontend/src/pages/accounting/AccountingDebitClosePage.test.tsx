@@ -126,14 +126,16 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     renderPage();
     const reference = await screen.findByText('BL-1');
     // Ticket 18/11 Task 2.2b — the bill ref lives in its OWN column cell, no
-    // longer folded into the Lô stack; the Lô stack shows the lot code.
+    // longer folded into the Lô line. SIL-865 — the Lô stack itself carries
+    // NO SHP-* code: its four lines are ngày / khách hàng / nhà máy / tuyến.
     expect(reference.closest('td')?.className).toContain('debit-col--billbook');
-    const lotStack = screen.getByText('SHP-26-0001').closest('.record-cell-stack');
+    const lotStack = reference.closest('tr')?.querySelector('td.debit-col--lot .record-cell-stack');
     expect(lotStack).not.toBeNull();
     expect(lotStack?.querySelector('small')).toHaveTextContent('KH A');
+    expect(lotStack?.textContent).not.toContain('SHP-26-0001');
     // A lot without a bill/booking renders the established placeholder face
     // in that column (the board's empty-value law for this field).
-    const emptyBillCell = screen.getByText('SHP-26-0002').closest('tr')
+    const emptyBillCell = screen.getByText('KH B').closest('tr')
       ?.querySelector('td.debit-col--billbook');
     expect(emptyBillCell).toHaveTextContent('Chưa có số Bill/Booking');
   });
@@ -156,7 +158,7 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
       billingTruckNo: '51X-999.99',
     })]);
     renderPage();
-    await screen.findAllByText('SHP-26-0001');
+    await screen.findAllByText('BL-1');
     const trs = [...(document.querySelector('.debit-board tbody') as HTMLElement).querySelectorAll('tr')] as HTMLElement[];
     expect(trs).toHaveLength(2);
     // Container 1 — per-container cargo + vehicle facts, billing badge.
@@ -170,11 +172,14 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     // SIL-864 — every container row is FULLY independent: lot identity
     // (Lô + Số Bill/Book), the money clusters (locked lot → formatted text),
     // Lợi nhuận and the Ghi chú & Đối soát state all render per row, so
-    // accounting reconciles each container row on its own.
-    expect(within(trs[0]).getAllByText('SHP-26-0001').length).toBeGreaterThan(0);
-    expect(within(trs[1]).getAllByText('SHP-26-0001').length).toBeGreaterThan(0);
-    expect(within(trs[0]).getAllByText('BL-1').length).toBeGreaterThan(0);
-    expect(within(trs[1]).getAllByText('BL-1').length).toBeGreaterThan(0);
+    // accounting reconciles each container row on its own. SIL-865 — the
+    // Lô stack carries ngày + khách hàng, never the SHP-* code.
+    for (const tr of trs) {
+      expect(within(tr).getAllByText('BL-1').length).toBeGreaterThan(0);
+      expect(within(tr).getAllByText('25/09/2026').length).toBeGreaterThan(0);
+      expect(within(tr).getAllByText('KH A').length).toBeGreaterThan(0);
+      expect(within(tr).queryAllByText(/SHP-/)).toHaveLength(0);
+    }
     for (const tr of trs) {
       expect(within(tr).getAllByText('1.790.000 ₫').length).toBeGreaterThan(0);
       expect(within(tr).getAllByText('480.000 ₫').length).toBeGreaterThan(0);

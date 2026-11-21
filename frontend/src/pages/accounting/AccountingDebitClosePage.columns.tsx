@@ -126,14 +126,6 @@ function MoneyLine({ label, rate, children }: { label: string; rate?: boolean; c
   );
 }
 
-/** SIL-964 — the lot's code span. A code of 17+ chars (staging worst
- * R4B-A14-EMPTY-8F29, 18) rides the smaller `.debit-lot-code--long` face so
- * the longest references stay whole inside the fixed 16% Lô track
- * (AccountingDebitClosePage.css, same ticket). */
-export function LotCodeSpan({ code }: { code: string }) {
-  return <span className={code.length >= 17 ? 'debit-lot-code--long' : undefined}>{code}</span>;
-}
-
 export const BOARD_COLUMNS: readonly DebitColumn[] = [
   {
     // Rev2 cột 1 — [Checkbox] & Lô: ngày đóng/trả, khách hàng (nhà máy /
@@ -148,7 +140,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
         <span className="debit-lot-ref">
           {/* §2c: the ✓ tick says WHICH row is selected — the count strip says
               HOW MANY. The 1.1em slot is always reserved so picking a row
-              never shifts the lot's code. */}
+              never shifts the date. */}
           <span className="debit-row-tick" aria-hidden="true">{context?.rowSelect?.selected ? '✓' : ''}</span>
           {context?.rowSelect
             ? (
@@ -167,15 +159,21 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
             : hasMissingCost(row)
               ? <span className="debit-cost-dot" role="img" aria-label="Thiếu chi phí" title="Thiếu chi phí" />
               : null}
-          <LotCodeSpan code={row.code ?? billBookingReference(row.billOrBooking) ?? '—'} />
+          {/* SIL-865 (hotfix CR-009.1) — the Lô column's four-line contract:
+              (1) ngày vận chuyển (2) tên rút gọn khách hàng (3) nhà máy
+              (4) tuyến đường. The internal SHP-* code is GONE from the
+              column — the Số Bill/Book track next door is the visible
+              identity; a lot with no nhà máy/tuyến fact renders no line
+              (never a cảng name). */}
+          <span className="debit-lot-date">{row.ngay == null ? '—' : formatDate(row.ngay)}</span>
         </span>
-        <span className="debit-lot-date">{row.ngay == null ? '—' : formatDate(row.ngay)}</span>
         {/* Card 191026202000: the customer name rides the shared NameCell like
             every other grid — short name on the face, full name in the tooltip. */}
         <NameCell as="small" name={row.customerName} />
-        {/* SIL-838 điểm 1 (KH 15/11) — nhà máy/kho hàng + tuyến dưới tên KH,
-            cả FCL lẫn LCL; mỗi fact một dòng, lô không mang fact nào thì
-            không có dòng nào (không placeholder). */}
+        {/* SIL-838 điểm 1 (KH 15/11) — nhà máy + tuyến dưới tên KH, cả FCL
+            lẫn LCL; SIL-865 — the wire serves ONLY catalog/typed nhà máy and
+            route-catalog tuyến names (the cảng-pair tiers were removed), so
+            a lot without the facts simply renders no line. */}
         {row.factoryName != null && <span className="debit-lot-site">{row.factoryName}</span>}
         {row.routeName != null && <span className="debit-lot-route">{row.routeName}</span>}
       </div>
