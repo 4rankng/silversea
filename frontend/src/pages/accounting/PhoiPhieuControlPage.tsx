@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { LedgerRecordList, type LedgerRecord } from '../../components/shared/LedgerRecordList';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { ReceiptText } from 'lucide-react';
@@ -128,6 +128,50 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
   { key: 'ghichu-lai-xe', label: 'Ghi chú lái xe' },
 ];
 
+/* SIL-875 (CR-009.1 follow-up 21/11) — the board's chốt ladder floors, in
+ * table order. The CSS col rules carry the matching % shares (each share =
+ * floor ÷ the 13-column base 1124, so scale re-normalization sums ~100% for
+ * ANY rendered subset) and these px floors; the table's inline style derives
+ * BOTH from the RENDERED column set so hiding a column via the Ẩn/Hiện
+ * picker relaxes the horizontal-scroll floor (--ppc-min) instead of
+ * over-constraining `table-layout: fixed`, and --ppc-share-scale re-bases
+ * the % shares onto that set. Measured at the live 12px board font with the
+ * 6px dense gutter: identity token 88px (12ch bill), container token 65px
+ * ('TWCU2259939'), date token 48px ('26/09/2026'), the 'Xem chi tiết' /
+ * '+ Chi phí' buttons 90–91px, plate pill 60px. The FULL thirteen-column set
+ * (composed Ghi chú included) sums 1124px ≤ the ≈1129px sidebar-open canvas
+ * at 1440×900 — the QA board measured 2160px = the full set under
+ * table-layout: auto — so the default view never scrolls and Tiền đường's
+ * 'Xem chi tiết' reaches the right edge whole. Change a floor here AND its
+ * var in PhoiPhieuControlPage.css together (pinned by
+ * PhoiPhieuControlPage.styles.test.ts). */
+const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
+  'lich-trinh': 116,
+  'customer-route': 100,
+  thongso: 78,
+  diadiem: 84,
+  xe: 96,
+  hoadon: 104,
+  money: 104,
+  status: 84,
+  date: 62,
+  ghichu: 74,
+  'ghichu-vantai': 74,
+  'ghichu-ops': 74,
+  'ghichu-lai-xe': 74,
+};
+
+/** SIL-875: the share base — every board column's floor sum (the
+ *  thirteen-column full set). Every CSS share = its floor ÷ this sum, and
+ *  scale = this ÷ the rendered floor sum, so the declared widths of ANY
+ *  rendered subset re-normalize to ~100% and can never phantom-scroll.
+ *  Computed from the map so the two can never drift. */
+const PCC_SPEC_BASE_SUM = ([
+  'lich-trinh', 'customer-route', 'thongso', 'diadiem', 'xe', 'hoadon',
+  'money', 'status', 'date', 'ghichu', 'ghichu-vantai', 'ghichu-ops',
+  'ghichu-lai-xe',
+] as const).reduce((sum, key) => sum + PCC_COL_WIDTHS[key], 0);
+
 interface Filters {
   dateFrom: string; dateTo: string; status: string; search: string; sortBy: 'grouped' | 'date';
   confirmation: ChiHoConfirmation | '';
@@ -200,6 +244,32 @@ export default function PhoiPhieuControlPage() {
     hasData: (column) => column.key !== 'ghichu'
       || visibleRows.some((row) => Boolean((row.ghiChu ?? '').trim())),
   });
+  // SIL-875 (CR-009.1 follow-up) — the chốt ladder rides the RENDERED set:
+  // --ppc-min is the rendered floor sum (the wrapper's horizontal-scroll
+  // floor — at the 1440px sidebar-open canvas ≈1129px the default twelve
+  // (1096px) do NOT scroll, the ticket's AC) and --ppc-share-scale re-bases
+  // the CSS % shares onto that set, so a column hidden through the
+  // Ẩn/Hiện picker (or the composed Ghi chú appearing) keeps the rendered
+  // columns summing to ~100% — above 100% the fixed layout widens the table
+  // past its container and phantom-scrolls at every width.
+  const renderedColKeys = [
+    'lich-trinh', 'customer-route',
+    ...(!boardColumns.isHidden('thongso') ? ['thongso'] : []),
+    ...(!boardColumns.isHidden('diadiem') ? ['diadiem'] : []),
+    'xe',
+    ...(!boardColumns.isHidden('hoadon') ? ['hoadon'] : []),
+    ...(!boardColumns.isHidden('money') ? ['money'] : []),
+    ...(!boardColumns.isHidden('status') ? ['status'] : []),
+    ...(!boardColumns.isHidden('ghichu') ? ['ghichu'] : []),
+    ...(!boardColumns.isHidden('date') ? ['date'] : []),
+    ...(!boardColumns.isHidden('ghichu-vantai') ? ['ghichu-vantai'] : []),
+    ...(!boardColumns.isHidden('ghichu-ops') ? ['ghichu-ops'] : []),
+    ...(!boardColumns.isHidden('ghichu-lai-xe') ? ['ghichu-lai-xe'] : []),
+  ] as string[];
+  const tableMinWidth = renderedColKeys.reduce((sum, key) => sum + (PCC_COL_WIDTHS[key] ?? 0), 0);
+  const ppcShareScale = (PCC_SPEC_BASE_SUM / tableMinWidth).toFixed(5);
+  // The three Ghi chú columns share one col class (one width law).
+  const ppcColClass = (key: string) => key.startsWith('ghichu') ? 'ppc-col--ghichu' : `ppc-col--${key}`;
   const canSelect = (row: PhoiPhieuRow) => row.confirmable;
   // Card 20260929_207: the checkbox column is gone app-wide — a row is picked by
   // clicking it (keyboard: focus the row, press Space). `selectable` still
@@ -388,8 +458,15 @@ export default function PhoiPhieuControlPage() {
         ],
       }))} />
       <div className="ppc-board-wrap ledger-desktop" role="region" aria-label="Bảng kiểm soát phơi phiếu" tabIndex={0}>
-        <table className="tt-table ops-table ppc-board">
+        <table className="tt-table ops-table ppc-board" style={{ '--ppc-min': `${tableMinWidth}px`, '--ppc-share-scale': ppcShareScale } as CSSProperties}>
           <caption className="sr-only">Phơi phiếu và tiền đường theo chuyến</caption>
+          {/* SIL-875 — the colgroup carries the ladder: Chromium honors
+              min-width on <col> in table-layout: fixed (probe-verified,
+              SIL-872), so each col pins its % share + px floor while the
+              th/td classes keep their styling hooks. */}
+          <colgroup>
+            {renderedColKeys.map((key) => <col key={key} className={ppcColClass(key)} />)}
+          </colgroup>
           <thead><tr>
             <th scope="col" className="ppc-col--lich-trinh">Số Bill / Booking</th>
             <th scope="col" className="ppc-col--customer-route">
@@ -443,7 +520,16 @@ export default function PhoiPhieuControlPage() {
                 tabIndex={pickable ? 0 : undefined}
                 {...selection.rowProps(row.tripId, { selectable: pickable })}
               >
-                <td className="ppc-col--lich-trinh"><span className="ppc-identity">{billBookingReference(row.billOrBooking)}</span></td>
+                <td className="ppc-col--lich-trinh">
+                  {/* SIL-875 — the identifier token keeps the nowrap identity
+                      law inside the 116px floor (the widest live bill fits);
+                      the null fallback is NOT an identifier — as a plain text
+                      node it wraps at spaces instead of painting over the
+                      neighbor column. */}
+                  {row.billOrBooking
+                    ? <span className="ppc-identity">{billBookingReference(row.billOrBooking)}</span>
+                    : 'Chưa có số Bill/Booking'}
+                </td>
                 {/* Ticket 18/11 Task 3.1c — col 2 prints the three VALUES only
                     (Long Minh / Askey / KCN Quế Võ, Bắc Ninh); the long
                     'Khách hàng:' / 'Nhà máy:' / 'Tuyến:' prefixes are gone. */}

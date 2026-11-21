@@ -48,34 +48,81 @@ describe('phân công xe — the controls stay reachable (card 20260930_214)', (
   });
 });
 
-describe('phôi phiếu board cell discipline (card 20260923_8 group B)', () => {
-  it('atomic cells never fracture — date column and chi hộ/tiền đường value tokens pin nowrap (design law §4)', () => {
-    expect(css).toMatch(/\.ppc-board td\.ppc-col--date\s*\{[^}]*white-space:\s*nowrap/);
+describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-875 ladder)', () => {
+  it('atomic value tokens never fracture — tiền đường values pin nowrap (design law §4)', () => {
     expect(css).toMatch(/\.ppc-board \.ppc-value\s*\{[^}]*white-space:\s*nowrap/);
   });
 
-  it('the approved workflow matrix grows to honest column minima at every width', () => {
-    expect(css).not.toMatch(/ppc-col--select/);
-    expect(css).toMatch(/\.ppc-board\s*\{[^}]*table-layout:\s*auto/);
-    // SIL-781/783 (8ccd81e6) added the inline Số HĐ invoice input, which fills
-    // its cell with width: 100% — a control width, not a column width. The law stays: the matrix never goes fixed-layout, and no ppc column rule
-    // ever takes a percentage width (honest min-width floors pinned below).
-    // SIL-874 scoped the ban to THIS board: the drawer's Untitled UI table now
-    // runs the chốt ladder (table-layout: fixed, its own describe below).
-    expect(css).not.toMatch(/\.ppc-board\s*\{[^}]*table-layout:\s*fixed/);
-    expect(css).not.toMatch(/\.ppc-col[^{]*\{[^}]*width:\s*\d+%/);
-    // Ticket 18/11 Task 3.1d — 'chiho' left the list with its column: the
-    // duplicate Chi hộ cell is gone from the board (and its 188px floor with it).
-    for (const column of ['lich-trinh', 'xe', 'customer-route', 'thongso', 'diadiem',
-      'money', 'status', 'date', 'ghichu', 'ghichu-ops']) {
-      const budget = css.match(new RegExp(`\\.ppc-board \\.ppc-col--${column}(?:\\s*,[^{}]+)?\\s*\\{[^}]*min-width:\\s*(\\d+)px`));
-      expect(budget, `${column} has a real content floor`).not.toBeNull();
-      expect(Number(budget?.[1])).toBeGreaterThanOrEqual(104);
-    }
+  it('SIL-875 — the board runs the chốt ladder: fixed layout, full-canvas width, 1124px full-set floor', () => {
+    const board = css.match(/\.ppc-board\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(board).toContain('table-layout: fixed');
+    expect(board).toContain('width: 100%');
+    expect(board).toContain('min-width: var(--ppc-min, var(--ppc-fixed-sum))');
+    expect(board).toContain('--ppc-fixed-sum: 1124px');
+    // The ladder lives on the colgroup cols — Chromium honors min-width on
+    // <col> in table-layout: fixed (SIL-872's probe-verified rung); the
+    // th/td classes stay styling hooks (sticky identity, selection edge).
+    expect(css).toMatch(/\.ppc-board col\.ppc-col--lich-trinh\s*\{/);
     expect(css).toMatch(/\.ppc-board \.ppc-identity\s*\{[^}]*white-space:\s*nowrap/);
     expect(css).toMatch(/\.ppc-board-wrap\s*\{[^}]*overflow-x:\s*auto/);
     expect(source).toContain('className="ppc-board-wrap ledger-desktop" role="region"');
     expect(source).toContain('className="ppc-board-hint ledger-desktop"');
+  });
+
+  it('every column carries its % share + px floor; the full thirteen-column set fits the 1440 canvas', () => {
+    const cols: Array<[string, string, string, number]> = [
+      ['lich-trinh', '10.32%', '--ppc-w-lich-trinh', 116],
+      ['customer-route', '8.9%', '--ppc-w-customer-route', 100],
+      ['thongso', '6.94%', '--ppc-w-thongso', 78],
+      ['diadiem', '7.47%', '--ppc-w-diadiem', 84],
+      ['xe', '8.55%', '--ppc-w-xe', 96],
+      ['hoadon', '9.25%', '--ppc-w-hoadon', 104],
+      ['money', '9.25%', '--ppc-w-money', 104],
+      ['status', '7.47%', '--ppc-w-status', 84],
+      ['date', '5.52%', '--ppc-w-date', 62],
+      ['ghichu', '6.5%', '--ppc-w-ghichu', 74],
+    ];
+    let declaredSum = 0;
+    let floorSum = 0;
+    for (const [col, share, floorVar, floorPx] of cols) {
+      const block = css.match(new RegExp(`\\.ppc-board col\\.ppc-col--${col}(?:\\s*,[^{}]*)?\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+      expect(block, `${col} keeps its % share`).toContain(`width: ${share}`);
+      expect(block, `${col} keeps its px floor`).toContain(`min-width: var(${floorVar})`);
+      expect(css, `${floorVar} var matches the TSX map`).toContain(`${floorVar}: ${floorPx}px`);
+      expect(source, `${col} floor in the TSX map`).toMatch(new RegExp(`['"]?${col}['"]?: ${floorPx},`));
+      // One law, FOUR rendered reading columns: composed Ghi chú + vận tải +
+      // chi phí OPS + lái xe.
+      const rendered = col === 'ghichu' ? 4 : 1;
+      declaredSum += Number(share.slice(0, -1)) * rendered;
+      floorSum += floorPx * rendered;
+    }
+    // Declared widths (99.67% of the base) must stay UNDER 100% — over 100%
+    // the fixed layout widens the table past its container and
+    // phantom-scrolls at every canvas; the remainder distributes.
+    expect(declaredSum).toBeLessThan(100);
+    // The full set (the QA screenshot's thirteen columns incl composed
+    // Ghi chú) sums 1124px ≤ the ≈1129px sidebar-open canvas at 1440×900 —
+    // no horizontal scroll at the acceptance width.
+    expect(floorSum).toBe(1124);
+    expect(source).toMatch(/const PCC_SPEC_BASE_SUM = /);
+  });
+
+  it('the rendered-set law: --ppc-min and --ppc-share-scale derive from the RENDERED colgroup (SIL-872 doctrine)', () => {
+    expect(source).toMatch(/'--ppc-min': `\$\{tableMinWidth\}px`/);
+    expect(source).toMatch(/'--ppc-share-scale': ppcShareScale/);
+    expect(source).toMatch(/const ppcShareScale = \(PCC_SPEC_BASE_SUM \/ tableMinWidth\)\.toFixed\(5\);/);
+    // The colgroup renders one <col> per rendered key; the three Ghi chú
+    // columns collapse onto one col class.
+    expect(source).toMatch(/renderedColKeys\.map\(\(key\) => <col key=\{key\} className=\{ppcColClass\(key\)\} \/>\)/);
+  });
+
+  it('the dense 6px gutter replaces the shared 12px inside the board', () => {
+    expect(css).toMatch(/\.ppc-board thead th,\s*\.ppc-board tbody td\s*\{[^}]*padding-inline:\s*6px;/);
+  });
+
+  it('date atomicity rides the col floor — the blanket cell nowrap is retired (SIL-875)', () => {
+    expect(css).not.toMatch(/\.ppc-board td\.ppc-col--date\s*\{[^}]*white-space:\s*nowrap/);
+    expect(css).toMatch(/\.ppc-board col\.ppc-col--date\s*\{[^}]*min-width:\s*var\(--ppc-w-date\)/);
   });
 
   // Card 20260929_207 + the selection-state contract: the picked row is drawn in

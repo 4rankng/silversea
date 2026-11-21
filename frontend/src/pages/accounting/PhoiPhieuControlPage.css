@@ -9,33 +9,82 @@
   line-height: 1.3;
 }
 
-/* All-width workflow matrix: fixed percentage tracks compressed this board
-   at tablet/desktop widths. The approved debit-close pattern grows each track
-   to its content budget; the existing wrapper owns deliberate sideways reach. */
-.ppc-board { table-layout: auto; }
+/* SIL-875 (CR-009.1 follow-up 21/11) — the board runs the chốt ladder, the
+   law 2bbf1664 shipped for /shipments-detail: table-layout fixed makes the
+   % shares BIND; every col carries its share (= floor ÷ the 1124px
+   thirteen-column base) plus that px floor, measured off the real 12px
+   tokens (identity bill 88px, container token 65px, date 48px, the
+   'Xem chi tiết' / '+ Chi phí' buttons 90–91px). The FULL set — composed
+   Ghi chú included, the exact columns the QA screenshot showed — sums
+   1124px, under the ≈1129px sidebar-open canvas at 1440×900, so Tiền
+   đường's 'Xem chi tiết' (the control the QA ticket saw cut at the edge)
+   reaches the right edge WITHOUT horizontal scroll; above 1440 the shares
+   stretch to fill the canvas (1920px+ covered, no capped/centered
+   remnant). The old law — table-layout auto + ≥104px min-width floors —
+   let the columns grow to their nowrap content and the table measured
+   2160px at 1440 (the reported defect). The TSX derives --ppc-min
+   (rendered floor sum) and --ppc-share-scale (share re-base) from the
+   RENDERED set, so hiding a column through the Ẩn/Hiện picker relaxes the
+   scroll floor instead of over-constraining the fixed layout, and the
+   declared widths never exceed 100% (over 100% = phantom scroll at every
+   width). Gutter: the shared 12px inline padding trims to the 6px
+   dense-family gutter (cf. invoice-tracking's record-table) — thirteen
+   columns at 12px gutters spent ~312px of pure padding. */
+.ppc-board {
+  --ppc-w-lich-trinh: 116px;
+  --ppc-w-customer-route: 100px;
+  --ppc-w-thongso: 78px;
+  --ppc-w-diadiem: 84px;
+  --ppc-w-xe: 96px;
+  --ppc-w-hoadon: 104px;
+  --ppc-w-money: 104px;
+  --ppc-w-status: 84px;
+  --ppc-w-date: 62px;
+  --ppc-w-ghichu: 74px;
+  --ppc-fixed-sum: 1124px;
+  table-layout: fixed;
+  width: 100%;
+  min-width: var(--ppc-min, var(--ppc-fixed-sum));
+}
 .ppc-board th,
 .ppc-board td { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
-.ppc-board .ppc-col--lich-trinh { min-width: 188px; }
-.ppc-board .ppc-col--xe { min-width: 148px; }
-.ppc-board .ppc-col--customer-route { min-width: 188px; }
-.ppc-board .ppc-col--thongso { min-width: 164px; }
-.ppc-board .ppc-col--diadiem { min-width: 164px; }
+.ppc-board thead th,
+.ppc-board tbody td { padding-inline: 6px; }
+/* Shares = floor ÷ the 13-column base (1124px), pinned to 2dp; the TSX
+   --ppc-share-scale re-normalizes ANY rendered subset to ~100%. */
+.ppc-board col.ppc-col--lich-trinh { width: 10.32%; min-width: var(--ppc-w-lich-trinh); }
+.ppc-board col.ppc-col--customer-route { width: 8.9%; min-width: var(--ppc-w-customer-route); }
+.ppc-board col.ppc-col--thongso { width: 6.94%; min-width: var(--ppc-w-thongso); }
+.ppc-board col.ppc-col--diadiem { width: 7.47%; min-width: var(--ppc-w-diadiem); }
+.ppc-board col.ppc-col--xe { width: 8.55%; min-width: var(--ppc-w-xe); }
+.ppc-board col.ppc-col--hoadon { width: 9.25%; min-width: var(--ppc-w-hoadon); }
+.ppc-board col.ppc-col--money { width: 9.25%; min-width: var(--ppc-w-money); }
+.ppc-board col.ppc-col--status { width: 7.47%; min-width: var(--ppc-w-status); }
+.ppc-board col.ppc-col--date { width: 5.52%; min-width: var(--ppc-w-date); }
+/* The composed Ghi chú, Ghi chú vận tải, Ghi chú chi phí OPS and Ghi chú lái
+   xe columns share one col class — one width law for the four reading
+   columns (rounded down a hair: declared widths stay under 100%, the fixed
+   layout distributes the remainder). */
+.ppc-board col.ppc-col--ghichu { width: 6.5%; min-width: var(--ppc-w-ghichu); }
 /* Ticket 18/11 Task 3.1d — 'Chi hộ (thu / trả)' is gone from the board; its
    188px floor left with the column. */
 /* SIL-783 (id 906) — inline Số-HĐ editing + "+ Chi phí": the fee line and
-   the input sit in one narrow stack per chi-hộ row. SIL-807 — widened: the
-   invoice column must hold a full mã hóa đơn (14+ chars, e.g. 339IVN0130626)
-   without the input clipping it. */
-.ppc-board .ppc-col--hoadon { min-width: 224px; }
+   the input sit in one narrow stack per chi-hộ row. The column's 224px floor
+   retired with the SIL-875 ladder (104px floor + 9.5% share); the input
+   keeps its content sizing but can no longer exceed its fixed-layout cell. */
 .ppc-invoice-line { margin-bottom: 4px; }
 .ppc-invoice-line:last-of-type { margin-bottom: 0; }
 .ppc-invoice-fee { display: block; }
 .ppc-invoice-fee small { display: block; color: var(--ink-3); font-size: var(--text-caption-size); }
 .ppc-invoice-input {
   /* card 20260923_8 group B bans width:% in this board — display:block fills
-     the 176px stack cell without a percentage width. */
+     the stack cell without a percentage width. SIL-875: under the fixed
+     ladder the cell no longer grows to the input, so the cap (not a width
+     percentage — the ban's letter and purpose both hold) keeps an
+     intrinsic-width input inside its cell. */
   display: block;
   width: auto;
+  max-width: 100%;
   margin-top: 2px;
   padding: 2px 6px;
   border: 1px solid var(--line);
@@ -48,11 +97,6 @@
 /* Triggers the product-wide :focus-visible outline (base.css) — never suppressed. */
 .ppc-invoice-input:disabled { opacity: 0.6; }
 .ppc-invoice-error { display: block; color: var(--err); font-size: var(--text-caption-size); margin-top: 2px; }
-.ppc-board .ppc-col--money { min-width: 144px; }
-.ppc-board .ppc-col--status { min-width: 132px; }
-.ppc-board .ppc-col--date { min-width: 104px; }
-.ppc-board .ppc-col--ghichu,
-.ppc-board .ppc-col--ghichu-ops { min-width: 164px; }
 .ppc-board .ppc-identity { white-space: nowrap; }
 
 /* The trip/bill pair is the board's identity. It stays visible within the
@@ -100,7 +144,11 @@
   word-break: keep-all;
   overflow-wrap: normal;
 }
-.ppc-board td.ppc-col--date { white-space: nowrap; }
+/* SIL-875 retired the date cell's blanket nowrap: under the fixed ladder the
+   cell no longer grows to fit, and a nowrap 'Nhận phơi: 26/09/2026' small
+   line would paint over the Trạng thái column. Atomicity of the date token
+   itself is the col floor's job (62px ≥ the 48px '26/09/2026' token); the
+   secondary 'Nhận phơi: …' line wraps below it. */
 .ppc-board td.ppc-col--money .btn { margin-top: 4px; }
 .ppc-board .ppc-line { display: block; }
 .ppc-board .ppc-value { white-space: nowrap; }
