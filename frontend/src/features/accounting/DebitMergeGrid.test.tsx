@@ -13,7 +13,9 @@
  *    settled 0 does not (SIL-801);
  *  - the merge-tag law: a rev-group member's Cước cell shows
  *    «Ghép thu cước cùng Lô 1» with the F-2 reason as tooltip (SIL-546/F-2);
- *  - container child rows: expansion renders one cont/type per line;
+ *  - containers: SIL-876 no-compression — EVERY container renders as its own
+ *    stacked line (never a '> 2' pill, no expansion step), money stays
+ *    lot-level, and the internal SHP-* code never reaches the screen;
  *  - pagination rides the shared Pagination with page sizes [20, 50];
  *  - the column picker (card 20260928_193 mechanism) hosts show/hide;
  *  - Khóa lô / Chọn Debit gating: canLock/canChooseDebit + the completeness
@@ -40,7 +42,7 @@ const mergeRow = (over: Partial<DebitMergeItem> = {}): DebitMergeItem => ({
   containers: [{ id: 1, containerNumber: 'BSIU1234567', containerType: "20'DC" }],
   revenue: { cuoc: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
   chiHo: { csht: [], lift: [], drop: [], other: [] },
-  noInvoice: { gnOps: null, psOps: null, fees: [] },
+  noInvoice: { gnFee: null, gnPaid: null, psFee: null, psPaid: null, fees: [] },
   control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null },
   ...over,
 });
@@ -76,7 +78,7 @@ describe('DebitMergeGrid — 6 nhóm cột với tiêu đề CHÍNH XÁC', () =>
     }
   });
 
-  it('renders the four chi-hộ sub-group headers verbatim + the group-5 leaf labels', () => {
+  it('renders the four chi-hộ sub-group headers verbatim + the group-5 FIVE leaf labels (SIL-876)', () => {
     renderGrid();
     const table = document.querySelector('table.debit-merge__table') as HTMLElement;
     for (const header of [
@@ -84,12 +86,19 @@ describe('DebitMergeGrid — 6 nhóm cột với tiêu đề CHÍNH XÁC', () =>
       'Phí nâng-cont / Lưu kho hàng lẻ',
       'Phí hạ-cont / Phí bốc xếp',
       'Phí khác',
-      'Phí GN OP TC (Thực thu)',
-      'Phí PS OP TC (Thực thu)',
+      'Phí GN OP TC',
+      'Phí PS OP TC',
     ]) {
       // Scoped to the table: the column picker repeats the leaf labels.
       expect(within(table).getAllByText(header).length).toBeGreaterThan(0);
     }
+    // The five group-5 leaves EXACT — hai cột 'Thực thu' (mỗi họ một cột)
+    // đứng cạnh Phí của họ đó; Tên phí đóng cột.
+    const leafHeaders = [...table.querySelectorAll('thead tr:last-child th')].map((th) => th.textContent);
+    expect(leafHeaders).toContain('Phí GN OP TC');
+    expect(leafHeaders.filter((label) => label === 'Thực thu')).toHaveLength(2);
+    expect(leafHeaders).toContain('Phí PS OP TC');
+    expect(leafHeaders).toContain('Tên phí');
     // Container example from the ticket: BSIU1234567 | 20'DC renders per line.
     expect(within(table).getAllByText('BSIU1234567').length).toBeGreaterThan(0);
     expect(within(table).getAllByText("20'DC").length).toBeGreaterThan(0);
@@ -173,23 +182,53 @@ describe('DebitMergeGrid — money laws', () => {
   });
 });
 
-describe('DebitMergeGrid — container child rows', () => {
-  it('expansion renders ONE container per line (cont + loại cont), money cells stay lot-level and blank on child rows', () => {
+describe('DebitMergeGrid — containers (SIL-876: không nén)', () => {
+  it('renders EVERY container as its own stacked line — no "> 2" pill, no expansion step', () => {
     renderGrid({}, [mergeRow({
+      billOrBookNumber: 'BL-1',
       containers: [
         { id: 1, containerNumber: 'BSIU1234567', containerType: "20'DC" },
         { id: 2, containerNumber: 'BSIU7654321', containerType: "40'HC" },
+        { id: 3, containerNumber: 'MSMU7208543', containerType: "40'HC" },
       ],
       revenue: { cuoc: '1000', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '1000' },
     })]);
-    expect(screen.queryByText('BSIU7654321')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Containers của lô BL-1' }));
-    expect(screen.getByText('BSIU7654321')).toBeTruthy();
-    expect(screen.getByText("40'HC")).toBeTruthy();
-    // Child rows repeat the cont/type only — no money duplication.
-    const childRows = document.querySelectorAll('tr.debit-merge__child-row');
-    expect(childRows).toHaveLength(2);
-    expect(childRows[0]!.querySelector('td[data-col="cuoc"]')!.textContent).toBe('');
+    const contCell = document.querySelector('td[data-col="cont"]')!;
+    expect(contCell.querySelectorAll('.debit-merge-cell__line')).toHaveLength(3);
+    expect(contCell).toHaveTextContent('BSIU1234567');
+    expect(contCell).toHaveTextContent('BSIU7654321');
+    expect(contCell).toHaveTextContent('MSMU7208543');
+    const typeCell = document.querySelector('td[data-col="contType"]')!;
+    expect(typeCell.querySelectorAll('.debit-merge-cell__line')).toHaveLength(3);
+    // Money stays lot-level: exactly ONE cước cell for the row.
+    expect(document.querySelectorAll('td[data-col="cuoc"]')).toHaveLength(1);
+    // The compression affordance is GONE — no toggle button anywhere.
+    expect(document.querySelector('.debit-merge__cont-toggle')).toBeNull();
+    expect(document.querySelector('tr.debit-merge__child-row')).toBeNull();
+  });
+
+  it('SHP-* never renders: the lot cell is the Bill/Booking, missing one falls back to #id', () => {
+    renderGrid({}, [
+      mergeRow({ shipmentId: 101, billOrBookNumber: 'BL-1', code: 'SHP-26-0001' }),
+      mergeRow({ shipmentId: 102, billOrBookNumber: null, code: 'SHP-26-0002' }),
+    ]);
+    const firstLot = document.querySelector('tr[data-shipment-id="101"] td[data-col="lot"]')!;
+    expect(firstLot.textContent).toBe('BL-1');
+    const secondLot = document.querySelector('tr[data-shipment-id="102"] td[data-col="lot"]')!;
+    expect(secondLot.textContent).toBe('#102');
+    expect(document.body.textContent).not.toContain('SHP-26-0001');
+    expect(document.body.textContent).not.toContain('SHP-26-0002');
+  });
+
+  it('group-5 money law: Phí/Thực thu cells render empty when unknown, values when known', () => {
+    renderGrid({}, [mergeRow({
+      noInvoice: { gnFee: '650000', gnPaid: '450000', psFee: null, psPaid: null, fees: [{ name: 'Làm hàng luồng xanh', amount: '450000' }] },
+    })]);
+    expect(document.querySelector('td[data-col="gnFee"]')!.textContent).toContain('650.000');
+    expect(document.querySelector('td[data-col="gnPaid"]')!.textContent).toContain('450.000');
+    expect(document.querySelector('td[data-col="psFee"]')!.textContent!.trim()).toBe('');
+    expect(document.querySelector('td[data-col="psPaid"]')!.textContent!.trim()).toBe('');
+    expect(document.querySelector('td[data-col="noInvTenPhi"]')!).toHaveTextContent('Làm hàng luồng xanh');
   });
 });
 

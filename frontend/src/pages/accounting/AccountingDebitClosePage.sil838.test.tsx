@@ -207,7 +207,9 @@ describe('SIL-838 điểm 5 — the Ghép cước thu khách act left the KT too
     renderPage();
     await screen.findByText('BL-1');
     expect(screen.queryByRole('button', { name: 'Ghép cước thu khách' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).toBeTruthy();
+    // SIL-866 — the export step moved to /accounting/ghep-bo-debit; this
+    // toolbar keeps the reconciliation + chốt acts only.
+    expect(screen.queryByRole('button', { name: 'Xuất Debit Note' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeTruthy();
     // The per-row/strip TÁCH NHÓM path is untouched: unmerge stays reachable.
     fireEvent.click(await screen.findByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));

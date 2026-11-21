@@ -7,21 +7,23 @@
 //   1 Thông tin Lô hàng   Ngày | Lô hàng | Khách hàng | Nhà máy | Tuyến đường
 //                         (+ NV phụ trách in CUS team mode) + the group's
 //                         quick filters (Khách hàng / Tuyến đường) in the toolbar.
-//   2 Container           Số cont | Loại cont (BSIU1234567 | 20'DC) — child
-//                         rows repeat one container per line via row expansion;
-//                         money stays lot-level.
+//   2 Container           Số cont | Loại cont (BSIU1234567 | 20'DC) — SIL-876:
+//                         NO compression, EVERY container renders as its own
+//                         stacked line (never a '> 2' pill); money stays
+//                         lot-level. The lot label is the Số Bill/Booking —
+//                         the internal SHP-* code never reaches the screen.
 //   3 Cước phải thu       Cước | Lạch Huyện | Phụ phí | Phát sinh | Tổng.
 //   4 PHÍ CHI HỘ (Có hóa đơn) — 4 sub-groups from the expense-type catalog's
 //                         settlement category.
-//   5 PHÍ KHÔNG HÓA ĐƠN   Phí GN OP TC (Thực thu) | Phí PS OP TC (Thực thu) | Tên phí.
+//   5 PHÍ KHÔNG HÓA ĐƠN   Phí GN OP TC | Thực thu | Phí PS OP TC | Thực thu |
+//                         Tên phí (SIL-876's five leaves; Wiki §8.1.3 & §9.9).
 //   6 KIỂM SOÁT           Tổng TC | Trạng thái (checkbox per row → Khóa lô /
 //                         Chọn Debit).
 //
 // Money law (debit-summary precedent): a null money cell renders EMPTY —
 // never a fabricated 0; a known 0 renders muted '0'. The amber law
 // (SIL-801): a known non-zero Tổng TC wears var(--warning-text).
-import { Fragment, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import type { DebitMergeInvoiceFee, DebitMergeItem } from '@tingting/shared';
 import type { LedgerColumn } from '../../lib/column-visibility';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
@@ -79,8 +81,12 @@ const BASE_COLUMNS: GridColumnDef[] = [
   { key: 'khacHd', label: 'Số HĐ', group: 4, sub: 'Phí khác' },
   { key: 'khacSoTien', label: 'Số tiền', group: 4, sub: 'Phí khác' },
   { key: 'khacTenPhi', label: 'Tên phí', group: 4, sub: 'Phí khác' },
-  { key: 'gnOps', label: 'Phí GN OP TC (Thực thu)', group: 5 },
-  { key: 'psOps', label: 'Phí PS OP TC (Thực thu)', group: 5 },
+  // SIL-876 — PHÍ KHÔNG HÓA ĐƠN tách đủ 5 cột (Wiki §8.1.3/§9.9): hai bên
+  // Phí/Thực thu cho từng họ Ops, rồi Tên phí.
+  { key: 'gnFee', label: 'Phí GN OP TC', group: 5 },
+  { key: 'gnPaid', label: 'Thực thu', group: 5 },
+  { key: 'psFee', label: 'Phí PS OP TC', group: 5 },
+  { key: 'psPaid', label: 'Thực thu', group: 5 },
   { key: 'noInvTenPhi', label: 'Tên phí', group: 5 },
   { key: 'tongTc', label: 'Tổng TC', group: 6 },
   { key: 'trangThai', label: 'Trạng thái', group: 6, pinned: true },
@@ -98,9 +104,16 @@ export interface DebitMergeGridProps {
   canLock: boolean;
   /** The office trio only — createSettlementRound is OFFICE_ROLES-gated. */
   canChooseDebit: boolean;
+  /** SIL-866 (hotfix CR-009.1) — [Xuất Debit Note] rides THIS toolbar: the
+   *  same gate as the issue endpoint (CUS | ACCOUNTANT | ADMIN). Absent →
+   *  the surface carries no export step at all. */
+  canExportDebitNote?: boolean;
+  exportDebitPending?: boolean;
   lockPending?: boolean;
   onLockSelected: (shipmentIds: number[]) => void;
   onChooseDebit: (rows: DebitMergeItem[]) => void;
+  /** SIL-866 — opens the preview Debit Note dialog over the current selection. */
+  onExportDebitNote?: (rows: DebitMergeItem[]) => void;
   /** Row-identity click (the CUS page's Chốt giá bán drawer). */
   onOpenLot?: (row: DebitMergeItem) => void;
   /** The group-1 quick filters (Khách hàng / Tuyến đường), page-owned. */
@@ -162,9 +175,12 @@ export function DebitMergeGrid({
   onSelectionChange,
   canLock,
   canChooseDebit,
+  canExportDebitNote,
+  exportDebitPending = false,
   lockPending = false,
   onLockSelected,
   onChooseDebit,
+  onExportDebitNote,
   onOpenLot,
   quickFilters,
 }: DebitMergeGridProps) {
@@ -190,7 +206,6 @@ export function DebitMergeGrid({
     () => rows.slice((safePage - 1) * pageSize, safePage * pageSize),
     [rows, safePage, pageSize],
   );
-  const [expandedLotId, setExpandedLotId] = useState<number | null>(null);
 
   // Totals foot (owner redesign 23/10 law — a settlement board MUST show its
   // totals): the sums EQUAL the rendered page's money cells (knowns-sum; a
@@ -225,7 +240,7 @@ export function DebitMergeGrid({
   const selectedRows = rows.filter((row) => selection.has(row.shipmentId));
   const unlockedSelected = selectedRows.filter((row) => row.control.lockStatus !== 'LOCKED');
   const incompleteLabels = unlockedSelected
-    .map((row) => row.billOrBookNumber || row.code || `#${row.shipmentId}`)
+    .map((row) => row.billOrBookNumber || `#${row.shipmentId}`)
     .slice(0, 3);
   const lockDisabledReason = lockPending
     ? 'Đang khóa lô…'
@@ -242,6 +257,16 @@ export function DebitMergeGrid({
       ? 'Chọn ít nhất một lô.'
       : unlockedSelected.length > 0
         ? `Chọn Debit cần lô đã hoàn tất chi phí (đã khóa): ${incompleteLabels.join(', ')}`
+        : null;
+  // SIL-866 — the export step of the accountant chain (Khóa lô → Chọn Debit
+  // → Xuất Debit Note): gated like the issue endpoint; the selection scopes
+  // the preview's đợt picker the way the chot-debit board's did.
+  const exportDisabledReason = canExportDebitNote !== true
+    ? 'Tài khoản không có quyền xuất Debit Note.'
+    : exportDebitPending
+      ? 'Đang xuất…'
+      : selectedRows.length === 0
+        ? 'Chọn ít nhất một lô.'
         : null;
 
   // Header geometry: per group, the visible leaf count + sub-group buckets.
@@ -273,6 +298,18 @@ export function DebitMergeGrid({
               Chọn Debit
             </button>
           </DisabledActionTip>
+          {onExportDebitNote != null && (
+            <DisabledActionTip id="debit-merge-export" reason={exportDisabledReason}>
+              <button
+                type="button"
+                className="debit-merge__action"
+                aria-disabled={exportDisabledReason != null || undefined}
+                onClick={() => { if (exportDisabledReason == null) onExportDebitNote(selectedRows); }}
+              >
+                {exportDebitPending ? 'Đang xuất…' : 'Xuất Debit Note'}
+              </button>
+            </DisabledActionTip>
+          )}
           <ColumnPicker
             columns={columns}
             hidden={columnsApi.hidden}
@@ -316,8 +353,10 @@ export function DebitMergeGrid({
             {pageRows.map((row) => {
               const isSelected = selection.has(row.shipmentId);
               const containers = row.containers;
-              const expanded = expandedLotId === row.shipmentId && containers.length > 0;
-              const lotLabel = row.billOrBookNumber || row.code || `#${row.shipmentId}`;
+              // SIL-876 — mã nội bộ SHP-* không bao giờ ra màn hình: nhãn lô
+              // là Số Bill/Booking, thiếu thì '#id' (trên grid này bill/booking
+              // là định danh khách hàng thấy).
+              const lotLabel = row.billOrBookNumber || `#${row.shipmentId}`;
               const mergeTag = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1 && row.revenue.cuocReason
                 ? { label: MERGE_TAG_LABEL, title: row.revenue.cuocReason }
                 : null;
@@ -330,7 +369,6 @@ export function DebitMergeGrid({
                         {onOpenLot != null ? (
                           <button type="button" className="debit-merge__lot-link" onClick={() => onOpenLot(row)} aria-label={`Mở lô ${lotLabel}`}>{lotLabel}</button>
                         ) : lotLabel}
-                        <small className="debit-merge__lot-code">{row.code ?? ''}</small>
                       </td>
                     );
                   case 'customer': return <td key={key} data-col={key}>{row.customerName ?? ''}</td>;
@@ -338,28 +376,31 @@ export function DebitMergeGrid({
                   case 'route': return <td key={key} data-col={key}>{row.routeName ?? ''}</td>;
                   case 'creator': return <td key={key} data-col={key}>{row.creatorName ?? ''}</td>;
                   case 'cont':
+                    // SIL-876 — không nén cont ('> 2' / '> 6'): MỖI container
+                    // một dòng hiển thị luôn, không cần mở rộng.
                     return (
                       <td key={key} data-col={key}>
-                        {containers.length > 0 ? (
-                          <span className="debit-merge__cont">
-                            {containers[0]?.containerNumber ?? '—'}
-                            {containers.length > 1 && (
-                              <button
-                                type="button"
-                                className="debit-merge__cont-toggle"
-                                aria-expanded={expanded}
-                                aria-label={`Containers của lô ${lotLabel}`}
-                                onClick={() => setExpandedLotId((current) => (current === row.shipmentId ? null : row.shipmentId))}
-                              >
-                                {expanded ? <ChevronDown size={12} aria-hidden="true" /> : <ChevronRight size={12} aria-hidden="true" />}
-                                {containers.length}
-                              </button>
-                            )}
+                        {containers.length === 0 ? '—' : (
+                          <span className="debit-merge-cell debit-merge-cell--stack">
+                            {containers.map((container) => (
+                              <span className="debit-merge-cell__line" key={container.id}>{container.containerNumber ?? '—'}</span>
+                            ))}
                           </span>
-                        ) : '—'}
+                        )}
                       </td>
                     );
-                  case 'contType': return <td key={key} data-col={key}>{containers[0]?.containerType ?? ''}</td>;
+                  case 'contType':
+                    return (
+                      <td key={key} data-col={key}>
+                        {containers.length === 0 ? '' : (
+                          <span className="debit-merge-cell debit-merge-cell--stack">
+                            {containers.map((container) => (
+                              <span className="debit-merge-cell__line" key={container.id}>{container.containerType ?? '—'}</span>
+                            ))}
+                          </span>
+                        )}
+                      </td>
+                    );
                   case 'cuoc': return <td key={key} data-col={key}><MoneyCell value={row.revenue.cuoc} mergeTag={mergeTag} /></td>;
                   case 'lachHuyen': return <td key={key} data-col={key}><MoneyCell value={row.revenue.lachHuyen} /></td>;
                   case 'phuPhi': return <td key={key} data-col={key}><MoneyCell value={row.revenue.phuPhi} /></td>;
@@ -376,8 +417,10 @@ export function DebitMergeGrid({
                   case 'khacHd': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="hd" /></td>;
                   case 'khacSoTien': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="amount" /></td>;
                   case 'khacTenPhi': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="name" /></td>;
-                  case 'gnOps': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnOps} /></td>;
-                  case 'psOps': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psOps} /></td>;
+                  case 'gnFee': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnFee} /></td>;
+                  case 'gnPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnPaid} /></td>;
+                  case 'psFee': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psFee} /></td>;
+                  case 'psPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psPaid} /></td>;
                   case 'noInvTenPhi':
                     return (
                       <td key={key} data-col={key}>
@@ -413,22 +456,9 @@ export function DebitMergeGrid({
                 }
               };
               return (
-                <Fragment key={row.shipmentId}>
-                  <tr className="debit-merge__row" data-shipment-id={row.shipmentId}>
-                    {visibleColumns.map((column) => renderCell(column.key))}
-                  </tr>
-                  {expanded && containers.map((container) => (
-                    <tr key={`${row.shipmentId}-${container.id}`} className="debit-merge__child-row" aria-label={`Lô ${lotLabel} — container ${container.containerNumber ?? ''}`}>
-                      {visibleColumns.map((column) => (
-                        <td key={column.key} data-col={column.key} className="debit-merge__child-cell">
-                          {column.key === 'cont' ? (container.containerNumber ?? '—')
-                            : column.key === 'contType' ? (container.containerType ?? '')
-                              : ''}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </Fragment>
+                <tr key={row.shipmentId} className="debit-merge__row" data-shipment-id={row.shipmentId}>
+                  {visibleColumns.map((column) => renderCell(column.key))}
+                </tr>
               );
             })}
             {pageRows.length === 0 && (

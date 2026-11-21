@@ -12,7 +12,6 @@ import { useReasonPrompt } from '../../components/reason-prompt';
 import { ExpenseCreateDrawer } from '../expense-accounting/ExpenseCreateDrawer';
 import { Money } from '../../components/shared/Money';
 import { PhoiPhieuDetailSummary } from './PhoiPhieuDetailSummary';
-import { DepositBillField } from './DepositBillField';
 import './phoi-phieu-dialogs.css';
 
 interface Props {
@@ -194,7 +193,9 @@ export function PhoiPhieuTienDuongDialog({ tripId, shipmentId, billOrBooking, ca
         </>}
       >
       <div className="phoi-detail-body">
-        <DepositBillField tripId={tripId} onSaved={() => void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll })} />
+        {/* SIL-877 (CR-009.1 3.1) — the Cược Bill/Book block (nhập 1-4 số +
+            Lưu cược) left this dialog: deposit work lives on
+            /accounting/deposit-tracker, and the modal reads clean. */}
         {detail.isLoading && <p>Đang tải…</p>}
         {(error || detail.isError) && <div role="alert" className="phoi-detail-error">
           <p>{error || detail.error?.message}</p>

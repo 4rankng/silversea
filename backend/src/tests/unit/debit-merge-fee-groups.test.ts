@@ -91,31 +91,46 @@ describe('buildDebitMergeChiHo — 4 nhóm phụ, tổng chính xác', () => {
   });
 });
 
-describe('buildDebitMergeNoInvoice — hai họ phí không hóa đơn Ops', () => {
-  it('OPS_REGULAR (Giao nhận Ops) và OPS_INCIDENTAL (Phát sinh Ops) tách đúng Thực thu', () => {
+describe('buildDebitMergeNoInvoice — hai họ phí không hóa đơn Ops (SIL-876: Phí | Thực thu từng họ)', () => {
+  it('OPS_REGULAR (Giao nhận Ops) và OPS_INCIDENTAL (Phát sinh Ops) tách đúng cặp Phí / Thực thu', () => {
     const result = buildDebitMergeNoInvoice([
       { costGroup: 'OPS_REGULAR', charge: '450000', paid: '450000', feeName: 'Làm hàng luồng xanh' },
       { costGroup: 'OPS_REGULAR', charge: '0', paid: '200000', feeName: 'Chọn vỏ' },
       { costGroup: 'OPS_INCIDENTAL', charge: '180000', paid: '180000', feeName: 'Sửa tờ khai' },
     ]);
-    assert.equal(result.gnOps, 450000);
-    assert.equal(result.psOps, 180000);
+    // Phí = entry amount; Thực thu = customerChargeAmount (charge).
+    assert.equal(result.gnFee, 650000);
+    assert.equal(result.gnPaid, 450000);
+    assert.equal(result.psFee, 180000);
+    assert.equal(result.psPaid, 180000);
     assert.equal(result.fees.length, 3);
     assert.deepEqual(result.fees[0], { name: 'Làm hàng luồng xanh', amount: 450000 });
   });
 
-  it('lô không có hàng nào của một họ → họ đó là null (chưa xác định, không bịa 0)', () => {
+  it('lô không có hàng nào của một họ → các ô của họ đó là null (chưa xác định, không bịa 0)', () => {
     const result = buildDebitMergeNoInvoice([
       { costGroup: 'OPS_REGULAR', charge: '10000', paid: '10000', feeName: 'Chi hải quan' },
     ]);
-    assert.equal(result.gnOps, 10000);
-    assert.equal(result.psOps, null);
+    assert.equal(result.gnFee, 10000);
+    assert.equal(result.gnPaid, 10000);
+    assert.equal(result.psFee, null);
+    assert.equal(result.psPaid, null);
   });
 
-  it('lô không có dòng nào → cả hai null, fees rỗng', () => {
+  it('dòng chưa thương lượng charge → Thực thu null, Phí vẫn biết', () => {
+    const result = buildDebitMergeNoInvoice([
+      { costGroup: 'OPS_REGULAR', charge: null, paid: '70000', feeName: 'Chọn vỏ' },
+    ]);
+    assert.equal(result.gnFee, 70000);
+    assert.equal(result.gnPaid, null);
+  });
+
+  it('lô không có dòng nào → cả bốn null, fees rỗng', () => {
     const result = buildDebitMergeNoInvoice([]);
-    assert.equal(result.gnOps, null);
-    assert.equal(result.psOps, null);
+    assert.equal(result.gnFee, null);
+    assert.equal(result.gnPaid, null);
+    assert.equal(result.psFee, null);
+    assert.equal(result.psPaid, null);
     assert.deepEqual(result.fees, []);
   });
 
@@ -124,7 +139,8 @@ describe('buildDebitMergeNoInvoice — hai họ phí không hóa đơn Ops', () 
       { costGroup: 'OPS_INCIDENTAL', charge: '180000', paid: '180000', feeName: 'Sửa tờ khai' },
       { costGroup: 'OPS_INCIDENTAL', charge: null, paid: '-90000', feeName: 'Hủy khoản' },
     ]);
-    assert.equal(result.psOps, 180000);
+    assert.equal(result.psFee, 180000);
+    assert.equal(result.psPaid, 180000);
     assert.equal(result.fees.length, 1);
   });
 });

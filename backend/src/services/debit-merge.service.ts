@@ -18,7 +18,9 @@
 //     data-driven rule `opsInvoicedCostGroupOf` writes, read back here.
 //   Group 5 (PHÍ KHÔNG HÓA ĐƠN) = the costGroup families OPS_REGULAR
 //     ('Giao nhận Ops' — the ticket's 'GN') and OPS_INCIDENTAL ('Phát sinh
-//     Ops' — 'PS'), Thực thu = customerChargeAmount (receivableForCost law).
+//     Ops' — 'PS'); per family Phí = entry amount and Thực thu =
+//     customerChargeAmount (receivableForCost law) — SIL-876's five
+//     columns: Phí GN OP TC | Thực thu | Phí PS OP TC | Thực thu | Tên phí.
 //   Group 6 (KIỂM SOÁT) = Tổng TC reads the summary's receivable law
 //     (receivableDetermined / receivableDisplayValue + the frozen-lock
 //     snapshot); lockStatus follows the ACTIVE shipment_cost_locks row.
@@ -104,12 +106,16 @@ export function buildDebitMergeChiHo(rows: RawChiHoFeeRow[]): DebitMergeChiHo {
   return chiHo;
 }
 
-/** Group-5 accumulator result for one lot. `fees` keeps the named rows in
- *  row order (Tên phí column); the Thực-thu sums stay null while the lot has
- *  no rows of that family — unknown, never a fabricated 0. */
+/** Group-5 accumulator result for one lot. Per family the pair follows the
+ *  card-20260921_5 law: `*Fee` = Phí (the entry amount), `*Paid` = Thực thu
+ *  (the negotiated customer charge). `fees` keeps the named rows in row
+ *  order (Tên phí column); a side stays null while the lot has no known rows
+ *  of it — unknown, never a fabricated 0. */
 export interface NoInvoiceGroupResult {
-  gnOps: number | null;
-  psOps: number | null;
+  gnFee: number | null;
+  gnPaid: number | null;
+  psFee: number | null;
+  psPaid: number | null;
   fees: Array<{ name: string | null; amount: number }>;
 }
 
@@ -120,20 +126,35 @@ export interface NoInvoiceGroupResult {
 export function buildDebitMergeNoInvoice(
   rows: Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null }>,
 ): NoInvoiceGroupResult {
-  let gnKnown = false;
-  let gn = 0;
-  let psKnown = false;
-  let ps = 0;
+  let gnFeeKnown = false;
+  let gnFee = 0;
+  let gnPaidKnown = false;
+  let gnPaid = 0;
+  let psFeeKnown = false;
+  let psFee = 0;
+  let psPaidKnown = false;
+  let psPaid = 0;
   const fees: Array<{ name: string | null; amount: number }> = [];
   for (const row of rows) {
-    const paid = row.paid == null ? null : toNumber(row.paid);
-    if (paid != null && paid < 0) continue;
-    const charge = row.charge != null ? toNumber(row.charge) : 0;
-    if (row.costGroup === 'OPS_REGULAR') { gnKnown = true; gn += charge; }
-    else if (row.costGroup === 'OPS_INCIDENTAL') { psKnown = true; ps += charge; }
-    fees.push({ name: row.feeName, amount: charge });
+    const fee = row.paid == null ? null : toNumber(row.paid);
+    if (fee != null && fee < 0) continue;
+    const paid = row.charge == null ? null : toNumber(row.charge);
+    if (row.costGroup === 'OPS_REGULAR') {
+      if (fee != null) { gnFeeKnown = true; gnFee += fee; }
+      if (paid != null) { gnPaidKnown = true; gnPaid += paid; }
+    } else if (row.costGroup === 'OPS_INCIDENTAL') {
+      if (fee != null) { psFeeKnown = true; psFee += fee; }
+      if (paid != null) { psPaidKnown = true; psPaid += paid; }
+    }
+    fees.push({ name: row.feeName, amount: fee ?? 0 });
   }
-  return { gnOps: gnKnown ? gn : null, psOps: psKnown ? ps : null, fees };
+  return {
+    gnFee: gnFeeKnown ? gnFee : null,
+    gnPaid: gnPaidKnown ? gnPaid : null,
+    psFee: psFeeKnown ? psFee : null,
+    psPaid: psPaidKnown ? psPaid : null,
+    fees,
+  };
 }
 
 /** 18/11 Task 1.2 — the query→team-widening decision, split out pure so the
@@ -497,7 +518,7 @@ export async function getDebitMergeBoard(query: {
       merged: lot.revGroupId != null,
     });
 
-    const noInvoice = noInvoiceByLot.get(lot.id) ?? { gnOps: null, psOps: null, fees: [] };
+    const noInvoice = noInvoiceByLot.get(lot.id) ?? { gnFee: null, gnPaid: null, psFee: null, psPaid: null, fees: [] };
     return {
       shipmentId: lot.id,
       code: lot.code,
@@ -520,8 +541,10 @@ export async function getDebitMergeBoard(query: {
       },
       chiHo: chiHoByLot.get(lot.id) ?? { csht: [], lift: [], drop: [], other: [] },
       noInvoice: {
-        gnOps: noInvoice.gnOps == null ? null : String(noInvoice.gnOps),
-        psOps: noInvoice.psOps == null ? null : String(noInvoice.psOps),
+        gnFee: noInvoice.gnFee == null ? null : String(noInvoice.gnFee),
+        gnPaid: noInvoice.gnPaid == null ? null : String(noInvoice.gnPaid),
+        psFee: noInvoice.psFee == null ? null : String(noInvoice.psFee),
+        psPaid: noInvoice.psPaid == null ? null : String(noInvoice.psPaid),
         fees: noInvoice.fees.map((fee) => ({ name: fee.name, amount: String(fee.amount) })),
       },
       control: {

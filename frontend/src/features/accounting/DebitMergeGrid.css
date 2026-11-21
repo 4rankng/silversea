@@ -127,8 +127,10 @@
 .debit-merge__table th.debit-merge-col--dropTien,
 .debit-merge__table th.debit-merge-col--dropThucChi,
 .debit-merge__table th.debit-merge-col--khacSoTien,
-.debit-merge__table th.debit-merge-col--gnOps,
-.debit-merge__table th.debit-merge-col--psOps,
+.debit-merge__table th.debit-merge-col--gnFee,
+.debit-merge__table th.debit-merge-col--gnPaid,
+.debit-merge__table th.debit-merge-col--psFee,
+.debit-merge__table th.debit-merge-col--psPaid,
 .debit-merge__table th.debit-merge-col--tongTc {
   text-align: right;
   min-width: 110px;
@@ -145,8 +147,10 @@
 .debit-merge__table td[data-col='dropTien'],
 .debit-merge__table td[data-col='dropThucChi'],
 .debit-merge__table td[data-col='khacSoTien'],
-.debit-merge__table td[data-col='gnOps'],
-.debit-merge__table td[data-col='psOps'],
+.debit-merge__table td[data-col='gnFee'],
+.debit-merge__table td[data-col='gnPaid'],
+.debit-merge__table td[data-col='psFee'],
+.debit-merge__table td[data-col='psPaid'],
 .debit-merge__table td[data-col='tongTc'] {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -203,12 +207,6 @@
   white-space: nowrap;
 }
 
-.debit-merge-cell--lot .debit-merge__lot-code {
-  display: block;
-  color: var(--ink-3);
-  font-size: 11px;
-}
-
 .debit-merge__lot-link {
   background: none;
   border: none;
@@ -219,32 +217,6 @@
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
-}
-
-.debit-merge__cont {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.debit-merge__cont-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  border: 1px solid var(--border-1);
-  border-radius: 6px;
-  background: var(--surface-2, #f8fafc);
-  padding: 1px 5px;
-  /* SIL-583: the expand toggle is a BUTTON trigger — its ~19px box sat under
-     the 24px WCAG 2.5.8 floor. */
-  min-height: 24px;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.debit-merge__child-row td.debit-merge__child-cell {
-  color: var(--ink-2);
-  background: var(--surface-2, #f8fafc);
 }
 
 .debit-merge-cell--status {
@@ -294,11 +266,6 @@
    this engine). min-width/min-height keep the text triggers' content whole
    while the box reaches the floor. */
 @media (max-width: 768px), (hover: none) and (pointer: coarse) {
-  .debit-merge__cont-toggle {
-    min-width: var(--control-touch-h);
-    min-height: var(--control-touch-h);
-  }
-
   .debit-merge__lot-link {
     min-width: var(--control-touch-h);
     min-height: var(--control-touch-h);

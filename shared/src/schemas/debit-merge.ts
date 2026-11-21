@@ -63,12 +63,16 @@ export const debitMergeChiHoSchema = z.object({
 /** Group 5 — PHÍ KHÔNG HÓA ĐƠN: the two no-invoice Ops fee families, read
  *  from the ops expense rows' cost groups (Giao nhận Ops = OPS_REGULAR,
  *  Phát sinh Ops = OPS_INCIDENTAL — the canonical names behind the ticket's
- *  'Phí GN OP TC' / 'Phí PS OP TC' abbreviations). `gnOps`/`psOps` are the
- *  Thực-thu sums (null = no rows — unknown, never a 0); `fees` lists the
- *  named rows (Tên phí | Thực thu). */
+ *  'Phí GN OP TC' / 'Phí PS OP TC' abbreviations). Per family the wire
+ *  carries BOTH sides of the card-20260921_5 pair: `*Fee` = Phí (the
+ *  entry's amount) and `*Paid` = Thực thu (the negotiated
+ *  customerChargeAmount sum); null = no known rows of that side — unknown,
+ *  never a fabricated 0. `fees` lists the named rows (Tên phí column). */
 export const debitMergeNoInvoiceSchema = z.object({
-  gnOps: moneyString.nullable(),
-  psOps: moneyString.nullable(),
+  gnFee: moneyString.nullable(),
+  gnPaid: moneyString.nullable(),
+  psFee: moneyString.nullable(),
+  psPaid: moneyString.nullable(),
   fees: z.array(z.object({ name: z.string().nullable(), amount: moneyString })),
 });
 

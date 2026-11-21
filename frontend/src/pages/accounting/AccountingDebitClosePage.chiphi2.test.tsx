@@ -7,21 +7,19 @@
  * - CP2-D3 the "Chọn Debit" dialog groups the selection BY NGÀY with tick
  *   boxes — unticking a date removes its lots from the count, the sum and
  *   the submitted shipmentIds;
- * - CP2-D4 a successful chốt đợt KEEPS the selection so "Xuất Debit Note"
- *   works immediately after (the export used to die on the forced clear).
+ * - CP2-D4 a successful chốt đợt KEEPS the selection (the export used to die
+ *   on the forced clear; SIL-866 moved the export step to ghep-bo-debit, the
+ *   keep-selection law still holds here).
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listBoard, listRounds, roundPreview, createRound, createNote, exportNote } = vi.hoisted(() => ({
+const { listBoard, listRounds, createRound } = vi.hoisted(() => ({
   listBoard: vi.fn(),
   listRounds: vi.fn(),
-  roundPreview: vi.fn(),
   createRound: vi.fn(),
-  createNote: vi.fn(),
-  exportNote: vi.fn(),
 }));
 
 vi.mock('../../api/accountingDebitClient', () => ({
@@ -30,15 +28,10 @@ vi.mock('../../api/accountingDebitClient', () => ({
   withdrawRateAdjustments: vi.fn(),
   listSettlementRounds: listRounds,
   createSettlementRound: createRound,
-  getDebitNoteRoundPreview: roundPreview,
     setDebitExternalCost: vi.fn(),
   setDebitRateOverrides: vi.fn(),
   reconcileAndHideDebitLots: vi.fn(),
   DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
-}));
-vi.mock('../../api/shipmentDebit', () => ({
-  createDebitNoteBatch: createNote,
-  exportDebitNoteFile: exportNote,
 }));
 
 import AccountingDebitClosePage from './AccountingDebitClosePage';
@@ -163,26 +156,9 @@ describe('AccountingDebitClosePage — card 191026160000 chốt-debit fixes', ()
     })));
   }, 20000);
 
-  it('CP2-D4: a successful chốt keeps the selection so Xuất Debit Note works right after', async () => {
+  it('CP2-D4: a successful chốt keeps the selection (SIL-866: export moved to ghep-bo-debit)', async () => {
     listBoard.mockResolvedValue({ items: [row({ shipmentId: 151190, billOrBooking: 'BL-9' })], total: 1 });
     createRound.mockResolvedValue({ id: 12, roundNo: 1, periodKey: '2026-10', direction: 'THU', vatRate: 0, totalAmount: 1790000, amount: '1790000' });
-    // The chốt-đợt act the test runs is exactly what creates the round the
-    // preview then pulls (SIL-855: Xuất Debit Note works over the đợt).
-    listRounds.mockResolvedValue({
-      items: [{
-        id: 12, customerId: 11, customerName: 'KH A', direction: 'THU', carrierKey: 'OWN', carrierLabel: 'Xe công ty',
-        periodKey: '2026-10', roundNo: 1, dateFrom: '2026-10-05', dateTo: '2026-10-05',
-        amount: '1790000', vatRate: 0, vatAmount: 0, totalAmount: 1790000, ghiChu: null, lotCount: 1,
-        createdAt: '2026-10-06T00:00:00.000Z',
-      }],
-    });
-    roundPreview.mockResolvedValue({
-      round: { id: 12, roundNo: 1, periodKey: '2026-10', direction: 'THU', vatRate: 0, customerName: 'KH A' },
-      items: [{ shipmentId: 151190, code: 'SHP-26-0001', customerName: 'KH A', billingTruckNo: '51A-123.45', net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' }],
-      totals: { net: 1790000, tax: 0, gross: 1790000 },
-    });
-    createNote.mockResolvedValue({ id: 60, totalNet: 1790000, totalTax: 0, totalGross: 1790000 });
-    exportNote.mockResolvedValue(new Blob(['xlsx']));
     const { container } = renderPage();
     await screen.findByText('BL-9');
     fireEvent.click((container.querySelectorAll('.debit-board tbody tr')[0] as HTMLElement));
@@ -194,20 +170,13 @@ describe('AccountingDebitClosePage — card 191026160000 chốt-debit fixes', ()
     fireEvent.click(within(dialog).getByRole('button', { name: 'Chốt đợt' }));
     await waitFor(() => expect(createRound).toHaveBeenCalledTimes(1));
 
-    // The selection SURVIVES the chốt: the export button stays enabled and
-    // the preview opens over the same lot (the FB-094 flow, un-broken by the
-    // clear()). Ticket 18/11 Task 2.4 — the preview pulls the đợt the chốt
-    // just created, and the issue runs on [Lưu và tải file XLSX].
-    const exportButton = screen.getByRole('button', { name: 'Xuất Debit Note' });
-    await waitFor(() => expect(exportButton).toBeEnabled());
-    fireEvent.click(exportButton);
-    const preview = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
-    fireEvent.click(within(preview).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-10' }));
-    await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
-    fireEvent.click(within(preview).getByRole('button', { name: 'Lưu và tải file XLSX' }));
-    await waitFor(() => expect(createNote).toHaveBeenCalledWith([151190], 12));
-    await waitFor(() => expect(exportNote).toHaveBeenCalledWith(151190, 60));
-    expect(await screen.findByRole('status')).toHaveTextContent('Đã lưu Debit Note (1 lô, đợt Lần 1 · 2026-10) — số liệu đã đẩy sang Công nợ. File XLSX đã tải.');
+    // The selection SURVIVES the chốt (the FB-094 fix, card 191026160000):
+    // the rows stay picked after the refresh, so whatever acts on the
+    // selection next finds it coherent. SIL-866 moved the export step to
+    // /accounting/ghep-bo-debit — this board only proves the keep-selection
+    // law now.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Chọn Debit (1 dòng)' })).toBeEnabled());
+    expect((container.querySelectorAll('.debit-board tbody tr')[0] as HTMLElement).getAttribute('data-selected')).toBe('true');
+    expect(screen.queryByRole('button', { name: /Xuất Debit Note/ })).toBeNull();
   }, 20000);
 });

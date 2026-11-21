@@ -283,10 +283,12 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
     // 'Lưu & Xác nhận đối soát' button, which also rode this board later.
     const xacNhanBtn = screen.getByRole('button', { name: /^Xác nhận đối soát/ });
     const chonDebitBtn = screen.getByRole('button', { name: /Chọn Debit/ });
-    const xuatDebitBtn = screen.getByRole('button', { name: /Xuất Debit Note/ });
+    // SIL-866 — [Xuất Debit Note] no longer lives on this toolbar: the export
+    // step moved to /accounting/ghep-bo-debit with the Khóa lô / Chọn Debit
+    // chain. Only the reconciliation acts remain here.
+    expect(screen.queryByRole('button', { name: /Xuất Debit Note/ })).toBeNull();
     expect(xacNhanBtn).toBeDisabled();
     expect(chonDebitBtn).toBeDisabled();
-    expect(xuatDebitBtn).toBeDisabled();
 
     // One click, one toggle: the control stops propagation, so the row's own
     // click handler never double-toggles it.
@@ -296,7 +298,6 @@ describe('AccountingDebitClosePage — selection and bulk actions (card 20260929
     expect(checkbox).toBeChecked();
     expect(xacNhanBtn).not.toBeDisabled();
     expect(chonDebitBtn).not.toBeDisabled();
-    expect(xuatDebitBtn).not.toBeDisabled();
     // The Ngày tick still names WHICH row is picked (§2c).
     expect(first.querySelector('.debit-row-tick')?.textContent).toBe('✓');
     fireEvent.click(checkbox);

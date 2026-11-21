@@ -1,20 +1,22 @@
 /**
- * FB-094 (card 181026145620 + card 201026112300) + ticket 18/11 Task 2.4
- * (SIL-855) — the Xuất Debit Note flow through the round-scoped preview:
- * - the toolbar carries "Xuất Debit Note", disabled with no selection;
+ * SIL-866 (hotfix CR-009.1) — [Xuất Debit Note] MOVED to /accounting/ghep-bo-debit:
+ * the FB-094 (card 181026145620 + card 201026112300) + ticket 18/11 Task 2.4
+ * (SIL-855) flow now runs on the Ghép bộ Debit surface, through the
+ * round-scoped preview:
+ * - the toolbar carries "Xuất Debit Note" (aria-disabled with no selection);
  * - one click opens the PREVIEW; the accountant picks the đợt (Lần · Tháng ·
  *   Năm), the dialog pulls ALL lots of that đợt from the server preview
  *   (100% BKS báo khách + the four closing totals on the same frozen basis
  *   the issuance uses), and no issue call runs before a save button;
  * - [Lưu và tải file XLSX] issues the union document carrying the round id
- *   (`POST /api/shipments/debit-notes`, stable Idempotency-Key per selection),
- *   reconciles the issued totals against the preview, downloads
- *   `giay-bao-no-<Số Bill/Booking>.xlsx`, and reports success; a totals
- *   mismatch refuses the download loudly;
+ *   (`POST /api/shipments/debit-notes`), reconciles the issued totals
+ *   against the preview, downloads `giay-bao-no-<Số Bill/Booking>.xlsx`,
+ *   and reports success via toast; a totals mismatch refuses the download
+ *   loudly;
  * - still-UNLOCKED rows ask for consent FIRST — confirming DOES the locking
- *   (`POST /shipments/:id/lock`, the accountant's existing act) before the
- *   preview opens — cancel locks nothing; a lock/issue refusal surfaces
- *   verbatim in the page's message banner and no file is downloaded.
+ *   (the same `lockShipmentCost` channel the [Khóa lô] toolbar button runs)
+ *   before the preview opens — cancel locks nothing; a lock/issue refusal
+ *   surfaces verbatim as an error toast and no file is downloaded.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -22,64 +24,72 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
-const { listBoard, listRounds, roundPreview, createDebitNoteBatch, exportDebitNoteFile, lockShipmentCost } = vi.hoisted(() => ({
-  listBoard: vi.fn(),
+const { listMergeBoard, listRounds, roundPreview, createDebitNoteBatch, exportDebitNoteFile, lockShipmentCost, getBootstrap } = vi.hoisted(() => ({
+  listMergeBoard: vi.fn(),
   listRounds: vi.fn(),
   roundPreview: vi.fn(),
   createDebitNoteBatch: vi.fn(),
   exportDebitNoteFile: vi.fn(),
   lockShipmentCost: vi.fn(),
+  getBootstrap: vi.fn(),
+}));
+
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => ({ user: { userId: 9, role: 'ACCOUNTANT' } }),
 }));
 
 vi.mock('../../api/accountingDebitClient', () => ({
-  listAccountingDebitBoard: listBoard,
-  confirmRateAdjustments: vi.fn(),
-  withdrawRateAdjustments: vi.fn(),
   listSettlementRounds: listRounds,
   createSettlementRound: vi.fn(),
   getDebitNoteRoundPreview: roundPreview,
-  setDebitExternalCost: vi.fn(),
-  setDebitRateOverrides: vi.fn(),
-  reconcileAndHideDebitLots: vi.fn(),
   DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
 }));
 vi.mock('../../api/shipmentDebit', () => ({
+  listDebitMergeBoard: listMergeBoard,
+  debitMergeKeys: {
+    all: ['accounting-debit-merge'] as const,
+    board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
+  },
   createDebitNoteBatch,
   exportDebitNoteFile,
   lockShipmentCost,
 }));
+vi.mock('../../api/tripClient', () => ({
+  tripClient: { getBootstrap },
+}));
 
-import AccountingDebitClosePage from './AccountingDebitClosePage';
-import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
+import { DebitMergePage } from './DebitMergePage';
+import { ToastProvider } from '../../components/shared/Toast';
+import type { DebitMergeItem } from '@tingting/shared';
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={['/accounting/chot-debit']}>
+    <MemoryRouter initialEntries={['/accounting/ghep-bo-debit']}>
       <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <AccountingDebitClosePage />
+        <ToastProvider>
+          <DebitMergePage />
+        </ToastProvider>
       </QueryClientProvider>
     </MemoryRouter>,
   );
 }
 
-const row = (shipmentId: number, bill: string, costLockedAt: string | null = '2026-09-24T00:00:00.000Z'): AccountingDebitBoardRow => ({
+const mergeRow = (shipmentId: number, bill: string, lockStatus: 'OPEN' | 'LOCKED' = 'LOCKED'): DebitMergeItem => ({
   shipmentId,
   code: `SHP-26-000${shipmentId}`,
-  customerName: 'KH A',
   customerId: 11,
-  carrierKeys: ['OWN'],
-  ngay: '2026-09-25',
-  billOrBooking: bill,
-  containers: ['ABCZ1234567 · 40HC'],
-  phanXe: ['Nhà xe A'],
-  thu: { cuocThu: '1000000', lachHuyen: '90000', phuPs: '200000', phatSinhCus: '500000', tongThu: '1790000' },
-  tra: { cuocTraDv: '400000', lachHuyenDv: '50000', phatSinhDv: '30000', tong1: '480000', phiRu: '150000' },
-  chiPhiNgoai: null,
-  debitHiddenAt: null,
-  loiNhuan: '1160000',
-  ghiChu: null,
-  adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
-  costLockedAt,
+  customerName: 'KH A',
+  factoryName: 'NM A',
+  routeName: 'Hải Phòng → Bắc Ninh',
+  deliveryDate: '2026-11-18',
+  billOrBookNumber: bill,
+  creatorName: null,
+  creatorCode: null,
+  containers: [{ id: shipmentId, containerNumber: 'BSIU1234567', containerType: "20'DC" }],
+  revenue: { cuoc: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
+  chiHo: { csht: [], lift: [], drop: [], other: [] },
+  noInvoice: { gnOps: null, psOps: null, fees: [] },
+  control: { tongTc: null, lockStatus, lockedAt: lockStatus === 'LOCKED' ? '2026-09-24T00:00:00.000Z' : null },
 });
 
 const ROUND = {
@@ -121,21 +131,22 @@ afterEach(() => {
   anchorClick.mockRestore();
 });
 
-/** The settled board's own rows — scoped by region because the Tổng hợp công
- *  nợ table renders beside it with the same .debit-board class. */
-function boardRows() {
-  return [...document.querySelectorAll('[aria-label="Bảng kế hoạch điều động tổng hợp"] tbody tr')] as HTMLElement[];
-}
-
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+  listMergeBoard.mockResolvedValue({ items: [], total: 0 });
   listRounds.mockResolvedValue({ items: [ROUND] });
   roundPreview.mockResolvedValue(PREVIEW);
+  getBootstrap.mockResolvedValue({ customers: [], trucks: [] });
   window.URL.createObjectURL = vi.fn(() => 'blob:debit-note');
   window.URL.revokeObjectURL = vi.fn();
   anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 });
+
+/** Select a lot through its row checkbox (the grid's selection affordance). */
+async function selectLot(bill: string) {
+  fireEvent.click(await screen.findByRole('checkbox', { name: `Chọn lô ${bill}` }));
+}
 
 /** Pick the seeded đợt in an open preview dialog and wait for its table. */
 async function pickRound(preview: HTMLElement) {
@@ -153,27 +164,23 @@ async function openPreviewWithRound() {
   return preview;
 }
 
-// Row selection is the row itself (card 20260929_207) on the settled board.
-describe('AccountingDebitClosePage — Xuất Debit Note (FB-094 + SIL-855)', () => {
+describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855)', () => {
   it('previews the đợt: 100% BKS báo khách, 4 dòng tổng, rồi [Lưu và tải file XLSX] carries the round id', async () => {
-    listBoard.mockResolvedValue({ items: [row(1, 'BL-1'), row(2, 'BL-2')], total: 2 });
+    listMergeBoard.mockResolvedValue({ items: [mergeRow(1, 'BL-1'), mergeRow(2, 'BL-2')], total: 2 });
     createDebitNoteBatch.mockResolvedValue({ id: 30, totalNet: 3580000, totalTax: 0, totalGross: 3580000 });
     exportDebitNoteFile.mockResolvedValue(new Blob(['xlsx'], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     }));
     renderPage();
 
-    // Disabled with no selection, and it says why.
+    // aria-disabled with no selection, and it says why.
     const button = await screen.findByRole('button', { name: 'Xuất Debit Note' });
-    expect(button).toBeDisabled();
-    expect(button).toHaveAttribute('title', 'Chọn ít nhất một dòng lô để xuất Debit Note');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
 
-    await screen.findByText('BL-1');
-    const rows = boardRows();
-    expect(rows).toHaveLength(2);
-    fireEvent.click(rows[0]!);
-    fireEvent.click(rows[1]!);
-    expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).toBeEnabled();
+    await selectLot('BL-1');
+    await selectLot('BL-2');
+    // Enabled state drops the attribute (the FB-093b aria-disabled pattern).
+    expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).not.toHaveAttribute('aria-disabled');
 
     // The button opens the PREVIEW first; picking the đợt pulls its full lot
     // set from the server preview with 100% BKS báo khách and the four
@@ -204,67 +211,66 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094 + SIL-855)', ()
     expect(window.URL.createObjectURL).toHaveBeenCalled();
     // Object-URL revoke is deferred (10s, house flow) so the browser can start
     // the download first — timing itself is not load-bearing here.
-    expect(await screen.findByRole('status')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09) — số liệu đã đẩy sang Công nợ. File XLSX đã tải.');
+    expect(await screen.findByRole('log')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09) — số liệu đã đẩy sang Công nợ. File XLSX đã tải.');
   });
 
   it('[Lưu] alone issues and pushes to Công nợ but downloads nothing', async () => {
-    listBoard.mockResolvedValue({ items: [row(1, 'BL-1'), row(2, 'BL-2')], total: 2 });
+    listMergeBoard.mockResolvedValue({ items: [mergeRow(1, 'BL-1'), mergeRow(2, 'BL-2')], total: 2 });
     createDebitNoteBatch.mockResolvedValue({ id: 32, totalNet: 3580000, totalTax: 0, totalGross: 3580000 });
     renderPage();
 
-    await screen.findByText('BL-1');
-    const rows = boardRows();
-    fireEvent.click(rows[0]!);
-    fireEvent.click(rows[1]!);
+    await selectLot('BL-1');
+    await selectLot('BL-2');
     const preview = await openPreviewWithRound();
     fireEvent.click(within(preview).getByRole('button', { name: 'Lưu' }));
 
     await waitFor(() => expect(createDebitNoteBatch).toHaveBeenCalledWith([1, 2], 7));
     expect(exportDebitNoteFile).not.toHaveBeenCalled();
     expect(anchorClick).not.toHaveBeenCalled();
-    expect(await screen.findByRole('status')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09) — số liệu đã đẩy sang Công nợ.');
+    expect(await screen.findByRole('log')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09) — số liệu đã đẩy sang Công nợ.');
   });
 
   it('a server refusal surfaces verbatim and downloads nothing (FB094-UI-03)', async () => {
-    listBoard.mockResolvedValue({ items: [row(1, 'BL-1')], total: 1 });
+    listMergeBoard.mockResolvedValue({ items: [mergeRow(1, 'BL-1')], total: 1 });
     createDebitNoteBatch.mockRejectedValue(
       new Error('Các lô đã chọn đã nằm trong Debit Note đã xuất: BL-1'),
     );
     renderPage();
 
-    await screen.findByText('BL-1');
-    fireEvent.click((boardRows()[0]!));
+    await selectLot('BL-1');
     const preview = await openPreviewWithRound();
     fireEvent.click(within(preview).getByRole('button', { name: 'Lưu và tải file XLSX' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Các lô đã chọn đã nằm trong Debit Note đã xuất: BL-1');
+    expect(await screen.findByRole('log')).toHaveTextContent('Các lô đã chọn đã nằm trong Debit Note đã xuất: BL-1');
     expect(exportDebitNoteFile).not.toHaveBeenCalled();
     expect(anchorClick).not.toHaveBeenCalled();
     expect(window.URL.createObjectURL).not.toHaveBeenCalled();
   });
 
   it('issued totals diverging from the preview refuse the download loudly', async () => {
-    listBoard.mockResolvedValue({ items: [row(1, 'BL-1')], total: 1 });
+    listMergeBoard.mockResolvedValue({ items: [mergeRow(1, 'BL-1')], total: 1 });
     createDebitNoteBatch.mockResolvedValue({ id: 33, totalNet: 3580001, totalTax: 0, totalGross: 3580001 });
     renderPage();
 
-    await screen.findByText('BL-1');
-    fireEvent.click((boardRows()[0]!));
+    await selectLot('BL-1');
     const preview = await openPreviewWithRound();
     fireEvent.click(within(preview).getByRole('button', { name: 'Lưu và tải file XLSX' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('lệch bảng xem trước đợt Lần 1 · 2026-09');
+    expect(await screen.findByRole('log')).toHaveTextContent('lệch bảng xem trước đợt Lần 1 · 2026-09');
     expect(exportDebitNoteFile).not.toHaveBeenCalled();
     expect(anchorClick).not.toHaveBeenCalled();
     expect(window.URL.createObjectURL).not.toHaveBeenCalled();
   });
 
-  // Card 201026112300 — the consent act DOES the locking now: the round
-  // preview reads frozen locks, so "Khóa & xem trước" freezes the still-
-  // unlocked lots before the preview opens, and the ISSUE still waits for
-  // the preview's [Lưu].
+  // Card 201026112300 law, moved with the button (SIL-866) — the consent act
+  // DOES the locking: the round preview reads frozen locks, so "Khóa & xem
+  // trước" freezes the still-unlocked lots before the preview opens, and the
+  // ISSUE still waits for the preview's [Lưu].
   it('unlocked rows ask for consent, lock on confirm, then preview + issue + download', async () => {
-    listBoard.mockResolvedValue({ items: [row(1, 'BL-1', null), row(2, 'BL-2')], total: 2 });
+    listMergeBoard.mockResolvedValue({
+      items: [mergeRow(1, 'BL-1', 'OPEN'), mergeRow(2, 'BL-2', 'LOCKED')],
+      total: 2,
+    });
     lockShipmentCost.mockResolvedValue(undefined);
     createDebitNoteBatch.mockResolvedValue({ id: 31, totalNet: 3580000, totalTax: 0, totalGross: 3580000 });
     exportDebitNoteFile.mockResolvedValue(new Blob(['xlsx'], {
@@ -272,10 +278,8 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094 + SIL-855)', ()
     }));
     renderPage();
 
-    await screen.findByText('BL-1');
-    const rows = boardRows();
-    fireEvent.click(rows[0]!);
-    fireEvent.click(rows[1]!);
+    await selectLot('BL-1');
+    await selectLot('BL-2');
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
 
     // No lock or issue ran yet — the dialog names the unlocked lot and asks.
@@ -298,15 +302,14 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094 + SIL-855)', ()
     await waitFor(() => expect(createDebitNoteBatch).toHaveBeenCalledWith([1, 2], 7));
     await waitFor(() => expect(exportDebitNoteFile).toHaveBeenCalledWith(1, 31));
     expect(anchorClick).toHaveBeenCalledTimes(1);
-    expect(await screen.findByRole('status')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09) — số liệu đã đẩy sang Công nợ. File XLSX đã tải.');
+    expect(await screen.findByRole('log')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09) — số liệu đã đẩy sang Công nợ. File XLSX đã tải.');
   });
 
   it('cancel in the lock dialog locks nothing and issues nothing', async () => {
-    listBoard.mockResolvedValue({ items: [row(1, 'BL-1', null)], total: 1 });
+    listMergeBoard.mockResolvedValue({ items: [mergeRow(1, 'BL-1', 'OPEN')], total: 1 });
     renderPage();
 
-    await screen.findByText('BL-1');
-    fireEvent.click((boardRows()[0]!));
+    await selectLot('BL-1');
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     await screen.findByRole('dialog');
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
@@ -319,16 +322,15 @@ describe('AccountingDebitClosePage — Xuất Debit Note (FB-094 + SIL-855)', ()
   });
 
   it('a lock refusal surfaces verbatim at the consent act and the preview never opens', async () => {
-    listBoard.mockResolvedValue({ items: [row(1, 'BL-1', null)], total: 1 });
+    listMergeBoard.mockResolvedValue({ items: [mergeRow(1, 'BL-1', 'OPEN')], total: 1 });
     lockShipmentCost.mockRejectedValue(new Error('Lô hàng đã thay đổi. Vui lòng tải lại.'));
     renderPage();
 
-    await screen.findByText('BL-1');
-    fireEvent.click((boardRows()[0]!));
+    await selectLot('BL-1');
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Khóa & xem trước' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Lô hàng đã thay đổi. Vui lòng tải lại.');
+    expect(await screen.findByRole('log')).toHaveTextContent('Lô hàng đã thay đổi. Vui lòng tải lại.');
     expect(screen.queryByRole('dialog', { name: 'Xem trước Debit Note' })).toBeNull();
     expect(createDebitNoteBatch).not.toHaveBeenCalled();
     expect(exportDebitNoteFile).not.toHaveBeenCalled();

@@ -12,7 +12,7 @@ vi.mock('../../components/shared', async (importOriginal) => ({
 }));
 import DepositRefundTrackerPage from './DepositRefundTrackerPage';
 import { ApiError } from '../../lib/api';
-const row = { id: 1, billNumber: 'QA-BILL', customerName: 'QA customer', carrierName: 'QA carrier', depositAmount: '0', cvSubmittedDate: null, expectedRefundDate: null, status: 'CHUA_HOAN_CUOC', category: 'CUOC_CONTAINER', note: null, createdAt: '2026-08-01' };
+const row = { id: 1, billNumber: 'QA-BILL', customerName: 'QA customer', carrierName: 'QA carrier', depositAmount: '0', depositDate: null, cvSubmittedDate: null, expectedRefundDate: null, status: 'CHUA_HOAN_CUOC', category: 'CUOC_CONTAINER', note: null, createdAt: '2026-08-01' };
 function page() { return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DepositRefundTrackerPage /></QueryClientProvider>); }
 beforeEach(() => { Object.values(api).forEach(fn => fn.mockReset()); api.listDepositTrackers.mockResolvedValue({ items: [row], total: 0, warnings: { cvOverdueCount: 1, unrefundedTotal: 0 } }); });
 describe('deposit tracker workflows', () => {
@@ -84,13 +84,20 @@ describe('deposit tracker workflows', () => {
 
   it('loads all dates, shows an old outstanding row and permits accounting to fill its amount', async () => {
     page(); await screen.findByText('QA-BILL'); expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined, undefined);
+    // SIL-878 — the auto-intake row carries Ngày cược; accounting corrects it
+    // in the same dialog where it fills the amount.
     fireEvent.click(screen.getByRole('button', { name: /Ngày CV \/ số tiền/ }));
     const form = within(await screen.findByRole('dialog'));
+    expect(form.getByLabelText('Ngày cược')).toHaveValue('');
+    // BufferedUuiDateInput renders day/month/year segments — fill each.
+    fireEvent.change(form.getByLabelText('Ngày — Ngày cược'), { target: { value: '05' } });
+    fireEvent.change(form.getByLabelText('Tháng — Ngày cược'), { target: { value: '11' } });
+    fireEvent.change(form.getByLabelText('Năm — Ngày cược'), { target: { value: '2026' } });
     fireEvent.change(form.getByLabelText('Số tiền cược (₫)'), { target: { value: '4.000.000' } });
     fireEvent.change(form.getByLabelText('Ghi chú'), { target: { value: 'Actual deposit' } });
-    api.updateDepositTrackerDates.mockResolvedValue({ ...row, depositAmount: '4000000' });
+    api.updateDepositTrackerDates.mockResolvedValue({ ...row, depositAmount: '4000000', depositDate: '2026-11-05' });
     fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
-    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, expectedRefundDate: null, category: 'CUOC_CONTAINER' }));
+    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositDate: '2026-11-05', depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, expectedRefundDate: null, category: 'CUOC_CONTAINER' }));
   });
   it('keeps save failures and user input inside the create form, and rejects negative amounts', async () => {
     page(); fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' })); const form = within(await screen.findByRole('dialog'));

@@ -87,6 +87,9 @@ router.patch('/:id/dates', declareMaterialWrite('accounting.deposit-tracker.date
   const user = getUser(req);
   const trackerId = parseId(req.params.id as string, 'ID dòng');
   const input = parse(z.object({
+    // SIL-878 — Ngày cược edits with the rest of the row (intake pre-stamps
+    // hôm nay; KT corrects the actual deposit day).
+    depositDate: dateInput.nullable().optional(),
     cvSubmittedDate: dateInput.nullable().optional(),
     expectedRefundDate: dateInput.nullable().optional(),
     note: z.string().max(500).nullable().optional(),

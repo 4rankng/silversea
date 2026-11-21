@@ -269,7 +269,9 @@ export default function DepositRefundTrackerPage() {
               {rows.map((row, index) => (
                 <tr key={row.id}>
                   <td data-label="STT" className="deposit-col--token">{index + 1}</td>
-                  <td data-label="Ngày" className="deposit-col--token">{formatDepositDate(row.createdAt)}</td>
+                  {/* SIL-878 — Ngày = Ngày cược (intake pre-stamps it); legacy
+                      rows without the field keep the creation-day fallback. */}
+                  <td data-label="Ngày" className="deposit-col--token">{formatDepositDate(row.depositDate ?? row.createdAt)}</td>
                   <td data-label="Phân loại">{DEPOSIT_CATEGORY_LABELS[row.category]}</td>
                   <td data-label="Khách hàng" className="record-table__text">{row.customerName}</td>
                   <td data-label="Hãng tàu">{row.carrierName}</td>
@@ -336,6 +338,9 @@ function DateEditForm({ row, onSaved }: {
   onSaved: () => void;
 }) {
   const [cvDate, setCvDate] = useState(row.cvSubmittedDate ?? '');
+  // SIL-878 — Ngày cược edits here; the table cell falls back to createdAt
+  // only for legacy rows that never carried the field.
+  const [depositDate, setDepositDate] = useState(row.depositDate ?? '');
   const [expected, setExpected] = useState(row.expectedRefundDate ?? nextExpectedRefundDefault(row.cvSubmittedDate) ?? '');
   const [amount, setAmount] = useState<number | ''>(Number(row.depositAmount) > 0 ? Number(row.depositAmount) : '');
   const [note, setNote] = useState(row.note ?? '');
@@ -343,6 +348,7 @@ function DateEditForm({ row, onSaved }: {
   const [category, setCategory] = useState<DepositCategory>(row.category);
   const refundMutation = useMutation({
     mutationFn: () => updateDepositTrackerDates(row.id, {
+      depositDate: depositDate || null,
       cvSubmittedDate: cvDate || null,
       expectedRefundDate: expected || null,
       ...(amount !== '' ? { depositAmount: parseDepositAmount(String(amount)) } : {}),
@@ -365,6 +371,7 @@ function DateEditForm({ row, onSaved }: {
         ]}
       />
       <NumberField label="Số tiền cược (₫)" grouped value={amount} onChange={setAmount} />
+      <BufferedUuiDateInput label="Ngày cược" value={depositDate} onChange={setDepositDate} />
       <BufferedUuiDateInput label="Ngày nộp CV" value={cvDate} onChange={(value) => {
         if (!expected || expected === nextExpectedRefundDefault(cvDate)) setExpected(nextExpectedRefundDefault(value) ?? '');
         setCvDate(value);

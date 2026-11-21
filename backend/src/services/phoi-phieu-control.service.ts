@@ -311,7 +311,11 @@ export async function listPhoiPhieuRows(query: {
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
     tradeDirection: s.shipments.tradeDirection,
-    customerName: s.customers.name,
+    // SIL-877 (CR-009.1 3.1) — cột 2 rút gọn tên KH qua the house short-name
+    // law (customers.shortName, 'Long Minh' over the full legal name); the
+    // full name stays reachable through the global search box, which still
+    // matches s.customers.name below.
+    customerName: operationalName(s.customers.shortName, s.customers.name),
     factoryName: sql<string | null>`case when ${s.trips.factorySiteName} is not null or ${s.trips.factorySiteAddress} is not null
       then nullif(btrim(${s.trips.factorySiteName}), '') else coalesce(
         ${operationalName(containerFactory.shortName, containerFactory.name)},

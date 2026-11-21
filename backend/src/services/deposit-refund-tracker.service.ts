@@ -283,10 +283,13 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
   return conn === db ? db.transaction(run) : run(conn as Tx);
 }
 
-/** KT fills/edits the CV date; the expected refund date defaults to CV + 14
- *  days server-side and stays editable afterwards. SIL-764: the Phân loại
- *  rides the same edit dialog. */
+/** KT fills/edits the deposit day (SIL-878 — auto-intake rows stamp hôm nay;
+ *  the KT corrects it when the customer actually deposited earlier/later), the
+ *  CV date; the expected refund date defaults to CV + 14 days server-side and
+ *  stays editable afterwards. SIL-764: the Phân loại rides the same edit
+ *  dialog. */
 export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: number, input: {
+  depositDate?: string | null;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
   category?: DepositCategory;
 }, conn?: Tx): Promise<typeof s.depositRefundTrackers.$inferSelect> {
@@ -303,10 +306,13 @@ export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: 
     }
     const cvDate = input.cvSubmittedDate === undefined ? row.cvSubmittedDate
       : input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : null;
+    const depositDate = input.depositDate === undefined ? row.depositDate
+      : input.depositDate ? normalizeDepositDate(input.depositDate) : null;
     const defaultExpected = cvDate ? addDays(cvDate, 14) : null;
     const nextExpected = input.expectedRefundDate === undefined ? row.expectedRefundDate ?? defaultExpected
       : input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : defaultExpected;
     const [fresh] = await tx.update(s.depositRefundTrackers).set({
+      depositDate,
       depositAmount: String(amount),
       cvSubmittedDate: cvDate,
       expectedRefundDate: nextExpected,

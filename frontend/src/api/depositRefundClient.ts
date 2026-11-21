@@ -21,6 +21,8 @@ export interface DepositTrackerRow {
   customerName: string;
   carrierName: string;
   depositAmount: string;
+  /** Ngày cược — intake pre-stamps the VN day the row landed; KT corrects. */
+  depositDate: string | null;
   cvSubmittedDate: string | null;
   expectedRefundDate: string | null;
   status: DepositStatus;
@@ -82,6 +84,8 @@ export async function createDepositTracker(body: {
 }
 
 export async function updateDepositTrackerDates(id: number, body: {
+  /** SIL-878 — Ngày cược rides the same edit dialog. */
+  depositDate?: string | null;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
   /** SIL-764 — Phân loại rides the same edit dialog. */
   category?: DepositCategory;

@@ -13,6 +13,7 @@ import {
   CV_OVERDUE_DAYS,
   isCvOverdue,
   recordDepositFromIntake,
+  updateDepositTrackerDates,
   type CvOverdueRow,
 } from '../../services/deposit-refund-tracker.service';
 import type { Database } from '../../db';
@@ -108,6 +109,68 @@ describe('recordDepositFromIntake — SIL-859 intake laws', () => {
     const calls: TrackerCalls = { inserted: [], updated: [] };
     await recordDepositFromIntake({ ...BASE_INPUT, expectedAmount: '350000' }, trackerConn([], calls));
     assert.equal(calls.inserted[0]!.depositAmount, '350000');
+  });
+});
+
+/** updateDepositTrackerDates chains select…for('update') → update…returning —
+ *  a dedicated stub (same seam, two extra links). */
+function datesConn(row: Record<string, unknown> | null, calls: { updated: Array<Record<string, unknown>> }): Database {
+  const stub = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: () => ({
+            for: async () => (row ? [row] : []),
+          }),
+        }),
+      }),
+    }),
+    update: () => ({
+      set: (values: Record<string, unknown>) => ({
+        where: () => ({
+          returning: async () => {
+            calls.updated.push(values);
+            return [{ id: 1, ...row, ...values }];
+          },
+        }),
+      }),
+    }),
+  };
+  return stub as unknown as typeof db;
+}
+
+const KT = { userId: 7, role: 'ACCOUNTANT' } as Parameters<typeof updateDepositTrackerDates>[0];
+
+// SIL-878 — the auto-intake row stamps Ngày cược = intake day; this law pins
+// the KT correction surface: dd/mm/yy and ISO normalize to ISO, undefined
+// keeps the stored day, and clearing is allowed.
+describe('updateDepositTrackerDates — Ngày cược edit law (SIL-878)', () => {
+  const existing = {
+    id: 1, depositDate: '2026-11-21', depositAmount: '0', cvSubmittedDate: null,
+    expectedRefundDate: null, note: null, category: 'CUOC_CONTAINER', status: 'CHUA_HOAN_CUOC',
+  };
+
+  test('dd/mm/yy input normalizes to ISO in the update set', async () => {
+    const calls = { updated: [] as Array<Record<string, unknown>> };
+    await updateDepositTrackerDates(KT, 1, { depositDate: '05/11/26' }, datesConn(existing, calls) as never);
+    assert.equal(calls.updated[0]!.depositDate, '2026-11-05');
+  });
+
+  test('undefined keeps the stored day, null clears it', async () => {
+    const keep = { updated: [] as Array<Record<string, unknown>> };
+    await updateDepositTrackerDates(KT, 1, { depositAmount: 500000 }, datesConn(existing, keep) as never);
+    assert.equal(keep.updated[0]!.depositDate, '2026-11-21', 'omitted depositDate keeps the intake stamp');
+
+    const clear = { updated: [] as Array<Record<string, unknown>> };
+    await updateDepositTrackerDates(KT, 1, { depositDate: null }, datesConn(existing, clear) as never);
+    assert.equal(clear.updated[0]!.depositDate, null);
+  });
+
+  test('a nonsense date rejects with the dd/mm/yy guidance', async () => {
+    await assert.rejects(
+      updateDepositTrackerDates(KT, 1, { depositDate: '11-05-2026' }, datesConn(existing, { updated: [] }) as never),
+      /Ngày phải theo mẫu dd\/mm\/yy/,
+    );
   });
 });
 
