@@ -71,10 +71,12 @@ export function hasMissingCost(row: AccountingDebitBoardRow): boolean {
 export interface DebitColumn extends LedgerColumn {
   /** The column's track class (see the stylesheet). */
   className: string;
-  /** Ticket 18/11 Task 2.2 — when a lot splits into one row per container,
-   *  a `spansSubrows` column keeps rendering on the continuation rows (the
-   *  per-container facts); every other column renders EMPTY there so the
-   *  lot-level money cannot read as duplicated per container. */
+  /** Ticket 18/11 Task 2.2 — marks the per-container fact columns (its own
+   *  container + vehicle). SIL-864 (hotfix CR-009.1) — the BOARD now renders
+   *  EVERY column on every container row (fully independent rows), so this
+   *  flag's remaining consumer is the phone-records fan-out
+   *  (AccountingDebitRecords), whose continuation cards keep the
+   *  spansSubrows-only law. */
   spansSubrows?: boolean;
   /** The wire value behind an auto-hide decision (unused while all 9 groups
    *  are pinned; kept for the LedgerColumn contract and the records view). */

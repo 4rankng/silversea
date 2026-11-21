@@ -146,7 +146,7 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(longRef.closest('td')?.className).toContain('debit-col--billbook');
   });
 
-  it('renders one row per container for a multi-container FCL lot (ticket 18/11 Task 2.2a)', async () => {
+  it('renders one fully independent row per container for a multi-container FCL lot (SIL-864, lô K5K5346365)', async () => {
     boardWith([row({
       containers: ['ABCZ1234567 · 40HC', 'ABCZ7654321 · 20DC'],
       containersDetail: [
@@ -156,21 +156,35 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
       billingTruckNo: '51X-999.99',
     })]);
     renderPage();
-    await screen.findByText('SHP-26-0001');
+    await screen.findAllByText('SHP-26-0001');
     const trs = [...(document.querySelector('.debit-board tbody') as HTMLElement).querySelectorAll('tr')] as HTMLElement[];
     expect(trs).toHaveLength(2);
     // Container 1 — per-container cargo + vehicle facts, billing badge.
     expect(within(trs[0]).getByText('ABCZ1234567 · 40HC')).toBeTruthy();
     expect(within(trs[0]).getByText('Thực: 30K-123.45')).toBeTruthy();
     expect(within(trs[0]).getByText('BKS ảo: 51X-999.99')).toBeTruthy();
-    // Container 2 — the continuation row carries ONLY its own facts.
+    // Container 2 — its own row carries its own cargo + vehicle facts.
     expect(trs[1].className).toContain('debit-row--cont');
     expect(within(trs[1]).getByText('ABCZ7654321 · 20DC')).toBeTruthy();
     expect(within(trs[1]).getByText('Thực: 30K-678.89')).toBeTruthy();
-    // The empty-continuation law: lot-level columns read EMPTY so money
-    // cannot be double-counted across container rows.
-    expect(trs[1].querySelector('td.debit-col--lot')?.textContent ?? '').toBe('');
-    expect(trs[1].querySelector('td.debit-col--billbook')?.textContent ?? '').toBe('');
+    // SIL-864 — every container row is FULLY independent: lot identity
+    // (Lô + Số Bill/Book), the money clusters (locked lot → formatted text),
+    // Lợi nhuận and the Ghi chú & Đối soát state all render per row, so
+    // accounting reconciles each container row on its own.
+    expect(within(trs[0]).getAllByText('SHP-26-0001').length).toBeGreaterThan(0);
+    expect(within(trs[1]).getAllByText('SHP-26-0001').length).toBeGreaterThan(0);
+    expect(within(trs[0]).getAllByText('BL-1').length).toBeGreaterThan(0);
+    expect(within(trs[1]).getAllByText('BL-1').length).toBeGreaterThan(0);
+    for (const tr of trs) {
+      expect(within(tr).getAllByText('1.790.000 ₫').length).toBeGreaterThan(0);
+      expect(within(tr).getAllByText('480.000 ₫').length).toBeGreaterThan(0);
+      expect(within(tr).getAllByText('1.160.000 ₫').length).toBeGreaterThan(0);
+      expect(within(tr).getByText('Chưa gửi')).toBeTruthy();
+    }
+    // The selection checkbox stays the LOT's single affordance (Khóa lô /
+    // Chọn Debit act on the whole lot) — head row only.
+    expect(within(trs[0]).getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeTruthy();
+    expect(within(trs[1]).queryByRole('checkbox')).toBeNull();
   });
 
   it('names the screen, not the document (page-heading law)', async () => {

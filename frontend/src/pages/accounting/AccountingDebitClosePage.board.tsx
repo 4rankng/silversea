@@ -37,11 +37,17 @@ export function DebitBoardTable({ rows, columns, context, selection, ariaLabel, 
             const pickable = row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED';
             const isRowSelected = selection.isSelected(row.shipmentId);
             // Ticket 18/11 Task 2.2a — mỗi container một dòng độc lập: an FCL
-            // lot with N containers renders N rows (head + N−1 continuation).
-            // Lot-level money/edition facts live on the head row; a
-            // continuation row renders ONLY the spansSubrows columns (its own
-            // container + vehicle facts), so nothing can read as duplicated
-            // money. LCL/container-less lots stay one row.
+            // lot with N containers renders N rows. SIL-864 (hotfix CR-009.1,
+            // lô K5K5346365) — every container row is a FULLY independent
+            // row: each renders every column (Lô, Số Bill/Book, its own
+            // container + vehicle facts, the money clusters, Lợi nhuận and
+            // Ghi chú & Đối soát), so accounting reconciles per container
+            // and the inline-edit rights stay reachable on any row. The
+            // money remains the LOT's accounting unit — both rows mirror
+            // the same lot cells (no fabricated per-container split); the
+            // selection checkbox stays on the head row because Khóa lô /
+            // Chọn Debit / Xuất Debit Note act on the whole lot. LCL and
+            // container-less lots stay one row.
             const subRowCount = row.lcl || row.containers.length <= 1
               ? 1
               : row.containers.length;
@@ -61,18 +67,13 @@ export function DebitBoardTable({ rows, columns, context, selection, ariaLabel, 
                 >
                   {columns.map((column) => (
                     <td key={column.key} className={column.className}>
-                      {/* SIL-727 — only the pickable HEAD row's leading track
-                          gets the checkbox affordance (the whole lot is one
-                          selection unit). */}
-                      {(!isHead && !column.spansSubrows)
-                        ? null
-                        : column.cell(row, {
-                          ...context,
-                          containerIndex,
-                          rowSelect: isHead && pickable
-                            ? { selected: isRowSelected, toggle: () => selection.toggle(row.shipmentId) }
-                            : null,
-                        })}
+                      {column.cell(row, {
+                        ...context,
+                        containerIndex,
+                        rowSelect: isHead && pickable
+                          ? { selected: isRowSelected, toggle: () => selection.toggle(row.shipmentId) }
+                          : null,
+                      })}
                     </td>
                   ))}
                 </tr>
