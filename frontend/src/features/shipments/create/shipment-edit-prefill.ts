@@ -8,6 +8,7 @@ import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
 import type { ShipmentDetail } from '../../../api/shipmentClient';
 import {
   createEmptyContainer,
+  formatVnMoney,
   type ShipmentContainerDraft,
   type ShipmentCreateFormState,
 } from './shipment-create-model';
@@ -29,6 +30,10 @@ export type ShipmentEditDetail = ShipmentDetail & {
     /** SIL-846 — LCL trọng tải tính cước (Bảng giá basis); the full row
      *  select already carries it, the client type just never named it. */
     revVehicleClassId?: number | null;
+    /** SIL-878 — the cược tick's persisted state, derived BE-side from the
+     *  linked hoàn-cược tracker row. */
+    hasDeposit?: boolean;
+    depositAmount?: number | null;
   };
   containers: Array<ShipmentDetail['containers'][number] & {
     routeId?: number | null;
@@ -145,10 +150,15 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     tradeDirection: shipment.tradeDirection ?? '',
     cargoMode: shipment.cargoMode ?? 'FCL',
     isCombined: shipment.isCombined ?? false,
-    // Deposit is create-only intake intent (persists as its own tracker
-    // rows); the edit form does not re-collect it.
-    hasDeposit: false,
-    depositAmount: '',
+    // SIL-878 — the cược tick reflects its persisted state: the hoàn-cược
+    // tracker row the intake synced (hasDeposit + its amount ride the detail
+    // wire). The old hardcoded false rendered a stale unchecked box on the
+    // lot's own page after the tick saved. Edit mode still never RE-collects
+    // the tick (SIL-171 stands — the update contract ignores these fields);
+    // the amount prefills the KT display so view mode reads the same number
+    // the tracker dialog shows.
+    hasDeposit: shipment.hasDeposit ?? false,
+    depositAmount: shipment.depositAmount != null ? formatVnMoney(String(shipment.depositAmount)) : '',
     operationalSiteId: isLcl ? idString(shipment.operationalSiteId) : '',
     pickupWarehouseSiteId: isLcl ? idString(shipment.pickupWarehouseSiteId) : '',
     pickupWarehouseName: isLcl && shipment.pickupWarehouseSiteId == null ? warehouseFreeText : '',

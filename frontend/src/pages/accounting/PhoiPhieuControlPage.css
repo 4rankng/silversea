@@ -307,6 +307,34 @@
   padding: 2px 6px;
 }
 
+.ppc-report__unpaid-trigger {
+  /* SIL-878 — the labeled 'Lô chưa thanh toán' trigger under the party name:
+     the drawer identity reads on the row itself instead of hiding behind an
+     unlabeled name link. Compact second line — same dense-row law (§10.8.2),
+     ordinary control size, no new band. */
+  display: block;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-2);
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: var(--fw-semibold, 600);
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  min-height: max(28px, var(--uui-control-h, 28px));
+}
+
+.ppc-report__unpaid-trigger:hover {
+  color: color-mix(in srgb, var(--accent) 90%, var(--fg-1));
+}
+
+.ppc-report__unpaid-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* Drill-down drawer (Untitled UI table + batch phiếu action bar). */
 .ppc-lots-drawer .drawer__body {
   display: flex;

@@ -84,6 +84,18 @@ describe('Báo cáo thu / trả phơi section', () => {
     expect(screen.getByText('YMLU2')).toBeInTheDocument();
   });
 
+  it('SIL-878: the labeled Lô chưa thanh toán trigger on the party row opens the same drawer', async () => {
+    // QA fail build 32e22c12 — the unlabeled party drill was undiscoverable
+    // (page text search 'chưa thanh toán' = 0 matches). The row now carries
+    // the drawer's own identity as a visible trigger.
+    getPhoiPhieuPartyLots.mockResolvedValue({ items: [lot({})] });
+    renderSection();
+    const trigger = await screen.findByRole('button', { name: 'Lô chưa thanh toán' });
+    fireEvent.click(trigger);
+    expect(await screen.findByRole('dialog', { name: /Lô chưa thanh toán — KH Alpha/ })).toBeInTheDocument();
+    expect(getPhoiPhieuPartyLots).toHaveBeenCalledWith('THU', 'KH Alpha', expect.objectContaining({ scope: undefined }));
+  });
+
   it('the drill-down batch bar ticks rows, totals the phiếu, and issues one batch voucher', async () => {
     getPhoiPhieuPartyLots.mockResolvedValue({ items: [
       lot({}),

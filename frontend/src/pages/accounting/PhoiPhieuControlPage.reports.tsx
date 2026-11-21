@@ -110,7 +110,18 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope, onOpenPart
               {/* Card 191026160000 — the party label IS the drill-down
                   control when the section can open the drawer. */}
               {onOpenParty
-                ? <button type="button" className="btn btn--ghost btn--sm ppc-report__party-link" onClick={() => onOpenParty(row.party)}>{row.party}</button>
+                ? (<>
+                  <button type="button" className="btn btn--ghost btn--sm ppc-report__party-link" onClick={() => onOpenParty(row.party)}>{row.party}</button>
+                  {/* SIL-878 (§10.7.1, QA fail build 32e22c12) — the drawer's
+                      own identity on the row's face: QA could not discover the
+                      unlabeled party drill (page text search 'chưa thanh toán'
+                      = 0 matches). This labeled trigger opens the SAME
+                      'Lô chưa thanh toán' drawer — 2/3 màn hình, cột Ghi chú
+                      trọn nội dung từ bảng chính. */}
+                  <button type="button" className="ppc-report__unpaid-trigger" onClick={() => onOpenParty(row.party)}>
+                    Lô chưa thanh toán
+                  </button>
+                </>)
                 : row.party}
             </td>
             <td className="num ppc-report__money"><Money value={row.tienNang} /></td><td className="num ppc-report__money"><Money value={row.tienHa} /></td>

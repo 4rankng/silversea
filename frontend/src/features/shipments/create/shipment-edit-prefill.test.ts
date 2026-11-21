@@ -186,6 +186,20 @@ describe('buildShipmentEditPrefill', () => {
     expect(prefill.seed.fclContainers).toBe(false);
   });
 
+  // SIL-878 — the cược tick reflects its persisted state: the linked hoàn-cược
+  // tracker row rides the detail wire (BE derives it), so the identity form
+  // renders the box CHECKED with KT's amount instead of a stale unchecked box.
+  it('SIL-878: hasDeposit + tiền cược prefill from the wire (tick đã sync render đúng trạng thái)', () => {
+    const ticked = buildShipmentEditPrefill(detailFixture({ hasDeposit: true, depositAmount: 5000000 }));
+    expect(ticked.form.hasDeposit).toBe(true);
+    expect(ticked.form.depositAmount).toBe('5.000.000');
+    // No linked tracker row → the box stays unchecked and the field stays
+    // empty (lots whose sweep removed the row, or lots created before the tick).
+    const plain = buildShipmentEditPrefill(detailFixture({}));
+    expect(plain.form.hasDeposit).toBe(false);
+    expect(plain.form.depositAmount).toBe('');
+  });
+
   it('SIL-587: LCL IMPORT prefills Ngày giờ đóng trả from plannedReturnAt; legacy EDD-only lot prefills empty', () => {
     const importLot = buildShipmentEditPrefill(detailFixture({
       cargoMode: 'LCL',

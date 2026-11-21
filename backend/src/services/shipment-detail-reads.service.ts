@@ -179,6 +179,15 @@ export interface ShipmentDetail {
     // ad-hoc rawRouteName) — without it a container-less LCL lot displays its
     // route on the overview and nowhere on the detail page (FB-074).
     routeName: string | null;
+    /** SIL-878 — the cược tick's persisted state. The tick is not a shipment
+     *  column: its source of truth is the hoàn-cược tracker row linked to the
+     *  lot (recordDepositFromIntake writes it in the create tx), so the
+     *  detail read derives the flag from that row and the identity form can
+     *  reflect it instead of rendering a stale unchecked box. */
+    hasDeposit: boolean;
+    /** The linked tracker row's recorded amount (numeric → number), null when
+     *  no row is linked or KT has not filled the amount yet. */
+    depositAmount: number | null;
   };
   containers: Array<ShipmentContainerRow & {
     /** Plate issued onto this container's fulfillment at dispatch. */
@@ -373,7 +382,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     .leftJoin(s.cargoTypes, eq(s.cargoTypes.id, s.shipments.cargoTypeId))
     .leftJoin(detailPickupWarehouseSite, eq(s.shipments.pickupWarehouseSiteId, detailPickupWarehouseSite.id))
     .where(eq(s.shipments.id, id));
-  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, freightRate, hasLiveTrips, additionalPickupWarehouses] = await Promise.all([
+  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, freightRate, hasLiveTrips, additionalPickupWarehouses, depositTracker] = await Promise.all([
     listShipmentContainers(id),
     listShipmentDocuments(id),
     listShipmentDeclarations(id),
@@ -400,6 +409,13 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
       .leftJoin(s.operationalSites, eq(s.operationalSites.id, s.shipmentPickupWarehouses.siteId))
       .where(eq(s.shipmentPickupWarehouses.shipmentId, id))
       .orderBy(asc(s.shipmentPickupWarehouses.position)),
+    // SIL-878 — the lot's cược tracker row (one per lot by the intake law;
+    // recordDepositFromIntake is idempotent on shipmentId). One indexed
+    // lookup — the amount rides along for the identity form's display.
+    db.select({ depositAmount: s.depositRefundTrackers.depositAmount })
+      .from(s.depositRefundTrackers)
+      .where(eq(s.depositRefundTrackers.shipmentId, id))
+      .limit(1),
   ]);
   const shipmentWithCustomer = {
     ...shipment,
@@ -416,6 +432,13 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     // SIL-765 — kho lấy hàng bổ sung (điểm 2..N) của cùng lô; [] khi lô chỉ
     // có một điểm bốc hàng như trước.
     additionalPickupWarehouses,
+    // SIL-878 — the cược tick reflects its persisted state (the linked
+    // tracker row), so the identity form stops rendering a stale unchecked
+    // box after the tick saved and synced.
+    hasDeposit: depositTracker.length > 0,
+    depositAmount: depositTracker[0]?.depositAmount != null
+      ? Number(depositTracker[0].depositAmount)
+      : null,
   };
   const decoratedContainers = await decorateContainersWithPortNames(
     await decorateContainersWithPairKind(

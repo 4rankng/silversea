@@ -510,6 +510,20 @@ export async function softDeleteShipment(
     // (shipment-update). The lot itself keeps its soft-delete audit trail.
     await tx.delete(s.shipmentContainers).where(eq(s.shipmentContainers.shipmentId, shipmentId));
 
+    // SIL-878 — the intake tick's auto-synced cược row goes WITH the lot too:
+    // a tracker row the intake created for this lot (recordDepositFromIntake
+    // shares the create tx) is the lot's shadow, not a financial event, so a
+    // deleted lot must not leave it dangling on /accounting/deposit-tracker
+    // with no delete affordance (QA probe QACUOC-211121-01: row outlived the
+    // lot). The sweep is scoped to rows that have NOT settled — a row already
+    // marked ĐÃ hoàn cược posted a real treasury movement and stays as the
+    // record of that event.
+    await tx.delete(s.depositRefundTrackers).where(and(
+      eq(s.depositRefundTrackers.shipmentId, shipmentId),
+      eq(s.depositRefundTrackers.status, 'CHUA_HOAN_CUOC'),
+      isNull(s.depositRefundTrackers.refundPostedMovementId),
+    ));
+
     const [updated] = await tx.update(s.shipments).set({
       deletedAt: new Date(),
       version: sql`${s.shipments.version} + 1`,

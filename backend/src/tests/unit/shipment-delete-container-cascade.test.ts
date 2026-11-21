@@ -51,3 +51,32 @@ test('lô vẫn soft-delete (audit trail giữ nguyên) — cascade chỉ dọn 
   const cascadeAt = flow.indexOf('await tx.delete(s.shipmentContainers)');
   assert.ok(cascadeAt > -1 && cascadeAt < softDeleteAt, 'cascade dọn rows trước khi đánh dấu xóa lô');
 });
+
+// SIL-878 (QA fail build 32e22c12 — probe QACUOC-211121-01): xóa lô phải dọn cả
+// dòng cược auto-sync trong deposit-tracker (intake tick tạo row cùng tx với
+// create lô — row là bóng của lô, không phải sự kiện tài chính riêng). QA xóa
+// lô nhưng row 5.000.000 ₫ vẫn kẹt trên /accounting/deposit-tracker, UI không
+// có nút xóa entry. Pin ở cùng ranh giới nguồn với cascade container ở trên.
+test('xóa lô cascade dọn cả dòng cược auto-sync của lô trong deposit-tracker', () => {
+  assert.match(
+    deleteFlow(),
+    /await tx\.delete\(s\.depositRefundTrackers\)\.where\(and\(\s*eq\(s\.depositRefundTrackers\.shipmentId, shipmentId\),\s*eq\(s\.depositRefundTrackers\.status, 'CHUA_HOAN_CUOC'\),\s*isNull\(s\.depositRefundTrackers\.refundPostedMovementId\),\s*\)\)/,
+    'softDeleteShipment thiếu sweep depositRefundTrackers theo shipmentId',
+  );
+});
+
+test('sweep cược CHỈ dọn dòng CHƯA hoàn cược — dòng ĐÃ hoàn cược (bút toán quỹ) phải sống', () => {
+  const flow = deleteFlow();
+  assert.match(flow, /eq\(s\.depositRefundTrackers\.status, 'CHUA_HOAN_CUOC'\)/, 'sweep phải giới hạn status CHUA_HOAN_CUOC');
+  assert.match(flow, /isNull\(s\.depositRefundTrackers\.refundPostedMovementId\)/, 'sweep phải giới hạn row chưa post bút toán');
+});
+
+test('sweep cược chạy sau guard khóa kế toán và trước khi đánh dấu xóa lô', () => {
+  const flow = deleteFlow();
+  const lockAt = flow.indexOf('await assertShipmentAccountingUnlocked(tx, shipmentId);');
+  const sweepAt = flow.indexOf('await tx.delete(s.depositRefundTrackers)');
+  const softDeleteAt = flow.indexOf('deletedAt: new Date()');
+  assert.ok(sweepAt > -1, 'thiếu sweep depositRefundTrackers');
+  assert.ok(lockAt > -1 && lockAt < sweepAt, 'khóa kế toán phải chạy trước sweep cược');
+  assert.ok(sweepAt < softDeleteAt, 'sweep cược phải chạy trước khi đánh dấu xóa lô');
+});
