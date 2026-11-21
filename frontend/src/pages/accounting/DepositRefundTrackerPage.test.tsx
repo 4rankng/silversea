@@ -89,8 +89,9 @@ describe('deposit tracker workflows', () => {
     fireEvent.click(screen.getByRole('button', { name: /Ngày CV \/ số tiền/ }));
     const form = within(await screen.findByRole('dialog'));
     expect(form.getByLabelText('Ngày cược')).toHaveValue('');
-    // BufferedUuiDateInput renders day/month/year segments — fill each.
-    fireEvent.change(form.getByLabelText('Ngày — Ngày cược'), { target: { value: '05' } });
+    // BufferedUuiDateInput renders day/month/year segments — the first segment
+    // carries the bound label, the rest use 'Tháng/Năm — {label}'.
+    fireEvent.change(form.getByLabelText('Ngày cược'), { target: { value: '05' } });
     fireEvent.change(form.getByLabelText('Tháng — Ngày cược'), { target: { value: '11' } });
     fireEvent.change(form.getByLabelText('Năm — Ngày cược'), { target: { value: '2026' } });
     fireEvent.change(form.getByLabelText('Số tiền cược (₫)'), { target: { value: '4.000.000' } });
