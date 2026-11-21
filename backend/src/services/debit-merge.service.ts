@@ -30,7 +30,7 @@
 // ACTIVE groups). Staff roles are never scoped. The contract carries NO giá
 // vốn by construction (SIL-776 REV2): only the thu-khách side and the chi-hộ
 // rows the CUS detail already shows ride the wire.
-import { and, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { Role } from '@tingting/shared';
@@ -247,7 +247,9 @@ export async function getDebitMergeBoard(query: {
     .leftJoin(s.routes, eq(s.routes.id, s.shipments.routeId))
     .leftJoin(s.users, eq(s.users.id, s.shipments.createdBy))
     .where(and(...conditions))
-    .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
+    // SIL-867 — newest first (DESC theo ngày vận chuyển): the board opens on
+    // the CURRENT lots, not September's empty fee rows.
+    .orderBy(desc(s.shipments.expectedDeliveryDate), desc(s.shipments.id));
   if (lots.length === 0) return { items: [], total: 0 };
   const lotIds = lots.map((lot) => lot.id);
 

@@ -10,7 +10,7 @@
 //
 // Debit-lock sync: 🔓/🔒 follows the shipment_cost_locks active lock (a lô
 // lock, NOT the kỳ kế toán lock) — LOCKED + lockedAt while one is active.
-import { and, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import * as s from '../db/schema';
 import { db } from '../db';
@@ -97,7 +97,9 @@ export async function getShipmentDebitSummary(query: {
   // ride every row so the CUS grid can show who owns a team lot.
   .leftJoin(s.users, eq(s.users.id, s.shipments.createdBy))
     .where(and(...conditions))
-    .orderBy(s.shipments.expectedDeliveryDate, s.shipments.id);
+    // SIL-867 — newest first (DESC theo ngày vận chuyển), the same law the
+    // Ghép bộ Debit board runs: the CUS surface opens on current lots.
+    .orderBy(desc(s.shipments.expectedDeliveryDate), desc(s.shipments.id));
   if (lots.length === 0) return { items: [], total: 0, excludedCount: 0, excludedSum: '0', excludedTrips: [] };
   const lotIds = lots.map((lot) => lot.id);
 
