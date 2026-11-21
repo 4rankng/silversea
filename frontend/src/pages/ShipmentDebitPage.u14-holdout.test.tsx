@@ -86,7 +86,7 @@ const row = (over: Partial<DebitMergeItem>, shipmentId = 101): DebitMergeItem =>
   containers: [],
   revenue: { cuoc: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
   chiHo: { csht: [], lift: [], drop: [], other: [] },
-  noInvoice: { gnOps: null, psOps: null, fees: [] },
+  noInvoice: { gnFee: null, gnPaid: null, psFee: null, psPaid: null, fees: [] },
   control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null },
   ...over,
 });
@@ -126,7 +126,7 @@ describe('u14 holdout laws on the rebuilt grid — density & legibility', () => 
     await screen.findByText('BL-N');
 
     const moneyRow = screen.getAllByText('BL-N')[0]!.closest('tr')!;
-    for (const col of ['cuoc', 'lachHuyen', 'phuPhi', 'phatSinh', 'tong', 'gnOps', 'psOps', 'tongTc']) {
+    for (const col of ['cuoc', 'lachHuyen', 'phuPhi', 'phatSinh', 'tong', 'gnFee', 'gnPaid', 'psFee', 'psPaid', 'tongTc']) {
       const cell = moneyRow.querySelector(`td[data-col="${col}"]`) as HTMLElement;
       expect(cell, col).not.toBeNull();
       expect(cell.textContent!.trim()).toBe('');

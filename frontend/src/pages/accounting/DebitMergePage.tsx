@@ -25,6 +25,8 @@ import { qk } from '../../api/keys';
 import { Skeleton } from '../../components/shared/Skeleton';
 import { Btn, Modal } from '../../components/UI';
 import { formatCurrency } from '../../lib/format';
+import { DateRangeFields } from '../../design-system';
+import { filterDebitMergeRows, sortDebitMergeRowsDesc } from '../../features/accounting/debit-merge-view';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 import { DebitNotePreviewDialog, type DebitNoteSavePayload } from './DebitNotePreviewDialog';
 import { DebitMergeGrid } from '../../features/accounting/DebitMergeGrid';
@@ -71,6 +73,11 @@ export function DebitMergePage() {
   const { toast } = useToast();
   const [customerId, setCustomerId] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
+  // SIL-876 (hotfix CR-009.1) — tìm kiếm (Bill/Cont/KH) + lọc Tu ngày–Đen
+  // ngày; mặc định sort DESC do helper lo (mới nhất lên đầu).
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [settlementOpen, setSettlementOpen] = useState(false);
   // SIL-866 (hotfix CR-009.1) — the [Xuất Debit Note] step lives HERE (the
@@ -104,14 +111,14 @@ export function DebitMergePage() {
   });
 
   const rows = useMemo(() => {
-    const all = board.data?.items ?? [];
+    const all = sortDebitMergeRowsDesc(board.data?.items ?? []);
     const needle = routeFilter.trim().toLowerCase();
-    return all.filter((row) => {
+    return filterDebitMergeRows(all, { search, dateFrom, dateTo }).filter((row) => {
       if (customerId !== '' && String(row.customerId ?? '') !== customerId) return false;
       if (needle !== '' && !(row.routeName ?? '').toLowerCase().includes(needle)) return false;
       return true;
     });
-  }, [board.data, customerId, routeFilter]);
+  }, [board.data, customerId, routeFilter, search, dateFrom, dateTo]);
 
   const refreshBoard = () => {
     void queryClient.invalidateQueries({ queryKey: debitMergeKeys.all });
@@ -271,6 +278,25 @@ export function DebitMergePage() {
                   value={customerId}
                   onChange={(event) => { setSelectedIds(new Set()); setCustomerId(event.target.value); }}
                   options={[{ value: '', label: 'Tất cả' }, ...customerOptions]}
+                />
+                <label className="debit-merge-filter">
+                  <span>Tìm kiếm</span>
+                  {/* SIL-876 — Bill / Cont / Khách hàng trên cùng một ô. */}
+                  <input
+                    type="search"
+                    value={search}
+                    placeholder="Số Bill, container, khách hàng"
+                    aria-label="Tìm lô theo số Bill, container hoặc khách hàng"
+                    onChange={(event) => { setSelectedIds(new Set()); setSearch(event.target.value); }}
+                  />
+                </label>
+                {/* SIL-876 — lọc Tu ngày–Đen ngày trên cột Ngày. */}
+                <DateRangeFields
+                  id="debit-merge-date-range"
+                  ariaLabel="Khoảng ngày giao"
+                  from={dateFrom}
+                  to={dateTo}
+                  onChange={({ from, to }) => { setSelectedIds(new Set()); setDateFrom(from); setDateTo(to); }}
                 />
                 <label className="debit-merge-filter">
                   <span>Tuyến đường</span>

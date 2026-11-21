@@ -127,11 +127,11 @@ const ordinaryOwners: Record<string, string[]> = {
   ],
   // ticket 18/11: the flat /shipments-debit board retired — its kebab trigger
   // (28px, 40px at coarse) and tờ khai copy glyph died with the board. The
-  // shared merge grid carries the ordinary controls now (toolbar action,
-  // container expand toggle, lot link): same ≤40px ceiling, new carriers.
+  // shared merge grid carries the ordinary controls now (toolbar action, lot
+  // link): same ≤40px ceiling, new carriers. SIL-876: the container expand
+  // toggle retired with the no-compression law (nothing left to expand).
   "src/features/accounting/DebitMergeGrid.css": [
     ".debit-merge__action",
-    ".debit-merge__cont-toggle",
     ".debit-merge__lot-link"
   ],
   "src/design-system/forms/UnifiedDateRangePicker.css": [

@@ -126,12 +126,10 @@ describe('mobile touch floor (design-guidelines §5)', () => {
 
   it('SIL-583 floors the audited inline triggers at 24px (WCAG 2.5.8, all pointers)', () => {
     // ticket 18/11: the flat /shipments-debit board retired — its copy button
-    // and docs badge died with the board. The shared merge grid is the CUS
-    // debit surface now; its inline triggers carry the same 24px floor.
-    const grid = read('src/features/accounting/DebitMergeGrid.css');
-    const toggle = grid.match(/\.debit-merge__cont-toggle\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(toggle).toMatch(/min-height:\s*24px;/);
-    expect(toggle).toMatch(/display:\s*inline-flex;/);
+    // and docs badge died with the board. SIL-876: the merge grid's container
+    // EXPAND toggle retired with the no-compression law (every container
+    // renders as its own stacked line — nothing to expand), so the grid
+    // carries no sub-24px inline trigger to audit anymore.
     // master-plan notes trigger + detailed-plan note: 17px line → 24px floor
     const mpg = read('src/features/dispatch/master-plan/MasterPlanGrid.css');
     expect(mpg.match(/\.master-plan-grid__notes-trigger\s*\{[^}]*\}/)?.[0] ?? '').toMatch(/min-height:\s*24px;/);
@@ -161,11 +159,12 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     // Named QA clusters grow the ELEMENT (real border box) on touch form
     // factors: coarse pointer at any width, or ≤768px at any pointer (the
     // AC's 390/768 sweep widths). ticket 18/11: the flat board's kebab
-    // trigger and copy button retired with it — the merge grid's container
-    // toggle and lot link are the row triggers now, same real-box law
-    // (min- forms: the text triggers keep their content whole).
+    // trigger and copy button retired with it. SIL-876: the merge grid's
+    // container expand toggle retired with the no-compression law — the lot
+    // link is the grid's row trigger now, same real-box law (min- forms: the
+    // text triggers keep their content whole).
     const grid = read('src/features/accounting/DebitMergeGrid.css');
-    for (const cls of ['debit-merge__cont-toggle', 'debit-merge__lot-link']) {
+    for (const cls of ['debit-merge__lot-link']) {
       const rule = grid.match(new RegExp(`@media \\(max-width: 768px\\), \\(hover: none\\) and \\(pointer: coarse\\) \\{[\\s\\S]*?\\.${cls} \\{([^}]*)\\}`))?.[1] ?? '';
       expect(rule, `${cls} grows to the real touch floor`).toMatch(/min-width:\s*var\(--control-touch-h\);/);
       expect(rule, `${cls} grows to the real touch floor`).toMatch(/min-height:\s*var\(--control-touch-h\);/);

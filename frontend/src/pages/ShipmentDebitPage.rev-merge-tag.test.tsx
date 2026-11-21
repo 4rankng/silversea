@@ -78,7 +78,7 @@ const row = (over: Partial<DebitMergeItem> = {}): DebitMergeItem => ({
   containers: [],
   revenue: { cuoc: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
   chiHo: { csht: [], lift: [], drop: [], other: [] },
-  noInvoice: { gnOps: null, psOps: null, fees: [] },
+  noInvoice: { gnFee: null, gnPaid: null, psFee: null, psPaid: null, fees: [] },
   control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null },
   ...over,
 });

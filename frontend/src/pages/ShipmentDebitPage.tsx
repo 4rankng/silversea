@@ -15,7 +15,7 @@
 //     only the thu-khách side;
 //   - a lot click opens the Chốt giá bán side drawer (the L2 workspace,
 //     manage-only), the same drawer the flat board hosted.
-import { useRef, useState, type RefObject } from 'react';
+import { useMemo, useRef, useState, type RefObject } from 'react';
 import { Role } from '@tingting/shared';
 import { useAuth } from '../hooks/useAuth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -42,6 +42,8 @@ import { qk } from '../api/keys';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
 import { DebitMergeGrid } from '../features/accounting/DebitMergeGrid';
+import { filterDebitMergeRows, sortDebitMergeRowsDesc } from '../features/accounting/debit-merge-view';
+import { DateRangeFields } from '../design-system';
 import { DebitLotLclFacts } from '../features/shipments/debit/DebitLotLclFacts';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import { DebitSettlementRoundDialog } from './accounting/DebitSettlementRoundDialog';
@@ -106,6 +108,11 @@ export function ShipmentDebitPage() {
   };
   const customerId = params.get('customer') ?? '';
   const routeFilter = params.get('route') ?? '';
+  // SIL-876 (hotfix CR-009.1) — tìm kiếm (Bill/Cont/KH) + lọc Tu ngày–Đen
+  // ngày ride the URL like the other facets; sort DESC mặc định do helper lo.
+  const search = params.get('q') ?? '';
+  const dateFrom = params.get('from') ?? '';
+  const dateTo = params.get('to') ?? '';
   // Task 1.2 — the toggle's URL state: absent/'false' = OFF (own-only).
   const team = params.get('team') === 'true';
 
@@ -140,7 +147,15 @@ export function ShipmentDebitPage() {
   });
   const bootstrap = useQuery({ queryKey: qk.shipmentDebit.bootstrap, queryFn: () => tripClient.getBootstrap() });
 
-  const rows = board.data?.items ?? [];
+  const rows = useMemo(() => {
+    const all = sortDebitMergeRowsDesc(board.data?.items ?? []);
+    const needle = routeFilter.trim().toLowerCase();
+    return filterDebitMergeRows(all, { search, dateFrom, dateTo }).filter((row) => {
+      if (customerId !== '' && String(row.customerId ?? '') !== customerId) return false;
+      if (needle !== '' && !(row.routeName ?? '').toLowerCase().includes(needle)) return false;
+      return true;
+    });
+  }, [board.data, customerId, routeFilter, search, dateFrom, dateTo]);
   // The L2 drawer still keys off the summary rows (its workspace needs the
   // summary row shape for lock state + LCL facts).
   const summaryItems = summary.data?.items ?? [];
@@ -255,6 +270,33 @@ export function ShipmentDebitPage() {
                   value={customerId}
                   onChange={(event) => { setSelectedIds(new Set()); updateParam('customer', event.target.value || null); }}
                   options={[{ value: '', label: 'Tất cả' }, ...customerOptions]}
+                />
+                <label className="debit-merge-filter">
+                  <span>Tìm kiếm</span>
+                  {/* SIL-876 — Bill / Cont / Khách hàng trên cùng một ô. */}
+                  <input
+                    type="search"
+                    value={search}
+                    placeholder="Số Bill, container, khách hàng"
+                    aria-label="Tìm lô theo số Bill, container hoặc khách hàng"
+                    onChange={(event) => { setSelectedIds(new Set()); updateParam('q', event.target.value || null); }}
+                  />
+                </label>
+                {/* SIL-876 — lọc Tu ngày–Đen ngày trên cột Ngày. */}
+                <DateRangeFields
+                  id="shipment-debit-date-range"
+                  ariaLabel="Khoảng ngày giao"
+                  from={dateFrom}
+                  to={dateTo}
+                  onChange={({ from, to }) => {
+                    setSelectedIds(new Set());
+                    setSearchParams((current) => {
+                      const next = new URLSearchParams(current);
+                      if (from) next.set('from', from); else next.delete('from');
+                      if (to) next.set('to', to); else next.delete('to');
+                      return next;
+                    });
+                  }}
                 />
                 <label className="debit-merge-filter">
                   <span>Tuyến đường</span>
