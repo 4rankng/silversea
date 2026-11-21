@@ -5,6 +5,7 @@ import * as s from '../db/schema';
 import type { OpsExpenseListRow } from './ops-expenses.service';
 import { loadExpenseAccountingEntries } from './expense-accounting-reads.service';
 import { loadExpenseTypeNames, pickExpenseDisplayName } from './expense-type-display';
+import { effectiveOpsInvoiceNumber } from './ops-invoice-number';
 
 /** Keep pre-existing accounting proxies visible without copying their money. */
 export async function listLegacyOpsExpenseHistory(userId: number, status?: string): Promise<OpsExpenseListRow[]> {
@@ -23,7 +24,7 @@ export async function listLegacyOpsExpenseHistory(userId: number, status?: strin
     tripId: row.tripId,
     version: row.version, confirmedAt: row.confirmedAt, costGroup: row.costGroup,
     feeName: row.feeName && row.feeName !== row.expenseTypeCode ? row.feeName : null,
-    invoiceNumber: row.invoiceNumber, invoiceDate: row.invoiceDate,
+    invoiceNumber: effectiveOpsInvoiceNumber(row.invoiceNumber), invoiceDate: row.invoiceDate,
     customerChargeAmount: row.customerChargeAmount == null ? null : String(row.customerChargeAmount), recoveryNote: row.recoveryNote,
     shipmentId: row.shipmentId, shipmentCode: row.shipmentCode, billRef: row.billRef, containerNumber: row.containerNumber,
     // SIL-858 — legacy TRIP-sourced rows carry no lot customer/factory/tờ khai

@@ -13,6 +13,7 @@ import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
+import { effectiveOpsInvoiceNumber } from './ops-invoice-number';
 
 // Tx / Executor come from ../db (the one Executor seam).
 
@@ -187,6 +188,10 @@ export async function createOpsExpense(
   if (executor === db) return db.transaction(tx => createOpsExpense(userId, input, tx));
   const amount = parseOpsMoney(input.amount);
   assertValidPaidAt(input.paidAt);
+  // SIL-870 — digitless placeholder text ('unc') is not an invoice number:
+  // normalize before the duplicate gate so a junk value neither collides
+  // 409 against a legacy 'unc' row nor lands in the source.
+  const invoiceNumber = effectiveOpsInvoiceNumber(input.invoiceNumber);
   const expenseType = await assertActiveExpenseType(input.expenseTypeCode);
   await assertShipmentAccountingUnlocked(executor, input.shipmentId);
   // Audit 2026-11-04 §2.3 (PRD §7.9): an Ops expense write is lot money — a
@@ -210,12 +215,12 @@ export async function createOpsExpense(
   // key: one paper invoice may be declared only once per lô, with NO confirm
   // bypass (unlike the same-type warning below). Compare case/space-
   // insensitively — ' TD-001 ' and 'td-001' are the same document.
-  if (input.invoiceNumber != null && input.invoiceNumber.trim() !== '') {
-    const invoiceHit = await findLiveDuplicateOpsInvoiceNumber(input.shipmentId, input.invoiceNumber, executor);
+  if (invoiceNumber != null) {
+    const invoiceHit = await findLiveDuplicateOpsInvoiceNumber(input.shipmentId, invoiceNumber, executor);
     if (invoiceHit) {
       throw new ApiError(
         409,
-        duplicateOpsInvoiceMessage(input.invoiceNumber.trim()),
+        duplicateOpsInvoiceMessage(invoiceNumber),
         undefined,
         { code: 'OPS_EXPENSE_INVOICE_DUPLICATE', invoiceNumber: invoiceHit.invoiceNumber },
       );
@@ -314,7 +319,7 @@ export async function createOpsExpense(
     expenseTypeCode: entry.expenseTypeCode, costGroup, feeName: input.feeName?.trim() || '',
     amount: Number(entry.amount), customerChargeAmount: customerCharge,
     expenseDate: entry.paidAt, payerKind: 'USER', payerUserId: userId, payableEntityType: 'FORWARDER', payableEntityId: userId,
-    recordedById: userId, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, note: entry.note,
+    recordedById: userId, invoiceNumber, invoiceDate: input.invoiceDate, note: entry.note,
     recoveryNote: input.recoveryNote, photoStorageKeys: input.photoStorageKeys });
   return { ...entry, version: source.version, costGroup, feeName: source.feeName, invoiceNumber: source.invoiceNumber,
     invoiceDate: source.invoiceDate, customerChargeAmount: source.customerChargeAmount, recoveryNote: source.recoveryNote };
@@ -343,6 +348,11 @@ export async function updateOpsExpense(
     await assertExpenseSourceMutable(executor, source);
     if (patch.expectedVersion !== source.version) throw new ApiError(409, 'Khoản chi đã thay đổi. Tải lại trước khi sửa.');
   }
+  // SIL-870 — a patch setting placeholder text stores null, and an untouched
+  // legacy junk value ('unc') is cleaned the same way on the next edit.
+  const invoiceNumber = patch.invoiceNumber === undefined
+    ? effectiveOpsInvoiceNumber(source?.invoiceNumber)
+    : effectiveOpsInvoiceNumber(patch.invoiceNumber);
   const next: Record<string, unknown> = { updatedAt: new Date(), approvalStatus: 'RECORDED' };
   // Card 211026213838 — only the INCOMING amount is validated: re-parsing the
   // stored value here would 400 every edit of a legacy negative row (card-197
@@ -401,7 +411,7 @@ export async function updateOpsExpense(
       amount: Number(updated.amount), customerChargeAmount: nextCharge == null ? null : Number(nextCharge),
       expenseDate: updated.paidAt, expenseTypeCode: updated.expenseTypeCode, shipmentContainerId: updated.shipmentContainerId,
       costGroup: effectiveGroup, feeName: patch.feeName ?? source.feeName,
-      invoiceNumber: patch.invoiceNumber === undefined ? source.invoiceNumber : patch.invoiceNumber,
+      invoiceNumber,
       invoiceDate: patch.invoiceDate === undefined ? source.invoiceDate : patch.invoiceDate,
       recoveryNote: patch.recoveryNote === undefined ? source.recoveryNote : patch.recoveryNote, note: updated.note });
     await executor.insert(s.auditLogs).values({ userId, message: 'EXPENSE_ACCOUNTING_UPDATED', entityType: 'expense_accounting_source', entityId: source.id,
@@ -936,6 +946,10 @@ export async function listOpsExpenses(filters: {
     return {
       ...expense,
       billRef: (tradeDirection === 'IMPORT' ? blNumber : bookingRef)?.trim() || null,
+      // SIL-870 — legacy rows carry digitless placeholder text ('unc') typed
+      // into the optional Số hóa đơn field; classifying at read renders the
+      // 'X' law for every fee without an invoice without rewriting the row.
+      invoiceNumber: effectiveOpsInvoiceNumber(row.invoiceNumber),
       // Rows written before the write-path fix carry the catalog CODE in
       // fee_name. A code is not a custom name, so it is dropped here and the
       // consumer falls back to expenseTypeName (the Vietnamese catalog label).

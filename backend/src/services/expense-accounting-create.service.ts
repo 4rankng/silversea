@@ -7,9 +7,14 @@ import { assertShipmentAccountingUnlocked, assertTripShipmentAccountingUnlocked 
 import { assertShipmentCostUnlocked, assertTripShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { assertActiveExpensePayer, ensureTripExpenseAccountingSource, resolveTripShipmentId, upsertExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
+import { effectiveOpsInvoiceNumber } from './ops-invoice-number';
 import { requireExpenseFinance, syncExpenseBillingSource, type ExpenseActor } from './expense-accounting-write.service';
 
 export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input: ExpenseAccountingCreate): Promise<ExpenseAccountingSource> {
+  // SIL-870 — digitless placeholder text ('unc') is not an invoice number;
+  // normalize once so no writer here (driver, OPS entry, trip expense) stores
+  // or mirrors junk into the invoice columns.
+  const invoiceNumber = effectiveOpsInvoiceNumber(input.invoiceNumber);
   // chiphispec §1 — ANY Ops fills ALL lot costs: OPS is admitted to CREATE on
   // the lot path only (tripId == null → ops_expense_entries). Trip-scoped
   // creation and every other financial command keep requireExpenseFinance
@@ -51,13 +56,13 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
         payerKind: companyPaid ? 'COMPANY' : 'USER', costGroup: input.costGroup, feeName: input.feeName, amount: String(input.amount),
         driverEnteredAmount: String(input.amount),
         customerChargeAmount: String(input.customerChargeAmount), occurredAt: input.expenseDate,
-        invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, note: input.note, recoveryNote: input.recoveryNote,
+        invoiceNumber, invoiceDate: input.invoiceDate, note: input.note, recoveryNote: input.recoveryNote,
         recordedBy: actor.userId,
       }).returning();
       return upsertExpenseAccountingSource(tx, { sourceKind: 'DRIVER', sourceId: entry.id, shipmentId,
         tripId: trip.id, customerId: trip.customerId, expenseTypeCode: entry.costType, costGroup: entry.costGroup,
         feeName: input.feeName, amount: input.amount, customerChargeAmount: input.customerChargeAmount,
-        expenseDate: input.expenseDate, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+        expenseDate: input.expenseDate, invoiceNumber, invoiceDate: input.invoiceDate,
         payerKind: companyPaid ? 'COMPANY' : 'USER', payerUserId: companyPaid ? null : driver.userId,
         payableEntityType: companyPaid ? null : 'DRIVER', payableEntityId: companyPaid ? null : driver.id,
         recordedById: actor.userId, note: input.note, recoveryNote: input.recoveryNote });
@@ -73,13 +78,13 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
     const [entry] = await tx.insert(s.opsExpenseEntries).values({ shipmentId,
       expenseTypeCode: input.expenseTypeCode, amount: String(input.amount), customerChargeAmount: String(input.customerChargeAmount),
       paidAt: input.expenseDate, paidById: payer.id, payerKind: 'USER', costGroup: input.costGroup,
-      feeName: input.feeName, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+      feeName: input.feeName, invoiceNumber, invoiceDate: input.invoiceDate,
       recoveryNote: input.recoveryNote, approvalStatus: 'RECORDED', note: input.note }).returning();
     const source = await upsertExpenseAccountingSource(tx, { sourceKind: 'OPS', sourceId: entry.id,
       shipmentId, tripId: trip.id, customerId: trip.customerId,
       expenseTypeCode: input.expenseTypeCode, costGroup: input.costGroup, feeName: input.feeName,
       amount: input.amount, customerChargeAmount: input.customerChargeAmount, expenseDate: input.expenseDate,
-      invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate, payerKind: 'USER', payerUserId: payer.id,
+      invoiceNumber, invoiceDate: input.invoiceDate, payerKind: 'USER', payerUserId: payer.id,
       payableEntityType: 'FORWARDER', payableEntityId: payer.id, recordedById: actor.userId,
       note: input.note, recoveryNote: input.recoveryNote });
     return syncExpenseBillingSource(tx, source, actor.userId);
@@ -87,7 +92,7 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
   const [entry] = await tx.insert(s.tripExpenses).values({ tripId: input.tripId, expenseType: input.expenseTypeCode,
     buyAmount: String(input.amount), sellAmount: String(input.customerChargeAmount),
     costGroup: input.costGroup, feeName: input.feeName, recoveryNote: input.recoveryNote,
-    expenseDate: input.expenseDate, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+    expenseDate: input.expenseDate, invoiceNumber, invoiceDate: input.invoiceDate,
     settlementMethod: input.payerKind === 'USER' ? 'OPS_ADVANCE' : 'COMPANY_DIRECT',
     forwarderId: input.payerKind === 'USER' ? input.payerUserId : null,
     supplierId: input.payerKind === 'SUPPLIER' ? input.supplierId : null,
@@ -107,6 +112,9 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
  * trip/Ops classification.
  */
 async function createShipmentLevelAccountingExpense(tx: Tx, actor: ExpenseActor, input: ExpenseAccountingCreate): Promise<ExpenseAccountingSource> {
+  // SIL-870 — same invoice-number law as the trip lane above: digitless
+  // placeholder text stores as null (no invoice), never as junk text.
+  const invoiceNumber = effectiveOpsInvoiceNumber(input.invoiceNumber);
   const [shipment] = await tx.select().from(s.shipments).where(eq(s.shipments.id, input.shipmentId));
   if (!shipment || shipment.deletedAt || shipment.customerId == null) throw new ApiError(404, 'Không tìm thấy lô hàng.');
   await assertShipmentAccountingUnlocked(tx, input.shipmentId);
@@ -134,13 +142,13 @@ async function createShipmentLevelAccountingExpense(tx: Tx, actor: ExpenseActor,
     // has no employee behind it, so it records like a direct company payment
     // (paidById stays NULL) and the supplier is named on the source below.
     payerKind: input.payerKind === 'SUPPLIER' ? null : input.payerKind,
-    costGroup: input.costGroup, feeName: input.feeName, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+    costGroup: input.costGroup, feeName: input.feeName, invoiceNumber, invoiceDate: input.invoiceDate,
     recoveryNote: input.recoveryNote, approvalStatus: 'RECORDED', note: input.note }).returning();
   return upsertExpenseAccountingSource(tx, { sourceKind: 'OPS', sourceId: entry.id,
     shipmentId: input.shipmentId, shipmentContainerId: null, tripId: null,
     customerId: shipment.customerId, expenseTypeCode: entry.expenseTypeCode, costGroup: input.costGroup,
     feeName: input.feeName, amount: input.amount, customerChargeAmount: input.customerChargeAmount,
-    expenseDate: input.expenseDate, invoiceNumber: input.invoiceNumber, invoiceDate: input.invoiceDate,
+    expenseDate: input.expenseDate, invoiceNumber, invoiceDate: input.invoiceDate,
     payerKind: input.payerKind, payerUserId: paidUserId,
     payableEntityType: input.payerKind === 'USER' ? 'FORWARDER' : input.payerKind === 'SUPPLIER' ? 'VENDOR' : null,
     payableEntityId: input.payerKind === 'USER' ? paidUserId : input.payerKind === 'SUPPLIER' ? input.supplierId ?? null : null,
