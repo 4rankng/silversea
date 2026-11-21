@@ -20,6 +20,7 @@ import { ApiError } from '../errors';
 import { getAccountingDebitBoard, assertNoPendingRateAdjustment } from './accounting-debit-close.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { carrierKeysForLot, type CarrierDerivationEntry } from './debit-settlement-shared';
+import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
 import { documentVatTotals } from './billing-document-shared.service';
 import type { Tx } from './trip-shared';
@@ -286,7 +287,10 @@ function carrierKeyLabel(carrierKey: string, names: Map<number, string>): string
 
 export interface DebitNoteRoundPreviewItem {
   shipmentId: number;
-  code: string | null;
+  /** SIL-868 (hotfix CR-009.1) — the modal's identity is the SỐ BILL/BOOKING
+   *  (direction-aware, the same helper the boards print): the internal
+   *  SHP-* code never reaches the preview. */
+  billOrBooking: string | null;
   customerName: string | null;
   billingTruckNo: string | null;
   net: number;
@@ -337,6 +341,9 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
     customerId: s.shipments.customerId,
     rawCustomerName: s.shipments.rawCustomerName,
     shipmentCode: s.shipments.shipmentCode,
+    tradeDirection: s.shipments.tradeDirection,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
     billingTruckNo: s.shipments.billingTruckNo,
     actualTruckNo: s.shipments.actualTruckNo,
     cargoMode: s.shipments.cargoMode,
@@ -420,7 +427,7 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
     allLines.push(...lines);
     items.push({
       shipmentId: lot.id,
-      code: lot.shipmentCode,
+      billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       customerName: lot.rawCustomerName?.trim() || null,
       billingTruckNo: previewPlateOf(lot),
       net: lotTotals.net,

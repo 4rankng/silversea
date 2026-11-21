@@ -88,7 +88,7 @@ const mergeRow = (shipmentId: number, bill: string, lockStatus: 'OPEN' | 'LOCKED
   containers: [{ id: shipmentId, containerNumber: 'BSIU1234567', containerType: "20'DC" }],
   revenue: { cuoc: null, lachHuyen: null, phuPhi: null, phatSinh: null, tong: null },
   chiHo: { csht: [], lift: [], drop: [], other: [] },
-  noInvoice: { gnOps: null, psOps: null, fees: [] },
+  noInvoice: { gnFee: null, gnPaid: null, psFee: null, psPaid: null, fees: [] },
   control: { tongTc: null, lockStatus, lockedAt: lockStatus === 'LOCKED' ? '2026-09-24T00:00:00.000Z' : null },
 });
 
@@ -115,8 +115,8 @@ const ROUND = {
 const PREVIEW = {
   round: { id: 7, roundNo: 1, periodKey: '2026-09', direction: 'THU' as const, vatRate: 0, customerName: 'KH A' },
   items: [
-    { shipmentId: 1, code: 'SHP-26-0001', customerName: 'KH A', billingTruckNo: '51A-123.45', net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
-    { shipmentId: 2, code: 'SHP-26-0002', customerName: 'KH A', billingTruckNo: null, net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
+    { shipmentId: 1, billOrBooking: 'BL-1', customerName: 'KH A', billingTruckNo: '51A-123.45', net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
+    { shipmentId: 2, billOrBooking: 'BL-2', customerName: 'KH A', billingTruckNo: null, net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
   ],
   totals: { net: 3580000, tax: 0, gross: 3580000 },
 };
@@ -207,7 +207,9 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855)', () 
 
     const anchor = anchorClick.mock.instances[0] as HTMLAnchorElement;
     expect(anchorClick).toHaveBeenCalledTimes(1);
-    expect(anchor.getAttribute('download')).toBe('giay-bao-no-BL-1.xlsx');
+    // SIL-876 — the board sorts DESC (mới nhất lên đầu), so the selection's
+    // TOP row names the file: BL-2 (id 2, same date, higher id) leads.
+    expect(anchor.getAttribute('download')).toBe('giay-bao-no-BL-2.xlsx');
     expect(window.URL.createObjectURL).toHaveBeenCalled();
     // Object-URL revoke is deferred (10s, house flow) so the browser can start
     // the download first — timing itself is not load-bearing here.

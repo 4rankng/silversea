@@ -196,7 +196,9 @@ export async function createSettlementRound(body: CreateSettlementRoundBody): Pr
 // basis the [Lưu] issuance uses, so preview ≡ Công nợ by construction.
 export interface DebitNoteRoundPreviewItem {
   shipmentId: number;
-  code: string | null;
+  /** SIL-868 — the SỐ BILL/BOOKING identity; the internal SHP-* code never
+   *  reaches the preview modal. */
+  billOrBooking: string | null;
   customerName: string | null;
   billingTruckNo: string | null;
   net: number;

@@ -108,7 +108,10 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, onSave
             <tbody>
               {preview.items.map((item) => (
                 <tr key={item.shipmentId}>
-                  <td>{item.code ?? `#${item.shipmentId}`}</td>
+                  {/* SIL-868 — the Lô cell names the SỐ BILL/BOOKING (the
+                      customer-visible identity); the internal SHP-* code
+                      never reaches the preview. */}
+                  <td>{item.billOrBooking ?? `#${item.shipmentId}`}</td>
                   <td>{item.customerName ?? preview.round.customerName ?? '—'}</td>
                   {/* Ticket 18/11 Task 2.4: hiển thị 100% BKS báo khách — the
                       same effectiveBillingPlate law the issued lines stamp. */}

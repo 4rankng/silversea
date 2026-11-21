@@ -44,8 +44,8 @@ const ROUND: DebitSettlementRoundRow = {
 const PREVIEW = {
   round: { id: 7, roundNo: 1, periodKey: '2026-09', direction: 'THU' as const, vatRate: 0, customerName: 'KH A' },
   items: [
-    { shipmentId: 1, code: 'SHP-26-0001', customerName: 'KH A', billingTruckNo: '51A-123.45', net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
-    { shipmentId: 2, code: 'SHP-26-0002', customerName: null, billingTruckNo: null, net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
+    { shipmentId: 1, billOrBooking: 'BL-1001', customerName: 'KH A', billingTruckNo: '51A-123.45', net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
+    { shipmentId: 2, billOrBooking: 'BL-1002', customerName: null, billingTruckNo: null, net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
   ],
   totals: { net: 3580000, tax: 0, gross: 3580000 },
 };
@@ -91,10 +91,13 @@ describe('DebitNotePreviewDialog (SIL-855)', () => {
 
     const table = await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
     expect(roundPreview).toHaveBeenCalledWith(7);
-    // Both đợt lots render, with the issued-line plate law per row.
-    expect(table).toHaveTextContent('SHP-26-0001');
+    // Both đợt lots render, identified by SỐ BILL/BOOKING (SIL-868: the
+    // internal SHP-* code never reaches the preview), with the issued-line
+    // plate law per row.
+    expect(table).toHaveTextContent('BL-1001');
     expect(table).toHaveTextContent('51A-123.45');
-    expect(table).toHaveTextContent('SHP-26-0002');
+    expect(table).toHaveTextContent('BL-1002');
+    expect(table).not.toHaveTextContent('SHP-');
     // No plate known → the honest dash, never a fabricated plate.
     expect(table).toHaveTextContent('—');
     // The four closing totals, integer VN money (zero digits).
@@ -152,8 +155,8 @@ describe('DebitNotePreviewDialog QA regression — đợt VAT totals + real BKS'
   const VAT_PREVIEW = {
     round: { id: 91, roundNo: 1, periodKey: '2026-11', direction: 'THU' as const, vatRate: 8, customerName: 'KH A' },
     items: [
-      { shipmentId: 301, code: 'SHP-2611-00308', customerName: 'Long Minh', billingTruckNo: '15H-104.03', net: 3952000, costLockedAt: '2026-11-18T00:00:00.000Z' },
-      { shipmentId: 310, code: 'SHP-2611-00310', customerName: 'Long Minh', billingTruckNo: '15H-104.03', net: 3952000, costLockedAt: '2026-11-18T00:00:00.000Z' },
+      { shipmentId: 301, billOrBooking: 'BL-2611-00308', customerName: 'Long Minh', billingTruckNo: '15H-104.03', net: 3952000, costLockedAt: '2026-11-18T00:00:00.000Z' },
+      { shipmentId: 310, billOrBooking: 'BL-2611-00310', customerName: 'Long Minh', billingTruckNo: '15H-104.03', net: 3952000, costLockedAt: '2026-11-18T00:00:00.000Z' },
     ],
     totals: { net: 7904000, tax: 632320, gross: 8536320 },
   };
@@ -166,9 +169,11 @@ describe('DebitNotePreviewDialog QA regression — đợt VAT totals + real BKS'
     fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-11' }));
 
     const table = await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
-    // Both đợt lots render the ĐV-assigned plate — no fabricated '—'.
-    expect(table).toHaveTextContent('SHP-2611-00308');
-    expect(table).toHaveTextContent('SHP-2611-00310');
+    // Both đợt lots render the ĐV-assigned plate — no fabricated '—' — and
+    // identify by Số Bill/Booking (SIL-868), never the internal code.
+    expect(table).toHaveTextContent('BL-2611-00308');
+    expect(table).toHaveTextContent('BL-2611-00310');
+    expect(table).not.toHaveTextContent('SHP-');
     expect(within(table).getAllByText('15H-104.03')).toHaveLength(2);
     expect(table).not.toHaveTextContent('—');
     // The four closing totals = the đợt row's recorded VAT math (8%).
