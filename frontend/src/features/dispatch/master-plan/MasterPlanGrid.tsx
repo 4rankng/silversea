@@ -15,7 +15,6 @@ import { billBookingReference } from '../../../lib/business-reference';
 import {
   isNoteLong,
   MasterPlanNoteModal,
-  truncateNote,
   type ActiveNoteDetail,
 } from './MasterPlanNoteModal';
 import { MasterPlanCardList } from './MasterPlanCardList';
@@ -623,12 +622,18 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                               aria-label="Chỉnh sửa ghi chú điều phối"
                               onClick={() => startNotesEdit(item)}
                             >
+                              {/* SIL-877 (CR-009.1 EPIC 4.2): the note rides
+                                  WHOLE — the old 60-char "…" preview cut is
+                                  retired (spec Chương 4 §4.1.3 cấm cắt
+                                  chữ); the column floor + wrapping carry the
+                                  layout and "Xem thêm"/title stay as
+                                  navigation, never the carrier of the value. */}
                               {item.operationalNotes
-                                ? truncateNote(displayNote(item.operationalNotes))
+                                ? displayNote(item.operationalNotes)
                                 : 'Thêm ghi chú'}
                             </button>
                           ) : (
-                            <div title={item.operationalNotes ?? undefined}>{truncateNote(displayNote(item.operationalNotes))}</div>
+                            <div title={item.operationalNotes ?? undefined}>{displayNote(item.operationalNotes)}</div>
                           )}
                           {item.operationalNotes && isNoteLong(item.operationalNotes) && (
                                 <UUIButton
@@ -701,7 +706,8 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                               });
                             }}
                           >
-                            {`NM: ${isNoteLong(item.factoryNotes) ? truncateNote(item.factoryNotes) : item.factoryNotes}`}
+                            {/* SIL-877 (CR-009.1): whole note — no preview cut. */}
+                            {`NM: ${item.factoryNotes}`}
                           </button>
                           {isNoteLong(item.factoryNotes) && (
                             <UUIButton

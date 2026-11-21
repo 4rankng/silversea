@@ -117,6 +117,21 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     // pairs shrink.
     expect(rules).toMatch(/\.ivt-inline-input\s*\{[^}]*min-width:\s*88px;/);
   });
+
+  it('SIL-877 (CR-009.1): the pair-input columns Cột 4/5 take a 2px inline gutter — data-label hook, every other column keeps its gutter', () => {
+    // Cột 4/5 are wholly control-owned (their min-content IS the SIL-816
+    // pair budgets), so the 6px board gutter there is dead width at the
+    // 1440×900 workboard in both sidebar states — 2×8px back across the
+    // pair. The hook is the td data-label (same idiom as the cột 2 floor)
+    // — no nth-child, no skin; `tbody` ties the 6px rule's specificity so
+    // the later lighter rule wins the cascade.
+    expect(rules).toMatch(
+      /\.invoice-tracking-page \.record-table tbody td\[data-label='Đầu vào \(Mua HĐ\)'\],\s*\.invoice-tracking-page \.record-table tbody td\[data-label='Đối soát số tiền'\]\s*\{[^}]*padding-inline:\s*2px;/,
+    );
+    // The board gutters stay untouched for every other column — 6px body, 8px head.
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table tbody td:not\(\.record-table__action\)\s*\{[^}]*padding-inline:\s*6px;/);
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table thead th\s*\{[^}]*padding-inline:\s*8px;/);
+  });
 });
 
 describe('invoice-tracking command strip (shared primitives)', () => {

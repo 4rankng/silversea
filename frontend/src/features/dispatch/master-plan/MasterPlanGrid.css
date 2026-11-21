@@ -113,8 +113,9 @@
      bands below; the shell also sets a 20px band); on devices the shell pads
      with max(token, env(safe-area-inset-*)), so only the token part collapses and
      the notch-safe inset survives. Deepseek consult 30/10: bleed the
-     table rail only (filters/strip keep the reading spine inset), and cap
-     the board on ultra-wide canvases (see .master-plan-grid). */
+     table rail only (filters/strip keep the reading spine inset).
+     SIL-877 (CR-009.1): the board no longer caps on ultra-wide canvases —
+     it fills this rail edge to edge. */
   margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
 }
 
@@ -137,12 +138,14 @@
      old shares (schedule 15.5% / customer 15.75% / route 17.25%) were the
      "50-70% trống, cột cắt cụt" defect: three fat columns starved the rest. */
   min-width: 1200px;
-  /* Ultra-wide guardrail (deepseek consult 30/10): bleed to the canvas edge,
-     not to infinity — past ~1920px the fixed shares stretch into unreadably
-     long text columns, so the board caps and centers inside the full-bleed
-     rail. At ordinary widths the cap is inert (width: 100% < 1920px). */
-  max-width: 1920px;
-  margin-inline: auto;
+  /* SIL-877 (CR-009.1 EPIC 4.2) — the board FILLS the canvas: the old
+     ultra-wide guardrail (deepseek consult 30/10: max-width: 1920px +
+     margin-inline: auto, capping and centering the board past 1920) is
+     RETIRED. Long reading lines at 1920+ are safe now because every data
+     cell wraps its full text (ticket 18/11 + SIL-877: no ellipsis, no
+     clip) and the row simply grows — dead whitespace beside a capped,
+     centered board was the defect. The wrapper's full-bleed rail is the
+     only width authority; the % shares redistribute the whole canvas. */
   /* separate (not collapse) keeps the row's border-bottom painting per cell
      edge; collapse would merge cell borders and shift the row rule. */
   border-collapse: separate;
@@ -183,7 +186,15 @@
 .master-plan-grid__col--lift-port { width: 9%; }
 .master-plan-grid__col--drop-port { width: 8.5%; }
 .master-plan-grid__col--cargo { width: 12%; }
-.master-plan-grid__col--notes { width: 11.5%; }
+/* SIL-877 (CR-009.1 EPIC 4.2) — GHI CHÚ floor: the % share alone let the
+   notes column fall to 138px at the 1200px rail floor, too narrow for a
+   comfortable note read. The 160px min-width floor holds it at ANY canvas
+   width (Chromium honors min-width on <col> in table-layout: fixed —
+   probe-verified 21/11; the leftover-share spread rides on top); at 1440
+   the share itself (~164px) already clears the floor. The note text is
+   rendered whole and wraps (SIL-877 TSX law), so the floor buys reading
+   comfort, not visibility. */
+.master-plan-grid__col--notes { width: 11.5%; min-width: 160px; }
 .master-plan-grid__col--allocation { width: 13%; }
 
 /* Owner directive 10/11: the header is NOT sticky — it scrolls away with the

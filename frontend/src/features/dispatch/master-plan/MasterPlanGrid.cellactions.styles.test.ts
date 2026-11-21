@@ -22,7 +22,8 @@ describe('master-plan grid cell-action placement (card 20261002_302)', () => {
     // zone (17.5 + 14.5), Nâng/Trả 9/8.5 (đủ 1 dòng), shares summing to 96
     // so the on-demand 48px CHỌN column fits the floor exactly.
     expect(css).toMatch(/\.master-plan-grid__col--schedule\s*\{\s*width:\s*10%;\s*\}/);
-    expect(css).toMatch(/\.master-plan-grid__col--notes\s*\{\s*width:\s*11\.5%;\s*\}/);
+    // SIL-877 (CR-009.1): the notes share carries a 160px min-width floor.
+    expect(css).toMatch(/\.master-plan-grid__col--notes\s*\{\s*width:\s*11\.5%;\s*min-width:\s*160px;\s*\}/);
     expect(css).toMatch(/\.master-plan-grid__col--allocation\s*\{\s*width:\s*13%;\s*\}/);
     expect(css).toMatch(/\.master-plan-grid__col--cargo\s*\{\s*width:\s*12%;\s*\}/);
   });

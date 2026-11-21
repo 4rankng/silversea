@@ -14,18 +14,6 @@ export function isNoteLong(text: string | null | undefined, maxLen = MAX_NOTE_LE
   return lines.length > 1;
 }
 
-export function truncateNote(text: string, maxLen = MAX_NOTE_LENGTH): string {
-  const trimmed = text.trim();
-  const firstLine = trimmed.split(/\r?\n/)[0]?.trim() ?? trimmed;
-  if (firstLine.length > maxLen) {
-    return `${firstLine.slice(0, maxLen).trim()}…`;
-  }
-  if (trimmed.length > firstLine.length) {
-    return `${firstLine}…`;
-  }
-  return trimmed;
-}
-
 export interface ActiveNoteDetail {
   title: string;
   note: string;

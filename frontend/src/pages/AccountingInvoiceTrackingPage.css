@@ -73,6 +73,23 @@
   padding-inline: 6px;
 }
 
+/* SIL-877 (CR-009.1 EPIC 4.2): cột 4 ĐẦU VÀO and cột 5 ĐỐI SOÁT SỐ TIỀN take
+   a 2px inline gutter — the dense family's tightest control-cell floor (cf.
+   DateTimeSegments.css / TimesheetMonthlyReportPage.css). These two columns
+   are wholly control-owned: their min-content is the fixed pair budgets
+   (72px inputs + labels, SIL-816 UI-02), so the 6px board gutter there is
+   dead width at the 1440×900 workboard — 2×8px back across the pair keeps
+   the 8-column grid inside both sidebar states without horizontal scroll.
+   The hook is the cells' own data-label attribute (same idiom as the cột 2
+   floor below) — no nth-child, no skin. The selector keeps `tbody` so the
+   specificity ties the 6px rule above and this later rule wins; every other
+   column keeps its gutter, the inputs keep their own budgets (values stay
+   single-line inside the input), and the 320px cột 2 floor is untouched. */
+.invoice-tracking-page .record-table tbody td[data-label='Đầu vào (Mua HĐ)'],
+.invoice-tracking-page .record-table tbody td[data-label='Đối soát số tiền'] {
+  padding-inline: 2px;
+}
+
 /* ticket 18/11 (Web PC 1440) + SIL-863 QA FAIL 19/11: cột 2 KHÁCH HÀNG & LÔ
    floor 320px — the 280px floor still orphan-wrapped the last word of the
    longest live customer name ('CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH',

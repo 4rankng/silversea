@@ -130,7 +130,10 @@ describe('MasterPlanGrid', () => {
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' }));
-    expect(screen.getByText(longNote)).toBeTruthy();
+    // SIL-877: the note reads whole in the CELL too now — scope the modal
+    // assertion to the dialog so the two copies can't collide.
+    const lockedDialog = screen.getByRole('dialog');
+    expect(within(lockedDialog).getByText(longNote)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Sửa ghi chú' })).toBeNull();
     locked.unmount();
 
@@ -588,7 +591,7 @@ describe('MasterPlanGrid', () => {
     expect(notesCell!.textContent).not.toContain('—');
   });
 
-  it('truncates long factory notes and provides a "Chi tiết" trigger opening the full note modal', () => {
+  it('shows long factory notes whole in the cell, with a "Chi tiết" trigger opening the full note modal (SIL-877 — no truncation)', () => {
     const longNote = '3. Lưu ý cần chú ý khi đóng/ trả hàng tại nhà máy - Lái xe đăng ký bảo vệ vào đóng/ trả cho công ty Long Minh- Trước khi vào đóng/ trả hàng lái xe gọi đúng SĐT';
     render(
       <MasterPlanGrid
@@ -597,8 +600,11 @@ describe('MasterPlanGrid', () => {
       />,
     );
 
-    // Truncated text is rendered in the cell
-    expect(screen.getByText(/NM: 3\. Lưu ý cần chú ý/)).toBeTruthy();
+    // SIL-877 (CR-009.1): the FULL note rides the cell — the old
+    // truncateNote 60-char "…" cut is retired; the cell wraps it (§4.1.3
+    // cấm cắt chữ) and the trigger opens the modal as navigation.
+    const cellTrigger = screen.getByRole('button', { name: /NM: 3\. Lưu ý cần chú ý/ });
+    expect(cellTrigger).toHaveTextContent(longNote);
     // The "Xem chi tiết" button is visible
     const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
     expect(detailBtn).toBeTruthy();
@@ -678,7 +684,7 @@ describe('MasterPlanGrid', () => {
     expect(writeTextMock).toHaveBeenCalledWith(longNote);
   });
 
-  it('truncates long operational notes with Chi tiết button and allows switching to edit mode from the modal', () => {
+  it('shows long operational notes whole in the cell, with Chi tiết button and edit switch from the modal (SIL-877 — no truncation)', () => {
     const longOpNote = 'Lái xe chú ý liên hệ thủ kho trước 30 phút để chuẩn bị bốc xếp hàng hóa cẩn thận, không làm rách bao bì.';
     const onUpdateNotes = vi.fn();
     render(
@@ -689,6 +695,8 @@ describe('MasterPlanGrid', () => {
       />,
     );
 
+    // SIL-877 (CR-009.1): the FULL note rides the edit trigger — no "…" cut.
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toHaveTextContent(longOpNote);
     const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' });
     expect(detailBtn).toBeTruthy();
     fireEvent.click(detailBtn);
