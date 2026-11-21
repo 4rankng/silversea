@@ -200,8 +200,9 @@ describe('DebitMergeGrid — containers (SIL-876: không nén)', () => {
     expect(contCell).toHaveTextContent('MSMU7208543');
     const typeCell = document.querySelector('td[data-col="contType"]')!;
     expect(typeCell.querySelectorAll('.debit-merge-cell__line')).toHaveLength(3);
-    // Money stays lot-level: exactly ONE cước cell for the row.
-    expect(document.querySelectorAll('td[data-col="cuoc"]')).toHaveLength(1);
+    // Money stays lot-level: exactly ONE cước cell for the row (tfoot's
+    // totals cell excluded).
+    expect(document.querySelectorAll('tbody td[data-col="cuoc"]')).toHaveLength(1);
     // The compression affordance is GONE — no toggle button anywhere.
     expect(document.querySelector('.debit-merge__cont-toggle')).toBeNull();
     expect(document.querySelector('tr.debit-merge__child-row')).toBeNull();
