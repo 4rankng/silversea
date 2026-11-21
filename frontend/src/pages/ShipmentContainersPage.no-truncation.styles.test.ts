@@ -97,34 +97,29 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(shared).toMatch(/\.table-sort-button \{[^}]*white-space:\s*nowrap/);
   });
 
-  it('EXPAND tokens keep whole identifiers and a floor that fits them (QA-090, SIL-824 px)', () => {
+  it('EXPAND tokens keep whole identifiers and a floor that fits them (SIL-872 ticket ladder)', () => {
     // Measured token widths at the shipped scale (11px Inter Digits codes,
     // 12px cells, +24px cell padding): 12-digit tờ khai "309132985730" = 87px,
     // 11-char ISO "MSNU3128119" = 86px, Bill/Booking "EBKG19248801" = 83px,
     // the date token "30/10/2026" = 72px, the plate pill "29C-123.45" ≈ 85px
-    // with chrome. SIL-824 pins these as fixed px floors (Cam Truncate Spec
-    // v4 §8.1.5): the identifier pair sits exactly at its 12/11-digit widths,
-    // never wider; the schedule and vehicle floors hold their tokens whole.
+    // with chrome. SIL-872's chốt ladder REPLACES the SIL-863 floors
+    // ("thắng mọi quyết định cũ") — the floors below are the ticket's; the
+    // SIL-756 identifier law (nowrap + overflow-x: auto + tooltip, never an
+    // ellipsis or an invisible clip) is what keeps a tight floor honest: a
+    // token wider than its cell scrolls in-cell, it never disappears.
     // The in-cell BKS editor keeps the SIL-516 invariant — its tray is
     // width:100% of the cell, nothing spills.
     const floor = (name: string) => Number(css.match(new RegExp(`--led-w-${name}:\\s*(\\d+)px`))?.[1] ?? 0);
-    expect(floor('schedule')).toBe(160);
-    expect(floor('route')).toBe(155);
-    expect(floor('status')).toBe(145);
-    expect(floor('container')).toBe(116);
-    // The live 12-char token 'EBKG19248801' renders 87px and the TRUE cell
-    // chrome (cell-trigger 10px × 2 + 1px border = 21px) fits with margin at
-    // the SIL-863 Bảng 2 115px floor.
-    expect(floor('billbook')).toBe(115);
-    // SIL-863 Bảng 2 cột 4 (QA FAIL 2026-11-20, build 25c9ffb8): the spec
-    // 72px — the widest pill ('Nhập lẻ') measures 55px, so it never truncates.
-    expect(floor('direction')).toBe(72);
-    // SIL-848 (QA 15/11 "cắt dưới 12 chữ số"): 116px was the exact 12-digit
-    // floor with zero metric margin; the 124px floor pays the run at wide
-    // font metrics (+8px rides the ladder's slack budget, --led-fixed-sum
-    // 1180→1188→1196, guard 1326→1334).
-    expect(floor('declaration')).toBe(124);
-    expect(floor('vehicle')).toBe(128);
+    expect(floor('schedule')).toBe(125);
+    expect(floor('route')).toBe(120);
+    expect(floor('status')).toBe(115);
+    expect(floor('container')).toBe(115);
+    expect(floor('billbook')).toBe(105);
+    expect(floor('direction')).toBe(64);
+    expect(floor('declaration')).toBe(105);
+    expect(floor('vehicle')).toBe(105);
+    expect(floor('customer')).toBe(150);
+    expect(floor('shippingline')).toBe(80);
     // SIL-756 (Round 3): Container numbers, declaration numbers, and Bill/Booking are single-token identifiers — nowrap + overflow-x: auto + tooltip (no ellipsis)
     const codeRules = rulesFor(css, /td\[data-label="Thông số container"\] \.shipment-container-ledger__code$/);
     expect(codeRules.length).toBeGreaterThan(0);

@@ -915,27 +915,48 @@ export const LEDGER_COLUMNS: readonly LedgerColumn[] = [
 ];
 
 /**
- * SIL-863 Bảng 2 — the spec column widths (px), the single TSX mirror of the
- * `--led-w-*` floors in ShipmentContainersPage.css (both sides pinned by
- * ShipmentContainersPage.styles.test.ts — change them together). The table's
- * min-width is computed from the RENDERED colgroup so hiding a column or
- * toggling Gộp hàng/Ghi chú relaxes the floor instead of over-constraining
- * `table-layout: fixed` into compressing tokens (the SIL-822 shatter class).
+ * SIL-872 (hotfix CR-009.1 4.1) — the customer's chốt column FLOORS (px), the
+ * single TSX mirror of the `--led-w-*` min-width floors in
+ * ShipmentContainersPage.css (both sides pinned by
+ * ShipmentContainersPage.styles.test.ts — change them together). The ten
+ * spec columns sum to 1084px (≤ the ~1150px canvas at 1440×900) and the CSS
+ * col rules carry the ticket's exact % shares; the table's inline style
+ * derives from the RENDERED colgroup so hiding a column or toggling
+ * Gộp hàng/Ghi chú relaxes the horizontal-scroll floor (--led-min) instead
+ * of over-constraining `table-layout: fixed` into compressing tokens (the
+ * SIL-822 shatter class), and --led-share-scale re-bases the % shares onto
+ * the rendered set.
  */
 const LEDGER_COL_WIDTHS: Readonly<Record<string, number>> = {
   select: 44,
-  customer: 185,
-  billbook: 115,
-  declaration: 124,
-  direction: 72,
-  shippingline: 96,
-  container: 116,
-  route: 155,
-  schedule: 160,
-  vehicle: 128,
+  customer: 150,
+  billbook: 105,
+  declaration: 105,
+  direction: 64,
+  shippingline: 80,
+  container: 115,
+  route: 120,
+  schedule: 125,
+  vehicle: 105,
   notes: 120,
-  status: 145,
+  status: 115,
 };
+
+/** SIL-872: the share base — the ticket's ten-column floor sum (1084) the
+ *  CSS % proportions ride (CHỌN/GHI CHÚ excluded; they ride the rendered
+ *  set). Computed from the map so the two can never drift. */
+const LEDGER_SPEC_TEN_SUM = ([
+  'customer',
+  'billbook',
+  'declaration',
+  'direction',
+  'shippingline',
+  'container',
+  'route',
+  'schedule',
+  'vehicle',
+  'status',
+] as const).reduce((sum, key) => sum + LEDGER_COL_WIDTHS[key], 0);
 
 interface ShipmentContainerLedgerProps {
   rows: ShipmentCusContainerFlatRow[];
@@ -1071,10 +1092,11 @@ export function ShipmentContainerLedger({
   // column is retired — its only affordance (bulk Copy giờ hẹn, thêm/xóa
   // container having moved to the drawer Tổng quan) renders inside the
   // Trạng thái cell on the rows that can source a copy, so the default table
-  // is exactly the spec's ten columns and never overflows the 1344px canvas.
-  // The table's min-width tracks the RENDERED colgroup (LEDGER_COL_WIDTHS):
-  // the default spec ten sum to 1296px; Gộp hàng adds CHỌN 44, an unhidden
-  // GHI CHÚ adds 120.
+  // is exactly the spec's ten columns. The table's inline style tracks the
+  // RENDERED colgroup (LEDGER_COL_WIDTHS): --led-min is the rendered floor
+  // sum (the horizontal-scroll floor; the default ten = 1084px) and
+  // SIL-877's --led-share-scale re-bases the CSS % shares onto that set
+  // (Gộp hàng adds CHỌN 44, an unhidden GHI CHÚ adds 120).
   const renderedColKeys = [
     mergeMode ? 'select' : '',
     'customer',
@@ -1090,6 +1112,12 @@ export function ShipmentContainerLedger({
     isHidden('status') ? '' : 'status',
   ].filter(Boolean);
   const tableMinWidth = renderedColKeys.reduce((sum, key) => sum + (LEDGER_COL_WIDTHS[key] ?? 0), 0);
+  // SIL-877 (CR-009.1 EPIC 4.1): every CSS share is a proportion of the
+  // spec-ten 1084px; this scale (1 for the default ten, ~0.967 with CHỌN,
+  // ~0.915 with GHI CHÚ) re-bases them onto the rendered set so the rendered
+  // columns keep summing to ~100% — above 100% the fixed layout widens the
+  // table past the canvas and phantom-scrolls at every width.
+  const ledShareScale = (LEDGER_SPEC_TEN_SUM / tableMinWidth).toFixed(5);
 
   // ── Card 161026232339 + SIL-503 — the lot rows' plate quick edits. ────────
   // A lot-level row owns no container line, so no edit mode can carry these
@@ -1416,7 +1444,7 @@ export function ShipmentContainerLedger({
         ]}
       />
       <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
-        <table style={{ '--led-min': `${tableMinWidth}px` } as CSSProperties}>
+        <table style={{ '--led-min': `${tableMinWidth}px`, '--led-share-scale': ledShareScale } as CSSProperties}>
           <caption>Chi tiết container theo tám nhóm thông tin nghiệp vụ</caption>
           <colgroup>
             {/* SIL-547 (spec 23/10 §2) — the CHỌN column leads the table ONLY

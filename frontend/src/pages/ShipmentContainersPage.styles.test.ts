@@ -25,8 +25,11 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@media \(pointer:\s*coarse\)[\s\S]*?\.shipment-container-ledger__editor-grid input:not\(\[data-uui-control\] input\),[\s\S]*?\.searchable-select__trigger\s*\{[^}]*height:\s*var\(--control-touch-h\);[^}]*min-height:\s*var\(--control-touch-h\);/);
   });
 
-  it('keeps an ultrawide operational canvas bounded without a card shell', () => {
-    expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-detail-page\s*\{[^}]*width:\s*min\(100%, 1800px\);[^}]*max-width:\s*1800px;[^}]*margin-inline:\s*auto;/);
+  it('SIL-877: the detail canvas fills the shell uncapped — the 1800px cap is retired', () => {
+    expect(css).toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-detail-page\s*\{[^}]*width:\s*100%;/);
+    expect(css).not.toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-detail-page\s*\{[^}]*max-width/);
+    expect(css).not.toMatch(/\.app-main:not\(\.driver-mode\) \.app-body > \.shipments-detail-page\s*\{[^}]*margin-inline/);
+    expect(css).not.toContain('1800px');
   });
 
   it('uses a compact filter-only header and aligns the mixed control families', () => {
@@ -97,12 +100,14 @@ describe('shipment detail workboard styling', () => {
   });
 
   it('fits desktop columns to the workspace and lets headings wrap instead of forcing horizontal scroll', () => {
-    // SIL-824 + SIL-863: the table pins min-width at the TSX-fed --led-min
-    // (default --led-fixed-sum, the spec ten columns = 1296px) so
-    // table-layout: fixed is never over-constrained, and caps at 1344px —
-    // the 1440px sidebar-collapsed canvas — so the model neither overflows
-    // 1440px nor balloons KHÁCH HÀNG past its spec 200px cap on wider screens.
-    expect(css).toMatch(/\.shipment-container-ledger table\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*1344px;[^}]*min-width:\s*var\(--led-min, var\(--led-fixed-sum\)\);[^}]*table-layout:\s*fixed;/);
+    // SIL-824 + SIL-863 → SIL-877 (CR-009.1 EPIC 4.1): the table fills the
+    // uncapped canvas at width 100% and pins its floor at the TSX-fed
+    // --led-min (default --led-fixed-sum, the chốt ten columns = 1084px) so
+    // table-layout: fixed is never over-constrained and narrow containers
+    // horizontal-scroll instead of shattering. The 1344px max-width cap is
+    // retired — wider canvases stretch the %-share columns proportionally.
+    expect(css).toMatch(/\.shipment-container-ledger table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*var\(--led-min, var\(--led-fixed-sum\)\);[^}]*table-layout:\s*fixed;/);
+    expect(css).not.toMatch(/\.shipment-container-ledger table\s*\{[^}]*max-width/);
     expect(css).toMatch(/\.shipment-container-ledger thead th\s*\{[^}]*white-space:\s*normal;/);
     // 20260922_37 no-truncation doctrine: data cells wrap, never clip — the
     // old `overflow: hidden` cut trailing characters of long place names.
@@ -120,13 +125,13 @@ describe('shipment detail workboard styling', () => {
 
   it('uses one compact, wrapping type scale for every dispatch status and keeps the status column narrow', () => {
     expect(ledgerSource).toContain('shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}');
-    // SIL-824 + SIL-863: the narrow columns own measured/spec px floors, not
-    // shares — notes 120px (the owner's reading floor, a Cột-picker opt-in),
-    // status 145px (Bảng 2 cột 10: fully on-screen at 1440px). The FB-086
-    // actions column is retired; FB-113 v2 (2026-10-18) keeps the documents
-    // group as four headed columns.
+    // SIL-872 (CR-009.1 4.1): the narrow columns own the ticket's chốt px
+    // floors, not shares — notes 120px (a Cột-picker opt-in), status 115px
+    // (cột 10: fully on-screen at 1440px). The FB-086 actions column is
+    // retired; FB-113 v2 (2026-10-18) keeps the documents group as four
+    // headed columns.
     expect(css).toMatch(/--led-w-notes:\s*120px;/);
-    expect(css).toMatch(/--led-w-status:\s*145px;/);
+    expect(css).toMatch(/--led-w-status:\s*115px;/);
     expect(css).not.toMatch(/--led-w-actions:/);
     expect(css).toMatch(/\.shipment-container-ledger__dispatch-badge\s*\{[^}]*max-width:\s*100%;[^}]*font-size:\s*var\(--text-caption-size\);[^}]*line-height:\s*1\.4;[^}]*white-space:\s*normal;/);
   });
@@ -150,16 +155,16 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__route > span\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);[^}]*min-width:\s*0;[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*normal;/);
   });
 
-  it('SIL-863: KHÁCH HÀNG & LỘ TRÌNH pins the spec 185px inside the capped table with the SIL-822 wrap levers', () => {
-    // SIL-863 Bảng 2 cột 1: width 185px with the spec's explicit max-width
-    // 200px (QA FAIL 01:51 UTC 20/11 caught the cap missing from computed
-    // CSS). The table's own 1344px cap holds the column at ≈192px — the 48px
-    // slack spreads proportionally, never past 200. SIL-822's levers stay:
-    // the 6px inline padding floor on the row-header cell and word-boundary
-    // wrap on the NameCell runs.
-    expect(css).toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:\s*var\(--led-w-customer\);\s*max-width:\s*var\(--led-w-customer-max\);/);
-    expect(css).toMatch(/--led-w-customer:\s*185px;/);
-    expect(css).toMatch(/--led-w-customer-max:\s*200px;/);
+  it('SIL-872: KHÁCH HÀNG & LỘ TRÌNH rides its ticket share with the 150px floor and the SIL-822 wrap levers', () => {
+    // SIL-872 (hotfix CR-009.1 4.1): the col reads the ticket's 14% share
+    // with the 150px floor as min-width. The spec's 200px cap
+    // (--led-w-customer-max) stays retired — the share only ever grows with
+    // the canvas. SIL-822's levers stay: the 6px inline padding floor on the
+    // row-header cell and word-boundary wrap on the NameCell runs.
+    expect(css).toMatch(/\.shipment-container-ledger__col--customer\s*\{[^}]*width:\s*calc\(14%\s*\*\s*var\(--led-share-scale, 1\)\);\s*min-width:\s*var\(--led-w-customer\);/);
+    expect(css).toMatch(/--led-w-customer:\s*150px;/);
+    expect(css).not.toMatch(/--led-w-customer-max/);
+    expect(css).not.toMatch(/\.shipment-container-ledger__col--\w+\s*\{[^}]*max-width/);
     expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\]\s*\{[^}]*padding-inline:\s*6px;/);
     expect(css).toMatch(/\.shipment-container-ledger th\[data-label='Khách hàng & lộ trình'\] \.name-cell\s*\{[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;/);
   });
@@ -345,12 +350,15 @@ describe('shipment detail workboard styling', () => {
     expect(css).not.toMatch(/shipment-container-ledger__vehicle-pending\s*\{[^}]*var\(--danger\)/);
   });
 
-  it('SIL-863: the spec ten columns pin the fixed px ladder and the sums close exactly (Bảng 2 + SIL-824 lineage)', () => {
-    // SIL-863 Bảng 2 (ticket 18/11) + SIL-824 ("khong de browser tu phan
-    // phoi chieu rong"): every column reads its floor from a --led-w-* var,
-    // --led-fixed-sum equals the spec ten exactly (1296px <= the 1344px
-    // canvas at 1440x900), CHỌN/GHI CHÚ ride the TSX --led-min only while
-    // rendered, and the retired FB-086 actions column leaves no floor.
+  it('SIL-872: the chốt ladder pins its px floors and ticket % shares, and the sums close exactly', () => {
+    // SIL-872 (hotfix CR-009.1 4.1) — the customer's chốt ladder REPLACES the
+    // SIL-863 Bảng 2 / SIL-824 floors ("thắng mọi quyết định cũ"): every
+    // column reads its floor from a --led-w-* var AND its EXACT ticket %
+    // share from a calc() col width, --led-fixed-sum is the share base
+    // (1084px — the ten floors sum, ≤ the ~1150px canvas at 1440×900 so
+    // TRẠNG THÁI never spills), CHỌN/GHI CHÚ ride the TSX --led-min +
+    // --led-share-scale only while rendered, and the retired FB-086 actions
+    // column leaves no floor.
     const floor = (name: string) => {
       const m = css.match(new RegExp(`--led-w-${name}:\\s*(\\d+)px;`));
       expect(m, `missing --led-w-${name}`).toBeTruthy();
@@ -359,30 +367,65 @@ describe('shipment detail workboard styling', () => {
     const names = ['select', 'customer', 'billbook', 'declaration', 'direction', 'shippingline', 'container', 'route', 'schedule', 'vehicle', 'notes', 'status'];
     const sum = names.reduce((acc, name) => acc + floor(name), 0);
     const declared = Number(css.match(/--led-fixed-sum:\s*(\d+)px;/)?.[1] ?? NaN);
-    // --led-fixed-sum counts the SPEC TEN (KHÁCH HÀNG included, CHỌN/GHI CHÚ
-    // excluded — they ride the TSX --led-min while rendered).
-    expect(declared).toBe(1296);
+    // --led-fixed-sum counts the SPEC TEN (CHỌN/GHI CHÚ excluded — they ride
+    // the TSX --led-min while rendered).
+    expect(declared).toBe(1084);
     expect(sum - floor('select') - floor('notes')).toBe(declared);
-    expect(declared).toBeLessThanOrEqual(1344);
-    expect(floor('customer')).toBe(185); // Bảng 2 cột 1 (spec cap 200 pinned as --led-w-customer-max)
-    expect(floor('billbook')).toBe(115); // Bảng 2 cột 2
-    expect(floor('direction')).toBe(72); // Bảng 2 cột 4: QA FAIL 2026-11-20 (build 25c9ffb8) set the spec 72px — widest pill 'Nhập lẻ' measures 55px
-    expect(floor('route')).toBe(155); // Bảng 2 cột 7
-    expect(floor('schedule')).toBe(160); // Bảng 2 cột 8
-    expect(floor('status')).toBe(145); // Bảng 2 cột 10
+    expect(floor('customer')).toBe(150); // ticket cột 1 (share 14%)
+    expect(floor('billbook')).toBe(105); // ticket cột 2 (share 9.5%)
+    expect(floor('declaration')).toBe(105); // ticket cột 3 (share 9.5%; the SIL-756 identifier scroll law keeps the 12-digit run reachable in-cell)
+    expect(floor('direction')).toBe(64); // ticket cột 4 (share 5.5%)
+    expect(floor('shippingline')).toBe(80); // ticket cột 5 (share 7%)
+    expect(floor('container')).toBe(115); // ticket cột 6 (share 11%)
+    expect(floor('route')).toBe(120); // ticket cột 7 (share 11.5%)
+    expect(floor('schedule')).toBe(125); // ticket cột 8 (share 12%)
+    expect(floor('vehicle')).toBe(105); // ticket cột 9 (share 10%)
+    expect(floor('status')).toBe(115); // ticket cột 10 (share 10%)
+    expect(floor('notes')).toBe(120);
     expect(css).not.toMatch(/--led-w-actions:/);
     expect(css).toMatch(/\.shipment-container-ledger td\[data-label='Nâng \/ hạ'\] \.shipment-container-ledger__cell-trigger\s*\{[^}]*padding-left:\s*6px;[^}]*padding-right:\s*6px;/);
-    expect(floor('declaration')).toBe(124); // SIL-848: 116px was the exact 12-digit floor (zero margin) — 124 pays it at wide metrics too
-    expect(floor('container')).toBe(116);
-    expect(floor('notes')).toBe(120);
-    // The band ladders stay gone — one px ladder, no @media share restatements.
+    // SIL-872: every col declares its EXACT ticket % share scaled by the
+    // TSX-fed --led-share-scale, and keeps its px floor as min-width. The
+    // ticket shares are the customer's chốt numbers — deliberately NOT
+    // floor-derived (customer 14% over a 13.8% floor proportion etc.) — and
+    // the ten of them sum to exactly 100% (no dead margin, no overflow; the
+    // share-scale re-base keeps every hide/merge combination ≤ 100%).
+    const shares: Record<string, number> = {
+      select: 4.06,
+      customer: 14,
+      billbook: 9.5,
+      declaration: 9.5,
+      direction: 5.5,
+      shippingline: 7,
+      container: 11,
+      route: 11.5,
+      schedule: 12,
+      vehicle: 10,
+      notes: 11.07,
+      status: 10,
+    };
+    for (const name of names) {
+      expect(css).toMatch(new RegExp(`\\.shipment-container-ledger__col--${name}\\s*\\{[^}]*width:\\s*calc\\(${shares[name]}%\\s*\\*\\s*var\\(--led-share-scale, 1\\)\\);\\s*min-width:\\s*var\\(--led-w-${name}\\);`));
+    }
+    const tenShareSum = names.filter((name) => name !== 'select' && name !== 'notes').reduce((acc, name) => acc + shares[name], 0);
+    expect(tenShareSum).toBe(100); // the ticket's ten shares close exactly
+    // CHỌN/GHI CHÚ shares stay the floor-derived proportions of the ticket
+    // sum (44 ÷ 1084, 120 ÷ 1084) so the re-based rendered set totals ~100%.
+    expect(Math.abs(shares.select - (100 * floor('select')) / declared)).toBeLessThan(0.05);
+    expect(Math.abs(shares.notes - (100 * floor('notes')) / declared)).toBeLessThan(0.05);
+    // The TSX feeds both vars from the RENDERED colgroup.
+    expect(ledgerSource).toMatch(/'--led-min':\s*`\$\{tableMinWidth\}px`,\s*'--led-share-scale':\s*ledShareScale/);
+    expect(ledgerSource).toMatch(/const LEDGER_SPEC_TEN_SUM/);
+    // The band ladders stay gone — one share ladder, no @media restatements.
     expect(css).not.toMatch(/@media \(min-width: 1101px\)[\s\S]*?col--/);
     expect(css).not.toMatch(/@media \(min-width: 761px\)[\s\S]*?col--/);
-    // The card collapse owns ≤1118px (with the min-width reset); 1119–1300px
-    // renders the fixed table with the in-container scroll; ≥1301px fits.
+    // The card collapse owns ≤1118px (with the min-width reset); 1119–1084px+
+    // renders the share table with the in-container scroll whenever the
+    // container runs under the rendered min-width sum (1440px sidebar-open
+    // canvas ≈1129px ≥ 1084px → NO scroll, the ticket's AC); ≥1301px fits.
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1118px\)\s*\{[\s\S]*?\.shipment-container-ledger table\s*\{\s*min-width:\s*0;/);
     expect(css).toMatch(/@container shipments-detail \(min-width:\s*1119px\) and \(max-width:\s*1300px\)\s*\{[^}]*\.shipment-container-ledger\s*\{[^}]*overflow-x:\s*auto;/);
-    // BILL/BOOKING header never drops a lone second line (Bảng 2 cột 2 nowrap law).
+    // BILL/BOOKING header never drops a lone second line (nowrap law kept).
     expect(css).toMatch(/\.shipment-container-ledger__col--billbook \.table-sort-button\s*\{[^}]*white-space:\s*nowrap;/);
   });
 

@@ -252,10 +252,11 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     expect(apiGet).toHaveBeenCalledWith(`/shipments/cus-workspace/containers?page=1&limit=20&transportDateFrom=${today}&transportDateTo=${today}`);
   });
 
-  // SIL-863 Bảng 2 (ticket 18/11): the table opens on the spec's TEN columns
-  // — Ghi chú is a Cột-picker opt-in (defaultHidden) and the FB-086 Thao tác
-  // column is retired — so the 1296px ladder fits the 1344px canvas at
-  // 1440px with no horizontal scroll and TRẠNG THÁI stays on-screen.
+  // SIL-863 Bảng 2 (ticket 18/11) → SIL-872 (CR-009.1 4.1): the table
+  // opens on the spec's TEN columns — Ghi chú is a Cột-picker opt-in
+  // (defaultHidden) and the FB-086 Thao tác column is retired — so the
+  // 1084px chốt floor sum fits the ~1150px canvas at 1440px with no
+  // horizontal scroll and TRẠNG THÁI stays on-screen.
   it('opens the ledger on the spec ten columns (Ghi chú rides the Cột picker)', async () => {
     apiGet.mockResolvedValueOnce(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
