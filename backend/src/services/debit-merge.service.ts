@@ -465,10 +465,17 @@ export async function getDebitMergeBoard(query: {
   const lockedByLot = new Map(lockRows.map((row) => [row.shipmentId, row]));
 
   // ── Kế toán's per-cell rate overrides (SIL-805): the merge grid shows the
-  // SAME merged cells as the chot-debit board.
+  // SAME merged cells as the chot-debit board. SIL-864 — overrides are per
+  // (lot, container); this LOT-level grid reads the BASELINE rows
+  // (shipment_container_id NULL) — exactly the board's top-level cells — so
+  // a container-scoped edit never bleeds into the lot view, and legacy
+  // one-row-per-lot data reads unchanged.
   const rateOverrideRows = await db.select()
     .from(s.shipmentDebitRateOverrides)
-    .where(inArray(s.shipmentDebitRateOverrides.shipmentId, lotIds));
+    .where(and(
+      inArray(s.shipmentDebitRateOverrides.shipmentId, lotIds),
+      isNull(s.shipmentDebitRateOverrides.shipmentContainerId),
+    ));
   const rateOverrideByLot = new Map(rateOverrideRows.map((row) => [row.shipmentId, row] as const));
 
   const frozenNumber = (snapshot: unknown, key: string): number | null => {

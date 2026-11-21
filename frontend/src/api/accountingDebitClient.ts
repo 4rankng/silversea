@@ -31,8 +31,9 @@ export interface AccountingDebitBoardRow {
   /** Ticket 18/11 Task 2.2 — per-container vehicle facts aligned with
    *  `containers` (same labels, stable id order). Optional so a rolling
    *  deployment can lag the wire: absent → the cells fall back to the
-   *  lot-level phanXe/truckPlates arrays. */
-  containersDetail?: Array<{ container: string; carriers: string[]; plates: string[] }>;
+   *  lot-level phanXe/truckPlates arrays. SIL-864 — `id` is the container's
+   *  own row key (the per-container money rows ride the same order). */
+  containersDetail?: Array<{ id?: number; container: string; carriers: string[]; plates: string[] }>;
   phanXe: string[];
   /** SIL-838 — nhà máy/kho hàng + tuyến dưới tên KH. Optional so a rolling
    *  deployment can lag the board wire without breaking the cell. */
@@ -80,6 +81,18 @@ export interface AccountingDebitBoardRow {
   /** FB-094 (card 201026112300) — ACTIVE cost-lock time (ISO) or null: the
    *  consolidated debit-note export only accepts locked lots. */
   costLockedAt: string | null;
+  /** SIL-864 (CR-009.2) — per-container money rows (FCL ≥2 conts), aligned
+   *  with `containers`/`containersDetail` order: cells = derived merged with
+   *  THAT container's override over the lot baseline. Absent on LCL and
+   *  single-row lots — their one row reads the top-level cells. The
+   *  top-level `thu`/`tra`/`loiNhuan` stay the LOT BASELINE the settlement
+   *  rounds and the Debit note read. */
+  containerMoney?: Array<{
+    containerId: number;
+    thu: AccountingDebitBoardThu;
+    tra: AccountingDebitBoardTra;
+    loiNhuan: string | null;
+  }>;
 }
 
 export async function listAccountingDebitBoard(params: {
@@ -114,19 +127,21 @@ export type DebitRateField =
   | 'cuocTraDv' | 'lachHuyenDv' | 'phatSinhDv' | 'phiRu';
 
 /** SIL-805 — lưu các ô giá/chi phí sửa trực tiếp trên dòng: mỗi key trong
- *  `rates` là MỘT ô được lưu (number nguyên VND). Server chặn 409 khi lô đã
- *  khóa chi phí / khóa sổ kế toán; cùng khóa (lô, bộ giá trị) replay cùng
- *  kết quả — key xác định theo (lô, các cặp field=giá trị đã sort). */
+ *  `rates` là MỘT ô được lưu (number nguyên VND). SIL-864 — `containerId`
+ *  nhắm đúng dòng container (FCL ≥2 conts); omitted = dòng baseline cấp lô.
+ *  Server chặn 409 khi lô đã khóa chi phí / khóa sổ kế toán; cùng khóa
+ *  (lô, container, các cặp field=giá trị đã sort) replay cùng kết quả. */
 export function setDebitRateOverrides(input: {
   shipmentId: number;
+  containerId?: number | null;
   rates: Partial<Record<DebitRateField, number | null>>;
-}): Promise<{ shipmentId: number; rates: Record<DebitRateField, number | null> }> {
+}): Promise<{ shipmentId: number; containerId: number | null; rates: Record<DebitRateField, number | null> }> {
   const pairs = Object.entries(input.rates)
     .filter(([, value]) => value !== undefined)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([field, value]) => `${field}=${value}`);
   return api.post('/accounting/debit-board/rates', input, {
-    headers: { 'Idempotency-Key': `rate-override-${input.shipmentId}-${pairs.join('|')}` },
+    headers: { 'Idempotency-Key': `rate-override-${input.shipmentId}-${input.containerId ?? 'lot'}-${pairs.join('|')}` },
   });
 }
 

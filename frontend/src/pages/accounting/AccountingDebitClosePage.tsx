@@ -292,10 +292,13 @@ export default function AccountingDebitClosePage() {
     saveExternalCost: (shipmentId, value) => externalCostMutation.mutate({ shipmentId, chiPhiNgoai: value }),
     externalCostSaving: externalCostMutation.isPending,
     // SIL-805 — one cell saves at a time; its input disables while in flight.
-    saveRate: (shipmentId, field, value) => ratesMutation.mutate({ shipmentId, rates: { [field]: value } }),
+    // SIL-864 — containerId targets the edit's own container row (null = the
+    // lot baseline row).
+    saveRate: (shipmentId, containerId, field, value) => ratesMutation.mutate({ shipmentId, containerId, rates: { [field]: value } }),
     rateSaving: ratesMutation.isPending && ratesMutation.variables != null
       ? {
           shipmentId: ratesMutation.variables.shipmentId,
+          containerId: ratesMutation.variables.containerId ?? null,
           field: (Object.keys(ratesMutation.variables.rates) as DebitRateField[])[0],
         }
       : null,

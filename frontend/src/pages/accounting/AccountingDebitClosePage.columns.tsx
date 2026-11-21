@@ -36,10 +36,12 @@ export interface CellContext {
   /** SIL-771 — save the row's editable 'Chi phí ngoài'. */
   saveExternalCost?: (shipmentId: number, value: number | null) => void;
   externalCostSaving?: boolean;
-  /** SIL-805 — save one inline-editable rate/cost cell of the row. */
-  saveRate?: (shipmentId: number, field: DebitRateField, value: number) => void;
+  /** SIL-805 — save one inline-editable rate/cost cell of the row.
+   *  SIL-864 — `containerId` targets the edit's own container row (FCL ≥2
+   *  conts); null = the lot baseline row. */
+  saveRate?: (shipmentId: number, containerId: number | null, field: DebitRateField, value: number) => void;
   /** SIL-805 — the ONE cell whose save is in flight (others stay editable). */
-  rateSaving?: { shipmentId: number; field: DebitRateField } | null;
+  rateSaving?: { shipmentId: number; containerId: number | null; field: DebitRateField } | null;
   /** FB-145 — true while a [Tách nhóm] refresh skeletons the cước-thu line. */
   ratesRefreshing?: boolean;
   /** Card 211026024348 — after an unmerge the board refetches. */
@@ -92,6 +94,23 @@ function money(value: string | null): ReactNode {
   return value == null ? null : formatCurrency(Number(value));
 }
 
+/** SIL-864 (CR-009.2) — the money a container LINE renders: the lot's
+ *  per-container money row when one exists (FCL ≥2 conts), else the
+ *  top-level lot cells. `containerId` is the inline-edit target — the
+ *  write lands on THIS row, never on a sibling. */
+function rowMoney(row: AccountingDebitBoardRow, context: CellContext | undefined): {
+  thu: AccountingDebitBoardRow['thu'];
+  tra: AccountingDebitBoardRow['tra'];
+  loiNhuan: string | null;
+  containerId: number | null;
+} {
+  const perContainer = row.containerMoney?.[context?.containerIndex ?? 0];
+  if (perContainer == null) {
+    return { thu: row.thu, tra: row.tra, loiNhuan: row.loiNhuan, containerId: null };
+  }
+  return { thu: perContainer.thu, tra: perContainer.tra, loiNhuan: perContainer.loiNhuan, containerId: perContainer.containerId };
+}
+
 /**
  * SIL-805 — the editable face of one of the 8 rate/cost cells: an inline
  * input while the lot is unlocked (chưa khóa sổ — AC2) and `saveRate` is
@@ -99,16 +118,19 @@ function money(value: string | null): ReactNode {
  * đọc thôi) or the cell renders outside the page (records view without a
  * saver). The blank missing face is the locked/unknown face's law (SIL-838 §3).
  */
-function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null): ReactNode {
+function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null, containerId: number | null): ReactNode {
   if (row.costLockedAt != null || context?.saveRate == null) return money(value);
   return (
     <RateCell
       row={row}
+      containerId={containerId}
       field={field}
       label={label}
       value={value}
       onCommit={context.saveRate}
-      saving={context.rateSaving?.shipmentId === row.shipmentId && context.rateSaving.field === field}
+      saving={context.rateSaving?.shipmentId === row.shipmentId
+        && context.rateSaving.containerId === containerId
+        && context.rateSaving.field === field}
     />
   );
 }
@@ -328,25 +350,29 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // in flight the cước-thu line skeletons instead of painting the dissolved
     // group's stale 0₫.
     key: 'cucPhaiThu', label: 'Cước phải thu', className: 'debit-col--money-group', pinned: true,
-    cell: (row, context) => (
-      <div className="debit-money-group">
-        <MoneyLine label="Cước thu" rate>
-          {context?.ratesRefreshing
-            ? <Skeleton width={64} height={16} />
-            : editableRate(row, context, 'cuocThu', 'Cước thu', row.thu.cuocThu)}
-        </MoneyLine>
-        <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', row.thu.lachHuyen)}</MoneyLine>
-        <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', row.thu.phuPs)}</MoneyLine>
-        <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', row.thu.phatSinhCus)}</MoneyLine>
-      </div>
-    ),
+    cell: (row, context) => {
+      const line = rowMoney(row, context);
+      return (
+        <div className="debit-money-group">
+          <MoneyLine label="Cước thu" rate>
+            {context?.ratesRefreshing
+              ? <Skeleton width={64} height={16} />
+              : editableRate(row, context, 'cuocThu', 'Cước thu', line.thu.cuocThu, line.containerId)}
+          </MoneyLine>
+          <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', line.thu.lachHuyen, line.containerId)}</MoneyLine>
+          <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', line.thu.phuPs, line.containerId)}</MoneyLine>
+          <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', line.thu.phatSinhCus, line.containerId)}</MoneyLine>
+        </div>
+      );
+    },
   },
   {
     // Rev2 cột 5 — Tổng thu = cước thu + Lạch Huyện + phát sinh; the rollup
     // reads bold (the QA-passed rendering; Rev2's navy is the customer's Excel
     // face — no navy token exists in the house palette, so bold ink it is).
+    // SIL-864 — the container line reads its OWN rollup, never the lot's.
     key: 'tongThu', label: 'Tổng thu', className: 'debit-col--money', pinned: true,
-    cell: (row) => <strong className="debit-tong-thu">{money(row.thu.tongThu)}</strong>,
+    cell: (row, context) => <strong className="debit-tong-thu">{money(rowMoney(row, context).thu.tongThu)}</strong>,
   },
   {
     // Rev2 cột 6 — Cước phải trả: cước trả ĐV, Lạch Huyện ĐV, phát sinh ĐV and
@@ -354,22 +380,27 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // (not inside) Tổng trả by the service — it folds here as its labeled line
     // so the fee stays on the board without a 10th track.
     key: 'cucPhaiTra', label: 'Cước phải trả', className: 'debit-col--money-group', pinned: true,
-    cell: (row, context) => (
-      <div className="debit-money-group">
-        <MoneyLine label="Cước trả ĐV" rate>{editableRate(row, context, 'cuocTraDv', 'Cước trả ĐV', row.tra.cuocTraDv)}</MoneyLine>
-        <MoneyLine label="Lạch Huyện ĐV" rate>{editableRate(row, context, 'lachHuyenDv', 'Lạch Huyện ĐV', row.tra.lachHuyenDv)}</MoneyLine>
-        <MoneyLine label="Phát sinh ĐV" rate>{editableRate(row, context, 'phatSinhDv', 'Phát sinh ĐV', row.tra.phatSinhDv)}</MoneyLine>
-        <MoneyLine label="Phí RU" rate>{editableRate(row, context, 'phiRu', 'Phí RU', row.tra.phiRu)}</MoneyLine>
-      </div>
-    ),
+    cell: (row, context) => {
+      const line = rowMoney(row, context);
+      return (
+        <div className="debit-money-group">
+          <MoneyLine label="Cước trả ĐV" rate>{editableRate(row, context, 'cuocTraDv', 'Cước trả ĐV', line.tra.cuocTraDv, line.containerId)}</MoneyLine>
+          <MoneyLine label="Lạch Huyện ĐV" rate>{editableRate(row, context, 'lachHuyenDv', 'Lạch Huyện ĐV', line.tra.lachHuyenDv, line.containerId)}</MoneyLine>
+          <MoneyLine label="Phát sinh ĐV" rate>{editableRate(row, context, 'phatSinhDv', 'Phát sinh ĐV', line.tra.phatSinhDv, line.containerId)}</MoneyLine>
+          <MoneyLine label="Phí RU" rate>{editableRate(row, context, 'phiRu', 'Phí RU', line.tra.phiRu, line.containerId)}</MoneyLine>
+        </div>
+      );
+    },
   },
   {
     // Rev2 cột 7 — Tổng trả & Chi phí ngoài: the rollup line plus the SIL-771
     // editable external-cost input (công thức lợi nhuận đọc đúng trường này).
+    // SIL-864 — Tổng trả reads the container line; 'Chi phí ngoài' stays the
+    // LOT input (shipments.debit_external_cost, one setter per lot).
     key: 'tongTraChiPhiNgoai', label: 'Tổng trả & Chi phí ngoài', className: 'debit-col--money-group', pinned: true,
     cell: (row, context) => (
       <div className="debit-money-group">
-        <MoneyLine label="Tổng trả">{money(row.tra.tong1)}</MoneyLine>
+        <MoneyLine label="Tổng trả">{money(rowMoney(row, context).tra.tong1)}</MoneyLine>
         <span className="debit-line debit-line--stacked">
           <span className="debit-line__label">Chi phí ngoài</span>
           <ExternalCostCell
@@ -384,10 +415,12 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   {
     // Rev2 cột 8 — Lợi nhuận = Tổng thu − Tổng trả − Chi phí ngoài (server-side,
     // computeDebitBoardProfit). Lợi nhuận âm → ô bôi nền đỏ đậm, chữ trắng.
+    // SIL-864 — the container line renders its own profit.
     key: 'loiNhuan', label: 'Lợi nhuận', className: 'debit-col--money', pinned: true,
-    cell: (row) => {
-      if (row.loiNhuan == null) return money(null);
-      const value = Number(row.loiNhuan);
+    cell: (row, context) => {
+      const line = rowMoney(row, context);
+      if (line.loiNhuan == null) return money(null);
+      const value = Number(line.loiNhuan);
       return (
         <span className={value < 0 ? 'debit-loinhuan debit-loinhuan--negative' : 'debit-loinhuan'}>
           {formatCurrency(value)}

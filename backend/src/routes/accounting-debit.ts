@@ -62,6 +62,9 @@ const externalCostSchema = z.object({
 // giá trị tự động, omitted = không đụng). Ít nhất MỘT ô mỗi lượt gọi.
 const rateOverrideSchema = z.object({
   shipmentId: z.number().int().positive(),
+  // SIL-864 — the edit's own container row (FCL ≥2 conts); omitted = the lot
+  // baseline row. The service validates the container belongs to the lot.
+  containerId: z.number().int().positive().nullable().optional(),
   rates: z.object({
     cuocThu: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),
     lachHuyen: z.number().int().min(0).max(999_999_999_999_999).nullable().optional(),

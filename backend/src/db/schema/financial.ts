@@ -2,7 +2,7 @@
 // Regenerate via drizzle-kit against the barrel: db/schema/index.ts.
 
 import {
-  boolean, date, index, integer, jsonb, numeric, pgTable, primaryKey, serial, text, timestamp, uniqueIndex, varchar,
+  boolean, date, index, integer, jsonb, numeric, pgTable, primaryKey, serial, text, timestamp, unique, uniqueIndex, varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { BillingDocumentOfficialIdentitySnapshot, DebitNoteTemplateSnapshot } from '@tingting/shared';
@@ -839,11 +839,23 @@ export const shipmentRateAdjustmentRequests = pgTable('shipment_rate_adjustment_
 // ZONE_SURCHARGE rows, trip expenses, carrier costs, pricing RU). Kế toán gõ
 // một số trên dòng → override thay giá trị tự động của ĐÚNG ô đó trên bảng
 // (Tổng thu/Tổng trả/Lợi nhuận đọc cùng override); null cột = không override
-// (vẫn đọc giá trị tự động). Một dòng mỗi lô. Setter chặn lô đã khóa chi phí
-// / khóa sổ kế toán như mọi lượt ghi khác trên bảng và ghi audit_logs
+// (vẫn đọc giá trị tự động).
+//
+// SIL-864 (CR-009.2) — overrides are PER CONTAINER on FCL lots with ≥2 conts:
+// the board renders one independent money row per container, so an edit on
+// one row writes (shipment_id, shipment_container_id) of THAT row and the
+// sibling rows keep the lot baseline. shipment_container_id NULL = the
+// lot-level baseline row (legacy data + single-container/LCL lots, whose one
+// row IS the lot). A container row overrides field-by-field over the
+// baseline (mergeContainerOverrides); the TOP-LEVEL lot cells stay the
+// baseline merge — settlement rounds and the Debit note keep reading the lot
+// total (open question for the owner: roll per-container edits up into the
+// lot total — documented in the testplan case). Setter chặn lô đã khóa chi
+// phí / khóa sổ kế toán như mọi lượt ghi khác trên bảng và ghi audit_logs
 // before/after mỗi lần lưu — sửa sau khóa sẽ lệch giấy báo nợ đã xuất.
 export const shipmentDebitRateOverrides = pgTable('shipment_debit_rate_overrides', {
-  shipmentId: integer('shipment_id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  shipmentContainerId: integer('shipment_container_id'),
   cuocThu: numeric('cuoc_thu', { precision: 15, scale: 0 }),
   lachHuyenThu: numeric('lach_huyen_thu', { precision: 15, scale: 0 }),
   phuPs: numeric('phu_ps', { precision: 15, scale: 0 }),
@@ -854,7 +866,14 @@ export const shipmentDebitRateOverrides = pgTable('shipment_debit_rate_overrides
   phiRu: numeric('phi_ru', { precision: 15, scale: 0 }),
   updatedBy: integer('updated_by').notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  // At most ONE override row per (lot, container): NULL container rows are
+  // the lot baseline — NULLS NOT DISTINCT keeps the old one-row-per-lot law
+  // at the DB level (Postgres 15+).
+  unique('shipment_debit_rate_overrides_pair_unq')
+    .on(table.shipmentId, table.shipmentContainerId)
+    .nullsNotDistinct(),
+]);
 
 // ─── Card 20260923_12 — Chọn Debit: settlement rounds (đợt chốt debit) ──────
 // Kế toán ticks rows on the chot-debit board and opens "Chọn Debit": one

@@ -112,7 +112,7 @@ describe('AccountingDebitClosePage — SIL-805 inline-edit 8 ô giá/chi phí', 
     fireEvent.change(input, { target: { value: '1200000' } });
     fireEvent.blur(input);
     await waitFor(() => expect(setRateOverrides.mock.calls[0]?.[0])
-      .toEqual({ shipmentId: 1, rates: { cuocThu: 1200000 } }));
+      .toEqual({ shipmentId: 1, containerId: null, rates: { cuocThu: 1200000 } }));
   });
 
   it('ô chi phí trả ĐV cũng lưu được (tra side)', async () => {
@@ -122,7 +122,7 @@ describe('AccountingDebitClosePage — SIL-805 inline-edit 8 ô giá/chi phí', 
     fireEvent.change(input, { target: { value: '350000' } });
     fireEvent.blur(input);
     await waitFor(() => expect(setRateOverrides.mock.calls[0]?.[0])
-      .toEqual({ shipmentId: 1, rates: { cuocTraDv: 350000 } }));
+      .toEqual({ shipmentId: 1, containerId: null, rates: { cuocTraDv: 350000 } }));
   });
 
   it('gõ lại đúng giá trị đang áp dụng → blur KHÔNG gửi', async () => {
@@ -173,6 +173,6 @@ describe('AccountingDebitClosePage — SIL-805 inline-edit 8 ô giá/chi phí', 
     fireEvent.change(input, { target: { value: '900000' } });
     fireEvent.blur(input);
     await waitFor(() => expect(setRateOverrides.mock.calls[0]?.[0])
-      .toEqual({ shipmentId: 2, rates: { cuocThu: 900000 } }));
+      .toEqual({ shipmentId: 2, containerId: null, rates: { cuocThu: 900000 } }));
   });
 });
