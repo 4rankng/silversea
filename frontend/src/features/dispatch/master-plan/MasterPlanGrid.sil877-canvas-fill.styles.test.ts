@@ -39,8 +39,8 @@ describe('master-plan board fills the canvas with a floored, fully visible GHI C
     // cap, no auto-centering that would band the board inside the canvas.
     expect(table).not.toMatch(/max-width:\s*\d/);
     expect(table).not.toContain('margin-inline: auto');
-    // The horizontal-rail floor survives: below 1200px the wrapper scrolls.
-    expect(table).toMatch(/min-width:\s*1200px/);
+    // The horizontal-rail floor survives: below 1170px the wrapper scrolls.
+    expect(table).toMatch(/min-width:\s*1170px/);
     expect(table).toMatch(/table-layout:\s*fixed/);
   });
 

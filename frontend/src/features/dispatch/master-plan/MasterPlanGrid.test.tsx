@@ -394,19 +394,21 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('"carrier direction"');
   });
 
-  it('balances the fixed columns for the 1200px floor — THỜI GIAN thu lại, KHÁCH & TUYẾN the widest zone (owner redesign 23/10)', () => {
+  it('balances the fixed columns for the 1170px floor — THỜI GIAN thu lại, KHÁCH & TUYẾN the widest zone (owner redesign 23/10, r2 floor 27c47c66)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
     const widthFor = (column: string) => Number(css.match(new RegExp(`\\.master-plan-grid__col--${column}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%`))?.[1] ?? 0);
 
     const widths = ['schedule', 'customer', 'route-shipping', 'lift-port', 'drop-port', 'cargo', 'notes', 'allocation'].map(widthFor);
 
     // Owner redesign 23/10 (QA R38): the shares sum to 96% so the on-demand
-    // CHỌN column's fixed 48px fits inside the 1200px floor exactly
-    // (96% × 1200 + 48 = 1200). Measured floors at 1200px: schedule 120
-    // (THỜI GIAN ~110-130px per the brief) · customer 210 · route 174 — the
-    // KHÁCH HÀNG & LỘ TRÌNH zone owns the widest share — · lift 108 · drop
-    // 102 (đủ 1 dòng) · cargo 144 · allocation 156 · notes 138. The old
-    // 15.5/15.75/17.25 leading trio was the "50-70% trống, cột cắt cụt"
+    // CHỌN column's fixed 48px fits inside the rail floor. SIL-873 r2 (QA
+    // verdict 27c47c66): the 1200px floor overflowed the 1177px 1440×900
+    // canvas by 23px and pushed GHI CHÚ out at scrollLeft=0 — the floor is
+    // now 1170px. Measured slices at 1170px: schedule 117
+    // (THỜI GIAN ~110-130px per the brief) · customer 205 · route 170 — the
+    // KHÁCH HÀNG & LỘ TRÌNH zone owns the widest share — · lift 105 · drop
+    // 99 (đủ 1 dòng) · cargo 140 · allocation 152 · notes 160 (floor). The
+    // old 15.5/15.75/17.25 leading trio was the "50-70% trống, cột cắt cụt"
     // defect this rebalance retires.
     expect(widthFor('schedule')).toBe(10);
     expect(widthFor('customer')).toBe(17.5);
@@ -421,7 +423,7 @@ describe('MasterPlanGrid', () => {
     // document is the single vertical scroller and the header is NOT sticky
     // (QA 10/11: the bounded pane produced two scrollbars side by side and a
     // thead floating over the rows scrolled beneath it).
-    expect(css).toMatch(/\.master-plan-grid \{[\s\S]*?min-width:\s*1200px;/);
+    expect(css).toMatch(/\.master-plan-grid \{[\s\S]*?min-width:\s*1170px;/);
     expect(css).toMatch(/\.master-plan-grid__wrapper \{[^}]*overflow-x:\s*auto;/);
     expect(css).not.toMatch(/\.master-plan-grid__wrapper \{[^}]*max-height/);
     // The global table base (Table.css bare `thead th`) pins every board

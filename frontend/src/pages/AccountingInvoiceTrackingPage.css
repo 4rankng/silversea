@@ -38,10 +38,15 @@
    1292px min-content vs the 1129px canvas — Tiến độ xử lý clipped past the
    app-body edge). The family answer (law 2bbf1664 / e6f00827 / 41902fb1):
    table-layout fixed makes the % shares BIND; every col carries its share
-   (= floor ÷ the 1220px nine-column base) plus that px floor, measured off
-   the real tokens (select pair 25px, STT 41px, the KH&Lô law floor 320px,
-   'Cont & Chứng từ' 137px, the SIL-816 pair budgets 155/183px, Chênh lệch
-   98px, note input + header 121px, progress select 140px). The TSX derives
+   (= floor ÷ the 1117px nine-column base) plus that px floor, measured off
+   the real tokens (select pair 25px, STT 38px, the KH&Lô law floor 320px,
+   'Cont & Chứng từ' header 132px, the stacked Cột 4/5 floors 135/127px —
+   r2: the old nowrap pair budgets 155/183px summed the base to 1220 and
+   pushed Tiến độ xử lý out of the 1129px canvas at scrollLeft=0, so Cột 4/5
+   go one-control-per-row and their floors drop to their one-line header
+   minima (pair min-width: 0 lets the input shrink instead), Chênh lệch
+   header 94px, note input + header 116px, progress select 130px; base 1117
+   leaves 12px of slack under the canvas). The TSX derives
    --itv-min (rendered floor sum = the wrapper's horizontal-scroll floor —
    genuine desktop width excess scrolls via record-table-wrap--scroll) and
    --itv-scale (share re-base) from the RENDERED set, so the CUS read-only
@@ -55,7 +60,7 @@
 .invoice-tracking-page .record-table {
   table-layout: fixed;
   width: 100%;
-  min-width: var(--itv-min, 1220px);
+  min-width: var(--itv-min, 1117px);
 }
 
 @container (max-width: 1100px) {
@@ -64,17 +69,20 @@
   }
 }
 
-/* Shares = floor ÷ the 9-column base (1220px), pinned to 2dp; the TSX
-   --itv-scale re-normalizes ANY rendered subset to ~100%. */
-.invoice-tracking-page .record-table col.ivt-col--select { width: calc(2.05% * var(--itv-scale, 1)); min-width: 25px; }
-.invoice-tracking-page .record-table col.ivt-col--stt { width: calc(3.36% * var(--itv-scale, 1)); min-width: 41px; }
-.invoice-tracking-page .record-table col.ivt-col--customer { width: calc(26.23% * var(--itv-scale, 1)); min-width: 320px; }
-.invoice-tracking-page .record-table col.ivt-col--cont { width: calc(11.23% * var(--itv-scale, 1)); min-width: 137px; }
-.invoice-tracking-page .record-table col.ivt-col--dauvao { width: calc(12.70% * var(--itv-scale, 1)); min-width: 155px; }
-.invoice-tracking-page .record-table col.ivt-col--doisoat { width: calc(15.00% * var(--itv-scale, 1)); min-width: 183px; }
-.invoice-tracking-page .record-table col.ivt-col--chenh { width: calc(8.03% * var(--itv-scale, 1)); min-width: 98px; }
-.invoice-tracking-page .record-table col.ivt-col--ghichu { width: calc(9.92% * var(--itv-scale, 1)); min-width: 121px; }
-.invoice-tracking-page .record-table col.ivt-col--tiendo { width: calc(11.48% * var(--itv-scale, 1)); min-width: 140px; }
+/* Shares = floor ÷ the 9-column base (1117px), pinned to 2dp; the TSX
+   --itv-scale re-normalizes ANY rendered subset to ~100%. Base must stay
+   ≤ the 1129px 1440×900 canvas (QA r2: base 1220 overflowed it by 91px,
+   Tiến độ xử lý pushed out at scrollLeft=0); every floor also carries its
+   column's one-line header minimum (FB-063). */
+.invoice-tracking-page .record-table col.ivt-col--select { width: calc(2.24% * var(--itv-scale, 1)); min-width: 25px; }
+.invoice-tracking-page .record-table col.ivt-col--stt { width: calc(3.40% * var(--itv-scale, 1)); min-width: 38px; }
+.invoice-tracking-page .record-table col.ivt-col--customer { width: calc(28.65% * var(--itv-scale, 1)); min-width: 320px; }
+.invoice-tracking-page .record-table col.ivt-col--cont { width: calc(11.82% * var(--itv-scale, 1)); min-width: 132px; }
+.invoice-tracking-page .record-table col.ivt-col--dauvao { width: calc(12.09% * var(--itv-scale, 1)); min-width: 135px; }
+.invoice-tracking-page .record-table col.ivt-col--doisoat { width: calc(11.37% * var(--itv-scale, 1)); min-width: 127px; }
+.invoice-tracking-page .record-table col.ivt-col--chenh { width: calc(8.42% * var(--itv-scale, 1)); min-width: 94px; }
+.invoice-tracking-page .record-table col.ivt-col--ghichu { width: calc(10.38% * var(--itv-scale, 1)); min-width: 116px; }
+.invoice-tracking-page .record-table col.ivt-col--tiendo { width: calc(11.64% * var(--itv-scale, 1)); min-width: 130px; }
 
 /* Rework 2026-10-09 (card 20261009_3 class sweep): page trailing padding dies
    in the ≤640 phone band — the shell clearance
@@ -332,6 +340,12 @@ tr[data-hidden] .ivt-badge {
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+  /* SIL-873 r2: as a .ivt-stack grid item its automatic minimum is the
+     nowrap row's max-content (label + 72px input) — the pair then overflowed
+     its track and poked past the cell edge. min-width: 0 lets the track
+     constrain the pair; the input shrinks to its 56px floor and scrolls its
+     value (numeric input law), nothing clips. */
+  min-width: 0;
 }
 /* SIL-816 UI-02 (measured at the 1440 workboard, 1144px canvas): the five
    paired inline inputs (Cột 4 Số hóa đơn + Ngày gửi HĐ; Cột 5 Thu KH / Trả
@@ -360,8 +374,12 @@ tr[data-hidden] .ivt-badge {
 .ivt-col--progress .ivt-stack {
   gap: 6px;
 }
+/* SIL-873 r2 (QA 27c47c66): 128px pushed the Cột 8 floor past the 1129px
+   canvas at 1440×900 — 118px still clears the widest status token
+   ('Không lấy HĐ') with the select's own chrome; the column floor drops
+   140 → 130 with it. */
 .ivt-progress-select {
-  min-width: 128px;
+  min-width: 118px;
 }
 .ivt-quick-hide {
   white-space: nowrap;

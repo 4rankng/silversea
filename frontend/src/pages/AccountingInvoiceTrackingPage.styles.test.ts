@@ -40,22 +40,25 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     // The family law (2bbf1664 / e6f00827 / 41902fb1) replaces both: fixed
     // layout binds the % shares; every col carries its share + px floor;
     // the TSX derives --itv-min / --itv-scale from the RENDERED set.
-    expect(rules).toMatch(/\.invoice-tracking-page \.record-table\s*\{[^}]*table-layout:\s*fixed;[^}]*min-width:\s*var\(--itv-min, 1220px\);/s);
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table\s*\{[^}]*table-layout:\s*fixed;[^}]*min-width:\s*var\(--itv-min, 1117px\);/s);
     expect(tsx).toContain("'--itv-min'");
     expect(tsx).toContain("'--itv-scale'");
     expect(tsx).toContain('invoice-tracking-page data-workspace');
-    // Shares are floor ÷ the 1220px nine-column base and MUST re-sum to 100%
+    // Shares are floor ÷ the 1117px nine-column base and MUST re-sum to 100%
     // with the CUS scale — an off-by-one share phantom-scrolls every width.
+    // The base itself must stay ≤ the 1129px 1440×900 canvas (QA r2 verdict
+    // 27c47c66: base 1220 pushed Tiến độ xử lý out at scrollLeft=0).
     const shares = [...rules.matchAll(/col\.ivt-col--([a-z]+)\s*\{\s*width:\s*calc\(([\d.]+)%\s*\*\s*var\(--itv-scale, 1\)\);\s*min-width:\s*(\d+)px;/g)];
     expect(shares).toHaveLength(9);
     const floorsTsx = read('src/pages/AccountingInvoiceTrackingPage.tsx');
     const sum = shares.reduce((total, [, , , floor]) => total + Number(floor), 0);
-    expect(sum).toBe(1220);
+    expect(sum).toBe(1117);
+    expect(sum).toBeLessThanOrEqual(1129);
     for (const [, key, share, floor] of shares) {
       // TSX floors and CSS floors must agree (the two can never drift).
       expect(floorsTsx).toContain(`${key}: ${floor},`);
       // share ≈ floor ÷ base, pinned to 2dp.
-      expect(Number(share)).toBeCloseTo((Number(floor) / 1220) * 100, 1);
+      expect(Number(share)).toBeCloseTo((Number(floor) / 1117) * 100, 1);
     }
     // The TSX rendered set drops exactly the Chọn-dòng column for read-only roles.
     expect(floorsTsx).toMatch(/key !== 'select' \|\| canWrite/);
@@ -138,15 +141,19 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(rules).toMatch(/\.ivt-badge\s*\{[^}]*color:\s*var\(--warning-text\)/);
   });
 
-  it('keeps the Cột 4/5 pair inputs on the compact budget that pays the 8-column fit (SIL-816 UI-02)', () => {
+  it('keeps the Cột 5 pair inputs on the compact budget (SIL-816 UI-02, r2 scope: doisoat pairs only)', () => {
     // Measured at the 1440 workboard (1144px canvas, 2026-11-13 drive): the
-    // five paired inputs at the old 104px budget drove the board to 1252px —
+    // paired inputs at the old 104px budget drove the board to 1252px —
     // TIẾN ĐỘ XỬ LÝ hung 80px past the viewport edge. 72px (56px floor) pays
-    // the fit with the labels and cells untouched; a wider pair re-breaks the
-    // right edge exactly as the ticket filed it.
+    // the fit with the labels and cells untouched. SIL-873 r2 (QA 27c47c66):
+    // Cột 4 stacks its three inputs one per row and Cột 5 stacks its three
+    // label+input pairs — their column floors drop to their one-line header
+    // minima (135/127px) because min-width: 0 lets a pair shrink inside its
+    // track (input falls to its 56px floor and scrolls its value; the nowrap
+    // row never pokes past the cell edge).
+    expect(rules).toMatch(/\.ivt-inline-pair\s*\{[^}]*display:\s*flex;[^}]*min-width:\s*0;/s);
     expect(rules).toMatch(/\.ivt-inline-pair \.ivt-inline-input\s*\{[^}]*width:\s*72px;[^}]*min-width:\s*56px;/);
-    // The plain note input (Cột 7) keeps the quiet-cell budget — only the
-    // pairs shrink.
+    // The stacked Cột 4/5 inputs keep the quiet-cell budget — 88px floor.
     expect(rules).toMatch(/\.ivt-inline-input\s*\{[^}]*min-width:\s*88px;/);
   });
 

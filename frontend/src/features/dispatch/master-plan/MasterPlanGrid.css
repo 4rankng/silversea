@@ -132,12 +132,17 @@
 .master-plan-grid {
   width: 100%;
   /* Owner redesign 23/10: fixed layout + this floor is what balances the
-     board — every column's one-line budget (THỜI GIAN ~120px, KHÁCH HÀNG the
+     board — every column's one-line budget (THỜI GIAN ~115px, KHÁCH HÀNG the
      widest reading zone, Nâng/Trả đủ 1 dòng) holds at the floor and the rail
      carries the overflow; wider canvases redistribute the same shares. The
      old shares (schedule 15.5% / customer 15.75% / route 17.25%) were the
-     "50-70% trống, cột cắt cụt" defect: three fat columns starved the rest. */
-  min-width: 1200px;
+     "50-70% trống, cột cắt cụt" defect: three fat columns starved the rest.
+     SIL-873 r2 (QA verdict 27c47c66, 1440×900): the 1200px floor overflowed
+     the 1177px canvas by 23px and pushed GHI CHÚ out at scrollLeft=0 — the
+     floor drops to 1170px (per-column min-contents re-probed on the live
+     board: widest header 'Khách hàng & nhà máy' needs 140px, its 1170px
+     slice is ~205px; every budget still clears). */
+  min-width: 1170px;
   /* SIL-877 (CR-009.1 EPIC 4.2) — the board FILLS the canvas: the old
      ultra-wide guardrail (deepseek consult 30/10: max-width: 1920px +
      margin-inline: auto, capping and centering the board past 1920) is
@@ -155,10 +160,12 @@
 }
 
 /* Shares sum to 96 so the on-demand CHỌN column's fixed 48px fits inside the
-   1200px floor exactly (96% × 1200 + 48 = 1200); without the CHỌN column the
-   small leftover spreads over the reading columns. Measured floors at
-   1200px: schedule 120 · customer 210 · route 174 · lift 108 · drop 102 ·
-   cargo 144 · allocation 156 · notes 138. */
+   1170px rail floor (96% × 1170 + 48 = 1171.2, the ~1px leftover rides the
+   spread; the GHI CHÚ 160px floor's +25px over its share is the one
+   known merge-mode spill, unchanged in kind since SIL-877); without the
+   CHỌN column the small leftover spreads over the reading columns. Measured
+   slices at the 1170px floor: schedule 117 · customer 205 · route 170 ·
+   lift 105 · drop 99 · cargo 140 · allocation 152 · notes 160 (floor). */
 .master-plan-grid__col--select { width: 48px; }
 .master-plan-grid__select-head-label {
   font-size: 11px;
@@ -187,11 +194,11 @@
 .master-plan-grid__col--drop-port { width: 8.5%; }
 .master-plan-grid__col--cargo { width: 12%; }
 /* SIL-877 (CR-009.1 EPIC 4.2) — GHI CHÚ floor: the % share alone let the
-   notes column fall to 138px at the 1200px rail floor, too narrow for a
+   notes column fall to ~135px at the 1170px rail floor, too narrow for a
    comfortable note read. The 160px min-width floor holds it at ANY canvas
    width (Chromium honors min-width on <col> in table-layout: fixed —
    probe-verified 21/11; the leftover-share spread rides on top); at 1440
-   the share itself (~164px) already clears the floor. The note text is
+   the floor itself (160px) carries the column. The note text is
    rendered whole and wraps (SIL-877 TSX law), so the floor buys reading
    comfort, not visibility. */
 .master-plan-grid__col--notes { width: 11.5%; min-width: 160px; }

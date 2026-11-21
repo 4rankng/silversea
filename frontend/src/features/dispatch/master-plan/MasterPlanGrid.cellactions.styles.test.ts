@@ -13,11 +13,11 @@ const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-pl
  * declarations, not the pixels — the browser matrix is the render rung.
  */
 describe('master-plan grid cell-action placement (card 20261002_302)', () => {
-  it('keeps the balanced column allocation of the 1200px floor (owner redesign 23/10)', () => {
+  it('keeps the balanced column allocation of the 1170px floor (owner redesign 23/10, r2 floor)', () => {
     // Card 091026091550's one-line-header shares (schedule 15.5 / customer
     // 15.75 / route 17.25 …) starved the port columns to "Cả…"/"Bãi…" cuts —
     // the QA R38 defect. The owner redesign rebalances for the floor +
-    // line-clamp-2 headers: THỜI GIAN 10% (~120px at the 1200px floor —
+    // line-clamp-2 headers: THỜI GIAN 10% (~117px at the 1170px floor —
     // "thu lại ~110-130px"), KHÁCH HÀNG & TUYẾN ĐƯỜNG the widest reading
     // zone (17.5 + 14.5), Nâng/Trả 9/8.5 (đủ 1 dòng), shares summing to 96
     // so the on-demand 48px CHỌN column fits the floor exactly.

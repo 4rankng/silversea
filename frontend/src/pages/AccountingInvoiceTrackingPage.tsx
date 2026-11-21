@@ -63,25 +63,31 @@ const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
  * re-normalizes the shares to ~100% (--itv-scale) instead of leaving a 2%
  * right-edge gap, and --itv-min is the wrapper's horizontal-scroll floor.
  * Measured on the live board (2026-11-21 local drive, seeds + real tokens,
- * sub-lines wrapping): select pair 25px, 'STT' + padding 41px, the KH&Lô
- * law floor 320px (ticket 18/11 + SIL-863), 'Cont & Chứng từ' header 137px,
- * the SIL-816 pair budget 155px (Cột 4) / 183px (Cột 5 — 'Trả NCC' + 'Trả
- * KH' share one line), Chênh lệch token 98px, note input + header 121px,
- * the progress select 140px. The floors are CONTROL and header floors, not
- * data widths — data lines wrap under the shared break-anywhere law (the
+ * sub-lines wrapping; per-column min-content re-probed 22/11 for the QA
+ * 1129px-canvas fail): select pair 25px, STT 38px, the KH&Lô law floor
+ * 320px (ticket 18/11 + SIL-863), 'Cont & Chứng từ' header 132px, the
+ * stacked Cột 4 floor 135px / Cột 5 floor 127px (QA r2 verdict 27c47c66:
+ * floors summed 1220 > the 1129px canvas at 1440×900, pushing Tiến độ xử lý
+ * out at scrollLeft=0 — Cột 4/5 go one-control-per-row per the ticket's
+ * 'co nhẹ Cột 4/5' lever; their floors are now their ONE-LINE HEADER
+ * minima, 131/123px + slack — the pair min-width: 0 lets the input shrink
+ * inside its 56px floor so the stack minima 92/114px stay clear of it),
+ * Chênh lệch header 94px, note input + header 116px, the progress select
+ * 130px (select min-width 118). The floors are CONTROL and HEADER floors,
+ * not data widths — data lines wrap under the shared break-anywhere law (the
  * SIL-762 sub-line nowrap is retired with this ladder). Change a floor here
  * AND its share in AccountingInvoiceTrackingPage.css together (pinned by
  * AccountingInvoiceTrackingPage.styles.test.ts). */
 const IVT_COL_FLOORS: Readonly<Record<string, number>> = {
   select: 25,
-  stt: 41,
+  stt: 38,
   customer: 320,
-  cont: 137,
-  dauvao: 155,
-  doisoat: 183,
-  chenh: 98,
-  ghichu: 121,
-  tiendo: 140,
+  cont: 132,
+  dauvao: 135,
+  doisoat: 127,
+  chenh: 94,
+  ghichu: 116,
+  tiendo: 130,
 };
 const IVT_SPEC_BASE_SUM = Object.values(IVT_COL_FLOORS).reduce((sum, floor) => sum + floor, 0);
 const IVT_COL_ORDER = ['select', 'stt', 'customer', 'cont', 'dauvao', 'doisoat', 'chenh', 'ghichu', 'tiendo'] as const;
@@ -651,23 +657,30 @@ export default function AccountingInvoiceTrackingPage() {
                     {/* Cột 4 — ĐẦU VÀO (MUA HĐ): inline-edit, commit on blur. */}
                     <td data-label="Đầu vào (Mua HĐ)">
                       {canWrite ? (
+                        /* SIL-873 r2 (QA 27c47c66): one control per row — the
+                           old nowrap 72px pair made this column's floor 155px
+                           and pushed the floors past the 1129px canvas. Each
+                           input now fills its own stack row (quiet-cell
+                           recipe), placeholders keep naming the fields. */
                         <span className="ivt-stack">
-                          <span className="ivt-stack__primary">
+                          <span>
                             <InlineCellInput
                               value={row.supplierName ?? ''}
                               ariaLabel={`Nhà cung cấp HĐ — ${row.containerNumber ?? index + 1}`}
                               listId={supplierListId}
-                              placeholder="Nhà cung cấp HĐ"
+                              placeholder="Nhà cung cấp"
                               onCommit={(next) => commitCell(row, 'supplierName', next)}
                             />
                           </span>
-                          <span className="ivt-stack__sub ivt-inline-pair">
+                          <span>
                             <InlineCellInput
                               value={row.invoiceNumber ?? ''}
                               ariaLabel={`Số hóa đơn — ${row.containerNumber ?? index + 1}`}
                               placeholder="Số hóa đơn"
                               onCommit={(next) => commitCell(row, 'invoiceNumber', next)}
                             />
+                          </span>
+                          <span>
                             <InlineCellInput
                               value={row.invoiceSentAt ?? ''}
                               ariaLabel={`Ngày gửi HĐ — ${row.containerNumber ?? index + 1}`}
@@ -686,6 +699,11 @@ export default function AccountingInvoiceTrackingPage() {
                     {/* Cột 5 — ĐỐI SOÁT SỐ TIỀN: 3 đầu tiền, inline-edit. */}
                     <td data-label="Đối soát số tiền">
                       {canWrite ? (
+                        /* SIL-873 r2 (QA 27c47c66): one label+input pair per
+                           row — the old two-pairs-one-line row needed a 183px
+                           floor (labels wrapped mid-word to fit) and pushed
+                           the floors past the 1129px canvas. Stacked rows fit
+                           the 120px floor; every pair keeps its label. */
                         <span className="ivt-stack">
                           <span className="ivt-stack__primary ivt-inline-pair">
                             <span className="ivt-money-label">Thu KH:</span>
@@ -704,6 +722,8 @@ export default function AccountingInvoiceTrackingPage() {
                               ariaLabel={`Số tiền trả — ${row.containerNumber ?? index + 1}`}
                               onCommit={(next) => commitCell(row, 'supplierPayment', next)}
                             />
+                          </span>
+                          <span className="ivt-stack__sub ivt-inline-pair">
                             <span className="ivt-money-label">Trả KH:</span>
                             <InlineCellInput
                               value={row.comAmount ?? ''}
