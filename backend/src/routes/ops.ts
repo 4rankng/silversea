@@ -201,6 +201,9 @@ const expenseCreateSchema = z.object({
   // Audit c12 A2: name the field — the generic "Giá trị phải lớn hơn 0"
   // misled operators when the container selection dropped to 0.
   shipmentContainerId: z.number().int().positive('Dòng cont không hợp lệ — chọn lại cont trước khi lưu.').nullable().optional(),
+  // SIL-881 — the FULL set of ONE declaration (K cont + tổng X = 01 dòng).
+  // The route prefers the set; the legacy single id folds into it server-side.
+  shipmentContainerIds: z.array(z.number().int().positive()).max(200).optional(),
   expenseTypeCode: z.string().min(1).max(50),
   amount: z.union([z.number(), z.string()]),
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -218,6 +221,7 @@ const expensePatchSchema = z.object({
   invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
   customerChargeAmount: z.union([z.number(), z.string()]).nullable().optional(),
   shipmentContainerId: z.number().int().positive('Dòng cont không hợp lệ — chọn lại cont trước khi lưu.').nullable().optional(),
+  shipmentContainerIds: z.array(z.number().int().positive()).max(200).optional(),
   expenseTypeCode: z.string().min(1).max(50).optional(),
   amount: z.union([z.number(), z.string()]).optional(),
   paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

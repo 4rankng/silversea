@@ -9,7 +9,7 @@ import { operationalName } from '../db/master-data-name';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { and, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { groupOpsExpensesForSettlement } from './ops-expenses.service';
+import { groupOpsExpensesForSettlement, opsExpenseContainerIdList, shipmentContainerNumberMap } from './ops-expenses.service';
 import { loadLotContainerIdentities, withLotIdentity } from './settlement-lot-identity.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -211,6 +211,8 @@ export async function getOpsSettlementDetail(
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
       containerNumber: s.shipmentContainers.containerNumber,
+      shipmentContainerId: s.opsExpenseEntries.shipmentContainerId,
+      shipmentContainerIds: s.opsExpenseEntries.shipmentContainerIds,
       tradeDirection: s.shipments.tradeDirection,
       expenseTypeName: s.forwarderExpenseTypes.name,
       requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
@@ -234,6 +236,15 @@ export async function getOpsSettlementDetail(
   // SIL-811 — the lot container identity (roll-call + per-cont tờ khai) behind
   // the sheet's identity titles, batched in one query.
   const identities = await loadLotContainerIdentities(db, entries.map((entry) => entry.shipmentId));
+  // SIL-881 — each entry's OWN cont list so a multi-cont declaration prints
+  // 'K cont: …' instead of falling back to the lot roll-call.
+  const entryNumbers = await shipmentContainerNumberMap(db, entries.flatMap(opsExpenseContainerIdList));
+  const entryContainerNumbers = new Map(entries.map((entry) => [
+    entry.id,
+    opsExpenseContainerIdList(entry)
+      .map((id) => entryNumbers.get(id) ?? null)
+      .filter((name): name is string => Boolean(name)),
+  ]));
 
   return {
     settlement: {
@@ -247,7 +258,10 @@ export async function getOpsSettlementDetail(
       approvedAt: settlement.approvedAt ? settlement.approvedAt.toISOString() : null,
     },
     grouping: groupOpsExpensesForSettlement(
-      entries.map((entry) => withLotIdentity(entry, identities.get(entry.shipmentId))),
+      entries.map((entry) => withLotIdentity(
+        { ...entry, containerNumbers: entryContainerNumbers.get(entry.id) ?? [] },
+        identities.get(entry.shipmentId),
+      )),
     ),
   };
 }

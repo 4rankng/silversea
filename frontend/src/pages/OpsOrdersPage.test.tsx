@@ -535,4 +535,33 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(apiPost).toHaveBeenCalledTimes(1);
   }, 20_000);
 
+  it('SIL-881 — K conts + tổng X saves ONE record with shipmentContainerIds (no K× fan-out)', async () => {
+    renderPage();
+    await screen.findByText('BL-001');
+    // The second pinned lot carries 2 conts (TSTU2222222 / TSTU3333333).
+    fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[1]);
+    const scope = within(screen.getByRole('dialog', { name: 'Khai báo chi phí' }));
+    const contTrigger = await scope.findByRole('button', { name: 'Đã chọn 1 số cont' });
+    fireEvent.click(contTrigger);
+    const contListbox = await screen.findByRole('listbox');
+    fireEvent.click(within(contListbox).getByRole('option', { name: 'TSTU2222222' }));
+    fireEvent.click(within(contListbox).getByRole('option', { name: 'TSTU3333333' }));
+    fireEvent.keyDown(contListbox, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+    const typeTrigger = await screen.findByRole('button', { name: /Loại phí/ });
+    await waitFor(() => expect(typeTrigger).toBeEnabled());
+    fireEvent.click(typeTrigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
+    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '450000' } });
+    const form = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector('form')!;
+    fireEvent.submit(form);
+    // ONE post — amount never multiplies by the picked cont count.
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
+    expect(apiPost).toHaveBeenCalledWith('/ops/expenses', expect.objectContaining({
+      shipmentContainerIds: [222, 333],
+      amount: '450000',
+    }));
+    expect(apiPost.mock.calls[0]?.[1]).not.toHaveProperty('shipmentContainerId');
+  }, 20_000);
+
 });

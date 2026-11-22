@@ -12,6 +12,7 @@ import {
 } from '../../hooks/useOpsQueries';
 import { tripClient } from '../../api/tripClient';
 import type { OpsExpenseRow, OpsExpenseStatus, OpsExpenseStatusCounts } from '../../api/opsClient';
+import { opsContainerScopeLabel } from '../../lib/opsContainerScope';
 import { Drawer, useConfirm } from '../../components/UI';
 import { Tabs } from '../../design-system';
 import { useReasonPrompt } from '../../components/reason-prompt';
@@ -170,7 +171,7 @@ export function OpsExpenseHistory() {
               <tr key={row.id} className="ops-wallet__row">
                 <td data-label="Ngày">{row.paidAt.split('-').reverse().join('/')}</td>
                 <td data-label="Bill / Booking">{opsBillReference(row.billRef)}</td>
-                <td data-label="Cont">{row.containerNumber ?? 'Chung lô'}</td>
+                <td data-label="Cont">{opsContainerScopeLabel(row.containerNumber, row.containerNumbers)}</td>
                 <td data-label="Loại phí">{row.feeName ?? row.expenseTypeName ?? row.expenseTypeCode}</td>
                 <td className="ops-money" data-label="Số tiền">{`${formatMoney(row.amount)} ₫`}</td>
                 <td data-label="Chứng từ">

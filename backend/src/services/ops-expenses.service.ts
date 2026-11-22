@@ -4,9 +4,10 @@
  * pure grouping used by settlements + exports.
  */
 import { listLegacyOpsExpenseHistory } from './ops-legacy-expense-history.service';
+import { operationalName } from '../db/master-data-name';
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, exists, gte, inArray, isNotNull, isNull, lte, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, exists, gte, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
 import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel, type ExpenseCostGroup } from '@tingting/shared';
@@ -20,6 +21,11 @@ import { effectiveOpsInvoiceNumber } from './ops-invoice-number';
 export interface CreateOpsExpenseInput {
   shipmentId: number;
   shipmentContainerId?: number | null;
+  /** SIL-881 — the FULL container set of ONE declaration: K cont + tổng X =
+   *  exactly ONE record with amount X carrying these ids (the old per-cont
+   *  fan-out created K rows × X and inflated TỔNG TC). One id keeps the
+   *  legacy single column in sync; chung lô = empty/omitted. */
+  shipmentContainerIds?: number[];
   expenseTypeCode: string;
   amount: string | number;
   paidAt: string; // YYYY-MM-DD
@@ -207,8 +213,15 @@ export async function createOpsExpense(
   if (!shipment) throw new ApiError(404, 'Không tìm thấy lô hàng.');
   if (!shipment.customerId) throw new ApiError(409, 'Lô hàng chưa có khách hàng.');
 
-  if (input.shipmentContainerId != null) {
-    await assertContainerInShipment(input.shipmentId, input.shipmentContainerId);
+  // SIL-881 — the declaration scope: the explicit SET wins (K cont = ONE row
+  // with amount X); the legacy single id folds into it; chung lô stays empty.
+  // The set is deduped and every id must belong to the lô.
+  const requestedContainerIds = input.shipmentContainerIds?.length
+    ? input.shipmentContainerIds
+    : input.shipmentContainerId != null ? [input.shipmentContainerId] : [];
+  const containerIds = [...new Set(requestedContainerIds)];
+  for (const containerId of containerIds) {
+    await assertContainerInShipment(input.shipmentId, containerId);
   }
 
   // Ticket 18/11 Task 4.1 — the invoice tab's Số hóa đơn is a HARD identity
@@ -239,11 +252,12 @@ export async function createOpsExpense(
   // atomically.
   const duplicateGate = opsExpenseDuplicateGate(expenseType.requiresInvoice, input.duplicateConfirmed);
   if (duplicateGate !== 'PASS') {
-    const duplicates = await findLiveDuplicateOpsExpenses(input.shipmentId, input.expenseTypeCode, input.shipmentContainerId, executor);
+    const duplicates = await findLiveDuplicateOpsExpenses(input.shipmentId, input.expenseTypeCode, containerIds, executor);
     if (duplicates.length > 0) {
-      const scopeLabel = input.shipmentContainerId != null
-        ? `cont ${duplicates[0].containerNumber ?? input.shipmentContainerId}`
-        : 'phí chung lô';
+      // SIL-881 — the refusal names the OVERLAPPING conts of the declared
+      // set: every live hit's numbers already intersect the set by the gate
+      // query, so they are exactly the conts to report.
+      const scopeLabel = duplicateSetScopeLabel(duplicates);
       // chiphispec §2 — the warning names the previous entrant by name, or by
       // id when the account carries no full name.
       const first = duplicates[0];
@@ -269,7 +283,10 @@ export async function createOpsExpense(
     .insert(s.opsExpenseEntries)
     .values({
       shipmentId: input.shipmentId,
-      shipmentContainerId: input.shipmentContainerId ?? null,
+      // SIL-881 — one id keeps the legacy single column authoritative for
+      // every existing join; K ids live only on the array. Chung lô: both NULL.
+      shipmentContainerId: containerIds.length === 1 ? containerIds[0] : null,
+      shipmentContainerIds: containerIds.length > 0 ? containerIds : null,
       expenseTypeCode: input.expenseTypeCode,
       amount: amount.toString(),
       paidById: userId,
@@ -329,8 +346,9 @@ export async function updateOpsExpense(
   userId: number,
   expenseId: number,
   patch: Partial<Pick<CreateOpsExpenseInput,
-    'amount' | 'paidAt' | 'note' | 'shipmentContainerId' | 'expenseTypeCode' | 'costGroup' | 'feeName' | 'invoiceNumber' | 'invoiceDate' | 'recoveryNote'>> & {
+    'amount' | 'paidAt' | 'note' | 'shipmentContainerId' | 'shipmentContainerIds' | 'expenseTypeCode' | 'costGroup' | 'feeName' | 'invoiceNumber' | 'invoiceDate' | 'recoveryNote'>> & {
     shipmentContainerId?: number | null;
+    shipmentContainerIds?: number[];
     customerChargeAmount?: string | number | null;
     expectedVersion?: number;
     reason?: string;
@@ -378,6 +396,17 @@ export async function updateOpsExpense(
       await assertContainerInShipment(entry.shipmentId, patch.shipmentContainerId);
     }
     next.shipmentContainerId = patch.shipmentContainerId;
+    // SIL-881 — the edit modal moves a row between conts: single id ⇒ exactly
+    // that id in BOTH columns, chung lô ⇒ both NULL. A set scope must come in
+    // through shipmentContainerIds instead — the single-id patch collapses a
+    // set row on purpose (the modal only edits per-cont scopes).
+    next.shipmentContainerIds = patch.shipmentContainerId != null ? [patch.shipmentContainerId] : null;
+  }
+  if (patch.shipmentContainerIds !== undefined) {
+    const ids = [...new Set(patch.shipmentContainerIds)];
+    for (const id of ids) await assertContainerInShipment(entry.shipmentId, id);
+    next.shipmentContainerId = ids.length === 1 ? ids[0] : null;
+    next.shipmentContainerIds = ids.length > 0 ? ids : null;
   }
 
   // Conditional write: the pre-read above produces friendly field errors, but
@@ -702,32 +731,66 @@ export interface OpsExpenseDuplicateHit {
   id: number;
   expenseTypeName: string | null;
   containerNumber: string | null;
-  /** Previous entrant's identity (chiphispec §2): the user id, plus the name
-   *  with a username fallback so the warning can always name a who. */
+  /** SIL-881 — ALL container numbers the earlier row covers; the set gate's
+   *  refusal lists exactly the ones that overlap the new declaration. */
+  containerNumbers: string[];
   paidById: number | null;
   paidByName: string | null;
   amount: string;
   paidAt: string;
 }
 
+/** SIL-881 — the container ids one ops expense row covers: the set column is
+ *  authoritative; the legacy single column is the fallback for a row met
+ *  before its backfill. Chung lô → []. */
+export function opsExpenseContainerIdList(row: {
+  shipmentContainerId: number | null;
+  shipmentContainerIds: number[] | null;
+}): number[] {
+  if (row.shipmentContainerIds?.length) return row.shipmentContainerIds;
+  return row.shipmentContainerId != null ? [row.shipmentContainerId] : [];
+}
+
+/** Batch container numbers for a page of ids — ONE query, not N joins. */
+export async function shipmentContainerNumberMap(
+  executor: Executor,
+  ids: readonly number[],
+): Promise<Map<number, string | null>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const rows = await executor
+    .select({ id: s.shipmentContainers.id, containerNumber: s.shipmentContainers.containerNumber })
+    .from(s.shipmentContainers)
+    .where(inArray(s.shipmentContainers.id, unique));
+  return new Map(rows.map((row) => [row.id, row.containerNumber]));
+}
+
+/** SIL-881 — the duplicate refusal's cont scope: every live hit overlaps the
+ *  declared set by the gate query, so its numbers ARE the overlapping conts. */
+export function duplicateSetScopeLabel(duplicates: readonly OpsExpenseDuplicateHit[]): string {
+  const names = [...new Set(duplicates.flatMap((hit) => hit.containerNumbers.filter(Boolean)))];
+  return names.length > 0 ? `cont ${names.join(', ')}` : 'phí chung lô';
+}
+
 /** Card 141026230720 — live rows that already carry this exact cost (same
- *  expense type, same scope: one container, or lot-wide when both are
- *  container-less). The answer backs the entry form's duplicate warning; a
- *  VOIDED row never counts (it is a tombstone, not a cost) and a cont-scoped
- *  row never collides with a lot-wide row of the same type — they are
- *  different scopes by the 2a64156f cont-claim design. */
+ *  expense type + overlapping scope). SIL-881 SET law: the new declaration's
+ *  container set must not intersect any live row's set — ONE shared cont is
+ *  already a collision. A chung lô row only collides with another chung lô
+ *  row (scopes stay disjoint per the 2a64156f cont-claim design). A VOIDED or
+ *  REJECTED row never counts (tombstone / declined — SIL-882). The answer
+ *  backs the entry form's duplicate warning and the write gate. */
 export async function findLiveDuplicateOpsExpenses(
   shipmentId: number,
   expenseTypeCode: string,
-  shipmentContainerId: number | null | undefined,
+  shipmentContainerIds: readonly number[] | null,
   executor: Executor = db,
 ): Promise<OpsExpenseDuplicateHit[]> {
-  const scope = shipmentContainerId ?? null;
   const rows = await executor
     .select({
       id: s.opsExpenseEntries.id,
       expenseTypeName: s.forwarderExpenseTypes.name,
-      containerNumber: s.shipmentContainers.containerNumber,
+      shipmentContainerId: s.opsExpenseEntries.shipmentContainerId,
+      shipmentContainerIds: s.opsExpenseEntries.shipmentContainerIds,
       paidById: s.opsExpenseEntries.paidById,
       paidByName: s.users.fullName,
       // fullName is nullable — an entrant without one is still NAMED (username
@@ -738,32 +801,46 @@ export async function findLiveDuplicateOpsExpenses(
     })
     .from(s.opsExpenseEntries)
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
-    .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.opsExpenseEntries.shipmentContainerId))
     .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
     .where(and(
       eq(s.opsExpenseEntries.shipmentId, shipmentId),
       eq(s.opsExpenseEntries.expenseTypeCode, expenseTypeCode),
-      scope === null
-        ? isNull(s.opsExpenseEntries.shipmentContainerId)
-        : eq(s.opsExpenseEntries.shipmentContainerId, scope),
-      ne(s.opsExpenseEntries.approvalStatus, 'VOIDED'),
+      shipmentContainerIds == null
+        ? isNull(s.opsExpenseEntries.shipmentContainerIds)
+        // SIL-881 set overlap `{a,b} && …` — the ids arrive validated as
+        // positive ints (zod + assertContainerInShipment) and the array
+        // literal binds as a parameter, never spliced SQL.
+        : sql`${s.opsExpenseEntries.shipmentContainerIds} && ${`{${shipmentContainerIds.join(',')}}`}::int[]`,
+      notInArray(s.opsExpenseEntries.approvalStatus, ['VOIDED', 'REJECTED']),
     ))
     .orderBy(s.opsExpenseEntries.id);
-  return rows.map((row) => ({
-    id: row.id,
-    expenseTypeName: row.expenseTypeName,
-    containerNumber: row.containerNumber ?? null,
-    paidById: row.paidById ?? null,
-    paidByName: row.paidByName?.trim() || row.paidByUsername || null,
-    amount: row.amount,
-    paidAt: row.paidAt,
-  }));
+  const numbers = await shipmentContainerNumberMap(
+    executor,
+    rows.flatMap((row) => opsExpenseContainerIdList(row)),
+  );
+  return rows.map((row) => {
+    const rowNumbers = opsExpenseContainerIdList(row)
+      .map((id) => numbers.get(id) ?? null)
+      .filter((name): name is string => Boolean(name));
+    return {
+      id: row.id,
+      expenseTypeName: row.expenseTypeName,
+      containerNumber: rowNumbers[0] ?? null,
+      containerNumbers: rowNumbers,
+      paidById: row.paidById ?? null,
+      paidByName: row.paidByName?.trim() || row.paidByUsername || null,
+      amount: row.amount,
+      paidAt: row.paidAt,
+    };
+  });
 }
 
 /** Ticket 18/11 Task 4.1 — one Số hóa đơn may exist only once per lô: the
- *  first live (non-VOIDED) entry that already carries it, compared case- and
- *  whitespace-insensitively through `normalizeOpsInvoiceNumber`'s fold. The
- *  caller hard-409s on a hit — there is no confirm bypass for this one. */
+ *  first live (non-VOIDED, and since CR-010 E2/SIL-882 non-REJECTED — a
+ *  refused claim frees its paper number for the Ops re-declaration) entry
+ *  that already carries it, compared case- and whitespace-insensitively
+ *  through `normalizeOpsInvoiceNumber`'s fold. The caller hard-409s on a hit
+ *  — there is no confirm bypass for this one. */
 export async function findLiveDuplicateOpsInvoiceNumber(
   shipmentId: number,
   invoiceNumber: string,
@@ -777,7 +854,7 @@ export async function findLiveDuplicateOpsInvoiceNumber(
     .where(and(
       eq(s.opsExpenseEntries.shipmentId, shipmentId),
       isNotNull(s.opsExpenseEntries.invoiceNumber),
-      ne(s.opsExpenseEntries.approvalStatus, 'VOIDED'),
+      notInArray(s.opsExpenseEntries.approvalStatus, ['VOIDED', 'REJECTED']),
       // Same fold on the stored side: strip all whitespace, lowercase.
       sql`regexp_replace(lower(${s.opsExpenseEntries.invoiceNumber}), '[[:space:]]+', '', 'g') = ${normalized}`,
     ))
@@ -789,31 +866,36 @@ export async function findLiveDuplicateOpsInvoiceNumber(
 /** Who already declared a cost against each container of a lot — the data
  *  behind the "Cont … đã có … nhập trước" heads-up on the declaration form.
  *  WARNING-only: the dialog shows it and lets the operator continue, so this
- *  lists live rows (non-voided) per container and never blocks anything.
+ *  lists live rows (non-voided, non-rejected — the accountant's refusal frees
+ *  the cont, SIL-882) per container and never blocks anything.
  *  One row per container (first claim wins in UI terms); a lot-wide row
- *  (no container) is not a container claim and stays out. */
+ *  (no container) is not a container claim and stays out. SIL-881: a set row
+ *  claims EVERY cont in its set. */
 export async function listOpsExpenseContainerClaimants(shipmentId: number): Promise<OpsContainerClaimant[]> {
   const rows = await db
     .select({
-      containerId: s.opsExpenseEntries.shipmentContainerId,
-      containerNumber: s.shipmentContainers.containerNumber,
+      shipmentContainerId: s.opsExpenseEntries.shipmentContainerId,
+      shipmentContainerIds: s.opsExpenseEntries.shipmentContainerIds,
       paidByName: s.users.fullName,
     })
     .from(s.opsExpenseEntries)
-    .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.opsExpenseEntries.shipmentContainerId))
     .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
     .where(and(
       eq(s.opsExpenseEntries.shipmentId, shipmentId),
-      isNotNull(s.opsExpenseEntries.shipmentContainerId),
-      ne(s.opsExpenseEntries.approvalStatus, 'VOIDED'),
+      notInArray(s.opsExpenseEntries.approvalStatus, ['VOIDED', 'REJECTED']),
     ))
     .orderBy(s.opsExpenseEntries.id);
+  const numbers = await shipmentContainerNumberMap(db, rows.flatMap(opsExpenseContainerIdList));
   // Dedupe by container: a cont claimed twice still warns once.
   const byContainer = new Map<number, OpsContainerClaimant>();
   for (const row of rows) {
-    const containerId = row.containerId!;
-    if (!byContainer.has(containerId)) {
-      byContainer.set(containerId, { containerId, containerNumber: row.containerNumber, paidByName: row.paidByName });
+    for (const containerId of opsExpenseContainerIdList(row)) {
+      if (byContainer.has(containerId)) continue;
+      byContainer.set(containerId, {
+        containerId,
+        containerNumber: numbers.get(containerId) ?? null,
+        paidByName: row.paidByName,
+      });
     }
   }
   return [...byContainer.values()];
@@ -845,6 +927,9 @@ export interface OpsExpenseListRow {
   /** SIL-858 — the settlement voucher code when the row is already settled. */
   opsSettlementCode: string | null;
   containerNumber: string | null;
+  /** SIL-881 — ALL cont numbers the row covers, id order (single-cont rows
+   *  carry exactly one; chung lô rows none). */
+  containerNumbers: string[];
   expenseTypeCode: string;
   expenseTypeName: string | null;
   requiresInvoice: boolean | null;
@@ -901,11 +986,17 @@ export async function listOpsExpenses(filters: {
       tradeDirection: s.shipments.tradeDirection,
       // SIL-858 — the accountant tab's 3 new columns: customer/factory of the
       // lot, the row's own container tờ khai, the settlement voucher code.
-      customerName: s.customers.name,
+      // SIL-884 (6.1) — the KH name reads the operational short name (same
+      // coalesce law every other grid uses) so a legal-form company name no
+      // longer squeezes the Bill/Cont columns off the board.
+      customerName: operationalName(s.customers.shortName, s.customers.name),
       factoryName: s.shipments.factoryName,
       declarationNumber: s.shipmentContainers.declarationNumber,
       opsSettlementCode: s.opsSettlements.code,
       containerNumber: s.shipmentContainers.containerNumber,
+      // SIL-881 — the row's FULL container set (multi-cont declaration).
+      shipmentContainerId: s.opsExpenseEntries.shipmentContainerId,
+      shipmentContainerIds: s.opsExpenseEntries.shipmentContainerIds,
       expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
       expenseTypeName: s.forwarderExpenseTypes.name,
       requiresInvoice: s.forwarderExpenseTypes.requiresInvoice,
@@ -941,11 +1032,18 @@ export async function listOpsExpenses(filters: {
     .orderBy(desc(s.opsExpenseEntries.paidAt), desc(s.opsExpenseEntries.id))
     .limit((filters.limit ?? 100) + (filters.offset ?? 0));
 
+  const numbers = await shipmentContainerNumberMap(db, rows.flatMap(opsExpenseContainerIdList));
   const nativeRows = rows.map((row) => {
     const { blNumber, bookingRef, tradeDirection, ...expense } = row;
     return {
       ...expense,
       billRef: (tradeDirection === 'IMPORT' ? blNumber : bookingRef)?.trim() || null,
+      // SIL-881 — every cont the row covers, id order: the accountant tab and
+      // the wallet history print the MERGED list on multi-cont rows and the
+      // bare number on single-cont rows, never "Không rõ container".
+      containerNumbers: opsExpenseContainerIdList(row)
+        .map((id) => numbers.get(id) ?? null)
+        .filter((name): name is string => Boolean(name)),
       // SIL-870 — legacy rows carry digitless placeholder text ('unc') typed
       // into the optional Số hóa đơn field; classifying at read renders the
       // 'X' law for every fee without an invoice without rewriting the row.
@@ -978,6 +1076,8 @@ export interface SettlementExpenseInput {
   containerNumber: string | null;
   /** SIL-811 — tờ khai of THIS row's container (null on lot-wide rows). */
   declarationNumber?: string | null;
+  /** SIL-881 — the row's OWN cont list on a multi-cont declaration (id-asc). */
+  containerNumbers?: readonly string[] | null;
   /** SIL-811 — every named container of the lot (id-asc). */
   lotContainerNumbers?: readonly string[] | null;
   /** SIL-811 — every non-empty tờ khai of the lot's containers (id-asc). */
@@ -1063,7 +1163,10 @@ export function groupOpsExpensesForSettlement(
     const basket = entry.requiresInvoice ? group.withInvoice : group.withoutInvoice;
     basket.items.push({
       ...entry,
+      // SIL-881 — a multi-cont declaration prints its OWN cont list ('5 cont:
+      // A, B, …'), ahead of the lot-wide merged roll-call.
       containerLabel: entry.containerNumber?.trim()
+        || mergedContainerLabel(entry.containerNumbers ?? [])
         || mergedContainerLabel(entry.lotContainerNumbers ?? [])
         || 'Phí chung lô',
     });

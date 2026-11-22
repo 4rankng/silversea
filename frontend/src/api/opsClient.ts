@@ -119,6 +119,9 @@ export interface OpsExpenseRow {
   /** SIL-858 — settlement voucher code when already settled. */
   opsSettlementCode?: string | null;
   containerNumber: string | null;
+  /** SIL-881 — ALL cont numbers the row covers, id order (single-cont rows
+   *  carry exactly one; chung lô rows none). */
+  containerNumbers?: string[];
   expenseTypeCode: string;
   expenseTypeName: string | null;
   requiresInvoice: boolean | null;
@@ -166,6 +169,9 @@ export interface OpsExpenseDuplicateHit {
   id: number;
   expenseTypeName: string | null;
   containerNumber: string | null;
+  /** SIL-881 — every cont the earlier row covers; the refusal names the
+   *  ones overlapping the new declaration. */
+  containerNumbers?: string[];
   /** Previous entrant (chiphispec §2): id + name (username fallback). */
   paidById: number | null;
   paidByName: string | null;
@@ -340,6 +346,9 @@ export const opsClient = {
     api.get<OpsContainerClaimant[]>(`/ops/expenses/cont-claimants${qs({ shipmentId })}`),
   createExpense: (body: {
     shipmentId: number;
+    /** SIL-881 — the FULL container set of ONE declaration (K cont + tổng X =
+     *  01 dòng). The server folds a legacy single id into the set. */
+    shipmentContainerIds?: number[];
     shipmentContainerId?: number | null;
     expenseTypeCode: string;
     amount: string | number;

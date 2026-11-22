@@ -45,6 +45,12 @@ export const opsExpenseEntries = pgTable('ops_expense_entries', {
   id: serial('id').primaryKey(),
   shipmentId: integer('shipment_id').notNull(),
   shipmentContainerId: integer('shipment_container_id'),
+  // SIL-881 — the FULL container set of one declaration: K cont + tổng X =
+  // ONE row with amount X carrying all K ids (never K rows × X). Exactly one
+  // cont keeps both columns in sync; chung lô leaves both NULL. The legacy
+  // single column stays authoritative for 1-cont rows so every existing
+  // join/keep working unchanged.
+  shipmentContainerIds: integer('shipment_container_ids').array(),
   // App-level FK → forwarder_expense_types.code.
   expenseTypeCode: varchar('expense_type_code', { length: 50 }).notNull(),
   amount: numeric('amount', { precision: 15, scale: 0 }).notNull(),

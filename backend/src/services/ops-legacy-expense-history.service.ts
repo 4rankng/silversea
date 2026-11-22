@@ -23,6 +23,8 @@ export async function listLegacyOpsExpenseHistory(userId: number, status?: strin
   return entries.map(row => ({ id: -row.sourceId, sourceId: row.sourceId, sourceKind: 'TRIP',
     tripId: row.tripId,
     version: row.version, confirmedAt: row.confirmedAt, costGroup: row.costGroup,
+    // SIL-881 — legacy TRIP rows have no declaration set: one cont or chung lô.
+    containerNumbers: [],
     feeName: row.feeName && row.feeName !== row.expenseTypeCode ? row.feeName : null,
     invoiceNumber: effectiveOpsInvoiceNumber(row.invoiceNumber), invoiceDate: row.invoiceDate,
     customerChargeAmount: row.customerChargeAmount == null ? null : String(row.customerChargeAmount), recoveryNote: row.recoveryNote,
