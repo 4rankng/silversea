@@ -118,7 +118,9 @@ export function OpsAccountantTab() {
             <thead>
               <tr>
                 <th>Ngày</th>
-                <th>Bill / Booking</th>
+                {/* SIL-858 — the bill th takes the wrap law (ops-accountant-tab.css):
+                    nowrap clipped it to "BILL / BOOKIN" and bled onto Cont. */}
+                <th className="ops-wallet__col--bill">Bill / Booking</th>
                 <th>Cont</th>
                 {/* SIL-858 — 3 cột nhận diện lô mới. SIL-877 (CR-009.1 3.2):
                     cột KH/Nhà máy + Số tờ khai lấy share rộng hơn mức chia

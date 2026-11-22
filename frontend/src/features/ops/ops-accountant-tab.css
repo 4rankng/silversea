@@ -18,3 +18,19 @@
   overflow-wrap: normal;
   word-break: keep-all;
 }
+
+/* SIL-858 (QA retest build 061739f9, 1440×900): the .tt-table base pins
+   `white-space: nowrap` on thead th, so the wrap-guard above never engaged —
+   the two long identity headers stayed one-line (BILL / BOOKING 96.8px vs a
+   60px budget, Khách hàng / Nhà máy 149.4px vs 102px) and bled past the 12px
+   cell padding onto the neighbour ("BILL / BOOKIN"+"CONT", "…NHÀ"+"SỐ TỜ
+   KHAI"). Wrapping at word boundaries only fits every line inside its own
+   cell (measured: BILL / 36.4 · BOOKING 57.3 · KHÁCH HÀNG / 90.8 · NHÀ MÁY
+   55.6) — full label, two lines allowed, no mid-token break, no bleed. The
+   other eleven headers stay nowrap (their ≤4.6px excess stays inside their
+   own 12px padding — QA-pass state untouched), and the shares stay as
+   SIL-877 set them, so the SIL-875 1440px fit carries over unchanged. */
+.ops-acc thead th.ops-wallet__col--bill,
+.ops-acc thead th.ops-wallet__col--customer {
+  white-space: normal;
+}
