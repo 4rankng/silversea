@@ -7,6 +7,7 @@ import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispa
 import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclGroupTruckEditDialog';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
+import { bulkIssueRows, bulkIssueEligibility, type BulkIssueOutcome } from '../features/dispatch/detailed-plan/bulkIssueOrders';
 import { StuckTripsBanner } from '../features/dispatch/StuckTripsBanner';
 import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { deleteCusShipment } from '../api/shipmentClient';
@@ -146,6 +147,60 @@ export default function DispatchDetailPlanPage() {
   const [lclMergeMode, setLclMergeMode] = useState(false);
   const [truckGroupOpen, setTruckGroupOpen] = useState(false);
   const truckGroupTriggerRef = useRef<HTMLButtonElement | null>(null);
+  // SIL-884 (5.1) — [Phát lệnh hàng loạt]: the on-demand release mode. The
+  // selection rides the grid's leading checkbox column (rows 'Đã điều xe'
+  // without a lệnh); the page owns the set, the batch run and the partial-
+  // success outcome (failures land in the summary table below the grid).
+  const [bulkIssueMode, setBulkIssueMode] = useState(false);
+  const [selectedBulkIds, setSelectedBulkIds] = useState<ReadonlySet<number>>(new Set());
+  const [bulkIssueBusy, setBulkIssueBusy] = useState(false);
+  const [bulkIssueOutcome, setBulkIssueOutcome] = useState<BulkIssueOutcome | null>(null);
+  const exitBulkIssueMode = () => {
+    setBulkIssueMode(false);
+    setSelectedBulkIds(new Set());
+    setBulkIssueOutcome(null);
+  };
+  const toggleBulkIssueMode = () => {
+    if (bulkIssueMode) {
+      exitBulkIssueMode();
+      return;
+    }
+    // The two on-demand select modes share the leading column — entering one
+    // exits the other, so the grid never renders both checkbox semantics.
+    if (lclMergeMode) exitLclMergeMode();
+    setBulkIssueMode(true);
+  };
+  function toggleBulkSelection(fulfillmentId: number, next: boolean) {
+    setSelectedBulkIds((current) => {
+      const nextSet = new Set(current);
+      if (next) nextSet.add(fulfillmentId);
+      else nextSet.delete(fulfillmentId);
+      return nextSet;
+    });
+  }
+  async function runBulkIssue() {
+    if (bulkIssueBusy) return;
+    // Snapshot at click time, re-gated: a row that flipped while the operator
+    // was ticking (issued from its own row button) never rides a stale pick.
+    const targets = detailPlan.items
+      .filter((row) => selectedBulkIds.has(row.fulfillmentId) && bulkIssueEligibility(row).eligible);
+    if (targets.length === 0) return;
+    setBulkIssueBusy(true);
+    try {
+      const outcome = await bulkIssueRows(targets, detailPlan.issueOrder);
+      setBulkIssueOutcome(outcome);
+      setSelectedBulkIds(new Set());
+      toast({
+        kind: outcome.failures.length === 0 ? 'success' : 'warning',
+        message: outcome.failures.length === 0
+          ? `Đã phát lệnh ${outcome.issued} lô.`
+          : `Đã phát lệnh ${outcome.issued}/${targets.length} lô — ${outcome.failures.length} lô lỗi, xem bảng tổng sát dưới bảng kế hoạch.`,
+      });
+      await detailPlan.refresh();
+    } finally {
+      setBulkIssueBusy(false);
+    }
+  }
   const exitLclMergeMode = () => {
     setLclMergeMode(false);
     setSelectedLclRows([]);
@@ -364,8 +419,20 @@ export default function DispatchDetailPlanPage() {
             // mode clears every pick so a reopened mode never shows a stale
             // floating bar.
             if (lclMergeMode) exitLclMergeMode();
-            else setLclMergeMode(true);
+            else {
+              // SIL-884 (5.1) — the leading select column is shared: entering
+              // merge mode exits the bulk-release mode (and drops its picks).
+              exitBulkIssueMode();
+              setLclMergeMode(true);
+            }
           }}
+          bulkIssueMode={bulkIssueMode}
+          selectedBulkFulfillmentIds={selectedBulkIds}
+          onToggleBulkSelection={bulkIssueMode ? toggleBulkSelection : undefined}
+          onToggleBulkIssueMode={toggleBulkIssueMode}
+          bulkIssueCount={selectedBulkIds.size}
+          onBulkIssueSelected={() => void runBulkIssue()}
+          bulkIssueBusy={bulkIssueBusy}
           // SIL-590 (id 690) — the row menu's "Gộp hàng" owns the OFF state:
           // it turns the mode on with the row pre-picked; while ON, the CHỌN
           // checkboxes own the flow and the menu entry disappears.
@@ -418,6 +485,45 @@ export default function DispatchDetailPlanPage() {
               <span id="lcl-group-assign-reason" className="lcl-selection-bar__hint">
                 Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ.
               </span>
+            )}
+          </div>
+        )}
+        {/* SIL-884 (5.1) — PARTIAL SUCCESS outcome: the batch never aborts on
+            one bad row; every failure lands here with its reason so the
+            dispatcher releases that lot from its own row button. Identity is
+            the cont/Bill — internal codes never print. */}
+        {bulkIssueOutcome && (
+          <div className="bulk-issue-outcome" role="status">
+            <div className="bulk-issue-outcome__head">
+              <strong>
+                {`Phát lệnh hàng loạt — thành công ${bulkIssueOutcome.issued}, lỗi ${bulkIssueOutcome.failures.length}`}
+              </strong>
+              <button
+                type="button"
+                className="bulk-issue-outcome__close"
+                onClick={() => setBulkIssueOutcome(null)}
+                aria-label="Đóng bảng kết quả phát lệnh hàng loạt"
+              >
+                ×
+              </button>
+            </div>
+            {bulkIssueOutcome.failures.length > 0 && (
+              <table className="tt-table bulk-issue-outcome__table">
+                <thead>
+                  <tr>
+                    <th>Cont / Bill</th>
+                    <th>Lý do không phát được</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bulkIssueOutcome.failures.map((failure) => (
+                    <tr key={failure.fulfillmentId}>
+                      <td data-label="Cont / Bill">{failure.identity}</td>
+                      <td data-label="Lý do">{failure.message}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
         )}

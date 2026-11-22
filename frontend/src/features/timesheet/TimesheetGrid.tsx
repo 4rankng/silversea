@@ -46,23 +46,28 @@ const ARROW_MOVES: Record<string, TimesheetMove> = {
   ArrowUp: -7,
 };
 
-// SIL-737 — a cell the system wrote from a completed trip must LOOK different
-// from a cell the dispatcher typed: the auto-write owns its cell (it refreshes
-// it when a second trip lands), so the operator has to know which is which
-// before overwriting anything.
-const AUTO_SOURCE_TITLE = 'Tự ghi từ chuyến hoàn thành';
-/** Same fact for the screen reader — lower case because it trails the label. */
-const AUTO_SOURCE_LABEL = 'tự ghi từ chuyến hoàn thành';
+// SIL-884 (5.2) — a cell the system wrote from a completed trip is a SOFT
+// suggestion ('Hệ thống tự gợi ý'): it refreshes when a second trip lands,
+// and a cell the dispatcher typed/edited becomes THEIRS ('Điều vận đã chỉnh
+// tay') — later sync never overwrites it. The tooltip must say which is
+// which before the operator edits anything.
+const AUTO_SOURCE_TITLE = 'Hệ thống tự gợi ý';
+const MANUAL_OVERRIDE_TITLE = 'Điều vận đã chỉnh tay';
+/** Same facts for the screen reader — lower case because they trail the label. */
+const AUTO_SOURCE_LABEL = 'hệ thống tự gợi ý';
+const MANUAL_OVERRIDE_LABEL = 'điều vận đã chỉnh tay';
 
 export function TimesheetGridCell({ day, readOnly, onEnter, onMove, registerRef }: TimesheetCellProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const isAuto = day.source === 'AUTO';
-  // The Sunday rule and the auto-write marker are two independent facts about
-  // the same cell, so the title carries both when both apply.
+  // The Sunday rule and the write-source marker are two independent facts
+  // about the same cell, so the title carries all that apply. The MANUAL
+  // cell now states its override explicitly (SIL-884 5.2) — the same tooltip
+  // vocabulary as the monthly report.
   const titleParts: string[] = [];
   if (day.isSunday) titleParts.push('Chủ nhật: ghi chuyến, không tính ngày công');
-  if (isAuto) titleParts.push(AUTO_SOURCE_TITLE);
+  titleParts.push(isAuto ? AUTO_SOURCE_TITLE : MANUAL_OVERRIDE_TITLE);
 
   return (
     <input
@@ -80,7 +85,7 @@ export function TimesheetGridCell({ day, readOnly, onEnter, onMove, registerRef 
       data-adjustment={day.tripAdjustment !== 0 ? String(day.tripAdjustment) : undefined}
       // Always present, so the grid can be read without hovering any cell.
       data-source={day.source}
-      aria-label={`Ngày ${day.workDate}${day.symbol ? ` — ${TIMESHEET_SYMBOL_RULES[day.symbol].label}` : ' — chưa nhập'}${day.isSunday ? ' (Chủ nhật)' : ''}${isAuto ? ` — ${AUTO_SOURCE_LABEL}` : ''}`}
+      aria-label={`Ngày ${day.workDate}${day.symbol ? ` — ${TIMESHEET_SYMBOL_RULES[day.symbol].label}` : ' — chưa nhập'}${day.isSunday ? ' (Chủ nhật)' : ''} — ${isAuto ? AUTO_SOURCE_LABEL : MANUAL_OVERRIDE_LABEL}`}
       title={titleParts.length > 0 ? titleParts.join(' — ') : undefined}
       onChange={(event) => {
         // Controlled one-character cell: emptying it (Backspace/Delete on a

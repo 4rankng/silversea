@@ -207,7 +207,7 @@ export default function TimesheetMonthlyReportPage() {
                 <th scope="col">STT</th>
                 <th scope="col">Loại xe</th>
                 <th scope="col">Biển kiểm soát</th>
-                <th scope="col">Hình thức lương</th>
+                <th scope="col" className="ts-report__th--salary-mode">Hình thức lương</th>
                 <th scope="col">Lái xe</th>
                 {dayNumbers.map(dayNumber => {
                   const weekday = new Date(Date.UTC(year, month - 1, dayNumber)).getUTCDay();
@@ -224,16 +224,16 @@ export default function TimesheetMonthlyReportPage() {
                 })}
                 {/* SIL-781 — 10 cột tổng hợp cuối bảng; tên cột 6/7/10 theo
                     mẫu 10 cột khách (SIL-774/775). */}
-                <th scope="col">Tổng lệnh đơn</th>
-                <th scope="col">Tổng lệnh kẹp</th>
-                <th scope="col">Số chuyến quay đầu</th>
-                <th scope="col">Tổng số chuyến</th>
-                <th scope="col">Ngày công thực tế</th>
-                <th scope="col">Số ngày nghỉ được hưởng lương</th>
-                <th scope="col">Số ngày nghỉ phép</th>
-                <th scope="col">Ngày làm CN</th>
-                <th scope="col">Tổng ngày công</th>
-                <th scope="col">Tỷ lệ kẹp ghép / ngày (%)</th>
+                <th scope="col" className="ts-report__th--summary">Tổng lệnh đơn</th>
+                <th scope="col" className="ts-report__th--summary">Tổng lệnh kẹp</th>
+                <th scope="col" className="ts-report__th--summary">Số chuyến quay đầu</th>
+                <th scope="col" className="ts-report__th--summary">Tổng số chuyến</th>
+                <th scope="col" className="ts-report__th--summary">Ngày công thực tế</th>
+                <th scope="col" className="ts-report__th--summary">Số ngày nghỉ được hưởng lương</th>
+                <th scope="col" className="ts-report__th--summary">Số ngày nghỉ phép</th>
+                <th scope="col" className="ts-report__th--summary">Ngày làm CN</th>
+                <th scope="col" className="ts-report__th--summary">Tổng ngày công</th>
+                <th scope="col" className="ts-report__th--summary">Tỷ lệ kẹp ghép / ngày (%)</th>
               </tr>
             </thead>
             <tbody>
@@ -247,13 +247,24 @@ export default function TimesheetMonthlyReportPage() {
                   {dayNumbers.map(dayNumber => {
                     const day = row.byDay.get(dayNumber);
                     const symbol = day?.symbol ?? null;
-                    // SIL-781 — ký hiệu theo spec + tint Chủ nhật + chuỗi đỏ
-                    // đậm của lái xe đã nghỉ việc (đè mọi ký hiệu còn sót).
+                    // SIL-884 (5.2) — the same source vocabulary as the grid:
+                    // a suggestion cell says 'Hệ thống tự gợi ý', a typed cell
+                    // 'Điều vận đã chỉnh tay'. Empty cells carry no marker.
+                    const sourceNote = symbol == null || day == null
+                      ? null
+                      : day.source === 'AUTO' ? 'Hệ thống tự gợi ý' : 'Điều vận đã chỉnh tay';
+                    // SIL-781 — symbol per spec + Sunday tint + the red bold
+                    // chain of a quit driver (overriding any leftover symbol).
                     const classes = [symbolCellClass(symbol)];
                     if (day?.isSunday) classes.push('ts-report__cell--sunday');
                     if (row.quit) classes.push('ts-report__cell--quit');
                     return (
-                      <td key={dayNumber} className={`ts-report__cell ${classes.filter(Boolean).join(' ')}`} data-label={`Ngày ${dayNumber}`}>
+                      <td
+                        key={dayNumber}
+                        className={`ts-report__cell ${classes.filter(Boolean).join(' ')}`}
+                        data-label={`Ngày ${dayNumber}`}
+                        title={sourceNote ?? undefined}
+                      >
                         {symbol ?? ''}
                       </td>
                     );

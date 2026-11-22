@@ -110,34 +110,39 @@ describe('TimesheetGridCell keyboard entry', () => {
   it('names the Sunday rule in the accessible label and the title', () => {
     const { cell } = renderCell({ day: day({ workDate: '2026-10-11', isSunday: true, symbol: 'Đ' }) });
     expect(cell.getAttribute('aria-label')).toContain('Chủ nhật');
-    expect(cell.getAttribute('title')).toBe('Chủ nhật: ghi chuyến, không tính ngày công');
+    // SIL-884 (5.2) — the title also states the write source; a typed cell is
+    // the dispatcher's own.
+    expect(cell.getAttribute('title')).toBe('Chủ nhật: ghi chuyến, không tính ngày công — Điều vận đã chỉnh tay');
   });
 });
 
-describe('TimesheetGridCell auto-write marker (SIL-737)', () => {
-  it('marks an auto-written cell and says it was written from a completed trip', () => {
+describe('TimesheetGridCell write-source marker (SIL-737 + SIL-884 CR-010)', () => {
+  it('marks an auto cell as the system suggestion', () => {
     const { cell } = renderCell({ day: day({ symbol: 'Đ', source: 'AUTO' }) });
     expect(cell.getAttribute('data-source')).toBe('AUTO');
-    expect(cell.getAttribute('title')).toContain('Tự ghi từ chuyến hoàn thành');
-    expect(cell.getAttribute('aria-label')).toContain('tự ghi từ chuyến hoàn thành');
+    expect(cell.getAttribute('title')).toContain('Hệ thống tự gợi ý');
+    expect(cell.getAttribute('aria-label')).toContain('hệ thống tự gợi ý');
     // The symbol is still named — the marker adds to the label, never replaces it.
     expect(cell.getAttribute('aria-label')).toContain('Chạy đơn');
   });
 
-  it('keeps BOTH the Sunday rule and the auto-write note on a Sunday auto cell', () => {
+  it('keeps BOTH the Sunday rule and the suggestion note on a Sunday auto cell', () => {
     const { cell } = renderCell({ day: day({ workDate: '2026-10-11', isSunday: true, symbol: 'Đ', source: 'AUTO' }) });
     const title = cell.getAttribute('title') ?? '';
     expect(title).toContain('Chủ nhật: ghi chuyến, không tính ngày công');
-    expect(title).toContain('Tự ghi từ chuyến hoàn thành');
+    expect(title).toContain('Hệ thống tự gợi ý');
     const label = cell.getAttribute('aria-label') ?? '';
     expect(label).toContain('Chủ nhật');
-    expect(label).toContain('tự ghi từ chuyến hoàn thành');
+    expect(label).toContain('hệ thống tự gợi ý');
   });
 
-  it('never claims a hand-typed cell was auto-written', () => {
+  it('says a hand-typed cell is the dispatcher override — sync never overwrites it', () => {
     const { cell } = renderCell({ day: day({ symbol: 'Đ', source: 'MANUAL' }) });
     expect(cell.getAttribute('data-source')).toBe('MANUAL');
-    expect(cell.getAttribute('title')).toBeNull();
-    expect(cell.getAttribute('aria-label')).not.toContain('tự ghi từ chuyến hoàn thành');
+    // SIL-884 (5.2) — the tooltip vocabulary separates the soft suggestion
+    // from the manual override ('Điều vận đã chỉnh tay').
+    expect(cell.getAttribute('title')).toBe('Điều vận đã chỉnh tay');
+    expect(cell.getAttribute('aria-label')).toContain('điều vận đã chỉnh tay');
+    expect(cell.getAttribute('aria-label')).not.toContain('hệ thống tự gợi ý');
   });
 });

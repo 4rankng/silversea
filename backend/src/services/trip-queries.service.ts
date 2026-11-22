@@ -653,6 +653,11 @@ export interface StuckRunningTripRow {
   truckPlate: string | null;
   shipmentId: number | null;
   shipmentCode: string | null;
+  /** SIL-884 (6.1) — the customer-facing identity the banner prints instead
+   *  of the internal TRP-* / SHP-* codes: Bill on IMPORT, Booking otherwise. */
+  billOrBooking: string | null;
+  /** SIL-884 (6.1) — live containers of the lot, shown as "số cont". */
+  containerCount: number;
   fulfillmentId: number | null;
   plannedStartAt: string | null;
   /** coalesce(planned_start_at, updated_at) — when the running clock started. */
@@ -672,6 +677,12 @@ export async function listStuckRunningTrips(days: number): Promise<StuckRunningT
     truckPlate: s.trucks.licensePlate,
     shipmentId: s.tripsComposite.shipmentId,
     shipmentCode: s.shipments.shipmentCode,
+    // SIL-884 (6.1) — Bill on IMPORT, Booking otherwise: the banner names the
+    // lot the way the customer sees it, never the internal shipment code.
+    billOrBooking: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
+      then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
+    containerCount: sql<number>`(select count(*)::int from ${s.shipmentContainers}
+      where ${s.shipmentContainers.shipmentId} = ${s.shipments.id})`,
     fulfillmentId: s.tripsComposite.fulfillmentId,
     plannedStartAt: s.tripsComposite.plannedStartAt,
     updatedAt: s.tripsComposite.updatedAt,
@@ -721,6 +732,8 @@ export async function listStuckRunningTrips(days: number): Promise<StuckRunningT
       truckPlate: row.truckPlate,
       shipmentId: row.shipmentId,
       shipmentCode: row.shipmentCode,
+      billOrBooking: row.billOrBooking?.trim() || null,
+      containerCount: row.containerCount,
       fulfillmentId: row.fulfillmentId,
       plannedStartAt: row.plannedStartAt?.toISOString() ?? null,
       stuckSince: (row.plannedStartAt ?? row.updatedAt)?.toISOString() ?? null,

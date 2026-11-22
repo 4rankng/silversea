@@ -149,3 +149,37 @@
    `src/styles/lcl-merge.css` (loaded through LclMergeModeToggle) — because
    CUS Chi phí - Quyết toán floats the same bar. One pattern, one shared
    implementation; nothing page-local remains here. */
+
+/* SIL-884 (5.1) — kết quả [Phát lệnh hàng loạt]: một dải gọn dưới bảng kế
+   hoạch. Bảng lỗi tái dùng .tt-table (kiểu bảng chung) — Cont/Bill + lý do,
+   không lộ mã nội bộ. */
+.bulk-issue-outcome {
+  margin-top: 8px;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  padding: 8px 12px;
+}
+
+.bulk-issue-outcome__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.bulk-issue-outcome__close {
+  border: none;
+  background: none;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--ink-3, #64748b);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.bulk-issue-outcome__table {
+  margin-top: 8px;
+  font-size: 12px;
+}

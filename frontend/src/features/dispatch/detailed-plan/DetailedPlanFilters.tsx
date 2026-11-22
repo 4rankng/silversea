@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw, Send } from 'lucide-react';
 import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableSelect, Tabs, type DateRangeValue, type FilterBarResetScope } from '../../../design-system';
 import type { TabItem } from '../../../design-system';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -32,6 +32,16 @@ interface DetailedPlanFiltersProps {
    *  absent on surfaces that don't group (no button, no checkbox column). */
   lclMergeMode?: boolean;
   onToggleLclMergeMode?: () => void;
+  /** SIL-884 (5.1) — the [Phát lệnh hàng loạt] mode: ON reveals the row
+   *  checkboxes ('Đã điều xe' yet to release) + the batch release button.
+   *  Absent on surfaces that don't release (no button, no checkbox column). */
+  bulkIssueMode?: boolean;
+  onToggleBulkIssueMode?: () => void;
+  /** Selected eligible rows count — labels [Phát lệnh đã chọn (N)]. */
+  bulkIssueCount?: number;
+  /** Runs the batch release; `bulkIssueBusy` keeps the button honest in flight. */
+  onBulkIssueSelected?: () => void;
+  bulkIssueBusy?: boolean;
 }
 
 const DIRECTION_OPTIONS: Array<{ id: string; label: string }> = [
@@ -127,6 +137,11 @@ export function DetailedPlanFilters({
   assignmentCounts,
   lclMergeMode,
   onToggleLclMergeMode,
+  bulkIssueMode,
+  onToggleBulkIssueMode,
+  bulkIssueCount,
+  onBulkIssueSelected,
+  bulkIssueBusy,
 }: DetailedPlanFiltersProps) {
   const [draftResetKey, setDraftResetKey] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -298,6 +313,31 @@ export function DetailedPlanFilters({
                 the selection's floating bar. Secondary/outline face per spec. */}
             {onToggleLclMergeMode && (
               <LclMergeModeToggle active={Boolean(lclMergeMode)} onToggle={onToggleLclMergeMode} />
+            )}
+            {/* SIL-884 (5.1) — [Phát lệnh hàng loạt] sits beside Gộp hàng /
+                Gán xe: ON reveals the leading checkboxes (rows 'Đã điều xe'
+                yet to release) + [Phát lệnh đã chọn (N)]. Toggling OFF drops
+                the picks — same on-demand law as Gộp hàng. */}
+            {onToggleBulkIssueMode && (
+              <UUIButton
+                size="sm"
+                color={bulkIssueMode ? 'secondary' : 'tertiary'}
+                iconLeading={Send}
+                onPress={onToggleBulkIssueMode}
+              >
+                Phát lệnh hàng loạt
+              </UUIButton>
+            )}
+            {onToggleBulkIssueMode && bulkIssueMode && (bulkIssueCount ?? 0) > 0 && (
+              <UUIButton
+                size="sm"
+                color="primary"
+                iconLeading={Send}
+                onPress={() => { if (!bulkIssueBusy) onBulkIssueSelected?.(); }}
+                isDisabled={bulkIssueBusy}
+              >
+                {bulkIssueBusy ? 'Đang phát lệnh…' : `Phát lệnh đã chọn (${bulkIssueCount})`}
+              </UUIButton>
             )}
             <UUIButton size="sm" color="primary" iconLeading={Plus} onPress={goAssign}>
               Gán xe

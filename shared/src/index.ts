@@ -393,6 +393,7 @@ export type {
   TimesheetSalaryInput,
   TimesheetSalaryResult,
   TimesheetTripRun,
+  TimesheetRun,
 } from './calculations/timesheetSalary';
 
 export { round2dp, roundInt, roundHalfAwayFromZero } from './calculations/round';

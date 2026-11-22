@@ -114,6 +114,24 @@ table.ts-report thead th {
   white-space: nowrap;
 }
 
+/* SIL-884 (6.1) — 'HÌNH THỨC LƯƠNG' (cột 4, 110px) và các tên cột tổng hợp
+   ('TỔNG LỆNH ĐƠN'…) bị cắt/tràn trên băng cuộn: cùng luật SIL-858 —
+   header dài bẻ theo ranh giới từ (2 dòng vừa ô), không bao giờ cắt giữa
+   token, không tràn đè cột kế cạnh. Tên cột tổng hợp nhận bề rộng riêng
+   76px để hai dòng chữ nằm gọn trong cột của nó. */
+table.ts-report thead th.ts-report__th--salary-mode,
+table.ts-report thead th.ts-report__th--summary {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+table.ts-report thead th.ts-report__th--summary {
+  width: 76px;
+  min-width: 76px;
+  max-width: 76px;
+}
+
 /* SIL-810 (AC 2) — bảng Tổng Hợp Xếp Lệnh tháng cuộn được ĐỦ 31 ngày + 10 cột
  * tổng hợp: wrap tự làm cổng cuộn ngang (cũ: overflow visible để thead ghim
  * vào scrollport app-body → bảng 46 cột bị shell cắt ở ngày ~19). Cổng cuộn

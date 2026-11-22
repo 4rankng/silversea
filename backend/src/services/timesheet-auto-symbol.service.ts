@@ -26,8 +26,8 @@
  *   • Tháng đã ĐỐI CHIẾU (RECONCILED) thì không ghi: bảng đã được niêm phong,
  *     muốn sửa thì phải mở lại (đúng luật mà ghi lưới tay đang chấp hành).
  */
-import { and, eq, isNull, sql } from 'drizzle-orm';
-import { isSundayUtc, monthOfDay, timesheetSymbolForDay, type TimesheetSymbol } from '@tingting/shared';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { isSundayUtc, monthOfDay, timesheetSymbolForDay, type TimesheetRun, type TimesheetSymbol } from '@tingting/shared';
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { tripCompletionBusinessDateSql } from './completion-business-date-sql.service';
@@ -59,15 +59,18 @@ export interface TimesheetAutoWriteResult {
 
 /**
  * The trips of one driver-day that count for the grid: COMPLETED, on an
- * internal-fleet truck, finished on the business date of that day.
+ * internal-fleet truck, finished on the business date of that day. Each run
+ * carries the container numbers it pulled (SIL-884 5.2 — the pairing rule
+ * reads them: 1 Nhập + 1 Xuất sharing one cont pairs → K, not Q).
  */
 async function completedRunsForDay(
   executor: Executor,
   driverId: number,
   workDate: string,
-): Promise<Array<'KEP' | 'KET_HOP' | 'LAY_LE' | 'DON'>> {
+): Promise<TimesheetRun[]> {
   const rows = await executor
     .select({
+      tripId: s.trips.id,
       pairKind: s.tripPairs.pairKind,
       dispatchClassification: s.shipmentFulfillments.dispatchClassification,
       fulfillmentType: s.shipmentFulfillments.fulfillmentType,
@@ -87,10 +90,26 @@ async function completedRunsForDay(
       // Luật ngày hoàn thành SIL-683 — cùng phép tính với ngày của chính chuyến.
       eq(tripCompletionBusinessDateSql(), workDate),
     ));
-  return rows.map((row) => classifyTripRun({
-    pairKind: row.pairKind,
-    dispatchClassification: row.dispatchClassification,
-    fulfillmentType: row.fulfillmentType,
+  if (rows.length === 0) return [];
+  const tripIds = rows.map((row) => row.tripId);
+  const containers = await executor.select({
+    tripId: s.tripContainers.tripId,
+    containerNumber: s.tripContainers.containerNumber,
+  }).from(s.tripContainers).where(inArray(s.tripContainers.tripId, tripIds));
+  const containersByTrip = new Map<number, string[]>();
+  for (const row of containers) {
+    if (row.containerNumber == null) continue;
+    const numbers = containersByTrip.get(row.tripId) ?? [];
+    numbers.push(row.containerNumber);
+    containersByTrip.set(row.tripId, numbers);
+  }
+  return rows.map((row) => ({
+    shape: classifyTripRun({
+      pairKind: row.pairKind,
+      dispatchClassification: row.dispatchClassification,
+      fulfillmentType: row.fulfillmentType,
+    }),
+    containerNumbers: containersByTrip.get(row.tripId) ?? [],
   }));
 }
 

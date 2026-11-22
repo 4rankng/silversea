@@ -76,6 +76,10 @@ export interface StuckRunningTrip {
   truckPlate: string | null;
   shipmentId: number | null;
   shipmentCode: string | null;
+  /** SIL-884 (6.1) — Bill/Booking the banner prints instead of SHP-* codes. */
+  billOrBooking: string | null;
+  /** SIL-884 (6.1) — live containers of the lot ("số cont"). */
+  containerCount: number;
   fulfillmentId: number | null;
   plannedStartAt: string | null;
   stuckSince: string | null;

@@ -21,6 +21,7 @@ import { DispatchPlanCardList } from './DispatchPlanCardList';
 import { deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
+import { bulkIssueEligibility } from './bulkIssueOrders';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
 import type { DetailedPlanFilterState, DetailPlanSortDirection, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
@@ -168,6 +169,18 @@ interface DetailedPlanGridProps {
    *  forwarded to the grid's own DetailedPlanFilters render sites. */
   lclMergeMode?: boolean;
   onToggleLclMergeMode?: () => void;
+  /** SIL-884 (5.1) — [Phát lệnh hàng loạt] mode: ON reveals the leading
+   *  checkboxes gated to 'Đã điều xe' rows without a lệnh yet. The page owns
+   *  the selection set + the batch release (same on-demand law as Gộp hàng). */
+  bulkIssueMode?: boolean;
+  selectedBulkFulfillmentIds?: ReadonlySet<number>;
+  onToggleBulkSelection?: (fulfillmentId: number, next: boolean) => void;
+  /** Band controls passthrough (page owns the batch state): the toggle,
+   *  the selected count for [Phát lệnh đã chọn (N)], the run + busy flag. */
+  onToggleBulkIssueMode?: () => void;
+  bulkIssueCount?: number;
+  onBulkIssueSelected?: () => void;
+  bulkIssueBusy?: boolean;
   /** SPEC 18/10/2026 §4 — dispatch-side "Tách nhóm" for a COST group. Shown
    *  on the principal row only (one action per group). */
   onUnmergeLclGroup?: (groupId: string) => void;
@@ -251,6 +264,13 @@ export function DetailedPlanGrid({
   lclMergeMode,
   onStartLclMerge,
   onToggleLclMergeMode,
+  bulkIssueMode,
+  selectedBulkFulfillmentIds,
+  onToggleBulkSelection,
+  onToggleBulkIssueMode,
+  bulkIssueCount,
+  onBulkIssueSelected,
+  bulkIssueBusy,
   onUnmergeLclGroup,
   onUnmergeLclLot,
   onLclTruckUpdated,
@@ -546,7 +566,10 @@ export function DetailedPlanGrid({
   if (error && items.length === 0) {
     return (
       <>
-        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} />
+        {/* SIL-884 (5.1) — the bulk-release band controls are a TABLE affordance
+            (they drive the leading checkbox column); card mode keeps the band
+            without them rather than a dead toggle. */}
+        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} bulkIssueMode={!isCardMode ? bulkIssueMode : undefined} onToggleBulkIssueMode={!isCardMode ? onToggleBulkIssueMode : undefined} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} />
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
           {/* Sweep (card 20261008_1): the retry used to disable silently
@@ -569,7 +592,7 @@ export function DetailedPlanGrid({
 
   return (
     <>
-      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} />
+      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} bulkIssueMode={!isCardMode ? bulkIssueMode : undefined} onToggleBulkIssueMode={!isCardMode ? onToggleBulkIssueMode : undefined} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} />
 
       <ZoneTruckPresencePanel
         items={presence?.items ?? []}
@@ -669,11 +692,11 @@ export function DetailedPlanGrid({
           ) : (
           <table className="detailed-plan-grid ops-table">
             <colgroup>
-              {/* Spec 23/10 §2 — the on-demand CHỌN column rides FIRST while
-                  the [📦 Gộp hàng] mode is active (fixed 48px, master-plan
-                  precedent); absent by default so the reading columns keep
-                  their shares. */}
-              {onToggleLclSelection && <col className="detailed-plan-grid__col detailed-plan-grid__col--select" />}
+              {/* Spec 23/10 §2 + SIL-884 (5.1) — the on-demand select column
+                  rides FIRST while [📦 Gộp hàng] OR [Phát lệnh hàng loạt] is
+                  active (fixed 48px, master-plan precedent); absent by default
+                  so the reading columns keep their shares. */}
+              {(onToggleLclSelection || onToggleBulkSelection) && <col className="detailed-plan-grid__col detailed-plan-grid__col--select" />}
               <col className="detailed-plan-grid__col detailed-plan-grid__col--schedule" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--route" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--ports" />
@@ -689,9 +712,9 @@ export function DetailedPlanGrid({
             </colgroup>
             <thead>
               <tr>
-                {onToggleLclSelection && (
+                {(onToggleLclSelection || onToggleBulkSelection) && (
                   <th scope="col" className="detailed-plan-grid__th--select">
-                    Chọn lô
+                    {onToggleBulkSelection ? 'Phát lệnh' : 'Chọn lô'}
                   </th>
                 )}
                 <th scope="col" aria-sort={sortKey === 'runHour' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>
@@ -768,7 +791,31 @@ export function DetailedPlanGrid({
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
-                  {onToggleLclSelection && (
+                  {onToggleBulkSelection ? (
+                    /* SIL-884 (5.1) — the batch-release column: only 'Đã điều
+                       xe' (or deferred-plate external) rows without a lệnh are
+                       tickable; every other row explains itself inline. The
+                       checkbox never goes natively disabled without a title —
+                       a control that can't say why is the loop QA reported. */
+                    <td className="detailed-plan-grid__cell detailed-plan-grid__cell--select" data-label="Phát lệnh" data-label-short="Phát">
+                      <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--select">
+                        {(() => {
+                          const { eligible, reason } = bulkIssueEligibility(row);
+                          return (
+                            <LclSelectCheckbox
+                              isSelected={selectedBulkFulfillmentIds?.has(row.fulfillmentId) ?? false}
+                              isDisabled={!eligible}
+                              onToggle={(next: boolean) => onToggleBulkSelection(row.fulfillmentId, next)}
+                              ariaLabel={`Chọn phát lệnh lô ${billBookingReference(row.docs.billNumber)}`}
+                              title={eligible
+                                ? 'Đã điều xe, chưa phát lệnh — phát theo điều phối đã lưu.'
+                                : reason ?? 'Không đủ điều kiện phát lệnh hàng loạt.'}
+                            />
+                          );
+                        })()}
+                      </div>
+                    </td>
+                  ) : onToggleLclSelection && (
                     <td className="detailed-plan-grid__cell detailed-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
                       <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--select">
                         {/* Spec 23/10 §2: only LCL rows are tickable (FCL stays

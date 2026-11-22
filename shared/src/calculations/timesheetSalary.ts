@@ -246,6 +246,35 @@ export function monthOfDay(workDate: string): { year: number; month: number } {
  */
 export type TimesheetTripRun = 'KEP' | 'KET_HOP' | 'LAY_LE' | 'DON';
 
+/** One completed run with the containers it carried (0..2 numbers; a number
+ *  may be unknown — null never pairs). */
+export interface TimesheetRun {
+  shape: TimesheetTripRun;
+  containerNumbers?: ReadonlyArray<string | null>;
+}
+
+/** Container numbers one run carried, normalized for pairing (trimmed,
+ *  upper-cased; unknown/blank dropped). */
+function containerNumbersOf(run: TimesheetTripRun | TimesheetRun): string[] {
+  if (typeof run === 'string') return [];
+  const numbers = run.containerNumbers ?? [];
+  const normalized: string[] = [];
+  for (const value of numbers) {
+    const key = value?.trim().toUpperCase();
+    if (key) normalized.push(key);
+  }
+  return normalized;
+}
+
+/** SIL-884 (5.2) — the two runs of one day SHARE a container (the 1 Nhập +
+ *  1 Xuất of the same cont pairing back-to-back). */
+function shareContainer(first: TimesheetTripRun | TimesheetRun, second: TimesheetTripRun | TimesheetRun): boolean {
+  const firstNumbers = containerNumbersOf(first);
+  if (firstNumbers.length === 0) return false;
+  const secondNumbers = new Set(containerNumbersOf(second));
+  return firstNumbers.some((number) => secondNumbers.has(number));
+}
+
 /**
  * The symbol ONE driver-day carries, derived from the trips that completed
  * that day (SIL-737 — "hoàn thành chuyến nội bộ tự ghi ký hiệu").
@@ -258,20 +287,30 @@ export type TimesheetTripRun = 'KEP' | 'KET_HOP' | 'LAY_LE' | 'DON';
  *             dispatcher's to write).
  *   1 trip  → `K` when that run is a KẸP (kẹp 2 cont = TWO containers, ONE
  *             trip — the house rule), otherwise `Đ` (chạy đơn).
- *   2 trips → `Q` (quay đầu = out and back = two trips, one attended day).
+ *   2 trips → `K` when the two runs PAIR (SIL-884 5.2, CR-010): both runs
+ *             are kẹp 2×20' back-to-back, or they carry the SAME container
+ *             number (1 Nhập + 1 Xuất chung số cont 40' — quay đầu đúng
+ *             nghĩa). Two runs carrying DIFFERENT containers → `Q`.
+ *   3+ trips→ `Q` (closest fit; the accountant corrects on the cell).
  *
  * Deriving the day (not the trip) is what keeps the trip count honest: a
- * kết hợp pair whose two legs finish on the SAME day counts 2 trips (Q), and
- * a pair split over two days counts 1 trip on each day (Đ, Đ) — 2 trips in
- * total either way.
+ * kết hợp pair whose two legs finish on the SAME day counts 2 trips (K or Q
+ * by pairing), and a pair split over two days counts 1 trip on each day
+ * (Đ, Đ) — 2 trips in total either way.
  *
  * The house grid models a day as 0..2 trips ("1 ngày = 0..2 chuyến"), so a
  * busier day (3+ trips) has no exact symbol: `Q` is the closest and the
  * remaining trips are the accountant's correction on the cell.
  */
-export function timesheetSymbolForDay(runs: TimesheetTripRun[]): TimesheetSymbol | null {
+export function timesheetSymbolForDay(runs: ReadonlyArray<TimesheetTripRun | TimesheetRun>): TimesheetSymbol | null {
   if (runs.length === 0) return null;
-  if (runs.length === 1) return runs[0] === 'KEP' ? 'K' : 'Đ';
+  // String runs (the legacy single-value form) carry their shape directly.
+  const shapes = runs.slice(0, 2).map((run) => (typeof run === 'string' ? run : run.shape));
+  if (runs.length === 1) return shapes[0] === 'KEP' ? 'K' : 'Đ';
+  if (runs.length === 2) {
+    const paired = shapes[0] === 'KEP' && shapes[1] === 'KEP';
+    return paired || shareContainer(runs[0]!, runs[1]!) ? 'K' : 'Q';
+  }
   return 'Q';
 }
 

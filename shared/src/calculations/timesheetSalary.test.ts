@@ -308,3 +308,50 @@ describe('TIMESHEET_SYMBOL_RULES — SIL-841 đếm cột tổng (summaryTrips, 
     assert.equal(TIMESHEET_SYMBOL_RULES.P.summaryTrips, 0);
   });
 });
+
+describe('timesheetSymbolForDay — SIL-884 CR-010 (5.2) pairing rule', () => {
+  it('1 Nhập + 1 Xuất CHUNG số cont 40\' ghép thành K — quay đầu đúng nghĩa', () => {
+    assert.equal(timesheetSymbolForDay([
+      { shape: 'DON', containerNumbers: ['MSKU1245657'] },
+      { shape: 'DON', containerNumbers: ['msku1245657'] },
+    ]), 'K', 'đôi Đ cùng cont 40\' là quay đầu kẹp — so sánh chuẩn hoá (trim + hoa)');
+  });
+
+  it('2 chuyến kẹp 2×20\' (KEP × KEP) trong ngày → K', () => {
+    assert.equal(timesheetSymbolForDay([
+      { shape: 'KEP', containerNumbers: ['TEMU1111111', 'TEMU2222222'] },
+      { shape: 'KEP', containerNumbers: ['TEMU3333333', 'TEMU4444444'] },
+    ]), 'K');
+  });
+
+  it('2 cont khác nhau trong ngày → Q (luật cũ giữ nguyên khi không ghép)', () => {
+    assert.equal(timesheetSymbolForDay([
+      { shape: 'DON', containerNumbers: ['MSKU1245657'] },
+      { shape: 'DON', containerNumbers: ['TCLU9876543'] },
+    ]), 'Q');
+    // Kết hợp mà không cùng cont vẫn là Q (giữ pin cũ với đối tượng mới).
+    assert.equal(timesheetSymbolForDay([
+      { shape: 'KET_HOP', containerNumbers: ['AAA1111111'] },
+      { shape: 'KET_HOP', containerNumbers: ['BBB2222222'] },
+    ]), 'Q');
+  });
+
+  it('cont không rõ không ghép — số trắng (null) không bao giờ tự nhận là cùng cont', () => {
+    assert.equal(timesheetSymbolForDay([
+      { shape: 'DON', containerNumbers: [null] },
+      { shape: 'DON', containerNumbers: ['MSKU1245657'] },
+    ]), 'Q');
+    // Chuỗi cũ không mang số → không ghép được.
+    assert.equal(timesheetSymbolForDay(['DON', 'DON']), 'Q');
+  });
+
+  it('1 chuyến KEP vẫn K, 1 chuyến thường vẫn Đ, 3+ chuyến vẫn Q', () => {
+    assert.equal(timesheetSymbolForDay([{ shape: 'KEP', containerNumbers: ['A', 'B'] }]), 'K');
+    assert.equal(timesheetSymbolForDay([{ shape: 'DON', containerNumbers: ['A'] }]), 'Đ');
+    assert.equal(timesheetSymbolForDay([
+      { shape: 'DON', containerNumbers: ['A'] },
+      { shape: 'DON', containerNumbers: ['A'] },
+      { shape: 'DON', containerNumbers: ['A'] },
+    ]), 'Q');
+  });
+});

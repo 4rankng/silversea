@@ -28,8 +28,10 @@ function defaultIssueTimes(): { plannedStartAt: string; plannedEndAt: string } {
 /** Quick-issue draft times: prefer the row's CUS-locked schedule so "Giờ chạy"
  *  starts from the appointment instead of the wall clock. When `runAt` is
  *  available, use the full instant (preserving minutes — KP-037). Fall back to
- *  `deliveryDate` + `runHour` for older rows, then wall clock as last resort. */
-function draftIssueTimesFor(row: DispatchDetailPlanRow): { plannedStartAt: string; plannedEndAt: string } {
+ *  `deliveryDate` + `runHour` for older rows, then wall clock as last resort.
+ *  Exported for the SIL-884 bulk runner — same derivation, one source of
+ *  truth, so a batch release cannot diverge from the row release. */
+export function draftIssueTimesFor(row: DispatchDetailPlanRow): { plannedStartAt: string; plannedEndAt: string } {
   const resolveEndAt = (fallbackEnd: Date): Date => {
     if (row.plannedEndAt) {
       const stored = new Date(row.plannedEndAt);

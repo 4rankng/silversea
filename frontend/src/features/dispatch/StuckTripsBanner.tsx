@@ -3,7 +3,15 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { qk } from '../../api/keys';
 import { tripClient } from '../../api/tripClient';
+import { billBookingReference } from '../../lib/business-reference';
 import './StuckTripsBanner.css';
+
+/** SIL-884 (6.1) — the handoff status reads in Vietnamese: the raw enum
+ *  ('UNSEEN' shouting in caps) is internal vocabulary, not dispatch copy. */
+const HANDOFF_STATUS_LABELS: Record<string, string> = {
+  UNSEEN: 'Chưa xem',
+  SEEN: 'Đã xem',
+};
 
 /**
  * SIL-817 (id 946, PROD 13/11) — dispatch's strand watchlist.
@@ -66,8 +74,11 @@ export function StuckTripsBanner() {
       <ul className="stuck-trips-banner__list">
         {items.map((trip) => (
           <li key={trip.tripId} className="stuck-trips-banner__row">
-            <strong>{trip.tripCode ?? `#${trip.tripId}`}</strong>
-            <span>{trip.shipmentCode ?? '—'}</span>
+            {/* SIL-884 (6.1) — Số Bill/Booking + số cont replace the internal
+                TRP-/SHP- codes: the watchlist names the lot the way the
+                customer's papers name it. */}
+            <strong>{billBookingReference(trip.billOrBooking)}</strong>
+            <span>{trip.containerCount} cont</span>
             <span>{trip.driverName ?? '—'}</span>
             <span>{trip.truckPlate ?? '—'}</span>
             <span className="stuck-trips-banner__days">{trip.daysStuck} ngày</span>
@@ -77,7 +88,7 @@ export function StuckTripsBanner() {
                 <span
                   className={`stuck-trips-banner__chip${trip.activeHandoff.handlerId == null ? ' stuck-trips-banner__chip--unhandled' : ''}`}
                 >
-                  {`lệnh phát #${trip.activeHandoff.id} ${trip.activeHandoff.status}${trip.activeHandoff.handlerId == null ? ' — chưa có người phụ trách' : ''}`}
+                  {`lệnh phát ${HANDOFF_STATUS_LABELS[trip.activeHandoff.status] ?? trip.activeHandoff.status}${trip.activeHandoff.handlerId == null ? ' — chưa có người phụ trách' : ''}`}
                 </span>
               )}
           </li>
