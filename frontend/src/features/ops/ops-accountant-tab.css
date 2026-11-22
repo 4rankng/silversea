@@ -77,3 +77,13 @@
   min-width: 90px;
   padding: 2px 6px;
 }
+
+/* SIL-884 (6.1) — với tên KH rút gọn (short-name law phía BE) hai cột nhận
+   diện đủ chỗ, nhưng luật không cắt vẫn phải hard-pin: số Bill/Cont là mã
+   nhận diện — bẻ giữa token ("MSKU12/45657") là mất số. Token dài hơn cột
+   thì tràn lộ (nhìn thấy là thiếu chỗ), không bao giờ cắt trong token. */
+.ops-acc td.ops-wallet__cell--bill,
+.ops-acc td.ops-wallet__cell--cont {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}

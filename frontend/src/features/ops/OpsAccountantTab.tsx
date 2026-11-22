@@ -17,6 +17,7 @@ import { toastActionError } from '../../lib/api/action-error';
 import { OpsExpensePhotosModal } from './OpsExpensePhotosModal';
 import { OpsSettlementSheet } from './OpsSettlementsPanel';
 import { formatMoney } from '../../lib/format';
+import { opsContainerScopeLabel } from '../../lib/opsContainerScope';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
 import { DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
 import { FilterDropdown } from '../../components/FilterDropdown';
@@ -324,6 +325,11 @@ export function OpsAccountantTab() {
                     </td>
                   )}
                   <td>{formatDate(row.paidAt)}</td>
+                  {/* SIL-884 (6.1) — Bill/Cont cells keep tokens whole (css
+                      keep-together law): a long bill number may overflow its
+                      cell visibly but never chops mid-token. */}
+                  <td className="ops-wallet__cell--bill">{opsBillReference(row.billRef)}</td>
+                  <td className="ops-wallet__cell--cont">{opsContainerScopeLabel(row.containerNumber, row.containerNumbers)}</td>
                   <td>
                     {row.customerName || row.factoryName
                       ? <span>

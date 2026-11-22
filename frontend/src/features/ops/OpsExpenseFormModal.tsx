@@ -4,6 +4,7 @@ import { Camera, Loader2, Trash2, X } from 'lucide-react';
 import { useOpsExpenseTypes, useOpsContainerClaimants, useCreateOpsExpense, useCreateOpsExpenseType } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsOrderItem, type OpsExpenseDuplicateHit } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
+import { opsContainerScopeLabel } from '../../lib/opsContainerScope';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
@@ -293,6 +294,22 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       ?? pickerContainers.find((container) => container.id === containerId)?.number
       ?? String(containerId)
   );
+  // SIL-881 — N yellow warnings collapse into ONE compact row: the claimed
+  // conts group by previous entrant, so picking 5 conts prints one line, not
+  // five ("Gộp 5 thành cảnh báo vàng thành 01 dòng gọn").
+  const claimantWarningText = useMemo(() => {
+    if (claimants.length === 0) return null;
+    const contsByWho = new Map<string, string[]>();
+    for (const claimant of claimants) {
+      const who = claimant.paidByName?.trim() || 'người khác';
+      const conts = contsByWho.get(who) ?? [];
+      conts.push(claimantLabel(claimant.containerId));
+      contsByWho.set(who, conts);
+    }
+    return [...contsByWho.entries()]
+      .map(([who, conts]) => `Cont ${conts.join(', ')} đã có ${who} nhập trước`)
+      .join('; ') + ' — bạn vẫn tiếp tục nhập chứ?';
+  }, [claimants, claimantsQuery.data, pickerContainers]);
 
   const typeOptionsOf = (block: 'noInvoice' | 'invoice') => {
     const options: Array<{ value: string; label: string; disabled?: boolean }> = [
@@ -443,12 +460,13 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     }
   }
 
-  /** One write task = one fee draft on one container scope (lot-wide = ONE
-   *  task with `null`; picked containers = one task each). */
+  /** One write task = one fee draft with its container SET (SIL-881: K conts
+   *  + tổng X = ONE task/record; chung lô = empty set). The old per-cont
+   *  fan-out multiplied money K× and is gone. */
   interface SaveTask {
     block: 'noInvoice' | 'invoice';
     rowKey: number;
-    containerId: number | null;
+    containerIds: number[];
     duplicateConfirmed?: boolean;
   }
 
@@ -464,7 +482,8 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       try {
         await createExpense.mutateAsync({
           shipmentId: order.id,
-          shipmentContainerId: task.containerId,
+          // SIL-881 — ONE record with the picked set; amount stays as typed.
+          shipmentContainerIds: task.containerIds,
           expenseTypeCode: draft.typeCode,
           amount: String(draft.amount),
           paidAt,
@@ -513,13 +532,15 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   }
 
   function buildTasks(): SaveTask[] {
-    const scopes: Array<number | null> = containerValues.includes(LOT_CHOICE) || containerValues.length === 0
-      ? [null]
+    // SIL-881 — the picked set is the row's scope: K conts + tổng X lands as
+    // ONE record with containerIds (never K rows × X). Chung lô = empty set.
+    const containerIds = containerValues.includes(LOT_CHOICE) || containerValues.length === 0
+      ? []
       : pickedContainerIds;
     const tasks: SaveTask[] = [];
     // Blank placeholder rows ("+ Thêm chi phí" left untouched) never save.
-    for (const draft of noInvoiceRows) if (!isEmptyDraft(draft)) for (const scope of scopes) tasks.push({ block: 'noInvoice', rowKey: draft.key, containerId: scope });
-    for (const draft of invoiceRows) if (!isEmptyDraft(draft)) for (const scope of scopes) tasks.push({ block: 'invoice', rowKey: draft.key, containerId: scope });
+    for (const draft of noInvoiceRows) if (!isEmptyDraft(draft)) tasks.push({ block: 'noInvoice', rowKey: draft.key, containerIds });
+    for (const draft of invoiceRows) if (!isEmptyDraft(draft)) tasks.push({ block: 'invoice', rowKey: draft.key, containerIds });
     return tasks;
   }
 
@@ -624,11 +645,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             <p className="ops-modal-hint">Lô chưa có dòng cont để gắn chi phí — khoản ghi theo phạm vi chung lô.</p>
           )}
 
-          {claimants.map((claimant) => (
-            <p key={claimant.containerId} className="ops-modal__warning" role="alert">
-              {`Cont ${claimantLabel(claimant.containerId)} đã có ${claimant.paidByName ?? 'người khác'} nhập trước — bạn vẫn tiếp tục nhập chứ.`}
-            </p>
-          ))}
+          {claimantWarningText != null && (
+            <p className="ops-modal__warning" role="alert">{claimantWarningText}</p>
+          )}
 
           {duplicateHits && (
             <div className="ops-modal__warning ops-modal__duplicate" role="alert">
@@ -638,7 +657,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               <ul>
                 {duplicateHits.map((hit) => (
                   <li key={hit.id}>
-                    {`${opsDuplicateWho(hit)} · ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')}${hit.containerNumber ? ` · cont ${hit.containerNumber}` : ' · phí chung lô'}`}
+                    {`${opsDuplicateWho(hit)} · ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')} · ${opsContainerScopeLabel(hit.containerNumber, hit.containerNumbers)}`}
                   </li>
                 ))}
               </ul>

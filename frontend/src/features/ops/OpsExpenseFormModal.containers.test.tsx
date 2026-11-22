@@ -9,9 +9,10 @@ import { OpsExpenseFormModal, opsContainerId } from './OpsExpenseFormModal';
 
 // Card 191026160000 — Số Cont is a MULTI-select with chọn-all and the form is
 // the mockup's two fee blocks. This cluster pins: the container choice
-// survives type/tab edits, a lot-wide submit serializes container null (never
-// Number("") = 0), picking containers declares the fee PER container, and
-// "Chọn tất cả" picks every container at once.
+// survives type/tab edits, a lot-wide submit serializes the EMPTY set =
+// Phí chung lô (never Number("") = 0), picking containers declares the fee
+// ONCE per picked SET (SIL-881 — no per-cont fan-out, amount never × cont
+// count), and "Chọn tất cả" picks every container at once.
 const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), createExpenseType: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 // SIL-761 — the popup reads the viewer's role; standalone renders have no
@@ -133,7 +134,7 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     expect(screen.getByRole('button', { name: 'Đã chọn 1 số cont' }).getAttribute('title')).toContain('TGHU1234567');
   });
 
-  it('A2: a shared-lot submit serializes container null — never Number("") = 0', async () => {
+  it('A2: a shared-lot submit serializes the EMPTY container set (Phí chung lô) — never Number("") = 0', async () => {
     await show();
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
@@ -143,13 +144,16 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ shipmentContainerId: null, expenseTypeCode: 'SOI_CHIEU' });
+    // SIL-881 — chung lô = empty set; the legacy singular key never appears.
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU' });
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([]);
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerId).toBeUndefined();
     expect(opsContainerId('LOT')).toBeNull();
     expect(opsContainerId('')).toBeNull();
     expect(opsContainerId('33')).toBe(33);
   });
 
-  it('A3: picked containers declare the fee once per container', async () => {
+  it('A3: picked containers declare the fee ONCE — one record carries the whole set, amount never × cont count', async () => {
     await show();
     await pickContainers('TGHU1234567', 'TGHU7654321');
     await addInvoiceRow();
@@ -159,9 +163,11 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
-    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ shipmentContainerId: 33 });
-    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ shipmentContainerId: 44 });
+    // SIL-881 — K conts + tổng X = ONE record with the picked set. The old
+    // per-cont fan-out (2 records of 450000) multiplied money and is gone.
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU', amount: '450000' });
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33, 44]);
   });
 
   it('A4: chọn tất cả picks every container at once (and drops the lot choice)', async () => {
@@ -174,12 +180,21 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     expect(screen.getByRole('button', { name: 'Chọn số cont…' })).toBeInTheDocument();
   });
 
-  it('A5: duplicate bounce pauses the batch; Tiếp tục lưu re-sends only from the bounced row', async () => {
+  it('A5: the claimant warning collapses to ONE line and the duplicate bounce pauses the ONE set record', async () => {
+    // SIL-881 — N claimed conts print ONE grouped yellow line, not N lines.
+    api.getContainerClaimants.mockResolvedValue([
+      { containerId: 33, containerNumber: 'TGHU1234567', paidById: 2, paidByName: 'Ops khác' },
+      { containerId: 44, containerNumber: 'TGHU7654321', paidById: 2, paidByName: 'Ops khác' },
+    ]);
     api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_DUPLICATE', duplicates: [
-      { id: 91, amount: 1000, paidAt: '2026-10-01', containerNumber: null, paidById: 2, paidByName: 'Ops khác' },
+      { id: 91, amount: 1000, paidAt: '2026-10-01', containerNumber: null, containerNumbers: ['TGHU1234567', 'TGHU7654321'], paidById: 2, paidByName: 'Ops khác' },
     ] }, 'trùng'));
     await show();
     await pickContainers('TGHU1234567', 'TGHU7654321');
+    // 2 claimants → exactly ONE collapsed warning line grouping both conts.
+    const warnings = await screen.findAllByText(/bạn vẫn tiếp tục nhập chứ\?/);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toHaveTextContent('Cont TGHU1234567, TGHU7654321 đã có Ops khác nhập trước — bạn vẫn tiếp tục nhập chứ?');
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
@@ -187,14 +202,22 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
-    expect(await screen.findByRole('alert')).toHaveTextContent('NHẬP TRƯỚC ĐÓ');
+    // The duplicate gate bounces the ONE set record: the panel names the hit
+    // and prints its merged cont scope (role=alert is name-from-author, so
+    // the panel is scoped by its text, not an accessible-name matcher).
+    expect(await screen.findByText(/NHẬP TRƯỚC ĐÓ/))
+      .toHaveTextContent('ĐÃ ĐƯỢC Ops khác NHẬP TRƯỚC ĐÓ, BẠN VẪN TIẾP TỤC NHẬP CHỨ?');
+    const hitRow = await screen.findByText(/2 cont: TGHU1234567, TGHU7654321/);
+    expect(hitRow).toHaveTextContent('Ops khác');
+    expect(hitRow).toHaveTextContent('ngày 01/10/2026');
     expect(api.createExpense).toHaveBeenCalledTimes(1);
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33, 44]);
     fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục lưu' }));
-    // 3 attempts total: the bounced first, then the confirmed re-send (same
-    // container) and the untouched second container.
-    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(3));
-    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ shipmentContainerId: 33, duplicateConfirmed: true });
-    expect(api.createExpense.mock.calls[2][0]).toMatchObject({ shipmentContainerId: 44 });
+    // 2 attempts total: the bounced send, then the SAME set record re-sent
+    // confirmed — never a per-cont fan-out.
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ duplicateConfirmed: true, amount: '450000' });
+    expect(api.createExpense.mock.calls[1][0].shipmentContainerIds).toEqual([33, 44]);
   });
 });
 
@@ -219,10 +242,11 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
       expenseTypeCode: 'CONG_NHAN',
       amount: '80000',
       note: 'Chi tiền mặt cho 2 công nhân dỡ hàng',
-      shipmentContainerId: 33,
       invoiceNumber: null,
       photoStorageKeys: [],
     });
+    // SIL-881 — the picked set rides the single record.
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33]);
   });
 
   it('B2 (SIL-777): a no-charge row saves WITHOUT Ghi chú — the old note gate is gone', async () => {
@@ -435,7 +459,7 @@ describe('ops expense form — creatable loại phí (SIL-813)', { timeout: 20_0
 describe('ops expense form — mở khóa picker theo cont (SIL-844)', { timeout: 20_000 }, () => {
   beforeEach(() => { delete order.containers; });
 
-  it('S1: cont chưa cập nhật số vẫn chọn được; chọn-tất-cả gán đúng khoản chi theo từng cont', async () => {
+  it('S1: cont chưa cập nhật số vẫn chọn được; chọn-tất-cả ghi 01 khoản chi cho cả tập cont', async () => {
     order.containers = [{ id: 879, number: null }, { id: 880, number: 'TSTU4444444' }];
     await show();
     expect(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' })).toBeEnabled();
@@ -447,9 +471,11 @@ describe('ops expense form — mở khóa picker theo cont (SIL-844)', { timeout
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
-    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ shipmentContainerId: 879 });
-    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ shipmentContainerId: 880 });
+    // SIL-881 — the whole picked set rides ONE record; 123000 is the total,
+    // never 2 × 123000.
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ amount: '123000' });
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([879, 880]);
   });
 
   it('S2: lô chưa có dòng cont nào — picker khóa kèm giải thích, không còn khóa câm', async () => {
@@ -494,7 +520,9 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN', shipmentContainerId: 33 });
+    // SIL-881 — the save carries the picked set on one record.
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN' });
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33]);
   });
 
   it('G2: the same TYPE twice on the no-invoice tab is blocked until one row changes', async () => {
@@ -518,8 +546,11 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN', shipmentContainerId: 33 });
-    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ expenseTypeCode: 'SUA_TO_KHAI', shipmentContainerId: 33 });
+    // SIL-881 — each row is ONE record carrying the picked set.
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN' });
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33]);
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ expenseTypeCode: 'SUA_TO_KHAI' });
+    expect(api.createExpense.mock.calls[1][0].shipmentContainerIds).toEqual([33]);
   });
 
   it('G3: PHÍ CÓ HÓA ĐƠN keeps multiple same-type rows saveable (warn-then-confirm unchanged)', async () => {
@@ -540,8 +571,12 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU', shipmentContainerId: 33, invoiceNumber: 'TD-20260923-001' });
-    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU', shipmentContainerId: 33, invoiceNumber: 'TD-20260923-002' });
+    // SIL-881 — same-type invoice rows stay saveable; each row is ONE record
+    // carrying the picked set.
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU', invoiceNumber: 'TD-20260923-001' });
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33]);
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU', invoiceNumber: 'TD-20260923-002' });
+    expect(api.createExpense.mock.calls[1][0].shipmentContainerIds).toEqual([33]);
     expect(api.createExpense.mock.calls[0][0].duplicateConfirmed).toBeUndefined();
     expect(api.createExpense.mock.calls[1][0].duplicateConfirmed).toBeUndefined();
   });
@@ -616,7 +651,7 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     expect(api.createExpense.mock.calls[1][0]).toMatchObject({ invoiceNumber: null });
   });
 
-  it('G5: a lot with NO container rows keeps the lot scope for no-invoice fees', async () => {
+  it('G5: a lot with NO container rows saves as chung-lô — the empty set, never null', async () => {
     order.containers = [];
     await show();
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
@@ -626,6 +661,9 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     expect(screen.getByText('Lô chưa có dòng cont để gắn chi phí — khoản ghi theo phạm vi chung lô.')).toBeInTheDocument();
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN', shipmentContainerId: null });
+    // SIL-881 — chung lô = empty set on the one record.
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN' });
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([]);
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerId).toBeUndefined();
   });
 });
