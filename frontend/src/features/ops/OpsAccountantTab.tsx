@@ -281,10 +281,12 @@ export function OpsAccountantTab() {
                     />
                   </th>
                 )}
-                {/* SIL-895 — every column carries its measured share
-                    (ops-accountant-tab.css): Bill/Cont tokens (11-char ISO)
-                    hold ONE line at the 1440 canvas, and no other column
-                    drops below its floor. */}
+                {/* SIL-895 round 4 — every column carries its measured share
+                    (ops-accountant-tab.css): the QA bill tokens
+                    ('QATEST-CUOC-001', 'R4B-RG-CUS-LCL1', 'NOSTC26HF67971')
+                    and a 16-char worst case hold ONE line at the 1440 canvas,
+                    dates and money stay whole, and every header fits its own
+                    cell under the SIL-858 wrap law. */}
                 <th className="ops-acc__col--date">Ngày</th>
                 {/* SIL-858 — the bill th takes the wrap law (ops-accountant-tab.css):
                     nowrap clipped it to "BILL / BOOKIN" and bled onto Cont. */}

@@ -12,35 +12,47 @@
    law needs). SIL-895 replaces the even share for the remaining columns with
    measured per-column floors below. */
 
-/* SIL-895 (QA FAIL 23/11 04:28, build b410a86d) — the accountant board's
-   shares are MEASURED, not equal: every floor below is the real rendered
-   width (Playwright, the app's own Inter Digits/Be Vietnam Pro faces) of the
-   header (11px/600/.05em/uppercase, +25px cell chrome) or the widest token
-   (+25px), at the 1440px sidebar-open canvas (~1144px table). Bill + Cont are
-   sized for the canonical 11-char ISO container number ('MSKU1245657' =
-   84.6px) so BOTH hold ONE line — the AC the old equal shares failed — and
-   every other column keeps its floor (header floors are hard: a nowrap
-   header bleeding onto its neighbour is the SIL-858 bug class; 'NGƯỜI CHI'
-   takes the wrap law below because its one-line floor did not fit).
-   Percentages sum to 100% with the 34px select rail, so table-layout: fixed
-   needs no normalization pass.
-
-   date 59.8 · bill/cont 109.8 · KH 116.1 · tờ khai 96.1 · Số HĐ 64.6 ·
-   loại phí 78.4 · số tiền 96.1 · người chi 70.9 · chứng từ 55.5 ·
-   số phiếu 83.5 · duyệt KT 88.7 · ghi chú 80.7 */
-.ops-acc .ops-acc__col--date { width: 5.23%; }
-.ops-acc .ops-wallet__col--bill { width: 9.6%; }
-.ops-acc .ops-acc__col--cont { width: 9.6%; }
-.ops-acc .ops-wallet__col--customer { width: 10.15%; }
-.ops-acc .ops-wallet__col--declaration { width: 8.4%; }
-.ops-acc .ops-acc__col--invoice { width: 5.65%; }
-.ops-acc .ops-acc__col--fee { width: 6.85%; }
-.ops-acc .ops-acc__col--amount { width: 8.4%; }
-.ops-acc .ops-acc__col--payer { width: 6.2%; }
-.ops-acc .ops-acc__col--receipt { width: 4.85%; }
-.ops-acc .ops-acc__col--settlement-code { width: 7.3%; }
-.ops-acc .ops-acc__col--confirm { width: 7.75%; }
-.ops-acc .ops-acc__col--note { width: 7.05%; }
+/* SIL-895 round 4 (QA FAIL 23/11, build 04393c2b) — shares re-measured on a
+   running-canvas replica (Playwright, the app's own Inter Digits/Be Vietnam
+   Pro faces, 1440px sidebar-open → ~1144px table, 34px select rail). Bill is
+   sized for the QA tokens themselves — RENDERED one-line widths with the
+   app's own faces loaded explicitly (Inter Digits digits run 7.78px at 12px,
+   so every digit-bearing token is wider than a Be Vietnam Pro fallback
+   shows): 'QATEST-CUOC-001' 123.08px, 'R4B-RG-CUS-LCL1' 119.8px,
+   'NOSTC26HF67971' 112.92px, 'QA-D-1411-01' 96.02px, 16-char worst case
+   'QATEST-CUOC-001X' 131.72px — each holds ONE line in the 135px bill
+   content (3.3px margin). Cont keeps the canonical 11-char ISO
+   ('MSKU1245657' 89.19px) whole in its 91.5px content. The bill grant is
+   funded by moving six more headers onto the word-boundary wrap law below
+   (Số tờ khai, Số HĐ, Loại phí, Chứng từ, Số phiếu, Ghi chú — full label,
+   two balanced lines, never a mid-token break) and by the board's own
+   rendered data floors: '23/11/2026' 74.33px (dates) and '125.500.000 ₫' =
+   '999.999.999 ₫' 86.34px (money ≤ 999.999.999 ₫) each stay ONE line; the
+   pending-row Duyệt/Từ chối button run (120.08px) wraps INSIDE the confirm
+   cell (the CR-010 flex-wrap yield), and 'Đã duyệt 23/11/2026' keeps its
+   date line whole (74.33px) — the confirm cell can never paint over Ghi chú.
+   Floors (content + 24px chrome): date 98.33 · bill 155.72 · cont 113.19 ·
+   KH 2-line 117.26 · tờ khai 53.33 · Số HĐ 41.73 · loại phí 52.7 ·
+   số tiền 110.34 · người chi 63.98 ('NGƯỜI' wraps) · chứng từ 68.86
+   ('CHỨNG'/'TỪ') · số phiếu 60.25 ('SỐ'/'PHIẾU') · duyệt KT 98.33 ·
+   ghi chú 50.39.
+   Accepted bound (the QA-passed status quo): tờ khai / invoice / settlement /
+   note DATA values wider than their column still wrap mid-token — no budget
+   for them at 1144px once bill, cont, date, money and every header floor
+   hold. */
+.ops-acc .ops-acc__col--date { width: 8.85%; }
+.ops-acc .ops-wallet__col--bill { width: 13.9%; }
+.ops-acc .ops-acc__col--cont { width: 10.1%; }
+.ops-acc .ops-wallet__col--customer { width: 10.4%; }
+.ops-acc .ops-wallet__col--declaration { width: 4.8%; }
+.ops-acc .ops-acc__col--invoice { width: 3.75%; }
+.ops-acc .ops-acc__col--fee { width: 4.75%; }
+.ops-acc .ops-acc__col--amount { width: 9.83%; }
+.ops-acc .ops-acc__col--payer { width: 5.7%; }
+.ops-acc .ops-acc__col--receipt { width: 6.2%; }
+.ops-acc .ops-acc__col--settlement-code { width: 5.4%; }
+.ops-acc .ops-acc__col--confirm { width: 8.8%; }
+.ops-acc .ops-acc__col--note { width: 4.53%; }
 
 .ops-acc .ops-wallet__table thead th {
   overflow-wrap: normal;
@@ -49,19 +61,30 @@
 
 /* SIL-858 (QA retest build 061739f9, 1440×900): the .tt-table base pins
    `white-space: nowrap` on thead th, so the wrap-guard above never engaged —
-   the two long identity headers stayed one-line (BILL / BOOKING 96.8px vs a
-   60px budget, Khách hàng / Nhà máy 149.4px vs 102px) and bled past the 12px
+   the two long identity headers stayed one-line (BILL / BOOKING 94px vs a 60px
+   budget, Khách hàng / Nhà máy 149.4px vs 102px) and bled past the 12px
    cell padding onto the neighbour ("BILL / BOOKIN"+"CONT", "…NHÀ"+"SỐ TỜ
    KHAI"). Wrapping at word boundaries only fits every line inside its own
    cell (measured: BILL / 36.4 · BOOKING 57.3 · KHÁCH HÀNG / 90.8 · NHÀ MÁY
-   55.6) — full label, two lines allowed, no mid-token break, no bleed. The
-   other eleven headers stay nowrap (their ≤4.6px excess stays inside their
-   own 12px padding — QA-pass state untouched). SIL-895: NGƯỜI CHI joins the
-   wrap law — its one-line floor (89.7px) did not survive the measured
-   re-share, while its two-line floor ('NGƯỜI' 45px) fits its 70.9px share. */
+   55.6) — full label, two lines allowed, no mid-token break, no bleed.
+   SIL-895: NGƯỜI CHI joins the wrap law — its one-line floor (89.7px) did not
+   survive the measured re-share, while its two-line floor ('NGƯỜI' 45px) fits
+   its 70.9px share. SIL-895 round 4: SỐ TỜ KHAI · SỐ HĐ · LOẠI PHÍ · CHỨNG
+   TỪ · SỐ PHIẾU · GHI CHÚ join the same law to fund the measured Bill grant —
+   each keeps its full label on two balanced lines inside its own cell
+   ('SỐ TỜ'/'KHAI' 29.7 · 'SỐ'/'HĐ' 18.2 · 'LOẠI'/'PHÍ' 28 · 'CHỨNG'/'TỪ'
+   44.7 · 'SỐ'/'PHIẾU' 37.2 · 'GHI'/'CHÚ' 26.7 — all fit their new shares).
+   NGÀY, CONT, SỐ TIỀN and DUYỆT KT stay one line: their one-line widths
+   (33.5 · 34.6 · 48.7 · 60.5) fit their columns whole. */
 .ops-acc thead th.ops-wallet__col--bill,
 .ops-acc thead th.ops-wallet__col--customer,
-.ops-acc thead th.ops-acc__col--payer {
+.ops-acc thead th.ops-acc__col--payer,
+.ops-acc thead th.ops-wallet__col--declaration,
+.ops-acc thead th.ops-acc__col--invoice,
+.ops-acc thead th.ops-acc__col--fee,
+.ops-acc thead th.ops-acc__col--receipt,
+.ops-acc thead th.ops-acc__col--settlement-code,
+.ops-acc thead th.ops-acc__col--note {
   white-space: normal;
 }
 
@@ -86,6 +109,7 @@
 
 .ops-acc .ops-acc__row-actions {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 6px;
   white-space: nowrap;
 }
@@ -104,7 +128,7 @@
 .ops-acc .ops-acc__edit-input {
   font: inherit;
   width: 100%;
-  min-width: 90px;
+  min-width: 0;
   padding: 2px 6px;
 }
 
