@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { TripStatus } from '@tingting/shared';
+import { ApiError } from '../../lib/api';
 import {
   PAIR_LOCKED_MESSAGE,
+  blockedAcceptToastMessage,
   completeCtaLabel,
+  driverTripBlockedPayload,
   isTripPairLocked,
   milestoneActionState,
   podCompleteCtaLabel,
@@ -109,6 +112,37 @@ describe('driver-trip-model', () => {
       const two = [cont('A'), cont('B')];
       expect(tagLabelFor({ pairKind: null, classification: 'LCL', linked: false, containers: two })).toBe('LẺ');
       expect(tagLabelFor({ pairKind: null, classification: 'LCL_PICKUP', linked: true, containers: two })).toBe('LẤY LẺ');
+    });
+  });
+
+  describe('driverTripBlockedPayload & blockedAcceptToastMessage', () => {
+    it('narrows owned payload and preserves driverOwned even without valid tripId', () => {
+      const owned = driverTripBlockedPayload(
+        new ApiError(409, { code: 'DRIVER_TRIP_BLOCKED', blockingTripId: 61, blockingTripLabel: '  BL-1  ', driverOwned: true }, 'raw'),
+      );
+      expect(owned).toEqual({ tripId: 61, label: 'BL-1', driverOwned: true });
+      expect(blockedAcceptToastMessage(owned!)).toBe('Xe đang chạy chuyến BL-1. Vui lòng hoàn thành chuyến đó trước.');
+
+      const ownedNoId = driverTripBlockedPayload(
+        new ApiError(409, { code: 'DRIVER_TRIP_BLOCKED', blockingTripId: null, blockingTripLabel: 'BL-2', driverOwned: true }, 'raw'),
+      );
+      expect(ownedNoId).toEqual({ tripId: null, label: 'BL-2', driverOwned: true });
+      expect(blockedAcceptToastMessage(ownedNoId!)).toContain('Vui lòng hoàn thành chuyến đó trước');
+    });
+
+    it('drops tripId when driverOwned is false and directs driver to dispatch', () => {
+      const unowned = driverTripBlockedPayload(
+        new ApiError(409, { code: 'DRIVER_TRIP_BLOCKED', blockingTripId: 61, blockingTripLabel: 'QA1107C2-704K2', driverOwned: false }, 'raw'),
+      );
+      expect(unowned).toEqual({ tripId: null, label: 'QA1107C2-704K2', driverOwned: false });
+      expect(blockedAcceptToastMessage(unowned!)).toBe(
+        'Xe đang chạy chuyến QA1107C2-704K2 (không thuộc danh sách lệnh của bạn). Liên hệ điều vận để xử lý trước khi nhận lệnh mới.',
+      );
+    });
+
+    it('returns null for non-matching errors', () => {
+      expect(driverTripBlockedPayload(new ApiError(409, { code: 'OTHER' }, 'raw'))).toBeNull();
+      expect(driverTripBlockedPayload(new Error('network'))).toBeNull();
     });
   });
 });

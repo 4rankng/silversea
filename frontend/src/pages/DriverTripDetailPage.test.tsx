@@ -1728,7 +1728,7 @@ describe('busy-trip recovery', () => {
     rejection.mockRestore();
   });
 
-  it('keeps the link off for a blocking trip the payload does not vouch for', async () => {
+  it('keeps the link off for a blocking trip the payload does not vouch for and tells driver to contact dispatch', async () => {
     useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail({ status: TripStatus.CREATED }), isLoading: false, error: null, refetch: vi.fn() });
     useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
     const rejection = blockedRejection({ blockingTripId: null, blockingTripLabel: 'BL-2026-001', driverOwned: false });
@@ -1736,8 +1736,19 @@ describe('busy-trip recovery', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
     const banner = await screen.findByTestId('blocking-trip-banner');
     expect(banner.textContent).toContain('BL-2026-001');
+    expect(banner.textContent).toContain('không thuộc danh sách lệnh của bạn');
+    expect(banner.textContent).not.toContain('hoàn thành chuyến đó trước');
     expect(screen.queryByRole('link', { name: 'Mở chuyến đang chạy' })).toBeNull();
     expect(banner.textContent).toContain('Liên hệ điều vận');
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'error',
+      message: expect.stringContaining('không thuộc danh sách lệnh của bạn'),
+    }));
+    // Banner renders above the main fieldset/footer so mobile drivers at scrollY=0 see it immediately
+    const progressStrip = screen.getByTestId('driver-task-progress');
+    expect(progressStrip.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const taskNoteSection = screen.getByTestId('task-note-section');
+    expect(banner.compareDocumentPosition(taskNoteSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     rejection.mockRestore();
   });
 

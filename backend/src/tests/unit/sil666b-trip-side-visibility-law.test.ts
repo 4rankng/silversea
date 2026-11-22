@@ -43,6 +43,7 @@ const read = (name: string): string =>
 const availabilitySource = read('dispatch-resource-availability.service.ts');
 const conflictScanSource = read('dispatch-plan-conflict-scan.service.ts');
 const detailPlanSource = read('dispatch-planning-detail-plan.service.ts');
+const statusMachineSource = read('trip-status-machine.service.ts');
 
 describe('SIL-666 round-2 — the trip-side visibility law', () => {
   const dialect = new PgDialect();
@@ -95,6 +96,13 @@ describe('SIL-666 round-2 — the trip-side visibility law', () => {
     );
     assert.ok(issueGateBlock, 'assertResourceAvailability conflict scan must exist');
     assert.match(issueGateBlock[0], /\.\.\.tripHolderVisibilitySql\(\)/);
+    // 4 — driver accept truck-busy scan (DRIVER-BUSY-01: hidden/canceled/deleted
+    // trips must never block driver accept while absent from Đã nhận).
+    const busyTripsBlock = statusMachineSource.match(
+      /const busyTrips = trip\.truckId \? await tx\.select\(\{[\s\S]*?\n {8}\)\) : \[\];/,
+    );
+    assert.ok(busyTripsBlock, 'transitionTripStatus busyTrips scan must exist');
+    assert.match(busyTripsBlock[0], /\.\.\.tripHolderVisibilitySql\(\)/);
   });
 
   it('the plan-row holder scans keep their own TC1 filters (no law regression)', () => {

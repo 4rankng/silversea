@@ -8,6 +8,7 @@ import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 import { eq, and, isNull, ne, or, sql } from 'drizzle-orm';
 import { TripStatus, Role, localDateInBusinessZone } from '@tingting/shared';
 import { isTripRunningOnDepartureDay, isActiveKepPairPartner, isDeclaredKepClampPartner, isSameRigLclSharePartner } from './trip-busy-gate';
+import { tripHolderVisibilitySql } from './dispatch-resource-availability.service';
 import { LedgerService } from './ledger.service';
 import { ApiError } from '../errors';
 import type { Tx } from './trip-shared';
@@ -200,24 +201,26 @@ export async function transitionTripStatus(
       const busyTrips = trip.truckId ? await tx.select({
         id: s.trips.id, tripCode: s.trips.tripCode,
         driverId: s.trips.driverId,
+        fulfillmentId: s.trips.fulfillmentId,
         departureDate: s.trips.departureDate,
         // SIL-798 — the blocking reference the 409 must name: the trip's
         // business identifier (Số Bill / Số Booking, the §8 display law) so
         // the driver banner can link the actual blocking work without a
         // client-side board roundtrip or regex parsing.
-        blockingLabel: sql<string | null>`nullif(coalesce(nullif(${s.shipments.blNumber}, ''), nullif(${s.shipments.bookingRef}, '')), '')`,
+        blockingLabel: sql<string | null>`nullif(coalesce(nullif(btrim(${s.shipments.blNumber}), ''), nullif(btrim(${s.shipments.bookingRef}), '')), '')`,
         // SIL-634: the busy row's fulfillment classification — the declared
         // clamp proof needs both legs' "Phân loại" to be Kẹp (DOUBLE).
         fulfillmentClassification: s.shipmentFulfillments.dispatchClassification,
       })
         .from(s.trips)
         .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
-        .leftJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+        .leftJoin(s.shipments, eq(s.shipments.id, sql`coalesce(${s.shipmentFulfillments.shipmentId}, ${s.trips.shipmentId})`))
         .where(and(
           eq(s.trips.truckId, trip.truckId!),
           eq(s.trips.status, TripStatus.IN_TRANSIT),
           isNull(s.trips.deletedAt),
           ne(s.trips.id, tripId),
+          ...tripHolderVisibilitySql(),
         )) : [];
       // Driver completion (Q15) hands off evidence but deliberately leaves the
       // trip IN_TRANSIT until the independently approved financial close — the
@@ -335,7 +338,7 @@ export async function transitionTripStatus(
           }
         }
       }
-      const blockingTrips: Array<{ id: number; tripCode: string | null; driverId: number | null; blockingLabel: string | null }> = [];
+      const blockingTrips: Array<{ id: number; tripCode: string | null; driverId: number | null; fulfillmentId: number | null; blockingLabel: string | null }> = [];
       for (const candidate of busyTrips) {
         // SIL-602/SIL-631: the exemption is the ACTIVE KEP pair membership +
         // shared driver — the whole pair contract (see isActiveKepPairPartner).
@@ -365,10 +368,17 @@ export async function transitionTripStatus(
         // "retry later").
         const busyLabel = busyTruck.tripCode || 'một chuyến khác';
         const busyDisplayLabel = busyTruck.blockingLabel;
-        const busyDriverOwned = busyTruck.driverId != null && busyTruck.driverId === trip.driverId;
+        // A fulfillment-less (ad-hoc/BULK) trip cannot appear on Đã nhận or be
+        // completed in the driver portal, so never offer a deep-link or instruct
+        // the driver to complete it themselves.
+        const busyDriverOwned = busyTruck.driverId != null
+          && busyTruck.driverId === trip.driverId
+          && busyTruck.fulfillmentId != null;
         throw new ApiError(
           409,
-          `Xe đang chạy chuyến ${busyLabel}. Vui lòng hoàn thành chuyến đó trước.`,
+          busyDriverOwned
+            ? `Xe đang chạy chuyến ${busyLabel}. Vui lòng hoàn thành chuyến đó trước.`
+            : `Xe đang chạy chuyến ${busyLabel} (không thuộc danh sách lệnh của bạn). Vui lòng liên hệ điều vận để xử lý trước khi nhận lệnh mới.`,
           undefined,
           {
             code: 'DRIVER_TRIP_BLOCKED',

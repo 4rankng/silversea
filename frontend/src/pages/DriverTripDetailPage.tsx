@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -29,37 +29,12 @@ import { formatDate } from '../lib/format';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
-import { ApiError } from '../lib/api/errors';
 import { useConfirm } from '../components/UI';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import './DriverTripDetailPage.css';
 
-import { MILESTONES, completeCtaLabel, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
+import { MILESTONES, blockedAcceptToastMessage, completeCtaLabel, driverTripBlockedPayload, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
 import { parseDriverTaskNote } from '@tingting/shared';
-
-/**
- * SIL-798 — narrow the busy-trip 409's structured payload out of an api
- * ApiError's raw body. The wire (trip-status-machine.service.ts) sends
- * `{ code: 'DRIVER_TRIP_BLOCKED', blockingTripId, blockingTripLabel,
- * driverOwned }`; every field is network data, so each one is narrowed
- * before use. `tripId` resolves ONLY when the payload vouches for ownership
- * (driverOwned) AND carries a positive integer — the deep link can never
- * point at another driver's trip.
- */
-function driverTripBlockedPayload(error: unknown): { tripId: number | null; label: string | null } | null {
-  if (!(error instanceof ApiError)) return null;
-  if (typeof error.raw !== 'object' || error.raw === null) return null;
-  const body = error.raw as { code?: unknown; blockingTripId?: unknown; blockingTripLabel?: unknown; driverOwned?: unknown };
-  if (body.code !== 'DRIVER_TRIP_BLOCKED') return null;
-  const label = typeof body.blockingTripLabel === 'string' && body.blockingTripLabel.trim() !== ''
-    ? body.blockingTripLabel.trim()
-    : null;
-  const driverOwned = body.driverOwned === true;
-  const tripId = driverOwned && typeof body.blockingTripId === 'number' && Number.isInteger(body.blockingTripId) && body.blockingTripId > 0
-    ? body.blockingTripId
-    : null;
-  return { tripId, label };
-}
 
 export default function DriverTripDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -87,6 +62,12 @@ function DriverTripDetailContent() {
   // trip, so the banner states the gap honestly (no code, no invented ref).
   const [blockingTripLabel, setBlockingTripLabel] = useState<string | null>(null);
   const [blockingTripId, setBlockingTripId] = useState<number | null>(null);
+  const blockingBannerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (blockingTripCode != null) {
+      blockingBannerRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [blockingTripCode]);
   // Card 20260926_30 item 16: saved cost-entry count reported by the cost
   // form so the top progress strip can show it without scrolling.
   const [costEntryCount, setCostEntryCount] = useState(0);
@@ -217,9 +198,7 @@ function DriverTripDetailContent() {
         // No label (ad-hoc/branch trip with no shipment) → generic copy — the
         // translated 409 message embeds the internal TRP code, which §8/FB-019
         // forbid rendering.
-        toast({ kind: 'error', message: blocked.label != null
-          ? `Xe đang chạy chuyến ${blocked.label}. Vui lòng hoàn thành chuyến đó trước.`
-          : 'Xe đang có chuyến chưa hoàn thành — hoàn thành chuyến đó trước khi nhận lệnh mới.' });
+        toast({ kind: 'error', message: blockedAcceptToastMessage(blocked) });
       } else {
         setBlockingTripCode(null);
         setBlockingTripLabel(null);
@@ -477,6 +456,34 @@ function DriverTripDetailContent() {
 
       {accountingLock && <AccountingLockBanner lock={accountingLock} />}
 
+      {blockingTripCode != null && (
+        <div
+          ref={blockingBannerRef}
+          className="driver-task-section driver-task-section--banner"
+          style={{ background: 'var(--danger-soft)', color: 'var(--danger-text)', borderColor: 'var(--danger)' }}
+          role="alert"
+          data-testid="blocking-trip-banner"
+        >
+          <div className="driver-task-bypass" style={{ color: 'var(--danger-text)' }}>
+            <ShieldAlert size={16} />
+            <div>
+              <span>{blockingTripId != null
+                ? (blockingTripLabel
+                  ? <>Xe đang chạy chuyến <strong>{blockingTripLabel}</strong> — hoàn thành chuyến đó trước khi nhận lệnh mới.</>
+                  : 'Xe đang có chuyến chưa hoàn thành — hoàn thành chuyến đó trước khi nhận lệnh mới.')
+                : (blockingTripLabel
+                  ? <>Xe đang chạy chuyến <strong>{blockingTripLabel}</strong> (không thuộc danh sách lệnh của bạn).</>
+                  : 'Xe đang có chuyến chưa hoàn thành (không thuộc danh sách lệnh của bạn).')}</span>
+              <div>
+                {blockingTripId != null
+                  ? <Link className="driver-task-link" to={`/my-trips/${blockingTripId}`}>Mở chuyến đang chạy</Link>
+                  : <span>Liên hệ điều vận để xử lý chuyến đang chạy. Chỉ thử nhận lại khi xe đã sẵn sàng.</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <fieldset disabled={Boolean(accountingLock)} className="driver-task-fieldset">
 
       {/* Card 20260926_30 item 15: the completion checklist LEADS the screen —
@@ -626,7 +633,7 @@ function DriverTripDetailContent() {
                 type="button"
                 className="driver-task-accept-sticky__btn"
                 disabled={!acceptClickable}
-                onClick={() => { setBlockingTripCode(null); setBlockingTripLabel(null); void handleMilestone(DriverProgressEventType.ORDER_RECEIVED); }}
+                onClick={() => { setBlockingTripCode(null); setBlockingTripLabel(null); setBlockingTripId(null); void handleMilestone(DriverProgressEventType.ORDER_RECEIVED); }}
               >
                 {/* SIL-798 — the idle face is an ACTION, not a verdict: the
                     green "✓" (success = completed per §2) rode every idle
@@ -643,7 +650,6 @@ function DriverTripDetailContent() {
         </div>
       )}
 
-      {/* KP-087: blocking-trip reference when acceptance is rejected */}
       {/* Card 20260926_28 item 10: the completion action lives in a sticky
           bar above the tab nav with LIVE state — "Còn thiếu N chứng từ" —
           instead of a gray disabled card at the end of the scroll. Hidden
@@ -664,28 +670,6 @@ function DriverTripDetailContent() {
               {/* SIL-733 / owner ruling 22/10: photos are optional, do not block completion */}
               <span>{completing ? 'Đang gửi…' : completeCtaLabel(trip.status)}</span>
             </button>
-          </div>
-        </div>
-      )}
-
-      {blockingTripCode != null && (
-        <div className="driver-task-section driver-task-section--banner" role="alert" data-testid="blocking-trip-banner">
-          <div className="driver-task-bypass" style={{ background: 'var(--err-bg, #fef2f2)', color: 'var(--err, #dc2626)' }}>
-            <ShieldAlert size={16} />
-            <div>
-              {/* FB-019 (card 211026005621): the blocking trip is named by Số
-                  Bill/Booking (CHIEF 26/09) — the internal TRP code never
-                  renders here; when the board cannot vouch for the trip the
-                  banner says the gap instead of leaking the code. */}
-              <span>{blockingTripLabel
-                ? <>Xe đang chạy chuyến <strong>{blockingTripLabel}</strong> — hoàn thành chuyến đó trước khi nhận lệnh mới.</>
-                : 'Xe đang có chuyến chưa hoàn thành — hoàn thành chuyến đó trước khi nhận lệnh mới.'}</span>
-              <div>
-                {blockingTripId != null
-                  ? <Link className="driver-task-link" to={`/my-trips/${blockingTripId}`}>Mở chuyến đang chạy</Link>
-                  : <span>Liên hệ điều vận để xử lý chuyến đang chạy. Chỉ thử nhận lại khi xe đã sẵn sàng.</span>}
-              </div>
-            </div>
           </div>
         </div>
       )}

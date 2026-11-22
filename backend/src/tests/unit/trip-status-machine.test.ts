@@ -735,4 +735,31 @@ describe('Truck availability gate — SIL-705 declared LCL share', () => {
       'the LCL share scan must key on the LCL dispatch classification',
     );
   });
+
+  test('REG DRIVER-BUSY-01: busyTrips obeys tripHolderVisibilitySql and distinguishes unowned blocking trips', () => {
+    const serviceSource = readFileSync(
+      fileURLToPath(new URL('../../services/trip-status-machine.service.ts', import.meta.url)),
+      'utf8',
+    );
+    assert.match(
+      serviceSource,
+      /const busyTrips = trip\.truckId \? await tx\.select\(\{[\s\S]*?\.\.\.tripHolderVisibilitySql\(\)/,
+      'busyTrips must filter hidden/canceled/deleted holders via tripHolderVisibilitySql()',
+    );
+    assert.match(
+      serviceSource,
+      /busyDriverOwned\s*=\s*busyTruck\.driverId\s*!=\s*null[\s\S]*?busyTruck\.fulfillmentId\s*!=\s*null/,
+      'ad-hoc/fulfillment-less trips must not be treated as driverOwned deep-link targets',
+    );
+    assert.match(
+      serviceSource,
+      /coalesce\(\$\{s\.shipmentFulfillments\.shipmentId\}, \$\{s\.trips\.shipmentId\}\)/,
+      'busyTrips must join shipments through fulfillment or direct trip shipmentId',
+    );
+    assert.match(
+      serviceSource,
+      /busyDriverOwned\s*\?\s*`Xe đang chạy chuyến \$\{busyLabel\}\. Vui lòng hoàn thành chuyến đó trước\.`\s*:\s*`Xe đang chạy chuyến \$\{busyLabel\} \(không thuộc danh sách lệnh của bạn\)\. Vui lòng liên hệ điều vận để xử lý trước khi nhận lệnh mới\.`/,
+      '409 message must instruct the driver to contact dispatch when the blocking trip is unowned',
+    );
+  });
 });

@@ -171,3 +171,37 @@ export function milestoneActionState(eventFound: boolean, nextMilestoneIndex: nu
   if (nextMilestoneIndex === index) return 'available';
   return 'locked';
 }
+
+export interface DriverTripBlockedInfo {
+  tripId: number | null;
+  label: string | null;
+  driverOwned: boolean;
+}
+
+/** Narrow the busy-trip 409 structured payload out of an ApiError body. */
+export function driverTripBlockedPayload(error: unknown): DriverTripBlockedInfo | null {
+  if (!(error instanceof ApiError)) return null;
+  if (typeof error.raw !== 'object' || error.raw === null) return null;
+  const body = error.raw as { code?: unknown; blockingTripId?: unknown; blockingTripLabel?: unknown; driverOwned?: unknown };
+  if (body.code !== 'DRIVER_TRIP_BLOCKED') return null;
+  const label = typeof body.blockingTripLabel === 'string' && body.blockingTripLabel.trim() !== ''
+    ? body.blockingTripLabel.trim()
+    : null;
+  const driverOwned = body.driverOwned === true;
+  const tripId = driverOwned && typeof body.blockingTripId === 'number' && Number.isInteger(body.blockingTripId) && body.blockingTripId > 0
+    ? body.blockingTripId
+    : null;
+  return { tripId, label, driverOwned };
+}
+
+/** Honest toast copy for DRIVER_TRIP_BLOCKED: never instruct the driver to complete an unowned trip. */
+export function blockedAcceptToastMessage(blocked: DriverTripBlockedInfo): string {
+  if (blocked.driverOwned) {
+    return blocked.label != null
+      ? `Xe đang chạy chuyến ${blocked.label}. Vui lòng hoàn thành chuyến đó trước.`
+      : 'Xe đang có chuyến chưa hoàn thành — hoàn thành chuyến đó trước khi nhận lệnh mới.';
+  }
+  return blocked.label != null
+    ? `Xe đang chạy chuyến ${blocked.label} (không thuộc danh sách lệnh của bạn). Liên hệ điều vận để xử lý trước khi nhận lệnh mới.`
+    : 'Xe đang có chuyến chưa hoàn thành không thuộc danh sách lệnh của bạn. Liên hệ điều vận để xử lý trước khi nhận lệnh mới.';
+}
