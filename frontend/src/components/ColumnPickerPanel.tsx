@@ -25,9 +25,12 @@ export interface ColumnPickerPanelProps {
   customized: boolean;
   onToggle: (key: string) => void;
   onReset: () => void;
+  /** SIL-891 — 'Chọn tất cả' (every hideable column visible). Absent on
+   *  surfaces that opt out; disabled while nothing is hidden. */
+  onShowAll?: () => void;
 }
 
-export function ColumnPickerPanel({ columns, hidden, customized, onToggle, onReset }: ColumnPickerPanelProps) {
+export function ColumnPickerPanel({ columns, hidden, customized, onToggle, onReset, onShowAll }: ColumnPickerPanelProps) {
   const options = columns.filter((column) => !column.pinned);
   if (options.length === 0) return null;
 
@@ -49,14 +52,26 @@ export function ColumnPickerPanel({ columns, hidden, customized, onToggle, onRes
           );
         })}
       </div>
-      <button
-        type="button"
-        className="column-picker__reset"
-        onClick={onReset}
-        disabled={!customized}
-      >
-        Mặc định
-      </button>
+      <div className="column-picker__reset-row">
+        {onShowAll != null && (
+          <button
+            type="button"
+            className="column-picker__reset"
+            onClick={onShowAll}
+            disabled={hidden.length === 0}
+          >
+            Chọn tất cả
+          </button>
+        )}
+        <button
+          type="button"
+          className="column-picker__reset"
+          onClick={onReset}
+          disabled={!customized}
+        >
+          Mặc định
+        </button>
+      </div>
     </div>
   );
 }

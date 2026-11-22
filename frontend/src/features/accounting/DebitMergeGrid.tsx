@@ -23,7 +23,7 @@
 // Money law (debit-summary precedent): a null money cell renders EMPTY —
 // never a fabricated 0; a known 0 renders muted '0'. The amber law
 // (SIL-801): a known non-zero Tổng TC wears var(--warning-text).
-import { useMemo, useState } from 'react';
+import { cloneElement, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DebitMergeInvoiceFee, DebitMergeItem } from '@tingting/shared';
 import type { LedgerColumn } from '../../lib/column-visibility';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
@@ -38,6 +38,18 @@ export const DEBIT_MERGE_PAGE_SIZES = [20, 50] as const;
 /** The visible «Ghép thu cước cùng Lô 1» marker on a rev-group member's
  *  cước cell (SIL-546; the tooltip carries the full F-2 reason). */
 export const MERGE_TAG_LABEL = 'Ghép thu cước cùng Lô 1';
+
+/** SIL-889 — the pending fee tooltip + the red the money wears until Kế
+ *  toán duyệt (#DC2626 via the CSS class, cascade after the zero rule). */
+export const PENDING_FEE_TIP = 'Chờ kế toán duyệt chi phí';
+
+/** SIL-891 — the sticky zone: group 1 (Thông tin Lô hàng) through group 2's
+ *  Loại cont inclusive. Hidden columns drop out of the zone; the offsets
+ *  re-measure whenever the visible set changes. */
+function isStickyColumn(column: LedgerColumn): boolean {
+  const def = column as GridColumnDef;
+  return def.group === 1 || def.group === 2;
+}
 
 interface GridColumnDef extends LedgerColumn {
   /** 1-based column group the leaf belongs to. */
@@ -122,11 +134,14 @@ export interface DebitMergeGridProps {
 
 /** Money-state cell: null/absent → EMPTY (chưa xác định, never a fabricated
  *  0); 0 → muted '0'; known → formatted. `warn` = the SIL-801 amber tone on
- *  a known NON-zero value (a settled 0 stays muted). */
-function MoneyCell({ value, warn, mergeTag }: {
+ *  a known NON-zero value (a settled 0 stays muted). `pending` = the SIL-883
+ *  red: the money is saved but Kế toán chưa duyệt — the state beats both the
+ *  zero mute and the amber (declared last in the CSS cascade). */
+function MoneyCell({ value, warn, mergeTag, pending }: {
   value: string | null | undefined;
   warn?: boolean;
   mergeTag?: { label: string; title: string } | null;
+  pending?: boolean;
 }) {
   const num = value == null || value === '' ? null : Number(value);
   if (num == null || !Number.isFinite(num)) {
@@ -134,7 +149,10 @@ function MoneyCell({ value, warn, mergeTag }: {
   }
   return (
     <span className="debit-merge-money">
-      <span className={`debit-merge-money__value${num === 0 ? ' debit-merge-money__zero' : ''}${num !== 0 && warn ? ' debit-merge-money__warn' : ''}`}>
+      <span
+        className={`debit-merge-money__value${num === 0 ? ' debit-merge-money__zero' : ''}${num !== 0 && warn ? ' debit-merge-money__warn' : ''}${pending ? ' debit-merge-money__pending' : ''}`}
+        title={pending ? PENDING_FEE_TIP : undefined}
+      >
         {formatMoney(num)}
       </span>
       {mergeTag != null && (
@@ -145,7 +163,8 @@ function MoneyCell({ value, warn, mergeTag }: {
 }
 
 /** One stacked fee line per invoiced chi-hộ row (money stays lot-level;
- *  several HĐ render as stacked lines inside the cell). */
+ *  several HĐ render as stacked lines inside the cell). A pending fee line
+ *  (SIL-883 3.1) wears the red + the shared tooltip until duyệt. */
 function FeeStack({ fees, mode }: {
   fees: DebitMergeInvoiceFee[];
   mode: 'hd' | 'amount' | 'actual' | 'name';
@@ -154,7 +173,11 @@ function FeeStack({ fees, mode }: {
   return (
     <span className="debit-merge-cell debit-merge-cell--stack">
       {fees.map((fee, index) => (
-        <span className="debit-merge-cell__line" key={`${fee.invoiceNumber ?? 'no-hd'}-${index}`}>
+        <span
+          className={`debit-merge-cell__line${fee.pending ? ' debit-merge-cell__line--pending' : ''}`}
+          key={`${fee.invoiceNumber ?? 'no-hd'}-${index}`}
+          title={fee.pending ? PENDING_FEE_TIP : undefined}
+        >
           {mode === 'hd' && (fee.invoiceNumber ?? '—')}
           {mode === 'amount' && formatMoney(Number(fee.amount))}
           {mode === 'actual' && (fee.actualAmount == null ? '' : formatMoney(Number(fee.actualAmount)))}
@@ -207,6 +230,66 @@ export function DebitMergeGrid({
     [rows, safePage, pageSize],
   );
 
+  // SIL-891 — the sticky-left zone (group 1 through Loại cont). The offsets
+  // are MEASURED from the rendered leaf header cells (not declared widths —
+  // the table is content-sized), recomputed whenever the visible set, the
+  // page, or the pane's box changes, so hiding/showing a column re-docks the
+  // zone to the right edge of what remains.
+  const tableRef = useRef<HTMLTableElement>(null);
+  const stickyColumns = useMemo(() => visibleColumns.filter(isStickyColumn), [visibleColumns]);
+  // The measure() closure reads the LIVE sticky set through a ref — putting
+  // the array in the effect deps would re-run it on every api-object churn.
+  const stickyColumnsRef = useRef(stickyColumns);
+  stickyColumnsRef.current = stickyColumns;
+  const [stickyLefts, setStickyLefts] = useState<Record<string, number>>({});
+  const stickyLastKey = stickyColumns.length > 0 ? stickyColumns[stickyColumns.length - 1]!.key : null;
+  const stickyLeadingKey = useMemo(() => {
+    const byGroup = new Map<1 | 2, string>();
+    for (const column of stickyColumns) {
+      const group = (column as GridColumnDef).group;
+      if (group !== 1 && group !== 2) continue;
+      if (!byGroup.has(group)) byGroup.set(group, column.key);
+    }
+    return byGroup;
+  }, [stickyColumns]);
+  // Primitive signatures — the hook's api object is fresh every render, so
+  // array deps here would re-run the effect after every setState and loop.
+  const stickyKeySignature = stickyColumns.map((column) => column.key).join('|');
+  const pageSignature = `${pageRows.length}:${safePage}:${pageSize}`;
+  useLayoutEffect(() => {
+    const table = tableRef.current;
+    if (!table) return;
+    const measure = () => {
+      const tableLeft = table.getBoundingClientRect().left;
+      const next: Record<string, number> = {};
+      for (const column of stickyColumnsRef.current) {
+        const cell = table.querySelector<HTMLElement>(`thead th[data-col="${column.key}"]`);
+        if (cell == null) continue;
+        next[column.key] = Math.round(cell.getBoundingClientRect().left - tableLeft);
+      }
+      setStickyLefts((prev) => {
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(next);
+        if (prevKeys.length === nextKeys.length && nextKeys.every((key) => prev[key] === next[key])) return prev;
+        return next;
+      });
+    };
+    measure();
+    // jsdom (and engines without ResizeObserver) re-measure on prop changes
+    // only; browsers get the live re-dock.
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(table);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stickyKeySignature, pageSignature]);
+  /** Sticky dock props for a leaf cell (th/td) keyed by its column. */
+  const stickyProps = (key: string): Record<string, unknown> => ({
+    'data-sticky': '',
+    style: { left: stickyLefts[key] ?? 0 },
+    ...(key === stickyLastKey ? { 'data-sticky-last': '' } : {}),
+  });
+
   // Totals foot (owner redesign 23/10 law — a settlement board MUST show its
   // totals): the sums EQUAL the rendered page's money cells (knowns-sum; a
   // column with no known value reads '—', never a fabricated 0). The Tổng TC
@@ -242,6 +325,12 @@ export function DebitMergeGrid({
   const incompleteLabels = unlockedSelected
     .map((row) => row.billOrBookNumber || `#${row.shipmentId}`)
     .slice(0, 3);
+  // SIL-883 (3.2) — HARD-BLOCK: a selected lot still carrying ≥1 saved fee
+  // awaiting Kế toán duyệt blocks all three money actions (FE mirrors the
+  // BE guards' 409); the count drops to 0 the moment duyệt/từ chối lands.
+  const pendingSelected = selectedRows.find((row) => (row.control.pendingFeeCount ?? 0) > 0);
+  const pendingFeeReason = (actionLabel: string): string | null => (pendingSelected == null ? null
+    : `Không thể ${actionLabel}: Lô ${pendingSelected.billOrBookNumber || `#${pendingSelected.shipmentId}`} còn ${pendingSelected.control.pendingFeeCount} khoản chi phí chưa được Kế toán duyệt.`);
   const lockDisabledReason = lockPending
     ? 'Đang khóa lô…'
     : !canLock
@@ -250,14 +339,16 @@ export function DebitMergeGrid({
         ? 'Chọn ít nhất một lô chưa khóa.'
         : unlockedSelected.length === 0
           ? 'Các lô đã chọn đều đã khóa.'
-          : null;
+          : pendingFeeReason('khóa lô');
   const chooseDebitDisabledReason = !canChooseDebit
     ? 'Tài khoản không có quyền chọn Debit.'
     : selectedRows.length === 0
       ? 'Chọn ít nhất một lô.'
-      : unlockedSelected.length > 0
-        ? `Chọn Debit cần lô đã hoàn tất chi phí (đã khóa): ${incompleteLabels.join(', ')}`
-        : null;
+      : pendingSelected != null
+        ? pendingFeeReason('chọn Debit')
+        : unlockedSelected.length > 0
+          ? `Chọn Debit cần lô đã hoàn tất chi phí (đã khóa): ${incompleteLabels.join(', ')}`
+          : null;
   // SIL-866 — the export step of the accountant chain (Khóa lô → Chọn Debit
   // → Xuất Debit Note): gated like the issue endpoint; the selection scopes
   // the preview's đợt picker the way the chot-debit board's did.
@@ -267,7 +358,7 @@ export function DebitMergeGrid({
       ? 'Đang xuất…'
       : selectedRows.length === 0
         ? 'Chọn ít nhất một lô.'
-        : null;
+        : pendingFeeReason('xuất Debit Note');
 
   // Header geometry: per group, the visible leaf count + sub-group buckets.
   const groupSpan = (group: 1 | 2 | 3 | 4 | 5 | 6) =>
@@ -316,17 +407,31 @@ export function DebitMergeGrid({
             customized={columnsApi.customized}
             onToggle={columnsApi.toggle}
             onReset={columnsApi.reset}
+            onShowAll={columnsApi.showAll}
           />
         </div>
       </div>
       <div className="debit-merge__pane">
-        <table className="debit-merge__table">
+        <table className="debit-merge__table" ref={tableRef}>
           <thead>
             <tr className="debit-merge__groups-row">
               {([1, 2, 3, 4, 5, 6] as const).map((group) => {
                 const span = groupSpan(group);
                 if (span === 0) return null;
-                return <th key={group} colSpan={span} scope="colgroup" className="debit-merge__group">{GROUP_HEADERS[group]}</th>;
+                // Groups 1+2 sit wholly inside the sticky zone (SIL-891):
+                // dock each at its leading leaf's measured offset.
+                const leadingKey = stickyLeadingKey.get(group as 1 | 2);
+                return (
+                  <th
+                    key={group}
+                    colSpan={span}
+                    scope="colgroup"
+                    className="debit-merge__group"
+                    {...(leadingKey != null ? { 'data-sticky': '', style: { left: stickyLefts[leadingKey] ?? 0 } } : {})}
+                  >
+                    {GROUP_HEADERS[group]}
+                  </th>
+                );
               })}
             </tr>
             <tr className="debit-merge__subs-row">
@@ -334,7 +439,8 @@ export function DebitMergeGrid({
                 const groupColumns = visibleColumns.filter((column) => column.group === group);
                 if (groupColumns.length === 0) return [];
                 if (group !== 4) {
-                  return [<th key={`sub-${group}`} colSpan={groupColumns.length} aria-hidden="true" className="debit-merge__sub debit-merge__sub--blank" />];
+                  const leadingKey = stickyLeadingKey.get(group as 1 | 2);
+                  return [<th key={`sub-${group}`} colSpan={groupColumns.length} aria-hidden="true" className="debit-merge__sub debit-merge__sub--blank" {...(leadingKey != null ? { 'data-sticky': '', style: { left: stickyLefts[leadingKey] ?? 0 } } : {})} />];
                 }
                 // Group 4's sub-groups, in their fixed order.
                 const subs = [...new Set(groupColumns.map((column) => column.sub!))];
@@ -345,7 +451,15 @@ export function DebitMergeGrid({
             </tr>
             <tr>
               {visibleColumns.map((column) => (
-                <th key={column.key} scope="col" data-col={column.key} className={`debit-merge-col--${column.key}`}>{column.label}</th>
+                <th
+                  key={column.key}
+                  scope="col"
+                  data-col={column.key}
+                  className={`debit-merge-col--${column.key}`}
+                  {...(isStickyColumn(column) ? stickyProps(column.key) : {})}
+                >
+                  {column.label}
+                </th>
               ))}
             </tr>
           </thead>
@@ -417,10 +531,10 @@ export function DebitMergeGrid({
                   case 'khacHd': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="hd" /></td>;
                   case 'khacSoTien': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="amount" /></td>;
                   case 'khacTenPhi': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="name" /></td>;
-                  case 'gnFee': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnFee} /></td>;
-                  case 'gnPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnPaid} /></td>;
-                  case 'psFee': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psFee} /></td>;
-                  case 'psPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psPaid} /></td>;
+                  case 'gnFee': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnFee} pending={row.noInvoice.gnFeePending} /></td>;
+                  case 'gnPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnPaid} pending={row.noInvoice.gnPaidPending} /></td>;
+                  case 'psFee': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psFee} pending={row.noInvoice.psFeePending} /></td>;
+                  case 'psPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psPaid} pending={row.noInvoice.psPaidPending} /></td>;
                   case 'noInvTenPhi':
                     return (
                       <td key={key} data-col={key}>
@@ -429,7 +543,13 @@ export function DebitMergeGrid({
                           : (
                             <span className="debit-merge-cell debit-merge-cell--stack">
                               {row.noInvoice.fees.map((fee, index) => (
-                                <span className="debit-merge-cell__line" key={`${fee.name ?? 'khong-ten'}-${index}`}>{fee.name ?? '—'}</span>
+                                <span
+                                  className={`debit-merge-cell__line${fee.pending ? ' debit-merge-cell__line--pending' : ''}`}
+                                  key={`${fee.name ?? 'khong-ten'}-${index}`}
+                                  title={fee.pending ? PENDING_FEE_TIP : undefined}
+                                >
+                                  {fee.name ?? '—'}
+                                </span>
                               ))}
                             </span>
                           )}
@@ -457,7 +577,11 @@ export function DebitMergeGrid({
               };
               return (
                 <tr key={row.shipmentId} className="debit-merge__row" data-shipment-id={row.shipmentId}>
-                  {visibleColumns.map((column) => renderCell(column.key))}
+                  {visibleColumns.map((column) => {
+                    const cell = renderCell(column.key);
+                    if (!isStickyColumn(column)) return cell;
+                    return cloneElement(cell, stickyProps(column.key));
+                  })}
                 </tr>
               );
             })}
@@ -475,6 +599,7 @@ export function DebitMergeGrid({
                     key={column.key}
                     data-col={column.key}
                     className={`debit-merge__totals-cell debit-merge__totals-cell--${column.key}${column.key === 'tongTc' && total != null && Number(total) !== 0 ? ' debit-merge__totals-cell--warn' : ''}`}
+                    {...(isStickyColumn(column) ? stickyProps(column.key) : {})}
                   >
                     {isMoney ? (total == null ? '—' : formatMoney(Number(total))) : column.key === 'lot' ? 'Tổng cộng' : ''}
                   </td>

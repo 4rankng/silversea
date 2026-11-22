@@ -59,6 +59,12 @@ export interface SidebarProps {
   navRef: React.RefObject<HTMLElement | null>;
   activeSection?: string;
   toggleSection: (key: string) => void;
+  /** SIL-892 — the open choice is pinned (persisted) by the Pin control. */
+  sidebarPinned?: boolean;
+  onPin?: () => void;
+  /** SIL-892 — hover expand of the collapsed rail (desktop overlay mode). */
+  onMouseEnter?: React.MouseEventHandler<HTMLElement>;
+  onMouseLeave?: React.MouseEventHandler<HTMLElement>;
 }
 
 export interface TopbarProps {

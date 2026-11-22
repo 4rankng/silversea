@@ -178,6 +178,16 @@
   color: var(--warning-text);
 }
 
+/* SIL-883 (3.1) — saved but not yet accountant-approved: the ticket's red
+   #DC2626, declared LAST so the state beats the zero mute and the amber. */
+.debit-merge-money__pending {
+  color: #dc2626;
+}
+
+.debit-merge-cell__line--pending {
+  color: #dc2626;
+}
+
 .debit-merge-money__mergetag {
   /* SIL-583 r3: the "Ghép (n/2)" tag is the merge trigger — its 11px text
      box sat under the 24px WCAG 2.5.8 floor, and plain `inline` ignores
@@ -270,4 +280,38 @@
     min-width: var(--control-touch-h);
     min-height: var(--control-touch-h);
   }
+}
+
+/* ============================================================================
+ * SIL-891 — sticky-left zone: group 1 (Thông tin Lô hàng) through Loại cont.
+ * Offsets are measured per cell (left: px from the table edge), so hiding or
+ * showing a column re-docks the zone; the LAST sticky column carries the
+ * separating border + shadow. Layer law: sticky body cells (z1) sit under the
+ * header rows when scrolling vertically — the leaf header row bumped to z2 so
+ * it paints over its own body cells; groups (z3) stay above everything.
+ * ========================================================================== */
+.debit-merge__table [data-sticky] {
+  position: sticky;
+  background: var(--surface);
+}
+
+/* The leaf header row must paint over its own sticky body cells when the
+   pane scrolls vertically (existing leaf rule sets z1 — one notch up). */
+.debit-merge__table thead tr:last-child th[data-sticky] {
+  z-index: 2;
+}
+
+.debit-merge__table thead .debit-merge__groups-row th[data-sticky],
+.debit-merge__table thead .debit-merge__subs-row th[data-sticky] {
+  background: var(--surface-2, #f8fafc);
+}
+
+.debit-merge__table tfoot td[data-sticky] {
+  z-index: 2;
+  background: var(--surface-2, #f8fafc);
+}
+
+.debit-merge__table .debit-merge-col--sticky-last,
+.debit-merge__table [data-sticky-last] {
+  box-shadow: inset -1px 0 0 var(--border-2, #cbd5e1), 6px 0 10px -6px rgba(15, 23, 42, 0.28);
 }

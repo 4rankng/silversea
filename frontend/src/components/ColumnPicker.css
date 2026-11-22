@@ -116,6 +116,13 @@
   color: var(--ink-2);
 }
 
+.column-picker__reset-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .column-picker__reset {
   align-self: flex-start;
   flex-shrink: 0;

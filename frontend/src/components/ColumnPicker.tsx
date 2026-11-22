@@ -58,9 +58,11 @@ export interface ColumnPickerProps {
   customized: boolean;
   onToggle: (key: string) => void;
   onReset: () => void;
+  /** SIL-891 — 'Chọn tất cả' in the panel (Debit-merge surfaces pass it). */
+  onShowAll?: () => void;
 }
 
-export function ColumnPicker({ columns, hidden, customized, onToggle, onReset }: ColumnPickerProps) {
+export function ColumnPicker({ columns, hidden, customized, onToggle, onReset, onShowAll }: ColumnPickerProps) {
   const mode = useFilterBarMode();
   const dialogId = useId();
   const [isOpen, setIsOpen] = useState(false);
@@ -88,7 +90,7 @@ export function ColumnPicker({ columns, hidden, customized, onToggle, onReset }:
     return (
       <div className="column-picker column-picker--inline" data-component="column-picker">
         <span className="column-picker__caption">Cột hiển thị</span>
-        <ColumnPickerPanel columns={columns} hidden={hidden} customized={customized} onToggle={onToggle} onReset={onReset} />
+        <ColumnPickerPanel columns={columns} hidden={hidden} customized={customized} onToggle={onToggle} onReset={onReset} onShowAll={onShowAll} />
       </div>
     );
   }
@@ -104,7 +106,7 @@ export function ColumnPicker({ columns, hidden, customized, onToggle, onReset }:
       role="dialog"
       aria-label="Cột hiển thị"
     >
-      <ColumnPickerPanel columns={columns} hidden={hidden} customized={customized} onToggle={onToggle} onReset={onReset} />
+      <ColumnPickerPanel columns={columns} hidden={hidden} customized={customized} onToggle={onToggle} onReset={onReset} onShowAll={onShowAll} />
     </div>
   ) : null;
 
@@ -123,7 +125,7 @@ export function ColumnPicker({ columns, hidden, customized, onToggle, onReset }:
         aria-label={hiddenCount > 0 ? `Cột hiển thị, đang ẩn ${hiddenCount} cột` : 'Cột hiển thị'}
       >
         <Columns3 size={14} aria-hidden="true" />
-        <span className="column-picker__label">Cột</span>
+        <span className="column-picker__label">Cột hiển thị</span>
         {hiddenCount > 0 ? <span className="column-picker__count" aria-hidden="true">{hiddenCount}</span> : null}
         <ChevronDown size={14} className="column-picker__chevron" aria-hidden="true" />
       </button>

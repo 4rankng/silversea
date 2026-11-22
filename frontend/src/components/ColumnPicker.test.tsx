@@ -23,7 +23,25 @@ const renderPicker = (props: Partial<Parameters<typeof ColumnPicker>[0]> = {}, m
   return { onToggle, onReset };
 };
 
-describe('ColumnPicker — the one column-visibility control (card 20260928_193)', () => {
+describe('ColumnPicker — SIL-891 Chọn tất cả (Ghép bộ Debit surfaces)', () => {
+  it('offers Chọn tất cả beside Mặc định when the surface opts in, disabled while nothing is hidden', () => {
+    const onShowAll = vi.fn();
+    renderPicker({ onShowAll });
+    fireEvent.click(screen.getByRole('button', { name: 'Cột hiển thị, đang ẩn 1 cột' }));
+    const button = screen.getByRole('button', { name: 'Chọn tất cả' });
+    fireEvent.click(button);
+    expect(onShowAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits the button on surfaces that never opted in', () => {
+    renderPicker();
+    fireEvent.click(screen.getByRole('button', { name: 'Cột hiển thị, đang ẩn 1 cột' }));
+    expect(screen.queryByRole('button', { name: 'Chọn tất cả' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Mặc định' })).toBeTruthy();
+  });
+});
+
+describe('ColumnPicker — the one column-visibility control (card 20260928.193)', () => {
   it('renders one trigger on the bar, and opens a panel of the hideable columns', () => {
     renderPicker();
     const trigger = screen.getByRole('button', { name: 'Cột hiển thị, đang ẩn 1 cột' });

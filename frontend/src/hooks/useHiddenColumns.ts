@@ -42,6 +42,8 @@ export interface HiddenColumnsApi {
   choice: readonly string[] | null;
   toggle: (key: string) => void;
   reset: () => void;
+  /** SIL-891 — 'Chọn tất cả': every hideable column visible as an explicit choice. */
+  showAll: () => void;
 }
 
 function readChoice(storageKey: string, columns: readonly LedgerColumn[]): string[] | null {
@@ -103,6 +105,14 @@ export function useHiddenColumns({
     setChoice(null);
   }, [storageKey]);
 
+  // SIL-891 — 'Chọn tất cả': the EMPTY set as an explicit choice. It clears
+  // every hidden key and outlives reloads (an auto-hidden default column no
+  // longer resurrects), while 'Mặc định' still restores the surface default.
+  const showAll = useCallback(() => {
+    writeChoice(storageKey, []);
+    setChoice([]);
+  }, [storageKey]);
+
   return {
     hidden,
     isHidden: (key) => hidden.includes(key),
@@ -110,5 +120,6 @@ export function useHiddenColumns({
     choice,
     toggle,
     reset,
+    showAll,
   };
 }

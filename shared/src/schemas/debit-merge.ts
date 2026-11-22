@@ -37,12 +37,16 @@ export const debitMergeContainerSchema = z.object({
  *  HĐ (nullable — an entered row without the number yet); `amount` = Tiền /
  *  Số tiền (the customer charge); `actualAmount` = Thực chi (what was
  *  actually paid — only the nâng/hạ sub-groups carry it); `feeName` = Tên
- *  phí (only the Phí khác sub-group). */
+ *  phí (only the Phí khác sub-group).
+ *  SIL-883 (3.1) — `pending` = the fee saved but not yet accountant-approved
+ *  (the accounting-source link has no confirm stamp): the grid renders the
+ *  line red until Kế toán duyệt; approved rows omit it (black). */
 export const debitMergeInvoiceFeeSchema = z.object({
   invoiceNumber: z.string().nullable(),
   amount: moneyString,
   actualAmount: moneyString.nullable().optional(),
   feeName: z.string().nullable().optional(),
+  pending: z.boolean().optional(),
 });
 
 /** Group 4 — PHÍ CHI HỘ (Có hóa đơn): 4 sub-groups mapped from the expense
@@ -73,7 +77,13 @@ export const debitMergeNoInvoiceSchema = z.object({
   gnPaid: moneyString.nullable(),
   psFee: moneyString.nullable(),
   psPaid: moneyString.nullable(),
-  fees: z.array(z.object({ name: z.string().nullable(), amount: moneyString })),
+  /** SIL-883 (3.1) — per-cell pending tone: true when ANY contributing entry
+   *  of that side is still awaiting Kế toán duyệt (cell renders red). */
+  gnFeePending: z.boolean().optional(),
+  gnPaidPending: z.boolean().optional(),
+  psFeePending: z.boolean().optional(),
+  psPaidPending: z.boolean().optional(),
+  fees: z.array(z.object({ name: z.string().nullable(), amount: moneyString, pending: z.boolean().optional() })),
 });
 
 /** Group 6 — KIỂM SOÁT. `tongTc` = Tổng thực thu khách, the summary's
@@ -85,6 +95,10 @@ export const debitMergeControlSchema = z.object({
   tongTc: moneyString.nullable(),
   lockStatus: z.enum(['OPEN', 'LOCKED']),
   lockedAt: z.iso.datetime().nullable(),
+  /** SIL-883 (3.2) — how many of the lot's saved fees still await Kế toán
+   *  duyệt. >0 hard-blocks Khóa lô / Chọn Debit / Xuất Debit Note on the FE
+   *  and the matching BE guards 409 with the same count. */
+  pendingFeeCount: z.number().int().nonnegative().optional(),
 });
 
 export const debitMergeItemSchema = z.object({

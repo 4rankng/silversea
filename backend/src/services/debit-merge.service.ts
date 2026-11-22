@@ -68,13 +68,16 @@ export function debitChiHoGroupOf(category: string | null | undefined): keyof De
 /** Raw invoiced chi-hộ row shape the pure builder consumes (unit-tested
  *  without a db). `charge` = the customer side (null falls back to the paid
  *  amount — the receivableForCost identity for invoice rows); `paid` = Thực
- *  chi; negative rows are dropped (card 20260928_197: behave as absent). */
+ *  chi; negative rows are dropped (card 20260928_197: behave as absent).
+ *  SIL-883 (3.1) — `pending` = the row awaits Kế toán duyệt (no confirm
+ *  stamp on its OPS accounting-source link). */
 export interface RawChiHoFeeRow {
   category: string | null;
   charge: string | null;
   paid: string | null;
   feeName: string | null;
   invoiceNumber: string | null;
+  pending: boolean;
 }
 
 /** Pure group-4 assembly: bucket the fixture rows into the 4 sub-groups. */
@@ -84,10 +87,11 @@ export function buildDebitMergeChiHo(rows: RawChiHoFeeRow[]): DebitMergeChiHo {
     const paid = row.paid == null ? null : toNumber(row.paid);
     if (paid != null && paid < 0) continue;
     const amount = paid ?? 0;
-    const fee: DebitMergeInvoiceFee = {
+    const base: DebitMergeInvoiceFee = {
       invoiceNumber: row.invoiceNumber,
       amount: String(row.charge != null ? toNumber(row.charge) : amount),
     };
+    const fee: DebitMergeInvoiceFee = row.pending ? { ...base, pending: true } : base;
     switch (debitChiHoGroupOf(row.category)) {
       case 'csht':
         chiHo.csht.push(fee);
@@ -116,43 +120,60 @@ export interface NoInvoiceGroupResult {
   gnPaid: number | null;
   psFee: number | null;
   psPaid: number | null;
-  fees: Array<{ name: string | null; amount: number }>;
+  /** SIL-883 (3.1) — the side carries ≥1 entry awaiting Kế toán duyệt. */
+  gnFeePending: boolean;
+  gnPaidPending: boolean;
+  psFeePending: boolean;
+  psPaidPending: boolean;
+  fees: Array<{ name: string | null; amount: number; pending?: boolean }>;
 }
 
 /** Pure group-5 assembly over the no-invoice Ops rows (costGroup carries the
  *  family: OPS_REGULAR = Giao nhận Ops, OPS_INCIDENTAL = Phát sinh Ops).
  *  Thực thu reads the customer charge (receivableForCost law: 0 when the
- *  row never negotiated one); negative rows are dropped like group 4. */
+ *  row never negotiated one); negative rows are dropped like group 4.
+ *  SIL-883 (3.1) — `pending` rides the row; a family side reads pending when
+ *  ANY contributing entry of that side still awaits Kế toán duyệt. */
 export function buildDebitMergeNoInvoice(
-  rows: Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null }>,
+  rows: Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null; pending: boolean }>,
 ): NoInvoiceGroupResult {
   let gnFeeKnown = false;
   let gnFee = 0;
+  let gnFeePending = false;
   let gnPaidKnown = false;
   let gnPaid = 0;
+  let gnPaidPending = false;
   let psFeeKnown = false;
   let psFee = 0;
+  let psFeePending = false;
   let psPaidKnown = false;
   let psPaid = 0;
-  const fees: Array<{ name: string | null; amount: number }> = [];
+  let psPaidPending = false;
+  const fees: Array<{ name: string | null; amount: number; pending?: boolean }> = [];
   for (const row of rows) {
     const fee = row.paid == null ? null : toNumber(row.paid);
     if (fee != null && fee < 0) continue;
     const paid = row.charge == null ? null : toNumber(row.charge);
     if (row.costGroup === 'OPS_REGULAR') {
-      if (fee != null) { gnFeeKnown = true; gnFee += fee; }
-      if (paid != null) { gnPaidKnown = true; gnPaid += paid; }
+      if (fee != null) { gnFeeKnown = true; gnFee += fee; if (row.pending) gnFeePending = true; }
+      if (paid != null) { gnPaidKnown = true; gnPaid += paid; if (row.pending) gnPaidPending = true; }
     } else if (row.costGroup === 'OPS_INCIDENTAL') {
-      if (fee != null) { psFeeKnown = true; psFee += fee; }
-      if (paid != null) { psPaidKnown = true; psPaid += paid; }
+      if (fee != null) { psFeeKnown = true; psFee += fee; if (row.pending) psFeePending = true; }
+      if (paid != null) { psPaidKnown = true; psPaid += paid; if (row.pending) psPaidPending = true; }
     }
-    fees.push({ name: row.feeName, amount: fee ?? 0 });
+    const line: { name: string | null; amount: number; pending?: boolean } = { name: row.feeName, amount: fee ?? 0 };
+    if (row.pending) line.pending = true;
+    fees.push(line);
   }
   return {
     gnFee: gnFeeKnown ? gnFee : null,
     gnPaid: gnPaidKnown ? gnPaid : null,
     psFee: psFeeKnown ? psFee : null,
     psPaid: psPaidKnown ? psPaid : null,
+    gnFeePending,
+    gnPaidPending,
+    psFeePending,
+    psPaidPending,
     fees,
   };
 }
@@ -367,26 +388,42 @@ export async function getDebitMergeBoard(query: {
     charge: s.opsExpenseEntries.customerChargeAmount,
     feeName: s.opsExpenseEntries.feeName,
     invoiceNumber: s.opsExpenseEntries.invoiceNumber,
+    // SIL-883 (3.1) — the duyệt axis: the OPS accounting-source link's
+    // confirm stamp decides chờ duyệt (null) vs đã duyệt, and the entry's
+    // own approval_status decides từ chối (REJECTED — the row vanishes).
+    approvalStatus: s.opsExpenseEntries.approvalStatus,
+    confirmedAt: s.expenseAccountingSources.confirmedAt,
   }).from(s.opsExpenseEntries)
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
+    .leftJoin(s.expenseAccountingSources, and(
+      eq(s.expenseAccountingSources.sourceKind, 'OPS'),
+      eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id),
+    ))
     .where(inArray(s.opsExpenseEntries.shipmentId, lotIds));
 
   const chiHoRawByLot = new Map<number, RawChiHoFeeRow[]>();
-  const noInvoiceRawByLot = new Map<number, Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null }>>();
+  const noInvoiceRawByLot = new Map<number, Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null; pending: boolean }>>();
   const opsChargeByLot = new Map<number, { known: boolean; total: number }>();
   // Lạch Huyện charge side (the board's thu seam — `amount` is the điều vận
   // cost, never billed on this grid).
   const zoneCode = 'ZONE_SURCHARGE';
   const zoneChargeByLot = new Map<number, number>();
+  // SIL-883 (3.1)/(3.2) — per-lot count of saved fees awaiting Kế toán
+  // duyệt; the grid renders the cells red and hard-blocks the money chain.
+  const pendingFeeCountByLot = new Map<number, number>();
   for (const row of opsRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
+    const rejected = row.approvalStatus === 'REJECTED';
+    const voided = row.approvalStatus === 'VOIDED';
+    const pending = !rejected && !voided && row.confirmedAt == null;
+    if (pending) pendingFeeCountByLot.set(lot, (pendingFeeCountByLot.get(lot) ?? 0) + 1);
     if (row.expenseTypeCode === zoneCode) {
       // Lạch Huyện charge side (the board's `lachHuyen` cell).
       if (row.charge != null) {
         zoneChargeByLot.set(lot, (zoneChargeByLot.get(lot) ?? 0) + toNumber(row.charge));
       }
-    } else if (row.costGroup != null && row.costGroup.startsWith('INVOICED_')) {
+    } else if (!rejected && row.costGroup != null && row.costGroup.startsWith('INVOICED_')) {
       const bucket = chiHoRawByLot.get(lot) ?? [];
       bucket.push({
         category: row.category ?? null,
@@ -394,11 +431,12 @@ export async function getDebitMergeBoard(query: {
         paid: row.amount,
         feeName: row.feeName,
         invoiceNumber: row.invoiceNumber,
+        pending,
       });
       chiHoRawByLot.set(lot, bucket);
-    } else {
+    } else if (!rejected) {
       const bucket = noInvoiceRawByLot.get(lot) ?? [];
-      bucket.push({ costGroup: row.costGroup ?? null, charge: row.charge, paid: row.amount, feeName: row.feeName });
+      bucket.push({ costGroup: row.costGroup ?? null, charge: row.charge, paid: row.amount, feeName: row.feeName, pending });
       noInvoiceRawByLot.set(lot, bucket);
     }
     // Receivable's ops-charge side (card _56): only the NEGOTIATED customer
@@ -527,7 +565,10 @@ export async function getDebitMergeBoard(query: {
       merged: lot.revGroupId != null,
     });
 
-    const noInvoice = noInvoiceByLot.get(lot.id) ?? { gnFee: null, gnPaid: null, psFee: null, psPaid: null, fees: [] };
+    const noInvoice = noInvoiceByLot.get(lot.id) ?? {
+      gnFee: null, gnPaid: null, psFee: null, psPaid: null,
+      gnFeePending: false, gnPaidPending: false, psFeePending: false, psPaidPending: false, fees: [],
+    };
     return {
       shipmentId: lot.id,
       code: lot.code,
@@ -554,12 +595,17 @@ export async function getDebitMergeBoard(query: {
         gnPaid: noInvoice.gnPaid == null ? null : String(noInvoice.gnPaid),
         psFee: noInvoice.psFee == null ? null : String(noInvoice.psFee),
         psPaid: noInvoice.psPaid == null ? null : String(noInvoice.psPaid),
-        fees: noInvoice.fees.map((fee) => ({ name: fee.name, amount: String(fee.amount) })),
+        gnFeePending: noInvoice.gnFeePending,
+        gnPaidPending: noInvoice.gnPaidPending,
+        psFeePending: noInvoice.psFeePending,
+        psPaidPending: noInvoice.psPaidPending,
+        fees: noInvoice.fees.map((fee) => ({ name: fee.name, amount: String(fee.amount), pending: fee.pending })),
       },
       control: {
         tongTc: tongTc == null ? null : String(tongTc),
         lockStatus: (lock != null ? 'LOCKED' : 'OPEN') as 'LOCKED' | 'OPEN',
         lockedAt: lock?.lockedAt.toISOString() ?? null,
+        pendingFeeCount: pendingFeeCountByLot.get(lot.id) ?? 0,
       },
       cargoMode: (lot.cargoMode ?? null) as 'FCL' | 'LCL' | null,
       revGroupId: lot.revGroupId,

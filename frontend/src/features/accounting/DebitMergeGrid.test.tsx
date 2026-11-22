@@ -360,3 +360,71 @@ describe('DebitMergeGrid — toolbar: pagination, column picker, actions', () =>
     }
   });
 });
+
+describe('SIL-883 — chi phí đỏ/đen tức thời + hard-block', () => {
+  const pendingFee = { invoiceNumber: '360402', amount: '7603200', pending: true };
+  const approvedFee = { invoiceNumber: '360403', amount: '1200000' };
+  const PENDING_TIP = 'Chờ kế toán duyệt chi phí';
+
+  const reasonFor = (tipId: string): string | null =>
+    document.getElementById(`${tipId}-disabled-reason`)?.textContent ?? null;
+
+  it('renders a saved-but-unapproved fee line red with the duyệt tooltip, approved lines black', () => {
+    renderGrid({}, [mergeRow({ chiHo: { csht: [pendingFee, approvedFee], lift: [], drop: [], other: [] } })]);
+    // the pending fee renders TWICE (Số HĐ + Tiền stack lines) — both red+tipped
+    const pending = screen.getAllByTitle(PENDING_TIP);
+    expect(pending).toHaveLength(2);
+    for (const line of pending) expect(line.className).toContain('debit-merge-cell__line--pending');
+    expect(pending.map((line) => line.textContent).join(' ')).toContain('7.603.200');
+    // the approved sibling carries neither the class nor the tooltip
+    const approved = screen.getByText('1.200.000');
+    expect(approved.className).not.toContain('debit-merge-cell__line--pending');
+    expect(approved.getAttribute('title')).toBeNull();
+  });
+
+  it('paints a group-5 family cell red when any contributing entry awaits duyệt', () => {
+    renderGrid({}, [mergeRow({ noInvoice: { gnFee: '200000', gnPaid: null, psFee: null, psPaid: null, gnFeePending: true, fees: [] } })]);
+    const cell = document.querySelector('.debit-merge-money__value.debit-merge-money__pending');
+    expect(cell).toBeTruthy();
+    expect(cell!.getAttribute('title')).toBe(PENDING_TIP);
+    expect(cell!.textContent).toBe('200.000');
+  });
+
+  it('hard-blocks Khóa lô / Chọn Debit / Xuất Debit Note while a selected lot carries pending fees', () => {
+    const rows = [
+      mergeRow({ shipmentId: 1 }),
+      mergeRow({ shipmentId: 2, billOrBookNumber: 'BL-77', control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null, pendingFeeCount: 3 } }),
+    ];
+    renderGrid({ canExportDebitNote: true, onExportDebitNote: vi.fn(), selection: new Set([1, 2]) }, rows);
+    expect(reasonFor('debit-merge-lock')).toBe('Không thể khóa lô: Lô BL-77 còn 3 khoản chi phí chưa được Kế toán duyệt.');
+    expect(reasonFor('debit-merge-choose')).toBe('Không thể chọn Debit: Lô BL-77 còn 3 khoản chi phí chưa được Kế toán duyệt.');
+    expect(reasonFor('debit-merge-export')).toBe('Không thể xuất Debit Note: Lô BL-77 còn 3 khoản chi phí chưa được Kế toán duyệt.');
+  });
+
+  it('unblocks the money chain the moment the pending count reaches 0 (duyệt/từ chối landed)', () => {
+    const onLockSelected = vi.fn();
+    const rows = [
+      mergeRow({ shipmentId: 1, control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null, pendingFeeCount: 0 } }),
+    ];
+    renderGrid({ canExportDebitNote: true, onExportDebitNote: vi.fn(), selection: new Set([1]), onLockSelected }, rows);
+    fireEvent.click(screen.getByRole('button', { name: 'Khóa lô' }));
+    expect(onLockSelected).toHaveBeenCalledWith([1]);
+    expect(reasonFor('debit-merge-lock')).toBeNull();
+  });
+
+  it('docks the sticky zone: group 1+2 cells carry data-sticky with measured offsets, the last one the separator', () => {
+    renderGrid();
+    const first = document.querySelector<HTMLElement>('thead th[data-col="ngay"]');
+    expect(first).toBeTruthy();
+    expect(first!.hasAttribute('data-sticky')).toBe(true);
+    expect(first!.style.left).toBe('0px');
+    const contType = document.querySelector<HTMLElement>('thead th[data-col="contType"]');
+    expect(contType!.hasAttribute('data-sticky')).toBe(true);
+    const last = document.querySelector('thead th[data-sticky-last]');
+    expect(last).toBeTruthy();
+    expect(last!.getAttribute('data-col')).toBe('contType');
+    // body cells dock too
+    const bodyCell = document.querySelector<HTMLElement>('tbody td[data-col="contType"][data-sticky]');
+    expect(bodyCell).toBeTruthy();
+  });
+});

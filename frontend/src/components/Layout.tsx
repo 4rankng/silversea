@@ -51,6 +51,7 @@ import { hasOperationalDensity } from '../lib/operational-density';
 import { useDispatchFullwidthSidebar } from '../lib/dispatch-sidebar-policy';
 import { BRAND } from '../brand';
 import { requestAppNavigation } from '../lib/app-navigation';
+import { readSidebarOpenPref, writeSidebarOpenPref, clearSidebarOpenPref } from '../lib/sidebar-prefs';
 
 // ─── Navigation config ────────────────────────────────────────────────────
 
@@ -575,16 +576,48 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const bottomNavRef = useBottomNavAnimations({ ready: !!user && user.role === 'DRIVER' });
-  const [sidebarOpen, setSidebarOpen] = useState(() => resolveInitialSidebarOpen(window.innerWidth));
+  // SIL-892 — the open choice now persists: a stored '1'/'0' beats the
+  // viewport default, absent key keeps the old first-run behavior unchanged.
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const pref = readSidebarOpenPref();
+    return pref != null ? pref === '1' : resolveInitialSidebarOpen(window.innerWidth);
+  });
+  const [sidebarPinned, setSidebarPinned] = useState(() => readSidebarOpenPref() === '1');
   // An explicit user choice survives breakpoint crossings; without one the
   // crossing re-derives the width default (first-run behavior unchanged).
-  const sidebarPreferenceRef = useRef<boolean | null>(null);
+  const sidebarPreferenceRef = useRef<boolean | null>(readSidebarOpenPref() === '1' ? true : readSidebarOpenPref() === '0' ? false : null);
   const toggleSidebar = useCallback(() => {
     setSidebarOpen(v => {
-      sidebarPreferenceRef.current = !v;
-      return !v;
+      const next = !v;
+      sidebarPreferenceRef.current = next;
+      writeSidebarOpenPref(next);
+      if (!next) setSidebarPinned(false);
+      return next;
     });
   }, []);
+  // SIL-892 — Pin: persist open across reloads. Un-pin clears the stored
+  // choice (viewport default governs again); the pane itself stays open.
+  const pinSidebar = useCallback(() => {
+    if (sidebarPinned) {
+      clearSidebarOpenPref();
+      setSidebarPinned(false);
+      sidebarPreferenceRef.current = null;
+      return;
+    }
+    writeSidebarOpenPref(true);
+    sidebarPreferenceRef.current = true;
+    setSidebarPinned(true);
+    setSidebarOpen(true);
+  }, [sidebarPinned]);
+  // SIL-892 — hover expand: the collapsed rail blooms into a fixed overlay;
+  // leaving it (or navigating, or Esc) folds it back to the rail. Desktop
+  // only — the <1024px drawer keeps its own behavior below.
+  const [sidebarHoverOpen, setSidebarHoverOpen] = useState(false);
+  const closeSidebarHover = useCallback(() => setSidebarHoverOpen(false), []);
+  const handleSidebarMouseEnter = useCallback(() => {
+    if (window.innerWidth >= 1024 && !sidebarOpen) setSidebarHoverOpen(true);
+  }, [sidebarOpen]);
+  const handleSidebarMouseLeave = useCallback(() => setSidebarHoverOpen(false), []);
   const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -623,6 +656,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, []);
   const closeSidebar = useCallback(() => {
     setSidebarOpen(false);
+    setSidebarHoverOpen(false);
+    // SIL-892 — an explicit close (✕ / Esc) is a desktop choice: persist it
+    // like the ≡ toggle; mobile keeps its transient drawer behavior.
+    if (!window.matchMedia('(max-width: 1023px)').matches) writeSidebarOpenPref(false);
     if (window.matchMedia('(max-width: 1023px)').matches) {
       requestAnimationFrame(() => menuButtonRef.current?.focus());
     }
@@ -756,11 +793,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
         e.preventDefault();
         toggleSidebar();
+        return;
+      }
+      // SIL-892 — Esc folds the hover-expanded overlay back to the rail.
+      if (e.key === 'Escape' && sidebarHoverOpen) {
+        setSidebarHoverOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, sidebarHoverOpen]);
 
   // Badge counts
   const { data: badgeData } = useBadgeCounts({
@@ -796,6 +838,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const handleNavigate = useCallback((path: string) => {
     requestAppNavigation(path, () => {
       if (window.innerWidth < 1024) setSidebarOpen(false);
+      // SIL-892 — picking from the hover-expanded menu folds it back.
+      setSidebarHoverOpen(false);
       setUserMenuOpen(false);
       navigate(path);
     });
@@ -903,6 +947,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navRef,
     activeSection,
     toggleSection,
+    sidebarPinned,
+    onPin: pinSidebar,
+    onMouseEnter: handleSidebarMouseEnter,
+    onMouseLeave: handleSidebarMouseLeave,
   };
 
   const topbarProps = {
@@ -915,7 +963,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className={`app ${!sidebarOpen ? 'sidebar-closed' : ''} ${isDriver ? 'is-driver' : ''} ${hasOperationalDensity(location.pathname) ? 'app--operational-density' : 'app--frozen-operational-surface'}`}>
+    <div className={`app ${!sidebarOpen ? 'sidebar-closed' : ''} ${sidebarHoverOpen ? 'sidebar-hover-open' : ''} ${isDriver ? 'is-driver' : ''} ${hasOperationalDensity(location.pathname) ? 'app--operational-density' : 'app--frozen-operational-surface'}`}>
       <a href="#main-content" className="skip-link">Bỏ qua đến nội dung chính</a>
       {/* Screen reader live region for route changes */}
       <div aria-live="polite" aria-atomic="true" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap' }}>{ariaLiveMsg}</div>

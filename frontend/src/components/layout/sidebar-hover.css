@@ -1,0 +1,129 @@
+/* ============================================================================
+ * SIL-892 — sidebar hover-expand overlay + Pin control (desktop ≥1024px).
+ *
+ * The collapsed rail stays 48px in the grid; hovering it blooms the full
+ * 248px pane as a FIXED overlay above the content (nothing reflows). Leaving
+ * the pane, picking a route, or Esc folds it back (Layout owns the state —
+ * the `.sidebar-hover-open` root class is the only contract here).
+ *
+ * The collapsed look comes from app-shell.css's `.app.sidebar-closed .X`
+ * rules; with the root carrying BOTH classes these overrides re-apply the
+ * expanded look inside the pane (same media query, +1 root class ⇒ wins).
+ * ========================================================================== */
+
+@media (min-width: 1024px) {
+  .app.sidebar-hover-open .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    z-index: var(--z-overlay);
+    box-shadow: 8px 0 24px rgba(15, 23, 42, 0.18);
+  }
+
+  /* ── restore the expanded look inside the pane ─────────────────────────── */
+  .app.sidebar-closed.sidebar-hover-open .sidebar-brand {
+    justify-content: flex-start;
+    padding: 18px 16px 16px;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-brand-meta {
+    display: flex;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-nav {
+    padding: 8px 10px calc(var(--sidebar-footer-reserve, 72px) + 8px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-section-label {
+    display: flex;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-item {
+    min-height: var(--control-max-h);
+    padding: 10px 12px 10px 14px;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-item-label,
+  .app.sidebar-closed.sidebar-hover-open .nav-item__badge {
+    display: inline-flex;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-item > svg:not(:first-child) {
+    display: block;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-item::before {
+    display: block;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-footer {
+    padding: 8px 10px;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-user {
+    justify-content: flex-start;
+    padding: 8px 4px;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-user .meta,
+  .app.sidebar-closed.sidebar-hover-open .sidebar-user > svg:last-child {
+    display: flex;
+  }
+
+  /* The user dropdown parks beside the pane, not over the 48px rail. */
+  .app.sidebar-closed.sidebar-hover-open .sidebar-user-dropdown {
+    left: calc(var(--sidebar-w) + 8px);
+  }
+
+  /* ── Pin control ───────────────────────────────────────────────────────── */
+  .sidebar-pin {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-left: auto;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--sb-text-muted, rgba(255, 255, 255, 0.64));
+    cursor: pointer;
+    transition: background var(--t-fast), color var(--t-fast);
+  }
+
+  .sidebar-pin:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--sb-text, #fff);
+  }
+
+  .sidebar-pin:focus-visible {
+    outline: 2px solid var(--focus, var(--accent));
+    outline-offset: 1px;
+  }
+
+  .sidebar-pin__off {
+    display: none;
+  }
+
+  .sidebar-pin--on .sidebar-pin__icon {
+    display: none;
+  }
+
+  .sidebar-pin--on .sidebar-pin__off {
+    display: block;
+  }
+
+  /* On the 48px icon rail the brand row collapses to a centered logo — the
+     pin has no room there and its state lives in the ≡ toggle's storage. */
+  .app.sidebar-closed:not(.sidebar-hover-open) .sidebar-pin {
+    display: none;
+  }
+}

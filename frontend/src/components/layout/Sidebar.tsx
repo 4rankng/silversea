@@ -5,6 +5,8 @@ import {
   ChevronDown,
   ChevronUp,
   LogOut,
+  Pin,
+  PinOff,
   User,
   UserCog,
   KeyRound,
@@ -45,6 +47,10 @@ export function Sidebar({
   navRef,
   activeSection: _activeSection,
   toggleSection,
+  sidebarPinned,
+  onPin,
+  onMouseEnter,
+  onMouseLeave,
 }: SidebarProps) {
   const animRef = useSidebarAnimations();
   const asideRef = useRef<HTMLElement>(null);
@@ -207,6 +213,8 @@ export function Sidebar({
         className={`sidebar ${sidebarOpen ? 'open' : ''}`}
         aria-hidden={isMobileViewport && !sidebarOpen ? true : undefined}
         inert={isMobileViewport && !sidebarOpen}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
         <div className="sidebar-brand">
           <div className="sidebar-brand-logo">
@@ -216,6 +224,22 @@ export function Sidebar({
             <strong>{BRAND.name}</strong>
             <span>{BRAND.shellDescriptor}</span>
           </div>
+          {/* SIL-892 — Pin: keep the sidebar open across reloads. While
+              pinned the button offers the un-pin (viewport default again);
+              hidden on the icon rail where the header collapses to a logo. */}
+          {onPin != null && (
+            <button
+              type="button"
+              className={`sidebar-pin${sidebarPinned ? ' sidebar-pin--on' : ''}`}
+              aria-label={sidebarPinned ? 'Bỏ ghim menu' : 'Ghim mở menu'}
+              aria-pressed={sidebarPinned || undefined}
+              title={sidebarPinned ? 'Bỏ ghim — về mặc định theo màn hình' : 'Ghim mở menu'}
+              onClick={onPin}
+            >
+              <Pin size={16} className="sidebar-pin__icon" />
+              <PinOff size={16} className="sidebar-pin__off" />
+            </button>
+          )}
           <button
             type="button"
             className="sidebar-close"

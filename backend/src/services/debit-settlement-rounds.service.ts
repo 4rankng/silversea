@@ -21,6 +21,7 @@ import { getAccountingDebitBoard, assertNoPendingRateAdjustment } from './accoun
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { carrierKeysForLot, type CarrierDerivationEntry } from './debit-settlement-shared';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
+import { assertNoPendingApprovalFees } from './shipment-pending-fees.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
 import { documentVatTotals } from './billing-document-shared.service';
 import type { Tx } from './trip-shared';
@@ -116,6 +117,9 @@ export async function createDebitSettlementRound(input: {
     if (noDate.length > 0) {
       throw new ApiError(400, `Lô ${noDate.map((l) => l.code ?? `#${l.id}`).join(', ')} chưa có ngày giao.`);
     }
+    // SIL-883 (3.2) — Chọn Debit hard-blocks while any selected lot still
+    // carries a fee awaiting Kế toán duyệt (the same count the boards render).
+    await assertNoPendingApprovalFees(tx, shipmentIds, 'chọn Debit');
     const outOfRange = lots.filter((l) => l.ngay! < input.dateFrom || l.ngay! > input.dateTo);
     if (outOfRange.length > 0) {
       throw new ApiError(400, `Lô ${outOfRange.map((l) => l.code ?? `#${l.id}`).join(', ')} có ngày giao ngoài khoảng đã chọn.`);

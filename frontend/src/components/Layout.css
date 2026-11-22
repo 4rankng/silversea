@@ -6,6 +6,7 @@
 
 @import "./layout/app-shell.css";
 @import "./layout/sidebar.css";
+@import "./layout/sidebar-hover.css";
 @import "./layout/topbar.css";
 @import "./layout/sidebar-overlay.css";
 @import "./layout/bottom-nav.css";

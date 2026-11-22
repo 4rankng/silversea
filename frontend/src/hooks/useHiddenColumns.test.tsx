@@ -112,4 +112,16 @@ describe('useHiddenColumns — the choice survives a reload (card 20260928_193)'
     const { result: after } = setupRequired();
     expect(after.current.hidden).toEqual(['documents']);
   });
+
+  it('SIL-891 — Chọn tất cả shows every hideable column as an explicit choice', () => {
+    const { result } = setup(false);
+    expect(result.current.isHidden('notes')).toBe(true);
+    act(() => result.current.showAll());
+    expect(result.current.hidden).toEqual([]);
+    expect(result.current.isHidden('notes')).toBe(false);
+    // the empty set IS the stored choice — a reload keeps everything visible,
+    // and "Mặc định" (customized) has a stored default to restore.
+    expect(JSON.parse(localStorage.getItem(KEY) ?? '[]')).toEqual([]);
+    expect(result.current.customized).toBe(true);
+  });
 });

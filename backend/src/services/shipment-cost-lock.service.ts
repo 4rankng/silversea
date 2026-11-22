@@ -24,6 +24,7 @@ import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
 import { assertRoundAttachableToDebitNote } from './debit-settlement-shared';
 import { deriveLotPricingGrounds } from './freight-rate-snapshot-lifecycle.service';
 import { classifyLotPricingBasis } from './freight-lot-basis';
+import { assertNoPendingApprovalFees } from './shipment-pending-fees.service';
 
 export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần Quản trị, Giám đốc hoặc Kế toán mở khóa (kèm lý do) để chỉnh sửa chi phí.';
 export const SHIPMENT_COST_NOT_LOCKED_MESSAGE = 'Lô hàng chưa khóa chi phí — hãy khóa lô trước khi điều chỉnh.';
@@ -260,6 +261,9 @@ export async function lockShipmentCost(input: LockShipmentCostInput): Promise<Sh
           ))
           .limit(1);
         if (active) throw new ApiError(409, SHIPMENT_COST_LOCKED_MESSAGE);
+        // SIL-883 (3.2) — a lot with fees awaiting Kế toán duyệt may not
+        // leave the editable chain: the same count the boards render red.
+        await assertNoPendingApprovalFees(tx, [input.shipmentId], 'khóa lô');
         const snapshot = await buildCostSnapshot(input.shipmentId, tx);
         const [row] = await tx.insert(s.shipmentCostLocks).values({
           shipmentId: input.shipmentId,
@@ -561,6 +565,10 @@ export async function createDebitNoteFromCostLock(
         ))
         .limit(1);
       if (!lock) throw new ApiError(409, SHIPMENT_COST_NOT_LOCKED_MESSAGE);
+      // SIL-883 (3.2) — issuance stays blocked while any saved fee of the
+      // lot still awaits Kế toán duyệt (defensive: post-guard locks cannot
+      // gain pending rows, pre-guard locks are checked here).
+      await assertNoPendingApprovalFees(tx, [input.shipmentId], 'xuất Debit Note');
       await assertLotsNotInIssuedDebitNote(tx, [input.shipmentId]);
       const { rangeFrom, rangeTo } = deriveRangeFromSelection([lot]);
       const snapshot = (lock.snapshot ?? {}) as Record<string, unknown>;
@@ -686,6 +694,9 @@ export async function createConsolidatedDebitNote(
   if (lockRows.length !== shipmentIds.length) {
     throw new ApiError(409, 'Xuất Debit Note chỉ áp dụng cho lô đã khóa chi phí.');
   }
+  // SIL-883 (3.2) — same pending-approval hard block as the single-lot
+  // issuance; the 409 names the first blocked lot with its Số Bill.
+  await assertNoPendingApprovalFees(db, shipmentIds, 'xuất Debit Note');
   const customerId = lots[0]!.customerId ?? 0;
   // Ticket 18/11 Task 2.4 (SIL-855) — the đợt the preview attached must be a
   // THU round of this same customer; a TRA round never posts công nợ phải thu.
