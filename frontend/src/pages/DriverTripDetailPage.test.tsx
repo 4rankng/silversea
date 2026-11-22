@@ -1724,7 +1724,14 @@ describe('busy-trip recovery', () => {
     expect(banner.textContent).toContain('BL-2026-001');
     expect(banner.textContent).not.toContain('TRP-TEST-1');
     expect((await screen.findByRole('link', { name: 'Mở chuyến đang chạy' })).getAttribute('href')).toBe('/my-trips/61');
-    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error', message: expect.stringContaining('BL-2026-001') }));
+    // SIL-880: the blocked toast must carry the banner's link as a toast
+    // action — same /my-trips/:id target, reachable inside the FB-145 window.
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'error',
+      message: expect.stringContaining('BL-2026-001'),
+      duration: 8000,
+      action: { label: 'Mở chuyến đang chạy', onPress: expect.any(Function) },
+    }));
     rejection.mockRestore();
   });
 
@@ -1743,6 +1750,8 @@ describe('busy-trip recovery', () => {
     expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'error',
       message: expect.stringContaining('không thuộc danh sách lệnh của bạn'),
+      // SIL-880: no owned trip id → the toast stays text-only like the banner.
+      action: undefined,
     }));
     // Banner renders above the main fieldset/footer so mobile drivers at scrollY=0 see it immediately
     const progressStrip = screen.getByTestId('driver-task-progress');
@@ -1760,7 +1769,7 @@ describe('busy-trip recovery', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Nhận lệnh vận chuyển/ }));
     const banner = await screen.findByTestId('blocking-trip-banner');
     expect(banner.textContent).not.toContain('TRP-TEST-1');
-    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error', message: expect.not.stringContaining('TRP-TEST-1') }));
+    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error', message: expect.not.stringContaining('TRP-TEST-1'), action: undefined }));
     rejection.mockRestore();
   });
 

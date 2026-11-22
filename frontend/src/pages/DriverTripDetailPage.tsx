@@ -198,7 +198,20 @@ function DriverTripDetailContent() {
         // No label (ad-hoc/branch trip with no shipment) → generic copy — the
         // translated 409 message embeds the internal TRP code, which §8/FB-019
         // forbid rendering.
-        toast({ kind: 'error', message: blockedAcceptToastMessage(blocked) });
+        // SIL-880 (QA FAIL 23/11): the toast must carry the banner's escape
+        // hatch too — the same /my-trips/:id link, not just prose + (x).
+        // FB-145 action slot; the explicit duration keeps the action inside
+        // its 5–8s reachability window. Unowned trips carry tripId null →
+        // text-only toast, mirroring the banner.
+        const blockedTripId = blocked.tripId;
+        toast({
+          kind: 'error',
+          message: blockedAcceptToastMessage(blocked),
+          duration: 8000,
+          action: blockedTripId != null
+            ? { label: 'Mở chuyến đang chạy', onPress: () => navigate(`/my-trips/${blockedTripId}`) }
+            : undefined,
+        });
       } else {
         setBlockingTripCode(null);
         setBlockingTripLabel(null);
