@@ -73,14 +73,14 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     const cols: Array<[string, string, string, number]> = [
       ['lich-trinh', '10.32%', '--ppc-w-lich-trinh', 116],
       ['customer-route', '8.9%', '--ppc-w-customer-route', 100],
-      ['thongso', '6.94%', '--ppc-w-thongso', 78],
+      ['thongso', '8.90%', '--ppc-w-thongso', 100],
       ['diadiem', '7.47%', '--ppc-w-diadiem', 84],
       ['xe', '8.55%', '--ppc-w-xe', 96],
       ['hoadon', '9.25%', '--ppc-w-hoadon', 104],
       ['money', '9.25%', '--ppc-w-money', 104],
-      ['status', '7.47%', '--ppc-w-status', 84],
+      ['status', '6.94%', '--ppc-w-status', 78],
       ['date', '5.52%', '--ppc-w-date', 62],
-      ['ghichu', '6.5%', '--ppc-w-ghichu', 74],
+      ['ghichu', '6.22%', '--ppc-w-ghichu', 70],
     ];
     let declaredSum = 0;
     let floorSum = 0;
@@ -96,7 +96,9 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
       declaredSum += Number(share.slice(0, -1)) * rendered;
       floorSum += floorPx * rendered;
     }
-    // Declared widths (99.67% of the base) must stay UNDER 100% — over 100%
+    // Declared widths (99.98% of the base — SIL-879 kept the sum at 1124px
+    // by paying the wider container floor from the wrap-only donors) must
+    // stay UNDER 100% — over 100%
     // the fixed layout widens the table past its container and
     // phantom-scrolls at every canvas; the remainder distributes.
     expect(declaredSum).toBeLessThan(100);

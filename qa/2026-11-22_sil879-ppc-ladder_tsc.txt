@@ -1,0 +1,5 @@
+SIL-879 — frontend typecheck gate
+Date: 2026-11-22
+Command: cd frontend && npx tsc -b
+Exit status: 0
+Output: (clean — no diagnostics)

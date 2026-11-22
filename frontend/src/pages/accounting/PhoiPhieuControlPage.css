@@ -13,8 +13,9 @@
    law 2bbf1664 shipped for /shipments-detail: table-layout fixed makes the
    % shares BIND; every col carries its share (= floor ÷ the 1124px
    thirteen-column base) plus that px floor, measured off the real 12px
-   tokens (identity bill 88px, container token 65px, date 48px, the
-   'Xem chi tiết' / '+ Chi phí' buttons 90–91px). The FULL set — composed
+   tokens (identity bill 88px, container token 84px content — SIL-879's
+   11-character QA measurement supersedes the 65px 'TWCU2259939' reading,
+   date 48px, the 'Xem chi tiết' / '+ Chi phí' buttons 90–91px). The FULL set — composed
    Ghi chú included, the exact columns the QA screenshot showed — sums
    1124px, under the ≈1129px sidebar-open canvas at 1440×900, so Tiền
    đường's 'Xem chi tiết' (the control the QA ticket saw cut at the edge)
@@ -33,14 +34,21 @@
 .ppc-board {
   --ppc-w-lich-trinh: 116px;
   --ppc-w-customer-route: 100px;
-  --ppc-w-thongso: 78px;
+  /* SIL-879 — the container token is the board's widest nowrap token: QA
+     measured the 11-character numbers (BEAU4567896, KFPQ3112180…) at
+     scrollWidth 92–96px (≈84px content + the 12px gutter) against the old
+     78px floor, and the token bled into Địa điểm. The floor rides the
+     measured token (88px capacity), paid by the wrap-only donors (Trạng
+     thái 84→78, the four Ghi chú 74→70 — their longest words fit) so the
+     full set still sums 1124px and the board never scrolls at 1440. */
+  --ppc-w-thongso: 100px;
   --ppc-w-diadiem: 84px;
   --ppc-w-xe: 96px;
   --ppc-w-hoadon: 104px;
   --ppc-w-money: 104px;
-  --ppc-w-status: 84px;
+  --ppc-w-status: 78px;
   --ppc-w-date: 62px;
-  --ppc-w-ghichu: 74px;
+  --ppc-w-ghichu: 70px;
   --ppc-fixed-sum: 1124px;
   table-layout: fixed;
   width: 100%;
@@ -54,18 +62,18 @@
    --ppc-share-scale re-normalizes ANY rendered subset to ~100%. */
 .ppc-board col.ppc-col--lich-trinh { width: 10.32%; min-width: var(--ppc-w-lich-trinh); }
 .ppc-board col.ppc-col--customer-route { width: 8.9%; min-width: var(--ppc-w-customer-route); }
-.ppc-board col.ppc-col--thongso { width: 6.94%; min-width: var(--ppc-w-thongso); }
+.ppc-board col.ppc-col--thongso { width: 8.90%; min-width: var(--ppc-w-thongso); }
 .ppc-board col.ppc-col--diadiem { width: 7.47%; min-width: var(--ppc-w-diadiem); }
 .ppc-board col.ppc-col--xe { width: 8.55%; min-width: var(--ppc-w-xe); }
 .ppc-board col.ppc-col--hoadon { width: 9.25%; min-width: var(--ppc-w-hoadon); }
 .ppc-board col.ppc-col--money { width: 9.25%; min-width: var(--ppc-w-money); }
-.ppc-board col.ppc-col--status { width: 7.47%; min-width: var(--ppc-w-status); }
+.ppc-board col.ppc-col--status { width: 6.94%; min-width: var(--ppc-w-status); }
 .ppc-board col.ppc-col--date { width: 5.52%; min-width: var(--ppc-w-date); }
 /* The composed Ghi chú, Ghi chú vận tải, Ghi chú chi phí OPS and Ghi chú lái
    xe columns share one col class — one width law for the four reading
    columns (rounded down a hair: declared widths stay under 100%, the fixed
    layout distributes the remainder). */
-.ppc-board col.ppc-col--ghichu { width: 6.5%; min-width: var(--ppc-w-ghichu); }
+.ppc-board col.ppc-col--ghichu { width: 6.22%; min-width: var(--ppc-w-ghichu); }
 /* Ticket 18/11 Task 3.1d — 'Chi hộ (thu / trả)' is gone from the board; its
    188px floor left with the column. */
 /* SIL-783 (id 906) — inline Số-HĐ editing + "+ Chi phí": the fee line and

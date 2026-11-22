@@ -136,9 +136,14 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
  * picker relaxes the horizontal-scroll floor (--ppc-min) instead of
  * over-constraining `table-layout: fixed`, and --ppc-share-scale re-bases
  * the % shares onto that set. Measured at the live 12px board font with the
- * 6px dense gutter: identity token 88px (12ch bill), container token 65px
- * ('TWCU2259939'), date token 48px ('26/09/2026'), the 'Xem chi tiết' /
- * '+ Chi phí' buttons 90–91px, plate pill 60px. The FULL thirteen-column set
+ * 6px dense gutter: identity token 88px (12ch bill), container token 84px
+ * content (11ch — SIL-879: QA scrollWidth 92–96px incl. the gutter; the old
+ * 65px 'TWCU2259939' reading was short, and the 78px floor let the number
+ * bleed into Địa điểm), date token 48px ('26/09/2026'), the 'Xem chi tiết' /
+ * '+ Chi phí' buttons 90–91px, plate pill 60px. SIL-879 pays the wider
+ * container floor from the wrap-only donors (status 84→78, the four Ghi chú
+ * 74→70 — their longest words still fit), so the sum and the canvas law
+ * hold. The FULL thirteen-column set
  * (composed Ghi chú included) sums 1124px ≤ the ≈1129px sidebar-open canvas
  * at 1440×900 — the QA board measured 2160px = the full set under
  * table-layout: auto — so the default view never scrolls and Tiền đường's
@@ -148,17 +153,17 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
 const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
   'lich-trinh': 116,
   'customer-route': 100,
-  thongso: 78,
+  thongso: 100,
   diadiem: 84,
   xe: 96,
   hoadon: 104,
   money: 104,
-  status: 84,
+  status: 78,
   date: 62,
-  ghichu: 74,
-  'ghichu-vantai': 74,
-  'ghichu-ops': 74,
-  'ghichu-lai-xe': 74,
+  ghichu: 70,
+  'ghichu-vantai': 70,
+  'ghichu-ops': 70,
+  'ghichu-lai-xe': 70,
 };
 
 /** SIL-875: the share base — every board column's floor sum (the
@@ -247,7 +252,7 @@ export default function PhoiPhieuControlPage() {
   // SIL-875 (CR-009.1 follow-up) — the chốt ladder rides the RENDERED set:
   // --ppc-min is the rendered floor sum (the wrapper's horizontal-scroll
   // floor — at the 1440px sidebar-open canvas ≈1129px the default twelve
-  // (1096px) do NOT scroll, the ticket's AC) and --ppc-share-scale re-bases
+  // (1054px) do NOT scroll, the ticket's AC) and --ppc-share-scale re-bases
   // the CSS % shares onto that set, so a column hidden through the
   // Ẩn/Hiện picker (or the composed Ghi chú appearing) keeps the rendered
   // columns summing to ~100% — above 100% the fixed layout widens the table

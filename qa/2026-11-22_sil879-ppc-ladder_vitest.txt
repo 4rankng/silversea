@@ -1,0 +1,18 @@
+SIL-879 — scoped vitest run (phoi-phieu board ladder rebalance)
+Date: 2026-11-22
+Gate: Frontend scoped tests (ticket luật làm việc: vitest scoped path)
+Command: cd frontend && npx vitest run src/pages/accounting/PhoiPhieuControlPage
+Exit status: 0
+
+ RUN  v4.1.12 /Volumes/LexarSSD/projects/silversea/frontend
+
+ Test Files  8 passed (8)
+      Tests  86 passed (86)
+   Start at  13:30:02
+   Duration  12.35s (transform 4.27s, setup 1.85s, import 16.89s, tests 19.61s, environment 6.84s)
+
+Files matched (prefix filter src/pages/accounting/PhoiPhieuControlPage):
+- PhoiPhieuControlPage.styles.test.ts (ladder pins: thongso 8.90%/100px, status 6.94%/78px,
+  ghichu 6.22%/70px, floorSum=1124, declaredSum<100)
+- PhoiPhieuControlPage.test.tsx, .sil783, .sil807, .selection, .phoi-warning,
+  .report-section, .reports
