@@ -281,33 +281,37 @@ export function OpsAccountantTab() {
                     />
                   </th>
                 )}
-                <th>Ngày</th>
+                {/* SIL-895 — every column carries its measured share
+                    (ops-accountant-tab.css): Bill/Cont tokens (11-char ISO)
+                    hold ONE line at the 1440 canvas, and no other column
+                    drops below its floor. */}
+                <th className="ops-acc__col--date">Ngày</th>
                 {/* SIL-858 — the bill th takes the wrap law (ops-accountant-tab.css):
                     nowrap clipped it to "BILL / BOOKIN" and bled onto Cont. */}
                 <th className="ops-wallet__col--bill">Bill / Booking</th>
-                <th>Cont</th>
+                <th className="ops-acc__col--cont">Cont</th>
                 {/* SIL-858 — 3 cột nhận diện lô mới. SIL-877 (CR-009.1 3.2):
                     cột KH/Nhà máy + Số tờ khai lấy share rộng hơn mức chia
                     đều — header chữ dài bị nhét dưới 87px và tràn đè header
                     kế cạnh (ops-accountant-tab.css). */}
                 <th className="ops-wallet__col--customer">Khách hàng / Nhà máy</th>
                 <th className="ops-wallet__col--declaration">Số tờ khai</th>
-                <th>Số HĐ</th>
-                <th>Loại phí</th>
-                <th>Số tiền</th>
-                <th>Người chi</th>
-                <th>Chứng từ</th>
+                <th className="ops-acc__col--invoice">Số HĐ</th>
+                <th className="ops-acc__col--fee">Loại phí</th>
+                <th className="ops-acc__col--amount">Số tiền</th>
+                <th className="ops-acc__col--payer">Người chi</th>
+                <th className="ops-acc__col--receipt">Chứng từ</th>
                 {/* SIL-877 (CR-009.1 3.2) — TRẠNG THÁI → SỐ PHIẾU: cột này
                     đọc mã phiếu quyết toán, không phải trạng thái duyệt. */}
-                <th>Số phiếu</th>
+                <th className="ops-acc__col--settlement-code">Số phiếu</th>
                 {/* §3c — kế toán's duyệt axis: an Ops chi only reaches hoàn
                     tạm ứng (ĐNTT) after this tick, so the state and the act
                     live on the same screen kế toán already reads. */}
-                <th>Duyệt KT</th>
+                <th className="ops-acc__col--confirm">Duyệt KT</th>
                 {/* SIL-858 — cột cuối là Ghi chú; nút [Xem phiếu] dư đã bỏ
                     (số phiếu quyết toán hiện ngay ở Trạng thái, phiếu đọc
                     được ở bảng Phiếu quyết toán Ops bên dưới). */}
-                <th>Ghi chú</th>
+                <th className="ops-acc__col--note">Ghi chú</th>
               </tr>
             </thead>
             <tbody>

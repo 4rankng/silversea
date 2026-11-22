@@ -7,7 +7,7 @@ import { listLegacyOpsExpenseHistory } from './ops-legacy-expense-history.servic
 import { operationalName } from '../db/master-data-name';
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
-import { and, desc, eq, exists, gte, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, exists, gte, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
 import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel, type ExpenseCostGroup } from '@tingting/shared';
@@ -17,6 +17,13 @@ import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { effectiveOpsInvoiceNumber } from './ops-invoice-number';
 
 // Tx / Executor come from ../db (the one Executor seam).
+
+// SIL-895 — the two catalog factory sites of a lot (container-level first,
+// shipment-level second), aliased like phoi-phieu-control's factory joins so
+// the accountant tab reads the SAME catalog-first factory name Kiểm soát
+// phiếu renders.
+const containerFactory = aliasedTable(s.operationalSites, 'ops_exp_container_factory');
+const shipmentFactory = aliasedTable(s.operationalSites, 'ops_exp_shipment_factory');
 
 export interface CreateOpsExpenseInput {
   shipmentId: number;
@@ -921,6 +928,11 @@ export interface OpsExpenseListRow {
   billRef: string | null;
   /** SIL-858 — accountant tab's Khách hàng / Nhà máy column. */
   customerName: string | null;
+  /** SIL-895 — catalog-first factory name (Kiểm soát phiếu's law): the
+   *  container's catalog site operational name, then the shipment's, and the
+   *  shipment's raw free-text factory stands in LAST. The raw text alone let
+   *  a legal-form company name ("CÔNG TY TNHH MTV …") print whole under the
+   *  KH/Nhà máy column and squeeze the Bill/Cont columns off the board. */
   factoryName: string | null;
   /** SIL-858 — the row's own container tờ khai (null on lot-wide rows). */
   declarationNumber: string | null;
@@ -990,7 +1002,15 @@ export async function listOpsExpenses(filters: {
       // coalesce law every other grid uses) so a legal-form company name no
       // longer squeezes the Bill/Cont columns off the board.
       customerName: operationalName(s.customers.shortName, s.customers.name),
-      factoryName: s.shipments.factoryName,
+      // SIL-895 — Kiểm soát phiếu's factory law: catalog site operational
+      // name first (container's site, then the shipment's), the shipment's
+      // raw free-text factory LAST. Raw-only let a legal-form company name
+      // print whole under KH/Nhà máy and squeeze Bill/Cont off the board.
+      factoryName: sql<string | null>`coalesce(
+        ${operationalName(containerFactory.shortName, containerFactory.name)},
+        ${operationalName(shipmentFactory.shortName, shipmentFactory.name)},
+        nullif(btrim(${s.shipments.factoryName}), '')
+      )`,
       declarationNumber: s.shipmentContainers.declarationNumber,
       opsSettlementCode: s.opsSettlements.code,
       containerNumber: s.shipmentContainers.containerNumber,
@@ -1018,10 +1038,13 @@ export async function listOpsExpenses(filters: {
     .leftJoin(s.expenseAccountingSources, and(eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id)))
     .leftJoin(s.shipments, eq(s.shipments.id, s.opsExpenseEntries.shipmentId))
     .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
-    .leftJoin(
-      s.shipmentContainers,
+    .leftJoin(s.shipmentContainers,
       eq(s.shipmentContainers.id, s.opsExpenseEntries.shipmentContainerId),
     )
+    // SIL-895 — the lot's catalog factory sites (container's first, then the
+    // shipment's) feeding the catalog-first factoryName above.
+    .leftJoin(containerFactory, eq(containerFactory.id, s.shipmentContainers.operationalSiteId))
+    .leftJoin(shipmentFactory, eq(shipmentFactory.id, s.shipments.operationalSiteId))
     .leftJoin(
       s.forwarderExpenseTypes,
       eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode),
