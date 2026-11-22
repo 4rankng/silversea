@@ -51,10 +51,23 @@ describe('QA-AUDIT-UI-22 numeric identity values', () => {
       for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
         const selector = m[1];
         const body = m[2];
-        const targetsNumericCell = /data-label=["']?(Số tiền trả|Chênh lệch)/.test(selector) || /\.ivt-stack__sub/.test(selector);
-        if (!targetsNumericCell) continue;
-        if (/white-space:\s*(?!nowrap)/.test(body)) {
-          throw new Error(`built rule un-wraps a numeric cell in ${chunk}: ${selector.trim()} { ${body.slice(0, 140)} }`);
+        if (/data-label=["']?(Số tiền trả|Chênh lệch)/.test(selector)) {
+          // The two amount cells stay pinned: any white-space they declare must
+          // be nowrap — a page rule re-allowing wrap here is the defect class
+          // this contract hunts (QA-AUDIT-UI-22).
+          if (/white-space:\s*(?!nowrap)/.test(body)) {
+            throw new Error(`built rule un-wraps a numeric cell in ${chunk}: ${selector.trim()} { ${body.slice(0, 140)} }`);
+          }
+          continue;
+        }
+        if (/\.ivt-stack__sub/.test(selector)) {
+          // SIL-873 (CR-009.2): .ivt-stack__sub is the sub-fact lines under an
+          // amount cell, not the value itself — it wraps like every other data
+          // line (built law mirrors the source contract above; nowrap here was
+          // the min-content engine clipping Tiến độ xử lý at 1440). Never clipped.
+          if (/white-space:\s*nowrap/.test(body) || /ellipsis|overflow:\s*hidden|max-width/.test(body)) {
+            throw new Error(`built rule re-pins .ivt-stack__sub against the SIL-873 wrap law in ${chunk}: ${selector.trim()} { ${body.slice(0, 140)} }`);
+          }
         }
       }
     }
