@@ -40,11 +40,11 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     // The family law (2bbf1664 / e6f00827 / 41902fb1) replaces both: fixed
     // layout binds the % shares; every col carries its share + px floor;
     // the TSX derives --itv-min / --itv-scale from the RENDERED set.
-    expect(rules).toMatch(/\.invoice-tracking-page \.record-table\s*\{[^}]*table-layout:\s*fixed;[^}]*min-width:\s*var\(--itv-min, 1117px\);/s);
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table\s*\{[^}]*table-layout:\s*fixed;[^}]*min-width:\s*var\(--itv-min, 1122px\);/s);
     expect(tsx).toContain("'--itv-min'");
     expect(tsx).toContain("'--itv-scale'");
     expect(tsx).toContain('invoice-tracking-page data-workspace');
-    // Shares are floor ÷ the 1117px nine-column base and MUST re-sum to 100%
+    // Shares are floor ÷ the 1122px nine-column base and MUST re-sum to 100%
     // with the CUS scale — an off-by-one share phantom-scrolls every width.
     // The base itself must stay ≤ the 1129px 1440×900 canvas (QA r2 verdict
     // 27c47c66: base 1220 pushed Tiến độ xử lý out at scrollLeft=0).
@@ -52,14 +52,18 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(shares).toHaveLength(9);
     const floorsTsx = read('src/pages/AccountingInvoiceTrackingPage.tsx');
     const sum = shares.reduce((total, [, , , floor]) => total + Number(floor), 0);
-    expect(sum).toBe(1117);
+    expect(sum).toBe(1122);
     expect(sum).toBeLessThanOrEqual(1129);
     for (const [, key, share, floor] of shares) {
       // TSX floors and CSS floors must agree (the two can never drift).
       expect(floorsTsx).toContain(`${key}: ${floor},`);
       // share ≈ floor ÷ base, pinned to 2dp.
-      expect(Number(share)).toBeCloseTo((Number(floor) / 1117) * 100, 1);
+      expect(Number(share)).toBeCloseTo((Number(floor) / 1122) * 100, 1);
     }
+    // SIL-863: the 2dp shares must re-sum to exactly 100% — a dead margin
+    // or a phantom scroll both come from a rounding slip here.
+    const shareSum = shares.reduce((total, [, , share]) => total + Number(share), 0);
+    expect(shareSum).toBe(100);
     // The TSX rendered set drops exactly the Chọn-dòng column for read-only roles.
     expect(floorsTsx).toMatch(/key !== 'select' \|\| canWrite/);
     // Sub-lines obey the shared break-anywhere law (the ladder's floors are
@@ -82,14 +86,22 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     );
   });
 
-  it('ticket 18/11 + SIL-863: KHÁCH HÀNG & LÔ holds a 320px floor via its data-label hook — no nth-child, no overflow', () => {
+  it('ticket 18/11 + SIL-863: KHÁCH HÀNG & LÔ holds a 338px floor via its data-label hook — no nth-child, no overflow', () => {
     // The longest live customer name ('CÔNG TY TNHH MỘT THÀNH VIÊN LONG
     // MINH') orphan-wrapped its last word at 1440 even on the 280px floor
-    // (name ≈290px + 12px padding); 320px holds it whole. The hook is the
-    // td's data-label attribute — the no-nth-child and no-td-overflow
-    // prohibitions above stay true.
-    expect(rules).toMatch(/\.invoice-tracking-page \.record-table td\[data-label='Khách hàng & Lô'\]\s*\{[^}]*min-width:\s*320px;/);
+    // (name ≈290px + 12px padding); 320px held it whole locally, but the
+    // staging font is wider and dropped 'MINH' alone onto a second line.
+    // SIL-863 raises the floor to 338px (the ticket's '+~20px') and adds the
+    // balance law below — the width is the first lever, the balanced wrap is
+    // the guarantee. The hook is the td's data-label attribute — the
+    // no-nth-child and no-td-overflow prohibitions above stay true.
+    expect(rules).toMatch(/\.invoice-tracking-page \.record-table td\[data-label='Khách hàng & Lô'\]\s*\{[^}]*min-width:\s*338px;/);
     expect(rules).not.toMatch(/data-label='Khách hàng & Lô'\]\s*\{[^}]*overflow/);
+    // The name wraps at WORD boundaries and, when it still needs two lines,
+    // the lines are balanced — a lone last word can never drop again.
+    expect(rules).toMatch(
+      /\.invoice-tracking-page \.record-table td\[data-label='Khách hàng & Lô'\] \.ivt-stack__primary\s*\{[^}]*overflow-wrap:\s*break-word;[^}]*word-break:\s*normal;[^}]*text-wrap:\s*balance;/,
+    );
   });
 
   it('never clips or ellipsises a data cell — design law §4 no-truncation doctrine', () => {

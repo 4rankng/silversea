@@ -77,17 +77,26 @@ const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
  * not data widths — data lines wrap under the shared break-anywhere law (the
  * SIL-762 sub-line nowrap is retired with this ladder). Change a floor here
  * AND its share in AccountingInvoiceTrackingPage.css together (pinned by
- * AccountingInvoiceTrackingPage.styles.test.ts). */
+ * AccountingInvoiceTrackingPage.styles.test.ts).
+ *
+ * SIL-863 (QA 22/11, build 061739f9): the ladder is re-cut for cột 2 —
+ * KHÁCH HÀNG & LÔ 320 → 338px (the ticket's '+~20px'), paid for by the
+ * middle money columns' OWN measured slack (Đầu vào 135 → 132, Đối soát
+ * 127 → 125, Cont 132 → 130, Ghi chú 116 → 114, Chênh lệch 94 → 91, STT
+ * 38 → 35) and the select/progress cells' 1px of atom slack (26/131). The
+ * base moves 1117 → 1122 — still 7px under the 1129px canvas. Every donor
+ * keeps ≥2px between its header text and the cell edge and ≥1px of slack
+ * for its nowrap atom (measured in the browser at 1440×900). */
 const IVT_COL_FLOORS: Readonly<Record<string, number>> = {
-  select: 25,
-  stt: 38,
-  customer: 320,
-  cont: 132,
-  dauvao: 135,
-  doisoat: 127,
-  chenh: 94,
-  ghichu: 116,
-  tiendo: 130,
+  select: 26,
+  stt: 35,
+  customer: 338,
+  cont: 130,
+  dauvao: 132,
+  doisoat: 125,
+  chenh: 91,
+  ghichu: 114,
+  tiendo: 131,
 };
 const IVT_SPEC_BASE_SUM = Object.values(IVT_COL_FLOORS).reduce((sum, floor) => sum + floor, 0);
 const IVT_COL_ORDER = ['select', 'stt', 'customer', 'cont', 'dauvao', 'doisoat', 'chenh', 'ghichu', 'tiendo'] as const;
