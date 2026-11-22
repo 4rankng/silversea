@@ -60,7 +60,7 @@
 .invoice-tracking-page .record-table {
   table-layout: fixed;
   width: 100%;
-  min-width: var(--itv-min, 1117px);
+  min-width: var(--itv-min, 1122px);
 }
 
 @container (max-width: 1100px) {
@@ -69,20 +69,20 @@
   }
 }
 
-/* Shares = floor ÷ the 9-column base (1117px), pinned to 2dp; the TSX
+/* Shares = floor ÷ the 9-column base (1122px), pinned to 2dp; the TSX
    --itv-scale re-normalizes ANY rendered subset to ~100%. Base must stay
    ≤ the 1129px 1440×900 canvas (QA r2: base 1220 overflowed it by 91px,
    Tiến độ xử lý pushed out at scrollLeft=0); every floor also carries its
    column's one-line header minimum (FB-063). */
-.invoice-tracking-page .record-table col.ivt-col--select { width: calc(2.24% * var(--itv-scale, 1)); min-width: 25px; }
-.invoice-tracking-page .record-table col.ivt-col--stt { width: calc(3.40% * var(--itv-scale, 1)); min-width: 38px; }
-.invoice-tracking-page .record-table col.ivt-col--customer { width: calc(28.65% * var(--itv-scale, 1)); min-width: 320px; }
-.invoice-tracking-page .record-table col.ivt-col--cont { width: calc(11.82% * var(--itv-scale, 1)); min-width: 132px; }
-.invoice-tracking-page .record-table col.ivt-col--dauvao { width: calc(12.09% * var(--itv-scale, 1)); min-width: 135px; }
-.invoice-tracking-page .record-table col.ivt-col--doisoat { width: calc(11.37% * var(--itv-scale, 1)); min-width: 127px; }
-.invoice-tracking-page .record-table col.ivt-col--chenh { width: calc(8.42% * var(--itv-scale, 1)); min-width: 94px; }
-.invoice-tracking-page .record-table col.ivt-col--ghichu { width: calc(10.38% * var(--itv-scale, 1)); min-width: 116px; }
-.invoice-tracking-page .record-table col.ivt-col--tiendo { width: calc(11.64% * var(--itv-scale, 1)); min-width: 130px; }
+.invoice-tracking-page .record-table col.ivt-col--select { width: calc(2.32% * var(--itv-scale, 1)); min-width: 26px; }
+.invoice-tracking-page .record-table col.ivt-col--stt { width: calc(3.12% * var(--itv-scale, 1)); min-width: 35px; }
+.invoice-tracking-page .record-table col.ivt-col--customer { width: calc(30.12% * var(--itv-scale, 1)); min-width: 338px; }
+.invoice-tracking-page .record-table col.ivt-col--cont { width: calc(11.59% * var(--itv-scale, 1)); min-width: 130px; }
+.invoice-tracking-page .record-table col.ivt-col--dauvao { width: calc(11.76% * var(--itv-scale, 1)); min-width: 132px; }
+.invoice-tracking-page .record-table col.ivt-col--doisoat { width: calc(11.14% * var(--itv-scale, 1)); min-width: 125px; }
+.invoice-tracking-page .record-table col.ivt-col--chenh { width: calc(8.11% * var(--itv-scale, 1)); min-width: 91px; }
+.invoice-tracking-page .record-table col.ivt-col--ghichu { width: calc(10.16% * var(--itv-scale, 1)); min-width: 114px; }
+.invoice-tracking-page .record-table col.ivt-col--tiendo { width: calc(11.68% * var(--itv-scale, 1)); min-width: 131px; }
 
 /* Rework 2026-10-09 (card 20261009_3 class sweep): page trailing padding dies
    in the ≤640 phone band — the shell clearance
@@ -151,9 +151,27 @@
    dropping a lone 'MINH' onto a 32px second line). 320px holds the name on
    one line. The hook is the cell's own data-label attribute — no nth-child
    floor, no overflow rules; the board's prohibitions (this file's test
-   contract) stay true. */
+   contract) stay true.
+   SIL-863 (QA 22/11, build 061739f9): the floor rises to 338px — the
+   ticket's '+~20px' for cột 2, funded by the middle money columns' own
+   measured slack (Đầu vào 135 → 132, Đối soát 127 → 125) so the base only
+   moves 1117 → 1122 (7px under the 1129px canvas). Every donor keeps ≥2px
+   between its header text and the cell edge and ≥1px of slack for its
+   nowrap atom (measured in the browser at 1440×900). */
 .invoice-tracking-page .record-table td[data-label='Khách hàng & Lô'] {
-  min-width: 320px;
+  min-width: 338px;
+}
+
+/* SIL-863 (QA 22/11): the customer NAME is a label, not prose — it wraps at
+   WORD boundaries (never mid-word, like the house's header law) and, when it
+   still needs two lines, `balance` spreads them evenly so no lone word
+   ('MINH') drops to a second line. The board's own header law
+   (operational-table-typography.css) uses the same balance recipe; the
+   width floor above stays the first lever, this one is the guarantee. */
+.invoice-tracking-page .record-table td[data-label='Khách hàng & Lô'] .ivt-stack__primary {
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-wrap: balance;
 }
 
 /* Amount cells belong to the shared numeric law (styles/record-table.css

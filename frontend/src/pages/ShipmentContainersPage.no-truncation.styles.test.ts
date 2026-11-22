@@ -156,6 +156,26 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(hint[0]).toMatch(/word-break:\s*break-word/);
     expect(hint[0]).toMatch(/white-space:\s*normal/);
   });
+
+  it('SIL-863: the NHẬP/XUẤT pill breaks at WORD boundaries — a fixed-vocabulary label never shatters', () => {
+    // QA 22/11 (build 061739f9): the pill inherited `overflow-wrap: anywhere`
+    // and shattered mid-syllable ("Nhậ"/"p", "Xuấ"/"t") — 11 of 20 pills at
+    // 1440×900. The pill is a fixed label ("Nhập" / "Xuất" / "Nhập lẻ" /
+    // "Xuất lẻ"), so it wraps at spaces (the SIL-822 route-cell law) and
+    // never inside a word.
+    const pill = rulesFor(css, /^\.shipment-container-ledger__direction$/);
+    expect(pill.length).toBeGreaterThan(0);
+    expect(pill[0]).toMatch(/overflow-wrap:\s*break-word/);
+    expect(pill[0]).toMatch(/word-break:\s*normal/);
+    expect(pill[0]).not.toMatch(/overflow-wrap:\s*anywhere/);
+    expect(pill[0]).toMatch(/white-space:\s*normal/);
+    expectNoClip(pill);
+    // The pill's own 4px inline gutter is what makes "Nhập" (32px) fit the
+    // 43.7px trigger box; the trigger keeps the sheet's 10px gutter so the
+    // pill keeps the row's 10px text inset.
+    expect(pill[0]).toMatch(/padding:\s*2px 4px/);
+    expect(css).not.toMatch(/td\[data-label='Nhập\/Xuất'\][^{]*\.shipment-container-ledger__cell-trigger\s*\{[^}]*padding-left:/);
+  });
 });
 
 // SIL-620 (id 724) — Hoàn thành is a pure text button (no pill/box) rendered on

@@ -368,7 +368,27 @@
    neighbouring cell text, normal tracking, NO uppercase inflation, weight
    600. The chip must never read louder than the content around it
    ('Yang Ming'/'SITC' stay the visual baseline). */
-.shipment-container-ledger__direction { display: inline-flex; width: fit-content; max-width: 100%; padding: 2px 7px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-data-size); line-height: 1.5; font-weight: var(--fw-semibold); letter-spacing: normal; white-space: normal; }
+/* SIL-863 (QA 22/11, build 061739f9): the chip is a FIXED-VOCABULARY label
+   ("Nhập" / "Xuất" / "Nhập lẻ" / "Xuất lẻ"), never prose — so it must not
+   shatter mid-syllable. The inherited `overflow-wrap: anywhere` (from
+   `.shipment-container-ledger__multiline > *`) did exactly that: at the
+   1440×900 canvas the NHẬP/XUẤT cell is 63.7px, its trigger keeps the
+   editable-cell 10px inline gutter, and the pill's own 7px inline padding
+   left the label a 29.7px box while "Nhập" needs 32px — the chip broke as
+   "Nhậ"/"p" (11 of 20 pills, measured in the browser). Two levers, both
+   measured on the real rows:
+     · the pill takes a 4px inline gutter (the house pill's tight end) — the
+       label's box becomes 32px, exactly its natural width, so "Nhập"/
+       "Xuất" hold ONE line; the trigger keeps its 10px gutter, so the pill
+       keeps the row's 10px text inset (measured: chip inset 10px = the
+       neighbouring 'Số tờ khai' text inset 10px);
+     · the chip drops `anywhere` for the SIL-822 route-cell law
+       (`break-word` + `word-break: normal`): the longest label "Nhập lẻ"
+       (59.4px) still wraps, but at the WORD boundary ("lẻ" intact), never
+       mid-syllable.
+   Measured after the fix (1440×900, 20 pills): 0 shattered, 0 spills, the
+   tallest row unchanged at 108px. */
+.shipment-container-ledger__direction { display: inline-flex; width: fit-content; max-width: 100%; padding: 2px 4px; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); font-size: var(--text-data-size); line-height: 1.5; font-weight: var(--fw-semibold); letter-spacing: normal; white-space: normal; overflow-wrap: break-word; word-break: normal; }
 .shipment-container-ledger__direction--unknown { color: var(--ink-3); }
 .shipment-container-ledger__container-classification { color: var(--ink-2) !important; font-size: var(--text-caption-size); font-weight: var(--fw-medium); }
 /* SIL-824 pill sweep (owner addendum): ĐƠN/KẸP drops 700 → 600 — a state
