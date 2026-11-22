@@ -1,5 +1,5 @@
 import { opsBillReference } from './opsStatus';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Image as ImageIcon, Loader2, X } from 'lucide-react';
 import {
@@ -20,11 +20,19 @@ import { formatMoney } from '../../lib/format';
 import { OpsQueryFeedback } from './OpsQueryFeedback';
 import { DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
 import { FilterDropdown } from '../../components/FilterDropdown';
+import type { OpsExpenseRow } from '../../api/opsClient';
+import { useReasonPrompt } from '../../components/reason-prompt';
 
 import './ops-modal.css';
 import './ops-accountant-tab.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
 import { formatDate } from '../../lib/format';
+
+/** CR-010 E2 (SIL-882) — the reason every in-place Số tiền/Số HĐ edit carries
+ *  into the audit trail (EXPENSE_ACCOUNTING_UPDATED payload.reason); the full
+ *  before → after rides the payload, so /audit-logs can replay the change. */
+const EDIT_REASON = 'Kế toán sửa trực tiếp trên bảng Chi phí Ops (CR-010 E2)';
+
 /**
  * "Chi phí Ops" tab in the advance workspace (OpsVanHanh §5.4): accounting
  * reviews field cash expenses (photos first) and closes settlement batches.
@@ -36,6 +44,16 @@ import { formatDate } from '../../lib/format';
  * so "Ops lên chi phí" looked like it never reached accounting. The button
  * posts the SAME batch confirm the phơi phiếu tick-all uses — no forked
  * confirmation path.
+ *
+ * CR-010 E2 (SIL-882): the board gains (2.1) checkbox bulk-select with
+ * [Duyệt đã chọn (N)] / [Từ chối đã chọn (N)] — the reject prompt REQUIRES a
+ * reason and the backend persists it onto the row, so /ops/wallet history
+ * shows it and the refused row stops blocking duplicates and leaves the
+ * settlement grouping; and (2.2) in-place Số tiền/Số HĐ edits on rows that
+ * are not yet đối chiếu/quyết toán — each save rides the audited
+ * `/entries/OPS/:id/update` endpoint (actor, timestamp, old → new in the
+ * audit payload), and every surface (Ví Ops, Ghép bộ Debit, Chi phí - Quyết
+ * toán) reads the same source rows, so the new numbers sync by construction.
  */
 export function OpsAccountantTab() {
   const [from, setFrom] = useState('');
@@ -52,6 +70,16 @@ export function OpsAccountantTab() {
   const [photosFor, setPhotosFor] = useState<number | null>(null);
   const [sheetFor, setSheetFor] = useState<number | null>(null);
   const sheet = useAdminOpsSettlement(sheetFor);
+
+  // CR-010 E2 (SIL-882) — bulk duyệt/từ chối (one reason for the selection)
+  // and the in-place Số tiền/Số HĐ edit. Selection is only meaningful for
+  // rows kế toán can act on (unconfirmed, versioned).
+  const { prompt, dialog } = useReasonPrompt();
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState<'confirm' | 'reject' | null>(null);
+  const [edit, setEdit] = useState<{ id: number; field: 'amount' | 'invoiceNumber'; value: string } | null>(null);
+  const [editBusyId, setEditBusyId] = useState<number | null>(null);
+  const editCommitting = useRef(false);
 
   const items = data?.items ?? [];
   // SIL-858 — 'Đã hủy / lịch sử' rows never render on the accountant board;
@@ -74,6 +102,107 @@ export function OpsAccountantTab() {
       toastActionError(toast, 'duyệt chi phí Ops', cause, 'Không duyệt được chi phí.');
     } finally {
       setConfirmBusyId(null);
+    }
+  };
+
+  // CR-010 E2 (SIL-882) — bulk selection + actions. A row is selectable while
+  // kế toán can still act on it: versioned and not yet đối chiếu.
+  const actionable = (row: OpsExpenseRow) => canConfirm && row.version != null && row.confirmedAt == null;
+  const editable = (row: OpsExpenseRow) => actionable(row) && row.opsSettlementId == null;
+  const busy = bulkBusy !== null || confirmBusyId !== null;
+  const selectable = visibleItems.filter(actionable);
+  const selectedRows = selectable.filter((row) => selectedIds.has(row.id));
+  const allSelected = selectable.length > 0 && selectedRows.length === selectable.length;
+
+  const toggleRow = (row: OpsExpenseRow) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(row.id)) next.delete(row.id);
+    else next.add(row.id);
+    return next;
+  });
+
+  const confirmSelected = async () => {
+    if (bulkBusy !== null || selectedRows.length === 0) return;
+    setBulkBusy('confirm');
+    try {
+      await expenseAccountingClient.confirm(selectedRows.map((row) => ({ sourceKind: 'OPS' as const, sourceId: row.id, expectedVersion: row.version! })));
+      setSelectedIds(new Set<number>());
+      invalidateOps();
+      toast({ kind: 'success', message: `Đã duyệt ${selectedRows.length} khoản chi Ops — các khoản này giờ tính vào hoàn tạm ứng.` });
+    } catch (cause) {
+      toastActionError(toast, 'duyệt hàng loạt chi phí Ops', cause, 'Không duyệt được các khoản đã chọn.');
+    } finally {
+      setBulkBusy(null);
+    }
+  };
+
+  const rejectRows = async (rows: OpsExpenseRow[]) => {
+    if (bulkBusy !== null || confirmBusyId !== null || rows.length === 0) return;
+    const reason = await prompt(
+      rows.length === 1
+        ? `Từ chối khoản chi ${rows[0].expenseTypeName ?? rows[0].expenseTypeCode} (${formatMoney(rows[0].amount)} ₫) — lô ${rows[0].shipmentCode ?? '?'}? Khoản sẽ rời khỏi sổ chi phí, lịch sử giữ nguyên.`
+        : `Từ chối ${rows.length} khoản chi đã chọn? Mỗi khoản sẽ rời khỏi sổ chi phí (kèm lý do bên dưới), lịch sử giữ nguyên.`,
+      { confirmLabel: 'Từ chối', reasonLabel: 'Lý do từ chối (bắt buộc)' },
+    );
+    if (!reason) return;
+    setBulkBusy('reject');
+    try {
+      if (rows.length === 1) {
+        await expenseAccountingClient.reject({ sourceKind: 'OPS', sourceId: rows[0].id, expectedVersion: rows[0].version! }, reason);
+      } else {
+        await expenseAccountingClient.rejectBatch(rows.map((row) => ({ sourceKind: 'OPS' as const, sourceId: row.id, expectedVersion: row.version! })), reason);
+      }
+      setSelectedIds(new Set<number>());
+      invalidateOps();
+      toast({ kind: 'success', message: `Đã từ chối ${rows.length} khoản chi Ops — lý do đã ghi nhận, khoản rời khỏi Ghép bộ/Quyết toán.` });
+    } catch (cause) {
+      toastActionError(toast, 'từ chối chi phí Ops', cause, 'Không từ chối được khoản đã chọn.');
+    } finally {
+      setBulkBusy(null);
+    }
+  };
+
+  // CR-010 E2 (SIL-882) — in-place Số tiền/Số HĐ edit on rows not yet đối
+  // chiếu/quyết toán. Enter/blur saves (one POST /entries/OPS/:id/update —
+  // the endpoint audits actor + timestamp + old → new and every surface reads
+  // the same row), Esc cancels, invalid money keeps the editor open.
+  const isEditing = (row: OpsExpenseRow, field: 'amount' | 'invoiceNumber') => edit?.id === row.id && edit?.field === field;
+
+  const startEdit = (row: OpsExpenseRow, field: 'amount' | 'invoiceNumber') => {
+    if (!editable(row) || busy || editBusyId !== null) return;
+    setEdit({ id: row.id, field, value: field === 'amount' ? String(row.amount) : row.invoiceNumber?.trim() ?? '' });
+  };
+
+  const commitEdit = async () => {
+    const current = edit;
+    if (!current || editCommitting.current) return;
+    const row = items.find((item) => item.id === current.id);
+    if (!row || row.version == null) { setEdit(null); return; }
+    if (current.field === 'amount') {
+      const next = Number(current.value.replace(/\D/g, ''));
+      if (!Number.isFinite(next) || next <= 0) {
+        toast({ kind: 'error', message: 'Số tiền phải là số dương.' });
+        return;
+      }
+      if (next === Number(row.amount)) { setEdit(null); return; }
+    }
+    editCommitting.current = true;
+    setEdit(null);
+    setEditBusyId(current.id);
+    try {
+      await expenseAccountingClient.update(
+        { sourceKind: 'OPS', sourceId: current.id, expectedVersion: row.version },
+        current.field === 'amount'
+          ? { expectedVersion: row.version, amount: Number(current.value.replace(/\D/g, '')), reason: EDIT_REASON }
+          : { expectedVersion: row.version, invoiceNumber: current.value.trim() === '' ? null : current.value.trim(), reason: EDIT_REASON },
+      );
+      invalidateOps();
+      toast({ kind: 'success', message: 'Đã lưu thay đổi — Audit Log ghi nhận cũ → mới.' });
+    } catch (cause) {
+      toastActionError(toast, 'sửa khoản chi Ops', cause, 'Không lưu được thay đổi.');
+    } finally {
+      editCommitting.current = false;
+      setEditBusyId(null);
     }
   };
 
@@ -113,10 +242,44 @@ export function OpsAccountantTab() {
           </FilterDropdown>
         </FilterBar>
 
+        {/* CR-010 E2 (SIL-882) — bulk duyệt/từ chối: ONE action over the
+            selection; Từ chối always asks for a mandatory reason first. */}
+        {canConfirm && (
+          <div className="ops-acc__bulk" role="toolbar" aria-label="Duyệt / từ chối hàng loạt">
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              disabled={selectedRows.length === 0 || busy || editBusyId !== null}
+              onClick={() => void confirmSelected()}
+            >
+              {bulkBusy === 'confirm' ? 'Đang duyệt…' : `Duyệt đã chọn (${selectedRows.length})`}
+            </button>
+            <button
+              type="button"
+              className="btn btn--danger-outline btn--sm"
+              disabled={selectedRows.length === 0 || busy || editBusyId !== null}
+              onClick={() => void rejectRows(selectedRows)}
+            >
+              {bulkBusy === 'reject' ? 'Đang từ chối…' : `Từ chối đã chọn (${selectedRows.length})`}
+            </button>
+          </div>
+        )}
+
         <div className="ops-wallet__scroll">
           <table className="tt-table ops-wallet__table">
             <thead>
               <tr>
+                {canConfirm && (
+                  <th className="ops-acc__col--select">
+                    <input
+                      type="checkbox"
+                      aria-label="Chọn tất cả"
+                      checked={allSelected}
+                      disabled={selectable.length === 0 || busy}
+                      onChange={() => setSelectedIds(allSelected ? new Set<number>() : new Set(selectable.map((row) => row.id)))}
+                    />
+                  </th>
+                )}
                 <th>Ngày</th>
                 {/* SIL-858 — the bill th takes the wrap law (ops-accountant-tab.css):
                     nowrap clipped it to "BILL / BOOKIN" and bled onto Cont. */}
@@ -149,9 +312,18 @@ export function OpsAccountantTab() {
             <tbody>
               {visibleItems.map((row) => (
                 <tr key={row.id}>
+                  {canConfirm && (
+                    <td className="ops-acc__col--select">
+                      <input
+                        type="checkbox"
+                        aria-label={`Chọn khoản ${row.expenseTypeName ?? row.expenseTypeCode} ngày ${formatDate(row.paidAt)}`}
+                        checked={selectedIds.has(row.id)}
+                        disabled={!actionable(row) || busy}
+                        onChange={() => toggleRow(row)}
+                      />
+                    </td>
+                  )}
                   <td>{formatDate(row.paidAt)}</td>
-                  <td>{opsBillReference(row.billRef)}</td>
-                  <td>{row.containerNumber ?? 'Chung lô'}</td>
                   <td>
                     {row.customerName || row.factoryName
                       ? <span>
@@ -163,9 +335,71 @@ export function OpsAccountantTab() {
                       : '—'}
                   </td>
                   <td>{row.declarationNumber?.trim() || '—'}</td>
-                  <td>{row.invoiceNumber?.trim() || 'X'}</td>
+                  {/* CR-010 E2 (SIL-882) — inline Số HĐ edit: rows chưa đối
+                      chiếu/chưa lập phiếu open an input in place; saving rides
+                      the audited update endpoint (old → new in the payload). */}
+                  <td>
+                    {editable(row) && !isEditing(row, 'invoiceNumber') ? (
+                      <button
+                        type="button"
+                        className="ops-acc__edit-trigger"
+                        aria-label={`Sửa số hóa đơn dòng ${row.id}`}
+                        onClick={() => startEdit(row, 'invoiceNumber')}
+                      >
+                        {row.invoiceNumber?.trim() || 'X'}
+                      </button>
+                    ) : isEditing(row, 'invoiceNumber') && edit ? (
+                      <input
+                        type="text"
+                        className="ops-acc__edit-input"
+                        aria-label="Số hóa đơn"
+                        value={edit.value}
+                        autoFocus
+                        disabled={editBusyId === row.id}
+                        onChange={(event) => setEdit({ ...edit, value: event.target.value })}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') void commitEdit();
+                          if (event.key === 'Escape') setEdit(null);
+                        }}
+                        onBlur={() => void commitEdit()}
+                      />
+                    ) : (
+                      row.invoiceNumber?.trim() || 'X'
+                    )}
+                  </td>
                   <td>{row.expenseTypeName ?? row.expenseTypeCode}</td>
-                  <td className="ops-money">{`${formatMoney(row.amount)} ₫`}</td>
+                  {/* CR-010 E2 (SIL-882) — inline Số tiền edit, same audited
+                      save path as Số HĐ (AC: 1.620.000 → 1.650.000 in place). */}
+                  <td className="ops-money">
+                    {editable(row) && !isEditing(row, 'amount') ? (
+                      <button
+                        type="button"
+                        className="ops-acc__edit-trigger"
+                        aria-label={`Sửa số tiền dòng ${row.id}`}
+                        onClick={() => startEdit(row, 'amount')}
+                      >
+                        {`${formatMoney(row.amount)} ₫`}
+                      </button>
+                    ) : isEditing(row, 'amount') && edit ? (
+                      <input
+                        type="text"
+                        className="ops-acc__edit-input"
+                        aria-label="Số tiền"
+                        value={edit.value}
+                        autoFocus
+                        inputMode="numeric"
+                        disabled={editBusyId === row.id}
+                        onChange={(event) => setEdit({ ...edit, value: event.target.value })}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') void commitEdit();
+                          if (event.key === 'Escape') setEdit(null);
+                        }}
+                        onBlur={() => void commitEdit()}
+                      />
+                    ) : (
+                      `${formatMoney(row.amount)} ₫`
+                    )}
+                  </td>
                   <td>{row.paidByName ?? 'Chưa rõ người chi'}</td>
                   <td>
                     <button
@@ -185,24 +419,37 @@ export function OpsAccountantTab() {
                     {row.version == null ? '—'
                       : row.confirmedAt != null ? `Đã duyệt ${formatDate(row.confirmedAt)}`
                         : canConfirm ? (
-                          <button
-                            type="button"
-                            className="btn btn--secondary btn--sm"
-                            // One confirm in flight ⇒ every Duyệt waits (the
-                            // busy check is global; leaving siblings enabled
-                            // made their clicks die silently — review F5).
-                            disabled={confirmBusyId !== null}
-                            onClick={() => void confirmExpense(row)}
-                          >
-                            {confirmBusyId === row.id ? 'Đang duyệt…' : 'Duyệt'}
-                          </button>
+                          <span className="ops-acc__row-actions">
+                            <button
+                              type="button"
+                              className="btn btn--secondary btn--sm"
+                              // One confirm in flight ⇒ every Duyệt waits (the
+                              // busy check is global; leaving siblings enabled
+                              // made their clicks die silently — review F5).
+                              disabled={busy}
+                              onClick={() => void confirmExpense(row)}
+                            >
+                              {confirmBusyId === row.id ? 'Đang duyệt…' : 'Duyệt'}
+                            </button>
+                            {/* CR-010 E2 (SIL-882) — [Từ chối] sits beside
+                                [Duyệt]: the mandatory-reason prompt posts the
+                                SAME /reject twin the đối soát table uses. */}
+                            <button
+                              type="button"
+                              className="btn btn--danger-outline btn--sm"
+                              disabled={busy}
+                              onClick={() => void rejectRows([row])}
+                            >
+                              Từ chối
+                            </button>
+                          </span>
                         ) : 'Chưa duyệt'}
                   </td>
                   <td>{row.note?.trim() || '—'}</td>
                 </tr>
               ))}
               {!isLoading && visibleItems.length === 0 && (
-                <tr><td colSpan={13} className="ops-wallet__empty">Không có khoản chi nào.</td></tr>
+                <tr><td colSpan={canConfirm ? 14 : 13} className="ops-wallet__empty">Không có khoản chi nào.</td></tr>
               )}
             </tbody>
           </table>
@@ -282,6 +529,10 @@ export function OpsAccountantTab() {
           </div>
         </OpsModalBackdrop>
       )}
+
+      {/* CR-010 E2 (SIL-882) — the mandatory 'Lý do từ chối' prompt for both
+          the per-row and the bulk reject action. */}
+      {dialog}
     </div>
   );
 }

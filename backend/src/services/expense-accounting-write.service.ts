@@ -20,6 +20,7 @@ import { linkExpenseToRealTrip } from './expense-source-trip-link.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { releaseAutoOffsetAndFindActiveManualLink } from './advance-shared.service';
 import { resolveExpenseCommandId } from './expense-command-id.service';
+import { duplicateOpsInvoiceMessage, findLiveDuplicateOpsInvoiceNumber } from './ops-expenses.service';
 
 export type ExpenseActor = Pick<AuthUser, 'userId' | 'role'>;
 export function requireExpenseFinance(actor: ExpenseActor) {
@@ -125,6 +126,13 @@ export async function updateAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
   }
   const { reason } = input;
   if (kind === 'INVOICE') throw new ApiError(409, 'Sửa chi phí hóa đơn từ hồ sơ hóa đơn kết hợp để giữ đồng bộ nguồn.');
+  // CR-010 E2 (SIL-882) — the inline Số HĐ edit obeys the create path's
+  // one-invoice-per-lot law: case/whitespace-insensitive, self-excluding so
+  // re-saving the row's own paper number never 409s.
+  if (kind === 'OPS' && input.invoiceNumber != null && input.invoiceNumber.trim() !== (before.invoiceNumber ?? '').trim()) {
+    const invoiceHit = await findLiveDuplicateOpsInvoiceNumber(before.shipmentId, input.invoiceNumber, tx);
+    if (invoiceHit && invoiceHit.id !== nativeId) throw new ApiError(409, duplicateOpsInvoiceMessage(input.invoiceNumber.trim()));
+  }
   if (kind === 'OPS' && payerKind !== 'COMPANY' && (payerKind !== 'USER' || payableEntityType !== 'FORWARDER')) throw new ApiError(400, 'Khoản chi Ops phải giữ người chi Ops; thêm chi công ty từ bảng kế toán.');
   // Card 20261005 — nguồn DRIVER không còn bắt buộc có "người chi": đường sửa của
   // lái xe (DriverExpenseCorrection) không gửi trường payer, và drawer của kế
@@ -289,7 +297,10 @@ export async function confirmAccountingExpenses(tx: Tx, actor: ExpenseActor, ent
     // DRIVER), nên yêu cầu payerKind ở đây sẽ làm mọi khoản chi lái xe không bao
     // giờ đối chiếu được. Nguồn OPS/TRIP giữ nguyên luật cũ.
     if (!before.costGroup || before.customerChargeAmount == null || (before.sourceKind !== 'DRIVER' && !before.payerKind)) throw new ApiError(409, 'Hoàn thiện phân loại, người chi và khoản thu khách trước khi đối chiếu.');
-    if (before.costGroup.startsWith('INVOICED_') && (!before.invoiceNumber || !before.invoiceDate)) throw new ApiError(409, 'Bổ sung số và ngày hóa đơn trước khi đối chiếu.');
+    // CR-010 E2 (SIL-882) — the INVOICED_ "số + ngày hóa đơn" gate is gone:
+    // a row carrying a Số HĐ without Ngày HĐ (and every 'unc'/no-invoice fee)
+    // confirms as-is. Số tiền/Số HĐ stay fixable in place on the Chi phí Ops
+    // board; the frozen phiếu surfaces read whatever the row holds.
     const [row] = await tx.update(s.expenseAccountingSources).set({ confirmedById: actor.userId, confirmedAt: new Date(),
       version: before.version + 1, updatedAt: new Date() }).where(eq(s.expenseAccountingSources.id, before.id)).returning();
     const after = await syncExpenseBillingSource(tx, await hydrateExpenseAccountingSource(tx, row), actor.userId);
@@ -344,8 +355,25 @@ export async function rejectAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
   await tx.update(s.expenseAccountingSources).set({ status: 'VOIDED', updatedAt: new Date() })
     .where(eq(s.expenseAccountingSources.id, before.id));
   if (before.sourceKind === 'OPS') {
-    await tx.update(s.opsExpenseEntries).set({ approvalStatus: 'REJECTED', updatedAt: new Date() })
+    // CR-010 E2 (SIL-882) — the reason rides the row so /ops/wallet can show
+    // why it was refused; who/when live in the audit row below.
+    await tx.update(s.opsExpenseEntries).set({ approvalStatus: 'REJECTED', rejectionReason: input.reason.trim(), updatedAt: new Date() })
       .where(eq(s.opsExpenseEntries.id, nativeId));
+    // CR-010 E2 (SIL-882) — "tự động gỡ khỏi Ghép bộ / Chi phí - Quyết toán":
+    // a row frozen into a DRAFT phiếu quyết toán leaves it and the phiếu's
+    // frozen total recomputes; an issued phiếu refuses the reject.
+    const [frozen] = await tx.select({ opsSettlementId: s.opsExpenseEntries.opsSettlementId })
+      .from(s.opsExpenseEntries).where(eq(s.opsExpenseEntries.id, nativeId)).limit(1);
+    if (frozen?.opsSettlementId != null) {
+      const [phiếu] = await tx.select({ status: s.opsSettlements.status })
+        .from(s.opsSettlements).where(eq(s.opsSettlements.id, frozen.opsSettlementId)).limit(1);
+      if (!phiếu || (phiếu.status !== 'DRAFT' && phiếu.status !== 'PENDING')) {
+        throw new ApiError(409, 'Khoản chi đã thuộc phiếu quyết toán đã ghi nhận; không từ chối được.');
+      }
+      await tx.update(s.opsExpenseEntries).set({ opsSettlementId: null, updatedAt: new Date() })
+        .where(eq(s.opsExpenseEntries.id, nativeId));
+      await recomputeOpsSettlementTotal(tx, frozen.opsSettlementId);
+    }
   }
   if (before.sourceKind === 'TRIP') {
     await tx.update(s.tripExpenses).set({ approvalStatus: 'REJECTED', updatedAt: new Date() })
@@ -363,6 +391,23 @@ export async function rejectAccountingExpense(tx: Tx, actor: ExpenseActor, kind:
     payload: { reason: input.reason.trim(), sourceKind: kind, sourceId: nativeId, shipmentId: before.shipmentId },
   });
   return { ok: true, id: before.id };
+}
+
+/** CR-010 E2 (SIL-882) — the batch twin of `rejectAccountingExpense` for the
+ *  Chi phí Ops board's [Từ chối đã chọn (N)]: ONE mandatory reason covers the
+ *  selection and every rejection runs inside the caller's one transaction, so
+ *  a bad row aborts the batch — the same all-or-nothing shape as the confirm
+ *  twin (`confirmAccountingExpenses`). */
+export async function rejectAccountingExpensesBatch(tx: Tx, actor: ExpenseActor, entries: ExpenseSourceRef[], reason: string) {
+  requireExpenseFinance(actor);
+  const ordered = [...entries].sort((a, b) => `${a.sourceKind}:${a.sourceId}`.localeCompare(`${b.sourceKind}:${b.sourceId}`));
+  const keys = ordered.map(ref => `${ref.sourceKind}:${ref.sourceId}`);
+  if (keys.some((key, index) => index > 0 && key === keys[index - 1])) throw new ApiError(400, 'Khoản chi bị chọn trùng.');
+  const rejected: Array<{ ok: boolean; id: number }> = [];
+  for (const ref of ordered) {
+    rejected.push(await rejectAccountingExpense(tx, actor, ref.sourceKind, ref.sourceId, { expectedVersion: ref.expectedVersion, reason }));
+  }
+  return rejected;
 }
 
 export async function assignTruckAccountant(tx: Tx, actor: ExpenseActor, truckId: number, accountantId: number | null, expectedVersion: number) {

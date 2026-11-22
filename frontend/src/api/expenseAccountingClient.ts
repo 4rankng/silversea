@@ -71,6 +71,14 @@ export const expenseAccountingClient = {
     `${BASE}/entries/${entry.sourceKind}/${entry.sourceId}/reject`,
     { expectedVersion: entry.expectedVersion, reason },
   ),
+  // CR-010 E2 (SIL-882) — [Từ chối đã chọn (N)] on the Chi phí Ops board:
+  // ONE mandatory reason covers the selection; the backend runs the whole
+  // batch in one transaction (all-or-nothing), auto Idempotency-Key like the
+  // other mutations (mutation-identity).
+  rejectBatch: (entries: ExpenseSourceRef[], reason: string) => api.post<{ items: Array<{ ok: true; id: number }> }>(
+    `${BASE}/entries/reject-batch`,
+    { entries, reason },
+  ),
   costReview: (params: { from?: string; to?: string; payerId?: number; shipmentId?: number; search?: string; progress?: ExpenseReviewProgress; page?: number; limit?: number }) =>
     api.get<CostReviewList>(`${BASE}/cost-review?${query(params)}`),
   vouchers: () => api.get<{ items: ExpenseVoucher[] }>(`${BASE}/vouchers`),

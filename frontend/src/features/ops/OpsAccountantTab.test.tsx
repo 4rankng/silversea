@@ -217,9 +217,31 @@ describe('OpsAccountantTab — KT-duyệt axis (card 191026160000 §3c)', () => 
     expect(screen.queryByRole('button', { name: /^Duyệt$/ })).toBeNull();
   });
 
-  it('CP2-A3: a refusal (thiếu hóa đơn) surfaces through the toast, not silence', async () => {
+  // CR-010 E2 (SIL-882) — the INVOICED_ invoice-number/date gate is gone:
+  // a row carrying a Số HĐ without Ngày HĐ (AC: "[Duyệt] dòng có Số HĐ không
+  // Ngày HĐ thành công 100%") confirms through the SAME batch endpoint.
+  it('CR-010 E2: a row with Số HĐ but no Ngày HĐ duyệt thành công through the batch endpoint', async () => {
     authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
-    apiPost.mockRejectedValue(new Error('Bổ sung số và ngày hóa đơn trước khi đối chiếu.'));
+    apiPost.mockResolvedValue({ items: [] });
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ version: 1, confirmedAt: null, invoiceNumber: 'TD-1134', invoiceDate: null })] });
+      if (url.startsWith('/ops/admin/settlements')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    await screen.findByText('BL-9');
+    fireEvent.click(screen.getByRole('button', { name: /^Duyệt$/ }));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/expense-accounting/confirm',
+      { entries: [{ sourceKind: 'OPS', sourceId: 5, expectedVersion: 1 }] },
+    ));
+    expect(await screen.findByText(/Đã duyệt chi phí/)).toBeInTheDocument();
+  });
+
+  // A backend refusal still surfaces verbatim through the toast — never silence.
+  it('CP2-A3: a refusal (thiếu phân loại) surfaces through the toast, not silence', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockRejectedValue(new Error('Hoàn thiện phân loại, người chi và khoản thu khách trước khi đối chiếu.'));
     apiGet.mockImplementation((url: string) => {
       if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: [expense({ version: 1, confirmedAt: null })] });
       if (url.startsWith('/ops/admin/settlements')) return Promise.resolve({ items: [] });
@@ -228,7 +250,7 @@ describe('OpsAccountantTab — KT-duyệt axis (card 191026160000 §3c)', () => 
     renderTab();
     await screen.findByText('BL-9');
     fireEvent.click(screen.getByRole('button', { name: /^Duyệt$/ }));
-    expect(await screen.findByText(/Bổ sung số và ngày hóa đơn trước khi đối chiếu/)).toBeInTheDocument();
+    expect(await screen.findByText(/Hoàn thiện phân loại, người chi và khoản thu khách/)).toBeInTheDocument();
   });
 });
 
@@ -324,5 +346,146 @@ describe('OpsAccountantTab — SIL-858 accountant board rework', () => {
     const urls = apiGet.mock.calls.map(([url]) => String(url));
     expect(urls.some((url) => url.includes('from=2026-11-01'))).toBe(true);
     expect(urls.some((url) => url.includes('to=2026-11-30'))).toBe(true);
+  });
+});
+
+// CR-010 E2 (SIL-882) — bulk duyệt/từ chối with ONE mandatory reason, and
+// in-place Số tiền/Số HĐ edits on rows chưa đối chiếu/chưa lập phiếu.
+describe('OpsAccountantTab — CR-010 E2 bulk actions + inline edit (SIL-882)', () => {
+  // The file-level beforeEach lives in the first describe only, so the mock
+  // history from the §3c confirm posts would leak into these counts otherwise.
+  beforeEach(() => {
+    apiGet.mockReset();
+    apiPost.mockReset();
+    authUser.mockReset().mockReturnValue(null);
+  });
+  const mockBoard = (items: Array<Record<string, unknown>>) => {
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items });
+      if (url.startsWith('/ops/admin/settlements')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+  };
+  const threeRows = () => [
+    expense({ version: 1, confirmedAt: null }),
+    expense({ id: 6, version: 1, confirmedAt: null }),
+    expense({ id: 7, version: 1, confirmedAt: null }),
+  ];
+
+  // AC 2.1: "tích 3 dòng → [Duyệt đã chọn (3)] thành công 1 thao tác".
+  it('AC 2.1: ticking 3 rows and [Duyệt đã chọn (3)] posts ONE batch confirm', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockResolvedValue({ items: [] });
+    mockBoard(threeRows());
+    renderTab();
+    expect((await screen.findAllByText('BL-9')).length).toBe(3);
+    expect(screen.getByRole('button', { name: 'Duyệt đã chọn (0)' })).toBeDisabled();
+    fireEvent.click(screen.getByLabelText('Chọn tất cả'));
+    fireEvent.click(screen.getByRole('button', { name: 'Duyệt đã chọn (3)' }));
+    await waitFor(() => expect(apiPost).toHaveBeenCalled());
+    expect(apiPost).toHaveBeenCalledTimes(1);
+    expect(apiPost).toHaveBeenCalledWith('/expense-accounting/confirm', {
+      entries: [
+        { sourceKind: 'OPS', sourceId: 5, expectedVersion: 1 },
+        { sourceKind: 'OPS', sourceId: 6, expectedVersion: 1 },
+        { sourceKind: 'OPS', sourceId: 7, expectedVersion: 1 },
+      ],
+    });
+    expect(await screen.findByText(/Đã duyệt 3 khoản chi Ops/)).toBeInTheDocument();
+  });
+
+  it('AC 2.1: [Từ chối đã chọn (N)] refuses without a reason and posts ONE batch reject with it', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockResolvedValue({ items: [] });
+    mockBoard(threeRows());
+    renderTab();
+    expect((await screen.findAllByText('BL-9')).length).toBe(3);
+    fireEvent.click(screen.getByLabelText('Chọn tất cả'));
+    fireEvent.click(screen.getByRole('button', { name: 'Từ chối đã chọn (3)' }));
+    const field = await screen.findByLabelText('Lý do từ chối (bắt buộc)');
+    const dialog = field.closest('[role="dialog"]') as HTMLElement;
+    expect(within(dialog).getByRole('button', { name: 'Từ chối' })).toBeDisabled();
+    fireEvent.change(field, { target: { value: 'Sai số tiền, Ops khai lại' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Từ chối' }));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/expense-accounting/entries/reject-batch', {
+      entries: [
+        { sourceKind: 'OPS', sourceId: 5, expectedVersion: 1 },
+        { sourceKind: 'OPS', sourceId: 6, expectedVersion: 1 },
+        { sourceKind: 'OPS', sourceId: 7, expectedVersion: 1 },
+      ],
+      reason: 'Sai số tiền, Ops khai lại',
+    }));
+    expect(await screen.findByText(/Đã từ chối 3 khoản chi Ops/)).toBeInTheDocument();
+  });
+
+  it('AC 2.1: the per-row [Từ chối] beside [Duyệt] posts the single reject twin with the reason', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockResolvedValue({ ok: true });
+    mockBoard([expense({ version: 1, confirmedAt: null })]);
+    renderTab();
+    await screen.findByText('BL-9');
+    fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
+    const field = await screen.findByLabelText('Lý do từ chối (bắt buộc)');
+    fireEvent.change(field, { target: { value: 'Khoản không có chứng từ hợp lệ' } });
+    const dialog = field.closest('[role="dialog"]') as HTMLElement;
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Từ chối' }));
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/expense-accounting/entries/OPS/5/reject',
+      { expectedVersion: 1, reason: 'Khoản không có chứng từ hợp lệ' },
+    ));
+  });
+
+  // AC 2.2: "sửa 1.620.000 → 1.650.000 được" — in-place save rides the audited
+  // /entries/OPS/:id/update endpoint (actor + timestamp + old → new in payload).
+  it('AC 2.2: inline Số tiền edit saves the new amount through the audited update endpoint', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockResolvedValue({});
+    mockBoard([expense({ version: 1, confirmedAt: null, amount: '1620000' })]);
+    renderTab();
+    await screen.findByText(/1\.620\.000/);
+    fireEvent.click(screen.getByLabelText('Sửa số tiền dòng 5'));
+    const input = screen.getByLabelText('Số tiền');
+    fireEvent.change(input, { target: { value: '1650000' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/expense-accounting/entries/OPS/5/update',
+      { expectedVersion: 1, amount: 1650000, reason: 'Kế toán sửa trực tiếp trên bảng Chi phí Ops (CR-010 E2)' },
+    ));
+  });
+
+  it('AC 2.2: inline Số HĐ edit saves the new invoice number through the same audited endpoint', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockResolvedValue({});
+    mockBoard([expense({ version: 1, confirmedAt: null, invoiceNumber: null })]);
+    renderTab();
+    await screen.findByText('BL-9');
+    fireEvent.click(screen.getByLabelText('Sửa số hóa đơn dòng 5'));
+    const input = screen.getByLabelText('Số hóa đơn');
+    fireEvent.change(input, { target: { value: 'TD-1134' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
+      '/expense-accounting/entries/OPS/5/update',
+      { expectedVersion: 1, invoiceNumber: 'TD-1134', reason: 'Kế toán sửa trực tiếp trên bảng Chi phí Ops (CR-010 E2)' },
+    ));
+  });
+
+  it('AC 2.2: a row already in a phiếu quyết toán shows no edit affordance (chưa quyết toán only)', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    mockBoard([expense({ version: 1, confirmedAt: null, opsSettlementId: 3, opsSettlementCode: 'OS-2611-0009' })]);
+    renderTab();
+    await screen.findByText('BL-9');
+    expect(screen.queryByLabelText('Sửa số tiền dòng 5')).toBeNull();
+    expect(screen.queryByLabelText('Sửa số hóa đơn dòng 5')).toBeNull();
+    expect(screen.getByText('OS-2611-0009')).toBeInTheDocument();
+  });
+
+  it('AC 2.2: a non-finance reader sees neither the bulk toolbar nor the select column', async () => {
+    authUser.mockReturnValue({ userId: 8, role: 'CUS' });
+    mockBoard([expense({ version: 1, confirmedAt: null })]);
+    renderTab();
+    await screen.findByText('BL-9');
+    expect(screen.queryByRole('toolbar')).toBeNull();
+    expect(screen.queryByLabelText('Chọn tất cả')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Từ chối/ })).toBeNull();
   });
 });

@@ -5,13 +5,13 @@ import { attachAccountingExpensePhoto } from '../services/expense-accounting-pho
 import { ApiError } from '../errors';
 import { Router } from 'express';
 import { z } from 'zod';
-import { expenseAccountingCreateSchema, expenseAccountingCreateBatchSchema, expenseAccountingUpdateSchema, expenseConfirmSchema, expenseDateSchema, expenseListQuerySchema, EXPENSE_SOURCE_KINDS } from '@tingting/shared';
+import { expenseAccountingCreateSchema, expenseAccountingCreateBatchSchema, expenseAccountingUpdateSchema, expenseConfirmSchema, expenseDateSchema, expenseListQuerySchema, expenseSourceRefSchema, EXPENSE_SOURCE_KINDS } from '@tingting/shared';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { getUser } from '../middleware/auth';
 import { requireRoles } from '../middleware/casbin';
 import { Role } from '@tingting/shared';
 import { throwValidation } from '../lib/validation';
-import { assignTruckAccountant, assignTruckAccountantsBatch, confirmAccountingExpenses, rejectAccountingExpense, updateAccountingExpense, requireExpenseFinance } from '../services/expense-accounting-write.service';
+import { assignTruckAccountant, assignTruckAccountantsBatch, confirmAccountingExpenses, rejectAccountingExpense, rejectAccountingExpensesBatch, updateAccountingExpense, requireExpenseFinance } from '../services/expense-accounting-write.service';
 import { createAccountingExpense } from '../services/expense-accounting-create.service';
 import type { ExpenseAccountingSource } from '../services/expense-accounting-source.service';
 import { getExpenseAccountingCatalog, getExpenseAccountingEntry, getExpenseAccountingReport, listExpenseAccountingEntries, listTruckAccountantAssignments } from '../services/expense-accounting-reads.service';
@@ -284,6 +284,25 @@ router.post('/confirm', declareMaterialWrite('expense-accounting.confirm', { met
   });
   sendShipmentWrite(res, result.result);
 }));
+// CR-010 E2 (SIL-882) — [Từ chối đã chọn (N)] on the Chi phí Ops board: ONE
+// mandatory reason covers the selection; every rejection runs inside one
+// transaction, so a bad row aborts the batch — the all-or-nothing twin of
+// POST /confirm. Confirmed/issued-phiếu rows refuse exactly like the single
+// reject does.
+router.post('/entries/reject-batch', declareMaterialWrite('expense-accounting.entries.reject-batch', { method: 'POST', path: '/api/expense-accounting/entries/reject-batch' }), asyncHandler(async (req, res) => {
+  const input = parse(z.object({
+    entries: z.array(expenseSourceRefSchema).min(1).max(200),
+    reason: z.string({ error: 'Lý do từ chối là bắt buộc.' })
+      .trim().min(1, 'Lý do từ chối không được để trống.').max(500, 'Lý do từ chối không được vượt quá 500 ký tự.'),
+  }).strict(), req.body);
+  requireShipmentIdempotencyKey(req, 'Cần mã thao tác để từ chối không bị trùng.');
+  const result = await runShipmentWrite(req, 'expense-accounting.entries.reject-batch', input, async tx => {
+    const items = await rejectAccountingExpensesBatch(tx, getUser(req), input.entries, input.reason);
+    return { body: { items }, status: 200, auditEntityId: items[0]?.id ?? null };
+  });
+  sendShipmentWrite(res, result.result);
+}));
+
 // SIL-779 — [Từ chối] on the centralized cost reconciliation table: refuse a
 // department-entered cost claim with a mandatory reason. History kept (source
 // VOIDED, native claim REJECTED); confirmed rows are refused — the sanctioned

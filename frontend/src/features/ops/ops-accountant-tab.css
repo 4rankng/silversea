@@ -34,3 +34,46 @@
 .ops-acc thead th.ops-wallet__col--customer {
   white-space: normal;
 }
+
+/* CR-010 E2 (SIL-882) — bulk-select column + toolbar + in-place edit cells.
+   The select column is a narrow fixed rail; the edit trigger inherits the
+   cell's typography so the board does not reflow when a cell becomes an
+   input, and the input keeps that same font while editing. */
+.ops-acc__bulk {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+
+.ops-acc .ops-acc__col--select {
+  width: 34px;
+  text-align: center;
+}
+
+.ops-acc .ops-acc__col--select input {
+  accent-color: var(--brand, #2563eb);
+}
+
+.ops-acc .ops-acc__row-actions {
+  display: inline-flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.ops-acc .ops-acc__edit-trigger {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: text;
+  text-align: inherit;
+}
+
+.ops-acc .ops-acc__edit-input {
+  font: inherit;
+  width: 100%;
+  min-width: 90px;
+  padding: 2px 6px;
+}
