@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, Minus } from 'lucide-react';
 import type { MouseEventHandler } from 'react';
 
 /**
@@ -13,13 +13,16 @@ import type { MouseEventHandler } from 'react';
  */
 interface LclSelectCheckboxProps {
   isSelected: boolean;
+  /** SIL-893 — the header select-all reports "mixed" while only some eligible
+   *  rows are picked; a plain true/false would misreport the set. */
+  isMixed?: boolean;
   isDisabled?: boolean;
   onToggle: (next: boolean) => void;
   ariaLabel: string;
   title?: string;
 }
 
-export function LclSelectCheckbox({ isSelected, isDisabled, onToggle, ariaLabel, title }: LclSelectCheckboxProps) {
+export function LclSelectCheckbox({ isSelected, isMixed, isDisabled, onToggle, ariaLabel, title }: LclSelectCheckboxProps) {
   const handleClick: MouseEventHandler<HTMLButtonElement> = (event) => {
     event.stopPropagation();
     onToggle(!isSelected);
@@ -28,16 +31,18 @@ export function LclSelectCheckbox({ isSelected, isDisabled, onToggle, ariaLabel,
     <button
       type="button"
       role="checkbox"
-      aria-checked={isSelected}
+      aria-checked={isMixed ? 'mixed' : isSelected}
       aria-label={ariaLabel}
       aria-disabled={isDisabled || undefined}
       title={title}
       disabled={isDisabled}
-      className={`ops-lcl-check${isSelected ? ' ops-lcl-check--on' : ''}`}
+      className={`ops-lcl-check${isSelected || isMixed ? ' ops-lcl-check--on' : ''}`}
       onClick={handleClick}
     >
-      {isSelected && (
-        <Check size={14} strokeWidth={2} aria-hidden="true" focusable="false" />
+      {(isSelected || isMixed) && (
+        isMixed
+          ? <Minus size={14} strokeWidth={2} aria-hidden="true" focusable="false" />
+          : <Check size={14} strokeWidth={2} aria-hidden="true" focusable="false" />
       )}
     </button>
   );

@@ -714,7 +714,30 @@ export function DetailedPlanGrid({
               <tr>
                 {(onToggleLclSelection || onToggleBulkSelection) && (
                   <th scope="col" className="detailed-plan-grid__th--select">
-                    {onToggleBulkSelection ? 'Phát lệnh' : 'Chọn lô'}
+                    {onToggleBulkSelection ? (() => {
+                      // SIL-893 — the header select-all covers ONLY the rows
+                      // eligible for batch release ('Đã điều xe' without a
+                      // lệnh); ineligible rows stay dimmed per-row whatever
+                      // the header does.
+                      const eligibleIds = items
+                        .filter((r) => bulkIssueEligibility(r).eligible)
+                        .map((r) => r.fulfillmentId);
+                      const picked = eligibleIds
+                        .filter((id) => selectedBulkFulfillmentIds?.has(id) ?? false).length;
+                      const all = eligibleIds.length > 0 && picked === eligibleIds.length;
+                      return (
+                        <div className="detailed-plan-grid__select-all">
+                          <LclSelectCheckbox
+                            isSelected={all}
+                            isMixed={picked > 0 && !all}
+                            onToggle={(next: boolean) => { eligibleIds.forEach((id) => onToggleBulkSelection(id, next)); }}
+                            ariaLabel="Chọn tất cả dòng đủ điều kiện"
+                            title="Chọn tất cả dòng đủ điều kiện phát lệnh hàng loạt"
+                          />
+                          <span aria-hidden="true">Phát lệnh</span>
+                        </div>
+                      );
+                    })() : 'Chọn lô'}
                   </th>
                 )}
                 <th scope="col" aria-sort={sortKey === 'runHour' ? (sortDirection === 'desc' ? 'descending' : 'ascending') : undefined}>

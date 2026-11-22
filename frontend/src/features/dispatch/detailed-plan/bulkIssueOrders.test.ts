@@ -1,0 +1,227 @@
+/**
+ * SIL-893 — the batch-release runner laws (`bulkIssueRows` on /dispatch-detail):
+ *   • PARTIAL SUCCESS — one bad row never cancels the batch; every failure
+ *     lands in the outcome with its identity + reason.
+ *   • KHÔNG TẠO TRÙNG CHUYẾN — a row already carrying a lệnh (stale pick or
+ *     re-click) refuses before any write; the server backs this with its own
+ *     live-trip 409, the runner's gate keeps the batch honest client-side.
+ *   • The release body mirrors the single-row quick-issue: OWN rows carry the
+ *     resolved truck+driver, external rows the carrier ids; planned times
+ *     ride the row's CUS-locked schedule (draftIssueTimesFor).
+ *   • Soft-warn 409s (plate-deferred, rig overlap, Kẹp weight) fail with the
+ *     per-row hint — a batch never answers a confirm dialog silently.
+ */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const listFleetMock = vi.fn();
+vi.mock('../../../api/dispatchPlanningClient', () => ({
+  listDispatchFleetResources: (...args: unknown[]) => listFleetMock(...args),
+}));
+
+import { bulkIssueRows, bulkIssueEligibility } from './bulkIssueOrders';
+import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import type { DispatchShipmentResponse } from '../../../api/shipmentClient';
+
+const ok = {} as DispatchShipmentResponse;
+
+const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlanRow => ({
+  fulfillmentId: 101,
+  version: 3,
+  shipmentId: 11,
+  shipmentVersion: 5,
+  shipmentCode: 'SS-000200',
+  fulfillmentType: 'FCL_CONTAINER',
+  cargoMode: 'FCL',
+  taskStatus: 'READY',
+  time: { deliveryDate: '2026-08-20', runHour: 8 },
+  customerRoute: { customerName: 'Công ty ABC', factoryName: 'Nhà máy XYZ', deliveryPoint: 'Kho Bình Dương', routeName: 'LH — Biên Hòa' },
+  docs: { billNumber: 'BL-2026-010', tradeDirection: 'EXPORT', declarationNumbers: [] },
+  container: { containerNumber: 'MSCU1234567', containerTypeLabel: '40HC', cargoWeightKg: '21500.00' },
+  notes: { vehicleNote: null, customerNote: null },
+  dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345' },
+  ports: { pickupPortId: null, pickupPortName: null, dropoffPortId: null, dropoffPortName: null },
+  isCombined: false,
+  estimates: { plannedRevenue: null, plannedCarrierCost: null },
+  lotFullyPlated: false,
+  ...overrides,
+} as DispatchDetailPlanRow);
+
+const truck = (overrides: Partial<{ id: number; licensePlate: string; assignedDriverId: number | null }> = {}) =>
+  ({ id: 12, licensePlate: '51C-12345', assignedDriverId: 34, ...overrides });
+
+beforeEach(() => {
+  listFleetMock.mockReset();
+});
+
+describe('bulkIssueRows — partial success', () => {
+  it('issues every eligible row in order and reports no failures', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const externalDeferred = row({
+      fulfillmentId: 102,
+      container: { containerNumber: 'TEMU7654321', containerTypeLabel: '20DC', cargoWeightKg: '18000.00' },
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe Thanh Phong', externalCarrierId: 8, externalCarrierVehicleId: null, assignedPlate: null },
+    });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    const outcome = await bulkIssueRows([row(), externalDeferred], onIssueOrder);
+
+    expect(outcome.issued).toBe(2);
+    expect(outcome.failures).toEqual([]);
+    // Sequential release, click order — a just-issued sibling can never slip
+    // a second trip past the grid's snapshot.
+    expect(onIssueOrder.mock.calls[0][0].fulfillmentId).toBe(101);
+    expect(onIssueOrder.mock.calls[1][0].fulfillmentId).toBe(102);
+  });
+
+  it('one failing row never cancels the batch — failures carry identity + message', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const blocked = row({
+      fulfillmentId: 103,
+      container: { containerNumber: 'MSCU9999999', containerTypeLabel: '40HC', cargoWeightKg: '21500.00' },
+    });
+    const onIssueOrder = vi.fn()
+      .mockResolvedValueOnce(ok)
+      .mockRejectedValueOnce(new Error('Rơ-moóc không phù hợp với loại container.'))
+      .mockResolvedValueOnce(ok);
+    const outcome = await bulkIssueRows([row(), blocked, row({ fulfillmentId: 104, container: { containerNumber: 'TEMU8888888', containerTypeLabel: '20DC', cargoWeightKg: '19000.00' } })], onIssueOrder);
+
+    expect(outcome.issued).toBe(2);
+    expect(outcome.failures).toEqual([
+      { fulfillmentId: 103, identity: 'MSCU9999999', message: 'Rơ-moóc không phù hợp với loại container.' },
+    ]);
+    expect(onIssueOrder).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('bulkIssueRows — không tạo trùng chuyến', () => {
+  it('a row already issued refuses without any write (repeated click law)', async () => {
+    const issued = row({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345', tripId: 77 },
+    });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    const outcome = await bulkIssueRows([issued], onIssueOrder);
+
+    expect(outcome.issued).toBe(0);
+    expect(outcome.failures).toEqual([
+      { fulfillmentId: 101, identity: 'MSCU1234567', message: 'Đã phát lệnh rồi.' },
+    ]);
+    expect(onIssueOrder).not.toHaveBeenCalled();
+  });
+
+  it('a stale pick carrying a trip id refuses even while its status still reads READY', async () => {
+    // The grid snapshot flipped under the operator: status not yet refetched,
+    // but the sibling release already created the trip for this fulfillment.
+    const stale = row({
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345', tripId: 90 },
+    });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    const outcome = await bulkIssueRows([stale], onIssueOrder);
+
+    expect(outcome.issued).toBe(0);
+    expect(outcome.failures[0].message).toBe('Đã phát lệnh rồi.');
+    expect(onIssueOrder).not.toHaveBeenCalled();
+    expect(listFleetMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('bulkIssueRows — release body mirrors the single-row quick-issue', () => {
+  it('OWN rows carry the resolved truck + driver and the CUS-locked times', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck({ id: 12, licensePlate: '51C-12345', assignedDriverId: 34 })] });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    await bulkIssueRows([row()], onIssueOrder);
+
+    const body = onIssueOrder.mock.calls[0][1];
+    expect(body).toMatchObject({
+      carrierType: 'OWN',
+      truckId: 12,
+      driverId: 34,
+      endTimeConfirmed: true,
+    });
+    expect(body.externalCarrierId).toBeUndefined();
+    expect(body.externalCarrierVehicleId).toBeUndefined();
+    expect(body.externalPlateNumber).toBeUndefined();
+    expect(new Date(body.plannedStartAt).getTime()).not.toBeNaN();
+    expect(new Date(body.plannedEndAt).getTime()).toBeGreaterThan(new Date(body.plannedStartAt).getTime());
+  });
+
+  it('external rows carry the carrier ids and never a truck/driver', async () => {
+    const externalBound = row({
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe Thanh Phong', externalCarrierId: 8, externalCarrierVehicleId: 5, assignedPlate: '15H-012.34' },
+    });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    await bulkIssueRows([externalBound], onIssueOrder);
+
+    const body = onIssueOrder.mock.calls[0][1];
+    expect(body).toMatchObject({ carrierType: 'EXTERNAL', externalCarrierId: 8, externalCarrierVehicleId: 5 });
+    expect(body.truckId).toBeUndefined();
+    expect(body.driverId).toBeUndefined();
+    // A bound carrier vehicle owns the plate — the body ships none.
+    expect(body.externalPlateNumber).toBeUndefined();
+    expect(listFleetMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('bulkIssueRows — per-row guards', () => {
+  it('an OWN truck without a driver fails with the fix hint, batch continues', async () => {
+    listFleetMock
+      .mockResolvedValueOnce({ items: [truck({ assignedDriverId: null })] })
+      .mockResolvedValueOnce({ items: [truck({ licensePlate: '51C-99999', assignedDriverId: 34 })] });
+    const driverless = row({ fulfillmentId: 105 });
+    const fine = row({
+      fulfillmentId: 106,
+      dispatch: { ...row().dispatch, assignedPlate: '51C-99999' },
+      container: { containerNumber: 'TEMU1111111', containerTypeLabel: '20DC', cargoWeightKg: '19000.00' },
+    });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    const outcome = await bulkIssueRows([driverless, fine], onIssueOrder);
+
+    expect(outcome.issued).toBe(1);
+    expect(outcome.failures[0].fulfillmentId).toBe(105);
+    expect(outcome.failures[0].message).toContain('Xe chưa gán tài xế');
+  });
+
+  it('a soft-warn 409 (plate-deferred) fails with the per-row hint, never a confirm', async () => {
+    const plateless = row({
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe Thanh Phong', externalCarrierId: 8, externalCarrierVehicleId: null, assignedPlate: null },
+    });
+    const deferred409 = Object.assign(
+      new Error('Phát lệnh chưa có biển số xe nhà xe ngoài — chuyến sẽ ghi nhận "chưa có biển" cho đến khi bổ sung qua Cập nhật biển số.'),
+      { status: 409, raw: { code: 'PLATE_DEFERRED_CONFIRM' } },
+    );
+    const onIssueOrder = vi.fn().mockRejectedValue(deferred409);
+    const outcome = await bulkIssueRows([plateless], onIssueOrder);
+
+    expect(outcome.issued).toBe(0);
+    expect(outcome.failures[0].message).toContain('dùng nút Phát lệnh trên dòng');
+  });
+
+  it('two OWN rows on the same plate share one fleet-catalog lookup', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    const outcome = await bulkIssueRows([
+      row(),
+      row({ fulfillmentId: 107, container: { containerNumber: 'TEMU2222222', containerTypeLabel: '20DC', cargoWeightKg: '18000.00' } }),
+    ], onIssueOrder);
+
+    expect(outcome.issued).toBe(2);
+    expect(listFleetMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('bulkIssueEligibility — the checkbox gate', () => {
+  it('gates every blocked state with its reason and admits the issuable two', () => {
+    expect(bulkIssueEligibility(row({ dispatch: { carrierType: 'OWN', carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } })))
+      .toEqual({ eligible: false, reason: 'Lô chưa được điều xe — gán xe trước khi phát lệnh.' });
+    expect(bulkIssueEligibility(row({
+      taskStatus: 'DISPATCHED',
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51C-12345', tripId: 77 },
+    })))
+      .toEqual({ eligible: false, reason: 'Đã phát lệnh rồi.' });
+    expect(bulkIssueEligibility(row({ taskStatus: 'COMPLETED' })))
+      .toEqual({ eligible: false, reason: 'Đã hoàn thành — lịch sử đóng băng.' });
+    expect(bulkIssueEligibility(row()).eligible).toBe(true);
+    expect(bulkIssueEligibility(row({
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe Thanh Phong', externalCarrierId: 8, externalCarrierVehicleId: null, assignedPlate: null },
+    })).eligible).toBe(true);
+  });
+});

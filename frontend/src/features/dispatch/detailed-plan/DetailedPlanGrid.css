@@ -279,6 +279,15 @@
   text-transform: uppercase;
   color: #64748b;
 }
+/* SIL-893 — the bulk-release header hosts the select-all checkbox beside the
+   column caption; 48px rail, so the stack stays one tight centered row. */
+.detailed-plan-grid__select-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
 .detailed-plan-grid__cell--select .detailed-plan-grid__cell-body--select {
   display: flex;
   align-items: center;
