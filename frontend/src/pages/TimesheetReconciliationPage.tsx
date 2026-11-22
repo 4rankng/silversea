@@ -24,6 +24,7 @@ import {
   reconcileTimesheetMonth,
   reopenTimesheetMonth,
   updateTimesheetMode,
+  type TimesheetMonth,
 } from '../api/timesheetClient';
 import { toastActionError } from '../lib/api/action-error';
 import { useToast } from '../components/shared';
@@ -99,7 +100,17 @@ export default function TimesheetReconciliationPage() {
         flatAmount: modeDraft === 'FLAT_MONTHLY' ? (modeFlatAmount === '' ? null : modeFlatAmount) : null,
       });
     },
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: qk.timesheet.all }),
+    onSuccess: (saved) => {
+      // SIL-860 — paint the saved board immediately: the invalidation refetch
+      // below is async, so the 'Tổng lương tháng' rail kept the pre-save
+      // figures until a full reload. The list cache is keyed by the page's
+      // period, and a saved board always belongs to the period on screen.
+      queryClient.setQueryData<TimesheetMonth[]>(
+        qk.timesheet.months(year, month),
+        rows => rows?.map(row => (row.id === saved.id ? saved : row)),
+      );
+      void queryClient.invalidateQueries({ queryKey: qk.timesheet.all });
+    },
     onError: (error) => toastActionError(toast, 'Lưu chế độ lương', error, 'Không lưu được chế độ lương.'),
   });
 

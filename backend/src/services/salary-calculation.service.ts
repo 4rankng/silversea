@@ -14,6 +14,25 @@ import {
 
 type DbLike = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
+/**
+ * SIL-860 — the monthly hard-salary figure /salary pays a driver from.
+ *
+ * 'trốn vé' (FLAT_MONTHLY): the Đối chiếu board's fixed-monthly figure is the
+ * per-month authority — money follows the same board-first law as the mode
+ * (`board?.salaryMode ?? driver.salaryMode`). The driver catalog baseSalary
+ * is only the fallback for a month with no board figure.
+ * 'không trốn vé' (PER_TRIP): month money is the per-trip + KPI lines, so the
+ * catalog figure stays the basis and a leftover board flat is ignored.
+ */
+export function resolveMonthlyHardBase(
+  effectiveSalaryMode: TimesheetSalaryMode,
+  boardFlatAmount: number | null | undefined,
+  catalogBaseSalary: number,
+): number {
+  if (effectiveSalaryMode === 'FLAT_MONTHLY' && boardFlatAmount != null) return boardFlatAmount;
+  return catalogBaseSalary;
+}
+
 export async function computeLiveSalary(
   driverId: number,
   year: number,
@@ -38,45 +57,6 @@ export async function computeLiveSalary(
   const baseSalary = parseFloat(driver.baseSalary || '0');
   // Social insurance from drivers.social_insurance column (was hardcoded to 0)
   const socialInsurance = parseFloat(driver.socialInsurance || '0');
-
-  // Per customer (Pete): dailyRate = baseSalary / standardWorkDays
-  // This is a cost-allocation rate to distribute monthly salary across trips, NOT actual pay.
-  const dailyRate = Math.round(baseSalary / standardWorkDays);
-
-  // SIL-849 — the trip-day split and the /salary calendar now read the chấm
-  // công board (the SAME source /timesheet + Đối chiếu pay from) instead of
-  // the legacy departure→arrival driver_work_days rows, so 'Lương chuyến
-  // (N ngày)', the green cells and the money can never disagree again. The
-  // paid-days basis below stays on the attendance rows — pay figures are
-  // untouched; the board only re-splits the INTERNAL cost allocation between
-  // chuyến and chờ việc (the two rows still sum to paidDays × dailyRate).
-  const boardTripDaysMap = await getBoardTripDays(driverId, start, end, executor);
-  const boardTripDays = boardTripDaysMap.size;
-  // SIL-849 round 2 — the DAY-COUNT fields ('Lương chờ việc (N ngày)',
-  // weeklyOffDays) count the same merged calendar the /salary calendar
-  // renders (round-1 merge rules: a board trip day wins; an unconfirmed
-  // legacy TRIP_DAY demotes to its attendance default) — not the legacy
-  // weeklyOffDays snapshot taken before board trip days merged. Labels only
-  // decorate calendar cells; the counts need statuses only.
-  const boardDayCounts = countBoardMergedDayStatuses(
-    start,
-    end,
-    mergeBoardTripDaysIntoWorkDays(attendance.workDays, boardTripDaysMap, new Map(), driverId),
-  );
-  const leaveCap = paidDays - tripDays - standbyDays;
-  const splitStandbyDays = Math.max(0, paidDays - boardTripDays - leaveCap);
-
-  // Cost allocation: trip salary = trip days × daily rate
-  const totalTripSalary = boardTripDays * dailyRate;
-
-  // Standby cost: standby days × daily rate (idle days → allocated cost)
-  const supplementPay = splitStandbyDays * dailyRate;
-
-  // Leave deduction: Removed because adjustment handles it natively.
-  const leaveDeduction = 0;
-
-  // Adjustment: (paidDays - standardWorkDays) * dailyRate
-  const adjustment = (paidDays - standardWorkDays) * dailyRate;
 
   // SIL-841 (QA fail fd0f7f14) — 'không trốn vé' (PER_TRIP) drivers also earn
   // the month's trip money. Source of truth = the chấm công board
@@ -122,6 +102,57 @@ export async function computeLiveSalary(
   const perTripPay = effectiveSalaryMode === 'PER_TRIP' ? timesheet.perTripPay : 0;
   const extraTripBonus = effectiveSalaryMode === 'PER_TRIP' ? timesheet.extraTripBonus : 0;
 
+  // SIL-860 (QA fail ×2, 22/11) — 'trốn vé' (FLAT_MONTHLY) pays the
+  // FIXED-MONTHLY figure kế toán saves on the Đối chiếu board, not the driver
+  // catalog. Money follows the same board-first law as the mode above: the
+  // board row is the per-month authority, the catalog baseSalary is only the
+  // fallback for a month without a board figure. Reading the catalog here was
+  // the defect: Đối chiếu paid 12.000.000 ₫ while /salary kept 0 ₫.
+  const monthlyHardBase = resolveMonthlyHardBase(
+    effectiveSalaryMode,
+    board?.flatAmount != null ? Number(board.flatAmount) : null,
+    baseSalary,
+  );
+
+  // Per customer (Pete): dailyRate = monthly hard base / standardWorkDays.
+  // This is a cost-allocation rate to distribute monthly salary across trips, NOT actual pay.
+  const dailyRate = Math.round(monthlyHardBase / standardWorkDays);
+
+  // SIL-849 — the trip-day split and the /salary calendar now read the chấm
+  // công board (the SAME source /timesheet + Đối chiếu pay from) instead of
+  // the legacy departure→arrival driver_work_days rows, so 'Lương chuyến
+  // (N ngày)', the green cells and the money can never disagree again. The
+  // paid-days basis below stays on the attendance rows — pay figures are
+  // untouched; the board only re-splits the INTERNAL cost allocation between
+  // chuyến and chờ việc (the two rows still sum to paidDays × dailyRate).
+  const boardTripDaysMap = await getBoardTripDays(driverId, start, end, executor);
+  const boardTripDays = boardTripDaysMap.size;
+  // SIL-849 round 2 — the DAY-COUNT fields ('Lương chờ việc (N ngày)',
+  // weeklyOffDays) count the same merged calendar the /salary calendar
+  // renders (round-1 merge rules: a board trip day wins; an unconfirmed
+  // legacy TRIP_DAY demotes to its attendance default) — not the legacy
+  // weeklyOffDays snapshot taken before board trip days merged. Labels only
+  // decorate calendar cells; the counts need statuses only.
+  const boardDayCounts = countBoardMergedDayStatuses(
+    start,
+    end,
+    mergeBoardTripDaysIntoWorkDays(attendance.workDays, boardTripDaysMap, new Map(), driverId),
+  );
+  const leaveCap = paidDays - tripDays - standbyDays;
+  const splitStandbyDays = Math.max(0, paidDays - boardTripDays - leaveCap);
+
+  // Cost allocation: trip salary = trip days × daily rate
+  const totalTripSalary = boardTripDays * dailyRate;
+
+  // Standby cost: standby days × daily rate (idle days → allocated cost)
+  const supplementPay = splitStandbyDays * dailyRate;
+
+  // Leave deduction: Removed because adjustment handles it natively.
+  const leaveDeduction = 0;
+
+  // Adjustment: (paidDays - standardWorkDays) * dailyRate
+  const adjustment = (paidDays - standardWorkDays) * dailyRate;
+
   // Penalties in period
   const [penaltyRow] = await executor.select({
     total: sql<string>`coalesce(sum(${s.penalties.amount}::numeric), 0)`,
@@ -138,8 +169,11 @@ export async function computeLiveSalary(
 
   // Net salary: lương cứng + điều chỉnh công − phạt, cộng TIỀN CHUYẾN + KPI
   // vượt chuyến for 'không trốn vé' (SIL-841); 'trốn vé' keeps the
-  // lương-cứng-theo-ngày-công math untouched.
-  const netSalary = baseSalary + adjustment - totalPenalties + perTripPay + extraTripBonus;
+  // lương-cứng-theo-ngày-công math untouched, only on the board's
+  // fixed-monthly basis (SIL-860) so Đối chiếu and /salary cannot diverge:
+  // monthlyHardBase + (paidDays − standardWorkDays) × dailyRate collapses to
+  // dailyRate × paidDays, exactly the board's dailyBasePay.
+  const netSalary = monthlyHardBase + adjustment - totalPenalties + perTripPay + extraTripBonus;
 
   // Get salary confirmation status — use pre-fetched map if available
   let confirmationRow: { status: string | null; confirmedBy: number | null; confirmedAt: Date | null } | undefined;
@@ -169,7 +203,9 @@ export async function computeLiveSalary(
     // on the paidDays basis (splitStandbyDays above) so no pay figure moves.
     standbyDays: boardDayCounts.standbyDays,
     weeklyOffDays: boardDayCounts.weeklyOffDays,
-    baseSalary,
+    // SIL-860 — the "Lương cứng" row pays from the board's fixed-monthly
+    // figure for 'trốn vé'; the catalog value stays the fallback only.
+    baseSalary: monthlyHardBase,
     socialInsurance,
     dailyRate,
     totalTripSalary,

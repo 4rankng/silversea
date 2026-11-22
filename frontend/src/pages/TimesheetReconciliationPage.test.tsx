@@ -131,6 +131,35 @@ describe('TimesheetReconciliationPage', () => {
     }));
   });
 
+  it('SIL-860 — panel Tổng lương tháng hiện số MỚI ngay sau khi lưu (không cần reload)', async () => {
+    // PATCH trả về bảng đã lưu; ban đầu listTimesheetMonths mock vẫn trả dữ
+    // liệu cũ, nên rail buộc phải đọc từ response PATCH (setQueryData) chứ
+    // không chờ refetch — QA fail: rail giữ giá trị cũ đến khi reload cả trang.
+    const savedMonth: TimesheetMonth = {
+      ...month,
+      salaryMode: 'FLAT_MONTHLY',
+      dailyBase: null,
+      flatAmount: 12_000_000,
+      salary: {
+        ...month.salary,
+        mode: 'FLAT_MONTHLY',
+        perTripPay: 0,
+        extraTripBonus: 0,
+        dailyBasePay: 12_000_000,
+        salaryTotal: 12_000_000,
+      },
+    };
+    vi.mocked(updateTimesheetMode).mockResolvedValue(savedMonth);
+    renderBoard();
+    await screen.findByText('Tổng lương');
+    expect(screen.getByText('700.000')).toBeTruthy(); // số cũ trước khi lưu
+    // Refetch sau invalidate cũng phải trả dữ liệu MỚI — server đã lưu rồi.
+    vi.mocked(listTimesheetMonths).mockResolvedValue([savedMonth]);
+    fireEvent.click(screen.getByRole('button', { name: /Lưu chế độ lương/ }));
+    // dailyBasePay và Tổng lương cùng hiện 12.000.000 — hai dòng của rail.
+    await waitFor(() => expect(screen.getAllByText('12.000.000').length).toBeGreaterThan(0));
+  });
+
   it('SIL-841 — cột Chuyến của Tổng hợp tháng đọc Tổng số chuyến (Đ+K+2·Q) từ rollup', async () => {
     // 2 Đ + 1 K + 1 Q → Tổng số chuyến = 5 = 2+1+2·1 (SIL-841, 15/11); từ
     // 15/11 trọng số tổng TRÙNG trọng số lương (Q = 2 ở cả hai).
