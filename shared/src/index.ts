@@ -1,7 +1,7 @@
 export {
   TripStatus, BILLABLE_TRIP_STATUSES, FuelMode, LoadingType, Role, TxnType,
   TrailerType, TrailerStatus, TruckStatus, DriverStatus, CustomerStatus,
-  PenaltyStatus, PENALTY_STATUS_LABELS, TRAILER_STATUS_LABELS, TRAILER_TYPE_LABELS,
+  PenaltyStatus, PENALTY_STATUS_LABELS, DEBIT_NOTE_STATUS_LABELS, TRAILER_STATUS_LABELS, TRAILER_TYPE_LABELS,
   TIRE_STATUSES, TIRE_STATUS_LABELS, TIRE_DISPOSAL_REASONS,
   TRIP_STATUS_LABELS, TRIP_POD_STATUS_LABELS, ROLE_LABELS, FUEL_MODE_LABELS, LOADING_TYPE_LABELS,
   TRIP_STATUS_COLORS, DATA_COMPLETENESS_COLORS,
@@ -47,6 +47,7 @@ export {
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification, ContainerClassification, TradeDirection, LclCargoFitStatus, LclCargoFitAssessment, LclCargoFitInput } from './constants';
+export type { DebitNoteStatus } from './constants';
 export { workInboxItemBaseSchema, workInboxResponseSchema, workInboxPartySchema, workInboxNextActionSchema, workInboxStateSchema, customerDeliveryResponseSchema, operationsWorkInboxItemSchema, driverWorkInboxItemSchema, customerWorkInboxItemSchema, accountantWorkInboxItemSchema, managerWorkInboxItemSchema, adminHealthInboxItemSchema } from './schemas/work-inbox';
 export type {
   WorkInboxItemBase,

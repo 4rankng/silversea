@@ -552,6 +552,20 @@ export const PENALTY_STATUS_LABELS: Record<PenaltyStatus, string> = {
   [PenaltyStatus.CANCELED]: 'Đã hủy',
 };
 
+/** Debit-note lifecycle status labels (DRAFT → SENT → … → PAID / CANCELED). */
+export const DEBIT_NOTE_STATUS_LABELS = {
+  DRAFT: 'Nháp',
+  SENT: 'Đã phát hành',
+  PENDING_CONFIRM: 'Chờ khách xác nhận',
+  CONFIRMED: 'Khách đã xác nhận',
+  PARTIAL_PAID: 'Đã thu một phần',
+  PAID: 'Đã thu đủ',
+  REJECTED: 'Bị từ chối',
+  CANCELED: 'Đã hủy',
+} as const;
+
+export type DebitNoteStatus = keyof typeof DEBIT_NOTE_STATUS_LABELS;
+
 /** Default seeds for forwarder_expense_types config table. `category` carries
  *  the card 20260919_3 settlement category (null = chưa phân loại — WEIGHING
  *  stays uncategorized per ruling; the admin surface reclassifies, no

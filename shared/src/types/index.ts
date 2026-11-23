@@ -2072,6 +2072,16 @@ export interface BillingDocument {
   totalGross?: number;
   vatTreatmentVersion?: string;
   debitNoteStatus?: 'DRAFT' | 'SENT' | 'PENDING_CONFIRM' | 'CONFIRMED' | 'PARTIAL_PAID' | 'PAID' | 'REJECTED' | 'CANCELED' | null;
+  /** When the note transitioned DRAFT → SENT; null while still a draft. */
+  issuedAt?: string | null;
+  /**
+   * Customer cumulative-AR running balance immediately before / after this
+   * note's `GBN:<id>` ADJUSTMENT ledger reconciliation entries. Null while the
+   * note has not reconciled any receivable yet. after − before = the note's
+   * total ledger delta, so the history card can reconcile the debt change.
+   */
+  arBalanceBefore?: number | null;
+  arBalanceAfter?: number | null;
   customerConfirmedAt?: string | null;
   customerConfirmedBy?: string | null;
   ledgerAdjustmentAmount?: number; // net AR adjustment posted by this document

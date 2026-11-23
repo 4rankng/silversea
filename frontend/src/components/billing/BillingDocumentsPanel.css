@@ -136,6 +136,62 @@
   gap: 4px;
 }
 
+.billing-panel__note-num {
+  color: var(--ink);
+  font-family: var(--font-data);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.billing-panel__status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: var(--text-caption-size);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.billing-panel__status--draft {
+  color: var(--ink-3);
+  border-color: var(--line);
+  background: var(--bg-2);
+}
+
+.billing-panel__status--sent,
+.billing-panel__status--pending_confirm,
+.billing-panel__status--confirmed,
+.billing-panel__status--partial_paid,
+.billing-panel__status--paid {
+  color: #177448;
+  background: color-mix(in srgb, #177448 12%, transparent);
+  border-color: color-mix(in srgb, #177448 35%, transparent);
+}
+
+.billing-panel__status--rejected,
+.billing-panel__status--canceled {
+  color: #a0444e;
+  background: color-mix(in srgb, #a0444e 12%, transparent);
+  border-color: color-mix(in srgb, #a0444e 35%, transparent);
+}
+
+.billing-panel__ar-delta {
+  font-weight: 650;
+}
+
+.billing-panel__readonly {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
 @media (max-width: 760px) {
   .billing-panel {
     margin-bottom: 14px;

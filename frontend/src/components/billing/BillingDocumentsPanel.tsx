@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useConfirm } from '../UI';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, FileText, Download, History, Pencil, Plus, Receipt, Trash2 } from 'lucide-react';
+import { ChevronDown, FileText, Download, History, Lock, Pencil, Plus, Receipt, Trash2 } from 'lucide-react';
 import { useToast } from '../shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
 import { api } from '../../lib/api';
@@ -10,6 +10,7 @@ import { financialClient } from '../../api/financialClient';
 import { qk } from '../../api/keys';
 import BillingDocumentBuilder from './BillingDocumentBuilder';
 import './BillingDocumentsPanel.css';
+import { DEBIT_NOTE_STATUS_LABELS, type DebitNoteStatus } from '@tingting/shared';
 import type {
   BillingDocument, BillingDocumentType, BillingDocumentEntityType,
 } from '@tingting/shared';
@@ -30,6 +31,11 @@ function formatDueDate(value: string | null | undefined) {
   if (!value) return 'Chưa có dữ liệu lịch sử';
   const [year, month, day] = value.split('-');
   return `${day}/${month}/${year}`;
+}
+
+function formatInstant(value: string | null | undefined) {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 }
 
 export default function BillingDocumentsPanel({
@@ -144,36 +150,77 @@ export default function BillingDocumentsPanel({
           </div>
         ) : (
           <div className="billing-panel__list" id="billing-history-list">
-            {docs.map((doc) => (
-              <div
-                key={doc.id}
-                className="billing-panel__row"
-              >
-                <div className="billing-panel__doc">
-                  <FileText size={15} />
-                  <span>{doc.rangeFrom} → {doc.rangeTo}</span>
-                  <strong className="mono">
-                    {formatCurrency(doc.totalInclVat)}
-                  </strong>
-                  {doc.type === 'DEBIT_NOTE' && (
-                    <span>
-                      Hạn HĐ {formatDueDate(doc.originalDueDate)} · Xử lý {formatDueDate(doc.processingDueDate)}
-                    </span>
-                  )}
+            {docs.map((doc) => {
+              const status = (doc.debitNoteStatus ?? 'DRAFT') as DebitNoteStatus;
+              // Issued documents are read-only — the backend rejects update and
+              // delete for anything past DRAFT, so the actions are not offered.
+              const editable = status === 'DRAFT';
+              const isDebitNote = doc.type === 'DEBIT_NOTE';
+              return (
+                <div
+                  key={doc.id}
+                  className="billing-panel__row"
+                >
+                  <div className="billing-panel__doc">
+                    <FileText size={15} />
+                    <strong className="billing-panel__note-num">#{doc.id}</strong>
+                    {isDebitNote && (
+                      <span className={`billing-panel__status billing-panel__status--${status.toLowerCase()}`}>
+                        {DEBIT_NOTE_STATUS_LABELS[status]}
+                      </span>
+                    )}
+                    <span>{doc.rangeFrom} → {doc.rangeTo}</span>
+                    <strong className="mono">
+                      {formatCurrency(doc.totalInclVat)}
+                    </strong>
+                    {isDebitNote && (
+                      <span>
+                        Hạn HĐ {formatDueDate(doc.originalDueDate)} · Xử lý {formatDueDate(doc.processingDueDate)}
+                      </span>
+                    )}
+                    {isDebitNote && status === 'CANCELED' && (
+                      <span>Hủy ngày {formatInstant(doc.updatedAt)}</span>
+                    )}
+                    {isDebitNote && status !== 'CANCELED' && doc.issuedAt != null && (
+                      <span>Phát hành ngày {formatInstant(doc.issuedAt)}</span>
+                    )}
+                    {isDebitNote && doc.arBalanceBefore != null && doc.arBalanceAfter != null && (
+                      <span className="billing-panel__ar-delta">
+                        Công nợ cộng dồn {formatCurrency(doc.arBalanceBefore)} → {formatCurrency(doc.arBalanceAfter)}{' '}
+                        ({doc.arBalanceAfter - doc.arBalanceBefore > 0 ? '+' : ''}{formatCurrency(doc.arBalanceAfter - doc.arBalanceBefore)})
+                      </span>
+                    )}
+                  </div>
+                  <div className="billing-panel__actions">
+                    {editable ? (
+                      <>
+                        <button className="btn btn--ghost btn--icon btn--sm" title="Sửa" aria-label="Sửa" onClick={() => openEdit(doc)}>
+                          <Pencil size={13} />
+                        </button>
+                        <button className="btn btn--ghost btn--icon btn--sm" title="Xuất Excel" aria-label="Xuất Excel" onClick={() => exportDoc(doc)}>
+                          <Download size={13} />
+                        </button>
+                        <button className="btn btn--danger-outline btn--icon btn--sm" title="Xóa" aria-label="Xóa" onClick={() => removeDoc(doc)}>
+                          <Trash2 size={13} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button className="btn btn--ghost btn--icon btn--sm" title="Xuất Excel" aria-label="Xuất Excel" onClick={() => exportDoc(doc)}>
+                          <Download size={13} />
+                        </button>
+                        <span
+                          className="billing-panel__readonly"
+                          title={status === 'CANCELED' ? 'Giấy báo nợ đã hủy — chỉ đọc' : 'Giấy báo nợ đã phát hành — chỉ đọc'}
+                        >
+                          <Lock size={12} /> Chỉ đọc
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="billing-panel__actions">
-                  <button className="btn btn--ghost btn--icon btn--sm" title="Sửa" aria-label="Sửa" onClick={() => openEdit(doc)}>
-                    <Pencil size={13} />
-                  </button>
-                  <button className="btn btn--ghost btn--icon btn--sm" title="Xuất Excel" aria-label="Xuất Excel" onClick={() => exportDoc(doc)}>
-                    <Download size={13} />
-                  </button>
-                  <button className="btn btn--danger-outline btn--icon btn--sm" title="Xóa" aria-label="Xóa" onClick={() => removeDoc(doc)}>
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )
       )}

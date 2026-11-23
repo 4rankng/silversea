@@ -56,6 +56,48 @@
   font-weight: 850;
 }
 
+.billing-builder__doc-num {
+  color: var(--ink-3);
+  font-family: var(--font-data);
+  font-weight: 800;
+  font-size: 0.75em;
+  white-space: nowrap;
+}
+
+.billing-builder__status {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: var(--fs-xs);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.billing-builder__status--draft {
+  color: var(--ink-3);
+  border-color: var(--line);
+  background: var(--bg-2);
+}
+
+.billing-builder__status--sent,
+.billing-builder__status--pending_confirm,
+.billing-builder__status--confirmed,
+.billing-builder__status--partial_paid,
+.billing-builder__status--paid {
+  color: #177448;
+  background: color-mix(in srgb, #177448 12%, transparent);
+  border-color: color-mix(in srgb, #177448 35%, transparent);
+}
+
+.billing-builder__status--rejected,
+.billing-builder__status--canceled {
+  color: #a0444e;
+  background: color-mix(in srgb, #a0444e 12%, transparent);
+  border-color: color-mix(in srgb, #a0444e 35%, transparent);
+}
+
 .billing-builder__meta {
   min-width: 0;
   margin-top: 6px;

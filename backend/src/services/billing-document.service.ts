@@ -1,10 +1,10 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, isNull, inArray, desc, or, sql, type SQL } from 'drizzle-orm';
+import { eq, and, asc, isNull, inArray, desc, or, sql, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
-import { canonicalFreightDescription } from '@tingting/shared';
+import { canonicalFreightDescription, TxnType } from '@tingting/shared';
 import type {
   BillingDocument,
   BillingDocumentLine,
@@ -728,6 +728,37 @@ async function hydrateDocument(
     ? detectedAuthorityState
     : (doc.authorityState as BillingDocument['authorityState']);
   const corrections = await listDocumentCorrections(doc.id, executor);
+  // Every customer-debit-note save reconciles its receivable through append-only
+  // ADJUSTMENT ledger entries stamped `GBN:<docId>`. Each entry stores the
+  // customer's running balance right after itself, so the FIRST entry yields the
+  // debt immediately before the note (balance − debit + credit) and the LAST
+  // entry the debt immediately after it — after − before is the note's whole
+  // ledger delta and must equal `ledgerAdjustmentAmount`.
+  let arBalanceBefore: number | null = null;
+  let arBalanceAfter: number | null = null;
+  if (doc.type === 'DEBIT_NOTE' && doc.entityType === 'CUSTOMER') {
+    const reconciliations = await executor.select({
+      debit: s.ledger.debit,
+      credit: s.ledger.credit,
+      balance: s.ledger.balance,
+    }).from(s.ledger)
+      .where(and(
+        eq(s.ledger.entityType, 'CUSTOMER'),
+        eq(s.ledger.entityId, doc.entityId),
+        eq(s.ledger.txnType, TxnType.ADJUSTMENT),
+        eq(s.ledger.receiptId, `GBN:${doc.id}`),
+      ))
+      .orderBy(asc(s.ledger.id));
+    const first = reconciliations[0];
+    const last = reconciliations[reconciliations.length - 1];
+    if (first && last) {
+      // Debt right before the note = the FIRST entry's balance minus its own
+      // movement; debt after the note = the LAST entry's balance. after −
+      // before therefore equals Σ(debit − credit) = ledgerAdjustmentAmount.
+      arBalanceAfter = Number(last.balance);
+      arBalanceBefore = Number(first.balance) - Number(first.debit) + Number(first.credit);
+    }
+  }
   return {
     id: doc.id, version: doc.version, type: doc.type as BillingDocumentType, entityType: doc.entityType as BillingDocumentEntityType,
     entityId: doc.entityId, entityName: doc.entityName ?? undefined,
@@ -738,6 +769,9 @@ async function hydrateDocument(
     totalGross: Number(doc.totalGross),
     vatTreatmentVersion: doc.vatTreatmentVersion,
     debitNoteStatus: doc.debitNoteStatus,
+    issuedAt: doc.issuedAt?.toISOString() ?? null,
+    arBalanceBefore,
+    arBalanceAfter,
     customerConfirmedAt: doc.customerConfirmedAt?.toISOString() ?? null,
     customerConfirmedBy: doc.customerConfirmedBy,
     ledgerAdjustmentAmount: Number(doc.ledgerAdjustmentAmount),

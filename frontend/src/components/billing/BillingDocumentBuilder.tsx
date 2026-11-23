@@ -13,6 +13,7 @@ import { documentFileName, filterAuthoritativeDebitNoteLines, groupLinesByContai
 import { DateInput } from '../../design-system/forms/DateInput';
 import { Modal, UuiSelectField } from '../../design-system';
 import './BillingDocumentBuilder.css';
+import { DEBIT_NOTE_STATUS_LABELS, type DebitNoteStatus } from '@tingting/shared';
 import type {
   BillingDocument,
   BillingDraftEligibilitySummary,
@@ -52,6 +53,12 @@ export default function BillingDocumentBuilder({
 }: Props) {
   const { toast: showToast } = useToast();
   const isEdit = !!initialDoc;
+  // Anything past DRAFT (issued/canceled) is frozen: the backend rejects update
+  // and delete, so the editor must not persist lines against it.
+  const lockedForEdit = isEdit && (initialDoc?.debitNoteStatus ?? 'DRAFT') !== 'DRAFT';
+  const editingStatus: DebitNoteStatus | null = type === 'DEBIT_NOTE'
+    ? ((initialDoc?.debitNoteStatus ?? 'DRAFT') as DebitNoteStatus)
+    : null;
   const autoGenerateRef = useRef(false);
   const month = useMemo(() => thisMonthRange(), []);
   const requestedSelection = useMemo(() => {
@@ -291,6 +298,10 @@ export default function BillingDocumentBuilder({
   };
 
   const persistDocument = async ({ notify = true }: { notify?: boolean } = {}): Promise<BillingDocument | null> => {
+    if (lockedForEdit) {
+      showToast({ kind: 'error', message: 'Giấy báo nợ đã phát hành — chỉ đọc, không thể lưu thay đổi.' });
+      return null;
+    }
     if (selectionError) {
       showToast({ kind: 'error', message: selectionError });
       return null;
@@ -322,22 +333,33 @@ export default function BillingDocumentBuilder({
     if (exporting || saving) return;
     setExporting(true);
     try {
+      if (lockedForEdit && initialDoc) {
+        // Read-only issued documents export the frozen snapshot as-is — no save.
+        const blob = await api.getBlob(financialClient.getBillingDocumentExportUrl(initialDoc.id, templateId));
+        downloadBlob(blob);
+        showToast({ kind: 'success', message: 'Đã xuất Excel (bản đã phát hành).' });
+        return;
+      }
       const saved = await persistDocument({ notify: false });
       if (!saved) return;
 
       const blob = await api.getBlob(financialClient.getBillingDocumentExportUrl(saved.id, templateId));
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = documentFileName(type, entityName);
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob);
       showToast({ kind: 'success', message: 'Đã lưu và xuất Excel.' });
     } catch (err) {
       toastActionError(showToast, 'xuất Excel', err, 'Lỗi xuất Excel');
     } finally {
       setExporting(false);
     }
+  };
+
+  const downloadBlob = (blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = documentFileName(type, entityName);
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const busy = loading || saving || exporting;
@@ -385,7 +407,15 @@ export default function BillingDocumentBuilder({
           </div>
           <div>
             <p className="billing-builder__eyebrow">{isEdit ? 'Chỉnh sửa tài liệu' : 'Tạo tài liệu mới'}</p>
-            <h2 id="billing-builder-title">{TITLE[type]}</h2>
+            <h2 id="billing-builder-title">
+              {TITLE[type]}
+              {isEdit && initialDoc ? <span className="billing-builder__doc-num"> #{initialDoc.id}</span> : null}
+            </h2>
+            {editingStatus != null && (
+              <span className={`billing-builder__status billing-builder__status--${editingStatus.toLowerCase()}`}>
+                {DEBIT_NOTE_STATUS_LABELS[editingStatus]}
+              </span>
+            )}
             <div className="billing-builder__meta">
               <span>{entityName}</span>
               <span>{displayDate(rangeFrom)} - {displayDate(rangeTo)}</span>
