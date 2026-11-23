@@ -204,10 +204,27 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const auth = useAuth();
   const opsViewer = getModernRole(auth?.user?.role ?? '') === Role.OPS;
 
+  // SIL-844 (id 973) — picker lists EVERY container row of the lot (số đính
+  // kèm sau vẫn là cont: hạch toán theo cont đi bằng id, không cần số đã
+  // cập nhật). Lô chưa có dòng cont nào (LCL, FCL pre-container) thì picker
+  // không có gì để chọn — phạm vi chung lô là scope đúng duy nhất, kèm hint.
+  const pickerContainers = useMemo(
+    () => order.containers
+      ?? order.containerIds.map((id, index) => ({ id, number: order.containerNumbers[index] ?? null })),
+    [order],
+  );
+
   // Số Cont: multi-select with chọn-all (mockup "Được chọn all số cont").
-  // 'Phí chung lô' stays the default — a lot-wide fee is ONE row with no
-  // container; picking containers instead declares the fee PER container.
-  const [containerValues, setContainerValues] = useState<string[]>([LOT_CHOICE]);
+  // SIL-861 (QA 23/11) — the popup opens with EVERY container row picked:
+  // the fee rides the full set as ONE record (SIL-881), the picker's "N đã
+  // chọn" count is truthful from the first paint, and a valid row saves
+  // without a re-pick. Opening on 'Phí chung lô' instead made the trigger
+  // claim one selection while the validator saw zero containers. A lot with
+  // NO container rows keeps 'Phí chung lô' — the only scope it has.
+  const [containerValues, setContainerValues] = useState<string[]>(() =>
+    pickerContainers.length > 0
+      ? pickerContainers.map((container) => String(container.id))
+      : [LOT_CHOICE]);
   const [paidAt, setPaidAt] = useState(localDateInputValue());
   const [noInvoiceRows, setNoInvoiceRows] = useState<FeeDraft[]>([blankFeeDraft(draftKeySeq++)]);
   const [invoiceRows, setInvoiceRows] = useState<FeeDraft[]>([]);
@@ -231,15 +248,6 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     };
   }, [typesData]);
 
-  // SIL-844 (id 973) — picker lists EVERY container row of the lot (số đính
-  // kèm sau vẫn là cont: hạch toán theo cont đi bằng id, không cần số đã
-  // cập nhật). Lô chưa có dòng cont nào (LCL, FCL pre-container) thì picker
-  // không có gì để chọn — phạm vi chung lô là scope đúng duy nhất, kèm hint.
-  const pickerContainers = useMemo(
-    () => order.containers
-      ?? order.containerIds.map((id, index) => ({ id, number: order.containerNumbers[index] ?? null })),
-    [order],
-  );
   const containerOptions = useMemo(() => ([
     { value: LOT_CHOICE, label: 'Phí chung lô' },
     ...pickerContainers.map((container, index) => (
@@ -339,15 +347,18 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
   const drafts = [...noInvoiceRows, ...invoiceRows];
 
-  // Ticket 18/11 Task 4.1 — PHÍ KHÔNG HÓA ĐƠN is HARD-GATED, and the form
-  // refuses BEFORE Lưu instead of bouncing at the write path.
-  // (a) A no-invoice fee must carry an explicit Số container: the default
-  // 'Phí chung lô' scope (or an empty pick) blocks with 'Bắt buộc chọn Số
-  // container' — a lot-wide no-invoice row is exactly the double-charge
-  // shape the duplicate gate refuses downstream. A lot with NO container
-  // rows at all keeps the lot scope (the picker hint above names it).
+  // Ticket 18/11 Task 4.1 + SIL-861 (QA 23/11) — the form refuses a
+  // container-less scope BEFORE Lưu instead of bouncing at the write path.
+  // (a) EVERY fee on a container-lot carries an explicit Số-container SET:
+  // the 'Phí chung lô' choice (or an empty pick) blocks with 'Bắt buộc chọn
+  // Số container'. The no-invoice row was the double-charge shape the
+  // duplicate gate refuses downstream; QA showed the invoice tab's 0-cont
+  // submit sailing through as chung-lô (SIL-861 DEFECT A), so the gate now
+  // covers both tabs. A lot with NO container rows at all keeps the lot
+  // scope (the picker hint above names it).
   const noInvoiceHasRows = noInvoiceRows.some((draft) => !isEmptyDraft(draft));
-  const noInvoiceScopeBlocked = noInvoiceHasRows
+  const invoiceHasRows = invoiceRows.some((draft) => !isEmptyDraft(draft));
+  const scopeBlocked = (noInvoiceHasRows || invoiceHasRows)
     && pickerContainers.length > 0
     && pickedContainerIds.length === 0;
   // (b) The same cost TYPE twice for the SAME container is refused up front:
@@ -397,7 +408,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   // A form of untouched "+ rows" has nothing to save.
   const hasAnyRow = drafts.some((draft) => !isEmptyDraft(draft));
   const canSubmit = typesReady && hasAnyRow && invalidKeys.size === 0
-    && !noInvoiceScopeBlocked && !createExpense.isPending && !anyPendingFiles;
+    && !scopeBlocked && !createExpense.isPending && !anyPendingFiles;
   // SIL-723 — Lưu must never be disabled in silence: when a non-blank draft
   // blocks the save, the footer repeats the row's message (which NAMES the
   // missing field) right beside the button, so the dead state always says
@@ -410,7 +421,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     if (!hasAnyRow) return 'Chưa điền khoản chi nào — "Loại phí" và "Số tiền" là bắt buộc.';
     // Ticket 18/11 Task 4.1 — the no-invoice hard gates speak first: their
     // messages are the ones the disabled Lưu must name.
-    if (noInvoiceScopeBlocked) return 'Bắt buộc chọn Số container';
+    if (scopeBlocked) return 'Bắt buộc chọn Số container';
     if (noInvoiceDuplicateTypes.size > 0) {
       const code = [...noInvoiceDuplicateTypes][0];
       const name = typesData?.items.find((type) => type.code === code)?.name ?? code;
@@ -429,7 +440,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       if (message && !message.startsWith('Số tiền')) return message;
     }
     return null;
-  }, [typesReady, hasAnyRow, noInvoiceScopeBlocked, noInvoiceDuplicateTypes, invoiceDuplicateNumbers, typesData, noInvoiceRows, invoiceRows]);
+  }, [typesReady, hasAnyRow, scopeBlocked, noInvoiceDuplicateTypes, invoiceDuplicateNumbers, typesData, noInvoiceRows, invoiceRows]);
 
   const pendingResume = useRef<{ tasks: SaveTask[]; index: number } | null>(null);
 

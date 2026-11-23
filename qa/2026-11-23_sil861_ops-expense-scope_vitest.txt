@@ -1,0 +1,12 @@
+# cmd: pnpm exec vitest run src/features/ops/OpsExpenseFormModal.containers.test.tsx (from frontend/)
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+ RUN  v4.1.12 /Volumes/LexarSSD/projects/silversea/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  28 passed (28)
+   Start at  10:23:36
+   Duration  9.42s (transform 1.05s, setup 215ms, import 2.45s, tests 5.78s, environment 815ms)
+
+# exit: 0

@@ -97,9 +97,15 @@ async function fillNote(blockName: string, value: string) {
   fireEvent.change(within(block(blockName)).getByLabelText('Ghi chú'), { target: { value } });
 }
 
+/** The Số-Cont picker helper. SIL-861 — the popup opens with every container
+ *  pre-picked, so "pick these" first clears the set (clicking an
+ *  already-picked option would toggle it OFF) and then ticks exactly the
+ *  requested rows; no labels = the emptied scope. */
 async function pickContainers(...labels: string[]) {
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: /số cont/ })); });
-  const listbox = await screen.findByRole('listbox');
+  const popover = await screen.findByRole('dialog', { name: 'Chọn Phí chung lô' });
+  fireEvent.click(within(popover).getByRole('button', { name: 'Bỏ chọn tất cả' }));
+  const listbox = within(popover).getByRole('listbox');
   for (const label of labels) fireEvent.click(within(listbox).getByRole('option', { name: label }));
   fireEvent.keyDown(listbox, { key: 'Escape' });
   await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
@@ -124,7 +130,10 @@ beforeEach(() => {
 describe('ops expense form — Số Cont multi-select (card 191026160000)', { timeout: 20_000 }, () => {
   it('A1: keeps the Số Cont selection through block/tab edits', async () => {
     await show();
-    expect(screen.getByRole('button', { name: 'Đã chọn 1 số cont' }).getAttribute('title')).toContain('Phí chung lô');
+    // SIL-861 — opens with every container picked: the count is truthful and
+    // 'Chọn tất cả' starts ticked.
+    expect(screen.getByRole('button', { name: 'Đã chọn 2 số cont' }).getAttribute('title')).toContain('TGHU1234567, TGHU7654321');
+    expect(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' })).toBeChecked();
 
     await pickContainers('TGHU1234567');
     expect(screen.getByRole('button', { name: 'Đã chọn 1 số cont' }).getAttribute('title')).toContain('TGHU1234567');
@@ -134,20 +143,25 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     expect(screen.getByRole('button', { name: 'Đã chọn 1 số cont' }).getAttribute('title')).toContain('TGHU1234567');
   });
 
-  it('A2: a shared-lot submit serializes the EMPTY container set (Phí chung lô) — never Number("") = 0', async () => {
+  it('A2 (SIL-861): the invoice tab refuses the chung-lô / emptied scope — the footer names the container gate, nothing serializes', async () => {
     await show();
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
     await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    // Default scope = the full container set — the complete row opens saveable.
     expect(save).toBeEnabled();
+    // QA DEFECT A probe — Số Cont picker → "Bỏ chọn tất cả": the emptied
+    // scope (like the explicit 'Phí chung lô' pick) is refused BEFORE Lưu
+    // with the same voice as the no-invoice gate, and the submit writes
+    // nothing (the old chung-lô invoice row is gone).
+    await pickContainers();
+    expect(save).toBeDisabled();
+    expect(screen.getByText('Bắt buộc chọn Số container')).toBeInTheDocument();
     fireEvent.submit(save.form!);
-    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    // SIL-881 — chung lô = empty set; the legacy singular key never appears.
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'SOI_CHIEU' });
-    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([]);
-    expect(api.createExpense.mock.calls[0][0].shipmentContainerId).toBeUndefined();
+    expect(api.createExpense).not.toHaveBeenCalled();
+    // The legacy "choice → payload" mapping still never yields 0.
     expect(opsContainerId('LOT')).toBeNull();
     expect(opsContainerId('')).toBeNull();
     expect(opsContainerId('33')).toBe(33);
@@ -170,14 +184,15 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33, 44]);
   });
 
-  it('A4: chọn tất cả picks every container at once (and drops the lot choice)', async () => {
+  it('A4: chọn tất cả toggles the whole set at once (SIL-861 default = all picked)', async () => {
     await show();
+    // Opens all-picked, so the first toggle empties the per-container picks.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' }));
+    expect(screen.getByRole('button', { name: 'Chọn số cont…' })).toBeInTheDocument();
+    // Toggling again picks every container at once.
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Đã chọn 2 số cont' }).getAttribute('title'))
       .toContain('TGHU1234567, TGHU7654321'));
-    // Toggling again empties the per-container picks.
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' }));
-    expect(screen.getByRole('button', { name: 'Chọn số cont…' })).toBeInTheDocument();
   });
 
   it('A5: the claimant warning collapses to ONE line and the duplicate bounce pauses the ONE set record', async () => {
@@ -289,6 +304,10 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '50000');
     await fillNote('Phí không hóa đơn', 'Chi áp ván');
+    // SIL-861 default = all conts picked, so a valid row opens saveable; the
+    // Số-container gate speaks only once the pick is emptied.
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
+    await pickContainers();
     // Ticket 18/11 Task 4.1 — the Số-container gate blocks lot-scope first:
     // Lưu stays dead with the footer naming the missing scope.
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
@@ -509,6 +528,7 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
 
   it('G1: saving a no-invoice row without an explicit Số container is blocked with the named error', async () => {
     await show();
+    await pickContainers(); // SIL-861 — the popup opens all-picked; empty it to reach the gated state.
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '80000');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
@@ -589,7 +609,8 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     await fillAmount('Phí có hóa đơn', '450000');
     await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
-    // The invoice tab is NOT container-gated: a lot-scope invoice row saves.
+    // SIL-861 — the default full-set scope keeps the row saveable; the 409
+    // below is the hard duplicate, not the scope gate.
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
     expect(await screen.findByText('Số hóa đơn TD-20260923-001 đã tồn tại trên lô này.')).toBeInTheDocument();
@@ -665,5 +686,39 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'CONG_NHAN' });
     expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([]);
     expect(api.createExpense.mock.calls[0][0].shipmentContainerId).toBeUndefined();
+  });
+
+  // SIL-861 (QA 23/11, build 6bcc081e) — the two re-opened defects, pinned.
+  it('G8 (SIL-861 DEFECT A): invoice row + emptied Số Cont = footer "Bắt buộc chọn Số container" + Lưu disabled', async () => {
+    await show();
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '200000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'QAHĐ-861-D01');
+    // QA probe: lot EHPH26080202 → Số Cont picker → "Bỏ chọn tất cả".
+    await pickContainers();
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    expect(screen.getByText('Bắt buộc chọn Số container')).toBeInTheDocument();
+    expect(screen.queryByText(/Trùng số hóa đơn/)).toBeNull();
+    fireEvent.submit(save.form!);
+    expect(api.createExpense).not.toHaveBeenCalled();
+  });
+
+  it('G9 (SIL-861 DEFECT B): default popup + one valid no-invoice row = no scope error, Lưu enabled, ONE record with the full set', async () => {
+    await show();
+    // The picker count is truthful from the first paint: both conts picked,
+    // 'Chọn tất cả' ticked — display and validation agree at init.
+    expect(screen.getByRole('button', { name: 'Đã chọn 2 số cont' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Chọn tất cả số cont' })).toBeChecked();
+    await chooseType('Phí không hóa đơn', 'Chi công nhân');
+    await fillAmount('Phí không hóa đơn', '100000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    expect(screen.queryByText('Bắt buộc chọn Số container')).toBeNull();
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    // SIL-881 — the default scope is the FULL set on ONE record.
+    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33, 44]);
   });
 });
