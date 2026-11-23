@@ -86,12 +86,15 @@ describe('SIL-883 — wiring pins: the hard block rides all three money actions'
     assert.match(rounds, /assertNoPendingApprovalFees\(tx, shipmentIds, 'chọn Debit'\)/);
   });
 
-  it('the board emits control.pendingFeeCount and drops REJECTED fee rows from the buckets', () => {
+  it('the board emits control.pendingFeeCount and drops dead fee rows before the buckets (CR-010.1 SIL-896)', () => {
     assert.match(merge, /pendingFeeCount: pendingFeeCountByLot\.get\(lot\.id\) \?\? 0/);
+    // The read itself drops the dead rows: registry-voided sources and
+    // VOIDED rows are dead money (the vantai ×5 twins), REJECTED rows are
+    // auto-removed from the grid (SIL-882) — so the buckets never see them.
+    assert.match(merge, /liveDebitOpsExpense\(\),/);
+    assert.match(merge, /ne\(s\.opsExpenseEntries\.approvalStatus, 'REJECTED'\),/);
     const loop = merge.slice(merge.indexOf('for (const row of opsRows)'), merge.indexOf('const chiHoByLot'));
-    assert.match(loop, /const rejected = row\.approvalStatus === 'REJECTED'/);
-    assert.match(loop, /!rejected && row\.costGroup != null/);
-    assert.match(loop, /\} else if \(!rejected\) \{/);
+    assert.match(loop, /const pending = row\.confirmedAt == null;/);
     assert.match(merge, /leftJoin\(s\.expenseAccountingSources, and\(/);
     assert.match(merge, /isNull\(s\.expenseAccountingSources\.confirmedAt\)|row\.confirmedAt == null/);
   });

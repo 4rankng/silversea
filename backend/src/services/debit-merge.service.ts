@@ -33,6 +33,7 @@
 import { and, desc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
+import { liveDebitOpsExpense } from './live-debit-expense-scope';
 import { Role } from '@tingting/shared';
 import type {
   DebitMergeChiHo,
@@ -373,12 +374,13 @@ export async function getDebitMergeBoard(query: {
   }
 
   // ── Lạch Huyện charge side + Group 4 + Group 5 + the receivable's
-  // ops-charge side: ONE ops-rows read feeding everything. Scope = the
-  // chot-debit BOARD's law (ALL ops rows, voided OPS-projected rows included
-  // — board reads no live-filter here), so group 3 cannot disagree with the
-  // board on the same lot (review 18/11: the two surfaces must show one
-  // auto value; the board-vs-summary divergence is pre-existing, out of
-  // scope here).
+  // ops-charge side: ONE ops-rows read feeding everything. Scope = LIVE
+  // money (CR-010.1 SIL-896): liveDebitOpsExpense + not-REJECTED — the same
+  // law the summary/lot-payables/zone surfaces ride, so a registry-voided
+  // twin (the vantai ×5 merge) can never be reborn as duplicate grid money.
+  // The auto Cước/Phụ phí channel above reads freight snapshots, not ops
+  // rows, so group 3's Lạch Huyện cell now agrees with zone-surcharge's
+  // board value on voided lots too.
   const opsRows = await db.select({
     shipmentId: s.opsExpenseEntries.shipmentId,
     expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
@@ -399,7 +401,20 @@ export async function getDebitMergeBoard(query: {
       eq(s.expenseAccountingSources.sourceKind, 'OPS'),
       eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id),
     ))
-    .where(inArray(s.opsExpenseEntries.shipmentId, lotIds));
+    .where(and(
+      inArray(s.opsExpenseEntries.shipmentId, lotIds),
+      // CR-010.1 (SIL-896) — LIVE money only: the registry law every other
+      // debit money surface rides (summary/detail/lot-payables/zone, via
+      // live-debit-expense-scope). A VOIDED row or a registry-voided source
+      // is dead money — the vantai ×5-twin merge left voided twins on the
+      // books that used to be reborn here as 5 red CSHT lines and an
+      // inflated Tổng TC, while /advances (registry-filtered) showed the
+      // one real record. A REJECTED row is absent from this grid too
+      // (SIL-882's "tự động gỡ" law — it used to leak into the Lạch Huyện
+      // and ops-charge sums through the trailing accumulators).
+      liveDebitOpsExpense(),
+      ne(s.opsExpenseEntries.approvalStatus, 'REJECTED'),
+    ));
 
   const chiHoRawByLot = new Map<number, RawChiHoFeeRow[]>();
   const noInvoiceRawByLot = new Map<number, Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null; pending: boolean }>>();
@@ -414,16 +429,19 @@ export async function getDebitMergeBoard(query: {
   for (const row of opsRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
-    const rejected = row.approvalStatus === 'REJECTED';
-    const voided = row.approvalStatus === 'VOIDED';
-    const pending = !rejected && !voided && row.confirmedAt == null;
+    // The read's live scope (SIL-896) already dropped REJECTED/VOIDED rows,
+    // so pending here is exactly "saved, live, not yet Kế-toán-approved".
+    const pending = row.confirmedAt == null;
     if (pending) pendingFeeCountByLot.set(lot, (pendingFeeCountByLot.get(lot) ?? 0) + 1);
     if (row.expenseTypeCode === zoneCode) {
       // Lạch Huyện charge side (the board's `lachHuyen` cell).
       if (row.charge != null) {
         zoneChargeByLot.set(lot, (zoneChargeByLot.get(lot) ?? 0) + toNumber(row.charge));
       }
-    } else if (!rejected && row.costGroup != null && row.costGroup.startsWith('INVOICED_')) {
+    } else if (row.costGroup != null && row.costGroup.startsWith('INVOICED_')) {
+      // ONE record lands in ONE cluster: an INVOICED_* row bills in group 4
+      // (bucketed by the catalog category below) and never in group 5; a
+      // live OPS_* row bills in group 5 and never here (SIL-896 law).
       const bucket = chiHoRawByLot.get(lot) ?? [];
       bucket.push({
         category: row.category ?? null,
@@ -434,7 +452,7 @@ export async function getDebitMergeBoard(query: {
         pending,
       });
       chiHoRawByLot.set(lot, bucket);
-    } else if (!rejected) {
+    } else {
       const bucket = noInvoiceRawByLot.get(lot) ?? [];
       bucket.push({ costGroup: row.costGroup ?? null, charge: row.charge, paid: row.amount, feeName: row.feeName, pending });
       noInvoiceRawByLot.set(lot, bucket);

@@ -17,8 +17,9 @@
 //                         settlement category.
 //   5 PHÍ KHÔNG HÓA ĐƠN   Phí GN OP TC | Thực thu | Phí PS OP TC | Thực thu |
 //                         Tên phí (SIL-876's five leaves; Wiki §8.1.3 & §9.9).
-//   6 KIỂM SOÁT           Tổng TC | Trạng thái (checkbox per row → Khóa lô /
-//                         Chọn Debit).
+//   6 KIỂM SOÁT           Tổng TC | Trạng thái (Đã khóa/Mở chip). The row-pick
+//                         checkbox lives on the FIRST sticky column (CR-010.1
+//                         SIL-901) feeding Khóa lô / Chọn Debit.
 //
 // Money law (debit-summary precedent): a null money cell renders EMPTY —
 // never a fabricated 0; a known 0 renders muted '0'. The amber law
@@ -68,8 +69,11 @@ const GROUP_HEADERS: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
 };
 
 /** The base leaf set, in table order. `creator` is appended by the grid when
- *  the page asks for it (CUS team mode). */
+ *  the page asks for it (CUS team mode). CR-010.1 (SIL-901): the row-pick
+ *  checkbox is the FIRST leaf, inside the sticky zone — the far-right
+ *  Trạng thái keeps only the lock-state chip. */
 const BASE_COLUMNS: GridColumnDef[] = [
+  { key: 'pick', label: 'Chọn', group: 1, pinned: true },
   { key: 'ngay', label: 'Ngày', group: 1 },
   { key: 'lot', label: 'Lô hàng', group: 1, pinned: true },
   { key: 'customer', label: 'Khách hàng', group: 1 },
@@ -230,42 +234,50 @@ export function DebitMergeGrid({
     [rows, safePage, pageSize],
   );
 
-  // SIL-891 — the sticky-left zone (group 1 through Loại cont). The offsets
-  // are MEASURED from the rendered leaf header cells (not declared widths —
-  // the table is content-sized), recomputed whenever the visible set, the
-  // page, or the pane's box changes, so hiding/showing a column re-docks the
-  // zone to the right edge of what remains.
+  // SIL-891/SIL-897 (CR-010.1) — the sticky-left zone (group 1 through Loại
+  // cont). Offsets are CUMULATIVE WIDTH SUMS of the sticky leaf cells, never
+  // viewport deltas: a cell's width does not depend on the pane's
+  // scrollLeft, so the docks are exact at rest AND while scrolled (the old
+  // cell.left − table.left delta was poisoned by any measurement taken
+  // mid-scroll — LOẠI CONT then slid over CƯỚC at rest, and a search typed
+  // while scrolled left a white void where the 5 left columns were). Neighbours
+  // share one accumulated boundary, so rounding can never open a slit between
+  // sticky cells. The measure re-runs on EVERY commit — the table is
+  // content-sized, so search text, filters, hide/show, the team toggle
+  // (NV phụ trách) and page churn all reflow widths — and the
+  // ResizeObserver covers post-commit growth (webfonts, image-less cells).
   const tableRef = useRef<HTMLTableElement>(null);
   const stickyColumns = useMemo(() => visibleColumns.filter(isStickyColumn), [visibleColumns]);
-  // The measure() closure reads the LIVE sticky set through a ref — putting
-  // the array in the effect deps would re-run it on every api-object churn.
+  // The measure() closure reads the LIVE sticky set through a ref — the
+  // effect itself stays dep-free so no commit can render stale docks.
   const stickyColumnsRef = useRef(stickyColumns);
   stickyColumnsRef.current = stickyColumns;
   const [stickyLefts, setStickyLefts] = useState<Record<string, number>>({});
   const stickyLastKey = stickyColumns.length > 0 ? stickyColumns[stickyColumns.length - 1]!.key : null;
   const stickyLeadingKey = useMemo(() => {
-    const byGroup = new Map<1 | 2, string>();
+    const byGroup: Partial<Record<1 | 2, string>> = {};
     for (const column of stickyColumns) {
       const group = (column as GridColumnDef).group;
       if (group !== 1 && group !== 2) continue;
-      if (!byGroup.has(group)) byGroup.set(group, column.key);
+      if (byGroup[group] == null) byGroup[group] = column.key;
     }
     return byGroup;
   }, [stickyColumns]);
-  // Primitive signatures — the hook's api object is fresh every render, so
-  // array deps here would re-run the effect after every setState and loop.
-  const stickyKeySignature = stickyColumns.map((column) => column.key).join('|');
-  const pageSignature = `${pageRows.length}:${safePage}:${pageSize}`;
   useLayoutEffect(() => {
     const table = tableRef.current;
     if (!table) return;
     const measure = () => {
-      const tableLeft = table.getBoundingClientRect().left;
       const next: Record<string, number> = {};
+      let acc = 0;
       for (const column of stickyColumnsRef.current) {
+        // Fractional px on purpose: each dock is the RAW accumulated width
+        // chain, so two neighbours share the exact same boundary value —
+        // rounding per boundary drifts up to 0.5px per column and opens
+        // sub-pixel slits the scrolled money bleeds through (SIL-897).
+        next[column.key] = acc;
         const cell = table.querySelector<HTMLElement>(`thead th[data-col="${column.key}"]`);
         if (cell == null) continue;
-        next[column.key] = Math.round(cell.getBoundingClientRect().left - tableLeft);
+        acc += cell.getBoundingClientRect().width;
       }
       setStickyLefts((prev) => {
         const prevKeys = Object.keys(prev);
@@ -275,14 +287,13 @@ export function DebitMergeGrid({
       });
     };
     measure();
-    // jsdom (and engines without ResizeObserver) re-measure on prop changes
-    // only; browsers get the live re-dock.
+    // jsdom (and engines without ResizeObserver) re-measure on commits only;
+    // browsers get the live re-dock.
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => measure());
     observer.observe(table);
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stickyKeySignature, pageSignature]);
+  });
   /** Sticky dock props for a leaf cell (th/td) keyed by its column. */
   const stickyProps = (key: string): Record<string, unknown> => ({
     'data-sticky': '',
@@ -401,7 +412,10 @@ export function DebitMergeGrid({
               </button>
             </DisabledActionTip>
           )}
+          {/* CR-010.1 (SIL-900, Spec §10.7.4) — ONE dropdown trigger on the
+              filter row; never the raw checkbox panel inline in the toolbar. */}
           <ColumnPicker
+            variant="dropdown"
             columns={columns}
             hidden={columnsApi.hidden}
             customized={columnsApi.customized}
@@ -420,7 +434,7 @@ export function DebitMergeGrid({
                 if (span === 0) return null;
                 // Groups 1+2 sit wholly inside the sticky zone (SIL-891):
                 // dock each at its leading leaf's measured offset.
-                const leadingKey = stickyLeadingKey.get(group as 1 | 2);
+                const leadingKey = group === 1 || group === 2 ? stickyLeadingKey[group] : undefined;
                 return (
                   <th
                     key={group}
@@ -439,7 +453,7 @@ export function DebitMergeGrid({
                 const groupColumns = visibleColumns.filter((column) => column.group === group);
                 if (groupColumns.length === 0) return [];
                 if (group !== 4) {
-                  const leadingKey = stickyLeadingKey.get(group as 1 | 2);
+                  const leadingKey = group === 1 || group === 2 ? stickyLeadingKey[group] : undefined;
                   return [<th key={`sub-${group}`} colSpan={groupColumns.length} aria-hidden="true" className="debit-merge__sub debit-merge__sub--blank" {...(leadingKey != null ? { 'data-sticky': '', style: { left: stickyLefts[leadingKey] ?? 0 } } : {})} />];
                 }
                 // Group 4's sub-groups, in their fixed order.
@@ -556,9 +570,13 @@ export function DebitMergeGrid({
                       </td>
                     );
                   case 'tongTc': return <td key={key} data-col={key}><MoneyCell value={row.control.tongTc} warn /></td>;
-                  case 'trangThai':
+                  case 'pick':
+                    // CR-010.1 (SIL-901) — the pick rides the FIRST (sticky)
+                    // column; Trạng thái keeps the lock chip only. The three
+                    // money actions keep their hard-block law (SIL-883)
+                    // regardless of how many lots are picked.
                     return (
-                      <td key={key} data-col={key} className="debit-merge-cell--status">
+                      <td key={key} data-col={key} className="debit-merge-cell--pick">
                         <label className="debit-merge__pick">
                           <input
                             type="checkbox"
@@ -567,6 +585,11 @@ export function DebitMergeGrid({
                             aria-label={`Chọn lô ${lotLabel}`}
                           />
                         </label>
+                      </td>
+                    );
+                  case 'trangThai':
+                    return (
+                      <td key={key} data-col={key} className="debit-merge-cell--status">
                         <span className={`debit-merge__lock-state${row.control.lockStatus === 'LOCKED' ? ' debit-merge__lock-state--locked' : ''}`}>
                           {row.control.lockStatus === 'LOCKED' ? 'Đã khóa' : 'Mở'}
                         </span>

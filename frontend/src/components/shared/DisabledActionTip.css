@@ -21,7 +21,13 @@
   color: var(--surface);
   font-size: var(--text-caption-size, 12px);
   line-height: 1.35;
-  white-space: nowrap;
+  /* CR-010.1 (SIL-901) — a long block reason (pending-fee refusal naming the
+     Bill) used to run past the viewport edge and get clipped. Width-capped
+     wrapping keeps the whole reason readable for edge-anchored actions. */
+  white-space: normal;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
+  text-align: left;
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }

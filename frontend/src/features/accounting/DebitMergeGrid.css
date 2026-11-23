@@ -85,19 +85,19 @@
 
 .debit-merge__groups-row th {
   top: 0;
-  z-index: 3;
+  z-index: 5;
   text-align: center;
   color: var(--ink-1);
 }
 
 .debit-merge__subs-row th {
   top: 31px;
-  z-index: 2;
+  z-index: 4;
 }
 
 .debit-merge__table thead tr:last-child th {
   top: 60px;
-  z-index: 1;
+  z-index: 3;
   color: var(--ink-2);
   font-weight: 600;
 }
@@ -233,10 +233,20 @@
   white-space: nowrap;
 }
 
+/* CR-010.1 (SIL-901) — the pick rail: narrow first sticky column, checkbox
+   centered; the header text stays quiet. */
+.debit-merge__table th.debit-merge-col--pick {
+  text-align: center;
+  min-width: 40px;
+}
+
+.debit-merge__table td.debit-merge-cell--pick {
+  text-align: center;
+}
+
 .debit-merge__pick {
   display: inline-flex;
   align-items: center;
-  margin-right: 6px;
 }
 
 .debit-merge__lock-state {
@@ -286,19 +296,31 @@
  * SIL-891 — sticky-left zone: group 1 (Thông tin Lô hàng) through Loại cont.
  * Offsets are measured per cell (left: px from the table edge), so hiding or
  * showing a column re-docks the zone; the LAST sticky column carries the
- * separating border + shadow. Layer law: sticky body cells (z1) sit under the
- * header rows when scrolling vertically — the leaf header row bumped to z2 so
- * it paints over its own body cells; groups (z3) stay above everything.
+ * separating border + shadow.
+ * Layer law (SIL-897, CR-010.1): EVERY sticky cell carries an explicit z.
+ * The whole thead is position:sticky for the vertical band, so a scrolling
+ * group header (PHÍ CHI HỘ…) is a positioned box too — with no bump it tied
+ * on DOM order with the left cluster and slid OVER NGÀY/LÔ HÀNG. Each left
+ * cluster cell out-zs its own row's peers, and the rows band vertically:
+ * groups 6 > subs 5 > leaf 4 > tfoot 2 > body 1, left-cluster +1 per row.
+ * Opaque backgrounds — a transparent dock lets scrolled money bleed through.
  * ========================================================================== */
 .debit-merge__table [data-sticky] {
   position: sticky;
-  background: var(--surface);
+  z-index: 1;
+  background: var(--surface, #ffffff);
 }
 
-/* The leaf header row must paint over its own sticky body cells when the
-   pane scrolls vertically (existing leaf rule sets z1 — one notch up). */
 .debit-merge__table thead tr:last-child th[data-sticky] {
-  z-index: 2;
+  z-index: 4;
+}
+
+.debit-merge__table thead .debit-merge__subs-row th[data-sticky] {
+  z-index: 5;
+}
+
+.debit-merge__table thead .debit-merge__groups-row th[data-sticky] {
+  z-index: 6;
 }
 
 .debit-merge__table thead .debit-merge__groups-row th[data-sticky],

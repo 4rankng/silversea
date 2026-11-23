@@ -428,3 +428,65 @@ describe('SIL-883 — chi phí đỏ/đen tức thời + hard-block', () => {
     expect(bodyCell).toBeTruthy();
   });
 });
+
+describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-901 pick column', () => {
+  it('SIL-901: the pick checkbox is the FIRST leaf, sticky-docked; Trạng thái keeps the lock chip only', () => {
+    const onSelectionChange = vi.fn();
+    renderGrid({ selection: new Set<number>(), onSelectionChange }, [mergeRow({ shipmentId: 101, billOrBookNumber: 'BL-1' })]);
+    const leafHeaders = [...document.querySelectorAll<HTMLElement>('thead tr:last-child th')].map((th) => th.getAttribute('data-col'));
+    expect(leafHeaders[0]).toBe('pick');
+    const pickTh = document.querySelector<HTMLElement>('thead th[data-col="pick"]');
+    expect(pickTh!.hasAttribute('data-sticky')).toBe(true);
+    expect(pickTh!.style.left).toBe('0px');
+    // The checkbox rides the first BODY cell and keeps the lot-level aria label.
+    const pickCell = document.querySelector<HTMLElement>('tbody td[data-col="pick"]');
+    expect(pickCell!.hasAttribute('data-sticky')).toBe(true);
+    const checkbox = pickCell!.querySelector('input[type="checkbox"]');
+    expect(checkbox).toBeTruthy();
+    expect(checkbox!.getAttribute('aria-label')).toBe('Chọn lô BL-1');
+    // Trạng thái is chip-only: no checkbox left at the far right.
+    const statusCell = document.querySelector<HTMLElement>('tbody td[data-col="trangThai"]');
+    expect(statusCell!.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(statusCell!.textContent).toContain('Mở');
+    // Selection still drives the money actions through the same callback.
+    fireEvent.click(checkbox!);
+    expect(onSelectionChange).toHaveBeenCalledWith(101, true);
+  });
+
+  it('SIL-900: the toolbar hosts ONE dropdown trigger, never the raw checkbox panel', () => {
+    renderGrid();
+    const trigger = document.querySelector('button.column-picker__trigger');
+    expect(trigger).toBeTruthy();
+    expect(trigger!.getAttribute('aria-haspopup')).toBe('dialog');
+    expect(trigger!.textContent).toContain('Cột hiển thị');
+    // The 26-checkbox block is closed until the trigger opens it.
+    expect(document.querySelector('.column-picker__options')).toBeNull();
+  });
+
+  it('SIL-897: offsets are width sums re-measured on every commit, and every sticky cell carries an explicit opaque z', () => {
+    // TSX law: the measure reads WIDTHS (scroll-invariant), not viewport
+    // deltas; the effect is dep-free so no commit can render stale docks.
+    const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
+    expect(tsx).toMatch(/acc \+= cell\.getBoundingClientRect\(\)\.width;/);
+    expect(tsx).not.toMatch(/getBoundingClientRect\(\)\.left - tableLeft/);
+    expect(tsx).toMatch(/useLayoutEffect\(\(\) => \{[\s\S]*?observer\.observe\(table\);[\s\S]*?\n  \}\);/);
+    // CSS law: explicit z per layer, left cluster above its row peers, all
+    // docks opaque — a transparent or z-tied dock lets scrolled money and
+    // group headers bleed through.
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const zOf = (selector: string): string | null => {
+      const rule = css.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`))?.[1] ?? null;
+      return rule?.match(/z-index:\s*(\d+)/)?.[1] ?? null;
+    };
+    expect(zOf('.debit-merge__table [data-sticky]')).toBe('1');
+    expect(zOf('.debit-merge__table thead tr:last-child th')).toBe('3');
+    expect(zOf('.debit-merge__table thead tr:last-child th[data-sticky]')).toBe('4');
+    expect(zOf('.debit-merge__subs-row th')).toBe('4');
+    expect(zOf('.debit-merge__table thead .debit-merge__subs-row th[data-sticky]')).toBe('5');
+    expect(zOf('.debit-merge__groups-row th')).toBe('5');
+    expect(zOf('.debit-merge__table thead .debit-merge__groups-row th[data-sticky]')).toBe('6');
+    expect(zOf('.debit-merge__table tfoot td[data-sticky]')).toBe('2');
+    // Opaque docks.
+    expect(css).toMatch(/\.debit-merge__table \[data-sticky\] \{[^}]*background: var\(--surface, #ffffff\)/);
+  });
+});

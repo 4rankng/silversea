@@ -102,6 +102,19 @@ describe('ColumnPicker — the one column-visibility control (card 20260928.193)
     expect(screen.getByRole('checkbox', { name: 'Ghi chú' })).toBeTruthy();
   });
 
+  it('variant="dropdown" pins the ONE trigger form even when the bar folded (CR-010.1 SIL-900, Spec §10.7.4)', () => {
+    // The debit-merge toolbar is not a FilterBar, so its mode context reads
+    // 'dialog' — the pinned variant must ignore that and stay the dropdown.
+    renderPicker({ variant: 'dropdown' }, 'dialog');
+    const trigger = screen.getByRole('button', { name: /Cột hiển thị/ });
+    expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+    // The raw 26-checkbox panel is NOT in the toolbar — only behind the trigger.
+    expect(screen.queryByRole('checkbox', { name: 'Ghi chú' })).toBeNull();
+    fireEvent.click(trigger);
+    expect(screen.getByRole('dialog', { name: 'Cột hiển thị' })).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Ghi chú' })).toBeTruthy();
+  });
+
   it('reserves the complete reset label while the folded options wrap within their available track', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/components/ColumnPicker.css'), 'utf8');
     const reset = css.match(/\.column-picker__reset\s*\{([^}]*)\}/)?.[1] ?? '';

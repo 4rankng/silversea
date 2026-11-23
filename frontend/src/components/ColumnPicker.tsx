@@ -60,9 +60,16 @@ export interface ColumnPickerProps {
   onReset: () => void;
   /** SIL-891 — 'Chọn tất cả' in the panel (Debit-merge surfaces pass it). */
   onShowAll?: () => void;
+  /** CR-010.1 (SIL-900, Spec §10.7.4) — 'dropdown' pins the trigger+popover
+   *  form regardless of the surrounding FilterBar's mode: the debit-merge
+   *  toolbar is NOT a FilterBar, so its context default ('dialog') used to
+   *  explode the picker into the raw 26-checkbox panel inline in the toolbar
+   *  (trigger clipped, 'Chọn tất cả' cut off). 'auto' (default) keeps the
+   *  measured FilterBar placement for every existing surface. */
+  variant?: 'auto' | 'dropdown';
 }
 
-export function ColumnPicker({ columns, hidden, customized, onToggle, onReset, onShowAll }: ColumnPickerProps) {
+export function ColumnPicker({ columns, hidden, customized, onToggle, onReset, onShowAll, variant = 'auto' }: ColumnPickerProps) {
   const mode = useFilterBarMode();
   const dialogId = useId();
   const [isOpen, setIsOpen] = useState(false);
@@ -85,8 +92,9 @@ export function ColumnPicker({ columns, hidden, customized, onToggle, onReset, o
 
   // The bar folded the criteria away: the picker is one of them now. The block
   // carries its own caption, so it reads as a labelled criterion inside the
-  // dialog instead of a bare list of checkboxes.
-  if (mode !== 'inline') {
+  // dialog instead of a bare list of checkboxes. A pinned 'dropdown' variant
+  // skips this branch entirely (SIL-900).
+  if (mode !== 'inline' && variant !== 'dropdown') {
     return (
       <div className="column-picker column-picker--inline" data-component="column-picker">
         <span className="column-picker__caption">Cột hiển thị</span>
