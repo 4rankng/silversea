@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { BufferedUuiDateInput } from '../forms/BufferedUuiDateInput';
 import { DateInput } from '../forms/DateInput';
+import { DateRangeFields } from '../forms/DateRangeFields';
 
 function renderControlled(changes: string[]) {
   function ControlledDate() {
@@ -222,6 +223,64 @@ describe('UI55 DateInput hook-caller compatibility', () => {
       expect(changes).toEqual([]);
       expect(hidden).toHaveValue('2026-10-01');
     });
+  });
+});
+
+// SIL-855 round 9: in the debt ledger's 'Theo khoảng' filter, typing a
+// from-date over a seeded range is REFUSED by the range-order gate built from
+// the other field's stale value — the field displays 20/04/2027 while the
+// parent keeps 2026-04-20. The refused draft must re-commit when the peer
+// boundary moves.
+describe('range bounds refuse-then-retry through DateRangeFields (SIL-855)', () => {
+  function RangeHost({ changes, seed }: { changes: Array<{ from: string; to: string }>; seed: { from: string; to: string } }) {
+    const [range, setRange] = useState(seed);
+    return <DateRangeFields
+      from={range.from}
+      to={range.to}
+      ariaLabel="Khoảng ngày"
+      onChange={(next) => { changes.push(next); setRange(next); }}
+    />;
+  }
+
+  function segText(field: HTMLElement, seg: string) {
+    return field.querySelector<HTMLInputElement>(`input[data-seg="${seg}"]`)!;
+  }
+
+  function typeQAFlow(container: HTMLElement) {
+    const from = container.querySelector<HTMLElement>('.date-range-fields__from')!;
+    const to = container.querySelector<HTMLElement>('.date-range-fields__to')!;
+    // QA's exact flow: 20/04/2027 → 21/04/2027 typed left-to-right over the
+    // seeded November 2026 range.
+    fireEvent.change(segText(from, 'dd'), { target: { value: '20' } });
+    fireEvent.change(segText(from, 'mm2'), { target: { value: '04' } });
+    fireEvent.change(segText(from, 'yyyy'), { target: { value: '2027' } });
+    fireEvent.change(segText(to, 'dd'), { target: { value: '21' } });
+    fireEvent.change(segText(to, 'mm2'), { target: { value: '04' } });
+    fireEvent.change(segText(to, 'yyyy'), { target: { value: '2027' } });
+  }
+
+  it('converges both fields to the typed 2027 dates once the peer boundary catches up', () => {
+    const changes: Array<{ from: string; to: string }> = [];
+    const { container } = render(<RangeHost changes={changes} seed={{ from: '2026-11-01', to: '2026-11-30' }} />);
+    typeQAFlow(container);
+
+    const from = container.querySelector<HTMLElement>('.date-range-fields__from')!;
+    const to = container.querySelector<HTMLElement>('.date-range-fields__to')!;
+    expect(segText(from, 'yyyy')).toHaveValue('2027');
+    expect(segText(to, 'yyyy')).toHaveValue('2027');
+    expect(changes.at(-1)).toEqual({ from: '2027-04-20', to: '2027-04-21' });
+  });
+
+  it('still refuses a genuinely inverted range instead of committing it', () => {
+    const changes: Array<{ from: string; to: string }> = [];
+    const { container } = render(<RangeHost changes={changes} seed={{ from: '2027-04-20', to: '2027-04-21' }} />);
+    // Typing Đến before Từ: from is 2027-04-20, so 19/04/2027 stays refused.
+    const to = container.querySelector<HTMLElement>('.date-range-fields__to')!;
+    fireEvent.change(segText(to, 'dd'), { target: { value: '19' } });
+    fireEvent.change(segText(to, 'mm2'), { target: { value: '04' } });
+    fireEvent.change(segText(to, 'yyyy'), { target: { value: '2027' } });
+    expect(changes.every((next) => next.to !== '2027-04-19')).toBe(true);
+    expect(segText(to, 'yyyy')).toHaveValue('2027');
   });
 });
 

@@ -24,6 +24,12 @@ import type {
   SaveBillingDocumentInput,
 } from '@tingting/shared';
 
+/** Instant → Vietnam day (the same rendering the history cards use). */
+function vnDay(instant: string | null | undefined): string {
+  if (!instant) return '';
+  return new Date(instant).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+}
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -406,7 +412,9 @@ export default function BillingDocumentBuilder({
             <AssetIcon name={type === 'DEBIT_NOTE' ? 'receivables' : 'document'} size={34} />
           </div>
           <div>
-            <p className="billing-builder__eyebrow">{isEdit ? 'Chỉnh sửa tài liệu' : 'Tạo tài liệu mới'}</p>
+            <p className="billing-builder__eyebrow">
+              {lockedForEdit ? 'Xem tài liệu — chỉ đọc' : isEdit ? 'Chỉnh sửa tài liệu' : 'Tạo tài liệu mới'}
+            </p>
             <h2 id="billing-builder-title">
               {TITLE[type]}
               {isEdit && initialDoc ? <span className="billing-builder__doc-num"> #{initialDoc.id}</span> : null}
@@ -420,6 +428,22 @@ export default function BillingDocumentBuilder({
               <span>{entityName}</span>
               <span>{displayDate(rangeFrom)} - {displayDate(rangeTo)}</span>
               <span>{lines.length} dòng</span>
+              {/* Read-only view (SIL-855 round 9): the lifecycle date and the
+                  cumulative-debt reconciliation ride the editor header so the
+                  dialog itself answers "note nào, khi nào, công nợ trước/sau". */}
+              {type === 'DEBIT_NOTE' && lockedForEdit && editingStatus === 'CANCELED' && initialDoc?.updatedAt != null && (
+                <span>Hủy ngày {vnDay(initialDoc.updatedAt)}</span>
+              )}
+              {type === 'DEBIT_NOTE' && lockedForEdit && editingStatus !== 'CANCELED' && initialDoc?.issuedAt != null && (
+                <span>Phát hành ngày {vnDay(initialDoc.issuedAt)}</span>
+              )}
+              {type === 'DEBIT_NOTE' && initialDoc?.arBalanceBefore != null && initialDoc?.arBalanceAfter != null && (
+                <span className="billing-builder__ar-delta">
+                  Công nợ cộng dồn {formatCurrency(initialDoc.arBalanceBefore)} → {formatCurrency(initialDoc.arBalanceAfter)}{' '}
+                  ({initialDoc.arBalanceAfter - initialDoc.arBalanceBefore > 0 ? '+' : ''}
+                  {formatCurrency(initialDoc.arBalanceAfter - initialDoc.arBalanceBefore)})
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -436,7 +460,7 @@ export default function BillingDocumentBuilder({
               className="input billing-builder__date-input"
               value={rangeFrom}
               onChange={setRangeFrom}
-              disabled={busy}
+              disabled={busy || lockedForEdit}
             />
           </label>
           <label>
@@ -445,7 +469,7 @@ export default function BillingDocumentBuilder({
               className="input billing-builder__date-input"
               value={rangeTo}
               onChange={setRangeTo}
-              disabled={busy}
+              disabled={busy || lockedForEdit}
             />
           </label>
           <UuiSelectField
@@ -464,13 +488,13 @@ export default function BillingDocumentBuilder({
           />
           <div className="billing-builder__action-cell">
             <span className="billing-builder__action-spacer" aria-hidden="true">Lọc</span>
-            <button className="btn btn--secondary" type="button" onClick={() => generateDraft(rangeFrom, rangeTo)} disabled={busy}>
+            <button className="btn btn--secondary" type="button" onClick={() => generateDraft(rangeFrom, rangeTo)} disabled={busy || lockedForEdit}>
               {loading ? <Loader2 size={15} className="spin" /> : <Filter size={15} />}
               Lọc lại
             </button>
           </div>
           {type === 'PAYMENT_STATEMENT' && (
-            <button className="btn btn--ghost" type="button" onClick={addAdhoc} disabled={busy}>
+            <button className="btn btn--ghost" type="button" onClick={addAdhoc} disabled={busy || lockedForEdit}>
               <Plus size={15} />
               Thêm dòng trình bày
             </button>
@@ -591,7 +615,7 @@ export default function BillingDocumentBuilder({
                                         className="input billing-builder__text-field"
                                         value={line.description}
                                         rows={1}
-                                        disabled={busy || type === 'DEBIT_NOTE'}
+                                        disabled={busy || lockedForEdit || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { description: e.target.value })}
                                       />
                                     </td>
@@ -600,7 +624,7 @@ export default function BillingDocumentBuilder({
                                         className="input billing-builder__text-field"
                                         value={line.typeLabel}
                                         rows={1}
-                                        disabled={busy || type === 'DEBIT_NOTE'}
+                                        disabled={busy || lockedForEdit || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { typeLabel: e.target.value })}
                                       />
                                     </td>
@@ -610,7 +634,7 @@ export default function BillingDocumentBuilder({
                                         style={{ textAlign: 'center' }}
                                         value={line.unit}
                                         rows={1}
-                                        disabled={busy || type === 'DEBIT_NOTE'}
+                                        disabled={busy || lockedForEdit || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { unit: e.target.value })}
                                       />
                                     </td>
@@ -625,7 +649,7 @@ export default function BillingDocumentBuilder({
                                     </td>
                                     <td className="billing-builder__row-actions">
                                       {type === 'PAYMENT_STATEMENT' && (
-                                        <button className="billing-builder__action billing-builder__action--delete" type="button" onClick={() => removeLine(index)} disabled={busy} aria-label={`${line.excluded ? 'Khôi phục' : 'Xóa'} dòng ${index + 1}`}>
+                                        <button className="billing-builder__action billing-builder__action--delete" type="button" onClick={() => removeLine(index)} disabled={busy || lockedForEdit} aria-label={`${line.excluded ? 'Khôi phục' : 'Xóa'} dòng ${index + 1}`}>
                                           {line.excluded ? <RotateCcw size={15} /> : <Trash2 size={15} />}
                                         </button>
                                       )}
@@ -680,7 +704,7 @@ export default function BillingDocumentBuilder({
                                       className="input billing-builder__text-field"
                                       value={line.description}
                                       rows={2}
-                                      disabled={busy || type === 'DEBIT_NOTE'}
+                                      disabled={busy || lockedForEdit || type === 'DEBIT_NOTE'}
                                       onChange={(e) => updateLine(index, { description: e.target.value })}
                                     />
                                     <div className="billing-builder__mobile-row">
@@ -689,7 +713,7 @@ export default function BillingDocumentBuilder({
                                         className="input billing-builder__text-field"
                                         value={line.typeLabel}
                                         rows={1}
-                                        disabled={busy || type === 'DEBIT_NOTE'}
+                                        disabled={busy || lockedForEdit || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { typeLabel: e.target.value })}
                                       />
                                     </div>
@@ -699,7 +723,7 @@ export default function BillingDocumentBuilder({
                                         className="input billing-builder__text-field"
                                         value={line.unit}
                                         rows={1}
-                                        disabled={busy || type === 'DEBIT_NOTE'}
+                                        disabled={busy || lockedForEdit || type === 'DEBIT_NOTE'}
                                         onChange={(e) => updateLine(index, { unit: e.target.value })}
                                       />
                                     </div>
@@ -715,7 +739,7 @@ export default function BillingDocumentBuilder({
                                         />
                                       </label>
                                       {type === 'PAYMENT_STATEMENT' && (
-                                        <button className="billing-builder__action billing-builder__action--delete" type="button" onClick={() => removeLine(index)} disabled={busy} aria-label={`${line.excluded ? 'Khôi phục' : 'Xóa'} dòng ${index + 1}`}>
+                                        <button className="billing-builder__action billing-builder__action--delete" type="button" onClick={() => removeLine(index)} disabled={busy || lockedForEdit} aria-label={`${line.excluded ? 'Khôi phục' : 'Xóa'} dòng ${index + 1}`}>
                                           {line.excluded ? <RotateCcw size={17} /> : <Trash2 size={17} />}
                                         </button>
                                       )}
@@ -750,7 +774,7 @@ export default function BillingDocumentBuilder({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Điều khoản thanh toán, ghi chú cho khách hàng/đối tác..."
-              disabled={busy}
+              disabled={busy || lockedForEdit}
             />
           </label>
         </section>

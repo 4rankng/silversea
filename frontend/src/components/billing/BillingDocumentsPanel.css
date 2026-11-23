@@ -190,6 +190,10 @@
   font-size: var(--text-caption-size);
   font-weight: 650;
   white-space: nowrap;
+  /* The pill is a real view control (opens the read-only editor), not a
+     static label — afford it the pointer cursor and button reset. */
+  cursor: pointer;
+  background: none;
 }
 
 @media (max-width: 760px) {

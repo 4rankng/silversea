@@ -209,12 +209,19 @@ export default function BillingDocumentsPanel({
                         <button className="btn btn--ghost btn--icon btn--sm" title="Xuất Excel" aria-label="Xuất Excel" onClick={() => exportDoc(doc)}>
                           <Download size={13} />
                         </button>
-                        <span
+                        {/* The pill is the view affordance for anything past
+                            DRAFT: it opens the same editor dialog in read-only
+                            mode (SIL-855 round 9 — a static label left issued
+                            notes with NO way to view their content). */}
+                        <button
+                          type="button"
                           className="billing-panel__readonly"
-                          title={status === 'CANCELED' ? 'Giấy báo nợ đã hủy — chỉ đọc' : 'Giấy báo nợ đã phát hành — chỉ đọc'}
+                          title={status === 'CANCELED' ? 'Giấy báo nợ đã hủy — bấm để xem (chỉ đọc)' : 'Giấy báo nợ đã phát hành — bấm để xem (chỉ đọc)'}
+                          aria-label={`Xem #${doc.id} (chỉ đọc)`}
+                          onClick={() => openEdit(doc)}
                         >
                           <Lock size={12} /> Chỉ đọc
-                        </span>
+                        </button>
                       </>
                     )}
                   </div>

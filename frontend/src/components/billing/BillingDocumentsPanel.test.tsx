@@ -18,6 +18,13 @@ vi.mock('../../api/financialClient', () => ({
 vi.mock('../../lib/api', () => ({ api: { getBlob: vi.fn() } }));
 vi.mock('../shared/Toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 vi.mock('../UI', () => ({ useConfirm: () => ({ confirm: confirmFn, dialog: null }) }));
+// The panel test asserts WHICH document the builder opens with, not the
+// builder internals (the readonly suite owns those).
+vi.mock('./BillingDocumentBuilder', () => ({
+  default: (props: { initialDoc?: { id: number } | null }) => (
+    <div data-testid="builder-stub" data-doc-id={props.initialDoc ? String(props.initialDoc.id) : ''} />
+  ),
+}));
 
 function doc(overrides: Partial<BillingDocument>): BillingDocument {
   return {
@@ -129,5 +136,23 @@ describe('Giấy báo nợ history cards', () => {
       expect(row.getByText('Chỉ đọc')).toBeTruthy();
       expect(row.getByRole('button', { name: 'Xuất Excel' })).toBeTruthy();
     }
+  });
+
+  it('opens the read-only editor dialog from the Chỉ đọc pill on issued/canceled notes', async () => {
+    setup();
+    fireEvent.click(await screen.findByRole('button', { name: /Xem lịch sử/ }));
+
+    // The pill is a REAL interactive control (QA round 9: a static span left
+    // issued/canceled notes with no working view affordance at all).
+    const pill = within(rowOf('#27')).getByRole('button', { name: 'Xem #27 (chỉ đọc)' });
+    expect(pill.getAttribute('type')).toBe('button');
+    fireEvent.click(pill);
+
+    const stub = screen.getByTestId('builder-stub');
+    expect(stub.getAttribute('data-doc-id')).toBe('27');
+
+    // Same dialog path as the draft Sửa — and it reopens for the other note.
+    fireEvent.click(within(rowOf('#26')).getByRole('button', { name: 'Xem #26 (chỉ đọc)' }));
+    expect(screen.getByTestId('builder-stub').getAttribute('data-doc-id')).toBe('26');
   });
 });

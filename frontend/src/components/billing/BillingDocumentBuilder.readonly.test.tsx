@@ -103,4 +103,24 @@ describe('Giấy báo nợ editor', () => {
     expect(updateBillingDocument).not.toHaveBeenCalled();
     expect(saveBillingDocument).not.toHaveBeenCalled();
   });
+
+  it('renders the read-only view header: eyebrow, issue date, and cumulative-debt line', () => {
+    setup({ ...issuedDoc, arBalanceBefore: 103067000, arBalanceAfter: 103067000 });
+    expect(screen.getByText('Xem tài liệu — chỉ đọc')).toBeTruthy();
+    expect(screen.getByText('Phát hành ngày 21/11/2026')).toBeTruthy();
+    expect(screen.getByText(/Công nợ cộng dồn 103\.067\.000 ₫ → 103\.067\.000 ₫ \(0 ₫\)/)).toBeTruthy();
+  });
+
+  it('renders the cancel date on a canceled note and no issue wording', () => {
+    setup({ ...issuedDoc, debitNoteStatus: 'CANCELED', updatedAt: '2026-11-23T04:30:00.000Z' });
+    expect(screen.getByText('Hủy ngày 23/11/2026')).toBeTruthy();
+    expect(screen.queryByText(/Phát hành ngày/)).toBeNull();
+  });
+
+  it('disables every mutating control on a locked note and hides the issue section', () => {
+    setup(issuedDoc);
+    expect(screen.getByRole('button', { name: /Lọc lại/ }).hasAttribute('disabled')).toBe(true);
+    expect((screen.getByRole('textbox', { name: 'Ghi chú' }) as HTMLTextAreaElement).hasAttribute('disabled')).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Phát hành' })).toBeNull();
+  });
 });

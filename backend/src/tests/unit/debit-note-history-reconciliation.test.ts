@@ -38,6 +38,17 @@ describe('debit-note history reconciliation payload', () => {
     assert.match(serviceSource, /arBalanceBefore = Number\(first\.balance\) - Number\(first\.debit\) \+ Number\(first\.credit\)/);
   });
 
+  test('issued notes with NO GBN entries still expose the debt snapshot (QA round 9, staging #27: delta nets to zero)', () => {
+    // postDebitNoteDelta skips a zero delta, so an issued note can have no
+    // reconciliation stamp at all. The fallback reads the debt right before
+    // issuance from the customer ledger itself and adds the note's own delta.
+    const hydrate = serviceSource.slice(serviceSource.indexOf('let arBalanceBefore: number | null = null'));
+    assert.match(hydrate, /else if \(doc\.issuedAt\)/);
+    assert.match(hydrate, /coalesce\(sum\(\$\{s\.ledger\.debit\} - \$\{s\.ledger\.credit\}\), 0\)/);
+    assert.match(hydrate, /lt\(s\.ledger\.timestamp, doc\.issuedAt\)/);
+    assert.match(hydrate, /arBalanceAfter = arBalanceBefore \+ Number\(doc\.ledgerAdjustmentAmount\)/);
+  });
+
   test('notes without any AR reconciliation expose null balances (draft, never posted)', () => {
     const hydrate = serviceSource.slice(serviceSource.indexOf('let arBalanceBefore: number | null = null'));
     assert.match(hydrate, /if \(first && last\)/, 'balances stay null when no GBN entry exists');

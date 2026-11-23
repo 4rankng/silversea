@@ -1,7 +1,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, asc, isNull, inArray, desc, or, sql, type SQL } from 'drizzle-orm';
+import { eq, and, asc, isNull, inArray, desc, or, sql, lt, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
 import { canonicalFreightDescription, TxnType } from '@tingting/shared';
@@ -757,6 +757,26 @@ async function hydrateDocument(
       // before therefore equals Σ(debit − credit) = ledgerAdjustmentAmount.
       arBalanceAfter = Number(last.balance);
       arBalanceBefore = Number(first.balance) - Number(first.debit) + Number(first.credit);
+    } else if (doc.issuedAt) {
+      // No reconciliation entries exist (QA SIL-855 round 9, staging note #27:
+      // the delta nets to zero because the trips already posted the receivable,
+      // so postDebitNoteDelta skips). The debt around the note is still
+      // well-defined: Σ(debit − credit) over the customer's ledger movements
+      // with a business timestamp strictly before issuance is the debt right
+      // before the note; adding the note's own ledger delta keeps
+      // after − before ≡ ledgerAdjustmentAmount.
+      const [snapshot] = await executor
+        .select({
+          before: sql<string>`coalesce(sum(${s.ledger.debit} - ${s.ledger.credit}), 0)`,
+        })
+        .from(s.ledger)
+        .where(and(
+          eq(s.ledger.entityType, 'CUSTOMER'),
+          eq(s.ledger.entityId, doc.entityId),
+          lt(s.ledger.timestamp, doc.issuedAt),
+        ));
+      arBalanceBefore = Number(snapshot?.before ?? 0);
+      arBalanceAfter = arBalanceBefore + Number(doc.ledgerAdjustmentAmount);
     }
   }
   return {
