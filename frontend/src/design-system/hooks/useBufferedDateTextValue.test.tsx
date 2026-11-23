@@ -284,6 +284,74 @@ describe('range bounds refuse-then-retry through DateRangeFields (SIL-855)', () 
   });
 });
 
+// SIL-855 round 10 (QA comment 6862): the ledger 'Theo khoảng' controls probed
+// day > 12 pairs — 24/11→25/11 and 24/11→30/11 returned "0 giao dịch",
+// 01/11→25/11 ignored the end date. The parse must keep day > 12 in the DAY
+// slot (never a month rollover 24/11 → 2026-12-24) and the Đến ngày bound
+// must reach the emitted range.
+describe('DD/MM days > 12 commit and bound through DateRangeFields (SIL-855 round 10)', () => {
+  function RangeHost({ changes, seed }: { changes: Array<{ from: string; to: string }>; seed: { from: string; to: string } }) {
+    const [range, setRange] = useState(seed);
+    return <DateRangeFields
+      from={range.from}
+      to={range.to}
+      ariaLabel="Khoảng ngày"
+      onChange={(next) => { changes.push(next); setRange(next); }}
+    />;
+  }
+
+  function segText(field: HTMLElement, seg: string) {
+    return field.querySelector<HTMLInputElement>(`input[data-seg="${seg}"]`)!;
+  }
+
+  it('commits 24/11/2026 → 25/11/2026 without day>12 month rollover', () => {
+    const changes: Array<{ from: string; to: string }> = [];
+    const { container } = render(<RangeHost changes={changes} seed={{ from: '2026-11-01', to: '2026-11-30' }} />);
+    const from = container.querySelector<HTMLElement>('.date-range-fields__from')!;
+    const to = container.querySelector<HTMLElement>('.date-range-fields__to')!;
+    fireEvent.change(segText(from, 'dd'), { target: { value: '24' } });
+    fireEvent.change(segText(to, 'dd'), { target: { value: '25' } });
+
+    expect(changes.at(-1)).toEqual({ from: '2026-11-24', to: '2026-11-25' });
+    expect(changes.some((next) => next.from === '2026-12-24' || next.to === '2026-12-25')).toBe(false);
+  });
+
+  it('commits a day>12 Đến ngày so the end bound reaches the range (01/11 → 25/11)', () => {
+    const changes: Array<{ from: string; to: string }> = [];
+    const { container } = render(<RangeHost changes={changes} seed={{ from: '2026-11-01', to: '2026-11-30' }} />);
+    const to = container.querySelector<HTMLElement>('.date-range-fields__to')!;
+    fireEvent.change(segText(to, 'dd'), { target: { value: '25' } });
+
+    expect(changes.at(-1)).toEqual({ from: '2026-11-01', to: '2026-11-25' });
+  });
+
+  it('keeps 24/11 → 30/11 through the range-order gate (both ends day>12)', () => {
+    const changes: Array<{ from: string; to: string }> = [];
+    const { container } = render(<RangeHost changes={changes} seed={{ from: '2026-11-01', to: '2026-11-30' }} />);
+    const from = container.querySelector<HTMLElement>('.date-range-fields__from')!;
+    const to = container.querySelector<HTMLElement>('.date-range-fields__to')!;
+    fireEvent.change(segText(from, 'dd'), { target: { value: '24' } });
+    fireEvent.change(segText(to, 'dd'), { target: { value: '30' } });
+
+    expect(changes.at(-1)).toEqual({ from: '2026-11-24', to: '2026-11-30' });
+  });
+
+  it('commits day>12 across the year boundary (20/04/2027 → 21/04/2027)', () => {
+    const changes: Array<{ from: string; to: string }> = [];
+    const { container } = render(<RangeHost changes={changes} seed={{ from: '2026-11-01', to: '2026-11-30' }} />);
+    const from = container.querySelector<HTMLElement>('.date-range-fields__from')!;
+    const to = container.querySelector<HTMLElement>('.date-range-fields__to')!;
+    fireEvent.change(segText(from, 'dd'), { target: { value: '20' } });
+    fireEvent.change(segText(from, 'mm2'), { target: { value: '04' } });
+    fireEvent.change(segText(from, 'yyyy'), { target: { value: '2027' } });
+    fireEvent.change(segText(to, 'dd'), { target: { value: '21' } });
+    fireEvent.change(segText(to, 'mm2'), { target: { value: '04' } });
+    fireEvent.change(segText(to, 'yyyy'), { target: { value: '2027' } });
+
+    expect(changes.at(-1)).toEqual({ from: '2027-04-20', to: '2027-04-21' });
+  });
+});
+
 describe.each(['native', 'segmented'] as const)('UI55 %s calendar draft boundaries', (caller) => {
   function setup() {
     const changes: string[] = [];
