@@ -1,0 +1,101 @@
+▶ debitChiHoGroupOf — nhóm phụ theo category của catalog
+  ✔ CSHT → csht, LIFT → lift, DROP → drop, còn lại (KHAC/HQGS/null) → other (0.51625ms)
+✔ debitChiHoGroupOf — nhóm phụ theo category của catalog (2.79825ms)
+▶ buildDebitMergeChiHo — 4 nhóm phụ, tổng chính xác
+  ✔ mỗi dòng rơi đúng nhóm phụ với đúng các trường (1.371042ms)
+  ✔ tổng Tiền mỗi nhóm khớp chính xác tổng dòng (0.372084ms)
+  ✔ dòng âm bị loại (card 20260928_197 — như thể không tồn tại) (0.119417ms)
+  ✔ charge null → Tiền đọc paid (đồng nhất charge = amount của dòng có hóa đơn) (0.103334ms)
+  ✔ dòng chưa Kế toán duyệt → pending:true cắm trên dòng phí, tổng không đổi (SIL-883 3.1) (0.222458ms)
+  ✔ lô không có dòng nào → 4 nhóm rỗng (không bao giờ là 0 bịa) (0.1035ms)
+✔ buildDebitMergeChiHo — 4 nhóm phụ, tổng chính xác (2.677625ms)
+▶ buildDebitMergeNoInvoice — hai họ phí không hóa đơn Ops (SIL-876: Phí | Thực thu từng họ)
+  ✔ OPS_REGULAR (Giao nhận Ops) và OPS_INCIDENTAL (Phát sinh Ops) tách đúng cặp Phí / Thực thu (0.197125ms)
+  ✔ lô không có hàng nào của một họ → các ô của họ đó là null (chưa xác định, không bịa 0) (0.180125ms)
+  ✔ dòng chưa thương lượng charge → Thực thu null, Phí vẫn biết (0.148958ms)
+  ✔ lô không có dòng nào → cả bốn null, fees rỗng (0.492958ms)
+  ✔ dòng âm bị loại khỏi cả tổng và danh sách (0.2285ms)
+✔ buildDebitMergeNoInvoice — hai họ phí không hóa đơn Ops (SIL-876: Phí | Thực thu từng họ) (3.961125ms)
+▶ debitMergeScopeConditions — CUS own-only vs team
+  ✔ team chỉ mở rộng với đúng chuỗi 'true' (0.618375ms)
+  ✔ vai staff không bao giờ bị scope — không điều kiện, không đụng DB (0.134791ms)
+  ✔ CUS mặc định (team off): 3 nhánh own-only, KHÔNG nhánh co-members (7.3765ms)
+  ✔ CUS team=1: thêm nhánh co-members (nhóm ACTIVE) (2.054083ms)
+  ✔ CUS team=1 nhưng không có nhóm nào → still own-only arms (0.436208ms)
+✔ debitMergeScopeConditions — CUS own-only vs team (10.815125ms)
+▶ SIL-896 — the opsRows read rides the live-money law
+  ✔ source pins: liveDebitOpsExpense + not-REJECTED filter the merge read (0.283333ms)
+  ✔ one record → ONE cluster: INVOICED_* pushes group 4, the bare else pushes group 5 (0.067667ms)
+  ✔ liveDebitOpsExpense renders the registry law the other money surfaces ride (0.91325ms)
+✔ SIL-896 — the opsRows read rides the live-money law (1.610542ms)
+▶ SIL-896 DoD — the QA lot fixture aggregates once, in one cluster
+  ✔ CSHT 2.500.000₫ renders exactly ONE line, counted once (0.100333ms)
+  ✔ the two no-invoice pending fees show in group 5 with red family flags (0.325958ms)
+  ✔ money stays integer VND through the builders (0.093167ms)
+✔ SIL-896 DoD — the QA lot fixture aggregates once, in one cluster (0.592959ms)
+▶ SIL-896 round 8 — Tên phí and Tổng TC on the un-negotiated pending fees
+  ✔ source pins: the read selects the catalog name and the buckets resolve through the shared fallbacks (0.118666ms)
+  ✔ Tên phí: entry feeName wins, the catalog name covers a null entry name (0.04575ms)
+  ✔ receivable contribution: negotiated charge joins as-is; un-negotiated fee rides charge ?? paid; Lạch Huyện never falls back (0.056084ms)
+  ✔ DoD arithmetic: Tổng TC = 31.513.200₫ on the QA lot shape (cước + chi-hộ + un-negotiated GN fees) (0.074041ms)
+✔ SIL-896 round 8 — Tên phí and Tổng TC on the un-negotiated pending fees (0.381458ms)
+▶ debitMergeTongTcUnlocked — Tổng TC cho lô chưa khóa (SIL-814)
+  ✔ REGRESSION: cước đã biết + KHÔNG dòng doanh thu chuyến → tổng = cước, KHÔNG ném TypeError (12.604ms)
+  ✔ REGRESSION: chỉ phí ops đã biết (không doanh thu chuyến) → tổng = phí ops (8.076666ms)
+  ✔ REGRESSION: chỉ PS đã biết (không doanh thu chuyến) → tổng = PS (0.216875ms)
+  ✔ đủ các phía: doanh thu chuyến + cước + PS + phí ops cộng đúng (0.10975ms)
+  ✔ chỉ có doanh thu chuyến (cước/PS/ops chưa biết) → tổng = doanh thu (0.081667ms)
+  ✔ không phía nào xác định → null (không bịa 0 — luật unknown) (0.077042ms)
+  ✔ mỗi phía đã biết nhưng = 0 vẫn không bịa doanh thu khi không có gì xác định tổng khác (0.074ms)
+✔ debitMergeTongTcUnlocked — Tổng TC cho lô chưa khóa (SIL-814) (22.209333ms)
+▶ buildFrozenShipmentDebitLines — LOCK-miss unpriced freight (R3P-677-C shape)
+  ✔ basis LOCK + freightAuto null → 409 với remedy (nhập cước / bổ sung bảng giá + khóa lại), không note rỗng (1.13925ms)
+  ✔ known 0 vẫn là một giá trị — freightAuto 0 + receivable 0 + basis LOCK giữ luật D02 (note rỗng, không chặn) (0.360333ms)
+✔ buildFrozenShipmentDebitLines — LOCK-miss unpriced freight (R3P-677-C shape) (3.463791ms)
+▶ assertRoundIssuanceTotals — tổng Debit Note ≡ tổng đợt chốt (QA round 5)
+  ✔ đúng số QA: 2×3.952.000 + VAT 632.320 = 8.536.320 ≡ round 5 — không chặn (1.49725ms)
+  ✔ một nửa tiền (QA defect: net 3.952.000, gross 4.268.160) → 409, không được đẩy thiếu (0.304541ms)
+  ✔ lệch net 1 ₫ cũng chặn (VND integer money law) (0.156208ms)
+  ✔ lệch VAT (spread không về đúng VAT nguyên gốc của đợt) → chặn (0.148458ms)
+  ✔ đợt 0 ₫ (miễn phí) với note rỗng — nhất quán, không chặn (0.101833ms)
+✔ assertRoundIssuanceTotals — tổng Debit Note ≡ tổng đợt chốt (QA round 5) (3.164ms)
+▶ SIL-855 wiring — freeze đọc override SIL-805; preview + [Lưu] đối chiếu round
+  ✔ buildCostSnapshot đọc ghi đè cước thu mức-lô (shipmentContainerId null) và đưa vào summary (0.958667ms)
+  ✔ summary nhận options.freightOverrideByLot + ghi đè ô SIL-805 và hợp nhất vào cột cước (một cột cho cước/gate/receivable/profit) (1.142ms)
+  ✔ debit-merge: Tổng TC đọc cùng ô Cước thu merge (ghi đè SIL-805 đi trước kênh tự động) (1.393208ms)
+  ✔ preview đối chiếu tổng trước khi trả bảng xem trước (0.138042ms)
+  ✔ [Lưu] gộp đối chiếu tổng NGAY TRONG issueInTx — trước khi insert billing_documents (2.717458ms)
+  ✔ chọn đợt đọc cả amount (money law cần số đợt đã ghi) (1.71325ms)
+✔ SIL-855 wiring — freeze đọc override SIL-805; preview + [Lưu] đối chiếu round (9.118666ms)
+▶ SIL-855 repair law — hủy governed, phát hành lại cùng selection
+  ✔ office cancel route tồn tại, đúng roles kế toán, bắt buộc lý do, idempotent (1.3355ms)
+  ✔ lifecycle: SENT → CANCELED hợp lệ và hủy PHẢI nhả claim lô (DOCUMENT_CANCELED) (0.556125ms)
+  ✔ replay không bị ghim bởi note đã hủy — billingDocumentIsLive coi CANCELED là dead (0.116291ms)
+  ✔ Công nợ aggregates loại note CANCELED (đã là luật hiện có — pin đúng chỗ nối vào repair path) (1.011792ms)
+✔ SIL-855 repair law — hủy governed, phát hành lại cùng selection (3.291333ms)
+▶ SIL-883 — group-4 chi-hộ builder carries the duyệt axis
+  ✔ a pending fee line keeps pending; an approved line omits the key (1.214167ms)
+✔ SIL-883 — group-4 chi-hộ builder carries the duyệt axis (1.909333ms)
+▶ SIL-883 — group-5 no-invoice builder carries the duyệt axis
+  ✔ a family side reads pending when ANY contributing entry awaits duyệt; fees flag per line (0.276375ms)
+✔ SIL-883 — group-5 no-invoice builder carries the duyệt axis (0.553417ms)
+▶ SIL-883 — the block sentence
+  ✔ names the action, the Số Bill and the count exactly as the ticket (0.133916ms)
+✔ SIL-883 — the block sentence (0.225375ms)
+▶ SIL-883 — wiring pins: the hard block rides all three money actions
+  ✔ Khóa lô guards before the snapshot builds (409 leaves nothing behind) (0.495125ms)
+  ✔ single-lot Xuất Debit Note guards inside the issuance tx (0.212083ms)
+  ✔ consolidated Xuất Debit Note guards every selected lot (0.75125ms)
+  ✔ Chọn Debit (settlement round) guards after the lots resolve (0.113208ms)
+  ✔ the board emits control.pendingFeeCount and drops dead fee rows before the buckets (CR-010.1 SIL-896) (0.238834ms)
+  ✔ the shared wire contract carries the pending fields (0.560917ms)
+✔ SIL-883 — wiring pins: the hard block rides all three money actions (2.649666ms)
+ℹ tests 60
+ℹ suites 16
+ℹ pass 60
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1986.94275
+be-exit=0

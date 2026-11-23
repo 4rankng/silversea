@@ -19,7 +19,13 @@ import { fileURLToPath } from 'node:url';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 import { liveDebitOpsExpense } from '../../services/live-debit-expense-scope';
-import { buildDebitMergeChiHo, buildDebitMergeNoInvoice } from '../../services/debit-merge.service';
+import {
+  buildDebitMergeChiHo,
+  buildDebitMergeNoInvoice,
+  debitMergeFeeNameOf,
+  debitMergeOpsChargeContribution,
+  debitMergeTongTcUnlocked,
+} from '../../services/debit-merge.service';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serviceSource = readFileSync(
@@ -105,5 +111,69 @@ describe('SIL-896 DoD — the QA lot fixture aggregates once, in one cluster', (
     const group5 = buildDebitMergeNoInvoice(noInvoiceRows);
     for (const fee of [...chiHo.csht, ...chiHo.lift]) assert.match(fee.amount, /^\d+$/);
     assert.equal(Number.isInteger(group5.gnFee), true);
+  });
+});
+
+describe('SIL-896 round 8 — Tên phí and Tổng TC on the un-negotiated pending fees', () => {
+  // QA repro (build 7a0ac8ff, staging vantai, lot MATS7539769000): the
+  // advances-flow writer never fills ops_expense_entries.fee_name and never
+  // negotiates a customer charge on a pending fee — so the grid showed an
+  // EMPTY Tên phí cell for 'Hải quan luồng xanh' (450.000₫) + 'Chọn vỏ'
+  // (50.000₫) and Tổng TC dropped exactly their 500.000₫ (31.013.200₫
+  // instead of 31.513.200₫). Both names live on the expense-type catalog
+  // row the read already joins.
+
+  test('source pins: the read selects the catalog name and the buckets resolve through the shared fallbacks', () => {
+    assert.match(serviceSource, /typeName: s\.forwarderExpenseTypes\.name,/);
+    assert.match(serviceSource, /feeName: debitMergeFeeNameOf\(\{ feeName: row\.feeName, typeName: row\.typeName \}\)/);
+    assert.match(serviceSource, /const contribution = debitMergeOpsChargeContribution\(row\);/);
+    // The read loop resolves every bucket name through the fallback; the
+    // pure builders keep pushing their (already resolved) input rows.
+    const opsLoop = serviceSource.slice(
+      serviceSource.indexOf('for (const row of opsRows)'),
+      serviceSource.indexOf('const chiHoByLot'),
+    );
+    assert.doesNotMatch(
+      opsLoop,
+      /feeName: row\.feeName(?!, typeName)/,
+      'no bucket may push the raw entry name — the catalog fallback is the law',
+    );
+  });
+
+  test('Tên phí: entry feeName wins, the catalog name covers a null entry name', () => {
+    assert.equal(debitMergeFeeNameOf({ feeName: null, typeName: 'Hải quan luồng xanh' }), 'Hải quan luồng xanh');
+    assert.equal(debitMergeFeeNameOf({ feeName: 'Tên tự nhập', typeName: 'Hải quan luồng xanh' }), 'Tên tự nhập');
+    assert.equal(debitMergeFeeNameOf({ feeName: null, typeName: null }), null);
+  });
+
+  test('receivable contribution: negotiated charge joins as-is; un-negotiated fee rides charge ?? paid; Lạch Huyện never falls back', () => {
+    // The two QA fees: no negotiated charge, pending — the recorded amount
+    // carries the receivable (the receivableForCost identity the chi-hộ
+    // cell money already uses).
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'HQGS_GREEN', charge: null, amount: '450000' }), 450000);
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: null, amount: '50000' }), 50000);
+    // A negotiated charge keeps its exact value (negatives included — the
+    // existing semantics).
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: '120000', amount: '50000' }), 120000);
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: '-70000', amount: '50000' }), -70000);
+    // Lạch Huyện: the amount is the điều vận cost — only its charge bills.
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'ZONE_SURCHARGE', charge: null, amount: '900000' }), null);
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'ZONE_SURCHARGE', charge: '300000', amount: '900000' }), 300000);
+    // A negative un-negotiated amount is absent (the builders' drop law).
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: null, amount: '-50000' }), null);
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: null, amount: null }), null);
+  });
+
+  test('DoD arithmetic: Tổng TC = 31.513.200₫ on the QA lot shape (cước + chi-hộ + un-negotiated GN fees)', () => {
+    // ops-charge side = CSHT 2.500.000 (charged, pending) + nâng vỏ
+    // 7.603.200 (charged, approved) + the two un-negotiated GN fees'
+    // 450.000 + 50.000 — the builders' cell money, counted once.
+    const opsChargeKnownTotal = 2500000 + 7603200 + 450000 + 50000;
+    assert.equal(debitMergeTongTcUnlocked({
+      revenue: undefined,
+      freightAuto: 20910000,
+      psKnownTotal: null,
+      opsChargeKnownTotal,
+    }), 31513200);
   });
 });

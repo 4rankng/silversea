@@ -1,0 +1,10 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-896-897-debit-grid/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  24 passed (24)
+   Start at  07:12:00
+   Duration  5.45s (transform 1.58s, setup 190ms, import 3.29s, tests 1.15s, environment 676ms)
+
+fe-exit=0

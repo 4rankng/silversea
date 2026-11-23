@@ -25,7 +25,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DebitMergeGrid, MERGE_TAG_LABEL, DEBIT_MERGE_PAGE_SIZES, type DebitMergeGridProps } from './DebitMergeGrid';
+import { DebitMergeGrid, MERGE_TAG_LABEL, PENDING_FEE_TIP, DEBIT_MERGE_PAGE_SIZES, type DebitMergeGridProps } from './DebitMergeGrid';
 import type { DebitMergeItem } from '@tingting/shared';
 
 const mergeRow = (over: Partial<DebitMergeItem> = {}): DebitMergeItem => ({
@@ -230,6 +230,31 @@ describe('DebitMergeGrid — containers (SIL-876: không nén)', () => {
     expect(document.querySelector('td[data-col="psFee"]')!.textContent!.trim()).toBe('');
     expect(document.querySelector('td[data-col="psPaid"]')!.textContent!.trim()).toBe('');
     expect(document.querySelector('td[data-col="noInvTenPhi"]')!).toHaveTextContent('Làm hàng luồng xanh');
+  });
+
+  it('SIL-896 round 8: both un-negotiated pending fees show their catalog names under the 500.000₫ aggregate', () => {
+    // QA repro (lot MATS7539769000, build 7a0ac8ff): Phí GN OP TC aggregates
+    // the two pending fees once (450.000₫ + 50.000₫), the names arrive
+    // resolved (BE's catalog fallback), each line wears the pending red.
+    renderGrid({}, [mergeRow({
+      noInvoice: {
+        gnFee: '500000', gnPaid: null, psFee: null, psPaid: null, gnFeePending: true,
+        fees: [
+          { name: 'Hải quan luồng xanh', amount: '450000', pending: true },
+          { name: 'Chọn vỏ', amount: '50000', pending: true },
+        ],
+      },
+    })]);
+    expect(document.querySelector('td[data-col="gnFee"]')!.textContent).toContain('500.000');
+    const nameCell = document.querySelector('td[data-col="noInvTenPhi"]')!;
+    const lines = nameCell.querySelectorAll('.debit-merge-cell__line');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toHaveTextContent('Hải quan luồng xanh');
+    expect(lines[1]).toHaveTextContent('Chọn vỏ');
+    for (const line of lines) {
+      expect(line.className).toContain('debit-merge-cell__line--pending');
+      expect(line.getAttribute('title')).toBe(PENDING_FEE_TIP);
+    }
   });
 });
 

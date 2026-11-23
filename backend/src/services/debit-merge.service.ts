@@ -66,6 +66,40 @@ export function debitChiHoGroupOf(category: string | null | undefined): keyof De
   return 'other';
 }
 
+/** Lạch Huyện's expense-type code. Its `amount` is the điều vận cost —
+ *  NEVER billed on this grid — so only its negotiated charge may join the
+ *  receivable (the board's thu seam). */
+const ZONE_SURCHARGE_CODE = 'ZONE_SURCHARGE';
+
+/** SIL-896 round 8 — the name a fee line renders (Tên phí): the entry's own
+ *  feeName when its writer set one, else the expense-type catalog's name.
+ *  The advances-flow writer (ops-expenses.service) never fills feeName, so
+ *  QA's MATS7539769000 pending fees ('Hải quan luồng xanh', 'Chọn vỏ' —
+ *  names that live on the catalog row) rendered an empty TÊN PHÍ cell. */
+export function debitMergeFeeNameOf(row: { feeName: string | null; typeName: string | null }): string | null {
+  return row.feeName ?? row.typeName ?? null;
+}
+
+/** SIL-896 round 8 — one ops row's contribution to the receivable's
+ *  ops-charge side (Tổng TC). A negotiated charge joins as-is (negative
+ *  included — existing semantics); an UN-negotiated (null-charge) fee rides
+ *  the receivableForCost identity the chi-hộ cell money already uses:
+ *  charge ?? paid, so the grid's control figure counts the same fee money
+ *  the group 4/5 cells show. Lạch Huyện never falls back (its amount is the
+ *  điều vận cost, never billed here), and a negative un-negotiated amount is
+ *  absent (the builders' drop law). Returns null = the row contributes
+ *  nothing and does not arm the side. */
+export function debitMergeOpsChargeContribution(row: {
+  expenseTypeCode: string | null;
+  charge: string | null;
+  amount: string | null;
+}): number | null {
+  if (row.charge != null) return toNumber(row.charge);
+  if (row.expenseTypeCode === ZONE_SURCHARGE_CODE) return null;
+  const amount = row.amount == null ? null : toNumber(row.amount);
+  return amount != null && amount >= 0 ? amount : null;
+}
+
 /** Raw invoiced chi-hộ row shape the pure builder consumes (unit-tested
  *  without a db). `charge` = the customer side (null falls back to the paid
  *  amount — the receivableForCost identity for invoice rows); `paid` = Thực
@@ -386,6 +420,9 @@ export async function getDebitMergeBoard(query: {
     expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
     costGroup: s.opsExpenseEntries.costGroup,
     category: s.forwarderExpenseTypes.category,
+    // SIL-896 r8 — the catalog name behind Tên phí: the advances-flow writer
+    // leaves the entry's feeName null, the name lives here.
+    typeName: s.forwarderExpenseTypes.name,
     amount: s.opsExpenseEntries.amount,
     charge: s.opsExpenseEntries.customerChargeAmount,
     feeName: s.opsExpenseEntries.feeName,
@@ -421,7 +458,7 @@ export async function getDebitMergeBoard(query: {
   const opsChargeByLot = new Map<number, { known: boolean; total: number }>();
   // Lạch Huyện charge side (the board's thu seam — `amount` is the điều vận
   // cost, never billed on this grid).
-  const zoneCode = 'ZONE_SURCHARGE';
+  const zoneCode = ZONE_SURCHARGE_CODE;
   const zoneChargeByLot = new Map<number, number>();
   // SIL-883 (3.1)/(3.2) — per-lot count of saved fees awaiting Kế toán
   // duyệt; the grid renders the cells red and hard-blocks the money chain.
@@ -447,21 +484,28 @@ export async function getDebitMergeBoard(query: {
         category: row.category ?? null,
         charge: row.charge,
         paid: row.amount,
-        feeName: row.feeName,
+        feeName: debitMergeFeeNameOf({ feeName: row.feeName, typeName: row.typeName }),
         invoiceNumber: row.invoiceNumber,
         pending,
       });
       chiHoRawByLot.set(lot, bucket);
     } else {
       const bucket = noInvoiceRawByLot.get(lot) ?? [];
-      bucket.push({ costGroup: row.costGroup ?? null, charge: row.charge, paid: row.amount, feeName: row.feeName, pending });
+      bucket.push({ costGroup: row.costGroup ?? null, charge: row.charge, paid: row.amount, feeName: debitMergeFeeNameOf({ feeName: row.feeName, typeName: row.typeName }), pending });
       noInvoiceRawByLot.set(lot, bucket);
     }
-    // Receivable's ops-charge side (card _56): only the NEGOTIATED customer
-    // charge; a null charge contributes nothing but keeps the side known.
-    const entry = opsChargeByLot.get(lot) ?? { known: false, total: 0 };
-    if (row.charge != null) { entry.known = true; entry.total += toNumber(row.charge); }
-    opsChargeByLot.set(lot, entry);
+    // Receivable's ops-charge side (card _56 + SIL-896 r8): the negotiated
+    // customer charge, and for an UN-negotiated (null-charge) fee the
+    // receivableForCost identity (charge ?? paid) — Tổng TC counts the same
+    // money the fee cells show (QA round 8: the two pending GN fees'
+    // 500.000₫ dropped out of Tổng TC exactly because no charge was entered).
+    const contribution = debitMergeOpsChargeContribution(row);
+    if (contribution != null) {
+      const entry = opsChargeByLot.get(lot) ?? { known: false, total: 0 };
+      entry.known = true;
+      entry.total += contribution;
+      opsChargeByLot.set(lot, entry);
+    }
   }
   const chiHoByLot = new Map<number, DebitMergeChiHo>(
     [...chiHoRawByLot].map(([lot, rows]) => [lot, buildDebitMergeChiHo(rows)]),
