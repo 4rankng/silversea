@@ -51,6 +51,7 @@ export function Sidebar({
   onPin,
   onMouseEnter,
   onMouseLeave,
+  hoverExpanded,
 }: SidebarProps) {
   const animRef = useSidebarAnimations();
   const asideRef = useRef<HTMLElement>(null);
@@ -102,7 +103,10 @@ export function Sidebar({
   // escapes the sidebar's overflow:hidden and the nav's scroll container.
   const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null);
   const showTip = (label: string, rect: DOMRect) => {
-    if (sidebarOpen) return; // only when collapsed to icons
+    // Only on the icon rail: the open sidebar (pinned or hover bloom) already
+    // prints the full labels — a floating duplicate is noise (CR-010.1
+    // BUG-04(3)).
+    if (sidebarOpen || hoverExpanded) return;
     setTip({ label, top: rect.top + rect.height / 2, left: rect.right + 10 });
   };
   const hideTip = () => setTip(null);

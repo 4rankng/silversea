@@ -78,9 +78,16 @@
     display: flex;
   }
 
-  /* The user dropdown parks beside the pane, not over the 48px rail. */
+  /* CR-010.1 BUG-04(2) — the dropdown used to park BESIDE the pane (left
+     anchored past the pane's width); the aside paints overflow: hidden, so
+     that off-pane menu was CLIPPED — Đăng xuất disappeared. The pane is the
+     full 248px width now: the menu opens OVER the pane (viewport-anchored
+     fixed, like the collapsed rail), but with the pane's own width so it can
+     never stretch or clip. */
   .app.sidebar-closed.sidebar-hover-open .sidebar-user-dropdown {
-    left: calc(var(--sidebar-w) + 8px);
+    left: 8px;
+    right: auto;
+    width: calc(var(--sidebar-w) - 16px);
   }
 
   /* ── Pin control ───────────────────────────────────────────────────────── */

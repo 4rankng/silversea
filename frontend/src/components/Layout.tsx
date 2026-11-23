@@ -951,6 +951,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     onPin: pinSidebar,
     onMouseEnter: handleSidebarMouseEnter,
     onMouseLeave: handleSidebarMouseLeave,
+    hoverExpanded: sidebarHoverOpen,
   };
 
   const topbarProps = {

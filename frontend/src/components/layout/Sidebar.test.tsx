@@ -74,3 +74,19 @@ describe('Sidebar role structure', () => {
     expect(props.toggleSection).toHaveBeenCalledWith('oversight');
   });
 });
+
+describe('CR-010.1 BUG-04(3) — the icon-rail tooltip stays quiet on a labeled pane', () => {
+  it('labels rail icons by tooltip while collapsed', () => {
+    renderSidebar({ sidebarOpen: false });
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Tổng Quan' }));
+    expect(document.querySelector('.rail-tooltip')?.textContent).toBe('Tổng Quan');
+  });
+
+  it('never duplicates a tooltip while the hover bloom already prints the labels', () => {
+    renderSidebar({ sidebarOpen: false, hoverExpanded: true });
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Tổng Quan' }));
+    expect(document.querySelector('.rail-tooltip')).toBeNull();
+  });
+});

@@ -65,6 +65,9 @@ export interface SidebarProps {
   /** SIL-892 — hover expand of the collapsed rail (desktop overlay mode). */
   onMouseEnter?: React.MouseEventHandler<HTMLElement>;
   onMouseLeave?: React.MouseEventHandler<HTMLElement>;
+  /** CR-010.1 BUG-04(3) — true while the hover bloom is open: the pane then
+   *  shows full item labels, so the icon-rail tooltip must stay silent. */
+  hoverExpanded?: boolean;
 }
 
 export interface TopbarProps {

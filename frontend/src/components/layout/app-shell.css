@@ -93,6 +93,23 @@ html.pwa-standalone .app-main {
 
 /* Desktop sidebar toggle (1024px and above) */
 @media (min-width: 1024px) {
+  /* CR-010.1 BUG-04(1) — the hover bloom takes .sidebar out of flow
+     (position: fixed). With auto-placement the sidebar's grid slot then fell
+     to .app-main, squeezing the whole content column into the 48px rail
+     while the 1fr track sat empty — the "gray canvas" QA saw instead of the
+     table. Pin both children to their tracks: the main column keeps its
+     full width under the 248px hover pane, so the table stays 100% laid out
+     (no scrim, nothing reflows). */
+  .app > .sidebar {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .app > .app-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   .app.sidebar-closed {
     --app-sidebar-offset: 48px;
     grid-template-columns: 48px minmax(0, 1fr);
