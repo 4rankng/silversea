@@ -60,7 +60,11 @@ describe('SIL-727 — a replayed debit note id must be a LIVE document', () => {
       SOURCE.indexOf('export async function createDebitNoteFromCostLock'),
     );
     assert.match(helper, /isNull\(s\.billingDocuments\.deletedAt\)/);
-    assert.match(helper, /return row != null;/);
+    // SIL-855: the same read also excludes CANCELED — a governed cancel
+    // releases the claims, so a canceled id is not a live note and the same
+    // selection must re-issue (the runbook law) instead of replaying it.
+    assert.match(helper, /row\.debitNoteStatus !== 'CANCELED'/);
+    assert.match(helper, /return row != null &&/);
   });
 
   it('the repair rides ONLY the replay branch — a fresh create returns untouched', () => {

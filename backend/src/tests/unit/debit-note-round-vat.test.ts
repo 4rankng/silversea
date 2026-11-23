@@ -101,7 +101,10 @@ describe('SIL-855 wiring — preview and [Lưu] issuance stamp the SAME round.va
     assert.ok(start > 0, 'preview anchor found');
     const body = roundsSource.slice(start);
     assert.match(body, /vatRatePercent:\s*round\.vatRate/, 'preview stamps round.vatRate');
-    assert.match(body, /totals:\s*documentVatTotals\(allLines\)/, 'preview totals still ride documentVatTotals');
+    // SIL-855 money law — the totals still ride documentVatTotals AND the
+    // preview now reconciles them against the round record before returning.
+    assert.match(body, /const totals = documentVatTotals\(allLines\)/, 'preview totals still ride documentVatTotals');
+    assert.match(body, /assertRoundIssuanceTotals\(totals, round\)/, 'preview reconciles against the đợt record');
   });
 
   test('[Lưu] issuance selects the đợt VAT and stamps it on the issued lines', () => {

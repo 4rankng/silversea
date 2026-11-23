@@ -2,6 +2,7 @@
 // board and the Chọn Debit settlement service. Its own module so the board
 // assembly and the settlement guards share ONE derivation with no
 // service→service import cycle.
+import { vatForAmount } from '@tingting/shared';
 import { ApiError } from '../errors';
 
 export interface CarrierDerivationEntry {
@@ -50,4 +51,32 @@ export function assertRoundAttachableToDebitNote(
   if (round.direction !== 'THU') {
     throw new ApiError(400, `Debit Note phải thu khách chỉ gắn đợt chiều THU — đợt Lần ${round.roundNo} · ${round.periodKey} là chiều TRA (trả nhà xe), không phát sinh công nợ phải thu.`);
   }
+}
+
+/** SIL-855 QA 23/11 (round 5 = 8.536.320 ₫, Công nợ chỉ nhận 4.268.160 ₫) —
+ *  the MONEY LAW of a đợt-scoped Debit Note: what the preview shows and what
+ *  [Lưu] posts must equal the round record exactly. The đợt's amount is the
+ *  board's server-derived Tổng-thu sum at [Chốt đợt] time; the note's lines
+ *  come from a DIFFERENT basis (the frozen lock snapshots), so any freeze
+ *  that lost a lot's money (R3P-677-C froze null freight) used to slide
+ *  through both the preview and the issuance silently. Net is exact (VND
+ *  integers, never rounded); gross must equal amount + vatForAmount — the
+ *  same whole-base VAT the TỔNG HỢP table prints. A mismatch 409s BEFORE any
+ *  document exists, naming the designed remedy (fix the freeze, re-lock,
+ *  re-issue) instead of half-posting. Lives beside
+ *  assertRoundAttachableToDebitNote so the preview, the issuance and the
+ *  unit pin share ONE law with no import cycle. */
+export function assertRoundIssuanceTotals(
+  totals: { net: number; tax: number; gross: number },
+  round: { id: number; roundNo: number; periodKey: string; amount: string | number; vatRate: number },
+): void {
+  const roundAmount = Number(round.amount);
+  const roundVat = vatForAmount(roundAmount, round.vatRate);
+  const roundGross = roundAmount + roundVat;
+  if (totals.net === roundAmount && totals.gross === roundGross) return;
+  throw new ApiError(409,
+    `Tổng Debit Note lệch với đợt chốt Lần ${round.roundNo} · ${round.periodKey} (#${round.id}): `
+    + `bảng khóa lô cho ${totals.net} + VAT ${totals.tax} = ${totals.gross} ₫, đợt đã chốt ${roundAmount} + VAT ${roundVat} = ${roundGross} ₫. `
+    + 'Nguyên nhân thường gặp: một lô của đợt bị khóa khi chưa có đủ số tiền cước (ô Cước thu trống trên bảng Kiểm soát lô hàng tại thời điểm khóa). '
+    + 'Mở khóa lô, bảo đảm bảng đã có đủ số tiền, khóa lại rồi mới xuất Debit Note — tiền không bao giờ được đẩy thiếu so với đợt chốt.');
 }

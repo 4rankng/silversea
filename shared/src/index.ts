@@ -182,7 +182,7 @@ export {
   commissionSchema,
   driverPayoutSchema,
   tireSchema, installTireSchema, disposeTireSchema, transferTireSchema, tirePositionSchema,
-  generateBillingDocumentSchema, saveBillingDocumentSchema, billingDocumentLineSchema, billingDocumentAdjustmentRequestSchema, billingDocumentIssueRequestSchema,
+  generateBillingDocumentSchema, saveBillingDocumentSchema, billingDocumentLineSchema, billingDocumentAdjustmentRequestSchema, billingDocumentCancelSchema, billingDocumentIssueRequestSchema,
   debitNoteTemplateSchema, debitNoteColumnSchema, debitNoteColumnVariableSchema, defaultDebitNoteColumns, defaultPaymentStatementColumns,
   geotagSchema, GEOTAG_ENTITY_TYPES, GEOTAG_SOURCES, GEOTAG_PATHS,
   customerVisibleEventContentSchema, createCustomerVisibleEventSchema,

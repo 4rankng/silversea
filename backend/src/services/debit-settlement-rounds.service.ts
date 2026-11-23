@@ -19,7 +19,7 @@ import { operationalName } from '../db/master-data-name';
 import { ApiError } from '../errors';
 import { getAccountingDebitBoard, assertNoPendingRateAdjustment } from './accounting-debit-close.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
-import { carrierKeysForLot, type CarrierDerivationEntry } from './debit-settlement-shared';
+import { carrierKeysForLot, assertRoundIssuanceTotals, type CarrierDerivationEntry } from './debit-settlement-shared';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { assertNoPendingApprovalFees } from './shipment-pending-fees.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
@@ -438,5 +438,11 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
       costLockedAt: lockRow.lockedAt?.toISOString() ?? null,
     });
   }
-  return { round: roundHeader, items, totals: documentVatTotals(allLines) };
+  // SIL-855 money law — the preview must equal the round record before it is
+  // allowed to exist at all: a freeze that lost a lot's money 409s here so
+  // the accountant sees the block INSTEAD of a half-money table (R3P-677-C
+  // showed 0 ₫ and [Lưu] posted half of round 5).
+  const totals = documentVatTotals(allLines);
+  assertRoundIssuanceTotals(totals, round);
+  return { round: roundHeader, items, totals };
 }

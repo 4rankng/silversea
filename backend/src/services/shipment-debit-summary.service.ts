@@ -46,7 +46,20 @@ export async function getShipmentDebitSummary(query: {
   /** Team-based visibility (18/11): vai CUS chỉ quyết toán lô của mình +
    * nhóm ACTIVE + fallback; staff roles không bao giờ bị scope. */
   actor?: AuthUser;
-}): Promise<ShipmentDebitSummaryResponse> {
+}, options: {
+  /**
+   * SIL-855 QA 23/11 — lot-level SIL-805 cước-thu overrides the FREEZE must
+   * see. Every board surface (merge grid, debit board, đợt sum) reads the
+   * merged cell (override ?? derived channel); the freeze called this summary
+   * with the raw channel only, so a lot whose freight lives ONLY in the
+   * accountant's inline override (bảng giá thiếu tuyến/loại xe at lock time)
+   * froze freightAuto/receivableTotal null and buildFrozenShipmentDebitLines
+   * emitted no lines — the Debit Note silently billed 0 ₫ for that lot
+   * (R3P-677-C, half of round 5 reached Công nợ). The freeze passes this map;
+   * UI callers omit it and keep the derived channel byte-identically.
+   */
+  freightOverrideByLot?: Map<number, number>;
+} = {}): Promise<ShipmentDebitSummaryResponse> {
   const conditions = [isNull(s.shipments.deletedAt)];
   if (query.customerId != null) conditions.push(eq(s.shipments.customerId, query.customerId));
   if (query.deliveryDateFrom) conditions.push(gte(s.shipments.expectedDeliveryDate, query.deliveryDateFrom));
@@ -427,7 +440,11 @@ export async function getShipmentDebitSummary(query: {
     // only these live columns follow the channel.
     const effectiveFreight = effectiveFreightByLot.get(lot.id) ?? { value: null, reason: null };
     const revManual = revManualByLot.get(lot.id) ?? null;
-    const freightAuto = effectiveFreight.value;
+    // SIL-855 — the override law rides ONE column: with the freeze's map the
+    // Cước thu value, the receivable addend, the freight-known gate and the
+    // profit all read the merged cell, so the frozen note can never disagree
+    // with what the board and the đợt sum show for the same lot.
+    const freightAuto = options.freightOverrideByLot?.get(lot.id) ?? effectiveFreight.value;
     const chiHo = chiHoByLot.get(lot.id);
     const hasTrips = (tripCountByLot.get(lot.id) ?? 0) > 0;
     const lock = lockedByLot.get(lot.id);

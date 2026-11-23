@@ -540,6 +540,13 @@ export const billingDocumentAdjustmentRequestSchema = z.object({
   reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
 });
 
+/** SIL-855 repair law — governed cancel of a mis-issued debit note (the QA
+ *  23/11 half-money note). The lifecycle owns the legal transitions; this is
+ *  the office-side lever (POST /api/finance/billing-documents/:id/cancel). */
+export const billingDocumentCancelSchema = z.object({
+  reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
+});
+
 export const billingDocumentIssueRequestSchema = z.object({
   reason: z.string().trim().min(1, 'Lý do là bắt buộc').max(1000),
   expectedVersion: z.coerce.number().int().positive(),
@@ -2377,6 +2384,7 @@ export type SaveBillingDocumentInput = {
   lines?: z.infer<typeof billingDocumentLineSchema>[];
 };
 export type BillingDocumentAdjustmentRequestInput = z.infer<typeof billingDocumentAdjustmentRequestSchema>;
+export type BillingDocumentCancelInput = z.infer<typeof billingDocumentCancelSchema>;
 export type BillingDocumentIssueRequestInput = z.infer<typeof billingDocumentIssueRequestSchema>;
 export type BillingDocumentLineInput = z.infer<typeof billingDocumentLineSchema>;
 

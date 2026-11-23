@@ -100,12 +100,26 @@ export function buildFrozenShipmentDebitLines(
   // bill their customer-reported freight through the phát-sinh cells by
   // design, and legacy snapshots (no basis key) keep their frozen law.
   const pricingBasis = readFrozenFreightPricingBasis(snapshot);
-  if (freightFrozen == null
-    && Object.prototype.hasOwnProperty.call(snapshot, 'freightAuto')
+  const freightUnpriced = freightFrozen == null
+    && Object.prototype.hasOwnProperty.call(snapshot, 'freightAuto');
+  if (freightUnpriced
     && pricingBasis?.action === 'SKIP' && pricingBasis.reason !== 'AD_HOC') {
     throw new ApiError(409,
       `Cước vận tải của lô ${lotCode} chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: ${pricingBasis.reason}). `
       + 'Không thể xuất Debit Note thiếu cước — hãy xác định giá cước thu khách trên màn hình Chi phí - Quyết toán (chọn loại xe tính cước hoặc nhập giá), khóa lại lô rồi xuất.');
+  }
+  // SIL-855 QA 23/11 (R3P-677-C) — the SKIP law above missed the other half:
+  // grounds ĐỦ CĂN CỨ (basis LOCK) but the bảng giá has no row for the
+  // vehicle/route and the accountant's SIL-805 cước-thu override was absent
+  // at lock time. The freeze then recorded freightAuto/receivableTotal null
+  // and this builder emitted NO lines for the lot — the note silently billed
+  // 0 ₫ and the đợt posted half its money to Công nợ. A known 0 (freightAuto
+  // = 0, D02) still passes: zero is a value, null with a LOCK basis is a
+  // missing price.
+  if (freightUnpriced && pricingBasis?.action === 'LOCK') {
+    throw new ApiError(409,
+      `Cước vận tải của lô ${lotCode} chưa xác định trong bản khóa lô (đủ căn cứ định giá nhưng bảng giá không trả về giá, và không có cước nhập đè khi khóa). `
+      + 'Không thể xuất Debit Note thiếu cước — hãy nhập cước thu khách (sửa trực tiếp ô Cước thu trên bảng Kiểm soát lô hàng) hoặc bổ sung bảng giá, mở khóa và khóa lại lô rồi xuất.');
   }
   const receivable = frozenMoney(snapshot, 'receivableTotal');
   const lines: BillingDocumentLine[] = [];

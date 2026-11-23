@@ -21,7 +21,7 @@ import { computeLotPayablesBreakdown } from './lot-payables.service';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { documentVatTotals, VAT_TREATMENT_VERSION } from './billing-document-shared.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
-import { assertRoundAttachableToDebitNote } from './debit-settlement-shared';
+import { assertRoundAttachableToDebitNote, assertRoundIssuanceTotals } from './debit-settlement-shared';
 import { deriveLotPricingGrounds } from './freight-rate-snapshot-lifecycle.service';
 import { classifyLotPricingBasis } from './freight-lot-basis';
 import { assertNoPendingApprovalFees } from './shipment-pending-fees.service';
@@ -75,13 +75,18 @@ async function assertLotsNotInIssuedDebitNote(
  *  08/11: staging R3M-KR1's ca0e72b9-wave record replayed `{id:13}` for a
  *  billing_documents row that no longer existed — the export GET then 404'd
  *  'Không tìm thấy tài liệu' with no file ever reachable). A document counts
- *  as live only when the row still exists and is not soft-deleted. */
+ *  as live only when the row still exists, is not soft-deleted, and is not
+ *  CANCELED. SIL-855 repair law: a governed cancel RELEASES the lot claims
+ *  (DOCUMENT_CANCELED) and drops the note from every Công-nợ aggregate, so
+ *  the selection's law is one ACTIVE note per lot — a canceled prior id must
+ *  not pin the idempotent replay; the same selection re-issues the corrected
+ *  note (QA runbook: cancel the half-money note, re-lock, [Lưu] again). */
 async function billingDocumentIsLive(documentId: number): Promise<boolean> {
-  const [row] = await db.select({ id: s.billingDocuments.id })
+  const [row] = await db.select({ id: s.billingDocuments.id, debitNoteStatus: s.billingDocuments.debitNoteStatus })
     .from(s.billingDocuments)
     .where(and(eq(s.billingDocuments.id, documentId), isNull(s.billingDocuments.deletedAt)))
     .limit(1);
-  return row != null;
+  return row != null && row.debitNoteStatus !== 'CANCELED';
 }
 
 /** Freeze gate for every Lớp-2 write surface on the shipment (mirrors
@@ -150,7 +155,30 @@ async function buildCostSnapshot(shipmentId: number, executor: Executor = db): P
   const [lot] = await db.select({ customerId: s.shipments.customerId })
     .from(s.shipments).where(eq(s.shipments.id, shipmentId)).limit(1);
   if (!lot) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
-  const summary = await getShipmentDebitSummary({ customerId: lot.customerId!, lockStatus: 'ALL' });
+  // SIL-855 QA 23/11 (R3P-677-C = 0 ₫, Công nợ nhận một nửa round 5) — the
+  // freeze must read the accountant's SIL-805 cước-thu override exactly like
+  // every board cell does (applyDebitRateOverridesToCells merges it into the
+  // merged Cước thu cell; the đợt sum bills that cell). A lot whose freight
+  // exists only as the override — bảng giá thiếu tuyến/loại xe, pricing
+  // projection MISSING_AUTHORITY — froze freightAuto/receivableTotal null
+  // through the raw channel, and the frozen lines then carried no money. The
+  // lot-level row only (containerId null): the board's TOP-level cells merge
+  // exactly that row, so the freeze law ≡ the round law.
+  const [freightOverrideRow] = await executor.select({ cuocThu: s.shipmentDebitRateOverrides.cuocThu })
+    .from(s.shipmentDebitRateOverrides)
+    .where(and(
+      eq(s.shipmentDebitRateOverrides.shipmentId, shipmentId),
+      isNull(s.shipmentDebitRateOverrides.shipmentContainerId),
+    ))
+    .limit(1);
+  const freightOverrideAmount = freightOverrideRow?.cuocThu != null && Number.isFinite(Number(freightOverrideRow.cuocThu))
+    ? Number(freightOverrideRow.cuocThu)
+    : undefined;
+  const summary = await getShipmentDebitSummary({ customerId: lot.customerId!, lockStatus: 'ALL' }, {
+    freightOverrideByLot: freightOverrideAmount === undefined
+      ? undefined
+      : new Map([[shipmentId, freightOverrideAmount]]),
+  });
   const item = summary.items.find((row) => row.shipmentId === shipmentId);
   const payables = await computeLotPayablesBreakdown(shipmentId);
   // Freeze contract: port labels join the frozen basis — a rename after the
@@ -705,6 +733,10 @@ export async function createConsolidatedDebitNote(
   // the same round.vatRate the preview stamped, so the FE reconcile (preview
   // totals vs issued totals) holds and Công nợ receives the đợt's VAT.
   let roundVatRatePercent: number | null = null;
+  // The round record itself — the money law anchor for the issuance (see
+  // issueInTx): the note's frozen-line totals must equal the đợt's recorded
+  // amount + whole-base VAT, exactly.
+  let roundMoneyRecord: { id: number; roundNo: number; periodKey: string; amount: string; vatRate: number } | null = null;
   if (input.settlementRoundId != null) {
     const [round] = await db.select({
       id: s.debitSettlementRounds.id,
@@ -712,6 +744,7 @@ export async function createConsolidatedDebitNote(
       direction: s.debitSettlementRounds.direction,
       roundNo: s.debitSettlementRounds.roundNo,
       periodKey: s.debitSettlementRounds.periodKey,
+      amount: s.debitSettlementRounds.amount,
       vatRate: s.debitSettlementRounds.vatRate,
     }).from(s.debitSettlementRounds)
       .where(eq(s.debitSettlementRounds.id, input.settlementRoundId)).limit(1);
@@ -719,6 +752,7 @@ export async function createConsolidatedDebitNote(
     assertRoundAttachableToDebitNote(round, customerId);
     settlementRoundId = round.id;
     roundVatRatePercent = round.vatRate;
+    roundMoneyRecord = { id: round.id, roundNo: round.roundNo, periodKey: round.periodKey, amount: round.amount, vatRate: round.vatRate };
   }
   // SIL-693 r2: the derived key ignores client headers, so a selection ANY
   // user once exported replays THEIR idempotency record — runIdempotent then
@@ -748,6 +782,14 @@ export async function createConsolidatedDebitNote(
         );
       });
       const totals = documentVatTotals(lineRows);
+      // SIL-855 money law — the [Lưu] gate the QA repro sailed through: the
+      // note's frozen-line totals must equal the đợt's recorded money BEFORE
+      // any document, line, or claim row exists. A freeze that lost a lot's
+      // money (R3P-677-C froze null freight → no lines → half the đợt posted)
+      // 409s here with the designed remedy instead of reaching Công nợ.
+      if (roundMoneyRecord != null) {
+        assertRoundIssuanceTotals(totals, roundMoneyRecord);
+      }
       const [doc] = await tx.insert(s.billingDocuments).values({
         type: 'DEBIT_NOTE',
         entityType: 'CUSTOMER',

@@ -5,6 +5,7 @@ import type { Request, Response } from 'express';
 import {
   Role,
   billingDocumentAdjustmentRequestSchema,
+  billingDocumentCancelSchema,
   billingDocumentIssueRequestSchema,
   generateBillingDocumentSchema,
   saveBillingDocumentSchema,
@@ -30,7 +31,7 @@ import { invalidateReportCaches } from '../../lib/report-cache';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parseId, parseOptionalId } from '../utils/parse-id';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
-import { sendDebitNoteForCustomerConfirmation } from '../../services/debit-note-lifecycle.service';
+import { sendDebitNoteForCustomerConfirmation, transitionDebitNoteStatus } from '../../services/debit-note-lifecycle.service';
 import { listAccountingTransportRows } from '../../services/accounting-transport-register.service';
 import { assertCusBillingDocumentVisible } from '../../services/cus-visibility.service';
 import { declareNonMaterialWrite } from '../../middleware/material-write';
@@ -148,6 +149,44 @@ router.post('/finance/billing-documents/:id/adjustments', declareMaterialWrite('
     }),
   });
   res.status(replayed ? 200 : 201).json(idempotencyKey ? { ...result, replayed } : result);
+}));
+
+// POST /api/finance/billing-documents/:id/cancel — SIL-855 repair lever: a
+// mis-issued debit note (QA 23/11 round 5: the note posted half the đợt's
+// money) is governed-CANCELED through the lifecycle's own transition law
+// (SENT/PENDING_CONFIRM/CONFIRMED/PARTIAL_PAID → CANCELED; PAID/CANCELED are
+// terminal). The transition releases the debit_note_lots/trip/recoverable
+// claims (DOCUMENT_CANCELED) inside the same transaction, and every Công-nợ
+// aggregate already excludes CANCELED — so after the source locks are fixed
+// (SIL-805 cước override + re-lock) the same selection re-issues the
+// corrected note: net AR effect lands exactly on the đợt's recorded total.
+router.post('/finance/billing-documents/:id/cancel', declareMaterialWrite('billing-documents.cancel', { method: 'POST', path: '/api/finance/billing-documents/:id/cancel' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {
+  const actor = getUser(req);
+  const input = billingDocumentCancelSchema.parse(req.body);
+  const documentId = parseId(req.params.id, 'ID hóa đơn');
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.BILLING_DOCUMENT_CANCEL,
+    idempotencyKey,
+    payload: { actorId: actor.userId, documentId, ...input },
+    createdBy: actor.userId,
+    entityType: 'billing_document',
+    create: async (tx) => {
+      await transitionDebitNoteStatus({
+        documentId,
+        targetStatus: 'CANCELED',
+        actorUserId: actor.userId,
+        reason: input.reason,
+        transaction: tx,
+      });
+      return billingService.getDocument(documentId, tx);
+    },
+    getEntityId: () => documentId,
+  });
+  if (!replayed) {
+    await invalidateReportCaches();
+  }
+  res.json({ ...result, replayed });
 }));
 
 router.post('/finance/billing-documents/:id/issue', declareMaterialWrite('billing-documents.issue.request', { method: 'POST', path: '/api/finance/billing-documents/:id/issue' }),  requireRoles(...ROLES), asyncHandler(async (req: Request, res: Response) => {

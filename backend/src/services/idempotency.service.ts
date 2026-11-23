@@ -167,6 +167,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   BILLING_DOCUMENT_CREATE: 'billing-documents.create',
   BILLING_DOCUMENT_UPDATE: 'billing-documents.update',
   BILLING_DOCUMENT_DELETE: 'billing-documents.delete',
+  BILLING_DOCUMENT_CANCEL: 'billing-documents.cancel',
   BILLING_DOCUMENT_ADJUSTMENT_REQUEST: 'billing-documents.adjustments.request',
   PORTAL_DEBIT_NOTE_CONFIRM: 'portal.debit-notes.confirm',
   PORTAL_DEBIT_NOTE_DISPUTE: 'portal.debit-notes.dispute',
