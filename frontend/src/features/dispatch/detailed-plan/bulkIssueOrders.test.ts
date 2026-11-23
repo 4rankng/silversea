@@ -66,6 +66,12 @@ describe('bulkIssueRows — partial success', () => {
 
     expect(outcome.issued).toBe(2);
     expect(outcome.failures).toEqual([]);
+    // CR-010.1 BUG-03 — the summary table lists every released row, so
+    // successes keep their cont/Bill identity too (same order as the batch).
+    expect(outcome.successes).toEqual([
+      { fulfillmentId: 101, identity: 'MSCU1234567' },
+      { fulfillmentId: 102, identity: 'TEMU7654321' },
+    ]);
     // Sequential release, click order — a just-issued sibling can never slip
     // a second trip past the grid's snapshot.
     expect(onIssueOrder.mock.calls[0][0].fulfillmentId).toBe(101);
@@ -87,6 +93,12 @@ describe('bulkIssueRows — partial success', () => {
     expect(outcome.issued).toBe(2);
     expect(outcome.failures).toEqual([
       { fulfillmentId: 103, identity: 'MSCU9999999', message: 'Rơ-moóc không phù hợp với loại container.' },
+    ]);
+    // The summary table's two sections: the failed row sits between the two
+    // released ones, each success carrying its own identity.
+    expect(outcome.successes).toEqual([
+      { fulfillmentId: 101, identity: 'MSCU1234567' },
+      { fulfillmentId: 104, identity: 'TEMU8888888' },
     ]);
     expect(onIssueOrder).toHaveBeenCalledTimes(3);
   });

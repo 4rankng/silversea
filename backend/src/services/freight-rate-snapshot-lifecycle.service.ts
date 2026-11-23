@@ -163,6 +163,7 @@ export async function deriveLotPricingGrounds(
     routeId: s.shipments.routeId,
     isAdHoc: s.shipments.isAdHoc,
     expectedDeliveryDate: s.shipments.expectedDeliveryDate,
+    cargoWeightKg: s.shipments.cargoWeightKg,
   })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
@@ -231,6 +232,11 @@ export async function deriveLotPricingGrounds(
   // nặng; weight = cargo weight; missing weight BLOCKS — never a default).
   // Norms stay keyed on the base class, so liters never change. The weight
   // read only runs for container base rate keys (truck keys price unsplit).
+  // CR-010.1 BUG-03: the plan row DISPLAYS container weight ?? lot weight
+  // (dispatch-planning-detail-plan-read.service.ts), so a lot whose weight
+  // was declared at lot level shows "5 tấn" yet the container-only read
+  // 409'd "Thiếu trọng tải" on issue. The freeze validates the SAME field
+  // the row shows: anchor container first, the declared lot weight second.
   let containerCargoWeightKg: number | null = null;
   if (rateKey != null && /^(CONT20|CONT40)$/.test(rateKey)) {
     const [anchorContainer] = await tx.select({ cargoWeightKg: s.shipmentContainers.cargoWeightKg })
@@ -249,6 +255,12 @@ export async function deriveLotPricingGrounds(
     containerCargoWeightKg = anchorContainer?.cargoWeightKg == null
       ? null
       : Number(anchorContainer.cargoWeightKg);
+    if (containerCargoWeightKg == null && shipment.cargoWeightKg != null) {
+      const lotWeightKg = Number(shipment.cargoWeightKg);
+      if (Number.isFinite(lotWeightKg) && lotWeightKg > 0) {
+        containerCargoWeightKg = lotWeightKg;
+      }
+    }
   }
 
   return {

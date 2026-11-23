@@ -183,3 +183,9 @@
   margin-top: 8px;
   font-size: 12px;
 }
+
+/* CR-010.1 BUG-03 — the Kết quả column reads at a glance: green success,
+   red failure; the reason cell carries the detail. */
+.bulk-issue-outcome__status { white-space: nowrap; }
+.bulk-issue-outcome__status--ok { color: var(--ok, #15803d); font-weight: 600; }
+.bulk-issue-outcome__status--fail { color: var(--danger, #dc2626); font-weight: 600; }

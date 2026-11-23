@@ -489,9 +489,10 @@ export default function DispatchDetailPlanPage() {
           </div>
         )}
         {/* SIL-884 (5.1) — PARTIAL SUCCESS outcome: the batch never aborts on
-            one bad row; every failure lands here with its reason so the
-            dispatcher releases that lot from its own row button. Identity is
-            the cont/Bill — internal codes never print. */}
+            one bad row; CR-010.1 BUG-03 — the summary table lists EVERY
+            released row (thành công + thất bại + lý do) so the dispatcher
+            sees the whole dot at once. Identity is the cont/Bill — internal
+            codes never print. */}
         {bulkIssueOutcome && (
           <div className="bulk-issue-outcome" role="status">
             <div className="bulk-issue-outcome__head">
@@ -507,24 +508,31 @@ export default function DispatchDetailPlanPage() {
                 ×
               </button>
             </div>
-            {bulkIssueOutcome.failures.length > 0 && (
-              <table className="tt-table bulk-issue-outcome__table">
-                <thead>
-                  <tr>
-                    <th>Cont / Bill</th>
-                    <th>Lý do không phát được</th>
+            <table className="tt-table bulk-issue-outcome__table">
+              <thead>
+                <tr>
+                  <th>Kết quả</th>
+                  <th>Cont / Bill</th>
+                  <th>Lý do</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bulkIssueOutcome.successes.map((success) => (
+                  <tr key={success.fulfillmentId} className="bulk-issue-outcome__row--ok">
+                    <td data-label="Kết quả" className="bulk-issue-outcome__status bulk-issue-outcome__status--ok">✔ Thành công</td>
+                    <td data-label="Cont / Bill">{success.identity}</td>
+                    <td data-label="Lý do" aria-hidden="true">—</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {bulkIssueOutcome.failures.map((failure) => (
-                    <tr key={failure.fulfillmentId}>
-                      <td data-label="Cont / Bill">{failure.identity}</td>
-                      <td data-label="Lý do">{failure.message}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                ))}
+                {bulkIssueOutcome.failures.map((failure) => (
+                  <tr key={failure.fulfillmentId}>
+                    <td data-label="Kết quả" className="bulk-issue-outcome__status bulk-issue-outcome__status--fail">✘ Lỗi</td>
+                    <td data-label="Cont / Bill">{failure.identity}</td>
+                    <td data-label="Lý do">{failure.message}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
         {detailPlan.total > detailPlan.pageSize && (

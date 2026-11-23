@@ -55,8 +55,16 @@ export interface BulkIssueFailure {
   message: string;
 }
 
+/** CR-010.1 BUG-03 — the summary table lists EVERY released row, so a
+ *  success keeps its identity too (the row's cont/Bill). */
+export interface BulkIssueSuccess {
+  fulfillmentId: number;
+  identity: string;
+}
+
 export interface BulkIssueOutcome {
   issued: number;
+  successes: BulkIssueSuccess[];
   failures: BulkIssueFailure[];
 }
 
@@ -114,6 +122,7 @@ export async function bulkIssueRows(
   ) => Promise<DispatchShipmentResponse>,
 ): Promise<BulkIssueOutcome> {
   const failures: BulkIssueFailure[] = [];
+  const successes: BulkIssueSuccess[] = [];
   let issued = 0;
   const truckByPlate = new Map<string, DispatchTruck | null>();
   const resolveTruck = async (plate: string): Promise<DispatchTruck | null> => {
@@ -152,9 +161,10 @@ export async function bulkIssueRows(
       }
       await onIssueOrder(row, issueBodyFor(row, truck!, startAt, endAt));
       issued += 1;
+      successes.push({ fulfillmentId: row.fulfillmentId, identity });
     } catch (cause) {
       failures.push({ fulfillmentId: row.fulfillmentId, identity, message: bulkFailureMessage(cause) });
     }
   }
-  return { issued, failures };
+  return { issued, successes, failures };
 }
