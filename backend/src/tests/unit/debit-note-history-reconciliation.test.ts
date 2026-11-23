@@ -1,13 +1,15 @@
-// Debit-note history card reconciliation (QA round 7, 23/11): the history and
+// Debit-note history card reconciliation (QA round 9, 23/11): the history and
 // the editor must show the note number, its lifecycle status, the issue/cancel
 // date, and the cumulative-debt change the note reconciled — so accounting can
 // đối chiếu the debt movement without opening the ledger.
 //
-// Money-law anchor: every customer debit-note save reconciles its receivable
-// through append-only ADJUSTMENT ledger entries stamped `GBN:<docId>` (see
-// billing-document-posting.service.ts). Each entry stores the customer's
-// running balance right after itself, so the FIRST entry yields the debt
-// immediately before the note and the LAST entry the debt immediately after.
+// Money-law anchor (QA round 9 + round-5 books evidence 52.040.480 →
+// 60.576.800, +8.536.320): the "công nợ cộng dồn" a note is reconciled
+// against is the customer's LIVE debit-note books — Σ totalGross over their
+// billing documents that exist, are not soft-deleted and are not CANCELED.
+// The note moves those books by its own gross iff it is itself live; a
+// canceled note shows a 0 delta. Raw ledger balances measure the whole AR
+// (unbilled trip revenue included), not the note books.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,7 +18,6 @@ import assert from 'node:assert/strict';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serviceSource = readFileSync(join(here, '../../services/billing-document.service.ts'), 'utf8');
-const postingSource = readFileSync(join(here, '../../services/billing-document-posting.service.ts'), 'utf8');
 const sharedTypes = readFileSync(join(here, '../../../../shared/src/types/index.ts'), 'utf8');
 const sharedConstants = readFileSync(join(here, '../../../../shared/src/constants/index.ts'), 'utf8');
 
@@ -26,32 +27,33 @@ describe('debit-note history reconciliation payload', () => {
     assert.match(sharedTypes, /issuedAt\?: string \| null;/);
   });
 
-  test('AR before/after reads the note GBN ledger stamp with the running balance', () => {
-    // The read key must equal the write key the posting service stamps.
-    assert.match(postingSource, /receiptId: `GBN:\$\{input\.documentId\}`/);
-    assert.match(serviceSource, /eq\(s\.ledger\.receiptId, `GBN:\$\{doc\.id\}`\)/);
-    assert.match(serviceSource, /eq\(s\.ledger\.txnType, TxnType\.ADJUSTMENT\)/);
-  });
-
-  test('before derives from the FIRST entry balance; after from the LAST entry balance', () => {
-    assert.match(serviceSource, /arBalanceAfter = Number\(last\.balance\)/);
-    assert.match(serviceSource, /arBalanceBefore = Number\(first\.balance\) - Number\(first\.debit\) \+ Number\(first\.credit\)/);
-  });
-
-  test('issued notes with NO GBN entries still expose the debt snapshot (QA round 9, staging #27: delta nets to zero)', () => {
-    // postDebitNoteDelta skips a zero delta, so an issued note can have no
-    // reconciliation stamp at all. The fallback reads the debt right before
-    // issuance from the customer ledger itself and adds the note's own delta.
+  test('AR before/after reads the customer LIVE debit-note books (not the raw ledger)', () => {
     const hydrate = serviceSource.slice(serviceSource.indexOf('let arBalanceBefore: number | null = null'));
-    assert.match(hydrate, /else if \(doc\.issuedAt\)/);
-    assert.match(hydrate, /coalesce\(sum\(\$\{s\.ledger\.debit\} - \$\{s\.ledger\.credit\}\), 0\)/);
-    assert.match(hydrate, /lt\(s\.ledger\.timestamp, doc\.issuedAt\)/);
-    assert.match(hydrate, /arBalanceAfter = arBalanceBefore \+ Number\(doc\.ledgerAdjustmentAmount\)/);
+    // Same live predicate as the settlement-round books measure: exists, not
+    // soft-deleted, not CANCELED — scoped to this customer's DEBIT_NOTEs.
+    assert.match(hydrate, /eq\(s\.billingDocuments\.type, 'DEBIT_NOTE'\)/);
+    assert.match(hydrate, /eq\(s\.billingDocuments\.entityType, 'CUSTOMER'\)/);
+    assert.match(hydrate, /eq\(s\.billingDocuments\.entityId, doc\.entityId\)/);
+    assert.match(hydrate, /isNull\(s\.billingDocuments\.deletedAt\)/);
+    assert.match(hydrate, /ne\(s\.billingDocuments\.debitNoteStatus, 'CANCELED'\)/);
+    assert.match(hydrate, /coalesce\(sum\(\$\{s\.billingDocuments\.totalGross\}\), 0\)/);
   });
 
-  test('notes without any AR reconciliation expose null balances (draft, never posted)', () => {
+  test('live note: before = books − own gross, after = books, so delta ≡ gross (QA: +8.536.320)', () => {
     const hydrate = serviceSource.slice(serviceSource.indexOf('let arBalanceBefore: number | null = null'));
-    assert.match(hydrate, /if \(first && last\)/, 'balances stay null when no GBN entry exists');
+    assert.match(hydrate, /arBalanceBefore = liveBooks - Number\(doc\.totalGross\)/);
+    assert.match(hydrate, /arBalanceAfter = liveBooks;/);
+  });
+
+  test('canceled note: before = after = live books (delta 0 — it no longer contributes)', () => {
+    const hydrate = serviceSource.slice(serviceSource.indexOf('let arBalanceBefore: number | null = null'));
+    assert.match(hydrate, /if \(doc\.debitNoteStatus === 'CANCELED'\)/);
+    assert.match(hydrate, /arBalanceBefore = liveBooks;\s*\n\s*arBalanceAfter = liveBooks;/s);
+  });
+
+  test('drafts keep null balances (no books line on a not-yet-posted card)', () => {
+    const hydrate = serviceSource.slice(serviceSource.indexOf('let arBalanceBefore: number | null = null'));
+    assert.match(hydrate, /\(doc\.debitNoteStatus \?\? 'DRAFT'\) !== 'DRAFT'/);
   });
 
   test('the shared payload exposes the balances for the history card', () => {

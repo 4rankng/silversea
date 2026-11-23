@@ -1,10 +1,10 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, asc, isNull, inArray, desc, or, sql, lt, type SQL } from 'drizzle-orm';
+import { eq, and, isNull, inArray, desc, or, sql, ne, type SQL } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { LedgerService } from './ledger.service';
-import { canonicalFreightDescription, TxnType } from '@tingting/shared';
+import { canonicalFreightDescription } from '@tingting/shared';
 import type {
   BillingDocument,
   BillingDocumentLine,
@@ -728,55 +728,35 @@ async function hydrateDocument(
     ? detectedAuthorityState
     : (doc.authorityState as BillingDocument['authorityState']);
   const corrections = await listDocumentCorrections(doc.id, executor);
-  // Every customer-debit-note save reconciles its receivable through append-only
-  // ADJUSTMENT ledger entries stamped `GBN:<docId>`. Each entry stores the
-  // customer's running balance right after itself, so the FIRST entry yields the
-  // debt immediately before the note (balance − debit + credit) and the LAST
-  // entry the debt immediately after it — after − before is the note's whole
-  // ledger delta and must equal `ledgerAdjustmentAmount`.
+  // "Công nợ cộng dồn" law (SIL-855 round 9): the cumulative-debt figure the
+  // business reconciles a note against is the customer's LIVE debit-note
+  // books — Σ totalGross over their billing documents that exist, are not
+  // soft-deleted and are not CANCELED (the same predicate as the settlement
+  // round books measure). The note moves those books by its own gross iff it
+  // is itself live, so after − before ≡ its gross for a live note and 0 for a
+  // canceled one; raw ledger balances measure the whole AR (unbilled trip
+  // revenue included), not the note books, so they are the wrong quantity.
   let arBalanceBefore: number | null = null;
   let arBalanceAfter: number | null = null;
-  if (doc.type === 'DEBIT_NOTE' && doc.entityType === 'CUSTOMER') {
-    const reconciliations = await executor.select({
-      debit: s.ledger.debit,
-      credit: s.ledger.credit,
-      balance: s.ledger.balance,
-    }).from(s.ledger)
+  if (doc.type === 'DEBIT_NOTE' && doc.entityType === 'CUSTOMER' && (doc.debitNoteStatus ?? 'DRAFT') !== 'DRAFT') {
+    const [books] = await executor
+      .select({ live: sql<string>`coalesce(sum(${s.billingDocuments.totalGross}), 0)` })
+      .from(s.billingDocuments)
       .where(and(
-        eq(s.ledger.entityType, 'CUSTOMER'),
-        eq(s.ledger.entityId, doc.entityId),
-        eq(s.ledger.txnType, TxnType.ADJUSTMENT),
-        eq(s.ledger.receiptId, `GBN:${doc.id}`),
-      ))
-      .orderBy(asc(s.ledger.id));
-    const first = reconciliations[0];
-    const last = reconciliations[reconciliations.length - 1];
-    if (first && last) {
-      // Debt right before the note = the FIRST entry's balance minus its own
-      // movement; debt after the note = the LAST entry's balance. after −
-      // before therefore equals Σ(debit − credit) = ledgerAdjustmentAmount.
-      arBalanceAfter = Number(last.balance);
-      arBalanceBefore = Number(first.balance) - Number(first.debit) + Number(first.credit);
-    } else if (doc.issuedAt) {
-      // No reconciliation entries exist (QA SIL-855 round 9, staging note #27:
-      // the delta nets to zero because the trips already posted the receivable,
-      // so postDebitNoteDelta skips). The debt around the note is still
-      // well-defined: Σ(debit − credit) over the customer's ledger movements
-      // with a business timestamp strictly before issuance is the debt right
-      // before the note; adding the note's own ledger delta keeps
-      // after − before ≡ ledgerAdjustmentAmount.
-      const [snapshot] = await executor
-        .select({
-          before: sql<string>`coalesce(sum(${s.ledger.debit} - ${s.ledger.credit}), 0)`,
-        })
-        .from(s.ledger)
-        .where(and(
-          eq(s.ledger.entityType, 'CUSTOMER'),
-          eq(s.ledger.entityId, doc.entityId),
-          lt(s.ledger.timestamp, doc.issuedAt),
-        ));
-      arBalanceBefore = Number(snapshot?.before ?? 0);
-      arBalanceAfter = arBalanceBefore + Number(doc.ledgerAdjustmentAmount);
+        eq(s.billingDocuments.type, 'DEBIT_NOTE'),
+        eq(s.billingDocuments.entityType, 'CUSTOMER'),
+        eq(s.billingDocuments.entityId, doc.entityId),
+        isNull(s.billingDocuments.deletedAt),
+        ne(s.billingDocuments.debitNoteStatus, 'CANCELED'),
+      ));
+    const liveBooks = Number(books?.live ?? 0);
+    if (doc.debitNoteStatus === 'CANCELED') {
+      // A canceled note contributes nothing: the books it once lifted are back.
+      arBalanceBefore = liveBooks;
+      arBalanceAfter = liveBooks;
+    } else {
+      arBalanceBefore = liveBooks - Number(doc.totalGross);
+      arBalanceAfter = liveBooks;
     }
   }
   return {

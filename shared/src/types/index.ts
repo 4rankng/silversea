@@ -2075,10 +2075,11 @@ export interface BillingDocument {
   /** When the note transitioned DRAFT → SENT; null while still a draft. */
   issuedAt?: string | null;
   /**
-   * Customer cumulative-AR running balance immediately before / after this
-   * note's `GBN:<id>` ADJUSTMENT ledger reconciliation entries. Null while the
-   * note has not reconciled any receivable yet. after − before = the note's
-   * total ledger delta, so the history card can reconcile the debt change.
+   * Customer LIVE debit-note books (Σ totalGross over the customer's billing
+   * documents that exist, are not soft-deleted and are not CANCELED)
+   * immediately before / with this note. Null on drafts. after − before = the
+   * note's own gross while it is live, 0 once canceled, so the history card
+   * can reconcile the debt change the note accounts for (SIL-855 round 9).
    */
   arBalanceBefore?: number | null;
   arBalanceAfter?: number | null;
