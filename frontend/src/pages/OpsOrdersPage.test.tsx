@@ -440,9 +440,13 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
     // Ticket 18/11 Task 4.1 — a no-invoice row needs an explicit Số container:
     // pick one so the Lưu assertions below stay about the AMOUNT rules.
+    // SIL-861 law: the modal opens with every container pre-picked, so an
+    // explicit pick is clear-then-tick (a bare click would toggle OFF).
     const contTrigger = await within(screen.getByRole('dialog', { name: 'Khai báo chi phí' })).findByRole('button', { name: 'Đã chọn 1 số cont' });
     fireEvent.click(contTrigger);
-    const contListbox = await screen.findByRole('listbox');
+    const contPopover = await screen.findByRole('dialog', { name: 'Chọn Phí chung lô' });
+    fireEvent.click(within(contPopover).getByRole('button', { name: 'Bỏ chọn tất cả' }));
+    const contListbox = within(contPopover).getByRole('listbox');
     fireEvent.click(within(contListbox).getByRole('option', { name: 'TSTU1111111' }));
     fireEvent.keyDown(contListbox, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
@@ -498,10 +502,12 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await screen.findByText('BL-001');
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
     // Ticket 18/11 Task 4.1 — a no-invoice row needs an explicit Số container
-    // before Lưu opens.
+    // before Lưu opens. SIL-861 law: opens pre-picked → clear-then-tick.
     const contTrigger2 = await within(screen.getByRole('dialog', { name: 'Khai báo chi phí' })).findByRole('button', { name: 'Đã chọn 1 số cont' });
     fireEvent.click(contTrigger2);
-    const contListbox2 = await screen.findByRole('listbox');
+    const contPopover2 = await screen.findByRole('dialog', { name: 'Chọn Phí chung lô' });
+    fireEvent.click(within(contPopover2).getByRole('button', { name: 'Bỏ chọn tất cả' }));
+    const contListbox2 = within(contPopover2).getByRole('listbox');
     fireEvent.click(within(contListbox2).getByRole('option', { name: 'TSTU1111111' }));
     fireEvent.keyDown(contListbox2, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
@@ -541,13 +547,10 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     // The second pinned lot carries 2 conts (TSTU2222222 / TSTU3333333).
     fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[1]);
     const scope = within(screen.getByRole('dialog', { name: 'Khai báo chi phí' }));
-    const contTrigger = await scope.findByRole('button', { name: 'Đã chọn 1 số cont' });
-    fireEvent.click(contTrigger);
-    const contListbox = await screen.findByRole('listbox');
-    fireEvent.click(within(contListbox).getByRole('option', { name: 'TSTU2222222' }));
-    fireEvent.click(within(contListbox).getByRole('option', { name: 'TSTU3333333' }));
-    fireEvent.keyDown(contListbox, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+    // SIL-861 law: the modal opens with EVERY container pre-picked — for this
+    // 2-cont lot that is exactly the asserted shipmentContainerIds set, so the
+    // old pick-the-two interaction is now a no-op that would toggle them OFF.
+    await scope.findByRole('button', { name: 'Đã chọn 2 số cont' });
     const typeTrigger = await screen.findByRole('button', { name: /Loại phí/ });
     await waitFor(() => expect(typeTrigger).toBeEnabled());
     fireEvent.click(typeTrigger);
