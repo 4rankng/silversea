@@ -1,0 +1,33 @@
+rest: {"scroll":{"x":0,"y":0},"vars":{"subsTop":"27.84375px","leafTop":"57.03125px"},"bands":{"groups":{"top":261,"bottom":288.8},"subs":{"top":288.8,"bottom":318},"leaf":{"top":318,"bottom":345.9}},"slit1":0,"slit2":0,"occluded":[],"subsLabels":[{"text":"","x":273,"occl":false},{"text":"","x":1018,"occl":false},{"text":"","x":1212,"occl":false}]}
+vPinned60: {"scroll":{"x":0,"y":60},"vars":{"subsTop":"27.84375px","leafTop":"57.03125px"},"bands":{"groups":{"top":201,"bottom":228.8},"subs":{"top":228.8,"bottom":258},"leaf":{"top":258,"bottom":285.9}},"slit1":0,"slit2":0,"occluded":[],"subsLabels":[{"text":"","x":273,"occl":false},{"text":"","x":1018,"occl":false},{"text":"","x":1212,"occl":false}]}
+vPinned+h700: {"scroll":{"x":700,"y":60},"vars":{"subsTop":"27.84375px","leafTop":"57.03125px"},"bands":{"groups":{"top":201,"bottom":228.8},"subs":{"top":228.8,"bottom":258},"leaf":{"top":258,"bottom":285.9}},"slit1":0,"slit2":0,"occluded":["Tiền"],"subsLabels":[{"text":"","x":273,"occl":false},{"text":"","x":1018,"occl":false},{"text":"","x":512,"occl":false},{"text":"Phí CSHT","x":1062,"occl":false},{"text":"Phí nâng-cont / Lưu ","x":1229,"occl":false},{"text":"Phí hạ-cont / Phí bố","x":1506,"occl":false}]}
+h1150: {"scroll":{"x":1150,"y":60},"vars":{"subsTop":"27.84375px","leafTop":"57.03125px"},"bands":{"groups":{"top":201,"bottom":228.8},"subs":{"top":228.8,"bottom":258},"leaf":{"top":258,"bottom":285.9}},"slit1":0,"slit2":0,"occluded":["Phí hạ-cont / Phí bốc xếp","Tiền"],"subsLabels":[{"text":"","x":273,"occl":false},{"text":"","x":1018,"occl":false},{"text":"","x":62,"occl":false},{"text":"Phí CSHT","x":612,"occl":false},{"text":"Phí nâng-cont / Lưu ","x":779,"occl":false},{"text":"Phí hạ-cont / Phí bố","x":1056,"occl":true},{"text":"Phí khác","x":1333,"occl":false},{"text":"","x":1567,"occl":false}]}
+farRight: {"scroll":{"x":1854,"y":60},"vars":{"subsTop":"27.84375px","leafTop":"57.03125px"},"bands":{"groups":{"top":201,"bottom":228.8},"subs":{"top":228.8,"bottom":258},"leaf":{"top":258,"bottom":285.9}},"slit1":0,"slit2":0,"occluded":[],"subsLabels":[{"text":"","x":273,"occl":false},{"text":"","x":1018,"occl":false},{"text":"Phí CSHT","x":-92,"occl":false},{"text":"Phí nâng-cont / Lưu ","x":75,"occl":false},{"text":"Phí hạ-cont / Phí bố","x":352,"occl":false},{"text":"Phí khác","x":629,"occl":false},{"text":"","x":863,"occl":false},{"text":"","x":1370,"occl":false}]}
+tiepvv role=CUS
+CUS team rest: {"scroll":{"x":0,"y":0},"vars":{"subsTop":"27.84375px","leafTop":"57.03125px"},"slit1":0,"slit2":0}
+CUS team pinned+h500: {"scroll":{"x":500,"y":40},"slit1":0,"slit2":0,"occluded":[]}
+── Driver provenance ─────────────────────────────────────────────
+Environment: worktree vite dev http://localhost:7275 (this worktree) proxying
+shared local backend http://localhost:3002; Playwright chromium 1600x900.
+Accounts: hoapt (ACCOUNTANT) /accounting/ghep-bo-debit;
+tiepvv (CUS role locally) /shipments-debit?team=true. Token injected via
+localStorage['token'] before SPA navigation (puppeteer-spa-auth pattern).
+
+Repro (pre-fix, build 7a0ac8ff + this worktree's pre-fix grid):
+- thead rows measure 28/29/28px but CSS pinned bands at top 0/31/60 →
+  pinned pane (scrollTop=60) shows a 3px slit between group band and sub
+  band; scrolling sub labels half-clip under the dock ('…XẾP').
+  Artifacts: 2026-11-24_sil897-sticky_ui-*.png (scroll0/scroll700/scrollfar).
+
+Post-fix verification (this log's JSON above):
+- vars set: --debit-merge-subs-top 27.84375px, --debit-merge-leaf-top 57.03125px
+- slit1=slit2=0 at rest / scrollTop=60 / +scrollLeft=700/1150/1854, CUS rest
+  and CUS pinned+scrolled (bands flush on both surfaces).
+- no-truncate sweep: h1150 hides 'Phí hạ-cont / Phí bốc xếp' + 'Tiền' whole
+  while their glyphs straddle the dock edge (the QA 'XẾP' case); label-box
+  measured (cell box would over-hide a fully visible group header).
+- screenshots: 2026-11-24_sil897-sticky-fix_ui-{vpinned,vpinned-h700,h1150,
+  far,cus-pinned-h500}.png
+Exit status: driver OK (node exit 0); FE vitest 27/27; FE tsc -b 0 errors;
+neighbor suites (ShipmentDebitPage x3, AccountingDebitClosePage, 4 style
+contracts) 113/113.

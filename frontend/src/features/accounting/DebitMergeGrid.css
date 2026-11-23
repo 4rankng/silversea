@@ -90,13 +90,18 @@
   color: var(--ink-1);
 }
 
+/* SIL-897 r9 — the vertical pins are MEASURED row heights (the grid sets
+   --debit-merge-subs-top / --debit-merge-leaf-top from the live thead rows;
+   the px fallbacks were the old hardcoded 31/60 against 28/29/28 rows — a
+   3px slit between the bands with scrolled rows bleeding through at every
+   pinned pane). */
 .debit-merge__subs-row th {
-  top: 31px;
+  top: var(--debit-merge-subs-top, 31px);
   z-index: 4;
 }
 
 .debit-merge__table thead tr:last-child th {
-  top: 60px;
+  top: var(--debit-merge-leaf-top, 60px);
   z-index: 3;
   color: var(--ink-2);
   font-weight: 600;
@@ -336,4 +341,13 @@
 .debit-merge__table .debit-merge-col--sticky-last,
 .debit-merge__table [data-sticky-last] {
   box-shadow: inset -1px 0 0 var(--border-2, #cbd5e1), 6px 0 10px -6px rgba(15, 23, 42, 0.28);
+}
+
+/* SIL-897 r9 — no-truncate law: a scrolling header label whose cell is
+   PARTIALLY under the dock edge hides whole (never a half-glyph like
+   'PHÍ HẠ-CONT / PHÍ BỐC XẾP' reading 'XẾP'); the sweep sets the attr as
+   the pane scrolls. Only the LABEL hides — the cell keeps its opaque
+   background and borders, so no scrolled content bleeds into the band. */
+.debit-merge__head-label[data-occluded] {
+  visibility: hidden;
 }

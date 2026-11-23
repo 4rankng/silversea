@@ -44,6 +44,17 @@ export const MERGE_TAG_LABEL = 'Ghép thu cước cùng Lô 1';
  *  toán duyệt (#DC2626 via the CSS class, cascade after the zero rule). */
 export const PENDING_FEE_TIP = 'Chờ kế toán duyệt chi phí';
 
+/** SIL-897 r9 — no-truncate law for the header labels: a scrolling header
+ *  cell whose box is PARTIALLY under the dock edge must never render a
+ *  half-glyph label ('PHÍ HẠ-CONT / PHÍ BỐC XẾP' reading 'XẾP'). The label
+ *  hides while its cell straddles the edge and returns once fully clear;
+ *  fully-swallowed cells stay visible (the opaque dock covers them). The
+ *  ±0.5px guard absorbs fractional-px boundaries (measured docks are raw
+ *  cumulative chains). */
+export function debitMergeHeadLabelOccluded(cellLeft: number, cellRight: number, zoneEdge: number): boolean {
+  return cellLeft < zoneEdge - 0.5 && cellRight > zoneEdge + 0.5;
+}
+
 /** SIL-891 — the sticky zone: group 1 (Thông tin Lô hàng) through group 2's
  *  Loại cont inclusive. Hidden columns drop out of the zone; the offsets
  *  re-measure whenever the visible set changes. */
@@ -247,6 +258,7 @@ export function DebitMergeGrid({
   // (NV phụ trách) and page churn all reflow widths — and the
   // ResizeObserver covers post-commit growth (webfonts, image-less cells).
   const tableRef = useRef<HTMLTableElement>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
   const stickyColumns = useMemo(() => visibleColumns.filter(isStickyColumn), [visibleColumns]);
   // The measure() closure reads the LIVE sticky set through a ref — the
   // effect itself stays dep-free so no commit can render stale docks.
@@ -263,6 +275,30 @@ export function DebitMergeGrid({
     }
     return byGroup;
   }, [stickyColumns]);
+  // SIL-897 r9 — the no-truncate sweep: hide a scrolling header label while
+  // its OWN glyph box straddles the dock edge (never a half-glyph label).
+  // The cell box lies: a 955px group th keeps its centered label fully clear
+  // of the dock while the box itself crosses the edge — hiding on the cell
+  // box blanked a fully-visible 'PHÍ CHI HỘ (CÓ HÓA ĐƠN)'. Direct DOM
+  // writes — a per-scroll-frame setState here would re-render the whole
+  // grid. Dock cells are exempt (they ARE the zone); a fully swallowed label
+  // stays put (the opaque dock covers it). Reads refs only, so the dep-free
+  // layout effect and the scroll handler share one instance.
+  const sweepHeadLabels = () => {
+    const table = tableRef.current;
+    const pane = paneRef.current;
+    if (table == null || pane == null) return;
+    const zoneEdge = table.querySelector<HTMLElement>('thead th[data-sticky-last]')
+      ?.getBoundingClientRect().right
+      ?? pane.getBoundingClientRect().left;
+    for (const th of table.querySelectorAll('thead th:not([data-sticky])')) {
+      const label = th.querySelector<HTMLElement>('.debit-merge__head-label');
+      if (label == null) continue;
+      const labelRect = label.getBoundingClientRect();
+      if (debitMergeHeadLabelOccluded(labelRect.left, labelRect.right, zoneEdge)) label.setAttribute('data-occluded', '');
+      else label.removeAttribute('data-occluded');
+    }
+  };
   useLayoutEffect(() => {
     const table = tableRef.current;
     if (!table) return;
@@ -285,6 +321,18 @@ export function DebitMergeGrid({
         if (prevKeys.length === nextKeys.length && nextKeys.every((key) => prev[key] === next[key])) return prev;
         return next;
       });
+      // SIL-897 r9 — the vertical pins are MEASURED row heights, never
+      // hardcoded px: the rows render 28/29/28px while the old CSS pinned at
+      // 0/31/60, so every vertically-pinned pane (any 20-row session) ran a
+      // 3px slit between the group band and the sub band with scrolled body
+      // rows bleeding through, and the sub labels read as sunk into the
+      // column band. Tops ride the same measured-chain law as the lefts.
+      const headRows = table.querySelectorAll('thead tr');
+      const groupsH = headRows[0]?.getBoundingClientRect().height ?? 0;
+      const subsH = headRows[1]?.getBoundingClientRect().height ?? 0;
+      if (groupsH > 0) table.style.setProperty('--debit-merge-subs-top', `${groupsH}px`);
+      if (groupsH > 0 && subsH > 0) table.style.setProperty('--debit-merge-leaf-top', `${groupsH + subsH}px`);
+      sweepHeadLabels();
     };
     measure();
     // jsdom (and engines without ResizeObserver) re-measure on commits only;
@@ -294,6 +342,16 @@ export function DebitMergeGrid({
     observer.observe(table);
     return () => observer.disconnect();
   });
+  // Occlusion changes with scrollLeft — re-sweep per scroll frame (rAF
+  // coalesced), not per commit.
+  const scrollRafRef = useRef(0);
+  const onPaneScroll = () => {
+    if (scrollRafRef.current) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = 0;
+      sweepHeadLabels();
+    });
+  };
   /** Sticky dock props for a leaf cell (th/td) keyed by its column. */
   const stickyProps = (key: string): Record<string, unknown> => ({
     'data-sticky': '',
@@ -425,7 +483,7 @@ export function DebitMergeGrid({
           />
         </div>
       </div>
-      <div className="debit-merge__pane">
+      <div className="debit-merge__pane" ref={paneRef} onScroll={onPaneScroll}>
         <table className="debit-merge__table" ref={tableRef}>
           <thead>
             <tr className="debit-merge__groups-row">
@@ -443,7 +501,7 @@ export function DebitMergeGrid({
                     className="debit-merge__group"
                     {...(leadingKey != null ? { 'data-sticky': '', style: { left: stickyLefts[leadingKey] ?? 0 } } : {})}
                   >
-                    {GROUP_HEADERS[group]}
+                    <span className="debit-merge__head-label">{GROUP_HEADERS[group]}</span>
                   </th>
                 );
               })}
@@ -459,7 +517,7 @@ export function DebitMergeGrid({
                 // Group 4's sub-groups, in their fixed order.
                 const subs = [...new Set(groupColumns.map((column) => column.sub!))];
                 return subs.map((sub) => (
-                  <th key={`sub-${sub}`} colSpan={groupColumns.filter((column) => column.sub === sub).length} scope="colgroup" className="debit-merge__sub">{sub}</th>
+                  <th key={`sub-${sub}`} colSpan={groupColumns.filter((column) => column.sub === sub).length} scope="colgroup" className="debit-merge__sub"><span className="debit-merge__head-label">{sub}</span></th>
                 ));
               })}
             </tr>
@@ -472,7 +530,7 @@ export function DebitMergeGrid({
                   className={`debit-merge-col--${column.key}`}
                   {...(isStickyColumn(column) ? stickyProps(column.key) : {})}
                 >
-                  {column.label}
+                  <span className="debit-merge__head-label">{column.label}</span>
                 </th>
               ))}
             </tr>

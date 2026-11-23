@@ -25,7 +25,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DebitMergeGrid, MERGE_TAG_LABEL, PENDING_FEE_TIP, DEBIT_MERGE_PAGE_SIZES, type DebitMergeGridProps } from './DebitMergeGrid';
+import { DebitMergeGrid, MERGE_TAG_LABEL, PENDING_FEE_TIP, DEBIT_MERGE_PAGE_SIZES, debitMergeHeadLabelOccluded, type DebitMergeGridProps } from './DebitMergeGrid';
 import type { DebitMergeItem } from '@tingting/shared';
 
 const mergeRow = (over: Partial<DebitMergeItem> = {}): DebitMergeItem => ({
@@ -513,5 +513,51 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(zOf('.debit-merge__table tfoot td[data-sticky]')).toBe('2');
     // Opaque docks.
     expect(css).toMatch(/\.debit-merge__table \[data-sticky\] \{[^}]*background: var\(--surface, #ffffff\)/);
+  });
+
+  it('SIL-897 r9: the vertical pins are measured row heights, never hardcoded px', () => {
+    // QA round 8: the rows render 28/29/28px while the old CSS pinned the
+    // sub band at 31px and the leaf band at 60px — every vertically-pinned
+    // pane ran a 3px slit between the group band and the sub band with
+    // scrolled body rows bleeding through, and sub labels read as sunk into
+    // the column band ('PHÍ KHÁC đè lên vùng row column-header').
+    const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
+    expect(tsx).toMatch(/--debit-merge-subs-top/);
+    expect(tsx).toMatch(/--debit-merge-leaf-top/);
+    expect(tsx).toMatch(/headRows\[0\]\?\.getBoundingClientRect\(\)\.height/);
+    expect(tsx).toMatch(/headRows\[1\]\?\.getBoundingClientRect\(\)\.height/);
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toMatch(/\.debit-merge__subs-row th \{[^}]*top: var\(--debit-merge-subs-top, 31px\)/);
+    expect(css).toMatch(/\.debit-merge__table thead tr:last-child th \{[^}]*top: var\(--debit-merge-leaf-top, 60px\)/);
+  });
+
+  it('SIL-897 r9: header labels wrap in the no-truncate span and the sweep hides partial occlusion', () => {
+    // QA round 8: 'PHÍ HẠ-CONT / PHÍ BỐC XẾP' reading 'XẾP' — a label half
+    // under the dock. The law: wrap every thead label in the sweep span and
+    // hide it whole while its cell straddles the dock edge (the label only —
+    // the cell keeps its opaque background, so nothing bleeds through).
+    const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
+    const labelSpans = tsx.match(/className="debit-merge__head-label"/g) ?? [];
+    expect(labelSpans.length).toBe(3); // groups row, subs row, leaf row
+    expect(tsx).toMatch(/debitMergeHeadLabelOccluded\(labelRect\.left, labelRect\.right, zoneEdge\)/);
+    expect(tsx).toMatch(/onScroll=\{onPaneScroll\}/);
+    expect(tsx).toMatch(/requestAnimationFrame/);
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).toMatch(/\.debit-merge__head-label\[data-occluded\] \{[^}]*visibility: hidden/);
+  });
+
+  it('SIL-897 r9: the occlusion predicate hides only a cell straddling the dock edge', () => {
+    const zone = 460;
+    // Fully right of the dock — visible.
+    expect(debitMergeHeadLabelOccluded(520, 780, zone)).toBe(false);
+    // Fully swallowed — the opaque dock covers it, label stays (no flicker).
+    expect(debitMergeHeadLabelOccluded(120, 430, zone)).toBe(false);
+    // Straddling the edge — the half-glyph case, hidden.
+    expect(debitMergeHeadLabelOccluded(120, 540, zone)).toBe(true);
+    // Touching the edge exactly (fractional-px guard) — visible.
+    expect(debitMergeHeadLabelOccluded(120, 460.5, zone)).toBe(false);
+    expect(debitMergeHeadLabelOccluded(459.5, 780, zone)).toBe(false);
+    // One full px inside the zone — straddling, hidden.
+    expect(debitMergeHeadLabelOccluded(459, 780, zone)).toBe(true);
   });
 });
