@@ -90,3 +90,46 @@ describe('CR-010.1 BUG-04(3) — the icon-rail tooltip stays quiet on a labeled 
     expect(document.querySelector('.rail-tooltip')).toBeNull();
   });
 });
+
+describe('SIL-899 — a rail tooltip cannot outlive the collapsed rail', () => {
+  it('retires a stale tooltip when the pane expands without a mouseleave', () => {
+    const { rerender, props } = renderSidebar({ sidebarOpen: false });
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Tổng Quan' }));
+    expect(document.querySelector('.rail-tooltip')).not.toBeNull();
+
+    // Pin-open commit lands after the hover (no mouseleave fired): the tooltip
+    // must retire the moment the pane prints labels.
+    rerender(<Sidebar {...props} sidebarOpen />);
+    expect(document.querySelector('.rail-tooltip')).toBeNull();
+  });
+
+  it('retires a stale tooltip when the hover bloom opens after the hover', () => {
+    const { rerender, props } = renderSidebar({ sidebarOpen: false });
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Tổng Quan' }));
+    expect(document.querySelector('.rail-tooltip')).not.toBeNull();
+
+    rerender(<Sidebar {...props} hoverExpanded />);
+    expect(document.querySelector('.rail-tooltip')).toBeNull();
+  });
+
+  it('stays quiet on a fresh hover after collapse→expand, and returns on the rail', () => {
+    const { rerender, props } = renderSidebar({ sidebarOpen: false });
+
+    const item = screen.getByRole('button', { name: 'Tổng Quan' });
+    fireEvent.mouseEnter(item);
+    rerender(<Sidebar {...props} sidebarOpen />);
+
+    // QA round-8 repro: hover a nav item while fully expanded — no tooltip.
+    fireEvent.mouseLeave(item);
+    fireEvent.mouseEnter(item);
+    expect(document.querySelector('.rail-tooltip')).toBeNull();
+
+    // Collapse again: the rail is unlabeled, the tooltip is back.
+    rerender(<Sidebar {...props} sidebarOpen={false} />);
+    fireEvent.mouseLeave(item);
+    fireEvent.mouseEnter(item);
+    expect(document.querySelector('.rail-tooltip')?.textContent).toBe('Tổng Quan');
+  });
+});

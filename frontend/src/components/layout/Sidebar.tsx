@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ChevronRight,
@@ -102,14 +102,23 @@ export function Sidebar({
   // still carries the accessible name. Rendered into a portal so the tooltip
   // escapes the sidebar's overflow:hidden and the nav's scroll container.
   const [tip, setTip] = useState<{ label: string; top: number; left: number } | null>(null);
+  // Single source of truth for the rail tooltip: the pane prints its own
+  // labels whenever it is pinned open or hover-bloomed, and then no floating
+  // duplicate may exist (CR-010.1 BUG-04(3) / SIL-899).
+  const railLabeled = Boolean(sidebarOpen || hoverExpanded);
   const showTip = (label: string, rect: DOMRect) => {
-    // Only on the icon rail: the open sidebar (pinned or hover bloom) already
-    // prints the full labels — a floating duplicate is noise (CR-010.1
-    // BUG-04(3)).
-    if (sidebarOpen || hoverExpanded) return;
+    if (railLabeled) return;
     setTip({ label, top: rect.top + rect.height / 2, left: rect.right + 10 });
   };
   const hideTip = () => setTip(null);
+  // SIL-899 — collapse→expand: the expand commit can land after the mouseenter
+  // that raced it (continuous-event priority), or a mouseleave can be missed
+  // entirely while the rail was hovered. The stale tip would then float beside
+  // printed labels. Every commit where the pane is labeled retires the tip
+  // pre-paint, so the tooltip cannot outlive the collapsed rail.
+  useLayoutEffect(() => {
+    if (railLabeled) setTip(null);
+  }, [railLabeled]);
 
   const renderUngroupedItems = () => {
     const items = navItems.filter(i => !i.section);
