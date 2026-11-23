@@ -22,12 +22,16 @@ export function useBufferedDateTextValue({ value, onChange, min = '', max = '', 
   const validation = validateDateInputText(draft, min, max);
   const message = touched ? validation : '';
 
-  useEffect(() => {
-    if (value === lastExternal.current) return;
+  // Adjust state during render (the React-documented props-change pattern): a
+  // parent reset/clear re-syncs the draft BEFORE any effect runs. An
+  // effect-based sync left the retry effect below reading the previous
+  // render's draft — a joint from+to clear changed min/max in the same commit
+  // and re-emitted the just-cleared date from that stale closure.
+  if (value !== lastExternal.current) {
     lastExternal.current = value;
     setDraft(formatDateInput(value));
     setTouched(false);
-  }, [value]);
+  }
 
   useEffect(() => { inputRef.current?.setCustomValidity(validation); }, [inputRef, validation]);
 
