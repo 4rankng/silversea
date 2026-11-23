@@ -141,7 +141,9 @@ export function OpsAccountantTab() {
     if (bulkBusy !== null || confirmBusyId !== null || rows.length === 0) return;
     const reason = await prompt(
       rows.length === 1
-        ? `Từ chối khoản chi ${rows[0].expenseTypeName ?? rows[0].expenseTypeCode} (${formatMoney(rows[0].amount)} ₫) — lô ${rows[0].shipmentCode ?? '?'}? Khoản sẽ rời khỏi sổ chi phí, lịch sử giữ nguyên.`
+        // V25 (BUG-07, CR-010.1) — the modal names the lot the way the papers
+        // do (Số Bill/Booking); the internal SHP-* shipment code never renders.
+        ? `Từ chối khoản chi ${rows[0].expenseTypeName ?? rows[0].expenseTypeCode} (${formatMoney(rows[0].amount)} ₫) — lô ${opsBillReference(rows[0].billRef)}? Khoản sẽ rời khỏi sổ chi phí, lịch sử giữ nguyên.`
         : `Từ chối ${rows.length} khoản chi đã chọn? Mỗi khoản sẽ rời khỏi sổ chi phí (kèm lý do bên dưới), lịch sử giữ nguyên.`,
       { confirmLabel: 'Từ chối', reasonLabel: 'Lý do từ chối (bắt buộc)' },
     );
@@ -346,11 +348,13 @@ export function OpsAccountantTab() {
                         </span>
                       : '—'}
                   </td>
-                  <td>{row.declarationNumber?.trim() || '—'}</td>
+                  {/* CR-010.1 (BUG-09) — identity cells carry their nowrap
+                      law, LOẠI PHÍ its word-boundary law (ops-accountant-tab.css). */}
+                  <td className="ops-acc__cell--declaration">{row.declarationNumber?.trim() || '—'}</td>
                   {/* CR-010 E2 (SIL-882) — inline Số HĐ edit: rows chưa đối
                       chiếu/chưa lập phiếu open an input in place; saving rides
                       the audited update endpoint (old → new in the payload). */}
-                  <td>
+                  <td className="ops-acc__cell--invoice">
                     {editable(row) && !isEditing(row, 'invoiceNumber') ? (
                       <button
                         type="button"
@@ -379,7 +383,7 @@ export function OpsAccountantTab() {
                       row.invoiceNumber?.trim() || 'X'
                     )}
                   </td>
-                  <td>{row.expenseTypeName ?? row.expenseTypeCode}</td>
+                  <td className="ops-acc__cell--fee">{row.expenseTypeName ?? row.expenseTypeCode}</td>
                   {/* CR-010 E2 (SIL-882) — inline Số tiền edit, same audited
                       save path as Số HĐ (AC: 1.620.000 → 1.650.000 in place). */}
                   <td className="ops-money">

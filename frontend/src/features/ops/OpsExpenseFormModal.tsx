@@ -141,13 +141,20 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | 
   if (Number.isNaN(charge) || charge < 0) return '"Thực thu (thu khách)" phải là số không âm.';
   // SIL-777 (owner decision 09/11/2026): Ghi chú is OPTIONAL in every case —
   // the card 20260928_162 gate ("không thu khách → bắt buộc ghi chú",
-  // SIL-723) is reversed by the owner; required fields are exactly Loại phí
-  // + Số tiền. The server gate is removed with it
-  // (createOpsExpense in ops-expenses.service.ts).
-  // SIL-834 (spec Rev2 Task 2.1.3 — "Input Số HĐ (Tùy chọn)"): the invoice
-  // number is optional on the invoice block — an empty one saves and the
-  // label carries "(Tùy chọn)". Receipt photos stay optional; the required
-  // set stays exactly Loại phí + Số tiền (+ the non-negative charge rule).
+  // SIL-723) is reversed by the owner; the required set stays Loại phí +
+  // Số tiền (+ the non-negative charge rule). The server gate is removed with
+  // it (createOpsExpense in ops-expenses.service.ts).
+  // CR-010.1 (BUG-08) — the invoice block's Số hóa đơn is REQUIRED again
+  // (supersedes the SIL-834 "Tùy chọn" law): a real invoice document number
+  // rides every invoice-tab row, empty = dead Lưu at the popup edge. "Thật"
+  // keeps SIL-870's own law — a digitless string is placeholder text, not a
+  // number, and the write path would store null anyway. The label carries
+  // the *, and the footer repeats this message beside the disabled Lưu
+  // (SIL-723 never-disabled-in-silence). Receipt photos stay optional.
+  if (block === 'invoice') {
+    const invoice = draft.invoiceNumber.trim();
+    if (invoice === '' || !/\d/.test(invoice)) return 'Số hóa đơn là bắt buộc với phí có hóa đơn.';
+  }
   if (draft.pendingFiles.length > 0) return 'Ảnh biên lai chưa tải xong — bấm "Thử tải lại ảnh" hoặc "Bỏ ảnh chưa tải".';
   return null;
 }
@@ -378,8 +385,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   // the write path only bounces the duplicate after its siblings saved (the
   // QA partial save), so the same-lot duplicate must die in the draft stage
   // like the no-invoice duplicate type does. Many rows of one FEE TYPE stay
-  // allowed here — only the invoice NUMBER is unique per lot. An empty Số
-  // hóa đơn stays optional (SIL-834) and never duplicates.
+  // allowed here — only the invoice NUMBER is unique per lot. An empty (or
+  // digitless) Số hóa đơn never reaches this map — it is the CR-010.1 (BUG-08)
+  // required gate's business, not a duplicate.
   const invoiceDuplicateNumbers = useMemo(() => {
     const counts = new Map<string, number>();
     for (const draft of invoiceRows) {
@@ -825,7 +833,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
         </div>
         {invoiced
           ? <label className="ops-fee-row__field ops-fee-row__cell--invoice-no">
-            Số hóa đơn (Tùy chọn)
+            Số hóa đơn *
             <input
               value={draft.invoiceNumber}
               disabled={busy}

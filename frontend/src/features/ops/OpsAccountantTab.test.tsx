@@ -428,6 +428,11 @@ describe('OpsAccountantTab — CR-010 E2 bulk actions + inline edit (SIL-882)', 
     const field = await screen.findByLabelText('Lý do từ chối (bắt buộc)');
     fireEvent.change(field, { target: { value: 'Khoản không có chứng từ hợp lệ' } });
     const dialog = field.closest('[role="dialog"]') as HTMLElement;
+    // CR-010.1 (BUG-07, V25) — the modal names the lot by its Số
+    // Bill/Booking; the internal shipment code never renders (fixture
+    // billRef 'BL-9', shipmentCode 'SS-9').
+    expect(dialog.textContent).toContain('lô BL-9');
+    expect(dialog.textContent).not.toContain('SS-9');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Từ chối' }));
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith(
       '/expense-accounting/entries/OPS/5/reject',

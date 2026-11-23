@@ -35,13 +35,20 @@ describe('SIL-810 — monthly dispatch table sticky/scroll contract', () => {
     expect(dayBlock).toMatch(/max-width:\s*32px/);
   });
 
-  it('five lead columns pin left on an explicit 0/44/120/224/334 chain', () => {
+  it('five lead columns pin left on an explicit 0/44/120/236/346 chain', () => {
     expect(css).toMatch(/\.ts-report tbody td:nth-child\(-n \+ 5\) \{[^}]*position:\s*sticky/s);
     expect(css).toMatch(/td:nth-child\(1\) \{ width: 44px;\s*min-width: 44px;\s*max-width: 44px;\s*left: 0;/);
     expect(css).toMatch(/td:nth-child\(2\) \{ width: 76px;\s*min-width: 76px;\s*max-width: 76px;\s*left: 44px;/);
-    expect(css).toMatch(/td:nth-child\(3\) \{ width: 104px; min-width: 104px; max-width: 104px; left: 120px;/);
-    expect(css).toMatch(/td:nth-child\(4\) \{ width: 110px; min-width: 110px; max-width: 110px; left: 224px;/);
-    expect(css).toMatch(/td:nth-child\(5\) \{ width: 160px; min-width: 160px; max-width: 160px; left: 334px;/);
+    // CR-010.1 (BUG-10) — cột 3 'Biển kiểm soát' 116px (trước 104px bị cắt
+    // chữ 'T' khi sidebar mở), cột 4/5 dịch theo 236/346 để chuỗi khớp pixel.
+    expect(css).toMatch(/td:nth-child\(3\) \{ width: 116px; min-width: 116px; max-width: 116px; left: 120px;/);
+    expect(css).toMatch(/td:nth-child\(4\) \{ width: 110px; min-width: 110px; max-width: 110px; left: 236px;/);
+    expect(css).toMatch(/td:nth-child\(5\) \{ width: 160px; min-width: 160px; max-width: 160px; left: 346px;/);
+    // Header cells share the same grid — the nowrap 'Biển kiểm soát' th
+    // never clips (FB-063's single-line header law stays).
+    expect(css).toMatch(/th:nth-child\(3\):not\(\[colspan\]\) \{ width: 116px; min-width: 116px; max-width: 116px; left: 120px;/);
+    expect(css).toMatch(/th:nth-child\(4\):not\(\[colspan\]\) \{ width: 110px; min-width: 110px; max-width: 110px; left: 236px;/);
+    expect(css).toMatch(/th:nth-child\(5\):not\(\[colspan\]\) \{ width: 160px; min-width: 160px; max-width: 160px; left: 346px;/);
     // Pinned cells carry an opaque surface or they smear the grid beneath.
     expect(css).toMatch(/\.ts-report tbody td:nth-child\(-n \+ 5\) \{[^}]*background:\s*var\(--surface\)/s);
   });

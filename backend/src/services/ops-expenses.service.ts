@@ -206,6 +206,13 @@ export async function createOpsExpense(
   // 409 against a legacy 'unc' row nor lands in the source.
   const invoiceNumber = effectiveOpsInvoiceNumber(input.invoiceNumber);
   const expenseType = await assertActiveExpenseType(input.expenseTypeCode);
+  // CR-010.1 (BUG-08) — the PHÍ CÓ HÓA ĐƠN tab's Số hóa đơn is REQUIRED: a
+  // real invoice document number rides every invoiced-class row (empty =
+  // refused at the popup edge; digitless text already folds to null by
+  // SIL-870). The FE blocks Lưu; a stale client or raw API call lands here.
+  if (expenseType.requiresInvoice === true && invoiceNumber == null) {
+    throw new ApiError(400, 'Số hóa đơn là bắt buộc với phí có hóa đơn.');
+  }
   await assertShipmentAccountingUnlocked(executor, input.shipmentId);
   // Audit 2026-11-04 §2.3 (PRD §7.9): an Ops expense write is lot money — a
   // cost-locked lot refuses it beside the accounting lock, so the frozen
@@ -384,7 +391,18 @@ export async function updateOpsExpense(
   // era data) even when the patch never touches `amount`. New amounts go
   // through `parseOpsMoney` in the branch below.
   assertValidPaidAt(patch.paidAt ?? entry.paidAt);
-  await assertActiveExpenseType(patch.expenseTypeCode ?? entry.expenseTypeCode);
+  const effectiveType = await assertActiveExpenseType(patch.expenseTypeCode ?? entry.expenseTypeCode);
+  // CR-010.1 (BUG-08) — same law as create, but only when the patch itself
+  // touches Số hóa đơn: clearing it on an invoiced-class row is refused.
+  // Unrelated edits of legacy numberless rows stay untouched — backfilling
+  // old data is not this patch's business.
+  if (
+    patch.invoiceNumber !== undefined
+    && effectiveType.requiresInvoice === true
+    && invoiceNumber == null
+  ) {
+    throw new ApiError(400, 'Số hóa đơn là bắt buộc với phí có hóa đơn.');
+  }
 
   if (patch.amount !== undefined) {
     next.amount = parseOpsMoney(patch.amount).toString();

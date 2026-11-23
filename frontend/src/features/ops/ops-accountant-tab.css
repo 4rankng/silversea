@@ -36,10 +36,11 @@
    số tiền 110.34 · người chi 63.98 ('NGƯỜI' wraps) · chứng từ 68.86
    ('CHỨNG'/'TỪ') · số phiếu 60.25 ('SỐ'/'PHIẾU') · duyệt KT 98.33 ·
    ghi chú 50.39.
-   Accepted bound (the QA-passed status quo): tờ khai / invoice / settlement /
-   note DATA values wider than their column still wrap mid-token — no budget
-   for them at 1144px once bill, cont, date, money and every header floor
-   hold. */
+   Accepted bound (the QA-passed status quo): settlement / note DATA values
+   wider than their column still wrap mid-token — no budget for them at
+   1144px once bill, cont, date, money and every header floor hold.
+   CR-010.1 (BUG-09) lifts tờ khai / Số HĐ out of that bound (nowrap + track
+   floors, the board scrolls) and gives LOẠI PHÍ the word-boundary law. */
 .ops-acc .ops-acc__col--date { width: 8.85%; }
 .ops-acc .ops-wallet__col--bill { width: 13.9%; }
 .ops-acc .ops-acc__col--cont { width: 10.1%; }
@@ -140,4 +141,38 @@
 .ops-acc td.ops-wallet__cell--cont {
   overflow-wrap: normal;
   word-break: keep-all;
+}
+
+/* CR-010.1 (BUG-09) — SỐ TỜ KHAI / SỐ HĐ / LOẠI PHÍ data cells. QA tokens
+   ('QAH/Đ-8/61-/B02', 'contai/ner') broke mid-token under the .tt-table base
+   (`white-space: normal; overflow-wrap: anywhere`, Table.css): an identity
+   number must stay ONE token (wrap mid-token = lost number, the SIL-884 bill
+   law), so tờ khai + Số HĐ cells go nowrap and their th floors force the
+   fixed-layout tracks wider than the SIL-895 shares (120px / 110px content
+   bands — the QA tờ khai 'QAH/Đ-8/61-/B02' ≈ 95px and an invoice token up to
+   ~86px hold whole). LOẠI PHÍ wraps at word boundaries only: fee names with
+   spaces still wrap, never 'contai/ner'. The floors exceed the 1144px budget,
+   so the scroll wrapper gains the horizontal scroll the wallet page already
+   owns (ops-accountant-tab.css is loaded WITHOUT OpsWalletPage.css on
+   /advances — .ops-wallet__scroll has no rule there). */
+.ops-acc .ops-wallet__scroll {
+  overflow-x: auto;
+}
+
+.ops-acc td.ops-acc__cell--declaration,
+.ops-acc td.ops-acc__cell--invoice {
+  white-space: nowrap;
+}
+
+.ops-acc th.ops-wallet__col--declaration {
+  min-width: 120px;
+}
+
+.ops-acc th.ops-acc__col--invoice {
+  min-width: 110px;
+}
+
+.ops-acc td.ops-acc__cell--fee {
+  overflow-wrap: normal;
+  word-break: normal;
 }

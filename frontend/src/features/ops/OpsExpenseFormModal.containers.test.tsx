@@ -87,8 +87,8 @@ async function fillAmount(blockName: string, value: string) {
   fireEvent.change(within(block(blockName)).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value } });
 }
 
-/** SIL-834: Số hóa đơn is Tùy chọn — submit-driving cases fill it only to
- *  prove the payload, never to unblock Lưu. */
+/** CR-010.1 (BUG-08): the invoice tab's Số hóa đơn is required — cases fill
+ *  a real number to pass the gate (historically, to prove the payload). */
 async function fillInvoiceNumber(blockName: string, value: string) {
   fireEvent.change(within(block(blockName)).getByLabelText(/^Số hóa đơn/), { target: { value } });
 }
@@ -237,8 +237,9 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
 });
 
 // SIL-723 — the Lưu button must obey KB Chương 6 (bắt buộc tối thiểu = Loại +
-// Số tiền; Số hóa đơn CHỈ trong block có hóa đơn; ảnh biên lai tùy chọn) and
-// never disable in silence: the blocked footer NAMES the missing field.
+// Số tiền, cộng Số hóa đơn thật trên block có hóa đơn — CR-010.1 BUG-08;
+// ảnh biên lai tùy chọn) and never disable in silence: the blocked footer
+// NAMES the missing field.
 describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20_000 }, () => {
   it('B1: Loại + Số tiền + Ghi chú on a no-invoice row saves — no invoice number, no photo required', async () => {
     await show();
@@ -283,20 +284,27 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
     expect(api.createExpense.mock.calls[0][0]).toMatchObject({ amount: '80000', note: 'Không thu khách — phí nội bộ' });
   });
 
-  it('B3 (SIL-834): the invoice block treats "Số hóa đơn" as Tùy chọn — an empty number saves', async () => {
+  it('B3 (CR-010.1 BUG-08): the invoice block demands a real Số hóa đơn — label *, empty blocks Lưu', async () => {
     await show();
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
-    // Spec Rev2 Task 2.1.3 ("Input Số HĐ (Tùy chọn)"): no gate, no disabled
-    // Lưu, and the label itself says "(Tùy chọn)".
-    expect(within(block('Phí có hóa đơn')).getByLabelText(/^Số hóa đơn \(Tùy chọn\)/)).toBeInTheDocument();
+    // The label carries the required star; an empty number keeps Lưu dead and
+    // the footer NAMES the missing field (SIL-723 never-disabled-in-silence).
+    expect(within(block('Phí có hóa đơn')).getByLabelText(/^Số hóa đơn \*/)).toBeInTheDocument();
+    expect(save).toBeDisabled();
+    // The message lives twice: inline on the row and repeated by the footer.
+    expect(screen.getAllByText('Số hóa đơn là bắt buộc với phí có hóa đơn.')).toHaveLength(2);
+    fireEvent.submit(save.form!);
+    expect(api.createExpense).not.toHaveBeenCalled();
+    // A real number — ≥1 digit, SIL-870's own law; digitless text is
+    // placeholder, not a number — re-opens Lưu and the row saves with it.
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
     expect(save).toBeEnabled();
-    expect(screen.queryByText(/bắt buộc có số hóa đơn/)).toBeNull();
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ amount: '450000', invoiceNumber: null });
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ amount: '450000', invoiceNumber: 'TD-20260923-001' });
   });
 
   it('B4: the no-invoice block never demands Số hóa đơn (KB: chỉ nhóm có hóa đơn)', async () => {
@@ -652,7 +660,7 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     expect(api.createExpense.mock.calls[1][0]).toMatchObject({ invoiceNumber: 'QAHĐ-002' });
   });
 
-  it('G7 (SIL-861): distinct Số hóa đơn rows and empty (Tùy chọn) numbers never trip the gate', async () => {
+  it('G7 (SIL-861 + CR-010.1 BUG-08): empties trip the REQUIRED gate, never the duplicate gate; distinct numbers save', async () => {
     api.createExpense.mockResolvedValue(entry);
     await show();
     await addInvoiceRow();
@@ -662,14 +670,23 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
     await chooseRowType(secondRow, 'Phí soi chiếu');
     fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '100000' } });
-    // Both Số hóa đơn left EMPTY — optional (SIL-834), never a duplicate.
+    // Both Số hóa đơn left EMPTY — the CR-010.1 (BUG-08) required gate owns
+    // that state (Lưu dead, footer names the field), NOT the duplicate gate.
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
-    expect(save).toBeEnabled();
+    expect(save).toBeDisabled();
     expect(screen.queryByText(/Trùng số hóa đơn/)).toBeNull();
+    // Two empty rows → the message lives inline on BOTH rows + the footer.
+    expect(screen.getAllByText('Số hóa đơn là bắt buộc với phí có hóa đơn.')).toHaveLength(3);
+    // Distinct real numbers clear it; neither row trips the duplicate gate.
+    // Two invoice rows now match the label — target row 1 explicitly.
+    fireEvent.change(within(block('Phí có hóa đơn')).getAllByLabelText(/^Số hóa đơn/)[0]!, { target: { value: 'QAHĐ-001' } });
+    fireEvent.change(within(secondRow).getByLabelText(/^Số hóa đơn/), { target: { value: 'QAHĐ-002' } });
+    expect(save).toBeEnabled();
+    api.createExpense.mockResolvedValue(entry);
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ invoiceNumber: null });
-    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ invoiceNumber: null });
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ invoiceNumber: 'QAHĐ-001' });
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ invoiceNumber: 'QAHĐ-002' });
   });
 
   it('G5: a lot with NO container rows saves as chung-lô — the empty set, never null', async () => {

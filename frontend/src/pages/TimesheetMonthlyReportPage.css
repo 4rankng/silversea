@@ -169,15 +169,20 @@ table.ts-report thead th.ts-report__th--summary {
  * số) đứng con thứ 1 nhưng khỏi width — chỉ nhận left. */
 .ts-report tbody td:nth-child(1) { width: 44px;  min-width: 44px;  max-width: 44px;  left: 0;     }
 .ts-report tbody td:nth-child(2) { width: 76px;  min-width: 76px;  max-width: 76px;  left: 44px;  }
-.ts-report tbody td:nth-child(3) { width: 104px; min-width: 104px; max-width: 104px; left: 120px; }
-.ts-report tbody td:nth-child(4) { width: 110px; min-width: 110px; max-width: 110px; left: 224px; }
-.ts-report tbody td:nth-child(5) { width: 160px; min-width: 160px; max-width: 160px; left: 334px; }
+/* CR-010.1 (BUG-10) — 'Biển kiểm soát' (nowrap theo FB-063) bị cắt chữ 'T'
+ * khi sidebar mở rộng: cột 3 nhận +12px (104 → 116), hai cột trái sau nó
+ * dịch theo để chuỗi sticky khớp pixel (120+116=236, 236+110=346). */
+.ts-report tbody td:nth-child(3) { width: 116px; min-width: 116px; max-width: 116px; left: 120px; }
+.ts-report tbody td:nth-child(4) { width: 110px; min-width: 110px; max-width: 110px; left: 236px; }
+.ts-report tbody td:nth-child(5) { width: 160px; min-width: 160px; max-width: 160px; left: 346px; }
 
+/* CR-010.1 (BUG-10) — cùng lưới bề rộng với tbody: cột 3 'Biển kiểm soát'
+ * 116px (tiêu đề nowrap không còn bị cắt chữ 'T'), offset cột 4/5 theo 236/346. */
 .ts-report thead th:nth-child(1):not([colspan]) { width: 44px;  min-width: 44px;  max-width: 44px;  left: 0;     }
 .ts-report thead th:nth-child(2):not([colspan]) { width: 76px;  min-width: 76px;  max-width: 76px;  left: 44px;  }
-.ts-report thead th:nth-child(3):not([colspan]) { width: 104px; min-width: 104px; max-width: 104px; left: 120px; }
-.ts-report thead th:nth-child(4):not([colspan]) { width: 110px; min-width: 110px; max-width: 110px; left: 224px; }
-.ts-report thead th:nth-child(5):not([colspan]) { width: 160px; min-width: 160px; max-width: 160px; left: 334px; }
+.ts-report thead th:nth-child(3):not([colspan]) { width: 116px; min-width: 116px; max-width: 116px; left: 120px; }
+.ts-report thead th:nth-child(4):not([colspan]) { width: 110px; min-width: 110px; max-width: 110px; left: 236px; }
+.ts-report thead th:nth-child(5):not([colspan]) { width: 160px; min-width: 160px; max-width: 160px; left: 346px; }
 .ts-report thead th[colspan='5'] { left: 0; }
 
 /* Dòng lái xe: 5 ô trái ghim ngang, nền đặc + hairline bóng trong (viền
