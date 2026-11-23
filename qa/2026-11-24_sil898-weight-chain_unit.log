@@ -1,0 +1,60 @@
+✔ đủ căn cứ (tuyến + khách + hạng + ngày + trọng tải) → LOCK với cột giá theo trọng tải (2.446584ms)
+✔ trọng tải đúng biên 20,0t = nặng; dưới 20t = nhẹ (0.88725ms)
+✔ CONT20/CONT40 thiếu trọng tải → SKIP MISSING_WEIGHT (không mặc định hạng nhẹ) (0.450625ms)
+✔ thiếu từng căn cứ → SKIP đúng lý do, không bịa số (0.711709ms)
+✔ LCL mới tạo chưa có rate key (điều vận chưa chọn hạng) → SKIP NO_RATE_KEY — lock chờ dispatch (0.130416ms)
+✔ ngày ưu tiên: hẹn cont > ngày giao dự kiến > ngày dự phòng của điều vận (0.178417ms)
+✔ hạng xe tải (không phải cont) không cần trọng tải (0.100708ms)
+✔ rate key điều vận 4-class (CONT40.HEAVY) được tôn trọng nguyên văn (0.103625ms)
+✔ lag khung giá hiệu lực THẮNG terms (engine tra giá ngày giao − lag khung) (0.116584ms)
+✔ chưa có khung hiệu lực → fallback lag của freight_rate_terms (seed NEWEB 1) (0.144542ms)
+✔ thiếu cả hai nguồn → 0 (0.083417ms)
+✔ giá rác (âm/thập phân) bị bác, không bịa số lạ (0.131208ms)
+▶ lot pricing grounds — the row-visible weight is the validated weight
+  ✔ reads the lot-level weight alongside the anchor container weight (0.681167ms)
+  ✔ resolves the weight through the shared chain inside the CONT20/CONT40 branch (0.747ms)
+  ✔ walks the chain in one exported resolver the row read shares (1.055291ms)
+✔ lot pricing grounds — the row-visible weight is the validated weight (3.682042ms)
+▶ positiveWeightKg — a stored zero is not a declaration
+  ✔ accepts only positive finite kilograms (0.175833ms)
+  ✔ rejects null, blank, zero, negatives and garbage (0.094584ms)
+✔ positiveWeightKg — a stored zero is not a declaration (0.41425ms)
+▶ bookingFamilyRoot — the booking behind a per-container lot
+  ✔ strips one trailing lot segment (2.328667ms)
+  ✔ keeps a single-lot booking whole instead of collapsing the family (0.129459ms)
+  ✔ is null-safe and trims (0.094958ms)
+✔ bookingFamilyRoot — the booking behind a per-container lot (2.741958ms)
+✔ lot lifecycle resolves through the pricing engine then persists a snapshot (2.477792ms)
+✔ every lot create/update surface locks the rate (FCL intake, reconcile, CUS edits, EDD change, dispatch) (0.295708ms)
+✔ dispatch is the definitive lock with the dispatcher rate key + loud weight gate (1.0985ms)
+✔ engine prices per the effective quotation frame: Hệ số + rounding + fuel lag (0.18975ms)
+✔ preview-rate probe rides the SAME engine fallback (không tạo lô, không bịa số) (0.138584ms)
+✔ preview-rate stays read-only and finance-gated like the xlsx import preview (0.1065ms)
+✔ quotation frames carry the lag end to end (schema → create/update → views) (0.677625ms)
+▶ SIL-644 reconcile guard separates assignment from issuance
+  ✔ the issued law is per-field since SIL-653 — no blanket throw may return (0.697542ms)
+  ✔ an assigned container must survive the batch and may not change guarded plan fields (0.862375ms)
+  ✔ only unassigned fulfillments are canceled — the dispatcher assignment survives (0.155959ms)
+  ✔ appointment equality treats omitted, null and instant equality honestly (3.006792ms)
+✔ SIL-644 reconcile guard separates assignment from issuance (5.572958ms)
+▶ SIL-644 workspace line write unlocks cargo measures in the assignment window
+  ✔ weight/volume no longer count as blocking mutations while the trip is CREATED (0.372458ms)
+  ✔ the type/route/factory/appointment/carrier denial keeps its trip presence gate (0.123291ms)
+✔ SIL-644 workspace line write unlocks cargo measures in the assignment window (0.646917ms)
+▶ SIL-644 ledger fieldAccess opens the weight field in the assignment window
+  ✔ the issuance-window override upgrades cargo measures for CREATED trips only (0.183542ms)
+  ✔ BOTH ledger projections ride the override — detail editor and flat list (0.119041ms)
+✔ SIL-644 ledger fieldAccess opens the weight field in the assignment window (0.454084ms)
+▶ SIL-644 wave 2 — the dispatcher-side weight path (Sửa điều phối / Phân xe lại)
+  ✔ the container-line write endpoint admits DISPATCHER — the dispatch surface is an allowed writer (0.132583ms)
+  ✔ the dispatch detail-plan wire addresses the container line for BOTH row families and carries its own weight (0.2545ms)
+✔ SIL-644 wave 2 — the dispatcher-side weight path (Sửa điều phối / Phân xe lại) (0.476041ms)
+ℹ tests 37
+ℹ suites 7
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 457.007875
+EXIT=0
