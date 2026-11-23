@@ -523,10 +523,26 @@ export async function getDebitMergeBoard(query: {
     if (typeof value === 'string' && value !== '' && Number.isFinite(Number(value))) return Number(value);
     return null;
   };
+  // SIL-855 — the accountant's lot-level SIL-805 cước-thu cell override as a
+  // number; null when the cell carries no numeric override.
+  const cuocThuOverrideValue = (raw: string | null | undefined): number | null => {
+    if (raw == null || raw === '') return null;
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : null;
+  };
 
   const items: DebitMergeItem[] = lots.map((lot) => {
     const effectiveFreight = effectiveFreightByLot.get(lot.id) ?? { value: null, reason: null };
-    const freightAuto = effectiveFreight.value;
+    // SIL-855 QA 23/11 (round 5 posted half its money) — Tổng TC reads the
+    // SAME merged Cước thu cell the boards bill: the SIL-805 cell override
+    // rides ahead of the auto channel, with applyDebitRateOverridesToCells'
+    // 24/10 zero law (non-zero prices; typed 0 arms only a computed channel
+    // zero) — so entering cước always syncs control.tongTc with doanh thu
+    // (QA round 5: revenue full 3.952.000 ₫ while control.tongTc stayed null).
+    const cuocThuCellOverride = cuocThuOverrideValue(rateOverrideByLot.get(lot.id)?.cuocThu);
+    const freightAuto = cuocThuCellOverride != null && (cuocThuCellOverride !== 0 || effectiveFreight.value != null)
+      ? cuocThuCellOverride
+      : effectiveFreight.value;
     const psAuto = psAutoByLot.get(lot.id);
     const revenue = revenueByLot.get(lot.id);
     const ps = psByLot.get(lot.id);

@@ -337,6 +337,21 @@ p.debit-note { margin: 0 0 8px; }
   outline-offset: -2px;
 }
 
+/* SIL-855 QA R8 (23/11) — mặt ĐÃ KHÓA của 'Chi phí ngoài': lô đóng băng
+ * render text định dạng canh phải như các cột tiền — không bao giờ là ô
+ * nhập (cùng luật 8 ô SIL-805). */
+.debit-ext-cost-locked {
+  display: block;
+  width: 100%;
+  min-width: 96px;
+  text-align: right;
+  font-family: var(--font-data);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 2px 6px;
+}
+
 /* SIL-771 — cảnh báo khách giữ nguyên: Lợi nhuận âm → ô bôi nền đỏ đậm,
  * chữ trắng (đậm = solid var(--danger), không phải viền). */
 .debit-loinhuan--negative {

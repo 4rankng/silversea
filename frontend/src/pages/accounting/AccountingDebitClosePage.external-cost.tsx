@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { billBookingReference } from '../../lib/business-reference';
+import { formatCurrency } from '../../lib/format';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 
 /**
@@ -16,6 +17,23 @@ export function ExternalCostCell({ row, onCommit, saving }: {
 }) {
   const [draft, setDraft] = useState<string>(row.chiPhiNgoai ?? '');
   const current = row.chiPhiNgoai ?? '';
+
+  // SIL-855 QA R8 (23/11) — the locked face: a frozen lot renders the saved
+  // value as formatted text, never an input — same law as the 8 SIL-805 rate
+  // cells (sau khóa số đọc thôi). Before this gate the input still rendered
+  // on locked rows and the save 409'd only at the server, which is exactly
+  // the misleading affordance the QA round hit ('chỉ Chi phí ngoài edit
+  // được' on locked lots).
+  if (row.costLockedAt != null) {
+    return (
+      <span
+        className="debit-ext-cost-locked"
+        title="Lô đã khóa sổ — số đã đóng băng, không sửa được"
+      >
+        {row.chiPhiNgoai == null ? null : formatCurrency(Number(row.chiPhiNgoai))}
+      </span>
+    );
+  }
 
   function commit() {
     if (draft === current) return;

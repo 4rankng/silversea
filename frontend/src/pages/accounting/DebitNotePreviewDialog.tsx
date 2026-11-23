@@ -73,7 +73,11 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, onSave
   const roundLabel = (round: DebitSettlementRoundRow) => `Lần ${round.roundNo} · ${round.periodKey}`;
 
   return (
-    <Modal isOpen={open} title="Xem trước Debit Note" onClose={onClose}>
+    // SIL-855 QA 23/11 — the Modal default 480px cut the TIỀN TRƯỚC THUẾ
+    // column past the right edge (QA had to scroll horizontally to read the
+    // money). min(92vw, 860px) — the house action-dialog width — fits the
+    // four-column table without scrolling at the QA viewport.
+    <Modal isOpen={open} title="Xem trước Debit Note" onClose={onClose} maxWidth="min(92vw, 860px)">
       <p className="debit-note" style={{ margin: '0 0 8px' }}>
         Đợt chốt (Lần · Tháng · Năm){' '}
         <UuiSelectField

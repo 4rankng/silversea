@@ -140,6 +140,9 @@ describe('AccountingDebitClosePage — SIL-805 inline-edit 8 ô giá/chi phí', 
     for (const label of RATE_LABELS) {
       expect(screen.queryByRole('textbox', { name: label }), label).not.toBeInTheDocument();
     }
+    // SIL-855 QA R8 — the locked row has NO editable money face left at all:
+    // 'Chi phí ngoài' freezes to text with the 8 rate cells.
+    expect(screen.queryByRole('textbox', { name: 'Chi phí ngoài lô BL-1' })).not.toBeInTheDocument();
     expect(screen.getByText('1.000.000 ₫')).toBeInTheDocument();
     expect(setRateOverrides).not.toHaveBeenCalled();
   });

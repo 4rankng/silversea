@@ -49,14 +49,17 @@ export async function getShipmentDebitSummary(query: {
 }, options: {
   /**
    * SIL-855 QA 23/11 — lot-level SIL-805 cước-thu overrides the FREEZE must
-   * see. Every board surface (merge grid, debit board, đợt sum) reads the
-   * merged cell (override ?? derived channel); the freeze called this summary
-   * with the raw channel only, so a lot whose freight lives ONLY in the
-   * accountant's inline override (bảng giá thiếu tuyến/loại xe at lock time)
-   * froze freightAuto/receivableTotal null and buildFrozenShipmentDebitLines
-   * emitted no lines — the Debit Note silently billed 0 ₫ for that lot
-   * (R3P-677-C, half of round 5 reached Công nợ). The freeze passes this map;
-   * UI callers omit it and keep the derived channel byte-identically.
+   *  see. Every board surface (merge grid, debit board, đợt sum) reads the
+   *  merged cell (override ?? derived channel); the freeze called this summary
+   *  with the raw channel only, so a lot whose freight lives ONLY in the
+   *  accountant's inline override (bảng giá thiếu tuyến/loại xe at lock time)
+   *  froze freightAuto/receivableTotal null and buildFrozenShipmentDebitLines
+   *  emitted no lines — the Debit Note silently billed 0 ₫ for that lot
+   *  (R3P-677-C, half of round 5 reached Công nợ). The freeze passes this map
+   *  as the lock-time explicit statement of that same cell; every caller —
+   *  freeze included — now also reads the cell override from the table itself
+   *  (cuocThuOverrideByLot below), so the receivable law syncs with doanh thu
+   *  wherever the cước was entered.
    */
   freightOverrideByLot?: Map<number, number>;
 } = {}): Promise<ShipmentDebitSummaryResponse> {
@@ -222,6 +225,28 @@ export async function getShipmentDebitSummary(query: {
       cargoMode: lot.cargoMode,
     }));
   }
+
+  // SIL-855 QA 23/11 (round 5 posted half its money) — the accountant's
+  // SIL-805 cước-thu CELL override (lot-level row, containerId null) is part
+  // of the merged Cước thu cell every board bills; the receivable law (Tổng
+  // TC / DOANH THU, the freight addend, profit) must read the SAME cell so an
+  // entered cước always syncs tongTc with doanh thu. Lot-level only — exactly
+  // the board's top-level cells (a container-scoped edit never bleeds in).
+  const cuocThuOverrideRows = await db.select({
+    shipmentId: s.shipmentDebitRateOverrides.shipmentId,
+    cuocThu: s.shipmentDebitRateOverrides.cuocThu,
+  }).from(s.shipmentDebitRateOverrides)
+    .where(and(
+      inArray(s.shipmentDebitRateOverrides.shipmentId, lotIds),
+      isNull(s.shipmentDebitRateOverrides.shipmentContainerId),
+    ));
+  const cuocThuOverrideByLot = new Map(
+    cuocThuOverrideRows.map((row) => {
+      const raw = row.cuocThu;
+      const value = raw != null && raw !== '' && Number.isFinite(Number(raw)) ? Number(raw) : null;
+      return [row.shipmentId, value] as const;
+    }),
+  );
 
   // Tổng chi hộ: what SS pays on the lot's live trips (CVC + Ops fees).
   // Card 20260928_181 — a negative expense row behaves as if it did not
@@ -440,11 +465,18 @@ export async function getShipmentDebitSummary(query: {
     // only these live columns follow the channel.
     const effectiveFreight = effectiveFreightByLot.get(lot.id) ?? { value: null, reason: null };
     const revManual = revManualByLot.get(lot.id) ?? null;
-    // SIL-855 — the override law rides ONE column: with the freeze's map the
-    // Cước thu value, the receivable addend, the freight-known gate and the
-    // profit all read the merged cell, so the frozen note can never disagree
-    // with what the board and the đợt sum show for the same lot.
-    const freightAuto = options.freightOverrideByLot?.get(lot.id) ?? effectiveFreight.value;
+    // SIL-855 — ONE cước column: the freeze's explicit map (lock time), then
+    // the accountant's SIL-805 cell override, then the auto channel. The
+    // merge predicate mirrors applyDebitRateOverridesToCells' 24/10 zero law
+    // byte-for-byte: a NON-ZERO override prices the cell; a typed 0 arms only
+    // a computed channel zero (D02) — a 0 on an unpriced cell stays unpriced.
+    // The merged cell, the receivable total and profit can never disagree
+    // again (round 5's tongTc-null-while-revenue-full shape).
+    const cuocThuCellOverride = cuocThuOverrideByLot.get(lot.id) ?? null;
+    const freightAuto = options.freightOverrideByLot?.get(lot.id)
+      ?? (cuocThuCellOverride != null && (cuocThuCellOverride !== 0 || effectiveFreight.value != null)
+        ? cuocThuCellOverride
+        : effectiveFreight.value);
     const chiHo = chiHoByLot.get(lot.id);
     const hasTrips = (tripCountByLot.get(lot.id) ?? 0) > 0;
     const lock = lockedByLot.get(lot.id);

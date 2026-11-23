@@ -92,6 +92,19 @@ describe('AccountingDebitClosePage — SIL-771 Chi phí ngoài + Lợi nhuận',
     expect(input).toHaveValue('50000');
   });
 
+  // SIL-855 QA R8 (23/11) — lô ĐÃ khóa: Chi phí ngoài thành text định dạng,
+  // không còn ô nhập (server vẫn 409 nhưng FE không được vẽ affordance giả).
+  it('lô đã khóa sổ: Chi phí ngoài là text định dạng, không còn ô nhập', async () => {
+    listBoard.mockResolvedValue({ items: [row({ chiPhiNgoai: '50000', costLockedAt: '2026-11-23T00:00:00.000Z' })], total: 1 });
+    const { container } = renderPage();
+    await screen.findByRole('columnheader', { name: 'Tổng trả & Chi phí ngoài' });
+    expect(screen.queryByRole('textbox', { name: 'Chi phí ngoài lô BL-1' })).not.toBeInTheDocument();
+    const lockedFace = container.querySelector('.debit-ext-cost-locked');
+    expect(lockedFace).not.toBeNull();
+    expect(lockedFace!.textContent).toBe('50.000 ₫');
+    expect(setExternalCost).not.toHaveBeenCalled();
+  });
+
   it('gõ số rồi blur → lưu đúng shipmentId + giá trị nguyên VND', async () => {
     setExternalCost.mockResolvedValue({ shipmentId: 1, chiPhiNgoai: '75000' });
     renderPage();

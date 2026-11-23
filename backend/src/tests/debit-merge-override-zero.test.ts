@@ -128,5 +128,12 @@ describe('GET /api/accounting/debit-merge — override 0 không định giá lô
     assert.ok(pricedLot, 'priced lot must render');
     assert.equal(pricedLot.revenue.cuoc, '3950000', 'a real override price still applies');
     assert.equal(pricedLot.revenue.tong, '3950000');
+    // SIL-855 QA 23/11 (round 5) — Tổng TC reads the SAME merged cell: a lot
+    // priced ONLY by the SIL-805 override (no bảng giá row) must arm
+    // control.tongTc with that money instead of showing revenue full while
+    // the control figure stays null (the exact R3P-677-C desync that let a
+    // half-money note exist).
+    assert.equal(pricedLot.control.tongTc, '3950000', 'Tổng TC syncs with doanh thu khi nhập cước');
+    assert.equal(pricedLot.control.lockStatus, 'OPEN');
   });
 });

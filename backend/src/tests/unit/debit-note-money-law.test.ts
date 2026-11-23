@@ -128,9 +128,21 @@ describe('SIL-855 wiring — freeze đọc override SIL-805; preview + [Lưu] đ
     assert.match(freeze, /freightOverrideByLot:/);
   });
 
-  test('summary nhận options.freightOverrideByLot và hợp nhất vào cột cước (một cột cho cước/gate/receivable/profit)', () => {
+  test('summary nhận options.freightOverrideByLot + ghi đè ô SIL-805 và hợp nhất vào cột cước (một cột cho cước/gate/receivable/profit)', () => {
     assert.match(summarySource, /freightOverrideByLot\?: Map<number, number>/);
-    assert.match(summarySource, /options\.freightOverrideByLot\?\.get\(lot\.id\) \?\? effectiveFreight\.value/);
+    assert.match(summarySource, /options\.freightOverrideByLot\?\.get\(lot\.id\)/);
+    // The receivable law reads the SAME merged cell the boards bill (QA round
+    // 5: revenue full 3.952.000 ₫ while control.tongTc stayed null).
+    assert.match(summarySource, /s\.shipmentDebitRateOverrides\.cuocThu/);
+    assert.match(summarySource, /isNull\(s\.shipmentDebitRateOverrides\.shipmentContainerId\)/);
+    assert.match(summarySource, /cuocThuOverrideByLot\.get\(lot\.id\)/);
+    assert.match(summarySource, /cuocThuCellOverride !== 0 \|\| effectiveFreight\.value != null/);
+  });
+
+  test('debit-merge: Tổng TC đọc cùng ô Cước thu merge (ghi đè SIL-805 đi trước kênh tự động)', () => {
+    const mergeSource = readFileSync(join(here, '../../services/debit-merge.service.ts'), 'utf8');
+    assert.match(mergeSource, /cuocThuOverrideValue\(rateOverrideByLot\.get\(lot\.id\)\?\.cuocThu\)/);
+    assert.match(mergeSource, /cuocThuCellOverride !== 0 \|\| effectiveFreight\.value != null/);
   });
 
   test('preview đối chiếu tổng trước khi trả bảng xem trước', () => {

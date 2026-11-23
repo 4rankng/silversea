@@ -74,6 +74,13 @@ beforeEach(() => {
 });
 
 describe('DebitNotePreviewDialog (SIL-855)', () => {
+  it('mở đủ rộng cho cột tiền — Modal không còn mặc định 480px (QA phải cuộn ngang)', () => {
+    renderDialog();
+    const surface = document.querySelector<HTMLElement>('[style*="modal-max-w"]');
+    expect(surface).not.toBeNull();
+    expect(surface!.style.getPropertyValue('--modal-max-w')).toBe('min(92vw, 860px)');
+  });
+
   it('without a đợt the saves stay disabled and the dialog says why', async () => {
     renderDialog();
     const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
