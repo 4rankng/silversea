@@ -19,6 +19,11 @@ interface ShipmentContainerCellProps {
   displayTitle?: string;
   /** Always-visible muted second line (e.g. factory address under the name). */
   subValue?: string;
+  /** SIL-948 (KB Ch.10 §10.5.2 — MasterDataNhaMay §3.1): short lock note in
+   *  the label slot (e.g. "Theo nhà máy" on a route auto-filled and locked by
+   *  the chosen factory) — the disabled gray paint must not be the only
+   *  signal that the field follows the factory instead of a free pick. */
+  labelNote?: string;
   /** Always-visible trailing affordance beside the value (e.g. factory detail peek). */
   actions?: ReactNode;
   children: ReactNode;
@@ -83,6 +88,7 @@ export function ShipmentContainerCell({
   placeholder,
   displayTitle,
   subValue,
+  labelNote,
   actions,
   children,
   fieldId,
@@ -212,6 +218,9 @@ export function ShipmentContainerCell({
           {labelText}
           {requiredMark && <span className="csc-container-cell__label-req">*</span>}
         </span>
+      )}
+      {labelNote && (
+        <span className="csc-container-cell__label-note">{labelNote}</span>
       )}
       <div className="csc-container-cell__value">
         <span

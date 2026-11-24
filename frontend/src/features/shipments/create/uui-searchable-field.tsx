@@ -251,6 +251,23 @@ export function USearchableField({
     supportingText?: string;
     children?: ComboItem[];
   };
+  // SIL-948 (KB Ch.10 §10.5.2 — MasterDataNhaMay §3.1): with a create footer
+  // mounted, the footer's searchText rides the typed value, so RAC's list
+  // never empties and the base renderEmptyState ("Không tìm thấy kết quả")
+  // can never fire. Mirror RAC's own filter — same matchesComboboxSearch
+  // predicate over the same `${label} ${searchText}` chain — across the REAL
+  // options only: zero matches surfaces the KB's no-results line as an inert
+  // row above the footer (which stays the last option). "askey"/"xuong"
+  // (diacritic-insensitive) match through this same predicate, so a matching
+  // keyword keeps the row away and a keyword still never creates a factory.
+  const hasMatchingOption = options.some((option) =>
+    matchesComboboxSearch(`${option.label} ${option.searchText ?? ''}`.trim(), inputValue ?? ''),
+  );
+  const emptyResultItem: ComboItem | null = createOption && !hasMatchingOption
+    ? // searchText rides the typed value like the footer's — RAC's own filter
+      // must keep this row visible exactly while nothing real matches.
+      { id: '__empty__', label: 'Không tìm thấy kết quả', searchText: inputValue ?? '', supportingText: undefined }
+    : null;
   const comboBoxItems: ComboItem[] = (() => {
     const toComboItem = (option: { value: string; label: string; searchText?: string; supportingText?: string }): ComboItem => ({
       id: option.value,
@@ -260,7 +277,7 @@ export function USearchableField({
     });
     const hasSections = options.some((option) => option.section != null && option.section !== '');
     if (!hasSections) {
-      return options.map(toComboItem).concat(createOption ? [{
+      return options.map(toComboItem).concat(emptyResultItem ? [emptyResultItem] : [], createOption ? [{
         id: '__create__',
         label: createOption.label ? createOption.label(inputValue ?? '') : '+ Thêm',
         searchText: inputValue ?? '',
@@ -279,7 +296,7 @@ export function USearchableField({
       }
       group.children!.push(toComboItem(option));
     }
-    return sections.concat(createOption ? [{
+    return sections.concat(emptyResultItem ? [emptyResultItem] : [], createOption ? [{
       id: '__create__',
       label: createOption.label ? createOption.label(inputValue ?? '') : '+ Thêm',
       searchText: inputValue ?? '',
@@ -342,6 +359,11 @@ export function USearchableField({
           typedCustomTextRef.current = null;
         }}
         onSelectionChange={(key) => {
+          if (String(key) === '__empty__') {
+            // SIL-948: the KB no-results row is informational — it can never
+            // commit a value (a real pick or the footer must do that).
+            return;
+          }
           if (createOption && String(key) === '__create__') {
             // FB-066 lần 3 (card 201026101600): the create row is a REAL pick
             // — mark it on both key channels (internal + controlled agree), or
@@ -447,7 +469,20 @@ export function USearchableField({
           searchText?: string;
           supportingText?: string;
           children?: Array<{ id: string | number; label?: string; searchText?: string; supportingText?: string }>;
-        }) => (Array.isArray(item.children)
+        }) => (String(item.id) === '__empty__' ? (
+          // SIL-948: the no-results line renders as a real DISABLED option so
+          // it lives inside RAC's filtered list (its textValue carries the
+          // typed value like the footer's) while staying unpickable — same
+          // inert treatment the base renderEmptyState gives its status line.
+          <SelectItem
+            id={item.id}
+            value={item}
+            className="csc-searchable-field__empty-row"
+            label={item.label}
+            isDisabled
+            textValue={`${item.label} ${item.searchText ?? ''}`.trim()}
+          />
+        ) : Array.isArray(item.children)
           ? (
             <ListBoxSection>
               {item.label ? (

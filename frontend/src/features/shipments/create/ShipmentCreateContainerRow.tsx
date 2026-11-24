@@ -574,6 +574,12 @@ export function ShipmentCreateContainerRow({
         error={issueByField.get(`container-${row.key}-route`)}
         picker
         mobileFieldChrome
+        // SIL-948 (KB Ch.10 §10.5.2 — MasterDataNhaMay §3.1): the route is
+        // locked exactly when the chosen factory carries one (`disabled`
+        // below uses the same condition) — say so in words, not only through
+        // the disabled gray paint. The §3.2 exception (factory without a
+        // configured route) keeps the picker editable and the note away.
+        labelNote={factory?.routeId != null ? 'Theo nhà máy' : undefined}
       >
         <div className="csc-route-picker">
           <SearchableField
