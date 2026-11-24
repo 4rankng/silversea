@@ -135,7 +135,7 @@ interface DispatchPlanEditorCellProps {
    *  this signal: the grid bumps `nonce` with the row's `detailRowKey`, the
    *  matching cell calls its own openEditor (decompose + live-trip reroute
    *  included), then consumes the request. */
-  openRequest?: { key: string; nonce: number } | null;
+  openRequest?: { key: string; nonce: number; forceEdit?: boolean } | null;
   /** Clears the grid's pending open-request once consumed. */
   onOpenRequestConsumed?: () => void;
   disabled?: boolean;
@@ -523,7 +523,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     openRequestRef.current = openRequest;
     if (openRequest.key !== detailRowKey(row)) return;
     onOpenRequestConsumed?.();
-    void openEditor();
+    void openEditor(openRequest.forceEdit === true);
   }, [openRequest, row, onOpenRequestConsumed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -707,13 +707,19 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     return [{ value: draft.vehicleValue, label }, ...withoutDuplicate];
   }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.pricing?.containerTypeCode, row.container.containerTypeLabel, row.container.cargoWeightKg, suggestions, vehicleOptions]);
 
-  async function openEditor() {
+  async function openEditor(forceEdit = false) {
     if (disabled || ensuring) return;
     // An issued order owns a trip. While it runs, its vehicle can only leave
     // through the Hủy phân xe flow (SIL-708 — Phân xe lại is gone). Once it
     // completes, the plan is frozen history — the backend's live-trip guard
-    // rejects any plan save, so the editor must never open.
-    if (row.dispatch.tripId != null && canReassignIssuedTrip(row)) {
+    // rejects any plan save, so the editor must never open. DIS-10 / K4.19
+    // (SIL-955): the ⋯ menu's 'Đổi nhà xe/BKS' forces the dialog open for a
+    // trip still CREATED — the plan save is legal pre-departure (the backend
+    // blocks non-CREATED live trips only).
+    // Strict `=== true`: the carrier button binds onClick={openEditor}, whose
+    // first argument is the click event — only the grid's explicit forceEdit
+    // signal may bypass the live-trip reroute.
+    if (forceEdit !== true && row.dispatch.tripId != null && canReassignIssuedTrip(row)) {
       if (onCancelDispatch) {
         onCancelDispatch(row);
       }
@@ -1052,7 +1058,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
         <button
           type="button"
           className={`dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action${unassigned ? ' is-placeholder' : ''}`}
-          onClick={openEditor}
+          onClick={() => void openEditor()}
           aria-haspopup="dialog"
           aria-label={canReassign
             ? `Hủy phân xe · ${carrierLabel} · ${identity}`

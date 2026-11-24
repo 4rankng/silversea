@@ -315,11 +315,18 @@ export function DetailedPlanGrid({
   // matching DispatchPlanEditorCell (table cell or hidden card mount) picks
   // it up, runs the same guarded openEditor (live-trip reroute + branch
   // decompose included) and consumes the request.
-  const [editRequest, setEditRequest] = useState<{ key: string; nonce: number } | null>(null);
+  const [editRequest, setEditRequest] = useState<{ key: string; nonce: number; forceEdit?: boolean } | null>(null);
   const editNonceRef = useRef(0);
   const requestEditPlan = (row: DispatchDetailPlanRow) => {
     editNonceRef.current += 1;
     setEditRequest({ key: detailRowKey(row), nonce: editNonceRef.current });
+  };
+  // DIS-10 / K4.19 (SIL-955): the ⋯ menu's 'Đổi nhà xe/BKS' opens the editor
+  // for a trip-CREATED row WITHOUT the SIL-708 cancel reroute — the plan save
+  // is legal pre-departure (the backend blocks non-CREATED live trips only).
+  const requestChangeVehicle = (row: DispatchDetailPlanRow) => {
+    editNonceRef.current += 1;
+    setEditRequest({ key: detailRowKey(row), nonce: editNonceRef.current, forceEdit: true });
   };
   const consumeEditRequest = () => setEditRequest(null);
 
@@ -674,6 +681,7 @@ export function DetailedPlanGrid({
               selectedLclShipmentIds={selectedLclShipmentIds}
               onToggleLclSelection={onToggleLclSelection}
               onEditPlan={requestEditPlan}
+              onChangeVehicle={requestChangeVehicle}
               onChangeGroupTruckInline={openGroupTruckEdit}
               onCancelDispatch={onCancelDispatch}
               onUpdateExternalPlate={onUpdateExternalPlate}
@@ -1212,6 +1220,7 @@ export function DetailedPlanGrid({
                       <DispatchRowActionsMenu
                         row={row}
                         onEditPlan={requestEditPlan}
+                        onChangeVehicle={requestChangeVehicle}
                         onChangeGroupTruckInline={openGroupTruckEdit}
                         onCancelDispatch={onCancelDispatch}
                         onUpdateExternalPlate={onUpdateExternalPlate}

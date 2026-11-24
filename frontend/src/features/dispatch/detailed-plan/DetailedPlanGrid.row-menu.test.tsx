@@ -267,6 +267,42 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
   });
 });
 
+// DIS-10 / K4.19 (SIL-955, QA 24/11) — the ⋯ menu on an ASSIGNED row whose
+// trip is still CREATED carries 'Đổi nhà xe/BKS': the governed Chỉnh sửa
+// điều phối dialog opens DIRECTLY (no cancel reroute — the plan save is
+// legal pre-departure; the backend blocks only non-CREATED live trips).
+// IN_TRANSIT rigs stay locked: no entry, Hủy phân xe remains the flow.
+describe('DIS-10 — row menu Đổi nhà xe/BKS on assigned trip-CREATED rows (SIL-955)', () => {
+  it('carries the item and opens the editor without the cancel reroute', async () => {
+    const onCancelDispatch = vi.fn();
+    renderGrid(makeRow({
+      taskStatus: 'DISPATCHED',
+      cargoMode: 'FCL',
+      lclGroup: null,
+      dispatch: { tripId: 90, tripStatus: 'CREATED' },
+    }), { onCancelDispatch });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' }));
+    expect(await screen.findByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeTruthy();
+    expect(onCancelDispatch).not.toHaveBeenCalled();
+  });
+
+  it('an IN_TRANSIT rig carries no item — Hủy phân xe stays the only flow', () => {
+    renderGrid(makeRow({
+      taskStatus: 'DISPATCHED',
+      cargoMode: 'FCL',
+      lclGroup: null,
+      dispatch: { tripId: 91, tripStatus: 'IN_TRANSIT' },
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
+  });
+});
+
 // SIL-590 (id 690) — "Gộp hàng" lives ON THE ROW: the customer's report
 // (29/10/2026) was that the merge action threw them back to Kế hoạch Tổng
 // quát instead of merging at Kế hoạch Chi tiết. The menu's entry turns the

@@ -57,7 +57,7 @@ export interface DispatchCardEditorProps {
   autoOpenFulfillmentId?: number | null;
   onAutoOpenConsumed?: (id: number) => void;
   onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
-  editRequest: { key: string; nonce: number } | null;
+  editRequest: { key: string; nonce: number; forceEdit?: boolean } | null;
   onOpenRequestConsumed: () => void;
 }
 
@@ -67,6 +67,8 @@ interface DispatchPlanCardListProps extends DispatchCardEditorProps {
   onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
   /** Row ⋯ menu wiring (Sửa / Đổi nhà xe/BKS / Hủy phân xe / Ghép / Tách nhóm / Xóa lô). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
+  /** DIS-10 / K4.19 (SIL-955) — 'Đổi nhà xe/BKS' on assigned trip-CREATED rows. */
+  onChangeVehicle?: (row: DispatchDetailPlanRow) => void;
   onChangeGroupTruckInline: (row: DispatchDetailPlanRow) => void;
   /** SIL-708 — Hủy phân xe flow for live issued trips. */
   onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
@@ -197,7 +199,7 @@ function infoMetaLine(row: DispatchDetailPlanRow, lift: string, drop: string): s
  *  the menu's "Sửa điều phối" opens the exact same dialog the table serves. */
 export function DispatchPlanCardList({
   items, selectedLclShipmentIds, onToggleLclSelection,
-  onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
+  onEditPlan, onChangeVehicle, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
   onOpenGroupMenu, onExpandNote,
   onAtomicSave, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck,
   editRequest, onOpenRequestConsumed,
@@ -327,6 +329,7 @@ export function DispatchPlanCardList({
                   <DispatchRowActionsMenu
                     row={row}
                     onEditPlan={onEditPlan}
+                    onChangeVehicle={onChangeVehicle}
                     onChangeGroupTruckInline={onChangeGroupTruckInline}
                     onCancelDispatch={onCancelDispatch}
                     onUpdateExternalPlate={onUpdateExternalPlate}

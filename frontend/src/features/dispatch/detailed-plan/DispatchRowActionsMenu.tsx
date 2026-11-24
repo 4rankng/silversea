@@ -59,7 +59,7 @@ const MENU_DANGER_BLOCK_H = 46;
  * external live trips so the old foot button could be removed without
  * losing the staff close flow.
  */
-export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, triggerless = false, openRequest, onOpenRequestConsumed }: {
+export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, onChangeVehicle, triggerless = false, openRequest, onOpenRequestConsumed }: {
   row: DispatchDetailPlanRow;
   /** Opens the row's plan editor (the grid routes it to the cell's signal). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
@@ -92,6 +92,11 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
    *  shows the paper-plane instead); the menu still mounts so the card-body
    *  signal can open it. */
   triggerless?: boolean;
+  /** DIS-10 / K4.19 (SIL-955) — 'Đổi nhà xe/BKS' on an assigned row whose
+   *  trip is still CREATED: opens the governed Chỉnh sửa điều phối dialog
+   *  (the plan save is legal pre-departure; the backend blocks only
+   *  non-CREATED live trips). Absent → no entry. */
+  onChangeVehicle?: (row: DispatchDetailPlanRow) => void;
   /** Card-body tap signal (same nonce pattern the editor cell consumes). */
   openRequest?: RowMenuOpenRequest | null;
   /** Clears the caller's pending signal once consumed. */
@@ -108,6 +113,16 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   // Same live-trip law as the editor trigger (DispatchPlanEditorCell): a
   // reassignment before departure goes through the governed dialog.
   const canReassignIssued = canReassignIssuedTrip(row);
+  // DIS-10 / K4.19 (SIL-955): the ⋯ menu carries 'Đổi nhà xe/BKS' on an
+  // assigned row whose trip is still CREATED — the plan save is legal there
+  // (the backend blocks non-CREATED live trips; IN_TRANSIT rigs are locked
+  // mid-run). Grouped LCL rows already own their Đổi nhà xe/BKS item (the
+  // group-truck edit) — this entry stays off them. The Hủy phân xe item
+  // above remains the governed flow for non-CREATED live trips.
+  const canChangeVehicle = onChangeVehicle != null
+    && canReassignIssued
+    && row.dispatch.tripStatus === 'CREATED'
+    && lclGroup == null;
   // DispatchPairAction law (LoHangKepKetHop §3.1): unpaired OWN-carrier row
   // that already has a trip.
   const canPair = onOpenPair != null
@@ -141,7 +156,7 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
     && canReassignIssuedTrip(row);
 
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
-  const itemCount = 1 + (canCompleteExternal ? 1 : 0) + (canUpdateExternalPlate ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canStartLclMerge ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
+  const itemCount = 1 + (canChangeVehicle ? 1 : 0) + (canCompleteExternal ? 1 : 0) + (canUpdateExternalPlate ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canStartLclMerge ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
   const menuHeight = itemCount * MENU_ITEM_H + (onDeleteLot ? MENU_DANGER_BLOCK_H : 0) + 12;
 
   const placeAt = (anchor: { top: number; left: number; right: number; bottom: number } | null | undefined) => {
@@ -218,6 +233,20 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
         >
           <PencilLine size={14} aria-hidden="true" />
           Sửa điều phối
+        </button>
+      )}
+      {canChangeVehicle && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            onChangeVehicle?.(row);
+          }}
+          title="Đổi nhà xe / biển số cho chuyến chưa xuất phát — mở hộp thoại Chỉnh sửa điều phối"
+        >
+          <Repeat size={14} aria-hidden="true" />
+          Đổi nhà xe/BKS
         </button>
       )}
       {canUpdateExternalPlate && (
