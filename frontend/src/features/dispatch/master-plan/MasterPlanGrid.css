@@ -450,6 +450,17 @@
   bottom: 8px;
 }
 
+/* K10.38 (SIL-972) — the `· Ghép (k/N)` suffix widened the pill; in the
+   dense [Gộp hàng] table its right-aligned band (right: 12px + ~150px of
+   label at 12px/500) now reaches the bottom muted measures line and paints
+   over its tail (QA: "đè nhẹ lên dòng số liệu phía sau"). The counted
+   chip's cell reserves the pill's footprint on that bottom line only — the
+   pill stays zero-layout (owner 10/11 directive stands) and the data line
+   wraps before it. Bare chips leave the cell untouched. */
+.master-plan-grid__cell--cargo:has(.master-plan-grid__lcl-chip--counted) .master-plan-grid__line--muted:last-child {
+  padding-right: 164px;
+}
+
 /* Appointment days read as a bullet-less list: the date is the list row and
    that day's close/return lines indent beneath it. */
 .master-plan-grid__line--sub {

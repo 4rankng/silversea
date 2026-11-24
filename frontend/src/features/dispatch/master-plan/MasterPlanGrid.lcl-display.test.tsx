@@ -333,10 +333,11 @@ describe('MasterPlanGrid — the LCL flag is a chip (SIL-708)', () => {
 });
 
 // K10.38 (SIL-972) — the merged row names its position and its money law:
-// the chip reads `· Ghép (k/N)` (k = costGroupOrder, N = the group's LIVE
-// member count the wire carries) and the 0₫/100% reason rides the row.
-// Older payloads without the counts degrade to the bare `· Ghép` — the
-// SIL-589/708/951 pins above keep pinning that shape.
+// the chip reads `· Ghép (k/N)` (k = the lot's 1-based order, N = the
+// group's LIVE member count the wire carries — cost side first, rev side
+// when the lot is only rev-merged, SIL-972) and the 0₫/100% reason rides
+// the row. Older payloads without the counts degrade to the bare `· Ghép`
+// — the SIL-589/708/951 pins above keep pinning that shape.
 describe('MasterPlanGrid — Ghép (k/N) counts + the 0₫/100% reason (K10.38/SIL-972)', () => {
   it('a merged lot reads Ghép (k/N) with its position and the live member count', () => {
     render(<MasterPlanGrid
@@ -390,6 +391,55 @@ describe('MasterPlanGrid — Ghép (k/N) counts + the 0₫/100% reason (K10.38/S
   it('an ungrouped lot carries no reason line at all', () => {
     render(<MasterPlanGrid items={[lclItem()]} onAllocate={vi.fn()} />);
     expect(cell('Tổng quan hàng hóa').querySelector('.master-plan-grid__lcl-reason')).toBeNull();
+  });
+
+  // SIL-972 (KB K10.38 §10.6.10) — the flag must agree with the reason line
+  // on the REV dimension too: the W3A repro lots (revGroupId != null,
+  // revGroupOrder 1..3/3, costGroupId = null) showed the bare direction chip
+  // with the "chưa ghép nhóm" title while the reason line already said
+  // "ghép thu cước cùng Lô 1".
+  it('a rev-side merged lot reads Ghép (k/N) on the chip too (SIL-972 W3A repro)', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ tradeDirection: 'EXPORT', revGroupId: 'rgp-w3a', revGroupOrder: 2, revGroupMemberCount: 3 })]}
+      onAllocate={vi.fn()}
+    />);
+    const cargo = cell('Tổng quan hàng hóa');
+    const chip = cargo.querySelector('.master-plan-grid__lcl-chip');
+    expect(chip?.textContent).toBe('XUẤT LẺ · Ghép (2/3)');
+    expect(chip?.getAttribute('title')).toBe('Lô hàng lẻ đã ghép thu cước cùng nhóm');
+    expect(chip?.className).toContain('master-plan-grid__lcl-chip--counted');
+  });
+
+  it('the rev principal reads its own 1/N position on the chip', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ tradeDirection: 'EXPORT', revGroupId: 'rgp-w3a', revGroupOrder: 1, revGroupMemberCount: 3 })]}
+      onAllocate={vi.fn()}
+    />);
+    expect(within(cell('Tổng quan hàng hóa')).getByText('XUẤT LẺ · Ghép (1/3)')).toBeTruthy();
+  });
+
+  it("a lot in both groups leads with the cost side's counts", () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ costGroupId: 'grp-k1038', costGroupOrder: 1, costGroupMemberCount: 2, revGroupId: 'rgp-w3a', revGroupOrder: 3, revGroupMemberCount: 3 })]}
+      onAllocate={vi.fn()}
+    />);
+    expect(within(cell('Tổng quan hàng hóa')).getByText('NHẬP LẺ · Ghép (1/2)')).toBeTruthy();
+  });
+
+  it('an older rev payload without counts degrades to the bare Ghép chip', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ tradeDirection: null, revGroupId: 'rgp-old' })]}
+      onAllocate={vi.fn()}
+    />);
+    const chip = cell('Tổng quan hàng hóa').querySelector('.master-plan-grid__lcl-chip');
+    expect(chip?.textContent).toBe('HÀNG LẺ · Ghép');
+    expect(chip?.className).not.toContain('master-plan-grid__lcl-chip--counted');
+  });
+
+  it('reserves the counted pill footprint on the bottom measures line (no paint-over)', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
+    const rule = css.match(/\.master-plan-grid__cell--cargo:has\(\.master-plan-grid__lcl-chip--counted\) \.master-plan-grid__line--muted:last-child\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toContain('padding-right: 164px');
   });
 
   it('the xlsx export carries the counts in the merged badge', () => {

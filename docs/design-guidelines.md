@@ -687,7 +687,13 @@ supersessions from the /dispatch master-plan lane:
    cell AND the phone card's Loại token; label/title from one helper (`lclLotFlag`) so the
    surfaces cannot disagree. Still a static fact, not a control (span, no role/tabindex,
    no hover/focus; title keeps the group detail). FCL rows carry no flag (SIL-589 stands).
-   The §1 data-cells text law stays in force everywhere else.
+   K10.38 (SIL-972, KB §10.6.10): a merged lot's chip carries `· Ghép (k/N)` — k/N read from
+   the lot's merged dimension (cost `costGroupOrder`/`costGroupMemberCount` first, rev
+   `revGroupOrder`/`revGroupMemberCount` when the lot is only rev-merged), degrading to bare
+   `· Ghép` on older payloads; the counted pill's cell reserves its footprint on the bottom
+   measures line (`:has(.master-plan-grid__lcl-chip--counted)` clearance) so the wider label
+   cannot paint over the data line in the dense [Gộp hàng] table (owner 10/11 zero-layout
+   placement unchanged). The §1 data-cells text law stays in force everywhere else.
 2. *The data-table rail renders edge-to-edge (owner doctrine 30/10).* The master-plan
    wrapper bleeds the shell gutter token (`margin-inline: calc(-1 * var(--app-body-pad-x))`
    + `width: calc(100% + 2 * …)` — a percentage width alone pins the box so the right edge

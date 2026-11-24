@@ -32,28 +32,41 @@ export function isLclLotRow(
  * rows (the grid renders one fact once).
  *
  * K10.38 (SIL-972): a merged row's label carries the group counts the KB
- * names — `· Ghép (k/N)` with k = the lot's 1-based group order
- * (`costGroupOrder`) and N = the group's LIVE member count
- * (`costGroupMemberCount`, soft-deleted members excluded). The counts render
+ * names — `· Ghép (k/N)` with k = the lot's 1-based group order and N = the
+ * group's LIVE member count (soft-deleted members excluded), read from the
+ * lot's merged dimension: cost side (`costGroupOrder`/`costGroupMemberCount`)
+ * leads when the lot is in a ghép-trả-ĐV group, otherwise the rev side
+ * (`revGroupOrder`/`revGroupMemberCount`). SIL-972 repro (W3A-LCL-0x):
+ * rev-only lots carried `revGroupId != null, costGroupId = null` and the chip
+ * fell back to the bare direction label — the flag must agree with
+ * `lclLotGroupReasons`, which already read `revGroupId`. The counts render
  * only when the wire carries them (older payloads degrade to `· Ghép`).
+ * `counted` says whether the (k/N) suffix rendered — the grid's cargo cell
+ * keys the measures-line clearance class on it (the wider pill can paint
+ * over the line it floats over in the dense [Gộp hàng] table).
  */
 export function lclLotFlag(
-  item: Pick<ShipmentListItem, 'cargoMode' | 'hasActiveLclShipment' | 'costGroupId' | 'costGroupOrder' | 'costGroupMemberCount' | 'actualTruckNo' | 'tradeDirection'>,
-): { label: string; title: string } {
+  item: Pick<ShipmentListItem, 'cargoMode' | 'hasActiveLclShipment' | 'costGroupId' | 'costGroupOrder' | 'costGroupMemberCount' | 'revGroupId' | 'revGroupOrder' | 'revGroupMemberCount' | 'actualTruckNo' | 'tradeDirection'>,
+): { label: string; title: string; counted: boolean } {
   const direction = item.tradeDirection === 'IMPORT'
     ? 'NHẬP LẺ'
     : item.tradeDirection === 'EXPORT'
       ? 'XUẤT LẺ'
       : 'HÀNG LẺ';
-  if (item.costGroupId == null) {
-    return { label: direction, title: 'Lô hàng lẻ (LCL) — chưa ghép nhóm' };
+  if (item.costGroupId == null && item.revGroupId == null) {
+    return { label: direction, title: 'Lô hàng lẻ (LCL) — chưa ghép nhóm', counted: false };
   }
-  const counts = item.costGroupOrder != null && item.costGroupMemberCount != null
-    ? ` (${item.costGroupOrder}/${item.costGroupMemberCount})`
-    : '';
+  const costSide = item.costGroupId != null;
+  const order = costSide ? item.costGroupOrder : item.revGroupOrder;
+  const count = costSide ? item.costGroupMemberCount : item.revGroupMemberCount;
+  const counts = order != null && count != null ? ` (${order}/${count})` : '';
+  const merged = costSide
+    ? 'Lô hàng lẻ đã ghép trả ĐV cùng nhóm'
+    : 'Lô hàng lẻ đã ghép thu cước cùng nhóm';
   return {
     label: `${direction} · Ghép${counts}`,
-    title: `Lô hàng lẻ đã ghép trả ĐV cùng nhóm${item.actualTruckNo ? ` — BKS thực ${item.actualTruckNo}` : ''}`,
+    title: `${merged}${item.actualTruckNo ? ` — BKS thực ${item.actualTruckNo}` : ''}`,
+    counted: counts !== '',
   };
 }
 

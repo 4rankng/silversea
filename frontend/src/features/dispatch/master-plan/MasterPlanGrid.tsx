@@ -430,8 +430,11 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           0,01 tấn" — reads identical to a FCL weight line).
                           A lot already merged into a ghép-trả-ĐV group says
                           so ("Lẻ · Ghép"), keyed off the same costGroupId the
-                          CHỌN checkbox disables on, so a merged lot can never
-                          look mergeable again.
+                          CHỌN checkbox disables on; a ghép-thu-cược (rev) group
+                          says it from revGroupId/revGroupOrder/
+                          revGroupMemberCount (SIL-972) — chip and reason
+                          line read the same merged dimension — so a merged
+                          lot can never look mergeable again.
                           SIL-708 (id 708, QA 30/10) — that text-only voice
                           read like every other meta line on the board ("chỉ
                           là chữ trơn, khó nhận biết nhanh"): the flag is now
@@ -444,7 +447,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         const reasons = lclLotGroupReasons(item);
                         return (
                           <>
-                            <span className="master-plan-grid__lcl-chip" title={flag.title}>
+                            <span
+                              className={`master-plan-grid__lcl-chip${flag.counted ? ' master-plan-grid__lcl-chip--counted' : ''}`}
+                              title={flag.title}
+                            >
                               {flag.label}
                             </span>
                             {/* K10.38 (SIL-972) — the merged lot's 0₫/100%
