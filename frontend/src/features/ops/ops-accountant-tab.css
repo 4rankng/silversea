@@ -45,9 +45,9 @@
 .ops-acc .ops-wallet__col--bill { width: 13.9%; }
 .ops-acc .ops-acc__col--cont { width: 10.1%; }
 .ops-acc .ops-wallet__col--customer { width: 10.4%; }
-.ops-acc .ops-wallet__col--declaration { width: 4.8%; }
-.ops-acc .ops-acc__col--invoice { width: 3.75%; }
-.ops-acc .ops-acc__col--fee { width: 4.75%; }
+/* SỐ TỜ KHAI / SỐ HĐ / LOẠI PHÍ no longer carry % shares — CR-010.1 BUG-09
+   (SIL-904 round 10) sizes them with px track widths below (the only cell
+   property `table-layout: fixed` honors for track sizing). */
 .ops-acc .ops-acc__col--amount { width: 9.83%; }
 .ops-acc .ops-acc__col--payer { width: 5.7%; }
 .ops-acc .ops-acc__col--receipt { width: 6.2%; }
@@ -143,18 +143,26 @@
   word-break: keep-all;
 }
 
-/* CR-010.1 (BUG-09) — SỐ TỜ KHAI / SỐ HĐ / LOẠI PHÍ data cells. QA tokens
-   ('QAH/Đ-8/61-/B02', 'contai/ner') broke mid-token under the .tt-table base
-   (`white-space: normal; overflow-wrap: anywhere`, Table.css): an identity
-   number must stay ONE token (wrap mid-token = lost number, the SIL-884 bill
-   law), so tờ khai + Số HĐ cells go nowrap and their th floors force the
-   fixed-layout tracks wider than the SIL-895 shares (120px / 110px content
-   bands — the QA tờ khai 'QAH/Đ-8/61-/B02' ≈ 95px and an invoice token up to
-   ~86px hold whole). LOẠI PHÍ wraps at word boundaries only: fee names with
-   spaces still wrap, never 'contai/ner'. The floors exceed the 1144px budget,
-   so the scroll wrapper gains the horizontal scroll the wallet page already
-   owns (ops-accountant-tab.css is loaded WITHOUT OpsWalletPage.css on
-   /advances — .ops-wallet__scroll has no rule there). */
+/* CR-010.1 (BUG-09, SIL-904 round 10) — SỐ TỜ KHAI / SỐ HĐ / LOẠI PHÍ data
+   cells. QA Rounds 8+9 (staging 7a0ac8ff) proved the 85d563dc law inert: it
+   pinned `white-space: nowrap` on the cells but sized the tracks with
+   `min-width` — under `table-layout: fixed` (CSS 2.1 §17.5.2.1) ONLY a
+   specified `width` sizes the track, so SỐ TỜ KHAI stayed at its ≈53px share
+   and the nowrap '309183503920' (≈93px) painted straight over SỐ HĐ
+   ('360402' read as '309183503920402', '36' hidden), while SỐ HĐ tokens
+   (~98px) overflowed onto LOẠI PHÍ. The tracks are now REAL px widths — in
+   fixed layout a px width wins verbatim, the used table width becomes
+   max(specified width, sum of column widths), and the scroll wrapper takes
+   the overflow (~220px of board scroll at the 1440 sidebar-open canvas, the
+   ticket's accepted bound). 124px holds the 12-digit QA tờ khai
+   (93.4px + 24px chrome); 126px holds 'TEST-QA-CR0101' (~98px); 120px wraps
+   'Hải quan luồng xanh' at word boundaries only (never 'contai/ner').
+   NOTE (QA 'INV-4C-001INV-4C-001'): the SỐ HĐ cell renders `row.invoiceNumber`
+   exactly once (single ternary branch, OpsAccountantTab.tsx) and every BE
+   writer SETs the column verbatim (ops-expenses.service, upsert/replay
+   audited 24/11) — a doubled DOM string is a doubled STORED value on that
+   staging row; repair it through the inline SỐ HĐ edit, no CSS/TSX law can
+   hide data. */
 .ops-acc .ops-wallet__scroll {
   overflow-x: auto;
 }
@@ -165,11 +173,15 @@
 }
 
 .ops-acc th.ops-wallet__col--declaration {
-  min-width: 120px;
+  width: 124px;
 }
 
 .ops-acc th.ops-acc__col--invoice {
-  min-width: 110px;
+  width: 126px;
+}
+
+.ops-acc th.ops-acc__col--fee {
+  width: 120px;
 }
 
 .ops-acc td.ops-acc__cell--fee {

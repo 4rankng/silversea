@@ -42,24 +42,52 @@ describe('Chi phí Ops header wrap law (SIL-858)', () => {
 
   it('keeps the SIL-877 shares for the identity columns and adds the SIL-895 cont share', () => {
     expect(css).toContain('.ops-acc .ops-wallet__col--customer { width: 10.4%; }');
-    expect(css).toContain('.ops-acc .ops-wallet__col--declaration { width: 4.8%; }');
     expect(css).toContain('.ops-acc .ops-wallet__col--bill { width: 13.9%; }');
     expect(css).toContain('.ops-acc .ops-acc__col--cont { width: 10.1%; }');
   });
 
-  it('SIL-895 round 4 — every board column carries its measured share (sums to 100% with the 34px select rail)', () => {
+  it('CR-010.1 BUG-09 round 10 (SIL-904) — the three identity tracks carry REAL px widths (fixed layout ignores min-width)', () => {
+    // CSS 2.1 §17.5.2.1: under table-layout:fixed ONLY a specified width
+    // sizes the track. The round-9 law's `min-width` th floors were inert —
+    // SỐ TỜ KHAI stayed at its ≈53px share and the nowrap '309183503920'
+    // painted over SỐ HĐ ('309183503920402', '36' hidden). px widths win
+    // verbatim; the table grows past 100% (used table width = max(specified
+    // width, sum of column widths)) and the scroll wrapper takes the rest.
+    expect(css).toContain('.ops-acc th.ops-wallet__col--declaration {\n  width: 124px;\n}');
+    expect(css).toContain('.ops-acc th.ops-acc__col--invoice {\n  width: 126px;\n}');
+    expect(css).toContain('.ops-acc th.ops-acc__col--fee {\n  width: 120px;\n}');
+    // a % share under a px width is dead weight — none may survive
+    expect(css).not.toContain('.ops-wallet__col--declaration { width:');
+    expect(css).not.toContain('.ops-acc__col--invoice { width:');
+    expect(css).not.toContain('.ops-acc__col--fee { width:');
+    // identity numbers stay ONE token; LOẠI PHÍ wraps at word boundaries only
+    const nowrapRule = css.match(/\.ops-acc td\.ops-acc__cell--declaration,\s*\.ops-acc td\.ops-acc__cell--invoice\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(nowrapRule).toContain('white-space: nowrap');
+    const feeRule = css.match(/\.ops-acc td\.ops-acc__cell--fee\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(feeRule).toContain('overflow-wrap: normal');
+    expect(feeRule).toContain('word-break: normal');
+    // the board scrolls instead of squeezing the floors back
+    const scrollRule = css.match(/\.ops-acc \.ops-wallet__scroll\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(scrollRule).toContain('overflow-x: auto');
+    // floors hold the QA tokens one line (Inter Digits 7.78px/digit + 24px chrome)
+    expect(124 - 24).toBeGreaterThanOrEqual(12 * 7.78); // tờ khai '309183503920'
+    expect(126 - 24).toBeGreaterThanOrEqual(97.5); // Số HĐ 'TEST-QA-CR0101' ≈97.5px rendered
+  });
+
+  it('SIL-895 round 4 — every board column carries its measured share (BUG-09: 3 tracks are px floors, board scrolls)', () => {
     // The 1440px sidebar-open canvas gives the table ~1144px: these floors
     // (rendered with the app's real faces loaded explicitly) leave the QA
     // bill tokens + a 16-char worst case one line, keep cont/date/money
     // whole, and hold every header inside its own cell under the wrap law.
+    // CR-010.1 BUG-09 (SIL-904) moved SỐ TỜ KHAI / SỐ HĐ / LOẠI PHÍ off %
+    // shares onto px track widths (124 + 126 + 120px) — the remaining shares
+    // resolve against the canvas and the table grows past 100% into the
+    // scroll wrapper (used table width = max(specified width, sum of columns)).
     const shares: Array<[string, string]> = [
       ['ops-acc__col--date', '8.85%'],
       ['ops-wallet__col--bill', '13.9%'],
       ['ops-acc__col--cont', '10.1%'],
       ['ops-wallet__col--customer', '10.4%'],
-      ['ops-wallet__col--declaration', '4.8%'],
-      ['ops-acc__col--invoice', '3.75%'],
-      ['ops-acc__col--fee', '4.75%'],
       ['ops-acc__col--amount', '9.83%'],
       ['ops-acc__col--payer', '5.7%'],
       ['ops-acc__col--receipt', '6.2%'],
@@ -67,12 +95,14 @@ describe('Chi phí Ops header wrap law (SIL-858)', () => {
       ['ops-acc__col--confirm', '8.8%'],
       ['ops-acc__col--note', '4.53%'],
     ];
-    let sum = 34 / 1144 * 100;
+    let shareSum = 0;
     for (const [cls, width] of shares) {
       expect(css).toContain(`.ops-acc .${cls} { width: ${width}; }`);
-      sum += Number.parseFloat(width);
+      shareSum += Number.parseFloat(width);
     }
-    expect(sum).toBeCloseTo(100, 1);
+    // rail 34px + identity floors 370px + the measured shares cover the
+    // canvas — the overflow rides the scroll wrapper, never a squeezed track.
+    expect(34 + 370 + (shareSum / 100) * 1144).toBeGreaterThanOrEqual(1144);
   });
 
   it('SIL-895 round 4 — the QA bill literals and the 16-char worst case hold ONE line at the 1440 canvas', () => {
