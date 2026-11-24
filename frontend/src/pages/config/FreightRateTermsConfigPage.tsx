@@ -306,7 +306,11 @@ export default function FreightRateTermsConfigPage() {
           { header: 'Km 1 chiều', className: 'num', render: r => formatNumber(r.billingKmOneWay) },
           { header: 'Giá gốc dầu F', className: 'num', render: r => fmtFuel(r.baseFuelPrice) },
           { header: 'Ngưỡng', render: r => renderThreshold(r) },
-          { header: 'Trễ (ngày)', className: 'num', render: r => String(r.fuelLagDays) },
+          // KB §5.7.4 — an unconfirmed lag is a MISSING contract term: the
+          // stored provisional value stays editable in the form but the grid
+          // must never present it as a (confirmed-looking) 0. NEWWEB is the
+          // only seeded confirmed lag (= 1, §5.2.5).
+          { header: 'Trễ (ngày)', className: 'num', render: r => r.fuelLagConfirmed ? String(r.fuelLagDays) : <span style={{ color: 'var(--ink-3)' }}>Chưa chốt</span> },
           { header: 'Ngày hiệu lực', render: r => formatDate(r.effectiveDate) },
         ]}
         renderForm={p => (

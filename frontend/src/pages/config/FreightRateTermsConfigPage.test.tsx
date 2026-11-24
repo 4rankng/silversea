@@ -84,6 +84,35 @@ describe('freight-rate-terms column floors (ticket 18/11, Web PC 1440)', () => {
   });
 });
 
+describe('Trễ (ngày) column shows the confirmed lag, never a bare provisional 0', () => {
+  function lagCell(row: Partial<FreightRateTermRow>) {
+    renderPage();
+    if (!lastCrudProps) throw new Error('CrudTable props not captured');
+    const columns = lastCrudProps.columns as Array<{ header: string; render: (r: FreightRateTermRow) => ReactNode }>;
+    const lag = columns.find(c => c.header === 'Trễ (ngày)');
+    if (!lag) throw new Error('Trễ (ngày) column missing');
+    return render(<div>{lag.render(row as FreightRateTermRow)}</div>);
+  }
+
+  it('NEWEB-style confirmed lag renders its number (1)', () => {
+    const { container } = lagCell({ fuelLagDays: 1, fuelLagConfirmed: true });
+    expect(container.textContent).toBe('1');
+  });
+
+  it('an unconfirmed lag renders the Chưa chốt label, never the stored 0', () => {
+    // ASKEY / SUNRISE+SJ carry provisional 0s — the grid must not read them
+    // as contract terms (KB §5.7.4: báo thiếu, không tự dùng số 0).
+    const { container } = lagCell({ fuelLagDays: 0, fuelLagConfirmed: false });
+    expect(container.textContent).toBe('Chưa chốt');
+    expect(container.textContent).not.toBe('0');
+  });
+
+  it('an explicitly confirmed 0 (áp ngay) still renders 0', () => {
+    const { container } = lagCell({ fuelLagDays: 0, fuelLagConfirmed: true });
+    expect(container.textContent).toBe('0');
+  });
+});
+
 describe('FreightRateTermsConfigPage — TC-CUOC-003/004 rate terms', () => {
   it('renders the CrudTable surface with desc sort by effectiveDate', () => {
     renderPage();
