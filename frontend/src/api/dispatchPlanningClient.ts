@@ -381,6 +381,12 @@ export interface DispatchDetailPlanRow {
      *  trip driver (or external contact) once issued, else roster driver of
      *  the planned plate. */
     assignedDriverPhone?: string | null;
+    /** K2.31 (SIL-934) — the Moóc column: the live trip's assigned trailer,
+     *  else the planned OWN tractor's current coupling (the issue default).
+     *  External planned rows carry none — the carrier brings its own rig.
+     *  Optional for older fixtures. */
+    assignedTrailerPlate?: string | null;
+    assignedTrailerType?: string | null;
     pairKind?: 'KEP' | 'KET_HOP' | null;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };

@@ -653,7 +653,7 @@ export function DetailedPlanGrid({
 
       {loading ? (
         <div role="status">
-          <SkeletonTable rows={6} cols={10} />
+          <SkeletonTable rows={6} cols={11} />
           <span className="sr-only">Đang tải dữ liệu…</span>
         </div>
       ) : items.length === 0 ? (
@@ -709,6 +709,8 @@ export function DetailedPlanGrid({
               {/* SIL-591 — the per-container tờ khai column (SIL-521 model). */}
               <col className="detailed-plan-grid__col detailed-plan-grid__col--declaration" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--assignment" />
+              {/* K2.31 (SIL-934) — the moóc column: the run's assigned trailer. */}
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--trailer" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--classification" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--notes" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--actions" />
@@ -779,6 +781,8 @@ export function DetailedPlanGrid({
                 <th scope="col" className="detailed-plan-grid__th--container">Container</th>
                 <th scope="col" className="detailed-plan-grid__th--declaration">Số tờ khai</th>
                 <th scope="col">Điều phối</th>
+                {/* K2.31 (SIL-934): the run's assigned moóc rides its own column. */}
+                <th scope="col">Moóc</th>
                 <th scope="col">Phân loại</th>
                 <th scope="col">Ghi chú</th>
                 {/* Owner redesign 23/10 — the ONE pinned action column: the ⋯
@@ -805,6 +809,12 @@ export function DetailedPlanGrid({
                 // Card 20261004_359 — deferred-plate external rows quick-issue
                 // exactly like plated ones (the issue body ships no plate).
                 const canQuickIssue = issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE';
+                // SIL-957 (K4.35) — the batch-release gate hoisted to ROW
+                // scope: a row the batch cannot release dims as a whole and
+                // prints its reason as text on the row (the checkbox tooltip
+                // alone hid the wall between tickable and dead rows).
+                const bulkGate = onToggleBulkSelection ? bulkIssueEligibility(row) : null;
+                const bulkBlocked = bulkGate != null && !bulkGate.eligible;
                 // Schedule law (cards 20261003_304 / 20261002_269 /
                 // 20261003_318) — one shared derivation for table + card
                 // (DispatchPlanCellValues.detailedScheduleLine).
@@ -815,7 +825,7 @@ export function DetailedPlanGrid({
                 const demandLine = detailedDemandLine(row);
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
-                <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}`}>
+                <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}${bulkBlocked ? ' detailed-plan-grid__row--bulk-blocked' : ''}`}>
                   {onToggleBulkSelection ? (
                     /* SIL-884 (5.1) — the batch-release column: only 'Đã điều
                        xe' (or deferred-plate external) rows without a lệnh are
@@ -824,20 +834,21 @@ export function DetailedPlanGrid({
                        a control that can't say why is the loop QA reported. */
                     <td className="detailed-plan-grid__cell detailed-plan-grid__cell--select" data-label="Phát lệnh" data-label-short="Phát">
                       <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--select">
-                        {(() => {
-                          const { eligible, reason } = bulkIssueEligibility(row);
-                          return (
-                            <LclSelectCheckbox
-                              isSelected={selectedBulkFulfillmentIds?.has(row.fulfillmentId) ?? false}
-                              isDisabled={!eligible}
-                              onToggle={(next: boolean) => onToggleBulkSelection(row.fulfillmentId, next, row)}
-                              ariaLabel={`Chọn phát lệnh lô ${billBookingReference(row.docs.billNumber)}`}
-                              title={eligible
-                                ? 'Đã điều xe, chưa phát lệnh — phát theo điều phối đã lưu.'
-                                : reason ?? 'Không đủ điều kiện phát lệnh hàng loạt.'}
-                            />
-                          );
-                        })()}
+                        <LclSelectCheckbox
+                          isSelected={selectedBulkFulfillmentIds?.has(row.fulfillmentId) ?? false}
+                          isDisabled={!bulkGate?.eligible}
+                          onToggle={(next: boolean) => onToggleBulkSelection(row.fulfillmentId, next, row)}
+                          ariaLabel={`Chọn phát lệnh lô ${billBookingReference(row.docs.billNumber)}`}
+                          title={bulkGate?.eligible
+                            ? 'Đã điều xe, chưa phát lệnh — phát theo điều phối đã lưu.'
+                            : bulkGate?.reason ?? 'Không đủ điều kiện phát lệnh hàng loạt.'}
+                        />
+                        {/* SIL-957 (K4.35) — the reason reads as TEXT on the
+                            row, not only on hover: the dispatcher sees the
+                            wall without probing each checkbox. */}
+                        {bulkBlocked && (
+                          <span className="detailed-plan-grid__bulk-reason">{bulkGate?.reason}</span>
+                        )}
                       </div>
                     </td>
                   ) : onToggleLclSelection && (
@@ -1054,6 +1065,21 @@ export function DetailedPlanGrid({
                       openRequest={editRequest?.key === detailRowKey(row) ? editRequest : null}
                       onOpenRequestConsumed={consumeEditRequest}
                     />
+                  </td>
+                  {/* K2.31 (SIL-934) — Moóc: the run's assigned trailer plate
+                      (live trip) or the planned OWN tractor's coupling, with
+                      its type on a muted line; '—' when the row owns none. */}
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--trailer" data-label="Moóc" data-label-short="Moóc">
+                    <div className="detailed-plan-grid__cell-body">
+                      <div className="detailed-plan-grid__line" data-empty={!row.dispatch.assignedTrailerPlate ? 'true' : undefined}>
+                        {row.dispatch.assignedTrailerPlate ?? '—'}
+                      </div>
+                      {row.dispatch.assignedTrailerPlate && row.dispatch.assignedTrailerType && (
+                        <div className="detailed-plan-grid__line detailed-plan-grid__line--muted">
+                          {row.dispatch.assignedTrailerType}
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--classification" data-label="Phân loại" data-label-short="Loại">
                     <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--row">

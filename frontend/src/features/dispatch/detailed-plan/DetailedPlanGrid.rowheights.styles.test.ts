@@ -38,22 +38,27 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
   });
 
   it('keeps balanced column shares summing to 100% for 1440px viewport', () => {
-    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'classification', 'notes', 'actions'];
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'trailer', 'classification', 'notes', 'actions'];
     const shares = names.map((name) => columnShare(name));
     // The ports class covers both port columns (two <col> elements share it).
     const total = shares.reduce((sum, share) => sum + share, 0) + columnShare('ports');
     expect(total).toBe(100);
     expect(columnShare('route')).toBeGreaterThanOrEqual(10);
-    expect(columnShare('assignment')).toBeGreaterThanOrEqual(14);
-    // SIL-795: the floors the shares must still pay at the 1420px table
+    // K2.31 (SIL-934): the Moóc column joins at 6.5%; the reading columns
+    // fund it and the min-width floor rose to 1700px so the measured floors
+    // below still clear at 1% = 17px (schedule 204px ≥ its 180px one-line
+    // header, route 178.5px ≥ its 175px floor).
+    expect(columnShare('trailer')).toBeGreaterThanOrEqual(6.5);
+    expect(columnShare('assignment')).toBeGreaterThanOrEqual(13);
+    // SIL-795: the floors the shares must still pay at the 1700px table
     // floor — notes keeps its wrap budget, schedule PAYS its one-line
     // header (the ≤12.5 cap of the 1440-no-scroll era is retired: the rail
     // scrolls on purpose now, so the cap can no longer be paid honestly).
-    expect(columnShare('notes')).toBeGreaterThanOrEqual(9);
+    expect(columnShare('notes')).toBeGreaterThanOrEqual(8.5);
     expect(columnShare('actions')).toBeGreaterThanOrEqual(6.5);
-    expect(columnShare('schedule')).toBeGreaterThanOrEqual(12); // 192px >= the 180px one-line header floor at the 1600 rail
-    expect(columnShare('route')).toBeGreaterThanOrEqual(11.5); // 184px >= the 175px header floor
-    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1600px;/); // SIL-795 measured floors: documents 118px, declaration 128px, container 101px
+    expect(columnShare('schedule')).toBeGreaterThanOrEqual(12); // 204px >= the 180px one-line header floor at the 1700 rail
+    expect(columnShare('route')).toBeGreaterThanOrEqual(10.5); // 178.5px >= the 175px header floor
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1700px;/); // SIL-795 measured floors + the K2.31 Moóc column
   });
 
   it('SIL-686 (FB-063): every header is ONE line — the th carries the nowrap', () => {
@@ -104,12 +109,13 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     // the grid tests); the cell keeps ONE "Lẻ" (the classification span).
     expect(css).not.toContain("'Lẻ · Ghép (");
     expect(css).not.toContain('"Lẻ · Ghép (');
-    // 6.5% ≈ 92px at the 1420px floor — "PHÂN LOẠI" fits one line (SIL-795
-    // rebalance; the measured one-line label is 85px, the SIL-686 6% share
-    // could not pay it once the pane's 1144px floor proved too narrow).
-    expect(columnShare('classification')).toBe(6.5);
-    // The 0.5% came off notes, keeping the sum at exactly 100.
-    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'classification', 'notes', 'actions'];
+    // 6% = 102px at the 1700px floor — "PHÂN LOẠI" fits one line (SIL-795
+    // rebalance; the measured one-line label is 85px + cell padding).
+    // K2.31 (SIL-934): the column funded the Moóc column's 0.5%.
+    expect(columnShare('classification')).toBe(6);
+    // The shares fund the K2.31 Moóc column (6.5%), keeping the sum at
+    // exactly 100.
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'trailer', 'classification', 'notes', 'actions'];
     const total = names.map((name) => columnShare(name)).reduce((sum, share) => sum + share, 0) + columnShare('ports');
     expect(total).toBe(100);
   });

@@ -250,8 +250,11 @@
      min-width makes every share pay its floor at ANY pane width and the
      wrapper's rail (overflow: auto, MP-RD-03 precedent) carries the
      remainder — the sanctioned "scrolls on purpose" contract for token
-     boards, with the THAO TÁC rail staying sticky-right. */
-  min-width: 1600px;
+     boards, with the THAO TÁC rail staying sticky-right. K2.31 (SIL-934):
+     the 12th column (Moóc) joins — the floor rises by the column's own
+     6.5% share (≈110px at the new 1700px floor) so every older measured
+     floor still clears at 1% = 17px. */
+  min-width: 1700px;
   max-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
@@ -259,13 +262,16 @@
   font-size: var(--ops-table-supporting-size);
 }
 
-/* Shares sum to exactly 100 (ports covers two <col> elements). SIL-686 / SIL-755
-   pinned the 1440 no-scroll shares; SIL-795 (10/11) rebalances them — the
-   owner evidence showed those shares could NOT pay the one-line header law
-   they were written for, and the clipped identifiers violate §4. The new
-   shares hold every one-line header and the identifier content at the
-   1600px floor. */
-.detailed-plan-grid__col--schedule { width: 12%; }
+/* Shares sum to exactly 100 (ports covers two <col> elements; the on-demand
+   select column is a fixed px rail, K2.31/SIL-934 re-derivation).
+   SIL-686 / SIL-755 pinned the 1440 no-scroll shares; SIL-795 (10/11) rebalances
+   them — the owner evidence showed those shares could NOT pay the one-line
+   header law they were written for, and the clipped identifiers violate §4.
+   K2.31 (SIL-934, 24/11): the Moóc column joins at 6.5%, funded 1% each from
+   route, ports (total), documents, container, declaration, assignment and
+   0.5% each from classification + notes; the min-width floor rose to 1700px
+   so every measured one-line header floor still clears (1% = 17px). */
+.detailed-plan-grid__col--schedule { width: 12%; } /* 204px ≥ the 180px one-line header floor at the 1700 rail */
 /* Spec 23/10 (261023110000 §2) — the on-demand CHỌN column: fixed 48px
    (master-plan precedent) so the reading columns keep their percentage
    shares whether or not the merge mode is active. */
@@ -310,23 +316,27 @@
   align-items: center;
   justify-content: center;
 }
-.detailed-plan-grid__col--route { width: 11.5%; }
-.detailed-plan-grid__col--ports { width: 6.5%; }
-.detailed-plan-grid__col--documents { width: 8.5%; }
+.detailed-plan-grid__col--route { width: 11%; }
+.detailed-plan-grid__col--ports { width: 6%; }
+.detailed-plan-grid__col--documents { width: 7.5%; }
 /* SIL-591: the per-container tờ khai column — the "SỐ TỜ KHAI" header holds
    one line at the shares; longer values wrap (no cut). SIL-848 (id 977, owner
    fix spec "min-width CONTAINER ~115px"): container 7.5%→8.5% so the 11-char
    number rail keeps its full run at wide font metrics too (the QA 15/11 clip
    'RTAU4000…' is the rail's text-overflow: clip meeting a too-narrow box);
    funded from GHI CHÚ (10%→9%, exactly its pinned wrap budget) — TUYẾN
-   ĐƯỜNG keeps 11.5% for its 175px one-line header floor. SỐ TỜ KHAI stays
-   10% (160px ≥ the 115px spec floor + 12-digit runs). */
-.detailed-plan-grid__col--container { width: 8.5%; }
-.detailed-plan-grid__col--declaration { width: 10%; }
-.detailed-plan-grid__col--assignment { width: 14.5%; }
-/* SIL-589 / SIL-755: the "PHÂN LOẠI" header holds one line (6% ≥ 68px at 1144px). */
-.detailed-plan-grid__col--classification { width: 6.5%; }
-.detailed-plan-grid__col--notes { width: 9%; }
+   ĐƯỜNG keeps its ≥175px one-line header floor (10.5% = 178.5px at the
+   1700px floor). SỐ TỜ KHAI: 9% = 153px ≥ the 115px spec floor + 12-digit
+   runs (128px measured floor). */
+.detailed-plan-grid__col--container { width: 7.5%; }
+.detailed-plan-grid__col--declaration { width: 9%; }
+.detailed-plan-grid__col--assignment { width: 13.5%; }
+/* K2.31 (SIL-934) — the run's assigned moóc: plate line + muted type line. */
+.detailed-plan-grid__col--trailer { width: 6.5%; }
+/* SIL-589 / SIL-755: the "PHÂN LOẠI" header holds one line (6% = 102px at the
+   1700px floor ≥ the measured 85px label + cell padding). */
+.detailed-plan-grid__col--classification { width: 6%; }
+.detailed-plan-grid__col--notes { width: 8.5%; }
 /* SIL-588 / SIL-713 / SIL-755: the rail hosts TWO STACKED buttons
    (Phát lệnh icon above, ⋯ below) while the "THAO TÁC" header fits on one line
    without truncation (7.5% ≈ 85.8px at 1144px, min 74px). */
@@ -1455,4 +1465,21 @@ button.detailed-plan-grid__classification:focus-visible {
    cell contributes only its (body-portalled) dialog. */
 .dpcard__editor {
   display: none;
+}
+
+/* SIL-957 (K4.35) — [Phát lệnh hàng loạt]: a row the batch cannot release
+   dims AT ROW SCOPE and prints its reason as text under the tick — the wall
+   between tickable and dead rows must not live only in a tooltip. The
+   select cell keeps full contrast so the reason line stays readable. */
+.detailed-plan-grid__row--bulk-blocked .detailed-plan-grid__cell:not(.detailed-plan-grid__cell--select) .detailed-plan-grid__cell-body {
+  opacity: 0.55;
+}
+
+.detailed-plan-grid__bulk-reason {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--fg-3);
+  word-break: break-word;
 }

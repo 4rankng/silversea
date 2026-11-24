@@ -192,7 +192,7 @@ describe('DetailedPlanGrid', () => {
     expect(lclSchedule?.textContent).not.toMatch(/1 x /);
   });
 
-  it('renders the 10 operational columns with multi-line typography (SIL-591: + Số tờ khai)', () => {
+  it('renders the 11 operational columns with multi-line typography (SIL-591: + Số tờ khai, K2.31: + Moóc)', () => {
     const { container } = renderGrid([row()]);
 
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
@@ -205,6 +205,7 @@ describe('DetailedPlanGrid', () => {
       'Container',
       'Số tờ khai',
       'Điều phối',
+      'Moóc',
       'Phân loại',
       'Ghi chú',
       'Thao tác',
@@ -242,6 +243,7 @@ describe('DetailedPlanGrid', () => {
       'Container',
       'Số tờ khai',
       'Điều phối',
+      'Moóc',
       'Phân loại',
       'Ghi chú',
       'Thao tác',
@@ -276,6 +278,7 @@ describe('DetailedPlanGrid', () => {
       'container',
       'declaration',
       'assignment',
+      'trailer',
       'classification',
       'notes',
       'actions',
@@ -294,15 +297,16 @@ describe('DetailedPlanGrid', () => {
     // headers mid-word ("SỐ TỜ KHA"). The floors below are the measured
     // one-line header widths and identifier content widths divided by the
     // share, so no column can silently fall below its floor again.
-    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1600px;/);
+    expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1700px;/);
     expect(widths[columnNames.indexOf('schedule')]).toBeGreaterThanOrEqual(12);
-    expect(widths[columnNames.indexOf('route')]).toBeGreaterThanOrEqual(11.5);
+    expect(widths[columnNames.indexOf('route')]).toBeGreaterThanOrEqual(10.5);
     expect(widths[columnNames.indexOf('container')]).toBeGreaterThanOrEqual(7.5);
-    expect(widths[columnNames.indexOf('declaration')]).toBeGreaterThanOrEqual(10);
+    expect(widths[columnNames.indexOf('declaration')]).toBeGreaterThanOrEqual(9);
+    expect(widths[columnNames.indexOf('trailer')]).toBeGreaterThanOrEqual(6.5); // K2.31 (SIL-934)
     expect(widths[columnNames.indexOf('classification')]).toBeGreaterThanOrEqual(6);
     expect(widths[columnNames.indexOf('route')]).toBeGreaterThanOrEqual(10);
-    expect(widths[columnNames.indexOf('assignment')]).toBeGreaterThanOrEqual(14);
-    expect(widths[columnNames.indexOf('notes')]).toBeGreaterThanOrEqual(9);
+    expect(widths[columnNames.indexOf('assignment')]).toBeGreaterThanOrEqual(13);
+    expect(widths[columnNames.indexOf('notes')]).toBeGreaterThanOrEqual(8.5);
     expect(widths[columnNames.indexOf('actions')]).toBeGreaterThanOrEqual(6.5);
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*width:\s*100%;/);
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*max-width:\s*100%;/);
@@ -552,6 +556,20 @@ describe('DetailedPlanGrid', () => {
     expect(editorCss).toContain('.dispatch-assignment-dialog__fields {');
     expect(editorCss).toMatch(/\.dispatch-assignment-dialog__fields > \.dispatch-assignment-dialog__check\s*\{[^}]*display:\s*flex;/);
     expect(gridCss).not.toContain('.fulfillment-estimate-cell__value {');
+  });
+
+  it("shows the Moóc column with the run's assigned trailer (K2.31/SIL-934)", () => {
+    const plated = row({
+      dispatch: { ...row().dispatch, assignedPlate: '15H-052.82', assignedTrailerPlate: '15R-103.08', assignedTrailerType: '40FT' },
+    });
+    const { container } = renderGrid([plated, row()]);
+    expect(screen.getByRole('columnheader', { name: 'Moóc' })).toBeTruthy();
+    const moocCells = Array.from(container.querySelectorAll('td[data-label="Moóc"]'));
+    expect(moocCells).toHaveLength(2);
+    expect(moocCells[0]?.textContent).toContain('15R-103.08');
+    expect(moocCells[0]?.textContent).toContain('40FT');
+    expect(moocCells[1]?.textContent?.trim()).toBe('—');
+    expect(moocCells[1]?.querySelector('[data-empty]')).not.toBeNull();
   });
 
   it('surfaces assignment errors and the lot banner', () => {

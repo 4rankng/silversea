@@ -496,6 +496,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       tripIds.length === 0 ? [] : tx.select({
         tripId: s.tripsComposite.id,
         carrierType: s.tripsComposite.carrierType,
+        // K2.31 (SIL-934) — the moóc column reads the live trip's assigned
+        // trailer (the issue-time auto-assign writes trips.trailer_id).
+        trailerId: s.tripsComposite.trailerId,
         driverName: s.drivers.name,
         driverPhone: s.drivers.phone,
         externalDriverName: s.tripsComposite.externalDriverName,
@@ -518,6 +521,51 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // the cell — the plan never gets a plate write while the trip runs, so
     // without this the cell would keep reading plateless after the fill.
     const tripExternalPlates = new Map(tripDrivers.map((trip) => [trip.tripId, trip.externalPlateNumber]));
+    // K2.31 (SIL-934) — the grid's Moóc column. Two sources, one meaning
+    // ("the moóc this row's run rides"): the LIVE trip's assigned trailer
+    // wins; a planned OWN row (no trip yet) shows its tractor's current
+    // coupling — exactly the default the issue flow rides when the
+    // dispatcher does not override (card 20261005_387). External planned
+    // rows own no moóc — the carrier brings its own equipment.
+    const tripTrailerIds = [...new Set(
+      tripDrivers.map((trip) => trip.trailerId).filter((id): id is number => id != null),
+    )];
+    const plannedCouplingPlates = [...new Set(pageRows
+      .filter((row) => row.tripId == null && row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber)
+      .map((row) => row.plannedVehiclePlateNumber as string))];
+    const [tripTrailerRows, couplingTrucks] = await Promise.all([
+      tripTrailerIds.length === 0
+        ? []
+        : tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate, type: s.trailers.type })
+          .from(s.trailers)
+          .where(inArray(s.trailers.id, tripTrailerIds)),
+      plannedCouplingPlates.length === 0
+        ? []
+        : tx.select({ plate: s.trucks.licensePlate, currentTrailerId: s.trucks.currentTrailerId })
+          .from(s.trucks)
+          .where(and(inArray(s.trucks.licensePlate, plannedCouplingPlates), isNull(s.trucks.deletedAt))),
+    ]);
+    const couplingTrailerIds = [...new Set(
+      couplingTrucks.map((truck) => truck.currentTrailerId).filter((id): id is number => id != null),
+    )];
+    const couplingTrailerRows = couplingTrailerIds.length === 0
+      ? []
+      : await tx.select({ id: s.trailers.id, licensePlate: s.trailers.licensePlate, type: s.trailers.type })
+        .from(s.trailers)
+        .where(inArray(s.trailers.id, couplingTrailerIds));
+    const trailersById = new Map(
+      [...tripTrailerRows, ...couplingTrailerRows].map((trailer) => [trailer.id, trailer]),
+    );
+    const tripTrailerByTripId = new Map(
+      tripDrivers
+        .filter((trip) => trip.trailerId != null)
+        .map((trip) => [trip.tripId, trailersById.get(trip.trailerId as number) ?? null]),
+    );
+    const couplingByPlate = new Map(
+      couplingTrucks
+        .filter((truck) => truck.currentTrailerId != null)
+        .map((truck) => [truck.plate, trailersById.get(truck.currentTrailerId as number) ?? null]),
+    );
     const carriersById = new Map(carriers.map((row) => [row.id, row]));
     const portsById = new Map(ports.map((row) => [row.id, row]));
     const platedByShipment = new Map(platedCounts.map((row) => [row.shipmentId, { total: Number(row.total), plated: Number(row.plated) }]));
@@ -715,6 +763,19 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
               ? tripDriverPhones.get(row.tripId) ?? null
               : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
                 ? plannedDrivers.get(row.plannedVehiclePlateNumber)?.driverPhone ?? null
+                : null,
+            // K2.31 (SIL-934) — the Moóc column's facts: the live trip's
+            // assigned trailer, else the planned OWN tractor's current
+            // coupling. Optional for older fixtures.
+            assignedTrailerPlate: row.tripId != null
+              ? tripTrailerByTripId.get(row.tripId)?.licensePlate ?? null
+              : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
+                ? couplingByPlate.get(row.plannedVehiclePlateNumber)?.licensePlate ?? null
+                : null,
+            assignedTrailerType: row.tripId != null
+              ? tripTrailerByTripId.get(row.tripId)?.type ?? null
+              : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
+                ? couplingByPlate.get(row.plannedVehiclePlateNumber)?.type ?? null
                 : null,
             pairKind: row.pairStatus === 'ACTIVE' && (row.pairKind === 'KEP' || row.pairKind === 'KET_HOP')
               ? row.pairKind

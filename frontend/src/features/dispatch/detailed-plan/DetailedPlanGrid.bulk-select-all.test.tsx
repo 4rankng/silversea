@@ -194,4 +194,21 @@ describe('DetailedPlanGrid — bulk release select-all (SIL-893)', () => {
     const caption = document.querySelector('.detailed-plan-grid__select-all span');
     expect(caption?.textContent).toBe('Phát lệnh');
   });
+
+  it('SIL-957 (K4.35): blocked rows dim at row scope and print the reason as TEXT on the row', () => {
+    renderBulkGrid(bulkRows());
+
+    for (const bill of ['BL-4', 'BL-5']) {
+      const tr = rowBox(bill).closest('tr');
+      expect(tr?.className).toContain('detailed-plan-grid__row--bulk-blocked');
+      const reason = tr?.querySelector('.detailed-plan-grid__bulk-reason')?.textContent ?? '';
+      expect(reason.length).toBeGreaterThan(0);
+      // The reason text matches the checkbox tooltip — one source of truth.
+      expect(rowBox(bill).getAttribute('title')).toBe(reason);
+    }
+    // Eligible rows stay full-contrast, no reason line.
+    const eligibleTr = rowBox('BL-1').closest('tr');
+    expect(eligibleTr?.className).not.toContain('detailed-plan-grid__row--bulk-blocked');
+    expect(eligibleTr?.querySelector('.detailed-plan-grid__bulk-reason')).toBeNull();
+  });
 });
