@@ -363,6 +363,24 @@
 .ops-fee-row__field input[aria-invalid='true'] {
   border-color: var(--danger);
 }
+
+/* SIL-949 (KB §10.6.4) — ô "chứng từ" là cờ "Có hóa đơn" (cả 2 tab); ô Số
+   hóa đơn chỉ hiện khi cờ bật. The cell is a checkbox line, not a text
+   field — undo the text-input box model the field rule above applies. */
+.ops-fee-row__cell--has-invoice {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+.ops-fee-row__cell--has-invoice input {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  accent-color: var(--brand, #2563eb);
+}
 .ops-fee-row__remove {
   align-self: flex-end;
 }

@@ -71,18 +71,21 @@ export function opsDuplicateWho(hit: OpsExpenseDuplicateHit): string {
 }
 
 /** Card 191026160000 — one fee line of the mockup's two blocks. Block
- *  placement owns the invoice pair (Phí có hóa đơn carries Số hóa đơn;
- *  Phí không hóa đơn carries the Thực-thu side), so the drafts keep only the
- *  fields their block renders. SIL-760: the row is ONE horizontal table line
- *  with the six spec columns, so the former Tên-khoản-chi/Gợi-ý and
- *  Ngày-hóa-đơn entries are gone — feeName saves undefined and invoiceDate
- *  stays null exactly as an untouched field did. */
+ *  placement owns the extra pair (Phí không hóa đơn carries the Thực-thu
+ *  side). KB §10.6.4 (SIL-949): "ô chứng từ" is the "Có hóa đơn" FLAG — on
+ *  both tabs it reveals the Số hóa đơn entry and makes it required; a
+ *  flag-off row carries no invoice number at all. SIL-760: the row is ONE
+ *  horizontal table line with the six spec columns, so the former
+ *  Tên-khoản-chi/Gợi-ý and Ngày-hóa-đơn entries are gone — feeName saves
+ *  undefined and invoiceDate stays null exactly as an untouched field did. */
 interface FeeDraft {
   key: number;
   typeCode: string;
   amount: number | '';
   /** Thực thu — thu khách (no-invoice block). Display text, parsed server-side. */
   charge: string;
+  /** SIL-949 (KB §10.6.4) — cờ "Có hóa đơn": bật lên ô Số hóa đơn hiện và bắt buộc. */
+  hasInvoice: boolean;
   invoiceNumber: string;
   note: string;
   /** Ghi chú thu khách — the dispatch-board note surface (card 20260921_5). */
@@ -91,9 +94,12 @@ interface FeeDraft {
   pendingFiles: File[];
 }
 
-function blankFeeDraft(key: number): FeeDraft {
+/** The invoice-tab rows open with the flag ON (their tab IS "Phí có hóa đơn",
+ *  so the default keeps the CR-010.1 shape: Số hóa đơn visible + required);
+ *  the no-invoice tab's rows open flagged OFF. */
+function blankFeeDraft(key: number, hasInvoice = false): FeeDraft {
   return {
-    key, typeCode: '', amount: '', charge: '', invoiceNumber: '',
+    key, typeCode: '', amount: '', charge: '', hasInvoice, invoiceNumber: '',
     note: '', recoveryNote: '', photos: [], pendingFiles: [],
   };
 }
@@ -149,14 +155,14 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | 
   // SIL-723) is reversed by the owner; the required set stays Loại phí +
   // Số tiền (+ the non-negative charge rule). The server gate is removed with
   // it (createOpsExpense in ops-expenses.service.ts).
-  // CR-010.1 (BUG-08) — the invoice block's Số hóa đơn is REQUIRED again
-  // (supersedes the SIL-834 "Tùy chọn" law): a real invoice document number
-  // rides every invoice-tab row, empty = dead Lưu at the popup edge. "Thật"
-  // keeps SIL-870's own law — a digitless string is placeholder text, not a
-  // number, and the write path would store null anyway. The label carries
-  // the *, and the footer repeats this message beside the disabled Lưu
-  // (SIL-723 never-disabled-in-silence). Receipt photos stay optional.
-  if (block === 'invoice') {
+  // CR-010.1 (BUG-08) + SIL-949 (KB §10.6.4) — the "Có hóa đơn" flag owns
+  // the requirement now (both tabs): flag ON = a real invoice document number
+  // rides the row, empty = dead Lưu at the popup edge. "Thật" keeps SIL-870's
+  // own law — a digitless string is placeholder text, not a number, and the
+  // write path would store null anyway. The label carries the *, and the
+  // footer repeats this message beside the disabled Lưu (SIL-723
+  // never-disabled-in-silence). Receipt photos stay optional.
+  if (draft.hasInvoice) {
     const invoice = draft.invoiceNumber.trim();
     if (invoice === '' || !/\d/.test(invoice)) return INVOICE_REQUIRED_MSG;
   }
@@ -350,7 +356,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   }
 
   function addDraft(block: 'noInvoice' | 'invoice') {
-    setBlockRows(block)(rows => [...rows, blankFeeDraft(draftKeySeq++)]);
+    // SIL-949 — an invoice-tab row opens with the "Có hóa đơn" flag ON (its
+    // tab is "Phí có hóa đơn"), a no-invoice row opens flagged OFF.
+    setBlockRows(block)(rows => [...rows, blankFeeDraft(draftKeySeq++, block === 'invoice')]);
   }
 
   function removeDraft(block: 'noInvoice' | 'invoice', key: number) {
@@ -386,30 +394,34 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     }
     return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([code]) => code));
   }, [noInvoiceRows]);
-  // SIL-861 — PHÍ CÓ HÓA ĐƠN hard-gates a duplicated Số hóa đơn BEFORE Lưu:
-  // the write path only bounces the duplicate after its siblings saved (the
-  // QA partial save), so the same-lot duplicate must die in the draft stage
-  // like the no-invoice duplicate type does. Many rows of one FEE TYPE stay
-  // allowed here — only the invoice NUMBER is unique per lot. An empty (or
-  // digitless) Số hóa đơn never reaches this map — it is the CR-010.1 (BUG-08)
-  // required gate's business, not a duplicate.
+  // SIL-861 — a duplicated Số hóa đơn dies BEFORE Lưu: the write path only
+  // bounces the duplicate after its siblings saved (the QA partial save), so
+  // the same-lot duplicate must die in the draft stage like the no-invoice
+  // duplicate type does. Many rows of one FEE TYPE stay allowed here — only
+  // the invoice NUMBER is unique per lot. SIL-949 (KB §10.6.4): the number
+  // now comes from any flag-on row on EITHER tab, so the gate spans both
+  // blocks. An empty (or digitless) Số hóa đơn never reaches this map — it is
+  // the CR-010.1 (BUG-08) required gate's business, not a duplicate.
   const invoiceDuplicateNumbers = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const draft of invoiceRows) {
+    for (const draft of [...noInvoiceRows, ...invoiceRows]) {
+      if (!draft.hasInvoice || isEmptyDraft(draft)) continue;
       const invoiceNo = draft.invoiceNumber.trim();
-      if (isEmptyDraft(draft) || invoiceNo === '') continue;
+      if (invoiceNo === '') continue;
       counts.set(invoiceNo, (counts.get(invoiceNo) ?? 0) + 1);
     }
     return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([no]) => no));
-  }, [invoiceRows]);
+  }, [noInvoiceRows, invoiceRows]);
   // Per-row validity is block-dependent, so recompute with the right block.
   const invalidKeys = useMemo(() => {
     const keys = new Set<number>();
     for (const draft of noInvoiceRows) {
-      if (draftErrors('noInvoice', draft) || noInvoiceDuplicateTypes.has(draft.typeCode)) keys.add(draft.key);
+      if (draftErrors('noInvoice', draft) || noInvoiceDuplicateTypes.has(draft.typeCode)
+        || (draft.hasInvoice && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim()))) keys.add(draft.key);
     }
     for (const draft of invoiceRows) {
-      if (draftErrors('invoice', draft) || invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())) keys.add(draft.key);
+      if (draftErrors('invoice', draft)
+        || (draft.hasInvoice && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim()))) keys.add(draft.key);
     }
     return keys;
   }, [noInvoiceRows, invoiceRows, noInvoiceDuplicateTypes, invoiceDuplicateNumbers]);
@@ -518,7 +530,10 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
           costGroup: (task.block === 'invoice'
             ? opsGroupForType(typesData?.items.find((type) => type.code === draft.typeCode))
             : 'OPS_REGULAR') as ExpenseCostGroup,
-          invoiceNumber: task.block === 'invoice' ? draft.invoiceNumber.trim() || null : null,
+          // SIL-949 (KB §10.6.4) — the flag owns the invoice number: a
+          // flag-on row (either tab) ships its Số hóa đơn, a flag-off row
+          // ships null exactly as the old no-invoice row did.
+          invoiceNumber: draft.hasInvoice ? draft.invoiceNumber.trim() || null : null,
           invoiceDate: null,
           recoveryNote: task.block === 'noInvoice' ? draft.recoveryNote.trim() || null : null,
           customerChargeAmount: task.block === 'noInvoice'
@@ -755,9 +770,10 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
  *  row defined inside the modal would remount on every keystroke.
  *
  *  SIL-760 — the row is ONE horizontal table line: Loại phí | Số tiền (VNĐ)*
- *  | Số hóa đơn (invoice tab only) | Ghi chú | Ảnh chứng từ | Xóa. The
- *  customer-charge pair (Thực thu / Ghi chú thu khách) keeps its cell on the
- *  no-invoice line where the row renders it (SIL-761 role-gates it for Ops).
+ *  | Chứng từ — cờ "Có hóa đơn" | Số hóa đơn (khi cờ bật, cả 2 tab — KB
+ *  §10.6.4, SIL-949) | Ghi chú | Ảnh chứng từ | Xóa. The customer-charge pair
+ *  (Thực thu / Ghi chú thu khách) keeps its cell on the no-invoice line where
+ *  the row renders it (SIL-761 role-gates it for Ops).
  *  Growing columns flex; the icon columns stay fixed, so narrow widths wrap
  *  whole cells instead of clipping one. */
 function FeeRowFields({ block, draft, ordinal, host }: {
@@ -784,12 +800,13 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
   const duplicateTypeError = block === 'noInvoice' && noInvoiceDuplicateTypes.has(draft.typeCode)
     ? 'Trùng loại phí trên cùng số cont — không lưu dòng trùng.'
     : null;
-  const duplicateInvoiceError = block === 'invoice' && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())
+  const duplicateInvoiceError = draft.hasInvoice && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())
     ? 'Trùng số hóa đơn trên lô này — không lưu dòng trùng.'
     : null;
   // SIL-907 — the red border rides the Số hóa đơn cell whenever a message
-  // names it: the required gate or the duplicate gate.
-  const invoiceInvalid = block === 'invoice'
+  // names it: the required gate or the duplicate gate. SIL-949 (KB §10.6.4)
+  // extends both to a flag-on row on EITHER tab.
+  const invoiceInvalid = draft.hasInvoice
     && (duplicateInvoiceError != null || rawError === INVOICE_REQUIRED_MSG);
   const photoUrls = useAuthedPhotoUrls(draft.photos.map((photo) => photo.storageKey));
   const fileRef = useRef<HTMLInputElement>(null);
@@ -840,8 +857,25 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
               : draft.amount < 0 ? 'Số tiền không được âm'
               : 'Nhập số tiền nguyên'} />
         </div>
-        {invoiced
-          ? <label className="ops-fee-row__field ops-fee-row__cell--invoice-no">
+        {/* SIL-949 (KB §10.6.4) — ô "chứng từ" là cờ "Có hóa đơn" trên CẢ 2
+            tab: bật lên ô Số hóa đơn hiện ra và bắt buộc nhập, tắt thì ẩn ô
+            và dòng không mang số hóa đơn. */}
+        <label className="ops-fee-row__field ops-fee-row__cell--has-invoice">
+          <input
+            type="checkbox"
+            checked={draft.hasInvoice}
+            disabled={busy}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              patchDraft(block, draft.key, checked
+                ? { hasInvoice: true }
+                : { hasInvoice: false, invoiceNumber: '' });
+            }}
+          />
+          Có hóa đơn
+        </label>
+        {draft.hasInvoice && (
+          <label className="ops-fee-row__field ops-fee-row__cell--invoice-no">
             Số hóa đơn *
             <input
               value={draft.invoiceNumber}
@@ -851,29 +885,28 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
               onChange={(event) => patchDraft(block, draft.key, { invoiceNumber: event.target.value })}
             />
           </label>
-          : <>
-            {customerFields && <>
-              <label className="ops-fee-row__field ops-fee-row__cell--charge">
-                Thực thu (thu khách)
-                <input
-                  inputMode="numeric"
-                  placeholder="—"
-                  value={draft.charge}
-                  disabled={busy}
-                  onChange={(event) => patchDraft(block, draft.key, { charge: event.target.value })}
-                />
-              </label>
-              <label className="ops-fee-row__field ops-fee-row__cell--recovery">
-                Ghi chú thu khách
-                <input
-                  value={draft.recoveryNote}
-                  disabled={busy}
-                  maxLength={1000}
-                  onChange={(event) => patchDraft(block, draft.key, { recoveryNote: event.target.value })}
-                />
-              </label>
-            </>}
-          </>}
+        )}
+        {!invoiced && customerFields && <>
+          <label className="ops-fee-row__field ops-fee-row__cell--charge">
+            Thực thu (thu khách)
+            <input
+              inputMode="numeric"
+              placeholder="—"
+              value={draft.charge}
+              disabled={busy}
+              onChange={(event) => patchDraft(block, draft.key, { charge: event.target.value })}
+            />
+          </label>
+          <label className="ops-fee-row__field ops-fee-row__cell--recovery">
+            Ghi chú thu khách
+            <input
+              value={draft.recoveryNote}
+              disabled={busy}
+              maxLength={1000}
+              onChange={(event) => patchDraft(block, draft.key, { recoveryNote: event.target.value })}
+            />
+          </label>
+        </>}
         <label className="ops-fee-row__field ops-fee-row__cell--note">
           Ghi chú
           <input
