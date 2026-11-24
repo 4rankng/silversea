@@ -303,6 +303,22 @@ export function DebitMergeGrid({
     }
     return byGroup;
   }, [stickyColumns]);
+  // SIL-897 r10 — a filter-driven rows change RESETS the horizontal scroll.
+  // The table is content-sized: the new result set reflows every column
+  // width, and a pane still parked at scrollLeft>0 then shows the MIDDLE of
+  // the new table with the sticky dock overlaying its first columns — QA
+  // round 10 read the CƯỚC PHẢI THU group (values intact in the DOM, behind
+  // the opaque dock) as "collapsed to 0 width"; scrolling fully left
+  // restored it. The AC (CR-010.1) resets scrollLeft = 0 on a filter change,
+  // so the board re-enters at the sticky zone. Identity-keyed: the SAME rows
+  // array (a pagination tap, a toolbar re-render) never snaps the view; a
+  // NEW array (search keystroke, facet, month, board refresh) re-enters
+  // left. Declared BEFORE the measure effect so the occlusion sweep reads
+  // the final scroll position in the same commit.
+  useLayoutEffect(() => {
+    const pane = paneRef.current;
+    if (pane != null && pane.scrollLeft !== 0) pane.scrollLeft = 0;
+  }, [rows]);
   // SIL-897 r9 — the no-truncate sweep: hide a scrolling header label while
   // its OWN glyph box straddles the dock edge (never a half-glyph label).
   // The cell box lies: a 955px group th keeps its centered label fully clear
