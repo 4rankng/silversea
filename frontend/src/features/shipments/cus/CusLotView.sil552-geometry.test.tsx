@@ -179,7 +179,7 @@ describe('CusLotView — SIL-552 ô SỐ CONTAINER: nhãn + giá trị, editor n
     }
   });
 
-  it('bảng giữ colgroup 10 cột của design lock', () => {
+  it('bảng giữ colgroup design lock: 10 cột spec + 12 track tiền SIL-945', () => {
     const { container } = renderView([makeLine({ id: 43, ordinal: 1 })]);
     const cols = [...container.querySelectorAll('.cus-lot-table colgroup col')];
     expect(cols.map((col) => col.className)).toEqual([
@@ -192,6 +192,21 @@ describe('CusLotView — SIL-552 ô SỐ CONTAINER: nhãn + giá trị, editor n
       'cus-lot-col__lift',
       'cus-lot-col__dropoff',
       'cus-lot-col__appointment',
+      // SIL-945 — the three freight groups ride between Đóng/trả and
+      // Trạng thái: 4 outbound + 4 inbound + 4 chi hộ, Tổng cước carries
+      // the --total width class (96px, components 92px).
+      'cus-lot-col__money',
+      'cus-lot-col__money',
+      'cus-lot-col__money',
+      'cus-lot-col__money cus-lot-col__money--total',
+      'cus-lot-col__money',
+      'cus-lot-col__money',
+      'cus-lot-col__money',
+      'cus-lot-col__money cus-lot-col__money--total',
+      'cus-lot-col__money',
+      'cus-lot-col__money',
+      'cus-lot-col__money',
+      'cus-lot-col__money',
       'cus-lot-col__status',
     ]);
   });

@@ -850,9 +850,31 @@ export async function buildWorkspaceDetail(
       hasActiveLock,
       actor,
     ));
+  // SIL-945 (KB §3.1.7 / §10.1.4) — the three freight column groups ride the
+  // drawer's container lines on the SAME channels and per-container scope the
+  // workboard rows use (container rows read their own container's entries; a
+  // chung-lô entry lands on the FIRST container row via buildCusFreightGroups'
+  // own law). Lazy-channel: a container-less lot (the drawer renders no table)
+  // pays for none of the three channel queries.
+  const freightGroupsByLine = containers.length === 0
+    ? null
+    : await loadCusFreightChannel({
+      shipmentIds: [row.shipment.id],
+      tripIds: [...new Set(containers.map((line) => line.tripId).filter((value): value is number => value != null))],
+    }).then((channel) => buildCusFreightGroups(
+      containers.map((line) => ({
+        shipmentId: row.shipment.id,
+        rowId: line.id,
+        tripId: line.tripId,
+        containerId: line.id,
+        isLotLevel: false,
+        revFreightManual: null,
+      })),
+      channel,
+    ));
   return {
     summary,
-    containers,
+    containers: containers.map((line) => ({ ...line, freightGroups: freightGroupsByLine?.get(line.id) })),
     selectors,
     dataState: {
       hasExplicitDocumentCustody: summary.documentCustody.available,

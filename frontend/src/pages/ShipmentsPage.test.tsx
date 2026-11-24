@@ -2191,9 +2191,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(dialog).getByText(/Đã đối soát/)).toBeTruthy();
     expect(within(masterRow()).getByText('Maersk')).toBeTruthy();
     expect(within(dialog).getByRole('heading', { name: 'Đối soát' })).toBeTruthy();
-    expect(screen.queryByText('Cước đầu ra')).toBeNull();
-    expect(screen.queryByText('Cước đầu vào')).toBeNull();
-    expect(screen.queryByText('Phí chi hộ')).toBeNull();
+    // SIL-945 (KB §3.1.7): the three freight groups ride the drawer's
+    // container sheet as READ-ONLY money — band + tracks render, no editors
+    // (the SIL-485 review contract stays: no finance entry surface here).
+    for (const band of ['Cước đầu ra', 'Cước đầu vào', 'Phí chi hộ']) {
+      expect(within(dialog).getByRole('columnheader', { name: band })).toBeTruthy();
+    }
+    expect(within(dialog).queryByRole('button', { name: 'Cước đầu ra' })).toBeNull();
     expect(screen.queryByText('Chưa thu hồi sửa chữa')).toBeNull();
     expect(within(dialog).queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
   });

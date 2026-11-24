@@ -89,13 +89,14 @@ describe('shipment container editor density', () => {
     expect(pageSource).not.toContain('CusDrawerFooter');
     // The sheet compresses by scrolling inside its card, never clipping;
     // SIL-552 (owner 28/10) re-introduces a fixed column geometry — the
-    // table keeps a 1456px floor (the sum of the ten column widths) and the
+    // table keeps its floor (the sum of the ten column widths; SIL-945 adds
+    // the 12 freight money tracks: 1456 + 1120 = 2576px) and the
     // SỐ CONTAINER group its 240px, so the weight placeholder can never
     // break into vertical characters again.
     expect(css).toMatch(/\.cus-lot-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
     expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*width:\s*100%;[^}]*border-collapse:\s*collapse;/);
     expect(css).not.toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*1200px/);
-    expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*1456px;[^}]*table-layout:\s*fixed;/);
+    expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*2576px;[^}]*table-layout:\s*fixed;/);
     // SIL-508: the SỐ CONTAINER group stacks its three click-to-edit ghost
     // lines, each gated by the line's own fieldAccess mode.
     expect(viewSource).toContain('ContainerGroupCell');
@@ -121,9 +122,10 @@ describe('shipment container editor density', () => {
 
     // ── The sheet's column geometry ─────────────────────────────────────
     // Fixed layout + the ten declared column widths (56/240/160/180/180/
-    // 160/120/120/120/120 = 1456px). The table grows past the drawer and
-    // scrolls inside the card instead of crushing the group.
-    expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*1456px;[^}]*table-layout:\s*fixed;/);
+    // 160/120/120/120/120 = 1456px) plus the SIL-945 freight money tracks
+    // (4×96 + 8×92 = 1120px → floor 2576px). The table grows past the
+    // drawer and scrolls inside the card instead of crushing the group.
+    expect(css).toMatch(/\.cus-lot-table\s*\{[^}]*min-width:\s*2576px;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-lot-table-scroll\s*\{[^}]*overflow-x:\s*auto;/);
     for (const [name, width] of [
       ['stt', '56px'], ['container', '240px'], ['declaration', '160px'],

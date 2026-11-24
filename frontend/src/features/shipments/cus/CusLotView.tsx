@@ -6,11 +6,12 @@ import { UuiSelectField } from '../../../design-system';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
 import {
+  type ShipmentCusFreightGroups,
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
-import { formatDateTimeShort, formatISODate, formatMoney, formatWeight } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate, formatMoney, formatNumber, formatWeight } from '../../../lib/format';
 import { formatTimeShortDate } from '../../../lib/shipment-operations';
 import {
   accountingConfirmationLabel,
@@ -715,6 +716,55 @@ function financeCostLine(item: ShipmentCusWorkspaceListItem): { text: string; to
   return { text: 'Chưa đủ số liệu', tone: 'quiet' };
 }
 
+/**
+ * SIL-945 — one freight cell on the drawer's container table, the SAME KB
+ * §10.1.4 two-line shape the workboard renders: the amount on top ('—' =
+ * chưa xác định, never a fabricated 0), the contributing invoice numbers
+ * below, one per line. The Tổng cước cell renders amount-only.
+ */
+function FreightMoneyCell({ cell }: { cell: { amount: string | null; invoiceNumbers?: readonly string[] } }) {
+  const invoiceList = (cell.invoiceNumbers ?? []).filter((invoice) => invoice.trim() !== '');
+  return (
+    <div className="cus-lot-money">
+      <strong className="money cus-lot-money-amount">{formatNumber(cell.amount)}</strong>
+      {invoiceList.map((invoice) => (
+        <span key={invoice} className="cus-lot-money-invoice">HĐ: {invoice}</span>
+      ))}
+    </div>
+  );
+}
+
+/** SIL-945 — the drawer's freight tracks in KB §3.1.7 order: three groups ×
+ *  four physical columns, keyed by the line's freightGroups cell. `total` is
+ *  the amount-only track (no invoice lines, same as the workboard). */
+const FREIGHT_TRACKS: ReadonlyArray<{
+  band: 'outbound' | 'inbound' | 'chiHo';
+  sub: string;
+  total?: true;
+  cell: (groups: ShipmentCusFreightGroups) => { amount: string | null; invoices?: readonly string[] };
+}> = [
+  { band: 'outbound', sub: 'Vận chuyển', cell: (g) => g.outbound.transport },
+  { band: 'outbound', sub: 'Làm hàng', cell: (g) => g.outbound.handling },
+  { band: 'outbound', sub: 'Phát sinh', cell: (g) => g.outbound.incidental },
+  { band: 'outbound', sub: 'Tổng cước', total: true, cell: (g) => ({ amount: g.outbound.total }) },
+  { band: 'inbound', sub: 'Vận chuyển', cell: (g) => g.inbound.transport },
+  { band: 'inbound', sub: 'Làm hàng', cell: (g) => g.inbound.handling },
+  { band: 'inbound', sub: 'Phát sinh', cell: (g) => g.inbound.incidental },
+  { band: 'inbound', sub: 'Tổng cước', total: true, cell: (g) => ({ amount: g.inbound.total }) },
+  { band: 'chiHo', sub: 'CSHT', cell: (g) => g.chiHo.csht },
+  { band: 'chiHo', sub: 'Nâng', cell: (g) => g.chiHo.lift },
+  { band: 'chiHo', sub: 'Hạ', cell: (g) => g.chiHo.drop },
+  { band: 'chiHo', sub: 'Khác', cell: (g) => g.chiHo.other },
+];
+
+const FREIGHT_TRACK_BAND_LABEL: Readonly<Record<'outbound' | 'inbound' | 'chiHo', string>> = {
+  outbound: 'Cước đầu ra',
+  inbound: 'Cước đầu vào',
+  chiHo: 'Phí chi hộ',
+};
+
+
+
 export function CusLotView({
   item,
   detail,
@@ -868,9 +918,24 @@ export function CusLotView({
                       <col className="cus-lot-col__lift" />
                       <col className="cus-lot-col__dropoff" />
                       <col className="cus-lot-col__appointment" />
+                      {/* SIL-945 — the three freight groups ride the drawer:
+                          12 money tracks between Đóng/trả and Trạng thái. */}
+                      {FREIGHT_TRACKS.map((track) => (
+                        <col key={track.sub + track.band} className={`cus-lot-col__money${track.total ? ' cus-lot-col__money--total' : ''}`} />
+                      ))}
                       <col className="cus-lot-col__status" />
                     </colgroup>
                     <thead>
+                      {/* SIL-945 — the KB §3.1.7 group band: one row above the
+                          column names (9 identity tracks lead, Trạng thái
+                          trails), the same band shape the workboard prints. */}
+                      <tr className="cus-lot-groups-row">
+                        <th colSpan={9} scope="colgroup" />
+                        {(['outbound', 'inbound', 'chiHo'] as const).map((band) => (
+                          <th key={band} colSpan={4} scope="colgroup">{FREIGHT_TRACK_BAND_LABEL[band]}</th>
+                        ))}
+                        <th colSpan={1} />
+                      </tr>
                       <tr>
                         <th scope="col">STT</th>
                         <th scope="col">Số container</th>
@@ -881,6 +946,10 @@ export function CusLotView({
                         <th scope="col">Cảng nâng</th>
                         <th scope="col">Cảng hạ</th>
                         <th scope="col">Đóng / trả</th>
+                        {/* SIL-945 — the freight tracks: read-only money. */}
+                        {FREIGHT_TRACKS.map((track) => (
+                          <th key={track.sub + track.band} scope="col">{track.sub}</th>
+                        ))}
                         <th scope="col">Trạng thái</th>
                       </tr>
                     </thead>
@@ -930,6 +999,19 @@ export function CusLotView({
                           <td>{line.liftSite ?? dash}</td>
                           <td>{line.dropoffSite ?? dash}</td>
                           <td>{line.customerAppointmentAt ? formatTimeShortDate(line.customerAppointmentAt) : dash}</td>
+                          {/* SIL-945 — the KB §3.1.7 freight cells: two-line
+                              money (amount above, invoice number(s) below);
+                              '—' for chưa-xác-định, never a fabricated 0. */}
+                          {FREIGHT_TRACKS.map((track) => {
+                            const value = line.freightGroups
+                              ? track.cell(line.freightGroups)
+                              : { amount: null };
+                            return (
+                              <td key={track.sub + track.band} data-label={`${FREIGHT_TRACK_BAND_LABEL[track.band]} · ${track.sub}`}>
+                                <FreightMoneyCell cell={value} />
+                              </td>
+                            );
+                          })}
                           <td>
                             <span className={`cus-lot-dispatch ${DISPATCH_CHIP_CLASS[line.dispatchStatus]}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
                             {/* SIL-592 (id 692) — the staff close for live

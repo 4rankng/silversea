@@ -423,6 +423,32 @@ const shipmentCusWorkspaceFieldPermissionsSchema = z.object({
   customerAppointmentEditable: z.boolean(),
 }).strict();
 
+// KB Ch.3 §3.1.7 / Ch.10 §10.1.4 — one freight cell: the component amount
+// (money string, null = chưa xác định — never a fabricated 0) plus the invoice
+// numbers of the entries behind it. Rendered as ONE cell, two lines: amount on
+// top, invoice number(s) below. Declared BEFORE the container-line schema so
+// both the workboard's flat row and the lot drawer's container line ride it.
+const shipmentCusFreightCellSchema = z.object({
+  amount: z.string().nullable(),
+  invoiceNumbers: z.array(z.string()).optional(),
+}).strict();
+const shipmentCusFreightSideSchema = z.object({
+  transport: shipmentCusFreightCellSchema,
+  handling: shipmentCusFreightCellSchema,
+  incidental: shipmentCusFreightCellSchema,
+  total: z.string().nullable(),
+}).strict();
+const shipmentCusFreightGroupsSchema = z.object({
+  outbound: shipmentCusFreightSideSchema,
+  inbound: shipmentCusFreightSideSchema,
+  chiHo: z.object({
+    csht: shipmentCusFreightCellSchema,
+    lift: shipmentCusFreightCellSchema,
+    drop: shipmentCusFreightCellSchema,
+    other: shipmentCusFreightCellSchema,
+  }).strict(),
+}).strict();
+
 export const shipmentCusWorkspaceContainerLineSchema = z.object({
   id: z.number().int().positive(),
   ordinal: z.number().int().positive(),
@@ -482,6 +508,11 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   permissions: shipmentCusWorkspaceFieldPermissionsSchema,
   shipmentVersion: z.number().int().positive(),
   relatedTripVersion: z.number().int().positive().nullable(),
+  // SIL-945 (KB §3.1.7 / §10.1.4) — the three freight column groups ride the
+  // drawer's container lines too (same channels, same per-container scope as
+  // the workboard rows). Optional so producers that predate the field keep
+  // parsing; the drawer renders '—' for a missing group instead of zeros.
+  freightGroups: shipmentCusFreightGroupsSchema.optional(),
 }).strict();
 
 const shipmentCusWorkspaceContainerTypeOptionSchema = z.object({
@@ -816,31 +847,9 @@ export const shipmentRecoveryRecordResultSchema = z.object({
   fact: shipmentCusWorkspaceRecoveryFactSchema,
 }).strict();
 
-// KB Ch.3 §3.1.7 / Ch.10 §10.1.4 — one freight cell: the component amount
-// (money string, null = chưa xác định — never a fabricated 0) plus the invoice
-// numbers of the entries behind it. The board renders the pair in ONE cell,
-// two lines: amount on top, invoice number(s) below.
-const shipmentCusFreightCellSchema = z.object({
-  amount: z.string().nullable(),
-  invoiceNumbers: z.array(z.string()).optional(),
-}).strict();
-const shipmentCusFreightSideSchema = z.object({
-  transport: shipmentCusFreightCellSchema,
-  handling: shipmentCusFreightCellSchema,
-  incidental: shipmentCusFreightCellSchema,
-  total: z.string().nullable(),
-}).strict();
-const shipmentCusFreightGroupsSchema = z.object({
-  outbound: shipmentCusFreightSideSchema,
-  inbound: shipmentCusFreightSideSchema,
-  chiHo: z.object({
-    csht: shipmentCusFreightCellSchema,
-    lift: shipmentCusFreightCellSchema,
-    drop: shipmentCusFreightCellSchema,
-    other: shipmentCusFreightCellSchema,
-  }).strict(),
-}).strict();
-
+// KB Ch.3 §3.1.7 / Ch.10 §10.1.4 — the freight cell/side/groups schemas are
+// declared above, before shipmentCusWorkspaceContainerLineSchema, which now
+// also carries freightGroups on the drawer's container lines.
 export const shipmentCusContainerFlatRowSchema = z.object({
   // Row identity for the workboard's edit sessions and React keys. Positive =
   // the real shipment_containers id. Negative = a lot-level row for a

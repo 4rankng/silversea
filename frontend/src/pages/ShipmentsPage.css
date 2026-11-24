@@ -1857,7 +1857,10 @@
 
 .cus-lot-table {
   width: 100%;
-  min-width: 1456px;
+  /* SIL-945: 1456px spec tracks + 12 freight money tracks (4×96 + 8×92 =
+     1120px) — the table grows past the drawer and scrolls inside the card
+     (the SIL-552 overflow-x law) instead of crushing any group. */
+  min-width: 2576px;
   table-layout: fixed;
   border-collapse: collapse;
 }
@@ -1872,6 +1875,21 @@
 .cus-lot-col__dropoff { width: 120px; }
 .cus-lot-col__appointment { width: 120px; }
 .cus-lot-col__status { width: 120px; }
+
+/* SIL-945 — the freight money tracks beside the ten spec columns
+   (same 96px total / 92px component widths the workboard uses). */
+.cus-lot-col__money--total { width: 96px; }
+.cus-lot-col__money { width: 92px; }
+/* SIL-945 — the KB §3.1.7 group band row above the column names. */
+.cus-lot-table thead tr.cus-lot-groups-row th { padding: 6px 12px; border-bottom: 0; background: var(--surface-2); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--ops-table-header-weight); text-align: center; }
+.cus-lot-table thead tr.cus-lot-groups-row + tr th { border-top: 0; }
+/* SIL-945 — the two-line money cell: amount on top, invoice numbers below
+   (KB §10.1.4 "dòng trên số tiền, dòng dưới số hóa đơn"). Amount never wraps
+   mid-number; invoice lines wrap at any character (free text) and read muted
+   under the amount. */
+.cus-lot-money { display: grid; gap: 2px; align-content: start; }
+.cus-lot-money-amount { white-space: nowrap; }
+.cus-lot-money-invoice { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; overflow-wrap: anywhere; }
 
 /* SIL-552 (owner 28/10, design lock): the SỐ CONTAINER column is the one
    column whose three label+value rows need a guaranteed width. Under
