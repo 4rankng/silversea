@@ -237,6 +237,13 @@ export async function createOpsExpense(
   for (const containerId of containerIds) {
     await assertContainerInShipment(input.shipmentId, containerId);
   }
+  // KB §5.4.2 (V17) — the Phí không hóa đơn group REQUIRES a selected
+  // container; saving one without is refused outright (SIL-910). The FE
+  // dialog blocks Lưu; a stale client or raw API call lands here — same
+  // edge as the CR-010.1 invoice-number law above.
+  if (expenseType.requiresInvoice === false && containerIds.length === 0) {
+    throw new ApiError(400, 'Phí không hóa đơn bắt buộc chọn số container.');
+  }
 
   // Ticket 18/11 Task 4.1 — the invoice tab's Số hóa đơn is a HARD identity
   // key: one paper invoice may be declared only once per lô, with NO confirm
@@ -432,6 +439,22 @@ export async function updateOpsExpense(
     for (const id of ids) await assertContainerInShipment(entry.shipmentId, id);
     next.shipmentContainerId = ids.length === 1 ? ids[0] : null;
     next.shipmentContainerIds = ids.length > 0 ? ids : null;
+  }
+  // KB §5.4.2 (V17) — same hard law as create (SIL-910): a no-invoice row
+  // never saves with an empty container scope. Enforced only when the patch
+  // itself touches the container scope or the fee class — editing unrelated
+  // fields of a legacy scopeless row is not this law's business (the
+  // CR-010.1 patch-scoping reasoning applies).
+  const touchesContainerScope = patch.shipmentContainerIds !== undefined || patch.shipmentContainerId !== undefined;
+  if (touchesContainerScope || patch.expenseTypeCode !== undefined) {
+    const effectiveContainerIds = patch.shipmentContainerIds !== undefined
+      ? [...new Set(patch.shipmentContainerIds)]
+      : patch.shipmentContainerId !== undefined
+        ? (patch.shipmentContainerId != null ? [patch.shipmentContainerId] : [])
+        : opsExpenseContainerIdList(entry);
+    if (effectiveType.requiresInvoice === false && effectiveContainerIds.length === 0) {
+      throw new ApiError(400, 'Phí không hóa đơn bắt buộc chọn số container.');
+    }
   }
 
   // Conditional write: the pre-read above produces friendly field errors, but
