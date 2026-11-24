@@ -96,13 +96,28 @@ describe('shipment create required progress (chip; banner retired by SIL-627)', 
     await waitFor(() => expect(chipText()).toBe('Bắt buộc: 0/9'));
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
-    // Factory/route/ports are waived per row: 3 identity + type + schedule.
-    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 0/5'));
+    // SIL-965 (KB K3.23 §3.2.3): only Nhà máy + Tuyến đường chuẩn are waived —
+    // the ports stay, so one row carries type + 2 ports + schedule on top of
+    // the 3 identity seats.
+    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 0/7'));
+
+    // The QA repro state: three identity fields filled under Lệnh chạy ngoài
+    // read 3/7 (they used to read 3/5 when the ports were wrongly waived).
+    fireEvent.change(screen.getByRole('combobox', { name: /^Khách hàng/ }), { target: { value: 'Khách vãng lai 8888' } });
+    fireEvent.click(document.getElementById('shipment-trade-direction')!);
+    fireEvent.click(await screen.findByRole('option', { name: 'Nhập khẩu' }));
+    const bill = await waitFor(() => {
+      const el = document.querySelector<HTMLInputElement>('[data-field-id="shipment-booking-ref"] input');
+      expect(el).toBeTruthy();
+      return el!;
+    });
+    fireEvent.change(bill, { target: { value: 'QA3B-FA2-FCL' } });
+    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 3/7'));
 
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    // LCL ad-hoc: route + warehouse stay waived, and SIL-846 made quy cách
-    // optional — three enforced cargo/schedule fields replace the row.
-    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 0/6'));
+    // LCL ad-hoc keeps the identity seats: 3 done + the 3 cargo/schedule
+    // fields (route + warehouse stay waived, SIL-846 made quy cách optional).
+    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 3/6'));
     expect(screen.queryByText('Chuyển loại hàng?')).toBeNull();
   });
 });

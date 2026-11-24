@@ -868,19 +868,41 @@ describe('shipment create model', () => {
       blNumber: 'ADHOC-1',
       cargoMode: 'FCL' as const,
     };
-    // No factory/route/ports on the container — still dispatch-ready under the
-    // bypass (AC3), while the container type + appointment remain required.
-    const bareContainer = { ...container, operationalSiteId: '', routeId: '', pickupPortId: '', dropoffPortId: '', containerTypeId: '', customerAppointmentAt: '' };
+    // No factory/route on the container — those two stay waived under the
+    // bypass (AC3); KB K3.23 §3.2.3 (SIL-965) keeps the ports required, so
+    // the bare row reports them alongside the type + appointment gates.
+    const bareContainer = { ...container, operationalSiteId: '', routeId: '', pickupPortId: '', dropoffPortId: '', rawPickupPortName: '', rawDropoffPortName: '', containerTypeId: '', customerAppointmentAt: '' };
     const readiness = getShipmentCreateReadiness(adHoc, [bareContainer]);
     const byField = new Map(readiness.issues.map((item) => [item.fieldId, item.message]));
     expect(byField.has('shipment-customer')).toBe(false);
     expect(byField.has('container-row-1-factory')).toBe(false);
     expect(byField.has('container-row-1-route')).toBe(false);
-    expect(byField.has('container-row-1-pickup-port')).toBe(false);
-    expect(byField.has('container-row-1-dropoff-port')).toBe(false);
+    expect(byField.get('container-row-1-pickup-port')).toContain('cảng nâng');
+    expect(byField.get('container-row-1-dropoff-port')).toContain('cảng hạ');
     // Data-safety checks survive the bypass.
     expect(byField.get('container-row-1-type')).toContain('loại container');
     expect(byField.get('container-row-1-customer-ointment') ?? byField.get('container-row-1-customer-appointment')).toBeTruthy();
+  });
+
+  it('SIL-965 (KB K3.23 §3.2.3): an ad-hoc FCL row satisfies the ports with the typed raw names', () => {
+    const adHoc = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      isAdHoc: true,
+      rawCustomerName: 'Khách vãng lai',
+      tradeDirection: 'EXPORT' as const,
+      bookingRef: 'ADHOC-PORTS',
+      cargoMode: 'FCL' as const,
+    };
+    const bareRow = { ...container, operationalSiteId: '', routeId: '', pickupPortId: '', dropoffPortId: '', rawPickupPortName: '', rawDropoffPortName: '', containerTypeId: '', customerAppointmentAt: '' };
+    const readiness = getShipmentCreateReadiness(adHoc, [bareRow]);
+    const byField = new Map(readiness.issues.map((item) => [item.fieldId, item.message]));
+    // Blank ports still block: the waiver never covers Cảng nâng/Cảng hạ.
+    expect(byField.get('container-row-1-pickup-port')).toContain('cảng nâng');
+    expect(byField.get('container-row-1-dropoff-port')).toContain('cảng hạ');
+    // Typed raw names satisfy the requirement exactly like a catalog pick —
+    // the chip's seats and the submit gate stay in lockstep.
+    const typed = { ...bareRow, containerTypeId: '1', customerAppointmentAt: '2026-11-25T08:00', rawPickupPortName: 'Cảng gõ tay', rawDropoffPortName: 'Cảng hạ gõ tay' };
+    expect(getShipmentCreateReadiness(adHoc, [typed]).issues).toEqual([]);
   });
 
   it('ad-hoc create requires a free-text customer name and carries raw fields in the payload', () => {

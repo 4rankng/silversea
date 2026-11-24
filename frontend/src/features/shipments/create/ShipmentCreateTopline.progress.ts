@@ -15,8 +15,9 @@ import type {
  * Both now derive from the live shape of the whole form:
  *
  * - the required set is enumerated per mode / per container row, with the same
- *   Lệnh chạy ngoài waivers the validator applies (ad-hoc lots waive the
- *   catalog prerequisites, so counting them would invent impossible work);
+ *   Lệnh chạy ngoài waivers the validator applies — exactly Nhà máy + Tuyến
+ *   đường chuẩn (KB K3.23 §3.2.3, SIL-965); the ports stay counted because the
+ *   waiver never covers them and the typed raw name keeps them fillable;
  * - a slot is done when its own predicate says so AND the validator reports no
  *   issue for it (the issue list is the authority whenever it has an opinion —
  *   it skips the document-reference slot until a direction is chosen, and that
@@ -55,6 +56,8 @@ type RequiredRow = Pick<
   | 'routeId'
   | 'pickupPortId'
   | 'dropoffPortId'
+  | 'rawPickupPortName'
+  | 'rawDropoffPortName'
   | 'customerAppointmentAt'
 >;
 
@@ -93,14 +96,22 @@ export function requiredSlots(
     for (const row of containers) {
       const prefix = `container-${row.key}`;
       slots.push({ fieldId: `${prefix}-type`, done: Boolean(row.containerTypeId) });
-      // Catalog prerequisites are waived for Lệnh chạy ngoài (MasterDataNhaMay
-      // §4.1), matching the `!adHoc` guards in the validator.
+      // KB K3.23 §3.2.3 (SIL-965): Lệnh chạy ngoài waives exactly Nhà máy +
+      // Tuyến đường chuẩn — matching the `!adHoc` guards in the validator.
       if (!form.isAdHoc) {
         slots.push({ fieldId: `${prefix}-factory`, done: Boolean(row.operationalSiteId) });
         slots.push({ fieldId: `${prefix}-route`, done: Boolean(row.routeId) });
-        slots.push({ fieldId: `${prefix}-pickup-port`, done: Boolean(row.pickupPortId) });
-        slots.push({ fieldId: `${prefix}-dropoff-port`, done: Boolean(row.dropoffPortId) });
       }
+      // The ports stay required for an ad-hoc row too; the typed raw name is
+      // the second satisfying channel (XOR with the catalog id).
+      slots.push({
+        fieldId: `${prefix}-pickup-port`,
+        done: Boolean(row.pickupPortId) || (form.isAdHoc && Boolean(row.rawPickupPortName.trim())),
+      });
+      slots.push({
+        fieldId: `${prefix}-dropoff-port`,
+        done: Boolean(row.dropoffPortId) || (form.isAdHoc && Boolean(row.rawDropoffPortName.trim())),
+      });
       slots.push({
         fieldId: `${prefix}-customer-appointment`,
         done: Boolean(row.customerAppointmentAt),

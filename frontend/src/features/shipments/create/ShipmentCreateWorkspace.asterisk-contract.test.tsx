@@ -31,9 +31,10 @@ function renderWorkspace() {
 
 /** QA1-007: the visible required mark (dấu *) on every field must equal the
  *  CREATE validation set in getShipmentCreateReadiness() — no asterisk on an
- *  unenforced field, no enforced field without one. Ad-hoc lots waive the
- *  catalog prerequisites (MasterDataNhaMay §4.1), so those asterisks are
- *  conditional on the Lệnh chạy ngoài toggle; the appointment mark is not. */
+ *  unenforced field, no enforced field without one. Ad-hoc lots waive exactly
+ *  the catalog prerequisites Nhà máy + Tuyến đường chuẩn (KB K3.23 §3.2.3,
+ *  SIL-965), so those two asterisks are conditional on the Lệnh chạy ngoài
+ *  toggle; the ports and the appointment mark are not. */
 describe('shipment create required-asterisk contract (QA1-007)', { timeout: 20000 }, () => {
   beforeEach(() => {
     getBootstrap.mockReset();
@@ -137,14 +138,16 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     fireEvent.click(screen.getByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
 
     const cellLabel = (label: string) => document.querySelector<HTMLElement>(`[data-label="${label}"]`);
-    // Catalog prerequisites waived for ad-hoc: factory/route/ports lose the mark…
+    // SIL-965 (KB K3.23 §3.2.3): ad-hoc waives exactly factory + route —
+    // those two lose the mark…
     expect(cellLabel('Nhà máy')).toBeTruthy();
     expect(cellLabel('Tuyến đường')).toBeTruthy();
-    expect(cellLabel('Cảng nâng')).toBeTruthy();
-    expect(cellLabel('Cảng hạ')).toBeTruthy();
     expect(cellLabel('Nhà máy *')).toBeNull();
     expect(cellLabel('Tuyến đường *')).toBeNull();
-    // …while data-safety marks stay.
+    // …while the ports stay required (catalog pick OR typed name) alongside
+    // the data-safety marks.
+    expect(cellLabel('Cảng nâng *')).toBeTruthy();
+    expect(cellLabel('Cảng hạ *')).toBeTruthy();
     expect(cellLabel('Loại container *')).toBeTruthy();
     expect(cellLabel('Ngày giờ đóng trả *')).toBeTruthy();
   });

@@ -606,7 +606,7 @@ export function ShipmentCreateContainerRow({
         </div>
       </ShipmentContainerCell>
       <ShipmentContainerCell
-        label={isAdHoc ? 'Cảng nâng' : 'Cảng nâng *'}
+        label="Cảng nâng *"
         value={pickupPort?.name ?? ''}
         placeholder="Chọn cảng nâng"
         fieldId={`container-${row.key}-pickup-port`}
@@ -619,7 +619,7 @@ export function ShipmentCreateContainerRow({
             id={`container-${row.key}-pickup-port`}
             label="Cảng nâng"
             hideLabel
-            required={!isAdHoc}
+            required
             value={row.pickupPortId}
             onChange={(value) => updateContainer(row.key, 'pickupPortId', value)}
             allowsCustomValue={isAdHoc}
@@ -640,7 +640,7 @@ export function ShipmentCreateContainerRow({
         </div>
       </ShipmentContainerCell>
       <ShipmentContainerCell
-        label={isAdHoc ? 'Cảng hạ' : 'Cảng hạ *'}
+        label="Cảng hạ *"
         value={dropoffPort?.name ?? ''}
         placeholder="Chọn cảng hạ"
         fieldId={`container-${row.key}-dropoff-port`}
@@ -653,7 +653,7 @@ export function ShipmentCreateContainerRow({
             id={`container-${row.key}-dropoff-port`}
             label="Cảng hạ"
             hideLabel
-            required={!isAdHoc}
+            required
             value={row.dropoffPortId}
             onChange={(value) => updateContainer(row.key, 'dropoffPortId', value)}
             // TiepVu22Oct-3 sweep: the EXACT twin of Cảng nâng above — the

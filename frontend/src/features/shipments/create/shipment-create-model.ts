@@ -279,9 +279,10 @@ export function getShipmentCreateReadiness(
   containers: ShipmentContainerDraft[],
 ): ShipmentCreateReadiness {
   const issues: ShipmentCreateIssue[] = [];
-  // Ad-hoc bypass (MasterDataNhaMay §4.1): catalog/pricing prerequisites are
-  // waived; data-safety checks (direction, doc ref, ISO numbers, positive
-  // quantities, dates) still apply unchanged.
+  // Ad-hoc bypass (MasterDataNhaMay §4.1): exactly two catalog prerequisites
+  // are waived — Nhà máy + Tuyến đường chuẩn/Bảng giá định mức (KB K3.23
+  // §3.2.3, PM/PO memo 24/11); the ports stay required and an ad-hoc row may
+  // satisfy them with the typed raw name instead of a catalog pick.
   const adHoc = form.isAdHoc;
 
   if (!adHoc && !form.customerId) {
@@ -309,9 +310,12 @@ export function getShipmentCreateReadiness(
       if (!adHoc) {
         if (!row.operationalSiteId) issues.push(issue(`${prefix}-factory`, `${label}: chọn nhà máy.`, 'cargo'));
         if (!row.routeId) issues.push(issue(`${prefix}-route`, `${label}: chọn tuyến đường.`, 'cargo'));
-        if (!row.pickupPortId) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
-        if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
       }
+      // KB K3.23 §3.2.3 (SIL-965): Cảng nâng/Cảng hạ are NOT waived — the
+      // ad-hoc row just gets the typed raw name as a second satisfying
+      // channel (XOR with the catalog id, the same rule the payload applies).
+      if (!row.pickupPortId && !(adHoc && row.rawPickupPortName.trim())) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
+      if (!row.dropoffPortId && !(adHoc && row.rawDropoffPortName.trim())) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
       if (!row.customerAppointmentAt) issues.push(issue(`${prefix}-customer-appointment`, `${label}: chọn ngày giờ đóng/trả.`, 'schedule'));
       // SIL-917 (KB §3.2.5): the container row carries an optional
       // Thể tích (CBM) input. A blank cell is legal; a TYPED value must pass

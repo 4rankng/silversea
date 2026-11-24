@@ -95,16 +95,17 @@ describe('required completion — the whole form, live', () => {
   });
 
   it('lowers the denominator exactly like the ad-hoc waivers (no impossible counts)', () => {
-    // FCL ad-hoc waives factory/route/ports per row: 3 identity + type + schedule.
+    // KB K3.23 §3.2.3 (SIL-965): ad-hoc waives exactly factory + route per
+    // row — the ports stay: 3 identity + type + 2 ports + schedule.
     const adHocFcl = { ...EMPTY_SHIPMENT_CREATE_FORM, isAdHoc: true };
-    expect(completion(adHocFcl, [createEmptyContainer()])).toEqual({ done: 0, total: 5 });
+    expect(completion(adHocFcl, [createEmptyContainer()])).toEqual({ done: 0, total: 7 });
     const adHocFclFilled = {
       ...IDENTITY_FILLED,
       isAdHoc: true,
       customerId: '',
       rawCustomerName: 'Khách vãng lai 8888',
     };
-    expect(completion(adHocFclFilled, [createEmptyContainer()])).toEqual({ done: 3, total: 5 });
+    expect(completion(adHocFclFilled, [createEmptyContainer()])).toEqual({ done: 3, total: 7 });
 
     // LCL ad-hoc also waives route + warehouse: 3 identity + 3 cargo/schedule
     // (SIL-846 dropped the quy cách slot).
