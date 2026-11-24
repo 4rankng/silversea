@@ -1,0 +1,9 @@
+
+ RUN  v4.1.12 /Users/dev/.paseo/worktrees/1njkloyy/fix-sil-897-filter-scrolled/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  28 passed (28)
+   Start at  08:59:15
+   Duration  7.69s (transform 1.69s, setup 277ms, import 3.72s, tests 2.67s, environment 859ms)
+

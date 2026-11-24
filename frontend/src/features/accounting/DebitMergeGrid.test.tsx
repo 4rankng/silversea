@@ -494,7 +494,7 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
     expect(tsx).toMatch(/acc \+= cell\.getBoundingClientRect\(\)\.width;/);
     expect(tsx).not.toMatch(/getBoundingClientRect\(\)\.left - tableLeft/);
-    expect(tsx).toMatch(/useLayoutEffect\(\(\) => \{[\s\S]*?observer\.observe\(table\);[\s\S]*?\n  \}\);/);
+    expect(tsx).toMatch(/useLayoutEffect\(\(\) => \{[\s\S]*?observer\.observe\(table\);[\s\S]*?\n {2}\}\);/);
     // CSS law: explicit z per layer, left cluster above its row peers, all
     // docks opaque — a transparent or z-tied dock lets scrolled money and
     // group headers bleed through.
@@ -559,5 +559,38 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(debitMergeHeadLabelOccluded(459.5, 780, zone)).toBe(false);
     // One full px inside the zone — straddling, hidden.
     expect(debitMergeHeadLabelOccluded(459, 780, zone)).toBe(true);
+  });
+
+  it('SIL-897 r10: a filter-driven rows change resets the horizontal scroll (the board re-enters at the sticky zone)', () => {
+    // QA round 10 (MATS7539769000 → '9000' while scrolled): the reflowed
+    // result put the CƯỚC PHẢI THU group behind the opaque sticky dock —
+    // values in the DOM, invisible on screen. The AC resets scrollLeft = 0
+    // on a filter change.
+    const baseProps = {
+      storageKey: 'debit-merge-test-cols',
+      selection: new Set<number>(),
+      onSelectionChange: vi.fn(),
+      canLock: true,
+      canChooseDebit: true,
+      onLockSelected: vi.fn(),
+      onChooseDebit: vi.fn(),
+    };
+    const wide = [mergeRow({ shipmentId: 101 }), mergeRow({ shipmentId: 102, billOrBookNumber: 'BL-2' })];
+    const narrowed = [mergeRow({ shipmentId: 201, billOrBookNumber: 'MATS7539769000' })];
+    const { rerender } = render(<DebitMergeGrid {...baseProps} rows={wide} />);
+    const pane = document.querySelector<HTMLElement>('.debit-merge__pane');
+    expect(pane).toBeTruthy();
+    pane!.scrollLeft = 700;
+    expect(pane!.scrollLeft).toBe(700);
+    rerender(<DebitMergeGrid {...baseProps} rows={narrowed} />);
+    expect(pane!.scrollLeft).toBe(0);
+    // The SAME rows array (pagination tap, toolbar re-render) never snaps —
+    // the sil852 safePage law keeps a page-2 view in place.
+    pane!.scrollLeft = 700;
+    rerender(<DebitMergeGrid {...baseProps} rows={narrowed} />);
+    expect(pane!.scrollLeft).toBe(700);
+    // And a fresh result set re-enters left again (the round-10 repro path).
+    rerender(<DebitMergeGrid {...baseProps} rows={wide.map((row) => ({ ...row }))} />);
+    expect(pane!.scrollLeft).toBe(0);
   });
 });
