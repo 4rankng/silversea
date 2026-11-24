@@ -182,7 +182,11 @@ export function ShipmentContainerCell({
       // Multiline note cells: bare Enter inserts a newline natively; only
       // Ctrl/Cmd+Enter commits the cell.
       if (target.tagName === 'TEXTAREA' && !event.ctrlKey && !event.metaKey) return;
-      event.preventDefault();
+      // SIL-938 (QA fail df7b2a73, KB CUS-02 §7.2.1 K7.2): this capture
+      // handler runs BEFORE the workspace form's bubble-phase Enter law, so
+      // preventDefault here turned Enter in every container-cell input into
+      // a dead key — no save, no exit. The collapse/blur stays (the picked
+      // editor folds); the FORM answers Enter itself via requestSubmit.
       target.blur();
       return;
     }

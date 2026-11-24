@@ -765,7 +765,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     }
   }
 
-  async function save(intent: SaveIntent) {
+  async function save(intent: SaveIntent, opts?: { landing?: 'list' }) {
     // FB-048 (card 141026003600): the native pre-gate used to run FIRST and
     // return, so a partially-typed date/Time field (which sets customValidity
     // on its segments) starved every OTHER required field of its issue — the
@@ -779,7 +779,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     // but the input is still `:invalid`), so nothing can slip through a save.
     const incomplete = workspaceFormRef.current?.querySelector<HTMLInputElement>('[data-date-input]:invalid, [data-split-datetime] input:invalid');
     await persistTypedShippingLine();
-    const result = await runSave(intent);
+    const result = await runSave(intent, opts);
     // A partial date/time draft still earns its own native message
     // ("Nhập đủ giờ và ngày hợp lệ.") — reported on top of the app-owned paint,
     // never instead of it.
@@ -858,7 +858,12 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           // Read-only review: nothing may submit — the Enter law below and
           // the disabled controls already guarantee it; this is the backstop.
           if (viewMode) return;
-          void save('CREATE');
+          // SIL-938 (KB CUS-02 §7.2.1 K7.2): this onSubmit fires ONLY from
+          // the form-level Enter law (both save bars are type="button"), so
+          // in the EDIT form it is the KB's Enter contract — save AND exit
+          // to the lot list. The 'Lưu thay đổi' click keeps SIL-171's
+          // detail landing.
+          void save('CREATE', editTarget ? { landing: 'list' } : undefined);
         }}
         onKeyDown={(event) => {
           // FB-002 (cards 181026000027 + 171026215500 family, lần 3 — card

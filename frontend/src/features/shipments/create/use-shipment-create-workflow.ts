@@ -123,7 +123,7 @@ export function useShipmentCreateWorkflow({
     onValidationIssues([]);
   }, [onValidationIssues]);
 
-  const save = useCallback(async (intent: SaveIntent) => {
+  const save = useCallback(async (intent: SaveIntent, opts?: { landing?: 'list' }) => {
     const issues = validateShipmentCreate(intent, readiness);
     if (issues.length > 0) {
       setSubmitError(null);
@@ -283,8 +283,10 @@ export function useShipmentCreateWorkflow({
       // queue-ranked list — the workspace's operational default sort puts
       // unscheduled lots first, so a newly created DATED lot sat on page 2+ of
       // Tổng quan and the creator could not find it. The detail page IS the
-      // confirmation the intake succeeded.
-      else navigate(`/shipments/${shipmentId}`);
+      // confirmation the intake succeeded. SIL-938: the EDIT form's Enter
+      // law overrides — KB CUS-02 §7.2.1 K7.2 saves AND exits to the lot
+      // list (landing 'list' comes only from that form-level submit).
+      else navigate(opts?.landing === 'list' ? '/shipments' : `/shipments/${shipmentId}`);
       return { issues: [] as ShipmentCreateIssue[] };
     } catch (error) {
       // Customer feedback 2026-09-07: when the server rejects a duplicate
