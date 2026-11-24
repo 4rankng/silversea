@@ -143,4 +143,37 @@ describe('demo seed production gate (FB-061)', () => {
       'seed-cut-catalogs is the deploy-time catalog cut and must stay ungated',
     );
   });
+
+  it('make demo stages the demo freight-pricing seed with the explicit SEED_DEMO_DATA opt-in (SIL-959/SIL-960)', () => {
+    // SIL-959/SIL-960: the D4 checklist ran the seed BY HAND after stgdb/demo
+    // refreshes — it rotted, and staging lost the truck norms + reference
+    // fuel periods. The deploy must converge the chain itself, and because
+    // the staging container runs NODE_ENV=production, the run must carry the
+    // gate's explicit opt-in on the same command line.
+    const makefile = readFileSync(resolve(import.meta.dirname, '../../../../Makefile'), 'utf8');
+    const demoTarget = makefile.slice(makefile.indexOf('demo: ## Deploy'));
+    assert.match(
+      demoTarget,
+      /-e SEED_DEMO_DATA=true backend node dist\/seed\/seed-demo-freight-pricing\.js/,
+      'make demo must run the demo freight-pricing seed with SEED_DEMO_DATA=true (gated prod-shaped env)',
+    );
+  });
+
+  it('converges the KB §5.15 norm ladder and the KB §5.17 reference fuel periods (SIL-959/SIL-960)', () => {
+    const source = readFileSync(resolve(import.meta.dirname, '../../seed/seed-demo-freight-pricing.ts'), 'utf8');
+    // KB §5.15 (CuocPhiPhuPhiDau.md §4): đủ 9 định mức D lít/km —
+    // 1.25T 0,10 | 2.5T 0,13 | 3.5T 0,13 | 5T 0,15 | 8T 0,20 | 10T 0,24 |
+    // 15T 0,30 | CONT20 0,32 | CONT40 0,35.
+    for (const [code, lpk] of [
+      ['1.25T', '0.1000'], ['2.5T', '0.1300'], ['3.5T', '0.1300'], ['5T', '0.1500'],
+      ['8T', '0.2000'], ['10T', '0.2400'], ['15T', '0.3000'],
+      ['CONT20', '0.3200'], ['CONT40', '0.3500'],
+    ] as const) {
+      assert.match(source, new RegExp(`'${code.replace('.', '\\.')}': '${lpk}'`), `KB §5.15 định mức ${code}`);
+    }
+    // KB §5.17 (CuocPhiPhuPhiDau.md §2.4): hai kỳ tham chiếu —
+    // 11/07/2026 G = 21.740 và 18/07/2026 G = 27.620 (giá chưa VAT).
+    assert.match(source, /unitPrice: '21740\.00', effectiveFrom: '2026-07-11'/);
+    assert.match(source, /unitPrice: '27620\.00', effectiveFrom: '2026-07-18'/);
+  });
 });

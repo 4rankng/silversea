@@ -177,7 +177,7 @@ stgdb: stg-guard ## Sync prod DB (silversea.tingting.vip) → staging DB (vantai
 	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); $(DEMO_COMPOSE) up -d backend frontend >/dev/null; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     tables=' || count(*) FROM pg_tables WHERE schemaname='public'\"; docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     routes=' || count(*) FROM routes WHERE deleted_at IS NULL\""; \
 	rm -f "$$dump"; \
 	echo "✅ Staging DB now mirrors prod ($(PROD_SERVER) → $(DEMO_SERVER)). Restart with 'make demo' to advance code too."; \
-	echo "📌 Staging checklist (D4): after 'make demo' applies migration 0064+, run the DEMO freight-pricing seed — cd backend && npx tsx src/seed/seed-demo-freight-pricing.ts (staging/dev only; prod never receives invented contract data)"
+	echo "📌 Staging checklist (D4): 'make demo' tự chạy DEMO freight-pricing seed sau migrate (SIL-959/SIL-960 — định mức dầu 9 loại xe + kỳ giá dầu 11/7 & 18/7 converge mỗi deploy; staging/dev only, prod never receives invented contract data)"
 
 qapurge: ## Purge QA-fixture rows on staging (identifier-gated, registry-driven; refuses prod)
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js"
@@ -286,6 +286,8 @@ demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps exis
 	@echo "3/4  Migrate + catalogs + cutover..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend npx drizzle-kit migrate"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend node dist/seed/seed-cut-catalogs.js"
+	@echo "     DEMO freight-pricing seed (SIL-959/SIL-960 — định mức dầu đủ 9 loại xe 1.25T–15T + kỳ giá dầu tham chiếu 11/7 & 18/7; idempotent, gated SEED_DEMO_DATA, prod-refused)..."
+	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps -e SEED_DEMO_DATA=true backend node dist/seed/seed-demo-freight-pricing.js"
 	@echo "     QA-fixture purge (cards 41-45 data class; guarded survivors are logged, never deploy-gating)..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js || echo '     (purge reported guarded survivors — non-gating)'"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
