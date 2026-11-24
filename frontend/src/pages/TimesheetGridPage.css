@@ -130,11 +130,29 @@
   outline-offset: -2px;
 }
 
-/* Sunday is a calendar fact, shown as a quiet tint + a per-cell title —
- * no pill, no decorative icon (design-guidelines §1/§2). */
-.ts-grid .ts-cell[data-sunday='true'] {
-  background: var(--surface-2);
-  color: var(--ink-2);
+/* SIL-968 (KB Ch.2 §2.2.5 / K2.49) — Chủ nhật là CỘT VÀNG dọc toàn cột, khớp
+ * dòng legend 'Chủ nhật — nền vàng, ghi chuyến, không tính ngày công'. Không
+ * có token vàng trong hệ màu nhà nên biến cục bộ --ts-sunday-bg là màu
+ * dữ-nghiệp-do-spec-quy-định duy nhất của trang — cùng chính sách biến cục bộ
+ * và cùng hex #FBEFC7 với trang báo cáo tháng (TimesheetMonthlyReportPage.css).
+ * Tô Ở TẦNG TD (data-sunday-col do trang đặt theo cột 'T1') để nền chạy liền
+ * qua 6 tuần, gồm cả ô đệm đầu/cuối tháng, và Ở TẦNG Ô NHẬP để nền trắng
+ * .ts-cell không đè lên giữa cột. */
+.ts-grid {
+  --ts-sunday-bg: #FBEFC7;
+}
+
+.ts-grid td[data-sunday-col='true'] {
+  background: var(--ts-sunday-bg);
+}
+
+/* Anchor #root như các rule ký hiệu dưới đây: paint readonly (1,0,0) của
+ * base.css phải thua — lưới chỉ-đọc của kế toán (FB-101) vẫn đọc được cột
+ * vàng. Chữ ink đậm trên vàng nhạt (contrast AA); rule N/P/Q/L đứng SAU trong
+ * sheet cùng bậc đặc hiệu nên màu ký hiệu vẫn thắng màu Chủ nhật. */
+:is(#root, body) .ts-grid .ts-cell[data-sunday='true'] {
+  background: var(--ts-sunday-bg);
+  color: var(--ink);
 }
 
 .ts-grid .ts-cell[data-adjustment]:not([data-adjustment='0']) {
@@ -165,4 +183,13 @@
  * consumers reference var() only (design-drift ratchet). */
 :is(#root, body) .ts-grid .ts-cell[data-symbol='Q'] {
   color: var(--chip-open-text);
+}
+
+/* SIL-968 (KB Ch.2 §2.2.5 — bảng màu ký hiệu): L (Lưu ca) hiển thị CHỮ CAM =
+ * var(--warning-text) — cùng bảng màu với ô L trên trang báo cáo tháng
+ * (.ts-report__sym--l); Q xanh là chuẩn đối chiếu SIL-802. Anchor #root như
+ * Q/N/P: thắng paint readonly (1,0,0) của base.css trên lưới chỉ-đọc và màu
+ * mực của rule Chủ nhật. */
+:is(#root, body) .ts-grid .ts-cell[data-symbol='L'] {
+  color: var(--warning-text);
 }

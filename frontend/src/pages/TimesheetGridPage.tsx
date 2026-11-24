@@ -35,6 +35,10 @@ import '../styles/operational-table-typography.css';
 import './TimesheetGridPage.css';
 
 const COLUMN_COUNT = 7;
+// SIL-968 — cột Chủ nhật ('T1', cột cuối theo WEEKDAY_LABELS) tô nền vàng dọc
+// toàn cột: td của cột này mang data-sunday-col để TimesheetGridPage.css tô cả
+// ô đệm đầu/cuối tháng, không chỉ ô có ngày.
+const SUNDAY_COLUMN_INDEX = COLUMN_COUNT - 1;
 
 export default function TimesheetGridPage() {
   const { month, year, goPrev, goNext } = useMonthRoute();
@@ -295,7 +299,11 @@ export default function TimesheetGridPage() {
                   <tr key={weekIndex}>
                     <th scope="row">{`Tuần ${weekIndex + 1}`}</th>
                     {week.map((day, columnIndex) => (
-                      <td key={day?.workDate ?? `blank-${weekIndex}-${columnIndex}`} data-label={day?.workDate}>
+                      <td
+                        key={day?.workDate ?? `blank-${weekIndex}-${columnIndex}`}
+                        data-label={day?.workDate}
+                        data-sunday-col={columnIndex === SUNDAY_COLUMN_INDEX ? 'true' : undefined}
+                      >
                         {day && (
                           <TimesheetGridCell
                             day={day}

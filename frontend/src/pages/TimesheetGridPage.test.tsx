@@ -362,3 +362,65 @@ describe('SIL-841 — legend workday annotations', () => {
     expect(screen.getByText('Chủ nhật — nền vàng, ghi chuyến, không tính ngày công')).toBeTruthy();
   });
 });
+
+// SIL-968 (staging df7b2a73, KB Ch.2 §2.2.5 / K2.49) — QA đo computed style
+// trên /timesheet: ô L đọc mực xám rgb(77,88,82) (= --ink-2 của rule Chủ
+// nhật cũ) và cột Chủ nhật trong suốt rgba(0,0,0,0) ở cả 6 tuần (tầng td
+// chưa từng có nền) — trong khi legend vẫn hứa 'nền vàng'. Pin cả hai luật
+// tại nguồn như SIL-802 đã làm cho chữ xanh Q.
+describe('SIL-968 — ký hiệu L chữ cam & cột Chủ nhật nền vàng', () => {
+  const gridCss = readFileSync(resolve(process.cwd(), 'src/pages/TimesheetGridPage.css'), 'utf8');
+  const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+
+  it('ô L (Lưu ca) đọc CHỮ CAM = var(--warning-text) — cùng bảng màu ô L báo cáo tháng', () => {
+    expect(gridCss).toMatch(
+      /:is\(#root, body\) \.ts-grid \.ts-cell\[data-symbol='L'\]\s*\{[^}]*color:\s*var\(--warning-text\);/,
+    );
+    // Token cam tồn tại ở tầng token (drift ratchet: hex raw chỉ ở tokens.css).
+    expect(tokens).toMatch(/--warning-text:\s*#6F3C10;/);
+  });
+
+  it('cột Chủ nhật mang nền vàng --ts-sunday-bg ở tầng td (cả ô đệm) và tầng ô nhập', () => {
+    expect(gridCss).toMatch(/--ts-sunday-bg:\s*#FBEFC7;/);
+    expect(gridCss).toMatch(
+      /\.ts-grid td\[data-sunday-col='true'\]\s*\{[^}]*background:\s*var\(--ts-sunday-bg\);/,
+    );
+    const sundayRule = gridCss.match(/:is\(#root, body\) \.ts-grid \.ts-cell\[data-sunday='true'\]\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(sundayRule).toContain('background: var(--ts-sunday-bg)');
+    expect(sundayRule).toContain('color: var(--ink)');
+    // Bảng màu xám cũ (QA đo rgb(77,88,82) + nền trong suốt) không được quay lại.
+    expect(sundayRule).not.toContain('--surface-2');
+    expect(sundayRule).not.toContain('--ink-2');
+    // Anchor #root: paint readonly (1,0,0) của base.css phải thua trên lưới
+    // chỉ-đọc của kế toán (FB-101), đúng chính sách của rule Q/N/P.
+    expect(sundayRule.startsWith(':is(#root, body)')).toBe(true);
+  });
+
+  // Tháng 10/2026: 5 tuần — Chủ nhật 04/10 là ô thật tuần 1, tuần 5 kết thúc
+  // bằng Ô ĐỆM ở cột T1; nền vàng phải phủ cả hai loại ô qua mọi tuần.
+  it('mỗi tuần đánh dấu đúng một td[data-sunday-col] ở cột T1 — ô thật lẫn ô đệm', async () => {
+    const octoberDays = Array.from({ length: 31 }, (_, index) =>
+      day(`2026-10-${String(index + 1).padStart(2, '0')}`, { isSunday: [3, 10, 17, 24].includes(index) }));
+    listMonths.mockReset().mockResolvedValue([{ ...month, days: octoberDays }]);
+    const { container } = page();
+    await screen.findAllByRole('textbox');
+    const rows = container.querySelectorAll('.ts-grid tbody tr');
+    expect(rows.length).toBe(5);
+    for (const row of rows) {
+      const sundayTds = row.querySelectorAll('td[data-sunday-col="true"]');
+      expect(sundayTds.length).toBe(1);
+      // Cột T1 là cột ngày CUỐI — ô tổng Chuyến (.num) đứng ngay sau.
+      expect(sundayTds[0].nextElementSibling?.className).toContain('num');
+    }
+    expect(rows[0].querySelector('td[data-sunday-col="true"]')?.getAttribute('data-label')).toBe('2026-10-04');
+    expect(rows[4].querySelector('td[data-sunday-col="true"]')?.getAttribute('data-label')).toBeNull();
+  });
+
+  // Legend đã hứa 'nền vàng' từ SIL-841 — sau khi lưới thực hiện đúng, dòng
+  // chú thích phải khớp thực tế (không còn nói vàng mà lưới trắng).
+  it('legend Chủ nhật khớp lưới sau khi cột vàng có thật', async () => {
+    page();
+    await screen.findAllByRole('textbox');
+    expect(screen.getByText('Chủ nhật — nền vàng, ghi chuyến, không tính ngày công')).toBeTruthy();
+  });
+});
