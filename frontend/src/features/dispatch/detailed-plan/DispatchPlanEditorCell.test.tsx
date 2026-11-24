@@ -1249,10 +1249,11 @@ describe('DispatchPlanEditorCell — editor mount stability across background re
 });
 
 describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () => {
-  // Mirrors of the backend issue gate (inferTrailerTypeFromContainerCode):
-  // a container code starting with 20 needs a 20FT trailer, anything else a
-  // 40FT one — a provable mismatch 409s at Phát lệnh ("Rơ-moóc không phù hợp
-  // với loại container").
+  // Mirrors of the backend issue gate (requiredTrailerTypeForFulfillment):
+  // the requirement is the container's LENGTH — a 20' type (leading-'2'
+  // code or "20'DC" label) floors at 20FT whatever the classification says,
+  // a 40' type floors at 40FT — a provable mismatch 409s at Phát lệnh
+  // ("Rơ-moóc không phù hợp với loại container").
   // The capacity advisory (AC DISP-MP-02) shares the ⚠ glyph, so the
   // trailer tests assert on the 'rơ-moóc' copy instead of the glyph alone.
   const FIT_TRUCK = PAIRED_TRUCK; // 20FT, plate 15H-052.82
@@ -1310,12 +1311,16 @@ describe('DispatchPlanEditorCell — vehicle picker trailer compatibility', () =
     expect(label).not.toContain('rơ-moóc');
   });
 
-  it('VID-DSP-03 ranks a40FT moóc as compatible for two20ft Kẹp containers', async () => {
+  it('VID-DSP-03: a kép DOUBLE 20\'DC row rides the 20FT moóc without a warning — the R3M-KQ1 + R15-DRV-KEP rig', async () => {
+    // QA 24/11 round 2 — the requirement is the container's LENGTH only:
+    // both bulk-dispatched rows are DOUBLE-classified 20'DC on the 20FT
+    // 15RM-107.28 and must issue, not warn "cần 40FT" nor 409.
     mockTruckPage([FIT_TRUCK, MISMATCH_TRUCK]);
     renderCell(row({ classification: 'DOUBLE' }));
     const options = await openVehicleDropdown();
+    expect(options.find((label) => label.includes('15H-052.82'))).not.toContain('rơ-moóc');
+    // The 40FT moóc is a legal (longer) ride for a 20' load too.
     expect(options.find((label) => label.includes('60C-123.45'))).not.toContain('rơ-moóc');
-    expect(options.find((label) => label.includes('15H-052.82'))).toContain('cần 40FT');
   });
 
   it('keeps an unknown trailer type unannotated but below a fitting truck', async () => {

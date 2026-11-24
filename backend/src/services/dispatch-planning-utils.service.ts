@@ -382,7 +382,14 @@ export function trimBounded(value: string | null | undefined, label: string, max
 
 
 /**
- * Trailer the issue gate requires for a fulfillment's own container code.
+ * Trailer the issue gate requires for a fulfillment's own container type.
+ *
+ * The requirement is the container's LENGTH only — a 20' shell needs a 20'
+ * moóc and nothing more, whatever the classification says. The old
+ * DOUBLE-forces-40FT rule 409'd the exact rig the fleet actually assigns to
+ * kép rows (QA 24/11: R3M-KQ1 + R15-DRV-KEP, both 20'DC on the 20FT
+ * 15RM-107.28, both refused 'Rơ-moóc không phù hợp') — the floor law stays:
+ * only a 40' container on a 20FT moóc is a provable mismatch.
  *
  * `LCL_PICKUP` ('Lấy Lẻ') is the one classification that ignores the code:
  * the run takes an already-empty 40' shell and closes LCL cargo into it, so
@@ -393,25 +400,30 @@ export function trimBounded(value: string | null | undefined, label: string, max
 export function requiredTrailerTypeForFulfillment(
   code: string | null | undefined,
   dispatchClassification: string | null | undefined,
+  typeLabel?: string | null | undefined,
 ): '20FT' | '40FT' {
   if (dispatchClassification === 'LCL_PICKUP') return LCL_PICKUP_TRAILER_TYPE;
-  // Same leading-'2' family law as inferTrailerTypeFromContainerCode: a
-  // DOUBLE pair of ISO-coded 20' shells (22G1…) needs the 40' moóc exactly
-  // like a 20DC pair — matching only '20' let a 22xx pair ride as 20FT.
-  if (dispatchClassification === 'DOUBLE' && code?.trim().toUpperCase().startsWith('2')) return '40FT';
-  return inferTrailerTypeFromContainerCode(code);
+  return inferTrailerTypeFromContainerCode(code, typeLabel);
 }
 
-export function inferTrailerTypeFromContainerCode(code: string | null | undefined): '20FT' | '40FT' {
+export function inferTrailerTypeFromContainerCode(
+  code: string | null | undefined,
+  typeLabel?: string | null | undefined,
+): '20FT' | '40FT' {
   const normalized = code?.trim().toUpperCase() ?? '';
   // A 20-foot shell is any code in the leading-'2' family — house labels
   // (20DC/20HC/20RF) AND ISO size-type codes (22G1, 22R1, 25G1): the length
   // digit leads in both systems. Matching only the literal '20' prefix read a
   // 22xx-coded 20'DC type as a 40' requirement and 409'd a 20FT moóc on a
   // plain single 20'DC run (QA 24/11, R3M-KQ1 — the same rig had issued
-  // 20'DC legs all month). 4x/45/L5 codes stay 40FT; unknown text keeps the
+  // 20'DC legs all month). 4x/45/L5 codes stay 40FT.
+  if (normalized.startsWith('2')) return '20FT';
+  // When the code column carries no leading length digit, the human label
+  // still does — master data stores "20'DC" in container_types.name (QA
+  // 24/11: read the field the data actually fills). Unknown text keeps the
   // conservative 40FT the gate always fell back to.
-  return normalized.startsWith('2') ? '20FT' : '40FT';
+  const normalizedLabel = typeLabel?.trim().toUpperCase() ?? '';
+  return normalizedLabel.startsWith('20') ? '20FT' : '40FT';
 }
 
 

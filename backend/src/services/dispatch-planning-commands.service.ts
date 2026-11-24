@@ -518,6 +518,7 @@ export async function issueOrderCreateOrUpdate(
     if (fulfillment.shipmentContainerId != null) {
       const [container] = await tx.select({
         code: s.containerTypes.code,
+        name: s.containerTypes.name,
         containerTypeId: s.shipmentContainers.containerTypeId,
         cargoWeightKg: s.shipmentContainers.cargoWeightKg,
       })
@@ -527,14 +528,15 @@ export async function issueOrderCreateOrUpdate(
         .limit(1);
       // Master-data imports usually leave Loại Moóc blank (see trailers.type
       // comment) — only block on a mismatch we can actually prove, not on
-      // missing data. LCL_PICKUP and DOUBLE both run on a 40' moóc whatever
-      // the lot's own 20' code says (see requiredTrailerTypeForFulfillment),
-      // and the comparison is a length FLOOR: a 20' load may ride a 40' moóc
-      // (Kẹp clamp hardware), while a 40' requirement on a 20' moóc stays
-      // blocked (TRAILER_LENGTH_RANK, card 091026164500).
-      const requiredTrailerType = container?.code == null
+      // missing data. LCL_PICKUP runs on a 40' moóc whatever the lot's own
+      // 20' code says (see requiredTrailerTypeForFulfillment), and the
+      // comparison is a length FLOOR: a 20' load rides any moóc — 20' or the
+      // 40' Kẹp rig (QA 24/11: DOUBLE 20'DC rows R3M-KQ1/R15-DRV-KEP on the
+      // 20FT 15RM-107.28 must issue) — while a 40' container on a 20' moóc
+      // stays blocked (TRAILER_LENGTH_RANK, card 091026164500).
+      const requiredTrailerType = container?.code == null && container?.name == null
         ? null
-        : requiredTrailerTypeForFulfillment(container.code, fulfillment.dispatchClassification);
+        : requiredTrailerTypeForFulfillment(container.code, fulfillment.dispatchClassification, container.name);
       if (
         requiredTrailerType != null
         && resolvedTrailerType != null

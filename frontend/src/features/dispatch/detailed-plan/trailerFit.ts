@@ -1,25 +1,31 @@
 import type { DispatchTruck } from '../../../api/dispatchPlanningClient';
 import { LCL_PICKUP_TRAILER_TYPE } from '@tingting/shared';
 
-/** Mirror of the backend issue gate (inferTrailerTypeFromContainerCode in
- *  dispatch-planning-utils.service.ts): a container code in the leading-'2'
- *  family — house labels (20DC…) AND ISO size-type codes (22G1, 22R1, 25G1;
- *  QA 24/11 R3M-KQ1) — takes 20FT for a single load or 40FT for a DOUBLE
- *  pair; larger shells use 40FT. The callers feed the type CODE first
- *  (pricing.containerTypeCode — the same column the backend gate reads) and
- *  fall back to the label, so this advisory and the gate can never split on
- *  a code/label prefix mismatch. Null container info → no signal, no
- *  annotation — same "only block on a provable mismatch" stance as the
- *  backend.
+/** Mirror of the backend issue gate (requiredTrailerTypeForFulfillment in
+ *  dispatch-planning-utils.service.ts): the requirement is the container's
+ *  LENGTH only — a leading-'2' code family (house 20DC + ISO 22G1/22R1/25G1)
+ *  or a "20'DC"-style label is a 20' shell and needs a 20FT moóc floor
+ *  whatever the classification says (QA 24/11 R3M-KQ1/R15-DRV-KEP: DOUBLE
+ *  20'DC rows on the 20FT 15RM-107.28 must issue); larger shells use 40FT.
+ *  The callers feed the type CODE first (pricing.containerTypeCode — the
+ *  same column the backend gate reads) and pass the label alongside, so this
+ *  advisory and the gate can never split on a code/label prefix mismatch.
+ *  Null container info → no signal, no annotation — same "only block on a
+ *  provable mismatch" stance as the backend.
  *
- *  LCL_PICKUP ('Lấy Lẻ') overrides the container code entirely: the run
+ *  LCL_PICKUP ('Lấy Lẻ') overrides the container type entirely: the run
  *  moves the truck's own empty 40' shell, so the lot's 20' code must not
  *  downgrade the required trailer to a 20' moóc the run will not drive. */
-export function requiredTrailerTypeForContainer(label: string | null | undefined, classification?: string): '20FT' | '40FT' | null {
+export function requiredTrailerTypeForContainer(
+  code: string | null | undefined,
+  classification?: string,
+  typeLabel?: string | null | undefined,
+): '20FT' | '40FT' | null {
   if (classification === 'LCL_PICKUP') return LCL_PICKUP_TRAILER_TYPE;
-  const normalized = label?.trim().toUpperCase() ?? '';
-  if (!normalized) return null;
-  return normalized.startsWith('2') && classification !== 'DOUBLE' ? '20FT' : '40FT';
+  const normalizedCode = code?.trim().toUpperCase() ?? '';
+  const normalizedLabel = typeLabel?.trim().toUpperCase() ?? '';
+  if (!normalizedCode && !normalizedLabel) return null;
+  return normalizedCode.startsWith('2') || normalizedLabel.startsWith('20') ? '20FT' : '40FT';
 }
 
 /** Physical moóc length rank. Card 091026164810: the requirement is a MINIMUM

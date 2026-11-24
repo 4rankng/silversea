@@ -116,8 +116,9 @@ describe('requiredTrailerTypeForContainer', () => {
   it('derives the requirement from the container code for the cont models', () => {
     expect(requiredTrailerTypeForContainer('20DC', 'SINGLE')).toBe('20FT');
     expect(requiredTrailerTypeForContainer('40HC', 'SINGLE')).toBe('40FT');
-    // Kẹp pairs two 20' shells on one 40' moóc.
-    expect(requiredTrailerTypeForContainer('20DC', 'DOUBLE')).toBe('40FT');
+    // QA 24/11 round 2 — kép DOUBLE rows are 20' loads: a 20FT moóc is the
+    // floor, not a mismatch (R3M-KQ1 + R15-DRV-KEP must issue on 15RM-107.28).
+    expect(requiredTrailerTypeForContainer('20DC', 'DOUBLE')).toBe('20FT');
   });
 
   // CR-010.1 (SIL-898 c, QA R3M-KQ1) — ISO size-type codes: the length digit
@@ -126,10 +127,21 @@ describe('requiredTrailerTypeForContainer', () => {
   it('reads ISO 2x codes as 20FT and 4x/L5 as 40FT', () => {
     expect(requiredTrailerTypeForContainer('22G1', 'SINGLE')).toBe('20FT');
     expect(requiredTrailerTypeForContainer('22R1', 'SINGLE')).toBe('20FT');
-    expect(requiredTrailerTypeForContainer('25G1', 'DOUBLE')).toBe('40FT');
+    expect(requiredTrailerTypeForContainer('25G1', 'DOUBLE')).toBe('20FT');
     expect(requiredTrailerTypeForContainer('42G1', 'SINGLE')).toBe('40FT');
     expect(requiredTrailerTypeForContainer('45HC', 'SINGLE')).toBe('40FT');
     expect(requiredTrailerTypeForContainer('L5G1', 'SINGLE')).toBe('40FT');
+  });
+
+  it('falls back to a "20\'DC"-style label when the code lacks the leading digit', () => {
+    // Master data keeps the human label in container_types.name; the gate
+    // reads both columns, so the advisory must too (QA 24/11 round 2).
+    expect(requiredTrailerTypeForContainer('DC', 'SINGLE', "20'DC")).toBe('20FT');
+    expect(requiredTrailerTypeForContainer(null, 'DOUBLE', "20'DC")).toBe('20FT');
+    expect(requiredTrailerTypeForContainer(null, 'SINGLE', "40'HC")).toBe('40FT');
+    // The law is an OR: a label with a length digit reads 20FT even beside a
+    // 4x code — BE and FE resolve the contradiction the same way.
+    expect(requiredTrailerTypeForContainer('40HC', 'SINGLE', "20'DC")).toBe('20FT');
   });
 
   it('forces a 40FT moóc for Lấy Lẻ whatever the lot code says', () => {
