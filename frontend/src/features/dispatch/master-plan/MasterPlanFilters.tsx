@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
-import type { ShipmentAllocationFilter } from '../../../api/shipmentClient';
+import type { ShipmentAllocationFilter, ShipmentPlateStatusFilter } from '../../../api/shipmentClient';
 import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableMultiSelect, type DateRangeValue, type FilterBarResetScope } from '../../../design-system';
 import { listZonePortFacets } from '../../../api/shipmentClient';
 import { configClient } from '../../../api/configClient';
@@ -27,15 +27,27 @@ const TRADE_DIRECTION_OPTIONS = [
   { id: 'EXPORT', label: 'Xuất' },
 ];
 
-/* Card 20260925_5 (PM/customer, lead ruling): "Đang phân xe" is dropped —
-   partially-allocated lots wait in "Chờ phân xe"; "Chờ phân nhà xe" carries
-   date-locked lots with zero carriers. Buckets are mutually exclusive (one
-   lot, one bucket) so counts match grid rows exactly. */
+/* KB K4.7 (SIL-952, QA 24/11) — the five mutually exclusive buckets (one lot,
+   one bucket, counts match grid rows exactly). 'Đang phân xe' is BACK: the
+   20260925_5 ruling folded partially-allocated lots into 'Chờ phân xe'; K4.7
+   splits them out again — a lot with SOME carriers but not all is 'Đang phân
+   xe', a zero-carrier lot without a locked date stays 'Chờ phân xe', a
+   zero-carrier date-locked lot is 'Chờ phân nhà xe', full coverage is 'Đã
+   phân xong'. */
 const ALLOCATION_OPTIONS: { id: ShipmentAllocationFilter | 'ALL_ALLOCATIONS'; label: string }[] = [
   { id: 'ALL_ALLOCATIONS', label: 'Tất cả trạng thái' },
   { id: 'NOT_ALLOCATED', label: 'Chờ phân xe' },
   { id: 'PENDING_CARRIER', label: 'Chờ phân nhà xe' },
+  { id: 'PARTIALLY_ALLOCATED', label: 'Đang phân xe' },
   { id: 'FULLY_ALLOCATED', label: 'Đã phân xong' },
+];
+
+/** K4.7 (SIL-952): the Biển số scope — 'Đã gán biển' / 'Chưa gán biển' over
+ *  the active fulfillments' planned plates. */
+const PLATE_STATUS_OPTIONS: { id: FilterState['plateStatus'] | 'ALL_PLATES'; label: string }[] = [
+  { id: 'ALL_PLATES', label: 'Tất cả' },
+  { id: 'UNPLATED', label: 'Chưa gán biển' },
+  { id: 'PLATED', label: 'Đã gán biển' },
 ];
 
 /** Card 171026154000 (same labels as DetailedPlanFilters): Loại hàng — the
@@ -247,6 +259,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
   const primaryCount = [
     filters.tradeDirection !== '',
     filters.allocationStatus !== '',
+    filters.plateStatus !== '',
     filters.cargoMode !== '',
   ].filter(Boolean).length;
   const secondaryCount = primaryCount + [
@@ -259,7 +272,7 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
 
   const clearSecondaryFilters = (scope: FilterBarResetScope) => {
     onChange({
-      ...(scope === 'all' ? { tradeDirection: '', allocationStatus: '', cargoMode: '' } : {}),
+      ...(scope === 'all' ? { tradeDirection: '', allocationStatus: '', plateStatus: '', cargoMode: '' } : {}),
       portIds: [],
       carrierKeys: [],
       ...(rangeFieldsOnCoarsePointer
@@ -336,6 +349,18 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
                 allocationStatus: key === 'ALL_ALLOCATIONS' ? '' : key as FilterState['allocationStatus'],
               })}
               items={ALLOCATION_OPTIONS}
+            />
+            {/* K4.7 (SIL-952): the Biển số scope rides the same primary band —
+                the dispatcher's plate sweep (Chưa gán biển / Đã gán biển). */}
+            <InlineLabelSelect
+              id="master-plan-plate-status"
+              label="Biển số"
+              ariaLabel="Biển số"
+              selectedKey={filters.plateStatus || 'ALL_PLATES'}
+              onSelectionChange={(key) => onChange({
+                plateStatus: key === 'ALL_PLATES' ? '' : key as FilterState['plateStatus'],
+              })}
+              items={PLATE_STATUS_OPTIONS}
             />
             {/* Card 171026154000: hàng lẻ used to hide pages deep behind FCL
                 rows — the Loại hàng scope puts the checkbox rows one pick

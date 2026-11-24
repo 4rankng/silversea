@@ -6,6 +6,7 @@ import {
   type ShipmentAllocationFilter,
   type ShipmentListItem,
   type ShipmentListResponse,
+  type ShipmentPlateStatusFilter,
 } from '../../../api/shipmentClient';
 import {
   listZoneTruckPresence,
@@ -21,6 +22,9 @@ export interface MasterPlanFilters {
   q: string;
   tradeDirection: 'IMPORT' | 'EXPORT' | '';
   allocationStatus: ShipmentAllocationFilter | '';
+  /** K4.7 (SIL-952): Biển số scope ('' = Tất cả) over active fulfillments'
+   *  planned plates — 'Đã gán biển' / 'Chưa gán biển'. */
+  plateStatus: ShipmentPlateStatusFilter | '';
   deliveryDateFrom: string;
   deliveryDateTo: string;
   portIds: number[];
@@ -37,6 +41,7 @@ export const EMPTY_MASTER_PLAN_FILTERS: MasterPlanFilters = {
   q: '',
   tradeDirection: '',
   allocationStatus: '',
+  plateStatus: '',
   deliveryDateFrom: '',
   deliveryDateTo: '',
   portIds: [],
@@ -70,6 +75,7 @@ export function masterPlanListParams(
     ...(filters.q ? { q: filters.q } : {}),
     ...(filters.tradeDirection ? { tradeDirection: filters.tradeDirection } : {}),
     ...(filters.allocationStatus ? { allocationStatus: filters.allocationStatus } : {}),
+    ...(filters.plateStatus ? { plateStatus: filters.plateStatus } : {}),
     ...(filters.deliveryDateFrom ? { deliveryDateFrom: filters.deliveryDateFrom } : {}),
     ...(filters.deliveryDateTo ? { deliveryDateTo: filters.deliveryDateTo } : {}),
     ...(filters.portIds.length > 0 ? { portIds: filters.portIds } : {}),
@@ -137,7 +143,7 @@ export function useDispatchMasterPlan() {
   useEffect(() => {
     const requestId = ++requestIdRef.current;
     const viewSignature = JSON.stringify([
-      page, debouncedQ, filters.tradeDirection, filters.allocationStatus,
+      page, debouncedQ, filters.tradeDirection, filters.allocationStatus, filters.plateStatus,
       filters.deliveryDateFrom, filters.deliveryDateTo, filters.portIds, filters.carrierKeys,
       filters.cargoMode,
     ]);
@@ -154,6 +160,7 @@ export function useDispatchMasterPlan() {
       q: debouncedQ,
       tradeDirection: filters.tradeDirection,
       allocationStatus: filters.allocationStatus,
+      plateStatus: filters.plateStatus,
       deliveryDateFrom: filters.deliveryDateFrom,
       deliveryDateTo: filters.deliveryDateTo,
       portIds: filters.portIds,
@@ -172,7 +179,7 @@ export function useDispatchMasterPlan() {
         setError('Không thể tải danh sách lô hàng. Vui lòng thử lại.');
         setLoading(false);
       });
-  }, [page, debouncedQ, filters.tradeDirection, filters.allocationStatus, filters.deliveryDateFrom, filters.deliveryDateTo, filters.portIds, filters.carrierKeys, filters.cargoMode, refreshKey]);
+  }, [page, debouncedQ, filters.tradeDirection, filters.allocationStatus, filters.plateStatus, filters.deliveryDateFrom, filters.deliveryDateTo, filters.portIds, filters.carrierKeys, filters.cargoMode, refreshKey]);
 
   const updateFilters = useCallback((patch: Partial<MasterPlanFilters>) => {
     setFilters((prev) => ({ ...prev, ...patch }));

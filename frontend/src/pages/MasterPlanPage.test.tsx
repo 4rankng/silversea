@@ -31,7 +31,7 @@ vi.mock('../api/configClient', () => ({
 vi.mock('../features/dispatch/master-plan/useDispatchMasterPlan', () => ({
   useDispatchMasterPlan: () => ({
     filters: {
-      q: '', tradeDirection: '', allocationStatus: '',
+      q: '', tradeDirection: '', allocationStatus: '', plateStatus: '',
       deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const,
     },
     updateFilters: vi.fn(),

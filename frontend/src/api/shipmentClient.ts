@@ -610,13 +610,19 @@ export interface CancelShipmentFulfillmentResponse {
 /** Dispatch master-plan: how much of the container demand has a planned carrier. */
 export type ShipmentAllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
 
-/** Card 20260925_5: dispatch master-plan FILTER buckets — mutually exclusive
- * (one lot, one bucket, lead ruling). NOT_ALLOCATED = "Chờ phân xe" (zero
- * allocations without a locked date, plus partially-allocated lots);
- * PENDING_CARRIER = "Chờ phân nhà xe" (date locked, zero carriers);
- * FULLY_ALLOCATED = "Đã phân xong". The ROW payload keeps the derived
- * ShipmentAllocationStatus wire enum — this type is the filter contract only. */
-export type ShipmentAllocationFilter = 'NOT_ALLOCATED' | 'FULLY_ALLOCATED' | 'PENDING_CARRIER';
+/** Card 20260925_5 + KB K4.7 (SIL-952, QA 24/11): dispatch master-plan FILTER
+ * buckets — mutually exclusive (one lot, one bucket). K4.7 restores the fifth
+ * bucket the 20260925_5 ruling had folded away: PARTIALLY_ALLOCATED =
+ * "Đang phân xe" (some carriers, not all); NOT_ALLOCATED = "Chờ phân xe"
+ * (zero allocations, no locked date); PENDING_CARRIER = "Chờ phân nhà xe"
+ * (date locked, zero carriers); FULLY_ALLOCATED = "Đã phân xong". The ROW
+ * payload keeps the derived ShipmentAllocationStatus wire enum — this type is
+ * the filter contract only. */
+export type ShipmentAllocationFilter = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED' | 'PENDING_CARRIER';
+
+/** K4.7 (SIL-952) — the Biển số scope: has any active fulfillment planned a
+ *  plate ('Đã gán biển') or none has ('Chưa gán biển'). */
+export type ShipmentPlateStatusFilter = 'PLATED' | 'UNPLATED';
 
 /** Per-carrier 20'/40' planned allocation counts (dispatch master-plan chips). */
 export interface ShipmentCarrierAllocationSummaryEntry {
@@ -1081,6 +1087,8 @@ export async function listShipments(params?: {
   deliveryDateFrom?: string;
   deliveryDateTo?: string;
   allocationStatus?: ShipmentAllocationFilter;
+  /** K4.7 (SIL-952): Biển số scope over active fulfillments' planned plates. */
+  plateStatus?: ShipmentPlateStatusFilter;
   /** Dispatch master-plan Lạch Huyện: OR within ports, AND with other facets. */
   portIds?: number[];
   /** Dispatch master-plan: OWN / EXTERNAL:<id> / UNASSIGNED keys. */
@@ -1107,6 +1115,7 @@ export async function listShipments(params?: {
   if (params?.deliveryDateFrom) query.set('deliveryDateFrom', params.deliveryDateFrom);
   if (params?.deliveryDateTo) query.set('deliveryDateTo', params.deliveryDateTo);
   if (params?.allocationStatus) query.set('allocationStatus', params.allocationStatus);
+  if (params?.plateStatus) query.set('plateStatus', params.plateStatus);
   params?.portIds?.forEach((id) => query.append('portIds', String(id)));
   params?.carrierKeys?.forEach((key) => query.append('carrierKeys', key));
   if (params?.cargoMode) query.set('cargoMode', params.cargoMode);

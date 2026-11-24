@@ -678,12 +678,16 @@ export interface ListShipmentsOptions {
   /** Dispatch master-plan filter: upper bound on expectedDeliveryDate. */
   deliveryDateTo?: string;
   /** Dispatch master-plan filter: derived carrier-allocation coverage. */
-  /** Card 20260925_5: filter-only buckets. NOT_ALLOCATED is the merged
-   * "Chờ phân xe" bucket (zero + partial); PENDING_CARRIER = date locked
+  /** Card 20260925_5 + KB K4.7 (SIL-952, QA 24/11): five mutually exclusive
+   * buckets — NOT_ALLOCATED = "Chờ phân xe" (zero carriers, no locked date);
+   * PARTIALLY_ALLOCATED = "Đang phân xe" (some carriers, not all — K4.7
+   * un-folds it from the old merged bucket); PENDING_CARRIER = date locked
    * (expectedDeliveryDate set) but zero carriers; FULLY_ALLOCATED unchanged.
-   * PARTIALLY_ALLOCATED stays accepted server-side as the legacy merged-bucket
-   * alias for stale clients; the derived ROW status wire contract is unchanged. */
+   * The derived ROW status wire contract is unchanged. */
   allocationStatus?: AllocationStatus | 'PENDING_CARRIER';
+  /** K4.7 (SIL-952): Biển số scope over active fulfillments' planned plates —
+   * PLATED = 'Đã gán biển' (≥1 plate), UNPLATED = 'Chưa gán biển' (none). */
+  plateStatus?: 'PLATED' | 'UNPLATED';
   /** Dispatch master-plan filter: OR-within pickup/dropoff port ids
    *  matched against active fulfillments' containers. */
   portIds?: number[];
@@ -803,41 +807,49 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     conditions.push(...await cusVisibilityCondition(db, options.actor, { includeTeam: options.includeTeam === true }));
   }
 
-  // allocationStatus is derived from container/fulfillment aggregates and
-  // cannot live in the WHERE clause. When filtering on it, resolve the full
-  // matching id set first, filter by the derived status, and paginate that id
-  // list — keeps `total` exact and the page consistent. The id list is already
-  // paginated, so the main query below must not apply offset/limit again.
+  // allocationStatus / plateStatus are derived from container/fulfillment
+  // aggregates and cannot live in the WHERE clause. When either filter is on,
+  // resolve the full matching id set first, filter by the derived status, and
+  // paginate that id list — keeps `total` exact and the page consistent. The
+  // id list is already paginated, so the main query below must not apply
+  // offset/limit again.
   let derivedTotal: number | null = null;
   let paginatedByIds = false;
-  if (options.allocationStatus) {
+  if (options.allocationStatus || options.plateStatus) {
     const idRows = await db.select({ id: s.shipments.id, expectedDeliveryDate: s.shipments.expectedDeliveryDate })
       .from(s.shipments)
       .leftJoin(s.customers, and(eq(s.shipments.customerId, s.customers.id), isNull(s.customers.deletedAt)))
       .where(and(...conditions))
       .orderBy(desc(s.shipments.createdAt));
     const aggregatesById = await loadShipmentDispatchAggregates(idRows.map((row) => row.id));
-    // One lot, one bucket — mutually exclusive by allocation state (lead
-    // ruling on card 20260925_5): NOT_ALLOCATED+date → Chờ phân nhà xe ONLY;
-    // PARTIALLY → Chờ phân xe ONLY (it has carriers); full → Đã phân xong.
     const matching = idRows.filter((row) => {
-      const status = aggregatesById.get(row.id)?.allocationStatus ?? 'NOT_ALLOCATED';
-      // One lot, one bucket — mutually exclusive by allocation state (lead
-      // ruling on card 20260925_5): NOT_ALLOCATED+date → Chờ phân nhà xe ONLY;
-      // PARTIALLY → Chờ phân xe ONLY (it has carriers); NOT_ALLOCATED without
-      // a date → Chờ phân xe (date not locked); full → Đã phân xong.
-      switch (options.allocationStatus) {
-        case 'PENDING_CARRIER':
-          return status === 'NOT_ALLOCATED' && row.expectedDeliveryDate != null;
-        case 'FULLY_ALLOCATED':
-          return status === 'FULLY_ALLOCATED';
-        case 'PARTIALLY_ALLOCATED': // legacy alias → same membership as below
-        case 'NOT_ALLOCATED':
-          return status === 'PARTIALLY_ALLOCATED'
-            || (status === 'NOT_ALLOCATED' && row.expectedDeliveryDate == null);
-        default:
-          return false;
-      }
+      const aggregates = aggregatesById.get(row.id);
+      const status = aggregates?.allocationStatus ?? 'NOT_ALLOCATED';
+      // K4.7 (SIL-952) — five mutually exclusive buckets (one lot, one
+      // bucket): NOT_ALLOCATED+date → Chờ phân nhà xe ONLY; a partially
+      // allocated lot is 'Đang phân xe' ONLY (K4.7 un-folds the 20260925_5
+      // merge); NOT_ALLOCATED without a date → Chờ phân xe; full → Đã phân
+      // xong. plateStatus combines as a second gate on the same id set.
+      const allocationMatches = (() => {
+        switch (options.allocationStatus) {
+          case 'PENDING_CARRIER':
+            return status === 'NOT_ALLOCATED' && row.expectedDeliveryDate != null;
+          case 'FULLY_ALLOCATED':
+            return status === 'FULLY_ALLOCATED';
+          case 'PARTIALLY_ALLOCATED':
+            return status === 'PARTIALLY_ALLOCATED';
+          case 'NOT_ALLOCATED':
+            return status === 'NOT_ALLOCATED' && row.expectedDeliveryDate == null;
+          case undefined:
+            return true;
+          default:
+            return false;
+        }
+      })();
+      if (!allocationMatches) return false;
+      if (options.plateStatus === 'PLATED') return (aggregates?.platedCount ?? 0) > 0;
+      if (options.plateStatus === 'UNPLATED') return (aggregates?.platedCount ?? 0) === 0;
+      return true;
     });
     derivedTotal = matching.length;
     const pageIds = matching.slice(offset, offset + limit).map((row) => row.id);

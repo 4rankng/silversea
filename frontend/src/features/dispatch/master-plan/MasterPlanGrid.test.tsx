@@ -921,7 +921,7 @@ describe('MasterPlanGrid', () => {
 describe('MasterPlanFilters', () => {
   it('propagates every filter control change', () => {
     const onChange = vi.fn();
-    render(<MasterPlanFilters filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const }} onChange={onChange} />);
+    render(<MasterPlanFilters filters={{ q: '', tradeDirection: '', allocationStatus: '', plateStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const }} onChange={onChange} />);
 
     fireEvent.change(screen.getByLabelText('Tìm kiếm lô hàng'), { target: { value: 'BL-9' } });
     expect(onChange).toHaveBeenLastCalledWith({ q: 'BL-9' });
@@ -957,7 +957,7 @@ describe('MasterPlanFilters', () => {
   it('keeps the complete delivery-date pair as one control group in the bar', () => {
     const { container } = render(
       <MasterPlanFilters
-        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const }}
+        filters={{ q: '', tradeDirection: '', allocationStatus: '', plateStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const }}
         onChange={vi.fn()}
       />,
     );
@@ -977,7 +977,7 @@ describe('MasterPlanFilters', () => {
   it('leaves the strip to the shared bar instead of nesting it in a page-local surface', () => {
     const { container } = render(
       <MasterPlanFilters
-        filters={{ q: '', tradeDirection: '', allocationStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const }}
+        filters={{ q: '', tradeDirection: '', allocationStatus: '', plateStatus: '', deliveryDateFrom: '', deliveryDateTo: '', portIds: [], carrierKeys: [], cargoMode: '' as const }}
         onChange={vi.fn()}
       />,
     );

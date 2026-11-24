@@ -19,6 +19,7 @@ const EMPTY_FILTERS = {
   q: '',
   tradeDirection: '' as const,
   allocationStatus: '' as const,
+  plateStatus: '' as const,
   deliveryDateFrom: '',
   deliveryDateTo: '',
   portIds: [],
@@ -32,16 +33,34 @@ describe('dispatch allocation filter buckets (card 20260925_5)', () => {
   const filtersSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanFilters.tsx'), 'utf8');
   const hookSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/useDispatchMasterPlan.ts'), 'utf8');
 
-  it('drops Đang phân xe and offers the merged buckets in customer order', () => {
+  it('offers the five KB buckets in K4.7 order — Đang phân xe is back (SIL-952)', () => {
     expect(filtersSource).toContain("label: 'Chờ phân xe'");
     expect(filtersSource).toContain("label: 'Chờ phân nhà xe'");
+    expect(filtersSource).toContain("label: 'Đang phân xe'");
     expect(filtersSource).toContain("label: 'Đã phân xong'");
-    expect(filtersSource).not.toContain("label: 'Đang phân xe'");
+    // The dropdown lists exactly these five buckets.
+    expect(filtersSource).toMatch(/Tất cả trạng thái[\s\S]*?Chờ phân xe[\s\S]*?Chờ phân nhà xe[\s\S]*?Đang phân xe[\s\S]*?Đã phân xong/);
   });
 
   it('sends the filter-only PENDING_CARRIER bucket and never the dropped status', () => {
     expect(hookSource).toContain('ShipmentAllocationFilter');
     expect(filtersSource).toContain('PENDING_CARRIER');
+  });
+
+  it('carries the Biển số scope with its Chưa gán biển / Đã gán biển options (SIL-952)', () => {
+    const onChange = vi.fn();
+    vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: [] });
+    render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Biển số: Tất cả' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Đã gán biển' }));
+    expect(onChange).toHaveBeenLastCalledWith({ plateStatus: 'PLATED' });
+
+    // Controlled select over an immutable fixture: the trigger keeps its
+    // 'Tất cả' label, so reopen from the initial state for the second scope.
+    fireEvent.click(screen.getByRole('button', { name: 'Biển số: Tất cả' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Chưa gán biển' }));
+    expect(onChange).toHaveBeenLastCalledWith({ plateStatus: 'UNPLATED' });
   });
 });
 

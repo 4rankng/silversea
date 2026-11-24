@@ -288,6 +288,16 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     allocationStatus = allocationStatusVal as AllocationStatus;
   }
 
+  // K4.7 (SIL-952): the Biển số scope — strict values, empty means Tất cả.
+  const plateStatusVal = typeof req.query.plateStatus === 'string' ? req.query.plateStatus.trim() : undefined;
+  let plateStatus: 'PLATED' | 'UNPLATED' | undefined;
+  if (plateStatusVal !== undefined && plateStatusVal.length > 0) {
+    if (plateStatusVal !== 'PLATED' && plateStatusVal !== 'UNPLATED') {
+      throw new ApiError(400, 'Trạng thái biển số lọc không hợp lệ');
+    }
+    plateStatus = plateStatusVal;
+  }
+
   // Dispatch master-plan Lạch Huyện facets: repeatable `portIds` /
   // `carrierKeys` params, OR within one facet, AND across facets. Strict
   // boundary parsing with Vietnamese 400s.
@@ -344,6 +354,7 @@ coreRoutes.get('/', asyncHandler(async (req: Request, res: Response) => {
     deliveryDateFrom,
     deliveryDateTo,
     allocationStatus,
+    plateStatus,
     portIds: portIds.length > 0 ? portIds : undefined,
     carrierKeys: uniqueCarrierKeys.length > 0 ? uniqueCarrierKeys : undefined,
     cargoMode,

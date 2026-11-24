@@ -25,6 +25,9 @@ export async function loadShipmentDispatchAggregates(
 ): Promise<Map<number, ShipmentContainerAggregates & {
   carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
   hasActiveLclShipment: boolean;
+  /** K4.7 (SIL-952) — active fulfillments carrying a planned plate; > 0 is
+   *  'Đã gán biển', 0 is 'Chưa gán biển'. */
+  platedCount: number;
 }>> {
   const ids = [...new Set(shipmentIds)];
   const empty = new Map();
@@ -46,6 +49,9 @@ export async function loadShipmentDispatchAggregates(
       fulfillmentType: s.shipmentFulfillments.fulfillmentType,
       plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
       plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
+      // K4.7 (SIL-952) — the Biển số scope reads the same planned-plate
+      // column the detail grid's PHÂN BỔ renders.
+      plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
       containerTypeCode: s.containerTypes.code,
       containerTypeName: s.containerTypes.name,
     }).from(s.shipmentFulfillments)
@@ -87,6 +93,7 @@ export async function loadShipmentDispatchAggregates(
   const result = new Map<number, ShipmentContainerAggregates & {
     carrierAllocationSummary: ShipmentCarrierAllocationSummaryEntry[];
     hasActiveLclShipment: boolean;
+    platedCount: number;
   }>();
   for (const id of ids) {
     const containers = containersByShipment.get(id) ?? [];
@@ -129,7 +136,12 @@ export async function loadShipmentDispatchAggregates(
     // never disagree with the header count on real payloads.
     const hasActiveLclShipment = (fulfillmentsByShipment.get(id) ?? [])
       .some((fulfillment) => fulfillment.fulfillmentType === 'LCL_SHIPMENT');
-    result.set(id, { ...aggregates, carrierAllocationSummary: [...byCarrier.values()], hasActiveLclShipment });
+    // K4.7 (SIL-952) — 'Đã gán biển' = at least one active fulfillment has a
+    // planned plate (the same column the detail grid's PHÂN BỔ renders;
+    // external deferred-plate rows count as chưa gán biển until filled).
+    const platedCount = (fulfillmentsByShipment.get(id) ?? [])
+      .filter((fulfillment) => fulfillment.plannedVehiclePlateNumber != null && fulfillment.plannedVehiclePlateNumber !== '').length;
+    result.set(id, { ...aggregates, carrierAllocationSummary: [...byCarrier.values()], hasActiveLclShipment, platedCount });
   }
   return result;
 }

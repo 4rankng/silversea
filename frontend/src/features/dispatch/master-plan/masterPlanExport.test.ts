@@ -28,7 +28,7 @@ import type { MasterPlanFilters } from './useDispatchMasterPlan';
 const filters: MasterPlanFilters = {
   q: 'ABC',
   tradeDirection: 'IMPORT',
-  allocationStatus: '',
+  allocationStatus: '', plateStatus: '',
   deliveryDateFrom: '',
   deliveryDateTo: '',
   portIds: [3],
