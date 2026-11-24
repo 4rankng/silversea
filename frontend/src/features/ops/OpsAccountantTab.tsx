@@ -481,7 +481,7 @@ export function OpsAccountantTab() {
                           </span>
                         ) : 'Chưa duyệt'}
                   </td>
-                  <td>{row.note?.trim() || '—'}</td>
+                  <td className="ops-acc__cell--note">{row.note?.trim() || '—'}</td>
                 </tr>
               ))}
               {!isLoading && visibleItems.length === 0 && (

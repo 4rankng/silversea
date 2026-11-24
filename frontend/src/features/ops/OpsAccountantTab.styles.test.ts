@@ -74,15 +74,18 @@ describe('Chi phí Ops header wrap law (SIL-858)', () => {
     expect(126 - 24).toBeGreaterThanOrEqual(97.5); // Số HĐ 'TEST-QA-CR0101' ≈97.5px rendered
   });
 
-  it('SIL-895 round 4 — every board column carries its measured share (BUG-09: 3 tracks are px floors, board scrolls)', () => {
+  it('SIL-895 round 4 — every board column carries its measured share (BUG-09: 4 tracks are px floors, board scrolls)', () => {
     // The 1440px sidebar-open canvas gives the table ~1144px: these floors
     // (rendered with the app's real faces loaded explicitly) leave the QA
     // bill tokens + a 16-char worst case one line, keep cont/date/money
     // whole, and hold every header inside its own cell under the wrap law.
     // CR-010.1 BUG-09 (SIL-904) moved SỐ TỜ KHAI / SỐ HĐ / LOẠI PHÍ off %
-    // shares onto px track widths (124 + 126 + 120px) — the remaining shares
-    // resolve against the canvas and the table grows past 100% into the
-    // scroll wrapper (used table width = max(specified width, sum of columns)).
+    // shares onto px track widths (124 + 126 + 120px); SIL-908 moved GHI CHÚ
+    // onto its own 180px track (the 4.53% share read ≈56px and wrapped long
+    // notes to ~12 lines while the board clipped the column at the right
+    // edge). The remaining shares resolve against the canvas and the table
+    // grows past 100% into the scroll wrapper (used table width =
+    // max(specified width, sum of columns)).
     const shares: Array<[string, string]> = [
       ['ops-acc__col--date', '8.85%'],
       ['ops-wallet__col--bill', '13.9%'],
@@ -93,16 +96,24 @@ describe('Chi phí Ops header wrap law (SIL-858)', () => {
       ['ops-acc__col--receipt', '6.2%'],
       ['ops-acc__col--settlement-code', '5.4%'],
       ['ops-acc__col--confirm', '8.8%'],
-      ['ops-acc__col--note', '4.53%'],
     ];
     let shareSum = 0;
     for (const [cls, width] of shares) {
       expect(css).toContain(`.ops-acc .${cls} { width: ${width}; }`);
       shareSum += Number.parseFloat(width);
     }
-    // rail 34px + identity floors 370px + the measured shares cover the
-    // canvas — the overflow rides the scroll wrapper, never a squeezed track.
-    expect(34 + 370 + (shareSum / 100) * 1144).toBeGreaterThanOrEqual(1144);
+    // rail 34px + identity floors 370px + the SIL-908 note track 180px + the
+    // measured shares cover the canvas — the overflow rides the scroll
+    // wrapper, never a squeezed track.
+    expect(34 + 370 + 180 + (shareSum / 100) * 1144).toBeGreaterThanOrEqual(1144);
+    // SIL-908 — GHI CHÚ is a REAL px track (fixed layout ignores min-width,
+    // the BUG-09 law) and the note cell wraps at word boundaries only; the
+    // 4.53% share and its mid-token `anywhere` break are gone.
+    expect(css).toContain('.ops-acc th.ops-acc__col--note {\n  width: 180px;\n}');
+    expect(css).not.toContain('.ops-acc__col--note { width:');
+    const noteRule = css.match(/\.ops-acc td\.ops-acc__cell--note\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(noteRule).toContain('overflow-wrap: normal');
+    expect(noteRule).toContain('word-break: normal');
   });
 
   it('SIL-895 round 4 — the QA bill literals and the 16-char worst case hold ONE line at the 1440 canvas', () => {

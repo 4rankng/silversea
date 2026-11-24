@@ -346,12 +346,22 @@
   font-size: var(--text-caption-size);
   color: var(--ink-2, #344054);
 }
+/* SIL-907 — the border token is `--line` (a COLOR). `--border` is the width
+   token (1px, tokens.css): `border: 1px solid var(--border)` computed as
+   `1px solid 1px` → invalid → border-style none → the empty Số hóa đơn * /
+   Ghi chú inputs rendered with border-width 0px, no visible box. */
 .ops-fee-row__field input {
   min-height: 36px;
   padding: 4px 10px;
-  border: 1px solid var(--border, #d0d5dd);
+  border: 1px solid var(--line, #d0d5dd);
   border-radius: 8px;
   font: inherit;
+}
+
+/* SIL-907 — a blocking field (empty/duplicate Số hóa đơn) wears the red
+   border beside its red message, the same aria-invalid law as .input. */
+.ops-fee-row__field input[aria-invalid='true'] {
+  border-color: var(--danger);
 }
 .ops-fee-row__remove {
   align-self: flex-end;

@@ -128,6 +128,11 @@ function isEmptyDraft(draft: FeeDraft): boolean {
     && draft.photos.length === 0;
 }
 
+/** CR-010.1 (BUG-08) — the required-invoice message, pinned by the B3 test;
+ *  SIL-907 shares the constant with the field flag so the red border always
+ *  rides exactly the message that names the Số hóa đơn cell. */
+const INVOICE_REQUIRED_MSG = 'Số hóa đơn là bắt buộc với phí có hóa đơn.';
+
 function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | null {
   if (isEmptyDraft(draft)) return null;
   const valid = amountValidOf(draft.amount);
@@ -153,7 +158,7 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | 
   // (SIL-723 never-disabled-in-silence). Receipt photos stay optional.
   if (block === 'invoice') {
     const invoice = draft.invoiceNumber.trim();
-    if (invoice === '' || !/\d/.test(invoice)) return 'Số hóa đơn là bắt buộc với phí có hóa đơn.';
+    if (invoice === '' || !/\d/.test(invoice)) return INVOICE_REQUIRED_MSG;
   }
   if (draft.pendingFiles.length > 0) return 'Ảnh biên lai chưa tải xong — bấm "Thử tải lại ảnh" hoặc "Bỏ ảnh chưa tải".';
   return null;
@@ -782,6 +787,10 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
   const duplicateInvoiceError = block === 'invoice' && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())
     ? 'Trùng số hóa đơn trên lô này — không lưu dòng trùng.'
     : null;
+  // SIL-907 — the red border rides the Số hóa đơn cell whenever a message
+  // names it: the required gate or the duplicate gate.
+  const invoiceInvalid = block === 'invoice'
+    && (duplicateInvoiceError != null || rawError === INVOICE_REQUIRED_MSG);
   const photoUrls = useAuthedPhotoUrls(draft.photos.map((photo) => photo.storageKey));
   const fileRef = useRef<HTMLInputElement>(null);
   return (
@@ -838,6 +847,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
               value={draft.invoiceNumber}
               disabled={busy}
               maxLength={50}
+              aria-invalid={invoiceInvalid || undefined}
               onChange={(event) => patchDraft(block, draft.key, { invoiceNumber: event.target.value })}
             />
           </label>
@@ -926,8 +936,9 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
           every case; required fields are exactly Loại phí + Số tiền. */}
       {/* A quiet hint, not role=alert: an untouched "+ row" must not keep a
           permanent alert alive over the whole form (the catalog-recovery
-          contract clears its alert once the catalog reloads). */}
-      {(error ?? duplicateTypeError ?? duplicateInvoiceError) && <p className="ops-modal-hint">{error ?? duplicateTypeError ?? duplicateInvoiceError}</p>}
+          contract clears its alert once the catalog reloads). SIL-907 — the
+          message wears the red error style (it used to render default-black). */}
+      {(error ?? duplicateTypeError ?? duplicateInvoiceError) && <p className="ops-modal-hint ops-field-error">{error ?? duplicateTypeError ?? duplicateInvoiceError}</p>}
     </section>
   );
 }

@@ -23,21 +23,3 @@
   font-size: var(--text-title-size, 18px);
   font-weight: 700;
 }
-
-.debit-merge-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--text-caption-size, 13px);
-  color: var(--ink-2);
-}
-
-.debit-merge-filter select,
-.debit-merge-filter input[type='search'] {
-  border: 1px solid var(--border-1);
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-size: var(--text-caption-size, 13px);
-  background: var(--surface);
-  min-width: 160px;
-}

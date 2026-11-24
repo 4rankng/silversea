@@ -22,6 +22,7 @@
  *    signal (Chọn Debit needs every picked lot LOCKED).
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { useState } from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -501,6 +502,70 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(onSelectionChange).toHaveBeenCalledWith(101, true);
   });
 
+  it('SIL-901 QA round: the pick header carries the page select-all «Tất cả» — picks/clears the page and re-syncs from row picks', () => {
+    // A stateful harness mirrors the pages' Set selection so the header's
+    // checked/indeterminate sync is proven end-to-end, not via a spy.
+    function Harness() {
+      const [selection, setSelection] = useState<ReadonlySet<number>>(new Set());
+      const rows = [
+        mergeRow({ shipmentId: 1, billOrBookNumber: 'BL-1' }),
+        mergeRow({ shipmentId: 2, billOrBookNumber: 'BL-2' }),
+      ];
+      return (
+        <DebitMergeGrid
+          rows={rows}
+          storageKey="debit-merge-select-all"
+          selection={selection}
+          onSelectionChange={(id, next) => setSelection((current) => {
+            const set = new Set(current);
+            if (next) set.add(id);
+            else set.delete(id);
+            return set;
+          })}
+          canLock
+          canChooseDebit
+          onLockSelected={vi.fn()}
+          onChooseDebit={vi.fn()}
+        />
+      );
+    }
+    render(<Harness />);
+    const headerBox = screen.getByRole('checkbox', { name: 'Tất cả' }) as HTMLInputElement;
+    expect(headerBox.checked).toBe(false);
+    expect(headerBox.indeterminate).toBe(false);
+    // ONE tap picks every row of the current page.
+    fireEvent.click(headerBox);
+    expect(headerBox.checked).toBe(true);
+    for (const label of ['Chọn lô BL-1', 'Chọn lô BL-2']) {
+      expect((screen.getByLabelText(label) as HTMLInputElement).checked).toBe(true);
+    }
+    // Clearing ONE row re-syncs the header to the indeterminate dash…
+    fireEvent.click(screen.getByLabelText('Chọn lô BL-1'));
+    expect(headerBox.checked).toBe(false);
+    expect(headerBox.indeterminate).toBe(true);
+    // …and restoring it returns the header to fully checked.
+    fireEvent.click(screen.getByLabelText('Chọn lô BL-1'));
+    expect(headerBox.checked).toBe(true);
+    expect(headerBox.indeterminate).toBe(false);
+    // The second tap clears the whole page.
+    fireEvent.click(headerBox);
+    expect(headerBox.checked).toBe(false);
+    for (const label of ['Chọn lô BL-1', 'Chọn lô BL-2']) {
+      expect((screen.getByLabelText(label) as HTMLInputElement).checked).toBe(false);
+    }
+  });
+
+  it('SIL-901: select-all covers exactly the CURRENT page — page 2 rows stay untouched until their own tap', () => {
+    const onSelectionChange = vi.fn();
+    const rows = Array.from({ length: DEBIT_MERGE_PAGE_SIZES[0] + 1 }, (_, index) => mergeRow({ shipmentId: index + 1, billOrBookNumber: `BL-${index + 1}` }));
+    renderGrid({ onSelectionChange }, rows);
+    const headerBox = screen.getByRole('checkbox', { name: 'Tất cả' });
+    fireEvent.click(headerBox);
+    const picked = onSelectionChange.mock.calls.filter(([, next]) => next === true).map(([id]) => id);
+    expect(picked).toEqual(Array.from({ length: DEBIT_MERGE_PAGE_SIZES[0] }, (_, index) => index + 1));
+    expect(onSelectionChange).not.toHaveBeenCalledWith(DEBIT_MERGE_PAGE_SIZES[0] + 1, true);
+  });
+
   it('SIL-900: the toolbar hosts ONE dropdown trigger, never the raw checkbox panel', () => {
     renderGrid();
     const trigger = document.querySelector('button.column-picker__trigger');
@@ -561,7 +626,7 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     // the cell keeps its opaque background, so nothing bleeds through).
     const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
     const labelSpans = tsx.match(/className="debit-merge__head-label"/g) ?? [];
-    expect(labelSpans.length).toBe(3); // groups row, subs row, leaf row
+    expect(labelSpans.length).toBe(4); // groups row, subs row, leaf row, SIL-901 pick header's «Tất cả» label
     expect(tsx).toMatch(/debitMergeHeadLabelOccluded\(labelRect\.left, labelRect\.right, zoneEdge\)/);
     expect(tsx).toMatch(/onScroll=\{onPaneScroll\}/);
     expect(tsx).toMatch(/requestAnimationFrame/);

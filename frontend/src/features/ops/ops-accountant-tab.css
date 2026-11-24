@@ -35,7 +35,8 @@
    KH 2-line 117.26 · tờ khai 53.33 · Số HĐ 41.73 · loại phí 52.7 ·
    số tiền 110.34 · người chi 63.98 ('NGƯỜI' wraps) · chứng từ 68.86
    ('CHỨNG'/'TỪ') · số phiếu 60.25 ('SỐ'/'PHIẾU') · duyệt KT 98.33 ·
-   ghi chú 50.39.
+   ghi chú 50.39 (SIL-908 superseded it — GHI CHÚ carries a real 180px
+   track + the word-boundary cell law; see below).
    Accepted bound (the QA-passed status quo): settlement / note DATA values
    wider than their column still wrap mid-token — no budget for them at
    1144px once bill, cont, date, money and every header floor hold.
@@ -53,7 +54,25 @@
 .ops-acc .ops-acc__col--receipt { width: 6.2%; }
 .ops-acc .ops-acc__col--settlement-code { width: 5.4%; }
 .ops-acc .ops-acc__col--confirm { width: 8.8%; }
-.ops-acc .ops-acc__col--note { width: 4.53%; }
+/* SIL-908 — GHI CHÚ no longer rides a % share: 4.53% gave the column ≈56px
+   at the 1440 canvas, so a long note wrapped to ~12 lines (row ≈200px) and
+   the board's px floors pushed the last column past the right edge at 1920px
+   (clipped at the pane). Under `table-layout: fixed` ONLY a specified width
+   sizes the track (CSS 2.1 §17.5.2.1, the BUG-09 law), so the note gets a
+   REAL 180px track — the sum grows past 100% and `.ops-wallet__scroll`
+   (overflow-x: auto) takes the overflow, never a clipped column. */
+.ops-acc th.ops-acc__col--note {
+  width: 180px;
+}
+
+/* SIL-908 — the note is prose: it wraps at WORD boundaries only (never the
+   mid-token break the `overflow-wrap: anywhere` base paints — 'khách' was
+   split mid-word), the same wrapped-text law as LOẠI PHÍ. A token wider than
+   the track overflows visibly (nothing hides data) inside the scroll pane. */
+.ops-acc td.ops-acc__cell--note {
+  overflow-wrap: normal;
+  word-break: normal;
+}
 
 .ops-acc .ops-wallet__table thead th {
   overflow-wrap: normal;

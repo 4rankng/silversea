@@ -273,6 +273,25 @@ export function DebitMergeGrid({
     [rows, safePage, pageSize],
   );
 
+  // SIL-901 — the pick header carries the page select-all checkbox (short
+  // label «Tất cả»): it picks/clears exactly the CURRENT page's rows, and its
+  // checked/indeterminate state derives from the live selection so picking or
+  // clearing one row re-syncs it. A partially-picked page shows the native
+  // indeterminate dash (set on the DOM node — React has no prop for it).
+  const selectAllRef = useRef<HTMLInputElement | null>(null);
+  const pageSelectedCount = pageRows.reduce(
+    (count, row) => count + (selection.has(row.shipmentId) ? 1 : 0),
+    0,
+  );
+  const allPageSelected = pageRows.length > 0 && pageSelectedCount === pageRows.length;
+  const somePageSelected = pageSelectedCount > 0 && pageSelectedCount < pageRows.length;
+  useLayoutEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = somePageSelected;
+  }, [somePageSelected, allPageSelected]);
+  const toggleSelectAllPage = (next: boolean) => {
+    for (const row of pageRows) onSelectionChange(row.shipmentId, next);
+  };
+
   // SIL-891/SIL-897 (CR-010.1) — the sticky-left zone (group 1 through Loại
   // cont). Offsets are CUMULATIVE WIDTH SUMS of the sticky leaf cells, never
   // viewport deltas: a cell's width does not depend on the pane's
@@ -574,7 +593,20 @@ export function DebitMergeGrid({
                   className={`debit-merge-col--${column.key}`}
                   {...(isStickyColumn(column) ? stickyProps(column.key) : {})}
                 >
-                  <span className="debit-merge__head-label">{column.label}</span>
+                  {column.key === 'pick' ? (
+                    <label className="debit-merge__pick-all">
+                      <input
+                        ref={selectAllRef}
+                        type="checkbox"
+                        checked={allPageSelected}
+                        disabled={pageRows.length === 0}
+                        onChange={(event) => toggleSelectAllPage(event.target.checked)}
+                      />
+                      <span className="debit-merge__head-label">Tất cả</span>
+                    </label>
+                  ) : (
+                    <span className="debit-merge__head-label">{column.label}</span>
+                  )}
                 </th>
               ))}
             </tr>
