@@ -12,6 +12,7 @@ import assert from 'node:assert/strict';
 import { db } from '../../db';
 import {
   CV_OVERDUE_DAYS,
+  depositTrackerListOrder,
   isCvOverdue,
   recordDepositFromIntake,
   updateDepositTrackerDates,
@@ -203,5 +204,41 @@ describe('isCvOverdue — the banner count law (card 20260923_14)', () => {
   test('a CV date or a settled row never flags', () => {
     assert.equal(isCvOverdue(row({ cvSubmittedDate: day(30) }), new Date('2026-11-19T04:00:00.000Z')), false);
     assert.equal(isCvOverdue(row({ status: 'DA_HOAN_CUOC', depositDate: day(30) }), new Date('2026-11-19T04:00:00.000Z')), false);
+  });
+});
+
+// SIL-963 — KB K6.34 §6.4: bảng Theo dõi hoàn cược sắp mặc định = chưa hoàn
+// cược lên đầu, ngày xa nhất trước, ngày gần nhất sau. "Ngày" là cột NGÀY đang
+// hiển thị (ngày cược ?? ngày tạo), KHÔNG phải expectedRefundDate — khóa ngày
+// cũ đẩy dòng có ngày dự kiến hoàn lên trên dòng không có (PostgreSQL ASC =
+// NULLS LAST). Pin the composed ORDER BY keys so the wrong key cannot return.
+describe('depositTrackerListOrder — default board order (KB K6.34 §6.4)', () => {
+  /** Render a drizzle SQL key to comparable text: raw string chunks joined
+   *  with the column names they interpolate. */
+  function orderKeyText(key: unknown): string {
+    if (!key || typeof key !== 'object' || !('queryChunks' in key)) return '';
+    const chunks = Array.isArray(key.queryChunks) ? key.queryChunks : [];
+    return chunks.map((chunk) => {
+      if (typeof chunk === 'string') return chunk;
+      if (chunk && typeof chunk === 'object') {
+        if ('value' in chunk && Array.isArray(chunk.value)) return chunk.value.join('');
+        if ('name' in chunk && typeof chunk.name === 'string') return chunk.name;
+      }
+      return '';
+    }).join('');
+  }
+
+  test('chưa-hoàn-cược trước, cột NGÀY (ngày cược ?? ngày tạo) tăng dần, id gỡ hòa', () => {
+    assert.equal(depositTrackerListOrder.length, 3);
+    const [groupKey, dateKey, tieKey] = depositTrackerListOrder.map(orderKeyText);
+    assert.ok(groupKey.includes('CHUA_HOAN_CUOC'), groupKey);
+    assert.ok(dateKey.includes('coalesce'), dateKey);
+    assert.ok(dateKey.includes('deposit_date'), dateKey);
+    assert.ok(dateKey.includes('created_at'), dateKey);
+    assert.ok(dateKey.includes('asc'), dateKey);
+    // The regression itself: the NGÀY column owns the date key — a bare
+    // expectedRefundDate key must never come back.
+    assert.ok(!dateKey.includes('expected_refund_date'), dateKey);
+    assert.ok(tieKey.includes('id'), tieKey);
   });
 });

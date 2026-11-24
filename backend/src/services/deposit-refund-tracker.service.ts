@@ -109,6 +109,17 @@ export function isCvOverdue(row: CvOverdueRow, now: Date = new Date()): boolean 
   return diff > CV_OVERDUE_DAYS;
 }
 
+/** K6.34 §6.4 — default board order: chưa-hoàn-cược lên đầu, rồi theo cột NGÀY
+ *  (ngày cược ?? ngày tạo) tăng dần — ngày xa nhất trước, ngày gần nhất sau;
+ *  cùng ngày thì id tăng dần. SIL-963: khóa ngày PHẢI là giá trị cột NGÀY đang
+ *  hiển thị — khóa expectedRefundDate cũ vừa sai cột vừa đẩy dòng có ngày dự
+ *  kiến hoàn lên trên dòng không có (PostgreSQL ASC = NULLS LAST). */
+export const depositTrackerListOrder = [
+  sql`case when ${s.depositRefundTrackers.status} = 'CHUA_HOAN_CUOC' then 0 else 1 end`,
+  sql`coalesce(${s.depositRefundTrackers.depositDate}, ${s.depositRefundTrackers.createdAt}) asc`,
+  asc(s.depositRefundTrackers.id),
+];
+
 export async function listDepositTrackers(actor: ExpenseActor, filters: DepositTrackerFilters): Promise<{
   items: Array<typeof s.depositRefundTrackers.$inferSelect>;
   total: number;
@@ -126,14 +137,7 @@ export async function listDepositTrackers(actor: ExpenseActor, filters: DepositT
   ].filter(Boolean);
   const rows = await db.select().from(s.depositRefundTrackers)
     .where(baseConditions.length ? and(...baseConditions) : undefined)
-    .orderBy(
-      // Chưa-hoàn-cược first, then oldest due date first (nulls first); refunded
-      // rows sink below by refund date descending.
-      sql`case when ${s.depositRefundTrackers.status} = 'CHUA_HOAN_CUOC' then 0 else 1 end`,
-      asc(s.depositRefundTrackers.expectedRefundDate),
-      asc(s.depositRefundTrackers.cvSubmittedDate),
-      asc(s.depositRefundTrackers.id),
-    );
+    .orderBy(...depositTrackerListOrder);
   const warnings = buildWarnings(rows);
   return { items: rows, total: rows.reduce((sum, row) => sum + Number(row.depositAmount), 0), warnings };
 }
