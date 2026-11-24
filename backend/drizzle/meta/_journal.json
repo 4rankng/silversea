@@ -1193,6 +1193,13 @@
       "when": 1795600800000,
       "tag": "20261124110000_drop_shipment_cost_adjust_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 171,
+      "version": "7",
+      "when": 1795608000000,
+      "tag": "20261125100000_operational_sites_invoice_identity",
+      "breakpoints": true
     }
   ]
 }

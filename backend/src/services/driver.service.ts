@@ -632,11 +632,16 @@ export interface DriverFulfillmentInvoiceInfo {
   cleaningTaxCode: string | null;
 }
 
-/** Factory's own invoice identity: the container factory site's fee-invoice
- *  profile with precedence lift → drop → cleaning (the only site-level
- *  invoice fields that exist). Null when the site is unconfigured — the FE
- *  renders an honest empty state instead of falling back to the customer. */
+/** Factory's own invoice identity ("thông tin xuất hóa đơn"): the SIL-941
+ *  factory-level fields (invoiceName / invoiceAddress / invoiceTaxCode, CUS-07
+ *  §7.2.1 K7.7) win; when unset, fall back to the fee-invoice profile with
+ *  precedence lift → drop → cleaning. Null when the site is unconfigured —
+ *  the FE renders an honest empty state instead of falling back to the
+ *  customer. */
 export function factoryInvoiceProfile(row: {
+  invoiceName?: string | null;
+  invoiceAddress?: string | null;
+  invoiceTaxCode?: string | null;
   liftFeeInvoiceName: string | null;
   liftFeeInvoiceAddress: string | null;
   liftFeeTaxCode: string | null;
@@ -647,6 +652,12 @@ export function factoryInvoiceProfile(row: {
   cleaningInvoiceAddress: string | null;
   cleaningTaxCode: string | null;
 }): { name: string | null; address: string | null; taxCode: string | null } | null {
+  const identity = {
+    name: row.invoiceName?.trim() || null,
+    address: row.invoiceAddress?.trim() || null,
+    taxCode: row.invoiceTaxCode?.trim() || null,
+  };
+  if (identity.name || identity.address || identity.taxCode) return identity;
   return [
     { name: row.liftFeeInvoiceName, address: row.liftFeeInvoiceAddress, taxCode: row.liftFeeTaxCode },
     { name: row.dropFeeInvoiceName, address: row.dropFeeInvoiceAddress, taxCode: row.dropFeeTaxCode },
@@ -779,6 +790,11 @@ export async function getDriverFulfillmentDetail(
     liftFeeInvoiceName: containerFactory.liftFeeInvoiceName,
     liftFeeInvoiceAddress: containerFactory.liftFeeInvoiceAddress,
     liftFeeTaxCode: containerFactory.liftFeeTaxCode,
+    // SIL-941 (CUS-07) — factory-level invoice identity wins over the
+    // fee-invoice fallback below.
+    invoiceName: containerFactory.invoiceName,
+    invoiceAddress: containerFactory.invoiceAddress,
+    invoiceTaxCode: containerFactory.invoiceTaxCode,
     dropFeeInvoiceName: containerFactory.dropFeeInvoiceName,
     dropFeeInvoiceAddress: containerFactory.dropFeeInvoiceAddress,
     dropFeeTaxCode: containerFactory.dropFeeTaxCode,

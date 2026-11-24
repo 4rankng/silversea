@@ -516,6 +516,14 @@ export const operationalSites = pgTable('operational_sites', {
   cleaningInvoiceName: varchar('cleaning_invoice_name', { length: 255 }),
   cleaningInvoiceAddress: text('cleaning_invoice_address'),
   cleaningTaxCode: varchar('cleaning_tax_code', { length: 40 }),
+  // SIL-941 (CUS-07, §7.2.1 K7.7) — factory-level invoice identity ("thông
+  // tin xuất hóa đơn": MST, tên xuất hóa đơn, địa chỉ xuất hóa đơn). A
+  // different entity from the lift/drop/cleaning FEE invoice fields above
+  // (those name the party billing each fee; this is the factory's own VAT
+  // invoice identity the 'Xem chi tiết' dialog and the driver sheet show).
+  invoiceName: varchar('invoice_name', { length: 255 }),
+  invoiceAddress: text('invoice_address'),
+  invoiceTaxCode: varchar('invoice_tax_code', { length: 40 }),
   strictRules: text('strict_rules'),
   version: integer('version').notNull().default(1),
   isActive: boolean('is_active').notNull().default(true),

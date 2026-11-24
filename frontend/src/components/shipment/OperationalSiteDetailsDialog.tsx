@@ -52,9 +52,33 @@ export function OperationalSiteDetailsDialog({ site, isOpen, onClose }: Operatio
           <DetailRow label="Địa chỉ" value={site.address} span />
           <DetailRow label="Người liên hệ" value={site.contactName} />
           <DetailRow label="Số điện thoại" value={site.contactPhone} tel />
-          <DetailRow label="Mã số thuế" value={site.liftFeeTaxCode} />
+          {/* SIL-941 (CUS-07, §7.2.1 K7.7): the dialog must open the site's
+              INVOICE identity (MST, tên xuất hóa đơn, địa chỉ xuất hóa đơn) —
+              not only the address + warehouse rules QA (staging 3e9a28fa)
+              found. The block always renders and names the gap honestly
+              (K2.98) instead of silently vanishing like an empty row. */}
+          <div style={{ gridColumn: '1 / -1', display: 'grid', gap: 1, paddingTop: 2 }}>
+            <span style={{ color: 'var(--fg-3)', fontSize: 'var(--text-caption-size)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+              Thông tin xuất hóa đơn
+            </span>
+            {site.invoiceTaxCode || site.invoiceName || site.invoiceAddress ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px 14px' }}>
+                <DetailRow label="MST" value={site.invoiceTaxCode} />
+                <DetailRow label="Tên xuất hóa đơn" value={site.invoiceName} />
+                <DetailRow label="Địa chỉ xuất hóa đơn" value={site.invoiceAddress} span />
+              </div>
+            ) : (
+              <p style={{ color: 'var(--fg-2)', fontSize: 'var(--text-data-size)', lineHeight: 1.45, margin: 0 }}>
+                Nhà máy chưa cấu hình thông tin xuất hóa đơn.
+              </p>
+            )}
+          </div>
+          {/* The lift-fee invoice unit is a DIFFERENT entity (the party billing
+              the nâng/hạ fee) — its rows carry that subject in every label so
+              they never collide with the factory's own invoice block above. */}
+          <DetailRow label="Mã số thuế ĐV nâng hạ" value={site.liftFeeTaxCode} />
           <DetailRow label="Đơn vị xuất hóa đơn nâng hạ" value={site.liftFeeInvoiceName} span />
-          <DetailRow label="Địa chỉ xuất hóa đơn" value={site.liftFeeInvoiceAddress} span />
+          <DetailRow label="Địa chỉ ĐV nâng hạ" value={site.liftFeeInvoiceAddress} span />
           <div style={{ gridColumn: '1 / -1', borderLeft: '4px solid var(--warning, #d97706)', background: 'var(--warning-bg, #fff7ed)', padding: 10, borderRadius: 6 }}>
             <DetailRow label="Quy định và lưu ý của kho" value={site.strictRules || 'Chưa có lưu ý riêng.'} span />
           </div>

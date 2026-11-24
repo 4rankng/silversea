@@ -68,3 +68,32 @@ test('DRV-R03 retains partial invoice identity without mixing fee parties and ig
     ...base, liftFeeInvoiceAddress: ' Địa chỉ A ', liftFeeTaxCode: ' 123 ', dropFeeInvoiceName: 'Công ty B',
   }), { name: null, address: 'Địa chỉ A', taxCode: '123' });
 });
+
+// SIL-941 (CUS-07, §7.2.1 K7.7): the factory-level invoice identity
+// (invoiceName / invoiceAddress / invoiceTaxCode) is the site's own VAT
+// invoice data and wins over the fee-invoice fallback; a partial identity
+// still wins and never mixes in another party's fee profile.
+test('SIL-941 factory-level invoice identity wins over the fee-invoice fallback', () => {
+  const base = {
+    liftFeeInvoiceName: null, liftFeeInvoiceAddress: null, liftFeeTaxCode: null,
+    dropFeeInvoiceName: null, dropFeeInvoiceAddress: null, dropFeeTaxCode: null,
+    cleaningInvoiceName: null, cleaningInvoiceAddress: null, cleaningTaxCode: null,
+  };
+  assert.deepEqual(factoryInvoiceProfile({
+    ...base,
+    invoiceName: 'CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM',
+    invoiceAddress: 'Lô C7-2, KCN Quế Võ, Bắc Ninh',
+    invoiceTaxCode: '2301231325',
+    liftFeeInvoiceName: 'CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH',
+    liftFeeTaxCode: '2300540419',
+  }), {
+    name: 'CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM',
+    address: 'Lô C7-2, KCN Quế Võ, Bắc Ninh',
+    taxCode: '2301231325',
+  });
+  assert.deepEqual(factoryInvoiceProfile({
+    ...base,
+    invoiceTaxCode: ' 2301231325 ',
+    liftFeeInvoiceName: 'CÔNG TY TNHH MỘT THÀNH VIÊN LONG MINH',
+  }), { name: null, address: null, taxCode: '2301231325' });
+});

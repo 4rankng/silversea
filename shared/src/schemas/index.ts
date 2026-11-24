@@ -2093,6 +2093,12 @@ export const operationalSiteSchema = z.object({
   liftFeeInvoiceName: z.string().trim().max(255).optional().nullable(),
   liftFeeInvoiceAddress: z.string().trim().max(2000).optional().nullable(),
   liftFeeTaxCode: z.string().trim().max(40).optional().nullable(),
+  // SIL-941 (CUS-07, §7.2.1 K7.7) — thông tin xuất hóa đơn CẤP NHÀ MÁY
+  // (MST, tên xuất hóa đơn, địa chỉ xuất hóa đơn) — khác bộ hóa đơn phí
+  // nâng/hạ (liftFee*) bên dưới.
+  invoiceName: z.string().trim().max(255).optional().nullable(),
+  invoiceAddress: z.string().trim().max(2000).optional().nullable(),
+  invoiceTaxCode: z.string().trim().max(40).optional().nullable(),
   strictRules: z.string().trim().max(8000).optional().nullable(),
   isActive: z.boolean().optional(),
 }).superRefine((input, ctx) => {
@@ -2130,6 +2136,10 @@ export const operationalSiteUpdateSchema = z.object({
   liftFeeInvoiceName: z.string().trim().max(255).optional().nullable(),
   liftFeeInvoiceAddress: z.string().trim().max(2000).optional().nullable(),
   liftFeeTaxCode: z.string().trim().max(40).optional().nullable(),
+  // SIL-941 (CUS-07, §7.2.1 K7.7) — thông tin xuất hóa đơn cấp nhà máy.
+  invoiceName: z.string().trim().max(255).optional().nullable(),
+  invoiceAddress: z.string().trim().max(2000).optional().nullable(),
+  invoiceTaxCode: z.string().trim().max(40).optional().nullable(),
   strictRules: z.string().trim().max(8000).optional().nullable(),
   isActive: z.boolean().optional(),
 });

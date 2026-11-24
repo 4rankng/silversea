@@ -65,6 +65,9 @@ const factory = {
   liftFeeInvoiceName: null,
   liftFeeInvoiceAddress: null,
   liftFeeTaxCode: null,
+  invoiceName: null,
+  invoiceAddress: null,
+  invoiceTaxCode: null,
   strictRules: null,
   isActive: true,
   version: 3,
@@ -138,6 +141,37 @@ describe('FactoriesConfigPage', () => {
     await waitFor(() => expect(updateMock).toHaveBeenCalledOnce());
     expect(updateMock.mock.calls[0][1]).not.toHaveProperty('contacts');
     expect(updateMock.mock.calls[0][1].contactName).toBe('Anh Tùng');
+  });
+
+  // SIL-941 (CUS-07, §7.2.1 K7.7) — the master-data surface owns the
+  // factory's invoice identity (MST, tên xuất hóa đơn, địa chỉ xuất hóa đơn)
+  // that the 'Xem chi tiết' dialog and the driver sheet display.
+  it('edits the factory invoice identity (MST, tên, địa chỉ xuất hóa đơn) and saves it', async () => {
+    listMock.mockResolvedValue([{
+      ...factory,
+      invoiceName: 'CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM',
+      invoiceAddress: 'Lô C7-2, KCN Quế Võ',
+      invoiceTaxCode: '2301231325',
+    }]);
+    renderPage();
+    await screen.findByText('Nhà máy A');
+    fireEvent.click(screen.getByTitle('Sửa điểm vận hành'));
+    await screen.findByRole('dialog');
+    // Seeded identity values render into their fields.
+    expect(await screen.findByDisplayValue('2301231325')).toBeTruthy();
+    fireEvent.change(await screen.findByDisplayValue('CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM'), {
+      target: { value: 'CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM (MỚI)' },
+    });
+    fireEvent.change(await screen.findByDisplayValue('Lô C7-2, KCN Quế Võ'), {
+      target: { value: 'Lô C7-2, KCN Quế Võ, Bắc Ninh' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
+    await waitFor(() => expect(updateMock).toHaveBeenCalledOnce());
+    expect(updateMock).toHaveBeenCalledWith(11, expect.objectContaining({
+      invoiceName: 'CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM (MỚI)',
+      invoiceAddress: 'Lô C7-2, KCN Quế Võ, Bắc Ninh',
+      invoiceTaxCode: '2301231325',
+    }));
   });
 
   it('lists sites as Mã · Tên identity with the Loại chip and route, no STT and no TRẠNG THÁI column', async () => {

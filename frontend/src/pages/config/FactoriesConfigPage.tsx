@@ -43,6 +43,9 @@ type SiteDraft = {
   liftInfo: string;
   dropInfo: string;
   cleaningInfo: string;
+  invoiceName: string;
+  invoiceAddress: string;
+  invoiceTaxCode: string;
   strictRules: string;
   isActive: boolean;
 };
@@ -61,6 +64,9 @@ function draftFrom(site: AdminOperationalSite): SiteDraft {
     liftInfo: site.liftInfo || '',
     dropInfo: site.dropInfo || '',
     cleaningInfo: site.cleaningInfo || '',
+    invoiceName: site.invoiceName || '',
+    invoiceAddress: site.invoiceAddress || '',
+    invoiceTaxCode: site.invoiceTaxCode || '',
     strictRules: site.strictRules || '',
     isActive: site.isActive,
   };
@@ -148,6 +154,9 @@ export default function FactoriesConfigPage() {
         liftInfo: draft.liftInfo || null,
         dropInfo: draft.dropInfo || null,
         cleaningInfo: draft.cleaningInfo || null,
+        invoiceName: draft.invoiceName || null,
+        invoiceAddress: draft.invoiceAddress || null,
+        invoiceTaxCode: draft.invoiceTaxCode || null,
         strictRules: draft.strictRules || null,
         isActive: draft.isActive,
       });
@@ -459,6 +468,28 @@ export default function FactoriesConfigPage() {
                   <textarea className="input" rows={2} value={draft.warehouseContactInfo} maxLength={2000}
                     placeholder="Nhiều liên hệ, SĐT trong một ô..."
                     onChange={(e) => setDraft({ ...draft, warehouseContactInfo: e.target.value })} />
+                </Field>
+              </div>
+              {/* SIL-941 (CUS-07, §7.2.1 K7.7) — thông tin xuất hóa đơn cấp
+                  nhà máy: MST, tên xuất hóa đơn, địa chỉ xuất hóa đơn (khác
+                  bộ hóa đơn phí nâng/hạ). Nguồn dữ liệu gốc mà hộp 'Xem chi
+                  tiết' nhà máy và trang chi tiết chuyến lái xe hiển thị. */}
+              <div className="cfg-form-columns__full">
+                <Field label="MST">
+                  <input className="input" value={draft.invoiceTaxCode} maxLength={40}
+                    onChange={(e) => setDraft({ ...draft, invoiceTaxCode: e.target.value })} />
+                </Field>
+              </div>
+              <div className="cfg-form-columns__full">
+                <Field label="Tên xuất hóa đơn">
+                  <input className="input" value={draft.invoiceName} maxLength={255}
+                    onChange={(e) => setDraft({ ...draft, invoiceName: e.target.value })} />
+                </Field>
+              </div>
+              <div className="cfg-form-columns__full">
+                <Field label="Địa chỉ xuất hóa đơn">
+                  <input className="input" value={draft.invoiceAddress} maxLength={2000}
+                    onChange={(e) => setDraft({ ...draft, invoiceAddress: e.target.value })} />
                 </Field>
               </div>
               <div className="cfg-form-columns__full">

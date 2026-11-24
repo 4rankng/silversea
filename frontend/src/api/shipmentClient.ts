@@ -260,6 +260,10 @@ export interface OperationalSite {
   liftFeeInvoiceName: string | null;
   liftFeeInvoiceAddress: string | null;
   liftFeeTaxCode: string | null;
+  /** SIL-941 (CUS-07) — thông tin xuất hóa đơn cấp nhà máy (MST, tên, địa chỉ). */
+  invoiceName: string | null;
+  invoiceAddress: string | null;
+  invoiceTaxCode: string | null;
   strictRules: string | null;
   version: number;
 }
@@ -888,6 +892,9 @@ export interface CreateOperationalSiteBody {
   liftFeeInvoiceName?: string | null;
   liftFeeInvoiceAddress?: string | null;
   liftFeeTaxCode?: string | null;
+  invoiceName?: string | null;
+  invoiceAddress?: string | null;
+  invoiceTaxCode?: string | null;
   strictRules?: string | null;
 }
 
@@ -945,6 +952,9 @@ export interface UpdateOperationalSiteBody {
   liftFeeInvoiceName?: string | null;
   liftFeeInvoiceAddress?: string | null;
   liftFeeTaxCode?: string | null;
+  invoiceName?: string | null;
+  invoiceAddress?: string | null;
+  invoiceTaxCode?: string | null;
   strictRules?: string | null;
   isActive?: boolean;
 }

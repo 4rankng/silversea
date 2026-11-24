@@ -396,6 +396,10 @@ const OPERATIONAL_SITE_INTAKE_FIELDS = {
   liftFeeInvoiceName: s.operationalSites.liftFeeInvoiceName,
   liftFeeInvoiceAddress: s.operationalSites.liftFeeInvoiceAddress,
   liftFeeTaxCode: s.operationalSites.liftFeeTaxCode,
+  // SIL-941 — factory-level invoice identity (CUS-07, §7.2.1 K7.7).
+  invoiceName: s.operationalSites.invoiceName,
+  invoiceAddress: s.operationalSites.invoiceAddress,
+  invoiceTaxCode: s.operationalSites.invoiceTaxCode,
   strictRules: s.operationalSites.strictRules,
   version: s.operationalSites.version,
 } as const;
@@ -412,6 +416,9 @@ type IntakeOperationalSite = {
   liftFeeInvoiceName: string | null;
   liftFeeInvoiceAddress: string | null;
   liftFeeTaxCode: string | null;
+  invoiceName: string | null;
+  invoiceAddress: string | null;
+  invoiceTaxCode: string | null;
   version: number;
 };
 
@@ -429,6 +436,9 @@ function toAccountantSiteProjection(site: IntakeOperationalSite) {
     liftFeeInvoiceName: site.liftFeeInvoiceName,
     liftFeeInvoiceAddress: site.liftFeeInvoiceAddress,
     liftFeeTaxCode: site.liftFeeTaxCode,
+    invoiceName: site.invoiceName,
+    invoiceAddress: site.invoiceAddress,
+    invoiceTaxCode: site.invoiceTaxCode,
     version: site.version,
   };
 }
@@ -553,6 +563,9 @@ export async function createOperationalSiteForIntake(
       liftFeeInvoiceName: input.liftFeeInvoiceName ?? null,
       liftFeeInvoiceAddress: input.liftFeeInvoiceAddress ?? null,
       liftFeeTaxCode: input.liftFeeTaxCode ?? null,
+      invoiceName: input.invoiceName ?? null,
+      invoiceAddress: input.invoiceAddress ?? null,
+      invoiceTaxCode: input.invoiceTaxCode ?? null,
       strictRules: input.strictRules ?? null,
       isActive: input.isActive ?? true,
       updatedBy: actor.userId,
@@ -583,6 +596,9 @@ export async function createOperationalSiteForIntake(
       liftFeeInvoiceName: row.liftFeeInvoiceName,
       liftFeeInvoiceAddress: row.liftFeeInvoiceAddress,
       liftFeeTaxCode: row.liftFeeTaxCode,
+      invoiceName: row.invoiceName,
+      invoiceAddress: row.invoiceAddress,
+      invoiceTaxCode: row.invoiceTaxCode,
       strictRules: row.strictRules,
       version: row.version,
     };
@@ -718,6 +734,9 @@ export async function listOperationalSitesForAdmin(actor: AuthUser) {
     liftFeeInvoiceName: s.operationalSites.liftFeeInvoiceName,
     liftFeeInvoiceAddress: s.operationalSites.liftFeeInvoiceAddress,
     liftFeeTaxCode: s.operationalSites.liftFeeTaxCode,
+    invoiceName: s.operationalSites.invoiceName,
+    invoiceAddress: s.operationalSites.invoiceAddress,
+    invoiceTaxCode: s.operationalSites.invoiceTaxCode,
     strictRules: s.operationalSites.strictRules,
     isActive: s.operationalSites.isActive,
     version: s.operationalSites.version,
@@ -781,6 +800,9 @@ export async function updateOperationalSiteForAdmin(
       ...(input.liftFeeInvoiceName !== undefined ? { liftFeeInvoiceName: input.liftFeeInvoiceName } : {}),
       ...(input.liftFeeInvoiceAddress !== undefined ? { liftFeeInvoiceAddress: input.liftFeeInvoiceAddress } : {}),
       ...(input.liftFeeTaxCode !== undefined ? { liftFeeTaxCode: input.liftFeeTaxCode } : {}),
+      ...(input.invoiceName !== undefined ? { invoiceName: input.invoiceName } : {}),
+      ...(input.invoiceAddress !== undefined ? { invoiceAddress: input.invoiceAddress } : {}),
+      ...(input.invoiceTaxCode !== undefined ? { invoiceTaxCode: input.invoiceTaxCode } : {}),
       ...(input.strictRules !== undefined ? { strictRules: input.strictRules } : {}),
       ...(input.isActive != null ? { isActive: input.isActive } : {}),
       version: sql`${s.operationalSites.version} + 1`,
@@ -804,6 +826,9 @@ export async function updateOperationalSiteForAdmin(
       liftFeeInvoiceName: updated.liftFeeInvoiceName,
       liftFeeInvoiceAddress: updated.liftFeeInvoiceAddress,
       liftFeeTaxCode: updated.liftFeeTaxCode,
+      invoiceName: updated.invoiceName,
+      invoiceAddress: updated.invoiceAddress,
+      invoiceTaxCode: updated.invoiceTaxCode,
       strictRules: updated.strictRules,
       isActive: updated.isActive,
       version: updated.version,
