@@ -81,6 +81,9 @@ export function OpsAccountantTab() {
   const [edit, setEdit] = useState<{ id: number; field: 'amount' | 'invoiceNumber'; value: string } | null>(null);
   const [editBusyId, setEditBusyId] = useState<number | null>(null);
   const editCommitting = useRef(false);
+  // Test 24/11 (SIL-904 check 4) — hủy phải là hủy: khi editor đóng (Esc), blur
+  // phát ra lúc input unmount không được biến thành lần lưu thứ hai.
+  const editClosing = useRef(false);
 
   const items = data?.items ?? [];
   // SIL-858 — 'Đã hủy / lịch sử' rows never render on the accountant board;
@@ -173,12 +176,15 @@ export function OpsAccountantTab() {
 
   const startEdit = (row: OpsExpenseRow, field: 'amount' | 'invoiceNumber') => {
     if (!editable(row) || busy || editBusyId !== null) return;
+    editClosing.current = false;
     setEdit({ id: row.id, field, value: field === 'amount' ? String(row.amount) : row.invoiceNumber?.trim() ?? '' });
   };
 
+  const closeEdit = () => { editClosing.current = true; setEdit(null); };
+
   const commitEdit = async () => {
     const current = edit;
-    if (!current || editCommitting.current) return;
+    if (!current || editCommitting.current || editClosing.current) return;
     const row = items.find((item) => item.id === current.id);
     if (!row || row.version == null) { setEdit(null); return; }
     if (current.field === 'amount') {
@@ -189,6 +195,10 @@ export function OpsAccountantTab() {
       }
       if (next === Number(row.amount)) { setEdit(null); return; }
     }
+    // Test 24/11 (SIL-904 check 4) — Số HĐ mirrors the amount no-op: Enter on
+    // an unchanged number closes the editor without a write (một lần lưu, không
+    // đập version).
+    else if (current.value.trim() === (row.invoiceNumber ?? '').trim()) { setEdit(null); return; }
     editCommitting.current = true;
     setEdit(null);
     setEditBusyId(current.id);
@@ -365,6 +375,12 @@ export function OpsAccountantTab() {
                         {row.invoiceNumber?.trim() || 'X'}
                       </button>
                     ) : isEditing(row, 'invoiceNumber') && edit ? (
+                      /* Test 24/11 (SIL-904 check 4) — GỐC của lỗi nhân đôi
+                         'INV-4C-001INV-4C-001': editor prefill số hiện có, focus
+                         không select để caret nằm cuối → mọi phím gõ NỐI sau
+                         giá trị cũ rồi blur/Enter lưu cả chuỗi nối vào DB.
+                         Select toàn bộ khi focus biến việc gõ thành THAY THẾ —
+                         số mới lưu đúng 1 lần. */
                       <input
                         type="text"
                         className="ops-acc__edit-input"
@@ -372,10 +388,11 @@ export function OpsAccountantTab() {
                         value={edit.value}
                         autoFocus
                         disabled={editBusyId === row.id}
+                        onFocus={(event) => event.currentTarget.select()}
                         onChange={(event) => setEdit({ ...edit, value: event.target.value })}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter') void commitEdit();
-                          if (event.key === 'Escape') setEdit(null);
+                          if (event.key === 'Escape') closeEdit();
                         }}
                         onBlur={() => void commitEdit()}
                       />
@@ -397,6 +414,8 @@ export function OpsAccountantTab() {
                         {`${formatMoney(row.amount)} ₫`}
                       </button>
                     ) : isEditing(row, 'amount') && edit ? (
+                      /* Cùng luật select-to-replace với Số HĐ — gõ vào số tiền
+                         cũ không được nối chữ số (Số tiền không nhân). */
                       <input
                         type="text"
                         className="ops-acc__edit-input"
@@ -405,10 +424,11 @@ export function OpsAccountantTab() {
                         autoFocus
                         inputMode="numeric"
                         disabled={editBusyId === row.id}
+                        onFocus={(event) => event.currentTarget.select()}
                         onChange={(event) => setEdit({ ...edit, value: event.target.value })}
                         onKeyDown={(event) => {
                           if (event.key === 'Enter') void commitEdit();
-                          if (event.key === 'Escape') setEdit(null);
+                          if (event.key === 'Escape') closeEdit();
                         }}
                         onBlur={() => void commitEdit()}
                       />

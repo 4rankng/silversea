@@ -493,4 +493,95 @@ describe('OpsAccountantTab — CR-010 E2 bulk actions + inline edit (SIL-882)', 
     expect(screen.queryByLabelText('Chọn tất cả')).toBeNull();
     expect(screen.queryByRole('button', { name: /Từ chối/ })).toBeNull();
   });
+
+  // Test 24/11 (SIL-904 check 4) — 'INV-4C-001' lưu thành 'INV-4C-001INV-4C-001'
+  // trong DB: editor prefill số hiện có mà focus không select, caret nằm cuối,
+  // gõ lại số mới thành NỐI sau giá trị cũ rồi cả chuỗi nối đi vào update.
+  it('BUG 24/11: focusing the inline Số HĐ/Số tiền editor selects the whole seeded value so typing replaces instead of appends', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    mockBoard([expense({ version: 1, confirmedAt: null, invoiceNumber: 'INV-4C-001', amount: '1620000' })]);
+    renderTab();
+    await screen.findByText('BL-9');
+
+    fireEvent.click(screen.getByLabelText('Sửa số hóa đơn dòng 5'));
+    const invoiceInput = screen.getByLabelText('Số hóa đơn') as HTMLInputElement;
+    expect(invoiceInput.value).toBe('INV-4C-001');
+    fireEvent.focus(invoiceInput);
+    expect(invoiceInput.selectionStart).toBe(0);
+    expect(invoiceInput.selectionEnd).toBe('INV-4C-001'.length);
+
+    fireEvent.keyDown(invoiceInput, { key: 'Escape' });
+    fireEvent.click(screen.getByLabelText('Sửa số tiền dòng 5'));
+    const amountInput = screen.getByLabelText('Số tiền') as HTMLInputElement;
+    expect(amountInput.value).toBe('1620000');
+    fireEvent.focus(amountInput);
+    expect(amountInput.selectionStart).toBe(0);
+    expect(amountInput.selectionEnd).toBe(amountInput.value.length);
+  });
+
+  it('BUG 24/11: pressing Enter on an unchanged Số HĐ closes the editor without any update call', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockResolvedValue({});
+    mockBoard([expense({ version: 1, confirmedAt: null, invoiceNumber: 'INV-4C-001' })]);
+    renderTab();
+    await screen.findByText('BL-9');
+    fireEvent.click(screen.getByLabelText('Sửa số hóa đơn dòng 5'));
+    const input = screen.getByLabelText('Số hóa đơn');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(screen.queryByLabelText('Số hóa đơn')).toBeNull());
+    expect(apiPost).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Sửa số hóa đơn dòng 5')).toHaveTextContent('INV-4C-001');
+  });
+
+  it('BUG 24/11: Escape cancels the editor without saving (a blur after hủy must not become a second save)', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockResolvedValue({});
+    mockBoard([expense({ version: 1, confirmedAt: null, invoiceNumber: 'INV-4C-001' })]);
+    renderTab();
+    await screen.findByText('BL-9');
+    fireEvent.click(screen.getByLabelText('Sửa số hóa đơn dòng 5'));
+    const input = screen.getByLabelText('Số hóa đơn');
+    fireEvent.change(input, { target: { value: 'INV-4C-009' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByLabelText('Số hóa đơn')).toBeNull());
+    expect(apiPost).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Sửa số hóa đơn dòng 5')).toHaveTextContent('INV-4C-001');
+  });
+
+  it('BUG 24/11: two consecutive Số HĐ edits each save exactly once — single value, version advances, UI shows the new number once', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    apiPost.mockResolvedValue({});
+    let board = [expense({ version: 1, confirmedAt: null, invoiceNumber: 'INV-4C-001' })];
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) return Promise.resolve({ items: board });
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    await screen.findByText('BL-9');
+
+    fireEvent.click(screen.getByLabelText('Sửa số hóa đơn dòng 5'));
+    let input = screen.getByLabelText('Số hóa đơn');
+    fireEvent.change(input, { target: { value: 'INV-4C-002' } });
+    // Staged before Enter: commitEdit reads the cached v1 row (expectedVersion 1);
+    // the invalidateOps refetch then lands the already-saved v2 board.
+    board = [expense({ version: 2, confirmedAt: null, invoiceNumber: 'INV-4C-002' })];
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
+    expect(apiPost).toHaveBeenNthCalledWith(1, '/expense-accounting/entries/OPS/5/update',
+      { expectedVersion: 1, invoiceNumber: 'INV-4C-002', reason: 'Kế toán sửa trực tiếp trên bảng Chi phí Ops (CR-010 E2)' });
+    await screen.findByText('INV-4C-002');
+
+    fireEvent.click(screen.getByLabelText('Sửa số hóa đơn dòng 5'));
+    input = screen.getByLabelText('Số hóa đơn');
+    expect((input as HTMLInputElement).value).toBe('INV-4C-002');
+    fireEvent.change(input, { target: { value: 'INV-4C-003' } });
+    board = [expense({ version: 3, confirmedAt: null, invoiceNumber: 'INV-4C-003' })];
+    fireEvent.keyDown(input, { key: 'Enter' });
+    await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(2));
+    expect(apiPost).toHaveBeenNthCalledWith(2, '/expense-accounting/entries/OPS/5/update',
+      { expectedVersion: 2, invoiceNumber: 'INV-4C-003', reason: 'Kế toán sửa trực tiếp trên bảng Chi phí Ops (CR-010 E2)' });
+
+    await screen.findByText('INV-4C-003');
+    expect(screen.getAllByText('INV-4C-003')).toHaveLength(1);
+  });
 });
