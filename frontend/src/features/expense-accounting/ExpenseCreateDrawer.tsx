@@ -26,7 +26,7 @@ interface ExpenseDraft {
   group: ExpenseCostGroup; driverOption: string; name: string;
   amount: number | ''; charge: number | ''; equal: boolean; date: string;
   payerKind: PayerKind; payer: string; supplier: string;
-  invoice: string; invoiceDate: string;
+  invoice: string; invoiceDate: string; hasInvoice: boolean;
 }
 
 /** One tickable row of the sub-table ("bảng con") — the mapped view over the
@@ -52,7 +52,7 @@ type PhoiExistingRaw =
 // sang Nhân viên chi / Nhà cung cấp được.
 function blankDraft(group: ExpenseCostGroup): ExpenseDraft {  return { group, driverOption: '', name: '', amount: '', charge: group === 'DRIVER_ROAD' ? 0 : '', equal: false,
     date: businessDateISO(), payerKind: 'COMPANY', payer: '', supplier: '',
-    invoice: '', invoiceDate: '' };
+    invoice: '', invoiceDate: '', hasInvoice: false };
 }
 
 /** FB-097 — nhà xe chạy chuyến → NCC mặc định: khớp danh mục theo id
@@ -202,14 +202,19 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
     for (const [index, draft] of drafts.entries()) {
       const row = (message: string) => `Dòng ${index + 1}: ${message}`;
       if (!draft.driverOption) { setError(row('Chọn loại chi phí lái xe.')); return; }
+      // KB §10.6.4 (K10.32, SIL-949): ô "Có hóa đơn" là cờ có hóa đơn — bật lên
+      // mới yêu cầu số hóa đơn; cờ tắt thì dòng không mang số/ngày hóa đơn.
+      if (draft.hasInvoice && !draft.invoice.trim()) { setError(row('Bật "Có hóa đơn" thì bắt buộc nhập số hóa đơn.')); return; }
       const option = driverExpenseOption(draft.driverOption);
       const parsed = expenseAccountingCreateSchema.safeParse({ driverCostType: option.type, tripId: work.tripId, shipmentId: work.shipmentId,
         expenseTypeCode: option.type, amount: draft.amount, customerChargeAmount: draft.charge,
         expenseDate: draft.date, costGroup: draft.group, feeName: draft.name, payerKind: draft.payerKind,
         payerUserId: draft.payerKind === 'USER' ? Number(draft.payer) || null : null,
         supplierId: draft.payerKind === 'SUPPLIER' ? Number(draft.supplier) || null : null,
-        invoiceNumber: draft.invoice.trim() || null,
-        invoiceDate: draft.invoiceDate || null });
+        // SIL-949 (KB §10.6.4) — the flag owns the invoice: a flag-on row ships
+        // its Số hóa đơn, a flag-off row ships null (no leftover text).
+        invoiceNumber: draft.hasInvoice ? draft.invoice.trim() || null : null,
+        invoiceDate: draft.hasInvoice ? (draft.invoiceDate || null) : null });
       if (!parsed.success) { setError(row('Kiểm tra loại phí, tên, ngày, số tiền và số thực thu. Số thực thu có thể bằng 0 hoặc thấp hơn thực chi.')); return; }
       if ((draft.payerKind === 'USER' && !draft.payer) || (draft.payerKind === 'SUPPLIER' && !draft.supplier)) { setError(row('Chọn người chi hoặc nhà cung cấp.')); return; }
       items.push(parsed.data);
@@ -243,10 +248,11 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
           {/* KB Ch.10 §10.7.2 (SIL-950) — thứ tự trường của một dòng khai chi:
               Ngày · Nhóm chi phí (2 tab Tiền đường / Chi phí lô hàng) · Tên
               khoản chi · Bên thực chi (Người chi / Nhà cung cấp theo lựa
-              chọn) · Số hóa đơn – ngày hóa đơn (điền hoặc không) · 3 trường
-              ngoài danh sách KB (Loại chi phí lái xe, Thực chi, Thực thu) xếp
-              sau nhóm trường KB · ô đánh dấu "Nhập Thu và Trả bằng nhau" CUỐI
-              dòng. */}
+              chọn) · ô chứng từ "Có hóa đơn" + cặp Số hóa đơn – ngày hóa đơn
+              (SIL-949/KB §10.6.4: cờ bật mới hiện và yêu cầu số hóa đơn) · 3
+              trường ngoài danh sách KB (Loại chi phí lái xe, Thực chi, Thực
+              thu) xếp sau nhóm trường KB · ô đánh dấu "Nhập Thu và Trả bằng
+              nhau" CUỐI dòng. */}
           <div className="expense-accounting-fields">
             <DateField controlSize="sm" label="Ngày chi" value={draft.date} required disabled={busy} onChange={value => patchDraft(index, { date: value })} />
             {/* Nhóm chi phí: mockup card 191026160000's TWO side-by-side
@@ -281,12 +287,16 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
             {draft.payerKind === 'USER' && <UuiSelectField label="Người thực chi" value={draft.payer} disabled={busy} required onChange={event => patchDraft(index, { payer: event.target.value })} options={[{ value: '', label: 'Chọn nhân viên' }, ...(entryScope === 'OPS' ? catalog.opsUsers : catalog.staff).map(item => ({ value: String(item.id), label: item.name }))]} />}
             {draft.payerKind === 'SUPPLIER' && <UuiSelectField label="Nhà cung cấp" value={draft.supplier} disabled={busy} required onChange={event => patchDraft(index, { supplier: event.target.value })} options={[{ value: '', label: 'Chọn nhà cung cấp' }, ...catalog.suppliers.map(item => ({ value: String(item.id), label: item.name }))]} />}
           </div>
-          <div className="expense-accounting-fields">
+          {/* KB §10.6.4 (K10.32, SIL-949) — ô "chứng từ" là cờ "Có hóa đơn":
+              tắt thì cặp Số/Ngày hóa đơn ẩn hoàn toàn và dòng không mang số
+              hóa đơn; bật lên cặp hiện ra và Số hóa đơn bắt buộc. */}
+          <label className="expense-accounting-check"><input type="checkbox" checked={draft.hasInvoice} disabled={busy} onChange={event => { const checked = event.target.checked; patchDraft(index, checked ? { hasInvoice: true } : { hasInvoice: false, invoice: '', invoiceDate: '' }); }} /> Có hóa đơn</label>
+          {draft.hasInvoice && <div className="expense-accounting-fields">
             <ExpenseEvidenceFields variant="invoice-pair"
               invoiceNumber={draft.invoice} onInvoiceNumber={value => patchDraft(index, { invoice: value })}
               invoiceDate={draft.invoiceDate} onInvoiceDate={value => patchDraft(index, { invoiceDate: value })}
-              required={false} disabled={busy} />
-          </div>
+              required disabled={busy} />
+          </div>}
           <div className="expense-accounting-fields">
             <UuiSelectField label="Loại chi phí lái xe" required value={draft.driverOption} disabled={busy} onChange={event => { const choice = driverExpenseOption(event.target.value); patchDraft(index, { driverOption: choice.code, name: choice.label, ...(draft.amount === '' && choice.amount !== undefined ? { amount: choice.amount } : {}) }); }} options={[{ value: '', label: 'Chọn loại chi phí' }, ...DRIVER_EXPENSE_OPTIONS.filter(item => item.group === draft.group).map(item => ({ value: item.code, label: item.label }))]} />
             <NumberField controlSize="sm" label="Thực chi (VND)" required value={draft.amount} disabled={busy} min={-999_999_999_999_999} step={1} grouped signed onChange={next => patchDraft(index, { amount: next, ...(draft.equal ? { charge: next } : {}) })} />

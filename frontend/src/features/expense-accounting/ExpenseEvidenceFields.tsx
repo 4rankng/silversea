@@ -7,9 +7,9 @@ interface ExpenseEvidenceFieldsBase {
   onInvoiceNumber: (value: string) => void;
   invoiceDate: string;
   onInvoiceDate: (value: string) => void;
-  /** Hint only ("Bắt buộc với khoản có hóa đơn" vs "Để trống nếu không có hóa đơn")
-   *  — the invoice number itself stays optional to fill; the server enforces the
-   *  invoiced-catalog rule. */
+  /** Hint switch ("Bắt buộc với khoản có hóa đơn" vs "Để trống nếu không có hóa
+   *  đơn"). Flag-on requiredness (KB §10.6.4) is the caller's save-path
+   *  law; the server still enforces the invoiced-catalog rule. */
   required?: boolean;
   disabled?: boolean;
 }
@@ -25,8 +25,11 @@ export type ExpenseEvidenceFieldsProps = ExpenseEvidenceFieldsBase & (
     }
   | {
       /** FB-097 (card 141026230740) — accounting "Thêm khoản chi": gọn theo
-       *  card, không có ô "Loại chứng từ" (hợp đồng lưu không ghi trường này);
-       *  cặp số/ngày hóa đơn hiển thị sẵn, điền hoặc không đều được. */
+       *  card, không có ô "Loại chứng từ" (hợp đồng lưu không ghi trường này).
+       *  KB §10.6.4 (K10.32, SIL-949) — the CALLER owns the "Có hóa đơn" flag
+       *  and renders this pair only when the flag is on; `required` switches
+       *  the placeholder hint (the flag-on requiredness is enforced by the
+       *  caller's save path, not here). */
       variant: 'invoice-pair';
     }
 );
@@ -35,8 +38,9 @@ export type ExpenseEvidenceFieldsProps = ExpenseEvidenceFieldsBase & (
  * Số/ngày hóa đơn cho mọi màn hình khai chi phí. Hai biến thể:
  * - `kind-picker` (mặc định, màn hình lái xe): "Loại chứng từ" (Hóa đơn / Phiếu
  *   thu) quyết định cặp số/ngày hóa đơn có hiển thị hay không.
- * - `invoice-pair` (form kế toán): chỉ cặp số/ngày hóa đơn, luôn hiển thị, tùy
- *   chọn. Component không sở hữu nút ảnh — quy tắc ảnh là của nơi gọi.
+ * - `invoice-pair` (form kế toán): chỉ cặp số/ngày hóa đơn; nơi gọi quyết định
+ *   cặp có hiển thị hay không (ô "Có hóa đơn" — KB §10.6.4, SIL-949). Component
+ *   không sở hữu nút ảnh — quy tắc ảnh là của nơi gọi.
  */
 export function ExpenseEvidenceFields(props: ExpenseEvidenceFieldsProps) {
   const {
