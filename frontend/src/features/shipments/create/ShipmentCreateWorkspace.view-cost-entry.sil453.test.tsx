@@ -105,8 +105,9 @@ function renderView(viewProps: { canEditLot?: boolean; canDeleteLot?: boolean; c
  * SIL-453 (FB-098 restore, QA fail 06/11 build dcaa8295): the review page's
  * "Khai chi phí" affordance — the lot-scope entry the pre-SIL-481 detail page
  * mounted (commit d49b0920, detached by f4cd3691) — is back on the view
- * cluster: trio roles only, hidden on an accounting-locked lot (the card's
- * own law), and the drawer mounts at LOT scope (tripId null) named by the
+ * cluster: the office trio + CUS (SIL-961, K5.29), hidden on an
+ * accounting-locked lot (the card's own law), and the drawer mounts at LOT
+ * scope (tripId null) named by the
  * lot's business key.
  */
 describe('ShipmentCreateWorkspace — view-mode Khai chi phí (SIL-453)', { timeout: 20000 }, () => {

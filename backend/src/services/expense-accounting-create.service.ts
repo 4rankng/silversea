@@ -19,8 +19,12 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
   // the lot path only (tripId == null → ops_expense_entries). Trip-scoped
   // creation and every other financial command keep requireExpenseFinance
   // (the function itself is untouched so the RBAC pattern stays single).
-  if (actor.role === Role.OPS) {
-    if (input.tripId != null) throw new ApiError(403, 'Nhân viên Ops chỉ nhập được khoản chi theo lô hàng.');
+  // SIL-961 (K5.29 + memo 24/11 Mục 08) — CUS (Chứng từ) rides the SAME
+  // lot-only lane: the lot drawer's [+ Khai chi phí] declares phí phát sinh
+  // chứng từ / chi hộ on the shipment-level path; a trip-scoped create stays
+  // finance-only for the role, exactly like Ops.
+  if (actor.role === Role.OPS || actor.role === Role.CUS) {
+    if (input.tripId != null) throw new ApiError(403, 'Chỉ nhập được khoản chi theo lô hàng.');
   } else {
     requireExpenseFinance(actor);
   }

@@ -40,8 +40,10 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
   it('renders the create-form workspace in VIEW mode pinned to the route id', () => {
     renderAt('/shipments/9');
     expect(screen.getByTestId('view-workspace')).toBeTruthy();
+    // SIL-961 (K5.29): the default role here is CUS — it now carries the
+    // lot-scope cost entry (canDeclareCost) alongside edit + delete + tờ khai.
     expect(workspaceMock).toHaveBeenCalledWith(
-      expect.objectContaining({ viewTarget: { shipmentId: 9, canEditLot: true, canDeleteLot: true, canDeclareCost: false, canEditDeclaration: true } }),
+      expect.objectContaining({ viewTarget: { shipmentId: 9, canEditLot: true, canDeleteLot: true, canDeclareCost: true, canEditDeclaration: true } }),
       undefined,
     );
   });
@@ -80,6 +82,19 @@ describe('ShipmentDetailPage — SIL-481 post-create review wrapper', () => {
     renderAt('/shipments/6');
     expect(workspaceMock).toHaveBeenCalledWith(
       expect.objectContaining({ viewTarget: { shipmentId: 6, canEditLot: true, canDeleteLot: false, canDeclareCost: true, canEditDeclaration: true } }),
+      undefined,
+    );
+  });
+
+  it('CUS sees [Khai chi phí] on the lot detail (SIL-961, K5.29 + memo 24/11 Mục 08)', () => {
+    // The QA fail: tiepvv (Chứng từ) opened /shipments/1191 and the action bar
+    // had Quay lại / Sửa / Tạo mới / Xóa lô — no Khai chi phí. The BE lot-scope
+    // create lane admits CUS (expense-accounting-create gate), so the host
+    // gate must too; ACCOUNTANT keeps the trio seat untouched.
+    userRole.current = 'CUS';
+    renderAt('/shipments/1191');
+    expect(workspaceMock).toHaveBeenCalledWith(
+      expect.objectContaining({ viewTarget: { shipmentId: 1191, canEditLot: true, canDeleteLot: true, canDeclareCost: true, canEditDeclaration: true } }),
       undefined,
     );
   });

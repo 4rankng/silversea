@@ -30,10 +30,13 @@ export default function ShipmentDetailPage() {
   const canEditLot = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS);
   const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
   // SIL-453 (FB-098 restore, QA fail 06/11): the review page carries "Khai
-  // chi phí" for exactly the BE expense-write trio (`requireExpenseFinance`
+  // chi phí" for the BE expense-write trio (`requireExpenseFinance`
   // = ADMIN/MANAGER/ACCOUNTANT); the accounting-lock half is applied inside
   // the workspace once the detail lands (the card's "ẩn khi khóa kế toán").
-  const canDeclareCost = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.ACCOUNTANT);
+  // SIL-961 (K5.29 + memo 24/11 Mục 08): CUS (Chứng từ) joins — the BE
+  // lot-scope create lane admits the role (expense-accounting-create gate),
+  // so the drawer's [+ Khai chi phí] must be reachable here too.
+  const canDeclareCost = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.ACCOUNTANT || user.role === Role.CUS);
   // SIL-720 (id 840): the per-container tờ khai writes under the SIL-551
   // writer law (the container-line command): ADMIN, MANAGER, CUS, ĐIỀU VẬN.
   // The accounting-lock half is applied inside the workspace once the detail

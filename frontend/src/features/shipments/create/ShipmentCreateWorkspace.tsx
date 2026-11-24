@@ -86,7 +86,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
    *  `canDeleteLot` (SIL-688) follows the same pattern: the host reads
    *  useAuth (BE delete = CUS/ADMIN), the workspace owns the confirm +
    *  version/lifecycle guards. */
-  viewTarget?: { shipmentId: number; canEditLot?: boolean; canDeleteLot?: boolean; /** SIL-453: the host's ADMIN/MANAGER/ACCOUNTANT gate for the lot-scope cost entry (BE requireExpenseFinance trio). */ canDeclareCost?: boolean; /** SIL-720: the host's SIL-551 gate for the per-container tờ khai write (ADMIN/MANAGER/CUS/DISPATCHER). */ canEditDeclaration?: boolean };
+  viewTarget?: { shipmentId: number; canEditLot?: boolean; canDeleteLot?: boolean; /** SIL-453: the host's ADMIN/MANAGER/ACCOUNTANT/CUS gate for the lot-scope cost entry (BE lot-lane role law, SIL-961). */ canDeclareCost?: boolean; /** SIL-720: the host's SIL-551 gate for the per-container tờ khai write (ADMIN/MANAGER/CUS/DISPATCHER). */ canEditDeclaration?: boolean };
 } = {}) {
   const navigate = useNavigate();
   const viewMode = Boolean(viewTarget);
