@@ -252,6 +252,11 @@ export function DispatchPlanCardList({
         const { lift, drop } = routeSides(row);
         const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
         const vehicleClass = row.cargoMode === 'LCL' ? row.lcl?.group?.vehicleClassCode : null;
+        // K2.31 (SIL-934) — the run's moóc: the live trip's assigned trailer,
+        // else the planned OWN tractor's current coupling (the same pair the
+        // desktop Moóc column reads).
+        const trailerPlate = row.dispatch.assignedTrailerPlate?.trim() || null;
+        const trailerType = row.dispatch.assignedTrailerType?.trim() || null;
         const driverName = row.dispatch.assignedDriverName?.trim() || null;
         const driverPhone = row.dispatch.assignedDriverPhone?.trim() || null;
         const note = firstNote(row);
@@ -276,6 +281,19 @@ export function DispatchPlanCardList({
                   the plate line above never names: the chip rides the same
                   slot, so the card reads the waiting state like the grid. */}
               {!showsPlateLine(row) && row.dispatch.carrierType === 'EXTERNAL' && <WaitingPlateChip />}
+              {/* K2.31 (SIL-934, QA 24/11) — the run's moóc. The desktop grid
+                  carries it in its own column; on the phone card the rig
+                  coupling would otherwise be invisible on every surface, so
+                  the moóc rides the same top line as the plate (type muted in
+                  the title — the line itself stays one short fact). */}
+              {trailerPlate && (
+                <span
+                  className="dpcard__trailer"
+                  title={trailerType ? `Moóc ${trailerPlate} · ${trailerType}` : `Moóc ${trailerPlate}`}
+                >
+                  {`Moóc ${trailerPlate}`}
+                </span>
+              )}
               {vehicleClass && <span className="dpcard__plate-class">{`Xe ${vehicleClass}`}</span>}
             </span>
             <span className="dpcard__driver">

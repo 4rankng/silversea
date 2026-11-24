@@ -1358,6 +1358,17 @@ button.detailed-plan-grid__classification:focus-visible {
   white-space: nowrap;
 }
 
+/* K2.31 (SIL-934) — the run's moóc on the phone card: a muted rig fact next
+   to the plate, one short run so it can never push the plate out of the line
+   (the plate keeps the shrinking slot; the moóc is fixed). */
+.dpcard__trailer {
+  flex: none;
+  font-size: var(--ops-table-meta-size);
+  line-height: var(--ops-table-meta-line-height);
+  color: var(--fg-3);
+  white-space: nowrap;
+}
+
 .dpcard__driver {
   display: flex;
   align-items: baseline;
