@@ -55,6 +55,24 @@ describe('OpsFleetTrackingPage (OpsVanHanh §4)', () => {
     expect(row.querySelector('[data-label="Cập nhật"]')).toHaveTextContent('—');
   });
 
+  // SIL-975 (K10.54 §10.8.5) — chưa có bản ghi: nhãn "Dữ liệu chưa cập nhật"
+  // kèm thời điểm kiểm, không bao giờ là '—' trần.
+  it('names the missing data with its readout time instead of a bare dash', async () => {
+    apiGet.mockResolvedValue({
+      items: [{
+        truckId: 2, licensePlate: '15H-176.93', trailerPlate: null,
+        tripId: null, tripCode: null, shipmentCode: null, billRef: null, driverName: null,
+        status: null, lastEventType: null, updatedAt: null,
+      }],
+    });
+    renderPage();
+    const row = (await screen.findByText('15H-176.93')).closest('tr')!;
+    const cell = row.querySelector('[data-label="Cập nhật"]')!;
+    expect(cell).toHaveTextContent('Dữ liệu chưa cập nhật');
+    expect(cell).toHaveTextContent(/kiểm lúc \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
+    expect(cell.textContent).not.toBe('—');
+  });
+
   it('is read-only: no write affordances, and shows the empty state', async () => {
     apiGet.mockResolvedValue({ items: [] });
     renderPage();

@@ -29,8 +29,12 @@ const PROGRESS_LABELS: Record<string, string> = {
  * không có mặt trên màn này. Tự làm mới mỗi 30 giây (hook polling).
  */
 export default function OpsFleetTrackingPage() {
-  const { data, isLoading, isFetching, isError, refetch } = useOpsFleet();
+  const { data, dataUpdatedAt, isLoading, isFetching, isError, refetch } = useOpsFleet();
   const items = data?.items ?? [];
+  // SIL-975 (K10.54 §10.8.5) — the readout time ("thời điểm kiểm") rides the
+  // query's last successful fetch, so a truck with no record at all still
+  // names WHEN the board looked, not a bare '—'.
+  const checkedAtIso = dataUpdatedAt ? new Date(dataUpdatedAt).toISOString() : null;
 
   return (
     <div className="ops-fleet page-shell">
@@ -81,7 +85,18 @@ export default function OpsFleetTrackingPage() {
                       ? <span style={{ color: status.color }}>{status.label}{progress ? ` (${progress})` : ''}</span>
                       : <span className="ops-fleet__idle">Đang rảnh</span>}
                   </td>
-                  <td data-label="Cập nhật">{formatDateTimeShort(truck.updatedAt)}</td>
+                  <td data-label="Cập nhật">
+                    {/* SIL-975 (K10.54 §10.8.5) — có bản ghi: mốc thời gian
+                        bản ghi cuối; chưa có bản ghi: nhãn "Dữ liệu chưa cập
+                        nhật" kèm thời điểm kiểm, không bao giờ là '—' trần. */}
+                    {truck.updatedAt
+                      ? formatDateTimeShort(truck.updatedAt)
+                      : (
+                        <span className="ops-fleet__missing">
+                          Dữ liệu chưa cập nhật{checkedAtIso ? ` · kiểm lúc ${formatDateTimeShort(checkedAtIso)}` : ''}
+                        </span>
+                      )}
+                  </td>
                 </tr>
               );
             })}
