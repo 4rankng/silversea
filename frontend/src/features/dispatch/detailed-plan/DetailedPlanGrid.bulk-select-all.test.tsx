@@ -81,7 +81,7 @@ const rowBox = (bill: string) => screen.getByRole('checkbox', { name: `Chọn ph
 function renderBulkGrid(
   items: DispatchDetailPlanRow[],
   selected: ReadonlySet<number> = new Set(),
-  onToggleBulkSelection: (id: number, next: boolean) => void = vi.fn(),
+  onToggleBulkSelection: (id: number, next: boolean, row: DispatchDetailPlanRow) => void = vi.fn(),
 ) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -122,19 +122,20 @@ function renderBulkGrid(
 
 describe('DetailedPlanGrid — bulk release select-all (SIL-893)', () => {
   it('the header select-all ticks ONLY the eligible rows; blocked rows stay dimmed with reasons', () => {
+    const rows = bulkRows();
     const onToggleBulkSelection = vi.fn();
-    renderBulkGrid(bulkRows(), new Set(), onToggleBulkSelection);
+    renderBulkGrid(rows, new Set(), onToggleBulkSelection);
 
     const selectAll = screen.getByRole('checkbox', { name: SELECT_ALL });
     expect(selectAll.getAttribute('aria-checked')).toBe('false');
     fireEvent.click(selectAll);
 
     expect(onToggleBulkSelection).toHaveBeenCalledTimes(3);
-    expect(onToggleBulkSelection).toHaveBeenCalledWith(101, true);
-    expect(onToggleBulkSelection).toHaveBeenCalledWith(102, true);
-    expect(onToggleBulkSelection).toHaveBeenCalledWith(103, true);
-    expect(onToggleBulkSelection).not.toHaveBeenCalledWith(104, true);
-    expect(onToggleBulkSelection).not.toHaveBeenCalledWith(105, true);
+    expect(onToggleBulkSelection).toHaveBeenCalledWith(101, true, rows[0]);
+    expect(onToggleBulkSelection).toHaveBeenCalledWith(102, true, rows[1]);
+    expect(onToggleBulkSelection).toHaveBeenCalledWith(103, true, rows[2]);
+    expect(onToggleBulkSelection).not.toHaveBeenCalledWith(104, true, expect.anything());
+    expect(onToggleBulkSelection).not.toHaveBeenCalledWith(105, true, expect.anything());
 
     // Blocked rows: disabled + the reason on the control itself.
     expect(rowBox('BL-4').getAttribute('aria-disabled')).toBe('true');
@@ -146,17 +147,29 @@ describe('DetailedPlanGrid — bulk release select-all (SIL-893)', () => {
   });
 
   it('all eligible picked: the header reads checked and a second click releases the whole set', () => {
+    const rows = bulkRows();
     const onToggleBulkSelection = vi.fn();
-    renderBulkGrid(bulkRows(), new Set([101, 102, 103]), onToggleBulkSelection);
+    renderBulkGrid(rows, new Set([101, 102, 103]), onToggleBulkSelection);
 
     const selectAll = screen.getByRole('checkbox', { name: SELECT_ALL });
     expect(selectAll.getAttribute('aria-checked')).toBe('true');
     fireEvent.click(selectAll);
 
     expect(onToggleBulkSelection).toHaveBeenCalledTimes(3);
-    expect(onToggleBulkSelection).toHaveBeenCalledWith(101, false);
-    expect(onToggleBulkSelection).toHaveBeenCalledWith(102, false);
-    expect(onToggleBulkSelection).toHaveBeenCalledWith(103, false);
+    expect(onToggleBulkSelection).toHaveBeenCalledWith(101, false, rows[0]);
+    expect(onToggleBulkSelection).toHaveBeenCalledWith(102, false, rows[1]);
+    expect(onToggleBulkSelection).toHaveBeenCalledWith(103, false, rows[2]);
+  });
+
+  it('a row tick hands the page that row (SIL-898 — the pick carries its snapshot for cross-search release)', () => {
+    const rows = bulkRows();
+    const onToggleBulkSelection = vi.fn();
+    renderBulkGrid(rows, new Set(), onToggleBulkSelection);
+
+    fireEvent.click(rowBox('BL-2'));
+
+    expect(onToggleBulkSelection).toHaveBeenCalledTimes(1);
+    expect(onToggleBulkSelection).toHaveBeenCalledWith(102, true, rows[1]);
   });
 
   it('a subset picks report mixed on the header', () => {

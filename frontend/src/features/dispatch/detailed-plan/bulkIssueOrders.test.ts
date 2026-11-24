@@ -18,7 +18,7 @@ vi.mock('../../../api/dispatchPlanningClient', () => ({
   listDispatchFleetResources: (...args: unknown[]) => listFleetMock(...args),
 }));
 
-import { bulkIssueRows, bulkIssueEligibility } from './bulkIssueOrders';
+import { bulkIssueRows, bulkIssueEligibility, bulkIssueTargets } from './bulkIssueOrders';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentResponse } from '../../../api/shipmentClient';
 
@@ -235,5 +235,48 @@ describe('bulkIssueEligibility — the checkbox gate', () => {
     expect(bulkIssueEligibility(row({
       dispatch: { carrierType: 'EXTERNAL', carrierName: 'Nhà xe Thanh Phong', externalCarrierId: 8, externalCarrierVehicleId: null, assignedPlate: null },
     })).eligible).toBe(true);
+  });
+});
+
+describe('bulkIssueTargets — the pick outlives the search window (SIL-898, BUG-03 retest)', () => {
+  const pickedEarlierSearch = row({
+    fulfillmentId: 201,
+    container: { containerNumber: 'TEMU1111111', containerTypeLabel: '20DC', cargoWeightKg: '19000.00' },
+  });
+  const pickedStillVisible = row({
+    fulfillmentId: 202,
+    container: { containerNumber: 'TEMU2222222', containerTypeLabel: '20DC', cargoWeightKg: '18000.00' },
+  });
+  const fresherGridRow = row({
+    fulfillmentId: 202,
+    version: 9,
+    container: { containerNumber: 'TEMU2222222', containerTypeLabel: '20DC', cargoWeightKg: '18001.00' },
+  });
+
+  it('releases every pick: a row the current search no longer lists rides its snapshot, a visible row rides the fresher grid row', () => {
+    const targets = bulkIssueTargets(
+      new Map([[201, pickedEarlierSearch], [202, pickedStillVisible]]),
+      [fresherGridRow, row({ fulfillmentId: 303 })],
+    );
+
+    expect(targets).toEqual([pickedEarlierSearch, fresherGridRow]);
+  });
+
+  it('an empty pick releases nothing even when the grid lists rows', () => {
+    expect(bulkIssueTargets(new Map(), [row()])).toEqual([]);
+  });
+
+  it('the cross-search repro fires one POST per pick — two ticks across two searches, two releases', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    const picks = [pickedEarlierSearch, pickedStillVisible];
+    const targets = bulkIssueTargets(new Map(picks.map((r) => [r.fulfillmentId, r])), [pickedStillVisible]);
+
+    const outcome = await bulkIssueRows(targets, onIssueOrder);
+
+    expect(onIssueOrder).toHaveBeenCalledTimes(2);
+    expect(onIssueOrder.mock.calls.map(([released]) => released.fulfillmentId)).toEqual([201, 202]);
+    expect(outcome.issued).toBe(2);
+    expect(outcome.failures).toEqual([]);
   });
 });

@@ -174,7 +174,10 @@ interface DetailedPlanGridProps {
    *  the selection set + the batch release (same on-demand law as Gộp hàng). */
   bulkIssueMode?: boolean;
   selectedBulkFulfillmentIds?: ReadonlySet<number>;
-  onToggleBulkSelection?: (fulfillmentId: number, next: boolean) => void;
+  /** BUG-03 retest (SIL-898) — the row rides the toggle: the page keeps a
+   *  global pick map, so ticks from earlier searches release even when a
+   *  later search no longer lists the row. */
+  onToggleBulkSelection?: (fulfillmentId: number, next: boolean, row: DispatchDetailPlanRow) => void;
   /** Band controls passthrough (page owns the batch state): the toggle,
    *  the selected count for [Phát lệnh đã chọn (N)], the run + busy flag. */
   onToggleBulkIssueMode?: () => void;
@@ -719,18 +722,17 @@ export function DetailedPlanGrid({
                       // eligible for batch release ('Đã điều xe' without a
                       // lệnh); ineligible rows stay dimmed per-row whatever
                       // the header does.
-                      const eligibleIds = items
-                        .filter((r) => bulkIssueEligibility(r).eligible)
-                        .map((r) => r.fulfillmentId);
-                      const picked = eligibleIds
-                        .filter((id) => selectedBulkFulfillmentIds?.has(id) ?? false).length;
-                      const all = eligibleIds.length > 0 && picked === eligibleIds.length;
+                      const eligibleRows = items
+                        .filter((r) => bulkIssueEligibility(r).eligible);
+                      const picked = eligibleRows
+                        .filter((r) => selectedBulkFulfillmentIds?.has(r.fulfillmentId) ?? false).length;
+                      const all = eligibleRows.length > 0 && picked === eligibleRows.length;
                       return (
                         <div className="detailed-plan-grid__select-all">
                           <LclSelectCheckbox
                             isSelected={all}
                             isMixed={picked > 0 && !all}
-                            onToggle={(next: boolean) => { eligibleIds.forEach((id) => onToggleBulkSelection(id, next)); }}
+                            onToggle={(next: boolean) => { eligibleRows.forEach((r) => onToggleBulkSelection(r.fulfillmentId, next, r)); }}
                             ariaLabel="Chọn tất cả dòng đủ điều kiện"
                             title="Chọn tất cả dòng đủ điều kiện phát lệnh hàng loạt"
                           />
@@ -828,7 +830,7 @@ export function DetailedPlanGrid({
                             <LclSelectCheckbox
                               isSelected={selectedBulkFulfillmentIds?.has(row.fulfillmentId) ?? false}
                               isDisabled={!eligible}
-                              onToggle={(next: boolean) => onToggleBulkSelection(row.fulfillmentId, next)}
+                              onToggle={(next: boolean) => onToggleBulkSelection(row.fulfillmentId, next, row)}
                               ariaLabel={`Chọn phát lệnh lô ${billBookingReference(row.docs.billNumber)}`}
                               title={eligible
                                 ? 'Đã điều xe, chưa phát lệnh — phát theo điều phối đã lưu.'

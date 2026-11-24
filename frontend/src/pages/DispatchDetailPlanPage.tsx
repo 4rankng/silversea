@@ -7,7 +7,7 @@ import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispa
 import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclGroupTruckEditDialog';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
-import { bulkIssueRows, bulkIssueEligibility, type BulkIssueOutcome } from '../features/dispatch/detailed-plan/bulkIssueOrders';
+import { bulkIssueRows, bulkIssueTargets, type BulkIssueOutcome } from '../features/dispatch/detailed-plan/bulkIssueOrders';
 import { StuckTripsBanner } from '../features/dispatch/StuckTripsBanner';
 import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { deleteCusShipment } from '../api/shipmentClient';
@@ -151,13 +151,17 @@ export default function DispatchDetailPlanPage() {
   // selection rides the grid's leading checkbox column (rows 'Đã điều xe'
   // without a lệnh); the page owns the set, the batch run and the partial-
   // success outcome (failures land in the summary table below the grid).
+  // BUG-03 retest (SIL-898): the pick is GLOBAL across searches — a map of
+  // fulfillmentId → pick-time row, so ticking through different search rounds
+  // keeps every pick even when a later search no longer lists the row.
   const [bulkIssueMode, setBulkIssueMode] = useState(false);
-  const [selectedBulkIds, setSelectedBulkIds] = useState<ReadonlySet<number>>(new Set());
+  const [selectedBulkRows, setSelectedBulkRows] = useState<ReadonlyMap<number, DispatchDetailPlanRow>>(new Map());
+  const selectedBulkIds = useMemo(() => new Set(selectedBulkRows.keys()), [selectedBulkRows]);
   const [bulkIssueBusy, setBulkIssueBusy] = useState(false);
   const [bulkIssueOutcome, setBulkIssueOutcome] = useState<BulkIssueOutcome | null>(null);
   const exitBulkIssueMode = () => {
     setBulkIssueMode(false);
-    setSelectedBulkIds(new Set());
+    setSelectedBulkRows(new Map());
     setBulkIssueOutcome(null);
   };
   const toggleBulkIssueMode = () => {
@@ -170,31 +174,34 @@ export default function DispatchDetailPlanPage() {
     if (lclMergeMode) exitLclMergeMode();
     setBulkIssueMode(true);
   };
-  function toggleBulkSelection(fulfillmentId: number, next: boolean) {
-    setSelectedBulkIds((current) => {
-      const nextSet = new Set(current);
-      if (next) nextSet.add(fulfillmentId);
-      else nextSet.delete(fulfillmentId);
-      return nextSet;
+  function toggleBulkSelection(fulfillmentId: number, next: boolean, row: DispatchDetailPlanRow) {
+    setSelectedBulkRows((current) => {
+      const nextRows = new Map(current);
+      if (next) nextRows.set(fulfillmentId, row);
+      else nextRows.delete(fulfillmentId);
+      return nextRows;
     });
   }
   async function runBulkIssue() {
     if (bulkIssueBusy) return;
-    // Snapshot at click time, re-gated: a row that flipped while the operator
-    // was ticking (issued from its own row button) never rides a stale pick.
-    const targets = detailPlan.items
-      .filter((row) => selectedBulkIds.has(row.fulfillmentId) && bulkIssueEligibility(row).eligible);
+    // The release set is the whole pick, not the current search window (BUG-03
+    // retest SIL-898): rows still listed ride the fresher grid row, rows from
+    // earlier searches ride their pick-time snapshot — the server's
+    // expectedVersion + issued-trip guard owns that staleness, and
+    // bulkIssueRows re-gates every row, so a pick flipped mid-mode lands in
+    // the summary table with its reason instead of vanishing silently.
+    const targets = bulkIssueTargets(selectedBulkRows, detailPlan.items);
     if (targets.length === 0) return;
     setBulkIssueBusy(true);
     try {
       const outcome = await bulkIssueRows(targets, detailPlan.issueOrder);
       setBulkIssueOutcome(outcome);
-      setSelectedBulkIds(new Set());
+      setSelectedBulkRows(new Map());
       toast({
         kind: outcome.failures.length === 0 ? 'success' : 'warning',
         message: outcome.failures.length === 0
           ? `Đã phát lệnh ${outcome.issued} lô.`
-          : `Đã phát lệnh ${outcome.issued}/${targets.length} lô — ${outcome.failures.length} lô lỗi, xem bảng tổng sát dưới bảng kế hoạch.`,
+          : `Đã phát lệnh ${outcome.issued}/${targets.length} lô — ${outcome.failures.length} lô lỗi, xem bảng tổng kết dưới bảng kế hoạch.`,
       });
       await detailPlan.refresh();
     } finally {

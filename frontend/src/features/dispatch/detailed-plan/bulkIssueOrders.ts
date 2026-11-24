@@ -48,6 +48,22 @@ export function bulkIssueEligibility(row: DispatchDetailPlanRow): { eligible: bo
   return { eligible: reason === '', reason: reason === '' ? null : reason };
 }
 
+/** BUG-03 retest (SIL-898) — the release set is the GLOBAL pick, never the
+ *  current search window: an operator ticks rows across several searches, and
+ *  a later search that no longer lists an earlier pick must not drop it from
+ *  the batch. A selected row still visible in `items` releases from the
+ *  fresher grid row; a row only the pick remembers rides its snapshot (the
+ *  server's expectedVersion + issued-trip guard owns that staleness, and
+ *  bulkIssueRows re-gates every row into the summary table). */
+export function bulkIssueTargets(
+  selectedRows: ReadonlyMap<number, DispatchDetailPlanRow>,
+  items: ReadonlyArray<DispatchDetailPlanRow>,
+): DispatchDetailPlanRow[] {
+  return [...selectedRows.entries()].map(([fulfillmentId, picked]) => (
+    items.find((row) => row.fulfillmentId === fulfillmentId) ?? picked
+  ));
+}
+
 export interface BulkIssueFailure {
   fulfillmentId: number;
   /** Container number, else the Bill/Booking — the summary table's identity. */
