@@ -350,13 +350,13 @@ describe('CusShipmentRow — SIL-586: LCL schedule datetime trên Tổng quan', 
     expect(container.querySelector('.cus-schedule-lot-fallback')!.textContent).toBe('22/10/2026');
   });
 
-  it('C3: lô lẻ không có gì giữ "Chưa chốt ngày", không crash, không in "—"', () => {
+  it('C3: lô lẻ không có gì giữ "Chưa chốt lịch", không crash, không in "—"', () => {
     const { container } = renderRow(makeItem({
       cargoMode: 'LCL',
       scheduleReadiness: 'WAITING_DATE',
       transportDate: null,
     }));
-    expect(screen.getByText('Chưa chốt ngày')).toBeTruthy();
+    expect(screen.getByText('Chưa chốt lịch')).toBeTruthy();
     expect(container.querySelector('.cus-schedule-lot-fallback')).toBeNull();
   });
 

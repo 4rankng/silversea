@@ -79,10 +79,10 @@ export function mapCusWorksheetRow(item: ShipmentCusWorkspaceListItem): string[]
     // the bare direction call printed plain "Nhập" and contradicted it.
     [directionLabel(item.direction, item.cargoMode), item.shippingLineName ?? '', item.isCombined ? 'Đóng kết hợp' : ''].filter(Boolean).join('\n'),
     [cargoModeLabel(item.cargoMode), item.containerSummary || worksheetQuantity(item), formatWeight(item.weightKg) === '—' ? '' : formatWeight(item.weightKg), item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),
-    // A lot whose readiness is WAITING_DATE is officially "chưa chốt ngày"
+    // A lot whose readiness is WAITING_DATE is officially "chưa chốt lịch"
     // even when one cont already has a date (partial appointments) — the
     // sheet must not contradict the board's warning.
-    [item.transportDate && item.operational.scheduleReadiness !== 'WAITING_DATE' ? formatDate(item.transportDate) : 'Chưa chốt ngày', vehicleReadinessLabel(item)].filter(Boolean).join('\n'),
+    [item.transportDate && item.operational.scheduleReadiness !== 'WAITING_DATE' ? formatDate(item.transportDate) : 'Chưa chốt lịch', vehicleReadinessLabel(item)].filter(Boolean).join('\n'),
     [item.customerNotes ?? '', item.operationalNotes ?? ''].filter((line) => line.trim() !== '').join('\n'),
     [item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel, derivePrimaryShipmentSignal(item)?.label ?? ''].filter(Boolean).join('\n'),
   ];

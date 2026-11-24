@@ -469,7 +469,7 @@
    full-CELL fill fails that test for the same reason — the unfiltered view
    here is nearly all-waiting, so the tint covered 100% of the column and
    signalled nothing while becoming the loudest thing on screen: a solid beige
-   band the full height of the table. "Chưa chốt ngày" already renders in the
+   band the full height of the table. "Chưa chốt lịch" already renders in the
    warning ink, and the row keeps its per-bucket StatusStrip, so dropping the
    fill costs no information. §10 is the same rule from the parity side: a
    status is the 3×20px strip, never a full-height colour fill. */

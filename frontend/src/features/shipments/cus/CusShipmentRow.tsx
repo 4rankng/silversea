@@ -190,7 +190,11 @@ export function CusShipmentRow({
   const cargoMetricsMissing = item.weightKg == null && (item.cargoMode !== 'LCL' || !item.volumeCbm);
   const groupsToShow = hasDateFilter ? filteredGroups : item.appointmentGroups;
   const scheduleContent = <>
-    {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt ngày</strong>}
+    {/* No delivery date yet: the date slot stays EMPTY and the cell names the
+        missing value — "Chưa chốt lịch", the board's wording for a lot whose
+        schedule is not settled (the same word the "Chưa chốt lịch" tab and
+        the exported sheet use). */}
+    {waitingSchedule && <strong className="cus-schedule-missing">Chưa chốt lịch</strong>}
     {groupsToShow.map((group) => {
       // SIL-603 (id 706, owner 30/10): one fact per line — the datetime keeps
       // its own line and the factory name drops to the next line IN FULL,

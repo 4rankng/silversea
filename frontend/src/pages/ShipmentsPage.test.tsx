@@ -945,9 +945,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     }]));
 
     renderPage();
-    expect(await screen.findByText('Chưa chốt ngày')).toBeTruthy();
+    // The board's status TAB is also named "Chưa chốt lịch", so the missing-date
+    // warning is asserted inside the row — the cell, not the tab.
+    await screen.findByRole('table');
+    expect(await within(masterRow()).findByText('Chưa chốt lịch')).toBeTruthy();
     expect(masterRow().classList.contains('cus-dashboard-row--waiting')).toBe(true);
-    expect(within(masterRow()).getAllByText('Chưa chốt ngày')).toHaveLength(1);
+    expect(within(masterRow()).getAllByText('Chưa chốt lịch')).toHaveLength(1);
     expect(within(masterRow()).queryByText('Chờ chốt lịch')).toBeNull();
     expect(within(masterRow()).getByText('Sẵn sàng điều xe')).toBeTruthy();
     expect(screen.queryByText('Cần kiểm tra')).toBeNull();
@@ -956,7 +959,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // waiting — which is the unfiltered default — the tint covered 100% of the
     // column, signalled nothing, and became a solid beige band the full height
     // of the table. §10 is the same rule from the parity side: a status is the
-    // 3×20px strip, never a full-height fill. "Chưa chốt ngày" carries it in
+    // 3×20px strip, never a full-height fill. "Chưa chốt lịch" carries it in
     // the warning ink, and the row keeps its per-bucket StatusStrip.
     expect(css).not.toMatch(/\.cus-dashboard-table tbody > tr\.cus-dashboard-row--waiting[^{]*\{[^}]*background/);
     expect(css).toMatch(/\.cus-schedule-missing\s*\{[^}]*color:/);
@@ -992,7 +995,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     const record = within(masterRow());
-    expect(record.getAllByText('Chưa chốt ngày')).toHaveLength(1);
+    expect(record.getAllByText('Chưa chốt lịch')).toHaveLength(1);
     expect(record.queryByText('Chờ chốt lịch')).toBeNull();
     expect(record.getByTitle('Chờ thu hồi')).toBeTruthy();
     expect(record.getByText('Sẵn sàng điều xe')).toBeTruthy();
@@ -1615,7 +1618,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // Lead ruling fork (a): the "Chỉnh sửa Lịch trình" dialog writes the
     // shipment-level closingAt/plannedReturnAt, but for FCL lots the readiness
     // rule counts only per-container appointments — the cell must still SHOW
-    // the saved lot-level schedule instead of leaving "Chưa chốt ngày" alone.
+    // the saved lot-level schedule instead of leaving "Chưa chốt lịch" alone.
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve({ ...detail, summary: { ...detail.summary, cargoMode: 'FCL' } })

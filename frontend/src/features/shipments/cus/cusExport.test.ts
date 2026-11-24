@@ -115,7 +115,7 @@ describe('mapCusWorksheetRow', () => {
     expect(row[6]).not.toContain('Đang chạy');
   });
 
-  it('prints Chưa chốt ngày when readiness is WAITING_DATE even with a partial transport date', () => {
+  it('prints Chưa chốt lịch when readiness is WAITING_DATE even with a partial transport date', () => {
     // 2026-09-08 customer report: a partially-scheduled 2-cont lot must warn
     // in the sheet exactly like on the board — the known date must not mask
     // the undated cont.
@@ -126,7 +126,7 @@ describe('mapCusWorksheetRow', () => {
         scheduleReadiness: 'WAITING_DATE',
       },
     }));
-    expect(row[4]).toContain('Chưa chốt ngày');
+    expect(row[4]).toContain('Chưa chốt lịch');
     expect(row[4]).not.toContain(new Date('2026-09-01T00:00:00').toLocaleDateString('vi-VN'));
   });
 });

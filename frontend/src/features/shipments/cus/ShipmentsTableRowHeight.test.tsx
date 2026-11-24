@@ -237,17 +237,17 @@ describe('FB-043 (card 201026164000, regression #33) — shipments table uniform
     // Row 1 (Unassigned): renders "Toàn bộ chờ phân xe", exactly 1 status line in .cus-schedule-status-row
     const r1Sched = rows[0].querySelector('td[data-label*="Lịch trình"] .cus-inline-trigger')!;
     expect(within(r1Sched as HTMLElement).getByText('Toàn bộ chờ phân xe')).toBeTruthy();
-    expect(r1Sched.children).toHaveLength(2); // "Chưa chốt ngày" + .cus-schedule-status-row
+    expect(r1Sched.children).toHaveLength(2); // "Chưa chốt lịch" + .cus-schedule-status-row
 
     // Row 2 (Plated): renders "Đã điều xe" in .cus-schedule-status-row
     const r2Sched = rows[1].querySelector('td[data-label*="Lịch trình"] .cus-inline-trigger')!;
     expect(within(r2Sched as HTMLElement).getByText('Đã điều xe')).toBeTruthy();
-    expect(r2Sched.children).toHaveLength(2); // "Chưa chốt ngày" + .cus-schedule-status-row
+    expect(r2Sched.children).toHaveLength(2); // "Chưa chốt lịch" + .cus-schedule-status-row
 
-    // Row 3 (Issued): renders "Đã phát lệnh", appointment group line instead of "Chưa chốt ngày"
+    // Row 3 (Issued): renders "Đã phát lệnh", appointment group line instead of "Chưa chốt lịch"
     const r3Sched = rows[2].querySelector('td[data-label*="Lịch trình"] .cus-inline-trigger')!;
     expect(within(r3Sched as HTMLElement).getByText('Đã phát lệnh')).toBeTruthy();
-    expect(within(r3Sched as HTMLElement).queryByText('Chưa chốt ngày')).toBeNull();
+    expect(within(r3Sched as HTMLElement).queryByText('Chưa chốt lịch')).toBeNull();
     expect(r3Sched.children).toHaveLength(2); // appointment line + .cus-schedule-status-row
   });
 
