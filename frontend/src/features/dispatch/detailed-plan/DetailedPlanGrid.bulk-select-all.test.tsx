@@ -187,4 +187,11 @@ describe('DetailedPlanGrid — bulk release select-all (SIL-893)', () => {
     fireEvent.click(selectAll);
     expect(onToggleBulkSelection).not.toHaveBeenCalled();
   });
+
+  it('SIL-909: the header keeps its full "Phát lệnh" caption (wraps in the 48px rail, never clipped away)', () => {
+    renderBulkGrid(bulkRows());
+
+    const caption = document.querySelector('.detailed-plan-grid__select-all span');
+    expect(caption?.textContent).toBe('Phát lệnh');
+  });
 });

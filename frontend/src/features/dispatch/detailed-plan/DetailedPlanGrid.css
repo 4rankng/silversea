@@ -279,14 +279,18 @@
   text-transform: uppercase;
   color: #64748b;
 }
-/* SIL-893 — the bulk-release header hosts the select-all checkbox beside the
-   column caption; 48px rail, so the stack stays one tight centered row. */
+/* SIL-893 — the bulk-release header hosts the select-all checkbox + the
+   column caption. SIL-909: the 48px rail cannot hold the one-line PHÁT LỆNH
+   caption (68px), and widening the fixed column would tax the reading
+   columns' pinned one-line shares (SIL-795) — so the header stacks: the
+   checkbox above, the caption wrapping at the word boundary below it,
+   never clipped mid-word. */
 .detailed-plan-grid__select-all {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  white-space: nowrap;
+  gap: 2px;
 }
 .detailed-plan-grid__cell--select .detailed-plan-grid__cell-body--select {
   display: flex;
