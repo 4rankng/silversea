@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-11-24 — fix(SIL-946,SIL-947): thẻ lệnh + chi tiết lệnh lái xe theo KB Ch.10 §10.4.2 / §10.4.5
+
+Trước đó (QA 24/11, build df7b2a73, tài khoản btdung):
+- Thẻ lệnh (`/my-trips`): dòng ngay dưới tên nhà máy hiện ĐỊA CHỈ nhà máy
+  («KCN Quế Võ, Nam Sơn, Bắc Ninh») thay vì TUYẾN; không có dòng nhiệm vụ /
+  ghi chú lái xe; lệnh Kẹp 2 container (R3P-677-R) gộp cả 2 cont trên 1 thẻ
+  với 1 nút, không có số chì, không có dấu hiệu cùng cặp (R3P-677-P1/P2).
+- Chi tiết lệnh (`/my-trips/322`): thiếu dòng tuyến dưới tên nhà máy; nhóm sai
+  thứ tự KB (Số cont & seal sau Ghi chú; lộ trình / cảng nâng-hạ lồng trong
+  Thông tin lệnh trước Thông tin hóa đơn); chỉ có «SĐT kho» + nút Gọi kho,
+  không có tên người liên hệ.
+
+- **BE** `driver-journey-board.service.ts`: nhãn TUYẾN của thẻ = `routes.short_name`
+  («KCN QUẾ VÕ, BẮC NINH») qua `operationalName(shortName, name)` — cùng helper
+  với trip payload nên thẻ và chi tiết lệnh luôn khớp 100%; tên tuyến dài
+  (trùng địa chỉ) không còn lên thẻ.
+- **FE** thẻ lệnh: dòng «Ghi chú» của lái xe LUÔN có mặt (lô chưa có ghi chú →
+  «Chưa có ghi chú»); lệnh ghép-kẹp mang 2 container tách thành 2 thẻ, mỗi thẻ
+  có số cont + loại + SỐ CHÌ (thiếu → «Chưa có số chì») + khối lượng + nút
+  «Sửa số cont i/n» riêng; badge «Cặp 1/2» / «Cặp 2/2» đánh dấu 2 thẻ cùng cặp
+  (2 lệnh Kẹp P1/P2 lẫn 2 thẻ container của một chuyến ghép-kẹp).
+- **FE** chi tiết lệnh: tuyến có dòng riêng ngay dưới tên nhà máy; thứ tự nhóm
+  theo KB §10.4.2 — Bill/Booking → lịch & địa điểm (lịch · nhà máy · địa chỉ
+  giao hàng · NGƯỜI LIÊN HỆ + tên + SĐT bấm gọi được) → xuất hóa đơn → hàng hóa
+  (Số cont & seal) → lộ trình (Cảng nâng/hạ + chặng) → nhiệm vụ & ghi chú →
+  bằng chứng & hành động; dòng «Người liên hệ» mang tên (lô chỉ có điện thoại
+  → tên dự phòng «Liên hệ nhà máy», cùng quy ước `operationalSiteContacts`).
+- **FE** deep-link sửa container: nút «Sửa số cont i/n» trên thẻ mở chi tiết
+  lệnh với `?cont=N` — trang chi tiết cuộn tới đúng container và nháy 1,6s
+  (tôn trọng `prefers-reduced-motion`), rồi xoá tham số để không lặp khi
+  back/forward.
+- Tests: `DriverTaskInfoSections.test.tsx` (lưới lịch & địa điểm + lưới lộ
+  trình tách, dòng Người liên hệ, tên dự phòng) · `DriverTripHeader.test.tsx`
+  (dòng tuyến) · `DriverTripDetailPage.test.tsx` (thứ tự nhóm KB, deep-link
+  `?cont=N`) · `DriverTripsPage.test.tsx` (thẻ 1 cont/thẻ, badge Cặp i/2, dòng
+  ghi chú) · BE unit `driver-journey-board-route.test.ts` (nhãn tuyến thẻ).
+
 ## 2026-11-24 — fix(SIL-923): lô khóa chi phí có đường đi tiếp — [Đề nghị điều chỉnh] / [Mở khóa] thay chỗ [Khóa lô]
 
 Trước đó: khóa lô xong, thanh công cụ Ghép bộ Debit vẫn chỉ còn [Khóa lô]
