@@ -13,9 +13,10 @@
  *    settled 0 does not (SIL-801);
  *  - the merge-tag law: a rev-group member's Cước cell shows
  *    «Ghép thu cước cùng Lô 1» with the F-2 reason as tooltip (SIL-546/F-2);
- *  - containers: SIL-876 no-compression — EVERY container renders as its own
- *    stacked line (never a '> 2' pill, no expansion step), money stays
- *    lot-level, and the internal SHP-* code never reaches the screen;
+ *  - containers: SIL-912 — EVERY container renders as its OWN <tr> (never
+ *    merged into one row, no stacked lines, no expansion step); lot-level
+ *    money renders once on the lot's FIRST container row so the totals foot
+ *    can never double, and the internal SHP-* code never reaches the screen;
  *  - pagination rides the shared Pagination with page sizes [20, 50];
  *  - the column picker (card 20260928_193 mechanism) hosts show/hide;
  *  - Khóa lô / Chọn Debit gating: canLock/canChooseDebit + the completeness
@@ -183,30 +184,105 @@ describe('DebitMergeGrid — money laws', () => {
   });
 });
 
-describe('DebitMergeGrid — containers (SIL-876: không nén)', () => {
-  it('renders EVERY container as its own stacked line — no "> 2" pill, no expansion step', () => {
-    renderGrid({}, [mergeRow({
-      billOrBookNumber: 'BL-1',
-      containers: [
-        { id: 1, containerNumber: 'BSIU1234567', containerType: "20'DC" },
-        { id: 2, containerNumber: 'BSIU7654321', containerType: "40'HC" },
-        { id: 3, containerNumber: 'MSMU7208543', containerType: "40'HC" },
-      ],
-      revenue: { cuoc: '1000', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '1000' },
-    })]);
-    const contCell = document.querySelector('td[data-col="cont"]')!;
-    expect(contCell.querySelectorAll('.debit-merge-cell__line')).toHaveLength(3);
-    expect(contCell).toHaveTextContent('BSIU1234567');
-    expect(contCell).toHaveTextContent('BSIU7654321');
-    expect(contCell).toHaveTextContent('MSMU7208543');
-    const typeCell = document.querySelector('td[data-col="contType"]')!;
-    expect(typeCell.querySelectorAll('.debit-merge-cell__line')).toHaveLength(3);
-    // Money stays lot-level: exactly ONE cước cell for the row (tfoot's
-    // totals cell excluded).
-    expect(document.querySelectorAll('tbody td[data-col="cuoc"]')).toHaveLength(1);
-    // The compression affordance is GONE — no toggle button anywhere.
+describe('DebitMergeGrid — containers (SIL-912: mỗi container một dòng riêng)', () => {
+  const SIL912_CONTS = [
+    { id: 1, containerNumber: 'RTAU4011047', containerType: "20'DC" },
+    { id: 2, containerNumber: 'RTAU4011052', containerType: "20'DC" },
+    { id: 3, containerNumber: 'MSMU7208543', containerType: "40'HC" },
+  ];
+
+  it('renders ONE <tr> per container — a multi-container lot is never merged into one row', () => {
+    renderGrid({}, [mergeRow({ billOrBookNumber: 'BL-1', containers: SIL912_CONTS })]);
+    // Three containers → three body rows; each cont/contType cell carries
+    // exactly ONE value (the audit's R3P-677-R repro: 'RTAU4011047
+    // RTAU4011052' merged in one row must never render again).
+    const contCells = [...document.querySelectorAll('tbody td[data-col="cont"]')];
+    expect(contCells.map((cell) => cell.textContent)).toEqual(['RTAU4011047', 'RTAU4011052', 'MSMU7208543']);
+    const typeCells = [...document.querySelectorAll('tbody td[data-col="contType"]')];
+    expect(typeCells.map((cell) => cell.textContent)).toEqual(["20'DC", "20'DC", "40'HC"]);
+    expect(document.querySelectorAll('tbody tr.debit-merge__row')).toHaveLength(3);
+    // The old compression affordances stay dead: no stacked cont lines, no
+    // toggle, no child rows.
+    expect(document.querySelector('td[data-col="cont"] .debit-merge-cell__line')).toBeNull();
     expect(document.querySelector('.debit-merge__cont-toggle')).toBeNull();
     expect(document.querySelector('tr.debit-merge__child-row')).toBeNull();
+  });
+
+  it('a container-less lot still renders exactly one row (cont reads —)', () => {
+    renderGrid({}, [mergeRow({ containers: [] })]);
+    expect(document.querySelectorAll('tbody tr.debit-merge__row')).toHaveLength(1);
+    expect(document.querySelector('td[data-col="cont"]')!.textContent).toBe('—');
+    expect(document.querySelector('td[data-col="contType"]')!.textContent).toBe('');
+  });
+
+  it('money law: lot-level money renders ONCE per lot — continuation rows keep EMPTY cells, never a fabricated 0', () => {
+    renderGrid({}, [mergeRow({
+      containers: SIL912_CONTS.slice(0, 2),
+      revenue: { cuoc: '1000', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '1000' },
+      control: { tongTc: '5000', lockStatus: 'OPEN', lockedAt: null },
+    })]);
+    const cuocCells = document.querySelectorAll('tbody td[data-col="cuoc"]');
+    expect(cuocCells).toHaveLength(2);
+    expect(cuocCells[0].textContent).toContain('1.000');
+    expect(cuocCells[1].textContent!.trim()).toBe('');
+    expect(cuocCells[1].querySelector('.debit-merge-money__zero')).toBeNull();
+    const tongTcCells = document.querySelectorAll('tbody td[data-col="tongTc"]');
+    expect(tongTcCells[0].textContent).toContain('5.000');
+    expect(tongTcCells[1].textContent!.trim()).toBe('');
+  });
+
+  it('totals foot stays LOT-level: a split lot is summed once, never doubled', () => {
+    renderGrid({}, [
+      mergeRow({
+        shipmentId: 1, billOrBookNumber: 'BL-A', containers: SIL912_CONTS.slice(0, 2),
+        revenue: { cuoc: '1000', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '1000' },
+        control: { tongTc: '5000', lockStatus: 'OPEN', lockedAt: null },
+      }),
+      mergeRow({
+        shipmentId: 2, billOrBookNumber: 'BL-B',
+        containers: [SIL912_CONTS[2]!],
+        revenue: { cuoc: '250000', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '250000' },
+        control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null },
+      }),
+    ]);
+    const foot = (key: string) => document.querySelector(`tfoot td[data-col="${key}"]`)!;
+    // 1.000 (lot A, counted ONCE despite its two container rows) + 250.000.
+    expect(foot('cuoc').textContent).toBe('251.000');
+    expect(foot('tongTc').textContent).toBe('5.000');
+    // The visible money column agrees with the foot: only ONE rendered cước
+    // value per lot (lot A's continuation row is empty).
+    expect([...document.querySelectorAll('tbody td[data-col="cuoc"]')]
+      .filter((cell) => cell.textContent!.trim() !== '')).toHaveLength(2);
+  });
+
+  it('pick checkboxes stay lot-bound across a lot’s container rows — one tap flips them all', () => {
+    function Harness() {
+      const [selection, setSelection] = useState<ReadonlySet<number>>(new Set());
+      return (
+        <DebitMergeGrid
+          rows={[mergeRow({ shipmentId: 101, billOrBookNumber: 'BL-1', containers: SIL912_CONTS.slice(0, 2) })]}
+          storageKey="debit-merge-sil912-pick"
+          selection={selection}
+          onSelectionChange={(id, next) => setSelection((current) => {
+            const set = new Set(current);
+            if (next) set.add(id);
+            else set.delete(id);
+            return set;
+          })}
+          canLock
+          canChooseDebit
+          onLockSelected={vi.fn()}
+          onChooseDebit={vi.fn()}
+        />
+      );
+    }
+    render(<Harness />);
+    const boxes = screen.getAllByRole('checkbox', { name: 'Chọn lô BL-1' }) as HTMLInputElement[];
+    expect(boxes).toHaveLength(2);
+    fireEvent.click(boxes[1]!);
+    for (const box of boxes) expect(box.checked).toBe(true);
+    fireEvent.click(boxes[0]!);
+    for (const box of boxes) expect(box.checked).toBe(false);
   });
 
   it('SHP-* never renders: the lot cell is the Bill/Booking, missing one falls back to #id', () => {

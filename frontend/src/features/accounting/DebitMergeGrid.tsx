@@ -7,10 +7,13 @@
 //   1 Thông tin Lô hàng   Ngày | Lô hàng | Khách hàng | Nhà máy | Tuyến đường
 //                         (+ NV phụ trách in CUS team mode) + the group's
 //                         quick filters (Khách hàng / Tuyến đường) in the toolbar.
-//   2 Container           Số cont | Loại cont (BSIU1234567 | 20'DC) — SIL-876:
-//                         NO compression, EVERY container renders as its own
-//                         stacked line (never a '> 2' pill); money stays
-//                         lot-level. The lot label is the Số Bill/Booking —
+//   2 Container           Số cont | Loại cont (BSIU1234567 | 20'DC) — SIL-912
+//                         (supersedes SIL-876's in-cell stacking): EVERY
+//                         container renders as its OWN <tr> — a lot is never
+//                         merged into one row. Money stays lot-level: it
+//                         renders on the lot's FIRST container row only, so
+//                         splitting rows can never double the money or the
+//                         totals foot. The lot label is the Số Bill/Booking —
 //                         the internal SHP-* code never reaches the screen.
 //   3 Cước phải thu       Cước | Lạch Huyện | Phụ phí | Phát sinh | Tổng.
 //   4 PHÍ CHI HỘ (Có hóa đơn) — 4 sub-groups from the expense-type catalog's
@@ -25,7 +28,7 @@
 // never a fabricated 0; a known 0 renders muted '0'. The amber law
 // (SIL-801): a known non-zero Tổng TC wears var(--warning-text).
 import { cloneElement, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { DebitMergeInvoiceFee, DebitMergeItem, DebitMergeNoInvoice } from '@tingting/shared';
+import type { DebitMergeContainer, DebitMergeInvoiceFee, DebitMergeItem, DebitMergeNoInvoice } from '@tingting/shared';
 import type { LedgerColumn } from '../../lib/column-visibility';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
 import { ColumnPicker } from '../../components/ColumnPicker';
@@ -205,6 +208,17 @@ function FeeStack({ fees, mode }: {
 
 const EMPTY_SET: ReadonlySet<number> = new Set();
 
+/** SIL-912 — the lot-level money leaves. They render ONCE per lot, on the
+ *  lot's FIRST container row; a continuation row keeps the cell EMPTY (the
+ *  null-money law — never a fabricated 0), so the visible money column and
+ *  the totals foot agree and splitting rows can never double the money. */
+const LOT_MONEY_KEYS: Record<string, true> = {
+  cuoc: true, lachHuyen: true, phuPhi: true, phatSinh: true, tong: true,
+  cshtHd: true, cshtTien: true, liftHd: true, liftTien: true, liftThucChi: true,
+  dropHd: true, dropTien: true, dropThucChi: true, khacHd: true, khacSoTien: true, khacTenPhi: true,
+  gnFee: true, gnPaid: true, psFee: true, psPaid: true, noInvTenPhi: true, tongTc: true,
+};
+
 /** SIL-896 round 11 — one stacked money line per no-invoice fee of the
  *  family (Phí GN OP TC / Phí PS OP TC cells). QA build 2530c955 rejected
  *  the single aggregated cell (450.000₫ + 50.000₫ reading as one unnamed
@@ -271,6 +285,19 @@ export function DebitMergeGrid({
   const pageRows = useMemo(
     () => rows.slice((safePage - 1) * pageSize, safePage * pageSize),
     [rows, safePage, pageSize],
+  );
+
+  // SIL-912 — one DISPLAY row per container: a lot with N containers renders
+  // N <tr>s (never merged into one stacked row); a container-less lot keeps
+  // ONE row. Pagination, selection and the totals foot stay LOT-based —
+  // pageRows remain lots, so none of their money math re-runs per container.
+  const displayRows = useMemo(
+    () => pageRows.flatMap((lot): { lot: DebitMergeItem; container: DebitMergeContainer | null; index: number }[] => (
+      lot.containers.length === 0
+        ? [{ lot, container: null, index: 0 }]
+        : lot.containers.map((container, index) => ({ lot, container, index }))
+    )),
+    [pageRows],
   );
 
   // SIL-901 — the pick header carries the page select-all checkbox (short
@@ -612,88 +639,73 @@ export function DebitMergeGrid({
             </tr>
           </thead>
           <tbody>
-            {pageRows.map((row) => {
-              const isSelected = selection.has(row.shipmentId);
-              const containers = row.containers;
+            {displayRows.map(({ lot, container, index }) => {
+              const isSelected = selection.has(lot.shipmentId);
               // SIL-876 — mã nội bộ SHP-* không bao giờ ra màn hình: nhãn lô
               // là Số Bill/Booking, thiếu thì '#id' (trên grid này bill/booking
               // là định danh khách hàng thấy).
-              const lotLabel = row.billOrBookNumber || `#${row.shipmentId}`;
-              const mergeTag = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1 && row.revenue.cuocReason
-                ? { label: MERGE_TAG_LABEL, title: row.revenue.cuocReason }
+              const lotLabel = lot.billOrBookNumber || `#${lot.shipmentId}`;
+              const mergeTag = lot.revGroupId != null && (lot.revGroupOrder ?? 1) > 1 && lot.revenue.cuocReason
+                ? { label: MERGE_TAG_LABEL, title: lot.revenue.cuocReason }
                 : null;
               const renderCell = (key: string) => {
+                // SIL-912 — lot-level money renders once, on the lot's FIRST
+                // container row; a continuation row keeps the cell EMPTY (the
+                // null-money law — never a fabricated 0), so the visible
+                // column and the totals foot stay equal and the split can
+                // never double the money.
+                if (index > 0 && LOT_MONEY_KEYS[key]) return <td key={key} data-col={key} />;
                 switch (key) {
-                  case 'ngay': return <td key={key} data-col={key}>{row.deliveryDate ?? ''}</td>;
+                  case 'ngay': return <td key={key} data-col={key}>{lot.deliveryDate ?? ''}</td>;
                   case 'lot':
                     return (
                       <td key={key} data-col={key} className="debit-merge-cell--lot">
                         {onOpenLot != null ? (
-                          <button type="button" className="debit-merge__lot-link" onClick={() => onOpenLot(row)} aria-label={`Mở lô ${lotLabel}`}>{lotLabel}</button>
+                          <button type="button" className="debit-merge__lot-link" onClick={() => onOpenLot(lot)} aria-label={`Mở lô ${lotLabel}`}>{lotLabel}</button>
                         ) : lotLabel}
                       </td>
                     );
-                  case 'customer': return <td key={key} data-col={key}>{row.customerName ?? ''}</td>;
-                  case 'factory': return <td key={key} data-col={key}>{row.factoryName ?? ''}</td>;
-                  case 'route': return <td key={key} data-col={key}>{row.routeName ?? ''}</td>;
-                  case 'creator': return <td key={key} data-col={key}>{row.creatorName ?? ''}</td>;
+                  case 'customer': return <td key={key} data-col={key}>{lot.customerName ?? ''}</td>;
+                  case 'factory': return <td key={key} data-col={key}>{lot.factoryName ?? ''}</td>;
+                  case 'route': return <td key={key} data-col={key}>{lot.routeName ?? ''}</td>;
+                  case 'creator': return <td key={key} data-col={key}>{lot.creatorName ?? ''}</td>;
                   case 'cont':
-                    // SIL-876 — không nén cont ('> 2' / '> 6'): MỖI container
-                    // một dòng hiển thị luôn, không cần mở rộng.
-                    return (
-                      <td key={key} data-col={key}>
-                        {containers.length === 0 ? '—' : (
-                          <span className="debit-merge-cell debit-merge-cell--stack">
-                            {containers.map((container) => (
-                              <span className="debit-merge-cell__line" key={container.id}>{container.containerNumber ?? '—'}</span>
-                            ))}
-                          </span>
-                        )}
-                      </td>
-                    );
+                    // SIL-912 — mỗi container một dòng RIÊNG: ô này chỉ bao
+                    // giờ mang đúng MỘT số cont (không còn stack, không nén).
+                    return <td key={key} data-col={key}>{container == null ? '—' : container.containerNumber ?? '—'}</td>;
                   case 'contType':
-                    return (
-                      <td key={key} data-col={key}>
-                        {containers.length === 0 ? '' : (
-                          <span className="debit-merge-cell debit-merge-cell--stack">
-                            {containers.map((container) => (
-                              <span className="debit-merge-cell__line" key={container.id}>{container.containerType ?? '—'}</span>
-                            ))}
-                          </span>
-                        )}
-                      </td>
-                    );
-                  case 'cuoc': return <td key={key} data-col={key}><MoneyCell value={row.revenue.cuoc} mergeTag={mergeTag} /></td>;
-                  case 'lachHuyen': return <td key={key} data-col={key}><MoneyCell value={row.revenue.lachHuyen} /></td>;
-                  case 'phuPhi': return <td key={key} data-col={key}><MoneyCell value={row.revenue.phuPhi} /></td>;
-                  case 'phatSinh': return <td key={key} data-col={key}><MoneyCell value={row.revenue.phatSinh} /></td>;
-                  case 'tong': return <td key={key} data-col={key}><MoneyCell value={row.revenue.tong} /></td>;
-                  case 'cshtHd': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.csht} mode="hd" /></td>;
-                  case 'cshtTien': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.csht} mode="amount" /></td>;
-                  case 'liftHd': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.lift} mode="hd" /></td>;
-                  case 'liftTien': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.lift} mode="amount" /></td>;
-                  case 'liftThucChi': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.lift} mode="actual" /></td>;
-                  case 'dropHd': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.drop} mode="hd" /></td>;
-                  case 'dropTien': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.drop} mode="amount" /></td>;
-                  case 'dropThucChi': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.drop} mode="actual" /></td>;
-                  case 'khacHd': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="hd" /></td>;
-                  case 'khacSoTien': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="amount" /></td>;
-                  case 'khacTenPhi': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="name" /></td>;
-                  case 'gnFee': return <td key={key} data-col={key}><NoInvoiceFeeStack fees={row.noInvoice.fees} side="gn" /></td>;
-                  case 'gnPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnPaid} pending={row.noInvoice.gnPaidPending} /></td>;
-                  case 'psFee': return <td key={key} data-col={key}><NoInvoiceFeeStack fees={row.noInvoice.fees} side="ps" /></td>;
-                  case 'psPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psPaid} pending={row.noInvoice.psPaidPending} /></td>;
+                    return <td key={key} data-col={key}>{container?.containerType ?? ''}</td>;
+                  case 'cuoc': return <td key={key} data-col={key}><MoneyCell value={lot.revenue.cuoc} mergeTag={mergeTag} /></td>;
+                  case 'lachHuyen': return <td key={key} data-col={key}><MoneyCell value={lot.revenue.lachHuyen} /></td>;
+                  case 'phuPhi': return <td key={key} data-col={key}><MoneyCell value={lot.revenue.phuPhi} /></td>;
+                  case 'phatSinh': return <td key={key} data-col={key}><MoneyCell value={lot.revenue.phatSinh} /></td>;
+                  case 'tong': return <td key={key} data-col={key}><MoneyCell value={lot.revenue.tong} /></td>;
+                  case 'cshtHd': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.csht} mode="hd" /></td>;
+                  case 'cshtTien': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.csht} mode="amount" /></td>;
+                  case 'liftHd': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.lift} mode="hd" /></td>;
+                  case 'liftTien': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.lift} mode="amount" /></td>;
+                  case 'liftThucChi': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.lift} mode="actual" /></td>;
+                  case 'dropHd': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.drop} mode="hd" /></td>;
+                  case 'dropTien': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.drop} mode="amount" /></td>;
+                  case 'dropThucChi': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.drop} mode="actual" /></td>;
+                  case 'khacHd': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.other} mode="hd" /></td>;
+                  case 'khacSoTien': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.other} mode="amount" /></td>;
+                  case 'khacTenPhi': return <td key={key} data-col={key}><FeeStack fees={lot.chiHo.other} mode="name" /></td>;
+                  case 'gnFee': return <td key={key} data-col={key}><NoInvoiceFeeStack fees={lot.noInvoice.fees} side="gn" /></td>;
+                  case 'gnPaid': return <td key={key} data-col={key}><MoneyCell value={lot.noInvoice.gnPaid} pending={lot.noInvoice.gnPaidPending} /></td>;
+                  case 'psFee': return <td key={key} data-col={key}><NoInvoiceFeeStack fees={lot.noInvoice.fees} side="ps" /></td>;
+                  case 'psPaid': return <td key={key} data-col={key}><MoneyCell value={lot.noInvoice.psPaid} pending={lot.noInvoice.psPaidPending} /></td>;
                   case 'noInvTenPhi':
                     return (
                       <td key={key} data-col={key}>
-                        {row.noInvoice.fees.length === 0
+                        {lot.noInvoice.fees.length === 0
                           ? <span className="debit-merge-cell" />
                           : (
                             <span className="debit-merge-cell debit-merge-cell--stack">
-                              {row.noInvoice.fees.map((fee, index) => (
+                              {lot.noInvoice.fees.map((fee, feeIndex) => (
                                 <span
                                   className={`debit-merge-cell__line${fee.pending ? ' debit-merge-cell__line--pending' : ''}`}
-                                  key={`${fee.name ?? 'khong-ten'}-${index}`}
+                                  key={`${fee.name ?? 'khong-ten'}-${feeIndex}`}
                                   title={fee.pending ? PENDING_FEE_TIP : undefined}
                                 >
                                   {fee.name ?? '—'}
@@ -703,19 +715,21 @@ export function DebitMergeGrid({
                           )}
                       </td>
                     );
-                  case 'tongTc': return <td key={key} data-col={key}><MoneyCell value={row.control.tongTc} warn /></td>;
+                  case 'tongTc': return <td key={key} data-col={key}><MoneyCell value={lot.control.tongTc} warn /></td>;
                   case 'pick':
                     // CR-010.1 (SIL-901) — the pick rides the FIRST (sticky)
                     // column; Trạng thái keeps the lock chip only. The three
                     // money actions keep their hard-block law (SIL-883)
-                    // regardless of how many lots are picked.
+                    // regardless of how many lots are picked. SIL-912: the
+                    // checkbox repeats on every container row of the lot but
+                    // stays bound to the LOT — one tap flips all of them.
                     return (
                       <td key={key} data-col={key} className="debit-merge-cell--pick">
                         <label className="debit-merge__pick">
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={(event) => onSelectionChange(row.shipmentId, event.target.checked)}
+                            onChange={(event) => onSelectionChange(lot.shipmentId, event.target.checked)}
                             aria-label={`Chọn lô ${lotLabel}`}
                           />
                         </label>
@@ -724,8 +738,8 @@ export function DebitMergeGrid({
                   case 'trangThai':
                     return (
                       <td key={key} data-col={key} className="debit-merge-cell--status">
-                        <span className={`debit-merge__lock-state${row.control.lockStatus === 'LOCKED' ? ' debit-merge__lock-state--locked' : ''}`}>
-                          {row.control.lockStatus === 'LOCKED' ? 'Đã khóa' : 'Mở'}
+                        <span className={`debit-merge__lock-state${lot.control.lockStatus === 'LOCKED' ? ' debit-merge__lock-state--locked' : ''}`}>
+                          {lot.control.lockStatus === 'LOCKED' ? 'Đã khóa' : 'Mở'}
                         </span>
                       </td>
                     );
@@ -733,7 +747,7 @@ export function DebitMergeGrid({
                 }
               };
               return (
-                <tr key={row.shipmentId} className="debit-merge__row" data-shipment-id={row.shipmentId}>
+                <tr key={`${lot.shipmentId}:${container?.id ?? 'lot'}`} className="debit-merge__row" data-shipment-id={lot.shipmentId}>
                   {visibleColumns.map((column) => {
                     const cell = renderCell(column.key);
                     if (!isStickyColumn(column)) return cell;
