@@ -86,16 +86,20 @@ export interface CvOverdueRow {
   status: string;
   cvSubmittedDate: string | null;
   createdAt: Date;
-  /** Ngày cược (card 051026231522) — the 7-day anchor when the row carries
-   *  one; rows predating the column fall back to createdAt. */
+  /** Ngày cược (card 051026231522) — the ONLY 7-day anchor (SIL-914): a row
+   *  without it has no cược day, so the 7-day clock has not started and the
+   *  row never counts as overdue (the audit's JH202609258 case — createdAt
+   *  is a data-entry artifact, not a cược day). */
   depositDate?: string | null;
 }
 
 export function isCvOverdue(row: CvOverdueRow, now: Date = new Date()): boolean {
   if (row.status !== 'CHUA_HOAN_CUOC' || row.cvSubmittedDate != null) return false;
-  // Card 051026231522: anchor = row.depositDate ?? row.createdAt — the deposit
-  // day when known, the legacy createdAt day otherwise (unchanged old math).
-  const anchorDay = row.depositDate ?? vnCalendarDate(row.createdAt);
+  // SIL-914 (audit 24/11 mục 6.4): only lots WITH a ngày cược can be overdue —
+  // the old createdAt fallback counted un-anchored rows ("chưa nhập ngày cược")
+  // as overdue on a day nobody bet.
+  if (row.depositDate == null) return false;
+  const anchorDay = row.depositDate;
   const todayDay = vnCalendarDate(now);
   const diff = Math.round((Date.UTC(
     Number(todayDay.slice(0, 4)), Number(todayDay.slice(5, 7)) - 1, Number(todayDay.slice(8, 10)),

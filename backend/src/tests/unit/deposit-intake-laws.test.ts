@@ -4,8 +4,9 @@
 //   BEFORE any database access; a tracker row is created once per shipment
 //   (idempotent re-entry), with trimmed names and Ngày cược = the VN calendar
 //   day; a 0₫ projection still lands the row (KT fills the real amount later);
-// - isCvOverdue anchors on Ngày cược (fallback createdAt), flips past the 7th
-//   VN calendar day, and never flags rows with a CV date or already settled.
+// - isCvOverdue anchors on Ngày cược ONLY (SIL-914: no ngày cược ⇒ the 7-day
+//   clock has not started — never overdue), flips past the 7th VN calendar
+//   day, and never flags rows with a CV date or already settled.
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { db } from '../../db';
@@ -192,9 +193,11 @@ describe('isCvOverdue — the banner count law (card 20260923_14)', () => {
     assert.equal(isCvOverdue(row({ depositDate: day(7) }), new Date('2026-11-19T04:00:00.000Z')), false);
   });
 
-  test('rows without Ngày cược anchor on createdAt (legacy rows)', () => {
-    // createdAt 2026-11-01 VN-day → 2026-11-19 is 18 days later.
-    assert.equal(isCvOverdue(row(), new Date('2026-11-19T04:00:00.000Z')), true);
+  test('rows without Ngày cược never flag (SIL-914: the clock has no anchor)', () => {
+    // createdAt 2026-11-01 VN-day is long past — but a row with no ngày cược
+    // (the audit's JH202609258 case) must not be counted overdue on it.
+    assert.equal(isCvOverdue(row(), new Date('2026-11-19T04:00:00.000Z')), false);
+    assert.equal(isCvOverdue(row({ createdAt: new Date('2026-09-01T00:00:00.000Z') }), new Date('2026-11-19T04:00:00.000Z')), false);
   });
 
   test('a CV date or a settled row never flags', () => {
