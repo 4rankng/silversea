@@ -130,7 +130,7 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
 
 /* SIL-875 (CR-009.1 follow-up 21/11) — the board's chốt ladder floors, in
  * table order. The CSS col rules carry the matching % shares (each share =
- * floor ÷ the 13-column base 1124, so scale re-normalization sums ~100% for
+ * floor ÷ the 13-column base 1132, so scale re-normalization sums ~100% for
  * ANY rendered subset) and these px floors; the table's inline style derives
  * BOTH from the RENDERED column set so hiding a column via the Ẩn/Hiện
  * picker relaxes the horizontal-scroll floor (--ppc-min) instead of
@@ -139,27 +139,32 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
  * 6px dense gutter: identity token 88px (12ch bill), container token 84px
  * content (11ch — SIL-879: QA scrollWidth 92–96px incl. the gutter; the old
  * 65px 'TWCU2259939' reading was short, and the 78px floor let the number
- * bleed into Địa điểm), date token 48px ('26/09/2026'), the 'Xem chi tiết' /
+ * bleed into Địa điểm), the 'Xem chi tiết' /
  * '+ Chi phí' buttons 90–91px, plate pill 60px. SIL-879 pays the wider
  * container floor from the wrap-only donors (status 84→78, the four Ghi chú
  * 74→70 — their longest words still fit), so the sum and the canvas law
- * hold. The FULL thirteen-column set
- * (composed Ghi chú included) sums 1124px ≤ the ≈1129px sidebar-open canvas
- * at 1440×900 — the QA board measured 2160px = the full set under
- * table-layout: auto — so the default view never scrolls and Tiền đường's
- * 'Xem chi tiết' reaches the right edge whole. Change a floor here AND its
- * var in PhoiPhieuControlPage.css together (pinned by
- * PhoiPhieuControlPage.styles.test.ts). */
+ * hold. SIL-920: the 48px date reading was short — the live board renders
+ * 'DD/MM/YYYY' at ≈74.3px content, and the 62px floor broke it mid-number
+ * ('22/12/2' / '026', QA 24/11). Date floor 62→90, paid by the
+ * anywhere-wrap donors status 78→64 and KH/Nhà máy/Tuyến 100→94 (both cells
+ * carry the global `overflow-wrap: anywhere`, so the narrower track only
+ * wraps text inside its own cell — never a bleed). The FULL thirteen-column
+ * set (composed Ghi chú included) sums 1132px ≤ the 1144px sidebar-open
+ * canvas (measured live on the local dev build at 1440×900) — the QA board
+ * measured 2160px = the full set under table-layout: auto — so the default
+ * view never scrolls and Tiền đường's 'Xem chi tiết' reaches the right edge
+ * whole. Change a floor here AND its var in PhoiPhieuControlPage.css
+ * together (pinned by PhoiPhieuControlPage.styles.test.ts). */
 const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
   'lich-trinh': 116,
-  'customer-route': 100,
+  'customer-route': 94,
   thongso: 100,
   diadiem: 84,
   xe: 96,
   hoadon: 104,
   money: 104,
-  status: 78,
-  date: 62,
+  status: 64,
+  date: 90,
   ghichu: 70,
   'ghichu-vantai': 70,
   'ghichu-ops': 70,

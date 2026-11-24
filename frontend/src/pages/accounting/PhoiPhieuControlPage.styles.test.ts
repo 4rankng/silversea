@@ -53,12 +53,12 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     expect(css).toMatch(/\.ppc-board \.ppc-value\s*\{[^}]*white-space:\s*nowrap/);
   });
 
-  it('SIL-875 — the board runs the chốt ladder: fixed layout, full-canvas width, 1124px full-set floor', () => {
+  it('SIL-875 — the board runs the chốt ladder: fixed layout, full-canvas width, 1132px full-set floor', () => {
     const board = css.match(/\.ppc-board\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(board).toContain('table-layout: fixed');
     expect(board).toContain('width: 100%');
     expect(board).toContain('min-width: var(--ppc-min, var(--ppc-fixed-sum))');
-    expect(board).toContain('--ppc-fixed-sum: 1124px');
+    expect(board).toContain('--ppc-fixed-sum: 1132px');
     // The ladder lives on the colgroup cols — Chromium honors min-width on
     // <col> in table-layout: fixed (SIL-872's probe-verified rung); the
     // th/td classes stay styling hooks (sticky identity, selection edge).
@@ -71,16 +71,16 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
 
   it('every column carries its % share + px floor; the full thirteen-column set fits the 1440 canvas', () => {
     const cols: Array<[string, string, string, number]> = [
-      ['lich-trinh', '10.32%', '--ppc-w-lich-trinh', 116],
-      ['customer-route', '8.9%', '--ppc-w-customer-route', 100],
-      ['thongso', '8.90%', '--ppc-w-thongso', 100],
-      ['diadiem', '7.47%', '--ppc-w-diadiem', 84],
-      ['xe', '8.55%', '--ppc-w-xe', 96],
-      ['hoadon', '9.25%', '--ppc-w-hoadon', 104],
-      ['money', '9.25%', '--ppc-w-money', 104],
-      ['status', '6.94%', '--ppc-w-status', 78],
-      ['date', '5.52%', '--ppc-w-date', 62],
-      ['ghichu', '6.22%', '--ppc-w-ghichu', 70],
+      ['lich-trinh', '10.24%', '--ppc-w-lich-trinh', 116],
+      ['customer-route', '8.3%', '--ppc-w-customer-route', 94],
+      ['thongso', '8.83%', '--ppc-w-thongso', 100],
+      ['diadiem', '7.42%', '--ppc-w-diadiem', 84],
+      ['xe', '8.48%', '--ppc-w-xe', 96],
+      ['hoadon', '9.18%', '--ppc-w-hoadon', 104],
+      ['money', '9.18%', '--ppc-w-money', 104],
+      ['status', '5.65%', '--ppc-w-status', 64],
+      ['date', '7.95%', '--ppc-w-date', 90],
+      ['ghichu', '6.18%', '--ppc-w-ghichu', 70],
     ];
     let declaredSum = 0;
     let floorSum = 0;
@@ -96,16 +96,17 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
       declaredSum += Number(share.slice(0, -1)) * rendered;
       floorSum += floorPx * rendered;
     }
-    // Declared widths (99.98% of the base — SIL-879 kept the sum at 1124px
-    // by paying the wider container floor from the wrap-only donors) must
-    // stay UNDER 100% — over 100%
+    // Declared widths (99.95% of the base — SIL-920 re-based the shares onto
+    // the 1132px sum after paying the date grant from the anywhere-wrap
+    // donors) must stay UNDER 100% — over 100%
     // the fixed layout widens the table past its container and
     // phantom-scrolls at every canvas; the remainder distributes.
     expect(declaredSum).toBeLessThan(100);
     // The full set (the QA screenshot's thirteen columns incl composed
-    // Ghi chú) sums 1124px ≤ the ≈1129px sidebar-open canvas at 1440×900 —
+    // Ghi chú) sums 1132px ≤ the 1144px sidebar-open canvas (measured live
+    // on the local dev build at 1440×900) —
     // no horizontal scroll at the acceptance width.
-    expect(floorSum).toBe(1124);
+    expect(floorSum).toBe(1132);
     expect(source).toMatch(/const PCC_SPEC_BASE_SUM = /);
   });
 
@@ -125,6 +126,16 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
   it('date atomicity rides the col floor — the blanket cell nowrap is retired (SIL-875)', () => {
     expect(css).not.toMatch(/\.ppc-board td\.ppc-col--date\s*\{[^}]*white-space:\s*nowrap/);
     expect(css).toMatch(/\.ppc-board col\.ppc-col--date\s*\{[^}]*min-width:\s*var\(--ppc-w-date\)/);
+    // SIL-920 — the global .tt-table base paints `overflow-wrap: anywhere`
+    // on every td (it outranks the board's `.ppc-board th, .ppc-board td`
+    // normal-wrap rule on specificity), so below the floor the date broke
+    // MID-number ('22/12/2' / '026'). The date cell re-declares the
+    // word-boundary law at cell-level specificity: a date can never shed a
+    // digit — the 90px floor holds it whole on one line instead.
+    const dateCell = css.match(/\.ppc-board td\.ppc-col--date\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(dateCell).toContain('overflow-wrap: normal');
+    expect(dateCell).toContain('word-break: keep-all');
+    expect(dateCell).not.toContain('anywhere');
   });
 
   // Card 20260929_207 + the selection-state contract: the picked row is drawn in
