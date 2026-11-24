@@ -607,9 +607,43 @@ export async function saveDebitEdits(input: {
           recoveryNote: edit.note,
         }).where(eq(s.tripExpenses.id, edit.expenseId));
       }
+      // SIL-910 r2 (KB §5.4.2, audit 24/11 mục 5.7) — QA bypassed f3271b2d
+      // here: addOtherFees persisted 'Phí không hóa đơn' rows for trips whose
+      // lot scope carries NO container number (R3N-T10-40, 21:50 24/11 on
+      // df7b2a73). tripExpenses OTHER rows are the no-invoice family on this
+      // surface (ruling 2026-09-19: "Phí khác (không hóa đơn)"), and the
+      // drawer's add entry is lot-wide (SIL-837 falls back to the lot's first
+      // trip), so a numberless trip can host the declaration. The trip's
+      // scope must name at least ONE container OF THIS LOT (tripContainers
+      // rows sourced from the lot with a non-blank number — synced from
+      // shipmentContainers by the identity law). No chung-lô exception
+      // exists on this endpoint: addOtherFees only creates no-invoice rows;
+      // the invoice group's legal chung-lô stays on the ops-expense
+      // endpoints. Whole save refuses before anything persists.
+      const feeTripIds = [...new Set((payload.addOtherFees ?? []).map((fee) => fee.tripId))];
+      const lotContainerNumbersByTrip = new Map<number, number>();
+      if (feeTripIds.length > 0) {
+        const scopeRows = await tx.select({
+          tripId: s.tripContainers.tripId,
+          containerNumber: s.tripContainers.containerNumber,
+        })
+          .from(s.tripContainers)
+          .where(and(
+            inArray(s.tripContainers.tripId, feeTripIds),
+            eq(s.tripContainers.sourceShipmentId, input.shipmentId),
+          ));
+        for (const row of scopeRows) {
+          if (row.containerNumber != null && row.containerNumber.trim() !== '') {
+            lotContainerNumbersByTrip.set(row.tripId, (lotContainerNumbersByTrip.get(row.tripId) ?? 0) + 1);
+          }
+        }
+      }
       for (const fee of payload.addOtherFees ?? []) {
         if (!tripIds.has(fee.tripId)) {
           throw new ApiError(404, 'Không tìm thấy chuyến trên lô hàng này.');
+        }
+        if ((lotContainerNumbersByTrip.get(fee.tripId) ?? 0) === 0) {
+          throw new ApiError(400, 'Phí không hóa đơn bắt buộc chọn số container.');
         }
         await tx.insert(s.tripExpenses).values({
           tripId: fee.tripId,
