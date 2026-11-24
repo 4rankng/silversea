@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { TripDetail } from '@tingting/shared';
+import { TripStatus, type TripDetail } from '@tingting/shared';
 import { FinancialCard } from './FinancialCard';
 import type { TripDerivedData } from '../types';
 
@@ -45,5 +45,59 @@ describe('FIN01 rendered detail breakdown', () => {
     expect(within(total()).getByText('0 ₫')).toBeVisible();
     expect(within(total()).queryByText('+')).toBeNull();
     expect(within(total()).queryByText('−')).toBeNull();
+  });
+
+  // SIL-942 (K8.14) — a computed 0 ₫ never stands bare: the P&L names the
+  // reason. The precedence mirrors netTollForCompletedLeg: reconciled fact
+  // first, then the unconfigured VETC route (owner-verbatim), then the
+  // once-per-pair Kẹp dedup, then the missing rate.
+  it('names the reason under a 0 ₫ toll — reconciled, VETC-unconfigured, pair dedup, then rate', () => {
+    const zeroToll = { ...derived, tollCost: 0 };
+    const { rerender } = render(
+      <FinancialCard derived={zeroToll} trip={{ ...trip, carrierType: 'OWN', reconciledTollCost: '0' }} />,
+    );
+    expect(screen.getByText('Đã đối soát — phí cầu đường xác nhận 0 ₫.')).toBeVisible();
+
+    rerender(<FinancialCard
+      derived={zeroToll}
+      trip={{ ...trip, carrierType: 'OWN', reconciledTollCost: null, tollsStations: 0 }}
+    />);
+    expect(screen.getByText('Route chưa cấu hình trạm thu VETC — cần nhập để tính')).toBeVisible();
+
+    rerender(<FinancialCard
+      derived={zeroToll}
+      trip={{ ...trip, carrierType: 'OWN', reconciledTollCost: null, tollsStations: 6, tollDeduction: '600000' }}
+    />);
+    expect(screen.getByText('Phí cầu đường tính 1 lần cho cả cặp Kẹp/Kết hợp — khấu trừ ở chân còn lại.')).toBeVisible();
+
+    rerender(<FinancialCard
+      derived={zeroToll}
+      trip={{ ...trip, carrierType: 'OWN', reconciledTollCost: null, tollsStations: 6, tollDeduction: '0' }}
+    />);
+    expect(screen.getByText('Chưa cấu hình đơn giá trạm thu — cần nhập để tính.')).toBeVisible();
+  });
+
+  it('names the reason under a 0 ₫ wage — unfinished trip vs completed with no norm', () => {
+    const zeroSalary = { ...derived, driverSalary: 0 };
+    const { rerender } = render(
+      <FinancialCard derived={zeroSalary} trip={{ ...trip, carrierType: 'OWN', status: TripStatus.IN_TRANSIT }} />,
+    );
+    expect(screen.getByText('Chưa nhập số liệu lương — chuyến chưa hoàn thành.')).toBeVisible();
+
+    rerender(<FinancialCard
+      derived={zeroSalary}
+      trip={{ ...trip, carrierType: 'OWN', status: TripStatus.COMPLETED }}
+    />);
+    expect(screen.getByText('Chưa cấu hình định mức lương (hồ sơ tài xế / tuyến) — cần nhập để tính.')).toBeVisible();
+  });
+
+  it('non-zero toll and wage rows carry no reason line', () => {
+    const { container } = render(<FinancialCard
+      derived={derived}
+      trip={{ ...trip, carrierType: 'OWN', status: TripStatus.COMPLETED, tollsStations: 0 }}
+    />);
+    expect(container.querySelector('.pl-reason')).toBeNull();
+    expect(screen.getByText('−55.000 ₫')).toBeVisible();
+    expect(screen.getByText('−800.000 ₫')).toBeVisible();
   });
 });

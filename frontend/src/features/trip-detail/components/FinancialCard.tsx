@@ -1,14 +1,51 @@
 import React from 'react';
 import { Wallet } from 'lucide-react';
 import { Money } from '../../../components/shared/Money';
+import { TripStatus, type TripDetail } from '@tingting/shared';
 import type { TripDerivedData } from '../types';
-import type { TripDetail } from '@tingting/shared';
 import { getExternalTripDisplayTotals } from '../../trips/tripHelpers';
 
 interface FinancialCardProps {
   derived: TripDerivedData;
   trip: TripDetail;
   customerCommission?: number;
+}
+
+/** SIL-942 (K8.14) — owner-verbatim VETC warning. The BE completion law
+ *  (trip-pair-rules.service `VETC_ROUTE_UNCONFIGURED_WARNING`) is the copy
+ *  source; /api/trips does not carry the reason marker, so the P&L mirrors
+ *  the law's precedence from the trip fields it already reads. */
+const VETC_ROUTE_UNCONFIGURED_WARNING = 'Route chưa cấu hình trạm thu VETC — cần nhập để tính';
+
+/**
+ * SIL-942 (K8.14) — why a computed 0 ₫ VETC toll is 0. Mirrors
+ * netTollForCompletedLeg's precedence on the fields the trip payload carries:
+ * a reconciled claim wins first (0 stays a reviewed fact), then the
+ * unconfigured route, then the once-per-pair backhaul dedup, then a missing
+ * rate. Called only when `derived.tollCost === 0`.
+ */
+function tollZeroReason(trip: TripDetail): string {
+  if (trip.reconciledTollCost != null && Number(trip.reconciledTollCost) === 0) {
+    return 'Đã đối soát — phí cầu đường xác nhận 0 ₫.';
+  }
+  if (Number(trip.tollsStations ?? 0) === 0) return VETC_ROUTE_UNCONFIGURED_WARNING;
+  if (Number(trip.tollDeduction ?? 0) > 0) {
+    return 'Phí cầu đường tính 1 lần cho cả cặp Kẹp/Kết hợp — khấu trừ ở chân còn lại.';
+  }
+  return 'Chưa cấu hình đơn giá trạm thu — cần nhập để tính.';
+}
+
+/**
+ * SIL-942 (K8.14) — why a 0 ₫ wage is 0. The completion materializes the
+ * wage (completedLegSalaryLaw: stored → pair phụ phí → base allocation), so
+ * a COMPLETED 0 means no norm is configured anywhere; an unfinished trip
+ * simply has no figures yet. Called only when `derived.driverSalary === 0`.
+ */
+function salaryZeroReason(trip: TripDetail): string {
+  if (trip.status !== TripStatus.COMPLETED) {
+    return 'Chưa nhập số liệu lương — chuyến chưa hoàn thành.';
+  }
+  return 'Chưa cấu hình định mức lương (hồ sơ tài xế / tuyến) — cần nhập để tính.';
 }
 
 /**
@@ -76,10 +113,12 @@ export function FinancialCard({ derived, trip, customerCommission = 0 }: Financi
             <span className="k"><span className="swatch swatch--road" />Tiền vé (trạm thu phí)</span>
             <span className={`v ${tollCost === 0 ? 'zero' : ''}`}><NegMoney value={tollCost} /></span>
           </div>
+          {tollCost === 0 && <p className="pl-reason">{tollZeroReason(trip)}</p>}
           <div className="pl-row">
             <span className="k"><span className="swatch swatch--road" />Tiền lương lái xe</span>
             <span className={`v ${driverSalary === 0 ? 'zero' : ''}`}><NegMoney value={driverSalary} /></span>
           </div>
+          {driverSalary === 0 && <p className="pl-reason">{salaryZeroReason(trip)}</p>}
           {showTwoPointBonus && (
             <div className="pl-row">
               <span className="k"><span className="swatch swatch--road" />Thưởng giao 2 điểm</span>

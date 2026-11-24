@@ -56,6 +56,15 @@
   font-weight: 500;
 }
 
+/* SIL-942 (K8.14) — a computed 0 ₫ never stands bare: the reason line sits
+   right under its row, muted and small so the digit+₫ stays dominant. */
+.pl-reason {
+  margin: -4px 0 4px;
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  color: var(--ink-4);
+}
+
 /* Inline-currency unit suffix (e.g. "/lít" next to a Money value).
    Slightly muted and smaller so the digit+₫ remains the dominant signal. */
 .pl-row .v .v-unit {
