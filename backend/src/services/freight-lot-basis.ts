@@ -107,3 +107,35 @@ export function classifyLotPricingBasis(grounds: LotPricingGrounds): LotPricingD
 
   return { action: 'LOCK', rateKey, transportDate };
 }
+
+// ─── SIL-898 — declared cargo weight, the row-visible chain ──────────────────
+
+/**
+ * A stored weight counts as DECLARED only when it parses to a positive,
+ * finite kilogram value. A `0.00` container line is not a declaration —
+ * nobody books zero tons of cargo — so it must never shadow the next source
+ * of the chain, and must never block pricing as if it were a declared zero
+ * (staging 07/11: a lot re-entered "5000", issued fine, then the line was
+ * zeroed and the same row started 409ing "Thiếu trọng tải" it did not have
+ * the day before).
+ */
+export function positiveWeightKg(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const kg = Number(value);
+  return Number.isFinite(kg) && kg > 0 ? kg : null;
+}
+
+/**
+ * The booking root behind a per-container lot reference: `R3Q-676-2` and
+ * `R3Q-680-B` are lots 2/B of bookings `R3Q-676` and `R3Q-680`. Stripping ONE
+ * trailing `-<token>` segment is deliberately conservative — a reference
+ * whose remainder loses its separator shape (`R3Q-676` → `R3Q`) is kept whole
+ * so a single-lot booking never collapses into a mega-family that could
+ * inherit a stranger's weight.
+ */
+export function bookingFamilyRoot(reference: string | null | undefined): string | null {
+  const ref = reference?.trim() ?? '';
+  if (!ref) return null;
+  const stripped = ref.replace(/-[A-Za-z0-9]+$/, '');
+  return stripped.includes('-') && stripped.length > 0 ? stripped : ref;
+}

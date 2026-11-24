@@ -137,7 +137,11 @@ describe('SIL-644 wave 2 — the dispatcher-side weight path (Sửa điều ph�
     assert.match(detailPlanRead, /branchContainerIds/);
     assert.match(detailPlanRead, /shipmentContainerId: row\.shipmentContainerId,/);
     assert.match(detailPlanRead, /containerCargoWeightKg: s\.shipmentContainers\.cargoWeightKg,/);
-    assert.match(detailPlanRead, /cargoWeightKg: row\.containerCargoWeightKg \?\? row\.cargoWeightKg,/);
+    // SIL-898: the merged display walks the SAME declared-weight chain the
+    // freeze validates (container ?? lot, then own-trip + booking-family
+    // weights) — a weightless/zeroed line shows the weight that will price
+    // its issue instead of a "0 tấn" cell that 409s.
+    assert.match(detailPlanRead, /positiveWeightKg\(stored\) != null\)[\s\S]*?effectiveWeights\.get\(/);
     // SIL-644 wave 2: the editors seed/write the CONTAINER's own column —
     // the merged display value (lot-level fallback) must never look weighted
     // in an editor whose save writes a weightless container column.

@@ -15,6 +15,8 @@ import { dispatchDetailAssignedSql, dispatchDetailLiveTripJoinSql, dispatchDetai
 // no db access), imported rather than duplicated so the two surfaces can
 // never drift in what time a lot's schedule carries.
 import { deriveLegacyScheduleInstant } from './cus-workspace-mapping.service';
+import { resolveDeclaredCargoWeightKg } from './freight-rate-snapshot-lifecycle.service';
+import { positiveWeightKg } from './freight-lot-basis';
 import { listDetailPlanPageKeys, pageKeyPredicate } from './dispatch-detail-plan-page';
 import { requireDispatchZone } from './dispatch-detail-plan-zones.service';
 import { getActiveAssignmentsByTruckIds } from './truck-driver-assignment.service';
@@ -520,6 +522,34 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     const portsById = new Map(ports.map((row) => [row.id, row]));
     const platedByShipment = new Map(platedCounts.map((row) => [row.shipmentId, { total: Number(row.total), plated: Number(row.plated) }]));
 
+    // SIL-898 — the row's displayed weight is the SAME declared-weight chain
+    // the dispatch freeze validates (resolveDeclaredCargoWeightKg), so a lot
+    // whose container line is weightless (or was zeroed) still shows the
+    // weight that will price its issue: the declared lot weight, the lot's
+    // own last issued trip weight, then the booking family's unanimous
+    // declared weight. Runs only for rows whose two stored columns carry no
+    // positive weight and whose container class is a CONT20/CONT40 key —
+    // exactly the rows the freeze would chain for. Keyed by shipment +
+    // anchor container, the same probe the freeze builds.
+    const effectiveWeights = new Map<string, string>();
+    for (const row of pageRows) {
+      if (positiveWeightKg(row.containerCargoWeightKg) != null) continue;
+      if (positiveWeightKg(row.cargoWeightKg) != null) continue;
+      if (!/^(20|40|45)/.test(row.containerTypeCode ?? '')) continue;
+      const weightKey = `${row.shipmentId}:${row.shipmentContainerId ?? 0}`;
+      if (effectiveWeights.has(weightKey)) continue;
+      const declaredKg = await resolveDeclaredCargoWeightKg(tx, {
+        shipmentId: row.shipmentId,
+        anchorContainerId: row.shipmentContainerId ?? null,
+        containerWeightKg: row.containerCargoWeightKg,
+        lotWeightKg: row.cargoWeightKg,
+        reference: row.blNumber ?? row.bookingRef,
+        customerId: row.customerId,
+      });
+      if (declaredKg != null) effectiveWeights.set(weightKey, String(declaredKg));
+    }
+
+
     return {
       items: pageRows.map((row) => {
         const snapshot = (row.siteSnapshot ?? {}) as Record<string, unknown>;
@@ -598,12 +628,19 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           container: {
             containerNumber: row.containerNumber,
             containerTypeLabel: row.containerTypeName ?? row.containerTypeCode ?? null,
-            // Display keeps the legacy lot-level fallback; SIL-644's editor
-            // seeds/writes the CONTAINER's own column (cargoWeightKgRaw) —
-            // the C0 "Thiếu trọng tải" backstop prices that column, so a lot
-            // whose container is weightless must never LOOK weighted in the
-            // editor just because the legacy lot column still holds a value.
-            cargoWeightKg: row.containerCargoWeightKg ?? row.cargoWeightKg,
+            // SIL-898 — display walks the SAME declared-weight chain the
+            // dispatch freeze validates: the container's own column, the lot
+            // column, then (for a weightless/zeroed line) the lot's own last
+            // issued trip weight and the booking family's unanimous declared
+            // weight. `cargoWeightKgRaw` stays the CONTAINER's own column —
+            // the SIL-644 editor seeds and writes that field only, so the
+            // editable box never shows an inherited weight as if it were
+            // stored on this line.
+            cargoWeightKg: (() => {
+              const stored = row.containerCargoWeightKg ?? row.cargoWeightKg;
+              if (positiveWeightKg(stored) != null) return stored;
+              return effectiveWeights.get(`${row.shipmentId}:${row.shipmentContainerId ?? 0}`) ?? stored;
+            })(),
             cargoWeightKgRaw: row.containerCargoWeightKg ?? null,
             // SIL-591 — this row's own per-container tờ khai (the SIL-521
             // store); null for LCL rows (no container — the lot's numbers

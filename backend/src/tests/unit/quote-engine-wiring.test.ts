@@ -31,7 +31,7 @@ test('lot lifecycle resolves through the pricing engine then persists a snapshot
   // (`deriveLotPricingGrounds`, dùng chung với cost-lock freeze).
   assert.match(lifecycle, /classifyLotPricingBasis\(grounds\)/);
   assert.match(lifecycle, /deriveLotPricingGrounds\(tx, args\.shipmentId, args\)/);
-  assert.match(lifecycle, /import \{ classifyLotPricingBasis, type LotPricingGrounds \} from '\.\/freight-lot-basis'/);
+  assert.match(lifecycle, /import \{ bookingFamilyRoot, classifyLotPricingBasis, positiveWeightKg, type LotPricingGrounds \} from '\.\/freight-lot-basis'/);
 });
 
 test('every lot create/update surface locks the rate (FCL intake, reconcile, CUS edits, EDD change, dispatch)', () => {
