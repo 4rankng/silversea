@@ -100,8 +100,10 @@ describe('DriverTripsPage', () => {
   // list (the exact list the Chi tiết lệnh screen renders). Driver 15H-104.03:
   // card R3P-677-R showed 1 cont while the trip (and the detail) carried 2.
   // K10.22 (SIL-947, KB §10.4.5): a 2-cont trip renders ONE CARD PER
-  // CONTAINER — number/type/seal/weight on each, the pair tag on EVERY
-  // sub-card, and each carries its own "Sửa số cont i/n" button.
+  // CONTAINER — number/type/seal/weight on each, the pair tag on EVERY card,
+  // each carries its own "Sửa số cont i/n" button AND its own
+  // "Xem chi tiết & Nhận lệnh" footer (the FAIL repro: both containers used
+  // to share one card with a single receive button).
   it('renders a 2-cont trip as one card per container, each with its own Sửa số cont button', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({
@@ -129,6 +131,13 @@ describe('DriverTripsPage', () => {
     expect(screen.getByRole('button', { name: /Sửa số cont 2\/2/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Sửa số cont 2\/2/ }));
     expect(navigateMock).toHaveBeenCalledWith('/my-trips/55?cont=2');
+    // FAIL repro (Muse 25/11, SIL-947): "chỉ 1 nút nhận lệnh" — each
+    // per-container card owns its own receive footer, and each lands on the
+    // shared trip.
+    const receiveButtons = screen.getAllByRole('button', { name: /Xem chi tiết & Nhận lệnh/ });
+    expect(receiveButtons).toHaveLength(2);
+    fireEvent.click(receiveButtons[1]!);
+    expect(navigateMock).toHaveBeenLastCalledWith('/my-trips/55');
   });
 
   it('hides the per-container edit buttons on a pair-locked 2-cont card (read-only)', () => {
@@ -182,7 +191,8 @@ describe('DriverTripsPage', () => {
   });
 
   // K10.22 (SIL-947, KB §10.4.5): the per-container cards of a ghép-kẹp trip
-  // carry the same pair position, so the two boxes read as one clamp.
+  // carry the same pair position, so the two cards read as one clamp —
+  // adjacent, in one stuck-together group, no other card between them.
   it('marks each per-container card with its position in the Kẹp pair', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({
@@ -194,10 +204,14 @@ describe('DriverTripsPage', () => {
       }),
     ]));
     renderPage();
-    const cards = Array.from(document.querySelectorAll('.driver-journey-cont-card'));
+    const cards = Array.from(document.querySelectorAll('.driver-journey-card'));
     expect(cards.length).toBe(2);
     expect(cards[0]!.querySelector('.driver-journey-card__pair-badge')?.textContent).toBe('Cặp 1/2');
     expect(cards[1]!.querySelector('.driver-journey-card__pair-badge')?.textContent).toBe('Cặp 2/2');
+    // "2 thẻ liền kề" — both cards sit in ONE clamp group (stuck together,
+    // nothing between them), the same treatment a Kẹp pair of two orders gets.
+    expect(cards[0]!.parentElement).toBe(cards[1]!.parentElement);
+    expect(cards[0]!.parentElement!.className).toContain('driver-journey-group--clamp');
   });
 
   // K10.19 (SIL-946, KB §10.4.2 ⑥): nhiệm vụ/ghi chú owns a line on every

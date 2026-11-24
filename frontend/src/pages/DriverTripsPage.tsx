@@ -77,17 +77,12 @@ function isPresent(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
-function JourneyCard({ card, tagLabels, pairSize }: { card: DriverJourneyCard; tagLabels: ReadonlyArray<string>; pairSize: number }) {
-  const navigate = useNavigate();
-  const tag = tagLabelFor(card);
-  const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
-  const isNew = card.bucket === 'NEW';
-  const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
-  // SIL-815 — the strip list is the trip's own containers (the exact list the
-  // Chi tiết lệnh screen renders): one strip per container so a multi-cont
-  // trip shows every number its detail shows. The singular fields mirror the
-  // first entry (older cached boards without `containers` render identically).
-  const containerStrips: DriverJourneyCardContainer[] = card.containers?.length
+// SIL-815 — the strip list is the trip's own containers (the exact list the
+// Chi tiết lệnh screen renders): one strip per container so a multi-cont
+// trip shows every number its detail shows. The singular fields mirror the
+// first entry (older cached boards without `containers` render identically).
+function containerStrips(card: DriverJourneyCard): DriverJourneyCardContainer[] {
+  return card.containers?.length
     ? card.containers
     : [{
       containerNumber: card.containerNumber,
@@ -95,25 +90,64 @@ function JourneyCard({ card, tagLabels, pairSize }: { card: DriverJourneyCard; t
       sealNumber: card.sealNumber,
       cargoWeightKg: card.cargoWeightKg,
     }];
-  const renderedStrips = containerStrips.filter((cont) =>
+}
+
+function visibleStrips(card: DriverJourneyCard): DriverJourneyCardContainer[] {
+  return containerStrips(card).filter((cont) =>
     isPresent(cont.containerNumber) || isPresent(cont.sealNumber) || isPresent(cont.containerTypeName));
-  const hasContainer = renderedStrips.length > 0;
-  // K10.22 (SIL-947, KB §10.4.5): a trip carrying 2+ containers (the ghép-kẹp
-  // clamp) renders ONE CARD PER CONTAINER — each with number/type/seal/weight
-  // and its own "Sửa số cont i/n" affordance. Single-cont cards keep the
-  // compact strip. Editing is a live-order affordance: completed/cancelled
-  // (HISTORY) and pair-locked (read-only per TC8) cards show none — the
-  // backend rejects container edits on closed trips anyway.
-  const isMultiCont = renderedStrips.length >= 2;
+}
+
+/**
+ * One rendered card. K10.22 (SIL-947, KB §10.4.5): a trip carrying 2+
+ * containers (the ghép-kẹp clamp) renders ONE CARD PER CONTAINER — the page
+ * splits it into per-container views and each is a FULL card (own
+ * number/type/seal/weight, own "Sửa số cont i/n", own "Xem chi tiết & Nhận
+ * lệnh" footer). The views stay adjacent under one clamp group ("2 thẻ liền
+ * kề có dấu hiệu cùng cặp") — display only, the pair mechanism is untouched.
+ */
+interface CardView {
+  card: DriverJourneyCard;
+  /** The container this card shows; null = the card carries its single strip. */
+  contIndex: number | null;
+  /** How many containers the clamp carries (split cards only). */
+  contTotal: number;
+}
+
+function expandCardViews(card: DriverJourneyCard): CardView[] {
+  const strips = visibleStrips(card);
+  if (strips.length >= 2) {
+    return strips.map((_, index) => ({ card, contIndex: index, contTotal: strips.length }));
+  }
+  return [{ card, contIndex: null, contTotal: 1 }];
+}
+
+function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels: ReadonlyArray<string>; pairSize: number }) {
+  const navigate = useNavigate();
+  const { card, contIndex, contTotal } = view;
+  const tag = tagLabelFor(card);
+  const isPaired = tag === 'KẸP' || tag === 'KẾT HỢP';
+  const isNew = card.bucket === 'NEW';
+  const footerLabel = isNew ? 'Xem chi tiết & Nhận lệnh' : 'Xem chi tiết';
+  const strips = visibleStrips(card);
+  const hasContainer = strips.length > 0;
+  // K10.22 (SIL-947, KB §10.4.5): the split per-container card shows exactly
+  // ONE strip — its container's number/type/seal/weight. Editing is a
+  // live-order affordance: completed/cancelled (HISTORY) and pair-locked
+  // (read-only per TC8) cards show none — the backend rejects container
+  // edits on closed trips anyway.
+  const isSplit = contIndex != null;
+  const cont = isSplit ? strips[contIndex] : strips[0];
   const canEditContainers = card.bucket !== 'HISTORY' && !card.pairLocked;
   // K10.22 (SIL-947, KB §10.4.5): "2 thẻ liền kề có dấu hiệu cùng cặp" —
-  // a Kẹp pair's two cards carry their position in the pair ("Cặp 1/2"),
-  // so the driver reads them as ONE load (two boxes) instead of two
-  // unrelated orders. KẾT HỢP pairs are the same box on two legs, not two
-  // boxes, so they carry no pair position.
-  const pairBadge = card.pairKind === 'KEP' && card.pairOrder != null
-    ? `Cặp ${card.pairOrder}/${Math.max(2, pairSize)}`
-    : null;
+  // every card of a clamp names its position: the split per-container cards
+  // by their slot in the trip ("Cặp 1/2"), a Kẹp pair's two single-cont
+  // orders by their slot in the pair. KẾT HỢP pairs are the same box on two
+  // legs, not two boxes, so they carry no pair position.
+  const pairBadge = isSplit
+    ? `Cặp ${contIndex + 1}/${contTotal}`
+    : card.pairKind === 'KEP' && card.pairOrder != null
+      ? `Cặp ${card.pairOrder}/${Math.max(2, pairSize)}`
+      : null;
   const locations = driverLocationLabels(card.tradeDirection, card.dropPortName, card.returnDepotName);
   /* Card 121026141020 (FB-082 retest): no "Giao hàng" chip here. The delivery
      destination is the factory, and the card's headline row already names it;
@@ -193,63 +227,13 @@ function JourneyCard({ card, tagLabels, pairSize }: { card: DriverJourneyCard; t
           ("Chưa có số cont"). */}
       {(hasContainer || hasPorts || tradeLabel) ? (
         <div className="driver-journey-card__container-block">
-          {hasContainer && isMultiCont ? (
-            /* K10.22 (SIL-947, KB §10.4.5): a Kẹp trip with 2+ own containers
-                renders ONE CARD PER CONTAINER — number + type + seal + weight
-                on each, the pair tag on EVERY sub-card ("2 thẻ liền kề có
-                dấu hiệu cùng cặp"), and each carries its own "Sửa số cont
-                i/n" button (deep-links to the trip detail with ?cont=N so
-                the driver lands on that exact container row). */
-            <div className="driver-journey-card__cont-cards" data-testid="driver-journey-cont-cards">
-              {renderedStrips.map((cont, index) => (
-                <div
-                  className={`driver-journey-cont-card${isPaired ? ' driver-journey-cont-card--clamp' : ''}`}
-                  key={`cont-card-${index}`}
-                  data-testid={`driver-journey-cont-card-${index}`}
-                >
-                  <div className="driver-journey-cont-card__head">
-                    <span className="driver-journey-card__pair-badge">Cặp {index + 1}/{renderedStrips.length}</span>
-                    <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
-                      {tag}
-                    </span>
-                  </div>
-                  <div className="driver-journey-cont-card__no">
-                    <Package2 size={13} aria-hidden="true" />
-                    {isPresent(cont.containerNumber) ? cont.containerNumber : 'Chưa có số cont'}
-                  </div>
-                  <div className="driver-journey-cont-card__meta">
-                    {isPresent(cont.containerTypeName) ? (
-                      <span className="driver-journey-card__cont-type">{cont.containerTypeName}</span>
-                    ) : null}
-                    {/* SIL-733 (standard CUS-08) — payload formatted in tons */}
-                    {isPresent(cont.cargoWeightKg) ? (
-                      <span className="driver-journey-card__cont-weight" data-testid="cont-weight">{formatWeight(cont.cargoWeightKg)}</span>
-                    ) : null}
-                    {isPresent(cont.sealNumber) ? (
-                      <span className="driver-journey-card__seal">Seal {cont.sealNumber}</span>
-                    ) : (
-                      /* KB §10.4.5: each per-container card names seal +
-                         weight — a missing seal states the gap (DRI-04
-                         named-fallback law) instead of a silent hole. */
-                      <span className="driver-journey-cont-card__pending">Chưa có số chì</span>
-                    )}
-                  </div>
-                  {canEditContainers ? (
-                    <button
-                      type="button"
-                      className="driver-journey-cont-card__edit"
-                      data-testid={`driver-journey-cont-edit-${index}`}
-                      onClick={() => navigate(`/my-trips/${card.tripId}?cont=${index + 1}`)}
-                    >
-                      <Pencil size={12} aria-hidden="true" />
-                      Sửa số cont {index + 1}/{renderedStrips.length}
-                    </button>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ) : hasContainer ? renderedStrips.map((cont, index) => (
-            <p className="driver-journey-card__container" key={`cont-${index}`}>
+          {hasContainer && cont ? (
+            /* K10.22 (SIL-947, KB §10.4.5): the split per-container card's
+                own strip — number + type + seal + weight (a missing seal
+                states the gap, DRI-04 named-fallback law) — with the pair tag
+                ("tag [KẸP] cạnh số container") and the pair position beside
+                it ("2 thẻ liền kề có dấu hiệu cùng cặp"). */
+            <p className="driver-journey-card__container">
               <Package2 size={13} aria-hidden="true" />
               {isPresent(cont.containerNumber) ? (
                 <span className="driver-journey-card__cont-no">{cont.containerNumber}</span>
@@ -258,19 +242,14 @@ function JourneyCard({ card, tagLabels, pairSize }: { card: DriverJourneyCard; t
               )}
               {/* SIL-636 — pair tag rides the container number (ruling:
                   "tag [KẸP] cạnh số container, trên cả 2 thẻ của cặp").
-                  The flex strip wraps cleanly at 390px. One tag per card —
-                  it rides the FIRST strip (SIL-815). Single-cont strips
-                  only: a multi-cont trip renders the per-container cards
-                  above, which each carry the tag. */}
-              {index === 0 && (
-                <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
-                  {tag}
-                </span>
-              )}
+                  The flex strip wraps cleanly at 390px. One tag per card. */}
+              <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
+                {tag}
+              </span>
               {/* K10.22 (SIL-947, KB §10.4.5): the pair position rides the
                   container strip beside the KẸP tag — the two adjacent cards of
-                  a Kẹp pair read as one load ("Cặp 1/2" / "Cặp 2/2"). */}
-              {index === 0 && pairBadge ? (
+                  a Kẹp clamp read as one load ("Cặp 1/2" / "Cặp 2/2"). */}
+              {pairBadge ? (
                 <span className="driver-journey-card__pair-badge" data-testid="pair-badge">{pairBadge}</span>
               ) : null}
               {isPresent(cont.containerTypeName) ? (
@@ -282,9 +261,28 @@ function JourneyCard({ card, tagLabels, pairSize }: { card: DriverJourneyCard; t
               ) : null}
               {isPresent(cont.sealNumber) ? (
                 <span className="driver-journey-card__seal">Seal {cont.sealNumber}</span>
+              ) : isSplit ? (
+                /* KB §10.4.5: the per-container card names seal + weight —
+                   a missing seal states the gap (DRI-04 named-fallback law)
+                   instead of a silent hole. */
+                <span className="driver-journey-card__seal-pending">Chưa có số chì</span>
               ) : null}
             </p>
-          )) : null}
+          ) : null}
+          {/* K10.22 (SIL-947, KB §10.4.5): each split per-container card owns
+              its "Sửa số cont i/n" button — deep-links to the trip detail with
+              ?cont=N so the driver lands on that exact container row. */}
+          {isSplit && canEditContainers && cont ? (
+            <button
+              type="button"
+              className="driver-journey-card__cont-edit"
+              data-testid={`driver-journey-cont-edit-${contIndex}`}
+              onClick={() => navigate(`/my-trips/${card.tripId}?cont=${contIndex + 1}`)}
+            >
+              <Pencil size={12} aria-hidden="true" />
+              Sửa số cont {contIndex + 1}/{contTotal}
+            </button>
+          ) : null}
           {/* SIL-797 (KB Ch4 §4.2.2) — nhiệm vụ viết hoa TRÊN DÒNG RIÊNG: the
               ĐÓNG/TRẢ pill left the container strip (it rode that line as a
               3rd column, reading as part of "CONT [KẸP] 20'RF 12 tấn"). The
@@ -452,16 +450,23 @@ export default function DriverTripsPage() {
           />
         ) : (
           <div className="driver-journey__list">
-            {groupedCardsForTab.map((group) => (
-              <div
-                key={group.map((card) => card.fulfillmentId).join('-')}
-                className={group.length > 1 ? 'driver-journey-group driver-journey-group--clamp' : 'driver-journey-group'}
-              >
-                {group.map((card) => (
-                  <JourneyCard key={card.fulfillmentId} card={card} tagLabels={tagLabels} pairSize={group.length} />
-                ))}
-              </div>
-            ))}
+            {groupedCardsForTab.map((group) => {
+              // K10.22 (SIL-947, KB §10.4.5): a multi-cont clamp card expands
+              // to one FULL card per container — the views stay adjacent in
+              // one stuck-together group ("2 thẻ liền kề"), same treatment a
+              // Kẹp pair of two orders already gets.
+              const views = group.flatMap(expandCardViews);
+              return (
+                <div
+                  key={group.map((card) => card.fulfillmentId).join('-')}
+                  className={views.length > 1 ? 'driver-journey-group driver-journey-group--clamp' : 'driver-journey-group'}
+                >
+                  {views.map((view) => (
+                    <JourneyCard key={`${view.card.fulfillmentId}-${view.contIndex ?? 'card'}`} view={view} tagLabels={tagLabels} pairSize={group.length} />
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
