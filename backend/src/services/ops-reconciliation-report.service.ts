@@ -228,17 +228,17 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     // Quỹ cá nhân table with their gross ĐÃ ỨNG.
     ...Object.keys(recordedByStaff),
   ]);
-  // Card 168 PM ruling (2026-09-29, board "RULING PM" câu 1): Còn phải hoàn
-  // ứng is the Sổ quỹ closing formula — min(đã ứng, đã cấp) − đã tiêu — read
-  // from the SAME canonical authority the fund book reads, so the two tables
-  // are one definition and can never report different numbers. The per-request
-  // floor at 0 keeps it non-negative; > 0 means the staff still holds granted,
-  // unconsumed advance money. Scoped to a đợt the book number is still the
-  // staff's own — the lot fixes the staff, never the number.
+  // SIL-911 — Còn phải hoàn ứng (`remaining`) is the ONE canonical held money
+  // (KB closing law §2.4.6/§5.4.5/§6.4: ĐÃ ỨNG − ĐNTT đã xác nhận − đã nộp
+  // lại, floored ≥ 0) read from the SAME authority the fund book, treasury
+  // and /advance-balances read, so every surface is one definition and can
+  // never report different numbers. Scoped to a đợt the book number is still
+  // the staff's own — the lot fixes the staff, never the number.
   // Card 141026230770 — the report ALSO carries the signed view
-  // (outstandingSigned): same aggregation without the ≥ 0 clamp, so a staff
+  // (outstandingSigned): the per-request bookkeeping aggregation
+  // (min(granted, funded) − allocations) without the ≥ 0 clamp, so a staff
   // who consumed/returned more than was granted shows the deficit instead of
-  // a misleading 0. `remaining` stays the floored book number (Sổ quỹ parity).
+  // a misleading 0. `remaining` stays the floored held number (Sổ quỹ parity).
   const [outstandingByStaff, signedOutstandingByStaff] = await Promise.all([
     getOutstandingAdvanceBalances(batchStaffId ?? undefined),
     getSignedOutstandingAdvanceBalances(batchStaffId ?? undefined),

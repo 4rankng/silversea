@@ -11,7 +11,7 @@ import { db } from '../db';
 import { acquireAdvisoryLock, acquireAdvisoryLocks, lockKeys } from './advisory-lock.service';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
-import { eq, and, desc, inArray, notInArray, sql } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNotNull, notInArray, sql } from 'drizzle-orm';
 import { TxnType, round2dp } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
 import { AdvanceError } from './settlement-validation';
@@ -492,18 +492,22 @@ export async function autoOffsetRecordedExpense(tx: Tx, expenseId: number): Prom
   });
 }
 
-// Cash-backed remaining principal, shared by the wallet, catalog and legacy
-// settlement entry points. A RECORDED request without money is not an advance.
+// ─── The ONE source of truth for "tồn tạm ứng Ops" (SIL-911, audit 24/11 §1.6) ───
 //
-// Card 20260928_168 (PM ruling 2026-09-29 + PRD OpsVanHanh §9.2: "hoàn ứng
-// thực tế giảm nghĩa vụ còn lại đúng một lần", "sau khi phiếu post, sổ quỹ và
-// báo cáo hội tụ về một số"): money the staff has actually RETURNED — a
-// phiếu THU hoàn ứng, i.e. a RECORDED expense-cash IN voucher with FORWARDER
-// counterparty — is no longer in their hands, so it reduces the outstanding
-// exactly once, floored at 0 per staff. A reversed THU drops out via status;
-// a phiếu CHI bù (OUT) pays owed costs and never touches this number. The
-// same voucher class the wallet and the OPS fund book already book as
-// "Nộp lại tiền mặt".
+// `getOutstandingAdvanceBalances` is the DISPLAYED held money everywhere:
+// /advance-balances (Tồn tạm ứng), Sổ quỹ / treasury (Tạm ứng OPS còn tồn),
+// báo cáo hoàn ứng `remaining`, and the OPS wallet. Its law is the KB closing
+// formula (§2.4.6/§5.4.5/§6.4 — audit 24/11 §2.3 MATCH), per staff:
+//
+//   held = ĐÃ ỨNG (RECORDED advance phiếu) − ĐNTT (chi đã xác nhận)
+//          − tiền ĐÃ NỘP LẠI (phiếu THU hoàn ứng — card 20260928_168),
+//
+// floored at 0 per staff (a deficit is not held money; the signed bookkeeping
+// authority below reports it). All sums are SQL integer aggregates — VN money
+// never leaves ℤ. The old min(funded) − allocations netting could report 0₫
+// while a staff demonstrably held +23.800.000₫ (audit 24/11 §1.6): đợt /
+// phiếu allocations are bookkeeping moves, not confirmed spending, so they
+// must not zero out the money the staff physically holds.
 export interface OutstandingAdvanceBalances {
   totalOutstanding: number;
   items: Array<{ forwarderId: number; name: string | null; outstanding: number }>;
@@ -512,9 +516,11 @@ export interface OutstandingAdvanceBalances {
 /** The SIGNED per-staff advance balance: per request
  *  min(granted, funded) − consumed, per staff minus returned — negative kept
  *  (a staff who spent/returned more than was granted IS in deficit; the
- *  hoàn ứng report must say so, card 141026230770). The wallet, catalog and
- *  Sổ quỹ keep the floored {@link getOutstandingAdvanceBalances} view so
- *  their "money actually held" semantics stay ≥ 0 (card 377 parity). */
+ *  hoàn ứng report must say so, card 141026230770). This is the BOOKKEEPING
+ *  authority — deficit recovery and voucher writes read it inside their
+ *  transactions. The displayed held money is the KB-law
+ *  {@link getOutstandingAdvanceBalances}; the two answers differ by design
+ *  (bookkeeping allocations vs confirmed spending). */
 export async function getSignedOutstandingAdvanceBalances(forwarderUserId?: number, executor: DbLike = db): Promise<OutstandingAdvanceBalances> {
   // SIL-728: the executor param lets the recovery flow re-read the SAME
   // authority INSIDE its own transaction (under the per-staff lock), so the
@@ -553,11 +559,58 @@ export async function getSignedOutstandingAdvanceBalances(forwarderUserId?: numb
 }
 
 export async function getOutstandingAdvanceBalances(forwarderUserId?: number): Promise<OutstandingAdvanceBalances> {
-  const signed = await getSignedOutstandingAdvanceBalances(forwarderUserId);
-  const items = signed.items
-    .map(row => ({ ...row, outstanding: Math.max(0, row.outstanding) }))
-    .filter(row => row.outstanding > 0);
-  return { items, totalOutstanding: round2dp(items.reduce((total, row) => total + row.outstanding, 0)) };
+  const [recordedRows, costRows, returnedRows] = await Promise.all([
+    db.select({
+      staffId: s.advanceRequests.requesterId,
+      name: s.users.fullName,
+      recorded: sql<number>`coalesce(sum(${s.advanceRequests.amount}), 0)::int`,
+    }).from(s.advanceRequests)
+      .innerJoin(s.users, eq(s.users.id, s.advanceRequests.requesterId))
+      .where(and(
+        eq(s.advanceRequests.status, 'RECORDED'),
+        forwarderUserId ? eq(s.advanceRequests.requesterId, forwarderUserId) : undefined,
+      ))
+      .groupBy(s.advanceRequests.requesterId, s.users.fullName),
+    db.select({
+      staffId: s.opsExpenseEntries.paidById,
+      dntt: sql<number>`coalesce(sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} >= 0), 0)::int`,
+    }).from(s.opsExpenseEntries)
+      .innerJoin(s.expenseAccountingSources, and(
+        eq(s.expenseAccountingSources.sourceKind, 'OPS'),
+        eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id),
+        isNotNull(s.expenseAccountingSources.confirmedAt),
+      ))
+      .where(and(
+        eq(s.opsExpenseEntries.approvalStatus, 'RECORDED'),
+        isNotNull(s.opsExpenseEntries.paidById),
+        forwarderUserId ? eq(s.opsExpenseEntries.paidById, forwarderUserId) : undefined,
+      ))
+      .groupBy(s.opsExpenseEntries.paidById),
+    db.select({
+      staffId: s.expenseCashVouchers.counterpartyId,
+      returned: sql<number>`coalesce(sum(${s.treasuryMovements.amount}), 0)::int`,
+    }).from(s.expenseCashVouchers)
+      .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
+      .where(and(
+        eq(s.expenseCashVouchers.counterpartyType, 'FORWARDER'),
+        eq(s.expenseCashVouchers.status, 'RECORDED'),
+        eq(s.treasuryMovements.direction, 'IN'),
+        forwarderUserId ? eq(s.expenseCashVouchers.counterpartyId, forwarderUserId) : undefined,
+      ))
+      .groupBy(s.expenseCashVouchers.counterpartyId),
+  ]);
+  const costsByStaff: Record<number, number> = {};
+  for (const row of costRows) if (row.staffId != null) costsByStaff[row.staffId] = Number(row.dntt);
+  const returnedByStaff: Record<number, number> = {};
+  for (const row of returnedRows) if (row.staffId != null) returnedByStaff[row.staffId] = Number(row.returned);
+  const items = recordedRows
+    .map((row) => ({
+      forwarderId: row.staffId,
+      name: row.name,
+      outstanding: Math.max(0, Number(row.recorded) - (costsByStaff[row.staffId] ?? 0) - (returnedByStaff[row.staffId] ?? 0)),
+    }))
+    .filter((row) => row.outstanding > 0);
+  return { items, totalOutstanding: items.reduce((total, row) => total + row.outstanding, 0) };
 }
 export async function getOutstandingAdvanceBalance(forwarderUserId?: number): Promise<number> {
   return (await getOutstandingAdvanceBalances(forwarderUserId)).totalOutstanding;
