@@ -33,8 +33,10 @@
     display: flex;
   }
 
+  /* SIL-899 — the bloom copies the expanded sidebar's nav padding so the
+     pane's rows sit at the same Y as the rail icons they replace. */
   .app.sidebar-closed.sidebar-hover-open .sidebar-nav {
-    padding: 8px 10px calc(var(--sidebar-footer-reserve, 72px) + 8px);
+    padding: 10px 10px calc(var(--sidebar-footer-reserve, 72px) + 14px);
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
@@ -42,6 +44,18 @@
 
   .app.sidebar-closed.sidebar-hover-open .sidebar-section-label {
     display: flex;
+    pointer-events: auto;
+  }
+
+  /* SIL-899 — the rail swaps the header text for a hairline; the pane
+     prints the real labels again and drops the divider. */
+  .app.sidebar-closed.sidebar-hover-open .sidebar-section-label > span,
+  .app.sidebar-closed.sidebar-hover-open .sidebar-section-label .sidebar-section-chevron {
+    display: inline;
+  }
+
+  .app.sidebar-closed.sidebar-hover-open .sidebar-section-label::after {
+    content: none;
   }
 
   .app.sidebar-closed.sidebar-hover-open .sidebar-item {

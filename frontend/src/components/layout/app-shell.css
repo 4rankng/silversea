@@ -125,9 +125,13 @@ html.pwa-standalone .app-main {
     display: none;
   }
 
+  /* SIL-899 — the rail's vertical metrics MUST equal the expanded sidebar
+     and the hover bloom (same brand/nav paddings, section headers in flow):
+     any difference shifts every item's Y and the bloom highlights/opens the
+     wrong item. Only the horizontal axis squeezes on the 48px rail. */
   .app.sidebar-closed .sidebar-brand {
     justify-content: center;
-    padding: 14px 4px 12px;
+    padding: 18px 4px 16px;
   }
 
   .app.sidebar-closed .sidebar-brand-logo {
@@ -136,9 +140,10 @@ html.pwa-standalone .app-main {
     transition: opacity var(--t-normal);
   }
 
-  /* Collapsed nav: show icons only */
+  /* Collapsed nav: show icons only. SIL-899 — top/bottom padding copies the
+     expanded sidebar so the first icon lands on the same Y in all states. */
   .app.sidebar-closed .sidebar-nav {
-    padding: 8px 4px calc(var(--sidebar-footer-reserve, 72px) + 8px);
+    padding: 10px 4px calc(var(--sidebar-footer-reserve, 72px) + 14px);
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: none;
@@ -148,8 +153,25 @@ html.pwa-standalone .app-main {
     display: none;
   }
 
+  /* SIL-899 — the section header keeps its EXPANDED box on the rail (same
+     min-height/padding/margins as `.sidebar-section-label` + `.sidebar-section-toggle`
+     give it expanded, so every item below keeps its Y position); the text
+     and chevron swap for a thin 1px divider per CR-010.1. Inert on the rail:
+     accordion-toggling here would desync rail rows vs bloom rows. */
   .app.sidebar-closed .sidebar-section-label {
+    pointer-events: none;
+  }
+
+  .app.sidebar-closed .sidebar-section-label > span,
+  .app.sidebar-closed .sidebar-section-label .sidebar-section-chevron {
     display: none;
+  }
+
+  .app.sidebar-closed .sidebar-section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: color-mix(in srgb, var(--sb-line) 72%, transparent);
   }
 
   .app.sidebar-closed .sidebar-item {

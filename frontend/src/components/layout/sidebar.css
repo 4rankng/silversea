@@ -93,8 +93,15 @@
   letter-spacing: 0;
   font-weight: var(--fw-semibold);
   max-width: 100%;
-  white-space: normal;
-  overflow-wrap: break-word;
+  /* SIL-899 — the descriptor must stay ONE line whatever the font metrics:
+     if it wraps, the brand block grows and every nav item's Y position
+     differs between the collapsed rail (meta hidden) and the expanded
+     sidebar / hover bloom (meta shown) — the rail then highlights and opens
+     the wrong item. One line + ellipsis keeps the brand box logo-sized in
+     all three states. */
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 /* nav container */
