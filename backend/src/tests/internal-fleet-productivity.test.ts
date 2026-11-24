@@ -90,7 +90,7 @@ test('getDailyFleetProductivity returns expected structure for a given date', as
     assert.ok(truck.truckId > 0);
     assert.ok(typeof truck.licensePlate === 'string');
     assert.ok(truck.breakdown);
-    assert.ok(Array.isArray(truck.tripCodes));
+    assert.ok(Array.isArray(truck.tripReferences));
   }
 });
 
