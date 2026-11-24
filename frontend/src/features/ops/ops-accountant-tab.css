@@ -42,18 +42,42 @@
    1144px once bill, cont, date, money and every header floor hold.
    CR-010.1 (BUG-09) lifts tờ khai / Số HĐ out of that bound (nowrap + track
    floors, the board scrolls) and gives LOẠI PHÍ the word-boundary law. */
-.ops-acc .ops-acc__col--date { width: 8.85%; }
-.ops-acc .ops-wallet__col--bill { width: 13.9%; }
-.ops-acc .ops-acc__col--cont { width: 10.1%; }
-.ops-acc .ops-wallet__col--customer { width: 10.4%; }
-/* SỐ TỜ KHAI / SỐ HĐ / LOẠI PHÍ no longer carry % shares — CR-010.1 BUG-09
-   (SIL-904 round 10) sizes them with px track widths below (the only cell
-   property `table-layout: fixed` honors for track sizing). */
-.ops-acc .ops-acc__col--amount { width: 9.83%; }
-.ops-acc .ops-acc__col--payer { width: 5.7%; }
-.ops-acc .ops-acc__col--receipt { width: 6.2%; }
-.ops-acc .ops-acc__col--settlement-code { width: 5.4%; }
-.ops-acc .ops-acc__col--confirm { width: 8.8%; }
+/* SIL-921 (QA FAIL 24/11) — every board column carries a REAL px track.
+   Why the % shares died: SIL-904/SIL-908 added 584px of px tracks
+   (34 select + 124 tờ khai + 126 Số HĐ + 120 loại phí + 180 ghi chú).
+   Chromium keeps the table at its SPECIFIED width (100% = the 1144px
+   sidebar-open canvas, measured live on the local dev build) and
+   proportionally shrinks the remaining % columns to fit — the nine %
+   columns took ×0.618 of their SIL-895 share: NGƯỜI CHI 40.31px,
+   CHỨNG TỪ 43.84px, SỐ PHIẾU 38.17px, KH/NM 73.55px, NGÀY 62.58px,
+   CONT 71.42px — names/vouchers stacked per character, dates fractured
+   ('24/11' / '/2026'), the ISO cont painted over KH. The board scrolls
+   instead (the SIL-904-accepted bound): `.ops-wallet__scroll` takes the
+   overflow, no column is squeezed back.
+   Tracks (content + 24px cell chrome; rendered widths with the app's own
+   Inter Digits/Be Vietnam Pro faces, measured live/on-canvas): date 102
+   ('DD/MM/YYYY' 74.33) · bill 160 (QA tokens ≤ 123.08 + 3 and the 16-char worst case 131.72 + 3, the
+   SIL-895 one-line law) · cont 116 (ISO 'MSKU1245657' 89.19) · KH 120
+   ('KHÁCH HÀNG /' header line 95.66, 'NEWEB-KHO 1' 85.33) · tờ khai 124 ·
+   Số HĐ 126 · loại phí 120 · số tiền 113 ('999.999.999 ₫' 86.34) ·
+   người chi 96 ('Nguyễn Huy' ≈71 on line one — names wrap at WORD
+   boundaries, never per character) · chứng từ 118 (the receipt pill:
+   icon 13 + gap 5 + 'Không có ảnh' 74.58 = 92.58) · số phiếu 112
+   ('OS-2611-0009' 86.81 one line; 'Chưa quyết toán' wraps 'Chưa quyết'/
+   'toán') · duyệt KT 102 ('23/11/2026' line 74.33 whole) · ghi chú 180 ·
+   select 34. Sum 1615px — ~470px of board scroll at the 1144 canvas. */
+.ops-acc .ops-acc__col--date { width: 102px; }
+.ops-acc .ops-wallet__col--bill { width: 160px; }
+.ops-acc .ops-acc__col--cont { width: 116px; }
+.ops-acc .ops-wallet__col--customer { width: 120px; }
+/* SỐ TỜ KHAI / SỐ HĐ / LOẠI PHÍ keep their CR-010.1 BUG-09 (SIL-904 round
+   10) px tracks below (the only cell property `table-layout: fixed`
+   honors for track sizing). */
+.ops-acc .ops-acc__col--amount { width: 113px; }
+.ops-acc .ops-acc__col--payer { width: 96px; }
+.ops-acc .ops-acc__col--receipt { width: 118px; }
+.ops-acc .ops-acc__col--settlement-code { width: 112px; }
+.ops-acc .ops-acc__col--confirm { width: 102px; }
 /* SIL-908 — GHI CHÚ no longer rides a % share: 4.53% gave the column ≈56px
    at the 1440 canvas, so a long note wrapped to ~12 lines (row ≈200px) and
    the board's px floors pushed the last column past the right edge at 1920px
@@ -204,6 +228,29 @@
 }
 
 .ops-acc td.ops-acc__cell--fee {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/* SIL-921 — the px-tracked columns' data cells carry their wrap law. The
+   global `.tt-table` base paints `overflow-wrap: anywhere` on every td,
+   so at the squeezed 40px tracks names/vouchers stacked PER CHARACTER
+   ('Nguyễn Huy Hoàng' on 9 lines, 'Không có công nợ' one glyph a line)
+   and '24/11/2026' fractured mid-number. The reading cells now wrap at
+   WORD boundaries only (same law as GHI CHÚ/LOẠI PHÍ — a token wider than
+   its track overflows visibly, nothing hides data); the atomic tokens pin
+   nowrap — a date or a money value can never shed a digit. */
+.ops-acc td.ops-acc__cell--date,
+.ops-acc td.ops-money {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+.ops-acc td.ops-acc__cell--customer,
+.ops-acc td.ops-acc__cell--payer,
+.ops-acc td.ops-acc__cell--receipt,
+.ops-acc td.ops-acc__cell--settlement-code,
+.ops-acc td.ops-acc__cell--confirm {
   overflow-wrap: normal;
   word-break: normal;
 }

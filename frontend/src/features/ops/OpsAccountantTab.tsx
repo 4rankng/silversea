@@ -342,13 +342,15 @@ export function OpsAccountantTab() {
                       />
                     </td>
                   )}
-                  <td>{formatDate(row.paidAt)}</td>
+                  <td className="ops-acc__cell--date">{formatDate(row.paidAt)}</td>
                   {/* SIL-884 (6.1) — Bill/Cont cells keep tokens whole (css
                       keep-together law): a long bill number may overflow its
                       cell visibly but never chops mid-token. */}
                   <td className="ops-wallet__cell--bill">{opsBillReference(row.billRef)}</td>
                   <td className="ops-wallet__cell--cont">{opsContainerScopeLabel(row.containerNumber, row.containerNumbers)}</td>
-                  <td>
+                  {/* SIL-921 — KH/Nhà máy wraps at WORD boundaries inside its
+                      120px track (never 'LOG/COM', never a bleed). */}
+                  <td className="ops-acc__cell--customer">
                     {row.customerName || row.factoryName
                       ? <span>
                           <span>{row.customerName ?? '—'}</span>
@@ -436,8 +438,8 @@ export function OpsAccountantTab() {
                       `${formatMoney(row.amount)} ₫`
                     )}
                   </td>
-                  <td>{row.paidByName ?? 'Chưa rõ người chi'}</td>
-                  <td>
+                  <td className="ops-acc__cell--payer">{row.paidByName ?? 'Chưa rõ người chi'}</td>
+                  <td className="ops-acc__cell--receipt">
                     <button
                       type="button"
                       className="ops-doc-state"
@@ -450,8 +452,8 @@ export function OpsAccountantTab() {
                   </td>
                   {/* SIL-858 — cột Số phiếu hiển thị mã phiếu quyết toán khi
                       đã tất toán (thay vì chỉ 'Đã lập phiếu'). */}
-                  <td>{row.approvalStatus === 'DRAFT' ? 'Cần bổ sung' : row.opsSettlementCode ?? 'Chưa quyết toán'}</td>
-                  <td>
+                  <td className="ops-acc__cell--settlement-code">{row.approvalStatus === 'DRAFT' ? 'Cần bổ sung' : row.opsSettlementCode ?? 'Chưa quyết toán'}</td>
+                  <td className="ops-acc__cell--confirm">
                     {row.version == null ? '—'
                       : row.confirmedAt != null ? `Đã duyệt ${formatDate(row.confirmedAt)}`
                         : canConfirm ? (
