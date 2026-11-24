@@ -11,7 +11,6 @@ import {
   DEBIT_SETTLEMENT_ROUNDS_KEY,
   createSettlementRound,
   type AccountingDebitBoardRow,
-  type CreateSettlementRoundBody,
 } from '../../api/accountingDebitClient';
 import { tripClient } from '../../api/tripClient';
 import { useAuth } from '../../hooks/useAuth';
@@ -375,7 +374,7 @@ export function DebitMergePage() {
         defaultDateFrom=""
         defaultDateTo=""
         serverError={settlementMutation.error instanceof Error ? settlementMutation.error.message : null}
-        onSubmit={(body: CreateSettlementRoundBody) => settlementMutation.mutate(body)}
+        onSubmit={settlementMutation.mutateAsync}
         onClose={() => setSettlementOpen(false)}
         isPending={settlementMutation.isPending}
       />

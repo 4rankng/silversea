@@ -239,4 +239,27 @@ describe('Khóa lô — the canLock law over the grid selection', () => {
     expect(await screen.findByRole('dialog', { name: 'Chọn Debit — chốt đợt đối soát' })).toBeTruthy();
     expect(createRound).not.toHaveBeenCalled();
   });
+
+  it('a refused chốt surfaces the server error INSIDE the still-open dialog — never silent (SIL-970)', async () => {
+    listMerge.mockResolvedValue({
+      items: [mergeRow({ shipmentId: 101, control: { tongTc: '100', lockStatus: 'LOCKED', lockedAt: '2026-11-18T00:00:00.000Z' } })],
+      total: 1,
+    });
+    createRound.mockRejectedValue(new Error('Không có quyền truy cập'));
+    renderPage();
+    await screen.findByText('Thông tin Lô hàng');
+    fireEvent.click(await screen.findByLabelText('Chọn lô BL-1'));
+    const choose = document.querySelector('button.debit-merge__action--primary') as HTMLButtonElement;
+    fireEvent.click(choose);
+    const dialog = await screen.findByRole('dialog', { name: 'Chọn Debit — chốt đợt đối soát' });
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Phải thu (từ khách hàng)' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: '0%' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Chốt đợt' }));
+
+    await waitFor(() => expect(createRound).toHaveBeenCalledTimes(1));
+    // The refusal (403 im lặng repro) must read verbatim INSIDE the popup
+    // and the popup stays open — the operator sees the failed act.
+    expect(await within(dialog).findByText('Không có quyền truy cập')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Chọn Debit — chốt đợt đối soát' })).toBeInTheDocument();
+  });
 });

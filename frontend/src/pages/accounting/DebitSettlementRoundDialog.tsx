@@ -60,15 +60,21 @@ interface DebitSettlementRoundDialogProps {
   defaultDateFrom: string;
   defaultDateTo: string;
   serverError: string | null;
-  onSubmit: (body: CreateSettlementRoundBody) => void;
+  /** May return the mutation promise — the dialog CATCHES its rejection and
+   *  surfaces error.message inside the popup (pattern catch surface
+   *  error.message, mẫu màn close). */
+  onSubmit: (body: CreateSettlementRoundBody) => void | Promise<unknown>;
   onClose: () => void;
   isPending: boolean;
 }
 
 export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defaultDateTo, serverError, onSubmit, onClose, isPending }: DebitSettlementRoundDialogProps) {
-  // A server 400/409 must be readable INSIDE the popup — the page-level
-  // status line sits behind the overlay while the dialog stays open.
-  const errorLine = serverError;
+  // A server 400/403/409 must be readable INSIDE the popup — the page-level
+  // status line sits behind the overlay while the dialog stays open, and a
+  // toast alone failed the SIL-970 repro (403 im lặng). The submit promise's
+  // rejection lands in submitError verbatim.
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const errorLine = submitError ?? serverError;
   const portalTarget = typeof document === 'undefined' ? null : document.body;
   const overlayRef = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -120,6 +126,7 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
     setVatRate(null);
     setGhiChu('');
     setRoundNo(1);
+    setSubmitError(null);
     // dateKeys is derived from rows; see the ref guard above for why a change
     // while open does not re-seed.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-seed once per open; dateKeys/default* intentionally excluded so in-open changes cannot re-seed (ref guard above)
@@ -198,18 +205,29 @@ export function DebitSettlementRoundDialog({ isOpen, rows, defaultDateFrom, defa
   useFocusTrap(boxRef, visible && isOpen);
   if (!portalTarget) return null;
 
-  const submit = () => {
+  const submit = async () => {
     if (!canSubmit || direction == null || vatRate == null) return;
-    onSubmit({
-      // §2d: only the ticked dates' lots form the đợt.
-      shipmentIds: scopedRows.map((r) => r.shipmentId),
-      dateFrom, dateTo,
-      roundNo,
-      month, year,
-      direction,
-      vatRate,
-      ghiChu: ghiChu.trim() || undefined,
-    });
+    setSubmitError(null);
+    try {
+      await onSubmit({
+        // §2d: only the ticked dates' lots form the đợt.
+        shipmentIds: scopedRows.map((r) => r.shipmentId),
+        dateFrom, dateTo,
+        roundNo,
+        month, year,
+        direction,
+        vatRate,
+        ghiChu: ghiChu.trim() || undefined,
+      });
+    } catch (error) {
+      // Pattern catch surface error.message: the refusal (403/409/400) reads
+      // INSIDE the still-open popup, never a silent failure.
+      setSubmitError(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Không chốt được đợt. Vui lòng thử lại.',
+      );
+    }
   };
 
   return createPortal(visible ? (

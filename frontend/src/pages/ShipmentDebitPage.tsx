@@ -387,7 +387,7 @@ export function ShipmentDebitPage() {
         rowsRef={settlementDialogRowsRef}
         serverError={settlementMutation.error instanceof Error ? settlementMutation.error.message : null}
         isPending={settlementMutation.isPending}
-        onSubmit={(body) => settlementMutation.mutate(body)}
+        onSubmit={settlementMutation.mutateAsync}
         onClose={() => setSettlementOpen(false)}
       />
       {reasonDialog}
@@ -402,7 +402,7 @@ function DebitSettlementDialogHost({ isOpen, rowsRef, serverError, isPending, on
   rowsRef: RefObject<AccountingDebitBoardRow[]>;
   serverError: string | null;
   isPending: boolean;
-  onSubmit: (body: CreateSettlementRoundBody) => void;
+  onSubmit: (body: CreateSettlementRoundBody) => void | Promise<unknown>;
   onClose: () => void;
 }) {
   return (

@@ -177,7 +177,7 @@ accountingDebitRoutes.get('/debit-board/settlement-rounds/:roundId/debit-note-pr
   res.json(await getDebitNoteRoundPreview(parsed.data.roundId));
 }));
 
-accountingDebitRoutes.post('/debit-board/settlement-rounds', declareMaterialWrite('accounting.debit-board.settlement-round.create', { method: 'POST', path: '/api/accounting/debit-board/settlement-rounds' }),  OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+accountingDebitRoutes.post('/debit-board/settlement-rounds', declareMaterialWrite('accounting.debit-board.settlement-round.create', { method: 'POST', path: '/api/accounting/debit-board/settlement-rounds' }),  SETTLEMENT_ROUND_ROLES, asyncHandler(async (req: Request, res: Response) => {
   const user = getUser(req);
   const parsed = settlementRoundSchema.safeParse(req.body ?? {});
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));

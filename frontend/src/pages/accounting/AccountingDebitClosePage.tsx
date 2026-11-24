@@ -732,7 +732,7 @@ export default function AccountingDebitClosePage() {
         defaultDateFrom={filters.dateFrom}
         defaultDateTo={filters.dateTo}
         serverError={settlementMutation.error instanceof Error ? settlementMutation.error.message : null}
-        onSubmit={(body) => settlementMutation.mutate(body)}
+        onSubmit={settlementMutation.mutateAsync}
         onClose={() => setSettlementOpen(false)}
         isPending={settlementMutation.isPending}
       />
