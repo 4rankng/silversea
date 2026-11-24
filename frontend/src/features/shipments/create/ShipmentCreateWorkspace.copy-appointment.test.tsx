@@ -181,10 +181,10 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     addContainer();
     addContainer();
     // No source appointment yet → nothing to apply.
-    expect(screen.queryByRole('button', { name: /Áp dụng cho \d+ container/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Copy thời gian/ })).toBeNull();
 
     fillAppointment(0, '20/09/2026', '09:00');
-    const sectionButton = await screen.findByRole('button', { name: /Áp dụng cho 3 container/ });
+    const sectionButton = await screen.findByRole('button', { name: /Copy thời gian/ });
     expect(sectionButton).toBeTruthy();
     // The button lives INSIDE the Thông tin hàng section — never a separate
     // schedule band again (SIL-611).
@@ -208,7 +208,7 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     fillAppointment(0, '20/09/2026', '09:00');
     fillAppointment(1, '21/09/2026', '10:00');
 
-    fireEvent.click(screen.getByRole('button', { name: /Áp dụng cho 3 container/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Copy thời gian/ }));
 
     await waitFor(() => {
       const dates = [0, 1, 2].map((i) => appointmentValue(i).date);
@@ -235,7 +235,7 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     expect(document.querySelector('.csc-bulk-appointment__copy')).toBeNull();
     expect(screen.queryByRole('button', { name: /Copy giờ hẹn đóng trả/ })).toBeNull();
     // SIL-690: the restored bulk affordance is the table-side apply-all.
-    const applyAll = screen.getByRole('button', { name: /Áp dụng cho 3 container/ });
+    const applyAll = screen.getByRole('button', { name: /Copy thời gian/ });
     expect(applyAll.closest('#shipment-section-cargo')).toBeTruthy();
   });
 
@@ -249,7 +249,7 @@ describe('shipment create container copy affordances', { timeout: 20000 }, () =>
     addContainer();
     fillAppointment(0, '29/10/2026', '08:00');
 
-    fireEvent.click(screen.getByRole('button', { name: /Áp dụng cho 3 container/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Copy thời gian/ }));
     await waitFor(() => {
       [0, 1, 2].forEach((i) => {
         expect(appointmentValue(i).date).toBe('29/10/2026');

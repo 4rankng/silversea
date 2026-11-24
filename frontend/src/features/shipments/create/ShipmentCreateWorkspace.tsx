@@ -1106,7 +1106,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                     onClick={() => applyAppointmentToAll(copySourceRow.key)}
                     disabled={controlsDisabled}
                   >
-                    <Copy size={15} aria-hidden="true" />Áp dụng cho {containers.length} container
+                    <Copy size={15} aria-hidden="true" />Copy thời gian
                   </button>
                 )}
               </>

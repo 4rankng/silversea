@@ -146,7 +146,7 @@ describe('SIL-607 appointment schedule error (dedupe + copy-all law)', { timeout
     addContainer();
     fillAppointment(0, '29/10/2026', '08:00');
 
-    fireEvent.click(screen.getByRole('button', { name: /Áp dụng cho \d+ container/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Copy thời gian/ }));
     await waitFor(() => expect(appointmentValue(1).date).toBe('29/10/2026'));
     expect(appointmentValue(1).time).toBe('08:00');
 

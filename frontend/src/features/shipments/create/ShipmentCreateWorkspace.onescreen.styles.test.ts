@@ -128,7 +128,7 @@ describe('SIL-499 onescreen wide band', () => {
       WORKSPACE.indexOf('id="cargo"'),
       WORKSPACE.indexOf('id="notes"'),
     );
-    expect(cargoRegion, 'apply-all button under the container table (SIL-690)').toContain('Áp dụng cho');
+    expect(cargoRegion, 'apply-all button under the container table (SIL-690)').toContain('Copy thời gian');
     // No placement left for a schedule band; the 1fr/2fr split (which
     // measured a ~265px dead strip beside the 150px control) stays dead.
     expect(CSS).not.toMatch(/#shipment-section-schedule \.csc-bulk-appointment/);
