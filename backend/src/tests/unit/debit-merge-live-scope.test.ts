@@ -114,14 +114,30 @@ describe('SIL-896 DoD — the QA lot fixture aggregates once, in one cluster', (
   });
 });
 
-describe('SIL-896 round 8 — Tên phí and Tổng TC on the un-negotiated pending fees', () => {
-  // QA repro (build 7a0ac8ff, staging vantai, lot MATS7539769000): the
-  // advances-flow writer never fills ops_expense_entries.fee_name and never
-  // negotiates a customer charge on a pending fee — so the grid showed an
-  // EMPTY Tên phí cell for 'Hải quan luồng xanh' (450.000₫) + 'Chọn vỏ'
-  // (50.000₫) and Tổng TC dropped exactly their 500.000₫ (31.013.200₫
-  // instead of 31.513.200₫). Both names live on the expense-type catalog
-  // row the read already joins.
+describe('SIL-896 round 11 — Tên phí and Tổng TC on the un-negotiated pending fees', () => {
+  // QA repro (builds 7a0ac8ff → 2530c955, staging vantai, lot
+  // MATS7539769000): the advances-flow writer stores fee_name as '' (never
+  // NULL) and the un-negotiated customer_charge_amount as 0 (never NULL) —
+  // so the round-8 nullish fallbacks never fired: the grid showed an EMPTY
+  // Tên phí cell for 'Hải quan luồng xanh' (450.000₫) + 'Chọn vỏ'
+  // (50.000₫), Tổng TC dropped exactly their 500.000₫ (31.013.200₫
+  // instead of 31.513.200₫), and Phí GN OP TC read as one unnamed
+  // 500.000₫ aggregate. Names live on the expense-type catalog row the
+  // read already joins; the money lives on the recorded amount.
+
+  test('buildDebitMergeNoInvoice: the exact QA rows aggregate once per fee, each line named + sided', () => {
+    const result = buildDebitMergeNoInvoice([
+      { costGroup: 'OPS_REGULAR', charge: '0', paid: '450000', feeName: 'Hải quan luồng xanh', pending: true },
+      { costGroup: 'OPS_REGULAR', charge: '0', paid: '50000', feeName: 'Chọn vỏ', pending: true },
+    ]);
+    assert.equal(result.gnFee, 500000);
+    assert.equal(result.gnFeePending, true);
+    assert.equal(result.gnPaid, 0);
+    assert.deepEqual(result.fees, [
+      { name: 'Hải quan luồng xanh', amount: 450000, side: 'gn', pending: true },
+      { name: 'Chọn vỏ', amount: 50000, side: 'gn', pending: true },
+    ]);
+  });
 
   test('source pins: the read selects the catalog name and the buckets resolve through the shared fallbacks', () => {
     assert.match(serviceSource, /typeName: s\.forwarderExpenseTypes\.name,/);
@@ -140,24 +156,32 @@ describe('SIL-896 round 8 — Tên phí and Tổng TC on the un-negotiated pendi
     );
   });
 
-  test('Tên phí: entry feeName wins, the catalog name covers a null entry name', () => {
+  test('Tên phí: entry feeName wins, blank entry name falls to the catalog (the writer stores \'\', not NULL)', () => {
     assert.equal(debitMergeFeeNameOf({ feeName: null, typeName: 'Hải quan luồng xanh' }), 'Hải quan luồng xanh');
+    assert.equal(debitMergeFeeNameOf({ feeName: '', typeName: 'Chọn vỏ' }), 'Chọn vỏ');
+    assert.equal(debitMergeFeeNameOf({ feeName: '   ', typeName: 'Hải quan luồng xanh' }), 'Hải quan luồng xanh');
     assert.equal(debitMergeFeeNameOf({ feeName: 'Tên tự nhập', typeName: 'Hải quan luồng xanh' }), 'Tên tự nhập');
     assert.equal(debitMergeFeeNameOf({ feeName: null, typeName: null }), null);
   });
 
-  test('receivable contribution: negotiated charge joins as-is; un-negotiated fee rides charge ?? paid; Lạch Huyện never falls back', () => {
-    // The two QA fees: no negotiated charge, pending — the recorded amount
-    // carries the receivable (the receivableForCost identity the chi-hộ
-    // cell money already uses).
+  test('receivable contribution: negotiated charge joins as-is (0 = un-negotiated on this wire → rides the amount); Lạch Huyện never falls back', () => {
+    // The two QA fees (staging ids 107/112, build 2530c955): NO negotiated
+    // charge entered, and the advances writer (receivableForCost) stores
+    // **0 — not NULL** — so the round-8 null-check answered 0 and their
+    // 500.000₫ dropped out of Tổng TC again (31.013.200₫ vs 31.513.200₫).
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'HAI_QUAN_LUONG_XANH', charge: '0', amount: '450000' }), 450000);
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: '0', amount: '50000' }), 50000);
+    // A truly null charge keeps the round-8 fallback.
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'HQGS_GREEN', charge: null, amount: '450000' }), 450000);
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: null, amount: '50000' }), 50000);
     // A negotiated charge keeps its exact value (negatives included — the
     // existing semantics).
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: '120000', amount: '50000' }), 120000);
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: '-70000', amount: '50000' }), -70000);
-    // Lạch Huyện: the amount is the điều vận cost — only its charge bills.
+    // Lạch Huyện: the amount is the điều vận cost — only its charge bills,
+    // 0 included (never falls back to the amount).
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'ZONE_SURCHARGE', charge: null, amount: '900000' }), null);
+    assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'ZONE_SURCHARGE', charge: '0', amount: '900000' }), null);
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'ZONE_SURCHARGE', charge: '300000', amount: '900000' }), 300000);
     // A negative un-negotiated amount is absent (the builders' drop law).
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'CHON_VO', charge: null, amount: '-50000' }), null);

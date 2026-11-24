@@ -73,28 +73,37 @@ const ZONE_SURCHARGE_CODE = 'ZONE_SURCHARGE';
 
 /** SIL-896 round 8 — the name a fee line renders (Tên phí): the entry's own
  *  feeName when its writer set one, else the expense-type catalog's name.
- *  The advances-flow writer (ops-expenses.service) never fills feeName, so
- *  QA's MATS7539769000 pending fees ('Hải quan luồng xanh', 'Chọn vỏ' —
- *  names that live on the catalog row) rendered an empty TÊN PHÍ cell. */
+ *  Round 11 (QA build 2530c955): the advances writer stores '' (never NULL)
+ *  when the operator leaves Tên phí blank, and '' is not nullish — the
+ *  catalog fallback never fired and QA's 'Hải quan luồng xanh' / 'Chọn vỏ'
+ *  rendered empty TÊN PHÍ cells. Blank (empty or whitespace-only) counts as
+ *  unset; the name must live somewhere visible. */
 export function debitMergeFeeNameOf(row: { feeName: string | null; typeName: string | null }): string | null {
-  return row.feeName ?? row.typeName ?? null;
+  const entryName = row.feeName?.trim();
+  return entryName ? row.feeName : row.typeName ?? null;
 }
 
 /** SIL-896 round 8 — one ops row's contribution to the receivable's
  *  ops-charge side (Tổng TC). A negotiated charge joins as-is (negative
- *  included — existing semantics); an UN-negotiated (null-charge) fee rides
- *  the receivableForCost identity the chi-hộ cell money already uses:
+ *  included — existing semantics); an UN-negotiated fee rides the
+ *  receivableForCost identity the chi-hộ cell money already uses:
  *  charge ?? paid, so the grid's control figure counts the same fee money
- *  the group 4/5 cells show. Lạch Huyện never falls back (its amount is the
- *  điều vận cost, never billed here), and a negative un-negotiated amount is
- *  absent (the builders' drop law). Returns null = the row contributes
- *  nothing and does not arm the side. */
+ *  the group 4/5 cells show. Round 11 (QA build 2530c955): the advances
+ *  writer (receivableForCost) stores **0 — not NULL** — when no customer
+ *  charge was entered, so `charge != null` answered 0 and QA's two pending
+ *  GN fees (450.000₫ + 50.000₫) dropped out of Tổng TC again (31.013.200₫
+ *  instead of 31.513.200₫). On this wire 0 IS the un-negotiated sentinel,
+ *  so 0 falls through to the amount side. Lạch Huyện never falls back (its
+ *  amount is the điều vận cost, never billed here), and a negative
+ *  un-negotiated amount is absent (the builders' drop law). Returns null =
+ *  the row contributes nothing and does not arm the side. */
 export function debitMergeOpsChargeContribution(row: {
   expenseTypeCode: string | null;
   charge: string | null;
   amount: string | null;
 }): number | null {
-  if (row.charge != null) return toNumber(row.charge);
+  const charge = row.charge == null ? null : toNumber(row.charge);
+  if (charge != null && charge !== 0) return charge;
   if (row.expenseTypeCode === ZONE_SURCHARGE_CODE) return null;
   const amount = row.amount == null ? null : toNumber(row.amount);
   return amount != null && amount >= 0 ? amount : null;
@@ -149,7 +158,11 @@ export function buildDebitMergeChiHo(rows: RawChiHoFeeRow[]): DebitMergeChiHo {
  *  card-20260921_5 law: `*Fee` = Phí (the entry amount), `*Paid` = Thực thu
  *  (the negotiated customer charge). `fees` keeps the named rows in row
  *  order (Tên phí column); a side stays null while the lot has no known rows
- *  of it — unknown, never a fabricated 0. */
+ *  of it — unknown, never a fabricated 0. SIL-883 (3.1) — the side carries
+ *  ≥1 entry awaiting Kế toán duyệt. SIL-896 round 11 — each line also names
+ *  its family (`side`), so the Phí GN/PS OP TC cells render ONE money line
+ *  per fee (QA build 2530c955 rejected the single 500.000₫ aggregate of
+ *  450.000₫ + 50.000₫); a line without a family renders name-only. */
 export interface NoInvoiceGroupResult {
   gnFee: number | null;
   gnPaid: number | null;
@@ -160,7 +173,7 @@ export interface NoInvoiceGroupResult {
   gnPaidPending: boolean;
   psFeePending: boolean;
   psPaidPending: boolean;
-  fees: Array<{ name: string | null; amount: number; pending?: boolean }>;
+  fees: Array<{ name: string | null; amount: number; side?: 'gn' | 'ps'; pending?: boolean }>;
 }
 
 /** Pure group-5 assembly over the no-invoice Ops rows (costGroup carries the
@@ -196,7 +209,9 @@ export function buildDebitMergeNoInvoice(
       if (fee != null) { psFeeKnown = true; psFee += fee; if (row.pending) psFeePending = true; }
       if (paid != null) { psPaidKnown = true; psPaid += paid; if (row.pending) psPaidPending = true; }
     }
-    const line: { name: string | null; amount: number; pending?: boolean } = { name: row.feeName, amount: fee ?? 0 };
+    const line: { name: string | null; amount: number; side?: 'gn' | 'ps'; pending?: boolean } = { name: row.feeName, amount: fee ?? 0 };
+    if (row.costGroup === 'OPS_REGULAR') line.side = 'gn';
+    else if (row.costGroup === 'OPS_INCIDENTAL') line.side = 'ps';
     if (row.pending) line.pending = true;
     fees.push(line);
   }

@@ -221,31 +221,50 @@ describe('DebitMergeGrid — containers (SIL-876: không nén)', () => {
     expect(document.body.textContent).not.toContain('SHP-26-0002');
   });
 
-  it('group-5 money law: Phí/Thực thu cells render empty when unknown, values when known', () => {
+  it('group-5 money law: Phí GN/PS OP TC render ONE line per fee of the family (SIL-896 r11), Thực thu stays the summed cell', () => {
     renderGrid({}, [mergeRow({
-      noInvoice: { gnFee: '650000', gnPaid: '450000', psFee: null, psPaid: null, fees: [{ name: 'Làm hàng luồng xanh', amount: '450000' }] },
+      noInvoice: {
+        gnFee: '650000', gnPaid: '450000', psFee: null, psPaid: null,
+        fees: [
+          { name: 'Làm hàng luồng xanh', amount: '450000', side: 'gn' },
+          { name: 'Chọn vỏ', amount: '200000', side: 'gn' },
+        ],
+      },
     })]);
-    expect(document.querySelector('td[data-col="gnFee"]')!.textContent).toContain('650.000');
+    const gnCell = document.querySelector('td[data-col="gnFee"]')!;
+    const gnLines = gnCell.querySelectorAll('.debit-merge-cell__line');
+    expect(gnLines).toHaveLength(2);
+    expect(gnLines[0]).toHaveTextContent('450.000');
+    expect(gnLines[1]).toHaveTextContent('200.000');
     expect(document.querySelector('td[data-col="gnPaid"]')!.textContent).toContain('450.000');
     expect(document.querySelector('td[data-col="psFee"]')!.textContent!.trim()).toBe('');
     expect(document.querySelector('td[data-col="psPaid"]')!.textContent!.trim()).toBe('');
     expect(document.querySelector('td[data-col="noInvTenPhi"]')!).toHaveTextContent('Làm hàng luồng xanh');
   });
 
-  it('SIL-896 round 8: both un-negotiated pending fees show their catalog names under the 500.000₫ aggregate', () => {
-    // QA repro (lot MATS7539769000, build 7a0ac8ff): Phí GN OP TC aggregates
-    // the two pending fees once (450.000₫ + 50.000₫), the names arrive
-    // resolved (BE's catalog fallback), each line wears the pending red.
+  it('SIL-896 round 11: the two pending fees render as SEPARATE red money lines 450.000₫ / 50.000₫ — no 500.000₫ aggregate — with their catalog names', () => {
+    // QA repro (lot MATS7539769000, build 2530c955): the aggregated
+    // 500.000₫ cell + empty TÊN PHÍ failed round 10 — each fee must show
+    // its own amount line, positionally paired with the named lines.
     renderGrid({}, [mergeRow({
       noInvoice: {
         gnFee: '500000', gnPaid: null, psFee: null, psPaid: null, gnFeePending: true,
         fees: [
-          { name: 'Hải quan luồng xanh', amount: '450000', pending: true },
-          { name: 'Chọn vỏ', amount: '50000', pending: true },
+          { name: 'Hải quan luồng xanh', amount: '450000', side: 'gn', pending: true },
+          { name: 'Chọn vỏ', amount: '50000', side: 'gn', pending: true },
         ],
       },
     })]);
-    expect(document.querySelector('td[data-col="gnFee"]')!.textContent).toContain('500.000');
+    const moneyCell = document.querySelector('td[data-col="gnFee"]')!;
+    const moneyLines = moneyCell.querySelectorAll('.debit-merge-cell__line');
+    expect(moneyLines).toHaveLength(2);
+    expect(moneyLines[0]).toHaveTextContent('450.000');
+    expect(moneyLines[1]).toHaveTextContent('50.000');
+    expect(moneyCell.textContent).not.toContain('500.000');
+    for (const line of moneyLines) {
+      expect(line.className).toContain('debit-merge-cell__line--pending');
+      expect(line.getAttribute('title')).toBe(PENDING_FEE_TIP);
+    }
     const nameCell = document.querySelector('td[data-col="noInvTenPhi"]')!;
     const lines = nameCell.querySelectorAll('.debit-merge-cell__line');
     expect(lines).toHaveLength(2);
@@ -407,12 +426,16 @@ describe('SIL-883 — chi phí đỏ/đen tức thời + hard-block', () => {
     expect(approved.getAttribute('title')).toBeNull();
   });
 
-  it('paints a group-5 family cell red when any contributing entry awaits duyệt', () => {
-    renderGrid({}, [mergeRow({ noInvoice: { gnFee: '200000', gnPaid: null, psFee: null, psPaid: null, gnFeePending: true, fees: [] } })]);
-    const cell = document.querySelector('.debit-merge-money__value.debit-merge-money__pending');
-    expect(cell).toBeTruthy();
-    expect(cell!.getAttribute('title')).toBe(PENDING_TIP);
-    expect(cell!.textContent).toBe('200.000');
+  it('paints pending no-invoice fee lines red with the duyệt tooltip; a family with no fee lines renders the empty money cell', () => {
+    renderGrid({}, [mergeRow({ noInvoice: { gnFee: '200000', gnPaid: null, psFee: null, psPaid: null, gnFeePending: true, fees: [{ name: 'Cước bốc xe', amount: '200000', side: 'gn', pending: true }] } })]);
+    const line = document.querySelector('td[data-col="gnFee"] .debit-merge-cell__line');
+    expect(line).toBeTruthy();
+    expect(line!.className).toContain('debit-merge-cell__line--pending');
+    expect(line!.getAttribute('title')).toBe(PENDING_TIP);
+    expect(line!.textContent).toBe('200.000');
+    const psCell = document.querySelector('td[data-col="psFee"]')!;
+    expect(psCell.querySelector('.debit-merge-cell__line')).toBeNull();
+    expect(psCell.querySelector('.debit-merge-money')).toBeTruthy();
   });
 
   it('hard-blocks Khóa lô / Chọn Debit / Xuất Debit Note while a selected lot carries pending fees', () => {

@@ -25,7 +25,7 @@
 // never a fabricated 0; a known 0 renders muted '0'. The amber law
 // (SIL-801): a known non-zero Tổng TC wears var(--warning-text).
 import { cloneElement, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { DebitMergeInvoiceFee, DebitMergeItem } from '@tingting/shared';
+import type { DebitMergeInvoiceFee, DebitMergeItem, DebitMergeNoInvoice } from '@tingting/shared';
 import type { LedgerColumn } from '../../lib/column-visibility';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
 import { ColumnPicker } from '../../components/ColumnPicker';
@@ -204,6 +204,34 @@ function FeeStack({ fees, mode }: {
 }
 
 const EMPTY_SET: ReadonlySet<number> = new Set();
+
+/** SIL-896 round 11 — one stacked money line per no-invoice fee of the
+ *  family (Phí GN OP TC / Phí PS OP TC cells). QA build 2530c955 rejected
+ *  the single aggregated cell (450.000₫ + 50.000₫ reading as one unnamed
+ *  500.000₫): the cell now renders each fee's amount on its own line,
+ *  positionally paired with the Tên phí stack, pending lines wearing the
+ *  red. No fees of the family → the empty money cell (unknown, never a
+ *  fabricated 0). */
+function NoInvoiceFeeStack({ fees, side }: {
+  fees: DebitMergeNoInvoice['fees'];
+  side: 'gn' | 'ps';
+}) {
+  const lines = fees.filter((fee) => fee.side === side);
+  if (lines.length === 0) return <span className="debit-merge-money" />;
+  return (
+    <span className="debit-merge-cell debit-merge-cell--stack">
+      {lines.map((fee, index) => (
+        <span
+          className={`debit-merge-cell__line${fee.pending ? ' debit-merge-cell__line--pending' : ''}`}
+          key={`${fee.name ?? 'khong-ten'}-${index}`}
+          title={fee.pending ? PENDING_FEE_TIP : undefined}
+        >
+          {formatMoney(Number(fee.amount))}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 export function DebitMergeGrid({
   rows,
@@ -603,9 +631,9 @@ export function DebitMergeGrid({
                   case 'khacHd': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="hd" /></td>;
                   case 'khacSoTien': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="amount" /></td>;
                   case 'khacTenPhi': return <td key={key} data-col={key}><FeeStack fees={row.chiHo.other} mode="name" /></td>;
-                  case 'gnFee': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnFee} pending={row.noInvoice.gnFeePending} /></td>;
+                  case 'gnFee': return <td key={key} data-col={key}><NoInvoiceFeeStack fees={row.noInvoice.fees} side="gn" /></td>;
                   case 'gnPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.gnPaid} pending={row.noInvoice.gnPaidPending} /></td>;
-                  case 'psFee': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psFee} pending={row.noInvoice.psFeePending} /></td>;
+                  case 'psFee': return <td key={key} data-col={key}><NoInvoiceFeeStack fees={row.noInvoice.fees} side="ps" /></td>;
                   case 'psPaid': return <td key={key} data-col={key}><MoneyCell value={row.noInvoice.psPaid} pending={row.noInvoice.psPaidPending} /></td>;
                   case 'noInvTenPhi':
                     return (

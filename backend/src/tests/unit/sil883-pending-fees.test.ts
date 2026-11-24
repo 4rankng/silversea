@@ -45,8 +45,9 @@ describe('SIL-883 — group-5 no-invoice builder carries the duyệt axis', () =
     assert.equal(result.gnFeePending, true, 'one pending entry turns the side red');
     assert.equal(result.gnPaidPending, false, 'no negotiated charge rows → the side is not pending');
     assert.equal(result.psFeePending, false);
-    assert.deepEqual(result.fees[0], { name: 'Quét container', amount: 200000, pending: true });
-    assert.deepEqual(result.fees[2], { name: 'Khác', amount: 100000 }, 'approved fee omits pending (black)');
+    assert.deepEqual(result.fees[0], { name: 'Quét container', amount: 200000, side: 'gn', pending: true });
+    assert.deepEqual(result.fees[1], { name: 'Cẩu bãi', amount: 300000, side: 'gn' });
+    assert.deepEqual(result.fees[2], { name: 'Khác', amount: 100000, side: 'ps' }, 'approved fee omits pending (black)');
   });
 });
 

@@ -83,7 +83,10 @@ export const debitMergeNoInvoiceSchema = z.object({
   gnPaidPending: z.boolean().optional(),
   psFeePending: z.boolean().optional(),
   psPaidPending: z.boolean().optional(),
-  fees: z.array(z.object({ name: z.string().nullable(), amount: moneyString, pending: z.boolean().optional() })),
+  /** SIL-896 round 11 — `side` names the fee's family ('gn' = Phí GN OP TC,
+   *  'ps' = Phí PS OP TC) so the money cells render ONE line per fee; a
+   *  name-only line (unknown family) omits it. */
+  fees: z.array(z.object({ name: z.string().nullable(), amount: moneyString, side: z.enum(['gn', 'ps']).optional(), pending: z.boolean().optional() })),
 });
 
 /** Group 6 — KIỂM SOÁT. `tongTc` = Tổng thực thu khách, the summary's

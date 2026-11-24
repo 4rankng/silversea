@@ -97,7 +97,7 @@ describe('buildDebitMergeChiHo — 4 nhóm phụ, tổng chính xác', () => {
     ]);
     assert.equal(no.gnFee, 450000);
     assert.equal(no.gnFeePending, true);
-    assert.deepEqual(no.fees[0], { name: 'Chọn vỏ', amount: 450000, pending: true });
+    assert.deepEqual(no.fees[0], { name: 'Chọn vỏ', amount: 450000, side: 'gn', pending: true });
   });
 
   it('lô không có dòng nào → 4 nhóm rỗng (không bao giờ là 0 bịa)', () => {
@@ -118,7 +118,9 @@ describe('buildDebitMergeNoInvoice — hai họ phí không hóa đơn Ops (SIL-
     assert.equal(result.psFee, 180000);
     assert.equal(result.psPaid, 180000);
     assert.equal(result.fees.length, 3);
-    assert.deepEqual(result.fees[0], { name: 'Làm hàng luồng xanh', amount: 450000 });
+    assert.deepEqual(result.fees[0], { name: 'Làm hàng luồng xanh', amount: 450000, side: 'gn' });
+    assert.deepEqual(result.fees[1], { name: 'Chọn vỏ', amount: 200000, side: 'gn' });
+    assert.deepEqual(result.fees[2], { name: 'Sửa tờ khai', amount: 180000, side: 'ps' });
   });
 
   it('lô không có hàng nào của một họ → các ô của họ đó là null (chưa xác định, không bịa 0)', () => {
