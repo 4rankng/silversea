@@ -675,42 +675,69 @@ describe('DriverTripDetailPage', () => {
     expect(lockedMsg.textContent).toBe('Cần hoàn thành trả hàng lệnh trước để mở khóa');
   });
 
-  // 20260911_3 BUG 5 (supersedes the 365943ea order), restated 26/09 after
-  // 1af13d12 + dc1b1cba; amended 26/09 card _26: the bill/booking code moved
-  // into the header title (item 4), so the grid leads with the factory block
-  // + kho phone, then the working facts (container, ports) — the Tuyến
-  // address line is demoted below them. Card 261022201006c supersedes the
-  // REQ-07 amendment: the app lái xe no longer shows the trip code, so the
-  // grid leads with the schedule.
-  it('renders the customer field order: factory, contact, container, seal and ports (no duplicate route or phone row)', async () => {
+  // K10.19 (SIL-946, KB §10.4.2) supersedes the 20260911_3 BUG 5 order (which
+  // superseded 365943ea): the grid is the LỊCH & ĐỊA ĐIỂM group — schedule →
+  // factory block → địa chỉ giao hàng → contact cluster — while Cảng nâng/hạ
+  // moved OUT of the grid into the LỘ TRÌNH group after Số cont & seal, and
+  // the contact NAME owns its row (KB: "người liên hệ + số điện thoại, bấm
+  // gọi được").
+  it('renders the KB field order: schedule, factory block, delivery address, contact cluster; ports live in Lộ trình', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
+    // The LỊCH & ĐỊA ĐIỂM grid only — the ports live in the Lộ trình grid.
+    const labels = Array.from(document.querySelectorAll('#driver-task-info-grid .driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toEqual([
       'Ngày giờ kế hoạch',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'SĐT kho',
-      'SĐT liên hệ',
-      'Container / lô hàng',
-      'Cảng nâng',
-      'Cảng hạ',
-      // DRI-04 (card 211026130843): the delivery row keeps its slot in every
-      // direction — visible-by-default, named fallback when empty.
       'Địa chỉ giao hàng',
+      'SĐT kho',
+      'Người liên hệ',
+      'Container / lô hàng',
     ]);
+    // Ports are the LỘ TRÌNH group's own grid, not the info grid.
+    const routeSection = document.querySelector('[data-testid="driver-route-section"]')!;
+    const routeLabels = Array.from(routeSection.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
+    expect(routeLabels).toEqual(['Cảng nâng', 'Cảng hạ']);
     // Card _27 item 5: the abbrev row is gone — the fixture's factory name
     // ('Nhà máy Bình Dương') renders as the header line-2 location instead.
     expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Nhà máy Bình Dương');
     // Sparse fixture: full name falls back to the free-text name; the address
-    // row dashes; the Tuyến row no longer exists at all.
+    // row dashes; the Tuyến row no longer exists in the grid (the header owns
+    // the route line — VID-DRV-01).
     const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('Tên nhà máy')).toBe('Nhà máy Bình Dương');
     expect(valueOf('Địa chỉ nhà máy')).toBe('—');
     expect(valueOf('Tuyến')).toBeUndefined();
+  });
+
+  // K10.19 (SIL-946, KB Ch.10 §10.4.2): the whole screen reads in the KB
+  // group order — Bill/Booking → lịch & địa điểm → xuất hóa đơn → hàng hóa
+  // → lộ trình → nhiệm vụ & ghi chú → bằng chứng & hành động.
+  it('orders the detail groups exactly as KB §10.4.2', async () => {
+    renderPage();
+    await screen.findByText(/Số cont & seal/);
+
+    const header = document.querySelector('.driver-task-header')!;
+    const info = document.getElementById('driver-task-info-grid')!;
+    const invoice = document.getElementById('driver-task-invoice-grid')!;
+    const contCard = document.querySelector('.dcc-section')!;
+    const route = screen.getByTestId('driver-route-section');
+    const notes = screen.getByTestId('task-note-section');
+    const evidence = document.querySelector('.driver-task-footer')!;
+
+    const before = (a: Element, b: Element) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+    expect(before(header, info)).toBe(true);          // Bill/Booking → lịch & địa điểm
+    expect(before(info, invoice)).toBe(true);         // lịch & địa điểm → xuất hóa đơn
+    expect(before(invoice, contCard)).toBe(true);      // xuất hóa đơn → hàng hóa
+    expect(before(contCard, route)).toBe(true);        // hàng hóa → lộ trình
+    expect(before(route, notes)).toBe(true);          // lộ trình → nhiệm vụ & ghi chú
+    expect(before(notes, evidence)).toBe(true);        // nhiệm vụ & ghi chú → bằng chứng
   });
   it('card _27 + operator ruling 2026-09-27: container reads in the info grid, seal lives in Số cont & seal card', async () => {
     useDriverTaskDetailMock.mockReturnValue({
@@ -1034,7 +1061,7 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText('51R-55555')).toBeNull();
   });
 
-  it('VID-DRV-01 keeps the route once in the header and the factory address in order information', async () => {
+  it('VID-DRV-01 keeps the route line under the factory in the header and the factory address in order information (K10.19)', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: {
@@ -1044,7 +1071,7 @@ describe('DriverTripDetailPage', () => {
       }),
       isLoading: false,
       error: null,
-      refetch: vi.fn().mockResolvedValue(undefined),
+      refetch: vi.fn(),
     });
     renderPage();
 
@@ -1054,9 +1081,12 @@ describe('DriverTripDetailPage', () => {
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('Địa chỉ nhà máy')).toBe('123 Nguyễn Văn A, Bình Dương');
     expect(valueOf('Tuyến')).toBeUndefined();
-    // Card _26: the route line retired from the header — the ports in the
-    // grid carry the route; the header shows location, not route text.
-    expect(screen.queryByText('Cát Lái → Bình Dương')).toBeNull();
+    // K10.19 (SIL-946, KB §10.4.2 — "tuyến ngay dưới tên nhà máy") supersedes
+    // card _26's route-line retirement: the header carries the route on its
+    // own line under the factory, exactly once.
+    const routeLine = document.querySelector('.driver-task-header__route');
+    expect(routeLine?.textContent).toBe('Cát Lái → Bình Dương');
+    expect(screen.getAllByText('Cát Lái → Bình Dương')).toHaveLength(1);
     expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('Nhà máy Bình Dương');
   });
 
@@ -1243,18 +1273,26 @@ describe('DriverTripDetailPage', () => {
     expect(strip.textContent).toContain('Chi phí 0');
   });
 
-  // _30: the standalone warehouse-phone row is removed at the source — the
-  // combined contact row carries the callable number.
-  it('card _27: renders the SĐT liên hệ row when the contact number differs from the kho number', async () => {
+  // _30 + K10.19 (SIL-946): the contact NAME owns the row (KB: "người liên hệ
+  // + số điện thoại, bấm gọi được") — the callable number rides the same line
+  // when it differs from the kho number (card 20261003_320: identical numbers
+  // never render twice).
+  it('card _27 + K10.19: renders the Người liên hệ row with the callable number when the contact number differs from the kho number', async () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // Page fixture: contactPhone 0909000001, khoPhone absent → one kho row
-    // (dashed) + one contact row. Identical numbers would render one row.
+    // Page fixture: contactName 'Anh Minh', contactPhone 0909000001, khoPhone
+    // absent → one kho row (dashed) + one named contact row with the tel:
+    // number inline.
     const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver-task-fact'))
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
       ?.querySelector('.driver-task-fact__value')?.textContent;
-    expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    expect(valueOf('Người liên hệ')).toBe('Anh Minh · 0909000001');
+    expect(screen.queryByText('SĐT liên hệ')).toBeNull();
+    const telLink = Array.from(document.querySelectorAll('.driver-task-fact'))
+      .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Người liên hệ')
+      ?.querySelector('a[href="tel:0909000001"]');
+    expect(telLink).toBeTruthy();
     // Card 20261003_320: when khoPhone is absent, Gọi kho is hidden and never dials contactPhone
     expect(screen.queryByRole('link', { name: /Gọi kho/ })).toBeNull();
   });
@@ -1283,7 +1321,7 @@ describe('DriverTripDetailPage', () => {
     expect(within(rows[1]).getByRole('link', { name: 'Gọi Cổng kho 0901234567' })).toHaveAttribute('href', 'tel:0901234567');
   });
 
-  it('card _27: identical kho and contact numbers render ONE phone row', async () => {
+  it('card _27 + K10.19: identical kho and contact numbers render ONE phone row and the bare contact name', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         fulfillment: { ...makeTaskDetail().fulfillment!, khoPhone: '0909000001', contactPhone: '0909000001' },
@@ -1299,6 +1337,9 @@ describe('DriverTripDetailPage', () => {
       .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === label)
       ?.querySelector('.driver-task-fact__value')?.textContent;
     expect(valueOf('SĐT kho')).toBe('0909000001');
+    // Identical numbers never render twice: the name row shows the name only
+    // (the number is the callable SĐT kho row above).
+    expect(valueOf('Người liên hệ')).toBe('Anh Minh');
     expect(screen.queryByText('SĐT liên hệ')).toBeNull();
     expect(screen.getByRole('link', { name: /Gọi kho/ })).toBeTruthy();
   });
