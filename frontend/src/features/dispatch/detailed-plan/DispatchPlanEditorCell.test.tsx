@@ -654,11 +654,18 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     mockFleetResources();
   });
 
-  it('hides the issue section and button for UNASSIGNED rows', async () => {
+  it('shows the issue section and a disabled Phát lệnh for UNASSIGNED rows (K4.20/SIL-956)', async () => {
     renderCell(row({ dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null } }));
     await openDialog();
-    expect(screen.queryByText('Phát lệnh cho tài xế')).toBeNull();
-    expect(issueButton()).toBeUndefined();
+    // K4.20: the dialog carries the 'Phát lệnh cho tài xế' fieldset and the
+    // footer Hủy / Lưu thay đổi / Phát lệnh on unassigned rows too — the
+    // button is muted until the plan is saved with a vehicle.
+    expect(screen.getByText('Phát lệnh cho tài xế')).toBeTruthy();
+    const button = issueButton();
+    expect(button).toBeDefined();
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    // The fieldset names what is missing (no vehicle yet — pick one and save).
+    expect(document.querySelector('.dispatch-assignment-dialog__issue-hint')?.textContent).toContain('lưu điều phối');
   });
 
   it('routes ISSUED rows to the Hủy phân xe flow instead of the editor (SIL-708)', async () => {

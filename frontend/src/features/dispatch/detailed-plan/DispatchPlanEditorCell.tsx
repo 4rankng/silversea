@@ -479,6 +479,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     || weightTouched;
   // Card 20261004_359 — a deferred-plate external assignment is issuable too.
   const canIssue = (issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && !planDirty;
+  // K4.20 (SIL-956, QA 24/11): the 'Phát lệnh cho tài xế' fieldset and the
+  // footer 'Phát lệnh' render on UNASSIGNED rows too — muted with the reason
+  // until the dispatcher saves an assignment (the row refetch flips the
+  // status to PLATED_NOT_ISSUED and canIssue opens the flow).
+  const showsIssueFlow = canIssue
+    || issueStatus === 'PLATED_NOT_ISSUED'
+    || issueStatus === 'AWAITING_PLATE'
+    || issueStatus === 'UNASSIGNED';
 
   const {
     ownTruck,
@@ -1029,7 +1037,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
       ? 'Đang phát lệnh…'
       : planDirty
         ? 'Lưu thay đổi điều phối trước khi phát lệnh.'
-        : null;
+        : issueStatus === 'UNASSIGNED'
+          ? 'Chưa phân xe — chọn nhà xe và lưu điều phối trước khi phát lệnh.'
+          : null;
   const completeDisabledReason = saving
     ? 'Đang lưu thay đổi — chưa hoàn thành được.'
     : issuing
@@ -1142,7 +1152,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
                 {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
               </button>
             </DisabledActionTip>
-            {(issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && (
+            {showsIssueFlow && (
               <DisabledActionTip id={`dispatch-plan-issue-${row.fulfillmentId ?? row.shipmentId}`} reason={issueDisabledReason}>
                 <button
                   type="button"
@@ -1444,12 +1454,16 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
           />
           {error && <p className="dispatch-assignment-dialog__error" role="alert">{error}</p>}
 
-          {(issueStatus === 'PLATED_NOT_ISSUED' || issueStatus === 'AWAITING_PLATE') && (
+          {showsIssueFlow && (
             <fieldset className="dispatch-assignment-dialog__issue" disabled={issuing}>
               <legend>Phát lệnh cho tài xế</legend>
-              {planDirty ? (
+              {planDirty || issueStatus === 'UNASSIGNED' ? (
+                // K4.20 (SIL-956): an unassigned row has no driver to name yet —
+                // the section states what unblocks it instead of the fields.
                 <p className="dispatch-assignment-dialog__issue-hint">
-                  Lưu thay đổi điều phối ở trên trước khi phát lệnh.
+                  {planDirty
+                    ? 'Lưu thay đổi điều phối ở trên trước khi phát lệnh.'
+                    : 'Chưa phân xe — chọn nhà xe và lưu điều phối trước khi phát lệnh.'}
                 </p>
               ) : (
                 <IssueOrderFields
