@@ -95,6 +95,11 @@ const BASE_COLUMNS: GridColumnDef[] = [
   { key: 'route', label: 'Tuyến đường', group: 1 },
   { key: 'cont', label: 'Số cont', group: 2 },
   { key: 'contType', label: 'Loại cont', group: 2 },
+  // SIL-944 (K9.19) — cột 'Thông số': the LCL container-params facts
+  // ('Lẻ · Thu: 5T · Trả: 10T' + 'Ghép cùng Bill X') ride their OWN leaf
+  // beside the container identity, fed by the wire's `lclParams`; FCL rows
+  // keep it empty (absence is not data).
+  { key: 'thongSo', label: 'Thông số', group: 2 },
   { key: 'cuoc', label: 'Cước', group: 3 },
   { key: 'lachHuyen', label: 'Lạch Huyện', group: 3 },
   { key: 'phuPhi', label: 'Phụ phí', group: 3 },
@@ -735,6 +740,24 @@ export function DebitMergeGrid({
                     return <td key={key} data-col={key}>{container == null ? '—' : container.containerNumber ?? '—'}</td>;
                   case 'contType':
                     return <td key={key} data-col={key}>{container?.containerType ?? ''}</td>;
+                  case 'thongSo': {
+                    // SIL-944 (K9.19) — the dedicated container-params cell:
+                    // the LCL label + the 'Ghép cùng Bill X' note, rendered
+                    // once per LOT on its first container row (a continuation
+                    // row keeps the cell empty). FCL/ungrouped → empty cell.
+                    const params = index === 0 ? lot.lclParams : undefined;
+                    if (params == null) return <td key={key} data-col={key} />;
+                    return (
+                      <td key={key} data-col={key} className="debit-merge-cell--thongso">
+                        <span className="debit-merge-cell debit-merge-cell--stack">
+                          <span className="debit-merge-cell__line">{params.label}</span>
+                          {params.ghepCungRef != null && (
+                            <span className="debit-merge-cell__line">{`Ghép cùng Bill ${params.ghepCungRef}`}</span>
+                          )}
+                        </span>
+                      </td>
+                    );
+                  }
                   case 'cuoc': return <td key={key} data-col={key}><MoneyCell value={lot.revenue.cuoc} mergeTag={mergeTag} /></td>;
                   case 'lachHuyen': return <td key={key} data-col={key}><MoneyCell value={lot.revenue.lachHuyen} /></td>;
                   case 'phuPhi': return <td key={key} data-col={key}><MoneyCell value={lot.revenue.phuPhi} /></td>;

@@ -6,11 +6,12 @@ import { billBookingReference } from '../../lib/business-reference';
 import type { CellContext, DebitColumn } from './AccountingDebitClosePage.columns';
 
 // 161026204709: `cucPhaiThu` is primary — the F-2 lane price (per-lot cước
-// thu per boss 21/10) must render on the card face (the lot's reason rides the
-// `hangHoaCont` fact), never inside the 'Chi tiết' collapse. SIL-772 — the
-// facts carry the NINE Rev2 group keys; `lo` collapses into title/subtitle.
+// thu per boss 21/10) must render on the card face (the lot's reason rides
+// the `thongSo` fact since SIL-944 moved it out of `hangHoaCont`), never
+// inside the 'Chi tiết' collapse. SIL-772 — the facts carry the Rev2 group
+// keys; `lo` collapses into title/subtitle.
 const PRIMARY_FACTS: Record<string, true> = {
-  hangHoaCont: true, cucPhaiThu: true, tongThu: true, tongTraChiPhiNgoai: true, loiNhuan: true, ghiChuDoiSoat: true,
+  hangHoaCont: true, thongSo: true, cucPhaiThu: true, tongThu: true, tongTraChiPhiNgoai: true, loiNhuan: true, ghiChuDoiSoat: true,
 };
 
 /** A phone reads the same source columns as the accounting matrix. */

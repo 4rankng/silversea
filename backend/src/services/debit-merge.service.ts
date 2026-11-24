@@ -246,6 +246,39 @@ export async function debitMergeScopeConditions(
   return cusVisibilityCondition(executor, actor, { includeTeam: debitMergeIncludeTeam(team) });
 }
 
+/**
+ * SIL-944 (K9.19) — the dedicated 'Thông số' cell facts for an LCL lot: the
+ * 'Lẻ · Thu: X · Trả: Y' label (vehicle-size-class CODES, the FB-094 law —
+ * the class name never reaches the cell) plus the group principal ref behind
+ * 'Ghép cùng Bill X' (a member reads its group's LIVE order-1 lot's bill/
+ * booking; the principal itself carries null). null for FCL/ungrouped lots —
+ * absence is not data. Pure so the label/ref precedence stays unit-pinned.
+ */
+export function debitMergeLclParams(row: {
+  cargoMode: string | null;
+  revVehicleClassId: number | null;
+  costVehicleClassId: number | null;
+  revGroupId: string | null;
+  revGroupOrder: number | null;
+  costGroupId: string | null;
+  costGroupOrder: number | null;
+}, classCodes: Map<number, string>, principalRefs: Map<string, string>): { label: string; ghepCungRef: string | null } | null {
+  if (row.cargoMode !== 'LCL') return null;
+  const label = [
+    'Lẻ',
+    row.revVehicleClassId != null && classCodes.has(row.revVehicleClassId)
+      ? `Thu: ${classCodes.get(row.revVehicleClassId)}` : null,
+    row.costVehicleClassId != null && classCodes.has(row.costVehicleClassId)
+      ? `Trả: ${classCodes.get(row.costVehicleClassId)}` : null,
+  ].filter(Boolean).join(' · ');
+  const ghepCungRef = row.revGroupId != null && (row.revGroupOrder ?? 1) > 1
+    ? principalRefs.get(row.revGroupId) ?? null
+    : row.costGroupId != null && (row.costGroupOrder ?? 1) > 1
+      ? principalRefs.get(row.costGroupId) ?? null
+      : null;
+  return { label, ghepCungRef };
+}
+
 /** Tổng TC for an UNLOCKED lot — the shipment-debit-summary receivable law
  *  (determination over the four revenue sides, then the rollup). Split out
  *  pure so the SIL-814 regression test can pin the no-trip-revenue shape:
@@ -308,6 +341,14 @@ export async function getDebitMergeBoard(query: {
     cargoMode: s.shipments.cargoMode,
     revGroupId: s.shipments.revGroupId,
     revGroupOrder: s.shipments.revGroupOrder,
+    // SIL-944 (K9.19) — the 'Thông số' cell facts: cost-group identity for
+    // the ghép-TRẢ-ĐV principal ref + the two vehicle classes behind the
+    // 'Lẻ · Thu: X · Trả: Y' label (FB-094 law, same columns the chot-debit
+    // board reads).
+    costGroupId: s.shipments.costGroupId,
+    costGroupOrder: s.shipments.costGroupOrder,
+    revVehicleClassId: s.shipments.revVehicleClassId,
+    costVehicleClassId: s.shipments.costVehicleClassId,
     // 18/11 Task 1.2 — NV phụ trách.
     creatorName: s.users.fullName,
     creatorCode: s.users.employeeCode,
@@ -323,6 +364,58 @@ export async function getDebitMergeBoard(query: {
     .orderBy(desc(s.shipments.expectedDeliveryDate), desc(s.shipments.id));
   if (lots.length === 0) return { items: [], total: 0 };
   const lotIds = lots.map((lot) => lot.id);
+
+  // SIL-944 (K9.19) — vehicle-class codes + each grouped lot's LIVE principal
+  // reference behind the dedicated 'Thông số' cell ('Ghép cùng Bill X'): the
+  // chot-debit board's FB-094 law, same query shapes (card 181026145000's
+  // ghost-principal guard — a soft-deleted order-1 row never shadows the
+  // promoted principal).
+  const lclVehicleClassIds = [...new Set(
+    lots.flatMap((lot) => [lot.costVehicleClassId, lot.revVehicleClassId])
+      .filter((id): id is number => id != null),
+  )];
+  const lclClassCodes = new Map(
+    lclVehicleClassIds.length === 0
+      ? []
+      : (await db.select({ id: s.vehicleSizeClasses.id, code: s.vehicleSizeClasses.code })
+        .from(s.vehicleSizeClasses)
+        .where(inArray(s.vehicleSizeClasses.id, lclVehicleClassIds)))
+        .map((row) => [row.id, row.code] as const),
+  );
+  const lclGroupIds = [...new Set(lots.flatMap((lot) => [lot.costGroupId, lot.revGroupId]).filter((id): id is string => id != null))];
+  const lclPrincipalRefs = new Map<string, string>();
+  if (lclGroupIds.length > 0) {
+    const costPrincipals = await db.select({
+      costGroupId: s.shipments.costGroupId,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+    }).from(s.shipments)
+      .where(and(
+        isNull(s.shipments.deletedAt),
+        eq(s.shipments.costGroupOrder, 1),
+        inArray(s.shipments.costGroupId, lclGroupIds),
+      ));
+    const revPrincipals = await db.select({
+      revGroupId: s.shipments.revGroupId,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+    }).from(s.shipments)
+      .where(and(
+        isNull(s.shipments.deletedAt),
+        eq(s.shipments.revGroupOrder, 1),
+        inArray(s.shipments.revGroupId, lclGroupIds),
+      ));
+    for (const principal of costPrincipals) {
+      const ref = principal.blNumber ?? principal.bookingRef;
+      if (ref == null || principal.costGroupId == null) continue;
+      lclPrincipalRefs.set(principal.costGroupId, ref);
+    }
+    for (const principal of revPrincipals) {
+      const ref = principal.blNumber ?? principal.bookingRef;
+      if (ref == null || principal.revGroupId == null) continue;
+      lclPrincipalRefs.set(principal.revGroupId, ref);
+    }
+  }
 
   // ── Containers (child lines): one shipment_containers row each, loại cont
   // from the container-types catalog (e.g. "20'DC").
@@ -703,6 +796,7 @@ export async function getDebitMergeBoard(query: {
       cargoMode: (lot.cargoMode ?? null) as 'FCL' | 'LCL' | null,
       revGroupId: lot.revGroupId,
       revGroupOrder: lot.revGroupOrder,
+      lclParams: debitMergeLclParams(lot, lclClassCodes, lclPrincipalRefs),
     };
   });
   return { items, total: items.length };

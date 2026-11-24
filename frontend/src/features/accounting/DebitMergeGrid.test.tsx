@@ -223,6 +223,38 @@ describe('DebitMergeGrid — containers (SIL-912: mỗi container một dòng ri
     expect(document.querySelector('td[data-col="contType"]')!.textContent).toBe('');
   });
 
+  // SIL-944 (K9.19) — the dedicated 'Thông số' leaf: the LCL label + the
+  // 'Ghép cùng Bill X' note render once per LOT (first container row); FCL
+  // rows keep the cell empty. The KB's verbatim face is the Thu/Trả class
+  // pair the wire's lclParams carries.
+  it('Thông số: an LCL lot renders its label + Ghép cùng Bill once, an FCL lot an empty cell', () => {
+    const first = renderGrid({}, [mergeRow({
+      cargoMode: 'LCL',
+      lclParams: { label: 'Lẻ · Thu: 5T · Trả: 10T', ghepCungRef: 'BL-9' },
+    })]);
+    const paramsCell = first.container.querySelector('tbody td[data-col="thongSo"]')!;
+    expect(paramsCell.textContent).toContain('Lẻ · Thu: 5T · Trả: 10T');
+    expect(paramsCell.textContent).toContain('Ghép cùng Bill BL-9');
+    first.unmount();
+
+    // A 2-cont LCL lot: the note renders on the FIRST row only.
+    const second = renderGrid({}, [mergeRow({
+      containers: SIL912_CONTS.slice(0, 2),
+      cargoMode: 'LCL',
+      lclParams: { label: 'Lẻ · Thu: CONT20.LIGHT', ghepCungRef: null },
+    })]);
+    const paramsCells = [...second.container.querySelectorAll('tbody td[data-col="thongSo"]')];
+    expect(paramsCells).toHaveLength(2);
+    expect(paramsCells[0].textContent).toContain('Lẻ · Thu: CONT20.LIGHT');
+    expect(paramsCells[0].textContent).not.toContain('Ghép cùng Bill');
+    expect(paramsCells[1].textContent!.trim()).toBe('');
+    second.unmount();
+
+    // FCL (no lclParams on the wire) → empty cell, never a fabricated dash-row.
+    const third = renderGrid({}, [mergeRow({ cargoMode: 'FCL' })]);
+    expect(third.container.querySelector('tbody td[data-col="thongSo"]')!.textContent!.trim()).toBe('');
+  });
+
   it('money law: lot-level money renders ONCE per lot — continuation rows keep EMPTY cells, never a fabricated 0', () => {
     renderGrid({}, [mergeRow({
       containers: SIL912_CONTS.slice(0, 2),
@@ -557,7 +589,9 @@ describe('SIL-883 — chi phí đỏ/đen tức thời + hard-block', () => {
     expect(contType!.hasAttribute('data-sticky')).toBe(true);
     const last = document.querySelector('thead th[data-sticky-last]');
     expect(last).toBeTruthy();
-    expect(last!.getAttribute('data-col')).toBe('contType');
+    // SIL-944 (K9.19): the 'Thông số' leaf joins group 2, so the zone edge
+    // (the data-sticky-last separator) moved from contType to it.
+    expect(last!.getAttribute('data-col')).toBe('thongSo');
     // body cells dock too
     const bodyCell = document.querySelector<HTMLElement>('tbody td[data-col="contType"][data-sticky]');
     expect(bodyCell).toBeTruthy();

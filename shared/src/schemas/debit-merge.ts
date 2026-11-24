@@ -143,6 +143,15 @@ export const debitMergeItemSchema = z.object({
   revGroupId: z.string().nullable().optional(),
   revGroupOrder: z.number().int().nullable().optional(),
   revGroupMemberCount: z.number().int().nullable().optional(),
+  // SIL-944 (K9.19) — the dedicated 'Thông số' cell facts for an LCL lot: the
+  // 'Lẻ · Thu: X · Trả: Y' label (vehicle-size-class codes, FB-094 law) plus
+  // the group principal ref behind 'Ghép cùng Bill X' (null on the principal
+  // itself). Optional per the late-added wire convention; null/absent on
+  // FCL/ungrouped rows.
+  lclParams: z.object({
+    label: z.string(),
+    ghepCungRef: z.string().nullable(),
+  }).nullable().optional(),
 });
 
 export const debitMergeResponseSchema = z.object({

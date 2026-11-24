@@ -87,21 +87,28 @@ p.debit-note { margin: 0 0 8px; }
  * (≈183px: checkbox + an 18-char code one font step down fits with gap ≥ 0)
  * funded −1% each from the two 13% money tracks — every money track stays
  * ≥10% ≈114px.
- * The ten-group ORDER is the Rev2 contract + ticket 18/11 Task 2.2b (Số
- * Bill/Book becomes its own track right after Lô), so the shares key on the
- * header's child position (same-class columns carry different widths). Money
- * tracks keep the SIL-835 floor (≥10% ≈114px); Lô 14% + Bill 9% + Cont 9% +
- * Phương tiện 9% + Ghi chú 9% fund the new track without touching them. */
+ * The eleven-group ORDER is the Rev2 contract + ticket 18/11 Task 2.2b (Số
+ * Bill/Book becomes its own track right after Lô) + SIL-944 (K9.19: the
+ * 'Thông số' facts become their own track right after Hàng hóa & Cont), so
+ * the shares key on the header's child position (same-class columns carry
+ * different widths). Money tracks keep the SIL-835 floor (≥10% ≈114px);
+ * Bill/Cont/Phương tiện/Ghi chú each ceded 1% to fund the Thông số track
+ * (the SIL-835 wrap law keeps their long tokens inside the narrower cells). */
 .debit-board thead th:nth-child(1) { width: 14%; }  /* Lô */
-.debit-board thead th:nth-child(2) { width: 9%; }   /* Số Bill/Book */
-.debit-board thead th:nth-child(3) { width: 9%; }   /* Hàng hóa & Cont */
-.debit-board thead th:nth-child(4) { width: 9%; }   /* Phương tiện */
-.debit-board thead th:nth-child(5) { width: 12%; }  /* Cước phải thu */
-.debit-board thead th:nth-child(6) { width: 10%; }  /* Tổng thu */
-.debit-board thead th:nth-child(7) { width: 12%; }  /* Cước phải trả */
-.debit-board thead th:nth-child(8) { width: 10%; }  /* Tổng trả & Chi phí ngoài */
-.debit-board thead th:nth-child(9) { width: 10%; }  /* Lợi nhuận */
-.debit-board thead th:nth-child(10) { width: 9%; }  /* Ghi chú & Đối soát */
+.debit-board thead th:nth-child(2) { width: 8%; }   /* Số Bill/Book */
+.debit-board thead th:nth-child(3) { width: 8%; }   /* Hàng hóa & Cont */
+.debit-board thead th:nth-child(4) { width: 9%; }   /* Thông số (SIL-944) */
+.debit-board thead th:nth-child(5) { width: 8%; }   /* Phương tiện */
+.debit-board thead th:nth-child(6) { width: 11%; }  /* Cước phải thu */
+.debit-board thead th:nth-child(7) { width: 10%; }  /* Tổng thu */
+.debit-board thead th:nth-child(8) { width: 11%; }  /* Cước phải trả */
+.debit-board thead th:nth-child(9) { width: 10%; }  /* Tổng trả & Chi phí ngoài */
+.debit-board thead th:nth-child(10) { width: 10%; } /* Lợi nhuận */
+.debit-board thead th:nth-child(11) { width: 8%; }  /* Ghi chú & Đối soát */
+
+/* SIL-944 — the 'Thông số' facts wrap inside their track (the SIL-835 bill
+ * law): 'CONT20.LIGHT' is one unbroken token. */
+.debit-board td.debit-col--thongso { overflow-wrap: anywhere; }
 
 /* SIL-835 (19/11 QA FAIL on ad4f0597/4db2d62f): at the 1142px open-sidebar
  * 1440px canvas, the 9% Số Bill/Book track (~99-103px) cannot hold an 18-char

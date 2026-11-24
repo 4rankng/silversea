@@ -9,8 +9,9 @@
  * one. The container-params cell cites the thu/tra vehicle classes +
  * "Ghép cùng Bill X".
  */
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { ToastProvider } from '../../components/shared/Toast';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import { BOARD_COLUMNS } from './AccountingDebitClosePage.columns';
 
@@ -65,8 +66,8 @@ const lcl = (
 });
 
 describe('FB-094 — board LCL cells', () => {
-  it('container params read the LCL label + the group note, not container lines', () => {
-    const view = cellFor('hangHoaCont', row({
+  it('the Thông số column reads the LCL label + the group note (SIL-944, K9.19)', () => {
+    const view = cellFor('thongSo', row({
       lcl: {
         label: 'Lẻ · Thu: 5T · Trả: 10T',
         actualTruckNo: '29C-1', billingTruckNo: '30C-2',
@@ -75,6 +76,37 @@ describe('FB-094 — board LCL cells', () => {
     }));
     const { container } = render(<>{view}</>);
     expect(container.textContent).toContain('Lẻ · Thu: 5T · Trả: 10T (Ghép cùng Bill BL-9)');
+  });
+
+  it('Hàng hóa & Cont no longer hosts the LCL facts (SIL-944: an LCL row reads the dash)', () => {
+    const view = cellFor('hangHoaCont', row({
+      lcl: {
+        label: 'Lẻ · Thu: 5T · Trả: 10T',
+        actualTruckNo: '29C-1', billingTruckNo: '30C-2',
+        ghépCùngRef: 'BL-9',
+      },
+    }));
+    const { container } = render(<>{view}</>);
+    expect(container.textContent).not.toContain('Lẻ · Thu: 5T · Trả: 10T');
+    expect(container.textContent).toContain('—');
+  });
+
+  it('the Thông số column carries the Tách nhóm action for a merged row (FB-093: the action rides the facts)', () => {
+    const view = cellFor('thongSo', row({
+      billOrBooking: 'BL-1',
+      lcl: {
+        label: 'Lẻ',
+        actualTruckNo: null, billingTruckNo: null,
+        revGroupId: 'GRP-1',
+        ghépCùngRef: 'BL-1',
+      },
+      costLockedAt: null,
+    }));
+    // UnmergeRevGroupAction toasts its outcome — the shared provider wraps it.
+    const { container } = render(<ToastProvider>{view}</ToastProvider>);
+    expect(container.textContent).toContain('Ghép cùng Bill BL-1');
+    // The shared action names the lot (FB-093's aria law).
+    expect(screen.getByRole('button', { name: 'Tách nhóm ghép cước thu khách — lô BL-1' })).toBeTruthy();
   });
 
   // Card 161026232419 (§II.4): line 1 carries the carrier name AND the real

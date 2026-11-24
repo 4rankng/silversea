@@ -217,18 +217,35 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     },
   },
   {
-    // Rev2 cột 3 — Hàng hóa & Cont. FB-093 re-verify (card 211026024348): the
-    // cell also hosts the "Tách nhóm" action and the "Ghép cùng Bill X" note.
-    // Ticket 18/11 Task 2.2a — ONE container per row: continuation rows carry
-    // their own container label; the lot-level LCL facts + Tách nhóm action
-    // stay on the head row.
+    // Rev2 cột 3 — Hàng hóa & Cont. Ticket 18/11 Task 2.2a — ONE container
+    // per row: continuation rows carry their own container label. (SIL-944:
+    // the LCL container-params facts + the Tách nhóm action moved next door
+    // to the dedicated 'Thông số' column — K9.19 wants them OWN column, not
+    // buried inline here; an LCL row's containers[] is empty, so the cell
+    // reads the house dash.)
     key: 'hangHoaCont', label: 'Hàng hóa & Cont', className: 'debit-col--container', pinned: true, spansSubrows: true,
+    cell: (row, context) => {
+      const index = context?.containerIndex ?? 0;
+      const label = row.containers[index];
+      if (label != null) return <span className="debit-cont-line">{label}</span>;
+      return index === 0 && row.containers.length === 0 ? '—' : null;
+    },
+  },
+  {
+    // SIL-944 (K9.19) — cột 'Thông số': the LCL container-params facts get
+    // their OWN column — 'Lẻ · Thu: 5T · Trả: 10T' + 'Ghép cùng Bill X' —
+    // lifted out of 'Hàng hóa & Cont' where QA found them buried inline
+    // (build df7b2a73, three screens had no dedicated column). The Tách nhóm
+    // action rides the facts (FB-093: an action never separates from the
+    // state it acts on). FCL rows keep the column empty — absence is not
+    // data.
+    key: 'thongSo', label: 'Thông số', className: 'debit-col--thongso', pinned: true, spansSubrows: true,
     cell: (row, context) => {
       const index = context?.containerIndex ?? 0;
       if (row.lcl && index === 0) {
         // SIL-734(a) — a COST-merged row (revGroupId null, costGroupId set)
-        // rides the SAME shared action with dimension='COST'. A cost-locked row
-        // stays blocked with the exact reason.
+        // rides the SAME shared action with dimension='COST'. A cost-locked
+        // row stays blocked with the exact reason.
         const mergedGroupId = row.lcl.revGroupId ?? row.lcl.costGroupId ?? null;
         const mergedDimension = row.lcl.revGroupId != null ? 'REV' as const : 'COST' as const;
         return (
@@ -252,9 +269,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
           </div>
         );
       }
-      const label = row.containers[index];
-      if (label != null) return <span className="debit-cont-line">{label}</span>;
-      return index === 0 && row.containers.length === 0 ? '—' : null;
+      return index === 0 ? '—' : null;
     },
   },
   {

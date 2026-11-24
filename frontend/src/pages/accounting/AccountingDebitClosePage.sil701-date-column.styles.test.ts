@@ -86,18 +86,20 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     expect(col?.cell.toString()).toContain('Tổng trả');
   });
 
-  it('SIL-772 + ticket 18/11 Task 2.2b — the nth-child track shares map onto the CURRENT column order', () => {
-    // The fixed grid keys its ten widths on header position (same-class
+  it('SIL-772 + ticket 18/11 Task 2.2b + SIL-944 — the nth-child track shares map onto the CURRENT column order', () => {
+    // The fixed grid keys its eleven widths on header position (same-class
     // columns carry different shares), so a silent BOARD_COLUMNS reorder
     // would migrate widths to the wrong groups. Pin the mapping itself:
     // position i must still be the key this width was measured for.
-    const expectedOrder = ['lo', 'soBillBook', 'hangHoaCont', 'phuongTien', 'cucPhaiThu', 'tongThu', 'cucPhaiTra', 'tongTraChiPhiNgoai', 'loiNhuan', 'ghiChuDoiSoat'];
+    const expectedOrder = ['lo', 'soBillBook', 'hangHoaCont', 'thongSo', 'phuongTien', 'cucPhaiThu', 'tongThu', 'cucPhaiTra', 'tongTraChiPhiNgoai', 'loiNhuan', 'ghiChuDoiSoat'];
     expect(BOARD_COLUMNS.map((candidate) => candidate.key)).toEqual(expectedOrder);
     // Ticket 18/11 Task 2.2b: 'Số Bill/Book' becomes its own track after Lô.
+    // SIL-944 (K9.19): 'Thông số' becomes its own track after Hàng hóa & Cont.
     // Budget rebalance: Lô 14% (≈159px at the 1142px canvas — the SIL-964
     // 18-char long face keeps its gap), money tracks keep the SIL-835 floor
-    // (≥10% ≈114px), and Bill/Cont/PT/Ghi chú take 9% each to fund it.
-    const expectedShares = [14, 9, 9, 9, 12, 10, 12, 10, 10, 9];
+    // (≥10% ≈114px), and Bill/Cont/Thông số/PT/Ghi chú take 8-9% each to fund
+    // it (the SIL-835 wrap law holds their long tokens).
+    const expectedShares = [14, 8, 8, 9, 8, 11, 10, 11, 10, 10, 8];
     expectedOrder.forEach((key, index) => {
       expect(css).toContain(`.debit-board thead th:nth-child(${index + 1}) { width: ${expectedShares[index]}%; }`);
     });
