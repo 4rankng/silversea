@@ -341,6 +341,24 @@ export function PartyMonthlyProductionSummary({
               aria-label="Tổng hợp sản lượng đến ngày"
             />
           </label>
+          {/* SIL-962 (K6.27) — the KB's 'làm lại' control: recomputes the
+              summary for the chosen Từ ngày – Đến ngày by refetching BOTH
+              period-report sides, the ledger outstanding join and the
+              settlement rounds behind the VAT note — composition over the
+              same endpoints, never a parallel aggregation. */}
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            title="Tính lại tổng hợp theo khoảng Từ ngày – Đến ngày đã chọn"
+            onClick={() => {
+              void thu.refetch();
+              void tra.refetch();
+              void ledger.refetch();
+              void rounds.refetch();
+            }}
+          >
+            Làm lại
+          </button>
         </div>
       </div>
 

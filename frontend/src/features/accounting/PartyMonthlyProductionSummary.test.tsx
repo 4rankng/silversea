@@ -6,7 +6,7 @@
  * Lập Phiếu disabled state with its gap reason, the month totals band
  * (money + VAT gap) and the calendar-month period default.
  */
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -139,6 +139,25 @@ describe('PartyMonthlyProductionSummary', () => {
     expect(screen.getByRole('columnheader', { name: '% thuế · HĐ · số CT/ngày' })).toBeTruthy();
     // Named-gap columns render the house dash, never an accidental blank.
     expect(within(table).getAllByText('—').length).toBeGreaterThan(0);
+  });
+
+  it('the [Làm lại] control recomputes the summary from the same sources (SIL-962, K6.27)', async () => {
+    // KB: the bảng tổng hợp rides a nút làm lại. The click refetches BOTH
+    // phoi-phieu sides + the ledger join + the settlement rounds (VAT note) —
+    // the same four queries the section composes on mount, no parallel
+    // aggregation of its own.
+    renderSummary();
+    await screen.findByText('Công ty A');
+    expect(getPhoiPhieuReport).toHaveBeenCalledTimes(2);
+    expect(getCustomerAging).toHaveBeenCalledTimes(1);
+    expect(listSettlementRounds).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Làm lại' }));
+    await waitFor(() => expect(getPhoiPhieuReport).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(getCustomerAging).toHaveBeenCalledTimes(2));
+    expect(listSettlementRounds).toHaveBeenCalledTimes(2);
+    // The recomputed table still renders the same rows.
+    expect(screen.getByText('Công ty A')).toBeTruthy();
   });
 
   it('reconciles còn nợ with the page ledger and defaults absent parties to 0', async () => {
