@@ -2305,6 +2305,13 @@ export interface PnlReport {
   tripDetails?: PnlTripDetail[];
   companyExpenses: number;
   categoryBreakdown: Array<{ categoryName: string; total: string }>;
+  /** SIL-943 (K8.22) — recorded chi phí ngoài (shipments.debit_external_cost)
+   *  of the month's lots; null = chưa lô nào nhập. Phí RU lives inside it and
+   *  is reported separately as a display component (roadUsageFeeTotal). */
+  externalCostTotal?: number | null;
+  /** SIL-943 — Phí RU (pricing rate_key='RU') of the month's lots, display-only
+   *  inside 'Chi phí ngoài'; never added on top of externalCostTotal. */
+  roadUsageFeeTotal?: number;
   serviceMarginTotal?: number;
   externalMarginTotal?: number;
   externalTripsCount?: number;

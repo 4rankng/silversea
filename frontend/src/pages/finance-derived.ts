@@ -14,6 +14,17 @@ export function compactNum(value: number): string {
   return `${(value / 1e3).toFixed(0)}k`;
 }
 
+/** One row of the "Cơ cấu chi phí theo hạng mục" table. `subItems` (K8.22:
+ *  'Phí RU' inside 'Chi phí ngoài') are display components of the row's total —
+ *  never added into it. */
+export interface CategoryBreakdownRow {
+  categoryName: string;
+  total: number;
+  /** No source recorded yet (chưa nhập) — render '—', never a fabricated 0 ₫. */
+  totalMissing?: boolean;
+  subItems?: Array<{ categoryName: string; total: number }>;
+}
+
 export function marginPct(grossProfit: number | null, totalRevenue: number | null): string {
   if (grossProfit == null || totalRevenue == null) return '—';
   return totalRevenue > 0 ? ((grossProfit / totalRevenue) * 100).toFixed(1) : '0.0';
@@ -192,11 +203,25 @@ export function useFinanceDerived({ allTrips, report, prevReport, capTableRaw, y
         { name: 'Cố định đội xe', value: fleetFixedCost ?? 0, fill: '#0F766E' },
       ].filter(d => d.value > 0.5);
 
-      const categoryBreakdown: Array<{ categoryName: string; total: number }> =
+      const categoryBreakdown: CategoryBreakdownRow[] =
         (report?.categoryBreakdown ?? []).map(c => ({
           categoryName: c.categoryName,
           total: parseFloat(c.total),
         }));
+      // SIL-943 (KB §8.1.3 K8.22) — 'Chi phí ngoài' group with its 'Phí RU'
+      // component. Phí RU sits INSIDE the group as display-only (the 09/11
+      // ruling folded it into the entered debit_external_cost), so it never
+      // adds to the group total or the grand total — no double-count.
+      const externalCostTotal = report?.externalCostTotal ?? null;
+      const roadUsageFeeTotal = report?.roadUsageFeeTotal ?? 0;
+      if (externalCostTotal != null || roadUsageFeeTotal > 0) {
+        categoryBreakdown.push({
+          categoryName: 'Chi phí ngoài',
+          total: externalCostTotal ?? 0,
+          totalMissing: externalCostTotal == null,
+          subItems: [{ categoryName: 'Phí RU', total: roadUsageFeeTotal }],
+        });
+      }
 
       const topTrucks = [...(report?.trucks ?? [])]
         .sort((a, b) => b.profit - a.profit)

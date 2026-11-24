@@ -199,7 +199,15 @@
   letter-spacing: 0;
 }
 .truck-card__profit--up { color: var(--brand); }
-.truck-card__profit--down { color: var(--danger); }
+/* SIL-943 (KB §8.1.3 K8.22): lợi nhuận âm → bôi nền đỏ đậm #B91C1C, chữ trắng
+   in đậm — cùng luật ô lợi nhuận của spec alignment 24/11 item 09
+   (.debit-loinhuan--negative trên bảng chốt sổ). */
+.truck-card__profit--down {
+  background: #B91C1C;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: var(--radius-field);
+}
 .truck-card__stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -424,14 +424,25 @@ export default function FinancePage() {
                           {minProfit < 0 && (
                             <line x1={zeroX} y1={0} x2={zeroX} y2={24} stroke="var(--line-2)" strokeWidth={1} strokeDasharray="2,2" />
                           )}
-                          <text x={280} y={15} fontSize="11" fill={isNegative ? 'var(--danger)' : 'var(--ink-2)'} fontWeight={isNegative ? 600 : 500} textAnchor="end">{`${formatNumber(val)} ₫`}</text>
+                          {/* SIL-943 (KB §8.1.3 K8.22): lợi nhuận âm → nhãn giá
+                              trị bôi nền đỏ đậm #B91C1C, chữ trắng in đậm (spec
+                              alignment 24/11 item 09). */}
+                          {isNegative ? (
+                            <>
+                              <rect x={280 - valW} y={1} width={valW} height={17} rx={3} fill="#B91C1C" />
+                              <text x={278} y={15} fontSize="11" fill="#fff" fontWeight={700} textAnchor="end">{`${formatNumber(val)} ₫`}</text>
+                            </>
+                          ) : (
+                            <text x={280} y={15} fontSize="11" fill="var(--ink-2)" fontWeight={500} textAnchor="end">{`${formatNumber(val)} ₫`}</text>
+                          )}
                         </g>
                       );
                     })}
                     {/* Money axis: baseline + tick marks + compact labels under
                         the bar track (case 2026-10-11-R14-05). Tick marks are
-                        lines, never rects — the zero-bar contract above owns
-                        every rect in this chart. */}
+                        lines, never rects — the rects in this chart are exactly
+                        two uses: the zero-bar contract above and the negative
+                        value-label chips (K8.22). */}
                     <g data-chart-xaxis>
                       <line x1={trackStart} y1={svgH - 4} x2={trackStart + barTrackW} y2={svgH - 4} stroke="var(--line-2)" strokeWidth={1} />
                       {tickValues.map((v) => (
@@ -854,7 +865,13 @@ export default function FinancePage() {
                                   <td data-label="BD rơ-mooc" className="num">{maintComp.trailer > 0 ? formatNumber(maintComp.trailer) : '—'}</td>
                                 </>
                               )}
-                              <td data-label="Lợi nhuận gộp" className="num" style={{ color: t.profit >= 0 ? 'var(--brand)' : 'var(--danger)', fontWeight: 700 }}>
+                              {/* SIL-943 (KB §8.1.3 K8.22): lợi nhuận âm → ô bôi
+                                  nền đỏ đậm #B91C1C, chữ trắng in đậm (spec
+                                  alignment 24/11 item 09 — cùng luật
+                                  .debit-loinhuan--negative của bảng chốt sổ). */}
+                              <td data-label="Lợi nhuận gộp" className="num" style={t.profit >= 0
+                                ? { color: 'var(--brand)', fontWeight: 700 }
+                                : { background: '#B91C1C', color: '#fff', fontWeight: 700 }}>
                                 {formatNumber(t.profit)}
                               </td>
                             </tr>
@@ -915,7 +932,10 @@ export default function FinancePage() {
                                               <td data-label="Lương & phụ cấp" className="num">{detail.driverAndAllowances ? formatNumber(detail.driverAndAllowances) : '—'}</td>
                                               <td data-label="PB đội xe" className="num">{detail.allocatedFleetFixedCost ? formatNumber(detail.allocatedFleetFixedCost) : '—'}</td>
                                               <td data-label="Biến phí" className="num"><strong>{formatNumber(detail.totalCost)}</strong>{Boolean(detail.reconciledExtraCost) && <small className="truck-trip-route">Phát sinh đã đối chiếu: {formatNumber(detail.reconciledExtraCost ?? 0)}</small>}</td>
-                                              <td data-label="LN sau PB" className="num" style={{ color: detail.netProfitAfterFleetFixedCost >= 0 ? 'var(--brand)' : 'var(--danger)', fontWeight: 700 }}>{formatNumber(detail.netProfitAfterFleetFixedCost)}</td>
+                                              {/* SIL-943 (K8.22): lợi nhuận âm → nền đỏ đậm, chữ trắng. */}
+                                              <td data-label="LN sau PB" className="num" style={detail.netProfitAfterFleetFixedCost >= 0
+                                                ? { color: 'var(--brand)', fontWeight: 700 }
+                                                : { background: '#B91C1C', color: '#fff', fontWeight: 700 }}>{formatNumber(detail.netProfitAfterFleetFixedCost)}</td>
                                               <td data-label="Đối chiếu"><CostCheck matches={detail.costMatches} difference={detail.costDifference} /></td>
                                             </tr>
                                           ))}
@@ -964,20 +984,40 @@ export default function FinancePage() {
                       return sortedCategoryBreakdown.map((cat, i) => {
                         const pct = (cat.total / categoryGrandTotal) * 100;
                         return (
-                          <tr key={i}>
-                            <td data-label="Hạng mục" style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{cat.categoryName}</td>
-                            <td data-label="Tổng chi phí" className="num">{`${formatNumber(cat.total)} ₫`}</td>
-                            <td data-label="Tỷ trọng">
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
-                                  <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: 'var(--brand)' }} />
-                                </div>
-                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: 'var(--fg-2)', minWidth: 40, textAlign: 'right' }}>
-                                  {pct.toFixed(1)}%
-                                </span>
-                              </div>
-                            </td>
-                          </tr>
+                          <Fragment key={i}>
+                            <tr>
+                              <td data-label="Hạng mục" style={{ fontWeight: 600, color: 'var(--fg-1)' }}>{cat.categoryName}</td>
+                              <td data-label="Tổng chi phí" className="num">{cat.totalMissing ? <span style={{ color: 'var(--fg-3)' }}>—</span> : `${formatNumber(cat.total)} ₫`}</td>
+                              <td data-label="Tỷ trọng">
+                                {cat.totalMissing ? (
+                                  <span style={{ color: 'var(--fg-3)' }}>—</span>
+                                ) : (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
+                                      <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: 'var(--brand)' }} />
+                                    </div>
+                                    <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: 'var(--fg-2)', minWidth: 40, textAlign: 'right' }}>
+                                      {pct.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                            {/* SIL-943 (K8.22): 'Phí RU' là cấu phần HIỂN THỊ
+                                bên trong 'Chi phí ngoài' — không cộng vào tổng
+                                nhóm hay tổng cộng (tránh double-count). */}
+                            {(cat.subItems ?? []).map((sub) => (
+                              <tr key={sub.categoryName}>
+                                <td data-label="Hạng mục" style={{ paddingLeft: 28, color: 'var(--fg-2)' }}>{sub.categoryName}</td>
+                                <td data-label="Tổng chi phí" className="num" style={{ color: 'var(--fg-2)' }}>{`${formatNumber(sub.total)} ₫`}</td>
+                                <td data-label="Tỷ trọng">
+                                  <span style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
+                                    {cat.total > 0 ? `thuộc ${cat.categoryName} · ${((sub.total / cat.total) * 100).toFixed(1)}%` : `thuộc ${cat.categoryName}`}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </Fragment>
                         );
                       });
                     })()}

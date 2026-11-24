@@ -10,6 +10,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { eq, and, isNull, or, sql, gte, inArray, ne, desc } from 'drizzle-orm';
 import { tripCompositeSelect } from './trip-composite.service';
+import { loadRoadUsageFeeByLot } from './accounting-debit-close.service';
 import { TripStatus } from '@tingting/shared';
 import { cacheGet } from '../lib/redis';
 import { fuelVarianceMonthKey, pnlMonthKey } from '../lib/report-cache';
@@ -468,6 +469,33 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
       total: r.total,
     }));
 
+    // SIL-943 (KB §8.1.3 K8.22) — 'Chi phí ngoài' + its 'Phí RU' component for
+    // the cost-structure section. Phí RU sits INSIDE chi phí ngoài (the 09/11
+    // ruling folded it into the accountant-entered shipments.debit_external_cost),
+    // so it is reported as a display component and never added on top of the
+    // entered total — no double-count. Distinct lots only: several trips can
+    // share one lot and its costs belong to the lot, not the trip.
+    // externalCostTotal stays null (not 0) while no lot has an entered value —
+    // "chưa nhập" is absence, never a fabricated zero.
+    const lotIds = [...new Set(monthTrips.map((t) => t.shipmentId).filter((v): v is number => v != null))];
+    let externalCostTotal: number | null = null;
+    let roadUsageFeeTotal = 0;
+    if (lotIds.length > 0) {
+      const lotRows = await q.select({
+        id: s.shipments.id,
+        customerId: s.shipments.customerId,
+        routeId: s.shipments.routeId,
+        ngay: s.shipments.expectedDeliveryDate,
+        debitExternalCost: s.shipments.debitExternalCost,
+      }).from(s.shipments).where(inArray(s.shipments.id, lotIds));
+      const entered = lotRows.filter((lot) => lot.debitExternalCost != null);
+      if (entered.length > 0) {
+        externalCostTotal = entered.reduce((sum, lot) => sum + Number(lot.debitExternalCost ?? 0), 0);
+      }
+      const ruByLot = await loadRoadUsageFeeByLot(lotRows, q);
+      roadUsageFeeTotal = [...ruByLot.values()].reduce((sum, fee) => sum + fee, 0);
+    }
+
     const totalMaintenanceExpenses = Array.from(maintenanceExpensesByTruck.values())
       .reduce((sum, amount) => sum + amount, 0);
     const byTruck = new Map<number, {
@@ -810,6 +838,8 @@ export async function getPnlReport(month: number, year: number, q: QueryClient =
       maintenanceItemsByTruck: Object.fromEntries(maintenanceItemsByTruck),
       tripDetails,
       categoryBreakdown,
+      externalCostTotal,
+      roadUsageFeeTotal,
       trucks: truckBreakdown,
       serviceMarginTotal,
       externalMarginTotal: breakdownExternalMarginTotal,

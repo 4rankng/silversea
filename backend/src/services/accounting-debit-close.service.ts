@@ -51,6 +51,44 @@ const money = (value: number | null): string | null =>
   value == null ? null : String(value);
 
 /**
+ * Phí RU per lot: pricing_tables rate_key='RU' — latest effectiveDate ≤ the
+ * lot's delivery date per customer+route; falls back to the latest when none
+ * is applicable yet. DATA-driven: absent until the customer populates rows.
+ * Single RU lookup in the codebase — the P&L cost-structure line (SIL-943)
+ * reads the same engine, never a second copy.
+ */
+export async function loadRoadUsageFeeByLot(
+  lots: Array<{ id: number; customerId: number | null; routeId: number | null; ngay: string | null }>,
+  executor: Executor = db,
+): Promise<Map<number, number>> {
+  const routeIds = [...new Set(lots.map((lot) => lot.routeId).filter((v): v is number => v != null))];
+  const ruRateRows = routeIds.length > 0 ? await executor.select({
+    customerId: s.pricingTables.customerId,
+    routeId: s.pricingTables.routeId,
+    price: s.pricingTables.price,
+    effectiveDate: s.pricingTables.effectiveDate,
+  }).from(s.pricingTables)
+    .where(and(
+      eq(s.pricingTables.rateKey, 'RU'),
+      inArray(s.pricingTables.routeId, routeIds),
+      isNull(s.pricingTables.deletedAt),
+    )) : [];
+  const ruByLot = new Map<number, number>();
+  for (const lot of lots) {
+    if (lot.routeId == null || lot.customerId == null) continue;
+    const candidates = ruRateRows.filter((row) =>
+      row.routeId === lot.routeId && row.customerId === lot.customerId);
+    if (candidates.length === 0) continue;
+    const applicable = candidates
+      .filter((row) => lot.ngay == null || row.effectiveDate <= lot.ngay)
+      .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
+    const pick = applicable[0] ?? [...candidates].sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate))[0];
+    if (pick) ruByLot.set(lot.id, toNumber(pick.price));
+  }
+  return ruByLot;
+}
+
+/**
  * SIL-771 — Lợi nhuận = Tổng thu − Tổng trả − Chi phí ngoài (khách chốt
  * 09/11/2026, thay công thức P1 'Tổng thu − Tổng 1 − Phí RU').
  *
@@ -718,33 +756,9 @@ export async function getAccountingDebitBoard(query: {
     containersByLot.set(lot, labels);
   }
 
-  // Phí RU: pricing_tables rate_key='RU' — latest effectiveDate ≤ the lot's
-  // delivery date per customer+route; falls back to the latest when none is
-  // applicable yet. DATA-driven: absent until the customer populates rows.
-  const routeIds = [...new Set(lots.map((lot) => lot.routeId).filter((v): v is number => v != null))];
-  const ruRateRows = routeIds.length > 0 ? await executor.select({
-    customerId: s.pricingTables.customerId,
-    routeId: s.pricingTables.routeId,
-    price: s.pricingTables.price,
-    effectiveDate: s.pricingTables.effectiveDate,
-  }).from(s.pricingTables)
-    .where(and(
-      eq(s.pricingTables.rateKey, 'RU'),
-      inArray(s.pricingTables.routeId, routeIds),
-      isNull(s.pricingTables.deletedAt),
-    )) : [];
-  const ruByLot = new Map<number, number>();
-  for (const lot of lots) {
-    if (lot.routeId == null || lot.customerId == null) continue;
-    const candidates = ruRateRows.filter((row) =>
-      row.routeId === lot.routeId && row.customerId === lot.customerId);
-    if (candidates.length === 0) continue;
-    const applicable = candidates
-      .filter((row) => lot.ngay == null || row.effectiveDate <= lot.ngay)
-      .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
-    const pick = applicable[0] ?? [...candidates].sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate))[0];
-    if (pick) ruByLot.set(lot.id, toNumber(pick.price));
-  }
+  // Phí RU: the shared lookup engine (loadRoadUsageFeeByLot) — display-only
+  // per the 09/11 ruling.
+  const ruByLot = await loadRoadUsageFeeByLot(lots, executor);
 
   // Rate-adjustment state per lot: latest non-withdrawn PENDING/CONFIRMED.
   const adjRows = await executor.select({

@@ -291,3 +291,73 @@ describe('UI75 recognized report tone', () => {
     }
   });
 });
+
+// SIL-943 — KB §8.1.3 (K8.22): lợi nhuận âm → ô lợi nhuận bôi nền đỏ đậm
+// #B91C1C, chữ trắng in đậm (spec alignment 24/11 item 09); 'Phí RU' hiển thị
+// BÊN TRONG hạng mục 'Chi phí ngoài', không bao giờ cộng thêm vào tổng (tránh
+// double-count).
+describe('FinancePage SIL-943 negative-profit cells and Chi phí ngoài / Phí RU', () => {
+  const negativeTrucksReport = {
+    ...report,
+    trucks: [pnlTruck(9, '15H-087.19', -300_000)],
+    categoryBreakdown: [{ categoryName: 'Sửa chữa', total: '100000' }],
+    externalCostTotal: 2_000_000,
+    roadUsageFeeTotal: 300_000,
+  } as unknown as PnlReport;
+
+  it('paints the profit cell of a negative row with the dark-red background and white text', async () => {
+    usePnlReportMock.mockReturnValue({ data: negativeTrucksReport, isLoading: false, error: null });
+    const { container } = renderPage();
+
+    await screen.findAllByText('15H-087.19');
+    const cell = container.querySelector<HTMLTableCellElement>('td[data-label="Lợi nhuận gộp"]')!;
+    expect(cell.style.backgroundColor).toBe('rgb(185, 28, 28)');
+    expect(cell.style.color).toBe('rgb(255, 255, 255)');
+    expect(cell.textContent).toContain('-300.000');
+  });
+
+  it('paints the negative value label chip in the Top xe chart', async () => {
+    usePnlReportMock.mockReturnValue({ data: negativeTrucksReport, isLoading: false, error: null });
+    const { container } = renderPage();
+
+    const svg = await screen.findByRole('img', { name: /Top xe theo lợi nhuận/ });
+    const chip = svg.querySelector('rect[fill="#B91C1C"]');
+    expect(chip).not.toBeNull();
+    const label = svg.querySelector('text[fill="#fff"]');
+    expect(label?.textContent).toContain('-300.000');
+    expect(container).toBeDefined();
+  });
+
+  it('shows Phí RU inside the Chi phí ngoài row without double-counting the total', async () => {
+    usePnlReportMock.mockReturnValue({ data: negativeTrucksReport, isLoading: false, error: null });
+    renderPage();
+
+    await screen.findAllByText('Chi phí ngoài');
+    const groupRow = screen.getByText('Chi phí ngoài').closest('tr')!;
+    const cells = [...groupRow.querySelectorAll('td')];
+    // The group total is the entered chi phí ngoài only — the 300k Phí RU is a
+    // component display, never added on top.
+    expect(cells[1].textContent).toBe('2.000.000 ₫');
+    const subRow = screen.getByText('Phí RU').closest('tr')!;
+    expect([...subRow.querySelectorAll('td')][1].textContent).toBe('300.000 ₫');
+  });
+
+  it('chi phí ngoài chưa nhập renders an em dash total while Phí RU stays visible', async () => {
+    usePnlReportMock.mockReturnValue({
+      data: {
+        ...report,
+        categoryBreakdown: [{ categoryName: 'Sửa chữa', total: '100000' }],
+        externalCostTotal: null,
+        roadUsageFeeTotal: 300_000,
+      } as unknown as PnlReport,
+      isLoading: false,
+      error: null,
+    });
+    renderPage();
+
+    await screen.findAllByText('Chi phí ngoài');
+    const groupRow = screen.getByText('Chi phí ngoài').closest('tr')!;
+    expect([...groupRow.querySelectorAll('td')][1].textContent).toBe('—');
+    expect(screen.getByText('Phí RU')).toBeTruthy();
+  });
+});
