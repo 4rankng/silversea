@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, Truck, Wallet, TrendingUp } from 'lucide-react';
 import { Money } from '../../../components/shared/Money';
+import { WaitingPlateChip } from '../../../components/shared/WaitingPlateChip';
 import type { TripDerivedData } from '../types';
 
 interface ExternalCarrierCardProps {
@@ -35,7 +36,17 @@ export function ExternalCarrierCard({
             <span className="ri"><Truck size={17} /></span>
             <div className="info-meta">
               <div className="lbl">Biển số xe</div>
-              <div className="val mono">{plateNumber ?? '—'}</div>
+              {/* SIL-935 (KB §7.2.1 K7.20): the awaiting-plate state is named,
+                  not a silent dash. */}
+              <div className="val mono">
+                {plateNumber ?? '—'}
+                {!plateNumber && (
+                  <>
+                    {' '}
+                    <WaitingPlateChip />
+                  </>
+                )}
+              </div>
             </div>
           </div>
           <div className="info-row">

@@ -5,6 +5,7 @@ import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient'
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { billBookingReference } from '../../../lib/business-reference';
 import { useToastOptional } from '../../../components/shared/Toast';
+import { WaitingPlateChip } from '../../../components/shared/WaitingPlateChip';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { LclSelectCheckbox } from '../LclSelectCheckbox';
@@ -262,6 +263,10 @@ export function DispatchPlanCardList({
                   {row.dispatch.assignedPlate ?? 'Chưa phân xe'}
                 </span>
               )}
+              {/* SIL-935 (KB §7.2.1 K7.20) — the external awaiting-plate state
+                  the plate line above never names: the chip rides the same
+                  slot, so the card reads the waiting state like the grid. */}
+              {!showsPlateLine(row) && row.dispatch.carrierType === 'EXTERNAL' && <WaitingPlateChip />}
               {vehicleClass && <span className="dpcard__plate-class">{`Xe ${vehicleClass}`}</span>}
             </span>
             <span className="dpcard__driver">

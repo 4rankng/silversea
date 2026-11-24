@@ -13,6 +13,7 @@ import {
   getTripDistance, getTripDisplayGrossProfit,
 } from './tripHelpers';
 import { XeNgoaiBadge } from './XeNgoaiBadge';
+import { WaitingPlateChip } from '../../components/shared/WaitingPlateChip';
 
 const formatMoney = (n: number): string =>
   formatCurrency(n).replace(' ₫', '').replace('₫', '').trim();
@@ -56,6 +57,9 @@ export function TripMobileCard({ trip, warnThreshold, style, copyingPlan, onCopy
             <span className={`plate${isCreated || isCanceled ? ' idle' : ''}${trip.carrierType === 'EXTERNAL' ? ' external' : ''}`}>
               {trip.carrierType === 'EXTERNAL' ? (trip.externalPlateNumber || '—') : (trip.truck?.licensePlate ?? '—')}
             </span>
+            {/* SIL-935 (KB §7.2.1 K7.20) — the /trips mobile card names the
+                awaiting-plate external state the dash alone never did. */}
+            {trip.carrierType === 'EXTERNAL' && !trip.externalPlateNumber && <WaitingPlateChip />}
           </div>
         </div>
         <span className={`status-pill ${pillClass}`}>

@@ -9,6 +9,7 @@ import type { TableSortState } from '../../lib/table-sort';
 import { splitRoute } from '../../lib/route';
 import { formatDayMonth } from '../../lib/date';
 import { formatCurrency, formatNumber } from '../../lib/format';
+import { WaitingPlateChip } from '../../components/shared/WaitingPlateChip';
 import {
   buildTripCode, calcConsumption, getMissingIndicators, getDataCompleteness,
   isMissingGroundPrice15T,
@@ -232,10 +233,18 @@ export function buildTripColumns(
         const isExternal = trip.carrierType === 'EXTERNAL';
         // External trips are flagged by the "Xe ngoài" badge beside the customer
         // name, so the plate cell only shows an actual plate — '—' when absent.
+        // SIL-935 (KB §7.2.1 K7.20): the absent plate of an external carrier is
+        // a NAMED state — the 'Chờ biển' chip rides the dash.
         const plate = isExternal ? (trip.externalPlateNumber || '—') : (trip.truck?.licensePlate ?? '—');
         return (
           <span className={`plate${isCreated || isCanceled ? ' idle' : ''}${isExternal ? ' external' : ''}`}>
             {plate}
+            {isExternal && !trip.externalPlateNumber && (
+              <>
+                {' '}
+                <WaitingPlateChip />
+              </>
+            )}
           </span>
         );
       },

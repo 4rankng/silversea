@@ -15,6 +15,7 @@ import { useCarrierPricePreview, useFreightPreview } from '../../../hooks/usePri
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal, useConfirm } from '../../../components/UI';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
+import { WaitingPlateChip } from '../../../components/shared/WaitingPlateChip';
 import { billBookingReference } from '../../../lib/business-reference';
 import { DateTimeField, NumberField, SearchableSelect, type SearchableSelectOption } from '../../../design-system';
 import {
@@ -1087,11 +1088,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
             line — the "CUS sẽ bổ sung" italic filler is noise (the owner: the
             line below is EMPTY). K3.98 (SIL-932): when the carrier line itself
             already reads 'Chưa phân xe' (any unassigned row), the plate line
-            stays empty instead of printing the label twice. */}
+            stays empty instead of printing the label twice. SIL-935 (KB
+            §7.2.1 K7.20): an EXTERNAL carrier with no plate yet IS a named
+            state — the 'Chờ biển' chip sits where the plate line would. */}
         {currentPlate ? (
           <span className="dispatch-assignment-cell__plate">{currentPlate}</span>
         ) : row.dispatch.carrierType === 'OWN' && carrierName != null ? (
           <span className="dispatch-assignment-cell__plate is-placeholder">Chưa phân xe</span>
+        ) : row.dispatch.carrierType === 'EXTERNAL' && !currentPlate ? (
+          <WaitingPlateChip />
         ) : null}
         {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
           <span className={`dispatch-assignment-cell__driver${row.dispatch.assignedDriverName ? '' : ' is-placeholder'}`} title={row.dispatch.assignedDriverName || undefined}>
