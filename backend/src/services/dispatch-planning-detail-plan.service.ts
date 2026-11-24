@@ -28,7 +28,7 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { and, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification } from '@tingting/shared';
+import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification, lclVehicleSourcingRule, LclVehicleSourcing } from '@tingting/shared';
 import * as s from '../db/schema';
 import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
 import { assertKepIssuingContainerClass, countDateOnlyTripClaims } from './dispatch-resource-availability.service';
@@ -1158,6 +1158,22 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   }
   if (shipment.version !== input.expectedShipmentVersion) {
     throw new ApiError(409, 'Lô hàng đã thay đổi. Vui lòng tải lại.');
+  }
+
+  // SIL-939 (KB §9.2 K9.9, FB-090 sourcing law — same refusal the LCL cost
+  // group assignment already carries in lcl-grouping.service.ts): an LCL lot
+  // whose cost vehicle class is a TRUCK tonnage is 100% xe ngoài — the plan
+  // editor can never assign the internal fleet to it. Container classes keep
+  // both sources. A lot with no cost class is not judged (never guess the
+  // kind). Runs before any write so the refusal stays all-or-nothing.
+  if (input.carrierType === 'OWN' && shipment.cargoMode === 'LCL' && shipment.costVehicleClassId != null) {
+    const [costClass] = await tx.select({ isContainer: s.vehicleSizeClasses.isContainer, code: s.vehicleSizeClasses.code })
+      .from(s.vehicleSizeClasses)
+      .where(eq(s.vehicleSizeClasses.id, shipment.costVehicleClassId))
+      .limit(1);
+    if (costClass && lclVehicleSourcingRule(costClass.isContainer) === LclVehicleSourcing.EXTERNAL_ONLY) {
+      throw new ApiError(400, `Hàng lẻ xe tải 100% xe ngoài — không thể chọn Đội xe nội bộ (loại xe ${costClass.code}). Chọn Nhà xe (xe ngoài).`);
+    }
   }
 
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)

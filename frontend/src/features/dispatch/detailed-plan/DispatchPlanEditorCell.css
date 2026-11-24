@@ -359,6 +359,13 @@
   font-size: var(--text-caption-size);
 }
 
+/* SIL-939 — the LCL-truck sourcing rule line under the Nhà xe field. */
+.dispatch-assignment-dialog__hint {
+  margin: 0;
+  color: var(--fg-2);
+  font-size: var(--text-caption-size);
+}
+
 .dispatch-assignment-dialog__issue-driver {
   margin: 0;
   font-size: var(--fs-3xs);
