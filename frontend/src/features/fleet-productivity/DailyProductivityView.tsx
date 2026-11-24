@@ -19,7 +19,7 @@ const DAILY_HEADERS = [
   'Lấy lẻ chuyển kho',
   'Chuyến đơn',
   '% Năng suất cao',
-  'Mã chuyến chạy',
+  'Số Bill/Booking',
 ] as const;
 
 function getTodayString(): string {
@@ -170,11 +170,13 @@ export function DailyProductivityView() {
                         <PctUnit value={row.breakdown.highEfficiencyPct} />
                       </td>
                       <td>
+                        {/* KB §1.4.3 (V25): chips carry the Bill/Booking — the
+                            internal TRP-* code never renders on this screen. */}
                         <div className="fleet-trip-chips">
-                          {row.tripCodes.length > 0 ? (
-                            row.tripCodes.map((code) => (
-                              <span key={code} className="fleet-trip-chip">
-                                {code}
+                          {row.tripReferences.length > 0 ? (
+                            row.tripReferences.map((reference) => (
+                              <span key={reference} className="fleet-trip-chip">
+                                {reference}
                               </span>
                             ))
                           ) : (

@@ -1,8 +1,10 @@
-// SIL-862 — /dispatch (Kế hoạch Tổng quát) và /dispatch-detail phải mở cho 2
-// tài khoản repro của ticket: hoangnh (role OPS 'Vận hành' — ghế "Vận hành /
-// Điều vận" theo cách gọi ticket) và hoapt (Kế toán), KHÔNG denial toast.
-// Ghế Điều vận (DISPATCHER) giữ nguyên bảng. Vai thật sự sai quyền (CUS) vẫn
-// bị chặn CÓ thông báo — toast quyền chỉ hiện khi sai quyền thật.
+// SIL-862 — /dispatch (Kế hoạch Tổng quát) mở cho 2 tài khoản repro của ticket:
+// hoangnh (role OPS 'Vận hành' — ghế "Vận hành / Điều vận" theo cách gọi ticket)
+// và hoapt (Kế toán), KHÔNG denial toast. Ghế Điều vận (DISPATCHER) giữ nguyên
+// bảng. SIL-915 (KB audit 24/11) thu lại premise SIL-694 cho BẢNG CHI TIẾT:
+// /dispatch-detail trả 403 cho 8 request dữ liệu của OPS, nên vai này bị chuyển
+// hướng thân thiện về trang chủ vai trò (/ops/orders) thay vì thấy trang lỗi.
+// Vai thật sự sai quyền (CUS) vẫn bị chặn CÓ thông báo.
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -36,6 +38,7 @@ vi.mock('./components/Layout', () => ({
 vi.mock('./pages/MasterPlanPage', () => ({ default: () => <div data-testid="master-plan">Kế hoạch Tổng quát</div> }));
 vi.mock('./pages/DispatchDetailPlanPage', () => ({ default: () => <div data-testid="detail-plan">Kế hoạch Chi tiết</div> }));
 vi.mock('./pages/ShipmentsPage', () => ({ default: () => <div data-testid="shipments-page">Tổng quan lô hàng</div> }));
+vi.mock('./pages/OpsOrdersPage', () => ({ default: () => <div data-testid="ops-orders">Kế hoạch làm hàng</div> }));
 
 import { ToastProvider } from './components/shared/Toast';
 import { AppRoutes } from './App';
@@ -74,11 +77,12 @@ describe('SIL-862 — /dispatch mở cho đúng vai, không denial toast', () =>
     expect(screen.queryByText(DENIAL_TEXT)).toBeNull();
   });
 
-  it('OPS mở /dispatch-detail (bảng điều vận đọc được — premise SIL-694)', async () => {
+  it('OPS gõ thẳng /dispatch-detail bị chuyển về trang chủ vai trò (/ops/orders) kèm thông báo — 8 request dữ liệu của bảng 403 cho vai này', async () => {
     authState.role = 'OPS';
     renderAt('/dispatch-detail');
-    expect(await screen.findByTestId('detail-plan')).toBeTruthy();
-    expect(screen.queryByText(DENIAL_TEXT)).toBeNull();
+    expect(await screen.findByText(DENIAL_TEXT)).toBeTruthy();
+    expect(screen.queryByTestId('detail-plan')).toBeNull();
+    expect(await screen.findByTestId('ops-orders')).toBeTruthy();
   });
 
   it('ACCOUNTANT mở /dispatch-detail (bảng điều vận đọc được — premise SIL-694)', async () => {

@@ -11,7 +11,7 @@ import {
 } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { classifyTripRun } from './trip-run-shape';
+import { classifyTripRun, distinctTripReferences, tripBusinessReference } from './trip-run-shape';
 
 /** Compute breakdown and percentages with round2dp precision. */
 export function computeProductivityBreakdown(
@@ -92,7 +92,7 @@ export async function getDailyFleetProductivity(date: string): Promise<DailyFlee
   const trips = await db
     .select({
       tripId: s.trips.id,
-      tripCode: s.trips.tripCode,
+      customerReference: s.trips.customerReference,
       truckId: s.trips.truckId,
       departureDate: s.trips.departureDate,
       activeTripPairId: s.trips.activeTripPairId,
@@ -111,7 +111,7 @@ export async function getDailyFleetProductivity(date: string): Promise<DailyFlee
       )
     );
 
-  const tripsByTruck = new Map<number, Array<{ code: string; cat: FleetProductivityClassification }>>();
+  const tripsByTruck = new Map<number, Array<{ reference: string; cat: FleetProductivityClassification }>>();
   const allFleetCategories: FleetProductivityClassification[] = [];
 
   for (const trip of trips) {
@@ -124,7 +124,9 @@ export async function getDailyFleetProductivity(date: string): Promise<DailyFlee
     allFleetCategories.push(cat);
 
     const list = tripsByTruck.get(trip.truckId) ?? [];
-    list.push({ code: trip.tripCode ?? `TRIP-${trip.tripId}`, cat });
+    // KB §1.4.3 (V25): the report names runs by the Bill/Booking, never the
+    // internal TRP-* code.
+    list.push({ reference: tripBusinessReference(trip.customerReference), cat });
     tripsByTruck.set(trip.truckId, list);
   }
 
@@ -138,7 +140,7 @@ export async function getDailyFleetProductivity(date: string): Promise<DailyFlee
       licensePlate: t.licensePlate,
       driverName: t.driverName ?? null,
       breakdown,
-      tripCodes: runs.map((r) => r.code),
+      tripReferences: distinctTripReferences(runs, (r) => r.reference),
     };
   });
 

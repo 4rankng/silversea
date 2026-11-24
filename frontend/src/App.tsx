@@ -376,6 +376,18 @@ function AppRoutesInner() {
       ? el
       : <DeniedRedirect to={homeRedirect} />
   );
+  // SIL-915 (KB audit 24/11, §1.2.1 + §1.5.6) — the DETAIL dispatch grid is a
+  // dispatcher/office board: its pricing/driver/route lookups 403 for OPS, so
+  // rendering the page left hoangnh on a red "Không thể tải kế hoạch chi tiết"
+  // screen behind 8 failed loads. OPS keeps the master plan (/dispatch, board
+  // READ set above) but bounces to the role home (/ops/orders) on
+  // /dispatch-detail — superseding the SIL-694 premise that OPS reads the
+  // detail grid.
+  const dispatchDetailBoardOnly = (el: ReactElement) => (
+    isAdmin || currentRole === Role.MANAGER || isDispatcher || currentRole === Role.ACCOUNTANT
+      ? el
+      : <DeniedRedirect to={homeRedirect} />
+  );
   // FB-101 (card 141026230780) — chấm công KHÔNG bị ẩn với kế toán: lưới xem
   // được cho cả ACCOUNTANT (đối chiếu ở /timesheet/doi-chieu). SIL-862 — thêm
   // OPS: tài khoản repro hoangnh (role OPS 'Vận hành', NV003) là ghế thao tác
@@ -492,7 +504,7 @@ function AppRoutesInner() {
               carrier allocation), /dispatch-detail = Kế hoạch Chi tiết
               (auto-split container grid with plate assignment). */}
           <Route path="/dispatch" element={dispatchBoardOnly(page(<MasterPlanPage />))} />
-          <Route path="/dispatch-detail" element={dispatchBoardOnly(page(<DispatchDetailPlanPage />))} />
+          <Route path="/dispatch-detail" element={dispatchDetailBoardOnly(page(<DispatchDetailPlanPage />))} />
           {/* Dispatcher resource catalogs — read-only lookups for staffing
               dispatch plans. ADMIN/MANAGER keep their full /fleet workspace. */}
           <Route path="/fleet/vehicles" element={dispatchOnly(page(<FleetVehiclesPage />))} />

@@ -88,7 +88,7 @@ const daily = {
       pctDon: 8.33,
       highEfficiencyPct: 100,
     },
-    tripCodes: ['T-001', 'T-002'],
+    tripReferences: ['T-001', 'T-002'],
   }],
   fleetBreakdown: {
     totalTrips: 25,

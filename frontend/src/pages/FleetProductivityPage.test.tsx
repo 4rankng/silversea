@@ -56,7 +56,7 @@ const mockDailyData: DailyFleetProductivityResponse = {
         pctDon: 16.67,
         highEfficiencyPct: 83.33,
       },
-      tripCodes: ['TRP-001', 'TRP-002'],
+      tripReferences: ['BL-LM-2026-001', 'BL-LM-2026-002'],
     },
     {
       truckId: 2,
@@ -74,7 +74,7 @@ const mockDailyData: DailyFleetProductivityResponse = {
         pctDon: 0,
         highEfficiencyPct: 100,
       },
-      tripCodes: ['TRP-003'],
+      tripReferences: ['BL-LM-2026-003'],
     },
   ],
 };
@@ -178,6 +178,16 @@ describe('FleetProductivityPage', () => {
     expect(screen.getByText('Nguyễn Văn A')).toBeTruthy();
     expect(screen.getByText('Trần Văn B')).toBeTruthy();
     expect(screen.getByText('TỔNG CỘNG TOÀN ĐỘI')).toBeTruthy();
+  });
+
+  it('names the day runs by Số Bill/Booking — the internal TRP-* code never renders (KB §1.4.3 V25)', async () => {
+    renderPage();
+
+    expect(await screen.findByText('BL-LM-2026-001')).toBeTruthy();
+    expect(screen.getByText('BL-LM-2026-002')).toBeTruthy();
+    expect(screen.getByText('BL-LM-2026-003')).toBeTruthy();
+    expect(screen.getByText('Số Bill/Booking')).toBeTruthy();
+    expect(screen.queryByText('Mã chuyến chạy')).toBeNull();
   });
 
   it('switches to monthly tab and displays monthly truck table and summary footer', async () => {

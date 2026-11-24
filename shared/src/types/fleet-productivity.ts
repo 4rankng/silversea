@@ -18,7 +18,9 @@ export interface DailyFleetTruckRow {
   licensePlate: string;
   driverName: string | null;
   breakdown: FleetProductivityBreakdown;
-  tripCodes: string[];
+  /** Distinct Bill/Booking references of the day's runs — business keys only,
+   * internal TRP-* codes never reach this list (KB §1.4.3 / V25). */
+  tripReferences: string[];
 }
 
 export interface DailyFleetProductivityResponse {
