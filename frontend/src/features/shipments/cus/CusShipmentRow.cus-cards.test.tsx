@@ -144,11 +144,14 @@ function renderRow(item: ShipmentCusWorkspaceListItem, dateFilter: { from?: stri
 
 describe('CusShipmentRow — card 191026181942 (tổng quan hàng lẻ)', () => {
   // Card 261022213755c (TiepVu 22/10-2): the direction badge itself names
-  // the cargo mode for LCL lots — "Nhập lẻ"/"Xuất lẻ" in the same
-  // cus-direction-badge pill, FCL rows keep the plain "Nhập"/"Xuất".
+  // the cargo mode for LCL lots in the same cus-direction-badge pill, FCL
+  // rows keep the plain "Nhập"/"Xuất". SIL-928 (KB §2.2.1 K2.18, §3.1.4
+  // K3.8): the LCL pill reads the shared KB label "NHẬP LẺ"/"XUẤT LẺ" —
+  // same vocabulary as the /dispatch merged badge (lclLot.ts), never a
+  // case variant like the old "Nhập lẻ"/"Xuất lẻ".
   it.each([
-    { cargoMode: 'LCL', direction: 'IMPORT', expected: 'Nhập lẻ' },
-    { cargoMode: 'LCL', direction: 'EXPORT', expected: 'Xuất lẻ' },
+    { cargoMode: 'LCL', direction: 'IMPORT', expected: 'NHẬP LẺ' },
+    { cargoMode: 'LCL', direction: 'EXPORT', expected: 'XUẤT LẺ' },
     { cargoMode: 'FCL', direction: 'IMPORT', expected: 'Nhập' },
     { cargoMode: 'FCL', direction: 'EXPORT', expected: 'Xuất' },
   ] as const)('direction badge reads "$expected" for $cargoMode $direction', ({ cargoMode, direction, expected }) => {

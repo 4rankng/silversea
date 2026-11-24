@@ -75,7 +75,7 @@ export function mapCusWorksheetRow(item: ShipmentCusWorkspaceListItem): string[]
     // number. Emitting one number per lot silently dropped the rest.
     [item.billOrBookNumber ?? '', declarationNumbersFor(item).join(', ')].filter(Boolean).join('\n'),
     // Card 261022213755c (SIL-504 sweep): the sheet mirrors the board badge —
-    // an LCL lot exports "Nhập lẻ"/"Xuất lẻ" exactly like the cell shows;
+    // an LCL lot exports "NHẬP LẺ"/"XUẤT LẺ" exactly like the cell shows;
     // the bare direction call printed plain "Nhập" and contradicted it.
     [directionLabel(item.direction, item.cargoMode), item.shippingLineName ?? '', item.isCombined ? 'Đóng kết hợp' : ''].filter(Boolean).join('\n'),
     [cargoModeLabel(item.cargoMode), item.containerSummary || worksheetQuantity(item), formatWeight(item.weightKg) === '—' ? '' : formatWeight(item.weightKg), item.volumeCbm ? `${formatQuantity(item.volumeCbm)} CBM` : ''].filter(Boolean).join('\n'),

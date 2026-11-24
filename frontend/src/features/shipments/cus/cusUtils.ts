@@ -39,12 +39,15 @@ export function directionLabel(
   direction: ShipmentCusWorkspaceListItem['direction'],
   cargoMode?: ShipmentCusWorkspaceListItem['cargoMode'],
 ): string {
-  // Card 261022213755c (TiepVu 22/10-2): hàng lẻ đọc "Nhập lẻ"/"Xuất lẻ"
-  // ngay trên badge direction — lô lẻ phân biệt rõ với cont trong cùng một
-  // pill, không thêm chrome thứ hai (owner ruling: classification là thông
-  // tin, không phải control).
-  if (direction === 'IMPORT') return cargoMode === 'LCL' ? 'Nhập lẻ' : 'Nhập';
-  if (direction === 'EXPORT') return cargoMode === 'LCL' ? 'Xuất lẻ' : 'Xuất';
+  // Card 261022213755c (TiepVu 22/10-2): hàng lẻ đọc badge direction ngay
+  // trên dòng — lô lẻ phân biệt rõ với cont trong cùng một pill, không thêm
+  // chrome thứ hai (owner ruling: classification là thông tin, không phải
+  // control). SIL-928 (KB §2.2.1 K2.18, §3.1.4 K3.8): chữ badge lô lẻ là
+  // 'NHẬP LẺ'/'XUẤT LẺ' đúng chữ KB — cùng bộ label với badge gộp trên
+  // /dispatch (lclLot.ts), không tạo biến thể chữ mới; FCL giữ 'Nhập'/'Xuất'
+  // theo ruling card 261022213755c.
+  if (direction === 'IMPORT') return cargoMode === 'LCL' ? 'NHẬP LẺ' : 'Nhập';
+  if (direction === 'EXPORT') return cargoMode === 'LCL' ? 'XUẤT LẺ' : 'Xuất';
   return '—';
 }
 

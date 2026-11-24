@@ -93,16 +93,17 @@ describe('mapCusWorksheetRow', () => {
     expect(row[1]).toBe('BL123\nTK-FIRST, TK-SECOND, TK-THIRD');
   });
 
-  it('mirrors the board direction badge: an LCL lot exports "Xuất lẻ", a cont lot plain "Xuất" (SIL-504)', () => {
+  it('mirrors the board direction badge: an LCL lot exports "XUẤT LẺ", a cont lot plain "Xuất" (SIL-504 + SIL-928)', () => {
     // Card 261022213755c sweep: the exported sheet must not contradict the
-    // badge the same row shows on screen.
+    // badge the same row shows on screen (SIL-928: the LCL pill reads the
+    // shared KB label "NHẬP LẺ"/"XUẤT LẺ" — the sheet follows).
     const lcl = mapCusWorksheetRow(makeItem({ cargoMode: 'LCL' }));
-    expect(lcl[2]).toContain('Xuất lẻ');
+    expect(lcl[2]).toContain('XUẤT LẺ');
     const lclImport = mapCusWorksheetRow(makeItem({ cargoMode: 'LCL', direction: 'IMPORT' }));
-    expect(lclImport[2]).toContain('Nhập lẻ');
+    expect(lclImport[2]).toContain('NHẬP LẺ');
     const fcl = mapCusWorksheetRow(makeItem());
     expect(fcl[2]).toContain('Xuất');
-    expect(fcl[2]).not.toContain('Xuất lẻ');
+    expect(fcl[2]).not.toContain('XUẤT LẺ');
   });
 
   it('falls back to the single number when the wire carries no declarationNumbers', () => {
