@@ -288,6 +288,8 @@ export type {
   ShipmentCusWorkspaceDetail,
   ShipmentCusWorkspaceListResponse,
   ShipmentCusContainerFlatRow,
+  ShipmentCusFreightGroups,
+  ShipmentCusFreightCell,
   ShipmentCusContainerFlatResponse,
   ShipmentCusFinanceConfirmationCreateInput,
   ShipmentCusDocumentCustodyUpdateInput,

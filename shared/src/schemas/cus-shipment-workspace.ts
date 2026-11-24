@@ -816,6 +816,31 @@ export const shipmentRecoveryRecordResultSchema = z.object({
   fact: shipmentCusWorkspaceRecoveryFactSchema,
 }).strict();
 
+// KB Ch.3 §3.1.7 / Ch.10 §10.1.4 — one freight cell: the component amount
+// (money string, null = chưa xác định — never a fabricated 0) plus the invoice
+// numbers of the entries behind it. The board renders the pair in ONE cell,
+// two lines: amount on top, invoice number(s) below.
+const shipmentCusFreightCellSchema = z.object({
+  amount: z.string().nullable(),
+  invoiceNumbers: z.array(z.string()).optional(),
+}).strict();
+const shipmentCusFreightSideSchema = z.object({
+  transport: shipmentCusFreightCellSchema,
+  handling: shipmentCusFreightCellSchema,
+  incidental: shipmentCusFreightCellSchema,
+  total: z.string().nullable(),
+}).strict();
+const shipmentCusFreightGroupsSchema = z.object({
+  outbound: shipmentCusFreightSideSchema,
+  inbound: shipmentCusFreightSideSchema,
+  chiHo: z.object({
+    csht: shipmentCusFreightCellSchema,
+    lift: shipmentCusFreightCellSchema,
+    drop: shipmentCusFreightCellSchema,
+    other: shipmentCusFreightCellSchema,
+  }).strict(),
+}).strict();
+
 export const shipmentCusContainerFlatRowSchema = z.object({
   // Row identity for the workboard's edit sessions and React keys. Positive =
   // the real shipment_containers id. Negative = a lot-level row for a
@@ -950,6 +975,11 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   routeEditable: z.boolean(),
   customerAppointmentEditable: z.boolean(),
   scheduleEditable: z.boolean(),
+  // SIL-945 (KB §3.1.7 / §10.1.4) — the three freight column groups
+  // (Cước đầu ra · Cước đầu vào · Phí chi hộ) with the 2-line amount+invoice
+  // cells. Optional so producers that predate the field keep parsing; the
+  // board renders '—' for a missing group instead of inventing zeros.
+  freightGroups: shipmentCusFreightGroupsSchema.optional(),
 }).strict();
 
 export const shipmentCusContainerFlatResponseSchema = z.object({
@@ -999,6 +1029,8 @@ export type ShipmentCusWorkspacePassThroughCharge = z.infer<typeof shipmentCusWo
 export type ShipmentCusWorkspaceRecoveryFact = z.infer<typeof shipmentCusWorkspaceRecoveryFactSchema>;
 export type ShipmentCusWorkspaceContainerLine = z.infer<typeof shipmentCusWorkspaceContainerLineSchema>;
 export type ShipmentCusContainerFlatRow = z.infer<typeof shipmentCusContainerFlatRowSchema>;
+export type ShipmentCusFreightGroups = z.infer<typeof shipmentCusFreightGroupsSchema>;
+export type ShipmentCusFreightCell = z.infer<typeof shipmentCusFreightCellSchema>;
 export type ShipmentCusContainerFlatResponse = z.infer<typeof shipmentCusContainerFlatResponseSchema>;
 export type ShipmentCusWorkspaceDetail = z.infer<typeof shipmentCusWorkspaceDetailSchema>;
 export type ShipmentCusWorkspaceListResponse = z.infer<typeof shipmentCusWorkspaceListResponseSchema>;

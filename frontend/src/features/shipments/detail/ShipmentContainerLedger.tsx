@@ -5,6 +5,7 @@ import { CalendarOff, ChevronDown } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
+  ShipmentCusFreightCell,
   ShipmentCusWorkspaceContainerLine,
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';
@@ -35,7 +36,7 @@ import { formatVietnamDateTimeInput, revOutputGroupLock } from '../../../lib/shi
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { NameCell } from '../../../components/shared/NameCell';
-import { formatDateTimeShort, formatISODate, stripDecimalTrailingZeros } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate, formatNumber, stripDecimalTrailingZeros } from '../../../lib/format';
 import '../../../styles/table-sort.css';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 import { modeLabelForTrigger, type ShipmentDetailEditMode } from './edit-mode';
@@ -893,6 +894,23 @@ function InlineEditor({
 }
 
 /**
+ * SIL-945 — one freight cell, KB §10.1.4's shared two-line shape: the amount
+ * on top ('—' = chưa xác định, never a fabricated 0), the contributing
+ * invoice numbers below, one per line. The Tổng cước cell renders amount-only.
+ */
+function FreightMoneyCell({ amount, invoices }: { amount: string | null; invoices?: readonly string[] }) {
+  const invoiceList = (invoices ?? []).filter((invoice) => invoice.trim() !== '');
+  return (
+    <div className="shipment-container-ledger__money">
+      <strong className="shipment-container-ledger__money-amount">{formatNumber(amount)}</strong>
+      {invoiceList.map((invoice) => (
+        <span key={invoice} className="shipment-container-ledger__money-invoice">HĐ: {invoice}</span>
+      ))}
+    </div>
+  );
+}
+
+/**
  * The ledger's columns in table order (card 20260928_193). The ledger owns the
  * keys because it owns the cells they name; the page reads this list to build the
  * picker, so the two can never disagree about what exists.
@@ -910,6 +928,12 @@ export const LEDGER_COLUMNS: readonly LedgerColumn[] = [
   { key: 'route', label: 'Nâng / hạ' },
   { key: 'schedule', label: 'Lịch trình' },
   { key: 'vehicle', label: 'Phân xe' },
+  // SIL-945 (KB Ch.3 §3.1.7 / Ch.10 §10.1.4) — the three freight column
+  // groups. Each key owns FOUR physical columns (one band row per group);
+  // the picker toggles a whole group, the cells stay read-only money.
+  { key: 'outboundFreight', label: 'Cước đầu ra' },
+  { key: 'inboundFreight', label: 'Cước đầu vào' },
+  { key: 'chiHo', label: 'Phí chi hộ' },
   { key: 'notes', label: 'Ghi chú', defaultHidden: true },
   { key: 'status', label: 'Trạng thái' },
 ];
@@ -938,6 +962,20 @@ const LEDGER_COL_WIDTHS: Readonly<Record<string, number>> = {
   route: 120,
   schedule: 125,
   vehicle: 105,
+  // SIL-945 freight groups: money tracks hold a 9-digit vi-VN amount
+  // ("39.952.000" ≈ 76px) plus cell padding; Tổng cước carries the sum.
+  outTransport: 96,
+  outHandling: 92,
+  outIncidental: 92,
+  outTotal: 96,
+  inTransport: 96,
+  inHandling: 92,
+  inIncidental: 92,
+  inTotal: 96,
+  chihoCsht: 92,
+  chihoLift: 92,
+  chihoDrop: 92,
+  chihoOther: 92,
   notes: 120,
   status: 115,
 };
@@ -1108,10 +1146,27 @@ export function ShipmentContainerLedger({
     isHidden('route') ? '' : 'route',
     isHidden('schedule') ? '' : 'schedule',
     isHidden('vehicle') ? '' : 'vehicle',
+    // SIL-945 — the freight groups ride the same rendered-set law: hidden
+    // groups drop all four of their tracks from the floor sum.
+    ...(!isHidden('outboundFreight') ? ['outTransport', 'outHandling', 'outIncidental', 'outTotal'] : []),
+    ...(!isHidden('inboundFreight') ? ['inTransport', 'inHandling', 'inIncidental', 'inTotal'] : []),
+    ...(!isHidden('chiHo') ? ['chihoCsht', 'chihoLift', 'chihoDrop', 'chihoOther'] : []),
     isHidden('notes') ? '' : 'notes',
     isHidden('status') ? '' : 'status',
   ].filter(Boolean);
   const tableMinWidth = renderedColKeys.reduce((sum, key) => sum + (LEDGER_COL_WIDTHS[key] ?? 0), 0);
+  // The band row's colSpans: the leading tracks (identity → Phân xe), the
+  // three group bands (4 tracks each), the trailing tracks (Ghi chú → Trạng
+  // thái). No visible group ⇒ no band row at all.
+  const freightGroupBand = ([
+    { key: 'outboundFreight', label: 'Cước đầu ra', firstCol: 'outTransport' },
+    { key: 'inboundFreight', label: 'Cước đầu vào', firstCol: 'inTransport' },
+    { key: 'chiHo', label: 'Phí chi hộ', firstCol: 'chihoCsht' },
+  ] as const).filter((group) => !isHidden(group.key));
+  const bandLeadSpan = freightGroupBand.length > 0 ? renderedColKeys.indexOf(freightGroupBand[0]!.firstCol) : 0;
+  const bandTrailSpan = freightGroupBand.length > 0
+    ? renderedColKeys.length - bandLeadSpan - freightGroupBand.length * 4
+    : 0;
   // SIL-877 (CR-009.1 EPIC 4.1): every CSS share is a proportion of the
   // spec-ten 1084px; this scale (1 for the default ten, ~0.967 with CHỌN,
   // ~0.915 with GHI CHÚ) re-bases them onto the rendered set so the rendered
@@ -1462,10 +1517,36 @@ export function ShipmentContainerLedger({
             {!isHidden('route') && <col className="shipment-container-ledger__col--route" />}
             {!isHidden('schedule') && <col className="shipment-container-ledger__col--schedule" />}
             {!isHidden('vehicle') && <col className="shipment-container-ledger__col--vehicle" />}
+            {/* SIL-945 — the three freight group bands (4 tracks each). */}
+            {!isHidden('outboundFreight') && <col className="shipment-container-ledger__col--out-transport" />}
+            {!isHidden('outboundFreight') && <col className="shipment-container-ledger__col--out-handling" />}
+            {!isHidden('outboundFreight') && <col className="shipment-container-ledger__col--out-incidental" />}
+            {!isHidden('outboundFreight') && <col className="shipment-container-ledger__col--out-total" />}
+            {!isHidden('inboundFreight') && <col className="shipment-container-ledger__col--in-transport" />}
+            {!isHidden('inboundFreight') && <col className="shipment-container-ledger__col--in-handling" />}
+            {!isHidden('inboundFreight') && <col className="shipment-container-ledger__col--in-incidental" />}
+            {!isHidden('inboundFreight') && <col className="shipment-container-ledger__col--in-total" />}
+            {!isHidden('chiHo') && <col className="shipment-container-ledger__col--chiho-csht" />}
+            {!isHidden('chiHo') && <col className="shipment-container-ledger__col--chiho-lift" />}
+            {!isHidden('chiHo') && <col className="shipment-container-ledger__col--chiho-drop" />}
+            {!isHidden('chiHo') && <col className="shipment-container-ledger__col--chiho-other" />}
             {!isHidden('notes') && <col className="shipment-container-ledger__col--notes" />}
             {!isHidden('status') && <col className="shipment-container-ledger__col--status" />}
           </colgroup>
-          <thead><tr>
+          <thead>
+            {/* SIL-945 — the KB §3.1.7 group band. Non-sticky (the sticky
+                contract stays on the column-name row below it); hidden while
+                every freight group is toggled off. */}
+            {freightGroupBand.length > 0 && (
+              <tr className="shipment-container-ledger__groups-row">
+                {bandLeadSpan > 0 && <th colSpan={bandLeadSpan} scope="colgroup" aria-hidden="true" />}
+                {freightGroupBand.map((group) => (
+                  <th key={group.key} colSpan={4} scope="colgroup">{group.label}</th>
+                ))}
+                {bandTrailSpan > 0 && <th colSpan={bandTrailSpan} aria-hidden="true" />}
+              </tr>
+            )}
+            <tr>
             {mergeMode && <th scope="col" className="shipment-container-ledger__col--select"><span className="sr-only">Chọn lô hàng lẻ để gộp</span></th>}
             <SortHeader label="Khách hàng &amp; lộ trình" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
             {/* SIL-863 Bảng 2 cột 2: the class feeds the nowrap header law in
@@ -1484,6 +1565,19 @@ export function ShipmentContainerLedger({
             {!isHidden('route') && <SortHeader label="Nâng / hạ" sortKey="liftSite" sort={sort} onSortChange={onSortChange} />}
             {!isHidden('schedule') && <SortHeader label="Lịch trình" sortKey="transportDate" sort={sort} onSortChange={onSortChange} />}
             {!isHidden('vehicle') && <SortHeader label="Phân xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />}
+            {/* SIL-945 — the freight tracks: read-only money, no sort key. */}
+            {!isHidden('outboundFreight') && <th scope="col" className="shipment-container-ledger__col--out-transport">Vận chuyển</th>}
+            {!isHidden('outboundFreight') && <th scope="col" className="shipment-container-ledger__col--out-handling">Làm hàng</th>}
+            {!isHidden('outboundFreight') && <th scope="col" className="shipment-container-ledger__col--out-incidental">Phát sinh</th>}
+            {!isHidden('outboundFreight') && <th scope="col" className="shipment-container-ledger__col--out-total">Tổng cước</th>}
+            {!isHidden('inboundFreight') && <th scope="col" className="shipment-container-ledger__col--in-transport">Vận chuyển</th>}
+            {!isHidden('inboundFreight') && <th scope="col" className="shipment-container-ledger__col--in-handling">Làm hàng</th>}
+            {!isHidden('inboundFreight') && <th scope="col" className="shipment-container-ledger__col--in-incidental">Phát sinh</th>}
+            {!isHidden('inboundFreight') && <th scope="col" className="shipment-container-ledger__col--in-total">Tổng cước</th>}
+            {!isHidden('chiHo') && <th scope="col" className="shipment-container-ledger__col--chiho-csht">CSHT</th>}
+            {!isHidden('chiHo') && <th scope="col" className="shipment-container-ledger__col--chiho-lift">Nâng</th>}
+            {!isHidden('chiHo') && <th scope="col" className="shipment-container-ledger__col--chiho-drop">Hạ</th>}
+            {!isHidden('chiHo') && <th scope="col" className="shipment-container-ledger__col--chiho-other">Khác</th>}
             {!isHidden('notes') && <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={onSortChange} />}
             {!isHidden('status') && <SortHeader label="Trạng thái" sortKey="dispatchStatus" sort={sort} onSortChange={onSortChange} />}
           </tr></thead>
@@ -1887,6 +1981,26 @@ export function ShipmentContainerLedger({
                       )}
                     </div>)}
                   </td>)}
+            {/* SIL-945 — the KB §3.1.7 freight cells: two-line money cell,
+                amount above, invoice number(s) below; '—' never a 0. */}
+            {!isHidden('outboundFreight') && (<>
+              <td data-label="Cước đầu ra · Vận chuyển"><FreightMoneyCell amount={row.freightGroups?.outbound.transport.amount ?? null} invoices={row.freightGroups?.outbound.transport.invoiceNumbers} /></td>
+              <td data-label="Cước đầu ra · Làm hàng"><FreightMoneyCell amount={row.freightGroups?.outbound.handling.amount ?? null} invoices={row.freightGroups?.outbound.handling.invoiceNumbers} /></td>
+              <td data-label="Cước đầu ra · Phát sinh"><FreightMoneyCell amount={row.freightGroups?.outbound.incidental.amount ?? null} invoices={row.freightGroups?.outbound.incidental.invoiceNumbers} /></td>
+              <td data-label="Cước đầu ra · Tổng cước"><FreightMoneyCell amount={row.freightGroups?.outbound.total ?? null} /></td>
+            </>)}
+            {!isHidden('inboundFreight') && (<>
+              <td data-label="Cước đầu vào · Vận chuyển"><FreightMoneyCell amount={row.freightGroups?.inbound.transport.amount ?? null} invoices={row.freightGroups?.inbound.transport.invoiceNumbers} /></td>
+              <td data-label="Cước đầu vào · Làm hàng"><FreightMoneyCell amount={row.freightGroups?.inbound.handling.amount ?? null} invoices={row.freightGroups?.inbound.handling.invoiceNumbers} /></td>
+              <td data-label="Cước đầu vào · Phát sinh"><FreightMoneyCell amount={row.freightGroups?.inbound.incidental.amount ?? null} invoices={row.freightGroups?.inbound.incidental.invoiceNumbers} /></td>
+              <td data-label="Cước đầu vào · Tổng cước"><FreightMoneyCell amount={row.freightGroups?.inbound.total ?? null} /></td>
+            </>)}
+            {!isHidden('chiHo') && (<>
+              <td data-label="Phí chi hộ · CSHT"><FreightMoneyCell amount={row.freightGroups?.chiHo.csht.amount ?? null} invoices={row.freightGroups?.chiHo.csht.invoiceNumbers} /></td>
+              <td data-label="Phí chi hộ · Nâng"><FreightMoneyCell amount={row.freightGroups?.chiHo.lift.amount ?? null} invoices={row.freightGroups?.chiHo.lift.invoiceNumbers} /></td>
+              <td data-label="Phí chi hộ · Hạ"><FreightMoneyCell amount={row.freightGroups?.chiHo.drop.amount ?? null} invoices={row.freightGroups?.chiHo.drop.invoiceNumbers} /></td>
+              <td data-label="Phí chi hộ · Khác"><FreightMoneyCell amount={row.freightGroups?.chiHo.other.amount ?? null} invoices={row.freightGroups?.chiHo.other.invoiceNumbers} /></td>
+            </>)}
 {!isHidden('notes') && (<td data-label="Ghi chú" className={cellClassName(row.shipmentNotesEditable, 'notes')}>
                     {editableCell(row, 'notes', row.shipmentNotesEditable, <div className="shipment-container-ledger__multiline shipment-container-ledger__notes">
                       {row.customerNotes && <strong>{displayNote(row.customerNotes)}</strong>}

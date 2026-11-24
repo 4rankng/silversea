@@ -145,6 +145,22 @@
   --led-w-route: 120px;
   --led-w-schedule: 125px;
   --led-w-vehicle: 105px;
+  /* SIL-945 freight tracks (KB §3.1.7): fixed px floors — the money cell
+     holds a 9-digit vi-VN amount and one invoice line. Fixed px tracks sit
+     beside the % share tracks; --led-share-scale re-bases only the ten spec
+     shares, so these never shift the chốt ladder. */
+  --led-w-out-transport: 96px;
+  --led-w-out-handling: 92px;
+  --led-w-out-incidental: 92px;
+  --led-w-out-total: 96px;
+  --led-w-in-transport: 96px;
+  --led-w-in-handling: 92px;
+  --led-w-in-incidental: 92px;
+  --led-w-in-total: 96px;
+  --led-w-chiho-csht: 92px;
+  --led-w-chiho-lift: 92px;
+  --led-w-chiho-drop: 92px;
+  --led-w-chiho-other: 92px;
   --led-w-notes: 120px;
   --led-w-status: 115px;
   /* SIL-872: the ticket's ten-column min-width sum — the share base the CSS
@@ -199,6 +215,33 @@
    wraps to two lines instead of inflating the column). Ticket share 10% /
    floor 105px (SIL-872). */
 .shipment-container-ledger__col--vehicle { width: calc(10% * var(--led-share-scale, 1)); min-width: var(--led-w-vehicle); }
+/* SIL-945 — the freight money tracks: fixed px width beside the re-based %
+   shares (table-layout: fixed honors the col width; the TSX floor sum grows
+   by the same 12 tracks so the scroll floor and the tracks never drift). */
+.shipment-container-ledger__col--out-transport,
+.shipment-container-ledger__col--out-total,
+.shipment-container-ledger__col--in-transport,
+.shipment-container-ledger__col--in-total { width: 96px; min-width: 96px; }
+.shipment-container-ledger__col--out-handling,
+.shipment-container-ledger__col--out-incidental,
+.shipment-container-ledger__col--in-handling,
+.shipment-container-ledger__col--in-incidental,
+.shipment-container-ledger__col--chiho-csht,
+.shipment-container-ledger__col--chiho-lift,
+.shipment-container-ledger__col--chiho-drop,
+.shipment-container-ledger__col--chiho-other { width: 92px; min-width: 92px; }
+/* SIL-945 — the KB §3.1.7 group band: one non-sticky header row above the
+   column-name row (the sticky top contract stays on the second row alone —
+   two stacked sticky rows would overlap at --sticky-thead-top). */
+.shipment-container-ledger thead tr.shipment-container-ledger__groups-row th { position: static; z-index: auto; padding: 6px 12px; border-bottom: 0; background: var(--surface-2); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--ops-table-header-weight); text-align: center; letter-spacing: 0.02em; }
+.shipment-container-ledger thead tr.shipment-container-ledger__groups-row + tr th { border-top: 0; }
+/* SIL-945 — the two-line money cell: amount on top, invoice numbers below
+   (KB §10.1.4 "dòng trên số tiền, dòng dưới số hóa đơn"). Amount never wraps
+   mid-number; invoice lines wrap at any character (tokens are free text) and
+   read muted under the amount. */
+.shipment-container-ledger__money { display: grid; gap: 2px; align-content: start; }
+.shipment-container-ledger__money-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.shipment-container-ledger__money-invoice { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; overflow-wrap: anywhere; }
 /* GHI CHÚ: a Cột-picker opt-in (the spec ten-column table opens without it;
    the TSX --led-min adds these 120px only while the picker shows the
    column). Share re-based onto the SIL-872 sum (120 ÷ 1084). */

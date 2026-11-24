@@ -9,6 +9,7 @@
  */
 import { Role, ShipmentCusBucket, ShipmentStatus, TripStatus, localDateInBusinessZone, type DispatchClassification, type ShipmentCusContainerQuery, type ShipmentCusWorkspaceDetail, type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceQuery, type ShipmentCusContainerFlatResponse, type ShipmentCusContainerFlatRow } from '@tingting/shared';
 import { and, asc, count, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { buildCusFreightGroups, loadCusFreightChannel } from './cus-container-freight-groups.service';
 
 
 import { db, type Executor } from '../db';
@@ -1522,6 +1523,25 @@ export async function listCusShipmentContainers(
         || line.permissions.dropoffSiteEditable
         || line.permissions.customerAppointmentEditable,
     });
+  }
+  // SIL-945 (KB §3.1.7 / §10.1.4) — the three freight column groups ride the
+  // page wire. Loaded AFTER the rows so a page with no money never pays for
+  // the three channel queries (same lazy-channel law as the rev manual read).
+  const freightTripIds = [...new Set(flatRows.map((row) => row.tripId).filter((value): value is number => value != null))];
+  const freightChannel = await loadCusFreightChannel({ shipmentIds, tripIds: freightTripIds });
+  const freightGroupsByRow = buildCusFreightGroups(
+    flatRows.map((row) => ({
+      shipmentId: row.shipmentId,
+      rowId: row.id,
+      tripId: row.tripId,
+      containerId: row.isLotLevel === true ? null : row.id,
+      isLotLevel: row.isLotLevel === true,
+      revFreightManual: row.revFreightManual ?? null,
+    })),
+    freightChannel,
+  );
+  for (const row of flatRows) {
+    row.freightGroups = freightGroupsByRow.get(row.id);
   }
   return {
     page: query.page,
