@@ -201,6 +201,32 @@ describe('SIL-938 — Enter trong form Sửa lô hàng = lưu + về danh sách 
     await waitFor(() => expect(screen.getByTestId('shipment-list')).toBeTruthy());
   });
 
+  it('1 Enter ở "Ngày giờ đóng trả" khi hộp "Chọn ngày giờ" đang mở vẫn lưu + thoát (QA 9a96af4a: click cell mở hộp, draft đầy đủ, Enter chỉ collapse ô)', async () => {
+    // Repro thật QA trên build 9a96af4a: click ô lịch → combined picker mở
+    // (cell reveal tự control.click()), draft điền đủ (chọn từ lịch/không
+    // gõ digit — digit-close không chạy), Enter trên segment input: luật cũ
+    // nuốt phím khi `active` (chỉ đóng hộp + blur = collapse) → form không
+    // bao giờ submit. Kỳ vọng KB K7.2: ĐÚNG 1 Enter lưu + về danh sách.
+    await openEditForm();
+    const table = screen.getByRole('table', { name: 'Danh sách container' });
+    const cell = table.querySelector<HTMLElement>('td[data-label^="Ngày giờ đóng trả"]')!;
+    fireEvent.click(cell);
+    // Hộp thoại combined đang mở — điều kiện tiền đề của repro FAIL.
+    await waitFor(() => expect(document.querySelector('.combined-datetime__popup')).toBeTruthy());
+    const seg = (key: string) => cell.querySelector<HTMLInputElement>(`input[data-seg="${key}"]`)!;
+    fireEvent.change(seg('dd'), { target: { value: '27' } });
+    fireEvent.change(seg('mm2'), { target: { value: '11' } });
+    fireEvent.change(seg('yyyy'), { target: { value: '2026' } });
+    fireEvent.change(seg('hh'), { target: { value: '08' } });
+    fireEvent.change(seg('mm'), { target: { value: '00' } });
+    expect(document.querySelector('.combined-datetime__popup')).toBeTruthy();
+    fireEvent.keyDown(seg('hh'), { key: 'Enter' });
+
+    await waitFor(() => expect(updateShipment).toHaveBeenCalledTimes(1));
+    expect(updateShipment).toHaveBeenCalledWith(186, expect.objectContaining({ expectedVersion: 7 }));
+    await waitFor(() => expect(screen.getByTestId('shipment-list')).toBeTruthy());
+  });
+
   it('form thiếu bắt buộc: Enter KHÔNG PATCH, không thoát — vẽ lỗi ở trường (nút Lưu thay đổi vẫn giữ hành vi cũ)', async () => {
     const declaration = await openEditForm();
     // Xoá Số Bill (IMPORT bắt buộc) rồi Enter.

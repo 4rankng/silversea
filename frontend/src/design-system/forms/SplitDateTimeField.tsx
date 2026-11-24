@@ -261,7 +261,14 @@ export function SplitDateTimeField({ id: suppliedId, label, value, onChange, onC
         // such hosts must answer Enter themselves. An incomplete/invalid
         // draft still swallows — it must never submit a stale timestamp.
         setTouched(true);
-        if (!active && !validation && !onCommit) return;
+        // SIL-938 (QA fail 9a96af4a): a COMPLETE draft on an onCommit-less
+        // host bubbles EVEN WITH the picker open — the combinedPicker click
+        // law opens the dialog on any field click (cell reveal fires
+        // control.click()), so hand-typed entries live with the panel up and
+        // the old `active` gate swallowed their Enter (field closed the
+        // panel, blurred, the form never saved). Close the panel and let the
+        // host form answer. Incomplete/invalid drafts keep the swallow.
+        if (!validation && !onCommit) { setOpen(null); return; }
         event.preventDefault(); event.stopPropagation();
         setOpen(null);
         if (!validation) { onCommit?.(parsed ?? ''); event.target.blur(); }
