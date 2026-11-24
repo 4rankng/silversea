@@ -104,9 +104,11 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const serverPhotoCount = serverPhotos.length;
   const missingReceipt = serverPhotoCount === 0 && entry.requiresInvoice === true;
   // SIL-966 (KB §8.1.3) — the same photo law as the create popup, read from
-  // the same shared category rule: a photo-less row of a photo-required kind
-  // cannot be re-saved; "Thêm ảnh" (open even on a locked row) cures it.
-  const receiptRequired = opsExpenseRequiresReceiptPhoto(typesData?.items.find((item) => item.code === typeCode)?.category);
+  // the same shared rule (category axis + structural code axis — QA FAIL
+  // 04:05 25/11: live data keeps "Phí nâng/hạ theo vùng" in PHAT_SINH): a
+  // photo-less row of a photo-required kind cannot be re-saved; "Thêm ảnh"
+  // (open even on a locked row) cures it.
+  const receiptRequired = opsExpenseRequiresReceiptPhoto(typesData?.items.find((item) => item.code === typeCode)?.category, typeCode);
   const receiptPhotoMissing = receiptRequired && serverPhotoCount === 0;
   const canSubmit = typesReady && !locked && Boolean(reason.trim()) && Boolean(typeCode) && amountValid && !updateExpense.isPending && !uploadingPhoto && pendingFiles.length === 0 && !receiptPhotoMissing;
 

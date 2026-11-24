@@ -214,11 +214,13 @@ export async function createOpsExpense(
     throw new ApiError(400, 'Số hóa đơn là bắt buộc với phí có hóa đơn.');
   }
   // SIL-966 (KB §8.1.3) — receipt photo REQUIRED for the nâng / hạ / Lưu-cont
-  // kinds (the shared category rule `opsExpenseRequiresReceiptPhoto`): a
-  // photo-less row of those kinds never saves. The FE blocks Lưu; a stale
-  // client or raw API call lands here — the same edge as the CR-010.1
+  // kinds (the shared rule `opsExpenseRequiresReceiptPhoto`, category axis +
+  // structural code axis — the QA FAIL 04:05 25/11 repro "Phí nâng/hạ theo
+  // vùng" carries PHAT_SINH in live data, so the code is the signal that
+  // holds): a photo-less row of those kinds never saves. The FE blocks Lưu; a
+  // stale client or raw API call lands here — the same edge as the CR-010.1
   // invoice-number law above.
-  if (opsExpenseRequiresReceiptPhoto(expenseType.category) && !input.photoStorageKeys?.length) {
+  if (opsExpenseRequiresReceiptPhoto(expenseType.category, input.expenseTypeCode) && !input.photoStorageKeys?.length) {
     throw new ApiError(400, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE);
   }
   await assertShipmentAccountingUnlocked(executor, input.shipmentId);
@@ -419,11 +421,13 @@ export async function updateOpsExpense(
     throw new ApiError(400, 'Số hóa đơn là bắt buộc với phí có hóa đơn.');
   }
   // SIL-966 (KB §8.1.3) — same law on edits: a photo-less row of a
-  // photo-required kind cannot be re-saved until its evidence exists. Photos
-  // ride the separate attach endpoint, which stays open even on a locked row
+  // photo-required kind cannot be re-saved until its evidence exists. The
+  // effective code rides beside the category (QA FAIL 04:05 25/11 — the
+  // structural code is the signal live data guarantees). Photos ride the
+  // separate attach endpoint, which stays open even on a locked row
   // ("bổ sung chứng từ"), so the author can always attach first and edit
   // after — the refusal never dead-ends a row.
-  if (opsExpenseRequiresReceiptPhoto(effectiveType.category)) {
+  if (opsExpenseRequiresReceiptPhoto(effectiveType.category, patch.expenseTypeCode ?? entry.expenseTypeCode)) {
     const [photo] = await executor
       .select({ id: s.opsExpensePhotos.id })
       .from(s.opsExpensePhotos)

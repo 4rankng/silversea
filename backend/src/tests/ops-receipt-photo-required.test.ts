@@ -2,19 +2,24 @@
 // Lưu-cont fee kinds on the Ops cash-expense write path. The QA repro
 // (staging df7b2a73) declared "Phí nâng/hạ theo vùng" with no photo and the
 // row saved; create and update now refuse with 400 while every other fee
-// kind keeps its optional-photo path. The rule itself (category → required)
-// lives in shared constants so the FE form and this write path can never
-// disagree; these tests pin the write side end-to-end.
+// kind keeps its optional-photo path. QA FAIL round 2 (04:05 25/11, build
+// 9a96af4a): the first cut keyed ONLY on the catalog category, but the live
+// ZONE_SURCHARGE row carries PHAT_SINH — the ladder classifies it as a
+// settlement bucket (card 20260919_3) and the fill-only seed never rewrites
+// an existing category — so the gate must also read the structural code. The
+// rule itself (code or category → required) lives in shared constants so the
+// FE form and this write path can never disagree; these tests pin the write
+// side end-to-end against the PRODUCTION row shape.
 // Fixture shape mirrors ops-no-invoice-container-required.test.ts (real dev
 // DB, tracked cleanup, unique suffix so no other suite can bleed in).
 import { after, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE, Role } from '@tingting/shared';
+import { OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE, opsExpenseRequiresReceiptPhoto, Role } from '@tingting/shared';
 import { disconnectRedis } from '../lib/redis';
 import { ApiError } from '../errors';
 import { attachOpsExpensePhoto, createOpsExpense, updateOpsExpense } from '../services/ops-expenses.service';
@@ -40,7 +45,7 @@ async function trackCreatedSource(expenseId: number) {
   if (source) track(s.expenseAccountingSources, source.id);
 }
 
-async function mkFixture(opts: { category: string | null }) {
+async function mkFixture(opts: { category: string | null; code?: string }) {
   const [user] = await db.insert(s.users).values({
     username: `s966-${suffix}-${cleanup.length}`, passwordHash: 't', role: Role.OPS, status: 'ACTIVE',
   }).returning({ id: s.users.id });
@@ -59,13 +64,31 @@ async function mkFixture(opts: { category: string | null }) {
     shipmentId: shipment.id, containerNumber: `S96U30543${cleanup.length % 10}`.slice(0, 11),
   }).returning({ id: s.shipmentContainers.id });
   track(s.shipmentContainers, container.id);
-  const [type] = await db.insert(s.forwarderExpenseTypes).values({
-    code: `S966_${opts.category ?? 'NOCAT'}_${suffix}_${cleanup.length}`,
-    name: `S966 loại phí ${cleanup.length}`, status: 'ACTIVE', requiresInvoice: false,
-    category: opts.category,
-  }).returning({ id: s.forwarderExpenseTypes.id, code: s.forwarderExpenseTypes.code });
-  track(s.forwarderExpenseTypes, type.id);
-  return { user: user.id, shipmentId: shipment.id, containerId: container.id, typeCode: type.code };
+  let type: { id: number; code: string | null };
+  if (opts.code != null) {
+    // The production-truth row: the fill-only seed owns this code, so reuse
+    // the live row when present (shared catalog data — never tracked for
+    // deletion) and only a fresh insert (empty dev DB) is cleanup-tracked.
+    const [existing] = await db.select({ id: s.forwarderExpenseTypes.id, code: s.forwarderExpenseTypes.code })
+      .from(s.forwarderExpenseTypes).where(eq(s.forwarderExpenseTypes.code, opts.code)).limit(1);
+    if (existing) {
+      type = existing;
+    } else {
+      [type] = await db.insert(s.forwarderExpenseTypes).values({
+        code: opts.code, name: 'Phí nâng/hạ theo vùng', status: 'ACTIVE', requiresInvoice: false,
+        category: opts.category,
+      }).returning({ id: s.forwarderExpenseTypes.id, code: s.forwarderExpenseTypes.code });
+      track(s.forwarderExpenseTypes, type.id);
+    }
+  } else {
+    [type] = await db.insert(s.forwarderExpenseTypes).values({
+      code: `S966_${opts.category ?? 'NOCAT'}_${suffix}_${cleanup.length}`,
+      name: `S966 loại phí ${cleanup.length}`, status: 'ACTIVE', requiresInvoice: false,
+      category: opts.category,
+    }).returning({ id: s.forwarderExpenseTypes.id, code: s.forwarderExpenseTypes.code });
+    track(s.forwarderExpenseTypes, type.id);
+  }
+  return { user: user.id, shipmentId: shipment.id, containerId: container.id, typeCode: type.code! };
 }
 
 after(async () => {
@@ -74,8 +97,26 @@ after(async () => {
 });
 
 describe('SIL-966 — phí nâng/hạ/Lưu cont bắt buộc ảnh chứng từ (BE hard gate)', () => {
+  test('the shared law fires on either axis — structural code or category — and stays quiet on a plain fee', () => {
+    // The QA FAIL 04:05 25/11 shape: live category PHAT_SINH, structural code ZONE_SURCHARGE.
+    assert.equal(opsExpenseRequiresReceiptPhoto('PHAT_SINH', 'ZONE_SURCHARGE'), true);
+    // A live row predating the category backfill carries NULL — the code alone must hold.
+    assert.equal(opsExpenseRequiresReceiptPhoto(null, 'ZONE_SURCHARGE'), true);
+    // The category axis still works alone (admin-classified row, custom code).
+    assert.equal(opsExpenseRequiresReceiptPhoto('ZONE_SURCHARGE', 'ZONE_HN'), true);
+    assert.equal(opsExpenseRequiresReceiptPhoto('DROP', 'S966_ANY'), true);
+    assert.equal(opsExpenseRequiresReceiptPhoto('LIFT', null), true);
+    // Plain fees stay optional.
+    assert.equal(opsExpenseRequiresReceiptPhoto('PHAT_SINH', 'FEE_CLEANING'), false);
+    assert.equal(opsExpenseRequiresReceiptPhoto(null, 'CUSTOM_FEE'), false);
+    assert.equal(opsExpenseRequiresReceiptPhoto(null, null), false);
+  });
+
   test('create: the QA repro fee (Phí nâng/hạ theo vùng, no photo) refuses with the KB message and writes nothing', async () => {
-    const fx = await mkFixture({ category: 'ZONE_SURCHARGE' });
+    // Production truth: the live row's category is PHAT_SINH (settlement
+    // bucket), so THIS case exercises the structural-code axis end-to-end —
+    // the axis the first cut missed.
+    const fx = await mkFixture({ code: 'ZONE_SURCHARGE', category: 'PHAT_SINH' });
     await assert.rejects(
       createOpsExpense(fx.user, {
         shipmentId: fx.shipmentId, expenseTypeCode: fx.typeCode, amount: '20000', paidAt: PAID_AT,
@@ -88,13 +129,15 @@ describe('SIL-966 — phí nâng/hạ/Lưu cont bắt buộc ảnh chứng từ 
         return true;
       },
     );
+    // Scoped to this fixture's lot: the reused production code legitimately
+    // carries other lots' rows in a seeded dev DB.
     const left = await db.select({ id: s.opsExpenseEntries.id }).from(s.opsExpenseEntries)
-      .where(eq(s.opsExpenseEntries.expenseTypeCode, fx.typeCode));
+      .where(and(eq(s.opsExpenseEntries.expenseTypeCode, fx.typeCode), eq(s.opsExpenseEntries.shipmentId, fx.shipmentId)));
     assert.deepEqual(left, []);
   });
 
   test('create: the same fee WITH a receipt photo still saves (the legal case stays open)', async () => {
-    const fx = await mkFixture({ category: 'ZONE_SURCHARGE' });
+    const fx = await mkFixture({ code: 'ZONE_SURCHARGE', category: 'PHAT_SINH' });
     const created = await createOpsExpense(fx.user, {
       shipmentId: fx.shipmentId, expenseTypeCode: fx.typeCode, amount: '20000', paidAt: PAID_AT,
       shipmentContainerIds: [fx.containerId],
@@ -135,7 +178,9 @@ describe('SIL-966 — phí nâng/hạ/Lưu cont bắt buộc ảnh chứng từ 
   });
 
   test('update: a photo-less row of a required kind cannot be re-saved; attaching the evidence reopens the edit', async () => {
-    const fx = await mkFixture({ category: 'LIFT' });
+    // The production code shape rides the edit path too — the update gate
+    // reads the effective (patch or stored) code beside the category.
+    const fx = await mkFixture({ code: 'ZONE_SURCHARGE', category: 'PHAT_SINH' });
     // The row enters the world WITH its photo (the create gate insists); the
     // test then strips it to reproduce legacy photo-less data directly.
     const created = await createOpsExpense(fx.user, {

@@ -140,10 +140,12 @@ function isEmptyDraft(draft: FeeDraft): boolean {
 const INVOICE_REQUIRED_MSG = 'Số hóa đơn là bắt buộc với phí có hóa đơn.';
 
 /** SIL-966 (KB §8.1.3) — the row's photo law reads the catalog row's
- *  `category` (the nâng / hạ / Lưu-cont kinds), the exact shared rule the
- *  write path enforces, so this popup and the server can never disagree. */
+ *  `category` AND its structural code (QA FAIL 04:05 25/11 — live data keeps
+ *  "Phí nâng/hạ theo vùng" in PHAT_SINH, so the code is the signal that
+ *  holds), the exact shared rule the write path enforces, so this popup and
+ *  the server can never disagree. */
 function receiptPhotoRequiredOf(typesData: FeeRowHost['typesData'], typeCode: string): boolean {
-  return opsExpenseRequiresReceiptPhoto(typesData?.items.find((type) => type.code === typeCode)?.category);
+  return opsExpenseRequiresReceiptPhoto(typesData?.items.find((type) => type.code === typeCode)?.category, typeCode);
 }
 
 function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft, receiptRequired = false): string | null {

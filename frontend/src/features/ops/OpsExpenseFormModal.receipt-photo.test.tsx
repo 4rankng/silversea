@@ -23,7 +23,16 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: authState.role =
 
 const types = {
   items: [
-    { id: 1, code: 'ZONE_SURCHARGE', name: 'Phí nâng/hạ theo vùng', requiresInvoice: false, category: 'ZONE_SURCHARGE' },
+    // QA FAIL 04:05 25/11 (build 9a96af4a) — production truth: the ladder
+    // classifies "Phí nâng/hạ theo vùng" PHAT_SINH (settlement bucket, card
+    // 20260919_3) and the fill-only seed never rewrites it, so the live row
+    // NEVER carries category 'ZONE_SURCHARGE'. The gate must fire on the
+    // structural CODE.
+    { id: 1, code: 'ZONE_SURCHARGE', name: 'Phí nâng/hạ theo vùng', requiresInvoice: false, category: 'PHAT_SINH' },
+    // The category axis still fires on its own — an admin-reclassified row
+    // (ForwarderExpenseTypesConfigPage offers 'Phụ phí vùng') or any custom
+    // code under a LIFT/DROP/ZONE_SURCHARGE category.
+    { id: 3, code: 'ZONE_HN', name: 'Phí nâng/hạ theo vùng (miền Bắc)', requiresInvoice: false, category: 'ZONE_SURCHARGE' },
     { id: 2, code: 'FEE_CLEANING', name: 'Vệ sinh container', requiresInvoice: false, category: 'PHAT_SINH' },
   ],
 };
@@ -91,6 +100,17 @@ describe('SIL-966 — phí nâng/hạ/Lưu cont bắt buộc ảnh chứng từ 
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
     expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'ZONE_SURCHARGE', amount: '20000', photoStorageKeys: ['ops-expense-photos/12/aaaa.jpg'] });
+    client.clear();
+  });
+
+  it('the category axis still fires on its own (admin-classified ZONE_SURCHARGE row)', async () => {
+    const { client, close } = show();
+    await chooseFee('Phí nâng/hạ theo vùng (miền Bắc)');
+    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '30000' } });
+
+    expect(screen.getByText('Ảnh chứng từ *')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
+    expect(api.createExpense).not.toHaveBeenCalled();
     client.clear();
   });
 

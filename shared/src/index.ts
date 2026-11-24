@@ -44,7 +44,7 @@ export {
   DEFAULT_SHIPPING_LINES,
   DEFAULT_VAT_RATE,
   ExpenseTypeCategory,
-  OPS_RECEIPT_REQUIRED_EXPENSE_CATEGORIES, opsExpenseRequiresReceiptPhoto, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE,
+  OPS_RECEIPT_REQUIRED_EXPENSE_CATEGORIES, OPS_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES, opsExpenseRequiresReceiptPhoto, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE,
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification, ContainerClassification, TradeDirection, LclCargoFitStatus, LclCargoFitAssessment, LclCargoFitInput } from './constants';
