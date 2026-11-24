@@ -5,12 +5,13 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { DebitMergeItem } from '@tingting/shared';
-import { listDebitMergeBoard, debitMergeKeys, lockShipmentCost, unlockShipmentCost, createDebitNoteBatch, exportDebitNoteFile } from '../../api/shipmentDebit';
+import { listDebitMergeBoard, debitMergeKeys, lockShipmentCost, unlockShipmentCost, createDebitNoteBatch } from '../../api/shipmentDebit';
 import {
   listSettlementRounds,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
   createSettlementRound,
   type AccountingDebitBoardRow,
+  type DebitNoteRoundPreview,
 } from '../../api/accountingDebitClient';
 import { tripClient } from '../../api/tripClient';
 import { useAuth } from '../../hooks/useAuth';
@@ -25,6 +26,7 @@ import { qk } from '../../api/keys';
 import { Skeleton } from '../../components/shared/Skeleton';
 import { Btn, Modal } from '../../components/UI';
 import { formatCurrency, formatMoney } from '../../lib/format';
+import { downloadCSV } from '../../lib/csv';
 import { DateRangeFields } from '../../design-system';
 import { filterDebitMergeRows, sortDebitMergeRowsDesc } from '../../features/accounting/debit-merge-view';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
@@ -84,9 +86,14 @@ export function DebitMergePage() {
   // SIL-866 (hotfix CR-009.1) — the [Xuất Debit Note] step lives HERE (the
   // Ghép bộ Debit chain Khóa lô → Chọn Debit → Xuất): the same preview-first
   // contract the chot-debit board ran — the preview reads the đợt's frozen
-  // basis, and only [Lưu] / [Lưu và tải file XLSX] push numbers to Công nợ.
+  // basis, and ONLY [Lưu] pushes numbers to Công nợ (KB K10.37 §10.6.9 +
+  // K10.46 §10.7.4): [Lưu và tải file XLSX] exports the preview as XLSX
+  // without creating a Debit Note.
   const [exportPreviewOpen, setExportPreviewOpen] = useState(false);
   const [exportingNote, setExportingNote] = useState(false);
+  // Pattern catch surface error.message (mẫu màn close): a save/export
+  // refusal reads verbatim INSIDE the preview dialog — never silent (SIL-971).
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [lockConfirmOpen, setLockConfirmOpen] = useState(false);
 
   // ShipmentDebitWorkspace's canLock law (ADMIN | ACCOUNTANT | CUS) — the
@@ -209,6 +216,7 @@ export function DebitMergePage() {
   );
   function requestExportDebitNote() {
     if (selectedRows.length === 0 || exportingNote) return;
+    setPreviewError(null);
     if (unlockedSelectedRows.length > 0) setLockConfirmOpen(true);
     else setExportPreviewOpen(true);
   }
@@ -220,11 +228,11 @@ export function DebitMergePage() {
       await lockShipmentCost(row.shipmentId, crypto.randomUUID());
     }
   };
-  /** The SAVE half (SIL-855 contract, verbatim from the board's flow): issues
-   *  the consolidated note for the CHOSEN ĐỢT — its full lot set — reconciles
-   *  the issued totals against the preview's, and the download is the
-   *  caller's choice. Nothing reaches Công nợ until a save button runs. */
-  async function saveDebitNote(payload: DebitNoteSavePayload): Promise<{ documentId: number; anchorShipmentId: number; fileNameBase: string }> {
+  /** The SAVE act (SIL-855 contract): [Lưu] issues the consolidated note for
+   *  the CHOSEN ĐỢT — its full lot set — and reconciles the issued totals
+   *  against the preview's. This is the ONLY act that pushes to Công nợ
+   *  (KB K10.37 §10.6.9 + K10.46 §10.7.4). */
+  async function saveDebitNote(payload: DebitNoteSavePayload): Promise<void> {
     if (payload.lotIds.length === 0) throw new Error('Không có lô nào được chọn.');
     const { id: documentId, totalNet, totalTax, totalGross } = await createDebitNoteBatch(payload.lotIds, payload.roundId);
     if (totalNet != null && (totalNet !== payload.totals.net || totalTax !== payload.totals.tax || totalGross !== payload.totals.gross)) {
@@ -236,33 +244,60 @@ export function DebitMergePage() {
       );
     }
     void queryClient.invalidateQueries({ queryKey: debitMergeKeys.all });
-    return {
-      documentId,
-      anchorShipmentId: payload.lotIds[0]!,
-      fileNameBase: selectedRows[0]?.billOrBookNumber || 'chua-xac-dinh',
-    };
   }
-  async function saveDebitNoteAndExit(download: boolean, payload: DebitNoteSavePayload) {
+  async function saveDebitNoteOnly(payload: DebitNoteSavePayload) {
     if (exportingNote) return;
     setExportingNote(true);
+    setPreviewError(null);
     try {
-      const { documentId, anchorShipmentId, fileNameBase } = await saveDebitNote(payload);
-      if (download) {
-        const blob = await exportDebitNoteFile(anchorShipmentId, documentId);
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `giay-bao-no-${fileNameBase}.xlsx`;
-        anchor.click();
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-      }
+      await saveDebitNote(payload);
       setExportPreviewOpen(false);
-      toast({ kind: 'success', message: `Đã lưu Debit Note (${payload.lotIds.length} lô, đợt ${payload.roundLabel}) — số liệu đã đẩy sang Công nợ.${download ? ' File XLSX đã tải.' : ''}` });
+      toast({ kind: 'success', message: `Đã lưu Debit Note (${payload.lotIds.length} lô, đợt ${payload.roundLabel}) — số liệu đã đẩy sang Công nợ.` });
     } catch (error) {
-      toast({
-        kind: 'error',
-        message: error instanceof Error && error.message ? error.message : 'Không lưu được Debit Note. Vui lòng thử lại.',
-      });
+      const message = error instanceof Error && error.message ? error.message : 'Không lưu được Debit Note. Vui lòng thử lại.';
+      setPreviewError(message);
+      toast({ kind: 'error', message });
+    } finally {
+      setExportingNote(false);
+    }
+  }
+  /** KB K10.37 §10.6.9 + K10.46 §10.7.4 — [Lưu và tải file XLSX] exports the
+   *  PREVIEW as XLSX (giấy báo nợ xem trước) and creates NO Debit Note: no
+   *  POST /shipments/debit-notes, nothing reaches Công nợ. */
+  async function downloadDebitNotePreview(preview: DebitNoteRoundPreview) {
+    if (exportingNote) return;
+    setExportingNote(true);
+    setPreviewError(null);
+    const roundLabel = `Lần ${preview.round.roundNo} · ${preview.round.periodKey}`;
+    try {
+      await downloadCSV(
+        `giay-bao-no-${selectedRows[0]?.billOrBookNumber || 'chua-xac-dinh'}.xlsx`,
+        ['Lô', 'Khách hàng', 'BKS báo khách', 'Tiền trước thuế'],
+        [
+          ...preview.items.map((item) => [
+            item.billOrBooking ?? `#${item.shipmentId}`,
+            item.customerName ?? preview.round.customerName ?? '—',
+            item.billingTruckNo?.trim() || '—',
+            item.net,
+          ]),
+          // 4 dòng tổng — cùng bảng xem trước trong hộp thoại.
+          ['Tổng tiền trước thuế', '', '', preview.totals.net],
+          ['Giảm giá', '', '', 0],
+          ['VAT', '', '', preview.totals.tax],
+          ['Tổng tiền sau thuế', '', '', preview.totals.gross],
+        ],
+        {
+          title: 'GIẤY BÁO NỢ',
+          subtitle: `Đợt ${roundLabel} · ${preview.round.customerName ?? '—'} · ${preview.round.direction === 'THU' ? 'Phải thu' : 'Phải trả'} · VAT ${preview.round.vatRate}%`,
+          columnTypes: ['text', 'text', 'text', 'currency'],
+          hideTotals: true,
+        },
+      );
+      toast({ kind: 'success', message: `Đã tải file XLSX (${preview.items.length} lô, đợt ${roundLabel}) — bản xem trước, chưa ghi công nợ.` });
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : 'Không xuất được file XLSX. Vui lòng thử lại.';
+      setPreviewError(message);
+      toast({ kind: 'error', message });
     } finally {
       setExportingNote(false);
     }
@@ -425,15 +460,16 @@ export function DebitMergePage() {
       {/* SIL-866 — the preview between [Xuất Debit Note] and the issue, ON the
           Ghép bộ Debit surface where the chain lives: gom theo đợt Lần/Tháng/
           Năm (server preview trên cùng nền khóa đông lạnh), 100% BKS báo
-          khách, 4 dòng tổng đối chiếu được; [Lưu] / [Lưu và tải file XLSX]
-          are the ONLY acts that push the đợt to Công nợ phải thu/trả. */}
+          khách, 4 dòng tổng đối chiếu được; ONLY [Lưu] pushes the đợt to
+          Công nợ phải thu/trả (KB K10.37 §10.6.9 + K10.46 §10.7.4). */}
       <DebitNotePreviewDialog
         open={exportPreviewOpen}
         customerIds={selectedCustomerIds}
         rounds={roundsQuery.data?.items ?? []}
         busy={exportingNote}
-        onSaveOnly={(payload) => void saveDebitNoteAndExit(false, payload)}
-        onSaveAndDownload={(payload) => void saveDebitNoteAndExit(true, payload)}
+        error={previewError}
+        onSaveOnly={(payload) => void saveDebitNoteOnly(payload)}
+        onDownloadXlsx={(preview) => void downloadDebitNotePreview(preview)}
         onClose={() => setExportPreviewOpen(false)}
       />
       {reasonDialog}

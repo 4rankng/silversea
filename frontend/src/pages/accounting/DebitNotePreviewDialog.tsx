@@ -5,6 +5,7 @@ import { Btn, Modal } from '../../components/UI';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import {
   getDebitNoteRoundPreview,
+  type DebitNoteRoundPreview,
   type DebitSettlementRoundRow,
 } from '../../api/accountingDebitClient';
 import { qk } from '../../api/keys';
@@ -16,12 +17,14 @@ import './DebitNotePreviewDialog.css';
  * chọn đợt, dialog kéo TOÀN BỘ lô của đợt đó từ server — tính trên CÙNG nền
  * khóa lô đông lạnh mà [Lưu] phát hành (buildFrozenShipmentDebitLines) —
  * nên 4 dòng tổng xem trước ≡ số Công nợ nhận, và mỗi dòng in 100% BKS báo
- * khách. The two explicit save acts hand (roundId, lot ids, totals) to the
+ * khách. KB K10.37 §10.6.9 + K10.46 §10.7.4: "2 nút [Lưu] / [Lưu và tải file
+ * Excel] — chỉ [Lưu] mới ghi vào công nợ." The buttons hand their acts to the
  * page:
  *   [Lưu]                    — ghi nhận Debit Note (đẩy số liệu sang Công nợ).
- *   [Lưu và tải file XLSX]   — the same save, then the XLSX download.
- * Nothing reaches Công nợ until one of the two save buttons runs, and no
- * đợt → no save (the money gate of the chốt law).
+ *   [Lưu và tải file XLSX]   — export the preview as XLSX for review — KHÔNG
+ *                              tạo Debit Note, không đụng Công nợ.
+ * Nothing reaches Công nợ until [Lưu] runs, and no đợt → no act (the money
+ * gate of the chốt law).
  */
 
 export interface DebitNoteSavePayload {
@@ -31,14 +34,19 @@ export interface DebitNoteSavePayload {
   totals: { net: number; tax: number; gross: number };
 }
 
-export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, onSaveOnly, onSaveAndDownload, onClose }: {
+export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, error, onSaveOnly, onDownloadXlsx, onClose }: {
   open: boolean;
   /** The selection's customer ids — scoping the đợt picker. */
   customerIds: number[];
   rounds: DebitSettlementRoundRow[];
   busy: boolean;
+  /** A save/export refusal (409 remedy text) surfaced verbatim INSIDE the
+   *  dialog — pattern catch surface error.message (mẫu màn close), never a
+   *  silent failure. */
+  error: string | null;
   onSaveOnly: (payload: DebitNoteSavePayload) => void;
-  onSaveAndDownload: (payload: DebitNoteSavePayload) => void;
+  /** Export the picked đợt's preview as XLSX — no Debit Note, no Công nợ. */
+  onDownloadXlsx: (preview: DebitNoteRoundPreview) => void;
   onClose: () => void;
 }) {
   // The selection may span one customer; a settlement round is scoped to one
@@ -98,6 +106,11 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, onSave
           {previewQuery.error.message}
         </p>
       )}
+      {error && (
+        <p className="debit-note" role="alert" style={{ margin: '8px 0', color: 'var(--err)' }}>
+          {error}
+        </p>
+      )}
       {preview && (
         <div className="debit-note-preview__wrap" role="region" aria-label="Bảng tổng hợp Debit Note" tabIndex={0}>
           <table className="debit-note-preview">
@@ -148,8 +161,10 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, onSave
       )}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
         <Btn variant="secondary" size="sm" disabled={busy} onClick={onClose}>Hủy</Btn>
-        <Btn variant="secondary" size="sm" disabled={busy || savePayload == null} onClick={() => onSaveAndDownload(savePayload!)}>
-          {busy ? 'Đang lưu…' : 'Lưu và tải file XLSX'}
+        {/* KB K10.46 §10.7.4 — the download button exports the preview as
+            XLSX and NEVER creates a Debit Note; only [Lưu] writes Công nợ. */}
+        <Btn variant="secondary" size="sm" disabled={busy || preview == null} onClick={() => onDownloadXlsx(preview!)}>
+          {busy ? 'Đang xuất file…' : 'Lưu và tải file XLSX'}
         </Btn>
         <Btn variant="primary" size="sm" disabled={busy || savePayload == null} onClick={() => onSaveOnly(savePayload!)}>
           {busy ? 'Đang lưu…' : 'Lưu'}

@@ -5,7 +5,11 @@
  * - a picked đợt pulls the round's FULL lot set from the server preview and
  *   renders 100% BKS báo khách per row (the issued-line plate law) and the
  *   four closing totals as integer VN money;
- * - a preview refusal (e.g. đợt còn lô chưa khóa chi phí) surfaces verbatim.
+ * - KB K10.37 §10.6.9 + K10.46 §10.7.4 — [Lưu] carries (roundId, lots,
+ *   totals) to the page (the ONLY Công-nợ act); [Lưu và tải file XLSX] hands
+ *   the preview for a NO-save XLSX export (SIL-971);
+ * - a preview refusal (e.g. đợt còn lô chưa khóa chi phí) and a save/export
+ *   refusal surface verbatim.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -19,7 +23,7 @@ vi.mock('../../api/accountingDebitClient', () => ({
 }));
 
 import { DebitNotePreviewDialog, type DebitNoteSavePayload } from './DebitNotePreviewDialog';
-import type { DebitSettlementRoundRow } from '../../api/accountingDebitClient';
+import type { DebitNoteRoundPreview, DebitSettlementRoundRow } from '../../api/accountingDebitClient';
 
 const ROUND: DebitSettlementRoundRow = {
   id: 7,
@@ -50,8 +54,9 @@ const PREVIEW = {
   totals: { net: 3580000, tax: 0, gross: 3580000 },
 };
 
-function renderDialog(open = true, rounds: DebitSettlementRoundRow[] = [ROUND]) {
+function renderDialog(open = true, rounds: DebitSettlementRoundRow[] = [ROUND], error: string | null = null) {
   const saves: DebitNoteSavePayload[] = [];
+  const downloads: DebitNoteRoundPreview[] = [];
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
       <DebitNotePreviewDialog
@@ -59,13 +64,14 @@ function renderDialog(open = true, rounds: DebitSettlementRoundRow[] = [ROUND]) 
         customerIds={[11]}
         rounds={rounds}
         busy={false}
+        error={error}
         onSaveOnly={(payload) => saves.push(payload)}
-        onSaveAndDownload={(payload) => saves.push({ ...payload, roundLabel: `${payload.roundLabel}+download` })}
+        onDownloadXlsx={(preview) => downloads.push(preview)}
         onClose={() => {}}
       />
     </QueryClientProvider>,
   );
-  return saves;
+  return { saves, downloads };
 }
 
 beforeEach(() => {
@@ -91,7 +97,7 @@ describe('DebitNotePreviewDialog (SIL-855)', () => {
   });
 
   it('a picked đợt pulls its full lot set: 100% BKS báo khách + 4 integer totals, saves carry (roundId, lots, totals)', async () => {
-    const saves = renderDialog();
+    const { saves } = renderDialog();
     const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
     fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09' }));
@@ -122,6 +128,27 @@ describe('DebitNotePreviewDialog (SIL-855)', () => {
       lotIds: [1, 2],
       totals: { net: 3580000, tax: 0, gross: 3580000 },
     });
+  });
+
+  it('[Lưu và tải file XLSX] hands the whole preview to the page — a NO-save export (KB K10.46 §10.7.4)', async () => {
+    const { saves, downloads } = renderDialog();
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09' }));
+    await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu và tải file XLSX' }));
+    await waitFor(() => expect(downloads).toHaveLength(1));
+    // The download act carries the preview data — and NEVER the save
+    // payload: nothing may reach Công nợ from this button.
+    expect(downloads[0]).toEqual(PREVIEW);
+    expect(saves).toHaveLength(0);
+  });
+
+  it('a save/export refusal surfaces verbatim inside the dialog (SIL-971)', async () => {
+    renderDialog(true, [ROUND], 'Các lô SHP-2611-00657 đã xuất Debit Note #29. Mỗi lô đã khóa chỉ xuất trong một Debit Note duy nhất.');
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Các lô SHP-2611-00657 đã xuất Debit Note #29');
   });
 
   it('no đợt for the selection’s customer → the create-đợt guidance replaces the picker options', async () => {
@@ -170,7 +197,7 @@ describe('DebitNotePreviewDialog QA regression — đợt VAT totals + real BKS'
 
   it('the footer carries the đợt VAT (QA numbers) and every row shows its BKS báo khách', async () => {
     roundPreview.mockResolvedValue(VAT_PREVIEW);
-    const saves = renderDialog(true, [VAT_ROUND]);
+    const { saves } = renderDialog(true, [VAT_ROUND]);
     const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
     fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-11' }));

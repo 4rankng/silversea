@@ -318,9 +318,3 @@ export async function createDebitNoteBatch(
     { headers: { 'Idempotency-Key': selectionKeyOf(shipmentIds) } },
   );
 }
-
-/** Downloads the issued union document (xlsx) through the per-lot export
- *  mount — the lookup is by documentId, the mount id only anchors casbin. */
-export function exportDebitNoteFile(anchorShipmentId: number, documentId: number): Promise<Blob> {
-  return api.getBlob(`/shipments/${encodeURIComponent(anchorShipmentId)}/debit-note/export?documentId=${documentId}`);
-}
