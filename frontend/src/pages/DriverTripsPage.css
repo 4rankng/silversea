@@ -481,3 +481,91 @@
   color: var(--fg-3);
   font-weight: 500;
 }
+
+/* K10.22 (SIL-947, KB §10.4.5): a ghép-kẹp trip with 2+ own containers
+   renders one card per container — visually stuck together (the clamp
+   treatment mirrors driver-journey-group--clamp), each with its own
+   number/type/seal/weight and its own "Sửa số cont i/n" affordance. */
+.driver-journey-card__cont-cards {
+  display: grid;
+  gap: 8px;
+}
+
+.driver-journey-cont-card {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+
+.driver-journey-cont-card--clamp {
+  border-color: var(--brand);
+}
+
+.driver-journey-cont-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* K10.22 (SIL-947, KB §10.4.5): the pair position marker — "2 thẻ liền kề có
+   dấu hiệu cùng cặp". A Kẹp pair's cards read as one load (two boxes): the
+   per-container card and the pair card both name their position. */
+.driver-journey-card__pair-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.driver-journey-cont-card__no {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.driver-journey-cont-card__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: var(--text-data-size);
+  color: var(--ink-2);
+}
+
+.driver-journey-cont-card__pending {
+  color: var(--ink-3);
+}
+
+.driver-journey-cont-card__edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--control-h);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.driver-journey-cont-card__edit:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}

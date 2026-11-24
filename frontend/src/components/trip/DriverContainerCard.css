@@ -513,3 +513,23 @@
   color: var(--ink-3);
   font-weight: 500;
 }
+
+/* K10.22 (SIL-947): the journey board's "Sửa số cont i/n" button deep-links
+   here with ?cont=N — the targeted container row flashes for ~1.6s so the
+   driver lands on the right box. Color+outline flash, no motion-only signal
+   (prefers-reduced-motion safe); the scroll itself falls back to 'auto'
+   under reduced motion (page-side). */
+.dcc-bento__item--flash {
+  animation: dcc-item-flash 1.6s ease-out 1;
+}
+
+@keyframes dcc-item-flash {
+  0%, 45% {
+    background: var(--surface-2, rgba(0, 0, 0, 0.04));
+    box-shadow: inset 0 0 0 2px var(--accent, var(--ink-3));
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+}

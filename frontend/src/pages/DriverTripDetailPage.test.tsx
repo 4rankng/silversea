@@ -200,6 +200,21 @@ function renderPage() {
   );
 }
 
+/** The journey board's per-container "Sửa số cont i/n" button deep-links to
+ *  the detail screen with ?cont=N — the driver lands on that exact box. */
+function renderPageAtCont(cont: number) {
+  const client = freshClient();
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[`/my-trips/88?cont=${cont}`]}>
+        <Routes>
+          <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
 // Board route target for the A7 completion-navigation assertion. Also stubs
 // the pod route with the :id param echoed into the testid, so the CTA test can
 // prove the driver lands on the RIGHT trip's e-POD screen (fulfillment id, not
@@ -738,6 +753,39 @@ describe('DriverTripDetailPage', () => {
     expect(before(contCard, route)).toBe(true);        // hàng hóa → lộ trình
     expect(before(route, notes)).toBe(true);          // lộ trình → nhiệm vụ & ghi chú
     expect(before(notes, evidence)).toBe(true);        // nhiệm vụ & ghi chú → bằng chứng
+  });
+
+  // K10.22 (SIL-947, KB §10.4.5): the journey board's per-container "Sửa số
+  // cont i/n" button deep-links to ?cont=N — the detail screen scrolls that
+  // exact container row into view and flashes it, so the driver lands on the
+  // box he was editing, not on a list of boxes.
+  it('deep-links ?cont=N to the matching container row and flashes it', async () => {
+    const scrollIntoView = vi.fn();
+    const originalScroll = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({
+          containers: [
+            { id: 1, containerNumber: 'MSCU1234561', sealNumber: null, containerTypeId: 1, containerTypeName: '40FT', containerTypeCode: '40G1', cargoWeightKg: null },
+            { id: 2, containerNumber: 'MSCU7654321', sealNumber: null, containerTypeId: 1, containerTypeName: '40FT', containerTypeCode: '40G1', cargoWeightKg: null },
+          ],
+        }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPageAtCont(2);
+      await screen.findByText(/Số cont & seal/);
+      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
+      const target = document.querySelector('[data-cont-index="1"]');
+      expect(target).toBeTruthy();
+      expect(target!.classList.contains('dcc-bento__item--flash')).toBe(true);
+      // The sibling box is never the target.
+      expect(document.querySelector('[data-cont-index="0"]')!.classList.contains('dcc-bento__item--flash')).toBe(false);
+    } finally {
+      Element.prototype.scrollIntoView = originalScroll;
+    }
   });
   it('card _27 + operator ruling 2026-09-27: container reads in the info grid, seal lives in Số cont & seal card', async () => {
     useDriverTaskDetailMock.mockReturnValue({

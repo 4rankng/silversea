@@ -421,7 +421,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
               const contCopyLabel = containers.length > 1 ? `Số container ${idx + 1}` : 'Số container';
               const sealCopyLabel = containers.length > 1 ? `Số seal ${idx + 1}` : 'Số seal';
               return (
-                <div key={c.id ?? idx} className="dcc-bento__item" data-testid={`driver-container-item-${idx}`}>
+                <div key={c.id ?? idx} className="dcc-bento__item" data-testid={`driver-container-item-${idx}`} data-cont-index={idx}>
                   <div className="dcc-bento__hero">
                     <div className="dcc-bento__hero-content">
                       <div className="dcc-bento__eyebrow">{contLabel}</div>

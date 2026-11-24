@@ -99,12 +99,15 @@ describe('DriverTripsPage', () => {
   // SIL-815 (id 943, UAT 12/11) — the card strip is the trip's OWN container
   // list (the exact list the Chi tiết lệnh screen renders). Driver 15H-104.03:
   // card R3P-677-R showed 1 cont while the trip (and the detail) carried 2.
-  it('renders every trip container on the strip — a 2-cont trip matches its detail 100%', () => {
+  // K10.22 (SIL-947, KB §10.4.5): a 2-cont trip renders ONE CARD PER
+  // CONTAINER — number/type/seal/weight on each, the pair tag on EVERY
+  // sub-card, and each carries its own "Sửa số cont i/n" button.
+  it('renders a 2-cont trip as one card per container, each with its own Sửa số cont button', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({
         blNumber: 'R3P-677-R',
         containers: [
-          { containerNumber: 'RTAU4011047', containerTypeName: '20DC', sealNumber: null, cargoWeightKg: null },
+          { containerNumber: 'RTAU4011047', containerTypeName: '20DC', sealNumber: 'SL-1', cargoWeightKg: '5000' },
           { containerNumber: 'RTAU4011052', containerTypeName: null, sealNumber: null, cargoWeightKg: null },
         ],
       }),
@@ -113,19 +116,88 @@ describe('DriverTripsPage', () => {
     expect(screen.getByText('RTAU4011047')).toBeTruthy();
     expect(screen.getByText('RTAU4011052')).toBeTruthy();
     // SIL-847: a trip carrying 2 cont is the ghép-kẹp clamp — the badge reads
-    // KẸP (was ĐƠN on R3P-677-R despite both strips). One tag per card — it
-    // rides the FIRST strip only.
-    expect(screen.getAllByText('KẸP').length).toBe(1);
+    // KẸP and rides EVERY per-container card (KB: "2 thẻ liền kề có dấu hiệu
+    // cùng cặp").
+    expect(screen.getAllByText('KẸP').length).toBe(2);
     expect(screen.queryByText('ĐƠN')).toBeNull();
+    // KB §10.4.5: seal + weight on each card — a missing seal states the gap.
+    expect(screen.getByText('Seal SL-1')).toBeTruthy();
+    expect(screen.getByText('Chưa có số chì')).toBeTruthy();
+    expect(screen.getByText('5 tấn')).toBeTruthy();
+    // One edit button per container, numbered — deep-links with ?cont=N.
+    expect(screen.getByRole('button', { name: /Sửa số cont 1\/2/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Sửa số cont 2\/2/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số cont 2\/2/ }));
+    expect(navigateMock).toHaveBeenCalledWith('/my-trips/55?cont=2');
   });
 
-  it('a board wire without the containers field renders the singular strip unchanged (skew-safe)', () => {
-    const legacy = card({ containerNumber: 'MSCU1234561' }) as DriverJourneyCard & { containers?: unknown };
-    delete legacy.containers;
-    useDriverJourneyBoardMock.mockReturnValue(board([legacy]));
+  it('hides the per-container edit buttons on a pair-locked 2-cont card (read-only)', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({
+        pairLocked: true,
+        containers: [
+          { containerNumber: 'RTAU4011047', containerTypeName: null, sealNumber: null, cargoWeightKg: null },
+          { containerNumber: 'RTAU4011052', containerTypeName: null, sealNumber: null, cargoWeightKg: null },
+        ],
+      }),
+    ]));
+    renderPage();
+    expect(screen.getByText('RTAU4011047')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Sửa số cont/ })).toBeNull();
+    // TC8 law: the locked card hides the footer too.
+    expect(screen.queryByRole('button', { name: /Xem chi tiết/ })).toBeNull();
+  });
+
+  it('renders the single-cont strip unchanged for a 1-cont trip (no cont cards)', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ containerNumber: 'MSCU1234561', sealNumber: 'SL001' })]));
     renderPage();
     expect(screen.getByText('MSCU1234561')).toBeTruthy();
-    expect(screen.queryByText('Chưa có số cont')).toBeNull();
+    expect(screen.queryByTestId('driver-journey-cont-cards')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Sửa số cont/ })).toBeNull();
+  });
+
+  // K10.22 (SIL-947, KB §10.4.5): "2 thẻ liền kề có dấu hiệu cùng cặp" — a
+  // Kẹp pair of two ORDERS (R3P-677-P1 / R3P-677-P2) renders as two cards,
+  // and each names its position in the pair so the driver reads them as one
+  // load instead of two unrelated orders.
+  it('marks the two cards of a Kẹp pair with their position in the pair', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({
+        fulfillmentId: 310, tripId: 310, blNumber: 'R3P-677-P1',
+        classification: 'DOUBLE', linked: true, pairId: 28, pairKind: 'KEP', pairOrder: 1,
+        containerNumber: 'RTAU4011026',
+      }),
+      card({
+        fulfillmentId: 311, tripId: 311, blNumber: 'R3P-677-P2',
+        classification: 'DOUBLE', linked: true, pairId: 28, pairKind: 'KEP', pairOrder: 2,
+        containerNumber: 'RTAU4011031',
+      }),
+    ]));
+    renderPage();
+    const badges = screen.getAllByTestId('pair-badge').map((el) => el.textContent);
+    expect(badges).toEqual(['Cặp 1/2', 'Cặp 2/2']);
+    // The pair tag still rides both cards — the position marker complements
+    // it, it never replaces it.
+    expect(screen.getAllByText('KẸP').length).toBe(2);
+  });
+
+  // K10.22 (SIL-947, KB §10.4.5): the per-container cards of a ghép-kẹp trip
+  // carry the same pair position, so the two boxes read as one clamp.
+  it('marks each per-container card with its position in the Kẹp pair', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({
+        blNumber: 'R3P-677-R',
+        containers: [
+          { containerNumber: 'RTAU4011047', containerTypeName: '20DC', sealNumber: null, cargoWeightKg: '5000' },
+          { containerNumber: 'RTAU4011052', containerTypeName: '20DC', sealNumber: null, cargoWeightKg: '5000' },
+        ],
+      }),
+    ]));
+    renderPage();
+    const cards = Array.from(document.querySelectorAll('.driver-journey-cont-card'));
+    expect(cards.length).toBe(2);
+    expect(cards[0]!.querySelector('.driver-journey-card__pair-badge')?.textContent).toBe('Cặp 1/2');
+    expect(cards[1]!.querySelector('.driver-journey-card__pair-badge')?.textContent).toBe('Cặp 2/2');
   });
 
   // K10.19 (SIL-946, KB §10.4.2 ⑥): nhiệm vụ/ghi chú owns a line on every
@@ -136,6 +208,15 @@ describe('DriverTripsPage', () => {
     const { container } = renderPage();
     const note = container.querySelector('.driver-journey-card__ops-note')!;
     expect(note.textContent).toBe('Ghi chú Chưa có ghi chú');
+  });
+
+  it('a board wire without the containers field renders the singular strip unchanged (skew-safe)', () => {
+    const legacy = card({ containerNumber: 'MSCU1234561' }) as DriverJourneyCard & { containers?: unknown };
+    delete legacy.containers;
+    useDriverJourneyBoardMock.mockReturnValue(board([legacy]));
+    renderPage();
+    expect(screen.getByText('MSCU1234561')).toBeTruthy();
+    expect(screen.queryByText('Chưa có số cont')).toBeNull();
   });
 
   it('journey card omits the weight segment when the container is unweighted (card 356)', () => {

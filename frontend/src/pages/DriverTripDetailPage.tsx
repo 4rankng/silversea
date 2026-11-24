@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -100,6 +100,37 @@ function DriverTripDetailContent() {
   }, [refetchDetail, refetchProgress]);
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
+
+  // K10.22 (SIL-947): the journey board's per-container "Sửa số cont i/n"
+  // buttons land here with ?cont=N — scroll the Nth container row of the
+  // Số cont & seal card into view and flash it, then consume the param so a
+  // back/forward cycle never replays the scroll. Respects the house
+  // reduced-motion law (auto scroll when the user opted out of animation).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const contParam = searchParams.get('cont');
+  const contConsumedRef = useRef(false);
+  useEffect(() => {
+    if (contParam == null || contConsumedRef.current) return;
+    if (!trip || taskDetail.isLoading || taskDetail.error) return;
+    if (trip.fulfillment?.modeLabel === 'LCL') return; // no container card on hàng lẻ
+    const index = Number(contParam) - 1;
+    if (!Number.isInteger(index) || index < 0) {
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    contConsumedRef.current = true;
+    requestAnimationFrame(() => {
+      const target = document.querySelector(`[data-cont-index="${index}"]`);
+      const reducedMotion = typeof window.matchMedia === 'function'
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      target?.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' });
+      if (target) {
+        target.classList.add('dcc-bento__item--flash');
+        window.setTimeout(() => target.classList.remove('dcc-bento__item--flash'), 1600);
+      }
+    });
+    setSearchParams({}, { replace: true });
+  }, [contParam, trip, taskDetail.isLoading, taskDetail.error, setSearchParams]);
 
   // SIL-652 (id 758): match the journey board's pair lock so list and detail
   // stay consistent. The L2 card stays locked until L1 completes.
