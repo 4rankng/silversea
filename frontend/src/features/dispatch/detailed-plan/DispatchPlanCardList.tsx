@@ -170,9 +170,18 @@ export function formatPhoneGroups(raw: string): string {
 /** Issue #13 (spec A dòng 1) — desktop-cell placeholder parity (SIL-518,
  *  owner 26/10): only the OWN-fleet pending state keeps a text placeholder
  *  ("Chưa phân xe"); an external/carrier-less row renders NO plate line —
- *  the removed "CUS sẽ bổ sung" filler is noise on the card's BKS line too. */
+ *  the removed "CUS sẽ bổ sung" filler is noise on the card's BKS line too.
+ *
+ *  K3.98 (SIL-932, QA 24/11): the card now follows the desktop Điều phối
+ *  cell's ONE law — a row with NO carrier reads the single muted
+ *  'Chưa phân xe'. The 'Chờ biển' chip (SIL-935 / KB §7.2.1 K7.20) names an
+ *  EXTERNAL vehicle that IS assigned but has no plate yet; a carrier-less row
+ *  owns no vehicle at all, so it must never wear that chip — that second
+ *  label is exactly what QA counted mixed on one page. */
 function showsPlateLine(row: DispatchDetailPlanRow): boolean {
-  return row.dispatch.assignedPlate != null || row.dispatch.carrierType === 'OWN';
+  return row.dispatch.assignedPlate != null
+    || row.dispatch.carrierType === 'OWN'
+    || row.dispatch.carrierName == null;
 }
 
 /** Issue #13 (spec A dòng 3 + C) — Loại lô · tuyến. The classification label
