@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { debitDetailUnattachedTripSchema } from './shipment-debit-detail';
 
 // Task 2.3 (18/11) — Bảng Ghép bộ Debit: ONE 6-column-group reconciliation
 // grid shared by Kế toán (/accounting/ghep-bo-debit) and CUS
@@ -152,6 +153,13 @@ export const debitMergeItemSchema = z.object({
     label: z.string(),
     ghepCungRef: z.string().nullable(),
   }).nullable().optional(),
+  // SIL-974 (K10.54 §10.8.6) — the lot's ngoài-chốt trips (fulfillment-NULL
+  // work): a display-only read-only section under the debit grid, hidden when
+  // the lot has none, their money excluded from every chốt total by
+  // construction. Same wire shape as the per-lot debit-detail section (card
+  // 20260924_3) — never re-declared. Optional per the late-added wire
+  // convention.
+  unattachedTrips: z.array(debitDetailUnattachedTripSchema).optional(),
 });
 
 export const debitMergeResponseSchema = z.object({

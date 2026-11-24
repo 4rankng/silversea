@@ -22,6 +22,7 @@ import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
 import type { LedgerColumn } from '../../lib/column-visibility';
 import { PhoiPhieuTruckAssignments } from '../../features/accounting/PhoiPhieuTruckAssignments';
+import { UnattachedTripsTable } from '../../features/shipments/debit/ShipmentDebitTables.unattached';
 import './PhoiPhieuControlPage.css';
 
 const TRIP_STATUS_OPTIONS = [
@@ -217,6 +218,9 @@ export default function PhoiPhieuControlPage() {
   });
   const stkQuery = useQuery({ queryKey: qk.phoiPhieu.stk, queryFn: () => listPhoiPhieuStk() });
   const rows = useMemo(() => rowsQuery.data?.items ?? [], [rowsQuery.data]);
+  // SIL-974 (K10.54 §10.8.6) — mục "Ngoài chốt" chỉ đọc dưới bảng, cùng cửa
+  // sổ ngày/trạng thái với các dòng; ẩn khi mảng rỗng.
+  const unattachedTrips = useMemo(() => rowsQuery.data?.unattachedTrips ?? [], [rowsQuery.data]);
   /** FB-097 — nhà xe chạy chuyến cho form "Thêm khoản chi": NCC khớp theo id,
    *  dự phòng theo tên; không có nhà xe ngoài thì form để chọn tay. */
   const carrierOf = (tripId: number | null) => {
@@ -625,6 +629,12 @@ export default function PhoiPhieuControlPage() {
         </table>
       </div>
       <p className="ppc-board-hint ledger-desktop">Vuốt ngang để xem đầy đủ các cột.</p>
+      {unattachedTrips.length > 0 && (
+        <section className="ppc-unattached" aria-label="Ngoài chốt">
+          <h2 className="ppc-unattached__title">Ngoài chốt</h2>
+          <UnattachedTripsTable trips={unattachedTrips} />
+        </section>
+      )}
       {tienDuongTripId != null && (
         <PhoiPhieuTienDuongDialog
           tripId={tienDuongTripId}

@@ -508,3 +508,17 @@
   color: var(--danger);
   font-weight: 600;
 }
+
+/* SIL-974 (K10.54 §10.8.6) — mục "Ngoài chốt" chỉ đọc dưới bảng: sidecar
+   đối soát, không vào bất kỳ tổng nào của bảng chính. */
+.ppc-unattached {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.ppc-unattached__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}

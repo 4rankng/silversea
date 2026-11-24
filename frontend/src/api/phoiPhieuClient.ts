@@ -1,7 +1,13 @@
 // Card 20260921_12 — Bảng kiểm soát phơi phiếu / tiền đường client.
 import { api } from '../lib/api';
+import type { ShipmentDebitDetail } from './shipmentDebit';
 
 export type ChiHoConfirmation = 'CONFIRMED' | 'UNCONFIRMED';
+
+/** SIL-974 (K10.54 §10.8.6) — the ngoài-chốt trips beside the board window.
+ *  The shape IS the debit-detail section's (card 20260924_3), so the ONE
+ *  shared `UnattachedTripsTable` renders both surfaces — never re-declared. */
+export type PhoiPhieuUnattachedTrip = ShipmentDebitDetail['unattachedTrips'][number];
 
 export interface PhoiPhieuRow {
   tripId: number;
@@ -85,7 +91,7 @@ export interface PhoiPhieuRow {
 export async function listPhoiPhieuRows(params: {
   dateFrom?: string; dateTo?: string; status?: string; search?: string;
   sortBy?: 'grouped' | 'date'; confirmation?: ChiHoConfirmation | '';
-}): Promise<{ items: PhoiPhieuRow[] }> {
+}): Promise<{ items: PhoiPhieuRow[]; unattachedTrips?: PhoiPhieuUnattachedTrip[] }> {
   const query = new URLSearchParams();
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
   if (params.dateTo) query.set('dateTo', params.dateTo);

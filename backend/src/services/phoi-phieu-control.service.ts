@@ -18,12 +18,14 @@ import type { AuthUser } from '../middleware/auth';
 import type { Executor, Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { dispatchDetailTransportDateSql } from './dispatch-planning-utils.service';
+import { liveDebitTripExpense } from './live-debit-expense-scope';
 import { createExpenseVoucher, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
 import { FUND_SOURCES } from './treasury-fund-book.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { expenseVndSchema, round2dp, sumExcludingNegative, TripStatus } from '@tingting/shared';
+import type { ShipmentDebitDetail } from '@tingting/shared';
 void expenseVndSchema;
 
 const carrierCustomer = aliasedTable(s.customers, 'carrier_customer');
@@ -721,6 +723,80 @@ export async function listPhoiPhieuRows(query: {
   return out;
 }
 
+/** SIL-974 (K10.54 §10.8.6) — the ngoài-chốt trips riding the board's window:
+ *  fulfillment-NULL work the debit surfaces show as the display-only section
+ *  (card 20260924_3). The phoi-phieu board itself cannot list them — a
+ *  lotless trip drops on the shipment inner-join — so the read returns them
+ *  beside the rows, same active-trip + live-expense law as the debit-detail
+ *  producer, scoped by the board's own date/status filters. */
+export async function listPhoiPhieuUnattachedTrips(query: {
+  dateFrom?: string; dateTo?: string; status?: string;
+}): Promise<ShipmentDebitDetail['unattachedTrips']> {
+  const transportDate = dispatchDetailTransportDateSql();
+  const tripConditions: (SQL | undefined)[] = [
+    isNull(s.trips.deletedAt),
+    ne(s.trips.status, 'CANCELED'),
+    // The ngoài-chốt definition itself (summary card 20260924_2 / detail
+    // card 20260924_3): work with no fulfillment link.
+    isNull(s.trips.fulfillmentId),
+    // FB-061 — the QA fixture class never reaches a production board.
+    not(qaFixtureTripMarkerCondition()),
+  ];
+  if (query.dateFrom) tripConditions.push(gte(transportDate, query.dateFrom));
+  if (query.dateTo) tripConditions.push(lte(transportDate, query.dateTo));
+  if (query.status) tripConditions.push(eq(s.trips.status, query.status as TripStatus));
+
+  const tripRows = await db.select({
+    id: s.trips.id,
+    code: s.trips.tripCode,
+    departureDate: s.trips.departureDate,
+    status: s.trips.status,
+  }).from(s.trips)
+    .where(and(...tripConditions))
+    .orderBy(desc(s.trips.departureDate), desc(s.trips.id))
+    .limit(300);
+  if (tripRows.length === 0) return [];
+
+  const expenseRows = await db.select({
+    tripId: s.tripExpenses.tripId,
+    id: s.tripExpenses.id,
+    expenseType: s.tripExpenses.expenseType,
+    feeName: s.tripExpenses.feeName,
+    buyAmount: s.tripExpenses.buyAmount,
+    sellAmount: s.tripExpenses.sellAmount,
+    note: s.tripExpenses.recoveryNote,
+    invoiceNumber: s.tripExpenses.invoiceNumber,
+  }).from(s.tripExpenses)
+    .where(and(
+      inArray(s.tripExpenses.tripId, tripRows.map((trip) => trip.id)),
+      liveDebitTripExpense(),
+    ));
+
+  return tripRows.map((trip) => {
+    const rows = expenseRows.filter((row) => row.tripId === trip.id);
+    return {
+      tripId: trip.id,
+      tripCode: trip.code,
+      departureDate: trip.departureDate,
+      status: trip.status,
+      chotIncluded: false as const,
+      items: rows.map((expense) => ({
+        id: expense.id,
+        expenseType: expense.expenseType,
+        feeName: expense.feeName,
+        amount: Number(expense.buyAmount),
+        // The same recharge semantics as the debit-detail section: invoiced
+        // rows recharge at cost; Phí khác carries the typed sell.
+        thuKhach: expense.expenseType === 'OTHER'
+          ? (expense.sellAmount == null ? null : Number(expense.sellAmount))
+          : Number(expense.buyAmount),
+        note: expense.note,
+        invoiceNumber: expense.invoiceNumber,
+      })),
+      feeTotal: sumExcludingNegative(rows, (expense) => expense.buyAmount),
+    };
+  });
+}
 
 export interface PhoiPhieuVoucherInput {
   tripIds: number[];

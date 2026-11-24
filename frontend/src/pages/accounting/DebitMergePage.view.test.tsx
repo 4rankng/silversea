@@ -5,7 +5,7 @@
  * đúng. The CUS surface (/shipments-debit) runs the SAME helper — the unit
  * laws live in debit-merge-view.test.ts; here we pin the PAGE wiring.
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -119,5 +119,65 @@ describe('DebitMergePage — SIL-876 sort DESC + tìm kiếm + lọc ngày', () 
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/11/2026' } });
     fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '30/11/2026' } });
     expect(bodyBills()).toEqual(['BL-NOV-LATEST', 'JJCTCHPDY260305']);
+  });
+});
+
+// SIL-974 (K10.54 §10.8.6) — mục "Ngoài chốt" chỉ đọc dưới Bảng 2.3: hiển
+// thị đúng các chuyến chưa gắn đầu việc vận chuyển của các lô ĐANG HIỂN THỊ,
+// kèm dòng tổng tiền bị loại; ẩn hoàn toàn khi không có dòng nào.
+describe('DebitMergePage — mục Ngoài chốt dưới Bảng 2.3 (SIL-974)', () => {
+  const unattachedTrip = {
+    tripId: 9001,
+    tripCode: 'TRIP-26-0701',
+    departureDate: '2026-09-20',
+    status: 'DONE',
+    chotIncluded: false as const,
+    items: [{
+      id: 1, expenseType: 'OTHER', feeName: 'Hải quan giám sát',
+      amount: 150000, thuKhach: 200000, note: null, invoiceNumber: 'HD-77',
+    }],
+    feeTotal: 150000,
+  };
+
+  it('hiển thị mục Ngoài chốt + tổng loại trừ cho các chuyến ngoài chốt của lô đang hiển thị', async () => {
+    listMergeBoard.mockResolvedValue({
+      items: [
+        row({ shipmentId: 1, billOrBookNumber: 'BL-ONE', unattachedTrips: [unattachedTrip] }),
+        row({ shipmentId: 2, billOrBookNumber: 'BL-TWO' }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    await screen.findByText('BL-ONE');
+    const section = document.querySelector('.debit-merge-unattached') as HTMLElement;
+    expect(section).toBeTruthy();
+    expect(within(section).getByText('Tổng tiền bị loại khỏi chốt: 150.000')).toBeTruthy();
+    // The section rides the ONE shared unattached-trips table (card 20260924_3):
+    // business keys, fees, and the per-trip chốt label — display-only caption.
+    expect(within(section).getByText('Chuyến chưa gán đầu việc vận chuyển — chỉ hiển thị, không vào tổng chốt')).toBeTruthy();
+    expect(within(section).getAllByText('TRIP-26-0701').length).toBeGreaterThan(0);
+    // Heading "Ngoài chốt" + the per-trip Chốt cell read the same label.
+    expect(within(section).getAllByText('Ngoài chốt').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('ẩn hoàn toàn khi không lô nào có chuyến ngoài chốt', async () => {
+    renderPage();
+    await screen.findByText('BL-NOV-LATEST');
+    expect(document.querySelector('.debit-merge-unattached')).toBeNull();
+  });
+
+  it('tổng loại trừ không bịa 0 khi các chuyến chưa có phí (Chưa xác định)', async () => {
+    listMergeBoard.mockResolvedValue({
+      items: [row({
+        shipmentId: 1,
+        billOrBookNumber: 'BL-ONE',
+        unattachedTrips: [{ ...unattachedTrip, items: [], feeTotal: null }],
+      })],
+      total: 1,
+    });
+    renderPage();
+    await screen.findByText('BL-ONE');
+    const section = document.querySelector('.debit-merge-unattached') as HTMLElement;
+    expect(within(section).getByText('Tổng tiền bị loại khỏi chốt: Chưa xác định')).toBeTruthy();
   });
 });

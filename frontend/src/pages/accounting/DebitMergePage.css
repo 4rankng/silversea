@@ -23,3 +23,22 @@
   font-size: var(--text-title-size, 18px);
   font-weight: 700;
 }
+
+/* SIL-974 (K10.54 §10.8.6) — mục "Ngoài chốt" dưới Bảng 2.3: display-only
+   sidecar; the excluded total reads as a caption above the trip table. */
+.debit-merge-unattached {
+  display: grid;
+  gap: 6px;
+}
+
+.debit-merge-unattached__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.debit-merge-unattached__excluded {
+  margin: 0;
+  font-weight: 600;
+}
+

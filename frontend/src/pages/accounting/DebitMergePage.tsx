@@ -25,12 +25,13 @@ import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { qk } from '../../api/keys';
 import { Skeleton } from '../../components/shared/Skeleton';
 import { Btn, Modal } from '../../components/UI';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatMoney } from '../../lib/format';
 import { DateRangeFields } from '../../design-system';
 import { filterDebitMergeRows, sortDebitMergeRowsDesc } from '../../features/accounting/debit-merge-view';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 import { DebitNotePreviewDialog, type DebitNoteSavePayload } from './DebitNotePreviewDialog';
 import { DebitMergeGrid } from '../../features/accounting/DebitMergeGrid';
+import { UnattachedTripsTable } from '../../features/shipments/debit/ShipmentDebitTables.unattached';
 import './DebitMergePage.css';
 
 /** The dialog rides the chot-debit board's row contract; the merge rows
@@ -124,6 +125,17 @@ export function DebitMergePage() {
       return true;
     });
   }, [board.data, customerId, routeFilter, search, dateFrom, dateTo]);
+
+  // SIL-974 (K10.54 §10.8.6) — the ngoài-chốt section rides the DISPLAYED
+  // rows (post-filter), so the exclusion total always describes the table
+  // above it; hidden entirely when no displayed lot carries such a trip.
+  const unattachedTrips = useMemo(() => rows.flatMap((row) => row.unattachedTrips ?? []), [rows]);
+  const excludedTotal = useMemo(() => {
+    const known = unattachedTrips
+      .map((trip) => trip.feeTotal)
+      .filter((value): value is number => value != null && Number.isFinite(value));
+    return known.length === 0 ? null : known.reduce((sum, value) => sum + value, 0);
+  }, [unattachedTrips]);
 
   const refreshBoard = () => {
     void queryClient.invalidateQueries({ queryKey: debitMergeKeys.all });
@@ -343,6 +355,18 @@ export function DebitMergePage() {
               </>
             )}
           />
+        )}
+        {/* SIL-974 (K10.54 §10.8.6) — mục "Ngoài chốt" chỉ đọc dưới Bảng 2.3:
+            hiển thị các chuyến chưa gắn đầu việc vận chuyển để đối soát,
+            KHÔNG vào bất kỳ tổng chốt nào; ẩn khi không có dòng nào. */}
+        {unattachedTrips.length > 0 && (
+          <section className="debit-merge-unattached" aria-label="Ngoài chốt">
+            <h2 className="debit-merge-unattached__title">Ngoài chốt</h2>
+            <p className="debit-merge-unattached__excluded">
+              Tổng tiền bị loại khỏi chốt: {excludedTotal == null ? 'Chưa xác định' : formatMoney(excludedTotal)}
+            </p>
+            <UnattachedTripsTable trips={unattachedTrips} />
+          </section>
         )}
       </section>
       <DebitSettlementRoundDialog

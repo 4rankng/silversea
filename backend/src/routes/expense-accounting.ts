@@ -1,5 +1,5 @@
 import { correctAccountingExpense } from '../services/expense-accounting-correction.service';
-import { listPhoiPhieuRows, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow, getPhoiPhieuTienDuong, getPhoiPhieuReport, getPhoiPhieuPartyLots, setPhoiPhieuDeposit, getPhoiPhieuDeposit } from '../services/phoi-phieu-control.service';
+import { listPhoiPhieuRows, listPhoiPhieuUnattachedTrips, listPhoiPhieuStk, createPhoiPhieuVoucher, getPhoiPhieuChiHo, updatePhoiPhieuMeta, voidPhoiPhieuRow, getPhoiPhieuTienDuong, getPhoiPhieuReport, getPhoiPhieuPartyLots, setPhoiPhieuDeposit, getPhoiPhieuDeposit } from '../services/phoi-phieu-control.service';
 import multer from 'multer';
 import { attachAccountingExpensePhoto } from '../services/expense-accounting-photo.service';
 import { ApiError } from '../errors';
@@ -43,7 +43,13 @@ const PHOI_PHIEU_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
 
 router.get('/phoi-phieu/rows', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const query = parse(phoiPhieuQuerySchema, req.query);
-  res.json({ items: await listPhoiPhieuRows(query) });
+  // SIL-974 (K10.54 §10.8.6) — the ngoài-chốt sidecar rides the same window:
+  // read-only section under the board, hidden when the array comes back empty.
+  const [items, unattachedTrips] = await Promise.all([
+    listPhoiPhieuRows(query),
+    listPhoiPhieuUnattachedTrips(query),
+  ]);
+  res.json({ items, unattachedTrips });
 }));
 
 router.get('/phoi-phieu/stk', requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (_req, res) => {

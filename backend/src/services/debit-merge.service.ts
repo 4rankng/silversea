@@ -30,16 +30,17 @@
 // ACTIVE groups). Staff roles are never scoped. The contract carries NO giá
 // vốn by construction (SIL-776 REV2): only the thu-khách side and the chi-hộ
 // rows the CUS detail already shows ride the wire.
-import { and, desc, eq, inArray, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
-import { liveDebitOpsExpense } from './live-debit-expense-scope';
-import { Role } from '@tingting/shared';
+import { liveDebitOpsExpense, liveDebitTripExpense } from './live-debit-expense-scope';
+import { Role, sumExcludingNegative } from '@tingting/shared';
 import type {
   DebitMergeChiHo,
   DebitMergeInvoiceFee,
   DebitMergeItem,
   DebitMergeResponse,
+  ShipmentDebitDetail,
 } from '@tingting/shared';
 import { effectiveLclFreight } from './lcl-effective-freight';
 import { loadRevenueOverrideByLot } from './revenue-override-read.service';
@@ -634,10 +635,14 @@ export async function getDebitMergeBoard(query: {
       eq(s.trips.id, s.tripExpenses.tripId),
       // Board's trip-revenue law: voided BILLING rows out; no live-scope
       // filter (review 18/11 — board parity on Phát sinh/Tổng thu).
+      // SIL-974 (K10.54 §10.8.6) — the chốt-able money scope is LINKED work
+      // only: fulfillment-NULL trips are shadow money (summary's card
+      // 20260924_2 law) — the inverted isNull here billed ONLY the shadow
+      // trips and dropped every linked trip's Phát sinh.
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
-      isNull(s.trips.fulfillmentId),
+      isNotNull(s.trips.fulfillmentId),
       ne(s.tripExpenses.approvalStatus, 'VOIDED'),
     ));
   const revenueByLot = new Map<number, { hasRows: boolean; otherSell: number; derived: number }>();
@@ -647,6 +652,67 @@ export async function getDebitMergeBoard(query: {
     if (row.expenseType === 'OTHER') entry.otherSell += toNumber(row.sell);
     else if (toNumber(row.buy) >= 0) entry.derived += toNumber(row.buy);
     revenueByLot.set(row.shipmentId, entry);
+  }
+
+  // ── SIL-974 (K10.54 §10.8.6) — the ngoài-chốt trips per lot: fulfillment-
+  // NULL work whose fees the board must SHOW (display-only section under the
+  // grid) while EXCLUDING from every chốt total. Same scope + wire shape as
+  // the per-lot debit-detail section (card 20260924_3): active trips only,
+  // live expense rows, feeTotal drops negative rows.
+  const unattachedTripRows = await db.select({
+    shipmentId: s.trips.shipmentId,
+    id: s.trips.id,
+    code: s.trips.tripCode,
+    departureDate: s.trips.departureDate,
+    status: s.trips.status,
+  }).from(s.trips)
+    .where(and(
+      inArray(s.trips.shipmentId, lotIds),
+      ...activeTripConditions(),
+      isNull(s.trips.fulfillmentId),
+    ));
+  const unattachedExpenseRows = unattachedTripRows.length === 0 ? [] : await db.select({
+    tripId: s.tripExpenses.tripId,
+    id: s.tripExpenses.id,
+    expenseType: s.tripExpenses.expenseType,
+    feeName: s.tripExpenses.feeName,
+    buyAmount: s.tripExpenses.buyAmount,
+    sellAmount: s.tripExpenses.sellAmount,
+    note: s.tripExpenses.recoveryNote,
+    invoiceNumber: s.tripExpenses.invoiceNumber,
+  }).from(s.tripExpenses)
+    .where(and(
+      inArray(s.tripExpenses.tripId, unattachedTripRows.map((trip) => trip.id)),
+      liveDebitTripExpense(),
+    ));
+  const unattachedByLot = new Map<number, ShipmentDebitDetail['unattachedTrips']>();
+  for (const trip of unattachedTripRows) {
+    if (trip.shipmentId == null) continue;
+    const rows = unattachedExpenseRows.filter((row) => row.tripId === trip.id);
+    const section: ShipmentDebitDetail['unattachedTrips'][number] = {
+      tripId: trip.id,
+      tripCode: trip.code,
+      departureDate: trip.departureDate,
+      status: trip.status,
+      chotIncluded: false as const,
+      items: rows.map((expense) => ({
+        id: expense.id,
+        expenseType: expense.expenseType,
+        feeName: expense.feeName,
+        amount: Number(expense.buyAmount),
+        // The same recharge semantics as the debit-detail section: invoiced
+        // rows recharge at cost; Phí khác carries the typed sell.
+        thuKhach: expense.expenseType === 'OTHER'
+          ? (expense.sellAmount == null ? null : Number(expense.sellAmount))
+          : Number(expense.buyAmount),
+        note: expense.note,
+        invoiceNumber: expense.invoiceNumber,
+      })),
+      feeTotal: sumExcludingNegative(rows, (expense) => expense.buyAmount),
+    };
+    const lot = unattachedByLot.get(trip.shipmentId) ?? [];
+    lot.push(section);
+    unattachedByLot.set(trip.shipmentId, lot);
   }
 
   // ── PS thực tế (the receivable's container-side component).
@@ -797,6 +863,7 @@ export async function getDebitMergeBoard(query: {
       revGroupId: lot.revGroupId,
       revGroupOrder: lot.revGroupOrder,
       lclParams: debitMergeLclParams(lot, lclClassCodes, lclPrincipalRefs),
+      unattachedTrips: unattachedByLot.get(lot.id) ?? [],
     };
   });
   return { items, total: items.length };

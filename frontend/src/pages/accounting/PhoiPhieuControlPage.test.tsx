@@ -142,3 +142,38 @@ describe('PhoiPhieuControlPage — the not-charged reason column (card 20260928_
     expect(opsCells[0]!.textContent).toBe('—');
   });
 });
+
+// SIL-974 (K10.54 §10.8.6) — mục "Ngoài chốt" chỉ đọc dưới bảng Kiểm soát
+// phơi phiếu: các chuyến chưa gắn đầu việc vận chuyển trong cùng cửa sổ,
+// hiển thị để đối soát; ẩn hoàn toàn khi mảng rỗng.
+describe('PhoiPhieuControlPage — mục Ngoài chốt dưới bảng (SIL-974)', () => {
+  const unattachedTrip = {
+    tripId: 9001,
+    tripCode: 'TRIP-26-0701',
+    departureDate: '2026-09-20',
+    status: 'DONE',
+    chotIncluded: false as const,
+    items: [{
+      id: 1, expenseType: 'OTHER', feeName: 'Hải quan giám sát',
+      amount: 150000, thuKhach: 200000, note: null, invoiceNumber: 'HD-77',
+    }],
+    feeTotal: 150000,
+  };
+
+  it('renders the read-only Ngoài chốt section when the window carries unattached trips', async () => {
+    // Once: renderPage() re-seats the default { items: [] } mock, and the
+    // once-queue takes precedence for the mount fetch.
+    vi.mocked(client.listPhoiPhieuRows).mockResolvedValueOnce({ items: [], unattachedTrips: [unattachedTrip] });
+    renderPage();
+    const section = await screen.findByLabelText('Ngoài chốt');
+    expect(section.textContent).toContain('TRIP-26-0701');
+    expect(section.textContent).toContain('Chuyến chưa gán đầu việc vận chuyển — chỉ hiển thị, không vào tổng chốt');
+  });
+
+  it('hides the section entirely when the window has no unattached trips', async () => {
+    vi.mocked(client.listPhoiPhieuRows).mockResolvedValue({ items: [] });
+    renderPage();
+    await screen.findByLabelText('Tìm kiếm');
+    expect(screen.queryByLabelText('Ngoài chốt')).toBeNull();
+  });
+});
