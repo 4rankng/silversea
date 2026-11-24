@@ -55,6 +55,8 @@ describe('FreightPreviewCard', () => {
     } as never);
     const { container } = renderCard({ customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10' });
     expect(container.querySelector('[data-freight-preview="manual"]')).not.toBeNull();
+    // SIL-933 (KB K1.3) — the gap is named 'Chưa có bảng giá', never a number.
+    expect(container.textContent).toContain('Chưa có bảng giá — cần nhập tay');
     expect(container.textContent).toContain('thiếu giá gốc theo khối lượng 15T');
     expect(container.textContent).not.toContain('Thiếu giá gốc — nhập tay');
   });

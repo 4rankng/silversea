@@ -251,6 +251,13 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
           allowClerkIntake: true,
         });
       }
+      // SIL-933 (KB K1.3) — an LCL lot born ready prices at intake like FCL:
+      // its 'Loại xe tính cước' pick + lot route + ngày giao dự kiến are the
+      // bảng giá grounds, so the auto engine freezes the estimated freight in
+      // this SAME tx (supersede = INSERT; dispatch supersedes with its own
+      // trip grain). Grounds gaps (no class pick, no date yet) skip silently
+      // inside the lock — never a placeholder, never an invented number.
+      await lockShipmentFreightRate(tx, { shipmentId: finalized.id });
     }
   }
 

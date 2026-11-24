@@ -40,6 +40,7 @@ import {
   type ShipmentCreateIssue,
 } from './shipment-create-model';
 import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus';
+import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { useFixedActionClearance } from '../../../hooks/useFixedActionClearance';
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
 import { ShipmentCreateActions } from './ShipmentCreateActions';
@@ -269,17 +270,31 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     [validationIssues],
   );
 
+  // SIL-933 — the preview card must live on the LCL branch too: the lot's
+  // own route + 'Trọng tải (Loại xe tính cước)' pick + ngày giờ đóng/trả are
+  // the bảng giá grounds (the same trio the create payload builds), so the
+  // operator sees the estimated freight BEFORE saving — the frame FCL rows
+  // get from their first container. An unpicked class or empty day keeps the
+  // card hidden (no grounds, no number).
+  const vehicleClasses = useVehicleSizeClasses();
+  const isLclPreview = form.cargoMode === 'LCL';
   const previewRow = containers[0];
   const previewTypeCode = (catalogs?.containerTypes ?? [])
     .find((item) => String(item.id) === previewRow?.containerTypeId)?.code ?? null;
   const previewNormalized = previewTypeCode ? previewTypeCode.trim().toUpperCase() : '';
-  const previewSizeClass = previewNormalized.startsWith('20') ? 'CONT20'
-    : (previewNormalized.startsWith('40') || previewNormalized.startsWith('45')) ? 'CONT40'
-    : null;
-  const previewRouteId = previewRow?.routeId || null;
-  const previewTransportDate = previewRow?.customerAppointmentAt
-    ? previewRow.customerAppointmentAt.slice(0, 10)
-    : '';
+  const previewSizeClass = isLclPreview
+    ? (vehicleClasses.data ?? []).find((vc) => !vc.deletedAt && String(vc.id) === form.revVehicleClassId)?.code ?? null
+    : previewNormalized.startsWith('20') ? 'CONT20'
+      : (previewNormalized.startsWith('40') || previewNormalized.startsWith('45')) ? 'CONT40'
+        : null;
+  const previewRouteId = isLclPreview
+    ? (form.routeId || null)
+    : (previewRow?.routeId || null);
+  const previewTransportDate = isLclPreview
+    ? (form.lclClosingAt ? form.lclClosingAt.slice(0, 10) : form.expectedDeliveryDate.slice(0, 10))
+    : previewRow?.customerAppointmentAt
+      ? previewRow.customerAppointmentAt.slice(0, 10)
+      : '';
 
   const billConflict = getReferenceConflict('blNumber', form.blNumber);
   const bookingConflict = getReferenceConflict('bookingRef', form.bookingRef);

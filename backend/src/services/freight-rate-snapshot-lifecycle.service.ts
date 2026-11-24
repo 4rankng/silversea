@@ -4,8 +4,12 @@
 // WHEN snapshots are written (docx §2-D: lock at Ngày vận chuyển):
 //   - FCL container intake (`batchUpsertShipmentContainers`): the container
 //     type + appointment arrive together — usually the first lock.
+//   - LCL lot create (`createShipmentTx`): the lot's 'Trọng tải (Loại xe tính
+//     cước)' pick + lot route + ngày giao dự kiến are the grounds (SIL-933,
+//     KB K1.3 — the estimated freight exists as soon as the lot does).
 //   - CUS workspace container-line appointment edits: supersede.
 //   - Shipment `expectedDeliveryDate` change: supersede.
+//   - Shipment `revVehicleClassId` change: supersede (the pricing class moved).
 //   - Dispatch (`issueOrderCreateOrUpdate`): definitive per-trip lock with the
 //     dispatcher's rate key.
 //
@@ -134,8 +138,8 @@ export interface LockShipmentFreightRateArgs {
  *   - ad-hoc shipments (Lệnh chạy ngoài: no internal freight norm applies —
  *     revenue is the customer-reported freight plus chi hộ fees), or
  *   - no catalog customer/route, or
- *   - no derivable rate key (no typed container and no override) — LCL
- *     shipments without a dispatcher rate key lock at dispatch instead.
+ *   - no derivable rate key (no typed container, no override, and no lot
+ *     'Loại xe tính cước' pick).
  *
  * The đủ-căn cứ/thiếu-căn cứ decision itself lives in the pure
  * `classifyLotPricingBasis` (freight-lot-basis.ts, unit-tested): đủ căn cứ
@@ -264,6 +268,7 @@ export async function deriveLotPricingGrounds(
     cargoWeightKg: s.shipments.cargoWeightKg,
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
+    revVehicleClassId: s.shipments.revVehicleClassId,
   })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
@@ -325,6 +330,23 @@ export async function deriveLotPricingGrounds(
     containerTransportDate = typedContainer?.customerAppointmentAt
       ? localDateInBusinessZone(typedContainer.customerAppointmentAt)
       : null;
+  }
+
+  // SIL-933 (KB K1.3) — LCL lots price at intake: with no container row to
+  // derive a CONT20/CONT40 key, the lot's own 'Trọng tải (Loại xe tính cước)'
+  // pick (rev_vehicle_class_id → vehicle_size_classes.code) IS the rate key
+  // the bảng giá lookup prices from — the same catalog the pricing sheet's
+  // rows are keyed on. No pick ⇒ still NO_RATE_KEY: the class stays with the
+  // debit workspace / LCL allocation to settle, never a guessed class.
+  if (!rateKey && shipment.revVehicleClassId != null) {
+    const [revClass] = await tx.select({ code: s.vehicleSizeClasses.code })
+      .from(s.vehicleSizeClasses)
+      .where(and(
+        eq(s.vehicleSizeClasses.id, shipment.revVehicleClassId),
+        isNull(s.vehicleSizeClasses.deletedAt),
+      ))
+      .limit(1);
+    rateKey = revClass?.code ?? null;
   }
 
   // Card 20260922_58 selection half: container base classes pick their PRICE

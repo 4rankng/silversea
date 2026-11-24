@@ -338,14 +338,21 @@ export async function updateShipment(
       await syncShipmentAuthorityToTrips(tx, updated);
     }
 
-    // Auto freight pricing: a transport-date change re-locks the rate. The
+    // Auto freight pricing: a transport-date change re-locks the rate. SIL-933
+    // — a 'Loại xe tính cước' change supersedes too: the class IS the bảng giá
+    // lookup key for LCL (and would misprice a re-keyed lot otherwise). The
     // engine never mutates the frozen row — supersede = a new INSERT (chốt
     // 2026-09-09 Câu 2 = A). Skips silently when no rate key is derivable
-    // (LCL without containers locks at dispatch instead) or on MANUAL.
+    // (no container type, no override, no class pick) or on MANUAL.
+    const revVehicleClassChanged = input.revVehicleClassId !== undefined
+      && input.revVehicleClassId !== existing.revVehicleClassId;
     if (
-      input.expectedDeliveryDate !== undefined
-      && input.expectedDeliveryDate != null
-      && input.expectedDeliveryDate !== existing.expectedDeliveryDate
+      (
+        input.expectedDeliveryDate !== undefined
+        && input.expectedDeliveryDate != null
+        && input.expectedDeliveryDate !== existing.expectedDeliveryDate
+      )
+      || revVehicleClassChanged
     ) {
       await lockShipmentFreightRate(tx, { shipmentId: id });
     }
