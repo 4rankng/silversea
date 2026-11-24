@@ -44,10 +44,15 @@ export function directionLabel(
   // chrome thứ hai (owner ruling: classification là thông tin, không phải
   // control). SIL-928 (KB §2.2.1 K2.18, §3.1.4 K3.8): chữ badge lô lẻ là
   // 'NHẬP LẺ'/'XUẤT LẺ' đúng chữ KB — cùng bộ label với badge gộp trên
-  // /dispatch (lclLot.ts), không tạo biến thể chữ mới; FCL giữ 'Nhập'/'Xuất'
-  // theo ruling card 261022213755c.
-  if (direction === 'IMPORT') return cargoMode === 'LCL' ? 'NHẬP LẺ' : 'Nhập';
-  if (direction === 'EXPORT') return cargoMode === 'LCL' ? 'XUẤT LẺ' : 'Xuất';
+  // /dispatch (lclLot.ts), không tạo biến thể chữ mới.
+  // SIL-937 (KB §9.1 'Mọi bảng đều có nhãn phân loại Nhập·Cont / Nhập·Lẻ /
+  // Xuất·Lẻ'): FCL đọc kèm '·Cont' ngay trong badge direction — hàng cont
+  // phân biệt với hàng lẻ trên cùng một pill, supersede phần "FCL giữ
+  // 'Nhập'/'Xuất'" của card 261022213755c. cusExport đọc cùng hàm nên sheet
+  // theo đúng nhãn §9.1. Mọi lô không-LCL trên workspace đều là hàng cont
+  // (row source: có container hoặc LCL-only), kể cả legacy cargoMode null.
+  if (direction === 'IMPORT') return cargoMode === 'LCL' ? 'NHẬP LẺ' : 'Nhập·Cont';
+  if (direction === 'EXPORT') return cargoMode === 'LCL' ? 'XUẤT LẺ' : 'Xuất·Cont';
   return '—';
 }
 
