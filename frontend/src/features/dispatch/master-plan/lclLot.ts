@@ -24,14 +24,25 @@ export function isLclLotRow(
  * surfaces can never disagree. The Ghép half keys off the same costGroupId
  * the CHỌN checkbox disables on (SIL-589, id 689 — that logic is untouched;
  * this only names what the flag says).
+ *
+ * K4.6 (SIL-951, QA 24/11): the chip is the MERGED direction+mode badge the
+ * KB names — 'NHẬP LẺ' / 'XUẤT LẺ' — not a bare 'Lẻ' pill beside a loose
+ * 'Nhập'/'Xuất' word elsewhere on the row. The trade direction therefore
+ * rides the chip and the route line drops its own direction word on LCL
+ * rows (the grid renders one fact once).
  */
 export function lclLotFlag(
-  item: Pick<ShipmentListItem, 'cargoMode' | 'hasActiveLclShipment' | 'costGroupId' | 'actualTruckNo'>,
+  item: Pick<ShipmentListItem, 'cargoMode' | 'hasActiveLclShipment' | 'costGroupId' | 'actualTruckNo' | 'tradeDirection'>,
 ): { label: string; title: string } {
+  const direction = item.tradeDirection === 'IMPORT'
+    ? 'NHẬP LẺ'
+    : item.tradeDirection === 'EXPORT'
+      ? 'XUẤT LẺ'
+      : 'HÀNG LẺ';
   return item.costGroupId != null
     ? {
-        label: 'Lẻ · Ghép',
+        label: `${direction} · Ghép`,
         title: `Lô hàng lẻ đã ghép trả ĐV cùng nhóm${item.actualTruckNo ? ` — BKS thực ${item.actualTruckNo}` : ''}`,
       }
-    : { label: 'Lẻ', title: 'Lô hàng lẻ (LCL) — chưa ghép nhóm' };
+    : { label: direction, title: 'Lô hàng lẻ (LCL) — chưa ghép nhóm' };
 }

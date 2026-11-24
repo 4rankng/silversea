@@ -83,8 +83,8 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     });
     const chips = document.querySelectorAll('.mpcard__type .master-plan-grid__lcl-chip');
     expect(chips).toHaveLength(2);
-    expect(chips[0]?.textContent).toBe('Lẻ');
-    expect(chips[1]?.textContent).toBe('Lẻ · Ghép');
+    expect(chips[0]?.textContent).toBe('NHẬP LẺ');
+    expect(chips[1]?.textContent).toBe('NHẬP LẺ · Ghép');
     // FCL keeps its plain-text type line — no chip, no flag (SIL-589).
     // Both cards here are LCL, so the Cont line must not exist at all.
     expect(screen.queryByText('Nhập · Cont')).toBeNull();
@@ -108,7 +108,7 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     expect(screen.getAllByText('Nâng Cảng Cát Lái → Trả Kho Bình Dương · LH — Biên Hòa · Maersk')).toHaveLength(2);
     // Dòng 3 meta: joined container demand + the named missing allocation.
     expect(screen.getAllByText('2 x 40HC + 1 x 20DC').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('Chưa phân bổ')).toHaveLength(2);
+    expect(screen.getAllByText('Chưa phân xe')).toHaveLength(2);
   });
 
   it('SIL-507 retry: giờ leads Dòng 1 and the day\'s appointment factory rides the route line', () => {
@@ -147,7 +147,7 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     });
 
     expect(screen.queryByRole('button', { name: 'Phân bổ nhà xe · BL-LOCKED' })).toBeNull();
-    expect(screen.getByText('Chưa phân bổ')).toBeTruthy();
+    expect(screen.getByText('Chưa phân xe')).toBeTruthy();
   });
 
   it('FB-014: tapping the card opens dispatch detail; controls keep their own behavior', () => {

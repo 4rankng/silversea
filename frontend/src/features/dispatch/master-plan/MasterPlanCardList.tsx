@@ -265,7 +265,7 @@ export function MasterPlanCardList({
         // Dòng 3 (facts): the fleet segment prints the roster, or the named
         // missing fact. The allocate button HIDES once a roster exists ("ẩn
         // khi đã phân") — the chips line is the allocation's own display.
-        const fleetLine = allocationChips ? `Xe: ${allocationChips}` : 'Chưa phân bổ';
+        const fleetLine = allocationChips ? `Xe: ${allocationChips}` : 'Chưa phân xe';
         const showAllocate = !allocationLocked && !allocationChips;
         // Conditional status: the cont-booking warning and the customs cutoff
         // share ONE line (strongest severity wins the voice) so a busy lot
@@ -346,21 +346,21 @@ export function MasterPlanCardList({
               </div>
               <span className="mpcard__type">
                 {/* SIL-589 (id 689) — card parity with the grid's cargo-cell
-                    flag: LCL lots read "Lẻ", and a lot already in a ghép
-                    group appends "· Ghép" (same costGroupId the grid's CHỌN
-                    checkbox disables on).
+                    flag: LCL lots read the merged direction+mode badge, and a
+                    lot already in a ghép group appends "· Ghép" (same
+                    costGroupId the grid's CHỌN checkbox disables on).
                     SIL-708 (id 708) — the LCL token is the SAME chip as the
                     grid cell (one pattern, one implementation); a Cont row
-                    stays plain text — FCL carries no flag (SIL-589). */}
+                    stays plain text — FCL carries no flag (SIL-589).
+                    K4.6 (SIL-951): the badge itself carries the direction
+                    ('NHẬP LẺ'/'XUẤT LẺ') — the old loose "Nhập · Lẻ" pair
+                    is gone. */}
                 {isLclLotRow(item) ? (() => {
                   const flag = lclLotFlag(item);
                   return (
-                    <>
-                      {`${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · `}
-                      <span className="master-plan-grid__lcl-chip" title={flag.title}>
-                        {flag.label}
-                      </span>
-                    </>
+                    <span className="master-plan-grid__lcl-chip" title={flag.title}>
+                      {flag.label}
+                    </span>
                   );
                 })() : (
                   `${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · Cont`

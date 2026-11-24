@@ -361,12 +361,18 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-route" data-empty={!item.routeName ? 'true' : undefined}>
                       {item.routeName ? <NameCell name={item.routeName} /> : '—'}
                     </div>
-                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction" data-empty={!item.tradeDirection ? 'true' : undefined}>
-                      {item.tradeDirection === 'IMPORT' ? (
-                        <span>Nhập</span>
-                      ) : item.tradeDirection === 'EXPORT' ? (
-                        <span>Xuất</span>
-                      ) : '—'}
+                    {/* K4.6 (SIL-951): on LCL rows the direction word moves INTO
+                        the cargo cell's merged badge ('NHẬP LẺ'/'XUẤT LẺ') —
+                        the loose pill + word pair read as two facts. FCL rows
+                        keep the plain direction word here. */}
+                    <div className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-direction" data-empty={!item.tradeDirection || isLclLotRow(item) ? 'true' : undefined}>
+                      {isLclLotRow(item)
+                        ? null
+                        : item.tradeDirection === 'IMPORT' ? (
+                          <span>Nhập</span>
+                        ) : item.tradeDirection === 'EXPORT' ? (
+                          <span>Xuất</span>
+                        ) : '—'}
                     </div>
                     <div
                       className="master-plan-grid__line master-plan-grid__line--strong master-plan-grid__route-shipping-carrier"
@@ -540,7 +546,10 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         })}
                       </span>
                     ) : (
-                      <span className="master-plan-grid__allocation-empty">Chưa phân bổ</span>
+                      // K4.6 (SIL-951, KB): the unassigned allocation cell reads
+                      // 'Chưa phân xe' — the KB's vocabulary for a row without
+                      // an assigned vehicle, same as the detail grid.
+                      <span className="master-plan-grid__allocation-empty">Chưa phân xe</span>
                     )}
                     </UUIButton>
                   </DisabledActionTip>

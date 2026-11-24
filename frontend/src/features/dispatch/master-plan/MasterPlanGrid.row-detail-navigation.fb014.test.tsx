@@ -86,7 +86,7 @@ describe('MasterPlanGrid lot row opens dispatch detail (FB-014)', () => {
       />,
     );
 
-    const cell = screen.getByText('Chưa phân bổ').closest('td')!;
+    const cell = screen.getByText('Chưa phân xe').closest('td')!;
     fireEvent.click(cell);
     expect(onAllocate).toHaveBeenCalled();
     expect(onOpenDispatchDetail).not.toHaveBeenCalled();

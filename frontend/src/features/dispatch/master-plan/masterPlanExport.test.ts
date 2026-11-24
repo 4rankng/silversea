@@ -147,7 +147,7 @@ describe('mapMasterPlanExportRow', () => {
     expect(cells[3]).toBe('Chưa có số container');
     expect(cells[4]).toBe('Chưa có số container');
     expect(cells[5]).toBe('Chưa có số container\n—');
-    expect(cells[6]).toBe('Chưa phân bổ');
+    expect(cells[6]).toBe('Chưa phân xe');
     expect(cells[7]).toBe('');
   });
 

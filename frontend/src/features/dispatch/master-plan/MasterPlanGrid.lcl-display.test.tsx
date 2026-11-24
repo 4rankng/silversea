@@ -205,21 +205,29 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
 // flag, "2 Roll / 0,01 tấn" read identical to a FCL weight line: nothing on
 // the row said LCL vs FCL (customer report 29/10/2026), and a lot already
 // merged into a ghép-trả-ĐV group was indistinguishable from an unmerged one.
-describe('MasterPlanGrid — the Lẻ cargo flag (SIL-589)', () => {
-  it('flags an LCL lot "Lẻ" at the cargo cell', () => {
+describe('MasterPlanGrid — the LCL direction badge (SIL-589 + K4.6/SIL-951)', () => {
+  it("flags an LCL lot with the merged 'NHẬP LẺ' badge at the cargo cell", () => {
     render(<MasterPlanGrid items={[lclItem()]} onAllocate={vi.fn()} />);
     const cargo = cell('Tổng quan hàng hóa');
-    expect(within(cargo).getByText('Lẻ')).toBeTruthy();
+    expect(within(cargo).getByText('NHẬP LẺ')).toBeTruthy();
     // Ungrouped by default — the Ghép marker must not appear.
-    expect(within(cargo).queryByText('Lẻ · Ghép')).toBeNull();
+    expect(within(cargo).queryByText('NHẬP LẺ · Ghép')).toBeNull();
   });
 
-  it('marks a lot already in a ghép-trả-ĐV group "Lẻ · Ghép"', () => {
+  it('an EXPORT LCL row reads XUẤT LẺ and the route line drops its own direction word (K4.6/SIL-951)', () => {
+    render(<MasterPlanGrid items={[lclItem({ tradeDirection: 'EXPORT' })]} onAllocate={vi.fn()} />);
+    expect(within(cell('Tổng quan hàng hóa')).getByText('XUẤT LẺ')).toBeTruthy();
+    // The badge carries the direction — the route line must not repeat it.
+    expect(within(cell('Tuyến đường & hãng tàu')).queryByText('Xuất')).toBeNull();
+    expect(within(cell('Tổng quan hàng hóa')).queryByText('NHẬP LẺ')).toBeNull();
+  });
+
+  it("marks a grouped lot 'NHẬP LẺ · Ghép'", () => {
     render(<MasterPlanGrid
       items={[lclItem({ costGroupId: 'grp-sil589', costGroupOrder: 1, actualTruckNo: '15E-016.26' })]}
       onAllocate={vi.fn()}
     />);
-    expect(within(cell('Tổng quan hàng hóa')).getByText('Lẻ · Ghép')).toBeTruthy();
+    expect(within(cell('Tổng quan hàng hóa')).getByText('NHẬP LẺ · Ghép')).toBeTruthy();
   });
 
   it('flags a fulfillment-projected LCL lot too (hasActiveLclShipment wins)', () => {
@@ -229,7 +237,7 @@ describe('MasterPlanGrid — the Lẻ cargo flag (SIL-589)', () => {
       items={[lclItem({ cargoMode: 'FCL' as const, hasActiveLclShipment: true })]}
       onAllocate={vi.fn()}
     />);
-    expect(within(cell('Tổng quan hàng hóa')).getByText('Lẻ')).toBeTruthy();
+    expect(within(cell('Tổng quan hàng hóa')).getByText('NHẬP LẺ')).toBeTruthy();
   });
 
   it('never flags an FCL lot', () => {
@@ -243,8 +251,9 @@ describe('MasterPlanGrid — the Lẻ cargo flag (SIL-589)', () => {
       totalCargoWeightKg: 21000,
     };
     render(<MasterPlanGrid items={[fcl]} onAllocate={vi.fn()} />);
-    expect(within(cell('Tổng quan hàng hóa')).queryByText('Lẻ')).toBeNull();
-    expect(within(cell('Tổng quan hàng hóa')).queryByText('Lẻ · Ghép')).toBeNull();
+    expect(within(cell('Tổng quan hàng hóa')).queryByText('NHẬP LẺ')).toBeNull();
+    expect(within(cell('Tổng quan hàng hóa')).queryByText('XUẤT LẺ')).toBeNull();
+    expect(within(cell('Tổng quan hàng hóa')).queryByText('NHẬP LẺ · Ghép')).toBeNull();
   });
 });
 
@@ -253,13 +262,13 @@ describe('MasterPlanGrid — the Lẻ cargo flag (SIL-589)', () => {
 // nhanh"): QA wants a chip with a background, recognizable at a glance. The
 // chip rides the sanctioned --chip-* recipe (SIL-478 verdict); the SIL-589
 // logic (isLclLotRow + costGroupId) above is untouched.
-describe('MasterPlanGrid — the Lẻ flag is a chip (SIL-708)', () => {
+describe('MasterPlanGrid — the LCL flag is a chip (SIL-708)', () => {
   it('renders the ungrouped flag as a chip with a background', () => {
     render(<MasterPlanGrid items={[lclItem()]} onAllocate={vi.fn()} />);
     const cargo = cell('Tổng quan hàng hóa');
     const chip = cargo.querySelector('.master-plan-grid__lcl-chip');
     expect(chip).toBeTruthy();
-    expect(chip?.textContent).toBe('Lẻ');
+    expect(chip?.textContent).toBe('NHẬP LẺ');
     // The retired plain-line class is gone — no second voice for the fact.
     expect(cargo.querySelector('.master-plan-grid__lcl-flag')).toBeNull();
     expect(chip?.getAttribute('title')).toBe('Lô hàng lẻ (LCL) — chưa ghép nhóm');
@@ -271,7 +280,7 @@ describe('MasterPlanGrid — the Lẻ flag is a chip (SIL-708)', () => {
       onAllocate={vi.fn()}
     />);
     const chip = cell('Tổng quan hàng hóa').querySelector('.master-plan-grid__lcl-chip');
-    expect(chip?.textContent).toBe('Lẻ · Ghép');
+    expect(chip?.textContent).toBe('NHẬP LẺ · Ghép');
     expect(chip?.getAttribute('title')).toBe('Lô hàng lẻ đã ghép trả ĐV cùng nhóm — BKS thực 15E-016.26');
   });
 

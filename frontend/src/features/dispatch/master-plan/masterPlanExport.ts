@@ -53,7 +53,8 @@ export async function collectMasterPlanExportItems(filters: MasterPlanFilters): 
 }
 
 function allocationLines(item: ShipmentListItem): string[] {
-  if (item.carrierAllocationSummary.length === 0) return ['Chưa phân bổ'];
+  // K4.6 (SIL-951, KB): the sheet mirrors the board cell — 'Chưa phân xe'.
+  if (item.carrierAllocationSummary.length === 0) return ['Chưa phân xe'];
   return item.carrierAllocationSummary.map((entry) => {
     const counts = [
       entry.count20 > 0 ? `${entry.count20}x20'` : null,

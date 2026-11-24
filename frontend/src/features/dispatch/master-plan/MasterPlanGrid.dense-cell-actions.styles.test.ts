@@ -46,7 +46,7 @@ describe('master-plan grid dense cell actions (card 20261004_321)', () => {
     expect(trigger).toContain('width: 100%');
     expect(trigger).toContain('white-space: normal');
     // The cell-filling hit area keeps its value at the top of the cell — the
-    // "Chưa phân bổ" text stays at the head of the cell with no dead band.
+    // "Chưa phân xe" text stays at the head of the cell with no dead band.
     expect(trigger).toContain('min-height: 100%');
     expect(trigger).toContain('align-items: flex-start');
 

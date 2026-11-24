@@ -405,7 +405,7 @@ describe('MasterPlanGrid', () => {
     expect(css).toContain('.master-plan-grid__location-value {\n  color: var(--fg-1);\n  font-weight: 400;\n}');
     expect(screen.getByText('Maersk')).toHaveClass('master-plan-grid__line--strong');
     const allocationTrigger = screen.getByRole('button', { name: 'Chỉnh sửa phân bổ nhà xe' });
-    expect(screen.getByText('Chưa phân bổ').closest('button')).toBe(allocationTrigger);
+    expect(screen.getByText('Chưa phân xe').closest('button')).toBe(allocationTrigger);
     expect(allocationTrigger.closest('td')?.classList.contains('master-plan-grid__cell--action')).toBe(true);
   });
 
