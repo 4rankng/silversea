@@ -11,6 +11,7 @@ import { ApiError } from '../errors';
 import {
   getDailyFleetProductivity,
   getMonthlyFleetProductivity,
+  exportDailyFleetProductivityXlsx,
   exportMonthlyFleetProductivityXlsx,
 } from '../services/internal-fleet-productivity.service';
 
@@ -31,6 +32,29 @@ router.get(
     }
     const result = await getDailyFleetProductivity(parsed.data.date);
     res.json({ success: true, data: result });
+  })
+);
+
+/**
+ * GET /api/fleet/productivity/daily/export?date=YYYY-MM-DD
+ * Xuất file Excel (.xlsx) Báo cáo Năng suất Xe Nội bộ theo Ngày.
+ */
+router.get(
+  '/daily/export',
+  FLEET_REPORT_ROLES,
+  asyncHandler(async (req: Request, res: Response) => {
+    const parsed = fleetProductivityDailyQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      throw new ApiError(400, parsed.error.issues[0]?.message ?? 'Ngày báo cáo không hợp lệ (YYYY-MM-DD)');
+    }
+    const buffer = await exportDailyFleetProductivityXlsx(parsed.data.date);
+    const filename = `bao-cao-nang-suat-xe-noi-bo-ngay-${parsed.data.date}.xlsx`;
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   })
 );
 

@@ -36,4 +36,9 @@ export const fleetProductivityClient = {
     // header and the export always failed with "Token không hợp lệ".
     return api.getBlob(`/fleet/productivity/monthly/export?year=${year}&month=${month}`);
   },
+
+  getDailyExportBlob(date: string): Promise<Blob> {
+    // Same authenticated blob download as the monthly export (card 346).
+    return api.getBlob(`/fleet/productivity/daily/export?date=${encodeURIComponent(date)}`);
+  },
 };

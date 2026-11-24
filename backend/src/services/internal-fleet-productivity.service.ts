@@ -367,3 +367,98 @@ export async function exportMonthlyFleetProductivityXlsx(year: number, month: nu
 
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
+
+/**
+ * 4. Xuất file Excel Báo cáo Năng suất Xe Nội bộ theo Ngày — cùng khung cột
+ * với bản tháng, thêm cột Số Bill/Booking mà màn hình ngày vẫn hiển thị.
+ */
+export async function exportDailyFleetProductivityXlsx(date: string): Promise<Buffer> {
+  const report = await getDailyFleetProductivity(date);
+  const [year, month, day] = date.split('-');
+  const displayDate = `${day}/${month}/${year}`;
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet(`Năng suất ${date}`);
+
+  // Header info
+  sheet.addRow([`BÁO CÁO HIỆU QUẢ NĂNG SUẤT ĐỘI XE NỘI BỘ - NGÀY ${displayDate}`]);
+  sheet.addRow([
+    `Kỳ báo cáo: Ngày ${displayDate}`,
+    '',
+    `Tổng số xe: ${report.totalInternalTrucks} xe`,
+    '',
+    `Số xe hoạt động: ${report.activeInternalTrucks} xe`,
+    '',
+    `Tổng số chuyến: ${report.fleetBreakdown.totalTrips}`,
+  ]);
+  sheet.addRow([]);
+
+  // Table header — 13 cột của bản tháng, thêm Số Bill/Booking (KB §1.4.3 V25:
+  // mã nội bộ TRP-* không bao giờ xuất hiện, chỉ Bill/Booking).
+  sheet.addRow([
+    'STT',
+    'Biển số xe',
+    'Lái xe chính',
+    'Tổng số chuyến',
+    'Số chuyến Kẹp',
+    '% Kẹp ghép',
+    'Số chuyến Kết hợp',
+    '% Kết hợp',
+    'Số chuyến Lấy lẻ',
+    '% Lấy lẻ chuyển kho',
+    'Số chuyến Đơn',
+    '% Chuyến đơn',
+    '% Năng suất cao',
+    'Số Bill/Booking',
+  ]);
+
+  let idx = 1;
+  for (const row of report.trucks) {
+    sheet.addRow([
+      idx++,
+      row.licensePlate,
+      row.driverName ?? 'Chưa gán',
+      row.breakdown.totalTrips,
+      row.breakdown.kepTrips,
+      `${row.breakdown.pctKep}%`,
+      row.breakdown.ketHopTrips,
+      `${row.breakdown.pctKetHop}%`,
+      row.breakdown.layLeTrips,
+      `${row.breakdown.pctLayLe}%`,
+      row.breakdown.donTrips,
+      `${row.breakdown.pctDon}%`,
+      `${row.breakdown.highEfficiencyPct}%`,
+      row.tripReferences.join(', '),
+    ]);
+  }
+
+  // Footer summary
+  sheet.addRow([
+    'TỔNG CỘNG',
+    '',
+    '',
+    report.fleetBreakdown.totalTrips,
+    report.fleetBreakdown.kepTrips,
+    `${report.fleetBreakdown.pctKep}%`,
+    report.fleetBreakdown.ketHopTrips,
+    `${report.fleetBreakdown.pctKetHop}%`,
+    report.fleetBreakdown.layLeTrips,
+    `${report.fleetBreakdown.pctLayLe}%`,
+    report.fleetBreakdown.donTrips,
+    `${report.fleetBreakdown.pctDon}%`,
+    `${report.fleetBreakdown.highEfficiencyPct}%`,
+    `${report.activeInternalTrucks} xe lăn bánh / ${report.totalInternalTrucks} xe`,
+  ]);
+
+  // Styling
+  sheet.getRow(1).font = { bold: true, size: 14 };
+  sheet.getRow(2).font = { italic: true };
+  sheet.getRow(4).font = { bold: true };
+  sheet.getRow(sheet.rowCount).font = { bold: true };
+
+  const colWidths = [6, 16, 22, 16, 14, 14, 16, 14, 16, 18, 14, 14, 18, 24];
+  colWidths.forEach((w, i) => {
+    sheet.getColumn(i + 1).width = w;
+  });
+
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}

@@ -4,6 +4,7 @@ import {
   computeProductivityBreakdown,
   getDailyFleetProductivity,
   getMonthlyFleetProductivity,
+  exportDailyFleetProductivityXlsx,
   exportMonthlyFleetProductivityXlsx,
 } from '../services/internal-fleet-productivity.service';
 import { classifyTripRun } from '../services/trip-run-shape';
@@ -116,6 +117,17 @@ test('getMonthlyFleetProductivity returns monthly metrics per internal truck', a
 
 test('exportMonthlyFleetProductivityXlsx produces a valid Excel workbook buffer', async () => {
   const buffer = await exportMonthlyFleetProductivityXlsx(2026, 10);
+  assert.ok(buffer instanceof Buffer);
+  assert.ok(buffer.length > 1000, `buffer size should be substantial, got ${buffer.length}`);
+  // Check ZIP signature for XLSX (PK\x03\x04)
+  assert.equal(buffer[0], 0x50);
+  assert.equal(buffer[1], 0x4b);
+  assert.equal(buffer[2], 0x03);
+  assert.equal(buffer[3], 0x04);
+});
+
+test('exportDailyFleetProductivityXlsx produces a valid Excel workbook buffer', async () => {
+  const buffer = await exportDailyFleetProductivityXlsx('2026-10-01');
   assert.ok(buffer instanceof Buffer);
   assert.ok(buffer.length > 1000, `buffer size should be substantial, got ${buffer.length}`);
   // Check ZIP signature for XLSX (PK\x03\x04)

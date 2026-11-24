@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Download } from 'lucide-react';
 import { fleetProductivityClient } from '../../api/fleetProductivityClient';
 import { qk } from '../../api/keys';
+import { Btn } from '../../components/UI';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
 import { EmptyState, FilterBar } from '../../design-system';
 import { SkeletonTable } from '../../components/shared/Skeleton';
+import { useToast } from '../../components/shared/Toast';
 import { NumUnit, PctUnit } from './NumericUnit';
 
 // Card 071026141600: every header carries its full label as `title` (see
@@ -41,17 +44,70 @@ export function DailyProductivityView() {
 
   const dailyData = dailyQuery.data;
 
+  const [exportError, setExportError] = useState<string | null>(null);
+  // Card 20261006_391 — export feedback contract (FinancePage pattern): the
+  // happy path must not stay silent after the failure surface already exists.
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
+
+  async function handleExportExcel() {
+    // Authenticated blob download (card 346) — the house export pattern. The
+    // bare window.open navigation carried no Authorization header and the API
+    // answered {"error":"Token không hợp lệ"} every time.
+    if (exporting) return;
+    setExportError(null);
+    setExporting(true);
+    try {
+      const blob = await fleetProductivityClient.getDailyExportBlob(dailyDate);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `bao-cao-nang-suat-xe-noi-bo-ngay-${dailyDate}.xlsx`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast({ kind: 'success', message: 'Đã xuất báo cáo năng suất xe ra tệp Excel.' });
+    } catch (exportError) {
+      // Business refusals (4xx) carry the precise reason from the backend —
+      // show it verbatim instead of the generic retry hint that hides it.
+      const status = exportError && typeof exportError === 'object' && 'status' in exportError && typeof exportError.status === 'number' ? exportError.status : null;
+      const raw = exportError && typeof exportError === 'object' && 'message' in exportError && typeof exportError.message === 'string' ? exportError.message.trim() : '';
+      const detail = status != null && status >= 400 && status < 500 ? raw : '';
+      setExportError(detail || 'Không xuất được báo cáo năng suất. Vui lòng thử lại.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <>
       <FilterBar>
-        <div style={{ width: 220 }}>
-          <BufferedUuiDateInput
-            label="Ngày báo cáo"
-            value={dailyDate}
-            onChange={setDailyDate}
-          />
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', flex: 1 }}>
+          <div style={{ width: 220 }}>
+            <BufferedUuiDateInput
+              label="Ngày báo cáo"
+              value={dailyDate}
+              onChange={setDailyDate}
+            />
+          </div>
+
+          <div style={{ marginLeft: 'auto' }}>
+            <Btn
+              variant="secondary"
+              onClick={handleExportExcel}
+              disabled={!dailyData || dailyData.trucks.length === 0 || exporting}
+            >
+              <Download size={14} style={{ marginRight: 6 }} />
+              {exporting ? 'Đang xuất…' : 'Xuất Excel'}
+            </Btn>
+          </div>
         </div>
       </FilterBar>
+
+      {exportError && (
+        <div role="alert" style={{ margin: '8px 0', color: 'var(--danger)' }}>{exportError}</div>
+      )}
 
       {dailyQuery.isLoading ? (
         <SkeletonTable rows={5} />
