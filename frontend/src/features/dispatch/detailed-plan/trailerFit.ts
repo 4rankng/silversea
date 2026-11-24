@@ -2,10 +2,15 @@ import type { DispatchTruck } from '../../../api/dispatchPlanningClient';
 import { LCL_PICKUP_TRAILER_TYPE } from '@tingting/shared';
 
 /** Mirror of the backend issue gate (inferTrailerTypeFromContainerCode in
- *  dispatch-planning-utils.service.ts): a container code starting with 20
- *  uses20FT for a single load or40FT for a DOUBLE pair; larger shells use40FT. Null container info → no
- *  signal, no annotation — same "only block on a provable mismatch" stance
- *  as the backend.
+ *  dispatch-planning-utils.service.ts): a container code in the leading-'2'
+ *  family — house labels (20DC…) AND ISO size-type codes (22G1, 22R1, 25G1;
+ *  QA 24/11 R3M-KQ1) — takes 20FT for a single load or 40FT for a DOUBLE
+ *  pair; larger shells use 40FT. The callers feed the type CODE first
+ *  (pricing.containerTypeCode — the same column the backend gate reads) and
+ *  fall back to the label, so this advisory and the gate can never split on
+ *  a code/label prefix mismatch. Null container info → no signal, no
+ *  annotation — same "only block on a provable mismatch" stance as the
+ *  backend.
  *
  *  LCL_PICKUP ('Lấy Lẻ') overrides the container code entirely: the run
  *  moves the truck's own empty 40' shell, so the lot's 20' code must not
@@ -14,7 +19,7 @@ export function requiredTrailerTypeForContainer(label: string | null | undefined
   if (classification === 'LCL_PICKUP') return LCL_PICKUP_TRAILER_TYPE;
   const normalized = label?.trim().toUpperCase() ?? '';
   if (!normalized) return null;
-  return normalized.startsWith('20') && classification !== 'DOUBLE' ? '20FT' : '40FT';
+  return normalized.startsWith('2') && classification !== 'DOUBLE' ? '20FT' : '40FT';
 }
 
 /** Physical moóc length rank. Card 091026164810: the requirement is a MINIMUM

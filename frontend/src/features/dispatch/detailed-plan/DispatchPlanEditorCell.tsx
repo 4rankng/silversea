@@ -635,7 +635,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
   // value; reason tags travel in the label so screen readers get the same
   // signal as sighted users, and a trailer mismatch warns there too.
   const selectableVehicleOptions = useMemo(() => {
-    const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel, draft.classification);
+    // CR-010.1 (SIL-898 c) — the CODE leads (the same containerTypes.code
+    // column the issue gate reads), the label only stands in.
+    const requiredTrailerType = requiredTrailerTypeForContainer(row.pricing?.containerTypeCode ?? row.container.containerTypeLabel, draft.classification);
     const suggestionOptions: SearchableSelectOption[] = suggestions
       .filter((suggestion) => vehicleOptions.some((option) => option.value === `${OWN_TRUCK_PREFIX}${suggestion.truckId}`))
       .map((suggestion) => {
@@ -663,7 +665,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
         : row.dispatch.assignedPlate ?? 'Biển số hiện tại');
     const withoutDuplicate = matchIndex !== -1 ? merged.filter((_, index) => index !== matchIndex) : merged;
     return [{ value: draft.vehicleValue, label }, ...withoutDuplicate];
-  }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.container.containerTypeLabel, row.container.cargoWeightKg, suggestions, vehicleOptions]);
+  }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.pricing?.containerTypeCode, row.container.containerTypeLabel, row.container.cargoWeightKg, suggestions, vehicleOptions]);
 
   async function openEditor() {
     if (disabled || ensuring) return;
@@ -756,7 +758,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
             truckCarrierLinksRef.current.set(truck.id, { plate: truck.licensePlate, carrierId: truck.carrierId, carrierName: truck.carrierName ?? '' });
           }
         }
-        const requiredTrailerType = requiredTrailerTypeForContainer(row.container.containerTypeLabel, draft.classification);
+        // CR-010.1 (SIL-898 c) — the CODE leads (the same containerTypes.code
+        // column the issue gate reads), the label only stands in.
+        const requiredTrailerType = requiredTrailerTypeForContainer(row.pricing?.containerTypeCode ?? row.container.containerTypeLabel, draft.classification);
         // Card 091026164540 — a tractor that is no longer ACTIVE must never
         // reach the picker. Offering one made the operator discover the
         // problem only on save ("Xe đầu kéo không còn hiệu lực"), because the

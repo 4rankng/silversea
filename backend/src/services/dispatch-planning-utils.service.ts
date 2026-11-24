@@ -395,13 +395,23 @@ export function requiredTrailerTypeForFulfillment(
   dispatchClassification: string | null | undefined,
 ): '20FT' | '40FT' {
   if (dispatchClassification === 'LCL_PICKUP') return LCL_PICKUP_TRAILER_TYPE;
-  if (dispatchClassification === 'DOUBLE' && code?.trim().toUpperCase().startsWith('20')) return '40FT';
+  // Same leading-'2' family law as inferTrailerTypeFromContainerCode: a
+  // DOUBLE pair of ISO-coded 20' shells (22G1…) needs the 40' moóc exactly
+  // like a 20DC pair — matching only '20' let a 22xx pair ride as 20FT.
+  if (dispatchClassification === 'DOUBLE' && code?.trim().toUpperCase().startsWith('2')) return '40FT';
   return inferTrailerTypeFromContainerCode(code);
 }
 
 export function inferTrailerTypeFromContainerCode(code: string | null | undefined): '20FT' | '40FT' {
   const normalized = code?.trim().toUpperCase() ?? '';
-  return normalized.startsWith('20') ? '20FT' : '40FT';
+  // A 20-foot shell is any code in the leading-'2' family — house labels
+  // (20DC/20HC/20RF) AND ISO size-type codes (22G1, 22R1, 25G1): the length
+  // digit leads in both systems. Matching only the literal '20' prefix read a
+  // 22xx-coded 20'DC type as a 40' requirement and 409'd a 20FT moóc on a
+  // plain single 20'DC run (QA 24/11, R3M-KQ1 — the same rig had issued
+  // 20'DC legs all month). 4x/45/L5 codes stay 40FT; unknown text keeps the
+  // conservative 40FT the gate always fell back to.
+  return normalized.startsWith('2') ? '20FT' : '40FT';
 }
 
 

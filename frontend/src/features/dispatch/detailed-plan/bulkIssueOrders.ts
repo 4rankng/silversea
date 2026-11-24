@@ -21,7 +21,6 @@
 import { listDispatchFleetResources, type DispatchDetailPlanRow, type DispatchTruck } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { deriveDispatchIssueStatus, type DispatchIssueStatus } from '../components/DispatchIssueStatus';
-import { billBookingReference } from '../../../lib/business-reference';
 import { draftIssueTimesFor } from './useIssueOrder';
 
 /** Why a row's checkbox is disabled in [Phát lệnh hàng loạt] mode. */
@@ -66,7 +65,10 @@ export function bulkIssueTargets(
 
 export interface BulkIssueFailure {
   fulfillmentId: number;
-  /** Container number, else the Bill/Booking — the summary table's identity. */
+  /** Cont · Bill when the row has both — two lots can share one container
+   *  number (QA 24/11: two rows both read 'RTAU4012043'), so the summary
+   *  column needs the Bill to tell them apart; single-token rows keep the
+   *  old shape. */
   identity: string;
   message: string;
 }
@@ -151,7 +153,13 @@ export async function bulkIssueRows(
     return match;
   };
   for (const row of rows) {
-    const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
+    // CR-010.1 (SIL-898 b) — the summary's CONT / BILL cell carries BOTH
+    // tokens when the row has them: two lots routinely share one container
+    // number across bookings, and a cont-only identity made the two summary
+    // rows indistinguishable (QA 24/11 'RTAU4012043' twice).
+    const cont = row.container.containerNumber?.trim() || null;
+    const bill = row.docs.billNumber?.trim() || null;
+    const identity = cont && bill ? `${cont} · ${bill}` : cont ?? bill ?? 'Chưa có số Bill/Booking';
     try {
       const { eligible, reason } = bulkIssueEligibility(row);
       if (!eligible) throw new Error(reason ?? 'Dòng không đủ điều kiện phát lệnh.');

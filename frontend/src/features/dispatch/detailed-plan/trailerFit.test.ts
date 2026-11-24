@@ -120,6 +120,18 @@ describe('requiredTrailerTypeForContainer', () => {
     expect(requiredTrailerTypeForContainer('20DC', 'DOUBLE')).toBe('40FT');
   });
 
+  // CR-010.1 (SIL-898 c, QA R3M-KQ1) — ISO size-type codes: the length digit
+  // leads, so every 2x code is a 20-foot shell (22G1/22R1/25G1), not a 40'
+  // requirement that 409s a 20FT moóc on a plain single 20'DC run.
+  it('reads ISO 2x codes as 20FT and 4x/L5 as 40FT', () => {
+    expect(requiredTrailerTypeForContainer('22G1', 'SINGLE')).toBe('20FT');
+    expect(requiredTrailerTypeForContainer('22R1', 'SINGLE')).toBe('20FT');
+    expect(requiredTrailerTypeForContainer('25G1', 'DOUBLE')).toBe('40FT');
+    expect(requiredTrailerTypeForContainer('42G1', 'SINGLE')).toBe('40FT');
+    expect(requiredTrailerTypeForContainer('45HC', 'SINGLE')).toBe('40FT');
+    expect(requiredTrailerTypeForContainer('L5G1', 'SINGLE')).toBe('40FT');
+  });
+
   it('forces a 40FT moóc for Lấy Lẻ whatever the lot code says', () => {
     // The run carries the truck's own empty shell, so a 20' lot code must
     // not downgrade the moóc requirement and 409 the issue later.

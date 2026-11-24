@@ -69,8 +69,8 @@ describe('bulkIssueRows — partial success', () => {
     // CR-010.1 BUG-03 — the summary table lists every released row, so
     // successes keep their cont/Bill identity too (same order as the batch).
     expect(outcome.successes).toEqual([
-      { fulfillmentId: 101, identity: 'MSCU1234567' },
-      { fulfillmentId: 102, identity: 'TEMU7654321' },
+      { fulfillmentId: 101, identity: 'MSCU1234567 · BL-2026-010' },
+      { fulfillmentId: 102, identity: 'TEMU7654321 · BL-2026-010' },
     ]);
     // Sequential release, click order — a just-issued sibling can never slip
     // a second trip past the grid's snapshot.
@@ -92,15 +92,34 @@ describe('bulkIssueRows — partial success', () => {
 
     expect(outcome.issued).toBe(2);
     expect(outcome.failures).toEqual([
-      { fulfillmentId: 103, identity: 'MSCU9999999', message: 'Rơ-moóc không phù hợp với loại container.' },
+      { fulfillmentId: 103, identity: 'MSCU9999999 · BL-2026-010', message: 'Rơ-moóc không phù hợp với loại container.' },
     ]);
     // The summary table's two sections: the failed row sits between the two
     // released ones, each success carrying its own identity.
     expect(outcome.successes).toEqual([
-      { fulfillmentId: 101, identity: 'MSCU1234567' },
-      { fulfillmentId: 104, identity: 'TEMU8888888' },
+      { fulfillmentId: 101, identity: 'MSCU1234567 · BL-2026-010' },
+      { fulfillmentId: 104, identity: 'TEMU8888888 · BL-2026-010' },
     ]);
     expect(onIssueOrder).toHaveBeenCalledTimes(3);
+  });
+
+  // CR-010.1 (SIL-898 b) — two lots sharing ONE container number (QA 24/11:
+  // both summary rows read 'RTAU4012043') must stay distinguishable: the
+  // Bill rides the identity, so the two rows differ.
+  it('a shared container number still yields distinct identities — the Bill rides along', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    const sharedCont = { containerNumber: 'RTAU4012043', containerTypeLabel: '20DC', cargoWeightKg: '18000.00' };
+    const outcome = await bulkIssueRows([
+      row({ fulfillmentId: 201, docs: { billNumber: 'R3Q-680-A', tradeDirection: 'EXPORT', declarationNumbers: [] }, container: sharedCont }),
+      row({ fulfillmentId: 202, docs: { billNumber: 'R3Q-680-B', tradeDirection: 'EXPORT', declarationNumbers: [] }, container: sharedCont }),
+    ], onIssueOrder);
+
+    expect(outcome.failures).toEqual([]);
+    expect(outcome.successes).toEqual([
+      { fulfillmentId: 201, identity: 'RTAU4012043 · R3Q-680-A' },
+      { fulfillmentId: 202, identity: 'RTAU4012043 · R3Q-680-B' },
+    ]);
   });
 });
 
@@ -115,7 +134,7 @@ describe('bulkIssueRows — không tạo trùng chuyến', () => {
 
     expect(outcome.issued).toBe(0);
     expect(outcome.failures).toEqual([
-      { fulfillmentId: 101, identity: 'MSCU1234567', message: 'Đã phát lệnh rồi.' },
+      { fulfillmentId: 101, identity: 'MSCU1234567 · BL-2026-010', message: 'Đã phát lệnh rồi.' },
     ]);
     expect(onIssueOrder).not.toHaveBeenCalled();
   });
