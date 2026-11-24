@@ -536,13 +536,13 @@ describe('DetailedPlanGrid', () => {
     const { container } = renderGrid([item]);
     const cell = container.querySelector<HTMLElement>('td[data-label="Điều phối"]');
     if (!cell) throw new Error('Missing actual assignment cell');
-    // SIL-500 (KHĐ 26/10): exactly ONE interactive element — the carrier
-    // line (click-to-edit); the facts stay text, no editor inputs inline.
-    expect(cell.querySelectorAll('button')).toHaveLength(1);
-    // SIL-753: the unassigned row shape is OWN with NO carrier name — the
-    // cell reads 'Chưa phân xe' exactly once and invents no carrier.
-    expect(within(cell).getByRole('button', { name: 'Sửa điều phối · Chưa phân xe · MSCU1234567' })).toHaveTextContent('Chưa phân xe');
+    // K4.14 (SIL-953): the unassigned cell is QUIET — one muted placeholder
+    // label, no button chrome; the assign verb lives in the ⋯ row menu.
+    expect(cell.querySelectorAll('button')).toHaveLength(0);
+    // K3.98 (SIL-932): the unassigned row shape is OWN with NO carrier name —
+    // the cell reads 'Chưa phân xe' exactly once and invents no carrier.
     expect(within(cell).getAllByText('Chưa phân xe')).toHaveLength(1);
+    expect(within(cell).getByText('Chưa phân xe').className).toContain('is-placeholder');
     expect(within(cell).queryByText('SilverSea')).toBeNull();
     expect(within(cell).queryByText('Chưa phân nhà xe')).toBeNull();
     expect(cell).toHaveAttribute('data-label-short', 'Điều phối');

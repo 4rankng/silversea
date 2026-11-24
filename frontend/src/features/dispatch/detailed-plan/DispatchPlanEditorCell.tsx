@@ -41,7 +41,7 @@ import { DispatchClassificationField } from './DispatchClassificationField';
 import { IssueOrderFields } from './IssueOrderFields';
 import { useIssueOrder } from './useIssueOrder';
 import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
-import { resolveContainerPriceClass } from '@tingting/shared';
+import { resolveContainerPriceClass, lclVehicleSourcingRule, LclVehicleSourcing } from '@tingting/shared';
 import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { ownTruckLabel, requiredTrailerTypeForContainer, trailerFitRank, vehicleWarningSuffix, type VehicleFit } from './trailerFit';
 import './DispatchPlanEditorCell.css';
@@ -370,6 +370,37 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
   const [ensuring, setEnsuring] = useState(false);
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
+  // SIL-939 (KB §9.2 K9.9, FB-090 law — same rule the "Gán xe nhóm" dialog
+  // already serves, SIL-545): an LCL cost group on a TRUCK-tonnage class is
+  // 100% xe ngoài — the internal fleet is neither offered nor accepted in
+  // this dialog. The class resolves from the row's cost-group code through
+  // the shared vehicle_size_classes catalog; an absent/unknown class keeps
+  // the legacy behavior (no restriction — never guess the kind).
+  const vehicleClassesQuery = useVehicleSizeClasses();
+  const lclTruckExternalOnly = useMemo(() => {
+    if (row.cargoMode !== 'LCL') return false;
+    const classCode = row.lcl?.group?.vehicleClassCode;
+    if (!classCode) return false;
+    const vehicleClass = vehicleClassesQuery.data?.find((vc) => vc.code === classCode);
+    return vehicleClass != null && lclVehicleSourcingRule(vehicleClass.isContainer) === LclVehicleSourcing.EXTERNAL_ONLY;
+  }, [row.cargoMode, row.lcl?.group?.vehicleClassCode, vehicleClassesQuery.data]);
+  const [carrierResetWarning, setCarrierResetWarning] = useState<string | null>(null);
+  // A row SAVED as OWN before this gate (legacy data) must not sit silently
+  // in the dialog: loud reset to the required external pick — same contract
+  // as AssignTruckGroupDialog's class flip warning.
+  useEffect(() => {
+    if (!open) {
+      setCarrierResetWarning(null);
+      return;
+    }
+    if (!lclTruckExternalOnly) return;
+    if (selectedCarrier?.carrierType !== 'OWN') return;
+    setDraft((current) => ({ ...current, carrierValue: '', vehicleValue: '' }));
+    setVehicleOptions([]);
+    setVehicleSearch('');
+    setSuggestions([]);
+    setCarrierResetWarning('Loại xe tải 100% xe ngoài — đã bỏ lựa chọn Đội xe nội bộ. Chọn lại Nhà xe.');
+  }, [open, lclTruckExternalOnly, selectedCarrier?.carrierType]);
   const draftUsesOwnFleet = selectedCarrier?.carrierType === 'OWN';
   const quickAddCarrierName = selectedCarrier?.carrierType === 'OWN'
     ? OWN_CARRIER_LABEL
@@ -527,12 +558,17 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
   useEffect(() => {
     if (!open) return undefined;
     if (!selectedCarrier && !rowIsCarrierLess) return undefined;
+    // SIL-939 — an LCL-truck (external-only) row with no carrier yet waits
+    // for the nhà xe pick: the carrier-less default must NOT be the internal
+    // fleet's truck list (the option is not even offered).
+    if (lclTruckExternalOnly && !selectedCarrier) return undefined;
     let cancelled = false;
     setLoadingVehicles(true);
     // OWN once picked; carrier-less with nothing picked yet defaults to the
     // own-fleet TRUCK list; an EXTERNAL pick always wins over the row's
     // carrier-less origin.
-    const isOwnFleet = selectedCarrier?.carrierType === 'OWN' || (rowIsCarrierLess && selectedCarrier == null);
+    const isOwnFleet = selectedCarrier?.carrierType === 'OWN'
+      || (rowIsCarrierLess && selectedCarrier == null && !lclTruckExternalOnly);
     // Own-truck loads carry the row context so the backend can pin LH
     // D-1/D+1 suggestions beside the page.
     const request = isOwnFleet
@@ -615,7 +651,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
   }, [open, row.fulfillmentId, selectedCarrier?.carrierType, selectedCarrier?.externalCarrierId, vehicleSearch, rowIsCarrierLess, fleetRetryNonce, draft.classification, manualVehicles]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectableCarrierOptions = useMemo(() => {
-    const options = [{ value: OWN_CARRIER_VALUE, label: OWN_CARRIER_LABEL }, ...carrierOptions];
+    // SIL-939 — external-only LCL-truck rows never see the internal fleet:
+    // the law blocks the pick at the option list, not just at save.
+    const options = lclTruckExternalOnly
+      ? [...carrierOptions]
+      : [{ value: OWN_CARRIER_VALUE, label: OWN_CARRIER_LABEL }, ...carrierOptions];
     // Fallback option only for a real selection — '' (unassigned) keeps the
     // placeholder. A carrier promoted from a truck link resolves its name
     // from the link before falling back to the row's saved carrier.
@@ -626,10 +666,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
       const promotedName = promotedId != null
         ? [...truckCarrierLinksRef.current.values()].find((link) => link.carrierId === promotedId)?.carrierName
         : null;
-      options.splice(1, 0, { value: draft.carrierValue, label: promotedName ?? row.dispatch.carrierName ?? 'Nhà xe đã ngừng hoạt động' });
+      options.splice(lclTruckExternalOnly ? 0 : 1, 0, { value: draft.carrierValue, label: promotedName ?? row.dispatch.carrierName ?? 'Nhà xe đã ngừng hoạt động' });
     }
     return options;
-  }, [carrierOptions, draft.carrierValue, row.dispatch.carrierName]);
+  }, [carrierOptions, draft.carrierValue, row.dispatch.carrierName, lclTruckExternalOnly]);
 
   // Pinned LH suggestions render ahead of the page's trucks, deduped by option
   // value; reason tags travel in the label so screen readers get the same
@@ -737,9 +777,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
   }
 
   function loadMoreVehicles() {
-    if (vehicleCursor == null || loadingVehicles) return;
+    if (vehicleCursor == null || loadingCarriers) return;
     setLoadingVehicles(true);
-    const isOwnFleet = selectedCarrier?.carrierType === 'OWN' || (rowIsCarrierLess && selectedCarrier == null);
+    const isOwnFleet = selectedCarrier?.carrierType === 'OWN'
+      || (rowIsCarrierLess && selectedCarrier == null && !lclTruckExternalOnly);
     const request = isOwnFleet
       ? listDispatchFleetResources('TRUCK', { limit: PAGE_LOAD_SIZE, q: vehicleSearch || undefined, cursor: vehicleCursor, fulfillmentId: row.fulfillmentId })
       : listDispatchFleetResources('EXTERNAL_VEHICLE', {
@@ -789,6 +830,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     const carrier = parseCarrier(draft.carrierValue);
     if (!carrier) {
       setError('Chọn nhà xe trước khi lưu.');
+      return;
+    }
+    // SIL-939 (KB §9.2 K9.9) — the save refuses what the option list already
+    // hides: a legacy OWN row (or any OWN draft) on an LCL-truck lot cannot
+    // ride the plan save. The backend updateDispatchDetailPlan carries the
+    // same refusal as the server-side backstop.
+    if (lclTruckExternalOnly && carrier.carrierType === 'OWN') {
+      setError('Hàng lẻ xe tải 100% xe ngoài — không thể chọn Đội xe nội bộ. Chọn Nhà xe (xe ngoài).');
       return;
     }
     const body = vehicleBody(draft.vehicleValue);
@@ -994,7 +1043,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
 
   return (
     <div className="dispatch-assignment-cell" data-cell-label="Điều phối">
-      {carrierEditable ? (
+      {/* K4.14 (SIL-953, QA 24/11): an unassigned row's Điều phối cell is
+          QUIET — one muted placeholder label, no button chrome. The assign
+          affordance stays one click away in the ⋯ row menu ('Sửa điều phối',
+          the menu's most common verb on unassigned rows); SIL-500's
+          click-to-edit carrier line remains for ASSIGNED rows only. */}
+      {carrierEditable && !unassigned ? (
         <button
           type="button"
           className={`dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action${unassigned ? ' is-placeholder' : ''}`}
@@ -1152,7 +1206,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
                 onChange={updateCarrier}
                 onSearchChange={setCarrierSearch}
                 options={selectableCarrierOptions}
-                placeholder="Chọn nhà xe"
+                placeholder={lclTruckExternalOnly ? 'Chọn Nhà xe (xe ngoài)' : 'Chọn nhà xe'}
                 searchPlaceholder="Tìm nhà xe…"
                 emptyMessage={loadingCarriers ? 'Đang tải…' : 'Không tìm thấy nhà xe phù hợp.'}
                 disabled={saving}
@@ -1163,6 +1217,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
                 size="sm"
               />
             </label>
+            {lclTruckExternalOnly && (
+              <p className="dispatch-assignment-dialog__hint" data-testid="lcl-truck-external-only-hint">
+                Hàng lẻ xe tải 100% xe ngoài — chỉ chọn Nhà xe (xe ngoài), không dùng Đội xe nội bộ.
+              </p>
+            )}
+            {carrierResetWarning && (
+              <p className="dispatch-assignment-dialog__error" role="alert">{carrierResetWarning}</p>
+            )}
             {carrierError ? (
               <p className="dispatch-assignment-dialog__error" role="status">
                 Không tải được danh sách nhà xe.{' '}

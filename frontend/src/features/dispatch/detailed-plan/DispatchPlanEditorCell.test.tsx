@@ -311,23 +311,22 @@ describe('QA-AUDIT-UI-92 complete assignment facts', () => {
 });
 
 describe('SIL-500 — carrier click-to-edit (KHĐ 26/10)', () => {
-  it('clicking the unassigned carrier "Chưa phân xe" opens the assign dialog (SIL-753 label)', async () => {
+  it('an unassigned cell reads ONE muted Chưa phân xe placeholder, not a button (K4.14/SIL-953)', () => {
     mockFleetResources();
     const unassigned = row();
     unassigned.dispatch = { ...unassigned.dispatch, carrierName: null, assignedPlate: null };
     renderCell(unassigned, {}, { open: false });
-    // SIL-753: the unassigned OWN row reads 'Chưa phân xe' — the backend no
-    // longer labels it with the internal fleet's name, and the cell carries
-    // the state once (no duplicated plate-line filler, no 'Chưa phân nhà xe').
-    const carrierButton = screen.getByRole('button', { name: 'Sửa điều phối · Chưa phân xe · MSCU1234567' });
-    expect(carrierButton).toHaveTextContent('Chưa phân xe');
-    expect(carrierButton.className).toContain('is-placeholder');
+    // K3.98 (SIL-932): one muted label. K4.14 (SIL-953): the unassigned
+    // cell is quiet — no button chrome; the assign verb lives in the ⋯
+    // row menu ('Sửa điều phối').
+    const label = screen.getByText('Chưa phân xe');
+    expect(label.className).toContain('is-placeholder');
+    expect(label.closest('button')).toBeNull();
     expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
     expect(screen.queryByText('SilverSea')).toBeNull();
-    const cell = carrierButton.closest('.dispatch-assignment-cell') as HTMLElement;
+    const cell = label.closest('.dispatch-assignment-cell') as HTMLElement;
     expect(within(cell).getAllByText('Chưa phân xe')).toHaveLength(1);
-    fireEvent.click(carrierButton);
-    expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeInTheDocument();
+    expect(within(cell).queryByRole('button')).toBeNull();
   });
 
   it('a carrier-less external row reads the SAME Chưa phân xe label — no Chưa phân nhà xe filler (SIL-932)', () => {
@@ -338,11 +337,11 @@ describe('SIL-500 — carrier click-to-edit (KHĐ 26/10)', () => {
     // K3.98 (SIL-932): every unassigned shape carries ONE muted label.
     // The external-with-no-carrier shape used to fall through to a second
     // label, 'Chưa phân nhà xe', which QA counted mixed across one page.
-    const carrierButton = screen.getByRole('button', { name: 'Sửa điều phối · Chưa phân xe · MSCU1234567' });
-    expect(carrierButton).toHaveTextContent('Chưa phân xe');
-    expect(carrierButton.className).toContain('is-placeholder');
+    const label = screen.getByText('Chưa phân xe');
+    expect(label.className).toContain('is-placeholder');
+    expect(label.closest('button')).toBeNull();
     expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
-    const cell = carrierButton.closest('.dispatch-assignment-cell') as HTMLElement;
+    const cell = label.closest('.dispatch-assignment-cell') as HTMLElement;
     expect(within(cell).getAllByText('Chưa phân xe')).toHaveLength(1);
   });
 
