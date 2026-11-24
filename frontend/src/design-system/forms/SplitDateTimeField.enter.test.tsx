@@ -49,7 +49,8 @@ describe('SplitDateTimeField — FB-002 + FB-030/075 segmented entry contract', 
     typeReal('14');
     expect(hour()).toHaveValue('14');
     expect(document.activeElement).toBe(minute());
-    expect(minute()).toHaveValue('');
+    // SIL-929 owns the minute's post-advance value ('00' fill, KB §3.2.5
+    // K3.31) — this test's contract is the focus hand-off alone.
   });
 
   it('FB-030/075: typing "17" in the day auto-advances focus to the month segment', () => {

@@ -45,6 +45,9 @@ describe('TimeSegmentsField (card 20261002_275)', () => {
     render(<Harness />);
     type('hh', '08');
     expect(activeLabel()).toBe('Phút — Giờ đóng/trả');
+    // SIL-929: a complete hour auto-fills the empty minute '00' — clear it
+    // first so the empty-minute Backspace contract is reachable again.
+    type('mm', '');
     press('mm', 'Backspace');
     expect(activeLabel()).toBe('Giờ — Giờ đóng/trả');
     // The hour is selected, so typing replaces it instead of appending.

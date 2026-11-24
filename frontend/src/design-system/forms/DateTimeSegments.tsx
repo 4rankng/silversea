@@ -177,6 +177,13 @@ export function DateTimeSegments({
       // put. Completing the final segment ends the entry naturally.
       if (next[index].length === specs[index].maxLength && !isOutOfRange(specs[index], next[index])) {
         if (index + 1 < specs.length) {
+          // SIL-929 (KB §3.2.5 K3.31): a complete hour hands focus to the
+          // minute AND fills an EMPTY minute with '00' — the time reads
+          // '08:00', never the '08:mm' QA filed (staging 3e9a28fa). A
+          // minute already holding digits is retained (the retain
+          // contract); the fill is not user completion, so onComplete
+          // stays silent.
+          if (part === 'time' && index === 0 && !next[index + 1]) next[index + 1] = '00';
           scheduleFocus(index + 1);
         } else {
           onComplete?.();
@@ -218,10 +225,20 @@ export function DateTimeSegments({
       // Typing the separator pads a lone digit ('8:' → '08') and jumps ahead.
       event.preventDefault();
       if (last) { onComplete?.(); return; }
-      if (texts[index].length === 1) {
-        const padded = `0${texts[index]}`;
-        if (!isOutOfRange(specs[index], padded)) onValueChange([...texts.slice(0, index), padded, ...texts.slice(index + 1)].join(separator));
+      const jumped = [...texts];
+      if (jumped[index].length === 1) {
+        const padded = `0${jumped[index]}`;
+        if (!isOutOfRange(specs[index], padded)) jumped[index] = padded;
       }
+      // SIL-929 (KB §3.2.5 K3.31): the hour→minute jump fills an EMPTY
+      // minute with '00' too — same '08:00' law as the two-digit completion,
+      // never a half-filled '08:mm'.
+      if (part === 'time' && index === 0 && jumped[index].length === specs[index].maxLength
+        && !isOutOfRange(specs[index], jumped[index]) && !jumped[index + 1]) {
+        jumped[index + 1] = '00';
+      }
+      const joined = jumped.some(Boolean) ? jumped.join(separator) : '';
+      if (joined !== value) onValueChange(joined);
       focusSegment(index + 1);
     }
   };

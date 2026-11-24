@@ -53,6 +53,9 @@ describe('DateTimeSegments', () => {
   it('backspace on an empty minute returns focus to the hour without deleting (5)', () => {
     render(<Harness part="time" />);
     type('hh', '08');
+    // SIL-929: a complete hour auto-fills the empty minute '00' — clear it
+    // first so the empty-minute Backspace contract is reachable again.
+    type('mm', '');
     press('mm', 'Backspace');
     expect(activeLabel()).toBe('Giờ — test');
     expect(seg('hh')).toHaveValue('08');
@@ -166,7 +169,11 @@ describe('DateTimeSegments', () => {
     render(<TimeHarness />);
     act(() => seg('hh').focus());
     type('hh', '08');
+    // SIL-929: the hour fill lands '00' but is NOT user completion.
+    expect(seg('mm')).toHaveValue('00');
     expect(onComplete).not.toHaveBeenCalled();
+    // Clear the auto-filled minute, then type the final segment for real.
+    type('mm', '');
     type('mm', '00');
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
