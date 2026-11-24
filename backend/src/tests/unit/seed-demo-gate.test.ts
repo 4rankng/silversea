@@ -175,5 +175,18 @@ describe('demo seed production gate (FB-061)', () => {
     // 11/07/2026 G = 21.740 và 18/07/2026 G = 27.620 (giá chưa VAT).
     assert.match(source, /unitPrice: '21740\.00', effectiveFrom: '2026-07-11'/);
     assert.match(source, /unitPrice: '27620\.00', effectiveFrom: '2026-07-18'/);
+    // SIL-959 round 2 (staging build df7b2a73): the KB §5.15 surface must
+    // converge to EXACTLY the 9-row ladder. Staging carried 4 stale
+    // weight-split container norm rows (@ 2026-10-02, CONT20./CONT40.) from
+    // the abandoned QA seed lane; leaving them made the converged API return
+    // 13 rows while QA's decisive check reads the table as the 9-row KB
+    // ladder. The convergence deactivates every norm row whose class sits
+    // outside CANONICAL_NORMS (soft-delete — engine money unchanged: the
+    // family lookup resolves the same liters/km from the canonical base rows).
+    assert.match(
+      source,
+      /!\(cls\.code in CANONICAL_NORMS\)[\s\S]*?deletedAt: new Date\(\)[\s\S]*?isNull\(s\.fuelConsumptionNorms\.deletedAt\)/,
+      'norm rows outside the KB §5.15 ladder must be deactivated by the convergence',
+    );
   });
 });

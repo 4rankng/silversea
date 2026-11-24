@@ -14,7 +14,10 @@
  *   1. vehicle_size_classes — canonical 9-code catalog (ensure-if-missing).
  *   2. fuel_price_periods — the two REAL Excel fuel prices (insert-if-missing;
  *      existing period rows are audit records and are never modified).
- *   3. fuel_consumption_norms — design liters/km ladder @ 2026-09-09.
+ *   3. fuel_consumption_norms — design liters/km ladder @ 2026-09-09;
+ *      norm rows on classes OUTSIDE the KB §5.15 ladder (weight-split
+ *      container variants from the abandoned QA seed lane) are deactivated —
+ *      the API surface converges to exactly the 9-row KB ladder (SIL-959 r2).
  *   3b. the 3 pricing routes — ensure-if-missing by normalized name so a
  *      staging DB that mirrors prod master data (no dev reference seeder
  *      ever ran there) still converges; existing routes never modified.
@@ -41,7 +44,7 @@
  * Test fixtures (FreightEng/DBG rows, suffixed classes and periods) never
  * match these natural keys and are left for QA's cleanup lane.
  */
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import * as s from '../db/schema/index.js';
 import { pricing } from './data/index.js';
@@ -233,6 +236,36 @@ async function ensureFuelConsumptionNorms(): Promise<void> {
   const classRows = await db.select({ id: s.vehicleSizeClasses.id, code: s.vehicleSizeClasses.code })
     .from(s.vehicleSizeClasses);
   const classIdByCode = new Map(classRows.map((c) => [c.code, c.id]));
+
+  // SIL-959 round 2 (staging 24/11, build df7b2a73): the KB §5.15 surface is
+  // EXACTLY the 9 canonical classes — weight never splits consumption (_58:
+  // "norms stay keyed on CONT20/CONT40"), so any norm row on a class outside
+  // the ladder is stale data from the abandoned QA seed lane (staging carried
+  // 4 weight-split container rows @ 2026-10-02 on CONT20./CONT40.). Leaving
+  // them made GET /api/fuel-consumption-norms return 13 rows after this
+  // seed — QA's decisive check reads the table as the 9-row KB ladder. The
+  // engine money cannot change: the family lookup resolves the same
+  // liters/km (0.32/0.35) from the canonical base rows once the stale ones
+  // are deactivated.
+  const staleClassIds = classRows
+    .filter((cls) => !(cls.code in CANONICAL_NORMS))
+    .map((cls) => cls.id);
+  if (staleClassIds.length > 0) {
+    const deactivated = await db.update(s.fuelConsumptionNorms)
+      .set({ deletedAt: new Date(), updatedAt: new Date() })
+      .where(and(
+        inArray(s.fuelConsumptionNorms.vehicleSizeClassId, staleClassIds),
+        isNull(s.fuelConsumptionNorms.deletedAt),
+      ))
+      .returning({ id: s.fuelConsumptionNorms.id });
+    if (deactivated.length > 0) {
+      const staleCodes = classRows
+        .filter((cls) => !(cls.code in CANONICAL_NORMS))
+        .map((cls) => cls.code)
+        .join(', ');
+      console.log(`🧹 Fuel consumption norms: deactivated ${deactivated.length} stale row(s) outside the KB §5.15 ladder (classes: ${staleCodes})`);
+    }
+  }
 
   let created = 0;
   let refreshed = 0;
