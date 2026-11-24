@@ -28,7 +28,8 @@ import { assertActorCanAccessShipment } from './shipment-coordination.service';
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { and, eq, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm';
-import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification, lclVehicleSourcingRule, LclVehicleSourcing } from '@tingting/shared';
+import { canonicalShipmentStatus, localDateInBusinessZone, TripStatus, type DispatchClassification } from '@tingting/shared';
+import { lclTruckInternalFleetRefusal } from './dispatch-lcl-sourcing';
 import * as s from '../db/schema';
 import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
 import { assertKepIssuingContainerClass, countDateOnlyTripClaims } from './dispatch-resource-availability.service';
@@ -206,6 +207,31 @@ export function normalizeFreeTextPlate(value: string): string {
  * its now-incompatible vehicle/plate assignment.
  */
 
+/**
+ * SIL-939 (KB §9.2 K9.9, FB-090 sourcing law) — transactional half of the
+ * LCL truck sourcing gate: resolve the lot's class (COST first, else the
+ * lot's own rev class — the only signal an ungrouped LCL lot like staging
+ * R4B-A14-EMPTY2 carries), then refuse the internal fleet on truck classes.
+ * Runs before any write in every dispatch plan mutation (atomic plan save,
+ * legacy carrier endpoint, legacy plate endpoint) so the refusal stays
+ * all-or-nothing and no API shape bypasses the law.
+ */
+async function assertLclTruckExternalOnly(
+  tx: Tx,
+  shipment: { cargoMode: string | null; costVehicleClassId: number | null; revVehicleClassId: number | null },
+  carrierType: 'OWN' | 'EXTERNAL',
+): Promise<void> {
+  if (carrierType !== 'OWN' || shipment.cargoMode !== 'LCL') return;
+  const classId = shipment.costVehicleClassId ?? shipment.revVehicleClassId;
+  if (classId == null) return;
+  const [vehicleClass] = await tx.select({ isContainer: s.vehicleSizeClasses.isContainer, code: s.vehicleSizeClasses.code })
+    .from(s.vehicleSizeClasses)
+    .where(eq(s.vehicleSizeClasses.id, classId))
+    .limit(1);
+  const refusal = lclTruckInternalFleetRefusal(carrierType, shipment, vehicleClass ?? null);
+  if (refusal != null) throw new ApiError(400, refusal);
+}
+
 export async function assignFulfillmentCarrierWriteCommand(input: AssignFulfillmentCarrierInput): Promise<CarrierMutationResult & { replayed: boolean }> {
   assertDispatchActor(input.actor);
   const outcome = await runIdempotent<CarrierMutationResult>({
@@ -251,6 +277,9 @@ export async function assignFulfillmentCarrierInTx(tx: Tx, input: AssignFulfillm
   if (carrierAssignStatus === 'COMPLETED' || carrierAssignStatus === 'CANCELED') {
     throw new ApiError(409, 'Lô hàng đã kết thúc, không thể đổi nhà xe.');
   }
+  // SIL-939 — same refusal as the atomic plan save: the legacy carrier
+  // endpoint must not become the API bypass around the LCL sourcing law.
+  await assertLclTruckExternalOnly(tx, shipment, input.carrierType);
 
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
     .where(and(eq(s.shipmentFulfillments.id, input.fulfillmentId), isNull(s.shipmentFulfillments.canceledAt)))
@@ -531,13 +560,25 @@ export async function assignFulfillmentPlateInTx(tx: Tx, input: AssignFulfillmen
   // (no FOR UPDATE): the fulfillment row lock above already serializes this
   // endpoint, and locking the shipment here would invert the carrier path's
   // lock order (shipment → fulfillment) and deadlock the two endpoints.
-  const [plateLot] = await tx.select({ status: s.shipments.status })
+  const [plateLot] = await tx.select({
+    status: s.shipments.status,
+    cargoMode: s.shipments.cargoMode,
+    costVehicleClassId: s.shipments.costVehicleClassId,
+    revVehicleClassId: s.shipments.revVehicleClassId,
+  })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, fulfillment.shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!plateLot) throw new ApiError(404, 'Không tìm thấy lô hàng.');
   if (canonicalShipmentStatus(plateLot.status) === 'COMPLETED' || canonicalShipmentStatus(plateLot.status) === 'CANCELED') {
     throw new ApiError(409, 'Lô hàng đã kết thúc, không thể gán biển số.');
+  }
+  // SIL-939 — an actual plate/truck pick must not attach the internal fleet
+  // to an LCL truck lot either. A `clear` write is exempt: it only resets the
+  // row to the plate-less "chưa phân xe" shape (SIL-753) and must stay
+  // reachable for legacy OWN rows to unwind through.
+  if (input.clear !== true) {
+    await assertLclTruckExternalOnly(tx, plateLot, carrierType);
   }
 
   await assertShipmentAccountingUnlocked(tx, fulfillment.shipmentId);
@@ -1162,19 +1203,14 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
 
   // SIL-939 (KB §9.2 K9.9, FB-090 sourcing law — same refusal the LCL cost
   // group assignment already carries in lcl-grouping.service.ts): an LCL lot
-  // whose cost vehicle class is a TRUCK tonnage is 100% xe ngoài — the plan
+  // whose sourcing class is a TRUCK tonnage is 100% xe ngoài — the plan
   // editor can never assign the internal fleet to it. Container classes keep
-  // both sources. A lot with no cost class is not judged (never guess the
-  // kind). Runs before any write so the refusal stays all-or-nothing.
-  if (input.carrierType === 'OWN' && shipment.cargoMode === 'LCL' && shipment.costVehicleClassId != null) {
-    const [costClass] = await tx.select({ isContainer: s.vehicleSizeClasses.isContainer, code: s.vehicleSizeClasses.code })
-      .from(s.vehicleSizeClasses)
-      .where(eq(s.vehicleSizeClasses.id, shipment.costVehicleClassId))
-      .limit(1);
-    if (costClass && lclVehicleSourcingRule(costClass.isContainer) === LclVehicleSourcing.EXTERNAL_ONLY) {
-      throw new ApiError(400, `Hàng lẻ xe tải 100% xe ngoài — không thể chọn Đội xe nội bộ (loại xe ${costClass.code}). Chọn Nhà xe (xe ngoài).`);
-    }
-  }
+  // both sources. The class resolves COST-first, else the lot's own rev
+  // class (QA staging R4B-A14-EMPTY2: ungrouped, rev-only — the round-1/2
+  // guard missed it); a lot with no class on either side is not judged
+  // (never guess the kind). Runs before any write so the refusal stays
+  // all-or-nothing.
+  await assertLclTruckExternalOnly(tx, shipment, input.carrierType);
 
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
     .where(and(

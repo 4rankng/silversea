@@ -23,9 +23,14 @@ import { getActiveAssignmentsByTruckIds } from './truck-driver-assignment.servic
 import { db } from '../db';
 import { ApiError } from '../errors';
 import { and, asc, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { Role, TripStatus } from '@tingting/shared';
 import * as s from '../db/schema';
 import type { AuthUser } from '../middleware/auth';
+// SIL-939 — the lot's OWN vehicle class (rev side, set at creation), aliased
+// so the cost class and this class ride one row scan. The sourcing gate
+// falls back to it when no COST group ever picked a class.
+const revVehicleSizeClassTable = alias(s.vehicleSizeClasses, 'rev_vehicle_size_class');
 /** Resolve planned OWN vehicle drivers in a batch; issued trips use their own
  * driver record below, never the truck's potentially newer roster. Carries
  * name + phone (FB-036, card 201026135900): the Điều phối block shows the
@@ -349,6 +354,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       costVehicleClassId: s.shipments.costVehicleClassId,
       costVehicleClassCode: s.vehicleSizeClasses.code,
       costVehicleClassName: s.vehicleSizeClasses.name,
+      // SIL-939 — the rev-side class backs the sourcing gate on ungrouped
+      // LCL lots (no cost class selected yet).
+      revVehicleClassCode: revVehicleSizeClassTable.code,
       customerId: s.customers.id,
       // SIL-796 — the pricing key's route half, the SAME effective-route
       // coalesce the routes join below uses (container → lot fallback), so
@@ -417,6 +425,9 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       // FB-092: the cost vehicle class (loại xe tính cước trả ĐV) names the
       // LCL cell's first line ("Lẻ · Xe 5T").
       .leftJoin(s.vehicleSizeClasses, eq(s.shipments.costVehicleClassId, s.vehicleSizeClasses.id))
+      // SIL-939 — rev-side class join for the sourcing gate (the half an
+      // ungrouped LCL lot carries).
+      .leftJoin(revVehicleSizeClassTable, eq(revVehicleSizeClassTable.id, s.shipments.revVehicleClassId))
       .where(and(rowFilters, pageKeyPredicate(s.shipmentFulfillments.id, fulfillmentIds)))
       .orderBy(...dispatchDetailPriorityOrderSql()),
       // Card 20261008_3 — chip counts, same scan as the old total: one grouped
@@ -701,6 +712,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             packageCount: row.packageCount,
             packageType: row.packageType,
             cargoVolumeCbm: row.cargoVolumeCbm,
+            // SIL-939 — the lot's effective sourcing class: COST first, else
+            // the lot's own rev class. Null when the lot carries no class on
+            // either side (not judged — never guess the kind).
+            sourcingVehicleClassCode: row.costVehicleClassCode ?? row.revVehicleClassCode ?? null,
             group: row.costGroupId != null ? {
               groupId: row.costGroupId,
               order: row.costGroupOrder ?? null,

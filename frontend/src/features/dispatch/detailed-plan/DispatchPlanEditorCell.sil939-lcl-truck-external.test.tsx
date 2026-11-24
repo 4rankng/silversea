@@ -4,6 +4,11 @@
 // 'SilverSea — xe nội bộ' trong danh sách, dòng OWN cũ bị reset kèm cảnh
 // báo, lưu chỉ đi được với Nhà xe ngoài. Hàng lẻ ghép CONT 20'/40' giữ nguyên
 // cả hai nguồn xe.
+// Round 3 (staging c1150c99): the gate keyed on the COST-group class code —
+// an ungrouped LCL lot (QA lot R4B-A14-EMPTY2, cost_group_id NULL) carries
+// its class on the rev side only, so every layer silently skipped the law.
+// The gate now reads the row's effective sourcingVehicleClassCode
+// (cost first, else rev); the rev-only shape is pinned below.
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
@@ -70,6 +75,7 @@ const row = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetailPlan
     packageCount: 10,
     packageType: 'Pallet',
     cargoVolumeCbm: '5.5',
+    sourcingVehicleClassCode: '5T',
     group: { groupId: 'g1', order: 1, memberCount: 3, actualTruckNo: null, billingTruckNo: null, vehicleClassCode: '5T', vehicleClassName: 'Xe 5 tấn' },
   },
   notes: { vehicleNote: null, customerNote: null },
@@ -237,6 +243,7 @@ describe('SIL-939 — Sửa điều phối chặn đội xe nội bộ trên hà
         packageCount: 10,
         packageType: 'Pallet',
         cargoVolumeCbm: '5.5',
+        sourcingVehicleClassCode: 'CONT20',
         group: { groupId: 'g2', order: 1, memberCount: 2, actualTruckNo: null, billingTruckNo: null, vehicleClassCode: 'CONT20', vehicleClassName: 'Container 20 feet' },
       },
     }));
@@ -245,6 +252,63 @@ describe('SIL-939 — Sửa điều phối chặn đội xe nội bộ trên hà
     expect(screen.queryByTestId('lcl-truck-external-only-hint')).toBeNull();
     const options = await openCarrierOptions();
     expect(options.map((item) => item.textContent ?? '').some((label) => label.includes('SilverSea — xe nội bộ'))).toBe(true);
+  });
+
+  it('lô LCL CHƯA ghép nhóm (QA repro R4B-A14-EMPTY2, class chỉ ở rev side): vẫn chặn đội xe nội bộ', async () => {
+    // QA round 3 (staging c1150c99): the ungrouped lot's class lives on
+    // rev_vehicle_class_id only — lcl.group is null. The gate must judge
+    // through the row's sourcingVehicleClassCode all the same.
+    renderCell(row({
+      lcl: {
+        packageCount: 10,
+        packageType: 'Pallet',
+        cargoVolumeCbm: '5.5',
+        sourcingVehicleClassCode: '5T',
+        group: null,
+      },
+    }));
+    await openDialog();
+
+    expect(screen.getByTestId('lcl-truck-external-only-hint').textContent).toContain('100% xe ngoài');
+    const options = await openCarrierOptions();
+    const labels = options.map((item) => item.textContent ?? '');
+    expect(labels.some((label) => label.includes('SilverSea — xe nội bộ'))).toBe(false);
+    expect(labels.some((label) => label.includes('Nhà xe Hải Vân'))).toBe(true);
+  });
+
+  it('lô LCL không có class nào (cost lẫn rev): không phán xét — giữ hành vi cũ', async () => {
+    renderCell(row({
+      lcl: {
+        packageCount: 10,
+        packageType: 'Pallet',
+        cargoVolumeCbm: '5.5',
+        sourcingVehicleClassCode: null,
+        group: null,
+      },
+    }));
+    await openDialog();
+
+    expect(screen.queryByTestId('lcl-truck-external-only-hint')).toBeNull();
+    const options = await openCarrierOptions();
+    expect(options[0]?.textContent).toContain('SilverSea — xe nội bộ');
+  });
+
+  it('lô OWN cũ chưa ghép nhóm (class rev side): mở dialog vẫn reset kèm cảnh báo', async () => {
+    renderCell(row({
+      dispatch: { carrierType: 'OWN', carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+      lcl: {
+        packageCount: 10,
+        packageType: 'Pallet',
+        cargoVolumeCbm: '5.5',
+        sourcingVehicleClassCode: '5T',
+        group: null,
+      },
+    }));
+    await openDialog();
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain('đã bỏ lựa chọn Đội xe nội bộ');
+    expect(screen.queryByText('SilverSea — xe nội bộ')).toBeNull();
   });
 
   it('dòng FCL: không hint, OWN vẫn là lựa chọn đầu (không hồi quy luật cũ)', async () => {

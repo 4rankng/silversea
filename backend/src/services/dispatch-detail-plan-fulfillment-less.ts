@@ -20,6 +20,7 @@
  * filter is set (it cannot equal any specific date).
  */
 import { and, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type { Tx } from './dispatch-planning-utils.service';
 import {
   CUSTOMER_OPERATIONAL_NAME,
@@ -33,6 +34,10 @@ import { ApiError } from '../errors';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
 import { assertActorCanAccessShipment } from './shipment-coordination.service';
 import { runInTx } from '../lib/tx';
+
+// SIL-939 — the lot's OWN vehicle class (rev side), the sourcing-gate signal
+// an ungrouped LCL lot carries (same alias const as the main rows query).
+const revVehicleSizeClassTable = alias(s.vehicleSizeClasses, 'rev_vehicle_size_class');
 
 export interface FulfillmentLessFilters {
   q?: string;
@@ -190,6 +195,10 @@ export async function listFulfillmentLessReadyRows(
       // can still resolve the class through costVehicleClassId when needed.
       costVehicleClassCode: sql<null>`null`,
       costVehicleClassName: sql<null>`null`,
+      // SIL-939 — the lot's own rev-side class resolves for real here too:
+      // pre-grouping LCL branch rows gate the sourcing law exactly like
+      // their post-decompose siblings.
+      revVehicleClassCode: revVehicleSizeClassTable.code,
       customerId: s.customers.id,
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,
@@ -236,6 +245,8 @@ export async function listFulfillmentLessReadyRows(
     .leftJoin(s.routes, eq(s.routes.id, sql<number>`case when ${s.shipments.cargoMode} = 'FCL'
       then coalesce(${s.shipmentContainers.routeId}, ${s.shipments.routeId})
       else ${s.shipments.routeId} end`))
+    // SIL-939 — rev-side class join backing the sourcing gate.
+    .leftJoin(revVehicleSizeClassTable, eq(revVehicleSizeClassTable.id, s.shipments.revVehicleClassId))
     .where(and(...buildFulfillmentLessConditions(filters, accountantCustomerIds),
       containerIds ? inArray(s.shipmentContainers.id, containerIds) : undefined))
     .orderBy(sql`coalesce(${TRANSPORT_DATE_SQL}, '9999-12-31') asc`, s.shipmentContainers.id)

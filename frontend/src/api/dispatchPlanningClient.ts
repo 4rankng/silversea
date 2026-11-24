@@ -202,6 +202,11 @@ export interface LclRowFacts {
   packageCount: number | null;
   packageType: string | null;
   cargoVolumeCbm: string | null;
+  /** SIL-939 — the lot's effective sourcing class: cost class (Gán xe nhóm)
+   *  first, else the lot's own rev class. The FB-090 EXTERNAL_ONLY gate reads
+   *  this — including on lots no cost group ever classed. Optional for older
+   *  fixtures; absent ⇒ not judged. */
+  sourcingVehicleClassCode?: string | null;
   group: {
     groupId: string;
     order: number | null;

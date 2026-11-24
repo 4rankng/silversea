@@ -383,19 +383,21 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
 
   const selectedCarrier = parseCarrier(draft.carrierValue);
   // SIL-939 (KB §9.2 K9.9, FB-090 law — same rule the "Gán xe nhóm" dialog
-  // already serves, SIL-545): an LCL cost group on a TRUCK-tonnage class is
-  // 100% xe ngoài — the internal fleet is neither offered nor accepted in
-  // this dialog. The class resolves from the row's cost-group code through
-  // the shared vehicle_size_classes catalog; an absent/unknown class keeps
-  // the legacy behavior (no restriction — never guess the kind).
+  // already serves, SIL-545): an LCL lot on a TRUCK-tonnage class is 100% xe
+  // ngoài — the internal fleet is neither offered nor accepted in this
+  // dialog. The class resolves from the row's effective sourcing class
+  // (cost class first, else the lot's own rev class — the only signal an
+  // ungrouped lot like QA's R4B-A14-EMPTY2 carries) through the shared
+  // vehicle_size_classes catalog; an absent/unknown class keeps the legacy
+  // behavior (no restriction — never guess the kind).
   const vehicleClassesQuery = useVehicleSizeClasses();
   const lclTruckExternalOnly = useMemo(() => {
     if (row.cargoMode !== 'LCL') return false;
-    const classCode = row.lcl?.group?.vehicleClassCode;
+    const classCode = row.lcl?.sourcingVehicleClassCode;
     if (!classCode) return false;
     const vehicleClass = vehicleClassesQuery.data?.find((vc) => vc.code === classCode);
     return vehicleClass != null && lclVehicleSourcingRule(vehicleClass.isContainer) === LclVehicleSourcing.EXTERNAL_ONLY;
-  }, [row.cargoMode, row.lcl?.group?.vehicleClassCode, vehicleClassesQuery.data]);
+  }, [row.cargoMode, row.lcl?.sourcingVehicleClassCode, vehicleClassesQuery.data]);
   const [carrierResetWarning, setCarrierResetWarning] = useState<string | null>(null);
   // A row SAVED as OWN before this gate (legacy data) must not sit silently
   // in the dialog: loud reset to the required external pick — same contract
