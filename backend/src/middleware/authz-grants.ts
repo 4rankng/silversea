@@ -261,6 +261,31 @@ export const ROUTE_GRANT_RULES: readonly RouteGrantRule[] = [
     source: 'user ruling 2026-11-19 (giamdoc + ketoan manage nhóm CUS)',
   },
   {
+    // SIL-970 (KB K10.37 §10.6.9 — Chốt theo đợt): "Khi lô đã đủ chi phí,
+    // Chứng từ bấm [Khóa lô] và [Chọn Debit] như Kế toán." [Chốt đợt] IS the
+    // settlement-round POST: fix 09541dd3 already named CUS on the route
+    // guard (SETTLEMENT_ROUND_ROLES), but the mount-level casbinAuthz
+    // ('accounting') gate runs FIRST and CUS holds only the accounting READ
+    // policy row, so every CUS chốt-đợt tap died 403 before the route ever
+    // ran (live QA 25/11 06:53: CUS tiepvv/dungnv → 403 "Không có quyền truy
+    // cập"; kế toán hoapt → 400 validation, i.e. office RBAC passed). The
+    // casbin model has no path dimension (p = sub, obj, act), so policy.csv
+    // cannot scope this — the bridge lives here, scoped to exactly the POST
+    // list path. `p, CUS, accounting, write` would open every accounting
+    // write (deposits, phiếu chi, rate adjustments, billing documents) the
+    // ruling says nothing about. GET rides the existing read row; the
+    // debit-note chain (preview GET, POST /shipments/debit-notes) is not part
+    // of the CUS /shipments-debit surface and stays ungranted here.
+    resource: 'accounting',
+    methods: ['POST'],
+    pathPattern: /^\/debit-board\/settlement-rounds\/?$/,
+    roles: [Role.CUS],
+    effect: 'bypass',
+    reason:
+      'CUS chốt đợt như Kế toán (KB K10.37 §10.6.9): the settlement-round POST is the Chọn Debit command and its route guard already names CUS — the accounting gate only owes CUS this one write path, so the bridge opens exactly POST /debit-board/settlement-rounds and every other accounting write stays casbin-denied.',
+    source: 'SIL-970 (KB K10.37 §10.6.9; live QA 25/11 CUS chốt đợt 403)',
+  },
+  {
     resource: 'trips',
     methods: ['POST'],
     pathPattern: /^\/\d+\/complete-external\/?$/,

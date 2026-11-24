@@ -137,7 +137,9 @@ export interface DebitMergeGridProps {
   onSelectionChange: (id: number, next: boolean) => void;
   /** ShipmentDebitWorkspace's canLock law (ADMIN | ACCOUNTANT | CUS). */
   canLock: boolean;
-  /** The office trio only — createSettlementRound is OFFICE_ROLES-gated. */
+  /** Server gate = office trio + CUS (SETTLEMENT_ROUND_ROLES, SIL-970).
+   *  /shipments-debit passes true for CUS; the staff merge page's route
+   *  guard is office-only, so it omits CUS by design. */
   canChooseDebit: boolean;
   /** SIL-866 (hotfix CR-009.1) — [Xuất Debit Note] rides THIS toolbar: the
    *  same gate as the issue endpoint (CUS | ACCOUNTANT | ADMIN). Absent →

@@ -369,8 +369,12 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
       // User ruling 2026-11-19: one more bypass — kế toán manages nhóm CUS,
       // the /cus-groups POST/PUT bridge for ACCOUNTANT (users:write stays
       // ungranted; the users read row is policy.csv, not the registry).
-      assert.equal(ROUTE_GRANT_RULES.length, 20);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 18);
+      // SIL-970 (KB K10.37 §10.6.9): one more bypass — CUS chốt đợt như
+      // Kế toán, the POST /debit-board/settlement-rounds bridge for CUS
+      // (accounting stays read-only for CUS in policy.csv; the route guard
+      // names CUS since 09541dd3, the mount-level gate was the 403).
+      assert.equal(ROUTE_GRANT_RULES.length, 21);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 19);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 
@@ -595,5 +599,72 @@ describe('CUS delete-request bridge (cards 351/352)', () => {
     assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/cus-workspace/abc', Role.CUS), undefined);
     assert.equal(matchRouteBypassGrant('shipments', 'POST', '/cus-workspace/313', Role.CUS), undefined);
     assert.equal(matchRouteBypassGrant('shipments', 'DELETE', '/313', Role.CUS), undefined);
+  });
+});
+
+describe('Settlement-round Chọn Debit bridge (SIL-970)', () => {
+  // KB K10.37 §10.6.9 — "Khi lô đã đủ chi phí, Chứng từ bấm [Khóa lô] và
+  // [Chọn Debit] như Kế toán": [Chốt đợt] IS POST /debit-board/settlement-
+  // rounds. The route guard names CUS (SETTLEMENT_ROUND_ROLES, 09541dd3) but
+  // the mount-level casbinAuthz('accounting') gate runs first and CUS holds
+  // only the accounting READ policy row, so the live repro (25/11 06:53) died
+  // 403 "Không có quyền truy cập" before the route. With the real policy
+  // loaded, a next() on this path can only come from the bridge — CUS has no
+  // accounting write row — so the middleware probes stay sharp on both sides.
+  before(async () => {
+    await initEnforcer();
+  });
+
+  it('passes CUS through the accounting gate into POST /debit-board/settlement-rounds (the 403 repro)', async () => {
+    assert.deepEqual(
+      await authorizeCasbin('accounting', Role.CUS, 'POST', '/debit-board/settlement-rounds'),
+      { nextCalled: true, statusCode: 200 },
+      'CUS must clear casbin to reach the settlement-round route',
+    );
+  });
+
+  it('opens exactly that surface — the grant is POST /debit-board/settlement-rounds for CUS only', () => {
+    assert.ok(matchRouteBypassGrant('accounting', 'POST', '/debit-board/settlement-rounds/', Role.CUS));
+    // near-miss shapes the strict pattern must keep rejecting
+    assert.equal(matchRouteBypassGrant('accounting', 'POST', '/debit-board/settlement-rounds/9', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('accounting', 'POST', '/debit-board/settlement-rounds/abc', Role.CUS), undefined);
+    // the write grant is POST-only; GET rides the CUS accounting READ row
+    assert.equal(matchRouteBypassGrant('accounting', 'GET', '/debit-board/settlement-rounds', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('accounting', 'PUT', '/debit-board/settlement-rounds', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('accounting', 'DELETE', '/debit-board/settlement-rounds', Role.CUS), undefined);
+    // other roles ride their own policy rows, never this bridge
+    assert.equal(matchRouteBypassGrant('accounting', 'POST', '/debit-board/settlement-rounds', Role.MANAGER), undefined);
+    assert.equal(matchRouteBypassGrant('accounting', 'POST', '/debit-board/settlement-rounds', Role.ACCOUNTANT), undefined);
+    assert.equal(matchRouteBypassGrant('accounting', 'POST', '/debit-board/settlement-rounds', Role.ADMIN), undefined);
+    assert.equal(matchRouteBypassGrant('accounting', 'POST', '/debit-board/settlement-rounds', Role.DISPATCHER), undefined);
+    assert.equal(matchRouteBypassGrant('accounting', 'POST', '/debit-board/settlement-rounds', Role.OPS), undefined);
+    // the debit-note chain is not part of this grant
+    assert.equal(matchRouteBypassGrant('accounting', 'GET', '/debit-board/settlement-rounds/9/debit-note-preview', Role.CUS), undefined);
+    assert.equal(matchRouteBypassGrant('accounting', 'POST', '/debit-board/rate-adjustments/confirm', Role.CUS), undefined);
+  });
+
+  it('keeps CUS 403 on the sibling accounting write through the real middleware', async () => {
+    assert.deepEqual(
+      await authorizeCasbin('accounting', Role.CUS, 'POST', '/debit-board/rate-adjustments/confirm'),
+      { nextCalled: false, statusCode: 403 },
+    );
+  });
+
+  it('keeps the settlement-round list read on the CUS accounting read row (no bridge involved)', async () => {
+    assert.deepEqual(
+      await authorizeCasbin('accounting', Role.CUS, 'GET', '/debit-board/settlement-rounds'),
+      { nextCalled: true, statusCode: 200 },
+    );
+  });
+
+  it('still refuses roles without any accounting policy on the bridged path', async () => {
+    assert.deepEqual(
+      await authorizeCasbin('accounting', Role.DISPATCHER, 'POST', '/debit-board/settlement-rounds'),
+      { nextCalled: false, statusCode: 403 },
+    );
+    assert.deepEqual(
+      await authorizeCasbin('accounting', Role.OPS, 'POST', '/debit-board/settlement-rounds'),
+      { nextCalled: false, statusCode: 403 },
+    );
   });
 });
