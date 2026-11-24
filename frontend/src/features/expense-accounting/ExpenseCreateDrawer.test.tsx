@@ -69,22 +69,29 @@ it('lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai
   await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
   expect(sentItems(0)).toHaveLength(2);
 });
-it('cặp số/ngày hóa đơn hiển thị sẵn, tùy chọn; không còn ô Loại chứng từ (FB-097)', async () => {
+it('KB §6.2 — "Có hóa đơn" là cờ có hóa đơn: cặp số/ngày ẩn khi tắt, hiện và bắt buộc khi bật (SIL-949)', async () => {
   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} onClose={vi.fn()} />);
-  // FB-097 (TC-COSTUX-03): cặp số/ngày hóa đơn hiện sẵn, điền hoặc không đều được.
+  // Cờ tắt: không còn ô "Loại chứng từ", cặp số/ngày hóa đơn KHÔNG hiển thị.
   expect(screen.queryByRole('button', { name: /Loại chứng từ/ })).not.toBeInTheDocument();
-  expect(screen.getByLabelText(/Số hóa đơn/)).toBeInTheDocument();
-  expect(screen.getByLabelText(/Ngày hóa đơn/)).toBeInTheDocument();
-  fireEvent.change(screen.getByLabelText(/Số hóa đơn/), { target: { value: 'HD-2026-09' } });
+  expect(screen.queryByLabelText(/Số hóa đơn/)).toBeNull();
+  expect(screen.queryByLabelText(/Ngày hóa đơn/)).toBeNull();
   await fillRow(0, '9000');
   fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
   await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
-  expect(sentItems(0)[0]).toMatchObject({ invoiceNumber: 'HD-2026-09' });
-  // để trống ở lần lưu sau → null, không có chữ sót lại từ khoản trước
+  expect(sentItems(0)[0]).toMatchObject({ invoiceNumber: null, invoiceDate: null });
+  // Bật cờ: cặp số/ngày xuất hiện; số hóa đơn để trống thì lưu bị chặn.
+  fireEvent.click(screen.getByLabelText('Có hóa đơn'));
+  expect(screen.getByLabelText(/Số hóa đơn/)).toBeInTheDocument();
+  expect(screen.getByLabelText(/Ngày hóa đơn/)).toBeInTheDocument();
   await fillRow(0, '1000');
   fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Dòng 1: Bật "Có hóa đơn" thì bắt buộc nhập số hóa đơn.');
+  expect(createBatch).toHaveBeenCalledTimes(1);
+  // Số hóa đơn thật đi cùng payload.
+  fireEvent.change(screen.getByLabelText(/Số hóa đơn/), { target: { value: 'HD-2026-09' } });
+  fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
   await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(2));
-  expect(sentItems(1)[0]).toMatchObject({ invoiceNumber: null, invoiceDate: null });
+  expect(sentItems(1)[0]).toMatchObject({ invoiceNumber: 'HD-2026-09' });
 });
 // Card 191026160000 — the group pick is the mockup's TWO side-by-side tabs;
 // every other group is gone from manual entry.
@@ -180,6 +187,24 @@ it('labels the equal-amount checkbox with the unified chi-hộ wording (card 202
   expect(screen.getByLabelText('Nhập Thu và Trả bằng nhau')).toBeInTheDocument();
   expect(screen.queryByLabelText('Thu bằng trả')).not.toBeInTheDocument();
 });
+
+// KB Chương 6 §6.2 (SIL-950) — thứ tự trường trong một dòng khai chi: Ngày ·
+// (Nhóm chi phí = tab pair phía trên các dòng) · Tên khoản chi · Thực chi ·
+// "Có hóa đơn" + cặp số/ngày hóa đơn · Thực thu — thu khách · Bên thực chi
+// (Người chi / Nhà cung cấp hiện đúng slot theo lựa chọn) · ô đánh dấu CUỐI.
+it('KB §6.2 — thứ tự trường dòng khai chi, Ngày chi đứng đầu và ô đánh dấu đứng cuối (SIL-950)', () => {
+  renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
+  const row = screen.getByText('Khoản 1').closest('section');
+  expect(row).not.toBeNull();
+  const text = row!.textContent ?? '';
+  let at = -1;
+  for (const label of ['Ngày chi', 'Loại chi phí lái xe', 'Tên khoản chi', 'Thực chi (VND)', 'Có hóa đơn',
+    'Thực thu — thu khách (VND)', 'Bên thực chi', 'Nhập Thu và Trả bằng nhau']) {
+    const found = text.indexOf(label);
+    expect(found).toBeGreaterThan(at);
+    at = found;
+  }
+});
 it('Nhà cung cấp tự điền theo nhà xe chạy chuyến — khớp id NCC trước, dự phòng tên (FB-097)', async () => {
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} carrier={{ supplierId: 3, name: 'Tên hiển thị khác' }} onClose={vi.fn()} />);
   fireEvent.click(screen.getByRole('button', { name: /Bên thực chi/ }));
@@ -221,14 +246,17 @@ it('lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực c
   fireEvent.click(await screen.findByRole('option', { name: 'Nhân viên chi' }));
   fireEvent.click(screen.getByRole('button', { name: /Người thực chi/ }));
   fireEvent.click(await screen.findByRole('option', { name: 'Driver' }));
+  fireEvent.click(screen.getByLabelText('Có hóa đơn'));
   fireEvent.change(screen.getByLabelText(/Số hóa đơn/), { target: { value: 'HD-9' } });
   await fillRow(0, '12000');
   fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
   await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
   expect(screen.getByRole('status')).toHaveTextContent('Đã lưu khoản chi.');
   expect(onClose).not.toHaveBeenCalled();
-  // ô của từng khoản làm trống để nhập tiếp
+  // ô của từng khoản làm trống để nhập tiếp; cờ "Có hóa đơn" tắt → cặp số/ngày ẩn
   expect(screen.getByLabelText(/Tên khoản chi/)).toHaveValue('');
+  expect(screen.queryByLabelText(/Số hóa đơn/)).toBeNull();
+  fireEvent.click(screen.getByLabelText('Có hóa đơn'));
   expect(screen.getByLabelText(/Số hóa đơn/)).toHaveValue('');
   expect((screen.getAllByLabelText(/Thực chi/)[0] as HTMLInputElement).value).toBe('');
   // nhóm chi phí / bên thực chi / ngày giữ nguyên — the group now lives on

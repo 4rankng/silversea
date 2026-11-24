@@ -26,7 +26,7 @@ interface ExpenseDraft {
   group: ExpenseCostGroup; driverOption: string; name: string;
   amount: number | ''; charge: number | ''; equal: boolean; date: string;
   payerKind: PayerKind; payer: string; supplier: string;
-  invoice: string; invoiceDate: string;
+  invoice: string; invoiceDate: string; hasInvoice: boolean;
 }
 
 /** One tickable row of the sub-table ("bảng con") — the mapped view over the
@@ -52,7 +52,7 @@ type PhoiExistingRaw =
 // sang Nhân viên chi / Nhà cung cấp được.
 function blankDraft(group: ExpenseCostGroup): ExpenseDraft {  return { group, driverOption: '', name: '', amount: '', charge: group === 'DRIVER_ROAD' ? 0 : '', equal: false,
     date: businessDateISO(), payerKind: 'COMPANY', payer: '', supplier: '',
-    invoice: '', invoiceDate: '' };
+    invoice: '', invoiceDate: '', hasInvoice: false };
 }
 
 /** FB-097 — nhà xe chạy chuyến → NCC mặc định: khớp danh mục theo id
@@ -202,6 +202,9 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
     for (const [index, draft] of drafts.entries()) {
       const row = (message: string) => `Dòng ${index + 1}: ${message}`;
       if (!draft.driverOption) { setError(row('Chọn loại chi phí lái xe.')); return; }
+      // KB Chương 6 §6.2 (SIL-949): ô "Có hóa đơn" là cờ có hóa đơn — bật lên
+      // mới yêu cầu số hóa đơn; cờ tắt thì dòng không mang số/ngày hóa đơn.
+      if (draft.hasInvoice && !draft.invoice.trim()) { setError(row('Bật "Có hóa đơn" thì bắt buộc nhập số hóa đơn.')); return; }
       const option = driverExpenseOption(draft.driverOption);
       const parsed = expenseAccountingCreateSchema.safeParse({ driverCostType: option.type, tripId: work.tripId, shipmentId: work.shipmentId,
         expenseTypeCode: option.type, amount: draft.amount, customerChargeAmount: draft.charge,
@@ -255,16 +258,28 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
         {drafts.map((draft, index) => <section className="expense-accounting-draft-row" key={index}>
           <header className="expense-accounting-draft-head"><h4>Khoản {index + 1}</h4>
             <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setDrafts(rows => rows.filter((_, position) => position !== index))}>Xóa dòng</button></header>
-          <div className="expense-accounting-fields">
-            <UuiSelectField label="Loại chi phí lái xe" required value={draft.driverOption} disabled={busy} onChange={event => { const choice = driverExpenseOption(event.target.value); patchDraft(index, { driverOption: choice.code, name: choice.label, ...(draft.amount === '' && choice.amount !== undefined ? { amount: choice.amount } : {}) }); }} options={[{ value: '', label: 'Chọn loại chi phí' }, ...DRIVER_EXPENSE_OPTIONS.filter(item => item.group === draft.group).map(item => ({ value: item.code, label: item.label }))]} />
-            <NumberField controlSize="sm" label="Thực chi (VND)" required value={draft.amount} disabled={busy} min={-999_999_999_999_999} step={1} grouped signed onChange={next => patchDraft(index, { amount: next, ...(draft.equal ? { charge: next } : {}) })} />
-            <NumberField controlSize="sm" label="Thực thu — thu khách (VND)" required value={draft.charge} disabled={busy || draft.equal || draft.group === 'DRIVER_ROAD'} min={0} step={1} grouped onChange={next => patchDraft(index, { charge: next })} />
-          </div>
-          <label className="expense-accounting-check"><input type="checkbox" checked={draft.equal} disabled={busy || draft.group === 'DRIVER_ROAD'} onChange={event => { const checked = event.target.checked; patchDraft(index, { equal: checked, ...(checked ? { charge: draft.amount } : {}) }); }} /> Nhập Thu và Trả bằng nhau</label>
-          <TextField controlSize="sm" label="Tên khoản chi" value={draft.name} required maxLength={200} disabled={busy} onChange={event => patchDraft(index, { name: event.target.value })} />
-          <ExpenseNameSuggestions group={draft.group} disabled={busy} onChoose={name => patchDraft(index, { name })} />
+          {/* KB Chương 6 §6.2 — thứ tự trường của một dòng khai chi (SIL-950):
+              Ngày · Nhóm chi phí (tab pair ở đầu form) · Tên khoản chi · Số
+              tiền · Số hóa đơn · Thu khách · Người chi · Bên thực chi · Nhà
+              cung cấp · ô đánh dấu cuối cùng. Ô "Có hóa đơn" là cờ có hóa đơn
+              (SIL-949): bật lên mới hiện và yêu cầu số hóa đơn. */}
           <div className="expense-accounting-fields">
             <DateField controlSize="sm" label="Ngày chi" value={draft.date} required disabled={busy} onChange={value => patchDraft(index, { date: value })} />
+            <UuiSelectField label="Loại chi phí lái xe" required value={draft.driverOption} disabled={busy} onChange={event => { const choice = driverExpenseOption(event.target.value); patchDraft(index, { driverOption: choice.code, name: choice.label, ...(draft.amount === '' && choice.amount !== undefined ? { amount: choice.amount } : {}) }); }} options={[{ value: '', label: 'Chọn loại chi phí' }, ...DRIVER_EXPENSE_OPTIONS.filter(item => item.group === draft.group).map(item => ({ value: item.code, label: item.label }))]} />
+          </div>
+          <TextField controlSize="sm" label="Tên khoản chi" value={draft.name} required maxLength={200} disabled={busy} onChange={event => patchDraft(index, { name: event.target.value })} />
+          <ExpenseNameSuggestions group={draft.group} disabled={busy} onChoose={name => patchDraft(index, { name })} />
+          <NumberField controlSize="sm" label="Thực chi (VND)" required value={draft.amount} disabled={busy} min={-999_999_999_999_999} step={1} grouped signed onChange={next => patchDraft(index, { amount: next, ...(draft.equal ? { charge: next } : {}) })} />
+          <label className="expense-accounting-check"><input type="checkbox" checked={draft.hasInvoice} disabled={busy} onChange={event => { const checked = event.target.checked; patchDraft(index, checked ? { hasInvoice: true } : { hasInvoice: false, invoice: '', invoiceDate: '' }); }} /> Có hóa đơn</label>
+          {draft.hasInvoice && <div className="expense-accounting-fields">
+            <ExpenseEvidenceFields variant="invoice-pair"
+              invoiceNumber={draft.invoice} onInvoiceNumber={value => patchDraft(index, { invoice: value })}
+              invoiceDate={draft.invoiceDate} onInvoiceDate={value => patchDraft(index, { invoiceDate: value })}
+              required disabled={busy} />
+          </div>}
+          <div className="expense-accounting-fields">
+            <NumberField controlSize="sm" label="Thực thu — thu khách (VND)" required value={draft.charge} disabled={busy || draft.equal || draft.group === 'DRIVER_ROAD'} min={0} step={1} grouped onChange={next => patchDraft(index, { charge: next })} />
+            {draft.payerKind === 'USER' && <UuiSelectField label="Người thực chi" value={draft.payer} disabled={busy} required onChange={event => patchDraft(index, { payer: event.target.value })} options={[{ value: '', label: 'Chọn nhân viên' }, ...(entryScope === 'OPS' ? catalog.opsUsers : catalog.staff).map(item => ({ value: String(item.id), label: item.name }))]} />}
             <UuiSelectField label="Bên thực chi" value={draft.payerKind} disabled={busy} onChange={event => {
               const next = event.target.value as PayerKind;
               // FB-097 — chọn "Nhà cung cấp" thì mặc định là nhà xe đang chạy
@@ -272,13 +287,9 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
               // xe ngoài thì để trống cho người chọn tay — không chặn lưu.
               patchDraft(index, next === 'SUPPLIER' ? { payerKind: next, supplier: matchCarrierSupplier(catalog, carrier) } : { payerKind: next });
             }} options={[{ value: 'COMPANY', label: 'Công ty trả trực tiếp' }, { value: 'USER', label: 'Nhân viên chi' }, { value: 'SUPPLIER', label: 'Nhà cung cấp' }]} />
-            {draft.payerKind === 'USER' && <UuiSelectField label="Người thực chi" value={draft.payer} disabled={busy} required onChange={event => patchDraft(index, { payer: event.target.value })} options={[{ value: '', label: 'Chọn nhân viên' }, ...(entryScope === 'OPS' ? catalog.opsUsers : catalog.staff).map(item => ({ value: String(item.id), label: item.name }))]} />}
             {draft.payerKind === 'SUPPLIER' && <UuiSelectField label="Nhà cung cấp" value={draft.supplier} disabled={busy} required onChange={event => patchDraft(index, { supplier: event.target.value })} options={[{ value: '', label: 'Chọn nhà cung cấp' }, ...catalog.suppliers.map(item => ({ value: String(item.id), label: item.name }))]} />}
-            <ExpenseEvidenceFields variant="invoice-pair"
-              invoiceNumber={draft.invoice} onInvoiceNumber={value => patchDraft(index, { invoice: value })}
-              invoiceDate={draft.invoiceDate} onInvoiceDate={value => patchDraft(index, { invoiceDate: value })}
-              required={false} disabled={busy} />
           </div>
+          <label className="expense-accounting-check"><input type="checkbox" checked={draft.equal} disabled={busy || draft.group === 'DRIVER_ROAD'} onChange={event => { const checked = event.target.checked; patchDraft(index, { equal: checked, ...(checked ? { charge: draft.amount } : {}) }); }} /> Nhập Thu và Trả bằng nhau</label>
           {draft.payerKind === 'SUPPLIER' && !draft.supplier && <p className="expense-accounting-hint">Chưa có nhà xe trên tuyến này — chọn thủ công.</p>}
         </section>)}
       </div>
