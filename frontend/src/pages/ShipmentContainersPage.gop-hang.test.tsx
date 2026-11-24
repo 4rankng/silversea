@@ -132,7 +132,13 @@ describe('SIL-547 — [Gộp hàng] mode on Chi tiết lô hàng', () => {
     await screen.findByText('BILL-LCL-1');
     await enterMergeMode();
 
-    const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
+    // SIL-945 (KB §3.1.7) adds the freight group band as a thead row ABOVE the
+    // column-name row — its cells are columnheaders too. The SIL-547 law pins
+    // the FIRST DATA column, so read the column-name row (skip the band row).
+    const headers = screen
+      .getAllByRole('columnheader')
+      .filter((el) => !el.closest('tr')?.classList.contains('shipment-container-ledger__groups-row'))
+      .map((el) => el.textContent);
     expect(headers[0]).toBe('Chọn lô hàng lẻ để gộp');
     expect(screen.getByRole('checkbox', { name: 'Chọn lô BILL-LCL-1' })).toBeTruthy();
     // The FCL container line renders the muted dash — no checkbox to tick.

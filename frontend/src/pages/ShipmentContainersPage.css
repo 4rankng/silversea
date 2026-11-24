@@ -233,14 +233,14 @@
 /* SIL-945 — the KB §3.1.7 group band: one non-sticky header row above the
    column-name row (the sticky top contract stays on the second row alone —
    two stacked sticky rows would overlap at --sticky-thead-top). */
-.shipment-container-ledger thead tr.shipment-container-ledger__groups-row th { position: static; z-index: auto; padding: 6px 12px; border-bottom: 0; background: var(--surface-2); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--ops-table-header-weight); text-align: center; letter-spacing: 0.02em; }
+.shipment-container-ledger thead tr.shipment-container-ledger__groups-row th { position: static; z-index: auto; padding: 6px 12px; border-bottom: 0; background: var(--surface-2); color: var(--ink-2); font-size: var(--text-caption-size); font-weight: var(--ops-table-header-weight); text-align: center; }
 .shipment-container-ledger thead tr.shipment-container-ledger__groups-row + tr th { border-top: 0; }
 /* SIL-945 — the two-line money cell: amount on top, invoice numbers below
    (KB §10.1.4 "dòng trên số tiền, dòng dưới số hóa đơn"). Amount never wraps
    mid-number; invoice lines wrap at any character (tokens are free text) and
    read muted under the amount. */
 .shipment-container-ledger__money { display: grid; gap: 2px; align-content: start; }
-.shipment-container-ledger__money-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.shipment-container-ledger__money-amount { white-space: nowrap; } /* tabular digits: shared .money primitive (font contract — shared primitives own the declaration) */
 .shipment-container-ledger__money-invoice { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; overflow-wrap: anywhere; }
 /* GHI CHÚ: a Cột-picker opt-in (the spec ten-column table opens without it;
    the TSX --led-min adds these 120px only while the picker shows the

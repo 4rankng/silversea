@@ -25,7 +25,7 @@ const DAILY_HEADERS = [
   'Số Bill/Booking',
 ] as const;
 
-function getTodayString(): string {
+export function getTodayString(): string {
   const d = new Date();
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');

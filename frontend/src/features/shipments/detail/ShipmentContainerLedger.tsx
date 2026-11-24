@@ -902,7 +902,7 @@ function FreightMoneyCell({ amount, invoices }: { amount: string | null; invoice
   const invoiceList = (invoices ?? []).filter((invoice) => invoice.trim() !== '');
   return (
     <div className="shipment-container-ledger__money">
-      <strong className="shipment-container-ledger__money-amount">{formatNumber(amount)}</strong>
+      <strong className="money shipment-container-ledger__money-amount">{formatNumber(amount)}</strong>
       {invoiceList.map((invoice) => (
         <span key={invoice} className="shipment-container-ledger__money-invoice">HĐ: {invoice}</span>
       ))}

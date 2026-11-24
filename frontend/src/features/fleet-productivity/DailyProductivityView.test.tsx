@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../lib/api';
-import { DailyProductivityView } from './DailyProductivityView';
+import { DailyProductivityView, getTodayString } from './DailyProductivityView';
 
 const { getDaily, getDailyExportBlob } = vi.hoisted(() => ({
   getDaily: vi.fn(),
@@ -129,6 +129,9 @@ describe('DailyProductivityView export success feedback', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
 
     await waitFor(() => expect(getDailyExportBlob).toHaveBeenCalledTimes(1));
-    expect(getDailyExportBlob).toHaveBeenCalledWith(daily.date);
+    // Derive the expected date from the SAME clock the view reads — a
+    // hardcoded fixture date flips at every local midnight rollover
+    // (gates red 25/11: pin said 11-24, view read 11-25).
+    expect(getDailyExportBlob).toHaveBeenCalledWith(getTodayString());
   });
 });
