@@ -22,10 +22,13 @@ import type * as ShipmentClientModule from '../../../api/shipmentClient';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ShipmentCreateWorkspace } from './ShipmentCreateWorkspace';
 
-// SIL-510: ONE action bar — the viewport-fixed footer — so the buttons keep
-// the plain accessible names (the "(cuối trang)" self-naming only existed to
-// tell the FB-108 twins apart).
-const FOOTER_LABELS = ['Huỷ', 'Lưu nháp', 'Tạo lô hàng'];
+// SIL-917 (KB §3.2.7, audit 24/11): the cluster rides BOTH bars — the page
+// head topline keeps the plain accessible names, the viewport-fixed footer
+// twin self-names "(cuối trang)" exactly as the KB labels it. One shared
+// saving state drives both. (SIL-510's one-bar law is superseded for the
+// create worksheet; edit/view keep a single bar.)
+const FOOTER_LABELS = ['Huỷ (cuối trang)', 'Lưu nháp (cuối trang)', 'Tạo lô hàng (cuối trang)'];
+const HEAD_LABELS = ['Huỷ', 'Lưu nháp', 'Tạo lô hàng'];
 
 /** Two history entries so the Huỷ → discard path has a place to land. */
 function renderWorkspace() {
@@ -91,7 +94,7 @@ describe('SIL-510 — the ONE action bar: viewport-fixed footer of the worksheet
   it.each([
     ['hàng cont', /Hàng FCL/],
     ['hàng lẻ', /Hàng lẻ/],
-  ])('mounts the fixed footer bar at the end of the %s worksheet (both modes)', async (_mode, radio) => {
+  ])('mounts the head + footer twin bars on the %s worksheet (both modes)', async (_mode, radio) => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     if (!screen.getByRole('radio', { name: radio }).getAttribute('aria-checked')) {
@@ -99,11 +102,12 @@ describe('SIL-510 — the ONE action bar: viewport-fixed footer of the worksheet
     }
     await waitFor(() => expectFooterCluster());
 
-    // SIL-510: the topline retired its action twin — this bar is the ONE
-    // action cluster on the page, so a viewport never shows two of them.
+    // SIL-917 (KB §3.2.7): the HEAD cluster rides the topline with the plain
+    // names; the footer twin carries the "(cuối trang)" labels.
     const topline = document.querySelector('.csc-topline')!;
-    expect(topline.querySelectorAll('button')).toHaveLength(0);
-    expect(screen.getByRole('button', { name: 'Tạo lô hàng' }).closest('.csc-form-actions')).toBeTruthy();
+    expect(Array.from(topline.querySelectorAll('button')).map((b) => b.textContent?.trim())).toEqual(HEAD_LABELS);
+    expect(screen.getByRole('button', { name: 'Tạo lô hàng' }).closest('.csc-topline')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo lô hàng (cuối trang)' }).closest('.csc-form-actions')).toBeTruthy();
   });
 
   it('saves the draft from the fixed footer bar (partial-create payload)', async () => {
@@ -168,10 +172,12 @@ describe('SIL-510 — the ONE action bar: viewport-fixed footer of the worksheet
     }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
-    // One shared `saving` state: the bar reports the progress copy and every
-    // button on it is disabled with it, so nothing looks actionable.
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Đang lưu…' })).toBeDisabled());
+    // One shared `saving` state: BOTH bars report the progress copy and every
+    // button on them is disabled with it, so nothing looks actionable.
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Đang lưu…' })).toHaveLength(2));
+    screen.getAllByRole('button', { name: 'Đang lưu…' }).forEach((button) => expect(button).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Huỷ' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Huỷ (cuối trang)' })).toBeDisabled();
 
     release!();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu nháp' })).toBeEnabled());

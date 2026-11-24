@@ -245,6 +245,30 @@ describe('shipment create model', () => {
     expect(createEmptyContainer().cargoVolumeCbm).toBe('');
   });
 
+  it('flags a typed-invalid per-container CBM and lets a valid one pass (SIL-917)', () => {
+    // KB §3.2.5: the row gains an optional Thể tích (CBM) cell. Blank is
+    // legal; a TYPED value must satisfy the shared volume contract — the
+    // form never sends a value the API would answer with 400 (the same law
+    // as the lot-level CBM).
+    const form = {
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      customerId: '7',
+      cargoMode: 'FCL' as const,
+      tradeDirection: 'IMPORT' as const,
+      blNumber: 'BL-CBM-ROW',
+    };
+    const withCbm = getShipmentCreateReadiness(form, [{ ...container, customerAppointmentAt: '2026-08-14T09:00', cargoVolumeCbm: '28.75' }]).issues;
+    expect(withCbm).toEqual([]);
+
+    const malformed = getShipmentCreateReadiness(form, [{ ...container, customerAppointmentAt: '2026-08-14T09:00', cargoVolumeCbm: 'abc' }]).issues;
+    expect(malformed).toHaveLength(1);
+    expect(malformed[0]?.fieldId).toBe(`container-${container.key}-volume`);
+
+    const negative = getShipmentCreateReadiness(form, [{ ...container, customerAppointmentAt: '2026-08-14T09:00', cargoVolumeCbm: '-1' }]).issues;
+    expect(negative.map((item) => item.fieldId)).toEqual([`container-${container.key}-volume`]);
+    expect(negative[0]?.message).toMatch(/không âm/i);
+  });
+
   it('initializes per-container SỐ TỜ KHAI as empty string and trims/nulls it in the payload (SIL-600)', () => {
     expect(createEmptyContainer().declarationNumber).toBe('');
     const form = { ...EMPTY_SHIPMENT_CREATE_FORM, customerId: '7', cargoMode: 'FCL' as const, tradeDirection: 'EXPORT' as const, bookingRef: 'BK' };

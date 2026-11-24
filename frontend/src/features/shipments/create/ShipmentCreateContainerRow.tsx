@@ -137,12 +137,15 @@ export function ShipmentCreateContainerRow({
   // same owner decision the drawer's SỐ CONTAINER cell already runs. One
   // line edits at a time; the draft is row-local (the create form commits
   // into the draft row, no API call per line).
-  const [openLine, setOpenLine] = useState<'type' | 'weight' | null>(null);
+  const [openLine, setOpenLine] = useState<'type' | 'weight' | 'volume' | null>(null);
   const [weightDraft, setWeightDraft] = useState('');
+  const [volumeDraft, setVolumeDraft] = useState('');
   const typeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const weightTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const volumeTriggerRef = useRef<HTMLButtonElement | null>(null);
   const typePanelRef = useRef<HTMLDivElement | null>(null);
   const weightPanelRef = useRef<HTMLDivElement | null>(null);
+  const volumePanelRef = useRef<HTMLDivElement | null>(null);
   // The 20261002_272 hand-off asks the LOẠI menu to be open the moment its
   // line opens (Tab leaving SỐ): the picker mounts inside the panel, so the
   // open() call waits for the mount effect below.
@@ -150,18 +153,22 @@ export function ShipmentCreateContainerRow({
   const panelIdBase = useId();
   const typePanelId = `${panelIdBase}-type-editor`;
   const weightPanelId = `${panelIdBase}-weight-editor`;
+  const volumePanelId = `${panelIdBase}-volume-editor`;
   const typeError = issueByField.get(`container-${row.key}-type`);
   const weightSeed = row.cargoWeightKg;
+  const volumeSeed = row.cargoVolumeCbm;
 
-  const openGroupLine = (line: 'type' | 'weight', openMenu = false) => {
+  const openGroupLine = (line: 'type' | 'weight' | 'volume', openMenu = false) => {
     typeMenuOnOpenRef.current = line === 'type' && openMenu;
     setWeightDraft(line === 'weight' ? weightSeed : '');
+    setVolumeDraft(line === 'volume' ? volumeSeed : '');
     setOpenLine((current) => (current === line ? null : line));
   };
-  const closeGroupLine = (line: 'type' | 'weight', restoreFocus: boolean) => {
+  const closeGroupLine = (line: 'type' | 'weight' | 'volume', restoreFocus: boolean) => {
     setOpenLine((current) => (current === line ? null : current));
     if (restoreFocus) {
-      (line === 'type' ? typeTriggerRef : weightTriggerRef).current?.focus();
+      const triggerByLine = { type: typeTriggerRef, weight: weightTriggerRef, volume: volumeTriggerRef };
+      triggerByLine[line].current?.focus();
     }
   };
   const commitWeight = () => {
@@ -172,6 +179,19 @@ export function ShipmentCreateContainerRow({
     }
     updateContainer(row.key, 'cargoWeightKg', next);
     closeGroupLine('weight', true);
+  };
+  // SIL-917 (KB §3.2.5): the Thể tích (CBM) line commits like the weight
+  // line — an unchanged draft closes, an emptied draft is a real clear, and
+  // the value rides the row draft into the create payload (the model maps
+  // blank → null, so an untouched cell never reaches the wire).
+  const commitVolume = () => {
+    const next = volumeDraft.trim();
+    if (next === volumeSeed.trim()) {
+      closeGroupLine('volume', true);
+      return;
+    }
+    updateContainer(row.key, 'cargoVolumeCbm', next);
+    closeGroupLine('volume', true);
   };
   const commitType = (value: string) => {
     updateContainer(row.key, 'containerTypeId', value);
@@ -191,10 +211,11 @@ export function ShipmentCreateContainerRow({
   // table-cell editors (DispatchContainerNumberCell): the seeded draft is the
   // persisted weight, so selecting lets the operator type straight over it.
   useEffect(() => {
-    if (openLine !== 'type' && openLine !== 'weight') return;
+    if (openLine !== 'type' && openLine !== 'weight' && openLine !== 'volume') return;
     const frame = requestAnimationFrame(() => {
-      if (openLine === 'weight') {
-        const input = weightPanelRef.current?.querySelector<HTMLInputElement>('input');
+      if (openLine === 'weight' || openLine === 'volume') {
+        const panel = openLine === 'weight' ? weightPanelRef : volumePanelRef;
+        const input = panel.current?.querySelector<HTMLInputElement>('input');
         input?.focus();
         input?.select();
         return;
@@ -378,6 +399,58 @@ export function ShipmentCreateContainerRow({
                 // real change (the operator cleared the field).
                 disabled={weightDraft.trim() === weightSeed.trim()}
                 onClick={commitWeight}
+              >
+                Lưu
+              </button>
+            </div>
+          </GroupFloatingLine>
+          {/* SIL-917 (KB §3.2.5): the THỂ TÍCH (CBM) line joins the SỐ / LOẠI /
+              TRỌNG LƯỢNG ghost-line group — same value-first click-to-edit
+              pattern, optional (no *), unit CBM. Blank stays blank: the model
+              maps an empty draft to a null payload field. */}
+          <GroupFloatingLine
+            anchorRef={volumeTriggerRef}
+            cardRef={volumePanelRef}
+            panelId={volumePanelId}
+            microLabelText="Thể tích"
+            contractLabel="Thể tích (CBM)"
+            fieldId={`container-${row.key}-volume`}
+            value={row.cargoVolumeCbm}
+            emptyText="Nhập CBM"
+            numeric
+            triggerAriaLabel={`Chỉnh sửa thể tích — dòng ${index + 1}`}
+            panelLabel={`Chỉnh sửa thể tích — dòng ${index + 1}`}
+            open={openLine === 'volume'}
+            disabled={saving}
+            onToggle={() => openGroupLine('volume')}
+            onOpen={() => openGroupLine('volume')}
+            onClose={() => closeGroupLine('volume', false)}
+            onCancel={() => closeGroupLine('volume', true)}
+          >
+            <div className="csc-fline__editor">
+              <input
+                className="csc-fline__input"
+                type="number"
+                min={0}
+                step={0.001}
+                inputMode="decimal"
+                autoComplete="off"
+                aria-label={`Thể tích (CBM) — dòng ${index + 1}`}
+                disabled={saving}
+                value={volumeDraft}
+                onChange={(event) => setVolumeDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.nativeEvent.isComposing) return;
+                  if (event.key === 'Escape') { event.preventDefault(); closeGroupLine('volume', true); }
+                  if (event.key === 'Enter') { event.preventDefault(); commitVolume(); }
+                }}
+              />
+              <span className="csc-fline__unit" aria-hidden="true">CBM</span>
+              <button
+                type="button"
+                className="csc-fline__save"
+                disabled={volumeDraft.trim() === volumeSeed.trim()}
+                onClick={commitVolume}
               >
                 Lưu
               </button>

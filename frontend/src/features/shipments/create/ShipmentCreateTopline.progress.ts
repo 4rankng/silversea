@@ -41,6 +41,7 @@ type RequiredForm = Pick<
   | 'factoryName'
   | 'pickupWarehouseName'
   | 'packageCount'
+  | 'packageType'
   | 'cargoWeightKg'
   | 'expectedDeliveryDate'
   | 'lclClosingAt'
@@ -124,10 +125,23 @@ export function requiredSlots(
       done: Boolean(form.pickupWarehouseSiteId) || Boolean(form.pickupWarehouseName.trim()),
     });
   }
-  // SIL-846: quy cách đóng gói is deliberately absent — it is a SUGGESTION
-  // now (no gate, no *), so it must never raise the denominator. The SIL-846
-  // 'Trọng tải (Loại xe tính cước)' pick is optional too (Bảng giá basis,
-  // settled later if blank).
+  // SIL-917 (KB §3.2.3, audit 24/11): the Hàng lẻ chip denominator is 10 —
+  // the KB's own sample table names Quy cách đóng gói's slot in it (the field
+  // that carried the 10th seat before SIL-846). The VALIDATOR keeps quy cách
+  // optional (KB §3.2.4/§7.3: no *, blank still saves — SIL-846 customer
+  // ruling), so this slot is CHIP-ONLY: filling it moves the meter, leaving
+  // it blank never blocks the save. CBM stays deliberately uncounted
+  // ("CBM cố ý KHÔNG đếm", KB §3.2.3) and the trọng tải pick stays out too.
+  if (!form.isAdHoc) {
+    slots.push({
+      fieldId: 'shipment-package-type',
+      done: Boolean(form.packageType.trim()),
+    });
+  }
+  // The validator still treats quy cách as a SUGGESTION (no gate, no *,
+  // SIL-846) — see the chip-only slot above. The SIL-846 'Trọng tải (Loại xe
+  // tính cước)' pick is optional too (Bảng giá basis, settled later if
+  // blank) and never enters the denominator.
   slots.push({
     fieldId: 'shipment-package-count',
     done: Boolean(form.packageCount) && Number(form.packageCount) >= 1,

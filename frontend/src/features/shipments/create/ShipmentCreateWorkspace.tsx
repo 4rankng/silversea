@@ -835,6 +835,20 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         mode={workspaceMode}
         requiredDone={completion.done}
         requiredTotal={completion.total}
+        actions={workspaceMode === 'create' ? (
+          /* SIL-917 (KB §3.2.7, audit 24/11): the Huỷ / Lưu nháp / Tạo lô
+             hàng cluster rides the page HEAD again — the fixed footer below
+             stays as the scroll-stable twin with its "(cuối trang)" labels.
+             One shared save/cancel/saving state drives both bars. */
+          <ShipmentCreateActions
+            mode="create"
+            bar="head"
+            saving={saving}
+            onCancel={goBack}
+            onSaveDraft={() => void save('DRAFT')}
+            onCreate={() => void save('CREATE')}
+          />
+        ) : undefined}
       />
       <form
         ref={workspaceFormRef}
@@ -1166,6 +1180,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           ) : (
             <ShipmentCreateActions
               mode={editTarget ? 'edit' : 'create'}
+              bar="foot"
               saving={saving}
               onCancel={goBack}
               onSaveDraft={() => void save('DRAFT')}

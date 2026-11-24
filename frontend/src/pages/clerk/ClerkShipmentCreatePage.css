@@ -16,6 +16,10 @@
 .csc-topline__title { margin: 0; color: var(--fg-1); font-size: var(--text-title-size); font-weight: 700; line-height: 1.2; }
 .csc-topline__progress { color: var(--fg-3); font-size: var(--text-data-size); }
 .csc-topline__progress strong { color: var(--accent-ink); font-weight: 700; }
+/* SIL-917 (KB §3.2.7): the HEAD action cluster rides the topline's right
+   edge; the topline is flex-wrap, so on narrow screens the cluster wraps
+   under the title + chip row instead of clipping. */
+.csc-topline__actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 /* SIL-510 (owner 26/10): THE action bar — viewport-fixed bottom, ONE row
    (~60px incl. 10px padding, buttons right-aligned), no trailing empty
    block. Geometry follows the house fixed-action-bar law (tc-action-bar):

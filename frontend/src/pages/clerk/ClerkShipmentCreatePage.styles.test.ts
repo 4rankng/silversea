@@ -357,18 +357,21 @@ describe('shipment create responsive layout', () => {
     expect(css).not.toContain('position: sticky');
   });
 
-  it('keeps ONE action bar: the viewport-fixed footer (SIL-510)', () => {
-    // Owner 26/10 (SIL-510): the topline is title + progress only; the ONE
-    // action bar is viewport-fixed at the bottom — ONE row (nowrap), actions
+  it('keeps the viewport-fixed footer bar and the KB §3.2.7 head cluster (SIL-510 + SIL-917)', () => {
+    // Owner 26/10 (SIL-510): the ONE scroll-stable action bar is
+    // viewport-fixed at the bottom — ONE row (nowrap), actions
     // right-aligned, pinned to the shell's main column via
-    // --app-sidebar-offset, above content but below overlays. Supersedes
-    // both the 11/10 topline cluster and the retired pre-FB-108 bar.
+    // --app-sidebar-offset, above content but below overlays. SIL-917 (KB
+    // §3.2.7, audit 24/11) adds the page-head cluster twin on the topline
+    // (flex, right-aligned via margin-left:auto; the topline's flex-wrap
+    // drops it under the title + chip row on narrow screens).
     expect(css).toMatch(/\.csc-topline\s*\{[^}]*display:\s*flex;/);
     // SIL-509: the topline never sits flush on the section band below —
     // ≥12px separation in the base layout (the ≥1280 onescreen band pins
     // its own 12px in ClerkShipmentCreatePage.onescreen.css).
     expect(css).toMatch(/\.csc-topline\s*\{[^}]*margin:\s*0 0 12px;/);
-    expect(css).not.toContain('.csc-topline__actions');
+    expect(css).toMatch(/\.csc-topline__actions\s*\{[^}]*display:\s*flex;/);
+    expect(css).toMatch(/\.csc-topline__actions\s*\{[^}]*margin-left:\s*auto;/);
     expect(css).toMatch(/\.csc-form-actions\s*\{[^}]*position:\s*fixed;[^}]*bottom:\s*0;[^}]*left:\s*var\(--app-sidebar-offset/);
     expect(css).toMatch(/\.csc-form-actions\s*\{[^}]*flex-wrap:\s*nowrap;/);
     expect(css).toMatch(/\.csc-form-actions\s*\{[^}]*justify-content:\s*flex-end;/);

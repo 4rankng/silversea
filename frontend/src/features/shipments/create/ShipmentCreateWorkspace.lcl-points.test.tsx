@@ -125,16 +125,18 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     expect(document.querySelector('[data-field-id="shipment-operational-site"]')!.querySelector('.csc-searchable-field--error')).toBeNull();
   });
 
-  it('mounts the Huỷ / Lưu nháp / Tạo lô hàng bar as the fixed footer', async () => {
+  it('mounts the Huỷ / Lưu nháp / Tạo lô hàng cluster at the head AND the fixed footer', async () => {
     await enterLclWithCatalogCustomer();
 
     const footer = document.querySelector('.csc-form-actions')!;
     expect(footer).toBeTruthy();
-    const labels = Array.from(footer.querySelectorAll('button')).map((button) => button.textContent?.trim());
-    // SIL-510: ONE action bar — the plain names, no "(cuối trang)" twin suffix.
-    expect(labels).toEqual(['Huỷ', 'Lưu nháp', 'Tạo lô hàng']);
-    // The topline carries no action buttons any more — one viewport, one bar.
-    expect(document.querySelector('.csc-topline')!.querySelectorAll('button')).toHaveLength(0);
+    const footerLabels = Array.from(footer.querySelectorAll('button')).map((button) => button.textContent?.trim());
+    // SIL-917 (KB §3.2.7): the footer twin self-names "(cuối trang)".
+    expect(footerLabels).toEqual(['Huỷ (cuối trang)', 'Lưu nháp (cuối trang)', 'Tạo lô hàng (cuối trang)']);
+    // …and the HEAD twin rides the topline with the plain names.
+    const topline = document.querySelector('.csc-topline')!;
+    expect(Array.from(topline.querySelectorAll('button')).map((button) => button.textContent?.trim()))
+      .toEqual(['Huỷ', 'Lưu nháp', 'Tạo lô hàng']);
   });
 
   // Card 181026143000 (spec 2026.10.17 §1a/§1c): the kho quick-add dialog

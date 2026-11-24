@@ -313,6 +313,17 @@ export function getShipmentCreateReadiness(
         if (!row.dropoffPortId) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
       }
       if (!row.customerAppointmentAt) issues.push(issue(`${prefix}-customer-appointment`, `${label}: chọn ngày giờ đóng/trả.`, 'schedule'));
+      // SIL-917 (KB §3.2.5): the container row carries an optional
+      // Thể tích (CBM) input. A blank cell is legal; a TYPED value must pass
+      // the shared volume contract — the form never sends a value the API
+      // would answer with 400 (the same law as the lot-level CBM below).
+      const rowCbm = row.cargoVolumeCbm.trim();
+      if (rowCbm) {
+        const parsedRowCbm = shipmentVolumeCbm.safeParse(rowCbm);
+        if (!parsedRowCbm.success) {
+          issues.push(issue(`${prefix}-volume`, parsedRowCbm.error.issues[0]?.message ?? 'Thể tích không hợp lệ.', 'cargo'));
+        }
+      }
     });
   } else {
     // FB-105 (spec §2): a hàng lẻ lot needs BOTH operating points — the Nhà máy

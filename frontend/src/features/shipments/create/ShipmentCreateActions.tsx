@@ -14,18 +14,24 @@ export interface ShipmentCreateActionsProps {
    * rather than repurposed.
    */
   mode?: 'create' | 'edit';
+  /** Which twin bar this instance rides (SIL-917, KB §3.2.7): the page-head
+   *  topline cluster keeps the plain accessible names; the viewport-fixed
+   *  footer twin self-names "(cuối trang)" exactly as the KB labels it, so
+   *  screen readers (and tests) can tell the two bars apart. Edit mode has
+   *  no head twin, so its footer stays unsuffixed. */
+  bar?: 'head' | 'foot';
 }
 
 /** The create-page actions (Huỷ / Lưu nháp / Tạo lô hàng) and their edit-mode
- *  pair (Huỷ / Lưu thay đổi) — THE one action bar of the worksheet.
+ *  pair (Huỷ / Lưu thay đổi).
  *
- * SIL-510 (owner 26/10): the cluster mounts exactly once, as the
- * viewport-fixed footer bar (`.csc-form-actions`) — always visible while
- * scrolling, one row, actions right-aligned. The topline twin the FB-108
- * card 171026115830 added is retired by the same ruling (never two action
- * bars on one viewport), so the plain accessible names live here alone and
- * the "(cuối trang)" self-naming that only existed to tell the twins apart
- * is gone with them.
+ *  SIL-510 (owner 26/10) ruled ONE action bar per viewport; SIL-917 (KB
+ *  §3.2.7, audit 24/11) supersedes it: the cluster mounts TWICE on the
+ *  create worksheet — once at the page head (`.csc-topline__actions`) and
+ *  once as the viewport-fixed footer (`.csc-form-actions`), the footer
+ *  carrying the KB's "(cuối trang)" labels. Both instances share the same
+ *  handlers and saving state. The topline twin the FB-108 card had added
+ *  once before is therefore BACK, by the same authority that retired it.
  *
  * The two create save actions are DIFFERENT intents (owner-confirmed):
  * `Lưu nháp` = partial create (customer only, SaveIntent 'DRAFT'),
@@ -37,8 +43,10 @@ export function ShipmentCreateActions({
   onSaveDraft,
   onCreate,
   mode = 'create',
+  bar = 'foot',
 }: ShipmentCreateActionsProps) {
   const edit = mode === 'edit';
+  const suffix = !edit && bar === 'foot' ? ' (cuối trang)' : '';
   return (
     <div
       className="csc-actions"
@@ -53,7 +61,7 @@ export function ShipmentCreateActions({
         onClick={onCancel}
         isDisabled={Boolean(saving)}
       >
-        Huỷ
+        {`Huỷ${suffix}`}
       </UUIButton>
       {!edit && (
         <UUIButton
@@ -64,7 +72,7 @@ export function ShipmentCreateActions({
           onClick={onSaveDraft}
           isDisabled={Boolean(saving)}
         >
-          {saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu nháp'}
+          {saving === 'DRAFT' ? 'Đang lưu…' : `Lưu nháp${suffix}`}
         </UUIButton>
       )}
       <UUIButton
@@ -78,7 +86,7 @@ export function ShipmentCreateActions({
       >
         {edit
           ? (saving ? 'Đang lưu…' : 'Lưu thay đổi')
-          : (saving === 'CREATE' ? 'Đang tạo…' : 'Tạo lô hàng')}
+          : (saving === 'CREATE' ? 'Đang tạo…' : `Tạo lô hàng${suffix}`)}
       </UUIButton>
     </div>
   );

@@ -236,17 +236,19 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     });
   });
 
-  it('shows ONE action bar — the viewport-fixed footer — without the superseded dispatch action', async () => {
+  it('shows the head + footer twin bars (KB §3.2.7) without the superseded dispatch action', async () => {
     renderPage();
     await screen.findByRole('heading', { name: 'Nhận diện lô' });
-    // SIL-510 (owner 26/10): the topline is title + progress only; the three
-    // actions (Huỷ / Lưu nháp partial create / Tạo lô hàng full intake) live
-    // on the single fixed bottom bar.
+    // SIL-917 (KB §3.2.7, audit 24/11 — supersedes SIL-510 for the create
+    // worksheet): the head cluster rides the topline with the plain names;
+    // the fixed bottom bar keeps its "(cuối trang)" twin labels.
     expect(screen.getByRole('heading', { level: 1, name: 'Tạo lô hàng' })).toBeTruthy();
-    expect(document.querySelector('.csc-topline')!.querySelectorAll('button')).toHaveLength(0);
+    const topline = document.querySelector('.csc-topline')!;
+    expect(topline.querySelectorAll('button')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Tạo lô hàng' }).closest('.csc-topline')).toBe(topline);
     const bar = document.querySelector('.csc-form-actions')!;
     expect(bar).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tạo lô hàng' }).closest('.csc-form-actions')).toBe(bar);
+    expect(screen.getByRole('button', { name: 'Tạo lô hàng (cuối trang)' }).closest('.csc-form-actions')).toBe(bar);
     expect(screen.getByRole('button', { name: 'Tạo lô hàng' })).toHaveClass('min-h-11');
     expect(screen.getByRole('button', { name: 'Huỷ' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Lưu nháp' })).toBeTruthy();
