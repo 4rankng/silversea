@@ -66,6 +66,15 @@ export function DriverTripHeader({ trip, classificationTag, onBack }: { trip: Dr
             <span className="driver-task-header__customer">{trip.customerName}</span>
           )}
         </div>
+        {/* K10.19 (SIL-946, KB §10.4.2): the route owns its own line right
+            under the factory — "tuyến ngay dưới tên nhà máy". Card _26
+            retired this line (the ports grid was supposed to carry the
+            route); the QA finding supersedes that ruling. Hidden when the
+            route already shows as the title/location fallback (factory-less
+            records), so the label never renders twice. */}
+        {routeLine && routeLine !== title && location !== routeLine && (
+          <p className="driver-task-header__route" data-testid="driver-trip-route">{routeLine}</p>
+        )}
       </div>
     </header>
   );

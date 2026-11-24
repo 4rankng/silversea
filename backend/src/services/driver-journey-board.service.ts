@@ -174,7 +174,13 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     operationalNotes: s.shipments.operationalNotes,
     pickupLocation: s.shipments.pickupLocation,
     deliveryLocation: s.shipments.deliveryLocation,
-    routeName: s.routes.name,
+    // SIL-946 (KB Ch.10 §10.4.2): the card's TUYẾN line is the route NAME the
+    // owner configured — routes.short_name ("KCN QUẾ VÕ, BẮC NINH"), the same
+    // label the trip payload already returns (driver.service.ts
+    // ROUTE_OPERATIONAL_NAME). The long routes.name ("KCN Quế Võ, Nam Sơn,
+    // Bắc Ninh") is the address-shaped label — reading it as the route made
+    // the card's line under the factory name repeat the site address.
+    routeName: operationalName(s.routes.shortName, s.routes.name),
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeName: s.containerTypes.name,
     sealNumber: s.shipmentContainers.sealNumber,

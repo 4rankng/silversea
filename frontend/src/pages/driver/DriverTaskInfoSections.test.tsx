@@ -1,13 +1,28 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { TripStatus } from '@tingting/shared';
-import { DriverTaskInfoSections } from './DriverTaskInfoSections';
+import { DriverTaskInfoSections, DriverTripRouteSection } from './DriverTaskInfoSections';
 import type { DriverTaskDetail } from '../../api/driverClient';
 
 /** SIL-766: DriverInvoiceSection renders INSIDE DriverTaskInfoSections (right
- *  below the Gọi kho bar) — one render call now mounts both grids. */
+ *  below the Gọi kho bar) — one render call now mounts both grids.
+ *
+ *  K10.19 (SIL-946, KB §10.4.2): Cảng nâng/hạ + the legs are the LỘ TRÌNH
+ *  group, rendered by DriverTripRouteSection right after the Số cont & seal
+ *  card. The page mounts both, so the test mounts both: the port facts stay
+ *  assertable by label, and the label-order assertions now pin the KB group
+ *  order (lịch & địa điểm → xuất hóa đơn → lộ trình). */
+function DriverDetailSections({ trip }: { trip: DriverTaskDetail }) {
+  return (
+    <>
+      <DriverTaskInfoSections trip={trip} />
+      <DriverTripRouteSection trip={trip} />
+    </>
+  );
+}
+
 function renderSections(trip: DriverTaskDetail) {
-  return render(<DriverTaskInfoSections trip={trip} />);
+  return render(<DriverDetailSections trip={trip} />);
 }
 
 /**
@@ -95,37 +110,40 @@ const valueOf = (label: string) => Array.from(document.querySelectorAll('.driver
 
 describe('DriverTaskInfoSections', () => {
   it('VID-DRV-05 does not invent an appointment time from a date-only departure day', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { plannedAt: null } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { plannedAt: null } })} />);
     expect(valueOf('Ngày giờ kế hoạch')).toBe('Chưa chốt lịch');
     expect(screen.queryByText(/07:00/)).toBeNull();
   });
 
   it('VID-DRV-01 renders schedule, factory names, phones, and ports without duplicate rows', () => {
-    render(<DriverTaskInfoSections trip={makeTrip()} />);
+    render(<DriverDetailSections trip={makeTrip()} />);
 
     expect(labels()).toEqual([
       'Ngày giờ kế hoạch',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
-      'SĐT kho',
-      'SĐT liên hệ',
-      'Container / lô hàng',
-      'Cảng nâng',
-      'Cảng hạ',
       // DRI-04 (card 211026130843): the delivery row keeps its slot in every
       // direction — a null-direction trip still names the factory destination.
       'Địa chỉ giao hàng',
+      'SĐT kho',
+      // K10.19 (SIL-946, KB §10.4.2): the contact NAME owns its own row.
+      'Người liên hệ',
+      'Container / lô hàng',
+      // K10.19: cảng nâng/hạ are the LỘ TRÌNH group — their own section,
+      // after hàng hóa (KB §10.4.2), not nested in the lịch & địa điểm grid.
+      'Cảng nâng',
+      'Cảng hạ',
     ]);
   });
 
   it('never renders the trip code fact — raw or formatted (card 261022201006c)', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ tripCode: 'TRP-202610-0007' })} />);
+    render(<DriverDetailSections trip={makeTrip({ tripCode: 'TRP-202610-0007' })} />);
 
     expect(labels()).not.toContain('Mã chuyến');
     expect(screen.queryByText(/TRP 2026-10/)).toBeNull();
     expect(screen.queryByText('TRP-202610-0007')).toBeNull();
 
-    render(<DriverTaskInfoSections trip={makeTrip({ tripCode: 'TRP-C12-53-1791212851260-gvr4vb' })} />);
+    render(<DriverDetailSections trip={makeTrip({ tripCode: 'TRP-C12-53-1791212851260-gvr4vb' })} />);
     expect(screen.queryByText('Mã chuyến')).toBeNull();
     expect(screen.queryByText(/TRP-C12-53/)).toBeNull();
   });
@@ -135,7 +153,7 @@ describe('DriverTaskInfoSections', () => {
     // (Bãi JJ LOGISTICS) is the Hạ point, and the delivery row must name the
     // factory the goods are delivered to — full name + street — never the
     // same yard twice.
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: {
         factoryFullName: 'CÔNG TY TNHH NEWEB VIỆT NAM',
@@ -150,7 +168,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('FB-082 + DRI-04: IMPORT with no factory destination data keeps the delivery row with the named Chưa có fallback', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { factoryFullName: undefined, factoryName: null, factoryAddress: null, dropPortName: 'Bãi JJ LOGISTICS' },
     })} />);
@@ -163,7 +181,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('renders the factory block: canonical full name and site address (no abbrev row)', () => {
-    render(<DriverTaskInfoSections trip={makeTrip()} />);
+    render(<DriverDetailSections trip={makeTrip()} />);
 
     expect(screen.queryByText('ASKEY')).toBeNull();
     expect(valueOf('Tên nhà máy')).toBe('Công ty TNHH Askey Việt Nam');
@@ -171,13 +189,13 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('falls back to the free-text factory name in the full-name row when the site has no canonical name', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { factoryFullName: undefined } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { factoryFullName: undefined } })} />);
 
     expect(valueOf('Tên nhà máy')).toBe('Nhà máy Askey Việt Nam');
   });
 
   it('renders "—" for the full-name and address rows when the shipment carries neither name nor address', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: {
       factoryFullName: undefined,
       factoryName: null,
       factoryShortName: null,
@@ -191,7 +209,7 @@ describe('DriverTaskInfoSections', () => {
   it('renders the free-text factory name in the full-name row when the site join misses', () => {
     // Site-miss: the canonical full name is absent, so the free-text name
     // carries the row — no dash, no echo of a removed abbrev neighbor.
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: {
       factoryShortName: null,
       factoryName: 'Nhà máy Free Text',
       factoryFullName: 'Nhà máy Free Text',
@@ -201,7 +219,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('renders the canonical full name even when it equals the factory name (no abbrev row to echo)', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: {
       factoryShortName: 'Nhà máy Đầy Đủ',
       factoryName: 'STALE TEXT',
       factoryFullName: 'Nhà máy Đầy Đủ',
@@ -211,9 +229,11 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('QA-2026-09-26-25 renders ONE phone row (SĐT kho) with a round phone-icon call affordance', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0901234567' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0901234567' } })} />);
 
-    // Card _27 item 7: IDENTICAL numbers never render twice — one row.
+    // Card _27 item 7: IDENTICAL numbers never render twice — the contact row
+    // carries the NAME only, the number stays on the SĐT kho row.
+    expect(valueOf('Người liên hệ')).toBe('Anh Minh');
     expect(screen.queryByText('SĐT liên hệ')).toBeNull();
     const kho = screen.getByText('SĐT kho');
     expect(kho).not.toBeNull();
@@ -227,7 +247,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('QA-2026-09-26-27 renders TWO phone rows when the kho and contact numbers differ', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0909000001' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0909000001' } })} />);
 
     // Card 20261005_364: the kho number is the tel: link; the contact row
     // stays plain data. The single Gọi kho bar still dials the kho number.
@@ -235,58 +255,72 @@ describe('DriverTaskInfoSections', () => {
     const bar = screen.getByRole('link', { name: /Gọi kho/ });
     expect(bar.getAttribute('href')).toBe('tel:0901234567');
     expect(valueOf('SĐT kho')).toBe('0901234567');
-    expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    expect(valueOf('Người liên hệ')).toBe('Anh Minh · 0909000001');
     // Exactly one tel link per distinct number — no duplication.
     expect(screen.getAllByRole('link', { name: /Gọi kho/ })).toHaveLength(1);
-    expect(screen.queryByText('SĐT liên hệ')).not.toBeNull();
+    expect(screen.queryByText('Người liên hệ')).not.toBeNull();
   });
 
   it('QA-2026-09-26-27 renders the contact row when only contactPhone exists', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0909000001' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0909000001' } })} />);
 
     expect(valueOf('SĐT kho')).toBe('—');
-    expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    expect(valueOf('Người liên hệ')).toBe('Anh Minh · 0909000001');
     // Card 20261003_320: with khoPhone absent, Gọi kho is hidden and never dials contactPhone
     expect(screen.queryByRole('link', { name: /Gọi kho/ })).toBeNull();
   });
 
   it('card 20261003_320: does NOT dial contactPhone from Gọi kho button when khoPhone is empty', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0900000001' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0900000001' } })} />);
 
     expect(valueOf('SĐT kho')).toBe('—');
-    expect(valueOf('SĐT liên hệ')).toBe('0900000001');
+    expect(valueOf('Người liên hệ')).toBe('Anh Minh · 0900000001');
     // AC1: SĐT kho trống → không có nút 'Gọi kho' bấm được
     expect(screen.queryByRole('link', { name: /Gọi kho/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Gọi kho/ })).toBeNull();
-    // AC3: SĐT liên hệ vẫn hiển thị bình thường
+    // AC3: the contact number still renders as a callable tel: link
     expect(screen.getByText('0900000001')).toBeTruthy();
   });
 
   it('card 20261003_320: dials the kho phone from Gọi kho button when khoPhone exists', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0900000001' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0900000001' } })} />);
 
     expect(valueOf('SĐT kho')).toBe('0901234567');
-    expect(valueOf('SĐT liên hệ')).toBe('0900000001');
+    expect(valueOf('Người liên hệ')).toBe('Anh Minh · 0900000001');
     // AC2: SĐT kho có dữ liệu → nút Gọi kho gọi đúng số kho
     const callBtn = screen.getByRole('link', { name: /Gọi kho/ });
     expect(callBtn.getAttribute('href')).toBe('tel:0901234567');
   });
 
   it('QA-2026-09-26-27 never duplicates when whitespace differs between the two fields', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: ' 0901234567 ', contactPhone: '0901234567' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: ' 0901234567 ', contactPhone: '0901234567' } })} />);
 
     // Trimmed comparison: the same number with surrounding whitespace is the
-    // SAME number — one row.
-    expect(screen.queryByText('SĐT liên hệ')).toBeNull();
+    // SAME number — it stays on the SĐT kho row only; the contact row names
+    // the person without repeating the number.
+    expect(valueOf('Người liên hệ')).toBe('Anh Minh');
     expect(valueOf('SĐT kho')).toBe('0901234567');
   });
 
   it('QA-2026-09-26-25 dashes SĐT kho when the site has no phone on file', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: null, contactPhone: null } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { contactName: null, contactPhone: null } })} />);
 
     expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
+    // No contact at all → no contact row (the house fallback name only rides
+    // a row that has somebody to call).
+    expect(screen.queryByText('Người liên hệ')).toBeNull();
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
     expect(labels).toContain('SĐT kho');
+  });
+
+  // K10.19 (SIL-946, KB §10.4.2): the contact row exists for EVERY lot with
+  // somebody to call. A site whose phone has no named person keeps the house
+  // fallback name (the same string operationalSiteContacts uses) — the row
+  // must not vanish, because "no row" read as "the screen forgot it".
+  it('names the contact row with the house fallback when the site has a phone but no name', () => {
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { contactName: null, contactPhone: '0909000001', khoPhone: null } })} />);
+
+    expect(valueOf('Người liên hệ')).toBe('Liên hệ nhà máy · 0909000001');
   });
 
   // ---- Card 20261005_364 (REQ-05): the SĐT kho NUMBER is itself the
@@ -297,7 +331,7 @@ describe('DriverTaskInfoSections', () => {
     ?.querySelector('.driver-task-fact__value');
 
   it('card 20261005_364 AC1: SĐT kho renders as a tel: link dialing the warehouse number', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0909000001' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0909000001' } })} />);
 
     const link = khoRowValue()?.querySelector('a');
     expect(link).not.toBeNull();
@@ -306,14 +340,14 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('card 20261005_364 AC2: no kho phone → "—" plain text, no tel link on the row', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0909000001' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: null, contactPhone: '0909000001' } })} />);
 
     expect(valueOf('SĐT kho')).toBe('—');
     expect(khoRowValue()?.querySelector('a')).toBeNull();
   });
 
   it('card 20261005_364 AC3: the href is the dialable URI — whitespace stripped, number never invented', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: ' 0989 130 345 ' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: ' 0989 130 345 ' } })} />);
 
     const link = khoRowValue()?.querySelector('a');
     expect(link).not.toBeNull();
@@ -326,11 +360,11 @@ describe('DriverTaskInfoSections', () => {
   // through the one shared TelLink pattern — the contact row (reported plain
   // text on trip 79) and the call bar share the #364 whitespace contract.
   const contactRowValue = () => Array.from(document.querySelectorAll('.driver-task-fact'))
-    .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'SĐT liên hệ')
+    .find((el) => el.querySelector('.driver-task-fact__label')?.textContent === 'Người liên hệ')
     ?.querySelector('.driver-task-fact__value');
 
-  it('card 081026230540 AC1: SĐT liên hệ renders as a tel: link dialing the contact number', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0900000001' } })} />);
+  it('card 081026230540 AC1: the contact number renders as a tel: link dialing the contact number', () => {
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: '0900000001' } })} />);
 
     const link = contactRowValue()?.querySelector('a');
     expect(link).not.toBeNull();
@@ -338,14 +372,17 @@ describe('DriverTaskInfoSections', () => {
     expect(link!.textContent).toBe('0900000001');
   });
 
-  it('card 081026230540 AC1: no contact phone → the row never renders, so no dead link', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: null } })} />);
+  it('card 081026230540 AC1: no contact phone → no dead link on the contact row', () => {
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: null } })} />);
 
-    expect(contactRowValue()).toBeUndefined();
+    // The row still names the person, but a contact without a number never
+    // renders a link that would dial nothing.
+    expect(contactRowValue()?.querySelector('a')).toBeNull();
+    expect(contactRowValue()?.textContent).toBe('Anh Minh');
   });
 
-  it('card 081026230540 AC2: SĐT liên hệ href strips inner whitespace, visible number keeps it', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: ' 0989 130 345 ' } })} />);
+  it('card 081026230540 AC2: the contact href strips inner whitespace, visible number keeps it', () => {
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: '0901234567', contactPhone: ' 0989 130 345 ' } })} />);
 
     const link = contactRowValue()?.querySelector('a');
     expect(link).not.toBeNull();
@@ -354,14 +391,14 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('card 081026230540 AC2: the Gọi kho bar href strips inner whitespace too', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { khoPhone: ' 0989 130 345 ' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { khoPhone: ' 0989 130 345 ' } })} />);
 
     const bar = screen.getByRole('link', { name: /Gọi kho/ });
     expect(bar.getAttribute('href')).toBe('tel:0989130345');
   });
 
   it('QA-2026-09-26-25 dashes SĐT kho when the site has no phone on file', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: null, contactPhone: null } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { contactName: null, contactPhone: null } })} />);
 
     expect(screen.queryByText('Số điện thoại liên hệ')).toBeNull();
     const labels = Array.from(document.querySelectorAll('.driver-task-fact__label')).map((el) => el.textContent);
@@ -369,7 +406,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('VID-DRV-01 renders the factory address in the info section, leaving route text to the task header', () => {
-    render(<DriverTaskInfoSections trip={makeTrip()} />);
+    render(<DriverDetailSections trip={makeTrip()} />);
 
     expect(valueOf('Địa chỉ nhà máy')).toBe('KCN Việt Nam – Singapore, Thuận An, Bình Dương');
     expect(valueOf('Tuyến')).toBeUndefined();
@@ -377,11 +414,11 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('VID-DRV-01 does not recreate a route row for missing summary or route values', () => {
-    const { unmount } = render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { routeSummary: null } })} />);
+    const { unmount } = render(<DriverDetailSections trip={makeTrip({ fulfillment: { routeSummary: null } })} />);
     expect(valueOf('Tuyến')).toBeUndefined();
     unmount();
 
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { routeSummary: null }, routeName: null })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { routeSummary: null }, routeName: null })} />);
     expect(valueOf('Tuyến')).toBeUndefined();
   });
 
@@ -442,14 +479,14 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('DRV-R04 (card _25/_27) differing numbers render both rows, each with its own call affordance', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { contactName: '  Chị An  ', contactPhone: ' 0909000001  ', khoPhone: ' 0901234567 ' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { contactName: '  Chị An  ', contactPhone: ' 0909000001  ', khoPhone: ' 0901234567 ' } })} />);
     const khoValue = valueOf('SĐT kho');
-    expect(khoValue).toContain('0901234567');
-    expect(valueOf('SĐT liên hệ')).toBe('0909000001');
+    expect(valueOf('SĐT kho')).toContain('0901234567');
+    expect(valueOf('Người liên hệ')).toBe('Chị An · 0909000001');
     // One tel link per distinct number — the trim is comparison-only; the
     // rendered value stays the trimmed contact number.
     expect(screen.getAllByRole('link', { name: /Gọi kho/ })).toHaveLength(1);
-    expect(screen.queryByText('SĐT liên hệ')).not.toBeNull();
+    expect(screen.queryByText('Người liên hệ')).not.toBeNull();
   });
 
   it('labels the factory invoice profile under its own party heading — never the customer fallback', () => {
@@ -486,18 +523,18 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('renders the empty-container return depot as Trả cont rỗng for EXPORT when distinct from Cảng hạ', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS' } })} />);
 
     expect(labels()).toEqual([
       'Ngày giờ kế hoạch',
       'Tên nhà máy',
       'Địa chỉ nhà máy',
+      'Địa chỉ giao hàng',
       'SĐT kho',
-      'SĐT liên hệ',
+      'Người liên hệ',
       'Container / lô hàng',
       'Cảng nâng',
       'Cảng hạ',
-      'Địa chỉ giao hàng',
       'Trả cont rỗng',
     ]);
     expect(valueOf('Cảng hạ')).toBe('Sóng Thần');
@@ -505,13 +542,13 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('hides the return depot row when it equals the drop point (EXPORT)', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: 'Sóng Thần' } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { returnDepotName: 'Sóng Thần' } })} />);
 
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
   it('gives Cảng nâng the named fallback like Cảng hạ when the pickup chain is empty (card 071026205810)', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { pickupPortName: null, pickupWarehouseName: null, lclWarehouseName: null, dropPortName: null, dropWarehouseName: null },
     })} />);
@@ -521,13 +558,13 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('hides the return depot row when returnDepotName is null', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: { returnDepotName: null } })} />);
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: { returnDepotName: null } })} />);
 
     expect(labels()).not.toContain('Trả cont rỗng');
   });
 
   it('KP-063: without tradeDirection (EXPORT-like), Cảng hạ is the drop port and return depot renders separately', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS', dropPortName: 'Nhà máy Samsung' },
     })} />);
 
@@ -540,7 +577,7 @@ describe('DriverTaskInfoSections', () => {
     // the drop chain ('Nhà máy Samsung' as a drop value was the pre-ruling
     // data shape) — it names the delivery DESTINATION from the factory
     // fields, distinct from the depot that leads Hạ.
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { returnDepotName: 'Bãi JJ LOGISTICS', dropPortName: 'Nhà máy Samsung' },
     })} />);
@@ -551,7 +588,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('card 091026190530 (FB-082): IMPORT with no distinct depot carries the drop point as Cảng hạ — DRV-R02 superseded by the 2026-09-18 ruling (return-depot stage dead BE-side, factory excluded from the drop chain there)', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { returnDepotName: null, dropPortName: 'Bãi ICD Mỹ Đình' },
     })} />);
@@ -571,7 +608,7 @@ describe('DriverTaskInfoSections', () => {
     // both labels (PRD ManHinhLaiXe §2.3: "khi hai điểm là cùng một nơi thì
     // hai hàng cùng tên") instead of an empty Hạ row that made the
     // delivery address read as the only stop.
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: {
         pickupPortName: 'Cát Lái',
@@ -592,7 +629,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('P1_5: IMPORT with return depot equal to drop port still shows the delivery row — naming the destination', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: { returnDepotName: 'Sóng Thần', dropPortName: 'Sóng Thần' },
     })} />);
@@ -606,7 +643,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('card _27 + operator ruling 2026-09-27: the container row reads in the grid, the seal row stays in its card', () => {
-    render(<DriverTaskInfoSections trip={makeTrip()} />);
+    render(<DriverDetailSections trip={makeTrip()} />);
 
     // "we need to have container lô hàng like previous original design": the
     // driver reads the container they haul here (number · type code), while
@@ -617,7 +654,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('falls back to dropWarehouseName when dropPortName is null', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: {
       dropPortName: null,
       dropWarehouseName: 'Legacy Kho',
       lclWarehouseName: 'Legacy LCL',
@@ -627,7 +664,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('DRI-04: both drop rows show named Chưa có fallbacks when the drop chain is empty', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({ fulfillment: {
+    render(<DriverDetailSections trip={makeTrip({ fulfillment: {
       dropPortName: null,
       dropWarehouseName: null,
       lclWarehouseName: null,
@@ -645,7 +682,7 @@ describe('DriverTaskInfoSections', () => {
   // bãi hạ" — the wire's deliveryLocation is empty for that lot while the
   // delivery destination the row below already names IS the drop point.
   it('card 191026100010 (C.1): an LCL Nhập lot puts the delivery destination into Cảng hạ even with no delivery free text', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: {
         modeLabel: 'LCL',
@@ -672,7 +709,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('card 191026100010 (C.1): an LCL Xuất lot never borrows the factory for Cảng hạ — only a recorded kho/drop carries', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'EXPORT',
       fulfillment: {
         modeLabel: 'LCL',
@@ -694,7 +731,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('card 191026100010 (C.1): an LCL Nhập lot keeps a recorded drop when no delivery destination exists', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'IMPORT',
       fulfillment: {
         modeLabel: 'LCL',
@@ -723,7 +760,7 @@ describe('DriverTaskInfoSections', () => {
     // destination IS the discharge point. Hiding the row (FB-082 retest v1)
     // made QA read the screen as broken; the row now renders the port and
     // carries the tooltip that explains the duplication.
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'EXPORT',
       fulfillment: { dropPortName: 'Cảng ICD Sóng Thần' },
     })} />);
@@ -739,7 +776,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('DRI-04: an EXPORT trip missing every point still renders both rows with named fallbacks', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       tradeDirection: 'EXPORT',
       fulfillment: {
         dropPortName: null,
@@ -757,7 +794,7 @@ describe('DriverTaskInfoSections', () => {
   });
 
   it('DRI-04: a domestic (null-direction) trip names the factory destination in the delivery row', () => {
-    render(<DriverTaskInfoSections trip={makeTrip({
+    render(<DriverDetailSections trip={makeTrip({
       fulfillment: { dropPortName: 'Kho Trả Hàng Thủ Đức' },
     })} />);
 
@@ -772,7 +809,7 @@ describe('DriverTaskInfoSections', () => {
 it('renders a legacy task without a container array without crashing', () => {
   const trip = makeTrip();
   trip.containers = null as unknown as DriverTaskDetail['containers'];
-  render(<DriverTaskInfoSections trip={trip} />);
+  render(<DriverDetailSections trip={trip} />);
   expect(screen.getByText('Tên nhà máy')).toBeTruthy();
   // The row keeps its slot and dashes — a legacy payload never hides it.
   expect(valueOf('Container / lô hàng')).toBe('—');

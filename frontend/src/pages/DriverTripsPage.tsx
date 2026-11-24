@@ -250,8 +250,15 @@ function JourneyCard({ card, tagLabels }: { card: DriverJourneyCard; tagLabels: 
         </div>
       ) : null}
       {isPresent(operationManualText) ? (
-        <p className="driver-journey-card__ops-note"><span className="driver-journey-card__port-label">Ghi chú</span>{' '}{operationManualText}</p>
-      ) : null}
+        <p className="driver-journey-card__ops-note" data-testid="driver-journey-card-note"><span className="driver-journey-card__port-label">Ghi chú</span>{' '}{operationManualText}</p>
+      ) : (
+        /* K10.19 (SIL-946, KB §10.4.2 ⑥): nhiệm vụ/ghi chú owns a line on
+           EVERY card — with no dispatch note it names the gap ("Chưa có
+           ghi chú") instead of silently omitting the row. QA 24/11: every
+           thẻ lệnh of ASKEY showed no note line at all, which read as "the
+           screen forgot it" instead of "this lot has no note". */
+        <p className="driver-journey-card__ops-note" data-testid="driver-journey-card-note"><span className="driver-journey-card__port-label">Ghi chú</span>{' '}Chưa có ghi chú</p>
+      )}
 
       {/* SIL-638 TC8: locked Lệnh 2 card — DOC sentence; its footer below stays hidden (read-only). */}
       {card.pairLocked ? (

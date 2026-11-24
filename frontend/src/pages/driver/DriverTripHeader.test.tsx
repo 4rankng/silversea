@@ -62,7 +62,8 @@ describe('DriverTripHeader — SIL-815 classification chip', () => {
 
 /* Card 20260926_26 item 4: compressed two-line title block — line 1 = back
  * + mã (Số Bill / Booking, the display key), line 2 = location + status
- * pill. The eyebrow and the standalone route line are gone. */
+ * pill. The eyebrow is gone; K10.19 (SIL-946, KB §10.4.2) restored the
+ * standalone ROUTE line under the factory name. */
 describe('DriverTripHeader — 20260926_26 two-line title block', () => {
   const codedTrip = (fulfillment: Partial<NonNullable<DriverTaskDetail['fulfillment']>>) => ({
     id: 55,
@@ -98,9 +99,11 @@ describe('DriverTripHeader — 20260926_26 two-line title block', () => {
     expect(document.querySelector('.driver-task-header__location')?.textContent).toBe('ASKEY');
     expect(screen.getByTestId('close-status-chip').textContent).toBe('Đóng');
     expect(screen.getByText('SilverSea')).toBeTruthy();
-    // The eyebrow and the standalone route line are retired.
+    // The eyebrow is retired. The ROUTE line is back (K10.19 / SIL-946,
+    // KB §10.4.2): "tuyến ngay dưới tên nhà máy" — the QA finding
+    // supersedes card _26, which had retired it.
     expect(document.querySelector('.driver-task-header__eyebrow')).toBeNull();
-    expect(document.querySelector('.driver-task-header__route')).toBeNull();
+    expect(document.querySelector('.driver-task-header__route')?.textContent).toBe('Cát Lái → Thuận An');
   });
 
   // Card 20260927_1 (user report): the internal shipmentCode (SHP-YYMM-NNNNN)
@@ -125,5 +128,15 @@ describe('DriverTripHeader — 20260926_26 two-line title block', () => {
     render(<DriverTripHeader trip={codedTrip({})} onBack={() => {}} />);
     expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cảng Cát Lái → Nhà máy Bình Dương');
     expect(document.querySelector('.driver-task-header__location')).toBeNull();
+    // The route already IS the title — the route line never repeats it.
+    expect(document.querySelector('.driver-task-header__route')).toBeNull();
+  });
+
+  // K10.19 (SIL-946): a factory-less record shows the route as the location
+  // line — the dedicated route line would repeat it, so it stays hidden.
+  it('keeps the route line hidden when the route already rides the location line', () => {
+    render(<DriverTripHeader trip={codedTrip({ factoryShortName: null, factoryName: null, routeSummary: 'Cát Lái → Thuận An' })} onBack={() => {}} />);
+    expect(document.querySelector('.driver-task-header__title')?.textContent).toBe('Cát Lái → Thuận An');
+    expect(document.querySelector('.driver-task-header__route')).toBeNull();
   });
 });

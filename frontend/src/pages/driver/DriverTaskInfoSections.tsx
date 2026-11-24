@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { operationalSiteContacts } from '@tingting/shared';
 import { Modal, Btn } from '../../components/UI';
 import { OperationalSiteContactsList } from '../../components/shipment/OperationalSiteContactsList';
+import TripLegsPanel from '../../components/trip/TripLegsPanel';
 import { Building2, CalendarClock, ChevronDown, FileCheck2, FileText, MapPinned, Package, Phone, PhoneCall, Banknote, HandCoins, ReceiptText, Fuel, Milestone, Wallet } from 'lucide-react';
 import { ArrowDownRight, ArrowUpRight, Building02, Pin02, RefreshCcw02 } from '@untitledui/icons';
 import { valueOrDash, formatDateTime } from '../../features/driver/driver-trip-model';
@@ -107,35 +108,34 @@ function CollapsibleSectionHead({ id, label, summary, open, onToggle }: {
   );
 }
 
-export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDetail; children?: ReactNode }) {
-  // Both sections start expanded (the driver should see everything on
-  // arrival); collapsing is an explicit per-visit space-saving choice.
-  const [infoOpen, setInfoOpen] = useState(true);
+/**
+ * K10.19 (SIL-946): the shared location-fact resolution for the detail
+ * screen — Thông tin lệnh (lịch & địa điểm) and the new LỘ TRÌNH section
+ * both read from this one helper so the two can never diverge.
+ *
+ * Card 091026190530 (FB-082): since the 2026-09-18 delivery-stage ruling
+ * the drop chain (the container's dropoff port, else the dispatcher's
+ * free-text override) IS the Hạ point in every direction — the
+ * return-depot stage is dead BE-side. Legacy data with a distinct depot
+ * still leads for IMPORT (driverLocationLabels), but a depot-less IMPORT
+ * trip shows its real drop point here, never a dead "Chưa có nơi trả
+ * rỗng" row beside "Địa chỉ giao hàng" naming the same yard.
+ *
+ * Card 191026100010 (C.1): the drop resolves through the ONE shared
+ * lift/drop rule (features/shipments/liftDropPoints.ts, FB-105 §3) rather
+ * than the raw delivery free text alone. An LCL lot owns no container, so
+ * its Hạ point is DIRECTION-OWNED — Nhập = Nhà máy (điểm trả), Xuất = kho
+ * trả hàng (CFS/Cảng) — and the wire's deliveryLocation is often empty for
+ * exactly that lot. FCL is unchanged by construction: the helper's
+ * FCL branch returns the container/free-text chain (dropPortName →
+ * dropWarehouseName, already resolved BE-side by resolveDeliveryStage) and
+ * never takes the factory — the 2026-09-18 "factory never wears the Hạ
+ * label" ruling stands for container jobs.
+ */
+function tripRouteFacts(trip: DriverTaskDetail) {
   const fulfillment = trip.fulfillment ?? null;
-  const plannedAt = fulfillment?.plannedAt ?? trip.plannedStartAt;
   // Card 071026205810: named fallbacks — a bare dash reads as a render error.
   const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? 'Chưa có cảng nâng';
-
-  // Card 091026190530 (FB-082): since the 2026-09-18 delivery-stage ruling
-  // the drop chain (the container's dropoff port, else the dispatcher's
-  // free-text override) IS the Hạ point in every direction — the
-  // return-depot stage is dead BE-side. Legacy data with a distinct depot
-  // still leads for IMPORT (driverLocationLabels), but a depot-less IMPORT
-  // trip shows its real drop point here, never a dead "Chưa có nơi trả
-  // rỗng" row beside "Địa chỉ giao hàng" naming the same yard.
-  //
-  // Card 191026100010 (C.1): the drop resolves through the ONE shared
-  // lift/drop rule (features/shipments/liftDropPoints.ts, FB-105 §3) rather
-  // than the raw delivery free text alone. An LCL lot owns no container, so
-  // its Hạ point is DIRECTION-OWNED — Nhập = Nhà máy (điểm trả), Xuất = kho
-  // trả hàng (CFS/Cảng) — and the wire's deliveryLocation is often empty for
-  // exactly that lot, which left the "Cảng hạ" row reading
-  // "Chưa có cảng hạ" while "Địa chỉ giao hàng" right below named the very
-  // yard the truck runs to. FCL is unchanged by construction: the helper's
-  // FCL branch returns the container/free-text chain (dropPortName →
-  // dropWarehouseName, already resolved BE-side by resolveDeliveryStage) and
-  // never takes the factory — the 2026-09-18 "factory never wears the Hạ
-  // label" ruling stands for container jobs.
   const cargoMode = fulfillment?.modeLabel === 'LCL' || fulfillment?.modeLabel === 'FCL' ? fulfillment.modeLabel : null;
   const rawDropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? null;
   // The helper's direction contract is the two-value union; any other wire
@@ -157,20 +157,18 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
     dropFallback: rawDropPoint,
   }).drop;
   const locations = driverLocationLabels(trip.tradeDirection, dropPoint, fulfillment?.returnDepotName);
-  // DRI-04 (card 211026130843): both drop-side rows are visible-by-default —
-  // the named "Chưa có cảng hạ" fallback applies in EVERY direction (the bare
-  // "—" the EXPORT branch used to print read as a missing implementation).
+  // DRI-04 (card 211026130843): the named "Chưa có cảng hạ" fallback applies
+  // in EVERY direction (the bare "—" the EXPORT branch used to print read as
+  // a missing implementation).
   const cangHa = locations.drop ?? 'Chưa có cảng hạ';
 
   // Card 121026141020 (FB-082 retest): the delivery row names the DESTINATION
   // — the factory the goods are handed over to — never the discharge yard
   // echoing "Cảng hạ". IMPORT delivers to the factory; EXPORT's destination
   // is the port itself (the 2026-09-18 "hạ tại cảng cho XK" ruling), so the
-  // row names the same drop point — DRI-04 (card 211026130843) keeps the row
-  // VISIBLE with a one-line law tooltip instead of hiding it, because the
-  // silent absence made QA read the screen as broken. A trip with no
-  // destination data keeps its slot with the named "Chưa có" fallback —
-  // never a silently dropped row.
+  // row names the same drop point — DRI-04 keeps the row VISIBLE with a
+  // one-line law tooltip instead of hiding it. A trip with no destination
+  // data keeps its slot with the named "Chưa có" fallback.
   const isExportTrip = trip.tradeDirection === 'EXPORT';
   const deliveryAddress = isExportTrip
     ? dropPoint
@@ -182,7 +180,52 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   const deliveryRowTitle = isExportTrip
     ? 'Lô xuất khẩu: hạ và giao hàng tại cảng — địa chỉ giao chính là điểm Cảng hạ.'
     : undefined;
-  const showReturnDepotRow = Boolean(locations.returnDepot);
+  return {
+    pickupPoint,
+    cangHa,
+    /** Legacy distinct empty-container return stage; null on modern data. */
+    returnDepot: locations.returnDepot ?? null,
+    deliveryAddress,
+    deliveryRowTitle,
+  };
+}
+
+/**
+ * K10.19 (SIL-946, KB §10.4.2): Cảng nâng/hạ + the trip legs are the LỘ
+ * TRÌNH group — "nhóm riêng sau hàng hóa". They used to nest inside the
+ * Thông tin lệnh grid before Thông tin hóa đơn, which QA flagged as the
+ * KB order violation. Renders right after the Số cont & seal card.
+ */
+export function DriverTripRouteSection({ trip }: { trip: DriverTaskDetail }) {
+  const { pickupPoint, cangHa, returnDepot } = tripRouteFacts(trip);
+  return (
+    <section className="driver-task-section driver-task-section--legs" data-testid="driver-route-section">
+      <div className="driver-task-section__head">
+        <span>Lộ trình</span>
+      </div>
+      <div className="driver-task-grid">
+        <TaskFact icon={<ArrowUpRight size={16} />} label="Cảng nâng" value={pickupPoint} />
+        {/* KP-063: direction-aware Cảng hạ. For IMPORT this is the
+            empty-container return depot; for EXPORT the drop port. DRI-04:
+            the row keeps its slot in every direction — named "Chưa có"
+            fallback, never a bare dash. */}
+        <TaskFact icon={<ArrowDownRight size={16} />} label="Cảng hạ" value={cangHa} />
+        {returnDepot ? (
+          <TaskFact icon={<RefreshCcw02 size={16} />} label="Trả cont rỗng" value={returnDepot} />
+        ) : null}
+      </div>
+      {trip.legs.length > 0 && <TripLegsPanel legs={trip.legs} />}
+    </section>
+  );
+}
+
+export function DriverTaskInfoSections({ trip }: { trip: DriverTaskDetail }) {
+  // Both sections start expanded (the driver should see everything on
+  // arrival); collapsing is an explicit per-visit space-saving choice.
+  const [infoOpen, setInfoOpen] = useState(true);
+  const fulfillment = trip.fulfillment ?? null;
+  const plannedAt = fulfillment?.plannedAt ?? trip.plannedStartAt;
+  const { deliveryAddress, deliveryRowTitle } = tripRouteFacts(trip);
 
   // Card 20260926_27 item 7: khoPhone and contactPhone are independent
   // fields and CAN differ. Identical numbers never render twice — the
@@ -190,6 +233,7 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
   const [callOpen, setCallOpen] = useState(false);
   const khoPhone = fulfillment?.khoPhone?.trim() || null;
   const contactPhone = fulfillment?.contactPhone?.trim() || null;
+  const contactName = fulfillment?.contactName?.trim() || null;
   // Card 20261003_320: do NOT fall back to contactPhone — when khoPhone is
   // empty, the Gọi kho button must NOT dial the general order contact.
   const callContacts = operationalSiteContacts({ contacts: fulfillment?.factoryContacts, contactName: fulfillment?.contactName, contactPhone: khoPhone });
@@ -223,6 +267,19 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           <TaskFact icon={<Building2 size={16} />} label="Tên nhà máy" value={fullFactoryName} />
           {/* The customer's order-info row is the factory street address. */}
           <TaskFact icon={<Building02 size={16} />} label="Địa chỉ nhà máy" value={valueOrDash(fulfillment?.factoryAddress)} />
+          {/* K10.19 (SIL-946, KB §10.4.2 lịch & địa điểm): địa chỉ giao hàng
+              follows the factory block, before the contact cluster. DRI-04:
+              the row is visible in EVERY direction — IMPORT names the factory
+              destination (FB-082 law), EXPORT names the discharge port the
+              goods are handed over at (tooltip explains the duplication with
+              Cảng hạ), and missing data keeps the slot with the named
+              fallback instead of a silent hole. */}
+          <TaskFact
+            icon={<Pin02 size={16} aria-hidden="true" />}
+            label="Địa chỉ giao hàng"
+            value={deliveryAddress ?? 'Chưa có địa chỉ giao'}
+            title={deliveryRowTitle}
+          />
           {/* Card 20260926_25/_27: the kho phone always renders (KP-010);
               the call affordance is the row's leading phone icon. */}
           {/* Card 20260926_41 V2 (CHIEF): the info card is pure data — the
@@ -236,38 +293,35 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
             label="SĐT kho"
             value={khoPhone ? <TelLink phone={khoPhone} className="driver-task-fact__tel" /> : '—'}
           />
-          {/* Card 20261003_320 / card 081026230540: the named-contact number
-              renders only when it DIFFERS from the kho number — identical
-              numbers never render twice. Same tap-to-call pattern: round 8
-              caught this row as plain text on trip 79. */}
-          {contactPhone && contactPhone !== khoPhone ? (
-            <TaskFact icon={<Phone size={16} aria-hidden="true" />} label="SĐT liên hệ" value={<TelLink phone={contactPhone} className="driver-task-fact__tel" />} />
+          {/* K10.19 (SIL-946, KB §10.4.2): "người liên hệ + số điện thoại,
+              bấm gọi được" — the contact NAME owns the row (the old screen
+              had only "SĐT kho" + the Gọi kho bar, no name). The row
+              renders for EVERY lot that has a contact to call: a site with a
+              phone but no named person keeps the house fallback name
+              ("Liên hệ nhà máy" — the same string operationalSiteContacts
+              uses), because a nameless row reads as "the screen forgot it"
+              (QA 24/11: trip 322 had no contact line at all). The named
+              number rides the same line as tap-to-call when it DIFFERS from
+              the kho number (card 20261003_320: identical numbers never
+              render twice); when the numbers match, the name alone renders
+              and the callable number is the SĐT kho row above. */}
+          {contactName || contactPhone ? (
+            <TaskFact
+              icon={<Phone size={16} aria-hidden="true" />}
+              label="Người liên hệ"
+              value={<>
+                <span>{contactName ?? 'Liên hệ nhà máy'}</span>
+                {contactPhone && contactPhone !== khoPhone
+                  ? (<> · <TelLink phone={contactPhone} className="driver-task-fact__tel" /></>)
+                  : null}
+              </>}
+            />
           ) : null}
           {/* Operator ruling 2026-09-27: the container the driver is hauling
               reads here, in the original design's position (after the kho
               phone, before the ports). Read-only — editing stays in the
               Số cont & seal card. */}
           <TaskFact icon={<Package size={16} />} label="Container / lô hàng" value={containerLedgerValue(trip.containers)} />
-          <TaskFact icon={<ArrowUpRight size={16} />} label="Cảng nâng" value={pickupPoint} />
-          {/* KP-063: direction-aware Cảng hạ. For IMPORT this is the
-              empty-container return depot; for EXPORT the drop port. DRI-04:
-              both drop-side rows keep their slot in every direction — named
-              "Chưa có" fallbacks, never a bare dash or a missing row. */}
-          <TaskFact icon={<ArrowDownRight size={16} />} label="Cảng hạ" value={cangHa} />
-          {/* DRI-04: the delivery row is visible in EVERY direction — IMPORT
-              names the factory destination (FB-082 law), EXPORT names the
-              discharge port the goods are handed over at (tooltip explains
-              the duplication with Cảng hạ), and missing data keeps the slot
-              with the named fallback instead of a silent hole. */}
-          <TaskFact
-            icon={<Pin02 size={16} aria-hidden="true" />}
-            label="Địa chỉ giao hàng"
-            value={deliveryAddress ?? 'Chưa có địa chỉ giao'}
-            title={deliveryRowTitle}
-          />
-          {showReturnDepotRow ? (
-            <TaskFact icon={<RefreshCcw02 size={16} />} label="Trả cont rỗng" value={locations.returnDepot} />
-          ) : null}
         </div>
       </section>
 
@@ -290,10 +344,6 @@ export function DriverTaskInfoSections({ trip, children }: { trip: DriverTaskDet
           order opens. Display-only — no confirm/send affordance is added
           here; the MST copy buttons stay the only affordances. */}
       <DriverInvoiceSection trip={trip} />
-
-      {/* Operational instructions precede billing details and remain outside
-          both independently collapsible sections. */}
-      {children}
     </>
   );
 }

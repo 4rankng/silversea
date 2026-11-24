@@ -113,6 +113,16 @@
   overflow-wrap: anywhere;
 }
 
+/* K10.19 (SIL-946, KB §10.4.2): the route line sits directly under the
+   factory — quieter than the location so the factory stays the headline,
+   but a real line of its own (not a meta chip). */
+.driver-task-header__route {
+  margin: 4px 0 0;
+  font-size: var(--text-data-size);
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+
 /* Card 20260926_28 item 9: inline copy affordance for the driver's long
    codes — icon flips to a check for a beat after copying. */
 .driver-copy-btn {

@@ -11,11 +11,10 @@ import {
   Truck,
 } from 'lucide-react';
 import { DriverProgressEventType, TripStatus } from '@tingting/shared';
-import TripLegsPanel from '../components/trip/TripLegsPanel';
 import { ShipmentCostEntryForm } from '../components/trip/ShipmentCostEntryForm';
 import { DriverContainerCard } from '../components/trip/DriverContainerCard';
 import { DriverTripHeader } from './driver/DriverTripHeader';
-import { DriverTaskInfoSections, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
+import { DriverTaskInfoSections, DriverTripRouteSection, DriverCostBreakdownSection } from './driver/DriverTaskInfoSections';
 import { podRequiredFilesReady, missingRequiredPodFileTypes, missingPodFilesMessage } from '../lib/podReadiness';
 import { usePageAnimations } from '../hooks/animations';
 import { useBackShortcut } from '../hooks/useBackShortcut';
@@ -101,6 +100,7 @@ function DriverTripDetailContent() {
   }, [refetchDetail, refetchProgress]);
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
+
   // SIL-652 (id 758): match the journey board's pair lock so list and detail
   // stay consistent. The L2 card stays locked until L1 completes.
   const journeyCard = useMemo(() => {
@@ -510,9 +510,102 @@ function DriverTripDetailContent() {
 
       <fieldset disabled={Boolean(accountingLock)} className="driver-task-fieldset">
 
-      {/* Card 20260926_30 item 15: the completion checklist LEADS the screen —
-          it is the one thing the driver must act on, so it renders before
-          Thông tin lệnh instead of at the bottom.
+      <DriverTaskInfoSections trip={trip} />
+
+      {/* K10.19 (SIL-946, KB §10.4.2): hàng hóa (Số cont & seal) is its own
+          group right after xuất hóa đơn, BEFORE nhiệm vụ & ghi chú — the old
+          screen rendered Ghi chú between the invoice and the container card.
+          SIL-918 (KB §3.6.1): hàng lẻ has no container — the frame (and its
+          capture zones) renders for FCL trips only; the LCL delivery-note
+          evidence rides the e-POD screen instead. */}
+      {!isLcl && (
+        <section className="driver-task-section">
+          <DriverContainerCard
+            tripId={trip.id}
+            readOnly={closed}
+            containers={trip.containers}
+            contPhotoKey={contPhotoKey}
+            sealPhotoKey={sealPhotoKey}
+            deliveryNotePhotoKeys={deliveryNotePhotoKeys}
+            tradeDirection={trip.tradeDirection ?? null}
+            pairTagLabel={pairTagLabel}
+            onSaved={handleContainerSaved}
+          />
+        </section>
+      )}
+
+      {/* K10.19 (SIL-946, KB §10.4.2): lộ trình is its OWN group after hàng
+          hóa — Cảng nâng/hạ + the trip legs. The legs panel used to sit
+          after Quy định; it moved with the ports into this section. */}
+      <DriverTripRouteSection trip={trip} />
+
+      {/* Card _36 (paper-form spec), amended by SIL-767 (09/11, customer
+          CR-006 — "khách hàng bảo thế nào thì làm thế"): the Tác vụ block
+          (chips + its empty state) is REMOVED from the detail screen — the
+          11 dispatch tags were UI noise drivers never used. Ghi chú stays a
+          STRUCTURAL row filled from the saved dispatch note (driverTaskNote
+          v2 manual text) and shows its empty state when absent. Same
+          parseNote codepath as the /my-trips board cards. KB §10.4.2 places
+          nhiệm vụ & ghi chú AFTER lộ trình, so this section follows the
+          Lộ trình block. */}
+      <section className="driver-task-section" data-testid="task-note-section">
+        <div className="driver-task-section__head">
+          <span>Ghi chú</span>
+        </div>
+        {driverNotes ? (
+          <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
+            <StickyNote size={16} />
+            <span>{driverNotes}</span>
+          </p>
+        ) : (
+          <p className="driver-task-empty">Không có ghi chú.</p>
+        )}
+      </section>
+
+      <section className="driver-task-section">
+        <div className="driver-task-section__head">
+          <span>Quy định tại điểm làm hàng</span>
+        </div>
+        {siteRules.length > 0 ? (
+          <ul className="driver-task-rules">
+            {siteRules.map((rule, index) => (
+              <li key={`${index}-${rule}`} className="driver-task-rules__item">
+                <ShieldAlert size={16} />
+                <span>{rule}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="driver-task-empty">Chưa có quy định tại điểm làm hàng.</p>
+        )}
+      </section>
+
+      {/* SIL-768 (09/11, customer CR-006 — "khách hàng bảo thế nào thì làm
+          thế"): the Ảnh nhiên liệu block (fuel-pump screenshot upload, OCR
+          facts, GPS) is REMOVED from the detail screen. The feature moves to
+          a dedicated fleet fuel-norm module later (out of scope here);
+          recorded fuel evidence rows, the upload endpoint and the kế toán
+          review surface (FuelEvidenceReviewPage) are untouched. The e-POD
+          comment that used to lead this section moved with the block — the
+          e-POD screen itself is unchanged (/my-trips/:id/pod). */}
+
+      <ShipmentCostEntryForm key={tripId} tripId={tripId}
+        totalRoadAllowance={trip.totalRoadAllowance}
+        costSubmissionNote={trip.costSubmissionNote}
+        readOnly={cancelled || Boolean(accountingLock)}
+        onEntriesCountChange={setCostEntryCount} />
+
+      {/* Wave 7 (SIL-638 TC3-T3): the completed trip's explicit economics —
+          cước / VETC (1 lần trên chân mang phí) / lương / phụ phí Kẹp. */}
+      <DriverCostBreakdownSection trip={trip} />
+
+      {/* K10.19 (SIL-946, KB Ch.10 §10.4.2): "bằng chứng & hành động" is the
+          LAST group of the order detail — the completion checklist (the
+          e-POD evidence state + the document action) closes the screen,
+          right above the sticky action bars. Card 20260926_30 item 15 had it
+          LEAD the screen; the KB group order (the QA finding of 24/11)
+          supersedes that placement — the progress strip at the top still
+          names what is missing, so nothing is hidden.
           Card 20260927_1: densified for the driver's small phone screen —
           title + the missing-documents line only. The old 2-line instruction
           and the two-row bullet list restated what the sticky bar already says
@@ -554,95 +647,6 @@ function DriverTripDetailContent() {
           )}
         </div>
       </footer>
-
-      <DriverTaskInfoSections trip={trip}>
-
-      {/* Card _36 (paper-form spec), amended by SIL-767 (09/11, customer
-          CR-006 — "khách hàng bảo thế nào thì làm thế"): the Tác vụ block
-          (chips + its empty state) is REMOVED from the detail screen — the
-          11 dispatch tags were UI noise drivers never used. Ghi chú stays a
-          STRUCTURAL row filled from the saved dispatch note (driverTaskNote
-          v2 manual text) and shows its empty state when absent. Same
-          parseNote codepath as the /my-trips board cards. */}
-      <section className="driver-task-section" data-testid="task-note-section">
-        <div className="driver-task-section__head">
-          <span>Ghi chú</span>
-        </div>
-        {driverNotes ? (
-          <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
-            <StickyNote size={16} />
-            <span>{driverNotes}</span>
-          </p>
-        ) : (
-          <p className="driver-task-empty">Không có ghi chú.</p>
-        )}
-      </section>
-      </DriverTaskInfoSections>
-
-      {/* SIL-918 (KB §3.6.1): hàng lẻ has no container — the Số cont & seal
-          frame (and its capture zones) renders for FCL trips only. The LCL
-          delivery-note evidence rides the e-POD screen instead. */}
-      {!isLcl && (
-        <section className="driver-task-section">
-          <DriverContainerCard
-            tripId={trip.id}
-            readOnly={closed}
-            containers={trip.containers}
-            contPhotoKey={contPhotoKey}
-            sealPhotoKey={sealPhotoKey}
-            deliveryNotePhotoKeys={deliveryNotePhotoKeys}
-            tradeDirection={trip.tradeDirection ?? null}
-            pairTagLabel={pairTagLabel}
-            onSaved={handleContainerSaved}
-          />
-        </section>
-      )}
-
-      <section className="driver-task-section">
-        <div className="driver-task-section__head">
-          <span>Quy định tại điểm làm hàng</span>
-        </div>
-        {siteRules.length > 0 ? (
-          <ul className="driver-task-rules">
-            {siteRules.map((rule, index) => (
-              <li key={`${index}-${rule}`} className="driver-task-rules__item">
-                <ShieldAlert size={16} />
-                <span>{rule}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="driver-task-empty">Chưa có quy định tại điểm làm hàng.</p>
-        )}
-      </section>
-
-      {/* SIL-768 (09/11, customer CR-006 — "khách hàng bảo thế nào thì làm
-          thế"): the Ảnh nhiên liệu block (fuel-pump screenshot upload, OCR
-          facts, GPS) is REMOVED from the detail screen. The feature moves to
-          a dedicated fleet fuel-norm module later (out of scope here);
-          recorded fuel evidence rows, the upload endpoint and the kế toán
-          review surface (FuelEvidenceReviewPage) are untouched. The e-POD
-          comment that used to lead this section moved with the block — the
-          e-POD screen itself is unchanged (/my-trips/:id/pod). */}
-
-      {trip.legs.length > 0 && (
-        <section className="driver-task-section driver-task-section--legs">
-          <div className="driver-task-section__head">
-            <span>Lộ trình chi tiết</span>
-          </div>
-          <TripLegsPanel legs={trip.legs} />
-        </section>
-      )}
-
-      <ShipmentCostEntryForm key={tripId} tripId={tripId}
-        totalRoadAllowance={trip.totalRoadAllowance}
-        costSubmissionNote={trip.costSubmissionNote}
-        readOnly={cancelled || Boolean(accountingLock)}
-        onEntriesCountChange={setCostEntryCount} />
-
-      {/* Wave 7 (SIL-638 TC3-T3): the completed trip's explicit economics —
-          cước / VETC (1 lần trên chân mang phí) / lương / phụ phí Kẹp. */}
-      <DriverCostBreakdownSection trip={trip} />
 
       {/* SIL-766: DriverInvoiceSection moved INTO DriverTaskInfoSections —
           it renders right below the Gọi kho bar, before every other block. */}

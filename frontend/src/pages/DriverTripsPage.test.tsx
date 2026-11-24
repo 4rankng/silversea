@@ -128,6 +128,16 @@ describe('DriverTripsPage', () => {
     expect(screen.queryByText('Chưa có số cont')).toBeNull();
   });
 
+  // K10.19 (SIL-946, KB §10.4.2 ⑥): nhiệm vụ/ghi chú owns a line on every
+  // card — a card with no dispatch note names the gap instead of omitting
+  // the row.
+  it('renders the Ghi chú line with a named fallback when no dispatch note exists', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ operationalNotes: null })]));
+    const { container } = renderPage();
+    const note = container.querySelector('.driver-journey-card__ops-note')!;
+    expect(note.textContent).toBe('Ghi chú Chưa có ghi chú');
+  });
+
   it('journey card omits the weight segment when the container is unweighted (card 356)', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ cargoWeightKg: null }),
