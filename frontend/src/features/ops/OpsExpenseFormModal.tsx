@@ -22,7 +22,7 @@ import { OpsModalBackdrop } from './OpsModalBackdrop';
 import { opsGroupForType } from './OpsExpenseFinancialFields';
 import { getModernRole } from '../../lib/role-helpers';
 import { useAuth } from '../../hooks/useAuth';
-import { Role } from '@tingting/shared';
+import { Role, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE, opsExpenseRequiresReceiptPhoto } from '@tingting/shared';
 import type { ExpenseCostGroup } from '@tingting/shared';
 
 interface Props {
@@ -139,7 +139,14 @@ function isEmptyDraft(draft: FeeDraft): boolean {
  *  rides exactly the message that names the Số hóa đơn cell. */
 const INVOICE_REQUIRED_MSG = 'Số hóa đơn là bắt buộc với phí có hóa đơn.';
 
-function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | null {
+/** SIL-966 (KB §8.1.3) — the row's photo law reads the catalog row's
+ *  `category` (the nâng / hạ / Lưu-cont kinds), the exact shared rule the
+ *  write path enforces, so this popup and the server can never disagree. */
+function receiptPhotoRequiredOf(typesData: FeeRowHost['typesData'], typeCode: string): boolean {
+  return opsExpenseRequiresReceiptPhoto(typesData?.items.find((type) => type.code === typeCode)?.category);
+}
+
+function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft, receiptRequired = false): string | null {
   if (isEmptyDraft(draft)) return null;
   const valid = amountValidOf(draft.amount);
   if (!draft.typeCode) return 'Chọn "Loại phí".';
@@ -161,12 +168,18 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | 
   // own law — a digitless string is placeholder text, not a number, and the
   // write path would store null anyway. The label carries the *, and the
   // footer repeats this message beside the disabled Lưu (SIL-723
-  // never-disabled-in-silence). Receipt photos stay optional.
+  // never-disabled-in-silence). Receipt photos stay optional EXCEPT for the
+  // SIL-966 kinds (KB §8.1.3) — see the receiptRequired gate below.
   if (draft.hasInvoice) {
     const invoice = draft.invoiceNumber.trim();
     if (invoice === '' || !/\d/.test(invoice)) return INVOICE_REQUIRED_MSG;
   }
   if (draft.pendingFiles.length > 0) return 'Ảnh biên lai chưa tải xong — bấm "Thử tải lại ảnh" hoặc "Bỏ ảnh chưa tải".';
+  // SIL-966 (KB §8.1.3) — a row of a photo-required kind with no receipt
+  // photo is a dead Lưu at the popup edge, same shape as the invoice gate;
+  // the message repeats beside the button via saveBlockedReason. The
+  // in-flight-upload case above speaks first (its message names the retry).
+  if (receiptRequired && draft.photos.length === 0) return OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE;
   return null;
 }
 
@@ -416,15 +429,15 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const invalidKeys = useMemo(() => {
     const keys = new Set<number>();
     for (const draft of noInvoiceRows) {
-      if (draftErrors('noInvoice', draft) || noInvoiceDuplicateTypes.has(draft.typeCode)
+      if (draftErrors('noInvoice', draft, receiptPhotoRequiredOf(typesData, draft.typeCode)) || noInvoiceDuplicateTypes.has(draft.typeCode)
         || (draft.hasInvoice && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim()))) keys.add(draft.key);
     }
     for (const draft of invoiceRows) {
-      if (draftErrors('invoice', draft)
+      if (draftErrors('invoice', draft, receiptPhotoRequiredOf(typesData, draft.typeCode))
         || (draft.hasInvoice && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim()))) keys.add(draft.key);
     }
     return keys;
-  }, [noInvoiceRows, invoiceRows, noInvoiceDuplicateTypes, invoiceDuplicateNumbers]);
+  }, [noInvoiceRows, invoiceRows, noInvoiceDuplicateTypes, invoiceDuplicateNumbers, typesData]);
   const total = drafts.reduce((sum, draft) => sum + (amountValidOf(draft.amount) ? Number(draft.amount) : 0), 0);
   const anyPendingFiles = drafts.some((draft) => draft.pendingFiles.length > 0);
   // The catalog must be loaded AND every rendered row complete before the
@@ -457,11 +470,11 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       return `Trùng số hóa đơn "${[...invoiceDuplicateNumbers][0]}" — không lưu dòng trùng.`;
     }
     for (const draft of noInvoiceRows) {
-      const message = draftErrors('noInvoice', draft);
+      const message = draftErrors('noInvoice', draft, receiptPhotoRequiredOf(typesData, draft.typeCode));
       if (message && !message.startsWith('Số tiền')) return message;
     }
     for (const draft of invoiceRows) {
-      const message = draftErrors('invoice', draft);
+      const message = draftErrors('invoice', draft, receiptPhotoRequiredOf(typesData, draft.typeCode));
       if (message && !message.startsWith('Số tiền')) return message;
     }
     return null;
@@ -795,7 +808,10 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
   // carries what the money field cannot say (type choice, the Ghi-chú rule,
   // unfinished uploads). Ticket 18/11 Task 4.1 — a no-invoice row whose type
   // is declared twice on the tab carries the same-type hard block too.
-  const rawError = draftErrors(block, draft);
+  // SIL-966 — the row's own photo law drives both the error and the * on the
+  // Ảnh-chứng-từ caption.
+  const receiptRequired = receiptPhotoRequiredOf(host.typesData, draft.typeCode);
+  const rawError = draftErrors(block, draft, receiptRequired);
   const error = rawError?.startsWith('Số tiền') ? null : rawError;
   const duplicateTypeError = block === 'noInvoice' && noInvoiceDuplicateTypes.has(draft.typeCode)
     ? 'Trùng loại phí trên cùng số cont — không lưu dòng trùng.'
@@ -917,7 +933,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
           />
         </label>
         <div className="ops-fee-row__field ops-fee-row__cell--attach">
-          <span className="ops-fee-row__cell-caption">Ảnh chứng từ{draft.photos.length > 0 ? ` (${draft.photos.length})` : ''}</span>
+          <span className="ops-fee-row__cell-caption">Ảnh chứng từ{receiptRequired ? ' *' : ''}{draft.photos.length > 0 ? ` (${draft.photos.length})` : ''}</span>
           <button
             type="button"
             className="btn btn--secondary btn--icon btn--sm"

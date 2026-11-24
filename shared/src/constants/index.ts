@@ -296,6 +296,34 @@ export function driverLotCostRequiresReceipt(code: string | null | undefined): b
   return code != null && DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES.includes(code);
 }
 
+/** SIL-966 (KB §8.1.3 K8.32 — the same receipt law SIL-769 pinned on the
+ *  driver picker, now on the Ops "Khai báo chi phí" form): ảnh chứng từ is
+ *  REQUIRED for the nâng / hạ / Lưu-cont fee kinds. The Ops catalog
+ *  (`forwarder_expense_types`) classifies every fee by its `category` column,
+ *  and that column is the app's own "which family is this fee" answer
+ *  (`opsInvoicedCostGroupOf` already reads LIFT → Nâng, DROP → Hạ), so this
+ *  gate keys on category instead of hard-coding catalog codes: LIFT covers
+ *  Phí nâng container / Phí nâng vỏ / Phí nâng hàng, DROP covers Phí hạ
+ *  container / Phí hạ vỏ / Phí hạ hàng plus the two Phí lưu bãi rows and Phí
+ *  lưu vỏ (Lưu cont — the KB's name for the yard-storage fee, per the
+ *  SIL-769 ruling above), and ZONE_SURCHARGE is "Phí nâng/hạ theo vùng" —
+ *  the fee the QA repro declared without a photo. Every other category
+ *  (PHAT_SINH, KHAC, HQGS, CSHT, carrier…) and a category-less custom type
+ *  (SIL-813 keeps category null) keeps photos optional, per the KB's "các phí
+ *  khác ảnh là tùy chọn". Both gates — the Ops forms' draft validation and
+ *  the write path in ops-expenses.service — read this one shared rule so the
+ *  two can never disagree (the SIL-769 pattern). */
+export const OPS_RECEIPT_REQUIRED_EXPENSE_CATEGORIES: readonly string[] = ['LIFT', 'DROP', 'ZONE_SURCHARGE'];
+
+/** True when an Ops expense whose catalog `category` is `category` must carry
+ *  a receipt photo before it can save. */
+export function opsExpenseRequiresReceiptPhoto(category: string | null | undefined): boolean {
+  return category != null && OPS_RECEIPT_REQUIRED_EXPENSE_CATEGORIES.includes(category);
+}
+
+/** SIL-966 — the refusal wording, straight from KB §8.1.3's rule sentence. */
+export const OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE = 'Ảnh chứng từ là bắt buộc với phí nâng, phí hạ và lưu cont.';
+
 /** Card 20260919_3 — explicit settlement-screen categories on the expense
  *  type catalog (forwarder_expense_types.category). Buckets for the per-lot
  *  payables split (Bảng 2.1 HQGS, Bảng 2.2/2.3 fee columns). Values are

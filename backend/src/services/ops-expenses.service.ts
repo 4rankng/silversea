@@ -10,7 +10,7 @@ import * as s from '../db/schema';
 import { aliasedTable, and, desc, eq, exists, gte, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
-import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel, type ExpenseCostGroup } from '@tingting/shared';
+import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE, opsExpenseRequiresReceiptPhoto, type ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
@@ -213,6 +213,14 @@ export async function createOpsExpense(
   if (expenseType.requiresInvoice === true && invoiceNumber == null) {
     throw new ApiError(400, 'Số hóa đơn là bắt buộc với phí có hóa đơn.');
   }
+  // SIL-966 (KB §8.1.3) — receipt photo REQUIRED for the nâng / hạ / Lưu-cont
+  // kinds (the shared category rule `opsExpenseRequiresReceiptPhoto`): a
+  // photo-less row of those kinds never saves. The FE blocks Lưu; a stale
+  // client or raw API call lands here — the same edge as the CR-010.1
+  // invoice-number law above.
+  if (opsExpenseRequiresReceiptPhoto(expenseType.category) && !input.photoStorageKeys?.length) {
+    throw new ApiError(400, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE);
+  }
   await assertShipmentAccountingUnlocked(executor, input.shipmentId);
   // Audit 2026-11-04 §2.3 (PRD §7.9): an Ops expense write is lot money — a
   // cost-locked lot refuses it beside the accounting lock, so the frozen
@@ -409,6 +417,19 @@ export async function updateOpsExpense(
     && invoiceNumber == null
   ) {
     throw new ApiError(400, 'Số hóa đơn là bắt buộc với phí có hóa đơn.');
+  }
+  // SIL-966 (KB §8.1.3) — same law on edits: a photo-less row of a
+  // photo-required kind cannot be re-saved until its evidence exists. Photos
+  // ride the separate attach endpoint, which stays open even on a locked row
+  // ("bổ sung chứng từ"), so the author can always attach first and edit
+  // after — the refusal never dead-ends a row.
+  if (opsExpenseRequiresReceiptPhoto(effectiveType.category)) {
+    const [photo] = await executor
+      .select({ id: s.opsExpensePhotos.id })
+      .from(s.opsExpensePhotos)
+      .where(eq(s.opsExpensePhotos.opsExpenseId, expenseId))
+      .limit(1);
+    if (!photo) throw new ApiError(400, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE);
   }
 
   if (patch.amount !== undefined) {
