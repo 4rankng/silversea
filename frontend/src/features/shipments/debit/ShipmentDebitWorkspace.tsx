@@ -156,7 +156,7 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, lotCode, onSaved }:
   });
 
   async function unlockLot() {
-    const reason = await prompt('Nhập lý do mở khóa chi phí lô.', { confirmLabel: 'Mở khóa', reasonLabel: 'Lý do mở khóa (bắt buộc)' });
+    const reason = await prompt('Nhập lý do mở khóa chi phí lô.', { confirmLabel: 'Mở khóa lô', reasonLabel: 'Lý do mở khóa (bắt buộc)' });
     if (reason == null) return;
     unlockCost.mutate(reason);
   }
@@ -268,24 +268,34 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, lotCode, onSaved }:
         </section>
       )}
       <div className="csc-debit-actions">
-        <button type="button" disabled={!settled || !canAdjust} aria-label="Điều chỉnh cước" title={!settled ? 'Chốt số liệu quyết toán trước khi điều chỉnh cước' : !canAdjust ? 'Lô đã khóa hoặc ngoài phạm vi được sửa' : undefined} onClick={() => setAdjustOpen((open) => !open)}>ĐIỀU CHỈNH CƯỚC</button>
-        <button type="button" className="csc-debit-actions__lock" disabled={settled || !canLock} aria-label="Khóa lô hàng" title={settled ? 'Quyết toán đã khóa' : !canLock ? 'Cần quyền khóa lô hàng' : undefined} onClick={() => lockCost.mutate()}>KHÓA LÔ HÀNG</button>
-        {lockCost.isPending && <span className="csc-debit-saved" role="status">Đang khóa…</span>}
-        {lockError && <span className="csc-debit-save-error" role="alert">{lockError}</span>}
-        {canUnlock && settled && (
-          <button type="button" className="csc-debit-actions__unlock" disabled={unlockCost.isPending} aria-label="Mở khóa lô hàng" onClick={() => void unlockLot()}>MỞ KHÓA</button>
-        )}
-        {/* Spec alignment 24/11 (item 11): the locked lot has NO ticketing
-            path — roles without unlock clearance (CUS) see the read-only
-            locked face and are pointed at the unlock trio. */}
-        {!canUnlock && canLock && settled && (
+        {/* 24/11 ruling (KB Ch.10 §10.1.5): a LOCKED lot replaces the
+            [Khóa lô] slot — [Mở khóa lô] for the unlock trio (mandatory
+            reason, immediate unlock + audit log). Chứng từ sees ONLY the
+            read-only 'Đã khóa' face + contact note: no lock/unlock button,
+            no ticketing flow. The trio keeps the audited [Điều chỉnh cước]
+            entry on a locked settlement. */}
+        {settled && !canUnlock && canLock ? (
           <span
             className="csc-debit-actions__locked-note"
-            title="Lô đã khóa chi phí. Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh."
+            title="Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh"
           >
-            ĐÃ KHÓA
+            Đã khóa
           </span>
+        ) : (
+          <>
+            {(!settled || canUnlock) && (
+              <button type="button" disabled={settled || !canAdjust} aria-label="Điều chỉnh cước" title={!settled ? 'Chốt số liệu quyết toán trước khi điều chỉnh cước' : !canAdjust ? 'Lô đã khóa hoặc ngoài phạm vi được sửa' : undefined} onClick={() => setAdjustOpen((open) => !open)}>ĐIỀU CHỈNH CƯỚC</button>
+            )}
+            {!settled && (
+              <button type="button" className="csc-debit-actions__lock" disabled={!canLock} aria-label="Khóa lô hàng" title={!canLock ? 'Cần quyền khóa lô hàng' : undefined} onClick={() => lockCost.mutate()}>KHÓA LÔ HÀNG</button>
+            )}
+            {canUnlock && settled && (
+              <button type="button" className="csc-debit-actions__unlock" disabled={unlockCost.isPending} onClick={() => void unlockLot()}>Mở khóa lô</button>
+            )}
+          </>
         )}
+        {lockCost.isPending && <span className="csc-debit-saved" role="status">Đang khóa…</span>}
+        {lockError && <span className="csc-debit-save-error" role="alert">{lockError}</span>}
         {unlockCost.isPending && <span className="csc-debit-saved" role="status">Đang mở khóa…</span>}
         {unlockCost.isError && unlockCost.error instanceof Error && (
           <span className="csc-debit-save-error" role="alert">{unlockCost.error.message}</span>

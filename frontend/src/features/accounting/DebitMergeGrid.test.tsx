@@ -803,14 +803,14 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
   });
 });
 
-describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa / Đã khóa; 24/11: no đề nghị flow)', () => {
+describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa lô / Đã khóa; 24/11: no đề nghị flow)', () => {
   const lockedRow = () => mergeRow({ control: { tongTc: '100', lockStatus: 'LOCKED', lockedAt: '2026-11-18T00:00:00.000Z' } });
 
-  it('swaps the lock button for Mở khóa when every picked lot is LOCKED and the viewer clears the unlock trio', () => {
+  it('swaps the lock button for [Mở khóa lô] when every picked lot is LOCKED and the viewer clears the unlock trio', () => {
     const onUnlockSelected = vi.fn();
     renderGrid({ selection: new Set<number>([101]), canUnlock: true, onUnlockSelected }, [lockedRow()]);
     expect(screen.queryByRole('button', { name: 'Khóa lô' })).toBeNull();
-    const unlock = screen.getByRole('button', { name: 'Mở khóa' });
+    const unlock = screen.getByRole('button', { name: 'Mở khóa lô' });
     expect(unlock.getAttribute('aria-disabled')).toBeNull();
     fireEvent.click(unlock);
     expect(onUnlockSelected).toHaveBeenCalledWith([101]);
@@ -819,20 +819,20 @@ describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa / Đ�
   it('shows the read-only Đã khóa face (no ticketing) for a viewer without unlock clearance', () => {
     renderGrid({ selection: new Set<number>([101]), canUnlock: false }, [lockedRow()]);
     expect(screen.queryByRole('button', { name: 'Khóa lô' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Mở khóa' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở khóa lô' })).toBeNull();
     // 24/11 (mục 11): static face + pointer to the unlock trio, never a button.
     // (The Trạng thái cell of a locked lot also reads 'Đã khóa' — query the
     // toolbar face by its class.)
     const locked = document.querySelector<HTMLElement>('.debit-merge__action--locked-state');
     expect(locked?.textContent).toBe('Đã khóa');
-    expect(locked?.getAttribute('title')).toContain('Liên hệ Kế toán hoặc Quản trị viên để mở khóa');
+    expect(locked?.getAttribute('title')).toBe('Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh');
     expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
   });
 
   it('keeps [Khóa lô] while any picked lot is still OPEN even with the unlock props wired', () => {
     renderGrid({ selection: new Set<number>([101]), canUnlock: true, onUnlockSelected: vi.fn() }, [mergeRow()]);
     expect(screen.getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Mở khóa' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở khóa lô' })).toBeNull();
     expect(screen.queryByText('Đã khóa')).toBeNull();
   });
 
@@ -843,8 +843,8 @@ describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa / Đ�
 
   it('unwired post-lock slot (no handlers) degrades to the read-only Đã khóa face', () => {
     renderGrid({ selection: new Set<number>([101]), canUnlock: false, onUnlockSelected: undefined }, [lockedRow()]);
-    expect(screen.queryByRole('button', { name: 'Mở khóa' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở khóa lô' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
-    expect(document.querySelector<HTMLElement>('.debit-merge__action--locked-state')?.getAttribute('title')).toContain('Liên hệ Kế toán hoặc Quản trị viên để mở khóa');
+    expect(document.querySelector<HTMLElement>('.debit-merge__action--locked-state')?.getAttribute('title')).toBe('Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh');
   });
 });

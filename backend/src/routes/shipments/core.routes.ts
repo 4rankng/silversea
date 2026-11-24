@@ -1141,12 +1141,6 @@ coreRoutes.get(
   }),
 );
 
-// ─── Đề nghị điều chỉnh lô đã khóa — ĐÃ GỠ BỎ (spec alignment 24/11, mục 11)
-// Không còn luồng ticketing chờ duyệt: POST /:id/cost-adjust-requests và
-// GET /cost-adjust-requests/pending đã gỡ bỏ cùng service phía sau. Lô đã
-// khóa được mở trực tiếp qua POST /:id/unlock (Quản trị · Giám đốc · Kế
-// toán) với lý do bắt buộc + audit log. ────────────────────────────────────
-
 // ─── Debit wave detail endpoints (BE1 lane, FE _18 contract) ───────────────
 // GET /:id/debit-detail — the Lớp-2 drill-down: freight snapshots, per-trip
 // chi-hộ bundles (otherFees bucket + O2C evidence status), payables and the

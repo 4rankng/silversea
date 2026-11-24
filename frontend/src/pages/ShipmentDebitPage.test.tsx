@@ -20,16 +20,17 @@
  *    with the null-is-blank law;
  *  - the quick filters (Khách hàng / Tuyến đường) thread into the grid.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { getBootstrap, listMerge, listSummary, lockCost, createRound } = vi.hoisted(() => ({
+const { getBootstrap, listMerge, listSummary, lockCost, unlockCost, createRound } = vi.hoisted(() => ({
   getBootstrap: vi.fn(),
   listMerge: vi.fn(),
   listSummary: vi.fn(),
   lockCost: vi.fn(),
+  unlockCost: vi.fn(),
   createRound: vi.fn(),
 }));
 const { authRole } = vi.hoisted(() => ({ authRole: { value: 'CUS' } }));
@@ -39,7 +40,7 @@ vi.mock('../api/shipmentDebit', () => ({
   listShipmentDebitSummary: listSummary,
   listDebitMergeBoard: listMerge,
   lockShipmentCost: lockCost,
-  unlockShipmentCost: vi.fn(),
+  unlockShipmentCost: unlockCost,
   adjustShipmentCost: vi.fn(),
   listShipmentCostAdjustments: vi.fn().mockResolvedValue([]),
   listShipmentCostLockHistory: vi.fn().mockResolvedValue([]),
@@ -53,7 +54,7 @@ vi.mock('../api/shipmentDebit', () => ({
 vi.mock('../api/shipmentClient', () => ({
   getShipmentDebitDetail: vi.fn().mockResolvedValue({}),
   lockShipmentCost: lockCost,
-  unlockShipmentCost: vi.fn(),
+  unlockShipmentCost: unlockCost,
   adjustShipmentCost: vi.fn(),
   listShipmentCostAdjustments: vi.fn().mockResolvedValue([]),
   listShipmentCostLockHistory: vi.fn().mockResolvedValue([]),
@@ -117,6 +118,7 @@ beforeEach(() => {
   listMerge.mockReset().mockResolvedValue({ items: [], total: 0 });
   listSummary.mockReset().mockResolvedValue({ items: [], total: 0, excludedCount: 0, excludedSum: '0' });
   lockCost.mockReset();
+  unlockCost.mockReset();
   createRound.mockReset();
 });
 
@@ -192,9 +194,34 @@ describe('Khóa lô — the canLock law over the grid selection', () => {
     await waitFor(() => expect(lockCost).toHaveBeenCalledWith(101, expect.any(String)));
     // SIL-923 + 24/11 (mục 11) — the board refresh reads back LOCKED and the
     // selection STAYS; the toolbar slot shows the CUS viewer the read-only
-    // Đã khóa face (no ticketing; the unlock trio would see [Mở khóa]).
+    // Đã khóa face (no ticketing; the unlock trio would see [Mở khóa lô]).
     await waitFor(() => expect(document.querySelector<HTMLElement>('.debit-merge__action--locked-state')).toBeTruthy());
     expect(screen.queryByRole('button', { name: 'Khóa lô' })).toBeNull();
+  });
+
+  it('the unlock trio gets [Mở khóa lô] on a locked pick — mandatory reason, direct unlock (ruling 24/11)', async () => {
+    authRole.value = 'ACCOUNTANT';
+    listMerge.mockResolvedValue({
+      items: [mergeRow({ shipmentId: 101, control: { tongTc: '100', lockStatus: 'LOCKED', lockedAt: '2026-11-18T00:00:00.000Z' } })],
+      total: 1,
+    });
+    unlockCost.mockResolvedValue({});
+    renderPage();
+    await screen.findByText('Thông tin Lô hàng');
+    fireEvent.click(await screen.findByLabelText('Chọn lô BL-1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Mở khóa lô' }));
+
+    // The reason prompt gates the POST: empty reason keeps confirm disabled.
+    const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    const confirm = within(dialog).getByRole('button', { name: 'Mở khóa lô' });
+    expect((confirm as HTMLButtonElement).disabled).toBe(true);
+    expect(unlockCost).not.toHaveBeenCalled();
+
+    fireEvent.change(within(dialog).getByLabelText('Lý do mở khóa (bắt buộc)'), { target: { value: 'Khóa nhầm lô' } });
+    fireEvent.click(confirm);
+    await waitFor(() => expect(unlockCost).toHaveBeenCalledWith(101, { reason: 'Khóa nhầm lô' }, expect.any(String)));
+    // The rejected ticketing flow is gone — no request button anywhere.
+    expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
   });
 
   it('Chọn Debit arms for CUS on a locked pick — same channel as accounting (ticket 2.3)', async () => {

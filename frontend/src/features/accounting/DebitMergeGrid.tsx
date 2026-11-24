@@ -155,7 +155,7 @@ export interface DebitMergeGridProps {
   quickFilters?: React.ReactNode;
   /** SIL-923 — the post-lock slot of the toolbar. When EVERY picked lot is
    *  LOCKED, [Khóa lô] is replaced: the unlock trio (Quản trị · Giám đốc ·
-   *  Kế toán — the /unlock route clearance) gets [Mở khóa]; everyone else
+   *  Kế toán — the /unlock route clearance) gets [Mở khóa lô]; everyone else
    *  gets the read-only [Đã khóa] face (spec alignment 24/11, item 11: NO
    *  ticketing flow — no đề nghị queue, direct unlock with reason + audit
    *  log only). Absent callbacks keep the retired disabled [Khóa lô] exactly
@@ -518,7 +518,7 @@ export function DebitMergeGrid({
           ? 'Các lô đã chọn đều đã khóa.'
           : pendingFeeReason('khóa lô');
   // SIL-923 — the post-lock slot: once EVERY picked lot is LOCKED the lock
-  // button is replaced by the forward path — [Mở khóa] for the unlock trio
+  // button is replaced by the forward path — [Mở khóa lô] for the unlock trio
   // (the /unlock route clearance), a read-only [Đã khóa] face for everyone
   // else (24/11 ruling, item 11: no đề nghị ticketing — the trio unlocks
   // directly with a required reason + audit log).
@@ -569,7 +569,7 @@ export function DebitMergeGrid({
                 aria-disabled={unlockDisabledReason != null || undefined}
                 onClick={() => { if (unlockDisabledReason == null) onUnlockSelected(selectedRows.map((row) => row.shipmentId)); }}
               >
-                Mở khóa
+                Mở khóa lô
               </button>
             </DisabledActionTip>
           ) : allSelectedLocked ? (
@@ -579,7 +579,7 @@ export function DebitMergeGrid({
               // trio only.
               className="debit-merge__action debit-merge__action--locked-state"
               aria-disabled="true"
-              title="Các lô đã chọn đều đã khóa. Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh."
+              title="Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh"
             >
               Đã khóa
             </span>

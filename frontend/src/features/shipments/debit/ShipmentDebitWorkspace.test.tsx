@@ -334,12 +334,13 @@ describe('Chi phí - Quyết toán L2 workspace (20260918_18/19)', () => {
 });
 
 describe('MỞ KHÓA lô (audit 2026-11-04 §2.1; SIL-721 owner 07/11)', () => {
-  it.each([Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT])('offers unlock + lịch sử khóa for %s on a locked row', async (role) => {
+  it.each([Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT])('offers [Mở khóa lô] + lịch sử khóa for %s on a locked row (the Khóa lô slot is replaced)', async (role) => {
     useAuthMock.mockReturnValue({ user: { userId: 4, role } });
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true });
     await screen.findByText('Phí Có HĐ');
-    expect(screen.getByRole('button', { name: 'Mở khóa lô hàng' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Mở khóa lô' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Khóa lô hàng' })).toBeNull();
     // The trail section reads under the same clearance as the unlock route.
     expect(screen.getByLabelText('Lịch sử khóa')).toBeTruthy();
   });
@@ -349,7 +350,7 @@ describe('MỞ KHÓA lô (audit 2026-11-04 §2.1; SIL-721 owner 07/11)', () => {
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true });
     await screen.findByText('Phí Có HĐ');
-    expect(screen.queryByRole('button', { name: 'Mở khóa lô hàng' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở khóa lô' })).toBeNull();
     expect(screen.queryByLabelText('Lịch sử khóa')).toBeNull();
   });
 
@@ -357,11 +358,11 @@ describe('MỞ KHÓA lô (audit 2026-11-04 §2.1; SIL-721 owner 07/11)', () => {
     useAuthMock.mockReturnValue({ user: { userId: 1, role: Role.ADMIN } });
     getDetail.mockResolvedValue(detail());
     const { onSaved } = renderWorkspace({ locked: true, lotCode: 'SE-777' });
-    fireEvent.click(await screen.findByRole('button', { name: 'Mở khóa lô hàng' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở khóa lô' }));
 
     // The house reason prompt: empty reason keeps confirm disabled.
     const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
-    const confirm = within(dialog).getByRole('button', { name: 'Mở khóa' });
+    const confirm = within(dialog).getByRole('button', { name: 'Mở khóa lô' });
     expect((confirm as HTMLButtonElement).disabled).toBe(true);
     expect(unlockCost).not.toHaveBeenCalled();
 
@@ -376,7 +377,7 @@ describe('MỞ KHÓA lô (audit 2026-11-04 §2.1; SIL-721 owner 07/11)', () => {
     useAuthMock.mockReturnValue({ user: { userId: 1, role: Role.ADMIN } });
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true });
-    fireEvent.click(await screen.findByRole('button', { name: 'Mở khóa lô hàng' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở khóa lô' }));
     const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).toBeNull());
@@ -583,14 +584,16 @@ describe('Bảng 2.2 word-level headers + fee editor grid (card 20260924_11)', (
 });
 
 describe('Lô đã khóa — trực tiếp hoặc chỉ đọc, không ticketing (24/11, mục 11)', () => {
-  it('shows CUS the static ĐÃ KHÓA note on a locked row — no button, no dialog', async () => {
+  it('shows CUS only the static Đã khóa face on a locked row — tooltip exact, no lock/unlock button, no dialog', async () => {
     useAuthMock.mockReturnValue({ user: { userId: 7, role: Role.CUS } });
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true, lotCode: 'SE-777' });
     await screen.findByText('Phí Có HĐ');
-    expect(screen.queryByRole('button', { name: 'Mở khóa lô hàng' })).toBeNull();
-    const note = screen.getByText('ĐÃ KHÓA');
-    expect(note.getAttribute('title')).toContain('Liên hệ Kế toán hoặc Quản trị viên để mở khóa');
+    expect(screen.queryByRole('button', { name: 'Mở khóa lô' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Khóa lô hàng' })).toBeNull();
+    const note = screen.getByText('Đã khóa');
+    expect(note.getAttribute('title')).toBe('Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh');
   });
 
   it.each([Role.OPS, Role.DISPATCHER, Role.DRIVER])('offers no khóa face at all for %s (never had the lock)', async (role) => {
@@ -598,8 +601,9 @@ describe('Lô đã khóa — trực tiếp hoặc chỉ đọc, không ticketing
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true });
     await screen.findByText('Phí Có HĐ');
-    expect(screen.queryByText('ĐÃ KHÓA')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Mở khóa lô hàng' })).toBeNull();
+    expect(screen.queryByText('Đã khóa')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở khóa lô' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Khóa lô hàng' })).toBeNull();
   });
 
   it('unlock success still toasts — direct unlock with the required reason', async () => {
@@ -607,10 +611,10 @@ describe('Lô đã khóa — trực tiếp hoặc chỉ đọc, không ticketing
     listLockHistory.mockResolvedValue([]);
     getDetail.mockResolvedValue(detail());
     renderWorkspace({ locked: true, lotCode: 'SE-777' });
-    fireEvent.click(await screen.findByRole('button', { name: 'Mở khóa lô hàng' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở khóa lô' }));
     const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
     fireEvent.change(within(dialog).getByLabelText('Lý do mở khóa (bắt buộc)'), { target: { value: 'Khóa nhầm lô' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Mở khóa' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Mở khóa lô' }));
     await waitFor(() => expect(unlockCost).toHaveBeenCalledWith(101, { reason: 'Khóa nhầm lô' }, expect.any(String)));
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã mở khóa chi phí lô SE-777' });
   });

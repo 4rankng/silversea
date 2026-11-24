@@ -809,27 +809,6 @@ export const shipmentCostAdjustments = pgTable('shipment_cost_adjustments', {
   idempotencyKey: varchar('idempotency_key', { length: 120 }).notNull().unique(),
 });
 
-// SIL-923 — ĐỀ NGHỊ ĐIỀU CHỈNH trên lô đã khóa chi phí: người khóa lô nhưng
-// không có quyền mở khóa (nhóm CUS) gửi đề nghị kèm lý do; bộ mở khóa
-// (Quản trị · Giám đốc · Kế toán — route /:id/unlock) thấy đề nghị và xử lý
-// bằng chính việc mở khóa. Mở khóa giải quyết mọi đề nghị PENDING của lô
-// (resolution_note = lý do mở khóa) — không có hàng đợi duyệt riêng.
-export const shipmentCostAdjustRequests = pgTable('shipment_cost_adjust_requests', {
-  id: serial('id').primaryKey(),
-  shipmentId: integer('shipment_id').notNull(),
-  costLockId: integer('cost_lock_id').notNull(),
-  reason: text('reason').notNull(),
-  status: varchar('status', { length: 16 }).notNull().default('PENDING'),
-  requestedBy: integer('requested_by').notNull(),
-  requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
-  resolvedBy: integer('resolved_by'),
-  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
-  resolutionNote: text('resolution_note'),
-  idempotencyKey: varchar('idempotency_key', { length: 120 }).notNull().unique(),
-}, (table) => [
-  index('shipment_cost_adjust_requests_pending_idx').on(table.shipmentId).where(sql`status = 'PENDING'`),
-]);
-
 // ─── Card 20260921_21 — KẾ HOẠCH ĐIỀU ĐỘNG TỔNG HỢP: rate-adjustment requests ──
 // Kế toán ticks a lot row and sends "gửi yêu cầu điều chỉnh cước": while a
 // PENDING request exists the lot cannot be exported to debit (per-lot

@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-24 — fix(SIL-923): lô đã khóa — [Mở khóa lô] trực tiếp theo ruling 24/11, xóa luồng [Đề nghị điều chỉnh]
+
+Trước đó (QA fail 20:45 24/11, staging df7b2a73): /shipments-debit vẫn gửi
+[Đề nghị điều chỉnh] cho Chứng từ trên lô đã khóa (hộp thoại «Nhập lý do đề
+nghị điều chỉnh 1 lô đã chọn» + [Gửi đề nghị] — luồng ticketing bị PM/PO
+REJECT là Scope Creep, ngoài SRS V6.0); nút mở khóa của Kế toán mang nhãn
+«Mở khóa» (sai — phải là [Mở khóa lô]); Chứng từ chưa thấy tooltip chuẩn.
+
+- **FE** toolbar Ghép bộ Debit (`DebitMergeGrid`): khe sau-khóa = [Mở khóa lô]
+  (Giám đốc · Kế toán · Quản trị viên) hoặc nhãn «Đã khóa» + tooltip đúng
+  chữ «Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh»
+  (Chứng từ — không nút khóa/mở nào, không ticketing).
+- **FE** drawer Chốt giá bán (`ShipmentDebitWorkspace`): lô khóa thay cụm
+  nút bằng [Mở khóa lô] (bộ mở khóa) hoặc nhãn «Đã khóa» + tooltip (Chứng
+  từ); hộp thoại lý do bắt buộc «Lý do mở khóa» → mở khóa ngay qua POST
+  /shipments/:id/unlock (service sẵn có) + audit log.
+- **BE** `shipment-cost-lock.service.ts`: audit log mở khóa ghi đủ người mở
+  (role) + lý do + thời điểm; gỡ nốt dòng PENDING của bảng đề nghị khỏi
+  unlock; xóa schema `shipment_cost_adjust_requests` + migration drop bảng
+  (`20261124110000_drop_shipment_cost_adjust_requests`) — luồng gửi đề nghị
+  không còn route/handler/service/bảng nào.
+- Tests: `DebitMergeGrid.test.tsx` (khe [Mở khóa lô] / face «Đã khóa» +
+  tooltip đúng chữ, không nút đề nghị) · `ShipmentDebitWorkspace.test.tsx`
+  (Chứng từ chỉ thấy nhãn + tooltip, không nút khóa/mở; bộ mở khóa thấy
+  [Mở khóa lô], lý do bắt buộc, unlock gọi đúng API) ·
+  `ShipmentDebitPage.test.tsx` (Kế toán [Mở khóa lô] trên toolbar, reason
+  required → unlock) · BE unit `shipment-cost-unlock-direct.test.ts` (không
+  còn route/handler/service/bảng gửi đề nghị; audit unlock mang role + lý do
+  + timestamp).
+
 ## 2026-11-24 — fix(SIL-946,SIL-947): thẻ lệnh + chi tiết lệnh lái xe theo KB Ch.10 §10.4.2 / §10.4.5
 
 Trước đó (QA 24/11, build df7b2a73, tài khoản btdung):

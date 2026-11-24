@@ -382,27 +382,15 @@ export async function unlockShipmentCost(input: UnlockShipmentCostInput): Promis
       unlockedAt: new Date(),
       unlockReason: reason,
     }).where(eq(s.shipmentCostLocks.id, active.id));
-    // SIL-923 — the unlock IS the handling act for the Đề nghị điều chỉnh
-    // queue: every PENDING request of the lot resolves with the unlock
-    // reason on the row (no separate approval step, matching the app's
-    // reopen-request precedent). The unlock audit below already records
-    // who unlocked and why.
-    await tx.update(s.shipmentCostAdjustRequests).set({
-      status: 'RESOLVED',
-      resolvedBy: input.actor.userId,
-      resolvedAt: new Date(),
-      resolutionNote: reason,
-    }).where(and(
-      eq(s.shipmentCostAdjustRequests.shipmentId, input.shipmentId),
-      eq(s.shipmentCostAdjustRequests.status, 'PENDING'),
-    ));
     await tx.insert(s.auditLogs).values({
       userId: input.actor.userId,
       actorName: input.actor.fullName ?? input.actor.username ?? undefined,
       message: 'SHIPMENT_COST_UNLOCKED',
       entityType: 'shipment',
       entityId: input.shipmentId,
-      payload: { lockId: active.id, reason },
+      // Ruling 24/11 (§10.1.5): the unlock log must carry who unlocked
+      // (role), why and when — the row's `timestamp` stamps the moment.
+      payload: { lockId: active.id, reason, role: input.actor.role },
     });
     // Audit 2026-11-04 r2 (QA comment 3834): the unlock response carries the
     // audit fields themselves — who, why, when — never id-only.
@@ -548,13 +536,11 @@ export async function listShipmentCostAdjustments(shipmentId: number): Promise<A
     .orderBy(desc(s.shipmentCostAdjustments.id));
 }
 
-// ─── Đề nghị điều chỉnh lô đã khóa — ĐÃ GỠ BỎ (spec alignment 24/11, mục 11)
+// ─── Đề nghị điều chỉnh lô đã khóa — GỠ BỎ THEO RULING 24/11 (mục 11) ─────
 // Luồng ticketing 'Đề nghị điều chỉnh → chờ duyệt' bị loại bỏ là Scope Creep
-// theo nguyên tắc §1.4.1 (thao tác trực tiếp, không phê duyệt nội bộ). Lô đã
-// khóa được mở bằng [Mở khóa] trực tiếp (Quản trị · Giám đốc · Kế toán) với
-// lý do bắt buộc + audit log (unlockShipmentCost). Bảng
-// shipment_cost_adjust_requests chỉ còn là dữ liệu lịch sử; unlock vẫn dọn
-// các dòng PENDING còn sót (xem unlockShipmentCost).
+// (thao tác trực tiếp, không phê duyệt nội bộ). Lô đã khóa được mở bằng
+// [Mở khóa lô] trực tiếp (Quản trị · Giám đốc · Kế toán) với lý do bắt buộc
+// + audit log (unlockShipmentCost).
 
 /** Ruling 2026-09-19: the note's range is [min,max] of the selection's
  *  expected delivery dates — the picker is a filter, the selection is the

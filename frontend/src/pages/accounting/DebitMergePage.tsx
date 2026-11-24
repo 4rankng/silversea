@@ -295,7 +295,7 @@ export function DebitMergePage() {
             unlockPending={unlockMutation.isPending}
             onUnlockSelected={canUnlock
               ? (ids) => {
-                void prompt(`Nhập lý do mở khóa chi phí ${ids.length} lô đã chọn.`, { confirmLabel: 'Mở khóa', reasonLabel: 'Lý do mở khóa (bắt buộc)' })
+                void prompt(`Nhập lý do mở khóa chi phí ${ids.length} lô đã chọn.`, { confirmLabel: 'Mở khóa lô', reasonLabel: 'Lý do mở khóa (bắt buộc)' })
                   .then((reason) => { if (reason != null) unlockMutation.mutate({ shipmentIds: ids, reason }); });
               }
               : undefined}

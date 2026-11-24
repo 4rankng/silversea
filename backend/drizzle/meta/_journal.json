@@ -1186,6 +1186,13 @@
       "when": 1795514400000,
       "tag": "20261124100000_shipment_cost_adjust_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1795600800000,
+      "tag": "20261124110000_drop_shipment_cost_adjust_requests",
+      "breakpoints": true
     }
   ]
 }
