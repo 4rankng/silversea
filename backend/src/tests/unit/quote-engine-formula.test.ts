@@ -64,3 +64,21 @@ test('hai kỳ chênh nhau đúng ΔG × E: 27.620 − 21.740 = 5.880 × 91 = 53
   assert.equal(late.surcharge - early.surcharge, 5_880 * 91);
   assert.equal(late.surcharge - early.surcharge, 535_080);
 });
+
+// SIL-958 (KB audit 24/11, K5.1/K5.9): lô R24Q-898-F — Long Minh tuyến ASKEY,
+// CONT20, vận chuyển 25/11/2026, áp kỳ 02/10/2026 G = 25.760 (lag tạm 0 ngày).
+// E = 200 km × 0,32 L/km = 64 L; H = (25.760 − 17.842,59) × 64 = 506.714 ₫;
+// K = J + H = 3.952.000 + 506.714 = 4.458.714 ₫ — H phải tính kể cả khi
+// ngưỡng/lag chưa chốt (phụ phí không bao giờ bị thay bằng 0).
+test('SIL-958 parity: ASKEY CONT20 kỳ 25.760 → H = 506.714, K = 4.458.714', () => {
+  const result = computeFreightRate({
+    basePrice: 3_800_000,           // I — giá gốc ASKEY CONT20
+    sharePct: 4,                    // % chia sẻ tuyến ASKEY
+    fuelPrice: 25_760,              // G — kỳ 02/10/2026 (đang áp dụng)
+    baseFuelPrice: 19_270 / 1.08,   // F — giá dầu mốc chưa VAT
+    liters: 200 * 0.32,             // E = C × D = 64 lít/chuyến
+  });
+  assert.equal(result.freight, 3_952_000);
+  assert.equal(result.surcharge, 506_714);
+  assert.equal(result.total, 4_458_714);
+});

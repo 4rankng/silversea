@@ -358,56 +358,21 @@ export async function resolveFreightRate(
     };
   }
 
-  // ── Surcharge-pending path (freight-grounds vs surcharge-grounds split).
-  // PRD CuocPhiThietKeDB.docx §8 (via 20260917_11): unconfirmed surcharge
-  // grounds must NEVER auto-apply a fuel-period price — so surcharge stays 0
-  // and no period is consumed. But freight grounds (rate terms + base price)
-  // are COMPLETE here, so the freight itself computes from its own grounds
-  // and the fuel-norm trace id is recorded (card _58: the norm lookup must
-  // run at issue). The pending reasons ride `formulaText` so the read side
-  // states the truth instead of a wrong missing-norm message. Billing km /
-  // liters mirror the AUTO trace columns.
-  if (
-    terms.surchargeThresholdMode === 'UNSET'
-    || !terms.fuelLagConfirmed
-  ) {
-    const missing: string[] = [];
-    if (terms.surchargeThresholdMode === 'UNSET') missing.push('ngưỡng biến động giá dầu chưa được khách chốt');
-    if (!terms.fuelLagConfirmed) missing.push('độ trễ giá dầu chưa được xác nhận');
-    // Zero fuel delta ⇒ surcharge 0 through the shared rounding — freight
-    // identical in rounding to the AUTO path.
-    const pending = computeFreightRate({
-      basePrice: Number(basePriceRow.price),
-      sharePct: Number(terms.sharePct),
-      fuelPrice: Number(terms.baseFuelPrice),
-      baseFuelPrice: Number(terms.baseFuelPrice),
-      liters: 0,
-    });
-    const billedKm = Number(terms.billingKmOneWay) * Number(terms.billingKmMultiplier);
-    const liters = billedKm * Number(norm.litersPerKm);
-    const pendingFormula = [
-      `${basePriceRow.price} × (1 + ${terms.sharePct}%) = ${pending.freight}`,
-      `— phụ phí dầu chờ xác nhận (${missing.join('; ')})`,
-    ].join(' ');
-    return {
-      freight: pending.freight,
-      surcharge: 0,
-      total: pending.freight,
-      fuelDelta: 0,
-      fuelPricePeriodId: 0,
-      rateTermsId: terms.id,
-      pricingTableId: basePriceRow.id,
-      fuelNormId: norm.id,
-      billedKm,
-      liters,
-      sharePct: Number(terms.sharePct),
-      heSo: 1,
-      source: 'AUTO',
-      formula: pendingFormula,
-      formulaText: pendingFormula,
-      quotationFrame: quotationFrame ?? undefined,
-    };
-  }
+  // ── SIL-958 (KB audit 24/11, K5.1/K5.9 — supersedes the 20260917_11
+  // surcharge-zero lane): unconfirmed surcharge grounds (threshold UNSET /
+  // lag not confirmed) no longer zero the surcharge. KB §5.2.5/§5.7.4:
+  // K = J + H with H = MAX(0,(G−F)×E) whenever a fuel period applies — a
+  // pending ground is a PROVENANCE note on the formula, never a money
+  // substitution (KB §9: tiền 0 chỉ đúng nghĩa khi công thức đủ đầu vào).
+  // The period applies through the stored (provisional) lag; the UNSET
+  // threshold keeps its no-rollback law in step 4a-4b (null pct/abs); the
+  // quotation-fuel approval gate above stays the customer-consent law
+  // (ruling 8, card 20260922_61). The pending reasons ride `formulaText`
+  // so the read side states the provisional part instead of silently
+  // presenting the money as customer-final.
+  const pendingGrounds: string[] = [];
+  if (terms.surchargeThresholdMode === 'UNSET') pendingGrounds.push('ngưỡng biến động giá dầu chưa được khách chốt');
+  if (!terms.fuelLagConfirmed) pendingGrounds.push('độ trễ giá dầu chưa được xác nhận');
 
   // ── Step 4: fuel_price_periods (with lag + threshold) ──
   // QA R32 (BaoGia.md §2 + CuocPhiPhuPhiDau.md §7): giá dầu áp dụng = giá dầu
@@ -558,6 +523,9 @@ export async function resolveFreightRate(
       ? [`→ làm tròn ${roundingMode === 'THOUSAND' ? '3 số' : '4 số'} = ${surcharge}`]
       : []),
     `= ${total}`,
+    ...(pendingGrounds.length > 0
+      ? [`— phụ phí dầu chờ xác nhận (${pendingGrounds.join('; ')})`]
+      : []),
   ].join(' ');
 
   return {
@@ -575,6 +543,7 @@ export async function resolveFreightRate(
     heSo,
     source: 'AUTO',
     formula,
+    formulaText: pendingGrounds.length > 0 ? formula : undefined,
     quotationFrame: quotationFrame ?? undefined,
   };
 }

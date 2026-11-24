@@ -64,6 +64,15 @@ test('engine prices per the effective quotation frame: Hệ số + rounding + fu
   assert.match(engine, /H \(phụ phí dầu\) = max\(0, \(G − F\) × E\)/);
 });
 
+test('SIL-958: unconfirmed surcharge grounds price H per KB §5.2.5 — pending note rides formulaText, never a 0 substitution', () => {
+  // The pending early-return (surcharge 0, fuelPricePeriodId 0, no period
+  // consumed) must stay dead: pending grounds only annotate the formula.
+  assert.match(engine, /const pendingGrounds: string\[\] = \[\]/);
+  assert.match(engine, /— phụ phí dầu chờ xác nhận \(\$\{pendingGrounds\.join\('; '\)\}\)/);
+  assert.match(engine, /formulaText: pendingGrounds\.length > 0 \? formula : undefined/);
+  assert.doesNotMatch(engine, /phụ phí dầu chờ xác nhận[\s\S]*fuelPricePeriodId: 0/);
+});
+
 test('preview-rate probe rides the SAME engine fallback (không tạo lô, không bịa số)', () => {
   assert.match(quotationRoutes, /router\.post\('\/preview-rate'/);
   assert.match(quotationRoutes, /previewQuotationRate\(parsed\.data\)/);

@@ -388,8 +388,9 @@ export const freightRateSnapshots = pgTable('freight_rate_snapshots', {
   // NULL on historical rows (no customer rounding existed pre-_60).
   surchargeRaw: numeric('surcharge_raw', { precision: 15, scale: 0 }),
   // Frozen prose for states the id-based formula rebuild cannot express —
-  // the surcharge-pending path (unconfirmed surcharge grounds: freight
-  // computes, surcharge 0). NULL on AUTO/rebuilt rows.
+  // the surcharge-pending note (unconfirmed surcharge grounds: J and H both
+  // compute per KB §5.2.5, the pending grounds ride this prose — SIL-958).
+  // NULL on AUTO/rebuilt rows.
   formulaText: text('formula_text'),
   computedAt: timestamp('computed_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
