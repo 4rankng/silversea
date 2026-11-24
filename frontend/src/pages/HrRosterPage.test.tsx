@@ -72,21 +72,22 @@ describe('HrRosterPage', () => {
     });
   });
 
-  // Owner ruling 2026-10-09 ('cham cong only laixe driver' / 'no office
-  // staff'): the personnel roster is the DRIVER roster — every office role
-  // (OPS, ACCOUNTANT, DISPATCHER, ADMIN, MANAGER, CUS) stays on /users.
-  it('lists drivers only — no office staff, no customer portal accounts', async () => {
+  // KB §6.4/§6.5 (24/11): the personnel roster names EVERY department — it is
+  // the personnel directory, not the driver roster. The customer portal
+  // accounts are customers, not personnel, and stay off it.
+  it('lists every department\'s personnel — no customer portal accounts', async () => {
     renderPage();
     expect(await screen.findByText('Lái xe A')).toBeInTheDocument();
     expect(screen.getByText('Lái xe B')).toBeInTheDocument();
     expect(screen.getByText('TX001')).toBeInTheDocument();
     expect(screen.getAllByRole('cell', { name: 'Đội xe' })).toHaveLength(2); // both drivers sit in Đội xe
-    for (const office of ['Trần Văn Bình', 'Kế toán C', 'Điều vận D', 'Quản trị E', 'KH portal']) {
-      expect(screen.queryByText(office)).not.toBeInTheDocument();
+    for (const staff of ['Trần Văn Bình', 'Kế toán C', 'Điều vận D', 'Quản trị E']) {
+      expect(screen.getByText(staff)).toBeInTheDocument();
     }
+    expect(screen.queryByText('KH portal')).not.toBeInTheDocument();
   });
 
-  it('narrows the driver list by search term', async () => {
+  it('narrows the personnel list by search term', async () => {
     renderPage();
     await screen.findByText('Lái xe A');
 
@@ -96,13 +97,15 @@ describe('HrRosterPage', () => {
     expect(screen.getByText('Lái xe B')).toBeInTheDocument();
     expect(screen.queryByText('Lái xe A')).not.toBeInTheDocument();
 
+    // Office staff are on the roster now, so their employee code finds them.
     fireEvent.change(screen.getByLabelText('Tìm trong danh sách nhân sự'), {
-      target: { value: 'NV001' },
+      target: { value: 'NV002' },
     });
-    expect(await screen.findByText('Không tìm thấy nhân sự')).toBeInTheDocument();
+    expect(await screen.findByText('Kế toán C')).toBeInTheDocument();
+    expect(screen.queryByText('Lái xe B')).not.toBeInTheDocument();
   });
 
-  it('shows the roster empty state when no driver matches the filters', async () => {
+  it('shows the roster empty state when nobody matches the filters', async () => {
     renderPage();
     await screen.findByText('Lái xe A');
 
@@ -110,6 +113,43 @@ describe('HrRosterPage', () => {
       target: { value: 'zzz-khong-co' },
     });
     expect(await screen.findByText('Không tìm thấy nhân sự')).toBeInTheDocument();
+  });
+
+  // KB §6.4/§6.5 (24/11): a row with no business unit still names a
+  // department — the shared business name of its role — and the department
+  // filter offers that same name, so the filter and the column agree.
+  it('names each department by its role when the row has no business unit', async () => {
+    getHrRosterMock.mockResolvedValue({
+      items: [
+        userRow({ id: 2, role: 'DRIVER', fullName: 'Lái xe A', employeeCode: 'TX001', businessUnitIds: [] }),
+        userRow({ id: 5, role: 'ACCOUNTANT', fullName: 'Kế toán C', employeeCode: 'NV002', businessUnitIds: [] }),
+        userRow({ id: 6, role: 'CUS', fullName: 'Chứng từ F', employeeCode: 'NV005', businessUnitIds: [] }),
+      ],
+      total: 3,
+      businessUnits: BUSINESS_UNITS,
+    });
+    renderPage();
+    await screen.findByText('Kế toán C');
+
+    const cellOf = (name: string) => within(screen.getByText(name).closest('tr')!).getAllByRole('cell')[2];
+    expect(cellOf('Lái xe A')).toHaveTextContent(/^Lái xe$/);
+    expect(cellOf('Kế toán C')).toHaveTextContent(/^Kế toán$/);
+    expect(cellOf('Chứng từ F')).toHaveTextContent(/^Chứng từ$/);
+
+    const [trigger] = screen.getAllByRole('button').filter((b) => b.getAttribute('aria-haspopup') === 'listbox');
+    fireEvent.click(trigger);
+    const listbox = await screen.findByRole('listbox');
+    const optionLabels = within(listbox).getAllByRole('option').map((o) => o.textContent?.trim());
+    expect(optionLabels).toContain('Tất cả bộ phận');
+    expect(optionLabels).toContain('Kế toán');
+    expect(optionLabels).toContain('Chứng từ');
+    expect(optionLabels).toContain('Lái xe');
+
+    // Picking a department narrows the roster to that department.
+    fireEvent.click(within(listbox).getByRole('option', { name: 'Kế toán' }));
+    expect(screen.getByText('Kế toán C')).toBeInTheDocument();
+    expect(screen.queryByText('Lái xe A')).not.toBeInTheDocument();
+    expect(screen.queryByText('Chứng từ F')).not.toBeInTheDocument();
   });
 
   // Card 2026-10-18-card-171026123000-roster-inactive-units-hidden: after the
@@ -148,7 +188,6 @@ describe('HrRosterPage', () => {
     fireEvent.click(trigger);
     const listbox = await screen.findByRole('listbox');
     const optionLabels = within(listbox).getAllByRole('option').map((o) => o.textContent?.trim());
-    expect(optionLabels).toHaveLength(2);
     expect(optionLabels).toContain('Tất cả bộ phận');
     expect(optionLabels).toContain('Đội xe');
     expect(optionLabels.some((label) => (label ?? '').includes('QA Audit Unit 0914'))).toBe(false);

@@ -77,7 +77,10 @@ router.get('/phoi-phieu/report/party-lots', requireRoles(...PHOI_PHIEU_ROLES), a
   const user = getUser(req);
   const query = parse(z.object({
     kind: z.enum(['THU', 'TRA']),
-    party: z.string().trim().min(1).max(160),
+    // SIL-916 — party-less = the BATCH drill-down ("Lập phiếu thu" /
+    // "Lập phiếu chi" over every party in the window); party = the per-party
+    // drill-down the report's party row opens.
+    party: z.string().trim().min(1).max(160).optional(),
     dateFrom: z.string().date().optional(),
     dateTo: z.string().date().optional(),
     scope: z.enum(['SELF', 'ALL', 'UNASSIGNED']).optional(),

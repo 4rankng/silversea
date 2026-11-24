@@ -288,6 +288,15 @@
   align-items: center;
   margin: 8px 0;
 }
+/* SIL-916 — the report's two voucher actions sit together, at the end of the
+   control row (they are the row's ACTIONS, not a filter). The group keeps its
+   own gap so the buttons never touch the tab pill. */
+.ppc-report-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-inline-start: auto;
+}
 .ppc-report-tabs {
   display: inline-flex;
   border: 1px solid var(--border-1);
@@ -403,6 +412,28 @@
    whole at spaces (no ellipsis, never mid-token) and the row grows with it. */
 .ppc-lots-drawer th.ppc-lots-col--ghichu { width: 13.8%; min-width: 66px; }
 .ppc-lots-drawer td.ppc-lots-note { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
+/* SIL-916 — the BATCH drill-down (every party in the window) crosses parties,
+   so the row names whose money it is: one extra column, its own ladder. The
+   drawer opens full-canvas (the shared expanded variant), so the twelve
+   columns + the vendored select column fit the 1440 canvas (1096px floor)
+   without the phantom horizontal scroll the SIL-872 doctrine bans. The
+   per-party drawer keeps the ladder above, untouched. Shares still land at
+   95.1% + the vendored select column's ~4.9% = 100%. */
+.ppc-lots-drawer--batch table { min-width: 1016px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--stt { width: 3%; min-width: 36px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--party { width: 12%; min-width: 120px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--bill { width: 9.5%; min-width: 104px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--container { width: 8%; min-width: 90px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--date { width: 6.8%; min-width: 76px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--nang,
+.ppc-lots-drawer--batch th.ppc-lots-col--ha { width: 7.2%; min-width: 80px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--khac { width: 6.7%; min-width: 80px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--total { width: 7.6%; min-width: 80px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--paid,
+.ppc-lots-drawer--batch th.ppc-lots-col--remain { width: 7.2%; min-width: 80px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--ghichu { width: 12.7%; min-width: 66px; }
+/* The party name wraps whole at spaces — no ellipsis, never mid-token. */
+.ppc-lots-drawer td.ppc-lots-party { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
 .ppc-lots-ordinal {
   color: var(--ink-3);
 }

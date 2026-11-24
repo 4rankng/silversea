@@ -1863,13 +1863,18 @@ export interface PhoiPhieuPartyLot {
   daThuTra: number;
   /** `total - daThuTra` — only lots with a positive remainder are returned. */
   conLai: number;
+  /** SIL-916 (KB §6.1/§6.2): the party this lot's money belongs to. The
+   *  per-party drill-down already knew it (the drawer was opened FROM the
+   *  party row); the BATCH drill-down ("Lập phiếu thu" / "Lập phiếu chi"
+   *  over every party in the window) needs it on the row itself. */
+  party: string;
   /** Ticket 18/11 Task 3.2 — the main board's composed Ghi chú carried down
    *  to the drill-down lot (`phoiComposedNote`: CUS trước, điều vận sau). */
   ghiChu: string | null;
   entries: Array<{ sourceId: number; expectedVersion: number; amount: number; bucket: 'nang' | 'ha' | 'khac' }>;
 }
 
-export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { party: string }): Promise<{ items: PhoiPhieuPartyLot[] }> {
+export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { party?: string | null }): Promise<{ items: PhoiPhieuPartyLot[] }> {
   const tripIds = await reportTripIds(query);
   const sources = await reportSources(tripIds, query.dateFrom, query.dateTo);
   const tripParty = await resolveReportTripParties(query.kind, tripIds);
@@ -1879,7 +1884,10 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
   // its lot party too).
   const shipmentFallback = await resolveShipmentFallbackParties(query.kind,
     sources.map((source) => source.shipmentId).filter((id): id is number => id != null));
-  const wanted = query.party.trim();
+  // SIL-916 — a party-less query is the BATCH drill-down ("Lập phiếu thu" /
+  // "Lập phiếu chi" over every party in the window); a party-scoped query is
+  // the per-party drill-down the party row opens. Same money, same engine.
+  const wanted = query.party?.trim() || null;
   // Card 20260927_147 sweep — one cash read for the whole selection, never one
   // per source.
   const cashBySourceId = await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
@@ -1902,7 +1910,7 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
     const party = partyInfo?.name ?? (source.shipmentId != null
       ? (query.kind === 'TRA' ? MISSING_CARRIER_LABEL : MISSING_CUSTOMER_LABEL)
       : UNATTACHED_LABEL);
-    if (party !== wanted) continue;
+    if (wanted !== null && party !== wanted) continue;
     // Group under the source's own trip; a resolved trip-less source groups
     // under the shipment's unique live trip (a REAL trip lot — bookable), or
     // under a synthetic shipment key when no single trip exists (the shared
@@ -1920,7 +1928,7 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
     if (!lot) {
       lot = {
         tripId: lotKey > 0 ? lotKey : null, shipmentId: source.shipmentId, billOrBooking: null, containerNumber: null,
-        departureDate: null, tienNang: 0, tienHa: 0, psKhac: 0, total: 0, daThuTra: 0, conLai: 0, ghiChu: null, entries: [],
+        departureDate: null, tienNang: 0, tienHa: 0, psKhac: 0, total: 0, daThuTra: 0, conLai: 0, party, ghiChu: null, entries: [],
       };
       lots.set(lotKey, lot);
     }

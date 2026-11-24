@@ -133,3 +133,51 @@ describe('Báo cáo thu / trả phơi section', () => {
     expect(await screen.findByText(/Đã lập phiếu PT-1/)).toHaveTextContent('1 khoản, tổng 1.500');
   });
 });
+
+// SIL-916 (KB §6.1/§6.2) — the report carries BOTH "Lập phiếu thu" and
+// "Lập phiếu chi": the accountant raises a voucher in either direction
+// straight from the report. Each button turns the report to the direction it
+// names and opens the unpaid-lots worklist for the WHOLE window (every
+// party) — the batch variant of the drill-down.
+describe('SIL-916 — Lập phiếu thu / Lập phiếu chi ở Báo cáo thu / trả phơi', () => {
+  it('offers both directions and opens the batch worklist for the one it names', async () => {
+    getPhoiPhieuPartyLots.mockResolvedValue({ items: [
+      lot({ tripId: 1, party: 'KH Alpha' }),
+      lot({ tripId: 2, shipmentId: 12, billOrBooking: 'YMLU2', containerNumber: 'CONT-2', total: 700, conLai: 700, tienNang: 700, tienHa: 0, party: 'KH Beta', entries: [{ sourceId: 8, expectedVersion: 1, amount: 700, bucket: 'nang' }] }),
+    ] });
+    renderSection();
+    // The visible label is the KB's "Lập phiếu thu" / "Lập phiếu chi"; the
+    // accessible name adds the section, because the board strip above carries
+    // its own "Lập phiếu chi" (a different action on a different scope).
+    expect(screen.getByRole('button', { name: 'Lập phiếu thu — báo cáo thu / trả phơi' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Lập phiếu chi — báo cáo thu / trả phơi' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lập phiếu thu — báo cáo thu / trả phơi' }));
+    const drawer = await screen.findByRole('dialog', { name: /Lô chưa thanh toán — tất cả đối tác/ });
+    // The worklist crosses parties, so every row names whose money it is.
+    expect(await within(drawer).findByRole('columnheader', { name: 'Đối tác' })).toBeTruthy();
+    expect(within(drawer).getByText('KH Alpha')).toBeTruthy();
+    expect(within(drawer).getByText('KH Beta')).toBeTruthy();
+    // The batch read asks for NO party — every party in the window.
+    await waitFor(() => expect(getPhoiPhieuPartyLots).toHaveBeenCalledWith('THU', null, expect.objectContaining({ scope: undefined })));
+  });
+
+  it('turns the report to the direction the button names', async () => {
+    renderSection();
+    await screen.findByRole('columnheader', { name: 'Phải thu' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lập phiếu chi — báo cáo thu / trả phơi' }));
+    // The table and the worklist never disagree: the TRA table is up.
+    expect(await screen.findByRole('columnheader', { name: 'Phải trả' })).toBeInTheDocument();
+    await waitFor(() => expect(getPhoiPhieuPartyLots).toHaveBeenCalledWith('TRA', null, expect.objectContaining({ scope: undefined })));
+  });
+
+  it('keeps the per-party drill-down: clicking a party still opens ITS drawer', async () => {
+    getPhoiPhieuPartyLots.mockResolvedValue({ items: [lot({ tripId: 1, party: 'KH Alpha' })] });
+    renderSection();
+    fireEvent.click(await screen.findByRole('button', { name: 'KH Alpha' }));
+    const drawer = await screen.findByRole('dialog', { name: /Lô chưa thanh toán — KH Alpha/ });
+    // The per-party drawer knows its party from its title — no party column.
+    expect(within(drawer).queryByRole('columnheader', { name: 'Đối tác' })).toBeNull();
+    await waitFor(() => expect(getPhoiPhieuPartyLots).toHaveBeenCalledWith('THU', 'KH Alpha', expect.objectContaining({ scope: undefined })));
+  });
+});

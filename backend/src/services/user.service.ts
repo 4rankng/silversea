@@ -579,11 +579,20 @@ export async function listUsers(requesterRole?: string, params: ListUsersParams 
 }
 
 
-/** Driver-only roster projection for the finance-facing Danh sách nhân sự
+/** Personnel roster projection for the finance-facing Danh sách nhân sự
  * page. The page's menu audience is office staff (ADMIN/MANAGER/ACCOUNTANT),
  * but /auth/users is an admin surface — this read returns exactly the roster
- * columns (no salary, login or assignment metadata), and the 2026-10-09
- * owner ruling (personnel = drivers only) is enforced server-side as well.
+ * columns (no salary, login or assignment metadata).
+ *
+ * Scope: EVERY staff account (Lái xe, Vận hành giao nhận, Chứng từ, Điều vận,
+ * Kế toán, Quản trị / Quản lý) — KB §6.4/§6.5 (24/11): the roster is the
+ * personnel directory and must name every department. This SUPERSEDES the
+ * 2026-10-09 ruling that reduced THIS projection to DRIVER rows only; that
+ * ruling's actual subject — chấm công / lương stay driver-only — is
+ * untouched (it lives on /timesheet, /salary and the attendance services, not
+ * here). Customer portal accounts (Role.CUSTOMER) are not personnel and
+ * never appear.
+ *
  * Business units render ACTIVE-only (ticket 171026123000, owner ruling
  * 2026-10-17): "Ngừng sử dụng" must actually hide a unit from the Bộ phận
  * column and the "Lọc theo bộ phận" dropdown, while the /users management
@@ -609,7 +618,10 @@ export async function listHrRoster() {
     // the join duplicates the roster row or leaks the retired profile's
     // code/phone.
     .leftJoin(drivers, and(eq(drivers.userId, users.id), isNull(drivers.deletedAt)))
-    .where(and(isNull(users.deletedAt), eq(users.role, Role.DRIVER)))
+    // KB §6.4/§6.5 (24/11): the roster names every department's personnel, so
+    // the role filter no longer narrows to DRIVER. CUSTOMER (the customer
+    // portal accounts) is not staff and stays out.
+    .where(and(isNull(users.deletedAt), ne(users.role, Role.CUSTOMER)))
     .orderBy(asc(users.id));
 
   // ACTIVE-filtered link load (join business_units.status) — the roster never

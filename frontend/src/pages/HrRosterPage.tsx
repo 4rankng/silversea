@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Role } from '@tingting/shared';
+import { Role, ROLE_LABELS } from '@tingting/shared';
 import { userClient } from '../api/userClient';
 import { qk } from '../api/keys';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -13,26 +13,35 @@ import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
 
 /**
- * Danh sách nhân sự — read-only driver roster.
+ * Danh sách nhân sự — read-only personnel roster.
  *
  * A different surface from /users (permission administration): this page
  * renders the personnel profile columns only (Mã NV, họ tên, bộ phận, email,
  * điện thoại, trạng thái) over the same users data, with no roles, no logins
- * and no row actions. Bộ phận derives businessUnitIds mapped to business
- * unit names, joined per row — ACTIVE units only (ticket 171026123000, owner
- * ruling 2026-10-17). This is the intentional divergence from /users: the
- * management surface keeps INACTIVE unit history visible, the roster does not.
+ * and no row actions.
  *
- * Owner ruling 2026-10-09 ('chấm công chỉ dành cho lái xe' / no office
- * staff): personnel and timekeeping are DRIVER-ONLY — office roles are
- * administered on /users and never appear here. Office attendance/salary
- * fields are ruled out, not deferred.
+ * Scope — KB §6.4/§6.5 (24/11): the roster is the personnel directory and
+ * names EVERY department (Lái xe, Vận hành giao nhận, Chứng từ, Điều vận,
+ * Kế toán, Quản trị / Quản lý). This supersedes the 2026-10-09 ruling that
+ * reduced this page to driver rows; that ruling's real subject — chấm công /
+ * lương stay driver-only — lives on /timesheet and /salary and is untouched
+ * here. Customer portal accounts are not personnel and never appear.
+ *
+ * Bộ phận resolves in one order: the row's ACTIVE business unit names
+ * (ticket 171026123000, owner ruling 2026-10-17 — a deactivated unit must
+ * never surface) and, when the row has none, the shared ROLE_LABELS business
+ * name of its role (one business name per role everywhere, card 20260921_25).
+ * The "Lọc theo bộ phận" dropdown offers exactly those same values, so a
+ * department filter and the Bộ phận column always agree.
  */
 
-/** The roster is the driver roster; every office role stays on /users. */
-function isRosterDriver(role: Role): boolean {
-  return role === Role.DRIVER;
-}
+/** One department per row: the ACTIVE business units it is linked to, or —
+ * when it has none — the shared business name of its role. The filter value
+ * keeps both kinds apart so a unit option and a role option can never
+ * collide. */
+type RosterDepartment =
+  | { kind: 'unit'; id: number; label: string }
+  | { kind: 'role'; role: Role; label: string };
 
 export default function HrRosterPage() {
   const [search, setSearch] = useState('');
@@ -50,7 +59,10 @@ export default function HrRosterPage() {
   const { rootRef } = usePageAnimations({ ready: !isLoading });
 
   const personnel = useMemo(
-    () => (data?.items ?? []).filter((u) => isRosterDriver(u.role)),
+    // Customer portal accounts are customers, not personnel — the server
+    // already excludes them; the page keeps the same guard so a stale or
+    // widened payload can never put a portal customer on the roster.
+    () => (data?.items ?? []).filter((u) => u.role !== Role.CUSTOMER),
     [data],
   );
 
@@ -64,31 +76,52 @@ export default function HrRosterPage() {
     [data],
   );
 
-  // The filter lists only the ACTIVE business units actually linked to roster rows.
-  const departmentOptions = useMemo(() => {
-    const used = new Set<number>();
+  // Each row resolves to ONE department: its ACTIVE business units when it
+  // has any, else the shared business name of its role.
+  const departmentOf = useMemo(() => {
+    const map = new Map<number, RosterDepartment>();
     for (const u of personnel) {
-      for (const id of u.businessUnitIds ?? []) used.add(id);
+      const unitNames = (u.businessUnitIds ?? [])
+        .map((id) => businessUnitMap.get(id))
+        .filter((name): name is string => name != null);
+      map.set(u.id, unitNames.length > 0
+        ? { kind: 'unit', id: (u.businessUnitIds ?? [])[0], label: unitNames.join(', ') }
+        : { kind: 'role', role: u.role, label: ROLE_LABELS[u.role] });
     }
-    return [
-      { value: 'all', label: 'Tất cả bộ phận' },
-      ...[...used]
-        .map((id) => ({ id, label: businessUnitMap.get(id) }))
-        .filter((entry): entry is { id: number; label: string } => entry.label != null)
-        .sort((a, b) => a.label.localeCompare(b.label))
-        .map(({ id, label }) => ({ value: String(id), label })),
-    ];
+    return map;
   }, [personnel, businessUnitMap]);
+
+  // The filter offers exactly the departments the rows carry, so a filter
+  // choice and the Bộ phận column always name the same thing.
+  const departmentOptions = useMemo(() => {
+    const units = new Map<number, string>();
+    const roles = new Map<Role, string>();
+    for (const department of departmentOf.values()) {
+      if (department.kind === 'unit') units.set(department.id, department.label);
+      else roles.set(department.role, department.label);
+    }
+    const options = [
+      ...[...units].map(([id, label]) => ({ value: `unit:${id}`, label })),
+      ...[...roles].map(([role, label]) => ({ value: `role:${role}`, label })),
+    ].sort((a, b) => a.label.localeCompare(b.label));
+    return [{ value: 'all', label: 'Tất cả bộ phận' }, ...options];
+  }, [departmentOf]);
 
   const term = search.trim().toLowerCase();
   const filtered = useMemo(() => personnel.filter((u) => {
     if (department !== 'all') {
-      if (!(u.businessUnitIds ?? []).includes(Number(department))) return false;
+      const [kind, value] = department.split(':');
+      const row = departmentOf.get(u.id);
+      if (kind === 'unit') {
+        if (!(u.businessUnitIds ?? []).includes(Number(value))) return false;
+      } else if (!row || row.kind !== 'role' || row.role !== value) {
+        return false;
+      }
     }
     if (!term) return true;
     return [u.fullName, u.employeeCode, u.email, u.phone, u.username]
       .some((v) => (v ?? '').toLowerCase().includes(term));
-  }), [personnel, department, term]);
+  }), [personnel, department, departmentOf, term]);
 
   if (isLoading) {
     return (
@@ -171,10 +204,7 @@ export default function HrRosterPage() {
                 </tr>
               )}
               {filtered.map((u) => {
-                const unitIds = u.businessUnitIds ?? [];
-                const unitNames = unitIds.length > 0
-                  ? unitIds.map((id) => businessUnitMap.get(id) ?? '').filter(Boolean).join(', ')
-                  : null;
+                const department = departmentOf.get(u.id);
                 return (
                   <tr key={u.id}>
                     <td data-label="Mã NV" style={{ position: 'relative' }}>
@@ -183,12 +213,10 @@ export default function HrRosterPage() {
                     </td>
                     <td data-label="Họ tên">{u.fullName || '—'}</td>
                     <td data-label="Bộ phận">
-                      {/* SIL-812 — roster chỉ có lái xe (owner ruling
-                          2026-10-09): không unit thì Bộ phận = vai trò
-                          'Lái xe', không bao giờ '—'. */}
-                      {unitNames
-                        ? <span style={{ fontSize: 'var(--text-data-size)' }}>{unitNames}</span>
-                        : <span style={{ fontSize: 'var(--text-data-size)' }}>Lái xe</span>}
+                      {/* The row's one department: its ACTIVE business units,
+                          else the shared business name of its role — never
+                          '—' (SIL-812). */}
+                      <span style={{ fontSize: 'var(--text-data-size)' }}>{department?.label ?? '—'}</span>
                     </td>
                     <td data-label="Email">
                       {u.email

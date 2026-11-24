@@ -41,7 +41,16 @@ test('SIL-812 — Mã NV and Điện thoại COALESCE users → drivers, Email s
   assert.match(fn, /email: users\.email/, 'drivers has no email column — Email must not be fabricated');
 });
 
-test('SIL-812 — the roster stays the driver roster (2026-10-09 ruling untouched)', () => {
-  assert.match(fn, /eq\(users\.role, Role\.DRIVER\)/, 'office roles stay on /users');
+test('SIL-916 — the roster names every department, never the customer portal (KB §6.4/§6.5)', () => {
+  assert.doesNotMatch(
+    fn,
+    /eq\(users\.role, Role\.DRIVER\)/,
+    'the roster is the personnel directory, not the driver roster (supersedes the 2026-10-09 narrowing of THIS projection)',
+  );
+  assert.match(
+    fn,
+    /ne\(users\.role, Role\.CUSTOMER\)/,
+    'customer portal accounts are customers, not personnel',
+  );
   assert.match(fn, /isNull\(users\.deletedAt\)/, 'live users only');
 });

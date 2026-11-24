@@ -295,14 +295,19 @@ export interface PhoiPhieuPartyLot {
   /** Ticket 18/11 Task 3.2 — the main board's composed Ghi chú of the lot.
    *  Optional so an older in-flight payload renders '—'. */
   ghiChu?: string | null;
+  /** SIL-916 — the party the lot's money belongs to. Carried on the row so the
+   *  BATCH drill-down (every party in the window) shows whose money it is. */
+  party?: string;
   entries: Array<{ sourceId: number; expectedVersion: number; amount: number; bucket: 'nang' | 'ha' | 'khac' }>;
 }
 
-export async function getPhoiPhieuPartyLots(kind: 'THU' | 'TRA', party: string, params: {
+export async function getPhoiPhieuPartyLots(kind: 'THU' | 'TRA', party: string | null, params: {
   dateFrom?: string; dateTo?: string;
   scope?: 'SELF' | 'ALL' | 'UNASSIGNED';
 }): Promise<{ items: PhoiPhieuPartyLot[] }> {
-  const query = new URLSearchParams({ kind, party });
+  const query = new URLSearchParams({ kind });
+  // A null party = the BATCH drill-down (every party in the window).
+  if (party) query.set('party', party);
   if (params.dateFrom) query.set('dateFrom', params.dateFrom);
   if (params.dateTo) query.set('dateTo', params.dateTo);
   if (params.scope) query.set('scope', params.scope);

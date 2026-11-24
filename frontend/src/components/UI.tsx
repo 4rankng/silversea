@@ -363,6 +363,10 @@ interface DrawerProps {
    *  and the toggle flips to Minimize2. Hosts that don't opt in render
    *  exactly as before. */
   expandable?: boolean;
+  /** SIL-916: open the drawer in the expanded (full-canvas) variant. The
+   *  choice is per open cycle — the next open starts from this flag again.
+   *  Hosts that also pass `expandable` keep the user's toggle on top. */
+  defaultExpanded?: boolean;
   /** SIL-483 supplement 3: host-provided header action (the Xóa lô trash),
    *  rendered inside the head-actions cluster before expand/close so hosts
    *  keep one heading/actions flex split. */
@@ -373,7 +377,7 @@ interface DrawerProps {
   titleChips?: React.ReactNode;
 }
 
-export function Drawer({ isOpen, onClose, openerRef, title, subtitle, children, footer, onConfirm, className = '', headerGraphic, expandable = false, headerAction, titleChips }: DrawerProps) {
+export function Drawer({ isOpen, onClose, openerRef, title, subtitle, children, footer, onConfirm, className = '', headerGraphic, expandable = false, defaultExpanded = false, headerAction, titleChips }: DrawerProps) {
   const titleId = useId();
   const portalTarget = usePortalTarget();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -381,7 +385,7 @@ export function Drawer({ isOpen, onClose, openerRef, title, subtitle, children, 
   // SIL-483: the expand choice is per open cycle. The reset rides the ENTRANCE
   // (not the close) so the exit slide runs at whatever width the panel is in —
   // dropping the class on close would snap 100vw → ladder width mid-animation.
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   // In-flight anime.js handles. anime.js does not cancel animations targeting
   // the same property across separate `animate()` calls, so a reopen landing
   // mid-exit leaves the stale exit ticking — it finishes LAST and writes
@@ -405,8 +409,10 @@ export function Drawer({ isOpen, onClose, openerRef, title, subtitle, children, 
     openerRef,
     entrance: (overlay, aside, prefersReduced) => {
       stopDrawerAnimations();
-      // Per-open-cycle expand state: every open starts as the slide-in panel.
-      setExpanded(false);
+      // Per-open-cycle expand state: every open starts as the slide-in panel
+      // — unless the host opened it expanded (SIL-916: the batch worklist
+      // needs the full canvas), and then it stays that way.
+      setExpanded(defaultExpanded);
       if (prefersReduced) {
         utils.set(overlay, { opacity: 1 });
         utils.set(aside, { translateX: '0%' });

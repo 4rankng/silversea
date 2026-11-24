@@ -17,16 +17,26 @@ import type { Selection } from 'react-aria-components';
  *  toán" of the clicked khách hàng / nhà xe). Selection issues ONE batch phiếu
  *  through the same consolidated endpoint the board toolbar uses, so the quỹ
  *  engine — not this drawer — owns the postings. Table = the vendored Untitled
- *  UI PRO table (its own select-all header checkbox + per-row checkboxes). */
+ *  UI PRO table (its own select-all header checkbox + per-row checkboxes).
+ *
+ *  SIL-916 (KB §6.1/§6.2): `party = null` is the BATCH drill-down the report's
+ *  "Lập phiếu thu" / "Lập phiếu chi" buttons open — every party's unpaid lots
+ *  in the window, one phiếu at the accountant's choice. It carries a party
+ *  column (whose money is this?) and opens full-canvas: the shared 2/3 drawer
+ *  cannot hold twelve columns without the phantom horizontal scroll the
+ *  SIL-872 doctrine bans. The per-party drawer keeps its 2/3 width and its
+ *  exact rendering. */
 export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope, onClose, onIssued }: {
   kind: 'THU' | 'TRA';
-  party: string;
+  /** The party to drill into; null = the batch drill-down (every party). */
+  party: string | null;
   dateFrom: string;
   dateTo: string;
   scope?: 'SELF' | 'ALL' | 'UNASSIGNED';
   onClose: () => void;
   onIssued: () => void;
 }) {
+  const batch = party == null;
   const lotsQuery = useQuery({
     queryKey: qk.phoiPhieu.partyLots(kind, party, dateFrom, dateTo, scope),
     queryFn: () => getPhoiPhieuPartyLots(kind, party, { dateFrom, dateTo, scope }),
@@ -87,9 +97,13 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
     <Drawer
       isOpen
       onClose={onClose}
-      title={`Lô chưa thanh toán — ${party}`}
+      title={batch ? 'Lô chưa thanh toán — tất cả đối tác' : `Lô chưa thanh toán — ${party}`}
       subtitle={`${kind === 'THU' ? 'Phải thu' : 'Phải trả'} · ${dateFrom || '…'} → ${dateTo || '…'}`}
-      className="ppc-lots-drawer"
+      className={batch ? 'ppc-lots-drawer ppc-lots-drawer--batch' : 'ppc-lots-drawer'}
+      // The batch worklist carries a party column: it opens full-canvas so the
+      // twelve columns fit the 1440 canvas without the phantom horizontal
+      // scroll the SIL-872 doctrine bans.
+      defaultExpanded={batch}
       footer={
         <div className="ppc-lots-bar" role="region" aria-label="Thanh hành động lập phiếu hàng loạt">
           <p className="ppc-lots-bar__count" role="status">
@@ -124,14 +138,14 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
       {message && <p role="status" style={{ color: message.kind === 'ok' ? 'var(--ok, #16a34a)' : 'var(--err, #dc2626)' }}>{message.text}</p>}
       {lotsQuery.isError && <p role="alert">Không tải được các lô của đối tượng này. Vui lòng thử lại.</p>}
       {lotsQuery.isSuccess && lots.length === 0 && (
-        <p role="status">Không còn lô chưa thanh toán của {party} trong kỳ này.</p>
+        <p role="status">{batch ? 'Không có lô chưa thanh toán trong kỳ này.' : `Không còn lô chưa thanh toán của ${party} trong kỳ này.`}</p>
       )}
       {tripLots.length > 0 && (
         // react-aria's own selection strings (Select All / Select) localize
         // through the I18nProvider — the drawer speaks Vietnamese to AT.
         <I18nProvider locale="vi-VN">
         <Table
-          aria-label={`Các lô chưa thanh toán của ${party}`}
+          aria-label={batch ? 'Các lô chưa thanh toán của mọi đối tác' : `Các lô chưa thanh toán của ${party}`}
           selectionMode="multiple"
           selectionBehavior="toggle"
           selectedKeys={selected}
@@ -142,6 +156,10 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                 pins the % share + px floor on it (table-layout: fixed sizes
                 every column from this header row). */}
             <Table.Head isRowHeader className="ppc-lots-col--stt">STT</Table.Head>
+            {/* SIL-916 — the batch worklist crosses parties, so the row must
+                name whose money it is. The per-party drawer knows its party
+                from its title and does not repeat it. */}
+            {batch && <Table.Head id="party" className="ppc-lots-col--party">Đối tác</Table.Head>}
             <Table.Head id="bill" className="ppc-lots-col--bill">Số Bill / Booking</Table.Head>
             <Table.Head id="container" className="ppc-lots-col--container">Container</Table.Head>
             <Table.Head id="date" className="ppc-lots-col--date">Ngày</Table.Head>
@@ -161,6 +179,7 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                 {/* isRowHeader lives on the STT column; the cell prints the
                     position so the mockup's numbered rows stay readable. */}
                 <Table.Cell><span className="ppc-lots-ordinal">{lots.indexOf(lot) + 1}</span></Table.Cell>
+                {batch && <Table.Cell className="ppc-lots-party">{lot.party ?? '—'}</Table.Cell>}
                 <Table.Cell>{billBookingReference(lot.billOrBooking)}</Table.Cell>
                 <Table.Cell>{lot.containerNumber ?? '—'}</Table.Cell>
                 <Table.Cell>{formatDate(lot.departureDate, { empty: '—' })}</Table.Cell>

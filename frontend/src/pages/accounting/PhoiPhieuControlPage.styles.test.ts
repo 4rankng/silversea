@@ -305,6 +305,35 @@ describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
     expect(shareSum).toBeCloseTo(95.1, 5);
   });
 
+  it('SIL-916 — the batch ladder adds the party column and still lands at 100%', () => {
+    // The batch worklist (every party in the window) carries one more column
+    // than the per-party drawer, so it has its own ladder: the shares still
+    // land at 95.1% + the vendored select column's ~4.9%, and the px floors
+    // still sum to the table's min-width — 1052px + the select column's 44px.
+    const batchLadder = (col: string) =>
+      css.match(new RegExp(`\\.ppc-lots-drawer--batch th\\.ppc-lots-col--${col}(?:\\s*,\\s*\\.ppc-lots-drawer--batch th\\.ppc-lots-col--[a-z]+)?\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+    const cols: Array<[string, string, number]> = [
+      ['stt', '3%', 36], ['party', '12%', 120], ['bill', '9.5%', 104],
+      ['container', '8%', 90], ['date', '6.8%', 76], ['nang', '7.2%', 80],
+      ['ha', '7.2%', 80], ['khac', '6.7%', 80], ['total', '7.6%', 80],
+      ['paid', '7.2%', 80], ['remain', '7.2%', 80], ['ghichu', '12.7%', 66],
+    ];
+    let shareSum = 0;
+    let floorSum = 0;
+    for (const [col, share, floor] of cols) {
+      const block = batchLadder(col);
+      expect(block, `${col} keeps its % share`).toContain(`width: ${share}`);
+      expect(block, `${col} keeps its px floor`).toContain(`min-width: ${floor}px`);
+      shareSum += Number(share.slice(0, -1));
+      floorSum += floor;
+    }
+    expect(shareSum).toBeCloseTo(95.1, 1);
+    // 972px of floors + the vendored select column's 44px = the table floor.
+    expect(floorSum + 44).toBe(1016);
+    const table = css.match(/\.ppc-lots-drawer--batch table\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(table).toContain('min-width: 1016px');
+  });
+
   it('Ghi chú renders whole — wraps at spaces, never mid-token, no ellipsis, widest share', () => {
     const note = css.match(/\.ppc-lots-drawer td\.ppc-lots-note\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(note).toContain('white-space: normal');

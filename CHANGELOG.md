@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-11-24 — fix(SIL-916): Danh sách nhân sự đủ 64 người + nút Lập phiếu thu ở Báo cáo thu/trả phơi
+
+Audit KB 24/11 mục 6.9/6.3 (§6.4, §6.5, §6.1, §6.2).
+
+- **BE** `services/user.service.ts`: projection `/auth/users/roster` bỏ lọc
+  role DRIVER, chỉ loại `CUSTOMER` (tài khoản portal khách hàng không phải
+  nhân sự) → payload có **64** nhân sự (41 lái xe + 23 văn phòng: Chứng từ, Điều
+  vận, Giao nhận, Kế toán, Quản trị) thay vì 41 dòng chỉ có lái xe. Ruling
+  09/10 ("chấm công chỉ dành cho lái xe") giữ nguyên phạm vi: `/timesheet`,
+  `/salary` và attendance service KHÔNG đổi.
+- **FE** `pages/HrRosterPage.tsx`: cột **Bộ phận** nêu đúng một bộ phận —
+  tên đơn vị phụ trách ACTIVE khi dòng có liên kết đơn vị, nếu không thì tên
+  vai trò chuẩn (`ROLE_LABELS`: Lái xe / Vận hành / Kế toán / Chứng từ / Điều
+  vận / Quản trị viên); bộ lọc **Bộ phận** liệt kê đúng các bộ phận bảng đang
+  mang (đơn vị ACTIVE + vai trò), nên bộ lọc và cột luôn nói cùng một điều.
+- **BE** `services/phoi-phieu-control.service.ts` + `routes/expense-accounting.ts`:
+  `GET /expense-accounting/phoi-phieu/report/party-lots` nhận `party` TUỲ CHỌN
+  — không truyền = lô chưa thanh toán của MỌI đối tác trong kỳ (hàng loạt),
+  truyền = lô của đối tác đó (như cũ); mỗi dòng lô mang `party` để bảng
+  hàng loạt biết tiền của ai.
+- **FE** `PhoiPhieuPartyLotsDrawer.tsx`: chế độ hàng loạt — thêm cột **Đối
+  tác**, mở toàn màn hình (bản dùng chung `drawer--expanded`) để 12 cột vừa
+  canvas 1440px không sinh cuộn ngang ảo; bản theo đối tác giữ nguyên bề rộng
+  2/3 và cách hiện cũ. `components/UI.tsx`: `Drawer` nhận `defaultExpanded`.
+- **FE** `PhoiPhieuControlPage.reports.tsx`: phần **Báo cáo thu / trả phơi** có
+  đủ hai nút **Lập phiếu thu** và **Lập phiếu chi**; mỗi nút xoay báo cáo về
+  chiều nó tên và mở danh sách lô chưa thanh toán của cả kỳ để kế toán lập
+  phiếu (vẫn qua `createPhoiPhieuVoucher`).
+- **BE** `tests/unit/phoi-phieu-party-lots-batch.test.ts` (mới): pin lô đọc
+  theo đối tác và theo hàng loạt là hai chế độ của cùng một động cơ.
+- Tests: `HrRosterPage` 6/6; `PhoiPhieuControlPage.report-section` 8/8 (3 case
+  mới cho hai nút + mở worklist hàng loạt + giữ drill-down theo đối tác);
+  `PhoiPhieuControlPage.styles` 26/26 (pin thang độ rộng bảng hàng loạt);
+  `src/pages/accounting` 356/356; `src/tests/unit/*` 1414 pass; BE typecheck 0
+  lỗi.
+- Rung UI (Chrome thật, local :7175): `/hr/roster` render **64** dòng với cột
+  Bộ phận theo vai trò; `/accounting/phoi-phieu` hiện caption
+  "Báo cáo thu / trả phơi — Ngày 01/11/2026 – 24/11/2026" + 2 nút, bấm "Lập
+  phiếu thu" mở ngăn "Lô chưa thanh toán — tất cả đối tác" rộng 1440px, không
+  tràn ngang, không lỗi console.
+
 ## 2026-11-19 — feat(auth,cus): nhóm CUS — giamdoc + ketoan quản cùng admin
 
 User ruling 19/11/2026: thẻ "Nhóm CUS" trên /users không còn ADMIN-only —

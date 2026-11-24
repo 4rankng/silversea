@@ -163,6 +163,10 @@ export function PhoiPhieuReportSection() {
   const [kind, setKind] = useState<'THU' | 'TRA'>('THU');
   const [scope, setScope] = useState<'' | 'SELF' | 'ALL' | 'UNASSIGNED'>('');
   const [drillParty, setDrillParty] = useState<string | null>(null);
+  // SIL-916 (KB §6.1/§6.2): the BATCH drill-down — "Lập phiếu thu" /
+  // "Lập phiếu chi" over EVERY party in the window. The party drill-down
+  // below (click a party name) stays the per-party variant.
+  const [batchKind, setBatchKind] = useState<'THU' | 'TRA' | null>(null);
   const scopeOptions = useMemo(() => [
     { value: '', label: 'Mặc định (của tôi với kế toán)' },
     { value: 'SELF', label: 'Của tôi' },
@@ -213,6 +217,31 @@ export function PhoiPhieuReportSection() {
             Phải trả
           </button>
         </div>
+        {/* SIL-916 (KB §6.1/§6.2): both directions, one place — the report
+            carries "Lập phiếu thu" AND "Lập phiếu chi" so the accountant can
+            raise a voucher straight from it. Each button turns the report to
+            the direction it names (the table and the worklist never disagree)
+            and opens the unpaid-lots worklist for the whole window. */}
+        <div className="ppc-report-actions">
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            aria-label="Lập phiếu thu — báo cáo thu / trả phơi"
+            title="Chọn các lô chưa thanh toán để lập phiếu thu trong kỳ này"
+            onClick={() => { setKind('THU'); setBatchKind('THU'); }}
+          >
+            Lập phiếu thu
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            aria-label="Lập phiếu chi — báo cáo thu / trả phơi"
+            title="Chọn các lô chưa thanh toán để lập phiếu chi trong kỳ này"
+            onClick={() => { setKind('TRA'); setBatchKind('TRA'); }}
+          >
+            Lập phiếu chi
+          </button>
+        </div>
       </div>
       <PhoiPhieuReportTable
         key={kind}
@@ -231,6 +260,18 @@ export function PhoiPhieuReportSection() {
           scope={scope || undefined}
           onClose={() => setDrillParty(null)}
           onIssued={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.report(kind, range.from, range.to, scope || undefined) }); void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll }); }}
+        />
+      )}
+      {/* SIL-916 — the batch worklist (every party in the window). */}
+      {batchKind != null && (
+        <PhoiPhieuPartyLotsDrawer
+          kind={batchKind}
+          party={null}
+          dateFrom={range.from}
+          dateTo={range.to}
+          scope={scope || undefined}
+          onClose={() => setBatchKind(null)}
+          onIssued={() => { void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.report(batchKind, range.from, range.to, scope || undefined) }); void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll }); }}
         />
       )}
     </div>

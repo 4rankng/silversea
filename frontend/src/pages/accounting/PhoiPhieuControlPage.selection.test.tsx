@@ -71,6 +71,13 @@ function renderBoard(items: PhoiPhieuRow[]) {
 const bodyRows = (container: HTMLElement) =>
   [...container.querySelectorAll('.ppc-board tbody tr')] as HTMLTableRowElement[];
 
+/** The BOARD's voucher action (the strip). The report section below carries its
+ *  own "Lập phiếu thu" / "Lập phiếu chi" buttons (SIL-916), so the name is no
+ *  longer unique on the page — scope the board's queries to its own action
+ *  group. */
+const boardAction = (container: HTMLElement, name: string | RegExp) =>
+  within(container.querySelector('.ppc-actions') as HTMLElement).getByRole('button', { name });
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -79,19 +86,19 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
   it('PHOI10 keeps concise disabled direction actions while retaining scope guidance and selected eligible counts', { timeout: 15000 }, async () => {
     const { container } = renderBoard([row({ eligibleIn: 1, eligibleOut: 1 })]);
     await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
-    const noSelection = screen.getByRole('button', { name: 'Lập phiếu chi' });
+    const noSelection = boardAction(container, 'Lập phiếu chi');
     expect(noSelection).toBeDisabled();
     expect(noSelection).toHaveAttribute('title', 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu');
     expect(screen.getByText('Bấm vào một dòng để chọn · 1 dòng lập được phiếu trong kết quả')).toBeInTheDocument();
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
-    expect(screen.getByRole('button', { name: 'Lập phiếu chi (1 khoản)' })).toBeEnabled();
+    expect(boardAction(container, 'Lập phiếu chi (1 khoản)')).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn dòng trang này' }));
     expect(noSelection).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: /Loại phiếu/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Phiếu thu' }, { timeout: 10_000 }));
-    expect(screen.getByRole('button', { name: 'Lập phiếu thu' })).toBeDisabled();
+    expect(boardAction(container, 'Lập phiếu thu')).toBeDisabled();
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
-    expect(screen.getByRole('button', { name: 'Lập phiếu thu (1 khoản)' })).toBeEnabled();
+    expect(boardAction(container, 'Lập phiếu thu (1 khoản)')).toBeEnabled();
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();
   });
   it('PHOI09 renders a distinct labelled carrier fact and honest missing driver while preserving row selection', async () => {
@@ -123,11 +130,11 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     const { container } = renderBoard([row({ tripId: 1 })]);
     await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
-    expect(screen.getByRole('button', { name: /Lập phiếu chi \(1 khoản\)/ })).toBeEnabled();
+    expect(boardAction(container, /Lập phiếu chi \(1 khoản\)/)).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /Đối chiếu chi hộ/ }));
     fireEvent.click(await screen.findByRole('option', { name: 'Chưa đối chiếu' }, { timeout: 10_000 }));
     await waitFor(() => expect(client.listPhoiPhieuRows).toHaveBeenLastCalledWith(expect.objectContaining({ confirmation: 'UNCONFIRMED' })));
-    expect(screen.getByRole('button', { name: /Lập phiếu chi/ })).toBeDisabled();
+    expect(boardAction(container, /Lập phiếu chi/)).toBeDisabled();
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();
   });
   it('PHOI04 displays the schedule date and names missing schedule without departure fallback', async () => {
@@ -206,20 +213,20 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     const { container } = renderBoard([row({ tripId: 1 })]);
     await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
-    expect(screen.getByRole('button', { name: /Lập phiếu chi \(1 khoản\)/ })).toBeEnabled();
+    expect(boardAction(container, /Lập phiếu chi \(1 khoản\)/)).toBeEnabled();
     let resolveFiltered!: (value: { items: PhoiPhieuRow[] }) => void;
     vi.mocked(client.listPhoiPhieuRows).mockReturnValueOnce(new Promise(resolve => { resolveFiltered = resolve; }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: 'không khớp' } });
     await waitFor(() => expect(resolveFiltered).toBeDefined());
-    expect(screen.getByRole('button', { name: /Lập phiếu chi/ })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: /Lập phiếu chi/ }));
+    expect(boardAction(container, /Lập phiếu chi/)).toBeDisabled();
+    fireEvent.click(boardAction(container, /Lập phiếu chi/));
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();
     resolveFiltered({ items: [] });
     await waitFor(() => expect(bodyRows(container)).toHaveLength(0));
     fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: '' } });
     await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     expect(bodyRows(container)[0]).not.toHaveAttribute('data-selected');
-    expect(screen.getByRole('button', { name: /Lập phiếu chi/ })).toBeDisabled();
+    expect(boardAction(container, /Lập phiếu chi/)).toBeDisabled();
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();
   });
 
@@ -227,12 +234,12 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     const { container, queryClient } = renderBoard([row({ tripId: 1 })]);
     await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
-    expect(screen.getByRole('button', { name: /Lập phiếu chi \(1 khoản\)/ })).toBeEnabled();
+    expect(boardAction(container, /Lập phiếu chi \(1 khoản\)/)).toBeEnabled();
     vi.mocked(client.listPhoiPhieuRows).mockResolvedValueOnce({ items: [row({ tripId: 1, confirmable: false })] });
     await act(async () => { await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll }); });
     await waitFor(() => expect(bodyRows(container)[0]).toHaveClass('ppc-row--locked'));
     expect(screen.queryByText('Đã chọn 1 dòng')).not.toBeInTheDocument();
-    const issue = screen.getByRole('button', { name: /Lập phiếu chi/ });
+    const issue = boardAction(container, /Lập phiếu chi/);
     expect(issue).toBeDisabled();
     fireEvent.click(issue);
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();
@@ -245,7 +252,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     vi.mocked(client.listPhoiPhieuRows).mockRejectedValueOnce(new Error('Unavailable'));
     await act(async () => { await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll }); });
     expect(await screen.findByRole('alert', undefined, { timeout: 10_000 })).toHaveTextContent('Không tải được bảng kiểm soát');
-    const issue = screen.getByRole('button', { name: /Lập phiếu chi/ });
+    const issue = boardAction(container, /Lập phiếu chi/);
     expect(issue).toBeDisabled();
     fireEvent.click(issue);
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();
@@ -319,7 +326,7 @@ describe('register board — column mini-filters, phoi state, grouping', () => {
     ]);
     await screen.findAllByText('Chưa có số Bill/Booking', undefined, { timeout: 10_000 });
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
-    expect(screen.getByRole('button', { name: /Lập phiếu chi \(1 khoản\)/ })).toBeEnabled();
+    expect(boardAction(container, /Lập phiếu chi \(1 khoản\)/)).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Khách hàng / Nhà máy / Tuyến' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Lọc Khách hàng / Nhà máy / Tuyến' }), { target: { value: 'zzz-khong-khop' } });
@@ -327,11 +334,11 @@ describe('register board — column mini-filters, phoi state, grouping', () => {
     expect(bodyRows(container)).toHaveLength(0);
     expect(screen.getByText('Không có dòng nào khớp bộ lọc cột.')).toBeInTheDocument();
     // The pick the narrowed view no longer shows must never reach a voucher.
-    expect(screen.getByRole('button', { name: /Lập phiếu chi/ })).toBeDisabled();
+    expect(boardAction(container, /Lập phiếu chi/)).toBeDisabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ lọc cột' }));
     expect(bodyRows(container)).toHaveLength(2);
-    expect(screen.getByRole('button', { name: /Lập phiếu chi/ })).toBeDisabled();
+    expect(boardAction(container, /Lập phiếu chi/)).toBeDisabled();
     expect(client.createPhoiPhieuVoucher).not.toHaveBeenCalled();
   });
 });
