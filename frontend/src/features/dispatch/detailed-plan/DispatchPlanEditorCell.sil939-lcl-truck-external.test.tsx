@@ -4,7 +4,7 @@
 // 'SilverSea — xe nội bộ' trong danh sách, dòng OWN cũ bị reset kèm cảnh
 // báo, lưu chỉ đi được với Nhà xe ngoài. Hàng lẻ ghép CONT 20'/40' giữ nguyên
 // cả hai nguồn xe.
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
@@ -155,6 +155,41 @@ describe('SIL-939 — Sửa điều phối chặn đội xe nội bộ trên hà
     const labels = options.map((item) => item.textContent ?? '');
     expect(labels.some((label) => label.includes('SilverSea — xe nội bộ'))).toBe(false);
     expect(labels.some((label) => label.includes('Nhà xe Hải Vân'))).toBe(true);
+  });
+
+  it('hàng chưa phân xe (carrier-less) external-only: Xe / biển số KHÔNG nạp đội xe nội bộ', async () => {
+    // QA round 2 (df7b2a73 repro): opening 'Xe / biển số' on an unassigned
+    // LCL-truck row listed the internal fleet (47 vehicles, all selectable).
+    // The sourcing gate must keep the TRUCK resource unrequested — and the
+    // picker empty of internal plates — until an external carrier is picked.
+    listResourcesMock.mockImplementation((async (resource: string) => {
+      if (resource === 'EXTERNAL_CARRIER') {
+        return { items: [{ id: 9, name: 'Nhà xe Hải Vân', isActive: true }], nextCursor: null, total: 1, limit: 50 };
+      }
+      if (resource === 'TRUCK') {
+        return {
+          items: [{ id: 5, licensePlate: '15E-016.26', status: 'ACTIVE', trailerType: null, currentTrailerId: null, currentTrailerPlate: null, capacityKg: null, assignedDriverId: 1, assignedDriverName: 'Nguyễn Duy Tuấn', carrierId: null, carrierName: null }],
+          nextCursor: null,
+          total: 1,
+          limit: 50,
+          suggestedItems: [],
+        };
+      }
+      return { items: [], nextCursor: null, total: 0, limit: 50, suggestedItems: [] };
+    }) as never);
+
+    renderCell(row());
+    await openDialog();
+    await waitFor(() => expect(listResourcesMock.mock.calls.some(([resource]) => resource === 'EXTERNAL_CARRIER')).toBe(true));
+
+    expect(listResourcesMock.mock.calls.some(([resource]) => resource === 'TRUCK')).toBe(false);
+
+    const vehicleTrigger = [...screen.getAllByRole('button')].find((button) => button.textContent?.includes('Chọn biển số xe'));
+    expect(vehicleTrigger).toBeTruthy();
+    fireEvent.click(vehicleTrigger!);
+    const popover = await screen.findByRole('dialog', { name: /Chọn biển số xe/ });
+    expect(within(popover).queryByText('15E-016.26')).toBeNull();
+    expect(listResourcesMock.mock.calls.some(([resource]) => resource === 'TRUCK')).toBe(false);
   });
 
   it('dòng OWN cũ (dữ liệu trước luật): mở dialog bị reset kèm cảnh báo, không giữ xe nội bộ', async () => {
