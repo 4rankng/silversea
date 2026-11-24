@@ -330,6 +330,22 @@ describe('SIL-500 — carrier click-to-edit (KHĐ 26/10)', () => {
     expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeInTheDocument();
   });
 
+  it('a carrier-less external row reads the SAME Chưa phân xe label — no Chưa phân nhà xe filler (SIL-932)', () => {
+    mockFleetResources();
+    const carrierless = row();
+    carrierless.dispatch = { ...carrierless.dispatch, carrierType: 'EXTERNAL', carrierName: null, externalCarrierId: null, assignedPlate: null };
+    renderCell(carrierless, {}, { open: false });
+    // K3.98 (SIL-932): every unassigned shape carries ONE muted label.
+    // The external-with-no-carrier shape used to fall through to a second
+    // label, 'Chưa phân nhà xe', which QA counted mixed across one page.
+    const carrierButton = screen.getByRole('button', { name: 'Sửa điều phối · Chưa phân xe · MSCU1234567' });
+    expect(carrierButton).toHaveTextContent('Chưa phân xe');
+    expect(carrierButton.className).toContain('is-placeholder');
+    expect(screen.queryByText('Chưa phân nhà xe')).toBeNull();
+    const cell = carrierButton.closest('.dispatch-assignment-cell') as HTMLElement;
+    expect(within(cell).getAllByText('Chưa phân xe')).toHaveLength(1);
+  });
+
   it('a live issued trip routes the carrier click to cancel dispatch (SIL-708)', async () => {
     mockFleetResources();
     const onCancelDispatch = vi.fn();

@@ -981,23 +981,23 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
       ? 'Đang phát lệnh — chưa hoàn thành được.'
       : null;
 
-  // SIL-753 (id 873): an unassigned row has NO carrier name — the backend
-  // sends null (OWN-without-vehicle is the stored shape of "chưa phân xe",
-  // what Hủy phân xe leaves behind). The carrier line then carries the OWN
-  // pending label 'Chưa phân xe' (placeholder styling) so the click-to-edit
-  // affordance keeps its text, and the plate line below stays EMPTY — it
-  // would only duplicate the same label. A row with no allocation at all
-  // (legacy external) keeps the 'Chưa phân nhà xe' filler.
+  // K3.98 (SIL-932, QA 24/11): an unassigned row reads ONE muted label
+  // 'Chưa phân xe' — every unassigned shape, not just OWN-without-vehicle.
+  // The backend sends carrierName null for the whole family (OWN-without-
+  // vehicle is what Hủy phân xe leaves behind; a carrier-less planned row
+  // used to fall through to the 'Chưa phân nhà xe' filler — that second
+  // label is what QA counted mixed across one page). The plate line below
+  // stays EMPTY — it would only duplicate the same label.
   const carrierName = row.dispatch.carrierName;
-  const unassignedOwn = carrierName == null && row.dispatch.carrierType === 'OWN';
-  const carrierLabel = carrierName ?? (unassignedOwn ? 'Chưa phân xe' : 'Chưa phân nhà xe');
+  const unassigned = carrierName == null;
+  const carrierLabel = carrierName ?? 'Chưa phân xe';
 
   return (
     <div className="dispatch-assignment-cell" data-cell-label="Điều phối">
       {carrierEditable ? (
         <button
           type="button"
-          className={`dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action${unassignedOwn ? ' is-placeholder' : ''}`}
+          className={`dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action${unassigned ? ' is-placeholder' : ''}`}
           onClick={openEditor}
           aria-haspopup="dialog"
           aria-label={canReassign
@@ -1010,16 +1010,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
           {carrierLabel}
         </button>
       ) : (
-        <span className={`dispatch-assignment-cell__carrier${unassignedOwn ? ' is-placeholder' : ''}`}>{carrierLabel}</span>
+        <span className={`dispatch-assignment-cell__carrier${unassigned ? ' is-placeholder' : ''}`}>{carrierLabel}</span>
       )}
       <div className="dispatch-assignment-cell__vehicle-group">
         {/* SIL-518 (owner 26/10): a row without a plate renders NO placeholder
-            line — the "CUS sẽ bổ sung" italic filler under "Chưa phân nhà xe"
-            is noise (the owner: the line below is EMPTY). Only the OWN-fleet
-            pending state keeps its text ("Chưa phân xe" — internal-fleet
-            state, not the removed external filler). SIL-753: when the carrier
-            line itself already reads 'Chưa phân xe' (unassigned OWN), the
-            plate line stays empty instead of printing the label twice. */}
+            line — the "CUS sẽ bổ sung" italic filler is noise (the owner: the
+            line below is EMPTY). K3.98 (SIL-932): when the carrier line itself
+            already reads 'Chưa phân xe' (any unassigned row), the plate line
+            stays empty instead of printing the label twice. */}
         {currentPlate ? (
           <span className="dispatch-assignment-cell__plate">{currentPlate}</span>
         ) : row.dispatch.carrierType === 'OWN' && carrierName != null ? (
