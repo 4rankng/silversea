@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMasterPlanNoteEditor, type OperationalNoteSave } from './useMasterPlanNoteEditor';
 import { FloatingCellEditor } from '../../../components/FloatingCellEditor';
-import { isLclLotRow, lclLotFlag } from './lclLot';
+import { isLclLotRow, lclLotFlag, lclLotGroupReasons } from './lclLot';
 import { canonicalShipmentStatus, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
@@ -441,10 +441,25 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                           title keeps the group detail. */}
                       {isLclLotRow(item) && (() => {
                         const flag = lclLotFlag(item);
+                        const reasons = lclLotGroupReasons(item);
                         return (
-                          <span className="master-plan-grid__lcl-chip" title={flag.title}>
-                            {flag.label}
-                          </span>
+                          <>
+                            <span className="master-plan-grid__lcl-chip" title={flag.title}>
+                              {flag.label}
+                            </span>
+                            {/* K10.38 (SIL-972) — the merged lot's 0₫/100%
+                                money reason rides the row (muted meta voice,
+                                same line family as the measures line). One
+                                line per merged dimension; empty ungrouped. */}
+                            {reasons.map((reason) => (
+                              <div
+                                key={reason}
+                                className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__lcl-reason"
+                              >
+                                {reason}
+                              </div>
+                            ))}
+                          </>
                         );
                       })()}
                       {/* Owner redesign 23/10 — "Container đủ 1 dòng": the

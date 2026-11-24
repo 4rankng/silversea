@@ -685,6 +685,18 @@ export interface ShipmentListItem extends Shipment {
    *  this (falling back to `cargoMode`) so their predicate matches the
    *  header count on real payloads. */
   hasActiveLclShipment?: boolean;
+  /** K10.38 (SIL-972) — the rest of the FB-092 wire (list-summaries emits
+   *  them; optional for older payloads). Group POSITION + LIVE SIZE feed the
+   *  "Lẻ · Ghép (k/N)" label; the principal refs + orders feed the row's
+   *  0₫/100% money reason. */
+  revGroupId?: string | null;
+  revGroupOrder?: number | null;
+  costGroupMemberCount?: number | null;
+  revGroupMemberCount?: number | null;
+  /** The PRINCIPAL lot's Số Bill/Booking of the row's group (null when
+   *  ungrouped or when the row IS the principal). */
+  costGroupPrincipalRef?: string | null;
+  revGroupPrincipalRef?: string | null;
 }
 
 export interface ShipmentContainerPortGroup {

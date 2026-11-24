@@ -30,19 +30,60 @@ export function isLclLotRow(
  * 'Nhập'/'Xuất' word elsewhere on the row. The trade direction therefore
  * rides the chip and the route line drops its own direction word on LCL
  * rows (the grid renders one fact once).
+ *
+ * K10.38 (SIL-972): a merged row's label carries the group counts the KB
+ * names — `· Ghép (k/N)` with k = the lot's 1-based group order
+ * (`costGroupOrder`) and N = the group's LIVE member count
+ * (`costGroupMemberCount`, soft-deleted members excluded). The counts render
+ * only when the wire carries them (older payloads degrade to `· Ghép`).
  */
 export function lclLotFlag(
-  item: Pick<ShipmentListItem, 'cargoMode' | 'hasActiveLclShipment' | 'costGroupId' | 'actualTruckNo' | 'tradeDirection'>,
+  item: Pick<ShipmentListItem, 'cargoMode' | 'hasActiveLclShipment' | 'costGroupId' | 'costGroupOrder' | 'costGroupMemberCount' | 'actualTruckNo' | 'tradeDirection'>,
 ): { label: string; title: string } {
   const direction = item.tradeDirection === 'IMPORT'
     ? 'NHẬP LẺ'
     : item.tradeDirection === 'EXPORT'
       ? 'XUẤT LẺ'
       : 'HÀNG LẺ';
-  return item.costGroupId != null
-    ? {
-        label: `${direction} · Ghép`,
-        title: `Lô hàng lẻ đã ghép trả ĐV cùng nhóm${item.actualTruckNo ? ` — BKS thực ${item.actualTruckNo}` : ''}`,
-      }
-    : { label: direction, title: 'Lô hàng lẻ (LCL) — chưa ghép nhóm' };
+  if (item.costGroupId == null) {
+    return { label: direction, title: 'Lô hàng lẻ (LCL) — chưa ghép nhóm' };
+  }
+  const counts = item.costGroupOrder != null && item.costGroupMemberCount != null
+    ? ` (${item.costGroupOrder}/${item.costGroupMemberCount})`
+    : '';
+  return {
+    label: `${direction} · Ghép${counts}`,
+    title: `Lô hàng lẻ đã ghép trả ĐV cùng nhóm${item.actualTruckNo ? ` — BKS thực ${item.actualTruckNo}` : ''}`,
+  };
+}
+
+export interface LclLotGroupReasonFields {
+  costGroupId?: string | null;
+  costGroupOrder?: number | null;
+  costGroupPrincipalRef?: string | null;
+  revGroupId?: string | null;
+  revGroupOrder?: number | null;
+}
+
+/**
+ * K10.38 (SIL-972) — the row's 0₫/100% money reason, one line per merged
+ * dimension. The FB-093 law: Lô 1 (order 1) carries the group's whole money
+ * ("giữ 100%"), members 2..N drop to 0₫. The REV member line speaks the BE's
+ * own tag (`LCL_REV_MERGE_TAG`); the COST member line cites the principal's
+ * Số Bill when the wire carries it (`costGroupPrincipalRef`). Empty for an
+ * ungrouped lot — no group, no reason.
+ */
+export function lclLotGroupReasons(item: LclLotGroupReasonFields): string[] {
+  const reasons: string[] = [];
+  if (item.costGroupId != null) {
+    reasons.push((item.costGroupOrder ?? 1) > 1
+      ? `0₫ cước trả ĐV — Lô 1 giữ 100%${item.costGroupPrincipalRef ? ` (Ghép cùng Bill ${item.costGroupPrincipalRef})` : ''}`
+      : 'Lô 1 giữ 100% cước trả ĐV');
+  }
+  if (item.revGroupId != null) {
+    reasons.push((item.revGroupOrder ?? 1) > 1
+      ? '0₫ cước thu — Ghép thu cước cùng Lô 1'
+      : 'Lô 1 giữ 100% cước thu khách');
+  }
+  return reasons;
 }

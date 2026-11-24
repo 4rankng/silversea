@@ -331,3 +331,69 @@ describe('MasterPlanGrid — the LCL flag is a chip (SIL-708)', () => {
     expect(css).not.toMatch(/\.mpcard__type[^{]*\{[^}]*position:\s*absolute/);
   });
 });
+
+// K10.38 (SIL-972) — the merged row names its position and its money law:
+// the chip reads `· Ghép (k/N)` (k = costGroupOrder, N = the group's LIVE
+// member count the wire carries) and the 0₫/100% reason rides the row.
+// Older payloads without the counts degrade to the bare `· Ghép` — the
+// SIL-589/708/951 pins above keep pinning that shape.
+describe('MasterPlanGrid — Ghép (k/N) counts + the 0₫/100% reason (K10.38/SIL-972)', () => {
+  it('a merged lot reads Ghép (k/N) with its position and the live member count', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ costGroupId: 'grp-k1038', costGroupOrder: 1, costGroupMemberCount: 2, actualTruckNo: '15E-016.26' })]}
+      onAllocate={vi.fn()}
+    />);
+    expect(within(cell('Tổng quan hàng hóa')).getByText('NHẬP LẺ · Ghép (1/2)')).toBeTruthy();
+  });
+
+  it("the principal (Lô 1) says it keeps 100% of the group's cước trả ĐV", () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ costGroupId: 'grp-k1038', costGroupOrder: 1, costGroupMemberCount: 3 })]}
+      onAllocate={vi.fn()}
+    />);
+    const reason = cell('Tổng quan hàng hóa').querySelector('.master-plan-grid__lcl-reason');
+    expect(reason?.textContent).toBe('Lô 1 giữ 100% cước trả ĐV');
+  });
+
+  it('a member (Lô 2..N) reads 0₫ and cites the principal lot it rides', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({
+        costGroupId: 'grp-k1038', costGroupOrder: 2, costGroupMemberCount: 2,
+        costGroupPrincipalRef: 'BL-LCL-2026-090',
+      })]}
+      onAllocate={vi.fn()}
+    />);
+    const cargo = cell('Tổng quan hàng hóa');
+    expect(within(cargo).getByText('NHẬP LẺ · Ghép (2/2)')).toBeTruthy();
+    expect(cargo.querySelector('.master-plan-grid__lcl-reason')?.textContent)
+      .toBe('0₫ cước trả ĐV — Lô 1 giữ 100% (Ghép cùng Bill BL-LCL-2026-090)');
+  });
+
+  it('a rev-group member says its cước thu is 0₫ on the merged Lô 1 tag', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ revGroupId: 'rgp-k1038', revGroupOrder: 2, revGroupMemberCount: 2 })]}
+      onAllocate={vi.fn()}
+    />);
+    const reasons = Array.from(cell('Tổng quan hàng hóa').querySelectorAll('.master-plan-grid__lcl-reason'));
+    expect(reasons.map((reason) => reason.textContent)).toEqual(['0₫ cước thu — Ghép thu cước cùng Lô 1']);
+  });
+
+  it('a rev-group principal (Lô 1) says it keeps 100% of the cước thu khách', () => {
+    render(<MasterPlanGrid
+      items={[lclItem({ revGroupId: 'rgp-k1038', revGroupOrder: 1, revGroupMemberCount: 2 })]}
+      onAllocate={vi.fn()}
+    />);
+    expect(cell('Tổng quan hàng hóa').querySelector('.master-plan-grid__lcl-reason')?.textContent)
+      .toBe('Lô 1 giữ 100% cước thu khách');
+  });
+
+  it('an ungrouped lot carries no reason line at all', () => {
+    render(<MasterPlanGrid items={[lclItem()]} onAllocate={vi.fn()} />);
+    expect(cell('Tổng quan hàng hóa').querySelector('.master-plan-grid__lcl-reason')).toBeNull();
+  });
+
+  it('the xlsx export carries the counts in the merged badge', () => {
+    const cells = mapMasterPlanExportRow(lclItem({ costGroupId: 'grp-k1038', costGroupOrder: 1, costGroupMemberCount: 2 }));
+    expect(cells[5].split('\n')[0]).toBe('NHẬP LẺ · Ghép (1/2)');
+  });
+});
