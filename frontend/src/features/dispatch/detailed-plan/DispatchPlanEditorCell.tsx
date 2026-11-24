@@ -1399,8 +1399,13 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
                  never a price (house law 04/11). The seed law clears it when
                  the nhà-xe board ask ANSWERS a miss, but when the ask cannot
                  fire at all (missing weight / size-class) the fake 0 sat in
-                 the field. Render empty — the help text names the gap. */
+                 the field. Render empty — the help text names the gap.
+                 SIL-931 (KB §2.4.1 K2.98): the empty field ALSO drops
+                 NumberField's default '0' placeholder — that placeholder
+                 re-printed the fake "0 đ" QA filed (stored null, display 0).
+                 '—' is the house no-value glyph, never a fabricated number. */
               value={draft.plannedCarrierCost === 0 ? '' : draft.plannedCarrierCost}
+              placeholder="—"
               onChange={(n) => { setDraft((current) => ({ ...current, plannedCarrierCost: n })); setError(null); }}
               disabled={saving}
               helpText={carrierPrice.data?.matched === 'SUPPLIER'
