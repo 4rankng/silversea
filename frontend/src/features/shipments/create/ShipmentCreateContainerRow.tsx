@@ -4,7 +4,7 @@ import type { CatalogData } from '../../../api/tripClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
-import { formatDateTime24 } from '../../../lib/format';
+import { formatDateTime24, formatWeight } from '../../../lib/format';
 import {
   USearchableField as SearchableField,
   UTextField as TextField,
@@ -18,13 +18,6 @@ import type { ShipmentContainerDraft } from './shipment-create-model';
 import './ShipmentDeclarationInline.css';
 
 type ContainerRow = ShipmentContainerDraft;
-
-function formatContainerWeight(value: string) {
-  if (!value.trim()) return '';
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return value;
-  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(parsed);
-}
 
 function formatContainerAppointment(value: string) {
   return formatDateTime24(value) || value;
@@ -360,7 +353,11 @@ export function ShipmentCreateContainerRow({
             microLabelText="Trọng lượng"
             contractLabel="Trọng lượng (kg)"
             fieldId={`container-${row.key}-weight`}
-            value={formatContainerWeight(row.cargoWeightKg)}
+            // SIL-930 (KB §3.7.4 K3.99): weight DISPLAYS in tấn ("18.500 kg →
+            // 18,5 tấn", vi-VN) via the shared formatWeight — the old local
+            // formatter printed bare kg "18.500", reading as 18.500 tấn. The
+            // EDIT stays raw kg (contractLabel + unit span below).
+            value={formatWeight(row.cargoWeightKg, { empty: '' })}
             emptyText="Nhập kg"
             numeric
             triggerAriaLabel={`Chỉnh sửa trọng lượng — dòng ${index + 1}`}

@@ -125,7 +125,8 @@ describe('SIL-656 (id 763): "Nhập kg" autofocuses the weight input', () => {
 
     fireEvent.keyDown(input, { key: 'Enter' });
     await waitFor(() => expect(panel).not.toHaveClass('is-open'));
-    expect(weightTrigger(0).textContent).toContain('12.000');
+    // SIL-930 (KB §3.7.4 K3.99): the line displays the kg commit in tấn.
+    expect(weightTrigger(0).textContent).toContain('12 tấn');
   });
 
   it('Escape still returns focus to the trigger (close behaviour unchanged)', { timeout: 10000 }, async () => {

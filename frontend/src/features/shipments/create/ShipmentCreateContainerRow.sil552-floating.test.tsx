@@ -87,9 +87,9 @@ describe('SIL-552 (id 626): SỐ CONTAINER group lines open the floating editor'
     fireEvent.keyDown(input, { key: 'Enter' });
 
     // The commit lands in the draft row and the card closes; the ghost line
-    // shows the localized value.
+    // shows the value in tấn (SIL-930, KB §3.7.4 K3.99 — display unit).
     await waitFor(() => expect(panel).not.toHaveClass('is-open'));
-    expect(screen.getAllByRole('button', { name: /Chỉnh sửa trọng lượng — dòng \d+/ })[0]!.textContent).toContain('12.000');
+    expect(screen.getAllByRole('button', { name: /Chỉnh sửa trọng lượng — dòng \d+/ })[0]!.textContent).toContain('12 tấn');
     expect(document.activeElement).toBe(weightTrigger());
   });
 

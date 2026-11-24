@@ -90,8 +90,9 @@ describe('Thêm container copies the previous row including trọng lượng (SI
     addContainer();
     expect(weightTriggers()).toHaveLength(2);
     expect(weightValue(1)).toBe('10000');
-    // The display cell renders the formatted kilos, not a blank.
-    expect(screen.getAllByText('10.000').length).toBeGreaterThan(0);
+    // The display cell renders the committed weight in tấn (SIL-930, KB
+    // §3.7.4 K3.99), not a blank and not bare kilos.
+    expect(screen.getAllByText('10 tấn').length).toBeGreaterThan(0);
     // The two per-container identifiers stay the operator's own entry.
     expect(numberInputs()[1]!.value).toBe('');
     // The LOẠI ghost line shows the empty placeholder ("Chọn loại"), never
