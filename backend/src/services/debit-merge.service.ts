@@ -692,7 +692,7 @@ export async function getDebitMergeBoard(query: {
         gnPaidPending: noInvoice.gnPaidPending,
         psFeePending: noInvoice.psFeePending,
         psPaidPending: noInvoice.psPaidPending,
-        fees: noInvoice.fees.map((fee) => ({ name: fee.name, amount: String(fee.amount), pending: fee.pending })),
+        fees: noInvoice.fees.map((fee) => ({ name: fee.name, amount: String(fee.amount), side: fee.side, pending: fee.pending })),
       },
       control: {
         tongTc: tongTc == null ? null : String(tongTc),

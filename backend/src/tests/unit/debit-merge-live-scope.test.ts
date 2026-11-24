@@ -143,6 +143,10 @@ describe('SIL-896 round 11 — Tên phí and Tổng TC on the un-negotiated pend
     assert.match(serviceSource, /typeName: s\.forwarderExpenseTypes\.name,/);
     assert.match(serviceSource, /feeName: debitMergeFeeNameOf\(\{ feeName: row\.feeName, typeName: row\.typeName \}\)/);
     assert.match(serviceSource, /const contribution = debitMergeOpsChargeContribution\(row\);/);
+    // Round 11: the assembly must CARRY side onto the wire — the money cells
+    // render one line per fee from it (a mapped-over side renders the
+    // aggregated-stack law dead).
+    assert.match(serviceSource, /side: fee\.side, pending: fee\.pending/);
     // The read loop resolves every bucket name through the fallback; the
     // pure builders keep pushing their (already resolved) input rows.
     const opsLoop = serviceSource.slice(
