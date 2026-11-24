@@ -135,6 +135,10 @@ function DriverTripDetailContent() {
   const cancelled = trip?.status === TripStatus.CANCELED;
   const closed = completed || cancelled;
   const currentSubmission = (trip?.currentPod ?? null) as DriverTaskPodSubmission | null;
+  // SIL-918 (KB §3.5.2/§3.6.1, audit 24/11): hàng lẻ carries no container —
+  // the driver screen drops the FCL "Số cont & seal" frame and the FCL
+  // evidence slot ("Phiếu bãi / phiếu hạ") for LCL trips.
+  const isLcl = trip?.fulfillment?.modeLabel === 'LCL';
   // SIL-768 (09/11, customer CR-006): the Ảnh nhiên liệu block is REMOVED from
   // the detail screen — the feature moves to a dedicated fleet fuel-norm
   // module later. Recorded fuel evidence rows are untouched (data stays);
@@ -256,7 +260,7 @@ function DriverTripDetailContent() {
     try {
       const draftSubmission = currentSubmission?.status === 'DRAFT' ? currentSubmission : null;
       const draftHasBothTypes = draftSubmission != null
-        && missingRequiredPodFileTypes(draftSubmission).length === 0;
+        && missingRequiredPodFileTypes(draftSubmission, trip?.fulfillment?.modeLabel).length === 0;
       if (draftHasBothTypes) {
         const idempotencyKey = buildIdempotencyKey(
           'driver', 'task', validFulfillmentId,
@@ -418,12 +422,17 @@ function DriverTripDetailContent() {
   // this CTA — completion never blocks on missing e-POD files. These flags
   // only feed the Chứng từ card copy so the driver knows what is still
   // missing; upload them on the e-POD screen any time.
-  const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission);
+  const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission, trip?.fulfillment?.modeLabel);
 
   // Card 20260926_28 item 10: live completion state for the sticky bar (and
   // the top progress strip). SIL-733 r2: the strip NAMES the missing docs
-  // (informational) — it never disables completion.
-  const podHave = (hasYardReceipt ? 1 : 0) + (hasSignedNote ? 1 : 0);
+  // (informational) — it never disables completion. SIL-918: the strip
+  // counts the MODE'S OWN evidence set — "have" = required minus missing,
+  // so the vacuous LCL yard flag can never fake a satisfied slot — and the
+  // photo counter drops with the Số cont & seal card.
+  const podRequired = isLcl ? 1 : 2;
+  const podMissingCount = missingRequiredPodFileTypes(currentSubmission, trip?.fulfillment?.modeLabel).length;
+  const podHave = Math.max(0, podRequired - podMissingCount);
   const photoTypes = new Set(containerSealPhotos.map((p) => p.type));
   const photoHave = ['CONTAINER', 'SEAL', 'DELIVERY_NOTE'].filter((type) => photoTypes.has(type as never)).length;
   // Card 061026043643: the counter reports UPLOADED PHOTOS, not filled zones —
@@ -460,8 +469,10 @@ function DriverTripDetailContent() {
           saved cost entries. Incomplete groups warn, complete groups show
           ok. */}
       <div className="driver-task-progress" data-testid="driver-task-progress">
-        <span className={`driver-task-progress__item${podHave >= 2 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-pod">Chứng từ {podHave}/2</span>
-        <span className={`driver-task-progress__item${photoHave >= 3 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-photos">Ảnh {photoCount}/3</span>
+        <span className={`driver-task-progress__item${podHave >= podRequired ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-pod">Chứng từ {podHave}/{podRequired}</span>
+        {!isLcl && (
+          <span className={`driver-task-progress__item${photoHave >= 3 ? ' driver-task-progress__item--done' : ' driver-task-progress__item--open'}`} data-testid="progress-photos">Ảnh {photoCount}/3</span>
+        )}
         <span className="driver-task-progress__item" data-testid="progress-costs">Chi phí {costEntryCount}</span>
       </div>
 
@@ -517,7 +528,7 @@ function DriverTripDetailContent() {
               <p className="driver-task-footer__issues" role="list">
                 {/* SIL-697 resolved 09/11 — the trip-detail notice keeps the
                     soft law wording (files optional, completion never blocks). */}
-                <span role="listitem">{missingPodFilesMessage(currentSubmission)}</span>
+                <span role="listitem">{missingPodFilesMessage(currentSubmission, trip?.fulfillment?.modeLabel)}</span>
                 {!hasYardReceipt && <span role="listitem">Thiếu Phiếu bãi / phiếu hạ</span>}
                 {!hasSignedNote && <span role="listitem">Thiếu Biên bản giao nhận</span>}
               </p>
@@ -568,19 +579,24 @@ function DriverTripDetailContent() {
       </section>
       </DriverTaskInfoSections>
 
-      <section className="driver-task-section">
-        <DriverContainerCard
-          tripId={trip.id}
-          readOnly={closed}
-          containers={trip.containers}
-          contPhotoKey={contPhotoKey}
-          sealPhotoKey={sealPhotoKey}
-          deliveryNotePhotoKeys={deliveryNotePhotoKeys}
-          tradeDirection={trip.tradeDirection ?? null}
-          pairTagLabel={pairTagLabel}
-          onSaved={handleContainerSaved}
-        />
-      </section>
+      {/* SIL-918 (KB §3.6.1): hàng lẻ has no container — the Số cont & seal
+          frame (and its capture zones) renders for FCL trips only. The LCL
+          delivery-note evidence rides the e-POD screen instead. */}
+      {!isLcl && (
+        <section className="driver-task-section">
+          <DriverContainerCard
+            tripId={trip.id}
+            readOnly={closed}
+            containers={trip.containers}
+            contPhotoKey={contPhotoKey}
+            sealPhotoKey={sealPhotoKey}
+            deliveryNotePhotoKeys={deliveryNotePhotoKeys}
+            tradeDirection={trip.tradeDirection ?? null}
+            pairTagLabel={pairTagLabel}
+            onSaved={handleContainerSaved}
+          />
+        </section>
+      )}
 
       <section className="driver-task-section">
         <div className="driver-task-section__head">

@@ -361,6 +361,37 @@ describe('DriverTripPodPage', () => {
     expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
   });
 
+  // SIL-918 (KB §3.5.2, audit 24/11): hàng lẻ carries no container — its
+  // evidence set is the biên bản alone, so an uploaded phiếu bãi does not
+  // satisfy anything and the grid receives the LCL mode.
+  it('SIL-918: an LCL trip warns on the biên bản alone and feeds the POD grid cargoMode=LCL', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: makePod([{ fileType: 'YARD_OR_DROP_RECEIPT' }]),
+        podHistory: [],
+        fulfillment: { id: FULFILLMENT_ID, documentNumber: 'BILL-LCL-55', driverNotes: null, modeLabel: 'LCL' },
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    renderPage();
+
+    // The footer copy names the LCL set only — no phiếu bãi wording anywhere.
+    expect(screen.queryByText(/Phiếu bãi \/ phiếu hạ/)).toBeNull();
+    // React's render pass carries a trailing ref slot — assert the props arg.
+    expect(podSubmissionMock.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ cargoMode: 'LCL' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
+    expect(toastMock).toHaveBeenCalledWith({
+      kind: 'warning',
+      message: 'Thiếu 1 file e-POD — nên bổ sung.',
+    });
+    await waitFor(() => expect(completeTripMock).toHaveBeenCalled());
+    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+  });
+
   // SIL-697 resolved (09/11): the draft holds ONLY the yard receipt — the
   // completion warns about the one missing file and proceeds (submit + complete).
   it('SIL-697 resolved: yard-receipt-only draft warns naming the count and completes', async () => {

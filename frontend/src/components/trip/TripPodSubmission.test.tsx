@@ -52,6 +52,31 @@ describe('TripPodSubmission', () => {
     expect(screen.queryByText('Chứng từ bắt buộc')).toBeNull();
   });
 
+  it('SIL-918: an LCL trip renders the biên bản card alone — no FCL phiếu bãi card', () => {
+    render(
+      <TripPodSubmission
+        tripVersion={3}
+        cargoMode="LCL"
+        currentSubmission={draftSubmission()}
+        history={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+      />,
+    );
+
+    // KB §3.5.2: hàng lẻ uses its own evidence set — the FCL "Phiếu bãi /
+    // phiếu hạ" card never renders.
+    expect(screen.queryByText('Phiếu bãi / phiếu hạ')).toBeNull();
+    expect(screen.getAllByText(/Biên bản giao nhận có ký nhận/).length).toBeGreaterThan(0);
+    // The soft count reads the mode's own set: only the biên bản is missing.
+    expect(screen.getByText(/Thiếu 1 file e-POD — nên bổ sung\./)).toBeTruthy();
+    // A single card collapses the grid to one full-width track.
+    expect(document.querySelector('.trip-pod__grid--single')).toBeTruthy();
+    expect(document.querySelector('.trip-pod__grid')?.getAttribute('data-required-types')).toBe('1');
+  });
+
   it('creates a draft if needed before uploading a picked file', async () => {
     const ensureDraft = vi.fn().mockResolvedValue(draftSubmission({ status: TripPodStatus.DRAFT }));
     const uploadFile = vi.fn().mockResolvedValue(undefined);

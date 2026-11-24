@@ -11,10 +11,11 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { TRIP_POD_REQUIRED_FILE_TYPES, TripPodFileType, TripPodStatus } from '@tingting/shared';
+import { TripPodFileType, TripPodStatus } from '@tingting/shared';
 import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTime } from '../../features/driver/driver-trip-model';
 import { stripInternalCodeFromFileName } from '../../lib/internalCode';
+import { requiredPodFileTypes } from '../../lib/podReadiness';
 import { usePodUpload } from './usePodUpload';
 import { PodPendingFile } from './PodPendingFile';
 import { PhotoViewer } from '../PhotoViewer';
@@ -25,6 +26,10 @@ import './TripPodSubmission.css';
 export interface TripPodSubmissionProps {
   documentNumber?: string | null;
   tripVersion: number;
+  /** Lot cargo mode (KB §3.5.2, SIL-918): an LCL trip renders the LCL
+   *  evidence set — the biên bản giao nhận card alone; the FCL "Phiếu bãi /
+   *  phiếu hạ" card does not apply to hàng lẻ. Absent/unknown = FCL set. */
+  cargoMode?: string | null;
   currentSubmission: DriverTaskPodSubmission | null;
   history: DriverTaskPodSubmission[];
   creatingDraft: boolean;
@@ -39,8 +44,6 @@ export interface TripPodSubmissionProps {
   // button rather than a dead control. The single page caller does wire it.
   onRemoveFile?: (submission: DriverTaskPodSubmission, fileId: number) => Promise<void>;
 }
-
-const REQUIRED_FILE_TYPES = TRIP_POD_REQUIRED_FILE_TYPES;
 
 const FILE_TYPE_LABELS: Record<string, string> = {
   [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Phiếu bãi / phiếu hạ',
@@ -92,6 +95,7 @@ function triggerInput(ref: React.RefObject<HTMLInputElement | null>) {
 
 export function TripPodSubmission({
   documentNumber,
+  cargoMode,
   currentSubmission,
   history,
   creatingDraft,
@@ -178,7 +182,11 @@ export function TripPodSubmission({
   const hasPendingFiles = Object.keys(pendingFiles).length > 0;
   useEffect(() => { onPendingChange?.(hasPendingFiles); }, [hasPendingFiles, onPendingChange]);
   const busy = processing || uploading || creatingDraft;
-  const missingRequired = REQUIRED_FILE_TYPES.filter((fileType) => groupedFiles[fileType].length === 0);
+  // SIL-918 (KB §3.5.2): the trip's OWN evidence set — LCL drops the FCL
+  // "phiếu bãi / phiếu hạ" card entirely; the counters and the foot read
+  // the same filtered list so nothing double-counts.
+  const requiredTypes = requiredPodFileTypes(cargoMode);
+  const missingRequired = requiredTypes.filter((fileType) => groupedFiles[fileType].length === 0);
   const latestHistory = history.filter((submission) => submission.id !== currentSubmission?.id);
   // Card 071026212500: take back a photo from the driver's own draft. The server
   // refuses this once submitted, so the affordance is draft-only and the two
@@ -242,7 +250,7 @@ export function TripPodSubmission({
   }
 
   const uploadProgressPercent = Math.round(
-    ((REQUIRED_FILE_TYPES.length - missingRequired.length) / REQUIRED_FILE_TYPES.length) * 100,
+    ((requiredTypes.length - missingRequired.length) / requiredTypes.length) * 100,
   );
 
   return (
@@ -285,8 +293,12 @@ export function TripPodSubmission({
         </div>
       )}
 
-      <div className="trip-pod__grid" data-editable={!isLocked}>
-        {REQUIRED_FILE_TYPES.map((fileType) => {
+      <div
+        className={`trip-pod__grid${requiredTypes.length === 1 ? ' trip-pod__grid--single' : ''}`}
+        data-editable={!isLocked}
+        data-required-types={requiredTypes.length}
+      >
+        {requiredTypes.map((fileType) => {
           const files = groupedFiles[fileType];
           return (
             <article key={fileType} className="trip-pod__card">

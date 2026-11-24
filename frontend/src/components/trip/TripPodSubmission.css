@@ -419,12 +419,17 @@
 @media (min-width: 700px) {
   .trip-pod__grid {
     /* Exactly two required e-POD types render in this grid
-       (REQUIRED_FILE_TYPES in TripPodSubmission.tsx) — a third track would
+       (requiredPodFileTypes in lib/podReadiness) — a third track would
        sit empty and starve the two real cards of width. minmax(0,1fr) keeps
        the tracks content-independent so wide children can't inflate them. */
     grid-template-columns: repeat(2, minmax(0, 1fr));
     row-gap: 8px;
     align-content: start;
+  }
+  .trip-pod__grid--single {
+    /* SIL-918 (KB §3.5.2): an LCL trip renders the biên bản card alone —
+       one full-width track instead of a half card beside an empty one. */
+    grid-template-columns: minmax(0, 1fr);
   }
   .trip-pod__card {
     /* Both groups share content-sized header, action and file tracks.

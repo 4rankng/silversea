@@ -420,6 +420,32 @@ describe('DriverTripDetailPage', () => {
     expect(screen.queryByText(/có ký nhận/)).toBeNull();
   });
 
+  it('SIL-918: an LCL trip drops the FCL evidence slot and the Số cont & seal frame', async () => {
+    const base = makeTaskDetail();
+    useDriverTaskDetailMock.mockReturnValue({
+      data: { ...base, fulfillment: { ...base.fulfillment, modeLabel: 'LCL' } },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByTestId('complete-sticky-bar');
+    // KB §3.5.2/§3.6.1: hàng lẻ has no container — the evidence set is the
+    // biên bản alone, so the FCL phiếu bãi gap and its strip seat disappear.
+    expect(screen.getByText('Thiếu 1 file e-POD — nên bổ sung.')).toBeTruthy();
+    expect(screen.queryByText('Thiếu Phiếu bãi / phiếu hạ')).toBeNull();
+    expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
+    // The FCL container frame never renders for hàng lẻ.
+    expect(screen.queryByText('Số cont & seal')).toBeNull();
+    // The strip counts the mode's own set and drops the photo counter with
+    // the hidden container card.
+    const strip = screen.getByTestId('driver-task-progress');
+    // The label interpolates across text nodes — read the span's full text.
+    expect(within(strip).getByTestId('progress-pod').textContent?.replace(/\s+/g, ' ').trim()).toBe('Chứng từ 0/1');
+    expect(within(strip).queryByTestId('progress-photos')).toBeNull();
+  });
+
   it('navigates to the e-POD page when the driver taps the footer document link', async () => {
     // Card _28 item 10: the action lives in the sticky bar, which owns the
     // slot only once the order is accepted.

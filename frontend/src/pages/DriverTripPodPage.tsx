@@ -121,7 +121,7 @@ export function DriverTripPodPage() {
     ? (parsedDriverNote.manualText || null)
     : (trip?.notes ?? null);
 
-  const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission);
+  const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission, trip?.fulfillment?.modeLabel);
   const documentBusy = preparingPod || creatingDraft || uploadingPod;
   // SIL-697 resolved: e-POD files no longer gate Hoàn thành (22/10 law +
   // SIL-733 PASS — newest decisions win). These facts drive the footer's
@@ -234,7 +234,7 @@ export function DriverTripPodPage() {
     // SIL-697 resolved (owner 09/11 — the 22/10 optional law + the shipped
     // SIL-733 PASS win as the newest decisions): missing files no longer
     // block the submit. Warn softly, then send anyway.
-    const podWarning = missingPodFilesMessage(submission);
+    const podWarning = missingPodFilesMessage(submission, trip?.fulfillment?.modeLabel);
     if (podWarning) {
       toast({ kind: 'warning', message: podWarning });
     }
@@ -274,7 +274,7 @@ export function DriverTripPodPage() {
     // on evidence. Backfill stays possible only while a submission remains
     // DRAFT (the trip-detail path leaves its DRAFT open); the submit here
     // freezes this page's DRAFT.
-    const podWarning = missingPodFilesMessage(currentSubmission);
+    const podWarning = missingPodFilesMessage(currentSubmission, trip?.fulfillment?.modeLabel);
     if (podWarning) {
       toast({ kind: 'warning', message: podWarning });
     }
@@ -442,6 +442,7 @@ export function DriverTripPodPage() {
             key={trip.id}
             documentNumber={documentNumber}
             tripVersion={trip.version}
+            cargoMode={trip.fulfillment?.modeLabel ?? null}
             currentSubmission={currentSubmission}
             history={podHistory}
             creatingDraft={creatingDraft}
@@ -491,7 +492,9 @@ export function DriverTripPodPage() {
                 decisions) — the copy says so, and names what is missing as a
                 soft reminder instead of a block. */}
             <p>
-              Ảnh chứng từ (Phiếu bãi / phiếu hạ, Biên bản giao nhận có ký nhận) là
+              Ảnh chứng từ ({trip.fulfillment?.modeLabel === 'LCL'
+                ? 'Biên bản giao nhận có ký nhận'
+                : 'Phiếu bãi / phiếu hạ, Biên bản giao nhận có ký nhận'}) là
               tùy chọn — thiếu vẫn bấm HOÀN THÀNH CHUYẾN được; hệ thống chỉ nhắc bổ sung.
             </p>
             {!podReady && (
