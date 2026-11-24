@@ -281,8 +281,10 @@ describe('DetailedPlanGrid', () => {
       'trailer',
       'classification',
       'notes',
-      'actions',
     ];
+    // K4.17 (SIL-954): the Thao tác rail is a fixed 48px strip, outside the
+    // percentage pool.
+    expect(css).toMatch(/\.detailed-plan-grid__col--actions\s*\{\s*width:\s*48px;\s*\}/);
 
     const widths = columnNames.map((columnName) => {
       const match = css.match(new RegExp(`\\.detailed-plan-grid__col--${columnName}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%;\\s*\\}`));
@@ -307,7 +309,6 @@ describe('DetailedPlanGrid', () => {
     expect(widths[columnNames.indexOf('route')]).toBeGreaterThanOrEqual(10);
     expect(widths[columnNames.indexOf('assignment')]).toBeGreaterThanOrEqual(13);
     expect(widths[columnNames.indexOf('notes')]).toBeGreaterThanOrEqual(8.5);
-    expect(widths[columnNames.indexOf('actions')]).toBeGreaterThanOrEqual(6.5);
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*width:\s*100%;/);
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*max-width:\s*100%;/);
     expect(css).toMatch(/\.detailed-plan-grid thead th\s*\{[^}]*line-height:\s*var\(--ops-table-header-line-height\);/);

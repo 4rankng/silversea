@@ -38,24 +38,26 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
   });
 
   it('keeps balanced column shares summing to 100% for 1440px viewport', () => {
-    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'trailer', 'classification', 'notes', 'actions'];
+    // K4.17 (SIL-954): the Thao tác rail left the percentage pool — it is a
+    // fixed 48px strip; the reading shares still sum to exactly 100.
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'trailer', 'classification', 'notes'];
     const shares = names.map((name) => columnShare(name));
     // The ports class covers both port columns (two <col> elements share it).
     const total = shares.reduce((sum, share) => sum + share, 0) + columnShare('ports');
     expect(total).toBe(100);
+    expect(css).toMatch(/\.detailed-plan-grid__col--actions\s*\{\s*width:\s*48px;\s*\}/);
     expect(columnShare('route')).toBeGreaterThanOrEqual(10);
-    // K2.31 (SIL-934): the Moóc column joins at 6.5%; the reading columns
+    // K2.31 (SIL-934): the Moóc column joined (now 7.5%); the reading columns
     // fund it and the min-width floor rose to 1700px so the measured floors
     // below still clear at 1% = 17px (schedule 204px ≥ its 180px one-line
     // header, route 178.5px ≥ its 175px floor).
-    expect(columnShare('trailer')).toBeGreaterThanOrEqual(6.5);
+    expect(columnShare('trailer')).toBeGreaterThanOrEqual(7.5);
     expect(columnShare('assignment')).toBeGreaterThanOrEqual(13);
     // SIL-795: the floors the shares must still pay at the 1700px table
     // floor — notes keeps its wrap budget, schedule PAYS its one-line
     // header (the ≤12.5 cap of the 1440-no-scroll era is retired: the rail
     // scrolls on purpose now, so the cap can no longer be paid honestly).
     expect(columnShare('notes')).toBeGreaterThanOrEqual(8.5);
-    expect(columnShare('actions')).toBeGreaterThanOrEqual(6.5);
     expect(columnShare('schedule')).toBeGreaterThanOrEqual(12); // 204px >= the 180px one-line header floor at the 1700 rail
     expect(columnShare('route')).toBeGreaterThanOrEqual(10.5); // 178.5px >= the 175px header floor
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1700px;/); // SIL-795 measured floors + the K2.31 Moóc column
@@ -113,9 +115,9 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     // rebalance; the measured one-line label is 85px + cell padding).
     // K2.31 (SIL-934): the column funded the Moóc column's 0.5%.
     expect(columnShare('classification')).toBe(6);
-    // The shares fund the K2.31 Moóc column (6.5%), keeping the sum at
-    // exactly 100.
-    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'trailer', 'classification', 'notes', 'actions'];
+    // The reading shares fund the K2.31 Moóc column (7.5%) and sum to
+    // exactly 100 — the Thao tác rail is outside the pool (K4.17, 48px).
+    const names = ['schedule', 'route', 'ports', 'documents', 'container', 'declaration', 'assignment', 'trailer', 'classification', 'notes'];
     const total = names.map((name) => columnShare(name)).reduce((sum, share) => sum + share, 0) + columnShare('ports');
     expect(total).toBe(100);
   });
@@ -172,11 +174,11 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(bodies.length).toBeGreaterThanOrEqual(8);
   });
 
-  it('SIL-755 (round 2): actions column fits THAO TÁC header and vertically stacked actions in 74-88px width', () => {
+  it('K4.17 (SIL-954): actions column is a fixed 44-48px rail with vertically stacked actions', () => {
     const actionCellRule = css.match(/\.detailed-plan-grid th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(actionCellRule).toContain('width: 78px');
-    expect(actionCellRule).toContain('min-width: 74px');
-    expect(actionCellRule).toContain('max-width: 88px');
+    expect(actionCellRule).toContain('width: 48px');
+    expect(actionCellRule).toContain('min-width: 44px');
+    expect(actionCellRule).toContain('max-width: 48px');
     expect(actionCellRule).toContain('white-space: nowrap');
 
     const stackRule = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';

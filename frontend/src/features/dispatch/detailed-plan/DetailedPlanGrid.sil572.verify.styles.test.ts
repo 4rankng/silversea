@@ -12,11 +12,11 @@ const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-
 
 describe('pinned Thao tác rail width reservation (SIL-572)', () => {
   it('declares the rail reserve and pays it at the Ghi chú cell edge', () => {
-    // SIL-686 (06/11): the rail share grew to 5.7% (~87px at the 1520px
-    // floor) so the one-line "THAO TÁC" header rides it; the reserve follows.
-    // SIL-713 (07/11): the actions column stacks VERTICALLY at 44–48px wide;
-    // SIL-755 (08/11 round 2): widened to 78px so "THAO TÁC" header and stacked buttons fit without cut.
-    expect(css).toMatch(/--dpg-actions-reserve:\s*78px;/);
+    // SIL-686 (06/11): the rail share grew so the one-line "THAO TÁC" header
+    // rides it; SIL-713 (07/11): the actions column stacks VERTICALLY;
+    // K4.17 (SIL-954, 24/11): the rail is a FIXED 48px strip — the reserve
+    // follows the rail, not a share.
+    expect(css).toMatch(/--dpg-actions-reserve:\s*48px;/);
     expect(css).toMatch(
       /\.detailed-plan-grid td\.detailed-plan-grid__cell--notes\s*\{[^}]*padding-inline-end:\s*calc\(var\(--space-sm\) \+ var\(--dpg-actions-reserve\)\);/,
     );
