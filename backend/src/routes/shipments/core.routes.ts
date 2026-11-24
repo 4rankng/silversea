@@ -48,8 +48,7 @@ import { assignShipmentCarriers, createOperationalSiteForIntake, createShippingL
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
-import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listPendingShipmentCostAdjustRequests, listShipmentCostAdjustments, listShipmentCostLockHistory, lockShipmentCost, requestShipmentCostAdjust, unlockShipmentCost } from '../../services/shipment-cost-lock.service';
-import { assertNoPendingRateAdjustment } from '../../services/accounting-debit-close.service';
+import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listShipmentCostAdjustments, listShipmentCostLockHistory, lockShipmentCost, unlockShipmentCost } from '../../services/shipment-cost-lock.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
 import { recordShipmentRecovery } from '../../services/shipment-recovery.service';
@@ -741,9 +740,9 @@ coreRoutes.post(
     for (const shipmentId of parsed.data.shipmentIds) {
       await assertCusLotVisible(shipmentId, getUser(req));
     }
-    // Card 20260921_21: a lot with a live PENDING rate-adjustment request
-    // cannot be exported to debit — 409 naming the lot (business language).
-    await assertNoPendingRateAdjustment(parsed.data.shipmentIds);
+    // V22's pending-rate-adjustment 409 retired 24/11 (mục 12): historical
+    // PENDING rows no longer block Xuất Debit. V33 (pending Ops fees) is the
+    // only hard block, enforced inside the service.
     const doc = await createConsolidatedDebitNote({
       shipmentIds: parsed.data.shipmentIds,
       actor: getUser(req),
@@ -1131,43 +1130,11 @@ coreRoutes.get(
   }),
 );
 
-// ─── POST /:id/cost-adjust-requests — Đề nghị điều chỉnh lô đã khóa ─────────
-// SIL-923: người khóa lô nhưng không có quyền mở khóa (nhóm CUS) gửi đề nghị
-// kèm lý do; route gate mirrors the lock channel (CUS · Kế toán · Quản trị).
-// The request only exists on a LOCKED lot (409 otherwise — the service).
-coreRoutes.post(
-  '/:id/cost-adjust-requests', declareMaterialWrite('shipments.cost-adjust-request', { method: 'POST', path: '/api/shipments/:id/cost-adjust-requests' }),
-  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
-  asyncHandler(async (req: Request, res: Response) => {
-    const shipmentId = parseId(req, res);
-    if (shipmentId === null) return;
-    // Nhóm CUS: chỉ đề nghị trong phạm vi thấy được — cùng luật với /lock.
-    await assertCusLotVisible(shipmentId, getUser(req));
-    const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi gửi đề nghị điều chỉnh.');
-    const parsed = z.object({
-      reason: z.string().trim().min(1, 'Vui lòng nhập lý do đề nghị điều chỉnh.').max(2000),
-    }).safeParse(req.body ?? {});
-    if (!parsed.success) throwValidation(parsed.error);
-    const request = await requestShipmentCostAdjust({
-      shipmentId,
-      reason: parsed.data.reason,
-      actor: getUser(req),
-      idempotencyKey,
-    });
-    res.status(201).json(request);
-  }),
-);
-
-// ─── GET /cost-adjust-requests/pending — hàng chờ đề nghị (SIL-923) ─────────
-// Read clearance mirrors the unlock channel (SIL-721: Quản trị · Giám đốc ·
-// Kế toán) — the people who resolve requests by unlocking see the queue.
-coreRoutes.get(
-  '/cost-adjust-requests/pending',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
-  asyncHandler(async (_req: Request, res: Response) => {
-    res.json(await listPendingShipmentCostAdjustRequests());
-  }),
-);
+// ─── Đề nghị điều chỉnh lô đã khóa — ĐÃ GỠ BỎ (spec alignment 24/11, mục 11)
+// Không còn luồng ticketing chờ duyệt: POST /:id/cost-adjust-requests và
+// GET /cost-adjust-requests/pending đã gỡ bỏ cùng service phía sau. Lô đã
+// khóa được mở trực tiếp qua POST /:id/unlock (Quản trị · Giám đốc · Kế
+// toán) với lý do bắt buộc + audit log. ────────────────────────────────────
 
 // ─── Debit wave detail endpoints (BE1 lane, FE _18 contract) ───────────────
 // GET /:id/debit-detail — the Lớp-2 drill-down: freight snapshots, per-trip
@@ -1242,9 +1209,8 @@ coreRoutes.post(
     if (shipmentId === null) return;
     await assertCusLotVisible(shipmentId, getUser(req));
     const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi xuất Debit Note.');
-    // Card 20260921_21: a lot with a live PENDING rate-adjustment request
-    // cannot be exported to debit — 409 naming the lot (business language).
-    await assertNoPendingRateAdjustment([shipmentId]);
+    // V22's pending-rate-adjustment 409 retired 24/11 (mục 12); V33 (pending
+    // Ops fees) is the only hard block, enforced inside the service.
     const doc = await createDebitNoteFromCostLock({ shipmentId, actor: getUser(req), idempotencyKey });
     res.status(201).json({ id: doc.id });
   }),

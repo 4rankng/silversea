@@ -43,7 +43,9 @@
 .csc-form-actions .csc-actions { flex-wrap: nowrap; min-width: 0; }
 .csc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 /* Card D.4 (18/10) + 181026200700: the hàng lẻ form has NO "Lịch & ghi chú"
-   section and NO add button — one always-visible "Ngày giao hàng" field.
+   section and NO add button — one always-visible schedule field ("Ngày giờ
+   đóng trả", the unified 24/11 name; "Ngày giao hàng" was the pre-24/11
+   historical name).
    SIL-639 (id 743, owner 31/10): the field's "Ngày giờ đóng trả *" label
    rides INLINE — label trái, the two segment inputs phải, ONE control row —
    the same pattern as the "Loại hàng *" fieldset beside it (legend compact

@@ -352,13 +352,15 @@ p.debit-note { margin: 0 0 8px; }
   padding: 2px 6px;
 }
 
-/* SIL-771 — cảnh báo khách giữ nguyên: Lợi nhuận âm → ô bôi nền đỏ đậm,
- * chữ trắng (đậm = solid var(--danger), không phải viền). */
+/* SIL-771 + spec alignment 24/11 (item 09): Lợi nhuận âm → ô bôi nền đỏ đậm
+ * #B91C1C (WCAG AA ≥ 4.5:1 trên nền trắng xung quanh), chữ trắng in đậm.
+ * Không dùng var(--danger) ở đây: token house (#A0444E) không đạt hex luật
+ * spec quy định cho ô lợi nhuận. */
 .debit-loinhuan--negative {
   display: inline-block;
-  background: var(--danger);
+  background: #B91C1C;
   color: #fff;
-  font-weight: var(--fw-semibold);
+  font-weight: var(--fw-bold);
   padding: 1px 6px;
   border-radius: var(--radius-field);
 }

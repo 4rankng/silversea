@@ -530,7 +530,13 @@ export function buildShipmentRootPayload(
     expectedDeliveryDate: form.cargoMode === 'LCL'
       ? (form.lclClosingAt ? form.lclClosingAt.slice(0, 10) : form.expectedDeliveryDate || null)
       : undefined,
-    cargoWeightKg: form.cargoMode === 'LCL' ? form.cargoWeightKg || null : null,
+    // Spec 24/11 (item 03, wiki §9.2): the LCL input unit is TẤN — the draft
+    // string carries tấn and the payload converts to the kg storage unit
+    // (×1000, rounded at the milli-ton step = integer kg) before sending.
+    // FCL keeps kg per-container on the rows; the lot-level field stays null.
+    cargoWeightKg: form.cargoMode === 'LCL' && form.cargoWeightKg
+      ? String(Math.round(Number(form.cargoWeightKg) * 1000))
+      : null,
     cargoVolumeCbm: form.cargoMode === 'LCL' ? form.cargoVolumeCbm.trim() || null : null,
     packageCount: form.cargoMode === 'LCL' && form.packageCount ? Number(form.packageCount) : null,
     packageType: form.cargoMode === 'LCL' ? form.packageType || null : null,

@@ -45,12 +45,9 @@ vi.mock('../api/shipmentDebit', () => ({
   listShipmentCostLockHistory: vi.fn().mockResolvedValue([]),
   getShipmentDebitDetail: vi.fn().mockResolvedValue({}),
   saveShipmentDebitEdits: vi.fn(),
-  requestShipmentCostAdjust: vi.fn().mockResolvedValue({ id: 1 }),
-  listPendingShipmentCostAdjustRequests: vi.fn().mockResolvedValue([]),
   debitMergeKeys: {
     all: ['accounting-debit-merge'] as const,
     board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
-    pendingAdjustRequests: ['accounting-debit-merge', 'pending-adjust-requests'] as const,
   },
 }));
 vi.mock('../api/shipmentClient', () => ({
@@ -193,10 +190,10 @@ describe('Khóa lô — the canLock law over the grid selection', () => {
     fireEvent.click(await screen.findByLabelText('Chọn lô BL-1'));
     fireEvent.click(screen.getByRole('button', { name: 'Khóa lô' }));
     await waitFor(() => expect(lockCost).toHaveBeenCalledWith(101, expect.any(String)));
-    // SIL-923 — the board refresh reads back LOCKED and the selection STAYS,
-    // so the same toolbar slot is now [Đề nghị điều chỉnh] for the CUS
-    // viewer (the unlock trio would see [Mở khóa] instead).
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeTruthy());
+    // SIL-923 + 24/11 (mục 11) — the board refresh reads back LOCKED and the
+    // selection STAYS; the toolbar slot shows the CUS viewer the read-only
+    // Đã khóa face (no ticketing; the unlock trio would see [Mở khóa]).
+    await waitFor(() => expect(document.querySelector<HTMLElement>('.debit-merge__action--locked-state')).toBeTruthy());
     expect(screen.queryByRole('button', { name: 'Khóa lô' })).toBeNull();
   });
 

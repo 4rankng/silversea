@@ -5,7 +5,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { DebitMergeItem } from '@tingting/shared';
-import { listDebitMergeBoard, debitMergeKeys, listPendingShipmentCostAdjustRequests, lockShipmentCost, unlockShipmentCost, createDebitNoteBatch, exportDebitNoteFile } from '../../api/shipmentDebit';
+import { listDebitMergeBoard, debitMergeKeys, lockShipmentCost, unlockShipmentCost, createDebitNoteBatch, exportDebitNoteFile } from '../../api/shipmentDebit';
 import {
   listSettlementRounds,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
@@ -161,20 +161,11 @@ export function DebitMergePage() {
     onSuccess: (unlocked) => {
       setSelectedIds(new Set());
       refreshBoard();
-      void queryClient.invalidateQueries({ queryKey: debitMergeKeys.pendingAdjustRequests });
       toast({ kind: 'success', message: `Đã mở khóa chi phí ${unlocked.length} lô.` });
     },
     onError: (error: Error) => {
       toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không mở khóa được lô. Vui lòng thử lại.' });
     },
-  });
-
-  // SIL-923 — the PENDING đề nghị queue behind the grid's Trạng thái chip
-  // (leader trio clearance mirrors the unlock channel).
-  const pendingAdjustQuery = useQuery({
-    queryKey: debitMergeKeys.pendingAdjustRequests,
-    queryFn: listPendingShipmentCostAdjustRequests,
-    enabled: canUnlock,
   });
 
   const settlementMutation = useMutation({
@@ -307,9 +298,6 @@ export function DebitMergePage() {
                 void prompt(`Nhập lý do mở khóa chi phí ${ids.length} lô đã chọn.`, { confirmLabel: 'Mở khóa', reasonLabel: 'Lý do mở khóa (bắt buộc)' })
                   .then((reason) => { if (reason != null) unlockMutation.mutate({ shipmentIds: ids, reason }); });
               }
-              : undefined}
-            pendingAdjustShipmentIds={pendingAdjustQuery.data != null
-              ? new Set(pendingAdjustQuery.data.map((request) => request.shipmentId))
               : undefined}
             onChooseDebit={(picked) => {
               settlementDialogRows.current = picked.map(toSettlementDialogRow);

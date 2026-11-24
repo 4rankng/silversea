@@ -145,8 +145,6 @@ export async function listShipmentDebitSummary(params: {
 export const debitMergeKeys = {
   all: ['accounting-debit-merge'] as const,
   board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
-  /** SIL-923 — the Đề nghị điều chỉnh queue behind the toolbar swap. */
-  pendingAdjustRequests: ['accounting-debit-merge', 'pending-adjust-requests'] as const,
 };
 
 /** Read-only re-exports of the shared contract (never re-declared here). */
@@ -284,40 +282,6 @@ export async function adjustShipmentCost(shipmentId: number, body: { reason: str
 export async function listShipmentCostAdjustments(shipmentId: number): Promise<ShipmentCostAdjustment[]> {
   const response = await api.get<{ items: ShipmentCostAdjustment[] }>(`/shipments/${encodeURIComponent(shipmentId)}/cost-adjustments`);
   return response.items;
-}
-
-// ── SIL-923: Đề nghị điều chỉnh lô đã khóa (request queue) ─────────────────
-
-export interface ShipmentCostAdjustRequest {
-  id: number;
-  shipmentId: number;
-  shipmentCode: string | null;
-  reason: string;
-  status: 'PENDING' | 'RESOLVED';
-  requestedBy: number;
-  requestedByName: string | null;
-  requestedAt: string;
-}
-
-/** POST /shipments/:id/cost-adjust-requests — Đề nghị điều chỉnh on a LOCKED
- *  lot (409 when not locked). Route gate mirrors the lock channel (CUS ·
- *  ACCOUNTANT · ADMIN); the unlock trio resolves requests by unlocking. */
-export async function requestShipmentCostAdjust(
-  shipmentId: number,
-  body: { reason: string },
-  idempotencyKey: string,
-): Promise<ShipmentCostAdjustRequest> {
-  return api.post<ShipmentCostAdjustRequest>(`/shipments/${encodeURIComponent(shipmentId)}/cost-adjust-requests`, body, {
-    headers: { 'Idempotency-Key': idempotencyKey },
-  });
-}
-
-/** GET /shipments/cost-adjust-requests/pending — the request queue, read
- *  clearance mirrors the unlock channel (Quản trị · Giám đốc · Kế toán,
- *  SIL-721). Unlocking a lot resolves its pending requests server-side. */
-export async function listPendingShipmentCostAdjustRequests(): Promise<ShipmentCostAdjustRequest[]> {
-  const response = await api.get<{ requests: ShipmentCostAdjustRequest[] }>('/shipments/cost-adjust-requests/pending');
-  return response.requests;
 }
 
 // ── Xuất Debit Note: batched issue + download ──────────────────────────────

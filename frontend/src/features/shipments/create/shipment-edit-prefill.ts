@@ -189,7 +189,14 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     // SIL-660: the LCL lot-level declaration round-trips through the edit
     // form (empty on FCL — the field is LCL-only).
     declarationNumber: lclDeclarationRow?.declarationNumber ?? '',
-    cargoWeightKg: shipment.cargoWeightKg ?? '',
+    // Spec 24/11 (item 03, wiki §9.2): storage is kg, the LCL input unit is
+    // tấn — the edit form hydrates ÷1000 with dead trailing zeros stripped
+    // ("5000" → "5", "1922" → "1.922"). The value only renders/sends on LCL
+    // (the FCL path reads the per-container rows), so the conversion is safe
+    // for both prefills.
+    cargoWeightKg: shipment.cargoWeightKg != null && Number.isFinite(Number(shipment.cargoWeightKg))
+      ? String(Number(shipment.cargoWeightKg) / 1000)
+      : shipment.cargoWeightKg ?? '',
     cargoVolumeCbm: shipment.cargoVolumeCbm ?? '',
     packageCount: shipment.packageCount != null ? String(shipment.packageCount) : '',
     packageType: shipment.packageType ?? '',

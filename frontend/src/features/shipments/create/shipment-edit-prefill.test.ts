@@ -341,3 +341,18 @@ describe('SIL-846 — Trọng tải (Loại xe tính cước) edit prefill', () 
     expect(buildShipmentEditPrefill(fcl).form.revVehicleClassId).toBe('');
   });
 });
+
+// Spec alignment 24/11 (item 03, wiki §9.2): storage is kg, the LCL input
+// unit is tấn — the edit form hydrates ÷1000 with dead trailing zeros gone.
+describe('24/11 item 03 — LCL weight prefills as tấn', () => {
+  it('converts kg storage to the tấn input ("5000" → "5", "1922" → "1.922", "1200000" → "1200")', () => {
+    expect(buildShipmentEditPrefill(detailFixture({ cargoMode: 'LCL', cargoWeightKg: '5000' })).form.cargoWeightKg).toBe('5');
+    expect(buildShipmentEditPrefill(detailFixture({ cargoMode: 'LCL', cargoWeightKg: '1922' })).form.cargoWeightKg).toBe('1.922');
+    expect(buildShipmentEditPrefill(detailFixture({ cargoMode: 'LCL', cargoWeightKg: '1200000' })).form.cargoWeightKg).toBe('1200');
+  });
+
+  it('null weight hydrates empty; a non-numeric legacy value is echoed, not zeroed', () => {
+    expect(buildShipmentEditPrefill(detailFixture({ cargoMode: 'LCL', cargoWeightKg: null })).form.cargoWeightKg).toBe('');
+    expect(buildShipmentEditPrefill(detailFixture({ cargoMode: 'LCL', cargoWeightKg: 'n/a' })).form.cargoWeightKg).toBe('n/a');
+  });
+});

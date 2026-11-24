@@ -49,8 +49,8 @@ export function LclMergeModeToggle({
       onClick={onToggle}
     >
       {active
-        ? <><X size={14} aria-hidden="true" />{activeLabel}</>
-        : <><Layers size={14} aria-hidden="true" />{label}</>}
+        ? <><X size={14} aria-hidden="true" /><span className="lcl-merge-toggle__label">{activeLabel}</span></>
+        : <><Layers size={14} aria-hidden="true" /><span className="lcl-merge-toggle__label">{label}</span></>}
     </button>
   );
 }

@@ -231,14 +231,9 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_LOCK',
   }],
-  ['shipments/core.routes.ts|POST|/:id/cost-adjust-requests', {
-    serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
-    marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_ADJUST_REQUEST',
-    // SIL-923: the request row, the SHIPMENT_COST_ADJUST_REQUESTED audit and
-    // the handling-trio notification are written inside one runIdempotent
-    // envelope (SIL-176 precedent); a same-key replay returns the original
-    // request without re-writing audit/notification.
-  }],
+  // POST /:id/cost-adjust-requests (SIL-923 đề nghị queue) was removed with
+  // the 24/11 ruling (mục 11): no ticketing flow on a locked lot — the trio
+  // unlocks directly via POST /:id/unlock with a required reason + audit.
   ['shipments/core.routes.ts|POST|/:id/unlock', {
     serviceFile: path.resolve(process.cwd(), 'src/services/shipment-cost-lock.service.ts'),
     marker: 'export async function unlockShipmentCost(',

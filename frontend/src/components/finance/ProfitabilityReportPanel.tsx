@@ -99,9 +99,12 @@ export function ProfitabilityReportPanel({ month, year }: { month: number; year:
     {data?.lowMarginPolicy.status === 'CONFIGURED' && <div className="workflow-notice" role="status"><BadgeCheck size={18}/><span>Ngưỡng cảnh báo kỳ này: {formatNumber(data.lowMarginPolicy.thresholdPercent)}%. {data.lowMarginPolicy.note}</span></div>}
     {data?.reconciliation.status === 'PARTIAL' && <div className="workflow-notice workflow-notice--partial"><AlertTriangle size={18}/><span>{data.reconciliation.note} Chênh lệch: {formatCurrency(data.reconciliation.difference)}.</span></div>}
     <SummaryRail ariaLabel="Tóm tắt lợi nhuận vận hành" items={[
-      { label: 'Doanh thu', value: loading ? '—' : formatCurrency(data?.totals.revenue ?? 0) },
-      { label: 'Chi phí trực tiếp', value: loading ? '—' : formatCurrency(data?.totals.directCost ?? 0) },
-      { label: 'Lợi nhuận', value: loading ? '—' : formatCurrency(data?.totals.profit ?? 0) },
+      // 24/11 spec alignment (item 04): a missing total stays '— ₫' — the
+      // formatter owns the null contract, no `?? 0` fabrication on a failed
+      // or partial report load.
+      { label: 'Doanh thu', value: loading ? '—' : formatCurrency(data?.totals.revenue) },
+      { label: 'Chi phí trực tiếp', value: loading ? '—' : formatCurrency(data?.totals.directCost) },
+      { label: 'Lợi nhuận', value: loading ? '—' : formatCurrency(data?.totals.profit) },
       { label: 'Biên lợi nhuận', value: loading ? '—' : `${formatNumber(margin, { decimals: 1 })}%` },
     ]} />
     {!data && loading && <p className="workflow-profitability__empty" role="status">Đang tải báo cáo lợi nhuận…</p>}

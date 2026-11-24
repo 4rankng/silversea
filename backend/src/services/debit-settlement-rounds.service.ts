@@ -17,7 +17,7 @@ import * as s from '../db/schema';
 import { db } from '../db';
 import { operationalName } from '../db/master-data-name';
 import { ApiError } from '../errors';
-import { getAccountingDebitBoard, assertNoPendingRateAdjustment } from './accounting-debit-close.service';
+import { getAccountingDebitBoard } from './accounting-debit-close.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
 import { carrierKeysForLot, assertRoundIssuanceTotals, type CarrierDerivationEntry } from './debit-settlement-shared';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
@@ -153,9 +153,9 @@ export async function createDebitSettlementRound(input: {
     if (!VAT_RATES.includes(input.vatRate)) {
       throw new ApiError(400, 'Thuế suất VAT phải là 0/5/8/10%.');
     }
-    // ── 4. pending rate adjustment → 409 (same guard as issuance routes) ──
-    await assertNoPendingRateAdjustment(shipmentIds);
-    // ── 5. amounts: the board ladder is the single money truth ──
+    // ── 4. amounts: the board ladder is the single money truth ──
+    // (V22's pending-rate-adjustment 409 was retired 24/11, mục 12 — the
+    // historical PENDING rows no longer block Chọn Debit.)
     const board = await getAccountingDebitBoard({ dateFrom: input.dateFrom, dateTo: input.dateTo });
     const rowsById = new Map(board.items.map((row) => [row.shipmentId, row]));
     let amount = 0;

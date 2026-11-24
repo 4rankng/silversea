@@ -151,15 +151,13 @@ export interface DebitMergeGridProps {
   /** SIL-923 — the post-lock slot of the toolbar. When EVERY picked lot is
    *  LOCKED, [Khóa lô] is replaced: the unlock trio (Quản trị · Giám đốc ·
    *  Kế toán — the /unlock route clearance) gets [Mở khóa]; everyone else
-   *  gets [Đề nghị điều chỉnh] (file a reasoned request). Absent callbacks
-   *  keep the retired disabled [Khóa lô] exactly as before. */
+   *  gets the read-only [Đã khóa] face (spec alignment 24/11, item 11: NO
+   *  ticketing flow — no đề nghị queue, direct unlock with reason + audit
+   *  log only). Absent callbacks keep the retired disabled [Khóa lô] exactly
+   *  as before. */
   canUnlock?: boolean;
   unlockPending?: boolean;
-  adjustPending?: boolean;
   onUnlockSelected?: (shipmentIds: number[]) => void;
-  onRequestAdjust?: (shipmentIds: number[]) => void;
-  /** Lot ids carrying a PENDING đề nghị điều chỉnh — the Trạng thái chip. */
-  pendingAdjustShipmentIds?: ReadonlySet<number>;
 }
 
 /** Money-state cell: null/absent → EMPTY (chưa xác định, never a fabricated
@@ -277,10 +275,7 @@ export function DebitMergeGrid({
   quickFilters,
   canUnlock = false,
   unlockPending = false,
-  adjustPending = false,
   onUnlockSelected,
-  onRequestAdjust,
-  pendingAdjustShipmentIds,
 }: DebitMergeGridProps) {
   const columns = useMemo<GridColumnDef[]>(() => (
     showCreator
@@ -519,14 +514,12 @@ export function DebitMergeGrid({
           : pendingFeeReason('khóa lô');
   // SIL-923 — the post-lock slot: once EVERY picked lot is LOCKED the lock
   // button is replaced by the forward path — [Mở khóa] for the unlock trio
-  // (the /unlock route clearance), [Đề nghị điều chỉnh] for everyone else
-  // (file a reasoned request the trio handles). Unwired surfaces keep the
-  // retired disabled [Khóa lô] exactly as before.
+  // (the /unlock route clearance), a read-only [Đã khóa] face for everyone
+  // else (24/11 ruling, item 11: no đề nghị ticketing — the trio unlocks
+  // directly with a required reason + audit log).
   const allSelectedLocked = selectedRows.length > 0 && unlockedSelected.length === 0;
   const showUnlockSlot = allSelectedLocked && canUnlock && onUnlockSelected != null;
-  const showAdjustSlot = allSelectedLocked && !showUnlockSlot && onRequestAdjust != null;
   const unlockDisabledReason = showUnlockSlot && unlockPending ? 'Đang mở khóa lô…' : null;
-  const adjustDisabledReason = showAdjustSlot && adjustPending ? 'Đang gửi đề nghị…' : null;
   const chooseDebitDisabledReason = !canChooseDebit
     ? 'Tài khoản không có quyền chọn Debit.'
     : selectedRows.length === 0
@@ -556,6 +549,13 @@ export function DebitMergeGrid({
       <div className="debit-merge__toolbar">
         <div className="debit-merge__filters" data-testid="debit-merge-quick-filters">{quickFilters}</div>
         <div className="debit-merge__toolbar-actions">
+          {/* Spec alignment 24/11 (item 13): the selection count stays visible
+              while picking so Kế toán kiểm soát chính xác phạm vi thao tác. */}
+          {selectedRows.length > 0 && (
+            <span className="debit-merge__picked-count" role="status">
+              Đã chọn {selectedRows.length} lô
+            </span>
+          )}
           {showUnlockSlot && onUnlockSelected != null ? (
             <DisabledActionTip id="debit-merge-unlock" reason={unlockDisabledReason}>
               <button
@@ -567,17 +567,17 @@ export function DebitMergeGrid({
                 Mở khóa
               </button>
             </DisabledActionTip>
-          ) : showAdjustSlot && onRequestAdjust != null ? (
-            <DisabledActionTip id="debit-merge-adjust" reason={adjustDisabledReason}>
-              <button
-                type="button"
-                className="debit-merge__action"
-                aria-disabled={adjustDisabledReason != null || undefined}
-                onClick={() => { if (adjustDisabledReason == null) onRequestAdjust(selectedRows.map((row) => row.shipmentId)); }}
-              >
-                Đề nghị điều chỉnh
-              </button>
-            </DisabledActionTip>
+          ) : allSelectedLocked ? (
+            <span
+              // 24/11 ruling (item 11): roles without unlock clearance see the
+              // read-only locked face — no đề nghị flow, direct unlock by the
+              // trio only.
+              className="debit-merge__action debit-merge__action--locked-state"
+              aria-disabled="true"
+              title="Các lô đã chọn đều đã khóa. Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh."
+            >
+              Đã khóa
+            </span>
           ) : (
             <DisabledActionTip id="debit-merge-lock" reason={lockDisabledReason}>
               <button
@@ -673,7 +673,13 @@ export function DebitMergeGrid({
                   {...(isStickyColumn(column) ? stickyProps(column.key) : {})}
                 >
                   {column.key === 'pick' ? (
-                    <label className="debit-merge__pick-all">
+                    <label
+                      className="debit-merge__pick-all"
+                      // Spec alignment 24/11 (item 13): the short UI label stays
+                      // 'Tất cả'; the tooltip states the exact page scope so no
+                      // one expects later pages to be picked implicitly.
+                      title="Chọn tất cả các lô trên trang hiện tại"
+                    >
                       <input
                         ref={selectAllRef}
                         type="checkbox"
@@ -795,11 +801,6 @@ export function DebitMergeGrid({
                         <span className={`debit-merge__lock-state${lot.control.lockStatus === 'LOCKED' ? ' debit-merge__lock-state--locked' : ''}`}>
                           {lot.control.lockStatus === 'LOCKED' ? 'Đã khóa' : 'Mở'}
                         </span>
-                        {/* SIL-923 — a filed đề nghị điều chỉnh waits here until
-                            the unlock trio handles it (unlock resolves it). */}
-                        {pendingAdjustShipmentIds?.has(lot.shipmentId) && (
-                          <span className="debit-merge__adjust-request" title="Đề nghị điều chỉnh đang chờ xử lý">Đề nghị ĐC</span>
-                        )}
                       </td>
                     );
                   default: return <td key={key} data-col={key} />;

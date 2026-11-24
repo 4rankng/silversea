@@ -414,6 +414,18 @@
   font-weight: 600;
 }
 
+/* 24/11 spec (item 11): roles without unlock clearance see the locked state
+   as STATIC text (never styled actionable), pointed at the unlock trio. */
+.csc-debit-actions__locked-note {
+  padding: 8px 16px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  color: var(--ink);
+  font-weight: 600;
+  cursor: default;
+  user-select: none;
+}
+
 .csc-debit-savebar {
   display: flex;
   gap: 8px;

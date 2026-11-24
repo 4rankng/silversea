@@ -75,6 +75,22 @@
   color: var(--fg-on-brand);
 }
 
+/* 24/11 spec (item 13): the live selection count next to the money actions. */
+.debit-merge__picked-count {
+  font-size: var(--text-caption-size, 13px);
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 24/11 spec (item 11): static locked face for roles without unlock
+   clearance — never styled actionable. */
+.debit-merge__action--locked-state {
+  cursor: default;
+  user-select: none;
+}
+
 .debit-merge__pane {
   max-height: calc(100dvh - 260px);
   overflow: auto;
@@ -296,15 +312,6 @@
 .debit-merge__lock-state--locked {
   color: var(--ink-1);
   font-weight: 600;
-}
-
-/* SIL-923 — the đề nghị điều chỉnh chip: amber like the warning-text law,
-   tight beside the lock chip in the Trạng thái cell. */
-.debit-merge__adjust-request {
-  margin-left: 6px;
-  font-size: 11px;
-  color: var(--warning-text);
-  white-space: nowrap;
 }
 
 .debit-merge__empty {

@@ -934,6 +934,41 @@ describe('shipment create model', () => {
     expect(picked.rawPickupPortName).toBeNull();
   });
 });
+
+// Spec alignment 24/11 (item 03, wiki §9.2): the LCL form input unit is TẤN —
+// the payload converts to the kg storage unit before sending. A wrong unit
+// here would store a 1000× weight on every LCL lot.
+describe('buildShipmentRootPayload — LCL weight input tấn → kg storage', () => {
+  const lclWeightForm = {
+    ...EMPTY_SHIPMENT_CREATE_FORM,
+    customerId: '7',
+    routeId: '11',
+    cargoMode: 'LCL' as const,
+    blNumber: 'BL-LCL-TON',
+    tradeDirection: 'IMPORT' as const,
+    operationalSiteId: '41',
+    pickupWarehouseSiteId: '42',
+    packageCount: '5',
+    expectedDeliveryDate: '2026-08-03',
+  };
+
+  const sites = [{ id: 41, name: 'Nhà máy Long Minh' }, { id: 42, name: 'Kho A' }];
+
+  it('converts a whole tấn value to integer kg', () => {
+    const payload = buildShipmentRootPayload({ ...lclWeightForm, cargoWeightKg: '18.5' }, [], sites);
+    expect(payload.cargoWeightKg).toBe('18500');
+  });
+
+  it('keeps milli-ton input at kg precision (1.922 tấn → 1922 kg)', () => {
+    const payload = buildShipmentRootPayload({ ...lclWeightForm, cargoWeightKg: '1.922' }, [], sites);
+    expect(payload.cargoWeightKg).toBe('1922');
+  });
+
+  it('stays null on blank weight (readiness blocks the save first)', () => {
+    const payload = buildShipmentRootPayload({ ...lclWeightForm, cargoWeightKg: '' }, [], sites);
+    expect(payload.cargoWeightKg).toBeNull();
+  });
+});
 // Card 261022093245: a shared-catalog kho belongs to ANOTHER customer — the
 // payload builder must still resolve its display label from the sites list
 // the caller passes (the workspace feeds the union of the customer's sites

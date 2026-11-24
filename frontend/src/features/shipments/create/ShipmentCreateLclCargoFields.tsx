@@ -105,11 +105,14 @@ export function ShipmentCreateLclCargoFields({
         <div data-field-id="shipment-cargo-weight">
           <TextField
             id="shipment-cargo-weight"
-            label="Trọng lượng (kg)"
+            // Spec 24/11 (item 03, wiki §9.2): the LCL form takes weight in
+            // TẤN — the label names the input unit and the model converts to
+            // the kg storage unit before the API call.
+            label="Trọng lượng (tấn)"
             required
             type="number"
             min="0"
-            step="0.01"
+            step="0.001"
             value={form.cargoWeightKg}
             onChange={(event) => update('cargoWeightKg', event.target.value)}
             disabled={saving}

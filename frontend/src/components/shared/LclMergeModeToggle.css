@@ -23,3 +23,17 @@
   background: var(--accent);
   color: var(--fg-on-brand, #fff);
 }
+
+/* Spec alignment 24/11 (item 01): Desktop/Laptop luôn hiện chữ "Gộp hàng"
+   cạnh icon — chỉ màn hình điện thoại hẹp (<768px) thu gọn còn icon, tooltip
+   (title) vẫn đọc được; label span ẩn đi chứ không xoá khỏi DOM. */
+@media (max-width: 767.98px) {
+  .lcl-merge-toggle__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}

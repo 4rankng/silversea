@@ -439,11 +439,13 @@ describe('DebitMergeGrid — toolbar: pagination, column picker, actions', () =>
     expect(document.getElementById('debit-merge-choose-disabled-reason')?.textContent).toContain('đã khóa');
     expect(document.getElementById('debit-merge-lock-disabled-reason')).toBeNull();
 
-    // A LOCKED pick arms Chọn Debit; Khóa lô reports everything already locked.
+    // A LOCKED pick arms Chọn Debit; Khóa lô is replaced by the read-only
+    // Đã khóa face (24/11, mục 11 — the unwired slot has no lock reason tip).
     rerenderGrid({ selection: new Set<number>([101]), onLockSelected, onChooseDebit, canLock: true, canChooseDebit: true }, [lockedRow]);
     fireEvent.click(document.querySelector('button.debit-merge__action--primary')!);
     expect(onChooseDebit).toHaveBeenCalledTimes(1);
-    expect(document.getElementById('debit-merge-lock-disabled-reason')?.textContent).toContain('đều đã khóa');
+    expect(document.getElementById('debit-merge-lock-disabled-reason')).toBeNull();
+    expect(document.querySelector<HTMLElement>('.debit-merge__action--locked-state')?.textContent).toBe('Đã khóa');
   });
 
   it('NV phụ trách column only renders when the page asks (team mode)', () => {
@@ -767,7 +769,7 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
   });
 });
 
-describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa / Đề nghị điều chỉnh)', () => {
+describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa / Đã khóa; 24/11: no đề nghị flow)', () => {
   const lockedRow = () => mergeRow({ control: { tongTc: '100', lockStatus: 'LOCKED', lockedAt: '2026-11-18T00:00:00.000Z' } });
 
   it('swaps the lock button for Mở khóa when every picked lot is LOCKED and the viewer clears the unlock trio', () => {
@@ -780,38 +782,35 @@ describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa / Đ�
     expect(onUnlockSelected).toHaveBeenCalledWith([101]);
   });
 
-  it('swaps the lock button for Đề nghị điều chỉnh for a viewer without unlock clearance', () => {
-    const onRequestAdjust = vi.fn();
-    renderGrid({ selection: new Set<number>([101]), canUnlock: false, onRequestAdjust }, [lockedRow()]);
+  it('shows the read-only Đã khóa face (no ticketing) for a viewer without unlock clearance', () => {
+    renderGrid({ selection: new Set<number>([101]), canUnlock: false }, [lockedRow()]);
     expect(screen.queryByRole('button', { name: 'Khóa lô' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Mở khóa' })).toBeNull();
-    const request = screen.getByRole('button', { name: 'Đề nghị điều chỉnh' });
-    expect(request.getAttribute('aria-disabled')).toBeNull();
-    fireEvent.click(request);
-    expect(onRequestAdjust).toHaveBeenCalledWith([101]);
+    // 24/11 (mục 11): static face + pointer to the unlock trio, never a button.
+    // (The Trạng thái cell of a locked lot also reads 'Đã khóa' — query the
+    // toolbar face by its class.)
+    const locked = document.querySelector<HTMLElement>('.debit-merge__action--locked-state');
+    expect(locked?.textContent).toBe('Đã khóa');
+    expect(locked?.getAttribute('title')).toContain('Liên hệ Kế toán hoặc Quản trị viên để mở khóa');
+    expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
   });
 
-  it('keeps [Khóa lô] while any picked lot is still OPEN even with the new props wired', () => {
-    renderGrid({ selection: new Set<number>([101]), canUnlock: true, onUnlockSelected: vi.fn(), onRequestAdjust: vi.fn() }, [mergeRow()]);
+  it('keeps [Khóa lô] while any picked lot is still OPEN even with the unlock props wired', () => {
+    renderGrid({ selection: new Set<number>([101]), canUnlock: true, onUnlockSelected: vi.fn() }, [mergeRow()]);
     expect(screen.getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Mở khóa' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
+    expect(screen.queryByText('Đã khóa')).toBeNull();
   });
 
-  it('marks a lot carrying a PENDING đề nghị điều chỉnh in the Trạng thái cell', () => {
-    renderGrid({ pendingAdjustShipmentIds: new Set<number>([101]) }, [lockedRow()]);
-    const status = document.querySelector<HTMLElement>('tbody td[data-col="trangThai"]');
-    expect(status?.textContent).toContain('Đã khóa');
-    expect(status?.textContent).toContain('Đề nghị ĐC');
-    expect(document.querySelector('[title="Đề nghị điều chỉnh đang chờ xử lý"]')).toBeTruthy();
+  it('shows the live selection count while picking (24/11, mục 13)', () => {
+    renderGrid({ selection: new Set<number>([101, 102]) }, [mergeRow(), mergeRow({ shipmentId: 102 })]);
+    expect(screen.getByRole('status').textContent).toBe('Đã chọn 2 lô');
   });
 
-  it('unwired post-lock slot (no handlers) keeps the retired disabled Khóa lô', () => {
+  it('unwired post-lock slot (no handlers) degrades to the read-only Đã khóa face', () => {
     renderGrid({ selection: new Set<number>([101]), canUnlock: false, onUnlockSelected: undefined }, [lockedRow()]);
-    const lock = document.querySelector('button.debit-merge__action:not(.debit-merge__action--primary)') as HTMLButtonElement;
     expect(screen.queryByRole('button', { name: 'Mở khóa' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
-    expect(lock.getAttribute('aria-disabled')).toBe('true');
-    expect(document.getElementById('debit-merge-lock-disabled-reason')?.textContent).toContain('đều đã khóa');
+    expect(document.querySelector<HTMLElement>('.debit-merge__action--locked-state')?.getAttribute('title')).toContain('Liên hệ Kế toán hoặc Quản trị viên để mở khóa');
   });
 });

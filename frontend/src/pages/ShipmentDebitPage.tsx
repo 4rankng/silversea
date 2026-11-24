@@ -25,9 +25,7 @@ import {
   listShipmentDebitSummary,
   listDebitMergeBoard,
   debitMergeKeys,
-  listPendingShipmentCostAdjustRequests,
   lockShipmentCost,
-  requestShipmentCostAdjust,
   unlockShipmentCost,
   type DebitMergeItem,
 } from '../api/shipmentDebit';
@@ -131,8 +129,8 @@ export function ShipmentDebitPage() {
   // are fee-complete; the completeness + lock law lives in the grid.
   const canChooseDebit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || user?.role === Role.CUS;
   // SIL-923 — the unlock trio (the /unlock route clearance, SIL-721): when
-  // every picked lot is LOCKED they get [Mở khóa]; everyone else gets
-  // [Đề nghị điều chỉnh] in the same toolbar slot.
+  // every picked lot is LOCKED they get [Mở khóa]; everyone else gets the
+  // read-only [Đã khóa] face (24/11, mục 11 — no ticketing flow).
   const canUnlock = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
 
@@ -196,7 +194,7 @@ export function ShipmentDebitPage() {
     },
     onSuccess: (locked) => {
       // SIL-923 — the selection STAYS: the toolbar slot swaps [Khóa lô] →
-      // [Đề nghị điều chỉnh]/[Mở khóa] on the just-locked picks immediately.
+      // [Mở khóa]/[Đã khóa] on the just-locked picks immediately.
       refreshBoards();
       toast({ kind: 'success', message: `Đã khóa chi phí ${locked.length} lô.` });
     },
@@ -206,7 +204,8 @@ export function ShipmentDebitPage() {
   });
 
   // SIL-923 — the toolbar's post-lock [Mở khóa] for the unlock trio: one
-  // reason for the whole batch, the existing /unlock channel per lot.
+  // reason for the whole batch, the existing /unlock channel per lot. Roles
+  // without clearance see the read-only [Đã khóa] face (24/11, mục 11).
   const unlockMutation = useMutation({
     mutationFn: async ({ shipmentIds, reason }: { shipmentIds: number[]; reason: string }) => {
       for (const shipmentId of shipmentIds) {
@@ -217,42 +216,11 @@ export function ShipmentDebitPage() {
     onSuccess: (unlocked) => {
       setSelectedIds(new Set());
       refreshBoards();
-      void queryClient.invalidateQueries({ queryKey: debitMergeKeys.pendingAdjustRequests });
       toast({ kind: 'success', message: `Đã mở khóa chi phí ${unlocked.length} lô.` });
     },
     onError: (error: Error) => {
       toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không mở khóa được lô. Vui lòng thử lại.' });
     },
-  });
-
-  // SIL-923 — the toolbar's post-lock [Đề nghị điều chỉnh] for roles without
-  // unlock clearance: a reasoned request per lot; the unlock trio handles it.
-  const adjustRequestMutation = useMutation({
-    mutationFn: async ({ shipmentIds, reason }: { shipmentIds: number[]; reason: string }) => {
-      for (const shipmentId of shipmentIds) {
-        await requestShipmentCostAdjust(shipmentId, { reason }, crypto.randomUUID());
-      }
-      return shipmentIds;
-    },
-    onSuccess: (requested) => {
-      setSelectedIds(new Set());
-      void queryClient.invalidateQueries({ queryKey: debitMergeKeys.pendingAdjustRequests });
-      toast({ kind: 'success', message: `Đã gửi đề nghị điều chỉnh ${requested.length} lô.` });
-    },
-    onError: (error: Error) => {
-      toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không gửi được đề nghị điều chỉnh. Vui lòng thử lại.' });
-    },
-  });
-
-  // SIL-923 — the PENDING đề nghị queue behind the grid's Trạng thái chip;
-  // read clearance mirrors the unlock channel (leader trio only).
-  const pendingAdjustQuery = useQuery({
-    queryKey: debitMergeKeys.pendingAdjustRequests,
-    // Lazy dereference: the queue only loads for the unlock trio, so the
-    // module member is touched when the query actually runs, not on every
-    // render of the read-only (CUS) surface.
-    queryFn: () => listPendingShipmentCostAdjustRequests(),
-    enabled: canUnlock,
   });
 
   const settlementMutation = useMutation({
@@ -318,21 +286,11 @@ export function ShipmentDebitPage() {
             onLockSelected={(ids) => lockMutation.mutate(ids)}
             canUnlock={canUnlock}
             unlockPending={unlockMutation.isPending}
-            adjustPending={adjustRequestMutation.isPending}
             onUnlockSelected={canUnlock
               ? (ids) => {
                 void prompt(`Nhập lý do mở khóa chi phí ${ids.length} lô đã chọn.`, { confirmLabel: 'Mở khóa', reasonLabel: 'Lý do mở khóa (bắt buộc)' })
                   .then((reason) => { if (reason != null) unlockMutation.mutate({ shipmentIds: ids, reason }); });
               }
-              : undefined}
-            onRequestAdjust={canLock
-              ? (ids) => {
-                void prompt(`Nhập lý do đề nghị điều chỉnh ${ids.length} lô đã chọn.`, { confirmLabel: 'Gửi đề nghị', reasonLabel: 'Lý do đề nghị (bắt buộc)' })
-                  .then((reason) => { if (reason != null) adjustRequestMutation.mutate({ shipmentIds: ids, reason }); });
-              }
-              : undefined}
-            pendingAdjustShipmentIds={pendingAdjustQuery.data != null
-              ? new Set(pendingAdjustQuery.data.map((request) => request.shipmentId))
               : undefined}
             onChooseDebit={(picked) => {
               settlementDialogRowsRef.current = picked.map(toSettlementDialogRow);

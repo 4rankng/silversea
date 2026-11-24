@@ -1136,23 +1136,13 @@ export async function withdrawRateAdjustmentRequests(input: {
   return { withdrawn: updated.length };
 }
 
-/** The debit-export guard (both issuance routes 409 while PENDING). */
-export async function assertNoPendingRateAdjustment(shipmentIds: number[], executor: Executor = db): Promise<void> {
-  if (shipmentIds.length === 0) return;
-  const pending = await executor.select({
-    shipmentId: s.shipmentRateAdjustmentRequests.shipmentId,
-    code: s.shipments.shipmentCode,
-  }).from(s.shipmentRateAdjustmentRequests)
-    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentRateAdjustmentRequests.shipmentId))
-    .where(and(
-      inArray(s.shipmentRateAdjustmentRequests.shipmentId, shipmentIds),
-      eq(s.shipmentRateAdjustmentRequests.status, 'PENDING'),
-      isNull(s.shipmentRateAdjustmentRequests.withdrawnAt),
-    ));
-  if (pending.length > 0) {
-    throw new ApiError(409, `Lô ${pending.map((p) => p.code ?? `#${p.shipmentId}`).join(', ')} đang chờ đối soát cước`);
-  }
-}
+/** The debit-export guard for the retired rate-adjustment rule (V22) was
+ *  removed per spec alignment 24/11 (mục 12): the customer dropped the
+ *  'chờ duyệt điều chỉnh cước' flow on 12/11/2026, so a historical PENDING
+ *  rate-adjustment row no longer blocks Khóa lô / Chọn Debit / Xuất Debit
+ *  Note. The only hard block on those actions is V33 (pending Ops fees,
+ *  assertNoPendingApprovalFees). The confirm/withdraw endpoints above stay
+ *  for historical rows. */
 
 /**
  * SIL-771 — ghi 'Chi phí ngoài' kế toán gõ trên bảng Kiểm soát lô hàng

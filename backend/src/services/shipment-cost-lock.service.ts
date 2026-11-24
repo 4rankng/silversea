@@ -6,7 +6,7 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { createHash } from 'node:crypto';
-import { effectiveBillingPlate, NotificationType, Role } from '@tingting/shared';
+import { effectiveBillingPlate } from '@tingting/shared';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { ApiError } from '../errors';
@@ -25,7 +25,6 @@ import { assertRoundAttachableToDebitNote, assertRoundIssuanceTotals } from './d
 import { deriveLotPricingGrounds } from './freight-rate-snapshot-lifecycle.service';
 import { classifyLotPricingBasis } from './freight-lot-basis';
 import { assertNoPendingApprovalFees } from './shipment-pending-fees.service';
-import { persistNotificationInTx } from './notification.service';
 
 export const SHIPMENT_COST_LOCKED_MESSAGE = 'Lô hàng đã khóa chi phí. Cần Quản trị, Giám đốc hoặc Kế toán mở khóa (kèm lý do) để chỉnh sửa chi phí.';
 export const SHIPMENT_COST_NOT_LOCKED_MESSAGE = 'Lô hàng chưa khóa chi phí — hãy khóa lô trước khi điều chỉnh.';
@@ -549,156 +548,13 @@ export async function listShipmentCostAdjustments(shipmentId: number): Promise<A
     .orderBy(desc(s.shipmentCostAdjustments.id));
 }
 
-// ─── SIL-923 — Đề nghị điều chỉnh lô đã khóa chi phí ───────────────────────
-// Người có quyền khóa lô (/lock: CUS · Kế toán · Quản trị) nhưng KHÔNG có
-// quyền mở khóa (/unlock: Quản trị · Giám đốc · Kế toán) gửi đề nghị kèm lý
-// do; bộ mở khóa đọc hàng chờ (GET pending) và xử lý bằng chính việc mở khóa
-// — mở khóa giải quyết mọi đề nghị PENDING của lô (xem unlockShipmentCost).
-// Không có bước "duyệt" riêng: hành động duyệt duy nhất là mở khóa có lý do.
-
-export interface ShipmentCostAdjustRequestRow {
-  id: number;
-  shipmentId: number;
-  shipmentCode: string | null;
-  reason: string;
-  status: 'PENDING' | 'RESOLVED';
-  requestedBy: number;
-  requestedByName: string | null;
-  requestedAt: string;
-}
-
-const costAdjustRequestRequester = alias(s.users, 'cost_adjust_requester');
-
-const costAdjustRequestShape = {
-  id: s.shipmentCostAdjustRequests.id,
-  shipmentId: s.shipmentCostAdjustRequests.shipmentId,
-  reason: s.shipmentCostAdjustRequests.reason,
-  status: s.shipmentCostAdjustRequests.status,
-  requestedBy: s.shipmentCostAdjustRequests.requestedBy,
-  requestedAt: s.shipmentCostAdjustRequests.requestedAt,
-  shipmentCode: s.shipments.shipmentCode,
-  requestedByName: costAdjustRequestRequester.fullName,
-};
-
-function toAdjustRequestRow(row: {
-  id: number;
-  shipmentId: number;
-  reason: string;
-  status: string;
-  requestedBy: number;
-  requestedAt: Date;
-  shipmentCode: string | null;
-  requestedByName: string | null;
-}): ShipmentCostAdjustRequestRow {
-  return {
-    id: row.id,
-    shipmentId: row.shipmentId,
-    shipmentCode: row.shipmentCode ?? null,
-    reason: row.reason,
-    status: row.status === 'RESOLVED' ? 'RESOLVED' : 'PENDING',
-    requestedBy: row.requestedBy,
-    requestedByName: row.requestedByName ?? null,
-    requestedAt: row.requestedAt.toISOString(),
-  };
-}
-
-export interface RequestShipmentCostAdjustInput {
-  shipmentId: number;
-  reason: string;
-  actor: AuthUser;
-  idempotencyKey: string;
-}
-
-/** Ghi một đề nghị điều chỉnh trên lô ĐANG KHÓA chi phí. 409 khi lô chưa
- *  khóa (đề nghị chỉ tồn tại trên lô đã khóa — nút [Đề nghị điều chỉnh] thay
- *  chỗ [Khóa lô] sau khi khóa). Replay theo Idempotency-Key trả về đề nghị
- *  gốc (audit + notification chỉ ghi lần đầu). Ghi duyệt qua runIdempotent
- *  (reviewed durable command boundary — SIL-923 registry) với các check
- *  404/409 chạy bên trong envelope: một lần mở khóa đua với việc ghi không
- *  còn kịp giữ lại đề nghị trên lô đã mở. */
-export async function requestShipmentCostAdjust(input: RequestShipmentCostAdjustInput): Promise<ShipmentCostAdjustRequestRow> {
-  const reason = input.reason?.trim() ?? '';
-  if (!reason) throw new ApiError(400, 'Vui lòng nhập lý do đề nghị điều chỉnh.');
-  if (reason.length > 2000) throw new ApiError(400, 'Lý do đề nghị điều chỉnh không được vượt quá 2000 ký tự.');
-  const [replayed] = await db.select(costAdjustRequestShape)
-    .from(s.shipmentCostAdjustRequests)
-    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentCostAdjustRequests.shipmentId))
-    .leftJoin(costAdjustRequestRequester, eq(costAdjustRequestRequester.id, s.shipmentCostAdjustRequests.requestedBy))
-    .where(eq(s.shipmentCostAdjustRequests.idempotencyKey, input.idempotencyKey))
-    .limit(1);
-  if (replayed) return toAdjustRequestRow(replayed);
-  const { result } = await runIdempotent({
-    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_ADJUST_REQUEST,
-    idempotencyKey: input.idempotencyKey,
-    payload: { shipmentId: input.shipmentId },
-    createdBy: input.actor.userId,
-    entityType: 'shipment',
-    create: async (tx) => {
-      const [shipment] = await tx.select({ id: s.shipments.id, shipmentCode: s.shipments.shipmentCode, deletedAt: s.shipments.deletedAt })
-        .from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
-      if (!shipment || shipment.deletedAt) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
-      const [active] = await tx.select({ id: s.shipmentCostLocks.id })
-        .from(s.shipmentCostLocks)
-        .where(and(
-          eq(s.shipmentCostLocks.shipmentId, input.shipmentId),
-          isNull(s.shipmentCostLocks.unlockedAt),
-        ))
-        .limit(1);
-      if (!active) throw new ApiError(409, SHIPMENT_COST_NOT_LOCKED_MESSAGE);
-      const [row] = await tx.insert(s.shipmentCostAdjustRequests).values({
-        shipmentId: input.shipmentId,
-        costLockId: active.id,
-        reason,
-        requestedBy: input.actor.userId,
-        idempotencyKey: input.idempotencyKey,
-      }).returning({ id: s.shipmentCostAdjustRequests.id, requestedAt: s.shipmentCostAdjustRequests.requestedAt });
-      await tx.insert(s.auditLogs).values({
-        userId: input.actor.userId,
-        actorName: input.actor.fullName ?? input.actor.username ?? undefined,
-        message: 'SHIPMENT_COST_ADJUST_REQUESTED',
-        entityType: 'shipment',
-        entityId: input.shipmentId,
-        payload: { requestId: row.id, lockId: active.id, reason },
-      });
-      await persistNotificationInTx(tx, {
-        type: NotificationType.SYSTEM_ANNOUNCEMENT,
-        title: 'Lô hàng có đề nghị điều chỉnh chi phí',
-        message: `${input.actor.fullName ?? input.actor.username ?? 'Người dùng'} đề nghị điều chỉnh lô ${shipment.shipmentCode ?? `#${input.shipmentId}`} đã khóa: ${reason}`,
-        relatedEntityType: 'shipments',
-        relatedEntityId: input.shipmentId,
-        // The handling trio — same clearance as the unlock route (SIL-721).
-        targetRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
-      });
-      return {
-        id: row.id,
-        shipmentId: input.shipmentId,
-        shipmentCode: shipment.shipmentCode ?? null,
-        reason,
-        status: 'PENDING' as const,
-        requestedBy: input.actor.userId,
-        requestedByName: input.actor.fullName ?? input.actor.username ?? null,
-        requestedAt: row.requestedAt.toISOString(),
-      };
-    },
-  });
-  return result;
-}
-
-/** Hàng chờ đề nghị điều chỉnh cho bộ mở khóa (route gate: Quản trị ·
- *  Giám đốc · Kế toán — cùng luật với /unlock và /cost-lock-history). Lô đã
- *  xóa rời khỏi hàng chờ (không còn gì để xử lý). */
-export async function listPendingShipmentCostAdjustRequests(): Promise<{ requests: ShipmentCostAdjustRequestRow[] }> {
-  const rows = await db.select(costAdjustRequestShape)
-    .from(s.shipmentCostAdjustRequests)
-    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentCostAdjustRequests.shipmentId))
-    .leftJoin(costAdjustRequestRequester, eq(costAdjustRequestRequester.id, s.shipmentCostAdjustRequests.requestedBy))
-    .where(and(
-      eq(s.shipmentCostAdjustRequests.status, 'PENDING'),
-      isNull(s.shipments.deletedAt),
-    ))
-    .orderBy(desc(s.shipmentCostAdjustRequests.requestedAt), desc(s.shipmentCostAdjustRequests.id));
-  return { requests: rows.map(toAdjustRequestRow) };
-}
+// ─── Đề nghị điều chỉnh lô đã khóa — ĐÃ GỠ BỎ (spec alignment 24/11, mục 11)
+// Luồng ticketing 'Đề nghị điều chỉnh → chờ duyệt' bị loại bỏ là Scope Creep
+// theo nguyên tắc §1.4.1 (thao tác trực tiếp, không phê duyệt nội bộ). Lô đã
+// khóa được mở bằng [Mở khóa] trực tiếp (Quản trị · Giám đốc · Kế toán) với
+// lý do bắt buộc + audit log (unlockShipmentCost). Bảng
+// shipment_cost_adjust_requests chỉ còn là dữ liệu lịch sử; unlock vẫn dọn
+// các dòng PENDING còn sót (xem unlockShipmentCost).
 
 /** Ruling 2026-09-19: the note's range is [min,max] of the selection's
  *  expected delivery dates — the picker is a filter, the selection is the
