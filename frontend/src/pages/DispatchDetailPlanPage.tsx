@@ -7,7 +7,7 @@ import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispa
 import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclGroupTruckEditDialog';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
-import { bulkIssueRows, bulkIssueTargets, type BulkIssueOutcome } from '../features/dispatch/detailed-plan/bulkIssueOrders';
+import { bulkIssueRows, bulkIssueTargets, type BulkIssueOutcome, type BulkIssueWarning } from '../features/dispatch/detailed-plan/bulkIssueOrders';
 import { StuckTripsBanner } from '../features/dispatch/StuckTripsBanner';
 import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { deleteCusShipment } from '../api/shipmentClient';
@@ -36,6 +36,14 @@ function unmergeLotConfirmMessage(request: LclUnmergeLotRequest): string {
   return request.order === 1
     ? `Hủy ghép nhóm ${request.memberCount ?? '?'} lô? Lô 2 sẽ thành Lô chính và nhận 100% tiền cước trả ĐV.${dissolve}`
     : `Hủy ghép lô này khỏi nhóm ${request.memberCount ?? '?'} lô? Lô 1 giữ nguyên 100% tiền cước trả ĐV; lô này trở về cước trả ĐV riêng.${dissolve}`;
+}
+
+/** SIL-898 (QA 24/11 12:37) — the batch confirm dialog's copy: warn-tier rows
+ *  are listed with the server's 'Vẫn lưu?' text verbatim, and the confirm
+ *  names exactly what it will do (re-release those rows ignoring the warn). */
+function bulkIssueWarningsConfirmMessage(warnings: ReadonlyArray<BulkIssueWarning>): string {
+  const list = warnings.map((warning) => `${warning.identity} — ${warning.message}`).join('  |  ');
+  return `Có ${warnings.length} lô dính cảnh báo cần xác nhận: ${list} Xác nhận vẫn phát lệnh sẽ phát các lô này bỏ qua cảnh báo; Hủy giữ các lô ở 'Đã điều xe'.`;
 }
 
 /** Card 211026005623 (FB-095) — the delete confirm names the same promote law
@@ -159,11 +167,25 @@ export default function DispatchDetailPlanPage() {
   const selectedBulkIds = useMemo(() => new Set(selectedBulkRows.keys()), [selectedBulkRows]);
   const [bulkIssueBusy, setBulkIssueBusy] = useState(false);
   const [bulkIssueOutcome, setBulkIssueOutcome] = useState<BulkIssueOutcome | null>(null);
+  // SIL-898 (QA 24/11 12:37) — warn-tier rows pause the batch: the dialog
+  // lists them and a confirmed choice re-releases just those rows with the
+  // per-row confirm flags. The pending promise resolves through the dialog's
+  // two buttons; Escape/close answers Hủy (rows stay unissued).
+  const [bulkIssueWarnings, setBulkIssueWarnings] = useState<{
+    warnings: ReadonlyArray<BulkIssueWarning>;
+    resolve: (proceed: boolean) => void;
+  } | null>(null);
   const exitBulkIssueMode = () => {
     setBulkIssueMode(false);
     setSelectedBulkRows(new Map());
     setBulkIssueOutcome(null);
+    setBulkIssueWarnings(null);
   };
+  function settleBulkIssueWarnings(proceed: boolean) {
+    if (!bulkIssueWarnings) return;
+    bulkIssueWarnings.resolve(proceed);
+    setBulkIssueWarnings(null);
+  }
   const toggleBulkIssueMode = () => {
     if (bulkIssueMode) {
       exitBulkIssueMode();
@@ -194,7 +216,11 @@ export default function DispatchDetailPlanPage() {
     if (targets.length === 0) return;
     setBulkIssueBusy(true);
     try {
-      const outcome = await bulkIssueRows(targets, detailPlan.issueOrder);
+      const outcome = await bulkIssueRows(targets, detailPlan.issueOrder, {
+        confirmWarnings: (warnings) => new Promise<boolean>((resolve) => {
+          setBulkIssueWarnings({ warnings, resolve });
+        }),
+      });
       setBulkIssueOutcome(outcome);
       setSelectedBulkRows(new Map());
       toast({
@@ -646,6 +672,19 @@ export default function DispatchDetailPlanPage() {
         confirmLabel={completing ? 'Đang hoàn thành…' : 'Hoàn thành chuyến'}
         onConfirm={() => void confirmCompleteExternalTrip()}
         onCancel={() => { if (!completing) setCompletingRow(null); }}
+      />
+
+      {/* SIL-898 — the batch warn confirm: lists the warn-tier rows with the
+          server's 'Vẫn lưu?' copy; confirming re-releases ONLY those rows
+          with the per-row confirm flags, cancelling leaves them unissued. */}
+      <ConfirmDialog
+        isOpen={bulkIssueWarnings != null}
+        message={bulkIssueWarnings ? bulkIssueWarningsConfirmMessage(bulkIssueWarnings.warnings) : ''}
+        confirmLabel="Xác nhận vẫn phát lệnh"
+        cancelLabel="Hủy"
+        variant="warning"
+        onConfirm={() => settleBulkIssueWarnings(true)}
+        onCancel={() => settleBulkIssueWarnings(false)}
       />
     </div>
   );

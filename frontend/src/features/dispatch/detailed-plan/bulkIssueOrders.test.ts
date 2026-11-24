@@ -8,8 +8,10 @@
  *   • The release body mirrors the single-row quick-issue: OWN rows carry the
  *     resolved truck+driver, external rows the carrier ids; planned times
  *     ride the row's CUS-locked schedule (draftIssueTimesFor).
- *   • Soft-warn 409s (plate-deferred, rig overlap, Kẹp weight) fail with the
- *     per-row hint — a batch never answers a confirm dialog silently.
+ *   • Soft-warn 409s (plate-deferred, rig overlap, Kẹp weight) pause the batch
+ *     for the caller's confirm dialog (SIL-898): a confirmed choice re-releases
+ *     only those rows with the per-row flags; declining (or no callback) fails
+ *     them with the per-row hint — a batch never answers a confirm silently.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -297,5 +299,126 @@ describe('bulkIssueTargets — the pick outlives the search window (SIL-898, BUG
     expect(onIssueOrder.mock.calls.map(([released]) => released.fulfillmentId)).toEqual([201, 202]);
     expect(outcome.issued).toBe(2);
     expect(outcome.failures).toEqual([]);
+  });
+});
+
+describe('bulkIssueRows — the batch warn confirm (SIL-898, QA 24/11 12:37)', () => {
+  // The two QA repro warnings, pinned to their exact server shapes:
+  // R3M-KQ1 — completed-trip overlap warn-once (409 RIG_OVERLAP_COMPLETED).
+  // R15-DRV-KEP — Kẹp weight warn-once (409 KEP_WEIGHT_WARNING).
+  const overlap409 = Object.assign(
+    new Error('Có 1 chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?'),
+    { status: 409, raw: { code: 'RIG_OVERLAP_COMPLETED' } },
+  );
+  const kepWeight409 = Object.assign(
+    new Error('Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại'),
+    { status: 409 },
+  );
+  const r3mRow = () => row({
+    fulfillmentId: 301,
+    docs: { billNumber: 'R3M-KQ1', tradeDirection: 'IMPORT', declarationNumbers: [] },
+    container: { containerNumber: 'RTAU4000119', containerTypeLabel: '20DC', cargoWeightKg: '5000.00' },
+  });
+  const r15Row = () => row({
+    fulfillmentId: 302,
+    docs: { billNumber: 'R15-DRV-KEP', tradeDirection: 'IMPORT', declarationNumbers: [] },
+    container: { containerNumber: 'RTAU4012151', containerTypeLabel: '20DC', cargoWeightKg: '5000.00' },
+  });
+
+  it('a warn row pauses the batch; confirming re-releases it with the row confirm flag and it issues', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn()
+      .mockRejectedValueOnce(overlap409)
+      .mockResolvedValueOnce(ok);
+    const confirmWarnings = vi.fn().mockResolvedValue(true);
+
+    const outcome = await bulkIssueRows([r3mRow()], onIssueOrder, { confirmWarnings });
+
+    expect(confirmWarnings).toHaveBeenCalledTimes(1);
+    expect(confirmWarnings.mock.calls[0][0]).toEqual([
+      expect.objectContaining({
+        fulfillmentId: 301,
+        identity: 'RTAU4000119 · R3M-KQ1',
+        code: 'RIG_OVERLAP_COMPLETED',
+        message: expect.stringContaining('Vẫn lưu?'),
+      }),
+    ]);
+    expect(onIssueOrder).toHaveBeenCalledTimes(2);
+    expect(onIssueOrder.mock.calls[1][1]).toMatchObject({ rigOverlapCompletedConfirmed: true });
+    expect(onIssueOrder.mock.calls[1][2]).toEqual({ fromBulk: true });
+    expect(outcome.issued).toBe(1);
+    expect(outcome.failures).toEqual([]);
+    expect(outcome.successes.map((success) => success.identity)).toEqual(['RTAU4000119 · R3M-KQ1']);
+  });
+
+  it('a KEP weight warn (message-fallback shape) retries with kepWeightWarningConfirmed', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn()
+      .mockRejectedValueOnce(kepWeight409)
+      .mockResolvedValueOnce(ok);
+    const confirmWarnings = vi.fn().mockResolvedValue(true);
+
+    const outcome = await bulkIssueRows([r15Row()], onIssueOrder, { confirmWarnings });
+
+    expect(confirmWarnings.mock.calls[0][0][0]).toMatchObject({ code: 'KEP_WEIGHT_WARNING', fulfillmentId: 302 });
+    expect(onIssueOrder.mock.calls[1][1]).toMatchObject({ kepWeightWarningConfirmed: true });
+    expect(outcome.issued).toBe(1);
+    expect(outcome.failures).toEqual([]);
+  });
+
+  it('a clean row issues in pass one and the confirm round re-releases only the warn rows', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn()
+      .mockResolvedValueOnce(ok) // clean row, pass one
+      .mockRejectedValueOnce(overlap409) // warn row, pass one
+      .mockResolvedValueOnce(ok); // warn row, confirmed retry
+    const confirmWarnings = vi.fn().mockResolvedValue(true);
+
+    const outcome = await bulkIssueRows([row({ fulfillmentId: 300 }), r3mRow()], onIssueOrder, { confirmWarnings });
+
+    expect(onIssueOrder).toHaveBeenCalledTimes(3);
+    expect(onIssueOrder.mock.calls.map(([released, body]) => [released.fulfillmentId, body.rigOverlapCompletedConfirmed ?? false]))
+      .toEqual([[300, false], [301, false], [301, true]]);
+    expect(outcome.issued).toBe(2);
+    expect(outcome.failures).toEqual([]);
+  });
+
+  it('declining keeps the warn rows unissued — server copy plus the decline reason, no retry', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn().mockRejectedValue(overlap409);
+    const confirmWarnings = vi.fn().mockResolvedValue(false);
+
+    const outcome = await bulkIssueRows([r3mRow()], onIssueOrder, { confirmWarnings });
+
+    expect(onIssueOrder).toHaveBeenCalledTimes(1);
+    expect(outcome.issued).toBe(0);
+    expect(outcome.failures[0].message).toContain('Vẫn lưu?');
+    expect(outcome.failures[0].message).toContain('đã hủy xác nhận');
+  });
+
+  it('a warn row that still fails after confirm lands as a terminal failure — no loop', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn()
+      .mockRejectedValueOnce(overlap409)
+      .mockRejectedValueOnce(Object.assign(new Error('Xe đầu kéo đã bị trùng lịch kế hoạch.'), { status: 409 }));
+    const confirmWarnings = vi.fn().mockResolvedValue(true);
+
+    const outcome = await bulkIssueRows([r3mRow()], onIssueOrder, { confirmWarnings });
+
+    expect(onIssueOrder).toHaveBeenCalledTimes(2);
+    expect(outcome.issued).toBe(0);
+    expect(outcome.failures[0].message).toBe('Xe đầu kéo đã bị trùng lịch kế hoạch.');
+  });
+
+  it('without a confirmWarnings callback the warn row keeps the legacy summary-hint failure', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn().mockRejectedValue(overlap409);
+
+    const outcome = await bulkIssueRows([r3mRow()], onIssueOrder);
+
+    expect(onIssueOrder).toHaveBeenCalledTimes(1);
+    expect(outcome.issued).toBe(0);
+    expect(outcome.failures[0].message).toContain('Vẫn lưu?');
+    expect(outcome.failures[0].message).toContain('dùng nút Phát lệnh trên dòng');
   });
 });

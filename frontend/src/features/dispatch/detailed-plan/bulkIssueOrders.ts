@@ -14,12 +14,16 @@
  *     path, it does not replace the row action.
  *
  * The per-row 409 soft warnings (rig overlap, plate-deferred, Kẹp weight)
- * are CONFIRM dialogs in the single-row flow; a batch must not answer them
- * silently, so such rows fail with the server's message and the hint to
- * release that row individually.
+ * are CONFIRM dialogs in the single-row flow. A batch never answers them
+ * silently: without a confirm callback such rows fail with the server's
+ * message and the hint to release that row individually; WITH the callback
+ * (SIL-898, QA 24/11 12:37) the runner pauses once, the caller's dialog lists
+ * the warn rows, and a confirmed choice re-releases only those rows with the
+ * same flags the row flow rides.
  */
 import { listDispatchFleetResources, type DispatchDetailPlanRow, type DispatchTruck } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
+import { ApiError } from '../../../lib/api/errors';
 import { deriveDispatchIssueStatus, type DispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { draftIssueTimesFor } from './useIssueOrder';
 
@@ -113,15 +117,27 @@ function issueBodyFor(
 }
 
 /** 409 soft warns need an explicit confirm in the single-row flow; in a
- *  batch they surface with the hint to release that row on its own. */
+ *  batch they surface with the hint to release that row on its own — unless
+ *  the caller answers the batch confirm dialog (SIL-898, QA 24/11 12:37). */
 function bulkFailureMessage(cause: unknown): string {
-  const err = cause as { status?: number; message?: string; raw?: { code?: string }; code?: string };
-  const message = err.message || 'Không thể phát lệnh.';
-  const softWarn = err.status === 409 && (
-    err.raw?.code === 'RIG_OVERLAP_COMPLETED'
-    || err.raw?.code === 'PLATE_DEFERRED_CONFIRM'
-    || err.raw?.code === 'KEP_WEIGHT_WARNING'
-    || err.code === 'KEP_WEIGHT_WARNING'
+  // Rejections ride ApiError (status + translated message); a numeric status
+  // on a plain rejection object keeps the legacy read. Everything else is a
+  // local failure — the fallback line.
+  const status = cause instanceof ApiError
+    ? cause.status
+    : typeof cause === 'object' && cause !== null && 'status' in cause && typeof cause.status === 'number'
+      ? cause.status
+      : null;
+  const rawCode = rawPayloadCode(cause);
+  const code = typeof cause === 'object' && cause !== null && 'code' in cause && typeof cause.code === 'string'
+    ? cause.code
+    : undefined;
+  const message = cause instanceof Error && cause.message ? cause.message : 'Không thể phát lệnh.';
+  const softWarn = status === 409 && (
+    rawCode === 'RIG_OVERLAP_COMPLETED'
+    || rawCode === 'PLATE_DEFERRED_CONFIRM'
+    || rawCode === 'KEP_WEIGHT_WARNING'
+    || code === 'KEP_WEIGHT_WARNING'
     || (message.includes('vượt tải trọng cho phép'))
   );
   return softWarn
@@ -129,18 +145,94 @@ function bulkFailureMessage(cause: unknown): string {
     : message;
 }
 
+/** `code` off the raw 409 payload body ({ code: 'KEP_WEIGHT_WARNING' }) —
+ *  narrowed field-by-field, never asserted; undefined on anything else. The
+ *  payload rides ApiError.raw in production and a plain `raw` field in the
+ *  test doubles; four call sites across the warn checks keep this lockstep. */
+function rawPayloadCode(cause: unknown): string | undefined {
+  const raw = cause instanceof ApiError
+    ? cause.raw
+    : typeof cause === 'object' && cause !== null && 'raw' in cause
+      ? cause.raw
+      : undefined;
+  if (typeof raw === 'object' && raw !== null && 'code' in raw && typeof raw.code === 'string') {
+    return raw.code;
+  }
+  return undefined;
+}
+
+/** The warn-once 409 family the row's quick-issue answers with 'Vẫn lưu?'
+ *  (useIssueOrder / DispatchPlanEditorCell), and the dispatch-body flag each
+ *  confirmed retry rides. */
+type BulkIssueConfirmCode = 'RIG_OVERLAP_COMPLETED' | 'PLATE_DEFERRED_CONFIRM' | 'KEP_WEIGHT_WARNING';
+
+const BULK_ISSUE_CONFIRM_FLAGS: Record<BulkIssueConfirmCode,
+  'rigOverlapCompletedConfirmed' | 'plateDeferredConfirmed' | 'kepWeightWarningConfirmed'> = {
+  RIG_OVERLAP_COMPLETED: 'rigOverlapCompletedConfirmed',
+  PLATE_DEFERRED_CONFIRM: 'plateDeferredConfirmed',
+  KEP_WEIGHT_WARNING: 'kepWeightWarningConfirmed',
+};
+
+/** Same detection the row's quick-issue applies: the 409 payload code, plus
+ *  the KEP weight message fallback the row flow already honors. Null = a
+ *  hard error, never confirmable. */
+function bulkIssueConfirmCode(cause: unknown): BulkIssueConfirmCode | null {
+  const status = cause instanceof ApiError
+    ? cause.status
+    : typeof cause === 'object' && cause !== null && 'status' in cause && typeof cause.status === 'number'
+      ? cause.status
+      : null;
+  if (status !== 409) return null;
+  const rawCode = rawPayloadCode(cause);
+  if (rawCode === 'RIG_OVERLAP_COMPLETED') return 'RIG_OVERLAP_COMPLETED';
+  if (rawCode === 'PLATE_DEFERRED_CONFIRM') return 'PLATE_DEFERRED_CONFIRM';
+  const code = typeof cause === 'object' && cause !== null && 'code' in cause && typeof cause.code === 'string'
+    ? cause.code
+    : undefined;
+  const message = cause instanceof Error ? cause.message : '';
+  if (
+    rawCode === 'KEP_WEIGHT_WARNING'
+    || code === 'KEP_WEIGHT_WARNING'
+    || (message.includes('vượt tải trọng cho phép'))
+  ) return 'KEP_WEIGHT_WARNING';
+  return null;
+}
+
+/** One warn-tier row the batch confirm dialog lists (identity + the server's
+ *  'Vẫn lưu?' copy verbatim). SIL-898 — QA 24/11 12:37: both repro rows were
+ *  warn-tier (completed-trip overlap; Kẹp weight), not hard blocks. */
+export interface BulkIssueWarning {
+  fulfillmentId: number;
+  identity: string;
+  message: string;
+  code: BulkIssueConfirmCode;
+}
+
 /** Release the selected rows one by one; every failure is captured, nothing
  *  cancels the batch. Own-truck lookups share one plate→truck cache so a
- *  30-row batch never fires 30 identical catalog queries. */
+ *  30-row batch never fires 30 identical catalog queries.
+ *
+ *  SIL-898 (QA 24/11 12:37) — warn-tier rows (completed-trip overlap, Kẹp
+ *  weight, plate-deferred) no longer dead-end in the summary: when the caller
+ *  provides `confirmWarnings`, the batch pauses once, lists the warn rows,
+ *  and a confirmed choice re-releases ONLY those rows with the same flag the
+ *  per-row 'Vẫn lưu?' retry rides. Declining (or no callback) keeps the
+ *  legacy summary-failure behavior. One confirm round — a retry that still
+ *  fails lands as a terminal failure, never a loop. */
 export async function bulkIssueRows(
   rows: ReadonlyArray<DispatchDetailPlanRow>,
   onIssueOrder: (
     row: DispatchDetailPlanRow,
     body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
+    options?: { fromBulk?: boolean },
   ) => Promise<DispatchShipmentResponse>,
+  options?: {
+    confirmWarnings?: (warnings: ReadonlyArray<BulkIssueWarning>) => Promise<boolean>;
+  },
 ): Promise<BulkIssueOutcome> {
   const failures: BulkIssueFailure[] = [];
   const successes: BulkIssueSuccess[] = [];
+  const warns: Array<{ row: DispatchDetailPlanRow; body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>; warning: BulkIssueWarning }> = [];
   let issued = 0;
   const truckByPlate = new Map<string, DispatchTruck | null>();
   const resolveTruck = async (plate: string): Promise<DispatchTruck | null> => {
@@ -152,6 +244,36 @@ export async function bulkIssueRows(
     truckByPlate.set(plate, match);
     return match;
   };
+  const prepareRelease = async (row: DispatchDetailPlanRow) => {
+    const { eligible, reason } = bulkIssueEligibility(row);
+    if (!eligible) throw new Error(reason ?? 'Dòng không đủ điều kiện phát lệnh.');
+    // Re-read at release time: a sibling issued moments ago must not ride a
+    // stale snapshot into a second trip on the same fulfillment.
+    if (row.dispatch.tripId != null) throw new Error('Đã phát lệnh rồi.');
+    const isOwn = row.dispatch.carrierType === 'OWN';
+    let truck: DispatchTruck | null = null;
+    if (isOwn) {
+      truck = row.dispatch.assignedPlate ? await resolveTruck(row.dispatch.assignedPlate) : null;
+      if (truck?.assignedDriverId == null) {
+        throw new Error('Xe chưa gán tài xế. Gán tài xế trong Danh mục Xe nội bộ rồi phát lệnh dòng này.');
+      }
+    }
+    const { plannedStartAt, plannedEndAt } = draftIssueTimesFor(row);
+    const startAt = new Date(plannedStartAt);
+    const endAt = new Date(plannedEndAt);
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      throw new Error('Giờ chạy / giờ kết thúc không hợp lệ.');
+    }
+    if (endAt.getTime() <= startAt.getTime()) {
+      throw new Error('Giờ trả hàng phải sau giờ chạy.');
+    }
+    return issueBodyFor(row, truck!, startAt, endAt);
+  };
+  const release = (
+    row: DispatchDetailPlanRow,
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
+    flags: Partial<Pick<DispatchShipmentRequest, 'rigOverlapCompletedConfirmed' | 'plateDeferredConfirmed' | 'kepWeightWarningConfirmed'>> = {},
+  ) => onIssueOrder(row, { ...body, ...flags }, { fromBulk: true });
   for (const row of rows) {
     // CR-010.1 (SIL-898 b) — the summary's CONT / BILL cell carries BOTH
     // tokens when the row has them: two lots routinely share one container
@@ -160,35 +282,66 @@ export async function bulkIssueRows(
     const cont = row.container.containerNumber?.trim() || null;
     const bill = row.docs.billNumber?.trim() || null;
     const identity = cont && bill ? `${cont} · ${bill}` : cont ?? bill ?? 'Chưa có số Bill/Booking';
+    let body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'> | null = null;
     try {
-      const { eligible, reason } = bulkIssueEligibility(row);
-      if (!eligible) throw new Error(reason ?? 'Dòng không đủ điều kiện phát lệnh.');
-      // Re-read at release time: a sibling issued moments ago must not ride a
-      // stale snapshot into a second trip on the same fulfillment.
-      if (row.dispatch.tripId != null) throw new Error('Đã phát lệnh rồi.');
-      const isOwn = row.dispatch.carrierType === 'OWN';
-      let truck: DispatchTruck | null = null;
-      if (isOwn) {
-        truck = row.dispatch.assignedPlate ? await resolveTruck(row.dispatch.assignedPlate) : null;
-        if (truck?.assignedDriverId == null) {
-          throw new Error('Xe chưa gán tài xế. Gán tài xế trong Danh mục Xe nội bộ rồi phát lệnh dòng này.');
-        }
-      }
-      const { plannedStartAt, plannedEndAt } = draftIssueTimesFor(row);
-      const startAt = new Date(plannedStartAt);
-      const endAt = new Date(plannedEndAt);
-      if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
-        throw new Error('Giờ chạy / giờ kết thúc không hợp lệ.');
-      }
-      if (endAt.getTime() <= startAt.getTime()) {
-        throw new Error('Giờ trả hàng phải sau giờ chạy.');
-      }
-      await onIssueOrder(row, issueBodyFor(row, truck!, startAt, endAt));
+      body = await prepareRelease(row);
+      await release(row, body);
       issued += 1;
       successes.push({ fulfillmentId: row.fulfillmentId, identity });
     } catch (cause) {
-      failures.push({ fulfillmentId: row.fulfillmentId, identity, message: bulkFailureMessage(cause) });
+      const code = bulkIssueConfirmCode(cause);
+      if (code != null && body != null) {
+        const warnMessage = cause instanceof Error && cause.message
+          ? cause.message
+          : 'Cảnh báo cần xác nhận.';
+        warns.push({
+          row,
+          body,
+          warning: {
+            fulfillmentId: row.fulfillmentId,
+            identity,
+            message: warnMessage,
+            code,
+          },
+        });
+      } else {
+        failures.push({ fulfillmentId: row.fulfillmentId, identity, message: bulkFailureMessage(cause) });
+      }
     }
+  }
+  if (warns.length > 0 && options?.confirmWarnings != null) {
+    const proceed = await options.confirmWarnings(warns.map((pending) => pending.warning));
+    if (proceed) {
+      for (const pending of warns) {
+        try {
+          await release(pending.row, pending.body, { [BULK_ISSUE_CONFIRM_FLAGS[pending.warning.code]]: true });
+          issued += 1;
+          successes.push({ fulfillmentId: pending.row.fulfillmentId, identity: pending.warning.identity });
+        } catch (cause) {
+          failures.push({
+            fulfillmentId: pending.row.fulfillmentId,
+            identity: pending.warning.identity,
+            message: bulkFailureMessage(cause),
+          });
+        }
+      }
+      return { issued, successes, failures };
+    }
+    for (const pending of warns) {
+      failures.push({
+        fulfillmentId: pending.row.fulfillmentId,
+        identity: pending.warning.identity,
+        message: `${pending.warning.message} — đã hủy xác nhận, dùng nút Phát lệnh trên dòng để phát lô này.`,
+      });
+    }
+    return { issued, successes, failures };
+  }
+  for (const pending of warns) {
+    failures.push({
+      fulfillmentId: pending.row.fulfillmentId,
+      identity: pending.warning.identity,
+      message: `${pending.warning.message} — dùng nút Phát lệnh trên dòng để xác nhận và phát lô này.`,
+    });
   }
   return { issued, successes, failures };
 }

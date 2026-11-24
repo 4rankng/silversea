@@ -510,12 +510,14 @@ export function useDispatchDetailPlan() {
   }, [refetch]);
 
   /** "Phát lệnh" — issues the dispatch order for an already-planned row,
-   *  creating the live trip and flipping the status chip to "Đã phát lệnh". */
+   *  creating the live trip and flipping the status chip to "Đã phát lệnh".
+   *  `options.fromBulk` (SIL-898) marks the batch runner's release: the warn
+   *  409 rethrows untouched so the batch's own confirm dialog owns the flow —
+   *  no assignmentError / pendingWeightWarning state, per-row UX unchanged. */
   const issueOrder = useCallback(async (
     row: DispatchDetailPlanRow,
-    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'> & {
-      kepWeightWarningConfirmed?: boolean;
-    },
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
+    options?: { fromBulk?: boolean },
   ) => {
     setAssignmentError(null);
     setPendingWeightWarning(null);
@@ -571,6 +573,12 @@ export function useDispatchDetailPlan() {
         : item)));
       return result;
     } catch (mutationError) {
+      if (options?.fromBulk === true) {
+        // SIL-898 — the batch runner classifies the warn itself and drives its
+        // own confirm dialog; hooking the grid's warning state here would pop
+        // a stray row dialog mid-batch.
+        throw mutationError;
+      }
       const status = (mutationError as { status?: number }).status;
       const errObj = mutationError as { status?: number; message?: string; raw?: { code?: string }; code?: string };
       const isWeightWarning = status === 409 && (

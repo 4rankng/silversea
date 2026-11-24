@@ -763,6 +763,10 @@ export interface DispatchShipmentRequest {
    *  first attempt is refused with PLATE_DEFERRED_CONFIRM; the operator's
    *  confirmed retry carries this flag. */
   plateDeferredConfirmed?: boolean;
+  /** SIL-638 TC6(2) — the Kẹp weight soft warn-once retry: the first attempt
+   *  is refused with KEP_WEIGHT_WARNING; the confirmed retry carries this
+   *  flag (parsed by fulfillmentDispatchSchema, routes/shipments/core). */
+  kepWeightWarningConfirmed?: boolean;
 }
 
 /** Response from `POST /api/shipments/:id/dispatch` — the trip it created (or
