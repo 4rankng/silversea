@@ -1,5 +1,5 @@
-import { computeFifoAging, maxOverdueDaysOf } from '@tingting/shared';
-import { and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { computeFifoAging, maxOverdueDaysOf, overdueAmountOf, TxnType } from '@tingting/shared';
+import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -41,6 +41,13 @@ export interface CustomerReceivableSnapshot {
   /** Contractual overdue span (card 061026221213): days past the effective due
    * date of the oldest open obligation; 0 = not yet due. Never the debt age. */
   maxOverdueDays: number;
+  /** Contractual overdue amount (SIL-964): open obligation money past its
+   *  effective due date — the money twin of maxOverdueDays, never age bands. */
+  overdueAmount: number;
+  /** Ngày thanh toán gần nhất (SIL-964): Vietnam business date (YYYY-MM-DD) of
+   *  the latest PAYMENT_RECEIVED ledger row inside the cutoff; null = chưa có
+   *  phiếu thu. Same payment law as the DebtDetailPage last-payment cell. */
+  lastPaymentDate: string | null;
 }
 
 export interface VietnamAsOfCutoff {
@@ -205,6 +212,8 @@ export async function getCustomerReceivableSnapshot(
     aging: { current: 0, d30: 0, d60: 0, over90: 0 },
     totalOutstanding: 0,
     maxOverdueDays: 0,
+    overdueAmount: 0,
+    lastPaymentDate: null,
   };
 }
 
@@ -504,6 +513,29 @@ export async function getCustomerReceivableSnapshots(
     directGroups.set(groupKey, current);
   }
 
+  // SIL-964: "ngày thanh toán gần nhất" — Vietnam business date of the latest
+  // PAYMENT_RECEIVED ledger row inside the cutoff. Same payment law as the
+  // DebtDetailPage last-payment cell (latest PAYMENT_RECEIVED row), resolved
+  // once per batch instead of per obligation group.
+  const lastPaymentRows = await db.select({
+    customerId: s.ledger.entityId,
+    timestamp: s.ledger.timestamp,
+  })
+    .from(s.ledger)
+    .where(and(
+      eq(s.ledger.entityType, 'CUSTOMER'),
+      inArray(s.ledger.entityId, dedupedCustomerIds),
+      eq(s.ledger.txnType, TxnType.PAYMENT_RECEIVED),
+      lt(s.ledger.timestamp, cutoff.endExclusive),
+    ))
+    .orderBy(desc(s.ledger.timestamp));
+  const lastPaymentByCustomer = new Map<number, string>();
+  for (const row of lastPaymentRows) {
+    if (row.timestamp && !lastPaymentByCustomer.has(row.customerId)) {
+      lastPaymentByCustomer.set(row.customerId, vietnamBusinessDate(row.timestamp));
+    }
+  }
+
   for (const customerId of dedupedCustomerIds) {
     const obligations: CustomerReceivableObligation[] = [];
 
@@ -593,6 +625,8 @@ export async function getCustomerReceivableSnapshots(
       aging,
       totalOutstanding: aging.current + aging.d30 + aging.d60 + aging.over90,
       maxOverdueDays: maxOverdueDaysOf(openInvoices),
+      overdueAmount: overdueAmountOf(openInvoices),
+      lastPaymentDate: lastPaymentByCustomer.get(customerId) ?? null,
     });
   }
 

@@ -87,6 +87,11 @@ export interface CustomerAgingListItem {
   totalOutstanding: number;
   aging: { current: number; d30: number; d60: number; over90: number };
   maxOverdueDays: number;
+  /** SIL-964: tiền quá hạn (hợp đồng) — money twin of maxOverdueDays. */
+  overdueAmount: number;
+  /** SIL-964: ngày thanh toán gần nhất (YYYY-MM-DD, giờ Việt Nam); null = chưa
+   *  có phiếu thu. */
+  lastPaymentDate: string | null;
 }
 
 export interface CustomerAgingListResult {
@@ -641,6 +646,8 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
       aging: snapshot.aging,
       totalOutstanding: snapshot.totalOutstanding,
       maxOverdueDays: snapshot.maxOverdueDays,
+      overdueAmount: snapshot.overdueAmount,
+      lastPaymentDate: snapshot.lastPaymentDate,
     }));
 
   const customerIds = results.map(r => r.entityId);
@@ -686,6 +693,8 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
       totalOutstanding: r.totalOutstanding,
       aging: r.aging,
       maxOverdueDays: r.maxOverdueDays,
+      overdueAmount: r.overdueAmount,
+      lastPaymentDate: r.lastPaymentDate,
     };
   });
 

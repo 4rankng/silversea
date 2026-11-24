@@ -381,11 +381,11 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
 
   // Company letterhead (configured on /config/company-info) — rows 1..4.
   const company = await getCompanyInfo();
-  const afterHeader = await stampCompanyHeaderXlsx(workbook, sheet, company, { lastCol: 8 });
+  const afterHeader = await stampCompanyHeaderXlsx(workbook, sheet, company, { lastCol: 10 });
 
   // Header/Title Row
   const titleRow = afterHeader + 1;
-  sheet.mergeCells(titleRow, 1, titleRow, 8);
+  sheet.mergeCells(titleRow, 1, titleRow, 10);
   const titleCell = sheet.getCell(titleRow, 1);
   titleCell.value = 'BÁO CÁO CÔNG NỢ PHẢI THU';
   titleCell.font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -397,14 +397,14 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
   const dateRow = titleRow + 2;
   sheet.getCell(dateRow, 1).value = `Ngày xuất: ${dateStr}`;
   sheet.getCell(dateRow, 1).font = { name: 'Segoe UI', size: 10, italic: true, color: { argb: 'FF6B7280' } };
-  sheet.mergeCells(dateRow, 1, dateRow, 8);
+  sheet.mergeCells(dateRow, 1, dateRow, 10);
   sheet.getRow(dateRow).height = 20;
 
   let currentOffset = dateRow + 2;
 
   // Table header row
   const tableHeaderRow = currentOffset;
-  const headers = ['Khách hàng', 'Tổng nợ (VND)', 'Trong hạn (VND)', '31-60 ngày (VND)', '61-90 ngày (VND)', 'Trên 90 ngày (VND)', 'Phải trả l.kết (VND)', 'Nợ ròng (VND)'];
+  const headers = ['Khách hàng', 'Tổng nợ (VND)', 'Trong hạn (VND)', '31-60 ngày (VND)', '61-90 ngày (VND)', 'Trên 90 ngày (VND)', 'Phải trả l.kết (VND)', 'Nợ ròng (VND)', 'Tiền quá hạn (VND)', 'Ngày thanh toán gần nhất'];
   headers.forEach((h, i) => {
     const cell = sheet.getCell(tableHeaderRow, i + 1);
     cell.value = h;
@@ -426,6 +426,7 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
   let sumOver90 = 0;
   let sumApBalance = 0;
   let sumNetBalance = 0;
+  let sumOverdueAmount = 0;
 
   // Populate data rows
   data.forEach((row, i: number) => {
@@ -486,6 +487,21 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
     netBalanceCell.alignment = { vertical: 'middle', horizontal: 'right' };
     netBalanceCell.border = borderStyle;
 
+    // SIL-964 — screen/export agreement (card 071026211110): the two facts the
+    // /debt table gained must reach this export too.
+    const overdueAmountCell = sheet.getCell(r, 9);
+    overdueAmountCell.value = row.overdueAmount || 0;
+    overdueAmountCell.font = { name: 'Segoe UI', size: 10, color: row.overdueAmount > 0 ? { argb: 'FFDC2626' } : { argb: 'FF4B5563' } };
+    overdueAmountCell.numFmt = '#,##0';
+    overdueAmountCell.alignment = { vertical: 'middle', horizontal: 'right' };
+    overdueAmountCell.border = borderStyle;
+
+    const lastPaymentCell = sheet.getCell(r, 10);
+    lastPaymentCell.value = row.lastPaymentDate ?? 'Chưa có phiếu thu';
+    lastPaymentCell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF4B5563' } };
+    lastPaymentCell.alignment = { vertical: 'middle', horizontal: 'right' };
+    lastPaymentCell.border = borderStyle;
+
     sheet.getRow(r).height = 20;
 
     sumTotal += row.totalOutstanding || 0;
@@ -495,6 +511,7 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
     sumOver90 += row.aging.over90 || 0;
     sumApBalance += row.linkedSupplierApBalance || 0;
     sumNetBalance += row.netBalance || 0;
+    sumOverdueAmount += row.overdueAmount || 0;
 
     currentOffset++;
   });
@@ -514,7 +531,8 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
     { col: 5, val: sumD60 },
     { col: 6, val: sumOver90, isRed: true },
     { col: 7, val: sumApBalance },
-    { col: 8, val: sumNetBalance, isBold: true }
+    { col: 8, val: sumNetBalance, isBold: true },
+    { col: 9, val: sumOverdueAmount, isRed: true }
   ];
 
   totalCols.forEach(tc => {

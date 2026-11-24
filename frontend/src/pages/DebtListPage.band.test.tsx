@@ -271,3 +271,57 @@ describe('DebtListPage summary band (SIL-469)', () => {
     expect(badgeBand('Không quá hạn').total).toContain('· Trong hạn');
   });
 });
+
+// SIL-964 — the row contract gains two facts: "Tiền quá hạn" (the money twin
+// of the days badge) and "Ngày thanh toán gần nhất". The K6.43 rule forbids an
+// overdue display that carries only the day count.
+describe('DebtListPage SIL-964 payment-date and overdue-amount columns', () => {
+  const rowCells = (name: string) => {
+    const cell = [...document.querySelectorAll('td[data-label="Khách hàng"]')]
+      .find((td) => td.textContent?.includes(name));
+    const row = cell?.closest('tr');
+    return [...(row?.querySelectorAll('td') ?? [])];
+  };
+
+  it('renders the two new columns with the payload facts', async () => {
+    getCustomerAging.mockReset().mockResolvedValue({
+      ...envelope,
+      customers: [
+        customer(1, 'Quá hạn có tiền', 5_000_000, {
+          maxOverdueDays: 45,
+          overdueAmount: 1_200_000,
+          lastPaymentDate: '2026-10-27',
+        }),
+      ],
+    });
+    renderPage();
+
+    await screen.findAllByText('Quá hạn có tiền');
+    const cells = rowCells('Quá hạn có tiền');
+    const moneyCell = cells.find((td) => td.dataset.label === 'Tiền quá hạn')!;
+    const dateCell = cells.find((td) => td.dataset.label === 'Ngày thanh toán gần nhất')!;
+    expect(moneyCell.textContent).toContain('1.200.000');
+    expect(dateCell.textContent).toBe('27/10/2026');
+  });
+
+  it('empty facts degrade: em dash for the amount, "Chưa có phiếu thu" for the date', async () => {
+    getCustomerAging.mockReset().mockResolvedValue({
+      ...envelope,
+      customers: [
+        customer(2, 'Khách trong hạn', 8_000_000, {
+          maxOverdueDays: 0,
+          overdueAmount: 0,
+          lastPaymentDate: null,
+        }),
+      ],
+    });
+    renderPage();
+
+    await screen.findAllByText('Khách trong hạn');
+    const cells = rowCells('Khách trong hạn');
+    const moneyCell = cells.find((td) => td.dataset.label === 'Tiền quá hạn')!;
+    const dateCell = cells.find((td) => td.dataset.label === 'Ngày thanh toán gần nhất')!;
+    expect(moneyCell.textContent).toBe('—');
+    expect(dateCell.textContent).toBe('Chưa có phiếu thu');
+  });
+});

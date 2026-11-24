@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { computeFifoAging, maxOverdueDaysOf } from './fifoAging.ts';
+import { computeFifoAging, maxOverdueDaysOf, overdueAmountOf } from './fifoAging.ts';
 import type { FifoAgingInput } from './fifoAging.ts';
 
 // Contract (owner ruling 29/10, SIL-580): the aging buckets are AGE bands
@@ -325,6 +325,27 @@ describe('computeFifoAging', () => {
       const { openInvoices } = computeFifoAging(entries, ref);
       assert.strictEqual(openInvoices[0].open, 0);
       assert.strictEqual(maxOverdueDaysOf(openInvoices), 45);
+    });
+
+    test('overdueAmountOf: money twin — only OPEN invoices past their due date', () => {
+      const entries: FifoAgingInput[] = [
+        { timestamp: daysAgo(96, ref), debit: '100000', credit: '0', dueDate: dueDaysAgo(91, ref) },  // overdue…
+        { timestamp: daysAgo(95, ref), debit: '200000', credit: '0', dueDate: dueDaysAgo(45, ref) },  // overdue, open
+        { timestamp: daysAgo(20, ref), debit: '300000', credit: '0', dueDate: dueDaysAgo(-10, ref) }, // not yet due
+        { timestamp: daysAgo(5, ref), debit: '0', credit: '100000' },                                  // …but settled
+      ];
+      const { openInvoices } = computeFifoAging(entries, ref);
+      assert.strictEqual(openInvoices[0].open, 0);
+      // 200k past due stays; 100k settled and 300k not-yet-due are excluded.
+      assert.strictEqual(overdueAmountOf(openInvoices), 200000);
+    });
+
+    test('overdueAmountOf: zero when nothing is past due', () => {
+      const entries: FifoAgingInput[] = [
+        { timestamp: daysAgo(120, ref), debit: '100000', credit: '0', dueDate: dueDaysAgo(-1, ref) },
+      ];
+      const { openInvoices } = computeFifoAging(entries, ref);
+      assert.strictEqual(overdueAmountOf(openInvoices), 0);
     });
   });
 });

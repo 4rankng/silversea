@@ -31,6 +31,8 @@ function agingRow(
     totalOutstanding: values.totalOutstanding,
     aging: { current: values.totalOutstanding, d30: 0, d60: 0, over90: 0 },
     maxOverdueDays: values.maxOverdueDays ?? 0,
+    overdueAmount: 0,
+    lastPaymentDate: null,
   };
 }
 

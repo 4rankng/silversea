@@ -89,6 +89,10 @@ export interface CustomerAging {
   totalOutstanding: number;
   aging: { current: number; d30: number; d60: number; over90: number };
   maxOverdueDays: number;
+  /** SIL-964: tiền quá hạn (hợp đồng) — money twin of maxOverdueDays. */
+  overdueAmount: number;
+  /** SIL-964: ngày thanh toán gần nhất (YYYY-MM-DD); null = chưa có phiếu thu. */
+  lastPaymentDate: string | null;
 }
 
 export interface CustomerAgingResponse {

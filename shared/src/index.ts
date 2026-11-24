@@ -439,6 +439,7 @@ export {
   computeFifoAging,
   calendarDaysPastDue,
   maxOverdueDaysOf,
+  overdueAmountOf,
 } from './calculations/fifoAging';
 export type { FifoAgingInput, AgingBuckets, OpenInvoice } from './calculations/fifoAging';
 export { computeVehicleAlerts, VEHICLE_ALERT_LABELS } from './calculations/vehicleAlerts';

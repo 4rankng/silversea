@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { formatCurrency, moneyParts } from '../lib/format';
+import { formatCurrency, formatISODate, moneyParts } from '../lib/format';
 import { api } from '../lib/api';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
@@ -40,6 +40,8 @@ interface CustomerDebtInfo {
     over90: number;
   };
   maxOverdueDays: number;
+  overdueAmount: number;
+  lastPaymentDate: string | null;
   riskClass: 'high' | 'med' | 'low';
 }
 
@@ -211,6 +213,8 @@ export default function DebtListPage() {
       totalOutstanding: c.totalOutstanding,
       aging: c.aging,
       maxOverdueDays: c.maxOverdueDays,
+      overdueAmount: c.overdueAmount,
+      lastPaymentDate: c.lastPaymentDate,
       riskClass: classifyRisk(c.totalOutstanding, c.aging, c.maxOverdueDays),
       };
     });
@@ -454,6 +458,20 @@ export default function DebtListPage() {
                                 </span>
                               </div>
                             )}
+                            {d.overdueAmount > 0 && (
+                              <div className="m-card__row">
+                                <span className="m-card__row-label">Tiền quá hạn</span>
+                                <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: 'var(--danger)' }}>
+                                  {formatCurrency(d.overdueAmount)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="m-card__row">
+                              <span className="m-card__row-label">Ngày thanh toán gần nhất</span>
+                              <span className="m-card__row-value">
+                                {d.lastPaymentDate ? formatISODate(d.lastPaymentDate) : 'Chưa có phiếu thu'}
+                              </span>
+                            </div>
                           </>
                         )}
                       </ClickableCard>
@@ -474,7 +492,11 @@ export default function DebtListPage() {
                         {bucketShareLabel && <th className="num">{bucketShareLabel}</th>}
                         <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
                         <SortHeader label="Net công nợ" sortKey="netBalance" sort={sortState} onSortChange={handleSortChange} className="num" />
+                        {/* SIL-964: tiền quá hạn đứng cạnh cột số ngày Quá hạn —
+                            cùng luật hợp đồng (open > 0 && overdueDays > 0). */}
+                        <th className="num">Tiền quá hạn</th>
                         <SortHeader label="Quá hạn" sortKey="maxOverdueDays" sort={sortState} onSortChange={handleSortChange} className="num" style={{ textAlign: 'center' }} />
+                        <th>Ngày thanh toán gần nhất</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -548,6 +570,14 @@ export default function DebtListPage() {
                             {formatCurrency(d.netBalance)}
                           </td>
 
+                          <td data-label="Tiền quá hạn" className="num typo-mono">
+                            {d.overdueAmount > 0 ? (
+                              <span style={{ fontWeight: 600, color: 'var(--danger-text)' }}>{formatCurrency(d.overdueAmount)}</span>
+                            ) : (
+                              <span style={{ color: 'var(--fg-3)' }}>&mdash;</span>
+                            )}
+                          </td>
+
                           <td data-label="Quá hạn" className="num">
                             {d.maxOverdueDays > 0 ? (
                               <span className={`debt-overdue-badge debt-overdue-badge--${overdueBand(d.maxOverdueDays)}`}>
@@ -558,13 +588,21 @@ export default function DebtListPage() {
                             )}
                           </td>
 
+                          <td data-label="Ngày thanh toán gần nhất">
+                            {d.lastPaymentDate ? (
+                              formatISODate(d.lastPaymentDate)
+                            ) : (
+                              <span style={{ color: 'var(--fg-3)', fontStyle: 'italic' }}>Chưa có phiếu thu</span>
+                            )}
+                          </td>
+
                         </tr>
                       );
                     })}
 
                     {debts.length === 0 && (
                       <tr>
-                        <td colSpan={4} data-label="" style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
+                        <td colSpan={bucketShareLabel ? 7 : 6} data-label="" style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                             <EmptyState variant="compact" context="debts" title="Không tìm thấy dữ liệu công nợ thỏa mãn bộ lọc." />
                           </div>

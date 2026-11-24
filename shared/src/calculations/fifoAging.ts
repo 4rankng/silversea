@@ -1,3 +1,5 @@
+import { round2dp } from './round';
+
 export interface FifoAgingInput {
   timestamp: string | null;
   debit: string | number;
@@ -64,6 +66,16 @@ export function maxOverdueDaysOf(openInvoices: OpenInvoice[]): number {
     if (inv.open > 0 && inv.overdueDays > max) max = inv.overdueDays;
   }
   return max;
+}
+
+/** Open amount past its effective due date (money twin of maxOverdueDaysOf);
+ *  0 = nothing overdue. Contractual, like the days KPI — never the age bands. */
+export function overdueAmountOf(openInvoices: OpenInvoice[]): number {
+  let total = 0;
+  for (const inv of openInvoices) {
+    if (inv.open > 0 && inv.overdueDays > 0) total += inv.open;
+  }
+  return round2dp(total);
 }
 
 export function computeFifoAging(
