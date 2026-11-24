@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { shipmentDebitEditPayloadSchema } from '@tingting/shared';
 import { Role } from '@tingting/shared';
 
-const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, unlockCost, listLockHistory, toastMock, useAuthMock } = vi.hoisted(() => ({
+const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, unlockCost, listLockHistory, requestAdjustCost, listPendingRequests, toastMock, useAuthMock } = vi.hoisted(() => ({
   getDetail: vi.fn(),
   saveEdits: vi.fn(),
   lockCost: vi.fn(),
@@ -14,8 +14,16 @@ const { getDetail, saveEdits, lockCost, adjustCost, listAdjustments, unlockCost,
   listAdjustments: vi.fn(),
   unlockCost: vi.fn(),
   listLockHistory: vi.fn(),
+  requestAdjustCost: vi.fn(),
+  listPendingRequests: vi.fn(),
   toastMock: vi.fn(),
   useAuthMock: vi.fn(),
+}));
+
+vi.mock('../../../api/shipmentDebit', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../../api/shipmentDebit')>(),
+  requestShipmentCostAdjust: requestAdjustCost,
+  listPendingShipmentCostAdjustRequests: listPendingRequests,
 }));
 
 vi.mock('../../../api/shipmentClient', async (importOriginal) => ({
@@ -136,9 +144,12 @@ beforeEach(() => {
   listAdjustments.mockReset();
   unlockCost.mockReset();
   listLockHistory.mockReset();
+  requestAdjustCost.mockReset();
+  listPendingRequests.mockReset();
   toastMock.mockReset();
   unlockCost.mockResolvedValue(undefined);
   listLockHistory.mockResolvedValue([]);
+  listPendingRequests.mockResolvedValue([]);
   useAuthMock.mockReturnValue({ user: { userId: 3, role: Role.CUS } });
 });
 
@@ -579,5 +590,76 @@ describe('Bảng 2.2 word-level headers + fee editor grid (card 20260924_11)', (
     expect(touch).toContain('.csc-debit-otherfee__remove');
     expect(touch).toContain('min-height: var(--control-touch-h)');
     expect(touch).toContain('min-width: var(--control-touch-h)');
+  });
+});
+
+describe('ĐỀ NGHỊ ĐIỀU CHỈNH trên lô đã khóa (SIL-923)', () => {
+  it('offers Đề nghị điều chỉnh to CUS on a locked row — prompt gates the POST', async () => {
+    useAuthMock.mockReturnValue({ user: { userId: 7, role: Role.CUS } });
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true, lotCode: 'SE-777' });
+    await screen.findByText('Phí Có HĐ');
+    expect(screen.getByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Mở khóa lô hàng' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Đề nghị điều chỉnh' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    const confirm = within(dialog).getByRole('button', { name: 'Gửi đề nghị' });
+    expect((confirm as HTMLButtonElement).disabled).toBe(true);
+    expect(requestAdjustCost).not.toHaveBeenCalled();
+
+    fireEvent.change(within(dialog).getByLabelText('Lý do đề nghị (bắt buộc)'), { target: { value: 'Sai số phí nâng cont' } });
+    fireEvent.click(confirm);
+    await waitFor(() => expect(requestAdjustCost).toHaveBeenCalledWith(101, { reason: 'Sai số phí nâng cont' }, expect.any(String)));
+    await waitFor(() => expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã gửi đề nghị điều chỉnh lô SE-777.' }));
+  });
+
+  it('cancel in the prompt aborts the request with no POST', async () => {
+    useAuthMock.mockReturnValue({ user: { userId: 7, role: Role.CUS } });
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true });
+    fireEvent.click(await screen.findByRole('button', { name: 'Đề nghị điều chỉnh' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nhập lý do' })).toBeNull());
+    expect(requestAdjustCost).not.toHaveBeenCalled();
+  });
+
+  it.each([Role.OPS, Role.DISPATCHER, Role.DRIVER])('offers no đề nghị for %s (never had the lock)', async (role) => {
+    useAuthMock.mockReturnValue({ user: { userId: 4, role } });
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true });
+    await screen.findByText('Phí Có HĐ');
+    expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
+  });
+
+  it('shows the waiting đề nghị beside the khóa trail for the unlock trio', async () => {
+    useAuthMock.mockReturnValue({ user: { userId: 1, role: Role.ADMIN } });
+    listLockHistory.mockResolvedValue([]);
+    listPendingRequests.mockResolvedValue([
+      { id: 5, shipmentId: 101, shipmentCode: 'SHP-26-0001', reason: 'Sai số phí nâng cont', status: 'PENDING', requestedBy: 7, requestedByName: 'Chứng từ Quỳnh', requestedAt: '2026-11-24T09:30:00.000Z' },
+      { id: 6, shipmentId: 202, shipmentCode: 'SHP-26-0002', reason: 'Lô khác', status: 'PENDING', requestedBy: 7, requestedByName: 'Chứng từ Quỳnh', requestedAt: '2026-11-24T09:31:00.000Z' },
+    ]);
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true });
+
+    const section = await screen.findByRole('region', { name: 'Lịch sử khóa' });
+    const queue = await within(section).findByRole('list', { name: 'Đề nghị điều chỉnh đang chờ' });
+    const rows = within(queue).getAllByRole('listitem');
+    expect(rows).toHaveLength(1); // lô 202's request never leaks into this lot's drawer
+    expect(rows[0]!.textContent).toContain('Đề nghị điều chỉnh — Chứng từ Quỳnh: Sai số phí nâng cont');
+  });
+
+  it('unlock success still toasts and resolves — the pending queue invalidates without error', async () => {
+    useAuthMock.mockReturnValue({ user: { userId: 1, role: Role.ADMIN } });
+    listLockHistory.mockResolvedValue([]);
+    getDetail.mockResolvedValue(detail());
+    renderWorkspace({ locked: true, lotCode: 'SE-777' });
+    fireEvent.click(await screen.findByRole('button', { name: 'Mở khóa lô hàng' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    fireEvent.change(within(dialog).getByLabelText('Lý do mở khóa (bắt buộc)'), { target: { value: 'Khóa nhầm lô' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Mở khóa' }));
+    await waitFor(() => expect(unlockCost).toHaveBeenCalledWith(101, { reason: 'Khóa nhầm lô' }, expect.any(String)));
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã mở khóa chi phí lô SE-777' });
   });
 });

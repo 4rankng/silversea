@@ -10,6 +10,7 @@ import {
   unlockShipmentCost,
 } from '../../../api/shipmentClient';
 import { formatDateTimeVN } from '../../../lib/format';
+import { debitMergeKeys, listPendingShipmentCostAdjustRequests, requestShipmentCostAdjust } from '../../../api/shipmentDebit';
 import { useAuth } from '../../../hooks/useAuth';
 import { useReasonPrompt } from '../../../components/reason-prompt';
 import { useToast } from '../../../components/shared/Toast';
@@ -150,6 +151,8 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, lotCode, onSaved }:
       await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.detail(shipmentId) });
       await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.summaryAll });
       await queryClient.invalidateQueries({ queryKey: qk.shipmentDebit.costLockHistory(shipmentId) });
+      // SIL-923 — the unlock resolves the lot's PENDING đề nghị điều chỉnh.
+      await queryClient.invalidateQueries({ queryKey: debitMergeKeys.pendingAdjustRequests });
       toast({ kind: 'success', message: `Đã mở khóa chi phí lô ${lotCode ?? `#${shipmentId}`}` });
       onSaved();
     },
@@ -160,6 +163,25 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, lotCode, onSaved }:
     if (reason == null) return;
     unlockCost.mutate(reason);
   }
+
+  // SIL-923 — Đề nghị điều chỉnh on the locked lot: the workspace serves the
+  // requester (CUS — no unlock clearance) the reasoned-request path here,
+  // the same channel the grid toolbar's post-lock slot runs. The unlock
+  // trio sees the queue and resolves it by unlocking.
+  const requestAdjust = useMutation({
+    mutationFn: (reason: string) => requestShipmentCostAdjust(shipmentId, { reason }, crypto.randomUUID()),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: debitMergeKeys.pendingAdjustRequests });
+      toast({ kind: 'success', message: `Đã gửi đề nghị điều chỉnh lô ${lotCode ?? `#${shipmentId}`}.` });
+    },
+  });
+
+  async function fileAdjustRequest() {
+    const reason = await prompt('Nhập lý do đề nghị điều chỉnh chi phí lô đã khóa.', { confirmLabel: 'Gửi đề nghị', reasonLabel: 'Lý do đề nghị (bắt buộc)' });
+    if (reason == null) return;
+    requestAdjust.mutate(reason);
+  }
+
 
 
   const adjust = useMutation({
@@ -183,6 +205,14 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, lotCode, onSaved }:
   // through the buttons above invalidates the key like the other queries,
   // so the section always shows the persisted trail.
   const canUnlock = role === Role.ADMIN || role === Role.MANAGER || role === Role.ACCOUNTANT;
+  // SIL-923 — the lot's PENDING đề nghị, read under the unlock trio's
+  // clearance (the same GET the grid chip rides); shown beside the trail.
+  const pendingRequests = useQuery({
+    queryKey: debitMergeKeys.pendingAdjustRequests,
+    queryFn: listPendingShipmentCostAdjustRequests,
+    enabled: canUnlock,
+  });
+  const lotPendingRequests = pendingRequests.data?.filter((request) => request.shipmentId === shipmentId) ?? [];
   const lockHistory = useQuery({
     queryKey: qk.shipmentDebit.costLockHistory(shipmentId),
     queryFn: () => listShipmentCostLockHistory(shipmentId),
@@ -244,6 +274,21 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, lotCode, onSaved }:
       {canUnlock && (
         <section className="csc-debit-lock-history" aria-label="Lịch sử khóa">
           <p className="csc-debit-lock-history__title">Lịch sử khóa</p>
+          {/* SIL-923 — the waiting đề nghị điều chỉnh the trio is here to
+              handle: who asked, when, and the reason verbatim. */}
+          {lotPendingRequests.length > 0 && (
+            <ul className="csc-debit-adjust__history" aria-label="Đề nghị điều chỉnh đang chờ">
+              {lotPendingRequests.map((request) => (
+                <li key={request.id}>
+                  <span>{formatDateTimeVN(request.requestedAt)}</span>
+                  <span>
+                    {`Đề nghị điều chỉnh — ${request.requestedByName ?? (request.requestedBy != null ? `#${request.requestedBy}` : 'không rõ')}`}
+                    {request.reason ? `: ${request.reason}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
           {lockHistory.isPending && <p className="csc-debit-lock-history__note">Đang tải lịch sử khóa…</p>}
           {lockHistory.isError && <p className="csc-debit-lock-history__note" role="alert">Không tải được lịch sử khóa.</p>}
           {lockHistory.data != null && (lockHistory.data.length === 0
@@ -275,7 +320,17 @@ export function ShipmentDebitWorkspace({ shipmentId, locked, lotCode, onSaved }:
         {canUnlock && settled && (
           <button type="button" className="csc-debit-actions__unlock" disabled={unlockCost.isPending} aria-label="Mở khóa lô hàng" onClick={() => void unlockLot()}>MỞ KHÓA</button>
         )}
+        {/* SIL-923 — the locked lot's forward path for the requester (the
+            canLock law minus the unlock trio = CUS): a reasoned đề nghị
+            điều chỉnh the unlock trio handles. */}
+        {!canUnlock && canLock && settled && (
+          <button type="button" className="csc-debit-actions__unlock" disabled={requestAdjust.isPending} aria-label="Đề nghị điều chỉnh" onClick={() => void fileAdjustRequest()}>ĐỀ NGHỊ ĐIỀU CHỈNH</button>
+        )}
         {unlockCost.isPending && <span className="csc-debit-saved" role="status">Đang mở khóa…</span>}
+        {requestAdjust.isPending && <span className="csc-debit-saved" role="status">Đang gửi đề nghị…</span>}
+        {requestAdjust.isError && requestAdjust.error instanceof Error && (
+          <span className="csc-debit-save-error" role="alert">{requestAdjust.error.message}</span>
+        )}
         {unlockCost.isError && unlockCost.error instanceof Error && (
           <span className="csc-debit-save-error" role="alert">{unlockCost.error.message}</span>
         )}

@@ -49,10 +49,13 @@ vi.mock('../../api/shipmentDebit', () => ({
   debitMergeKeys: {
     all: ['accounting-debit-merge'] as const,
     board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
+    pendingAdjustRequests: ['accounting-debit-merge', 'pending-adjust-requests'] as const,
   },
   createDebitNoteBatch,
   exportDebitNoteFile,
   lockShipmentCost,
+  unlockShipmentCost: vi.fn(),
+  listPendingShipmentCostAdjustRequests: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('../../api/tripClient', () => ({
   tripClient: { getBootstrap },

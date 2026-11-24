@@ -45,9 +45,12 @@ vi.mock('../api/shipmentDebit', () => ({
   listShipmentCostLockHistory: vi.fn().mockResolvedValue([]),
   getShipmentDebitDetail: vi.fn().mockResolvedValue({}),
   saveShipmentDebitEdits: vi.fn(),
+  requestShipmentCostAdjust: vi.fn().mockResolvedValue({ id: 1 }),
+  listPendingShipmentCostAdjustRequests: vi.fn().mockResolvedValue([]),
   debitMergeKeys: {
     all: ['accounting-debit-merge'] as const,
     board: (team: boolean) => ['accounting-debit-merge', 'board', team] as const,
+    pendingAdjustRequests: ['accounting-debit-merge', 'pending-adjust-requests'] as const,
   },
 }));
 vi.mock('../api/shipmentClient', () => ({
@@ -175,16 +178,26 @@ describe('Task 1.2 — Hiện thông tin lô hàng team', () => {
 describe('Khóa lô — the canLock law over the grid selection', () => {
   it('locks the picked lots through the existing cost-lock channel', async () => {
     authRole.value = 'CUS';
-    listMerge.mockResolvedValue({
-      items: [mergeRow({ shipmentId: 101, control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null } })],
-      total: 1,
-    });
+    listMerge
+      .mockResolvedValueOnce({
+        items: [mergeRow({ shipmentId: 101, control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null } })],
+        total: 1,
+      })
+      .mockResolvedValue({
+        items: [mergeRow({ shipmentId: 101, control: { tongTc: '100', lockStatus: 'LOCKED', lockedAt: '2026-11-24T00:00:00.000Z' } })],
+        total: 1,
+      });
     lockCost.mockResolvedValue({});
     renderPage();
     await screen.findByText('Thông tin Lô hàng');
     fireEvent.click(await screen.findByLabelText('Chọn lô BL-1'));
     fireEvent.click(screen.getByRole('button', { name: 'Khóa lô' }));
     await waitFor(() => expect(lockCost).toHaveBeenCalledWith(101, expect.any(String)));
+    // SIL-923 — the board refresh reads back LOCKED and the selection STAYS,
+    // so the same toolbar slot is now [Đề nghị điều chỉnh] for the CUS
+    // viewer (the unlock trio would see [Mở khóa] instead).
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Khóa lô' })).toBeNull();
   });
 
   it('Chọn Debit arms for CUS on a locked pick — same channel as accounting (ticket 2.3)', async () => {

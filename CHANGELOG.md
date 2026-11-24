@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-11-24 — fix(SIL-923): lô khóa chi phí có đường đi tiếp — [Đề nghị điều chỉnh] / [Mở khóa] thay chỗ [Khóa lô]
+
+Trước đó: khóa lô xong, thanh công cụ Ghép bộ Debit vẫn chỉ còn [Khóa lô]
+(disabled «Các lô đã chọn đều đã khóa») + [Chọn Debit] + [Cột hiển thị] — lô
+khóa xong kẹt vĩnh viễn trên UI; Quản trị không thấy [Mở khóa] ở lưới.
+
+- **BE** bảng mới `shipment_cost_adjust_requests` (migration
+  `20261124100000_shipment_cost_adjust_requests.sql`): đề nghị điều chỉnh
+  trên lô ĐANG KHÓA — lý do bắt buộc, replay theo Idempotency-Key, status
+  PENDING/RESOLVED.
+- **BE** `POST /api/shipments/:id/cost-adjust-requests` — gate mirrors /lock
+  (CUS · Kế toán · Quản trị), CUS scope law `assertCusLotVisible`; ghi audit
+  + thông báo cho bộ mở khóa (`targetRoles` ADMIN/MANAGER/ACCOUNTANT).
+  `GET /api/shipments/cost-adjust-requests/pending` — gate mirrors /unlock
+  (SIL-721: Quản trị · Giám đốc · Kế toán).
+- **BE** `unlockShipmentCost` giải quyết mọi đề nghị PENDING của lô trong
+  cùng transaction (resolved_by/resolved_at/resolution_note = lý do mở khóa)
+  — không có bước "duyệt" riêng, hành động xử lý duy nhất là mở khóa có lý
+  do (tiền lệ reopen-request 2026-09-10).
+- **FE** `DebitMergeGrid`: khi MỌI lô được chọn đều Đã khóa, ô [Khóa lô] trong
+  toolbar được THAY — [Mở khóa] cho bộ mở khóa, [Đề nghị điều chỉnh] cho người
+  còn lại (hộp thoại lý do bắt buộc); cột Trạng thái gắn chip «Đề nghị ĐC» cho
+  lô đang có đề nghị chờ. Không wire → giữ nguyên [Khóa lô] disabled cũ.
+- **FE** `/shipments-debit` + `/accounting/ghep-bo-debit`: giữ selection sau
+  khi khóa (nút thay chỗ ngay lập tức), mutation mở khóa / gửi đề nghị với
+  hộp thoại lý do dùng chung, nạp hàng chờ đề nghị cho bộ mở khóa.
+- **FE** drawer Chốt giá bán (`ShipmentDebitWorkspace`): lô đã khóa với CUS có
+  nút [Đề nghị điều chỉnh] (lý do bắt buộc); bộ mở khóa thấy hàng chờ đề nghị
+  ngay trên mục Lịch sử khóa, [MỞ KHÓA] xử lý.
+- Tests: `DebitMergeGrid.test.tsx` +5 pin (slot swap/chip/fallback) ·
+  `ShipmentDebitPage.test.tsx` giữ selection sau khóa → nút thay chỗ ·
+  `ShipmentDebitWorkspace.test.tsx` +4 pin (CUS gửi đề nghị, prompt chặn,
+  hàng chờ theo lô, nhóm không khóa không thấy nút) · BE unit
+  `sil923-cost-adjust-requests.test.ts` (6 static source pins).
+
 ## 2026-11-24 — fix(SIL-919): dàn trải hiển thị KB 24/11 — tab lô hàng, cont/loại tách, kg→tấn, ngày DD/MM/YYYY
 
 Audit KB 24/11 mục 3.2/6.5/7.1/3.9/10.4 (§3.1.5, §3.1.7, §6.4, §7.2.1, §10.1.1,

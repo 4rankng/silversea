@@ -766,3 +766,52 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(pane!.scrollLeft).toBe(0);
   });
 });
+
+describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa / Đề nghị điều chỉnh)', () => {
+  const lockedRow = () => mergeRow({ control: { tongTc: '100', lockStatus: 'LOCKED', lockedAt: '2026-11-18T00:00:00.000Z' } });
+
+  it('swaps the lock button for Mở khóa when every picked lot is LOCKED and the viewer clears the unlock trio', () => {
+    const onUnlockSelected = vi.fn();
+    renderGrid({ selection: new Set<number>([101]), canUnlock: true, onUnlockSelected }, [lockedRow()]);
+    expect(screen.queryByRole('button', { name: 'Khóa lô' })).toBeNull();
+    const unlock = screen.getByRole('button', { name: 'Mở khóa' });
+    expect(unlock.getAttribute('aria-disabled')).toBeNull();
+    fireEvent.click(unlock);
+    expect(onUnlockSelected).toHaveBeenCalledWith([101]);
+  });
+
+  it('swaps the lock button for Đề nghị điều chỉnh for a viewer without unlock clearance', () => {
+    const onRequestAdjust = vi.fn();
+    renderGrid({ selection: new Set<number>([101]), canUnlock: false, onRequestAdjust }, [lockedRow()]);
+    expect(screen.queryByRole('button', { name: 'Khóa lô' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Mở khóa' })).toBeNull();
+    const request = screen.getByRole('button', { name: 'Đề nghị điều chỉnh' });
+    expect(request.getAttribute('aria-disabled')).toBeNull();
+    fireEvent.click(request);
+    expect(onRequestAdjust).toHaveBeenCalledWith([101]);
+  });
+
+  it('keeps [Khóa lô] while any picked lot is still OPEN even with the new props wired', () => {
+    renderGrid({ selection: new Set<number>([101]), canUnlock: true, onUnlockSelected: vi.fn(), onRequestAdjust: vi.fn() }, [mergeRow()]);
+    expect(screen.getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Mở khóa' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
+  });
+
+  it('marks a lot carrying a PENDING đề nghị điều chỉnh in the Trạng thái cell', () => {
+    renderGrid({ pendingAdjustShipmentIds: new Set<number>([101]) }, [lockedRow()]);
+    const status = document.querySelector<HTMLElement>('tbody td[data-col="trangThai"]');
+    expect(status?.textContent).toContain('Đã khóa');
+    expect(status?.textContent).toContain('Đề nghị ĐC');
+    expect(document.querySelector('[title="Đề nghị điều chỉnh đang chờ xử lý"]')).toBeTruthy();
+  });
+
+  it('unwired post-lock slot (no handlers) keeps the retired disabled Khóa lô', () => {
+    renderGrid({ selection: new Set<number>([101]), canUnlock: false, onUnlockSelected: undefined }, [lockedRow()]);
+    const lock = document.querySelector('button.debit-merge__action:not(.debit-merge__action--primary)') as HTMLButtonElement;
+    expect(screen.queryByRole('button', { name: 'Mở khóa' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeNull();
+    expect(lock.getAttribute('aria-disabled')).toBe('true');
+    expect(document.getElementById('debit-merge-lock-disabled-reason')?.textContent).toContain('đều đã khóa');
+  });
+});

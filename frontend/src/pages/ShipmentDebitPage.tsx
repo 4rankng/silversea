@@ -25,7 +25,10 @@ import {
   listShipmentDebitSummary,
   listDebitMergeBoard,
   debitMergeKeys,
+  listPendingShipmentCostAdjustRequests,
   lockShipmentCost,
+  requestShipmentCostAdjust,
+  unlockShipmentCost,
   type DebitMergeItem,
 } from '../api/shipmentDebit';
 import {
@@ -41,6 +44,7 @@ import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { qk } from '../api/keys';
 import { Alert } from '../components/shared/Alert';
 import { Skeleton } from '../components/shared/Skeleton';
+import { useReasonPrompt } from '../components/reason-prompt';
 import { DebitMergeGrid } from '../features/accounting/DebitMergeGrid';
 import { filterDebitMergeRows, sortDebitMergeRowsDesc } from '../features/accounting/debit-merge-view';
 import { DateRangeFields } from '../design-system';
@@ -126,6 +130,11 @@ export function ShipmentDebitPage() {
   // Ticket 2.3 (18/11) — CUS runs Chọn Debit like accounting once its picks
   // are fee-complete; the completeness + lock law lives in the grid.
   const canChooseDebit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT || user?.role === Role.CUS;
+  // SIL-923 — the unlock trio (the /unlock route clearance, SIL-721): when
+  // every picked lot is LOCKED they get [Mở khóa]; everyone else gets
+  // [Đề nghị điều chỉnh] in the same toolbar slot.
+  const canUnlock = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
 
   const queryClient = useQueryClient();
   // Task 1.2 — the team flag rides the summary call AND its cache identity
@@ -186,13 +195,61 @@ export function ShipmentDebitPage() {
       return shipmentIds;
     },
     onSuccess: (locked) => {
-      setSelectedIds(new Set());
+      // SIL-923 — the selection STAYS: the toolbar slot swaps [Khóa lô] →
+      // [Đề nghị điều chỉnh]/[Mở khóa] on the just-locked picks immediately.
       refreshBoards();
       toast({ kind: 'success', message: `Đã khóa chi phí ${locked.length} lô.` });
     },
     onError: (error: Error) => {
       toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không khóa được lô. Vui lòng thử lại.' });
     },
+  });
+
+  // SIL-923 — the toolbar's post-lock [Mở khóa] for the unlock trio: one
+  // reason for the whole batch, the existing /unlock channel per lot.
+  const unlockMutation = useMutation({
+    mutationFn: async ({ shipmentIds, reason }: { shipmentIds: number[]; reason: string }) => {
+      for (const shipmentId of shipmentIds) {
+        await unlockShipmentCost(shipmentId, { reason }, crypto.randomUUID());
+      }
+      return shipmentIds;
+    },
+    onSuccess: (unlocked) => {
+      setSelectedIds(new Set());
+      refreshBoards();
+      void queryClient.invalidateQueries({ queryKey: debitMergeKeys.pendingAdjustRequests });
+      toast({ kind: 'success', message: `Đã mở khóa chi phí ${unlocked.length} lô.` });
+    },
+    onError: (error: Error) => {
+      toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không mở khóa được lô. Vui lòng thử lại.' });
+    },
+  });
+
+  // SIL-923 — the toolbar's post-lock [Đề nghị điều chỉnh] for roles without
+  // unlock clearance: a reasoned request per lot; the unlock trio handles it.
+  const adjustRequestMutation = useMutation({
+    mutationFn: async ({ shipmentIds, reason }: { shipmentIds: number[]; reason: string }) => {
+      for (const shipmentId of shipmentIds) {
+        await requestShipmentCostAdjust(shipmentId, { reason }, crypto.randomUUID());
+      }
+      return shipmentIds;
+    },
+    onSuccess: (requested) => {
+      setSelectedIds(new Set());
+      void queryClient.invalidateQueries({ queryKey: debitMergeKeys.pendingAdjustRequests });
+      toast({ kind: 'success', message: `Đã gửi đề nghị điều chỉnh ${requested.length} lô.` });
+    },
+    onError: (error: Error) => {
+      toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không gửi được đề nghị điều chỉnh. Vui lòng thử lại.' });
+    },
+  });
+
+  // SIL-923 — the PENDING đề nghị queue behind the grid's Trạng thái chip;
+  // read clearance mirrors the unlock channel (leader trio only).
+  const pendingAdjustQuery = useQuery({
+    queryKey: debitMergeKeys.pendingAdjustRequests,
+    queryFn: listPendingShipmentCostAdjustRequests,
+    enabled: canUnlock,
   });
 
   const settlementMutation = useMutation({
@@ -256,6 +313,24 @@ export function ShipmentDebitPage() {
             canChooseDebit={canChooseDebit}
             lockPending={lockMutation.isPending}
             onLockSelected={(ids) => lockMutation.mutate(ids)}
+            canUnlock={canUnlock}
+            unlockPending={unlockMutation.isPending}
+            adjustPending={adjustRequestMutation.isPending}
+            onUnlockSelected={canUnlock
+              ? (ids) => {
+                void prompt(`Nhập lý do mở khóa chi phí ${ids.length} lô đã chọn.`, { confirmLabel: 'Mở khóa', reasonLabel: 'Lý do mở khóa (bắt buộc)' })
+                  .then((reason) => { if (reason != null) unlockMutation.mutate({ shipmentIds: ids, reason }); });
+              }
+              : undefined}
+            onRequestAdjust={canLock
+              ? (ids) => {
+                void prompt(`Nhập lý do đề nghị điều chỉnh ${ids.length} lô đã chọn.`, { confirmLabel: 'Gửi đề nghị', reasonLabel: 'Lý do đề nghị (bắt buộc)' })
+                  .then((reason) => { if (reason != null) adjustRequestMutation.mutate({ shipmentIds: ids, reason }); });
+              }
+              : undefined}
+            pendingAdjustShipmentIds={pendingAdjustQuery.data != null
+              ? new Set(pendingAdjustQuery.data.map((request) => request.shipmentId))
+              : undefined}
             onChooseDebit={(picked) => {
               settlementDialogRowsRef.current = picked.map(toSettlementDialogRow);
               setSettlementOpen(true);
@@ -354,6 +429,7 @@ export function ShipmentDebitPage() {
         onSubmit={(body) => settlementMutation.mutate(body)}
         onClose={() => setSettlementOpen(false)}
       />
+      {reasonDialog}
     </div>
   );
 }

@@ -5,7 +5,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { DebitMergeItem } from '@tingting/shared';
-import { listDebitMergeBoard, debitMergeKeys, lockShipmentCost, createDebitNoteBatch, exportDebitNoteFile } from '../../api/shipmentDebit';
+import { listDebitMergeBoard, debitMergeKeys, listPendingShipmentCostAdjustRequests, lockShipmentCost, unlockShipmentCost, createDebitNoteBatch, exportDebitNoteFile } from '../../api/shipmentDebit';
 import {
   listSettlementRounds,
   DEBIT_SETTLEMENT_ROUNDS_KEY,
@@ -18,6 +18,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { Role } from '@tingting/shared';
 import { useToast } from '../../components/shared/Toast';
 import { ApiError } from '../../lib/api';
+import { useReasonPrompt } from '../../components/reason-prompt';
 import { Breadcrumbs } from '../../components/shared/Breadcrumbs';
 import { Alert } from '../../components/shared/Alert';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
@@ -96,6 +97,10 @@ export function DebitMergePage() {
   const canChooseDebit = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
   // POST /shipments/debit-notes is gated to CUS | ACCOUNTANT | ADMIN.
   const canExportDebitNote = user?.role === Role.ADMIN || user?.role === Role.ACCOUNTANT || user?.role === Role.CUS;
+  // SIL-923 — the unlock trio (the /unlock route clearance, SIL-721): when
+  // every picked lot is LOCKED the toolbar slot becomes [Mở khóa].
+  const canUnlock = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const settlementDialogRows = useRef<AccountingDebitBoardRow[]>([]);
 
   const board = useQuery({
@@ -134,13 +139,42 @@ export function DebitMergePage() {
       return shipmentIds;
     },
     onSuccess: (locked) => {
-      setSelectedIds(new Set());
+      // SIL-923 — the selection STAYS: the toolbar slot swaps [Khóa lô] →
+      // [Mở khóa] on the just-locked picks immediately.
       refreshBoard();
       toast({ kind: 'success', message: `Đã khóa chi phí ${locked.length} lô.` });
     },
     onError: (error: Error) => {
       toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không khóa được lô. Vui lòng thử lại.' });
     },
+  });
+
+  // SIL-923 — the toolbar's post-lock [Mở khóa] for the unlock trio: one
+  // reason for the whole batch, the existing /unlock channel per lot.
+  const unlockMutation = useMutation({
+    mutationFn: async ({ shipmentIds, reason }: { shipmentIds: number[]; reason: string }) => {
+      for (const shipmentId of shipmentIds) {
+        await unlockShipmentCost(shipmentId, { reason }, crypto.randomUUID());
+      }
+      return shipmentIds;
+    },
+    onSuccess: (unlocked) => {
+      setSelectedIds(new Set());
+      refreshBoard();
+      void queryClient.invalidateQueries({ queryKey: debitMergeKeys.pendingAdjustRequests });
+      toast({ kind: 'success', message: `Đã mở khóa chi phí ${unlocked.length} lô.` });
+    },
+    onError: (error: Error) => {
+      toast({ kind: 'error', message: error instanceof ApiError ? error.message : 'Không mở khóa được lô. Vui lòng thử lại.' });
+    },
+  });
+
+  // SIL-923 — the PENDING đề nghị queue behind the grid's Trạng thái chip
+  // (leader trio clearance mirrors the unlock channel).
+  const pendingAdjustQuery = useQuery({
+    queryKey: debitMergeKeys.pendingAdjustRequests,
+    queryFn: listPendingShipmentCostAdjustRequests,
+    enabled: canUnlock,
   });
 
   const settlementMutation = useMutation({
@@ -266,6 +300,17 @@ export function DebitMergePage() {
             exportDebitPending={exportingNote}
             lockPending={lockMutation.isPending}
             onLockSelected={(ids) => lockMutation.mutate(ids)}
+            canUnlock={canUnlock}
+            unlockPending={unlockMutation.isPending}
+            onUnlockSelected={canUnlock
+              ? (ids) => {
+                void prompt(`Nhập lý do mở khóa chi phí ${ids.length} lô đã chọn.`, { confirmLabel: 'Mở khóa', reasonLabel: 'Lý do mở khóa (bắt buộc)' })
+                  .then((reason) => { if (reason != null) unlockMutation.mutate({ shipmentIds: ids, reason }); });
+              }
+              : undefined}
+            pendingAdjustShipmentIds={pendingAdjustQuery.data != null
+              ? new Set(pendingAdjustQuery.data.map((request) => request.shipmentId))
+              : undefined}
             onChooseDebit={(picked) => {
               settlementDialogRows.current = picked.map(toSettlementDialogRow);
               setSettlementOpen(true);
@@ -380,6 +425,7 @@ export function DebitMergePage() {
         onSaveAndDownload={(payload) => void saveDebitNoteAndExit(true, payload)}
         onClose={() => setExportPreviewOpen(false)}
       />
+      {reasonDialog}
     </div>
   );
 }

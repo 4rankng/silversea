@@ -48,7 +48,7 @@ import { assignShipmentCarriers, createOperationalSiteForIntake, createShippingL
 import { getShipmentDebitSummary } from '../../services/shipment-debit-summary.service';
 import * as billingDocService from '../../services/billing-document.service';
 import { buildLegacyXlsx, renderTemplatedXlsx } from '../../services/billing-export.service';
-import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listShipmentCostAdjustments, listShipmentCostLockHistory, lockShipmentCost, unlockShipmentCost } from '../../services/shipment-cost-lock.service';
+import { adjustShipmentCost, createConsolidatedDebitNote, createDebitNoteFromCostLock, listPendingShipmentCostAdjustRequests, listShipmentCostAdjustments, listShipmentCostLockHistory, lockShipmentCost, requestShipmentCostAdjust, unlockShipmentCost } from '../../services/shipment-cost-lock.service';
 import { assertNoPendingRateAdjustment } from '../../services/accounting-debit-close.service';
 import { issueFulfillmentDispatchOrder } from '../../services/dispatch-planning.service';
 import { resolveShipmentPricingProjection } from '../../services/pricing.service';
@@ -1128,6 +1128,44 @@ coreRoutes.get(
     const shipmentId = parseId(req, res);
     if (shipmentId === null) return;
     res.json(await listShipmentCostAdjustments(shipmentId));
+  }),
+);
+
+// ─── POST /:id/cost-adjust-requests — Đề nghị điều chỉnh lô đã khóa ─────────
+// SIL-923: người khóa lô nhưng không có quyền mở khóa (nhóm CUS) gửi đề nghị
+// kèm lý do; route gate mirrors the lock channel (CUS · Kế toán · Quản trị).
+// The request only exists on a LOCKED lot (409 otherwise — the service).
+coreRoutes.post(
+  '/:id/cost-adjust-requests', declareMaterialWrite('shipments.cost-adjust-request', { method: 'POST', path: '/api/shipments/:id/cost-adjust-requests' }),
+  requireRoles(Role.CUS, Role.ACCOUNTANT, Role.ADMIN),
+  asyncHandler(async (req: Request, res: Response) => {
+    const shipmentId = parseId(req, res);
+    if (shipmentId === null) return;
+    // Nhóm CUS: chỉ đề nghị trong phạm vi thấy được — cùng luật với /lock.
+    await assertCusLotVisible(shipmentId, getUser(req));
+    const idempotencyKey = requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi gửi đề nghị điều chỉnh.');
+    const parsed = z.object({
+      reason: z.string().trim().min(1, 'Vui lòng nhập lý do đề nghị điều chỉnh.').max(2000),
+    }).safeParse(req.body ?? {});
+    if (!parsed.success) throwValidation(parsed.error);
+    const request = await requestShipmentCostAdjust({
+      shipmentId,
+      reason: parsed.data.reason,
+      actor: getUser(req),
+      idempotencyKey,
+    });
+    res.status(201).json(request);
+  }),
+);
+
+// ─── GET /cost-adjust-requests/pending — hàng chờ đề nghị (SIL-923) ─────────
+// Read clearance mirrors the unlock channel (SIL-721: Quản trị · Giám đốc ·
+// Kế toán) — the people who resolve requests by unlocking see the queue.
+coreRoutes.get(
+  '/cost-adjust-requests/pending',
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT),
+  asyncHandler(async (_req: Request, res: Response) => {
+    res.json(await listPendingShipmentCostAdjustRequests());
   }),
 );
 
