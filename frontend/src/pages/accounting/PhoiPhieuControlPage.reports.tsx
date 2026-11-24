@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPhoiPhieuReport } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { overpayAnnotationOf } from '../../features/accounting/overpayAnnotation';
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatISODate } from '../../lib/format';
 import { Money } from '../../components/shared/Money';
 import { businessDateISO } from '../../lib/format';
 import { DateRangeFields, UuiSelectField } from '../../design-system';
@@ -178,7 +178,9 @@ export function PhoiPhieuReportSection() {
       {/* Spec 19/10 (2.2): the block renamed from "Báo cáo tháng" carries its
        *  window in the title — "BÁO CÁO THU / TRẢ PHƠI — Ngày … – …". */}
       <h2 style={{ fontSize: 'var(--text-body-size)' }}>
-        Báo cáo thu / trả phơi{range.from || range.to ? ` — Ngày ${range.from || '…'} – ${range.to || '…'}` : ''}
+        {/* KB §10.8.4 (24/11): the house date law is DD/MM/YYYY — the caption
+            reads like every other date on the board, never the raw ISO pair. */}
+        Báo cáo thu / trả phơi{range.from || range.to ? ` — Ngày ${formatISODate(range.from) || '…'} – ${formatISODate(range.to) || '…'}` : ''}
       </h2>
       <div className="ppc-report-controls">
         <DateRangeFields

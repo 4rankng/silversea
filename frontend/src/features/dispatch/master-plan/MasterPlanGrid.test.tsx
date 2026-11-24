@@ -251,7 +251,10 @@ describe('MasterPlanGrid', () => {
     expect(screen.getByRole('columnheader', { name: 'Cảng nâng' })).toBeTruthy();
     expect(screen.getByRole('columnheader', { name: 'Cảng hạ' })).toBeTruthy();
     // Missing cargo/port data names the fact (§1) instead of printing '—'.
-    expect(screen.getAllByText('Chưa có cont').length).toBeGreaterThanOrEqual(2);
+    // KB §3.6.1 (24/11): the board says "Chưa có số container", never the
+    // retired "Chưa có cont".
+    expect(screen.getAllByText('Chưa có số container').length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText('Chưa có cont')).toBeNull();
     expect(screen.queryByText('Địa điểm nâng cũ theo lô')).toBeNull();
     expect(screen.queryByText('Địa điểm hạ cũ theo lô')).toBeNull();
   });

@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow, type ChiHoConfirmation } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { PhoiPhieuReportSection } from './PhoiPhieuControlPage.reports';
-import { formatNumber, formatCurrency, formatDate, businessDateISO } from '../../lib/format';
+import { formatCurrency, formatDate, formatWeight, businessDateISO } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
 import { PageHeader } from '../../components/UI';
 import { Money } from '../../components/shared/Money';
@@ -423,7 +423,7 @@ export default function PhoiPhieuControlPage() {
         facts: [
           { key: 'factory', label: 'Nhà máy', value: row.factoryName ?? 'Chưa có nhà máy', primary: true },
           { key: 'route', label: 'Tuyến', value: row.routeName ?? 'Chưa có tuyến', primary: true },
-          { key: 'container', label: 'Container', value: <>{row.containerNumber ?? '—'} · {row.containerTypeLabel ?? '—'}{row.containerPayloadKg != null ? <> · {formatNumber(row.containerPayloadKg)}kg</> : null}</>, primary: true },
+          { key: 'container', label: 'Container', value: <>{row.containerNumber ?? '—'} · {row.containerTypeLabel ?? '—'}{row.containerPayloadKg != null ? <> · {formatWeight(row.containerPayloadKg)}</> : null}</>, primary: true },
           { key: 'date', label: 'Ngày hẹn', value: formatDate(row.transportDate ?? null, { empty: 'Chưa có ngày hẹn' }), primary: true },
           { key: 'phoiDate', label: 'Ngày nhận phơi', value: row.phoiTakenDate ? formatDate(row.phoiTakenDate, { empty: '—' }) : '—' },
           { key: 'status', label: 'Trạng thái', value: row.tripStatus ? STATUS_LABELS[row.tripStatus] ?? row.tripStatus : '—', primary: true },
@@ -442,7 +442,7 @@ export default function PhoiPhieuControlPage() {
             : '—' },
           // Ticket 18/11 Task 3.1 — trọng tải merged into the container fact;
           // the 'Trọng tải container' prefixed fact is gone with it.
-          { key: 'weight', label: 'Trọng lượng hàng', value: row.cargoWeightKg != null ? formatNumber(row.cargoWeightKg) + ' kg' : 'Chưa có' },
+          { key: 'weight', label: 'Trọng lượng hàng', value: row.cargoWeightKg != null ? formatWeight(row.cargoWeightKg) : 'Chưa có' },
           { key: 'sites', label: 'Địa điểm nâng / hạ', value: <>{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</> },
           { key: 'truck', label: 'Biển số xe', value: row.plateNumber ?? '—' },
           { key: 'carrier', label: 'Nhà vận tải', value: row.carrierName ?? 'Chưa xác định nhà vận tải' },
@@ -542,12 +542,14 @@ export default function PhoiPhieuControlPage() {
                 {!boardColumns.isHidden('thongso') && (
                 <td className="ppc-col--thongso">
                   {/* Ticket 18/11 Task 3.1c — col 3 is THREE lines: Số cont /
-                      loại cont / trọng tải kg (CSNU1122338 / 20'DC / 20.000kg);
+                      loại cont / trọng tải (CSNU1122338 / 20'DC / 20 tấn);
                       the 'Trọng tải container:' prefix line and the cargo-weight
-                      line leave the cell (cargo weight stays a mobile fact). */}
+                      line leave the cell (cargo weight stays a mobile fact).
+                      KB §7.2.1 (CUS-08): trọng lượng hiển thị theo TẤN trên
+                      mọi màn — formatWeight là hàm dùng chung. */}
                   <span className="ppc-identity">{row.containerNumber ?? '—'}</span>
                   <br /><small>{row.containerTypeLabel ?? '—'}</small>
-                  <br /><small>{row.containerPayloadKg != null ? formatNumber(row.containerPayloadKg) + 'kg' : '—'}</small>
+                  <br /><small>{formatWeight(row.containerPayloadKg)}</small>
                 </td>
                 )}
                 {!boardColumns.isHidden('diadiem') && <td className="ppc-col--diadiem">{row.liftSite ?? '—'} → {row.dropSite ?? '—'}</td>}

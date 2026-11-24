@@ -270,7 +270,18 @@
    (master-plan precedent) so the reading columns keep their percentage
    shares whether or not the merge mode is active. */
 .detailed-plan-grid__col--select { width: 48px; }
-.detailed-plan-grid__th--select {
+/* SIL-909 r2 — the compound `th.` selector is load-bearing: the generic
+   `.detailed-plan-grid thead th` one-line law (FB-063/SIL-686) outranked the
+   old bare-class rule, so this block's padding/text-align never applied AND
+   the header caption inherited the law's `white-space: nowrap` — 'PHÁT LỆNH'
+   stayed one 66.9px line in the 48px rail, and the pane edge plus the next
+   th's opaque background clipped it into 'HÁT LỆN' (QA 17:10 24/11). The
+   fixed rail cannot pay one-line label widths (SIL-848 precedent — 'SỐ TỜ
+   KHAI' wraps to two lines), so its labels wrap at spaces ('PHÁT' / 'LỆNH',
+   31.7px each inside the 40px content box) and 'anywhere' is the SIL-515
+   pressure valve: no zoom level can push a token past the rail and under the
+   neighbour's paint again. */
+.detailed-plan-grid th.detailed-plan-grid__th--select {
   padding-inline: 4px;
   text-align: center;
   font-size: 11px;
@@ -278,6 +289,8 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #64748b;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 /* SIL-893 — the bulk-release header hosts the select-all checkbox + the
    column caption. SIL-909: the 48px rail cannot hold the one-line PHÁT LỆNH

@@ -115,6 +115,19 @@ describe('the 8-column multi-line grid (SIL-762 rev2)', () => {
     expect(document.body.textContent ?? '').not.toContain('EXPORT');
   });
 
+  // KB §10.8.1 (24/11): the container number and its type must never read as
+  // ONE string — "CSNU251000320'DC" is a mis-read container code, and the
+  // separator has to be part of the TEXT (not a margin) so the cell's own
+  // text says "CSNU2510003 · 20'DC".
+  it('separates the container number from its type in the CONT cell', async () => {
+    renderBoard([wireRow]);
+    await screen.findByText('CSNU2510003');
+
+    const contCell = screen.getByText('CSNU2510003').closest('td')!;
+    expect(contCell.textContent).toContain("CSNU2510003 · 20'DC");
+    expect(contCell.textContent).not.toContain("CSNU251000320'DC");
+  });
+
   it('an auto-synced row without invoice facts reads Chưa lấy HĐ in Cột 8', async () => {
     renderBoard([wireRow]);
     await screen.findByText('CSNU2510003');

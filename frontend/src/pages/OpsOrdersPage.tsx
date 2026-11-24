@@ -186,7 +186,9 @@ export default function OpsOrdersPage() {
                   <td className="col-route" data-label="Tuyến">{order.routeName ?? <span className="ops-orders__route-missing">Chưa có tuyến đường</span>}</td>
                   <td data-label="Container">
                     {order.containerCount === 0
-                      ? <span className="ops-orders__route-missing">Chưa có cont</span>
+                      /* KB §3.6.1 (24/11): the board never says "Chưa có
+                         cont" — the missing fact is named. */
+                      ? <span className="ops-orders__route-missing">Chưa có số container</span>
                       : order.containerNumbers.length > 0
                         ? `${order.containerCount} · ${order.containerNumbers.join(', ')}`
                         // SIL-601 (id 702): an LCL lot is 1 lô cont 1 cont —

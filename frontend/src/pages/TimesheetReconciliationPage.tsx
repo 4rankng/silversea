@@ -27,6 +27,7 @@ import {
   type TimesheetMonth,
 } from '../api/timesheetClient';
 import { toastActionError } from '../lib/api/action-error';
+import { formatISODate } from '../lib/format';
 import { useToast } from '../components/shared';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
@@ -215,7 +216,7 @@ export default function TimesheetReconciliationPage() {
               <tbody>
                 {active.days.filter(day => day.symbol).map(day => (
                   <tr key={day.workDate}>
-                    <td data-label="Ngày">{day.workDate}</td>
+                    <td data-label="Ngày">{formatISODate(day.workDate)}</td>
                     <td data-label="Ký hiệu">
                       {day.symbol ? `${day.symbol} — ${TIMESHEET_SYMBOL_RULES[day.symbol].label}` : '—'}
                     </td>
@@ -232,7 +233,7 @@ export default function TimesheetReconciliationPage() {
                         min={-10}
                         max={10}
                         defaultValue={day.tripAdjustment}
-                        aria-label={`Chỉnh lệch chuyến ngày ${day.workDate}`}
+                        aria-label={`Chỉnh lệch chuyến ngày ${formatISODate(day.workDate)}`}
                         disabled={!day.id || active.status === 'RECONCILED'}
                         onBlur={event => {
                           if (!day.id) return;

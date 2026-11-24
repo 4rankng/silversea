@@ -1,4 +1,4 @@
-// One workboard row (seven cell groups) for the CUS shipments page.
+// One workboard row (eight cell groups) for the CUS shipments page.
 //
 // Extracted verbatim from pages/ShipmentsPage.tsx in the 2026-09-01 structural
 // split. Each editable cell is a full-cell trigger button so the inline editor
@@ -33,7 +33,7 @@ import {
   worksheetQuantity,
   type ShipmentQuickEditDraft,
 } from './cusUtils';
-import { formatDateTimeShort, formatISODate, formatNumber, formatWeight } from '../../../lib/format';
+import { formatDateTimeShort, formatISODate, formatMoney, formatNumber, formatWeight } from '../../../lib/format';
 import { NameCell } from '../../../components/shared/NameCell';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 
@@ -55,6 +55,9 @@ export const CUS_ROW_COLUMNS: readonly LedgerColumn[] = [
   { key: 'classification', label: 'Phân loại & hãng tàu' },
   { key: 'cargo', label: 'Tổng quan hàng hóa' },
   { key: 'schedule', label: 'Lịch trình & điều xe' },
+  // KB §3.1.5 (24/11): what the customer owes WITHOUT an invoice — the CUS
+  // asks for this money on every lot, so the board must show it.
+  { key: 'customerRevenue', label: 'Tổng thu Khách (Không Hóa đơn)' },
   { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
   { key: 'status', label: 'Trạng thái', pinned: true },
 ];
@@ -433,6 +436,16 @@ export function CusShipmentRow({
           title={scheduleAction.title}
           onClick={guardRowClick(scheduleAction.onClick)}
         >{scheduleContent}</button>
+      </td>)}
+      {!isHidden('customerRevenue') && (<td data-label="Tổng thu Khách (Không Hóa đơn)">
+        {/* KB §3.1.5 (24/11) — the customer's money that carries no invoice.
+            Text only in a data cell (design law §1); a null total is the
+            honest '—', never a 0. */}
+        <span className="cus-multiline-cell cus-multiline-cell--numeric">
+          {item.finance.customerNoInvoiceTotal != null
+            ? <strong>{formatMoney(item.finance.customerNoInvoiceTotal)} ₫</strong>
+            : <span className="cus-empty">—</span>}
+        </span>
       </td>)}
       {!isHidden('notes') && (<td data-label="Ghi chú" className={`cus-dashboard-cell--editable${hasNotes ? '' : ' cus-dashboard-cell--empty-notes'}`}>
         <button

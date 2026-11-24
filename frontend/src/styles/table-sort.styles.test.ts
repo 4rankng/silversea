@@ -51,7 +51,7 @@ describe('/shipments sort-header column shares (SIL-794 retires the SIL-571/578 
   const shipments = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 
   it('drops the table min-width floor so the board always fits its canvas (SIL-794)', () => {
-    const band = shipments.match(/@media \(min-width: 1024px\) \{[\s\S]*?col--status \{ width: 12\.245%; \}\n\}/)?.[0] ?? '';
+    const band = shipments.match(/@media \(min-width: 1024px\) \{[\s\S]*?col--status \{ width: [\d.]+%; \}\n\}/)?.[0] ?? '';
     expect(band, 'band exists').not.toBe('');
     // The floor overflowed the 1144px canvas at a 1440 viewport under the
     // viewport's overflow-x: clip - the rightmost column (TRANG THAI) was
@@ -59,16 +59,14 @@ describe('/shipments sort-header column shares (SIL-794 retires the SIL-571/578 
     // .cus-dashboard-table rule, no floor declaration anywhere).
     expect(band).not.toMatch(/\.cus-dashboard-table\s*\{/);
     expect(shipments).not.toMatch(/min-width:\s*1189/);
-    expect(band).toMatch(/col--customer \{ width: 16\.785%; \}/);
-    expect(band).toMatch(/col--documents \{ width: 14\.755%; \}/);
-    expect(band).toMatch(/col--classification \{ width: 13\.893%; \}/);
-    expect(band).toMatch(/col--cargo \{ width: 15\.883%; \}/);
-    expect(band).toMatch(/col--schedule \{ width: 15\.167%; \}/);
-    expect(band).toMatch(/col--notes \{ width: 11\.272%; \}/);
-    expect(band).toMatch(/col--status \{ width: 12\.245%; \}/);
-    // Shares still sum to 100% so every column resolves to its exact share
-    // of the real canvas.
+    // The CONTRACT is structural: every column pins a share and the shares
+    // still sum to 100% so each column resolves to its exact share of the real
+    // canvas. The individual percentages follow what each column holds and
+    // are re-measured as the data shape moves (SIL-919 24/11: 'Tổng thu Khách
+    // (Không Hóa đơn)' joins the grid and takes 11%, the other seven scaled
+    // to 89% of their measured shares).
     const shares = [...band.matchAll(/width: ([\d.]+)%/g)].map((m) => Number(m[1]));
+    expect(shares).toHaveLength(8);
     expect(shares.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 2);
   });
 

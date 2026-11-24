@@ -693,13 +693,29 @@ export default function ShipmentsPage() {
         inert={drawerId != null ? true : false}
       >
         <h2 id="cus-workspace-title" className="sr-only">Bảng kế hoạch lô hàng</h2>
+        {/* KB §3.1.5 (24/11): the page's section switcher — "Tất cả lô hàng"
+            (active) and "Hóa đơn kết hợp" (the reserved position, disabled
+            until that view ships). The shared Tabs primitive, no page-local
+            markup: the same strip the page carried before the 12/08
+            exception-first redesign. */}
+        <Tabs
+          className="shipments-section-tabs"
+          variant="bordered"
+          ariaLabel="Chức năng quản lý lô hàng"
+          value="all"
+          onChange={() => undefined}
+          tabs={[
+            { id: 'all', label: 'Tất cả lô hàng', count: total },
+            { id: 'combined-invoices', label: 'Hóa đơn kết hợp', disabled: true },
+          ]}
+        />
         {/* Card 20260927_152: the shared bar. Every criterion renders INLINE while
             the strip fits two rows, collapsing into `Bộ lọc (N)` when it cannot. */}
         <ListFilterBar
           search={{
             value: searchInput,
             onChange: setSearchInput,
-            placeholder: 'Bill, Book, Mã lô, Cont, Tờ khai, khách hàng...',
+            placeholder: 'Bill, Book, Cont, Tờ khai...',
             ariaLabel: 'Tìm lô hàng',
             inputRef: searchFieldRef,
             inputProps: { title: 'Nhấn / để tìm kiếm · Esc để xóa' },
@@ -801,17 +817,18 @@ export default function ShipmentsPage() {
         ) : (
           <>
             <p id="cus-worksheet-instructions" className="sr-only">
-              Bảng lô hàng gồm bảy nhóm thông tin. Chọn trực tiếp ô dữ liệu được phép để sửa; nhấn Enter để lưu và Escape để hủy. Mở Chi tiết để chỉnh từng container.
+              Bảng lô hàng gồm tám nhóm thông tin. Chọn trực tiếp ô dữ liệu được phép để sửa; nhấn Enter để lưu và Escape để hủy. Mở Chi tiết để chỉnh từng container.
             </p>
             <div className="cus-dashboard-viewport" role="region" aria-label="Bảng tổng hợp lô hàng" aria-describedby="cus-worksheet-instructions" tabIndex={0}>
               <table className="cus-dashboard-table ops-table">
-                <caption className="sr-only">Tổng hợp lô hàng theo bảy nhóm thông tin</caption>
+                <caption className="sr-only">Tổng hợp lô hàng theo tám nhóm thông tin</caption>
                 <colgroup>
                   <col className="cus-dashboard-col--customer" />
                   {!rowColumns.isHidden('documents') && <col className="cus-dashboard-col--documents" />}
                   {!rowColumns.isHidden('classification') && <col className="cus-dashboard-col--classification" />}
                   {!rowColumns.isHidden('cargo') && <col className="cus-dashboard-col--cargo" />}
                   {!rowColumns.isHidden('schedule') && <col className="cus-dashboard-col--schedule" />}
+                  {!rowColumns.isHidden('customerRevenue') && <col className="cus-dashboard-col--customer-revenue" />}
                   {!rowColumns.isHidden('notes') && <col className="cus-dashboard-col--notes" />}
                   <col className="cus-dashboard-col--status" />
                 </colgroup>
@@ -821,6 +838,10 @@ export default function ShipmentsPage() {
                   {!rowColumns.isHidden('classification') && <SortHeader label="Phân loại &amp; hãng tàu" sortKey="shippingLineName" sort={sort} onSortChange={applySort} />}
                   {!rowColumns.isHidden('cargo') && <SortHeader label="Tổng quan hàng hóa" sortKey="cargoWeightKg" sort={sort} onSortChange={applySort} />}
                   {!rowColumns.isHidden('schedule') && <SortHeader label="Lịch trình &amp; điều xe" sortKey="transportDate" sort={sort} onSortChange={applySort} />}
+                  {/* KB §3.1.5 (24/11) — the customer's money without an
+                      invoice. Not a sort key: the board sorts on the lot
+                      fields the list endpoint can sort by. */}
+                  {!rowColumns.isHidden('customerRevenue') && <th scope="col">Tổng thu Khách (Không Hóa đơn)</th>}
                   {!rowColumns.isHidden('notes') && <SortHeader label="Ghi chú" sortKey="customerNotes" sort={sort} onSortChange={applySort} />}
                   <SortHeader label="Trạng thái" sortKey="status" sort={sort} onSortChange={applySort} />
                 </tr></thead>

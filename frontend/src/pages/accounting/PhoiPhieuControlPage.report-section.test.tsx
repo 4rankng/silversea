@@ -47,7 +47,8 @@ describe('Báo cáo thu / trả phơi section', () => {
   it('renders the section title, its own range, and the THU tab first', async () => {
     renderSection();
     // Spec 19/10 (2.2): the heading carries the window — "… — Ngày … – …".
-    expect(screen.getByRole('heading', { name: /^Báo cáo thu \/ trả phơi — Ngày \d{4}-\d{2}-\d{2} – \d{4}-\d{2}-\d{2}$/ })).toBeInTheDocument();
+    // KB §10.8.4 (24/11): the house date law — DD/MM/YYYY, never the raw ISO pair.
+    expect(screen.getByRole('heading', { name: /^Báo cáo thu \/ trả phơi — Ngày \d{2}\/\d{2}\/\d{4} – \d{2}\/\d{2}\/\d{4}$/ })).toBeInTheDocument();
     expect(await screen.findByRole('columnheader', { name: 'Tổng' })).toBeInTheDocument();
     // Default window = the running month (the surface it replaced was monthly).
     // Derive the expected bounds exactly like the component does — the Vietnam

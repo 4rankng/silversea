@@ -88,14 +88,14 @@ beforeEach(() => {
 describe('TimesheetReconciliationPage', () => {
   it('sends a NEGATIVE adjustment through to the API', async () => {
     renderBoard();
-    const field = await screen.findByLabelText('Chỉnh lệch chuyến ngày 2026-10-05');
+    const field = await screen.findByLabelText('Chỉnh lệch chuyến ngày 05/10/2026');
     fireEvent.blur(field, { target: { value: '-1' } });
     await waitFor(() => expect(adjustTimesheetDay).toHaveBeenCalledWith(7, 11, -1));
   });
 
   it('does not call the API when the correction is unchanged', async () => {
     renderBoard();
-    const field = await screen.findByLabelText('Chỉnh lệch chuyến ngày 2026-10-05');
+    const field = await screen.findByLabelText('Chỉnh lệch chuyến ngày 05/10/2026');
     fireEvent.blur(field, { target: { value: '0' } });
     await Promise.resolve();
     expect(adjustTimesheetDay).not.toHaveBeenCalled();
@@ -183,9 +183,9 @@ describe('TimesheetReconciliationPage', () => {
     // Fixture 05/10: symbol Q, payload trips = 2. Cột Chuyến của lưới là số
     // đếm hiển thị theo summaryTrips — SIL-841: mỗi ngày Q = 2 chuyến.
     renderBoard();
-    const qRow = (await screen.findByText('2026-10-05')).closest('tr')!;
+    const qRow = (await screen.findByText('05/10/2026')).closest('tr')!;
     expect(qRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('2');
-    const donRow = screen.getByText('2026-10-11').closest('tr')!;
+    const donRow = screen.getByText('11/10/2026').closest('tr')!;
     expect(donRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('1');
   });
 
@@ -195,7 +195,7 @@ describe('TimesheetReconciliationPage', () => {
       days: month.days.map(day => day.symbol === 'Q' ? { ...day, tripAdjustment: -1 } : day),
     }]);
     renderBoard();
-    const qRow = (await screen.findByText('2026-10-05')).closest('tr')!;
+    const qRow = (await screen.findByText('05/10/2026')).closest('tr')!;
     // 2 (summaryTrips) + (−1) = 1 — chỉnh lệch không biến mất khỏi cột hiển thị.
     expect(qRow.querySelector('td[data-label="Chuyến"]')?.textContent).toBe('1');
   });

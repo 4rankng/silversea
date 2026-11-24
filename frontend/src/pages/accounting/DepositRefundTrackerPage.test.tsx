@@ -16,6 +16,22 @@ const row = { id: 1, billNumber: 'QA-BILL', customerName: 'QA customer', carrier
 function page() { return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DepositRefundTrackerPage /></QueryClientProvider>); }
 beforeEach(() => { Object.values(api).forEach(fn => fn.mockReset()); api.listDepositTrackers.mockResolvedValue({ items: [row], total: 0, warnings: { cvOverdueCount: 1, unrefundedTotal: 0 } }); });
 describe('deposit tracker workflows', () => {
+  // KB §10.8.4 (24/11): the house date law is DD/MM/YYYY on every screen —
+  // the tracker's three date columns used the retired dd/mm/yy form.
+  it('prints every date column as DD/MM/YYYY', async () => {
+    api.listDepositTrackers.mockResolvedValue({
+      items: [{ ...row, depositDate: '2026-09-28', cvSubmittedDate: '2026-10-05', expectedRefundDate: '2026-10-19' }],
+      total: 0,
+      warnings: { cvOverdueCount: 1, unrefundedTotal: 0 },
+    });
+    const { container } = page();
+    await screen.findByText('QA-BILL');
+    const cell = (label: string) => container.querySelector(`td[data-label="${label}"]`)?.textContent;
+    expect(cell('Ngày')).toBe('28/09/2026');
+    expect(cell('Ngày nộp CV')).toBe('05/10/2026');
+    expect(cell('Ngày dự kiến hoàn cược')).toBe('19/10/2026');
+  });
+
   // Card 20260927_152: the filter region is the ONE shared strip — the from/to
   // pair, the status criterion (inline while the strip fits two rows) and the
   // page's own Lọc / Thêm cược actions in the bar's action slot.

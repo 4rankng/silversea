@@ -14,7 +14,7 @@ import {
 } from '../../api/accountingDebitClient';
 import { updateLclTruck } from '../../api/dispatchPlanningClient';
 import { tripClient } from '../../api/tripClient';
-import { businessDateISO, formatCurrency } from '../../lib/format';
+import { businessDateISO, formatCurrency, formatISODate } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
 import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
@@ -415,7 +415,12 @@ export default function AccountingDebitClosePage() {
   // summed the arrays' lengths, so 3 customers + 1 truck read "4 đang áp dụng"
   // while one `Đặt lại` cleared both, a count no operator could reach by clearing.
   const facetCount = (customerFilter.length ? 1 : 0) + (truckFilter.length ? 1 : 0);
-  const period = [filters.dateFrom, filters.dateTo].filter(Boolean).join(' – ');
+  // KB §10.8.4 (24/11): the period caption reads DD/MM/YYYY like every other
+  // date on the board — never the raw ISO pair.
+  const period = [filters.dateFrom, filters.dateTo]
+    .filter(Boolean)
+    .map((day) => formatISODate(day))
+    .join(' – ');
   const roundItems = roundsQuery.data?.items ?? [];
 
   return (

@@ -81,6 +81,22 @@ export function cutoffUrgency(iso: string | null | undefined): 'none' | 'soon' |
 }
 
 /**
+ * KB §3.6.1 (24/11): the board never says "Chưa có cont" — the missing fact is
+ * named: the lot carries no container number yet. The pre-24/11 wording still
+ * arrives from an older backend payload, so it is normalized here and never
+ * reaches the screen.
+ */
+export const MISSING_CONTAINER_NUMBER_LABEL = 'Chưa có số container';
+/** The retired wording, kept only to recognize it in a legacy payload. */
+const LEGACY_MISSING_CONTAINER_LABEL = 'Chưa có cont';
+
+/** True when a container summary carries no demand (absent or the legacy
+ *  placeholder) — the one place that decides "this lot has no container". */
+export function isMissingContainerSummary(summary: string | null | undefined): boolean {
+  return !summary || summary === LEGACY_MISSING_CONTAINER_LABEL;
+}
+
+/**
  * The API uses ` + ` to keep the grouped container demand machine-readable.
  * Render each type as its own operational line, while accepting summaries from
  * an older backend that still used `*` or `×` during a rolling deployment.
@@ -88,7 +104,7 @@ export function cutoffUrgency(iso: string | null | undefined): 'none' | 'soon' |
 export function formatContainerSummaryLines(summary: string | null): string[] {
   // Missing cargo demand names the missing fact instead of a bare '—'
   // (design §1: empty values name the field).
-  if (!summary) return ['Chưa có cont'];
+  if (!summary || summary === LEGACY_MISSING_CONTAINER_LABEL) return [MISSING_CONTAINER_NUMBER_LABEL];
 
   return summary
     .split(/\s*\+\s*/)
@@ -207,15 +223,15 @@ export function aggregateContainerPortGroupLines(item: ShipmentListItem, schedul
   if (containerPortGroups.length === 0) {
     if (allGroups.length === 0) {
       return [
-        { direction: 'lift', label: 'Nâng', portName: 'Chưa có cont', containerSummary: null },
-        { direction: 'drop', label: 'Hạ', portName: 'Chưa có cont', containerSummary: null },
+        { direction: 'lift', label: 'Nâng', portName: MISSING_CONTAINER_NUMBER_LABEL, containerSummary: null },
+        { direction: 'drop', label: 'Hạ', portName: MISSING_CONTAINER_NUMBER_LABEL, containerSummary: null },
       ];
     }
     // Date filter active but no conts on that day — same named placeholder,
     // never a bare '—' (design §1).
     return [
-      { direction: 'lift', label: 'Nâng', portName: 'Chưa có cont', containerSummary: null },
-      { direction: 'drop', label: 'Hạ', portName: 'Chưa có cont', containerSummary: null },
+      { direction: 'lift', label: 'Nâng', portName: MISSING_CONTAINER_NUMBER_LABEL, containerSummary: null },
+      { direction: 'drop', label: 'Hạ', portName: MISSING_CONTAINER_NUMBER_LABEL, containerSummary: null },
     ];
   }
 
@@ -321,10 +337,11 @@ export function cargoCellLines(item: ShipmentListItem, scheduleDate?: string | n
   return [
     ...formatContainerSummaryLines(containerSummarySource)
       // Real container demand carries the shared identity weight (DIS-08,
-      // card 211026180428); the 'Chưa có cont' placeholder names a MISSING
-      // fact and stays regular. `!!` mirrors formatContainerSummaryLines'
-      // own emptiness check so a '' summary can never bold the placeholder.
-      .map((text): CargoCellLine => ({ text, muted: false, empty: false, identity: !!containerSummarySource })),
+      // card 211026180428); the missing-container placeholder names a MISSING
+      // fact and stays regular. The check mirrors formatContainerSummaryLines'
+      // own emptiness test so neither an empty nor a legacy placeholder
+      // summary can bold the placeholder.
+      .map((text): CargoCellLine => ({ text, muted: false, empty: false, identity: !isMissingContainerSummary(containerSummarySource) })),
     { text: weight, muted: true, empty: item.totalCargoWeightKg == null },
   ];
 }
@@ -341,7 +358,7 @@ export function hasContainerDemand(item: ShipmentListItem): boolean {
     (item.containerTotal != null
       ? item.containerTotal > 0
       : ((item.containerCount20 ?? 0) + (item.containerCount40 ?? 0) > 0))
-    && item.containerTypeSummary !== 'Chưa có cont',
+    && !isMissingContainerSummary(item.containerTypeSummary),
   );
 }
 

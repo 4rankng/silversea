@@ -307,12 +307,12 @@
   box-sizing: border-box;
 }
 
-/* All seven columns pin an explicit share (sums to 100%) sized from real
+/* All eight columns pin an explicit share (sums to 100%) sized from real
    production-shaped data, not the flat/auto split this table shipped with: `classification` and `cargo` were `width: auto`, which table-layout: fixed
    only measures from the first rendered row, so real customer/carrier names
    and cargo weights (e.g. "38.000 kg") clipped on later rows even though the
-   first row looked fine. `schedule` was pinned to 24% to compensate for a
-   separate bug — its appointment-group text had no wrap rule anywhere, so it
+   first row looked fine. `schedule` was pinned to 24% to compensate for
+   a separate bug — its appointment-group text had no wrap rule anywhere, so it
    silently rendered as one clipped line (see the tbody th/td rule above);
    now that it wraps, it needs less width than the workaround assumed.
    `documents` is sized for 16-char mono Bill/Booking codes (e.g.
@@ -324,13 +324,18 @@
    rule the filter strip got on 2026-09-24, applied to the grid. The second
    pass re-homed 4% because "Thêm ghi chú" needs ~110px to stay on one line at
    8% and `cargo` still wrapped "Chưa có hàng hóa" at 11%. */
-.cus-dashboard-table col.cus-dashboard-col--customer { width: 19%; }
-.cus-dashboard-table col.cus-dashboard-col--documents { width: 15%; }
-.cus-dashboard-table col.cus-dashboard-col--classification { width: 13%; }
-.cus-dashboard-table col.cus-dashboard-col--cargo { width: 12%; }
-.cus-dashboard-table col.cus-dashboard-col--schedule { width: 18%; }
-.cus-dashboard-table col.cus-dashboard-col--notes { width: 10%; }
-.cus-dashboard-table col.cus-dashboard-col--status { width: 13%; }
+/* SIL-919 (KB §3.1.5, 24/11): 'Tổng thu Khách (Không Hóa đơn)' joins the grid
+   and takes 11%; the other seven shares are scaled to 89% of their measured
+   values, so the ladder still sums to exactly 100% and no column loses its
+   room to hold its own value un-truncated. */
+.cus-dashboard-table col.cus-dashboard-col--customer { width: 16.91%; }
+.cus-dashboard-table col.cus-dashboard-col--documents { width: 13.35%; }
+.cus-dashboard-table col.cus-dashboard-col--classification { width: 11.57%; }
+.cus-dashboard-table col.cus-dashboard-col--cargo { width: 10.68%; }
+.cus-dashboard-table col.cus-dashboard-col--schedule { width: 16.02%; }
+.cus-dashboard-table col.cus-dashboard-col--customer-revenue { width: 11%; }
+.cus-dashboard-table col.cus-dashboard-col--notes { width: 8.9%; }
+.cus-dashboard-table col.cus-dashboard-col--status { width: 11.57%; }
 
 /* SIL-794 (id 920, QA 10/11, KB Ch10 10.8.1) - the table ALWAYS fits its
    canvas: the SIL-571/578 min-width floor (1189px) is retired. At the 1440
@@ -349,15 +354,19 @@
    Chi tiết button) sat within 1-10px of the clip edge and the QA build cut
    the last characters ('Chờ chốt lịc'). The ≥1024 band moves status
    10.045%→12.245% and re-funds it from PHÂN LOẠI & HÀNG TẢI (16.093%→13.893%,
-   its tokens wrap at spaces) — shares stay exactly 100% (SIL-794 law). */
+   its tokens wrap at spaces) — shares stay exactly 100% (SIL-794 law).
+   SIL-919 (24/11) rescales this band for the eighth column: the seven
+   measured shares take 89% of their values and the new revenue column takes
+   the remaining 11% — still exactly 100%. */
 @media (min-width: 1024px) {
-  .cus-dashboard-table col.cus-dashboard-col--customer { width: 16.785%; }
-  .cus-dashboard-table col.cus-dashboard-col--documents { width: 14.755%; }
-  .cus-dashboard-table col.cus-dashboard-col--classification { width: 13.893%; }
-  .cus-dashboard-table col.cus-dashboard-col--cargo { width: 15.883%; }
-  .cus-dashboard-table col.cus-dashboard-col--schedule { width: 15.167%; }
-  .cus-dashboard-table col.cus-dashboard-col--notes { width: 11.272%; }
-  .cus-dashboard-table col.cus-dashboard-col--status { width: 12.245%; }
+  .cus-dashboard-table col.cus-dashboard-col--customer { width: 14.939%; }
+  .cus-dashboard-table col.cus-dashboard-col--documents { width: 13.132%; }
+  .cus-dashboard-table col.cus-dashboard-col--classification { width: 12.365%; }
+  .cus-dashboard-table col.cus-dashboard-col--cargo { width: 14.136%; }
+  .cus-dashboard-table col.cus-dashboard-col--schedule { width: 13.499%; }
+  .cus-dashboard-table col.cus-dashboard-col--customer-revenue { width: 11%; }
+  .cus-dashboard-table col.cus-dashboard-col--notes { width: 10.032%; }
+  .cus-dashboard-table col.cus-dashboard-col--status { width: 10.897%; }
 }
 
 .cus-dashboard-table thead th {

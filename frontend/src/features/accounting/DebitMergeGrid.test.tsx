@@ -70,6 +70,14 @@ beforeEach(() => {
 });
 
 describe('DebitMergeGrid — 6 nhóm cột với tiêu đề CHÍNH XÁC', () => {
+  // KB §10.8.4 (24/11): the house date law is DD/MM/YYYY — the shared grid
+  // (Chi phí - Quyết toán AND Ghép bộ Debit) printed the raw ISO date.
+  it('prints the Ngày column as DD/MM/YYYY', () => {
+    renderGrid();
+    const cell = document.querySelector<HTMLElement>('tbody td[data-col="ngay"]');
+    expect(cell?.textContent).toBe('18/11/2026');
+  });
+
   it('renders all six group headers verbatim', () => {
     renderGrid();
     for (const header of [

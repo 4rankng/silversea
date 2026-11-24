@@ -374,7 +374,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // No status tab strip before data arrives (the date-preset group in the
     // toolbar is a different control and does render).
     expect(screen.queryByRole('tablist', { name: 'Trạng thái lô hàng' })).toBeNull();
-    expect(screen.queryByText('Hóa đơn kết hợp')).toBeNull();
+    // KB §3.1.5 (24/11): the page's section switcher — "Tất cả lô hàng" is
+    // the live section, "Hóa đơn kết hợp" is the RESERVED position: present,
+    // disabled, never a dead navigation target.
+    const sectionTabs = screen.getByRole('tablist', { name: 'Chức năng quản lý lô hàng' });
+    expect(within(sectionTabs).getByRole('tab', { name: /Tất cả lô hàng/ })).toBeTruthy();
+    const reserved = within(sectionTabs).getByRole('tab', { name: 'Hóa đơn kết hợp' });
+    expect(reserved).toBeDisabled();
     expect(screen.getByLabelText('Tìm lô hàng').getAttribute('type')).toBe('text');
   });
 
@@ -1016,8 +1022,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     expect(screen.queryByRole('columnheader', { name: 'Ghi chú' })).toBeNull();
-    // Six groups render instead of seven, and no column is left dangling.
-    expect(screen.getAllByRole('columnheader')).toHaveLength(6);
+    // Seven groups render instead of eight, and no column is left dangling.
+    expect(screen.getAllByRole('columnheader')).toHaveLength(7);
     // The picker rides the bar (card 20260927_152's one filter plane), and it
     // is the affordance that brings the column back.
     expect(document.querySelector('.filter-bar.list-filter-bar .column-picker')).toBeTruthy();
@@ -1029,7 +1035,18 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
     expect(screen.getByRole('columnheader', { name: 'Ghi chú' })).toBeTruthy();
-    expect(screen.getAllByRole('columnheader')).toHaveLength(7);
+    expect(screen.getAllByRole('columnheader')).toHaveLength(8);
+  });
+
+  // KB §3.1.5 (24/11): the customer's money that carries NO invoice is a
+  // first-class column of the Chứng từ board — the CUS chases it on every lot.
+  it('shows the Tổng thu Khách (Không Hóa đơn) column and its value', async () => {
+    apiGet.mockResolvedValue(listResponse([row]));
+    const { container } = renderPage();
+    await screen.findByRole('table');
+    expect(screen.getByRole('columnheader', { name: 'Tổng thu Khách (Không Hóa đơn)' })).toBeTruthy();
+    const cell = container.querySelector('td[data-label="Tổng thu Khách (Không Hóa đơn)"]');
+    expect(cell?.textContent).toContain('1.500.000 ₫');
   });
 
   it('CUS-OVERVIEW-04 keeps empty notes addable through the existing named edit action', async () => {
@@ -2349,20 +2366,33 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('uses an unbounded, sticky, keyboard-focusable dashboard without horizontal overflow', () => {
     expect(css).toMatch(/\.cus-dashboard-viewport\s*\{[^}]*overflow-x:\s*clip;/);
     // Re-measured 2026-09-28 at 1440px: the split follows what each column
-    // actually holds, but the contract is unchanged — all seven columns pin an
+    // actually holds, but the contract is unchanged — every column pins an
     // explicit percentage (table-layout: fixed only measures from the FIRST
     // rendered row, so an `auto` column clips real names on later rows) and the
-    // seven shares still sum to 100%.
-    const columnWidths = [...css.matchAll(/col\.cus-dashboard-col--[a-z]+\s*\{[^}]*width:\s*(\d+)%\s*;/g)]
-      .map(([, percent]) => Number(percent));
-    // The contract is structural, not numeric: all seven columns pin an
-    // explicit percentage and the seven shares sum to 100%. The individual
-    // percentages follow what each column actually holds and are re-measured
-    // as the data shape moves (2026-09-28: classification 9%→13%, notes
-    // 14%→10% after the header wrapped to four lines and the notes column
-    // printed "Thêm ghi chú" on nearly every row).
-    expect(columnWidths).toHaveLength(7);
-    expect(columnWidths.reduce((sum, percent) => sum + percent, 0)).toBe(100);
+    // shares still sum to 100% in EVERY band.
+    const widthByColumn = new Map<string, number[]>();
+    for (const [, column, percent] of css.matchAll(/col\.(cus-dashboard-col--[a-z-]+)\s*\{[^}]*width:\s*(\d+(?:\.\d+)?)%\s*;/g)) {
+      widthByColumn.set(column, [...(widthByColumn.get(column) ?? []), Number(percent)]);
+    }
+    // The contract is structural, not numeric: every column pins an explicit
+    // percentage in the default band AND in the ≥1024 band, and each band
+    // sums to 100%. The individual percentages follow what each column
+    // actually holds and are re-measured as the data shape moves (2026-09-28:
+    // classification 9%→13%, notes 14%→10% after the header wrapped to four
+    // lines and the notes column printed "Thêm ghi chú" on nearly every row;
+    // SIL-919 24/11: 'Tổng thu Khách (Không Hóa đơn)' joins the grid and
+    // takes 11%, the other seven scaled to 89% of their measured shares).
+    expect(widthByColumn.size).toBe(8);
+    const widthsIn = (text: string) => [...text.matchAll(/col\.(cus-dashboard-col--[a-z-]+)\s*\{[^}]*width:\s*(\d+(?:\.\d+)?)%\s*;/g)]
+      .map(([, , percent]) => Number(percent));
+    const wideBandStart = css.indexOf('@media (min-width: 1024px)');
+    expect(wideBandStart).toBeGreaterThan(-1);
+    const narrowBand = widthsIn(css.slice(0, wideBandStart));
+    const wideBand = widthsIn(css.slice(wideBandStart));
+    expect(narrowBand).toHaveLength(8);
+    expect(wideBand).toHaveLength(8);
+    expect(narrowBand.reduce((sum, percent) => sum + percent, 0)).toBeCloseTo(100, 2);
+    expect(wideBand.reduce((sum, percent) => sum + percent, 0)).toBeCloseTo(100, 2);
     expect(css).not.toMatch(/\.cus-dashboard-viewport\s*\{[^}]*max-height/);
     expect(css).toMatch(/\.cus-dashboard-table\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?table-layout:\s*fixed;/);
     expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
@@ -2385,7 +2415,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // Row 2 IS the shared bar (card 20260927_151) — the page keeps its
     // controls, the bar owns the layout (the former `WorkboardFilters` host and
     // its `.list-filter-bar__pair` wrapper are deleted, card 20260927_152).
-    expect(source).toContain("placeholder: 'Bill, Book, Mã lô, Cont, Tờ khai, khách hàng...'");
+    expect(source).toContain("placeholder: 'Bill, Book, Cont, Tờ khai...'");
     expect(source).toContain('<ListFilterBar');
     expect(source).toContain('<DateRangeFields');
     expect(source).toContain('<InlineLabelSelect');
@@ -2909,7 +2939,7 @@ describe('Card 20260926_48 — Row 2: compact filter toolbar + date-range + chip
     // Search: placeholder per spec. No shortcut badge renders (CHIEF
     // 2026-09-27: no control may print shortcut key text).
     const search = screen.getByLabelText('Tìm lô hàng') as HTMLInputElement;
-    expect(search.placeholder).toBe('Bill, Book, Mã lô, Cont, Tờ khai, khách hàng...');
+    expect(search.placeholder).toBe('Bill, Book, Cont, Tờ khai...');
     expect(document.querySelector('.shipments-control__kbd')).toBeNull();
     // Dates: two INDEPENDENT Từ ngày / Đến ngày fields (CHIEF 2026-09-27:
     // "I dont want daterangepicker" — no merged trigger, no dual-calendar

@@ -34,7 +34,7 @@ import { useHiddenColumns } from '../../hooks/useHiddenColumns';
 import { ColumnPicker } from '../../components/ColumnPicker';
 import { Pagination } from '../../design-system';
 import { DisabledActionTip } from '../../components/shared/DisabledActionTip';
-import { formatMoney } from '../../lib/format';
+import { formatISODate, formatMoney } from '../../lib/format';
 import './DebitMergeGrid.css';
 
 export const DEBIT_MERGE_PAGE_SIZES = [20, 50] as const;
@@ -656,7 +656,9 @@ export function DebitMergeGrid({
                 // never double the money.
                 if (index > 0 && LOT_MONEY_KEYS[key]) return <td key={key} data-col={key} />;
                 switch (key) {
-                  case 'ngay': return <td key={key} data-col={key}>{lot.deliveryDate ?? ''}</td>;
+                  // KB §10.8.4 (24/11): the house date law is DD/MM/YYYY —
+                  // the raw ISO date never reaches the cell.
+                  case 'ngay': return <td key={key} data-col={key}>{lot.deliveryDate ? formatISODate(lot.deliveryDate) : ''}</td>;
                   case 'lot':
                     return (
                       <td key={key} data-col={key} className="debit-merge-cell--lot">

@@ -658,7 +658,13 @@ export default function AccountingInvoiceTrackingPage() {
                       <span className="ivt-stack">
                         <span className="ivt-stack__primary">
                           <span className="record-table__reference">{row.containerNumber ?? '—'}</span>
-                          {typeLine && <span className="ivt-badge">{typeLine}</span>}
+                          {/* KB §10.8.1 (24/11): the container number and its
+                              type must never read as ONE string ("MNBU000661440'DC"
+                              — a mis-read container code). The separator is part
+                              of the TEXT, not a margin, so the extracted text
+                              reads "MNBU0006614 · 40'DC" exactly like the
+                              rendered cell does. */}
+                          {typeLine && <><span className="ivt-stack__sep"> · </span><span className="ivt-badge">{typeLine}</span></>}
                         </span>
                         <span className="ivt-stack__sub">{[refLine, row.shippingLineName].filter(Boolean).join(' · ') || '—'}</span>
                       </span>

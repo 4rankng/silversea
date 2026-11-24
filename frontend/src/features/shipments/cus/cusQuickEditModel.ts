@@ -28,7 +28,7 @@ export function factoryDetailPath(item: ShipmentCusWorkspaceListItem): string {
 }
 
 /**
- * Field-access keys each edit mode may write, mirroring the seven cell groups.
+ * Field-access keys each edit mode may write, mirroring the eight cell groups.
  * A mode is openable when at least one of its keys is not READ_ONLY.
  */
 export function quickEditAccessKeys(field: QuickEditField): readonly (keyof ShipmentCusWorkspaceListItem['fieldAccess'])[] {

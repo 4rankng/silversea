@@ -81,8 +81,11 @@ describe('MasterPlanGrid — container identity class wiring (DIS-08, card 21102
     }
   });
 
-  it('keeps the "Chưa có cont" placeholder regular — a missing fact is not identity', () => {
-    for (const emptySummary of [null, ''] as const) {
+  it('keeps the missing-container placeholder regular — a missing fact is not identity', () => {
+    // KB §3.6.1 (24/11): the placeholder is "Chưa có số container"; the
+    // retired "Chưa có cont" wording (still emitted by an older payload)
+    // must not reach the screen either.
+    for (const emptySummary of [null, '', 'Chưa có cont'] as const) {
       const { container } = render(
         <MasterPlanGrid
           items={[item({ containerTypeSummary: emptySummary as unknown as string, containerPortGroups: [] })]}
@@ -90,9 +93,10 @@ describe('MasterPlanGrid — container identity class wiring (DIS-08, card 21102
         />,
       );
       const cargoCell = container.querySelector('td[data-label="Tổng quan hàng hóa"], td[data-label="Hàng"]') as HTMLElement;
-      const placeholder = Array.from(cargoCell.querySelectorAll('.master-plan-grid__line')).find((el) => el.textContent?.includes('Chưa có cont'));
+      const placeholder = Array.from(cargoCell.querySelectorAll('.master-plan-grid__line')).find((el) => el.textContent?.includes('Chưa có số container'));
       expect(placeholder, `summary=${JSON.stringify(emptySummary)}`).toBeTruthy();
       expect(placeholder!.classList.contains('ops-container-line')).toBe(false);
+      expect(cargoCell.textContent).not.toContain('Chưa có cont');
     }
   });
 

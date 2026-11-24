@@ -142,9 +142,11 @@ describe('mapMasterPlanExportRow', () => {
     expect(cells[0]).toBe('');
     expect(cells[1]).toBe('—\n—\n— · Chạy ngoài');
     expect(cells[2]).toBe('—\n—\n—');
-    expect(cells[3]).toBe('Chưa có cont');
-    expect(cells[4]).toBe('Chưa có cont');
-    expect(cells[5]).toBe('Chưa có cont\n—');
+    // KB §3.6.1 (24/11): the sheet says "Chưa có số container" too — the
+    // board and the sheet share ONE implementation, so they cannot disagree.
+    expect(cells[3]).toBe('Chưa có số container');
+    expect(cells[4]).toBe('Chưa có số container');
+    expect(cells[5]).toBe('Chưa có số container\n—');
     expect(cells[6]).toBe('Chưa phân bổ');
     expect(cells[7]).toBe('');
   });

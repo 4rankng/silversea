@@ -1,5 +1,49 @@
 # Changelog
 
+## 2026-11-24 — fix(SIL-919): dàn trải hiển thị KB 24/11 — tab lô hàng, cont/loại tách, kg→tấn, ngày DD/MM/YYYY
+
+Audit KB 24/11 mục 3.2/6.5/7.1/3.9/10.4 (§3.1.5, §3.1.7, §6.4, §7.2.1, §10.1.1,
+§10.3.2, §10.8.1, §10.8.4).
+
+- **FE** `pages/ShipmentsPage.tsx`: Tổng quan lô hàng có thanh thẻ **Tất cả lô
+  hàng** (đang chọn, kèm số lô) + **Hóa đơn kết hợp** (vị trí dựng sẵn —
+  disabled, không phải liên kết chết), dùng đúng primitive Tabs dùng chung.
+- **FE** `features/shipments/cus/CusShipmentRow.tsx`: thêm cột **Tổng thu Khách
+  (Không Hóa đơn)** (`finance.customerNoInvoiceTotal`, null → `—`, không bịa
+  0). Thang độ rộng cột (chốt ladder) chia lại: 7 cột còn lại nhận 89% số
+  phần cũ, cột mới nhận 11% — **cả hai băng** (mặc định + ≥1024px) vẫn cộng
+  đúng 100% (pin mới trong `ShipmentsPage.test.tsx` + `table-sort.styles.test.ts`).
+- **FE** `pages/ShipmentsPage.tsx`: gợi ý ô tìm kiếm **Bill, Book, Cont, Tờ
+  khai...** — bỏ "Mã lô" (mã kỹ thuật nội bộ, §1.4.3).
+- **FE** `pages/AccountingInvoiceTrackingPage.tsx`: cột CONT & CHỨNG TỪ tách
+  số container và loại container bằng dấu " · " thật trong DOM
+  (`MNBU0006614 · 40'DC`, không dính thành `MNBU000661440'DC`).
+- **FE** `features/dispatch/master-plan/MasterPlanCellValues.ts` +
+  `pages/OpsOrdersPage.tsx`: bảng Kế hoạch Tổng quát và Kế hoạch làm hàng KHÔNG
+  in "Chưa có cont" nữa — nêu đúng sự thật thiếu: **"Chưa có số container"**
+  (lô hàng lẻ vẫn hiện số kiện / khối lượng / thể tích; bảng XLSX dùng chung
+  một hàm nên đổi theo).
+- **FE** `pages/accounting/PhoiPhieuControlPage.tsx`: bảng Kiểm soát phơi phiếu
+  in trọng lượng theo **tấn** (`28,2 tấn`) qua `formatWeight` dùng chung, không
+  phải `28.200kg` (CUS-08 / §7.2.1).
+- **FE** luật ngày (§10.8.4): mọi màn trong phạm vi dùng hàm dùng chung
+  `formatISODate` / `formatDate` — cột NGÀY của Chi phí - Quyết toán và Ghép bộ
+  Debit, caption kỳ của Kiểm soát phơi phiếu và Kiểm soát lô hàng, cột Ngày
+  của Đối chiếu chấm công (kèm nhãn a11y của ô Chỉnh lệch), và 3 cột ngày
+  của Theo dõi hoàn cược (bỏ dạng rút gọn DD/MM/YY).
+- Tests: `ShipmentsPage` 135/135 · `src/features/dispatch` + `OpsOrdersPage`
+  977/977 · `AccountingInvoiceTrackingPage` 45/45 · `DebitMergeGrid` +
+  `TimesheetReconciliationPage` + `DepositRefundTrackerPage` 87/87 ·
+  `PhoiPhieuControlPage.weight-tan` 1/1 · FE/BE typecheck 0 lỗi.
+- Rung UI (Chrome thật, local :7175): `/shipments` có 2 thẻ (thẻ thứ hai
+  disabled) + cột Tổng thu Khách (Không Hóa đơn) + placeholder mới; ô CONT &
+  CHỨNG TỪ đọc `WHSU8417023 · 40'HC · Xuất`; `/dispatch` + `/ops/orders` hiện
+  "Chưa có số container", không còn "Chưa có cont"; `/timesheet/doi-chieu` =
+  18/11/2026; `/accounting/deposit-tracker` = 23/09/2026;
+  `/accounting/chot-debit` = kỳ 01/11/2026 – 24/11/2026; `/accounting/ghep-bo-debit`
+  cột Ngày = 18/11/2026. Probe 390/768/1440 × 10 route: `horizontalOverflow = 0`
+  mọi màn, không giá trị bị cắt ở các màn đã sửa.
+
 ## 2026-11-24 — fix(SIL-916): Danh sách nhân sự đủ 64 người + nút Lập phiếu thu ở Báo cáo thu/trả phơi
 
 Audit KB 24/11 mục 6.9/6.3 (§6.4, §6.5, §6.1, §6.2).

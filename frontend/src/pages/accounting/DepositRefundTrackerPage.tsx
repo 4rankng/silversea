@@ -26,7 +26,7 @@ import {
   type DepositStatus,
   type DepositTrackerRow,
 } from '../../api/depositRefundClient';
-import { formatMoney } from '../../lib/format';
+import { formatISODate, formatMoney } from '../../lib/format';
 import { qk } from '../../api/keys';
 import { ApiError } from '../../lib/api';
 // The record-table base + ops-table typography: the shared table pattern
@@ -34,13 +34,6 @@ import { ApiError } from '../../lib/api';
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
 import './DepositRefundTrackerPage.css';
-
-/** ISO date → dd/mm/yy display (the card's typing pattern). */
-export function formatDepositDate(iso: string | null): string {
-  if (!iso) return '—';
-  const [year, month, day] = iso.slice(0, 10).split('-');
-  return `${day}/${month}/${year.slice(2)}`;
-}
 
 /** Ngày dự kiến hoàn cược default: CV + 14 days (client-side mirror of the
  *  server default so the edit dialog shows what will land). */
@@ -261,15 +254,16 @@ export default function DepositRefundTrackerPage() {
                 <tr key={row.id}>
                   <td data-label="STT" className="deposit-col--token">{index + 1}</td>
                   {/* SIL-878 — Ngày = Ngày cược (intake pre-stamps it); legacy
-                      rows without the field keep the creation-day fallback. */}
-                  <td data-label="Ngày" className="deposit-col--token">{formatDepositDate(row.depositDate ?? row.createdAt)}</td>
+                      rows without the field keep the creation-day fallback.
+                      KB §10.8.4 (24/11): DD/MM/YYYY — the shared formatter. */}
+                  <td data-label="Ngày" className="deposit-col--token">{formatISODate(row.depositDate ?? row.createdAt)}</td>
                   <td data-label="Phân loại">{DEPOSIT_CATEGORY_LABELS[row.category]}</td>
                   <td data-label="Khách hàng" className="record-table__text">{row.customerName}</td>
                   <td data-label="Hãng tàu">{row.carrierName}</td>
                   <td data-label="Bill"><span className="record-table__reference">{row.billNumber}</span></td>
                   <td data-label="Số tiền cược" className="num deposit-col--token"><Money value={Number(row.depositAmount)} /></td>
-                  <td data-label="Ngày nộp CV" className="deposit-col--token">{row.cvSubmittedDate ? formatDepositDate(row.cvSubmittedDate) : '—'}</td>
-                  <td data-label="Ngày dự kiến hoàn cược" className="deposit-col--token">{row.expectedRefundDate ? formatDepositDate(row.expectedRefundDate) : '—'}</td>
+                  <td data-label="Ngày nộp CV" className="deposit-col--token">{row.cvSubmittedDate ? formatISODate(row.cvSubmittedDate) : '—'}</td>
+                  <td data-label="Ngày dự kiến hoàn cược" className="deposit-col--token">{row.expectedRefundDate ? formatISODate(row.expectedRefundDate) : '—'}</td>
                   <td data-label="Trạng thái">
                     <StatusText variant={row.status === 'DA_HOAN_CUOC' ? 'success' : 'warning'}>
                       {STATUS_LABELS[row.status]}
