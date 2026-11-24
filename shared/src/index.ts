@@ -200,6 +200,7 @@ export {
 
 export {
   QUOTATION_GRID_COLUMNS, QUOTATION_CONTAINER_CLASS_CODES, QUOTATION_PATHS,
+  QUOTATION_TRUCK_CLASS_COUNT,
   SURCHARGE_ROUNDING_MODES, FEE_ROUTING_MODES,
   defaultFeeRouting, isQuotationContainerClass, quotationBaseClassCode,
   quotationCellSchema, quotationCreateSchema, quotationUpdateSchema,

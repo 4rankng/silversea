@@ -1,12 +1,12 @@
 // Card 20260922_56/57 — one route block of the live quotation grid: the
-// fuel-parameter strip + the 5×10 class table. Extracted from
+// fuel-parameter strip + the 5×11 class table. Extracted from
 // QuotationConfigPage (structure-guard split candidate; page pinned 440).
 // D4/D5 (card _57/_62 finish-out): liters derive as km × norm × 2 — raw
 // floats leak tails ("33.800000000000004") and the lít row carried the
 // currency formatter ("20 đ"). Liters are not money: cap at one decimal,
 // no currency suffix; the đồng formatters stay on money columns only.
 import { useState } from 'react';
-import { QUOTATION_GRID_COLUMNS, type QuotationCellView } from '@tingting/shared';
+import { QUOTATION_GRID_COLUMNS, QUOTATION_TRUCK_CLASS_COUNT, type QuotationCellView } from '@tingting/shared';
 import { Money } from '../../components/shared/Money';
 import { LedgerMatrix } from '../../components/shared/LedgerMatrix';
 import { TextField } from '../../design-system';
@@ -93,14 +93,23 @@ export function RouteBlock({ block, saving, onSaveHeSo }: {
           rows={block.cells.map((cell) => {
             const index = QUOTATION_GRID_COLUMNS.findIndex(column => column.vehicleSizeClassCode === cell.vehicleSizeClassCode);
             const title = QUOTATION_GRID_COLUMNS[index]?.label ?? cell.vehicleSizeClassCode;
-            const subtitle = index < 6 ? 'Hàng lẻ' : 'Hàng container';
+            const subtitle = index < QUOTATION_TRUCK_CLASS_COUNT ? 'Hàng lẻ' : 'Hàng container';
+            // K10.39 (SIL-973): the KB's missing-data voice — a price-less
+            // 15T cell reads '—' + the named 'Thiếu giá 15T' label (the
+            // /trips D2 chip pattern); the other classes keep the ruling-2
+            // 'Thiếu giá' text.
+            const giaCos = !cell.missingPrice
+              ? money(cell.giaCos)
+              : cell.vehicleSizeClassCode === '15T'
+                ? (<><span>—</span> <em>Thiếu giá 15T</em></>)
+                : 'Thiếu giá';
             return {
               key: cellKey(cell), title, subtitle,
               cells: [
                 <div><span className="data-token">{title}</span><div className="row-meta">{subtitle}</div></div>,
                 coefficient(cell),
                 <span className="data-token">{fmtLiters(cell.liters)}</span>,
-                cell.missingPrice ? 'Thiếu giá' : money(cell.giaCos),
+                giaCos,
                 money(cell.surcharge), money(cell.total),
               ],
               cellClassNames: [undefined, undefined, undefined, cell.missingPrice ? 'is-missing' : undefined],

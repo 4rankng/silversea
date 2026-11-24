@@ -91,7 +91,7 @@ describe('QuotationConfigPage display fixes (card 20260923_10)', () => {
     const litersIndex = headers.findIndex((header) => header.textContent === 'Tổng lít dầu/chuyến');
     expect(litersIndex).toBe(2);
     const classRows = within(table).getAllByRole('row').slice(1);
-    expect(classRows).toHaveLength(10);
+    expect(classRows).toHaveLength(11);
     const liters = classRows.map((row) => within(row).getAllByRole('cell')[litersIndex - 1].textContent);
     expect(liters[0]).toBe('20');
     expect(liters[liters.length - 1]).toBe('64');

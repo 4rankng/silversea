@@ -32,9 +32,12 @@ export interface QuotationColumnKey {
   vehicleSizeClassCode: string;
 }
 
-// Canonical Mẫu-báo-giá-1 column layout — 6 truck classes + 4 container
+// Canonical Mẫu-báo-giá-1 column layout — 7 truck classes + 4 container
 // weight classes. Column order matches the customer file; container codes
 // follow card _58's catalog (CONT20.LIGHT/.HEAVY, CONT40.LIGHT/.HEAVY).
+// K10.39 (SIL-973): Xe 15T (vehicle_size_classes id 7, 'Xe 15 tấn') sits in
+// the customer file's 1.25T…15T ladder — the frame must carry the row too;
+// a price-less cell renders '—' + 'Thiếu giá 15T' (QuotationRouteBlock).
 export const QUOTATION_GRID_COLUMNS: readonly (QuotationColumnKey & { label: string })[] = [
   { vehicleSizeClassCode: '1.25T', label: 'Xe 1.25T' },
   { vehicleSizeClassCode: '2.5T', label: 'Xe 2.5T' },
@@ -42,11 +45,15 @@ export const QUOTATION_GRID_COLUMNS: readonly (QuotationColumnKey & { label: str
   { vehicleSizeClassCode: '5T', label: 'Xe 5T' },
   { vehicleSizeClassCode: '8T', label: 'Xe 8T' },
   { vehicleSizeClassCode: '10T', label: 'Xe 10T' },
+  { vehicleSizeClassCode: '15T', label: 'Xe 15T' },
   { vehicleSizeClassCode: 'CONT20.LIGHT', label: 'Cont20 <20t' },
   { vehicleSizeClassCode: 'CONT20.HEAVY', label: 'Cont20 >20t' },
   { vehicleSizeClassCode: 'CONT40.LIGHT', label: 'Cont40 nhẹ <20t' },
   { vehicleSizeClassCode: 'CONT40.HEAVY', label: 'Cont40 nặng >20t' },
 ] as const;
+
+/** Base truck classes of the grid ladder (1.25T…15T) — the hàng-lẻ half. */
+export const QUOTATION_TRUCK_CLASS_COUNT = 7;
 
 /** Quotation CRUD paths — root-relative under /api (config mount), shared FE+BE. */
 export const QUOTATION_PATHS = {

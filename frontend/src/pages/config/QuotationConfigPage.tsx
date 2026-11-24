@@ -27,9 +27,10 @@ import './QuotationConfigPage.css';
 // assembles the live grid server-side (Giá cos = J, lít, phụ phí = MAX(0,Δ)
 // × lít × heSo). The quotation owns only heSo per cell — the only editable
 // grid datum. Missing prices render "Thiếu giá" and drop out of row totals
-// (ruling 2: never light-fallback). Layout follows the customer file: one
+// (ruling 2: never light-fallback); the 15T cell names itself "Thiếu giá 15T"
+// (K10.39/SIL-973). Layout follows the customer file: one
 // block per route (its fuel-parameter strip rides the block head), rows =
-// Hệ số / Tổng lít / Giá cos / Phụ phí / Tổng, columns = the 10 classes
+// Hệ số / Tổng lít / Giá cos / Phụ phí / Tổng, columns = the 11 classes
 // under HÀNG LẺ / HÀNG CONTAINER (labels from QUOTATION_GRID_COLUMNS).
 
 

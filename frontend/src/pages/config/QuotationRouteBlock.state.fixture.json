@@ -99,6 +99,21 @@
         {
           "routeId": 1,
           "routeName": "Hải Phòng-NEWEB",
+          "vehicleSizeClassCode": "15T",
+          "heSo": 1,
+          "giaCos": 3162000,
+          "missingPrice": false,
+          "liters": 78,
+          "surcharge": 943598,
+          "surchargeRaw": 943598,
+          "total": 4105598,
+          "baseFuelPrice": 17842.5926,
+          "fuelLagDays": 1,
+          "formula": "3100000 × (1 + 2.00%) = 3162000 + MAX(0, (29940.00 − 17842.5926) × 78.000) = 4105598"
+        },
+        {
+          "routeId": 1,
+          "routeName": "Hải Phòng-NEWEB",
           "vehicleSizeClassCode": "CONT20.LIGHT",
           "heSo": 1,
           "giaCos": 3978000,
@@ -252,6 +267,21 @@
           "baseFuelPrice": 17842.5926,
           "fuelLagDays": 1,
           "formula": "3100000 × (1 + 2.00%) = 3162000 + MAX(0, (27620.00 − 17842.5926) × 62.400) = 3772110"
+        },
+        {
+          "routeId": 1,
+          "routeName": "Hải Phòng-NEWEB",
+          "vehicleSizeClassCode": "15T",
+          "heSo": 1,
+          "giaCos": 3162000,
+          "missingPrice": false,
+          "liters": 78,
+          "surcharge": 762638,
+          "surchargeRaw": 762638,
+          "total": 3924638,
+          "baseFuelPrice": 17842.5926,
+          "fuelLagDays": 1,
+          "formula": "3100000 × (1 + 2.00%) = 3162000 + MAX(0, (27620.00 − 17842.5926) × 78.000) = 3924638"
         },
         {
           "routeId": 1,

@@ -22,7 +22,7 @@ describe('UI35 quotation draft identity and pending blur', () => {
     viewport(1440);
     const view = render(<RouteBlock block={first} saving={false} onSaveHeSo={() => { throw new Error('Read-only render cannot save'); }} />);
     const rows = screen.getAllByRole('row').slice(1);
-    expect(rows).toHaveLength(10);
+    expect(rows).toHaveLength(11);
     const desktop = rows.map((row) => ({
       title: within(row).getByRole('rowheader').querySelector('.data-token')?.textContent,
       subtitle: within(row).getByRole('rowheader').querySelector('.row-meta')?.textContent,
@@ -31,7 +31,7 @@ describe('UI35 quotation draft identity and pending blur', () => {
     view.unmount(); viewport(390);
     render(<RouteBlock block={first} saving={false} onSaveHeSo={() => { throw new Error('Read-only render cannot save'); }} />);
     const records = screen.getAllByRole('article');
-    expect(records).toHaveLength(10);
+    expect(records).toHaveLength(11);
     records.forEach((record, index) => {
       expect(record).toHaveAttribute('aria-label', desktop[index].title);
       expect(record.querySelector('.panel__subtitle')).toHaveTextContent(desktop[index].subtitle!);
@@ -40,6 +40,30 @@ describe('UI35 quotation draft identity and pending blur', () => {
       expect(facts.map((fact) => ({ text: fact.textContent, value: fact.querySelector('input')?.value }))).toEqual(desktop[index].facts);
       facts.forEach((fact) => expect(fact).toHaveAttribute('data-align', 'end'));
     });
+  });
+
+  // K10.39 (SIL-973): the KB's missing-data voice on the 15T row — the
+  // price-less cell reads '—' + the named 'Thiếu giá 15T' label; the other
+  // classes keep the ruling-2 plain 'Thiếu giá'.
+  it("names the 15T cell's missing price 'Thiếu giá 15T' beside the — mark", () => {
+    const block = {
+      ...first,
+      cells: first.cells.map((cell) => cell.vehicleSizeClassCode === '15T'
+        ? { ...cell, giaCos: null, missingPrice: true, surcharge: null, total: null }
+        : cell.vehicleSizeClassCode === 'CONT40.HEAVY'
+          ? { ...cell, giaCos: null, missingPrice: true, surcharge: null, total: null }
+          : cell),
+    };
+    render(<RouteBlock block={block} saving={false} onSaveHeSo={() => { throw new Error('Read-only render cannot save'); }} />);
+    const rows = screen.getAllByRole('row').slice(1);
+    const row15 = rows.find((row) => within(row).getByRole('rowheader').querySelector('.data-token')?.textContent === 'Xe 15T');
+    expect(row15).toBeTruthy();
+    // The missing mark and the label share the ONE Giá cos cell — '—' first.
+    const giaCosCell = within(row15!).getByText('Thiếu giá 15T').closest('td');
+    expect(giaCosCell?.textContent).toMatch(/^—\s*Thiếu giá 15T$/);
+    const rowCont40 = rows.find((row) => within(row).getByRole('rowheader').querySelector('.data-token')?.textContent === 'Cont40 nặng >20t');
+    expect(within(rowCont40!).getByText('Thiếu giá')).toBeTruthy();
+    expect(within(rowCont40!).queryByText('Thiếu giá 15T')).toBeNull();
   });
 
   it('keeps a blank coefficient distinct from an explicit valid zero', () => {
