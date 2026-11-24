@@ -20,6 +20,7 @@ import {
   formatContainerSummaryLines,
   scheduleBlocks,
 } from './MasterPlanGrid';
+import { isLclLotRow, lclLotFlag } from './lclLot';
 import { masterPlanListParams, type MasterPlanFilters } from './useDispatchMasterPlan';
 
 const EXPORT_PAGE_SIZE = 100;
@@ -86,6 +87,14 @@ export function mapMasterPlanExportRow(item: ShipmentListItem, scheduleDate?: st
     target.push(line.portName, ...(line.containerSummary ? formatContainerSummaryLines(line.containerSummary) : []));
   }
 
+  // K4.6 (SIL-951, QA 24/11): the sheet mirrors the board. On an LCL lot the
+  // MERGED badge ('NHẬP LẺ' / 'XUẤT LẺ') is the direction — the board's route
+  // line drops its own 'Nhập'/'Xuất' word there, so the sheet drops it too
+  // and the direction is printed ONCE (the old sheet kept the loose word and
+  // had no badge at all — the very 'pill + word' pair KB K4.6 forbids).
+  const lclLot = isLclLotRow(item);
+  const lclBadge = lclLot ? lclLotFlag(item).label : null;
+
   return [
     scheduleLines.join('\n'),
     [
@@ -95,12 +104,18 @@ export function mapMasterPlanExportRow(item: ShipmentListItem, scheduleDate?: st
     ].join('\n'),
     [
       item.routeName ?? '—',
-      item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—',
+      ...(lclLot
+        ? []
+        : [item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—']),
       item.shippingLineName ?? '—',
     ].join('\n'),
     liftLines.join('\n'),
     dropLines.join('\n'),
-    cargoCellLines(item, scheduleDate).map((line) => line.text).join('\n'),
+    // The cargo cell carries the badge on top of the cargo lines — the same
+    // order the board's Tổng quan hàng hóa cell shows.
+    [lclBadge, ...cargoCellLines(item, scheduleDate).map((line) => line.text)]
+      .filter((line): line is string => line != null && line !== '')
+      .join('\n'),
     allocationLines(item).join('\n'),
     [
       displayNote(item.operationalNotes),

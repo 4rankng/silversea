@@ -171,6 +171,58 @@ describe('mapMasterPlanExportRow', () => {
     expect(cells[1]).toContain('Nhà máy XYZ');
     expect(cells[5]).toBe('1 x 40HC\n41 tấn');
   });
+
+  // K4.6 (SIL-951, QA 24/11): the sheet mirrors the board. The board's LCL
+  // lot wears the MERGED 'NHẬP LẺ' / 'XUẤT LẺ' badge and drops the loose
+  // direction word from the route line; the sheet used to keep the loose word
+  // and had no badge — the exact 'pill + word' pair the KB forbids, one export
+  // away from the board that fixed it (SIL-928 set the /shipments precedent).
+  it('an LCL lot exports the merged NHẬP LẺ badge and drops the loose direction word', () => {
+    const lclRow = row({
+      cargoMode: 'LCL',
+      hasActiveLclShipment: true,
+      tradeDirection: 'IMPORT',
+      packageCount: 9,
+      packageType: 'Pallet',
+      cargoWeightKg: 1200,
+      cargoVolumeCbm: 4.2,
+      containerCount20: 0,
+      containerCount40: 0,
+      containerTypeSummary: null,
+      totalCargoWeightKg: 1200,
+      costGroupId: null,
+    });
+
+    const cells = mapMasterPlanExportRow(lclRow);
+
+    // The route column loses its loose 'Nhập' — the badge carries it.
+    expect(cells[2]).toBe('LH — Biên Hòa\nMaersk');
+    expect(cells[2]).not.toContain('Nhập\n');
+    // The cargo column heads with the merged badge, like the board's cell.
+    expect(cells[5]).toContain('NHẬP LẺ');
+    expect(cells[5].split('\n')[0]).toBe('NHẬP LẺ');
+  });
+
+  it('an EXPORT LCL lot exports XUẤT LẺ, and an FCL lot keeps its plain direction word', () => {
+    const exportLcl = mapMasterPlanExportRow(row({
+      cargoMode: 'LCL',
+      hasActiveLclShipment: true,
+      tradeDirection: 'EXPORT',
+      packageCount: 6,
+      packageType: 'Pallet',
+      containerCount20: 0,
+      containerCount40: 0,
+      containerTypeSummary: null,
+    }));
+    expect(exportLcl[5].split('\n')[0]).toBe('XUẤT LẺ');
+    expect(exportLcl[2]).not.toContain('Xuất');
+
+    // FCL keeps the direction word in the route column — the merged badge is
+    // an LCL-only fact.
+    const fcl = mapMasterPlanExportRow(row());
+    expect(fcl[2]).toBe('LH — Biên Hòa\nNhập\nMaersk');
+    expect(fcl[5]).not.toContain('NHẬP LẺ');
+  });
 });
 
 describe('exportMasterPlanWorksheet', () => {

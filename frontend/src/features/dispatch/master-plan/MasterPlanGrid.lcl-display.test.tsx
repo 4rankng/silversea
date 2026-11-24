@@ -191,7 +191,9 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
     expect(cells).toHaveLength(8);
     expect(cells[3]).toBe('Kho Lấy Hàng Đồng Nai');
     expect(cells[4]).toBe('Kho Trả Hàng Q.7');
-    expect(cells[5]).toBe('5 PALLET\n1,922 tấn · 4 CBM');
+    // K4.6 (SIL-951): the cargo column heads with the MERGED badge the board
+    // shows ('NHẬP LẺ'), so the sheet carries the same one fact as the screen.
+    expect(cells[5]).toBe('NHẬP LẺ\n5 PALLET\n1,922 tấn · 4 CBM');
   });
 
   it('exports a Xuất khẩu lot with the sides swapped too', () => {

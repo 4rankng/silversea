@@ -134,7 +134,9 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
     expect(mapMasterPlanExportRow(lclItem())).toEqual(expect.arrayContaining([
       'Kho Lấy Hàng Đồng Nai',
       'Kho Trả Hàng Q.7',
-      '5 PALLET\n1,922 tấn · 4 CBM',
+      // K4.6 (SIL-951): the merged 'NHẬP LẺ' badge heads the cargo column —
+      // the sheet mirrors the board's LCL badge, so the direction prints once.
+      'NHẬP LẺ\n5 PALLET\n1,922 tấn · 4 CBM',
     ]));
   });
 });
