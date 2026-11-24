@@ -135,8 +135,13 @@ interface DispatchPlanEditorCellProps {
    *  (it lives in the row ⋯ menu now). The menu opens the editor through
    *  this signal: the grid bumps `nonce` with the row's `detailRowKey`, the
    *  matching cell calls its own openEditor (decompose + live-trip reroute
-   *  included), then consumes the request. */
-  openRequest?: { key: string; nonce: number; forceEdit?: boolean } | null;
+   *  included), then consumes the request.
+   *
+   *  DIS-10 / K4.19 (SIL-955): the ⋯ menu's 'Đổi nhà xe/BKS' asks for the
+   *  SAME governed editor but names the vehicle intent — `focusVehicle`
+   *  moves the caret to the Xe / biển số picker so the verb and the field
+   *  agree. */
+  openRequest?: { key: string; nonce: number; focusVehicle?: boolean } | null;
   /** Clears the grid's pending open-request once consumed. */
   onOpenRequestConsumed?: () => void;
   disabled?: boolean;
@@ -260,6 +265,12 @@ function vehicleBody(value: string): VehicleBody | null {
 export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, openRequest, onOpenRequestConsumed, disabled = false }: DispatchPlanEditorCellProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlanEditorDraft>(() => draftForRow(row));
+  // DIS-10 / K4.19 (SIL-955) — the row ⋯ menu's 'Đổi nhà xe/BKS' opens the
+  // same governed editor but names the vehicle intent: the caret lands on the
+  // Xe / biển số picker instead of the dialog's first control. The flag
+  // clears only once the picker was actually found and focused, so a
+  // fulfillment-less row (decomposed first) still focuses after the rewrite.
+  const focusVehicleRef = useRef(false);
   // SIL-796 — the dialog consults the SIGNED price tables BEFORE showing a
   // fee. A stored estimate of ''/0 is "chưa định giá", not a price, and the
   // two sides read DIFFERENT tables (owner law 04/11: "giá đã ký phải dùng
@@ -532,8 +543,22 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     openRequestRef.current = openRequest;
     if (openRequest.key !== detailRowKey(row)) return;
     onOpenRequestConsumed?.();
-    void openEditor(openRequest.forceEdit === true);
+    void openEditor({ focusVehicle: openRequest.focusVehicle === true });
   }, [openRequest, row, onOpenRequestConsumed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // DIS-10 / K4.19 (SIL-955) — the vehicle verb's focus lands AFTER the
+  // dialog's own focus trap (which takes the first control on mount), so the
+  // caret ends on the Xe / biển số picker the verb names.
+  useEffect(() => {
+    if (!open || !focusVehicleRef.current || row.fulfillmentId == null) return undefined;
+    const timer = window.setTimeout(() => {
+      const picker = document.getElementById(`dispatch-vehicle-${row.fulfillmentId}`);
+      if (!picker) return;
+      picker.focus();
+      focusVehicleRef.current = false;
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [open, row.fulfillmentId]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -716,19 +741,19 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     return [{ value: draft.vehicleValue, label }, ...withoutDuplicate];
   }, [draft.vehicleValue, draft.classification, row.dispatch.assignedPlate, row.pricing?.containerTypeCode, row.container.containerTypeLabel, row.container.cargoWeightKg, suggestions, vehicleOptions]);
 
-  async function openEditor(forceEdit = false) {
+  async function openEditor(options: { focusVehicle?: boolean } = {}) {
     if (disabled || ensuring) return;
     // An issued order owns a trip. While it runs, its vehicle can only leave
     // through the Hủy phân xe flow (SIL-708 — Phân xe lại is gone). Once it
     // completes, the plan is frozen history — the backend's live-trip guard
-    // rejects any plan save, so the editor must never open. DIS-10 / K4.19
-    // (SIL-955): the ⋯ menu's 'Đổi nhà xe/BKS' forces the dialog open for a
-    // trip still CREATED — the plan save is legal pre-departure (the backend
-    // blocks non-CREATED live trips only).
-    // Strict `=== true`: the carrier button binds onClick={openEditor}, whose
-    // first argument is the click event — only the grid's explicit forceEdit
-    // signal may bypass the live-trip reroute.
-    if (forceEdit !== true && row.dispatch.tripId != null && canReassignIssuedTrip(row)) {
+    // rejects any plan save, so the editor must never open.
+    // DIS-10 / K4.19 (SIL-955): the ⋯ menu's 'Đổi nhà xe/BKS' opens the same
+    // governed editor on a row whose plan is still editable (no live trip) and
+    // puts the caret on the Xe / biển số picker. It NEVER forces the dialog
+    // open on a live trip — the plan save there is refused by the backend
+    // (409 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe'), so
+    // the row's governed path stays Hủy phân xe.
+    if (row.dispatch.tripId != null && canReassignIssuedTrip(row)) {
       if (onCancelDispatch) {
         onCancelDispatch(row);
       }
@@ -753,6 +778,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     setCarrierSearch('');
     setVehicleSearch('');
     setError(null);
+    // DIS-10 / K4.19 (SIL-955): the menu's vehicle verb asks for the caret on
+    // the Xe / biển số picker once the dialog is up.
+    focusVehicleRef.current = options.focusVehicle === true;
     setOpen(true);
   }
 

@@ -7,7 +7,7 @@
  * Unassigned and completed rows render
  * no menu (nothing to change / frozen history).
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
@@ -267,29 +267,52 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
   });
 });
 
-// DIS-10 / K4.19 (SIL-955, QA 24/11) — the ⋯ menu on an ASSIGNED row whose
-// trip is still CREATED carries 'Đổi nhà xe/BKS': the governed Chỉnh sửa
-// điều phối dialog opens DIRECTLY (no cancel reroute — the plan save is
-// legal pre-departure; the backend blocks only non-CREATED live trips).
-// IN_TRANSIT rigs stay locked: no entry, Hủy phân xe remains the flow.
-describe('DIS-10 — row menu Đổi nhà xe/BKS on assigned trip-CREATED rows (SIL-955)', () => {
-  it('carries the item and opens the editor without the cancel reroute', async () => {
+// DIS-10 / K4.19 (SIL-955, QA 24/11) — the ⋯ menu of an ASSIGNED row
+// carries 'Đổi nhà xe/BKS' (KB §4.1.3 / §10.3.5: đổi nhà xe/BKS qua menu ⋯
+// trên dòng đã gán xe).
+//
+// VÒNG 2: the round-1 gate asked for tripStatus === 'CREATED' and therefore
+// MISSED QA's own repro row — 'Đã điều xe', CHƯA phát lệnh, i.e. a row with
+// NO trip, whose menu carried only 'Sửa điều phối'. That is the row where the
+// change is LEGAL (the plan save is refused only for a LIVE trip). A row that
+// owns a live trip keeps the repo's governed path (SIL-708): 'Hủy phân xe'.
+// The round-1 forceEdit bypass (open the editor on a live trip anyway) is
+// gone — that editor's save is refused by the backend (409).
+describe('DIS-10 — row menu Đổi nhà xe/BKS on assigned rows (SIL-955)', () => {
+  it('an assigned row chưa phát lệnh carries the item and opens the editor on the vehicle picker', async () => {
     const onCancelDispatch = vi.fn();
     renderGrid(makeRow({
-      taskStatus: 'DISPATCHED',
+      taskStatus: 'READY',
       cargoMode: 'FCL',
       lclGroup: null,
-      dispatch: { tripId: 90, tripStatus: 'CREATED' },
+      dispatch: { tripId: null, tripStatus: null },
     }), { onCancelDispatch });
 
     fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
-    expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeTruthy();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' }));
     expect(await screen.findByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeTruthy();
+    // The verb names the vehicle: the caret lands on the Xe / biển số picker.
+    await waitFor(() => {
+      expect(document.getElementById('dispatch-vehicle-46862')).toHaveFocus();
+    });
     expect(onCancelDispatch).not.toHaveBeenCalled();
   });
 
-  it('an IN_TRANSIT rig carries no item — Hủy phân xe stays the only flow', () => {
+  it('an unassigned row carries no vehicle verb — Sửa điều phối is the assign verb', () => {
+    renderGrid(makeRow({
+      taskStatus: 'READY',
+      cargoMode: 'FCL',
+      lclGroup: null,
+      dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, assignedPlate: null, tripId: null, tripStatus: null },
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.getByRole('menuitem', { name: 'Sửa điều phối' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeNull();
+  });
+
+  it('a row that owns a live trip carries no item — Hủy phân xe stays the only flow', () => {
     renderGrid(makeRow({
       taskStatus: 'DISPATCHED',
       cargoMode: 'FCL',

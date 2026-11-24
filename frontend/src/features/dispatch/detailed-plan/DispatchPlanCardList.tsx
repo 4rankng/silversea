@@ -58,7 +58,7 @@ export interface DispatchCardEditorProps {
   autoOpenFulfillmentId?: number | null;
   onAutoOpenConsumed?: (id: number) => void;
   onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
-  editRequest: { key: string; nonce: number; forceEdit?: boolean } | null;
+  editRequest: { key: string; nonce: number; focusVehicle?: boolean } | null;
   onOpenRequestConsumed: () => void;
 }
 

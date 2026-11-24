@@ -113,15 +113,29 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   // Same live-trip law as the editor trigger (DispatchPlanEditorCell): a
   // reassignment before departure goes through the governed dialog.
   const canReassignIssued = canReassignIssuedTrip(row);
-  // DIS-10 / K4.19 (SIL-955): the ⋯ menu carries 'Đổi nhà xe/BKS' on an
-  // assigned row whose trip is still CREATED — the plan save is legal there
-  // (the backend blocks non-CREATED live trips; IN_TRANSIT rigs are locked
-  // mid-run). Grouped LCL rows already own their Đổi nhà xe/BKS item (the
-  // group-truck edit) — this entry stays off them. The Hủy phân xe item
-  // above remains the governed flow for non-CREATED live trips.
+  // DIS-10 / K4.19 (SIL-955, QA 24/11): the ⋯ menu of an ASSIGNED row
+  // carries the KB's vehicle verb 'Đổi nhà xe/BKS' (KB §4.1.3 / §10.3.5 —
+  // đổi nhà xe/BKS qua menu ⋯ trên dòng đã gán xe).
+  //
+  // VÒNG 2 — why the round-1 gate missed QA's own repro row: it asked for
+  // tripStatus === 'CREATED', but QA's row (RTAU8980074) is 'Đã điều xe',
+  // CHƯA phát lệnh — it owns NO trip, so its menu carried only 'Sửa điều phối'.
+  // That is exactly the row where the change is LEGAL: the plan save is
+  // refused only for a LIVE trip (the backend's live-trip guard), so the
+  // verb belongs on the rows whose plan is still editable.
+  //
+  // A row that owns a LIVE trip keeps the repo's governed path (SIL-708):
+  // 'Hủy phân xe' rồi phân xe lại. Opening the plan editor there could only
+  // 409 ('Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe'), so the
+  // round-1 forceEdit bypass is gone with this gate.
+  //
+  // Grouped LCL rows already own their Đổi nhà xe/BKS item (the group-truck
+  // edit) — this entry stays off them.
+  const planEditable = row.dispatch.tripId == null || row.dispatch.tripStatus === 'CANCELED';
+  const vehicleAssigned = row.dispatch.carrierName != null;
   const canChangeVehicle = onChangeVehicle != null
-    && canReassignIssued
-    && row.dispatch.tripStatus === 'CREATED'
+    && planEditable
+    && vehicleAssigned
     && lclGroup == null;
   // DispatchPairAction law (LoHangKepKetHop §3.1): unpaired OWN-carrier row
   // that already has a trip.
@@ -243,7 +257,7 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
             setOpen(false);
             onChangeVehicle?.(row);
           }}
-          title="Đổi nhà xe / biển số cho chuyến chưa xuất phát — mở hộp thoại Chỉnh sửa điều phối"
+          title="Đổi nhà xe / biển số — mở hộp thoại Chỉnh sửa điều phối tại ô Xe / biển số"
         >
           <Repeat size={14} aria-hidden="true" />
           Đổi nhà xe/BKS

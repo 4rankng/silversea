@@ -315,18 +315,21 @@ export function DetailedPlanGrid({
   // matching DispatchPlanEditorCell (table cell or hidden card mount) picks
   // it up, runs the same guarded openEditor (live-trip reroute + branch
   // decompose included) and consumes the request.
-  const [editRequest, setEditRequest] = useState<{ key: string; nonce: number; forceEdit?: boolean } | null>(null);
+  const [editRequest, setEditRequest] = useState<{ key: string; nonce: number; focusVehicle?: boolean } | null>(null);
   const editNonceRef = useRef(0);
   const requestEditPlan = (row: DispatchDetailPlanRow) => {
     editNonceRef.current += 1;
     setEditRequest({ key: detailRowKey(row), nonce: editNonceRef.current });
   };
-  // DIS-10 / K4.19 (SIL-955): the ⋯ menu's 'Đổi nhà xe/BKS' opens the editor
-  // for a trip-CREATED row WITHOUT the SIL-708 cancel reroute — the plan save
-  // is legal pre-departure (the backend blocks non-CREATED live trips only).
+  // DIS-10 / K4.19 (SIL-955): the ⋯ menu's 'Đổi nhà xe/BKS' opens the SAME
+  // governed 'Chỉnh sửa điều phối' dialog the menu's 'Sửa điều phối' opens —
+  // the verb names the vehicle intent, so the dialog puts the caret on the
+  // Xe / biển số picker. It never bypasses the live-trip reroute: on a row
+  // that owns a live trip the plan save is refused by the backend (409), so
+  // the governed path there stays Hủy phân xe (SIL-708).
   const requestChangeVehicle = (row: DispatchDetailPlanRow) => {
     editNonceRef.current += 1;
-    setEditRequest({ key: detailRowKey(row), nonce: editNonceRef.current, forceEdit: true });
+    setEditRequest({ key: detailRowKey(row), nonce: editNonceRef.current, focusVehicle: true });
   };
   const consumeEditRequest = () => setEditRequest(null);
 
