@@ -10,6 +10,7 @@ import {
   formatAppointmentGroupLine,
 } from '../../shipments/cus/cusUtils';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
+import { MISSING_CONTAINER_NUMBER_LABEL } from '../../../lib/shipment-operations';
 
 /**
  * Owner redesign 23/10 (master-plan lane) — the pure per-row value composers
@@ -86,13 +87,12 @@ export function cutoffUrgency(iso: string | null | undefined): 'none' | 'soon' |
  * arrives from an older backend payload, so it is normalized here and never
  * reaches the screen.
  */
-export const MISSING_CONTAINER_NUMBER_LABEL = 'Chưa có số container';
 /** The retired wording, kept only to recognize it in a legacy payload. */
 const LEGACY_MISSING_CONTAINER_LABEL = 'Chưa có cont';
 
 /** True when a container summary carries no demand (absent or the legacy
  *  placeholder) — the one place that decides "this lot has no container". */
-export function isMissingContainerSummary(summary: string | null | undefined): boolean {
+function isMissingContainerSummary(summary: string | null | undefined): boolean {
   return !summary || summary === LEGACY_MISSING_CONTAINER_LABEL;
 }
 

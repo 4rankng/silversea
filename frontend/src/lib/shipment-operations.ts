@@ -1,6 +1,13 @@
 const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const VIETNAM_OFFSET_MINUTES = 7 * 60;
 
+/**
+ * KB §3.6.1 (24/11): the boards never say "Chưa có cont" — the missing fact
+ * is named: the lot carries no container number yet. ONE owner for the label,
+ * so the dispatch board, the ops board and the XLSX sheet cannot drift apart.
+ */
+export const MISSING_CONTAINER_NUMBER_LABEL = 'Chưa có số container';
+
 function pad(value: number): string {
   return String(value).padStart(2, '0');
 }

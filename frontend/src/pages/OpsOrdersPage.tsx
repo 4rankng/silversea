@@ -10,6 +10,7 @@ import './OpsOrdersPage.css';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 import { BufferedUuiDateInput, FilterBar } from '../design-system';
 import { formatDate } from '../lib/format';
+import { MISSING_CONTAINER_NUMBER_LABEL } from '../lib/shipment-operations';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
 import { restoreFocusTo } from '../lib/focusRestore';
@@ -188,7 +189,7 @@ export default function OpsOrdersPage() {
                     {order.containerCount === 0
                       /* KB §3.6.1 (24/11): the board never says "Chưa có
                          cont" — the missing fact is named. */
-                      ? <span className="ops-orders__route-missing">Chưa có số container</span>
+                      ? <span className="ops-orders__route-missing">{MISSING_CONTAINER_NUMBER_LABEL}</span>
                       : order.containerNumbers.length > 0
                         ? `${order.containerCount} · ${order.containerNumbers.join(', ')}`
                         // SIL-601 (id 702): an LCL lot is 1 lô cont 1 cont —
