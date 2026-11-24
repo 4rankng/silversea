@@ -262,7 +262,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
             return (
               <tr
                 key={item.id}
-                className={`master-plan-grid__row${openableDetail ? ' master-plan-grid__row--detail-link' : ''}`}
+                className={`master-plan-grid__row${openableDetail ? ' master-plan-grid__row--detail-link' : ''}${onToggleLclSelection && !isLclLotRow(item) ? ' master-plan-grid__row--merge-dimmed' : ''}`}
                 tabIndex={openableDetail ? 0 : undefined}
                 onClick={openableDetail ? (event) => {
                   if (rowClickHitsControl(event.target as HTMLElement)) return;

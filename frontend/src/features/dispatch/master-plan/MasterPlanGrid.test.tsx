@@ -343,6 +343,24 @@ describe('MasterPlanGrid', () => {
     ]);
   });
 
+  it('dims only the non-LCL rows while Gộp hàng is on (KB Ch.10 §10.4)', () => {
+    const lclRow = item({ id: 1, cargoMode: 'LCL', hasActiveLclShipment: true, blNumber: 'BL-LCL-1' });
+    const fclRow = item({ id: 2, cargoMode: 'FCL', hasActiveLclShipment: false, blNumber: 'BL-FCL-9' });
+    const merged = render(
+      <MasterPlanGrid items={[lclRow, fclRow]} onAllocate={vi.fn()} onToggleLclSelection={vi.fn()} />,
+    );
+    const mergedRows = merged.container.querySelectorAll('tbody tr');
+    expect(mergedRows[0]!.className).not.toContain('master-plan-grid__row--merge-dimmed');
+    expect(mergedRows[1]!.className).toContain('master-plan-grid__row--merge-dimmed');
+    merged.unmount();
+
+    // Mode OFF → nothing dims, whatever the cargo mode.
+    const plain = render(<MasterPlanGrid items={[lclRow, fclRow]} onAllocate={vi.fn()} />);
+    for (const row of plain.container.querySelectorAll('tbody tr')) {
+      expect(row.className).not.toContain('master-plan-grid__row--merge-dimmed');
+    }
+  });
+
   it('renders the full READY_FOR_DISPATCH row content across the 8 columns', () => {
     const onAllocate = vi.fn();
     render(<MasterPlanGrid items={[item()]} onAllocate={onAllocate} />);

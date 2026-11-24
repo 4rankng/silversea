@@ -312,6 +312,13 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     expect(fcl).toBeDisabled();
     expect(fcl.getAttribute('aria-checked')).toBe('false');
 
+    // The dim is the CARD's (KB Ch.10 §10.4), not just the checkbox's: the
+    // whole FCL card reads muted while LCL cards — free or grouped — keep
+    // full emphasis.
+    expect(fcl.closest('.mpcard')?.className).toContain('mpcard--merge-dimmed');
+    expect(free.closest('.mpcard')?.className).not.toContain('mpcard--merge-dimmed');
+    expect(grouped.closest('.mpcard')?.className).not.toContain('mpcard--merge-dimmed');
+
     fireEvent.click(free);
     expect(onToggleLclSelection).toHaveBeenCalledWith(11, false);
   });

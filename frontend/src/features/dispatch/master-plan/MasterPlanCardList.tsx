@@ -302,7 +302,7 @@ export function MasterPlanCardList({
         return (
           <li
             key={item.id}
-            className={`mpcard${openableDetail ? ' mpcard--detail-link' : ''}`}
+            className={`mpcard${openableDetail ? ' mpcard--detail-link' : ''}${onToggleLclSelection && !isLclLotRow(item) ? ' mpcard--merge-dimmed' : ''}`}
             tabIndex={openableDetail ? 0 : undefined}
             onClick={openableDetail ? (event) => {
               if (cardClickHitsControl(event.target as HTMLElement)) return;

@@ -314,6 +314,13 @@
   cursor: auto;
 }
 
+/* Gộp hàng (KB Ch.10 §10.4): the rows that cannot join the merge — every
+   non-LCL lot — read clearly muted while LCL rows keep full emphasis. The
+   disabled CHỌN checkbox alone left the row looking selectable. */
+.master-plan-grid__row--merge-dimmed {
+  opacity: 0.45;
+}
+
 /* ticket 18/11 (spec Chương 4 §4.1.3 cấm cắt chữ) supersedes the cell-level
    clip: NHÀ MÁY, TUYẾN, CẢNG NÂNG/HẠ and GHI CHÚ wrap fully, so the td no
    longer hides overflow. Headers keep their own law (SIL-698 thead rules). */
@@ -811,6 +818,11 @@
 
 .mpcard--detail-link :is(button, input, select, textarea, label, a) {
   cursor: auto;
+}
+
+/* Card twin of the row dim (KB Ch.10 §10.4) — same law, same value. */
+.mpcard--merge-dimmed {
+  opacity: 0.45;
 }
 
 .mpcard__head {
