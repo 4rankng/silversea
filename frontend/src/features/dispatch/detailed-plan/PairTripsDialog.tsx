@@ -5,9 +5,10 @@ import type { TripDetail } from '@tingting/shared';
 import { tripClient } from '../../../api/tripClient';
 import { useTripDetail } from '../../../hooks/useTripQueries';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
-import { Modal } from '../../../components/UI';
+import { Modal, useConfirm } from '../../../components/UI';
 import { UuiSelectField } from '../../../design-system';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import { pairWeightPreSaveWarning } from './pairWeightWarning';
 
 interface PairTripsDialogProps {
   /** Row whose trip starts the pair; null keeps the dialog closed. */
@@ -50,6 +51,7 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
+  const { confirm, dialog: weightConfirmDialog } = useConfirm();
 
   // Sweep (card 20261008_1): the submit used to disable silently — every
   // disable cause now carries its own aria-described reason
@@ -115,6 +117,17 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
       const baseFirst = baseDraft.plannedStartAt <= partnerDraft.plannedStartAt;
       const first = baseFirst ? baseDraft : partnerDraft;
       const second = baseFirst ? partnerDraft : baseDraft;
+      // SIL-969 (KB Ch.3 §3.3.6, K3.52) — the overload / missing-capacity
+      // advisories surface BEFORE the save as a soft 'Vẫn lưu?' confirm:
+      // "Xác nhận" saves exactly as before, "Hủy" keeps the pair unsaved. The
+      // confirm runs inside the `saving` window so a double click cannot start
+      // two submits while the dispatcher decides. Backend save rules and its
+      // response warnings are unchanged.
+      const preSaveWarning = pairWeightPreSaveWarning(first, second);
+      if (preSaveWarning != null) {
+        const proceed = await confirm(`${preSaveWarning} Vẫn lưu?`);
+        if (!proceed) return;
+      }
       const result = await tripClient.createPair({
         firstTripId: baseFirst ? baseTripId : Number(partnerTripId),
         secondTripId: baseFirst ? Number(partnerTripId) : baseTripId,
@@ -122,9 +135,13 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
         firstTrip: first,
         secondTrip: second,
       });
-      setWarnings(result.warnings ?? []);
+      // The warning the dispatcher just confirmed is moved, not repeated: drop
+      // it from the post-save banner. Any warning this pre-check did not
+      // predict still renders there (the backend stays the authority).
+      const remainingWarnings = (result.warnings ?? []).filter((warning) => warning !== preSaveWarning);
+      setWarnings(remainingWarnings);
       onPaired();
-      if (!(result.warnings ?? []).length) onClose();
+      if (!remainingWarnings.length) onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể ghép hai lệnh này.');
     } finally {
@@ -135,73 +152,76 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
   if (!row || baseTripId == null) return null;
 
   return (
-    <Modal
-      isOpen
-      title="Ghép chuyến điều vận"
-      onClose={onClose}
-      maxWidth={560}
-    >
-      <div style={{ display: 'grid', gap: 14 }}>
-        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
-          Ghép 2 lệnh cont chạy chung 1 xe — Kẹp (2×20' cùng lúc) hoặc Kết hợp (tái dùng vỏ, nối tiếp).
-          Hệ thống tự kiểm tra điều kiện và tính phí đường/lương theo cặp.
-        </div>
+    <>
+      <Modal
+        isOpen
+        title="Ghép chuyến điều vận"
+        onClose={onClose}
+        maxWidth={560}
+      >
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
+            Ghép 2 lệnh cont chạy chung 1 xe — Kẹp (2×20' cùng lúc) hoặc Kết hợp (tái dùng vỏ, nối tiếp).
+            Hệ thống tự kiểm tra điều kiện và tính phí đường/lương theo cặp.
+          </div>
 
-        <UuiSelectField
-          id="pair-kind"
-          label="Loại ghép"
-          value={pairKind}
-          onChange={(event) => setPairKind(event.target.value as 'KEP' | 'KET_HOP')}
-          disabled={saving}
-          options={[
-            { value: 'KET_HOP', label: 'Kết hợp — tái dùng vỏ, 2 lệnh nối tiếp' },
-            { value: 'KEP', label: "Kẹp — 2 cont 20' chạy cùng lúc" },
-          ]}
-        />
+          <UuiSelectField
+            id="pair-kind"
+            label="Loại ghép"
+            value={pairKind}
+            onChange={(event) => setPairKind(event.target.value as 'KEP' | 'KET_HOP')}
+            disabled={saving}
+            options={[
+              { value: 'KET_HOP', label: 'Kết hợp — tái dùng vỏ, 2 lệnh nối tiếp' },
+              { value: 'KEP', label: "Kẹp — 2 cont 20' chạy cùng lúc" },
+            ]}
+          />
 
-        <UuiSelectField
-          id="pair-partner"
-          label="Lệnh ghép cùng"
-          value={partnerTripId}
-          onChange={(event) => setPartnerTripId(event.target.value)}
-          disabled={saving}
-          hint="Chọn lệnh cont còn lại của cặp — các lệnh cùng lô được xếp trước (Kẹp), hoặc chọn lệnh khác cho Kết hợp."
-          options={[
-            { value: '', label: '— Chọn lệnh ghép —' },
-            ...partnerOptions,
-          ]}
-        />
+          <UuiSelectField
+            id="pair-partner"
+            label="Lệnh ghép cùng"
+            value={partnerTripId}
+            onChange={(event) => setPartnerTripId(event.target.value)}
+            disabled={saving}
+            hint="Chọn lệnh cont còn lại của cặp — các lệnh cùng lô được xếp trước (Kẹp), hoặc chọn lệnh khác cho Kết hợp."
+            options={[
+              { value: '', label: '— Chọn lệnh ghép —' },
+              ...partnerOptions,
+            ]}
+          />
 
-        {error && (
-          <p role="alert" className="form-error" style={{ color: 'var(--danger)', margin: 0 }}>
-            {error}
-          </p>
-        )}
-        {warnings.map((warning) => (
-          <p key={warning} role="status" style={{ color: 'var(--warning, #b45309)', margin: 0, fontSize: 'var(--text-data-size)' }}>
-            {warning}
-          </p>
-        ))}
-
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          {warnings.length > 0 && (
-            <button type="button" className="btn btn--secondary" onClick={onClose}>
-              Xong
-            </button>
+          {error && (
+            <p role="alert" className="form-error" style={{ color: 'var(--danger)', margin: 0 }}>
+              {error}
+            </p>
           )}
-          <DisabledActionTip id="pair-trips-submit" reason={submitDisabledReason}>
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => { if (submitDisabledReason) return; void handlePair(); }}
-              aria-disabled={submitDisabledReason != null || undefined}
-            >
-              {saving ? <Loader2 size={15} className="spin" /> : <Link2 size={15} />}
-              {saving ? 'Đang ghép…' : 'Ghép chuyến'}
-            </button>
-          </DisabledActionTip>
+          {warnings.map((warning) => (
+            <p key={warning} role="status" style={{ color: 'var(--warning, #b45309)', margin: 0, fontSize: 'var(--text-data-size)' }}>
+              {warning}
+            </p>
+          ))}
+
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            {warnings.length > 0 && (
+              <button type="button" className="btn btn--secondary" onClick={onClose}>
+                Xong
+              </button>
+            )}
+            <DisabledActionTip id="pair-trips-submit" reason={submitDisabledReason}>
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={() => { if (submitDisabledReason) return; void handlePair(); }}
+                aria-disabled={submitDisabledReason != null || undefined}
+              >
+                {saving ? <Loader2 size={15} className="spin" /> : <Link2 size={15} />}
+                {saving ? 'Đang ghép…' : 'Ghép chuyến'}
+              </button>
+            </DisabledActionTip>
+          </div>
         </div>
-      </div>
-    </Modal>
+      </Modal>
+      {weightConfirmDialog}
+    </>
   );
 }

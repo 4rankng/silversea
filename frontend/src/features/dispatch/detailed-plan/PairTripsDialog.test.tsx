@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TripDetail } from '@tingting/shared';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 
 import { PairTripsDialog } from './PairTripsDialog';
+import { KEP_WEIGHT_WARNING_MESSAGE, PAIR_CAPACITY_MISSING_MESSAGE } from './pairWeightWarning';
 
 vi.mock('../../../api/tripClient', () => ({
   tripClient: {
@@ -28,7 +29,9 @@ function tripDetail(overrides: Partial<TripDetail> = {}): TripDetail {
     canonicalOrigin: 'Cảng Cát Lái',
     canonicalDestination: 'Kho Bình Dương',
     cargoWeightKg: '11000.00',
-    vehicleCapacityKg: '18000.00',
+    // SIL-969: 2×11t must NOT trip the pre-save weight confirm on the default
+    // fixture — the trigger cases below carry explicit weight/capacity facts.
+    vehicleCapacityKg: '24000.00',
     ...overrides,
   } as unknown as TripDetail;
 }
@@ -124,8 +127,10 @@ describe('PairTripsDialog', () => {
   });
 
   // Card 211026152138 — a rig with no declared capacity must not dead-end the
-  // pair client-side: the draft rides vehicleCapacityKg: null and the server
-  // attaches the soft advisory warning after the save.
+  // pair client-side: the draft rides vehicleCapacityKg: null and the save
+  // succeeds. SIL-969 (KB K3.52) — the advisory moved BEFORE that save: a soft
+  // 'Vẫn lưu?' confirm the dispatcher can still decline. Confirming saves; the
+  // confirmed advisory is moved, not repeated, after the save.
   it('submits a null-capacity trip with vehicleCapacityKg: null instead of blocking', async () => {
     useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900, vehicleCapacityKg: null }), isLoading: false });
     vi.mocked(tripClient.getTrip).mockResolvedValue(
@@ -133,7 +138,7 @@ describe('PairTripsDialog', () => {
     );
     vi.mocked(tripClient.createPair).mockResolvedValue({
       id: 55, status: 'ACTIVE', pairKind: 'KEP',
-      warnings: ['Xe chưa khai tải trọng trong danh mục — hệ thống không đối chiếu được tổng trọng lượng cặp. Điều vận chịu trách nhiệm kiểm tra tải trước khi chạy.'],
+      warnings: [PAIR_CAPACITY_MISSING_MESSAGE],
     } as never);
 
     const onPaired = vi.fn();
@@ -151,13 +156,136 @@ describe('PairTripsDialog', () => {
     fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
     fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
 
+    // The 'Vẫn lưu?' confirm lands BEFORE the save — nothing is stored yet.
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(confirmDialog).toHaveAccessibleDescription(`${PAIR_CAPACITY_MISSING_MESSAGE} Vẫn lưu?`);
+    expect(tripClient.createPair).not.toHaveBeenCalled();
+
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Xác nhận' }));
     await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
     const payload = vi.mocked(tripClient.createPair).mock.calls[0][0];
     expect(payload.firstTrip.vehicleCapacityKg).toBeNull();
     expect(payload.secondTrip.vehicleCapacityKg).toBeNull();
     expect(onPaired).toHaveBeenCalled();
-    // A warning keeps the dialog open with the advisory + the "Xong" ack.
-    expect(await screen.findByRole('status')).toHaveTextContent(/chưa khai tải trọng/);
+    // Confirmed pre-save ⇒ moved, not repeated post-save ⇒ dialog closes.
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(onClose).toHaveBeenCalled();
+  }, 20_000);
+
+  it('declining the pre-save weight confirm keeps the pair unsaved (proven overload)', async () => {
+    // 2×18.5t = 37t on a 20t rig proves overload (K3.52 trigger 1).
+    useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900, cargoWeightKg: '18500.00', vehicleCapacityKg: '20000.00' }), isLoading: false });
+    vi.mocked(tripClient.getTrip).mockResolvedValue(
+      tripDetail({ id: 901, version: 7, cargoWeightKg: '18500.00', vehicleCapacityKg: '20000.00' }),
+    );
+
+    const onClose = vi.fn();
+    render(
+      <PairTripsDialog
+        row={row(900)}
+        candidates={[row(901)]}
+        onClose={onClose}
+        onPaired={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(confirmDialog).toHaveAccessibleDescription(`${KEP_WEIGHT_WARNING_MESSAGE} Vẫn lưu?`);
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Hủy' }));
+
+    expect(tripClient.createPair).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+    // The pair dialog stays open and re-arms its submit for another attempt.
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Ghép chuyến$/ })).toBeTruthy());
+  }, 20_000);
+
+  it('declining the pre-save capacity-missing confirm keeps the pair unsaved', async () => {
+    // The SIL-969 repro: a rig with capacityKg null — "Hủy" must not save.
+    useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900, vehicleCapacityKg: null }), isLoading: false });
+    vi.mocked(tripClient.getTrip).mockResolvedValue(tripDetail({ id: 901, version: 7, vehicleCapacityKg: null }));
+
+    const onClose = vi.fn();
+    render(
+      <PairTripsDialog
+        row={row(900)}
+        candidates={[row(901)]}
+        onClose={onClose}
+        onPaired={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(confirmDialog).toHaveAccessibleDescription(`${PAIR_CAPACITY_MISSING_MESSAGE} Vẫn lưu?`);
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Hủy' }));
+
+    expect(tripClient.createPair).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it('a warning confirmed before the save is moved, not repeated, after it', async () => {
+    useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900, cargoWeightKg: '18500.00', vehicleCapacityKg: '20000.00' }), isLoading: false });
+    vi.mocked(tripClient.getTrip).mockResolvedValue(
+      tripDetail({ id: 901, version: 7, cargoWeightKg: '18500.00', vehicleCapacityKg: '20000.00' }),
+    );
+    vi.mocked(tripClient.createPair).mockResolvedValue({
+      id: 55, status: 'ACTIVE', pairKind: 'KEP',
+      warnings: [KEP_WEIGHT_WARNING_MESSAGE, 'Có phát sinh phí chờ.'],
+    } as never);
+
+    const onClose = vi.fn();
+    render(
+      <PairTripsDialog
+        row={row(900)}
+        candidates={[row(901)]}
+        onClose={onClose}
+        onPaired={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(tripClient.createPair).not.toHaveBeenCalled();
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Xác nhận' }));
+
+    await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
+    // Only the advisory the dispatcher has NOT seen before survives post-save.
+    const statuses = await screen.findAllByRole('status');
+    expect(statuses.map((el) => el.textContent)).toEqual(['Có phát sinh phí chờ.']);
+    expect(onClose).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it('pairs straight through when the total stays within capacity — no confirm dialog', async () => {
+    useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900 }), isLoading: false });
+    vi.mocked(tripClient.getTrip).mockResolvedValue(tripDetail({ id: 901, version: 7 }));
+    vi.mocked(tripClient.createPair).mockResolvedValue({ id: 55, status: 'ACTIVE', pairKind: 'KET_HOP', warnings: [] } as never);
+
+    const onClose = vi.fn();
+    render(
+      <PairTripsDialog
+        row={row(900)}
+        candidates={[row(901)]}
+        onClose={onClose}
+        onPaired={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+
+    await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
+    expect(onClose).toHaveBeenCalled();
   }, 20_000);
 });

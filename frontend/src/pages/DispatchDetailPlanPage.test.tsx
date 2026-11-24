@@ -93,7 +93,9 @@ function tripDetail(overrides: Partial<TripDetail> = {}): TripDetail {
     canonicalOrigin: 'Cảng Cát Lái',
     canonicalDestination: 'Kho Bình Dương',
     cargoWeightKg: '11000.00',
-    vehicleCapacityKg: '18000.00',
+    // SIL-969: keep this page-wiring test off the pre-save weight confirm
+    // (2×11t ≤ 24t) — that path is owned by PairTripsDialog.test.tsx.
+    vehicleCapacityKg: '24000.00',
     ...overrides,
   } as unknown as TripDetail;
 }

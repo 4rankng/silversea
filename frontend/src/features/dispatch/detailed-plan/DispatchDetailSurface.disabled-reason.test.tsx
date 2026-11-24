@@ -222,7 +222,9 @@ describe('PairTripsDialog (card 20261008_1 sweep)', () => {
       canonicalOrigin: 'Cảng Cát Lái',
       canonicalDestination: 'Kho Bình Dương',
       cargoWeightKg: '11000.00',
-      vehicleCapacityKg: '18000.00',
+      // SIL-969: keep these disable-reason tests off the pre-save weight
+      // confirm (2×11t ≤ 24t) — that path is owned by PairTripsDialog.test.tsx.
+      vehicleCapacityKg: '24000.00',
       ...overrides,
     } as unknown as TripDetail;
   }

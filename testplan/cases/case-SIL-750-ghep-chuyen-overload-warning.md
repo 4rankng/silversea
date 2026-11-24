@@ -45,3 +45,6 @@ không bao giờ chặn cứng ở đường ghép thủ công. FE giữ nguyên
   sil638-tc6-* phải giữ xanh nguyên trạng.
 - FE PairTripsDialog không đổi code — hành vi warnings đã có (case
   null-tải trọng QA đã xác nhận 'đúng bản chất cảnh báo mềm').
+  _SIL-969 (25/11/2026) supersede phần thời điểm: FE chuyển 2 advisory cân/tải
+  thành pre-save 'Vẫn lưu?' trước POST (case-SIL-969-ghep-cap-canh-bao-truoc-luu.md);
+  luật lưu và response `warnings[]` của BE vẫn như doc này._
