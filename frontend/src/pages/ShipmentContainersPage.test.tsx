@@ -145,6 +145,11 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     // Nhập/Xuất → Hãng tàu).
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
     expect(headers).toEqual([
+      // SIL-945 (KB §3.1.7): the group band row leads the columnheader
+      // order; its leaf sub-columns sit between Phân xe and Ghi chú.
+      'Cước đầu ra',
+      'Cước đầu vào',
+      'Phí chi hộ',
       'Khách hàng & lộ trình',
       'Bill/Booking',
       'Số tờ khai',
@@ -154,6 +159,18 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
       'Nâng / hạ',
       'Lịch trình',
       'Phân xe',
+      'Vận chuyển',
+      'Làm hàng',
+      'Phát sinh',
+      'Tổng cước',
+      'Vận chuyển',
+      'Làm hàng',
+      'Phát sinh',
+      'Tổng cước',
+      'CSHT',
+      'Nâng',
+      'Hạ',
+      'Khác',
       'Ghi chú',
       'Trạng thái',
     ]);
@@ -253,17 +270,20 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
   });
 
   // SIL-863 Bảng 2 (ticket 18/11) → SIL-872 (CR-009.1 4.1): the table
-  // opens on the spec's TEN columns — Ghi chú is a Cột-picker opt-in
-  // (defaultHidden) and the FB-086 Thao tác column is retired — so the
-  // 1084px chốt floor sum fits the ~1150px canvas at 1440px with no
-  // horizontal scroll and TRẠNG THÁI stays on-screen.
-  it('opens the ledger on the spec ten columns (Ghi chú rides the Cột picker)', async () => {
+  // opens on the spec's default columns — Ghi chú is a Cột-picker opt-in
+  // (defaultHidden) and the FB-086 Thao tác column is retired. SIL-945
+  // (KB §3.1.7) later added the three freight bands (Cước đầu ra /
+  // Cước đầu vào / Phí chi hộ) to the default set.
+  it('opens the ledger on the spec default columns (Ghi chú rides the Cột picker)', async () => {
     apiGet.mockResolvedValueOnce(response);
     render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
 
     expect(await screen.findByText('CONT-001')).toBeTruthy();
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
     expect(headers).toEqual([
+      'Cước đầu ra',
+      'Cước đầu vào',
+      'Phí chi hộ',
       'Khách hàng & lộ trình',
       'Bill/Booking',
       'Số tờ khai',
@@ -273,6 +293,18 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
       'Nâng / hạ',
       'Lịch trình',
       'Phân xe',
+      'Vận chuyển',
+      'Làm hàng',
+      'Phát sinh',
+      'Tổng cước',
+      'Vận chuyển',
+      'Làm hàng',
+      'Phát sinh',
+      'Tổng cước',
+      'CSHT',
+      'Nâng',
+      'Hạ',
+      'Khác',
       'Trạng thái',
     ]);
     expect(screen.queryByRole('columnheader', { name: 'Ghi chú' })).toBeNull();

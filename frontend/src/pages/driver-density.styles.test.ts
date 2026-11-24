@@ -70,11 +70,13 @@ describe('driver density contract (20260926_26)', () => {
     expect(css).not.toMatch(/\.driver-task-grid[^{]*\{[^}]*grid-template-columns:\s*repeat\(2/);
   });
 
-  it('ITEM 4: the title block compresses to two lines', () => {
-    // Line 1: back + mã; line 2: location + status pill. The standalone
-    // route line is gone (ports carry the route in the info grid), and the
-    // header never renders the eyebrow on the detail screen.
-    expect(css).not.toMatch(/\.driver-task-header__route/);
+  it('ITEM 4: the title block compresses to two lines and keeps the SIL-946 route line', () => {
+    // Line 1: back + mã; line 2: location + status pill. SIL-946 (KB Ch.10
+    // §10.4.2) restored the route line as a real line of its own (rendered
+    // only when it differs from title/location — DriverTripHeader), styled
+    // .driver-task-header__route; the old "standalone route line is gone"
+    // pin is retired with it.
+    expect(css).toMatch(/\.driver-task-header__route \{/);
     const headerBlock = css.slice(css.indexOf('.driver-task-header {'));
     expect(headerBlock).toMatch(/align-items:\s*center/);
   });

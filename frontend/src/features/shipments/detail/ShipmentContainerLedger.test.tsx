@@ -551,6 +551,11 @@ describe('documents column split + cell click-to-edit (FB-109/113 v2, SIL-477)',
     renderIdleLedger([baseRow()]);
     const headers = screen.getAllByRole('columnheader').map((el) => el.textContent);
     expect(headers).toEqual([
+      // SIL-945 (KB §3.1.7): the group band row leads the columnheader
+      // order; its leaf sub-columns sit between Phân xe and Ghi chú.
+      'Cước đầu ra',
+      'Cước đầu vào',
+      'Phí chi hộ',
       'Khách hàng & lộ trình',
       'Bill/Booking',
       'Số tờ khai',
@@ -560,6 +565,18 @@ describe('documents column split + cell click-to-edit (FB-109/113 v2, SIL-477)',
       'Nâng / hạ',
       'Lịch trình',
       'Phân xe',
+      'Vận chuyển',
+      'Làm hàng',
+      'Phát sinh',
+      'Tổng cước',
+      'Vận chuyển',
+      'Làm hàng',
+      'Phát sinh',
+      'Tổng cước',
+      'CSHT',
+      'Nâng',
+      'Hạ',
+      'Khác',
       'Ghi chú',
       'Trạng thái',
     ]);
@@ -1839,8 +1856,12 @@ describe('ShipmentContainerLedger documents column order (card 221026095429)', (
         />
       </MemoryRouter>,
     );
-    const headerLabels = Array.from(view.container.querySelectorAll('.shipment-container-ledger thead th'))
-      .map((th) => (th.textContent ?? '').trim());
+    // SIL-945: read the column-name row only — the group band row above it
+    // (aria-hidden lead/trail cells + the three freight bands) is not part
+    // of the documents-order contract.
+    const headerLabels = Array.from(
+      view.container.querySelectorAll('.shipment-container-ledger thead tr:not(.shipment-container-ledger__groups-row) th'),
+    ).map((th) => (th.textContent ?? '').trim());
     // The documents group starts after the identity column.
     expect(headerLabels.slice(1, 5)).toEqual(['Bill/Booking', 'Số tờ khai', 'Nhập/Xuất', 'Hãng tàu']);
     const firstRow = view.container.querySelector('.shipment-container-ledger tbody tr') as HTMLElement;

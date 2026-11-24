@@ -946,7 +946,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(displayedValue('Cảng Cát Lái')).toBeTruthy();
     expect(displayedValue('Cảng ICD Sóng Thần')).toBeTruthy();
     expect(displayedValue('Nhà máy Long Minh')).toBeTruthy();
-    expect(ghostValue('12.000,5')).toBeTruthy();
+    // SIL-930 (KB §3.7.4 K3.99): the weight ghost line displays tấn via the
+    // shared formatWeight — 12000,5 kg → "12,001 tấn" (the 3-fraction-digit
+    // cap rounds the sub-kg tail at the 4th tấn digit).
+    expect(ghostValue('12,001 tấn')).toBeTruthy();
     expect(screen.getByLabelText('Giờ — Ngày giờ đóng trả')).toHaveValue('09');
     expect(screen.getByLabelText('Phút — Ngày giờ đóng trả')).toHaveValue('30');
     expect(screen.getByLabelText('Ngày — Ngày giờ đóng trả')).toHaveValue('20');
@@ -1055,7 +1058,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       expect(displayValue(row, 'Nhà máy Long Minh')).toBeTruthy();
       expect(displayValue(row, 'Cảng Cát Lái')).toBeTruthy();
       expect(displayValue(row, 'Cảng ICD Sóng Thần')).toBeTruthy();
-      expect(ghostValue(row, '12.000,5')).toBeTruthy();
+      // SIL-930 (KB §3.7.4 K3.99): the weight ghost line displays tấn —
+      // 12000,5 kg → "12,001 tấn".
+      expect(ghostValue(row, '12,001 tấn')).toBeTruthy();
     }
     // …and Loại cont stays blank on the ADDED rows (placeholder "Chọn loại")
     // while row 1 keeps its own pick.
@@ -1229,7 +1234,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     // QA1-007: the two required LCL cargo labels carry the visual mark now —
     // prefix regex keeps the match on the label text proper.
     fireEvent.change(screen.getByLabelText(/Số lượng/), { target: { value: '8' } });
-    fireEvent.change(screen.getByLabelText(/Trọng lượng \(kg\)/), { target: { value: '1200' } });
+    // spec-2411 §9.2 (153303bc): the LCL intake takes weight in tấn — the
+    // label names the input unit; the model converts to kg on the wire.
+    fireEvent.change(screen.getByLabelText(/Trọng lượng \(tấn\)/), { target: { value: '1200' } });
     // Thể tích (CBM) stays blank on purpose. "Tạo lô hàng" runs the full
     // CREATE intake validation (prod round-16), so the schedule datetime must
     // be set — SIL-587: the field is always visible and segmented; a complete
