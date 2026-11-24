@@ -303,7 +303,11 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     // gone app-wide, so the same intent (pick this row, then read what the
     // voucher would issue) is driven by clicking the row itself.
     fireEvent.click(within(row).getByText('BILL-001'));
-    const button = screen.getByRole('button', { name: /Lập phiếu/ });
+    // The BOARD's voucher action (the strip). The report section below carries
+    // its own "Lập phiếu thu" / "Lập phiếu chi" buttons (SIL-916), so the
+    // name is no longer unique on the page — scope the query to the board's
+    // own action group.
+    const button = within(document.querySelector('.ppc-actions') as HTMLElement).getByRole('button', { name: /Lập phiếu/ });
     expect(button.textContent).toContain('(2 khoản)');
     expect(button.textContent).not.toContain('dòng');
   });
