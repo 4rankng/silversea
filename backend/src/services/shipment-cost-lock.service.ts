@@ -612,7 +612,10 @@ export interface RequestShipmentCostAdjustInput {
 /** Ghi một đề nghị điều chỉnh trên lô ĐANG KHÓA chi phí. 409 khi lô chưa
  *  khóa (đề nghị chỉ tồn tại trên lô đã khóa — nút [Đề nghị điều chỉnh] thay
  *  chỗ [Khóa lô] sau khi khóa). Replay theo Idempotency-Key trả về đề nghị
- *  gốc (audit + notification chỉ ghi lần đầu). */
+ *  gốc (audit + notification chỉ ghi lần đầu). Ghi duyệt qua runIdempotent
+ *  (reviewed durable command boundary — SIL-923 registry) với các check
+ *  404/409 chạy bên trong envelope: một lần mở khóa đua với việc ghi không
+ *  còn kịp giữ lại đề nghị trên lô đã mở. */
 export async function requestShipmentCostAdjust(input: RequestShipmentCostAdjustInput): Promise<ShipmentCostAdjustRequestRow> {
   const reason = input.reason?.trim() ?? '';
   if (!reason) throw new ApiError(400, 'Vui lòng nhập lý do đề nghị điều chỉnh.');
@@ -624,53 +627,61 @@ export async function requestShipmentCostAdjust(input: RequestShipmentCostAdjust
     .where(eq(s.shipmentCostAdjustRequests.idempotencyKey, input.idempotencyKey))
     .limit(1);
   if (replayed) return toAdjustRequestRow(replayed);
-  const [shipment] = await db.select({ id: s.shipments.id, shipmentCode: s.shipments.shipmentCode, deletedAt: s.shipments.deletedAt })
-    .from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
-  if (!shipment || shipment.deletedAt) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
-  const [active] = await db.select({ id: s.shipmentCostLocks.id })
-    .from(s.shipmentCostLocks)
-    .where(and(
-      eq(s.shipmentCostLocks.shipmentId, input.shipmentId),
-      isNull(s.shipmentCostLocks.unlockedAt),
-    ))
-    .limit(1);
-  if (!active) throw new ApiError(409, SHIPMENT_COST_NOT_LOCKED_MESSAGE);
-  return db.transaction(async (tx) => {
-    const [row] = await tx.insert(s.shipmentCostAdjustRequests).values({
-      shipmentId: input.shipmentId,
-      costLockId: active.id,
-      reason,
-      requestedBy: input.actor.userId,
-      idempotencyKey: input.idempotencyKey,
-    }).returning({ id: s.shipmentCostAdjustRequests.id, requestedAt: s.shipmentCostAdjustRequests.requestedAt });
-    await tx.insert(s.auditLogs).values({
-      userId: input.actor.userId,
-      actorName: input.actor.fullName ?? input.actor.username ?? undefined,
-      message: 'SHIPMENT_COST_ADJUST_REQUESTED',
-      entityType: 'shipment',
-      entityId: input.shipmentId,
-      payload: { requestId: row.id, lockId: active.id, reason },
-    });
-    await persistNotificationInTx(tx, {
-      type: NotificationType.SYSTEM_ANNOUNCEMENT,
-      title: 'Lô hàng có đề nghị điều chỉnh chi phí',
-      message: `${input.actor.fullName ?? input.actor.username ?? 'Người dùng'} đề nghị điều chỉnh lô ${shipment.shipmentCode ?? `#${input.shipmentId}`} đã khóa: ${reason}`,
-      relatedEntityType: 'shipments',
-      relatedEntityId: input.shipmentId,
-      // The handling trio — same clearance as the unlock route (SIL-721).
-      targetRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
-    });
-    return {
-      id: row.id,
-      shipmentId: input.shipmentId,
-      shipmentCode: shipment.shipmentCode ?? null,
-      reason,
-      status: 'PENDING',
-      requestedBy: input.actor.userId,
-      requestedByName: input.actor.fullName ?? input.actor.username ?? null,
-      requestedAt: row.requestedAt.toISOString(),
-    };
+  const { result } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.SHIPMENT_COST_ADJUST_REQUEST,
+    idempotencyKey: input.idempotencyKey,
+    payload: { shipmentId: input.shipmentId },
+    createdBy: input.actor.userId,
+    entityType: 'shipment',
+    create: async (tx) => {
+      const [shipment] = await tx.select({ id: s.shipments.id, shipmentCode: s.shipments.shipmentCode, deletedAt: s.shipments.deletedAt })
+        .from(s.shipments).where(eq(s.shipments.id, input.shipmentId)).limit(1);
+      if (!shipment || shipment.deletedAt) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
+      const [active] = await tx.select({ id: s.shipmentCostLocks.id })
+        .from(s.shipmentCostLocks)
+        .where(and(
+          eq(s.shipmentCostLocks.shipmentId, input.shipmentId),
+          isNull(s.shipmentCostLocks.unlockedAt),
+        ))
+        .limit(1);
+      if (!active) throw new ApiError(409, SHIPMENT_COST_NOT_LOCKED_MESSAGE);
+      const [row] = await tx.insert(s.shipmentCostAdjustRequests).values({
+        shipmentId: input.shipmentId,
+        costLockId: active.id,
+        reason,
+        requestedBy: input.actor.userId,
+        idempotencyKey: input.idempotencyKey,
+      }).returning({ id: s.shipmentCostAdjustRequests.id, requestedAt: s.shipmentCostAdjustRequests.requestedAt });
+      await tx.insert(s.auditLogs).values({
+        userId: input.actor.userId,
+        actorName: input.actor.fullName ?? input.actor.username ?? undefined,
+        message: 'SHIPMENT_COST_ADJUST_REQUESTED',
+        entityType: 'shipment',
+        entityId: input.shipmentId,
+        payload: { requestId: row.id, lockId: active.id, reason },
+      });
+      await persistNotificationInTx(tx, {
+        type: NotificationType.SYSTEM_ANNOUNCEMENT,
+        title: 'Lô hàng có đề nghị điều chỉnh chi phí',
+        message: `${input.actor.fullName ?? input.actor.username ?? 'Người dùng'} đề nghị điều chỉnh lô ${shipment.shipmentCode ?? `#${input.shipmentId}`} đã khóa: ${reason}`,
+        relatedEntityType: 'shipments',
+        relatedEntityId: input.shipmentId,
+        // The handling trio — same clearance as the unlock route (SIL-721).
+        targetRoles: [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT],
+      });
+      return {
+        id: row.id,
+        shipmentId: input.shipmentId,
+        shipmentCode: shipment.shipmentCode ?? null,
+        reason,
+        status: 'PENDING' as const,
+        requestedBy: input.actor.userId,
+        requestedByName: input.actor.fullName ?? input.actor.username ?? null,
+        requestedAt: row.requestedAt.toISOString(),
+      };
+    },
   });
+  return result;
 }
 
 /** Hàng chờ đề nghị điều chỉnh cho bộ mở khóa (route gate: Quản trị ·

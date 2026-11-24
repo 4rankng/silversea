@@ -248,7 +248,10 @@ export function ShipmentDebitPage() {
   // read clearance mirrors the unlock channel (leader trio only).
   const pendingAdjustQuery = useQuery({
     queryKey: debitMergeKeys.pendingAdjustRequests,
-    queryFn: listPendingShipmentCostAdjustRequests,
+    // Lazy dereference: the queue only loads for the unlock trio, so the
+    // module member is touched when the query actually runs, not on every
+    // render of the read-only (CUS) surface.
+    queryFn: () => listPendingShipmentCostAdjustRequests(),
     enabled: canUnlock,
   });
 
