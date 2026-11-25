@@ -410,6 +410,20 @@ p.debit-note { margin: 0 0 8px; }
   outline-offset: -2px;
 }
 
+/* SIL-996 — ở 390px thanh chuyển chế độ FCL/LCL tràn khỏi màn hình (thanh rộng
+ * 405.5px > viewport 390px, tràn ~15–24px). Nhãn của 2 nút là câu dài
+ * ("Vận tải Hàng Cont (FCL) · 21 lô"), nên ở dải điện thoại 2 nút chia đều
+ * chiều rộng và nhãn xuống dòng TRỌN VẸN — không cắt chữ, không cắt số lô
+ * (KB §10.8.1: mọi ô hiện trọn vẹn nội dung). */
+@media (max-width: 640px) {
+  .debit-cargo-view { width: 100%; }
+  .debit-cargo-view__btn {
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: normal;
+  }
+}
+
 /* SIL-773 — công tắc 'Hiện dòng đã ẩn' trên mặt lọc: checkbox + nhãn một
  * dòng, cùng cỡ chữ mặt lọc. */
 .debit-show-hidden {
