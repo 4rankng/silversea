@@ -96,7 +96,7 @@ export function AccountingWorkspaceRoot() {
       )}
 
       {state.activeView === 'work' ? (
-        <AccountingWorkInbox />
+        <AccountingWorkInbox from={state.from} to={state.to} />
       ) : state.activeView === 'overview' ? (
         <AccountingOverview
           to={state.to}

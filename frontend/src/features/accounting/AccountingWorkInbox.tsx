@@ -1,131 +1,249 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, Clock3, RefreshCw } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import type { AccountantWorkInboxItem } from '@tingting/shared';
-import { financialClient } from '../../api/financialClient';
-import { formatDateTimeShort } from '../../lib/format';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { RotateCw } from 'lucide-react';
+import {
+  getPhoiPhieuPartyLots,
+  getPhoiPhieuReport,
+  type PhoiPhieuPartyLot,
+} from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
-import { SortHeader } from '../../components/shared';
-import { nextTableSort, type TableSortState } from '../../lib/table-sort';
+import { billBookingReference } from '../../lib/business-reference';
+import { formatCurrency } from '../../lib/format';
+import { PhoiPhieuPartyLotsDrawer } from '../../pages/accounting/PhoiPhieuPartyLotsDrawer';
 import './AccountingWorkInbox.css';
 
-type InboxView = 'ACTION' | 'WAITING';
+/**
+ * 'Công việc kế toán' (K6.42) — ba thẻ Phải thu / Phải trả / Đối chiếu, mỗi
+ * dòng mang nút [Tạo phiếu thanh toán] (thu tiền khách hàng) và [Tạo phiếu chi]
+ * (chi trả nhà cung cấp). Số liệu tổng hợp theo thời gian thực từ lô hàng và
+ * chứng từ đã ghi nhận: hai thẻ tiền đọc báo cáo phơi phiếu theo đối tượng,
+ * thẻ Đối chiếu liệt kê các lô mở cả hai chiều (còn phải thu lẫn còn phải trả).
+ *
+ * Nút theo dòng mở đúng ngăn lập phiếu của đối tượng đó —
+ * `PhoiPhieuPartyLotsDrawer`, nơi chọn lô và ghi phiếu qua engine entries —
+ * cùng cửa vào với nút 'Lập phiếu thu'/'Lập phiếu chi' màn Kiểm soát phơi
+ * phiếu; không có đường ghi phiếu mới nào ở đây.
+ */
+export function AccountingWorkInbox({ from, to }: { from: string; to: string }) {
+  const queryClient = useQueryClient();
+  const [drawer, setDrawer] = useState<{ kind: 'THU' | 'TRA'; party: string } | null>(null);
 
-const STALE_AFTER_MS = 5 * 60 * 1000;
-
-function blockerRoute(item: AccountantWorkInboxItem, code: string): string {
-  const trip = encodeURIComponent(String(item.tripId));
-  if (code === 'EXPENSE_APPROVAL') return `/trips/${trip}`;
-  if (code === 'SETTLEMENT') return `/advances?view=settlements&tripId=${trip}`;
-  // SIL-726 — POD/PROFITABILITY không còn là blocker từ backend; mã lạ về
-  // route hồ sơ vận tải mặc định.
-  return `${item.targetRoute}`;
-}
-
-function formatTime(value: string): string {
-  // Combined date+time contract: time-first 24h, Vietnam-pinned — the old
-  // inline toLocaleString was date-first, browser-local, engine-dependent.
-  return formatDateTimeShort(value);
-}
-
-function ReadinessFacts({ item }: { item: AccountantWorkInboxItem }) {
-  const facts = [
-    ['POD', item.acceptedPod ? 'Đã nộp' : 'Còn thiếu'],
-    ['Chi phí', item.expenseApprovalPending ? 'Chờ xử lý' : 'Đã xử lý'],
-    ['Quyết toán', item.settlementComplete ? 'Hoàn tất' : 'Chưa hoàn tất'],
-    ['Lợi nhuận', item.profitabilitySnapshotReady ? 'Đã chụp' : 'Còn thiếu'],
-  ];
-  return <dl className="accounting-work-inbox__facts">{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
-}
-
-function InboxLane({
-  view,
-  title,
-  description,
-}: {
-  view: InboxView;
-  title: string;
-  description: string;
-}) {
-  const [page, setPage] = useState(1);
-  // Server-side column sort; a new sort always restarts the lane from page 1.
-  const [sort, setSort] = useState<TableSortState | null>(null);
-  const query = useQuery({
-    queryKey: qk.accounting.workInbox(view, page, sort?.by, sort?.dir),
-    queryFn: () => financialClient.getWorkInbox(view, page, { sortBy: sort?.by, sortDir: sort?.dir }),
+  const thuReport = useQuery({
+    queryKey: qk.phoiPhieu.report('THU', from, to),
+    queryFn: () => getPhoiPhieuReport('THU', { dateFrom: from, dateTo: to }),
   });
-  const data = query.data;
-  const stale = data ? Date.now() - new Date(data.asOf).getTime() > STALE_AFTER_MS : false;
+  const traReport = useQuery({
+    queryKey: qk.phoiPhieu.report('TRA', from, to),
+    queryFn: () => getPhoiPhieuReport('TRA', { dateFrom: from, dateTo: to }),
+  });
+  const thuLots = useQuery({
+    queryKey: qk.phoiPhieu.partyLots('THU', null, from, to),
+    queryFn: () => getPhoiPhieuPartyLots('THU', null, { dateFrom: from, dateTo: to }),
+  });
+  const traLots = useQuery({
+    queryKey: qk.phoiPhieu.partyLots('TRA', null, from, to),
+    queryFn: () => getPhoiPhieuPartyLots('TRA', null, { dateFrom: from, dateTo: to }),
+  });
 
-  const handleSortChange = (key: string) => {
-    setSort((current) => nextTableSort(current, key));
-    setPage(1);
+  const thuRows = useMemo(
+    () => (thuReport.data?.rows ?? []).filter((row) => row.conLai > 0),
+    [thuReport.data],
+  );
+  const traRows = useMemo(
+    () => (traReport.data?.rows ?? []).filter((row) => row.conLai > 0),
+    [traReport.data],
+  );
+  // Đối chiếu — lô mở cả hai chiều: phía khách còn phải thu và phía nhà xe /
+  // nhà cung cấp còn phải trả, nên từng dòng tạo được CẢ hai loại phiếu.
+  const doiChieuRows = useMemo(() => {
+    const traByLot = new Map((traLots.data?.items ?? []).map((lot) => [lot.shipmentId, lot]));
+    return (thuLots.data?.items ?? [])
+      .filter((lot) => traByLot.has(lot.shipmentId))
+      .map((lot) => ({ thu: lot, tra: traByLot.get(lot.shipmentId) as PhoiPhieuPartyLot }));
+  }, [thuLots.data, traLots.data]);
+
+  // The drawer's 'Lập phiếu' postings change both reports and both lot sets —
+  // the broad prefixes of the qk.phoiPhieu factories refresh every window.
+  const refreshAll = () => {
+    void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-report'] });
+    void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-party-lots'] });
   };
 
   return (
-    <section className={`accounting-work-inbox__lane is-${view.toLowerCase()}`} aria-labelledby={`accounting-${view.toLowerCase()}-title`}>
-      <header>
-        <div>
-          {/* The count is honest or absent: `0` only ever means the server
-              answered zero rows. While the lane loads the badge reads "…"
-              (pending copy ends with …, law §8), and on a failed load with no
-              data it disappears — a fabricated 0 beside "Không thể tải nhóm
-              này" contradicted the error right below it. */}
-          <h2 id={`accounting-${view.toLowerCase()}-title`}>{title} {query.isLoading ? <span>…</span> : data ? <span>{data.total}</span> : null}</h2>
-          <p>{description}</p>
-        </div>
-        <button type="button" onClick={() => void query.refetch()} disabled={query.isFetching} aria-label={`Làm mới ${title.toLowerCase()}`}><RefreshCw size={14} aria-hidden="true" /></button>
-      </header>
+    <section className="accounting-work-inbox" aria-label="Công việc kế toán">
+      <WorkLane
+        title="Phải thu"
+        summary={thuReport.isError
+          ? 'Chưa tải được số liệu.'
+          : thuReport.data
+            ? `Tổng còn phải thu: ${formatCurrency(thuReport.data.grand.conLai)}`
+            : 'Đang tải số liệu…'}
+        loading={thuReport.isLoading}
+        error={thuReport.isError}
+        count={thuRows.length}
+        onRefresh={() => void thuReport.refetch()}
+        columns={['Đối tượng', 'Số lô', 'Còn phải thu', 'Hành động']}
+      >
+        {thuRows.map((row) => (
+          <tr key={`thu-${row.partyId ?? row.party}`}>
+            <td data-label="Đối tượng"><strong>{row.partyShortName ?? row.party}</strong></td>
+            <td data-label="Số lô">{row.soLuong}</td>
+            <td data-label="Còn phải thu" className="num"><strong>{formatCurrency(row.conLai)}</strong></td>
+            <td data-label="" className="record-table__action">
+              <RowVoucherButtons
+                thuParty={row.party}
+                traParty={row.party}
+                onOpen={(kind, party) => setDrawer({ kind, party })}
+              />
+            </td>
+          </tr>
+        ))}
+      </WorkLane>
 
-      {stale && <div className="accounting-work-inbox__notice" role="status"><Clock3 size={15} /> Dữ liệu đã cũ; hãy làm mới trước khi xử lý.</div>}
-      {/* One text node (card 061026043646): separate JSX text children made
-          node-boundary extraction announce "Đang tảiđang bị chặn…" — the
-          boundary space dies between nodes. Law: OpsQueryFeedback. */}
-      {query.isLoading ? (
-        <div className="accounting-work-inbox__state" role="status">{`Đang tải ${title.toLowerCase()}…`}</div>
-      ) : query.isError ? (
-        <div className="accounting-work-inbox__state is-error" role="alert"><AlertTriangle size={18} /> Không thể tải nhóm này.<button type="button" onClick={() => void query.refetch()}>Thử lại</button></div>
-      ) : !data?.items.length ? (
-        <div className="accounting-work-inbox__state is-empty" role="status"><CheckCircle2 size={15} /> Không có hồ sơ trong nhóm này.</div>
-      ) : (
-        <div className="record-table-wrap accounting-work-inbox__table-wrap">
-          <table className="record-table ops-table accounting-work-inbox__table">
-            <thead><tr>
-              <SortHeader label="Hồ sơ" sortKey="title" sort={sort} onSortChange={handleSortChange} />
-              <SortHeader label="Điều kiện tài chính" sortKey="readiness" sort={sort} onSortChange={handleSortChange} />
-              <SortHeader label="Trở ngại / ngoại lệ" sortKey="blockers" sort={sort} onSortChange={handleSortChange} />
-              <SortHeader label="Cập nhật" sortKey="freshness" sort={sort} onSortChange={handleSortChange} />
-              <th scope="col"><span className="sr-only">Hành động</span></th>
-            </tr></thead>
-            <tbody>{data.items.map((item) => (
-              <tr key={item.id}>
-                <td data-label="Hồ sơ"><strong>{item.title}</strong><small>{item.subtitle}</small></td>
-                <td data-label="Điều kiện"><ReadinessFacts item={item} /></td>
-                <td data-label="Ngoại lệ">
-                  {item.blockers.length > 0 && <ul className="accounting-work-inbox__issues">{item.blockers.map((blocker) => <li key={blocker.code}><Link to={blockerRoute(item, blocker.code)}>{blocker.label}</Link><small>Chủ trì: {blocker.ownerLabel}</small></li>)}</ul>}
-                  {item.advisories.length > 0 && <ul className="accounting-work-inbox__advisories">{item.advisories.map((advisory) => <li key={advisory.code}>{advisory.label}<small>Ngoại lệ tham khảo — không chặn tài chính</small></li>)}</ul>}
-                  {item.blockers.length === 0 && item.advisories.length === 0 && <span className="accounting-work-inbox__clear">Đủ điều kiện</span>}
-                </td>
-                <td data-label="Cập nhật"><time dateTime={item.freshnessAt}>{formatTime(item.freshnessAt)}</time></td>
-                <td data-label="" className="record-table__action"><Link className="accounting-work-inbox__action" to={item.nextAction?.targetRoute ?? item.targetRoute}>{item.nextAction?.label ?? 'Mở hồ sơ'}</Link></td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
+      <WorkLane
+        title="Phải trả"
+        summary={traReport.isError
+          ? 'Chưa tải được số liệu.'
+          : traReport.data
+            ? `Tổng còn phải trả: ${formatCurrency(traReport.data.grand.conLai)}`
+            : 'Đang tải số liệu…'}
+        loading={traReport.isLoading}
+        error={traReport.isError}
+        count={traRows.length}
+        onRefresh={() => void traReport.refetch()}
+        columns={['Đối tượng', 'Số lô', 'Còn phải trả', 'Hành động']}
+      >
+        {traRows.map((row) => (
+          <tr key={`tra-${row.partyId ?? row.party}`}>
+            <td data-label="Đối tượng"><strong>{row.partyShortName ?? row.party}</strong></td>
+            <td data-label="Số lô">{row.soLuong}</td>
+            <td data-label="Còn phải trả" className="num"><strong>{formatCurrency(row.conLai)}</strong></td>
+            <td data-label="" className="record-table__action">
+              <RowVoucherButtons
+                thuParty={row.party}
+                traParty={row.party}
+                onOpen={(kind, party) => setDrawer({ kind, party })}
+              />
+            </td>
+          </tr>
+        ))}
+      </WorkLane>
+
+      <WorkLane
+        title="Đối chiếu"
+        summary={thuLots.isError || traLots.isError
+          ? 'Chưa tải được số liệu.'
+          : thuLots.isLoading || traLots.isLoading
+            ? 'Đang tải số liệu…'
+            : `${doiChieuRows.length} lô mở cả hai chiều — còn phải thu lẫn còn phải trả`}
+        loading={thuLots.isLoading || traLots.isLoading}
+        error={thuLots.isError || traLots.isError}
+        count={doiChieuRows.length}
+        onRefresh={() => { void thuLots.refetch(); void traLots.refetch(); }}
+        columns={['Số Bill / Booking', 'Khách hàng', 'Nhà xe / NCC', 'Còn phải thu', 'Còn phải trả', 'Hành động']}
+      >
+        {doiChieuRows.map((row) => (
+          <tr key={`dc-${row.thu.shipmentId}`}>
+            <td data-label="Số Bill / Booking">
+              <strong>{billBookingReference(row.thu.billOrBooking) || 'Chưa có số Bill/Booking'}</strong>
+            </td>
+            <td data-label="Khách hàng">{row.thu.party ?? '—'}</td>
+            <td data-label="Nhà xe / NCC">{row.tra.party ?? '—'}</td>
+            <td data-label="Còn phải thu" className="num">{formatCurrency(row.thu.conLai)}</td>
+            <td data-label="Còn phải trả" className="num">{formatCurrency(row.tra.conLai)}</td>
+            <td data-label="" className="record-table__action">
+              <RowVoucherButtons
+                thuParty={row.thu.party ?? ''}
+                traParty={row.tra.party ?? ''}
+                onOpen={(kind, party) => setDrawer({ kind, party })}
+              />
+            </td>
+          </tr>
+        ))}
+      </WorkLane>
+
+      {drawer && (
+        <PhoiPhieuPartyLotsDrawer
+          kind={drawer.kind}
+          party={drawer.party}
+          dateFrom={from}
+          dateTo={to}
+          onClose={() => setDrawer(null)}
+          onIssued={refreshAll}
+        />
       )}
-
-      {data && data.totalPages > 1 && <nav className="accounting-work-inbox__pagination" aria-label={`Phân trang ${title.toLowerCase()}`}><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Trước</button><span>Trang {page} / {data.totalPages}</span><button type="button" disabled={page >= data.totalPages} onClick={() => setPage((value) => value + 1)}>Sau</button></nav>}
     </section>
   );
 }
 
-export function AccountingWorkInbox() {
+function RowVoucherButtons({ thuParty, traParty, onOpen }: {
+  thuParty: string;
+  traParty: string;
+  onOpen: (kind: 'THU' | 'TRA', party: string) => void;
+}) {
   return (
-    <section className="accounting-work-inbox" aria-label="Hàng đợi sẵn sàng tài chính">
-      <p className="accounting-work-inbox__batch-note">Tạo hàng loạt chỉ thực hiện trong Đối chiếu vận tải sau khi máy chủ xác nhận các dòng sẵn sàng và cùng một khách hàng.</p>
-      <InboxLane view="ACTION" title="Sẵn sàng xử lý" description="Chi phí và quyết toán đã hoàn tất — sẵn sàng đối soát." />
-      <InboxLane view="WAITING" title="Đang bị chặn" description="Mở đúng nghiệp vụ đang giữ hồ sơ để hoàn thiện điều kiện." />
+    <>
+      <button
+        type="button"
+        className="btn btn--secondary btn--sm"
+        onClick={() => onOpen('THU', thuParty)}
+      >
+        Tạo phiếu thanh toán
+      </button>{' '}
+      <button
+        type="button"
+        className="btn btn--ghost btn--sm"
+        onClick={() => onOpen('TRA', traParty)}
+      >
+        Tạo phiếu chi
+      </button>
+    </>
+  );
+}
+
+function WorkLane({ title, summary, loading, error, count, onRefresh, columns, children }: {
+  title: string;
+  summary: string;
+  loading: boolean;
+  error: boolean;
+  count: number;
+  onRefresh: () => void;
+  columns: string[];
+  children: ReactNode;
+}) {
+  return (
+    <section className="accounting-work-inbox__lane" aria-label={title}>
+      <header>
+        <div>
+          <h2>{title}</h2>
+          <p>{summary}</p>
+        </div>
+        <button type="button" onClick={onRefresh} aria-label={`Tải lại ${title}`}>
+          <RotateCw size={14} aria-hidden="true" />
+        </button>
+      </header>
+      {loading ? (
+        <p className="accounting-work-inbox__state">Đang tải {title.toLowerCase()}…</p>
+      ) : error ? (
+        <p className="accounting-work-inbox__state is-error" role="alert">Không thể tải {title.toLowerCase()}.</p>
+      ) : count === 0 ? (
+        <p className="accounting-work-inbox__state is-empty">Chưa có khoản nào.</p>
+      ) : (
+        <div className="record-table-wrap accounting-work-inbox__table-wrap">
+          <table className="record-table ops-table accounting-work-inbox__table">
+            <thead>
+              <tr>
+                {columns.map((column) => (
+                  <th key={column} scope="col">{column}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {children}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

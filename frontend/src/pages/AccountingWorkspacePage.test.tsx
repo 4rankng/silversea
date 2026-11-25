@@ -23,45 +23,42 @@ function renderPage(initialEntry = '/') {
 }
 
 describe('AccountingWorkspacePage', () => {
-  let failReadyInbox = false;
-  let emptyInbox = false;
+  let failThuReport = false;
+  let emptyWorkCards = false;
 
   beforeEach(() => {
-    failReadyInbox = false;
-    emptyInbox = false;
+    failThuReport = false;
+    emptyWorkCards = false;
     getMock.mockReset();
     getMock.mockImplementation((path: string) => {
-      if (path.startsWith('/financial/work-inbox')) {
-        const view = new URLSearchParams(path.split('?')[1]).get('view');
-        if (view === 'ACTION' && failReadyInbox) return Promise.reject(new Error('ready inbox unavailable'));
-        const items = emptyInbox ? [] : view === 'ACTION' ? [{
-          id: 'financial:9', entityType: 'trip', entityId: 9,
-          title: 'C-009', subtitle: 'S-008 · Silver Sea', state: 'ACTION', priority: 10,
-          dueAt: null, freshnessAt: '2026-08-22T02:00:00.000Z', blockers: [],
-          advisories: [{ code: 'CUSTOMER_DISPUTE', label: 'Khách hàng báo sai lệch', ownerRole: 'CUSTOMER', ownerLabel: 'Khách hàng' }],
-          nextAction: { label: 'Mở đối chiếu', targetRoute: '/accounting?view=transport&search=C-009' },
-          targetRoute: '/accounting?view=transport&search=C-009', tripId: 9,
-          acceptedPod: true, expenseApprovalPending: false, settlementComplete: true,
-          profitabilitySnapshotReady: true,
-        }] : [{
-          id: 'financial:10', entityType: 'trip', entityId: 10,
-          title: 'C-010', subtitle: 'S-010 · Khách hàng B', state: 'WAITING', priority: 20,
-          dueAt: null, freshnessAt: '2026-08-22T01:00:00.000Z',
-          // SIL-726: e-POD + ảnh chụp lợi nhuận không còn là blocker từ backend.
-          blockers: [
-            { code: 'EXPENSE_APPROVAL', label: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ', ownerRole: 'ACCOUNTANT', ownerLabel: 'Kế toán' },
-            { code: 'SETTLEMENT', label: 'Quyết toán chưa hoàn tất', ownerRole: 'OPS', ownerLabel: 'Nhân viên vận hành' },
-          ],
-          advisories: [{ code: 'CUSTOMER_NO_RESPONSE', label: 'Khách hàng chưa phản hồi giao hàng', ownerRole: 'CUSTOMER', ownerLabel: 'Khách hàng' }],
-          nextAction: { label: 'Xử lý hồ sơ', targetRoute: '/accounting?view=transport&search=C-010' },
-          targetRoute: '/accounting?view=transport&search=C-010', tripId: 10,
-          acceptedPod: false, expenseApprovalPending: true, settlementComplete: false,
-          profitabilitySnapshotReady: false,
-        }];
+      if (path.startsWith('/expense-accounting/phoi-phieu/report/party-lots')) {
+        const kind = new URLSearchParams(path.split('?')[1] ?? '').get('kind');
+        if (emptyWorkCards) return Promise.resolve({ items: [] });
         return Promise.resolve({
-          asOf: '2026-08-22T02:01:00.000Z', timezone: 'Asia/Ho_Chi_Minh',
-          counts: { action: view === 'ACTION' ? items.length : 0, waiting: view === 'WAITING' ? items.length : 0, done: 0 },
-          page: 1, limit: 100, total: items.length, totalPages: items.length ? 1 : 0, items,
+          items: [{
+            tripId: 9, shipmentId: 8, billOrBooking: 'YMJAI226573788',
+            containerNumber: 'TGHU1234567', departureDate: '2026-08-01',
+            tienNang: 0, tienHa: 500000, psKhac: 0, total: 500000,
+            daThuTra: 0, conLai: 500000,
+            party: kind === 'THU' ? 'LONG MINH' : 'NHA XE MINH PHAT',
+            entries: [],
+          }],
+        });
+      }
+      if (path.startsWith('/expense-accounting/phoi-phieu/report')) {
+        const kind = new URLSearchParams(path.split('?')[1] ?? '').get('kind');
+        if (kind === 'THU' && failThuReport) return Promise.reject(new Error('report unavailable'));
+        const row = {
+          party: kind === 'THU' ? 'LONG MINH' : 'NHA XE MINH PHAT',
+          partyShortName: null, partyId: kind === 'THU' ? 5 : 7,
+          partyKind: kind === 'THU' ? 'customer' : 'carrier',
+          tienNang: 0, tienHa: 500000, psKhac: 0, tongPhaiThuTra: 500000,
+          daThuTra: 0, conLai: emptyWorkCards ? 0 : 500000,
+          ghiChu: null, soLuong: 1, phaiThu: 0, phaiTra: 0,
+        };
+        return Promise.resolve({
+          rows: emptyWorkCards ? [] : [row],
+          grand: { ...row, party: 'TỔNG', conLai: emptyWorkCards ? 0 : 500000 },
         });
       }
       if (path.startsWith('/reports/receivables-summary')) {
@@ -123,40 +120,31 @@ describe('AccountingWorkspacePage', () => {
     });
   });
 
-  it('uses work as the default view and keeps customer exceptions advisory', async () => {
+  it('uses work as the default view and renders the three work cards (K6.42)', async () => {
     renderPage();
 
     expect(screen.getByRole('heading', { name: 'Công việc kế toán' })).toBeTruthy();
-    expect(await screen.findByText('C-009')).toBeTruthy();
-    expect(screen.getByText('Khách hàng báo sai lệch')).toBeTruthy();
-    expect(screen.getAllByText('Ngoại lệ tham khảo — không chặn tài chính').length).toBe(2);
-    expect(screen.getByRole('link', { name: 'Mở đối chiếu' }).getAttribute('href'))
-      .toBe('/accounting?view=transport&search=C-009');
-
-    expect(screen.getByRole('link', { name: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ' }).getAttribute('href'))
-      .toBe('/trips/10');
-    expect(screen.getByRole('link', { name: 'Quyết toán chưa hoàn tất' }).getAttribute('href'))
-      .toBe('/advances?view=settlements&tripId=10');
-    // SIL-726: không còn blocker e-POD/ảnh lợi nhuận trên lane kế toán.
-    expect(screen.queryByText('Thiếu POD đã chấp nhận')).toBeNull();
-    expect(screen.queryByText('Thiếu ảnh chụp lợi nhuận')).toBeNull();
-    expect(screen.getByText(/Tạo hàng loạt chỉ thực hiện trong Đối chiếu vận tải/)).toBeTruthy();
+    for (const title of ['Phải thu', 'Phải trả', 'Đối chiếu']) {
+      expect(await screen.findByRole('region', { name: title }), title).toBeTruthy();
+    }
+    expect((await screen.findAllByText('LONG MINH')).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Tạo phiếu thanh toán' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Tạo phiếu chi' }).length).toBeGreaterThan(0);
   });
 
-  it('shows independent empty states for ready and blocked work', async () => {
-    emptyInbox = true;
+  it('shows the compact empty line per card when the window has nothing open', async () => {
+    emptyWorkCards = true;
     renderPage();
 
-    await waitFor(() => expect(screen.getAllByText('Không có hồ sơ trong nhóm này.').length).toBe(2));
+    await waitFor(() => expect(screen.getAllByText('Chưa có khoản nào.').length).toBe(3));
   });
 
-  it('keeps the blocked lane usable when the ready lane fails', async () => {
-    failReadyInbox = true;
+  it('keeps the other cards usable when one report fails', async () => {
+    failThuReport = true;
     renderPage();
 
-    expect((await screen.findByRole('alert')).textContent).toContain('Không thể tải nhóm này');
-    expect(await screen.findByText('C-010')).toBeTruthy();
-    expect(screen.getByRole('link', { name: 'Khoản chi cần hoàn thiện dữ liệu hoặc chứng từ' })).toBeTruthy();
+    expect((await screen.findByRole('alert')).textContent).toContain('Không thể tải phải thu');
+    expect((await screen.findAllByText('NHA XE MINH PHAT')).length).toBeGreaterThan(0);
   });
 
   it('retains the existing overview as a secondary workspace', async () => {

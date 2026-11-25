@@ -1,147 +1,174 @@
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AccountingWorkInbox } from './AccountingWorkInbox';
+import { getPhoiPhieuPartyLots, getPhoiPhieuReport } from '../../api/phoiPhieuClient';
+import type { PhoiPhieuPartyLot, PhoiPhieuReportRow } from '../../api/phoiPhieuClient';
 
-const getWorkInboxMock = vi.hoisted(() => vi.fn());
+/** K6.42 — 'Công việc kế toán' là ba thẻ Phải thu / Phải trả / Đối chiếu; mỗi
+ *  dòng mang [Tạo phiếu thanh toán] (thu tiền khách) và [Tạo phiếu chi] (chi
+ *  trả nhà cung cấp), mở ngăn lập phiếu của đúng đối tượng. */
 
-vi.mock('../../api/financialClient', () => ({
-  financialClient: {
-    getWorkInbox: getWorkInboxMock,
-  },
+vi.mock('../../api/phoiPhieuClient', () => ({
+  getPhoiPhieuReport: vi.fn(),
+  getPhoiPhieuPartyLots: vi.fn(),
 }));
 
-import { AccountingWorkInbox } from './AccountingWorkInbox';
+vi.mock('../../pages/accounting/PhoiPhieuPartyLotsDrawer', () => ({
+  PhoiPhieuPartyLotsDrawer: (props: { kind: string; party: string | null }) => (
+    <div data-testid="drawer-mock">{`${props.kind}:${props.party ?? 'batch'}`}</div>
+  ),
+}));
 
-function inboxItem(id: string, title: string) {
-  return {
-    id,
-    entityType: 'trip',
-    entityId: Number(id.replace(/\D/g, '')) || 1,
-    title,
-    subtitle: 'Sẵn sàng đối soát',
-    state: 'ACTION',
-    priority: 90,
-    dueAt: null,
-    freshnessAt: '2026-08-22T08:00:00.000Z',
-    blockers: [],
-    advisories: [],
-    nextAction: { label: 'Mở hồ sơ vận tải', targetRoute: '/accounting' },
-    targetRoute: '/accounting',
-    tripId: 1,
-    acceptedPod: true,
-    expenseApprovalPending: false,
-    settlementComplete: true,
-    profitabilitySnapshotReady: true,
-  };
+const thuReportRow: PhoiPhieuReportRow = {
+  party: 'LONG MINH',
+  partyShortName: 'LONG MINH',
+  partyId: 1,
+  partyKind: 'customer',
+  tienNang: 0,
+  tienHa: 500000,
+  psKhac: 0,
+  tongPhaiThuTra: 500000,
+  daThuTra: 0,
+  conLai: 500000,
+  ghiChu: null,
+  soLuong: 2,
+  phaiThu: 500000,
+  phaiTra: 0,
+};
+
+const traReportRow: PhoiPhieuReportRow = {
+  ...thuReportRow,
+  party: 'NHA XE MINH PHAT',
+  partyShortName: 'MINH PHAT',
+  partyId: 7,
+  partyKind: 'carrier',
+  tongPhaiThuTra: 300000,
+  conLai: 300000,
+  soLuong: 1,
+  phaiThu: 0,
+  phaiTra: 300000,
+};
+
+const thuLot: PhoiPhieuPartyLot = {
+  tripId: 1,
+  shipmentId: 8,
+  billOrBooking: 'YMJAI226573788',
+  containerNumber: 'TGHU1234567',
+  departureDate: '2026-11-20',
+  tienNang: 0,
+  tienHa: 500000,
+  psKhac: 0,
+  total: 500000,
+  daThuTra: 0,
+  conLai: 500000,
+  party: 'LONG MINH',
+  entries: [{ sourceId: 3, expectedVersion: 1, amount: 500000, bucket: 'ha' }],
+};
+
+const traLot: PhoiPhieuPartyLot = {
+  ...thuLot,
+  tienNang: 0,
+  tienHa: 300000,
+  total: 300000,
+  conLai: 300000,
+  party: 'NHA XE MINH PHAT',
+  entries: [{ sourceId: 4, expectedVersion: 1, amount: 300000, bucket: 'ha' }],
+};
+
+const grandRow: PhoiPhieuReportRow = {
+  ...thuReportRow,
+  party: 'TỔNG',
+  partyShortName: null,
+  partyId: null,
+  partyKind: null,
+  soLuong: 0,
+  tongPhaiThuTra: 0,
+  conLai: 0,
+  phaiThu: 0,
+  phaiTra: 0,
+};
+
+function mockData(opts: {
+  thuRows?: PhoiPhieuReportRow[];
+  traRows?: PhoiPhieuReportRow[];
+  thuLots?: PhoiPhieuPartyLot[];
+  traLots?: PhoiPhieuPartyLot[];
+} = {}) {
+  vi.mocked(getPhoiPhieuReport).mockImplementation((kind) => Promise.resolve({
+    rows: (kind === 'THU' ? opts.thuRows : opts.traRows) ?? [],
+    grand: grandRow,
+  }));
+  vi.mocked(getPhoiPhieuPartyLots).mockImplementation((kind) => Promise.resolve({
+    items: (kind === 'THU' ? opts.thuLots : opts.traLots) ?? [],
+  }));
 }
 
-function envelope(view: string) {
-  return {
-    asOf: new Date().toISOString(),
-    timezone: 'Asia/Ho_Chi_Minh',
-    counts: { action: 150, waiting: 0, done: 0 },
-    page: 1,
-    limit: 100,
-    total: 150,
-    totalPages: 2,
-    items: view === 'ACTION'
-      ? [inboxItem('trip:1', 'TRP-0001'), inboxItem('trip:2', 'TRP-0002')]
-      : [],
-  };
-}
-
-function lastActionCall(): { page: number; sort?: { sortBy?: string; sortDir?: string } } {
-  const actionCalls = getWorkInboxMock.mock.calls.filter((call) => call[0] === 'ACTION');
-  const last = actionCalls[actionCalls.length - 1];
-  return { page: last?.[1] as number, sort: last?.[2] as { sortBy?: string; sortDir?: string } | undefined };
-}
-
-function renderInbox() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderCards() {
   return render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <AccountingWorkInbox />
-      </MemoryRouter>
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <AccountingWorkInbox from="2026-11-01" to="2026-11-26" />
     </QueryClientProvider>,
   );
 }
 
 beforeEach(() => {
-  getWorkInboxMock.mockReset().mockImplementation((_view: string, _page: number) => Promise.resolve(envelope(_view)));
+  vi.clearAllMocks();
 });
 
-/**
- * Card 061026043646 — the WAITING lane ("Đang bị chặn") loading announcement
- * extracted as "Đang tảiđang bị chặn…": the message was built from separate
- * JSX text children ("Đang tải ", label, "…") and node-boundary extraction
- * (accessibility snapshots, QA probes) trims each text node and joins with no
- * separator, eating the boundary space. Same law as OpsQueryFeedback
- * (card 051026230609): the message must be ONE text node.
- */
-
-/** Mimics name-from-contents extraction: per TEXT-NODE trim, join with no
- *  separator — the path that produced the glued announcement in the report. */
-function extractedText(el: Element): string {
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-  const parts: string[] = [];
-  while (walker.nextNode()) parts.push((walker.currentNode.textContent ?? '').trim());
-  return parts.join('');
-}
-
-describe('AccountingWorkInbox loading announcement (card 061026043646)', () => {
-  it('keeps the space between "Đang tải" and the "Đang bị chặn" lane label under node-boundary extraction', () => {
-    getWorkInboxMock.mockImplementation((view: string) =>
-      view === 'WAITING' ? new Promise(() => {}) : Promise.resolve(envelope(view)));
-    renderInbox();
-    const lane = document.querySelector('.accounting-work-inbox__lane.is-waiting');
-    expect(lane).toBeTruthy();
-    const status = lane!.querySelector('[role="status"]');
-    expect(status).toBeTruthy();
-    expect(extractedText(status!)).toBe('Đang tải đang bị chặn…');
-  });
-});
-
-describe('AccountingWorkInbox server-side column sort', () => {
-  it('QA-101: an empty lane renders as a compact status row, not a tall empty panel', async () => {
-    renderInbox();
-    const emptyStates = await screen.findAllByText('Không có hồ sơ trong nhóm này.');
-    expect(emptyStates.length).toBeGreaterThanOrEqual(1);
-    for (const state of emptyStates) {
-      expect(state.className).toContain('is-empty');
+describe('K6.42 — ba thẻ Công việc kế toán', () => {
+  it('renders the three cards Phải thu / Phải trả / Đối chiếu', async () => {
+    mockData();
+    renderCards();
+    for (const title of ['Phải thu', 'Phải trả', 'Đối chiếu']) {
+      expect(await screen.findByRole('region', { name: title }), title).toBeInTheDocument();
     }
-    // Count + refresh control stay visible in the lane header.
-    expect(screen.getByText('Sẵn sàng xử lý')).toBeTruthy();
-  });
-  it('loads lanes without sort params by default', async () => {
-    renderInbox();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Hồ sơ' })).toBeTruthy());
-    expect(lastActionCall().page).toBe(1);
-    expect(lastActionCall().sort?.sortBy).toBeUndefined();
-    expect(lastActionCall().sort?.sortDir).toBeUndefined();
+    expect(screen.getByText(/Tổng còn phải thu:/)).toBeInTheDocument();
+    expect(screen.getByText(/Tổng còn phải trả:/)).toBeInTheDocument();
+    expect(screen.getByText(/lô mở cả hai chiều/)).toBeInTheDocument();
   });
 
-  it('sends sortBy/sortDir on header click, flips asc → desc, and resets to page 1', async () => {
-    renderInbox();
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cập nhật' })).toBeTruthy());
+  it('every Phải thu row carries both voucher buttons and they open the party drawer', async () => {
+    mockData({ thuRows: [thuReportRow] });
+    renderCards();
+    const lane = await screen.findByRole('region', { name: 'Phải thu' });
+    expect(await within(lane).findByText('LONG MINH')).toBeInTheDocument();
+    fireEvent.click(within(lane).getByRole('button', { name: 'Tạo phiếu thanh toán' }));
+    expect(screen.getByTestId('drawer-mock')).toHaveTextContent('THU:LONG MINH');
+    fireEvent.click(within(lane).getByRole('button', { name: 'Tạo phiếu chi' }));
+    expect(screen.getByTestId('drawer-mock')).toHaveTextContent('TRA:LONG MINH');
+  });
 
-    // Go to page 2 first so the reset is observable. The lane swaps to its
-    // loading state while refetching (no placeholder data), so each step waits
-    // for the headers to come back before clicking again.
-    fireEvent.click(screen.getAllByText('Sau')[0]);
-    await waitFor(() => expect(lastActionCall().page).toBe(2));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cập nhật' })).toBeTruthy());
+  it('every Phải trả row carries both voucher buttons too', async () => {
+    mockData({ traRows: [traReportRow] });
+    renderCards();
+    const lane = await screen.findByRole('region', { name: 'Phải trả' });
+    expect(await within(lane).findByText('MINH PHAT')).toBeInTheDocument();
+    fireEvent.click(within(lane).getByRole('button', { name: 'Tạo phiếu thanh toán' }));
+    expect(screen.getByTestId('drawer-mock')).toHaveTextContent('THU:NHA XE MINH PHAT');
+    fireEvent.click(within(lane).getByRole('button', { name: 'Tạo phiếu chi' }));
+    expect(screen.getByTestId('drawer-mock')).toHaveTextContent('TRA:NHA XE MINH PHAT');
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
-    await waitFor(() => expect(lastActionCall()).toMatchObject({ page: 1, sort: { sortBy: 'freshness', sortDir: 'asc' } }));
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Cập nhật' }).getAttribute('aria-sort')).toBe('ascending'));
+  it('Đối chiếu lists the lots open on both sides with per-side voucher buttons', async () => {
+    mockData({ thuLots: [thuLot], traLots: [traLot] });
+    renderCards();
+    const lane = await screen.findByRole('region', { name: 'Đối chiếu' });
+    expect(await within(lane).findByText('YMJAI226573788')).toBeInTheDocument();
+    expect(within(lane).getByText('LONG MINH')).toBeInTheDocument();
+    expect(within(lane).getByText('NHA XE MINH PHAT')).toBeInTheDocument();
+    // The receivable button opens the CUSTOMER drawer, the payable one the
+    // carrier's — each side of the same lot.
+    fireEvent.click(within(lane).getByRole('button', { name: 'Tạo phiếu thanh toán' }));
+    expect(screen.getByTestId('drawer-mock')).toHaveTextContent('THU:LONG MINH');
+    fireEvent.click(within(lane).getByRole('button', { name: 'Tạo phiếu chi' }));
+    expect(screen.getByTestId('drawer-mock')).toHaveTextContent('TRA:NHA XE MINH PHAT');
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
-    await waitFor(() => expect(lastActionCall()).toMatchObject({ page: 1, sort: { sortBy: 'freshness', sortDir: 'desc' } }));
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Cập nhật' }).getAttribute('aria-sort')).toBe('descending'));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Hồ sơ' }));
-    await waitFor(() => expect(lastActionCall()).toMatchObject({ page: 1, sort: { sortBy: 'title', sortDir: 'asc' } }));
+  it('an empty window renders the compact empty line per card, never fabricated zeros', async () => {
+    mockData();
+    renderCards();
+    expect((await screen.findAllByText('Chưa có khoản nào.')).length).toBe(3);
+    expect(screen.queryByRole('button', { name: 'Tạo phiếu thanh toán' })).toBeNull();
   });
 });
