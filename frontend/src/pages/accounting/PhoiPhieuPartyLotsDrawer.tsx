@@ -201,13 +201,49 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
       {sharedLots.length > 0 && (
         <div className="ppc-lots-shared" role="note">
           <p className="ppc-lots-shared__title">Phí chung lô (chưa gắn chuyến) — đối chiếu, chưa lập phiếu được:</p>
-          {sharedLots.map((lot) => (
-            <p key={`s-${lot.shipmentId}`}>
-              {billBookingReference(lot.billOrBooking) || 'Chưa có số Bill/Booking'}
-              {' · '}<strong>{formatMoney(lot.total)}</strong>
-              {' · '}còn lại {formatMoney(lot.conLai)}
-            </p>
-          ))}
+          {/* SIL-1027 (K6.6) — the shared fees read as the SAME money table as
+              the trip lots above (bill, fee split, phải thu/trả, còn lại, Ghi
+              chú as columns), never a bare 'bill · total · còn lại' list —
+              reconciliation compares columns. Display only: the non-toggle
+              selection behavior keeps the vendored select column and its
+              checkboxes out entirely, so these rows can never join the batch
+              phiếu. Column classes are the trip ladder's, untouched. */}
+          <Table
+            aria-label="Phí chung lô chưa gắn chuyến"
+            selectionMode="none"
+            selectionBehavior="replace"
+          >
+            <Table.Header>
+              <Table.Head isRowHeader className="ppc-lots-col--stt">STT</Table.Head>
+              {batch && <Table.Head id="party" className="ppc-lots-col--party">Đối tác</Table.Head>}
+              <Table.Head id="bill" className="ppc-lots-col--bill">Số Bill / Booking</Table.Head>
+              <Table.Head id="container" className="ppc-lots-col--container">Container</Table.Head>
+              <Table.Head id="nang" className="ppc-lots-col--nang">Tiền nâng</Table.Head>
+              <Table.Head id="ha" className="ppc-lots-col--ha">Tiền hạ</Table.Head>
+              <Table.Head id="khac" className="ppc-lots-col--khac">PS khác</Table.Head>
+              <Table.Head id="total" className="ppc-lots-col--total">{kind === 'THU' ? 'Phải thu' : 'Phải trả'}</Table.Head>
+              <Table.Head id="paid" className="ppc-lots-col--paid">{kind === 'THU' ? 'Đã thu' : 'Đã trả'}</Table.Head>
+              <Table.Head id="remain" className="ppc-lots-col--remain">Còn lại</Table.Head>
+              <Table.Head id="ghichu" className="ppc-lots-col--ghichu">Ghi chú</Table.Head>
+            </Table.Header>
+            <Table.Body items={sharedLots}>
+              {(lot) => (
+                <Table.Row id={`s-${lot.shipmentId}`}>
+                  <Table.Cell><span className="ppc-lots-ordinal">{lots.indexOf(lot) + 1}</span></Table.Cell>
+                  {batch && <Table.Cell className="ppc-lots-party">{lot.party ?? '—'}</Table.Cell>}
+                  <Table.Cell>{billBookingReference(lot.billOrBooking)}</Table.Cell>
+                  <Table.Cell>{lot.containerNumber ?? '—'}</Table.Cell>
+                  <Table.Cell>{formatMoney(lot.tienNang)}</Table.Cell>
+                  <Table.Cell>{formatMoney(lot.tienHa)}</Table.Cell>
+                  <Table.Cell>{formatMoney(lot.psKhac)}</Table.Cell>
+                  <Table.Cell><strong>{formatMoney(lot.total)}</strong></Table.Cell>
+                  <Table.Cell>{formatMoney(lot.daThuTra)}</Table.Cell>
+                  <Table.Cell>{formatMoney(lot.conLai)}</Table.Cell>
+                  <Table.Cell className="ppc-lots-note">{lot.ghiChu ?? '—'}</Table.Cell>
+                </Table.Row>
+              )}
+            </Table.Body>
+          </Table>
         </div>
       )}
       <p className="ppc-lots-hint">Tổng lập phiếu cộng từng khoản còn mở của các lô đã chọn — đúng số phiếu sẽ ghi vào quỹ.</p>
