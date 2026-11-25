@@ -217,6 +217,16 @@
     min-width: 0;
   }
 
+  /* SIL-990 — a card fact is ONE line: LABEL rides the value. The whole run
+     must start at the cell's left edge, so the `.num` right-alignment (a
+     DESKTOP table law — there the figures stack under their own header)
+     is dropped in the card band: it pushed the label into the middle of
+     the card (the identity line sat flush left while "SỐ TIỀN ĐÃ ỨNG"
+     floated mid-card). One left edge for every fact line. */
+  .record-table tbody td.num {
+    text-align: left;
+  }
+
   .record-table__reference {
     min-inline-size: 0;
     max-inline-size: 100%;

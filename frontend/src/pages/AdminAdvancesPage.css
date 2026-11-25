@@ -19,9 +19,15 @@
 /* page-header / page-title / page-subtitle sizes come from global UI.css */
 
 /* ── KPI row grid ──────────────────────────────────────────────────────── */
+/* SIL-990 — the strip holds THREE cards (Đã ghi nhận · Đã hủy · Tồn tạm
+   ứng). A fixed 4-column grid left the 4th cell EMPTY: at the 768px
+   tablet band the rule was 2 columns, so the void showed as a ~370×80px
+   gray hole under the third card; ≥1280px it was a dead quarter of the
+   ruled band. `auto-fit` collapses the unused tracks, so the cards always
+   FILL the row — one empty cell is impossible at any width. */
 .adv-page .adv-kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
 }
@@ -393,9 +399,10 @@
 
 /* ── Responsive: compact tablets and phones ───────────────────────────── */
 @media (max-width: 1279px) {
-  /* KPI row collapses to a balanced 2 × 2 grid. */
+  /* KPI row keeps the three cards on one filled row (SIL-990 — the old
+     `repeat(2, 1fr)` left the 4th cell empty at the 768px tablet band). */
   .adv-page .adv-kpi-row {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 8px;
     margin-bottom: 12px;
   }

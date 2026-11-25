@@ -91,6 +91,31 @@ describe('CR-010.1 BUG-04(3) — the icon-rail tooltip stays quiet on a labeled 
   });
 });
 
+// SIL-990 — the Pin control belongs to the desktop rail. In the drawer band
+// it was rendered as an unstyled box carrying BOTH glyphs (pin + un-pin),
+// which the 768px audit measured as a 16×32px stack of two icons; and a
+// pinned drawer re-opened over the page with the dark overlay on every load.
+describe('SIL-990 — the Pin control is a desktop-rail affordance', () => {
+  it('renders no pin control at all in the drawer band', () => {
+    renderSidebar({ isMobileViewport: true, sidebarOpen: true, sidebarPinned: true, onPin: vi.fn() });
+
+    expect(screen.queryByRole('button', { name: /ghim/i })).toBeNull();
+    expect(document.querySelector('.sidebar-pin')).toBeNull();
+  });
+
+  it('renders ONE glyph on the desktop rail, swapped by the pinned state', () => {
+    const { rerender, props } = renderSidebar({ sidebarPinned: false, onPin: vi.fn() });
+
+    const unpinned = screen.getByRole('button', { name: 'Ghim mở menu' });
+    expect(unpinned.querySelectorAll('svg')).toHaveLength(1);
+    expect(unpinned.querySelector('.sidebar-pin__off')).toBeNull();
+
+    rerender(<Sidebar {...props} sidebarPinned />);
+    const pinned = screen.getByRole('button', { name: 'Bỏ ghim menu' });
+    expect(pinned.querySelectorAll('svg')).toHaveLength(1);
+  });
+});
+
 describe('SIL-899 — a rail tooltip cannot outlive the collapsed rail', () => {
   it('retires a stale tooltip when the pane expands without a mouseleave', () => {
     const { rerender, props } = renderSidebar({ sidebarOpen: false });

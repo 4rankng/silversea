@@ -130,21 +130,21 @@
     outline-offset: 1px;
   }
 
-  .sidebar-pin__off {
-    display: none;
-  }
-
-  .sidebar-pin--on .sidebar-pin__icon {
-    display: none;
-  }
-
-  .sidebar-pin--on .sidebar-pin__off {
-    display: block;
-  }
-
   /* On the 48px icon rail the brand row collapses to a centered logo — the
      pin has no room there and its state lives in the ≡ toggle's storage. */
   .app.sidebar-closed:not(.sidebar-hover-open) .sidebar-pin {
+    display: none;
+  }
+}
+
+/* SIL-990 — the Pin control is a DESKTOP-rail affordance (KB §10.8.4: the
+   collapsed 48px rail + a remembered choice). Below 1024px the sidebar is a
+   transient drawer: a pin there would re-open the 248px pane + the dark
+   overlay over the page on every load, at 768px and at 390px alike.
+   Sidebar.tsx does not render the control in that band; this rule keeps it
+   hidden even if it ever is (the pin glyph swaps, it never doubles). */
+@media (max-width: 1023px) {
+  .sidebar-pin {
     display: none;
   }
 }

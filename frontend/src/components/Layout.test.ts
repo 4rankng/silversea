@@ -7,6 +7,7 @@ import {
   getDefaultOpenSection,
   PRIMARY_SECTION_BY_ROLE,
   resolveInitialSidebarOpen,
+  resolveSidebarOpenAtMount,
   COMPACT_DESKTOP_MEDIA_QUERY,
   getPageTitle,
   autoCollapseKeys,
@@ -588,6 +589,28 @@ describe('resolveInitialSidebarOpen / COMPACT_DESKTOP_MEDIA_QUERY', () => {
 
   it('scopes the compact-desktop range to 1024–1439px so mobile (≤1023px) stays untouched', () => {
     expect(COMPACT_DESKTOP_MEDIA_QUERY).toBe('(min-width: 1024px) and (max-width: 1439px)');
+  });
+});
+
+// SIL-990 — the stored open choice is a DESKTOP preference. Reading it into
+// the drawer parked a 248px pane + the dark overlay over the page on every
+// load at 768px and at 390px (audit tablet 25/11, Mục 0.1).
+describe('resolveSidebarOpenAtMount — the drawer band never starts open', () => {
+  it('ignores a stored "pinned open" choice below 1024px', () => {
+    expect(resolveSidebarOpenAtMount('1', true, 768)).toBe(false);
+    expect(resolveSidebarOpenAtMount('1', true, 390)).toBe(false);
+    expect(resolveSidebarOpenAtMount('0', true, 768)).toBe(false);
+  });
+
+  it('honours the stored choice on the desktop rail', () => {
+    expect(resolveSidebarOpenAtMount('1', false, 1440)).toBe(true);
+    expect(resolveSidebarOpenAtMount('0', false, 1440)).toBe(false);
+  });
+
+  it('falls back to the viewport default when no choice was stored', () => {
+    expect(resolveSidebarOpenAtMount(null, false, 1440)).toBe(true);
+    expect(resolveSidebarOpenAtMount(null, false, 1280)).toBe(false);
+    expect(resolveSidebarOpenAtMount(null, true, 1440)).toBe(false);
   });
 });
 

@@ -773,3 +773,44 @@ truncate, superseding SIL-515's wrap-all doctrine FOR THE CARD'S IDENTITY LINES 
 + `MasterPlanGrid.test.tsx` + `table-no-truncation.styles.test.ts` (the base rules stay
 in `MasterPlanGrid.css`; the truncation/badge/spacing overrides live in the new
 `MasterPlanCardList.css`, deliberately the only sheet where the card truncates).
+
+### 2026-11-25 — Tablet 768px: the drawer is transient, the pinned band keeps the scroll area, the KPI strip fills its row (SIL-990)
+
+Three tablet-audit findings (25/11, `/tmp/kb-tablet-768-sil.md` §3 Mục 0.1 /
+7.2 / 8.1) fixed at their primitive:
+
+1. *The drawer band (<1024px) never opens on its own.* The stored open choice
+   (`localStorage['app-sidebar-open']`) is a DESKTOP preference — the Pin on the
+   collapsed rail — so below 1024px the panel is TRANSIENT: the mount resolver
+   (`resolveSidebarOpenAtMount`) ignores the stored choice, the `≡` button does
+   not write one, and crossing the 1024→1023 boundary closes the panel. Before,
+   a stored '1' parked a 248px pane + the dark overlay over the page on EVERY
+   load at 768px and at 390px. The Pin control is a desktop-rail affordance: it
+   is not rendered in the drawer band and draws ONE glyph (Pin / PinOff)
+   instead of both — the audit measured two stacked icons in a 16×32px box
+   because `.sidebar-pin` carried no style outside `@media (min-width: 1024px)`.
+2. *A KPI strip fills its row.* A grid with a fixed column count leaves the
+   unused cell empty (a ~370×80px grey hole under the third card of the
+   'Yêu cầu tạm ứng' strip at 768px). `repeat(auto-fit, minmax(180px, 1fr))`
+   collapses the unused tracks, so the cards fill the row at every width. In the
+   record-table CARD BAND a fact is ONE line (LABEL rides the value), so the
+   `.num` right-alignment — a desktop table law — is dropped there: every fact
+   starts at its cell's left edge, on the same edge as the identity line.
+3. *A pinned column band keeps the scrollable area the majority.* The monthly
+   dispatch report pinned five lead columns = 506px of the 744px scroll
+   viewport (68%), leaving a 238px hole (8 day columns, 3 of the 10 summary
+   columns). Below 1024px the band pins the ROW IDENTITY only — STT · Biển kiểm
+   soát · Lái xe = 320px (43%); the phone band (<768px) drops 'Lái xe' too
+   (160px of 374px). Measured on the same build: the scroll area grows
+   238px → 424px and the readable day columns 7 → 12 at 768px, 0 → 6 at 390px
+   (the ten summary columns keep their own 160px track — SIL-989 — and are
+   reached by scrolling; this band rule is about the DAY grid's window). The
+   desktop chain (0/44/120/236/346) is untouched above 1024px.
+4. *No card inside a card.* A scroll wrapper that IS the query container cannot
+   drop its own frame when its rows collapse into cards, so the frame rode the
+   TABLE (a descendant the container query can restyle) and the card band
+   strips it — the row cards stand on the page background alone. A frame is a
+   BORDER, never a shadow (the house flat-surface contract nulls every
+   box-shadow inside the app).
+*Source:* owner ruling 25/11 on the tablet audit (SIL-990); local drive (Chrome
++ CDP `Emulation.setDeviceMetricsOverride`) at 768×1024 and 390×844.

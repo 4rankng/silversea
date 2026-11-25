@@ -39,20 +39,29 @@
   color: var(--fg-3);
 }
 
+/* SIL-990 — the panel frame rides the TABLE, not the scroll wrapper. The
+   wrapper IS the query container, so it cannot drop its own frame when the
+   rows collapse into cards — the frame stayed and every row card ended up
+   INSIDE a second frame (card in card — KB V32 / doctrine 7). The table is
+   a descendant of the container, so the card band strips the frame there and
+   the row cards stand on the page background alone. */
 .ops-orders__scroll {
   overflow-x: auto;
   min-width: 0;
   max-width: 100%;
   container-type: inline-size;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bg-1);
 }
 
 .ops-orders__table {
   width: 100%;
   min-width: 0;
   table-layout: fixed;
+  /* The frame is a BORDER, not a shadow: the house flat-surface contract
+     (styles/base.css) nulls every box-shadow inside the app. */
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-1);
+  overflow: hidden;
 }
 
 .ops-orders__table th,
@@ -184,6 +193,12 @@
   .ops-orders__table {
     display: block;
     width: 100%;
+    /* SIL-990 — the panel frame is dropped here: the row cards ARE the
+       frames now, so keeping it would nest every card inside a second one. */
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
   }
 
   .ops-orders__table tbody {
@@ -295,6 +310,10 @@
   }
 
   .ops-orders__table .ops-orders__row > .col-actions {
+    /* SIL-990 — the action cell spans the card: in the 2-column fact grid it
+       landed in the LEFT column of a new row, so the button floated in the
+       middle of the card instead of sitting on its right edge. */
+    grid-column: 1 / -1;
     display: flex;
     align-items: flex-end;
     justify-content: flex-end;

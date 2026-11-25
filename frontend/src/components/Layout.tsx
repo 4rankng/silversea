@@ -51,7 +51,7 @@ import { hasOperationalDensity } from '../lib/operational-density';
 import { useDispatchFullwidthSidebar } from '../lib/dispatch-sidebar-policy';
 import { BRAND } from '../brand';
 import { requestAppNavigation } from '../lib/app-navigation';
-import { readSidebarOpenPref, writeSidebarOpenPref, clearSidebarOpenPref } from '../lib/sidebar-prefs';
+import { readSidebarOpenPref, writeSidebarOpenPref, clearSidebarOpenPref, type SidebarOpenPref } from '../lib/sidebar-prefs';
 
 // ─── Navigation config ────────────────────────────────────────────────────
 
@@ -567,8 +567,34 @@ export const WIDE_DESKTOP_MIN_WIDTH = 1440;
 /** Viewports that are desktop-class (≥1024px) but below the wide-desktop threshold. */
 export const COMPACT_DESKTOP_MEDIA_QUERY = `(min-width: 1024px) and (max-width: ${WIDE_DESKTOP_MIN_WIDTH - 1}px)`;
 
+/**
+ * The drawer band — the shell's slide-in sidebar breakpoint. It must match
+ * the CSS breakpoint exactly (styles/responsive.css), so every JS decision
+ * about the drawer reads THIS query instead of repeating the literal:
+ *   - the panel is TRANSIENT there (a transient state, never a stored
+ *     preference, never an auto-opened pane over the page).
+ */
+export const MOBILE_VIEWPORT_MEDIA_QUERY = '(max-width: 1023px)';
+
 export function resolveInitialSidebarOpen(viewportWidth: number): boolean {
   return viewportWidth >= WIDE_DESKTOP_MIN_WIDTH;
+}
+
+/**
+ * SIL-990 — the drawer band (≤1023px) never starts open. The stored choice
+ * is a DESKTOP preference (the pin on the collapsed rail); reading it into
+ * the drawer parked a 248px pane + the dark overlay over the page on every
+ * load at 768px and at 390px. Below the breakpoint the panel is transient:
+ * the hamburger opens it, ✕ / Esc / a route change closes it, and nothing
+ * is remembered.
+ */
+export function resolveSidebarOpenAtMount(
+  pref: SidebarOpenPref | null,
+  isMobileViewport: boolean,
+  viewportWidth: number,
+): boolean {
+  if (isMobileViewport) return false;
+  return pref != null ? pref === '1' : resolveInitialSidebarOpen(viewportWidth);
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -578,10 +604,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const bottomNavRef = useBottomNavAnimations({ ready: !!user && user.role === 'DRIVER' });
   // SIL-892 — the open choice now persists: a stored '1'/'0' beats the
   // viewport default, absent key keeps the old first-run behavior unchanged.
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    const pref = readSidebarOpenPref();
-    return pref != null ? pref === '1' : resolveInitialSidebarOpen(window.innerWidth);
-  });
+  // SIL-990 — below 1024px the drawer is transient (see the resolver).
+  const [sidebarOpen, setSidebarOpen] = useState(() => resolveSidebarOpenAtMount(
+    readSidebarOpenPref(),
+    window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY).matches,
+    window.innerWidth,
+  ));
   const [sidebarPinned, setSidebarPinned] = useState(() => readSidebarOpenPref() === '1');
   // An explicit user choice survives breakpoint crossings; without one the
   // crossing re-derives the width default (first-run behavior unchanged).
@@ -589,9 +617,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const toggleSidebar = useCallback(() => {
     setSidebarOpen(v => {
       const next = !v;
-      sidebarPreferenceRef.current = next;
-      writeSidebarOpenPref(next);
-      if (!next) setSidebarPinned(false);
+      // SIL-990 — the ≡ button is a desktop preference; in the drawer band
+      // the panel is transient, so its state is neither remembered nor
+      // written to the shared storage (a stored '1' re-opened the drawer
+      // with the dark overlay on the next load).
+      if (!window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY).matches) {
+        sidebarPreferenceRef.current = next;
+        writeSidebarOpenPref(next);
+        if (!next) setSidebarPinned(false);
+      }
       return next;
     });
   }, []);
@@ -618,7 +652,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (window.innerWidth >= 1024 && !sidebarOpen) setSidebarHoverOpen(true);
   }, [sidebarOpen]);
   const handleSidebarMouseLeave = useCallback(() => setSidebarHoverOpen(false), []);
-  const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
+  const [isMobileViewport, setIsMobileViewport] = useState(() => window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY).matches);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const accountButtonRef = useRef<HTMLButtonElement>(null);
@@ -643,14 +677,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     if (profileModalOpen || passwordModalOpen || !accountDialogOpenedFromSheetRef.current) return;
     accountDialogOpenedFromSheetRef.current = false;
     const frame = requestAnimationFrame(() => {
-      if (window.matchMedia('(max-width: 1023px)').matches) accountButtonRef.current?.focus();
+      if (window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY).matches) accountButtonRef.current?.focus();
     });
     return () => cancelAnimationFrame(frame);
   }, [profileModalOpen, passwordModalOpen]);
   const toggleUserMenu = useCallback(() => setUserMenuOpen(v => !v), []);
   const closeUserMenu = useCallback(() => {
     setUserMenuOpen(false);
-    if (window.matchMedia('(max-width: 1023px)').matches) {
+    if (window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY).matches) {
       requestAnimationFrame(() => accountButtonRef.current?.focus());
     }
   }, []);
@@ -659,20 +693,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setSidebarHoverOpen(false);
     // SIL-892 — an explicit close (✕ / Esc) is a desktop choice: persist it
     // like the ≡ toggle; mobile keeps its transient drawer behavior.
-    if (!window.matchMedia('(max-width: 1023px)').matches) writeSidebarOpenPref(false);
-    if (window.matchMedia('(max-width: 1023px)').matches) {
+    if (!window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY).matches) writeSidebarOpenPref(false);
+    if (window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY).matches) {
       requestAnimationFrame(() => menuButtonRef.current?.focus());
     }
   }, []);
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 1023px)');
+    const media = window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY);
     const handleViewportChange = (event: MediaQueryListEvent) => {
       setIsMobileViewport(event.matches);
       setUserMenuOpen(false);
       // Entering desktop from mobile may land in the compact-desktop range,
       // where the sidebar must stay collapsed for full-width tables.
-      setSidebarOpen(sidebarPreferenceRef.current ?? resolveInitialSidebarOpen(window.innerWidth));
+      // SIL-990 — entering the drawer band closes the drawer: the stored
+      // desktop preference must not push the pane + the dark overlay over
+      // the page at 768px / 390px.
+      setSidebarOpen(event.matches
+        ? false
+        : (sidebarPreferenceRef.current ?? resolveInitialSidebarOpen(window.innerWidth)));
     };
     media.addEventListener('change', handleViewportChange);
     return () => media.removeEventListener('change', handleViewportChange);
@@ -686,6 +725,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const media = window.matchMedia(COMPACT_DESKTOP_MEDIA_QUERY);
     const handleCompactDesktopChange = () => {
+      // SIL-990 — this listener also fires on the 1024 → 1023 crossing (the
+      // compact band ends where the drawer band starts). The drawer band owns
+      // the sidebar there, so the compact default must not reopen it.
+      if (window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY).matches) return;
       setSidebarOpen(sidebarPreferenceRef.current ?? resolveInitialSidebarOpen(window.innerWidth));
     };
     media.addEventListener('change', handleCompactDesktopChange);

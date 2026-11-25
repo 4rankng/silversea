@@ -239,8 +239,13 @@ export function Sidebar({
           </div>
           {/* SIL-892 — Pin: keep the sidebar open across reloads. While
               pinned the button offers the un-pin (viewport default again);
-              hidden on the icon rail where the header collapses to a logo. */}
-          {onPin != null && (
+              hidden on the icon rail where the header collapses to a logo.
+              SIL-990 — the control belongs to the DESKTOP rail only: below
+              1024px the sidebar is a transient drawer, and pinning it would
+              park a 248px pane + the dark overlay over the page on every
+              load. It also renders ONE glyph (the state swap), so the two
+              pin icons can never stack in the button box. */}
+          {onPin != null && !isMobileViewport && (
             <button
               type="button"
               className={`sidebar-pin${sidebarPinned ? ' sidebar-pin--on' : ''}`}
@@ -249,8 +254,9 @@ export function Sidebar({
               title={sidebarPinned ? 'Bỏ ghim — về mặc định theo màn hình' : 'Ghim mở menu'}
               onClick={onPin}
             >
-              <Pin size={16} className="sidebar-pin__icon" />
-              <PinOff size={16} className="sidebar-pin__off" />
+              {sidebarPinned
+                ? <PinOff size={16} className="sidebar-pin__icon" />
+                : <Pin size={16} className="sidebar-pin__icon" />}
             </button>
           )}
           <button

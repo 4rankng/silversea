@@ -58,3 +58,33 @@ describe('SIL-810 — monthly dispatch table sticky/scroll contract', () => {
     expect(css).toMatch(/\.ts-report tbody td:nth-child\(-n \+ 5\) \{[^}]*z-index:\s*2;/s);
   });
 });
+
+// SIL-990 — the pinned lead band must never eat the table. Audit tablet
+// 25/11 (§8.1): the five pinned columns took 506px of the 744px scroll
+// viewport (68%) and left a 238px hole — 8 day columns and 3 of the 10
+// summary columns visible at a time. Below 1024px the band now pins the ROW
+// IDENTITY only (STT · Biển kiểm soát · Lái xe = 320px = 43% of the
+// viewport; the phone band drops 'Lái xe' too → 160px = 43% of 374px), so
+// the scrollable area keeps the majority of the screen.
+describe('SIL-990 — the pinned band keeps the scrollable area the majority', () => {
+  it('leaves the desktop chain (0/44/120/236/346) untouched above 1024px', () => {
+    expect(css).toMatch(/td:nth-child\(1\) \{ width: 44px;\s*min-width: 44px;\s*max-width: 44px;\s*left: 0;/);
+    expect(css).toMatch(/td:nth-child\(5\) \{ width: 160px; min-width: 160px; max-width: 160px; left: 346px;/);
+  });
+
+  it('unpins Loại xe + Hình thức lương in the tablet band', () => {
+    const tablet = css.slice(css.indexOf('@media (max-width: 1023px)'));
+    expect(tablet).toMatch(/\.ts-report thead th:nth-child\(2\):not\(\[colspan\]\),\s*\.ts-report thead th:nth-child\(4\):not\(\[colspan\]\) \{[^}]*left:\s*auto;/s);
+    expect(tablet).toMatch(/\.ts-report tbody td:nth-child\(2\),\s*\.ts-report tbody td:nth-child\(4\) \{[^}]*position:\s*static;[^}]*left:\s*auto;/s);
+  });
+
+  it('unpins Lái xe in the phone band too', () => {
+    const phone = css.slice(css.indexOf('@media (max-width: 767px)'));
+    expect(phone).toMatch(/\.ts-report thead th:nth-child\(5\):not\(\[colspan\]\) \{[^}]*left:\s*auto;/s);
+    expect(phone).toMatch(/\.ts-report tbody td:nth-child\(5\) \{[^}]*position:\s*static;[^}]*left:\s*auto;/s);
+  });
+
+  it('keeps the vertical header pin — only the horizontal pin is dropped', () => {
+    expect(css).toMatch(/\.record-table-wrap\.ts-report-wrap \.ts-report thead th \{\s*top:\s*0;\s*\}/);
+  });
+});

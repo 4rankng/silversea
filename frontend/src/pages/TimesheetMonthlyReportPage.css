@@ -215,3 +215,42 @@ table.ts-report thead th.ts-report__th--summary {
 .ts-report thead th:nth-child(-n + 5) {
   z-index: 4;
 }
+
+/* ── SIL-990 — the pinned lead band must never eat the table ─────────────
+ * Audit tablet 25/11 (§8.1): the five pinned lead columns took 506px of the
+ * 744px scroll viewport (68%) and left a 238px hole — the day grid showed
+ * 8 days and the ten summary columns 3 at a time, so a month's totals
+ * could not be read against the days they belong to.
+ *
+ * The band now pins the ROW IDENTITY only, and the scrollable area keeps
+ * the majority of the viewport at every width:
+ *   tablet (≤1023px): STT · Biển kiểm soát · Lái xe = 320px of 744px (43%)
+ *   phone  (≤767px):  STT · Biển kiểm soát      = 160px of 374px (43%)
+ * 'Loại xe' + 'Hình thức lương' (and 'Lái xe' on the phone) ride with the
+ * content — the vehicle + driver columns stay fixed, as KB §6.4 wants.
+ * The desktop chain (0/44/120/236/346) is untouched above 1024px. */
+@media (max-width: 1023px) {
+  /* The header cells keep their vertical pin (top: 0) and lose the
+     horizontal one; the body cells leave the sticky set entirely. */
+  .ts-report thead th:nth-child(2):not([colspan]),
+  .ts-report thead th:nth-child(4):not([colspan]) {
+    left: auto;
+  }
+
+  .ts-report tbody td:nth-child(2),
+  .ts-report tbody td:nth-child(4) {
+    position: static;
+    left: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .ts-report thead th:nth-child(5):not([colspan]) {
+    left: auto;
+  }
+
+  .ts-report tbody td:nth-child(5) {
+    position: static;
+    left: auto;
+  }
+}
