@@ -600,6 +600,16 @@
 .factory-oneline { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .factory-addr { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .factory-oneline-sep { flex: none; color: var(--fg-3); }
+
+/* K4.53 (SIL-1036) — the stacked contact group: address on the first line,
+   the contact person + SĐT on the line below it (one group, one cell). */
+.factory-details { display: grid; gap: 2px; min-width: 0; }
+.factory-contact { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.factory-contact-name {
+  min-width: 0;
+  color: var(--fg-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 /* The explicit call affordance rides chip-size (24px) beside the number —
    coarse pointers raise bare buttons to the shared touch floor. */
 .factory-call { flex: none; width: 24px; height: 24px; min-width: 24px; min-height: 24px; }

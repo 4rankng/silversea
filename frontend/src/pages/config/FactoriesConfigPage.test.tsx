@@ -78,6 +78,7 @@ const warehouse = {
   id: 12,
   code: 'WH-1',
   name: 'Kho B',
+  shortName: null as unknown as string, // K4.53 fallback: the row reads the full name
   siteType: 'WAREHOUSE' as const,
   routeId: null,
   routeName: null,
@@ -106,11 +107,40 @@ beforeEach(() => {
 });
 
 describe('FactoriesConfigPage', () => {
+  // K4.53 (SIL-1036): the row reads the SHORT name (ASKEY-XƯỞNG 1) with the
+  // full legal name in the tooltip, and the contact person + SĐT sit in the
+  // same cell right BELOW the address (one stacked group).
+  it('shows the short name first with the full name in the tooltip, and the contact line below the address', async () => {
+    listMock.mockResolvedValue([{
+      ...factory,
+      name: 'CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM',
+      shortName: 'ASKEY-XƯỞNG 1',
+      contacts: [{ name: 'Liên hệ nhà máy', phone: '0908112233', isDefault: true }],
+    }]);
+    renderPage();
+    expect(await screen.findByText('ASKEY-XƯỞNG 1')).toBeTruthy();
+    // The full legal name is NOT the visible row name; it rides the tooltip.
+    expect(screen.queryByText('CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM')).toBeNull();
+    const nameEl = document.querySelector('.factory-name') as HTMLElement;
+    expect(nameEl.getAttribute('title')).toBe('CÔNG TY TNHH CÔNG NGHỆ ASKEY VIỆT NAM');
+    // A site without a short name falls back to its full name (the warehouse
+    // fixture keeps name 'Kho B', shortName 'NM A' → falls back correctly by
+    // its own value).
+    const detailsCell = document.querySelector('.factories-table td[data-label="Địa chỉ · Liên hệ"]') as HTMLElement;
+    const group = detailsCell.querySelector('.factory-details') as HTMLElement;
+    expect(group).toBeTruthy();
+    const [addr, contact] = [...group.children] as HTMLElement[];
+    expect(addr.classList.contains('factory-addr')).toBe(true);
+    expect(contact.querySelector('.factory-contact-name')?.textContent).toBe('Liên hệ nhà máy');
+    expect(contact.querySelector('.data-token')?.textContent).toBe('0908112233');
+    expect(screen.getByRole('link', { name: 'Gọi 0908112233' })).toBeTruthy();
+  });
+
   it('runs the one-line details: address, dialable number and the contacts tooltip, and edits the default contact list', { timeout: 15000 }, async () => {
     const contacts = [{ name: 'Cổng kho', phone: '0901234567', isDefault: true }, { name: 'Điều phối', phone: '0907654321', isDefault: false }];
     listMock.mockResolvedValue([{ ...factory, contacts }]);
     renderPage();
-    await screen.findByText('Nhà máy A');
+    await screen.findByText('NM A');
     // One baseline: the address and the first dialable number read directly;
     // the full address + every contact live in the cell's title tooltip.
     expect(screen.getByText('KCN Đình Vũ')).toBeVisible();
@@ -132,7 +162,7 @@ describe('FactoriesConfigPage', () => {
   it('preserves a legacy named contact with no phone in the details tooltip on unrelated metadata edits', async () => {
     listMock.mockResolvedValue([{ ...factory, contactPhone: null, contacts: [] }]);
     renderPage();
-    await screen.findByText('Nhà máy A');
+    await screen.findByText('NM A');
     const detailsCell = document.querySelector('.factories-table td[data-label="Địa chỉ · Liên hệ"]') as HTMLElement;
     expect((detailsCell.querySelector('.factory-addr') as HTMLElement).getAttribute('title')).toContain('Anh Tùng · Chưa có số điện thoại');
     fireEvent.click(screen.getByTitle('Sửa điểm vận hành'));
@@ -154,7 +184,7 @@ describe('FactoriesConfigPage', () => {
       invoiceTaxCode: '2301231325',
     }]);
     renderPage();
-    await screen.findByText('Nhà máy A');
+    await screen.findByText('NM A');
     fireEvent.click(screen.getByTitle('Sửa điểm vận hành'));
     await screen.findByRole('dialog');
     // Seeded identity values render into their fields.
@@ -176,7 +206,7 @@ describe('FactoriesConfigPage', () => {
 
   it('lists sites as Mã · Tên identity with the Loại chip and route, no STT and no TRẠNG THÁI column', async () => {
     renderPage();
-    expect(await screen.findByText('Nhà máy A')).toBeTruthy();
+    expect(await screen.findByText('NM A')).toBeTruthy();
     // The customer name also appears in the filter dropdown — assert the
     // table cell occurrence (row-scoped) rather than a unique-text query.
     expect(screen.getAllByText('Khách A').length).toBeGreaterThanOrEqual(2);
@@ -198,7 +228,7 @@ describe('FactoriesConfigPage', () => {
   // config-action-glyph-bleed.styles.test.ts).
   it('dims inactive rows behind a "Đã ngưng" tooltip and keeps both row actions whole', async () => {
     renderPage();
-    await screen.findByText('Nhà máy A');
+    await screen.findByText('NM A');
     const rows = document.querySelectorAll('.factories-table tbody tr:not(.cfg-empty-row)');
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
@@ -236,7 +266,7 @@ describe('FactoriesConfigPage', () => {
     // "Thử lại" calls refetch — the next successful fetch renders the rows.
     listMock.mockResolvedValue([factory]);
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    expect(await screen.findByText('Nhà máy A')).toBeVisible();
+    expect(await screen.findByText('NM A')).toBeVisible();
     expect(listMock.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -263,17 +293,17 @@ describe('FactoriesConfigPage', () => {
 
   it('matches Vietnamese terms without accents and recovers from no results', async () => {
     renderPage();
-    await screen.findByText('Nhà máy A');
+    await screen.findByText('NM A');
     const input = screen.getByRole('textbox', { name: 'Tìm nhà máy / kho' });
     for (const query of ['nha may', '  NHA   MAY  ', 'nha may dinh vu', 'FAC-1']) {
       fireEvent.change(input, { target: { value: query } });
-      expect(screen.getByText('Nhà máy A')).toBeInTheDocument();
+      expect(screen.getByText('NM A')).toBeInTheDocument();
       expect(screen.queryByText('Kho B')).not.toBeInTheDocument();
     }
     fireEvent.change(input, { target: { value: 'no matching site' } });
     expect(screen.getByText(/Không tìm thấy nhà máy/)).toBeInTheDocument();
     fireEvent.change(input, { target: { value: '' } });
-    expect(screen.getByText('Nhà máy A')).toBeInTheDocument();
+    expect(screen.getByText('NM A')).toBeInTheDocument();
     expect(screen.getByText('Kho B')).toBeInTheDocument();
   });
 
@@ -340,7 +370,7 @@ describe('FactoriesConfigPage', () => {
 describe('FactoriesConfigPage filter strip', () => {
   it('renders the shared bar with the search slot, the customer criterion and the create action', async () => {
     const { container } = renderPage();
-    await screen.findByText('Nhà máy A');
+    await screen.findByText('NM A');
 
     const bar = container.querySelector('.filter-bar.list-filter-bar') as HTMLElement;
     expect(bar).not.toBeNull();

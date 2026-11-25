@@ -173,17 +173,20 @@ export default function FactoriesConfigPage() {
 
   const isFactory = editing?.siteType === 'FACTORY';
 
-  /** SIL-467 one-baseline details: the first dialable number in the row, the
-   * full address + every contact reachable through the title tooltip. */
+  /** SIL-467 one-baseline details + K4.53 (SIL-1036): the first contact's
+   * name rides BELOW the address with the first dialable number (the same
+   * group, stacked), and the full address + every contact stay reachable
+   * through the title tooltip. */
   const detailsOf = (site: AdminOperationalSite) => {
     const contacts = operationalSiteContacts(site);
     const phone = contacts[0]?.phone ?? site.contactPhone ?? null;
+    const contactName = contacts[0]?.name ?? site.contactName ?? null;
     const title = [
       site.address || 'Chưa có địa chỉ',
       ...contacts.map((contact) => `Liên hệ ${contact.name}: ${contact.phone}`),
       !contacts.length && site.contactName ? `${site.contactName} · Chưa có số điện thoại` : null,
     ].filter(Boolean).join('\n');
-    return { contacts, phone, title };
+    return { contacts, phone, contactName, title };
   };
 
   async function confirmDelete() {
@@ -329,32 +332,41 @@ export default function FactoriesConfigPage() {
                         <span className="factory-type-chip">{site.siteType === 'FACTORY' ? 'Nhà máy' : 'Kho'}</span>
                         <span className="factory-code">{site.code}</span>
                         <span className="factory-identity-sep" aria-hidden="true">·</span>
-                        {/* Name truncates on one line with its full text in
-                            the title tooltip (SIL-467 owner directive — same
-                            one-baseline class as the 23/10 debit ruling). */}
-                        <span className="factory-name" title={site.name}>{site.name}</span>
+                        {/* K4.53 (SIL-1036): the short name IS the row's
+                            reading name (ASKEY-XƯỞNG 1, not the full legal
+                            name); a site without a short name falls back to
+                            its full name, and the tooltip always carries the
+                            full legal text (SIL-467 no-cut law — the cut is
+                            an ellipsis with the whole value in title). */}
+                        <span className="factory-name" title={site.name}>{site.shortName?.trim() || site.name}</span>
                       </div>
                     </td>
                     <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
                     <td data-label="Địa chỉ · Liên hệ">
-                      <div className="factory-oneline">
+                      {/* K4.53 (SIL-1036): the contact group sits in ONE
+                          stacked block — address on top, the contact person
+                          + SĐT right below it. The number still dials itself
+                          (DRI-01) with the explicit call affordance beside. */}
+                      <div className="factory-details">
                         <span className="factory-addr" title={details.title}>{site.address || 'Chưa có địa chỉ'}</span>
-                        {details.phone && (
-                          <>
-                            <span className="factory-oneline-sep" aria-hidden="true">•</span>
-                            {/* DRI-01 (card 211026130743): the number itself
-                                dials; the icon beside it is the explicit
-                                call affordance on the one-line run. */}
-                            <span className="data-token">{details.phone}</span>
-                            <a
-                              className="row-action factory-call"
-                              href={telHref(details.phone)}
-                              aria-label={`Gọi ${details.phone}`}
-                              title={`Gọi ${details.phone}`}
-                            >
-                              <Phone size={14} />
-                            </a>
-                          </>
+                        {(details.contactName || details.phone) && (
+                          <div className="factory-contact">
+                            {details.contactName && <span className="factory-contact-name">{details.contactName}</span>}
+                            {details.phone && (
+                              <>
+                                {details.contactName && <span className="factory-oneline-sep" aria-hidden="true">·</span>}
+                                <span className="data-token">{details.phone}</span>
+                                <a
+                                  className="row-action factory-call"
+                                  href={telHref(details.phone)}
+                                  aria-label={`Gọi ${details.phone}`}
+                                  title={`Gọi ${details.phone}`}
+                                >
+                                  <Phone size={14} />
+                                </a>
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
                     </td>
