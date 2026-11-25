@@ -8,8 +8,9 @@ const read = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
  * page left a gray gutter between the green header and the white tab
  * card, with a second "double background" tone underneath the cards.
  * 2026-08-29: the journey container is now full-bleed (no horizontal
- * padding) and one solid white surface under the header — there is
- * nothing left for narrow-phone @media rules to tighten. The detail
+ * padding). KB §10.8.3 later restored the sage page canvas app-wide
+ * (SIL-523): the board paints the same --surface-2 ground as the trip
+ * detail screen and the cards stay white on it. The detail
  * page sticky accept bar keeps its 430px/320px side-padding hooks
  * because that bar is the only inline-padded driver widget that still
  * needs the gutter-shrink. @media query behavior isn't reliably
@@ -17,14 +18,17 @@ const read = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
  * text — same pattern as canvas-fit-polish.styles.test.ts.
  */
 describe('driver mobile full-bleed contract', () => {
-  it('/my-trips list page is one full-bleed white surface under the header', () => {
+  it('/my-trips list page is a full-bleed sage canvas with white cards', () => {
     const css = read('src/pages/DriverTripsPage.css');
     // The legacy inset "14px 14px 32px" padding is gone — the page is
     // edge-to-edge below the green topbar.
     expect(css).not.toMatch(/\.driver-journey \{\s*padding:\s*14px\s+14px\s+32px/);
-    // The page below the header is one solid white surface (matches the
-    // tab card so there is no visible seam between the two).
-    expect(css).toMatch(/\.driver-journey \{\s*[^}]*background:\s*var\(--surface\)/);
+    // KB §10.8.3: the official app ground is the sage tone — the same
+    // --surface-2 canvas the trip-detail screen paints — and cards stay
+    // white (--surface) so they sit on the ground instead of vanishing
+    // into a white-on-white board.
+    expect(css).toMatch(/\.driver-journey \{\s*[^}]*background:\s*var\(--surface-2\)/);
+    expect(css).toMatch(/\.driver-journey-card \{[^}]*background:\s*var\(--surface\)/);
   });
 
   it('trip-detail sticky accept bar tightens side padding at the same breakpoints as the screen', () => {

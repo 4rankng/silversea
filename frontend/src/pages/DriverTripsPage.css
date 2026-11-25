@@ -6,7 +6,10 @@
      the phone is held sideways. The shell adds no second inset here. */
   padding: 8px 8px 24px;
   padding-inline: max(8px, env(safe-area-inset-left, 0px)) max(8px, env(safe-area-inset-right, 0px));
-  background: var(--surface);
+  /* The sage page canvas is the app's official ground (KB §10.8.3, SIL-523
+     ladder): the journey board rides the same --surface-2 ground as the trip
+     detail screen, and cards stay white (--surface) to sit on it. */
+  background: var(--surface-2);
   min-height: 100%;
   box-sizing: border-box;
 }
