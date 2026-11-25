@@ -75,6 +75,19 @@ export function combinedContainerSizeBlockMessage(
 }
 
 /**
+ * SIL-1020 (KB Ch.3 §3.5 K3.40) — a ghép pair is ONE relation on every
+ * screen (Điều vận / CUS / Lái xe / Kế toán). The PHÂN LOẠI column renders
+ * the fulfillment's stored `dispatch_classification`, so the pair write
+ * stamps both legs with the classification the pair kind means: KẸP →
+ * DOUBLE (2 cont cùng lúc), KẾT HỢP → COMBINED (tái dùng vỏ). The trip-pair
+ * row stays the live authority (pairKind), this stamp keeps the stored
+ * fulfillment classification in sync with it.
+ */
+export function pairClassificationForKind(kind: 'KEP' | 'KET_HOP'): 'DOUBLE' | 'COMBINED' {
+  return kind === 'KEP' ? 'DOUBLE' : 'COMBINED';
+}
+
+/**
  * TC7(2) — when a COMBINED pair forms and Lệnh 2's số container is still
  * blank, it inherits Lệnh 1's shell number (the pair shares one physical
  * shell by definition, and the pair's own number rule enforces equality

@@ -20,6 +20,7 @@ import {
   kepContainerSizeBlockMessage,
   KEP_WEIGHT_WARNING_MESSAGE,
   kepPairWeightVerdict,
+  pairClassificationForKind,
 } from './trip-pair-rules.service';
 import {
   breakTripPairOnCancellation,
@@ -41,6 +42,9 @@ interface TripRowForPairing {
   status: string | null;
   departureDate: string;
   routeId: number;
+  /** SIL-1020 (K3.40) — the leg's fulfillment row; the pair stamps its
+   *  dispatch_classification so every screen's PHÂN LOẠI follows the pair. */
+  fulfillmentId: number | null;
   plannedStartAt: Date | null;
   plannedEndAt: Date | null;
   canonicalOrigin: string | null;
@@ -282,6 +286,7 @@ async function loadTripsForPairing(tx: Tx, tripIds: [number, number]) {
     status: s.trips.status,
     departureDate: s.trips.departureDate,
     routeId: s.trips.routeId,
+    fulfillmentId: s.trips.fulfillmentId,
     plannedStartAt: s.trips.plannedStartAt,
     plannedEndAt: s.trips.plannedEndAt,
     canonicalOrigin: s.trips.canonicalOrigin,
@@ -751,6 +756,23 @@ async function createTripPairCoreInTx(
 
     await tx.update(s.trips).set(firstUpdate).where(eq(s.trips.id, input.firstTripId));
     await tx.update(s.trips).set(secondUpdate).where(eq(s.trips.id, input.secondTripId));
+    // SIL-1020 (KB Ch.3 §3.5 K3.40) — the pair is ONE relation on every
+    // screen. The PHÂN LOẠI column (dispatch-detail grid, CUS container
+    // ledger) renders the fulfillment's stored dispatch_classification, so
+    // both legs stamp the classification this pair kind means in the SAME
+    // transaction — a KẸP/KẾT HỢP pair never keeps a ĐƠN label anywhere.
+    // Container legs always carry a fulfillment; null ids (defensive) skip.
+    const legFulfillmentIds = [locked.first.fulfillmentId, locked.second.fulfillmentId]
+      .filter((id): id is number => id != null);
+    if (legFulfillmentIds.length > 0) {
+      await tx.update(s.shipmentFulfillments)
+        .set({
+          dispatchClassification: pairClassificationForKind(kind),
+          version: sql`${s.shipmentFulfillments.version} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(inArray(s.shipmentFulfillments.id, legFulfillmentIds));
+    }
     // Apply backhaul toll dedup (+ pair salary when configured) to the second
     // trip's financial block. Trips-split: these route to trip_financial_state.
     await applyTripPatch(tx, input.secondTripId, {
@@ -857,6 +879,27 @@ async function breakPersistedTripPair(tx: Tx, args: {
   }).where(eq(s.tripPairs.id, args.pairId));
 
   await clearActivePairOnTrips(tx, [args.firstTripId, args.secondTripId]);
+
+  // SIL-1020 (KB Ch.3 §3.5 K3.40) — the pair relation is gone, so both legs'
+  // fulfillments return to ĐƠN: the PHÂN LOẠI column must stop reading the
+  // pair's Kẹp/Kết hợp stamp on a broken pair (unpair, leg cancellation,
+  // late completion — every break path). Canceled legs' plan rows disappear
+  // but their fulfillment rows stay, and they re-read as Đơn too.
+  const legRows = await tx.select({ fulfillmentId: s.trips.fulfillmentId })
+    .from(s.trips)
+    .where(inArray(s.trips.id, [args.firstTripId, args.secondTripId]));
+  const legFulfillmentIds = legRows
+    .map((row) => row.fulfillmentId)
+    .filter((id): id is number => id != null);
+  if (legFulfillmentIds.length > 0) {
+    await tx.update(s.shipmentFulfillments)
+      .set({
+        dispatchClassification: 'SINGLE',
+        version: sql`${s.shipmentFulfillments.version} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(inArray(s.shipmentFulfillments.id, legFulfillmentIds));
+  }
 
   // O2C "kẹp hàng": the second trip's VETC toll was netted out while paired.
   // When the pair breaks, restore the survivor's full toll so the pair does not
