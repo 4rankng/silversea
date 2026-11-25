@@ -51,8 +51,8 @@ const FILE_TYPE_LABELS: Record<string, string> = {
 };
 
 const FILE_TYPE_HELP: Record<string, string> = {
-  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Bắt buộc trước khi hoàn thành chuyến. Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.',
-  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Bắt buộc trước khi hoàn thành chuyến. Phải có chữ ký giao nhận đầy đủ.',
+  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.',
+  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Nên có đầy đủ chữ ký giao nhận.',
 };
 
 // Driver submission completes directly; legacy review states remain readable

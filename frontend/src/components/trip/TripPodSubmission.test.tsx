@@ -52,6 +52,27 @@ describe('TripPodSubmission', () => {
     expect(screen.queryByText('Chứng từ bắt buộc')).toBeNull();
   });
 
+  it('keeps the per-card help copy free of any required-before-completion claim', () => {
+    render(
+      <TripPodSubmission
+        tripVersion={3}
+        currentSubmission={draftSubmission()}
+        history={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+      />,
+    );
+
+    // One rule per page: the badge says "Tùy chọn" and completion never
+    // blocks (SIL-697 soft law), so no help line may claim the files are
+    // required before the trip completes.
+    expect(screen.queryByText(/Bắt buộc/)).toBeNull();
+    expect(screen.getAllByText('Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Nên có đầy đủ chữ ký giao nhận.').length).toBeGreaterThan(0);
+  });
+
   it('SIL-918: an LCL trip renders the biên bản card alone — no FCL phiếu bãi card', () => {
     render(
       <TripPodSubmission
