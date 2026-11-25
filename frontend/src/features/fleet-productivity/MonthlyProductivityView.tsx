@@ -160,18 +160,30 @@ export function MonthlyProductivityView() {
       ) : monthlyData ? (
         <>
           <div className="fleet-productivity-kpis">
+            {/* K6.52 — thẻ "Từng xe trong 1 tháng": Sản lượng · Số xe hoạt động ·
+                % năng suất bình quân. Giá trị lấy từ aggregate sẵn có (tổng số
+                chuyến trong kỳ, xe nội bộ hoạt động, % năng suất cao TB) — không
+                chế metric mới. */}
             <div className="fleet-kpi-card">
-              <div className="fleet-kpi-card__label">Tổng chuyến trong tháng</div>
+              <div className="fleet-kpi-card__label">Sản lượng</div>
               <div className="fleet-kpi-card__value">
                 <NumUnit value={monthlyData.fleetBreakdown.totalTrips} />
               </div>
+              <div className="fleet-kpi-card__sub">Tổng số chuyến trong tháng</div>
+            </div>
+
+            <div className="fleet-kpi-card">
+              <div className="fleet-kpi-card__label">Số xe hoạt động</div>
+              <div className="fleet-kpi-card__value">
+                <NumUnit value={monthlyData.activeInternalTrucks} />
+              </div>
               <div className="fleet-kpi-card__sub">
-                Hoạt động: <NumUnit value={monthlyData.activeInternalTrucks} /> / <NumUnit value={monthlyData.totalInternalTrucks} /> xe
+                / <NumUnit value={monthlyData.totalInternalTrucks} /> xe nội bộ
               </div>
             </div>
 
             <div className="fleet-kpi-card fleet-kpi-card--highlight">
-              <div className="fleet-kpi-card__label">% Năng suất cao TB</div>
+              <div className="fleet-kpi-card__label">% năng suất bình quân</div>
               <div className="fleet-kpi-card__value">
                 <PctUnit value={monthlyData.fleetBreakdown.highEfficiencyPct} />
               </div>

@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { Truck, Container, UserCheck, Download, CheckCircle, BarChart3 } from "lucide-react";
+import { Truck, Container, UserCheck, Download, CheckCircle } from "lucide-react";
 import { downloadCSV } from "../lib/csv";
 import { useToast } from "../components/shared/Toast";
 import { PageHeader, Btn, KPI } from "../components/UI";
@@ -22,9 +21,13 @@ import "./FleetPage.css";
 import { TrailerCard } from '../features/fleet/trailer-card';
 import { TruckCard } from '../features/fleet/truck-card';
 import { DriverCard } from '../features/fleet/driver-card';
+// K6.52 — 'Báo cáo năng suất' section embeds the two report cards (toàn đội
+// theo ngày · từng xe theo tháng) right on the Đội xe page.
+import { DailyProductivityView } from '../features/fleet-productivity/DailyProductivityView';
+import { MonthlyProductivityView } from '../features/fleet-productivity/MonthlyProductivityView';
+import './FleetProductivityPage.css';
 
 export default function FleetPage() {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { rootRef } = usePageAnimations({ ready: true });
@@ -103,14 +106,6 @@ export default function FleetPage() {
         description="Quản lý xe đầu kéo, rơ-moóc và lái xe trong một trang"
         action={
           <div className="fleet-action-row">
-            <Btn
-              variant="secondary"
-              size="sm"
-              icon={<BarChart3 size={14} />}
-              onClick={() => navigate('/fleet/productivity')}
-            >
-              Báo cáo năng suất
-            </Btn>
             <Btn
               variant="secondary"
               size="sm"
@@ -239,6 +234,21 @@ export default function FleetPage() {
           }
         />
       </div>
+
+      {/* K6.52 — 'Báo cáo năng suất': thẻ toàn đội theo ngày (6 chỉ số tổng hợp
+          + bảng chi tiết từng xe) và thẻ từng xe theo tháng (Sản lượng · Số xe
+          hoạt động · % năng suất bình quân) kèm nút xuất bảng tính ở thẻ tháng. */}
+      <section className="fleet-report-section" aria-label="Báo cáo năng suất">
+        <h2 className="fleet-report-section__title">Báo cáo năng suất</h2>
+        <div className="fleet-report-section__group">
+          <h3 className="fleet-report-section__subtitle">Toàn đội trong 1 ngày</h3>
+          <DailyProductivityView />
+        </div>
+        <div className="fleet-report-section__group">
+          <h3 className="fleet-report-section__subtitle">Từng xe trong 1 tháng</h3>
+          <MonthlyProductivityView />
+        </div>
+      </section>
 
       {/* Trucks (đầu kéo) */}
       <TruckCard trucks={trucks} driverByTruck={driverByTruck} trailers={trailers} crud={truckCrud} />

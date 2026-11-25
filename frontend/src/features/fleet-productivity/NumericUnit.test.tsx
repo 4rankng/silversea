@@ -143,7 +143,7 @@ describe('fleet-productivity numeric law — percent/count tokens are ONE nowrap
   it('every numeric unit holds exactly one text node — value (+ sign) bound in that same node', async () => {
     for (const renderView of [renderMonthly, renderDaily]) {
       const { container } = renderView();
-      await within(container).findByText(/Tổng chuyến trong ngày|Tổng chuyến trong tháng/);
+      await within(container).findByText(/Tổng chuyến trong ngày|Sản lượng/);
 
       const units = Array.from(container.querySelectorAll('.fleet-num-unit'));
       expect(units.length).toBeGreaterThan(0);
@@ -162,7 +162,7 @@ describe('fleet-productivity numeric law — percent/count tokens are ONE nowrap
   it('binds value and sign in one text node everywhere — no "%" can ever ride its own line-box (space/sign binding)', async () => {
     for (const renderView of [renderMonthly, renderDaily]) {
       const { container } = renderView();
-      await within(container).findByText(/Tổng chuyến trong ngày|Tổng chuyến trong tháng/);
+      await within(container).findByText(/Tổng chuyến trong ngày|Sản lượng/);
 
       // Value surfaces only — KPI labels ("% Kẹp ghép TB") and headers
       // ("% Kẹp") carry '%' as prose, never as a numeric token.
@@ -184,7 +184,7 @@ describe('fleet-productivity numeric law — percent/count tokens are ONE nowrap
   it('percent cells render ONE text node holding the whole "66.67%" token', async () => {
     const { container } = renderMonthly();
     const scope = within(container);
-    await scope.findByText('Tổng chuyến trong tháng');
+    await scope.findByText('Sản lượng');
 
     const row = container.querySelector('.fleet-productivity-table tbody tr')!;
     const boldPct = row.querySelector('td.fleet-pct')!;
@@ -219,7 +219,7 @@ describe('fleet-productivity numeric law — percent/count tokens are ONE nowrap
   it('count cells render bare numbers through the same nowrap unit (same-screen sweep)', async () => {
     for (const renderView of [renderMonthly, renderDaily]) {
       const { container } = renderView();
-      await within(container).findByText(/Tổng chuyến trong ngày|Tổng chuyến trong tháng/);
+      await within(container).findByText(/Tổng chuyến trong ngày|Sản lượng/);
 
       const tables = container.querySelectorAll('.fleet-productivity-table');
       expect(tables.length).toBe(1);
@@ -240,7 +240,7 @@ describe('fleet-productivity numeric law — percent/count tokens are ONE nowrap
   it('KPI metric values are nowrap units; mixed prose keeps its words and spaces exactly', async () => {
     {
       const { container } = renderMonthly();
-      await within(container).findByText('Tổng chuyến trong tháng');
+      await within(container).findByText('Sản lượng');
       for (const value of container.querySelectorAll('.fleet-kpi-card__value')) {
         const units = value.querySelectorAll('.fleet-num-unit');
         expect(units, 'each KPI value is exactly one nowrap unit').toHaveLength(1);
@@ -248,9 +248,9 @@ describe('fleet-productivity numeric law — percent/count tokens are ONE nowrap
       }
       // textContent pins (not getByText): the counts live inside spans now,
       // and the exact composed text is the whitespace contract of the
-      // rewrite — "Hoạt động: 3 / 5 xe", "25 chuyến".
+      // rewrite — "/ 5 xe nội bộ", "25 chuyến".
       const subs = Array.from(container.querySelectorAll('.fleet-kpi-card__sub'));
-      expect(subs.some((el) => el.textContent === 'Hoạt động: 3 / 5 xe')).toBe(true);
+      expect(subs.some((el) => el.textContent === '/ 5 xe nội bộ')).toBe(true);
       expect(subs.some((el) => el.textContent === '25 chuyến')).toBe(true);
     }
     {
@@ -268,7 +268,7 @@ describe('fleet-productivity numeric law — percent/count tokens are ONE nowrap
   it('every column header carries its full label as title — the "% Năng suất cao" header can never be ambiguous', async () => {
     {
       const { container } = renderMonthly();
-      await within(container).findByText('Tổng chuyến trong tháng');
+      await within(container).findByText('Sản lượng');
       const headers = Array.from(container.querySelectorAll('thead th'));
       expect(headers).toHaveLength(13);
       for (const th of headers) {

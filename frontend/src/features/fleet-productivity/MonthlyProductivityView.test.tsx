@@ -76,7 +76,7 @@ describe('MonthlyProductivityView export errors surface the API reason', () => {
 
     // The export button renders disabled while the monthly query loads —
     // wait for the data KPIs before clicking, or the click is a no-op.
-    await screen.findByText('Tổng chuyến trong tháng');
+    await screen.findByText('Sản lượng');
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Năm báo cáo không hợp lệ');
@@ -88,7 +88,7 @@ describe('MonthlyProductivityView export errors surface the API reason', () => {
     getMonthlyExportBlob.mockRejectedValueOnce(new Error('network unavailable'));
     renderView();
 
-    await screen.findByText('Tổng chuyến trong tháng');
+    await screen.findByText('Sản lượng');
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Không xuất được báo cáo năng suất. Vui lòng thử lại.');
@@ -107,12 +107,27 @@ describe('MonthlyProductivityView export success feedback (card 20261006_391)', 
     );
     renderView();
 
-    await screen.findByText('Tổng chuyến trong tháng');
+    await screen.findByText('Sản lượng');
     fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
     expect(screen.getByRole('button', { name: 'Đang xuất…' })).toBeTruthy();
 
     resolveBlob(new Blob(['bc']));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeTruthy());
     expect(toast).toHaveBeenCalledWith({ kind: 'success', message: 'Đã xuất báo cáo năng suất xe ra tệp Excel.' });
+  });
+});
+
+// K6.52 — thẻ "Từng xe trong 1 tháng" gồm Sản lượng · Số xe hoạt động ·
+// % năng suất bình quân, kèm nút xuất bảng tính ở thẻ tháng.
+describe('MonthlyProductivityView — thẻ tháng theo K6.52', () => {
+  it('hiện đủ ba trường Sản lượng / Số xe hoạt động / % năng suất bình quân và nút Xuất Excel', async () => {
+    getMonthly.mockResolvedValue(monthly);
+    renderView();
+
+    await screen.findByText('Sản lượng');
+    expect(screen.getByText('Số xe hoạt động')).toBeTruthy();
+    expect(screen.getByText('% năng suất bình quân')).toBeTruthy();
+    // Nút xuất bảng tính ở thẻ tháng.
+    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeTruthy();
   });
 });

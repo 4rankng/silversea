@@ -1312,3 +1312,29 @@
   .fleet-page .kpi__watermark { display: none; }
   .fleet-page .fleet-kpi-meta { gap: 4px 8px; }
 }
+
+/* ─── Báo cáo năng suất (K6.52) — embedded report section ─── */
+
+.fleet-report-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.fleet-report-section__title {
+  margin: 0;
+  font-size: var(--text-section-size);
+  font-weight: 700;
+}
+
+.fleet-report-section__subtitle {
+  margin: 0 0 10px;
+  font-size: var(--text-body-size);
+  font-weight: 600;
+}
+
+.fleet-report-section__group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
