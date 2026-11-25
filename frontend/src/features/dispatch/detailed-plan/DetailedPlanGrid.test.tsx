@@ -328,7 +328,10 @@ describe('DetailedPlanGrid', () => {
     expect(headerRule).toContain('white-space: nowrap;');
     expect(headerRule).not.toContain('white-space: normal');
     expect(headerRule).toContain('overflow-wrap: normal;');
-    expect(headerRule).toContain('padding: 10px 8px;');
+    // K4.65 (SIL-1033): the header band rides the dense contract — 6px
+    // vertical padding + the 24px sort floor + 1px border = 37px, inside
+    // the 36–40px band (the 10px padding measured the band at 45px).
+    expect(headerRule).toContain('padding: 6px 8px;');
     // Master-plan lane fix (same defect class): the -webkit-box clamp must
     // NEVER ride on the th itself — it takes the cell out of table layout
     // and the whole header row collapses into a vertical label stack (the

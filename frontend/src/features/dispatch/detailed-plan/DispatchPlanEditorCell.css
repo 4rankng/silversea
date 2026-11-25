@@ -7,8 +7,12 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
-  gap: 2px;
-  padding: 6px 10px;
+  /* K4.65 (SIL-1033): 6px 10px → 4px 8px, gap 2px → 1px — the cell sits
+     inside the td whose own padding dropped to --space-xs vertical, so the
+     double frame no longer double-charges the row (the Điều phối band was
+     12px internal + 16px td = 28px of chrome above the facts). */
+  gap: 1px;
+  padding: 4px 8px;
 }
 
 /* ── The fact-wrap law (SIL-515, owner 26/10) ──────────────────────────────
@@ -44,7 +48,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
-  gap: 2px;
+  /* K4.65 (SIL-1033): 2px → 1px — one-fact-per-line (SIL-517) keeps its
+     own lines; the dense band only tightens the space between them. */
+  gap: 1px;
   min-width: 0;
 }
 
@@ -52,8 +58,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
-  margin-top: 2px;
+  /* K4.65 (SIL-1033): vertical 4px → 2px between wrapped action rows. */
+  gap: 2px 8px;
+  margin-top: 1px;
 }
 
 .dispatch-assignment-cell__carrier,

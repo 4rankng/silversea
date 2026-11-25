@@ -33,3 +33,20 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* K4.65 (SIL-1033): the compact variant joins the dense band — the task-label
+   run clamps to 2 lines exactly like the manual text (the enclosing note
+   button and the Chi tiết trigger both reopen the full value), and the
+   leading rides the board's ops note token instead of the 1.45 prose
+   leading. Compact only: the note editor keeps its own rhythm. */
+.dispatch-driver-note--compact .dispatch-driver-note__tasks {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dispatch-driver-note--compact .dispatch-driver-note__tasks,
+.dispatch-driver-note--compact .dispatch-driver-note__text {
+  line-height: var(--ops-table-note-line-height, 1.15);
+}

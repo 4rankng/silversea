@@ -52,8 +52,11 @@ describe('VID-DSP-02 direct release', () => {
   it('VID-DSP-05 keeps a compact square desktop target and a square touch target on phones and tablets', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
     const iconRule = css.match(/\.detailed-plan-grid__note-action--icon\s*\{([^}]+)\}/)?.[1] ?? '';
-    expect(iconRule).toMatch(/width:\s*28px/);
-    expect(iconRule).toMatch(/min-height:\s*28px/);
+    // K4.65 (SIL-1033): the desktop square rides the WCAG 2.5.8 24px floor —
+    // the stacked rail pair (icon + 30px ⋯ trigger) stops double-charging
+    // the row. The touch band still lifts the square to the 44px floor.
+    expect(iconRule).toMatch(/width:\s*24px/);
+    expect(iconRule).toMatch(/min-height:\s*24px/);
     expect(css).toMatch(/@media\s*\(max-width:\s*768px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*width:\s*var\(--control-touch-h\)/);
     expect(css).toMatch(/@media\s*\(max-width:\s*768px\),\s*\(pointer:\s*coarse\)\s*\{\s*\.detailed-plan-grid__note-action--icon\s*\{[^}]*min-height:\s*var\(--control-touch-h\)/);
   });

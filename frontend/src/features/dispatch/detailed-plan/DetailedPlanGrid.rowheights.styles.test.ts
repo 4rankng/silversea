@@ -193,4 +193,43 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(css).toMatch(/\.detailed-plan-grid__decl-value\s*\{[^}]*white-space:\s*nowrap/);
     expect(css).toMatch(/\.detailed-plan-grid__decl-value\s*\{[^}]*overflow-wrap:\s*normal/);
   });
+
+  it('K4.65 (SIL-1033): dense-band metrics — header 36-40px, rows pay the band, never a hidden line', () => {
+    // Header: 6px vertical padding + the sort button's 24px WCAG floor +
+    // 1px border = 37px inside the 36-40px band.
+    const thRule = css.match(/\.detailed-plan-grid thead th \{([^}]*)\}/)?.[1] ?? '';
+    expect(thRule).toContain('padding: 6px 8px;');
+    // Rows: the td rhythm is one --space-xs (4px) vertical beat, the value
+    // lines sit 1px apart, and the leading rides the scoped 1.15 dense
+    // tokens — the compound .ops-table arm is load-bearing because the
+    // typography sheet re-declares every token on .ops-table at (0,1,0).
+    const tdRule = css.match(/\.detailed-plan-grid td \{([^}]*)\}/)?.[1] ?? '';
+    expect(tdRule).toContain('padding: var(--space-xs) var(--space-sm);');
+    const bodyRule = css.match(/\.detailed-plan-grid__cell-body\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(bodyRule).toContain('gap: 1px;');
+    const denseOverride = css.match(/\.detailed-plan-grid,\s*\n\.detailed-plan-grid\.ops-table\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(denseOverride, 'the scoped dense token override must exist').not.toBe('');
+    for (const token of ['header', 'primary', 'supporting', 'meta', 'note']) {
+      expect(denseOverride).toContain(`--ops-table-${token}-line-height: 1.15;`);
+    }
+    // The old golden 1.35/1.4 values must not leak back into this board's
+    // override block.
+    expect(denseOverride).not.toMatch(/1\.35|1\.4\b/);
+    // Compression rides line-height, gaps and padding only — no fixed row
+    // height, no hidden overflow (SIL-515 stays the wall).
+    expect(css).not.toContain('--dpg-row-h');
+    expect(tdRule).not.toMatch(/height:\s*\d/);
+    // The notes fact column and the rail stack join the band: 2px note gap,
+    // 2px rail gap, the icon square at the 24px WCAG floor, the rail cell
+    // at the 4px vertical beat.
+    const notesRule = css.match(/\.detailed-plan-grid__cell-body--notes\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(notesRule).toContain('gap: 2px;');
+    const railRule = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(railRule).toContain('gap: 2px;');
+    const iconRule = css.match(/\.detailed-plan-grid__note-action--icon\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(iconRule).toContain('width: 24px;');
+    expect(iconRule).toContain('min-height: 24px;');
+    const actionCellRule = css.match(/\.detailed-plan-grid th\.detailed-plan-grid__th--actions,\s*\n\s*\.detailed-plan-grid td\.detailed-plan-grid__cell--actions\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(actionCellRule).toContain('padding: 4px 4px;');
+  });
 });

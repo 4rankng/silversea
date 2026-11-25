@@ -478,8 +478,11 @@
   z-index: 3;
   text-align: left;
   /* Card 091026091550: 8px gutter, same measured trade as the master plan —
-     at the global 12px the compound labels alone consume ~93% of the canvas. */
-  padding: 10px 8px;
+     at the global 12px the compound labels alone consume ~93% of the canvas.
+     K4.65 (SIL-1033): vertical 10px → 6px — header band = the sort button's
+     24px WCAG floor + 12px + 1px border = 37px, inside the 36–40px dense
+     band (the old 45px band was 10px padding riding the same floor). */
+  padding: 6px 8px;
   font-size: var(--ops-table-header-size);
   font-weight: var(--ops-table-header-weight);
   /* Workboard standard: --ink-2 header text, 1px --line-strong underline; case
@@ -560,8 +563,10 @@
 
 .detailed-plan-grid td {
   /* FB-043: spacing-scale padding — the row contract's vertical rhythm comes
-     from the shared --space-* scale, not raw pixels. */
-  padding: var(--space-sm) var(--space-sm);
+     from the shared --space-* scale, not raw pixels. K4.65 (SIL-1033):
+     vertical 8px → 4px — the dense-band row contract (40–52px typical) is
+     paid by the wrapped lines, not by double cell padding. */
+  padding: var(--space-xs) var(--space-sm);
   border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
@@ -574,8 +579,30 @@
    actually scrolls. Above the floor the board fits its pane and nothing is
    ever covered — the reserve is resting whitespace inside the roomy Ghi chú
    cell. */
-.detailed-plan-grid {
+/* K4.65 (SIL-1033) — dense-band row metrics, scoped to this board only:
+   the supporting/meta/primary line-heights drop from the 1.35/1.4
+   golden standard to 1.15 so a wrapped value line costs 13.8px
+   (primary/supporting 12px) / 12.65px (meta 11px) instead of
+   16.2–16.8px. CSS custom properties inherit, so every consumer of
+   the tokens inside the grid (value lines, schedule datetimes, the
+   assignment cell's carrier/plate/driver/SĐT facts) recomputes
+   without a cascade fight — and the /shipments + master-plan
+   golden standard and every other table keep their own metrics
+   untouched. The compound `.ops-table` arm is load-bearing (the
+   typography sheet re-declares every token on `.ops-table` at
+   (0,1,0) — the same weight as the bare grid class, where import
+   order would let the golden standard win back). Rows stay
+   content-sized (SIL-515 no-truncation law): compression rides
+   line-height, the 1px body gap and cell padding, never a hidden
+   line. */
+.detailed-plan-grid,
+.detailed-plan-grid.ops-table {
   --dpg-actions-reserve: 48px;
+  --ops-table-header-line-height: 1.15;
+  --ops-table-primary-line-height: 1.15;
+  --ops-table-supporting-line-height: 1.15;
+  --ops-table-meta-line-height: 1.15;
+  --ops-table-note-line-height: 1.15;
 }
 .detailed-plan-grid td.detailed-plan-grid__cell--notes {
   padding-inline-end: calc(var(--space-sm) + var(--dpg-actions-reserve));
@@ -595,7 +622,10 @@
 .detailed-plan-grid__cell-body {
   display: grid;
   align-content: start;
-  gap: 2px;
+  /* K4.65 (SIL-1033): 2px → 1px between fact lines — the dense-band
+     inter-fact rhythm; wrapped lines inside one fact keep their own
+     line-height spacing. */
+  gap: 1px;
   min-width: 0;
 }
 
@@ -609,7 +639,8 @@
 .detailed-plan-grid__cell-body--notes {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  /* K4.65 (SIL-1033): 4px → 2px between the note block and its actions. */
+  gap: 2px;
 }
 
 .detailed-plan-grid__note-stack {
@@ -656,7 +687,9 @@
   max-width: 48px;
   box-sizing: border-box;
   text-align: center;
-  padding: 6px 4px;
+  /* K4.65 (SIL-1033): vertical 6px → 4px — same dense-band rhythm as the
+     td law; the 48px rail keeps its horizontal gutters. */
+  padding: 4px 4px;
   white-space: nowrap;
 }
 
@@ -685,7 +718,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 6px;
+  /* K4.65 (SIL-1033): 6px → 2px between the stacked Phát lệnh icon and the
+     ⋯ trigger — the rail keeps the SIL-588 vertical stack and the 30px
+     trigger pin; only the dead air between them goes. */
+  gap: 2px;
   min-width: 0;
   width: 100%;
 }
@@ -696,6 +732,12 @@
 
 .detailed-plan-grid__line {
   line-height: var(--ops-table-supporting-line-height);
+}
+
+/* K4.65 (SIL-1033): the shared .ops-schedule stack (global 2px gap) joins
+   the dense band inside this board — time/date facts sit 1px apart. */
+.detailed-plan-grid .ops-schedule {
+  gap: 1px;
 }
 
 .detailed-plan-grid__line--strong {
@@ -779,7 +821,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 2px 6px;
+  /* K4.65 (SIL-1033): vertical 2px → 1px between the wrapped bill run and
+     the direction facts. */
+  gap: 1px 6px;
   min-width: 0;
 }
 
@@ -1007,8 +1051,10 @@
 
 /* Direct release remains one icon target instead of a full-width empty pill. */
 .detailed-plan-grid__note-action--icon {
-  width: 28px;
-  min-height: 28px;
+  /* K4.65 (SIL-1033): 28px → 24px — the WCAG 2.5.8 floor; the stacked rail
+     pair (24 + 2 + 30) no longer double-charges the row. */
+  width: 24px;
+  min-height: 24px;
   padding: 0;
 }
 
