@@ -1,7 +1,9 @@
 import { Navigate, useParams } from 'react-router-dom';
 import { Role } from '@tingting/shared';
 import { useAuth } from '../hooks/useAuth';
+import { canUpdateExternalPlates } from '../lib/role-access';
 import { ShipmentCreateWorkspace } from '../features/shipments/create/ShipmentCreateWorkspace';
+import { ShipmentExternalPlateSection } from '../features/shipments/detail/ShipmentExternalPlateSection';
 
 /**
  * SIL-481 (ruling owner 25/10): /shipments/:id is the POST-CREATE REVIEW —
@@ -43,5 +45,19 @@ export default function ShipmentDetailPage() {
   // lands (a locked lot refuses every write).
   const canEditDeclaration = !!user?.role
     && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS || user.role === Role.DISPATCHER);
-  return <ShipmentCreateWorkspace viewTarget={{ shipmentId, canEditLot, canDeleteLot, canDeclareCost, canEditDeclaration }} />;
+  return (
+    <>
+      {/* SIL-1034 (K4.23): the review page's PHÂN XE read-edit strip — the
+          CUS path to a waiting-for-plate external trip. Mounted on the HOST
+          (not inside the workspace) so it renders even when the workspace's
+          own detail loader fails: the strip reads through the CUS-admitted
+          cus-workspace endpoint and writes through the shared external-plate
+          PATCH (SIL-714), whose server allowlist already admits CUS —
+          quyền CUS tối thiểu, no other assignment write is exposed. */}
+      {canUpdateExternalPlates(user?.role) && (
+        <ShipmentExternalPlateSection shipmentId={shipmentId} />
+      )}
+      <ShipmentCreateWorkspace viewTarget={{ shipmentId, canEditLot, canDeleteLot, canDeclareCost, canEditDeclaration }} />
+    </>
+  );
 }

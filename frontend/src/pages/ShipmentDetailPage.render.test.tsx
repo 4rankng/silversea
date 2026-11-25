@@ -19,6 +19,12 @@ vi.mock('../hooks/useAuth', () => ({
 vi.mock('../api/tripClient', () => ({ tripClient: { getBootstrap } }));
 vi.mock('../features/shipments/create/FreightPreviewCard', () => ({ FreightPreviewCard: () => null }));
 vi.mock('../api/shipmentDuplicateClient', () => ({ checkShipmentReferenceDuplicate }));
+// SIL-1034: the host mounts the PHÂN XE strip beside the workspace; it is
+// unit-pinned in ShipmentExternalPlateSection.test.tsx — here it stays out
+// of the SIL-593 render contract's way.
+vi.mock('../features/shipments/detail/ShipmentExternalPlateSection', () => ({
+  ShipmentExternalPlateSection: () => null,
+}));
 vi.mock('../api/shipmentClient', async (importOriginal) => ({
   ...await importOriginal<Record<string, unknown>>(),
   getShipmentDetail,
