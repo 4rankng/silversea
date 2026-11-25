@@ -14,16 +14,33 @@
    LCL-03' never shatters into W3A- / LCL- / 03. */
 
 /* (7) owner: card tops clipped under the app bar — breathing room above the
-   first card. */
+   first card. The 8px row gap replaces the pinned sibling hairline: the
+   25/11 evening directive (SIL-976, KB Ch.10 §10.8.3) lifts every card onto
+   the dpcard white-box recipe so a lot reads as ONE card floating on the
+   sage page, not a flat row. */
 ul.mpcard-list {
   padding-top: 8px;
+  gap: 8px;
 }
 
-/* (10) normalize the rhythm: one block padding, one row gap, the hairline
-   divider (already pinned) between sibling cards. */
+/* (10) SIL-976 — the card box itself: same recipe as the sanctioned dpcard
+   (DetailedPlanGrid.css .dpcard): white surface, hairline border, 10px
+   radius, one inside padding. The base keeps its pinned transparent
+   divider-list body in MasterPlanGrid.css (contract suites read that file);
+   this is the only place the card paints a box. */
 .mpcard-list .mpcard {
-  padding: 10px 0;
+  padding: 10px 12px;
   gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-color-secondary, var(--line));
+  border-radius: 10px;
+}
+
+/* The pinned sibling hairline (.mpcard + .mpcard border-top) is retired on
+   this surface — the box border + list gap separate the cards now. Beats the
+   (0,2,0) pin on explicit specificity, so load order can never flip it. */
+.mpcard-list .mpcard + .mpcard {
+  border-top: 0;
 }
 
 .mpcard-list .mpcard__body {
@@ -75,23 +92,31 @@ ul.mpcard-list {
 
 /* (2) the Bill/Booking code holds ONE line — nowrap + ellipsis; a long code
    truncates whole, it never shatters mid-token ('SMSKHPG261184242' cannot
-   drop a lone '42'). The base rule keeps its pinned wrap declaration in
-   MasterPlanGrid.css; this wins on specificity. */
+   drop a lone '42', 'W3A-LCL-03' cannot read 'W3A-LCL-0/3' — SIL-978/995).
+   The base rule keeps its pinned wrap declarations in MasterPlanGrid.css;
+   nowrap ALONE cannot stop the base's overflow-wrap:anywhere from breaking
+   a squeezed token, so the override resets the break law too. */
 .mpcard-list .mpcard__bill {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* ── Dòng 2: tên khách + giờ ─────────────────────────────────────────────── */
 
-/* (1) the customer name holds ONE line — 'Long Minh' never splits; a long
-   name ellipsizes (title carries the full value, the card tap opens the
-   detail anyway). */
+/* (1) the customer name holds ONE line — 'Long Minh' never splits (SIL-977/
+   995: even the Gộp hàng 22px squeeze ellipsizes instead of breaking
+   mid-word); a long name ellipsizes (title carries the full value, the card
+   tap opens the detail anyway). overflow-wrap reset for the same reason as
+   the bill. */
 .mpcard-list .mpcard__customer {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .mpcard-list .mpcard__dot {
@@ -100,10 +125,22 @@ ul.mpcard-list {
 }
 
 /* (4) the clock is short after the date-dedupe in the composer — it never
-   wraps and never shrinks before the name. */
+   wraps and never shrinks before the name (SIL-982: '24/11/2026 10:30'
+   stays one unbroken token pair). */
 .mpcard-list .mpcard__time {
   flex: none;
   white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/* (a2) the type token never breaks internally either — the LCL chip and the
+   Cont pill keep their whole label ('Nhập lẻ', 'Xuất · Cont') even in the
+   squeezed merge-mode head (SIL-995's 'badge chen hàng'). */
+.mpcard-list .mpcard__type {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* ── Ghi chú: 2 dòng + 'Xem thêm' ────────────────────────────────────────── */

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { MasterPlanCardList } from './MasterPlanCardList';
+import { formatDateTimeShort } from '../../../lib/format';
 import type { ActiveNoteDetail } from './MasterPlanNoteModal';
 
 /** Owner redesign 23/10 — the <640px phone card list for /dispatch, in the
@@ -348,6 +349,39 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     // FB-105 §3 — Nhập: kho under Nâng, nhà máy under Trả (the meta run).
     expect(screen.getByText(/Nâng Kho Lấy Hàng Đồng Nai → Trả Nhà máy Long Minh/)).toBeTruthy();
     expect(screen.queryByText('Chưa có cont')).toBeNull();
+  });
+
+  it('SIL-981 (id 1140): an LCL count with no package type still names its unit — "5 kiện", never a bare number', () => {
+    renderCards({
+      items: [item({
+        cargoMode: 'LCL',
+        packageCount: 5,
+        packageType: null,
+        cargoWeightKg: '1922',
+        cargoVolumeCbm: '4',
+        containerPortGroups: undefined,
+        containerTypeSummary: null,
+      })],
+    });
+    // The shared composer pins the bare count; the CARD appends the default
+    // unit so the fact reads ('5' alone is unreadable — ticket 1140).
+    expect(document.querySelector('.mpcard__cargo')?.textContent).toBe('5 kiện');
+    expect(screen.getByText(/1,922 tấn · 4 CBM/)).toBeTruthy();
+  });
+
+  it('SIL-982 (id 1141): the fallback clock dedupes the date — the instant never repeats the date line', () => {
+    renderCards({
+      items: [item({
+        appointmentGroups: [],
+        expectedDeliveryDate: '2026-11-24',
+        plannedReturnAt: '2026-11-24T03:30:00.000Z',
+      })],
+    });
+    // Old card: '24/11/2026 · 24/11/2026 10:30' (date twice, 3 wrapped lines).
+    // The deduped clock prints the instant alone.
+    const expected = formatDateTimeShort('2026-11-24T03:30:00.000Z');
+    expect(expected).not.toContain(' · ');
+    expect(document.querySelector('.mpcard__time')?.textContent).toBe(expected);
   });
 
   it('merges the warning and customs cutoff into ONE severity-voiced status line (SIL-507)', () => {

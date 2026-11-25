@@ -312,7 +312,10 @@ export function MasterPlanFilters({ filters, onChange, action }: MasterPlanFilte
       search={{
         value: filters.q,
         onChange: (value) => onChange({ q: value }),
-        placeholder: 'Tìm theo B/L, Booking, khách hàng…',
+        // SIL-979/998: the phone bar cell shows ~256px of this text — the full
+        // 'Tìm theo …' form measured 284px and Chrome cut it mid-word. The
+        // short form reads whole at 390px.
+        placeholder: 'Tìm B/L, Booking, khách hàng…',
         ariaLabel: 'Tìm kiếm lô hàng',
         // FB-011: symbol-only queries (e.g. `{`) warn instead of silently
         // emptying the board.
