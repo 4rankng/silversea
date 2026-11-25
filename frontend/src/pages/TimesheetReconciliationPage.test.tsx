@@ -222,4 +222,24 @@ describe('TimesheetReconciliationPage', () => {
     // The Sunday day rows keep their marker (same law as the Sunday-pay pin).
     expect((await screen.findAllByText('Chủ nhật')).length).toBeGreaterThan(0);
   });
+
+  // SIL-997 — ở ≤767px .ts-toolbar thành cột, nên 3 phần của bộ chọn tháng
+  // (nút trước / nhãn tháng / nút sau) rơi thành 3 dòng rời rạc. Bộ chọn tháng
+  // là MỘT control: phải nằm trong .ts-month-picker như 2 trang anh em.
+  it('SIL-997 — the month stepper is one control inside .ts-month-picker', async () => {
+    const { container } = renderBoard();
+    expect(await screen.findByText('Tổng hợp tháng')).toBeTruthy();
+
+    const toolbar = container.querySelector('.ts-toolbar');
+    expect(toolbar).not.toBeNull();
+
+    const picker = toolbar?.querySelector('.ts-month-picker');
+    expect(picker).not.toBeNull();
+    // The month comes from the route, not from the fixture month.
+    expect(picker?.querySelector('.ts-period')?.textContent).toMatch(/^Tháng \d{2}\/\d{4}$/);
+    // The stepper's two arrows live inside the picker, not loose in the toolbar.
+    expect(picker?.querySelector('[aria-label="Tháng trước"]')).not.toBeNull();
+    expect(picker?.querySelector('[aria-label="Tháng sau"]')).not.toBeNull();
+    expect(toolbar?.querySelector(':scope > .ts-period')).toBeNull();
+  });
 });

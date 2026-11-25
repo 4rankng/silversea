@@ -143,13 +143,20 @@ export default function TimesheetReconciliationPage() {
       />
 
       <div className="ts-toolbar">
-        <button className="btn btn--ghost btn--icon btn--sm" onClick={goPrev} aria-label="Tháng trước">
-          <ChevronLeft size={16} />
-        </button>
-        <span className="ts-period">{`Tháng ${String(month).padStart(2, '0')}/${year}`}</span>
-        <button className="btn btn--ghost btn--icon btn--sm" onClick={goNext} aria-label="Tháng sau">
-          <ChevronRight size={16} />
-        </button>
+        {/* SIL-997: the month stepper is ONE control — the same .ts-month-picker
+            wrapper the grid and monthly-report pages use. Without it the three
+            children land directly in .ts-toolbar, which turns into a column at
+            ≤767px, so the stepper stacked onto 3 rows (4 with the driver
+            select) and the month read as scattered pieces. */}
+        <div className="ts-month-picker">
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={goPrev} aria-label="Tháng trước">
+            <ChevronLeft size={16} />
+          </button>
+          <span className="ts-period">{`Tháng ${String(month).padStart(2, '0')}/${year}`}</span>
+          <button className="btn btn--ghost btn--icon btn--sm" onClick={goNext} aria-label="Tháng sau">
+            <ChevronRight size={16} />
+          </button>
+        </div>
         <div className="ts-driver-select">
           <UuiSelectField
             label="Chọn bảng chấm công"
