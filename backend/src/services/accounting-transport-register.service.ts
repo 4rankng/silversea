@@ -75,6 +75,31 @@ const podDecisionProjection = db.select({
   .groupBy(s.tripPodSubmissions.tripId)
   .as('accounting_transport_pod_decisions');
 
+// K6.41 — đối soát state per lot, the debit-close law verbatim (SIL chốt
+// debit): the LATEST non-withdrawn rate-adjustment request per shipment, live
+// only while its status is PENDING/CONFIRMED. Joinable so the count query can
+// aggregate the four reconciliation numbers over the whole filtered set.
+const latestAdjustmentRequestIds = db.select({
+  shipmentId: s.shipmentRateAdjustmentRequests.shipmentId,
+  maxId: sql<number>`max(${s.shipmentRateAdjustmentRequests.id})`.as('max_id'),
+}).from(s.shipmentRateAdjustmentRequests)
+  .where(isNull(s.shipmentRateAdjustmentRequests.withdrawnAt))
+  .groupBy(s.shipmentRateAdjustmentRequests.shipmentId)
+  .as('accounting_transport_latest_adjustment');
+
+const adjustmentProjection = db.select({
+  shipmentId: s.shipmentRateAdjustmentRequests.shipmentId,
+  requestId: s.shipmentRateAdjustmentRequests.id,
+  status: s.shipmentRateAdjustmentRequests.status,
+  requestedAt: s.shipmentRateAdjustmentRequests.requestedAt,
+  confirmedAt: s.shipmentRateAdjustmentRequests.confirmedAt,
+}).from(s.shipmentRateAdjustmentRequests)
+  .innerJoin(
+    latestAdjustmentRequestIds,
+    eq(latestAdjustmentRequestIds.maxId, s.shipmentRateAdjustmentRequests.id),
+  )
+  .as('accounting_transport_adjustments');
+
 // Sort whitelist — one key per register data column, mapped to a real SQL
 // expression over the joins the item query already applies (no row-multiplying
 // joins). OWN trips carry no carrier name, so the carrier column falls back to
@@ -236,6 +261,10 @@ export async function listAccountingTransportRows(
     acceptedPodSubmissionId: podDecisionProjection.acceptedSubmissionId,
     acceptedPodVersion: podDecisionProjection.acceptedVersion,
     acceptedPodAt: podDecisionProjection.acceptedAt,
+    adjustmentRequestId: adjustmentProjection.requestId,
+    adjustmentStatus: adjustmentProjection.status,
+    adjustmentRequestedAt: adjustmentProjection.requestedAt,
+    adjustmentConfirmedAt: adjustmentProjection.confirmedAt,
   }).from(s.trips)
     .innerJoin(s.tripFinancialPostings, eq(s.tripFinancialPostings.tripId, s.trips.id))
     .innerJoin(s.customers, eq(s.customers.id, s.trips.customerId))
@@ -255,6 +284,7 @@ export async function listAccountingTransportRows(
       carrierPayableProjection,
       eq(carrierPayableProjection.financialPostingId, s.tripFinancialPostings.id),
     )
+    .leftJoin(adjustmentProjection, eq(adjustmentProjection.shipmentId, s.shipments.id))
     .where(and(...conditions))
     .orderBy(...(
       input.sortBy
@@ -270,6 +300,8 @@ export async function listAccountingTransportRows(
 
   const countQuery = db.select({
     total: sql<number>`count(*)`,
+    pending: sql<number>`count(*) filter (where ${adjustmentProjection.status} = 'PENDING')`,
+    confirmed: sql<number>`count(*) filter (where ${adjustmentProjection.status} = 'CONFIRMED')`,
   }).from(s.trips)
     .innerJoin(s.tripFinancialPostings, eq(s.tripFinancialPostings.tripId, s.trips.id))
     .innerJoin(s.customers, eq(s.customers.id, s.trips.customerId))
@@ -289,10 +321,13 @@ export async function listAccountingTransportRows(
       carrierPayableProjection,
       eq(carrierPayableProjection.financialPostingId, s.tripFinancialPostings.id),
     )
+    .leftJoin(adjustmentProjection, eq(adjustmentProjection.shipmentId, s.shipments.id))
     .where(and(...conditions));
 
   const [rawItems, countRows] = await Promise.all([itemQuery, countQuery]);
   const total = Number(countRows[0]?.total ?? 0);
+  const pendingCount = Number(countRows[0]?.pending ?? 0);
+  const confirmedCount = Number(countRows[0]?.confirmed ?? 0);
   const items: AccountingTransportRegisterRow[] = rawItems.map((row) => {
     const readiness = readinessFor(row.profitabilitySnapshotId ?? null, row.acceptedPodSubmissionId ?? null);
     return {
@@ -332,6 +367,16 @@ export async function listAccountingTransportRows(
           ...(readiness === 'READY' ? ['PROFITABILITY_SNAPSHOT'] : []),
         ],
       },
+      // K6.41 — the live rate-adjustment state (debit-close law: only the
+      // latest non-withdrawn PENDING/CONFIRMED request counts).
+      adjustment: row.adjustmentStatus === 'PENDING' || row.adjustmentStatus === 'CONFIRMED'
+        ? {
+            status: row.adjustmentStatus,
+            requestId: row.adjustmentRequestId,
+            requestedAt: row.adjustmentRequestedAt ? new Date(row.adjustmentRequestedAt).toISOString() : null,
+            confirmedAt: row.adjustmentConfirmedAt ? new Date(row.adjustmentConfirmedAt).toISOString() : null,
+          }
+        : { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
     };
   });
 
@@ -343,6 +388,11 @@ export async function listAccountingTransportRows(
     limit: input.limit,
     total,
     totalPages: total === 0 ? 0 : Math.ceil(total / input.limit),
+    adjustmentCounts: {
+      none: total - pendingCount - confirmedCount,
+      pending: pendingCount,
+      confirmed: confirmedCount,
+    },
     items,
   };
 }

@@ -113,6 +113,7 @@ export function AccountingWorkspaceRoot() {
           total={queries.transportRegister.data?.total ?? 0}
           totalPages={queries.transportRegister.data?.totalPages ?? 0}
           fingerprint={queries.transportRegister.data?.filterFingerprint}
+          adjustmentCounts={queries.transportRegister.data?.adjustmentCounts}
           page={state.transportPage}
           search={state.transportSearch}
           customerId={state.customerId ? String(state.customerId) : ''}

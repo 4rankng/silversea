@@ -83,6 +83,7 @@ describe('AccountingWorkspacePage', () => {
         return Promise.resolve({
           asOf: '2026-08-01T00:00:00.000Z', timezone: 'Asia/Ho_Chi_Minh',
           filterFingerprint: 'a'.repeat(64), page: 1, limit: 25, total: 1, totalPages: 1,
+          adjustmentCounts: { none: 1, pending: 0, confirmed: 0 },
           items: [{
             financialPostingId: 41, financialPostingVersion: 1,
             financialPostingEffectiveAt: '2026-08-01T00:00:00.000Z',
@@ -97,6 +98,7 @@ describe('AccountingWorkspacePage', () => {
               acceptedPodAt: '2026-08-01T00:00:00.000Z', profitabilitySnapshotId: 17,
               evidence: ['COMPLETED_TRIP', 'ACCEPTED_EPOD'],
             },
+            adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
           }],
         });
       }

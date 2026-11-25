@@ -142,6 +142,18 @@ export const accountingTransportRegisterQuerySchema = z.object({
 
 const moneyStringSchema = z.string().regex(/^-?\d+(?:\.\d+)?$/);
 
+/**
+ * Đối soát state of the register row's lot (K6.41) — the same wire the
+ * debit-close board carries: 'NONE' when the lot has no live rate-adjustment
+ * request (the latest non-withdrawn one is not PENDING/CONFIRMED).
+ */
+export const accountingTransportAdjustmentSchema = z.object({
+  status: z.enum(['NONE', 'PENDING', 'CONFIRMED']),
+  requestId: z.number().int().positive().nullable(),
+  requestedAt: z.iso.datetime().nullable(),
+  confirmedAt: z.iso.datetime().nullable(),
+}).strict();
+
 export const accountingTransportRegisterRowSchema = z.object({
   financialPostingId: z.number().int().positive(),
   financialPostingVersion: z.number().int().positive(),
@@ -175,6 +187,7 @@ export const accountingTransportRegisterRowSchema = z.object({
     profitabilitySnapshotId: z.number().int().positive().nullable(),
     evidence: z.array(z.string()),
   }).strict(),
+  adjustment: accountingTransportAdjustmentSchema,
 }).strict();
 
 export const accountingTransportRegisterResponseSchema = z.object({
@@ -185,6 +198,12 @@ export const accountingTransportRegisterResponseSchema = z.object({
   limit: z.number().int().min(1).max(100),
   total: z.number().int().nonnegative(),
   totalPages: z.number().int().nonnegative(),
+  /** K6.41 — the four reconciliation counts over the FULL filtered set. */
+  adjustmentCounts: z.object({
+    none: z.number().int().nonnegative(),
+    pending: z.number().int().nonnegative(),
+    confirmed: z.number().int().nonnegative(),
+  }).strict(),
   items: z.array(accountingTransportRegisterRowSchema),
 }).strict();
 
@@ -202,5 +221,6 @@ export type AccountingTransportReadiness = typeof ACCOUNTING_TRANSPORT_READINESS
 export type AccountingTransportSortKey = typeof ACCOUNTING_TRANSPORT_SORT_KEYS[number];
 export type RecoverableCostSortKey = typeof RECOVERABLE_COST_SORT_KEYS[number];
 export type AccountingTransportRegisterQuery = z.infer<typeof accountingTransportRegisterQuerySchema>;
+export type AccountingTransportAdjustment = z.infer<typeof accountingTransportAdjustmentSchema>;
 export type AccountingTransportRegisterRow = z.infer<typeof accountingTransportRegisterRowSchema>;
 export type AccountingTransportRegisterResponse = z.infer<typeof accountingTransportRegisterResponseSchema>;

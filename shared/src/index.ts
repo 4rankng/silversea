@@ -371,7 +371,7 @@ export type {
   AccountingTransportOwnership, AccountingTransportReadiness,
   AccountingTransportSortKey, RecoverableCostSortKey,
   AccountingTransportRegisterQuery, AccountingTransportRegisterRow,
-  AccountingTransportRegisterResponse,
+  AccountingTransportRegisterResponse, AccountingTransportAdjustment,
 } from './schemas';
 
 export {

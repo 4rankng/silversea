@@ -80,7 +80,7 @@ describe('accounting workspace list-screen contract', () => {
   // superseded recipe, so the pins below name the sanctioned one.
   it('marks the picked row structurally (data-selected) and draws it in neutral ink, never an accent', () => {
     expect(registerTsx).toContain('data-selected={selected || undefined}');
-    expect(registerTsx).toContain('aria-selected={pickable ? selected : undefined}');
+    expect(registerTsx).toContain('aria-selected={selectable ? selected : undefined}');
     const selected = pageCss.match(/tr\[data-selected\]\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(selected).toContain('background: var(--surface)');
     expect(selected).toContain('box-shadow: inset 3px 0 0 var(--ink)');

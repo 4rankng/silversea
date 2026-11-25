@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { AccountingTransportRegisterRow } from '@tingting/shared';
 import type { TableSortState } from '../../lib/table-sort';
 import { SortHeader } from '../../components/shared';
@@ -11,11 +12,28 @@ import {
   transportReadinessLabel,
 } from './accountingWorkspaceUtils';
 import type { AccountingTransportFilterKey } from './accountingWorkspaceTypes';
-import { EmptyState, FilterBar, Pagination } from '../../design-system';
+import { EmptyState, FilterBar, Pagination, SummaryRail } from '../../design-system';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { useTableRowSelection, type RowSelection } from '../../hooks/useTableRowSelection';
+import { useHiddenColumns } from '../../hooks/useHiddenColumns';
+import type { LedgerColumn } from '../../lib/column-visibility';
+import { confirmRateAdjustments, withdrawRateAdjustments } from '../../api/accountingDebitClient';
 import { billBookingReference } from '../../lib/business-reference';
+
+/** K6.41 — 'Cột hiển thị': the register's columns in table order. Chuyến is
+ *  the row's identity and Thao tác its only action column — both pinned (the
+ *  picker never offers to hide them); the rest are the operator's choice. */
+const REGISTER_COLUMNS: LedgerColumn[] = [
+  { key: 'tripCode', label: 'Chuyến', pinned: true },
+  { key: 'customerName', label: 'Khách hàng' },
+  { key: 'carrierName', label: 'Nhà xe' },
+  { key: 'revenue', label: 'Doanh thu' },
+  { key: 'directCost', label: 'Chi phí' },
+  { key: 'profit', label: 'Lợi nhuận' },
+  { key: 'readiness', label: 'Trạng thái' },
+  { key: 'actions', label: 'Thao tác', pinned: true },
+];
 
 type AccountingTransportRegisterProps = {
   rows: AccountingTransportRegisterRow[];
@@ -31,6 +49,8 @@ type AccountingTransportRegisterProps = {
   ownership: string;
   readiness: string;
   selectionScopeKey: string;
+  /** K6.41 — the four reconciliation counts over the full filtered set. */
+  adjustmentCounts?: { none: number; pending: number; confirmed: number };
   loading: boolean;
   error: boolean;
   /** Server-side column sort; the parent owns the URL params. */
@@ -62,6 +82,7 @@ export function AccountingTransportRegister({
   ownership,
   readiness,
   selectionScopeKey,
+  adjustmentCounts,
   loading,
   error,
   sort,
@@ -139,6 +160,59 @@ export function AccountingTransportRegister({
   // owns, so its `Bộ lọc, N đang áp dụng` name and `Đặt lại` describe the same set.
   const secondaryCount = [customerId, carrierId, ownership, readiness].filter(Boolean).length;
 
+  // K6.41 — 'Cột hiển thị': the persisted per-workstation column choice (the
+  // shared useHiddenColumns law every other ledger surface uses).
+  const hiddenColumns = useHiddenColumns({
+    storageKey: 'accounting-transport-register-hidden-cols',
+    columns: REGISTER_COLUMNS,
+    hasData: (column) => rows.some((row) => {
+      switch (column.key) {
+        case 'carrierName': return row.carrierName != null;
+        case 'revenue': return row.revenue != null;
+        case 'directCost': return row.directCost != null;
+        case 'profit': return row.profit != null;
+        default: return true;
+      }
+    }),
+  });
+
+  // K6.41 — [Đối soát]/[Hoàn tác] act on the SELECTED rows' live PENDING
+  // rate-adjustment requests — the same confirm/withdraw endpoints the chốt
+  // debit board feeds (a second entry point, not a new business path).
+  const selectedRequestIds = useMemo(
+    () => rows
+      .filter((row) => selected.has(row.tripId) && row.adjustment.status === 'PENDING')
+      .map((row) => row.adjustment.requestId)
+      .filter((id): id is number => id != null),
+    [rows, selected],
+  );
+  const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const queryClient = useQueryClient();
+  // The register query family is ['accounting', 'transport-register', params]
+  // (qk.accounting.transportRegister) — the prefix refreshes every filter page.
+  const refreshRegister = () => {
+    clear();
+    void queryClient.invalidateQueries({ queryKey: ['accounting', 'transport-register'] });
+  };
+  const confirmMutation = useMutation({
+    mutationFn: confirmRateAdjustments,
+    onSuccess: () => { setMessage({ kind: 'ok', text: 'Đã xác nhận đối soát.' }); refreshRegister(); },
+    onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
+  });
+  const withdrawMutation = useMutation({
+    mutationFn: withdrawRateAdjustments,
+    onSuccess: () => { setMessage({ kind: 'ok', text: 'Đã rút yêu cầu.' }); refreshRegister(); },
+    onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
+  });
+
+  // K6.41 — the four reconciliation counts, the chốt debit labels verbatim.
+  const summary = useMemo(() => [
+    { label: 'Lô trong kỳ', value: total },
+    { label: 'Chưa đối soát', value: adjustmentCounts?.none ?? 0 },
+    { label: 'Chờ xác nhận', value: adjustmentCounts?.pending ?? 0, tone: 'warning' as const },
+    { label: 'Đã đối soát', value: adjustmentCounts?.confirmed ?? 0 },
+  ], [total, adjustmentCounts]);
+
   return (
     <section
       className="accounting-register"
@@ -149,6 +223,11 @@ export function AccountingTransportRegister({
         <h2 id="transport-register-title">Sổ đối chiếu vận tải</h2>
         <p>{total} chuyến đủ điều kiện tài chính trong kỳ</p>
       </header>
+
+      {/* K6.41 — the four reconciliation counts at the page top, the chốt
+          debit labels verbatim ('Lô trong kỳ / Chưa đối soát / Chờ xác nhận /
+          Đã đối soát') over the full filtered set. */}
+      <SummaryRail ariaLabel="Tổng hợp đối soát vận tải" items={summary} />
 
       {/* Card 20260927_152: the shared `FilterBar` band owns the strip — one
           wrapping row, no page-declared layout. The search is the bar's own
@@ -169,6 +248,13 @@ export function AccountingTransportRegister({
             placeholder: 'Ví dụ: C-009, Silver Sea, TGHU…',
             ariaLabel: 'Tìm chuyến, khách hàng hoặc container',
             inputProps: { id: 'accounting-transport-search', name: 'transportSearch', autoComplete: 'off' },
+          }}
+          columns={{
+            items: REGISTER_COLUMNS,
+            hidden: hiddenColumns.hidden,
+            customized: hiddenColumns.customized,
+            onToggle: hiddenColumns.toggle,
+            onReset: hiddenColumns.reset,
           }}
           actions={(
             <>
@@ -244,6 +330,46 @@ export function AccountingTransportRegister({
         </FilterBar>
       </form>
 
+      {/* K6.41 — [Đối soát]/[Hoàn tác] mirror the chốt debit action strip: the
+          pair acts on the selected rows' live PENDING rate-adjustment requests
+          through the same confirm/withdraw endpoints (no new business path). */}
+      <div className="accounting-selection" role="group" aria-label="Đối soát điều chỉnh cước">
+        <div>
+          <strong>Đối soát điều chỉnh cước</strong>
+          <span>
+            {selectedRequestIds.length > 0
+              ? `Đã chọn ${selectedRequestIds.length} dòng chờ xác nhận`
+              : 'Chọn dòng đang chờ xác nhận để đối soát hoặc hoàn tác'}
+          </span>
+        </div>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          disabled={selectedRequestIds.length === 0 || confirmMutation.isPending}
+          title={selectedRequestIds.length === 0 ? 'Chọn ít nhất một dòng đang chờ xác nhận để đối soát' : undefined}
+          onClick={() => confirmMutation.mutate(selectedRequestIds)}
+        >
+          {confirmMutation.isPending ? 'Đang đối soát…' : 'Đối soát'}
+        </button>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          disabled={selectedRequestIds.length === 0 || withdrawMutation.isPending}
+          title={selectedRequestIds.length === 0 ? 'Chọn ít nhất một dòng để hoàn tác yêu cầu điều chỉnh' : undefined}
+          onClick={() => withdrawMutation.mutate(selectedRequestIds)}
+        >
+          {withdrawMutation.isPending ? 'Đang hoàn tác…' : 'Hoàn tác'}
+        </button>
+      </div>
+      {message && (
+        <p
+          className={message.kind === 'err' ? 'accounting-alert' : 'accounting-register__hint'}
+          role={message.kind === 'err' ? 'alert' : 'status'}
+        >
+          {message.text}
+        </p>
+      )}
+
       {error && (
         <div className="accounting-alert" role="alert">
           Không tải được sổ đối chiếu vận tải.{' '}
@@ -282,14 +408,14 @@ export function AccountingTransportRegister({
             <table className="record-table ops-table accounting-register__table">
               <thead>
                 <tr>
-                  <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />
-                  <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={onSortChange} />
-                  <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />
-                  <SortHeader label="Doanh thu" sortKey="revenue" sort={sort} onSortChange={onSortChange} className="num" />
-                  <SortHeader label="Chi phí" sortKey="directCost" sort={sort} onSortChange={onSortChange} className="num" />
-                  <SortHeader label="Lợi nhuận" sortKey="profit" sort={sort} onSortChange={onSortChange} className="num" />
-                  <SortHeader label="Trạng thái" sortKey="readiness" sort={sort} onSortChange={onSortChange} />
-                  <th scope="col">Thao tác</th>
+                  {!hiddenColumns.isHidden('tripCode') && <SortHeader label="Chuyến" sortKey="tripCode" sort={sort} onSortChange={onSortChange} />}
+                  {!hiddenColumns.isHidden('customerName') && <SortHeader label="Khách hàng" sortKey="customerName" sort={sort} onSortChange={onSortChange} />}
+                  {!hiddenColumns.isHidden('carrierName') && <SortHeader label="Nhà xe" sortKey="carrierName" sort={sort} onSortChange={onSortChange} />}
+                  {!hiddenColumns.isHidden('revenue') && <SortHeader label="Doanh thu" sortKey="revenue" sort={sort} onSortChange={onSortChange} className="num" />}
+                  {!hiddenColumns.isHidden('directCost') && <SortHeader label="Chi phí" sortKey="directCost" sort={sort} onSortChange={onSortChange} className="num" />}
+                  {!hiddenColumns.isHidden('profit') && <SortHeader label="Lợi nhuận" sortKey="profit" sort={sort} onSortChange={onSortChange} className="num" />}
+                  {!hiddenColumns.isHidden('readiness') && <SortHeader label="Trạng thái" sortKey="readiness" sort={sort} onSortChange={onSortChange} />}
+                  {!hiddenColumns.isHidden('actions') && <th scope="col">Thao tác</th>}
                 </tr>
               </thead>
               <tbody>
@@ -300,8 +426,9 @@ export function AccountingTransportRegister({
                       key={row.financialPostingId}
                       row={row}
                       pickable={pickable}
-                      selected={pickable && selection.isSelected(row.tripId)}
+                      selected={selection.isSelected(row.tripId)}
                       selection={selection}
+                      hidden={hiddenColumns.hidden}
                     />
                   );
                 })}
@@ -343,6 +470,7 @@ function TransportTableRow({
   pickable,
   selected,
   selection,
+  hidden,
 }: {
   row: AccountingTransportRegisterRow;
   /** A trip is pickable exactly when it is financially READY: a locked row
@@ -351,53 +479,66 @@ function TransportTableRow({
   pickable: boolean;
   selected: boolean;
   selection: RowSelection<number>;
+  /** K6.41 — the 'Cột hiển thị' choice: hidden keys render no cell. */
+  hidden: readonly string[];
 }) {
+  // A row joins the selection when it can act: READY rows feed the draft, rows
+  // carrying a live PENDING rate-adjustment feed [Đối soát]/[Hoàn tác].
+  const selectable = pickable || row.adjustment.status === 'PENDING';
   return (
     <tr
       data-selected={selected || undefined}
-      aria-selected={pickable ? selected : undefined}
-      className={pickable ? 'accounting-register__row--pickable' : 'accounting-register__row--locked'}
-      tabIndex={pickable ? 0 : undefined}
-      {...selection.rowProps(row.tripId, { selectable: pickable })}
+      aria-selected={selectable ? selected : undefined}
+      className={selectable ? 'accounting-register__row--pickable' : 'accounting-register__row--locked'}
+      tabIndex={selectable ? 0 : undefined}
+      {...selection.rowProps(row.tripId, { selectable })}
     >
-      <td data-label="Chuyến">
-        <span className="accounting-register__lead">
-          <strong>{billBookingReference(row.tripCode)}</strong>
-          <small>{row.containerNumbers.join(', ') || 'Chưa có container'}</small>
-        </span>
-      </td>
-      <td data-label="Khách hàng">{row.customerName}</td>
-      <td data-label="Nhà xe">
-        {row.ownership === 'OWN' ? 'Xe nhà' : row.carrierName ?? 'Nhà xe ngoài'}
-        {row.ownership === 'EXTERNAL' && (
-          <small className="accounting-register__payable">
-            Phải trả NXC {formatCurrency(Number(row.carrierPayable))}
-          </small>
-        )}
-      </td>
+      {!hidden.includes('tripCode') && (
+        <td data-label="Chuyến">
+          <span className="accounting-register__lead">
+            <strong>{billBookingReference(row.tripCode)}</strong>
+            <small>{row.containerNumbers.join(', ') || 'Chưa có container'}</small>
+          </span>
+        </td>
+      )}
+      {!hidden.includes('customerName') && <td data-label="Khách hàng">{row.customerName}</td>}
+      {!hidden.includes('carrierName') && (
+        <td data-label="Nhà xe">
+          {row.ownership === 'OWN' ? 'Xe nhà' : row.carrierName ?? 'Nhà xe ngoài'}
+          {row.ownership === 'EXTERNAL' && (
+            <small className="accounting-register__payable">
+              Phải trả NXC {formatCurrency(Number(row.carrierPayable))}
+            </small>
+          )}
+        </td>
+      )}
       {/* Card 191026202000: a chuyến with no profitability snapshot posts no
           revenue/cost/profit (the wire types them nullable). `Number(x ?? 0)`
           turned that "chưa chốt" into a REAL 0 ₫ — a number no accountant can
           tell from a genuine zero, and the cost cell is exactly what they scan
           for. formatCurrency already owns the missing contract ('— ₫'); hand it
           the raw value so a null stays a missing fact. */}
-      <td data-label="Doanh thu" className="num">{formatCurrency(row.revenue)}</td>
-      <td data-label="Chi phí" className="num">{formatCurrency(row.directCost)}</td>
-      <td data-label="Lợi nhuận" className="num">{formatCurrency(row.profit)}</td>
-      <td data-label="Trạng thái">
-        <span
-          className={`accounting-status accounting-status--${
-            pickable ? 'ready' : 'missing'
-          }`}
-        >
-          {transportReadinessLabel(row)}
-        </span>
-      </td>
-      <td data-label="" className="record-table__action">
-        <Link to={routes.debtDetail(row.customerId)}>
-          Công nợ
-        </Link>
-      </td>
+      {!hidden.includes('revenue') && <td data-label="Doanh thu" className="num">{formatCurrency(row.revenue)}</td>}
+      {!hidden.includes('directCost') && <td data-label="Chi phí" className="num">{formatCurrency(row.directCost)}</td>}
+      {!hidden.includes('profit') && <td data-label="Lợi nhuận" className="num">{formatCurrency(row.profit)}</td>}
+      {!hidden.includes('readiness') && (
+        <td data-label="Trạng thái">
+          <span
+            className={`accounting-status accounting-status--${
+              pickable ? 'ready' : 'missing'
+            }`}
+          >
+            {transportReadinessLabel(row)}
+          </span>
+        </td>
+      )}
+      {!hidden.includes('actions') && (
+        <td data-label="" className="record-table__action">
+          <Link to={routes.debtDetail(row.customerId)}>
+            Công nợ
+          </Link>
+        </td>
+      )}
     </tr>
   );
 }

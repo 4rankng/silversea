@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import type { AccountingTransportRegisterRow } from '@tingting/shared';
@@ -41,6 +42,7 @@ const row = (over: Partial<AccountingTransportRegisterRow> = {}): AccountingTran
     profitabilitySnapshotId: 17,
     evidence: ['COMPLETED_TRIP'],
   },
+  adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
   ...over,
 });
 
@@ -56,7 +58,8 @@ const missingProfitability = {
 function renderRegister(rows: AccountingTransportRegisterRow[]) {
   return render(
     <MemoryRouter>
-      <AccountingTransportRegister
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <AccountingTransportRegister
         rows={rows}
         total={rows.length}
         totalPages={1}
@@ -81,7 +84,8 @@ function renderRegister(rows: AccountingTransportRegisterRow[]) {
         onRetry={() => {}}
         onReset={() => {}}
         onResetSecondary={() => {}}
-      />
+        />
+      </QueryClientProvider>
     </MemoryRouter>,
   );
 }

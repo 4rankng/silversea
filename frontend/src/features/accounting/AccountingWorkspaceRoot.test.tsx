@@ -60,6 +60,7 @@ function registerRow(tripId: number, tripCode: string, revenue: string | null) {
       profitabilitySnapshotId: tripId,
       evidence: [],
     },
+    adjustment: { status: 'NONE', requestId: null, requestedAt: null, confirmedAt: null },
   };
 }
 
