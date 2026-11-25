@@ -1351,3 +1351,101 @@
     width: 100%;
   }
 }
+
+/* SIL-1053 (K2.42) — milestone strip: one row per stage. Done rows go
+   success-green (the same reserved-success law as the completion CTA),
+   locked rows mute, and the actionable row keeps the help line — the strip
+   stays scannable at phone widths. */
+.driver-milestones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.driver-milestones__row {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.driver-milestones__row--done {
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  background: color-mix(in srgb, var(--success) 6%, transparent);
+}
+
+.driver-milestones__row--locked {
+  opacity: 0.62;
+}
+
+.driver-milestones__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.driver-milestones__icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--ink-3, var(--ink-2));
+}
+
+.driver-milestones__row--done .driver-milestones__icon {
+  color: var(--success);
+}
+
+.driver-milestones__title {
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.driver-milestones__meta {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.driver-milestones__wait {
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+.driver-milestones__evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 24px;
+}
+
+.driver-milestones__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-caption-size);
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+}
+
+.driver-milestones__chip--ok {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
+}
+
+.driver-milestones__help {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}

@@ -1,6 +1,6 @@
 // Pure milestone/fuel-evidence helpers for the driver trip detail surface.
 // Split from pages/DriverTripDetailPage.tsx in the 2026-09-01 structural wave (move-only).
-import { DriverProgressEventType } from '@tingting/shared';
+import { DRIVER_FULFILLMENT_PROGRESS_SEQUENCE, DriverProgressEventType } from '@tingting/shared';
 import { ApiError } from '../../lib/api';
 import { formatDateTime24 } from '../../lib/format';
 import { formatVietnamDateTimeInput } from '../../lib/shipment-operations';
@@ -8,13 +8,20 @@ import { getLocationPermissionIssue, isGeolocationError } from '../../lib/gps/ge
 import { useDriverTaskProgress } from '../../hooks/useDriverQueries';
 import type { DriverTaskDetail, DriverJourneyCard } from '../../api/driverClient';
 
-export type MilestoneType = DriverProgressEventType.ORDER_RECEIVED;
+export type MilestoneType = (typeof DRIVER_FULFILLMENT_PROGRESS_SEQUENCE)[number];
 
 export type MilestoneActionState = 'done' | 'available' | 'locked';
 
-// Spec AC-DETAIL-003: BỎ HOÀN TOÀN 4 mốc thực hiện truyền thống. Only the
-// ORDER_RECEIVED action remains — the driver accepts the dispatch order in one
-// tap. No check-in milestones for pickup, loading, or delivery.
+/**
+ * SIL-1053 (K2.42) — the driver milestone strip is BACK: nhận lệnh → lấy
+ * vỏ/hàng → đóng/trả hàng → hạ bãi/giao hàng, with per-stage evidence and a
+ * timestamp per recorded stage. Supersedes the AC-DETAIL-003 "BỎ HOÀN TOÀN 4
+ * mốc" reading (only the ORDER_RECEIVED action survived that wave): the KB
+ * K2.42 law restores the milestones, and the SEQUENCE is the shared BE
+ * constant (DRIVER_FULFILLMENT_PROGRESS_SEQUENCE) so the strip can never
+ * drift from what the progress endpoint enforces (a 409 names the next
+ * allowed stage; this page only ever enables that stage).
+ */
 export const MILESTONES: Array<{
   eventType: MilestoneType;
   title: string;
@@ -22,8 +29,23 @@ export const MILESTONES: Array<{
 }> = [
   {
     eventType: DriverProgressEventType.ORDER_RECEIVED,
-    title: 'Đã nhận lệnh',
+    title: 'Nhận lệnh',
     help: 'Xác nhận đã nhận lệnh vận chuyển. Thời điểm này được lưu để theo dõi SLA.',
+  },
+  {
+    eventType: DriverProgressEventType.PICKED_UP,
+    title: 'Lấy vỏ / Lấy hàng',
+    help: 'Ghi nhận khi đã lấy vỏ tại cảng nâng hoặc đã nhận hàng tại kho.',
+  },
+  {
+    eventType: DriverProgressEventType.LOADING_OR_RETURNING,
+    title: 'Đóng / Trả hàng',
+    help: 'Ghi nhận khi đã đóng hàng xong hoặc đã trả vỏ/hàng về điểm yêu cầu.',
+  },
+  {
+    eventType: DriverProgressEventType.DELIVERED,
+    title: 'Hạ bãi / Giao hàng',
+    help: 'Ghi nhận khi đã hạ vỏ tại bãi hoặc đã giao hàng xong cho khách.',
   },
 ];
 

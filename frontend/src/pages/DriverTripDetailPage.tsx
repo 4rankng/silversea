@@ -4,8 +4,10 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  Circle,
   FileCheck2,
   Loader2,
+  Lock,
   ShieldAlert,
   StickyNote,
   Truck,
@@ -32,7 +34,7 @@ import { useConfirm } from '../components/UI';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import './DriverTripDetailPage.css';
 
-import { MILESTONES, completeCtaLabel, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
+import { MILESTONES, completeCtaLabel, formatDateTime, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
 import { parseDriverTaskNote } from '@tingting/shared';
 
 export default function DriverTripDetailPage() {
@@ -214,6 +216,10 @@ function DriverTripDetailContent() {
         expectedVersion: trip.version,
         fulfillmentId: validFulfillmentId,
       }, idempotencyKey);
+      // SIL-1053 — the strip (and the accept/complete bars) read progress +
+      // detail; refetch both so the just-recorded stage flips to its done
+      // state with the server's timestamp instead of waiting for a refocus.
+      await refreshAll();
       // A successful action stands on its own — no banner premise to clear
       // (CR-011 removed the 409-driven blocking banner entirely).
       toast({ kind: 'success', message: 'Đã ghi nhận mốc tiến độ.' });
@@ -440,8 +446,38 @@ function DriverTripDetailContent() {
   // three capture zones); done state keeps the zones-full meaning.
   const photoCount = containerSealPhotos.length;
 
+  // SIL-1053 (K2.42) — per-stage evidence chips, built from data the page
+  // already holds: container photos ride Lấy vỏ / Lấy hàng, the biên bản
+  // photos ride Đóng / Trả hàng, the two required POD docs ride Hạ bãi /
+  // Giao hàng. LCL carries no container card (SIL-918) — its delivery-note
+  // evidence lives on the e-POD screen, so the container-side stages show no
+  // chips and the delivery stage keeps only the one required doc.
+  const milestoneEvidence: Record<MilestoneType, Array<{ label: string; ok: boolean }>> = {
+    [DriverProgressEventType.ORDER_RECEIVED]: [],
+    [DriverProgressEventType.PICKED_UP]: isLcl ? [] : [
+      { label: 'Ảnh cont', ok: Boolean(contPhotoKey) },
+      { label: 'Ảnh seal', ok: Boolean(sealPhotoKey) },
+    ],
+    [DriverProgressEventType.LOADING_OR_RETURNING]: isLcl ? [] : [
+      { label: 'Ảnh biên bản', ok: deliveryNotePhotoKeys.length > 0 },
+    ],
+    [DriverProgressEventType.DELIVERED]: isLcl
+      ? [{ label: 'Biên bản giao nhận', ok: hasSignedNote }]
+      : [
+        { label: 'Phiếu bãi / phiếu hạ', ok: hasYardReceipt },
+        { label: 'Biên bản giao nhận', ok: hasSignedNote },
+      ],
+  };
+
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
+  const deliveredEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED);
+  // SIL-1053 (K2.42) — completion is the LAST milestone: while the driver's
+  // own sequence is mid-flight (accepted, Hạ bãi/giao chưa ghi), the Hoàn tất
+  // CTA waits for the strip. The dispatch-started escape hatch (no
+  // ORDER_RECEIVED, accept bar hidden by the SIL-817 running-trip law) stays
+  // untouched — the BE infers the missing milestones on completion.
+  const milestoneGatedComplete = acceptState === 'done' && !deliveredEvent;
   // SIL-817 (id 946, PROD 13/11): the completion command renders by TRIP
   // STATUS, never by whether the dispatch handoff found a handler. An
   // IN_TRANSIT trip is physically running — its Hoàn tất CTA must be
@@ -475,6 +511,62 @@ function DriverTripDetailContent() {
         )}
         <span className="driver-task-progress__item" data-testid="progress-costs">Chi phí {costEntryCount}</span>
       </div>
+
+      {/* SIL-1053 (K2.42) — dải mốc tiến độ: nhận lệnh → lấy vỏ/hàng →
+          đóng/trả hàng → hạ bãi/giao hàng. Each row: its record action (the
+          BE sequence is the law — out-of-order writes 409 server-side, the
+          strip only ever enables the next stage), its evidence chips, and
+          the recorded timestamp once done. The help line renders on the
+          actionable row only (dense-display law, card 20260927_1). */}
+      <section className="driver-task-section" data-testid="driver-milestone-strip">
+        <div className="driver-task-section__head"><span>Tiến độ chuyến</span></div>
+        <ol className="driver-milestones">
+          {MILESTONES.map((milestone, index) => {
+            const event = getLatestMilestoneEvent(progress.data, milestone.eventType);
+            const state = milestoneActionState(Boolean(event), nextMilestoneIndex, index);
+            const chips = milestoneEvidence[milestone.eventType];
+            return (
+              <li key={milestone.eventType} className={`driver-milestones__row driver-milestones__row--${state}`} data-testid={`milestone-${milestone.eventType}`}>
+                <div className="driver-milestones__main">
+                  <span className="driver-milestones__icon" aria-hidden="true">
+                    {state === 'done' ? <CheckCircle2 size={16} /> : state === 'available' ? <Circle size={16} /> : <Lock size={13} />}
+                  </span>
+                  <span className="driver-milestones__title">{milestone.title}</span>
+                  <span className="driver-milestones__meta">
+                    {state === 'done' && event && (
+                      <span data-testid={`milestone-time-${milestone.eventType}`}>Đã ghi · {formatDateTime(event.occurredAt)}</span>
+                    )}
+                    {state === 'available' && (
+                      <button
+                        type="button"
+                        className="btn btn--secondary btn--sm"
+                        disabled={accepting || pairLocked}
+                        aria-label={`Ghi nhận mốc ${milestone.title}`}
+                        onClick={() => { void handleMilestone(milestone.eventType); }}
+                      >
+                        {accepting ? <Loader2 size={14} className="spin" /> : null}
+                        Ghi nhận
+                      </button>
+                    )}
+                    {state === 'locked' && <span className="driver-milestones__wait">Chờ mốc trước</span>}
+                  </span>
+                </div>
+                {chips.length > 0 && (
+                  <div className="driver-milestones__evidence" data-testid={`milestone-evidence-${milestone.eventType}`}>
+                    {chips.map((chip) => (
+                      <span key={chip.label} className={`driver-milestones__chip${chip.ok ? ' driver-milestones__chip--ok' : ''}`}>
+                        {chip.ok ? <CheckCircle2 size={12} /> : <Circle size={12} />}
+                        {chip.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {state === 'available' && <p className="driver-milestones__help">{milestone.help}</p>}
+              </li>
+            );
+          })}
+        </ol>
+      </section>
 
 
 
@@ -715,7 +807,11 @@ function DriverTripDetailContent() {
               // SIL-817: an accounting-locked lot must not offer a click that
               // can only answer with the "Đã khóa kế toán" warning (a control
               // that always errors is a blocked affordance).
-              disabled={trip.status !== 'IN_TRANSIT' || completing || Boolean(trip.accountingLock)}
+              // SIL-1053 (K2.42): completion is the LAST milestone — a
+              // mid-sequence trip (accepted, Hạ bãi/giao chưa ghi) waits for
+              // the strip; the dispatch-started path keeps its escape hatch.
+              disabled={trip.status !== 'IN_TRANSIT' || completing || Boolean(trip.accountingLock) || milestoneGatedComplete}
+              title={milestoneGatedComplete ? 'Ghi đủ các mốc tiến độ trước khi hoàn tất chuyến' : undefined}
               onClick={() => void handleCompleteTrip()}
             >
               {completing ? <Loader2 size={16} className="spin" /> : <FileCheck2 size={16} />}

@@ -20,6 +20,16 @@ const TRIP_ID = 88;
 // number, so the test passes for the wrong reason — which is exactly how a link
 // that sends a fulfillment id into a trip-id route survived review.
 const FULFILLMENT_ID = 4242;
+
+// SIL-1053 (K2.42) — the full milestone feed in BE sequence order, for the
+// completion-flow fixtures whose intent is the POD/CTA behavior (not the
+// milestone law): with all four recorded, Hoàn tất is not milestone-gated.
+const MILESTONE_FEED = [
+  { id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' },
+  { id: 2, eventType: DriverProgressEventType.PICKED_UP, occurredAt: '2026-08-29T03:10:00.000Z' },
+  { id: 3, eventType: DriverProgressEventType.LOADING_OR_RETURNING, occurredAt: '2026-08-29T05:40:00.000Z' },
+  { id: 4, eventType: DriverProgressEventType.DELIVERED, occurredAt: '2026-08-29T07:05:00.000Z' },
+];
 const tripBasic88: Record<string, unknown> = {
   id: TRIP_ID, shipmentId: null, fulfillmentId: FULFILLMENT_ID, tripCode: 'TRP-88',
   departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
@@ -308,20 +318,22 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByRole('link', { name: 'Xem chứng từ giao hàng' })).toHaveAttribute('href', '/my-trips/88/pod');
   });
 
-  // Phần 4 ticket 2026-08-28: Bốn mốc + Thu nhập tham chiếu stay removed.
-  // Expense entry is now enabled by the customer expense requirements.
-  // Fuel screenshots and the separate e-POD route retain their own roles.
+  // SIL-1053 (K2.42) — the milestone strip is BACK on this screen; only the
+  // Thu nhập tham chiếu block stays removed. Expense entry is enabled by the
+  // customer expense requirements. Fuel screenshots and the separate e-POD
+  // route retain their own roles.
   it('restores shipment cost entry while keeping the separate fuel form hidden', async () => {
     renderPage();
 
     // SIL-817: the default IN_TRANSIT fixture carries no ORDER_RECEIVED
     // milestone, and the completion CTA now renders by trip status — so the
-    // sticky slot shows Hoàn tất, not Nhận lệnh vận chuyển.
+    // sticky slot shows Hoàn tất, not Nhận lệnh vận chuyển. The strip below
+    // mirrors that: Nhận lệnh actionable, the later stages waiting.
     await screen.findByTestId('complete-sticky-bar');
-    expect(screen.queryByText(/Bốn mốc thực hiện/)).toBeNull();
-    expect(screen.queryByText('Đã lấy vỏ / Lấy hàng')).toBeNull();
-    expect(screen.queryByText('Đang đóng / Trả hàng')).toBeNull();
-    expect(screen.queryByText('Đã hạ bãi / Giao hàng xong')).toBeNull();
+    expect(screen.getByTestId('driver-milestone-strip')).toBeTruthy();
+    expect(screen.getByText('Lấy vỏ / Lấy hàng')).toBeTruthy();
+    expect(screen.getByText('Đóng / Trả hàng')).toBeTruthy();
+    expect(screen.getByText('Hạ bãi / Giao hàng')).toBeTruthy();
     expect(screen.queryByText('Thu nhập tham chiếu')).toBeNull();
     expect(screen.queryByText('Lương phân bổ')).toBeNull();
     expect(screen.queryByText('Tiền đi đường')).toBeNull();
@@ -465,7 +477,7 @@ describe('DriverTripDetailPage', () => {
     // Card _28 item 10: the action lives in the sticky bar, which owns the
     // slot only once the order is accepted.
     useDriverTaskProgressMock.mockReturnValue({
-      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      data: { items: MILESTONE_FEED },
       isLoading: false,
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
@@ -526,7 +538,7 @@ describe('DriverTripDetailPage', () => {
     });
 
     useDriverTaskProgressMock.mockReturnValue({
-      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      data: { items: MILESTONE_FEED },
       isLoading: false,
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
@@ -586,7 +598,7 @@ describe('DriverTripDetailPage', () => {
     });
 
     useDriverTaskProgressMock.mockReturnValue({
-      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      data: { items: MILESTONE_FEED },
       isLoading: false,
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
@@ -640,7 +652,7 @@ describe('DriverTripDetailPage', () => {
     });
 
     useDriverTaskProgressMock.mockReturnValue({
-      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      data: { items: MILESTONE_FEED },
       isLoading: false,
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
@@ -1280,7 +1292,7 @@ describe('DriverTripDetailPage', () => {
 
   it('card _28: sticky completion bar shows the live missing count', async () => {
     useDriverTaskProgressMock.mockReturnValue({
-      data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+      data: { items: MILESTONE_FEED },
       isLoading: false,
       error: null,
       refetch: vi.fn().mockResolvedValue(undefined),
@@ -1297,6 +1309,76 @@ describe('DriverTripDetailPage', () => {
     const btn = within(screen.getByTestId('complete-sticky-bar')).getByRole('button', { name: 'Hoàn tất' });
     expect(btn).toBeEnabled();
   });
+
+  // ─── SIL-1053 (K2.42): dải mốc tiến độ trên trang chi tiết lái xe ────────
+  describe('SIL-1053 milestone strip (K2.42)', () => {
+    it('renders the four K2.42 stages; only the next unrecorded stage is actionable', async () => {
+      renderPage();
+
+      const strip = await screen.findByTestId('driver-milestone-strip');
+      expect(within(strip).getByTestId('milestone-ORDER_RECEIVED')).toBeTruthy();
+      expect(within(strip).getByTestId('milestone-PICKED_UP')).toBeTruthy();
+      expect(within(strip).getByTestId('milestone-LOADING_OR_RETURNING')).toBeTruthy();
+      expect(within(strip).getByTestId('milestone-DELIVERED')).toBeTruthy();
+
+      // Unaccepted default fixture: Nhận lệnh is the one actionable stage,
+      // the later three wait — out-of-order recording is impossible from here
+      // (the BE would 409 it anyway).
+      expect(within(strip).getByRole('button', { name: 'Ghi nhận mốc Nhận lệnh' })).toBeEnabled();
+      expect(within(strip).queryByRole('button', { name: 'Ghi nhận mốc Lấy vỏ / Lấy hàng' })).toBeNull();
+      expect(within(strip).queryByRole('button', { name: 'Ghi nhận mốc Đóng / Trả hàng' })).toBeNull();
+      expect(within(strip).queryByRole('button', { name: 'Ghi nhận mốc Hạ bãi / Giao hàng' })).toBeNull();
+      expect(within(strip).getAllByText('Chờ mốc trước')).toHaveLength(3);
+
+      // Evidence chips ride the stages (FCL fixture): container photos on
+      // Lấy vỏ, the two POD docs on Hạ bãi/giao.
+      expect(within(strip).getByTestId('milestone-evidence-PICKED_UP').textContent).toContain('Ảnh cont');
+      expect(within(strip).getByTestId('milestone-evidence-DELIVERED').textContent).toContain('Phiếu bãi / phiếu hạ');
+      expect(within(strip).getByTestId('milestone-evidence-DELIVERED').textContent).toContain('Biên bản giao nhận');
+    });
+
+    it('after acceptance the next stage unlocks, its record goes to the progress endpoint, and Hoàn tất waits for Hạ bãi/giao', async () => {
+      const progressSpy = vi.spyOn(driverClient, 'recordProgress').mockResolvedValue({} as never);
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: [MILESTONE_FEED[0]] },
+        isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      // Mid-sequence (accepted, later stages missing): the completion CTA
+      // waits — completion is the LAST milestone (K2.42).
+      await screen.findByTestId('milestone-PICKED_UP');
+      expect(within(screen.getByTestId('complete-sticky-bar')).getByRole('button', { name: 'Hoàn tất' })).toBeDisabled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận mốc Lấy vỏ / Lấy hàng' }));
+      await waitFor(() => expect(progressSpy).toHaveBeenCalledWith(
+        FULFILLMENT_ID,
+        expect.objectContaining({ eventType: DriverProgressEventType.PICKED_UP, fulfillmentId: FULFILLMENT_ID }),
+        expect.any(String),
+      ));
+      expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã ghi nhận mốc tiến độ.' });
+      // The strip never offered a later stage: no button for Đóng/trả or
+      // Hạ bãi while their predecessors are unrecorded.
+      expect(screen.queryByRole('button', { name: 'Ghi nhận mốc Đóng / Trả hàng' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Ghi nhận mốc Hạ bãi / Giao hàng' })).toBeNull();
+    });
+
+    it('a fully recorded strip shows each timestamp and releases the Hoàn tất CTA', async () => {
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: MILESTONE_FEED },
+        isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      await screen.findByTestId('milestone-time-DELIVERED');
+      expect(screen.getByTestId('milestone-time-ORDER_RECEIVED').textContent).toMatch(/^Đã ghi · /);
+      expect(screen.getByTestId('milestone-time-PICKED_UP').textContent).toMatch(/^Đã ghi · /);
+      expect(within(screen.getByTestId('complete-sticky-bar')).getByRole('button', { name: 'Hoàn tất' })).toBeEnabled();
+      // All four done — no Ghi nhận button remains.
+      expect(screen.queryByRole('button', { name: /^Ghi nhận mốc / })).toBeNull();
+    });
+  });
+
 
   it('card _28: the sticky bar never stacks with the accept bar', async () => {
     useDriverTaskDetailMock.mockReturnValue({
