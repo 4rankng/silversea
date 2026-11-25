@@ -71,10 +71,11 @@ describe('shipment create responsive layout', () => {
     // `overflow-y: auto` and the horizontal scrollbar's height makes the table
     // overflow vertically — the page painted TWO scrollbars over one table.
     expect(css).toMatch(/\.csc-container-table-scroll\s*\{[^}]*overflow-x:\s*auto;[^}]*overflow-y:\s*hidden;/);
-    // Floor = the sum of the fixed tracks + three ~72px auto tracks (SIL-533
-    // measured 844 for the 8-column sheet; SIL-701's declaration track adds
-    // its 120px → 964).
-    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*964px;[^}]*table-layout:\s*fixed;/);
+    // Floor = the sum of the fixed tracks + the three reading tracks at
+    // their 96px header floors (SIL-533 measured 844 for the 8-column sheet;
+    // SIL-701's declaration track adds its 120px; SIL-989's port floors add
+    // 3×18px over the old auto squeeze → 1018).
+    expect(css).toMatch(/\.csc-container-table\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*1018px;[^}]*table-layout:\s*fixed;/);
     expect(css).toMatch(/\.csc-container-col__route\s*\{[^}]*width:\s*180px;/);
     expect(css).toMatch(/\.csc-container-col__index\s*\{[^}]*width:\s*40px;/);
     // SIL-508: the merged group column hugs the SỐ line's floor — the 11-char
@@ -85,7 +86,11 @@ describe('shipment create responsive layout', () => {
     expect(Number(/\.csc-container-col__contgroup\s*\{[^}]*width:\s*(\d+)px;/.exec(css)?.[1] ?? 0)).toBeGreaterThanOrEqual(128);
     expect(css).not.toMatch(/\.csc-container-col__(?:type|weight|number)\s*\{/);
     expect(css).toMatch(/\.csc-container-col__actions\s*\{[^}]*width:\s*44px;/);
-    expect(css).toMatch(/\.csc-container-col__pickup-port,\s*\.csc-container-col__dropoff-port,\s*\.csc-container-col__factory\s*\{[^}]*width:\s*auto;/);
+    // SIL-989: the reading tracks stay auto (wide canvases still grow them)
+    // but carry a 96px floor — the FB-063 one-line header law measured
+    // 'CẢNG NÂNG' at 84px incl the 12px gutter, and the old pure-auto tracks
+    // squeezed to ~78px and clipped it to 'CẢNG NÂN(' at the 768px tablet.
+    expect(css).toMatch(/\.csc-container-col__pickup-port,\s*\.csc-container-col__dropoff-port,\s*\.csc-container-col__factory\s*\{[^}]*width:\s*auto;\s*min-width:\s*96px;/);
     // The appointment column is deliberately NOT auto: the SplitDateTimeField
     // it holds carries min-width:max-content segment groups, and an auto track
     // sheared the date half of the control out of the cell (only "HH :" stayed

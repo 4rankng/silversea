@@ -127,9 +127,20 @@ table.ts-report thead th.ts-report__th--summary {
 }
 
 table.ts-report thead th.ts-report__th--summary {
-  width: 76px;
-  min-width: 76px;
-  max-width: 76px;
+  /* SIL-989 (QA tablet 25/11, /tmp/kb-tablet-768-sil.md §8.1): the 76px
+     track wrapped 'Số ngày nghỉ được hưởng lương' one word per line — 6
+      lines × 14.85px + the 20px padding = the 110px header row (3× the
+     36–40px §10.8.2 standard). 152px holds every summary label to TWO
+     word-boundary lines per CR-010 E6.1: the greedy wrap needs the widest
+     first line — 'Số ngày nghỉ được' measured 125px on the live 11px
+     header face — inside the content box. (120/128/152px cuts all left the
+     lương label at 3 lines on the live build; the empirical threshold is
+     160px, hence 160.) The day cells keep their own 28–32px band and the
+     body's numbers are narrower than the header, so table-layout: auto
+     gives the width back to the label, never to the cell. */
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
 }
 
 /* SIL-810 (AC 2) — bảng Tổng Hợp Xếp Lệnh tháng cuộn được ĐỦ 31 ngày + 10 cột

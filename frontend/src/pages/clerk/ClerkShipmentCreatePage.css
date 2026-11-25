@@ -368,7 +368,7 @@
 @container (min-width: 621px) {
   .csc-container-table-scroll { margin-inline: -14px; width: calc(100% + 28px); }
 }
-.csc-container-table { width: 100%; min-width: 964px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
+.csc-container-table { width: 100%; min-width: 1018px; border-collapse: collapse; table-layout: fixed; background: var(--surface); }
 .csc-container-col__index { width: 40px; }
 /* SIL-508 (owner 26/10): the merged SỐ CONTAINER group (SỐ / LOẠI /
    TRỌNG LƯỢNG stacked lines) replaces the number + type + weight columns.
@@ -389,7 +389,15 @@
    input — nothing truncates. */
 .csc-container-col__declaration { width: 120px; }
 .csc-container-col__route { width: 180px; }
-.csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; }
+/* SIL-989 (QA tablet 25/11, /tmp/kb-tablet-768-sil.md §9.1): the three
+   reading tracks ran `width: auto` and the fixed 964px floor squeezed each
+   to ~78px — under the FB-063 one-line header law 'CẢNG NÂNG' (measured
+   84px incl the 12px gutter) clipped to 'CẢNG NÂN('. `min-width` rides the
+   Chromium honor-min-width-on-<col> rung (SIL-872 probe): 96px keeps every
+   header one line while the auto width still lets wide canvases grow the
+   reading columns. Table min-width 964→1018 (+3×18) — the scroll box owns
+   the overflow, as §10.2.3's dense sheet always has. */
+.csc-container-col__pickup-port, .csc-container-col__dropoff-port, .csc-container-col__factory { width: auto; min-width: 96px; }
 .csc-container-col__actions { width: 44px; }
 .csc-container-table th, .csc-container-table td { min-width: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .csc-container-table th:last-child, .csc-container-table td:last-child { border-right: 0; }
@@ -608,15 +616,18 @@
     background: var(--surface);
   }
   /* SIL-510: the fixed action bar rides phones too — tight padding + the
-     safe-area inset, and the three buttons share the row (flex-fill, same
-     law as the house tc-action-bar ≤420px) so the bar stays EXACTLY one
-     line instead of wrapping. */
+     safe-area inset. SIL-989 (QA 25/11, 390px): the flex-fill thirds
+     squeezed each button to ~118px while 'Lưu nháp (cuối trang)' needs
+     186px — the nowrap labels painted over each other unreadably. The
+     buttons now keep their label width (min-width: max-content) and the
+     group wraps: whole labels, every action still one thumb-reach from the
+     bottom edge, per KB §10.9.5/§10.9.8 (reachability + no cut). */
   .csc-form-actions {
     gap: 6px;
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
   }
-  .csc-form-actions .csc-actions { flex: 1; }
-  .csc-form-actions .csc-actions > * { flex: 1 1 0; min-width: 0; }
+  .csc-form-actions .csc-actions { flex: 1; flex-wrap: wrap; }
+  .csc-form-actions .csc-actions > * { flex: 1 1 auto; min-width: max-content; }
 }
 
 /* Narrow phones: the timing pair gives its right half back — the paired

@@ -850,7 +850,14 @@ function GroupFloatingLine({
       <div
         ref={cardRef}
         id={panelId}
-        role="dialog"
+        /* SIL-989 (QA tablet 25/11): the CLOSED card keeps its DOM presence
+           (the Tab-walk focus-reveal law) but must not claim `role="dialog"`
+           while closed — the global isOverlayOpen() DOM fallback counts any
+           mounted [role="dialog"], so three closed cards pinned every table
+           on /shipments/new into the 'overlay owns the arrows' yield and
+           §10.8.1's ←/→ scroll never fired anywhere on the page. The role
+           arrives with is-open, when the card genuinely is one. */
+        role={open ? 'dialog' : undefined}
         aria-label={panelLabel}
         className={`csc-fline__card${open ? ' is-open' : ''}`}
         style={cardStyle}
