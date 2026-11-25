@@ -366,15 +366,15 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
       // FB-086 R21 (171026175000, 2026-10-17): one more bypass — CUS reads
       // the container-type catalog list (the add-container dropdown starved
       // to its placeholder on a silent 403).
-      // User ruling 2026-11-19: one more bypass — kế toán manages nhóm CUS,
-      // the /cus-groups POST/PUT bridge for ACCOUNTANT (users:write stays
-      // ungranted; the users read row is policy.csv, not the registry).
+      // KB §1.2.1 (audit 24/11): kế toán no longer reaches /users — the
+      // former /cus-groups bridge for ACCOUNTANT is gone (users surface is
+      // policy.csv-only now: MANAGER rows + ADMIN wildcard).
       // SIL-970 (KB K10.37 §10.6.9): one more bypass — CUS chốt đợt như
       // Kế toán, the POST /debit-board/settlement-rounds bridge for CUS
       // (accounting stays read-only for CUS in policy.csv; the route guard
       // names CUS since 09541dd3, the mount-level gate was the 403).
-      assert.equal(ROUTE_GRANT_RULES.length, 21);
-      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 19);
+      assert.equal(ROUTE_GRANT_RULES.length, 20);
+      assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'bypass').length, 18);
       assert.equal(ROUTE_GRANT_RULES.filter((r) => r.effect === 'exclusive').length, 2);
     });
 
@@ -549,18 +549,18 @@ describe('Route-scoped grant registry equivalence (card 20260930_228)', () => {
   });
 });
 
-describe('Cus-groups manager bridge (ruling 2026-11-19)', () => {
-  // User ruling 2026-11-19: kế toán manages nhóm CUS on /users. The bridge
-  // must open exactly the /cus-groups write surface for ACCOUNTANT — GET list
-  // travels via the new `p, ACCOUNTANT, users, read` policy row, and every
-  // general users write (create/edit/delete a USER) stays casbin-denied.
-  it('bridges POST/PUT /cus-groups for ACCOUNTANT only — users writes stay closed', () => {
-    assert.ok(matchRouteBypassGrant('users', 'POST', '/cus-groups', Role.ACCOUNTANT));
-    assert.ok(matchRouteBypassGrant('users', 'PUT', '/cus-groups/7', Role.ACCOUNTANT));
-    assert.ok(matchRouteBypassGrant('users', 'PUT', '/cus-groups/7/members', Role.ACCOUNTANT));
-    // GET is the policy row's job, not this bridge
+describe('Cus-groups surface after KB §1.2.1 (audit 24/11)', () => {
+  // KB §1.2.1 (bản chốt 24/11 supersedes the 2026-11-19 ruling): "vai Kế toán
+  // mở màn quản lý người dùng bị chặn". The accountant bridge + the
+  // `p, ACCOUNTANT, users, read` policy row are gone, so /cus-groups falls
+  // through to plain casbin for ACCOUNTANT — every verb (read AND write) is
+  // denied; MANAGER keeps its policy rows and ADMIN its wildcard.
+  it('bridges nothing for ACCOUNTANT — read and write both fall to casbin', () => {
     assert.equal(matchRouteBypassGrant('users', 'GET', '/cus-groups', Role.ACCOUNTANT), undefined);
-    // general users writes stay closed for accountant
+    assert.equal(matchRouteBypassGrant('users', 'POST', '/cus-groups', Role.ACCOUNTANT), undefined);
+    assert.equal(matchRouteBypassGrant('users', 'PUT', '/cus-groups/7', Role.ACCOUNTANT), undefined);
+    assert.equal(matchRouteBypassGrant('users', 'PUT', '/cus-groups/7/members', Role.ACCOUNTANT), undefined);
+    // general users surface stays closed for accountant
     assert.equal(matchRouteBypassGrant('users', 'POST', '/users', Role.ACCOUNTANT), undefined);
     assert.equal(matchRouteBypassGrant('users', 'PATCH', '/users/7', Role.ACCOUNTANT), undefined);
     assert.equal(matchRouteBypassGrant('users', 'DELETE', '/users/7', Role.ACCOUNTANT), undefined);
@@ -569,10 +569,6 @@ describe('Cus-groups manager bridge (ruling 2026-11-19)', () => {
     assert.equal(matchRouteBypassGrant('users', 'POST', '/cus-groups', Role.ADMIN), undefined);
     assert.equal(matchRouteBypassGrant('users', 'POST', '/cus-groups', Role.DISPATCHER), undefined);
     assert.equal(matchRouteBypassGrant('users', 'POST', '/cus-groups', Role.CUS), undefined);
-    // patterns are strict (no trailing-slash normalization in the matcher)
-    assert.equal(matchRouteBypassGrant('users', 'POST', '/cus-groups/', Role.ACCOUNTANT), undefined);
-    assert.equal(matchRouteBypassGrant('users', 'POST', '/cus-groups/abc', Role.ACCOUNTANT), undefined);
-    assert.equal(matchRouteBypassGrant('users', 'PUT', '/cus-groups/7/members/9', Role.ACCOUNTANT), undefined);
   });
 });
 

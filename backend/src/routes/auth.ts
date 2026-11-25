@@ -446,26 +446,25 @@ router.delete('/business-units/:id', declareMaterialWrite('auth.business-units.d
 
 // ─── Nhóm CUS (team-based visibility cho vai CUS) ──────────────────────────
 // Tạo nhóm + thêm thành viên: thành viên cùng nhóm ACTIVE thấy lô hàng +
-// debit của nhau (một luật ở services/cus-visibility.service.ts). Role set
-// theo user ruling 19/11/2026: ADMIN + MANAGER + ACCOUNTANT — giamdoc và
-// ketoan quản nhóm CUS cùng admin (trước 19/11: ADMIN only). Casbin: MANAGER
-// có sẵn users read/write; ACCOUNTANT có users read (policy.csv) + bypass
-// /cus-groups write ở middleware/authz-grants.ts. Card nhóm CUS render trên
-// /users cạnh Đơn vị phụ trách (Đơn vị phụ trách vẫn ADMIN-only).
+// debit của nhau (một luật ở services/cus-visibility.service.ts). Role set:
+// ADMIN + MANAGER. Lịch sử: user ruling 19/11/2026 mở cho ACCOUNTANT, KB
+// §1.2.1 (audit 24/11, bản chốt 13:16 24/11 — "quy tắc đã chốt tại đây
+// thắng") chặn lại: "vai Kế toán mở màn quản lý người dùng bị chặn" — casbin
+// `users read` của ACCOUNTANT + bypass /cus-groups đã thu hồi cùng lúc.
 function requireCusGroupManager(req: Request, message: string): void {
   const role = req.user?.role;
-  if (role !== Role.ADMIN && role !== Role.MANAGER && role !== Role.ACCOUNTANT) {
+  if (role !== Role.ADMIN && role !== Role.MANAGER) {
     throw new ApiError(403, message);
   }
 }
 
 router.get('/cus-groups', authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
-  requireCusGroupManager(req, 'Chỉ quản trị, quản lý hoặc kế toán mới có thể xem nhóm CUS');
+  requireCusGroupManager(req, 'Chỉ quản trị hoặc quản lý mới có thể xem nhóm CUS');
   res.json({ items: await cusGroupService.listCusGroups() });
 }));
 
 router.post('/cus-groups', declareMaterialWrite('auth.cus-groups.create', { method: 'POST', path: '/api/auth/cus-groups' }), authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
-  requireCusGroupManager(req, 'Chỉ quản trị, quản lý hoặc kế toán mới có thể tạo nhóm CUS');
+  requireCusGroupManager(req, 'Chỉ quản trị hoặc quản lý mới có thể tạo nhóm CUS');
   const data = z.object({ name: z.string().trim().min(1, 'Tên nhóm là bắt buộc').max(120) }).parse(req.body);
   const idempotencyKey = requireIdempotencyKey(req, 'Idempotency-Key là bắt buộc khi tạo nhóm CUS.');
   const { result, replayed } = await runIdempotent({
@@ -480,7 +479,7 @@ router.post('/cus-groups', declareMaterialWrite('auth.cus-groups.create', { meth
 }));
 
 router.put('/cus-groups/:id', declareMaterialWrite('auth.cus-groups.update', { method: 'PUT', path: '/api/auth/cus-groups/:id' }), authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
-  requireCusGroupManager(req, 'Chỉ quản trị, quản lý hoặc kế toán mới có thể cập nhật nhóm CUS');
+  requireCusGroupManager(req, 'Chỉ quản trị hoặc quản lý mới có thể cập nhật nhóm CUS');
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) throw new ApiError(400, 'ID không hợp lệ');
   const data = z.object({
@@ -500,7 +499,7 @@ router.put('/cus-groups/:id', declareMaterialWrite('auth.cus-groups.update', { m
 }));
 
 router.put('/cus-groups/:id/members', declareMaterialWrite('auth.cus-groups.members-set', { method: 'PUT', path: '/api/auth/cus-groups/:id/members' }), authMiddleware, casbinAuthz('users'), asyncHandler(async (req: Request, res: Response) => {
-  requireCusGroupManager(req, 'Chỉ quản trị, quản lý hoặc kế toán mới có thể sửa thành viên nhóm CUS');
+  requireCusGroupManager(req, 'Chỉ quản trị hoặc quản lý mới có thể sửa thành viên nhóm CUS');
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) throw new ApiError(400, 'ID không hợp lệ');
   const data = z.object({ userIds: z.array(z.number().int().positive()).max(200) }).parse(req.body);

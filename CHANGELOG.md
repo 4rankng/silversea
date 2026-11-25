@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-11-25 — fix(SIL-915a): chặn Kế toán khỏi /users theo KB §1.2.1 (thu hồi seat QA2-001)
+
+KB §1.2.1 (audit 24/11, bản chốt 13:16 24/11 — "quy tắc đã chốt tại đây
+thắng") chốt: "vai Kế toán mở màn quản lý người dùng bị chặn"; §1.3.1 xếp
+/users vào màn hình Quản trị. Trước đó QA fail 3 vòng liên tiếp trên mục (a)
+card SIL-915: hoapt/ngocntm (Kế toán) vẫn mở được /users + đọc danh sách 61
+tài khoản + khối Nhóm CUS (seat mở bởi ruling 19/11 — nay KB thắng, thu hồi).
+
+- **BE casbin** `policy.csv`: xóa `p, ACCOUNTANT, users, read` — GET
+  /api/auth/users + GET /api/auth/cus-groups trả 403 cho Kế toán ngay ở máy
+  chủ (KB: máy chủ là nơi chốt quyền, không chỉ ẩn giao diện).
+- **BE grants** `middleware/authz-grants.ts`: xóa bypass `/cus-groups`
+  POST/PUT cho ACCOUNTANT (không còn khách của bridge).
+- **BE** `routes/auth.ts`: `requireCusGroupManager` thu về ADMIN + MANAGER;
+  4 message 403 bỏ cụm "hoặc kế toán".
+- **FE**: `usersPageOnly` bỏ ACCOUNTANT — gõ thẳng /users được đưa về trang
+  chủ kế toán (DeniedRedirect, không trang lỗi đỏ); nav kế toán bỏ mục
+  "Người dùng" (Hệ thống còn Nhật ký người dùng); `UsersPage` gate
+  `canManageCusGroups` về ADMIN/MANAGER.
+- Tests: `App.accounting-routes` admit→refuse /users cho kế toán (kết thúc ở
+  /accounting); `Layout.test` ma trận nav kế toán bỏ "/users" (2 pin);
+  `authz-grant-registry` count pin 20/18/2 + describe mới "bridges nothing
+  for ACCOUNTANT"; nav-sweep 7 vai pass. tsc backend + frontend exit 0.
+- MANAGER nguyên trạng (users read/write từ trước QA2-001); Đơn vị phụ trách
+  vẫn ADMIN-only; các mục (b) 403-redirect và (c) TRP-* của card đã PASS từ
+  build 7af2f97d, không đổi trong lần này.
+
 ## 2026-11-24 — fix(SIL-923): lô đã khóa — [Mở khóa lô] trực tiếp theo ruling 24/11, xóa luồng [Đề nghị điều chỉnh]
 
 Trước đó (QA fail 20:45 24/11, staging df7b2a73): /shipments-debit vẫn gửi

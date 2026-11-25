@@ -307,10 +307,10 @@ function buildNavItems(
         { key: 'penalties', path: routes.penalties, icon: AlertTriangle, section: 'operations' as SectionName },
         { key: 'shipments', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
 
-        // Hệ thống (System) — audit-logs plus /users since user ruling
-        // 2026-11-19: kế toán manages nhóm CUS there (read-only users table +
-        // the Nhóm CUS manager; casbin users read + /cus-groups write bridge).
-        { key: 'users', path: routes.users, icon: Users, section: 'system' as SectionName },
+        // Hệ thống (System) — audit-logs only. KB §1.2.1 (audit 24/11):
+        // "vai Kế toán mở màn quản lý người dùng bị chặn" — the /users entry
+        // added by the 2026-11-19 ruling is gone; casbin `users read` was
+        // revoked in the same change, so nav and server agree.
         { key: 'audit-logs', path: routes.auditLogs, icon: ScrollText, section: 'system' as SectionName },
       ].sort((a, b) => {
         if (a.key === 'accounting') return -1;

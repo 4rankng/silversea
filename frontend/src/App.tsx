@@ -416,14 +416,13 @@ function AppRoutesInner() {
   // User management has its own guard — see usersPageOnly below.
   const officeStaffOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <DeniedRedirect to={homeRedirect} />);
   // User management surface — /users hosts the users table AND the Nhóm CUS
-  // manager. Mirrors the casbin `users` grants (card QA2-001 law: the guard
-  // and policy.csv move in the same change): MANAGER holds users read/write,
-  // ADMIN the wildcard, and user ruling 2026-11-19 adds ACCOUNTANT —
-  // `p, ACCOUNTANT, users, read` plus the /cus-groups write bridge in
-  // authz-grants.ts — so kế toán can manage nhóm CUS. The role holds no
-  // manage_users capability, so UsersPage renders the table read-only and
-  // only the Nhóm CUS card is operable.
-  const usersPageOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT ? el : <DeniedRedirect to={homeRedirect} />);
+  // manager. Mirrors the casbin `users` grants (guard and policy.csv move in
+  // the same change): MANAGER holds users read/write, ADMIN the wildcard.
+  // KB §1.2.1 (audit 24/11, bản chốt "quy tắc đã chốt tại đây thắng"):
+  // "vai Kế toán mở màn quản lý người dùng bị chặn" — ACCOUNTANT is OUT
+  // (supersedes the 2026-11-19 QA2-001 widening); casbin dropped
+  // `p, ACCOUNTANT, users, read` + the /cus-groups bypass in the same change.
+  const usersPageOnly = (el: ReactElement) => (isAdmin || currentRole === Role.MANAGER ? el : <DeniedRedirect to={homeRedirect} />);
   // Freight pricing engine config (Phương án tính cước tự động §5-1): fuel-price
   // period entry names Kế toán/CUS as entrants (backend casbin carries the
   // route-scoped CUS write bypass); DISPATCHER stays out — the page's write
