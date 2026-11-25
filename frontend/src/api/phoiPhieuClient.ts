@@ -106,6 +106,9 @@ export async function listPhoiPhieuRows(params: {
 
 export async function createPhoiPhieuVoucher(body: {
   tripIds: number[];
+  /** SIL-1030 (K6.13) — the shared lot's shipment ids (lots with no single
+   *  live trip); omitted when the selection is trips only. */
+  shipmentIds?: number[];
   direction: 'IN' | 'OUT';
   treasuryAccountId: number;
   /** SIL-1030 (K6.13) — "ngày chi" of the phiếu form; omitted = today. */
@@ -298,7 +301,9 @@ export async function getPhoiPhieuReport(kind: 'THU' | 'TRA', params: {
  *  PS khác) and each source's open remainder. */
 export interface PhoiPhieuPartyLot {
   /** The trip the lot books through; NULL = the shipment's shared fees with
-   *  no single live trip (SIL-729 — shown for reconciliation, not bookable). */
+   *  no single live trip (SIL-729). SIL-1030 (K6.13): those book through
+   *  their shipmentId in the batch phiếu — the drawer's selection key is the
+   *  negated shipment id. */
   tripId: number | null;
   shipmentId: number;
   billOrBooking: string | null;

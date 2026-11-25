@@ -201,7 +201,10 @@ router.delete('/phoi-phieu/:tripId/rows/:sourceId', declareMaterialWrite('expens
 router.post('/phoi-phieu/vouchers', declareMaterialWrite('expense-accounting.phoi-phieu.voucher', { method: 'POST', path: '/api/expense-accounting/phoi-phieu/vouchers' }),  requireRoles(...PHOI_PHIEU_ROLES), asyncHandler(async (req, res) => {
   const user = getUser(req);
   const input = parse(z.object({
-    tripIds: z.array(z.number().int().positive()).min(1),
+    tripIds: z.array(z.number().int().positive()).default([]),
+    // SIL-1030 (K6.13) — the drawer's shared lot (no single live trip) books
+    // through its shipment id; both lists empty is rejected in the service.
+    shipmentIds: z.array(z.number().int().positive()).default([]),
     direction: z.enum(['IN', 'OUT']),
     treasuryAccountId: z.number().int().positive(),
     // SIL-1030 (K6.13) — "ngày chi" of the phiếu form; omitted = today.

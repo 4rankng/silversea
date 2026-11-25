@@ -59,9 +59,9 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
   const lots = useMemo(() => lotsQuery.data?.items ?? [], [lotsQuery.data]);
-  // SIL-729 — a trip lot is bookable through the trip-keyed voucher engine; a
-  // shared shipment's fees (no single live trip) only DISPLAY here for the
-  // clicked party's reconciliation — they never join the batch phiếu.
+  // SIL-729 — the two bookable shapes of one worklist: a trip lot books
+  // through its trip; a shared shipment's fees (no single live trip) book
+  // through their shipment (SIL-1030). Same phiếu engine either way.
   const tripLots = useMemo(
     () => lots.filter((lot): lot is PhoiPhieuPartyLot & { tripId: number } => lot.tripId != null),
     [lots],
@@ -69,56 +69,81 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
   const sharedLots = useMemo(() => lots.filter((lot) => lot.tripId == null), [lots]);
   const direction = kind === 'THU' ? 'IN' as const : 'OUT' as const;
   const verb = kind === 'THU' ? 'thu' : 'chi';
+  // SIL-1030 — the selection key mirrors the service's lotKey: a trip lot is
+  // its tripId; the shared lot (no single live trip) is the NEGATED
+  // shipmentId, so one number set carries both tables' picks, never colliding.
+  function lotSelectionKey(lot: PhoiPhieuPartyLot): number {
+    return lot.tripId ?? -lot.shipmentId;
+  }
   const selectedLots = useMemo(() => selected === 'all'
-    ? tripLots
-    : tripLots.filter((lot) => selected.has(lot.tripId)), [tripLots, selected]);
+    ? lots
+    : lots.filter((lot) => selected.has(lotSelectionKey(lot))), [lots, selected]);
   // The phiếu books each source's open remainder — the exact amount the
   // voucher engine will consume — not the lot's conLai remainder, which can
-  // differ when a THU charge sits below the lot's cost.
-  const voucherTotal = selectedLots.reduce((sum, lot) => sum + lot.entries.reduce((row, entry) => row + entry.amount, 0), 0);
+  // differ when a THU charge sits below the lot's cost. A multi-trip
+  // shipment's money lists under its trip lots AND its shared lot; one open
+  // fee books once, so the preview dedupes by source id (the engine does the
+  // same server-side).
+  const selectedEntries = useMemo(() => {
+    const bySourceId = new Map<number, { lot: PhoiPhieuPartyLot; sourceId: number; amount: number; bucket: 'nang' | 'ha' | 'khac' }>();
+    for (const lot of selectedLots) {
+      for (const entry of lot.entries) {
+        if (entry.amount > 0 && !bySourceId.has(entry.sourceId)) {
+          bySourceId.set(entry.sourceId, { lot, sourceId: entry.sourceId, amount: entry.amount, bucket: entry.bucket });
+        }
+      }
+    }
+    return [...bySourceId.values()];
+  }, [selectedLots]);
+  const voucherTotal = selectedEntries.reduce((sum, row) => sum + row.amount, 0);
 
   // SIL-1030 (K6.13) — "bấm dòng bill phải chọn lô (đếm tăng)". The bill cell
   // is the explicit toggle (the row's own react-aria press path stays as the
   // checkbox fallback); stopPropagation keeps the two from double-toggling.
-  function toggleLot(tripId: number) {
+  function toggleLot(key: number) {
     setSelected((current) => {
-      const next = new Set<number>(current === 'all' ? tripLots.map((lot) => lot.tripId) : [...(current as Set<number>)]);
-      if (next.has(tripId)) next.delete(tripId); else next.add(tripId);
+      const next = new Set<number>(current === 'all' ? lots.map((lot) => lotSelectionKey(lot)) : [...(current as Set<number>)]);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }
 
   // SIL-1030 (K6.13 / mockup image9) — "Ô lập phiếu": one line per open fee
   // bucket of the selected lots, grouped per nhà xe with the group's own
-  // subtotal (image10: "từng nhóm nhà xe có subtotal riêng").
+  // subtotal (image10: "từng nhóm nhà xe có subtotal riêng"). Lines come from
+  // the deduped selectedEntries, so a shipment picked through both a trip lot
+  // and its shared lot prints once.
   const phieuGroups = useMemo(() => {
     const groups = new Map<string, { party: string; lines: Array<{ key: string; chiPhi: string; container: string; amount: number; note: string }>; subtotal: number }>();
-    for (const lot of selectedLots) {
-      const party = lot.party ?? '—';
+    for (const row of selectedEntries) {
+      const party = row.lot.party ?? '—';
       const group = groups.get(party) ?? { party, lines: [], subtotal: 0 };
-      for (const entry of lot.entries) {
-        if (entry.amount <= 0) continue;
-        group.lines.push({
-          key: `${lot.tripId}:${entry.sourceId}`,
-          chiPhi: ENTRY_BUCKET_LABELS[entry.bucket],
-          container: lot.containerNumber ?? '—',
-          amount: entry.amount,
-          note: lot.ghiChu ?? '—',
-        });
-        group.subtotal += entry.amount;
-      }
+      group.lines.push({
+        key: String(row.sourceId),
+        chiPhi: ENTRY_BUCKET_LABELS[row.bucket],
+        container: row.lot.containerNumber ?? '—',
+        amount: row.amount,
+        note: row.lot.ghiChu ?? '—',
+      });
+      group.subtotal += row.amount;
       groups.set(party, group);
     }
     return [...groups.values()];
-  }, [selectedLots]);
+  }, [selectedEntries]);
 
   async function issue() {
     if (selectedLots.length === 0 || !treasuryAccountId || issuing) return;
     setIssuing(true);
     setMessage(null);
     try {
+      // SIL-1030 — trip lots ride tripIds; the shared lot rides its negated
+      // selection key's shipment id. Both-empty can't happen (issue is gated
+      // on selectedLots.length).
+      const tripIds = selectedLots.filter((lot): lot is PhoiPhieuPartyLot & { tripId: number } => lot.tripId != null).map((lot) => lot.tripId);
+      const shipmentIds = selectedLots.filter((lot) => lot.tripId == null).map((lot) => lot.shipmentId);
       const voucher = await createPhoiPhieuVoucher({
-        tripIds: selectedLots.map((lot) => lot.tripId),
+        tripIds,
+        ...(shipmentIds.length > 0 ? { shipmentIds } : {}),
         direction,
         treasuryAccountId: Number(treasuryAccountId),
         valueDate,
@@ -318,18 +343,22 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
       )}
       {sharedLots.length > 0 && (
         <div className="ppc-lots-shared" role="note">
-          <p className="ppc-lots-shared__title">Phí chung lô (chưa gắn chuyến) — đối chiếu, chưa lập phiếu được:</p>
+          <p className="ppc-lots-shared__title">Phí chung lô (chưa gắn chuyến) — bấm dòng bill để chọn lập phiếu:</p>
           {/* SIL-1027 (K6.6) — the shared fees read as the SAME money table as
               the trip lots above (bill, fee split, phải thu/trả, còn lại, Ghi
               chú as columns), never a bare 'bill · total · còn lại' list —
-              reconciliation compares columns. Display only: the non-toggle
-              selection behavior keeps the vendored select column and its
-              checkboxes out entirely, so these rows can never join the batch
-              phiếu. Column classes are the trip ladder's, untouched. */}
+              reconciliation compares columns. SIL-1030 (K6.13): they are also
+              the SAME selectable table — the shared lot books through its
+              shipment (negated selection key), so its rows carry the same
+              checkboxes and bill toggle as the trip ladder. Column classes are
+              the trip ladder's, untouched. */}
+          <I18nProvider locale="vi-VN">
           <Table
             aria-label="Phí chung lô chưa gắn chuyến"
-            selectionMode="none"
-            selectionBehavior="replace"
+            selectionMode="multiple"
+            selectionBehavior="toggle"
+            selectedKeys={selected}
+            onSelectionChange={setSelected}
           >
             <Table.Header>
               <Table.Head isRowHeader className="ppc-lots-col--stt">STT</Table.Head>
@@ -346,10 +375,24 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
             </Table.Header>
             <Table.Body items={sharedLots}>
               {(lot) => (
-                <Table.Row id={`s-${lot.shipmentId}`}>
+                <Table.Row id={-lot.shipmentId}>
                   <Table.Cell><span className="ppc-lots-ordinal">{lots.indexOf(lot) + 1}</span></Table.Cell>
                   {batch && <Table.Cell className="ppc-lots-party">{lot.party ?? '—'}</Table.Cell>}
-                  <Table.Cell>{billBookingReference(lot.billOrBooking)}</Table.Cell>
+                  <Table.Cell>
+                    {/* SIL-1030 — "bấm dòng bill phải chọn lô": the shared lot's
+                        bill cell is the same explicit toggle button as the trip
+                        ladder's; stopPropagation keeps the row's own selection
+                        press from double-toggling. */}
+                    <button
+                      type="button"
+                      className="ppc-lots-bill-toggle"
+                      aria-label={`Chọn lô ${billBookingReference(lot.billOrBooking)}`}
+                      aria-pressed={selected === 'all' || selected.has(-lot.shipmentId)}
+                      onClick={(event) => { event.stopPropagation(); toggleLot(-lot.shipmentId); }}
+                    >
+                      {billBookingReference(lot.billOrBooking)}
+                    </button>
+                  </Table.Cell>
                   <Table.Cell>{lot.containerNumber ?? '—'}</Table.Cell>
                   <Table.Cell>{formatMoney(lot.tienNang)}</Table.Cell>
                   <Table.Cell>{formatMoney(lot.tienHa)}</Table.Cell>
@@ -362,6 +405,7 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
               )}
             </Table.Body>
           </Table>
+          </I18nProvider>
         </div>
       )}
       <p className="ppc-lots-hint">Tổng lập phiếu cộng từng khoản còn mở của các lô đã chọn — đúng số phiếu sẽ ghi vào quỹ.</p>

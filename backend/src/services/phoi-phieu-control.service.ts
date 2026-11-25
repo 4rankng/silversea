@@ -866,6 +866,12 @@ export async function listPhoiPhieuUnattachedTrips(query: {
 
 export interface PhoiPhieuVoucherInput {
   tripIds: number[];
+  /** SIL-1030 (K6.13) — the shared lot's shipment id (a shipment's fees with
+   *  no single live trip, SIL-729). The engine is shipment-grained already —
+   *  a trip selection books the shipment's confirmed OPS sources — so the
+   *  shipment-keyed pick joins the same working set and books the same money
+   *  a live trip of that shipment would. */
+  shipmentIds?: number[];
   direction: 'IN' | 'OUT';
   treasuryAccountId: number;
   /** SIL-1030 (K6.13) — "ngày chi" of the phiếu form; omitted = today. */
@@ -888,8 +894,14 @@ export interface PhoiPhieuVoucherInput {
  *  sorted before hashing, and a too-long value is hashed rather than truncated —
  *  two different selections can never collide on a truncated prefix. This
  *  mirrors `expenseVoucherCode`, the house pattern on the sibling path. */
-export function phoiPhieuPhysicalReference(groupKey: string, tripIds: number[]): string {
-  const selection = [...tripIds].sort((a, b) => a - b).join('-');
+export function phoiPhieuPhysicalReference(groupKey: string, tripIds: number[], shipmentIds: number[] = []): string {
+  // SIL-1030 — a selection carrying shipment-keyed lots namespaces its id
+  // spaces (t<i> / s<j>): trip 5 and shipment 5 are different money, and the
+  // reference is the treasury uniqueness key, so they can never share one.
+  // The legacy trip-only form stays byte-identical to the old joins.
+  const selection = shipmentIds.length > 0
+    ? [...tripIds.map((id) => `t${id}`), ...shipmentIds.map((id) => `s${id}`)].sort().join('-')
+    : [...tripIds].sort((a, b) => a - b).join('-');
   const raw = `PHOI-PHIEU-${groupKey}-${selection}`;
   return raw.length <= 150
     ? raw
@@ -897,13 +909,18 @@ export function phoiPhieuPhysicalReference(groupKey: string, tripIds: number[]):
 }
 
 /** Consolidated phiếu: one createExpenseVoucher call over every open OPS
- *  source of the selected trips — ONE treasury movement adjusts the quỹ. */
+ *  source of the selected shipments — ONE treasury movement adjusts the quỹ.
+ *  SIL-1030 (K6.13): the selection arrives as tripIds, shipmentIds (the
+ *  drawer's shared lot), or both — they resolve to one shipment working set,
+ *  so a shipment picked through either path books exactly once. */
 export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?: Tx): Promise<{ voucherId: number; code: string; total: number; entries: number }> {
-  if (!Array.isArray(args.tripIds) || args.tripIds.length === 0) {
+  const wantedTripIds = Array.isArray(args.tripIds) ? args.tripIds : [];
+  const wantedShipmentIds = Array.isArray(args.shipmentIds) ? args.shipmentIds : [];
+  if (wantedTripIds.length === 0 && wantedShipmentIds.length === 0) {
     throw new ApiError(400, 'Chưa chọn dòng nào để lập phiếu.');
   }
   const run = async (tx: Tx) => {
-    const tripRows = await tx.select({
+    const tripRows = wantedTripIds.length === 0 ? [] : await tx.select({
       tripId: s.trips.id,
       // Card 191026100030 — wave-model trips link their lot only through the
       // fulfillment; the direct-link join 404'd "Có chuyến không còn hợp lệ."
@@ -914,9 +931,27 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
       .from(s.trips)
       .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
       .innerJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
-      .where(and(inArray(s.trips.id, args.tripIds), isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')));
-    if (tripRows.length !== args.tripIds.length) throw new ApiError(404, 'Có chuyến không còn hợp lệ.');
-    const shipmentIds = tripRows.map((row) => row.shipmentId).filter((id): id is number => id != null);
+      .where(and(inArray(s.trips.id, wantedTripIds), isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')));
+    if (tripRows.length !== wantedTripIds.length) throw new ApiError(404, 'Có chuyến không còn hợp lệ.');
+    // SIL-1030 (K6.13) — the shared lot books through its shipment: the same
+    // alive checks a trip gets, then it joins the working set below.
+    const directShipments = wantedShipmentIds.length === 0 ? [] : await tx.select({
+      shipmentId: s.shipments.id, blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef,
+    })
+      .from(s.shipments)
+      .where(and(inArray(s.shipments.id, wantedShipmentIds), isNull(s.shipments.deletedAt)));
+    if (directShipments.length !== wantedShipmentIds.length) throw new ApiError(404, 'Có lô không còn hợp lệ.');
+    // One working entry per shipment: a multi-trip shipment picked through two
+    // trips books once (the per-source dedupe below always relied on that),
+    // and its shared lot's pick lands on the SAME entry instead of doubling.
+    const shipmentWork = new Map<number, { blNumber: string | null; bookingRef: string | null }>();
+    for (const row of tripRows) {
+      if (row.shipmentId != null) shipmentWork.set(row.shipmentId, { blNumber: row.blNumber, bookingRef: row.bookingRef });
+    }
+    for (const row of directShipments) {
+      if (!shipmentWork.has(row.shipmentId)) shipmentWork.set(row.shipmentId, { blNumber: row.blNumber, bookingRef: row.bookingRef });
+    }
+    const shipmentIds = [...shipmentWork.keys()];
     // Ticket 18/11 Task 3.1 — the phiếu reads the SAME filtered set the board
     // cell shows: a direct-signed lot's Ops-declared nâng/hạ rows left the
     // board (Ghép bộ Debit flow), so they leave the phiếu too. Batched rule
@@ -950,10 +985,10 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
     // The voucher engine is one-counterparty-per-phiếu: group the selection by
     // customer and issue one consolidated voucher per group.
     const customerIdByShipment = new Map<number, number>();
-    const tripCustomer: Array<{ shipmentId: number; customerId: number | null }> = await tx
+    const shipmentCustomer: Array<{ shipmentId: number; customerId: number | null }> = await tx
       .select({ shipmentId: s.shipments.id, customerId: s.shipments.customerId })
       .from(s.shipments).where(inArray(s.shipments.id, shipmentIds));
-    for (const row of tripCustomer) {
+    for (const row of shipmentCustomer) {
       if (row.shipmentId != null && row.customerId != null) customerIdByShipment.set(row.shipmentId, row.customerId);
     }
     const groups = new Map<string, Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }>>();
@@ -962,14 +997,13 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
     // Card 20260927_147 — the row loop below needs one source's recorded cash totals to
     // decide its remaining amount; read the whole selection once instead of once per source.
     const cashBySourceId = await getExpenseCashTotalsBatch(tx, sources.map((source) => source.id));
-    for (const trip of tripRows) {
-      const shipmentId = trip.shipmentId as number;
+    for (const [shipmentId, identity] of shipmentWork) {
       const customerId = customerIdByShipment.get(shipmentId);
       const shipmentSources = sources.filter((source) => source.shipmentId === shipmentId);
-      if (shipmentSources.length === 0) throw new ApiError(409, `Lô ${billBookingTitle(trip.blNumber, trip.bookingRef)} chưa có khoản chi hộ để lập phiếu.`);
+      if (shipmentSources.length === 0) throw new ApiError(409, `Lô ${billBookingTitle(identity.blNumber, identity.bookingRef)} chưa có khoản chi hộ để lập phiếu.`);
       const entries: Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }> = [];
       for (const source of shipmentSources) {
-        if (customerId == null) throw new ApiError(409, `Lô ${billBookingTitle(trip.blNumber, trip.bookingRef)} chưa có khách hàng.`);
+        if (customerId == null) throw new ApiError(409, `Lô ${billBookingTitle(identity.blNumber, identity.bookingRef)} chưa có khách hàng.`);
         if (seenSourceIds.has(source.id)) {
           continue;
         }
@@ -1003,7 +1037,7 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         treasuryAccountId: args.treasuryAccountId,
         // SIL-1030 — "ngày chi" from the phiếu form (K6.13); omitted = today.
         valueDate: args.valueDate ?? new Date().toISOString().slice(0, 10),
-        physicalReference: args.physicalReference ?? phoiPhieuPhysicalReference(groupKey, tripRows.map((row) => row.tripId)),
+        physicalReference: args.physicalReference ?? phoiPhieuPhysicalReference(groupKey, tripRows.map((row) => row.tripId), wantedShipmentIds),
         entries,
       });
       grandTotal += totalsByGroup.get(groupKey) ?? 0;
@@ -2021,7 +2055,9 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
  *  previews exactly what the voucher engine will consume. */
 export interface PhoiPhieuPartyLot {
   /** The trip the lot books through; NULL for a shared shipment's fees with
-   *  no single live trip (SIL-729 — shown in the drawer, not bookable). */
+   *  no single live trip (SIL-729). SIL-1030 (K6.13): those book through
+   *  their shipmentId in the batch phiếu — negated as the drawer's selection
+   *  key, never colliding with trip ids. */
   tripId: number | null;
   shipmentId: number;
   billOrBooking: string | null;

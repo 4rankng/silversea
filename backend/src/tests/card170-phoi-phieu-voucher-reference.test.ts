@@ -62,3 +62,30 @@ test('an empty selection still produces a usable reference', () => {
   const ref = phoiPhieuPhysicalReference('G1', []);
   assert.equal(ref, 'PHOI-PHIEU-G1-');
 });
+
+// SIL-1030 (K6.13) — the drawer's shared lot joins its shipment id. Trip ids
+// and shipment ids are DIFFERENT id spaces over one uniqueness key, so any
+// selection carrying a shipment namespaces its tokens.
+
+test('trip 5 and shipment 5 never share a reference', () => {
+  const viaShipment = phoiPhieuPhysicalReference('G1', [], [5]);
+  const viaTrip = phoiPhieuPhysicalReference('G1', [5]);
+  assert.equal(viaShipment, 'PHOI-PHIEU-G1-s5');
+  assert.notEqual(viaTrip, viaShipment);
+  const mixed = phoiPhieuPhysicalReference('G1', [5], [5]);
+  assert.equal(mixed, 'PHOI-PHIEU-G1-s5-t5');
+});
+
+test('the namespaced form is deterministic under reordering', () => {
+  const a = phoiPhieuPhysicalReference('G1', [2, 1], [9, 8]);
+  const b = phoiPhieuPhysicalReference('G1', [1, 2], [8, 9]);
+  assert.equal(a, b);
+});
+
+test('a long mixed selection stays inside the authority and stays distinct', () => {
+  const tripIds = Array.from({ length: 40 }, (_, i) => 500 + i);
+  const shipmentIds = Array.from({ length: 40 }, (_, i) => 900 + i);
+  const ref = phoiPhieuPhysicalReference('G1', tripIds, shipmentIds);
+  assert.ok(ref.length <= MAX, `reference must fit the authority, got ${ref.length}`);
+  assert.notEqual(ref, phoiPhieuPhysicalReference('G1', tripIds, [1000, ...shipmentIds.slice(1)]));
+});
