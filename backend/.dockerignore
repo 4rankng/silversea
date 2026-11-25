@@ -30,3 +30,8 @@ backend/drizzle/**/*.md
 backend/src/**/*.test.ts
 backend/src/**/*.spec.ts
 backend/src/**/__tests__/
+# SIL-1018 — the prod backfill runner is COPYed by backend/Dockerfile into the
+# image; without this it never reaches the build context (COPY "not found").
+!backend/scripts/
+backend/scripts/*
+!backend/scripts/backfill-subcontractor-carriers.prod.mjs
