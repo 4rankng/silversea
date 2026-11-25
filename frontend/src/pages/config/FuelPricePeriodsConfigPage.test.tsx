@@ -161,6 +161,38 @@ describe('FuelPricePeriodsConfigPage — TC-CUOC-002 fuel price entry', () => {
     expect(screen.getByText('—')).toBeTruthy();
   });
 
+  it('SIL-1040 (K5.24): sau khi tạo kỳ giá mới, danh sách khách bị ảnh hưởng HIỆN lên với Đồng ý / Không / Để sau', async () => {
+    // Lần tải đầu: chưa có dòng chờ. Sau khi tạo kỳ mới (spawn phía server):
+    // 1 dòng chờ — alert phải refetch và tự mở danh sách ngay trong phiên.
+    listFuelApprovalsMock
+      .mockResolvedValueOnce({ items: [], total: 0 })
+      .mockResolvedValue({
+        items: [{
+          id: 11, fuelPricePeriodId: 3, customerId: 1, quotationId: 1, status: 'PENDING',
+          customerName: 'LONG MINH', quotationName: 'QA4B-TEST', quotationEffectiveDate: '2026-11-26',
+          periodUnitPrice: '26500.00', periodEffectiveFrom: '2026-12-15', decidedAt: null,
+        }],
+        total: 1,
+      });
+    renderPage();
+    await waitFor(() => expect(listFuelApprovalsMock).toHaveBeenCalled());
+
+    const onSave = vi.fn();
+    const host = renderForm({ onSave });
+    fillFuelForm(host.container as HTMLElement, '15/12/2026', '26500', 'QA4B wave4 test source');
+    fireEvent.click(screen.getByRole('button', { name: /Cơ sở giá/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Chưa VAT' }));
+    fireEvent.click(screen.getByText(SAVE));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+
+    // Danh sách khách bị ảnh hưởng tự mở — đủ 3 lựa chọn Đồng ý / Không / Để sau.
+    const drawer = await screen.findByRole('dialog', { name: 'Đồng ý cập nhật báo giá' });
+    expect(within(drawer).getByText('LONG MINH')).toBeTruthy();
+    expect(within(drawer).getAllByRole('button', { name: 'Đồng ý' }).length).toBeGreaterThanOrEqual(1);
+    expect(within(drawer).getAllByRole('button', { name: 'Không' }).length).toBeGreaterThanOrEqual(1);
+    expect(within(drawer).getByRole('button', { name: 'Để sau' })).toBeTruthy();
+  });
+
   it('card 20260922_61: pending banner surfaces the count and the drawer batch-list decides', async () => {
     listFuelApprovalsMock.mockResolvedValue({
       items: [

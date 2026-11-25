@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePageAnimations } from '../../hooks/animations';
 import { InlineForm } from '../../components/config/InlineForm';
@@ -20,8 +20,11 @@ import './fuel-price-periods-config.css';
 
 /** Card 20260922_61: the kế-toán alert — pending "ĐỒNG Ý CẬP NHẬT BÁO GIÁ"
  *  rows surface as a banner + a role=dialog batch list (select-all + per-row;
- *  closing the drawer = Để sau, rows stay pending server-side). */
-function QuotationFuelApprovalAlert() {
+ *  closing the drawer = Để sau, rows stay pending server-side).
+ *  SIL-1040 (K5.24): sau khi nhập kỳ giá mới, danh sách khách bị ảnh hưởng
+ *  phải HIỆN lên với Đồng ý / Không / Để sau — `pulse` tăng sau mỗi lần lưu
+ *  kỳ giá để refetch và tự mở danh sách, không đợi tải lại trang. */
+function QuotationFuelApprovalAlert({ pulse }: { pulse: number }) {
   const queryClient = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Card 20260929_207: the batch list is picked by clicking a row; the
@@ -43,6 +46,20 @@ function QuotationFuelApprovalAlert() {
 
   const rows = pendingQuery.data?.items ?? [];
   const pendingTotal = rows.length;
+
+  // SIL-1040 (K5.24) — sau khi lưu kỳ giá dầu mới: refetch danh sách chờ và
+  // HIỆN danh sách khách bị ảnh hưởng (Đồng ý / Không / Để sau) ngay trong
+  // phiên, không đợi tải lại trang. Không có khách ảnh hưởng → không mở gì.
+  const lastPulse = useRef(0);
+  useEffect(() => {
+    if (pulse === lastPulse.current) return;
+    lastPulse.current = pulse;
+    void pendingQuery.refetch().then((res) => {
+      if ((res.data?.items.length ?? 0) > 0) setDrawerOpen(true);
+    });
+    // pendingQuery is the stable react-query result object per render cycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pulse]);
   const toggleAll = () => {
     if (selection.allOfSelected(rows.map((row) => row.id))) selection.clear();
     else selection.selectAll(rows.map((row) => row.id));
@@ -311,9 +328,12 @@ export default function FuelPricePeriodsConfigPage() {
   // on this page (docx §5-1), so without this gate the page fired a request
   // that 403s for them (2026-09-27 role sweep: /config/fuel-price-periods).
   const canApproveQuotationFuel = user?.role === Role.ACCOUNTANT || user?.role === Role.ADMIN;
+  // SIL-1040 (K5.24) — đếm lần lưu kỳ giá (create) để alert refetch + mở
+  // danh sách khách bị ảnh hưởng ngay sau khi nhập kỳ mới.
+  const [approvalsPulse, setApprovalsPulse] = useState(0);
   return (
     <div ref={pageRef}>
-      {canApproveQuotationFuel && <QuotationFuelApprovalAlert />}
+      {canApproveQuotationFuel && <QuotationFuelApprovalAlert pulse={approvalsPulse} />}
       <CrudTable<FuelPricePeriodRow>
         title="Giá dầu theo kỳ"
         description="Giá dầu Petrolimex công bố theo kỳ — nhập một bản ghi mỗi lần công bố giá mới"
@@ -371,7 +391,13 @@ export default function FuelPricePeriodsConfigPage() {
           <FuelPricePeriodForm
             saving={p.saving}
             item={p.item}
-            onsave={p.onSave}
+            onsave={(d) => {
+              void Promise.resolve(p.onSave(d)).finally(() => {
+                // Chỉ lần TẠO mới mở danh sách ảnh hưởng (K5.24 "nhập kỳ mới
+                // → hiện danh sách"); sửa kỳ cũ không quấy nhiễu.
+                if (!p.item) setApprovalsPulse((n) => n + 1);
+              });
+            }}
             oncancel={p.onCancel}
             onDelete={p.onDelete}
             deleting={p.deleting}

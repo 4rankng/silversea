@@ -77,6 +77,16 @@ test('SIL-1039 (K5.18): heavy cell without own price inherits the light twin + n
   assert.doesNotMatch(quotationService, /missingPrice: split \|\| missing/);
 });
 
+test('SIL-1040 (K5.24/K5.48): Đồng ý = giá mới + đúng một phiên bản báo giá mới; Không/Để sau = giữ giá cũ', () => {
+  // K5.48 — mỗi báo giá bị ảnh hưởng sinh đúng MỘT phiên bản khi Đồng ý.
+  assert.match(quotationRoutes, /releaseQuotationVersion\(view, \{ triggerKind: 'FUEL_APPROVED'/);
+  // 'Để sau' = không gọi decide (dòng ở lại PENDING); decide chỉ AGREED/DECLINED.
+  assert.match(quotationRoutes, /decision: z\.enum\(\['AGREED', 'DECLINED'\]\)/);
+  // 'Không' = giữ nguyên — period của khách chưa đồng ý (PENDING/DECLINED)
+  // bị engine chặn, không tự áp giá mới.
+  assert.match(engine, /inArray\(s\.quotationFuelApprovals\.status, \['PENDING', 'DECLINED'\]\)/);
+});
+
 test('SIL-958: unconfirmed surcharge grounds price H per KB §5.2.5 — pending note rides formulaText, never a 0 substitution', () => {
   // The pending early-return (surcharge 0, fuelPricePeriodId 0, no period
   // consumed) must stay dead: pending grounds only annotate the formula.
