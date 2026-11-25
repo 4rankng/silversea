@@ -52,6 +52,29 @@
   to { transform: rotate(360deg); }
 }
 
+/* SIL-1002 — ở 390px nhãn của banner bị bóp còn ~50px và vỡ thành 4-5 dòng
+ * ("Chuyến" / "kẹt quá" / "7 ngày" / "(5)"), còn icon và 2 nút cũng bị bóp theo.
+ * Nguyên nhân: cả 5 phần là flex item trên MỘT hàng, nên phần hint (một câu
+ * văn dài) chiếm chỗ và nhãn - thứ phải đọc được - phải nhường.
+ * Ở dải điện thoại: nhãn giữ nguyên bề rộng và ngồi DÒNG RIÊNG (icon + nhãn),
+ * phần hint + 2 nút xuống dòng dưới; icon và nút không bị bóp nữa. */
+@media (max-width: 640px) {
+  .stuck-trips-banner__head {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .stuck-trips-banner__head > svg,
+  .stuck-trips-banner__head > strong,
+  .stuck-trips-banner__btn {
+    flex: 0 0 auto;
+  }
+
+  .stuck-trips-banner__hint {
+    flex: 1 1 60%;
+  }
+}
+
 .stuck-trips-banner__list {
   margin: 8px 0 0;
   padding: 0;
