@@ -450,15 +450,19 @@
   bottom: 8px;
 }
 
-/* K10.38 (SIL-972) — the `· Ghép (k/N)` suffix widened the pill; in the
-   dense [Gộp hàng] table its right-aligned band (right: 12px + ~150px of
-   label at 12px/500) now reaches the bottom muted measures line and paints
-   over its tail (QA: "đè nhẹ lên dòng số liệu phía sau"). The counted
-   chip's cell reserves the pill's footprint on that bottom line only — the
-   pill stays zero-layout (owner 10/11 directive stands) and the data line
-   wraps before it. Bare chips leave the cell untouched. */
-.master-plan-grid__cell--cargo:has(.master-plan-grid__lcl-chip--counted) .master-plan-grid__line--muted:last-child {
-  padding-right: 164px;
+/* K10.38 (SIL-972, revised) — the counted pill (absolute, bottom 8px +
+   height 24px = a 32px band above the cell's bottom edge) must not paint
+   over the bottom measures line. The first fix reserved its footprint
+   HORIZONTALLY (padding-right: 164px on the line): in the dense [Gộp hàng]
+   table the cargo cell is only 138–199px wide, so 164px of sideways reserve
+   squeezed the measures line into a 1-char-per-line column (QA round-20
+   FAIL). The reserve is now VERTICAL on the cell itself: the chip's 32px
+   band plus 4px of air sits below every line, which keeps the FULL cell
+   width for the text ("N tấn · M CBM" renders on one horizontal run above
+   the pill at any cell width). The pill stays zero-layout (owner 10/11
+   directive stands); bare chips leave the cell untouched. */
+.master-plan-grid__cell--cargo:has(.master-plan-grid__lcl-chip--counted) {
+  padding-bottom: 36px;
 }
 
 /* Appointment days read as a bullet-less list: the date is the list row and

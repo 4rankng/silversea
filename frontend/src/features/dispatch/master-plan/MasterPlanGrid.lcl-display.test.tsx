@@ -436,10 +436,19 @@ describe('MasterPlanGrid — Ghép (k/N) counts + the 0₫/100% reason (K10.38/S
     expect(chip?.className).not.toContain('master-plan-grid__lcl-chip--counted');
   });
 
-  it('reserves the counted pill footprint on the bottom measures line (no paint-over)', () => {
+  it('reserves the counted pill footprint vertically on the cell (no paint-over, no sideways squeeze)', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanGrid.css'), 'utf8');
-    const rule = css.match(/\.master-plan-grid__cell--cargo:has\(\.master-plan-grid__lcl-chip--counted\) \.master-plan-grid__line--muted:last-child\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(rule).toContain('padding-right: 164px');
+    // Chip band = absolute bottom 8px + height 24px = 32px; 36px cell
+    // padding-bottom clears it with 4px of air while the measures line keeps
+    // the FULL cell width. The retired first fix (padding-right: 164px on the
+    // line) collapsed narrow dense-table cargo cells into 1-char columns and
+    // must not return.
+    const rule = css.match(/\.master-plan-grid__cell--cargo:has\(\.master-plan-grid__lcl-chip--counted\)\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule).toContain('padding-bottom: 36px');
+    expect(rule).not.toContain('padding-right');
+    // The retired horizontal reserve (padding-right on the measures line)
+    // must not return in any form:
+    expect(css).not.toMatch(/\.master-plan-grid__line--muted:last-child\s*\{[^}]*padding-right/);
   });
 
   it('the xlsx export carries the counts in the merged badge', () => {
