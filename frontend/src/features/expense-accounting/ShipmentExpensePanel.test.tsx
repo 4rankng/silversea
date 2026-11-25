@@ -48,7 +48,7 @@ it('shows + Thêm khoản chi for OPS and opens the drawer scoped to Ops payers'
   fireEvent.click(await screen.findByRole('button', { name: '+ Thêm khoản chi' }));
   fireEvent.click(await screen.findByRole('button', { name: /Bên thực chi/ }));
   fireEvent.click(await screen.findByRole('option', { name: 'Nhân viên chi' }));
-  fireEvent.click(screen.getByRole('button', { name: /Người thực chi/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Người chi/ }));
   expect(screen.queryByRole('option', { name: 'Kế toán' })).not.toBeInTheDocument();
   expect(await screen.findByRole('option', { name: 'Ops bổ trợ' })).toBeTruthy();
 });

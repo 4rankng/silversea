@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
@@ -32,8 +32,9 @@ async function fillRow(row: number, amount: string, charge = '0') {
 beforeEach(() => {
   createBatch.mockReset().mockResolvedValue({ items: [] });
   confirmEntries.mockReset().mockResolvedValue([]);
-  // Card 191026160000 — the type tabs each list the trip's existing entries;
-  // default fixtures answer empty, the sub-table test overrides.
+  // Card 191026160000 — each group panel's sub-table lists the trip's existing
+  // entries of that group; default fixtures answer empty, the sub-table test
+  // overrides.
   tienDuong.mockReset().mockResolvedValue({ tripId: 10, tripCode: null, rows: [], totals: { total: 0, confirmed: 0 } });
   chiHo.mockReset().mockResolvedValue({ tripId: 10, tripCode: null, shipmentId: 42, ngayLayPhoi: null, trangThaiLay: null, rows: [], totals: { thu: 0, tra: 0 } });
 });
@@ -57,7 +58,7 @@ it('khai chi phí ở mức lô: nút Lưu bật khi không có chuyến, payloa
 });
 it('lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai thì không gọi API và nêu đúng số dòng', { timeout: 15000 }, async () => {
   renderDrawer(<ExpenseCreateDrawer work={lotWork} catalog={catalog} onClose={vi.fn()} />);
-  fireEvent.click(screen.getByRole('button', { name: '+ Thêm dòng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng nhóm Chi phí lô hàng' }));
   expect(screen.getByRole('button', { name: /Lưu 2 khoản chi/ })).toBeEnabled();
   await fillRow(0, '1000');
   await fillRow(1, '0');
@@ -106,29 +107,39 @@ it('ô chứng từ "Có hóa đơn" là cờ: tắt ẩn cặp số/ngày, bậ
   await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(2));
   expect(sentItems(1)[0]).toMatchObject({ invoiceNumber: null, invoiceDate: null });
 });
-// FAIL 03:59 25/11 — the checkbox was missing on BOTH tabs (Tiền đường and
-// Chi phí lô hàng). The flag rides every draft row regardless of the group
-// pick, and the pair stays hidden until it is on.
-it('ô "Có hóa đơn" hiện trên cả 2 tab nhóm chi phí (FAIL 25/11)', () => {
+// FAIL 03:59 25/11 — the checkbox was missing on BOTH groups (Tiền đường and
+// Chi phí lô hàng). SIL-1028 replaces the tab pair with two side-by-side group
+// panels; the flag rides every draft row of BOTH panels and the pair stays
+// hidden until it is on.
+it('ô "Có hóa đơn" hiện ở dòng nhập của cả hai nhóm Tiền đường và Chi phí lô hàng (FAIL 25/11, SIL-1028)', () => {
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
-  expect(screen.getByLabelText('Có hóa đơn')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('tab', { name: 'Tiền đường' }));
-  expect(screen.getByLabelText('Có hóa đơn')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng nhóm Tiền đường' }));
+  expect(screen.getAllByLabelText('Có hóa đơn')).toHaveLength(2);
   expect(screen.queryByLabelText(/Số hóa đơn/)).not.toBeInTheDocument();
 });
-// Card 191026160000 — the group pick is the mockup's TWO side-by-side tabs;
-// every other group is gone from manual entry.
-it('nhóm chi phí chỉ còn Chi phí lô hàng và Tiền đường, dạng 2 tab cạnh nhau', () => {
+// SIL-1028 (KB K6.9) — KHÔNG còn cặp tab: hai nhóm "Tiền đường" / "Chi phí lô
+// hàng" hiển thị cạnh nhau dưới dạng hai khu song song (QA 25/11 chốt tab
+// không phải "hiển thị cạnh nhau"). Không nhóm nào khác được chào bán.
+it('hai nhóm Tiền đường và Chi phí lô hàng hiển thị cạnh nhau, không tab và không nhóm khác (SIL-1028, KB K6.9)', () => {
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
-  const tabs = screen.getByRole('tablist', { name: 'Loại chi phí' });
-  expect(tabs).toBeInTheDocument();
-  expect(screen.getByRole('tab', { name: 'Tiền đường' })).toBeInTheDocument();
-  expect(screen.getByRole('tab', { name: 'Chi phí lô hàng' })).toBeInTheDocument();
+  expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  expect(screen.getAllByRole('region', { name: /^Nhóm chi phí: / }).map(panel => panel.getAttribute('aria-label')))
+    .toEqual(['Nhóm chi phí: Tiền đường', 'Nhóm chi phí: Chi phí lô hàng']);
   expect(screen.queryByRole('option', { name: 'Giao nhận Ops' })).not.toBeInTheDocument();
   expect(screen.queryByRole('option', { name: 'Phát sinh Ops' })).not.toBeInTheDocument();
 });
 
-it('bảng con theo loại phí: chọn tab liệt kê các khoản LOẠI ĐÓ, tích từng dòng rồi Lưu duyệt hàng loạt', async () => {
+// SIL-1028 (KB K6.9) — QA staging 25/11 (build 4b923af1): "Ở chế độ xem đầu
+// tiên, ô 'Người chi' và 'Nhà cung cấp' đều không có (0 lần xuất hiện)". Ngay
+// ở chế độ xem đầu form phải có đủ 3 ô: Người chi, Nhà cung cấp, Bên thực chi.
+it('SIL-1028: form mở đầu có đủ ô Người chi / Nhà cung cấp / Bên thực chi', () => {
+  renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
+  expect(screen.getByRole('button', { name: /Bên thực chi/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Người chi/ })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Nhà cung cấp/ })).toBeInTheDocument();
+});
+
+it('bảng con theo nhóm: mỗi khu liệt kê khoản của NHÓM ĐÓ, tích từng dòng rồi Lưu duyệt hàng loạt', async () => {
   chiHo.mockResolvedValue({
     tripId: 10, tripCode: null, shipmentId: 42, ngayLayPhoi: null, trangThaiLay: null,
     totals: { thu: 0, tra: 0 },
@@ -139,10 +150,15 @@ it('bảng con theo loại phí: chọn tab liệt kê các khoản LOẠI ĐÓ,
     ],
   });
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} onSaved={vi.fn()} />);
-  // The lô-hàng tab is the default: its sub-table lists ONLY the OPS rows of
-  // that type under the form; the TRIP row is not a tickable chi-hộ line.
+  // SIL-1028 — mỗi khu tự mang bảng con của NHÓM MÌNH: khu "Chi phí lô hàng"
+  // liệt kê các khoản LOẠI ĐÓ dưới form; dòng TRIP không phải dòng chi hộ tích
+  // được. Khu "Tiền đường" không nhận dòng nào của loại này.
   expect(await screen.findByText('Cân xe')).toBeInTheDocument();
   expect(screen.queryByText('Chi phí chuyến')).not.toBeInTheDocument();
+  const lotPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Chi phí lô hàng' });
+  const roadPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Tiền đường' });
+  expect(within(lotPanel).getByText('Cân xe')).toBeInTheDocument();
+  expect(within(roadPanel).queryByText('Cân xe')).not.toBeInTheDocument();
   const tick = screen.getByRole('checkbox', { name: 'Chọn dòng 1' });
   expect(tick).toBeEnabled();
   expect(screen.getByRole('checkbox', { name: 'Chọn dòng 2' })).toBeDisabled();
@@ -152,7 +168,7 @@ it('bảng con theo loại phí: chọn tab liệt kê các khoản LOẠI ĐÓ,
   expect(confirmEntries.mock.calls[0][0]).toEqual([{ sourceKind: 'OPS', sourceId: 71, expectedVersion: 2 }]);
 });
 
-it('tab Tiền đường liệt kê khoản lái xe nhập và duyệt theo DRIVER', async () => {
+it('khu Tiền đường liệt kê khoản lái xe nhập và duyệt theo DRIVER (SIL-1028)', async () => {
   tienDuong.mockResolvedValue({
     tripId: 10, tripCode: null, totals: { total: 80000, confirmed: 0 },
     rows: [
@@ -183,7 +199,7 @@ it('tiền đường giữ nguyên luật thu = 0 và gửi đúng phân loại;
   expect(sentItems(0)[0]).toMatchObject({ tripId: 10, shipmentId: 42, costGroup: 'DRIVER_ROAD', driverCostType: 'TOLL', expenseTypeCode: 'TOLL', feeName: 'Vé qua trạm', amount: 80000, customerChargeAmount: 0, payerKind: 'COMPANY' });
   expect(createBatch.mock.calls[1][1]).toBe(createBatch.mock.calls[0][1]);
 });
-it('OPS context chỉ chọn người thực chi là Ops; lưu được khi đã chọn người chi', async () => {
+it('OPS context chỉ chọn người chi là Ops; lưu được khi đã chọn người chi', async () => {
   const onClose = vi.fn(); const onSaved = vi.fn();
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} entryScope="OPS" onClose={onClose} onSaved={onSaved} />);
   await fillRow(0, '1000', '7000');
@@ -193,7 +209,7 @@ it('OPS context chỉ chọn người thực chi là Ops; lưu được khi đã
   fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
   expect(createBatch).not.toHaveBeenCalled();
   expect(await screen.findByRole('alert')).toHaveTextContent('Chọn người chi hoặc nhà cung cấp.');
-  fireEvent.click(screen.getByRole('button', { name: /Người thực chi/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Người chi/ }));
   expect(screen.queryByRole('option', { name: 'Driver' })).not.toBeInTheDocument();
   fireEvent.click(await screen.findByRole('option', { name: 'Assigned OPS' }));
   fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
@@ -212,11 +228,11 @@ it('labels the equal-amount checkbox with the unified chi-hộ wording (card 202
 });
 
 // KB Ch.10 §10.7.2 (SIL-950) — thứ tự trường trong một dòng khai chi: Ngày ·
-// Nhóm chi phí (2 tab Tiền đường / Chi phí lô hàng) · Tên khoản chi · Bên thực
-// chi (Người chi / Nhà cung cấp hiện đúng slot theo lựa chọn) · ô chứng từ
-// "Có hóa đơn" + Số hóa đơn – ngày hóa đơn (SIL-949: cờ bật mới hiện) · 3
-// trường ngoài danh sách KB (Loại chi phí lái xe, Thực chi, Thực thu) xếp sau
-// nhóm trường KB · ô đánh dấu CUỐI.
+// Nhóm chi phí (nay là tiêu đề khu song song đứng TRƯỚC dòng, SIL-1028) · Tên
+// khoản chi · Bên thực chi (Người chi / Nhà cung cấp hiện đúng slot theo lựa
+// chọn) · ô chứng từ "Có hóa đơn" + Số hóa đơn – ngày hóa đơn (SIL-949: cờ
+// bật mới hiện) · 3 trường ngoài danh sách KB (Loại chi phí lái xe, Thực chi,
+// Thực thu) xếp sau nhóm trường KB · ô đánh dấu CUỐI.
 it('KB §10.7.2 — thứ tự trường dòng khai chi, Ngày chi đứng đầu và ô đánh dấu đứng cuối (SIL-950)', () => {
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
   // SIL-949 — the pair hides behind the ô-chứng-từ flag; turn it on so the
@@ -225,10 +241,14 @@ it('KB §10.7.2 — thứ tự trường dòng khai chi, Ngày chi đứng đầ
   const row = screen.getByText('Khoản 1').closest('section');
   expect(row).not.toBeNull();
   const text = row!.textContent ?? '';
+  // Tra TUẦN TỰ từ mốc trước: trigger select của nhà in sẵn nhãn lựa chọn
+  // trong DOM ("…Nhân viên chiNhà cung cấp…"), nên chuỗi trùng tên ô chỉ tìm
+  // được đúng ô của nó khi tìm TIẾP TỪ vị trí trước — còn thứ tự field là
+  // thứ tự DOM của các ô.
   let at = -1;
-  for (const label of ['Ngày chi', 'Tiền đường', 'Tên khoản chi', 'Bên thực chi', 'Có hóa đơn', 'Số hóa đơn', 'Ngày hóa đơn',
+  for (const label of ['Ngày chi', 'Tên khoản chi', 'Bên thực chi', 'Người chi', 'Nhà cung cấp', 'Có hóa đơn', 'Số hóa đơn', 'Ngày hóa đơn',
     'Loại chi phí lái xe', 'Thực chi (VND)', 'Thực thu — thu khách (VND)', 'Nhập Thu và Trả bằng nhau']) {
-    const found = text.indexOf(label);
+    const found = text.indexOf(label, at + 1);
     expect(found).toBeGreaterThan(at);
     at = found;
   }
@@ -272,7 +292,7 @@ it('lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực c
   const dateBefore = (screen.getByLabelText(/Ngày chi/) as HTMLInputElement).value;
   fireEvent.click(screen.getByRole('button', { name: /Bên thực chi/ }));
   fireEvent.click(await screen.findByRole('option', { name: 'Nhân viên chi' }));
-  fireEvent.click(screen.getByRole('button', { name: /Người thực chi/ }));
+  fireEvent.click(screen.getByRole('button', { name: /Người chi/ }));
   fireEvent.click(await screen.findByRole('option', { name: 'Driver' }));
   fireEvent.click(screen.getByLabelText('Có hóa đơn'));
   fireEvent.change(screen.getByLabelText(/Số hóa đơn/), { target: { value: 'HD-9' } });
@@ -286,9 +306,12 @@ it('lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực c
   expect(screen.getByLabelText(/Tên khoản chi/)).toHaveValue('');
   expect(screen.queryByLabelText(/Số hóa đơn/)).not.toBeInTheDocument();
   expect((screen.getAllByLabelText(/Thực chi/)[0] as HTMLInputElement).value).toBe('');
-  // nhóm chi phí / bên thực chi / ngày giữ nguyên — the group now lives on
-  // the tab pair (card 191026160000).
-  expect(screen.getByRole('tab', { name: 'Chi phí lô hàng' })).toHaveAttribute('aria-selected', 'true');
+  // nhóm chi phí / bên thực chi / ngày giữ nguyên — the group lives on the
+  // side-by-side panel (SIL-1028): the kept row stays in its group's panel.
+  const lotPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Chi phí lô hàng' });
+  const roadPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Tiền đường' });
+  expect(within(lotPanel).getByLabelText(/Tên khoản chi/)).toHaveValue('');
+  expect(within(roadPanel).queryByLabelText(/Tên khoản chi/)).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Bên thực chi/ })).toHaveTextContent('Nhân viên chi');
   expect((screen.getByLabelText(/Ngày chi/) as HTMLInputElement).value).toBe(dateBefore);
 });

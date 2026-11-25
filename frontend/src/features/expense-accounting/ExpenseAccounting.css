@@ -129,29 +129,30 @@
 .expense-accounting-draft-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .expense-accounting-draft-head h4 { margin: 0; font-size: var(--text-label-size); color: var(--fg-2); }
 
-/* ── Card 191026160000 — group tabs + the type's own sub-table ─────────── */
-.expense-accounting-group-tabs {
-  display: inline-flex;
-  gap: 0;
-  border: 1px solid var(--border, #d0d5dd);
-  border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: 10px;
-  width: fit-content;
+/* ── SIL-1028 (KB K6.9) — hai nhóm "Tiền đường" / "Chi phí lô hàng" hiển thị
+   cạnh nhau: hai khu song song, mỗi khu mang dòng nháp + bảng con của nhóm;
+   xuống một cột ở canvas hẹp. ─────────────────────────────────────────── */
+.expense-accounting-group-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
 }
-.expense-group-tab {
-  min-height: 36px;
-  padding: 0 16px;
-  border: 0;
-  background: transparent;
-  color: var(--ink-2, #344054);
-  font: inherit;
-  font-size: var(--text-caption-size);
-  cursor: pointer;
+.expense-group-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
-.expense-group-tab.is-active {
-  background: var(--brand, #1570ef);
-  color: #fff;
+.expense-group-panel__title {
+  margin: 0;
+  font-size: var(--text-data-size);
+  font-weight: 600;
+}
+@media (max-width: 900px) {
+  .expense-accounting-group-panels { grid-template-columns: minmax(0, 1fr); }
 }
 .expense-existing {
   margin: 14px 0 0;
@@ -186,10 +187,4 @@
   margin: 0 auto 0 0;
   font-size: var(--text-caption-size);
   color: var(--ink-2, #344054);
-}
-
-@media (pointer: coarse), (max-width: 767px) {
-  .expense-group-tab {
-    min-height: var(--control-touch-h, 44px);
-  }
 }

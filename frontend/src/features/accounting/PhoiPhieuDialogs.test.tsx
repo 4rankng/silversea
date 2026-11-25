@@ -99,7 +99,9 @@ vi.mock('../../api/phoiPhieuClient', () => ({
 
 vi.mock('../../api/expenseAccountingClient', () => ({
   expenseAccountingClient: {
-    catalog: vi.fn().mockResolvedValue({ feeCategories: [], employees: [] }),
+    // ExpenseAccountingCatalog shape — the drawer's payer slots read
+    // staff/opsUsers/suppliers unconditionally (SIL-1028).
+    catalog: vi.fn().mockResolvedValue({ feeCategories: [], employees: [], staff: [], accounts: [], accountants: [], opsUsers: [], advances: [], suppliers: [], carriers: [], expenseTypes: [] }),
     update: vi.fn().mockResolvedValue({}),
     correct: vi.fn().mockResolvedValue({}),
     create: vi.fn().mockResolvedValue({}),

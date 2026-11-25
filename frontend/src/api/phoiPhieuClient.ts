@@ -234,10 +234,14 @@ export interface PhoiPhieuTienDuongRow {
   occurredAt: string | null;
 }
 
-export async function getPhoiPhieuTienDuong(tripId: number): Promise<{
-  tripId: number; tripCode: string | null;
-  rows: PhoiPhieuTienDuongRow[]; totals: { total: number; confirmed: number };
-}> {
+export interface PhoiPhieuTienDuongDetail {
+  tripId: number;
+  tripCode: string | null;
+  rows: PhoiPhieuTienDuongRow[];
+  totals: { total: number; confirmed: number };
+}
+
+export async function getPhoiPhieuTienDuong(tripId: number): Promise<PhoiPhieuTienDuongDetail> {
   return api.get(`/expense-accounting/phoi-phieu/${tripId}/tien-duong`);
 }
 
