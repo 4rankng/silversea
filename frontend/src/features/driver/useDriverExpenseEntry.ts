@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient, type DriverIncidentalCostItem, type DriverIncidentalCostView } from '../../api/driverClient';
+import { actionErrorMessage } from '../../lib/api/action-error';
 import { businessDateISO } from '../../lib/format';
 import { DRIVER_EXPENSE_OPTIONS, driverExpenseOption, driverLotCostInvoiceClass } from './driver-expense-options';
 
@@ -88,7 +89,12 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
     setPendingFile({ index, file });
     operation.current = true; setUploadingIndex(index); setError(null);
     try { const result = await driverClient.uploadReceiptPhoto({ tripId, file }); patchDraft(index, { receiptStorageKey: result.storageKey }); setPendingFile(null); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa tải được ảnh. Giữ nguyên khoản chi để thử lại.'); }
+    catch (cause) {
+      // SIL-1035 — same mapping as every action toast: a raw fetch TypeError
+      // surfaces as the offline sentence, never engine English.
+      const message = actionErrorMessage('tải ảnh biên lai', cause, 'Chưa tải được ảnh. Giữ nguyên khoản chi để thử lại.');
+      if (message !== null) setError(message);
+    }
     finally { operation.current = false; setUploadingIndex(null); }
   }
   async function save(event: React.FormEvent) {

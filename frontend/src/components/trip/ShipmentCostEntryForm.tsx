@@ -10,6 +10,7 @@ import { driverClient, type DriverIncidentalCostView } from '../../api/driverCli
 import { NumberField, TextField, UuiSelectField, EmptyState } from '../../design-system';
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
+import { actionErrorMessage } from '../../lib/api/action-error';
 import { driverExpenseOption, requiredEvidenceTypeForExpenseCode, type DriverExpenseOption } from '../../features/driver/driver-expense-options';
 import { driverLotCostRequiresReceipt } from '@tingting/shared';
 import { useDriverExpenseEntry, type DriverExpenseDraft } from '../../features/driver/useDriverExpenseEntry';
@@ -181,7 +182,12 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
     if (disabled || noteLock.current) return;
     noteLock.current = true; setNoteSaving(true); setNoteError(null);
     try { await driverClient.updateCostSubmissionNote(tripId, sectionNote); setSavedNote(sectionNote); setNoteOpen(false); }
-    catch (cause) { setNoteError(cause instanceof Error ? cause.message : 'Chưa lưu được ghi chú.'); }
+    catch (cause) {
+      // SIL-1035 — shared mapping: offline comes out as the Vietnamese
+      // sentence, server refusals stay verbatim.
+      const message = actionErrorMessage('lưu ghi chú tiền đường', cause, 'Chưa lưu được ghi chú.');
+      if (message !== null) setNoteError(message);
+    }
     finally { noteLock.current = false; setNoteSaving(false); }
   }
   // The submit gate reads the same per-row photo rule the rows display.

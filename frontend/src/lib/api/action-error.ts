@@ -37,6 +37,28 @@ import { ApiError } from './errors';
 const PERMISSION_DENIAL = /^(bạn\s+)?không\s+có\s+quyền(\s|$)/i;
 
 /**
+ * Raw fetch failures (SIL-1035, KB K4.49 §4.2.8): the browser's network
+ * TypeError carries engine English — Chrome 'Failed to fetch', Firefox
+ * 'NetworkError when attempting to fetch resource.', Safari 'Load failed',
+ * React Native 'Network request failed', undici 'fetch failed'. None of it
+ * tells a Vietnamese driver anything; all of it means the same thing: the
+ * request never reached the server, NOTHING was saved, retry when online.
+ * Matched on the known engine texts only (and only inside a TypeError) so a
+ * genuine programming TypeError keeps its own message instead of being
+ * masked as a connection loss.
+ */
+const NETWORK_FAILURE_TEXTS = /\bnetwork ?error\b|failed to fetch|\bload failed\b|network request failed|fetch failed|network disconnected/i;
+
+/** The site's single offline sentence (RoleWorkInbox pattern, QA-pinned). */
+export const NETWORK_FAILURE_MESSAGE = 'Mất kết nối. Vui lòng thử lại.';
+
+/** True when the error is a bare fetch/network TypeError (never an ApiError —
+ *  an HTTP response always has a real server reason of its own). */
+export function isNetworkFailure(error: unknown): boolean {
+  return error instanceof TypeError && NETWORK_FAILURE_TEXTS.test(error.message);
+}
+
+/**
  * Fetch aborts (component unmount, superseded/raced request, StrictMode
  * teardown) are not user-visible failures — nothing may toast for them.
  * Exported because the same classification is asserted across the sweep.
@@ -116,6 +138,10 @@ function describedMessage(
 ): string {
   const described = describe ? describe(error).trim() : '';
   if (described) return PERMISSION_DENIAL.test(described) ? fallback : described;
+  // SIL-1035 — a raw fetch TypeError is engine English, never a server reason
+  // (the server never answered). Say the one offline sentence instead of
+  // leaking 'NetworkError when attempting to fetch resource.' to the driver.
+  if (isNetworkFailure(error)) return NETWORK_FAILURE_MESSAGE;
   return raw || fallback;
 }
 

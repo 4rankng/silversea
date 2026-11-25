@@ -123,3 +123,40 @@ describe('backgroundErrorMessage — no user gesture, no named permission toast 
     expect(backgroundErrorMessage('plain throw', 'Lỗi tải')).toBe('Lỗi tải');
   });
 });
+
+/**
+ * SIL-1035 (KB K4.49 §4.2.8) — a raw fetch failure (mất mạng khi nhận lệnh)
+ * used to leak the browser's engine English ('NetworkError when attempting
+ * to fetch resource.') into the driver's toast. Every known engine text now
+ * maps to the site's single offline sentence, on BOTH mappings, and nothing
+ * that carries a real server reason changes.
+ */
+describe('network failures — SIL-1035 Vietnamese offline mapping', () => {
+  const ENGINE_TEXTS = [
+    'NetworkError when attempting to fetch resource.', // Firefox
+    'Failed to fetch', // Chrome
+    'Load failed', // Safari
+    'Network request failed', // React Native
+    'fetch failed', // undici / Node 18+
+    'network disconnected',
+  ];
+
+  it('every known engine TypeError maps to the offline sentence (action path)', () => {
+    for (const message of ENGINE_TEXTS) {
+      expect(actionErrorMessage('nhận lệnh', new TypeError(message), 'Không thể gửi lệnh. Vui lòng thử lại.'))
+        .toBe('Mất kết nối. Vui lòng thử lại.');
+    }
+  });
+
+  it('background mapping says the same sentence', () => {
+    expect(backgroundErrorMessage(new TypeError('Failed to fetch'), 'Lỗi làm mới'))
+      .toBe('Mất kết nối. Vui lòng thử lại.');
+  });
+
+  it('a genuine HTTP response and a programming TypeError keep their own messages', () => {
+    expect(actionErrorMessage('nhận lệnh', new ApiError(500, { error: 'Máy chủ bận' }, 'Máy chủ bận'), 'Lỗi'))
+      .toBe('Máy chủ bận');
+    expect(actionErrorMessage('nhận lệnh', new TypeError('Cannot read properties of null (reading id)'), 'Lỗi'))
+      .toBe('Cannot read properties of null (reading id)');
+  });
+});
