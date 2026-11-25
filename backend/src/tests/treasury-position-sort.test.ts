@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { projectTreasuryFundBreakdown, sortTreasuryPositions, type TreasuryPosition } from '../services/treasury.service';
+import { projectTreasurySourceBreakdown, sortTreasuryPositions, type TreasuryPosition } from '../services/treasury.service';
 
 // Pure comparator coverage — the local database has no seeded treasury
 // accounts, so the endpoint-level sort is proven on the computed position
@@ -93,40 +93,51 @@ describe('treasury position sort', () => {
 });
 
 // Sổ quỹ đối soát (ticket 18/11 Task 3.5a) — the fund-axis projection the
-// position route appends as `fundBreakdown`.
-describe('projectTreasuryFundBreakdown', () => {
-  test('sums opening/in/out per fund and recomputes the fund book balance', () => {
-    const breakdown = projectTreasuryFundBreakdown([
-      position({ accountId: 1, name: 'Tiền mặt quỹ', type: 'CASH', openingBalance: 100, totalIn: 700, totalOut: 200, bookBalance: 600 }),
-      position({ accountId: 2, name: 'TM phụ', type: 'CASH', openingBalance: 50, totalIn: 100, totalOut: 0, bookBalance: 150 }),
-      position({ accountId: 3, name: 'VCB chính', type: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 }),
-    ]);
+// position route appends as `fundBreakdown`. K6.17 (KB §6.5 "Quỹ"): Sổ quỹ có
+// BỐN nguồn tiền — quỹ tiền mặt, quỹ công ty, quỹ tài khoản ngân hàng ACB
+// chuyên hoàn cược và quỹ tạm ứng của giao nhận.
+describe('projectTreasurySourceBreakdown', () => {
+  test('sums per nguồn tiền and splits the ACB hoàn-cược account out of quỹ công ty', () => {
+    const breakdown = projectTreasurySourceBreakdown([
+      position({ accountId: 1, name: 'Tiền mặt quỹ', type: 'CASH', fundCode: 'TM', openingBalance: 100, totalIn: 700, totalOut: 200, bookBalance: 600 }),
+      position({ accountId: 2, name: 'TM phụ', type: 'CASH', fundCode: 'TM', openingBalance: 50, totalIn: 100, totalOut: 0, bookBalance: 150 }),
+      position({ accountId: 3, name: 'VCB chính', type: 'BANK', fundCode: 'COMPANY', bankName: 'Vietcombank', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 }),
+      position({ accountId: 6, name: 'ACB - Tài khoản công ty', type: 'BANK', fundCode: 'COMPANY', bankName: 'ACB', openingBalance: 200, totalIn: 50, totalOut: 30, bookBalance: 220 }),
+    ], 750);
 
-    assert.deepEqual(breakdown.funds, [
-      { fund: 'CASH', openingBalance: 150, totalIn: 800, totalOut: 200, bookBalance: 750 },
-      { fund: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 },
+    assert.deepEqual(breakdown.sources, [
+      { source: 'TM', openingBalance: 150, totalIn: 800, totalOut: 200, bookBalance: 750 },
+      { source: 'COMPANY', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 },
+      { source: 'ACB_REFUND', openingBalance: 200, totalIn: 50, totalOut: 30, bookBalance: 220 },
+      { source: 'OPS_ADVANCE', openingBalance: null, totalIn: null, totalOut: null, bookBalance: 750 },
     ]);
-    assert.equal(breakdown.inDelta, 400);      // 800 − 400
-    assert.equal(breakdown.outDelta, -700);    // 200 − 900
-    assert.equal(breakdown.balanceDelta, 250); // 750 − 500
+    // Đối soát: quỹ tiền mặt − phía ngân hàng (quỹ công ty + ACB hoàn cược).
+    assert.equal(breakdown.inDelta, 800 - 450);      // 350
+    assert.equal(breakdown.outDelta, 200 - 930);    // -730
+    assert.equal(breakdown.balanceDelta, 750 - 720); // 30
   });
 
-  test('a fund with no accounts projects as all zeros and deltas reflect the present fund', () => {
-    const breakdown = projectTreasuryFundBreakdown([
-      position({ accountId: 1, name: 'VCB chính', type: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 }),
-    ]);
+  test('an account without a fundCode sits in no nguồn tiền (the page counts it separately)', () => {
+    const breakdown = projectTreasurySourceBreakdown([
+      position({ accountId: 9, name: 'Chưa phân nguồn', type: 'BANK', fundCode: null, openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 }),
+    ], 0);
 
-    assert.deepEqual(breakdown.funds[0], { fund: 'CASH', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 });
-    assert.equal(breakdown.inDelta, -400);
-    assert.equal(breakdown.outDelta, -900);
-    assert.equal(breakdown.balanceDelta, -500);
+    for (const row of breakdown.sources) {
+      if (row.source === 'OPS_ADVANCE') continue;
+      assert.deepEqual(row, { source: row.source, openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 });
+    }
+    assert.equal(breakdown.inDelta, 0);
+    assert.equal(breakdown.outDelta, 0);
+    assert.equal(breakdown.balanceDelta, 0);
   });
 
-  test('empty ledger projects a zeroed two-fund breakdown', () => {
-    assert.deepEqual(projectTreasuryFundBreakdown([]), {
-      funds: [
-        { fund: 'CASH', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
-        { fund: 'BANK', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+  test('empty ledger projects four zeroed sources; the advance row keeps the outstanding balance', () => {
+    assert.deepEqual(projectTreasurySourceBreakdown([], 23_210_000), {
+      sources: [
+        { source: 'TM', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+        { source: 'COMPANY', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+        { source: 'ACB_REFUND', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+        { source: 'OPS_ADVANCE', openingBalance: null, totalIn: null, totalOut: null, bookBalance: 23_210_000 },
       ],
       inDelta: 0,
       outDelta: 0,

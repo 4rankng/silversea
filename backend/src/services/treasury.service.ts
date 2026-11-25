@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
 import { treasuryFundCodeSchema, treasuryFundLabel, type Role, type TreasuryFundCode, type TreasuryAccountFundInput } from '@tingting/shared';
 
 import { runInTx } from '../lib/tx';
@@ -444,48 +444,172 @@ export async function getTreasuryPositions(accountIds: number[], transaction?: T
 }
 
 /**
- * Fund-axis read projection for the Sổ quỹ đối soát section: the per-fund
- * (account.type) totals the page renders side-by-side for the cash pocket and
- * the bank pocket, plus the đối soát deltas between the two funds
- * (CASH − BANK, so a positive number means the cash fund moved more).
+ * K6.17 (KB §6.5 "Quỹ") — Sổ quỹ có BỐN nguồn tiền: quỹ tiền mặt, quỹ công ty,
+ * quỹ tài khoản ngân hàng ACB chuyên hoàn cược và quỹ tạm ứng của giao nhận.
+ * Đây là CHIẾU ĐỌC của màn Sổ quỹ: mọi ghi quỹ vẫn bắt buộc fundCode COMPANY/TM
+ * tường minh (QuyTrinhO2C AC-CP-KT-07 — không suy ra nguồn quỹ từ tên, ngân hàng
+ * hay loại tài khoản). Nhóm ACB hoàn cược tách khỏi quỹ công ty đúng theo tên
+ * quỹ của KB — tài khoản ngân hàng ACB nhận tiền hoàn cược ("quỹ công ty (ACB)"
+ * của OpsVanHanh §9.6). Tài khoản chưa phân nguồn không nằm trong nguồn nào
+ * (đếm riêng như sổ quỹ nguồn, xem notice của màn hình).
  *
- * Inter-fund transfers intentionally do not exist here: every treasury
- * movement must bind exactly one external money source (a payment receipt OR
- * a ledger entry — insertTreasuryMovement), and no column pairs an OUT row on
- * one account with an IN row on another. The reconciliation is therefore the
- * thu/chi delta between funds, nothing more.
+ * Inter-fund transfers intentionally do not exist: every treasury movement
+ * binds exactly one external money source (a payment receipt OR a ledger entry
+ * — insertTreasuryMovement), so the đối soát is the thu/chi delta between quỹ
+ * tiền mặt and phía ngân hàng (quỹ công ty + quỹ ACB hoàn cược).
  */
-export interface TreasuryFundRow {
-  fund: 'CASH' | 'BANK';
-  openingBalance: number;
-  totalIn: number;
-  totalOut: number;
-  bookBalance: number;
+export type TreasurySourceKey = 'TM' | 'COMPANY' | 'ACB_REFUND' | 'OPS_ADVANCE';
+
+export interface TreasurySourceRow {
+  source: TreasurySourceKey;
+  /** The advance pool tracks only the outstanding balance (K6.17 "quỹ tạm ứng
+   *  của giao nhận") — its period columns are not part of this read. */
+  openingBalance: number | null;
+  totalIn: number | null;
+  totalOut: number | null;
+  bookBalance: number | null;
 }
 
-export interface TreasuryFundBreakdown {
-  funds: TreasuryFundRow[];
+export interface TreasurySourceBreakdown {
+  sources: TreasurySourceRow[];
   inDelta: number;
   outDelta: number;
   balanceDelta: number;
 }
 
-export function projectTreasuryFundBreakdown(positions: TreasuryPosition[]): TreasuryFundBreakdown {
-  const fundRow = (fund: 'CASH' | 'BANK'): TreasuryFundRow => {
-    const rows = positions.filter(position => position.type === fund);
-    const openingBalance = rows.reduce((sum, row) => sum + row.openingBalance, 0);
-    const totalIn = rows.reduce((sum, row) => sum + row.totalIn, 0);
-    const totalOut = rows.reduce((sum, row) => sum + row.totalOut, 0);
-    return { fund, openingBalance, totalIn, totalOut, bookBalance: openingBalance + totalIn - totalOut };
-  };
-  const cash = fundRow('CASH');
-  const bank = fundRow('BANK');
+/** The KB names the quỹ "tài khoản ngân hàng ACB" — the bank names the account
+ *  on this display axis only, never the fundCode write. */
+export function projectTreasurySourceBreakdown(
+  positions: TreasuryPosition[],
+  opsAdvanceOutstanding: number,
+): TreasurySourceBreakdown {
+  const buckets: Record<Exclude<TreasurySourceKey, 'OPS_ADVANCE'>, TreasuryPosition[]> = { TM: [], COMPANY: [], ACB_REFUND: [] };
+  for (const position of positions) {
+    if (position.fundCode === 'TM') buckets.TM.push(position);
+    // Unclassified accounts (fundCode null) sit in no source — the page counts
+    // them separately ("Chưa phân nguồn quỹ"), same law as sổ quỹ nguồn.
+    else if (position.fundCode === 'COMPANY') {
+      ((position.bankName ?? '').toUpperCase().includes('ACB') ? buckets.ACB_REFUND : buckets.COMPANY).push(position);
+    }
+  }
+  const sum = (rows: TreasuryPosition[], pick: (row: TreasuryPosition) => number) =>
+    rows.reduce((total, row) => total + pick(row), 0);
+  const money = (source: Exclude<TreasurySourceKey, 'OPS_ADVANCE'>): TreasurySourceRow => ({
+    source,
+    openingBalance: sum(buckets[source], row => row.openingBalance),
+    totalIn: sum(buckets[source], row => row.totalIn),
+    totalOut: sum(buckets[source], row => row.totalOut),
+    bookBalance: sum(buckets[source], row => row.bookBalance),
+  });
+  const tm = money('TM');
+  const company = money('COMPANY');
+  const acb = money('ACB_REFUND');
   return {
-    funds: [cash, bank],
-    inDelta: cash.totalIn - bank.totalIn,
-    outDelta: cash.totalOut - bank.totalOut,
-    balanceDelta: cash.bookBalance - bank.bookBalance,
+    sources: [tm, company, acb, {
+      source: 'OPS_ADVANCE',
+      openingBalance: null,
+      totalIn: null,
+      totalOut: null,
+      bookBalance: opsAdvanceOutstanding,
+    }],
+    inDelta: (tm.totalIn ?? 0) - ((company.totalIn ?? 0) + (acb.totalIn ?? 0)),
+    outDelta: (tm.totalOut ?? 0) - ((company.totalOut ?? 0) + (acb.totalOut ?? 0)),
+    balanceDelta: (tm.bookBalance ?? 0) - ((company.bookBalance ?? 0) + (acb.bookBalance ?? 0)),
   };
+}
+
+/** K6.51 — một dòng sổ quỹ: Số phiếu · ngày · đối tượng · mô tả · tài khoản ·
+ *  thu/chi · số dư (số dư do màn hình cộng dồn, cùng nhãn tổng số dư). */
+export interface TreasuryLedgerRow {
+  id: number;
+  valueDate: string;
+  direction: 'IN' | 'OUT';
+  amount: number;
+  accountName: string;
+  code: string | null;
+  counterpartyName: string | null;
+  description: string | null;
+}
+
+interface LedgerEntityRef { type: string | null; id: number | null }
+
+/** Batched counterparty lookup — one query per entity table, never per row. */
+async function resolveEntityNames(executor: Executor, refs: LedgerEntityRef[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const idsByType = new Map<string, Set<number>>();
+  for (const ref of refs) {
+    if (!ref.type || ref.id == null) continue;
+    const key = ref.type.toUpperCase();
+    const ids = idsByType.get(key) ?? new Set<number>();
+    ids.add(ref.id);
+    idsByType.set(key, ids);
+  }
+  for (const [type, ids] of idsByType) {
+    const wanted = [...ids];
+    const rows: Array<{ id: number; name: string | null }> =
+      type === 'CUSTOMER' ? await executor.select({ id: s.customers.id, name: s.customers.name }).from(s.customers).where(inArray(s.customers.id, wanted))
+        : type === 'DRIVER' ? await executor.select({ id: s.drivers.id, name: s.drivers.name }).from(s.drivers).where(inArray(s.drivers.id, wanted))
+          : type === 'SUPPLIER' ? await executor.select({ id: s.suppliers.id, name: s.suppliers.name }).from(s.suppliers).where(inArray(s.suppliers.id, wanted))
+            : (type === 'FORWARDER' || type === 'USER' || type === 'STAFF' || type === 'OPS')
+              ? await executor.select({ id: s.users.id, name: s.users.fullName }).from(s.users).where(inArray(s.users.id, wanted))
+              : [];
+    for (const row of rows) if (row.name) names.set(`${type}:${row.id}`, row.name);
+  }
+  return names;
+}
+
+/** The money book (K6.51): every POSTED treasury movement with the identity of
+ *  the source that bound it — phiếu thu/chi (expense_cash_vouchers), phiếu thu
+ *  khách (payment_receipts) hay bút toán kho quỹ (ledger). Số phiếu falls back
+ *  down that chain to the physical reference. */
+export async function listTreasuryLedger(executor: Executor): Promise<TreasuryLedgerRow[]> {
+  const rows = await executor.select({
+    id: s.treasuryMovements.id,
+    valueDate: s.treasuryMovements.valueDate,
+    direction: s.treasuryMovements.direction,
+    amount: s.treasuryMovements.amount,
+    physicalReference: s.treasuryMovements.physicalReference,
+    externalReference: s.treasuryMovements.externalReference,
+    accountName: s.treasuryAccounts.name,
+    voucherCode: s.expenseCashVouchers.code,
+    voucherNote: s.expenseCashVouchers.note,
+    voucherCounterpartyType: s.expenseCashVouchers.counterpartyType,
+    voucherCounterpartyId: s.expenseCashVouchers.counterpartyId,
+    receiptCode: s.paymentReceipts.receiptId,
+    receiptCustomerId: s.paymentReceipts.customerId,
+    ledgerReceiptCode: s.ledger.receiptId,
+    ledgerNote: s.ledger.note,
+    ledgerEntityType: s.ledger.entityType,
+    ledgerEntityId: s.ledger.entityId,
+  })
+    .from(s.treasuryMovements)
+    .innerJoin(s.treasuryAccounts, eq(s.treasuryAccounts.id, s.treasuryMovements.treasuryAccountId))
+    .leftJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.treasuryMovementId, s.treasuryMovements.id))
+    .leftJoin(s.paymentReceipts, eq(s.paymentReceipts.id, s.treasuryMovements.paymentReceiptId))
+    .leftJoin(s.ledger, eq(s.ledger.id, s.treasuryMovements.ledgerEntryId))
+    .where(eq(s.treasuryMovements.status, 'POSTED'))
+    .orderBy(asc(s.treasuryMovements.valueDate), asc(s.treasuryMovements.id));
+
+  const names = await resolveEntityNames(executor, rows.flatMap(row => [
+    { type: row.voucherCounterpartyType, id: row.voucherCounterpartyId },
+    row.receiptCustomerId != null ? { type: 'CUSTOMER', id: row.receiptCustomerId } : { type: null, id: null },
+    { type: row.ledgerEntityType, id: row.ledgerEntityId },
+  ]));
+  return rows.map(row => ({
+    id: row.id,
+    valueDate: row.valueDate,
+    // The money engine only posts IN/OUT (insertTreasuryMovement).
+    direction: row.direction as 'IN' | 'OUT',
+    amount: Number(row.amount),
+    accountName: row.accountName,
+    code: row.voucherCode ?? row.ledgerReceiptCode ?? row.receiptCode ?? row.physicalReference,
+    counterpartyName:
+      (row.voucherCounterpartyType && row.voucherCounterpartyId != null ? names.get(`${row.voucherCounterpartyType.toUpperCase()}:${row.voucherCounterpartyId}`) : null)
+      ?? (row.receiptCustomerId != null ? names.get(`CUSTOMER:${row.receiptCustomerId}`) : null)
+      ?? (row.ledgerEntityType && row.ledgerEntityId != null ? names.get(`${row.ledgerEntityType.toUpperCase()}:${row.ledgerEntityId}`) : null)
+      ?? null,
+    description: row.voucherNote ?? row.ledgerNote ?? row.externalReference,
+  }));
 }
 
 function requiredText(value: unknown, label: string, max: number): string {

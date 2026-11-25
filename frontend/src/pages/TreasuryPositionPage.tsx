@@ -7,7 +7,7 @@ import { PageHeader, StatusPill } from '../components/UI';
 import { Alert, SkeletonTable, SortHeader } from '../components/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { EmptyState, SummaryRail } from '../design-system';
-import { formatCurrency, formatDateTimeVN } from '../lib/format';
+import { formatCurrency, formatDate, formatDateTimeVN } from '../lib/format';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { customerServiceFinanceClient, type TreasuryPosition } from '../api/customerServiceFinanceClient';
 import '../styles/record-table.css';
@@ -24,31 +24,54 @@ function sanitizeAccountDisplayName(name: string): string {
   return name.replace(/\s*\((?:COMPANY|TM|NULL,\s*pre-merge)\)/gi, '').trim();
 }
 
-/* Sổ quỹ đối soát (ticket 18/11 Task 3.5a) — the fund-axis read projection the
-   position endpoint appends as `fundBreakdown`. The shared client file types
-   the base response shape and is owned outside this page, so the extension is
-   typed here at its only consumer. */
-interface TreasuryFundRow {
-  fund: 'CASH' | 'BANK';
-  openingBalance: number;
-  totalIn: number;
-  totalOut: number;
-  bookBalance: number;
+/* Sổ quỹ (K6.17 + K6.51) — the read extensions the position endpoint appends:
+   `fundBreakdown` = bốn nguồn tiền (quỹ tiền mặt · quỹ công ty · quỹ tài khoản
+   ngân hàng ACB chuyên hoàn cược · quỹ tạm ứng của giao nhận) and `ledger` =
+   bảng sổ quỹ (Số phiếu · ngày · đối tượng · mô tả · tài khoản · thu/chi ·
+   số dư). The shared client file types the base response shape and is owned
+   outside this page, so the extension is typed here at its only consumer. */
+type TreasurySourceKey = 'TM' | 'COMPANY' | 'ACB_REFUND' | 'OPS_ADVANCE';
+
+interface TreasurySourceRow {
+  source: TreasurySourceKey;
+  /** Quỹ tạm ứng của giao nhận chỉ có số dư còn tồn (K6.17) — không có kỳ. */
+  openingBalance: number | null;
+  totalIn: number | null;
+  totalOut: number | null;
+  bookBalance: number | null;
 }
 
-interface TreasuryFundBreakdown {
-  funds: TreasuryFundRow[];
+interface TreasurySourceBreakdown {
+  sources: TreasurySourceRow[];
   inDelta: number;
   outDelta: number;
   balanceDelta: number;
 }
 
-type TreasuryPositionResponse = TreasuryPosition & { fundBreakdown: TreasuryFundBreakdown };
+interface TreasuryLedgerRow {
+  id: number;
+  valueDate: string;
+  direction: 'IN' | 'OUT';
+  amount: number;
+  accountName: string;
+  code: string | null;
+  counterpartyName: string | null;
+  description: string | null;
+}
 
-const FUND_LABELS: Record<TreasuryFundRow['fund'], string> = {
-  CASH: 'Quỹ tiền mặt',
-  BANK: 'Quỹ tài khoản ngân hàng',
+type TreasuryPositionResponse = TreasuryPosition & {
+  fundBreakdown: TreasurySourceBreakdown;
+  ledger: TreasuryLedgerRow[];
 };
+
+const SOURCE_LABELS: Record<TreasurySourceKey, string> = {
+  TM: 'Quỹ tiền mặt',
+  COMPANY: 'Quỹ công ty',
+  ACB_REFUND: 'Quỹ tài khoản ngân hàng ACB chuyên hoàn cược',
+  OPS_ADVANCE: 'Quỹ tạm ứng của giao nhận',
+};
+
+const sourceMoney = (value: number | null) => (value == null ? '—' : formatCurrency(value));
 
 export default function TreasuryPositionPage() {
   const { user } = useAuth();
@@ -85,16 +108,23 @@ export default function TreasuryPositionPage() {
 
   const totals = useMemo(
     () => data?.accounts.reduce((acc, account) => {
-      acc.CASH += account.type === 'CASH' ? account.bookBalance : 0;
-      acc.BANK += account.type === 'BANK' ? account.bookBalance : 0;
       acc.opening += account.openingBalance;
       acc.totalIn += account.totalIn;
       acc.totalOut += account.totalOut;
       acc.bookBalance += account.bookBalance;
       return acc;
-    }, { CASH: 0, BANK: 0, opening: 0, totalIn: 0, totalOut: 0, bookBalance: 0 }) ?? { CASH: 0, BANK: 0, opening: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+    }, { opening: 0, totalIn: 0, totalOut: 0, bookBalance: 0 }) ?? { opening: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
     [data],
   );
+  // K6.51 — cột Số dư của bảng sổ quỹ là số cộng dồn, chạy từ tổng số dư đầu kỳ
+  // của toàn sổ (mọi tài khoản ghi sổ), nên dòng cuối khớp "Tổng số dư".
+  const ledgerRows = useMemo(() => {
+    let balance = totals.opening;
+    return (data?.ledger ?? []).map((row) => {
+      balance += row.direction === 'IN' ? row.amount : -row.amount;
+      return { ...row, balance };
+    });
+  }, [data, totals.opening]);
   const accounts = data?.accounts ?? [];
   const hasAccountWithoutFund = accounts.some((account) => !account.fundCode);
   const isEmpty = accounts.length === 0;
@@ -201,13 +231,15 @@ export default function TreasuryPositionPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.fundBreakdown.funds.map((fund) => (
-                    <tr key={fund.fund}>
-                      <td data-label="Quỹ"><strong>{FUND_LABELS[fund.fund]}</strong></td>
-                      <td data-label="Đầu kỳ" className="num"><span className="data-token">{formatCurrency(fund.openingBalance)}</span></td>
-                      <td data-label="Thu" className="num"><span className="data-token">{formatCurrency(fund.totalIn)}</span></td>
-                      <td data-label="Chi" className="num"><span className="data-token">{formatCurrency(fund.totalOut)}</span></td>
-                      <td data-label="Số dư cuối" className="num"><strong><span className="data-token">{formatCurrency(fund.bookBalance)}</span></strong></td>
+                  {/* K6.17 — bốn nguồn tiền của Sổ quỹ; quỹ tạm ứng của giao
+                      nhận chỉ mang số dư còn tồn nên các cột kỳ hiện '—'. */}
+                  {data.fundBreakdown.sources.map((source) => (
+                    <tr key={source.source}>
+                      <td data-label="Quỹ"><strong>{SOURCE_LABELS[source.source]}</strong></td>
+                      <td data-label="Đầu kỳ" className="num"><span className="data-token">{sourceMoney(source.openingBalance)}</span></td>
+                      <td data-label="Thu" className="num"><span className="data-token">{sourceMoney(source.totalIn)}</span></td>
+                      <td data-label="Chi" className="num"><span className="data-token">{sourceMoney(source.totalOut)}</span></td>
+                      <td data-label="Số dư cuối" className="num"><strong><span className="data-token">{sourceMoney(source.bookBalance)}</span></strong></td>
                     </tr>
                   ))}
                   <tr className="treasury-table__recon-row">
@@ -225,6 +257,50 @@ export default function TreasuryPositionPage() {
               chuyển tiền giữa hai quỹ — mỗi dòng kho quỹ gắn đúng một nguồn tiền ngoài (phiếu thu
               hoặc chứng từ chi) — nên đây là toàn bộ đối soát giữa hai quỹ.
             </p>
+          </section>
+          {/* K6.51 (KB §6.5 "Sổ quỹ") — bảng sổ quỹ: Số phiếu · ngày · đối tượng
+              · mô tả · tài khoản · thu/chi · số dư; nhãn tổng số dư phía trên;
+              dòng trạng thái "số dư ghi sổ, cập nhật đến …" là Alert ngay trên
+              cùng trang. */}
+          <section aria-label="Bảng sổ quỹ" className="mb-5">
+            <h2 className="treasury-recon__title">Sổ quỹ</h2>
+            <p className="treasury-table__recon-note">
+              <strong>Tổng số dư: {formatCurrency(totals.bookBalance)}</strong> — số dư ghi sổ chạy
+              cộng dồn theo từng dòng, từ tổng số dư đầu kỳ của toàn sổ.
+            </p>
+            <div className="record-table-wrap">
+              <table className="record-table ops-table treasury-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Số phiếu</th>
+                    <th scope="col">Ngày</th>
+                    <th scope="col">Đối tượng</th>
+                    <th scope="col">Mô tả</th>
+                    <th scope="col">Tài khoản</th>
+                    <th scope="col" className="num">Thu</th>
+                    <th scope="col" className="num">Chi</th>
+                    <th scope="col" className="num">Số dư</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledgerRows.map((row) => (
+                    <tr key={row.id}>
+                      <td data-label="Số phiếu">{row.code ?? '—'}</td>
+                      <td data-label="Ngày">{formatDate(row.valueDate)}</td>
+                      <td data-label="Đối tượng">{row.counterpartyName ?? '—'}</td>
+                      <td data-label="Mô tả">{row.description ?? '—'}</td>
+                      <td data-label="Tài khoản">{row.accountName}</td>
+                      <td data-label="Thu" className="num">{row.direction === 'IN' ? formatCurrency(row.amount) : '—'}</td>
+                      <td data-label="Chi" className="num">{row.direction === 'OUT' ? formatCurrency(row.amount) : '—'}</td>
+                      <td data-label="Số dư" className="num"><strong><span className="data-token">{formatCurrency(row.balance)}</span></strong></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {!ledgerRows.length && (
+              <p className="treasury-table__recon-note">Chưa có dòng sổ quỹ nào.</p>
+            )}
           </section>
           <section aria-label="Danh sách tài khoản ghi sổ">
           <div className="record-table-wrap">

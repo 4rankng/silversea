@@ -54,7 +54,8 @@ import { ApiError } from '../../errors';
 import { declareMaterialWrite } from '../../middleware/material-write';
 import {
   getTreasuryPosition,
-  projectTreasuryFundBreakdown,
+  listTreasuryLedger,
+  projectTreasurySourceBreakdown,
   requestTreasuryAccountSetup,
   updateTreasuryAccountFund,
   requestTreasuryCutover,
@@ -477,7 +478,10 @@ router.get('/finance/treasury/position', requireRoles(Role.ADMIN, Role.MANAGER, 
     accounts: sortTreasuryPositions(positions, parsedSort.data.sortBy, parsedSort.data.sortDir),
     // Sổ quỹ đối soát (ticket 18/11 Task 3.5a): the per-fund read projection —
     // sums are order-independent, so it projects the positions before sorting.
-    fundBreakdown: projectTreasuryFundBreakdown(positions),
+    // K6.17: bốn nguồn tiền (tiền mặt · quỹ công ty · ACB hoàn cược · tạm ứng
+    // của giao nhận); K6.51: bảng sổ quỹ (Số phiếu / đối tượng / mô tả …).
+    fundBreakdown: projectTreasurySourceBreakdown(positions, totalOutstanding),
+    ledger: await listTreasuryLedger(db),
     opsAdvance: { totalOutstanding },
   });
 }));

@@ -33,17 +33,20 @@ function account(accountId: number, name: string, bookBalance: number) {
   };
 }
 
-/* The fund-axis projection the position route appends (ticket 18/11 Task
-   3.5a) — balanced CASH/BANK rows for the shared mock, deltas 0. */
+/* The source-axis projection the position route appends (K6.17 — bốn nguồn
+   tiền) for the shared mock: balanced rows, deltas 0. */
 const fundBreakdown = {
-  funds: [
-    { fund: 'CASH' as const, openingBalance: 1000, totalIn: 2000, totalOut: 500, bookBalance: 2500 },
-    { fund: 'BANK' as const, openingBalance: 1000, totalIn: 2000, totalOut: 500, bookBalance: 2500 },
+  sources: [
+    { source: 'TM' as const, openingBalance: 1000, totalIn: 2000, totalOut: 500, bookBalance: 2500 },
+    { source: 'COMPANY' as const, openingBalance: 1000, totalIn: 2000, totalOut: 500, bookBalance: 2500 },
+    { source: 'ACB_REFUND' as const, openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+    { source: 'OPS_ADVANCE' as const, openingBalance: null, totalIn: null, totalOut: null, bookBalance: 0 },
   ],
   inDelta: 0,
   outDelta: 0,
   balanceDelta: 0,
 };
+const noLedger: never[] = [];
 
 beforeEach(() => {
   getTreasuryPositionMock.mockReset().mockResolvedValue({
@@ -53,6 +56,7 @@ beforeEach(() => {
     opsAdvance: { totalOutstanding: 0 },
     accounts: [account(1, 'Tiền mặt quỹ', 900), account(2, 'VCB chính', 500)],
     fundBreakdown,
+    ledger: noLedger,
   });
 });
 
@@ -92,6 +96,7 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
         { ...account(2, 'VCB chính', 500), type: 'BANK', bankName: 'Vietcombank', bankAccountNumber: '0221000123456' },
       ],
       fundBreakdown,
+      ledger: noLedger,
     });
     render(<TreasuryPositionPage />);
 
@@ -130,6 +135,7 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
         { ...account(2, 'VCB chính', 500), cutoverAt: '2026-10-01T03:00:00.000Z' },
       ],
       fundBreakdown,
+      ledger: noLedger,
     });
     render(<TreasuryPositionPage />);
 
@@ -150,6 +156,7 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
       opsAdvance: { totalOutstanding: 0 },
       accounts: [{ ...account(1, 'VCB chính', 500), type: 'BANK', bankName: 'Vietcombank', bankAccountNumber: '0221000999' }],
       fundBreakdown,
+      ledger: noLedger,
     });
     render(<TreasuryPositionPage />);
     const row = await screen.findByText('VCB chính');
@@ -163,51 +170,95 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
   });
 });
 
-describe('TreasuryPositionPage sổ quỹ đối soát (ticket 18/11 Task 3.5a)', () => {
-  it('renders the per-fund book totals side-by-side and closes with the CASH−BANK delta row', async () => {
+describe('TreasuryPositionPage bốn nguồn tiền + bảng sổ quỹ (K6.17 + K6.51)', () => {
+  it('renders the four nguồn tiền with their book totals and closes with the Tiền mặt − Ngân hàng delta row', async () => {
     getTreasuryPositionMock.mockReset().mockResolvedValue({
       asOf: '2026-11-01T08:00:00.000Z',
       currency: 'VND',
       coverage: 'COMPLETE',
-      opsAdvance: { totalOutstanding: 0 },
+      opsAdvance: { totalOutstanding: 23_210_000 },
       accounts: [
-        { ...account(1, 'Tiền mặt quỹ', 600), type: 'CASH', openingBalance: 100, totalIn: 700, totalOut: 200 },
-        { ...account(2, 'VCB chính', 500), type: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900 },
+        { ...account(1, 'Tiền mặt quỹ', 600), type: 'CASH', fundCode: 'TM', openingBalance: 100, totalIn: 700, totalOut: 200 },
+        { ...account(2, 'VCB chính', 500), type: 'BANK', fundCode: 'COMPANY', bankName: 'Vietcombank', openingBalance: 1000, totalIn: 400, totalOut: 900 },
+        { ...account(6, 'ACB - Tài khoản công ty', 220), type: 'BANK', fundCode: 'COMPANY', bankName: 'ACB', openingBalance: 200, totalIn: 50, totalOut: 30 },
       ],
       fundBreakdown: {
-        funds: [
-          { fund: 'CASH', openingBalance: 100, totalIn: 700, totalOut: 200, bookBalance: 600 },
-          { fund: 'BANK', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 },
+        sources: [
+          { source: 'TM', openingBalance: 100, totalIn: 700, totalOut: 200, bookBalance: 600 },
+          { source: 'COMPANY', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: 500 },
+          { source: 'ACB_REFUND', openingBalance: 200, totalIn: 50, totalOut: 30, bookBalance: 220 },
+          { source: 'OPS_ADVANCE', openingBalance: null, totalIn: null, totalOut: null, bookBalance: 23_210_000 },
         ],
-        inDelta: 300,
-        outDelta: -700,
-        balanceDelta: 100,
+        inDelta: 250,
+        outDelta: -730,
+        balanceDelta: -120,
       },
+      ledger: noLedger,
     });
     render(<TreasuryPositionPage />);
 
     const recon = await screen.findByRole('region', { name: 'Đối soát quỹ' });
     const text = recon.textContent;
-    // Side-by-side funds over Đầu kỳ | Thu | Chi | Số dư cuối.
+    // K6.17 — bốn nguồn tiền, mỗi nguồn một dòng over Đầu kỳ | Thu | Chi | Số dư cuối.
     expect(text).toContain('Quỹ tiền mặt');
-    expect(text).toContain('Quỹ tài khoản ngân hàng');
+    expect(text).toContain('Quỹ công ty');
+    expect(text).toContain('Quỹ tài khoản ngân hàng ACB chuyên hoàn cược');
+    expect(text).toContain('Quỹ tạm ứng của giao nhận');
     expect(text).toContain('Đầu kỳ');
     expect(text).toContain('Thu');
     expect(text).toContain('Chi');
     expect(text).toContain('Số dư cuối');
-    expect(text).toContain('600');   // CASH book balance
-    expect(text).toContain('500');   // BANK book balance
-    // The đối soát line: CASH − BANK deltas as projected by the read.
+    expect(text).toContain('600');        // quỹ tiền mặt book balance
+    expect(text).toContain('500');        // quỹ công ty book balance
+    expect(text).toContain('220');        // quỹ ACB hoàn cược book balance
+    expect(text).toContain('23.210.000'); // quỹ tạm ứng của giao nhận còn tồn
+    // Quỹ tạm ứng không có kỳ — các cột kỳ của dòng nó là '—'.
+    expect(text).toContain('—');
+    // The đối soát line: Tiền mặt − (công ty + ACB) deltas as projected.
     expect(text).toContain('Đối soát (Tiền mặt − Ngân hàng)');
-    expect(text).toContain('300');   // in delta
-    expect(text).toContain('-700');  // out delta
-    expect(text).toContain('100');   // balance delta
+    expect(text).toContain('250');   // in delta
+    expect(text).toContain('-730');  // out delta
+    expect(text).toContain('-120');  // balance delta
   });
 
   it('states the no-inter-fund-transfer ledger law in the recon note', async () => {
     render(<TreasuryPositionPage />);
     const recon = await screen.findByRole('region', { name: 'Đối soát quỹ' });
     expect(recon.textContent).toContain('không ghi chuyển tiền giữa hai quỹ');
+  });
+
+  it('bảng sổ quỹ carries Số phiếu / Đối tượng / Mô tả and the total-balance label (K6.51, SIL-1031)', async () => {
+    getTreasuryPositionMock.mockReset().mockResolvedValue({
+      asOf: '2026-11-01T08:00:00.000Z',
+      currency: 'VND',
+      coverage: 'COMPLETE',
+      opsAdvance: { totalOutstanding: 0 },
+      accounts: [
+        { ...account(6, 'ACB - Tài khoản công ty', 301000), type: 'BANK', fundCode: 'COMPANY', bankName: 'ACB', openingBalance: 1000, totalIn: 500000, totalOut: 200000 },
+      ],
+      fundBreakdown,
+      ledger: [
+        { id: 1, valueDate: '2026-11-01', direction: 'IN', amount: 500000, accountName: 'ACB - Tài khoản công ty', code: 'PT-0001', counterpartyName: 'KH Alpha', description: 'Thu cước lô A' },
+        { id: 2, valueDate: '2026-11-02', direction: 'OUT', amount: 200000, accountName: 'ACB - Tài khoản công ty', code: 'PC-0002', counterpartyName: 'Nhà xe B', description: 'Chi phí nâng' },
+      ],
+    });
+    render(<TreasuryPositionPage />);
+
+    const book = await screen.findByRole('region', { name: 'Bảng sổ quỹ' });
+    for (const label of ['Số phiếu', 'Ngày', 'Đối tượng', 'Mô tả', 'Tài khoản', 'Thu', 'Chi', 'Số dư']) {
+      expect(within(book).getByRole('columnheader', { name: label })).toBeTruthy();
+    }
+    // K6.51 — nhãn tổng số dư phía trên bảng.
+    expect(book.textContent).toContain('Tổng số dư');
+    expect(book.textContent).toContain('301.000');
+    // Row identity: Số phiếu · Đối tượng · Mô tả, and the running balance.
+    expect(book.textContent).toContain('PT-0001');
+    expect(book.textContent).toContain('KH Alpha');
+    expect(book.textContent).toContain('Thu cước lô A');
+    expect(book.textContent).toContain('PC-0002');
+    expect(book.textContent).toContain('Nhà xe B');
+    expect(book.textContent).toContain('Chi phí nâng');
+    expect(book.textContent).toContain('501.000'); // 1.000 opening + 500.000 IN
   });
 
   it('hides the recon strip with the rest of the read when the ledger is empty', () => {
@@ -218,14 +269,17 @@ describe('TreasuryPositionPage sổ quỹ đối soát (ticket 18/11 Task 3.5a)'
       opsAdvance: { totalOutstanding: 0 },
       accounts: [],
       fundBreakdown: {
-        funds: [
-          { fund: 'CASH', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
-          { fund: 'BANK', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+        sources: [
+          { source: 'TM', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+          { source: 'COMPANY', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+          { source: 'ACB_REFUND', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+          { source: 'OPS_ADVANCE', openingBalance: null, totalIn: null, totalOut: null, bookBalance: 0 },
         ],
         inDelta: 0,
         outDelta: 0,
         balanceDelta: 0,
       },
+      ledger: noLedger,
     });
     render(<TreasuryPositionPage />);
     return waitFor(() => expect(screen.queryByRole('region', { name: 'Đối soát quỹ' })).toBeNull());

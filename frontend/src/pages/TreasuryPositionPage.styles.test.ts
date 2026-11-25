@@ -83,9 +83,11 @@ describe('treasury fund reconciliation strip contract (ticket 18/11 Task 3.5a)',
     expect(pageCss).not.toMatch(/treasury-recon[^}]*(font-size:\s*var\(--fs-|font-size:\s*\d+px)/s);
   });
 
-  it('labels the funds and the CASH−BANK đối soát line per the ticket', () => {
+  it('labels the four nguồn tiền (K6.17) and the Tiền mặt − Ngân hàng đối soát line', () => {
     expect(pageTsx).toContain("'Quỹ tiền mặt'");
-    expect(pageTsx).toContain("'Quỹ tài khoản ngân hàng'");
+    expect(pageTsx).toContain("'Quỹ công ty'");
+    expect(pageTsx).toContain("'Quỹ tài khoản ngân hàng ACB chuyên hoàn cược'");
+    expect(pageTsx).toContain("'Quỹ tạm ứng của giao nhận'");
     expect(pageTsx).toContain('Đối soát (Tiền mặt − Ngân hàng)');
     // The deltas render from the read projection, never recomputed client-side.
     expect(pageTsx).toContain('data.fundBreakdown.inDelta');
