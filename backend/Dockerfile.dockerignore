@@ -34,6 +34,12 @@ backend/drizzle/meta/*
 backend/src/tests/
 backend/src/**/*.test.ts
 backend/src/**/*.spec.ts
+# SIL-1018 — backend/Dockerfile COPYes the prod backfill runner from
+# backend/scripts/; without this re-include the file never reaches the build
+# context and the image build dies at "failed to calculate checksum ... not found".
+!backend/scripts/
+backend/scripts/*
+!backend/scripts/backfill-subcontractor-carriers.prod.mjs
 
 !frontend/
 frontend/*
