@@ -1,13 +1,21 @@
 // Card 20260922_57 — báo giá xlsx export: round-trips the customer's
-// template layout for one quotation. Giá cos renders shared-inclusive
-// (base × (1+share)); liters = km × norm × 2 (norm keyed on the BASE class);
-// Phụ phí comes from the live engine call per route (approval gate included).
+// template layout for one quotation.
+//
+// SIL-1041 (K5.47) — MỌI đường xuất chạy qua CÙNG một renderer trên
+// QuotationView:
+//   • nút 'Xuất xlsx' đầu trang = view SỐNG từ buildGrid (trước đây đọc
+//     danh sách ô thưa quotation_cells — khung chưa sửa hệ số chỉ ra file
+//     2 dòng, sai mẫu);
+//   • nút theo phiên bản = payload đóng băng của chính phiên bản đó.
+// File luôn khớp mẫu: row1 'Khách hàng | <tên> | MST | <mã>', row2 tham
+// số, mỗi tuyến một khối lưới. Cột 'Tổng lít dầu/chuyến' là SỐ NGUYÊN
+// (không thập phân — 31.2/57.6/76.8 là lỗi cũ). Ô Giá cos hạng nặng kế
+// thừa để TRỐNG đúng mẫu khách (blank = kế thừa); ô có giá riêng ghi số.
 import ExcelJS from 'exceljs';
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
-import { quotationBaseClassCode } from '@tingting/shared';
-import { resolveFreightRate } from './freight-pricing-engine.service';
+import { getQuotation } from './quotation.service';
 import { ApiError } from '../errors';
 import type { QuotationView } from '@tingting/shared';
 type QuotationViewShape = QuotationView;
@@ -22,20 +30,73 @@ function classLabel(code: string): string {
   return `Xe ${code}`;
 }
 
-async function latestFuel(customerId: number, routeId: number, classCode: string) {
-  const today = new Date().toISOString().slice(0, 10);
-  try {
-    return await resolveFreightRate({
-      customerId, routeId, vehicleSizeClassCode: quotationBaseClassCode(classCode),
-      transportDate: today,
+/** Pure workbook render — exported for the contract test (SIL-1041). */
+export async function renderQuotationWorkbook(
+  view: QuotationViewShape,
+  customerTaxCode: string | null,
+): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const sheet = wb.addWorksheet('BÁO GIÁ');
+  sheet.getCell('A1').value = 'Khách hàng';
+  sheet.getCell('B1').value = view.customerName ?? '';
+  sheet.getCell('C1').value = 'MST';
+  sheet.getCell('D1').value = customerTaxCode ?? '';
+  sheet.getCell('A2').value = 'Giá dầu tham chiếu';
+  sheet.getCell('B2').value = view.cells[0]?.baseFuelPrice ?? null;
+  sheet.getCell('C2').value = 'Lag Day n';
+  sheet.getCell('D2').value = view.cells[0]?.fuelLagDays ?? 0;
+  sheet.getCell('E2').value = 'Phụ phí làm tròn';
+  sheet.getCell('F2').value = view.surchargeRoundingMode === 'TEN_THOUSAND' ? '-4'
+    : view.surchargeRoundingMode === 'THOUSAND' ? '-3' : 'NONE';
+  let cursor = 4;
+  const routesInOrder = [...new Set(view.cells.map((cell) => cell.routeName))];
+  for (const routeName of routesInOrder) {
+    const routeCells = view.cells.filter((cell) => cell.routeName === routeName);
+    sheet.getCell(`A${cursor}`).value = 'Nhà máy';
+    sheet.getCell(`B${cursor}`).value = routeName;
+    cursor += 1;
+    sheet.getCell(`A${cursor}`).value = 'Nội dung';
+    routeCells.forEach((cell, index) => {
+      sheet.getCell(cursor, index + 2).value = classLabel(cell.vehicleSizeClassCode);
     });
-  } catch {
-    return null;
+    cursor += 1;
+    const gridRows: Array<[string, (cell: QuotationViewShape['cells'][number]) => number | string | null]> = [
+      ['Hệ số', (cell) => Number(cell.heSo)],
+      // SIL-1041 (K5.47) — cột lít không thập phân: số nguyên, làm tròn
+      // half-up (Math.round) chỉ cho HIỂN THỊ file; tiền vẫn tính trên lít
+      // thật (KB §5.7.3: làm tròn hiển thị không đổi kết quả tiền).
+      ['Tổng lít dầu/chuyến', (cell) => (cell.liters == null ? null : Math.round(cell.liters))],
+      // K5.18 — ô Giá cos hạng nặng kế thừa từ hạng nhẹ để TRỐNG đúng mẫu
+      // khách ("blank = kế thừa"); giá riêng của ô vẫn ghi số.
+      ['Giá cos', (cell) => (cell.giaCosInherited ? null : cell.giaCos)],
+      ['Phụ phí', (cell) => cell.surcharge],
+    ];
+    for (const [label, render] of gridRows) {
+      sheet.getCell(`A${cursor}`).value = label;
+      routeCells.forEach((cell, index) => {
+        sheet.getCell(cursor, index + 2).value = render(cell);
+      });
+      cursor += 1;
+    }
+    cursor += 1;
   }
+  // SAFETY: exceljs types writeBuffer() as StreamingXLSX.Buffer, but it
+  // resolves a Node Buffer once the whole workbook is serialised. Both call
+  // sites await this and pass the Buffer to the XLSX response, so the
+  // runtime shape is what is asserted, not merely assumed.
+  return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
 }
+
 export async function buildQuotationExport(quotationId: number, version?: number): Promise<Buffer> {
-  // Card _62: a version render comes straight from the FROZEN payload — the
-  // cells carry heSo/liters/giaCos/surcharge verbatim, so no pricing queries.
+  // MST là định danh khách của mẫu (import nhận diện theo tên + MST) —
+  // tra nhanh một dòng, không phải truy vấn giá.
+  const loadTaxCode = async (customerId: number): Promise<string | null> => {
+    const [customer] = await db.select({ taxCode: s.customers.taxCode })
+      .from(s.customers)
+      .where(eq(s.customers.id, customerId))
+      .limit(1);
+    return customer?.taxCode ?? null;
+  };
   if (version != null) {
     const [snap] = await db.select({ payload: s.quotationVersionSnapshots.payload })
       .from(s.quotationVersionSnapshots)
@@ -45,208 +106,8 @@ export async function buildQuotationExport(quotationId: number, version?: number
       )).limit(1);
     if (!snap) throw new ApiError(404, 'Không tìm thấy phiên bản báo giá');
     const view = snap.payload as QuotationViewShape;
-    const wb = new ExcelJS.Workbook();
-    const sheet = wb.addWorksheet('BÁO GIÁ');
-    sheet.getCell('A1').value = 'Khách hàng';
-    sheet.getCell('B1').value = view.customerName ?? '';
-    sheet.getCell('A2').value = 'Giá dầu tham chiếu';
-    sheet.getCell('B2').value = view.cells[0]?.baseFuelPrice ?? null;
-    sheet.getCell('C2').value = 'Lag Day n';
-    sheet.getCell('D2').value = view.cells[0]?.fuelLagDays ?? 0;
-    sheet.getCell('E2').value = 'Phụ phí làm tròn';
-    sheet.getCell('F2').value = view.surchargeRoundingMode === 'TEN_THOUSAND' ? '-4'
-      : view.surchargeRoundingMode === 'THOUSAND' ? '-3' : 'NONE';
-    let cursor = 4;
-    const routesInOrder = [...new Set(view.cells.map((cell) => cell.routeName))];
-    for (const routeName of routesInOrder) {
-      const routeCells = view.cells.filter((cell) => cell.routeName === routeName);
-      sheet.getCell(`A${cursor}`).value = 'Nhà máy';
-      sheet.getCell(`B${cursor}`).value = routeName;
-      cursor += 1;
-      sheet.getCell(`A${cursor}`).value = 'Nội dung';
-      routeCells.forEach((cell, index) => {
-        sheet.getCell(cursor, index + 2).value = classLabel(cell.vehicleSizeClassCode);
-      });
-      cursor += 1;
-      const gridRows: Array<[string, (cell: QuotationViewShape['cells'][number]) => number | string | null]> = [
-        ['Hệ số', (cell) => cell.heSo],
-        // D4 (card _57/_62 finish-out): liters derive as km × norm × 2 and
-        // raw floats leak tails ("33.800000000000004") into the file — cap
-        // at one decimal, which is the true value's precision.
-        ['Tổng lít dầu/chuyến', (cell) => (cell.liters == null ? null : Math.round(cell.liters * 10) / 10)],
-        ['Giá cos', (cell) => cell.giaCos],
-        ['Phụ phí', (cell) => cell.surcharge],
-      ];
-      for (const [label, render] of gridRows) {
-        sheet.getCell(`A${cursor}`).value = label;
-        routeCells.forEach((cell, index) => {
-          sheet.getCell(cursor, index + 2).value = render(cell);
-        });
-        cursor += 1;
-      }
-      cursor += 1;
-    }
-    // SAFETY: exceljs types writeBuffer() as StreamingXLSX.Buffer, but it resolves a
-  // Node Buffer once the whole workbook is serialised. Both call sites await
-  // this and pass the Buffer to the XLSX response, so the runtime shape is what
-  // is asserted, not merely assumed.
-  return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+    return renderQuotationWorkbook(view, await loadTaxCode(view.customerId));
   }
-
-  const [frame] = await db.select().from(s.quotations)
-    .where(and(eq(s.quotations.id, quotationId), isNull(s.quotations.deletedAt))).limit(1);
-  if (!frame) throw new ApiError(404, 'Không tìm thấy báo giá');
-  const [customer] = await db.select({ name: s.customers.name })
-    .from(s.customers).where(eq(s.customers.id, frame.customerId)).limit(1);
-  const cells = await db.select({
-    routeId: s.quotationCells.routeId,
-    classCode: s.vehicleSizeClasses.code,
-    heSo: s.quotationCells.heSo,
-  }).from(s.quotationCells)
-    .innerJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.quotationCells.vehicleSizeClassId))
-    .where(eq(s.quotationCells.quotationId, quotationId));
-
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('BÁO GIÁ');
-  sheet.getCell('A1').value = 'Khách hàng';
-  sheet.getCell('B1').value = customer?.name ?? '';
-  sheet.getCell('C1').value = 'MST';
-  const [termsRow] = await db.select({
-    baseFuelPrice: s.freightRateTerms.baseFuelPrice,
-    fuelLagDays: s.freightRateTerms.fuelLagDays,
-    sharePct: s.freightRateTerms.sharePct,
-  }).from(s.freightRateTerms)
-    .where(and(
-      eq(s.freightRateTerms.customerId, frame.customerId),
-      isNull(s.freightRateTerms.deletedAt),
-    ))
-    .orderBy(desc(s.freightRateTerms.effectiveDate)).limit(1);
-  sheet.getCell('A2').value = 'Giá dầu tham chiếu';
-  sheet.getCell('B2').value = termsRow ? Number(termsRow.baseFuelPrice) : null;
-  sheet.getCell('C2').value = 'Lag Day n';
-  sheet.getCell('D2').value = termsRow?.fuelLagDays ?? 0;
-  sheet.getCell('E2').value = 'Phụ phí làm tròn';
-  sheet.getCell('F2').value = frame.surchargeRoundingMode === 'TEN_THOUSAND' ? '-4'
-    : frame.surchargeRoundingMode === 'THOUSAND' ? '-3' : 'NONE';
-
-
-  const routeIds = [...new Set(cells.map((cell) => cell.routeId))];
-
-  // Whole-sheet set reads: route names, terms (latest per route), norms
-  // (latest per base class) and pricing rows (latest per route+rateKey).
-  // Replaces one query per route/cell while keeping the identical
-  // latest-effective-per-key selection semantics.
-  const routeRows = routeIds.length > 0 ? await db.select({ id: s.routes.id, name: s.routes.name })
-    .from(s.routes).where(inArray(s.routes.id, routeIds)) : [];
-  const routeNameById = new Map(routeRows.map((row) => [row.id, row.name]));
-
-  const termsRows = routeIds.length > 0 ? await db.select({ routeId: s.freightRateTerms.routeId, sharePct: s.freightRateTerms.sharePct, km: s.freightRateTerms.billingKmOneWay })
-    .from(s.freightRateTerms)
-    .where(and(
-      eq(s.freightRateTerms.customerId, frame.customerId),
-      inArray(s.freightRateTerms.routeId, routeIds),
-      isNull(s.freightRateTerms.deletedAt),
-    ))
-    .orderBy(desc(s.freightRateTerms.effectiveDate)) : [];
-  const termsByRoute = new Map<number, { sharePct: string; km: number | null }>();
-  for (const row of termsRows) {
-    if (!termsByRoute.has(row.routeId)) termsByRoute.set(row.routeId, row);
-  }
-
-  const allCodes = [...new Set(cells.map((cell) => cell.classCode).filter((code): code is string => code != null))];
-  const allBases = [...new Set(allCodes.map((code) => quotationBaseClassCode(code)))];
-  const normRows = allBases.length > 0 ? await db.select({ code: s.vehicleSizeClasses.code, litersPerKm: s.fuelConsumptionNorms.litersPerKm })
-    .from(s.fuelConsumptionNorms)
-    .innerJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.fuelConsumptionNorms.vehicleSizeClassId))
-    .where(and(
-      inArray(s.vehicleSizeClasses.code, allBases),
-      isNull(s.fuelConsumptionNorms.deletedAt),
-    ))
-    .orderBy(desc(s.fuelConsumptionNorms.effectiveDate)) : [];
-  const normByCode = new Map<string, number>();
-  for (const row of normRows) {
-    if (!normByCode.has(row.code)) normByCode.set(row.code, Number(row.litersPerKm));
-  }
-
-  const pricingKeys = [...new Set([...allCodes, ...allBases])];
-  const pricingRows = pricingKeys.length > 0 && routeIds.length > 0 ? await db.select({ routeId: s.pricingTables.routeId, rateKey: s.pricingTables.rateKey, price: s.pricingTables.price })
-    .from(s.pricingTables)
-    .where(and(
-      eq(s.pricingTables.customerId, frame.customerId),
-      inArray(s.pricingTables.routeId, routeIds),
-      inArray(s.pricingTables.rateKey, pricingKeys),
-      isNull(s.pricingTables.deletedAt),
-    ))
-    .orderBy(desc(s.pricingTables.effectiveDate)) : [];
-  const priceByRouteKey = new Map<string, number>();
-  const priceKey = (routeId: number, rateKey: string) => `${routeId}:${rateKey}`;
-  for (const row of pricingRows) {
-    if (row.rateKey == null) continue; // never matched the old eq(rateKey, <code>) reads
-    const key = priceKey(row.routeId, row.rateKey);
-    if (!priceByRouteKey.has(key)) priceByRouteKey.set(key, Number(row.price));
-  }
-
-  let cursor = 4;
-  for (const routeId of routeIds) {
-    const routeName = routeNameById.get(routeId);
-    const terms = termsByRoute.get(routeId);
-    const share = terms ? Number(terms.sharePct) : 2;
-    const routeCells = cells.filter((cell) => cell.routeId === routeId);
-
-    // Pre-fetch norms (per BASE class) and pricing rows (per class, with the
-    // base-row fallback) so the grid renderers stay synchronous.
-    const normByBase = new Map<string, number>();
-    for (const cell of routeCells) {
-      const base = quotationBaseClassCode(cell.classCode);
-      if (normByBase.has(base)) continue;
-      normByBase.set(base, normByCode.get(base) ?? 0);
-    }
-    const priceByCode = new Map<string, number | null>();
-    for (const cell of routeCells) {
-      const exact = priceByRouteKey.get(priceKey(routeId, cell.classCode));
-      if (exact !== undefined) {
-        priceByCode.set(cell.classCode, exact);
-        continue;
-      }
-      const base = quotationBaseClassCode(cell.classCode);
-      const fallback = base !== cell.classCode ? priceByRouteKey.get(priceKey(routeId, base)) : undefined;
-      priceByCode.set(cell.classCode, fallback ?? null);
-    }
-    const km = terms?.km ? Number(terms.km) : 0;
-    const engine = routeCells.length > 0 ? await latestFuel(frame.customerId, routeId, routeCells[0].classCode) : null;
-    const surcharge = engine ? engine.surcharge : 0;
-
-    sheet.getCell(`A${cursor}`).value = 'Nhà máy';
-    sheet.getCell(`B${cursor}`).value = routeName ?? `#${routeId}`;
-    cursor += 1;
-    sheet.getCell(`A${cursor}`).value = 'Nội dung';
-    routeCells.forEach((cell, index) => {
-      sheet.getCell(cursor, index + 2).value = classLabel(cell.classCode);
-    });
-    cursor += 1;
-    const gridRows: Array<[string, (cell: { classCode: string; heSo: string }, index: number) => number | null]> = [
-      ['Hệ số', (cell) => Number(cell.heSo)],
-      ['Tổng lít dầu/chuyến', (_cell, index) => {
-        const base = quotationBaseClassCode(routeCells[index].classCode);
-        return Math.round(km * 2 * (normByBase.get(base) ?? 0) * 1000) / 1000;
-      }],
-      ['Giá cos', (cell) => {
-        const basePrice = priceByCode.get(cell.classCode);
-        return basePrice != null ? Math.round(basePrice * (1 + share / 100)) : null;
-      }],
-      ['Phụ phí', () => surcharge],
-    ];
-    for (const [label, render] of gridRows) {
-      sheet.getCell(`A${cursor}`).value = label;
-      routeCells.forEach((cell, index) => {
-        const value = render(cell, index);
-        sheet.getCell(cursor, index + 2).value = value;
-      });
-      cursor += 1;
-    }
-    cursor += 1;
-  }
-  // SAFETY: as above — exceljs resolves a Node Buffer here, and the caller
-  // awaits it and streams it as the XLSX body.
-  return workbook.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+  const view = await getQuotation(quotationId);
+  return renderQuotationWorkbook(view, await loadTaxCode(view.customerId));
 }
