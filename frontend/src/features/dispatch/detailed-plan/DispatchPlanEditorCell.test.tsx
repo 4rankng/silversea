@@ -1802,6 +1802,42 @@ describe('DispatchPlanEditorCell — completed-trip overlap confirm (card 061026
     // The retry closed the dialog (save succeeded).
     await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
   });
+
+  // SIL-1048 — the QA repro's own refusal shape: the proven cross-lot
+  // overlap (15E-016.26 already running SHP-2611-00671 in the same 08:00
+  // window) rides the same warn-once contract now that the backend demoted
+  // the plain-row hard tier. The confirm NAMES the conflicting lot, and the
+  // confirmed retry proceeds exactly like the same-lot rotation case QA
+  // verified works.
+  it('the cross-lot named-lot overlap warns with Vẫn lưu? and the confirmed retry proceeds', async () => {
+    const apiError = Object.assign(
+      new Error('Đầu xe 15E-016.26 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp: Lô SHP-2611-00671 (28/11 08:00→16:00). Vẫn lưu?'),
+      { status: 409, raw: { code: 'RIG_OVERLAP_COMPLETED' } },
+    );
+    const onAtomicSave = vi.fn()
+      .mockRejectedValueOnce(apiError)
+      .mockResolvedValue({
+        fulfillmentVersion: 5,
+        shipmentVersion: 7,
+        classification: 'SINGLE',
+        isCombined: false,
+        operationalNotes: null,
+        dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15E-016.26' },
+        estimates: { plannedRevenue: null, plannedCarrierCost: null },
+        lotFullyPlated: false,
+      });
+    renderCell(row({ plannedEndAt: '2026-11-28T01:00:00.000Z' }), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(screen.getByRole('button', { name: /Lưu thay đổi/ }));
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(confirmDialog).toHaveAccessibleDescription(/Lô SHP-2611-00671/);
+    expect(confirmDialog).toHaveAccessibleDescription(/Vẫn lưu\?/);
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Xác nhận' }));
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(2));
+    const retryBody = onAtomicSave.mock.calls[1][1] as { rigOverlapCompletedConfirmed?: boolean };
+    expect(retryBody.rigOverlapCompletedConfirmed).toBe(true);
+    await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
+  });
 });
 
 // Card 091026164540: the fleet list returns non-ACTIVE tractors (deletedAt

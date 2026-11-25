@@ -988,13 +988,30 @@ if (planRowBlocked || tripConflicts.length > 0) {
       if (mismatchConflict) {
         throw new ApiError(409, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE);
       }
-      // Card B 18/10 (B.4): name the conflicting lot(s) + window, so the
-      // refusal answers the customer's "what is this?" on sight.
-      // SIL-666: dispatched-trip conflicts ride the same reference list —
-      // never an empty string after the colon.
-      throw new ApiError(409, rigConflictBusyMessage(plate,
-        [...crossLotConflicts, ...crossLotLclConflicts],
-        tripConflictRefs(tripConflicts)));
+      // SIL-1048 (KB §8.1.2 K8.3) — a plain (Đơn) row's PROVEN cross-lot
+      // overlap is a light reminder, never a dead-end block. QA 25/11: the
+      // W4C-40FT-02 save onto plate 15E-016.26 (already running SHP-2611-00671
+      // in the same 08:00 window) died here with NO path forward — the
+      // network saw the 409 but the dialog offered neither a confirm nor a
+      // way through, three times on three lots. K8.3: "Chạy đơn theo ca và
+      // khung giờ, không chặn một xe một ngày; … chỉ hiện thông báo nhắc
+      // nhẹ". The proven overlap now falls through to the family's warn-once
+      // 409 below: the editor's existing 'Vẫn lưu?' confirm asks exactly
+      // once and the confirmed retry proceeds (the same contract the
+      // same-lot rotation and the weak-evidence tiers already ride).
+      // Declared pair rows keep this pinned hard tier — a Kẹp/Kết hợp
+      // release may overlap its ONE carved partner, never two foreign
+      // claims — and the classification-mismatch refusal above stays hard
+      // for every row: an incompatibility is not a schedule question.
+      if (isDeclaredPairRow) {
+        // Card B 18/10 (B.4): name the conflicting lot(s) + window, so the
+        // refusal answers the customer's "what is this?" on sight.
+        // SIL-666: dispatched-trip conflicts ride the same reference list —
+        // never an empty string after the colon.
+        throw new ApiError(409, rigConflictBusyMessage(plate,
+          [...crossLotConflicts, ...crossLotLclConflicts],
+          tripConflictRefs(tripConflicts)));
+      }
     }
     if (!args.confirmOverlap) {
       throw new ApiError(409, rigConflictBusyMessage(plate,
