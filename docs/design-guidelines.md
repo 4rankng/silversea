@@ -739,3 +739,37 @@ INSIDE their inputs as trailing actions, superseding FB-114's flex-sibling chip 
 `qa/scripts/2026-11-04-sil681-trailing-ui-drive.mjs` (PHASE=before/after, after 84 PASS,
 DB read-only bookend 858/80/1 unchanged), pins in `ShipmentCreateAppendAction.test.tsx` +
 `ShipmentCreateIdentitySection.sil681-trailing.test.tsx` + styles tests.
+
+**Ruling 2026-11-25 (owner mobile redesign — /dispatch MasterPlanCardList @390px; owner
+kèm ảnh + phân tích Gemini; "thay thế các chỉ dẫn trước đó nếu khác").** The phone card
+reads THREE clean rows — five elements never share one row — and the identity values
+truncate, superseding SIL-515's wrap-all doctrine FOR THE CARD'S IDENTITY LINES ONLY
+(the body's route/facts/status lines keep wrapping full):
+
+1. *Dòng 1 = badge + mã + ⋯*: the unified type badge leads (shape = the sanctioned chip
+   recipe, 24px pill; hue = direction — Nhập `--chip-open-*` blue, Xuất `--chip-done-`
+   green; weight = kind — Cont outline, Lẻ filled; `Xuất Lẻ` re-hues the shared chip by
+   remapping its `--chip-open-*` custom properties, var() only), then the Bill/Booking
+   code — `white-space: nowrap` + ellipsis, never broken mid-token ('W3A-LCL-03' cannot
+   shatter) — then the ⋯ trigger at the right edge: a quiet 30px kebab glyph
+   (`#root .mpcard .dispatch-row-menu__trigger`, transparent at rest, chrome on hover;
+   the global coarse-pointer 44px band cannot re-inflate it).
+2. *Dòng 2 = KH + giờ*: the customer name holds ONE line (nowrap + ellipsis, title
+   carries the full value) beside a muted `·` dot and the compact clock — a repeated
+   date never prints twice (the instant suppresses the fallback date when its own date
+   prefix matches).
+3. *Thân = route + facts*: the Nâng → Trả route run wraps full (SIL-515 stands there);
+   facts keep cargo · measures · Xe with the 32px allocate button at the right; the
+   note preview clamps to TWO lines with a visible 'Xem thêm' cue into the shared modal
+   (the cue renders only when the box truly overflows — measured with the clamp lifted,
+   since a line-clamp box reports its clipped scrollHeight).
+4. *LCL unit*: a bare count names its unit on the card ('5' → '5 kiện'); the shared
+   composer stays bare (its contract pins do) and the card appends the unit at render.
+5. *Rhythm*: 8px list top clearance, 10px card blocks, 6px row gaps, the pinned hairline
+   divider between cards; typography stays on the ops-table tokens.
+*Source:* owner messages 25/11 (kèm ảnh, phân tích Gemini); drive
+`qa/scripts/2026-11-25-mpcard-mobile-redesign.mjs` (13/13 PASS @390px, artifacts
+`qa/2026-11-25-mpcard-mobile-redesign/`), pins UNCHANGED in `MasterPlanCardList.test.tsx`
++ `MasterPlanGrid.test.tsx` + `table-no-truncation.styles.test.ts` (the base rules stay
+in `MasterPlanGrid.css`; the truncation/badge/spacing overrides live in the new
+`MasterPlanCardList.css`, deliberately the only sheet where the card truncates).

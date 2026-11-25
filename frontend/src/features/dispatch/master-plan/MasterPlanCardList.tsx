@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Container as ContainerIcon, MoreHorizontal, PencilLine } from 'lucide-react';
 import type { RefObject } from 'react';
@@ -20,23 +20,26 @@ import {
 } from './MasterPlanCellValues';
 import { isLclLotRow, lclLotFlag } from './lclLot';
 import type { ActiveNoteDetail } from './MasterPlanNoteModal';
+import './MasterPlanCardList.css';
 
 /** Owner redesign 23/10 — the master-plan phone card list (<640px), following
  *  the DispatchPlanCardList pattern (commit 8a28c094): one card per lô.
- *  SIL-507 retry (26/10, owner P0) — the card is a 3-dòng divider row under
- *  the SIL-515 wrap doctrine (the first 26/10 pass still truncated; the
- *  owner's no-truncate law landed hours later and supersedes it here too):
- *  dòng 1 head = [tick gộp hàng khi mode bật] + KH + Bill/Booking (một dòng)
- *  + loại badge + GIỜ (schedule heads) + the single ⋯ menu; dòng 2 route =
- *  Nâng → Trả · nhà máy ngày đó · tuyến · hãng tàu, WRAPPING FULL; dòng 3
- *  meta = hàng hóa · Xe + the compact 32px "Phân bổ nhà xe" button (rides
- *  the meta row, NOT full-width, and HIDDEN once the lot carries a carrier
- *  roster — the chips line reads instead). Conditional status (cont chưa
- *  chốt + hải quan cutoff, one severity line) and the first note line may
- *  extend the row. FB-014 giữ nguyên: bấm card (ngoài control) mở Kế hoạch
- *  Chi tiết. The grid owns every piece of state — the card list only
- *  renders, so the table and the card can never fork in behaviour (notes
- *  editor, merge selection, allocation dialog wiring). */
+ *  Owner mobile redesign 25/11 — the card reads as THREE clean rows, never
+ *  five elements crammed into one: dòng 1 = the unified type badge (LCL chip
+ *  / Cont pill, direction-hued) + the Bill/Booking code (nowrap, never broken
+ *  mid-token) + the ⋯ menu at the right edge (quiet glyph, 30px, no chrome
+ *  leak); dòng 2 = the customer name on ONE line (ellipsis when long) + the
+ *  compact clock beside it (a repeated date never prints twice); thân = the
+ *  Nâng → Trả route run and the cargo/status facts with the 32px "Phân bổ
+ *  nhà xe" button at the right (HIDDEN once the lot carries a carrier roster
+ *  — the Xe chips line reads instead). The note preview clamps to two lines
+ *  with a 'Xem thêm' cue into the shared modal. The grid owns every piece of
+ *  state — the card list only renders, so the table and the card can never
+ *  fork in behaviour (notes editor, merge selection, allocation dialog
+ *  wiring). FB-014 giữ nguyên: bấm card (ngoài control) mở Kế hoạch Chi
+ *  tiết. Visual overrides for this sheet live in MasterPlanCardList.css —
+ *  the pinned base rules stay in MasterPlanGrid.css (the contract suites
+ *  read that file). */
 
 /** The note-editor bundle the grid's `useMasterPlanNoteEditor` returns —
  *  forwarded verbatim so the card edits notes through the exact same flow. */
@@ -202,6 +205,39 @@ function CardActionsMenu({ identity, hasContainers, notesEditable, noteLabel, on
   );
 }
 
+/** Owner 25/11 — the note preview clamps to TWO lines with a visible
+ *  'Xem thêm' cue; the button itself still opens the shared modal (the way
+ *  back). The cue renders only when the text actually overflows the clamp —
+ *  jsdom's zero-height box never overflows, so contract renders keep the
+ *  exact accessible name. */
+function NotePreviewButton({ text, onClick }: { text: string; onClick: () => void }) {
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [truncated, setTruncated] = useState(false);
+  useLayoutEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    // A line-clamp box reports its CLIPPED scrollHeight in Chrome, so
+    // measure the full content height with the clamp lifted, then compare
+    // against the clamped box height.
+    const prevClamp = el.style.webkitLineClamp;
+    el.style.webkitLineClamp = 'unset';
+    const fullHeight = el.scrollHeight;
+    el.style.webkitLineClamp = prevClamp;
+    setTruncated(fullHeight > el.clientHeight + 1);
+  }, [text]);
+  return (
+    <button
+      type="button"
+      className="mpcard__note"
+      title="Bấm để xem toàn bộ ghi chú"
+      onClick={onClick}
+    >
+      <span className="mpcard__note-text" ref={textRef}>{text}</span>
+      {truncated && <span className="mpcard__note-more">Xem thêm</span>}
+    </button>
+  );
+}
+
 export function MasterPlanCardList({
   items,
   scheduleDate,
@@ -232,10 +268,21 @@ export function MasterPlanCardList({
           .filter((line) => line.direction === 'drop')
           .map((line) => line.portName)
           .join(' + ');
-        const cargoLines = cargoCellLines(item, scheduleDate);
+        const isLcl = isLclLotRow(item);
+        // Owner 25/11 — an LCL count with no package type names its unit on
+        // the card ('5' → '5 kiện'); the shared composer keeps the bare count
+        // (its contract pins do), so the card appends the default unit.
+        const cargoLines = cargoCellLines(item, scheduleDate).map((line, index) => {
+          if (isLcl && index === 0 && !line.empty && (item.packageType ?? '').trim() === '' && /^\d/.test(line.text)) {
+            return { ...line, text: `${line.text} kiện` };
+          }
+          return line;
+        });
         const cargoDemand = cargoLines.filter((line) => !line.muted && !line.empty).map((line) => line.text).join(' + ');
         const cargoMeasures = cargoLines.filter((line) => line.muted && !line.empty).map((line) => line.text).join(' · ');
         const reference = billBookingReference(item.blNumber, item.bookingRef);
+        const typeDirection = item.tradeDirection === 'IMPORT' ? 'in' : item.tradeDirection === 'EXPORT' ? 'out' : 'na';
+        const lclFlag = isLcl ? lclLotFlag(item) : null;
         // Same allocation-lock law as the table (assignShipmentCarriers refuses
         // intake-phase + CANCELED; past READY the freeze is per-container).
         const hasContainers = hasContainerDemand(item);
@@ -244,27 +291,34 @@ export function MasterPlanCardList({
         const notesLocked = isNotesLocked(item);
         const notesEditable = notes.editingNotesId !== item.id && !notesLocked;
         const openableDetail = onOpenDispatchDetail != null;
-        // ── SIL-507 retry (26/10) 3-dòng composers ──
-        // Dòng 1 (giờ): the schedule heads — appointment instants or the
-        // canonical fallback date/instant line — ride the identity line so a
-        // busy lot never spends a whole row on its clock.
-        const scheduleTime = scheduleBlocks(item, scheduleDate)
+        // ── Card composers (owner 25/11 3-dòng layout) ──
+        // Dòng 2 (giờ): the schedule heads — appointment instants or the
+        // canonical fallback date/instant line, date-deduped — ride beside
+        // the customer name so a busy lot never spends a whole row on its
+        // clock.
+        const scheduleHeads = scheduleBlocks(item, scheduleDate)
           .map((block) => block.head)
-          .filter(Boolean)
-          .join(' · ');
-        // Dòng 2 (route): the Nâng/Trả run, the day's appointment factories,
-        // tuyến and hãng tàu — WRAPS FULL (SIL-515: the card truncates
-        // nothing; every value line renders entirely on screen, so no title
-        // stand-in exists on the card's value lines).
+          .filter((head): head is string => Boolean(head));
+        // Owner 25/11 — Row 2's clock: when the instant repeats the fallback
+        // date, print the instant alone (never '20/11/2026 · 20/11/2026 10:00').
+        const scheduleTime = scheduleHeads.length === 2
+          && scheduleHeads[0] != null
+          && scheduleHeads[1] != null
+          && scheduleHeads[1].startsWith(`${scheduleHeads[0]} `)
+          ? scheduleHeads[1]
+          : scheduleHeads.join(' · ');
+        // Thân — route: the Nâng/Trả run, the day's appointment factories,
+        // tuyến and hãng tàu — WRAPS FULL (SIL-515: the card's body lines
+        // render entirely on screen).
         const routeLine = [
           `Nâng ${liftRun || '—'} → Trả ${dropRun || '—'}`,
           ...scheduleFactoryNames(item, scheduleDate),
           item.routeName,
           item.shippingLineName,
         ].filter(Boolean).join(' · ');
-        // Dòng 3 (facts): the fleet segment prints the roster, or the named
-        // missing fact. The allocate button HIDES once a roster exists ("ẩn
-        // khi đã phân") — the chips line is the allocation's own display.
+        // Thân — facts: hàng hóa (identity weight, DIS-08) · đo lường · Xe
+        // + the compact allocate button at the right. The button never spans
+        // the row and hides once the roster exists (SIL-507).
         const fleetLine = allocationChips ? `Xe: ${allocationChips}` : 'Chưa phân xe';
         const showAllocate = !allocationLocked && !allocationChips;
         // Conditional status: the cont-booking warning and the customs cutoff
@@ -335,40 +389,31 @@ export function MasterPlanCardList({
                   title="Chỉ ghép lô hàng lẻ (LCL) — lô cont không tích được."
                 />
               ))}
-              <div className="mpcard__identity">
-                <span className="mpcard__customer">
-                  {item.customerName || '—'}
-                </span>
-                <span className="mpcard__bill">
-                  {reference}
-                  {item.isAdHoc && <span className="adhoc-label mpcard__adhoc" data-adhoc-label>Chạy ngoài</span>}
-                </span>
-              </div>
-              <span className="mpcard__type">
-                {/* SIL-589 (id 689) — card parity with the grid's cargo-cell
-                    flag: LCL lots read the merged direction+mode badge, and a
-                    lot already in a ghép group appends "· Ghép" (same
-                    costGroupId the grid's CHỌN checkbox disables on).
-                    SIL-708 (id 708) — the LCL token is the SAME chip as the
-                    grid cell (one pattern, one implementation); a Cont row
-                    stays plain text — FCL carries no flag (SIL-589).
-                    K4.6 (SIL-951): the badge itself carries the direction
-                    ('NHẬP LẺ'/'XUẤT LẺ') — the old loose "Nhập · Lẻ" pair
-                    is gone. */}
-                {isLclLotRow(item) ? (() => {
-                  const flag = lclLotFlag(item);
-                  return (
-                    <span className="master-plan-grid__lcl-chip" title={flag.title}>
-                      {flag.label}
-                    </span>
-                  );
-                })() : (
+              {/* Owner 25/11 — DÒNG 1: the unified type badge leads the row
+                  (LCL rides the sanctioned chip recipe, Cont the same pill
+                  shape in the direction hue), then the Bill/Booking code —
+                  nowrap, never broken mid-token — and the ⋯ menu closes the
+                  row at the right edge. */}
+              <span
+                className={lclFlag
+                  ? 'mpcard__type'
+                  : `mpcard__type mpcard__type--badge mpcard__type--${typeDirection}`}
+              >
+                {lclFlag ? (
+                  <span
+                    className={`master-plan-grid__lcl-chip${typeDirection === 'out' ? ' mpcard__lcl-chip--out' : ''}`}
+                    title={lclFlag.title}
+                  >
+                    {lclFlag.label}
+                  </span>
+                ) : (
                   `${item.tradeDirection === 'IMPORT' ? 'Nhập' : item.tradeDirection === 'EXPORT' ? 'Xuất' : '—'} · Cont`
                 )}
               </span>
-              {scheduleTime && (
-                <span className="mpcard__time">{scheduleTime}</span>
-              )}
+              <span className="mpcard__bill" title={reference}>
+                {reference}
+                {item.isAdHoc && <span className="adhoc-label mpcard__adhoc" data-adhoc-label>Chạy ngoài</span>}
+              </span>
               <CardActionsMenu
                 identity={reference}
                 hasContainers={hasContainers}
@@ -378,11 +423,24 @@ export function MasterPlanCardList({
                 onEditNotes={() => notes.startNotesEdit(item)}
               />
             </div>
+            {/* Owner 25/11 — DÒNG 2: the customer name on ONE line (ellipsis
+                when long) and the compact clock beside it. */}
+            <div className="mpcard__identity">
+              <span className="mpcard__customer" title={item.customerName || undefined}>
+                {item.customerName || '—'}
+              </span>
+              {scheduleTime && (
+                <>
+                  <span className="mpcard__dot" aria-hidden="true">·</span>
+                  <span className="mpcard__time">{scheduleTime}</span>
+                </>
+              )}
+            </div>
             <div className="mpcard__body">
-              {/* Dòng 2 — route: Nâng → Trả · nhà máy ngày đó · tuyến · hãng
-                  tàu, wrapping full (SIL-515 — the card cuts nothing). */}
+              {/* Thân — route: Nâng → Trả · nhà máy ngày đó · tuyến · hãng
+                  tàu, wrapping full (SIL-515 — the card's body cuts nothing). */}
               <div className="mpcard__route">{routeLine}</div>
-              {/* Dòng 3 — meta: hàng hóa (identity weight, DIS-08) · đo lường
+              {/* Thân — meta: hàng hóa (identity weight, DIS-08) · đo lường
                   · Xe + the compact allocate button. The button never spans
                   the row and hides once the roster exists (SIL-507). */}
               <div className="mpcard__facts">
@@ -472,10 +530,8 @@ export function MasterPlanCardList({
                 </div>
               ) : (
                 notePreview && (
-                  <button
-                    type="button"
-                    className="mpcard__note"
-                    title="Bấm để xem toàn bộ ghi chú"
+                  <NotePreviewButton
+                    text={notePreview.text}
                     onClick={() => onOpenNoteModal({
                       ...notePreview.detail,
                       customerName: item.customerName,
@@ -483,9 +539,7 @@ export function MasterPlanCardList({
                       shipmentCode: item.shipmentCode,
                       shipment: item,
                     })}
-                  >
-                    {notePreview.text}
-                  </button>
+                  />
                 )
               )}
             </div>

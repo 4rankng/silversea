@@ -793,16 +793,18 @@
 }
 
 /* ── SIL-507 retry (owner 26/10 P0) — the <640px phone card list as a
-   3-dòng divider list, now under the SIL-515 wrap doctrine (the first
-   26/10 pass still truncated; the owner's no-truncate law landed hours
-   later and supersedes it on this surface too). Dòng 1 head = KH +
-   Bill/Booking + loại badge + giờ + ⋯, dòng 2 route = Nâng → Trả · nhà
-   máy · tuyến · hãng tàu WRAPPING FULL, dòng 3 meta = hàng hóa · Xe + the
-   compact 32px allocate button (never full-width, hidden once a roster
-   exists). Row budget ≈72px allocated / ≈88px with the button row; a
-   wrapping route line may exceed it — wrap wins over the budget (SIL-515).
-   Owner typography spec 13/11px: the list re-maps the ops-table tokens at
-   this scope — every card rule keeps consuming the tokens. */
+   divider list. Owner mobile redesign 25/11 reshapes the head into THREE
+   clean rows (visual overrides live in MasterPlanCardList.css — this sheet
+   keeps the PINNED base rules the contract suites read): dòng 1 head =
+   [tick gộp hàng khi mode bật] + loại badge + Bill/Booking (nowrap) + ⋯;
+   dòng 2 = KH (1 dòng, ellipsis) + giờ; thân = route (Nâng → Trả · nhà
+   máy · tuyến · hãng tàu WRAPPING FULL) + meta (hàng hóa · Xe + the
+   compact 32px allocate button, never full-width, hidden once a roster
+   exists). A wrapping route line may exceed the row budget — wrap wins
+   over the budget on the BODY lines (SIL-515; only the identity values
+   truncate, per the 25/11 directive). Owner typography spec 13/11px: the
+   list re-maps the ops-table tokens at this scope — every card rule keeps
+   consuming the tokens. */
 .mpcard-list {
   --ops-table-primary-size: 13px;
   --ops-table-meta-line-height: 1.35;
@@ -847,9 +849,9 @@
   min-width: 0;
 }
 
-/* Identity rides ONE line at SIL-507: KH leads, the Bill/Booking run follows.
-   SIL-515: both wrap their full text — no ellipsis, no clipping, no title
-   stand-in anywhere on the card. */
+/* Dòng 2 (25/11): KH leads on one line, the compact clock follows the
+   muted dot. The base rule keeps the pinned wrap declarations; the
+   25/11 one-line + ellipsis rendering lives in MasterPlanCardList.css. */
 .mpcard__identity {
   display: flex;
   align-items: baseline;
@@ -878,9 +880,10 @@
   overflow-wrap: anywhere;
 }
 
-/* Loại stays text (§1 data-cells law) EXCEPT the LCL token, which rides the
-   sanctioned chip (master-plan-grid__lcl-chip, SIL-708 id 708) — one chip
-   recipe for the grid cell and this card token. */
+/* Loại badge (25/11 dòng 1): FCL reads the unified pill (styled in
+   MasterPlanCardList.css over this base), LCL rides the sanctioned chip
+   (master-plan-grid__lcl-chip, SIL-708 id 708) — one chip recipe for the
+   grid cell and this card token. */
 .mpcard__type {
   flex: 0 0 auto;
   color: var(--fg-2);
@@ -890,8 +893,10 @@
   overflow-wrap: anywhere;
 }
 
-/* SIL-507 retry — giờ rides Dòng 1 (schedule heads: appointment instants or
-   the canonical fallback line); it shrinks and wraps before the identity. */
+/* Owner 25/11 — giờ rides dòng 2 beside the KH name (schedule heads:
+   appointment instants or the canonical fallback line, date-deduped);
+   the base wrap law stays here, the no-wrap rendering lives in
+   MasterPlanCardList.css. */
 .mpcard__time {
   flex: 0 1 auto;
   min-width: 0;
@@ -921,6 +926,21 @@
 #root .mpcard .dispatch-row-menu__trigger {
   min-width: 30px;
   min-height: 30px;
+  /* Owner 25/11 — the ⋯ reads as a quiet kebab glyph on the record, not a
+     white control box leaking past the row edge: no surface, no border at
+     rest (both return on hover). The size re-states the pinned 30px rail at
+     (1,2,0) so the global coarse-pointer band `:is(#root, body)` (1,1,0)
+     cannot re-inflate it to the 44px touch token on the phone card. */
+  width: 30px;
+  height: 30px;
+  color: var(--fg-2);
+  background: transparent;
+  border-color: transparent;
+}
+
+#root .mpcard .dispatch-row-menu__trigger:hover {
+  background: var(--surface-2);
+  border-color: var(--line-2);
 }
 
 /* The merge-mode tick: 30px hit target, the painted 18px box moves onto

@@ -1,0 +1,129 @@
+/* ── MasterPlanCardList — owner mobile redesign 25/11 ────────────────────────
+   The card list's PINNED base rules live in MasterPlanGrid.css (the contract
+   suites — table-no-truncation, MasterPlanGrid.test, rowheights — read that
+   file and pin its wrap law: no ellipsis, no nowrap, no clamp in the mpcard
+   scope). This sheet carries the 25/11 owner directives ON TOP of those
+   rules and is deliberately the only place the card truncates: identity
+   values (customer name, Bill/Booking) hold ONE line with an ellipsis, the
+   type badges unify, and every rule rides .mpcard-list-scoped specificity
+   (.mpcard-list X = (0,2,0) beats the base (0,1,0)) so load order can never
+   flip a result.
+
+   Dòng 1 = badge + Bill/Booking + ⋯; dòng 2 = tên khách (1 dòng) + giờ;
+   thân = route + facts. Owner examples: 'Long Minh' never wraps; 'W3A-
+   LCL-03' never shatters into W3A- / LCL- / 03. */
+
+/* (7) owner: card tops clipped under the app bar — breathing room above the
+   first card. */
+ul.mpcard-list {
+  padding-top: 8px;
+}
+
+/* (10) normalize the rhythm: one block padding, one row gap, the hairline
+   divider (already pinned) between sibling cards. */
+.mpcard-list .mpcard {
+  padding: 10px 0;
+  gap: 6px;
+}
+
+.mpcard-list .mpcard__body {
+  gap: 4px;
+}
+
+/* ── Dòng 1: badge + code + menu ──────────────────────────────────────────── */
+
+/* (a) unified badge system. Shape = the sanctioned chip recipe (24px pill,
+   1px tinted border, tinted bg — same tokens the grid cell consumes); hue =
+   direction (Nhập → the --chip-open blue family, Xuất → the --chip-done
+   green family); weight = kind (Cont → outline only, Lẻ → filled chip).
+   Four visually distinct variants, zero raw hex. */
+.mpcard-list .mpcard__type--badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 24px;
+  padding: 0 var(--space-sm);
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--fg-2);
+  font-size: var(--text-body-size);
+  line-height: 16px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.mpcard-list .mpcard__type--badge.mpcard__type--in {
+  border-color: var(--chip-open-border);
+  color: var(--chip-open-text);
+}
+
+.mpcard-list .mpcard__type--badge.mpcard__type--out {
+  border-color: var(--chip-done-border);
+  color: var(--chip-done-text);
+}
+
+/* Xuất Lẻ re-hues the shared chip recipe through the same custom properties
+   the recipe already consumes (var() only — the drift ratchet stays intact);
+   the grid's own cells keep the open-blue default. */
+.mpcard-list .mpcard__lcl-chip--out {
+  --chip-open-bg: var(--chip-done-bg);
+  --chip-open-border: var(--chip-done-border);
+  --chip-open-text: var(--chip-done-text);
+}
+
+/* (2) the Bill/Booking code holds ONE line — nowrap + ellipsis; a long code
+   truncates whole, it never shatters mid-token ('SMSKHPG261184242' cannot
+   drop a lone '42'). The base rule keeps its pinned wrap declaration in
+   MasterPlanGrid.css; this wins on specificity. */
+.mpcard-list .mpcard__bill {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Dòng 2: tên khách + giờ ─────────────────────────────────────────────── */
+
+/* (1) the customer name holds ONE line — 'Long Minh' never splits; a long
+   name ellipsizes (title carries the full value, the card tap opens the
+   detail anyway). */
+.mpcard-list .mpcard__customer {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mpcard-list .mpcard__dot {
+  flex: none;
+  color: var(--fg-3);
+}
+
+/* (4) the clock is short after the date-dedupe in the composer — it never
+   wraps and never shrinks before the name. */
+.mpcard-list .mpcard__time {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* ── Ghi chú: 2 dòng + 'Xem thêm' ────────────────────────────────────────── */
+
+/* (5) the preview clamps to TWO lines; the button still opens the shared
+   modal (the way back), and NotePreviewButton renders the visible cue only
+   when the text truly overflows. The clamp lives HERE, not in
+   MasterPlanGrid.css, because the contract suites pin that file's mpcard
+   scope clamp-free. */
+.mpcard-list .mpcard__note-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.mpcard-list .mpcard__note-more {
+  display: inline-block;
+  margin-top: 2px;
+  color: var(--accent-2);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold, 600);
+}
