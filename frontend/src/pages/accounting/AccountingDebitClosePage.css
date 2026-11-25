@@ -177,6 +177,23 @@ p.debit-note { margin: 0 0 8px; }
 }
 .debit-line--rate .debit-ext-cost::placeholder { color: var(--ink-3); }
 
+/* SIL-1001 — ở dải điện thoại (dải thẻ bản ghi, ≤640px) ô tiền chỉ rộng 174px
+ * và dòng tiền là CẶP nhãn + ô nhập: nhãn bị bóp còn ~32px ("Cước" / "thu",
+ * "Phát sinh (CUS)" 3 dòng) trong khi ô nhập vẫn chiếm 134px. Nhãn và ô nhập
+ * không thể ngồi chung một hàng trong ô 174px, nên dòng tiền xếp y như dòng
+ * "Chi phí ngoài" sẵn có (nhãn trên, ô nhập dưới, ô nhập full width 174px) —
+ * cùng một câu trả lời, không câu thứ hai riêng. */
+@media (max-width: 640px) {
+  .debit-line--rate {
+    display: grid;
+    gap: 2px;
+  }
+
+  .debit-line--rate .debit-line__value {
+    justify-self: stretch;
+  }
+}
+
 /* Rev2 cột 5 — the Tổng thu rollup reads bold (the QA-passed face). */
 .debit-tong-thu { font-weight: var(--fw-bold, 700); color: var(--ink); }
 
