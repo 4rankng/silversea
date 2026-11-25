@@ -49,7 +49,7 @@ async function putFullMetadata(body: Record<string, unknown>, key: string): Prom
 
 async function row(): Promise<{ operational_notes: string | null; version: number }> {
   const [r] = await sql`select operational_notes, version from shipments where id = ${shipmentId}`;
-  return r;
+  return r as unknown as { operational_notes: string | null; version: number };
 }
 
 before(async () => {
