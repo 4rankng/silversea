@@ -780,6 +780,15 @@ export async function listPhoiPhieuUnattachedTrips(query: {
     customerName: s.customers.name,
   }).from(s.trips)
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+    // SIL-1016 — a dateFrom/dateTo window compiles the transport date, whose
+    // SQL names shipment_containers; without a join any dated read threw
+    // 'missing FROM-clause entry for table "shipment_containers"' (HTTP 500;
+    // a bare load never touches the column, which is why only filters died).
+    // Same container law as the board rows query above: the container rides
+    // the trip's fulfillment link, so an unattached trip (fulfillmentId NULL)
+    // reads NULL and the date falls back to the lot's expectedDeliveryDate.
+    .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id,
+      sql`(select fc.shipment_container_id from shipment_fulfillments fc where fc.id = ${s.trips.fulfillmentId} limit 1)`))
     .leftJoin(s.customers, eq(s.customers.id, sql<number | null>`coalesce(${s.trips.customerId}, ${s.shipments.customerId})`))
     .where(and(...tripConditions))
     .orderBy(desc(s.trips.departureDate), desc(s.trips.id))

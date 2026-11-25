@@ -18,6 +18,8 @@ import { IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { runIdempotent } from './idempotency.service';
 import { assertShipmentCostUnlocked, SHIPMENT_COST_LOCKED_MESSAGE } from './shipment-cost-lock.service';
 import { activeTripConditions } from './active-trip-scope';
+import { billOrBookNumberFor } from './cus-workspace-mapping.service';
+import { operationalName } from '../db/master-data-name';
 import { pickLatestFreightSnapshotByTrip, type FreightSnapshotLeg } from './revenue-override-read.service';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { computeLotPayablesBreakdown, type LotPayablesBreakdown } from './lot-payables.service';
@@ -58,8 +60,13 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     id: s.shipments.id,
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
+    // SIL-1016 — the ngoài-chốt section's display key: Bill/Booking per the
+    // house direction law, the customer short name as the second key.
+    tradeDirection: s.shipments.tradeDirection,
+    customerName: operationalName(s.customers.shortName, s.customers.name),
   })
     .from(s.shipments)
+    .leftJoin(s.customers, eq(s.customers.id, s.shipments.customerId))
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
     .limit(1);
   if (!shipment) {
@@ -395,6 +402,11 @@ export async function getShipmentDebitDetail(shipmentId: number): Promise<Shipme
     return {
       tripId: trip.id,
       tripCode: trip.code,
+      // SIL-1016 — CR-011 §2.5.1/§10.6.8 display key: the row identifies by
+      // Số Bill/Booking, falls to tên khách + ngày, '—' only when both are
+      // missing. Same bill-or-booking law as the merge board's Chứng từ cell.
+      billOrBooking: billOrBookNumberFor(shipment.tradeDirection, shipment.blNumber, shipment.bookingRef),
+      customerName: shipment.customerName ?? null,
       departureDate: trip.departureDate,
       status: trip.status,
       chotIncluded: false as const,

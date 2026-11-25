@@ -715,12 +715,21 @@ export async function getDebitMergeBoard(query: {
       liveDebitTripExpense(),
     ));
   const unattachedByLot = new Map<number, ShipmentDebitDetail['unattachedTrips']>();
+  // SIL-1016 — CR-011 §2.5.1/§10.6.8 display key per ngoài-chốt row: the lot's
+  // Bill/Booking (house direction law, same as the board's Chứng từ cell) and
+  // customer short name, so /debit-merge identifies the row instead of '—'.
+  const lotById = new Map(lots.map((lot) => [lot.id, lot]));
   for (const trip of unattachedTripRows) {
     if (trip.shipmentId == null) continue;
+    const identity = lotById.get(trip.shipmentId);
     const rows = unattachedExpenseRows.filter((row) => row.tripId === trip.id);
     const section: ShipmentDebitDetail['unattachedTrips'][number] = {
       tripId: trip.id,
       tripCode: trip.code,
+      billOrBooking: identity
+        ? billOrBookNumberFor(identity.tradeDirection, identity.blNumber, identity.bookingRef)
+        : null,
+      customerName: identity?.customerName ?? null,
       departureDate: trip.departureDate,
       status: trip.status,
       chotIncluded: false as const,
