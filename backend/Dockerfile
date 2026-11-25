@@ -68,6 +68,10 @@ COPY --from=builder /app/backend/dist dist
 # Copy static files that tsc doesn't emit
 COPY backend/src/casbin/model.conf dist/casbin/model.conf
 COPY backend/src/casbin/policy.csv dist/casbin/policy.csv
+# SIL-1018 — the contractor-carrier backfill runner: plain JS importing the
+# built modules beside it (../dist), so `node scripts/…prod.mjs` executes
+# inside this image without tsx or src.
+COPY backend/scripts/backfill-subcontractor-carriers.prod.mjs scripts/backfill-subcontractor-carriers.prod.mjs
 # Drizzle migrate reads only migration SQL plus meta/_journal.json. Generation
 # snapshots are development artifacts and do not belong in the runtime image.
 COPY backend/drizzle/*.sql drizzle/

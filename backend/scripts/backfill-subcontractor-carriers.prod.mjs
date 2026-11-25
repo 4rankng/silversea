@@ -7,10 +7,14 @@
  * without writing.
  */
 import { eq } from 'drizzle-orm';
-import { db } from '../src/db/index.js';
-import * as s from '../src/db/schema/index.js';
-import { cacheInvalidate } from '../src/lib/redis.js';
-import { ensureSupplierCarrierLink } from '../src/services/supplier-carrier-link.service.js';
+// SIL-1018 — dist-relative: the prod image ships only the BUILT modules
+// (/prod/backend/dist), never src — src-relative imports made the runner die
+// with ERR_MODULE_NOT_FOUND before it could do anything. The script sits at
+// scripts/, so the built siblings are ../dist/*.
+import { db } from '../dist/db/index.js';
+import * as s from '../dist/db/schema/index.js';
+import { cacheInvalidate } from '../dist/lib/redis.js';
+import { ensureSupplierCarrierLink } from '../dist/services/supplier-carrier-link.service.js';
 
 const CARRIER = 'CARRIER';
 
