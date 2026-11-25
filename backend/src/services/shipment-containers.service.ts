@@ -32,6 +32,7 @@ import {
 } from './shipment-intake.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import type {
   ShipmentContainerInput,
   ShipmentContainerMutationResult,
@@ -793,6 +794,10 @@ export async function batchUpsertShipmentContainers(
     if (!existing) throw new ApiError(404, 'Không tìm thấy lô hàng');
     assertDispatcherCanMutateShipmentIntake(actor, existing.status);
     await assertShipmentAccountingUnlocked(tx, shipmentId);
+    // SIL-1054 (K3.92) — the container-batch PUT was the other edit-form
+    // surface leaking through the cost lock; same freeze gate as the
+    // profile PUT above.
+    await assertShipmentCostUnlocked(tx, shipmentId);
     if (expectedVersion != null && existing.version !== expectedVersion) {
       throw new ApiError(409, 'Lô hàng đã bị người khác cập nhật. Vui lòng tải lại.');
     }

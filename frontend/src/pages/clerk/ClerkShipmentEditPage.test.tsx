@@ -260,4 +260,20 @@ describe('ClerkShipmentEditPage — SIL-171 "Sửa lô" dùng lại form Tạo l
     expect(screen.queryByRole('heading', { name: 'Sửa lô hàng' })).toBeNull();
     expect(mocks.updateShipment).not.toHaveBeenCalled();
   });
+
+  it('SIL-1054 — lô bị Khóa lô (cost lock) cũng không mở form sửa; lô mở khóa bình thường vẫn mở', async () => {
+    mocks.getShipmentDetail.mockResolvedValue({
+      ...detail,
+      costLock: { lockedAt: '2026-11-25T17:22:45.000Z', lockNote: null },
+    });
+    renderEditPage();
+    expect(await screen.findByText(/khóa kế toán \(khóa lô\)/)).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Sửa lô hàng' })).toBeNull();
+    expect(mocks.updateShipment).not.toHaveBeenCalled();
+
+    // Mở khóa (costLock null) → form arm bình thường như luật hiện hành.
+    mocks.getShipmentDetail.mockResolvedValue({ ...detail });
+    renderEditPage();
+    await screen.findByRole('heading', { name: 'Sửa lô hàng' });
+  });
 });

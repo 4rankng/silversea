@@ -147,6 +147,23 @@ async function buildShipmentPricingProjection(
 // a single response. Each child query is a single indexed lookup by shipmentId,
 // so there is no N+1.
 
+/** SIL-1054 (K3.92) — the lot's active cost lock (Khóa lô trên Ghép bộ
+ *  Debit): null khi lô không bị khóa. The edit workspace refuses to arm on a
+ *  locked lot exactly like accountingLock — the freeze law tên là 'khóa kế
+ *  toán' trên lô này. */
+export interface ShipmentCostLockView {
+  lockedAt: Date;
+  lockNote: string | null;
+}
+
+async function getShipmentCostLock(shipmentId: number): Promise<ShipmentCostLockView | null> {
+  const [lock] = await db.select({ lockedAt: s.shipmentCostLocks.lockedAt, lockNote: s.shipmentCostLocks.lockNote })
+    .from(s.shipmentCostLocks)
+    .where(and(eq(s.shipmentCostLocks.shipmentId, shipmentId), isNull(s.shipmentCostLocks.unlockedAt)))
+    .limit(1);
+  return lock ?? null;
+}
+
 export interface ShipmentDetail {
   // Raw shipment row + the joined customer name (nullable: leftJoin, so a
   // hard-deleted customer yields customerName = null).
@@ -213,6 +230,8 @@ export interface ShipmentDetail {
    *  without a trip) and canceled legs never set it. */
   hasLiveTrips: boolean;
   accountingLock: Awaited<ReturnType<typeof getShipmentAccountingLock>>;
+  /** SIL-1054 (K3.92) — active cost lock (Khóa lô): null khi mở khóa. */
+  costLock: ShipmentCostLockView | null;
   /** Auto freight pricing: latest frozen snapshot + formula trace + override. */
   freightRate: ShipmentFreightRateView;
 }
@@ -382,7 +401,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     .leftJoin(s.cargoTypes, eq(s.cargoTypes.id, s.shipments.cargoTypeId))
     .leftJoin(detailPickupWarehouseSite, eq(s.shipments.pickupWarehouseSiteId, detailPickupWarehouseSite.id))
     .where(eq(s.shipments.id, id));
-  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, freightRate, hasLiveTrips, additionalPickupWarehouses, depositTracker] = await Promise.all([
+  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, costLock, freightRate, hasLiveTrips, additionalPickupWarehouses, depositTracker] = await Promise.all([
     listShipmentContainers(id),
     listShipmentDocuments(id),
     listShipmentDeclarations(id),
@@ -391,6 +410,8 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     listShipmentPodReviewItems(id),
     listShipmentCarrierAssignments(id),
     getShipmentAccountingLock(id),
+    // SIL-1054 (K3.92) — the edit-form freeze needs the cost lock on the wire.
+    getShipmentCostLock(id),
     getShipmentFreightRateView(id),
     shipmentHasLiveTrips(id),
     // SIL-765 — the lot's ADDITIONAL "Kho lấy hàng" points (2..N), short-name
@@ -462,6 +483,7 @@ export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<
     carrierAssignments,
     hasLiveTrips,
     accountingLock,
+    costLock,
     // Auto freight pricing read model (docx §2-D): the latest frozen snapshot
     // + formula trace + any debit-note override. Read-only for every role —
     // overrides go through the financial endpoint (ACCOUNTANT+).

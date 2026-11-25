@@ -87,6 +87,17 @@ export function useShipmentWorkspacePrefill({
           }
           setViewLocked(true);
         }
+        // SIL-1054 (K3.92) — the cost lock (Khóa lô trên Ghép bộ Debit)
+        // freezes hồ sơ the same way: refusing to arm the form avoids an
+        // edit that the API now guarantees 409s. Notes stay writable per the
+        // same carve-out as the accounting lock.
+        if (detail.costLock) {
+          if (!viewMode) {
+            setEditLoadError('Lô hàng đã khóa kế toán (khóa lô) nên không thể sửa thông tin. Ghi chú vẫn sửa được ở Tổng quan.');
+            return;
+          }
+          setViewLocked(true);
+        }
         setForm(prefill.form);
         setContainers(prefill.containers);
         setCustomerNotes(prefill.customerNotes);

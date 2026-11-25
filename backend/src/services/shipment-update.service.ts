@@ -12,6 +12,7 @@ import type { Tx } from './trip-shared';
 import type { UpdateShipmentInput } from './shipment-types';
 
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import {
   assertDispatcherCanMutateShipmentIntake,
@@ -65,6 +66,10 @@ export async function updateShipment(
     if (!notesOnly) {
       assertDispatcherCanMutateShipmentIntake(actor, existing.status);
       await assertShipmentAccountingUnlocked(tx, id);
+      // SIL-1054 (K3.92) — lô đã khóa kế toán (cost lock, Khóa lô) không nhận
+      // chỉnh sửa hồ sơ: the edit-form PUT was the Lớp-2 surface missing the
+      // freeze gate (PUT trả 200 và ghi đè Bill trên lô đang khóa).
+      await assertShipmentCostUnlocked(tx, id);
     }
     // Master refs carry no DB FKs — validate only the refs this input
     // actually CHANGES, so pre-existing orphan rows (2026-09-15 sweep:

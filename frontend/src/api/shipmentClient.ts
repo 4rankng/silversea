@@ -318,6 +318,13 @@ export interface ShipmentDetail {
    *  carrier assignment (fulfillment without trip) is NOT a dispatch. */
   hasLiveTrips: boolean;
   accountingLock: ShipmentAccountingLock | null;
+  /** SIL-1054 (K3.92) — active cost lock (Khóa lô trên Ghép bộ Debit):
+   *  null khi mở khóa. The edit workspace refuses to arm on a locked lot,
+   *  same law as accountingLock. */
+  costLock?: {
+    lockedAt: string;
+    lockNote: string | null;
+  } | null;
   /** Auto freight pricing (T1 engine): latest frozen snapshot — null when the
    *  engine never locked a price for this lot (ad-hoc / no dispatch yet). */
   freightRate?: {
