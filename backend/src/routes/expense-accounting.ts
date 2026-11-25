@@ -204,6 +204,8 @@ router.post('/phoi-phieu/vouchers', declareMaterialWrite('expense-accounting.pho
     tripIds: z.array(z.number().int().positive()).min(1),
     direction: z.enum(['IN', 'OUT']),
     treasuryAccountId: z.number().int().positive(),
+    // SIL-1030 (K6.13) — "ngày chi" of the phiếu form; omitted = today.
+    valueDate: z.string().date().optional(),
     physicalReference: z.string().trim().max(120).optional(),
   }).strict(), req.body);
   requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');

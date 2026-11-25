@@ -124,16 +124,18 @@ describe('Báo cáo thu / trả phơi section', () => {
     expect(bar).toHaveTextContent('Đã chọn 2 lô');
     expect(bar).toHaveTextContent('2.200');
     // Without an STK the phiếu button stays dark, with a reason.
-    const issue = within(bar).getByRole('button', { name: /Lập phiếu thu \(2\)/ });
+    const issue = within(bar).getByRole('button', { name: /Xác nhận lập phiếu thu \(2\)/ });
     expect(issue).toBeDisabled();
-    fireEvent.click(within(bar).getByRole('button', { name: 'Số tài khoản quỹ (STK)' }));
+    fireEvent.click(within(bar).getByRole('button', { name: 'Tài khoản chi (STK)' }));
     fireEvent.click(await screen.findByRole('option', { name: 'ACB - TK công ty' }));
     expect(issue).toBeEnabled();
     fireEvent.click(issue);
     await waitFor(() => expect(createPhoiPhieuVoucher).toHaveBeenCalledTimes(1));
-    expect(createPhoiPhieuVoucher).toHaveBeenCalledWith({
+    // SIL-1030 — "ngày chi" of the phiếu form rides the request; the date is
+    // today by default, so pin the fields that stay stable.
+    expect(createPhoiPhieuVoucher).toHaveBeenCalledWith(expect.objectContaining({
       tripIds: [1, 2], direction: 'IN', treasuryAccountId: 5,
-    });
+    }));
     // The drawer stays open and names the issued phiếu.
     expect(await screen.findByText(/Đã lập phiếu PT-1/)).toHaveTextContent('1 khoản, tổng 1.500');
   });

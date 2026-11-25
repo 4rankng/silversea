@@ -392,6 +392,34 @@
 @media (max-width: 640px) {
   .drawer.ppc-lots-drawer:not(.drawer--expanded) { width: 100%; max-width: none; }
 }
+/* SIL-1030 — "Ô lập phiếu" (mockup image9): ngày chi + bảng kê các dòng phí
+   của lô đã chọn, nhóm nhà xe có subtotal riêng, Tổng thanh toán cuối. Nút
+   chọn lô trên ô bill là control bấm được của "bấm dòng bill phải chọn lô". */
+.ppc-lots-phieu {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.ppc-lots-phieu__title { margin: 0; font-size: var(--text-data-size); font-weight: 600; }
+.ppc-lots-phieu__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ppc-lots-phieu__fields > * { min-width: 0; }
+.ppc-lots-phieu__subtotal td { border-top: 2px solid var(--line); }
+.ppc-lots-phieu__total { margin: 0; text-align: end; }
+.ppc-lots-bill-toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ppc-lots-bill-toggle[aria-pressed="true"] { font-weight: 600; }
 /* SIL-874 (CR-009.1 follow-up 21/11) — the drawer table chốt ladder. The QA
    defect: the vendored Untitled UI table ran table-layout auto, its columns
    grew to their nowrap content (961px measured), and the table spilled 28px

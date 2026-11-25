@@ -6,12 +6,20 @@ import {
 } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { billBookingReference } from '../../lib/business-reference';
-import { formatCurrency, formatDate, formatMoney } from '../../lib/format';
+import { formatCurrency, formatDate, formatMoney, businessDateISO } from '../../lib/format';
 import { Drawer } from '../../components/UI';
-import { UuiSelectField } from '../../design-system';
+import { DateField, UuiSelectField } from '../../design-system';
 import { Table } from '../../components/untitled-ui/application/table/table';
 import { I18nProvider } from 'react-aria-components';
 import type { Selection } from 'react-aria-components';
+
+/** SIL-1030 — "Chi phí" line names of the phiếu form (mockup image9: "Nâng
+ *  hàng AXEU…", "Hạ vỏ AXEU…"), keyed by the open-remainder bucket. */
+const ENTRY_BUCKET_LABELS: Record<'nang' | 'ha' | 'khac', string> = {
+  nang: 'Nâng hàng',
+  ha: 'Hạ hàng',
+  khac: 'Phát sinh khác',
+};
 
 /** Card 191026160000 — the report row's drill-down ("bảng các lô chưa thanh
  *  toán" of the clicked khách hàng / nhà xe). Selection issues ONE batch phiếu
@@ -44,6 +52,9 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
   const stkQuery = useQuery({ queryKey: qk.phoiPhieu.stk, queryFn: () => listPhoiPhieuStk() });
   const [selected, setSelected] = useState<Selection>(new Set<number>());
   const [treasuryAccountId, setTreasuryAccountId] = useState('');
+  // SIL-1030 (K6.13 / mockup image9) — "Ngày chi" of the phiếu form; the
+  // voucher books on this date, defaulting to today.
+  const [valueDate, setValueDate] = useState(businessDateISO());
   const [issuing, setIssuing] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
@@ -66,6 +77,41 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
   // differ when a THU charge sits below the lot's cost.
   const voucherTotal = selectedLots.reduce((sum, lot) => sum + lot.entries.reduce((row, entry) => row + entry.amount, 0), 0);
 
+  // SIL-1030 (K6.13) — "bấm dòng bill phải chọn lô (đếm tăng)". The bill cell
+  // is the explicit toggle (the row's own react-aria press path stays as the
+  // checkbox fallback); stopPropagation keeps the two from double-toggling.
+  function toggleLot(tripId: number) {
+    setSelected((current) => {
+      const next = new Set<number>(current === 'all' ? tripLots.map((lot) => lot.tripId) : [...(current as Set<number>)]);
+      if (next.has(tripId)) next.delete(tripId); else next.add(tripId);
+      return next;
+    });
+  }
+
+  // SIL-1030 (K6.13 / mockup image9) — "Ô lập phiếu": one line per open fee
+  // bucket of the selected lots, grouped per nhà xe with the group's own
+  // subtotal (image10: "từng nhóm nhà xe có subtotal riêng").
+  const phieuGroups = useMemo(() => {
+    const groups = new Map<string, { party: string; lines: Array<{ key: string; chiPhi: string; container: string; amount: number; note: string }>; subtotal: number }>();
+    for (const lot of selectedLots) {
+      const party = lot.party ?? '—';
+      const group = groups.get(party) ?? { party, lines: [], subtotal: 0 };
+      for (const entry of lot.entries) {
+        if (entry.amount <= 0) continue;
+        group.lines.push({
+          key: `${lot.tripId}:${entry.sourceId}`,
+          chiPhi: ENTRY_BUCKET_LABELS[entry.bucket],
+          container: lot.containerNumber ?? '—',
+          amount: entry.amount,
+          note: lot.ghiChu ?? '—',
+        });
+        group.subtotal += entry.amount;
+      }
+      groups.set(party, group);
+    }
+    return [...groups.values()];
+  }, [selectedLots]);
+
   async function issue() {
     if (selectedLots.length === 0 || !treasuryAccountId || issuing) return;
     setIssuing(true);
@@ -75,6 +121,7 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
         tripIds: selectedLots.map((lot) => lot.tripId),
         direction,
         treasuryAccountId: Number(treasuryAccountId),
+        valueDate,
       });
       setMessage({ kind: 'ok', text: `Đã lập phiếu ${voucher.code}: ${voucher.entries} khoản, tổng ${formatCurrency(voucher.total)}.` });
       setSelected(new Set<number>());
@@ -112,9 +159,9 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
               : `Đã chọn ${selectedLots.length} lô · Tổng lập phiếu: ${formatMoney(voucherTotal)} ₫`}
           </p>
           <UuiSelectField
-            label="Số tài khoản quỹ (STK)"
+            label="Tài khoản chi (STK)"
             hideLabel
-            ariaLabel="Số tài khoản quỹ (STK)"
+            ariaLabel="Tài khoản chi (STK)"
             value={treasuryAccountId}
             onChange={(event) => setTreasuryAccountId(event.target.value)}
             options={[
@@ -130,7 +177,7 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
             title={disabledReason}
             onClick={() => void issue()}
           >
-            {issuing ? 'Đang lập…' : `Lập phiếu ${verb} (${selectedLots.length})`}
+            {issuing ? 'Đang lập…' : `Xác nhận lập phiếu ${verb} (${selectedLots.length})`}
           </button>
         </div>
       }
@@ -139,6 +186,59 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
       {lotsQuery.isError && <p role="alert">Không tải được các lô của đối tượng này. Vui lòng thử lại.</p>}
       {lotsQuery.isSuccess && lots.length === 0 && (
         <p role="status">{batch ? 'Không có lô chưa thanh toán trong kỳ này.' : `Không còn lô chưa thanh toán của ${party} trong kỳ này.`}</p>
+      )}
+      {/* SIL-1030 (K6.13 / KB §6.2, mockup image9) — "bấm dòng bill phải chọn
+          lô (đếm tăng) và hiện các ô lập phiếu": ngày chi · tài khoản chi ở
+          thanh dưới, bảng STT · Nhà xe · Chi phí · Số container · Số tiền ·
+          Tổng tiền · Ghi chú (mỗi nhóm nhà xe một subtotal), dòng Tổng thanh
+          toán, và nút Xác nhận. */}
+      {selectedLots.length > 0 && (
+        <section className="ppc-lots-phieu" aria-label="Ô lập phiếu">
+          <h3 className="ppc-lots-phieu__title">Phiếu {verb} — {selectedLots.length} lô</h3>
+          <div className="ppc-lots-phieu__fields">
+            <DateField controlSize="sm" label="Ngày chi" value={valueDate} required onChange={setValueDate} />
+          </div>
+          <div className="record-table-wrap">
+            <table className="record-table ops-table">
+              <thead>
+                <tr>
+                  <th scope="col">STT</th>
+                  <th scope="col">Nhà xe</th>
+                  <th scope="col">Chi phí</th>
+                  <th scope="col">Số container</th>
+                  <th scope="col">Số tiền</th>
+                  <th scope="col">Tổng tiền</th>
+                  <th scope="col">Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+                {phieuGroups.flatMap((group, groupIndex) => [
+                  ...group.lines.map((line, lineIndex) => (
+                    <tr key={line.key}>
+                      <td data-label="STT">{groupIndex + lineIndex + 1}</td>
+                      <td data-label="Nhà xe">{group.party}</td>
+                      <td data-label="Chi phí">{line.chiPhi}</td>
+                      <td data-label="Số container">{line.container}</td>
+                      <td data-label="Số tiền">{formatMoney(line.amount)}</td>
+                      <td data-label="Tổng tiền">—</td>
+                      <td data-label="Ghi chú">{line.note}</td>
+                    </tr>
+                  )),
+                  <tr key={`subtotal-${group.party}`} className="ppc-lots-phieu__subtotal">
+                    <td data-label="STT">—</td>
+                    <td data-label="Nhà xe"><strong>{group.party}</strong></td>
+                    <td data-label="Chi phí">Tổng</td>
+                    <td data-label="Số container">—</td>
+                    <td data-label="Số tiền">—</td>
+                    <td data-label="Tổng tiền"><strong>{formatMoney(group.subtotal)}</strong></td>
+                    <td data-label="Ghi chú">—</td>
+                  </tr>,
+                ])}
+              </tbody>
+            </table>
+          </div>
+          <p className="ppc-lots-phieu__total"><strong>Tổng thanh toán</strong>: {formatCurrency(voucherTotal)}</p>
+        </section>
       )}
       {tripLots.length > 0 && (
         // react-aria's own selection strings (Select All / Select) localize
@@ -181,7 +281,21 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                     position so the mockup's numbered rows stay readable. */}
                 <Table.Cell><span className="ppc-lots-ordinal">{lots.indexOf(lot) + 1}</span></Table.Cell>
                 {batch && <Table.Cell className="ppc-lots-party">{lot.party ?? '—'}</Table.Cell>}
-                <Table.Cell>{billBookingReference(lot.billOrBooking)}</Table.Cell>
+                <Table.Cell>
+                  {/* SIL-1030 — "bấm dòng bill phải chọn lô": the bill cell is
+                      the explicit toggle button (works for mouse, keyboard and
+                      script clicks); stopPropagation keeps the row's own
+                      selection press from double-toggling. */}
+                  <button
+                    type="button"
+                    className="ppc-lots-bill-toggle"
+                    aria-label={`Chọn lô ${billBookingReference(lot.billOrBooking)}`}
+                    aria-pressed={selected === 'all' || selected.has(lot.tripId)}
+                    onClick={(event) => { event.stopPropagation(); toggleLot(lot.tripId); }}
+                  >
+                    {billBookingReference(lot.billOrBooking)}
+                  </button>
+                </Table.Cell>
                 <Table.Cell>{lot.containerNumber ?? '—'}</Table.Cell>
                 {kind === 'TRA' && <Table.Cell><span style={{ whiteSpace: 'nowrap' }}>{lot.plateNumber ?? '—'}</span></Table.Cell>}
                 <Table.Cell>{formatDate(lot.departureDate, { empty: '—' })}</Table.Cell>

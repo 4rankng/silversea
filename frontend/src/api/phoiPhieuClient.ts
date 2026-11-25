@@ -108,6 +108,8 @@ export async function createPhoiPhieuVoucher(body: {
   tripIds: number[];
   direction: 'IN' | 'OUT';
   treasuryAccountId: number;
+  /** SIL-1030 (K6.13) — "ngày chi" of the phiếu form; omitted = today. */
+  valueDate?: string;
   physicalReference?: string;
 }, idempotencyKey?: string): Promise<{ voucherId: number; code: string; total: number; entries: number }> {
   return api.post('/expense-accounting/phoi-phieu/vouchers', body, {

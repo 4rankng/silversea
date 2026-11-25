@@ -842,6 +842,8 @@ export interface PhoiPhieuVoucherInput {
   tripIds: number[];
   direction: 'IN' | 'OUT';
   treasuryAccountId: number;
+  /** SIL-1030 (K6.13) — "ngày chi" of the phiếu form; omitted = today. */
+  valueDate?: string;
   physicalReference?: string;
   actor: AuthUser;
 }
@@ -973,7 +975,8 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
       const voucher = await createExpenseVoucher(tx, args.actor, {
         direction: args.direction,
         treasuryAccountId: args.treasuryAccountId,
-        valueDate: new Date().toISOString().slice(0, 10),
+        // SIL-1030 — "ngày chi" from the phiếu form (K6.13); omitted = today.
+        valueDate: args.valueDate ?? new Date().toISOString().slice(0, 10),
         physicalReference: args.physicalReference ?? phoiPhieuPhysicalReference(groupKey, tripRows.map((row) => row.tripId)),
         entries,
       });
