@@ -62,11 +62,11 @@ describe('card 20260921_4 — chi-hộ fee catalog', () => {
   });
 
   // Card 20261004_355 — fuel spend needs its own catalog row so OPS Khai chi
-  // phí stops shoving diesel into "Phí chi hộ khác". Card 20260928_165/181
-  // invariant: every catalog code must sit in ONE seed-policy class — an
-  // unclassed code lands in requiresInvoice:false + substituteEvidenceAllowed:
-  // false, the approval gate and the evidence gate disagreeing silently.
-  test('the fuel expense type exists with a coherent no-invoice seed class', () => {
+  // phí stops shoving diesel into "Phí chi hộ khác". SIL-1055 (KB §3.5.3,
+  // K3.69): nhiên liệu là nhóm Giao nhận/Phát sinh Ops — không hóa đơn, và
+  // KHÔNG thuộc bốn loại được cân nhắc bằng chứng thay thế (card 20261004_355
+  // từng xếp nhầm vào lớp bằng chứng thay thế).
+  test('the fuel expense type exists with the KB no-invoice, no-substitute class', () => {
     const row = OPS_EXPENSE_TYPE_DEFAULTS.FUEL;
     assert.ok(row, 'catalog carries FUEL');
     assert.equal(row.name, 'Phí nhiên liệu / dầu');
@@ -75,6 +75,6 @@ describe('card 20260921_4 — chi-hộ fee catalog', () => {
     assert.equal(row.billingLabel, 'Phí nhiên liệu');
     const policy = expenseTypeSeedPolicy('FUEL');
     assert.equal(policy.requiresInvoice, false, 'fuel claims ride refill reports / receipts, not VAT invoices');
-    assert.equal(policy.substituteEvidenceAllowed, true, 'no-invoice class keeps substitute evidence');
+    assert.equal(policy.substituteEvidenceAllowed, false, 'fuel is not one of the four substitute-evidence types (KB §3.5.3)');
   });
 });

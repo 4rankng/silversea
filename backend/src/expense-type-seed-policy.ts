@@ -1,10 +1,12 @@
 // Invoice policy the seed stamps on forwarder expense types (fill-only —
 // admin edits on live rows always win over these defaults). Invoice-bearing
 // ops work (nâng, hạ, cân hàng, cơ sở hạ tầng, kiểm hóa) demands a real
-// invoice on the approval/settlement path — no substitute evidence. Only
-// the true no-invoice class keeps substitute evidence. requiresInvoice
-// gates the approval path; it says nothing about debit-screen editability
-// (that lock follows each expense row's invoiceNumber).
+// invoice on the approval/settlement path — no substitute evidence.
+// KB §3.5.3 (K3.69, SIL-1055): CHỈ bốn loại được cân nhắc bằng chứng thay
+// thế — Phí khác (không hóa đơn), dịch vụ kiểm hóa, phụ phí vùng, phí sửa
+// chữa dọc đường. requiresInvoice gates the approval path; it says nothing
+// about debit-screen editability (that lock follows each expense row's
+// invoiceNumber).
 export const INVOICE_REQUIRED_EXPENSE_TYPE_CODES = new Set([
   'LIFTING',
   'LOWERING',
@@ -48,17 +50,12 @@ export const NO_INVOICE_EXPENSE_TYPE_CODES = new Set([
   // Card 20260928_165: the road-repair fee ("phí sửa chữa dọc đường") is the
   // hand-written-receipt class — no VAT invoice exists, the driver's receipt is
   // the document the accountant files and settles against (see
-  // ROAD_REPAIR_EVIDENCE_TYPE). Leaving it out of BOTH sets would recreate the
-  // CUSTOMS/ZONE_SURCHARGE contradiction: requiresInvoice:false AND
-  // substituteEvidenceAllowed:false, i.e. the approval gate and the evidence
-  // gate disagreeing silently.
+  // ROAD_REPAIR_EVIDENCE_TYPE).
   'ROAD_REPAIR',
-  // Card 20261004_355: fuel claims ride refill reports and station receipts,
-  // not VAT invoices — the same loose class as ROAD_REPAIR. Demanding an
-  // invoice would block exactly the quick diesel entry the card asks for; the
-  // fill-only seed never overwrites admin edits, so reclassification is a
-  // one-row admin change if the owner wants the invoice gate instead.
-  'FUEL',
+  // SIL-1055 (KB §3.5.3 K3.69): bốn dòng trên là TOÀN BỘ danh sách được cân
+  // nhắc bằng chứng thay thế. FUEL từng nằm đây (card 20261004_355) nhưng KB
+  // không cho phép — nhiên liệu thuộc nhóm Giao nhận/Phát sinh Ops (không
+  // hóa đơn, không bằng chứng thay thế) nên về (false, false) như ROAD_TOLL.
 ]);
 
 export function expenseTypeSeedPolicy(code: string): { requiresInvoice: boolean; substituteEvidenceAllowed: boolean } {

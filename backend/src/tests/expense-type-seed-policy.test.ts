@@ -38,6 +38,11 @@ describe('forwarder expense type seed invoice policy', () => {
   });
 
   test('the no-invoice class keeps substitute evidence; every other code stays untouched', () => {
+    // KB §3.5.3 (K3.69, SIL-1055) — CHỈ bốn loại được cân nhắc bằng chứng thay
+    // thế; pin the exact list so a fifth code cannot drift in silently.
+    assert.deepEqual([...NO_INVOICE_EXPENSE_TYPE_CODES].sort(), [
+      'INSPECTION_SVC', 'OTHER', 'ROAD_REPAIR', 'ZONE_SURCHARGE',
+    ].sort(), 'exact substitute-evidence list of KB §3.5.3 (K3.69)');
     for (const code of NO_INVOICE_EXPENSE_TYPE_CODES) {
       const policy = expenseTypeSeedPolicy(code);
       assert.equal(policy.requiresInvoice, false, `${code} stays no-invoice`);
@@ -45,12 +50,14 @@ describe('forwarder expense type seed invoice policy', () => {
       assert.ok(OPS_EXPENSE_TYPE_DEFAULTS[code], `${code} must exist in the shared defaults catalog`);
     }
     // Codes outside both classes keep the historical shape: no invoice flag,
-    // no substitute evidence — the seed changes nothing about them.
+    // no substitute evidence — the seed changes nothing about them. This is
+    // the sanctioned nhóm Giao nhận/Phát sinh Ops of KB §3.5.3 ("không hóa
+    // đơn: gõ tên phí trùng tên loại có hóa đơn không làm khoản có hóa đơn").
     // CUSTOMS is deliberately NOT in this group any more (see above).
-    // FUEL left this group too (card 20261004_355): fuel claims ride refill
-    // reports and station receipts, so it now sits in the no-invoice class
-    // above and its substitute-evidence pin runs with that loop.
-    for (const code of ['ROAD_TOLL']) {
+    // SIL-1055: FUEL is BACK in this group — KB §3.5.3 does not allow fuel
+    // substitute evidence (card 20261004_355 had moved it into the
+    // no-invoice class; that placement was wrong against the KB).
+    for (const code of ['ROAD_TOLL', 'FUEL']) {
       const policy = expenseTypeSeedPolicy(code);
       assert.equal(policy.requiresInvoice, false, `${code} untouched`);
       assert.equal(policy.substituteEvidenceAllowed, false, `${code} untouched`);

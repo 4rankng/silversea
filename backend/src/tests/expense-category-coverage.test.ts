@@ -36,16 +36,22 @@ describe('every cost category is classified (card 20260928_181)', () => {
     );
   });
 
-  test('every category lands in exactly one policy set', () => {
+  test('every category lands in a KB §3.5.3 class — invoice, substitute, or the no-invoice residual', () => {
     const unclassified = SOURCE_CODES.filter(
       (code) => !INVOICE_REQUIRED_EXPENSE_TYPE_CODES.has(code) && !NO_INVOICE_EXPENSE_TYPE_CODES.has(code),
     );
+    // SIL-1055 (KB §3.5.3, K3.69) supersedes card 20260928_181's premise:
+    // requiresInvoice:false + substituteEvidenceAllowed:false is no longer a
+    // contradiction — it is the SANCTIONED nhóm Giao nhận/Phát sinh Ops
+    // ("không hóa đơn: gõ tên phí trùng tên loại có hóa đơn không làm khoản có
+    // hóa đơn"). The residual stays pinned so a NEW catalog code still forces
+    // a class decision here instead of drifting silently.
     assert.deepEqual(
       unclassified,
-      [],
-      'these cost categories have no invoice policy, so expenseTypeSeedPolicy returns '
-        + 'requiresInvoice:false AND substituteEvidenceAllowed:false for them — a contradictory '
-        + `state nothing reports. Classify each one: ${unclassified.join(', ')}`,
+      ['FUEL'],
+      'name the KB §3.5.3 class of each new catalog code: invoice-required, '
+        + 'substitute-eligible (the four of K3.69), or the Giao nhận/Phát sinh '
+        + `no-invoice residual. Unclassified right now: ${unclassified.join(', ')}`,
     );
   });
 
