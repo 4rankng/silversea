@@ -8,7 +8,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({ getPhoiPhieuReport }));
 import type { PhoiPhieuReportRow } from '../../api/phoiPhieuClient';
 import { PhoiPhieuReportTable } from './PhoiPhieuControlPage.reports';
 
-const row = { party: 'KH Alpha', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null };
+const row = { party: 'KH Alpha', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null, isOwnFleet: false };
 
 async function table(kind: 'THU' | 'TRA') {
   getPhoiPhieuReport.mockResolvedValue({ rows: [row], grand: undefined });
@@ -108,7 +108,7 @@ describe('báo cáo tháng gộp một dòng khi phát sinh cả thu và trả (
 describe('báo cáo thu/trả ẩn dòng còn 0 (card 374)', () => {
   const settled = { ...row, party: 'KH Trả hết', tongPhaiThuTra: 3000, daThuTra: 3000, conLai: 0 };
   const overpaid = { ...row, party: 'KH Trả trước', tongPhaiThuTra: 3000, daThuTra: 3500, conLai: -500 };
-  const grandAll = { party: 'TỔNG CỘNG', tienNang: 3000, tienHa: 6000, psKhac: 0, tongPhaiThuTra: 9000, daThuTra: 5500, conLai: 3500, ghiChu: null, soLuong: 3, phaiThu: 5500, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null };
+  const grandAll = { party: 'TỔNG CỘNG', tienNang: 3000, tienHa: 6000, psKhac: 0, tongPhaiThuTra: 9000, daThuTra: 5500, conLai: 3500, ghiChu: null, soLuong: 3, phaiThu: 5500, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null, isOwnFleet: false };
 
   async function renderReport(rows: PhoiPhieuReportRow[], grand: PhoiPhieuReportRow | undefined) {
     getPhoiPhieuReport.mockReset().mockResolvedValue({ rows, grand });
@@ -189,7 +189,7 @@ describe('báo cáo thu/trả ẩn dòng còn 0 (card 374)', () => {
 // internal fleet ('XE NHÀ — SILVER SEA', em-dash label as the BE emits it)
 // versus every vendor — 'Thiếu nhà xe' included. Separate totals per table.
 describe('báo cáo TRA tách bảng Xe nhà vs Vendor (CR-011)', () => {
-  const xeNha = { ...row, party: 'XE NHÀ — SILVER SEA', tienNang: 5000, tongPhaiThuTra: 5000, conLai: 5000 };
+  const xeNha = { ...row, party: 'XE NHÀ — SILVER SEA', isOwnFleet: true, tienNang: 5000, tongPhaiThuTra: 5000, conLai: 5000 };
   const vendor = { ...row, party: 'Gaya Container Lines', tienNang: 7000, tongPhaiThuTra: 7000, conLai: 7000 };
   const missing = { ...row, party: 'Thiếu nhà xe', tienNang: 9000, tongPhaiThuTra: 9000, conLai: 9000 };
 
@@ -225,5 +225,20 @@ describe('báo cáo TRA tách bảng Xe nhà vs Vendor (CR-011)', () => {
     expect(within(external).getByText('TỔNG CỘNG VENDOR')).toBeInTheDocument();
     // 7.000 + 9.000 — the vendor total must NOT include the fleet's 5.000.
     expect(within(external).getAllByText(/16\.000/).length).toBeGreaterThan(0);
+  });
+
+  it('SIL-1015 — the split follows the wire isOwnFleet fact, never the party string', async () => {
+    // The flag decides: a fleet row under ANY name joins Bảng 1, and the
+    // 'XE NHÀ — SILVER SEA' STRING on a vendor-flagged row joins Bảng 2.
+    // (The fleet row's name is kept distinct from the table's own heading.)
+    const flagFleet = { ...row, party: 'Nội bộ 15C-167.31', isOwnFleet: true, tienNang: 4000, tongPhaiThuTra: 4000, conLai: 4000 };
+    const nameImposter = { ...row, party: 'XE NHÀ — SILVER SEA', isOwnFleet: false, tienNang: 6000, tongPhaiThuTra: 6000, conLai: 6000 };
+    await renderTra([flagFleet, nameImposter]);
+    const internal = screen.getByText('Bảng 1 — Xe nhà (Silver Sea)').closest('table')!;
+    expect(within(internal).getByText('Nội bộ 15C-167.31')).toBeInTheDocument();
+    expect(within(internal).queryByText('XE NHÀ — SILVER SEA')).not.toBeInTheDocument();
+    const external = screen.getByText('Bảng 2 — Nhà xe ngoài (Vendor)').closest('table')!;
+    expect(within(external).getByText('XE NHÀ — SILVER SEA')).toBeInTheDocument();
+    expect(within(external).queryByText('Nội bộ 15C-167.31')).not.toBeInTheDocument();
   });
 });

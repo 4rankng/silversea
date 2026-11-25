@@ -72,13 +72,16 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope, onOpenPart
     phaiThu: round2dp(acc.phaiThu + row.phaiThu),
     phaiTra: round2dp(acc.phaiTra + row.phaiTra),
   }), {
-    party: '', partyShortName: null, partyId: null, partyKind: null,
+    party: '', partyShortName: null, partyId: null, partyKind: null, isOwnFleet: false,
     tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0,
     ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0,
   });
 
-  const isInternalFleetRow = (row: (typeof rows)[number]) =>
-    row.party.toUpperCase().includes('XE NHÀ');
+  // SIL-1015 (CR-011 Task 3.2) — the payables split reads the wire's own
+  // fleet fact (`isOwnFleet`), never the party display string: the Xe nhà –
+  // Silver Sea table and the Nhà xe ngoài (Vendor) table each keep their own
+  // rows and their own TỔNG CỘNG.
+  const isInternalFleetRow = (row: (typeof rows)[number]) => row.isOwnFleet;
 
   const renderTable = (
     tableRows: typeof rows,

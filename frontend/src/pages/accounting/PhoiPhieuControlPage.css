@@ -418,6 +418,9 @@
   text-align: start;
   text-decoration: underline;
   text-underline-offset: 2px;
+  /* SIL-1015 no-cut law (SIL-467): a Bill/Booking token never breaks
+     mid-string — the track floor above already holds its widest form. */
+  white-space: nowrap;
 }
 .ppc-lots-bill-toggle[aria-pressed="true"] { font-weight: 600; }
 /* SIL-874 (CR-009.1 follow-up 21/11) — the drawer table chốt ladder. The QA
@@ -427,60 +430,68 @@
    'ĐẶC C…'). The law (cf. SIL-872's /shipments-detail ladder): fixed layout
    makes the % shares BIND; every data column carries its share plus a px
    floor measured off the real 12px tokens ('123.456.789' 66px,
-   'EBKG19248801' 88px, container 75px, '18/11/2026' 62px). The eleven data
+   'EBKG19248801' 88px, container 75px, '18/11/2026' 62px). The twelve data
    shares sum 95.1% — the vendored select column owns the remaining ~5% — so
    the declared widths never exceed 100% (over 100% the fixed layout widens
-   the table and phantom-scrolls at every width). The floors sum 852px
-   (+ the select column's 44px = 896px min-width): the drawer's content box
+   the table and phantom-scrolls at every width). The floors sum 928px
+   (+ the select column's 44px = 972px min-width): the drawer's content box
    at 1440×900 measures 902px (950px drawer − 2×16px body padding − 16px
-   scrollbar), so nothing scrolls at the acceptance width and Ghi chú — the
-   widest share on purpose — reaches the drawer's right edge whole. Below the
-   floor sum the wrapper scrolls (the dense-board band); at 1920 the shares
-   stretch inside the existing 1200px cap. The vendored 12px inline gutters
+   scrollbar), so below the floor sum the wrapper scrolls (the dense-board
+   band); at 1920 the shares stretch inside the existing 1200px cap. SIL-1015
+   funds the BIỂN KIỂM SOÁT share (76px floor, plate token 62px) out of the
+   Ghi chú share — the reading column keeps the widest share and wraps whole.
+   The vendored 12px inline gutters
    trim to the 6px dense-family gutter (cf. invoice-tracking's record-table)
    to make those floors hold. */
 .ppc-lots-drawer table {
   table-layout: fixed;
-  min-width: 896px;
+  min-width: 972px;
 }
 .ppc-lots-drawer table th,
 .ppc-lots-drawer table td {
   padding-inline: 6px;
 }
-.ppc-lots-drawer th.ppc-lots-col--stt { width: 3.8%; min-width: 36px; }
-.ppc-lots-drawer th.ppc-lots-col--bill { width: 10.9%; min-width: 104px; }
-.ppc-lots-drawer th.ppc-lots-col--container { width: 9.2%; min-width: 90px; }
-.ppc-lots-drawer th.ppc-lots-col--date { width: 7.8%; min-width: 76px; }
+.ppc-lots-drawer th.ppc-lots-col--stt { width: 3.6%; min-width: 36px; }
+.ppc-lots-drawer th.ppc-lots-col--bill { width: 10.3%; min-width: 104px; }
+.ppc-lots-drawer th.ppc-lots-col--container { width: 8.7%; min-width: 90px; }
+/* SIL-1015 — the BIỂN KIỂM SOÁT column beside CONTAINER carries its own
+   share + floor (the plate token '15E-019.80' 62px + the 12px gutter), so a
+   whole plate renders under every canvas — the no-cut law, same as the
+   nowrap value the cell wraps it in. */
+.ppc-lots-drawer th.ppc-lots-col--plate { width: 7.8%; min-width: 76px; }
+.ppc-lots-drawer th.ppc-lots-col--date { width: 7.3%; min-width: 76px; }
 .ppc-lots-drawer th.ppc-lots-col--nang,
-.ppc-lots-drawer th.ppc-lots-col--ha { width: 8.3%; min-width: 80px; }
-.ppc-lots-drawer th.ppc-lots-col--khac { width: 7.7%; min-width: 80px; }
-.ppc-lots-drawer th.ppc-lots-col--total { width: 8.7%; min-width: 80px; }
+.ppc-lots-drawer th.ppc-lots-col--ha { width: 7.8%; min-width: 80px; }
+.ppc-lots-drawer th.ppc-lots-col--khac { width: 7.2%; min-width: 80px; }
+.ppc-lots-drawer th.ppc-lots-col--total { width: 8.2%; min-width: 80px; }
 .ppc-lots-drawer th.ppc-lots-col--paid,
-.ppc-lots-drawer th.ppc-lots-col--remain { width: 8.3%; min-width: 80px; }
+.ppc-lots-drawer th.ppc-lots-col--remain { width: 7.8%; min-width: 80px; }
 /* Ghi chú: the reading column carries the widest share; the note text wraps
    whole at spaces (no ellipsis, never mid-token) and the row grows with it. */
-.ppc-lots-drawer th.ppc-lots-col--ghichu { width: 13.8%; min-width: 66px; }
+.ppc-lots-drawer th.ppc-lots-col--ghichu { width: 10.8%; min-width: 66px; }
 .ppc-lots-drawer td.ppc-lots-note { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
 /* SIL-916 — the BATCH drill-down (every party in the window) crosses parties,
    so the row names whose money it is: one extra column, its own ladder. The
-   drawer opens full-canvas (the shared expanded variant), so the twelve
-   columns + the vendored select column fit the 1440 canvas (1096px floor)
-   without the phantom horizontal scroll the SIL-872 doctrine bans. The
-   per-party drawer keeps the ladder above, untouched. Shares still land at
+   drawer opens full-canvas (the shared expanded variant), so the thirteen
+   columns + the vendored select column fit the 1440 canvas (1092px floor)
+   without the phantom horizontal scroll the SIL-872 doctrine bans. SIL-1015
+   adds the plate column here too. The per-party drawer keeps the ladder
+   above, untouched. Shares still land at
    95.1% + the vendored select column's ~4.9% = 100%. */
-.ppc-lots-drawer--batch table { min-width: 1016px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--stt { width: 3%; min-width: 36px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--party { width: 12%; min-width: 120px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--bill { width: 9.5%; min-width: 104px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--container { width: 8%; min-width: 90px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--date { width: 6.8%; min-width: 76px; }
+.ppc-lots-drawer--batch table { min-width: 1092px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--stt { width: 2.8%; min-width: 36px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--party { width: 10.8%; min-width: 120px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--bill { width: 9%; min-width: 104px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--container { width: 7.5%; min-width: 90px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--plate { width: 7.8%; min-width: 76px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--date { width: 6.3%; min-width: 76px; }
 .ppc-lots-drawer--batch th.ppc-lots-col--nang,
-.ppc-lots-drawer--batch th.ppc-lots-col--ha { width: 7.2%; min-width: 80px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--khac { width: 6.7%; min-width: 80px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--total { width: 7.6%; min-width: 80px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--ha { width: 6.8%; min-width: 80px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--khac { width: 6.3%; min-width: 80px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--total { width: 7.2%; min-width: 80px; }
 .ppc-lots-drawer--batch th.ppc-lots-col--paid,
-.ppc-lots-drawer--batch th.ppc-lots-col--remain { width: 7.2%; min-width: 80px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--ghichu { width: 12.7%; min-width: 66px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--remain { width: 6.8%; min-width: 80px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--ghichu { width: 10.2%; min-width: 66px; }
 /* The party name wraps whole at spaces — no ellipsis, never mid-token. */
 .ppc-lots-drawer td.ppc-lots-party { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
 .ppc-lots-ordinal {

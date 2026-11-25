@@ -263,6 +263,10 @@ export interface PhoiPhieuReportRow {
    *  (ID-first; name is only the fallback). Null for unknown/internal rows. */
   partyId: number | null;
   partyKind: 'customer' | 'carrier' | 'vendor' | null;
+  /** SIL-1015 (CR-011 Task 3.2) — the payables split key: true only for the
+   *  own-fleet ('XE NHÀ — SILVER SEA') row, so the report splits Xe nhà vs
+   *  Vendor on a wire fact, never on the party display string. */
+  isOwnFleet: boolean;
   tienNang: number;
   tienHa: number;
   psKhac: number;

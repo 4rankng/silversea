@@ -1489,6 +1489,11 @@ export interface PhoiPhieuReportRow {
   /** Which ledger id space the `partyId` lives in: aging customer, payables
    *  carrier (customers.id), or payables vendor (suppliers.id). */
   partyKind: 'customer' | 'carrier' | 'vendor' | null;
+  /** SIL-1015 (CR-011 Task 3.2) — the payables split key: true only for the
+   *  own-fleet ('XE NHÀ — SILVER SEA') row. The report renders TWO tables on
+   *  this field (Xe nhà – Silver Sea vs Nhà xe ngoài Vendor), each with its
+   *  own total — never by matching the party display string. */
+  isOwnFleet: boolean;
   tienNang: number;
   tienHa: number;
   psKhac: number;
@@ -1621,6 +1626,11 @@ type ReportPartyInfo = {
   shortName: string | null;
   partyId: number | null;
   partyKind: ReportPartyKind | null;
+  /** SIL-1015 (CR-011 Task 3.2) — the money's source fleet, structurally:
+   *  true only for the own-fleet ('XE NHÀ — SILVER SEA') bucket, so the
+   *  payables report splits Xe nhà vs Vendor on a wire fact, never on the
+   *  party display string. */
+  isOwnFleet: boolean;
 };
 
 /** Party attribution for the report surfaces (card FB-061 soft-delete law and
@@ -1658,6 +1668,7 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
           name: row.name, ghiChu: row.ghiChu,
           shortName: row.shortName && row.shortName.trim() ? row.shortName : row.name,
           partyId: row.id ?? null, partyKind: row.id != null ? 'customer' : null,
+          isOwnFleet: false,
         });
       }
     }
@@ -1666,6 +1677,11 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
       tripId: s.trips.id,
       name: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${externalCarrierName}
         when nullif(${s.trucks.licensePlate}, '') is not null then ${INTERNAL_CARRIER_CODE} else null end`,
+      // SIL-1015 — the structural xe-nhà fact, projected from the SAME case
+      // arms that name the party (EXTERNAL carrier vs the plated own fleet),
+      // so the name and the flag can never disagree.
+      isOwnFleet: sql<boolean>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then false
+        when nullif(${s.trucks.licensePlate}, '') is not null then true else false end`,
       // Card 201026095604b — the ledger-side identity: CUSTOMER-shape carriers
       // live in the payables CARRIER branch (customers.id), SUPPLIER-shape in
       // the VENDOR branch (suppliers.id). Null for the internal fleet bucket.
@@ -1691,6 +1707,7 @@ async function resolveReportTripParties(kind: 'THU' | 'TRA', tripIds: number[]):
           shortName: row.name,
           partyId,
           partyKind: partyId == null ? null : row.carrierId != null ? 'carrier' : 'vendor',
+          isOwnFleet: row.isOwnFleet === true,
         });
       }
     }
@@ -1753,6 +1770,7 @@ async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: 
           name: row.name, ghiChu: row.ghiChu,
           shortName: row.shortName && row.shortName.trim() ? row.shortName : row.name,
           partyId: row.id ?? null, partyKind: row.id != null ? 'customer' : null,
+          isOwnFleet: false,
         },
         liveTripId: null,
       });
@@ -1847,12 +1865,12 @@ async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: 
         if (name == null) continue;
         factByFulfillment.set(row.fulfillmentId, {
           identity: `carrier:${row.plannedExternalCarrierId}:${name}`,
-          party: { name, ghiChu: null, shortName: name, partyId: row.plannedExternalCarrierId, partyKind: 'carrier' },
+          party: { name, ghiChu: null, shortName: name, partyId: row.plannedExternalCarrierId, partyKind: 'carrier', isOwnFleet: false },
         });
       } else if (row.plate != null && row.plate !== '') {
         factByFulfillment.set(row.fulfillmentId, {
           identity: `internal::${INTERNAL_CARRIER_CODE}`,
-          party: { name: INTERNAL_CARRIER_CODE, ghiChu: null, shortName: INTERNAL_CARRIER_CODE, partyId: null, partyKind: null },
+          party: { name: INTERNAL_CARRIER_CODE, ghiChu: null, shortName: INTERNAL_CARRIER_CODE, partyId: null, partyKind: null, isOwnFleet: true },
         });
       }
     }
@@ -1890,7 +1908,7 @@ async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: 
   for (const id of ids) {
     if (!map.has(id)) {
       map.set(id, {
-        party: { name: MISSING_CARRIER_LABEL, ghiChu: null, shortName: MISSING_CARRIER_LABEL, partyId: null, partyKind: null },
+        party: { name: MISSING_CARRIER_LABEL, ghiChu: null, shortName: MISSING_CARRIER_LABEL, partyId: null, partyKind: null, isOwnFleet: false },
         liveTripId: null,
       });
     }
@@ -1973,6 +1991,7 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
     // tong, conLai goes negative) so the FE over-pay annotation can fire.
     return { party, partyShortName: bucket.partyInfo?.shortName ?? null,
       partyId: bucket.partyInfo?.partyId ?? null, partyKind: bucket.partyInfo?.partyKind ?? null,
+      isOwnFleet: bucket.partyInfo?.isOwnFleet ?? false,
       tienNang: bucket.tienNang, tienHa: bucket.tienHa, psKhac: bucket.psKhac,
       tongPhaiThuTra: tong, daThuTra: bucket.da, conLai, ghiChu: bucket.ghiChu,
       soLuong: bucket.movements.size, phaiThu: bucket.phaiThu, phaiTra: bucket.phaiTra };
@@ -1986,12 +2005,12 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
     // cannot reorder either — and the grouping above already merged them.
     .sort((a, b) => b.soLuong - a.soLuong || a.party.localeCompare(b.party, 'vi'));
   const grand = rows.reduce((acc, row) => ({
-    party: 'TỔNG CỘNG', partyShortName: null, partyId: null, partyKind: null,
+    party: 'TỔNG CỘNG', partyShortName: null, partyId: null, partyKind: null, isOwnFleet: false,
     tienNang: acc.tienNang + row.tienNang, tienHa: acc.tienHa + row.tienHa,
     psKhac: acc.psKhac + row.psKhac, tongPhaiThuTra: acc.tongPhaiThuTra + row.tongPhaiThuTra,
     daThuTra: acc.daThuTra + row.daThuTra, conLai: acc.conLai + row.conLai, ghiChu: null,
     soLuong: acc.soLuong + row.soLuong, phaiThu: acc.phaiThu + row.phaiThu, phaiTra: acc.phaiTra + row.phaiTra,
-  }), { party: 'TỔNG CỘNG', partyShortName: null as string | null, partyId: null as number | null, partyKind: null as PhoiPhieuReportRow['partyKind'], tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0 });
+  }), { party: 'TỔNG CỘNG', partyShortName: null as string | null, partyId: null as number | null, partyKind: null as PhoiPhieuReportRow['partyKind'], isOwnFleet: false, tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0 });
   return { rows, grand };
 }
 
