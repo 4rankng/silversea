@@ -31,6 +31,7 @@ import { cloneElement, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { DebitMergeContainer, DebitMergeInvoiceFee, DebitMergeItem, DebitMergeNoInvoice } from '@tingting/shared';
 import type { LedgerColumn } from '../../lib/column-visibility';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { ColumnPicker } from '../../components/ColumnPicker';
 import { Pagination } from '../../design-system';
 import { DisabledActionTip } from '../../components/shared/DisabledActionTip';
@@ -65,6 +66,25 @@ function isStickyColumn(column: LedgerColumn): boolean {
   const def = column as GridColumnDef;
   return def.group === 1 || def.group === 2;
 }
+
+/** SIL-987 (KB §10.9.10 tablet boundary) — at ≤768px the full group-1+2 dock
+ *  is WIDER than the whole viewport (measured 930–1176px of dock vs a 744px
+ *  pane), so `position: sticky` pins every pixel of the scroller and the 23
+ *  money/fee/control columns can never scroll into view (the audit's
+ *  `visibleNonStickyCols = 0` blocker), and the dock's own tail (Số cont /
+ *  Loại cont / Thông số) gets clipped. The compact band keeps ONLY the
+ *  identity leaves docked — the «Tất cả» pick rail, the Số Bill/Booking lot
+ *  label and the Số cont code — so row identity and the selection actions
+ *  stay pinned while every money column scrolls freely (KB §10.8.1: cuộn
+ *  ngang xem được đầy đủ). On the phone band (≤640px, the house phone
+ *  boundary) even the trio overflows — 390px dock vs a 374px pane — so only
+ *  the «Tất cả» pick rail stays docked there: the full 324px remains a live
+ *  scroll window for the money columns (the ticket's «0/23 cột tiền xem
+ *  được» blocker at 390). Desktop keeps the full SIL-891 zone untouched. */
+const COMPACT_STICKY_MEDIA_QUERY = '(max-width: 768px)';
+const PHONE_STICKY_MEDIA_QUERY = '(max-width: 640px)';
+const COMPACT_STICKY_KEYS: Record<string, true> = { pick: true, lot: true, cont: true };
+const PHONE_STICKY_KEYS: Record<string, true> = { pick: true };
 
 interface GridColumnDef extends LedgerColumn {
   /** 1-based column group the leaf belongs to. */
@@ -353,7 +373,17 @@ export function DebitMergeGrid({
   // ResizeObserver covers post-commit growth (webfonts, image-less cells).
   const tableRef = useRef<HTMLTableElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
-  const stickyColumns = useMemo(() => visibleColumns.filter(isStickyColumn), [visibleColumns]);
+  const compactSticky = useMediaQuery(COMPACT_STICKY_MEDIA_QUERY);
+  const phoneSticky = useMediaQuery(PHONE_STICKY_MEDIA_QUERY);
+  const stickyColumns = useMemo(
+    () => visibleColumns.filter(isStickyColumn).filter((column) => (
+      phoneSticky ? PHONE_STICKY_KEYS[column.key]
+        : compactSticky ? COMPACT_STICKY_KEYS[column.key]
+          : true
+    )),
+    [visibleColumns, compactSticky, phoneSticky],
+  );
+  const stickyKeySet = useMemo(() => new Set(stickyColumns.map((column) => column.key)), [stickyColumns]);
   // The measure() closure reads the LIVE sticky set through a ref — the
   // effect itself stays dep-free so no commit can render stale docks.
   const stickyColumnsRef = useRef(stickyColumns);
@@ -677,7 +707,7 @@ export function DebitMergeGrid({
                   scope="col"
                   data-col={column.key}
                   className={`debit-merge-col--${column.key}`}
-                  {...(isStickyColumn(column) ? stickyProps(column.key) : {})}
+                  {...(stickyKeySet.has(column.key) ? stickyProps(column.key) : {})}
                 >
                   {column.key === 'pick' ? (
                     <label
@@ -835,7 +865,7 @@ export function DebitMergeGrid({
                 <tr key={`${lot.shipmentId}:${container?.id ?? 'lot'}`} className="debit-merge__row" data-shipment-id={lot.shipmentId}>
                   {visibleColumns.map((column) => {
                     const cell = renderCell(column.key);
-                    if (!isStickyColumn(column)) return cell;
+                    if (!stickyKeySet.has(column.key)) return cell;
                     return cloneElement(cell, stickyProps(column.key));
                   })}
                 </tr>
@@ -855,7 +885,7 @@ export function DebitMergeGrid({
                     key={column.key}
                     data-col={column.key}
                     className={`debit-merge__totals-cell debit-merge__totals-cell--${column.key}${column.key === 'tongTc' && total != null && Number(total) !== 0 ? ' debit-merge__totals-cell--warn' : ''}`}
-                    {...(isStickyColumn(column) ? stickyProps(column.key) : {})}
+                    {...(stickyKeySet.has(column.key) ? stickyProps(column.key) : {})}
                   >
                     {isMoney ? (total == null ? '—' : formatMoney(Number(total))) : column.key === 'lot' ? 'Tổng cộng' : ''}
                   </td>

@@ -401,3 +401,37 @@
 .debit-merge__head-label[data-occluded] {
   visibility: hidden;
 }
+
+/* ============================================================================
+ * SIL-987 (KB §10.9.10 tablet band ≤768px) — the toolbar wraps instead of
+ * leaking past the viewport: two filters per line (each control fills its
+ * line so labels and placeholders never cut — §10.9.8), and the money-action
+ * row wraps under the filters instead of pushing them off-frame. Desktop
+ * keeps the existing one-row space-between toolbar untouched.
+ * ========================================================================== */
+@media (max-width: 768px) {
+  .debit-merge__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .debit-merge__toolbar-actions {
+    flex-wrap: wrap;
+  }
+
+  .debit-merge__filters > * {
+    flex: 1 1 280px;
+    max-width: 100%;
+  }
+
+  .debit-merge-filter {
+    min-width: 0;
+  }
+
+  .debit-merge-filter select,
+  .debit-merge-filter input[type='search'] {
+    flex: 1 1 120px;
+    min-width: 0;
+    width: 100%;
+  }
+}

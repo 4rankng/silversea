@@ -14,7 +14,17 @@ const label = (item: ShipmentDebitDetail['unattachedTrips'][number]['items'][num
 
 export function UnattachedTripsTable({ trips }: { trips: ShipmentDebitDetail['unattachedTrips'] }) {
   if (trips.length === 0) return null;
-  return <LedgerMatrix className="csc-debit-table csc-debit-table--unattached"
+  // SIL-987 — the section rides display:grid parents (debit-merge-page), so a
+  // bare table's min-content width sizes the whole grid track: on a 768px
+  // tablet the 900px "Ngoài chốt" matrix blew the page frame to 912px and the
+  // workspace's filters + pagination were clipped by main's overflow-x
+  // (audit /tmp/kb-tablet-768-sil.md §5). The house .table-scroll wrapper
+  // (LedgerMatrix framed path) makes the section a scroll container — its
+  // min-content contribution drops to the pane width and the matrix scrolls
+  // horizontally instead of blowing the page.
+  return (
+    <div className="table-scroll">
+      <LedgerMatrix className="csc-debit-table csc-debit-table--unattached"
     caption="Chuyến chưa gán đầu việc vận chuyển — chỉ hiển thị, không vào tổng chốt"
     columns={[
       { key: 'trip', label: 'Mã chuyến' }, { key: 'date', label: 'Ngày chạy', primary: true },
@@ -32,5 +42,7 @@ export function UnattachedTripsTable({ trips }: { trips: ShipmentDebitDetail['un
         </div>
       )), money(trip.feeTotal), 'Ngoài chốt',
     ] }))}
-  />;
+      />
+    </div>
+  );
 }
