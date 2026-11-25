@@ -35,12 +35,13 @@ import { activeTripConditions } from './active-trip-scope';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { operationalName } from '../db/master-data-name';
 import { ROUTE_DISPLAY_NAME } from './cus-workspace-sql.service';
-import { loadRevenueOverrideByLot } from './revenue-override-read.service';
+import { intakeFreezeCountsForLot, loadLotTripPresence, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
 import { carrierKeysForLot } from './debit-settlement-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
+import { mergeDeclarationNumbersByLot } from './shipment-debit-summary.service';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -225,6 +226,10 @@ export interface AccountingDebitBoardRow {
   carrierKeys: string[];
   ngay: string | null;
   billOrBooking: string | null;
+  /** K3.61 — số tờ khai của lô, gộp cả hai store (per-cont attribute trước,
+   *  entity rows sau, dedup): display key thứ hai ngay sau Bill/Booking trên
+   *  màn công nợ. Null = lô không có tờ khai. */
+  customsNumber: string | null;
   containers: string[];
   phanXe: string[];
   /** SIL-838 điểm 1 — nhà máy/kho hàng của lô dưới tên KH: coalesce (site
@@ -527,8 +532,16 @@ export async function getAccountingDebitBoard(query: {
       intake.set(lot, { ...leg, formulaNote: row.formulaText ?? null });
     }
   }
+  // SIL-1050 (K2.61) — chân đã hủy không tính cước: a lot whose every trip
+  // is CANCELED must not resurrect the intake freeze through the
+  // `tripLegs ?? intake` fallback (its priced legs drop out by the
+  // active-trip scope, and the fallback used to re-arm the pre-cancel price
+  // on the Kiểm soát lô hàng board).
+  const tripPresence = await loadLotTripPresence(executor, lotIds);
   for (const lot of lotIds) {
-    const pick = tripLegs.get(lot) ?? intake.get(lot);
+    const legs = tripLegs.get(lot);
+    const intakeRow = intake.get(lot);
+    const pick = legs ?? (intakeRow != null && intakeFreezeCountsForLot(tripPresence.get(lot)) ? intakeRow : undefined);
     if (pick !== undefined) {
       psAutoByLot.set(lot, pick.surcharge);
     }
@@ -549,10 +562,11 @@ export async function getAccountingDebitBoard(query: {
   for (const lot of lots) {
     const override = overrideByLot.get(lot.id) ?? null;
     const legs = tripLegs.get(lot.id);
+    const intakeRow = intake.get(lot.id);
     const snapshotChannel = legs !== undefined
       ? { total: legs.freight, formulaNote: null }
-      : (intake.get(lot.id) != null
-        ? { total: intake.get(lot.id)!.freight, formulaNote: intake.get(lot.id)!.formulaNote }
+      : (intakeRow != null && intakeFreezeCountsForLot(tripPresence.get(lot.id))
+        ? { total: intakeRow.freight, formulaNote: intakeRow.formulaNote }
         : null);
     effectiveFreightByLot.set(lot.id, effectiveLclFreight({
       snapshotChannel,
@@ -739,9 +753,20 @@ export async function getAccountingDebitBoard(query: {
     shipmentId: s.shipmentContainers.shipmentId,
     containerNumber: s.shipmentContainers.containerNumber,
     containerTypeId: s.shipmentContainers.containerTypeId,
+    declarationNumber: s.shipmentContainers.declarationNumber,
   }).from(s.shipmentContainers)
     .where(inArray(s.shipmentContainers.shipmentId, lotIds))
     .orderBy(asc(s.shipmentContainers.id));
+  // K3.61 — the lot's số tờ khai resolves BOTH stores (per-cont attribute in
+  // `containerRows` above first, then the lot-level entity rows): the second
+  // display key after Bill/Booking. Merge law shared with the debit summary.
+  const declarationEntityRows = await executor.select({
+    shipmentId: s.shipmentDeclarations.shipmentId,
+    declarationNumber: s.shipmentDeclarations.declarationNumber,
+  }).from(s.shipmentDeclarations)
+    .where(inArray(s.shipmentDeclarations.shipmentId, lotIds))
+    .orderBy(asc(s.shipmentDeclarations.id));
+  const declarationNumbersByLot = mergeDeclarationNumbersByLot(containerRows, declarationEntityRows);
   const containerTypeRows = await executor.select({ id: s.containerTypes.id, name: s.containerTypes.name })
     .from(s.containerTypes);
   const containerTypeLabels = new Map(containerTypeRows.map((r) => [r.id, r.name]));
@@ -1045,6 +1070,7 @@ export async function getAccountingDebitBoard(query: {
       carrierKeys: carrierKeysForLot(phanXeRaw.get(lot.id) ?? []),
       ngay: lot.ngay,
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
+      customsNumber: (declarationNumbersByLot.get(lot.id) ?? []).join(', ') || null,
       containers: containersByLot.get(lot.id) ?? [],
       // Ticket 18/11 Task 2.2 — per-container vehicle facts aligned with
       // `containers` (same labels, stable id order); the board splits one

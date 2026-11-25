@@ -89,4 +89,23 @@ describe('FreightPreviewCard', () => {
     const { container } = renderCard({ customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10' });
     expect(container.querySelector('[data-freight-preview="manual"]')?.textContent).not.toMatch(/0 đ/);
   });
+
+  it('SIL-1050 (K2.61) — lô hết chuyến sống: không render tổng billable, chỉ dòng lý do trống', () => {
+    mockHook.mockReturnValue({ data: autoResult, isPending: false } as never);
+    const { container } = renderCard({
+      customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10',
+      lotHasLiveTrips: false,
+    });
+    expect(container.textContent).not.toContain('Tổng cước thu khách');
+    expect(container.textContent).not.toContain('5.071.744 ₫');
+    expect(container.textContent).toContain('Lô không có chuyến đang chạy');
+    // The reference quote lines stay (formula + cước gốc), not the whole card.
+    expect(container.textContent).toContain('Cước gốc sau chia sẻ');
+  });
+
+  it('SIL-1050 — create flow (prop undefined) giữ nguyên tổng billable', () => {
+    mockHook.mockReturnValue({ data: autoResult, isPending: false } as never);
+    const { container } = renderCard({ customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10' });
+    expect(container.textContent).toContain('Tổng cước thu khách');
+  });
 });

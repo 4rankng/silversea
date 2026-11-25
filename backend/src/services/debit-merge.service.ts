@@ -43,7 +43,7 @@ import type {
   ShipmentDebitDetail,
 } from '@tingting/shared';
 import { effectiveLclFreight } from './lcl-effective-freight';
-import { loadRevenueOverrideByLot } from './revenue-override-read.service';
+import { intakeFreezeCountsForLot, loadLotTripPresence, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { applyDebitRateOverridesToCells } from './accounting-debit-close.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { activeTripConditions } from './active-trip-scope';
@@ -501,8 +501,15 @@ export async function getDebitMergeBoard(query: {
       intake.set(lot, { ...leg, formulaNote: row.formulaText ?? null });
     }
   }
+  // SIL-1050 (K2.61) — chân đã hủy không tính cước: a lot whose every trip
+  // is CANCELED must not resurrect the intake freeze through the
+  // `tripLegs ?? intake` fallback (its priced legs drop out by the
+  // active-trip scope, and the fallback used to re-arm the pre-cancel price).
+  const tripPresence = await loadLotTripPresence(db, lotIds);
   for (const lot of lotIds) {
-    const pick = tripLegs.get(lot) ?? intake.get(lot);
+    const legs = tripLegs.get(lot);
+    const intakeRow = intake.get(lot);
+    const pick = legs ?? (intakeRow != null && intakeFreezeCountsForLot(tripPresence.get(lot)) ? intakeRow : undefined);
     if (pick !== undefined) psAutoByLot.set(lot, pick.surcharge);
   }
 
@@ -513,10 +520,11 @@ export async function getDebitMergeBoard(query: {
   for (const lot of lots) {
     const override = overrideByLot.get(lot.id) ?? null;
     const legs = tripLegs.get(lot.id);
+    const intakeRow = intake.get(lot.id);
     const snapshotChannel = legs !== undefined
       ? { total: legs.freight, formulaNote: null }
-      : (intake.get(lot.id) != null
-        ? { total: intake.get(lot.id)!.freight, formulaNote: intake.get(lot.id)!.formulaNote }
+      : (intakeRow != null && intakeFreezeCountsForLot(tripPresence.get(lot.id))
+        ? { total: intakeRow.freight, formulaNote: intakeRow.formulaNote }
         : null);
     effectiveFreightByLot.set(lot.id, effectiveLclFreight({
       snapshotChannel,

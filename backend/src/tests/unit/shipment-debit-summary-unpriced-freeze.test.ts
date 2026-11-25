@@ -42,12 +42,20 @@ interface GrainRow {
   formulaText: string | null;
 }
 
-function scriptedExecutor(rows: GrainRow[]) {
+function scriptedExecutor(
+  rows: GrainRow[],
+  // SIL-1050 — the loader's SECOND query (trip presence, no leftJoin) —
+  // default [] = never-dispatched lots, preserving every SIL-814 expectation.
+  tripPresenceRows: Array<{ shipmentId: number; totalTrips: number; activeTrips: number }> = [],
+) {
   return {
     select: () => ({
       from: () => ({
         leftJoin: () => ({
           where: () => rows,
+        }),
+        where: () => ({
+          groupBy: () => tripPresenceRows,
         }),
       }),
     }),
@@ -143,5 +151,36 @@ describe('loadFreightSnapshotChannelByLot — unpriced dummy freezes never read 
       [4],
     );
     assert.equal(channel.has(4), false);
+  });
+});
+
+describe('SIL-1050 (K2.61) — chân đã hủy không hồi sinh intake freeze', () => {
+  it('lô chỉ còn chuyến CANCELED: priced intake không được đọc lại thành cước', async () => {
+    // QA 25/11 (lô W4A1-FCL-03 sau Hủy phân xe): priced legs drop out by the
+    // active-trip scope, và fallback không được resurrect intake freeze.
+    const channel = await loadFreightSnapshotChannelByLot(
+      scriptedExecutor([pricedIntake(1241)], [{ shipmentId: 1241, totalTrips: 1, activeTrips: 0 }]),
+      [1241],
+    );
+    assert.equal(channel.has(1241), false, 'the canceled-only lot must read NO freight channel (trống), not the pre-cancel total');
+  });
+
+  it('lô còn chuyến sống: priced intake vẫn hồi sinh đúng luật SIL-814 (dummy dispatch freeze)', async () => {
+    const channel = await loadFreightSnapshotChannelByLot(
+      scriptedExecutor(
+        [dummyTripLeg(772), pricedIntake(772)],
+        [{ shipmentId: 772, totalTrips: 2, activeTrips: 1 }],
+      ),
+      [772],
+    );
+    assert.deepEqual(channel.get(772), { total: 3_952_000, formulaNote: pricedIntake(772).formulaText });
+  });
+
+  it('lô chưa từng phân xe (không có trip nào): intake-only lot vẫn tính một lần', async () => {
+    const channel = await loadFreightSnapshotChannelByLot(
+      scriptedExecutor([pricedIntake(300)], []),
+      [300],
+    );
+    assert.deepEqual(channel.get(300), { total: 3_952_000, formulaNote: pricedIntake(300).formulaText });
   });
 });

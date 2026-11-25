@@ -24,6 +24,46 @@ import type { Executor } from '../db';
 import { activeTripConditions } from './active-trip-scope';
 import { revManualPrice } from './lcl-effective-freight';
 
+/** SIL-1050 (K2.61) — per-lot trip presence over NON-deleted trips: `totalTrips`
+ *  counts every leg the lot ever had, `activeTrips` the live ones
+ *  (activeTripConditions). Script for the intake-freeze fallback decision. */
+export interface LotTripPresence {
+  totalTrips: number;
+  activeTrips: number;
+}
+
+/** SIL-1050 (K2.61) — chân đã hủy không tính cước. The trip-NULL intake
+ *  freeze (the pre-dispatch whole-lot approximation) may arm a lot's freight
+ *  ONLY when the lot never dispatched (presence absent — the intake-only lot
+ *  still counts once) or still holds live work (activeTrips > 0 — the
+ *  SIL-814 dummy-dispatch-freeze law keeps the priced intake row alive until
+ *  real pricing lands). A lot whose every trip is CANCELED must NOT resurrect
+ *  the intake freeze: its priced legs drop out by the active-trip scope and
+ *  the fallback used to re-arm the pre-cancel price (QA 25/11: lô W4A1-FCL-03
+ *  sau Hủy phân xe vẫn đọc 4.458.714₫ thay vì 0₫). */
+export function intakeFreezeCountsForLot(presence: LotTripPresence | undefined): boolean {
+  if (presence == null) return true;
+  if (presence.totalTrips === 0) return true;
+  return presence.activeTrips > 0;
+}
+
+export async function loadLotTripPresence(executor: Executor, lotIds: number[]): Promise<Map<number, LotTripPresence>> {
+  const presence = new Map<number, LotTripPresence>();
+  if (lotIds.length === 0) return presence;
+  const rows = await executor.select({
+    shipmentId: s.trips.shipmentId,
+    totalTrips: sql<number>`count(*)::int`,
+    activeTrips: sql<number>`count(*) filter (where ${s.trips.status} <> 'CANCELED')::int`,
+  }).from(s.trips)
+    .where(and(inArray(s.trips.shipmentId, lotIds), isNull(s.trips.deletedAt)))
+    .groupBy(s.trips.shipmentId);
+  for (const row of rows) {
+    if (row.shipmentId == null) continue;
+    presence.set(row.shipmentId, { totalTrips: Number(row.totalTrips), activeTrips: Number(row.activeTrips) });
+  }
+  return presence;
+}
+
 /** One lot's override-channel facts. */
 export interface RevenueOverrideFacts {
   /** Σ live-trip revenue; null when no live trip carries a revenue value —
@@ -244,13 +284,16 @@ export async function loadFreightSnapshotChannelByLot(
       intakeFreight.set(lot, { total: amount, formulaNote: row.formulaText ?? null });
     }
   }
+  // SIL-1050 (K2.61) — the intake freeze may not resurrect after a cancel:
+  // a lot whose every trip is CANCELED reads no freight channel at all.
+  const tripPresence = await loadLotTripPresence(executor, lotIds);
   for (const lot of lotIds) {
     const legs = tripLegFreight.get(lot);
     if (legs !== undefined) {
       snapshotChannelByLot.set(lot, { total: legs, formulaNote: null });
     } else {
       const intake = intakeFreight.get(lot);
-      if (intake != null) snapshotChannelByLot.set(lot, intake);
+      if (intake != null && intakeFreezeCountsForLot(tripPresence.get(lot))) snapshotChannelByLot.set(lot, intake);
     }
   }
   return snapshotChannelByLot;

@@ -13,13 +13,19 @@ import { formatCurrency } from '../../../lib/format';
  * ad-hoc runs outside the pricing engine).
  */
 export function FreightPreviewCard({
-  customerId, routeId, vehicleSizeClassCode, transportDate, isAdHoc,
+  customerId, routeId, vehicleSizeClassCode, transportDate, isAdHoc, lotHasLiveTrips,
 }: {
   customerId?: number;
   routeId?: number;
   vehicleSizeClassCode?: string;
   transportDate?: string;
   isAdHoc?: boolean;
+  /** SIL-1050 (K2.61) — existing-lot edit mode: false = the lot holds NO
+   *  live trip (hủy phân xe / chưa phân xe). The billable "Tổng cước thu
+   *  khách" must not present itself for work that is not running — the
+   *  quote lines stay as reference, the total row reads trống with the
+   *  reason. undefined = create flow, behaves exactly as before. */
+  lotHasLiveTrips?: boolean;
 }) {
   const input: FreightPreviewInput | null =
     customerId && routeId && vehicleSizeClassCode && transportDate && !isAdHoc
@@ -56,10 +62,18 @@ export function FreightPreviewCard({
         <span style={{ color: 'var(--ink-2)' }}>Phụ phí dầu chênh lệch</span>
         <span style={{ fontFamily: 'var(--font-data)' }}>{formatCurrency(data.surcharge)}</span>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: 4 }}>
-        <span>Tổng cước thu khách</span>
-        <span style={{ fontFamily: 'var(--font-data)' }}>{formatCurrency(data.total)}</span>
-      </div>
+      {lotHasLiveTrips === false ? (
+        // SIL-1050 (K2.61) — chân đã hủy không tính cước: no billable total
+        // for a lot without a live trip (trống), only the reference quote.
+        <div style={{ marginTop: 4, color: 'var(--ink-3)' }}>
+          Lô không có chuyến đang chạy — cước chưa chốt, không tính tổng
+        </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, marginTop: 4 }}>
+          <span>Tổng cước thu khách</span>
+          <span style={{ fontFamily: 'var(--font-data)' }}>{formatCurrency(data.total)}</span>
+        </div>
+      )}
     </div>
   );
 }
