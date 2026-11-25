@@ -1207,6 +1207,13 @@
       "when": 1795683600000,
       "tag": "20261126090000_pricing_tables_carrier_price",
       "breakpoints": true
+    },
+    {
+      "idx": 173,
+      "version": "7",
+      "when": 1795687200000,
+      "tag": "20261126100000_fuel_price_period_price_basis",
+      "breakpoints": true
     }
   ]
 }

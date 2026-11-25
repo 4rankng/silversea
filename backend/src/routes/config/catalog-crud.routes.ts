@@ -1041,6 +1041,7 @@ router.get('/fuel-price-periods', asyncHandler(async (_req: Request, res: Respon
   const rows = await db.select({
     id: s.fuelPricePeriods.id,
     unitPrice: s.fuelPricePeriods.unitPrice,
+    priceBasis: s.fuelPricePeriods.priceBasis,
     effectiveFrom: s.fuelPricePeriods.effectiveFrom,
     effectiveTo: s.fuelPricePeriods.effectiveTo,
     sourceNote: s.fuelPricePeriods.sourceNote,

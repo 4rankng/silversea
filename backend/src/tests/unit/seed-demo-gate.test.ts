@@ -173,8 +173,10 @@ describe('demo seed production gate (FB-061)', () => {
     }
     // KB §5.17 (CuocPhiPhuPhiDau.md §2.4): hai kỳ tham chiếu —
     // 11/07/2026 G = 21.740 và 18/07/2026 G = 27.620 (giá chưa VAT).
-    assert.match(source, /unitPrice: '21740\.00', effectiveFrom: '2026-07-11'/);
-    assert.match(source, /unitPrice: '27620\.00', effectiveFrom: '2026-07-18'/);
+    // SIL-1037: bản ghi kỳ giá ghi rõ cơ sở giá — các kỳ tham chiếu là
+    // giá chưa VAT (K5.23).
+    assert.match(source, /unitPrice: '21740\.00', priceBasis: 'PRE_VAT', effectiveFrom: '2026-07-11'/);
+    assert.match(source, /unitPrice: '27620\.00', priceBasis: 'PRE_VAT', effectiveFrom: '2026-07-18'/);
     // SIL-959 round 2 (staging build df7b2a73): the KB §5.15 surface must
     // converge to EXACTLY the 9-row ladder. Staging carried 4 stale
     // weight-split container norm rows (@ 2026-10-02, CONT20./CONT40.) from

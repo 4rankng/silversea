@@ -9,7 +9,7 @@ import { Drawer } from '../../components/UI';
 import { Alert } from '../../components/shared/Alert';
 import { CONFIG, Role } from '@tingting/shared';
 import { useAuth } from '../../hooks/useAuth';
-import { NumberField } from '../../design-system';
+import { NumberField, UuiSelectField } from '../../design-system';
 import type { FuelPricePeriodRow } from '../../api/pricingClient';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { quotationClient, type QuotationFuelApprovalRow } from '../../api/quotationClient';
@@ -227,11 +227,15 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
 }) {
   const [effectiveFrom, setEffectiveFrom] = useState(item?.effectiveFrom ?? '');
   const [unitPrice, setUnitPrice] = useState<number | ''>(item?.unitPrice ? Number(item.unitPrice) : '');
+  // SIL-1037 (K5.21/K5.23) — "phải ghi rõ giá chưa VAT hay đã quy đổi".
+  // Không chọn = không lưu được (không suy đoán cơ sở giá).
+  const [priceBasis, setPriceBasis] = useState(item?.priceBasis ?? '');
   const [sourceNote, setSourceNote] = useState(item?.sourceNote ?? '');
 
   const canSave = Boolean(effectiveFrom)
     && typeof unitPrice === 'number'
-    && unitPrice > 0;
+    && unitPrice > 0
+    && (priceBasis === 'PRE_VAT' || priceBasis === 'CONVERTED');
 
   return (
     <InlineForm colSpan={3}>
@@ -256,6 +260,18 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
           />
         </Field>
       </div>
+      <div style={{ flex: 1, minWidth: 170 }}>
+        <UuiSelectField
+          label="Cơ sở giá"
+          value={priceBasis}
+          onChange={e => setPriceBasis(e.target.value as 'PRE_VAT' | 'CONVERTED' | '')}
+          options={[
+            { value: '', label: '-- Chọn: chưa VAT / đã quy đổi --' },
+            { value: 'PRE_VAT', label: 'Chưa VAT' },
+            { value: 'CONVERTED', label: 'Đã quy đổi' },
+          ]}
+        />
+      </div>
       <div style={{ flex: 1, minWidth: 220 }}>
         <Field label="Ghi chú (tùy chọn)">
           <input
@@ -277,6 +293,7 @@ function FuelPricePeriodForm({ saving, item, onsave, oncancel, onDelete, deletin
           onsave({
             effectiveFrom,
             unitPrice,
+            priceBasis,
             ...(sourceNote.trim() ? { sourceNote: sourceNote.trim() } : {}),
           });
         }}
@@ -326,6 +343,13 @@ export default function FuelPricePeriodsConfigPage() {
             },
           },
           { header: 'Giá dầu (đ/lít)', width: 130, className: 'num', render: r => fmtPrice(r.unitPrice) },
+          {
+            // SIL-1037 (K5.21/K5.23) — cơ sở giá phải hiển thị được: chưa VAT
+            // hay đã quy đổi. Kỳ cũ chưa ghi → '—', không suy đoán.
+            header: 'Cơ sở giá',
+            width: 120,
+            render: r => (r.priceBasis === 'PRE_VAT' ? 'Chưa VAT' : r.priceBasis === 'CONVERTED' ? 'Đã quy đổi' : '—'),
+          },
           {
             header: 'Ghi chú',
             // SIL-466: one line, ellipsis + full-text title tooltip (owner

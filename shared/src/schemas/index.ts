@@ -1046,8 +1046,13 @@ export const liftPricingSchema = z.object({
 // Fuel price periods — one global DO-grade diesel price per period
 // (`fuel_price_periods`). Adding a row = a new period; `effectiveFrom` is the
 // unique business key (docx §2-A/§5-1). unitPrice is pre-VAT (12,2).
+// SIL-1037 (K5.21/K5.23): "nhập kỳ giá dầu phải ghi rõ giá chưa VAT hay đã
+// quy đổi" — priceBasis is REQUIRED on create ('PRE_VAT' = giá công bố đã
+// chưa VAT; 'CONVERTED' = giá đã quy đổi về chưa VAT). Legacy rows read
+// null and render '—'.
 export const fuelPricePeriodSchema = z.object({
   unitPrice: positiveNumeric,
+  priceBasis: z.enum(['PRE_VAT', 'CONVERTED']),
   effectiveFrom: isoDateOnlySchema,
   sourceNote: z.string().max(500).optional().nullable(),
 });

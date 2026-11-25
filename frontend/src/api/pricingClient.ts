@@ -9,6 +9,8 @@ export interface FuelPricePeriodRow {
   id: number;
   /** Fuel price G (d/lit, before VAT) — numeric(12,2) as string. */
   unitPrice: string;
+  /** SIL-1037 — 'PRE_VAT' (chưa VAT) | 'CONVERTED' (đã quy đổi); null = legacy. */
+  priceBasis: 'PRE_VAT' | 'CONVERTED' | null;
   effectiveFrom: string;
   /** Engine-owned window end; never edited in the UI. */
   effectiveTo: string | null;
@@ -93,11 +95,11 @@ export const pricingClient = {
     api.get<{ items: FuelPricePeriodRow[]; total: number }>(CONFIG.FUEL_PRICE_PERIODS),
 
   createFuelPricePeriod: (data: {
-    effectiveFrom: string; unitPrice: number; sourceNote?: string;
+    effectiveFrom: string; unitPrice: number; priceBasis: 'PRE_VAT' | 'CONVERTED'; sourceNote?: string;
   }) => api.post<FuelPricePeriodRow>(CONFIG.FUEL_PRICE_PERIODS, data),
 
   updateFuelPricePeriod: (id: number, data: Partial<{
-    effectiveFrom: string; unitPrice: number; sourceNote: string | null;
+    effectiveFrom: string; unitPrice: number; priceBasis: 'PRE_VAT' | 'CONVERTED'; sourceNote: string | null;
   }>) => api.put<FuelPricePeriodRow>(CONFIG.FUEL_PRICE_PERIOD(id), data),
 
   deleteFuelPricePeriod: (id: number) =>

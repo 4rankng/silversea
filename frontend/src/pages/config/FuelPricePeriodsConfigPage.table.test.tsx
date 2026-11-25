@@ -50,9 +50,9 @@ import type { FuelPricePeriodRow } from '../../api/pricingClient';
 const LONG_NOTE = 'cusonboard.txt Phần 6 — giá dầu kỳ tính toán thực tế; mốc hợp đồng 17.842,59 (26/02) nhưng trong freight_rate_terms.base_fuel_price';
 
 const ROWS: FuelPricePeriodRow[] = [
-  { id: 2, effectiveFrom: '2026-10-02', effectiveTo: null, unitPrice: '25760.00', sourceNote: LONG_NOTE, createdBy: null, createdByName: null },
-  { id: 3, effectiveFrom: '2027-01-01', effectiveTo: null, unitPrice: '22000.00', sourceNote: 'Kỳ dự kiến quý 1/2027', createdBy: 61, createdByName: 'Quản trị viên' },
-  { id: 1, effectiveFrom: '2026-06-01', effectiveTo: null, unitPrice: '21000.00', sourceNote: 'Petrolimex công bố kỳ 01/06', createdBy: 61, createdByName: 'Quản trị viên' },
+  { id: 2, effectiveFrom: '2026-10-02', effectiveTo: null, unitPrice: '25760.00', priceBasis: 'PRE_VAT', sourceNote: LONG_NOTE, createdBy: null, createdByName: null },
+  { id: 3, effectiveFrom: '2027-01-01', effectiveTo: null, unitPrice: '22000.00', priceBasis: 'CONVERTED', sourceNote: 'Kỳ dự kiến quý 1/2027', createdBy: 61, createdByName: 'Quản trị viên' },
+  { id: 1, effectiveFrom: '2026-06-01', effectiveTo: null, unitPrice: '21000.00', priceBasis: null, sourceNote: 'Petrolimex công bố kỳ 01/06', createdBy: 61, createdByName: 'Quản trị viên' },
 ];
 
 function renderPage() {

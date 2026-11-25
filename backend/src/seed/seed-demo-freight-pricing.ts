@@ -103,9 +103,10 @@ const CANONICAL_NORMS: Record<string, string> = {
 };
 
 // Real fuel prices from the customer's Excel (BG Long Minh T7) — not invented.
+// SIL-1037: the sheet's prices are pre-VAT quotes (K5.23 basis) — record it.
 const REAL_FUEL_PERIODS = [
-  { unitPrice: '21740.00', effectiveFrom: '2026-07-11', sourceNote: 'Sheet 11.7 - BG Long Minh T7.xlsx' },
-  { unitPrice: '27620.00', effectiveFrom: '2026-07-18', sourceNote: 'Sheet 18.7 - BG Long Minh T7.xlsx' },
+  { unitPrice: '21740.00', priceBasis: 'PRE_VAT', effectiveFrom: '2026-07-11', sourceNote: 'Sheet 11.7 - BG Long Minh T7.xlsx' },
+  { unitPrice: '27620.00', priceBasis: 'PRE_VAT', effectiveFrom: '2026-07-18', sourceNote: 'Sheet 18.7 - BG Long Minh T7.xlsx' },
 ] as const;
 
 // LONG MINH contract terms per route: share % / billed km one-way come from

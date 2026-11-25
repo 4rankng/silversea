@@ -349,6 +349,11 @@ export const fuelConsumptionNorms = pgTable('fuel_consumption_norms', {
 // Adding a row = new period; old rows kept for audit trail.
 export const fuelPricePeriods = pgTable('fuel_price_periods', {
   id: serial('id').primaryKey(),
+  // SIL-1037 (K5.21/K5.23) — "ghi rõ chưa VAT hay đã quy đổi": how the
+  // entered unitPrice relates to VAT. Both values land on the SAME
+  // pre-VAT comparison basis the engine needs; this records the provenance.
+  // Nullable = legacy rows written before the field existed (hiển thị —).
+  priceBasis: varchar('price_basis', { length: 20 }),
   // Fuel price (G), BEFORE VAT. Excel: 21740 (11/7) → 27620 (18/7).
   unitPrice: numeric('unit_price', { precision: 12, scale: 2 }).notNull(),
   effectiveFrom: date('effective_from').notNull(),

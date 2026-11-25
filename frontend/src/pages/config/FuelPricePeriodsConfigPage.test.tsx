@@ -17,12 +17,15 @@ vi.mock('../../api/quotationClient', () => ({
 }));
 
 let lastRenderForm: ((p: Record<string, unknown>) => ReactNode) | null = null;
+type ListColumn = { header: string; render: (r: Record<string, unknown>) => ReactNode };
+let lastColumns: ListColumn[] = [];
 
 vi.mock('../../components/config/CrudTable', async () => {
   const React = await import('react');
   return {
-    CrudTable: (props: { renderForm: (p: Record<string, unknown>) => ReactNode }) => {
+    CrudTable: (props: { renderForm: (p: Record<string, unknown>) => ReactNode; columns: ListColumn[] }) => {
       lastRenderForm = props.renderForm;
+      lastColumns = props.columns;
       return React.createElement('div', { 'data-testid': 'crud-table' });
     },
   };
@@ -116,20 +119,46 @@ describe('FuelPricePeriodsConfigPage — TC-CUOC-002 fuel price entry', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('sends { effectiveFrom, unitPrice number, sourceNote } on save', () => {
+  it('sends { effectiveFrom, unitPrice number, priceBasis, sourceNote } on save', async () => {
     renderPage();
     const onSave = vi.fn();
     const host = renderForm({ onSave });
 
     fillFuelForm(host.container as HTMLElement, '10/09/2026', '21740', 'Petrolimex 18/7');
+    // SIL-1037 (K5.21/K5.23): cơ sở giá phải được ghi rõ — chọn "Chưa VAT".
+    fireEvent.click(screen.getByRole('button', { name: /Cơ sở giá/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Chưa VAT' }));
     fireEvent.click(screen.getByText(SAVE));
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave).toHaveBeenCalledWith({
       effectiveFrom: '2026-09-10',
       unitPrice: 21740,
+      priceBasis: 'PRE_VAT',
       sourceNote: 'Petrolimex 18/7',
     });
+  });
+
+  it('SIL-1037: blocks save until cơ sở giá is chosen — date+price alone never saves', () => {
+    renderPage();
+    const onSave = vi.fn();
+    const host = renderForm({ onSave });
+
+    fillFuelForm(host.container as HTMLElement, '10/09/2026', '21740', '');
+    fireEvent.click(screen.getByText(SAVE));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('SIL-1037: the list shows the recorded basis — Chưa VAT / Đã quy đổi / — for legacy rows', () => {
+    renderPage();
+    const basis = lastColumns.find((c) => c.header === 'Cơ sở giá');
+    expect(basis).toBeTruthy();
+    render(<span>{basis!.render({ priceBasis: 'PRE_VAT' } as Record<string, unknown>)}</span>);
+    render(<span>{basis!.render({ priceBasis: 'CONVERTED' } as Record<string, unknown>)}</span>);
+    render(<span>{basis!.render({ priceBasis: null } as Record<string, unknown>)}</span>);
+    expect(screen.getByText('Chưa VAT')).toBeTruthy();
+    expect(screen.getByText('Đã quy đổi')).toBeTruthy();
+    expect(screen.getByText('—')).toBeTruthy();
   });
 
   it('card 20260922_61: pending banner surfaces the count and the drawer batch-list decides', async () => {
