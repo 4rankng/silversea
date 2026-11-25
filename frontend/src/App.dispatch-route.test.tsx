@@ -85,6 +85,16 @@ describe('SIL-862 — /dispatch mở cho đúng vai, không denial toast', () =>
     expect(await screen.findByTestId('ops-orders')).toBeTruthy();
   });
 
+  it('Giao nhận (legacy FORWARDER token) gõ thẳng /dispatch-detail cũng bị chuyển về /ops/orders như OPS', async () => {
+    // The denial announcement for this seat is the OPS test above; a same-path
+    // denial inside the 1.2s burst window announces once (QA2-003), so this
+    // pin asserts the redirect outcome the card asks for, order-independently.
+    authState.role = 'FORWARDER';
+    renderAt('/dispatch-detail');
+    expect(screen.queryByTestId('detail-plan')).toBeNull();
+    expect(await screen.findByTestId('ops-orders')).toBeTruthy();
+  });
+
   it('ACCOUNTANT mở /dispatch-detail (bảng điều vận đọc được — premise SIL-694)', async () => {
     authState.role = 'ACCOUNTANT';
     renderAt('/dispatch-detail');
