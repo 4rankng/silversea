@@ -313,11 +313,16 @@ export function debitMergeTongTcUnlocked(input: {
 
 export async function getDebitMergeBoard(query: {
   customerId?: number;
+  /** SIL-1022 — narrow the board to explicit lots (the cost-lock freeze). */
+  shipmentIds?: number[];
   team?: 'true' | 'false';
   actor?: AuthUser;
 }): Promise<DebitMergeResponse> {
   const conditions = [isNull(s.shipments.deletedAt)];
   if (query.customerId != null) conditions.push(eq(s.shipments.customerId, query.customerId));
+  if (query.shipmentIds != null && query.shipmentIds.length > 0) {
+    conditions.push(inArray(s.shipments.id, query.shipmentIds));
+  }
   conditions.push(...await debitMergeScopeConditions(db, query.actor, query.team));
   const lots = await db.select({
     id: s.shipments.id,

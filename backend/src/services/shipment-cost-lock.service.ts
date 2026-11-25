@@ -13,6 +13,7 @@ import { ApiError } from '../errors';
 import type { AuthUser } from '../middleware/auth';
 import type { Executor, Tx } from '../db';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
+import { getDebitMergeBoard } from './debit-merge.service';
 import { getShipmentDebitSummary } from './shipment-debit-summary.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
@@ -180,6 +181,21 @@ async function buildCostSnapshot(shipmentId: number, executor: Executor = db): P
       : new Map([[shipmentId, freightOverrideAmount]]),
   });
   const item = summary.items.find((row) => row.shipmentId === shipmentId);
+  // SIL-1022 (K6.15a) — the freeze must record the TỔNG TC the Ghép bộ Debit
+  // board actually displays, not the summary's receivable variant. The two
+  // live laws differ: the summary prices freight from total_amount (cước +
+  // phụ phí dầu merged) and sums raw customer_charge_amount, while the board
+  // bills freight_amount with the ops-charge contribution law (charge ?? paid
+  // for un-negotiated fees). Freezing the summary figure flipped the board's
+  // TỔNG TC the moment the lot was locked (lô 1225: 4.052.000₫ → 4.458.714₫,
+  // exactly +phụ phí −chi phí) and back on unlock. Freeze the board's own
+  // control.tongTc — the number the accountant saw when pressing Khóa lô.
+  const mergeBoard = await getDebitMergeBoard({ shipmentIds: [shipmentId] });
+  const mergeItem = mergeBoard.items.find((row) => row.shipmentId === shipmentId);
+  const mergeTongTc = mergeItem?.control.tongTc;
+  const frozenTongTc = mergeTongTc == null || mergeTongTc === ''
+    ? null
+    : Number.isFinite(Number(mergeTongTc)) ? Number(mergeTongTc) : null;
   const payables = await computeLotPayablesBreakdown(shipmentId);
   // Freeze contract: port labels join the frozen basis — a rename after the
   // lock must not rewrite the issued note's lift/drop columns. Per-container
@@ -219,7 +235,9 @@ async function buildCostSnapshot(shipmentId: number, executor: Executor = db): P
   return {
     freightAuto: item?.freightAuto ?? null,
     chiHoTotal: item?.chiHoTotal ?? null,
-    receivableTotal: item?.receivableTotal ?? null,
+    // SIL-1022 — the board's TỔNG TC (merge receivable law), no longer the
+    // summary's variant: locking must not change the number it displays.
+    receivableTotal: frozenTongTc,
     profit: item?.profit ?? null,
     // SIL-693 provenance (see the function doc): the classifier's verdict over
     // the shared grounds derivation. Intake-consistent scope (no dispatch
