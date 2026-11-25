@@ -59,7 +59,7 @@ const MENU_DANGER_BLOCK_H = 46;
  * external live trips so the old foot button could be removed without
  * losing the staff close flow.
  */
-export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, onChangeVehicle, triggerless = false, openRequest, onOpenRequestConsumed }: {
+export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onUnpairTrip, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, onChangeVehicle, triggerless = false, openRequest, onOpenRequestConsumed }: {
   row: DispatchDetailPlanRow;
   /** Opens the row's plan editor (the grid routes it to the cell's signal). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
@@ -74,6 +74,10 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   onOpenPair?: (row: DispatchDetailPlanRow) => void;
   /** SPEC 18/10/2026 §4 — dissolves the whole COST group (Lô 1 only). */
   onUnmergeLclGroup?: (groupId: string) => void;
+  /** SIL-1021 (KB Ch.3 §3.5 K3.50) — Hủy ghép cặp chuyến on a row whose
+   *  ACTIVE pair links it (pairKind set): both legs return to Đơn from one
+   *  action; the page owns the confirm + API call. */
+  onUnpairTrip?: (row: DispatchDetailPlanRow) => void;
   /** Card 211026005623 — the page's delete flow (confirm + lý do + role law). */
   onDeleteLot?: (row: DispatchDetailPlanRow) => void;
   /** Issue #13 (card 3-dòng) — external live trips close from the menu on
@@ -145,6 +149,13 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
     && !row.dispatch.pairKind
     && row.dispatch.tripStatus !== 'CANCELED';
   const canUnmergeGroup = onUnmergeLclGroup != null && lclGroup != null && lclGroup.order === 1;
+  // SIL-1021 (KB Ch.3 §3.5 K3.50) — a row riding an ACTIVE pair (pairKind
+  // set; the read service yields it only for ACTIVE) carries Hủy ghép. The
+  // paired row never shows Ghép chuyến (canPair demands !pairKind), so the
+  // two verbs never share a menu.
+  const canUnpair = onUnpairTrip != null
+    && row.dispatch.activePairId != null
+    && row.dispatch.pairKind != null;
   // SIL-590 (id 690) — gộp hàng phải chạy TẠI màn hình chi tiết: ungrouped
   // hàng-lẻ rows carry the in-place merge entry (a grouped row's group verbs
   // are Đổi nhà xe/BKS + Tách nhóm, and FB-095 refuses re-merge while
@@ -170,7 +181,7 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
     && canReassignIssuedTrip(row);
 
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
-  const itemCount = 1 + (canChangeVehicle ? 1 : 0) + (canCompleteExternal ? 1 : 0) + (canUpdateExternalPlate ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canStartLclMerge ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
+  const itemCount = 1 + (canChangeVehicle ? 1 : 0) + (canCompleteExternal ? 1 : 0) + (canUpdateExternalPlate ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canUnpair ? 1 : 0) + (canStartLclMerge ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
   const menuHeight = itemCount * MENU_ITEM_H + (onDeleteLot ? MENU_DANGER_BLOCK_H : 0) + 12;
 
   const placeAt = (anchor: { top: number; left: number; right: number; bottom: number } | null | undefined) => {
@@ -334,6 +345,23 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
         >
           <Link2 size={14} aria-hidden="true" />
           Ghép chuyến
+        </button>
+      )}
+      {/* SIL-1021 (KB Ch.3 §3.5 K3.50) — Hủy ghép: the paired row's inverse
+          verb. The page confirms, then POST /trips/pairs/:id/unpair — both
+          legs return to Đơn, lịch xe/cước/lương cập nhật theo từng lệnh. */}
+      {canUnpair && (
+        <button
+          type="button"
+          role="menuitem"
+          title="Hủy ghép cặp chuyến — 2 lệnh trở về Đơn, giữ nguyên lịch phân công hiện tại"
+          onClick={() => {
+            setOpen(false);
+            onUnpairTrip?.(row);
+          }}
+        >
+          <Unlink size={14} aria-hidden="true" />
+          Hủy ghép
         </button>
       )}
       {canUnmergeGroup && lclGroup && (

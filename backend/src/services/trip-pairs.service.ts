@@ -27,6 +27,7 @@ import {
   breakTripPairOnLateCompletion,
   buildTripPairSnapshot,
   canonicalizePairingLocation,
+  type TripPairBreakReason,
   type TripPairSnapshot,
 } from './trip-pairing.service';
 import { resolveCanonicalLocationsForTrips, type Tx } from './trip-shared';
@@ -500,6 +501,89 @@ export async function createTripPair(
   }));
 }
 
+/**
+ * SIL-1021 (KB Ch.3 §3.5 K3.50) — Hủy ghép: a created Kẹp/Kết hợp pair must
+ * be unpairable. The deliberate relation is undone, both legs survive with
+ * their own schedules (no re-assignment needed), and the pair's economics
+ * roll back exactly what pairing changed: the second trip's netted VETC toll
+ * is restored, the stashed standard wage returns (lương), and — SIL-1020 —
+ * both fulfillments' PHÂN LOẠI return to Đơn. Retry safety: an already
+ * broken pair answers the deterministic 409 below, never a second break.
+ */
+export async function unpairTripPair(
+  pairId: number,
+  actorId: number,
+  transaction?: Tx,
+): Promise<TripPairRecord> {
+  return runInTx(transaction, (tx) => unpairTripPairInTx(tx, pairId, actorId));
+}
+
+async function unpairTripPairInTx(tx: Tx, pairId: number, actorId: number): Promise<TripPairRecord> {
+  const [pair] = await tx.select({
+    id: s.tripPairs.id,
+    status: s.tripPairs.status,
+    pairKind: s.tripPairs.pairKind,
+    firstTripId: s.tripPairs.firstTripId,
+    secondTripId: s.tripPairs.secondTripId,
+    secondSalaryStash: s.tripPairs.secondSalaryStash,
+    actualGapMinutes: s.tripPairs.actualGapMinutes,
+  }).from(s.tripPairs).where(eq(s.tripPairs.id, pairId)).limit(1);
+  if (pair == null) {
+    throw new ApiError(404, 'Không tìm thấy cặp ghép');
+  }
+  // K3.50 "thử lại không nhân đôi": a second unpair on the same pair is a
+  // deterministic refusal, not a second break (double toll/salary restore).
+  if (pair.status !== 'ACTIVE') {
+    throw new ApiError(409, 'Cặp ghép này đã được gỡ trước đó.');
+  }
+  // Same accounting-lock posture as createTripPair: the break rewrites the
+  // pair's cước/lương block, so a lot locked by kế toán must refuse first.
+  const tripReferences = await tx.select({ shipmentId: s.trips.shipmentId })
+    .from(s.trips)
+    .where(and(inArray(s.trips.id, [pair.firstTripId, pair.secondTripId]), isNull(s.trips.deletedAt)));
+  const shipmentIds = [...new Set(tripReferences
+    .map((trip) => trip.shipmentId)
+    .filter((id): id is number => id != null))].sort((a, b) => a - b);
+  for (const shipmentId of shipmentIds) {
+    await assertShipmentAccountingUnlocked(tx, shipmentId);
+  }
+  // Both legs survive an unpair. The toll restore targets the second trip —
+  // pairing netted ITS VETC toll — so it rides `survivingTripId`; the salary
+  // stash restore is skipped only for a canceled second leg, which does not
+  // apply here.
+  await breakPersistedTripPair(tx, {
+    pairId: pair.id,
+    breakReason: 'UNPAIRED',
+    survivingTripId: pair.secondTripId,
+    lateByMinutes: null,
+    actualGapMinutes: pair.actualGapMinutes ?? null,
+    actorId,
+    firstTripId: pair.firstTripId,
+    secondTripId: pair.secondTripId,
+    secondSalaryStash: pair.secondSalaryStash != null ? Number(pair.secondSalaryStash) : null,
+  });
+  const [updated] = await tx.select({
+    id: s.tripPairs.id,
+    status: s.tripPairs.status,
+    pairKind: s.tripPairs.pairKind,
+    firstTripId: s.tripPairs.firstTripId,
+    secondTripId: s.tripPairs.secondTripId,
+    emptyDistanceKm: s.tripPairs.emptyDistanceKm,
+    combinedEfficiencyPercent: s.tripPairs.combinedEfficiencyPercent,
+    requiredGapMinutes: s.tripPairs.requiredGapMinutes,
+    actualGapMinutes: s.tripPairs.actualGapMinutes,
+    breakReason: s.tripPairs.breakReason,
+    survivingTripId: s.tripPairs.survivingTripId,
+    lateByMinutes: s.tripPairs.lateByMinutes,
+    createdBy: s.tripPairs.createdBy,
+    brokenBy: s.tripPairs.brokenBy,
+    brokenAt: s.tripPairs.brokenAt,
+    createdAt: s.tripPairs.createdAt,
+    updatedAt: s.tripPairs.updatedAt,
+  }).from(s.tripPairs).where(eq(s.tripPairs.id, pairId)).limit(1);
+  return serializePairRecord(updated);
+}
+
 /** Arguments of the pairing core. `firstDraft`/`secondDraft` carry the
  *  dispatcher's dialog drafts (manual path — the only path since SIL-668
  *  removed the automatic pairing trigger). */
@@ -851,7 +935,7 @@ async function clearActivePairOnTrips(tx: Tx, tripIds: number[]) {
 
 async function breakPersistedTripPair(tx: Tx, args: {
   pairId: number;
-  breakReason: 'FIRST_TRIP_CANCELED' | 'SECOND_TRIP_CANCELED' | 'LATE_COMPLETION';
+  breakReason: TripPairBreakReason;
   survivingTripId: number | null;
   lateByMinutes: number | null;
   actualGapMinutes?: number | null;

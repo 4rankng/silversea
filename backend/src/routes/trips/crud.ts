@@ -18,7 +18,7 @@ import { config } from '../../config';
 import * as tripService from '../../services/trip.service';
 import { getTripFactorySiteView } from '../../services/trip-factory-site.service';
 import { buildTripBreakdown } from '../../services/trip-completion-economics.service';
-import { createTripPair } from '../../services/trip-pairs.service';
+import { createTripPair, unpairTripPair } from '../../services/trip-pairs.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
 import { parsePagination } from '../utils/pagination';
@@ -117,6 +117,31 @@ router.post('/pairs', declareMaterialWrite('trips.pairs.create', { method: 'POST
   });
   if (!replayed) await invalidateReportCaches();
   res.status(201).json(idempotencyKey ? { ...pair, replayed } : pair);
+}));
+
+// SIL-1021 (KB Ch.3 §3.5 K3.50) — Hủy ghép: unpair a created Kẹp/Kết hợp
+// pair. Both legs survive with their own schedules; the pair's cước/lương
+// roll back (toll restore + wage stash) and the PHÂN LOẠI stamp returns to
+// Đơn (SIL-1020). Declared BEFORE /:id so 'pairs' is never parsed as an id.
+router.post('/pairs/:id/unpair', declareMaterialWrite('trips.pairs.unpair', { method: 'POST', path: '/api/trips/pairs/:id/unpair' }),  requireRoles(Role.ADMIN, Role.MANAGER, Role.DISPATCHER), asyncHandler(async (req: Request, res: Response) => {
+  const pairId = Number(req.params.id);
+  if (!Number.isInteger(pairId) || pairId <= 0) {
+    throw new ApiError(400, 'ID cặp ghép không hợp lệ');
+  }
+  const user = getUser(req);
+  const idempotencyKey = getRequestIdempotencyKey(req);
+  const { result: pair, replayed } = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_PAIR_UNPAIR,
+    idempotencyKey,
+    payload: { actorId: user.userId, pairId },
+    createdBy: user.userId,
+    entityType: 'trip_pair',
+    create: (tx) => unpairTripPair(pairId, user.userId, tx),
+    getEntityId: (result) => result.id,
+  });
+  if (!replayed) await invalidateReportCaches();
+  res.locals.auditEntityId = pair.id;
+  res.json(idempotencyKey ? { ...pair, replayed } : pair);
 }));
 
 // Get trip detail with legs

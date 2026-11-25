@@ -255,6 +255,10 @@ export default function DispatchDetailPlanPage() {
   // guard copy names the SPEC §4 promotion before the server moves the money.
   const [unmergeLot, setUnmergeLot] = useState<LclUnmergeLotRequest | null>(null);
   const [unmergingLot, setUnmergingLot] = useState(false);
+  // SIL-1021 (KB Ch.3 §3.5 K3.50) — the Hủy ghép confirm row: a paired
+  // dispatch row whose ACTIVE trip pair the dispatcher wants to undo.
+  const [unpairRow, setUnpairRow] = useState<DispatchDetailPlanRow | null>(null);
+  const [unpairing, setUnpairing] = useState(false);
   // Card 191026100010 (DV-B1-03/04) — "Đổi BKS nhóm": page sở hữu dialog +
   // refetch (cùng luật wiring của Hủy ghép / Gán xe nhóm); hai affordance
   // (menu nhóm trên grid + dòng nhóm trong popup điều phối) cùng raise dòng.
@@ -370,6 +374,27 @@ export default function DispatchDetailPlanPage() {
     setDeleteRow(row);
   }
 
+  // SIL-1021 (KB Ch.3 §3.5 K3.50) — Hủy ghép cặp chuyến: POST
+  // /api/trips/pairs/:id/unpair. Both legs survive with their own schedules;
+  // the server restores the second leg's toll/wage and both PHÂN LOẠI stamps
+  // (SIL-1020) return to Đơn. A refusal (accounting lock, already-unpaired
+  // 409) surfaces verbatim; a retry after success is the deterministic 409,
+  // never a second break.
+  async function confirmUnpairTrip() {
+    if (!unpairRow?.dispatch.activePairId) return;
+    setUnpairing(true);
+    try {
+      await tripClient.unpairPair(unpairRow.dispatch.activePairId);
+      toast({ kind: 'success', message: `Đã hủy ghép — các lệnh của lô ${unpairRow.shipmentCode ?? ''} trở về Đơn.` });
+      setUnpairRow(null);
+      void detailPlan.refresh();
+    } catch (err) {
+      toast({ kind: 'error', message: err instanceof Error ? err.message : 'Hủy ghép cặp chuyến thất bại' });
+    } finally {
+      setUnpairing(false);
+    }
+  }
+
   // Card 211026005623 — delete flow: version-gated soft-delete (the same
   // DELETE /api/shipments/cus-workspace/:id the CUS surfaces call). The
   // FB-095 group guards (settled-group 409, promote-on-delete) run
@@ -441,6 +466,7 @@ export default function DispatchDetailPlanPage() {
             // open so the candidates always reflect the issued pairs.
             void detailPlan.refresh();
           }}
+          onUnpairTrip={setUnpairRow}
           onEnsureFulfillment={detailPlan.ensureFulfillment}
           autoOpenFulfillmentId={detailPlan.autoOpenFulfillmentId}
           onAutoOpenConsumed={detailPlan.consumeAutoOpen}
@@ -653,6 +679,17 @@ export default function DispatchDetailPlanPage() {
         confirmLabel={unmergingLot ? 'Đang hủy…' : 'Hủy ghép'}
         onConfirm={() => void confirmUnmergeLot()}
         onCancel={() => { if (!unmergingLot) setUnmergeLot(null); }}
+      />
+
+      {/* SIL-1021 (KB Ch.3 §3.5 K3.50) — Hủy ghép cặp chuyến: K3.50 says the
+          unpair needs no approval flow beyond this one confirm, updates
+          lịch xe/cước/lương and leaves no duplicate schedule. */}
+      <ConfirmDialog
+        isOpen={unpairRow != null}
+        message={`Hủy ghép cặp chuyến của lô ${unpairRow?.shipmentCode ?? ''}? Cả 2 lệnh trở về Đơn và giữ nguyên lịch phân công hiện tại; cước và lương cập nhật về giá trị từng lệnh riêng lẻ.`}
+        confirmLabel={unpairing ? 'Đang hủy ghép…' : 'Hủy ghép'}
+        onConfirm={() => void confirmUnpairTrip()}
+        onCancel={() => { if (!unpairing) setUnpairRow(null); }}
       />
 
       {/* Card 211026005623 — the lot-delete confirm (shared CUS/Điều vận

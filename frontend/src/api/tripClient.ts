@@ -160,6 +160,11 @@ export const tripClient = {
 
   createPair: (data: CreateTripPairRequest) => api.post<TripPairRecord>(TRIPS.PAIRS, data),
 
+  /** SIL-1021 (KB Ch.3 §3.5 K3.50) — Hủy ghép: both legs survive with their
+   *  own schedules; the pair's cước/lương roll back server-side. */
+  unpairPair: (pairId: number) =>
+    api.post<TripPairRecord>(`${TRIPS.PAIRS}/${pairId}/unpair`, {}),
+
   lockTrip: (id: number, confirmZeroRevenue?: boolean, confirmNoPhoto?: boolean) =>
     api.post<Trip>(TRIPS.LOCK(id), { confirmZeroRevenue, confirmNoPhoto }),
 

@@ -180,6 +180,7 @@ export const IDEMPOTENCY_ENDPOINTS = {
   SALARY_WORKDAYS: 'salary.workdays',
   PROFIT_DISTRIBUTE: 'profit-distribute.execute',
   TRIP_PAIR_CREATE: 'trips.pairs.create',
+  TRIP_PAIR_UNPAIR: 'trips.pairs.unpair',
   TRIP_BULK_FIGURES: 'trips.bulk-figures',
   TRIP_FINANCIAL_CLOSE: 'trips.financial-close',
   TRIP_COMPLETED_CANCEL: 'trips.completed-cancel',

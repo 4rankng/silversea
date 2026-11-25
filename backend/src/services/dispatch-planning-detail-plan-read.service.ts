@@ -792,6 +792,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
               : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
                 ? couplingByPlate.get(row.plannedVehiclePlateNumber)?.type ?? null
                 : null,
+            // SIL-1021 — the ACTIVE pair's id: the Hủy ghép verb targets the
+            // pair row itself (both legs unpair from one action).
+            activePairId: row.pairStatus === 'ACTIVE' && row.activeTripPairId != null
+              ? row.activeTripPairId
+              : null,
             pairKind: row.pairStatus === 'ACTIVE' && (row.pairKind === 'KEP' || row.pairKind === 'KET_HOP')
               ? row.pairKind
               : null,

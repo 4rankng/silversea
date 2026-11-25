@@ -86,7 +86,7 @@ function makeRow(overrides: {
   } as unknown as DispatchDetailPlanRow;
 }
 
-function renderGrid(row: DispatchDetailPlanRow, props: { onCancelDispatch?: (row: DispatchDetailPlanRow) => void; onUpdateExternalPlate?: (row: DispatchDetailPlanRow) => void; onLclTruckUpdated?: () => void; onOpenPair?: (row: DispatchDetailPlanRow) => void; onUnmergeLclGroup?: (groupId: string) => void; onDeleteLot?: (row: DispatchDetailPlanRow) => void; onStartLclMerge?: (row: DispatchDetailPlanRow) => void } = {}) {
+function renderGrid(row: DispatchDetailPlanRow, props: { onCancelDispatch?: (row: DispatchDetailPlanRow) => void; onUpdateExternalPlate?: (row: DispatchDetailPlanRow) => void; onLclTruckUpdated?: () => void; onOpenPair?: (row: DispatchDetailPlanRow) => void; onUnmergeLclGroup?: (groupId: string) => void; onDeleteLot?: (row: DispatchDetailPlanRow) => void; onStartLclMerge?: (row: DispatchDetailPlanRow) => void; onUnpairTrip?: (row: DispatchDetailPlanRow) => void } = {}) {
   return render(
     <MemoryRouter>
       <QueryClientProvider client={new QueryClient()}>
@@ -117,6 +117,7 @@ function renderGrid(row: DispatchDetailPlanRow, props: { onCancelDispatch?: (row
             onOpenPair={props.onOpenPair}
             onUnmergeLclLot={vi.fn()}
             onUnmergeLclGroup={props.onUnmergeLclGroup}
+            onUnpairTrip={props.onUnpairTrip}
             onDeleteLot={props.onDeleteLot}
             onLclTruckUpdated={props.onLclTruckUpdated}
             onStartLclMerge={props.onStartLclMerge}
@@ -401,5 +402,53 @@ describe('SIL-590 — row menu "Gộp hàng" enters the merge mode in place', ()
     renderGrid(makeRow({ lclGroup: null }), {});
     fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
     expect(screen.queryByRole('menuitem', { name: 'Gộp hàng' })).toBeNull();
+  });
+});
+
+// SIL-1021 (KB Ch.3 §3.5 K3.50) — a row riding an ACTIVE Kẹp/Kết hợp pair
+// carries the Hủy ghép verb; the unpaired inverse (Ghép chuyến) never shares
+// the menu with it. Without the handler (or the pair facts) the entry
+// disappears — the verb is the page's opt-in, not a grid default.
+describe('SIL-1021 — row menu Hủy ghép on a paired row', () => {
+  const pairedOwnRow = () => makeRow({
+    cargoMode: 'FCL',
+    lclGroup: null,
+    taskStatus: 'DISPATCHED',
+    dispatch: {
+      carrierType: 'OWN',
+      carrierName: 'SilverSea',
+      externalCarrierId: null,
+      externalCarrierVehicleId: null,
+      assignedPlate: '15C-167.31',
+      tripId: 597,
+      tripStatus: 'CREATED',
+      activePairId: 50,
+      pairKind: 'KEP',
+    },
+  });
+
+  it('a paired row shows Hủy ghép and routes to the page handler', () => {
+    const onUnpairTrip = vi.fn();
+    renderGrid(pairedOwnRow(), { onUnpairTrip });
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hủy ghép' }));
+    expect(onUnpairTrip).toHaveBeenCalledTimes(1);
+    expect(onUnpairTrip.mock.calls[0][0].dispatch.activePairId).toBe(50);
+  });
+
+  it('a paired row never offers Ghép chuyến alongside Hủy ghép', () => {
+    renderGrid(pairedOwnRow(), { onUnpairTrip: vi.fn(), onOpenPair: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Ghép chuyến' })).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'Hủy ghép' })).toBeTruthy();
+  });
+
+  it('an unpaired row offers no Hủy ghép even with the handler wired', () => {
+    const unpaired = pairedOwnRow();
+    (unpaired.dispatch as Record<string, unknown>).activePairId = null;
+    (unpaired.dispatch as Record<string, unknown>).pairKind = null;
+    renderGrid(unpaired, { onUnpairTrip: vi.fn() });
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Hủy ghép' })).toBeNull();
   });
 });

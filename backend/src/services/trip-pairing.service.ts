@@ -15,7 +15,9 @@ export type TripPairingBlockCode =
 export type TripPairBreakReason =
   | 'FIRST_TRIP_CANCELED'
   | 'SECOND_TRIP_CANCELED'
-  | 'LATE_COMPLETION';
+  | 'LATE_COMPLETION'
+  /** SIL-1021 (KB Ch.3 §3.5 K3.50) — dispatcher's Hủy ghép: both legs live. */
+  | 'UNPAIRED';
 
 export interface TripPairingCandidate {
   tripId: number;

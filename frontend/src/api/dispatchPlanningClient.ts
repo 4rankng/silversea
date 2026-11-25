@@ -392,6 +392,9 @@ export interface DispatchDetailPlanRow {
      *  Optional for older fixtures. */
     assignedTrailerPlate?: string | null;
     assignedTrailerType?: string | null;
+    /** SIL-1021 — the ACTIVE pair's id (null when unpaired): the row ⋯ menu's
+     *  Hủy ghép verb targets the pair row, both legs from one action. */
+    activePairId?: number | null;
     pairKind?: 'KEP' | 'KET_HOP' | null;
   };
   estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };

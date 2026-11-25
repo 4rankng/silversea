@@ -188,6 +188,9 @@ interface DetailedPlanGridProps {
   /** SPEC 18/10/2026 §4 — dispatch-side "Tách nhóm" for a COST group. Shown
    *  on the principal row only (one action per group). */
   onUnmergeLclGroup?: (groupId: string) => void;
+  /** SIL-1021 (KB Ch.3 §3.5 K3.50) — the row ⋯ menu's "Hủy ghép" on a paired
+   *  row: unpair the ACTIVE trip pair, both legs return to Đơn. */
+  onUnpairTrip?: (row: DispatchDetailPlanRow) => void;
   /** SIL-590 (id 690) — the row ⋯ menu's "Gộp hàng": enters the page's
    *  on-demand merge mode with this row pre-picked, so gộp hàng lẻ happens
    *  in place on this screen (never a navigation to Kế hoạch Tổng quát).
@@ -276,6 +279,7 @@ export function DetailedPlanGrid({
   onBulkIssueSelected,
   bulkIssueBusy,
   onUnmergeLclGroup,
+  onUnpairTrip,
   onUnmergeLclLot,
   onLclTruckUpdated,
   onChangeGroupTruck,
@@ -1279,6 +1283,7 @@ export function DetailedPlanGrid({
                         onUpdateExternalPlate={onUpdateExternalPlate}
                         onOpenPair={onOpenPair}
                         onUnmergeLclGroup={onUnmergeLclGroup}
+                        onUnpairTrip={onUnpairTrip}
                         onDeleteLot={onDeleteLot}
                         onCompleteExternalTrip={onCompleteExternalTrip}
                         onStartLclMerge={onStartLclMerge}
