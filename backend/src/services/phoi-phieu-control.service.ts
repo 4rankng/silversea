@@ -88,6 +88,23 @@ function isExcludedOpsNangHaSource(
     && !isDispatchIntakeLot(intakeRoleByShipment.get(source.shipmentId));
 }
 
+/** SIL-1014 (CR-011 Task 3.1 fix 3, Spec §5.1.6/§6.2) — the ONE money-partition
+ *  rule for driver costs: a khoản chi belongs EITHER to the TIỀN ĐƯỜNG surfaces
+ *  (the "Chi tiết tiền đường" dialog + the Tiền đường column) OR to the
+ *  "CHI PHÍ PHÁT SINH / SỐ HĐ" column — never both. Explicit costGroup wins;
+ *  legacy NULL-group rows follow the same fallback the write path and the
+ *  driver cost form use (TOLL/PARKING/PER_DIEM are road money, everything
+ *  else is a lot cost — ShipmentCostEntryForm.tableGroupOf). */
+function effectiveDriverCostGroup(
+  costGroup: string | null | undefined,
+  costType: string,
+): 'DRIVER_ROAD' | 'DRIVER_SHIPMENT' {
+  if (costGroup === 'DRIVER_ROAD' || costGroup === 'DRIVER_SHIPMENT') return costGroup;
+  return costType === 'TOLL' || costType === 'PARKING' || costType === 'PER_DIEM'
+    ? 'DRIVER_ROAD'
+    : 'DRIVER_SHIPMENT';
+}
+
 /** Batched creator-role read for the source rule (ticket 18/11 Task 3.1): ONE
  *  shipments⋈users read per shipment set — never a per-row lookup. Executor
  *  injected so the consolidated phiếu transaction shares the same rule read. */
@@ -507,9 +524,11 @@ export async function listPhoiPhieuRows(query: {
   const driverByTrip = new Map<number, typeof driverSources>();
   for (const source of driverSources) {
     if (source.tripId == null) continue;
-    // Task 3.1: Do not duplicate DRIVER_ROAD costs (e.g. Chi công nhân tại kho)
-    // in the CHI PHÍ PHÁT SINH / SỐ HĐ column — they belong exclusively to TIỀN ĐƯỜNG.
-    if (source.costGroup === 'DRIVER_ROAD') continue;
+    // SIL-1014: road money (explicit DRIVER_ROAD, or legacy TOLL/PARKING/PER_DIEM
+    // on a NULL-group row) never enters the CHI PHÍ PHÁT SINH / SỐ HĐ column —
+    // it lives exclusively on the TIỀN ĐƯỜNG surfaces; every other driver cost
+    // is column-only and must not list in the tiền-đường dialog.
+    if (effectiveDriverCostGroup(source.costGroup, source.costType) === 'DRIVER_ROAD') continue;
     const bucket = driverByTrip.get(source.tripId) ?? [];
     bucket.push(source);
     driverByTrip.set(source.tripId, bucket);
@@ -523,6 +542,8 @@ export async function listPhoiPhieuRows(query: {
   const allRoadRows = await db.select({
     tripId: s.expenseAccountingSources.tripId,
     amount: s.driverIncidentalCosts.amount,
+    costGroup: s.driverIncidentalCosts.costGroup,
+    costType: s.driverIncidentalCosts.costType,
     confirmedAt: s.expenseAccountingSources.confirmedAt,
   })
     .from(s.expenseAccountingSources)
@@ -534,6 +555,11 @@ export async function listPhoiPhieuRows(query: {
   const pendingRoadRows = new Map<number, Array<{ amount: string }>>();
   for (const row of allRoadRows) {
     if (row.tripId == null) continue;
+    // SIL-1014: the Tiền đường cell (đã duyệt + chờ duyệt) sums ROAD money
+    // only — exactly the rows the "Chi tiết tiền đường" dialog lists, so the
+    // column total equals the dialog total by construction; lot costs feed
+    // only the CHI PHÍ PHÁT SINH column items.
+    if (effectiveDriverCostGroup(row.costGroup, row.costType) !== 'DRIVER_ROAD') continue;
     if (row.confirmedAt != null) {
       const bucket = confirmedRoadRows.get(row.tripId) ?? [];
       bucket.push({ amount: row.amount });
@@ -1372,6 +1398,7 @@ export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor =
   const rows = await executor.select({
     id: s.driverIncidentalCosts.id,
     costType: s.driverIncidentalCosts.costType,
+    costGroup: s.driverIncidentalCosts.costGroup,
     feeName: s.driverIncidentalCosts.feeName,
     driverEnteredAmount: s.driverIncidentalCosts.driverEnteredAmount,
     amount: s.driverIncidentalCosts.amount,
@@ -1405,7 +1432,14 @@ export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor =
       or(isNull(s.expenseAccountingSources.id), ne(s.expenseAccountingSources.status, 'VOIDED'))))
     .orderBy(asc(s.driverIncidentalCosts.id));
   void s.trips;
-  const feeRows: PhoiPhieuTienDuongRow[] = rows.map((row) => ({
+  // SIL-1014 (CR-011 §5.1.6/§6.2): the dialog lists TIỀN ĐƯỜNG money only —
+  // a lot cost (Phí nâng, Chi công nhân tại kho theo nhóm Chi phí lô hàng, …)
+  // already lives in the board's CHI PHÍ PHÁT SINH / SỐ HĐ column and must
+  // not appear twice. The SAME partition feeds the Tiền đường column sums, so
+  // column total = dialog total by construction.
+  const feeRows: PhoiPhieuTienDuongRow[] = rows
+    .filter((row) => effectiveDriverCostGroup(row.costGroup, row.costType) === 'DRIVER_ROAD')
+    .map((row) => ({
     // Fall back to the cost id only for a genuinely unlinked legacy cost (no
     // accounting source at all), which is the pre-existing display behaviour.
     sourceId: row.sourceTableId ?? row.id,
