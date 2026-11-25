@@ -78,10 +78,17 @@ describe('SIL-990 — the pinned band keeps the scrollable area the majority', (
     expect(tablet).toMatch(/\.ts-report tbody td:nth-child\(2\),\s*\.ts-report tbody td:nth-child\(4\) \{[^}]*position:\s*static;[^}]*left:\s*auto;/s);
   });
 
-  it('unpins Lái xe in the phone band too', () => {
+  it('unpins Lái xe in the phone band too (rider under the pinned band at z 3)', () => {
     const phone = css.slice(css.indexOf('@media (max-width: 767px)'));
-    expect(phone).toMatch(/\.ts-report thead th:nth-child\(5\):not\(\[colspan\]\) \{[^}]*left:\s*auto;/s);
+    expect(phone).toMatch(/\.ts-report thead th:nth-child\(5\):not\(\[colspan\]\) \{[^}]*left:\s*auto;[^}]*z-index:\s*3;/s);
     expect(phone).toMatch(/\.ts-report tbody td:nth-child\(5\) \{[^}]*position:\s*static;[^}]*left:\s*auto;/s);
+  });
+
+  it('phone band is 44 + 116 = 160px — the 44px left cascades from the tablet block', () => {
+    const tablet = css.slice(css.indexOf('@media (max-width: 1023px)'), css.indexOf('@media (max-width: 767px)'));
+    // The tablet repin (44px) is the only source of column 3's phone left;
+    // if it ever moves, the phone band (STT 44 + Biển kiểm soát 116) breaks.
+    expect(tablet).toMatch(/th:nth-child\(3\):not\(\[colspan\]\),\s*\.ts-report tbody td:nth-child\(3\) \{\s*left:\s*44px;/s);
   });
 
   it('keeps the vertical header pin — only the horizontal pin is dropped', () => {

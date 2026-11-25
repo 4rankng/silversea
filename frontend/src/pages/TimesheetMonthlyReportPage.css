@@ -275,8 +275,15 @@ table.ts-report thead th.ts-report__th--summary {
 }
 
 @media (max-width: 767px) {
+  /* Phone band = STT · Biển kiểm soát only: 44 + 116 = 160px of the 374px
+     scroll viewport (43%). The 44px left for column 3 cascades from the
+     tablet block above; this block only drops 'Lái xe' from the set. The
+     riding header drops to z 3 for the same reason as its tablet
+     siblings — at the inherited z 4 it would paint over the pinned
+     'Biển kiểm soát' header while sliding out. */
   .ts-report thead th:nth-child(5):not([colspan]) {
     left: auto;
+    z-index: 3;
   }
 
   .ts-report tbody td:nth-child(5) {
