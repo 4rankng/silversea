@@ -289,3 +289,61 @@ describe('PairTripsDialog', () => {
     expect(onClose).toHaveBeenCalled();
   }, 20_000);
 });
+
+// SIL-1047 (KB §8.1.2 K8.3) — the Ghép chuyến partner list itself obeys the
+// size law: a 40ft order is never suggested as a Kẹp partner for a 20ft
+// order, and Kết hợp drops proven size mismatches — the server's hard block
+// ("Không đủ điều kiện kẹp hàng: hai lệnh phải dùng cùng một biển số xe"
+ // answered the QA repro instead of the 40ft rule) stays a backstop, never
+// the first answer. Same-size 40+40 Kết hợp stays legal and listed.
+describe('PairTripsDialog — SIL-1047 partner size law', () => {
+  const sized = (tripId: number, containerNumber: string, code: string): DispatchDetailPlanRow => row(tripId, {
+    docs: { billNumber: `BL-${tripId}`, tradeDirection: 'EXPORT', declarationNumbers: [] },
+    container: { containerNumber, containerTypeLabel: code, cargoWeightKg: '11000.00' },
+    pricing: { customerId: 5, routeId: 6, containerTypeCode: code },
+  });
+  const base20 = sized(900, 'MSKU9999139', '20DC');
+  const partner20 = sized(901, 'MSKU9999140', '20DC');
+  const partner40 = sized(902, 'MSKU9999150', '40DC');
+
+  function renderFor(base: DispatchDetailPlanRow, candidates: DispatchDetailPlanRow[]) {
+    const baseTripId = base.dispatch.tripId ?? undefined;
+    useTripDetailMock.mockReturnValue({ data: tripDetail({ id: baseTripId }), isLoading: false });
+    return render(
+      <PairTripsDialog
+        row={base}
+        candidates={candidates}
+        onClose={vi.fn()}
+        onPaired={vi.fn()}
+      />,
+    );
+  }
+
+  async function openPartnerList(expectedPartner: RegExp) {
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    // Wait on the EXPECTED partner so the assertion proves the listbox is
+    // open (a bare 'option' query matches both selects' collections).
+    await screen.findByRole('option', { name: expectedPartner });
+  }
+
+  it('a provable 40ft order never appears in the partner list of a 20ft base (default Kết hợp)', async () => {
+    renderFor(base20, [partner20, partner40]);
+    await openPartnerList(/MSKU9999140/);
+    expect(screen.queryByRole('option', { name: /MSKU9999150/ })).toBeNull();
+  });
+
+  it('switching to Kẹp keeps the 40ft order out and the 20ft sibling suggested', async () => {
+    renderFor(base20, [partner20, partner40]);
+    fireEvent.click(screen.getByRole('button', { name: /Kết hợp — tái dùng vỏ/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /Kẹp — 2 cont 20' chạy cùng lúc/ }));
+    await openPartnerList(/MSKU9999140/);
+    expect(screen.queryByRole('option', { name: /MSKU9999150/ })).toBeNull();
+  });
+
+  it('same-size 40+40 Kết hợp stays suggested — the law is same-size, not 20-only', async () => {
+    const base40 = sized(900, 'MSKU9999165', '40DC');
+    renderFor(base40, [partner40, partner20]);
+    await openPartnerList(/MSKU9999150/);
+    expect(screen.queryByRole('option', { name: /MSKU9999140/ })).toBeNull();
+  });
+});

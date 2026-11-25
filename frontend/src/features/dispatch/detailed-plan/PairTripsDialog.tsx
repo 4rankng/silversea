@@ -8,6 +8,7 @@ import { DisabledActionTip } from '../../../components/shared/DisabledActionTip'
 import { Modal, useConfirm } from '../../../components/UI';
 import { UuiSelectField } from '../../../design-system';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import { partnerEligibleForKind } from './pairCandidates';
 import { pairWeightPreSaveWarning } from './pairWeightWarning';
 
 interface PairTripsDialogProps {
@@ -72,11 +73,15 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
   const partnerOptions = useMemo(() => candidates
     .filter((candidate) => candidate.dispatch?.tripId != null
       && candidate.dispatch.tripId !== baseTripId)
+    // SIL-1047 (KB §8.1.2 K8.3) — the suggestion list obeys the size law:
+    // 40ft never appears as a Kẹp partner, Kết hợp drops proven size
+    // mismatches. The server's block stays the backstop.
+    .filter((candidate) => partnerEligibleForKind(candidate, row, pairKind))
     .map((candidate) => ({
       value: String(candidate.dispatch!.tripId),
       // business key render; id never user-facing — Bill của lô + vỏ + tuyến
       label: [candidate.docs.billNumber, candidate.container.containerNumber ?? 'chưa có vỏ', candidate.customerRoute.routeName].filter(Boolean).join(' · '),
-    })), [candidates, baseTripId]);
+    })), [candidates, baseTripId, row, pairKind]);
 
   function draftFor(trip: TripDetail): PairDraftPayload | null {
     // Card 211026152138 — vehicleCapacityKg is NOT required: a rig without a
