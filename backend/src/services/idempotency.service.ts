@@ -9,7 +9,9 @@
 //   - Same key + same payload hash → return the stored result (replay).
 //   - Same key + different payload hash → throw 409. This is a client bug;
 //     we never silently overwrite the original result.
-//   - No key → no dedupe; caller proceeds normally.
+//   - No key → rejected (400, K6.14 "thiếu mã thì bị từ chối"). A key-less
+//     write never reaches create(); runIdempotent is the one enforcement
+//     point every financial write routes through.
 //
 // All messages are Vietnamese (PRD Mxx-HT-01).
 
