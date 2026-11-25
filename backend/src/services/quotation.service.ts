@@ -116,7 +116,8 @@ export async function createQuotation(
     customerId: input.customerId,
     templateName: input.templateName,
     effectiveDate: input.effectiveDate,
-    surchargeRoundingMode: input.surchargeRoundingMode ?? 'NONE',
+    // SIL-1038 (K5.11) — fallback = mức làm tròn của KB, không phải NONE.
+    surchargeRoundingMode: input.surchargeRoundingMode ?? 'TEN_THOUSAND',
     fuelPriceLagDays: input.fuelPriceLagDays ?? 1,
     note: input.note ?? null,
   }).returning({ id: s.quotations.id });
@@ -137,7 +138,7 @@ export async function updateQuotation(
   await ex.update(s.quotations).set({
     templateName: input.templateName,
     effectiveDate: input.effectiveDate,
-    surchargeRoundingMode: input.surchargeRoundingMode ?? 'NONE',
+    surchargeRoundingMode: input.surchargeRoundingMode ?? 'TEN_THOUSAND',
     fuelPriceLagDays: input.fuelPriceLagDays ?? 1,
     note: input.note ?? null,
     updatedAt: new Date(),

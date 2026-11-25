@@ -1214,6 +1214,13 @@
       "when": 1795687200000,
       "tag": "20261126100000_fuel_price_period_price_basis",
       "breakpoints": true
+    },
+    {
+      "idx": 174,
+      "version": "7",
+      "when": 1795690800000,
+      "tag": "20261126110000_quotation_rounding_default",
+      "breakpoints": true
     }
   ]
 }

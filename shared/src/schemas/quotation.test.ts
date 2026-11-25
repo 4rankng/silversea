@@ -13,7 +13,9 @@ import {
 // order/labels exactly; the weight-band rule is a contract, not a service detail.
 
 test('grid layout matches the Mẫu 1 file column order', () => {
-  assert.strictEqual(QUOTATION_GRID_COLUMNS.length, 10);
+  // SIL-973 (K10.39): thang chuẩn 1.25T…15T — 7 hạng hàng lẻ + 4 hạng
+  // container = 11 cột (pin cũ 10 còn trước khi thêm dòng 15T).
+  assert.strictEqual(QUOTATION_GRID_COLUMNS.length, 11);
   assert.deepStrictEqual(
     QUOTATION_GRID_COLUMNS.map((c) => c.vehicleSizeClassCode),
     [
@@ -23,6 +25,7 @@ test('grid layout matches the Mẫu 1 file column order', () => {
       '5T',
       '8T',
       '10T',
+      '15T',
       'CONT20.LIGHT',
       'CONT20.HEAVY',
       'CONT40.LIGHT',
@@ -66,6 +69,8 @@ test('create schema coerces ids and defaults empty cells', () => {
   });
   assert.strictEqual(parsed.customerId, 7);
   assert.deepStrictEqual(parsed.cells, []);
+  // SIL-1038 (K5.11) — mặc định khung mới: làm tròn phụ phí hàng chục nghìn.
+  assert.strictEqual(parsed.surchargeRoundingMode, 'TEN_THOUSAND');
 });
 
 // QA R32 (BaoGia.md §2): lag là thuộc tính khung giá — int ≥ 0, default 1

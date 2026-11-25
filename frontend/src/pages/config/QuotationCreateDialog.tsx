@@ -19,7 +19,9 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
   const [customerId, setCustomerId] = useState('');
   const [templateName, setTemplateName] = useState('');
   const [effectiveDate, setEffectiveDate] = useState('');
-  const [rounding, setRounding] = useState('NONE');
+  // SIL-1038 (K5.11) — mặc định là mức làm tròn của KB (ROUND Excel, -4):
+  // 506.714 → 510.000. 'Không làm tròn' chỉ khi khách thật sự yêu cầu.
+  const [rounding, setRounding] = useState('TEN_THOUSAND');
   // QA R32 (BaoGia.md §2): "độ trễ áp giá dầu (lag)" — default 1 = import-lag
   // NEWEB đã chốt. Engine tra giá dầu kỳ (ngày giao − lag).
   const [lagDays, setLagDays] = useState('1');

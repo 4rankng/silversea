@@ -5,6 +5,7 @@
       "id": 45,
       "routeId": 1,
       "routeName": "Hải Phòng-NEWEB",
+      "surchargeRoundingMode": "TEN_THOUSAND",
       "cells": [
         {
           "routeId": 1,
@@ -177,6 +178,7 @@
       "id": 43,
       "routeId": 1,
       "routeName": "Hải Phòng-NEWEB",
+      "surchargeRoundingMode": "TEN_THOUSAND",
       "cells": [
         {
           "routeId": 1,

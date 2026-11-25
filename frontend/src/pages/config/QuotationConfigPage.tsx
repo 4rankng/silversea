@@ -175,7 +175,12 @@ export default function QuotationConfigPage() {
   const routeBlocks = useMemo(() => {
     const byRoute = new Map<number, RouteBlockData>();
     for (const cell of detail.data?.cells ?? []) {
-      const block = byRoute.get(cell.routeId) ?? { routeId: cell.routeId, routeName: cell.routeName, cells: [] };
+      const block = byRoute.get(cell.routeId) ?? {
+        routeId: cell.routeId,
+        routeName: cell.routeName,
+        surchargeRoundingMode: detail.data?.surchargeRoundingMode ?? 'TEN_THOUSAND',
+        cells: [],
+      };
       block.cells.push(cell);
       byRoute.set(cell.routeId, block);
     }

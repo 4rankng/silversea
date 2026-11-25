@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { RouteBlock } from './QuotationRouteBlock';
+import { RouteBlock, type RouteBlockData } from './QuotationRouteBlock';
 import fixture from './QuotationRouteBlock.state.fixture.json';
 
 const originalMedia = window.matchMedia;
@@ -14,7 +14,9 @@ function viewport(width: number) {
   });
 }
 afterEach(() => { window.matchMedia = originalMedia; });
-const [first, second] = fixture.frames;
+// SIL-1038 — fixture frames carry the frame rounding mode; the JSON import
+// widens literals, so cast to the block contract once here.
+const [first, second] = fixture.frames as unknown as Array<RouteBlockData & { id: number }>;
 const label = `Hệ số ${first.routeName} ${first.cells[0].vehicleSizeClassCode}`;
 
 describe('UI35 quotation draft identity and pending blur', () => {

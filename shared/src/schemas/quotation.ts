@@ -132,7 +132,10 @@ export const quotationCreateSchema = z.object({
   customerId: z.coerce.number().int().positive(),
   templateName: z.string().trim().min(1).max(120),
   effectiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày hiệu lực phải có dạng YYYY-MM-DD'),
-  surchargeRoundingMode: z.enum(SURCHARGE_ROUNDING_MODES).default('NONE'),
+  // SIL-1038 (K5.11) — mức làm tròn mặc định của một khung mới là 'hàng chục
+  // nghìn' (ROUND Excel, nửa ra xa số 0): 823.250 → 820.000, 825.000 →
+  // 830.000. NONE chỉ khi khách yêu cầu không làm tròn.
+  surchargeRoundingMode: z.enum(SURCHARGE_ROUNDING_MODES).default('TEN_THOUSAND'),
   fuelPriceLagDays: fuelPriceLagDaysSchema.default(1),
   note: z.string().trim().max(2000).nullable().optional(),
   cells: z.array(quotationCellSchema).max(400).default([]),

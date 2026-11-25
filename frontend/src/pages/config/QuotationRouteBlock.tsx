@@ -17,6 +17,23 @@ export function fmtLiters(value: number | null | undefined): string {
   return value == null ? '—' : new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 }).format(value);
 }
 
+/** SIL-1038 (K5.11) — mô tả luật làm tròn PHẢI khớp mode của khung; chuỗi
+ *  cứng "từ 5 lên" từng nói dối khi khung đang để 'Không làm tròn'. */
+export function roundingRuleLabel(mode: 'NONE' | 'THOUSAND' | 'TEN_THOUSAND'): string {
+  if (mode === 'THOUSAND') return 'Làm tròn phụ phí: đến hàng nghìn (từ 5 lên)';
+  if (mode === 'TEN_THOUSAND') return 'Làm tròn phụ phí: đến hàng chục nghìn (từ 5 lên)';
+  return 'Làm tròn phụ phí: không làm tròn';
+}
+
+/** SIL-1038 — ô Hệ số KHÔNG BAO GIỜ trống: giá trị dây lạ (chuỗi rỗng, NaN,
+ *  null, undefined) đều quy về hệ số 1 để màn hình luôn hiện số. Hệ số 0 là
+ *  giá trị hợp lệ (tắt dòng phụ phí) — hiển thị đúng '0'. */
+export function heSoDisplay(value: number | string | null | undefined): string {
+  if (value == null) return '1';
+  const n = typeof value === 'string' ? (value.trim() === '' ? NaN : Number(value)) : value;
+  return String(Number.isFinite(n) ? n : 1);
+}
+
 function money(value: number | null | undefined) {
   return value == null ? '—' : <Money value={value} className="data-token" />;
 }
@@ -24,6 +41,8 @@ function money(value: number | null | undefined) {
 export interface RouteBlockData {
   routeId: number;
   routeName: string;
+  /** SIL-1038 — luật làm tròn của khung; strip hiển thị đúng luật này. */
+  surchargeRoundingMode: 'NONE' | 'THOUSAND' | 'TEN_THOUSAND';
   cells: QuotationCellView[];
 }
 
@@ -63,7 +82,7 @@ export function RouteBlock({ block, saving, onSaveHeSo }: {
     const key = cellKey(cell);
     return <TextField
       aria-label={`Hệ số ${block.routeName} ${cell.vehicleSizeClassCode}`}
-      value={drafts[key] ?? String(cell.heSo ?? 1)}
+      value={drafts[key] ?? heSoDisplay(cell.heSo)}
       onChange={(event) => setDrafts((current) => ({ ...current, [key]: event.target.value }))}
       onBlur={commitHeSo}
       disabled={saving}
@@ -78,7 +97,7 @@ export function RouteBlock({ block, saving, onSaveHeSo }: {
       <div className="quotation-route-block__head">
         <h3>{block.routeName}</h3>
         <p className="quotation-route-block__params">
-          Giá dầu tham chiếu {money(baseFuel)}/lít · Trễ {lag ?? '—'} ngày (theo khung giá) · Làm tròn từng khoản: từ 5 lên
+          Giá dầu tham chiếu {money(baseFuel)}/lít · Trễ {lag ?? '—'} ngày (theo khung giá) · {roundingRuleLabel(block.surchargeRoundingMode)}
         </p>
         <p className="quotation-route-block__link">
           <a href="/config/freight-rate-terms">Sửa tham số giá dầu/lag tại Bảng điều kiện giá</a>

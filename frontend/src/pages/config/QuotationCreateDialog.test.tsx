@@ -156,7 +156,8 @@ describe('QuotationCreateDialog — fail-im-lặng (card 221026040742)', () => {
       customerId: 7,
       templateName: 'Mẫu NEWEB',
       effectiveDate: '2026-10-22',
-      surchargeRoundingMode: 'NONE',
+      // SIL-1038 (K5.11) — mặc định khung mới là mức làm tròn của KB.
+      surchargeRoundingMode: 'TEN_THOUSAND',
       fuelPriceLagDays: 1,
       note: '',
       cells: [],
