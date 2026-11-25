@@ -27,6 +27,11 @@ export interface AccountingDebitBoardRow {
   carrierKeys: string[];
   ngay: string | null;
   billOrBooking: string | null;
+  /** K3.61 — số tờ khai của lô, gộp cả hai store (per-cont attribute trước,
+   *  entity rows sau, dedup): display key thứ hai ngay sau Bill/Booking.
+   *  Optional so a rolling deployment can lag the wire: absent → ô Số
+   *  Bill/Book chỉ hiện ref như trước. */
+  customsNumber?: string | null;
   containers: string[];
   /** Ticket 18/11 Task 2.2 — per-container vehicle facts aligned with
    *  `containers` (same labels, stable id order). Optional so a rolling

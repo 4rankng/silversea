@@ -213,7 +213,17 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     key: 'soBillBook', label: 'Số Bill/Book', className: 'debit-col--billbook', pinned: true,
     cell: (row) => {
       const ref = billBookingReference(row.billOrBooking);
-      return ref ? <span className="debit-bill-book">{ref}</span> : '—';
+      // K3.61 — số tờ khai là display key thứ hai ngay sau Bill/Booking:
+      // 'W4A-FCL-01 · W4ADEL001, W4ADEL002'. Không có tờ khai → ô giữ nguyên
+      // đúng như trước (chỉ ref).
+      const declarations = row.customsNumber?.trim();
+      if (!declarations) return <span className="debit-bill-book">{ref}</span>;
+      return (
+        <span className="debit-bill-book">
+          <strong>{ref}</strong>
+          {` · ${declarations}`}
+        </span>
+      );
     },
   },
   {

@@ -29,6 +29,41 @@ function toNumber(value: string | number | null | undefined): number {
   return Number.isFinite(amount) ? amount : 0;
 }
 
+/**
+ * The lot's số tờ khai list from BOTH stores (K3.61, the SIL-657 merge law):
+ * the per-cont attribute (shipment_containers.declarationNumber — the CUS
+ * operational truth) first in container-id order, then the lot-level entity
+ * rows (shipment_declarations) in id order; DISTINCT case-insensitively (the
+ * first copy keeps its casing), blank-only values skipped, joined ', ' at the
+ * call site. Callers feed the two row lists in id order — the merge preserves
+ * input order. This is the JS mirror of lotDeclarationNumbersSql
+ * (forwarder-trip-query) and the merge half of loadDeclarationNumbers
+ * (dispatch-planning-utils); keep the law identical across all three.
+ */
+export function mergeDeclarationNumbersByLot(
+  containerRows: Array<{ shipmentId: number | null; declarationNumber: string | null }>,
+  entityRows: Array<{ shipmentId: number | null; declarationNumber: string | null }>,
+): Map<number, string[]> {
+  const result = new Map<number, string[]>();
+  const seen = new Map<number, Set<string>>();
+  const add = (shipmentId: number | null, raw: string | null | undefined) => {
+    if (shipmentId == null) return;
+    const value = raw?.trim();
+    if (!value) return;
+    const key = value.toLowerCase();
+    const seenForLot = seen.get(shipmentId) ?? new Set<string>();
+    if (seenForLot.has(key)) return;
+    seenForLot.add(key);
+    seen.set(shipmentId, seenForLot);
+    const bucket = result.get(shipmentId) ?? [];
+    bucket.push(value);
+    result.set(shipmentId, bucket);
+  };
+  for (const row of containerRows) add(row.shipmentId, row.declarationNumber);
+  for (const row of entityRows) add(row.shipmentId, row.declarationNumber);
+  return result;
+}
+
 export async function getShipmentDebitSummary(query: {
   /** Card _202: absent = every customer, not "no rows". */
   customerId?: number;
@@ -170,20 +205,25 @@ export async function getShipmentDebitSummary(query: {
     loadPrincipalRefs(revGroupIds, s.shipments.revGroupId, s.shipments.revGroupOrder),
   ]);
 
-  const declarations = await db.select({
+  // K3.61 — the lot's số tờ khai must resolve BOTH stores: the per-cont
+  // attribute (shipment_containers.declarationNumber, the CUS operational
+  // truth — W4A-FCL-01's numbers live ONLY there) plus the lot-level entity
+  // rows (shipment_declarations). The docs-only read left customsNumber null
+  // for every lot whose office saved the number per-cont. Both reads keep id
+  // order so the merge preserves the display law (per-cont first).
+  const declarationEntityRows = await db.select({
     shipmentId: s.shipmentDeclarations.shipmentId,
-    number: s.shipmentDeclarations.declarationNumber,
+    declarationNumber: s.shipmentDeclarations.declarationNumber,
   }).from(s.shipmentDeclarations)
     .where(inArray(s.shipmentDeclarations.shipmentId, lotIds))
     .orderBy(s.shipmentDeclarations.id);
-  const declarationNumbersByLot = new Map<number, Set<string>>();
-  for (const declaration of declarations) {
-    const number = declaration.number?.trim();
-    if (!number) continue;
-    const numbers = declarationNumbersByLot.get(declaration.shipmentId) ?? new Set<string>();
-    numbers.add(number);
-    declarationNumbersByLot.set(declaration.shipmentId, numbers);
-  }
+  const declarationContainerRows = await db.select({
+    shipmentId: s.shipmentContainers.shipmentId,
+    declarationNumber: s.shipmentContainers.declarationNumber,
+  }).from(s.shipmentContainers)
+    .where(inArray(s.shipmentContainers.shipmentId, lotIds))
+    .orderBy(s.shipmentContainers.id);
+  const declarationNumbersByLot = mergeDeclarationNumbersByLot(declarationContainerRows, declarationEntityRows);
 
   // Auto freight: the SNAPSHOT channel assembly (INSERT-only supersede
   // semantics, per-trip additive legs vs the trip-NULL intake freeze) lives
@@ -575,7 +615,7 @@ export async function getShipmentDebitSummary(query: {
       factoryName: lot.factoryName ?? null,
       factoryAddress: lot.factoryAddress,
       billOrBookNumber: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
-      customsNumber: [...(declarationNumbersByLot.get(lot.id) ?? [])].join(', ') || null,
+      customsNumber: (declarationNumbersByLot.get(lot.id) ?? []).join(', ') || null,
       // SIL-478 — the phone row's meta segments (ngày giao · n cont). Both
       // null on an intake-only lot: the FE drops the segment, never a 0.
       deliveryDate: lot.expectedDeliveryDate ?? null,
