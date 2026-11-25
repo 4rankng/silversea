@@ -214,26 +214,26 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(api.createIncidentalCosts.mock.calls[1][1][0].expenseTypeCode).toBeUndefined();
   });
 
-  // CP700-03 as amended by SIL-769: the negative still carries its biên lai
-  // because the DEFAULT pick (Phí nâng — LIFTING) is one of the three
-  // photo-mandatory fees; the refusal NAMES the fee. The sign itself no
-  // longer matters — a negative row of a non-mandatory fee saves freely
-  // (pinned by the Phí vệ sinh test below).
-  it('CP700-03/SIL-769: a negative Phí nâng row still carries its biên lai — the server names the fee', async () => {
+  // CP700-03 as amended by SIL-769: the DEFAULT pick (Phí nâng — LIFTING) is
+  // one of the three photo-mandatory fees; the refusal NAMES the fee.
+  // SIL-1042 (K5.49): the amount is positive — the driver screen refuses
+  // negative rows outright, so the negative variant of this pin is gone.
+  it('CP700-03/SIL-769: a Phí nâng row still carries its biên lai — the server names the fee', async () => {
     setup(); await open();
-    fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '-30000' } });
+    fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '30000' } });
     expect(screen.getByTestId('shipment-cost-receipt-required').textContent).toBe('Phí nâng phải kèm ảnh biên lai trước khi lưu.');
     expect(screen.getByRole('button', { name: /^Lưu tất cả/ })).toBeDisabled();
     await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
     await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: -30000, receiptStorageKey: 'receipt.png' });
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ costGroup: 'DRIVER_SHIPMENT', amount: 30000, receiptStorageKey: 'receipt.png' });
   });
 
-  // Card 20260928_197 — the PM's words are "MỌI màn hình nhập chi phí (Ops,
-  // lái xe, hóa đơn kết hợp) cho phép nhập số DƯƠNG và số ÂM". The backend
-  // already accepted the signed value — the form must not refuse it either.
-  it('card 197: a negative amount is accepted and sent as typed (the signed cost rule)', async () => {
+  // SIL-1042 (K5.49) — supersedes card 20260928_197 FOR THE DRIVER SCREEN:
+  // the field still types a minus (the grouped input is a text input), but
+  // the SAVE refuses the row with a positive-amount error and never calls
+  // the API. (Ops keeps its signed entries — that surface is untouched.)
+  it('SIL-1042: a negative amount is refused at save — positive required at the input screen', async () => {
     setup(); await open();
     const field = screen.getByLabelText(/Số tiền/) as HTMLInputElement;
 
@@ -251,31 +251,37 @@ describe('driver expense workflow — TC-CP-LX', () => {
     // input and deliberately does not forward min/max/step.
     expect(field.value).toBe('-30.000');
 
+    // The live field error is on while the negative stands…
+    expect(screen.getByTestId('shipment-cost-negative-error').textContent)
+      .toMatch(/phải là số dương/i);
+
     await uploadReceipt();
     fireEvent.click(screen.getByRole('button', { name: /^Lưu tất cả/ }));
-
-    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
-    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ amount: -30000 });
-    expect(screen.queryByText(/nguyên dương/)).toBeNull();
+    // Two role="alert" nodes can be up at once (the live field error + the
+    // save banner) — pin the banner by its row-numbered text instead.
+    expect(await screen.findByText(/Dòng 1: Số tiền phải là số dương — màn nhập không nhận số âm/)).toBeTruthy();
+    expect(api.createIncidentalCosts).not.toHaveBeenCalled();
   });
 
-  // Card 20260928_181, tiêu chí 5 — the note that says what a negative does.
-  it('card 181: typing a negative explains that the line is excluded from every total', async () => {
+  // SIL-1042 — the typed negative is a FIELD ERROR while it stands, and the
+  // message points the refund case at the reconciliation layer.
+  it('SIL-1042: typing a negative shows the positive-amount field error, cleared once fixed', async () => {
     setup(); await open();
     const field = screen.getByLabelText(/Số tiền/);
 
     // Absent while the amount is a normal cost — otherwise the line is noise
     // on every other entry.
-    expect(screen.queryByTestId('shipment-cost-negative-note')).toBeNull();
+    expect(screen.queryByTestId('shipment-cost-negative-error')).toBeNull();
 
     fireEvent.change(field, { target: { value: '-30000' } });
-    const note = screen.getByTestId('shipment-cost-negative-note');
-    expect(note.textContent).toMatch(/không cộng vào bất kỳ tổng nào/i);
+    const error = screen.getByTestId('shipment-cost-negative-error');
+    expect(error.textContent).toMatch(/Số tiền phải là số dương/);
+    expect(error.textContent).toMatch(/tầng đối soát/);
 
     // …and gone again the moment the sign is fixed, so it is not a label the
     // user learns to ignore.
     fireEvent.change(field, { target: { value: '30000' } });
-    expect(screen.queryByTestId('shipment-cost-negative-note')).toBeNull();
+    expect(screen.queryByTestId('shipment-cost-negative-error')).toBeNull();
   });
 
   it('card 197: 0 stays rejected — an empty row is not a signed one', async () => {

@@ -138,13 +138,14 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
       {!catalogClassified && (
         <TextField controlSize="sm" label="Tên khoản chi" value={row.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => onPatch({ feeName: event.target.value })} />
       )}
-      {/* Card 20260928_181, tiêu chí 5: a negative amount is a real entry (a
-          refund), and every total in the system EXCLUDES negative lines
-          (sumExcludingNegative). That is invisible from the field itself, so
-          the screen has to say it — and only while a negative is typed. */}
+      {/* SIL-1042 (K5.49) — typing a negative is now a FIELD ERROR, not an
+          informational note: the driver input screen requires a positive
+          amount, and the save refuses the row (same refusal as the hook's
+          row-numbered check and the server guard). The old "excluded from
+          totals" explanation lives on the SAVED-row caption instead. */}
       {Number(row.amount) < 0 && (
-        <p className="shipment-cost-entry__empty" data-testid="shipment-cost-negative-note">
-          Số âm là khoản hoàn lại, không phải chi phí: dòng này được lưu nhưng KHÔNG cộng vào bất kỳ tổng nào.
+        <p className="shipment-cost-entry__banner--error" role="alert" data-testid="shipment-cost-negative-error">
+          Số tiền phải là số dương — màn nhập không nhận số âm; khoản hoàn lại do kế toán ghi ở tầng đối soát.
         </p>
       )}
       {row.receiptStorageKey && <p className="shipment-cost-entry__empty" role="status">Đã đính kèm biên lai.</p>}

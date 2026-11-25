@@ -108,10 +108,19 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
       if (pendingFile && pendingFile.index === index) {
         setError(`Dòng ${index + 1}: Ảnh chưa tải thành công. Thử tải lại hoặc bỏ ảnh trước khi lưu.`); return;
       }
+      // SIL-1042 (K5.49) — the input screen requires a POSITIVE amount: a
+      // negative line is reconciliation-layer money (kế toán's bút toán điều
+      // chỉnh), never a driver entry. Supersedes card 20260928_197's signed
+      // rule FOR THE DRIVER FORM; the saved-list caption for legacy negative
+      // rows stays untouched.
+      if (row.amount !== '' && Number.isSafeInteger(row.amount) && row.amount < 0) {
+        setError(`Dòng ${index + 1}: Số tiền phải là số dương — màn nhập không nhận số âm; khoản hoàn lại do kế toán ghi ở tầng đối soát.`); return;
+      }
       // Card 20260928_197 — the PM's "mọi màn hình nhập chi phí … cho phép nhập
       // số DƯƠNG và số ÂM". Mirrors the backend `signedExpenseVndSchema` and the
       // Ops modal exactly: a signed integer inside the money ceiling, with 0
-      // still rejected — 0 is an empty row, not a signed one.
+      // still rejected — 0 is an empty row, not a signed one. (SIL-1042: the
+      // driver screen no longer accepts the ÂM half; Ops keeps it.)
       if (row.amount === '' || !Number.isSafeInteger(row.amount) || row.amount === 0 || Math.abs(row.amount) > 999_999_999_999_999) {
         setError(`Dòng ${index + 1}: Nhập số tiền nguyên, tối đa 999.999.999.999.999đ (0 không dùng được).`); return;
       }

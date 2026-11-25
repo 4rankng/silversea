@@ -360,6 +360,14 @@ export async function insertDriverIncidentalCostTx(
   }
   const group = input.costGroup ?? (['TOLL', 'PARKING', 'PER_DIEM'].includes(input.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT');
   if (!['DRIVER_SHIPMENT', 'DRIVER_ROAD'].includes(group)) throw new ApiError(400, 'Nhóm chi phí lái xe không hợp lệ.');
+  // SIL-1042 (K5.49) — the driver's own write path requires a POSITIVE amount:
+  // a negative line is reconciliation-layer money (kế toán's bút toán điều
+  // chỉnh), never a driver entry. The guard lives HERE (the shared write of
+  // the single create and the batch) so one rule set governs every driver
+  // cost path; the accounting-side adjustments keep their signed entries.
+  if (input.amount < 0) {
+    throw new ApiError(400, 'Số tiền phải là số dương — khoản hoàn lại (số âm) do kế toán ghi ở tầng đối soát, không phải ở màn nhập này.');
+  }
   // Card 20260928_197 — the amount is signed (a correction), so the receivable
   // derived from it is clamped at 0 rather than following it negative. See
   // `receivableForDerivedCharge` for why the two sides differ.
