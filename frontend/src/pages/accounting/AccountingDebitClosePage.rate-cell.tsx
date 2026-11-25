@@ -39,6 +39,7 @@ export function RateCell({ row, containerId, field, label, value, onCommit, savi
   saving: boolean;
 }) {
   const [draft, setDraft] = useState<string>('');
+  const placeholder = value == null ? '' : formatCurrency(Number(value));
 
   function commit() {
     if (draft === '') return;
@@ -58,10 +59,18 @@ export function RateCell({ row, containerId, field, label, value, onCommit, savi
       type="text"
       inputMode="numeric"
       aria-label={`${label} lô ${billBookingReference(row.billOrBooking) || row.code}`}
-      placeholder={value == null ? '' : formatCurrency(Number(value))}
+      placeholder={placeholder}
       title={`${label} — sửa trực tiếp trên dòng (ghi đè giá trị tự động)`}
       value={draft}
       disabled={saving}
+      // K1.31 (SIL-1052): the input self-sizes to its placeholder — a money
+      // placeholder ('3.952.000 ₫') wider than the value track must never
+      // lose its last digits. ch overestimates (dots are narrower than the
+      // tabular '0'), which is the safe direction; the typed draft is RAW
+      // digits (no separators), always narrower than the formatted
+      // placeholder it edits. The paired `.debit-line--rate` wrap rule takes
+      // the overflow as a stacked line, never as a cut or a grid overflow.
+      style={placeholder ? { minWidth: `calc(${placeholder.length}ch + 8px)` } : undefined}
       // Digits only — the wire is numeric(15,0); paste garbage stays out.
       onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ''))}
       onClick={(event) => event.stopPropagation()}
